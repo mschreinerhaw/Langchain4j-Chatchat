@@ -1,0 +1,27 @@
+{
+  "taskId": "26fe57f0-1316-359e-ba1b-ba07089ba772",
+  "runId": "att-1-5aa608f9-26be-4a29-97ff-aa11f68b6e42",
+  "beforeState": "CANCELLED",
+  "cancelRequested": false,
+  "childRequests": [],
+  "codingAfterCancel": [
+    {
+      "taskId": "analysis-coding-890e2372279a526d830f34ab0a188c124b0455bec32b68fbcf1bb60bf7fcc06c",
+      "status": null,
+      "outcome": {
+        "status": "RUNNING",
+        "reasonCode": "CANCEL_REQUESTED",
+        "executionControl": {
+          "stopReason": "CANCEL_REQUESTED",
+          "stopRequestedAt": "2026-10-27T07:08:01.434Z",
+          "executorStopped": false,
+          "reconciliationRequired": true
+        },
+        "validationStatus": "NOT_RUN",
+        "inputSnapshotRef": "runtime-evidence:coding:input:d4351efeb4ccdc6f2b716140570c4f5a5cc7bfc4cb3161d5fbcdd943076c960",
+        "executionReceiptRef": null
+      },
+      "modelCallCount": null
+    }
+  ]
+}

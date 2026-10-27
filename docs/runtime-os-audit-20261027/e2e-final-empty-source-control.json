@@ -1,0 +1,18 @@
+{
+  "runId": "att-1-07529897-46fe-4027-b0fe-f50de466a6e8",
+  "observedIn": "Actual MCP template execution canonical body; duplicate raw mirrors deduplicated by body hash.",
+  "emptySources": [
+    {
+      "sourceBodySha256": "99aa8b9c2e64ccaaad556ad70644a5508879a86121c141db01d155ff4c39c29a",
+      "recordCount": 0,
+      "responseFieldNames": [
+        "memo",
+        "records",
+        "retu_code"
+      ],
+      "retu_code": 0,
+      "memoCharacters": 0
+    }
+  ],
+  "businessRowsExported": false
+}

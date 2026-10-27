@@ -1,0 +1,25 @@
+{
+  "baselineSha256": "3192b778d6c320535f2556f5adad98b783213c815320ac7636b0cf46864b17f3",
+  "candidateSha256": "4718275ffeb9351f8194579cbce81dd97736794791e94e51c1d7288e9c5596db",
+  "image": "runtime-os-api:template-supply-20261027-4718275ffeb9",
+  "previousImage": "runtime-os-api:template-supply-20261027-3192b778d6c3",
+  "changedClasses": [
+    "com/chatchat/agents/orchestration/analysis/dataset/DataSupplyStatus.class"
+  ],
+  "changedApiClasses": [],
+  "removedAgentClasses": [],
+  "removedAccidentalTestClasses": [],
+  "sourceCommit": "04a833148290384fc342e6ddac2ea48199b6a72d",
+  "sourceDiffSha256": "90f379750d4fa0f3f8ba0a6135553ea32a08714a490015712b374a04f45456c3",
+  "deploymentScriptSha256": "45a9bd9fc8a57943b05e785688005d79d0f0742f15260ad50dc5ab80b8a096ff",
+  "status": "DEPLOYED",
+  "backupContainer": "runtime-os-app-stage-api-1-before-template-supply-3192b778d6c3",
+  "runtimeConfigurationPreserved": true,
+  "nodeProxy": {
+    "status": "REBOUND",
+    "networkMode": "container:2e7bd9a51417fb1c5e7fb1e7ebe8123785295ba16270caff3ada2d3d91931b6e",
+    "previousNetworkMode": "container:71a09901c51f5fe30e3e07eee82e39e23dbf42e37df764de034b8ce659130d11",
+    "backupContainer": "runtime-os-app-stage-node-proxy-1-before-template-supply-2e7bd9a51417",
+    "configurationPreserved": true
+  }
+}

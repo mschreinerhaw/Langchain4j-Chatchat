@@ -1,0 +1,45 @@
+{
+  "taskId": "bd79caa2-e8e7-3de2-810a-044acf64a8be",
+  "runId": "att-1-07529897-46fe-4027-b0fe-f50de466a6e8",
+  "runStatus": "COMPLETED",
+  "requestId": "e4377351-0f46-4205-b577-ea49c838a98f",
+  "facts": {
+    "primaryCodingDispatchCount": 1,
+    "javaContentAnalysisModelCallCount": 0,
+    "recordAnalysisReturnedRecordCount": 5,
+    "recordAnalysisProcessedRecordCount": 5,
+    "analysisInputDatasetCount": 2,
+    "analysisResultDatasetReference": "runtime-evidence:coding:b75d453be35ea904a2fc2b297b335130c394b5249eec67d21d3050742ab81e6e:result"
+  },
+  "codingReceipt": {
+    "taskId": "analysis-coding-4afeaf215b302defdf7316eedf4690d07cfb08ff8c646f6f7a345958807dfa0c",
+    "status": "COMPLETED",
+    "resultAvailable": true,
+    "validationStatus": "INCONCLUSIVE",
+    "businessValidation": "NOT_EVALUATED",
+    "inputSnapshotCaptureCount": 1,
+    "inputSnapshotReused": false,
+    "reconciliationRequired": false,
+    "evidenceRefs": [
+      "runtime-evidence:coding:input:51ca1df6b9614701afa926e5a8f3f658bd55b7a76a28dd9d7ceea6d0d13732d",
+      "runtime-evidence:coding:b75d453be35ea904a2fc2b297b335130c394b5249eec67d21d3050742ab81e6e:code",
+      "runtime-evidence:coding:b75d453be35ea904a2fc2b297b335130c394b5249eec67d21d3050742ab81e6e:receipt",
+      "runtime-evidence:coding:b75d453be35ea904a2fc2b297b335130c394b5249eec67d21d3050742ab81e6e:result",
+      "runtime-evidence:coding:b75d453be35ea904a2fc2b297b335130c394b5249eec67d21d3050742ab81e6e:validation",
+      "runtime-evidence:coding:b75d453be35ea904a2fc2b297b335130c394b5249eec67d21d3050742ab81e6e:bundle"
+    ]
+  },
+  "pythonOperations": [
+    {
+      "operation_id": "cline-acd3f7b91add73aad1f5710d0c0cdf7da90b25ce8b19ad2e7956fbb082f7a74b",
+      "task_id": "analysis-coding-4afeaf215b302defdf7316eedf4690d07cfb08ff8c646f6f7a345958807dfa0c",
+      "run_id": "att-1-07529897-46fe-4027-b0fe-f50de466a6e8",
+      "status": "SUCCEEDED",
+      "executor_stopped": true,
+      "code_hash": "d9abca7fc2dc27437471802ffc7b53075d827cd7683f8732aaabc0ad0ce487fb",
+      "manifest_hash": "921b386a7c985535f1be6099fabfa903ebf2d6204cbe3ec5fa70e6fd3e4bf60d",
+      "exit_code": 0
+    }
+  ],
+  "executionValidationIsNotBusinessCertification": true
+}

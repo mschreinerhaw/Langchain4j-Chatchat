@@ -1,0 +1,20 @@
+{
+  "agentId": "busi_data_query",
+  "originalSha256": "86d684d439a88763e8b87fad0d4d7aef412103e6616bb5acb3deb57ea6a8b46c",
+  "fixtureSha256": "8c7c3e33c08b22c9acaa70629d3166d1c56938101e6258529a18c192214fbc91",
+  "permissionsUnchanged": true,
+  "requiredTools": [
+    "mcp_chatchat_mcp_server_api_service_query",
+    "mcp_chatchat_mcp_server_api_template_query",
+    "mcp_chatchat_mcp_server_api_template_execute",
+    "mcp_chatchat_mcp_server_database_capability_query",
+    "mcp_chatchat_mcp_server_sql_query_execute"
+  ],
+  "selectedModel": "deepseek-v4-pro",
+  "restored": true,
+  "effectiveFixtureSha256": "8c7c3e33c08b22c9acaa70629d3166d1c56938101e6258529a18c192214fbc91",
+  "taskId": "0c47da68-7c18-3eca-8964-14cb9783eb8e",
+  "runId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+  "taskConfigurationFrozen": true,
+  "restoredSha256": "86d684d439a88763e8b87fad0d4d7aef412103e6616bb5acb3deb57ea6a8b46c"
+}

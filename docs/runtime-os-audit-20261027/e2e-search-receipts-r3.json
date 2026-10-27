@@ -1,0 +1,14 @@
+{
+  "runId": "att-1-c592a949-99a0-4fc2-a1a1-b345b5299706",
+  "requestId": "b56b01f6-ad72-4d15-9b54-f9d8323cfd22",
+  "receipts": [
+    "MCP_SEARCH_RECEIPT requestId=b56b01f6-ad72-4d15-9b54-f9d8323cfd22 traceId=null searchRequestId=fcf5b339 phase=lexical index=chatchat_mcp_assets-api-service durationMs=34 status=SUCCEEDED",
+    "MCP_SEARCH_RECEIPT requestId=b56b01f6-ad72-4d15-9b54-f9d8323cfd22 traceId=null searchRequestId=6e34fe26 phase=lexical index=chatchat_mcp_api-service-templates durationMs=41 status=SUCCEEDED",
+    "MCP_SEARCH_RECEIPT requestId=b56b01f6-ad72-4d15-9b54-f9d8323cfd22 traceId=null searchRequestId=86557c10 phase=lexical index=chatchat_mcp_api-service-templates durationMs=25 status=SUCCEEDED",
+    "MCP_SEARCH_RECEIPT requestId=b56b01f6-ad72-4d15-9b54-f9d8323cfd22 traceId=null searchRequestId=cd2a2433 phase=lexical index=chatchat_mcp_templates durationMs=9 status=SUCCEEDED",
+    "MCP_SEARCH_RECEIPT requestId=b56b01f6-ad72-4d15-9b54-f9d8323cfd22 traceId=null searchRequestId=f2f1ed16 phase=lexical index=chatchat_mcp_templates durationMs=9 status=SUCCEEDED",
+    "MCP_SEARCH_RECEIPT requestId=b56b01f6-ad72-4d15-9b54-f9d8323cfd22 traceId=null searchRequestId=bd317bc3 phase=lexical index=chatchat_mcp_templates durationMs=10 status=SUCCEEDED",
+    "MCP_SEARCH_RECEIPT requestId=b56b01f6-ad72-4d15-9b54-f9d8323cfd22 traceId=null searchRequestId=738e8f89 phase=lexical index=chatchat_mcp_templates durationMs=12 status=SUCCEEDED"
+  ],
+  "count": 7
+}

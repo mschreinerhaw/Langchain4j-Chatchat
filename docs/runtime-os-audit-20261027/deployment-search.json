@@ -1,0 +1,12 @@
+{
+  "baselineSha256": "18b04610f41eda607dad074e1a73f1ed0138fc2f64d45f3adc8073fbec8e824c",
+  "candidateSha256": "a1be51854019d2462b8c47d3687fe72074c355276d08a413653da9a9c3560d3e",
+  "image": "runtime-os-mcp:search-a1be51854019d246",
+  "backupContainer": "runtime-os-app-stage-mcp-1-before-search-18b04610f41e",
+  "engineBefore": "lucene",
+  "engineAfter": "opensearch",
+  "openSearchVersion": "2.19.1",
+  "credentialsExported": false,
+  "status": "DEPLOYED",
+  "runtimePolicyPreserved": true
+}

@@ -1,0 +1,180 @@
+{
+  "runId": "att-1-07529897-46fe-4027-b0fe-f50de466a6e8",
+  "state": "SUCCEEDED",
+  "taskId": "bd79caa2-e8e7-3de2-810a-044acf64a8be",
+  "createdAt": "2026-10-27T06:27:02.780053+00:00",
+  "updatedAt": "2026-10-27T06:28:49.895473+00:00",
+  "parentAttemptId": null,
+  "rootExecutionId": "bd79caa2-e8e7-3de2-810a-044acf64a8be",
+  "modelName": "qwen3.7-flash-2026-07-15",
+  "runStatus": "COMPLETED",
+  "startedAt": 1793082450798,
+  "finishedAt": 1793082529753,
+  "errorMessage": null,
+  "toolTraces": [],
+  "toolObservations": [
+    {
+      "interpretationPlanStepId": 1,
+      "toolName": "mcp_chatchat_mcp_server_customer_service_template_query",
+      "success": true,
+      "durationMs": 26909
+    },
+    {
+      "interpretationPlanStepId": 2,
+      "toolName": "mcp_chatchat_mcp_server_api_template_execute",
+      "success": true,
+      "durationMs": 1170
+    }
+  ],
+  "returnedTemplateIds": [
+    "livedata_SQL_ADS_IDS_CLR_DELI_JOUR_SECU",
+    "livedata_SQL_ADS_IDS_SECU_AST_LIAB",
+    "livedata_cx_mncg_jgmxls",
+    "livedata_cx_mncg_khzc_r",
+    "livedata_cx_mncg_qcfx",
+    "livedata_cx_mncg_wtls",
+    "livedata_cx_mncg_zcxzmx",
+    "livedata_cx_mncg_zjmxls",
+    "livedata_cx_mncg_zjyels",
+    "livedata_cx_mncg_zqyels"
+  ],
+  "parameterProtocols": [
+    {
+      "templateId": "livedata_SQL_ADS_IDS_SECU_AST_LIAB",
+      "argumentNames": [
+        "CUST_NUM",
+        "END_DATE",
+        "START_DATE"
+      ],
+      "generationMode": "native_function_calling",
+      "unresolvedParameterNames": []
+    },
+    {
+      "templateId": "livedata_cx_mncg_khzc_r",
+      "argumentNames": [
+        "jsrq",
+        "khh",
+        "ksrq"
+      ],
+      "generationMode": "native_function_calling",
+      "unresolvedParameterNames": []
+    }
+  ],
+  "facts": {
+    "analysisExecutionMode": [
+      "CODING_OWNED_DATA_ANALYSIS"
+    ],
+    "analysisResultDatasetReference": [
+      "runtime-evidence:coding:b75d453be35ea904a2fc2b297b335130c394b5249eec67d21d3050742ab81e6e:result"
+    ],
+    "analysisSemanticReviewPolicy": [
+      "NONE_USER_JUDGES"
+    ],
+    "businessDataAvailable": [
+      true
+    ],
+    "candidateDecisionOwner": [
+      "MODEL"
+    ],
+    "candidateSelectionStatus": [
+      "SELECTED"
+    ],
+    "codingOwnedAnalysisActive": [
+      true
+    ],
+    "datasetAnalysisMode": [
+      "CODING_OWNED_DATA_ANALYSIS"
+    ],
+    "deterministicBoundTemplatePlan": [
+      true
+    ],
+    "finalReportSemanticReviewPolicy": [
+      "STRUCTURE_AND_AUTHORIZED_REFERENCES_ONLY"
+    ],
+    "javaAnalysisRefinementSkipped": [
+      true
+    ],
+    "javaDataExplorationSkipped": [
+      true
+    ],
+    "javaEvidenceAugmentationSkipped": [
+      true
+    ],
+    "javaEvidenceExplorationSkipped": [
+      true
+    ],
+    "javaPostCodingExplorationSkipped": [
+      true
+    ],
+    "mandatoryWorkflowCompleted": [
+      true
+    ],
+    "mcpDiscoverySucceeded": [
+      true
+    ],
+    "missingMandatoryTools": [
+      []
+    ],
+    "modelSelectedTemplateIds": [
+      [
+        "livedata_SQL_ADS_IDS_SECU_AST_LIAB",
+        "livedata_cx_mncg_khzc_r"
+      ]
+    ],
+    "parameterBindingMode": [
+      "model_selection_and_binding"
+    ],
+    "primaryCodingDispatchCount": [
+      1
+    ],
+    "primaryCodingDurationMs": [
+      46807
+    ],
+    "recordAnalysisDatasetCount": [
+      2
+    ],
+    "recordAnalysisProcessedRecordCount": [
+      5
+    ],
+    "recordAnalysisReturnedRecordCount": [
+      5
+    ],
+    "runtimeSelectedTemplateIds": [
+      [
+        "livedata_SQL_ADS_IDS_SECU_AST_LIAB",
+        "livedata_cx_mncg_khzc_r"
+      ]
+    ],
+    "runtimeTemplateCandidateCount": [
+      10
+    ],
+    "runtimeTemplateSelectedCount": [
+      2
+    ],
+    "runtimeTemplateSelectionApplied": [
+      true
+    ],
+    "selectionStatus": [
+      "SELECTED"
+    ],
+    "toolResultReviewModelCalls": [
+      1
+    ]
+  },
+  "codingReceipt": {
+    "taskId": "analysis-coding-4afeaf215b302defdf7316eedf4690d07cfb08ff8c646f6f7a345958807dfa0c",
+    "status": "COMPLETED",
+    "evidenceRefs": [
+      "runtime-evidence:coding:input:51ca1df6b9614701afa926e5a8f3f658bd55b7a76a28dd9d7ceea6d0d13732d",
+      "runtime-evidence:coding:b75d453be35ea904a2fc2b297b335130c394b5249eec67d21d3050742ab81e6e:code",
+      "runtime-evidence:coding:b75d453be35ea904a2fc2b297b335130c394b5249eec67d21d3050742ab81e6e:receipt",
+      "runtime-evidence:coding:b75d453be35ea904a2fc2b297b335130c394b5249eec67d21d3050742ab81e6e:result",
+      "runtime-evidence:coding:b75d453be35ea904a2fc2b297b335130c394b5249eec67d21d3050742ab81e6e:validation",
+      "runtime-evidence:coding:b75d453be35ea904a2fc2b297b335130c394b5249eec67d21d3050742ab81e6e:bundle"
+    ]
+  },
+  "answerCharacters": 2274,
+  "answerSha256": "c96874ec51bfce242500fe71433ab09d9597f974fb8745ba0ae3a6b3a248d4a2",
+  "businessRowsExported": false,
+  "credentialsExported": false
+}

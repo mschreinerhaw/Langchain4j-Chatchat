@@ -1,0 +1,96 @@
+{
+  "runId": "att-1-5aa608f9-26be-4a29-97ff-aa11f68b6e42",
+  "state": "CANCELLED",
+  "taskId": "26fe57f0-1316-359e-ba1b-ba07089ba772",
+  "createdAt": "2026-10-27T06:52:25.332826+00:00",
+  "updatedAt": "2026-10-27T07:08:01.500365+00:00",
+  "parentAttemptId": null,
+  "rootExecutionId": "26fe57f0-1316-359e-ba1b-ba07089ba772",
+  "modelName": "deepseek-v4-pro",
+  "runStatus": "CANCELLED",
+  "startedAt": 1793083949847,
+  "finishedAt": 1793084881405,
+  "toolTraces": [],
+  "toolObservations": [
+    {
+      "interpretationPlanStepId": 1,
+      "toolName": "mcp_chatchat_mcp_server_api_service_query",
+      "success": true,
+      "durationMs": 141853
+    },
+    {
+      "interpretationPlanStepId": 2,
+      "toolName": "mcp_chatchat_mcp_server_api_template_query",
+      "success": true,
+      "durationMs": 7490
+    },
+    {
+      "interpretationPlanStepId": 3,
+      "toolName": "mcp_chatchat_mcp_server_api_template_execute",
+      "success": true,
+      "durationMs": 792
+    }
+  ],
+  "returnedTemplateIds": [
+    "livedata_SQL_ADS_IDS_SECU_AST_LIAB"
+  ],
+  "parameterProtocols": [
+    {
+      "templateId": "livedata_SQL_ADS_IDS_SECU_AST_LIAB",
+      "argumentNames": [
+        "CUST_NUM",
+        "END_DATE",
+        "START_DATE"
+      ],
+      "generationMode": "native_function_calling",
+      "unresolvedParameterNames": []
+    }
+  ],
+  "facts": {
+    "candidateDecisionOwner": [
+      "MODEL"
+    ],
+    "candidateSelectionStatus": [
+      "SELECTED"
+    ],
+    "mcpDiscoverySucceeded": [
+      true
+    ],
+    "modelSelectedTemplateIds": [
+      [
+        "livedata_SQL_ADS_IDS_SECU_AST_LIAB"
+      ]
+    ],
+    "parameterBindingMode": [
+      "model_selection_and_binding"
+    ],
+    "runtimeSelectedTemplateIds": [
+      [
+        "livedata_SQL_ADS_IDS_SECU_AST_LIAB"
+      ]
+    ],
+    "runtimeTemplateCandidateCount": [
+      1
+    ],
+    "runtimeTemplateSelectedCount": [
+      1
+    ],
+    "runtimeTemplateSelectionApplied": [
+      true
+    ],
+    "selectionStatus": [
+      "SELECTED"
+    ],
+    "toolResultReviewModelCalls": [
+      1,
+      0
+    ]
+  },
+  "codingReceipt": {},
+  "answerCharacters": 0,
+  "answerSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "businessRowsExported": false,
+  "credentialsExported": false,
+  "errorMessageExported": false,
+  "errorMessageSha256": "1ee451e34af953687fa22cdac870b3adf987b480d99f5a360e8409015f6567c1"
+}

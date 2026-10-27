@@ -1,0 +1,12 @@
+{
+  "codeCommit": "7de43570f",
+  "apiJarSha256": "73083421ec2353b4f2de39248272a9ac9442328c5d843ae2d28fc84910928a2a",
+  "mismatches": [],
+  "mcpJarSha256": "a1be51854019d2462b8c47d3687fe72074c355276d08a413653da9a9c3560d3e",
+  "agentClassesVerified": 33,
+  "apiClassesVerified": 16,
+  "webResourcesVerified": 95,
+  "nodeModulesVerified": 2,
+  "removedAgentClassesAbsent": true,
+  "exactArtifactVerificationPassed": true
+}

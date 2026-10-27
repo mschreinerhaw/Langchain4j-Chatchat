@@ -1,0 +1,18 @@
+{
+  "observedAt": "2026-10-27T07:02:43.855039+00:00",
+  "parentTask": {
+    "taskId": "26fe57f0-1316-359e-ba1b-ba07089ba772",
+    "canonicalState": "PLANNING",
+    "legacyStatus": "WAIT_MODEL",
+    "runId": "att-1-5aa608f9-26be-4a29-97ff-aa11f68b6e42"
+  },
+  "coding": [
+    {
+      "taskId": "analysis-coding-890e2372279a526d830f34ab0a188c124b0455bec32b68fbcf1bb60bf7fcc06c",
+      "runId": "att-1-5aa608f9-26be-4a29-97ff-aa11f68b6e42",
+      "status": "RUNNING",
+      "updatedAt": "2026-10-27T06:57:00.169Z"
+    }
+  ],
+  "python": []
+}

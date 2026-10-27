@@ -1,0 +1,52 @@
+{
+  "observedAt": "2026-10-27T09:47:39.273+08:00",
+  "runId": "att-1-818cb137-91c5-4b96-b8f5-3a89bce26552",
+  "requestId": "997d2ed1-fc5a-4baa-b347-e5ddf4b34cac",
+  "errorCodes": [
+    "REQUIRED_MCP_DATA_UNAVAILABLE",
+    "CANDIDATE_REVIEW_UNAVAILABLE"
+  ],
+  "attachmentSha256": "0316a4747bf887276b4d0738783e8b7c7310d9e7fef370097807e4c56d4a1762",
+  "attachmentBytes": 9828,
+  "observedStack": [
+    {
+      "class": "AnalysisCoverageCoordinator",
+      "line": 95
+    },
+    {
+      "class": "AgentOrchestrationEngine.buildRecordCoverageBundle",
+      "line": 3042
+    },
+    {
+      "class": "AgentOrchestrationEngine.analyzeClaimAdmissionCoverage",
+      "line": 2116
+    },
+    {
+      "class": "InterpretationAnalysisSession.initialAnalysis",
+      "line": 357
+    }
+  ],
+  "incidentArtifactSha256": null,
+  "evidenceLimit": "The incident attachment proves failure propagation, not actual MCP execution failure, valid candidate selection, or identity with the later audited deployment.",
+  "runtimeEvidenceAvailable": true,
+  "runStatus": "FAILED",
+  "storedRunSha256": "8e04d0b41475660b87b53ce6bf77ccb6ce4135d0ccee55c400dc7f28c138caee",
+  "stepFacts": {
+    "durationMs": 180178,
+    "toolExecutionTimeMs": 130,
+    "templateDiscoveryReturnedCount": 10,
+    "runtimeTemplateCandidateCount": 0,
+    "runtimeTemplateSelectedCount": 0,
+    "runtimeTemplateSelectionApplied": false,
+    "toolResultReviewAttempts": 1,
+    "toolResultReviewUnavailable": true,
+    "toolResultReviewException": "dev.langchain4j.exception.TimeoutException",
+    "semanticCandidateReviewSatisfied": false,
+    "semanticCandidateReviewError": "CANDIDATE_REVIEW_UNAVAILABLE: candidate selection was not completed; no semantic no-match decision is available"
+  },
+  "actualMcpEnvelopeStatus": "SUCCESS",
+  "actualTemplateQuerySucceeded": true,
+  "actualReturnedCandidateCount": 10,
+  "selectionTimeoutReason": "request timed out",
+  "evidenceInterpretation": "Initial model template selection timed out after successful candidate retrieval. No completed selection is established; accepting all candidates would fabricate a business decision."
+}

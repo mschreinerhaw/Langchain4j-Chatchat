@@ -1,0 +1,149 @@
+{
+  "taskId": "eaf0c820-dc8d-3e5d-b98d-1ab61444e771",
+  "runId": "att-1-fdfd5d7d-da42-43d0-bec5-c9f8652a9832",
+  "runStatus": "FAILED",
+  "errorCode": "PRIMARY_CODING_ANALYSIS_FAILED",
+  "errorMessageSha256": "73c4e0e3d9c207073265ef71964f9c8c24de63ecef30261804e842dd86ff479e",
+  "codingTaskId": "analysis-coding-92bb993acfe1bf8fd53e4cfd151a0ead3deeb21dd4f71529be23f656aec225f1",
+  "codingStatus": "FAILED",
+  "modelCalls": 12,
+  "events": [
+    {
+      "type": "TOOL_FINISHED",
+      "operationId": "cline-bed60c44ff8daedc985197de5850c60726e1c53aa5a1902e5d05dc980f55766f",
+      "tool": "python_execute",
+      "status": "SUCCEEDED",
+      "resultAvailable": false,
+      "outputStatus": "REQUIRED_OUTPUT_MISSING",
+      "validationStatus": "FAILED",
+      "diagnosticCode": "OUTPUT_CONTRACT",
+      "repairAttempts": 0,
+      "repairAllowed": true
+    },
+    {
+      "type": "CODE_PROPOSAL_REJECTED",
+      "diagnosticCode": "PATCH_REQUIRED",
+      "parentCodeVersion": 1,
+      "parentCodeHash": "c2b2c404a3b7f90d27c5e7cfa7faadf54668b2ebb2b4528ab5d257996a6e2b2c"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "operationId": "cline-7069d30b8dfc694f16450ea3027e4c85dfd04cc48b009cc325a782d35ea2f9fc",
+      "tool": "python_execute",
+      "status": "SUCCEEDED",
+      "resultAvailable": false,
+      "outputStatus": "REQUIRED_OUTPUT_MISSING",
+      "validationStatus": "FAILED",
+      "diagnosticCode": "OUTPUT_CONTRACT",
+      "repairAttempts": 1,
+      "repairAllowed": true
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "operationId": "cline-b68793fdb575a00a6e197a9cb921e131ce2ccf0c8be289bdc53747ea83aad1cc",
+      "tool": "python_execute",
+      "status": "SUCCEEDED",
+      "resultAvailable": true,
+      "validationStatus": "INCONCLUSIVE",
+      "repairAttempts": 2,
+      "repairAllowed": false
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "tool": "artifact_read",
+      "status": "FAILED"
+    },
+    {
+      "type": "CODE_PROPOSAL_REJECTED",
+      "diagnosticCode": "REGRESSION_ASSERTION_FAILED",
+      "parentCodeVersion": 3,
+      "parentCodeHash": "0b46c96d8d78a3c1d33ec5c2fb61770de535f07e599f537b4ffe2b51184ed563"
+    },
+    {
+      "type": "CODE_PROPOSAL_REJECTED",
+      "diagnosticCode": "REGRESSION_ASSERTION_FAILED",
+      "parentCodeVersion": 3,
+      "parentCodeHash": "0b46c96d8d78a3c1d33ec5c2fb61770de535f07e599f537b4ffe2b51184ed563"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "operationId": "cline-aac7bccbfd752b53c42ada4870d608f35e011743201b189663fe5225cd103f61",
+      "tool": "python_execute",
+      "status": "SUCCEEDED",
+      "resultAvailable": true,
+      "validationStatus": "INCONCLUSIVE",
+      "repairAttempts": 2,
+      "repairAllowed": false
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "tool": "artifact_read",
+      "status": "FAILED"
+    },
+    {
+      "type": "CODE_PROPOSAL_REJECTED",
+      "diagnosticCode": "REGRESSION_ASSERTION_FAILED",
+      "parentCodeVersion": 4,
+      "parentCodeHash": "0b46c96d8d78a3c1d33ec5c2fb61770de535f07e599f537b4ffe2b51184ed563"
+    },
+    {
+      "type": "CODE_PROPOSAL_REJECTED",
+      "diagnosticCode": "PATCH_REQUIRED",
+      "parentCodeVersion": 4,
+      "parentCodeHash": "0b46c96d8d78a3c1d33ec5c2fb61770de535f07e599f537b4ffe2b51184ed563"
+    },
+    {
+      "type": "CODE_PROPOSAL_REJECTED",
+      "diagnosticCode": "REGRESSION_ASSERTION_FAILED",
+      "parentCodeVersion": 4,
+      "parentCodeHash": "0b46c96d8d78a3c1d33ec5c2fb61770de535f07e599f537b4ffe2b51184ed563"
+    },
+    {
+      "type": "SESSION_FINISHED",
+      "status": "FAILED"
+    }
+  ],
+  "pythonOperations": [
+    {
+      "operation_id": "cline-bed60c44ff8daedc985197de5850c60726e1c53aa5a1902e5d05dc980f55766f",
+      "task_id": "analysis-coding-92bb993acfe1bf8fd53e4cfd151a0ead3deeb21dd4f71529be23f656aec225f1",
+      "run_id": "att-1-fdfd5d7d-da42-43d0-bec5-c9f8652a9832",
+      "status": "SUCCEEDED",
+      "executor_stopped": true,
+      "exit_code": 0,
+      "code_hash": "c2b2c404a3b7f90d27c5e7cfa7faadf54668b2ebb2b4528ab5d257996a6e2b2c",
+      "manifest_hash": "d774ac6dcec28d4a3aac8d2083249b0fb2e8d5a30cf96f8daf2679fa44daaac8"
+    },
+    {
+      "operation_id": "cline-7069d30b8dfc694f16450ea3027e4c85dfd04cc48b009cc325a782d35ea2f9fc",
+      "task_id": "analysis-coding-92bb993acfe1bf8fd53e4cfd151a0ead3deeb21dd4f71529be23f656aec225f1",
+      "run_id": "att-1-fdfd5d7d-da42-43d0-bec5-c9f8652a9832",
+      "status": "SUCCEEDED",
+      "executor_stopped": true,
+      "exit_code": 0,
+      "code_hash": "381eec60779d65987a709fef66dc88b7a7783aa7f0ea0ef6c9245fc7ae666111",
+      "manifest_hash": "e59b5258e24051b12af7c13f7eea273f433e0e96fe64375b979011e268d27ff3"
+    },
+    {
+      "operation_id": "cline-b68793fdb575a00a6e197a9cb921e131ce2ccf0c8be289bdc53747ea83aad1cc",
+      "task_id": "analysis-coding-92bb993acfe1bf8fd53e4cfd151a0ead3deeb21dd4f71529be23f656aec225f1",
+      "run_id": "att-1-fdfd5d7d-da42-43d0-bec5-c9f8652a9832",
+      "status": "SUCCEEDED",
+      "executor_stopped": true,
+      "exit_code": 0,
+      "code_hash": "0b46c96d8d78a3c1d33ec5c2fb61770de535f07e599f537b4ffe2b51184ed563",
+      "manifest_hash": "b580081c3e92e45b10d90398455bb825bca20c2dc9a48bbeaa786510dc7281b4"
+    },
+    {
+      "operation_id": "cline-aac7bccbfd752b53c42ada4870d608f35e011743201b189663fe5225cd103f61",
+      "task_id": "analysis-coding-92bb993acfe1bf8fd53e4cfd151a0ead3deeb21dd4f71529be23f656aec225f1",
+      "run_id": "att-1-fdfd5d7d-da42-43d0-bec5-c9f8652a9832",
+      "status": "SUCCEEDED",
+      "executor_stopped": true,
+      "exit_code": 0,
+      "code_hash": "0b46c96d8d78a3c1d33ec5c2fb61770de535f07e599f537b4ffe2b51184ed563",
+      "manifest_hash": "cb8de2cfd7d0bd8552327bfec1ace8d769a12e217bc2a36bd3d08424177d9979"
+    }
+  ],
+  "businessRowsExported": false
+}

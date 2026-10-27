@@ -1,0 +1,26 @@
+{
+  "baselineFailures": [
+    "acceptsDatabaseAssetSearchAsTypedAssetDiscovery",
+    "acceptsDomainPrefixedAssetQueryAsTypedAssetDiscovery",
+    "admitsPublisherDeclaredTemplateDiscoveryMaterializedOutsidePlannerVisibleTools",
+    "authoritativeDagKeepsConcreteTemplateDiscoveryDependenciesDistinct",
+    "mcpControlPlanePromptDoesNotTeachInventedDockerServiceLabels",
+    "normalizesCompoundContextStringAsExactAssetName",
+    "normalizesRecoverableInterpretationPlanBeforeValidation",
+    "normalizesTemplateQueryContextStringAsExactAssetName",
+    "plannerPromptIncludesAgentRuntimeOsWorkflowGraph"
+  ],
+  "candidateFailures": [
+    "acceptsDatabaseAssetSearchAsTypedAssetDiscovery",
+    "acceptsDomainPrefixedAssetQueryAsTypedAssetDiscovery",
+    "admitsPublisherDeclaredTemplateDiscoveryMaterializedOutsidePlannerVisibleTools",
+    "authoritativeDagKeepsConcreteTemplateDiscoveryDependenciesDistinct",
+    "mcpControlPlanePromptDoesNotTeachInventedDockerServiceLabels",
+    "normalizesCompoundContextStringAsExactAssetName",
+    "normalizesRecoverableInterpretationPlanBeforeValidation",
+    "normalizesTemplateQueryContextStringAsExactAssetName",
+    "plannerPromptIncludesAgentRuntimeOsWorkflowGraph"
+  ],
+  "introduced": [],
+  "resolved": []
+}

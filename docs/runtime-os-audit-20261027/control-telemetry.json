@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "runtime_audit.control_telemetry.v1",
+  "runs": [
+    {
+      "runId": "att-1-972f8709-a409-4371-a4a5-1dafe4dbcb66",
+      "status": "CANCELLED",
+      "taskId": "3fcb79d9-6d88-3a8a-8d97-bc31209fb75b",
+      "caseId": "ad685306da8b9c554ba74f633655bf1412429a58aec0e82588f03badfa4da75c",
+      "snapshotSha256": null,
+      "durationMs": 584019,
+      "modelCalls": [
+        {
+          "phase": "CODING_MODEL",
+          "operationId": "analysis-coding-ee5d35050bd5d702c411e59a55173d9a88b8f560a5f409be2e9f9e9148edda1b:model-1",
+          "status": "FAILED",
+          "durationMs": 180262,
+          "inputTokens": null,
+          "outputTokens": null
+        }
+      ],
+      "stages": [],
+      "coverage": {
+        "javaMeterAvailable": false,
+        "codingMonitorAvailable": true,
+        "allPhasesMeasured": false,
+        "note": "Uninstrumented stages/provider-internal retries are not reconstructed or assumed zero."
+      }
+    },
+    {
+      "runId": "att-1-ff417132-4281-4e33-b3ab-1b8d0e584f40",
+      "status": "SUCCEEDED",
+      "taskId": "1b5c5e85-c5de-3138-b88f-ececf03f65ec",
+      "caseId": "d68137a48b2a9b454c58b6ecc31bd518e7ca6b3c046dd6d2a83bac7c504ff10e",
+      "snapshotSha256": null,
+      "durationMs": 185797,
+      "modelCalls": [
+        {
+          "phase": "CODING_MODEL",
+          "operationId": "analysis-coding-f757b8fd3d2714ab8b5b3386866beb34c1f10e3fc28f201176fdc74a2ebd6027:model-1",
+          "status": "SUCCEEDED",
+          "durationMs": 166268,
+          "inputTokens": 7163,
+          "outputTokens": 11421
+        },
+        {
+          "phase": "CODING_MODEL",
+          "operationId": "analysis-coding-f757b8fd3d2714ab8b5b3386866beb34c1f10e3fc28f201176fdc74a2ebd6027:model-2",
+          "status": "SUCCEEDED",
+          "durationMs": 11242,
+          "inputTokens": 22897,
+          "outputTokens": 694
+        }
+      ],
+      "stages": [],
+      "coverage": {
+        "javaMeterAvailable": false,
+        "codingMonitorAvailable": true,
+        "allPhasesMeasured": false,
+        "note": "Uninstrumented stages/provider-internal retries are not reconstructed or assumed zero."
+      }
+    }
+  ],
+  "businessDataExported": false
+}

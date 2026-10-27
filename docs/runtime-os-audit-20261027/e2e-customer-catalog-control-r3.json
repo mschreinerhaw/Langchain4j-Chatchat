@@ -1,0 +1,253 @@
+{
+  "runId": "att-1-c592a949-99a0-4fc2-a1a1-b345b5299706",
+  "state": "SUCCEEDED",
+  "taskId": "72317e82-9886-3884-b4e4-f6629d07d898",
+  "createdAt": "2026-10-27T05:15:43.235268+00:00",
+  "updatedAt": "2026-10-27T05:25:54.716495+00:00",
+  "parentAttemptId": null,
+  "rootExecutionId": "72317e82-9886-3884-b4e4-f6629d07d898",
+  "modelName": "qwen3.6-plus",
+  "runStatus": "COMPLETED",
+  "startedAt": 1793078167712,
+  "finishedAt": 1793078754309,
+  "errorMessage": null,
+  "toolTraces": [],
+  "toolObservations": [
+    {
+      "interpretationPlanStepId": 1,
+      "toolName": "mcp_chatchat_mcp_server_api_service_query",
+      "success": true,
+      "durationMs": 59815
+    },
+    {
+      "interpretationPlanStepId": 4,
+      "toolName": "mcp_chatchat_mcp_server_database_capability_query",
+      "success": true,
+      "durationMs": 96062
+    },
+    {
+      "interpretationPlanStepId": 2,
+      "toolName": "mcp_chatchat_mcp_server_api_template_query",
+      "success": true,
+      "durationMs": 61523
+    },
+    {
+      "interpretationPlanStepId": 5,
+      "toolName": "mcp_chatchat_mcp_server_database_capability_query",
+      "success": true,
+      "durationMs": 113982
+    },
+    {
+      "interpretationPlanStepId": 3,
+      "toolName": "mcp_chatchat_mcp_server_api_template_execute",
+      "success": true,
+      "durationMs": 1087
+    },
+    {
+      "interpretationPlanStepId": 6,
+      "toolName": "mcp_chatchat_mcp_server_sql_query_execute",
+      "success": true,
+      "durationMs": 2609
+    }
+  ],
+  "returnedTemplateIds": [
+    "DM_ACTIVE_SESSIONS",
+    "DM_INSTANCE_STATUS",
+    "DM_LOCKS",
+    "DM_LOCK_WAIT_OVERVIEW",
+    "DM_SESSIONS",
+    "DM_SQL_HISTORY",
+    "DM_TABLESPACE_SIZE",
+    "DM_TABLESPACE_USAGE",
+    "DM_TOP_SQL_HISTORY",
+    "MYSQL_CONNECTION_STATUS",
+    "MYSQL_DATABASE_SIZE",
+    "MYSQL_INNODB_STATUS",
+    "MYSQL_INNODB_TRX",
+    "MYSQL_INSTANCE_VARIABLES",
+    "MYSQL_SHOW_PROCESSLIST",
+    "MYSQL_SHOW_STATUS",
+    "MYSQL_STATEMENT_DIGEST_TOP",
+    "MYSQL_TOP_TABLES_SIZE",
+    "ORACLE_INSTANCE_STATUS",
+    "ORACLE_LOCKS",
+    "ORACLE_SESSION_OVERVIEW",
+    "ORACLE_SYSTEM_EVENTS",
+    "ORACLE_TABLESPACE_SIZE",
+    "SQLSERVER_DATABASE_SIZE",
+    "SQLSERVER_IO_STATS",
+    "SQLSERVER_LOCKS",
+    "SQLSERVER_REQUESTS",
+    "SQLSERVER_SESSIONS",
+    "livedata_SQL_ADS_IDS_SECU_AST_LIAB"
+  ],
+  "parameterProtocols": [
+    {
+      "templateId": "livedata_SQL_ADS_IDS_SECU_AST_LIAB",
+      "argumentNames": [
+        "CUST_NUM"
+      ],
+      "generationMode": "native_function_calling",
+      "unresolvedParameterNames": []
+    },
+    {
+      "templateId": "MYSQL_DATABASE_SIZE",
+      "argumentNames": [],
+      "generationMode": "native_function_calling",
+      "unresolvedParameterNames": []
+    },
+    {
+      "templateId": "MYSQL_TOP_TABLES_SIZE",
+      "argumentNames": [],
+      "generationMode": "native_function_calling",
+      "unresolvedParameterNames": []
+    },
+    {
+      "templateId": "MYSQL_INSTANCE_VARIABLES",
+      "argumentNames": [],
+      "generationMode": "native_function_calling",
+      "unresolvedParameterNames": []
+    },
+    {
+      "templateId": "MYSQL_SHOW_STATUS",
+      "argumentNames": [],
+      "generationMode": "native_function_calling",
+      "unresolvedParameterNames": []
+    },
+    {
+      "templateId": "MYSQL_CONNECTION_STATUS",
+      "argumentNames": [],
+      "generationMode": "native_function_calling",
+      "unresolvedParameterNames": []
+    }
+  ],
+  "facts": {
+    "analysisExecutionMode": [
+      "CODING_OWNED_DATA_ANALYSIS"
+    ],
+    "analysisResultDatasetReference": [
+      "runtime-evidence:coding:03e325746a1df5b41eb8147dad4873aba3a0accb4b8a50cda86b192a368170b4:result"
+    ],
+    "analysisSemanticReviewPolicy": [
+      "NONE_USER_JUDGES"
+    ],
+    "businessDataAvailable": [
+      true
+    ],
+    "candidateDecisionOwner": [
+      "MODEL"
+    ],
+    "candidateSelectionStatus": [
+      "SELECTED"
+    ],
+    "codingOwnedAnalysisActive": [
+      true
+    ],
+    "datasetAnalysisMode": [
+      "CODING_OWNED_DATA_ANALYSIS"
+    ],
+    "finalReportSemanticReviewPolicy": [
+      "STRUCTURE_AND_AUTHORIZED_REFERENCES_ONLY"
+    ],
+    "javaAnalysisRefinementSkipped": [
+      true
+    ],
+    "javaDataExplorationSkipped": [
+      true
+    ],
+    "javaEvidenceAugmentationSkipped": [
+      true
+    ],
+    "javaEvidenceExplorationSkipped": [
+      true
+    ],
+    "javaPostCodingExplorationSkipped": [
+      true
+    ],
+    "mandatoryWorkflowCompleted": [
+      true
+    ],
+    "mcpDiscoverySucceeded": [
+      true
+    ],
+    "missingMandatoryTools": [
+      []
+    ],
+    "modelSelectedTemplateIds": [
+      [
+        "livedata_SQL_ADS_IDS_SECU_AST_LIAB"
+      ],
+      [
+        "MYSQL_DATABASE_SIZE",
+        "MYSQL_TOP_TABLES_SIZE",
+        "MYSQL_INSTANCE_VARIABLES",
+        "MYSQL_SHOW_STATUS",
+        "MYSQL_CONNECTION_STATUS"
+      ]
+    ],
+    "parameterBindingMode": [
+      "model_selection_and_binding"
+    ],
+    "primaryCodingDispatchCount": [
+      1
+    ],
+    "primaryCodingDurationMs": [
+      129379
+    ],
+    "recordAnalysisDatasetCount": [
+      6
+    ],
+    "recordAnalysisProcessedRecordCount": [
+      584
+    ],
+    "recordAnalysisReturnedRecordCount": [
+      584
+    ],
+    "runtimeSelectedTemplateIds": [
+      [
+        "livedata_SQL_ADS_IDS_SECU_AST_LIAB"
+      ],
+      [
+        "MYSQL_DATABASE_SIZE",
+        "MYSQL_TOP_TABLES_SIZE",
+        "MYSQL_INSTANCE_VARIABLES",
+        "MYSQL_SHOW_STATUS",
+        "MYSQL_CONNECTION_STATUS"
+      ]
+    ],
+    "runtimeTemplateCandidateCount": [
+      1,
+      9
+    ],
+    "runtimeTemplateSelectedCount": [
+      1,
+      5
+    ],
+    "runtimeTemplateSelectionApplied": [
+      true
+    ],
+    "selectionStatus": [
+      "SELECTED"
+    ],
+    "toolResultReviewModelCalls": [
+      1,
+      0
+    ]
+  },
+  "codingReceipt": {
+    "taskId": "analysis-coding-72bccf9b620fa05806f73eb4c63b2ec4383649e7939cc2928b192bb0485f7eff",
+    "status": "COMPLETED",
+    "evidenceRefs": [
+      "runtime-evidence:coding:input:f951d0735ac5415a0f4a6b697f951eaa8d7e1fc5b29bfec3689264a7dcb805c",
+      "runtime-evidence:coding:03e325746a1df5b41eb8147dad4873aba3a0accb4b8a50cda86b192a368170b4:code",
+      "runtime-evidence:coding:03e325746a1df5b41eb8147dad4873aba3a0accb4b8a50cda86b192a368170b4:receipt",
+      "runtime-evidence:coding:03e325746a1df5b41eb8147dad4873aba3a0accb4b8a50cda86b192a368170b4:result",
+      "runtime-evidence:coding:03e325746a1df5b41eb8147dad4873aba3a0accb4b8a50cda86b192a368170b4:validation",
+      "runtime-evidence:coding:03e325746a1df5b41eb8147dad4873aba3a0accb4b8a50cda86b192a368170b4:bundle"
+    ]
+  },
+  "answerCharacters": 6001,
+  "answerSha256": "6e229da826a2ab9deab89d66a9c3d7432551c774462f2ddd3d72e437332cfd07",
+  "businessRowsExported": false,
+  "credentialsExported": false
+}

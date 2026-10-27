@@ -1,0 +1,18 @@
+{
+  "agentId": "busi_data_query",
+  "originalSha256": "86d684d439a88763e8b87fad0d4d7aef412103e6616bb5acb3deb57ea6a8b46c",
+  "fixtureSha256": "41641a1cdb566cc1dcec62a05a8eda90173e94f2367c09c8e83613ad9c2903fc",
+  "permissionsUnchanged": true,
+  "requiredTools": [
+    "mcp_chatchat_mcp_server_api_service_query",
+    "mcp_chatchat_mcp_server_api_template_query",
+    "mcp_chatchat_mcp_server_api_template_execute"
+  ],
+  "selectedModel": "qwen3.7-flash-2026-07-15",
+  "restored": true,
+  "effectiveFixtureSha256": "41641a1cdb566cc1dcec62a05a8eda90173e94f2367c09c8e83613ad9c2903fc",
+  "taskId": "dffa0d5e-3314-3d91-b65a-e3d47d7a3a94",
+  "runId": "att-1-01b53a09-6f99-4b4c-b0ee-495d8d113a93",
+  "taskConfigurationFrozen": true,
+  "restoredSha256": "86d684d439a88763e8b87fad0d4d7aef412103e6616bb5acb3deb57ea6a8b46c"
+}

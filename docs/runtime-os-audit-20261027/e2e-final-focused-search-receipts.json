@@ -1,0 +1,16 @@
+{
+  "runId": "att-1-5aa608f9-26be-4a29-97ff-aa11f68b6e42",
+  "requestId": "79a98bbf-04d4-4771-951c-ca1c0d7a7796",
+  "count": 8,
+  "receipts": [
+    "MCP_SEARCH_RECEIPT requestId=79a98bbf-04d4-4771-951c-ca1c0d7a7796 traceId=null searchRequestId=4b24e36a phase=lexical index=chatchat_mcp_assets-api-service durationMs=19 status=SUCCEEDED",
+    "MCP_SEARCH_RECEIPT requestId=79a98bbf-04d4-4771-951c-ca1c0d7a7796 traceId=null searchRequestId=88743f26 phase=lexical index=chatchat_mcp_api-service-templates durationMs=31 status=SUCCEEDED",
+    "MCP_SEARCH_RECEIPT requestId=79a98bbf-04d4-4771-951c-ca1c0d7a7796 traceId=null searchRequestId=d0f42d76 phase=lexical index=chatchat_mcp_api-service-templates durationMs=17 status=SUCCEEDED",
+    "MCP_SEARCH_RECEIPT requestId=79a98bbf-04d4-4771-951c-ca1c0d7a7796 traceId=null searchRequestId=288f2996 phase=lexical index=chatchat_mcp_api-service-templates durationMs=19 status=SUCCEEDED",
+    "MCP_SEARCH_RECEIPT requestId=79a98bbf-04d4-4771-951c-ca1c0d7a7796 traceId=null searchRequestId=ab4430e4 phase=lexical index=chatchat_mcp_api-service-templates durationMs=20 status=SUCCEEDED",
+    "MCP_SEARCH_RECEIPT requestId=79a98bbf-04d4-4771-951c-ca1c0d7a7796 traceId=null searchRequestId=208ba9f4 phase=lexical index=chatchat_mcp_api-service-templates durationMs=29 status=SUCCEEDED",
+    "MCP_SEARCH_RECEIPT requestId=79a98bbf-04d4-4771-951c-ca1c0d7a7796 traceId=null searchRequestId=7a1d08cd phase=lexical index=chatchat_mcp_api-service-templates durationMs=12 status=SUCCEEDED",
+    "MCP_SEARCH_RECEIPT requestId=79a98bbf-04d4-4771-951c-ca1c0d7a7796 traceId=null searchRequestId=4160868e phase=lexical index=chatchat_mcp_api-service-templates durationMs=17 status=SUCCEEDED"
+  ],
+  "statusLimit": "This run reached data supply and Coding but has no completed report."
+}

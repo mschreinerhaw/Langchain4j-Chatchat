@@ -1,0 +1,10 @@
+{
+  "sourceCommit": "04a833148290384fc342e6ddac2ea48199b6a72d",
+  "sourceFiles": {
+    "coding-agent-node/src/runner.js": "7fbc9ad93d030930a719bb459b5c82a4ffe876949cb60668c8b3b701be79748f",
+    "coding-agent-node/src/code-repair.js": "c9f5c492f0215b1a8ded9ac2291be9ff679f0e4200381ade0b230bbda74a5ed1",
+    "coding-agent-node/dist/runner.js": "a7d3ddaf0040325cf503bda6f0f590968473c2c1e71889bad0d73b4dd6a03290",
+    "coding-agent-node/dist/code-repair.js": "1f09f29691e613fb2481157efd2195d357099b6c57be16fa4686da186a4e4470"
+  },
+  "note": "Compiled Node module overlay; baseline and image identity recorded in deployment-node-r3.json."
+}

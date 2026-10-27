@@ -1,0 +1,2499 @@
+diff --git a/chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentOrchestrationEngine.java b/chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentOrchestrationEngine.java
+index bbbb2eb3c..4c8eece50 100644
+--- a/chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentOrchestrationEngine.java
++++ b/chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentOrchestrationEngine.java
+@@ -1034,7 +1034,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
+ 
+         requestRuntimeAttributes.remove("compiledPublishedDataAcquisition");
+         InterpretationPlan deterministicTemplatePlan = new com.chatchat.agents.runtime.plan.template.PublishedDataAcquisitionPlanner(toolRegistry)
+-            .compile(query, plannerVisibleTools, workflowMandatoryTools);
++            // Planner projection hides delegated parents; it is not the authorization set.
++            .compile(query, tools, workflowMandatoryTools);
+         if (deterministicTemplatePlan != null) {
+             requestRuntimeAttributes.put("compiledPublishedDataAcquisition", true);
+             metadata.put("analysisPlanningNodes", List.of(Map.of(
+@@ -3490,26 +3491,27 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
+                 query, com.chatchat.common.mcp.runtime.McpAnalysisPayload.canonicalData(request.execution().output()));
+             if (literal.isPresent()) return literal.get();
+         }
++        if (request != null && request.execution() != null && !request.execution().success()
++                && (workflowRole == ToolWorkflowRole.TEMPLATE_DISCOVERY || workflowRole == ToolWorkflowRole.ASSET_DISCOVERY)) {
++            return InterpretationPlanRuntime.StepReview.accepted("MCP execution failed; retain its actual error.",
++                Map.of("mcpExecutionFailed",true,"toolResultReviewSkipped",true));
++        }
+         if (request != null && request.execution() != null && request.execution().success()
+-            && workflowRole == ToolWorkflowRole.TEMPLATE_DISCOVERY) {
+-            var baseline = com.chatchat.agents.runtime.plan.review.PublishedDataSupplyReviewer.review(
+-                toolMetadataOrNull(request.execution().toolName()),
+-                findCandidatePage(request.execution().output(), 0),
+-                findCandidateMaps(request.execution().output(), "templates", 0));
+-            if (baseline.isPresent()) return baseline.get();
+-        }
+-        // Coding has one semantic owner. Local fact/authorization checks have already run.
++                && workflowRole == ToolWorkflowRole.TEMPLATE_DISCOVERY) {
++            return selectPublishedTemplates(activeChatModel, query, request, runtimeAttributes);
++        }
++        // Candidate admission precedes data analysis: LLM semantics select returned IDs and
++        // extract parameters. Cline owns interpretation only after governed data acquisition.
++        boolean candidateDiscovery = workflowRole == ToolWorkflowRole.ASSET_DISCOVERY
++            || workflowRole == ToolWorkflowRole.TEMPLATE_DISCOVERY;
+         if (com.chatchat.agents.orchestration.analysis.contract.RuntimeAnalysisOwnership
+-                .codingOwnsToolAdmission(runtimeAttributes) && request != null && request.execution() != null) {
+-            boolean discovery = workflowRole == ToolWorkflowRole.ASSET_DISCOVERY
+-                || workflowRole == ToolWorkflowRole.TEMPLATE_DISCOVERY;
++                .codingOwnsToolAdmission(runtimeAttributes) && request != null && request.execution() != null
++                && !candidateDiscovery) {
+             Map<String,Object> admission = Map.of("toolResultReviewSkipped", true,
+                 "toolResultReviewMode", "CODING_DETERMINISTIC_ADMISSION",
+                 "analysisDecisionOwner", "CLINE", "toolResultReviewModelCalls", 0);
+             if (!request.execution().success()) return InterpretationPlanRuntime.StepReview.rejected(
+                 "Failed tool execution cannot be admitted as Coding evidence.", admission);
+-            if (discovery) return InterpretationPlanRuntime.StepReview.rejected(
+-                "Authorized candidates require an explicit scope/template match; clarify the requirement rather than guessing a selection.", admission);
+             return InterpretationPlanRuntime.StepReview.accepted(
+                 "Admit governed tool evidence; Cline owns exploration, execution feedback and business interpretation.", admission);
+         }
+@@ -3583,8 +3585,14 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
+         );
+         Throwable reviewFailure = null;
+         Map<String, Object> reviewMetrics = new LinkedHashMap<>();
+-        try (var phaseBudget = com.chatchat.agents.orchestration.model.ModelInvocationBudget.open(
+-                agentRuntimeProperties.toolResultReviewTimeoutMs())) {
++        // Required Coding discovery is on the acquisition critical path. Its model calls
++        // retain request/model deadlines instead of the optional legacy review phase cap.
++        boolean requiredCodingDiscovery = candidateDiscovery
++            && com.chatchat.agents.orchestration.analysis.contract.RuntimeAnalysisOwnership
++                .codingOwnsToolAdmission(runtimeAttributes);
++        try (var phaseBudget = requiredCodingDiscovery ? null
++                : com.chatchat.agents.orchestration.model.ModelInvocationBudget.open(
++                    agentRuntimeProperties.toolResultReviewTimeoutMs())) {
+         long startedAt = System.currentTimeMillis();
+         log.info("agentModelRequest phase=tool_result_review runId={} stepId={} tool={} attempt={}/{} modelClass={}",
+             firstNonBlank(runId, ""),
+@@ -3865,6 +3873,43 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
+         }
+     }
+ 
++    private InterpretationPlanRuntime.StepReview selectPublishedTemplates(ChatModel model, String query,
++            InterpretationPlanRuntime.StepReviewRequest request,Map<String,Object> runtimeAttributes) {
++        List<Map<String,Object>> candidates=findCandidateMaps(request.execution().output(),"templates",0);
++        Set<String> returned=candidates.stream().map(item->stringValue(firstObject(item,"templateId","id")))
++            .filter(Objects::nonNull).collect(java.util.stream.Collectors.toSet());
++        Map<String,Object> prior=request.execution().metadata();
++        List<String> selected=stringList(firstObject(prior,"modelSelectedTemplateIds","selectedTemplateIds","runtimeSelectedTemplateIds"));
++        if(!selected.isEmpty()&&returned.containsAll(selected)&&prior.get("parameterProtocols") instanceof Iterable<?>) {
++            Map<String,Object> reused=new LinkedHashMap<>(prior);
++            reused.put("selectedTemplateIds",selected);reused.put("candidateSelectionStatus","REUSED_MODEL_SELECTION");
++            reused.put("toolResultReviewUnavailable",false);reused.put("toolResultReviewSkipped",false);
++            reused.remove("candidateSelectionErrorCode");reused.remove("candidateSelectionError");
++            reused.put("candidateDecisionOwner","MODEL");reused.put("toolResultReviewModelCalls",0);
++            return InterpretationPlanRuntime.StepReview.accepted("Reuse validated model selection; no semantic review.",reused);
++        }
++        Map<String,Object> context=new LinkedHashMap<>();
++        context.put("currentAsset",findSelectedAssetContext(request.execution().output(),0));
++        context.put("priorAssets",request.completed()==null?List.of():request.completed().values().stream()
++            .filter(step->step!=null&&step.success())
++            .map(step->findSelectedAssetContext(step.output(),0)).filter(asset->!asset.isEmpty()).toList());
++        context.put("role",AgentRoleAnalysisContext.promptSectionFromRuntime(runtimeAttributes,"TEMPLATE_SELECTION"));
++        var result=new SchemaDrivenTemplateParameterBinder(objectMapper).selectAndBind(model,query,candidates,context);
++        Map<String,Object> metadata=new LinkedHashMap<>();
++        metadata.put("candidateDecisionOwner","MODEL");metadata.put("candidateSelectionStatus",result.status());
++        metadata.put("modelSelectedTemplateIds",result.selectedIds());metadata.put("selectedTemplateIds",result.selectedIds());
++        metadata.put("parameterProtocols",result.protocols());metadata.put("modelCandidateDecision",result.decision());
++        metadata.put("parameterBindingMode","model_selection_and_binding");
++        metadata.put("toolResultReviewMode","MODEL_SELECTION_AND_BINDING");
++        metadata.put("toolResultReviewModelCalls",candidates.isEmpty()?0:1);
++        metadata.put("mcpDiscoverySucceeded",true);
++        if(result.error()!=null) {
++            metadata.put("candidateSelectionErrorCode",result.status());metadata.put("candidateSelectionError",result.error());
++            metadata.put("toolResultReviewUnavailable","MODEL_UNAVAILABLE".equals(result.status()));
++        }
++        return InterpretationPlanRuntime.StepReview.accepted("Model selection status: "+result.status(),metadata);
++    }
++
+     private Map<String, Object> runToolReviewStage(Map<String, Object> attributes,
+             InterpretationPlanRuntime.StepReviewRequest request, String phase,
+             java.util.function.Supplier<Map<String, Object>> work) {
+@@ -4387,7 +4432,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
+         List<Map<String, Object>> identities = new ArrayList<>();
+         for (var candidate : candidates) {
+             Map<String, Object> identity = new LinkedHashMap<>();
+-            for (String key : List.of("templateId", "id", "name", "title")) {
++            for (String key : List.of("templateId", "id", "assetId", "name", "title")) {
+                 if (candidate.get(key) != null) identity.put(key, candidate.get(key));
+             }
+             if (candidate.get("asset") instanceof Map<?, ?> asset) {
+@@ -4687,8 +4732,15 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
+         Map<String, Object> projected = new LinkedHashMap<>();
+         List<String> common = List.of("id", "name", "description", "type", "environment",
+             "businessGroup", "groupContext", "relevanceScore", "matchReasons", "intentSignals",
+-            "capabilities", "capabilitySpec", "outputSchema", "dependencySpec", "requiredParameters",
+-            "parameterSchema", "parameterContract", "asset", "routing", "labels");
++            "capabilities", "capabilitySpec", "analysisIdentity", "outputSchema", "dependencySpec", "requiredParameters",
++            "parameterSchema", "parameterContract", "routing", "labels");
++        if (candidate.get("asset") instanceof Map<?, ?> asset) {
++            Map<String,Object> identity = new LinkedHashMap<>(projectAssetIdentity(asMap(asset)));
++            for (String field : List.of("description", "businessGroup", "databaseType", "category")) {
++                putCandidateField(identity, asMap(asset), field);
++            }
++            projected.put("asset", Map.copyOf(identity));
++        }
+         if (template) {
+             putCandidateField(projected, candidate, "templateId");
+             putCandidateField(projected, candidate, "databaseQueryId");
+diff --git a/chatchat-agents/src/main/java/com/chatchat/agents/orchestration/SchemaDrivenTemplateParameterBinder.java b/chatchat-agents/src/main/java/com/chatchat/agents/orchestration/SchemaDrivenTemplateParameterBinder.java
+index be1e66b7f..95c414f68 100644
+--- a/chatchat-agents/src/main/java/com/chatchat/agents/orchestration/SchemaDrivenTemplateParameterBinder.java
++++ b/chatchat-agents/src/main/java/com/chatchat/agents/orchestration/SchemaDrivenTemplateParameterBinder.java
+@@ -41,6 +41,7 @@ import java.util.concurrent.CancellationException;
+ final class SchemaDrivenTemplateParameterBinder {
+ 
+     static final String FUNCTION_NAME = "bind_template_parameters";
++    static final String SELECTION_FUNCTION = "select_templates_and_bind_parameters";
+ 
+     private final ObjectMapper objectMapper;
+ 
+@@ -48,6 +49,108 @@ final class SchemaDrivenTemplateParameterBinder {
+         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
+     }
+ 
++    /** One model decision. Java checks identities and schemas, never relevance or coverage. */
++    SelectionResult selectAndBind(ChatModel model, String query, List<Map<String,Object>> templates) {
++        return selectAndBind(model,query,templates,Map.of());
++    }
++
++    SelectionResult selectAndBind(ChatModel model,String query,List<Map<String,Object>> templates,
++                                  Map<String,Object> selectionContext) {
++        List<String> ids=templates.stream().map(this::templateId).filter(Objects::nonNull).toList();
++        Map<String,Map<String,Object>> candidates=selectedTemplates(templates,ids);
++        if(candidates.isEmpty()) return new SelectionResult("NO_CANDIDATES",List.of(),List.of(),Map.of(),null);
++        if(model==null) return new SelectionResult("MODEL_UNAVAILABLE",List.of(),List.of(),Map.of(),"Model is unavailable");
++        try {
++            List<Map<String,Object>> variants=new ArrayList<>(),catalog=new ArrayList<>();
++            for(var template:candidates.values()) {
++                Map<String,Object> fields=new LinkedHashMap<>();
++                fields.put("templateId",Map.of("type","string","enum",List.of(templateId(template))));
++                fields.put("parameters",bindingParameterSchema(template));
++                fields.put("bindingId",Map.of("type","string"));
++                String assetId=publishedAssetId(template);
++                if(assetId!=null) fields.put("assetId",Map.of("type","string","enum",List.of(assetId)));
++                variants.add(Map.of("type","object","properties",fields,
++                    "required",List.of("templateId","parameters"),"additionalProperties",false));
++                Map<String,Object> summary=new LinkedHashMap<>();
++                summary.put("templateId",templateId(template));
++                for(String key:List.of("title","description","assetType","businessGroup","asset","dependencySpec","outputSchema")) {
++                    Object value=template.get(key);
++                    if(value!=null) summary.put(key,value instanceof String text&&text.length()>800?text.substring(0,800):value);
++                }
++                catalog.add(summary);
++            }
++            var schema=Map.of("type","object","additionalProperties",false,
++                "required",List.of("status","selections"),"properties",Map.of(
++                    "status",Map.of("type","string","enum",List.of("SELECTED","NO_MATCH","NEEDS_INPUT")),
++                    "selections",Map.of("type","array","maxItems",ToolCallBatchSchema.DEFAULT_MAX_CALLS,
++                        "items",Map.of("oneOf",variants)),
++                    "reason",Map.of("type","string"),
++                    "missingAspects",Map.of("type","array","items",Map.of("type","string"))));
++            ObjectNode node=objectMapper.createObjectNode();node.put("name",SELECTION_FUNCTION);
++            node.put("description","Select returned templates and extract their parameters for the user's complete request.");
++            node.set("parameters",objectMapper.valueToTree(schema));
++            var spec=ToolSpecification.fromJson(objectMapper.writeValueAsString(node));
++            var response=nativeCall(model,List.of(SystemMessage.from(
++                "You own business interpretation, template relevance and coverage. Select all and only the returned templates needed "
++                +"for the complete user request, including complementary sources and multiple assets when needed. "
++                +"Treat IDs as opaque. Return exactly one designated function call with selections containing templateId and parameters. "
++                +"Use assetId only when published in that template's contract; fixed binding assets are resolved by the supplier. "
++                +"Extract parameter values from the user request. Omit unknown required values and use NEEDS_INPUT; do not invent them. "
++                +"Use NO_MATCH with an empty selection when no candidate is suitable. Java validates identities, permissions and schemas only."),
++                UserMessage.from("User request: "+Objects.toString(query,"")+"\nCandidates: "+objectMapper.writeValueAsString(catalog)
++                    +"\nPublished scope and prior observations: "+objectMapper.writeValueAsString(selectionContext))),spec,ToolChoice.AUTO);
++            AiMessage message=response==null?null:response.aiMessage();
++            if(message==null||!message.hasToolExecutionRequests()||message.toolExecutionRequests().size()!=1
++                    ||!SELECTION_FUNCTION.equals(message.toolExecutionRequests().get(0).name()))
++                return new SelectionResult("INVALID_MODEL_RESPONSE",List.of(),List.of(),Map.of(),"Expected one selection function call");
++            Map<String,Object> decision=objectMapper.readValue(message.toolExecutionRequests().get(0).arguments(),new TypeReference<>(){});
++            String status=text(decision.get("status"));
++            if(!Set.of("SELECTED","NO_MATCH","NEEDS_INPUT").contains(Objects.toString(status,""))
++                    ||!(decision.get("selections") instanceof Collection<?> selections))
++                return new SelectionResult("INVALID_MODEL_RESPONSE",List.of(),List.of(),decision,"Missing status or selections");
++            if(selections.size()>ToolCallBatchSchema.DEFAULT_MAX_CALLS)
++                return new SelectionResult("INVALID_MODEL_RESPONSE",List.of(),List.of(),decision,"Selection execution limit exceeded");
++            List<Map<String,Object>> bindings=new ArrayList<>();List<String> selected=new ArrayList<>();
++            for(Object value:selections) {
++                Map<String,Object> selection=map(value);String id=text(selection.get("templateId"));
++                Map<String,Object> template=id==null?null:candidates.get(id.toLowerCase(Locale.ROOT));
++                if(template==null) return new SelectionResult("INVALID_TEMPLATE_ID",List.of(),List.of(),decision,"Selected ID was not returned");
++                String asset=text(selection.get("assetId"));
++                if(asset!=null&&!asset.equals(publishedAssetId(template)))
++                    return new SelectionResult("INVALID_ASSET_BINDING",List.of(),List.of(),decision,"Asset does not match published template binding");
++                if(!(selection.get("parameters") instanceof Map<?,?>))
++                    return new SelectionResult("INVALID_PARAMETERS",List.of(),List.of(),decision,"parameters must be an object");
++                Map<String,Object> parameters=map(selection.get("parameters"));
++                if(!map(parameterSchema(template).get("properties")).keySet().containsAll(parameters.keySet()))
++                    return new SelectionResult("INVALID_PARAMETERS",List.of(),List.of(),decision,"Parameter field is not in the published schema");
++                selected.add(templateId(template));
++                Map<String,Object> binding=new LinkedHashMap<>();binding.put("template_id",templateId(template));
++                binding.put("arguments",parameters);if(selection.get("bindingId")!=null)binding.put("binding_id",selection.get("bindingId"));
++                bindings.add(binding);
++            }
++            if("NO_MATCH".equals(status)&&!selected.isEmpty()||"SELECTED".equals(status)&&selected.isEmpty())
++                return new SelectionResult("INVALID_MODEL_RESPONSE",List.of(),List.of(),decision,"status and selections disagree");
++            List<Map<String,Object>> bound=protocols(bindings,query,candidates);
++            if(bound.stream().anyMatch(protocol->protocol.get("unresolved_parameters") instanceof Collection<?> missing&&!missing.isEmpty()))
++                return new SelectionResult("PARAMETERS_REQUIRED",List.copyOf(new LinkedHashSet<>(selected)),bound,decision,"Required parameter binding is incomplete");
++            return new SelectionResult(status,List.copyOf(new LinkedHashSet<>(selected)),bound,decision,null);
++        } catch(AgentBudgetExceededException|CancellationException failure) {throw failure;}
++        catch(com.fasterxml.jackson.core.JsonProcessingException failure) {
++            return new SelectionResult("INVALID_MODEL_RESPONSE",List.of(),List.of(),Map.of(),"Selection response is not valid JSON");
++        }
++        catch(Exception failure) {
++            log.info("Template selection model call unavailable: {}",failure.getClass().getSimpleName());
++            return new SelectionResult("MODEL_UNAVAILABLE",List.of(),List.of(),Map.of(),failure.getClass().getSimpleName());
++        }
++    }
++
++    private String publishedAssetId(Map<String,Object> template) {
++        return text(first(map(template.get("asset")),"id","assetId"));
++    }
++
++    record SelectionResult(String status,List<String> selectedIds,List<Map<String,Object>> protocols,
++                           Map<String,Object> decision,String error) {}
++
+     Optional<BindingResult> bind(ChatModel model,
+                                  String userQuery,
+                                  List<Map<String, Object>> returnedTemplates,
+diff --git a/chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/governance/AnalysisCoverageCoordinator.java b/chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/governance/AnalysisCoverageCoordinator.java
+index f2a2607bb..98db49679 100644
+--- a/chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/governance/AnalysisCoverageCoordinator.java
++++ b/chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/governance/AnalysisCoverageCoordinator.java
+@@ -11,7 +11,7 @@ import dev.langchain4j.model.chat.ChatModel;
+ import java.util.*;
+ import java.util.function.BooleanSupplier;
+ import static com.chatchat.agents.orchestration.support.AgentValueSupport.*;
+-/** Prepares scoped data access for the single analysis model. No partitioned Agent workflow. */
++/** Supplies authorized snapshots and technical receipts to the analysis model; makes no business decisions. */
+ public final class AnalysisCoverageCoordinator {
+     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AnalysisCoverageCoordinator.class);
+     private final AgentRunResultAdapter resultAdapter;
+@@ -56,8 +56,7 @@ public final class AnalysisCoverageCoordinator {
+             boolean acquired = request.result() != null && request.result().success()
+                 && datasets.stream().anyMatch(dataset -> dataset.recordCount() > 0)
+                 && projection.excludedDatasets().isEmpty();
+-            if (!acquired && !optionalEmpty)
+-                throw new IllegalStateException("REQUIRED_MCP_DATA_UNAVAILABLE: file analysis cannot bypass missing, failed or unconfirmed business evidence");
++            if (!acquired) request.metadata().put("mcpDataAvailable",false);
+             if (coding == null) throw new IllegalStateException("File analysis requires Coding");
+             var combined = new ArrayList<>(datasets);
+             var fileSources = coding.prepareFileSources(request);
+@@ -80,40 +79,48 @@ public final class AnalysisCoverageCoordinator {
+                 + (excluded.get("error") == null ? "" : ", error=" + excluded.get("error")) + "）。",
+             "analysis_summary_governance", metadataOf(
+                 "type", "analysis_dataset_excluded", "exclusion", excluded)));
++        if (codingOwned && datasets.isEmpty()) {
++            // A supply receipt is an observation, never a substitute for business records.
++            // The model decides how to respond or request authorized data; Java reports facts.
++            datasets=List.of(supplyStatusDataset(request));
++        }
+         if (datasets.isEmpty() && !com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(request.metadata())) {
+-            // A failed acquisition is not a successful empty business result. Discovery
+-            // steps may succeed while the actual data query fails before projection.
+-            if (codingOwned && request.result() != null && (!request.result().success()
+-                || request.result().steps().stream().anyMatch(step -> !step.success()))) {
+-                var failed = request.result().steps().stream().filter(step -> !step.success())
+-                    .map(step -> metadataOf("stepId", step.stepId(), "toolName", step.toolName(),
+-                        "error", step.errorMessage())).toList();
+-                request.metadata().put("dataAcquisitionFailure", metadataOf(
+-                    "status", "FAILED", "businessDatasetCount", 0, "failedSteps", failed));
+-                String cause = failed.isEmpty() ? "execution plan did not complete"
+-                    : String.valueOf(failed.get(0).get("error"));
+-                throw new IllegalStateException("REQUIRED_MCP_DATA_UNAVAILABLE: data acquisition failed; no business evidence is available for analysis; cause=" + cause);
+-            }
+             writeEmptyProjectionCompletion(request, projection.excludedDatasets());
+             boolean sourceFailed = projection.excludedDatasets().stream().anyMatch(
+                 item -> "FAILED".equals(item.get("accountingStatus")));
+-            if (codingOwned) {
+-                request.metadata().put("codingOwnedAnalysisActive", true);
+-                request.metadata().put("datasetAnalysisMode", "CODING_OWNED_DATA_ANALYSIS");
+-                request.metadata().put("javaDataExplorationSkipped", true);
+-                request.metadata().put("javaAnalysisRefinementSkipped", true);
+-                request.metadata().put("javaPostCodingExplorationSkipped", true);
+-                request.metadata().put("modelNativeReportDraft",
+-                    "No authorized dataset was produced, so the requested data analysis could not be started.");
+-                request.metadata().put("analysisSynthesisBarrierReady", true);
+-                request.metadata().put("analysisSynthesisBarrierStatus", "NO_AUTHORIZED_DATA");
+-            }
+             return new CoverageBundle("", "", List.of(), 0, 0, 0, false,
+                 !sourceFailed, true, !sourceFailed, 0, List.of(), List.of());
+         }
+ 
+         return codingOwned ? analyzeWithCoding(request, datasets) : analyzeWithHarness(request, datasets);
+     }
++    private AnalysisEvidenceCoordinator.Dataset supplyStatusDataset(Request request) {
++        List<Map<String,Object>> operations=new ArrayList<>();
++        if(request.result()!=null) for(var step:request.result().steps()) {
++            var call=step.toolExecution();
++            Boolean toolSucceeded=call==null||call.output()==null?null:call.output().isSuccess();
++            operations.add(metadataOf("stepId",step.stepId(),"toolName",step.toolName(),
++                "stepCompleted",step.success(),"toolResultSucceeded",toolSucceeded,
++                "toolExecutionOutcome",call==null?null:call.outcome(),
++                "mcpDiscoverySucceeded",step.metadata().get("mcpDiscoverySucceeded"),
++                "modelDecision",step.metadata().get("modelCandidateDecision"),
++                "selectionStatus",step.metadata().get("candidateSelectionStatus"),
++                "modelSelectedTemplateIds",step.metadata().get("modelSelectedTemplateIds"),
++                "error",step.errorMessage()));
++        }
++        Map<String,Object> status=metadataOf("recordType","DATA_SUPPLY_STATUS","businessDataAvailable",false,
++            "operations",List.copyOf(operations),"excludedSources",request.metadata().getOrDefault("recordAnalysisExcludedDatasets",List.of()));
++        request.metadata().put("dataSupplyStatus",status);
++        request.metadata().put("businessDataAvailable",false);
++        String reference="supply-status:"+request.isolationScope().runId();
++        return new AnalysisEvidenceCoordinator.Dataset(reference,Map.of("recordType","DATA_SUPPLY_STATUS",
++            "businessData",false,"source",Map.of("kind","RUNTIME_SUPPLY_STATUS")),List.of(status));
++    }
++
++    private boolean supplyStatus(AnalysisEvidenceCoordinator.Dataset dataset) {
++        return "DATA_SUPPLY_STATUS".equals(dataset.analysisContext().get("recordType"));
++    }
++
+     private boolean isDataAnalysis(Request request) {
+         return com.chatchat.agents.orchestration.analysis.contract.RuntimeAnalysisOwnership
+             .codingOwnsAnalysis(request.runtimeAttributes());
+@@ -307,7 +314,8 @@ public final class AnalysisCoverageCoordinator {
+         request.metadata().put("analysisModelIntent", Map.of(
+             "protocol", "coding_owned_analysis.v1", "action", "PUBLISH",
+             "resultDatasetReference", resultReference));
+-        long rows = datasets.stream().mapToLong(AnalysisEvidenceCoordinator.Dataset::recordCount).sum();
++        long rows = datasets.stream().filter(dataset -> !supplyStatus(dataset))
++            .mapToLong(AnalysisEvidenceCoordinator.Dataset::recordCount).sum();
+         int count = Math.toIntExact(rows);
+         var failures = sourceFailureDatasets(request.metadata());
+         boolean[] sourceCompleteness = {true};
+@@ -316,9 +324,9 @@ public final class AnalysisCoverageCoordinator {
+             sourceCompleteness[0] &= sourcePage.rows().stream()
+                 .noneMatch(record -> Boolean.FALSE.equals(record.get("sourceComplete")));
+         }));
+-        boolean availableComplete = failures.isEmpty();
+-        request.metadata().put("recordAnalysisDatasetCount", datasets.size());
+-        request.metadata().put("recordAnalysisSuccessfulDatasetCount", datasets.size());
++        boolean availableComplete = failures.isEmpty() && datasets.stream().noneMatch(this::supplyStatus);
++        request.metadata().put("recordAnalysisDatasetCount", Math.toIntExact(datasets.stream().filter(dataset -> !supplyStatus(dataset)).count()));
++        request.metadata().put("recordAnalysisSuccessfulDatasetCount", Math.toIntExact(datasets.stream().filter(dataset -> !supplyStatus(dataset)).count()));
+         request.metadata().put("recordAnalysisFailedDatasetCount", failures.size());
+         request.metadata().put("recordAnalysisReturnedRecordCount", count);
+         request.metadata().put("recordAnalysisProcessedRecordCount", count);
+@@ -425,7 +433,7 @@ public final class AnalysisCoverageCoordinator {
+             sourceCompleteness[0] &= page.rows().stream().noneMatch(record -> Boolean.FALSE.equals(record.get("sourceComplete")));
+         }));
+         boolean sourceComplete = sourceCompleteness[0];
+-        boolean availableComplete = failures.isEmpty();
++        boolean availableComplete = failures.isEmpty() && datasets.stream().noneMatch(this::supplyStatus);
+         request.metadata().put("recordAnalysisFailedDatasetCount", failures.size());
+         request.metadata().put("recordAnalysisReturnedRecordCount", count);
+         request.metadata().put("recordAnalysisProcessedRecordCount", count);
+diff --git a/chatchat-agents/src/main/java/com/chatchat/agents/orchestration/tool/AgentToolNameResolver.java b/chatchat-agents/src/main/java/com/chatchat/agents/orchestration/tool/AgentToolNameResolver.java
+index d042d374b..71a555a00 100644
+--- a/chatchat-agents/src/main/java/com/chatchat/agents/orchestration/tool/AgentToolNameResolver.java
++++ b/chatchat-agents/src/main/java/com/chatchat/agents/orchestration/tool/AgentToolNameResolver.java
+@@ -111,6 +111,14 @@ public class AgentToolNameResolver {
+         return left != null && left.equals(right);
+     }
+ 
++    /** A completed scoped child satisfies its declared parent boundary, never a sibling. */
++    public boolean satisfiesCapability(String completed, String required) {
++        return sameToolName(completed, required)
++            || capabilityHierarchy.isImplementationOf(completed, required)
++            || toolRegistry != null && com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata
++                .suppliesBoundDiscovery(toolRegistry.getToolMetadata(completed),toolRegistry.getToolMetadata(required));
++    }
++
+     public boolean isWebSearchToolName(String toolName) {
+         return toolName != null && toolName.toLowerCase(Locale.ROOT).contains(WEB_SEARCH_TOOL);
+     }
+diff --git a/chatchat-agents/src/main/java/com/chatchat/agents/orchestration/workflow/AgentWorkflowToolResolver.java b/chatchat-agents/src/main/java/com/chatchat/agents/orchestration/workflow/AgentWorkflowToolResolver.java
+index 50d68c708..b4ab605fb 100644
+--- a/chatchat-agents/src/main/java/com/chatchat/agents/orchestration/workflow/AgentWorkflowToolResolver.java
++++ b/chatchat-agents/src/main/java/com/chatchat/agents/orchestration/workflow/AgentWorkflowToolResolver.java
+@@ -53,7 +53,7 @@ public class AgentWorkflowToolResolver {
+         return traces.stream()
+             .anyMatch(trace -> trace != null
+                 && !confirmationRequired(trace)
+-                && toolNames.sameToolName(toolName, trace.getToolName()));
++                && toolNames.satisfiesCapability(trace.getToolName(), toolName));
+     }
+ 
+     public boolean hasAnyToolTrace(List<InteractionToolTrace> traces, String toolName) {
+@@ -61,7 +61,7 @@ public class AgentWorkflowToolResolver {
+             return false;
+         }
+         return traces.stream()
+-            .anyMatch(trace -> trace != null && toolNames.sameToolName(toolName, trace.getToolName()));
++            .anyMatch(trace -> trace != null && toolNames.satisfiesCapability(trace.getToolName(), toolName));
+     }
+ 
+     public List<String> missingMandatoryTools(List<String> mandatoryTools, List<InteractionToolTrace> traces) {
+@@ -151,7 +151,7 @@ public class AgentWorkflowToolResolver {
+             return false;
+         }
+         Set<String> normalized = new LinkedHashSet<>(completedTools);
+-        return normalized.stream().anyMatch(completed -> toolNames.sameToolName(toolName, completed));
++        return normalized.stream().anyMatch(completed -> toolNames.satisfiesCapability(completed, toolName));
+     }
+ 
+     private boolean confirmationRequired(InteractionToolTrace trace) {
+diff --git a/chatchat-agents/src/main/java/com/chatchat/agents/runtime/config/AgentRuntimeProperties.java b/chatchat-agents/src/main/java/com/chatchat/agents/runtime/config/AgentRuntimeProperties.java
+index 68be1e972..898180bea 100644
+--- a/chatchat-agents/src/main/java/com/chatchat/agents/runtime/config/AgentRuntimeProperties.java
++++ b/chatchat-agents/src/main/java/com/chatchat/agents/runtime/config/AgentRuntimeProperties.java
+@@ -52,7 +52,7 @@ public class AgentRuntimeProperties {
+     private long answerCriticTimeoutMs = 45_000;
+     /** Reviewer-only resolved-input projection; execution and schema binding retain the original arguments. */
+     private int toolReviewStepInputMaxChars = 4_000;
+-    /** Legacy non-Coding review budget; Coding tool admission never opens this model phase. */
++    /** Optional result review budget; required Coding discovery uses the request deadline. */
+     private long toolResultReviewTimeoutMs = 60_000;
+ 
+     public long toolResultReviewTimeoutMs() {
+diff --git a/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/InterpretationPlanOptimizer.java b/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/InterpretationPlanOptimizer.java
+index d42a273bd..09ef45c2b 100644
+--- a/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/InterpretationPlanOptimizer.java
++++ b/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/InterpretationPlanOptimizer.java
+@@ -1225,7 +1225,9 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
+                 LinkedHashMap::new,
+                 java.util.stream.Collectors.toList()));
+         for (InterpretationPlan.Step candidate : steps) {
+-            if (candidate == null || candidate.id() == null || !isTemplateDiscoveryStep(candidate)) continue;
++            if (candidate == null || candidate.id() == null
++                || !(isTemplateDiscoveryStep(candidate)
++                    || isAssetDiscoveryStep(candidate))) continue;
+             if (fixedTemplateSelectionScope(candidate.toolName()).isPresent()) continue;
+             String assetType = templateDiscoveryAssetType(candidate.toolName());
+             List<InterpretationPlan.Step> authorities = assetType == null
+diff --git a/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/InterpretationPlanRuntime.java b/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/InterpretationPlanRuntime.java
+index d8cd3b0a0..70ae6f9f4 100644
+--- a/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/InterpretationPlanRuntime.java
++++ b/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/InterpretationPlanRuntime.java
+@@ -3032,7 +3032,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
+                         metadata.put("semanticCandidateReviewError", selectionError);
+                         return new StepExecution(
+                             execution.stepId(), execution.actionType(), execution.toolName(), false,
+-                            execution.output(), "Tool result rejected by semantic candidate gate: " + selectionError,
++                            execution.output(), "Data supply selection could not be completed: " + selectionError,
+                             execution.toolExecution(), execution.finalAnswer(), elapsed(startedAt), metadata
+                         );
+                     }
+@@ -3080,7 +3080,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
+                 metadata.put("semanticCandidateReviewError", selectionError);
+                 return new StepExecution(
+                     execution.stepId(), execution.actionType(), execution.toolName(), false,
+-                    execution.output(), "Tool result rejected by semantic candidate review: " + selectionError,
++                    execution.output(), "Data supply selection could not be completed: " + selectionError,
+                     execution.toolExecution(), execution.finalAnswer(), elapsed(startedAt), metadata
+                 );
+             }
+@@ -3385,9 +3385,22 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
+         if (execution == null || metadata == null) {
+             return null;
+         }
++        boolean validatedSelection = isAssetDiscoveryExecution(execution)
++            ? Boolean.TRUE.equals(metadata.get("runtimeAssetSelectionApplied"))
++                && integerValue(metadata.get("runtimeAssetSelectedCount")) != null
++                && integerValue(metadata.get("runtimeAssetSelectedCount")) > 0
++            : Boolean.TRUE.equals(metadata.get("runtimeTemplateSelectionApplied"))
++                && integerValue(metadata.get("runtimeTemplateSelectedCount")) != null
++                && integerValue(metadata.get("runtimeTemplateSelectedCount")) > 0;
++        if ("NEEDS_INPUT".equals(metadata.get("candidateSelectionStatus"))) return "MODEL_INPUT_REQUIRED";
++        String protocolError=stringValue(metadata.get("candidateSelectionErrorCode"));
++        if(protocolError!=null) return protocolError+": "+stringValue(metadata.get("candidateSelectionError"));
++        if (validatedSelection) return null;
++        String parameterStatus=stringValue(metadata.get("runtimeTemplateSelectionReason"));
++        if(parameterStatus!=null&&parameterStatus.startsWith("TEMPLATE_PARAMETERS_REQUIRED")) return parameterStatus;
+         if ((isAssetDiscoveryExecution(execution) || isTemplateDiscoveryExecution(execution))
+             && Boolean.TRUE.equals(metadata.get("toolResultReviewUnavailable"))) {
+-            return "CANDIDATE_REVIEW_UNAVAILABLE: candidate selection was not completed; no semantic no-match decision is available";
++            return "MODEL_SELECTION_UNAVAILABLE: no completed model selection is available; MCP discovery success is unchanged";
+         }
+         if (isAssetDiscoveryExecution(execution)) {
+             if (!Boolean.TRUE.equals(metadata.get("runtimeAssetSelectionApplied"))) {
+@@ -3395,7 +3408,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
+             }
+             Integer selected = integerValue(metadata.get("runtimeAssetSelectedCount"));
+             if (selected == null || selected < 1) {
+-                return "the model selected no usable asset candidate";
++                return "MODEL_SELECTED_NO_ASSET";
+             }
+         }
+         if (isTemplateDiscoveryExecution(execution)) {
+@@ -3404,11 +3417,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
+             }
+             Integer selected = integerValue(metadata.get("runtimeTemplateSelectedCount"));
+             if (selected == null || selected < 1) {
+-                if ("SCOPE_INSUFFICIENT".equals(metadata.get("templateCoverageDecision"))) {
+-                    return "MCP_CAPABILITY_SCOPE_INSUFFICIENT: no matching template exists in the authorized publication; "
+-                        + "configure the required data-supply capability instead of executing unrelated templates";
+-                }
+-                return "the model selected no usable template candidate";
++                return "MODEL_SELECTED_NO_TEMPLATE";
+             }
+         }
+         return null;
+diff --git a/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/InterpretationPlanValidator.java b/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/InterpretationPlanValidator.java
+index 03d8c805d..26f590980 100644
+--- a/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/InterpretationPlanValidator.java
++++ b/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/InterpretationPlanValidator.java
+@@ -178,6 +178,12 @@ public class InterpretationPlanValidator {
+                     .filter(step -> capabilityHierarchy.isImplementationOf(step.toolName(), tool))
+                     .toList();
+             }
++            if (matches.isEmpty() && toolRegistry != null) {
++                matches = stepsById.values().stream().filter(InterpretationPlan.Step::mcpToolAction)
++                    .filter(step -> com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata
++                        .suppliesBoundDiscovery(toolRegistry.getToolMetadata(step.toolName()),
++                            toolRegistry.getToolMetadata(tool))).toList();
++            }
+             if (matches.isEmpty()) {
+                 state.error("authoritativeWorkflowDag",
+                     "Task " + workflowTaskLabel(taskId) + " requires at least one plan step for configured MCP tool "
+diff --git a/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/persistence/PlanCheckpointCoordinator.java b/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/persistence/PlanCheckpointCoordinator.java
+index 22e74ca3e..3e6b4e1ed 100644
+--- a/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/persistence/PlanCheckpointCoordinator.java
++++ b/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/persistence/PlanCheckpointCoordinator.java
+@@ -36,7 +36,7 @@ public final class PlanCheckpointCoordinator {
+             InterpretationPlanRuntime.StepExecution restored = new InterpretationPlanRuntime.StepExecution(
+                 candidate.execution().stepId(), candidate.execution().actionType(), candidate.execution().toolName(),
+                 true, candidate.execution().output(), null, candidate.execution().toolExecution(),
+-                candidate.execution().finalAnswer(), 0L, Map.copyOf(metadata));
++                candidate.execution().finalAnswer(), 0L, java.util.Collections.unmodifiableMap(metadata));
+             completed.put(restored.stepId(), restored);
+             executions.add(restored);
+             reused.add(restored.stepId());
+@@ -88,7 +88,7 @@ public final class PlanCheckpointCoordinator {
+                 metadata.put("checkpointIdentityFingerprints", checkpoint.identityFingerprints());
+                 InterpretationPlanRuntime.StepExecution restored = new InterpretationPlanRuntime.StepExecution(
+                     value.stepId(), value.actionType(), value.toolName(), true, value.output(), null,
+-                    value.toolExecution(), value.finalAnswer(), 0L, Map.copyOf(metadata));
++                    value.toolExecution(), value.finalAnswer(), 0L, java.util.Collections.unmodifiableMap(metadata));
+                 recovered.put(restored.stepId(), restored);
+                 reused.add(restored.stepId());
+                 if (attemptId != null) recoveryAttemptIds.add(attemptId);
+diff --git a/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/selection/EvidenceBasedAssetCandidateEvaluator.java b/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/selection/EvidenceBasedAssetCandidateEvaluator.java
+index 58788dfdb..0632426ac 100644
+--- a/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/selection/EvidenceBasedAssetCandidateEvaluator.java
++++ b/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/selection/EvidenceBasedAssetCandidateEvaluator.java
+@@ -33,9 +33,16 @@ public final class EvidenceBasedAssetCandidateEvaluator {
+                 reviewMetadata.get("toolResultReviewMode")) && selected.size()==1;
+         String authority = toolSelectionApplied ? "runtime_tool_declared_selection"
+             : literalReferenceApplied ? "runtime_exact_canonical_asset_reference" : null;
++        // Missing selection fields are a protocol failure, even for a singleton. Cardinality
++        // cannot substitute for the model's semantic decision or a published binding.
++        if (authority == null && (reviewMetadata == null
++                || !reviewMetadata.containsKey("selectedAssetIds") || selected.isEmpty())) {
++            return new Evaluation(output, 0, 0, List.of(), evaluations, false,
++                "Asset selection response omitted selectedAssetIds.");
++        }
+         Projection projection = project(
+             output, selected, rejected, evaluations,
+-            reviewerUnavailable && authority==null, authority, 0);
++            reviewerUnavailable && authority==null && selected.isEmpty(), authority, 0);
+         if (!projection.applied()) {
+             return new Evaluation(output, 0, 0, List.of(), evaluations, false,
+                 "No evidence-reviewed asset selection could be projected onto the authorized candidate set.");
+diff --git a/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/selection/EvidenceBasedTemplateCandidateEvaluator.java b/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/selection/EvidenceBasedTemplateCandidateEvaluator.java
+index 117a4995b..24f5bce07 100644
+--- a/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/selection/EvidenceBasedTemplateCandidateEvaluator.java
++++ b/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/selection/EvidenceBasedTemplateCandidateEvaluator.java
+@@ -1,16 +1,9 @@
+ package com.chatchat.agents.runtime.plan.selection;
+ 
+ import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
+-import com.chatchat.common.knowledge.template.model.BusinessAnalysisIntent;
+-import com.chatchat.common.knowledge.template.matching.TemplateAnalysisRole;
+-import com.chatchat.common.knowledge.template.matching.TemplateCoverageDecision;
+ import com.chatchat.common.knowledge.template.matching.TemplateMatchAnalysis;
+-import com.chatchat.common.knowledge.template.model.TemplateRelationship;
+-import com.chatchat.common.knowledge.template.matching.TemplateRequirementMatchEvaluation;
+-import com.chatchat.common.knowledge.template.matching.TemplateRetrievalOutcome;
+ 
+ import java.util.ArrayList;
+-import java.util.Comparator;
+ import java.util.LinkedHashMap;
+ import java.util.LinkedHashSet;
+ import java.util.List;
+@@ -20,7 +13,7 @@ import java.util.Objects;
+ import java.util.Set;
+ 
+ /**
+- * Runtime-owned semantic admission layer for high-recall MCP template candidates.
++ * Validates model-selected identities against returned MCP candidates.
+  *
+  * <p>MCP ranking fields are weak retrieval priors. Only ids returned by MCP may be
+  * selected, and model decisions are projected onto the candidate list before any
+@@ -39,43 +32,28 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
+         List<Map<String, Object>> evaluations = maps(metadata.get("templateEvaluations"));
+         boolean reviewerUnavailable = Boolean.TRUE.equals(metadata.get("toolResultReviewUnavailable"))
+             || Boolean.TRUE.equals(metadata.get("toolResultReviewSkipped"));
+-        if (reviewerUnavailable) {
++        if (reviewerUnavailable && selectedIds.isEmpty()) {
+             return Evaluation.notApplied(output,
+                 "business-template screening requires the original question and cumulative analysis context");
+         }
+-        if (selectedIds.isEmpty()) {
++        if (selectedIds.isEmpty() && !metadata.containsKey("selectedTemplateIds")) {
+             selectedIds = evaluations.stream()
+                 .filter(this::acceptedEvaluation)
+-                .sorted(Comparator
+-                    .comparingDouble(this::evaluationScore)
+-                    .reversed()
+-                    .thenComparing(
+-                        item -> text(first(item, "templateId", "template_id")),
+-                        Comparator.nullsLast(String::compareTo)
+-                    ))
+                 .map(item -> text(first(item, "templateId", "template_id")))
+                 .filter(Objects::nonNull)
+                 .toList();
+         }
+-        // A second-pass coverage audit has already compared the complete selected set
+-        // against the literal question. Reapplying the first-pass score reducer here can
+-        // silently collapse complementary detail/history templates back to one aggregate.
+-        if (!Boolean.TRUE.equals(metadata.get("templateSelectionCoverageAudited"))
+-            && !completeAuthorizedSelection(output, selectedIds, evaluations, metadata)) {
+-            selectedIds = narrowToNecessaryTemplates(selectedIds, evaluations);
++        if (selectedIds.isEmpty() && !metadata.containsKey("selectedTemplateIds") && evaluations.isEmpty() && rejectedIds.isEmpty()) {
++            return Evaluation.notApplied(output, "Template selection response omitted selectedTemplateIds.");
+         }
++        Set<String> returnedIds=candidateIds(output,0);
++        if(selectedIds.stream().anyMatch(id->!returnedIds.contains(normalize(id))))
++            return Evaluation.notApplied(output,"INVALID_TEMPLATE_ID: selection contains an ID not returned by MCP");
+         Set<String> parameterBlocked = unresolvedParameterTemplateIds(
+             evaluations, metadata.get("parameterProtocols"));
+         if (!parameterBlocked.isEmpty()) {
+             selectedIds = selectedIds.stream()
+                 .filter(id -> !parameterBlocked.contains(normalize(id))).toList();
+-            List<String> augmentedRejected = new ArrayList<>(rejectedIds);
+-            evaluations.stream()
+-                .map(item -> text(first(item, "templateId", "template_id")))
+-                .filter(Objects::nonNull)
+-                .filter(id -> parameterBlocked.contains(normalize(id)))
+-                .forEach(augmentedRejected::add);
+-            rejectedIds = List.copyOf(new LinkedHashSet<>(augmentedRejected));
+         }
+         String supplyAuthority = Boolean.TRUE.equals(metadata.get("publishedDataSupply"))
+             ? "runtime_published_data_supply" : null;
+@@ -110,199 +88,62 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
+             evaluations,
+             requirementMatch,
+             true,
+-            "Runtime projected evidence-reviewed templates before dependency binding and execution."
++            parameterBlocked.isEmpty()?"Runtime validated model selection identities and parameter contracts."
++                : "TEMPLATE_PARAMETERS_REQUIRED: "+parameterBlocked
+         );
+     }
+ 
+-    /**
+-     * Resolves an internally inconsistent reviewer response conservatively. The strongest
+-     * accepted tier forms the primary evidence set. A lower-scored selection remains only when it
+-     * covers a question aspect not already covered by that set. This remains effective when a
+-     * reviewer incorrectly labels every accepted candidate TARGET, while retaining complementary
+-     * templates and explicit selections for which no evaluation was returned.
+-     */
+-    private List<String> narrowToNecessaryTemplates(List<String> selectedIds,
+-                                                     List<Map<String, Object>> evaluations) {
+-        if (selectedIds == null || selectedIds.isEmpty() || evaluations == null || evaluations.isEmpty()) {
+-            return selectedIds == null ? List.of() : selectedIds;
+-        }
+-        Map<String, Map<String, Object>> byId = new LinkedHashMap<>();
+-        evaluations.forEach(item -> {
+-            String id = text(first(item, "templateId", "template_id"));
+-            if (id != null) byId.putIfAbsent(normalize(id), item);
+-        });
+-        List<String> ranked = selectedIds.stream()
+-            .filter(id -> {
+-                Map<String, Object> item = byId.get(normalize(id));
+-                return item != null && acceptedEvaluation(item);
+-            })
+-            .sorted(Comparator.comparingDouble(
+-                (String id) -> evaluationScore(byId.get(normalize(id)))).reversed())
+-            .toList();
+-        if (ranked.isEmpty()) return selectedIds;
+-
+-        double strongestScore = evaluationScore(byId.get(normalize(ranked.get(0))));
+-        Set<String> coveredAspects = new LinkedHashSet<>();
+-        List<String> narrowed = new ArrayList<>();
+-        for (String id : ranked) {
+-            Map<String, Object> item = byId.get(normalize(id));
+-            List<String> aspects = strings(first(item,
+-                "matchedQuestionAspects", "matched_question_aspects"));
+-            boolean contributesNewAspect = aspects.stream().map(this::normalize)
+-                .anyMatch(aspect -> !coveredAspects.contains(aspect));
+-            boolean strongestTier = Math.abs(evaluationScore(item) - strongestScore) < 0.000001d;
+-            if (strongestTier || aspects.isEmpty() || contributesNewAspect) {
+-                narrowed.add(id);
+-                aspects.stream().map(this::normalize).forEach(coveredAspects::add);
+-            }
+-        }
+-        // Do not discard an explicit selection when the reviewer omitted its evaluation.
+-        selectedIds.stream().filter(id -> !byId.containsKey(normalize(id))).forEach(narrowed::add);
+-        return List.copyOf(new LinkedHashSet<>(narrowed));
+-    }
+-
+-    /**
+-     * A reviewer that explicitly accepts every authorized candidate with sufficient coverage has
+-     * already made a complete execution decision. Re-ranking that set by score or overlapping
+-     * question-aspect labels is unsafe: a broad summary and a detail/history source can share the
+-     * same aspect while providing different evidence required by synthesis.
+-     */
+-    private boolean completeAuthorizedSelection(Object output,
+-                                                List<String> selectedIds,
+-                                                List<Map<String, Object>> evaluations,
+-                                                Map<String, Object> metadata) {
+-        if (!"SUFFICIENT".equalsIgnoreCase(text(first(metadata,
+-            "coverageDecision", "coverage_decision")))) {
+-            return false;
+-        }
+-        Set<String> authorizedIds = templateIds(output, 0);
+-        if (authorizedIds.isEmpty()) return false;
+-        Set<String> selected = selectedIds.stream()
+-            .map(this::normalize)
+-            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+-        if (!selected.equals(authorizedIds)) return false;
+-
+-        Map<String, Map<String, Object>> evaluationsById = new LinkedHashMap<>();
+-        evaluations.forEach(item -> {
+-            String id = text(first(item, "templateId", "template_id"));
+-            if (id != null) evaluationsById.putIfAbsent(normalize(id), item);
+-        });
+-        return authorizedIds.stream().allMatch(id -> {
+-            Map<String, Object> evaluation = evaluationsById.get(id);
+-            return evaluation != null && acceptedEvaluation(evaluation);
+-        });
+-    }
+-
+-    @SuppressWarnings("unchecked")
+-    private Set<String> templateIds(Object value, int depth) {
+-        if (value == null || depth > 8) return Set.of();
+-        if (value instanceof Iterable<?> iterable) {
+-            for (Object item : iterable) {
+-                Set<String> nested = templateIds(item, depth + 1);
+-                if (!nested.isEmpty()) return nested;
+-            }
+-            return Set.of();
+-        }
+-        if (!(value instanceof Map<?, ?> raw)) return Set.of();
+-        Map<String, Object> map = new LinkedHashMap<>((Map<String, Object>) raw);
+-        Object candidates = map.get("templates") instanceof Iterable<?> ? map.get("templates")
+-            : map.get("candidates") instanceof Iterable<?> ? map.get("candidates") : null;
+-        if (candidates instanceof Iterable<?> iterable) {
+-            LinkedHashSet<String> ids = new LinkedHashSet<>();
+-            for (Object item : iterable) {
+-                if (!(item instanceof Map<?, ?> rawTemplate)) continue;
+-                String id = templateId(new LinkedHashMap<>((Map<String, Object>) rawTemplate));
+-                if (id != null) ids.add(normalize(id));
+-            }
+-            if (!ids.isEmpty()) return Set.copyOf(ids);
+-        }
+-        for (String key : List.of(
+-            "structuredContent", "structured_content", "data", "result", "payload", "body", "output",
+-            "routingProjection", "coverage", "preview")) {
+-            Set<String> nested = templateIds(map.get(key), depth + 1);
+-            if (!nested.isEmpty()) return nested;
++    private Set<String> candidateIds(Object output,int depth) {
++        Set<String> ids=new LinkedHashSet<>();if(output==null||depth>8)return ids;
++        if(output instanceof Iterable<?> items) {for(Object item:items)ids.addAll(candidateIds(item,depth+1));return ids;}
++        if(!(output instanceof Map<?,?> raw))return ids;
++        Map<String,Object> map=cast(raw);
++        Object candidates=map.get("templates") instanceof Iterable<?>?map.get("templates"):map.get("candidates");
++        if(candidates instanceof Iterable<?> items)for(Object item:items)if(item instanceof Map<?,?> candidate) {
++            String id=templateId(cast(candidate));if(id!=null)ids.add(normalize(id));
+         }
+-        return Set.of();
++        for(String key:List.of("structuredContent","structured_content","data","result","payload","body","output","routingProjection","coverage","preview"))
++            ids.addAll(candidateIds(map.get(key),depth+1));
++        return ids;
+     }
+ 
+     private Map<String, Object> requirementMatch(Map<String, Object> metadata,
+-                                                 List<String> selectedIds,
+-                                                 List<String> rejectedIds,
+-                                                 List<Map<String, Object>> evaluations,
+-                                                 Object projectedOutput,
+-                                                 Set<String> parameterBlocked,
+-                                                 String authority) {
+-        String question = text(metadata.get("originalUserQuestion"));
+-        if (question == null) return Map.of();
+-        Map<String, Object> context = metadata.get("templateRequirementAnalysisContext") instanceof Map<?, ?> raw
+-            ? cast(raw) : Map.of();
+-        List<TemplateRequirementMatchEvaluation> typedEvaluations = evaluations.stream()
+-            .map(this::typedEvaluation)
+-            .filter(Objects::nonNull)
+-            .toList();
+-        List<TemplateRequirementMatchEvaluation> completeEvaluations = completeEvaluations(
+-            typedEvaluations, selectedIds, rejectedIds, authority);
+-        return new TemplateMatchAnalysis(
+-            TemplateMatchAnalysis.SCHEMA_VERSION,
+-            question,
+-            context,
+-            completeEvaluations.stream().map(TemplateRequirementMatchEvaluation::businessGroup)
+-                .filter(Objects::nonNull).distinct().toList(),
+-            businessIntent(metadata.get("businessAnalysisIntent"), question, completeEvaluations),
+-            completeEvaluations,
+-            relationships(metadata.get("templateRelationships"), selectedIds),
+-            coverageDecision(metadata, selectedIds, projectedOutput),
+-            retrievalOutcome(metadata, selectedIds, projectedOutput, parameterBlocked),
+-            strings(first(metadata, "evidenceGaps", "missingAspects", "missingEvidence")),
+-            pageRef(projectedOutput),
+-            text(metadata.get("toolResultReviewReason")),
+-            authority
+-        ).toMap();
+-    }
+-
+-    private TemplateCoverageDecision coverageDecision(Map<String, Object> metadata,
+-                                                       List<String> selectedIds,
+-                                                       Object output) {
+-        String declared = text(first(metadata, "coverageDecision", "coverage_decision"));
+-        TemplateCoverageDecision parsed = enumValue(TemplateCoverageDecision.class, declared);
+-        // A page may contain useful best-so-far candidates without covering the complete
+-        // question. Preserve the reviewer's explicit NEED_NEXT_PAGE/SCOPE_INSUFFICIENT
+-        // decision instead of treating any non-empty selection as complete coverage.
+-        if (parsed != null
+-            && (parsed != TemplateCoverageDecision.SUFFICIENT
+-                || (selectedIds != null && !selectedIds.isEmpty()))) {
+-            return parsed;
+-        }
+-        if (selectedIds != null && !selectedIds.isEmpty()) return TemplateCoverageDecision.SUFFICIENT;
+-        return booleanIn(output, "hasMore")
+-            ? TemplateCoverageDecision.NEED_NEXT_PAGE
+-            : TemplateCoverageDecision.SCOPE_INSUFFICIENT;
+-    }
+-
+-    private TemplateRetrievalOutcome retrievalOutcome(Map<String, Object> metadata,
+-                                                       List<String> selectedIds,
+-                                                       Object output,
+-                                                       Set<String> parameterBlocked) {
+-        TemplateRetrievalOutcome declared = enumValue(TemplateRetrievalOutcome.class,
+-            text(first(metadata, "retrievalOutcome", "retrieval_outcome")));
+-        // PAGE_EXHAUSTED_HAS_MORE is compatible with a non-empty best-so-far set. It
+-        // means execution must wait for bounded cross-page comparison, not that the
+-        // selected candidates should be discarded.
+-        if (declared != null
+-            && (declared != TemplateRetrievalOutcome.SELECTED
+-                || (selectedIds != null && !selectedIds.isEmpty()))) {
+-            return declared;
+-        }
+-        if (selectedIds != null && !selectedIds.isEmpty()) return TemplateRetrievalOutcome.SELECTED;
+-        if (parameterBlocked != null && !parameterBlocked.isEmpty()) {
+-            return TemplateRetrievalOutcome.PARAMS_UNRESOLVABLE;
+-        }
+-        if (textIn(output, "retrievalStopReason") != null) {
+-            return TemplateRetrievalOutcome.CAPABILITY_EXCEEDED;
+-        }
+-        return booleanIn(output, "hasMore")
+-            ? TemplateRetrievalOutcome.PAGE_EXHAUSTED_HAS_MORE
+-            : TemplateRetrievalOutcome.SCOPE_EXHAUSTED_NO_MATCH;
++            List<String> selectedIds, List<String> rejectedIds, List<Map<String,Object>> evaluations,
++            Object output, Set<String> parameterBlocked, String authority) {
++        if(text(metadata.get("originalUserQuestion"))==null) return Map.of();
++        Map<String,Object> result=new LinkedHashMap<>();
++        result.put("schemaVersion",TemplateMatchAnalysis.SCHEMA_VERSION);
++        result.put("objectType",TemplateMatchAnalysis.OBJECT_TYPE);result.put("event",TemplateMatchAnalysis.EVENT_TYPE);
++        result.put("globalAnalysisContext",metadata.getOrDefault("templateRequirementAnalysisContext",Map.of()));
++        result.put("userQuestion",metadata.get("originalUserQuestion"));
++        result.put("selectionAuthority","MODEL");result.put("selectedTemplateIds",selectedIds);
++        result.put("excludedTemplateIds",rejectedIds);result.put("candidateEvaluations",evaluations);
++        Map<String,Map<String,Object>> byId=new LinkedHashMap<>();
++        for(var evaluation:evaluations) {
++            String id=text(first(evaluation,"templateId","template_id"));
++            if(id!=null)byId.put(id,canonicalModelFields(evaluation));
++        }
++        result.put("templateMatches",selectedIds.stream().map(id->byId.getOrDefault(id,Map.of("templateId",id,"decision","ACCEPT"))).toList());
++        result.put("excludedTemplates",rejectedIds.stream().map(id->byId.getOrDefault(id,Map.of("templateId",id,"decision","REJECT"))).toList());
++        result.put("businessGroups",byId.values().stream().map(item->item.get("businessGroup")).filter(Objects::nonNull).distinct().toList());
++        if(metadata.get("businessAnalysisIntent") instanceof Map<?,?> intent)result.put("analysisIntent",canonicalModelFields(cast(intent)));
++        if(metadata.get("templateRelationships")!=null)result.put("templateRelationships",maps(metadata.get("templateRelationships")).stream().map(this::canonicalModelFields).toList());
++        if(metadata.get("coverageDecision")!=null)result.put("coverageDecision",metadata.get("coverageDecision"));
++        if(metadata.get("evidenceGaps")!=null)result.put("evidenceGaps",metadata.get("evidenceGaps"));
++        result.put("pageRef",pageRef(output));
++        result.put("retrievalOutcome",metadata.getOrDefault("retrievalOutcome",
++            !parameterBlocked.isEmpty()?"PARAMS_UNRESOLVABLE":
++            "NEED_NEXT_PAGE".equals(metadata.get("coverageDecision"))&&booleanIn(output,"hasMore")?"PAGE_EXHAUSTED_HAS_MORE":
++            !selectedIds.isEmpty()?"SELECTED":textIn(output,"retrievalStopReason")!=null?"CAPABILITY_EXCEEDED":
++            booleanIn(output,"hasMore")?"PAGE_EXHAUSTED_HAS_MORE":"MODEL_SELECTED_NONE"));
++        return Map.copyOf(result);
++    }
++
++    private Map<String,Object> canonicalModelFields(Map<String,Object> fields) {
++        Map<String,Object> result=new LinkedHashMap<>();
++        fields.forEach((key,value)->result.put(java.util.regex.Pattern.compile("_([a-z])").matcher(key)
++            .replaceAll(match->match.group(1).toUpperCase(Locale.ROOT)),value));
++        return result;
+     }
+ 
+     private Map<String, Object> pageRef(Object output) {
+@@ -365,141 +206,6 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
+         return Map.of();
+     }
+ 
+-    private <E extends Enum<E>> E enumValue(Class<E> type, String value) {
+-        if (value == null) return null;
+-        try {
+-            return Enum.valueOf(type, value.trim().toUpperCase(Locale.ROOT));
+-        } catch (IllegalArgumentException ignored) {
+-            return null;
+-        }
+-    }
+-
+-    private List<TemplateRequirementMatchEvaluation> completeEvaluations(
+-        List<TemplateRequirementMatchEvaluation> evaluations,
+-        List<String> selectedIds,
+-        List<String> rejectedIds,
+-        String authority
+-    ) {
+-        Set<String> selected = selectedIds.stream().map(this::normalize)
+-            .collect(java.util.stream.Collectors.toUnmodifiableSet());
+-        Map<String, TemplateRequirementMatchEvaluation> values = new LinkedHashMap<>();
+-        evaluations.forEach(item -> {
+-            boolean admitted = selected.contains(normalize(item.templateId()));
+-            TemplateAnalysisRole role = admitted
+-                ? (item.analysisRole() == TemplateAnalysisRole.IRRELEVANT
+-                    ? TemplateAnalysisRole.CONTEXT : item.analysisRole())
+-                : TemplateAnalysisRole.IRRELEVANT;
+-            values.put(normalize(item.templateId()), copyDecision(
+-                item, admitted ? "ACCEPT" : "REJECT", role));
+-        });
+-        selectedIds.forEach(id -> values.putIfAbsent(normalize(id), defaultEvaluation(
+-            id, "ACCEPT", TemplateAnalysisRole.CONTEXT, "RUNTIME_PUBLISHED_DATA_SUPPLY".equals(authority)
+-                ? "Publisher baseline admitted; analytical relevance has not been evaluated"
+-                : "Selected by context-aware reviewer")));
+-        rejectedIds.forEach(id -> values.putIfAbsent(normalize(id), defaultEvaluation(
+-            id, "REJECT", TemplateAnalysisRole.IRRELEVANT, "Excluded by context-aware reviewer")));
+-        return List.copyOf(values.values());
+-    }
+-
+-    private TemplateRequirementMatchEvaluation copyDecision(
+-        TemplateRequirementMatchEvaluation item, String decision, TemplateAnalysisRole role
+-    ) {
+-        return new TemplateRequirementMatchEvaluation(
+-            item.templateId(), item.businessGroup(), item.relevance(), item.evidenceFit(),
+-            item.parameterReadiness(), item.totalScore(), decision, item.relevanceLevel(), role,
+-            item.reasons(), item.missingParameters(), item.matchedQuestionAspects(),
+-            item.relationshipHints());
+-    }
+-
+-    private TemplateRequirementMatchEvaluation defaultEvaluation(
+-        String id, String decision, TemplateAnalysisRole role, String reason
+-    ) {
+-        return new TemplateRequirementMatchEvaluation(
+-            id, null, 0.0, 0.0, 0.0, 0.0, decision, null, role,
+-            List.of(reason), List.of(), List.of(), List.of());
+-    }
+-
+-    private BusinessAnalysisIntent businessIntent(
+-        Object value, String originalQuestion,
+-        List<TemplateRequirementMatchEvaluation> evaluations
+-    ) {
+-        Map<String, Object> intent = value instanceof Map<?, ?> raw ? cast(raw) : Map.of();
+-        List<String> derivedFocus = evaluations == null ? List.of() : evaluations.stream()
+-            .filter(item -> item.analysisRole() != TemplateAnalysisRole.IRRELEVANT)
+-            .flatMap(item -> item.matchedQuestionAspects().stream()).distinct().toList();
+-        List<String> derivedRelationships = evaluations == null ? List.of() : evaluations.stream()
+-            .filter(item -> item.analysisRole() != TemplateAnalysisRole.IRRELEVANT)
+-            .flatMap(item -> item.relationshipHints().stream()).distinct().toList();
+-        return new BusinessAnalysisIntent(
+-            firstText(text(first(intent, "businessGoal", "business_goal")), originalQuestion),
+-            text(first(intent, "analysisSubject", "analysis_subject")),
+-            strings(first(intent, "coreEntities", "core_entities")),
+-            strings(first(intent, "metrics", "businessMetrics", "business_metrics")),
+-            strings(first(intent, "dimensions", "analysisDimensions", "analysis_dimensions")),
+-            firstNonEmpty(strings(first(intent, "analysisFocus", "analysis_focus")), derivedFocus),
+-            text(first(intent, "timeScope", "time_scope")),
+-            firstNonEmpty(strings(first(intent, "expectedRelationships", "expected_relationships")),
+-                derivedRelationships)
+-        );
+-    }
+-
+-    private List<String> firstNonEmpty(List<String> preferred, List<String> fallback) {
+-        return preferred == null || preferred.isEmpty()
+-            ? (fallback == null ? List.of() : fallback) : preferred;
+-    }
+-
+-    private String firstText(String preferred, String fallback) {
+-        return preferred == null || preferred.isBlank() ? fallback : preferred;
+-    }
+-
+-    private List<TemplateRelationship> relationships(Object value, List<String> selectedIds) {
+-        Set<String> admitted = selectedIds == null ? Set.of() : selectedIds.stream()
+-            .map(this::normalize).collect(java.util.stream.Collectors.toUnmodifiableSet());
+-        return maps(value).stream().map(item -> {
+-            String from = text(first(item, "fromTemplateId", "from_template_id", "from"));
+-            String to = text(first(item, "toTemplateId", "to_template_id", "to"));
+-            if (from == null || to == null) return null;
+-            return new TemplateRelationship(
+-                from, to,
+-                text(first(item, "relationType", "relation_type", "type")),
+-                text(first(item, "description", "reason"))
+-            );
+-        }).filter(Objects::nonNull)
+-            .filter(relation -> admitted.contains(normalize(relation.fromTemplateId()))
+-                && admitted.contains(normalize(relation.toTemplateId())))
+-            .toList();
+-    }
+-
+-    private TemplateRequirementMatchEvaluation typedEvaluation(Map<String, Object> value) {
+-        String id = text(first(value, "templateId", "template_id"));
+-        if (id == null) return null;
+-        return new TemplateRequirementMatchEvaluation(
+-            id,
+-            text(first(value, "businessGroup", "business_group")),
+-            score(first(value, "relevance")),
+-            score(first(value, "evidenceFit", "evidence_fit")),
+-            score(first(value, "parameterReadiness", "parameter_readiness")),
+-            evaluationScore(value),
+-            text(first(value, "decision", "verdict")),
+-            text(first(value, "relevanceLevel", "relevance_level")),
+-            TemplateAnalysisRole.from(first(value, "analysisRole", "analysis_role")),
+-            strings(first(value, "reasons", "reason")),
+-            strings(first(value, "missingParameters", "missing_parameters")),
+-            strings(first(value, "matchedQuestionAspects", "matched_question_aspects")),
+-            strings(first(value, "relationshipHints", "relationship_hints"))
+-        );
+-    }
+-
+-    private double score(Object value) {
+-        if (value instanceof Number number) return normalizeScore(number.doubleValue());
+-        try {
+-            return value == null ? 0.0 : normalizeScore(Double.parseDouble(String.valueOf(value)));
+-        } catch (NumberFormatException ignored) {
+-            return 0.0;
+-        }
+-    }
+-
+-    @SuppressWarnings("unchecked")
+     private Object attachRequirementMatch(Object value, Map<String, Object> match, int depth) {
+         if (value == null || depth > 8) return value;
+         if (value instanceof List<?> list) {
+@@ -687,9 +393,12 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
+                     byId.putIfAbsent(normalize(id), template);
+                 }
+             }
+-            SemanticCandidateAdmissionPolicy.Decision admission = ADMISSION_POLICY.decide(
++            SemanticCandidateAdmissionPolicy.Decision admission = selectedIds.isEmpty()
++                ? new SemanticCandidateAdmissionPolicy.Decision(true, List.of(), "runtime_evidence_model_review")
++                : ADMISSION_POLICY.decide(
+                 byId.values().stream().map(this::templateId).toList(),
+-                selectedIds, rejectedIds, false);
++                selectedIds.stream().filter(id->byId.containsKey(normalize(id))).toList(),
++                rejectedIds.stream().filter(id->byId.containsKey(normalize(id))).toList(), false);
+             if (!admission.decided()) {
+                 return new Projection(output, templates.size(), 0, List.of(), false);
+             }
+@@ -762,24 +471,7 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
+ 
+     private boolean acceptedEvaluation(Map<String, Object> evaluation) {
+         String decision = text(first(evaluation, "decision", "verdict"));
+-        return ("accept".equalsIgnoreCase(decision) || "selected".equalsIgnoreCase(decision))
+-            && evaluationScore(evaluation) >= 0.6;
+-    }
+-
+-    private double evaluationScore(Map<String, Object> evaluation) {
+-        Object value = first(evaluation, "totalScore", "total_score", "score", "relevance");
+-        if (value instanceof Number number) {
+-            return normalizeScore(number.doubleValue());
+-        }
+-        try {
+-            return value == null ? 0.0 : normalizeScore(Double.parseDouble(String.valueOf(value)));
+-        } catch (NumberFormatException ignored) {
+-            return 0.0;
+-        }
+-    }
+-
+-    private double normalizeScore(double score) {
+-        return score > 1.0 ? Math.min(1.0, score / 100.0) : Math.max(0.0, score);
++        return "accept".equalsIgnoreCase(decision) || "selected".equalsIgnoreCase(decision);
+     }
+ 
+     private String templateId(Map<String, Object> template) {
+diff --git a/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/selection/SemanticCandidateAdmissionPolicy.java b/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/selection/SemanticCandidateAdmissionPolicy.java
+index b00bc3c9a..07e3d4215 100644
+--- a/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/selection/SemanticCandidateAdmissionPolicy.java
++++ b/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/selection/SemanticCandidateAdmissionPolicy.java
+@@ -26,28 +26,12 @@ final class SemanticCandidateAdmissionPolicy {
+             return Decision.undecided();
+         }
+         Set<String> rejected = normalized(rejectedIds);
+-        List<String> explicit = project(selectedIds, authorized, rejected);
+-        if (!explicit.isEmpty()) {
+-            return new Decision(true, explicit, "runtime_evidence_model_review");
+-        }
+-        if (selectedIds != null && !selectedIds.isEmpty() && rejected.isEmpty()) {
+-            // The reviewer selected only unknown or explicitly rejected ids.
++        if(selectedIds!=null&&selectedIds.stream().anyMatch(id->!authorized.containsKey(normalize(id))||rejected.contains(normalize(id))))
+             return Decision.undecided();
+-        }
+-        if (authorized.size() == 1 && rejected.isEmpty()) {
+-            return new Decision(true, List.copyOf(authorized.values()), "runtime_unique_candidate");
+-        }
+-        if (!rejected.isEmpty()) {
+-            List<String> survivors = authorized.entrySet().stream()
+-                .filter(entry -> !rejected.contains(entry.getKey()))
+-                .map(Map.Entry::getValue)
+-                .toList();
+-            // Rejection-only review is decisive only if it leaves one or no candidate.
+-            if (survivors.size() <= 1) {
+-                return new Decision(true, survivors, "runtime_evidence_model_review");
+-            }
+-        }
+-        return Decision.undecided();
++        List<String> explicit = project(selectedIds, authorized, rejected);
++        if (selectedIds != null && !selectedIds.isEmpty() && explicit.isEmpty()) return Decision.undecided();
++        // Existence/membership only. No singleton, survivor, score or relevance inference.
++        return new Decision(true, explicit, "model_selection_validated");
+     }
+ 
+     private Map<String, String> authorized(List<String> values) {
+diff --git a/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/template/PublishedDataAcquisitionPlanner.java b/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/template/PublishedDataAcquisitionPlanner.java
+index dd428e595..62c7f706c 100644
+--- a/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/template/PublishedDataAcquisitionPlanner.java
++++ b/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/template/PublishedDataAcquisitionPlanner.java
+@@ -7,47 +7,38 @@ import java.util.*;
+ 
+ /** Compiles an unambiguous published supply chain; semantic candidate admission stays in Runtime. */
+ public final class PublishedDataAcquisitionPlanner {
++    private static final org.slf4j.Logger log=org.slf4j.LoggerFactory.getLogger(PublishedDataAcquisitionPlanner.class);
+     private final ToolRegistry registry;
+     public PublishedDataAcquisitionPlanner(ToolRegistry registry) { this.registry=registry; }
+ 
+     public InterpretationPlan compile(String query,List<String> authorized,List<String> required) {
+-        if(registry==null || query==null || query.isBlank() || authorized==null) return null;
++        if(registry==null || query==null || query.isBlank() || authorized==null) return unavailable("MISSING_COMPILATION_CONTEXT");
+         boolean configured=required!=null && !required.isEmpty();
+-        if(configured && !authorized.containsAll(required)) return null;
++        if(configured && !authorized.containsAll(required)) return unavailable("REQUIRED_TOOL_NOT_AUTHORIZED");
+         List<String> selected=new ArrayList<>(new LinkedHashSet<>(configured?required:authorized));
+         List<String> fixed=selected.stream().filter(n->TemplateWorkflowMetadata.fixedScope(registry.getToolMetadata(n)).isPresent()).toList();
+         // The publication is the candidate authority for its asset family. A directory is not
+         // a second provider for the same configured supply chain.
+-        selected.removeIf(n->role(n)==ToolWorkflowRole.TEMPLATE_DISCOVERY && !fixed.contains(n)
+-            && !TemplateWorkflowMetadata.assetStages(registry.getToolMetadata(n))
+-            && fixed.stream().anyMatch(f->Objects.equals(TemplateWorkflowMetadata.assetType(registry.getToolMetadata(f)),TemplateWorkflowMetadata.assetType(registry.getToolMetadata(n)))));
+-        List<String> assets=selected.stream().filter(n->TemplateWorkflowMetadata.assetStages(registry.getToolMetadata(n)) && !fixed.contains(n))
+-            .filter(n->fixed.stream().anyMatch(f->Objects.equals(TemplateWorkflowMetadata.assetType(registry.getToolMetadata(f)),TemplateWorkflowMetadata.assetType(registry.getToolMetadata(n))))).toList();
+-        List<String> discoveries=selected.stream().filter(n->role(n)==ToolWorkflowRole.TEMPLATE_DISCOVERY && !assets.contains(n)).toList();
++        selected.removeIf(n->!fixed.contains(n) && fixed.stream().anyMatch(f->
++            TemplateWorkflowMetadata.suppliesBoundDiscovery(registry.getToolMetadata(f),registry.getToolMetadata(n))));
++        List<String> discoveries=selected.stream().filter(n->role(n)==ToolWorkflowRole.TEMPLATE_DISCOVERY).toList();
+         List<String> executions=selected.stream().filter(n->role(n)==ToolWorkflowRole.TEMPLATE_EXECUTION).toList();
+         // Multiple authorities or required operations need semantic planning. Optional unrelated
+         // capabilities do not disable a configured, unambiguous data provider.
+-        if(discoveries.size()!=1 || executions.size()!=1 || assets.size()>1 || selected.size()!=2+assets.size()) return null;
++        if(discoveries.size()!=1 || executions.size()!=1 || selected.size()!=2) return unavailable("AMBIGUOUS_OR_ADDITIONAL_REQUIRED_CAPABILITIES");
+         String discovery=discoveries.get(0),execution=executions.get(0);
+         ToolMetadata metadata=registry.getToolMetadata(discovery);
+-        if((configured || authorized.size()>2) && TemplateWorkflowMetadata.fixedScope(metadata).isEmpty()) return null;
+-        if(metadata!=null && metadata.getParameters()!=null && metadata.getParameters().stream().anyMatch(p->p!=null && "stage".equals(p.getName()) && p.getEnumValues()!=null && Arrays.asList(p.getEnumValues()).contains("asset"))) return null;
++        if((configured || authorized.size()>2) && TemplateWorkflowMetadata.fixedScope(metadata).isEmpty()) return unavailable("NO_FIXED_PUBLICATION_AUTHORITY");
++        if(metadata!=null && metadata.getParameters()!=null && metadata.getParameters().stream().anyMatch(p->p!=null && "stage".equals(p.getName()) && p.getEnumValues()!=null && Arrays.asList(p.getEnumValues()).contains("asset"))) return unavailable("UNBOUND_STAGED_DISCOVERY");
+         TemplateWorkflowTool provider=descriptor(discovery),executor=descriptor(execution);
+         var plugin=TemplateWorkflowPluginRegistry.load().resolve(executor).orElse(null);
+-        if(plugin==null || !plugin.accepts(provider,executor)) return null;
+-        int templateStep=assets.isEmpty()?1:2, executionStep=templateStep+1, answerStep=executionStep+1;
++        if(plugin==null || !plugin.accepts(provider,executor)) return unavailable("INCOMPATIBLE_EXECUTION_PROTOCOL");
++        int templateStep=1, executionStep=2, answerStep=3;
+         List<InterpretationPlan.Step> steps=new ArrayList<>();
+         List<InterpretationPlan.DependencyContract> dependencies=new ArrayList<>();
+         List<String> allowed=new ArrayList<>();
+-        if(!assets.isEmpty()) {
+-            steps.add(new InterpretationPlan.Step(1,"mcp_tool",assets.get(0),
+-                Map.of("stage","asset","query",query,"limit",10),List.of(),null,null));
+-            dependencies.add(new InterpretationPlan.DependencyContract(1,templateStep,true,null,
+-                "Canonical asset selection precedes fixed template selection.","stop"));
+-            allowed.add(assets.get(0));
+-        }
+         steps.add(new InterpretationPlan.Step(templateStep,"mcp_tool",discovery,Map.of("query",query,"limit",10),
+-            assets.isEmpty()?List.of():List.of(1),null,null));
++            List.of(),null,null));
+         steps.add(new InterpretationPlan.Step(executionStep,"mcp_tool",execution,Map.of(),List.of(templateStep),null,null));
+         steps.add(new InterpretationPlan.Step(answerStep,"final_answer","",Map.of("answer","Use the admitted tool evidence to answer the current question."),List.of(executionStep),null,null));
+         dependencies.add(new InterpretationPlan.DependencyContract(templateStep,executionStep,true,null,
+@@ -56,7 +47,7 @@ public final class PublishedDataAcquisitionPlanner {
+             "Data execution must precede the answer.","stop"));
+         allowed.add(discovery);allowed.add(execution);
+         return new InterpretationPlan("1.0",new InterpretationPlan.Intent("mixed",query,"low"),
+-            new InterpretationPlan.Context(List.of("The published workflow separates asset selection, fixed template selection and execution."),
++            new InterpretationPlan.Context(List.of("The publisher resolves bound assets; the model selects returned templates and extracts parameters."),
+                 List.of(),List.of(),List.of("Use only canonical asset context and returned template identities.")),
+             new InterpretationPlan.Plan(steps,
+                 List.of(new InterpretationPlan.EdgeContract(templateStep,executionStep,plugin.templateIdOutputPath(),"string",true)),
+@@ -65,6 +56,10 @@ public final class PublishedDataAcquisitionPlanner {
+             new InterpretationPlan.ExecutionPolicy(steps.size(),true,allowed,List.of(),null,1,"partial_result"),
+             new InterpretationPlan.Review(new InterpretationPlan.SelfCheck(1.0,0.0,true,List.of()),List.of()));
+     }
++    private InterpretationPlan unavailable(String reason) {
++        log.info("Published data acquisition compilation deferred to semantic planning: reason={}",reason);
++        return null;
++    }
+     private ToolWorkflowRole role(String name) { return ToolWorkflowContract.resolveRole(name,registry.getToolMetadata(name)); }
+     private TemplateWorkflowTool descriptor(String name) {
+         ToolMetadata metadata=registry.getToolMetadata(name);
+diff --git a/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/template/TemplateWorkflowMetadata.java b/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/template/TemplateWorkflowMetadata.java
+index 4fbec980e..4dca39058 100644
+--- a/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/template/TemplateWorkflowMetadata.java
++++ b/chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/template/TemplateWorkflowMetadata.java
+@@ -32,6 +32,18 @@ public final class TemplateWorkflowMetadata {
+             .map(value->value.trim().toLowerCase(Locale.ROOT)).orElse(null);
+     }
+ 
++    /** Fixed bindings replace a generic discovery boundary, never another fixed publication.
++     * This resolves capability coverage only; MCP still resolves and authorizes every bound asset.
++     */
++    public static boolean suppliesBoundDiscovery(ToolMetadata provider, ToolMetadata discovery) {
++        if (fixedScope(provider).isEmpty() || fixedScope(discovery).isPresent()) return false;
++        var role=com.chatchat.common.tool.ToolWorkflowContract.resolveRole(null, discovery);
++        if (role != com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_DISCOVERY
++                && role != com.chatchat.common.tool.ToolWorkflowRole.ASSET_DISCOVERY) return false;
++        String family=assetType(provider);
++        return family != null && family.equals(assetType(discovery));
++    }
++
+     public static boolean assetStages(ToolMetadata tool) {
+         if (tool == null) return false;
+         if (tool.getParameters() != null && tool.getParameters().stream().anyMatch(parameter ->
+diff --git a/chatchat-agents/src/main/java/com/chatchat/agents/runtime/tool/ToolRuntimeService.java b/chatchat-agents/src/main/java/com/chatchat/agents/runtime/tool/ToolRuntimeService.java
+index da2d027bc..78d41cae3 100644
+--- a/chatchat-agents/src/main/java/com/chatchat/agents/runtime/tool/ToolRuntimeService.java
++++ b/chatchat-agents/src/main/java/com/chatchat/agents/runtime/tool/ToolRuntimeService.java
+@@ -3439,6 +3439,12 @@ public class ToolRuntimeService {
+ 
+         List<String> missing = dependencies.stream()
+             .filter(value -> value != null && !value.isBlank())
++            .filter(dependency -> {
++                String provider = boundDiscoveryDependencyProvider(request, toolName, dependency, completed);
++                if (provider == null) return true;
++                matchedRules.add("published_binding_dependency." + dependency + "=" + provider);
++                return false;
++            })
+             .filter(dependency -> !workflowDependencySatisfied(
+                 completed,
+                 completedFacts,
+@@ -3464,6 +3470,23 @@ public class ToolRuntimeService {
+             matchedRules);
+     }
+ 
++    /** Covers only a generic discovery edge inside an admitted InterpretationPlan.
++     * Asset identity, caller permissions and template execution remain independently governed.
++     */
++    private String boundDiscoveryDependencyProvider(ToolRuntimeRequest request, String currentTool,
++                                                    String dependency, Set<String> completed) {
++        if (request == null || !"interpretation_plan".equals(request.getRuntimeMode())
++                || request.getAttributes() == null
++                || !Boolean.TRUE.equals(request.getAttributes().get("dagDependencyIsolation"))
++                || authoritativeWorkflowDependencies(request, currentTool) == null) return null;
++        ToolMetadata required = toolRegistry.getToolMetadata(dependency);
++        if (com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata.suppliesBoundDiscovery(
++                toolRegistry.getToolMetadata(currentTool), required)) return currentTool;
++        return completed.stream().filter(tool ->
++            com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata.suppliesBoundDiscovery(
++                toolRegistry.getToolMetadata(tool), required)).findFirst().orElse(null);
++    }
++
+     private ToolRuntimeAction workflowConfirmationAction(String confirmation, ToolExecutionPlan executionPlan) {
+         if (confirmation == null || confirmation.isBlank()) {
+             return null;
+diff --git a/chatchat-agents/src/test/java/com/chatchat/agents/orchestration/AgentOrchestratorTest.java b/chatchat-agents/src/test/java/com/chatchat/agents/orchestration/AgentOrchestratorTest.java
+index c91f3f6f9..e3f9149af 100644
+--- a/chatchat-agents/src/test/java/com/chatchat/agents/orchestration/AgentOrchestratorTest.java
++++ b/chatchat-agents/src/test/java/com/chatchat/agents/orchestration/AgentOrchestratorTest.java
+@@ -220,100 +220,45 @@ class AgentOrchestratorTest {
+     }
+ 
+     @Test
+-    void templateCoverageAuditReceivesPriorAssetEvidenceAndCannotAuthorizeUnmappedCounterpart() {
+-        ChatModel model = mock(ChatModel.class);
+-        when(model.chat(anyString())).thenReturn(
+-            "{\"satisfied\":true,\"selected_template_ids\":[\"host-health\"],"
+-                + "\"deferred_template_ids\":[\"host-process\"],\"coverage_decision\":\"SUFFICIENT\"}",
+-            "{\"coverage_complete\":true,\"coverage_decision\":\"SUFFICIENT\","
+-                + "\"requested_aspects\":[\"database-host relationship\"],"
+-                + "\"corrected_selected_template_ids\":[\"host-health\",\"host-process\"],"
+-                + "\"corrected_rejected_template_ids\":[],\"missing_aspects\":[],"
+-                + "\"reason\":\"the model incorrectly assumes the DEV host is related\"}"
+-        );
+-        AgentOrchestrator orchestrator = newTemplateDiscoveryOrchestrator(model, false);
+-        InterpretationPlanRuntime.StepExecution databaseDiscovery =
+-            new InterpretationPlanRuntime.StepExecution(
+-                1, "mcp_tool", "mcp_chatchat_mcp_server_database_capability_query", true,
+-                Map.of(
+-                    "queryIr", Map.of("asset", Map.of("selected", Map.of(
+-                        "id", "db-risk-oracle", "name", "Risk Oracle",
+-                        "type", "sql_datasource", "environment", "DEV"))),
+-                    "templates", List.of(Map.of("templateId", "db-instance-status"))),
+-                null, null, null, 10L);
+-        InterpretationPlanRuntime.StepExecution hostTemplateDiscovery =
+-            new InterpretationPlanRuntime.StepExecution(
+-                2, "mcp_tool", "mcp_chatchat_mcp_server_server_capability_query", true,
+-                Map.of(
+-                    "queryIr", Map.of("asset", Map.of("selected", Map.of(
+-                        "id", "host-adp", "name", "ADP database host",
+-                        "type", "ssh_host", "environment", "DEV"))),
+-                    "templates", List.of(
+-                        Map.of("templateId", "host-health", "title", "Host health"),
+-                        Map.of("templateId", "host-process", "title", "Host process status"))),
+-                null, null, null, 10L);
+-
+-        InterpretationPlanRuntime.StepReview review = orchestrator.reviewInterpretationPlanToolResult(
+-            model,
+-            "Analyze the DEV risk Oracle database together with its physical server",
+-            null,
+-            () -> false,
+-            new InterpretationPlanRuntime.StepReviewRequest(
+-                null, null, hostTemplateDiscovery, Map.of(1, databaseDiscovery), 1, 1,
+-                "run-unmapped-counterpart"));
+-
+-        assertThat(review.metadata())
+-            .containsEntry("selectedTemplateIds", List.of())
+-            .containsEntry("coverageDecision", "SCOPE_INSUFFICIENT")
+-            .containsEntry("retrievalOutcome", "SCOPE_EXHAUSTED_NO_MATCH");
+-        verify(model, org.mockito.Mockito.times(2)).chat(argThat((String prompt) ->
+-            prompt.contains("Cross-asset relationship rule")
+-                && prompt.contains("shared canonical mapping")
+-                && prompt.contains("db-risk-oracle")
+-                && prompt.contains("host-adp")));
+-    }
+-
+-    @Test
+-    void plannedCrossAssetAnchorPreventsParallelReviewRaceFromAuthorizingSecondaryAsset() {
+-        ChatModel model = mock(ChatModel.class);
+-        when(model.chat(anyString())).thenReturn(
+-            "{\"satisfied\":true,\"selected_template_ids\":[\"host-health\"],"
+-                + "\"deferred_template_ids\":[\"host-process\"],\"coverage_decision\":\"SUFFICIENT\"}",
+-            "{\"coverage_complete\":true,\"coverage_decision\":\"SUFFICIENT\","
+-                + "\"corrected_selected_template_ids\":[\"host-health\",\"host-process\"],"
+-                + "\"corrected_rejected_template_ids\":[],\"missing_aspects\":[]}"
+-        );
+-        AgentOrchestrator orchestrator = newTemplateDiscoveryOrchestrator(model, false);
+-        InterpretationPlan.Step databaseStep = new InterpretationPlan.Step(
+-            1, "mcp_tool", "mcp_chatchat_mcp_server_database_capability_query",
+-            Map.of(), List.of(), null, null);
+-        InterpretationPlan.Step hostStep = new InterpretationPlan.Step(
+-            3, "mcp_tool", "mcp_chatchat_mcp_server_server_capability_query",
+-            Map.of(), List.of(), null, null);
+-        InterpretationPlan plan = new InterpretationPlan(
+-            "1.0", null, null, new InterpretationPlan.Plan(List.of(databaseStep, hostStep)), null, null);
+-        InterpretationPlanRuntime.StepExecution hostDiscovery =
+-            new InterpretationPlanRuntime.StepExecution(
+-                3, "mcp_tool", hostStep.toolName(), true,
+-                Map.of(
+-                    "queryIr", Map.of("asset", Map.of("selected", Map.of(
+-                        "id", "host-adp", "name", "ADP database host",
+-                        "type", "ssh_host", "environment", "DEV"))),
+-                    "templates", List.of(
+-                        Map.of("templateId", "host-health", "title", "Host health"),
+-                        Map.of("templateId", "host-process", "title", "Host process status"))),
+-                null, null, null, 10L);
+-
+-        InterpretationPlanRuntime.StepReview review = orchestrator.reviewInterpretationPlanToolResult(
+-            model, "Analyze the DEV risk Oracle database together with its physical server",
+-            null, () -> false,
+-            new InterpretationPlanRuntime.StepReviewRequest(
+-                plan, hostStep, hostDiscovery, Map.of(), 1, 1, "run-parallel-race"));
+-
+-        assertThat(review.metadata())
+-            .containsEntry("selectedTemplateIds", List.of())
+-            .containsEntry("coverageDecision", "SCOPE_INSUFFICIENT")
+-            .containsEntry("retrievalOutcome", "SCOPE_EXHAUSTED_NO_MATCH");
++    void selectionReceivesPublishedCurrentAndPriorAssetIdentities() {
++        ChatModel model=mock(ChatModel.class);mockNativeTemplateSelection(model,"host-health");
++        var execution=new InterpretationPlanRuntime.StepExecution(2,"mcp_tool",
++            "mcp_chatchat_mcp_server_customer_service_template_query",true,
++            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","current-asset"))),
++                "hasMore",true,"nextCursor","opaque-next","templates",List.of(Map.of("templateId","host-health","parameterSchema",Map.of("type","object","properties",Map.of())),Map.of("templateId","host-process","parameterSchema",Map.of("type","object","properties",Map.of())))),null,null,null,1L);
++        var prior=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool","prior_discovery",true,
++            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","prior-asset")))),null,null,null,1L);
++        var review=newTemplateDiscoveryOrchestrator(model).reviewInterpretationPlanToolResult(model,
++            "Analyze the requested sources",null,()->false,
++            new InterpretationPlanRuntime.StepReviewRequest(null,null,execution,Map.of(1,prior),1,1),
++            Map.of("workflowFamily","DATA_ANALYSIS"));
++        assertThat(review.satisfied()).isTrue();
++        assertThat(review.metadata()).containsEntry("selectedTemplateIds",List.of("host-health"))
++            .containsEntry("mcpDiscoverySucceeded",true).doesNotContainKey("templateSelectionCoverageAudit");
++        var captured=org.mockito.ArgumentCaptor.forClass(dev.langchain4j.model.chat.request.ChatRequest.class);
++        verify(model,times(1)).chat(captured.capture());verify(model,never()).chat(anyString());
++        assertThat(captured.getValue().messages().toString()).contains("current-asset","prior-asset");
++    }
++
++    @Test
++    void javaDoesNotVetoSelectedCapabilitiesBasedOnBusinessAnchor() {
++        ChatModel model=mock(ChatModel.class);mockNativeTemplateSelection(model,"host-health");
++        var execution=new InterpretationPlanRuntime.StepExecution(2,"mcp_tool",
++            "mcp_chatchat_mcp_server_customer_service_template_query",true,
++            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","current-asset"))),
++                "hasMore",true,"nextCursor","opaque-next","templates",List.of(Map.of("templateId","host-health","parameterSchema",Map.of("type","object","properties",Map.of())),Map.of("templateId","host-process","parameterSchema",Map.of("type","object","properties",Map.of())))),null,null,null,1L);
++        var prior=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool","prior_discovery",true,
++            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","prior-asset")))),null,null,null,1L);
++        var review=newTemplateDiscoveryOrchestrator(model).reviewInterpretationPlanToolResult(model,
++            "Analyze the requested sources",null,()->false,
++            new InterpretationPlanRuntime.StepReviewRequest(null,null,execution,Map.of(1,prior),1,1),
++            Map.of("workflowFamily","DATA_ANALYSIS"));
++        assertThat(review.satisfied()).isTrue();
++        assertThat(review.metadata()).containsEntry("selectedTemplateIds",List.of("host-health"))
++            .containsEntry("mcpDiscoverySucceeded",true).doesNotContainKey("templateSelectionCoverageAudit");
++        var captured=org.mockito.ArgumentCaptor.forClass(dev.langchain4j.model.chat.request.ChatRequest.class);
++        verify(model,times(1)).chat(captured.capture());verify(model,never()).chat(anyString());
++        assertThat(captured.getValue().messages().toString()).contains("current-asset","prior-asset");
+     }
+ 
+     @Test
+@@ -3750,6 +3695,129 @@ class AgentOrchestratorTest {
+             .hasSizeLessThan(30_000);
+     }
+ 
++    @Test void codingAnalysisAssetProjectionPreservesIdentityAndSemanticMetadata() throws Exception {
++        var orchestrator=newOrchestrator(mock(ChatModel.class));
++        var method=AgentOrchestrationEngine.class.getDeclaredMethod("projectCandidate",Map.class,boolean.class);
++        method.setAccessible(true);
++        var projected=(Map<?,?>)method.invoke(orchestrator,Map.of(
++            "asset",Map.of("id","canonical-id","name","opaque-name","databaseType","oracle",
++                "businessGroup",Map.of("name","risk-control"),"description","x".repeat(6000)),
++            "analysisIdentity",Map.of("toolDescription","Production risk control database")),false);
++        assertThat(projected.get("asset")).isInstanceOf(Map.class);
++        var asset=(Map<?,?>)projected.get("asset");
++        assertThat(asset.get("id")).isEqualTo("canonical-id");
++        assertThat(asset.get("databaseType")).isEqualTo("oracle");
++        assertThat(asset.get("businessGroup")).isEqualTo(Map.of("name","risk-control"));
++        assertThat(projected.get("analysisIdentity").toString()).contains("Production risk control database");
++    }
++
++    @Test void codingDiscoveryUsesRequestBudgetInsteadOfOptionalReviewCap() {
++        var review=reviewSlowAssetCandidates(Map.of("workflowFamily","DATA_ANALYSIS"),1000);
++        assertThat(review.metadata()).containsEntry("selectedAssetIds",List.of("b"));
++    }
++
++    @Test void codingDiscoveryStillHonorsTheRequestDeadline() {
++        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
++            reviewSlowAssetCandidates(Map.of("workflowFamily","DATA_ANALYSIS"),1))
++            .isInstanceOf(com.chatchat.agents.orchestration.model.AgentDeadlineExceededException.class);
++    }
++
++    @Test void qaDiscoveryRetainsItsExistingReviewPhaseCap() {
++        org.assertj.core.api.Assertions.assertThatThrownBy(() -> reviewSlowAssetCandidates(Map.of(),1000))
++            .isInstanceOf(com.chatchat.agents.orchestration.model.ModelPhaseBudgetExceededException.class);
++    }
++
++    private InterpretationPlanRuntime.StepReview reviewSlowAssetCandidates(Map<String,Object> attributes,long remaining) {
++        ChatModel delegate=new ChatModel() {
++            @Override public String chat(String prompt) {
++                java.util.concurrent.locks.LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(30));
++                return "{\"satisfied\":true,\"selected_asset_ids\":[\"b\"]}";
++            }
++        };
++        ChatModel model=new com.chatchat.agents.orchestration.model.DeadlineAwareChatModel(delegate,()->remaining);
++        var registry=mock(ToolRegistry.class);
++        when(registry.getToolMetadata("assets")).thenReturn(ToolMetadata.builder().metadata(Map.of(
++            "workflowContract",com.chatchat.common.tool.ToolWorkflowContract.declaration(
++                com.chatchat.common.tool.ToolWorkflowRole.ASSET_DISCOVERY,"asset.v1","filters"))).build());
++        var properties=new AgentRuntimeProperties();properties.setToolResultReviewTimeoutMs(1);
++        var service=new ToolRuntimeService(registry,new ObjectMapper(),toolRuntimeProperties(),List.of(),List.of());
++        try {
++            var orchestrator=new AgentOrchestrator(model,registry,service,new ObjectMapper(),new ModelsConfig(),
++                null,null,null,null,null,properties);
++            var execution=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool","assets",true,
++                Map.of("assets",List.of(Map.of("asset",Map.of("id","a")),Map.of("asset",Map.of("id","b")))),
++                null,null,null,1L);
++            return orchestrator.reviewInterpretationPlanToolResult(model,"Find the requested capability",null,()->false,
++                new InterpretationPlanRuntime.StepReviewRequest(null,null,execution,Map.of(),1,1),attributes);
++        } finally { service.shutdown(); }
++    }
++
++    @Test void codingAnalysisReusesCompletedSelectionDespiteAnUnavailableLegacyReview() {
++        var model=mock(ChatModel.class);
++        var execution=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool",
++            "mcp_chatchat_mcp_server_customer_service_template_query",true,
++            Map.of("templates",List.of(Map.of("templateId","selected"),Map.of("templateId","other"))),
++            null,null,null,1L,Map.of("modelSelectedTemplateIds",List.of("selected"),
++                "parameterProtocols",List.of(Map.of("template_id","selected","arguments",Map.of())),
++                "toolResultReviewUnavailable",true,"candidateSelectionErrorCode","MODEL_UNAVAILABLE"));
++        var review=newTemplateDiscoveryOrchestrator(model).reviewInterpretationPlanToolResult(model,"Analyze",null,()->false,
++            new InterpretationPlanRuntime.StepReviewRequest(null,null,execution,Map.of(),1,1),Map.of("workflowFamily","DATA_ANALYSIS"));
++        assertThat(review.satisfied()).isTrue();
++        assertThat(review.metadata()).containsEntry("selectedTemplateIds",List.of("selected"))
++            .containsEntry("candidateSelectionStatus","REUSED_MODEL_SELECTION")
++            .doesNotContainKey("candidateSelectionErrorCode");
++        org.mockito.Mockito.verifyNoInteractions(model);
++    }
++
++    @Test
++    void codingAnalysisStillUsesModelForAmbiguousAssetAdmission() {
++        ChatModel model=mock(ChatModel.class);
++        when(model.chat(anyString())).thenReturn(
++            "{\"satisfied\":true,\"selected_asset_ids\":[\"prod-b\"],\"reason\":\"matches requested capability\"}");
++        var execution=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool",
++            "mcp_chatchat_mcp_server_database_asset_search",true,
++            Map.of("assets",List.of(Map.of("asset",Map.of("id","prod-a")),
++                Map.of("asset",Map.of("id","prod-b")))),null,null,null,1L);
++        var registry=mock(ToolRegistry.class);
++        when(registry.getToolMetadata(execution.toolName())).thenReturn(ToolMetadata.builder().metadata(Map.of(
++            "workflowContract",com.chatchat.common.tool.ToolWorkflowContract.declaration(
++                com.chatchat.common.tool.ToolWorkflowRole.ASSET_DISCOVERY,"asset-query.v1","filters"))).build());
++        var review=newOrchestrator(model,registry).reviewInterpretationPlanToolResult(model,
++            "Find the database for the requested analysis",null,()->false,
++            new InterpretationPlanRuntime.StepReviewRequest(null,null,execution,Map.of(),1,1),
++            Map.of("workflowFamily","DATA_ANALYSIS"));
++        assertThat(review.satisfied()).isTrue();
++        assertThat(review.metadata()).containsEntry("selectedAssetIds",List.of("prod-b"));
++        verify(model,times(1)).chat(anyString());
++        assertThat(new com.chatchat.agents.runtime.plan.selection.EvidenceBasedAssetCandidateEvaluator()
++            .evaluate(execution.output(),review.metadata()).selectedIds()).containsExactly("prod-b");
++    }
++
++    @Test
++    void codingAnalysisRetainsTemplateSelectionAndNaturalLanguageParameterBinding() {
++        ChatModel model=mock(ChatModel.class);
++        when(model.chat(any(dev.langchain4j.model.chat.request.ChatRequest.class))).thenReturn(
++            dev.langchain4j.model.chat.response.ChatResponse.builder().aiMessage(
++                dev.langchain4j.data.message.AiMessage.from(dev.langchain4j.agent.tool.ToolExecutionRequest.builder()
++                    .id("selection-1").name(SchemaDrivenTemplateParameterBinder.SELECTION_FUNCTION)
++                    .arguments("{\"status\":\"SELECTED\",\"selections\":[{\"templateId\":\"detail\",\"parameters\":{\"accountId\":\"A42\"}}]}")
++                    .build())).build());
++        var execution=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool",
++            "mcp_chatchat_mcp_server_customer_service_template_query",true,
++            Map.of("templates",List.of(Map.of("templateId","detail","title","Account details",
++                "requiredParameters",List.of("accountId"),"parameterSchema",Map.of("type","object",
++                    "required",List.of("accountId"),"properties",Map.of("accountId",Map.of("type","string")))))),
++            null,null,null,1L);
++        var review=newTemplateDiscoveryOrchestrator(model).reviewInterpretationPlanToolResult(model,
++            "Analyze account A42",null,()->false,
++            new InterpretationPlanRuntime.StepReviewRequest(null,null,execution,Map.of(),1,1),
++            Map.of("workflowFamily","DATA_ANALYSIS"));
++        assertThat(review.metadata()).containsEntry("selectedTemplateIds",List.of("detail"));
++        assertThat(review.metadata().get("parameterProtocols").toString()).contains("A42");
++        verify(model,never()).chat(anyString());
++        verify(model,times(1)).chat(any(dev.langchain4j.model.chat.request.ChatRequest.class));
++    }
++
+     @Test
+     void successfulTemplateExecutionIsAdmittedWithoutRedundantModelReview() {
+         ChatModel model = mock(ChatModel.class);
+@@ -3775,240 +3843,150 @@ class AgentOrchestratorTest {
+     }
+ 
+     @Test
+-    void templateSelectionUsesSecondPassModelAuditToRestoreMissingQuestionFacets() {
+-        ChatModel model = mock(ChatModel.class);
+-        when(model.chat(anyString())).thenReturn(
+-            "{\"satisfied\":true,\"selected_template_ids\":[\"asset\"],"
+-                + "\"rejected_template_ids\":[\"trade\"],\"analysis_intent\":{"
+-                + "\"analysis_focus\":[\"assets\"]}}",
+-            "{\"coverage_complete\":true,\"requested_aspects\":[\"assets\",\"transactions\"],"
+-                + "\"corrected_selected_template_ids\":[\"asset\",\"trade\"],"
+-                + "\"missing_aspects\":[],\"reason\":\"both clauses are covered\"}"
+-        );
+-        AgentOrchestrator orchestrator = newTemplateDiscoveryOrchestrator(model);
+-        InterpretationPlanRuntime.StepExecution execution =
+-            new InterpretationPlanRuntime.StepExecution(
+-                1, "mcp_tool", "mcp_chatchat_mcp_server_customer_service_template_query", true,
+-                Map.of("templates", List.of(
+-                    Map.of("templateId", "asset", "title", "Asset snapshot"),
+-                    Map.of("templateId", "trade", "title", "Transaction history"))),
+-                null, null, null, 10L);
+-
+-        InterpretationPlanRuntime.StepReview review = orchestrator.reviewInterpretationPlanToolResult(
+-            model, "analyze assets and transactions", null, () -> false,
+-            new InterpretationPlanRuntime.StepReviewRequest(
+-                null, null, execution, Map.of(), 1, 1));
+-
++    void singleTemplateSelectionCoversMultipleQuestionFacetsWithoutAudit() {
++        ChatModel model=mock(ChatModel.class);mockNativeTemplateSelection(model,"asset","trade");
++        var execution=new InterpretationPlanRuntime.StepExecution(2,"mcp_tool",
++            "mcp_chatchat_mcp_server_customer_service_template_query",true,
++            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","current-asset"))),
++                "hasMore",true,"nextCursor","opaque-next","templates",List.of(Map.of("templateId","asset","parameterSchema",Map.of("type","object","properties",Map.of())),Map.of("templateId","trade","parameterSchema",Map.of("type","object","properties",Map.of())))),null,null,null,1L);
++        var prior=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool","prior_discovery",true,
++            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","prior-asset")))),null,null,null,1L);
++        var review=newTemplateDiscoveryOrchestrator(model).reviewInterpretationPlanToolResult(model,
++            "Analyze the requested sources",null,()->false,
++            new InterpretationPlanRuntime.StepReviewRequest(null,null,execution,Map.of(1,prior),1,1),
++            Map.of("workflowFamily","DATA_ANALYSIS"));
+         assertThat(review.satisfied()).isTrue();
+-        assertThat(review.metadata().get("selectedTemplateIds"))
+-            .isEqualTo(List.of("asset", "trade"));
+-        assertThat(review.metadata()).doesNotContainKey("rejectedTemplateIds");
+-        verify(model, org.mockito.Mockito.times(2)).chat(anyString());
+-    }
+-
+-    @Test
+-    void unselectedTemplatesAreDeferredUnlessAuditExplicitlyRejectsThem() {
+-        ChatModel model = mock(ChatModel.class);
+-        when(model.chat(anyString())).thenReturn(
+-            "{\"satisfied\":true,\"selected_template_ids\":[\"asset\"],"
+-                + "\"rejected_template_ids\":[\"trade\",\"balance\"],"
+-                + "\"template_evaluations\":[{\"template_id\":\"asset\",\"decision\":\"accept\"}]}",
+-            "{\"coverage_complete\":true,\"coverage_decision\":\"SUFFICIENT\","
+-                + "\"requested_aspects\":[\"assets\"],"
+-                + "\"corrected_selected_template_ids\":[\"asset\"],"
+-                + "\"corrected_rejected_template_ids\":[],\"missing_aspects\":[],"
+-                + "\"reason\":\"asset is sufficient; other candidates remain available\"}"
+-        );
+-        AgentOrchestrator orchestrator = newTemplateDiscoveryOrchestrator(model);
+-        InterpretationPlanRuntime.StepExecution execution =
+-            new InterpretationPlanRuntime.StepExecution(
+-                1, "mcp_tool", "mcp_chatchat_mcp_server_customer_service_template_query", true,
+-                Map.of("templates", List.of(
+-                    Map.of("templateId", "asset", "title", "Asset snapshot"),
+-                    Map.of("templateId", "trade", "title", "Transaction history"),
+-                    Map.of("templateId", "balance", "title", "Balance history"))),
+-                null, null, null, 10L);
+-
+-        InterpretationPlanRuntime.StepReview review = orchestrator.reviewInterpretationPlanToolResult(
+-            model, "analyze assets", null, () -> false,
+-            new InterpretationPlanRuntime.StepReviewRequest(
+-                null, null, execution, Map.of(), 1, 1, "run-three-state-disposition"));
+-
+-        assertThat(review.metadata())
+-            .containsEntry("selectedTemplateIds", List.of("asset"))
+-            .containsEntry("deferredTemplateIds", List.of("trade", "balance"))
+-            .doesNotContainKey("rejectedTemplateIds");
+-        verify(model, org.mockito.Mockito.times(2)).chat(anyString());
+-    }
+-
+-    @Test
+-    void coverageAuditAddsMissingSourcesWithoutDemotingFirstPassSelections() {
+-        ChatModel model = mock(ChatModel.class);
+-        when(model.chat(anyString())).thenReturn(
+-            "{\"satisfied\":true,\"selected_template_ids\":[\"asset\",\"trade\",\"profit\"],"
+-                + "\"deferred_template_ids\":[\"position\"]}",
+-            "{\"coverage_complete\":true,\"coverage_decision\":\"SUFFICIENT\","
+-                + "\"requested_aspects\":[\"assets\",\"transactions\",\"profit\"],"
+-                + "\"corrected_selected_template_ids\":[\"asset\",\"position\"],"
+-                + "\"corrected_rejected_template_ids\":[],\"missing_aspects\":[]}"
+-        );
+-        AgentOrchestrator orchestrator = newTemplateDiscoveryOrchestrator(model);
+-        InterpretationPlanRuntime.StepExecution execution =
+-            new InterpretationPlanRuntime.StepExecution(
+-                1, "mcp_tool", "mcp_chatchat_mcp_server_customer_service_template_query", true,
+-                Map.of("templates", List.of(
+-                    Map.of("templateId", "asset", "title", "Asset snapshot"),
+-                    Map.of("templateId", "trade", "title", "Transaction history"),
+-                    Map.of("templateId", "profit", "title", "Profit history"),
+-                    Map.of("templateId", "position", "title", "Position details"))),
+-                null, null, null, 10L);
+-
+-        InterpretationPlanRuntime.StepReview review = orchestrator.reviewInterpretationPlanToolResult(
+-            model, "analyze assets, transactions, profit and preferences", null, () -> false,
+-            new InterpretationPlanRuntime.StepReviewRequest(
+-                null, null, execution, Map.of(), 1, 1, "run-additive-coverage"));
+-
+-        assertThat(review.metadata().get("selectedTemplateIds"))
+-            .isEqualTo(List.of("asset", "trade", "profit", "position"));
+-        assertThat(review.metadata()).doesNotContainKey("rejectedTemplateIds");
+-        verify(model, org.mockito.Mockito.times(2)).chat(anyString());
+-    }
+-
+-    @Test
+-    void coverageAuditLoadsCorrectedDeferredTemplatesForAnalysis() {
+-        ChatModel model = mock(ChatModel.class);
+-        when(model.chat(anyString())).thenReturn(
+-            "{\"satisfied\":true,\"selected_template_ids\":[\"asset\"],"
+-                + "\"deferred_template_ids\":[\"trade\",\"position\"]}",
+-            "{\"coverage_complete\":true,\"coverage_decision\":\"SUFFICIENT\","
+-                + "\"requested_aspects\":[\"assets\",\"trading preferences\"],"
+-                + "\"corrected_selected_template_ids\":[\"asset\"],"
+-                + "\"corrected_deferred_template_ids\":[\"trade\",\"position\"],"
+-                + "\"corrected_rejected_template_ids\":[],\"missing_aspects\":[]}"
+-        );
+-        AgentOrchestrator orchestrator = newTemplateDiscoveryOrchestrator(model);
+-        InterpretationPlanRuntime.StepExecution execution =
+-            new InterpretationPlanRuntime.StepExecution(
+-                1, "mcp_tool", "mcp_chatchat_mcp_server_customer_service_template_query", true,
+-                Map.of("templates", List.of(
+-                    Map.of("templateId", "asset", "title", "Asset snapshot"),
+-                    Map.of("templateId", "trade", "title", "Transaction history"),
+-                    Map.of("templateId", "position", "title", "Position details"))),
+-                null, null, null, 10L);
+-
+-        InterpretationPlanRuntime.StepReview review = orchestrator.reviewInterpretationPlanToolResult(
+-            model, "analyze assets and trading preferences", null, () -> false,
+-            new InterpretationPlanRuntime.StepReviewRequest(
+-                null, null, execution, Map.of(), 1, 1, "run-load-deferred-analysis"));
+-
+-        assertThat(review.metadata())
+-            .containsEntry("selectedTemplateIds", List.of("asset", "trade", "position"))
+-            .containsEntry("coverageAuditDeferredTemplateIds", List.of("trade", "position"))
+-            .doesNotContainKey("deferredTemplateIds");
+-        verify(model, org.mockito.Mockito.times(2)).chat(anyString());
+-    }
+-
+-    @Test
+-    void completeFirstPassTemplateReviewIsReusedWithoutAQualityReducingSecondSelection() {
+-        ChatModel model = mock(ChatModel.class);
+-        when(model.chat(anyString())).thenReturn(
+-            "{\"satisfied\":true,\"coverage_decision\":\"SUFFICIENT\"," +
+-                "\"selected_template_ids\":[\"asset\",\"trade\"]," +
+-                "\"rejected_template_ids\":[]," +
+-                "\"template_evaluations\":[" +
+-                "{\"template_id\":\"asset\",\"decision\":\"accept\"}," +
+-                "{\"template_id\":\"trade\",\"decision\":\"accept\"}]}"
+-        );
+-        AgentOrchestrator orchestrator = newTemplateDiscoveryOrchestrator(model);
+-        InterpretationPlanRuntime.StepExecution execution =
+-            new InterpretationPlanRuntime.StepExecution(
+-                1, "mcp_tool", "mcp_chatchat_mcp_server_customer_service_template_query", true,
+-                Map.of("templates", List.of(
+-                    Map.of("templateId", "asset", "title", "Asset snapshot"),
+-                    Map.of("templateId", "trade", "title", "Transaction history"))),
+-                null, null, null, 10L);
+-
+-        InterpretationPlanRuntime.StepReview review = orchestrator.reviewInterpretationPlanToolResult(
+-            model, "analyze assets and transactions", null, () -> false,
+-            new InterpretationPlanRuntime.StepReviewRequest(
+-                null, null, execution, Map.of(), 1, 1, "run-complete-first-pass"));
+-
++        assertThat(review.metadata()).containsEntry("selectedTemplateIds",List.of("asset","trade"))
++            .containsEntry("mcpDiscoverySucceeded",true).doesNotContainKey("templateSelectionCoverageAudit");
++        var captured=org.mockito.ArgumentCaptor.forClass(dev.langchain4j.model.chat.request.ChatRequest.class);
++        verify(model,times(1)).chat(captured.capture());verify(model,never()).chat(anyString());
++        assertThat(captured.getValue().messages().toString()).contains("current-asset","prior-asset");
++    }
++
++    @Test
++    void unselectedCandidatesRemainUnexecutedWithoutSecondReview() {
++        ChatModel model=mock(ChatModel.class);mockNativeTemplateSelection(model,"asset");
++        var execution=new InterpretationPlanRuntime.StepExecution(2,"mcp_tool",
++            "mcp_chatchat_mcp_server_customer_service_template_query",true,
++            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","current-asset"))),
++                "hasMore",true,"nextCursor","opaque-next","templates",List.of(Map.of("templateId","asset","parameterSchema",Map.of("type","object","properties",Map.of())),Map.of("templateId","trade","parameterSchema",Map.of("type","object","properties",Map.of())),Map.of("templateId","balance","parameterSchema",Map.of("type","object","properties",Map.of())))),null,null,null,1L);
++        var prior=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool","prior_discovery",true,
++            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","prior-asset")))),null,null,null,1L);
++        var review=newTemplateDiscoveryOrchestrator(model).reviewInterpretationPlanToolResult(model,
++            "Analyze the requested sources",null,()->false,
++            new InterpretationPlanRuntime.StepReviewRequest(null,null,execution,Map.of(1,prior),1,1),
++            Map.of("workflowFamily","DATA_ANALYSIS"));
+         assertThat(review.satisfied()).isTrue();
+-        assertThat(review.metadata().get("selectedTemplateIds"))
+-            .isEqualTo(List.of("asset", "trade"));
+-        assertThat(review.metadata().get("templateSelectionCoverageAudit").toString())
+-            .contains("FIRST_PASS_COMPLETE");
+-        verify(model, org.mockito.Mockito.times(1)).chat(anyString());
+-    }
+-
+-    @Test
+-    void completeFirstPassCandidatePartitionDoesNotRequireVerboseRejectedEvaluations() {
+-        ChatModel model = mock(ChatModel.class);
+-        when(model.chat(anyString())).thenReturn(
+-            "{\"satisfied\":true,\"selected_template_ids\":[\"asset\",\"trade\"]," +
+-                "\"rejected_template_ids\":[\"irrelevant\"]," +
+-                "\"template_evaluations\":[" +
+-                "{\"template_id\":\"asset\",\"decision\":\"accept\"}," +
+-                "{\"template_id\":\"trade\",\"decision\":\"accept\"}," +
+-                "{\"template_id\":\"irrelevant\",\"decision\":\"reject\","
+-                + "\"reasons\":[\"does not cover a requested aspect\"]}]}"
+-        );
+-        AgentOrchestrator orchestrator = newTemplateDiscoveryOrchestrator(model);
+-        InterpretationPlanRuntime.StepExecution execution =
+-            new InterpretationPlanRuntime.StepExecution(
+-                1, "mcp_tool", "mcp_chatchat_mcp_server_customer_service_template_query", true,
+-                Map.of("templates", List.of(
+-                    Map.of("templateId", "asset", "title", "Asset snapshot"),
+-                    Map.of("templateId", "trade", "title", "Transaction history"),
+-                    Map.of("templateId", "irrelevant", "title", "Unrelated data"))),
+-                null, null, null, 10L);
+-
+-        InterpretationPlanRuntime.StepReview review = orchestrator.reviewInterpretationPlanToolResult(
+-            model, "analyze assets and transactions", null, () -> false,
+-            new InterpretationPlanRuntime.StepReviewRequest(
+-                null, null, execution, Map.of(), 1, 1, "run-complete-partition"));
+-
++        assertThat(review.metadata()).containsEntry("selectedTemplateIds",List.of("asset"))
++            .containsEntry("mcpDiscoverySucceeded",true).doesNotContainKey("templateSelectionCoverageAudit");
++        var captured=org.mockito.ArgumentCaptor.forClass(dev.langchain4j.model.chat.request.ChatRequest.class);
++        verify(model,times(1)).chat(captured.capture());verify(model,never()).chat(anyString());
++        assertThat(captured.getValue().messages().toString()).contains("current-asset","prior-asset");
++    }
++
++    @Test
++    void oneModelDecisionCanSelectEveryComplementarySource() {
++        ChatModel model=mock(ChatModel.class);mockNativeTemplateSelection(model,"asset","trade","profit","position");
++        var execution=new InterpretationPlanRuntime.StepExecution(2,"mcp_tool",
++            "mcp_chatchat_mcp_server_customer_service_template_query",true,
++            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","current-asset"))),
++                "hasMore",true,"nextCursor","opaque-next","templates",List.of(Map.of("templateId","asset","parameterSchema",Map.of("type","object","properties",Map.of())),Map.of("templateId","trade","parameterSchema",Map.of("type","object","properties",Map.of())),Map.of("templateId","profit","parameterSchema",Map.of("type","object","properties",Map.of())),Map.of("templateId","position","parameterSchema",Map.of("type","object","properties",Map.of())))),null,null,null,1L);
++        var prior=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool","prior_discovery",true,
++            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","prior-asset")))),null,null,null,1L);
++        var review=newTemplateDiscoveryOrchestrator(model).reviewInterpretationPlanToolResult(model,
++            "Analyze the requested sources",null,()->false,
++            new InterpretationPlanRuntime.StepReviewRequest(null,null,execution,Map.of(1,prior),1,1),
++            Map.of("workflowFamily","DATA_ANALYSIS"));
+         assertThat(review.satisfied()).isTrue();
+-        assertThat(review.metadata().get("selectedTemplateIds"))
+-            .isEqualTo(List.of("asset", "trade"));
+-        assertThat(review.metadata().get("templateSelectionCoverageAudit").toString())
+-            .contains("FIRST_PASS_COMPLETE");
+-        verify(model, org.mockito.Mockito.times(1)).chat(anyString());
+-    }
+-
+-    @Test
+-    void incompleteSecondPassAuditPreservesPaginationAndRequestsNextPage() {
+-        ChatModel model = mock(ChatModel.class);
+-        when(model.chat(anyString())).thenReturn(
+-            "{\"satisfied\":true,\"selected_template_ids\":[\"asset\"],"
+-                + "\"rejected_template_ids\":[\"trade\"],\"coverage_decision\":\"SUFFICIENT\"}",
+-            "{\"coverage_complete\":false,\"requested_aspects\":[\"assets\",\"transactions\"],"
+-                + "\"corrected_selected_template_ids\":[\"asset\"],"
+-                + "\"missing_aspects\":[\"transactions\"],\"reason\":\"next page is required\"}"
+-        );
+-        AgentOrchestrator orchestrator = newTemplateDiscoveryOrchestrator(model);
+-        InterpretationPlanRuntime.StepExecution execution =
+-            new InterpretationPlanRuntime.StepExecution(
+-                1, "mcp_tool", "mcp_chatchat_mcp_server_customer_service_template_query", true,
+-                Map.of(
+-                    "hasMore", true,
+-                    "nextCursor", "opaque-next",
+-                    "templates", List.of(
+-                        Map.of("templateId", "asset", "title", "Asset snapshot"),
+-                        Map.of("templateId", "trade", "title", "Unrelated trade aggregate"))),
+-                null, null, null, 10L);
+-
+-        InterpretationPlanRuntime.StepReview review = orchestrator.reviewInterpretationPlanToolResult(
+-            model, "analyze assets and transactions", null, () -> false,
+-            new InterpretationPlanRuntime.StepReviewRequest(
+-                null, null, execution, Map.of(), 1, 1));
+-
+-        assertThat(review.metadata())
+-            .containsEntry("coverageDecision", "NEED_NEXT_PAGE")
+-            .containsEntry("retrievalOutcome", "PAGE_EXHAUSTED_HAS_MORE");
+-        assertThat(review.metadata().get("missingAspects"))
+-            .isEqualTo(List.of("transactions"));
+-        verify(model, org.mockito.Mockito.times(2)).chat(anyString());
++        assertThat(review.metadata()).containsEntry("selectedTemplateIds",List.of("asset","trade","profit","position"))
++            .containsEntry("mcpDiscoverySucceeded",true).doesNotContainKey("templateSelectionCoverageAudit");
++        var captured=org.mockito.ArgumentCaptor.forClass(dev.langchain4j.model.chat.request.ChatRequest.class);
++        verify(model,times(1)).chat(captured.capture());verify(model,never()).chat(anyString());
++        assertThat(captured.getValue().messages().toString()).contains("current-asset","prior-asset");
++    }
++
++    @Test
++    void supplierDoesNotPromoteUnselectedSourcesIntoExecution() {
++        ChatModel model=mock(ChatModel.class);mockNativeTemplateSelection(model,"asset");
++        var execution=new InterpretationPlanRuntime.StepExecution(2,"mcp_tool",
++            "mcp_chatchat_mcp_server_customer_service_template_query",true,
++            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","current-asset"))),
++                "hasMore",true,"nextCursor","opaque-next","templates",List.of(Map.of("templateId","asset","parameterSchema",Map.of("type","object","properties",Map.of())),Map.of("templateId","trade","parameterSchema",Map.of("type","object","properties",Map.of())),Map.of("templateId","position","parameterSchema",Map.of("type","object","properties",Map.of())))),null,null,null,1L);
++        var prior=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool","prior_discovery",true,
++            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","prior-asset")))),null,null,null,1L);
++        var review=newTemplateDiscoveryOrchestrator(model).reviewInterpretationPlanToolResult(model,
++            "Analyze the requested sources",null,()->false,
++            new InterpretationPlanRuntime.StepReviewRequest(null,null,execution,Map.of(1,prior),1,1),
++            Map.of("workflowFamily","DATA_ANALYSIS"));
++        assertThat(review.satisfied()).isTrue();
++        assertThat(review.metadata()).containsEntry("selectedTemplateIds",List.of("asset"))
++            .containsEntry("mcpDiscoverySucceeded",true).doesNotContainKey("templateSelectionCoverageAudit");
++        var captured=org.mockito.ArgumentCaptor.forClass(dev.langchain4j.model.chat.request.ChatRequest.class);
++        verify(model,times(1)).chat(captured.capture());verify(model,never()).chat(anyString());
++        assertThat(captured.getValue().messages().toString()).contains("current-asset","prior-asset");
++    }
++
++    @Test
++    void completeSelectionRequiresNoCoverageAudit() {
++        ChatModel model=mock(ChatModel.class);mockNativeTemplateSelection(model,"asset","trade");
++        var execution=new InterpretationPlanRuntime.StepExecution(2,"mcp_tool",
++            "mcp_chatchat_mcp_server_customer_service_template_query",true,
++            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","current-asset"))),
++                "hasMore",true,"nextCursor","opaque-next","templates",List.of(Map.of("templateId","asset","parameterSchema",Map.of("type","object","properties",Map.of())),Map.of("templateId","trade","parameterSchema",Map.of("type","object","properties",Map.of())))),null,null,null,1L);
++        var prior=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool","prior_discovery",true,
++            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","prior-asset")))),null,null,null,1L);
++        var review=newTemplateDiscoveryOrchestrator(model).reviewInterpretationPlanToolResult(model,
++            "Analyze the requested sources",null,()->false,
++            new InterpretationPlanRuntime.StepReviewRequest(null,null,execution,Map.of(1,prior),1,1),
++            Map.of("workflowFamily","DATA_ANALYSIS"));
++        assertThat(review.satisfied()).isTrue();
++        assertThat(review.metadata()).containsEntry("selectedTemplateIds",List.of("asset","trade"))
++            .containsEntry("mcpDiscoverySucceeded",true).doesNotContainKey("templateSelectionCoverageAudit");
++        var captured=org.mockito.ArgumentCaptor.forClass(dev.langchain4j.model.chat.request.ChatRequest.class);
++        verify(model,times(1)).chat(captured.capture());verify(model,never()).chat(anyString());
++        assertThat(captured.getValue().messages().toString()).contains("current-asset","prior-asset");
++    }
++
++    @Test
++    void selectionDoesNotRequireRejectionScoresForOtherCandidates() {
++        ChatModel model=mock(ChatModel.class);mockNativeTemplateSelection(model,"asset","trade");
++        var execution=new InterpretationPlanRuntime.StepExecution(2,"mcp_tool",
++            "mcp_chatchat_mcp_server_customer_service_template_query",true,
++            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","current-asset"))),
++                "hasMore",true,"nextCursor","opaque-next","templates",List.of(Map.of("templateId","asset","parameterSchema",Map.of("type","object","properties",Map.of())),Map.of("templateId","trade","parameterSchema",Map.of("type","object","properties",Map.of())),Map.of("templateId","irrelevant","parameterSchema",Map.of("type","object","properties",Map.of())))),null,null,null,1L);
++        var prior=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool","prior_discovery",true,
++            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","prior-asset")))),null,null,null,1L);
++        var review=newTemplateDiscoveryOrchestrator(model).reviewInterpretationPlanToolResult(model,
++            "Analyze the requested sources",null,()->false,
++            new InterpretationPlanRuntime.StepReviewRequest(null,null,execution,Map.of(1,prior),1,1),
++            Map.of("workflowFamily","DATA_ANALYSIS"));
++        assertThat(review.satisfied()).isTrue();
++        assertThat(review.metadata()).containsEntry("selectedTemplateIds",List.of("asset","trade"))
++            .containsEntry("mcpDiscoverySucceeded",true).doesNotContainKey("templateSelectionCoverageAudit");
++        var captured=org.mockito.ArgumentCaptor.forClass(dev.langchain4j.model.chat.request.ChatRequest.class);
++        verify(model,times(1)).chat(captured.capture());verify(model,never()).chat(anyString());
++        assertThat(captured.getValue().messages().toString()).contains("current-asset","prior-asset");
++    }
++
++    @Test
++    void modelNoMatchDoesNotMeanMcpExecutionFailed() {
++        ChatModel model=mock(ChatModel.class);mockNativeTemplateSelection(model);
++        var execution=new InterpretationPlanRuntime.StepExecution(2,"mcp_tool",
++            "mcp_chatchat_mcp_server_customer_service_template_query",true,
++            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","current-asset"))),
++                "hasMore",true,"nextCursor","opaque-next","templates",List.of(Map.of("templateId","asset","parameterSchema",Map.of("type","object","properties",Map.of())),Map.of("templateId","trade","parameterSchema",Map.of("type","object","properties",Map.of())))),null,null,null,1L);
++        var prior=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool","prior_discovery",true,
++            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","prior-asset")))),null,null,null,1L);
++        var review=newTemplateDiscoveryOrchestrator(model).reviewInterpretationPlanToolResult(model,
++            "Analyze the requested sources",null,()->false,
++            new InterpretationPlanRuntime.StepReviewRequest(null,null,execution,Map.of(1,prior),1,1),
++            Map.of("workflowFamily","DATA_ANALYSIS"));
++        assertThat(review.satisfied()).isTrue();
++        assertThat(review.metadata()).containsEntry("selectedTemplateIds",List.of())
++            .containsEntry("mcpDiscoverySucceeded",true).doesNotContainKey("templateSelectionCoverageAudit");
++        var captured=org.mockito.ArgumentCaptor.forClass(dev.langchain4j.model.chat.request.ChatRequest.class);
++        verify(model,times(1)).chat(captured.capture());verify(model,never()).chat(anyString());
++        assertThat(captured.getValue().messages().toString()).contains("current-asset","prior-asset");
+     }
+ 
+     @Test
+@@ -6121,12 +6099,26 @@ class AgentOrchestratorTest {
+                 .isEqualTo("COMPLETED");
+             verify(coding,times(1)).executePrimaryAnalysis(any(),any(),any());
+         } else {
+-            org.assertj.core.api.Assertions.assertThatThrownBy(execute::get).hasMessageContaining("REQUIRED_MCP_DATA_UNAVAILABLE");
+-            org.mockito.Mockito.verifyNoInteractions(coding);
++            var result=execute.get();
++            assertThat(result.answer()).contains("FILE_ANALYSIS_COMPLETED_WITH_OPTIONAL_EMPTY_SOURCE");
++            assertThat(result.metadata()).containsEntry("mcpDataAvailable",false);
++            verify(coding,times(1)).executePrimaryAnalysis(any(),any(),any());
+         }
+         verify(registry,times(1)).executeEnhancedTool(eq(assetTool),any());verify(registry,never()).executeEnhancedTool(eq(templateTool),any());
+     }
+ 
++    private void mockNativeTemplateSelection(ChatModel model,String... ids) {
++        try {
++            var decision=Map.of("status",ids.length==0?"NO_MATCH":"SELECTED","selections",
++                java.util.Arrays.stream(ids).map(id->Map.of("templateId",id,"parameters",Map.of())).toList());
++            when(model.chat(any(dev.langchain4j.model.chat.request.ChatRequest.class))).thenReturn(
++                dev.langchain4j.model.chat.response.ChatResponse.builder().aiMessage(
++                    dev.langchain4j.data.message.AiMessage.from(dev.langchain4j.agent.tool.ToolExecutionRequest.builder()
++                        .name(SchemaDrivenTemplateParameterBinder.SELECTION_FUNCTION).id("selection")
++                        .arguments(new ObjectMapper().writeValueAsString(decision)).build())).build());
++        } catch(Exception failure) {throw new AssertionError(failure);}
++    }
++
+     private static ModelsConfig fileAnalysisFixtureModels() {
+         var config=new ModelsConfig();config.setDefaultChatModel("file-fixture-model");
+         var connection=new ModelsConfig.ModelConnectionConfig();connection.setBaseUrl("http://127.0.0.1:1/v1");
+diff --git a/chatchat-agents/src/test/java/com/chatchat/agents/orchestration/analysis/governance/AnalysisCoverageCoordinatorTest.java b/chatchat-agents/src/test/java/com/chatchat/agents/orchestration/analysis/governance/AnalysisCoverageCoordinatorTest.java
+index 9f99d4247..35d2af526 100644
+--- a/chatchat-agents/src/test/java/com/chatchat/agents/orchestration/analysis/governance/AnalysisCoverageCoordinatorTest.java
++++ b/chatchat-agents/src/test/java/com/chatchat/agents/orchestration/analysis/governance/AnalysisCoverageCoordinatorTest.java
+@@ -24,17 +24,30 @@ import static org.mockito.Mockito.mock;
+ import static org.mockito.Mockito.when;
+ 
+ class AnalysisCoverageCoordinatorTest {
+-    @Test void failedAcquisitionWithoutDatasetsCannotBecomeASuccessfulAnalysisReport() {
++    @Test void selectionFailureIsDeliveredAsSupplyStatusWithoutInventingBusinessRecords() {
+         var evidence=mock(AnalysisEvidenceCoordinator.class);
+         when(evidence.project(any(),any())).thenReturn(new AnalysisEvidenceCoordinator.Projection(List.of(),List.of()));
+-        var base=request(new LinkedHashMap<>());
+-        var result=new InterpretationPlanRuntime.ExecutionResult("failed",false,false,"schema rejected",null,
+-            List.of(new InterpretationPlanRuntime.StepExecution(1,"tool_call","query",false,null,"schema rejected",null,null,1)),Map.of(),1);
+-        var request=new AnalysisCoverageCoordinator.Request(null,"Analyze returned records",result,Map.of("taskType","DATA_ANALYSIS"),
+-            base.metadata(),base.cancellationCheck(),base.cancellationGuard(),base.isolationScope(),base.summaryProtocol());
+-        assertThatThrownBy(()->coordinator(evidence).analyze(request)).hasMessageContaining("REQUIRED_MCP_DATA_UNAVAILABLE").hasMessageContaining("schema rejected");
+-        assertThat(base.metadata()).containsKey("dataAcquisitionFailure");
+-        assertThat(base.metadata()).doesNotContainKey("modelNativeReportDraft");
++        var base=request(new LinkedHashMap<>());var coding=mock(AnalysisCodingPort.class);
++        when(coding.executePrimaryAnalysis(any(),any(),any())).thenAnswer(call->{
++            Map<String,AnalysisEvidenceCoordinator.Dataset> sources=call.getArgument(1);
++            var status=sources.values().iterator().next();
++            assertThat(status.analysisContext()).containsEntry("recordType","DATA_SUPPLY_STATUS");
++            assertThat(status.handle().readPage(0,1).rows().get(0).toString()).contains("MODEL_SELECTION_UNAVAILABLE");
++            sources.put("report",new AnalysisEvidenceCoordinator.Dataset("report",Map.of(),List.of(Map.of(
++                "reportMarkdown","The supplier did not obtain a model selection; no business figures are available.",
++                "evidenceReferences",List.of(status.reference()),"limitations",List.of("Upstream model unavailable")))));
++            return Map.of("resultAvailable",true,"datasetReference","report");
++        });
++        var result=new InterpretationPlanRuntime.ExecutionResult("failed",false,false,"MODEL_SELECTION_UNAVAILABLE",null,
++            List.of(new InterpretationPlanRuntime.StepExecution(1,"mcp_tool","query",false,null,
++                "MODEL_SELECTION_UNAVAILABLE",null,null,1)),Map.of(),1);
++        var coordinator=coordinator(evidence);coordinator.setCodingPort(coding);
++        var coverage=coordinator.analyze(new AnalysisCoverageCoordinator.Request(null,"Analyze",result,Map.of("taskType","DATA_ANALYSIS"),
++            base.metadata(),base.cancellationCheck(),base.cancellationGuard(),base.isolationScope(),base.summaryProtocol()));
++        assertThat(coverage.returnedRecordCount()).isZero();
++        assertThat(base.metadata()).containsKey("dataSupplyStatus").containsEntry("businessDataAvailable",false);
++        assertThat(base.metadata()).doesNotContainKey("dataAcquisitionFailure");
++        org.mockito.Mockito.verify(coding).executePrimaryAnalysis(any(),any(),any());
+     }
+     @org.junit.jupiter.params.ParameterizedTest
+     @org.junit.jupiter.params.provider.CsvSource({"OPTIONAL,true,false,true", "REQUIRED,true,false,false", "OPTIONAL,false,false,false", "REQUIRED,false,false,false",
+@@ -57,10 +70,6 @@ class AnalysisCoverageCoordinatorTest {
+         var metadata=new LinkedHashMap<String,Object>();var base=request(metadata);
+         var request=new AnalysisCoverageCoordinator.Request(null,"compare originals",result,Map.of("taskType","DATA_ANALYSIS","problemAnalysisPlan",plan),
+             metadata,()->false,()->{},base.isolationScope(),base.summaryProtocol());
+-        if (!continues) {
+-            assertThatThrownBy(()->coordinator.analyze(request)).hasMessageContaining("REQUIRED_MCP_DATA_UNAVAILABLE");
+-            org.mockito.Mockito.verifyNoInteractions(coding);
+-        } else {
+             when(coding.prepareFileSources(any())).thenReturn(Map.of(file.reference(),new AnalysisEvidenceCoordinator.Dataset(file.reference(),Map.of(),List.of(Map.of("fileName","one.xlsx")))));
+             when(coding.executePrimaryAnalysis(any(),any(),any())).thenAnswer(call->{
+                 Map<String,AnalysisEvidenceCoordinator.Dataset> sources=call.getArgument(1);
+@@ -71,9 +80,8 @@ class AnalysisCoverageCoordinatorTest {
+                 return Map.of("resultAvailable",true,"datasetReference","result");
+             });
+             coordinator.analyze(request);
+-            assertThat(metadata).containsEntry("optionalToolDataEmpty",!hasData).containsEntry("modelNativeReportDraft","computed quality report");
++            assertThat(metadata).containsEntry("optionalToolDataEmpty",!hasData&&success&&"OPTIONAL".equals(dependency)).containsEntry("modelNativeReportDraft","computed quality report");
+             org.mockito.Mockito.verify(coding,org.mockito.Mockito.times(1)).executePrimaryAnalysis(any(),any(),any());
+-        }
+     }
+     @org.junit.jupiter.params.ParameterizedTest
+     @org.junit.jupiter.params.provider.ValueSource(strings={"DATA_ANALYSIS","DOCUMENT","DIRECT_ANSWER","ASSET_GUIDANCE"})
+diff --git a/chatchat-agents/src/test/java/com/chatchat/agents/runtime/plan/InterpretationPlanRuntimeTest.java b/chatchat-agents/src/test/java/com/chatchat/agents/runtime/plan/InterpretationPlanRuntimeTest.java
+index 21b624db8..285a0fd6d 100644
+--- a/chatchat-agents/src/test/java/com/chatchat/agents/runtime/plan/InterpretationPlanRuntimeTest.java
++++ b/chatchat-agents/src/test/java/com/chatchat/agents/runtime/plan/InterpretationPlanRuntimeTest.java
+@@ -1787,7 +1787,7 @@ class InterpretationPlanRuntimeTest {
+         assertThat(((Map<?, ?>) projectedTemplates.get(0)).get("templateId"))
+             .isEqualTo("CHECK_PROCESS");
+         assertThat(projectedOutput.get("runtimeTemplateSelection").toString())
+-            .contains("selectionAuthority=runtime_evidence_model_review", "candidateCount=2");
++            .contains("selectionAuthority=model_selection_validated", "candidateCount=2");
+         assertThat(runStore.events("req-template-discovery-skip-review"))
+             .filteredOn(event -> event.type()
+                 == AgentRunEventType.BUSINESS_TEMPLATE_REQUIREMENT_MATCHING)
+@@ -2010,7 +2010,7 @@ class InterpretationPlanRuntimeTest {
+             .containsEntry("localFactCheckHasEvidence", true)
+             .containsEntry("toolResultReviewUnavailable", true)
+             .containsEntry("semanticCandidateReviewSatisfied", false);
+-        assertThat(result.errorMessage()).contains("CANDIDATE_REVIEW_UNAVAILABLE");
++        assertThat(result.errorMessage()).contains("MODEL_SELECTION_UNAVAILABLE");
+         assertThat(result.steps().get(0).output().toString())
+             .contains("check_cpu", "check_docker_overview");
+     }
+diff --git a/chatchat-agents/src/test/java/com/chatchat/agents/runtime/plan/PublishedTemplateSupplyTest.java b/chatchat-agents/src/test/java/com/chatchat/agents/runtime/plan/PublishedTemplateSupplyTest.java
+index ae743b046..0ed32b605 100644
+--- a/chatchat-agents/src/test/java/com/chatchat/agents/runtime/plan/PublishedTemplateSupplyTest.java
++++ b/chatchat-agents/src/test/java/com/chatchat/agents/runtime/plan/PublishedTemplateSupplyTest.java
+@@ -14,6 +14,7 @@ class PublishedTemplateSupplyTest {
+         var registry=mock(ToolRegistry.class);
+         Map<String,Object> child=new LinkedHashMap<>();
+         child.put("assetType","sql_datasource");
++        child.put("parentRemoteToolName",BRIDGE);
+         child.put("templateSelectionScope",McpTemplateSelectionScope.fixedBinding("sql_datasource").toMetadata());
+         child.put("workflowContract",ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_DISCOVERY,"mcp.authorized-template-query.v1","filters","template"));
+         Map<String,Object> bridge=Map.of("assetType","sql_datasource","executionTool",EXECUTE,"workflowContract",ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_DISCOVERY,"mcp.sql-template.v1","filters"));
+@@ -32,7 +33,7 @@ class PublishedTemplateSupplyTest {
+         Map<String,Object> executor=Map.of("argumentBindingPolicy",policy,"workflowContract",ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_EXECUTION,"mcp.sql-template.v1","executionContext"));
+         var entries=Map.of(CHILD,child,BRIDGE,bridge,EXECUTE,executor);
+         when(registry.getAllToolNames()).thenReturn(entries.keySet());
+-        entries.forEach((name,meta)->when(registry.getToolMetadata(name)).thenReturn(ToolMetadata.builder().id(name).metadata(nested?Map.of("mcpToolMeta",meta):meta).build()));
++        entries.forEach((name,meta)->when(registry.getToolMetadata(name)).thenReturn(ToolMetadata.builder().id(name).metadata(nested?Map.of("mcpToolMeta",meta,"parentRemoteToolName",name.equals(CHILD)?BRIDGE:""):meta).build()));
+         entries.keySet().forEach(name->when(registry.hasTool(name)).thenReturn(true));
+         when(registry.getWorkflowRole(anyString())).thenAnswer(i->ToolWorkflowContract.resolveRole(i.getArgument(0),registry.getToolMetadata(i.getArgument(0))));
+         return registry;
+@@ -75,51 +76,82 @@ class PublishedTemplateSupplyTest {
+         when(registry.getToolMetadata(EXECUTE)).thenReturn(ToolMetadata.builder().metadata(Map.of("workflowContract",ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_EXECUTION,"mcp.ssh-template.v1","executionContext"))).build());
+         assertThat(new com.chatchat.agents.runtime.plan.template.PublishedDataAcquisitionPlanner(registry).compile("Inspect",List.of(CHILD,EXECUTE),List.of(CHILD,EXECUTE))).isNull();
+     }
+-    @Test void assetStageCannotSupplyTemplateIdsOrDisappearFromTheCompiledChain() {
+-        var registry=registry(true);
+-        var bridge=registry.getToolMetadata(BRIDGE);
+-        bridge.setParameters(List.of(ToolParameter.builder().name("stage").type("string").enumValues(new String[]{"asset","template"}).build()));
+-        var plan=new com.chatchat.agents.runtime.plan.template.PublishedDataAcquisitionPlanner(registry)
+-            .compile("Inspect authorized target",List.of(BRIDGE,CHILD,EXECUTE),List.of(BRIDGE,CHILD,EXECUTE));
+-        assertThat(plan).isNotNull();
+-        assertThat(plan.steps()).extracting(InterpretationPlan.Step::toolName).containsExactly(BRIDGE,CHILD,EXECUTE,"");
+-        assertThat(plan.steps().get(0).input()).containsEntry("stage","asset");
+-        assertThat(plan.steps().get(1).dependsOn()).containsExactly(1);
+-        assertThat(plan.steps().get(2).dependsOn()).containsExactly(2);
+-        assertThat(plan.plan().bindings()).allSatisfy(b->assertThat(b.from()).isEqualTo(2));
+-        var optimized=new InterpretationPlanOptimizer(registry).optimize(plan,List.of(
+-            Map.of("tool",BRIDGE,"dependsOnTools",List.of()),
+-            Map.of("tool",CHILD,"dependsOnTools",List.of(BRIDGE)),
+-            Map.of("tool",EXECUTE,"dependsOnTools",List.of(CHILD)))).plan();
+-        assertThat(optimized.steps()).extracting(InterpretationPlan.Step::toolName).containsExactly(BRIDGE,CHILD,EXECUTE,"");
+-        assertThat(optimized.plan().bindings()).allSatisfy(b->assertThat(b.from()).isEqualTo(2));
++    @Test void fixedBindingDoesNotRediscoverAssetsEvenWhenBridgeHasAssetStage() {
++        for (boolean nested : List.of(false, true)) {
++            var registry=registry(nested);
++            registry.getToolMetadata(BRIDGE).setParameters(List.of(ToolParameter.builder()
++                .name("stage").type("string").enumValues(new String[]{"asset","template"}).build()));
++            var compiled=new com.chatchat.agents.runtime.plan.template.PublishedDataAcquisitionPlanner(registry)
++                .compile("Inspect authorized target",List.of(BRIDGE,CHILD,EXECUTE),List.of(BRIDGE,CHILD,EXECUTE));
++            assertThat(compiled).isNotNull();
++            assertThat(compiled.steps()).extracting(InterpretationPlan.Step::toolName).containsExactly(CHILD,EXECUTE,"");
++            var optimizer=new InterpretationPlanOptimizer(registry);
++            var optimized=optimizer.optimize(plan(),List.of(
++                Map.of("tool",BRIDGE,"required",true),
++                Map.of("tool",CHILD,"dependsOnTools",List.of(BRIDGE)),
++                Map.of("tool",EXECUTE,"dependsOnTools",List.of(CHILD)))).plan();
++            assertThat(optimized.steps()).extracting(InterpretationPlan.Step::toolName).containsExactly(CHILD,EXECUTE,"");
++            assertThat(optimized.plan().bindings()).allSatisfy(b->assertThat(b.from()).isEqualTo(1));
++            assertThat(new InterpretationPlanValidator().validate(optimized,registry,Set.of(CHILD,EXECUTE),List.of(
++                Map.of("tool",BRIDGE), Map.of("tool",CHILD,"dependsOnTools",List.of(BRIDGE)),
++                Map.of("tool",EXECUTE,"dependsOnTools",List.of(CHILD))),"bound-task").errors()).isEmpty();
++            assertThat(optimizer.optimize(optimized).plan().steps()).hasSameSizeAs(optimized.steps());
++        }
+     }
+ 
+-    @Test void omittedStageInNestedPublisherIsExpandedBeforeFixedScopePruning() {
++    @Test void unboundStagedDiscoveryStillRequiresAssetSelection() {
++        var registry=registry(true);
++        registry.getToolMetadata(CHILD).setMetadata(Map.of());
++        registry.getToolMetadata(BRIDGE).setParameters(List.of(ToolParameter.builder()
++            .name("stage").type("string").enumValues(new String[]{"asset","template"}).build()));
++        var optimized=new InterpretationPlanOptimizer(registry).optimize(plan()).plan();
++        assertThat(optimized.steps()).anySatisfy(s -> {
++            assertThat(s.toolName()).isEqualTo(BRIDGE);
++            assertThat(s.input()).containsEntry("stage","asset");
++        });
++        assertThat(new com.chatchat.agents.runtime.plan.template.PublishedDataAcquisitionPlanner(registry)
++            .compile("Inspect",List.of(BRIDGE,EXECUTE),List.of(BRIDGE,EXECUTE))).isNull();
++    }
++    @Test void completedChildSatisfiesOnlyItsPublishedParentWorkflowBoundary() {
+         var registry=registry(true);
+-        var bridge=registry.getToolMetadata(BRIDGE);
+-        Map<String,Object> attributes=new LinkedHashMap<>(bridge.getMetadata());
+-        Map<String,Object> publisher=new LinkedHashMap<>((Map<String,Object>)attributes.get("mcpToolMeta"));
+-        publisher.put("inputSchema",Map.of("type","object","properties",Map.of(
+-            "stage",Map.of("type","string","enum",List.of("asset","template")))));
+-        attributes.put("mcpToolMeta",publisher);bridge.setMetadata(attributes);
+-        var optimizer=new InterpretationPlanOptimizer(registry);
+-        var optimized=optimizer.optimize(plan()).plan();
+-        var asset=optimized.steps().stream().filter(s->BRIDGE.equals(s.toolName())).findFirst().orElseThrow();
+-        assertThat(asset.input()).containsEntry("stage","asset");
+-        var provider=optimized.steps().stream().filter(s->CHILD.equals(s.toolName())).findFirst().orElseThrow();
+-        assertThat(provider.dependsOn()).contains(asset.id());
+-        var execution=optimized.steps().stream().filter(s->EXECUTE.equals(s.toolName())).findFirst().orElseThrow();
+-        assertThat(execution.dependsOn()).contains(provider.id());
+-        assertThat(optimized.plan().bindings()).allSatisfy(b->assertThat(b.from()).isEqualTo(provider.id()));
+-        assertThat(new InterpretationPlanValidator().validate(optimized,registry,Set.of(BRIDGE,CHILD,EXECUTE)).errors()).isEmpty();
+-        assertThat(optimizer.optimize(optimized).plan().steps()).hasSameSizeAs(optimized.steps());
+-        var configured=optimizer.optimize(plan(),List.of(
+-            Map.of("tool",BRIDGE,"required",true),
+-            Map.of("tool",EXECUTE,"required",true,"dependsOnTools",List.of(BRIDGE)),
+-            Map.of("tool",CHILD,"required",false))).plan();
+-        assertThat(configured.steps()).filteredOn(s->BRIDGE.equals(s.toolName()))
+-            .singleElement().satisfies(s->assertThat(s.input()).containsEntry("stage","asset"));
+-        assertThat(new InterpretationPlanValidator().validate(configured,registry,Set.of(BRIDGE,CHILD,EXECUTE)).errors()).isEmpty();
++        var child=new LinkedHashMap<>(registry.getToolMetadata(CHILD).getMetadata());
++        child.remove("parentRemoteToolName");
++        registry.getToolMetadata(CHILD).setMetadata(child);
++        var names=new com.chatchat.agents.orchestration.tool.AgentToolNameResolver(
++            new com.chatchat.agents.tool.RegistryMcpCapabilityHierarchy(registry),registry);
++        var resolver=new com.chatchat.agents.orchestration.workflow.AgentWorkflowToolResolver(names);
++        assertThat(resolver.missingMandatoryTools(List.of(BRIDGE,CHILD,EXECUTE),Set.of(CHILD,EXECUTE))).isEmpty();
++        assertThat(resolver.missingMandatoryTools(List.of(CHILD),Set.of(BRIDGE))).containsExactly(CHILD);
++        assertThat(resolver.missingMandatoryTools(List.of(EXECUTE),Set.of(CHILD))).containsExactly(EXECUTE);
++    }
++
++    @Test void fixedPublicationCannotSatisfyAnotherFixedPublication() {
++        var registry=registry(false);
++        var bridge=new LinkedHashMap<>(registry.getToolMetadata(BRIDGE).getMetadata());
++        bridge.put("templateSelectionScope",McpTemplateSelectionScope.fixedBinding("sql_datasource").toMetadata());
++        registry.getToolMetadata(BRIDGE).setMetadata(bridge);
++        assertThat(new com.chatchat.agents.runtime.plan.template.PublishedDataAcquisitionPlanner(registry)
++            .compile("Inspect",List.of(CHILD,BRIDGE,EXECUTE),List.of(CHILD,BRIDGE,EXECUTE))).isNull();
++        var resolver=new com.chatchat.agents.orchestration.tool.AgentToolNameResolver(
++            com.chatchat.common.mcp.capability.McpCapabilityHierarchy.empty(),registry);
++        assertThat(resolver.satisfiesCapability(CHILD,BRIDGE)).isFalse();
+     }
++    @Test void separateAssetDiscoveryIsReplacedByFixedBindingWithoutChangingItsIdentity() {
++        var registry=registry(false);
++        var child=new LinkedHashMap<>(registry.getToolMetadata(CHILD).getMetadata());
++        child.remove("parentRemoteToolName");
++        registry.getToolMetadata(CHILD).setMetadata(child);
++        registry.getToolMetadata(BRIDGE).setMetadata(Map.of("assetType","sql_datasource",
++            "workflowContract",ToolWorkflowContract.declaration(ToolWorkflowRole.ASSET_DISCOVERY,"asset.v1","filters")));
++        var compiled=new com.chatchat.agents.runtime.plan.template.PublishedDataAcquisitionPlanner(registry)
++            .compile("Analyze customer C42",List.of(BRIDGE,CHILD,EXECUTE),List.of(BRIDGE,CHILD,EXECUTE));
++        assertThat(compiled).isNotNull();
++        assertThat(compiled.steps()).extracting(InterpretationPlan.Step::toolName).containsExactly(CHILD,EXECUTE,"");
++        var optimized=new InterpretationPlanOptimizer(registry).optimize(plan()).plan();
++        assertThat(optimized.steps()).extracting(InterpretationPlan.Step::toolName).doesNotContain(BRIDGE);
++        assertThat(new InterpretationPlanValidator().validate(optimized,registry,Set.of(CHILD,EXECUTE),List.of(
++            Map.of("tool",BRIDGE),Map.of("tool",CHILD,"dependsOnTools",List.of(BRIDGE)),
++            Map.of("tool",EXECUTE,"dependsOnTools",List.of(CHILD))),"live-shaped-task").errors()).isEmpty();
++    }
++
+ }
+diff --git a/chatchat-agents/src/test/java/com/chatchat/agents/runtime/plan/selection/EvidenceBasedAssetCandidateEvaluatorTest.java b/chatchat-agents/src/test/java/com/chatchat/agents/runtime/plan/selection/EvidenceBasedAssetCandidateEvaluatorTest.java
+index 6f6a8d527..ddceb306b 100644
+--- a/chatchat-agents/src/test/java/com/chatchat/agents/runtime/plan/selection/EvidenceBasedAssetCandidateEvaluatorTest.java
++++ b/chatchat-agents/src/test/java/com/chatchat/agents/runtime/plan/selection/EvidenceBasedAssetCandidateEvaluatorTest.java
+@@ -39,16 +39,15 @@ class EvidenceBasedAssetCandidateEvaluatorTest {
+     }
+ 
+     @Test
+-    void preservesUniqueCandidateWhenReviewContainsNoCandidateLevelDecision() {
++    void rejectsMissingSelectionEvenForUniqueCandidate() {
+         EvidenceBasedAssetCandidateEvaluator.Evaluation evaluation =
+             new EvidenceBasedAssetCandidateEvaluator().evaluate(
+                 Map.of("assets", List.of(Map.of("asset", Map.of("id", "oracle-risk", "name", "Oracle")))),
+                 Map.of("reason", "downstream evidence is still missing")
+             );
+ 
+-        assertThat(evaluation.applied()).isTrue();
+-        assertThat(evaluation.selectedIds()).containsExactly("oracle-risk");
+-        assertThat(evaluation.output().toString()).contains("selectionAuthority=runtime_unique_candidate");
++        assertThat(evaluation.applied()).isFalse();
++        assertThat(evaluation.selectedIds()).isEmpty();
+     }
+ 
+     @Test
+diff --git a/chatchat-agents/src/test/java/com/chatchat/agents/runtime/plan/selection/EvidenceBasedTemplateCandidateEvaluatorTest.java b/chatchat-agents/src/test/java/com/chatchat/agents/runtime/plan/selection/EvidenceBasedTemplateCandidateEvaluatorTest.java
+index 868a4392a..897fbb25e 100644
+--- a/chatchat-agents/src/test/java/com/chatchat/agents/runtime/plan/selection/EvidenceBasedTemplateCandidateEvaluatorTest.java
++++ b/chatchat-agents/src/test/java/com/chatchat/agents/runtime/plan/selection/EvidenceBasedTemplateCandidateEvaluatorTest.java
+@@ -73,8 +73,7 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
+ 
+         assertThat(evaluation.applied()).isTrue();
+         assertThat(evaluation.templateMatchAnalysis())
+-            .containsEntry("retrievalOutcome", "CAPABILITY_EXCEEDED")
+-            .containsEntry("coverageDecision", "SCOPE_INSUFFICIENT");
++            .containsEntry("retrievalOutcome", "CAPABILITY_EXCEEDED").doesNotContainKey("coverageDecision");
+     }
+ 
+     @Test
+@@ -97,7 +96,7 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
+     }
+ 
+     @Test
+-    void dropsRedundantAcceptedContextWhenTargetsAlreadyCoverItsQuestionAspects() {
++    void preservesModelSelectedContextDespiteOverlappingAspects() {
+         EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
+             new EvidenceBasedTemplateCandidateEvaluator().evaluate(
+                 Map.of("templates", List.of(
+@@ -127,15 +126,15 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
+                 ));
+ 
+         assertThat(evaluation.selectedIds())
+-            .containsExactly("customer-overview", "trade-overview");
++            .containsExactly("customer-overview", "trade-overview", "holding-detail", "order-detail");
+         Map<?, ?> projected = (Map<?, ?>) evaluation.output();
+         assertThat((List<?>) projected.get("templates")).extracting(String::valueOf)
+             .containsExactly(
+-                "{templateId=customer-overview}", "{templateId=trade-overview}");
++                "{templateId=customer-overview}", "{templateId=trade-overview}", "{templateId=holding-detail}", "{templateId=order-detail}");
+     }
+ 
+     @Test
+-    void dropsWeakerRedundantCandidatesEvenWhenReviewerLabelsEverythingTarget() {
++    void preservesAllModelChoicesRegardlessOfRelativeScores() {
+         EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
+             new EvidenceBasedTemplateCandidateEvaluator().evaluate(
+                 Map.of("templates", List.of(
+@@ -162,7 +161,7 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
+                             "matchedQuestionAspects", List.of("trade", "preference"))
+                     )));
+ 
+-        assertThat(evaluation.selectedIds()).containsExactly("asset-summary", "trade-summary");
++        assertThat(evaluation.selectedIds()).containsExactly("asset-summary", "trade-summary", "asset-detail", "trade-detail");
+     }
+ 
+     @Test
+@@ -263,7 +262,7 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
+     }
+ 
+     @Test
+-    void admitsCandidatesByEvidenceScoreWhenModelDoesNotProvideSelectedIds() {
++    void honorsExplicitModelDecisionsWithoutApplyingScoreThresholds() {
+         EvidenceBasedTemplateCandidateEvaluator evaluator =
+             new EvidenceBasedTemplateCandidateEvaluator();
+         Object output = Map.of(
+@@ -307,7 +306,7 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
+         assertThat(projected.get("returnedCount")).isEqualTo(2);
+         assertThat(projected.get("runtimeTemplateSelection").toString())
+             .contains("runtime_template_selection.v2", "mcpScoresAreWeakPriors=true",
+-                "runtime_evidence_model_review");
++                "model_selection_validated");
+     }
+ 
+     @Test
+@@ -501,12 +500,12 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
+             .containsEntry("userQuestion", "分析ETF规模与份额，观察市场资金流向");
+         assertThat(evaluation.templateMatchAnalysis().toString())
+             .contains("sse_etf_scale", "businessGoal=观察ETF资金方向",
+-                "analysisRole=CONTEXT", "fromTemplateId=ETF_SCALE",
++                "fromTemplateId=ETF_SCALE",
+                 "toTemplateId=ETF_SHARE", "matchedQuestionAspects=[规模, 份额]",
+                 "relationshipHints=[按基金代码关联相邻交易日]")
+             .doesNotContain("ETF_MARGIN, ETF_SCALE");
+         assertThat(evaluation.output().toString())
+-            .contains("templateMatchAnalysis", "analysisRole=IRRELEVANT");
++            .contains("templateMatchAnalysis").doesNotContain("analysisRole=IRRELEVANT");
+         Map<?, ?> projected = (Map<?, ?>) evaluation.output();
+         assertThat((List<?>) projected.get("templates")).extracting(String::valueOf)
+             .noneMatch(value -> value.contains("ETF_MARGIN"));
+@@ -521,7 +520,7 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
+             );
+ 
+         assertThat(evaluation.applied()).isFalse();
+-        assertThat(evaluation.reason()).contains("not present in the authorized MCP candidate set");
++        assertThat(evaluation.reason()).contains("not returned by MCP");
+     }
+ 
+     @Test
+@@ -572,7 +571,7 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
+     }
+ 
+     @Test
+-    void preservesUniqueCandidateWhenReviewContainsNoCandidateLevelDecision() {
++    void rejectsMissingSelectionEvenForUniqueCandidate() {
+         EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
+             new EvidenceBasedTemplateCandidateEvaluator().evaluate(
+                 Map.of("templates", List.of(Map.of(
+@@ -582,9 +581,8 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
+                 Map.of("reason", "downstream execution has not run yet")
+             );
+ 
+-        assertThat(evaluation.applied()).isTrue();
+-        assertThat(evaluation.selectedIds()).containsExactly("oracle-risk-session");
+-        assertThat(evaluation.output().toString()).contains("selectionAuthority=runtime_unique_candidate");
++        assertThat(evaluation.applied()).isFalse();
++        assertThat(evaluation.selectedIds()).isEmpty();
+     }
+ 
+     @Test
+@@ -626,12 +624,12 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
+                 Map.of("rejectedTemplateIds", List.of("mysql-session"))
+             );
+ 
+-        assertThat(evaluation.applied()).isFalse();
++        assertThat(evaluation.applied()).isTrue();
+         assertThat(evaluation.selectedCount()).isZero();
+     }
+ 
+     @Test
+-    void admitsTheOnlyCandidateLeftByExplicitRejection() {
++    void doesNotGuessTheOnlyCandidateLeftByExplicitRejection() {
+         EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
+             new EvidenceBasedTemplateCandidateEvaluator().evaluate(
+                 Map.of("templates", List.of(
+@@ -642,7 +640,7 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
+             );
+ 
+         assertThat(evaluation.applied()).isTrue();
+-        assertThat(evaluation.selectedIds()).containsExactly("oracle-session");
++        assertThat(evaluation.selectedIds()).isEmpty();
+     }
+ 
+     @Test
+@@ -656,4 +654,12 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
+         assertThat(evaluation.applied()).isFalse();
+         assertThat(evaluation.selectedCount()).isZero();
+     }
++    @Test void explicitEmptySelectionNeverAdmitsASingleton() {
++        var result=new EvidenceBasedTemplateCandidateEvaluator().evaluate(
++            Map.of("templates",List.of(Map.of("templateId","only"))),
++            Map.of("selectedTemplateIds",List.of(),"coverageDecision","SCOPE_INSUFFICIENT"));
++        assertThat(result.applied()).isTrue();
++        assertThat(result.selectedIds()).isEmpty();
++    }
++
+ }
+diff --git a/chatchat-agents/src/test/java/com/chatchat/agents/runtime/plan/selection/SemanticCandidateAdmissionPolicyTest.java b/chatchat-agents/src/test/java/com/chatchat/agents/runtime/plan/selection/SemanticCandidateAdmissionPolicyTest.java
+index f4fbf06ce..e6fbb6b8c 100644
+--- a/chatchat-agents/src/test/java/com/chatchat/agents/runtime/plan/selection/SemanticCandidateAdmissionPolicyTest.java
++++ b/chatchat-agents/src/test/java/com/chatchat/agents/runtime/plan/selection/SemanticCandidateAdmissionPolicyTest.java
+@@ -18,20 +18,20 @@ class SemanticCandidateAdmissionPolicyTest {
+     void admitsOnlyAuthorizedExplicitSelections() {
+         SemanticCandidateAdmissionPolicy.Decision decision = policy.decide(
+             List.of("candidate-a", "candidate-b"),
+-            List.of("invented", "candidate-b"),
++            List.of("candidate-b"),
+             List.of("candidate-a"),
+             false
+         );
+ 
+         assertThat(decision.decided()).isTrue();
+         assertThat(decision.selectedIds()).containsExactly("candidate-b");
+-        assertThat(decision.authority()).isEqualTo("runtime_evidence_model_review");
++        assertThat(decision.authority()).isEqualTo("model_selection_validated");
+     }
+ 
+     @Test
+-    void uniqueCandidateIsDeterministicOnlyAfterReviewerRan() {
++    void emptySelectionNeverInfersTheUniqueCandidate() {
+         assertThat(policy.decide(List.of("only"), List.of(), List.of(), false).selectedIds())
+-            .containsExactly("only");
++            .isEmpty();
+         assertThat(policy.decide(List.of("only"), List.of(), List.of(), true).decided())
+             .isFalse();
+     }
+@@ -40,17 +40,17 @@ class SemanticCandidateAdmissionPolicyTest {
+     void ambiguousCandidatesNeverBecomeJavaSemanticChoice() {
+         assertThat(policy.decide(
+             List.of("a", "b", "c"), List.of(), List.of("c"), false).decided())
+-            .isFalse();
++            .isTrue();
+     }
+ 
+     @Test
+-    void rejectionCanDecideOnlyWhenAtMostOneCandidateSurvives() {
++    void rejectionDoesNotAuthorizeRemainingCandidates() {
+         SemanticCandidateAdmissionPolicy.Decision one = policy.decide(
+             List.of("a", "b"), List.of(), List.of("b"), false);
+         SemanticCandidateAdmissionPolicy.Decision none = policy.decide(
+             List.of("a", "b"), List.of(), List.of("a", "b"), false);
+ 
+-        assertThat(one.selectedIds()).containsExactly("a");
++        assertThat(one.selectedIds()).isEmpty();
+         assertThat(none.decided()).isTrue();
+         assertThat(none.selectedIds()).isEmpty();
+     }
+diff --git a/chatchat-api/src/main/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.java b/chatchat-api/src/main/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.java
+index 95b23bde1..1f338812a 100644
+--- a/chatchat-api/src/main/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.java
++++ b/chatchat-api/src/main/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.java
+@@ -114,12 +114,12 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
+             AnalysisCoverageCoordinator.Request context, Map<String,Dataset> sources,
+             java.util.function.Consumer<Map<String,Object>> observer) {
+         if (sources == null || sources.isEmpty())
+-            throw new IllegalArgumentException("Primary Coding analysis requires delivered datasets");
++            throw new IllegalArgumentException("Primary Coding requires delivered data or a supply-status receipt");
+         if (sources.size() > MAX_PRIMARY_DATASETS)
+             throw new IllegalArgumentException("Primary Coding analysis dataset limit exceeded");
+         String objective = "Answer the user's data-analysis objective using only the authorized immutable datasets. "
+             + "Inspect their schemas and quality for the supplied Runtime task plan. Choose implementation techniques within that plan, "
+-            + "write and repair concise Python, and verify the computed output. Do not recreate the business plan or reselect templates. Produce exactly one result row. "
++            + "write and repair concise Python, and verify the computed output. You own business interpretation and any additional authorized data requests. Produce exactly one result row. "
+             + "Use delivered Skills, template declarations, field metadata and source context as the authority for metric meaning. "
+             + "Before submission, recalculate every reported total from program output and verify that every table header aligns with its values. "
+             + "Distinguish an arithmetic difference from a data error: only call it an error when the compared values have the same declared metric, scope, period and unit; otherwise state the unresolved reconciliation components and evidence limits. "
+@@ -127,6 +127,10 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
+             + "evidenceReferences must list the exact delivered dataset references actually used; do not invent or shorten them. "
+             + "limitations must record material data or method limits. Do not delegate calculations back to Runtime OS.\n"
+             + "User objective:\n" + context.query();
++        if(context.metadata().containsKey("dataSupplyStatus"))
++            objective += "\nThe supplied DATA_SUPPLY_STATUS receipt contains technical observations only, not business measurements. "
++                +"Decide whether to request authorized data or explain the unavailable inputs. Do not derive business figures from status records. "
++                +"The absence of data is not a business conclusion. Any new asset/template choice is your decision, subject to supplier ID, permission and schema validation. ";
+         if (com.chatchat.agents.orchestration.analysis.governance.FileAnalysisDependencies.files(context.runtimeAttributes()) != null)
+             objective += "\n" + com.chatchat.api.assets.AssetAnalysisInputs.INSTRUCTION
+                 + "The runtime-file-plan dataset is planning context only. Inspect original workbooks and sheets in Python, "
+diff --git a/chatchat-api/src/test/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisServiceTest.java b/chatchat-api/src/test/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisServiceTest.java
+index 555cb4f8c..e176fa224 100644
+--- a/chatchat-api/src/test/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisServiceTest.java
++++ b/chatchat-api/src/test/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisServiceTest.java
+@@ -24,6 +24,21 @@ import static org.mockito.ArgumentMatchers.*;
+ import static org.mockito.Mockito.*;
+ 
+ class CodingAnalysisServiceTest {
++    @Test void supplyStatusIsDeliveredAsTechnicalEvidenceWithoutInventingBusinessData() {
++        var service=spy(service());
++        doReturn(Map.of("status","COMPLETED")).when(service).executeObserved(any(),anyMap(),anyMap(),any());
++        var parent=context("tenant");parent.metadata().put("dataSupplyStatus",Map.of("businessDataAvailable",false));
++        var delivered=Map.of("supply-status:run",new Dataset("supply-status:run",
++            Map.of("recordType","DATA_SUPPLY_STATUS","businessData",false),
++            List.of(Map.of("selectionStatus","MODEL_UNAVAILABLE"))));
++        service.executePrimaryAnalysis(parent,delivered,event -> {});
++        verify(service).executeObserved(same(parent),argThat(task ->
++            task.get("instruction").toString().contains("DATA_SUPPLY_STATUS")
++            &&task.get("instruction").toString().contains("not business measurements")
++            &&!task.get("instruction").toString().contains("reselect templates")),same(delivered),any());
++        verifyNoInteractions(agent,python,inputs,plans,collector);
++    }
++
+     @Test void combinedInputsKeepProducerFieldMeaningsWithoutGuessingFromOpaqueNames() {
+         prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
+         when(inputs.captureConfigured(any(),anyString(),anyList(),startsWith("coding-input-set:"),anyString(),anyString(),anyLong(),anyLong(),any()))

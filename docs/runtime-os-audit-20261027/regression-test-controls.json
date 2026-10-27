@@ -1,0 +1,440 @@
+{
+  "runtime-governance-empty-delivery-tests.log": {
+    "sha256": "21cdd92e26f210f0926cfbb9208e82a252118d969d435cca8999ff12ece9bac2",
+    "logEncoding": "utf-16",
+    "mavenBuildSuccess": true,
+    "suites": [
+      {
+        "tests": 21,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinatorTest"
+      },
+      {
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.agents.orchestration.analysis.dataset.DataSupplyStatusTest"
+      },
+      {
+        "tests": 21,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.agents.orchestration.analysis.governance.AnalysisCoverageCoordinatorTest"
+      },
+      {
+        "tests": 17,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.agents.runtime.analysis.McpAnalysisPayloadResultAnalysisAdapterTest"
+      },
+      {
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.agents.runtime.analysis.McpResultAnalysisBridgeTest"
+      },
+      {
+        "tests": 8,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.runtime.coding.data.CodingInputFilePublisherTest"
+      },
+      {
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.runtime.coding.data.CodingInputSnapshotServiceTest"
+      }
+    ]
+  },
+  "runtime-governance-final-boundary-tests.log": {
+    "sha256": "d40a6864a4e2d74391fd9bb6fb754751da09189ae34ef1c6a39332f1d7c47c49",
+    "logEncoding": "utf-16",
+    "mavenBuildSuccess": true,
+    "suites": [
+      {
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.agents.orchestration.AgentPlannerPublishedBindingTest"
+      },
+      {
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.agents.orchestration.analysis.dataset.DataSupplyStatusTest"
+      },
+      {
+        "tests": 21,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.agents.orchestration.analysis.governance.AnalysisCoverageCoordinatorTest"
+      },
+      {
+        "tests": 15,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.agents.orchestration.TemplateSelectionAndBindingTest"
+      },
+      {
+        "tests": 33,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.agents.runtime.plan.InterpretationPlanValidatorTest"
+      }
+    ]
+  },
+  "runtime-governance-dispatch-tests.log": {
+    "sha256": "7bdd616b6a6aa363a2d2900f8ad7475a6666c4adbf8c2c7d23142cb8b0a5a3bc",
+    "logEncoding": "utf-16",
+    "mavenBuildSuccess": true,
+    "suites": [
+      {
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.agents.orchestration.AgentPlannerPublishedBindingTest"
+      },
+      {
+        "tests": 33,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.agents.runtime.plan.InterpretationPlanValidatorTest"
+      },
+      {
+        "tests": 8,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.agents.runtime.plan.PublishedTemplateSupplyTest"
+      },
+      {
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.controller.agent.CodingTaskMonitorControllerTest"
+      },
+      {
+        "tests": 30,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest"
+      },
+      {
+        "tests": 14,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.runtime.coding.cline.ClineModelCallbackControllerTest"
+      },
+      {
+        "tests": 15,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.runtime.coding.cline.ClineRuntimeModelBridgeTest"
+      }
+    ]
+  },
+  "runtime-governance-api-tests.log": {
+    "sha256": "395e874f002c423118702d714d27bcd9093c1bbba14cc92a10191ad10e0a7a1c",
+    "logEncoding": "utf-16",
+    "mavenBuildSuccess": true,
+    "suites": [
+      {
+        "tests": 20,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.agents.orchestration.analysis.governance.AnalysisCoverageCoordinatorTest"
+      },
+      {
+        "tests": 15,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.agents.orchestration.TemplateSelectionAndBindingTest"
+      },
+      {
+        "tests": 161,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest"
+      },
+      {
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.agents.runtime.tool.PublishedDataSupplyWorkflowTest"
+      },
+      {
+        "tests": 23,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.agents.runtime.toolcall.TemplateInvocationBridgeTest"
+      },
+      {
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.controller.agent.CodingTaskMonitorControllerTest"
+      },
+      {
+        "tests": 30,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest"
+      },
+      {
+        "tests": 37,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.runtime.coding.CodingTaskPersistenceTest"
+      },
+      {
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.runtime.coding.data.CodingInputSnapshotServiceTest"
+      },
+      {
+        "tests": 11,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.runtime.coding.evidence.CodingEvidenceCollectorTest"
+      },
+      {
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.runtime.coding.evidence.CodingSchemaResultVerifierTest"
+      },
+      {
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.runtime.coding.evidence.CodingValidationPlanServiceTest"
+      },
+      {
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.runtime.coding.execution.CodingExecutionFeedbackServiceTest"
+      }
+    ],
+    "note": "Includes 225 Agents tests and 95 API tests; do not count overlapping later runs twice."
+  },
+  "runtime-governance-opensearch-tests.log": {
+    "sha256": "58a0cd9e82b7aeeaadbdd2ff51ab127dbf41fd81ba590db933922fc60182b987",
+    "logEncoding": "utf-16",
+    "mavenBuildSuccess": true,
+    "suites": [
+      {
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.mcpserver.search.engine.OpenSearchIndependentBatchTest"
+      },
+      {
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.mcpserver.search.engine.OpenSearchRequestDeadlineTest"
+      },
+      {
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.mcpserver.search.engine.OpenSearchSearchBulkheadTest"
+      },
+      {
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.mcpserver.search.engine.OpenSearchTemplateQuerySafetyTest"
+      }
+    ]
+  },
+  "runtime-governance-qa-recovery-tests-pass.log": {
+    "sha256": "ca63683155db5cd4e2a8a79d9e3e867e48001034acee84f90a1cf975df46d2f0",
+    "logEncoding": "utf-16",
+    "mavenBuildSuccess": true,
+    "suites": [
+      {
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.agents.orchestration.answer.AgentAnswerFinalizerTaskAssessmentTest"
+      },
+      {
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.agents.orchestration.answer.AnswerQualityBusinessNeutralityTest"
+      },
+      {
+        "tests": 8,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.agents.orchestration.answer.AnswerQualityPipelineTest"
+      },
+      {
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.agents.orchestration.answer.AnswerReviewCoordinatorTest"
+      },
+      {
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.agents.runtime.answer.DefaultAgentAnswerReviewerTest"
+      },
+      {
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.agents.runtime.plan.execution.DeterministicPlanDagStateMachineTest"
+      },
+      {
+        "tests": 8,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.agents.runtime.plan.InterpretationPlanCheckpointIdentityTest"
+      },
+      {
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.agents.runtime.plan.InterpretationPlanIncrementalRecoveryTest"
+      },
+      {
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.chat.interaction.service.DirectAnswerWorkflowTest"
+      },
+      {
+        "tests": 28,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.chat.interaction.service.handler.AgentChatModeHandlerTest"
+      }
+    ],
+    "note": "41 Agents and 32 Chat tests passed; separate broad QA baseline timeout remains unresolved."
+  },
+  "runtime-governance-node-tests.log": {
+    "sha256": "4bbdef33b23d7394544f4f3c2149c531c59fc3233396fd1bce18bdde70d12b5d",
+    "logEncoding": "utf-16",
+    "mavenBuildSuccess": false,
+    "suites": [],
+    "nodePass": [
+      "100"
+    ]
+  },
+  "runtime-governance-monitor-tests.log": {
+    "sha256": "ae465789dda721edcf08947b71a8c631e5395889a3d4f5b7c0c27d6a2119ef97",
+    "logEncoding": "utf-16",
+    "mavenBuildSuccess": false,
+    "suites": [],
+    "vitestPass": [
+      "10"
+    ]
+  },
+  "runtime-governance-web-build.log": {
+    "sha256": "5869ebdb84f8c84b3c781bcd1caafc1b588b18bfb46fa11ec81ef3cc1009f78b",
+    "logEncoding": "utf-16",
+    "mavenBuildSuccess": false,
+    "suites": []
+  },
+  "runtime-governance-package.log": {
+    "sha256": "0e22841c915adb63624176b8493e9ab4331cf35e40689ae06493b782c0c845dc",
+    "logEncoding": "utf-16",
+    "mavenBuildSuccess": true,
+    "suites": []
+  },
+  "runtime-governance-baseline-planner-tests.log": {
+    "sha256": "9ace55cf44113d6a2ff30a5c3fd0d99ab58116193269e945cd5facbd6c441011",
+    "logEncoding": "utf-16",
+    "mavenBuildSuccess": false,
+    "suites": [
+      {
+        "tests": 37,
+        "failures": 6,
+        "errors": 3,
+        "skipped": 0,
+        "suite": "com.chatchat.agents.orchestration.AgentPlannerTest"
+      }
+    ]
+  },
+  "runtime-governance-baseline-qa-test.log": {
+    "sha256": "2e42b3b5c067a3af65d8dee64780ce83de1312aef8b12fcbb3210ed883714405",
+    "logEncoding": "utf-16",
+    "mavenBuildSuccess": false,
+    "suites": [
+      {
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.agents.orchestration.answer.AgentAnswerFinalizerEvidenceAnswerTest"
+      }
+    ]
+  },
+  "runtime-governance-node-tests-final.log": {
+    "sha256": "d1b11a2d427a6235c76464fb22a5c74f1b7e779ee9f8dab4b97c50bf4e70c5d3",
+    "nodeTests": 102,
+    "nodePass": 102,
+    "nodeFail": 0,
+    "scope": "Includes actual SDK exact repair inside prior patch, invalid reference rollback rejection, and legacy checkpoint hash/parent checks."
+  },
+  "node-r3-production-worker-tests": {
+    "sha256": "a03d32377c5c20bd5ff8e7eeaa088364aa2f276ff2aada45afe428d8188b21ea",
+    "tests": 47,
+    "pass": 47,
+    "fail": 0,
+    "environment": "Actual production image Node/installed SDK; no network; real SDK protocol fixtures, not business E2E."
+  }
+}

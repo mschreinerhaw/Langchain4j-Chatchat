@@ -1,0 +1,12 @@
+{
+  "baselineSha256": "3192b778d6c320535f2556f5adad98b783213c815320ac7636b0cf46864b17f3",
+  "sourceCommit": "04a833148290384fc342e6ddac2ea48199b6a72d",
+  "classes": {
+    "com/chatchat/agents/orchestration/analysis/dataset/DataSupplyStatus.class": "ddbcb21326999488bfb9d16f2e563fb0075add1c8011d743ffc65c60ad5e958e"
+  },
+  "apiClasses": {},
+  "sourceFiles": {
+    "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/dataset/DataSupplyStatus.java": "0840a3beeef5387475731fa26841d2662ad59bc1b85089d2ff4aa1bf34af6be2"
+  },
+  "sourceDiffSha256": "90f379750d4fa0f3f8ba0a6135553ea32a08714a490015712b374a04f45456c3"
+}

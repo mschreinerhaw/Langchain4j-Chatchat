@@ -1,0 +1,18 @@
+{
+  "agentId": "busi_data_query",
+  "originalSha256": "86d684d439a88763e8b87fad0d4d7aef412103e6616bb5acb3deb57ea6a8b46c",
+  "fixtureSha256": "13eac5c16cbe891e72427ca58fefb32bcfe68f6d97fc4e81c353a381f882742c",
+  "permissionsUnchanged": true,
+  "requiredTools": [
+    "mcp_chatchat_mcp_server_api_service_query",
+    "mcp_chatchat_mcp_server_api_template_query",
+    "mcp_chatchat_mcp_server_api_template_execute"
+  ],
+  "selectedModel": "deepseek-v4-pro",
+  "restored": true,
+  "effectiveFixtureSha256": "13eac5c16cbe891e72427ca58fefb32bcfe68f6d97fc4e81c353a381f882742c",
+  "taskId": "26fe57f0-1316-359e-ba1b-ba07089ba772",
+  "runId": "att-1-5aa608f9-26be-4a29-97ff-aa11f68b6e42",
+  "taskConfigurationFrozen": true,
+  "restoredSha256": "86d684d439a88763e8b87fad0d4d7aef412103e6616bb5acb3deb57ea6a8b46c"
+}

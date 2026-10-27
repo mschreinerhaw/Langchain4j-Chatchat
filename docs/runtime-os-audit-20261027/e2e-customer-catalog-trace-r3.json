@@ -1,0 +1,318 @@
+{
+  "schemaVersion": "runtime_os.analysis.performance.v1",
+  "taskId": "72317e82-9886-3884-b4e4-f6629d07d898",
+  "runId": "att-1-c592a949-99a0-4fc2-a1a1-b345b5299706",
+  "status": "SUCCEEDED",
+  "endToEndMs": 611432,
+  "codingTasks": 1,
+  "codingModelCalls": 2,
+  "codingModelDurationMs": 115736,
+  "javaModelCalls": 9,
+  "javaModelDurationMs": 551146,
+  "javaPlanningModelDurationMs": 427090,
+  "planningBeforeFirstBatchMs": 349481,
+  "templateBatchCount": 1,
+  "templateBatchDurationMs": 2288,
+  "inputTokens": 35274,
+  "outputTokens": 6684,
+  "javaInputTokens": 28803,
+  "javaOutputTokens": 32025,
+  "javaTokenUsageObserved": 9,
+  "cacheTelemetry": "NOT_RECORDED",
+  "cacheReadTokens": null,
+  "cacheObservedCalls": 0,
+  "cacheEligibleCalls": 11,
+  "cacheHitRatioObserved": null,
+  "pythonExecutions": 1,
+  "pythonRoundtripMs": 4040,
+  "pythonContainersReleased": 1,
+  "pythonCleanupPending": 0,
+  "pythonProcessMs": 1218,
+  "pythonStartMs": 743,
+  "pythonArchiveMs": 224,
+  "retryReasons": {},
+  "firstExecutionProducedResult": true,
+  "runtimeSemanticReviews": 0,
+  "spans": [
+    {
+      "layer": "JAVA_MODEL",
+      "phase": "com.chatchat.agents.orchestration.AgentPlanner#decideNextDecision",
+      "operationId": "1",
+      "startedAt": 1793078167796,
+      "finishedAt": 1793078265423,
+      "durationMs": 97627,
+      "state": "SUCCEEDED",
+      "queueTimeMs": 0,
+      "usage": {
+        "inputTokens": 5296,
+        "outputTokens": 5689,
+        "reasoningTokens": 4642
+      },
+      "inputTokensEstimated": 7019,
+      "outputTokensEstimated": 996,
+      "errorType": null
+    },
+    {
+      "layer": "JAVA_MODEL",
+      "phase": "com.chatchat.agents.orchestration.retrieval.ModelAssistedRetrievalBridge#enrichWithGate",
+      "operationId": "2",
+      "startedAt": 1793078282238,
+      "finishedAt": 1793078329665,
+      "durationMs": 47426,
+      "state": "SUCCEEDED",
+      "queueTimeMs": 0,
+      "usage": {
+        "inputTokens": 619,
+        "outputTokens": 2745,
+        "reasoningTokens": 2647
+      },
+      "inputTokensEstimated": 805,
+      "outputTokensEstimated": 134,
+      "errorType": null
+    },
+    {
+      "layer": "JAVA_MODEL",
+      "phase": "com.chatchat.agents.orchestration.AgentOrchestrationEngine#reviewInterpretationPlanToolResult",
+      "operationId": "3",
+      "startedAt": 1793078282530,
+      "finishedAt": 1793078342000,
+      "durationMs": 59469,
+      "state": "SUCCEEDED",
+      "queueTimeMs": 0,
+      "usage": {
+        "inputTokens": 2577,
+        "outputTokens": 3464,
+        "reasoningTokens": 2931
+      },
+      "inputTokensEstimated": 3289,
+      "outputTokensEstimated": 439,
+      "errorType": null
+    },
+    {
+      "layer": "JAVA_MODEL",
+      "phase": "com.chatchat.agents.orchestration.AgentOrchestrationEngine#reviewInterpretationPlanToolResult",
+      "operationId": "4",
+      "startedAt": 1793078329873,
+      "finishedAt": 1793078378264,
+      "durationMs": 48391,
+      "state": "SUCCEEDED",
+      "queueTimeMs": 0,
+      "usage": {
+        "inputTokens": 2212,
+        "outputTokens": 2794,
+        "reasoningTokens": 2495
+      },
+      "inputTokensEstimated": 2786,
+      "outputTokensEstimated": 309,
+      "errorType": null
+    },
+    {
+      "layer": "JAVA_MODEL",
+      "phase": "com.chatchat.agents.orchestration.retrieval.ModelAssistedRetrievalBridge#enrichWithGate",
+      "operationId": "5",
+      "startedAt": 1793078378460,
+      "finishedAt": 1793078439299,
+      "durationMs": 60839,
+      "state": "SUCCEEDED",
+      "queueTimeMs": 0,
+      "usage": {
+        "inputTokens": 4660,
+        "outputTokens": 3529,
+        "reasoningTokens": 3280
+      },
+      "inputTokensEstimated": 5792,
+      "outputTokensEstimated": 257,
+      "errorType": null
+    },
+    {
+      "layer": "JAVA_MODEL",
+      "phase": "com.chatchat.agents.orchestration.SchemaDrivenTemplateParameterBinder#nativeCall",
+      "operationId": "6",
+      "startedAt": 1793078378733,
+      "finishedAt": 1793078439937,
+      "durationMs": 61204,
+      "state": "SUCCEEDED",
+      "queueTimeMs": 0,
+      "usage": {
+        "inputTokens": 1796,
+        "outputTokens": 3568,
+        "reasoningTokens": 3454
+      },
+      "inputTokensEstimated": 1998,
+      "outputTokensEstimated": 123,
+      "errorType": null
+    },
+    {
+      "layer": "JAVA_MODEL",
+      "phase": "com.chatchat.agents.orchestration.SchemaDrivenTemplateParameterBinder#nativeCall",
+      "operationId": "7",
+      "startedAt": 1793078440255,
+      "finishedAt": 1793078492390,
+      "durationMs": 52134,
+      "state": "SUCCEEDED",
+      "queueTimeMs": 0,
+      "usage": {
+        "inputTokens": 2323,
+        "outputTokens": 3030,
+        "reasoningTokens": 2909
+      },
+      "inputTokensEstimated": 2659,
+      "outputTokensEstimated": 168,
+      "errorType": null
+    },
+    {
+      "layer": "JAVA_MODEL",
+      "phase": "com.chatchat.agents.orchestration.retrieval.ModelAssistedRetrievalBridge#enrichWithGate",
+      "operationId": "8",
+      "startedAt": 1793078496507,
+      "finishedAt": 1793078562689,
+      "durationMs": 66182,
+      "state": "SUCCEEDED",
+      "queueTimeMs": 0,
+      "usage": {
+        "inputTokens": 4660,
+        "outputTokens": 3847,
+        "reasoningTokens": 3612
+      },
+      "inputTokensEstimated": 5792,
+      "outputTokensEstimated": 260,
+      "errorType": null
+    },
+    {
+      "layer": "JAVA_MODEL",
+      "phase": "com.chatchat.agents.orchestration.retrieval.ModelAssistedRetrievalBridge#enrichWithGate",
+      "operationId": "9",
+      "startedAt": 1793078562712,
+      "finishedAt": 1793078620587,
+      "durationMs": 57874,
+      "state": "SUCCEEDED",
+      "queueTimeMs": 0,
+      "usage": {
+        "inputTokens": 4660,
+        "outputTokens": 3359,
+        "reasoningTokens": 3167
+      },
+      "inputTokensEstimated": 5792,
+      "outputTokensEstimated": 189,
+      "errorType": null
+    },
+    {
+      "layer": "JAVA_TEMPLATE",
+      "phase": "controlled_batch",
+      "batchId": "reviewed-template-step-6",
+      "startedAt": "2026-10-27T05:21:32.716Z",
+      "finishedAt": "2026-10-27T05:21:35.004Z",
+      "durationMs": 2288,
+      "executionMode": "SEQUENTIAL",
+      "status": "SUCCESS",
+      "summary": {
+        "total": 5,
+        "success": 5,
+        "failed": 0,
+        "blocked": 0,
+        "skipped": 0,
+        "remoteToolInvocations": 5
+      }
+    },
+    {
+      "layer": "CODING_MODEL",
+      "phase": "provider_call",
+      "taskId": "analysis-coding-72bccf9b620fa05806f73eb4c63b2ec4383649e7939cc2928b192bb0485f7eff",
+      "operationId": "model-1",
+      "startedAt": "2026-10-27T05:23:49.095531979Z",
+      "finishedAt": "2026-10-27T05:25:26.406045705Z",
+      "durationMs": 97310,
+      "state": "SUCCEEDED",
+      "usage": {
+        "inputTokens": 10930,
+        "outputTokens": 5669,
+        "reasoningTokens": 389
+      },
+      "cacheReadTokens": null,
+      "cacheWriteTokens": null,
+      "selectedModel": "qwen3.6-plus",
+      "providerModel": "qwen3.6-plus"
+    },
+    {
+      "layer": "CODING_MODEL",
+      "phase": "provider_call",
+      "taskId": "analysis-coding-72bccf9b620fa05806f73eb4c63b2ec4383649e7939cc2928b192bb0485f7eff",
+      "operationId": "model-2",
+      "startedAt": "2026-10-27T05:25:31.648359901Z",
+      "finishedAt": "2026-10-27T05:25:50.075149342Z",
+      "durationMs": 18426,
+      "state": "SUCCEEDED",
+      "usage": {
+        "inputTokens": 24344,
+        "outputTokens": 1015,
+        "reasoningTokens": 547
+      },
+      "cacheReadTokens": null,
+      "cacheWriteTokens": null,
+      "selectedModel": "qwen3.6-plus",
+      "providerModel": "qwen3.6-plus"
+    },
+    {
+      "layer": "PYTHON",
+      "phase": "dispatch_execution_collection_roundtrip",
+      "taskId": "analysis-coding-72bccf9b620fa05806f73eb4c63b2ec4383649e7939cc2928b192bb0485f7eff",
+      "operationId": "cline-578d5955fe016359d3c87f2a99c11726e586d14780f2de03adb72ac699587252",
+      "startedAt": 1793078726897,
+      "finishedAt": 1793078730937,
+      "durationMs": 4040,
+      "state": "SUCCEEDED",
+      "outputStatus": null,
+      "validationStatus": "INCONCLUSIVE",
+      "resultAvailable": true,
+      "resultAvailabilitySource": "EXPLICIT"
+    },
+    {
+      "layer": "PYTHON_RUNTIME",
+      "taskId": "analysis-coding-72bccf9b620fa05806f73eb4c63b2ec4383649e7939cc2928b192bb0485f7eff",
+      "operationId": "cline-578d5955fe016359d3c87f2a99c11726e586d14780f2de03adb72ac699587252",
+      "state": "SUCCEEDED",
+      "executorStopped": true,
+      "containerRemoved": true,
+      "cleanupFailed": false,
+      "phase": "accepted_to_container_start",
+      "startedAt": "2026-10-27T05:25:27.331104+00:00",
+      "finishedAt": "2026-10-27T05:25:28.074355+00:00",
+      "durationMs": 743,
+      "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+    },
+    {
+      "layer": "PYTHON_RUNTIME",
+      "taskId": "analysis-coding-72bccf9b620fa05806f73eb4c63b2ec4383649e7939cc2928b192bb0485f7eff",
+      "operationId": "cline-578d5955fe016359d3c87f2a99c11726e586d14780f2de03adb72ac699587252",
+      "state": "SUCCEEDED",
+      "executorStopped": true,
+      "containerRemoved": true,
+      "cleanupFailed": false,
+      "phase": "container_process",
+      "startedAt": "2026-10-27T05:25:28.066128988Z",
+      "finishedAt": "2026-10-27T05:25:29.284084624Z",
+      "durationMs": 1218,
+      "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+    },
+    {
+      "layer": "PYTHON_RUNTIME",
+      "taskId": "analysis-coding-72bccf9b620fa05806f73eb4c63b2ec4383649e7939cc2928b192bb0485f7eff",
+      "operationId": "cline-578d5955fe016359d3c87f2a99c11726e586d14780f2de03adb72ac699587252",
+      "state": "SUCCEEDED",
+      "executorStopped": true,
+      "containerRemoved": true,
+      "cleanupFailed": false,
+      "phase": "process_finish_to_reconciled_archive",
+      "startedAt": "2026-10-27T05:25:29.284084624Z",
+      "finishedAt": "2026-10-27T05:25:29.508057+00:00",
+      "durationMs": 224,
+      "timingSource": "POSTGRES_ROW_AND_IMMUTABLE_EXECUTION_RECEIPT"
+    }
+  ],
+  "measurementLimits": [
+    "Python roundtrip includes startup, execution, polling and collection; it is not process CPU time.",
+    "Python post-process timing includes log preservation, manifest archive and final row update; these are not separately metered.",
+    "Missing provider cache telemetry is unknown, not zero.",
+    "Execution/structural validity does not measure business-result correctness."
+  ]
+}

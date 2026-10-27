@@ -1,0 +1,10 @@
+{
+  "previousImage": "sha256:bed311e714d5b140161266419c2cae943e47406fc424ef85d65b3c030f56bbda",
+  "image": "runtime-os-coding-agent:repair-742abef4f0076709",
+  "backupContainer": "runtime-os-app-stage-coding-agent-1-before-repair-bed311e714d5b140",
+  "changedModules": [
+    "runner.js"
+  ],
+  "runtimePolicyPreserved": true,
+  "status": "DEPLOYED"
+}

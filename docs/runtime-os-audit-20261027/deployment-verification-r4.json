@@ -1,0 +1,15 @@
+{
+  "release": "/opt/chatchat-releases/runtime-governance-20261027-r4",
+  "activeContainer": "runtime-os-app-stage-api-1",
+  "activeImage": "runtime-os-api:template-supply-20261027-73083421ec23",
+  "configuredImage": "runtime-os-api:template-supply-20261027-73083421ec23",
+  "activeJarSha256": "73083421ec2353b4f2de39248272a9ac9442328c5d843ae2d28fc84910928a2a",
+  "backupContainer": "runtime-os-app-stage-api-1-before-template-supply-4718275ffeb9",
+  "actualBackupImage": "runtime-os-api:template-supply-20261027-4718275ffeb9",
+  "baselineJarSha256": "4718275ffeb9351f8194579cbce81dd97736794791e94e51c1d7288e9c5596db",
+  "deploymentReportPreviousImage": "runtime-os-api:template-supply-20261027-3192b778d6c3",
+  "explanation": "Deployment previousImage was taken from compose. Use actualBackupImage and the hash-bound backup container for rollback.",
+  "frontendHttpStatus": 200,
+  "frontendIndexSha256": "6995d3842d12a66dc3da2431ad6e235af9c321953f254a2098b12d16e46c9107",
+  "frontendMatchesRelease": true
+}

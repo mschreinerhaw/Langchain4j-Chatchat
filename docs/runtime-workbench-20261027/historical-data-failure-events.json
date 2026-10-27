@@ -1,0 +1,693 @@
+{
+  "id": "live-workbench",
+  "role": "assistant",
+  "taskId": "0c47da68-7c18-3eca-8964-14cb9783eb8e",
+  "taskTitle": "真实历史运行记录验收",
+  "status": "FAILED",
+  "canonicalState": "FAILED",
+  "streaming": false,
+  "steps": [
+    {
+      "eventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": null,
+      "sequence": 1,
+      "type": "QUESTION",
+      "status": "PENDING",
+      "createTime": 1793082900581,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "cf954c8a-34cc-408e-80a2-2e6565c16879",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 2,
+      "type": "STATUS",
+      "status": "RUNNING",
+      "createTime": 1793082900621,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "d038ba13-0e80-4d2a-8359-22bc0668f520",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 3,
+      "type": "STATUS",
+      "status": "WAIT_MODEL",
+      "createTime": 1793082900632,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "0d9a80de-9d6e-4658-b2ca-a20e55dea394",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 4,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1793082900667,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "9612bdb7-3a37-46dc-82d9-3f47c47e1c4a",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 5,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1793082900762,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "a66b6133-2350-4180-af28-1e3592fb20ec",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 6,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1793082900767,
+      "payload": {
+        "metadata": {
+          "eventState": "RUNNING",
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "d62c0709-6f49-4390-9569-d4b3d8bc3379",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 7,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1793082904766,
+      "payload": {
+        "metadata": {
+          "eventState": "COMPLETED",
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "9e144f50-c494-4e00-a262-7d741a6a1571",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 8,
+      "type": "RUNTIME_STARTED",
+      "status": "RUNNING",
+      "createTime": 1793082904812,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "495c07b0-fa57-459b-b860-aceb13542509",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 9,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1793082904836,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "50d542ae-d510-4f15-9c33-a1968ab81534",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 10,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1793082904840,
+      "payload": {
+        "metadata": {
+          "eventKind": "KNOWLEDGE_SKILLS",
+          "eventState": "COMPLETED",
+          "stage": "SKILLS_EXTRACTED",
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "f9774727-b527-4f29-adc8-573d32681121",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 11,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1793082904843,
+      "payload": {
+        "metadata": {
+          "eventKind": "KNOWLEDGE_SKILLS",
+          "eventState": "NOT_APPLIED",
+          "stage": "CONTEXT_APPLIED",
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "c6e35c21-d19f-4c58-85dd-ebb948a1f3f5",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 12,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1793082904847,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "5ed814c8-47f3-4102-a769-d50fa40e12e2",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 13,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1793082904851,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "64558055-429d-4509-a078-4247d594c739",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 14,
+      "type": "RUNTIME_STEP",
+      "status": "RUNNING",
+      "createTime": 1793083036614,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "a088334e-5abc-4cc6-be55-4303c62bd2b3",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 15,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1793083036621,
+      "payload": {
+        "metadata": {
+          "eventKind": "DAG_VALIDATION",
+          "eventState": "PASSED",
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "004838f5-58ea-4c07-9331-b965fd6ec3d8",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 16,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1793083040526,
+      "payload": {
+        "metadata": {
+          "eventKind": "DAG_VALIDATION",
+          "eventState": "PASSED",
+          "stage": "initial",
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "2436f034-6ccf-4f65-b6e7-4451a52f24d0",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 17,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1793083040532,
+      "payload": {
+        "metadata": {
+          "stage": "initial",
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "fbf8abe1-0382-452d-9379-1bfb68005096",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 18,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1793083045094,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "ee016f03-9adb-495e-b411-cc5e209f1ace",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 19,
+      "type": "RUNTIME_STEP",
+      "status": "RUNNING",
+      "createTime": 1793083045109,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "1dfcedfd-7bcf-4546-a131-72e5efa51ff6",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 20,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1793083045325,
+      "payload": {
+        "metadata": {
+          "eventKind": "MODEL_INFERENCE",
+          "eventState": "STARTED",
+          "stepId": 1,
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "46449ee0-84eb-444d-a141-4b7a8dd0f8a0",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 21,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1793083099931,
+      "payload": {
+        "metadata": {
+          "eventKind": "MODEL_INFERENCE",
+          "eventState": "COMPLETED",
+          "stepId": 1,
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "be62b00f-46b7-4a0a-8936-574f60377703",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 22,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1793083099938,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "d3d4eafa-8667-4183-8081-330c67eafc00",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 23,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1793083186218,
+      "payload": {
+        "metadata": {
+          "eventKind": "MODEL_INFERENCE",
+          "eventState": "STARTED",
+          "stepId": 4,
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "e04ba1af-5f2e-4783-887e-7fa39c2ce1fd",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 24,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1793083267531,
+      "payload": {
+        "metadata": {
+          "eventKind": "MODEL_INFERENCE",
+          "eventState": "COMPLETED",
+          "stepId": 4,
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "5f8c6692-8b2c-4f3f-8c3e-bb88d42831e2",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 25,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1793083267542,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "1f03e48a-edcd-4d6f-b592-948b56de335d",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 26,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1793083267612,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "102cc0ef-42d7-4f85-aceb-90736dd14658",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 27,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1793083267639,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "70ea5235-f26a-4a17-bb7e-26f9e0a0e408",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 28,
+      "type": "RUNTIME_STEP",
+      "status": "RUNNING",
+      "createTime": 1793083267659,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "18c6a8c0-aba4-4661-8923-817b96ffdeba",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 29,
+      "type": "RUNTIME_STEP",
+      "status": "RUNNING",
+      "createTime": 1793083267669,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "f37f2d2a-6b4b-4212-9172-21f8a6f27d5f",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 30,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1793083267804,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "daf7c748-d5ec-45bd-b421-05dd558d27ab",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 31,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1793083431231,
+      "payload": {
+        "metadata": {
+          "eventKind": "MODEL_INFERENCE",
+          "eventState": "STARTED",
+          "stepId": 5,
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "1b7d05a0-3bbe-4caf-a83c-76c920b0cb2c",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 32,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1793083502718,
+      "payload": {
+        "metadata": {
+          "eventKind": "MODEL_INFERENCE",
+          "eventState": "COMPLETED",
+          "stepId": 5,
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "template-match:-k9f3j0wj_2LrXg_jPeVlMuJ5FqRLtZSueinZDma_jo",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 33,
+      "type": "BUSINESS_TEMPLATE_REQUIREMENT_MATCHING",
+      "status": "RUNNING",
+      "createTime": 1793083502733,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "2f1934e7-d962-4215-9646-d79e97c25e9e",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 34,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1793083502755,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "b366b393-dbb9-48d5-8481-f67e243ad79c",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 35,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1793083502829,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "145bca40-a5bb-40a8-8c16-88a9c15e8692",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 36,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1793083700664,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "60faed5b-a017-4a83-9b73-b2af5cea7a16",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 37,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1793083700693,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "fb42a518-aba0-40dd-a56f-813bad93df2c",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 38,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1793083700713,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "dd79569c-6c64-4805-a25e-4039604aa112",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 39,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1793083700737,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "736ca957-b4de-497c-914b-4b6933a671f8",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 40,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1793083700763,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "ec502895-a3cc-448f-9841-27d212c0f13e",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 41,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1793083700783,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "4e845ccb-bbc3-49a9-9f18-490d83e485ee",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 42,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1793083700801,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "2b0f0c6b-ab5d-407b-ab54-1bffac492b4c",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 43,
+      "type": "RUNTIME_FAILED",
+      "status": "FAILED",
+      "createTime": 1793083700857,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "2a313de2-21e4-4b4d-9a6e-1fbe7faba24c",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 44,
+      "type": "THINK",
+      "status": "RUNNING",
+      "createTime": 1793082900638,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "f29ff098-4b7d-45a1-96cb-30b6681fbb3c",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "57475db7-1b83-4a9b-8a15-5f354a9b1927",
+      "sequence": 45,
+      "type": "RESULT",
+      "status": "FAILED",
+      "createTime": 1793083700881,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    },
+    {
+      "eventId": "412364c7-2619-485e-9e71-c75011f8599d",
+      "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+      "parentEventId": "f29ff098-4b7d-45a1-96cb-30b6681fbb3c",
+      "sequence": 46,
+      "type": "COMPLETE",
+      "status": "FAILED",
+      "createTime": 1793083700911,
+      "payload": {
+        "metadata": {
+          "workerActivity": {}
+        }
+      }
+    }
+  ],
+  "executionSnapshot": {
+    "attemptId": "att-1-bb173590-a3a5-4280-aeed-aa5902cb76d7",
+    "createTime": "2026-10-27T06:35:00.579232Z",
+    "finishedAt": "2026-10-27T06:48:20.911Z",
+    "canonicalState": "FAILED"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "case": "normal",
+  "taskId": "f43eaeef-313a-3c10-8b8a-c372cec88e2b",
+  "attemptId": "att-1-57a33ceb-ddf9-4585-8d02-c143ead1e20a",
+  "canonicalState": "SUCCEEDED",
+  "eventCount": 154,
+  "executionObservations": 0,
+  "confirmedExecutionObserved": false,
+  "stoppedExecutionObserved": false,
+  "workerTypes": [
+    "CODE_READY",
+    "CONTEXT_READY",
+    "EXECUTION_FEEDBACK",
+    "MODEL_RESOLVED",
+    "MODEL_STARTED",
+    "MODEL_USAGE",
+    "SKILLS_LOADED",
+    "TOOL_FINISHED",
+    "TOOL_STARTED"
+  ],
+  "expectedTotalReported": false,
+  "coding": [
+    {
+      "taskId": "analysis-coding-b064a4758b83418a98879e9e4629c90c30b5d30be5bc267e2f512233f1419351",
+      "status": "COMPLETED",
+      "validationStatus": "INCONCLUSIVE",
+      "usage": {
+        "modelCalls": 9,
+        "modelTokens": 222061,
+        "toolCalls": 4,
+        "codeExecutions": 4,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 12364,
+        "costAmount": "0"
+      }
+    }
+  ]
+}

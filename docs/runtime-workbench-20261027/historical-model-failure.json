@@ -1,0 +1,13 @@
+{
+  "case": "normal",
+  "taskId": "dffa0d5e-3314-3d91-b65a-e3d47d7a3a94",
+  "attemptId": "att-1-01b53a09-6f99-4b4c-b0ee-495d8d113a93",
+  "canonicalState": "FAILED",
+  "eventCount": 17,
+  "executionObservations": 0,
+  "confirmedExecutionObserved": false,
+  "stoppedExecutionObserved": false,
+  "workerTypes": [],
+  "expectedTotalReported": false,
+  "coding": []
+}

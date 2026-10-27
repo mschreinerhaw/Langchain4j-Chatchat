@@ -1,0 +1,13 @@
+{
+  "case": "cancel",
+  "taskId": "e409b4c7-6868-37a8-b66a-ac5f37877d8b",
+  "attemptId": "att-1-a65f2db5-bb8a-44ac-84ea-b04017b488ed",
+  "canonicalState": "CANCELLED",
+  "eventCount": 8,
+  "executionObservations": 0,
+  "confirmedExecutionObserved": false,
+  "stoppedExecutionObserved": false,
+  "workerTypes": [],
+  "expectedTotalReported": false,
+  "codingHttpStatus": 403
+}

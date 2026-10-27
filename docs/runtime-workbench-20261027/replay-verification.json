@@ -1,0 +1,80 @@
+[
+  {
+    "label": "normal-task",
+    "taskId": "70332352-31db-31cb-ae61-0fe0c53480a3",
+    "source": "persisted real backend events",
+    "sourceDeployment": "workbench-r1",
+    "eventCount": 124,
+    "parentCanonicalState": "SUCCEEDED",
+    "displayStatus": "done",
+    "completedPhases": 5,
+    "completedOperations": 10,
+    "replayDeduplicated": true,
+    "terminal": true
+  },
+  {
+    "label": "historical-timeout",
+    "taskId": "f566b4b2-9cda-3c95-ac50-76fc9c38d831",
+    "source": "persisted real backend events",
+    "sourceDeployment": "historical",
+    "eventCount": 46,
+    "parentCanonicalState": "FAILED",
+    "displayStatus": "error",
+    "completedPhases": 2,
+    "completedOperations": 2,
+    "replayDeduplicated": true,
+    "terminal": true
+  },
+  {
+    "label": "historical-failure",
+    "taskId": "eaf0c820-dc8d-3e5d-b98d-1ab61444e771",
+    "source": "persisted real backend events",
+    "sourceDeployment": "historical",
+    "eventCount": 248,
+    "parentCanonicalState": "FAILED",
+    "displayStatus": "error",
+    "completedPhases": 2,
+    "completedOperations": 20,
+    "replayDeduplicated": true,
+    "terminal": true
+  },
+  {
+    "label": "historical-repair",
+    "taskId": "f43eaeef-313a-3c10-8b8a-c372cec88e2b",
+    "source": "persisted real backend events",
+    "sourceDeployment": "historical",
+    "eventCount": 154,
+    "parentCanonicalState": "SUCCEEDED",
+    "displayStatus": "done",
+    "completedPhases": 4,
+    "completedOperations": 13,
+    "replayDeduplicated": true,
+    "terminal": true
+  },
+  {
+    "label": "historical-data-failure",
+    "taskId": "0c47da68-7c18-3eca-8964-14cb9783eb8e",
+    "source": "persisted real backend events",
+    "sourceDeployment": "historical",
+    "eventCount": 46,
+    "parentCanonicalState": "FAILED",
+    "displayStatus": "error",
+    "completedPhases": 1,
+    "completedOperations": 3,
+    "replayDeduplicated": true,
+    "terminal": true
+  },
+  {
+    "label": "historical-model-failure",
+    "taskId": "dffa0d5e-3314-3d91-b65a-e3d47d7a3a94",
+    "source": "persisted real backend events",
+    "sourceDeployment": "historical",
+    "eventCount": 17,
+    "parentCanonicalState": "FAILED",
+    "displayStatus": "error",
+    "completedPhases": 1,
+    "completedOperations": 0,
+    "replayDeduplicated": true,
+    "terminal": true
+  }
+]

@@ -1,0 +1,19 @@
+{
+  "source": "backend-events",
+  "checks": [
+    {
+      "label": "desktop",
+      "width": 1280,
+      "horizontalOverflow": false,
+      "phases": 5
+    },
+    {
+      "label": "mobile",
+      "width": 390,
+      "horizontalOverflow": false,
+      "phases": 5
+    }
+  ],
+  "keyboardDetails": true,
+  "pageErrors": []
+}

@@ -1,0 +1,13 @@
+{
+  "status": "VERIFIED",
+  "sourceCommit": "78342faaab947112352bc11b1c7d398a09363088",
+  "apiSha256": "b884d8deaea838552ddcdcd26d08c4a499bbb31ec82138a58924d4fff95a5974",
+  "httpAssetsVerified": 95,
+  "gatewayEntrypointVerified": true,
+  "mcpJarUnchanged": true,
+  "runtimeConfigurationPreserved": true,
+  "backupContainer": "runtime-os-app-stage-api-1-before-template-supply-fc1eec5a7a78",
+  "nodeProxy": "REBOUND",
+  "releaseDirectory": "/opt/chatchat-releases/workbench-20261027-r3",
+  "backendEntriesByteIdenticalToPreviousRelease": 1150
+}

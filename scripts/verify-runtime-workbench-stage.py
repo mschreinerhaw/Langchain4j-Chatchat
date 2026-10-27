@@ -73,11 +73,14 @@ for event in events:
     except ValueError:continue
     runtime=payload.get('payload',payload);meta=runtime.get('metadata',{})
     facts={k:meta[k] for k in ['eventKind','eventState','stage','taskId','stepId','eventId','sequence','occurredAt','codingEventType','operationId','attemptId','executorConfirmed','executorStopped','observedAt','timeBasis','planningOwner'] if k in meta}
+    for key in ['stage','eventKind','reasonCode']:
+        value=runtime.get(key)
+        if key not in facts and isinstance(value,str) and len(value)<=512:facts[key]=value
     worker=meta.get('workerActivity',meta.get('payload',{}))
     if isinstance(worker,dict):facts['workerActivity']={k:worker[k] for k in ['type','timestamp','modelCall','startedAt','finishedAt','durationMs','repairAttempt','repairAttempts','scriptVersion','tool','operationId','toolCallId','codeSha256','status','validationStatus','admissionPending'] if k in worker}
     if facts.get('eventKind')=='ANALYSIS_OPERATION':operations.append(facts)
     safe.append({**{k:event[k] for k in ['eventId','attemptId','parentEventId','sequence','type','status','timestamp','createTime'] if k in event},'payload':{'metadata':facts}})
-fixture={'id':'live-workbench','role':'assistant','taskId':task_id,'taskTitle':'真实 CSV 与 SQL 分析验收','status':task.get('status'),
+fixture={'id':'live-workbench','role':'assistant','taskId':task_id,'taskTitle':'真实 CSV 与 SQL 分析验收' if a.action=='run' else '真实历史运行记录验收','status':task.get('status'),
   'canonicalState':task.get('canonicalState'),'streaming':False,'steps':safe,'executionSnapshot':{k:task.get(k) for k in ['attemptId','createTime','finishedAt','canonicalState']}}
 (a.output_dir/'presentation-fixture.json').write_text(json.dumps(fixture,ensure_ascii=False))
 summary={'case':a.case,'taskId':task_id,'attemptId':task.get('attemptId'),'canonicalState':task.get('canonicalState'),'eventCount':len(events),

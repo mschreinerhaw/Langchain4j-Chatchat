@@ -1,0 +1,69 @@
+{
+  "url": "http://192.168.195.221:18100/",
+  "authenticated": true,
+  "liveWorkbenchCount": 1,
+  "metrics": [
+    "05 / 05",
+    "06:36",
+    "10"
+  ],
+  "liveProjection": {
+    "status": "done",
+    "completed": 5,
+    "completedOperations": 10,
+    "activities": [
+      {
+        "kind": "MODEL",
+        "operationId": "model:4",
+        "state": "done"
+      },
+      {
+        "kind": "EXECUTION",
+        "operationId": "cline-97b7ef88499440be4b9917def2bab64f0616210e413dc7c0db0479bc5a831b0a",
+        "state": "done"
+      },
+      {
+        "kind": "PROGRAM",
+        "operationId": "program:2",
+        "state": "done"
+      },
+      {
+        "kind": "MODEL",
+        "operationId": "model:3",
+        "state": "done"
+      },
+      {
+        "kind": "EXECUTION",
+        "operationId": "cline-84aa32bea9d8e661368fd89ccfb986680ce4dac59d5a5d8f32dfb826a804f064",
+        "state": "done"
+      },
+      {
+        "kind": "PROGRAM",
+        "operationId": "program:1",
+        "state": "done"
+      },
+      {
+        "kind": "MODEL",
+        "operationId": "model:2",
+        "state": "done"
+      },
+      {
+        "kind": "CODE_CHECK",
+        "operationId": "workspace-435aaeb4abb081d021c4f463c1277bf33f8052bfea1cf4736e5445430601a124",
+        "state": "done"
+      },
+      {
+        "kind": "MODEL",
+        "operationId": "model:1",
+        "state": "done"
+      },
+      {
+        "kind": "PLAN",
+        "operationId": "PROBLEM_ANALYSIS_PLAN",
+        "state": "done"
+      }
+    ]
+  },
+  "pageErrors": [],
+  "serverErrors": []
+}

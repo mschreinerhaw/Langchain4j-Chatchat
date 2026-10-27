@@ -1,0 +1,26 @@
+{
+  "activeParentTasks": 0,
+  "pythonSandboxContainers": 0,
+  "services": {
+    "api": {
+      "running": true,
+      "health": "not configured"
+    },
+    "coding-agent": {
+      "running": true,
+      "health": "healthy"
+    },
+    "mcp": {
+      "running": true,
+      "health": "not configured"
+    },
+    "node-proxy": {
+      "running": true,
+      "health": "healthy"
+    },
+    "gateway": {
+      "running": true,
+      "health": "healthy"
+    }
+  }
+}

@@ -44,7 +44,8 @@ describe('SQL assistant conversation',()=>{
     expect(host.querySelectorAll('.sql-chat-turn.assistant')).toHaveLength(2);
     expect(host.querySelector('.sql-chat-turn.assistant').textContent).toContain('上轮解释保留');
     const reply=host.querySelectorAll('.sql-chat-turn.assistant')[1];
-    expect(reply.querySelector('[aria-label="实际执行进展"]').textContent).toContain('schema_lookup');
+    expect(reply.querySelector('[aria-label="实际执行进展"]').textContent).toContain('3/5 准备数据');
+    expect(reply.querySelector('[aria-label="实际执行进展"]').textContent).not.toContain('schema_lookup');
     props.result={...props.result,task:{status:'SUCCESS'},files:[{path:'sql/fix.sql',content:'SELECT 1;'}],rawAnswer:'{"notes":"已生成候选代码，未执行 SQL"}'};await nextTick();
     expect(reply.querySelector('.sql-chat-result').textContent).toContain('审查 1 个文件变更');
     expect(host.querySelector('.sql-assistant-scroll > .sql-chat-result')).toBeNull();

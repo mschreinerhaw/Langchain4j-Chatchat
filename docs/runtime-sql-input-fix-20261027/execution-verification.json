@@ -1,0 +1,67 @@
+[
+  {
+    "case": "sql-explain",
+    "taskId": "4f89587c-1c62-3250-83c7-6171dbdf84c7",
+    "runId": "att-1-d6c24989-66d4-4089-bf98-9b5ebd0233fb",
+    "parentStatus": "SUCCEEDED",
+    "codingTasks": 1,
+    "pythonOperations": 1,
+    "pythonControl": [
+      {
+        "operation_id": "cline-0e3ae2385da0d2cedc9bba3cd9388393f5c7b19af293dca0f7bfb6d197fc11cd",
+        "status": "SUCCEEDED",
+        "exit_code": 0,
+        "executor_stopped": true,
+        "containerRemoved": true
+      }
+    ]
+  },
+  {
+    "case": "sql-invalid",
+    "taskId": "67b35eb1-1bc8-3c38-8929-38076b7e1f06",
+    "runId": "att-1-bb055da8-0e2e-4a7d-a262-8ffef6cffc1e",
+    "parentStatus": "SUCCEEDED",
+    "codingTasks": 1,
+    "pythonOperations": 1,
+    "pythonControl": [
+      {
+        "operation_id": "cline-5af7769cbf692e8557c63cd954380a6aab9e32c3dbcca7309b90af37c4f48aea",
+        "status": "SUCCEEDED",
+        "exit_code": 0,
+        "executor_stopped": true,
+        "containerRemoved": true
+      }
+    ]
+  },
+  {
+    "case": "bare-sql",
+    "taskId": "b1f0c95b-ef48-36d3-9775-6a18842fe01a",
+    "runId": "att-1-75335e41-23ee-4699-8cd1-28c13eb81bbd",
+    "parentStatus": "SUCCEEDED",
+    "codingTasks": 1,
+    "pythonOperations": 3,
+    "pythonControl": [
+      {
+        "operation_id": "cline-190cb84e0201261c260baae7c09bc2dba65541ef8150151d52327f7ce0153fc3",
+        "status": "FAILED",
+        "exit_code": 1,
+        "executor_stopped": true,
+        "containerRemoved": true
+      },
+      {
+        "operation_id": "cline-c2e508a93d6c88f213ee1c94f2f3ea10563ba35d618568492abf6079f25a7acf",
+        "status": "SUCCEEDED",
+        "exit_code": 0,
+        "executor_stopped": true,
+        "containerRemoved": true
+      },
+      {
+        "operation_id": "cline-f06125cc1e134c90dc144250b3967b2098ca9ca21b517141db6f82129d2db3b9",
+        "status": "SUCCEEDED",
+        "exit_code": 0,
+        "executor_stopped": true,
+        "containerRemoved": true
+      }
+    ]
+  }
+]

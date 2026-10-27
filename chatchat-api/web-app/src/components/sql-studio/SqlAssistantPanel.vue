@@ -61,7 +61,7 @@
               /><CircleCheck v-else-if="progress.status === 'SUCCESS'" :size="16" /><CircleHelp
                 v-else
                 :size="16"
-              /><b>{{ progress.title }}</b></div
+              /><b>{{ progress.progressLabel }} · {{ progress.title }}</b></div
             >
             <span
               v-if="progress.running || progress.terminal"
@@ -119,10 +119,10 @@
           class="studio-message-activity"
           aria-label="实际执行进展"
           ><li
-            v-for="step in (isCurrentTurn(turn) ? progress.steps : turn.steps).slice(-12)"
+            v-for="step in (isCurrentTurn(turn) ? progress.steps : turnProgressSteps(turn))"
             :key="step.id"
             :data-status="step.status"
-            >{{ step.title }}<small v-if="step.toolName"> · {{ step.toolName }}</small></li
+            >{{ step.number }}/{{ step.total }} {{ step.title }} · {{ {done:'已完成',active:'进行中',error:'执行失败',cancelled:'已取消',timeout:'已超时',pending:'未开始',unrecorded:'未单独记录',partial:'部分完成',stopped:'已终止',waiting:'等待确认',empty:'需要补充输入'}[step.status] || '等待中' }}<small v-if="step.detail">{{ step.detail }}</small></li
           ></ol
         >
         <small v-if="turn.planId" class="studio-message-id">计划编号：{{ turn.planId }}</small>

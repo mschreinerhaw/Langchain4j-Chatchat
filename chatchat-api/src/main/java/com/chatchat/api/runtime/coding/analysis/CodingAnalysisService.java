@@ -178,7 +178,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
         if (!request.keySet().stream().allMatch(Set.of("operation","requestId","datasetReference","datasetReferences","instruction","outputSchema","reviewResult")::contains))
             throw new IllegalArgumentException("Unknown Coding request field");
         if (!"RUN_CODING".equals(request.get("operation"))) throw new IllegalArgumentException("Unknown Coding operation");
-        String requestId=text(request.get("requestId"),128), instruction=text(request.get("instruction"),16000);
+        String requestId=text(request.get("requestId"),"requestId",128), instruction=text(request.get("instruction"),"instruction",16000);
         List<String> selectedReferences = selectedReferences(request);
         boolean reviewResult = Boolean.TRUE.equals(request.get("reviewResult"));
         if (request.containsKey("reviewResult") && !(request.get("reviewResult") instanceof Boolean))
@@ -188,6 +188,8 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
         String reference=source.reference();
         var rowSchema=WorkspaceResultSchema.object(request.get("outputSchema"));
         new CodingSchemaResultVerifier().validateRules(Map.of("rowSchema",rowSchema));
+        observer.accept(Map.of("eventKind", "CODING_REQUEST_VALIDATED", "requestId", requestId,
+            "instructionCharacters", instruction.length(), "inputReferenceCount", sourceCount));
         var owner=context.isolationScope();
         for(String part:List.of(owner.tenantId(),owner.userId(),owner.runId()))
             if (part.isBlank() || Set.of("anonymous","default","unknown-request").contains(part))
@@ -227,7 +229,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             }
             var selectedEnvironment = defaultEnvironments == null ? null
                 : defaultEnvironments.resolveForTask(scope.tenantId(), scope.userId(), policy.getEnvironmentId());
-            var env=selectedEnvironment == null ? python.environment(text(policy.getEnvironmentId(),256))
+            var env=selectedEnvironment == null ? python.environment(text(policy.getEnvironmentId(),"environmentId",256))
                 : selectedEnvironment.environment();
             if(env==null || !"PUBLISHED".equals(env.status()) || !"NONE".equals(env.networkPolicy()))
                 throw new SecurityException("Coding requires a published network-disabled deployment environment");
@@ -280,7 +282,8 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 +"For charts produce chart-ready columns and explicit chart specification in the contracted row schema; never fabricate plotted values. "
                 +"Use Decimal for exact money calculations when required. Inspect receipts and repair technical failures with a complete program. "
                 +"Schema checks do not establish business correctness. Explain limitations in your summary.";
-            boolean dataAvailable=dataSupply!=null&&!dataSupply.describe(scope).isEmpty();
+            boolean dataAvailable=!Boolean.TRUE.equals(context.runtimeAttributes().get("contextOnlyAnswer"))
+                &&dataSupply!=null&&!dataSupply.describe(scope).isEmpty();
             boolean sqlAvailable=analysisSql!=null&&analysisSql.available();
             boolean dynamic=dataAvailable||sqlAvailable||input.chunked();
             List<String> tools=new ArrayList<>(List.of("python_execute"));
@@ -530,6 +533,9 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 trace.put("taskId", taskId);
                 trace.put("runId", scope.runId());
                 trace.put("stepId", event.operationId() == null ? taskId : event.operationId());
+                if (event.operationId() != null) trace.put("operationId", event.operationId());
+                if (event.attempt() != null) trace.put("operationAttempt", event.attempt());
+                if (event.reasonCode() != null) trace.put("reasonCode", event.reasonCode().name());
                 trace.put("sequence", event.sequence());
                 trace.put("occurredAt", event.occurredAt().toString());
                 trace.put("codingEventType", event.type().name());
@@ -545,7 +551,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
     }
     private Dataset selectSources(Map<String,Object> request,Map<String,Dataset> sources) {
         if(!request.containsKey("datasetReferences")) {
-            var selected=sources.get(text(request.get("datasetReference"),512));
+            var selected=sources.get(text(request.get("datasetReference"),"datasetReference",512));
             if(selected==null)throw new SecurityException("Coding input is not delivered in this analysis");
             return selected;
         }
@@ -555,7 +561,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
         List<Dataset> selectedSources=new ArrayList<>();List<Map<String,Object>> versions=new ArrayList<>();
         long total=0;
         for(Object ref:refs) {
-            var selected=sources.get(text(ref,512));if(selected==null)throw new SecurityException("Coding input is not delivered in this analysis");
+            var selected=sources.get(text(ref,"datasetReferences[]",512));if(selected==null)throw new SecurityException("Coding input is not delivered in this analysis");
             if(!selected.handle().recordCountExact()||selected.recordCount()>policy.getMaxInputRows()-total)throw new IllegalArgumentException("Combined Coding input row limit");
             total+=selected.recordCount();selectedSources.add(selected);
             var fieldSchema=new TreeMap<String,java.util.Set<String>>();
@@ -599,8 +605,8 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
     }
     private List<String> selectedReferences(Map<String,Object> request) {
         if (request.get("datasetReferences") instanceof List<?> references)
-            return references.stream().map(reference -> text(reference,512)).toList();
-        return List.of(text(request.get("datasetReference"),512));
+            return references.stream().map(reference -> text(reference,"datasetReferences[]",512)).toList();
+        return List.of(text(request.get("datasetReference"),"datasetReference",512));
     }
     private static void ensureActive(AnalysisCoverageCoordinator.Request context) {
         context.cancellationGuard().run();
@@ -633,5 +639,11 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
     }
     private com.fasterxml.jackson.databind.JsonNode tree(String value){try{return json.readTree(value);}catch(Exception e){throw new IllegalStateException("Coding checkpoint invalid",e);}}
     private <T>T convert(Object value,Class<T> type){return json.convertValue(value,type);}
-    private static String text(Object value,int max){if(!(value instanceof String s)||s.isBlank()||s.length()>max)throw new IllegalArgumentException("Bounded Coding parameter required");return s;}
+    private static String text(Object value,String field,int max) {
+        String reason=value==null?"MISSING":!(value instanceof String)?"NOT_A_STRING":((String)value).isBlank()?"BLANK":((String)value).length()>max?"TOO_LONG":null;
+        if(reason!=null)throw new IllegalArgumentException((field.startsWith("datasetReference")?"CODING_DATA_REFERENCE_REQUIRED":"CODING_PARAMETER_INVALID")
+            +": field="+field+", reason="+reason+", maximumCharacters="+max
+            +(value instanceof String s?", actualCharacters="+s.length():""));
+        return (String)value;
+    }
 }

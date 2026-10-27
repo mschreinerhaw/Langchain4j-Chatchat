@@ -28,6 +28,22 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class RoleChatModeHandlerTest {
+    @Test void sourceRequiredOutcomeCannotBecomeSuccessBecauseItHasAnExplanation() {
+        var catalog = mock(SkillCatalogService.class); var role = mock(SkillDefinition.class);
+        when(role.defaultMode()).thenReturn("role_chat"); when(catalog.resolve("role")).thenReturn(role);
+        var handler = new RoleChatModeHandler(mock(ChatModel.class), mock(ConfigurableChatModelFactory.class), catalog,
+            mock(KnowledgeRuntimePort.class));
+        var port = stubCoding(handler, "source required");
+        var outcome = new com.chatchat.common.runtime.capability.WorkflowOutcome(
+            com.chatchat.common.runtime.capability.WorkflowOutcome.Type.INPUT_REQUIRED,
+            "SQL_DATA_SOURCE_REQUIRED", List.of(), List.of(), false);
+        when(port.answer(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+            org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString()))
+            .thenReturn(InteractionResponse.builder().answer("Please supply data").metadata(Map.of("workflowOutcome", outcome)).build());
+        var response = handler.handle(InteractionRequest.builder().skillId("role").query("SELECT 1").build(), InteractionContext.builder().build());
+        assertThat(response.getMetadata()).containsEntry("workflowOutcome", outcome);
+        assertThat(((Map<?,?>)response.getMetadata().get("agent")).get("publicStatus")).isEqualTo("NO_PRESENTABLE_RESULT");
+    }
     private com.chatchat.chat.interaction.service.CodingAnswerPort stubCoding(RoleChatModeHandler handler, String answer) {
         var port = mock(com.chatchat.chat.interaction.service.CodingAnswerPort.class);
         when(port.answer(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),

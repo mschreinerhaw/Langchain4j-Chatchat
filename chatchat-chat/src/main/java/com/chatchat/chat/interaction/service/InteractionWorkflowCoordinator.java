@@ -40,11 +40,37 @@ public final class InteractionWorkflowCoordinator {
                     WorkflowEntryPlan.of(WorkflowEntryPlan.Owner.PROBLEM_ANALYSIS, "USER_FILE_ANALYSIS"));
             var planned = context.toBuilder().problemAnalysisPlan(plan)
                 .taskType(ProblemAnalysisPlan.TaskType.DATA_ANALYSIS).build();
+            if (plan.sqlIntent() == ProblemAnalysisPlan.SqlIntent.EXECUTE
+                    && plan.fileAnalysis().toolDataDependency() == ProblemAnalysisPlan.ToolDataDependency.REQUIRED
+                    && !AgentToolPolicyResolver.hasSelectedCapabilities(request, skill))
+                return execution.complete(ProblemAnalysisPlanner.sqlDataRequired(plan),
+                    WorkflowEntryPlan.of(WorkflowEntryPlan.Owner.PROBLEM_ANALYSIS, "SQL_SOURCE_REQUIRED"));
             var response = plan.fileAnalysis().toolDataDependency() == ProblemAnalysisPlan.ToolDataDependency.NONE
                 ? execution.call("CLINE_SUBMITTING", () -> direct.execute(request, planned, skill))
                 : execution.call("GOVERNED_RUNTIME", () -> governed.execute(planned, plan));
             return execution.complete(ProblemAnalysisPlanner.attach(response, plan),
                 WorkflowEntryPlan.of(WorkflowEntryPlan.Owner.PROBLEM_ANALYSIS, "USER_FILE_ANALYSIS"));
+        }
+        if (ProblemAnalysisPlanner.sqlSource(request.getQuery()) != null) {
+            boolean hasCapabilities = AgentToolPolicyResolver.hasSelectedCapabilities(request, skill);
+            var purposes = hasCapabilities ? policies.planningSnapshot(request, skill).toolPurposes()
+                : java.util.List.<java.util.Map<String,Object>>of();
+            var plan = execution.call("SQL_INTENT_RECOGNIZING", () -> planner == null
+                ? ProblemAnalysisPlan.unavailable() : planner.analyze(request, context, skill, purposes));
+            var entry = WorkflowEntryPlan.of(WorkflowEntryPlan.Owner.PROBLEM_ANALYSIS, "SQL_SOURCE_INPUT");
+            if (!ProblemAnalysisPlanner.executable(plan))
+                return execution.complete(ProblemAnalysisPlanner.blockedResponse(plan), entry);
+            if (plan.sqlIntent() == null)
+                return execution.complete(ProblemAnalysisPlanner.blockedResponse(ProblemAnalysisPlan.unavailable()), entry);
+            var planned = context.toBuilder().problemAnalysisPlan(plan).taskType(
+                plan.sqlIntent() == ProblemAnalysisPlan.SqlIntent.EXECUTE
+                    ? ProblemAnalysisPlan.TaskType.DATA_ANALYSIS : ProblemAnalysisPlan.TaskType.QA).build();
+            var response = execution.call("SQL_DATA_BINDING", () -> {
+                if (plan.sqlIntent() != ProblemAnalysisPlan.SqlIntent.EXECUTE)
+                    return direct.execute(request, planned, skill);
+                return hasCapabilities ? governed.execute(planned, plan) : ProblemAnalysisPlanner.sqlDataRequired(plan);
+            });
+            return execution.complete(ProblemAnalysisPlanner.attach(response, plan), entry);
         }
         WorkflowEntryPlan entry = execution.call("SELECT_PLANNING_OWNER", () -> {
             if (context.problemAnalysisPlan() != null)
@@ -84,6 +110,7 @@ public final class InteractionWorkflowCoordinator {
         };
         return execution.complete(response, entry);
     }
+
 
     private InteractionResponse executeWorkflow(InteractionExecution execution, RuntimeWorkflowFamily family,
             InteractionRequest request, InteractionContext context, SkillDefinition skill,

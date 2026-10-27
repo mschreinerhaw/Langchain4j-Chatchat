@@ -136,6 +136,9 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
         return repository.findVisibleByStatus(tenantId, PUBLISHED);
     }
 
+    /** Existence only: this never grants access or returns another tenant's Skill. */
+    public boolean exists(String id) { return repository.existsById(id); }
+
     @Override
     public String sourceId() { return "postgres-opensearch-domain-skills"; }
 

@@ -14,6 +14,28 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class ProblemAnalysisPlannerTest {
+    @Test @SuppressWarnings("unchecked") void missingSqlIntentIsAContractErrorWithoutGuessingOrAnotherModelCall() {
+        var model = mock(ChatModel.class);
+        when(model.chat(anyString())).thenReturn(READY.replace("ASSET_USAGE_GUIDANCE", "DIRECT_ANSWER"));
+        var planner = new ProblemAnalysisPlanner(model, mock(ConfigurableChatModelFactory.class), new ObjectMapper(), mock(ObjectProvider.class));
+        var result = planner.analyze(InteractionRequest.builder().query("SELECT 1").build(), InteractionContext.builder().build(), mock(SkillDefinition.class));
+        assertThat(result.status()).isEqualTo(ProblemAnalysisPlan.Status.PLANNING_FAILED);
+        verify(model, times(1)).chat(anyString());
+    }
+    @Test @SuppressWarnings("unchecked") void sqlIntentComesFromOneModelDecisionAndSurvivesSerialization() throws Exception {
+        var model = mock(ChatModel.class); var mapper = new ObjectMapper();
+        when(model.chat(anyString())).thenReturn(READY.replace("ASSET_USAGE_GUIDANCE", "DIRECT_ANSWER")
+            .strip().replaceFirst("\\{", "{\"sqlIntent\":\"VALIDATE\","));
+        var planner = new ProblemAnalysisPlanner(model, mock(ConfigurableChatModelFactory.class), mapper, mock(ObjectProvider.class));
+        var result = planner.analyze(InteractionRequest.builder().query("SELECT 1").build(),
+            InteractionContext.builder().build(), mock(SkillDefinition.class));
+        assertThat(result.sqlIntent()).isEqualTo(ProblemAnalysisPlan.SqlIntent.VALIDATE);
+        assertThat(mapper.readValue(mapper.writeValueAsString(result), ProblemAnalysisPlan.class).sqlIntent())
+            .isEqualTo(ProblemAnalysisPlan.SqlIntent.VALIDATE);
+        verify(model, times(1)).chat(argThat((String prompt) -> prompt.contains("SQL source, not query results")
+            && prompt.contains("{\"sqlIntent\":\"EXPLAIN|VALIDATE|EXECUTE\",\"status\":")
+            && prompt.indexOf("REQUIRED root field") < prompt.indexOf("INPUT:")));
+    }
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.EnumSource(ProblemAnalysisPlan.ToolDataDependency.class)
     @SuppressWarnings("unchecked")

@@ -1,0 +1,16 @@
+{
+  "labels": [
+    "1/5",
+    "2/5",
+    "3/5",
+    "4/5",
+    "5/5"
+  ],
+  "rows": 5,
+  "rawRows": 26,
+  "errorOnAnalysis": "error",
+  "overflow": false,
+  "duplicatePreparingBubble": false,
+  "internalNamesVisible": false,
+  "pageErrors": []
+}

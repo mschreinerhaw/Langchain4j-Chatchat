@@ -24,6 +24,30 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class CodingAnalysisServiceTest {
+    @Test void contextOnlyTasksCannotAcquireBusinessDataTools() {
+        prepare(outcome(CodingTaskOutcome.Status.FAILED, CodingTaskOutcome.ValidationStatus.NOT_RUN));
+        var supply = mock(com.chatchat.api.runtime.coding.data.CodingDataSupplyService.class);
+        var service = service(); service.setDataSupply(supply);
+        var original = context("tenant");
+        var context = new AnalysisCoverageCoordinator.Request(original.model(), original.query(), null,
+            Map.of("contextOnlyAnswer", true), original.metadata(), () -> false, () -> {}, original.isolationScope(), null);
+        service.execute(context, request(), sources());
+        verify(agent).submit(argThat(contract -> !contract.authorization().allowedTools().contains("data_request")));
+        verify(supply, never()).describe(any());
+    }
+    @Test void invalidCodingFieldsNameTheActualContractFailureWithoutRemovingBounds() {
+        for (var field : List.of("requestId", "instruction", "datasetReference")) {
+            var request = new LinkedHashMap<String,Object>(request()); request.remove(field);
+            assertThatThrownBy(() -> service().execute(context("tenant"), request, sources()))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("field=" + field)
+                .hasMessageContaining("reason=MISSING");
+        }
+        var request = new LinkedHashMap<String,Object>(request()); request.put("instruction", "s".repeat(16001));
+        assertThatThrownBy(() -> service().execute(context("tenant"), request, sources()))
+            .hasMessageContaining("field=instruction").hasMessageContaining("actualCharacters=16001")
+            .hasMessageContaining("reason=TOO_LONG");
+        verifyNoInteractions(agent, python, inputs, plans, collector);
+    }
     @Test void supplyStatusIsDeliveredAsTechnicalEvidenceWithoutInventingBusinessData() {
         var service=spy(service());
         doReturn(Map.of("status","COMPLETED")).when(service).executeObserved(any(),anyMap(),anyMap(),any());

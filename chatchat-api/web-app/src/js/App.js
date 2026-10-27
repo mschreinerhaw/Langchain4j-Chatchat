@@ -616,8 +616,10 @@ export default {
     },
     async refreshAuthSession() {
       if (!isAuthenticatedSession(this.authSession)) return;
+      const requestedSession = this.authSession;
       try {
         const user = await fetchCurrentEnterpriseUser();
+        if (this.authSession?.token !== requestedSession.token) return;
         if (!user?.id) return;
         const session = { ...this.authSession, user };
         this.authSession = session;

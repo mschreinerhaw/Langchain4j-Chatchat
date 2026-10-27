@@ -80,6 +80,9 @@ public class AgentTaskEventStreamService {
                         "taskId", taskId,
                         "status", current.status() == null ? "" : current.status(),
                         "cursor", cursor,
+                        "heartbeatIntervalMs", HEARTBEAT_INTERVAL_MS,
+                        "attemptId", current.attemptId() == null ? "" : current.attemptId(),
+                        "snapshot", progressSnapshot(current),
                         "timestamp", now));
                     nextHeartbeat = now + HEARTBEAT_INTERVAL_MS;
                 }
@@ -103,6 +106,14 @@ public class AgentTaskEventStreamService {
         return TERMINAL_STATUSES.contains(normalized(status))
             || "WAIT_CONFIRMATION".equals(normalized(status))
             || "WAITING_CONFIRM".equals(normalized(status));
+    }
+
+    private Map<String,Object> progressSnapshot(AgentTaskResponse task) {
+        var snapshot = new java.util.LinkedHashMap<String,Object>();
+        snapshot.put("attemptId",task.attemptId());snapshot.put("canonicalState",task.canonicalState());
+        snapshot.put("createTime",task.createTime());snapshot.put("updateTime",task.updateTime());
+        snapshot.put("finishedAt",task.finishedAt());snapshot.put("lastEventSequence",task.lastEventSequence());
+        return snapshot;
     }
 
     private String normalized(String value) {

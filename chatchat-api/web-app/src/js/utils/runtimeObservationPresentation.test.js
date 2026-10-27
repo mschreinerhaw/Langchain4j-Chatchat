@@ -2,8 +2,76 @@ import { describe, expect, it } from "vitest";
 
 import {
   runtimeObservationIdentity,
-  runtimeObservationPresentation
+  runtimeObservationPresentation, businessEventPresentation, businessTaskProgress
 } from "./runtimeObservationPresentation.js";
+
+describe('business task progress', () => {
+  const coding = (type, state = 'RUNNING', sequence = 1, extra = {}) => ({ sequence, type: 'RUNTIME_OBSERVATION',
+    status: 'RUNNING', payload: JSON.stringify({ payload: { metadata: { eventKind: 'CODING_TRACE',
+      codingEventType: type, eventState: state, ...extra } } }) });
+  it('keeps five stable numbers while twenty recovery receipts leave the original log intact', () => {
+    const initial = [coding('TASK_CREATED'), coding('TASK_STARTED', 'RUNNING', 2)];
+    const events = [...initial, ...Array.from({ length: 20 }, (_, i) => coding('RECOVERY_RECONCILED', 'RUNNING', i + 3)),
+      coding('BUDGET_UPDATED', 'RUNNING', 23)];
+    const before = JSON.stringify(events);
+    const result = businessTaskProgress(events);
+    expect(result.steps).toEqual(businessTaskProgress(initial).steps);
+    expect(result.label).toBe('4/5');
+    expect(result.steps.map(step => step.number)).toEqual([1, 2, 3, 4, 5]);
+    expect(result.steps.filter(step => step.status === 'active')).toHaveLength(1);
+    expect(JSON.stringify(events)).toBe(before); expect(events).toHaveLength(23);
+    expect(JSON.stringify(result)).not.toMatch(/Cline|Python|RECOVERY_RECONCILED|BUDGET_UPDATED/);
+  });
+  it('groups parent task creation and start in the same receiving step', () => {
+    const result = businessTaskProgress([{ type: 'TASK_CREATED' }, { type: 'TASK_STARTED' }, { type: 'RUNTIME_STARTED' }]);
+    expect(result.label).toBe('1/5'); expect(result.steps.filter(step => step.status === 'done')).toHaveLength(1);
+    expect(result.steps[0].title).toBe('接收任务');
+  });
+  it.each([['FAILED', 'error'], ['CANCELLED', 'cancelled'], ['TIMED_OUT', 'timeout']])(
+    'keeps %s on its own step despite ordinary later events and a close notification', (state, expected) => {
+      const events = [coding('EXECUTION_STARTED'), coding('EXECUTION_FINISHED', state, 2, { errorMessage: '输入文件不可读' }),
+        coding('RECOVERY_RECONCILED', 'RUNNING', 3), coding('TASK_STARTED', 'RUNNING', 4),
+        { type: 'COMPLETE', sequence: 5, status: 'SUCCESS' }];
+      const result = businessTaskProgress(events, { status: 'completed' });
+      expect(result.steps[3]).toMatchObject({ status: expected, detail: '输入文件不可读' });
+      expect(result.status).toBe(expected); expect(result.label).toBe('4/5');
+      expect(result.steps[4].status).not.toBe('done');
+    });
+  it('uses explicit deadlines and parent failure, never event counts, elapsed time or log wording', () => {
+    const events = [coding('EXECUTION_STARTED'), { type: 'UNKNOWN', status: 'RUNNING', payload: { message: 'successful Python final result' } }];
+    expect(businessTaskProgress(events).label).toBe('4/5');
+    const result = businessTaskProgress(events, { status: 'TIME_BUDGET_EXHAUSTED' });
+    expect(result.steps[3].status).toBe('timeout'); expect(result.label).toBe('4/5');
+    expect(businessEventPresentation(coding('TASK_FINISHED', 'CANCELLED', 4, { reasonCode: 'DEADLINE_EXCEEDED' })).status).toBe('timeout');
+  });
+  it('does not treat code committed, execution finished or validation as a final report', () => {
+    for (const type of ['CODE_COMMITTED', 'EXECUTION_FINISHED', 'VALIDATION_RECORDED']) {
+      const result = businessTaskProgress([coding(type, 'COMPLETED')]);
+      expect(result.terminal).toBe(false); expect(result.steps[4].status).not.toBe('done');
+    }
+    const result = businessTaskProgress([coding('TASK_FINISHED', 'COMPLETED')], { status: 'SUCCEEDED' });
+    expect(result.status).toBe('done'); expect(result.label).toBe('5/5');
+    expect(result.steps[2].status).toBe('unrecorded');
+    expect(businessTaskProgress([{type:'RUNTIME_OBSERVATION',payload:{metadata:{eventKind:'FILE_ANALYSIS',stage:'CLINE_SUBMITTING',eventState:'COMPLETED'}}}])
+      .steps[3].status).toBe('active');
+    expect(businessTaskProgress([{type:'RUNTIME_OBSERVATION',payload:{metadata:{eventKind:'CODING_INPUT_READY'}}}]).steps[2].status).toBe('done');
+  });
+  it('does not mistake partial or missing input for success and conceals internal names in errors', () => {
+    expect(businessTaskProgress([], {status: 'PARTIAL'}).status).toBe('partial');
+    const result = businessTaskProgress([coding('EXECUTION_STARTED')], {status: 'FAILED', errorMessage: 'Cline Python RECOVERY_RECONCILED failed'});
+    expect(result.reason).not.toMatch(/Cline|Python|RECOVERY_RECONCILED/);
+    expect(businessTaskProgress([], {status: 'NO_PRESENTABLE_RESULT'}).status).toBe('empty');
+  });
+  it('only an explicit new attempt resets the business projection while old failure receipts remain intact', () => {
+    const events = [{...coding('TASK_FINISHED','FAILED',1),attemptId:'attempt-1'},
+      {...coding('TASK_STARTED','RUNNING',2),attemptId:'attempt-1'},
+      {...coding('TASK_CREATED','RUNNING',3),attemptId:'attempt-2'}];
+    expect(businessTaskProgress(events.slice(0,2)).status).toBe('error');
+    const result = businessTaskProgress(events,{status:'RUNNING',attemptId:'attempt-2'});
+    expect(result.status).toBe('active');expect(result.label).toBe('4/5');
+    expect(events[0].attemptId).toBe('attempt-1');expect(events).toHaveLength(3);
+  });
+});
 
 describe("runtime observation presentation", () => {
   it("separates coverage and binding phases without creating a new identity on completion", () => {

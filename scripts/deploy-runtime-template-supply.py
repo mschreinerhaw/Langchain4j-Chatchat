@@ -144,7 +144,22 @@ def main():
     agent_removals = manifest.get('removeAgentClasses', [])
     assert all(name.startswith('com/chatchat/agents/') and name.endswith('.class') and '..' not in name
                for name in agent_removals)
-    outer = {entry: replace_entries(library, replacements, agent_removals)}
+    outer = {entry: replace_entries(library, replacements, agent_removals)} if replacements or agent_removals else {}
+    # Explicit, hash-pinned module overlays preserve every unrelated library byte.
+    for module, classes in manifest.get('moduleClasses', {}).items():
+        assert module in {'common', 'chat'}
+        module_entry = 'BOOT-INF/lib/chatchat-' + module + '-1.0.0-SNAPSHOT.jar'
+        with zipfile.ZipFile(io.BytesIO(before)) as jar:
+            module_body = jar.read(module_entry)
+        module_replacements = {}
+        with zipfile.ZipFile(release / (module + '-classes.zip')) as overlay:
+            assert set(overlay.namelist()) == set(classes)
+            for name in overlay.namelist():
+                body = overlay.read(name)
+                assert name.startswith('com/chatchat/' + module + '/') and name.endswith('.class') and '..' not in name
+                assert digest(body) == classes[name]
+                module_replacements[name] = body
+        outer[module_entry] = replace_entries(module_body, module_replacements)
     with zipfile.ZipFile(release / 'api-classes.zip') as overlay:
         assert set(overlay.namelist()) == set(manifest['apiClasses'])
         for name in overlay.namelist():
@@ -204,6 +219,7 @@ def main():
               'image': tag, 'previousImage': original['Config']['Image'],
               'previousConfiguredImage': config['services']['api']['image'],
               'changedClasses': sorted(replacements), 'changedApiClasses': sorted(manifest['apiClasses']),
+              'changedModuleClasses': manifest.get('moduleClasses', {}),
               'removedAgentClasses': agent_removals, 'removedAccidentalTestClasses': removals,
               'webAssets': web_assets, 'sourceCommit': manifest['sourceCommit'],
               'sourceDiffSha256': manifest['sourceDiffSha256'],

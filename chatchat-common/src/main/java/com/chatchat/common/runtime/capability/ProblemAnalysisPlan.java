@@ -6,10 +6,17 @@ import java.util.List;
 public record ProblemAnalysisPlan(Status status, String objective, String subject, String domain,
                                   String explanation, List<Task> tasks, String clarificationQuestion,
                                   @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
-                                  FileAnalysis fileAnalysis) {
+                                  FileAnalysis fileAnalysis,
+                                  @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+                                  SqlIntent sqlIntent) {
+    public enum SqlIntent { EXPLAIN, VALIDATE, EXECUTE }
+    public ProblemAnalysisPlan(Status status, String objective, String subject, String domain,
+            String explanation, List<Task> tasks, String clarificationQuestion, FileAnalysis fileAnalysis) {
+        this(status, objective, subject, domain, explanation, tasks, clarificationQuestion, fileAnalysis, null);
+    }
     public ProblemAnalysisPlan(Status status, String objective, String subject, String domain,
                                String explanation, List<Task> tasks, String clarificationQuestion) {
-        this(status, objective, subject, domain, explanation, tasks, clarificationQuestion, null);
+        this(status, objective, subject, domain, explanation, tasks, clarificationQuestion, null, null);
     }
     /** Registered references only. Neither the planner nor the client can manufacture file locations. */
     public record FileInput(String fileName, String reference, String contentType, long size, String sha256) {

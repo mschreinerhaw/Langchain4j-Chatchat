@@ -24,6 +24,9 @@ function normalizeEntry(entry = {}) {
     workspaceContext: entry.workspaceContext || getWorkspaceContext(),
     messageId: String(entry.messageId || "").trim(),
     taskId: String(entry.taskId || "").trim(),
+    executionSnapshot: entry.executionSnapshot || null,
+    runtimeHeartbeat: entry.runtimeHeartbeat || null,
+    taskTitle: String(entry.taskTitle || entry.question || '').slice(0,2048),
     question: String(entry.question || "").trim(),
     agentName: String(entry.agentName || "").trim(),
     modelName: String(entry.modelName || "").trim(),
@@ -187,6 +190,9 @@ export function mergeChatRuntimeState(conversation = {}, context = getWorkspaceC
     streaming: entry.streaming !== false,
     status: activeStatus,
     taskId: entry.taskId || "",
+    executionSnapshot: entry.executionSnapshot,
+    runtimeHeartbeat: entry.runtimeHeartbeat,
+    taskTitle: entry.taskTitle,
     lastEventSequence: entry.lastEventSequence,
     agentName: entry.agentName || "",
     modelName: entry.modelName || ""
@@ -202,6 +208,9 @@ export function mergeChatRuntimeState(conversation = {}, context = getWorkspaceC
           taskId: message.taskId || runtimeMessage.taskId,
           agentName: message.agentName || runtimeMessage.agentName,
           modelName: message.modelName || runtimeMessage.modelName,
+          executionSnapshot: message.executionSnapshot || runtimeMessage.executionSnapshot,
+          runtimeHeartbeat: message.runtimeHeartbeat || runtimeMessage.runtimeHeartbeat,
+          taskTitle: message.taskTitle || runtimeMessage.taskTitle,
           steps: Array.isArray(message.steps) && message.steps.length ? message.steps : runtimeMessage.steps
         }
       : message)

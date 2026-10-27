@@ -14,6 +14,43 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClineContextAnswerServiceTest {
+    @Test void longSqlAndHistoryAreImmutableContextNotAnOversizedCodingInstruction() {
+        String sql = "Explain the following SQL:\nSELECT * FROM sales WHERE note = '" + "x".repeat(14000) + "';";
+        var request = request(); request.setQuery(sql);
+        var longContext = context.toBuilder().conversationSummary("history".repeat(5000)).build();
+        var requests = new ArrayList<String>();
+        when(coding.executeObserved(any(), anyMap(), anyMap(), any())).thenAnswer(call -> {
+            Map<String,Object> task = call.getArgument(1); Map<String,Dataset> sources = call.getArgument(2);
+            assertThat(task.get("instruction").toString()).hasSizeLessThanOrEqualTo(16000).contains("Preview truncated");
+            assertThat(task.get("requestId").toString()).isNotBlank().hasSizeLessThanOrEqualTo(128);
+            requests.add(task.get("requestId").toString());
+            var source = sources.get("runtime-context:run");
+            assertThat(source.analysisContext()).containsEntry("isBusinessDataset", false);
+            assertThat(source.records()).singleElement().satisfies(row -> assertThat(row).containsEntry("question", sql)
+                .containsEntry("conversationSummary", longContext.conversationSummary()));
+            sources.put("result", new Dataset("result", Map.of(), List.of(Map.of("reportMarkdown", "Source-only explanation",
+                "evidenceReferences", List.of("runtime-context:run")))));
+            return Map.of("resultAvailable", true, "datasetReference", "result");
+        });
+        service.answer(request, longContext, skill, ""); service.answer(request, longContext, skill, "");
+        assertThat(requests).hasSize(2); assertThat(requests.get(0)).isEqualTo(requests.get(1));
+        verifyNoInteractions(model);
+    }
+    @Test void sqlExecutionWithoutSourceCannotBecomeAContextDatasetOrCodingSubmission() {
+        var planner = mock(com.chatchat.chat.interaction.service.ProblemAnalysisPlanner.class);
+        var beans = new org.springframework.beans.factory.support.DefaultListableBeanFactory(); beans.registerSingleton("planner", planner);
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "problemPlanners",
+            beans.getBeanProvider(com.chatchat.chat.interaction.service.ProblemAnalysisPlanner.class));
+        var plan = new com.chatchat.common.runtime.capability.ProblemAnalysisPlan(
+            com.chatchat.common.runtime.capability.ProblemAnalysisPlan.Status.READY, "Execute SQL", "source", "SQL", "Requires data",
+            List.of(new com.chatchat.common.runtime.capability.ProblemAnalysisPlan.Task("Execute SQL",
+                com.chatchat.common.runtime.capability.ProblemAnalysisPlan.Intent.DATA_ANALYSIS, List.of("authorized source"), "Query result")), "", null,
+            com.chatchat.common.runtime.capability.ProblemAnalysisPlan.SqlIntent.EXECUTE);
+        when(planner.analyzeFiles(any(), any(), any(), anyList(), anyList())).thenReturn(plan);
+        var request = request(); request.setQuery("SELECT * FROM sales");
+        assertThat(service.answer(request, context, skill, "").getMetadata().toString()).contains("SQL_DATA_SOURCE_REQUIRED");
+        verifyNoInteractions(coding, models, model, runs);
+    }
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(strings={"FILE_NOT_FOUND","ACCESS_DENIED","OBJECT_READ_FAILED"})
     void filePreparationFailuresTerminateTheRunBeforeAnyCodingSubmission(String reason) {
@@ -42,7 +79,9 @@ class ClineContextAnswerServiceTest {
     InteractionRequest request() { return InteractionRequest.builder().query("Design a generic table")
         .tenantId("tenant").userId("user").toolInput(Map.of("__agentRunId", "run")).build(); }
 
-    @Test void attachedOriginalsUseTheParentRunCancellationAndAuthorizedEvidence() {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
+    void attachedOriginalsUseTheParentRunCancellationAndAuthorizedEvidence(boolean sql) {
         var assets=mock(com.chatchat.api.assets.UserAssetService.class);
         var inputs=new com.chatchat.api.assets.AssetAnalysisInputs(assets);
         var beans=new org.springframework.beans.factory.support.DefaultListableBeanFactory();beans.registerSingleton("inputs",inputs);
@@ -52,6 +91,19 @@ class ClineContextAnswerServiceTest {
         when(assets.get(any(),eq(id))).thenReturn(new com.chatchat.api.assets.UserAssetService.File(id,"DOCUMENT","input.csv","text/csv",hash,bytes.length,"AVAILABLE","","","upload",1));
         when(assets.read(any(),eq(id))).thenReturn(bytes);
         var request=request();request.setToolInput(Map.of("__agentRunId","run","__userAssetIds",List.of(id)));
+        var planned = context;
+        if (sql) {
+            request.setQuery("SELECT SUM(amount) FROM input_csv");
+            var file = new com.chatchat.common.runtime.capability.ProblemAnalysisPlan.FileInput("input.csv", ref, "text/csv", bytes.length, hash);
+            var plan = new com.chatchat.common.runtime.capability.ProblemAnalysisPlan(
+                com.chatchat.common.runtime.capability.ProblemAnalysisPlan.Status.READY, "Query attached CSV", "file", "SQL", "Local file query",
+                List.of(new com.chatchat.common.runtime.capability.ProblemAnalysisPlan.Task("Sum actual amounts",
+                    com.chatchat.common.runtime.capability.ProblemAnalysisPlan.Intent.DATA_ANALYSIS, List.of("attached CSV"), "Actual sum")), "",
+                new com.chatchat.common.runtime.capability.ProblemAnalysisPlan.FileAnalysis(List.of(file),
+                    com.chatchat.common.runtime.capability.ProblemAnalysisPlan.ToolDataDependency.NONE),
+                com.chatchat.common.runtime.capability.ProblemAnalysisPlan.SqlIntent.EXECUTE);
+            planned = context.toBuilder().problemAnalysisPlan(plan).build();
+        }
         when(coding.executeObserved(any(),anyMap(),anyMap(),any())).thenAnswer(call->{
             Map<String,Object> task=call.getArgument(1);Map<String,Dataset> sources=call.getArgument(2);
             assertThat(task).containsEntry("datasetReferences",List.of("runtime-context:run",ref));
@@ -60,7 +112,7 @@ class ClineContextAnswerServiceTest {
             sources.put("result",new Dataset("result",Map.of(),List.of(Map.of("reportMarkdown","3.75","evidenceReferences",List.of(ref)))));
             return Map.of("resultAvailable",true,"datasetReference","result");
         });
-        assertThat(service.answer(request,context,skill,"").getAnswer()).isEqualTo("3.75");
+        assertThat(service.answer(request,planned,skill,"").getAnswer()).isEqualTo("3.75");
         verify(runs).complete(eq("run"),any());
     }
 

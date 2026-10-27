@@ -151,6 +151,10 @@ export function compactMessageForPersistence(message = {}) {
       "status"
     ),
     taskId: truncateString(message.taskId, 1024, "task id"),
+    taskTitle: truncateString(message.taskTitle, 2048, "task title"),
+    executionSnapshot: message.executionSnapshot ? compactPersistenceValue(message.executionSnapshot,4096) : null,
+    runtimeHeartbeat: message.runtimeHeartbeat ? compactPersistenceValue(message.runtimeHeartbeat,4096) : null,
+    statusReceivedAt: message.statusReceivedAt || 0,
     feedbackTime: truncateString(message.feedbackTime, 128, "feedback time"),
     feedbackAction: truncateString(message.feedbackAction, 128, "feedback action"),
     feedbackUseful: message.feedbackUseful,

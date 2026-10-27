@@ -2,6 +2,7 @@ import AppNotice from '../../../components/AppNotice.vue';
 import StudioCodePlan from '../../../components/editor/StudioCodePlan.vue';
 import { computed, nextTick, ref, watch, onMounted, onBeforeUnmount, onActivated, onDeactivated } from 'vue';
 import { sqlTaskPresentation } from '../../utils/sqlTaskPresentation';
+import { businessTaskProgress } from '../../utils/runtimeObservationPresentation';
 import { terminalSqlTask } from '../../utils/sqlStudioState';
 import { studioAiLabels, sqlGenerationAction } from '../../utils/studioAi';
 import { buildPythonLineDiff } from '../../utils/pythonCodeDiff';
@@ -43,6 +44,8 @@ export default {
       ? displayMessages.value.find(turn => turn.role === 'assistant' && turn.generationId === props.result.generation.id)?.id
       : props.pendingPhase ? displayMessages.value.at(-1)?.id : null);
     const isCurrentTurn = turn => turn.role === 'assistant' && turn.id === currentTurnId.value;
+    const turnProgressSteps = turn => businessTaskProgress((turn.steps || []).filter(step => !['pending','unrecorded'].includes(step.status)).map(step => step.number
+      ? { businessProgress: { index: step.number - 1, status: step.status, reason: step.detail } } : step), {status: turn.status}).steps;
     function fileDiff(file) { return buildPythonLineDiff((props.projectFiles || []).find(item=>item.path.toLowerCase()===file.path.toLowerCase())?.content || '',file.content); }
     let clock;
     const startClock = () => { clearInterval(clock); now.value = Date.now(); clock = setInterval(() => { now.value = Date.now(); }, 1000); };
@@ -58,6 +61,6 @@ export default {
       if (scroll.value && followOutput.value) scroll.value.scrollTop = scroll.value.scrollHeight;
     }));
     function send(event) { if (event?.isComposing) return; if (!props.busy && !props.taskRunning && props.prompt.trim()) { followOutput.value=true;emit('send'); } }
-    return { availableAgents, displayMessages, isCurrentTurn, codePlan, codePlanState, studioAiLabels, resultAction, resultNotes, operationLabel, fileDiff, newConversation, terminal, progress, trackScroll, send, scroll, composer, };
+    return { availableAgents, displayMessages, isCurrentTurn, turnProgressSteps, codePlan, codePlanState, studioAiLabels, resultAction, resultNotes, operationLabel, fileDiff, newConversation, terminal, progress, trackScroll, send, scroll, composer, };
   }
 };

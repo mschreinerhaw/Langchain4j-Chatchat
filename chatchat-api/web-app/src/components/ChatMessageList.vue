@@ -48,101 +48,62 @@
             </button>
           </div>
         </div>
-        <section
-          v-if="shouldShowSteps(message) || (message.role === 'assistant' && message.streaming)"
-          class="runtime-execution-panel"
-          :class="{
-            compact: !!message.content,
-            running: isExecutionRunning(message) || message.streaming,
-            completed: runtimeStatusLabel(message) === '完成',
-            collapsed: !executionStepsExpanded(message),
-          }"
-        >
-          <header class="runtime-execution-header">
-            <div class="runtime-run-mark" aria-hidden="true">
-              <span></span>
-            </div>
-            <div class="runtime-run-title">
-              <span>整体过程</span>
-              <strong>{{ runtimeRunId(message) }}</strong>
-            </div>
-            <div class="runtime-run-meta">
-              <small v-if="!executionStepsExpanded(message)" class="runtime-step-summary">{{
-                executionStepSummary(message)
-              }}</small>
-              <small v-if="runtimeElapsed(message)">{{ runtimeElapsed(message) }}</small>
-              <b>{{ runtimeStatusLabel(message) }}</b>
-              <button
-                v-if="executionStepsCollapsible(message)"
-                type="button"
-                class="runtime-collapse-button"
-                :aria-expanded="executionStepsExpanded(message).toString()"
-                :title="executionStepsExpanded(message) ? '收起执行过程' : '展开执行过程'"
-                @click="toggleExecutionSteps(message)"
-              >
-                <ChevronDown v-if="executionStepsExpanded(message)" :size="15" />
-                <ChevronRight v-else :size="15" />
-              </button>
-            </div>
-          </header>
-          <div v-show="executionStepsExpanded(message)" class="runtime-execution-details">
-            <div class="runtime-progress-track" aria-hidden="true">
-              <span :style="{ width: `${runtimeProgress(message)}%` }"></span>
-            </div>
-            <div v-if="runtimeProcessSteps(message).length" class="runtime-execution-body">
-              <ol class="runtime-stage-grid" aria-label="后端执行过程">
-                <li
-                  v-for="step in runtimeProcessSteps(message)"
-                  :key="step.id"
-                  :class="stepStatusClass(step)"
-                >
-                  <span class="runtime-step-glyph" aria-hidden="true"></span>
-                  <div>
-                    <span class="runtime-step-heading">
-                      <b>{{ step.title }}</b>
-                      <code v-if="step.type" class="runtime-event-identity">
-                        {{ step.sequence ? `#${step.sequence} ` : "" }}{{ step.type }}
-                      </code>
-                      <time>{{ step.displayTime }}</time>
-                    </span>
-                    <small v-if="step.detail">{{ step.detail }}</small>
-                    <details
-                      v-if="step.children && step.children.length"
-                      class="runtime-stage-children"
-                      :open="isExecutionRunning(message) || step.status === 'active'"
-                    >
-                      <summary>{{ step.children.length }} 个执行明细</summary>
-                      <ol>
-                        <li v-for="child in step.children" :key="child.id">
-                          <time>{{ child.displayTime }}</time>
-                          <span>
-                            <b>{{ child.title }}</b>
-                            <small v-if="child.detail">{{ child.detail }}</small>
-                          </span>
-                          <em>{{ runtimeStageStatusText(child, message) }}</em>
-                        </li>
-                      </ol>
-                    </details>
-                  </div>
-                  <em>{{ runtimeStageStatusText(step, message) }}</em>
-                </li>
-              </ol>
-            </div>
-            <div
-              v-if="isResultFinalizing(message)"
-              class="result-finalizing"
-              role="status"
-              aria-live="polite"
-            >
-              <div class="result-finalizing-mark" aria-hidden="true"> <i></i><i></i><i></i> </div>
-              <div>
-                <strong>任务已完成，正在整理结果</strong>
-                <small>校验结果结构 · 提炼业务重点 · 准备清晰呈现</small>
+        <template v-if="shouldShowSteps(message) || (message.role === 'assistant' && message.streaming)">
+          <section v-for="workbench in [executionWorkbench(message)]" :key="`workbench-${message.id}`"
+            class="runtime-execution-panel task-workbench" :class="[workbench.status, {collapsed: !executionStepsExpanded(message)}]"
+            aria-label="任务执行工作台">
+            <header class="workbench-header">
+              <span class="workbench-emblem" aria-hidden="true">↗</span>
+              <div class="workbench-heading"><h3>{{ workbenchTitle(message) }}</h3><small>{{ runtimeRunId(message) }}</small></div>
+              <span class="workbench-status" role="status" aria-live="polite">{{ workbench.statusLabel }}</span>
+              <button v-if="executionStepsCollapsible(message)" type="button" class="runtime-collapse-button"
+                :aria-expanded="executionStepsExpanded(message).toString()" aria-label="展开或收起执行工作台"
+                @click="toggleExecutionSteps(message)"><ChevronDown v-if="executionStepsExpanded(message)" :size="16"/><ChevronRight v-else :size="16"/></button>
+            </header>
+            <dl class="workbench-metrics">
+              <div><dd>{{ workbench.completedLabel }}</dd><dt>已完成阶段</dt></div>
+              <div><dd>{{ workbench.elapsedLabel }}</dd><dt>累计运行</dt></div>
+              <div><dd>{{ workbench.completedOperations }}</dd><dt>已完成操作</dt></div>
+            </dl>
+            <div class="workbench-phase-heading"><strong>当前阶段：{{ workbench.phaseTitle }}</strong><span>第 {{ workbench.current }} 阶段，共 {{ workbench.total }} 阶段</span></div>
+            <ol class="workbench-phase-strip" aria-label="业务阶段状态">
+              <li v-for="phase in workbench.steps" :key="phase.id" :class="phase.status"
+                :title="`${phase.title} · ${executionStatusLabel(phase.status)}${phase.detail ? '：'+phase.detail : ''}`"><span class="sr-only">{{ phase.number }}/{{ phase.total }} {{ phase.title }} · {{ executionStatusLabel(phase.status) }}</span></li>
+            </ol>
+            <div v-show="executionStepsExpanded(message)" class="workbench-details">
+              <div v-if="workbench.alerts.length || workbench.reason" class="workbench-alerts" role="status">
+                <p v-if="workbench.reason">{{ workbench.reason }}</p><p v-for="alert in workbench.alerts" :key="alert">{{ alert }}</p>
               </div>
-              <span class="result-finalizing-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <section class="workbench-activity" aria-label="实时执行动态">
+                <header><h4><span class="workbench-live-dot" :class="workbench.status" aria-hidden="true"></span>实时执行动态</h4><small>最新活动：{{ workbench.latestActivityLabel }}</small></header>
+                <p class="workbench-current"><strong>{{ workbench.status === 'unconfirmed' ? '最后已知活动：' : '' }}{{ workbench.currentActivity }}</strong><small>{{ workbench.transportLabel }} · {{ workbench.currentEvidenceLabel }}</small></p>
+                <ol v-if="workbench.activities.length" class="workbench-activity-list">
+                  <li v-for="operation in workbench.activities" :key="operation.id" :class="operation.state">
+                    <span class="workbench-operation-dot" aria-hidden="true"></span>
+                    <div><strong>{{ operation.title }}</strong><small>{{ operation.detail }}</small><span class="workbench-operation-time">{{ operation.timeLabel }} · {{ operation.durationLabel }}</span></div>
+                    <em>{{ operation.statusLabel }}</em>
+                  </li>
+                </ol>
+                <p v-else class="workbench-empty">尚未收到可确认的独立操作事件；不会根据等待时长推算工作进展。</p>
+              </section>
+              <section class="workbench-outcomes" aria-label="阶段成果">
+                <header><h4>阶段成果</h4><small>仅确认有完成证据的阶段</small></header>
+                <ol class="workbench-outcome-grid">
+                  <li v-for="phase in workbench.steps" :key="phase.id" :class="phase.status">
+                    <span class="workbench-phase-number">{{ phase.number }}</span><div><strong>{{ phase.title }}</strong><small>{{ executionStatusLabel(phase.status) }}</small><p v-if="phase.detail">{{ phase.detail }}</p></div>
+                  </li>
+                </ol>
+              </section>
+              <details class="workbench-diagnostics"><summary>查看耗时与运行依据</summary>
+                <dl class="workbench-timings"><div v-for="timing in workbench.timings" :key="timing.kind"><dt>{{ timing.label }}</dt><dd>{{ timing.durationLabel }}</dd></div></dl>
+                <p>分类时长按已记录的开始、结束事件计算，同类并行区间去重；分类之间可能重叠，不相加为累计运行时间。执行观察时长从首次确认状态起算。</p>
+                <p>最近状态同步：{{ workbench.lastHeartbeatLabel }}。连接正常仅代表状态通道可用，不证明底层操作已完成。</p>
+                <p>页面长时间提醒阈值：{{ workbench.warningThresholdLabel }}；该提醒不会改变任务终态或发起重试。</p>
+                <ol><li v-for="operation in workbench.allActivities" :key="operation.id"><code>{{ operation.operationId }}</code><span>事件序号 {{ operation.sequence }} · {{ operation.timeLabel }} · {{ operation.statusLabel }}</span></li></ol>
+              </details>
             </div>
-          </div>
-        </section>
+          </section>
+        </template>
         <EnterpriseUiArtifactRenderer
           v-if="message.role === 'assistant' && !message.streaming && messageUiArtifact(message)"
           :artifact="messageUiArtifact(message)"
@@ -376,8 +337,8 @@
       </div>
     </article>
 
-    <article v-if="loading && !hasStreamingMessage" class="chat-message assistant thinking-message">
-      <div class="message-avatar">RUN</div>
+    <article v-if="loading && !hasStreamingMessage && !hasTaskProgressMessage" class="chat-message assistant thinking-message">
+      <div class="message-avatar">助手</div>
       <div class="message-bubble loading-bubble" aria-label="灵动智策正在启动任务">
         <div class="thinking-brief" aria-hidden="true">
           <span></span>
@@ -385,13 +346,8 @@
           <span></span>
         </div>
         <div class="thinking-copy">
-          <strong>灵动智策正在准备任务</strong>
-          <small>Planning, binding tools, and waiting for execution events</small>
-          <div class="thinking-steps" aria-hidden="true">
-            <span>Planner</span>
-            <span>Tool Routing</span>
-            <span>Execution</span>
-          </div>
+          <strong>1/5 接收任务</strong>
+          <small>任务已提交，正在等待执行状态。</small>
         </div>
       </div>
     </article>

@@ -380,6 +380,25 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
             }
         });
         compacted.put("eventPayloadCompacted", true);
+        // Execution facts are bounded protocol metadata, never prompts, SQL, source code or tool output.
+        // Preserve them after generic tool summarization so SSE/replay describe the same actual operations.
+        if (runtimePayload.get("metadata") instanceof Map<?, ?> metadata) {
+            Map<String,Object> facts = new LinkedHashMap<>();
+            if (compacted.get("metadata") instanceof Map<?,?> existing)
+                existing.forEach((key,value) -> { if (key instanceof String name) facts.put(name,value); });
+            copyExecutionFacts(facts, metadata, List.of("eventKind", "eventState", "stage", "type", "modelPhase",
+                "taskId", "stepId", "eventId", "sequence", "occurredAt", "codingEventType", "operationId",
+                "operationAttempt", "reasonCode", "planningOwner", "requestId", "operationKind", "executorConfirmed",
+                "executorStopped", "observedAt", "timeBasis"));
+            if (metadata.get("payload") instanceof Map<?,?> worker) {
+                Map<String,Object> receipt = new LinkedHashMap<>();
+                copyExecutionFacts(receipt, worker, List.of("type", "timestamp", "stage", "tool", "modelCall",
+                    "startedAt", "finishedAt", "durationMs", "repairAttempt", "repairAttempts", "scriptVersion",
+                    "admissionPending", "operationId", "toolCallId", "codeSha256", "status", "validationStatus", "reasonCode"));
+                if (!receipt.isEmpty()) facts.put("workerActivity", receipt);
+            }
+            compacted.put("metadata", facts);
+        }
         // Classification is a small typed execution decision, not arbitrary tool
         // output. Keep it observable after the generic payload summarizer runs.
         Object taskType = runtimePayload.get("taskType");
@@ -388,6 +407,14 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
             compacted.put("taskType", taskType);
         }
         return compacted;
+    }
+
+    private static void copyExecutionFacts(Map<String,Object> target, Map<?,?> source, List<String> keys) {
+        for (String key : keys) {
+            Object value = source.get(key);
+            if (value instanceof String text && text.length() <= 512
+                    || value instanceof Number || value instanceof Boolean) target.put(key,value);
+        }
     }
 
     private String displayMessage(AgentRunEvent event, String answer) {

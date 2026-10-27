@@ -1,0 +1,35 @@
+{
+  "taskId": "56d610a8-d065-4389-aefa-252b42c3ccb5",
+  "attemptId": "att-2-c521fc4d-1d21-4a2d-997f-b5f1f4c31f92",
+  "attemptNumber": 2,
+  "parentAttemptId": "att-1-58f9c43c-6d43-45bd-aa11-c80c97578cf4",
+  "status": "SUCCEEDED",
+  "codingTaskCount": 1,
+  "pythonOperations": [
+    {
+      "operation_id": "cline-197acdd489a14c76a7b2aeca7f54ec2ca9190535801c59a39abd1fd4e5479d5d",
+      "task_id": "analysis-coding-6ac3f250e62a1797614cefbecfc3386399066d539586b5ad795c396767922eb4",
+      "run_id": "att-2-c521fc4d-1d21-4a2d-997f-b5f1f4c31f92",
+      "status": "SUCCEEDED",
+      "exit_code": 0,
+      "executor_stopped": true,
+      "code_hash": "66cac2373a0b958a648cc2eacf0b6f494645a0049275860bc07a49293c85f174",
+      "manifest_hash": "f0bd89917de723bae8e0311b4edd5bacb72743d26fff2b0e02d927ec01bcfe57"
+    }
+  ],
+  "actualTotalReported": true,
+  "modelCallbackFailed": false,
+  "nodeStatus": "COMPLETED",
+  "modelCalls": 2,
+  "programVersions": 1,
+  "usesSqlite": true,
+  "containsRequestedQuery": true,
+  "codeHashesMatch": true,
+  "codingOutcomes": [
+    {
+      "status": "COMPLETED",
+      "validationStatus": "INCONCLUSIVE",
+      "executorStopped": true
+    }
+  ]
+}

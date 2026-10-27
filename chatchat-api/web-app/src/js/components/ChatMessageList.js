@@ -18,6 +18,7 @@ import { stripInternalDocumentRefs as stripInternalDisplayMetadata } from "../ut
 import { normalizeMarkdownTables } from "../utils/markdownTableNormalizer.js";
 import { unwrapMarkdownDocument } from "../utils/markdownDocument.js";
 import { collapseRecordCoverageEvidenceHtml } from "../utils/recordCoverageEvidence.js";
+import { businessTaskProgress, executionWorkbench as projectExecutionWorkbench, executionStatusLabel } from "../utils/runtimeObservationPresentation.js";
 
 const markdown = new MarkdownIt({
   html: false,
@@ -175,6 +176,10 @@ export default {
     },
     hasStreamingMessage() {
       return this.messages.some((message) => message.streaming || this.isExecutionRunning(message));
+    },
+    hasTaskProgressMessage() {
+      const message = this.messages.at(-1);
+      return message?.role === 'assistant' && Boolean(message.taskId || message.steps?.length);
     }
   },
   mounted() {
@@ -278,10 +283,6 @@ export default {
       }
     },
     shouldShowSteps(message = {}) {
-      if (message.role === "assistant" && !message.streaming && !this.isExecutionRunning(message)
-        && (this.messageVisualReport(message) || this.messageUiArtifact(message))) {
-        return false;
-      }
       return message.role === "assistant"
         && (!!message.taskId || (Array.isArray(message.steps) && message.steps.length > 0));
     },
@@ -293,7 +294,7 @@ export default {
       return !this.isExecutionRunning(message)
         && !message.streaming
         && !this.isResultFinalizing(message)
-        && !["failed", "cancelled", "error"].includes(status);
+        && !["failed", "cancelled", "error", "timeout", "timed_out", "time_budget_exhausted", "model_budget_exhausted", "timeout_cancelled"].includes(status);
     },
     executionStepsExpanded(message = {}) {
       if (!this.executionStepsCollapsible(message)) {
@@ -317,9 +318,17 @@ export default {
       }
     },
     executionStepSummary(message = {}) {
-      const steps = this.runtimeProcessSteps(message);
-      const tools = this.runtimeToolCalls(message);
-      return `${steps.length} 个步骤${tools.length ? ` · ${tools.length} 次工具调用` : ""}`;
+      return this.businessProgress(message).label;
+    },
+    businessProgress(message = {}) {
+      return businessTaskProgress(message.steps || [], message);
+    },
+    executionWorkbench(message = {}) {
+      return projectExecutionWorkbench(message.steps || [],message,Number(this.runtimeClock || Date.now()));
+    },
+    executionStatusLabel,
+    workbenchTitle(message = {}) {
+      return String(message.taskTitle || message.agentName || this.activeAgent?.name || '任务执行工作台').slice(0,120);
     },
     messageHasRenderableContent(message = {}) {
       return !!String(message.content || "").trim() || !!this.extractUiResponse(message)?.answer;
@@ -333,7 +342,7 @@ export default {
       const status = String(message.status || "").toLowerCase();
       const terminalStatus = [
         "completed", "success", "partial", "empty", "failed", "cancelled",
-        "killed", "rejected", "timeout_cancelled", "no_presentable_result"
+        "killed", "rejected", "timeout_cancelled", "no_presentable_result", "error", "timeout", "timed_out", "time_budget_exhausted", "model_budget_exhausted", "succeeded", "partial_success"
       ].includes(status);
       if (message.executionTerminal || terminalStatus) {
         return false;
@@ -349,7 +358,7 @@ export default {
       const parentStatus = String(message.status || "").toLowerCase();
       if (message.executionTerminal || [
         "completed", "success", "partial", "empty", "failed", "cancelled",
-        "killed", "rejected", "timeout_cancelled", "no_presentable_result"
+        "killed", "rejected", "timeout_cancelled", "no_presentable_result", "error", "timeout", "timed_out", "time_budget_exhausted", "model_budget_exhausted", "succeeded", "partial_success"
       ].includes(parentStatus)) {
         return false;
       }
@@ -372,7 +381,7 @@ export default {
       const parentStatus = String(message.status || "").toLowerCase();
       const terminal = message.executionTerminal || [
         "completed", "success", "partial", "empty", "failed", "cancelled",
-        "killed", "rejected", "timeout_cancelled", "no_presentable_result"
+        "killed", "rejected", "timeout_cancelled", "no_presentable_result", "error", "timeout", "timed_out", "time_budget_exhausted", "model_budget_exhausted", "succeeded", "partial_success"
       ].includes(parentStatus);
       const terminalStepStatus = ["failed"].includes(parentStatus)
         ? "error" : ["cancelled", "killed", "rejected", "timeout_cancelled"].includes(parentStatus)
@@ -412,7 +421,7 @@ export default {
     },
     stepStatusClass(step = {}) {
       const status = String(step.status || "pending").toLowerCase();
-      if (["done", "active", "partial", "empty", "error", "cancelled"].includes(status)) {
+      if (["done", "active", "partial", "empty", "error", "cancelled", "timeout", "waiting", "stopped", "unrecorded"].includes(status)) {
         return status;
       }
       return "pending";
@@ -507,12 +516,7 @@ export default {
         }));
     },
     runtimeProcessSteps(message = {}) {
-      // Render the authoritative backend stream directly. Lifecycle observations,
-      // model events and tool results must not be folded into inferred stages or
-      // hidden as children of the preceding row.
-      return this.runtimeStageCards(message)
-        .filter((step) => String(step.status || "").toLowerCase() !== "pending")
-        .map((step) => ({ ...this.runtimePrimaryPresentation(step), children: [] }));
+      return this.businessProgress(message).steps;
     },
     isPrimaryRuntimeStage(step = {}) {
       const type = String(step.type || "").toUpperCase();
@@ -574,52 +578,20 @@ export default {
       return false;
     },
     runtimeProgress(message = {}) {
-      if (this.isResultFinalizing(message)) {
-        return 98;
-      }
-      if (!this.isExecutionRunning(message) && !message.streaming && !["failed", "cancelled"].includes(message.status)) {
-        return 100;
-      }
-      const cards = this.runtimeStageCards(message);
-      if (!cards.length) {
-        return 0;
-      }
-      const weights = cards.map((step) => {
-        const status = String(step.status || "").toLowerCase();
-        if (["done", "partial", "empty"].includes(status)) {
-          return 1;
-        }
-        if (status === "active") {
-          return 0.55;
-        }
-        return 0;
-      });
-      const progress = weights.reduce((sum, value) => sum + value, 0) / cards.length;
-      return Math.max(5, Math.min(98, Math.round(progress * 100)));
+      const progress = this.businessProgress(message);
+      if (progress.status === 'done') return 100;
+      return progress.completed / progress.total * 100;
     },
     runtimeStatusLabel(message = {}) {
-      if (this.isExecutionRunning(message)) {
-        return "Run";
-      }
-      if (this.isResultFinalizing(message)) {
-        return "整理结果";
-      }
-      if (message.status === "waiting") {
-        return "等待确认";
-      }
-      if (message.status === "failed") {
-        return "失败";
-      }
-      if (message.status === "cancelled") {
-        return "已取消";
-      }
-      if (message.status === "partial") {
-        return "部分完成";
-      }
-      return this.isExecutionRunning(message) || message.streaming ? "Run" : "完成";
+      return { active: '进行中', waiting: '等待确认', done: '已完成', partial: '部分完成', empty: '需要补充输入',
+        error: '执行失败', cancelled: '已取消', timeout: '已超时' }[this.businessProgress(message).status] || '等待中';
     },
     runtimeStageStatusText(step = {}, message = {}) {
       const status = String(step.status || "pending").toLowerCase();
+      if (status === 'timeout') return '已超时';
+      if (status === 'unrecorded') return '未单独记录';
+      if (status === 'stopped') return '已终止';
+      if (status === 'waiting') return '等待确认';
       if (status === "done") {
         return "已完成";
       }
@@ -631,7 +603,7 @@ export default {
         return "部分完成";
       }
       if (status === "empty") {
-        return "已跳过";
+        return "需要补充输入";
       }
       if (status === "error") {
         return "失败";

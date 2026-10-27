@@ -196,6 +196,7 @@ public class AgentWorkshopController {
                                               HttpServletRequest servletRequest) {
         governRuntimeConfiguration(request, servletRequest, agentId);
         validatePublishedToolBindings(request, servletRequest, agentId);
+        removeDeletedSkillBindings(request, agentId);
         validateResourceBindings(request, servletRequest);
         SkillDefinition saved = skillCatalogService.upsert(toSkillDefinition(request, agentId));
         synchronizeKnowledgeBindings(saved, servletRequest);
@@ -670,6 +671,17 @@ public class AgentWorkshopController {
         if (!allowedSkills.containsAll(requestedSkills)) {
             throw new SecurityException("Agent contains domain Skills outside the current user's permissions");
         }
+    }
+
+    /** Remove dangling historical references only; existing/unknown selections still require authorization. */
+    private void removeDeletedSkillBindings(AgentUpsertRequest input, String agentId) {
+        if (input.getBoundDomainSkillIds() == null) return;
+        SkillDefinition previous = skillCatalogService.resolve(agentId);
+        if (previous == null || !agentId.equals(previous.id())) return;
+        Set<String> historical = Set.copyOf(domainSkillIds(previous.workflowConfig()));
+        input.setBoundDomainSkillIds(input.getBoundDomainSkillIds().stream()
+            .filter(id -> id != null && !id.isBlank()).map(String::trim).distinct()
+            .filter(id -> !historical.contains(id) || domainSkillService.exists(id)).toList());
     }
 
     private EnterpriseAdminService.UserView currentUserView(HttpServletRequest request) {

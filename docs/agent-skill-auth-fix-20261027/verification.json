@@ -1,0 +1,38 @@
+{
+  "saveHttpStatus": 200,
+  "removedDeletedHistoricalSkill": "239e79a1-415b-45ca-aa68-054fb02866d3",
+  "remainingBoundSkills": [
+    "05f7be55-a33c-4fa0-9ed3-614baa2f5219",
+    "31c49302-9c1c-4885-a791-3b85a846508c"
+  ],
+  "otherBindingsAndModelUnchanged": true,
+  "newInvalidSkillHttpStatus": 403,
+  "sessionStillValidAfter403": true,
+  "reportedEndpointChecks": [
+    {
+      "endpoint": "/enterprise/auth/me",
+      "status": 200
+    },
+    {
+      "endpoint": "/conversations/user/admin/summaries",
+      "status": 200
+    },
+    {
+      "endpoint": "/data/workbench/todos",
+      "status": 200
+    },
+    {
+      "endpoint": "/data/workbench",
+      "status": 200
+    },
+    {
+      "endpoint": "/agent/tasks/runtime/todos",
+      "status": 200
+    },
+    {
+      "endpoint": "/agents/workshop/data_asset_operation_management",
+      "status": 200
+    }
+  ],
+  "liveFrontendEntrypointsVerified": 3
+}

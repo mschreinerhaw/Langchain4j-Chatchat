@@ -1,0 +1,9 @@
+{
+  "deploymentStatus": "DEPLOYED",
+  "candidateSha256": "940eb33b8ba5ab43b84b4a5d185b8b4ce30012dd472d5150d24100be70464fe4",
+  "backendEntriesCompared": 1150,
+  "backendEntriesUnchanged": true,
+  "classOverlays": 0,
+  "runtimeConfigurationPreserved": true,
+  "httpAssetsVerified": 95
+}

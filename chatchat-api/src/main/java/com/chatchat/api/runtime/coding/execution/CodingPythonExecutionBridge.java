@@ -17,6 +17,8 @@ import org.springframework.stereotype.Service;
 @Service
 @ConditionalOnProperty(prefix = "chatchat.coding", name = "enabled", havingValue = "true")
 public class CodingPythonExecutionBridge {
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.beans.factory.ObjectProvider<com.chatchat.agents.runtime.store.AgentRunStore> progressRuns;
     private com.chatchat.api.assets.RuntimePythonAssetArchiver assetArchiver;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setAssetArchiver(com.chatchat.api.assets.RuntimePythonAssetArchiver value){assetArchiver=value;}
@@ -81,18 +83,40 @@ public class CodingPythonExecutionBridge {
         var environmentSnapshot = contract.runtimeContext().get("pythonEnvironment") instanceof Map<?,?> value ? value : Map.of();
         Integer environmentVersion = environmentSnapshot.get("environmentVersion") instanceof Number version ? version.intValue() : null;
         String imageDigest = environmentSnapshot.get("imageDigest") instanceof String digest ? digest : null;
-        return python.start(new McpPythonControlPlanePort.StartRequest(scope.tenantId(), scope.userId(), scope.runId(),
+        var operation = python.start(new McpPythonControlPlanePort.StartRequest(scope.tenantId(), scope.userId(), scope.runId(),
                 contract.taskId(), operationId, 1, lease.fencingToken(), environmentId, assetId, fileName,
                 source, parameters == null ? Map.of() : parameters, inputSchemaJson == null ? "{}" : inputSchemaJson,
                 new ArrayList<>(files.keySet()), files, sourceHash, contract.budget().deadlineAt(), reservationRef,
                 environmentVersion, imageDigest,tasks.script(scope,contract.taskId(),operationId)));
+        observe(scope,contract.taskId(),operation);
+        return operation;
     }
 
     public McpPythonControlPlanePort.OperationView get(KernelDataScope scope, String taskId, String operationId) {
         tasks.get(scope, taskId); // A2 access check before crossing the process boundary.
         var operation=python.get(scope.tenantId(), scope.userId(), scope.runId(), taskId, operationId);
+        observe(scope,taskId,operation);
         if(assetArchiver!=null)assetArchiver.stopped(scope,taskId,operation);
         return operation;
+    }
+
+    /** Presentation-only observation of the existing node reply, not a dispatch or success decision. */
+    private void observe(KernelDataScope scope,String taskId,McpPythonControlPlanePort.OperationView operation) {
+        if (progressRuns == null || operation == null) return;
+        try {
+            var runs = progressRuns.getIfAvailable();
+            if (runs == null || runs.find(scope.runId()).isEmpty()) return;
+            runs.recordObservation(scope.runId(),new com.chatchat.agents.runtime.observation.AgentObservation(
+                "analysis_operation","runtime","Execution node status observed",Map.of(
+                    "eventKind","ANALYSIS_OPERATION","taskId",taskId,"operationId",operation.operationId(),
+                    "operationKind","EXECUTION","eventState",operation.status(),
+                    "executorConfirmed",operation.containerId()!=null && "RUNNING".equals(operation.status()) && !operation.executorStopped(),
+                    "executorStopped",operation.executorStopped(),"observedAt",java.time.Instant.now().toString(),
+                    "timeBasis","OBSERVED_STATE")));
+        } catch (RuntimeException unavailable) {
+            org.slf4j.LoggerFactory.getLogger(CodingPythonExecutionBridge.class)
+                .debug("Execution progress observation unavailable taskId={} operationId={}",taskId,operation.operationId());
+        }
     }
 
     /** B's archived stderr is the only technical diagnostic returned to the Coding loop. */

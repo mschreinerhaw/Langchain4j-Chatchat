@@ -53,7 +53,7 @@ export async function apiRequest(path, options = {}) {
     payload = null;
   }
 
-  notifyAuthRequiredIfNeeded(response, payload, path);
+  notifyAuthRequiredIfNeeded(response, payload, path, session?.token);
 
   if (!response.ok) {
     const userMessage = userFacingApiErrorMessage(response, payload);
@@ -63,7 +63,7 @@ export async function apiRequest(path, options = {}) {
     throw new Error(payload?.message || `请求失败：${response.status}`);
   }
 
-  return unwrapApiPayload(payload, path);
+  return unwrapApiPayload(payload, path, session?.token);
 }
 
 export function sendInteractionMessage(payload) {
@@ -2090,10 +2090,12 @@ function isInfrastructureFailure(message) {
   ].some((keyword) => normalized.includes(keyword));
 }
 
-function notifyAuthRequiredIfNeeded(response, payload, path = "") {
+function notifyAuthRequiredIfNeeded(response, payload, path = "", requestToken) {
   if (!isAuthFailure(response, payload) || String(path).includes("/enterprise/auth/login")) {
     return;
   }
+  // An old in-flight request must never clear a newer login session.
+  if (arguments.length >= 4 && requestToken !== getStoredAuthSession()?.token) return;
   clearAuthSession();
   const now = Date.now();
   if (now - lastAuthRequiredEventAt < 500) {
@@ -2113,10 +2115,11 @@ function notifyAuthRequiredIfNeeded(response, payload, path = "") {
   }
 }
 
-function unwrapApiPayload(payload, path = "") {
+function unwrapApiPayload(payload, path = "", requestToken) {
   if (payload && typeof payload === "object" && "code" in payload) {
     if (payload.code !== 200) {
-      notifyAuthRequiredIfNeeded(null, payload, path);
+      if (arguments.length >= 3) notifyAuthRequiredIfNeeded(null, payload, path, requestToken);
+      else notifyAuthRequiredIfNeeded(null, payload, path);
       const userMessage = userFacingApiErrorMessage(null, payload);
       if (userMessage) {
         throw new Error(userMessage);

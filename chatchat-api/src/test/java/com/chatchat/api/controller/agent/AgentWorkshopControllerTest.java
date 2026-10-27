@@ -26,6 +26,30 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentWorkshopControllerTest {
+    @Test void removesOnlyDeletedHistoricalSkillsAndStillRejectsUnauthorizedOrInventedSelections() {
+        var catalog = mock(SkillCatalogService.class); var domain = mock(DomainSkillService.class);
+        var controller = new AgentWorkshopController(catalog,mock(ToolRegistry.class),mock(McpToolCatalogQueryPort.class),
+            mock(ModelResourceRegistry.class),mock(DocumentLibraryReadPort.class),mock(EnterpriseAdminService.class),
+            mock(AgentPublicationLicenseService.class),mock(AgentReleaseService.class),domain,mock(ResourceAuthorizationPort.class),
+            mock(SkillResourceScopeSynchronizationService.class),mock(com.chatchat.api.service.PublishedMcpToolCatalog.class));
+        var previous = mock(SkillDefinition.class); when(previous.id()).thenReturn("existing-agent");
+        when(previous.workflowConfig()).thenReturn(java.util.Map.of("boundDomainSkillIds", List.of("deleted", "unauthorized")));
+        when(catalog.resolve("existing-agent")).thenReturn(previous);
+        when(domain.exists("unauthorized")).thenReturn(true);
+        var input = new AgentWorkshopController.AgentUpsertRequest();
+        input.setBoundDomainSkillIds(List.of("deleted", "unauthorized", "invented"));
+        org.springframework.test.util.ReflectionTestUtils.invokeMethod(controller,"removeDeletedSkillBindings",input,"existing-agent");
+        assertThat(input.getBoundDomainSkillIds()).containsExactly("unauthorized", "invented");
+        var servlet = new org.springframework.mock.web.MockHttpServletRequest();
+        servlet.setAttribute(com.chatchat.api.security.ApiAuthenticationFilter.CURRENT_USER_ID,"user");
+        servlet.setAttribute(com.chatchat.api.security.ApiAuthenticationFilter.CURRENT_TENANT_ID,"tenant");
+        org.junit.jupiter.api.Assertions.assertThrows(SecurityException.class, () ->
+            org.springframework.test.util.ReflectionTestUtils.invokeMethod(controller,"validateResourceBindings",input,servlet));
+        input.setBoundDomainSkillIds(List.of("deleted"));
+        org.springframework.test.util.ReflectionTestUtils.invokeMethod(controller,"removeDeletedSkillBindings",input,"existing-agent");
+        assertThat(input.getBoundDomainSkillIds()).isEmpty();
+        org.springframework.test.util.ReflectionTestUtils.invokeMethod(controller,"validateResourceBindings",input,servlet);
+    }
     @Test void acceptsBothAuthorizedSystemSearchToolsForAgentBindingsAndWorkflow() {
         var published = mock(com.chatchat.api.service.PublishedMcpToolCatalog.class);
         var controller = new AgentWorkshopController(mock(SkillCatalogService.class),mock(ToolRegistry.class),mock(McpToolCatalogQueryPort.class),mock(ModelResourceRegistry.class),mock(DocumentLibraryReadPort.class),mock(EnterpriseAdminService.class),mock(AgentPublicationLicenseService.class),mock(AgentReleaseService.class),mock(DomainSkillService.class),mock(ResourceAuthorizationPort.class),mock(SkillResourceScopeSynchronizationService.class),published);

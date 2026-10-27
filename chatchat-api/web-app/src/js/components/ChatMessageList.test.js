@@ -1,16 +1,45 @@
 // @vitest-environment jsdom
 
 import MarkdownIt from "markdown-it";
+import { createApp, h, nextTick, reactive } from 'vue';
+import ChatMessageListVue from '../../components/ChatMessageList.vue';
+import { mergeExecutionSteps } from '../views/ChatAssistantView';
 import { describe, expect, it } from "vitest";
 import ChatMessageList from "./ChatMessageList.js";
 import { renderArtifactHtml, renderArtifactMarkdownHtml } from "../ui-artifact/registry.js";
 
 const markdown = new MarkdownIt({ breaks: true });
 const methods = ChatMessageList.methods;
-it('keeps completed reports focused on results and retains progress while analysis runs',()=>{
+it('renders five numbered business steps and keeps technical recovery receipts out of the DOM', async () => {
+  const event = (type, sequence, state = 'RUNNING') => ({eventId:`event-${sequence}`, sequence,
+    type:'RUNTIME_OBSERVATION',status:'RUNNING',payload:{payload:{metadata:{eventKind:'CODING_TRACE',
+      codingEventType:type,eventState:state,errorMessage:state==='FAILED'?'输入文件不可读':''}}}});
+  const message = reactive({id:'business-progress-test',role:'assistant',taskId:'task',status:'running',content:'',
+    steps:mergeExecutionSteps([], [event('TASK_CREATED',1),event('TASK_STARTED',2)])});
+  const host=document.createElement('div');document.body.append(host);
+  const app=createApp({render:()=>h(ChatMessageListVue,{messages:[message],loading:true})});
+  try {
+    app.mount(host);await nextTick();
+    const labels=()=>[...host.querySelectorAll('.workbench-phase-strip > li')].map(row=>row.textContent.match(/\d\/\d/)[0]);
+    expect(labels()).toEqual(['1/5','2/5','3/5','4/5','5/5']);
+    message.steps=mergeExecutionSteps(message.steps,Array.from({length:20},(_,i)=>event('RECOVERY_RECONCILED',i+3)));
+    await nextTick();expect(labels()).toEqual(['1/5','2/5','3/5','4/5','5/5']);
+    expect(message.steps).toHaveLength(22);
+    expect(host.textContent).not.toMatch(/Cline|Python|RECOVERY_RECONCILED|BUDGET_UPDATED/);
+    message.steps=mergeExecutionSteps(message.steps,[event('EXECUTION_FINISHED',23,'FAILED'),event('BUDGET_UPDATED',24)]);
+    message.status='failed';await nextTick();
+    expect(host.textContent).toContain('执行失败');expect(host.textContent).toContain('输入文件不可读');
+    expect(host.querySelector('.thinking-message')).toBeNull();
+    expect(host.querySelectorAll('.workbench-phase-strip > li')[3].className).toContain('error');
+    expect(host.querySelector('[aria-label="实时执行动态"]')).not.toBeNull();
+    expect(host.querySelector('[aria-label="阶段成果"]')).not.toBeNull();
+    expect(host.querySelector('.runtime-progress-track')).toBeNull();
+  } finally {app.unmount();host.remove();}
+});
+it('retains a collapsible execution summary beside completed reports',()=>{
   const context={isExecutionRunning:()=>false,messageVisualReport:()=>({status:'SUCCESS'}),messageUiArtifact:()=>null};
   const message={role:'assistant',taskId:'internal-task',status:'completed'};
-  expect(methods.shouldShowSteps.call(context,message)).toBe(false);
+  expect(methods.shouldShowSteps.call(context,message)).toBe(true);
   context.isExecutionRunning=()=>true;
   expect(methods.shouldShowSteps.call(context,message)).toBe(true);
   context.isExecutionRunning=()=>false;context.messageVisualReport=()=>null;
@@ -107,7 +136,7 @@ describe("tool execution evidence", () => {
     })).toBe(true);
   });
 
-  it("keeps every backend event visible without counting lifecycle observations as tool calls", () => {
+  it("projects business steps while retaining the original technical event rows", () => {
     const message = {
       role: "assistant",
       status: "failed",
@@ -128,14 +157,10 @@ describe("tool execution evidence", () => {
 
     expect(methods.runtimeToolCalls.call(context, message)).toHaveLength(0);
     const stages = methods.runtimeProcessSteps.call(context, message);
-    expect(stages.map((step) => step.id)).toEqual([
-      "runtime-start", "planner-observation", "runtime-failed"
-    ]);
-    expect(stages[1]).toEqual(expect.objectContaining({
-      id: "planner-observation",
-      title: "计划校验",
-      toolName: "mcp_chatchat_mcp_server_api_template_query"
-    }));
+    expect(stages.map((step) => step.id)).toEqual([1,2,3,4,5].map(number => `business-step-${number}`));
+    expect(stages[0]).toMatchObject({status:'error'});
+    expect(JSON.stringify(stages)).not.toContain('mcp_chatchat');
+    expect(message.steps).toHaveLength(3);
   });
 
   it("groups child events from the same tool inside the realtime event stream", () => {
@@ -184,11 +209,9 @@ describe("tool execution evidence", () => {
     const visible = methods.visibleExecutionSteps.call(context, completed);
     expect(visible[0].status).toBe("done");
     const stages = methods.runtimeProcessSteps.call(context, completed);
-    expect(stages).toHaveLength(1);
-    expect(stages[0]).toEqual(expect.objectContaining({
-      id: "stale-runtime-step",
-      status: "done"
-    }));
+    expect(stages).toHaveLength(5);
+    expect(stages[4]).toMatchObject({status:'done'});
+    expect(stages[3].status).not.toBe('active');
     expect(methods.hasUnfinishedExecutionSteps.call(context, completed)).toBe(false);
     expect(methods.isExecutionRunning.call(context, completed)).toBe(false);
     expect(methods.runtimeStatusLabel.call(context, completed)).not.toBe("Run");

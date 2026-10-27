@@ -7,6 +7,17 @@ import SystemManagementView from "./views/SystemManagementView.js";
 import * as api from "../services/api.js";
 import { setWorkspaceContext } from "./utils/workspaceContext";
 
+it.each([{token:'new-login',user:{id:'new-user'}},null])('ignores an old identity refresh after the login session changes (%s)',async current=>{
+  let finish;
+  const spy=vi.spyOn(api,'fetchCurrentEnterpriseUser').mockImplementation(()=>new Promise(resolve=>{finish=resolve;}));
+  const context={authSession:{token:'old-login',user:{id:'old-user'}},loadWorkspaces:vi.fn()};
+  try {
+    const refresh=App.methods.refreshAuthSession.call(context);context.authSession=current;
+    finish({id:'old-user',tenantId:'old-tenant'});await refresh;
+    expect(context.authSession).toBe(current);expect(context.loadWorkspaces).not.toHaveBeenCalled();
+  } finally {spy.mockRestore();}
+});
+
 it('opens dynamic template-collection publishing directly from the MCP publication route', async () => {
   const view = App.computed.activeComponent.call({ menuAuthorizationReady: true, activeView: 'toolPublications', canAccessView: () => true });
   const resolved = await view.__asyncLoader();

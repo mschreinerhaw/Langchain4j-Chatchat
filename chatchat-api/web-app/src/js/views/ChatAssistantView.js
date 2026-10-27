@@ -33,7 +33,7 @@ import {
   upsertChatRuntimeState
 } from "../utils/chatRuntimeState";
 import { isTerminalAgentEvent, terminalEventFromEvents } from "../utils/agentTaskTerminalEvents";
-import { runtimeObservationIdentity, runtimeObservationPresentation } from "../utils/runtimeObservationPresentation";
+import { runtimeObservationIdentity, runtimeObservationPresentation, businessEventPresentation } from "../utils/runtimeObservationPresentation";
 import { validateDocumentUploadSelection } from "../utils/documentUploadPolicy";
 import { exceedsChatTextLimit, chatTextFile, validateChatFiles, CHAT_FILE_ANALYSIS_OBJECTIVE } from '../utils/chatUserAssets';
 import {
@@ -184,6 +184,10 @@ export function normalizeMessages(messages, status = "") {
         status: messageStatus,
         executionTerminal: message.executionTerminal === true || terminal,
         taskId: message.taskId || "",
+        taskTitle: message.taskTitle || "",
+        executionSnapshot: message.executionSnapshot || null,
+        runtimeHeartbeat: message.runtimeHeartbeat || null,
+        statusReceivedAt: message.statusReceivedAt || 0,
         feedbackTime: message.feedbackTime || "",
         feedbackAction: message.feedbackAction || "",
         feedbackUseful: message.feedbackUseful,
@@ -916,6 +920,7 @@ function normalizeMessageSteps(message = {}) {
 function normalizeExecutionStep(step = {}, index = 0) {
   const status = String(step.status || "pending").toLowerCase();
   return {
+    ...(Object.prototype.hasOwnProperty.call(step, 'businessProgress') ? { businessProgress: step.businessProgress } : {}),
     id: step.id || step.eventId || `step-${index}`,
     title: step.title || step.label || "\u6267\u884c\u6b65\u9aa4",
     detail: step.detail || step.description || step.message || "",
@@ -1143,6 +1148,7 @@ function agentEventToExecutionStep(event = {}) {
   const displayToolName = payload.displayName || payload.serviceName || toolName;
   const stepId = eventStepId(event, payload);
   const base = {
+    businessProgress: businessEventPresentation(event),
     id: stepId,
     type,
     toolName,
@@ -1599,6 +1605,11 @@ function fetchAgentTaskSnapshot(taskId, tenantId = "") {
   if (tenantId) params.set("tenantId", tenantId);
   const query = params.toString();
   return apiRequest(`/agent/tasks/${encodeURIComponent(taskId)}${query ? `?${query}` : ""}`);
+}
+
+function taskExecutionSnapshot(task = {}) {
+  return Object.fromEntries(['attemptId','canonicalState','createTime','updateTime','finishedAt','lastEventSequence']
+    .map(key=>[key,task[key]??null]));
 }
 
 function cancelAgentTask(taskId, tenantId = "") {
@@ -2345,6 +2356,9 @@ export default {
       });
       runContext.taskId = task?.taskId || "";
       assistantMessage.taskId = runContext.taskId;
+      assistantMessage.taskTitle = query;
+      assistantMessage.executionSnapshot = taskExecutionSnapshot(task);
+      assistantMessage.statusReceivedAt = Date.now();
       assistantMessage.steps = initialExecutionSteps(runContext.agentName);
       this.emitActiveConversationSnapshot(query, "running", runContext);
       await this.saveHistory(query, "running", runContext);
@@ -2574,9 +2588,12 @@ export default {
             // published a tool or analysis event.
             assistantMessage.runtimeHeartbeat = {
               status: heartbeat?.status || "RUNNING",
+              receivedAt: Date.now(),
+              heartbeatIntervalMs: heartbeat?.heartbeatIntervalMs,
               timestamp: Number(heartbeat?.timestamp || Date.now()),
               cursor: heartbeat?.cursor || cursor
             };
+            if (heartbeat?.snapshot) assistantMessage.executionSnapshot = taskExecutionSnapshot(heartbeat.snapshot);
             if (this.isActiveRun(runContext)) {
               this.messages = [...runContext.messages];
             }
@@ -2596,13 +2613,30 @@ export default {
         return;
       }
       try {
-        const afterSequence = Math.max(0, Number(runContext?.taskEventSequence || 0));
-        const events = await fetchAgentTaskEvents(
-          taskId, AGENT_TASK_EVENT_LIMIT, tenantId, afterSequence);
-        assistantMessage.steps = mergeExecutionSteps(assistantMessage.steps || [], Array.isArray(events) ? events : []);
+        const replay = runContext?.replayFromStart === true;
+        const afterSequence = replay ? 0 : Math.max(0, Number(runContext?.taskEventSequence || 0));
+        let events = await fetchAgentTaskEvents(taskId, AGENT_TASK_EVENT_LIMIT, tenantId, afterSequence);
+        if (replay) {
+          assistantMessage.progressHydrating = true;
+          const snapshot = await fetchAgentTaskSnapshot(taskId,tenantId);
+          assistantMessage.executionSnapshot=taskExecutionSnapshot(snapshot);
+          assistantMessage.statusReceivedAt=Date.now();
+          const all=[...(Array.isArray(events)?events:[])];let page=events;
+          for(let pages=0;Array.isArray(page)&&page.length===AGENT_TASK_EVENT_LIMIT;pages++) {
+            if(pages>=200)throw new Error('Execution history exceeds the bounded replay limit');
+            const cursor=Number(page.at(-1)?.sequence||0);
+            page=await fetchAgentTaskEvents(taskId,AGENT_TASK_EVENT_LIMIT,tenantId,cursor);
+            if(page.length&&Number(page.at(-1)?.sequence||0)<=cursor)throw new Error('Execution history cursor did not advance');
+            all.push(...page);
+          }
+          events=all;
+          assistantMessage.steps=mergeExecutionSteps([],events);
+          assistantMessage.historyIncomplete=false;runContext.replayFromStart=false;
+        } else assistantMessage.steps = mergeExecutionSteps(assistantMessage.steps || [], Array.isArray(events) ? events : []);
         const latestSequence = (Array.isArray(events) ? events : []).reduce(
           (maximum, event) => Math.max(maximum, Number(event?.sequence || 0)), afterSequence);
         if (runContext) runContext.taskEventSequence = latestSequence;
+        assistantMessage.statusReceivedAt = Date.now();
         const terminalEvent = terminalEventFromEvents(events);
         if (terminalEvent) {
           Object.assign(assistantMessage, finalizeExecutionUi(assistantMessage, terminalUiStatus(terminalEvent)));
@@ -2621,10 +2655,12 @@ export default {
         }
         return terminalEvent;
       } catch (error) {
+        if(runContext?.replayFromStart)assistantMessage.historyIncomplete=true;
         if (!assistantMessage.steps?.length) {
           assistantMessage.steps = initialExecutionSteps(runContext?.agentName || "");
         }
       }
+      finally {assistantMessage.progressHydrating=false;}
       return null;
     },
     appendDirectAssistantMessage(response, runContext = null) {
@@ -3408,6 +3444,9 @@ export default {
         status,
         streaming: !!assistantMessage?.streaming || isRuntimeStateActiveStatus(status),
         lastEventSequence: Number(context.lastSequence || assistantMessage?.lastEventSequence || 0),
+        executionSnapshot: assistantMessage?.executionSnapshot,
+        runtimeHeartbeat: assistantMessage?.runtimeHeartbeat,
+        taskTitle: assistantMessage?.taskTitle,
         steps: Array.isArray(assistantMessage?.steps) ? assistantMessage.steps : []
       };
       if (isRuntimeStateActiveStatus(status)) {
@@ -3635,6 +3674,7 @@ export default {
         },
         taskId: assistantMessage.taskId || restorableTaskId(messages)
       };
+      runContext.replayFromStart = true;
       this.runningContexts[runContext.historyId] = runContext;
       this.loading = true;
       this.activeRunId = runContext.runId;

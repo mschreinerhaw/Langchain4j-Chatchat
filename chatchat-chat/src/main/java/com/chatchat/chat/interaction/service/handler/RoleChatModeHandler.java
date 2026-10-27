@@ -113,7 +113,7 @@ public class RoleChatModeHandler implements InteractionModeHandler {
         Map<String, Object> metadata = new LinkedHashMap<>(codingResponse.getMetadata() == null ? Map.of() : codingResponse.getMetadata());
         metadata.put(com.chatchat.agents.runtime.context.SkillAnalysisContext.ATTRIBUTE, skillContext);
         boolean usable = answer != null && !answer.isBlank();
-        metadata.put(WorkflowOutcome.METADATA_KEY, new WorkflowOutcome(
+        metadata.putIfAbsent(WorkflowOutcome.METADATA_KEY, new WorkflowOutcome(
             usable ? WorkflowOutcome.Type.READY_TO_ANSWER : WorkflowOutcome.Type.FAILED,
             usable ? "ROLE_CONVERSATION_COMPLETED" : "EMPTY_ROLE_RESPONSE", List.of(), List.of(), usable));
         metadata.put("handler", "RoleChatModeHandler");

@@ -332,6 +332,7 @@ class AgentTaskServiceTest {
             payloadMethod.setAccessible(true);
             Map<String, Object> payload = (Map<String, Object>) payloadMethod.invoke(contract, response);
             assertThat(payload).containsEntry("status", "NO_PRESENTABLE_RESULT");
+            assertThat((Map<String,Object>)payload.get("metadata")).containsEntry("workflowOutcome", value);
         }
     }
 

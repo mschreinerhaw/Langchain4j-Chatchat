@@ -114,12 +114,12 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             AnalysisCoverageCoordinator.Request context, Map<String,Dataset> sources,
             java.util.function.Consumer<Map<String,Object>> observer) {
         if (sources == null || sources.isEmpty())
-            throw new IllegalArgumentException("Primary Coding analysis requires delivered datasets");
+            throw new IllegalArgumentException("Primary Coding requires delivered data or a supply-status receipt");
         if (sources.size() > MAX_PRIMARY_DATASETS)
             throw new IllegalArgumentException("Primary Coding analysis dataset limit exceeded");
         String objective = "Answer the user's data-analysis objective using only the authorized immutable datasets. "
             + "Inspect their schemas and quality for the supplied Runtime task plan. Choose implementation techniques within that plan, "
-            + "write and repair concise Python, and verify the computed output. Do not recreate the business plan or reselect templates. Produce exactly one result row. "
+            + "write and repair concise Python, and verify the computed output. You own business interpretation and any additional authorized data requests. Produce exactly one result row. "
             + "Use delivered Skills, template declarations, field metadata and source context as the authority for metric meaning. "
             + "Before submission, recalculate every reported total from program output and verify that every table header aligns with its values. "
             + "Distinguish an arithmetic difference from a data error: only call it an error when the compared values have the same declared metric, scope, period and unit; otherwise state the unresolved reconciliation components and evidence limits. "
@@ -127,6 +127,10 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             + "evidenceReferences must list the exact delivered dataset references actually used; do not invent or shorten them. "
             + "limitations must record material data or method limits. Do not delegate calculations back to Runtime OS.\n"
             + "User objective:\n" + context.query();
+        if(context.metadata().containsKey("dataSupplyStatus"))
+            objective += "\nThe supplied DATA_SUPPLY_STATUS receipt contains technical observations only, not business measurements. "
+                +"Decide whether to request authorized data or explain the unavailable inputs. Do not derive business figures from status records. "
+                +"The absence of data is not a business conclusion. Any new asset/template choice is your decision, subject to supplier ID, permission and schema validation. ";
         if (com.chatchat.agents.orchestration.analysis.governance.FileAnalysisDependencies.files(context.runtimeAttributes()) != null)
             objective += "\n" + com.chatchat.api.assets.AssetAnalysisInputs.INSTRUCTION
                 + "The runtime-file-plan dataset is planning context only. Inspect original workbooks and sheets in Python, "

@@ -3439,6 +3439,12 @@ public class ToolRuntimeService {
 
         List<String> missing = dependencies.stream()
             .filter(value -> value != null && !value.isBlank())
+            .filter(dependency -> {
+                String provider = boundDiscoveryDependencyProvider(request, toolName, dependency, completed);
+                if (provider == null) return true;
+                matchedRules.add("published_binding_dependency." + dependency + "=" + provider);
+                return false;
+            })
             .filter(dependency -> !workflowDependencySatisfied(
                 completed,
                 completedFacts,
@@ -3462,6 +3468,23 @@ public class ToolRuntimeService {
         return new WorkflowDecision(true, workflowName, stateKey, action,
             "MCP workflow resolved action " + (action == null ? "inherit_policy" : action.code()),
             matchedRules);
+    }
+
+    /** Covers only a generic discovery edge inside an admitted InterpretationPlan.
+     * Asset identity, caller permissions and template execution remain independently governed.
+     */
+    private String boundDiscoveryDependencyProvider(ToolRuntimeRequest request, String currentTool,
+                                                    String dependency, Set<String> completed) {
+        if (request == null || !"interpretation_plan".equals(request.getRuntimeMode())
+                || request.getAttributes() == null
+                || !Boolean.TRUE.equals(request.getAttributes().get("dagDependencyIsolation"))
+                || authoritativeWorkflowDependencies(request, currentTool) == null) return null;
+        ToolMetadata required = toolRegistry.getToolMetadata(dependency);
+        if (com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata.suppliesBoundDiscovery(
+                toolRegistry.getToolMetadata(currentTool), required)) return currentTool;
+        return completed.stream().filter(tool ->
+            com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata.suppliesBoundDiscovery(
+                toolRegistry.getToolMetadata(tool), required)).findFirst().orElse(null);
     }
 
     private ToolRuntimeAction workflowConfirmationAction(String confirmation, ToolExecutionPlan executionPlan) {

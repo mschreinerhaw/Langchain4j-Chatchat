@@ -1034,7 +1034,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
 
         requestRuntimeAttributes.remove("compiledPublishedDataAcquisition");
         InterpretationPlan deterministicTemplatePlan = new com.chatchat.agents.runtime.plan.template.PublishedDataAcquisitionPlanner(toolRegistry)
-            .compile(query, plannerVisibleTools, workflowMandatoryTools);
+            // Planner projection hides delegated parents; it is not the authorization set.
+            .compile(query, tools, workflowMandatoryTools);
         if (deterministicTemplatePlan != null) {
             requestRuntimeAttributes.put("compiledPublishedDataAcquisition", true);
             metadata.put("analysisPlanningNodes", List.of(Map.of(
@@ -3490,26 +3491,27 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 query, com.chatchat.common.mcp.runtime.McpAnalysisPayload.canonicalData(request.execution().output()));
             if (literal.isPresent()) return literal.get();
         }
-        if (request != null && request.execution() != null && request.execution().success()
-            && workflowRole == ToolWorkflowRole.TEMPLATE_DISCOVERY) {
-            var baseline = com.chatchat.agents.runtime.plan.review.PublishedDataSupplyReviewer.review(
-                toolMetadataOrNull(request.execution().toolName()),
-                findCandidatePage(request.execution().output(), 0),
-                findCandidateMaps(request.execution().output(), "templates", 0));
-            if (baseline.isPresent()) return baseline.get();
+        if (request != null && request.execution() != null && !request.execution().success()
+                && (workflowRole == ToolWorkflowRole.TEMPLATE_DISCOVERY || workflowRole == ToolWorkflowRole.ASSET_DISCOVERY)) {
+            return InterpretationPlanRuntime.StepReview.accepted("MCP execution failed; retain its actual error.",
+                Map.of("mcpExecutionFailed",true,"toolResultReviewSkipped",true));
         }
-        // Coding has one semantic owner. Local fact/authorization checks have already run.
+        if (request != null && request.execution() != null && request.execution().success()
+                && workflowRole == ToolWorkflowRole.TEMPLATE_DISCOVERY) {
+            return selectPublishedTemplates(activeChatModel, query, request, runtimeAttributes);
+        }
+        // Candidate admission precedes data analysis: LLM semantics select returned IDs and
+        // extract parameters. Cline owns interpretation only after governed data acquisition.
+        boolean candidateDiscovery = workflowRole == ToolWorkflowRole.ASSET_DISCOVERY
+            || workflowRole == ToolWorkflowRole.TEMPLATE_DISCOVERY;
         if (com.chatchat.agents.orchestration.analysis.contract.RuntimeAnalysisOwnership
-                .codingOwnsToolAdmission(runtimeAttributes) && request != null && request.execution() != null) {
-            boolean discovery = workflowRole == ToolWorkflowRole.ASSET_DISCOVERY
-                || workflowRole == ToolWorkflowRole.TEMPLATE_DISCOVERY;
+                .codingOwnsToolAdmission(runtimeAttributes) && request != null && request.execution() != null
+                && !candidateDiscovery) {
             Map<String,Object> admission = Map.of("toolResultReviewSkipped", true,
                 "toolResultReviewMode", "CODING_DETERMINISTIC_ADMISSION",
                 "analysisDecisionOwner", "CLINE", "toolResultReviewModelCalls", 0);
             if (!request.execution().success()) return InterpretationPlanRuntime.StepReview.rejected(
                 "Failed tool execution cannot be admitted as Coding evidence.", admission);
-            if (discovery) return InterpretationPlanRuntime.StepReview.rejected(
-                "Authorized candidates require an explicit scope/template match; clarify the requirement rather than guessing a selection.", admission);
             return InterpretationPlanRuntime.StepReview.accepted(
                 "Admit governed tool evidence; Cline owns exploration, execution feedback and business interpretation.", admission);
         }
@@ -3583,8 +3585,14 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         );
         Throwable reviewFailure = null;
         Map<String, Object> reviewMetrics = new LinkedHashMap<>();
-        try (var phaseBudget = com.chatchat.agents.orchestration.model.ModelInvocationBudget.open(
-                agentRuntimeProperties.toolResultReviewTimeoutMs())) {
+        // Required Coding discovery is on the acquisition critical path. Its model calls
+        // retain request/model deadlines instead of the optional legacy review phase cap.
+        boolean requiredCodingDiscovery = candidateDiscovery
+            && com.chatchat.agents.orchestration.analysis.contract.RuntimeAnalysisOwnership
+                .codingOwnsToolAdmission(runtimeAttributes);
+        try (var phaseBudget = requiredCodingDiscovery ? null
+                : com.chatchat.agents.orchestration.model.ModelInvocationBudget.open(
+                    agentRuntimeProperties.toolResultReviewTimeoutMs())) {
         long startedAt = System.currentTimeMillis();
         log.info("agentModelRequest phase=tool_result_review runId={} stepId={} tool={} attempt={}/{} modelClass={}",
             firstNonBlank(runId, ""),
@@ -3863,6 +3871,43 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 )
             );
         }
+    }
+
+    private InterpretationPlanRuntime.StepReview selectPublishedTemplates(ChatModel model, String query,
+            InterpretationPlanRuntime.StepReviewRequest request,Map<String,Object> runtimeAttributes) {
+        List<Map<String,Object>> candidates=findCandidateMaps(request.execution().output(),"templates",0);
+        Set<String> returned=candidates.stream().map(item->stringValue(firstObject(item,"templateId","id")))
+            .filter(Objects::nonNull).collect(java.util.stream.Collectors.toSet());
+        Map<String,Object> prior=request.execution().metadata();
+        List<String> selected=stringList(firstObject(prior,"modelSelectedTemplateIds","selectedTemplateIds","runtimeSelectedTemplateIds"));
+        if(!selected.isEmpty()&&returned.containsAll(selected)&&prior.get("parameterProtocols") instanceof Iterable<?>) {
+            Map<String,Object> reused=new LinkedHashMap<>(prior);
+            reused.put("selectedTemplateIds",selected);reused.put("candidateSelectionStatus","REUSED_MODEL_SELECTION");
+            reused.put("toolResultReviewUnavailable",false);reused.put("toolResultReviewSkipped",false);
+            reused.remove("candidateSelectionErrorCode");reused.remove("candidateSelectionError");
+            reused.put("candidateDecisionOwner","MODEL");reused.put("toolResultReviewModelCalls",0);
+            return InterpretationPlanRuntime.StepReview.accepted("Reuse validated model selection; no semantic review.",reused);
+        }
+        Map<String,Object> context=new LinkedHashMap<>();
+        context.put("currentAsset",findSelectedAssetContext(request.execution().output(),0));
+        context.put("priorAssets",request.completed()==null?List.of():request.completed().values().stream()
+            .filter(step->step!=null&&step.success())
+            .map(step->findSelectedAssetContext(step.output(),0)).filter(asset->!asset.isEmpty()).toList());
+        context.put("role",AgentRoleAnalysisContext.promptSectionFromRuntime(runtimeAttributes,"TEMPLATE_SELECTION"));
+        var result=new SchemaDrivenTemplateParameterBinder(objectMapper).selectAndBind(model,query,candidates,context);
+        Map<String,Object> metadata=new LinkedHashMap<>();
+        metadata.put("candidateDecisionOwner","MODEL");metadata.put("candidateSelectionStatus",result.status());
+        metadata.put("modelSelectedTemplateIds",result.selectedIds());metadata.put("selectedTemplateIds",result.selectedIds());
+        metadata.put("parameterProtocols",result.protocols());metadata.put("modelCandidateDecision",result.decision());
+        metadata.put("parameterBindingMode","model_selection_and_binding");
+        metadata.put("toolResultReviewMode","MODEL_SELECTION_AND_BINDING");
+        metadata.put("toolResultReviewModelCalls",candidates.isEmpty()?0:1);
+        metadata.put("mcpDiscoverySucceeded",true);
+        if(result.error()!=null) {
+            metadata.put("candidateSelectionErrorCode",result.status());metadata.put("candidateSelectionError",result.error());
+            metadata.put("toolResultReviewUnavailable","MODEL_UNAVAILABLE".equals(result.status()));
+        }
+        return InterpretationPlanRuntime.StepReview.accepted("Model selection status: "+result.status(),metadata);
     }
 
     private Map<String, Object> runToolReviewStage(Map<String, Object> attributes,
@@ -4387,7 +4432,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         List<Map<String, Object>> identities = new ArrayList<>();
         for (var candidate : candidates) {
             Map<String, Object> identity = new LinkedHashMap<>();
-            for (String key : List.of("templateId", "id", "name", "title")) {
+            for (String key : List.of("templateId", "id", "assetId", "name", "title")) {
                 if (candidate.get(key) != null) identity.put(key, candidate.get(key));
             }
             if (candidate.get("asset") instanceof Map<?, ?> asset) {
@@ -4687,8 +4732,15 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         Map<String, Object> projected = new LinkedHashMap<>();
         List<String> common = List.of("id", "name", "description", "type", "environment",
             "businessGroup", "groupContext", "relevanceScore", "matchReasons", "intentSignals",
-            "capabilities", "capabilitySpec", "outputSchema", "dependencySpec", "requiredParameters",
-            "parameterSchema", "parameterContract", "asset", "routing", "labels");
+            "capabilities", "capabilitySpec", "analysisIdentity", "outputSchema", "dependencySpec", "requiredParameters",
+            "parameterSchema", "parameterContract", "routing", "labels");
+        if (candidate.get("asset") instanceof Map<?, ?> asset) {
+            Map<String,Object> identity = new LinkedHashMap<>(projectAssetIdentity(asMap(asset)));
+            for (String field : List.of("description", "businessGroup", "databaseType", "category")) {
+                putCandidateField(identity, asMap(asset), field);
+            }
+            projected.put("asset", Map.copyOf(identity));
+        }
         if (template) {
             putCandidateField(projected, candidate, "templateId");
             putCandidateField(projected, candidate, "databaseQueryId");

@@ -1,0 +1,76 @@
+{
+  "runId": "att-1-972f8709-a409-4371-a4a5-1dafe4dbcb66",
+  "state": "CANCELLED",
+  "taskId": "3fcb79d9-6d88-3a8a-8d97-bc31209fb75b",
+  "createdAt": "2026-10-27T02:50:41.078506+00:00",
+  "updatedAt": "2026-10-27T03:01:03.817988+00:00",
+  "parentAttemptId": null,
+  "rootExecutionId": "3fcb79d9-6d88-3a8a-8d97-bc31209fb75b",
+  "modelName": "qwen3.8-flash",
+  "runStatus": "CANCELLED",
+  "startedAt": 1793069479745,
+  "finishedAt": 1793070063764,
+  "errorMessage": "Agent run cancellation requested",
+  "toolTraces": [],
+  "toolObservations": [
+    {
+      "interpretationPlanStepId": 1,
+      "toolName": "mcp_chatchat_mcp_server_customer_service_template_query",
+      "success": false,
+      "durationMs": 180299
+    }
+  ],
+  "returnedTemplateIds": [
+    "livedata_SQL_ADS_IDS_CLR_DELI_JOUR_SECU",
+    "livedata_SQL_ADS_IDS_SECU_AST_LIAB",
+    "livedata_cx_mncg_jgmxls",
+    "livedata_cx_mncg_khzc_r",
+    "livedata_cx_mncg_qcfx",
+    "livedata_cx_mncg_wtls",
+    "livedata_cx_mncg_zcxzmx",
+    "livedata_cx_mncg_zjmxls",
+    "livedata_cx_mncg_zjyels",
+    "livedata_cx_mncg_zqyels"
+  ],
+  "parameterProtocols": [],
+  "facts": {
+    "candidateDecisionOwner": [
+      "MODEL"
+    ],
+    "candidateSelectionErrorCode": [
+      "MODEL_UNAVAILABLE"
+    ],
+    "candidateSelectionStatus": [
+      "MODEL_UNAVAILABLE"
+    ],
+    "mcpDiscoverySucceeded": [
+      true
+    ],
+    "modelSelectedTemplateIds": [
+      []
+    ],
+    "parameterBindingMode": [
+      "model_selection_and_binding"
+    ],
+    "runtimeSelectedTemplateIds": [
+      []
+    ],
+    "runtimeTemplateCandidateCount": [
+      0
+    ],
+    "runtimeTemplateSelectedCount": [
+      0
+    ],
+    "runtimeTemplateSelectionApplied": [
+      false
+    ],
+    "toolResultReviewModelCalls": [
+      1
+    ]
+  },
+  "codingReceipt": {},
+  "answerCharacters": 0,
+  "answerSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "businessRowsExported": false,
+  "credentialsExported": false
+}

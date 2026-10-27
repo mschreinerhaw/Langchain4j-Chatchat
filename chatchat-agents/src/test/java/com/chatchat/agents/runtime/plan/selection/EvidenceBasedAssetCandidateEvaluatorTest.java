@@ -39,16 +39,15 @@ class EvidenceBasedAssetCandidateEvaluatorTest {
     }
 
     @Test
-    void preservesUniqueCandidateWhenReviewContainsNoCandidateLevelDecision() {
+    void rejectsMissingSelectionEvenForUniqueCandidate() {
         EvidenceBasedAssetCandidateEvaluator.Evaluation evaluation =
             new EvidenceBasedAssetCandidateEvaluator().evaluate(
                 Map.of("assets", List.of(Map.of("asset", Map.of("id", "oracle-risk", "name", "Oracle")))),
                 Map.of("reason", "downstream evidence is still missing")
             );
 
-        assertThat(evaluation.applied()).isTrue();
-        assertThat(evaluation.selectedIds()).containsExactly("oracle-risk");
-        assertThat(evaluation.output().toString()).contains("selectionAuthority=runtime_unique_candidate");
+        assertThat(evaluation.applied()).isFalse();
+        assertThat(evaluation.selectedIds()).isEmpty();
     }
 
     @Test

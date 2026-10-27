@@ -1,0 +1,45 @@
+{
+  "parentTaskId": "3fcb79d9-6d88-3a8a-8d97-bc31209fb75b",
+  "parentState": "PLANNING",
+  "elapsedSeconds": 483.7,
+  "codingTaskId": "analysis-coding-ee5d35050bd5d702c411e59a55173d9a88b8f560a5f409be2e9f9e9148edda1b",
+  "codingState": "FAILED",
+  "codingEventTypes": [
+    "SESSION_ACCEPTED",
+    "CONTEXT_READY",
+    "SKILLS_AVAILABLE",
+    "MODEL_STARTED",
+    "MODEL_FAILED",
+    "MODEL_TIMING",
+    "SESSION_FINISHED"
+  ],
+  "codingSelectedModel": "qwen3.8-flash",
+  "codingDeadlineAt": "2026-10-27T03:14:25.038Z",
+  "businessDataAcquired": false,
+  "selectionModelCallStatus": "MODEL_UNAVAILABLE",
+  "mcpDiscoverySucceeded": true,
+  "returnedTemplateCount": 10,
+  "selectionModelCallCount": 1,
+  "qaTaskId": "1b5c5e85-c5de-3138-b88f-ececf03f65ec",
+  "qaState": "SUCCEEDED",
+  "verificationLimitation": "Original business acquisition is not accepted: Qwen selection timed out and subsequent Qwen Coding model call failed.",
+  "codingModelDurationMs": 180262,
+  "codingModelFailure": "Runtime model request failed; execution outcome must be reconciled",
+  "codingDispatch": [
+    {
+      "stage": "PRIMARY_CODING_ANALYSIS",
+      "eventState": "STARTED",
+      "datasetCount": 1,
+      "inputRecordCount": 1
+    },
+    {
+      "stage": "PRIMARY_CODING_ANALYSIS",
+      "eventState": "STARTED",
+      "datasetCount": 1,
+      "inputRecordCount": 1
+    }
+  ],
+  "technicalReceiptIsNotBusinessEvidence": true,
+  "parentFinalState": "CANCELLED",
+  "verificationProbeCancelledAfterConfirmedModelFailure": true
+}

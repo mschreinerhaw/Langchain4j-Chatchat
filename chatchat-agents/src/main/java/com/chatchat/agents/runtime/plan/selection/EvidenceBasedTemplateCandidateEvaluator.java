@@ -1,16 +1,9 @@
 package com.chatchat.agents.runtime.plan.selection;
 
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
-import com.chatchat.common.knowledge.template.model.BusinessAnalysisIntent;
-import com.chatchat.common.knowledge.template.matching.TemplateAnalysisRole;
-import com.chatchat.common.knowledge.template.matching.TemplateCoverageDecision;
 import com.chatchat.common.knowledge.template.matching.TemplateMatchAnalysis;
-import com.chatchat.common.knowledge.template.model.TemplateRelationship;
-import com.chatchat.common.knowledge.template.matching.TemplateRequirementMatchEvaluation;
-import com.chatchat.common.knowledge.template.matching.TemplateRetrievalOutcome;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -20,7 +13,7 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Runtime-owned semantic admission layer for high-recall MCP template candidates.
+ * Validates model-selected identities against returned MCP candidates.
  *
  * <p>MCP ranking fields are weak retrieval priors. Only ids returned by MCP may be
  * selected, and model decisions are projected onto the candidate list before any
@@ -39,43 +32,28 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
         List<Map<String, Object>> evaluations = maps(metadata.get("templateEvaluations"));
         boolean reviewerUnavailable = Boolean.TRUE.equals(metadata.get("toolResultReviewUnavailable"))
             || Boolean.TRUE.equals(metadata.get("toolResultReviewSkipped"));
-        if (reviewerUnavailable) {
+        if (reviewerUnavailable && selectedIds.isEmpty()) {
             return Evaluation.notApplied(output,
                 "business-template screening requires the original question and cumulative analysis context");
         }
-        if (selectedIds.isEmpty()) {
+        if (selectedIds.isEmpty() && !metadata.containsKey("selectedTemplateIds")) {
             selectedIds = evaluations.stream()
                 .filter(this::acceptedEvaluation)
-                .sorted(Comparator
-                    .comparingDouble(this::evaluationScore)
-                    .reversed()
-                    .thenComparing(
-                        item -> text(first(item, "templateId", "template_id")),
-                        Comparator.nullsLast(String::compareTo)
-                    ))
                 .map(item -> text(first(item, "templateId", "template_id")))
                 .filter(Objects::nonNull)
                 .toList();
         }
-        // A second-pass coverage audit has already compared the complete selected set
-        // against the literal question. Reapplying the first-pass score reducer here can
-        // silently collapse complementary detail/history templates back to one aggregate.
-        if (!Boolean.TRUE.equals(metadata.get("templateSelectionCoverageAudited"))
-            && !completeAuthorizedSelection(output, selectedIds, evaluations, metadata)) {
-            selectedIds = narrowToNecessaryTemplates(selectedIds, evaluations);
+        if (selectedIds.isEmpty() && !metadata.containsKey("selectedTemplateIds") && evaluations.isEmpty() && rejectedIds.isEmpty()) {
+            return Evaluation.notApplied(output, "Template selection response omitted selectedTemplateIds.");
         }
+        Set<String> returnedIds=candidateIds(output,0);
+        if(selectedIds.stream().anyMatch(id->!returnedIds.contains(normalize(id))))
+            return Evaluation.notApplied(output,"INVALID_TEMPLATE_ID: selection contains an ID not returned by MCP");
         Set<String> parameterBlocked = unresolvedParameterTemplateIds(
             evaluations, metadata.get("parameterProtocols"));
         if (!parameterBlocked.isEmpty()) {
             selectedIds = selectedIds.stream()
                 .filter(id -> !parameterBlocked.contains(normalize(id))).toList();
-            List<String> augmentedRejected = new ArrayList<>(rejectedIds);
-            evaluations.stream()
-                .map(item -> text(first(item, "templateId", "template_id")))
-                .filter(Objects::nonNull)
-                .filter(id -> parameterBlocked.contains(normalize(id)))
-                .forEach(augmentedRejected::add);
-            rejectedIds = List.copyOf(new LinkedHashSet<>(augmentedRejected));
         }
         String supplyAuthority = Boolean.TRUE.equals(metadata.get("publishedDataSupply"))
             ? "runtime_published_data_supply" : null;
@@ -110,199 +88,62 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
             evaluations,
             requirementMatch,
             true,
-            "Runtime projected evidence-reviewed templates before dependency binding and execution."
+            parameterBlocked.isEmpty()?"Runtime validated model selection identities and parameter contracts."
+                : "TEMPLATE_PARAMETERS_REQUIRED: "+parameterBlocked
         );
     }
 
-    /**
-     * Resolves an internally inconsistent reviewer response conservatively. The strongest
-     * accepted tier forms the primary evidence set. A lower-scored selection remains only when it
-     * covers a question aspect not already covered by that set. This remains effective when a
-     * reviewer incorrectly labels every accepted candidate TARGET, while retaining complementary
-     * templates and explicit selections for which no evaluation was returned.
-     */
-    private List<String> narrowToNecessaryTemplates(List<String> selectedIds,
-                                                     List<Map<String, Object>> evaluations) {
-        if (selectedIds == null || selectedIds.isEmpty() || evaluations == null || evaluations.isEmpty()) {
-            return selectedIds == null ? List.of() : selectedIds;
+    private Set<String> candidateIds(Object output,int depth) {
+        Set<String> ids=new LinkedHashSet<>();if(output==null||depth>8)return ids;
+        if(output instanceof Iterable<?> items) {for(Object item:items)ids.addAll(candidateIds(item,depth+1));return ids;}
+        if(!(output instanceof Map<?,?> raw))return ids;
+        Map<String,Object> map=cast(raw);
+        Object candidates=map.get("templates") instanceof Iterable<?>?map.get("templates"):map.get("candidates");
+        if(candidates instanceof Iterable<?> items)for(Object item:items)if(item instanceof Map<?,?> candidate) {
+            String id=templateId(cast(candidate));if(id!=null)ids.add(normalize(id));
         }
-        Map<String, Map<String, Object>> byId = new LinkedHashMap<>();
-        evaluations.forEach(item -> {
-            String id = text(first(item, "templateId", "template_id"));
-            if (id != null) byId.putIfAbsent(normalize(id), item);
-        });
-        List<String> ranked = selectedIds.stream()
-            .filter(id -> {
-                Map<String, Object> item = byId.get(normalize(id));
-                return item != null && acceptedEvaluation(item);
-            })
-            .sorted(Comparator.comparingDouble(
-                (String id) -> evaluationScore(byId.get(normalize(id)))).reversed())
-            .toList();
-        if (ranked.isEmpty()) return selectedIds;
-
-        double strongestScore = evaluationScore(byId.get(normalize(ranked.get(0))));
-        Set<String> coveredAspects = new LinkedHashSet<>();
-        List<String> narrowed = new ArrayList<>();
-        for (String id : ranked) {
-            Map<String, Object> item = byId.get(normalize(id));
-            List<String> aspects = strings(first(item,
-                "matchedQuestionAspects", "matched_question_aspects"));
-            boolean contributesNewAspect = aspects.stream().map(this::normalize)
-                .anyMatch(aspect -> !coveredAspects.contains(aspect));
-            boolean strongestTier = Math.abs(evaluationScore(item) - strongestScore) < 0.000001d;
-            if (strongestTier || aspects.isEmpty() || contributesNewAspect) {
-                narrowed.add(id);
-                aspects.stream().map(this::normalize).forEach(coveredAspects::add);
-            }
-        }
-        // Do not discard an explicit selection when the reviewer omitted its evaluation.
-        selectedIds.stream().filter(id -> !byId.containsKey(normalize(id))).forEach(narrowed::add);
-        return List.copyOf(new LinkedHashSet<>(narrowed));
-    }
-
-    /**
-     * A reviewer that explicitly accepts every authorized candidate with sufficient coverage has
-     * already made a complete execution decision. Re-ranking that set by score or overlapping
-     * question-aspect labels is unsafe: a broad summary and a detail/history source can share the
-     * same aspect while providing different evidence required by synthesis.
-     */
-    private boolean completeAuthorizedSelection(Object output,
-                                                List<String> selectedIds,
-                                                List<Map<String, Object>> evaluations,
-                                                Map<String, Object> metadata) {
-        if (!"SUFFICIENT".equalsIgnoreCase(text(first(metadata,
-            "coverageDecision", "coverage_decision")))) {
-            return false;
-        }
-        Set<String> authorizedIds = templateIds(output, 0);
-        if (authorizedIds.isEmpty()) return false;
-        Set<String> selected = selectedIds.stream()
-            .map(this::normalize)
-            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
-        if (!selected.equals(authorizedIds)) return false;
-
-        Map<String, Map<String, Object>> evaluationsById = new LinkedHashMap<>();
-        evaluations.forEach(item -> {
-            String id = text(first(item, "templateId", "template_id"));
-            if (id != null) evaluationsById.putIfAbsent(normalize(id), item);
-        });
-        return authorizedIds.stream().allMatch(id -> {
-            Map<String, Object> evaluation = evaluationsById.get(id);
-            return evaluation != null && acceptedEvaluation(evaluation);
-        });
-    }
-
-    @SuppressWarnings("unchecked")
-    private Set<String> templateIds(Object value, int depth) {
-        if (value == null || depth > 8) return Set.of();
-        if (value instanceof Iterable<?> iterable) {
-            for (Object item : iterable) {
-                Set<String> nested = templateIds(item, depth + 1);
-                if (!nested.isEmpty()) return nested;
-            }
-            return Set.of();
-        }
-        if (!(value instanceof Map<?, ?> raw)) return Set.of();
-        Map<String, Object> map = new LinkedHashMap<>((Map<String, Object>) raw);
-        Object candidates = map.get("templates") instanceof Iterable<?> ? map.get("templates")
-            : map.get("candidates") instanceof Iterable<?> ? map.get("candidates") : null;
-        if (candidates instanceof Iterable<?> iterable) {
-            LinkedHashSet<String> ids = new LinkedHashSet<>();
-            for (Object item : iterable) {
-                if (!(item instanceof Map<?, ?> rawTemplate)) continue;
-                String id = templateId(new LinkedHashMap<>((Map<String, Object>) rawTemplate));
-                if (id != null) ids.add(normalize(id));
-            }
-            if (!ids.isEmpty()) return Set.copyOf(ids);
-        }
-        for (String key : List.of(
-            "structuredContent", "structured_content", "data", "result", "payload", "body", "output",
-            "routingProjection", "coverage", "preview")) {
-            Set<String> nested = templateIds(map.get(key), depth + 1);
-            if (!nested.isEmpty()) return nested;
-        }
-        return Set.of();
+        for(String key:List.of("structuredContent","structured_content","data","result","payload","body","output","routingProjection","coverage","preview"))
+            ids.addAll(candidateIds(map.get(key),depth+1));
+        return ids;
     }
 
     private Map<String, Object> requirementMatch(Map<String, Object> metadata,
-                                                 List<String> selectedIds,
-                                                 List<String> rejectedIds,
-                                                 List<Map<String, Object>> evaluations,
-                                                 Object projectedOutput,
-                                                 Set<String> parameterBlocked,
-                                                 String authority) {
-        String question = text(metadata.get("originalUserQuestion"));
-        if (question == null) return Map.of();
-        Map<String, Object> context = metadata.get("templateRequirementAnalysisContext") instanceof Map<?, ?> raw
-            ? cast(raw) : Map.of();
-        List<TemplateRequirementMatchEvaluation> typedEvaluations = evaluations.stream()
-            .map(this::typedEvaluation)
-            .filter(Objects::nonNull)
-            .toList();
-        List<TemplateRequirementMatchEvaluation> completeEvaluations = completeEvaluations(
-            typedEvaluations, selectedIds, rejectedIds, authority);
-        return new TemplateMatchAnalysis(
-            TemplateMatchAnalysis.SCHEMA_VERSION,
-            question,
-            context,
-            completeEvaluations.stream().map(TemplateRequirementMatchEvaluation::businessGroup)
-                .filter(Objects::nonNull).distinct().toList(),
-            businessIntent(metadata.get("businessAnalysisIntent"), question, completeEvaluations),
-            completeEvaluations,
-            relationships(metadata.get("templateRelationships"), selectedIds),
-            coverageDecision(metadata, selectedIds, projectedOutput),
-            retrievalOutcome(metadata, selectedIds, projectedOutput, parameterBlocked),
-            strings(first(metadata, "evidenceGaps", "missingAspects", "missingEvidence")),
-            pageRef(projectedOutput),
-            text(metadata.get("toolResultReviewReason")),
-            authority
-        ).toMap();
+            List<String> selectedIds, List<String> rejectedIds, List<Map<String,Object>> evaluations,
+            Object output, Set<String> parameterBlocked, String authority) {
+        if(text(metadata.get("originalUserQuestion"))==null) return Map.of();
+        Map<String,Object> result=new LinkedHashMap<>();
+        result.put("schemaVersion",TemplateMatchAnalysis.SCHEMA_VERSION);
+        result.put("objectType",TemplateMatchAnalysis.OBJECT_TYPE);result.put("event",TemplateMatchAnalysis.EVENT_TYPE);
+        result.put("globalAnalysisContext",metadata.getOrDefault("templateRequirementAnalysisContext",Map.of()));
+        result.put("userQuestion",metadata.get("originalUserQuestion"));
+        result.put("selectionAuthority","MODEL");result.put("selectedTemplateIds",selectedIds);
+        result.put("excludedTemplateIds",rejectedIds);result.put("candidateEvaluations",evaluations);
+        Map<String,Map<String,Object>> byId=new LinkedHashMap<>();
+        for(var evaluation:evaluations) {
+            String id=text(first(evaluation,"templateId","template_id"));
+            if(id!=null)byId.put(id,canonicalModelFields(evaluation));
+        }
+        result.put("templateMatches",selectedIds.stream().map(id->byId.getOrDefault(id,Map.of("templateId",id,"decision","ACCEPT"))).toList());
+        result.put("excludedTemplates",rejectedIds.stream().map(id->byId.getOrDefault(id,Map.of("templateId",id,"decision","REJECT"))).toList());
+        result.put("businessGroups",byId.values().stream().map(item->item.get("businessGroup")).filter(Objects::nonNull).distinct().toList());
+        if(metadata.get("businessAnalysisIntent") instanceof Map<?,?> intent)result.put("analysisIntent",canonicalModelFields(cast(intent)));
+        if(metadata.get("templateRelationships")!=null)result.put("templateRelationships",maps(metadata.get("templateRelationships")).stream().map(this::canonicalModelFields).toList());
+        if(metadata.get("coverageDecision")!=null)result.put("coverageDecision",metadata.get("coverageDecision"));
+        if(metadata.get("evidenceGaps")!=null)result.put("evidenceGaps",metadata.get("evidenceGaps"));
+        result.put("pageRef",pageRef(output));
+        result.put("retrievalOutcome",metadata.getOrDefault("retrievalOutcome",
+            !parameterBlocked.isEmpty()?"PARAMS_UNRESOLVABLE":
+            "NEED_NEXT_PAGE".equals(metadata.get("coverageDecision"))&&booleanIn(output,"hasMore")?"PAGE_EXHAUSTED_HAS_MORE":
+            !selectedIds.isEmpty()?"SELECTED":textIn(output,"retrievalStopReason")!=null?"CAPABILITY_EXCEEDED":
+            booleanIn(output,"hasMore")?"PAGE_EXHAUSTED_HAS_MORE":"MODEL_SELECTED_NONE"));
+        return Map.copyOf(result);
     }
 
-    private TemplateCoverageDecision coverageDecision(Map<String, Object> metadata,
-                                                       List<String> selectedIds,
-                                                       Object output) {
-        String declared = text(first(metadata, "coverageDecision", "coverage_decision"));
-        TemplateCoverageDecision parsed = enumValue(TemplateCoverageDecision.class, declared);
-        // A page may contain useful best-so-far candidates without covering the complete
-        // question. Preserve the reviewer's explicit NEED_NEXT_PAGE/SCOPE_INSUFFICIENT
-        // decision instead of treating any non-empty selection as complete coverage.
-        if (parsed != null
-            && (parsed != TemplateCoverageDecision.SUFFICIENT
-                || (selectedIds != null && !selectedIds.isEmpty()))) {
-            return parsed;
-        }
-        if (selectedIds != null && !selectedIds.isEmpty()) return TemplateCoverageDecision.SUFFICIENT;
-        return booleanIn(output, "hasMore")
-            ? TemplateCoverageDecision.NEED_NEXT_PAGE
-            : TemplateCoverageDecision.SCOPE_INSUFFICIENT;
-    }
-
-    private TemplateRetrievalOutcome retrievalOutcome(Map<String, Object> metadata,
-                                                       List<String> selectedIds,
-                                                       Object output,
-                                                       Set<String> parameterBlocked) {
-        TemplateRetrievalOutcome declared = enumValue(TemplateRetrievalOutcome.class,
-            text(first(metadata, "retrievalOutcome", "retrieval_outcome")));
-        // PAGE_EXHAUSTED_HAS_MORE is compatible with a non-empty best-so-far set. It
-        // means execution must wait for bounded cross-page comparison, not that the
-        // selected candidates should be discarded.
-        if (declared != null
-            && (declared != TemplateRetrievalOutcome.SELECTED
-                || (selectedIds != null && !selectedIds.isEmpty()))) {
-            return declared;
-        }
-        if (selectedIds != null && !selectedIds.isEmpty()) return TemplateRetrievalOutcome.SELECTED;
-        if (parameterBlocked != null && !parameterBlocked.isEmpty()) {
-            return TemplateRetrievalOutcome.PARAMS_UNRESOLVABLE;
-        }
-        if (textIn(output, "retrievalStopReason") != null) {
-            return TemplateRetrievalOutcome.CAPABILITY_EXCEEDED;
-        }
-        return booleanIn(output, "hasMore")
-            ? TemplateRetrievalOutcome.PAGE_EXHAUSTED_HAS_MORE
-            : TemplateRetrievalOutcome.SCOPE_EXHAUSTED_NO_MATCH;
+    private Map<String,Object> canonicalModelFields(Map<String,Object> fields) {
+        Map<String,Object> result=new LinkedHashMap<>();
+        fields.forEach((key,value)->result.put(java.util.regex.Pattern.compile("_([a-z])").matcher(key)
+            .replaceAll(match->match.group(1).toUpperCase(Locale.ROOT)),value));
+        return result;
     }
 
     private Map<String, Object> pageRef(Object output) {
@@ -365,141 +206,6 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
         return Map.of();
     }
 
-    private <E extends Enum<E>> E enumValue(Class<E> type, String value) {
-        if (value == null) return null;
-        try {
-            return Enum.valueOf(type, value.trim().toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException ignored) {
-            return null;
-        }
-    }
-
-    private List<TemplateRequirementMatchEvaluation> completeEvaluations(
-        List<TemplateRequirementMatchEvaluation> evaluations,
-        List<String> selectedIds,
-        List<String> rejectedIds,
-        String authority
-    ) {
-        Set<String> selected = selectedIds.stream().map(this::normalize)
-            .collect(java.util.stream.Collectors.toUnmodifiableSet());
-        Map<String, TemplateRequirementMatchEvaluation> values = new LinkedHashMap<>();
-        evaluations.forEach(item -> {
-            boolean admitted = selected.contains(normalize(item.templateId()));
-            TemplateAnalysisRole role = admitted
-                ? (item.analysisRole() == TemplateAnalysisRole.IRRELEVANT
-                    ? TemplateAnalysisRole.CONTEXT : item.analysisRole())
-                : TemplateAnalysisRole.IRRELEVANT;
-            values.put(normalize(item.templateId()), copyDecision(
-                item, admitted ? "ACCEPT" : "REJECT", role));
-        });
-        selectedIds.forEach(id -> values.putIfAbsent(normalize(id), defaultEvaluation(
-            id, "ACCEPT", TemplateAnalysisRole.CONTEXT, "RUNTIME_PUBLISHED_DATA_SUPPLY".equals(authority)
-                ? "Publisher baseline admitted; analytical relevance has not been evaluated"
-                : "Selected by context-aware reviewer")));
-        rejectedIds.forEach(id -> values.putIfAbsent(normalize(id), defaultEvaluation(
-            id, "REJECT", TemplateAnalysisRole.IRRELEVANT, "Excluded by context-aware reviewer")));
-        return List.copyOf(values.values());
-    }
-
-    private TemplateRequirementMatchEvaluation copyDecision(
-        TemplateRequirementMatchEvaluation item, String decision, TemplateAnalysisRole role
-    ) {
-        return new TemplateRequirementMatchEvaluation(
-            item.templateId(), item.businessGroup(), item.relevance(), item.evidenceFit(),
-            item.parameterReadiness(), item.totalScore(), decision, item.relevanceLevel(), role,
-            item.reasons(), item.missingParameters(), item.matchedQuestionAspects(),
-            item.relationshipHints());
-    }
-
-    private TemplateRequirementMatchEvaluation defaultEvaluation(
-        String id, String decision, TemplateAnalysisRole role, String reason
-    ) {
-        return new TemplateRequirementMatchEvaluation(
-            id, null, 0.0, 0.0, 0.0, 0.0, decision, null, role,
-            List.of(reason), List.of(), List.of(), List.of());
-    }
-
-    private BusinessAnalysisIntent businessIntent(
-        Object value, String originalQuestion,
-        List<TemplateRequirementMatchEvaluation> evaluations
-    ) {
-        Map<String, Object> intent = value instanceof Map<?, ?> raw ? cast(raw) : Map.of();
-        List<String> derivedFocus = evaluations == null ? List.of() : evaluations.stream()
-            .filter(item -> item.analysisRole() != TemplateAnalysisRole.IRRELEVANT)
-            .flatMap(item -> item.matchedQuestionAspects().stream()).distinct().toList();
-        List<String> derivedRelationships = evaluations == null ? List.of() : evaluations.stream()
-            .filter(item -> item.analysisRole() != TemplateAnalysisRole.IRRELEVANT)
-            .flatMap(item -> item.relationshipHints().stream()).distinct().toList();
-        return new BusinessAnalysisIntent(
-            firstText(text(first(intent, "businessGoal", "business_goal")), originalQuestion),
-            text(first(intent, "analysisSubject", "analysis_subject")),
-            strings(first(intent, "coreEntities", "core_entities")),
-            strings(first(intent, "metrics", "businessMetrics", "business_metrics")),
-            strings(first(intent, "dimensions", "analysisDimensions", "analysis_dimensions")),
-            firstNonEmpty(strings(first(intent, "analysisFocus", "analysis_focus")), derivedFocus),
-            text(first(intent, "timeScope", "time_scope")),
-            firstNonEmpty(strings(first(intent, "expectedRelationships", "expected_relationships")),
-                derivedRelationships)
-        );
-    }
-
-    private List<String> firstNonEmpty(List<String> preferred, List<String> fallback) {
-        return preferred == null || preferred.isEmpty()
-            ? (fallback == null ? List.of() : fallback) : preferred;
-    }
-
-    private String firstText(String preferred, String fallback) {
-        return preferred == null || preferred.isBlank() ? fallback : preferred;
-    }
-
-    private List<TemplateRelationship> relationships(Object value, List<String> selectedIds) {
-        Set<String> admitted = selectedIds == null ? Set.of() : selectedIds.stream()
-            .map(this::normalize).collect(java.util.stream.Collectors.toUnmodifiableSet());
-        return maps(value).stream().map(item -> {
-            String from = text(first(item, "fromTemplateId", "from_template_id", "from"));
-            String to = text(first(item, "toTemplateId", "to_template_id", "to"));
-            if (from == null || to == null) return null;
-            return new TemplateRelationship(
-                from, to,
-                text(first(item, "relationType", "relation_type", "type")),
-                text(first(item, "description", "reason"))
-            );
-        }).filter(Objects::nonNull)
-            .filter(relation -> admitted.contains(normalize(relation.fromTemplateId()))
-                && admitted.contains(normalize(relation.toTemplateId())))
-            .toList();
-    }
-
-    private TemplateRequirementMatchEvaluation typedEvaluation(Map<String, Object> value) {
-        String id = text(first(value, "templateId", "template_id"));
-        if (id == null) return null;
-        return new TemplateRequirementMatchEvaluation(
-            id,
-            text(first(value, "businessGroup", "business_group")),
-            score(first(value, "relevance")),
-            score(first(value, "evidenceFit", "evidence_fit")),
-            score(first(value, "parameterReadiness", "parameter_readiness")),
-            evaluationScore(value),
-            text(first(value, "decision", "verdict")),
-            text(first(value, "relevanceLevel", "relevance_level")),
-            TemplateAnalysisRole.from(first(value, "analysisRole", "analysis_role")),
-            strings(first(value, "reasons", "reason")),
-            strings(first(value, "missingParameters", "missing_parameters")),
-            strings(first(value, "matchedQuestionAspects", "matched_question_aspects")),
-            strings(first(value, "relationshipHints", "relationship_hints"))
-        );
-    }
-
-    private double score(Object value) {
-        if (value instanceof Number number) return normalizeScore(number.doubleValue());
-        try {
-            return value == null ? 0.0 : normalizeScore(Double.parseDouble(String.valueOf(value)));
-        } catch (NumberFormatException ignored) {
-            return 0.0;
-        }
-    }
-
-    @SuppressWarnings("unchecked")
     private Object attachRequirementMatch(Object value, Map<String, Object> match, int depth) {
         if (value == null || depth > 8) return value;
         if (value instanceof List<?> list) {
@@ -687,9 +393,12 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
                     byId.putIfAbsent(normalize(id), template);
                 }
             }
-            SemanticCandidateAdmissionPolicy.Decision admission = ADMISSION_POLICY.decide(
+            SemanticCandidateAdmissionPolicy.Decision admission = selectedIds.isEmpty()
+                ? new SemanticCandidateAdmissionPolicy.Decision(true, List.of(), "runtime_evidence_model_review")
+                : ADMISSION_POLICY.decide(
                 byId.values().stream().map(this::templateId).toList(),
-                selectedIds, rejectedIds, false);
+                selectedIds.stream().filter(id->byId.containsKey(normalize(id))).toList(),
+                rejectedIds.stream().filter(id->byId.containsKey(normalize(id))).toList(), false);
             if (!admission.decided()) {
                 return new Projection(output, templates.size(), 0, List.of(), false);
             }
@@ -762,24 +471,7 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
 
     private boolean acceptedEvaluation(Map<String, Object> evaluation) {
         String decision = text(first(evaluation, "decision", "verdict"));
-        return ("accept".equalsIgnoreCase(decision) || "selected".equalsIgnoreCase(decision))
-            && evaluationScore(evaluation) >= 0.6;
-    }
-
-    private double evaluationScore(Map<String, Object> evaluation) {
-        Object value = first(evaluation, "totalScore", "total_score", "score", "relevance");
-        if (value instanceof Number number) {
-            return normalizeScore(number.doubleValue());
-        }
-        try {
-            return value == null ? 0.0 : normalizeScore(Double.parseDouble(String.valueOf(value)));
-        } catch (NumberFormatException ignored) {
-            return 0.0;
-        }
-    }
-
-    private double normalizeScore(double score) {
-        return score > 1.0 ? Math.min(1.0, score / 100.0) : Math.max(0.0, score);
+        return "accept".equalsIgnoreCase(decision) || "selected".equalsIgnoreCase(decision);
     }
 
     private String templateId(Map<String, Object> template) {

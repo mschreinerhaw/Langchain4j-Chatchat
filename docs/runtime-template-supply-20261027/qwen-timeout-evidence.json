@@ -1,0 +1,55 @@
+{
+  "runId": "att-4-c9b6a4e1-bbad-4c4d-8758-60815a2aa4e8",
+  "state": "FAILED",
+  "taskId": "44eb18d3-2cb6-4772-ac7c-044bb9dcbb65",
+  "createdAt": "2026-10-27T01:35:00.305801+00:00",
+  "updatedAt": "2026-10-27T01:38:40.884385+00:00",
+  "parentAttemptId": "att-3-c303c7d4-9839-4ef6-8d34-726aaf9acc3f",
+  "rootExecutionId": "5397ba44-9025-4bac-a014-623df47bb391",
+  "modelName": "qwen3.8-flash",
+  "runStatus": "FAILED",
+  "startedAt": 1793064934655,
+  "finishedAt": 1793065120841,
+  "errorMessage": "REQUIRED_MCP_DATA_UNAVAILABLE: data acquisition failed; no business evidence is available for analysis; cause=Tool result rejected by semantic candidate review: CANDIDATE_REVIEW_UNAVAILABLE: candidate selection was not completed; no semantic no-match decision is available",
+  "toolTraces": [],
+  "toolObservations": [
+    {
+      "interpretationPlanStepId": 1,
+      "toolName": "mcp_chatchat_mcp_server_customer_service_template_query",
+      "success": false,
+      "durationMs": 180363
+    }
+  ],
+  "returnedTemplateIds": [
+    "livedata_SQL_ADS_IDS_CLR_DELI_JOUR_SECU",
+    "livedata_SQL_ADS_IDS_SECU_AST_LIAB",
+    "livedata_cx_mncg_jgmxls",
+    "livedata_cx_mncg_khzc_r",
+    "livedata_cx_mncg_qcfx",
+    "livedata_cx_mncg_wtls",
+    "livedata_cx_mncg_zcxzmx",
+    "livedata_cx_mncg_zjmxls",
+    "livedata_cx_mncg_zjyels",
+    "livedata_cx_mncg_zqyels"
+  ],
+  "parameterProtocols": [],
+  "facts": {
+    "runtimeSelectedTemplateIds": [
+      []
+    ],
+    "runtimeTemplateCandidateCount": [
+      0
+    ],
+    "runtimeTemplateSelectedCount": [
+      0
+    ],
+    "runtimeTemplateSelectionApplied": [
+      false
+    ]
+  },
+  "codingReceipt": {},
+  "answerCharacters": 0,
+  "answerSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "businessRowsExported": false,
+  "credentialsExported": false
+}

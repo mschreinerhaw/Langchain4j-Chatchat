@@ -32,6 +32,18 @@ public final class TemplateWorkflowMetadata {
             .map(value->value.trim().toLowerCase(Locale.ROOT)).orElse(null);
     }
 
+    /** Fixed bindings replace a generic discovery boundary, never another fixed publication.
+     * This resolves capability coverage only; MCP still resolves and authorizes every bound asset.
+     */
+    public static boolean suppliesBoundDiscovery(ToolMetadata provider, ToolMetadata discovery) {
+        if (fixedScope(provider).isEmpty() || fixedScope(discovery).isPresent()) return false;
+        var role=com.chatchat.common.tool.ToolWorkflowContract.resolveRole(null, discovery);
+        if (role != com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_DISCOVERY
+                && role != com.chatchat.common.tool.ToolWorkflowRole.ASSET_DISCOVERY) return false;
+        String family=assetType(provider);
+        return family != null && family.equals(assetType(discovery));
+    }
+
     public static boolean assetStages(ToolMetadata tool) {
         if (tool == null) return false;
         if (tool.getParameters() != null && tool.getParameters().stream().anyMatch(parameter ->

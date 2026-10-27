@@ -1225,7 +1225,9 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
                 LinkedHashMap::new,
                 java.util.stream.Collectors.toList()));
         for (InterpretationPlan.Step candidate : steps) {
-            if (candidate == null || candidate.id() == null || !isTemplateDiscoveryStep(candidate)) continue;
+            if (candidate == null || candidate.id() == null
+                || !(isTemplateDiscoveryStep(candidate)
+                    || isAssetDiscoveryStep(candidate))) continue;
             if (fixedTemplateSelectionScope(candidate.toolName()).isPresent()) continue;
             String assetType = templateDiscoveryAssetType(candidate.toolName());
             List<InterpretationPlan.Step> authorities = assetType == null

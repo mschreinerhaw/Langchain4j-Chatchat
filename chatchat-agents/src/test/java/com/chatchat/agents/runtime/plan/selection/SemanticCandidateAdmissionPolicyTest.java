@@ -18,20 +18,20 @@ class SemanticCandidateAdmissionPolicyTest {
     void admitsOnlyAuthorizedExplicitSelections() {
         SemanticCandidateAdmissionPolicy.Decision decision = policy.decide(
             List.of("candidate-a", "candidate-b"),
-            List.of("invented", "candidate-b"),
+            List.of("candidate-b"),
             List.of("candidate-a"),
             false
         );
 
         assertThat(decision.decided()).isTrue();
         assertThat(decision.selectedIds()).containsExactly("candidate-b");
-        assertThat(decision.authority()).isEqualTo("runtime_evidence_model_review");
+        assertThat(decision.authority()).isEqualTo("model_selection_validated");
     }
 
     @Test
-    void uniqueCandidateIsDeterministicOnlyAfterReviewerRan() {
+    void emptySelectionNeverInfersTheUniqueCandidate() {
         assertThat(policy.decide(List.of("only"), List.of(), List.of(), false).selectedIds())
-            .containsExactly("only");
+            .isEmpty();
         assertThat(policy.decide(List.of("only"), List.of(), List.of(), true).decided())
             .isFalse();
     }
@@ -40,17 +40,17 @@ class SemanticCandidateAdmissionPolicyTest {
     void ambiguousCandidatesNeverBecomeJavaSemanticChoice() {
         assertThat(policy.decide(
             List.of("a", "b", "c"), List.of(), List.of("c"), false).decided())
-            .isFalse();
+            .isTrue();
     }
 
     @Test
-    void rejectionCanDecideOnlyWhenAtMostOneCandidateSurvives() {
+    void rejectionDoesNotAuthorizeRemainingCandidates() {
         SemanticCandidateAdmissionPolicy.Decision one = policy.decide(
             List.of("a", "b"), List.of(), List.of("b"), false);
         SemanticCandidateAdmissionPolicy.Decision none = policy.decide(
             List.of("a", "b"), List.of(), List.of("a", "b"), false);
 
-        assertThat(one.selectedIds()).containsExactly("a");
+        assertThat(one.selectedIds()).isEmpty();
         assertThat(none.decided()).isTrue();
         assertThat(none.selectedIds()).isEmpty();
     }

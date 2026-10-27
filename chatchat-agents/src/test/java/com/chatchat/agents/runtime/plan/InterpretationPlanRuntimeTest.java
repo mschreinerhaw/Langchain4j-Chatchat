@@ -1787,7 +1787,7 @@ class InterpretationPlanRuntimeTest {
         assertThat(((Map<?, ?>) projectedTemplates.get(0)).get("templateId"))
             .isEqualTo("CHECK_PROCESS");
         assertThat(projectedOutput.get("runtimeTemplateSelection").toString())
-            .contains("selectionAuthority=runtime_evidence_model_review", "candidateCount=2");
+            .contains("selectionAuthority=model_selection_validated", "candidateCount=2");
         assertThat(runStore.events("req-template-discovery-skip-review"))
             .filteredOn(event -> event.type()
                 == AgentRunEventType.BUSINESS_TEMPLATE_REQUIREMENT_MATCHING)
@@ -2010,7 +2010,7 @@ class InterpretationPlanRuntimeTest {
             .containsEntry("localFactCheckHasEvidence", true)
             .containsEntry("toolResultReviewUnavailable", true)
             .containsEntry("semanticCandidateReviewSatisfied", false);
-        assertThat(result.errorMessage()).contains("CANDIDATE_REVIEW_UNAVAILABLE");
+        assertThat(result.errorMessage()).contains("MODEL_SELECTION_UNAVAILABLE");
         assertThat(result.steps().get(0).output().toString())
             .contains("check_cpu", "check_docker_overview");
     }

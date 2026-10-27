@@ -1,0 +1,45 @@
+{
+  "runId": "att-1-ff417132-4281-4e33-b3ab-1b8d0e584f40",
+  "state": "SUCCEEDED",
+  "taskId": "1b5c5e85-c5de-3138-b88f-ececf03f65ec",
+  "createdAt": "2026-10-27T02:50:41.180339+00:00",
+  "updatedAt": "2026-10-27T02:53:50.683238+00:00",
+  "parentAttemptId": null,
+  "rootExecutionId": "1b5c5e85-c5de-3138-b88f-ececf03f65ec",
+  "modelName": "deepseek-v4-pro",
+  "runStatus": "COMPLETED",
+  "startedAt": 1793069444742,
+  "finishedAt": 1793069630539,
+  "errorMessage": null,
+  "toolTraces": [],
+  "toolObservations": [],
+  "returnedTemplateIds": [],
+  "parameterProtocols": [],
+  "facts": {
+    "codingOwnedAnalysisActive": [
+      true
+    ],
+    "currentBusinessDataAcquired": [
+      false
+    ],
+    "javaAnalysisModelCalls": [
+      0
+    ]
+  },
+  "codingReceipt": {
+    "taskId": "analysis-coding-f757b8fd3d2714ab8b5b3386866beb34c1f10e3fc28f201176fdc74a2ebd6027",
+    "status": "COMPLETED",
+    "evidenceRefs": [
+      "runtime-evidence:coding:input:d3bb08d32d542820bc7e82f18704a835528d960b388dac5f20bcbdf75b9edbd",
+      "runtime-evidence:coding:d3579df9e2e05dc6bcd0216fae4c7ccf2bcd1904bae02139438f5fa1e1668ea9:code",
+      "runtime-evidence:coding:d3579df9e2e05dc6bcd0216fae4c7ccf2bcd1904bae02139438f5fa1e1668ea9:receipt",
+      "runtime-evidence:coding:d3579df9e2e05dc6bcd0216fae4c7ccf2bcd1904bae02139438f5fa1e1668ea9:result",
+      "runtime-evidence:coding:d3579df9e2e05dc6bcd0216fae4c7ccf2bcd1904bae02139438f5fa1e1668ea9:validation",
+      "runtime-evidence:coding:d3579df9e2e05dc6bcd0216fae4c7ccf2bcd1904bae02139438f5fa1e1668ea9:bundle"
+    ]
+  },
+  "answerCharacters": 2683,
+  "answerSha256": "0879b0ec5459d95dc154b6df2b2cadcb0d44edcfea6b050ed02ca9cafaa80faa",
+  "businessRowsExported": false,
+  "credentialsExported": false
+}

@@ -24,6 +24,21 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class CodingAnalysisServiceTest {
+    @Test void supplyStatusIsDeliveredAsTechnicalEvidenceWithoutInventingBusinessData() {
+        var service=spy(service());
+        doReturn(Map.of("status","COMPLETED")).when(service).executeObserved(any(),anyMap(),anyMap(),any());
+        var parent=context("tenant");parent.metadata().put("dataSupplyStatus",Map.of("businessDataAvailable",false));
+        var delivered=Map.of("supply-status:run",new Dataset("supply-status:run",
+            Map.of("recordType","DATA_SUPPLY_STATUS","businessData",false),
+            List.of(Map.of("selectionStatus","MODEL_UNAVAILABLE"))));
+        service.executePrimaryAnalysis(parent,delivered,event -> {});
+        verify(service).executeObserved(same(parent),argThat(task ->
+            task.get("instruction").toString().contains("DATA_SUPPLY_STATUS")
+            &&task.get("instruction").toString().contains("not business measurements")
+            &&!task.get("instruction").toString().contains("reselect templates")),same(delivered),any());
+        verifyNoInteractions(agent,python,inputs,plans,collector);
+    }
+
     @Test void combinedInputsKeepProducerFieldMeaningsWithoutGuessingFromOpaqueNames() {
         prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
         when(inputs.captureConfigured(any(),anyString(),anyList(),startsWith("coding-input-set:"),anyString(),anyString(),anyLong(),anyLong(),any()))

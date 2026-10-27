@@ -1,0 +1,40 @@
+{
+  "baselineCommit": "bb5bf19774e124989dc5f54c95fa97006f3cd407",
+  "baselineFailures": [
+    "allFailedBatchCannotReportSuccessfulOuterExecution",
+    "batchResolvesSemanticChildToolNameToRegisteredExecutor",
+    "compilationGapProducesExplicitNotExecutedResultAndCardinality",
+    "diagnosticBatchAllowsMultipleEndpointAssetsOnlyThroughDiscoveryTemplateAuthorization",
+    "diagnosticBatchChildrenInheritCanonicalAssetFromOuterExecutionContext",
+    "diagnosticBatchRejectsDuplicateCallsMissingAssetAndCrossAssetMixing",
+    "diagnosticBatchRejectsEndpointAssetThatDoesNotMatchItsDiscoveredTemplate",
+    "emptyDiagnosticResultUsesPerCheckTemplatePolicy",
+    "expiredDiagnosticDeadlineBlocksWholeBatchWithoutRemoteCalls",
+    "explicitUnlockedStrictPolicyCanRejectACompletedFailedBatch",
+    "failureIsolatedBatchLayerIgnoresLegacyStopFlagAndReturnsEveryFailure",
+    "preflightBlockedTemplateIsRecordedAndDoesNotStopExecutableTemplates",
+    "rejectsCallLimitAndNestedBatchBeforeAnyRemoteInvocation",
+    "rejectsOversizedBatchBeforeAnyRemoteInvocation",
+    "sequentialBatchPreservesOrderAndContinuesAfterOneFailure",
+    "templateDeclaredRequiredFieldsReduceQualityWithoutReducingExecutionCoverage"
+  ],
+  "currentFailures": [
+    "allFailedBatchCannotReportSuccessfulOuterExecution",
+    "batchResolvesSemanticChildToolNameToRegisteredExecutor",
+    "compilationGapProducesExplicitNotExecutedResultAndCardinality",
+    "diagnosticBatchAllowsMultipleEndpointAssetsOnlyThroughDiscoveryTemplateAuthorization",
+    "diagnosticBatchChildrenInheritCanonicalAssetFromOuterExecutionContext",
+    "diagnosticBatchRejectsDuplicateCallsMissingAssetAndCrossAssetMixing",
+    "diagnosticBatchRejectsEndpointAssetThatDoesNotMatchItsDiscoveredTemplate",
+    "emptyDiagnosticResultUsesPerCheckTemplatePolicy",
+    "expiredDiagnosticDeadlineBlocksWholeBatchWithoutRemoteCalls",
+    "explicitUnlockedStrictPolicyCanRejectACompletedFailedBatch",
+    "failureIsolatedBatchLayerIgnoresLegacyStopFlagAndReturnsEveryFailure",
+    "preflightBlockedTemplateIsRecordedAndDoesNotStopExecutableTemplates",
+    "rejectsCallLimitAndNestedBatchBeforeAnyRemoteInvocation",
+    "rejectsOversizedBatchBeforeAnyRemoteInvocation",
+    "sequentialBatchPreservesOrderAndContinuesAfterOneFailure",
+    "templateDeclaredRequiredFieldsReduceQualityWithoutReducingExecutionCoverage"
+  ],
+  "newFailures": []
+}

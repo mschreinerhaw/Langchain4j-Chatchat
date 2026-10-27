@@ -33,9 +33,16 @@ public final class EvidenceBasedAssetCandidateEvaluator {
                 reviewMetadata.get("toolResultReviewMode")) && selected.size()==1;
         String authority = toolSelectionApplied ? "runtime_tool_declared_selection"
             : literalReferenceApplied ? "runtime_exact_canonical_asset_reference" : null;
+        // Missing selection fields are a protocol failure, even for a singleton. Cardinality
+        // cannot substitute for the model's semantic decision or a published binding.
+        if (authority == null && (reviewMetadata == null
+                || !reviewMetadata.containsKey("selectedAssetIds") || selected.isEmpty())) {
+            return new Evaluation(output, 0, 0, List.of(), evaluations, false,
+                "Asset selection response omitted selectedAssetIds.");
+        }
         Projection projection = project(
             output, selected, rejected, evaluations,
-            reviewerUnavailable && authority==null, authority, 0);
+            reviewerUnavailable && authority==null && selected.isEmpty(), authority, 0);
         if (!projection.applied()) {
             return new Evaluation(output, 0, 0, List.of(), evaluations, false,
                 "No evidence-reviewed asset selection could be projected onto the authorized candidate set.");

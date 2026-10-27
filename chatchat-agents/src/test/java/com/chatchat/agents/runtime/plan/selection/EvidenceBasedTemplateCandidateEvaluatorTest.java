@@ -73,8 +73,7 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
 
         assertThat(evaluation.applied()).isTrue();
         assertThat(evaluation.templateMatchAnalysis())
-            .containsEntry("retrievalOutcome", "CAPABILITY_EXCEEDED")
-            .containsEntry("coverageDecision", "SCOPE_INSUFFICIENT");
+            .containsEntry("retrievalOutcome", "CAPABILITY_EXCEEDED").doesNotContainKey("coverageDecision");
     }
 
     @Test
@@ -97,7 +96,7 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
     }
 
     @Test
-    void dropsRedundantAcceptedContextWhenTargetsAlreadyCoverItsQuestionAspects() {
+    void preservesModelSelectedContextDespiteOverlappingAspects() {
         EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
             new EvidenceBasedTemplateCandidateEvaluator().evaluate(
                 Map.of("templates", List.of(
@@ -127,15 +126,15 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
                 ));
 
         assertThat(evaluation.selectedIds())
-            .containsExactly("customer-overview", "trade-overview");
+            .containsExactly("customer-overview", "trade-overview", "holding-detail", "order-detail");
         Map<?, ?> projected = (Map<?, ?>) evaluation.output();
         assertThat((List<?>) projected.get("templates")).extracting(String::valueOf)
             .containsExactly(
-                "{templateId=customer-overview}", "{templateId=trade-overview}");
+                "{templateId=customer-overview}", "{templateId=trade-overview}", "{templateId=holding-detail}", "{templateId=order-detail}");
     }
 
     @Test
-    void dropsWeakerRedundantCandidatesEvenWhenReviewerLabelsEverythingTarget() {
+    void preservesAllModelChoicesRegardlessOfRelativeScores() {
         EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
             new EvidenceBasedTemplateCandidateEvaluator().evaluate(
                 Map.of("templates", List.of(
@@ -162,7 +161,7 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
                             "matchedQuestionAspects", List.of("trade", "preference"))
                     )));
 
-        assertThat(evaluation.selectedIds()).containsExactly("asset-summary", "trade-summary");
+        assertThat(evaluation.selectedIds()).containsExactly("asset-summary", "trade-summary", "asset-detail", "trade-detail");
     }
 
     @Test
@@ -263,7 +262,7 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
     }
 
     @Test
-    void admitsCandidatesByEvidenceScoreWhenModelDoesNotProvideSelectedIds() {
+    void honorsExplicitModelDecisionsWithoutApplyingScoreThresholds() {
         EvidenceBasedTemplateCandidateEvaluator evaluator =
             new EvidenceBasedTemplateCandidateEvaluator();
         Object output = Map.of(
@@ -307,7 +306,7 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
         assertThat(projected.get("returnedCount")).isEqualTo(2);
         assertThat(projected.get("runtimeTemplateSelection").toString())
             .contains("runtime_template_selection.v2", "mcpScoresAreWeakPriors=true",
-                "runtime_evidence_model_review");
+                "model_selection_validated");
     }
 
     @Test
@@ -501,12 +500,12 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
             .containsEntry("userQuestion", "分析ETF规模与份额，观察市场资金流向");
         assertThat(evaluation.templateMatchAnalysis().toString())
             .contains("sse_etf_scale", "businessGoal=观察ETF资金方向",
-                "analysisRole=CONTEXT", "fromTemplateId=ETF_SCALE",
+                "fromTemplateId=ETF_SCALE",
                 "toTemplateId=ETF_SHARE", "matchedQuestionAspects=[规模, 份额]",
                 "relationshipHints=[按基金代码关联相邻交易日]")
             .doesNotContain("ETF_MARGIN, ETF_SCALE");
         assertThat(evaluation.output().toString())
-            .contains("templateMatchAnalysis", "analysisRole=IRRELEVANT");
+            .contains("templateMatchAnalysis").doesNotContain("analysisRole=IRRELEVANT");
         Map<?, ?> projected = (Map<?, ?>) evaluation.output();
         assertThat((List<?>) projected.get("templates")).extracting(String::valueOf)
             .noneMatch(value -> value.contains("ETF_MARGIN"));
@@ -521,7 +520,7 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
             );
 
         assertThat(evaluation.applied()).isFalse();
-        assertThat(evaluation.reason()).contains("not present in the authorized MCP candidate set");
+        assertThat(evaluation.reason()).contains("not returned by MCP");
     }
 
     @Test
@@ -572,7 +571,7 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
     }
 
     @Test
-    void preservesUniqueCandidateWhenReviewContainsNoCandidateLevelDecision() {
+    void rejectsMissingSelectionEvenForUniqueCandidate() {
         EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
             new EvidenceBasedTemplateCandidateEvaluator().evaluate(
                 Map.of("templates", List.of(Map.of(
@@ -582,9 +581,8 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
                 Map.of("reason", "downstream execution has not run yet")
             );
 
-        assertThat(evaluation.applied()).isTrue();
-        assertThat(evaluation.selectedIds()).containsExactly("oracle-risk-session");
-        assertThat(evaluation.output().toString()).contains("selectionAuthority=runtime_unique_candidate");
+        assertThat(evaluation.applied()).isFalse();
+        assertThat(evaluation.selectedIds()).isEmpty();
     }
 
     @Test
@@ -626,12 +624,12 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
                 Map.of("rejectedTemplateIds", List.of("mysql-session"))
             );
 
-        assertThat(evaluation.applied()).isFalse();
+        assertThat(evaluation.applied()).isTrue();
         assertThat(evaluation.selectedCount()).isZero();
     }
 
     @Test
-    void admitsTheOnlyCandidateLeftByExplicitRejection() {
+    void doesNotGuessTheOnlyCandidateLeftByExplicitRejection() {
         EvidenceBasedTemplateCandidateEvaluator.Evaluation evaluation =
             new EvidenceBasedTemplateCandidateEvaluator().evaluate(
                 Map.of("templates", List.of(
@@ -642,7 +640,7 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
             );
 
         assertThat(evaluation.applied()).isTrue();
-        assertThat(evaluation.selectedIds()).containsExactly("oracle-session");
+        assertThat(evaluation.selectedIds()).isEmpty();
     }
 
     @Test
@@ -656,4 +654,12 @@ class EvidenceBasedTemplateCandidateEvaluatorTest {
         assertThat(evaluation.applied()).isFalse();
         assertThat(evaluation.selectedCount()).isZero();
     }
+    @Test void explicitEmptySelectionNeverAdmitsASingleton() {
+        var result=new EvidenceBasedTemplateCandidateEvaluator().evaluate(
+            Map.of("templates",List.of(Map.of("templateId","only"))),
+            Map.of("selectedTemplateIds",List.of(),"coverageDecision","SCOPE_INSUFFICIENT"));
+        assertThat(result.applied()).isTrue();
+        assertThat(result.selectedIds()).isEmpty();
+    }
+
 }

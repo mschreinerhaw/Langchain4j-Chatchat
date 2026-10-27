@@ -24,17 +24,30 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AnalysisCoverageCoordinatorTest {
-    @Test void failedAcquisitionWithoutDatasetsCannotBecomeASuccessfulAnalysisReport() {
+    @Test void selectionFailureIsDeliveredAsSupplyStatusWithoutInventingBusinessRecords() {
         var evidence=mock(AnalysisEvidenceCoordinator.class);
         when(evidence.project(any(),any())).thenReturn(new AnalysisEvidenceCoordinator.Projection(List.of(),List.of()));
-        var base=request(new LinkedHashMap<>());
-        var result=new InterpretationPlanRuntime.ExecutionResult("failed",false,false,"schema rejected",null,
-            List.of(new InterpretationPlanRuntime.StepExecution(1,"tool_call","query",false,null,"schema rejected",null,null,1)),Map.of(),1);
-        var request=new AnalysisCoverageCoordinator.Request(null,"Analyze returned records",result,Map.of("taskType","DATA_ANALYSIS"),
-            base.metadata(),base.cancellationCheck(),base.cancellationGuard(),base.isolationScope(),base.summaryProtocol());
-        assertThatThrownBy(()->coordinator(evidence).analyze(request)).hasMessageContaining("REQUIRED_MCP_DATA_UNAVAILABLE").hasMessageContaining("schema rejected");
-        assertThat(base.metadata()).containsKey("dataAcquisitionFailure");
-        assertThat(base.metadata()).doesNotContainKey("modelNativeReportDraft");
+        var base=request(new LinkedHashMap<>());var coding=mock(AnalysisCodingPort.class);
+        when(coding.executePrimaryAnalysis(any(),any(),any())).thenAnswer(call->{
+            Map<String,AnalysisEvidenceCoordinator.Dataset> sources=call.getArgument(1);
+            var status=sources.values().iterator().next();
+            assertThat(status.analysisContext()).containsEntry("recordType","DATA_SUPPLY_STATUS");
+            assertThat(status.handle().readPage(0,1).rows().get(0).toString()).contains("MODEL_SELECTION_UNAVAILABLE");
+            sources.put("report",new AnalysisEvidenceCoordinator.Dataset("report",Map.of(),List.of(Map.of(
+                "reportMarkdown","The supplier did not obtain a model selection; no business figures are available.",
+                "evidenceReferences",List.of(status.reference()),"limitations",List.of("Upstream model unavailable")))));
+            return Map.of("resultAvailable",true,"datasetReference","report");
+        });
+        var result=new InterpretationPlanRuntime.ExecutionResult("failed",false,false,"MODEL_SELECTION_UNAVAILABLE",null,
+            List.of(new InterpretationPlanRuntime.StepExecution(1,"mcp_tool","query",false,null,
+                "MODEL_SELECTION_UNAVAILABLE",null,null,1)),Map.of(),1);
+        var coordinator=coordinator(evidence);coordinator.setCodingPort(coding);
+        var coverage=coordinator.analyze(new AnalysisCoverageCoordinator.Request(null,"Analyze",result,Map.of("taskType","DATA_ANALYSIS"),
+            base.metadata(),base.cancellationCheck(),base.cancellationGuard(),base.isolationScope(),base.summaryProtocol()));
+        assertThat(coverage.returnedRecordCount()).isZero();
+        assertThat(base.metadata()).containsKey("dataSupplyStatus").containsEntry("businessDataAvailable",false);
+        assertThat(base.metadata()).doesNotContainKey("dataAcquisitionFailure");
+        org.mockito.Mockito.verify(coding).executePrimaryAnalysis(any(),any(),any());
     }
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.CsvSource({"OPTIONAL,true,false,true", "REQUIRED,true,false,false", "OPTIONAL,false,false,false", "REQUIRED,false,false,false",
@@ -57,10 +70,6 @@ class AnalysisCoverageCoordinatorTest {
         var metadata=new LinkedHashMap<String,Object>();var base=request(metadata);
         var request=new AnalysisCoverageCoordinator.Request(null,"compare originals",result,Map.of("taskType","DATA_ANALYSIS","problemAnalysisPlan",plan),
             metadata,()->false,()->{},base.isolationScope(),base.summaryProtocol());
-        if (!continues) {
-            assertThatThrownBy(()->coordinator.analyze(request)).hasMessageContaining("REQUIRED_MCP_DATA_UNAVAILABLE");
-            org.mockito.Mockito.verifyNoInteractions(coding);
-        } else {
             when(coding.prepareFileSources(any())).thenReturn(Map.of(file.reference(),new AnalysisEvidenceCoordinator.Dataset(file.reference(),Map.of(),List.of(Map.of("fileName","one.xlsx")))));
             when(coding.executePrimaryAnalysis(any(),any(),any())).thenAnswer(call->{
                 Map<String,AnalysisEvidenceCoordinator.Dataset> sources=call.getArgument(1);
@@ -71,9 +80,8 @@ class AnalysisCoverageCoordinatorTest {
                 return Map.of("resultAvailable",true,"datasetReference","result");
             });
             coordinator.analyze(request);
-            assertThat(metadata).containsEntry("optionalToolDataEmpty",!hasData).containsEntry("modelNativeReportDraft","computed quality report");
+            assertThat(metadata).containsEntry("optionalToolDataEmpty",!hasData&&success&&"OPTIONAL".equals(dependency)).containsEntry("modelNativeReportDraft","computed quality report");
             org.mockito.Mockito.verify(coding,org.mockito.Mockito.times(1)).executePrimaryAnalysis(any(),any(),any());
-        }
     }
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(strings={"DATA_ANALYSIS","DOCUMENT","DIRECT_ANSWER","ASSET_GUIDANCE"})

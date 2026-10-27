@@ -53,7 +53,7 @@ public class AgentWorkflowToolResolver {
         return traces.stream()
             .anyMatch(trace -> trace != null
                 && !confirmationRequired(trace)
-                && toolNames.sameToolName(toolName, trace.getToolName()));
+                && toolNames.satisfiesCapability(trace.getToolName(), toolName));
     }
 
     public boolean hasAnyToolTrace(List<InteractionToolTrace> traces, String toolName) {
@@ -61,7 +61,7 @@ public class AgentWorkflowToolResolver {
             return false;
         }
         return traces.stream()
-            .anyMatch(trace -> trace != null && toolNames.sameToolName(toolName, trace.getToolName()));
+            .anyMatch(trace -> trace != null && toolNames.satisfiesCapability(trace.getToolName(), toolName));
     }
 
     public List<String> missingMandatoryTools(List<String> mandatoryTools, List<InteractionToolTrace> traces) {
@@ -151,7 +151,7 @@ public class AgentWorkflowToolResolver {
             return false;
         }
         Set<String> normalized = new LinkedHashSet<>(completedTools);
-        return normalized.stream().anyMatch(completed -> toolNames.sameToolName(toolName, completed));
+        return normalized.stream().anyMatch(completed -> toolNames.satisfiesCapability(completed, toolName));
     }
 
     private boolean confirmationRequired(InteractionToolTrace trace) {

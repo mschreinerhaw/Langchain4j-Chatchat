@@ -26,28 +26,12 @@ final class SemanticCandidateAdmissionPolicy {
             return Decision.undecided();
         }
         Set<String> rejected = normalized(rejectedIds);
-        List<String> explicit = project(selectedIds, authorized, rejected);
-        if (!explicit.isEmpty()) {
-            return new Decision(true, explicit, "runtime_evidence_model_review");
-        }
-        if (selectedIds != null && !selectedIds.isEmpty() && rejected.isEmpty()) {
-            // The reviewer selected only unknown or explicitly rejected ids.
+        if(selectedIds!=null&&selectedIds.stream().anyMatch(id->!authorized.containsKey(normalize(id))||rejected.contains(normalize(id))))
             return Decision.undecided();
-        }
-        if (authorized.size() == 1 && rejected.isEmpty()) {
-            return new Decision(true, List.copyOf(authorized.values()), "runtime_unique_candidate");
-        }
-        if (!rejected.isEmpty()) {
-            List<String> survivors = authorized.entrySet().stream()
-                .filter(entry -> !rejected.contains(entry.getKey()))
-                .map(Map.Entry::getValue)
-                .toList();
-            // Rejection-only review is decisive only if it leaves one or no candidate.
-            if (survivors.size() <= 1) {
-                return new Decision(true, survivors, "runtime_evidence_model_review");
-            }
-        }
-        return Decision.undecided();
+        List<String> explicit = project(selectedIds, authorized, rejected);
+        if (selectedIds != null && !selectedIds.isEmpty() && explicit.isEmpty()) return Decision.undecided();
+        // Existence/membership only. No singleton, survivor, score or relevance inference.
+        return new Decision(true, explicit, "model_selection_validated");
     }
 
     private Map<String, String> authorized(List<String> values) {

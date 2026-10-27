@@ -1,0 +1,31 @@
+{
+  "runId": "att-1-7a0a858d-d8ed-4bf4-84b7-ad26840232f4",
+  "state": "FAILED",
+  "taskId": "5397ba44-9025-4bac-a014-623df47bb391",
+  "createdAt": "2026-10-26T22:56:17.711457+00:00",
+  "updatedAt": "2026-10-27T01:10:32.104421+00:00",
+  "parentAttemptId": null,
+  "rootExecutionId": "5397ba44-9025-4bac-a014-623df47bb391",
+  "modelName": "qwen3.8-flash",
+  "runStatus": "FAILED",
+  "startedAt": 1793055400132,
+  "finishedAt": 1793055524873,
+  "errorMessage": "REQUIRED_MCP_DATA_UNAVAILABLE: data acquisition failed; no business evidence is available for analysis; cause=Tool result rejected by semantic candidate review: the model did not select an asset id from the returned candidate set",
+  "toolTraces": [],
+  "toolObservations": [
+    {
+      "interpretationPlanStepId": 1,
+      "toolName": "mcp_chatchat_mcp_server_api_service_query",
+      "success": false,
+      "durationMs": 219
+    }
+  ],
+  "returnedTemplateIds": [],
+  "parameterProtocols": [],
+  "facts": {},
+  "codingReceipt": {},
+  "answerCharacters": 0,
+  "answerSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "businessRowsExported": false,
+  "credentialsExported": false
+}

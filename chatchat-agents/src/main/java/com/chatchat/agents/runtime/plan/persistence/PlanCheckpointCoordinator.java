@@ -36,7 +36,7 @@ public final class PlanCheckpointCoordinator {
             InterpretationPlanRuntime.StepExecution restored = new InterpretationPlanRuntime.StepExecution(
                 candidate.execution().stepId(), candidate.execution().actionType(), candidate.execution().toolName(),
                 true, candidate.execution().output(), null, candidate.execution().toolExecution(),
-                candidate.execution().finalAnswer(), 0L, Map.copyOf(metadata));
+                candidate.execution().finalAnswer(), 0L, java.util.Collections.unmodifiableMap(metadata));
             completed.put(restored.stepId(), restored);
             executions.add(restored);
             reused.add(restored.stepId());
@@ -88,7 +88,7 @@ public final class PlanCheckpointCoordinator {
                 metadata.put("checkpointIdentityFingerprints", checkpoint.identityFingerprints());
                 InterpretationPlanRuntime.StepExecution restored = new InterpretationPlanRuntime.StepExecution(
                     value.stepId(), value.actionType(), value.toolName(), true, value.output(), null,
-                    value.toolExecution(), value.finalAnswer(), 0L, Map.copyOf(metadata));
+                    value.toolExecution(), value.finalAnswer(), 0L, java.util.Collections.unmodifiableMap(metadata));
                 recovered.put(restored.stepId(), restored);
                 reused.add(restored.stepId());
                 if (attemptId != null) recoveryAttemptIds.add(attemptId);

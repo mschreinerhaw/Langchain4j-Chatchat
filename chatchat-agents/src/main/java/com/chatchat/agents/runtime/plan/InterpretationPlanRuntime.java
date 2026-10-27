@@ -3032,7 +3032,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                         metadata.put("semanticCandidateReviewError", selectionError);
                         return new StepExecution(
                             execution.stepId(), execution.actionType(), execution.toolName(), false,
-                            execution.output(), "Tool result rejected by semantic candidate gate: " + selectionError,
+                            execution.output(), "Data supply selection could not be completed: " + selectionError,
                             execution.toolExecution(), execution.finalAnswer(), elapsed(startedAt), metadata
                         );
                     }
@@ -3080,7 +3080,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                 metadata.put("semanticCandidateReviewError", selectionError);
                 return new StepExecution(
                     execution.stepId(), execution.actionType(), execution.toolName(), false,
-                    execution.output(), "Tool result rejected by semantic candidate review: " + selectionError,
+                    execution.output(), "Data supply selection could not be completed: " + selectionError,
                     execution.toolExecution(), execution.finalAnswer(), elapsed(startedAt), metadata
                 );
             }
@@ -3385,9 +3385,22 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         if (execution == null || metadata == null) {
             return null;
         }
+        boolean validatedSelection = isAssetDiscoveryExecution(execution)
+            ? Boolean.TRUE.equals(metadata.get("runtimeAssetSelectionApplied"))
+                && integerValue(metadata.get("runtimeAssetSelectedCount")) != null
+                && integerValue(metadata.get("runtimeAssetSelectedCount")) > 0
+            : Boolean.TRUE.equals(metadata.get("runtimeTemplateSelectionApplied"))
+                && integerValue(metadata.get("runtimeTemplateSelectedCount")) != null
+                && integerValue(metadata.get("runtimeTemplateSelectedCount")) > 0;
+        if ("NEEDS_INPUT".equals(metadata.get("candidateSelectionStatus"))) return "MODEL_INPUT_REQUIRED";
+        String protocolError=stringValue(metadata.get("candidateSelectionErrorCode"));
+        if(protocolError!=null) return protocolError+": "+stringValue(metadata.get("candidateSelectionError"));
+        if (validatedSelection) return null;
+        String parameterStatus=stringValue(metadata.get("runtimeTemplateSelectionReason"));
+        if(parameterStatus!=null&&parameterStatus.startsWith("TEMPLATE_PARAMETERS_REQUIRED")) return parameterStatus;
         if ((isAssetDiscoveryExecution(execution) || isTemplateDiscoveryExecution(execution))
             && Boolean.TRUE.equals(metadata.get("toolResultReviewUnavailable"))) {
-            return "CANDIDATE_REVIEW_UNAVAILABLE: candidate selection was not completed; no semantic no-match decision is available";
+            return "MODEL_SELECTION_UNAVAILABLE: no completed model selection is available; MCP discovery success is unchanged";
         }
         if (isAssetDiscoveryExecution(execution)) {
             if (!Boolean.TRUE.equals(metadata.get("runtimeAssetSelectionApplied"))) {
@@ -3395,7 +3408,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             }
             Integer selected = integerValue(metadata.get("runtimeAssetSelectedCount"));
             if (selected == null || selected < 1) {
-                return "the model selected no usable asset candidate";
+                return "MODEL_SELECTED_NO_ASSET";
             }
         }
         if (isTemplateDiscoveryExecution(execution)) {
@@ -3404,11 +3417,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             }
             Integer selected = integerValue(metadata.get("runtimeTemplateSelectedCount"));
             if (selected == null || selected < 1) {
-                if ("SCOPE_INSUFFICIENT".equals(metadata.get("templateCoverageDecision"))) {
-                    return "MCP_CAPABILITY_SCOPE_INSUFFICIENT: no matching template exists in the authorized publication; "
-                        + "configure the required data-supply capability instead of executing unrelated templates";
-                }
-                return "the model selected no usable template candidate";
+                return "MODEL_SELECTED_NO_TEMPLATE";
             }
         }
         return null;

@@ -178,6 +178,12 @@ public class InterpretationPlanValidator {
                     .filter(step -> capabilityHierarchy.isImplementationOf(step.toolName(), tool))
                     .toList();
             }
+            if (matches.isEmpty() && toolRegistry != null) {
+                matches = stepsById.values().stream().filter(InterpretationPlan.Step::mcpToolAction)
+                    .filter(step -> com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata
+                        .suppliesBoundDiscovery(toolRegistry.getToolMetadata(step.toolName()),
+                            toolRegistry.getToolMetadata(tool))).toList();
+            }
             if (matches.isEmpty()) {
                 state.error("authoritativeWorkflowDag",
                     "Task " + workflowTaskLabel(taskId) + " requires at least one plan step for configured MCP tool "

@@ -1,0 +1,7 @@
+{
+  "taskId": "3fcb79d9-6d88-3a8a-8d97-bc31209fb75b",
+  "before": "PLANNING",
+  "after": "CANCELLED",
+  "cancelledByVerification": true,
+  "reason": "Selection model timed out; subsequent Coding model failed; finish this verification probe without bypassing reconciliation."
+}

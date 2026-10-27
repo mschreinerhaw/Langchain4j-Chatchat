@@ -41,12 +41,115 @@ import java.util.concurrent.CancellationException;
 final class SchemaDrivenTemplateParameterBinder {
 
     static final String FUNCTION_NAME = "bind_template_parameters";
+    static final String SELECTION_FUNCTION = "select_templates_and_bind_parameters";
 
     private final ObjectMapper objectMapper;
 
     SchemaDrivenTemplateParameterBinder(ObjectMapper objectMapper) {
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
     }
+
+    /** One model decision. Java checks identities and schemas, never relevance or coverage. */
+    SelectionResult selectAndBind(ChatModel model, String query, List<Map<String,Object>> templates) {
+        return selectAndBind(model,query,templates,Map.of());
+    }
+
+    SelectionResult selectAndBind(ChatModel model,String query,List<Map<String,Object>> templates,
+                                  Map<String,Object> selectionContext) {
+        List<String> ids=templates.stream().map(this::templateId).filter(Objects::nonNull).toList();
+        Map<String,Map<String,Object>> candidates=selectedTemplates(templates,ids);
+        if(candidates.isEmpty()) return new SelectionResult("NO_CANDIDATES",List.of(),List.of(),Map.of(),null);
+        if(model==null) return new SelectionResult("MODEL_UNAVAILABLE",List.of(),List.of(),Map.of(),"Model is unavailable");
+        try {
+            List<Map<String,Object>> variants=new ArrayList<>(),catalog=new ArrayList<>();
+            for(var template:candidates.values()) {
+                Map<String,Object> fields=new LinkedHashMap<>();
+                fields.put("templateId",Map.of("type","string","enum",List.of(templateId(template))));
+                fields.put("parameters",bindingParameterSchema(template));
+                fields.put("bindingId",Map.of("type","string"));
+                String assetId=publishedAssetId(template);
+                if(assetId!=null) fields.put("assetId",Map.of("type","string","enum",List.of(assetId)));
+                variants.add(Map.of("type","object","properties",fields,
+                    "required",List.of("templateId","parameters"),"additionalProperties",false));
+                Map<String,Object> summary=new LinkedHashMap<>();
+                summary.put("templateId",templateId(template));
+                for(String key:List.of("title","description","assetType","businessGroup","asset","dependencySpec","outputSchema")) {
+                    Object value=template.get(key);
+                    if(value!=null) summary.put(key,value instanceof String text&&text.length()>800?text.substring(0,800):value);
+                }
+                catalog.add(summary);
+            }
+            var schema=Map.of("type","object","additionalProperties",false,
+                "required",List.of("status","selections"),"properties",Map.of(
+                    "status",Map.of("type","string","enum",List.of("SELECTED","NO_MATCH","NEEDS_INPUT")),
+                    "selections",Map.of("type","array","maxItems",ToolCallBatchSchema.DEFAULT_MAX_CALLS,
+                        "items",Map.of("oneOf",variants)),
+                    "reason",Map.of("type","string"),
+                    "missingAspects",Map.of("type","array","items",Map.of("type","string"))));
+            ObjectNode node=objectMapper.createObjectNode();node.put("name",SELECTION_FUNCTION);
+            node.put("description","Select returned templates and extract their parameters for the user's complete request.");
+            node.set("parameters",objectMapper.valueToTree(schema));
+            var spec=ToolSpecification.fromJson(objectMapper.writeValueAsString(node));
+            var response=nativeCall(model,List.of(SystemMessage.from(
+                "You own business interpretation, template relevance and coverage. Select all and only the returned templates needed "
+                +"for the complete user request, including complementary sources and multiple assets when needed. "
+                +"Treat IDs as opaque. Return exactly one designated function call with selections containing templateId and parameters. "
+                +"Use assetId only when published in that template's contract; fixed binding assets are resolved by the supplier. "
+                +"Extract parameter values from the user request. Omit unknown required values and use NEEDS_INPUT; do not invent them. "
+                +"Use NO_MATCH with an empty selection when no candidate is suitable. Java validates identities, permissions and schemas only."),
+                UserMessage.from("User request: "+Objects.toString(query,"")+"\nCandidates: "+objectMapper.writeValueAsString(catalog)
+                    +"\nPublished scope and prior observations: "+objectMapper.writeValueAsString(selectionContext))),spec,ToolChoice.AUTO);
+            AiMessage message=response==null?null:response.aiMessage();
+            if(message==null||!message.hasToolExecutionRequests()||message.toolExecutionRequests().size()!=1
+                    ||!SELECTION_FUNCTION.equals(message.toolExecutionRequests().get(0).name()))
+                return new SelectionResult("INVALID_MODEL_RESPONSE",List.of(),List.of(),Map.of(),"Expected one selection function call");
+            Map<String,Object> decision=objectMapper.readValue(message.toolExecutionRequests().get(0).arguments(),new TypeReference<>(){});
+            String status=text(decision.get("status"));
+            if(!Set.of("SELECTED","NO_MATCH","NEEDS_INPUT").contains(Objects.toString(status,""))
+                    ||!(decision.get("selections") instanceof Collection<?> selections))
+                return new SelectionResult("INVALID_MODEL_RESPONSE",List.of(),List.of(),decision,"Missing status or selections");
+            if(selections.size()>ToolCallBatchSchema.DEFAULT_MAX_CALLS)
+                return new SelectionResult("INVALID_MODEL_RESPONSE",List.of(),List.of(),decision,"Selection execution limit exceeded");
+            List<Map<String,Object>> bindings=new ArrayList<>();List<String> selected=new ArrayList<>();
+            for(Object value:selections) {
+                Map<String,Object> selection=map(value);String id=text(selection.get("templateId"));
+                Map<String,Object> template=id==null?null:candidates.get(id.toLowerCase(Locale.ROOT));
+                if(template==null) return new SelectionResult("INVALID_TEMPLATE_ID",List.of(),List.of(),decision,"Selected ID was not returned");
+                String asset=text(selection.get("assetId"));
+                if(asset!=null&&!asset.equals(publishedAssetId(template)))
+                    return new SelectionResult("INVALID_ASSET_BINDING",List.of(),List.of(),decision,"Asset does not match published template binding");
+                if(!(selection.get("parameters") instanceof Map<?,?>))
+                    return new SelectionResult("INVALID_PARAMETERS",List.of(),List.of(),decision,"parameters must be an object");
+                Map<String,Object> parameters=map(selection.get("parameters"));
+                if(!map(parameterSchema(template).get("properties")).keySet().containsAll(parameters.keySet()))
+                    return new SelectionResult("INVALID_PARAMETERS",List.of(),List.of(),decision,"Parameter field is not in the published schema");
+                selected.add(templateId(template));
+                Map<String,Object> binding=new LinkedHashMap<>();binding.put("template_id",templateId(template));
+                binding.put("arguments",parameters);if(selection.get("bindingId")!=null)binding.put("binding_id",selection.get("bindingId"));
+                bindings.add(binding);
+            }
+            if("NO_MATCH".equals(status)&&!selected.isEmpty()||"SELECTED".equals(status)&&selected.isEmpty())
+                return new SelectionResult("INVALID_MODEL_RESPONSE",List.of(),List.of(),decision,"status and selections disagree");
+            List<Map<String,Object>> bound=protocols(bindings,query,candidates);
+            if(bound.stream().anyMatch(protocol->protocol.get("unresolved_parameters") instanceof Collection<?> missing&&!missing.isEmpty()))
+                return new SelectionResult("PARAMETERS_REQUIRED",List.copyOf(new LinkedHashSet<>(selected)),bound,decision,"Required parameter binding is incomplete");
+            return new SelectionResult(status,List.copyOf(new LinkedHashSet<>(selected)),bound,decision,null);
+        } catch(AgentBudgetExceededException|CancellationException failure) {throw failure;}
+        catch(com.fasterxml.jackson.core.JsonProcessingException failure) {
+            return new SelectionResult("INVALID_MODEL_RESPONSE",List.of(),List.of(),Map.of(),"Selection response is not valid JSON");
+        }
+        catch(Exception failure) {
+            log.info("Template selection model call unavailable: {}",failure.getClass().getSimpleName());
+            return new SelectionResult("MODEL_UNAVAILABLE",List.of(),List.of(),Map.of(),failure.getClass().getSimpleName());
+        }
+    }
+
+    private String publishedAssetId(Map<String,Object> template) {
+        return text(first(map(template.get("asset")),"id","assetId"));
+    }
+
+    record SelectionResult(String status,List<String> selectedIds,List<Map<String,Object>> protocols,
+                           Map<String,Object> decision,String error) {}
 
     Optional<BindingResult> bind(ChatModel model,
                                  String userQuery,

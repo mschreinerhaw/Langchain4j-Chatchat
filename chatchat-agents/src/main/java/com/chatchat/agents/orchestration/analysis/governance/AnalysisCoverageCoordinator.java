@@ -11,7 +11,7 @@ import dev.langchain4j.model.chat.ChatModel;
 import java.util.*;
 import java.util.function.BooleanSupplier;
 import static com.chatchat.agents.orchestration.support.AgentValueSupport.*;
-/** Prepares scoped data access for the single analysis model. No partitioned Agent workflow. */
+/** Supplies authorized snapshots and technical receipts to the analysis model; makes no business decisions. */
 public final class AnalysisCoverageCoordinator {
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AnalysisCoverageCoordinator.class);
     private final AgentRunResultAdapter resultAdapter;
@@ -56,8 +56,7 @@ public final class AnalysisCoverageCoordinator {
             boolean acquired = request.result() != null && request.result().success()
                 && datasets.stream().anyMatch(dataset -> dataset.recordCount() > 0)
                 && projection.excludedDatasets().isEmpty();
-            if (!acquired && !optionalEmpty)
-                throw new IllegalStateException("REQUIRED_MCP_DATA_UNAVAILABLE: file analysis cannot bypass missing, failed or unconfirmed business evidence");
+            if (!acquired) request.metadata().put("mcpDataAvailable",false);
             if (coding == null) throw new IllegalStateException("File analysis requires Coding");
             var combined = new ArrayList<>(datasets);
             var fileSources = coding.prepareFileSources(request);
@@ -80,40 +79,48 @@ public final class AnalysisCoverageCoordinator {
                 + (excluded.get("error") == null ? "" : ", error=" + excluded.get("error")) + "）。",
             "analysis_summary_governance", metadataOf(
                 "type", "analysis_dataset_excluded", "exclusion", excluded)));
+        if (codingOwned && datasets.isEmpty()) {
+            // A supply receipt is an observation, never a substitute for business records.
+            // The model decides how to respond or request authorized data; Java reports facts.
+            datasets=List.of(supplyStatusDataset(request));
+        }
         if (datasets.isEmpty() && !com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(request.metadata())) {
-            // A failed acquisition is not a successful empty business result. Discovery
-            // steps may succeed while the actual data query fails before projection.
-            if (codingOwned && request.result() != null && (!request.result().success()
-                || request.result().steps().stream().anyMatch(step -> !step.success()))) {
-                var failed = request.result().steps().stream().filter(step -> !step.success())
-                    .map(step -> metadataOf("stepId", step.stepId(), "toolName", step.toolName(),
-                        "error", step.errorMessage())).toList();
-                request.metadata().put("dataAcquisitionFailure", metadataOf(
-                    "status", "FAILED", "businessDatasetCount", 0, "failedSteps", failed));
-                String cause = failed.isEmpty() ? "execution plan did not complete"
-                    : String.valueOf(failed.get(0).get("error"));
-                throw new IllegalStateException("REQUIRED_MCP_DATA_UNAVAILABLE: data acquisition failed; no business evidence is available for analysis; cause=" + cause);
-            }
             writeEmptyProjectionCompletion(request, projection.excludedDatasets());
             boolean sourceFailed = projection.excludedDatasets().stream().anyMatch(
                 item -> "FAILED".equals(item.get("accountingStatus")));
-            if (codingOwned) {
-                request.metadata().put("codingOwnedAnalysisActive", true);
-                request.metadata().put("datasetAnalysisMode", "CODING_OWNED_DATA_ANALYSIS");
-                request.metadata().put("javaDataExplorationSkipped", true);
-                request.metadata().put("javaAnalysisRefinementSkipped", true);
-                request.metadata().put("javaPostCodingExplorationSkipped", true);
-                request.metadata().put("modelNativeReportDraft",
-                    "No authorized dataset was produced, so the requested data analysis could not be started.");
-                request.metadata().put("analysisSynthesisBarrierReady", true);
-                request.metadata().put("analysisSynthesisBarrierStatus", "NO_AUTHORIZED_DATA");
-            }
             return new CoverageBundle("", "", List.of(), 0, 0, 0, false,
                 !sourceFailed, true, !sourceFailed, 0, List.of(), List.of());
         }
 
         return codingOwned ? analyzeWithCoding(request, datasets) : analyzeWithHarness(request, datasets);
     }
+    private AnalysisEvidenceCoordinator.Dataset supplyStatusDataset(Request request) {
+        List<Map<String,Object>> operations=new ArrayList<>();
+        if(request.result()!=null) for(var step:request.result().steps()) {
+            var call=step.toolExecution();
+            Boolean toolSucceeded=call==null||call.output()==null?null:call.output().isSuccess();
+            operations.add(metadataOf("stepId",step.stepId(),"toolName",step.toolName(),
+                "stepCompleted",step.success(),"toolResultSucceeded",toolSucceeded,
+                "toolExecutionOutcome",call==null?null:call.outcome(),
+                "mcpDiscoverySucceeded",step.metadata().get("mcpDiscoverySucceeded"),
+                "modelDecision",step.metadata().get("modelCandidateDecision"),
+                "selectionStatus",step.metadata().get("candidateSelectionStatus"),
+                "modelSelectedTemplateIds",step.metadata().get("modelSelectedTemplateIds"),
+                "error",step.errorMessage()));
+        }
+        Map<String,Object> status=metadataOf("recordType","DATA_SUPPLY_STATUS","businessDataAvailable",false,
+            "operations",List.copyOf(operations),"excludedSources",request.metadata().getOrDefault("recordAnalysisExcludedDatasets",List.of()));
+        request.metadata().put("dataSupplyStatus",status);
+        request.metadata().put("businessDataAvailable",false);
+        String reference="supply-status:"+request.isolationScope().runId();
+        return new AnalysisEvidenceCoordinator.Dataset(reference,Map.of("recordType","DATA_SUPPLY_STATUS",
+            "businessData",false,"source",Map.of("kind","RUNTIME_SUPPLY_STATUS")),List.of(status));
+    }
+
+    private boolean supplyStatus(AnalysisEvidenceCoordinator.Dataset dataset) {
+        return "DATA_SUPPLY_STATUS".equals(dataset.analysisContext().get("recordType"));
+    }
+
     private boolean isDataAnalysis(Request request) {
         return com.chatchat.agents.orchestration.analysis.contract.RuntimeAnalysisOwnership
             .codingOwnsAnalysis(request.runtimeAttributes());
@@ -307,7 +314,8 @@ public final class AnalysisCoverageCoordinator {
         request.metadata().put("analysisModelIntent", Map.of(
             "protocol", "coding_owned_analysis.v1", "action", "PUBLISH",
             "resultDatasetReference", resultReference));
-        long rows = datasets.stream().mapToLong(AnalysisEvidenceCoordinator.Dataset::recordCount).sum();
+        long rows = datasets.stream().filter(dataset -> !supplyStatus(dataset))
+            .mapToLong(AnalysisEvidenceCoordinator.Dataset::recordCount).sum();
         int count = Math.toIntExact(rows);
         var failures = sourceFailureDatasets(request.metadata());
         boolean[] sourceCompleteness = {true};
@@ -316,9 +324,9 @@ public final class AnalysisCoverageCoordinator {
             sourceCompleteness[0] &= sourcePage.rows().stream()
                 .noneMatch(record -> Boolean.FALSE.equals(record.get("sourceComplete")));
         }));
-        boolean availableComplete = failures.isEmpty();
-        request.metadata().put("recordAnalysisDatasetCount", datasets.size());
-        request.metadata().put("recordAnalysisSuccessfulDatasetCount", datasets.size());
+        boolean availableComplete = failures.isEmpty() && datasets.stream().noneMatch(this::supplyStatus);
+        request.metadata().put("recordAnalysisDatasetCount", Math.toIntExact(datasets.stream().filter(dataset -> !supplyStatus(dataset)).count()));
+        request.metadata().put("recordAnalysisSuccessfulDatasetCount", Math.toIntExact(datasets.stream().filter(dataset -> !supplyStatus(dataset)).count()));
         request.metadata().put("recordAnalysisFailedDatasetCount", failures.size());
         request.metadata().put("recordAnalysisReturnedRecordCount", count);
         request.metadata().put("recordAnalysisProcessedRecordCount", count);
@@ -425,7 +433,7 @@ public final class AnalysisCoverageCoordinator {
             sourceCompleteness[0] &= page.rows().stream().noneMatch(record -> Boolean.FALSE.equals(record.get("sourceComplete")));
         }));
         boolean sourceComplete = sourceCompleteness[0];
-        boolean availableComplete = failures.isEmpty();
+        boolean availableComplete = failures.isEmpty() && datasets.stream().noneMatch(this::supplyStatus);
         request.metadata().put("recordAnalysisFailedDatasetCount", failures.size());
         request.metadata().put("recordAnalysisReturnedRecordCount", count);
         request.metadata().put("recordAnalysisProcessedRecordCount", count);

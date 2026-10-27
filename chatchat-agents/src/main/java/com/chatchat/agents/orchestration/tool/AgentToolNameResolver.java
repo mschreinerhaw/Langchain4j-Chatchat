@@ -111,6 +111,14 @@ public class AgentToolNameResolver {
         return left != null && left.equals(right);
     }
 
+    /** A completed scoped child satisfies its declared parent boundary, never a sibling. */
+    public boolean satisfiesCapability(String completed, String required) {
+        return sameToolName(completed, required)
+            || capabilityHierarchy.isImplementationOf(completed, required)
+            || toolRegistry != null && com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata
+                .suppliesBoundDiscovery(toolRegistry.getToolMetadata(completed),toolRegistry.getToolMetadata(required));
+    }
+
     public boolean isWebSearchToolName(String toolName) {
         return toolName != null && toolName.toLowerCase(Locale.ROOT).contains(WEB_SEARCH_TOOL);
     }

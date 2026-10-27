@@ -14,6 +14,7 @@ class PublishedTemplateSupplyTest {
         var registry=mock(ToolRegistry.class);
         Map<String,Object> child=new LinkedHashMap<>();
         child.put("assetType","sql_datasource");
+        child.put("parentRemoteToolName",BRIDGE);
         child.put("templateSelectionScope",McpTemplateSelectionScope.fixedBinding("sql_datasource").toMetadata());
         child.put("workflowContract",ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_DISCOVERY,"mcp.authorized-template-query.v1","filters","template"));
         Map<String,Object> bridge=Map.of("assetType","sql_datasource","executionTool",EXECUTE,"workflowContract",ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_DISCOVERY,"mcp.sql-template.v1","filters"));
@@ -32,7 +33,7 @@ class PublishedTemplateSupplyTest {
         Map<String,Object> executor=Map.of("argumentBindingPolicy",policy,"workflowContract",ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_EXECUTION,"mcp.sql-template.v1","executionContext"));
         var entries=Map.of(CHILD,child,BRIDGE,bridge,EXECUTE,executor);
         when(registry.getAllToolNames()).thenReturn(entries.keySet());
-        entries.forEach((name,meta)->when(registry.getToolMetadata(name)).thenReturn(ToolMetadata.builder().id(name).metadata(nested?Map.of("mcpToolMeta",meta):meta).build()));
+        entries.forEach((name,meta)->when(registry.getToolMetadata(name)).thenReturn(ToolMetadata.builder().id(name).metadata(nested?Map.of("mcpToolMeta",meta,"parentRemoteToolName",name.equals(CHILD)?BRIDGE:""):meta).build()));
         entries.keySet().forEach(name->when(registry.hasTool(name)).thenReturn(true));
         when(registry.getWorkflowRole(anyString())).thenAnswer(i->ToolWorkflowContract.resolveRole(i.getArgument(0),registry.getToolMetadata(i.getArgument(0))));
         return registry;
@@ -75,51 +76,82 @@ class PublishedTemplateSupplyTest {
         when(registry.getToolMetadata(EXECUTE)).thenReturn(ToolMetadata.builder().metadata(Map.of("workflowContract",ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_EXECUTION,"mcp.ssh-template.v1","executionContext"))).build());
         assertThat(new com.chatchat.agents.runtime.plan.template.PublishedDataAcquisitionPlanner(registry).compile("Inspect",List.of(CHILD,EXECUTE),List.of(CHILD,EXECUTE))).isNull();
     }
-    @Test void assetStageCannotSupplyTemplateIdsOrDisappearFromTheCompiledChain() {
-        var registry=registry(true);
-        var bridge=registry.getToolMetadata(BRIDGE);
-        bridge.setParameters(List.of(ToolParameter.builder().name("stage").type("string").enumValues(new String[]{"asset","template"}).build()));
-        var plan=new com.chatchat.agents.runtime.plan.template.PublishedDataAcquisitionPlanner(registry)
-            .compile("Inspect authorized target",List.of(BRIDGE,CHILD,EXECUTE),List.of(BRIDGE,CHILD,EXECUTE));
-        assertThat(plan).isNotNull();
-        assertThat(plan.steps()).extracting(InterpretationPlan.Step::toolName).containsExactly(BRIDGE,CHILD,EXECUTE,"");
-        assertThat(plan.steps().get(0).input()).containsEntry("stage","asset");
-        assertThat(plan.steps().get(1).dependsOn()).containsExactly(1);
-        assertThat(plan.steps().get(2).dependsOn()).containsExactly(2);
-        assertThat(plan.plan().bindings()).allSatisfy(b->assertThat(b.from()).isEqualTo(2));
-        var optimized=new InterpretationPlanOptimizer(registry).optimize(plan,List.of(
-            Map.of("tool",BRIDGE,"dependsOnTools",List.of()),
-            Map.of("tool",CHILD,"dependsOnTools",List.of(BRIDGE)),
-            Map.of("tool",EXECUTE,"dependsOnTools",List.of(CHILD)))).plan();
-        assertThat(optimized.steps()).extracting(InterpretationPlan.Step::toolName).containsExactly(BRIDGE,CHILD,EXECUTE,"");
-        assertThat(optimized.plan().bindings()).allSatisfy(b->assertThat(b.from()).isEqualTo(2));
+    @Test void fixedBindingDoesNotRediscoverAssetsEvenWhenBridgeHasAssetStage() {
+        for (boolean nested : List.of(false, true)) {
+            var registry=registry(nested);
+            registry.getToolMetadata(BRIDGE).setParameters(List.of(ToolParameter.builder()
+                .name("stage").type("string").enumValues(new String[]{"asset","template"}).build()));
+            var compiled=new com.chatchat.agents.runtime.plan.template.PublishedDataAcquisitionPlanner(registry)
+                .compile("Inspect authorized target",List.of(BRIDGE,CHILD,EXECUTE),List.of(BRIDGE,CHILD,EXECUTE));
+            assertThat(compiled).isNotNull();
+            assertThat(compiled.steps()).extracting(InterpretationPlan.Step::toolName).containsExactly(CHILD,EXECUTE,"");
+            var optimizer=new InterpretationPlanOptimizer(registry);
+            var optimized=optimizer.optimize(plan(),List.of(
+                Map.of("tool",BRIDGE,"required",true),
+                Map.of("tool",CHILD,"dependsOnTools",List.of(BRIDGE)),
+                Map.of("tool",EXECUTE,"dependsOnTools",List.of(CHILD)))).plan();
+            assertThat(optimized.steps()).extracting(InterpretationPlan.Step::toolName).containsExactly(CHILD,EXECUTE,"");
+            assertThat(optimized.plan().bindings()).allSatisfy(b->assertThat(b.from()).isEqualTo(1));
+            assertThat(new InterpretationPlanValidator().validate(optimized,registry,Set.of(CHILD,EXECUTE),List.of(
+                Map.of("tool",BRIDGE), Map.of("tool",CHILD,"dependsOnTools",List.of(BRIDGE)),
+                Map.of("tool",EXECUTE,"dependsOnTools",List.of(CHILD))),"bound-task").errors()).isEmpty();
+            assertThat(optimizer.optimize(optimized).plan().steps()).hasSameSizeAs(optimized.steps());
+        }
     }
 
-    @Test void omittedStageInNestedPublisherIsExpandedBeforeFixedScopePruning() {
+    @Test void unboundStagedDiscoveryStillRequiresAssetSelection() {
         var registry=registry(true);
-        var bridge=registry.getToolMetadata(BRIDGE);
-        Map<String,Object> attributes=new LinkedHashMap<>(bridge.getMetadata());
-        Map<String,Object> publisher=new LinkedHashMap<>((Map<String,Object>)attributes.get("mcpToolMeta"));
-        publisher.put("inputSchema",Map.of("type","object","properties",Map.of(
-            "stage",Map.of("type","string","enum",List.of("asset","template")))));
-        attributes.put("mcpToolMeta",publisher);bridge.setMetadata(attributes);
-        var optimizer=new InterpretationPlanOptimizer(registry);
-        var optimized=optimizer.optimize(plan()).plan();
-        var asset=optimized.steps().stream().filter(s->BRIDGE.equals(s.toolName())).findFirst().orElseThrow();
-        assertThat(asset.input()).containsEntry("stage","asset");
-        var provider=optimized.steps().stream().filter(s->CHILD.equals(s.toolName())).findFirst().orElseThrow();
-        assertThat(provider.dependsOn()).contains(asset.id());
-        var execution=optimized.steps().stream().filter(s->EXECUTE.equals(s.toolName())).findFirst().orElseThrow();
-        assertThat(execution.dependsOn()).contains(provider.id());
-        assertThat(optimized.plan().bindings()).allSatisfy(b->assertThat(b.from()).isEqualTo(provider.id()));
-        assertThat(new InterpretationPlanValidator().validate(optimized,registry,Set.of(BRIDGE,CHILD,EXECUTE)).errors()).isEmpty();
-        assertThat(optimizer.optimize(optimized).plan().steps()).hasSameSizeAs(optimized.steps());
-        var configured=optimizer.optimize(plan(),List.of(
-            Map.of("tool",BRIDGE,"required",true),
-            Map.of("tool",EXECUTE,"required",true,"dependsOnTools",List.of(BRIDGE)),
-            Map.of("tool",CHILD,"required",false))).plan();
-        assertThat(configured.steps()).filteredOn(s->BRIDGE.equals(s.toolName()))
-            .singleElement().satisfies(s->assertThat(s.input()).containsEntry("stage","asset"));
-        assertThat(new InterpretationPlanValidator().validate(configured,registry,Set.of(BRIDGE,CHILD,EXECUTE)).errors()).isEmpty();
+        registry.getToolMetadata(CHILD).setMetadata(Map.of());
+        registry.getToolMetadata(BRIDGE).setParameters(List.of(ToolParameter.builder()
+            .name("stage").type("string").enumValues(new String[]{"asset","template"}).build()));
+        var optimized=new InterpretationPlanOptimizer(registry).optimize(plan()).plan();
+        assertThat(optimized.steps()).anySatisfy(s -> {
+            assertThat(s.toolName()).isEqualTo(BRIDGE);
+            assertThat(s.input()).containsEntry("stage","asset");
+        });
+        assertThat(new com.chatchat.agents.runtime.plan.template.PublishedDataAcquisitionPlanner(registry)
+            .compile("Inspect",List.of(BRIDGE,EXECUTE),List.of(BRIDGE,EXECUTE))).isNull();
     }
+    @Test void completedChildSatisfiesOnlyItsPublishedParentWorkflowBoundary() {
+        var registry=registry(true);
+        var child=new LinkedHashMap<>(registry.getToolMetadata(CHILD).getMetadata());
+        child.remove("parentRemoteToolName");
+        registry.getToolMetadata(CHILD).setMetadata(child);
+        var names=new com.chatchat.agents.orchestration.tool.AgentToolNameResolver(
+            new com.chatchat.agents.tool.RegistryMcpCapabilityHierarchy(registry),registry);
+        var resolver=new com.chatchat.agents.orchestration.workflow.AgentWorkflowToolResolver(names);
+        assertThat(resolver.missingMandatoryTools(List.of(BRIDGE,CHILD,EXECUTE),Set.of(CHILD,EXECUTE))).isEmpty();
+        assertThat(resolver.missingMandatoryTools(List.of(CHILD),Set.of(BRIDGE))).containsExactly(CHILD);
+        assertThat(resolver.missingMandatoryTools(List.of(EXECUTE),Set.of(CHILD))).containsExactly(EXECUTE);
+    }
+
+    @Test void fixedPublicationCannotSatisfyAnotherFixedPublication() {
+        var registry=registry(false);
+        var bridge=new LinkedHashMap<>(registry.getToolMetadata(BRIDGE).getMetadata());
+        bridge.put("templateSelectionScope",McpTemplateSelectionScope.fixedBinding("sql_datasource").toMetadata());
+        registry.getToolMetadata(BRIDGE).setMetadata(bridge);
+        assertThat(new com.chatchat.agents.runtime.plan.template.PublishedDataAcquisitionPlanner(registry)
+            .compile("Inspect",List.of(CHILD,BRIDGE,EXECUTE),List.of(CHILD,BRIDGE,EXECUTE))).isNull();
+        var resolver=new com.chatchat.agents.orchestration.tool.AgentToolNameResolver(
+            com.chatchat.common.mcp.capability.McpCapabilityHierarchy.empty(),registry);
+        assertThat(resolver.satisfiesCapability(CHILD,BRIDGE)).isFalse();
+    }
+    @Test void separateAssetDiscoveryIsReplacedByFixedBindingWithoutChangingItsIdentity() {
+        var registry=registry(false);
+        var child=new LinkedHashMap<>(registry.getToolMetadata(CHILD).getMetadata());
+        child.remove("parentRemoteToolName");
+        registry.getToolMetadata(CHILD).setMetadata(child);
+        registry.getToolMetadata(BRIDGE).setMetadata(Map.of("assetType","sql_datasource",
+            "workflowContract",ToolWorkflowContract.declaration(ToolWorkflowRole.ASSET_DISCOVERY,"asset.v1","filters")));
+        var compiled=new com.chatchat.agents.runtime.plan.template.PublishedDataAcquisitionPlanner(registry)
+            .compile("Analyze customer C42",List.of(BRIDGE,CHILD,EXECUTE),List.of(BRIDGE,CHILD,EXECUTE));
+        assertThat(compiled).isNotNull();
+        assertThat(compiled.steps()).extracting(InterpretationPlan.Step::toolName).containsExactly(CHILD,EXECUTE,"");
+        var optimized=new InterpretationPlanOptimizer(registry).optimize(plan()).plan();
+        assertThat(optimized.steps()).extracting(InterpretationPlan.Step::toolName).doesNotContain(BRIDGE);
+        assertThat(new InterpretationPlanValidator().validate(optimized,registry,Set.of(CHILD,EXECUTE),List.of(
+            Map.of("tool",BRIDGE),Map.of("tool",CHILD,"dependsOnTools",List.of(BRIDGE)),
+            Map.of("tool",EXECUTE,"dependsOnTools",List.of(CHILD))),"live-shaped-task").errors()).isEmpty();
+    }
+
 }

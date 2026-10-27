@@ -11,6 +11,7 @@ p.add_argument('--auth-file',required=True,type=Path)
 p.add_argument('--output-dir',required=True,type=Path)
 p.add_argument('--action',choices=['inspect','run','collect'],default='run')
 p.add_argument('--task-id')
+p.add_argument('--case',choices=['normal','cancel'],default='normal')
 p.add_argument('--model-source-task',default='56d610a8-d065-4389-aefa-252b42c3ccb5')
 a=p.parse_args();os.umask(0o077);a.output_dir.mkdir(parents=True,exist_ok=True)
 client=urllib.request.build_opener(urllib.request.ProxyHandler({}));token=None
@@ -27,6 +28,7 @@ if 'token' in auth_input:
 else:
     auth=call('/enterprise/auth/login',json.dumps(auth_input).encode());token=auth['token']
 tenant=auth['user']['tenantId'];q='?tenantId='+urllib.parse.quote(tenant)
+(a.output_dir/'browser-auth.private.json').write_text(json.dumps({'token':token,'user':auth['user']}))
 prior=call('/agent/tasks/'+a.model_source_task+q)
 if a.action=='inspect':
     print(json.dumps({key:prior.get(key) for key in ['taskId','modelName','canonicalState','status']}));raise SystemExit
@@ -44,6 +46,7 @@ if a.action=='run':
 else:task_id=a.task_id
 assert task_id
 events=[];cursor=0;deadline=time.monotonic()+660;last=None
+cancel_at=time.monotonic()+10;cancel_requested=False
 while True:
     task=call('/agent/tasks/'+task_id+q)
     page=call('/agent/tasks/'+task_id+'/events'+q+'&limit=200&afterSequence='+str(cursor))
@@ -55,6 +58,10 @@ while True:
     if state!=last:print(json.dumps({'taskId':task_id,'state':state,'events':len(events)}),flush=True);last=state
     (a.output_dir/'task.private.json').write_text(json.dumps({'task':task,'events':events}))
     if state in {'SUCCEEDED','PARTIAL','FAILED','CANCELLED','REJECTED'} and len(page)<200:break
+    if a.action=='run' and a.case=='cancel' and not cancel_requested and time.monotonic()>=cancel_at:
+        call('/agent/tasks/'+task_id+'/cancel'+q,{})
+        cancel_requested=True
+        print(json.dumps({'taskId':task_id,'cancellationRequested':True}),flush=True)
     if a.action=='collect' and not page:break
     if time.monotonic()>deadline:
         call('/agent/tasks/'+task_id+'/cancel'+q,{})
@@ -73,7 +80,14 @@ for event in events:
 fixture={'id':'live-workbench','role':'assistant','taskId':task_id,'taskTitle':'真实 CSV 与 SQL 分析验收','status':task.get('status'),
   'canonicalState':task.get('canonicalState'),'streaming':False,'steps':safe,'executionSnapshot':{k:task.get(k) for k in ['attemptId','createTime','finishedAt','canonicalState']}}
 (a.output_dir/'presentation-fixture.json').write_text(json.dumps(fixture,ensure_ascii=False))
-summary={'taskId':task_id,'attemptId':task.get('attemptId'),'canonicalState':task.get('canonicalState'),'eventCount':len(events),
+summary={'case':a.case,'taskId':task_id,'attemptId':task.get('attemptId'),'canonicalState':task.get('canonicalState'),'eventCount':len(events),
   'executionObservations':len(operations),'confirmedExecutionObserved':any(e.get('executorConfirmed') for e in operations),
   'stoppedExecutionObserved':any(e.get('executorStopped') for e in operations),'workerTypes':sorted({e['payload']['metadata'].get('workerActivity',{}).get('type','') for e in safe}-{''})}
+summary['expectedTotalReported']=any('3.75' in json.dumps(e.get('payload','')) for e in events if e.get('type') in {'RESULT','COMPLETE','RUNTIME_COMPLETED'})
+try:
+    coding=call('/agent/runtime/runs/'+task['attemptId']+'/coding')
+    (a.output_dir/'coding.private.json').write_text(json.dumps(coding))
+    summary['coding']=[{'taskId':child['taskId'],'status':child['outcome']['status'],
+      'validationStatus':child['outcome']['validationStatus'],'usage':child['outcome'].get('usage',{}).get('consumed',{})} for child in coding.get('tasks',[])]
+except urllib.error.HTTPError as error:summary['codingHttpStatus']=error.code
 (a.output_dir/'verification.json').write_text(json.dumps(summary,indent=2));print(json.dumps(summary),flush=True)

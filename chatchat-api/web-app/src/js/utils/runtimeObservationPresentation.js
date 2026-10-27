@@ -34,6 +34,7 @@ function moment(value) {
 const OPERATION_LABELS = {
   MODEL: ['等待分析响应', '本轮分析响应已返回'], DATA: ['正在获取授权数据', '数据操作已完成'],
   PROGRAM: ['正在准备分析程序', '分析程序已准备'], EXECUTION: ['分析计算正在执行', '分析计算已结束'],
+  CODE_CHECK: ['正在检查分析程序', '分析程序检查已结束'],
   VALIDATION: ['正在校验结果产物', '结果校验操作已结束'], PLAN: ['正在识别任务目标', '任务方案已确定']
 };
 function executionActivity(event, runtime, metadata) {
@@ -69,8 +70,10 @@ function executionActivity(event, runtime, metadata) {
       const tool = worker.tool;
       // A proposed calculation is not execution-node confirmation. Its actual running/stop receipts are separate.
       if (tool === 'python_execute') return null;
-      category = tool === 'data_request' ? 'DATA' : 'VALIDATION';
-      phase = category === 'DATA' ? 2 : 4;
+      category = {data_request:'DATA',metadata_read:'DATA',workspace_read:'DATA',skill_read:'PLAN',
+        sql_validate:'CODE_CHECK',workspace_propose:'PROGRAM',artifact_read:'VALIDATION'}[tool];
+      if (!category) return null;
+      phase = {DATA:2,PLAN:1,CODE_CHECK:3,PROGRAM:3,VALIDATION:4}[category];
       identity = worker.toolCallId || operation;
       state = workerType === 'TOOL_STARTED' ? 'active' : businessState(worker.status || status);
     } else return null;
@@ -275,7 +278,7 @@ export function executionWorkbench(events = [], task = {}, now = Date.now(), pol
       .sort((a,b)=>a[0]-b[0]);
     let sum=0,end=0;
     for(const [start,finish]of intervals){if(finish>Math.max(start,end))sum+=finish-Math.max(start,end);end=Math.max(end,finish);}
-    return {kind,label:{MODEL:'分析响应',PLAN:'需求识别',DATA:'数据操作',PROGRAM:'程序准备',EXECUTION:'计算执行',VALIDATION:'结果校验'}[kind],
+    return {kind,label:{MODEL:'分析响应',PLAN:'需求识别',DATA:'数据操作',PROGRAM:'程序准备',CODE_CHECK:'程序检查',EXECUTION:'计算执行',VALIDATION:'结果校验'}[kind],
       durationLabel:intervals.length?executionDuration(sum):'未单独记录'};
   });
   const phase=progress.current;

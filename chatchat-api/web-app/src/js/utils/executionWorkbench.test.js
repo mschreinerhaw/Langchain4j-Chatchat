@@ -68,6 +68,13 @@ describe('execution workbench receipt integrity', () => {
     expect(project([receipt(1,'RUNNING',{codingEventType:'RECOVERY_RECONCILED',
       payload:{type:'TOOL_STARTED',tool:'python_execute',toolCallId:'proposal'}})]).allActivities).toHaveLength(0);
   });
+  it('does not present static SQL validation as final result verification', () => {
+    const result=project([receipt(1,'RUNNING',{codingEventType:'RECOVERY_RECONCILED',
+      payload:{type:'TOOL_STARTED',tool:'sql_validate',operationId:'sql-check'}})]);
+    expect(result.allActivities[0].kind).toBe('CODE_CHECK');
+    expect(result.allActivities[0].phase).toBe(3);
+    expect(result.steps[4].status).toBe('pending');
+  });
   it('marks missing earlier phases and preserves simultaneous active phases', () => {
     const result=project([receipt(1,'RUNNING'),{sequence:2,attemptId:'a',type:'TOOL_CALL',eventId:'data'}]);
     expect(result.steps[0].status).toBe('unrecorded');

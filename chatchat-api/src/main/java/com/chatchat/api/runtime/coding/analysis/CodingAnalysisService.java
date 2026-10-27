@@ -210,6 +210,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
         String key="coding:analysis-request:"+taskId;
         var saved=checkpoints.readExecutionCheckpoint(scope,key);
         CodingTaskContract contract;
+        int snapshotCaptures=0;
         if (saved.isPresent()) {
             var record=tree(saved.get());
             if (!fingerprint.equals(record.path("requestHash").asText())) throw new IllegalArgumentException("Coding request identity conflict");
@@ -235,13 +236,15 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 throw new IllegalStateException("Python 环境发布版本已变化，请重试以使用最新默认环境。");
             String decision="runtime-coding-delegation:"+taskId, workspace="runtime-coding-workspace:"+taskId;
             observer.accept(Map.of("eventKind","CODING_INPUT_PREPARING","taskId",taskId,"source","JAVA_RUNTIME"));
+            long inputStarted=System.nanoTime();
             var input=inputs.captureConfigured(scope,taskId,List.of(source),source.reference(),decision,workspace,
                 policy.getMaxInputRows(),policy.getMaxInputBytes(),()->ensureActive(context));
+            snapshotCaptures++;
             var description=inputs.describe(scope,taskId,input);
             boolean tableInput=description.containsKey("inputManifest");
             observer.accept(Map.of("eventKind","CODING_INPUT_READY","taskId",taskId,"source","JAVA_RUNTIME",
                 "snapshotRef",input.reference(),"fileId",input.fileId(),"sha256",input.sha256(),"rowCount",input.rowCount(),
-                "format",description.getOrDefault("format","JSON_LINES")));
+                "format",description.getOrDefault("format","JSON_LINES"),"durationMs",(System.nanoTime()-inputStarted)/1_000_000));
             var plan=plans.register(scope,taskId,input,new CodingValidationPlanService.Plan("runtime-result-schema","v1",Map.of("rowSchema",schema)));
             Map<String,Object> promptDescriptor=description;
             if(tableInput)promptDescriptor=Map.of("fileId",input.fileId(),"fileName",input.fileName(),"sha256",input.sha256(),
@@ -371,9 +374,16 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             outcome=agent.submit(accepted);
             if(saved.isPresent()&&!outcome.status().terminal())outcome=agent.resume(scope,taskId);
             long nextReconciliation = System.nanoTime();
+            boolean reconciliationObserved=false;
             while(!outcome.status().terminal() && Instant.now().isBefore(accepted.budget().deadlineAt())) {
                 ensureActive(context);
                 traceCursor = publishTrace(scope,taskId,traceCursor,observer);
+                if(outcome.executionControl().reconciliationRequired() && !reconciliationObserved) {
+                    observer.accept(Map.of("eventKind","CODING_RECONCILIATION_REQUIRED","taskId",taskId,
+                        "runId",scope.runId(),"status",outcome.status().name(),"reconciliationRequired",true,
+                        "retryable",false,"deadlineAt",accepted.budget().deadlineAt().toString()));
+                    reconciliationObserved=true;
+                }
                 // Keep the parent model binding until the accepted tool budget ends. A lost
                 // worker can settle after provider receipts arrive; returning RUNNING here
                 // would orphan admission even when the same Coding task later completes.
@@ -403,7 +413,8 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             receipt.put("budgetScope","TOOL_INVOCATION");
             receipt.put("budgetId",accepted.budget().budgetId());
             receipt.put("inputDatasetCount", sourceCount);
-            receipt.put("inputSnapshotCaptureCount", 1);
+            receipt.put("inputSnapshotCaptureCount", snapshotCaptures);
+            receipt.put("inputSnapshotReused",snapshotCaptures==0);
             receipt.put("resultAvailable",false);
             if(outcome.reasonCode()!=null)receipt.put("reasonCode",outcome.reasonCode().name());
             if (outcome.reasonCode() == CodingErrorCode.OUTPUT_CONTRACT_VIOLATION) {
@@ -553,11 +564,17 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 if(fieldSchema.size()<256 || fieldSchema.containsKey(field.getKey()))
                     fieldSchema.computeIfAbsent(field.getKey(),ignored->new java.util.TreeSet<>()).add(field.getValue().getNodeType().name());
             });
-            versions.add(Map.of("datasetReference",selected.reference(),"contentSha256",selected.handle().contentSha256(),
+            var version=new LinkedHashMap<String,Object>(Map.of("datasetReference",selected.reference(),"contentSha256",selected.handle().contentSha256(),
                 "rowCount",selected.recordCount(),"fieldSchema",fieldSchema,"schemaCoverage","BOUNDED_STRUCTURAL_ONLY",
                 "fieldDefinitions",com.chatchat.api.runtime.coding.data.CodingFieldDefinitions.fromContext(selected.analysisContext()),
                 "sourceDefinition",com.chatchat.api.runtime.coding.data.CodingFieldDefinitions.sourceFromContext(selected.analysisContext()),
                 "sourceRepresentation",CodingSourceRepresentation.describe(selected.analysisContext())));
+            boolean verifiedEmpty=selected.recordCount()==0 && Boolean.TRUE.equals(selected.analysisContext().get("sourceVerifiedEmpty"));
+            version.put("sourceVerifiedEmpty",verifiedEmpty);
+            version.put("deliveryStatus",verifiedEmpty?"EMPTY_RESULT":"DATASET_READY");
+            if(selected.analysisContext().get("sourceTemplateId") instanceof String templateId)
+                version.put("sourceTemplateId",templateId);
+            versions.add(Map.copyOf(version));
         }
         final long count=total;
         var handle=new com.chatchat.agents.orchestration.analysis.dataset.PagedDatasetHandle(count,true,(offset,limit)->{

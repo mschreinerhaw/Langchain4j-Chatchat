@@ -29,7 +29,8 @@ test('validated patches survive later failures, rollback, restart and stale-pare
   const two = history.propose(edit); history.record(two, edit, { scriptVersion: 2 }, 'op-2'); history.receipt(passed);
   assert.throws(() => history.propose({ source: one }), /PATCH_REQUIRED/);
   assert.throws(() => history.propose(patch(1, one, 'extra = 0', 'extra = 1')), /PATCH_REQUIRED/);
-  assert.throws(() => history.propose(patch(2, two, 'answer = value', 'answer = value[0]')), /REGRESSION_ASSERTION/);
+  assert.equal(history.propose(patch(2, two, 'answer = value', 'answer = value + 1')),
+    two.replace('answer = value', 'answer = value + 1'));
   const next = patch(2, two, 'extra = 0', 'extra = 1');
   const three = history.propose(next); history.record(three, next, { scriptVersion: 3 }, 'op-3'); history.receipt(failed);
   const saved = structuredClone(history.snapshot()); const restored = new CodeHistory(task, saved);
@@ -58,7 +59,7 @@ test('SDK basic compaction retains the latest bound program without another mode
   assert.equal(messages.length, 9); // Canonical history is not replaced.
 });
 
-test('assertion admission limit preserves a recoverable checkpoint without discarding validated guards', () => {
+test('patch text is editable after validation and restored legacy fragments do not become authority', () => {
   const task = contract(), history = new CodeHistory(task);
   let source = Array.from({ length: 128 }, (_, i) => `v_${i} = 0`).join('\n') + '\nextra = 0';
   history.record(source, { source }, { scriptVersion: 1 }, 'initial'); history.receipt(passed);
@@ -68,10 +69,26 @@ test('assertion admission limit preserves a recoverable checkpoint without disca
     source = history.propose(input);
     history.record(source, input, { scriptVersion: group + 2 }, 'patch-' + group); history.receipt(passed);
   }
-  assert.throws(() => history.propose(patch(5, source, 'extra = 0', 'extra = 1')), /REGRESSION_ASSERTION_LIMIT/);
-  const restored = new CodeHistory(task, structuredClone(history.snapshot()));
-  assert.equal(restored.protectedFragments.length, 128);
+  const saved = structuredClone(history.snapshot());
+  saved.protectedFragments = ['v_0 = 1']; saved.forbiddenFragments = ['v_0 = 2'];
+  const restored = new CodeHistory(task, saved);
+  const edit = patch(5, source, 'v_0 = 1', 'v_0 = 2');
+  assert.equal(restored.propose(edit), source.replace('v_0 = 1', 'v_0 = 2'));
   assert.equal(restored.currentSource, source);
+});
+
+test('archived output with invalid authorized references is not a validated rollback checkpoint', () => {
+  const task = contract(), history = new CodeHistory(task), source = 'report = "bad-reference"';
+  history.record(source, { source }, { scriptVersion: 1 }, 'op-1');
+  history.receipt({ ...passed, reviewedArtifact: { reportReferenceValidation: { valid: false } } });
+  assert.equal(history.versions[0].status, 'REJECTED');
+  assert.equal(history.validHash, undefined);
+  const edit = patch(1, source, 'bad-reference', 'authorized-reference');
+  const corrected = history.propose(edit);
+  history.record(corrected, edit, { scriptVersion: 2 }, 'op-2');
+  assert.equal(history.versions[1].status, 'STARTED');
+  history.receipt({ ...passed, reviewedArtifact: { reportReferenceValidation: { valid: true } } });
+  assert.equal(history.validHash, sha(corrected));
 });
 
 test('real SDK uses exact patches, exposes local proposal rejection and resumes without replay', async () => {
@@ -95,11 +112,11 @@ test('real SDK uses exact patches, exposes local proposal rejection and resumes 
     if (modelCalls === 3) {
       const result = request.messages.flatMap(message => message.content).filter(part => part.type === 'tool-result').at(-1);
       assert.equal(result.output.lastValidatedHash, sha(original.replace('value[0]', 'value')));
-      yield { type: 'tool-call-delta', toolCallId: 'regression', toolName: 'python_execute',
-        input: patch(2, original.replace('value[0]', 'value'), 'answer = value', 'answer = value[0]') };
+      yield { type: 'tool-call-delta', toolCallId: 'later-correction', toolName: 'python_execute',
+        input: patch(2, original.replace('value[0]', 'value'), 'answer = value', 'answer = value + 1') };
     }
     if (modelCalls === 4) {
-      assert.match(JSON.stringify(request.messages), /REGRESSION_ASSERTION_FAILED/);
+      assert.match(JSON.stringify(request.messages), /answer = value \+ 1/);
       yield { type: 'text-delta', text: 'Use the latest validated result.' };
     }
     yield { type: 'usage', usage: { inputTokens: 10, outputTokens: 10 } };
@@ -107,15 +124,15 @@ test('real SDK uses exact patches, exposes local proposal rejection and resumes 
   } };
   const result = await createCodingRun(task, gateway, { model }).run();
   assert.equal(result.status, 'completed', result.error);
-  assert.equal(executions, 2);
-  const checkpoint = checkpoints.find(value => value.codeLifecycle?.versions.length === 2);
+  assert.equal(executions, 3);
+  const checkpoint = checkpoints.find(value => value.codeLifecycle?.versions.length === 3);
   assert.ok(checkpoint);
   const restored = await createCodingRun(task, gateway, { checkpoint, model: { async *stream(request) {
     assert.match(JSON.stringify(request.messages), /answer = value/);
     yield { type: 'text-delta', text: 'Recovered validated result.' }; yield { type: 'finish', reason: 'stop' };
   } } }).run();
   assert.equal(restored.status, 'completed', restored.error);
-  assert.equal(executions, 2);
+  assert.equal(executions, 3);
   assert.equal(finishes.at(-1).operationId, finishes[0].operationId);
   assert.equal(admissions.at(-1), 'model-' + (checkpoint.modelOrdinal + 1));
 });

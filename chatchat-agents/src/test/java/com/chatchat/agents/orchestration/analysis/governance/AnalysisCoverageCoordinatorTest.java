@@ -24,30 +24,37 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AnalysisCoverageCoordinatorTest {
-    @Test void selectionFailureIsDeliveredAsSupplyStatusWithoutInventingBusinessRecords() {
+    @Test void unresolvedPythonIsReportedAsReconciliationWithoutReplacementDispatch() {
+        var evidence=mock(AnalysisEvidenceCoordinator.class);
+        when(evidence.project(any(),any())).thenReturn(new AnalysisEvidenceCoordinator.Projection(List.of(
+            new AnalysisEvidenceCoordinator.Dataset("source",Map.of(),List.of(Map.of("value",1)))),List.of()));
+        var coding=mock(AnalysisCodingPort.class);
+        when(coding.executePrimaryAnalysis(any(),any(),any())).thenReturn(Map.of("taskId","existing-coding",
+            "status","RUNNING","reconciliationRequired",true,"resultAvailable",false));
+        var coordinator=coordinator(evidence);coordinator.setCodingPort(coding);
+        var base=request(new LinkedHashMap<>());
+        assertThatThrownBy(()->coordinator.analyze(new AnalysisCoverageCoordinator.Request(null,"Analyze",base.result(),
+            Map.of("taskType","DATA_ANALYSIS"),base.metadata(),base.cancellationCheck(),base.cancellationGuard(),
+            base.isolationScope(),base.summaryProtocol())))
+            .hasMessageContaining("CODING_RECONCILIATION_REQUIRED").hasMessageContaining("existing-coding")
+            .hasMessageNotContaining("PRIMARY_CODING_ANALYSIS_FAILED");
+        org.mockito.Mockito.verify(coding,org.mockito.Mockito.times(1)).executePrimaryAnalysis(any(),any(),any());
+    }
+    @Test void selectionFailureReturnsItsSupplyStatusWithoutStartingCoding() {
         var evidence=mock(AnalysisEvidenceCoordinator.class);
         when(evidence.project(any(),any())).thenReturn(new AnalysisEvidenceCoordinator.Projection(List.of(),List.of()));
         var base=request(new LinkedHashMap<>());var coding=mock(AnalysisCodingPort.class);
-        when(coding.executePrimaryAnalysis(any(),any(),any())).thenAnswer(call->{
-            Map<String,AnalysisEvidenceCoordinator.Dataset> sources=call.getArgument(1);
-            var status=sources.values().iterator().next();
-            assertThat(status.analysisContext()).containsEntry("recordType","DATA_SUPPLY_STATUS");
-            assertThat(status.handle().readPage(0,1).rows().get(0).toString()).contains("MODEL_SELECTION_UNAVAILABLE");
-            sources.put("report",new AnalysisEvidenceCoordinator.Dataset("report",Map.of(),List.of(Map.of(
-                "reportMarkdown","The supplier did not obtain a model selection; no business figures are available.",
-                "evidenceReferences",List.of(status.reference()),"limitations",List.of("Upstream model unavailable")))));
-            return Map.of("resultAvailable",true,"datasetReference","report");
-        });
         var result=new InterpretationPlanRuntime.ExecutionResult("failed",false,false,"MODEL_SELECTION_UNAVAILABLE",null,
             List.of(new InterpretationPlanRuntime.StepExecution(1,"mcp_tool","query",false,null,
-                "MODEL_SELECTION_UNAVAILABLE",null,null,1)),Map.of(),1);
+                "MODEL_SELECTION_UNAVAILABLE",null,null,1,Map.of("candidateSelectionErrorCode","MODEL_UNAVAILABLE",
+                    "mcpDiscoverySucceeded",true))),Map.of(),1);
         var coordinator=coordinator(evidence);coordinator.setCodingPort(coding);
-        var coverage=coordinator.analyze(new AnalysisCoverageCoordinator.Request(null,"Analyze",result,Map.of("taskType","DATA_ANALYSIS"),
-            base.metadata(),base.cancellationCheck(),base.cancellationGuard(),base.isolationScope(),base.summaryProtocol()));
-        assertThat(coverage.returnedRecordCount()).isZero();
+        assertThatThrownBy(()->coordinator.analyze(new AnalysisCoverageCoordinator.Request(null,"Analyze",result,Map.of("taskType","DATA_ANALYSIS"),
+            base.metadata(),base.cancellationCheck(),base.cancellationGuard(),base.isolationScope(),base.summaryProtocol())))
+            .hasMessageContaining("DATA_SUPPLY_SELECTION_FAILED").hasMessageContaining("MODEL_SELECTION_UNAVAILABLE");
         assertThat(base.metadata()).containsKey("dataSupplyStatus").containsEntry("businessDataAvailable",false);
         assertThat(base.metadata()).doesNotContainKey("dataAcquisitionFailure");
-        org.mockito.Mockito.verify(coding).executePrimaryAnalysis(any(),any(),any());
+        org.mockito.Mockito.verifyNoInteractions(coding);
     }
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.CsvSource({"OPTIONAL,true,false,true", "REQUIRED,true,false,false", "OPTIONAL,false,false,false", "REQUIRED,false,false,false",

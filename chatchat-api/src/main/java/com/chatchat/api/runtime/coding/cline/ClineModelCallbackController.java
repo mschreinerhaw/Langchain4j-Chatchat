@@ -284,13 +284,17 @@ public final class ClineModelCallbackController {
                 response = model.complete(contract, request);
             } catch (ClineRuntimeModelBridge.InvalidModelResponseException invalid) {
                 receipts.commit(contract, operationId, "runtime-model:" + operationId, invalid.receipt());
+                if (Boolean.FALSE.equals(invalid.receipt().get("providerDispatched")))
+                    settle(accounting); // Definitive local rejection must not leave an unknown execution.
                 if (supportsModelFeedback && repairableModelResponse(invalid.receipt())) {
                     assertStillOwned(call);
                     if (managedAttempt) settle(accounting);
                     return invalid.receipt();
                 }
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
-                    "Model response rejected; provider stop and usage receipt archived", invalid);
+                    Boolean.FALSE.equals(invalid.receipt().get("providerDispatched"))
+                        ? "Runtime model request rejected before provider dispatch; local stop receipt archived"
+                        : "Model response rejected; provider stop and usage receipt archived", invalid);
             } catch (RuntimeException providerFailure) {
                 LOG.warn("Bound Coding model operation {} failed after its durable start intent",
                     operationId, providerFailure);
@@ -331,11 +335,12 @@ public final class ClineModelCallbackController {
                     tasks.reconcileStopped(call.scope(), call.taskId(), call.lease(), revision, operationId, proof));
             @SuppressWarnings("unchecked") Map<String, Object> usage = (Map<String, Object>) response.get("usage");
             long input = number(usage, "inputTokens"), output = number(usage, "outputTokens");
+            boolean meteringComplete = Boolean.FALSE.equals(response.get("providerDispatched"));
             current = CodingTaskRevisions.mutate(tasks, call.scope(), call.taskId(), revision ->
                 tasks.settle(call.scope(), call.taskId(), call.lease(), revision,
                 operationId, new CodingTaskOutcome.Counters(1, Math.addExact(input, output),
-                    0, 0, 0, 0, 0, "0"), false));
-            return Map.of("revision", current.revision(), "meteringComplete", false,
+                    0, 0, 0, 0, 0, "0"), meteringComplete));
+            return Map.of("revision", current.revision(), "meteringComplete", meteringComplete,
                 "receiptRef", proof);
         });
     }

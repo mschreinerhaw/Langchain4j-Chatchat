@@ -33,7 +33,7 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
         boolean reviewerUnavailable = Boolean.TRUE.equals(metadata.get("toolResultReviewUnavailable"))
             || Boolean.TRUE.equals(metadata.get("toolResultReviewSkipped"));
         if (reviewerUnavailable && selectedIds.isEmpty()) {
-            return Evaluation.notApplied(output,
+            return notApplied(output,
                 "business-template screening requires the original question and cumulative analysis context");
         }
         if (selectedIds.isEmpty() && !metadata.containsKey("selectedTemplateIds")) {
@@ -44,11 +44,11 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
                 .toList();
         }
         if (selectedIds.isEmpty() && !metadata.containsKey("selectedTemplateIds") && evaluations.isEmpty() && rejectedIds.isEmpty()) {
-            return Evaluation.notApplied(output, "Template selection response omitted selectedTemplateIds.");
+            return notApplied(output, "Template selection response omitted selectedTemplateIds.");
         }
         Set<String> returnedIds=candidateIds(output,0);
         if(selectedIds.stream().anyMatch(id->!returnedIds.contains(normalize(id))))
-            return Evaluation.notApplied(output,"INVALID_TEMPLATE_ID: selection contains an ID not returned by MCP");
+            return notApplied(output,"INVALID_TEMPLATE_ID: selection contains an ID not returned by MCP");
         Set<String> parameterBlocked = unresolvedParameterTemplateIds(
             evaluations, metadata.get("parameterProtocols"));
         if (!parameterBlocked.isEmpty()) {
@@ -59,7 +59,7 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
             ? "runtime_published_data_supply" : null;
         Projection projection = project(output, selectedIds, deferredIds, rejectedIds, evaluations, 0, supplyAuthority);
         if (!projection.applied()) {
-            return Evaluation.notApplied(output,
+            return notApplied(output,
                 "model-selected template ids were not present in the authorized MCP candidate set");
         }
         Object parameterProtocols = metadata.get("parameterProtocols");
@@ -91,6 +91,10 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
             parameterBlocked.isEmpty()?"Runtime validated model selection identities and parameter contracts."
                 : "TEMPLATE_PARAMETERS_REQUIRED: "+parameterBlocked
         );
+    }
+
+    private Evaluation notApplied(Object output,String reason) {
+        return new Evaluation(output,candidateIds(output,0).size(),0,List.of(),List.of(),List.of(),Map.of(),false,reason);
     }
 
     private Set<String> candidateIds(Object output,int depth) {

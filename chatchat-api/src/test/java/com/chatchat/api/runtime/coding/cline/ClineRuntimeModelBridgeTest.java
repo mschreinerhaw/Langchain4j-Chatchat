@@ -23,6 +23,20 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClineRuntimeModelBridgeTest {
+    @Test void incompatibleToolSchemaHasDefinitiveLocalEvidenceAndNeverCallsAProvider() throws Exception {
+        var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);
+        when(resources.defaultChatModel()).thenReturn("registered-model");
+        var request=json.readTree("""
+            {"messages":[],"tools":[{"name":"python_execute","inputSchema":{"type":"object",
+             "properties":{"source":{"type":"string"}},"oneOf":[{"required":["source"]}]}}]}
+            """);
+        var rejected=catchThrowableOfType(()->new ClineRuntimeModelBridge(resources,factory,json).complete(contract(),request),
+            ClineRuntimeModelBridge.InvalidModelResponseException.class);
+        assertThat(rejected.receipt()).containsEntry("providerDispatched",false)
+            .containsEntry("diagnosticCode","MODEL_REQUEST_REJECTED_LOCALLY")
+            .containsEntry("usage",Map.of("inputTokens",0,"outputTokens",0));
+        verifyNoInteractions(factory);
+    }
     @Test void fastReplyLimitCannotIncreaseWorkspaceOrTaskBudget(){
         var bridge=new ClineRuntimeModelBridge(mock(ModelResourceRegistry.class),mock(ConfigurableChatModelFactory.class),json);
         var task=mock(CodingTaskContract.class);var output=mock(CodingTaskContract.OutputContract.class);
@@ -205,7 +219,7 @@ class ClineRuntimeModelBridgeTest {
             {"messages":[],"tools":[{"name":"host_shell","inputSchema":{"type":"object"}}]}
             """);
         assertThatThrownBy(() -> new ClineRuntimeModelBridge(resources, factory, json).complete(contract(), request))
-            .isInstanceOf(SecurityException.class);
+            .isInstanceOf(ClineRuntimeModelBridge.InvalidModelResponseException.class).hasCauseInstanceOf(SecurityException.class);
         verifyNoInteractions(factory);
     }
 
@@ -219,7 +233,7 @@ class ClineRuntimeModelBridgeTest {
         var required=json.treeToValue(frozen,CodingTaskContract.class);
         assertThatThrownBy(()->new ClineRuntimeModelBridge(resources,factory,json).complete(required,
             json.readTree("{\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"calculate\"}]}],\"tools\":[]}")))
-            .isInstanceOf(IllegalStateException.class).hasMessageContaining("reconcile before dispatch");
+            .isInstanceOf(ClineRuntimeModelBridge.InvalidModelResponseException.class).hasCauseInstanceOf(IllegalStateException.class);
         verifyNoInteractions(factory);
     }
 

@@ -34,6 +34,10 @@ final class McpAnalysisPayloadResultAnalysisAdapter implements RuntimeResultAnal
         "runtimemetadata", "preflightaudit", "postflightaudit", "audit", "auditevidence",
         "provenance", "schema", "diagnostics", "trace", "routingtrace");
     private final Gson gson = new Gson();
+    private static final com.fasterxml.jackson.databind.ObjectMapper JSON=new com.fasterxml.jackson.databind.ObjectMapper()
+        .enable(com.fasterxml.jackson.databind.DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
+        .enable(com.fasterxml.jackson.databind.DeserializationFeature.USE_BIG_INTEGER_FOR_INTS)
+        .enable(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 
     @Override
     public String id() {
@@ -48,15 +52,24 @@ final class McpAnalysisPayloadResultAnalysisAdapter implements RuntimeResultAnal
     @Override
     public boolean supports(AnalysisRequest request) {
         return McpAnalysisPayload.SCHEMA_VERSION.equals(
-            string(map(request.payload()).get("schemaVersion")));
+            string(envelope(request.payload(),0).get("schemaVersion")));
     }
 
     @Override
     public AnalysisResult adapt(AnalysisRequest request) {
-        Map<String, Object> envelope = map(request.payload());
+        Map<String, Object> envelope = envelope(request.payload(),0);
         Object governedData = envelope.get("data");
         McpResultKind resultKind = McpResultKind.parse(envelope.get("resultKind"));
         Map<String, Object> contractContext = resultContractContext(envelope, resultKind);
+        if (resultKind == McpResultKind.EMPTY
+                && java.util.Set.of("SUCCESS","EMPTY_RESULT").contains(string(envelope.get("status")))
+                && Boolean.TRUE.equals(map(envelope.get("completeness")).get("complete"))
+                && envelope.get("errorCode")==null && envelope.get("errorMessage")==null) {
+            var emptyContext=new LinkedHashMap<String,Object>(contractContext);
+            emptyContext.put("sourceVerifiedEmpty",true);
+            return new AnalysisResult(McpAnalysisPayload.SCHEMA_VERSION,"EMPTY",
+                List.of(new AnalysisDataset(request.datasetReference(),emptyContext,List.of())));
+        }
         if (resultKind == McpResultKind.EMPTY || resultKind == McpResultKind.ERROR_PAGE) {
             return new AnalysisResult(McpAnalysisPayload.SCHEMA_VERSION, resultKind.name(), List.of());
         }
@@ -104,6 +117,29 @@ final class McpAnalysisPayloadResultAnalysisAdapter implements RuntimeResultAnal
             resultKind == McpResultKind.UNDECLARED ? "HEURISTIC_COMPATIBILITY" : "DECLARED_RESULT_KIND");
         boolean governedBodyPresent = hasCanonicalBody(governedData);
         List<Candidate> candidates = canonicalCandidates(governedData, "$.data");
+        if (candidates.isEmpty() && resultKind == McpResultKind.RAW_RECORDS
+                && "SUCCESS".equals(string(envelope.get("status")))
+                && Boolean.TRUE.equals(map(envelope.get("completeness")).get("complete"))
+                && envelope.get("errorCode") == null && envelope.get("errorMessage") == null
+                && !map(analysisContext(governedData).get("schema")).isEmpty()) {
+            List<Candidate> bodies = new ArrayList<>();
+            findBodies(normalizeJson(governedData), "$.data", 0, bodies);
+            for (Candidate body : bodies) for (String key : RECORD_KEYS) {
+                Map<String,Object> value = map(normalizeJson(body.value()));
+                if (!(value.get(key) instanceof Collection<?> rows) || !rows.isEmpty()) continue;
+                var context = new LinkedHashMap<>(merge(analysisContext(governedData), contractContext));
+                context.put("sourceVerifiedEmpty", true);
+                context.put("canonicalPath", body.path() + "." + key);
+                context.put("projectionSource", "governed_data");
+                // Preserve response status fields for model interpretation; they are not rows.
+                var responseMetadata = new LinkedHashMap<String,Object>();
+                value.forEach((name,item) -> { if (item instanceof String || item instanceof Number || item instanceof Boolean)
+                    responseMetadata.put(name,item); });
+                context.put("sourceResponseMetadata", responseMetadata);
+                return new AnalysisResult(McpAnalysisPayload.SCHEMA_VERSION, "EMPTY",
+                    List.of(new AnalysisDataset(request.datasetReference(), context, List.of())));
+            }
+        }
         String source = "governed_data";
         if (candidates.isEmpty() && !governedBodyPresent) {
             candidates = canonicalCandidates(envelope.get("rawData"), "$.rawData");
@@ -420,7 +456,29 @@ final class McpAnalysisPayloadResultAnalysisAdapter implements RuntimeResultAnal
         }
     }
 
+    private Map<String,Object> envelope(Object value,int depth) {
+        if(depth>12)throw new IllegalArgumentException("MCP envelope nesting exceeds contract limit");
+        if(value==null)return Map.of();
+        Map<String,Object> fields=map(value);
+        if(fields.isEmpty())return Map.of();
+        if(McpAnalysisPayload.SCHEMA_VERSION.equals(fields.get("schemaVersion")))return fields;
+        if(fields.containsKey("schemaVersion"))return Map.of();
+        for(String key:ENVELOPE_KEYS) {
+            Map<String,Object> nested=envelope(fields.get(key),depth+1);
+            if(!nested.isEmpty())return nested;
+        }
+        return Map.of();
+    }
+
     private Map<String, Object> map(Object value) {
+        if(value instanceof McpAnalysisPayload declared)value=declared.toMap();
+        if(value instanceof com.chatchat.common.tool.ToolOutput tool)value=tool.isSuccess()?tool.getData():null;
+        if(value instanceof com.fasterxml.jackson.databind.JsonNode || value instanceof String) {
+            try {
+                var reader=JSON.readerFor(Object.class);
+                value=value instanceof com.fasterxml.jackson.databind.JsonNode node?reader.readValue(node.traverse()):reader.readValue((String)value);
+            } catch(java.io.IOException invalid){return Map.of();}
+        }
         if (!(value instanceof Map<?, ?> source)) return Map.of();
         Map<String, Object> result = new LinkedHashMap<>();
         source.forEach((key, item) -> {

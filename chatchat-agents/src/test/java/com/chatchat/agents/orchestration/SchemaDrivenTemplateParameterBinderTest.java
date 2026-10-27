@@ -1,6 +1,5 @@
 package com.chatchat.agents.orchestration;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.data.message.AiMessage;
@@ -8,216 +7,103 @@ import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.request.ToolChoice;
 import dev.langchain4j.model.chat.response.ChatResponse;
-import org.junit.jupiter.api.Test;
-
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.atomic.AtomicInteger;
-
+import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.*;
 
 class SchemaDrivenTemplateParameterBinderTest {
+    final ObjectMapper json=new ObjectMapper();
+    final SchemaDrivenTemplateParameterBinder binder=new SchemaDrivenTemplateParameterBinder(json);
 
-    private final ObjectMapper mapper = new ObjectMapper();
-
-    @Test void emptySchemasRemainExecutableWhenOtherNativeBindingsAreUnavailable() {
-        var fixed = Map.<String, Object>of("templateId", "fixed", "parameterSchema",
-            Map.of("type", "object", "properties", Map.of()));
-        var result = new SchemaDrivenTemplateParameterBinder(mapper).bind(null, "inspect data",
-            List.of(fixed, defaultBackedTemplate("parameterized", "subject", "catalog-example")),
-            List.of("fixed", "parameterized")).orElseThrow();
-        assertThat(result.protocols()).hasSize(2);
-        assertThat(result.protocols().get(0)).containsEntry("arguments", Map.of()).doesNotContainKey("binding_error");
-        assertThat(result.protocols().get(1)).containsEntry("binding_error", "NATIVE_SCHEMA_BINDING_UNAVAILABLE")
-            .containsEntry("arguments", Map.of());
-        assertThat(result.metrics()).containsEntry("blockedBindingCount", 1);
+    @Test void unavailableModelCannotAuthorizeParameterFreeTemplates() {
+        var result=binder.selectAndBind(null,"inspect",List.of(Map.of("templateId","fixed"),template("parameterized")));
+        assertThat(result.status()).isEqualTo("MODEL_UNAVAILABLE");assertThat(result.protocols()).isEmpty();
     }
 
-    @Test void unknownRequiredValuesRemainExplicitlyUnresolvedInsteadOfInvented() {
-        AtomicReference<ChatRequest> captured = new AtomicReference<>();
-        var model = model(request -> {
-            captured.set(request);
-            return response("empty-values", "{\"bindings\":[{\"template_id\":\"assets\",\"arguments\":{}}]}");
-        });
-        var result = new SchemaDrivenTemplateParameterBinder(mapper).bind(model, "inspect data",
-            List.of(template("assets")), List.of("assets")).orElseThrow();
-        assertThat(result.protocols().get(0)).containsEntry("arguments", Map.of())
-            .containsEntry("unresolved_parameters", List.of("subject"));
-        assertThat(captured.get().toolSpecifications().get(0).toJson()).doesNotContain("\"required\":[\"subject\"]");
+    @Test void unknownRequiredValuesAreUnresolvedWithoutForcingModelInvention() throws Exception {
+        var model=model(List.of(selection("assets",Map.of())));
+        var result=binder.selectAndBind(model,"inspect",List.of(template("assets")));
+        assertThat(result.status()).isEqualTo("PARAMETERS_REQUIRED");
+        assertThat(result.protocols().get(0)).containsEntry("arguments",Map.of()).containsEntry("unresolved_parameters",List.of("subject"));
+        var request=org.mockito.ArgumentCaptor.forClass(ChatRequest.class);verify(model).chat(request.capture());
+        assertThat(request.getValue().toolSpecifications().get(0).toJson()).doesNotContain("\"required\":[\"subject\"]");
     }
 
-    @Test void emptyParameterSchemaIsBoundByRuntimeWithoutModelInference() {
-        var result = new SchemaDrivenTemplateParameterBinder(mapper).bind(null, "inspect service",
-            List.of(Map.of("templateId", "approved-check", "parameterSchema",
-                Map.of("type", "object", "properties", Map.of()))), List.of("approved-check")).orElseThrow();
-        assertThat(result.mode()).isEqualTo("runtime_empty_schema");
-        assertThat(result.protocols()).singleElement().satisfies(protocol ->
-            assertThat(protocol.get("arguments")).isEqualTo(Map.of()));
+    @Test void modelChoosesAnEmptySchemaTemplateInOneNativeCall() throws Exception {
+        var model=model(List.of(selection("fixed",Map.of())));
+        var result=binder.selectAndBind(model,"inspect",List.of(Map.of("templateId","fixed")));
+        assertThat(result.status()).isEqualTo("SELECTED");assertThat(result.protocols()).hasSize(1);
+        verify(model,times(1)).chat(any(ChatRequest.class));
     }
 
-    @Test void freeFormReviewerStyleArgumentsCannotReplaceNativeBinding() {
-        ChatModel model = model(request -> ChatResponse.builder().aiMessage(AiMessage.from(
-            "{\"parameter_protocols\":[{\"template_id\":\"assets\",\"arguments\":{\"subject\":\"C-1\"}}]}"))
-            .build());
-        assertThat(new SchemaDrivenTemplateParameterBinder(mapper).bind(model, "customer C-1",
-            List.of(template("assets")), List.of("assets"))).isEmpty();
+    @Test void freeFormReviewerArgumentsCannotReplaceTheNativeContract() {
+        var model=mock(ChatModel.class);when(model.chat(any(ChatRequest.class)))
+            .thenReturn(ChatResponse.builder().aiMessage(AiMessage.from("{\"arguments\":{\"subject\":\"C1\"}}")).build());
+        var result=binder.selectAndBind(model,"C1",List.of(template("assets")));
+        assertThat(result.status()).isEqualTo("INVALID_MODEL_RESPONSE");assertThat(result.protocols()).isEmpty();
+        verify(model,times(2)).chat(any(ChatRequest.class));
     }
 
-    @Test
-    void bindsEntityCollectionAcrossTemplatesThroughOneNativeFunctionCall() throws Exception {
-        AtomicReference<ChatRequest> captured = new AtomicReference<>();
-        ChatModel model = model(request -> {
-            captured.set(request);
-            return response("native-1", """
-                {"bindings":[
-                  {"template_id":"assets","binding_id":"a-1","arguments":{"subject":"070200046604"}},
-                  {"template_id":"assets","binding_id":"a-2","arguments":{"subject":"070200046605"}},
-                  {"template_id":"trades","binding_id":"t-1","arguments":{"subject":"070200046604"}},
-                  {"template_id":"trades","binding_id":"t-2","arguments":{"subject":"070200046605"}}
-                ]}
-                """);
-        });
-        List<Map<String, Object>> templates = List.of(template("assets"), template("trades"));
-
-        SchemaDrivenTemplateParameterBinder.BindingResult result =
-            new SchemaDrivenTemplateParameterBinder(mapper).bind(model,
-                "分析客户号070200046604、070200046605的资产和交易", templates,
-                List.of("assets", "trades")).orElseThrow();
-
+    @Test void modelExplicitlyBindsMultipleEntitiesAcrossTemplatesInOneCall() throws Exception {
+        var model=model(List.of(selection("assets",Map.of("subject","C1")),selection("assets",Map.of("subject","C2")),
+            selection("trades",Map.of("subject","C1")),selection("trades",Map.of("subject","C2"))));
+        var result=binder.selectAndBind(model,"Compare C1 and C2",List.of(template("assets"),template("trades")));
         assertThat(result.protocols()).hasSize(4);
-        assertThat(result.protocols().toString())
-            .contains("native_function_calling", "070200046604", "070200046605", "a-1", "t-2");
-        assertThat(captured.get().toolChoice()).isEqualTo(ToolChoice.REQUIRED);
-        JsonNode schema = mapper.readTree(captured.get().toolSpecifications().get(0).toJson());
-        assertThat(schema.at("/name").asText()).isEqualTo("bind_template_parameters");
-        assertThat(schema.at("/parameters/properties/bindings/maxItems").asInt()).isEqualTo(32);
-        assertThat(schema.at("/parameters/properties/bindings/items/oneOf")).hasSize(2);
+        var captured=org.mockito.ArgumentCaptor.forClass(ChatRequest.class);verify(model).chat(captured.capture());
+        assertThat(captured.getValue().toolChoice()).isEqualTo(ToolChoice.AUTO);
+        var spec=json.readTree(captured.getValue().toolSpecifications().get(0).toJson());
+        assertThat(spec.at("/name").asText()).isEqualTo(SchemaDrivenTemplateParameterBinder.SELECTION_FUNCTION);
+        assertThat(spec.at("/parameters/properties/selections/maxItems").asInt()).isEqualTo(32);
+        assertThat(spec.at("/parameters/properties/selections/items/oneOf")).hasSize(2);
     }
 
-    @Test
-    void rejectsInventedValuesAndIncompleteTemplateCoverage() {
-        ChatModel model = model(request -> response("native-2", """
-            {"bindings":[{"template_id":"assets","arguments":{"subject":"invented"}}]}
-            """));
-
-        assertThat(new SchemaDrivenTemplateParameterBinder(mapper).bind(model,
-            "分析070200046604", List.of(template("assets"), template("trades")),
-            List.of("assets", "trades"))).isEmpty();
+    @Test void inventedValuesCannotBecomeExecutionEvidence() throws Exception {
+        var result=binder.selectAndBind(model(List.of(selection("assets",Map.of("subject","invented")))),
+            "Analyze C1",List.of(template("assets"),template("trades")));
+        assertThat(result.status()).isEqualTo("PARAMETERS_REQUIRED");
+        assertThat(result.protocols().get(0)).containsEntry("arguments",Map.of());
+        assertThat(result.selectedIds()).containsExactly("assets");
     }
 
-    @Test
-    void retriesAutoWhenProviderRejectsRequiredToolChoice() {
-        AtomicInteger calls = new AtomicInteger();
-        AtomicReference<ToolChoice> lastChoice = new AtomicReference<>();
-        ChatModel model = model(request -> {
-            lastChoice.set(request.toolChoice());
-            if (calls.incrementAndGet() == 1) {
-                throw new IllegalArgumentException("thinking mode rejects REQUIRED");
-            }
-            return response("native-auto", """
-                {"bindings":[{"template_id":"assets","arguments":{"subject":"070200046604"}}]}
-                """);
-        });
-
-        assertThat(new SchemaDrivenTemplateParameterBinder(mapper).bind(model,
-            "分析070200046604", List.of(template("assets")), List.of("assets"))).isPresent();
-        assertThat(calls).hasValue(2);
-        assertThat(lastChoice.get()).isEqualTo(ToolChoice.AUTO);
+    @Test void providerTransportFailureIsNotRetriedAsAProtocolCorrection() {
+        var model=mock(ChatModel.class);when(model.chat(any(ChatRequest.class))).thenThrow(new IllegalStateException("transport unavailable"));
+        assertThat(binder.selectAndBind(model,"C1",List.of(template("assets"))).status()).isEqualTo("MODEL_UNAVAILABLE");
+        verify(model,times(1)).chat(any(ChatRequest.class));
     }
 
-    @Test
-    void completesEntityMatrixForTemplatesAddedByCoverageAuditWithoutBusinessFieldNames() {
-        List<Map<String, Object>> reviewed = List.of(
-            protocol("assets", "070200046604"),
-            protocol("assets", "070200046605"));
-
-        SchemaDrivenTemplateParameterBinder.BindingResult result =
-            new SchemaDrivenTemplateParameterBinder(mapper)
-                .completeFromReviewedProtocols(
-                    List.of(template("assets"), template("trades")),
-                    List.of("assets", "trades"), reviewed)
-                .orElseThrow();
-
-        assertThat(result.protocols()).hasSize(4);
-        assertThat(result.protocols().stream()
-            .filter(item -> "trades".equals(item.get("template_id")))
-            .map(item -> String.valueOf(((Map<?, ?>) ((Map<?, ?>) item.get("arguments"))
-                .get("subject")).get("value")))
-            .toList())
-            .containsExactly("070200046604", "070200046605");
-        assertThat(result.mode()).isEqualTo("schema_reused_reviewed_protocol");
+    @Test void javaDoesNotCompleteAnUnselectedTemplateEntityMatrix() throws Exception {
+        var result=binder.selectAndBind(model(List.of(selection("assets",Map.of("subject","C1")),
+            selection("assets",Map.of("subject","C2")),selection("trades",Map.of("subject","C1")))),
+            "Compare C1 and C2",List.of(template("assets"),template("trades")));
+        assertThat(result.protocols()).hasSize(3);
+        assertThat(result.protocols().stream().filter(p->"trades".equals(p.get("template_id"))).toList())
+            .singleElement().satisfies(p->assertThat(((Map<?,?>)((Map<?,?>)p.get("arguments")).get("subject")).get("value")).isEqualTo("C1"));
     }
 
-    @Test
-    void prefersEachTemplatesReviewedEntityOverDefaultBackedCrossProjection() {
-        Map<String, Object> assets = defaultBackedTemplate("assets", "khh", "example-assets");
-        Map<String, Object> trades = defaultBackedTemplate("trades", "CUST_NUM", "example-trades");
-        List<Map<String, Object>> reviewed = List.of(
-            protocol("assets", "khh", "070200046604"),
-            protocol("trades", "CUST_NUM", "070200046604"));
-
-        SchemaDrivenTemplateParameterBinder.BindingResult result =
-            new SchemaDrivenTemplateParameterBinder(mapper)
-                .completeFromReviewedProtocols(
-                    List.of(assets, trades), List.of("assets", "trades"), reviewed)
-                .orElseThrow();
-
+    @Test void differentlyNamedFieldsRemainBoundByTheModelToTheirOwnTemplate() throws Exception {
+        var first=Map.<String,Object>of("templateId","assets","parameterSchema",Map.of("type","object",
+            "properties",Map.of("customer",Map.of("type","string","default","catalog-example"))));
+        var second=Map.<String,Object>of("templateId","trades","parameterSchema",Map.of("type","object",
+            "properties",Map.of("account",Map.of("type","string","default","other-example"))));
+        var result=binder.selectAndBind(model(List.of(selection("assets",Map.of("customer","C1")),
+            selection("trades",Map.of("account","C1")))),"C1",List.of(first,second));
         assertThat(result.protocols()).hasSize(2);
-        assertThat(result.protocols()).allSatisfy(binding -> {
-            Map<?, ?> arguments = (Map<?, ?>) binding.get("arguments");
-            assertThat(arguments).hasSize(1);
-            Map<?, ?> evidence = (Map<?, ?>) arguments.values().iterator().next();
-            assertThat(evidence.get("value")).isEqualTo("070200046604");
-        });
+        assertThat(result.protocols().toString()).contains("customer","account","C1").doesNotContain("catalog-example","other-example");
     }
 
-    private Map<String, Object> protocol(String templateId, String value) {
-        return protocol(templateId, "subject", value);
+    private Map<String,Object> template(String id) {
+        return Map.of("templateId",id,"parameterSchema",Map.of("type","object","required",List.of("subject"),
+            "properties",Map.of("subject",Map.of("type","string"))));
     }
-
-    private Map<String, Object> protocol(String templateId, String field, String value) {
-        return Map.of(
-            "protocol_version", "template_parameter_protocol_v2",
-            "template_id", templateId,
-            "arguments", Map.of(field, Map.of(
-                "value", value,
-                "source", "user_query",
-                "evidence", Map.of("quote", value))),
-            "unresolved_parameters", List.of());
+    private Map<String,Object> selection(String id,Map<String,Object> parameters) {
+        return Map.of("templateId",id,"parameters",parameters);
     }
-
-    private Map<String, Object> defaultBackedTemplate(String id, String field, String defaultValue) {
-        return Map.of(
-            "templateId", id,
-            "parameterSchema", Map.of(
-                "type", "object",
-                "properties", Map.of(field, Map.of("type", "string", "default", defaultValue)),
-                "required", List.of(field)));
-    }
-
-    private Map<String, Object> template(String id) {
-        return Map.of(
-            "templateId", id,
-            "parameterSchema", Map.of(
-                "type", "object",
-                "properties", Map.of("subject", Map.of("type", "string")),
-                "required", List.of("subject")));
-    }
-
-    private ChatModel model(java.util.function.Function<ChatRequest, ChatResponse> handler) {
-        return new ChatModel() {
-            @Override
-            public ChatResponse doChat(ChatRequest request) {
-                return handler.apply(request);
-            }
-        };
-    }
-
-    private ChatResponse response(String id, String arguments) {
-        ToolExecutionRequest call = ToolExecutionRequest.builder()
-            .id(id).name(SchemaDrivenTemplateParameterBinder.FUNCTION_NAME)
-            .arguments(arguments).build();
-        return ChatResponse.builder().aiMessage(AiMessage.from(call)).build();
+    private ChatModel model(List<Map<String,Object>> selections) throws Exception {
+        var model=mock(ChatModel.class);when(model.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder()
+            .aiMessage(AiMessage.from(ToolExecutionRequest.builder().name(SchemaDrivenTemplateParameterBinder.SELECTION_FUNCTION)
+                .arguments(json.writeValueAsString(Map.of("status","SELECTED","selections",selections))).build())).build());
+        return model;
     }
 }

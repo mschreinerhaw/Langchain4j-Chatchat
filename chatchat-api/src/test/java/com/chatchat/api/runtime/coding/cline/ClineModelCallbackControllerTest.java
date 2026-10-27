@@ -388,9 +388,9 @@ class ClineModelCallbackControllerTest {
     }
 
     @org.junit.jupiter.params.ParameterizedTest
-    @org.junit.jupiter.params.provider.ValueSource(ints = {0, 1, 2, 3, 4})
+    @org.junit.jupiter.params.provider.ValueSource(ints = {0, 1, 2, 3, 4, 5})
     void modelCallHasDurableIntentReceiptReconciliationAndUnknownCostReservation(int responseKind) {
-        boolean invalidResponse = responseKind == 1 || responseKind == 3 || responseKind == 4;
+        boolean invalidResponse = responseKind == 1 || responseKind == 3 || responseKind == 4 || responseKind == 5;
         var source = new DriverManagerDataSource("jdbc:h2:mem:model-callback-" + UUID.randomUUID()
             + ";DB_CLOSE_DELAY=-1", "sa", "");
         new ResourceDatabasePopulator(new ClassPathResource("runtime-evidence-schema.sql")).execute(source);
@@ -427,6 +427,11 @@ class ClineModelCallbackControllerTest {
                     "modelResponseFeedback", Map.of("schemaVersion", "runtime_os.coding.model_feedback.v1", "repairAllowed", true,
                         "maxRepairAttempts", 2, "diagnosticCode", responseKind == 3 ? "MODEL_TOOL_NOT_AUTHORIZED" : "MODEL_OUTPUT_TRUNCATED"))))
                 .when(model).complete(any(), any());
+            if (responseKind == 5) doThrow(
+                new ClineRuntimeModelBridge.InvalidModelResponseException(Map.of("error","Local request rejected",
+                    "providerDispatched",false,"diagnosticCode","MODEL_REQUEST_REJECTED_LOCALLY",
+                    "toolCalls",List.of(),"usage",Map.of("inputTokens",0,"outputTokens",0))))
+                .when(model).complete(any(),any());
             var controller = new ClineModelCallbackController(access, tasks, model, receipts,
                 mock(CodingInputSnapshotService.class), mock(CodingValidationPlanService.class),
                 mock(CodingEvidenceCollector.class), json);
@@ -452,6 +457,8 @@ class ClineModelCallbackControllerTest {
             }).when(tasks).renew(eq(scope), eq("task"), any(), any(), anyLong());
             if (invalidResponse) {
                 assertThatThrownBy(() -> controller.model(execution)).hasMessageContaining("receipt archived");
+                if (responseKind == 5) assertThat(access.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),
+                    ()->tasks.unresolvedOperations(scope,"task"))).isEmpty();
                 assertThatThrownBy(() -> controller.model(execution)).hasMessageContaining("Archived model response");
                 verify(model, times(1)).complete(any(), any());
             } else if (responseKind == 2) {
@@ -470,7 +477,7 @@ class ClineModelCallbackControllerTest {
                 assertThat(controller.model(execution).get("text")).isEqualTo("done");
             }
             verify(model, times(1)).complete(any(), any());
-            assertThat(controller.settle(admission).get("meteringComplete")).isEqualTo(false);
+            assertThat(controller.settle(admission).get("meteringComplete")).isEqualTo(responseKind == 5);
             var stale = admission.deepCopy();
             stale.put("fencingToken", lease.fencingToken() + 1);
             assertThatThrownBy(() -> controller.reserve(stale))
@@ -479,8 +486,9 @@ class ClineModelCallbackControllerTest {
             var outcome = access.as(scope, EnumSet.of(CodingTaskAccess.Action.READ), () -> tasks.get(scope, "task"));
             assertThat(outcome.executionControl().reconciliationRequired()).isFalse();
             assertThat(outcome.usage().consumed().modelCalls()).isEqualTo(1);
-            assertThat(outcome.usage().consumed().modelTokens()).isEqualTo(6);
-            assertThat(outcome.usage().reserved().costAmount()).isNotEqualTo("0");
+            assertThat(outcome.usage().consumed().modelTokens()).isEqualTo(responseKind == 5 ? 0 : 6);
+            if (responseKind == 5) assertThat(new java.math.BigDecimal(outcome.usage().reserved().costAmount())).isZero();
+            else assertThat(outcome.usage().reserved().costAmount()).isNotEqualTo("0");
             assertThat(receipts.response(scope, "task", "model-1")).isPresent();
             access.as(scope, EnumSet.allOf(CodingTaskAccess.Action.class), () ->
                 tasks.cancel(scope, "task", "user request after model receipt"));

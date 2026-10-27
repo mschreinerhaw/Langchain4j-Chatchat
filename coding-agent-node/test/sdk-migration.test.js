@@ -44,6 +44,7 @@ test('SDK editor rejects ambiguous, stale and partially invalid proposals atomic
   await assert.rejects(editProgram(repair([{ oldText: 'x = 1', newText: 'x = 2' },
     { oldText: 'not present', newText: 'z = 1' }]), source));
   await assert.rejects(editProgram(repair([{ oldText: 'x = 1', newText: 'x = 2' }]), 'other'), /hash/);
+  await assert.rejects(editProgram({ source, ...repair([{ oldText: 'x = 1', newText: 'x = 2' }]) }, source));
   assert.equal(source, 'x = 1\ny = 1\n');
 });
 

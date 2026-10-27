@@ -8,6 +8,16 @@ const task = (outcome = {}): CodingTask => ({ taskId: 'task', attemptId: 'fence-
   canCancel: true, canRetry: false, configuration: {}, allowedTools: [],
   outcome: { status: 'RUNNING', createdAt: '', updatedAt: '', cancellationRequested: false, lastEventSequence: 5, ...outcome } });
 describe('Coding monitor durable projections', () => {
+  it('never presents code archival as Sandbox execution or result acceptance', () => {
+    const events=[event(1,{type:'CODE_READY',proposedOperationId:'cline-code',codeSha256:'hash',fileName:'main.py'}),
+      event(2,{}, {type:'CODE_COMMITTED',operationId:'cline-code'})];
+    expect(codeVersions(events)[0].state).toBe('CODE_ARCHIVED');
+    expect(codingStage(task(),events)).toBe('CODE_ARCHIVED');
+    expect(codeVersions([...events,event(3,{type:'TOOL_FINISHED',status:'SUCCEEDED',resultAvailable:false},
+      {operationId:'cline-code'})])[0].state).toBe('EXECUTED');
+    expect(codeVersions([...events,event(3,{type:'TOOL_FINISHED',status:'SUCCEEDED',resultAvailable:true},
+      {operationId:'cline-code'})])[0].state).toBe('RESULT_READY');
+  });
   it('restores actual identities and usage from Java receipts when Node completion telemetry was lost', () => {
     const events = [event(2, { type: 'MODEL_STARTED', modelCall: 2, attemptId: 'task:fence-1' })];
     const calls = modelCalls(events, [1, 2].map(ordinal => ({ operationId: `model-${ordinal}`, attemptId: 'task:fence-1',

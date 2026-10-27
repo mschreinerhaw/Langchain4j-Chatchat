@@ -39,6 +39,36 @@ class CodingAnalysisServiceTest {
         verifyNoInteractions(agent,python,inputs,plans,collector);
     }
 
+    @Test void verifiedEmptySourceKeepsItsIdentityAndDeliveryStatusInTheCodingManifest() {
+        prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
+        when(inputs.captureConfigured(any(),anyString(),anyList(),startsWith("coding-input-set:"),anyString(),anyString(),anyLong(),anyLong(),any()))
+            .thenAnswer(call->{
+                List<Dataset> captured=call.getArgument(2);
+                var versions=(List<?>)captured.get(0).analysisContext().get("inputVersions");
+                assertThat(versions).hasSize(1);
+                assertThat((Map<String,Object>)versions.get(0)).containsEntry("deliveryStatus","EMPTY_RESULT")
+                    .containsEntry("sourceVerifiedEmpty",true).containsEntry("sourceTemplateId","published-template");
+                assertThat(captured.get(0).recordCount()).isZero();
+                return new CodingInputSnapshotService.Snapshot("runtime-evidence:input","c"+"a".repeat(63),"input.jsonl","a".repeat(64),0,0,"combined");
+            });
+        var delivered=Map.of("empty-source",new Dataset("empty-source",
+            Map.of("sourceVerifiedEmpty",true,"sourceTemplateId","published-template"),List.of()));
+        service().executePrimaryAnalysis(context("tenant"),delivered,event->{});
+        verify(agent).submit(any());
+    }
+
+    @Test void sameCodingRequestReusesItsImmutableSnapshotAndOriginalBudget() {
+        prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
+        var service=service();var parent=context("tenant");
+        var first=service.execute(parent,request(),sources());
+        var repeated=service.execute(parent,request(),sources());
+        assertThat(first).containsEntry("inputSnapshotCaptureCount",1).containsEntry("inputSnapshotReused",false);
+        assertThat(repeated).containsEntry("inputSnapshotCaptureCount",0).containsEntry("inputSnapshotReused",true);
+        assertThat(repeated.get("taskId")).isEqualTo(first.get("taskId"));
+        assertThat(repeated.get("budgetId")).isEqualTo(first.get("budgetId"));
+        verify(inputs,times(1)).captureConfigured(any(),anyString(),anyList(),anyString(),anyString(),anyString(),anyLong(),anyLong(),any());
+    }
+
     @Test void combinedInputsKeepProducerFieldMeaningsWithoutGuessingFromOpaqueNames() {
         prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
         when(inputs.captureConfigured(any(),anyString(),anyList(),startsWith("coding-input-set:"),anyString(),anyString(),anyLong(),anyLong(),any()))
@@ -432,7 +462,9 @@ class CodingAnalysisServiceTest {
         when(unknown.limitations()).thenReturn(List.of("Provider execution requires reconciliation"));
         prepare(unknown);when(agent.resume(any(),anyString())).thenReturn(unknown);
         when(agent.get(any(),anyString())).thenReturn(unknown);
-        var sources=sources();var receipt=service().execute(context("tenant"),request(),sources);
+        var events=new ArrayList<Map<String,Object>>();
+        var sources=sources();var receipt=service().executeObserved(context("tenant"),request(),sources,events::add);
+        assertThat(events.stream().filter(event->"CODING_RECONCILIATION_REQUIRED".equals(event.get("eventKind"))).count()).isEqualTo(1);
         assertThat(receipt).containsEntry("status","RUNNING").containsEntry("reconciliationRequired",true)
             .containsEntry("resultAvailable",false).containsEntry("reasonCode","EXECUTION_OUTCOME_UNKNOWN")
             .doesNotContainKeys("datasetReference","evidenceRefs");

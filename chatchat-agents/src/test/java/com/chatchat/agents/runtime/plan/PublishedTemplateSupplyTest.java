@@ -8,9 +8,9 @@ import org.junit.jupiter.api.Test;
 import static org.mockito.Mockito.*;
 import static org.assertj.core.api.Assertions.*;
 
-class PublishedTemplateSupplyTest {
+public class PublishedTemplateSupplyTest {
     static final String CHILD="published_inspection", BRIDGE="capability_bridge", EXECUTE="template_executor";
-    static ToolRegistry registry(boolean nested) {
+    public static ToolRegistry registry(boolean nested) {
         var registry=mock(ToolRegistry.class);
         Map<String,Object> child=new LinkedHashMap<>();
         child.put("assetType","sql_datasource");
@@ -38,7 +38,7 @@ class PublishedTemplateSupplyTest {
         when(registry.getWorkflowRole(anyString())).thenAnswer(i->ToolWorkflowContract.resolveRole(i.getArgument(0),registry.getToolMetadata(i.getArgument(0))));
         return registry;
     }
-    static InterpretationPlan plan() {
+    public static InterpretationPlan plan() {
         return new InterpretationPlan("1.0",new InterpretationPlan.Intent("mixed","Inspect authorized data","low"),new InterpretationPlan.Context(List.of(),List.of(),List.of(),List.of()),
             new InterpretationPlan.Plan(List.of(
                 new InterpretationPlan.Step(1,"mcp_tool",CHILD,Map.of("query","health"),List.of(),null,null),

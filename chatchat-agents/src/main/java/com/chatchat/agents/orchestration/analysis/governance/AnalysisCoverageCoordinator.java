@@ -73,6 +73,8 @@ public final class AnalysisCoverageCoordinator {
                 "contentSha256", dataset.handle().contentSha256())).toList()));
         request.metadata().put("analysisObservedReturnedRecordCount", datasets.stream().mapToLong(AnalysisEvidenceCoordinator.Dataset::recordCount).sum());
         writeExcludedMetadata(request.metadata(), projection.excludedDatasets());
+        request.metadata().put("dataSupply",com.chatchat.agents.orchestration.analysis.dataset.DataSupplyStatus
+            .describe(request.result(),datasets,projection.excludedDatasets()));
         projection.excludedDatasets().forEach(excluded -> observe(request,
             "证据入口记录：" + excluded.get("datasetReference") + "（reason="
                 + excluded.get("reason") + ", executionStatus=" + excluded.get("executionStatus")
@@ -80,9 +82,14 @@ public final class AnalysisCoverageCoordinator {
             "analysis_summary_governance", metadataOf(
                 "type", "analysis_dataset_excluded", "exclusion", excluded)));
         if (codingOwned && datasets.isEmpty()) {
-            // A supply receipt is an observation, never a substitute for business records.
-            // The model decides how to respond or request authorized data; Java reports facts.
-            datasets=List.of(supplyStatusDataset(request));
+            // Supply failure is returned to the caller, never converted into a Coding input.
+            var status=AnalysisEvidenceCoordinator.supplyStatusDataset(request.result(),request.isolationScope(),projection.excludedDatasets());
+            request.metadata().put("dataSupplyStatus",status.handle().readPage(0,1).rows().get(0));
+            request.metadata().put("businessDataAvailable",false);
+            request.metadata().put("primaryCodingDispatchCount", 0);
+            var supply = (Map<?, ?>) request.metadata().get("dataSupply");
+            throw new IllegalStateException("DATA_SUPPLY_" + supply.get("status") + ": "
+                + status.handle().readPage(0,1).rows().get(0));
         }
         if (datasets.isEmpty() && !com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(request.metadata())) {
             writeEmptyProjectionCompletion(request, projection.excludedDatasets());
@@ -94,29 +101,6 @@ public final class AnalysisCoverageCoordinator {
 
         return codingOwned ? analyzeWithCoding(request, datasets) : analyzeWithHarness(request, datasets);
     }
-    private AnalysisEvidenceCoordinator.Dataset supplyStatusDataset(Request request) {
-        List<Map<String,Object>> operations=new ArrayList<>();
-        if(request.result()!=null) for(var step:request.result().steps()) {
-            var call=step.toolExecution();
-            Boolean toolSucceeded=call==null||call.output()==null?null:call.output().isSuccess();
-            operations.add(metadataOf("stepId",step.stepId(),"toolName",step.toolName(),
-                "stepCompleted",step.success(),"toolResultSucceeded",toolSucceeded,
-                "toolExecutionOutcome",call==null?null:call.outcome(),
-                "mcpDiscoverySucceeded",step.metadata().get("mcpDiscoverySucceeded"),
-                "modelDecision",step.metadata().get("modelCandidateDecision"),
-                "selectionStatus",step.metadata().get("candidateSelectionStatus"),
-                "modelSelectedTemplateIds",step.metadata().get("modelSelectedTemplateIds"),
-                "error",step.errorMessage()));
-        }
-        Map<String,Object> status=metadataOf("recordType","DATA_SUPPLY_STATUS","businessDataAvailable",false,
-            "operations",List.copyOf(operations),"excludedSources",request.metadata().getOrDefault("recordAnalysisExcludedDatasets",List.of()));
-        request.metadata().put("dataSupplyStatus",status);
-        request.metadata().put("businessDataAvailable",false);
-        String reference="supply-status:"+request.isolationScope().runId();
-        return new AnalysisEvidenceCoordinator.Dataset(reference,Map.of("recordType","DATA_SUPPLY_STATUS",
-            "businessData",false,"source",Map.of("kind","RUNTIME_SUPPLY_STATUS")),List.of(status));
-    }
-
     private boolean supplyStatus(AnalysisEvidenceCoordinator.Dataset dataset) {
         return "DATA_SUPPLY_STATUS".equals(dataset.analysisContext().get("recordType"));
     }
@@ -271,8 +255,9 @@ public final class AnalysisCoverageCoordinator {
         request.metadata().put("analysisInputDatasetCount", receipt.getOrDefault("inputDatasetCount", datasets.size()));
         request.metadata().put("analysisInputSnapshotCaptureCount", receipt.getOrDefault("inputSnapshotCaptureCount", 0));
         request.metadata().put("analysisSupplementalSnapshotCount", receipt.getOrDefault("supplementalDataSnapshotCount", 0));
-        observe(request, "Coding Agent primary analysis completed", "coding_agent", metadataOf(
-            "stage", "PRIMARY_CODING_ANALYSIS", "eventState", "COMPLETED",
+        boolean reconciling = Boolean.TRUE.equals(receipt.get("reconciliationRequired"));
+        observe(request, reconciling ? "Coding execution requires reconciliation" : "Coding Agent primary analysis completed", "coding_agent", metadataOf(
+            "stage", "PRIMARY_CODING_ANALYSIS", "eventState", reconciling ? "RECONCILING" : "COMPLETED",
             "durationMs", codingDurationMs, "status", receipt.getOrDefault("status", "UNKNOWN"),
             "resultAvailable", receipt.getOrDefault("resultAvailable", false),
             "usage", receipt.getOrDefault("usage", Map.of())));
@@ -280,6 +265,9 @@ public final class AnalysisCoverageCoordinator {
         request.metadata().remove("visualReport");
         if(com.chatchat.common.runtime.coding.VisualReportMode.analysisRequested(request.runtimeAttributes())
             && receipt.get("visualReport") instanceof Map<?,?> report)request.metadata().put("visualReport",report);
+        if (reconciling)
+            throw new IllegalStateException("CODING_RECONCILIATION_REQUIRED: taskId=" + receipt.get("taskId")
+                + "; preserve the existing operation identities; no replacement execution is authorized");
         if (!Boolean.TRUE.equals(receipt.get("resultAvailable")))
             throw new IllegalStateException("PRIMARY_CODING_ANALYSIS_FAILED: status="
                 + receipt.getOrDefault("status", "UNKNOWN") + ", reason="

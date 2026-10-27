@@ -72,13 +72,12 @@ public final class McpResultAnalysisBridge implements RuntimeResultAnalysisProto
         if (adapter == null) return Map.of();
         RuntimeResultAnalysisAdapter.AnalysisResult result = adapter.adapt(request);
         if (result == null) return Map.of();
-        boolean declaredNoRecords = boundedPayload instanceof Map<?, ?> envelope
-            && com.chatchat.common.mcp.runtime.McpAnalysisPayload.SCHEMA_VERSION.equals(
-                String.valueOf(envelope.get("schemaVersion")))
-            && Set.of("EMPTY", "ERROR_PAGE").contains(String.valueOf(envelope.get("resultKind")));
+        boolean declaredNoRecords = Set.of("EMPTY","ERROR_PAGE").contains(result.evidenceRole());
         if (result.datasets().isEmpty() && !declaredNoRecords) return Map.of();
         List<Map<String, Object>> datasets = result.datasets().stream()
-            .filter(dataset -> dataset != null && !dataset.records().isEmpty())
+            .filter(dataset -> dataset != null && (!dataset.records().isEmpty()
+                || dataset.handle().recordCountExact() && dataset.handle().recordCount()==0
+                    && Boolean.TRUE.equals(dataset.analysisContext().get("sourceVerifiedEmpty"))))
             .map(dataset -> Map.<String, Object>of(
                 "datasetReference", text(dataset.datasetReference()),
                 "analysisContext", dataset.analysisContext(),

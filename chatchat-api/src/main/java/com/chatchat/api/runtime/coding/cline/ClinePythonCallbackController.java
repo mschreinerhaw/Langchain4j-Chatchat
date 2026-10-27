@@ -188,7 +188,7 @@ public final class ClinePythonCallbackController {
                     return withFeedback(call,result,response);
                 } catch(CodingEvidenceCollector.InvalidStructuredResultException invalid) {
                     response.put("outputStatus","INVALID_RESULT_SCHEMA");response.put("resultAvailable",false);
-                    response.put("diagnostic","Structured result does not match the contracted row schema; repair field names and types in a complete new program.");return withFeedback(call,result,response);
+                    response.put("diagnostic","Structured result does not match the contracted row schema; repair field names and types using the code-version repair protocol returned by python_execute. Do not combine source with repair.");return withFeedback(call,result,response);
                 }
                 if (collected.validationStatus() == com.chatchat.common.runtime.coding.CodingTaskOutcome.ValidationStatus.FAILED) {
                     if (collector.copiedSourceResult(call.scope(), call.taskId(), collected.validationRecordRef())
@@ -208,7 +208,7 @@ public final class ClinePythonCallbackController {
                     response.put("diagnostic", "Result validation failed. Match the contracted field names and types, "
                         + "and replace bulk source text with metrics and concise findings calculated in Python. "
                         + "Unchanged source documents or record collections are not analytical results. Use short quotations or input row references alongside computed findings. Original long-form analysis is allowed; do not split raw documents across fields or rows. "
-                        + "Repair the complete program and execute again.");
+                        + "Repair using the code-version protocol returned by python_execute and execute again. Do not combine source with repair.");
                     return withFeedback(call,result,response);
                 }
                 response.put("inputSnapshotRef", collected.inputSnapshotRef());

@@ -52,7 +52,10 @@ def main():
     name = 'runtime-os-app-stage-coding-agent-1'
     old = json.loads(run('docker', 'inspect', name))[0]
     assert old['State']['Running']
-    for module, expected in BASELINES.items():
+    baseline_file = root / 'node-baseline.json'
+    baselines = json.loads(baseline_file.read_text()) if baseline_file.is_file() else BASELINES
+    assert baselines and all(module in {'runner.js', 'code-repair.js'} for module in baselines)
+    for module, expected in baselines.items():
         assert run('docker', 'exec', name, 'sha256sum', '/srv/coding-agent/dist/' + module).split()[0] == expected
     (root / 'container-before-private.json').write_text(json.dumps(old))
     config = copy.deepcopy(old['Config'])
@@ -71,7 +74,7 @@ def main():
             source.chmod(0o640)
             uid, _, gid = config['User'].partition(':')
             os.chown(source, 0, int(gid or uid))
-    image = 'runtime-os-coding-agent:repair-context-20261026'
+    image = 'runtime-os-coding-agent:repair-' + hashlib.sha256((root/'patched/runner.js').read_bytes()).hexdigest()[:16]
     baseline_tag = 'runtime-os-coding-agent:baseline-' + old['Image'].split(':')[1][:16]
     run('docker', 'tag', old['Image'], baseline_tag)
     assert run('docker', 'image', 'inspect', '--format', '{{.Id}}', baseline_tag) == old['Image']
@@ -90,7 +93,8 @@ def main():
     with (root / 'production-worker-tests.log').open('w') as log:
         subprocess.run(['docker', 'run', '--rm', '--network', 'none', '--entrypoint', 'node',
                         '-v', str(verify) + ':/verify:ro', '-w', '/verify', image,
-                        '--test', 'test/code-repair.test.js', 'test/runner.test.js',
+                        '--test', 'test/code-repair.test.js', 'test/code-lifecycle.test.js',
+                        'test/reviewed-result.test.js', 'test/runner.test.js',
                         'test/recovery.test.js', 'test/runtime-model.test.js',
                         'test/server.test.js', 'test/sdk-packages.test.js'],
                        stdout=log, stderr=subprocess.STDOUT, check=True)
@@ -102,13 +106,16 @@ def main():
         assert not run('docker', 'ps', '--filter', 'name=chatchat-py-', '--format', '{{.ID}}')
     idle()
     assert json.loads(run('docker', 'inspect', name))[0]['Id'] == old['Id']
-    backup_name = name + '-before-repair-context-20261026'
+    backup_name = name + '-before-repair-' + old['Image'].split(':')[-1][:16]
     config['Image'] = image
     endpoints = {network: {'Aliases': details.get('Aliases', []),
                            'IPAMConfig': details.get('IPAMConfig')}
                  for network, details in old['NetworkSettings']['Networks'].items()}
     report = {'previousImage': old['Image'], 'image': image, 'backupContainer': backup_name,
-              'changedModules': list(BASELINES), 'runtimePolicyPreserved': True}
+              'changedModules': list(baselines), 'runtimePolicyPreserved': True}
+    compose_path = Path('/opt/runtime-os-docker-stage/compose.yaml')
+    compose_before = compose_path.read_bytes()
+    (root / 'compose-before.json').write_bytes(compose_before)
     created = False
     renamed = False
     disconnected = []
@@ -138,13 +145,17 @@ def main():
         assert set(current['NetworkSettings']['Networks']) == set(old['NetworkSettings']['Networks'])
         for network, details in old['NetworkSettings']['Networks'].items():
             assert current['NetworkSettings']['Networks'][network]['IPAddress'] == details['IPAddress']
-        for module in BASELINES:
+        for module in baselines:
             expected = hashlib.sha256((root / 'patched' / module).read_bytes()).hexdigest()
             assert run('docker', 'exec', name, 'sha256sum', '/srv/coding-agent/dist/' + module).split()[0] == expected
         run('docker', 'exec', 'runtime-os-app-stage-node-proxy-1', 'nginx', '-t')
         run('docker', 'exec', 'runtime-os-app-stage-node-proxy-1', 'nginx', '-s', 'reload')
+        compose = json.loads(compose_before)
+        compose['services']['coding-agent']['image'] = image
+        compose_path.write_text(json.dumps(compose, indent=2))
         report['status'] = 'DEPLOYED'
     except Exception:
+        compose_path.write_bytes(compose_before)
         if created:
             run('docker', 'rm', '-f', name)
         if renamed:

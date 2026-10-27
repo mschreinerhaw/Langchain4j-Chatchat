@@ -85,6 +85,8 @@ public final class ClineRuntimeModelBridge {
     }
 
     public Map<String, Object> complete(CodingTaskContract contract, JsonNode request) {
+        boolean providerDispatched = false;
+        try {
         Objects.requireNonNull(contract);
         if (request == null || !request.isObject()) throw new IllegalArgumentException("Model request is required");
         String modelName = resources.defaultChatModel();
@@ -171,8 +173,10 @@ public final class ClineRuntimeModelBridge {
         String responseMode;
         try(var timing=com.chatchat.agents.orchestration.model.MeteredChatModel.observeTiming()) {
             var selected=parent==null?models.create(modelName,Duration.ofMillis(remaining.getAsLong()),outputLimit):parent;
-            answer=com.chatchat.agents.orchestration.model.ToolExecutionModels.independent(selected,remaining,cancelled,maxModelCallMillis)
-                .chat(ChatRequest.builder().messages(messages).toolSpecifications(tools).parameters(requestParameters).build());
+            var dispatchModel=com.chatchat.agents.orchestration.model.ToolExecutionModels.independent(selected,remaining,cancelled,maxModelCallMillis);
+            var dispatchRequest=ChatRequest.builder().messages(messages).toolSpecifications(tools).parameters(requestParameters).build();
+            providerDispatched = true;
+            answer=dispatchModel.chat(dispatchRequest);
             queueTime=timing.queueTimeMs(); firstToken=timing.firstTokenMs(); generationTime=timing.generationTimeMs();
             retryTime=timing.retryTimeMs();
             responseMode=timing.responseMode();
@@ -260,6 +264,18 @@ public final class ClineRuntimeModelBridge {
             throw new InvalidModelResponseException(result);
         }
         return result;
+        } catch (RuntimeException failure) {
+            if (providerDispatched || failure instanceof InvalidModelResponseException) throw failure;
+            // No ChatModel.chat call occurred. This is definitive local stop evidence,
+            // not an unknown provider execution and not a fabricated provider response.
+            var rejected = new InvalidModelResponseException(Map.of(
+                "error", "Runtime rejected the model request before provider dispatch: " + failure.getClass().getSimpleName(),
+                "diagnosticCode", "MODEL_REQUEST_REJECTED_LOCALLY", "providerDispatched", false,
+                "toolCalls", List.of(), "usage", Map.of("inputTokens", 0, "outputTokens", 0),
+                "modelInfo", Map.of("source", "RUNTIME_PREFLIGHT", "providerDispatched", false, "durationMs", 0)));
+            rejected.initCause(failure);
+            throw rejected;
+        }
     }
 
     public static final class InvalidModelResponseException extends IllegalStateException {

@@ -124,13 +124,9 @@ export class CodeHistory {
         throw new TypeError('Repair base code hash mismatch');
       source = editedSource === undefined ? prepareProgram(input, this.currentSource) : bounded(editedSource);
     }
-    if (this.protectedFragments.some(fragment => !source.includes(fragment))
-        || this.forbiddenFragments.some(fragment => source.includes(fragment)))
-      throw new CodeProposalError('REGRESSION_ASSERTION_FAILED', 'a validated repair assertion was violated');
-    const additions = input.repair?.edits ?? [];
-    if (new Set([...this.protectedFragments, ...additions.map(edit => edit.newText).filter(Boolean)]).size > 128
-        || new Set([...this.forbiddenFragments, ...additions.map(edit => edit.oldText).filter(text => !source.includes(text))]).size > 128)
-      throw new CodeProposalError('REGRESSION_ASSERTION_LIMIT', 'repair assertions exceed the recoverable checkpoint limit');
+    // Exact patch anchors and parent hashes prove lineage, not analytical correctness.
+    // Earlier replacement text is not an executable regression assertion and must
+    // remain editable. Every new version needs its own execution/result evidence.
     return source;
   }
   record(source, input, script, operationId) {
@@ -150,13 +146,12 @@ export class CodeHistory {
     if (!version) return;
     const passed = receipt.executorStopped === true && receipt.resultAvailable !== false
       && receipt.status === 'SUCCEEDED' && receipt.validationStatus !== 'FAILED'
-      && receipt.resultDatasetRef && receipt.validationRecordRef && receipt.evidenceBundleRef;
+      && receipt.resultDatasetRef && receipt.validationRecordRef && receipt.evidenceBundleRef
+      && receipt.reviewedArtifact?.reportReferenceValidation?.valid !== false;
     version.status = passed ? 'VALIDATED' : receipt.executorStopped ? 'REJECTED' : 'UNKNOWN';
     if (passed) {
       this.validSource = this.currentSource;
       this.validHash = version.codeHash;
-      this.protectedFragments = [...new Set([...this.protectedFragments, ...version.fragments])];
-      this.forbiddenFragments = [...new Set([...this.forbiddenFragments, ...version.forbidden])];
     }
     version.editCount = version.fragments.length;
     version.patchHash = hash(JSON.stringify([version.fragments, version.forbidden]));

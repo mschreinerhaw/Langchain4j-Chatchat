@@ -87,7 +87,14 @@ class McpResultAnalysisBridgeTest {
             .containsEntry("declaredNoRecords", true)
             .containsEntry("resultKind", "EMPTY")
             .containsEntry("resultRouting", "DECLARED_RESULT_KIND");
-        assertThat(projection.get("datasets"))
-            .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.LIST).isEmpty();
+        var result = bridge.analysisResult("empty", Map.of(
+            "schemaVersion", McpAnalysisPayload.SCHEMA_VERSION,
+            "resultKind", "EMPTY", "status", "EMPTY_RESULT",
+            "completeness", Map.of("complete", true),
+            "data", List.of(), "rawData", List.of()), 1000, true);
+        assertThat(result.datasets()).singleElement().satisfies(dataset -> {
+            assertThat(dataset.records()).isEmpty();
+            assertThat(dataset.analysisContext()).containsEntry("sourceVerifiedEmpty", true);
+        });
     }
 }

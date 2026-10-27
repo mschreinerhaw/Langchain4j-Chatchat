@@ -24,6 +24,40 @@ import static org.mockito.Mockito.when;
 
 class AnalysisEvidenceCoordinatorTest {
 
+    @Test void declaredEmptyMcpDataRemainsAReadableEmptyDatasetAcrossTransportCarriers() throws Exception {
+        var payload=new com.chatchat.common.mcp.runtime.McpAnalysisPayload(null,"request","service","opaque",
+            "EMPTY_RESULT",com.chatchat.common.mcp.service.McpResultKind.EMPTY,"published-schema",null,null,
+            Map.of("complete",true),List.of(),Map.of("rows",List.of(Map.of("poison",99))),null,null,false,null,Map.of());
+        var json=new ObjectMapper();
+        for(Object carrier:List.of(payload,payload.toMap(),json.writeValueAsString(payload.toMap()),
+                json.valueToTree(payload.toMap()),Map.of("structuredContent",payload.toMap()),
+                com.chatchat.common.tool.ToolOutput.success(payload.toMap()))) {
+            var projection=coordinator(mock(ToolRegistry.class),new com.chatchat.agents.runtime.analysis.McpResultAnalysisBridge())
+                .project(result(step("opaque_template_execute",carrier)));
+            assertThat(projection.excludedDatasets()).isEmpty();
+            assertThat(projection.datasets()).singleElement().satisfies(dataset->{
+                assertThat(dataset.recordCount()).isZero();
+                assertThat(dataset.analysisContext()).containsEntry("sourceVerifiedEmpty",true);
+                assertThat(dataset.records()).isEmpty();
+            });
+            assertThat(DataSupplyStatus.describe(result(step("opaque_template_execute",carrier)),projection.datasets(),projection.excludedDatasets()))
+                .containsEntry("status","EMPTY_RESULT").containsEntry("deliveryComplete",true);
+        }
+    }
+
+    @Test void failedOrIncompleteDeclaredEmptyResultCannotBecomeTransportTextOrAZeroRowSuccess() {
+        for(String status:List.of("FAILED","PARTIAL")) {
+            var payload=Map.of("schemaVersion",com.chatchat.common.mcp.runtime.McpAnalysisPayload.SCHEMA_VERSION,
+                "status",status,"resultKind","EMPTY","completeness",Map.of("complete",false),
+                "data",List.of(),"rawData",Map.of("rows",List.of(Map.of("poison",99))));
+            var projection=coordinator(mock(ToolRegistry.class),new com.chatchat.agents.runtime.analysis.McpResultAnalysisBridge())
+                .project(result(step("opaque_template_execute",payload)));
+            assertThat(projection.datasets()).isEmpty();
+            assertThat(DataSupplyStatus.describe(result(step("opaque_template_execute",payload)),projection.datasets(),projection.excludedDatasets()))
+                .containsEntry("status","EXECUTION_FAILED");
+        }
+    }
+
     @Test void verifiedEmptySqlRowsRemainEmptyEvidenceRatherThanSerializedTransportPayload() throws Exception {
         var envelope=Map.of("dataSchema","sql_result.v1","data",Map.of("rows",List.of(),"rowCount",0,
             "complete",true,"possiblyTruncated",false,"diagnostics",Map.of("password","private-value")));

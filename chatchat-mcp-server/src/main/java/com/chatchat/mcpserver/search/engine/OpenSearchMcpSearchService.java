@@ -570,6 +570,10 @@ public class OpenSearchMcpSearchService {
 
     private void debugSearch(String searchRequestId, String phase, String index, Map<String, Object> body,
                              JsonNode response, long durationMs) {
+        var invocation = com.chatchat.mcpserver.mcp.McpInvocationContext.current();
+        log.info("MCP_SEARCH_RECEIPT requestId={} traceId={} searchRequestId={} phase={} index={} durationMs={} status=SUCCEEDED",
+            invocation == null ? null : invocation.requestId(), invocation == null ? null : invocation.traceId(),
+            searchRequestId, phase, index, durationMs);
         if (!searchDebugEnabled() && !log.isDebugEnabled()) {
             return;
         }

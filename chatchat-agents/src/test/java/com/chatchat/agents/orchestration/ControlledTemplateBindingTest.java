@@ -6,7 +6,6 @@ import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.data.message.AiMessage;
 import org.junit.jupiter.api.Test;
-import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
 import static org.assertj.core.api.Assertions.*;
@@ -36,20 +35,15 @@ class ControlledTemplateBindingTest {
             Map.of("schemaVersion", "template_query_result.v1")), role))
             .isEqualTo(com.chatchat.common.tool.ToolWorkflowRole.ASSET_DISCOVERY);
     }
-    @Test void typedGovernedPayloadDeliversSchemaToTheControlledBinder() throws Exception {
-        var data = Map.of("schemaVersion", "template_query_result.v1", "templates", List.of(
-            Map.of("templateId", "approved", "parameterSchema", Map.of("type", "object", "properties", Map.of()))));
-        var result = bindPayload(Map.of("structuredContent", payload(data, Map.of())), "approved");
-        assertThat(result).containsEntry("parameter_binding_mode", "runtime_empty_schema");
-        assertThat((List<?>) result.get("parameter_protocols")).hasSize(1);
+    @Test void typedGovernedPayloadDeliversSchemaToTheUnifiedSelectionStep() throws Exception {
+        var data=Map.of("templates",List.of(Map.of("templateId","approved")));
+        var result=selectPayload(Map.of("structuredContent",payload(data,Map.of())),"approved",true);
+        assertThat(result.status()).isEqualTo("SELECTED");assertThat(result.protocols()).hasSize(1);
     }
 
-    @Test void rawTransportTemplatesCannotOverrideTheGovernedCandidateSet() {
-        var raw = Map.of("templates", List.of(Map.of("templateId", "raw-only",
-            "parameterSchema", Map.of("type", "object", "properties", Map.of()))));
-        assertThatThrownBy(() -> bindPayload(payload(Map.of("templates", List.of()), raw), "raw-only"))
-            .hasCauseInstanceOf(IllegalStateException.class)
-            .cause().hasMessageContaining("TEMPLATE_PARAMETER_BINDING_FAILED");
+    @Test void rawTransportTemplatesCannotOverrideTheGovernedCandidateSet() throws Exception {
+        var raw=Map.of("templates",List.of(Map.of("templateId","raw-only")));
+        assertThat(selectPayload(payload(Map.of("templates",List.of()),raw),"raw-only",true).status()).isEqualTo("NO_CANDIDATES");
     }
 
     private Object payload(Object data, Object raw) {
@@ -58,40 +52,24 @@ class ControlledTemplateBindingTest {
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, Object> bindPayload(Object payload, String selectedId) throws Exception {
-        var engine = mock(AgentOrchestrationEngine.class, CALLS_REAL_METHODS);
-        var field = AgentOrchestrationEngine.class.getDeclaredField("objectMapper");
-        field.setAccessible(true);
-        field.set(engine, new ObjectMapper());
-        var method = AgentOrchestrationEngine.class.getDeclaredMethod("bindSelectedTemplateParameters",
-            ChatModel.class, String.class, Object.class, Map.class);
+    private SchemaDrivenTemplateParameterBinder.SelectionResult selectPayload(Object payload,String id,boolean nativeResponse) throws Exception {
+        var engine=mock(AgentOrchestrationEngine.class,CALLS_REAL_METHODS);
+        var field=AgentOrchestrationEngine.class.getDeclaredField("objectMapper");field.setAccessible(true);field.set(engine,new ObjectMapper());
+        var method=AgentOrchestrationEngine.class.getDeclaredMethod("findCandidateMaps",Object.class,String.class,int.class);
         method.setAccessible(true);
-        return (Map<String, Object>) method.invoke(engine, null, "inspect service", payload,
-            Map.of("selected_template_ids", List.of(selectedId)));
+        var candidates=(List<Map<String,Object>>)method.invoke(engine,payload,"templates",0);
+        var model=mock(ChatModel.class);
+        when(model.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder().aiMessage(nativeResponse
+            ?AiMessage.from(dev.langchain4j.agent.tool.ToolExecutionRequest.builder().name(SchemaDrivenTemplateParameterBinder.SELECTION_FUNCTION)
+                .arguments(new ObjectMapper().writeValueAsString(Map.of("status","SELECTED","selections",List.of(Map.of("templateId",id,"parameters",Map.of()))))).build())
+            :AiMessage.from("free-form arguments")).build());
+        return new SchemaDrivenTemplateParameterBinder(new ObjectMapper()).selectAndBind(model,"C-1",candidates);
     }
 
-    @Test void reviewerArgumentsCannotBypassTheDesignatedNativeBinder() throws Exception {
-        var engine = mock(AgentOrchestrationEngine.class, CALLS_REAL_METHODS);
-        var field = AgentOrchestrationEngine.class.getDeclaredField("objectMapper");
-        field.setAccessible(true);
-        field.set(engine, new ObjectMapper());
-        ChatModel model = new ChatModel() {
-            @Override public ChatResponse doChat(ChatRequest request) {
-                return ChatResponse.builder().aiMessage(AiMessage.from("free-form arguments")).build();
-            }
-        };
-        var method = AgentOrchestrationEngine.class.getDeclaredMethod("bindSelectedTemplateParameters",
-            ChatModel.class, String.class, Object.class, Map.class);
-        method.setAccessible(true);
-        var discovery = Map.of("templates", List.of(Map.of("templateId", "approved",
-            "parameterSchema", Map.of("type", "object", "properties",
-                Map.of("subject", Map.of("type", "string")), "required", List.of("subject")))));
-        var review = Map.of("selected_template_ids", List.of("approved"), "parameter_protocols", List.of(
-            Map.of("template_id", "approved", "arguments", Map.of("subject", Map.of(
-                "value", "C-1", "source", "user_query", "evidence", Map.of("quote", "C-1"))))));
-        assertThatThrownBy(() -> method.invoke(engine, model, "C-1", discovery, review))
-            .isInstanceOf(InvocationTargetException.class)
-            .hasCauseInstanceOf(IllegalStateException.class)
-            .cause().hasMessageContaining("TEMPLATE_PARAMETER_BINDING_FAILED");
+    @Test void reviewerArgumentsCannotBypassTheDesignatedNativeSelectionContract() throws Exception {
+        var data=Map.of("templates",List.of(Map.of("templateId","approved","parameterSchema",Map.of("type","object",
+            "properties",Map.of("subject",Map.of("type","string")),"required",List.of("subject")))));
+        var result=selectPayload(data,"approved",false);
+        assertThat(result.status()).isEqualTo("INVALID_MODEL_RESPONSE");assertThat(result.protocols()).isEmpty();
     }
 }

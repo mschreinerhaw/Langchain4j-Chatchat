@@ -542,7 +542,9 @@ public class AgentPlanner implements AgentPlanningPort {
             interpretationPlanValidator.validate(
                 interpretationPlan,
                 toolRegistry,
-                validationTools
+                validationTools,
+                validationContext == null ? null : validationContext.authoritativeWorkflowDag(),
+                null
             );
         List<String> runtimeIssues = validateRuntimePlanRules(interpretationPlan, validationContext);
         Map<String, Object> validationMetadata = new LinkedHashMap<>(validationMetadata(validation, runtimeIssues));
@@ -734,10 +736,7 @@ public class AgentPlanner implements AgentPlanningPort {
             }
             previousMandatoryStepId = mandatoryStepId;
         }
-        if (authoritativeDagConfigured) {
-            validateAuthoritativeWorkflowDependencies(
-                context.authoritativeWorkflowDag(), stepsById, toolStepIds, issues);
-        }
+        // Authoritative capability coverage and edges have one owner: InterpretationPlanValidator.
         validateOptionalToolDecisions(plan, context, stepsById, toolStepIds, finalStep, issues);
         if (context.requireDocumentWebVerification()) {
             Integer documentStepId = firstToolStepId(toolStepIds, context.documentSearchTool());
@@ -889,35 +888,6 @@ public class AgentPlanner implements AgentPlanningPort {
         for (String decidedTool : byTool.keySet()) {
             if (optionalTools.stream().noneMatch(tool -> tool.equalsIgnoreCase(decidedTool))) {
                 issues.add("Optional tool decision references a non-candidate tool: " + decidedTool);
-            }
-        }
-    }
-
-    private void validateAuthoritativeWorkflowDependencies(Object rawDag,
-                                                            Map<Integer, InterpretationPlan.Step> stepsById,
-                                                            Map<String, List<Integer>> toolStepIds,
-                                                            List<String> issues) {
-        for (Map<String, Object> node : authoritativeWorkflowNodes(rawDag)) {
-            String tool = stringValue(firstObject(node, "tool", "toolName"));
-            // A configured DAG edge names one concrete publisher tool. Role aliases are
-            // intentionally broader (all template-discovery tools share one role) and would
-            // bind an edge to whichever discovery tool happened to appear first in the plan.
-            Integer targetStepId = firstConcreteToolStepId(toolStepIds, tool);
-            if (targetStepId == null) {
-                continue;
-            }
-            for (String dependencyTool : stringList(firstObject(
-                node, "dependsOnTools", "depends_on_tools", "dependsOn", "depends_on"))) {
-                Integer dependencyStepId = firstConcreteToolStepId(toolStepIds, dependencyTool);
-                if (dependencyStepId == null) {
-                    issues.add("Authoritative workflow dependency tool is missing from InterpretationPlan: "
-                        + dependencyTool + " -> " + tool);
-                    continue;
-                }
-                if (!dependsOnStep(targetStepId, dependencyStepId, stepsById, new LinkedHashSet<>())) {
-                    issues.add("Mandatory tool must preserve authoritative workflow dependency: "
-                        + dependencyTool + " -> " + tool);
-                }
             }
         }
     }

@@ -16,6 +16,34 @@ class TemplateSelectionAndBindingTest {
     private final ObjectMapper mapper=new ObjectMapper();
     private final SchemaDrivenTemplateParameterBinder binder=new SchemaDrivenTemplateParameterBinder(mapper);
 
+    @Test void modelNormalizationKeepsExactInputProvenanceAndPassesTheExecutorSchema() throws Exception {
+        var template=Map.<String,Object>of("templateId","typed","parameterSchema",Map.of("type","object",
+            "required",List.of("limit","codes","start"),"properties",Map.of(
+                "limit",Map.of("type","integer"),"codes",Map.of("type","array","items",Map.of("type","string")),
+                "start",Map.of("type","string"))));
+        var query="For last month use codes A and B, limit 1";
+        var decision=Map.<String,Object>of("status","SELECTED","selections",List.of(Map.of(
+            "templateId","typed","parameters",Map.of("limit",1,"codes",List.of("A","B"),"start","2026-09-01"),
+            "parameterEvidence",Map.of("codes","codes A and B","start","last month"))));
+        var result=binder.selectAndBind(model(decision),query,List.of(template));
+        assertThat(result.status()).isEqualTo("SELECTED");
+        var bridge=new com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge();
+        var prepared=bridge.prepare(new com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge.BridgeRequest(
+            "api_template_execute",null,"typed",template,Map.of(),result.protocols().get(0),true,true,
+            new com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge.EvidenceContext(query,Map.of())));
+        assertThat(prepared.parameters()).containsEntry("limit",1).containsEntry("codes",List.of("A","B"))
+            .containsEntry("start","2026-09-01");
+        assertThat(prepared.parameterEvidence().get("start").reference()).containsEntry("interpretation","model");
+    }
+
+    @Test void normalizedValueStillRequiresAnActualUserQuote() throws Exception {
+        var decision=Map.<String,Object>of("status","SELECTED","selections",List.of(Map.of(
+            "templateId","a","parameters",Map.of("customer","invented"),
+            "parameterEvidence",Map.of("customer","a quote absent from the request"))));
+        assertThat(binder.selectAndBind(model(decision),"Analyze customer C42",List.of(template("a",null))).status())
+            .isEqualTo("PARAMETERS_REQUIRED");
+    }
+
     @Test void oneModelCallSelectsThreeOfEightTemplatesAndExtractsParameters() throws Exception {
         var candidates=new ArrayList<Map<String,Object>>();
         for(int i=0;i<8;i++)candidates.add(template("t"+i,null));
@@ -88,6 +116,48 @@ class TemplateSelectionAndBindingTest {
         var model=mock(ChatModel.class);
         assertThat(binder.selectAndBind(model,"C42",List.of()).status()).isEqualTo("NO_CANDIDATES");
         verifyNoInteractions(model);
+    }
+
+    @Test void selectionMetricsUseProviderUsageWithoutInventingMissingCounters() throws Exception {
+        var model=mock(ChatModel.class);
+        when(model.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder()
+            .tokenUsage(new dev.langchain4j.model.output.TokenUsage(11,7))
+            .aiMessage(AiMessage.from(ToolExecutionRequest.builder().name(SchemaDrivenTemplateParameterBinder.SELECTION_FUNCTION)
+                .arguments(mapper.writeValueAsString(Map.of("status","NO_MATCH","selections",List.of()))).build())).build());
+        var result=binder.selectAndBind(model,"C42",List.of(template("a",null)));
+        assertThat(result.metrics()).containsEntry("selectionModelCalls",1).containsEntry("selectionUsageAvailable",true)
+            .containsEntry("selectionInputTokens",11L).containsEntry("selectionOutputTokens",7L);
+        assertThat((long)result.metrics().get("selectionDurationMs")).isGreaterThanOrEqualTo(0);
+        var unavailable=binder.selectAndBind(null,"C42",List.of(template("a",null)));
+        assertThat(unavailable.metrics()).containsEntry("selectionModelCalls",0).containsEntry("selectionUsageAvailable",false)
+            .doesNotContainKeys("selectionInputTokens","selectionOutputTokens");
+    }
+
+    @Test void oneProtocolCorrectionUsesTheSameCandidatesAndPreservesEveryValidChoice() throws Exception {
+        var model=mock(ChatModel.class);
+        when(model.chat(any(ChatRequest.class))).thenReturn(
+            decisionResponse(List.of(selection("a","C42"),selection("invented","C42"))),
+            decisionResponse(List.of(selection("a","C42"),selection("b","C42"))));
+        var result=binder.selectAndBind(model,"Analyze C42",List.of(template("a",null),template("b",null)));
+        assertThat(result.status()).isEqualTo("SELECTED");assertThat(result.selectedIds()).containsExactly("a","b");
+        assertThat(result.metrics()).containsEntry("selectionModelCalls",2).containsEntry("selectionProtocolCorrections",1);
+        verify(model,times(2)).chat(any(ChatRequest.class));
+    }
+
+    @Test void protocolCorrectionCannotSilentlyDropAnAlreadyValidBusinessChoice() throws Exception {
+        var model=mock(ChatModel.class);
+        when(model.chat(any(ChatRequest.class))).thenReturn(
+            decisionResponse(List.of(selection("a","C42"),selection("invented","C42"))),
+            decisionResponse(List.of(selection("b","C42"))));
+        var result=binder.selectAndBind(model,"Analyze C42",List.of(template("a",null),template("b",null)));
+        assertThat(result.status()).isEqualTo("INVALID_MODEL_RESPONSE");assertThat(result.selectedIds()).isEmpty();
+        assertThat(result.protocols()).isEmpty();verify(model,times(2)).chat(any(ChatRequest.class));
+    }
+
+    private ChatResponse decisionResponse(List<Map<String,Object>> selections) throws Exception {
+        return ChatResponse.builder().aiMessage(AiMessage.from(ToolExecutionRequest.builder()
+            .name(SchemaDrivenTemplateParameterBinder.SELECTION_FUNCTION)
+            .arguments(mapper.writeValueAsString(Map.of("status","SELECTED","selections",selections))).build())).build();
     }
 
     private Map<String,Object> selection(String id,String customer) {

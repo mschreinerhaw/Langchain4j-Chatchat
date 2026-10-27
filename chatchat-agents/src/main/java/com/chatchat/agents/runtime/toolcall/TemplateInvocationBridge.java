@@ -446,11 +446,17 @@ public final class TemplateInvocationBridge {
                 throw failure("TEMPLATE_PARAMETER_EVIDENCE_MISMATCH",
                     "argument " + parameter + " evidence quote is absent from the Runtime user query");
             }
-            if (!compact(quote).contains(compact(String.valueOf(proposedValue)))) {
+            // The model owns interpretation (for example relative dates and arrays).
+            // Runtime verifies the cited input exists; schema and authorization remain
+            // enforced separately. Tool-result values below still require exact equality.
+            boolean modelInterpretation = rawEvidence instanceof Map<?, ?> evidence
+                && "model".equals(evidence.get("interpretation"));
+            if (!modelInterpretation && !compact(quote).contains(compact(String.valueOf(proposedValue)))) {
                 throw failure("TEMPLATE_PARAMETER_EVIDENCE_MISMATCH",
                     "argument " + parameter + " value is not present in its user-query evidence quote");
             }
-            return new ParameterEvidence(USER_QUERY_SOURCE, Map.of("quote", quote), proposedValue);
+            return new ParameterEvidence(USER_QUERY_SOURCE, modelInterpretation
+                ? Map.of("quote", quote, "interpretation", "model") : Map.of("quote", quote), proposedValue);
         }
         if (TOOL_RESULT_SOURCE.equals(source)) {
             if (!(rawEvidence instanceof Map<?, ?> rawMap)) {

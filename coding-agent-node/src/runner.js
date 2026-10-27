@@ -220,9 +220,9 @@ export function createCodingRun(contract, gateway, options = {}) {
     ...(fastAnalysis ? { lifecycle: { completesRun: true } } : {}),
     description: `Submit code using the Java Runtime-assigned versioned script name and workspace, in a NEW isolated Python sandbox for EACH call. Java mounts only authorized immutable inputs under /data/input/{fileId}/{fileName}. ${fileInput ? 'Input is a versioned manifest with schemaFileId and ordered Parquet/CSV parts; use columns[].storageName/type to reconstruct logical columns and null/missing semantics. Read and hash-check each part; never parse this manifest as JSONL.' : 'A single input is input.jsonl; a chunked input uses manifest.json plus its ordered input.jsonl chunks. Read and hash-check the manifest chunks in Python.'} Previous calls' output files do not exist here. To produce an analysis result, perform the calculation and write structured JSONL to /workspace/output/results/${contract.outputContract?.requiredFiles?.[0] ?? 'rows.jsonl'}. A diagnostic program without that file may succeed as a process, but produces no analysis result. Inspect the returned Runtime receipt; ${history ? 'Repair technical errors with exact patches against the latest version.' : 'Repair technical errors with a complete new program.'} Never claim business validation yourself.`,
     inputSchema: { type: 'object', properties: {
-      fileName: { type: 'string', description: 'Optional compatibility hint; Runtime assigns the actual immutable script name and version.' }, source: { type: 'string' },
+      fileName: { type: 'string', description: 'Optional compatibility hint; Runtime assigns the actual immutable script name and version.' }, source: { type: 'string', description: 'Initial complete program only. Never combine source with repair or rollback. After the first version use repair with the latest parentCodeVersion and baseCodeSha256.' },
       ...(history ? { rollback: { type: 'object', properties: { parentCodeVersion: { type: 'integer' }, parentCodeSha256: { type: 'string' }, targetCodeSha256: { type: 'string' } }, required: ['parentCodeVersion','parentCodeSha256','targetCodeSha256'], additionalProperties: false } } : {}),
-      ...(repairableAnalysis ? { repair: { type: 'object', properties: {
+      ...(repairableAnalysis ? { repair: { type: 'object', description: 'Exact edits of the existing program; exclude source and rollback.', properties: {
         baseCodeSha256: { type: 'string' }, parentCodeVersion: { type: 'integer' }, edits: { type: 'array', items: { type: 'object', properties: {
           oldText: { type: 'string' }, newText: { type: 'string' },
         }, required: ['oldText', 'newText'], additionalProperties: false } },
@@ -234,12 +234,16 @@ export function createCodingRun(contract, gateway, options = {}) {
         throw new TypeError('Invalid Python file name');
       let source;
       try {
+        if (['source', 'repair', 'rollback'].filter(key => input?.[key] !== undefined).length !== 1)
+          throw new TypeError('Exactly one code proposal is required');
         const edited = nativeSdk ? await editProgram(input, history?.currentSource ?? previousProgram, context.signal) : undefined;
         source = history ? history.propose(input, edited) : edited ?? prepareProgram(input, repairableAnalysis ? previousProgram : null);
       }
       catch (error) {
         if (history) await forward({ type: 'CODE_PROPOSAL_REJECTED', ...history.reject(input, context.toolCallId, error) });
-        throw error;
+        throw new Error(`${error.message}. Submit exactly one of source, repair or rollback. ${history?.currentSource
+          ? 'An existing version requires repair only, with its latest parentCodeVersion, baseCodeSha256 and exact edits; do not include source.'
+          : 'The first version requires source only.'}`);
       }
       if (Buffer.byteLength(source, 'utf8') > 256000) throw new TypeError('Python source exceeds Runtime limit');
       const toolCallId = required(context.toolCallId, 'toolCallId');
@@ -328,7 +332,10 @@ export function createCodingRun(contract, gateway, options = {}) {
           receipt = { ...receipt, reviewedArtifact: artifact };
         }
         const sourceContext = repairSourceContext(source, receipt.executionFeedback, fileName);
-        const result = { ...receipt, ...(sourceContext ? { repairSourceContext: sourceContext } : {}),
+        const result = { ...receipt,
+          ...(reportReferenceFailure ? { resultAvailable: false, validationStatus: 'FAILED',
+            outputStatus: 'INVALID_RESULT_REFERENCES' } : {}),
+          ...(sourceContext ? { repairSourceContext: sourceContext } : {}),
           ...(codeVersion ? { codeVersion: codeVersion.version, parentCodeVersion: codeVersion.parentVersion,
             codeHash: codeVersion.codeHash, parentCodeHash: codeVersion.parentHash } : {}) };
         history?.receipt(result);
@@ -398,11 +405,11 @@ export function createCodingRun(contract, gateway, options = {}) {
     'Modify requested files with complete content, preserve unrelated source and comments, and use separate safe relative .sql paths for multi-file ETL.',
     'Use parser diagnostics to fix technical errors. A valid proposal is staged for user Diff review; no SQL has been executed and field/business validation may be NOT_EVALUATED.',
   ] : [
-    'You implement the supplied Runtime task plan in Python and repair the program through tools. Runtime OS owns business interpretation, classification, task plans, authorization, template selection, data delivery, the global deadline and final acceptance. Keep technical planning concise; do not create a second business plan. Compute findings and the report in the program, not in repeated assistant drafts.',
+    'You explore authorized data, compute findings and produce the report in Python, handling execution feedback and technical repairs through tools. Models own business understanding, template selection and analytical decisions. Java Runtime retrieves candidates, checks identities, schemas and permissions, supplies data, schedules execution and enforces budgets and output integrity. Follow the supplied user goal and immutable data contract. Keep technical planning concise and write findings and the report in the program rather than repeated assistant drafts.',
     'An already selected business template workflow is immutable. Never replace its steps, change its execution order or rebind its parameters. Any additional data must pass the explicitly authorized Runtime data_request contract. Explore only delivered immutable files; do not enumerate directories, repeatedly probe files, or request broader source access.',
     'Skills in the Runtime context are available capabilities, not loaded documents. Use skill_read for relevant instructions and then any needed listed reference paths. Do not load every Skill by default. Disclose unavailable methods, prerequisites and evidence limits in the result. Skill examples never authorize access or replace the fixed business workflow.',
     'Use only the listed tools. Do not access a host shell, Docker socket, arbitrary files, databases, or network resources.',
-    ...(history ? ['This task negotiates runtime_os.code_lifecycle.v1. Generate complete source once; thereafter use repair {parentCodeVersion,baseCodeSha256,edits:[{oldText,newText}]}. Retain validated regression assertions. To roll back, use rollback {parentCodeVersion,parentCodeSha256,targetCodeSha256} naming lastValidatedHash. Rollback creates a new version and must execute and validate again.'] : []),
+    ...(history ? ['This task negotiates runtime_os.code_lifecycle.v1. Generate complete source once; thereafter use repair {parentCodeVersion,baseCodeSha256,edits:[{oldText,newText}]}. Preserve verified behavior while correcting the current program; prior patch text remains editable. To roll back, use rollback {parentCodeVersion,parentCodeSha256,targetCodeSha256} naming lastValidatedHash. Every changed or rolled-back version must execute and validate again.'] : []),
     'Generate concise Python, inspect execution receipts, and repair the latest program using source frames and exact edits. Preserve unrelated verified code; never regenerate from an older version. Do not embed input datasets in code or repeat planning already supplied by Runtime.',
     'When validationStatus is FAILED, inspect and repair the output schema. INCONCLUSIVE structural validation does not certify business correctness.',
     fileInput ? 'Use the supplied read-only protocol reader: from runtime_input import load_rows; rows = list(load_rows(manifestPath, expectedManifestSha256)), using the exact inputLayout path and checksum. It returns logical dictionaries, decodes JSON and preserves missing/null values. Batched logical rows contain datasetReference and record. Do not index raw Parquet storage columns by logical names. Each Python call starts a fresh sandbox with Java-authorized input versions. Use the exact files[].virtualPath values supplied by Java. All file ID directories are siblings directly under /data/input: the manifest is /data/input/{manifestFileId}/manifest.json, the schema is /data/input/{schemaFileId}/schema.json, and each part is /data/input/{part.fileId}/{part.fileName}. Never nest schema or part IDs under the manifest directory. Verify SHA-256 and row counts, map storage columns to logical names, and decode JSON cells. Use pyarrow or pandas.read_parquet(dtype_backend="pyarrow") to retain nullable integer/decimal precision. Parquet presence columns pN distinguish missing from null; CSV null/missing/backslash rules are explicit in schema.json. Full data stays in files, never ask to put it in a prompt. Do not reopen previous output in a new sandbox.' : 'Each Python call starts a fresh sandbox with the original immutable input and any additional input versions explicitly delivered by Java data_request, without earlier output files or Python variables. Single inputs use /data/input/{fileId}/input.jsonl; chunked inputs use /data/input/{fileId}/manifest.json and the ordered, hash-checked chunks listed there. Do not launch a new call just to open a previous output file.',

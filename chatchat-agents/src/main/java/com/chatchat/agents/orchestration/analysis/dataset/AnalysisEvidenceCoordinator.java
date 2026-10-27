@@ -197,6 +197,29 @@ public final class AnalysisEvidenceCoordinator {
         return List.copyOf(unique.values());
     }
 
+    public static Dataset supplyStatusDataset(InterpretationPlanRuntime.ExecutionResult result, GovernanceIsolationScope scope,
+            List<Map<String,Object>> exclusions) {
+        List<Map<String,Object>> operations=new ArrayList<>();
+        if(result!=null) for(var step:result.steps()) {
+            var call=step.toolExecution();
+            Boolean toolSucceeded=call==null||call.output()==null?null:call.output().isSuccess();
+            operations.add(metadataOf("stepId",step.stepId(),"toolName",step.toolName(),
+                "stepCompleted",step.success(),"toolResultSucceeded",toolSucceeded,
+                "toolExecutionOutcome",call==null?null:call.outcome(),
+                "mcpDiscoverySucceeded",step.metadata().get("mcpDiscoverySucceeded"),
+                "modelDecision",step.metadata().get("modelCandidateDecision"),
+                "selectionStatus",step.metadata().get("candidateSelectionStatus"),
+                "modelSelectedTemplateIds",step.metadata().get("modelSelectedTemplateIds"),
+                "error",step.errorMessage()));
+        }
+        Map<String,Object> status=metadataOf("recordType","DATA_SUPPLY_STATUS","businessDataAvailable",false,
+            "operations",List.copyOf(operations),"excludedSources",exclusions);
+        status.put("dataSupply",DataSupplyStatus.describe(result,List.of(),exclusions));
+        String reference="supply-status:"+scope.runId();
+        return new Dataset(reference,Map.of("recordType","DATA_SUPPLY_STATUS",
+            "businessData",false,"source",Map.of("kind","RUNTIME_SUPPLY_STATUS")),List.of(status));
+    }
+
     public DatasetRelationshipPlan relationshipPlan(
         List<Dataset> datasets,
         DataAnalysisSummaryProtocol<AnalysisSummaryResult, GovernanceIsolationScope> protocol
@@ -282,8 +305,9 @@ public final class AnalysisEvidenceCoordinator {
             // transport envelope must never become a countable business record.
             return sqlDatasets(envelope,reference,rootContext);
         }
-        List<Dataset> typed = governedHandleProjection(output, reference, rootContext, false);
-        if (!typed.isEmpty()) return typed;
+        var declared=resultAnalysisProtocol.analysisResult(reference,output,Math.max(1_000,maximumChunkChars-2_000),false);
+        List<Dataset> typed = handleDatasets(declared,reference,rootContext);
+        if (!typed.isEmpty() || declared!=null && java.util.Set.of("EMPTY","ERROR_PAGE").contains(declared.evidenceRole())) return typed;
         List<Dataset> sets = governedProjection(output, reference, rootContext, false);
         if (!sets.isEmpty()) return sets;
         sets = sqlDatasets(output, reference, rootContext);
@@ -333,10 +357,17 @@ public final class AnalysisEvidenceCoordinator {
         int maximumRecordChars = Math.max(1_000, maximumChunkChars - 2_000);
         var result = resultAnalysisProtocol.analysisResult(
             reference, output, maximumRecordChars, fallback);
+        return handleDatasets(result,reference,rootContext);
+    }
+
+    private List<Dataset> handleDatasets(com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisAdapter.AnalysisResult result,
+            String reference,Map<String,Object> rootContext) {
         if (result == null || result.datasets().isEmpty()) return List.of();
         List<Dataset> sets = new ArrayList<>();
         for (var projected : result.datasets()) {
-            if (projected == null || projected.handle().recordCount() == 0) continue;
+            if (projected == null || projected.handle().recordCount() == 0
+                    && (!projected.handle().recordCountExact()
+                        || !Boolean.TRUE.equals(projected.analysisContext().get("sourceVerifiedEmpty")))) continue;
             Map<String, Object> context = new LinkedHashMap<>(projected.analysisContext());
             context.put("sourcePayloadPreservation", metadataOf(
                 "sourceSchemaVersion", result.sourceSchemaVersion(),
@@ -367,8 +398,8 @@ public final class AnalysisEvidenceCoordinator {
         List<Dataset> sets = new ArrayList<>();
         for (Map<String, Object> dataset : maps(projection.get("datasets"))) {
             List<Map<String, Object>> records = maps(dataset.get("records"));
-            if (records.isEmpty()) continue;
             Map<String, Object> context = new LinkedHashMap<>(map(dataset.get("analysisContext")));
+            if (records.isEmpty() && !Boolean.TRUE.equals(context.get("sourceVerifiedEmpty"))) continue;
             context.put("sourcePayloadPreservation", preservation);
             sets.add(new Dataset(firstNonBlank(stringValue(dataset.get("datasetReference")), reference),
                 merge(rootContext, context), records));
@@ -494,13 +525,19 @@ public final class AnalysisEvidenceCoordinator {
 
     private List<Dataset> withTemplateRequirementMatch(List<Dataset> datasets, String templateId,
         Map<String, Map<String, Object>> matches) {
-        if (datasets == null || datasets.isEmpty() || matches.isEmpty()) return datasets == null ? List.of() : datasets;
+        if (datasets == null || datasets.isEmpty()) return datasets == null ? List.of() : datasets;
+        if(templateId!=null) datasets=datasets.stream().map(dataset->{
+            var context=new LinkedHashMap<String,Object>(dataset.analysisContext());
+            context.put("sourceTemplateId",templateId);
+            return new Dataset(dataset.reference(),context,dataset.handle());
+        }).toList();
+        if(matches.isEmpty())return datasets;
         Map<String, Object> match = templateId == null
             ? (matches.size() == 1 ? matches.values().iterator().next() : Map.of())
             : matches.getOrDefault(templateId.toLowerCase(Locale.ROOT), Map.of());
         if (match.isEmpty()) return datasets;
-        String effectiveId = templateId == null
-            ? stringList(match.get("selectedTemplateIds")).stream().findFirst().orElse(null) : templateId;
+        var matchedIds=stringList(match.get("selectedTemplateIds"));
+        String effectiveId = templateId == null ? (matchedIds.size()==1?matchedIds.get(0):null) : templateId;
         return datasets.stream().map(dataset -> {
             Map<String, Object> context = new LinkedHashMap<>(dataset.analysisContext());
             context.put(TemplateMatchAnalysis.ANALYSIS_CONTEXT_KEY, match);

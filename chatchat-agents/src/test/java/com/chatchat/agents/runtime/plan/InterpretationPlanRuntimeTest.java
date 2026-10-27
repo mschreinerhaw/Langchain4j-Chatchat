@@ -10558,7 +10558,7 @@ class InterpretationPlanRuntimeTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void publishedBaselineProducesEightAuthorizedExecutionCallsWithoutSemanticSelection() {
+    void fixedPublicationExecutesOnlyTheThreeModelSelectedTemplates() {
         String discovery="mcp_chatchat_mcp_server_api_template_query",executor="mcp_chatchat_mcp_server_api_template_execute";
         var candidates=java.util.stream.IntStream.range(0,8).mapToObj(i->Map.<String,Object>of(
             "templateId","baseline-"+i,"parameterSchema",Map.of("type","object","properties",Map.of()),
@@ -10594,17 +10594,21 @@ class InterpretationPlanRuntimeTest {
             new InterpretationPlan.ExecutionPolicy(3,false,List.of(discovery,executor),List.of(),30000),review());
         var runtime=new InterpretationPlanRuntime(service,new InterpretationPlanValidator(),null,
             request->discovery.equals(request.execution().toolName())
-                ?com.chatchat.agents.runtime.plan.review.PublishedDataSupplyReviewer.review(descriptor,page,candidates).orElseThrow()
+                ?InterpretationPlanRuntime.StepReview.accepted("Model-selected subset",Map.of(
+                    "selectedTemplateIds",List.of("baseline-0","baseline-3","baseline-7"),
+                    "parameterProtocols",List.of("baseline-0","baseline-3","baseline-7").stream().map(id->Map.of(
+                        "protocol_version",com.chatchat.agents.protocol.AgentProtocolCatalog.TEMPLATE_PARAMETER,
+                        "template_id",id,"arguments",Map.of(),"unresolved_parameters",List.of())).toList()))
                 :InterpretationPlanRuntime.StepReview.accepted("execution facts preserved",Map.of()),
             scriptedController(List.of(List.of(1),List.of(2),List.of(3))));
         var result=runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(plan,registry,List.of(discovery,executor),
             "tenant-baseline","request-baseline","conversation-baseline","user-baseline",Map.of("originalUserQuery","analyze collected evidence")));
         assertThat(result.success()).as("%s",result.errorMessage()).isTrue();
-        assertThat((List<Map<String,Object>>)executed.get().get("calls")).hasSize(8).allSatisfy(call->{
+        assertThat((List<Map<String,Object>>)executed.get().get("calls")).hasSize(3).allSatisfy(call->{
             var arguments=(Map<String,Object>)call.get("arguments");
             assertThat(arguments).containsEntry("parameters",Map.of()).containsKey(McpTemplateBindingEvidence.CONTEXT_KEY);
         });
-        assertThat(result.steps().get(0).metadata()).containsEntry("analyticalCoverage","NOT_EVALUATED");
+        assertThat(result.steps().get(0).metadata()).containsEntry("runtimeTemplateSelectedCount",3);
     }
 
     private InterpretationPlanRuntime.DagExecutionController scriptedController(List<List<Integer>> waves) {

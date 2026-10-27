@@ -18,7 +18,9 @@ export interface CodingTask {
 }
 export const stageLabels: Record<string, string> = {
   QUEUED: '排队', CONTEXT_READY: '上下文已就绪', CODING: 'Cline 生成 / 修正代码',
-  CODE_READY: '代码已返回', VALIDATING: 'Java 校验代码', EXECUTING: 'Sandbox 执行',
+  CODE_READY: '代码已返回', CODE_ARCHIVED: '代码已归档，等待执行',
+  EXECUTED: '进程执行成功', RESULT_READY: '结果文件已验收', RESULT_VALIDATION_FAILED: '结果文件验收失败',
+  VALIDATING: 'Java 校验代码', EXECUTING: 'Sandbox 执行',
   RESULT_VALIDATING: '验证和登记结果', COMPLETED: '完成', FAILED: '失败',
   CANCELLED: '已取消', TIMED_OUT: '已超时', CANCELLING: '正在取消', RECONCILING: '等待异常恢复核对',
   WAITING_CONTEXT: '等待 Java 补充上下文', BUDGET_EXCEEDED: '预算耗尽', PARTIAL: '部分完成',
@@ -41,7 +43,8 @@ export function codingStage(task: CodingTask, events: CodingEvent[]): string {
     if (payload.type === 'TOOL_FINISHED' && payload.tool === 'data_request') return 'CONTEXT_READY';
     if (['CODE_READY', 'CONTEXT_READY', 'CODING', 'VALIDATING', 'EXECUTING', 'RESULT_VALIDATING'].includes(payload.stage)) return payload.stage;
     if (payload.type?.startsWith('MODEL_')) return 'CODING';
-    if (event.type === 'CODE_COMMITTED' || event.type === 'VALIDATION_RECORDED') return 'RESULT_VALIDATING';
+    if (event.type === 'CODE_COMMITTED') return 'CODE_ARCHIVED';
+    if (event.type === 'VALIDATION_RECORDED') return 'RESULT_VALIDATING';
     if (event.type === 'EXECUTION_FINISHED' && event.operationId?.startsWith('cline-')) return 'RESULT_VALIDATING';
     if (event.type === 'EXECUTION_STARTED' && event.operationId?.startsWith('cline-')) return 'EXECUTING';
     if (payload.type === 'TOOL_STARTED' && payload.tool === 'python_execute') return 'VALIDATING';
@@ -60,12 +63,12 @@ export function codeVersions(events: CodingEvent[]) {
     const version = versions.get(operation);
     if (version && ['VALIDATING', 'EXECUTING', 'RESULT_VALIDATING'].includes(p.stage)) version.state = p.stage;
     if (version && event.type === 'EXECUTION_STARTED') version.state = 'EXECUTING';
-    if (version && event.type === 'CODE_COMMITTED') version.state = 'EXECUTED_ARCHIVED';
+    if (version && event.type === 'CODE_COMMITTED') version.state = 'CODE_ARCHIVED';
     if (version && p.type === 'TOOL_FINISHED') {
       version.validationStatus = p.validationStatus;
       version.outputStatus = p.outputStatus;
       version.state = p.validationStatus === 'FAILED' || ['INVALID_RESULT_SCHEMA', 'RESULT_VALIDATION_FAILED', 'SOURCE_COPY_REJECTED', 'REQUIRED_OUTPUT_MISSING'].includes(p.outputStatus)
-        ? 'RESULT_VALIDATION_FAILED' : p.status === 'SUCCEEDED' ? 'EXECUTED' : 'FAILED';
+        ? 'RESULT_VALIDATION_FAILED' : p.status === 'SUCCEEDED' ? p.resultAvailable === true ? 'RESULT_READY' : 'EXECUTED' : 'FAILED';
     }
   }
   return [...versions.values()];

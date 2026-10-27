@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { createCodingRun } from '../src/runner.js';
 import { createRuntimeModel } from '../src/runtime-model.js';
 
@@ -22,7 +23,7 @@ const verified = (version) => ({ status: 'SUCCEEDED', executorStopped: true, res
   resultDatasetRef: `runtime-evidence:result-${version}`, validationRecordRef: `validation-${version}`,
   evidenceBundleRef: `bundle-${version}`, validationStatus: 'INCONCLUSIVE' });
 
-function fixture(model, execute, read) {
+function fixture(model, execute, read, taskContract = contract) {
   const counts = { models: 0, executions: 0, reads: 0, checkpoints: [], finish: null };
   const gateway = {
     async reserveModel() {}, async settleModel() {},
@@ -37,8 +38,32 @@ function fixture(model, execute, read) {
     async readArtifact(task, reference) { assert.equal(task.scope.userId, 'owner'); return read(++counts.reads, reference); },
     async finish(_task, outcome) { counts.finish = outcome; },
   };
-  return { counts, gateway, run: createCodingRun(contract, gateway, { model: createRuntimeModel(gateway, contract) }) };
+  return { counts, gateway, run: createCodingRun(taskContract, gateway, { model: createRuntimeModel(gateway, taskContract) }) };
 }
+
+test('real SDK repairs references inside an earlier patch without freezing text or reusing rejected evidence', async () => {
+  const task = { ...contract, runtimeContext: { codingLifecycle: {
+    schemaVersion: 'runtime_os.code_lifecycle.v1', patchOnlyAfterFirst: true } } };
+  const sources = ["reference = 'draft'", "reference = 'bad-reference'", "reference = 'authorized-reference'"];
+  const { run, counts } = fixture((turn, request) => {
+    if (turn === 4) return complete;
+    if (turn === 3) assert.match(JSON.stringify(request.messages), /INVALID_RESULT_REFERENCES/);
+    const input = turn === 1 ? { source: sources[0] } : { repair: {
+      parentCodeVersion: turn - 1,
+      baseCodeSha256: createHash('sha256').update(sources[turn - 2]).digest('hex'),
+      edits: [{ oldText: sources[turn - 2], newText: sources[turn - 1] }],
+    } };
+    return { toolCalls: [{ id: `repair-${turn}`, name: 'python_execute', input }],
+      usage: { inputTokens: 10, outputTokens: 5 } };
+  }, verified, (read, reference) => ({ reference, complete: true,
+    rows: [{ reportMarkdown: 'Computed findings' }], reportReferenceValidation: { valid: read !== 2 } }), task);
+  assert.equal((await run.run()).status, 'completed');
+  assert.equal(counts.executions, 3); assert.equal(counts.reads, 3); assert.equal(counts.models, 4);
+  assert(!run.events.some(event => event.type === 'CODE_PROPOSAL_REJECTED'));
+  const latest = counts.checkpoints.filter(snapshot => snapshot.codeLifecycle?.versions.length === 3).at(-1);
+  assert.deepEqual(latest.codeLifecycle.versions.map(version => version.status), ['VALIDATED', 'REJECTED', 'VALIDATED']);
+  assert.equal(counts.finish.operationId, latest.lastCollectedOperation);
+});
 
 test('reviewed analysis delivers the actual authorized report to the next semantic turn without a routing model call', async () => {
   const { run, counts } = fixture((turn, request) => {

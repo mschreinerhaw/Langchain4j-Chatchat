@@ -11,6 +11,23 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class McpAnalysisPayloadResultAnalysisAdapterTest {
+    @Test void successfulSchemaBearingEmptyApiRowsRemainAZeroRowDatasetWithoutRawRecovery() {
+        var context=Map.<String,Object>of("schema",Map.of("definition",Map.of("type","object",
+            "properties",Map.of("amount",Map.of("type","number")))));
+        var payload=new java.util.LinkedHashMap<String,Object>(Map.of("schemaVersion",McpAnalysisPayload.SCHEMA_VERSION,
+            "status","SUCCESS","resultKind","RAW_RECORDS","completeness",Map.of("complete",true),
+            "data",Map.of("analysisContext",context,"data",Map.of("body",Map.of("records",List.of(),"upstreamStatus","no rows"))),
+            "rawData",Map.of("rows",List.of(Map.of("stale",1)))));
+        var adapter=new McpAnalysisPayloadResultAnalysisAdapter();
+        var result=adapter.adapt(new AnalysisRequest("empty-api",payload,1000));
+        assertThat(result.evidenceRole()).isEqualTo("EMPTY");
+        assertThat(result.datasets()).singleElement().satisfies(dataset->{
+            assertThat(dataset.records()).isEmpty();
+            assertThat(dataset.analysisContext()).containsEntry("sourceVerifiedEmpty",true).containsEntry("schema",context.get("schema"));
+        });
+        payload.put("completeness",Map.of("complete",false));
+        assertThat(adapter.adapt(new AnalysisRequest("incomplete",payload,1000)).datasets()).isEmpty();
+    }
     @Test void undeclaredCommandProtocolProjectsOnlyGovernedStreamsAndNeverExecutionNodes() {
         var governed=Map.of("dataSchema","ssh_steps.v1","data",Map.of("stdout","observed-output\n",
             "stderr","observed-warning\n"),"executionGraph",Map.of("nodes",List.of(

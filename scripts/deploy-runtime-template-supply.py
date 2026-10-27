@@ -45,10 +45,11 @@ def docker(method, path, body):
         connection.close()
 
 
-def replace_entries(body, replacements, removals=()):
+def replace_entries(body, replacements, removals=(), allowed_new_prefixes=()):
     output = io.BytesIO()
     with zipfile.ZipFile(io.BytesIO(body)) as source, zipfile.ZipFile(output, 'w') as target:
-        assert all(name.endswith(".class") for name in set(replacements)-set(source.namelist()))
+        assert all(name.endswith(".class") or any(name.startswith(prefix) for prefix in allowed_new_prefixes)
+                   for name in set(replacements)-set(source.namelist()))
         assert set(removals).issubset(source.namelist())
         for entry in source.infolist():
             if entry.filename in removals: continue
@@ -140,7 +141,10 @@ def main():
             assert name.startswith('com/chatchat/agents/') and name.endswith('.class') and '..' not in name
             assert digest(body) == manifest['classes'][name]
             replacements[name] = body
-    outer = {entry: replace_entries(library, replacements)}
+    agent_removals = manifest.get('removeAgentClasses', [])
+    assert all(name.startswith('com/chatchat/agents/') and name.endswith('.class') and '..' not in name
+               for name in agent_removals)
+    outer = {entry: replace_entries(library, replacements, agent_removals)}
     with zipfile.ZipFile(release / 'api-classes.zip') as overlay:
         assert set(overlay.namelist()) == set(manifest['apiClasses'])
         for name in overlay.namelist():
@@ -148,10 +152,19 @@ def main():
             assert name.startswith('BOOT-INF/classes/com/chatchat/api/') and name.endswith('.class') and '..' not in name
             assert digest(body)==manifest['apiClasses'][name]
             outer[name]=body
+    web_assets = manifest.get('webAssets', {})
+    if web_assets:
+        with zipfile.ZipFile(release / 'web-assets.zip') as overlay:
+            assert set(overlay.namelist()) == set(web_assets)
+            for name in overlay.namelist():
+                assert name.startswith('BOOT-INF/classes/static/') and '..' not in name
+                body = overlay.read(name)
+                assert digest(body) == web_assets[name]
+                outer[name] = body
     removals=manifest.get('removeApiClasses',[])
     assert all(name.startswith('BOOT-INF/classes/com/chatchat/api/runtime/coding/analysis/CodingAnalysisServiceTest')
                and name.endswith('.class') for name in removals)
-    candidate = replace_entries(before, outer, removals)
+    candidate = replace_entries(before, outer, removals, ('BOOT-INF/classes/static/',))
     (release / 'app.jar').write_bytes(candidate)
     tag = 'runtime-os-api:template-supply-20261027-' + digest(candidate)[:12]
     baseline_tag = 'runtime-os-api:before-template-supply-' + original['Image'].split(':')[-1][:12]
@@ -188,8 +201,11 @@ def main():
     idle()
     assert run('docker', 'exec', container, 'sha256sum', '/srv/app/app.jar').split()[0] == manifest['baselineSha256']
     report = {'baselineSha256': manifest['baselineSha256'], 'candidateSha256': digest(candidate),
-              'image': tag, 'previousImage': config['services']['api']['image'],
-              'changedClasses': sorted(replacements), 'changedApiClasses': sorted(manifest['apiClasses']), 'removedAccidentalTestClasses': removals, 'sourceCommit': manifest['sourceCommit'],
+              'image': tag, 'previousImage': original['Config']['Image'],
+              'previousConfiguredImage': config['services']['api']['image'],
+              'changedClasses': sorted(replacements), 'changedApiClasses': sorted(manifest['apiClasses']),
+              'removedAgentClasses': agent_removals, 'removedAccidentalTestClasses': removals,
+              'webAssets': web_assets, 'sourceCommit': manifest['sourceCommit'],
               'sourceDiffSha256': manifest['sourceDiffSha256'],
               'deploymentScriptSha256': digest(Path(__file__).read_bytes())}
     backup_name = container + '-before-template-supply-' + manifest['baselineSha256'][:12]

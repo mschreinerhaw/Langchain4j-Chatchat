@@ -37,19 +37,29 @@ public final class EvidenceBasedAssetCandidateEvaluator {
         // cannot substitute for the model's semantic decision or a published binding.
         if (authority == null && (reviewMetadata == null
                 || !reviewMetadata.containsKey("selectedAssetIds") || selected.isEmpty())) {
-            return new Evaluation(output, 0, 0, List.of(), evaluations, false,
+            return new Evaluation(output, candidateCount(output,0), 0, List.of(), evaluations, false,
                 "Asset selection response omitted selectedAssetIds.");
         }
         Projection projection = project(
             output, selected, rejected, evaluations,
             reviewerUnavailable && authority==null && selected.isEmpty(), authority, 0);
         if (!projection.applied()) {
-            return new Evaluation(output, 0, 0, List.of(), evaluations, false,
+            return new Evaluation(output, candidateCount(output,0), 0, List.of(), evaluations, false,
                 "No evidence-reviewed asset selection could be projected onto the authorized candidate set.");
         }
         return new Evaluation(projection.output(), projection.candidateCount(), projection.selectedIds().size(),
             projection.selectedIds(), evaluations, true,
             "Runtime projected evidence-reviewed assets before dependent routing.");
+    }
+
+    private int candidateCount(Object output,int depth) {
+        if(depth>8 || !(output instanceof Map<?,?> values))return 0;
+        if(values.get("assets") instanceof List<?> assets)return assets.size();
+        for(String key:List.of("structuredContent","structured_content","data","result","payload","body","output","routingProjection")) {
+            int count=candidateCount(values.get(key),depth+1);
+            if(count>0)return count;
+        }
+        return 0;
     }
 
     @SuppressWarnings("unchecked")

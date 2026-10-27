@@ -114,6 +114,8 @@ public final class CodingInputFilePublisher {
             schema.put("csv",Map.of("delimiter",",","quote","\"","escape","DOUBLE_QUOTE","nullToken",CodingTableCodec.CSV_NULL,
                 "missingToken",CodingTableCodec.CSV_MISSING,"literalBackslash","PREFIX_BACKSLASH"));
             schema.put("sourceDatasetRef",source);
+            if(dataset.analysisContext().get("schema") instanceof Map<?,?> declared && !declared.isEmpty())
+                schema.put("declaredSourceSchema",declared);
             String binding=scope.tenantId()+"\0"+scope.userId()+"\0"+scope.runId()+"\0"+task+"\0"+source+"\0"+decision+"\0"+workspace;
             Path schemaPath=staging.resolve("schema.json");Files.write(schemaPath,json.writeValueAsBytes(schema));
             var chunks=new ArrayList<CodingInputSnapshotService.Chunk>();var schemaFile=publish(store,scope,task,binding,schemaPath,0,guard);

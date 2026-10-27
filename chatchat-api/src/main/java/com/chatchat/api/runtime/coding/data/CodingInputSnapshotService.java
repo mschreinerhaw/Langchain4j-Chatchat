@@ -120,6 +120,11 @@ public final class CodingInputSnapshotService {
                     }
                     item.put("fieldSchema",safe);
                 }
+                if(fields.get("sourceVerifiedEmpty") instanceof Boolean empty)item.put("sourceVerifiedEmpty",empty);
+                if(java.util.Set.of("EMPTY_RESULT","DATASET_READY").contains(String.valueOf(fields.get("deliveryStatus"))))
+                    item.put("deliveryStatus",fields.get("deliveryStatus"));
+                if(fields.get("sourceTemplateId") instanceof String templateId && templateId.length()<=512)
+                    item.put("sourceTemplateId",templateId);
                 item.put("fieldDefinitions",CodingFieldDefinitions.sanitize(fields.get("fieldDefinitions")));
                 item.put("sourceDefinition",CodingFieldDefinitions.sanitizeSource(fields.get("sourceDefinition")));
                 projected.add(Map.copyOf(item));

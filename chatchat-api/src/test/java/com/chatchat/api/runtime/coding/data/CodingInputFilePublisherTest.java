@@ -90,13 +90,17 @@ class CodingInputFilePublisherTest {
         verify(python,never()).registerSharedDataFile(anyString(),anyString(),anyString(),anyString(),anyString(),anyLong());
     }
     @ParameterizedTest @EnumSource(value=Format.class,names={"PARQUET","CSV"})
-    void emptySourcesProduceReadableZeroRowFiles(Format format) {
-        policy.setFormat(format);var snapshot=capture("empty",new Dataset("source",Map.of(),List.of()),()->{});
+    void emptySourcesProduceReadableZeroRowFiles(Format format) throws Exception {
+        var declared=Map.of("definition",Map.of("type","object","properties",Map.of("amount",Map.of("type","number"))));
+        policy.setFormat(format);var snapshot=capture("empty",new Dataset("source",Map.of("schema",declared),List.of()),()->{});
         var restored=new ArrayList<Map<String,Object>>();
         CodingInputRows.scan(snapshot,file->{try{return Files.readAllBytes(new CodingSharedFiles(root)
             .verify("tenant","owner",file.fileId(),file.fileName(),file.sha256(),file.size()));}
             catch(java.io.IOException invalid){throw new IllegalStateException(invalid);}},json,restored::add);
         assertThat(snapshot.rowCount()).isZero();assertThat(restored).isEmpty();
+        var descriptor=access.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->inputs.describe(scope,"empty",snapshot));
+        assertThat(json.readTree((String)descriptor.get("schemaJson")).path("declaredSourceSchema"))
+            .isEqualTo(json.valueToTree(declared));
     }
     @Test void filePolicyIsFrozenAtCaptureStart() {
         var changed=new java.util.concurrent.atomic.AtomicBoolean();

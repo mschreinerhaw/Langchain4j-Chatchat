@@ -119,8 +119,7 @@ public final class MandatoryWorkflowResultReviewer {
     }
 
     private Integer templateDiscoveryResultCount(String toolName, Object data) {
-        String normalized = toolName == null ? "" : toolName.toLowerCase(java.util.Locale.ROOT);
-        return normalized.contains("template_query") || normalized.contains("template_search")
+        return toolNames.isTemplateDiscoveryToolName(toolName)
             ? discoveryResultCount(data, "templates", 0) : null;
     }
 
@@ -133,13 +132,12 @@ public final class MandatoryWorkflowResultReviewer {
         if (!(value instanceof Map<?, ?> raw)) return null;
         Map<String, Object> map = asMap(raw);
         Integer explicit = integerValue(map.get("returnedCount"));
-        if (explicit != null) return explicit;
         if (map.get(collectionKey) instanceof Collection<?> candidates) return candidates.size();
         for (String key : List.of("preview", "structuredContent", "data", "result", "payload", "body", "output")) {
             Integer nested = discoveryResultCount(map.get(key), collectionKey, depth + 1);
             if (nested != null) return nested;
         }
-        return null;
+        return explicit;
     }
 
     private int collectionSize(Object value) {

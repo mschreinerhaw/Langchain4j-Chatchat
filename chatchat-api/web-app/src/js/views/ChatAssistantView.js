@@ -2660,7 +2660,15 @@ export default {
           assistantMessage.steps = initialExecutionSteps(runContext?.agentName || "");
         }
       }
-      finally {assistantMessage.progressHydrating=false;}
+      finally {
+        assistantMessage.progressHydrating=false;
+        if (runContext?.historyReplayOnly && this.messages?.some(message =>
+          message.id === assistantMessage.id && message.taskId === taskId)) {
+          // Replayed history can be a raw object retained across a Vue proxy.
+          // Repaint completion and incomplete-history warnings without a clock tick.
+          this.messages = [...this.messages];
+        }
+      }
       return null;
     },
     appendDirectAssistantMessage(response, runContext = null) {

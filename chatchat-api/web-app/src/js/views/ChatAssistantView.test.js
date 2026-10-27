@@ -35,10 +35,13 @@ describe('read-only full event replay', () => {
   it('never republishes completed history as a running conversation', async () => {
     apiRequest.mockResolvedValue({canonicalState:'SUCCEEDED'});
     fetchAgentTaskEvents.mockResolvedValue([{sequence:1,eventId:'old',type:'TASK_STARTED'}]);
-    const ctx=context();
+    const message={id:'history-answer',taskId:'task',steps:[],status:'completed'};
+    const visible=[message],ctx={...context(),messages:visible};
     await ChatAssistantView.methods.refreshAgentTaskSteps.call(ctx,'task','tenant',
-      {replayFromStart:true,historyReplayOnly:true},{steps:[],status:'completed'});
+      {replayFromStart:true,historyReplayOnly:true},message);
     expect(ctx.emitActiveConversationSnapshot).not.toHaveBeenCalled();
+    expect(ctx.messages).not.toBe(visible);
+    expect(ctx.messages[0]).toBe(message);
   });
 });
 

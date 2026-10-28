@@ -79,7 +79,8 @@ public class SqlStudioMetadataService {
             if(table.get("schema")!=null)captured.put("schema",table.get("schema"));
             if(table.get("comment")!=null)captured.put("comment",table.get("comment").toString());
             captured.put("serviceId",binding.serviceId());captured.put("assetRef",binding.assetRef());captured.put("sourceDialect",binding.sourceDialect());
-            captured.put("columns",columns);captured.put("snapshotId",selection.expectedSnapshotId());tables.add(captured);
+            captured.put("columns",columns);captured.put("relationsStatus",table.getOrDefault("relationsStatus",null));
+            captured.put("foreignKeys",table.get("foreignKeys"));captured.put("snapshotId",selection.expectedSnapshotId());tables.add(captured);
         }
         return Map.of("tables",tables);
     }
@@ -132,6 +133,29 @@ public class SqlStudioMetadataService {
 
     public SqlStudioMetadataGateway.Result operate(HttpServletRequest request, String projectId, String discoveryId, Operation input) {
         Context context = owned(request, projectId, discoveryId);
+        var args=boundArguments(context,input);
+        var binding=context.bindings().stream().filter(value->value.bindingId().equals(input.bindingId())).findFirst().orElseThrow();
+        return gateway.invoke(request, binding.serviceId(), args);
+    }
+
+    public Context getScoped(com.chatchat.common.kernel.KernelDataScope scope,String projectId,String discoveryId){
+        var rows=jdbc.query("select c.bindings_json,c.purpose,c.target_dialect from ds_sql_metadata_context c join ds_sql_project p on p.id=c.project_id where c.id=? and c.project_id=? and c.tenant_id=? and c.owner_id=? and p.tenant_id=? and p.owner_id=?",
+            (row,index)->Map.of("bindings_json",row.getString("bindings_json"),"purpose",row.getString("purpose"),"target_dialect",row.getString("target_dialect")),discoveryId,projectId,scope.tenantId(),scope.userId(),scope.tenantId(),scope.userId());
+        if(rows.size()!=1)throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Metadata discovery context not found");
+        try{
+            var row=rows.get(0);List<Binding> bindings=mapper.readValue(row.get("bindings_json").toString(),new TypeReference<List<Binding>>(){});
+            for(var binding:bindings){var result=gateway.invokeScoped(scope,binding.serviceId(),Map.of("contractVersion",SqlStudioMetadataGateway.CONTRACT,"operation","LIST_ASSETS","assetId",binding.assetRef()));sourceDialect(result.metadata(),binding.assetRef());}
+            return new Context(discoveryId,projectId,row.get("purpose").toString(),row.get("target_dialect").toString(),bindings,"READY");
+        }catch(java.io.IOException failure){throw new IllegalStateException("Invalid persisted metadata bindings",failure);}
+    }
+
+    public SqlStudioMetadataGateway.Result operateScoped(com.chatchat.common.kernel.KernelDataScope scope,Context context,Operation input){
+        var args=boundArguments(context,input);
+        var binding=context.bindings().stream().filter(value->value.bindingId().equals(input.bindingId())).findFirst().orElseThrow();
+        return gateway.invokeScoped(scope,binding.serviceId(),args);
+    }
+
+    private Map<String,Object> boundArguments(Context context,Operation input){
         require(input != null && input.arguments() != null, "Metadata operation arguments are required");
         Binding binding = context.bindings().stream().filter(value -> value.bindingId().equals(input.bindingId())).findFirst()
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Metadata binding not found"));
@@ -142,7 +166,7 @@ public class SqlStudioMetadataService {
         args.put("contractVersion", SqlStudioMetadataGateway.CONTRACT); args.put("assetId", binding.assetRef());
         restrict(args, "database", binding.database()); restrict(args, "schema", binding.schema());
         // The server-stored binding selects the service/asset. The MCP service checks current grants afresh.
-        return gateway.invoke(request, binding.serviceId(), args);
+        return args;
     }
 
     private Context owned(HttpServletRequest request, String projectId, String id) {

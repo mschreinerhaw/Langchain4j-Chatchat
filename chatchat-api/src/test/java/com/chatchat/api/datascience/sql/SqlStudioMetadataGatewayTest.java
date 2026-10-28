@@ -52,6 +52,26 @@ class SqlStudioMetadataGatewayTest {
         assertThat(gateway.providers()).containsExactly(new SqlStudioMetadataGateway.Provider("registered","Metadata"));
         verify(kernel,never()).execute(any(McpServiceCall.class));
     }
+    @Test void backgroundScopeKeepsAuthorityAndTaskDeadlineWithoutInjectingConversationIntoMetadataArguments() {
+        when(kernel.tools(any())).thenReturn(List.of(tool()));
+        long deadline = System.currentTimeMillis()+1000;
+        when(kernel.execute(any(McpServiceCall.class))).thenAnswer(invocation -> {
+            McpServiceCall call=invocation.getArgument(0);
+            assertThat(call.context()).containsEntry("tenantId","tenant").containsEntry("userId","owner").containsEntry("runId","run").doesNotContainKey("conversationId");
+            assertThat(call.arguments()).containsOnlyKeys("operation");assertThat(call.deadlineAt()).isEqualTo(deadline);
+            return new McpServiceResult(null,call.requestId(),call.serviceId(),call.toolName(),McpServiceResultStatus.SUCCESS,
+                Map.of("contractVersion",SqlStudioMetadataGateway.CONTRACT,"doesNotExecuteSql",true),null,null,null,false,null,Map.of(),0);
+        });
+        gateway.invokeScoped(new com.chatchat.common.kernel.KernelDataScope("tenant","owner","request","conversation","run",null,Map.of("deadlineAt",deadline)),"registered",Map.of("operation","LIST_ASSETS"));
+    }
+    @Test void distinguishesMetadataTransportDeadlineFromAnExpiredWholeTask(){
+        when(kernel.tools(any())).thenReturn(List.of(tool()));
+        when(kernel.execute(any(McpServiceCall.class))).thenAnswer(invocation->{McpServiceCall call=invocation.getArgument(0);return new McpServiceResult(null,call.requestId(),call.serviceId(),call.toolName(),McpServiceResultStatus.REJECTED,null,null,"MCP_CALL_DEADLINE_EXCEEDED","Expired",false,null,Map.of(),0);});
+        var live=new com.chatchat.common.kernel.KernelDataScope("tenant","owner","request",null,"run",null,Map.of("deadlineAt",System.currentTimeMillis()+60000));
+        assertThatThrownBy(()->gateway.invokeScoped(live,"registered",Map.of())).isInstanceOf(ResponseStatusException.class).hasMessageContaining("METADATA_TOOL_TIMEOUT");
+        var expired=new com.chatchat.common.kernel.KernelDataScope("tenant","owner","request",null,"run",null,Map.of("deadlineAt",System.currentTimeMillis()-1));
+        assertThatThrownBy(()->gateway.invokeScoped(expired,"registered",Map.of())).isInstanceOf(com.chatchat.agents.orchestration.model.AgentDeadlineExceededException.class);
+    }
     private McpToolDescriptor tool() {
         return new McpToolDescriptor("registered", "local-schema", "sql_schema_context_query", "", "metadata",
             Map.of("properties", Map.of("contractVersion", Map.of("enum", List.of(SqlStudioMetadataGateway.CONTRACT)))), Map.of(), Map.of(), Map.of());

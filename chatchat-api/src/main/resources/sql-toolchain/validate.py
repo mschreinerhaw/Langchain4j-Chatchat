@@ -49,6 +49,8 @@ def validate(request):
     if not isinstance(files, list) or not 1 <= len(files) <= 32:
         raise ValueError("Expected 1 to 32 SQL files")
     schema = request.get("schema") or {}
+    require_business_evidence = isinstance(schema, dict) and schema.get("requireBusinessEvidence") is True
+    derived, business_literals = False, set()
     if "tables" in schema:
         mapped = MappingSchema(dialect=dialect or None)
         for table in schema["tables"]:
@@ -73,6 +75,27 @@ def validate(request):
             trees = [tree for tree in trees if tree is not None]
             if not trees or any(tree.find(exp.Command) for tree in trees):
                 raise ValueError("Statement is not supported by the SQL parser")
+            if require_business_evidence:
+                for tree in trees:
+                    analytical = any(tree.find(kind) for kind in (exp.AggFunc, exp.Case, exp.If, exp.Div, exp.Join))
+                    analytical |= any(isinstance(node, exp.Func) and node.sql_name().upper() in {
+                        "UNIX_TO_TIME", "TIME_TO_UNIX", "TIMESTAMP_DIFF", "DATE_DIFF", "DATEDIFF", "TIME_DIFF"
+                    } for node in tree.walk())
+                    if not analytical:
+                        continue
+                    derived = True
+                    for literal in tree.find_all(exp.Literal):
+                        # Limits, offsets and interval sizes do not define business outcomes.
+                        if literal.find_ancestor(exp.Limit, exp.Offset, exp.Interval):
+                            continue
+                        parent = literal.parent
+                        if not literal.is_string and literal.this in {"0", "1"} and (
+                            isinstance(parent, exp.If) and literal in (parent.args.get("true"), parent.args.get("false"))
+                            or isinstance(parent, exp.Case) and literal is parent.args.get("default")
+                            or isinstance(parent, exp.Nullif)
+                        ):
+                            continue
+                        business_literals.add(str(literal.this))
             if schema:
                 # The caller supplies only authorized, versioned metadata. No DB discovery here.
                 for tree in trees:
@@ -91,7 +114,8 @@ def validate(request):
     return {"parser": "sqlglot", "version": sqlglot.__version__, "sqlExecuted": False,
             "valid": all(item["status"] == "PARSED" for item in diagnostics),
             "fieldValidation": "CHECKED" if schema else "NOT_EVALUATED",
-            "diagnostics": diagnostics, "normalizedFiles": normalized}
+            "diagnostics": diagnostics, "normalizedFiles": normalized,
+            "requiresBusinessEvidence": derived, "businessLiteralValues": sorted(business_literals)}
 
 
 if __name__ == "__main__":

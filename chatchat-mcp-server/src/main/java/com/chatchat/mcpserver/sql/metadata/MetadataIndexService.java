@@ -142,7 +142,7 @@ public class MetadataIndexService {
                 value.error(),
                 value.objects(),
                 value.configurationFingerprint(),
-                value.changes()
+                value.changes(),value.foreignKeys()
             );
         }
         MetadataIndex persisted = loadPersistedIndex(datasource);
@@ -261,7 +261,7 @@ public class MetadataIndexService {
             value.error(),
             value.objects(),
             value.configurationFingerprint(),
-            value.changes()
+            value.changes(),value.foreignKeys()
         );
     }
 
@@ -368,7 +368,7 @@ public class MetadataIndexService {
                 System.currentTimeMillis(),
                 false,
                 null
-            );
+            ).withForeignKeys(queryForeignKeys(datasource,tables));
         } catch (Exception ex) {
             log.warn("Metadata index build failed: datasourceId={}, errorType={}, error={}",
                 datasource.getId(), ex.getClass().getSimpleName(), ex.getMessage(), ex);
@@ -557,7 +557,31 @@ public class MetadataIndexService {
         }
     }
 
-    private JdbcMetadataScope jdbcMetadataScope(DatabaseMetaData metadata, String scopeValue) throws Exception {
+    private Map<String,List<MetadataForeignKey>> queryForeignKeys(SqlDatasourceConfig datasource,List<TableLocation> tables){
+        try(Connection connection=openConnection(datasource)){return importedKeys(connection.getMetaData(),tables);}
+        catch(Exception unavailable){log.debug("Foreign-key metadata unavailable datasourceId={} errorType={}",datasource.getId(),unavailable.getClass().getSimpleName());return Map.of();}
+    }
+    static Map<String,List<MetadataForeignKey>> importedKeys(DatabaseMetaData metadata,List<TableLocation> tables){
+        var result=new LinkedHashMap<String,List<MetadataForeignKey>>();
+        for(var table:tables){
+            if("VIEW".equalsIgnoreCase(table.tableType()))continue;
+            try{
+                var scope=jdbcMetadataScope(metadata,table.database());var keys=new ArrayList<MetadataForeignKey>();
+                try(var rows=metadata.getImportedKeys(scope.catalog(),scope.schemaPattern(),table.table())){
+                    while(rows.next()){
+                        String column=rows.getString("FKCOLUMN_NAME"),target=rows.getString("PKTABLE_NAME"),targetColumn=rows.getString("PKCOLUMN_NAME");
+                        if(column==null||target==null||targetColumn==null)throw new java.sql.SQLException("Incomplete imported-key metadata");
+                        String namespace=rows.getString("PKTABLE_SCHEM");if(namespace==null||namespace.isBlank())namespace=rows.getString("PKTABLE_CAT");
+                        if(namespace==null||namespace.isBlank())namespace=table.database();
+                        keys.add(new MetadataForeignKey(rows.getString("FK_NAME"),column,namespace,namespace,target,targetColumn,rows.getInt("KEY_SEQ")));
+                    }
+                }
+                result.put(MetadataIndex.relationshipKey(table.database(),table.schema(),table.table()),List.copyOf(keys));
+            }catch(Exception unavailable){log.debug("Imported-key collection unavailable table={} errorType={}",table.table(),unavailable.getClass().getSimpleName());}
+        }
+        return result;
+    }
+    private static JdbcMetadataScope jdbcMetadataScope(DatabaseMetaData metadata, String scopeValue) throws Exception {
         boolean schemaScoped = metadata.supportsSchemasInTableDefinitions();
         boolean catalogScoped = metadata.supportsCatalogsInTableDefinitions();
         return schemaScoped || !catalogScoped

@@ -1,4 +1,7 @@
 import AppNotice from '../../../components/AppNotice.vue';
+import SqlMetadataEvidence from '../../../components/sql-studio/SqlMetadataEvidence.vue';
+import {renderReportNarrative} from '../../utils/reportNarrative';
+import {sqlTaskStatus,sqlMetadataProgress} from '../../utils/sqlMetadataProgress';
 import StudioCodePlan from '../../../components/editor/StudioCodePlan.vue';
 import { computed, nextTick, ref, watch, onMounted, onBeforeUnmount, onActivated, onDeactivated } from 'vue';
 import { sqlTaskPresentation } from '../../utils/sqlTaskPresentation';
@@ -10,15 +13,15 @@ import { sqlAssistantAnswer } from '../../utils/sqlIdeState';
 import { Sparkles, FileCode2, Send, CircleHelp, LoaderCircle, CircleCheck, Clock3, Plus } from '@lucide/vue';
 
 export default {
-  components: { StudioCodePlan, AppNotice, Sparkles, FileCode2, Send, CircleHelp, LoaderCircle, CircleCheck, Clock3, Plus },
+  components: { SqlMetadataEvidence, StudioCodePlan, AppNotice, Sparkles, FileCode2, Send, CircleHelp, LoaderCircle, CircleCheck, Clock3, Plus },
   props: { userDocuments: { type:Array, default:()=>[] }, mappingDocuments: { type:Array, default:() => [] }, mappingCount: Number, projectFiles: Array, references: Array, referenceIds: Array, models: Array, agents: Array,
     agentId: String, modelName: String, executionMode: String, prompt: String, messages: Array, busy: Boolean, generations: Array,
     generationId: String, result: Object, selectedCode: Object, currentFile: Object, dialectLabel: String, taskRunning: Boolean,
-    pendingPhase: String, pendingStartedAt: Number, pollError: String, aiAction: String },
+    pendingPhase: String, pendingStartedAt: Number, pollError: String, aiAction: String, projectId: String },
   emits: ['action', 'new-conversation', 'reference-file', 'open-resource', 'remove-mapping-document', 'choose-library', 'agent', 'model', 'execution-mode', 'prompt', 'send', 'generation', 'resume', 'cancel', 'preview', 'apply', 'clear-selection'],
   setup(props, { emit }) {
     const availableAgents=computed(()=>(props.agents||[]).filter(agent=>agent.marketStatus?.toLowerCase()==='published'));
-    const terminal = computed(() => terminalSqlTask(props.result?.task?.status));
+    const terminal = computed(() => terminalSqlTask(sqlTaskStatus(props.result?.task)));
     const scroll = ref(null);
     const composer = ref(null), followOutput = ref(true), now = ref(Date.now());
     const resultAction = computed(() => sqlGenerationAction(props.result));
@@ -29,6 +32,7 @@ export default {
     const operationLabel = computed(() => studioAiLabels[props.pendingPhase ? props.aiAction : props.result ? resultAction.value : props.aiAction] || '代码生成');
     const resultNotes = computed(() => { try{return JSON.parse(props.result?.rawAnswer || '{}').notes || '';}catch{return '';} });
     const progress = computed(() => {
+      if(props.aiAction==='explore' && props.pendingPhase)return sqlMetadataProgress(props.result?.events,props.result?.task,props.pendingPhase,props.pendingStartedAt,now.value);
       const state=sqlTaskPresentation(props.result, props.pendingPhase, props.pendingStartedAt, now.value);
       return {...state,title:state.status==='IDLE' ? `${operationLabel.value} · 准备就绪` : `${operationLabel.value} · ${state.title}`,
         detail:resultAction.value==='explain' && state.status==='SUCCESS' && !props.result?.outputError ? '解释完成，工程代码保持原样。' : state.detail};
@@ -37,7 +41,9 @@ export default {
       const messages = props.messages || [];
       const id = props.result?.generation?.id;
       if (!id || messages.some(turn => turn.role === 'assistant' && turn.generationId === id)) return messages;
-      return [...messages, { id:`assistant:${id}`, generationId:id, role:'assistant', action:resultAction.value,
+      const question=props.result?.generation?.prepared?.taskRequest?.toolInput?.studioUserRequest || props.result?.task?.question;
+      const restored=question && !messages.some(turn=>turn.role==='user' && turn.generationId===id)?[{id:`user:${id}`,generationId:id,role:'user',action:resultAction.value,text:question}]:[];
+      return [...messages, ...restored, { id:`assistant:${id}`, generationId:id, role:'assistant', action:resultAction.value,
         text:sqlAssistantAnswer(props.result), plan:codePlan.value }];
     });
     const currentTurnId = computed(() => props.result?.generation?.id
@@ -57,10 +63,11 @@ export default {
       nextTick(() => { if (scroll.value) scroll.value.scrollTop = 0; composer.value?.focus(); });
     }
     function trackScroll() { if (scroll.value) followOutput.value = scroll.value.scrollHeight - scroll.value.scrollTop - scroll.value.clientHeight < 64; }
-    watch(() => [props.messages?.length, props.messages?.at(-1)?.text, props.result?.files?.length, props.pendingPhase, progress.value.steps.length], () => nextTick(() => {
+    watch(() => [props.messages?.length, props.messages?.at(-1)?.text, props.result?.files?.length, props.pendingPhase, progress.value.steps.length,props.result?.events?.length], () => nextTick(() => {
       if (scroll.value && followOutput.value) scroll.value.scrollTop = scroll.value.scrollHeight;
     }));
     function send(event) { if (event?.isComposing) return; if (!props.busy && !props.taskRunning && props.prompt.trim()) { followOutput.value=true;emit('send'); } }
-    return { availableAgents, displayMessages, isCurrentTurn, turnProgressSteps, codePlan, codePlanState, studioAiLabels, resultAction, resultNotes, operationLabel, fileDiff, newConversation, terminal, progress, trackScroll, send, scroll, composer, };
+    function followupSql(){emit('action','explore');emit('prompt','请基于上述已确认的元数据生成 SQL。统计口径与筛选条件：');nextTick(()=>composer.value?.focus());}
+    return { renderReportNarrative, followupSql, availableAgents, displayMessages, isCurrentTurn, turnProgressSteps, codePlan, codePlanState, studioAiLabels, resultAction, resultNotes, operationLabel, fileDiff, newConversation, terminal, progress, trackScroll, send, scroll, composer, };
   }
 };

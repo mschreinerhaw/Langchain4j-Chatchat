@@ -9,6 +9,13 @@ import static org.assertj.core.api.Assertions.*;
 /** Real isolated Python process with pinned SQLGlot. No database or model. */
 @EnabledIfSystemProperty(named="coding.sqlglotPython",matches=".+")
 class SqlGlotToolchainTest {
+    @Test void distinguishesFieldValidationFromBusinessEvidenceNeededByDerivedStatistics(){
+        var schema=Map.<String,Object>of("tables",List.of(Map.of("tableName","runs","columns",List.of(Map.of("name","status")))) ,"requireBusinessEvidence",true);
+        var derived=parser().validate("mysql",List.of(new SqlOutputBundle.Candidate("sql/rate.sql","SELECT SUM(CASE WHEN status='03' THEN 1 ELSE 0 END)/NULLIF(COUNT(*),0) FROM runs")),schema);
+        assertThat(derived).containsEntry("valid",true).containsEntry("fieldValidation","CHECKED").containsEntry("requiresBusinessEvidence",true);
+        assertThat(derived.get("businessLiteralValues")).isEqualTo(List.of("03"));
+        assertThat(parser().validate("mysql",List.of(new SqlOutputBundle.Candidate("sql/projection.sql","SELECT status FROM runs LIMIT 20")),schema)).containsEntry("requiresBusinessEvidence",false);
+    }
     @Test void diagnosticsIdentifySyntaxCategoryFileAndLocationWithoutRunningSource(){
         var result=parser().validate("python",List.of(new SqlOutputBundle.Candidate("src/a.py","# keep\ndef broken(:\n")),Map.of());
         assertThat(result).containsEntry("valid",false).containsEntry("codeExecuted",false);

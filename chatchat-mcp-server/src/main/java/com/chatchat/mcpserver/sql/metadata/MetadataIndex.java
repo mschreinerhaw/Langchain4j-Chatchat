@@ -18,11 +18,19 @@ public record MetadataIndex(
     String error,
     List<MetadataObject> objects,
     String configurationFingerprint,
-    List<Change> changes
+    List<Change> changes,
+    Map<String,List<MetadataForeignKey>> foreignKeys
 ) {
     public MetadataIndex {
         objects = objects == null ? relationalObjects(datasourceId, databaseType, tables, tableColumns) : List.copyOf(objects);
         changes = changes == null ? List.of() : List.copyOf(changes);
+        foreignKeys=foreignKeys==null?Map.of():foreignKeys.entrySet().stream().collect(java.util.stream.Collectors.toUnmodifiableMap(Map.Entry::getKey,e->List.copyOf(e.getValue())));
+    }
+
+    public MetadataIndex(String datasourceId,String databaseType,List<TableLocation> tables,Map<String,List<TableLocation>> tableIndex,
+                         Map<String,List<String>> schemaTables,Map<String,List<MetadataColumn>> tableColumns,List<String> datasourceSchemas,
+                         long refreshedAtMs,boolean cacheHit,String error,List<MetadataObject> objects,String configurationFingerprint,List<Change> changes){
+        this(datasourceId,databaseType,tables,tableIndex,schemaTables,tableColumns,datasourceSchemas,refreshedAtMs,cacheHit,error,objects,configurationFingerprint,changes,Map.of());
     }
 
     public MetadataIndex(String datasourceId, String databaseType, List<TableLocation> tables,
@@ -35,7 +43,7 @@ public record MetadataIndex(
 
     public MetadataIndex withFingerprint(String fingerprint) {
         return new MetadataIndex(datasourceId, databaseType, tables, tableIndex, schemaTables, tableColumns,
-            datasourceSchemas, refreshedAtMs, cacheHit, error, objects, fingerprint, changes);
+            datasourceSchemas, refreshedAtMs, cacheHit, error, objects, fingerprint, changes,foreignKeys);
     }
 
     public MetadataIndex withChanges(MetadataIndex previous) {
@@ -51,8 +59,10 @@ public record MetadataIndex(
         changes.forEach(change -> latest.put(change.objectId(), change));
         return new MetadataIndex(datasourceId, databaseType, tables, tableIndex, schemaTables, tableColumns,
             datasourceSchemas, refreshedAtMs, cacheHit, error, objects, configurationFingerprint,
-            latest.values().stream().sorted(java.util.Comparator.comparingLong(Change::changedAtMs).reversed()).limit(20000).toList());
+            latest.values().stream().sorted(java.util.Comparator.comparingLong(Change::changedAtMs).reversed()).limit(20000).toList(),foreignKeys);
     }
+    public MetadataIndex withForeignKeys(Map<String,List<MetadataForeignKey>> keys){return new MetadataIndex(datasourceId,databaseType,tables,tableIndex,schemaTables,tableColumns,datasourceSchemas,refreshedAtMs,cacheHit,error,objects,configurationFingerprint,changes,keys);}
+    public static String relationshipKey(String database,String schema,String table){return java.util.stream.Stream.of(database,schema,table).map(v->java.util.Objects.toString(v,"")).map(v->v.length()+":"+v).collect(java.util.stream.Collectors.joining());}
 
     public record Change(String objectId, String namespace, String name, String qualifiedName, String status, long changedAtMs) {}
 

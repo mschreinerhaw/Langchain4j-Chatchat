@@ -10,6 +10,17 @@ async function mount(values={}) {
   app=createApp({render:()=>h(SqlAssistantPanel,props)});app.mount(host);await nextTick();return props;
 }
 describe('SQL assistant conversation',()=>{
+  it('restores a real saved question and renders Markdown without executing model HTML',async()=>{
+    await mount({aiAction:'explore',result:{generation:{id:'saved',prepared:{taskRequest:{toolInput:{sqlStudioAction:'explore',studioUserRequest:'哪些表可用于调度分析？'}}}},task:{status:'SUCCESS',canonicalState:'SUCCEEDED'},files:[],events:[],
+      rawAnswer:JSON.stringify({notes:'| 表 | 依据 |\n| --- | --- |\n| jobs | 实际字段 |\n\n<script>bad()</script><img src=x onerror=bad()>'})}});
+    expect(host.querySelector('.sql-chat-turn.user').textContent).toContain('哪些表可用于调度分析');expect(host.querySelector('.sql-ai-markdown table').textContent).toContain('jobs');
+    expect(host.querySelector('.sql-ai-markdown script,.sql-ai-markdown img')).toBeNull();
+  });
+  it('keeps loading during canonical repair and hides the predecessor error until a real terminal state',async()=>{
+    const props=await mount({aiAction:'explore',result:{generation:{id:'repair',prepared:{taskRequest:{toolInput:{sqlStudioAction:'explore'}}}},task:{taskId:'attempt',status:'FAILED',canonicalState:'REPAIRING',errorMessage:'Old attempt failed'},files:[],events:[],rawAnswer:''}});
+    expect(host.querySelector('.sql-progress-spinner')).not.toBeNull();expect(host.querySelector('.sql-chat-result .app-notice')).toBeNull();
+    props.result.task.canonicalState='FAILED';await nextTick();expect(host.querySelector('.sql-progress-spinner')).toBeNull();expect(host.querySelector('.sql-chat-result').textContent).toContain('Old attempt failed');
+  });
   it('shows selected user documents and their actual purpose instead of a legacy case count',async()=>{
     await mount({mappingCount:0,userDocuments:[{fileId:'rules',fileName:'rules.md',purpose:'RULES'},{fileId:'facts',fileName:'facts.json',purpose:'EVIDENCE'}]});
     const context=host.querySelector('.sql-chat-context');

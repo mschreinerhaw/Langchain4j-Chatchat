@@ -134,10 +134,39 @@ public class SqlMetadataDiscoveryService {
         value.put("tableName", table.table()); value.put("tableType", table.tableType()); value.put("comment", table.tableComment());
         value.put("columns", columns.stream().map(MetadataColumn::toDiagnostic).toList());
         value.put("columnCount", columns.size());
-        value.put("relationsStatus", "NOT_COLLECTED"); // Column keys do not prove a foreign-key/business relationship.
+        var relationshipKey = MetadataIndex.relationshipKey(table.database(), table.schema(), table.table());
+        value.put("relationsStatus", index.foreignKeys().containsKey(relationshipKey) ? "COLLECTED_VISIBLE" : "NOT_COLLECTED");
+        value.put("foreignKeys", visibleForeignKeys(asset, index, table, columns));
         value.put("evidenceClass", "REGISTERED_METADATA");
         value.put("verificationStatus", "NOT_VERIFIED_LIVE");
         return value;
+    }
+
+    private List<Map<String,Object>> visibleForeignKeys(SqlDatasourceConfig asset, MetadataIndex index, TableLocation table, List<MetadataColumn> columns) {
+        var groups = new TreeMap<String,List<MetadataForeignKey>>();
+        for (var key : index.foreignKeys().getOrDefault(MetadataIndex.relationshipKey(table.database(), table.schema(), table.table()), List.of())) {
+            // An unnamed composite constraint cannot safely be grouped from individual rows.
+            if (key.name() != null) groups.computeIfAbsent(key.name(), ignored -> new ArrayList<>()).add(key);
+        }
+        var output = new ArrayList<Map<String,Object>>();
+        for (var group : groups.entrySet()) {
+            boolean visible = group.getValue().stream().allMatch(key -> columns.stream().anyMatch(c -> c.name().equals(key.column()))
+                && index.tables().stream().anyMatch(target -> Objects.equals(target.database(), key.referencedDatabase())
+                    && Objects.equals(target.schema(), key.referencedSchema()) && Objects.equals(target.table(), key.referencedTable())
+                    && MetadataVisibility.tableVisible(asset, target) && MetadataVisibility.fieldVisible(asset, target, key.referencedColumn())
+                    && index.tableColumns().values().stream().flatMap(List::stream).anyMatch(c -> Objects.equals(c.datasourceId(), asset.getId())
+                        && Objects.equals(c.database(), target.database()) && Objects.equals(c.schema(), target.schema())
+                        && Objects.equals(c.table(), target.table()) && Objects.equals(c.name(), key.referencedColumn()))));
+            if (!visible) continue; // Hide the entire constraint, including all pairs and its name.
+            for (var key : group.getValue().stream().sorted(Comparator.comparingInt(MetadataForeignKey::keySequence)).toList()) {
+                var row = new LinkedHashMap<String,Object>();
+                row.put("constraintRef", hash(List.of(asset.getId(), table.table(), group.getKey())));
+                row.put("column", key.column()); row.put("referencedDatabase", key.referencedDatabase()); row.put("referencedSchema", key.referencedSchema());
+                row.put("referencedTable", key.referencedTable()); row.put("referencedColumn", key.referencedColumn()); row.put("keySequence", key.keySequence());
+                row.put("source", "JDBC_IMPORTED_KEYS"); output.add(row);
+            }
+        }
+        return output;
     }
 
     private Map<String, Object> assetProjection(SqlDatasourceConfig asset) {

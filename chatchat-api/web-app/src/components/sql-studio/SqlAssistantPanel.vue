@@ -2,7 +2,7 @@
   <aside class="sql-assistant-panel sql-ide-assistant">
     <header
       ><div class="sql-assistant-heading"
-        ><strong><Sparkles :size="22" />AI 工程助手</strong
+        ><strong><Sparkles :size="22" />{{ aiAction === 'explore' ? 'AI 数据库助手' : 'AI 工程助手' }}</strong
         ><button
           class="sql-new-conversation"
           type="button"
@@ -11,7 +11,7 @@
           :disabled="busy || taskRunning || !!pendingPhase"
           @click="newConversation"
           ><Plus :size="18" /></button></div
-      ><span>基于当前工程，协助你完成 SQL 开发</span></header
+      ><span>{{ aiAction === 'explore' ? '探索真实元数据，分析问题并审查 SQL 提案' : '基于当前工程，协助你完成 SQL 开发' }}</span></header
     >
     <div
       ref="scroll"
@@ -37,11 +37,12 @@
         :aria-label="turn.role === 'user' ? '用户消息' : 'AI 助手消息'"
       >
         <b
-          >{{ turn.role === "user" ? "我" : "AI 工程助手"
+          >{{ turn.role === "user" ? "我" : turn.action === 'explore' ? 'AI 数据库助手' : "AI 工程助手"
           }}{{ turn.action ? " · " + studioAiLabels[turn.action] : "" }}</b
         >
+        <div v-if="turn.role==='assistant' && (!isCurrentTurn(turn) || !progress.running)" class="sql-ai-markdown" v-html="renderReportNarrative(turn.text)"></div>
         <p
-          v-if="!isCurrentTurn(turn) || !progress.running"
+          v-else-if="turn.role==='user'"
           :class="{ 'sql-chat-error': turn.status === 'failed' }"
           :role="turn.status === 'failed' ? 'alert' : undefined"
           >{{ turn.text }}</p
@@ -61,7 +62,7 @@
               /><CircleCheck v-else-if="progress.status === 'SUCCESS'" :size="16" /><CircleHelp
                 v-else
                 :size="16"
-              /><b>{{ progress.progressLabel }} · {{ progress.title }}</b></div
+              /><b>{{ [progress.progressLabel, progress.title].filter(Boolean).join(' · ') }}</b></div
             >
             <span
               v-if="progress.running || progress.terminal"
@@ -102,6 +103,15 @@
             >进度更新暂时中断，正在重试；任务可能仍在运行。</small
           >
         </section>
+        <section v-if="isCurrentTurn(turn) && progress.metadataGroups?.length" class="sql-metadata-operations" aria-label="元数据实际执行进展">
+          <details v-for="group in progress.metadataGroups" :key="group.id" :data-state="group.state">
+            <summary><LoaderCircle v-if="group.state==='RUNNING'" class="sql-progress-spinner" :size="13" />{{ group.title }} · {{ group.count }} 次 · {{ (group.elapsedMs/1000).toFixed(1) }} 秒 · {{ {RUNNING:'进行中',FAILED:'含失败记录',CANCELLED:'已取消',STOPPED:'未取得完成记录',COMPLETED:'已完成'}[group.state] }}</summary>
+            <ol><li v-for="operation in group.operations" :key="operation.id">{{ operation.id }} · {{ operation.state }} · {{ operation.elapsedMs }}ms<span v-if="operation.reused"> · 复用已验证证据</span><span v-if="operation.reason"> · {{ operation.reason }}</span></li></ol>
+          </details>
+        </section>
+        <SqlMetadataEvidence v-if="turn.role==='assistant'" :project-id="projectId" :evidence="isCurrentTurn(turn)?result?.metadataExploration:turn.metadataExploration" />
+        <small v-if="isCurrentTurn(turn) && result?.metadataExploration?.stats" class="sql-metadata-stats">本次尝试：模型 {{ result.metadataExploration.stats.modelCalls }} 次 · 工具选择 {{ result.metadataExploration.stats.toolCalls }} 次 · 复用 {{ result.metadataExploration.stats.reusedEvidenceCount }} 份证据 · 耗时 {{ (result.metadataExploration.stats.totalMs/1000).toFixed(1) }} 秒</small>
+        <button v-if="isCurrentTurn(turn) && result?.metadataExploration?.candidates?.length && terminal" type="button" @click="followupSql">据此生成 SQL</button>
         <StudioCodePlan
           v-if="turn.role === 'assistant' && (turn.plan || (isCurrentTurn(turn) && codePlan))"
           :plan="isCurrentTurn(turn) ? codePlan || turn.plan : turn.plan"
@@ -151,7 +161,7 @@
                       : progress.title
             }}</strong
           >
-          <AppNotice v-if="result.task?.errorMessage || result.outputError" kind="error">{{
+          <AppNotice v-if="!progress.running && (result.task?.errorMessage || result.outputError)" kind="error">{{
             result.task?.errorMessage || result.outputError
           }}</AppNotice>
           <div v-for="file in result.files" :key="file.path" class="sql-proposed-file"
@@ -249,6 +259,9 @@
       </details>
     </div>
     <form class="sql-chat-composer" @submit.prevent="send">
+      <label class="sql-assistant-action">协作方式<select :value="aiAction" :disabled="busy || taskRunning" aria-label="SQL 助手方式" @change="$emit('action',$event.target.value)">
+        <option value="explore">数据库问答与 SQL 探索</option><option value="generate">工程代码生成 · Cline</option><option value="explain">解释当前 SQL</option><option value="fix">修复 SQL</option><option value="optimize">优化 SQL</option>
+      </select></label>
       <textarea
         ref="composer"
         :value="prompt"

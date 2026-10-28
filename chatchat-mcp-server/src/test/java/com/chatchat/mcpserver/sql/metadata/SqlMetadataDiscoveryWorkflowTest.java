@@ -146,6 +146,24 @@ class SqlMetadataDiscoveryWorkflowTest {
         assertThat(publicResult.toString()).contains("name=id").doesNotContain("private_id","foreign_id");
         assertThat(privateResult.toString()).contains("name=private_id").doesNotContain("name=id","foreign_id");
     }
+    @Test void exposesOnlyCompleteVisibleForeignKeysAndPinsThemInTheSnapshot() {
+        var parent = table("parent");
+        var parentId = new MetadataColumn("a","db","public","parent","id","int",null,null,null,false,1);
+        var parentPart = new MetadataColumn("a","db","public","parent","part","int",null,null,null,false,2);
+        var key = MetadataIndex.relationshipKey("db","public","orders");
+        var snapshot = index(List.of(table("orders"),parent),Map.of("db.orders",List.of(column("id"),column("part")),"db.parent",List.of(parentId,parentPart)),100)
+            .withForeignKeys(Map.of(key,List.of(new MetadataForeignKey("internal_constraint","id","db","public","parent","id",1),
+                new MetadataForeignKey("internal_constraint","part","db","public","parent","part",2))));
+        when(indexes.indexFor(asset)).thenReturn(snapshot);
+        var before = run(args("DESCRIBE","assetId","a","tableName","orders"));
+        assertThat(before.toString()).contains("COLLECTED_VISIBLE","JDBC_IMPORTED_KEYS","referencedTable=parent").doesNotContain("internal_constraint");
+        asset.setSensitiveFieldsJson("[\"db.parent.part\"]");
+        var after = run(args("DESCRIBE","assetId","a","tableName","orders"));
+        assertThat(after.toString()).contains("foreignKeys=[]").doesNotContain("JDBC_IMPORTED_KEYS","referencedTable=parent");
+        assertThat(after.get("snapshotId")).isNotEqualTo(before.get("snapshotId"));
+        asset.setSensitiveFieldsJson(null); asset.setSensitiveTablesJson("[\"db.parent\"]");
+        assertThat(run(args("DESCRIBE","assetId","a","tableName","orders")).toString()).doesNotContain("referencedTable=parent");
+    }
     private Map<String, Object> run(Map<String, Object> args) { return run(args, id -> id.equals("a")); }
     private Map<String, Object> run(Map<String, Object> args, Predicate<String> allowed) {
         return workflow.execute(new SqlMetadataDiscoveryWorkflow.Request(args, allowed), caller);

@@ -11,6 +11,15 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class LlmChatModeHandlerTest {
+    @Test void persistedMetadataRequestsAvoidCodingWhileOrdinaryQuestionsKeepTheirExistingRoute(){
+        var coding=mock(CodingAnswerPort.class);var metadata=mock(com.chatchat.chat.interaction.service.SqlMetadataAnswerPort.class);
+        var handler=new LlmChatModeHandler(coding);handler.setSqlMetadata(metadata);
+        var request=request("chosen");when(metadata.supports(request)).thenReturn(true);
+        when(metadata.answer(request,context)).thenReturn(InteractionResponse.builder().answer("Metadata answer").build());
+        assertThat(handler.handle(request,context).getAnswer()).isEqualTo("Metadata answer");verifyNoInteractions(coding);
+        when(metadata.supports(request)).thenReturn(false);when(coding.answer(any(),any(),isNull(),anyString())).thenReturn(InteractionResponse.builder().answer("Coding answer").build());
+        assertThat(handler.handle(request,context).getAnswer()).isEqualTo("Coding answer");
+    }
     private final CodingAnswerPort coding = mock(CodingAnswerPort.class);
     private final LlmChatModeHandler handler = new LlmChatModeHandler(coding);
     private final InteractionContext context = InteractionContext.builder().history(List.of()).build();

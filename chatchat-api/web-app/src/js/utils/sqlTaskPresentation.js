@@ -1,5 +1,6 @@
 import { terminalSqlTask } from './sqlStudioState';
 import { businessTaskProgress } from './runtimeObservationPresentation';
+import {sqlMetadataProgress,sqlTaskStatus} from './sqlMetadataProgress';
 
 const labels = {
   IDLE: '准备就绪', PREPARING: '正在制定代码协作计划', SUBMITTING: '正在提交分析任务', PREPARED: '任务尚未提交',
@@ -11,7 +12,8 @@ const labels = {
   TIME_BUDGET_EXHAUSTED: '任务已超时', MODEL_BUDGET_EXHAUSTED: '模型预算已用尽', TIMEOUT_CANCELLED: '任务超时取消', DLQ: '任务执行失败'
 };
 export function sqlTaskPresentation(result, pendingPhase = '', pendingStartedAt = 0, now = Date.now()) {
-  const task = result?.task;
+  if(result?.generation?.prepared?.taskRequest?.toolInput?.sqlStudioAction==='explore')return sqlMetadataProgress(result?.events,result?.task,pendingPhase,pendingStartedAt,now);
+  const task = result?.task ? {...result.task,status:sqlTaskStatus(result.task)} : null;
   const status = pendingPhase || task?.status || (result?.generation ? 'PREPARED' : 'IDLE');
   const terminal = Boolean(task && terminalSqlTask(task.status)) && !pendingPhase;
   const running = Boolean(pendingPhase || task && !terminalSqlTask(task.status));

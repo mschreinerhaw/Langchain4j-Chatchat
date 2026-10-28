@@ -43,6 +43,9 @@ public class SqlStudioService {
     private final com.chatchat.api.datascience.StudioCodePlanService codePlans;
     private com.chatchat.api.runtime.coding.workspace.CodingWorkspaceService coding;
     private SqlStudioUserDocuments userDocuments;
+    private org.springframework.beans.factory.ObjectProvider<SqlStudioMetadataAssistant> metadataAssistant;
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setMetadataAssistant(org.springframework.beans.factory.ObjectProvider<SqlStudioMetadataAssistant> value){metadataAssistant=value;}
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setUserDocuments(SqlStudioUserDocuments value){this.userDocuments=value;}
     @org.springframework.beans.factory.annotation.Autowired(required=false)
@@ -62,7 +65,13 @@ public class SqlStudioService {
     public record Generate(String prompt, String dialect, List<String> mappingIds, List<String> referenceIds,
                            String agentId, String modelName, List<String> mappingDocumentIds, String action, Boolean planRequested,
                            SqlStudioMetadataService.CodingSelection codingMetadataSelection,
-                           List<SqlStudioUserDocuments.Selection> userDocuments) {
+                           List<SqlStudioUserDocuments.Selection> userDocuments,
+                           String metadataDiscoveryId,String metadataBindingContextId) {
+        public Generate(String prompt,String dialect,List<String> mappingIds,List<String> referenceIds,String agentId,
+                        String modelName,List<String> mappingDocumentIds,String action,Boolean planRequested,
+                        SqlStudioMetadataService.CodingSelection codingMetadataSelection,List<SqlStudioUserDocuments.Selection> userDocuments){
+            this(prompt,dialect,mappingIds,referenceIds,agentId,modelName,mappingDocumentIds,action,planRequested,codingMetadataSelection,userDocuments,null,null);
+        }
         public Generate(String prompt,String dialect,List<String> mappingIds,List<String> referenceIds,String agentId,
                         String modelName,List<String> mappingDocumentIds,String action,Boolean planRequested,
                         SqlStudioMetadataService.CodingSelection codingMetadataSelection){
@@ -99,7 +108,12 @@ public class SqlStudioService {
     }
     public record Generation(String id, String taskId, boolean applied, Prepared prepared, Map<String,Integer> baseVersions) { }
     public record GenerationView(Generation generation, AgentTaskResponse task, List<AgentEvent> events,
-                                 List<SqlOutputBundle.Candidate> files, String rawAnswer, String outputError, String validation) { }
+                                 List<SqlOutputBundle.Candidate> files, String rawAnswer, String outputError, String validation,
+                                 Map<String,Object> metadataExploration) {
+        public GenerationView(Generation generation,AgentTaskResponse task,List<AgentEvent> events,List<SqlOutputBundle.Candidate> files,String rawAnswer,String outputError,String validation){
+            this(generation,task,events,files,rawAnswer,outputError,validation,Map.of());
+        }
+    }
     public record Download(String name, byte[] content) { }
     public record LibraryImport(String kind, List<String> documentIds) { }
 
@@ -187,7 +201,8 @@ public class SqlStudioService {
                 continue;
             }
             var task = tasks.get(current.tenantId(), taskId).orElse(null);
-            if (task != null && !Set.of("SUCCESS", "PARTIAL", "PARTIAL_SUCCESS", "FAILED", "CANCELLED", "KILLED", "REJECTED", "EMPTY", "NO_PRESENTABLE_RESULT", "TIME_BUDGET_EXHAUSTED", "MODEL_BUDGET_EXHAUSTED", "TIMEOUT_CANCELLED", "DLQ").contains(task.status()))
+            if(task!=null){var attempts=executionAttempts(current,task);String latest=attempts.get(attempts.size()-1);access.requireTask(request,latest);task=tasks.get(current.tenantId(),latest).orElseThrow();}
+            if (task != null && !AgentExecutionState.fromWire(task.canonicalState()==null?task.status():task.canonicalState()).terminal())
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Wait for the running task before deleting its project");
         }
         jdbc.update("delete from ds_sql_file_version where file_id in (select id from ds_sql_file where project_id=?)", id);
@@ -395,6 +410,7 @@ public class SqlStudioService {
         long started = System.nanoTime();
         log.info("studio_code_assist phase=PREPARE_START language=sql generationId={} projectId={} tenant={} user={}", id, projectId, project.tenantId(), project.ownerId());
         require(body != null && body.prompt() != null && !body.prompt().isBlank() && body.prompt().length() <= 4000, "Describe the SQL generation requirement (max 4000)");
+        if("explore".equals(body.action()))return prepareExploration(request,project,body,id);
         String dialect = dialect(body.dialect());
         require(body.agentId() == null || body.agentId().isBlank() || body.modelName() == null || body.modelName().isBlank(),
             "Choose either Agent or model");
@@ -502,6 +518,20 @@ public class SqlStudioService {
         log.info("studio_code_assist phase=PREPARED language=sql generationId={} planId={} elapsedMs={}", id, codePlan.planId(), (System.nanoTime()-started)/1_000_000);
         return new Prepared(id, taskRequest);
     }
+    private Prepared prepareExploration(HttpServletRequest request,Project project,Generate body,String id){
+        require(body.agentId()==null||body.agentId().isBlank()||body.modelName()==null||body.modelName().isBlank(),"Choose either Agent or model");
+        String selected=body.agentId()==null||body.agentId().isBlank()?body.modelName():requireUsableAgent(project.ownerId(),body.agentId()).modelName();
+        var context=metadataAssistant.getObject().prepare(request,project.id(),body.metadataDiscoveryId(),body.metadataBindingContextId(),dialect(body.dialect()));
+        var session=origins.createForWorkspace(request,"data-science","SQL metadata: "+project.name());
+        var task=new AgentTaskSubmitRequest();task.setTenantId(project.tenantId());task.setUserId(project.ownerId());
+        task.setSessionId(session.getId());task.setHistoryWindow(0);task.setMode("llm_chat");task.setModelName(selected);
+        task.setQuery(body.prompt());task.setIdempotencyKey("sql-generation:"+id);
+        task.setToolInput(Map.of("sqlStudioAction","explore","sqlMetadataGenerationId",id,"sqlMetadataDiscoveryId",context.discoveryId(),"sqlStudioDialect",body.dialect(),"studioUserRequest",body.prompt()));
+        var base=new LinkedHashMap<String,Integer>();files(request,project.id()).forEach(file->base.put(file.path().toLowerCase(Locale.ROOT),file.version()));
+        jdbc.update("insert into ds_sql_generation(id,project_id,context_json,base_versions_json,applied,created_at) values(?,?,?,?,false,CURRENT_TIMESTAMP)",id,project.id(),json(task),json(base));
+        generationScopes.register(new SqlStudioGenerationScopeStore.Scope(session.getId(),project.id(),project.tenantId(),project.ownerId()));
+        return new Prepared(id,task);
+    }
     private List<File> selected(HttpServletRequest request, String projectId, List<String> ids, String expectedKind) {
         List<String> selected = ids == null ? List.of() : ids.stream().distinct().toList();
         require(selected.size() <= 32, "At most 32 input files");
@@ -537,15 +567,42 @@ public class SqlStudioService {
         if(isCoding(generation)){requireCodingMetadata(request,projectId,generation);return codingResult(project,generation);}
         access.requireTask(request, generation.taskId());
         AgentTaskResponse task = tasks.get(project.tenantId(), generation.taskId()).orElseThrow();
-        List<AgentEvent> trace = events.listByTask(project.tenantId(), task.sessionId(), task.taskId(), 2000);
+        // Runtime retries retain executionId and create a new task/attempt. The original
+        // binding and its terminal outcome stay immutable; follow only this owner's lineage.
+        List<String> attempts=executionAttempts(project,task);
+        String latest=attempts.get(attempts.size()-1);access.requireTask(request,latest);task=tasks.get(project.tenantId(),latest).orElseThrow();
+        List<AgentEvent> trace=new ArrayList<>();
+        for(String attempt:attempts)trace.addAll(events.listByTask(project.tenantId(),task.sessionId(),attempt,2000));
+        if(trace.size()>2000)trace=new ArrayList<>(trace.subList(trace.size()-2000,trace.size()));
         // Reuse Runtime's final answer extraction, including nested responses and persisted notifications.
         String answer = tasks.finalAnswer(project.tenantId(), task.taskId()).orElse(Objects.toString(task.answerSummary(), ""));
         List<SqlOutputBundle.Candidate> output = List.of(); String error = "";
         if (Set.of("SUCCESS", "PARTIAL", "PARTIAL_SUCCESS").contains(task.status())) {
-            try { output = SqlOutputBundle.parse(answer, mapper, "explain".equals(generation.prepared().taskRequest().getToolInput().get("sqlStudioAction"))); }
+            try { output = SqlOutputBundle.parse(answer, mapper, "explain".equals(generation.prepared().taskRequest().getToolInput().get("sqlStudioAction"))
+                || "explore".equals(generation.prepared().taskRequest().getToolInput().get("sqlStudioAction"))&&metadataAssistant.getObject().notesOnly(generation,answer)); }
             catch (ResponseStatusException ex) { error = ex.getReason(); }
         }
+        if("explore".equals(generation.prepared().taskRequest().getToolInput().get("sqlStudioAction"))){
+            try{
+                var exploration=metadataAssistant.getObject().review(request,projectId,generation);
+                if(Set.of("SUCCESS","PARTIAL","PARTIAL_SUCCESS").contains(task.status())&&(!exploration.containsKey("stats")||!Boolean.FALSE.equals(exploration.get("sqlExecuted"))))
+                    return new GenerationView(generation,task,trace,List.of(),"","缺少可信元数据执行证据，不能发布此结果；请从数据库探索重新生成。","NOT_PUBLISHED",Map.of());
+                if(exploration.get("blockedSqlProposalCount") instanceof Number blocked&&blocked.intValue()>0){
+                    output=List.of();
+                    if("REVALIDATION_REQUIRED".equals(exploration.get("semanticValidation")))answer=json(Map.of("schemaVersion","sql-studio.output.v1","files",List.of(),"notes","此历史 SQL 提案尚未经过当前业务口径证据检查，已停止发布。请基于当前字段证据重新生成；旧任务与原始记录仍保留，未执行或覆盖 SQL。"));
+                }
+                return new GenerationView(generation,task,trace,output,answer,error,Objects.toString(exploration.get("fieldValidation"),"NOT_RUN"),exploration);
+            }catch(ResponseStatusException invalid){
+                return new GenerationView(generation,task,trace,List.of(),"",invalid.getReason(),"METADATA_UNAVAILABLE",Map.of());
+            }
+        }
         return new GenerationView(generation, task, trace, output, answer, error, "NOT_RUN");
+    }
+    private List<String> executionAttempts(Project project,AgentTaskResponse task){
+        if(task.executionId()==null||task.executionId().isBlank())return List.of(task.taskId());
+        var lineage=new ArrayList<>(jdbc.query("select task_id from agent_task_latest where tenant_id=? and user_id=? and execution_id=? and session_id=? and question=? order by coalesce(execution_attempt_number,1) desc,create_time desc,task_id desc limit 32",
+            (row,index)->row.getString(1),project.tenantId(),project.ownerId(),task.executionId(),task.sessionId(),task.question()));
+        if(lineage.isEmpty())return List.of(task.taskId());Collections.reverse(lineage);return lineage;
     }
     /** Saved context, project owner and server feature selection determine Coding authority. */
     public AgentTaskResponse submitCoding(HttpServletRequest request,String projectId,String id) {

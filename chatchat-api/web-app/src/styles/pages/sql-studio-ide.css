@@ -1096,3 +1096,14 @@
 .sql-context-library { margin-top: 8px; }
 
 .sql-script-references{margin:8px 0;font-size:12px}.sql-script-references label{display:flex;align-items:center;gap:5px;padding:4px 0}.sql-script-references input[type=checkbox]{width:14px;flex:none}.sql-script-references span{overflow-wrap:anywhere}
+.sql-ai-markdown {overflow-wrap:anywhere;line-height:1.65;min-width:0}
+.sql-ai-markdown pre,.sql-metadata-table-scroll {overflow:auto;max-width:100%}
+.sql-ai-markdown table,.sql-metadata-evidence table {border-collapse:collapse;font-size:12px;width:100%}
+.sql-ai-markdown th,.sql-ai-markdown td,.sql-metadata-evidence th,.sql-metadata-evidence td {padding:6px;border:1px solid var(--border-color,#dfe6ef);text-align:left}
+.sql-metadata-evidence,.sql-metadata-operations {margin:10px 0;min-width:0}
+.sql-metadata-candidate {border:1px solid var(--border-color,#dfe6ef);border-radius:8px;padding:8px;margin:6px 0}
+.sql-metadata-candidate small {display:block;overflow-wrap:anywhere}
+.sql-metadata-operations summary {cursor:pointer;font-size:12px;padding:5px 0}
+.sql-metadata-operations li {font-size:11px;overflow-wrap:anywhere}
+.sql-assistant-action {display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:12px}
+.sql-assistant-action select {min-width:0;max-width:100%;flex:1}

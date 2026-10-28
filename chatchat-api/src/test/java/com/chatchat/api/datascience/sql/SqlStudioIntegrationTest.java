@@ -32,7 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /** Real HTTP authentication, object policy, H2 transactions and original scheduler.
  * Orchestration/model answers are fixtures: this is NOT real-model ETL verification. */
-@SpringBootTest(properties={"chatchat.api.auth.enabled=true",
+@SpringBootTest(properties={"chatchat.api.auth.enabled=true","chatchat.enterprise.bootstrap.admin-password=SqlStudioTest#2026",
     "spring.datasource.url=jdbc:h2:mem:sql_studio_integration;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1"})
 @AutoConfigureMockMvc @ActiveProfiles("test")
 class SqlStudioIntegrationTest {
@@ -64,7 +64,42 @@ class SqlStudioIntegrationTest {
         when(codePlans.create(any(),any(),eq("sql"),any(),any(),any())).thenReturn(new com.chatchat.api.datascience.StudioCodePlanService.Ticket("studio-code-test",null,"READY"));
         when(codePlans.context(any())).thenReturn("\nAccepted code InterpretationPlan before exploration");
         when(license.workspaceEntitlement()).thenReturn(new com.chatchat.common.mcp.license.McpLicenseEntitlementPort.WorkspaceEntitlement(true,Set.of("zhice","data-science"),"VALID"));
-        var auth=identities.login("admin","123456"); token=auth.token(); tenant=auth.user().tenantId();
+        var auth=identities.login("admin","SqlStudioTest#2026"); token=auth.token(); tenant=auth.user().tenantId();
+    }
+    @Test void followsOnlyOwnedRetryAttemptsAndPreventsDeletingAProjectWhileItsRetryRuns() throws Exception {
+        String p=project(),generation=UUID.randomUUID().toString(),execution=UUID.randomUUID().toString();
+        String session=jdbc.queryForObject("select session_id from ds_sql_project where id=?",String.class,p);
+        String owner=jdbc.queryForObject("select owner_id from ds_sql_project where id=?",String.class,p);
+        var original=retryRow(owner,session,execution,1,"FAILED");original.setErrorMessage("Predecessor failed");tasks.saveAndFlush(original);
+        var retry=retryRow(owner,session,execution,2,"WAIT_MODEL");tasks.saveAndFlush(retry);
+        tasks.saveAndFlush(retryRow("another-owner",session,execution,99,"SUCCESS"));
+        tasks.saveAndFlush(retryRow(owner,session,"different-execution",100,"SUCCESS"));
+        jdbc.update("insert into ds_sql_generation(id,project_id,task_id,context_json,base_versions_json,applied,created_at) values(?,?,?,?,?,false,CURRENT_TIMESTAMP)",
+            generation,p,original.getTaskId(),json(Map.of("sessionId",session,"query","Retry fixture","toolInput",Map.of("sqlStudioAction","explain"))),"{}");
+        String url=ROOT+"/"+p+"/generations/"+generation;
+        var active=data(mvc.perform(get(url).header("Authorization","Bearer "+token)).andExpect(status().isOk()).andReturn());
+        assertThat(active.path("generation").path("taskId").asText()).isEqualTo(original.getTaskId());
+        assertThat(active.path("task").path("taskId").asText()).isEqualTo(retry.getTaskId());assertThat(active.path("task").path("status").asText()).isEqualTo("WAIT_MODEL");
+        mvc.perform(delete(ROOT+"/"+p).header("Authorization","Bearer "+token)).andExpect(status().isConflict());
+        retry.setStatus("SUCCESS");retry.setAnswerSummary(json(Map.of("schemaVersion","sql-studio.output.v1","notes","Recovered answer","files",List.of())));tasks.saveAndFlush(retry);
+        var completed=data(mvc.perform(get(url).header("Authorization","Bearer "+token)).andExpect(status().isOk()).andReturn());
+        assertThat(completed.path("task").path("taskId").asText()).isEqualTo(retry.getTaskId());assertThat(completed.path("rawAnswer").asText()).contains("Recovered answer");
+        assertThat(tasks.findById(original.getTaskId()).orElseThrow().getStatus()).isEqualTo("FAILED");
+    }
+    com.chatchat.chat.task.core.AgentTaskLatestEntity retryRow(String owner,String session,String execution,int number,String status){
+        var row=new com.chatchat.chat.task.core.AgentTaskLatestEntity();row.setTaskId(UUID.randomUUID().toString());row.setTenantId(tenant);row.setUserId(owner);row.setSessionId(session);
+        row.setExecutionId(execution);row.setRootExecutionId(execution);row.setExecutionAttemptId("attempt-"+UUID.randomUUID());row.setExecutionAttemptNumber(number);row.setQuestion("Retry fixture");
+        row.setStatus(status);row.setCanonicalState(com.chatchat.chat.task.core.AgentExecutionState.fromWire(status).name());return row;
+    }
+    @Test void cannotPublishAnExplorationResultWithoutTrustedDomainExecutionEvidence() throws Exception {
+        String p=project(),generation=UUID.randomUUID().toString();String session=jdbc.queryForObject("select session_id from ds_sql_project where id=?",String.class,p);
+        String owner=jdbc.queryForObject("select owner_id from ds_sql_project where id=?",String.class,p);var task=retryRow(owner,session,UUID.randomUUID().toString(),1,"SUCCESS");
+        task.setAnswerSummary(json(Map.of("schemaVersion","sql-studio.output.v1","notes","Untrusted generic answer","files",List.of(Map.of("path","sql/forged.sql","content","SELECT invented_field FROM invented_table")))));tasks.saveAndFlush(task);
+        var request=Map.of("tenantId",tenant,"userId",owner,"sessionId",session,"query","Retry fixture","toolInput",Map.of("sqlStudioAction","explore","sqlMetadataDiscoveryId","missing-native-proof"));
+        jdbc.update("insert into ds_sql_generation(id,project_id,task_id,context_json,base_versions_json,applied,created_at) values(?,?,?,?,?,false,CURRENT_TIMESTAMP)",generation,p,task.getTaskId(),json(request),"{}");
+        var result=data(mvc.perform(get(ROOT+"/"+p+"/generations/"+generation).header("Authorization","Bearer "+token)).andExpect(status().isOk()).andReturn());
+        assertThat(result.path("files").isEmpty()).isTrue();assertThat(result.path("rawAnswer").asText()).isEmpty();assertThat(result.path("outputError").asText()).contains("可信元数据执行证据");
+        mvc.perform(post(ROOT+"/"+p+"/generations/"+generation+"/apply").header("Authorization","Bearer "+token).contentType("application/json").content(json(Map.of("paths",List.of("sql/forged.sql"))))).andExpect(status().isBadRequest());
     }
     JsonNode data(MvcResult result) throws Exception { return mapper.readTree(result.getResponse().getContentAsString(StandardCharsets.UTF_8)).path("data"); }
     @Test void deletingCodingProjectsChecksNativeTaskStateAndKeepsActiveProjectsIntact() throws Exception {
@@ -395,7 +430,7 @@ class SqlStudioIntegrationTest {
     }
     @Test void libraryImportIsAtomicAndRechecksDocumentAuthorization() throws Exception {
         String p=project();
-        String owner=identities.login("admin","123456").user().id();
+        String owner=identities.login("admin","SqlStudioTest#2026").user().id();
         var document=SearchDocument.builder().docId("allowed").fileName("mapping.csv")
             .content("source,target\na,b").lifecycleStatus("ACTIVE").build();
         when(documentLibrary.get(eq("allowed"),any())).thenAnswer(call ->

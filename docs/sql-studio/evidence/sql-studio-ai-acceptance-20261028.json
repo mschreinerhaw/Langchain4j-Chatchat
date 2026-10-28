@@ -1,0 +1,923 @@
+{
+  "schemaVersion": "sql-studio.acceptance.v1",
+  "date": "2026-10-28",
+  "repository": "mschreinerhaw/Langchain4j-Chatchat",
+  "baseCommit": "d9f39979d4963c48e00c52af5709e3ba7b5c006c",
+  "branch": "feat/sql-studio-metadata-assistant-20261028",
+  "scope": "Isolated application instances, real registered MySQL metadata and real configured model. No business SQL executed. Production not switched.",
+  "evidence": {
+    "productionSwitched": false,
+    "scenarios": {
+      "A": {
+        "generationId": "1530bd00-b2d5-4684-b3c6-59e7e9431516",
+        "boundTaskId": "b620f59f-9be2-3320-b3ce-3e0ce77eb213",
+        "currentTaskId": "b620f59f-9be2-3320-b3ce-3e0ce77eb213",
+        "executionId": "b620f59f-9be2-3320-b3ce-3e0ce77eb213",
+        "attemptNumber": 1,
+        "canonicalState": "SUCCEEDED",
+        "discoveryId": "e1e2d893-0dab-4812-97e3-f67100d5712a",
+        "candidateCount": 8,
+        "quartzCandidates": [
+          {
+            "tableName": "QRTZ_TRIGGERS",
+            "keyColumns": [
+              "SCHED_NAME",
+              "TRIGGER_NAME",
+              "TRIGGER_GROUP",
+              "JOB_NAME",
+              "JOB_GROUP",
+              "DESCRIPTION",
+              "NEXT_FIRE_TIME",
+              "PREV_FIRE_TIME",
+              "PRIORITY",
+              "TRIGGER_STATE",
+              "TRIGGER_TYPE",
+              "START_TIME",
+              "END_TIME",
+              "CALENDAR_NAME",
+              "MISFIRE_INSTR",
+              "JOB_DATA"
+            ]
+          },
+          {
+            "tableName": "QRTZ_JOB_DETAILS",
+            "keyColumns": [
+              "SCHED_NAME",
+              "JOB_NAME",
+              "JOB_GROUP",
+              "DESCRIPTION",
+              "JOB_CLASS_NAME",
+              "IS_DURABLE",
+              "IS_NONCONCURRENT",
+              "IS_UPDATE_DATA",
+              "REQUESTS_RECOVERY",
+              "JOB_DATA"
+            ]
+          },
+          {
+            "tableName": "QRTZ_FIRED_TRIGGERS",
+            "keyColumns": [
+              "SCHED_NAME",
+              "ENTRY_ID",
+              "TRIGGER_NAME",
+              "TRIGGER_GROUP",
+              "INSTANCE_NAME",
+              "FIRED_TIME",
+              "SCHED_TIME",
+              "PRIORITY",
+              "STATE",
+              "JOB_NAME",
+              "JOB_GROUP",
+              "IS_NONCONCURRENT",
+              "REQUESTS_RECOVERY"
+            ]
+          },
+          {
+            "tableName": "QRTZ_CRON_TRIGGERS",
+            "keyColumns": [
+              "SCHED_NAME",
+              "TRIGGER_NAME",
+              "TRIGGER_GROUP",
+              "CRON_EXPRESSION",
+              "TIME_ZONE_ID"
+            ]
+          },
+          {
+            "tableName": "QRTZ_SCHEDULER_STATE",
+            "keyColumns": [
+              "SCHED_NAME",
+              "INSTANCE_NAME",
+              "LAST_CHECKIN_TIME",
+              "CHECKIN_INTERVAL"
+            ]
+          }
+        ],
+        "sqlProposalCount": 0,
+        "validation": "NOT_RUN",
+        "semanticValidation": null,
+        "stats": {
+          "reusedEvidenceCount": 0,
+          "toolCalls": 16,
+          "modelCalls": 10,
+          "totalMs": 193653,
+          "reusedCalls": 0,
+          "modelReceipts": [
+            {
+              "modelCall": 1,
+              "durationMs": 7109,
+              "selectedModel": "qwen3.8-flash",
+              "providerModel": "qwen3.8-flash",
+              "protocol": "openai",
+              "requestTimeoutSeconds": 300,
+              "maxRetries": 3
+            },
+            {
+              "modelCall": 2,
+              "durationMs": 2640,
+              "selectedModel": "qwen3.8-flash",
+              "providerModel": "qwen3.8-flash",
+              "protocol": "openai",
+              "requestTimeoutSeconds": 300,
+              "maxRetries": 3
+            },
+            {
+              "modelCall": 3,
+              "durationMs": 4913,
+              "selectedModel": "qwen3.8-flash",
+              "providerModel": "qwen3.8-flash",
+              "protocol": "openai",
+              "requestTimeoutSeconds": 300,
+              "maxRetries": 3
+            },
+            {
+              "modelCall": 4,
+              "durationMs": 6537,
+              "selectedModel": "qwen3.8-flash",
+              "providerModel": "qwen3.8-flash",
+              "protocol": "openai",
+              "requestTimeoutSeconds": 300,
+              "maxRetries": 3
+            },
+            {
+              "modelCall": 5,
+              "durationMs": 5320,
+              "selectedModel": "qwen3.8-flash",
+              "providerModel": "qwen3.8-flash",
+              "protocol": "openai",
+              "requestTimeoutSeconds": 300,
+              "maxRetries": 3
+            },
+            {
+              "modelCall": 6,
+              "durationMs": 5472,
+              "selectedModel": "qwen3.8-flash",
+              "providerModel": "qwen3.8-flash",
+              "protocol": "openai",
+              "requestTimeoutSeconds": 300,
+              "maxRetries": 3
+            },
+            {
+              "modelCall": 7,
+              "durationMs": 5313,
+              "selectedModel": "qwen3.8-flash",
+              "providerModel": "qwen3.8-flash",
+              "protocol": "openai",
+              "requestTimeoutSeconds": 300,
+              "maxRetries": 3
+            },
+            {
+              "modelCall": 8,
+              "durationMs": 6755,
+              "selectedModel": "qwen3.8-flash",
+              "providerModel": "qwen3.8-flash",
+              "protocol": "openai",
+              "requestTimeoutSeconds": 300,
+              "maxRetries": 3
+            },
+            {
+              "modelCall": 9,
+              "durationMs": 6261,
+              "selectedModel": "qwen3.8-flash",
+              "providerModel": "qwen3.8-flash",
+              "protocol": "openai",
+              "requestTimeoutSeconds": 300,
+              "maxRetries": 3
+            },
+            {
+              "modelCall": 10,
+              "durationMs": 132647,
+              "selectedModel": "qwen3.8-flash",
+              "providerModel": "qwen3.8-flash",
+              "protocol": "openai",
+              "requestTimeoutSeconds": 300,
+              "maxRetries": 3
+            }
+          ]
+        },
+        "eventCount": 64,
+        "codingProfile": null,
+        "hasCodingEvents": false,
+        "answerSha256": "53301498d701e6a60902e62eb83e3c43c336ae3c7839e9da7b7abca821c34e07"
+      },
+      "B": {
+        "generationId": "c5cbc817-2c92-4e39-ab21-2bc41c51a3c6",
+        "boundTaskId": "21894d63-1515-3a5d-b2bc-b5c9a0fc3e13",
+        "currentTaskId": "037ded3b-b41b-49e0-b29e-65eab0774fde",
+        "executionId": "21894d63-1515-3a5d-b2bc-b5c9a0fc3e13",
+        "attemptNumber": 2,
+        "canonicalState": "SUCCEEDED",
+        "discoveryId": "e1e2d893-0dab-4812-97e3-f67100d5712a",
+        "candidateCount": 13,
+        "quartzCandidates": [
+          {
+            "tableName": "QRTZ_TRIGGERS",
+            "keyColumns": [
+              "SCHED_NAME",
+              "TRIGGER_NAME",
+              "TRIGGER_GROUP",
+              "JOB_NAME",
+              "JOB_GROUP",
+              "TRIGGER_STATE",
+              "TRIGGER_TYPE",
+              "NEXT_FIRE_TIME",
+              "PREV_FIRE_TIME",
+              "MISFIRE_INSTR",
+              "START_TIME",
+              "END_TIME",
+              "PRIORITY",
+              "CALENDAR_NAME",
+              "DESCRIPTION"
+            ]
+          },
+          {
+            "tableName": "QRTZ_FIRED_TRIGGERS",
+            "keyColumns": [
+              "SCHED_NAME",
+              "ENTRY_ID",
+              "TRIGGER_NAME",
+              "TRIGGER_GROUP",
+              "INSTANCE_NAME",
+              "FIRED_TIME",
+              "SCHED_TIME",
+              "STATE",
+              "PRIORITY",
+              "JOB_NAME",
+              "JOB_GROUP"
+            ]
+          },
+          {
+            "tableName": "QRTZ_JOB_DETAILS",
+            "keyColumns": [
+              "SCHED_NAME",
+              "JOB_NAME",
+              "JOB_GROUP",
+              "DESCRIPTION",
+              "JOB_CLASS_NAME",
+              "IS_DURABLE",
+              "IS_NONCONCURRENT",
+              "IS_UPDATE_DATA",
+              "REQUESTS_RECOVERY"
+            ]
+          },
+          {
+            "tableName": "QRTZ_CRON_TRIGGERS",
+            "keyColumns": [
+              "SCHED_NAME",
+              "TRIGGER_NAME",
+              "TRIGGER_GROUP",
+              "CRON_EXPRESSION",
+              "TIME_ZONE_ID"
+            ]
+          },
+          {
+            "tableName": "QRTZ_SCHEDULER_STATE",
+            "keyColumns": [
+              "SCHED_NAME",
+              "INSTANCE_NAME",
+              "LAST_CHECKIN_TIME",
+              "CHECKIN_INTERVAL"
+            ]
+          },
+          {
+            "tableName": "QRTZ_PAUSED_TRIGGER_GRPS",
+            "keyColumns": [
+              "SCHED_NAME",
+              "TRIGGER_GROUP"
+            ]
+          }
+        ],
+        "sqlProposalCount": 0,
+        "validation": "NOT_RUN",
+        "semanticValidation": null,
+        "stats": {
+          "totalMs": 248570,
+          "reusedCalls": 0,
+          "modelReceipts": [
+            {
+              "modelCall": 1,
+              "durationMs": 25558,
+              "selectedModel": "qwen3.8-flash",
+              "providerModel": "qwen3.8-flash",
+              "protocol": "openai",
+              "requestTimeoutSeconds": 300,
+              "maxRetries": 3
+            },
+            {
+              "modelCall": 2,
+              "durationMs": 6860,
+              "selectedModel": "qwen3.8-flash",
+              "providerModel": "qwen3.8-flash",
+              "protocol": "openai",
+              "requestTimeoutSeconds": 300,
+              "maxRetries": 3
+            },
+            {
+              "modelCall": 3,
+              "durationMs": 25018,
+              "selectedModel": "qwen3.8-flash",
+              "providerModel": "qwen3.8-flash",
+              "protocol": "openai",
+              "requestTimeoutSeconds": 300,
+              "maxRetries": 3
+            },
+            {
+              "modelCall": 4,
+              "durationMs": 95276,
+              "selectedModel": "qwen3.8-flash",
+              "providerModel": "qwen3.8-flash",
+              "protocol": "openai",
+              "requestTimeoutSeconds": 300,
+              "maxRetries": 3
+            },
+            {
+              "modelCall": 5,
+              "durationMs": 89930,
+              "selectedModel": "qwen3.8-flash",
+              "providerModel": "qwen3.8-flash",
+              "protocol": "openai",
+              "requestTimeoutSeconds": 300,
+              "maxRetries": 3
+            }
+          ],
+          "reusedEvidenceCount": 15,
+          "toolCalls": 10,
+          "modelCalls": 5
+        },
+        "eventCount": 58,
+        "codingProfile": null,
+        "hasCodingEvents": false,
+        "answerSha256": "fb23ced8a905f837d6c83cb07d8a1f6402bcc85a236b1283f178037e239dd3e4"
+      },
+      "C": {
+        "generationId": "50ac2ec2-16aa-4843-ad8e-ab46a7ac699d",
+        "boundTaskId": "db33d9ef-7e5c-3805-ba71-c893dc761fb5",
+        "currentTaskId": "db33d9ef-7e5c-3805-ba71-c893dc761fb5",
+        "executionId": "db33d9ef-7e5c-3805-ba71-c893dc761fb5",
+        "attemptNumber": 1,
+        "canonicalState": "SUCCEEDED",
+        "discoveryId": "e1e2d893-0dab-4812-97e3-f67100d5712a",
+        "candidateCount": 13,
+        "quartzCandidates": [
+          {
+            "tableName": "QRTZ_TRIGGERS",
+            "keyColumns": [
+              "SCHED_NAME",
+              "TRIGGER_NAME",
+              "TRIGGER_GROUP",
+              "JOB_NAME",
+              "JOB_GROUP",
+              "TRIGGER_STATE",
+              "TRIGGER_TYPE",
+              "NEXT_FIRE_TIME",
+              "PREV_FIRE_TIME",
+              "MISFIRE_INSTR",
+              "START_TIME",
+              "END_TIME"
+            ]
+          },
+          {
+            "tableName": "QRTZ_FIRED_TRIGGERS",
+            "keyColumns": [
+              "SCHED_NAME",
+              "ENTRY_ID",
+              "TRIGGER_NAME",
+              "TRIGGER_GROUP",
+              "INSTANCE_NAME",
+              "FIRED_TIME",
+              "SCHED_TIME",
+              "STATE"
+            ]
+          },
+          {
+            "tableName": "QRTZ_CRON_TRIGGERS",
+            "keyColumns": [
+              "SCHED_NAME",
+              "TRIGGER_NAME",
+              "TRIGGER_GROUP",
+              "CRON_EXPRESSION",
+              "TIME_ZONE_ID"
+            ]
+          },
+          {
+            "tableName": "QRTZ_JOB_DETAILS",
+            "keyColumns": [
+              "SCHED_NAME",
+              "JOB_NAME",
+              "JOB_GROUP",
+              "JOB_CLASS_NAME",
+              "DESCRIPTION",
+              "IS_NONCONCURRENT",
+              "REQUESTS_RECOVERY"
+            ]
+          },
+          {
+            "tableName": "QRTZ_SCHEDULER_STATE",
+            "keyColumns": [
+              "SCHED_NAME",
+              "INSTANCE_NAME",
+              "LAST_CHECKIN_TIME",
+              "CHECKIN_INTERVAL"
+            ]
+          },
+          {
+            "tableName": "QRTZ_PAUSED_TRIGGER_GRPS",
+            "keyColumns": [
+              "SCHED_NAME",
+              "TRIGGER_GROUP"
+            ]
+          }
+        ],
+        "sqlProposalCount": 0,
+        "validation": "NOT_RUN",
+        "semanticValidation": "NOT_REQUIRED",
+        "stats": {
+          "reusedEvidenceCount": 24,
+          "toolCalls": 4,
+          "modelCalls": 4,
+          "totalMs": 201466,
+          "reusedCalls": 0,
+          "modelReceipts": [
+            {
+              "modelCall": 1,
+              "durationMs": 31749,
+              "selectedModel": "qwen3.8-flash",
+              "providerModel": "qwen3.8-flash",
+              "protocol": "openai",
+              "requestTimeoutSeconds": 300,
+              "maxRetries": 3
+            },
+            {
+              "modelCall": 2,
+              "durationMs": 49811,
+              "selectedModel": "qwen3.8-flash",
+              "providerModel": "qwen3.8-flash",
+              "protocol": "openai",
+              "requestTimeoutSeconds": 300,
+              "maxRetries": 3
+            },
+            {
+              "modelCall": 3,
+              "durationMs": 68872,
+              "selectedModel": "qwen3.8-flash",
+              "providerModel": "qwen3.8-flash",
+              "protocol": "openai",
+              "requestTimeoutSeconds": 300,
+              "maxRetries": 3
+            },
+            {
+              "modelCall": 4,
+              "durationMs": 46298,
+              "selectedModel": "qwen3.8-flash",
+              "providerModel": "qwen3.8-flash",
+              "protocol": "openai",
+              "requestTimeoutSeconds": 300,
+              "maxRetries": 3
+            }
+          ]
+        },
+        "eventCount": 30,
+        "codingProfile": null,
+        "hasCodingEvents": false,
+        "answerSha256": "6470c4b0342d4dd5c2b0893a3cfdb98863a351fceb83691a17e149fbe3040c43",
+        "failureRateSqlBusinessVerified": false
+      },
+      "projection": {
+        "generationId": "5a3742ba-baff-4fde-b39f-5ad6b33f1fa4",
+        "boundTaskId": "1ff42b8a-2271-3eb4-8578-b55e075a418d",
+        "currentTaskId": "1ff42b8a-2271-3eb4-8578-b55e075a418d",
+        "executionId": "1ff42b8a-2271-3eb4-8578-b55e075a418d",
+        "attemptNumber": 1,
+        "canonicalState": "SUCCEEDED",
+        "discoveryId": "e1e2d893-0dab-4812-97e3-f67100d5712a",
+        "candidateCount": 1,
+        "quartzCandidates": [
+          {
+            "tableName": "QRTZ_TRIGGERS",
+            "keyColumns": [
+              "JOB_NAME",
+              "JOB_GROUP",
+              "TRIGGER_STATE"
+            ]
+          }
+        ],
+        "sqlProposalCount": 1,
+        "validation": "CHECKED",
+        "semanticValidation": "NOT_REQUIRED",
+        "stats": {
+          "reusedEvidenceCount": 24,
+          "toolCalls": 0,
+          "modelCalls": 2,
+          "totalMs": 45661,
+          "reusedCalls": 0,
+          "modelReceipts": [
+            {
+              "modelCall": 1,
+              "durationMs": 22665,
+              "selectedModel": "qwen3.8-flash",
+              "providerModel": "qwen3.8-flash",
+              "protocol": "openai",
+              "requestTimeoutSeconds": 300,
+              "maxRetries": 3
+            },
+            {
+              "modelCall": 2,
+              "durationMs": 21295,
+              "selectedModel": "qwen3.8-flash",
+              "providerModel": "qwen3.8-flash",
+              "protocol": "openai",
+              "requestTimeoutSeconds": 300,
+              "maxRetries": 3
+            }
+          ]
+        },
+        "eventCount": 18,
+        "codingProfile": null,
+        "hasCodingEvents": false,
+        "answerSha256": "ae7f2db77aeeff9e2010a840dd25a92f49dd5767c3887a670b8dcdbcef8accc0",
+        "query": "SELECT t.JOB_NAME, t.JOB_GROUP, t.TRIGGER_STATE FROM livebos.QRTZ_TRIGGERS AS t LIMIT 20;"
+      }
+    },
+    "production": {
+      "api": {
+        "sameContainerId": true,
+        "running": true,
+        "image": "runtime-os-api:main-d9f39979d-20261028"
+      },
+      "mcp": {
+        "sameContainerId": true,
+        "running": true,
+        "image": "runtime-os-mcp:main-9b18e67f9-20261028"
+      }
+    },
+    "preview": {
+      "api": {
+        "image": "runtime-os-api:sql-metadata-ai-20261028-r10",
+        "imageId": "sha256:15e6c0af84e52473a71f1ec79d5a4470948613adf930911e896ead72363da730",
+        "running": true,
+        "jarSha256": "38d7d63319401b132ffd29af9487171375aec8e4bc221e8f281c3c25d29d4dca"
+      },
+      "mcp": {
+        "image": "runtime-os-mcp:sql-metadata-ai-20261028-r2",
+        "imageId": "sha256:31d81d18bc95391536a0b7ef0db306a7eb3436584b2021d5196997f8848bc7a1",
+        "running": true,
+        "jarSha256": "bed9c3c3c29d65058d01c36a0d5aaef44f36ba2bf51f39a162b14b04b0202f6e"
+      }
+    },
+    "restoredModelPolicy": {
+      "name": "qwen3.8-flash",
+      "requestTimeoutSeconds": 300,
+      "maxRetries": 3,
+      "published": true,
+      "pendingChanges": false
+    },
+    "actualSdkTimeout": {
+      "configuredSeconds": 1,
+      "maxRetriesDuringTest": 0,
+      "failures": [
+        {
+          "operation": "MODEL",
+          "eventState": "FAILED",
+          "reasonCode": "MODEL_REQUEST_TIMEOUT",
+          "elapsedMs": 1027
+        }
+      ],
+      "policyRestored": true
+    },
+    "security": [
+      {
+        "scenario": "pinned-pagination",
+        "passed": true,
+        "httpStatus": 200
+      },
+      {
+        "scenario": "snapshot-conflict",
+        "passed": true,
+        "httpStatus": 409
+      },
+      {
+        "scenario": "business-sql-argument-rejected",
+        "passed": true,
+        "httpStatus": 400
+      },
+      {
+        "scenario": "caller-asset-override-rejected",
+        "passed": true,
+        "httpStatus": 400
+      },
+      {
+        "scenario": "unbound-binding-rejected",
+        "passed": true,
+        "httpStatus": 404
+      },
+      {
+        "scenario": "unknown-asset-mcp-denied",
+        "passed": true,
+        "mcpStatus": "FAILED"
+      },
+      {
+        "scenario": "sensitive-column-and-target-foreign-key-filtered",
+        "passed": true
+      },
+      {
+        "scenario": "sensitive-table-hidden",
+        "passed": true
+      },
+      {
+        "scenario": "policy-change-invalidates-old-snapshot",
+        "passed": true,
+        "httpStatus": 409
+      },
+      {
+        "scenario": "disabled-source-old-context-denied",
+        "passed": true,
+        "httpStatus": 403
+      }
+    ],
+    "revocation": {
+      "nonAdministratorUser": "bf4840d3-ef14-4db5-97d9-bf55ac0ecc8e",
+      "beforeStatus": "SUCCEEDED",
+      "unauthorizedAssetStatus": "DENIED",
+      "otherOwnerHttpStatus": 403,
+      "afterGrantRevocationHttpStatus": 403,
+      "sameDiscoveryId": "66f2931f-3442-4fa7-af98-862fb701e199",
+      "sqlExecutionGrantCreated": false
+    },
+    "metadataRefresh": {
+      "datasourceId": "8b1fba8f-404a-482d-8037-a005db327f0e",
+      "databaseType": "mysql",
+      "schemaCount": 3,
+      "tableCount": 353,
+      "columnCount": 2659,
+      "refreshedAtMs": 1793171283744,
+      "durationMs": 6941,
+      "persistedToRocksDb": true,
+      "persistState": {
+        "enabled": true,
+        "status": "PERSISTED",
+        "message": null
+      },
+      "error": null,
+      "objectCount": 353,
+      "fieldCount": 2659,
+      "foreignKeyPairs": 34
+    },
+    "externalCleanupRecovery": [
+      {
+        "directory": "h2",
+        "fileCount": 2,
+        "bytes": 753410048,
+        "sourceAndCopySha256Match": true,
+        "sourceUnchangedDuringCopy": true
+      },
+      {
+        "directory": "mcp-cache-rocksdb",
+        "fileCount": 10,
+        "bytes": 6283353,
+        "sourceAndCopySha256Match": true,
+        "sourceUnchangedDuringCopy": true
+      }
+    ],
+    "legacySqlApplyStatus": 400
+  },
+  "deployedApplicationSourceMatchesTestedWorkingTree": true,
+  "deployedMcpClasses": {
+    "allMatch": true,
+    "sha256": {
+      "MetadataIndex": "050be5492f35fc37b36fe2791be978db7082b7e142e24389a90aec9eca903b98",
+      "MetadataIndexService": "b453d323ba1b851a3b3a829edef8a44ebec6f1a4a30a5160a35bdd53289251f5",
+      "SqlMetadataDiscoveryService": "63210d83850ddd16971c78b4c489f3356897bafd131f36d7fb44f5b1de4c1201",
+      "MetadataForeignKey": "791adad36bd15db2aa3368a57e3390b1a58f397afa996a3f66dd4a396c8969a7"
+    }
+  },
+  "browser": {
+    "metadataEvidence": {
+      "progressCaptured": true,
+      "authoritativeBackendReceipts": [
+        {
+          "status": "WAIT_MODEL",
+          "canonicalState": "PLANNING",
+          "eventCount": 57
+        },
+        {
+          "status": "WAIT_MODEL",
+          "canonicalState": "PLANNING",
+          "eventCount": 57
+        },
+        {
+          "status": "WAIT_MODEL",
+          "canonicalState": "PLANNING",
+          "eventCount": 57
+        },
+        {
+          "status": "WAIT_MODEL",
+          "canonicalState": "PLANNING",
+          "eventCount": 57
+        },
+        {
+          "status": "WAIT_MODEL",
+          "canonicalState": "PLANNING",
+          "eventCount": 57
+        },
+        {
+          "status": "WAIT_MODEL",
+          "canonicalState": "PLANNING",
+          "eventCount": 57
+        },
+        {
+          "status": "WAIT_MODEL",
+          "canonicalState": "PLANNING",
+          "eventCount": 57
+        },
+        {
+          "status": "WAIT_MODEL",
+          "canonicalState": "PLANNING",
+          "eventCount": 57
+        },
+        {
+          "status": "WAIT_MODEL",
+          "canonicalState": "PLANNING",
+          "eventCount": 57
+        },
+        {
+          "status": "WAIT_MODEL",
+          "canonicalState": "PLANNING",
+          "eventCount": 57
+        },
+        {
+          "status": "WAIT_MODEL",
+          "canonicalState": "PLANNING",
+          "eventCount": 57
+        },
+        {
+          "status": "WAIT_MODEL",
+          "canonicalState": "PLANNING",
+          "eventCount": 57
+        },
+        {
+          "status": "WAIT_MODEL",
+          "canonicalState": "PLANNING",
+          "eventCount": 57
+        },
+        {
+          "status": "WAIT_MODEL",
+          "canonicalState": "PLANNING",
+          "eventCount": 59
+        },
+        {
+          "status": "SUCCESS",
+          "canonicalState": "SUCCEEDED",
+          "eventCount": 64
+        },
+        {
+          "status": "SUCCESS",
+          "canonicalState": "SUCCEEDED",
+          "eventCount": 64
+        }
+      ],
+      "tableName": "livebos.livebos.QRTZ_TRIGGERS",
+      "fieldCount": 16,
+      "answerRestored": true,
+      "candidateCount": 8,
+      "pageErrors": [],
+      "unsafeHtmlCount": 0
+    },
+    "cancellationAndRetry": {
+      "projectId": "dc98c288-26dc-41e6-8b4b-c0fd5649917b",
+      "predecessorTaskId": "b6d17b75-1348-3f24-88e5-b68cd03c0556",
+      "successorTaskId": "0f8e4eff-3e89-48c1-aa85-2e4b21359c0f",
+      "attemptNumber": 2,
+      "backendReceipts": [
+        {
+          "taskId": "b6d17b75-1348-3f24-88e5-b68cd03c0556",
+          "status": "WAIT_MODEL",
+          "canonicalState": "PLANNING",
+          "eventCount": 3
+        },
+        {
+          "taskId": "b6d17b75-1348-3f24-88e5-b68cd03c0556",
+          "status": "WAIT_MODEL",
+          "canonicalState": "PLANNING",
+          "eventCount": 7
+        },
+        {
+          "taskId": "b6d17b75-1348-3f24-88e5-b68cd03c0556",
+          "status": "CANCELLED",
+          "canonicalState": "CANCELLED",
+          "eventCount": 9
+        },
+        {
+          "taskId": "0f8e4eff-3e89-48c1-aa85-2e4b21359c0f",
+          "status": "WAIT_MODEL",
+          "canonicalState": "PLANNING",
+          "eventCount": 17
+        },
+        {
+          "taskId": "0f8e4eff-3e89-48c1-aa85-2e4b21359c0f",
+          "status": "CANCELLED",
+          "canonicalState": "CANCELLED",
+          "eventCount": 19
+        }
+      ],
+      "cancelledTaskIds": [
+        "b6d17b75-1348-3f24-88e5-b68cd03c0556",
+        "0f8e4eff-3e89-48c1-aa85-2e4b21359c0f"
+      ],
+      "followedSuccessorWithoutReload": true,
+      "terminalSpinners": 0,
+      "pageErrors": []
+    },
+    "sqlReviewSave": {
+      "generationId": "5a3742ba-baff-4fde-b39f-5ad6b33f1fa4",
+      "taskId": "1ff42b8a-2271-3eb4-8578-b55e075a418d",
+      "path": "sql/metadata_acceptance.sql",
+      "fileId": "a591bcdf-fc00-437f-b219-fd9cb52a4134",
+      "version": 1,
+      "versionCount": 1,
+      "sourceTaskId": "1ff42b8a-2271-3eb4-8578-b55e075a418d",
+      "semanticValidation": "NOT_REQUIRED",
+      "contentSha256": "104968d30eeb679ac2da43e067800416c03e1e8943a659d1d9a8d4c4664871c5",
+      "monacoDiffRendered": true,
+      "reviewedAndSaved": true,
+      "downloadMatches": true,
+      "restoredAfterReload": true,
+      "sqlExecuted": false,
+      "pageErrors": [],
+      "fieldValidation": "CHECKED"
+    }
+  },
+  "automatedTests": {
+    "backendMain": 97,
+    "additionalMcpRegression": 65,
+    "frontend": 86,
+    "total": 248,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "logs": [
+      "target/sql-studio-ai-audit/package-r15.log",
+      "target/sql-studio-ai-audit/mcp-regression.log",
+      "target/sql-studio-ai-audit/frontend-r10.log",
+      "target/sql-studio-ai-audit/frontend-build-r9.log"
+    ]
+  },
+  "limitations": [
+    "Failure-code definitions, execution-record grain, retries/deduplication and time-window semantics are not documented sufficiently in the selected metadata. No verified seven-day failure-rate SQL is claimed.",
+    "SQL semantic evidence checks are a conservative publication gate, not proof of row-level business correctness. SQL remains a reviewed proposal and is never executed by metadata exploration.",
+    "Native tool calling is required. Other providers/drivers were not all exercised against live services.",
+    "Full Cline engineering generation was not rerun against an isolated Cline callback; its existing workspace/HTTP regression uses fixtures. Metadata questions did not enter Coding Workspace.",
+    "Only metadata and server-side question history are used by explore. Existing Cline mode remains the path for engineering attachments.",
+    "Model round counts are SDK chat calls including internal retry time, not independently counted provider HTTP requests. Measured inference latency remains material."
+  ],
+  "rollback": "Revert application images/branch without deleting projects, task history or business databases. Preserve pre-upgrade metadata index backups for MCP downgrade; do not clear the whole RocksDB.",
+  "changedFiles": [
+    "chatchat-api/src/main/java/com/chatchat/api/datascience/sql/SqlStudioMetadataAssistant.java",
+    "chatchat-api/src/main/java/com/chatchat/api/datascience/sql/SqlStudioMetadataGateway.java",
+    "chatchat-api/src/main/java/com/chatchat/api/datascience/sql/SqlStudioMetadataService.java",
+    "chatchat-api/src/main/java/com/chatchat/api/datascience/sql/SqlStudioService.java",
+    "chatchat-api/src/main/resources/sql-toolchain/validate.py",
+    "chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlGlotToolchainTest.java",
+    "chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java",
+    "chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioMetadataAssistantTest.java",
+    "chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioMetadataGatewayTest.java",
+    "chatchat-api/web-app/package.json",
+    "chatchat-api/web-app/src/components/sql-studio/SqlAssistantPanel.test.js",
+    "chatchat-api/web-app/src/components/sql-studio/SqlAssistantPanel.vue",
+    "chatchat-api/web-app/src/components/sql-studio/SqlMetadataEvidence.test.js",
+    "chatchat-api/web-app/src/components/sql-studio/SqlMetadataEvidence.vue",
+    "chatchat-api/web-app/src/js/components/sql-studio/SqlAssistantPanel.js",
+    "chatchat-api/web-app/src/js/components/sql-studio/SqlMetadataEvidence.js",
+    "chatchat-api/web-app/src/js/components/sql-studio/SqlSchemaExplorer.js",
+    "chatchat-api/web-app/src/js/utils/sqlMetadataProgress.js",
+    "chatchat-api/web-app/src/js/utils/sqlMetadataProgress.test.js",
+    "chatchat-api/web-app/src/js/utils/sqlTaskPresentation.js",
+    "chatchat-api/web-app/src/js/utils/studioAi.js",
+    "chatchat-api/web-app/src/js/utils/studioConversation.js",
+    "chatchat-api/web-app/src/js/views/SqlStudioView.js",
+    "chatchat-api/web-app/src/styles/pages/sql-studio-ide.css",
+    "chatchat-api/web-app/src/views/SqlStudioView.vue",
+    "chatchat-chat/src/main/java/com/chatchat/chat/interaction/service/SqlMetadataAnswerPort.java",
+    "chatchat-chat/src/main/java/com/chatchat/chat/interaction/service/handler/LlmChatModeHandler.java",
+    "chatchat-chat/src/test/java/com/chatchat/chat/interaction/service/handler/LlmChatModeHandlerTest.java",
+    "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/sql/metadata/MetadataForeignKey.java",
+    "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/sql/metadata/MetadataIndex.java",
+    "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/sql/metadata/MetadataIndexService.java",
+    "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/sql/metadata/SqlMetadataDiscoveryService.java",
+    "chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/sql/metadata/MetadataForeignKeyTest.java",
+    "chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/sql/metadata/SqlMetadataDiscoveryWorkflowTest.java",
+    "docs/sql-studio/18-metadata-discovery-foundation.md",
+    "docs/sql-studio/evidence/sql-studio-ai-acceptance-20261028.json",
+    "scripts/verify-sql-studio-metadata.py"
+  ],
+  "rawArtifactSha256": {
+    "final-summary.private.json": "2477b6845bd97a3e7e87544bdddc24a79d18d6ffa3d539c0bb29f5b5389c73fc",
+    "final-A-result.private.json": "5101a48116079e58bb4a3cb6a4a959cabf16c83153cd6baf22fb10188c5aeea1",
+    "final-B-result.private.json": "1475d6a45ef49ddd95b72e0edf1c214bd24cc502d5af1d00db861a11909885e1",
+    "final-C-result.private.json": "23ec12cc65b4194ee24df63f937c5b155e3ef50434cec6361050e8e281fa565a",
+    "final-projection-result.private.json": "26126a0344d4e77842852862870ec41841a93be8b477766c6821b48c009e4c55",
+    "controls-timeout-one-second-events.private.json": "13f4c22db6963ea3b9348574d806aac04ca48e496e5c41bac8caaec5a7bb9cb2",
+    "legacy-sql-policy-check.private.json": "ef3bb63b60c95a092d4862035db8e338cc2bf556fb5bfb6a8d606f5c28ba78d3",
+    "browser-acceptance.json": "16a576dd616df42269e19208b1531098555ef7a863806f91c88e89b6ae2226d5",
+    "browser-cancel-retry.json": "2169d623985c2fa0e2a815f785f6c28aa4f02be9b7968cddcbe4a68fb39a6ec3",
+    "browser-save.json": "9c03001a0945f4d5b587605856141b3bb3b11568e30f1b4f5090c5683edd628f"
+  }
+}

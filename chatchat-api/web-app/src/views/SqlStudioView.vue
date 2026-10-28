@@ -221,6 +221,7 @@
       <SqlAssistantPanel
         v-if="layout.assistant && projectId"
         :ai-action="aiAction"
+        :project-id="projectId"
         @action="chooseAiAction"
         :current-file="activeFile"
         :dialect-label="dialects.find((item) => item.value === dialect)?.label"
@@ -271,7 +272,7 @@
               explorerTab = 'schema';
               layout.explorer = true;
             "
-            >选择数据库表（{{ metadataTableCount }}）</button
+            >选择数据库与表（{{ metadataTableCount }}）</button
           ><SqlUserDocuments
             :key="tenantId + ':' + userId + ':' + projectId"
             v-model="userDocuments"

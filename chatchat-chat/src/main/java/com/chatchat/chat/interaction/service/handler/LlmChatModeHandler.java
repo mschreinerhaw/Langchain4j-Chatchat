@@ -11,10 +11,14 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class LlmChatModeHandler implements InteractionModeHandler {
     private final CodingAnswerPort coding;
+    private SqlMetadataAnswerPort sqlMetadata;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setSqlMetadata(@org.springframework.context.annotation.Lazy SqlMetadataAnswerPort value) { this.sqlMetadata=value; }
     @Override public InteractionMode mode() { return InteractionMode.LLM_CHAT; }
     @Override public InteractionResponse handle(InteractionRequest request,InteractionContext context) {
         InteractionExecution.checkCancellation(request);
-        var response = coding.answer(request,context,null,"");
+        var response = sqlMetadata != null && sqlMetadata.supports(request)
+            ? sqlMetadata.answer(request,context) : coding.answer(request,context,null,"");
         InteractionExecution.checkCancellation(request);
         var metadata = new LinkedHashMap<String,Object>(response.getMetadata() == null ? Map.of() : response.getMetadata());
         metadata.put("handler","LlmChatModeHandler");

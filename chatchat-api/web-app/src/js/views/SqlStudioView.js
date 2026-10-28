@@ -17,6 +17,7 @@ import { dirtySqlFile, mergeSqlFiles, restoreSqlDrafts, assertSqlApplySafe, merg
 import { mappingSchemaColumns } from '../editor/codeIntelligence';
 import { clampSqlPanel, restoreSqlLayout, sqlAssistantAnswer, sqlConversationPrompt } from '../utils/sqlIdeState';
 import { sqlTaskPresentation } from '../utils/sqlTaskPresentation';
+import {sqlTaskStatus} from '../utils/sqlMetadataProgress';
 import { beginStudioExchange, studioAssistantTurn, updateStudioTurn } from '../utils/studioConversation';
 export default {
   components: { SqlUserDocuments, SqlSchemaExplorer, CodeChangeReview, AppNotice, AppConfirmDialog, SqlProjectTree, SqlEditorPane, SqlAssistantPanel, SqlBottomPanel, FolderTree, PanelBottom, Sparkles, Plus, Save, WandSparkles, FileCode2, CircleCheck },
@@ -34,7 +35,8 @@ function resolveConfirm(value) { confirmation.value = null; confirmResolve?.(val
 const projects = ref([]), projectId = ref(''), files = ref([]), references = ref([]), models = ref([]), agents = ref([]);
 const dialect = ref('spark'), agentId = ref(''), modelName = ref(''), prompt = ref('');
 const executionMode = ref('model');
-const aiAction = ref('generate'), reviewOpen = ref(false), reviewPath = ref('');
+const assistantDiscoveryId=ref(null), assistantBindingContext=ref(null);
+const aiAction = ref('explore'), reviewOpen = ref(false), reviewPath = ref('');
 const reviewTitle = computed(() => studioAiLabels[sqlGenerationAction(result.value)] || '代码变更');
 const reviewFiles = computed(() => (result.value?.files || []).map(candidate => {
   const existing=files.value.find(file=>file.path.toLowerCase()===candidate.path.toLowerCase());
@@ -64,7 +66,7 @@ const schemaExplorer = ref(null), explorerTab = ref('files');
 const completeSchema = (...args) => schemaExplorer.value?.complete(...args) || Promise.resolve([]);
 function useSourceDialect(value) {const target=({postgres:'postgresql',sqlserver:'tsql'})[value]||value;if(dialects.some(item=>item.value===target))dialect.value=target;}
 const activeFile = computed(() => files.value.find(file => file.id === activeId.value));
-const taskRunning = computed(() => Boolean(result.value?.task && !terminalSqlTask(result.value.task.status)));
+const taskRunning = computed(() => Boolean(result.value?.task && !terminalSqlTask(sqlTaskStatus(result.value.task))));
 const taskStatusLabel = computed(() => sqlTaskPresentation(result.value, pendingPhase.value).title);
 const dirtyCount = computed(() => files.value.filter(dirtySqlFile).length);
 const schemaColumns = computed(() => mappingSchemaColumns(files.value, mappingIds.value));
@@ -152,7 +154,7 @@ async function selectProject(id) {
     documentsUploading.value = false;
     if (!stored) { const first = files.value.find(file => file.kind === 'SQL') || files.value[0]; if (first) openFile(first.id); }
     prompt.value = stored?.prompt || ''; chatTurns.value = Array.isArray(stored?.chatTurns) ? stored.chatTurns.slice(-30) : [];
-    aiAction.value = 'generate'; reviewOpen.value=false;
+    aiAction.value = ['explore','generate','explain','fix','optimize'].includes(stored?.aiAction)?stored.aiAction:'explore';assistantDiscoveryId.value=null;assistantBindingContext.value=null;reviewOpen.value=false;
     selectedCode.value = null; preview.value = null; generations.value = history;
     generationId.value = stored && Object.hasOwn(stored, 'conversationGenerationId')
       ? history.find(item => item.id === stored.conversationGenerationId)?.id || '' : history[0]?.id || '';
@@ -243,19 +245,22 @@ async function generate() { if(documentsUploading.value)return; await action(asy
   if (files.value.some(dirtySqlFile)) throw new Error('请先保存工程中的编辑内容，让生成任务读取一致的文件版本。');
   const id = projectId.value, text = prompt.value.trim();
   if (!text) return;
-  const request = sqlConversationPrompt(`${activeFile.value ? 'Target file: '+activeFile.value.path+'\n' : ''}${text}`, chatTurns.value, selectedCode.value);
+  const request = aiAction.value==='explore'?text:sqlConversationPrompt(`${activeFile.value ? 'Target file: '+activeFile.value.path+'\n' : ''}${text}`, chatTurns.value, selectedCode.value);
   const localId = beginStudioExchange(chatTurns.value, text, aiAction.value, activeFile.value?.path || '');
   const assistantTurn = () => studioAssistantTurn(chatTurns.value, localId);
   prompt.value = '';
   pendingPhase.value = 'PREPARING'; pendingStartedAt.value = Date.now(); pollError.value = ''; result.value = null;
   try {
     const prepared = await sql.prepareSqlGeneration(id, { action:aiAction.value, prompt:request, dialect:dialect.value, mappingDocumentIds:mappingDocumentIds.value, mappingIds:mappingIds.value, referenceIds:referenceIds.value, userDocuments:userDocuments.value.map(({fileId,purpose})=>({fileId,purpose})), agentId:executionMode.value === 'agent' ? agentId.value || null : null, modelName:executionMode.value === 'model' ? modelName.value || null : null,
-      codingMetadataSelection:schemaExplorer.value?.codingSelection?.() || null });
+      codingMetadataSelection:schemaExplorer.value?.codingSelection?.() || null,
+      metadataDiscoveryId:assistantBindingContext.value && assistantBindingContext.value!==schemaExplorer.value?.assistantContext?.()?null:assistantDiscoveryId.value,
+      metadataBindingContextId:schemaExplorer.value?.assistantContext?.() || null });
     if (id !== projectId.value || !active) return;
+    if(aiAction.value==='explore'){assistantDiscoveryId.value=prepared.taskRequest?.toolInput?.sqlMetadataDiscoveryId;assistantBindingContext.value=schemaExplorer.value?.assistantContext?.() || null;}
     for (const turn of chatTurns.value.filter(turn => turn.id.endsWith(localId))) {
       turn.id = `${turn.role}:${prepared.generationId}`; turn.generationId = prepared.generationId;
     }
-    updateStudioTurn(assistantTurn(), 'submitting', '计划已通过校验，正在提交分析任务。', {
+    updateStudioTurn(assistantTurn(), 'submitting', aiAction.value==='explore'?'授权发现上下文已保存，正在提交任务。':'计划已通过校验，正在提交分析任务。', {
       plan: prepared.taskRequest?.toolInput?.studioCodePlan?.interpretationPlan,
       planId: prepared.taskRequest?.toolInput?.studioCodePlan?.planId
     });
@@ -271,7 +276,8 @@ async function generate() { if(documentsUploading.value)return; await action(asy
       if (id === projectId.value && generationId.value === prepared.generationId) result.value.task = task;
     } finally { await refreshGeneration(); }
   } catch (ex) {
-    updateStudioTurn(assistantTurn(), 'failed', `请求未完成：${ex.message || '请稍后重试'}`);
+    if(result.value?.task&&!terminalSqlTask(sqlTaskStatus(result.value.task)))updateStudioTurn(assistantTurn(),'running','连接暂时中断，后端任务仍在运行，正在恢复进度。');
+    else updateStudioTurn(assistantTurn(), 'failed', `请求未完成：${ex.message || '请稍后重试'}`);
     if (id === projectId.value && !prompt.value) prompt.value = text;
     throw ex;
   } finally { if (id === projectId.value) pendingPhase.value = ''; }
@@ -288,7 +294,7 @@ function newConversation() {
   if (busy.value || taskRunning.value || pendingPhase.value || !projectId.value) return;
   clearTimeout(pollTimer); clearTimeout(draftTimer);
   reviewOpen.value=false;
-  chatTurns.value = []; prompt.value = ''; selectedCode.value = null; aiAction.value='generate';
+  chatTurns.value = []; prompt.value = ''; selectedCode.value = null; aiAction.value='explore';assistantDiscoveryId.value=null;assistantBindingContext.value=null;
   generationId.value = ''; result.value = null; pendingStartedAt.value = 0; pollError.value = '';
   if (preview.value && !preview.value.reference) preview.value = null;
   error.value = ''; message.value = ''; persist();
@@ -301,18 +307,23 @@ async function refreshGeneration() {
   try {
     const loaded = await sql.sqlGeneration(id, generation);
     if (id !== projectId.value || generation !== generationId.value || !active) return;
+    if(loaded.task)loaded.task={...loaded.task,status:sqlTaskStatus(loaded.task)};
     result.value = loaded;
+    if(loaded.generation?.prepared?.taskRequest?.toolInput?.sqlStudioAction==='explore')assistantDiscoveryId.value=loaded.generation.prepared.taskRequest.toolInput.sqlMetadataDiscoveryId;
     pollError.value = '';
     const turn = chatTurns.value.find(item => item.id === `assistant:${generation}`);
     if (turn) {
       const state = sqlTaskPresentation(loaded);
       const status = loaded.outputError ? 'failed' : loaded.generation?.applied ? 'applied' : state.terminal ? ['SUCCESS','PARTIAL','PARTIAL_SUCCESS'].includes(loaded.task.status) ? 'ready'
         : ['CANCELLED','KILLED','TIMEOUT_CANCELLED'].includes(loaded.task.status) ? 'cancelled' : 'failed' : loaded.task ? 'running' : 'submitting';
-      updateStudioTurn(turn, status, (loaded.generation?.applied ? '代码变更已保存到工程，未执行 SQL。\n' : '')+sqlAssistantAnswer(loaded), { steps: state.steps, taskId: loaded.task?.taskId,
+      updateStudioTurn(turn, status, (loaded.generation?.applied ? '代码变更已保存到工程，未执行 SQL。\n' : '')+sqlAssistantAnswer(loaded), { steps: state.steps, taskId: loaded.task?.taskId, metadataExploration:loaded.metadataExploration,
         plan: loaded.generation?.prepared?.taskRequest?.toolInput?.studioCodePlan?.interpretationPlan || turn.plan });
     }
     if ((loaded.files?.length || loaded.outputError) && !layout.value.bottom) layout.value.bottomTab = loaded.outputError ? 'problems' : 'output';
-    if (loaded.task && !terminalSqlTask(loaded.task.status)) pollTimer = setTimeout(refreshGeneration, 1500);
+    const mayRetry=loaded.generation?.prepared?.taskRequest?.toolInput?.sqlStudioAction==='explore'&&['FAILED','CANCELLED','TIME_BUDGET_EXHAUSTED','MODEL_BUDGET_EXHAUSTED','TIMEOUT_CANCELLED','DLQ','KILLED'].includes(loaded.task?.status);
+    // Keep a quiet check for a real successor attempt. A terminal task shows no
+    // loading indicator; its immutable failure is not the whole execution lineage.
+    if (loaded.task && (!terminalSqlTask(loaded.task.status)||mayRetry)) pollTimer = setTimeout(refreshGeneration,mayRetry?10000:1500);
   } catch (ex) {
     if (active && id === projectId.value && generation === generationId.value) {
       pollError.value = ex.message || '进度更新失败';

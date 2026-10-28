@@ -432,7 +432,7 @@ export default defineComponent({
       return { sources: [...groups.values()] };
     }
 
-    exposeComponent({ complete, codingSelection });
+    exposeComponent({ complete, codingSelection, assistantContext:()=>context.value?.discoveryId || null });
     return {
       ref,
       namespaceKey,

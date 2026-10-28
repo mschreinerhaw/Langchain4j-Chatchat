@@ -38,6 +38,11 @@ public class SqlStudioMetadataGateway {
 
     public Result invoke(HttpServletRequest request, String serviceId, Map<String, Object> arguments) {
         var authenticated = scopes.resolve(Map.of(), UUID.randomUUID().toString(), request);
+        return invokeScoped(authenticated, serviceId, arguments);
+    }
+
+    /** Only application-owned, authenticated task scopes may call this overload. */
+    public Result invokeScoped(com.chatchat.common.kernel.KernelDataScope authenticated, String serviceId, Map<String, Object> arguments) {
         if (authenticated.userId() == null || authenticated.tenantId() == null)
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Authenticated metadata caller is required");
         List<McpToolDescriptor> tools = kernel.tools(new McpToolQuery(serviceId, null, Set.of(TOOL))).stream()
@@ -51,11 +56,29 @@ public class SqlStudioMetadataGateway {
         Object versions = version instanceof Map<?, ?> field ? field.get("enum") : null;
         if (!(versions instanceof Collection<?> supported) || !supported.contains(CONTRACT))
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "MCP SQL metadata v2 is not available on the selected service");
-        var call = new McpServiceCall(null, null, tool.serviceId(), tool.remoteToolName(), arguments,
-            Map.of("invocationSource", "sql_studio_metadata"), System.currentTimeMillis() + 30_000);
-        var result = kernel.execute(scopes.bind(call, request));
+        var context = new LinkedHashMap<String,Object>();
+        context.put("tenantId",authenticated.tenantId());context.put("userId",authenticated.userId());
+        // This metadata-only protocol has no conversation argument. The legacy registry adapter
+        // would otherwise inject conversationId into business arguments; correlate by request/run instead.
+        if(authenticated.runId()!=null)context.put("runId",authenticated.runId());
+        context.put("scopeAuthority","API_AUTHENTICATION_CONTEXT");context.put("invocationSource","sql_studio_metadata");
+        long deadline = System.currentTimeMillis() + 30_000;
+        if(authenticated.attributes().get("deadlineAt") instanceof Number taskDeadline)deadline=Math.min(deadline,taskDeadline.longValue());
+        var call = new McpServiceCall(null, authenticated.requestId(), tool.serviceId(), tool.remoteToolName(), arguments,
+            context, deadline);
+        var result = kernel.execute(call);
         if (result == null || !result.successful()) {
-            HttpStatus status = result != null && result.status() == McpServiceResultStatus.REJECTED ? HttpStatus.FORBIDDEN : HttpStatus.BAD_GATEWAY;
+            if(authenticated.attributes().get("deadlineAt") instanceof Number taskDeadline&&taskDeadline.longValue()<=System.currentTimeMillis())
+                throw new com.chatchat.agents.orchestration.model.AgentDeadlineExceededException("SQL metadata task deadline reached during tool invocation");
+            if(result!=null&&Set.of("MCP_TOOL_TIMEOUT","MCP_CALL_DEADLINE_EXCEEDED").contains(Objects.toString(result.errorCode(),"")))
+                throw new ResponseStatusException(HttpStatus.GATEWAY_TIMEOUT,"METADATA_TOOL_TIMEOUT: 元数据工具请求超时");
+            if(result!=null&&Objects.toString(result.errorMessage(),"").contains("METADATA_SNAPSHOT_CHANGED"))
+                throw new ResponseStatusException(HttpStatus.CONFLICT,"SNAPSHOT_CONFLICT: 元数据或授权范围发生变化，请重新翻页");
+            if(result!=null&&Objects.toString(result.errorMessage(),"").contains("IllegalArgumentException:"))
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"METADATA_ARGUMENTS_INVALID: 检查工具协议、名称、命名空间及分页参数");
+            boolean denied=result!=null&&(result.status()==McpServiceResultStatus.REJECTED
+                ||Objects.toString(result.errorMessage(),"").contains("SecurityException:"));
+            HttpStatus status = denied ? HttpStatus.FORBIDDEN : HttpStatus.BAD_GATEWAY;
             throw new ResponseStatusException(status, "SQL metadata operation failed or was denied");
         }
         Map<String, Object> data = payload(result.data(), 0);

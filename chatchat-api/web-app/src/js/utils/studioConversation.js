@@ -4,8 +4,8 @@ export function beginStudioExchange(messages, text, action, fileName = '') {
   const requestId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const startedAt = Date.now();
   messages.push({ id: `user:${requestId}`, requestId, role: 'user', text, action, startedAt },
-    { id: `assistant:${requestId}`, requestId, role: 'assistant', text: '正在准备向 Cline 交付代码任务…', action, fileName,
-      startedAt, status: 'planning', activity: [{ id: 'planning', title: '请求已接收，正在校验交付上下文', status: 'active' }] });
+    { id: `assistant:${requestId}`, requestId, role: 'assistant', text: action==='explore'?'正在提交数据库探索请求…':'正在准备向 Cline 交付代码任务…', action, fileName,
+      startedAt, status: 'planning', activity: action==='explore'?[]:[{ id: 'planning', title: '请求已接收，正在校验交付上下文', status: 'active' }] });
   return requestId;
 }
 

@@ -62,6 +62,39 @@ class TemplateCapabilityServiceTest {
         when(catalog.businessTemplates(false)).thenReturn(List.of());
         assertThrows(SecurityException.class, () -> publish("user")); assertTrue(rows.isEmpty());
     }
+    @Test void capabilityPublicationRecordsContractValidationWithoutExecutingSql() throws Exception {
+        publish("user");
+        var row = rows.get(0);
+        var snapshot = json.readTree(row.getDefinitionJson());
+        assertEquals("RUNNING", row.getState());
+        assertEquals("sql_query_execute", snapshot.path("executor").asText());
+        assertEquals("customer", snapshot.path("binding").path("template").asText());
+        assertFalse(snapshot.has("sqlTemplate"));
+        assertEquals("TEMPLATE_CONTRACT_VALIDATION", json.readTree(row.getTestEvidenceJson()).path("type").asText());
+        verifyNoInteractions(registry);
+    }
+    @Test void changedTemplateRevisionInvalidatesOldCapabilityUntilRepublished() {
+        var first = publish("user");
+        var previous = rows.get(0);
+        allowAgent(first.get("toolName").toString());
+        when(catalog.businessTemplates(false)).thenReturn(List.of(new TemplateAssetCatalogService.BoundTemplate(
+            template.key(), template.templateKey(), template.title(), template.description(), template.assetName(),
+            template.category(), template.inputSchema(), "changed-revision", template.executor(), template.binding())));
+
+        assertFalse(service.available(previous, proof("agent")));
+        // Stored RUNNING is not sufficient evidence that the live template still matches the release.
+        assertEquals("RUNNING", previous.getState());
+        assertThrows(SecurityException.class, () -> service.invoke(first.get("toolName").toString(),
+            Map.of("customerId", "1"), Map.of(McpCallerSignature.KEY, proof("agent"))));
+        verifyNoInteractions(registry);
+
+        var current = service.publish("tenant", "user", template.key(), "changed-revision");
+        assertEquals(first.get("toolName"), current.get("toolName"));
+        assertEquals(2, current.get("version"));
+        assertEquals("OFFLINE", previous.getState());
+        assertEquals("revision", service.definition(previous).path("revision").asText());
+        assertTrue(service.available(rows.get(1), proof("agent")));
+    }
     @Test void discoveryAndExecutionRecheckAgentTemplateAssetAndSignedIdentity() {
         String name = publish("user").get("toolName").toString(); ToolRelease row = rows.get(0); allowAgent(name);
         assertTrue(service.available(row, proof("agent")));

@@ -52,13 +52,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.CancellationException;
 import java.util.function.BooleanSupplier;
 import java.util.regex.Matcher;
@@ -84,7 +77,6 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
 
     private final AgentAnswerReviewer answerReviewer;
     private final AgentRuntimeGuard runtimeGuard;
-    private final long modelRequestTimeoutMs;
     private final EvidenceAnswerGroundingGuard groundingGuard = new EvidenceAnswerGroundingGuard();
     private final AnswerAssemblyEngine answerAssemblyEngine = new AnswerAssemblyEngine();
     private final TaskResultAssessmentCompiler taskResultAssessmentCompiler =
@@ -137,14 +129,12 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
                          AgentRuntimeProperties agentRuntimeProperties) {
         this.answerReviewer = answerReviewer;
         this.runtimeGuard = runtimeGuard;
-        this.modelRequestTimeoutMs = modelRequestTimeoutMs(modelsConfig);
         this.answerReviewCoordinator = new AnswerReviewCoordinator(
-            answerReviewer, this.answerEvidenceLedgerCompiler, this.modelRequestTimeoutMs);
+            answerReviewer, this.answerEvidenceLedgerCompiler);
         this.agentRuntimeProperties = agentRuntimeProperties == null
             ? new AgentRuntimeProperties() : agentRuntimeProperties;
         this.answerQualityCoordinator = new AnswerQualityCoordinator(
-            objectMapper, this.agentRuntimeProperties, this.answerEvidenceLedgerCompiler,
-            this.modelRequestTimeoutMs);
+            objectMapper, this.agentRuntimeProperties, this.answerEvidenceLedgerCompiler);
         this.finalSummaryWebSearchEnhancer = new FinalSummaryWebSearchEnhancer(
             toolRegistry, toolRuntimeService, objectMapper, this.agentRuntimeProperties);
     }
@@ -623,13 +613,8 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         }
         String runId = stringValue(metadata == null ? null : metadata.get("agentRunId"));
         try {
-            FinalSummaryWebSearchEnhancer.Enhancement enhancement = runWithTimeout(
-                "final-summary-web-search",
-                firstNonBlank(runId, ""),
-                agentRuntimeProperties.finalSummaryWebSearchTimeoutMs(),
-                () -> finalSummaryWebSearchEnhancer.enhance(
-                    activeChatModel, query, systemPrompt, candidateAnswer, observations, traces, metadata)
-            );
+            FinalSummaryWebSearchEnhancer.Enhancement enhancement = finalSummaryWebSearchEnhancer.enhance(
+                activeChatModel, query, systemPrompt, candidateAnswer, observations, traces, metadata);
             if (enhancement.used() && enhancement.enhancedAnswer() != null
                 && !enhancement.enhancedAnswer().isBlank()) {
                 answerQualityCoordinator.registerCandidate(
@@ -641,19 +626,6 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
                 );
             }
             return enhancement;
-        } catch (TimeoutException ex) {
-            if (metadata != null) {
-                metadata.put("finalSummaryWebSearchTimedOut", true);
-                metadata.put("finalSummaryWebSearchUsed", false);
-            }
-            log.warn("agentModelTimeout phase=final_summary_web_search runId={} timeoutMs={}",
-                firstNonBlank(runId, ""), agentRuntimeProperties.finalSummaryWebSearchTimeoutMs());
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            if (metadata != null) {
-                metadata.put("finalSummaryWebSearchInterrupted", true);
-                metadata.put("finalSummaryWebSearchUsed", false);
-            }
         } catch (Exception ex) {
             if (metadata != null) {
                 metadata.put("finalSummaryWebSearchFailed", true);
@@ -942,65 +914,6 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
         return answer.trim() + "\n\n引用：" + citations;
     }
 
-
-    private <T> T runWithTimeout(String phase,
-                                 String runId,
-                                 long timeoutMs,
-                                 Callable<T> task) throws Exception {
-        if (timeoutMs <= 0) {
-            return task.call();
-        }
-        ExecutorService executor = Executors.newSingleThreadExecutor(runnable -> {
-            Thread thread = new Thread(runnable,
-                "agent-" + firstNonBlank(phase, "model") + "-" + firstNonBlank(runId, "unknown"));
-            thread.setDaemon(true);
-            return thread;
-        });
-        Future<T> future = executor.submit(task);
-        try {
-            return future.get(timeoutMs, TimeUnit.MILLISECONDS);
-        } catch (TimeoutException | InterruptedException ex) {
-            future.cancel(true);
-            throw ex;
-        } catch (ExecutionException ex) {
-            Throwable cause = ex.getCause();
-            if (cause instanceof Exception exception) {
-                throw exception;
-            }
-            throw new IllegalStateException(cause);
-        } finally {
-            executor.shutdownNow();
-        }
-    }
-
-    private long configuredTimeoutMs(String property, long fallback) {
-        String value = System.getProperty(property);
-        if (value == null || value.isBlank()) {
-            return fallback;
-        }
-        try {
-            long parsed = Long.parseLong(value.trim());
-            return parsed < 0 ? fallback : parsed;
-        } catch (NumberFormatException ignored) {
-            return fallback;
-        }
-    }
-
-    private long modelRequestTimeoutMs(ModelsConfig modelsConfig) {
-        if (modelsConfig == null) {
-            return 0L;
-        }
-        ModelResourceRegistry resources = new ModelResourceRegistry(modelsConfig);
-        ModelsConfig.ModelConnectionConfig connection = resources.connection(resources.defaultChatModel());
-        if (connection == null) {
-            return 0L;
-        }
-        int timeout = connection.getTimeout();
-        if (timeout <= 0) {
-            return 0L;
-        }
-        return timeout >= 1000 ? timeout : TimeUnit.SECONDS.toMillis(timeout);
-    }
 
     private void recordAnswerReview(Map<String, Object> metadata, AgentAnswerReview review) {
         if (metadata == null || review == null) {

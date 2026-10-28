@@ -1,0 +1,145 @@
+{
+  "scope": "CONTROLLED_BUSINESS_FIXTURES_WITH_REAL_VUE_AND_PLOTLY; NOT_PROVIDER_OR_CLINE_E2E",
+  "cases": [
+    {
+      "id": "stocks",
+      "expected": [
+        "section",
+        "chart",
+        "summary",
+        "table",
+        "metric"
+      ],
+      "charts": 1,
+      "metrics": 1,
+      "expectedY": [
+        10,
+        11.25,
+        10.5
+      ],
+      "order": [
+        "section",
+        "chart",
+        "summary",
+        "table",
+        "metric",
+        "limitations",
+        "sources"
+      ],
+      "durationMs": 1119
+    },
+    {
+      "id": "preferences",
+      "expected": [
+        "chart",
+        "section",
+        "table",
+        "summary",
+        "metric"
+      ],
+      "charts": 1,
+      "metrics": 1,
+      "expectedY": [
+        20,
+        30,
+        50
+      ],
+      "order": [
+        "chart",
+        "section",
+        "table",
+        "summary",
+        "metric",
+        "limitations",
+        "sources"
+      ],
+      "durationMs": 2105
+    },
+    {
+      "id": "assets",
+      "expected": [
+        "metric",
+        "section",
+        "chart",
+        "table",
+        "summary"
+      ],
+      "charts": 1,
+      "metrics": 1,
+      "expectedY": [
+        -12.5,
+        8.75
+      ],
+      "order": [
+        "metric",
+        "section",
+        "chart",
+        "table",
+        "summary",
+        "limitations",
+        "sources"
+      ],
+      "durationMs": 2090
+    },
+    {
+      "id": "financials",
+      "expected": [
+        "table",
+        "section",
+        "metric",
+        "summary"
+      ],
+      "charts": 0,
+      "metrics": 1,
+      "order": [
+        "table",
+        "section",
+        "metric",
+        "summary",
+        "limitations",
+        "sources"
+      ],
+      "durationMs": 255
+    },
+    {
+      "id": "news",
+      "expected": [
+        "section",
+        "summary"
+      ],
+      "charts": 0,
+      "metrics": 0,
+      "order": [
+        "section",
+        "summary",
+        "limitations",
+        "sources"
+      ],
+      "durationMs": 237
+    },
+    {
+      "id": "insufficient",
+      "expected": [
+        "summary",
+        "section"
+      ],
+      "charts": 0,
+      "metrics": 0,
+      "order": [
+        "summary",
+        "section",
+        "limitations",
+        "sources"
+      ],
+      "durationMs": 228
+    }
+  ],
+  "preferencesPersisted": true,
+  "futurePreferencesDoNotChangeArchivedLayout": true,
+  "mobileSettingsNoOverflow": true,
+  "historyLayoutStable": true,
+  "chapterNavigationPreservesRoute": true,
+  "mobileNoOverflow": true,
+  "errors": [],
+  "external": []
+}

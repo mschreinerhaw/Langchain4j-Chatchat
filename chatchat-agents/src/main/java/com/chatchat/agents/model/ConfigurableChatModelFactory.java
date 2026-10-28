@@ -65,7 +65,7 @@ public class ConfigurableChatModelFactory {
         ModelsConfig.ModelConnectionConfig config = resolved.config();
         String providerModelName = resolved.providerModelName();
         ModelEndpoint endpoint = ModelEndpoint.resolve(config.getBaseUrl(), config.getProtocol());
-        Duration timeout = resolveTimeout(config.getTimeout());
+        Duration timeout = config.requestTimeout();
         if (maximumTimeout != null && (timeout.isZero() || timeout.compareTo(maximumTimeout) > 0)) timeout = maximumTimeout;
         int outputTokens = maximumOutputTokens == null ? config.getMaxTokens()
             : config.getMaxTokens() > 0 ? Math.min(config.getMaxTokens(), maximumOutputTokens) : maximumOutputTokens;
@@ -85,7 +85,7 @@ public class ConfigurableChatModelFactory {
             if(outputTokens>0)streaming.maxTokens(outputTokens);
             var client=openAiHttpClientBuilder(config.getProxy());
             if(client!=null)streaming.httpClientBuilder(client);
-            return new RuntimeStreamingChatModel(streaming.build());
+            return new RuntimeStreamingChatModel(streaming.build(), timeout);
         }
 
         OpenAiChatModel.OpenAiChatModelBuilder builder = OpenAiChatModel.builder()
@@ -106,13 +106,6 @@ public class ConfigurableChatModelFactory {
             builder.httpClientBuilder(httpClientBuilder);
         }
         return builder.build();
-    }
-
-    private Duration resolveTimeout(int timeout) {
-        if (timeout <= 0) {
-            return Duration.ZERO;
-        }
-        return timeout >= 1000 ? Duration.ofMillis(timeout) : Duration.ofSeconds(timeout);
     }
 
     private HttpClient httpClient(ModelsConfig.ProxyConfig proxy) {

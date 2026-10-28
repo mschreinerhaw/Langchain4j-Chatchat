@@ -21,8 +21,6 @@ public class CodingAnalysisProperties {
     private String environmentId;
     private int maxConcurrentTasks = 2;
     private int timeoutSeconds = 300;
-    /** Zero uses the remaining task budget. Positive values impose a stricter per-call cap. */
-    private long maxModelCallMillis;
     private boolean codeLifecycleEnabled = true;
     private int maxConsecutiveRejectedTasks = 2;
     private long maxModelCalls = 12;

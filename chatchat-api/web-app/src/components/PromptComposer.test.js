@@ -1,11 +1,29 @@
 // @vitest-environment jsdom
 import { createApp, h, nextTick, reactive } from "vue";
-import { it, expect, afterEach } from "vitest";
+import { it, expect, afterEach, beforeEach, vi } from "vitest";
 import PromptComposer from "./PromptComposer.vue";
+import {setWorkspaceContext} from '../js/utils/workspaceContext';
 let app, host;
+beforeEach(()=>{const storage=new Map();vi.stubGlobal('localStorage',{getItem:key=>storage.get(key)??null,setItem:(key,value)=>storage.set(key,String(value)),clear:()=>storage.clear()});});
 afterEach(() => {
   app?.unmount();
   host?.remove();
+  setWorkspaceContext(null);localStorage.clear();
+  vi.unstubAllGlobals();
+});
+it('persists adaptive layout preferences in the existing user/workspace scope and sends a snapshot',async()=>{
+  const scope={tenantId:'tenant',userId:'owner',workspaceId:'zhice'};setWorkspaceContext(scope);
+  host=document.createElement('div');document.body.append(host);const sends=[];
+  const mount=()=>{app=createApp({render:()=>h(PromptComposer,{modelValue:'Analyze data',onSend:value=>sends.push(value)})});app.mount(host);};
+  mount();host.querySelector('[role=switch]').click();await nextTick();
+  const strategy=host.querySelector('[aria-label="报告排版策略"]');expect(strategy.value).toBe('auto');
+  strategy.value='concise';strategy.dispatchEvent(new Event('change',{bubbles:true}));await nextTick();
+  host.querySelector('form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));await nextTick();
+  expect(sends[0].reportPresentation).toMatchObject({strategy:'concise',autoCharts:true,autoImages:true});
+  app.unmount();mount();host.querySelector('[role=switch]').click();await nextTick();
+  expect(host.querySelector('[aria-label="报告排版策略"]').value).toBe('concise');
+  app.unmount();setWorkspaceContext({...scope,userId:'another-owner'});mount();host.querySelector('[role=switch]').click();await nextTick();
+  expect(host.querySelector('[aria-label="报告排版策略"]').value).toBe('auto');
 });
 it("keeps reports selected across sends and conversation changes until manually disabled", async () => {
   host = document.createElement("div");

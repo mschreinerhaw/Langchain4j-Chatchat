@@ -38,15 +38,36 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
                             Integer maxRetries, boolean enabled, boolean defaultModel,
                             boolean hasApiKey, String source, long updatedAt,
                             boolean published, boolean pendingChanges,
-                            boolean activeEnabled, boolean activeDefault) { }
+                            boolean activeEnabled, boolean activeDefault, Integer requestTimeoutSeconds) { }
     public record ModelDraft(String name, String alias, String description, String type, String providerModel, String baseUrl,
                              String protocol, Integer dimension, Integer timeout, Integer maxTokens,
                              Integer maxRetries, String apiKey, Boolean enabled,
-                             Boolean defaultModel) { }
+                             Boolean defaultModel,
+                             @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = RequestTimeoutDeserializer.class)
+                             Integer requestTimeoutSeconds) {
+        public ModelDraft {
+            requestTimeoutSeconds = ModelsConfig.ModelConnectionConfig.effectiveRequestTimeoutSeconds(requestTimeoutSeconds);
+        }
+        public ModelDraft(String name, String alias, String description, String type, String providerModel, String baseUrl,
+                String protocol, Integer dimension, Integer timeout, Integer maxTokens, Integer maxRetries,
+                String apiKey, Boolean enabled, Boolean defaultModel) {
+            this(name, alias, description, type, providerModel, baseUrl, protocol, dimension, timeout,
+                maxTokens, maxRetries, apiKey, enabled, defaultModel, null);
+        }
+    }
+
+    public static final class RequestTimeoutDeserializer extends com.fasterxml.jackson.databind.JsonDeserializer<Integer> {
+        @Override public Integer deserialize(com.fasterxml.jackson.core.JsonParser parser,
+                com.fasterxml.jackson.databind.DeserializationContext context) throws java.io.IOException {
+            if (parser.currentToken() != com.fasterxml.jackson.core.JsonToken.VALUE_NUMBER_INT)
+                throw com.fasterxml.jackson.databind.JsonMappingException.from(parser, "requestTimeoutSeconds must be an integer");
+            return ModelsConfig.ModelConnectionConfig.effectiveRequestTimeoutSeconds(parser.getIntValue());
+        }
+    }
 
     public synchronized List<ModelView> list() {
         initialize();
-        return jdbc.query("SELECT name,alias,description,model_type,provider_model,base_url,protocol,dimension,timeout,"
+        return jdbc.query("SELECT name,alias,description,model_type,provider_model,base_url,protocol,dimension,timeout,request_timeout_seconds,"
                 + "max_tokens,max_retries,"
                 + "enabled,is_default,api_key_cipher,source,updated_at,"
                 + "(SELECT COUNT(*) FROM platform_model_publication p WHERE p.model_type=platform_model_config.model_type"
@@ -68,7 +89,8 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
                 rs.getString("source"), rs.getLong("updated_at"),
                 rs.getInt("publication_count") > 0,
                 rs.getObject("published_at") != null && rs.getLong("updated_at") > rs.getLong("published_at"),
-                rs.getBoolean("active_enabled"), rs.getBoolean("active_default")));
+                rs.getBoolean("active_enabled"), rs.getBoolean("active_default"),
+                rs.getInt("request_timeout_seconds")));
     }
 
     @Transactional
@@ -76,6 +98,7 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
         initialize();
         String name = required(draft == null ? null : draft.name(), "name");
         String type = normalizeType(draft.type());
+        int requestTimeoutSeconds = ModelsConfig.ModelConnectionConfig.effectiveRequestTimeoutSeconds(draft.requestTimeoutSeconds());
         String url = required(draft.baseUrl(), "baseUrl");
         validateUrl(url);
         if ("embedding".equals(type) && (draft.dimension() == null || draft.dimension() <= 0)) {
@@ -97,20 +120,20 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
         if (makeDefault) jdbc.update("UPDATE platform_model_config SET is_default=FALSE,"
             + "source='user',updated_at=? WHERE model_type=? AND is_default=TRUE AND name<>?", now, type, name);
         int updated = jdbc.update("UPDATE platform_model_config SET alias=?,description=?,provider_model=?,base_url=?,protocol=?,"
-                + "dimension=?,timeout=?,max_tokens=?,max_retries=?,api_key_cipher=?,enabled=?,is_default=?,"
+                + "dimension=?,timeout=?,request_timeout_seconds=?,max_tokens=?,max_retries=?,api_key_cipher=?,enabled=?,is_default=?,"
                 + "source='user',updated_at=? "
                 + "WHERE model_type=? AND name=?",
             optionalText(draft.alias()), optionalText(draft.description()),
             text(draft.providerModel(), name), url, text(draft.protocol(), "auto"), dimension,
-            draft.timeout(), draft.maxTokens(), draft.maxRetries(),
+            draft.timeout(), requestTimeoutSeconds, draft.maxTokens(), draft.maxRetries(),
             cipher, !Boolean.FALSE.equals(draft.enabled()), makeDefault, now, type, name);
         if (updated == 0) {
             jdbc.update("INSERT INTO platform_model_config (model_type,name,alias,description,provider_model,base_url,protocol,"
-                    + "dimension,timeout,max_tokens,max_retries,api_key_cipher,enabled,is_default,source,updated_at) "
-                    + "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    + "dimension,timeout,request_timeout_seconds,max_tokens,max_retries,api_key_cipher,enabled,is_default,source,updated_at) "
+                    + "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 type, name, optionalText(draft.alias()), optionalText(draft.description()),
                 text(draft.providerModel(), name), url, text(draft.protocol(), "auto"),
-                dimension, draft.timeout(), draft.maxTokens(), draft.maxRetries(), cipher,
+                dimension, draft.timeout(), requestTimeoutSeconds, draft.maxTokens(), draft.maxRetries(), cipher,
                 !Boolean.FALSE.equals(draft.enabled()), makeDefault,
                 "user", now);
         }
@@ -134,13 +157,13 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
         }
         if ("embedding".equals(type)) {
             List<Map<String, Object>> candidate = jdbc.queryForList(
-                "SELECT name,provider_model,base_url,dimension,timeout,api_key_cipher,enabled,is_default "
+                "SELECT name,provider_model,base_url,dimension,request_timeout_seconds,api_key_cipher,enabled,is_default "
                     + "FROM platform_model_publication WHERE model_type='embedding' AND name<>?", name);
             candidate.add(draft);
             mcpSync.synchronize(candidate.stream().map(row -> new McpModelSyncClient.EmbeddingModel(
                 (String) row.get("name"), (String) row.get("provider_model"),
                 (String) row.get("base_url"), ((Number) row.get("dimension")).intValue(),
-                row.get("timeout") == null ? null : ((Number) row.get("timeout")).intValue(),
+                ((Number) row.get("request_timeout_seconds")).intValue() * 1000,
                 decrypt((String) row.get("api_key_cipher")),
                 Boolean.TRUE.equals(row.get("enabled")),
                 Boolean.TRUE.equals(row.get("is_default")))).toList(),
@@ -151,9 +174,9 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
         }
         jdbc.update("DELETE FROM platform_model_publication WHERE model_type=? AND name=?", type, name);
         jdbc.update("INSERT INTO platform_model_publication "
-                + "(model_type,name,provider_model,base_url,protocol,dimension,timeout,max_tokens,max_retries,"
+                + "(model_type,name,provider_model,base_url,protocol,dimension,timeout,request_timeout_seconds,max_tokens,max_retries,"
                 + "api_key_cipher,enabled,is_default,source,published_at) "
-                + "SELECT model_type,name,provider_model,base_url,protocol,dimension,timeout,max_tokens,max_retries,"
+                + "SELECT model_type,name,provider_model,base_url,protocol,dimension,timeout,request_timeout_seconds,max_tokens,max_retries,"
                 + "api_key_cipher,enabled,is_default,source,? FROM platform_model_config WHERE model_type=? AND name=?",
             System.currentTimeMillis(), type, name);
         ensureDefault(type);
@@ -191,11 +214,11 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
                 + "WHERE model_type=? AND name=?", Integer.class, type, name);
             if (published != null && published > 0) {
                 List<McpModelSyncClient.EmbeddingModel> remaining = jdbc.query(
-                    "SELECT name,provider_model,base_url,dimension,timeout,api_key_cipher,enabled,is_default "
+                    "SELECT name,provider_model,base_url,dimension,request_timeout_seconds,api_key_cipher,enabled,is_default "
                         + "FROM platform_model_publication WHERE model_type='embedding' AND name<>?",
                     (rs, row) -> new McpModelSyncClient.EmbeddingModel(
                         rs.getString("name"), rs.getString("provider_model"), rs.getString("base_url"),
-                        rs.getInt("dimension"), (Integer) rs.getObject("timeout"),
+                        rs.getInt("dimension"), rs.getInt("request_timeout_seconds") * 1000,
                         decrypt(rs.getString("api_key_cipher")), rs.getBoolean("enabled"),
                         rs.getBoolean("is_default")), name);
                 mcpSync.synchronize(remaining, null);
@@ -230,16 +253,16 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
     @Override public synchronized ModelsConfig.ResolvedModelConnection resolveChatModel(String name) {
         initialize();
         List<ModelsConfig.ResolvedModelConnection> matches = jdbc.query(
-            "SELECT name,provider_model,base_url,protocol,timeout,max_tokens,max_retries,api_key_cipher "
+            "SELECT name,provider_model,base_url,protocol,timeout,request_timeout_seconds,max_tokens,max_retries,api_key_cipher "
                 + "FROM platform_model_publication "
                 + "WHERE model_type='chat' AND enabled=TRUE AND (LOWER(name)=LOWER(?) "
-                + "OR LOWER(provider_model)=LOWER(?)) ORDER BY published_at DESC",
+                + "OR LOWER(provider_model)=LOWER(?)) ORDER BY CASE WHEN LOWER(name)=LOWER(?) THEN 0 ELSE 1 END, published_at DESC",
             (rs, row) -> {
                 ModelsConfig.ModelConnectionConfig config = new ModelsConfig.ModelConnectionConfig();
                 config.setModelName(rs.getString("provider_model"));
                 config.setBaseUrl(rs.getString("base_url"));
                 config.setProtocol(rs.getString("protocol"));
-                if (rs.getObject("timeout") != null) config.setTimeout(rs.getInt("timeout"));
+                config.setRequestTimeoutSeconds(rs.getInt("request_timeout_seconds"));
                 if (rs.getObject("max_tokens") != null) config.setMaxTokens(rs.getInt("max_tokens"));
                 if (rs.getObject("max_retries") != null) config.setMaxRetries(rs.getInt("max_retries"));
                 config.setApiKey(decrypt(rs.getString("api_key_cipher")));
@@ -250,7 +273,7 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
                 }
                 return new ModelsConfig.ResolvedModelConnection(name, rs.getString("name"), config,
                     ModelsConfig.ModelMatchType.CONFIG_KEY);
-            }, name, name);
+            }, name, name, name);
         return matches.isEmpty() ? null : matches.get(0);
     }
 
@@ -271,12 +294,16 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
             + "dimension INTEGER,timeout INTEGER,max_tokens INTEGER,max_retries INTEGER,api_key_cipher TEXT,"
             + "enabled BOOLEAN NOT NULL,is_default BOOLEAN NOT NULL,source VARCHAR(24) NOT NULL,"
             + "published_at BIGINT NOT NULL,PRIMARY KEY(model_type,name))");
+        for (String table : List.of("platform_model_config", "platform_model_publication")) {
+            addColumnIfMissing(table, "request_timeout_seconds", "INTEGER DEFAULT 300");
+            jdbc.update("UPDATE " + table + " SET request_timeout_seconds=300 WHERE request_timeout_seconds IS NULL");
+        }
         Integer count = jdbc.queryForObject("SELECT COUNT(*) FROM platform_model_config", Integer.class);
         if (count != null && count == 0) importFileConfig();
         jdbc.update("INSERT INTO platform_model_publication "
-                + "(model_type,name,provider_model,base_url,protocol,dimension,timeout,max_tokens,max_retries,"
+                + "(model_type,name,provider_model,base_url,protocol,dimension,timeout,request_timeout_seconds,max_tokens,max_retries,"
                 + "api_key_cipher,enabled,is_default,source,published_at) "
-                + "SELECT c.model_type,c.name,c.provider_model,c.base_url,c.protocol,c.dimension,c.timeout,"
+                + "SELECT c.model_type,c.name,c.provider_model,c.base_url,c.protocol,c.dimension,c.timeout,c.request_timeout_seconds,"
                 + "c.max_tokens,c.max_retries,c.api_key_cipher,c.enabled,c.is_default,c.source,c.updated_at "
                 + "FROM platform_model_config c WHERE c.source='file' AND NOT EXISTS "
                 + "(SELECT 1 FROM platform_model_publication p WHERE p.model_type=c.model_type AND p.name=c.name)");
@@ -303,27 +330,27 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
                 || resolved.config().getBaseUrl().isBlank()) continue;
             ModelsConfig.ModelConnectionConfig config = resolved.config();
             jdbc.update("INSERT INTO platform_model_config (model_type,name,provider_model,base_url,protocol,"
-                    + "dimension,timeout,max_tokens,max_retries,api_key_cipher,enabled,is_default,source,updated_at) "
-                    + "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    + "dimension,timeout,request_timeout_seconds,max_tokens,max_retries,api_key_cipher,enabled,is_default,source,updated_at) "
+                    + "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 "chat", name, text(config.getModelName(), name), config.getBaseUrl(), config.getProtocol(),
-                null, config.getTimeout(), config.getMaxTokens(), config.getMaxRetries(),
+                null, config.getTimeout(), ModelsConfig.ModelConnectionConfig.effectiveRequestTimeoutSeconds(config.getRequestTimeoutSeconds()), config.getMaxTokens(), config.getMaxRetries(),
                 encryptIfPresent(config.getApiKey()), true,
                 name.equals(fileConfig.getDefaultChatModel()), "file", now);
         }
         if (embedding != null && embedding.getModel() != null && !embedding.getModel().isBlank()
             && embedding.getEndpoint() != null && !embedding.getEndpoint().isBlank()) {
             jdbc.update("INSERT INTO platform_model_config (model_type,name,provider_model,base_url,protocol,"
-                    + "dimension,timeout,max_tokens,max_retries,api_key_cipher,enabled,is_default,source,updated_at) "
-                    + "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    + "dimension,timeout,request_timeout_seconds,max_tokens,max_retries,api_key_cipher,enabled,is_default,source,updated_at) "
+                    + "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 "embedding", embedding.getModel(), embedding.getModel(), embedding.getEndpoint(), "openai",
-                embedding.getDimension(), embedding.getRequestTimeoutMs(), null, null,
+                embedding.getDimension(), embedding.getRequestTimeoutMs(), 300, null, null,
                 encryptIfPresent(embedding.getApiKey()), embedding.isEnabled(),
                 true, "file", now);
         }
     }
 
     private void applyEmbedding() {
-        List<Map<String, Object>> rows = jdbc.queryForList("SELECT provider_model,base_url,api_key_cipher,dimension,timeout "
+        List<Map<String, Object>> rows = jdbc.queryForList("SELECT provider_model,base_url,api_key_cipher,dimension,request_timeout_seconds "
             + "FROM platform_model_publication WHERE model_type='embedding' AND enabled=TRUE "
             + "ORDER BY is_default DESC,published_at DESC");
         if (searchProperties.getOpenSearch() == null) return;
@@ -337,7 +364,7 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
         embedding.setEndpoint((String) row.get("base_url"));
         embedding.setApiKey(decrypt((String) row.get("api_key_cipher")));
         embedding.setDimension(((Number) row.get("dimension")).intValue());
-        if (row.get("timeout") != null) embedding.setRequestTimeoutMs(((Number) row.get("timeout")).intValue());
+        embedding.setRequestTimeoutMs(((Number) row.get("request_timeout_seconds")).intValue() * 1000);
         embedding.setEnabled(true);
     }
 
@@ -378,14 +405,17 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
         return value == null || value.isBlank() ? null : value.trim();
     }
     private void addColumnIfMissing(String column, String type) {
-        boolean exists = jdbc.query("SELECT * FROM platform_model_config WHERE 1=0", rs -> {
+        addColumnIfMissing("platform_model_config", column, type);
+    }
+    private void addColumnIfMissing(String table, String column, String type) {
+        boolean exists = jdbc.query("SELECT * FROM " + table + " WHERE 1=0", rs -> {
             var metadata = rs.getMetaData();
             for (int index = 1; index <= metadata.getColumnCount(); index++) {
                 if (column.equalsIgnoreCase(metadata.getColumnName(index))) return true;
             }
             return false;
         });
-        if (!exists) jdbc.execute("ALTER TABLE platform_model_config ADD COLUMN " + column + " " + type);
+        if (!exists) jdbc.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + type);
     }
     private static String normalizeType(String type) {
         String value = required(type, "type").toLowerCase(Locale.ROOT);

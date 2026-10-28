@@ -1,0 +1,15 @@
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: ${CHATCHAT_NEWS_POSTGRESQL_URL}
+    username: ${CHATCHAT_NEWS_POSTGRESQL_USERNAME}
+    password: ${CHATCHAT_NEWS_POSTGRESQL_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${CHATCHAT_NEWS_DB_MAX_POOL_SIZE:10}
+      minimum-idle: ${CHATCHAT_NEWS_DB_MIN_IDLE:2}
+      connection-timeout: ${CHATCHAT_NEWS_DB_CONNECTION_TIMEOUT_MS:5000}
+      validation-timeout: ${CHATCHAT_NEWS_DB_VALIDATION_TIMEOUT_MS:3000}
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate

@@ -206,6 +206,7 @@
 
     <div class="chat-input-dock">
       <PromptComposer
+        :workspace-context="workspaceContext"
         ref="promptComposer"
         :conversation-key="[composerGeneration, tenantId, userId].join(':')"
         v-model="question"

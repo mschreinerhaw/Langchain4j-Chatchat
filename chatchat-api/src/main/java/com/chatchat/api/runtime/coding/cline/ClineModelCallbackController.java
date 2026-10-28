@@ -299,7 +299,9 @@ public final class ClineModelCallbackController {
                 LOG.warn("Bound Coding model operation {} failed after its durable start intent",
                     operationId, providerFailure);
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
-                    "Runtime model request failed; execution outcome must be reconciled", providerFailure);
+                    isRequestTimeout(providerFailure)
+                        ? "Model API request timed out; local request terminated, provider usage must be reconciled"
+                        : "Runtime model request failed; execution outcome must be reconciled", providerFailure);
             } finally {
                 renewal.cancel(false);
             }
@@ -310,6 +312,16 @@ public final class ClineModelCallbackController {
             if (managedAttempt) settle(accounting);
             return response;
         });
+    }
+
+    static boolean isRequestTimeout(Throwable failure) {
+        for (int depth = 0; failure != null && depth < 32; depth++, failure = failure.getCause()) {
+            if (failure instanceof java.net.http.HttpTimeoutException
+                    || failure instanceof java.net.SocketTimeoutException
+                    || failure instanceof java.util.concurrent.TimeoutException
+                    || failure.getClass().getSimpleName().equals("TimeoutException")) return true;
+        }
+        return false;
     }
 
     private static boolean repairableModelResponse(Map<String, Object> response) {

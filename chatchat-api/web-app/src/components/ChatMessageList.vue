@@ -55,7 +55,7 @@
             <header class="workbench-header">
               <span class="workbench-emblem" aria-hidden="true">↗</span>
               <div class="workbench-heading"><h3>{{ workbenchTitle(message) }}</h3><small>{{ runtimeRunId(message) }}</small></div>
-              <span class="workbench-status" role="status" aria-live="polite">{{ workbench.statusLabel }}</span>
+              <span class="workbench-status" role="status" aria-live="polite"><span v-if="workbenchIsRunning(workbench)" class="workbench-spinner" aria-hidden="true"></span>{{ workbench.statusLabel }}</span>
               <button v-if="executionStepsCollapsible(message)" type="button" class="runtime-collapse-button"
                 :aria-expanded="executionStepsExpanded(message).toString()" aria-label="展开或收起执行工作台"
                 @click="toggleExecutionSteps(message)"><ChevronDown v-if="executionStepsExpanded(message)" :size="16"/><ChevronRight v-else :size="16"/></button>
@@ -75,24 +75,20 @@
                 <p v-if="workbench.reason">{{ workbench.reason }}</p><p v-for="alert in workbench.alerts" :key="alert">{{ alert }}</p>
               </div>
               <section class="workbench-activity" aria-label="实时执行动态">
-                <header><h4><span class="workbench-live-dot" :class="workbench.status" aria-hidden="true"></span>实时执行动态</h4><small>最新活动：{{ workbench.latestActivityLabel }}</small></header>
+                <header><h4><span :class="workbenchIsRunning(workbench) ? 'workbench-spinner' : ['workbench-live-dot', workbench.status]" aria-hidden="true"></span>实时执行动态</h4><small>最新活动：{{ workbench.latestActivityLabel }}</small></header>
                 <p class="workbench-current"><strong>{{ workbench.status === 'unconfirmed' ? '最后已知活动：' : '' }}{{ workbench.currentActivity }}</strong><small>{{ workbench.transportLabel }} · {{ workbench.currentEvidenceLabel }}</small></p>
-                <ol v-if="workbench.activities.length" class="workbench-activity-list">
-                  <li v-for="operation in workbench.activities" :key="operation.id" :class="operation.state">
-                    <span class="workbench-operation-dot" aria-hidden="true"></span>
-                    <div><strong>{{ operation.title }}</strong><small>{{ operation.detail }}</small><span class="workbench-operation-time">{{ operation.timeLabel }} · {{ operation.durationLabel }}</span></div>
-                    <em>{{ operation.statusLabel }}</em>
-                  </li>
-                </ol>
-                <p v-else class="workbench-empty">尚未收到可确认的独立操作事件；不会根据等待时长推算工作进展。</p>
-              </section>
-              <section class="workbench-outcomes" aria-label="阶段成果">
-                <header><h4>阶段成果</h4><small>仅确认有完成证据的阶段</small></header>
-                <ol class="workbench-outcome-grid">
-                  <li v-for="phase in workbench.steps" :key="phase.id" :class="phase.status">
-                    <span class="workbench-phase-number">{{ phase.number }}</span><div><strong>{{ phase.title }}</strong><small>{{ executionStatusLabel(phase.status) }}</small><p v-if="phase.detail">{{ phase.detail }}</p></div>
-                  </li>
-                </ol>
+                <div v-if="workbench.allActivities.length" v-follow-activity="activityRevision(workbench)"
+                  class="workbench-event-scroll" role="log" aria-label="交互事件日志" aria-live="polite" aria-relevant="additions text" tabindex="0">
+                  <ol class="workbench-activity-list">
+                    <li v-for="operation in chronologicalActivities(workbench)" :key="operation.id" :class="operation.state">
+                      <time class="workbench-operation-time">{{ operation.timeLabel }}</time>
+                      <span :class="workbenchIsRunning(workbench) && ['active', 'waiting', 'retrying'].includes(operation.state) ? 'workbench-spinner' : 'workbench-operation-dot'" aria-hidden="true"></span>
+                      <div><strong>{{ operation.title }}</strong><small>{{ operation.detail }}</small></div>
+                      <em>{{ operation.statusLabel }} · {{ operation.durationLabel }}</em>
+                    </li>
+                  </ol>
+                </div>
+                <p v-else class="workbench-empty">等待交互事件…</p>
               </section>
               <details class="workbench-diagnostics"><summary>查看耗时与运行依据</summary>
                 <dl class="workbench-timings"><div v-for="timing in workbench.timings" :key="timing.kind"><dt>{{ timing.label }}</dt><dd>{{ timing.durationLabel }}</dd></div></dl>

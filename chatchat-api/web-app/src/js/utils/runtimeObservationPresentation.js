@@ -223,7 +223,7 @@ export function executionWorkbench(events = [], task = {}, now = Date.now(), pol
   }
   const active=values.filter(operation=>['active','waiting','retrying'].includes(operation.state));
   for (const operation of active) {
-    if (!progress.terminal && !STOPPED.has(phases[operation.phase].status)) {
+    if (!progress.terminal) {
       phases[operation.phase].status=operation.retryAttempt>0?'retrying':operation.state;
     }
   }
@@ -244,9 +244,9 @@ export function executionWorkbench(events = [], task = {}, now = Date.now(), pol
   const modelRounds=values.filter(operation=>operation.kind==='MODEL'&&operation.state==='done').length;
   const noExecutionResult=!values.some(operation=>operation.kind==='EXECUTION'&&operation.state==='done');
   const repeatedResponses=modelRounds>=Number(policy.responseRoundWarningCount||5)&&noExecutionResult;
-  let status=progress.terminal ? progress.status : phases.find(step=>STOPPED.has(step.status))?.status || 'active';
-  if (!progress.terminal && !STOPPED.has(status)) status=transportStale||executionUnconfirmed?'unconfirmed'
-    :failedOperation?'attention':currentOperation?.retryAttempt>0?'retrying'
+  let status=progress.terminal ? progress.status : 'active';
+  if (!progress.terminal) status=transportStale||executionUnconfirmed?'unconfirmed'
+    :currentOperation?.retryAttempt>0 || ['RETRY_WAIT','REPAIRING'].includes(upper(phaseTask.canonicalState || task.status))?'retrying':failedOperation?'attention'
       :longOperation||repeatedResponses?'long_running':currentOperation?.state||'waiting';
   const alerts=[];
   if(task.progressHydrating)alerts.push('正在同步完整运行记录，当前显示上次收到的执行依据。');
@@ -298,6 +298,10 @@ export function executionWorkbench(events = [], task = {}, now = Date.now(), pol
 
 /** Five stable slots, aggregated from typed observations rather than event counts/time. */
 export function businessTaskProgress(events = [], task = {}) {
+  const parentState = upper(task.canonicalState || task.status);
+  const activeParent = ['SUBMITTED','AUTHORIZING','PLANNING','PLAN_VALIDATING','EXECUTING','EVALUATING',
+    'REPAIRING','DELIVERING','PENDING','CLAIMED','RUNNING','RETRY_WAIT','WAIT_MODEL','WAIT_TOOL',
+    'WAITING_APPROVAL','WAIT_CONFIRMATION','WAITING_CONFIRM','WAITING','STREAMING','FINALIZING'].includes(parentState);
   const steps = BUSINESS_STEPS.map((title, index) => ({ id: `business-step-${index + 1}`, title,
     number: index + 1, total: BUSINESS_STEPS.length, status: 'pending', detail: '', children: [] }));
   let current = 0;
@@ -305,15 +309,15 @@ export function businessTaskProgress(events = [], task = {}) {
   const apply = (value) => {
     if (!value) return;
     const failedIndex = steps.findIndex(step => STOPPED.has(step.status));
-    if (failedIndex >= 0 && !STOPPED.has(value.status)) return;
+    if (!activeParent && failedIndex >= 0 && !STOPPED.has(value.status)) return;
     const index = value.index ?? (failedIndex >= 0 ? failedIndex : current);
     const step = steps[index];
-    if (!STOPPED.has(step.status) && !(terminal && !value.terminal)) {
+    if ((activeParent || !STOPPED.has(step.status)) && !(terminal && !value.terminal)) {
       step.status = value.status;
       step.detail = value.reason || '';
     }
     current = Math.max(current, index);
-    terminal ||= value.terminal;
+    terminal ||= !activeParent && value.terminal;
   };
   // Work on a copy: the original event sequence remains available for diagnostics.
   const observations = [...events].sort((a, b) => Number(a.sequence || a.order || 0) - Number(b.sequence || b.order || 0))
@@ -328,7 +332,6 @@ export function businessTaskProgress(events = [], task = {}) {
   steps.forEach((step,index) => {
     if (index < current && step.status === 'pending') {step.status='unrecorded';step.detail='已进入后续阶段，本阶段未单独记录，不计为已完成。';}
   });
-  const parentState = upper(task.canonicalState || task.status);
   if (parentState) {
     const status = businessState(parentState);
     if (STOPPED.has(status)) apply({ status, terminal: true, reason: businessReason(task.errorMessage, status) });
@@ -347,7 +350,8 @@ export function businessTaskProgress(events = [], task = {}) {
     if (step.status === 'pending' && !blocked) step.status = 'unrecorded';
   });
   const parentCompleted=Boolean(task.canonicalState) && ['done','partial'].includes(businessState(parentState)) && terminal;
-  const status = parentCompleted ? businessState(parentState) : blocked?.status || (terminal ? steps[4].status : steps.some(step => step.status === 'waiting') ? 'waiting' : 'active');
+  const status = activeParent ? (['RETRY_WAIT','REPAIRING'].includes(parentState) ? 'retrying' : blocked ? 'attention' : 'active')
+    : parentCompleted ? businessState(parentState) : blocked?.status || (terminal ? steps[4].status : steps.some(step => step.status === 'waiting') ? 'waiting' : 'active');
   const number = parentCompleted ? 5 : blocked?.number || current + 1;
   return { steps, current: number, total: steps.length, label: `${number}/${steps.length}`, status,
     completed: steps.filter(step => step.status === 'done').length, terminal,

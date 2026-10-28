@@ -1,3 +1,15 @@
+.report-layout-grid { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:24px; }
+.report-layout-block { min-width:0; grid-column:span 12; scroll-margin-top:20px; }
+.report-span-half { grid-column:span 6; }
+.report-layout-block .python-report-metrics { margin:0; }
+.report-important { border-left:3px solid #d39121; padding:12px 16px; background:#fffaf0; border-radius:8px; }
+.report-contents { display:flex; flex-wrap:wrap; gap:8px 16px; margin-bottom:20px; font-size:13px; }
+.report-contents a { color:#245fc7; text-decoration:underline; }
+.report-renderer[data-density="compact"] .report-layout-grid { gap:14px; }
+.report-renderer[data-density="compact"] .python-report-metrics > div { padding:10px; }
+.report-renderer[data-density="compact"] .report-narrative { line-height:1.65; }
+@media(max-width:720px) { .report-layout-grid { gap:16px; } .report-span-half { grid-column:span 12; } }
+@media print { .report-contents { display:none; } .report-layout-block { break-inside:avoid; } .report-span-half { grid-column:span 12; } }
 .python-visual-report {
   min-width: 0;
   color: #26374e;

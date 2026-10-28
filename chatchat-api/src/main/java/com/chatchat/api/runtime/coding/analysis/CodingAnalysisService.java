@@ -141,7 +141,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 + "Optional empty MCP observations are not measured data and must be disclosed as unavailable. ";
         var request = new LinkedHashMap<String,Object>();
         boolean visual=VisualReportMode.analysisRequested(context.runtimeAttributes());
-        if(visual)objective+="\n"+VisualReportMode.INSTRUCTION;
+        if(visual)objective+="\n"+VisualReportMode.instruction(context.runtimeAttributes());
         request.put("operation", "RUN_CODING");
         request.put("requestId", visual?"primary-data-analysis-visual-v1":"primary-data-analysis-v1");
         request.put("datasetReferences", List.copyOf(sources.keySet()));
@@ -345,7 +345,10 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             goal += "\nActual Python execution environment (immutable task snapshot): " + ModelProtocolJson.compact(environmentSnapshot)
                 + ". Use the installed package versions and compatible APIs; do not assume packages from a different image or install dependencies. "
                 + "Distinguish scalar amounts from row dictionaries and inspect variable definitions before indexing values.";
-            if(VisualReportMode.active(context.runtimeAttributes()) && WorkspaceResultSchema.object(schema.get("properties")).containsKey("visualReport"))configuration.put("reportMode","visual");
+            if(VisualReportMode.active(context.runtimeAttributes()) && WorkspaceResultSchema.object(schema.get("properties")).containsKey("visualReport")){
+                configuration.put("reportMode","visual");
+                configuration.put("reportPresentation",com.chatchat.common.runtime.coding.ReportPresentation.read(context.runtimeAttributes()));
+            }
             if(dynamic)configuration.put("executionProfile",freezeExecutionProfile(sourceCount,input.rowCount()));
             contract=new CodingTaskContract(dynamic?CodingProtocol.ANALYSIS_VERSION:CodingProtocol.VERSION,taskId,scope,
                 new CodingTaskContract.Objective(goal,List.of("rows.jsonl"),List.of(plan)),input.reference(),List.copyOf(metadataRefs),workspace,
@@ -373,7 +376,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 com.chatchat.agents.orchestration.model.ToolExecutionModels.independent(
                     selectedCodingModel(context,accepted),
                     () -> Math.max(0, accepted.budget().deadlineAt().toEpochMilli()-System.currentTimeMillis()),
-                    context.cancellationCheck(), policy.getMaxModelCallMillis()))) {
+                    context.cancellationCheck(), 0))) {
             long traceCursor = 0;
             observer.accept(Map.of("eventKind","CODING_BUDGET_ISOLATED","taskId",taskId,
                 "runId",scope.runId(),"budgetId",accepted.budget().budgetId(),

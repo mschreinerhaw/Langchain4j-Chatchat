@@ -163,7 +163,7 @@ chatchat:
         apiKey:
         baseUrl: https://api.openai.com/v1
         protocol: auto
-        timeout: 1800000
+        request-timeout-seconds: 300
         maxTokens: -1
         maxRetries: 3
   agent:
@@ -220,11 +220,9 @@ chatchat:
     final-summary-web-search-max-keywords: 2
     final-summary-web-search-result-limit: 6
     final-summary-web-search-evidence-max-chars: 16000
-    final-summary-web-search-timeout-ms: 45000
     answer-quality-pipeline-enabled: true
     answer-critic-enabled: true
     answer-repair-enabled: true
-    answer-critic-timeout-ms: 45000
     # Lossless processing boundaries; these values never truncate returned evidence.
     record-analysis-chunk-max-chars: 12000
     record-analysis-chunk-max-rows: 50

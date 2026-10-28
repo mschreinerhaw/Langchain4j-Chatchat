@@ -72,7 +72,7 @@ chatchat:
     openai:
       apiKey:
       baseUrl: https://api.openai.com/v1
-      timeout: 300000
+      request-timeout-seconds: 300
       maxTokens: -1
       maxRetries: 3
   search:

@@ -77,7 +77,8 @@ public class AgentChatModelResolver {
             return publishedModels.compute(modelKey, (key, cached) -> {
                 if (cached != null && cached.getKey().equals(selected.config())) return cached;
                 ChatModel model = new CapacityGovernedChatModel(key, chatModelFactory.createRuntime(selected), modelCapacity,
-                    remaining -> chatModelFactory.createResolved(selected, remaining, null));
+                    remaining -> chatModelFactory.createResolved(modelResources.require(key), remaining, null),
+                    () -> ((CapacityGovernedChatModel) resolveChatModel(key)).providerDelegate());
                 return new java.util.AbstractMap.SimpleImmutableEntry<>(selected.config(), model);
             }).getValue();
         }
@@ -86,7 +87,7 @@ public class AgentChatModelResolver {
                 ? defaultChatModel
                 : chatModelsByName.computeIfAbsent(modelKey, chatModelFactory::create);
             return new CapacityGovernedChatModel(modelKey, resolved, modelCapacity,
-                remaining -> chatModelFactory.createResolved(selected, remaining, null));
+                remaining -> chatModelFactory.createResolved(modelResources.require(modelKey), remaining, null));
         });
     }
 
@@ -116,7 +117,7 @@ public class AgentChatModelResolver {
             identity.put("providerModel", config.getModelName() == null ? "" : config.getModelName());
             identity.put("baseUrl", config.getBaseUrl() == null ? "" : config.getBaseUrl());
             identity.put("protocol", config.getProtocol() == null ? "" : config.getProtocol());
-            identity.put("timeout", config.getTimeout());
+            identity.put("requestTimeoutSeconds", ModelsConfig.ModelConnectionConfig.effectiveRequestTimeoutSeconds(config.getRequestTimeoutSeconds()));
             identity.put("maxTokens", config.getMaxTokens());
             identity.put("maxRetries", config.getMaxRetries());
             if (config.getProxy() != null) {

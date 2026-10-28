@@ -1,0 +1,117 @@
+{
+  "mode": "full",
+  "project": "runtime-os",
+  "compose_env_file": "/opt/runtime-os/config/deployment.env",
+  "application_compose": "/opt/runtime-os/release/deploy/docker/application/compose.yaml",
+  "control_network": "runtime-os_control",
+  "require_image_ids": true,
+  "image_ids": {
+    "api": "sha256:REPLACE_WITH_LOADED_IMAGE_ID",
+    "mcp": "sha256:REPLACE_WITH_LOADED_IMAGE_ID",
+    "news": "sha256:REPLACE_WITH_LOADED_IMAGE_ID",
+    "coding-agent": "sha256:REPLACE_WITH_LOADED_IMAGE_ID",
+    "node-proxy": "sha256:REPLACE_WITH_LOADED_IMAGE_ID",
+    "gateway": "sha256:REPLACE_WITH_LOADED_IMAGE_ID"
+  },
+  "backup_receipt": "/opt/runtime-os/backups/VERIFIED_BACKUP.json",
+  "databases": {
+    "api": {
+      "engine": "postgresql",
+      "url": "jdbc:postgresql://postgresql:5432/live_runtime_api",
+      "username": "chatchat_api",
+      "password_file": "/opt/runtime-os/secrets/api-database",
+      "client_image": "postgres:16.9",
+      "expected_tables": [
+        "agent_task_latest",
+        "platform_model_config"
+      ]
+    },
+    "mcp": {
+      "engine": "postgresql",
+      "url": "jdbc:postgresql://postgresql:5432/live_runtime_mcp",
+      "username": "chatchat_mcp",
+      "password_file": "/opt/runtime-os/secrets/mcp-database",
+      "client_image": "postgres:16.9",
+      "expected_tables": [
+        "mcp_data_capability",
+        "mcp_data_capability_execution"
+      ]
+    },
+    "news": {
+      "engine": "postgresql",
+      "url": "jdbc:postgresql://postgresql:5432/chatchat_news",
+      "username": "chatchat_news",
+      "password_file": "/opt/runtime-os/secrets/news-database",
+      "client_image": "postgres:16.9",
+      "expected_tables": [
+        "news_source",
+        "news_source_rule",
+        "news_collect_record",
+        "news_analysis_task"
+      ]
+    }
+  },
+  "opensearch": {
+    "endpoint": "https://opensearch:9200",
+    "username": "admin",
+    "password_file": "/opt/runtime-os/secrets/opensearch-password",
+    "ca_file": "/opt/runtime-os/config/opensearch-ca.pem",
+    "truststore_file": "/opt/runtime-os/config/opensearch-truststore.p12",
+    "probe_endpoint": "https://127.0.0.1:19200"
+  },
+  "secrets": {
+    "api_internal_key": "/opt/runtime-os/secrets/api-internal.key",
+    "news_internal_key": "/opt/runtime-os/secrets/news-internal.key",
+    "internal_credential_encrypted": "/opt/runtime-os/secrets/internal-credential.enc",
+    "wsa_secret_id": "/opt/runtime-os/secrets/wsa-secret-id",
+    "wsa_secret_key": "/opt/runtime-os/secrets/wsa-secret-key"
+  },
+  "news": {
+    "index_prefix": "runtime-news",
+    "cache_prefix": "runtime-web-search-cache",
+    "retention_days": 7
+  },
+  "financial": {
+    "storage": "LOCAL_H2",
+    "existing_file": "/opt/runtime-os/mcp/data/h2/financial-market.mv.db"
+  },
+  "temporal": {
+    "mode": "external",
+    "target": "temporal:7233",
+    "provision": true,
+    "new_installation": true,
+    "password_file": "/opt/runtime-os/secrets/temporal-database",
+    "image_ids": {
+      "temporal": "sha256:REPLACE_WITH_LOADED_IMAGE_ID",
+      "temporal-postgresql": "sha256:REPLACE_WITH_LOADED_IMAGE_ID"
+    }
+  },
+  "persistent_directories": [
+    "/opt/runtime-os/api/data",
+    "/opt/runtime-os/mcp/data",
+    "/opt/runtime-os/news/data"
+  ],
+  "resources": {
+    "api": {
+      "mem_limit": "4g",
+      "cpus": 4
+    },
+    "mcp": {
+      "mem_limit": "3g",
+      "cpus": 3
+    },
+    "news": {
+      "mem_limit": "2g",
+      "cpus": 2
+    }
+  },
+  "acceptance": {},
+  "new_installation": true,
+  "bootstrap_admin_password_file": "/opt/runtime-os/secrets/postgresql-admin",
+  "infrastructure_image_ids": {
+    "postgresql": "sha256:REPLACE_WITH_LOADED_IMAGE_ID",
+    "redis": "sha256:REPLACE_WITH_LOADED_IMAGE_ID",
+    "opensearch": "sha256:REPLACE_WITH_LOADED_IMAGE_ID",
+    "opensearch-security-init": "sha256:REPLACE_WITH_LOADED_IMAGE_ID"
+  }
+}

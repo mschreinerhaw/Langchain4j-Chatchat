@@ -1,0 +1,11 @@
+{
+  "build": "production",
+  "backend": "explicit browser fixture; real JDBC/API tests are separate",
+  "newDefault": 300,
+  "modelA": 120,
+  "modelB": 600,
+  "updatedAndReloaded": 900,
+  "zeroRejected": true,
+  "mobileNoOverflow": true,
+  "errors": []
+}

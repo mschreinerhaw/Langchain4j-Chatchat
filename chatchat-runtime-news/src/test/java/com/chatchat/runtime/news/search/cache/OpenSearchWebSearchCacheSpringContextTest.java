@@ -29,7 +29,7 @@ class OpenSearchWebSearchCacheSpringContextTest {
     }
 
     @Configuration(proxyBeanMethods = false)
-    @Import(OpenSearchWebSearchCache.class)
+    @Import({OpenSearchWebSearchCache.class, com.chatchat.common.retrieval.query.QueryOptimizationConfiguration.class})
     static class CacheConfiguration {
     }
 }

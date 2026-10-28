@@ -30,5 +30,4 @@ chatchat:
       model-refinement-enabled: false
       max-refinement-calls: 1
       refinement-model: "" # Empty selects the existing default registered chat model.
-      refinement-timeout-ms: 3000
       refinement-max-output-tokens: 512

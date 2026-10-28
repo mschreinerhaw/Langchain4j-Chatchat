@@ -1,0 +1,14 @@
+{
+  "health": true,
+  "sourceId": 2,
+  "collectionStatus": "COMPLETED",
+  "indexedNewsCount": 1,
+  "localEvidenceSufficient": false,
+  "externalSearchSucceeded": true,
+  "externalCount": 3,
+  "cacheHit": true,
+  "postgresCollectedRows": 1,
+  "strictTls": true,
+  "databaseProfile": "postgresql",
+  "businessContainersUnchanged": true
+}

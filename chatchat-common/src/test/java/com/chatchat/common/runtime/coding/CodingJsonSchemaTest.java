@@ -16,6 +16,15 @@ import static org.assertj.core.api.Assertions.*;
 
 /** Validates the shipped draft-2020-12 bundle using an actual JSON Schema engine, not an imitation. */
 class CodingJsonSchemaTest {
+    @Test void reportPreferencesAreAcceptedByThePublishedTaskSchemaAndJava()throws Exception{
+        var node=fixture("task");
+        node.set("runtimeContext",JSON.valueToTree(Map.of("schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT",
+            "reportMode","visual","reportPresentation",Map.of("strategy","auto","density","compact","autoCharts",true,"autoImages",false))));
+        assertThat(schema("task").validate(node)).isEmpty();
+        assertThat(JSON.treeToValue(node,CodingTaskContract.class).runtimeContext()).containsKey("reportPresentation");
+        set(node,"/runtimeContext/reportPresentation/strategy","execute-html");
+        assertThat(schema("task").validate(node)).isNotEmpty();
+    }
     private JsonSchema schema() throws Exception { return schema(null); }
 
     private JsonSchema schema(String expectedType) throws Exception {

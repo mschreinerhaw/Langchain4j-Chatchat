@@ -87,6 +87,20 @@ test('reviewed analysis delivers the actual authorized report to the next semant
     && JSON.stringify(c.messages).includes('ACTUAL_COMPUTED_REPORT')));
 });
 
+test('the native Cline SDK carries the frozen report layout preference without another model or execution round', async () => {
+  const presentation={strategy:'auto',density:'compact',template:'briefing',autoCharts:true,autoImages:false};
+  const task={...contract,runtimeContext:{reportMode:'visual',reportPresentation:presentation}};
+  const {run,counts}=fixture((turn,request)=>{
+    assert.match(JSON.stringify(request.messages),/reportPresentation/);
+    assert.match(JSON.stringify(request.messages),/compact/);
+    return turn===1?python(turn):complete;
+  },verified,(_read,reference)=>({reference,complete:true,rows:[{reportMarkdown:'Same computed facts',
+    visualReport:{schemaVersion:'python_visual_report.v1',presentation,layout:{schemaVersion:'report_layout.v1',blocks:[]}}}],
+    reportReferenceValidation:{valid:true},visualReportValidation:{status:'PASSED'}}),task);
+  assert.equal((await run.run()).status,'completed');
+  assert.equal(counts.executions,1);assert.equal(counts.models,2);assert.equal(counts.reads,1);
+});
+
 test('invalid report references still reach Cline and require a repaired execution and fresh authorized read', async () => {
   const { run, counts } = fixture((turn, request) => {
     if (turn === 1) return python(turn);

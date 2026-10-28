@@ -3585,14 +3585,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         );
         Throwable reviewFailure = null;
         Map<String, Object> reviewMetrics = new LinkedHashMap<>();
-        // Required Coding discovery is on the acquisition critical path. Its model calls
-        // retain request/model deadlines instead of the optional legacy review phase cap.
-        boolean requiredCodingDiscovery = candidateDiscovery
-            && com.chatchat.agents.orchestration.analysis.contract.RuntimeAnalysisOwnership
-                .codingOwnsToolAdmission(runtimeAttributes);
-        try (var phaseBudget = requiredCodingDiscovery ? null
-                : com.chatchat.agents.orchestration.model.ModelInvocationBudget.open(
-                    agentRuntimeProperties.toolResultReviewTimeoutMs())) {
+        // Model requests use the selected model's timeout, bounded by the parent task deadline.
+        try {
         long startedAt = System.currentTimeMillis();
         log.info("agentModelRequest phase=tool_result_review runId={} stepId={} tool={} attempt={}/{} modelClass={}",
             firstNonBlank(runId, ""),

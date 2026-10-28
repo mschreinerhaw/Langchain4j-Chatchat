@@ -32,7 +32,9 @@ import {
   mergeChatRuntimeState,
   upsertChatRuntimeState
 } from "../utils/chatRuntimeState";
-import { isTerminalAgentEvent, terminalEventFromEvents } from "../utils/agentTaskTerminalEvents";
+import { isTerminalAgentEvent, terminalEventFromEvents, terminalEventForSnapshot,
+  isTerminalAgentTaskSnapshot } from "../utils/agentTaskTerminalEvents";
+import { reportPresentation } from '../utils/reportLayout';
 import { runtimeObservationIdentity, runtimeObservationPresentation, businessEventPresentation } from "../utils/runtimeObservationPresentation";
 import { validateDocumentUploadSelection } from "../utils/documentUploadPolicy";
 import { exceedsChatTextLimit, chatTextFile, validateChatFiles, CHAT_FILE_ANALYSIS_OBJECTIVE } from '../utils/chatUserAssets';
@@ -357,7 +359,9 @@ function isRecentConversationTimestamp(timestamp) {
 }
 
 function isActiveAgentTaskStatus(status = "") {
-  return ["PENDING", "RUNNING", "WAIT_TOOL", "WAIT_MODEL", "WAIT_CONFIRMATION", "WAITING_CONFIRM", "CONFIRMED"]
+  return ["PENDING", "RUNNING", "WAIT_TOOL", "WAIT_MODEL", "WAIT_CONFIRMATION", "WAITING_CONFIRM", "CONFIRMED",
+    "RETRY_WAIT", "CLAIMED", "SUBMITTED", "AUTHORIZING", "PLANNING", "PLAN_VALIDATING",
+    "WAITING_APPROVAL", "EXECUTING", "EVALUATING", "REPAIRING", "DELIVERING"]
     .includes(String(status || "").toUpperCase());
 }
 
@@ -1438,7 +1442,7 @@ function initialExecutionSteps(agentName = "") {
   ];
 }
 
-export function mergeExecutionSteps(previousSteps = [], events = []) {
+export function mergeExecutionSteps(previousSteps = [], events = [], snapshot = null) {
   const previousSequence = previousSteps.reduce(
     (maximum, step) => Math.max(maximum, Number(step?.order || 0)), 0);
   const acceptedEvents = events.filter((event) => {
@@ -1488,7 +1492,8 @@ export function mergeExecutionSteps(previousSteps = [], events = []) {
     }
     return isOpen ? { ...step, status: "done" } : step;
   });
-  const terminalEvent = terminalEventFromEvents(acceptedEvents);
+  const terminalEvent = snapshot == null ? terminalEventFromEvents(acceptedEvents)
+    : terminalEventForSnapshot(acceptedEvents, snapshot);
   return terminalEvent
     ? closeOpenExecutionSteps(merged, terminalUiStatus(terminalEvent))
     : merged;
@@ -2126,6 +2131,7 @@ export default {
           documentWorkflow: !!payload?.documentWorkflow,
           webSearch: false,
           reportMode: payload?.reportMode === 'visual' ? 'visual' : 'off',
+          ...(payload?.reportMode === 'visual' ? {reportPresentation:reportPresentation(payload?.reportPresentation)} : {}),
           imageAnalysisIds,
           responseContract: RESPONSE_RENDER_CONTRACT,
           visualizationSupportedTypes: visualizationCapabilities.map(capability => capability.type),
@@ -2515,17 +2521,19 @@ export default {
         throw new Error("Agent task was not created");
       }
       while (shouldContinue ? shouldContinue() : true) {
-        const leadingProgressEvent = onProgress ? await onProgress() : null;
-        if (isTerminalAgentEvent(leadingProgressEvent)) {
-          return leadingProgressEvent;
-        }
-        const event = await pollAgentTaskResult(taskId, AGENT_TASK_POLL_TIMEOUT_MS, tenantId);
-        const progressEvent = onProgress ? await onProgress() : null;
-        if (isTerminalAgentEvent(event)) {
-          return event;
-        }
-        if (isTerminalAgentEvent(progressEvent)) {
-          return progressEvent;
+        try {
+          const leadingProgressEvent = onProgress ? await onProgress() : null;
+          const event = isTerminalAgentEvent(leadingProgressEvent) ? leadingProgressEvent
+            : await pollAgentTaskResult(taskId, AGENT_TASK_POLL_TIMEOUT_MS, tenantId);
+          const progressEvent = onProgress ? await onProgress() : null;
+          const snapshot = await fetchAgentTaskSnapshot(taskId, tenantId);
+          const confirmed = terminalEventForSnapshot([leadingProgressEvent, event, progressEvent].filter(Boolean), snapshot);
+          if (confirmed) return confirmed;
+        } catch (error) {
+          // A dropped stream/request says nothing about task completion. Keep
+          // reconciling the same task and cursor until it ends or tracking stops.
+          if (isAgentTaskPollingStopped(error)) throw error;
+          await sleep(1_000);
         }
         await sleep(300);
       }
@@ -2541,6 +2549,8 @@ export default {
       let settled = false;
       let cursor = Math.max(0, Number(runContext.taskEventSequence || 0));
       return new Promise((resolve, reject) => {
+        const candidates = [];
+        let reconciliation = Promise.resolve();
         const finish = (callback, value) => {
           if (settled) return;
           settled = true;
@@ -2548,6 +2558,33 @@ export default {
           runContext.taskEventStreamController = null;
           callback(value);
           controller.abort();
+        };
+        const reconcile = (streamEnded = false) => {
+          reconciliation = reconciliation.then(async () => {
+            if (settled) return;
+            const snapshot = await fetchAgentTaskSnapshot(taskId, tenantId);
+            if (settled) return;
+            assistantMessage.executionSnapshot = taskExecutionSnapshot(snapshot);
+            assistantMessage.statusReceivedAt = Date.now();
+            const terminal = terminalEventForSnapshot(candidates, snapshot);
+            if (terminal && cursor >= Number(snapshot?.lastEventSequence || 0)) {
+              Object.assign(assistantMessage, finalizeExecutionUi(assistantMessage, terminalUiStatus(terminal)));
+              runContext.status = assistantMessage.status;
+              if (this.isActiveRun(runContext)) {
+                this.loading = false;
+                this.conversationStatus = assistantMessage.status;
+              }
+              finish(resolve, terminal);
+            } else if (streamEnded) {
+              finish(reject, new Error('Task stream closed; continuing snapshot and event polling'));
+            } else {
+              assistantMessage.executionTerminal = false;
+              assistantMessage.status = 'running';
+              assistantMessage.streaming = true;
+            }
+          }).catch(error => {
+            if (!settled) finish(reject, error);
+          });
         };
         streamAgentTaskEvents(taskId, {
           tenantId,
@@ -2564,7 +2601,7 @@ export default {
             }
             cursor = Math.max(cursor, eventSequence);
             runContext.taskEventSequence = cursor;
-            assistantMessage.steps = mergeExecutionSteps(assistantMessage.steps || [], [event]);
+            assistantMessage.steps = mergeExecutionSteps(assistantMessage.steps || [], [event], assistantMessage.executionSnapshot || {});
             if (this.isActiveRun(runContext)) {
               this.messages = [...runContext.messages];
               this.scrollMessages();
@@ -2573,13 +2610,9 @@ export default {
               this.emitActiveConversationSnapshot(query || runContext.question || "", "running", runContext);
               return;
             }
-            Object.assign(assistantMessage, finalizeExecutionUi(assistantMessage, terminalUiStatus(event)));
-            runContext.status = assistantMessage.status;
-            if (this.isActiveRun(runContext)) {
-              this.loading = false;
-              this.conversationStatus = assistantMessage.status;
-            }
-            finish(resolve, event);
+            candidates.push(event);
+            if (candidates.length > 32) candidates.shift();
+            reconcile();
           },
           heartbeat: (heartbeat) => {
             // A heartbeat proves that the stream is alive, but its task status is
@@ -2594,12 +2627,13 @@ export default {
               cursor: heartbeat?.cursor || cursor
             };
             if (heartbeat?.snapshot) assistantMessage.executionSnapshot = taskExecutionSnapshot(heartbeat.snapshot);
+            if (isTerminalAgentTaskSnapshot(heartbeat?.snapshot)) reconcile();
             if (this.isActiveRun(runContext)) {
               this.messages = [...runContext.messages];
             }
           },
           done: () => {
-            if (!settled) finish(reject, new Error("Agent task event stream ended before a terminal event"));
+            if (!settled) reconcile(true);
           },
           timeout: () => finish(reject, new Error("Agent task event stream timed out")),
           error: (payload) => finish(reject, new Error(payload?.message || "Agent task event stream failed"))
@@ -2616,10 +2650,10 @@ export default {
         const replay = runContext?.replayFromStart === true;
         const afterSequence = replay ? 0 : Math.max(0, Number(runContext?.taskEventSequence || 0));
         let events = await fetchAgentTaskEvents(taskId, AGENT_TASK_EVENT_LIMIT, tenantId, afterSequence);
+        const snapshot = await fetchAgentTaskSnapshot(taskId, tenantId);
+        assistantMessage.executionSnapshot = taskExecutionSnapshot(snapshot);
         if (replay) {
           assistantMessage.progressHydrating = true;
-          const snapshot = await fetchAgentTaskSnapshot(taskId,tenantId);
-          assistantMessage.executionSnapshot=taskExecutionSnapshot(snapshot);
           assistantMessage.statusReceivedAt=Date.now();
           const all=[...(Array.isArray(events)?events:[])];let page=events;
           for(let pages=0;Array.isArray(page)&&page.length===AGENT_TASK_EVENT_LIMIT;pages++) {
@@ -2630,14 +2664,15 @@ export default {
             all.push(...page);
           }
           events=all;
-          assistantMessage.steps=mergeExecutionSteps([],events);
+          assistantMessage.steps=mergeExecutionSteps([],events,snapshot);
           assistantMessage.historyIncomplete=false;runContext.replayFromStart=false;
-        } else assistantMessage.steps = mergeExecutionSteps(assistantMessage.steps || [], Array.isArray(events) ? events : []);
+        } else assistantMessage.steps = mergeExecutionSteps(assistantMessage.steps || [], Array.isArray(events) ? events : [],snapshot);
         const latestSequence = (Array.isArray(events) ? events : []).reduce(
           (maximum, event) => Math.max(maximum, Number(event?.sequence || 0)), afterSequence);
         if (runContext) runContext.taskEventSequence = latestSequence;
         assistantMessage.statusReceivedAt = Date.now();
-        const terminalEvent = terminalEventFromEvents(events);
+        const drained = latestSequence >= Number(snapshot?.lastEventSequence || 0);
+        const terminalEvent = drained ? terminalEventForSnapshot(events, snapshot) : null;
         if (terminalEvent) {
           Object.assign(assistantMessage, finalizeExecutionUi(assistantMessage, terminalUiStatus(terminalEvent)));
           if (runContext) runContext.status = assistantMessage.status;
@@ -2645,6 +2680,11 @@ export default {
             this.loading = false;
             this.conversationStatus = assistantMessage.status;
           }
+        } else if (isActiveAgentTaskStatus(snapshot?.canonicalState || snapshot?.status)) {
+          assistantMessage.executionTerminal = false;
+          assistantMessage.status = 'running';
+          assistantMessage.streaming = true;
+          if (runContext) runContext.status = 'running';
         }
         if (this.isActiveRun(runContext)) {
           this.messages = [...runContext.messages];
@@ -3651,7 +3691,15 @@ export default {
         for (const message of messages.filter(item => item.role === 'assistant' && item.taskId
           && item.memoryContext?.taskOrigin !== 'studio-coding')) {
           this.refreshAgentTaskSteps(message.taskId, this.effectiveTenantId(),
-            { replayFromStart: true, historyReplayOnly: true, messages, status: message.status, question: restoredQuestion }, message, restoredQuestion);
+            { replayFromStart: true, historyReplayOnly: true, messages, status: message.status, question: restoredQuestion }, message, restoredQuestion)
+            .then(() => {
+              // Persisted UI failures may predate a backend retry. Reattach to
+              // the existing task after reconciliation; never submit a new task.
+              if (message === lastAssistantMessage && this.historyId === conversation.id
+                  && !this.loading && isActiveAgentTaskStatus(message.executionSnapshot?.canonicalState)) {
+                this.resumeRestoredConversationRun(conversation, messages, restoredQuestion);
+              }
+            });
         }
       }
       this.scrollMessages();
@@ -3749,10 +3797,10 @@ export default {
       assistantMessage.taskId = taskId;
       try {
         const snapshot = await fetchAgentTaskSnapshot(taskId, this.effectiveTenantId());
-        if (snapshot && !isActiveAgentTaskStatus(snapshot.status || snapshot.canonicalState)) {
+        if (isTerminalAgentTaskSnapshot(snapshot)) {
           await this.refreshAgentTaskSteps(
             taskId, this.effectiveTenantId(), runContext, assistantMessage, query);
-          const terminalStatus = terminalUiStatus({ type: "STATUS", status: snapshot.status });
+          const terminalStatus = terminalUiStatus({ type: "STATUS", status: snapshot.status || snapshot.canonicalState });
           Object.assign(assistantMessage, finalizeExecutionUi(assistantMessage, terminalStatus));
           assistantMessage.content = assistantMessage.content || snapshot.answerSummary || "";
           runContext.status = terminalStatus;

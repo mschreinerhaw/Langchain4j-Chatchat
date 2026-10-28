@@ -1,0 +1,14 @@
+{
+  "status": "DEPLOYED",
+  "gatewayImage": "runtime-os-gateway:task-lifecycle-20261028",
+  "backendContainersUnchanged": {
+    "api": true,
+    "mcp": true,
+    "news": true,
+    "coding-agent": true,
+    "node-proxy": true
+  },
+  "assetsVerified": true,
+  "publicEntry": "http://192.168.195.221:18100",
+  "apiJarChanged": false
+}

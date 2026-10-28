@@ -979,17 +979,17 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
     }
 
     @Test
-    void reviewerTimeoutDoesNotBlockFinalAnswer() {
+    void legacyReviewPhaseTimeoutDoesNotOverrideTheSelectedClient() {
         String previous = System.getProperty("chatchat.agent.answer.review.timeout.ms");
         System.setProperty("chatchat.agent.answer.review.timeout.ms", "50");
         try {
             AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) -> {
                 try {
-                    Thread.sleep(5_000L);
+                    Thread.sleep(200L);
                 } catch (InterruptedException ignored) {
                     Thread.currentThread().interrupt();
                 }
-                return new AgentAnswerReview(AgentAnswerReview.REJECTED, "", "late reviewer result");
+                return new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "completed review");
             };
             AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
                 reviewer,
@@ -1019,8 +1019,7 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
             assertThat(System.currentTimeMillis() - startedAt).isLessThan(2_000L);
             assertThat(result.answer()).contains("已基于查询结果生成总结");
             assertThat(result.metadata())
-                .containsEntry("answerReviewTimedOut", true)
-                .containsEntry("answerReviewFallback", "accepted_current_answer");
+                .doesNotContainKeys("answerReviewTimedOut", "answerReviewFallback");
         } finally {
             if (previous == null) {
                 System.clearProperty("chatchat.agent.answer.review.timeout.ms");
@@ -1031,16 +1030,16 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
     }
 
     @Test
-    void reviewerTimeoutUsesConfiguredModelTimeout() {
+    void defaultModelTimeoutDoesNotOverrideTheSelectedClient() {
         ModelsConfig modelsConfig = new ModelsConfig();
         modelsConfig.getOpenai().setTimeout(1);
         AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) -> {
             try {
-                Thread.sleep(5_000L);
+                Thread.sleep(1200L);
             } catch (InterruptedException ignored) {
                 Thread.currentThread().interrupt();
             }
-            return new AgentAnswerReview(AgentAnswerReview.REJECTED, "", "late reviewer result");
+            return new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "completed review");
         };
         AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
             reviewer,
@@ -1071,8 +1070,7 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
         assertThat(System.currentTimeMillis() - startedAt).isLessThan(3_000L);
         assertThat(result.answer()).contains("已基于查询结果生成总结");
         assertThat(result.metadata())
-            .containsEntry("answerReviewTimedOut", true)
-            .containsEntry("answerReviewTimeoutMs", 1_000L);
+            .doesNotContainKeys("answerReviewTimedOut", "answerReviewTimeoutMs");
     }
 
     @Test

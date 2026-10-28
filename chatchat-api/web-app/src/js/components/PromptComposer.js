@@ -1,5 +1,8 @@
 import { Bot, FileText, Send, XCircle } from "@lucide/vue";
 import { exceedsChatTextLimit, pastedFiles } from "../utils/chatUserAssets";
+import { reportPresentation } from '../utils/reportLayout';
+import { readWorkspaceDraft, saveWorkspaceDraft } from '../utils/workspaceDrafts';
+import { getWorkspaceContext, workspaceStorageKey } from '../utils/workspaceContext';
 
 export default {
   name: "PromptComposer",
@@ -10,6 +13,7 @@ export default {
     XCircle,
   },
   props: {
+    workspaceContext: {type:Object,default:null},
     conversationKey: { type: String, default: "" },
     attachments: { type: Array, default: () => [] },
     suggestions: {
@@ -63,10 +67,12 @@ export default {
   data() {
     return {
       reportMode: "off",
+      reportPresentation: reportPresentation(readWorkspaceDraft('report-presentation',this.workspaceContext || getWorkspaceContext()) || {}),
       draft: this.modelValue,
     };
   },
   computed: {
+    reportPreferenceKey(){return workspaceStorageKey('report-presentation',this.workspaceContext || getWorkspaceContext());},
     agentOptions() {
       return [
         {
@@ -111,6 +117,8 @@ export default {
     },
   },
   watch: {
+    reportPresentation: {deep:true,handler(value){saveWorkspaceDraft('report-presentation',this.workspaceContext || getWorkspaceContext(),reportPresentation(value));}},
+    reportPreferenceKey(){this.reportPresentation=reportPresentation(readWorkspaceDraft('report-presentation',this.workspaceContext || getWorkspaceContext()) || {});},
     modelValue(value) {
       this.draft = value;
       this.$nextTick(this.adjustTextareaHeight);
@@ -148,6 +156,7 @@ export default {
         agentName: this.selectedAgent?.name || "",
         documentWorkflow: this.documentWorkflowActive,
         reportMode: this.reportMode,
+        reportPresentation: reportPresentation(this.reportPresentation),
       });
     },
     handlePaste(event) {

@@ -3,6 +3,8 @@ import MarkdownIt from "markdown-it";
 // Narrative text is Markdown, never an executable HTML document. Preserve reported
 // values verbatim; headings, emphasis, lists and tables only change presentation.
 const markdown = new MarkdownIt({ html: false, linkify: true, breaks: true, typographer: false });
+// Report images use the authorized artifact path, never a model-supplied URL.
+markdown.renderer.rules.image = (tokens,index) => markdown.utils.escapeHtml(tokens[index].content || '');
 const linkOpen = markdown.renderer.rules.link_open
   || ((tokens, index, options, env, self) => self.renderToken(tokens, index, options));
 markdown.renderer.rules.link_open = (tokens, index, options, env, self) => {

@@ -105,6 +105,24 @@ markdown.renderer.rules.fence = (tokens, idx) => {
 export default {
   name: "ChatMessageList",
   mixins: [chartAnalysisMixin],
+  directives: {
+    followActivity: {
+      mounted(el) {
+        el._followActivity = true;
+        el._activityScroll = () => {
+          el._followActivity = el.scrollHeight - el.scrollTop - el.clientHeight < 32;
+        };
+        el.addEventListener('scroll', el._activityScroll, { passive: true });
+        el.scrollTop = el.scrollHeight;
+      },
+      updated(el, binding) {
+        if (binding.value !== binding.oldValue && el._followActivity) el.scrollTop = el.scrollHeight;
+      },
+      beforeUnmount(el) {
+        el.removeEventListener('scroll', el._activityScroll);
+      }
+    }
+  },
   components: {
     PythonVisualReport,
     ReportMarkdown,
@@ -200,6 +218,15 @@ export default {
     }
   },
   methods: {
+    workbenchIsRunning(workbench) {
+      return !workbench.terminal && ['active', 'waiting', 'retrying', 'long_running', 'attention', 'unconfirmed'].includes(workbench.status);
+    },
+    chronologicalActivities(workbench) {
+      return workbench.allActivities.slice(0, 100).reverse();
+    },
+    activityRevision(workbench) {
+      return workbench.allActivities.slice(0, 100).map(operation => `${operation.id}:${operation.sequence}:${operation.state}`).join('|');
+    },
     visualizationPreferences(message = {}) {
       return message?.visualizationSpec?.ui?.userPreferences || {};
     },

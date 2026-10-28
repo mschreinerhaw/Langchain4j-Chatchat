@@ -33,7 +33,8 @@ public class ModelsConfig implements EnvironmentAware, InitializingBean {
         ".proxy.enabled", ".proxy.host", ".proxy.port", ".proxy.type",
         ".modelName", ".model-name", ".apiKey", ".api-key",
         ".baseUrl", ".base-url", ".protocol", ".timeout",
-        ".maxTokens", ".max-tokens", ".maxRetries", ".max-retries"
+        ".maxTokens", ".max-tokens", ".maxRetries", ".max-retries",
+        ".requestTimeoutSeconds", ".request-timeout-seconds"
     );
 
     private transient ConfigurableEnvironment environment;
@@ -137,6 +138,7 @@ public class ModelsConfig implements EnvironmentAware, InitializingBean {
             case "baseUrl", "base-url" -> connection.setBaseUrl(value);
             case "protocol" -> connection.setProtocol(value);
             case "timeout" -> connection.setTimeout(Integer.parseInt(value));
+            case "requestTimeoutSeconds", "request-timeout-seconds" -> connection.setRequestTimeoutSeconds(Integer.parseInt(value));
             case "maxTokens", "max-tokens" -> connection.setMaxTokens(Integer.parseInt(value));
             case "maxRetries", "max-retries" -> connection.setMaxRetries(Integer.parseInt(value));
             case "proxy.enabled" -> connection.getProxy().setEnabled(Boolean.parseBoolean(value));
@@ -355,6 +357,21 @@ public class ModelsConfig implements EnvironmentAware, InitializingBean {
 
     @Data
     public static class ModelConnectionConfig {
+        public static final int DEFAULT_REQUEST_TIMEOUT_SECONDS = 300;
+        public static final int MAX_REQUEST_TIMEOUT_SECONDS = 1200;
+
+        private Integer requestTimeoutSeconds = DEFAULT_REQUEST_TIMEOUT_SECONDS;
+
+        public static int effectiveRequestTimeoutSeconds(Integer seconds) {
+            if (seconds == null) return DEFAULT_REQUEST_TIMEOUT_SECONDS;
+            if (seconds < 1 || seconds > MAX_REQUEST_TIMEOUT_SECONDS)
+                throw new IllegalArgumentException("requestTimeoutSeconds must be an integer between 1 and 1200");
+            return seconds;
+        }
+
+        public java.time.Duration requestTimeout() {
+            return java.time.Duration.ofSeconds(effectiveRequestTimeoutSeconds(requestTimeoutSeconds));
+        }
         /** Optional provider-side model id when it differs from the selectable map key. */
         private String modelName;
         private String apiKey;
@@ -365,6 +382,8 @@ public class ModelsConfig implements EnvironmentAware, InitializingBean {
          * Auto detects full DashScope generation endpoints and OpenAI-compatible URLs.
          */
         private String protocol = "auto";
+        /** Legacy wire field, no longer controls model API requests. */
+        @Deprecated
         private int timeout = 30;
         /**
          * Maximum completion tokens sent to the model. -1 means do not set a model-side limit.

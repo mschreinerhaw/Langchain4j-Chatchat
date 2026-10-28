@@ -27,12 +27,12 @@ class InfrastructureBootstrapTest(unittest.TestCase):
             certificates = stage/'certs'; certificates.mkdir()
             for name in ['api','mcp','news']:(config/(name+'.env')).write_text('')
             password_files = {}
-            for name in ['postgresql-admin','postgresql-api','postgresql-mcp','redis','opensearch-admin','bootstrap-admin','internal','coding']:
+            for name in ['postgresql-admin','postgresql-api','postgresql-mcp','postgresql-news','redis','opensearch-admin','bootstrap-admin','internal','coding']:
                 p = stage/name;p.write_text(secrets.token_hex(32));p.chmod(0o640);os.chown(p,0,1000)
                 password_files[name] = p
             postgres_image=os.environ.get('RUNTIME_TEST_POSTGRESQL_IMAGE','postgres:16.9')
             postgres_gid=int(subprocess.check_output(['docker','run','--rm','--network','none','--entrypoint','id',postgres_image,'-g','postgres'],text=True).strip())
-            for name in ['postgresql-admin','postgresql-api','postgresql-mcp']:
+            for name in ['postgresql-admin','postgresql-api','postgresql-mcp','postgresql-news']:
                 os.chown(password_files[name],0,postgres_gid)
             def run(*args, **options):
                 return subprocess.run(args, text=True, capture_output=True, check=True, timeout=60, **options)
@@ -58,7 +58,7 @@ class InfrastructureBootstrapTest(unittest.TestCase):
                 POSTGRESQL_ADMIN_PASSWORD_FILE=str(password_files['postgresql-admin']),POSTGRESQL_API_PASSWORD_FILE=str(password_files['postgresql-api']),
                 POSTGRESQL_MCP_PASSWORD_FILE=str(password_files['postgresql-mcp']),REDIS_PASSWORD_FILE=str(password_files['redis']),
                 OPENSEARCH_ADMIN_PASSWORD_FILE=str(password_files['opensearch-admin']),BOOTSTRAP_ADMIN_PASSWORD_FILE=str(password_files['bootstrap-admin']),
-                POSTGRESQL_PORT='0',REDIS_PORT='0',OPENSEARCH_PORT='0')
+                NEWS_DATABASE_PASSWORD_FILE=str(password_files['postgresql-news']),NEWS_INTERNAL_KEY_FILE=str(password_files['internal']),INTERNAL_CREDENTIAL_ENCRYPTED_FILE=str(password_files['internal']),WSA_SECRET_ID_FILE=str(password_files['internal']),WSA_SECRET_KEY_FILE=str(password_files['internal']),POSTGRESQL_PORT='0',REDIS_PORT='0',OPENSEARCH_PORT='0')
             for service in ['POSTGRESQL','REDIS','OPENSEARCH']:
                 if os.environ.get('RUNTIME_TEST_'+service+'_IMAGE'):
                     values[service+'_IMAGE']=os.environ['RUNTIME_TEST_'+service+'_IMAGE']

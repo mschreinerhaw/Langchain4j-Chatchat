@@ -35,7 +35,7 @@ public class LangChain4jConfig {
                 ModelsConfig.ModelConnectionConfig connection = modelResources.require(name).config();
                 String signature = name + "\u0000" + connection.getModelName() + "\u0000"
                     + connection.getBaseUrl() + "\u0000" + connection.getProtocol() + "\u0000"
-                    + connection.getApiKey() + "\u0000" + connection.getTimeout() + "\u0000"
+                    + connection.getApiKey() + "\u0000" + connection.getRequestTimeoutSeconds() + "\u0000"
                     + connection.getMaxTokens() + "\u0000" + connection.getMaxRetries();
                 if (cachedModel != null && signature.equals(cachedSignature)) return cachedModel;
                 synchronized (this) {

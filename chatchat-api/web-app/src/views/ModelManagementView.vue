@@ -236,8 +236,8 @@
               ><input v-model.number="form.dimension" required type="number" min="1"
             /></label>
             <label class="feature-form-field"
-              ><span>请求超时（毫秒）</span
-              ><input v-model.number="form.timeout" type="number" min="1"
+              ><span>模型请求超时时间（秒）</span
+              ><input v-model.number="form.requestTimeoutSeconds" required type="number" min="1" max="1200" step="1"
             /></label>
             <label v-if="form.type === 'chat'" class="feature-form-field"
               ><span>最大输出 Token（-1 为不限制）</span
@@ -248,6 +248,7 @@
               ><input v-model.number="form.maxRetries" type="number" min="0"
             /></label>
           </div>
+          <p class="model-form-hint">单次模型 API 请求的最长等待时间，默认 300 秒。此配置适用于 Chat、Agent、Runtime OS、Cline 等所有使用该模型的功能。</p>
           <p v-if="form.type === 'embedding'" class="model-form-hint"
             >修改已建索引的向量维度后，需要重建对应索引。</p
           >

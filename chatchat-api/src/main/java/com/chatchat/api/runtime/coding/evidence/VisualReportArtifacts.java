@@ -4,6 +4,8 @@ import com.chatchat.api.assets.RuntimeAssetArchive;
 import com.chatchat.api.assets.UserAssetService;
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.runtime.coding.VisualReportMode;
+import com.chatchat.common.runtime.coding.ReportPresentation;
+import com.chatchat.common.runtime.coding.ReportLayout;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayInputStream;
 import java.util.*;
@@ -76,9 +78,27 @@ public final class VisualReportArtifacts {
                     log.warn("visual_report_chart_rejected task={} operation={} chart={} reason={}",task,operation,chartId,invalid.getClass().getSimpleName());}
             }
             var sections=new ArrayList<Map<String,Object>>();
+            var sectionIds=new HashSet<String>();
             for(var item:list(raw.get("sections"),64)) {
-                var section=map(item);sections.add(Map.of("title",text(section.get("title"),240),"narrative",text(section.get("narrative"),16000),
+                var section=map(item);String sectionId=section.containsKey("id")?id(section.get("id")):"section-"+(sections.size()+1);
+                require(sectionIds.add(sectionId),"Duplicate section");
+                sections.add(Map.of("id",sectionId,"title",text(section.get("title"),240),"narrative",text(section.get("narrative"),16000),
                     "chartIds",references(section.get("chartIds"),chartIds),"tableIds",references(section.get("tableIds"),tableIds)));
+            }
+            var presentation=ReportPresentation.read(Map.of("reportPresentation",execution.getOrDefault("reportPresentation",
+                raw.getOrDefault("presentation",ReportPresentation.defaults()))));
+            result.put("presentation",presentation);
+            if(raw.containsKey("layout")){
+                try{
+                    result.put("layout",ReportLayout.validate(raw.get("layout"),Map.of("metric",metricIds,"section",sectionIds,"chart",charts.stream()
+                        .map(chart->(String)chart.get("id")).collect(java.util.stream.Collectors.toSet()),"table",tableIds)));
+                    result.put("layoutValidationStatus","PASSED");
+                }catch(IllegalArgumentException invalid){
+                    result.put("layoutValidationStatus","FAILED");warnings.add("The optional report layout was invalid; original analysis is retained in compatible layout.");
+                }
+            }else if(execution.containsKey("reportPresentation")){
+                result.put("layoutValidationStatus","FAILED");
+                warnings.add("The optional report layout was not supplied; original analysis is retained in compatible layout.");
             }
             var validation=map(raw.get("validation"));var checks=new ArrayList<Map<String,Object>>();boolean failed=false,unresolved=false;
             for(var item:list(validation.get("checks"),128)) {
@@ -94,6 +114,29 @@ public final class VisualReportArtifacts {
             var sources=list(raw.get("dataSources"),64).stream().map(source->text(source,512)).toList();
             var cited=list(rows.get(0).get("evidenceReferences"),64).stream().map(source->text(source,512)).toList();
             require(!sources.isEmpty()&&cited.containsAll(sources),"Report data sources must match the report's authorized citations");
+            bindDataReferences(raw,"metrics",metrics,sources);
+            bindDataReferences(raw,"tables",tables,sources);
+            bindDataReferences(raw,"charts",charts,sources);
+            if(result.containsKey("layout")&&java.util.stream.Stream.of(metrics,tables,charts).flatMap(Collection::stream).anyMatch(item->!item.containsKey("dataRefs"))){
+                result.remove("layout");result.put("layoutValidationStatus","FAILED");
+                warnings.add("The optional layout lacks per-element source references; original analysis is retained in compatible layout.");
+                if("SUCCESS".equals(status)){status="PARTIAL";result.put("status",status);}
+            }
+            for(int index=0;index<charts.size();index++){
+                String acceptedId=(String)charts.get(index).get("id");
+                var original=list(raw.get("charts"),64).stream().map(VisualReportArtifacts::map)
+                    .filter(chart->Objects.equals(chart.get("id"),acceptedId)).findFirst();
+                if(original.isPresent()){
+                    var chart=new LinkedHashMap<>(charts.get(index));var input=original.get();
+                    if(input.containsKey("role")){require(Set.of("chart","illustration").contains(input.get("role")),"Invalid chart role");chart.put("role",input.get("role"));}
+                    if(input.containsKey("chartType")){require(Set.of("line","bar","pie","scatter","histogram","box").contains(input.get("chartType")),"Invalid chart type");chart.put("chartType",input.get("chartType"));}
+                    charts.set(index,chart);
+                }
+            }
+            var limitations=new LinkedHashSet<String>();
+            for(Object value:list(rows.get(0).get("limitations"),64))limitations.add(text(value,4000));
+            for(Object value:list(raw.get("limitations"),64))limitations.add(text(value,4000));
+            result.put("limitations",List.copyOf(limitations));
             result.put("dataSources",sources);result.put("artifacts",artifacts);result.put("execution",execution);
             var timings=new LinkedHashMap<String,Object>();
             if(raw.get("timings") instanceof Map<?,?> times)for(String key:List.of("analysisMs","chartMs"))if(times.get(key) instanceof Number number){double value=number.doubleValue();require(Double.isFinite(value)&&value>=0&&value<=3600000,"Invalid program timing");timings.put(key,number);}
@@ -110,6 +153,17 @@ public final class VisualReportArtifacts {
             return Map.of("schemaVersion",VisualReportMode.SCHEMA,"reportMode","visual","status","FAILED","title","Visual report unavailable",
                 "summary","The original text analysis is retained; visual report validation failed.","markdown",fallbackMarkdown(rows),
                 "artifactValidationStatus","FAILED","validation",Map.of("status","FAILED","warnings",List.of(safeReason(invalid))),"execution",execution);
+        }
+    }
+    private static void bindDataReferences(Map<String,Object> raw,String key,List<Map<String,Object>> accepted,List<String> sources){
+        var originals=new HashMap<String,Map<String,Object>>();
+        for(Object value:list(raw.get(key),128)){var item=map(value);originals.put(Objects.toString(item.get("id"),""),item);}
+        for(int index=0;index<accepted.size();index++){
+            var original=originals.get(accepted.get(index).get("id"));
+            if(original==null||!original.containsKey("dataRefs"))continue;
+            var refs=list(original.get("dataRefs"),64).stream().map(ref->text(ref,512)).toList();
+            require(!refs.isEmpty()&&sources.containsAll(refs),"Visual data references must name authorized report sources");
+            var item=new LinkedHashMap<>(accepted.get(index));item.put("dataRefs",refs);accepted.set(index,item);
         }
     }
     private static String fallbackMarkdown(List<Map<String,Object>> rows){

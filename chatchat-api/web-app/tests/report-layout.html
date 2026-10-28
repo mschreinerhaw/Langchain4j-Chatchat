@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN"
+  ><head
+    ><meta charset="utf-8" /><meta
+      name="viewport"
+      content="width=device-width,initial-scale=1"
+    /><title>报告智能排版验收</title
+    ><style>
+      body {
+        margin: 0;
+        background: #f4f7fb;
+        font:
+          14px system-ui,
+          sans-serif;
+      }
+      #app {
+        max-width: 1120px;
+        margin: auto;
+        padding: 18px;
+        box-sizing: border-box;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      .fixture-note {
+        padding: 10px;
+        background: #fff8e8;
+      }
+      .report-controls {
+        margin-bottom: 20px;
+      }
+    </style></head
+  ><body
+    ><div id="app"></div
+    ><script type="module">
+      import { createApp, h, reactive } from "vue";
+      import ReportRenderer from "/src/components/ReportRenderer.vue";
+      import PromptComposer from "/src/components/PromptComposer.vue";
+      import { reportLayoutCases } from "/src/js/utils/fixtures/report-layout-cases.js";
+      import { setWorkspaceContext } from "/src/js/utils/workspaceContext.js";
+      setWorkspaceContext({ tenantId: "acceptance", userId: "owner", workspaceId: "reports" });
+      for (const entry of reportLayoutCases)
+        if (entry.figure)
+          entry.report.charts[0].artifact.size = new TextEncoder().encode(
+            JSON.stringify(entry.figure)
+          ).length;
+      window.layoutCases = reportLayoutCases;
+      window.layoutSends = [];
+      const state = reactive({ report: reportLayoutCases[0].report });
+      window.layoutState = state;
+      createApp({
+        render: () =>
+          h("main", {}, [
+            h(
+              "p",
+              { class: "fixture-note" },
+              "验收夹具：业务场景使用受控样本，图表来源于同一份分析值；不代表真实客户或市场数据。"
+            ),
+            h("div", { class: "report-controls" }, [
+              h(PromptComposer, {
+                modelValue: "分析给定样本",
+                onSend: (value) => window.layoutSends.push(value),
+              }),
+            ]),
+            h(ReportRenderer, { report: state.report }),
+          ]),
+      }).mount("#app");
+    </script></body
+  ></html
+>

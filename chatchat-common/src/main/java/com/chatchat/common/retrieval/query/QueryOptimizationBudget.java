@@ -29,7 +29,6 @@ public class QueryOptimizationBudget {
     private int maxRefinementCalls = 1;
     private boolean modelRefinementEnabled;
     private String refinementModel = "";
-    private int refinementTimeoutMs = 3000;
     private int refinementMaxOutputTokens = 512;
     private List<String> protectedTerms = List.of();
 
@@ -81,10 +80,8 @@ public class QueryOptimizationBudget {
     public void setModelRefinementEnabled(boolean value) { modelRefinementEnabled = value; }
     public String getRefinementModel() { return refinementModel; }
     public void setRefinementModel(String value) { refinementModel = value; }
-    public int getRefinementTimeoutMs() { return refinementTimeoutMs; }
     public int getRefinementMaxOutputTokens() { return refinementMaxOutputTokens; }
     public void setRefinementMaxOutputTokens(int value) { refinementMaxOutputTokens = positive(value); }
-    public void setRefinementTimeoutMs(int value) { refinementTimeoutMs = positive(value); }
     public List<String> getProtectedTerms() { return protectedTerms; }
     public void setProtectedTerms(List<String> value) { protectedTerms = value == null ? List.of() : List.copyOf(value); }
     private static int positive(int value) {

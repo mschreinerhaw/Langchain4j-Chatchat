@@ -1,11 +1,14 @@
 services:
   temporal-postgresql:
-    image: postgres:16.9
+    image: ${TEMPORAL_POSTGRESQL_IMAGE:-postgres:16.9}
+    pull_policy: never
     environment:
       POSTGRES_USER: temporal
-      POSTGRES_PASSWORD: temporal-local-only
+      POSTGRES_PASSWORD_FILE: /run/secrets/temporal_database_password
     volumes:
       - temporal-postgresql-data:/var/lib/postgresql/data
+    secrets: [temporal_database_password]
+    mem_limit: ${TEMPORAL_DATABASE_MEMORY_LIMIT:-1g}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U temporal"]
       interval: 5s
@@ -13,7 +16,13 @@ services:
       retries: 30
 
   temporal:
-    image: temporalio/auto-setup:1.31.2
+    image: ${TEMPORAL_IMAGE:-temporalio/auto-setup:1.31.2}
+    pull_policy: never
+    entrypoint: [bash, /opt/runtime/temporal-entrypoint.sh]
+    volumes:
+      - ./secret-entrypoint.sh:/opt/runtime/temporal-entrypoint.sh:ro
+    secrets: [temporal_database_password]
+    mem_limit: ${TEMPORAL_MEMORY_LIMIT:-1g}
     depends_on:
       temporal-postgresql:
         condition: service_healthy
@@ -21,8 +30,9 @@ services:
       DB: postgres12
       DB_PORT: 5432
       POSTGRES_USER: temporal
-      POSTGRES_PWD: temporal-local-only
       POSTGRES_SEEDS: temporal-postgresql
+      SKIP_DB_CREATE: ${TEMPORAL_SKIP_DB_CREATE:-false}
+      SKIP_SCHEMA_SETUP: ${TEMPORAL_SKIP_SCHEMA_SETUP:-false}
     ports:
       - "127.0.0.1:7233:7233"
     healthcheck:
@@ -33,3 +43,6 @@ services:
 
 volumes:
   temporal-postgresql-data:
+secrets:
+  temporal_database_password:
+    file: ${TEMPORAL_DATABASE_PASSWORD_FILE:?Set an independent Temporal database password file}

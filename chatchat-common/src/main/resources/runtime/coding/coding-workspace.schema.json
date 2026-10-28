@@ -517,7 +517,7 @@
         },
         "runtimeContext": {
           "type": "object",
-          "maxProperties": 7,
+          "maxProperties": 13,
           "properties": {
             "schemaVersion": {
               "const": "runtime_os.coding.context.v1"
@@ -539,6 +539,70 @@
               "maxItems": 128,
               "items": {
                 "type": "string"
+              }
+            },
+            "reportMode": {
+              "enum": [
+                "off",
+                "visual"
+              ]
+            },
+            "reportPresentation": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "strategy": {
+                  "enum": [
+                    "auto",
+                    "template",
+                    "concise"
+                  ]
+                },
+                "template": {
+                  "enum": [
+                    "briefing",
+                    "evidence-first"
+                  ]
+                },
+                "density": {
+                  "enum": [
+                    "comfortable",
+                    "compact"
+                  ]
+                },
+                "autoCharts": {
+                  "type": "boolean"
+                },
+                "autoImages": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "executionProfile": {
+              "type": "object"
+            },
+            "pythonEnvironment": {
+              "type": "object"
+            },
+            "scriptPurpose": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "codingLifecycle": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "schemaVersion",
+                "patchOnlyAfterFirst"
+              ],
+              "properties": {
+                "schemaVersion": {
+                  "const": "runtime_os.code_lifecycle.v1"
+                },
+                "patchOnlyAfterFirst": {
+                  "const": true
+                }
               }
             }
           },

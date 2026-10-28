@@ -1,0 +1,14 @@
+{
+  "AgentOrchestratorTest": {
+    "currentFailures": 73,
+    "baselineFailures": 73,
+    "introduced": [],
+    "resolved": []
+  },
+  "AgentPlannerTest": {
+    "currentFailures": 9,
+    "baselineFailures": 9,
+    "introduced": [],
+    "resolved": []
+  }
+}

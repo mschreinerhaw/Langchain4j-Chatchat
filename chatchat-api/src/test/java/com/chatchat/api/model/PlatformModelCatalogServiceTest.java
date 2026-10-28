@@ -21,6 +21,30 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 class PlatformModelCatalogServiceTest {
+    @Test void persistsPerInstanceSecondsDefaultsAndPublicationWithoutProviderAliasCollision() throws Exception {
+        var jdbc=new JdbcTemplate(new DriverManagerDataSource("jdbc:h2:mem:request-timeout-catalog;DB_CLOSE_DELAY=-1","sa",""));
+        var service=new PlatformModelCatalogService(jdbc,new ModelsConfig(),new SearchProperties(),new MockEnvironment(),mock(McpModelSyncClient.class));
+        for(var entry:Map.of("A",120,"B",600,"legacy",300).entrySet()) {
+            service.save(new PlatformModelCatalogService.ModelDraft(entry.getKey(),null,null,"chat","same-provider-model",
+                "http://127.0.0.1:1/v1","openai",null,1,-1,0,null,true,false,
+                entry.getKey().equals("legacy")?null:entry.getValue()));
+            service.publish("chat",entry.getKey());
+        }
+        assertThat(service.resolveChatModel("A").config().requestTimeout()).isEqualTo(java.time.Duration.ofSeconds(120));
+        assertThat(service.resolveChatModel("B").config().requestTimeout()).isEqualTo(java.time.Duration.ofSeconds(600));
+        assertThat(service.resolveChatModel("legacy").config().requestTimeout()).isEqualTo(java.time.Duration.ofSeconds(300));
+        service.save(new PlatformModelCatalogService.ModelDraft("B",null,null,"chat","same-provider-model",
+            "http://127.0.0.1:1/v1","openai",null,1,-1,0,null,true,false,900));
+        assertThat(service.resolveChatModel("B").config().requestTimeout().toSeconds()).isEqualTo(600);
+        service.publish("chat","B");
+        assertThat(service.resolveChatModel("B").config().requestTimeout().toSeconds()).isEqualTo(900);
+        var reopened=new PlatformModelCatalogService(jdbc,new ModelsConfig(),new SearchProperties(),new MockEnvironment(),mock(McpModelSyncClient.class));
+        assertThat(reopened.list().stream().filter(m->m.name().equals("B")).findFirst().orElseThrow().requestTimeoutSeconds()).isEqualTo(900);
+        var json=new com.fasterxml.jackson.databind.ObjectMapper();
+        assertThat(json.readValue("{}",PlatformModelCatalogService.ModelDraft.class).requestTimeoutSeconds()).isEqualTo(300);
+        for(String invalid:java.util.List.of("0","-1","1.5","1201","\"600\""))
+            assertThatThrownBy(()->json.readValue("{\"requestTimeoutSeconds\":"+invalid+"}",PlatformModelCatalogService.ModelDraft.class)).isInstanceOf(Exception.class);
+    }
     @Test
     void importsFileConfigurationEncryptedAndPrefersUserChangesWithoutExposingSecrets() {
         ModelsConfig file = new ModelsConfig();
@@ -45,6 +69,7 @@ class PlatformModelCatalogServiceTest {
         registry.setCatalog(service);
 
         assertThat(service.list()).hasSize(1);
+        assertThat(service.list().get(0).requestTimeoutSeconds()).isEqualTo(300);
         assertThat(jdbc.queryForObject("SELECT api_key_cipher FROM platform_model_config", String.class))
             .startsWith("ENC(").doesNotContain("file-secret");
         assertThat(service.list().toString()).doesNotContain("file-secret");

@@ -23,6 +23,74 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClineRuntimeModelBridgeTest {
+    @Test void actualClineProviderClientReceivesSelectedModelTimeoutOnEveryRound() throws Exception {
+        var server=com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1",0),0);
+        var calls=new java.util.concurrent.atomic.AtomicInteger();
+        server.createContext("/v1/chat/completions",exchange->{
+            calls.incrementAndGet();exchange.getRequestBody().readAllBytes();
+            byte[] reply="{\"id\":\"test\",\"model\":\"provider\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"done\"},\"finish_reason\":\"stop\"}]}".getBytes();
+            exchange.getResponseHeaders().set("Content-Type","application/json");exchange.sendResponseHeaders(200,reply.length);exchange.getResponseBody().write(reply);exchange.close();
+        });server.start();
+        try {
+            var config=new com.chatchat.common.config.ModelsConfig();config.setDefaultChatModel("B");
+            var connection=new com.chatchat.common.config.ModelsConfig.ModelConnectionConfig();
+            connection.setBaseUrl("http://127.0.0.1:"+server.getAddress().getPort()+"/v1");connection.setApiKey("test");connection.setRequestTimeoutSeconds(600);
+            config.getChatModels().put("B",connection);
+            var resources=new ModelResourceRegistry(config);
+            var observed=new java.util.ArrayList<java.time.Duration>();
+            var factory=new ConfigurableChatModelFactory(resources,json) {
+                @Override public ChatModel create(String name,java.time.Duration remaining,Integer tokens) {
+                    ChatModel actual=super.create(name,remaining,tokens);
+                    Object client=org.springframework.test.util.ReflectionTestUtils.getField(actual,"client");
+                    Object http=org.springframework.test.util.ReflectionTestUtils.getField(client,"httpClient");
+                    observed.add((java.time.Duration)org.springframework.test.util.ReflectionTestUtils.getField(http,"readTimeout"));
+                    return actual;
+                }
+            };
+            var bridge=new ClineRuntimeModelBridge(resources,factory,json);
+            var request=json.readTree("{\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hello\"}]}],\"tools\":[]}");
+            bridge.complete(contract(),request);bridge.complete(contract(),request);
+            connection.setRequestTimeoutSeconds(120);
+            bridge.complete(contract(),request);
+            assertThat(observed).containsExactly(java.time.Duration.ofSeconds(600),java.time.Duration.ofSeconds(600),java.time.Duration.ofSeconds(120));
+            assertThat(calls.get()).isEqualTo(3);
+            // Native Cline SDK -> existing AgentModel adapter -> HTTP callback -> Java -> real provider.
+            var callback=com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1",0),0);
+            connection.setRequestTimeoutSeconds(600);
+            callback.createContext("/internal/coding/cline/model",exchange->{
+                try {
+                    var payload=json.readTree(exchange.getRequestBody());
+                    byte[] reply=json.writeValueAsBytes(bridge.complete(contract(),payload.path("request")));
+                    exchange.getResponseHeaders().set("Content-Type","application/json");
+                    exchange.sendResponseHeaders(200,reply.length);exchange.getResponseBody().write(reply);
+                } finally {exchange.close();}
+            });callback.start();
+            try {
+                var node=java.nio.file.Path.of(System.getProperty("user.dir")).resolve("../coding-agent-node").normalize();
+                String source="""
+                    import {Agent} from '@cline/agents';
+                    import {createRuntimeModel} from './src/runtime-model.js';
+                    import {httpGateway} from './src/server.js';
+                    const contract={taskId:'test',budget:{deadlineAt:new Date(Date.now()+1200000).toISOString()}};
+                    const gateway=httpGateway('http://127.0.0.1:%d','test-secret',{}, {timeoutMs:25});
+                    const model=createRuntimeModel({...gateway,atomicModelAttempts:false},contract,0,{nativeSdk:true});
+                    const agent=new Agent({model,maxIterations:2});
+                    for(let i=0;i<2;i++) {
+                      const result=await agent.run('say done');
+                      if(result.status!=='completed')throw Error('Native Cline run did not complete');
+                    }
+                    console.log('NATIVE_CLINE_TIMEOUT_CHAIN_OK');
+                    """.formatted(callback.getAddress().getPort());
+                var process=new ProcessBuilder("node","--input-type=module","-e",source).directory(node.toFile()).redirectErrorStream(true).start();
+                assertThat(process.waitFor(20,java.util.concurrent.TimeUnit.SECONDS)).as("Native SDK callback finishes").isTrue();
+                String output=new String(process.getInputStream().readAllBytes(),java.nio.charset.StandardCharsets.UTF_8);
+                assertThat(process.exitValue()).withFailMessage(output).isZero();
+                assertThat(output).contains("NATIVE_CLINE_TIMEOUT_CHAIN_OK");
+                assertThat(observed.subList(3,5)).containsOnly(java.time.Duration.ofSeconds(600));
+                assertThat(calls.get()).isEqualTo(5);
+            } finally {callback.stop(0);}
+        } finally {server.stop(0);}
+    }
     @Test void incompatibleToolSchemaHasDefinitiveLocalEvidenceAndNeverCallsAProvider() throws Exception {
         var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);
         when(resources.defaultChatModel()).thenReturn("registered-model");

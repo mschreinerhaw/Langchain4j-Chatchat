@@ -15,6 +15,7 @@ public final class VisualReportMode {
     public static boolean analysisRequested(Map<String,?> attributes){return active(attributes)
         && ("DATA_ANALYSIS".equals(attributes.get("taskType"))||"DATA_ANALYSIS".equals(attributes.get("workflowFamily")));}
     public static final String SCHEMA="python_visual_report.v1";
+    public static String instruction(Map<String,?> attributes){return INSTRUCTION+ReportPresentation.instruction(attributes);}
     public static final String INSTRUCTION="""
         Visual report mode is enabled for THIS analysis only. Reuse the delivered immutable inputs and the calculations you already perform; never fetch the same data again for charts.
         In the single rows.jsonl report row ALSO write visualReport, an object with schemaVersion='python_visual_report.v1', title, summary,

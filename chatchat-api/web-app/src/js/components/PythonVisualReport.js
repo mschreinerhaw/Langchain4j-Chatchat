@@ -1,7 +1,8 @@
-import { computed, defineComponent, h, ref, watch, onBeforeUnmount } from "vue";
+import { computed, defineComponent, h, ref, watch, onBeforeUnmount, useId } from "vue";
 import { reviewArchivedVisualReport } from "../utils/pythonVisualReport.js";
 import PythonReportChart from "../../components/PythonReportChart.vue";
 import { renderReportNarrative } from "../utils/reportNarrative.js";
+import { reportLayout } from '../utils/reportLayout.js';
 
 const ReportTable = defineComponent({
   props: { table: Object },
@@ -33,7 +34,7 @@ const ReportTable = defineComponent({
 });
 
 export default defineComponent({
-  name: "PythonVisualReport",
+  name: "ReportRenderer",
   components: { PythonReportChart, ReportTable },
   props: {
     report: { type: Object, default: null },
@@ -44,6 +45,9 @@ export default defineComponent({
     const props = componentProps;
     const reviewedReport = ref(null);
     const report = computed(() => reviewedReport.value || props.report);
+    const layout = computed(() => reportLayout(report.value || {}));
+    const reportId = `report-${useId()}`;
+    const contents = computed(() => layout.value.blocks.filter(block=>block.type==='section'&&block.value?.title));
     let reviewRequest;
     watch(() => props.report, value => {
       reviewedReport.value = null;
@@ -58,7 +62,7 @@ export default defineComponent({
       }).catch(() => { /* Preserve the original result when archive verification fails. */ });
     }, { immediate: true });
     onBeforeUnmount(() => reviewRequest?.abort());
-    const showSectionText = section => String(section.title || '').trim() !== '图表分析';
+    const showSectionText = section => Boolean(report.value?.layout) || String(section.title || '').trim() !== '图表分析';
     const chartFailures = ref({});
     function chartStatus(event) {
       if (event.error) chartFailures.value = { ...chartFailures.value, [event.id]: event.error };
@@ -88,33 +92,17 @@ export default defineComponent({
           NO_DATA: "没有可分析数据",
         })[deliveryStatus.value] || "正在生成"
     );
-    const chartsFor = (ids) =>
-      (report.value?.charts || []).filter((chart) => (ids || []).includes(chart.id));
-    const tablesFor = (ids) =>
-      (report.value?.tables || []).filter((table) => (ids || []).includes(table.id));
-    const looseCharts = computed(() =>
-      (report.value?.charts || []).filter(
-        (chart) =>
-          !(report.value?.sections || []).some((section) => section.chartIds?.includes(chart.id))
-      )
-    );
-    const looseTables = computed(() =>
-      (report.value?.tables || []).filter(
-        (table) =>
-          !(report.value?.sections || []).some((section) => section.tableIds?.includes(table.id))
-      )
-    );
     return {
       renderReportNarrative,
       report,
+      layout,
+      reportId,
+      contents,
+      scrollToBlock: block => document.getElementById(`${reportId}-${block.id}`)?.scrollIntoView({behavior:'smooth',block:'start'}),
       showSectionText,
       chartStatus,
       deliveryStatus,
       statusLabel,
-      chartsFor,
-      tablesFor,
-      looseCharts,
-      looseTables,
     };
   },
 });

@@ -1,0 +1,28 @@
+{
+  "targetedVitest": {
+    "tests": 93,
+    "passed": 93
+  },
+  "terminalEventNode": {
+    "tests": 4,
+    "passed": 4
+  },
+  "broaderUiArtifact": {
+    "tests": 339,
+    "passed": 338,
+    "failed": 1,
+    "failure": "Existing artifactPresentationStyles MCP action button source-string assertion; relevant source/test unchanged"
+  },
+  "productionBackendRestarted": false,
+  "realTask": "18dd6a61-6d20-4506-8179-ca3cc0c8a8b4",
+  "realTaskStatus": "SUCCEEDED",
+  "realEventCount": 216,
+  "failedOperationSequences": [
+    120,
+    121
+  ],
+  "successSequences": [
+    215,
+    216
+  ]
+}

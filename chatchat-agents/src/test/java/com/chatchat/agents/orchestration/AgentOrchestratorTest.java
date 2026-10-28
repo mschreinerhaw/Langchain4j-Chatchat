@@ -3722,9 +3722,9 @@ class AgentOrchestratorTest {
             .isInstanceOf(com.chatchat.agents.orchestration.model.AgentDeadlineExceededException.class);
     }
 
-    @Test void qaDiscoveryRetainsItsExistingReviewPhaseCap() {
-        org.assertj.core.api.Assertions.assertThatThrownBy(() -> reviewSlowAssetCandidates(Map.of(),1000))
-            .isInstanceOf(com.chatchat.agents.orchestration.model.ModelPhaseBudgetExceededException.class);
+    @Test void qaDiscoveryAlsoUsesTheSelectedModelAndRequestBudget() {
+        var review=reviewSlowAssetCandidates(Map.of(),1000);
+        assertThat(review.metadata()).containsEntry("selectedAssetIds",List.of("b"));
     }
 
     private InterpretationPlanRuntime.StepReview reviewSlowAssetCandidates(Map<String,Object> attributes,long remaining) {
@@ -3739,7 +3739,7 @@ class AgentOrchestratorTest {
         when(registry.getToolMetadata("assets")).thenReturn(ToolMetadata.builder().metadata(Map.of(
             "workflowContract",com.chatchat.common.tool.ToolWorkflowContract.declaration(
                 com.chatchat.common.tool.ToolWorkflowRole.ASSET_DISCOVERY,"asset.v1","filters"))).build());
-        var properties=new AgentRuntimeProperties();properties.setToolResultReviewTimeoutMs(1);
+        var properties=new AgentRuntimeProperties();
         var service=new ToolRuntimeService(registry,new ObjectMapper(),toolRuntimeProperties(),List.of(),List.of());
         try {
             var orchestrator=new AgentOrchestrator(model,registry,service,new ObjectMapper(),new ModelsConfig(),

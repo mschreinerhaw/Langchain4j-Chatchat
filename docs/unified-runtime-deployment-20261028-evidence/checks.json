@@ -1,0 +1,38 @@
+{
+  "checks": {
+    "databases": {
+      "api": {
+        "status": "SCHEMA_CONTRACT_VERIFIED",
+        "tables": 120,
+        "expectedTables": [
+          "agent_task_latest",
+          "platform_model_config"
+        ],
+        "migrationVersion": "No global migration ledger configured; table contract only"
+      },
+      "mcp": {
+        "status": "SCHEMA_CONTRACT_VERIFIED",
+        "tables": 63,
+        "expectedTables": [
+          "mcp_data_capability",
+          "mcp_data_capability_execution"
+        ],
+        "migrationVersion": "No global migration ledger configured; table contract only"
+      },
+      "news": {
+        "status": "FILE_PRESENT",
+        "schema": "Must also pass the running News/JPA business probes"
+      }
+    },
+    "opensearch": {
+      "status": "AUTHENTICATED_TLS_VERIFIED",
+      "clusterStatus": "yellow",
+      "indices": 172,
+      "writeRead": false
+    }
+  },
+  "warnings": [
+    "Temporal workflow history is memory-only; durable deployment not accepted"
+  ],
+  "businessAcceptance": "NOT_RUN"
+}

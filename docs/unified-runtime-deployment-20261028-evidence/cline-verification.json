@@ -1,0 +1,41 @@
+{
+  "case": "normal",
+  "taskId": "a361f83c-85b9-30a4-867f-cf331d4913db",
+  "attemptId": "att-1-4e947fc1-72d9-4144-a47f-9e4ec41c0312",
+  "canonicalState": "SUCCEEDED",
+  "eventCount": 131,
+  "executionObservations": 22,
+  "confirmedExecutionObserved": true,
+  "stoppedExecutionObserved": true,
+  "workerTypes": [
+    "CODE_READY",
+    "CONTEXT_READY",
+    "EXECUTION_FEEDBACK",
+    "MODEL_RESOLVED",
+    "MODEL_STARTED",
+    "MODEL_TIMING",
+    "MODEL_USAGE",
+    "TOOL_FINISHED",
+    "TOOL_STARTED",
+    "TOOL_TIMING"
+  ],
+  "expectedTotalReported": true,
+  "coding": [
+    {
+      "taskId": "analysis-coding-288e8d69c09f5989e443b967c5f1bd858303367f7bba888eca9af1f818b9cc40",
+      "status": "COMPLETED",
+      "validationStatus": "INCONCLUSIVE",
+      "usage": {
+        "modelCalls": 4,
+        "modelTokens": 85160,
+        "toolCalls": 3,
+        "codeExecutions": 2,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 22808,
+        "costAmount": "0"
+      }
+    }
+  ],
+  "nativeSdkEnabled": true
+}

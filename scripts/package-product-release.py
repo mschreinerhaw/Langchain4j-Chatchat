@@ -19,6 +19,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--release-dir', required=True, type=Path)
     parser.add_argument('--output-dir', required=True, type=Path)
+    parser.add_argument('--infrastructure-images-file', type=Path,
+                        help='Offline full-install image manifest: {"images":[{"tag":...,"imageId":...}]}')
     args = parser.parse_args()
     root, destination = args.release_dir.resolve(), args.output_dir.resolve()
     manifest = json.loads((root / 'release-manifest.json').read_text())
@@ -29,14 +31,20 @@ def main():
     images += ['runtime-os-api-runtime:' + version, 'runtime-os-java-base:temurin17-jammy-20261022',
                'nginx:1.27.5-alpine', 'chatchat-python-runtime:3.11-v1.1',
                'chatchat-python-runtime:3.11-v1.2-cjk-20261021']
+    pinned = {}
+    if args.infrastructure_images_file:
+        pinned = {row['tag']: row['imageId'] for row in json.loads(args.infrastructure_images_file.read_text())['images']}
+        images += [tag for tag in pinned if tag not in images]
     records = []
     for image in images:
         data = json.loads(subprocess.check_output(['docker', 'image', 'inspect', image], text=True))[0]
+        if image in pinned and data['Id'] != pinned[image]:
+            raise RuntimeError('Infrastructure image differs from approved offline manifest: ' + image)
         records.append({'tag': image, 'imageId': data['Id'], 'sizeBytes': data['Size']})
     manifest['images'] = records
     manifest['packaging'] = {'platform': 'linux/amd64', 'containsCredentials': False,
         'containsUserData': False, 'containsJarCopies': False,
-        'infrastructure': 'PostgreSQL, OpenSearch, Redis and object storage are external prerequisites'}
+        'infrastructure': 'Explicit pinned infrastructure images included' if pinned else 'Existing infrastructure required; no downloads on deployment host'}
     (root / 'release-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     archive = root / 'images.tar.gz'
     temporary = root / 'images.tar.gz.partial'
@@ -50,8 +58,13 @@ def main():
     checksums = {'images.tar.gz': digest(archive), 'release-manifest.json': digest(root / 'release-manifest.json')}
     (root / 'SHA256SUMS').write_text(''.join(h + '  ' + name + '\n' for name, h in checksums.items()))
     included = [archive, root / 'SHA256SUMS', root / 'release-manifest.json', root / 'RELEASE_VERSION']
-    for folder in ('deploy/docker/application', 'docs', 'database/init/postgresql'):
+    for folder in ('deploy/docker/application', 'deploy/docker/mysql', 'deploy/docker/redis', 'deploy/temporal',
+                   'docs', 'database/init/postgresql', 'database/init/mysql'):
         included += [p for p in (root / folder).rglob('*') if p.is_file() and '__pycache__' not in p.parts]
+    included += [root / name for name in ('deploy/docker/docker-compose.yaml', 'deploy/docker/README.md',
+        'deploy/docker/runtime-deploy.py', 'deploy/docker/runtime-deployment.example.json',
+        'deploy/docker/runtime-deployment.full.example.json', 'deploy/docker/RUNTIME-DEPLOYMENT.zh-CN.md',
+        'deploy/docker/opensearch/opensearch.yml')]
     included += [root / 'scripts' / name for name in ('release-product.py', 'verify-product-release.py',
                   'package-product-release.py', 'application_image_build.py', 'jar-delta.py')]
     for name in ('acceptance.json', 'build.json', 'deployment.json', 'cleanup.json', 'online-verification.json', 'business-acceptance.json', 'base-provenance.json'):

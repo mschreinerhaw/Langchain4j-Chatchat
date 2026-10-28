@@ -110,7 +110,10 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
             context.problemAnalysisPlan().tasks().stream().anyMatch(task->task.taskType()==com.chatchat.common.runtime.capability.ProblemAnalysisPlan.TaskType.DATA_ANALYSIS)
                 ?com.chatchat.common.runtime.capability.ProblemAnalysisPlan.TaskType.DATA_ANALYSIS:com.chatchat.common.runtime.capability.ProblemAnalysisPlan.TaskType.QA;
         if(taskType!=null)attrs.put("taskType",taskType.name());
-        if(com.chatchat.common.runtime.coding.VisualReportMode.active(internal))attrs.put("reportMode","visual");
+        if(com.chatchat.common.runtime.coding.VisualReportMode.active(internal)){
+            attrs.put("reportMode","visual");
+            attrs.put("reportPresentation",com.chatchat.common.runtime.coding.ReportPresentation.read(internal));
+        }
         for (String key : List.of("__agentRunId", "__agentCancellation", "__agentDeadlineAt"))
             if (internal.get(key) != null) attrs.put(key, internal.get(key));
         var metadata = new LinkedHashMap<String,Object>();
@@ -204,7 +207,7 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
         if(visual)instruction+="\n"+(conditionalVisual?"This context-only route has no preclassified analytical task. The report preference NEVER changes the user's task. "
             +"For ordinary knowledge questions, explanations, writing, translations or proposed code/schema designs, OMIT visualReport entirely and answer normally; do not create charts or invent data to satisfy the preference. "
             +"ONLY if the actual request requires calculations on supplied data, apply the following visual-output contract. An optional output field is not a requirement to perform analysis.\n":"")
-            +com.chatchat.common.runtime.coding.VisualReportMode.INSTRUCTION;
+            +com.chatchat.common.runtime.coding.VisualReportMode.instruction(attrs);
             instruction += "\nUntrusted user objective preview (full source is in the immutable input):\n"
                 + preview(Objects.toString(request.getQuery(), ""), Math.min(6000, 16000 - instruction.length() - 120));
             runs.recordObservation(runId, new AgentObservation("analysis_task", "runtime", "Analysis task built and inputs bound",

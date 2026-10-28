@@ -28,16 +28,11 @@ public final class ClineRuntimeModelBridge {
     private final ObjectMapper json;
     private CodingParentModels parentModels;
     private CodingWorkspaceService workspace;
-    private long maxModelCallMillis;
     private com.chatchat.agents.runtime.coding.DurableCodingTaskService runtimeTasks;
     private com.chatchat.api.runtime.coding.CodingInvocationContext runtimeIdentity;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setRuntimeGuard(com.chatchat.agents.runtime.coding.DurableCodingTaskService tasks,
             com.chatchat.api.runtime.coding.CodingInvocationContext identity) { runtimeTasks=tasks;runtimeIdentity=identity; }
-    @org.springframework.beans.factory.annotation.Value("${chatchat.coding.cline.max-model-call-millis:0}")
-    public void setMaxModelCallMillis(long value) {
-        if(value<0)throw new IllegalArgumentException("Negative model call budget");maxModelCallMillis=value;
-    }
     private int configuredMaxOutputTokens = 8192;
     private int workspaceMaxOutputTokens=8192;
     private int fastPathMaxOutputTokens=8192;
@@ -173,7 +168,7 @@ public final class ClineRuntimeModelBridge {
         String responseMode;
         try(var timing=com.chatchat.agents.orchestration.model.MeteredChatModel.observeTiming()) {
             var selected=parent==null?models.create(modelName,Duration.ofMillis(remaining.getAsLong()),outputLimit):parent;
-            var dispatchModel=com.chatchat.agents.orchestration.model.ToolExecutionModels.independent(selected,remaining,cancelled,maxModelCallMillis);
+            var dispatchModel=com.chatchat.agents.orchestration.model.ToolExecutionModels.independent(selected,remaining,cancelled,0);
             var dispatchRequest=ChatRequest.builder().messages(messages).toolSpecifications(tools).parameters(requestParameters).build();
             providerDispatched = true;
             answer=dispatchModel.chat(dispatchRequest);

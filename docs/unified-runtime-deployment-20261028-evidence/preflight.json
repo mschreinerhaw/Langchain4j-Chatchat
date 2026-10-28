@@ -1,0 +1,6 @@
+{
+  "failures": [],
+  "warnings": [
+    "Temporal workflow history is memory-only; durable deployment not accepted"
+  ]
+}

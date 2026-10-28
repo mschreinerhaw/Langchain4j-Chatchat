@@ -18,6 +18,7 @@ services:
       - postgresql_admin_password
       - postgresql_api_password
       - postgresql_mcp_password
+      - postgresql_news_password
     healthcheck:
       test: [CMD-SHELL, 'test -f "$${PGDATA}/.runtime-schema-initialized" && pg_isready -h 127.0.0.1 -U postgres -d postgres']
       interval: 5s
@@ -156,6 +157,8 @@ services:
         target: CHATCHAT_SEARCH_OPENSEARCH_PASSWORD
       - source: bootstrap_admin_password
         target: chatchat.enterprise.bootstrap.admin-password
+      - source: internal_credential_encrypted
+        target: chatchat.internal-credential.encrypted-secret
     networks:
       control: {}
       coding: {}
@@ -187,7 +190,7 @@ services:
     environment:
       SERVER_PORT: "8090"
       SPRING_PROFILES_ACTIVE: prod
-      JAVA_TOOL_OPTIONS: -Xms128m -Xmx1024m -Dfile.encoding=UTF-8 -Djavax.net.ssl.trustStore=/srv/app/config/opensearch-truststore.p12 -Djavax.net.ssl.trustStorePassword=changeit
+      JAVA_TOOL_OPTIONS: -Xms128m -Xmx1024m -Dfile.encoding=UTF-8 -Djavax.net.ssl.trustStore=/run/runtime-truststore.p12 -Djavax.net.ssl.trustStorePassword=changeit
       CHATCHAT_DATASOURCE_CONFIG: datasource-postgresql.yml
       CHATCHAT_MCP_POSTGRESQL_URL: jdbc:postgresql://postgresql:5432/live_runtime_mcp
       CHATCHAT_MCP_POSTGRESQL_USERNAME: chatchat_mcp
@@ -216,7 +219,7 @@ services:
       - ${STAGE_ROOT}/mcp/logs:/srv/app/logs
       - /var/run/docker.sock:/var/run/docker.sock
       - ./service-healthcheck.sh:/opt/runtime/service-healthcheck.sh:ro
-      - ${OPENSEARCH_TRUSTSTORE_FILE}:/srv/app/config/opensearch-truststore.p12:ro
+      - ${OPENSEARCH_TRUSTSTORE_FILE}:/run/runtime-truststore.p12:ro
       - type: bind
         source: ${MCP_HOST_MAC_FILE:?Set the host physical NIC address file}
         target: /run/license/host-mac
@@ -225,11 +228,13 @@ services:
           create_host_path: false
     secrets:
       - source: mcp_internal_key
-        target: /srv/app/config/internal-credential.key
+        target: news_internal_key
       - source: postgresql_mcp_password
         target: CHATCHAT_MCP_POSTGRESQL_PASSWORD
       - source: opensearch_admin_password
         target: chatchat.mcp.lucene.open-search.password
+      - source: internal_credential_encrypted
+        target: chatchat.internal-credential.encrypted-secret
       - redis_password
     networks:
       - control
@@ -243,6 +248,11 @@ services:
     restart: unless-stopped
     stop_grace_period: 60s
     env_file: ${STAGE_ROOT}/config/news.env
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      opensearch-security-init:
+        condition: service_completed_successfully
     healthcheck:
       test: [CMD, bash, /opt/runtime/service-healthcheck.sh, '8091', '', /internal/v1/news/health]
       interval: 10s
@@ -252,7 +262,18 @@ services:
     environment:
       SERVER_PORT: "8091"
       SPRING_CONFIG_ADDITIONAL_LOCATION: optional:file:/srv/app/config/
-      JAVA_TOOL_OPTIONS: -Xms128m -Xmx1024m -Dfile.encoding=UTF-8
+      JAVA_TOOL_OPTIONS: -Xms128m -Xmx1024m -Dfile.encoding=UTF-8 -Djavax.net.ssl.trustStore=/run/runtime-truststore.p12 -Djavax.net.ssl.trustStorePassword=changeit
+      SPRING_PROFILES_ACTIVE: ${NEWS_PROFILE:-postgresql}
+      SPRING_CONFIG_IMPORT: optional:configtree:/run/secrets/
+      CHATCHAT_NEWS_POSTGRESQL_URL: ${NEWS_POSTGRESQL_URL:-jdbc:postgresql://postgresql:5432/chatchat_news}
+      CHATCHAT_NEWS_POSTGRESQL_USERNAME: ${NEWS_POSTGRESQL_USERNAME:-chatchat_news}
+      CHATCHAT_RUNTIME_NEWS_OPENSEARCH_ENABLED: 'true'
+      CHATCHAT_RUNTIME_NEWS_OPENSEARCH_ENDPOINT: ${NEWS_OPENSEARCH_ENDPOINT:-https://opensearch:9200}
+      CHATCHAT_RUNTIME_NEWS_OPENSEARCH_USERNAME: ${NEWS_OPENSEARCH_USERNAME:-admin}
+      CHATCHAT_RUNTIME_NEWS_OPENSEARCH_INSECURESSL: 'false'
+      CHATCHAT_RUNTIME_NEWS_WEBSEARCH_ENABLED: 'true'
+      CHATCHAT_RUNTIME_NEWS_WEBSEARCH_CACHE_ENABLED: 'true'
+      CHATCHAT_INTERNALCREDENTIAL_CRYPTOKEYFILE: /run/secrets/news_internal_key
       CHATCHAT_RUNTIME_NEWS_MCP_SERVER_BASE_URL: http://mcp:8090
     extra_hosts:
       - host.docker.internal:host-gateway
@@ -270,6 +291,25 @@ services:
           create_host_path: false
       - ${STAGE_ROOT}/news/logs:/srv/app/logs
       - ./service-healthcheck.sh:/opt/runtime/service-healthcheck.sh:ro
+      - type: bind
+        source: ${OPENSEARCH_TRUSTSTORE_FILE}
+        target: /run/runtime-truststore.p12
+        read_only: true
+        bind:
+          create_host_path: false
+    secrets:
+      - source: postgresql_news_password
+        target: CHATCHAT_NEWS_POSTGRESQL_PASSWORD
+      - source: opensearch_admin_password
+        target: chatchat.runtime.news.open-search.password
+      - source: news_internal_key
+        target: news_internal_key
+      - source: internal_credential_encrypted
+        target: chatchat.internal-credential.encrypted-secret
+      - source: wsa_secret_id
+        target: chatchat.runtime.news.web-search.secret-id
+      - source: wsa_secret_key
+        target: chatchat.runtime.news.web-search.secret-key
     networks:
       - control
     security_opt:
@@ -290,7 +330,7 @@ services:
       retries: 12
     environment:
       NODE_ENV: production
-      CLINE_NATIVE_SDK_ENABLED: ${CODING_NATIVE_SDK_ENABLED:-false}
+      CLINE_NATIVE_SDK_ENABLED: ${CODING_NATIVE_SDK_ENABLED:-true}
       RUNTIME_CODING_HOST: 0.0.0.0
       RUNTIME_CODING_PORT: "3100"
       RUNTIME_CODING_CALLBACK_URL: ${CODING_CALLBACK_URL:-http://api:8080}
@@ -380,6 +420,16 @@ secrets:
     file: ${POSTGRESQL_API_PASSWORD_FILE:?Set POSTGRESQL_API_PASSWORD_FILE}
   postgresql_mcp_password:
     file: ${POSTGRESQL_MCP_PASSWORD_FILE:?Set POSTGRESQL_MCP_PASSWORD_FILE}
+  postgresql_news_password:
+    file: ${NEWS_DATABASE_PASSWORD_FILE:?Set NEWS_DATABASE_PASSWORD_FILE}
+  news_internal_key:
+    file: ${NEWS_INTERNAL_KEY_FILE:?Set NEWS_INTERNAL_KEY_FILE}
+  internal_credential_encrypted:
+    file: ${INTERNAL_CREDENTIAL_ENCRYPTED_FILE:?Set INTERNAL_CREDENTIAL_ENCRYPTED_FILE}
+  wsa_secret_id:
+    file: ${WSA_SECRET_ID_FILE:?Set WSA_SECRET_ID_FILE}
+  wsa_secret_key:
+    file: ${WSA_SECRET_KEY_FILE:?Set WSA_SECRET_KEY_FILE}
   redis_password:
     file: ${REDIS_PASSWORD_FILE:?Set REDIS_PASSWORD_FILE}
   opensearch_admin_password:

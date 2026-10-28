@@ -770,7 +770,10 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             copyInternalExecutionAttribute(request, attributes, "__parentAttemptId");
             copyInternalExecutionAttribute(request, attributes, "__executionAttemptNumber");
             Object responseContract = request.getToolInput().get("responseContract");
-            if(com.chatchat.common.runtime.coding.VisualReportMode.active(request.getToolInput()))attributes.put("reportMode","visual");
+            if(com.chatchat.common.runtime.coding.VisualReportMode.active(request.getToolInput())){
+                attributes.put("reportMode","visual");
+                attributes.put("reportPresentation",com.chatchat.common.runtime.coding.ReportPresentation.read(request.getToolInput()));
+            }
             Object visualizationTypes = request.getToolInput().get("visualizationSupportedTypes");
             if (visualizationTypes instanceof java.util.Collection<?> types) {
                 attributes.put("visualizationSupportedTypes", types.stream().filter(String.class::isInstance).limit(32).toList());

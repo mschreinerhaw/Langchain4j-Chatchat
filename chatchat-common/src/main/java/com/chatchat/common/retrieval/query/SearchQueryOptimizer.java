@@ -211,7 +211,7 @@ public final class SearchQueryOptimizer implements AutoCloseable {
         if (budget.isModelRefinementEnabled() && scope.root().refinements < budget.getMaxRefinementCalls()) {
             if (refiner == null) throw new QueryOptimizationException("QUERY_REFINER_UNAVAILABLE", "Model refinement enabled without a registered refiner");
             scope.root().refinements++;
-            int timeout = Math.min(scope.remainingMillis(), budget.getRefinementTimeoutMs());
+            int timeout = scope.remainingMillis(); // Retrieval lifecycle budget, not a separate model request timeout.
             try {
                 var protectedPhrases = extracted.protectedPhrases();
                 refined = await(() -> refiner.refine(original, protectedPhrases,

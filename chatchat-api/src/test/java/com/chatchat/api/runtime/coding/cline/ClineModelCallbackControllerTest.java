@@ -38,6 +38,14 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClineModelCallbackControllerTest {
+    @Test void modelTimeoutCauseIsRetainedWithoutMislabelingTaskCancellation() {
+        assertThat(ClineModelCallbackController.isRequestTimeout(new IllegalStateException("provider",
+            new java.net.http.HttpTimeoutException("request timed out")))).isTrue();
+        assertThat(ClineModelCallbackController.isRequestTimeout(new IllegalStateException("stream",
+            new java.util.concurrent.TimeoutException()))).isTrue();
+        assertThat(ClineModelCallbackController.isRequestTimeout(new java.util.concurrent.CancellationException())).isFalse();
+        assertThat(ClineModelCallbackController.isRequestTimeout(new com.chatchat.agents.orchestration.model.AgentDeadlineExceededException("task deadline"))).isFalse();
+    }
     @Test void retainsToolPairingIdentityWithoutPrivateWorkerPayloads() {
         var controller = new ClineModelCallbackController(null,null,null,null,null,null,null,new ObjectMapper());
         var event = new ObjectMapper().createObjectNode().put("type","TOOL_STARTED")

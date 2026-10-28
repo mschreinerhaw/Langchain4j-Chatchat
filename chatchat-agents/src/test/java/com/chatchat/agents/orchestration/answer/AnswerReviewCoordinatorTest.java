@@ -20,7 +20,7 @@ class AnswerReviewCoordinatorTest {
             new AgentAnswerReview(AgentAnswerReview.REVISED,
                 "# Short report\n\nA newly asserted asset fact.", "Shortened by reviewer");
         AnswerReviewCoordinator coordinator = new AnswerReviewCoordinator(
-            reviewer, new AnswerEvidenceLedgerCompiler(), 0);
+            reviewer, new AnswerEvidenceLedgerCompiler());
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("agentRunId", "run-review-retention");
         metadata.put("analysisReportContract", Map.of("reportType", "MODEL_REPORT"));

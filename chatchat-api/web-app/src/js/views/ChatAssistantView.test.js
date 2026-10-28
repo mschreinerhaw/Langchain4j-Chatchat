@@ -1,11 +1,56 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { apiRequest, submitAgentTask, fetchAgentTaskEvents } from "../../services/api";
+import { apiRequest, submitAgentTask, fetchAgentTaskEvents, streamAgentTaskEvents } from "../../services/api";
 
 vi.mock("../../services/api", async (importOriginal) => ({
   ...await importOriginal(), apiRequest: vi.fn(), submitAgentTask: vi.fn(),
-  fetchAgentTaskEvents: vi.fn()
+  fetchAgentTaskEvents: vi.fn(), streamAgentTaskEvents: vi.fn()
 }));
-afterEach(() => vi.resetAllMocks());
+afterEach(() => {vi.resetAllMocks();vi.unstubAllGlobals();});
+
+describe('task completion reconciles with the backend lifecycle', () => {
+  it('keeps streaming after a failed round and a result while the task is repairing, then accepts final success', async () => {
+    let handlers;
+    streamAgentTaskEvents.mockImplementation((_id, _filters, value) => {handlers=value;return Promise.resolve();});
+    apiRequest.mockResolvedValue({canonicalState:'REPAIRING',attemptId:'current',lastEventSequence:2});
+    const ctx={isActiveRun:()=>true,emitActiveConversationSnapshot:vi.fn(),scrollMessages:vi.fn()};
+    const message={steps:[],status:'running',streaming:true},run={messages:[message]};
+    const result=ChatAssistantView.methods.waitForAgentTaskEventStream.call(ctx,'task','tenant',run,message);
+    handlers.event({type:'ERROR',status:'FAILED',attemptId:'current',sequence:1});
+    await vi.waitFor(()=>expect(apiRequest).toHaveBeenCalledTimes(1));
+    expect(message.status).toBe('running');expect(message.executionTerminal).toBe(false);
+    expect(run.taskEventStreamController.signal.aborted).toBe(false);
+    handlers.event({type:'RESULT',status:'SUCCESS',attemptId:'current',sequence:2});
+    await vi.waitFor(()=>expect(apiRequest).toHaveBeenCalledTimes(2));
+    expect(message.status).toBe('running');expect(run.taskEventSequence).toBe(2);
+    apiRequest.mockResolvedValue({canonicalState:'SUCCEEDED',status:'SUCCESS',attemptId:'current',lastEventSequence:4});
+    handlers.event({type:'RUNTIME_OBSERVATION',status:'RUNNING',attemptId:'current',sequence:3});
+    handlers.event({type:'ANSWER',status:'SUCCESS',attemptId:'current',sequence:4});
+    await expect(result).resolves.toMatchObject({type:'ANSWER',sequence:4});
+    expect(message.status).toBe('completed');expect(message.executionTerminal).toBe(true);
+  });
+
+  it('corrects a persisted UI failure from a running snapshot without closing open steps', async () => {
+    apiRequest.mockResolvedValue({canonicalState:'EXECUTING',attemptId:'current',lastEventSequence:2});
+    fetchAgentTaskEvents.mockResolvedValue([{type:'ERROR',status:'FAILED',sequence:1},
+      {type:'MODEL_REQUEST_STARTED',status:'RUNNING',sequence:2}]);
+    const message={status:'failed',executionTerminal:true,steps:[]},run={replayFromStart:true};
+    const result=await ChatAssistantView.methods.refreshAgentTaskSteps.call(
+      {isActiveRun:()=>false,emitActiveConversationSnapshot:vi.fn()},'task','tenant',run,message);
+    expect(result).toBeNull();expect(message.status).toBe('running');
+    expect(message.executionTerminal).toBe(false);expect(message.streaming).toBe(true);
+  });
+
+  it('continues result polling when the returned error belongs to a retryable execution round', async () => {
+    vi.stubGlobal('window',{setTimeout});
+    let tracked=true;
+    apiRequest.mockImplementation(async path => path.includes('/result?')
+      ? {type:'ERROR',status:'FAILED',sequence:1} : {canonicalState:'RETRY_WAIT',lastEventSequence:1});
+    const result=ChatAssistantView.methods.waitForAgentTaskResult.call({},'task','tenant',null,()=>tracked);
+    await vi.waitFor(()=>expect(apiRequest).toHaveBeenCalledTimes(2));
+    tracked=false;
+    await expect(result).rejects.toMatchObject({code:'AGENT_TASK_POLLING_STOPPED'});
+  });
+});
 
 describe('read-only full event replay', () => {
   function context() {

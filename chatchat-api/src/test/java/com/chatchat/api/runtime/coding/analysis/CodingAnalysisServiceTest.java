@@ -24,6 +24,20 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class CodingAnalysisServiceTest {
+    @Test void layoutPreferencesReachTheSameCodingContractWithoutAnAdditionalModelCall(){
+        prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
+        when(inputs.captureConfigured(any(),anyString(),anyList(),anyString(),anyString(),anyString(),anyLong(),anyLong(),any()))
+            .thenReturn(new CodingInputSnapshotService.Snapshot("runtime-evidence:input","c"+"a".repeat(63),"input.jsonl","a".repeat(64),1,30,"source"));
+        var original=context("tenant");var prefs=Map.of("strategy","concise","density","compact","autoCharts",false,"autoImages",false);
+        var parent=new AnalysisCoverageCoordinator.Request(original.model(),original.query(),null,
+            Map.of("reportMode","visual","taskType","DATA_ANALYSIS","reportPresentation",prefs),original.metadata(),
+            ()->false,()->{},original.isolationScope(),null);
+        service().executePrimaryAnalysis(parent,sources(),event->{});
+        var capture=org.mockito.ArgumentCaptor.forClass(CodingTaskContract.class);verify(agent,times(1)).submit(capture.capture());
+        assertThat(capture.getValue().objective().instruction()).contains("report_layout.v1","concise","Do not rerun data acquisition");
+        assertThat(((Map<?,?>)capture.getValue().runtimeContext().get("reportPresentation")).get("autoCharts")).isEqualTo(false);
+        verify(original.model(),never()).chat(anyString());
+    }
     @Test void T13_passesEffectiveDefaultScopeToTheExistingCodingTurnWithoutAnotherReviewer() {
         prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
         var audit=Map.<String,Object>of("effectiveParameters",Map.of("subject","catalog-B"),

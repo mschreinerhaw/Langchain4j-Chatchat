@@ -15,13 +15,16 @@ public final class CodingConfigurationSnapshot {
     private static String modelIdentity(Object value) {
         var sorted = new TreeMap<String,Object>();
         if (value instanceof Map<?,?> map) map.forEach((key,item) -> sorted.put(String.valueOf(key),item));
+        // Request settings may be republished between physical calls; they are not model authorization.
+        sorted.remove("timeout");
+        sorted.remove("requestTimeoutSeconds");
         // JSON persistence can restore a small Long as Integer; this is the same effective parameter.
         return com.chatchat.agents.protocol.ModelProtocolJson.compact(sorted);
     }
     public static Map<String, Object> capture(Map<String, Object> attributes, Map<String, Object> metadata) {
         var model = new TreeMap<String, Object>();
         if (attributes.get("checkpointModelConfig") instanceof Map<?, ?> configured) {
-            for (String key : List.of("selectedModel", "providerModel", "protocol", "implementation", "timeout", "maxTokens", "maxRetries")) {
+            for (String key : List.of("selectedModel", "providerModel", "protocol", "implementation", "maxTokens", "maxRetries")) {
                 Object value = configured.get(key);
                 if (value instanceof String || value instanceof Integer || value instanceof Long || value instanceof Boolean)
                     model.put(key, value);

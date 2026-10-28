@@ -73,7 +73,7 @@ services:
     volumes:
       - opensearch-data:/usr/share/opensearch/data
       - ./opensearch/opensearch.yml:/usr/share/opensearch/config/opensearch.yml:ro
-      - ./opensearch/certs:/usr/share/opensearch/config/certs:ro
+      - ${OPENSEARCH_CERTS_DIR:-./opensearch/certs}:/usr/share/opensearch/config/certs:ro
     secrets: [opensearch_admin_password]
     ulimits:
       memlock: {soft: -1, hard: -1}
@@ -98,7 +98,7 @@ services:
         condition: service_healthy
     entrypoint: ["bash", "/opt/runtime/init-security.sh"]
     volumes:
-      - ./opensearch/certs:/usr/share/opensearch/config/certs:ro
+      - ${OPENSEARCH_CERTS_DIR:-./opensearch/certs}:/usr/share/opensearch/config/certs:ro
       - ./application/opensearch-init-security.sh:/opt/runtime/init-security.sh:ro
     secrets: [opensearch_admin_password]
     networks: [chatchat-backend]
@@ -113,14 +113,14 @@ volumes:
 
 secrets:
   mysql_root_password:
-    file: ../secrets/mysql_root_password.txt
+    file: ${MYSQL_ROOT_PASSWORD_FILE:-../secrets/mysql_root_password.txt}
   mysql_api_password:
-    file: ../secrets/mysql_api_password.txt
+    file: ${MYSQL_API_PASSWORD_FILE:-../secrets/mysql_api_password.txt}
   mysql_mcp_password:
-    file: ../secrets/mysql_mcp_password.txt
+    file: ${MYSQL_MCP_PASSWORD_FILE:-../secrets/mysql_mcp_password.txt}
   mysql_news_password:
-    file: ../secrets/mysql_news_password.txt
+    file: ${MYSQL_NEWS_PASSWORD_FILE:-../secrets/mysql_news_password.txt}
   redis_password:
-    file: ../secrets/redis_password.txt
+    file: ${REDIS_PASSWORD_FILE:-../secrets/redis_password.txt}
   opensearch_admin_password:
-    file: ../secrets/opensearch_admin_password.txt
+    file: ${OPENSEARCH_ADMIN_PASSWORD_FILE:-../secrets/opensearch_admin_password.txt}

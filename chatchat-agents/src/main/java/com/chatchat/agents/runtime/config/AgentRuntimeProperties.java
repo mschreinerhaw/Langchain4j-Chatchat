@@ -41,7 +41,6 @@ public class AgentRuntimeProperties {
     private int finalSummaryWebSearchMaxKeywords = 2;
     private int finalSummaryWebSearchResultLimit = 6;
     private int finalSummaryWebSearchEvidenceMaxChars = 16_000;
-    private long finalSummaryWebSearchTimeoutMs = 45_000;
     private int evidenceCompletionMaxRounds = 3;
     /** Enables the business-neutral Answer Contract, evidence gate, critic and targeted repair loop. */
     private boolean answerQualityPipelineEnabled = true;
@@ -49,15 +48,9 @@ public class AgentRuntimeProperties {
     private boolean answerRepairEnabled = true;
     /** Legacy review switch for non-data final responses; model-owned data reports always bypass it. */
     private boolean governedAnalysisPublicationReviewEnabled = false;
-    private long answerCriticTimeoutMs = 45_000;
     /** Reviewer-only resolved-input projection; execution and schema binding retain the original arguments. */
     private int toolReviewStepInputMaxChars = 4_000;
-    /** Optional result review budget; required Coding discovery uses the request deadline. */
-    private long toolResultReviewTimeoutMs = 60_000;
 
-    public long toolResultReviewTimeoutMs() {
-        return Math.max(1, toolResultReviewTimeoutMs);
-    }
     /** Hard wall-clock budget for one Agent execution; zero keeps the legacy unlimited behavior. */
     private long executionTimeoutMs = 0L;
     /** Resource budget for model-selected evidence navigation, rather than a business-analysis rule. */
@@ -159,17 +152,11 @@ public class AgentRuntimeProperties {
         return Math.max(2_000, Math.min(64_000, finalSummaryWebSearchEvidenceMaxChars));
     }
 
-    public long finalSummaryWebSearchTimeoutMs() {
-        return Math.max(5_000L, finalSummaryWebSearchTimeoutMs);
-    }
 
     public int evidenceCompletionMaxRounds() {
         return Math.max(1, Math.min(5, evidenceCompletionMaxRounds));
     }
 
-    public long answerCriticTimeoutMs() {
-        return Math.max(5_000L, answerCriticTimeoutMs);
-    }
 
     public long executionTimeoutMs() {
         return Math.max(0L, executionTimeoutMs);

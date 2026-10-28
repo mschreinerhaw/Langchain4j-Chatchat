@@ -64,18 +64,18 @@ public class PublishedModelAnalysis {
         try (Connection db = DriverManager.getConnection(url, username, password)) {
             db.setReadOnly(true);
             try (PreparedStatement query = db.prepareStatement("SELECT provider_model,base_url,protocol,"
-                + "api_key_cipher FROM platform_model_publication WHERE model_type='chat' AND enabled=TRUE AND name=?")) {
+                + "api_key_cipher,request_timeout_seconds FROM platform_model_publication WHERE model_type='chat' AND enabled=TRUE AND name=?")) {
                 query.setString(1, model);
                 try (ResultSet row = query.executeQuery()) {
                     if (!row.next()) throw new IllegalArgumentException("Published model unavailable");
                     connection.setModelName(row.getString("provider_model"));
                     connection.setBaseUrl(row.getString("base_url"));
                     connection.setProtocol(row.getString("protocol"));
+                    connection.setRequestTimeoutSeconds((Integer) row.getObject("request_timeout_seconds"));
                     connection.setApiKey(InternalSecretCipher.decryptIfNecessary(row.getString("api_key_cipher"), crypto));
                 }
             }
         }
-        connection.setTimeout(600000);
         connection.setMaxTokens(8192);
         connection.setMaxRetries(0);
         ModelsConfig models = new ModelsConfig();

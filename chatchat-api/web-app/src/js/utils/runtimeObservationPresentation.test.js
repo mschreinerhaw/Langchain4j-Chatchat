@@ -1,11 +1,30 @@
 import { describe, expect, it } from "vitest";
+import retriedStockTask from './fixtures/retried-stock-task.json';
 
 import {
   runtimeObservationIdentity,
-  runtimeObservationPresentation, businessEventPresentation, businessTaskProgress
+  runtimeObservationPresentation, businessEventPresentation, businessTaskProgress, executionWorkbench
 } from "./runtimeObservationPresentation.js";
 
 describe('business task progress', () => {
+  it('replays the 216 real task receipts: failed operations do not defeat the successful parent', () => {
+    const {events,snapshot}=retriedStockTask;
+    const task={status:'running',executionSnapshot:{...snapshot,canonicalState:'REPAIRING'}};
+    const repairing=executionWorkbench(events.filter(e=>e.sequence<=121),task);
+    expect(repairing.terminal).toBe(false);expect(repairing.status).toBe('retrying');
+    const completed=executionWorkbench(events,{status:'failed',executionSnapshot:snapshot});
+    expect(completed.terminal).toBe(true);expect(completed.status).toBe('done');
+    expect(completed.current).toBe(5);
+    expect(events.filter(e=>[120,121].includes(e.sequence)).every(e=>e.status==='FAILED')).toBe(true);
+  });
+  it('keeps a failed execution record while reporting ongoing recovery as active', () => {
+    const events=[{type:'ERROR',status:'FAILED',sequence:1},
+      {type:'RUNTIME_OBSERVATION',status:'RUNNING',sequence:2,
+        payload:{metadata:{eventKind:'CODING_TRACE',codingEventType:'TASK_STARTED',eventState:'RUNNING'}}}];
+    const progress=businessTaskProgress(events,{canonicalState:'REPAIRING'});
+    expect(progress.terminal).toBe(false);expect(progress.status).toBe('retrying');
+    expect(progress.steps[3].status).toBe('active');
+  });
   const coding = (type, state = 'RUNNING', sequence = 1, extra = {}) => ({ sequence, type: 'RUNTIME_OBSERVATION',
     status: 'RUNNING', payload: JSON.stringify({ payload: { metadata: { eventKind: 'CODING_TRACE',
       codingEventType: type, eventState: state, ...extra } } }) });

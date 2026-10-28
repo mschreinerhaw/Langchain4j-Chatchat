@@ -123,14 +123,13 @@ chatchat:
     context-reserved-system-tokens: 20000
     context-reserved-history-tokens: 30000
     context-reserved-output-tokens: 30000
-    timeout: 1800000
     openai:
       # OpenAI-compatible API key. For DashScope compatible mode, set DASHSCOPE_API_KEY or OPENAI_API_KEY.
       api-key:
       baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
       # auto detects OpenAI-compatible URLs and DashScope native generation endpoints.
       protocol: auto
-      timeout: 1800000
+      request-timeout-seconds: 300
       # Maximum model completion tokens. -1 means do not set a model-side token limit.
       maxTokens: -1
       maxRetries: 3
@@ -185,7 +184,6 @@ chatchat:
     final-summary-web-search-max-keywords: 2
     final-summary-web-search-result-limit: 6
     final-summary-web-search-evidence-max-chars: 16000
-    final-summary-web-search-timeout-ms: 120000
     # Lossless processing boundaries; these values never truncate returned evidence.
     harness-max-model-turns: ${CHATCHAT_HARNESS_MAX_MODEL_TURNS:8}
     record-analysis-chunk-max-chars: ${CHATCHAT_AGENT_RECORD_ANALYSIS_CHUNK_MAX_CHARS:12000}

@@ -1,0 +1,19 @@
+{
+  "newsMaven": {
+    "tests": 102,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "unifiedPython": {
+    "tests": 11,
+    "failures": 0
+  },
+  "onsiteComposeNginx": {
+    "tests": 11,
+    "failures": 0
+  },
+  "productionCutover": false,
+  "fullInstallationRun": false,
+  "durableTemporalRun": false
+}

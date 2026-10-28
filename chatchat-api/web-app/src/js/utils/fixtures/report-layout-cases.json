@@ -1,0 +1,724 @@
+[
+  {
+    "id": "stocks",
+    "input": {
+      "reference": "fixture:stocks",
+      "labels": [
+        "2026-01-01",
+        "2026-01-02",
+        "2026-01-03"
+      ],
+      "values": [
+        "10.00",
+        "11.25",
+        "10.50"
+      ]
+    },
+    "inputSha256": "d5c1ff6162fd600c485686a22eb90753e5ebdc5d101680e6d7a2fbb5d1e000fe",
+    "checks": [
+      "first_to_last_return=5.00%",
+      "intervals=2"
+    ],
+    "report": {
+      "schemaVersion": "python_visual_report.v1",
+      "status": "SUCCESS",
+      "title": "股票行情分析",
+      "summary": "样本首尾价格从10.00变为10.50，跨两个相邻区间变化5.00%，不代表未来收益。",
+      "presentation": {
+        "strategy": "auto",
+        "template": "briefing",
+        "density": "comfortable",
+        "autoCharts": true,
+        "autoImages": true
+      },
+      "sections": [
+        {
+          "id": "finding",
+          "title": "主要结论",
+          "narrative": "三次观测先上升后回落，窗口很短，不能据此识别长期趋势。"
+        }
+      ],
+      "metrics": [
+        {
+          "label": "最后观测价格",
+          "value": "10.50",
+          "unit": "",
+          "calculation": "last observed price",
+          "id": "key",
+          "dataRefs": [
+            "fixture:stocks"
+          ]
+        }
+      ],
+      "tables": [
+        {
+          "id": "detail",
+          "title": "原始分析结果",
+          "columns": [
+            "对象",
+            "数值"
+          ],
+          "rows": [
+            [
+              "2026-01-01",
+              "10.00"
+            ],
+            [
+              "2026-01-02",
+              "11.25"
+            ],
+            [
+              "2026-01-03",
+              "10.50"
+            ]
+          ],
+          "dataRefs": [
+            "fixture:stocks"
+          ],
+          "scope": "受控验收样本"
+        }
+      ],
+      "charts": [
+        {
+          "id": "plot",
+          "title": "股票行情分析",
+          "kind": "plotly",
+          "chartType": "line",
+          "artifact": {
+            "fileId": "fixture-stocks",
+            "size": 128,
+            "mediaType": "application/json"
+          },
+          "dataRefs": [
+            "fixture:stocks"
+          ]
+        }
+      ],
+      "dataSources": [
+        "fixture:stocks"
+      ],
+      "limitations": [
+        "仅覆盖受控验收样本，不代表真实客户或当前市场。"
+      ],
+      "layout": {
+        "schemaVersion": "report_layout.v1",
+        "blocks": [
+          {
+            "id": "b0",
+            "type": "section",
+            "ref": "finding",
+            "span": "full",
+            "emphasis": "important"
+          },
+          {
+            "id": "b1",
+            "type": "chart",
+            "ref": "plot",
+            "span": "full"
+          },
+          {
+            "id": "b2",
+            "type": "summary",
+            "span": "full"
+          },
+          {
+            "id": "b3",
+            "type": "table",
+            "ref": "detail",
+            "span": "full"
+          },
+          {
+            "id": "b4",
+            "type": "metric",
+            "ref": "key",
+            "span": "half"
+          }
+        ]
+      }
+    },
+    "figure": {
+      "data": [
+        {
+          "type": "scatter",
+          "x": [
+            "2026-01-01",
+            "2026-01-02",
+            "2026-01-03"
+          ],
+          "y": [
+            10.0,
+            11.25,
+            10.5
+          ],
+          "mode": "lines+markers"
+        }
+      ],
+      "layout": {
+        "template": null
+      }
+    }
+  },
+  {
+    "id": "preferences",
+    "input": {
+      "reference": "fixture:preferences",
+      "labels": [
+        "股票",
+        "债券",
+        "基金"
+      ],
+      "values": [
+        "20",
+        "30",
+        "50"
+      ]
+    },
+    "inputSha256": "a96b069530bc10e176b3e77e59a7623e35db7355321bc9a83c77f966a70f7041",
+    "checks": [
+      "total_trades=100",
+      "fund_share=50.00%"
+    ],
+    "report": {
+      "schemaVersion": "python_visual_report.v1",
+      "status": "SUCCESS",
+      "title": "客户交易偏好分析",
+      "summary": "样本共100笔交易，其中基金50笔，占50%；样本偏好不能外推为长期客户特征。",
+      "presentation": {
+        "strategy": "auto",
+        "template": "briefing",
+        "density": "comfortable",
+        "autoCharts": true,
+        "autoImages": true
+      },
+      "sections": [
+        {
+          "id": "finding",
+          "title": "主要结论",
+          "narrative": "占比按交易笔数计算，没有成交金额或持仓规模，不能据此判断资金偏好。"
+        }
+      ],
+      "metrics": [
+        {
+          "label": "基金交易占比",
+          "value": "50.00",
+          "unit": "%",
+          "calculation": "50 / 100 * 100",
+          "id": "key",
+          "dataRefs": [
+            "fixture:preferences"
+          ]
+        }
+      ],
+      "tables": [
+        {
+          "id": "detail",
+          "title": "原始分析结果",
+          "columns": [
+            "对象",
+            "数值"
+          ],
+          "rows": [
+            [
+              "股票",
+              "20"
+            ],
+            [
+              "债券",
+              "30"
+            ],
+            [
+              "基金",
+              "50"
+            ]
+          ],
+          "dataRefs": [
+            "fixture:preferences"
+          ],
+          "scope": "受控验收样本"
+        }
+      ],
+      "charts": [
+        {
+          "id": "plot",
+          "title": "客户交易偏好分析",
+          "kind": "plotly",
+          "chartType": "pie",
+          "artifact": {
+            "fileId": "fixture-preferences",
+            "size": 128,
+            "mediaType": "application/json"
+          },
+          "dataRefs": [
+            "fixture:preferences"
+          ]
+        }
+      ],
+      "dataSources": [
+        "fixture:preferences"
+      ],
+      "limitations": [
+        "仅覆盖受控验收样本，不代表真实客户或当前市场。"
+      ],
+      "layout": {
+        "schemaVersion": "report_layout.v1",
+        "blocks": [
+          {
+            "id": "b0",
+            "type": "chart",
+            "ref": "plot",
+            "span": "full",
+            "emphasis": "important"
+          },
+          {
+            "id": "b1",
+            "type": "section",
+            "ref": "finding",
+            "span": "full"
+          },
+          {
+            "id": "b2",
+            "type": "table",
+            "ref": "detail",
+            "span": "full"
+          },
+          {
+            "id": "b3",
+            "type": "summary",
+            "span": "full"
+          },
+          {
+            "id": "b4",
+            "type": "metric",
+            "ref": "key",
+            "span": "half"
+          }
+        ]
+      }
+    },
+    "figure": {
+      "data": [
+        {
+          "type": "pie",
+          "labels": [
+            "股票",
+            "债券",
+            "基金"
+          ],
+          "values": [
+            20.0,
+            30.0,
+            50.0
+          ]
+        }
+      ],
+      "layout": {
+        "template": null
+      }
+    }
+  },
+  {
+    "id": "assets",
+    "input": {
+      "reference": "fixture:assets",
+      "labels": [
+        "资产A",
+        "资产B"
+      ],
+      "values": [
+        "-12.50",
+        "8.75"
+      ],
+      "costs": [
+        "100.00",
+        "100.00"
+      ],
+      "marketValues": [
+        "87.50",
+        "108.75"
+      ]
+    },
+    "inputSha256": "6889cd82a53fe3e784b1026251b1785c184f1c9842cd55a0e24ddfae88aaeb5f",
+    "checks": [
+      "net_profit=-3.75",
+      "market_total=196.25"
+    ],
+    "report": {
+      "schemaVersion": "python_visual_report.v1",
+      "status": "SUCCESS",
+      "title": "客户资产及盈亏分析",
+      "summary": "样本资产A亏损12.50、资产B盈利8.75，合计净亏损3.75；未含费用和税项。",
+      "presentation": {
+        "strategy": "auto",
+        "template": "briefing",
+        "density": "comfortable",
+        "autoCharts": true,
+        "autoImages": true
+      },
+      "sections": [
+        {
+          "id": "finding",
+          "title": "主要结论",
+          "narrative": "净额掩盖了两个资产方向相反的变动，需分别核对；未计费用和税项。"
+        }
+      ],
+      "metrics": [
+        {
+          "label": "净盈亏",
+          "value": "-3.75",
+          "unit": "",
+          "calculation": "sum(market_value - cost)",
+          "id": "key",
+          "dataRefs": [
+            "fixture:assets"
+          ]
+        }
+      ],
+      "tables": [
+        {
+          "id": "detail",
+          "title": "原始分析结果",
+          "columns": [
+            "对象",
+            "数值"
+          ],
+          "rows": [
+            [
+              "资产A",
+              "-12.50"
+            ],
+            [
+              "资产B",
+              "8.75"
+            ]
+          ],
+          "dataRefs": [
+            "fixture:assets"
+          ],
+          "scope": "受控验收样本"
+        }
+      ],
+      "charts": [
+        {
+          "id": "plot",
+          "title": "客户资产及盈亏分析",
+          "kind": "plotly",
+          "chartType": "bar",
+          "artifact": {
+            "fileId": "fixture-assets",
+            "size": 128,
+            "mediaType": "application/json"
+          },
+          "dataRefs": [
+            "fixture:assets"
+          ]
+        }
+      ],
+      "dataSources": [
+        "fixture:assets"
+      ],
+      "limitations": [
+        "仅覆盖受控验收样本，不代表真实客户或当前市场。"
+      ],
+      "layout": {
+        "schemaVersion": "report_layout.v1",
+        "blocks": [
+          {
+            "id": "b0",
+            "type": "metric",
+            "ref": "key",
+            "span": "half",
+            "emphasis": "important"
+          },
+          {
+            "id": "b1",
+            "type": "section",
+            "ref": "finding",
+            "span": "full"
+          },
+          {
+            "id": "b2",
+            "type": "chart",
+            "ref": "plot",
+            "span": "full"
+          },
+          {
+            "id": "b3",
+            "type": "table",
+            "ref": "detail",
+            "span": "full"
+          },
+          {
+            "id": "b4",
+            "type": "summary",
+            "span": "full"
+          }
+        ]
+      }
+    },
+    "figure": {
+      "data": [
+        {
+          "type": "bar",
+          "x": [
+            "资产A",
+            "资产B"
+          ],
+          "y": [
+            -12.5,
+            8.75
+          ]
+        }
+      ],
+      "layout": {
+        "template": null
+      }
+    }
+  },
+  {
+    "id": "financials",
+    "input": {
+      "reference": "fixture:financials",
+      "labels": [
+        "第一季度",
+        "第二季度"
+      ],
+      "values": [
+        "9007199254740993.01",
+        "9007199254741000.02"
+      ]
+    },
+    "inputSha256": "ca428fea4f016169d7189e5b4eed2cfb03c3ccbb3240882f9a9b1c4679623ce7",
+    "checks": [
+      "revenue_delta=7.01",
+      "exact_decimal_preserved"
+    ],
+    "report": {
+      "schemaVersion": "python_visual_report.v1",
+      "status": "SUCCESS",
+      "title": "企业财务数据分析",
+      "summary": "第二季度样本收入较第一季度增加7.01。保留原始小数，不将大整数转换为浮点图表。",
+      "presentation": {
+        "strategy": "auto",
+        "template": "briefing",
+        "density": "comfortable",
+        "autoCharts": true,
+        "autoImages": true
+      },
+      "sections": [
+        {
+          "id": "finding",
+          "title": "主要结论",
+          "narrative": "金额较大而季度差额较小，使用精确表格展示，避免浮点图形抹去小数差异。"
+        }
+      ],
+      "metrics": [
+        {
+          "label": "第二季度收入",
+          "value": "9007199254741000.02",
+          "unit": "",
+          "calculation": "second quarter reported amount",
+          "id": "key",
+          "dataRefs": [
+            "fixture:financials"
+          ]
+        }
+      ],
+      "tables": [
+        {
+          "id": "detail",
+          "title": "原始分析结果",
+          "columns": [
+            "对象",
+            "数值"
+          ],
+          "rows": [
+            [
+              "第一季度",
+              "9007199254740993.01"
+            ],
+            [
+              "第二季度",
+              "9007199254741000.02"
+            ]
+          ],
+          "dataRefs": [
+            "fixture:financials"
+          ],
+          "scope": "受控验收样本"
+        }
+      ],
+      "charts": [],
+      "dataSources": [
+        "fixture:financials"
+      ],
+      "limitations": [
+        "仅覆盖受控验收样本，不代表真实客户或当前市场。"
+      ],
+      "layout": {
+        "schemaVersion": "report_layout.v1",
+        "blocks": [
+          {
+            "id": "b0",
+            "type": "table",
+            "ref": "detail",
+            "span": "full",
+            "emphasis": "important"
+          },
+          {
+            "id": "b1",
+            "type": "section",
+            "ref": "finding",
+            "span": "full"
+          },
+          {
+            "id": "b2",
+            "type": "metric",
+            "ref": "key",
+            "span": "half"
+          },
+          {
+            "id": "b3",
+            "type": "summary",
+            "span": "full"
+          }
+        ]
+      }
+    },
+    "figure": null
+  },
+  {
+    "id": "news",
+    "input": {
+      "reference": "fixture:news",
+      "labels": [],
+      "values": [],
+      "articles": [
+        {
+          "topic": "policy",
+          "text": "受控样本：政策支持长期资金。"
+        },
+        {
+          "topic": "policy",
+          "text": "受控样本：加强信息披露。"
+        },
+        {
+          "topic": "market",
+          "text": "受控样本：参与者讨论市场风险。"
+        }
+      ]
+    },
+    "inputSha256": "8e0cb982df3028594dfabd73a67111046c7e7106d8b8ddf27973ce0329af239b",
+    "checks": [
+      "no_quantitative_chart",
+      "qualitative_scope_disclosed"
+    ],
+    "report": {
+      "schemaVersion": "python_visual_report.v1",
+      "status": "PARTIAL",
+      "title": "金融市场资讯分析",
+      "summary": "样本仅提供两条政策方向与一条市场讨论的定性描述，没有行情或财务观测值，不能据此推断价格涨跌。",
+      "presentation": {
+        "strategy": "auto",
+        "template": "briefing",
+        "density": "comfortable",
+        "autoCharts": true,
+        "autoImages": true
+      },
+      "sections": [
+        {
+          "id": "finding",
+          "title": "资讯证据与边界",
+          "narrative": "这些文字材料不足以作为交易信号，也没有可用于时序判断的事件日期。"
+        }
+      ],
+      "metrics": [],
+      "tables": [],
+      "charts": [],
+      "dataSources": [
+        "fixture:news"
+      ],
+      "limitations": [
+        "仅覆盖受控验收样本，不代表真实客户或当前市场。"
+      ],
+      "layout": {
+        "schemaVersion": "report_layout.v1",
+        "blocks": [
+          {
+            "id": "b0",
+            "type": "section",
+            "ref": "finding",
+            "span": "full",
+            "emphasis": "important"
+          },
+          {
+            "id": "b1",
+            "type": "summary",
+            "span": "full"
+          }
+        ]
+      }
+    },
+    "figure": null
+  },
+  {
+    "id": "insufficient",
+    "input": {
+      "reference": "fixture:insufficient",
+      "labels": [],
+      "values": []
+    },
+    "inputSha256": "7416fd64a8d148b283423a77dafa4a14cb9729781f5ff11b812e3fd8f10eb352",
+    "checks": [
+      "no_metric",
+      "no_chart",
+      "no_invented_values"
+    ],
+    "report": {
+      "schemaVersion": "python_visual_report.v1",
+      "status": "NO_DATA",
+      "title": "数据不足的报告",
+      "summary": "未提供必要的业务数据，无法计算趋势、偏好或盈亏；请补充基础记录和计算口径。",
+      "presentation": {
+        "strategy": "auto",
+        "template": "briefing",
+        "density": "comfortable",
+        "autoCharts": true,
+        "autoImages": true
+      },
+      "sections": [
+        {
+          "id": "finding",
+          "title": "数据范围",
+          "narrative": "需要补充原始记录、时间范围、字段定义和计算口径后再作量化分析。"
+        }
+      ],
+      "metrics": [],
+      "tables": [],
+      "charts": [],
+      "dataSources": [
+        "fixture:insufficient"
+      ],
+      "limitations": [
+        "仅覆盖受控验收样本，不代表真实客户或当前市场。"
+      ],
+      "layout": {
+        "schemaVersion": "report_layout.v1",
+        "blocks": [
+          {
+            "id": "b0",
+            "type": "summary",
+            "span": "full",
+            "emphasis": "important"
+          },
+          {
+            "id": "b1",
+            "type": "section",
+            "ref": "finding",
+            "span": "full"
+          }
+        ]
+      }
+    },
+    "figure": null
+  }
+]

@@ -30,12 +30,10 @@ final class AnswerQualityCoordinator {
     private final AnswerCriticRepairer criticRepairer;
     private final AnswerEvidenceLedgerCompiler evidenceLedgerCompiler;
     private final AgentRuntimeProperties runtimeProperties;
-    private final long modelRequestTimeoutMs;
 
     AnswerQualityCoordinator(ObjectMapper objectMapper,
                              AgentRuntimeProperties runtimeProperties,
-                             AnswerEvidenceLedgerCompiler evidenceLedgerCompiler,
-                             long modelRequestTimeoutMs) {
+                             AnswerEvidenceLedgerCompiler evidenceLedgerCompiler) {
         ObjectMapper mapper = objectMapper == null ? new ObjectMapper() : objectMapper;
         this.evaluator = new AnswerQualityEvaluator(mapper);
         this.candidateCollector = new AnswerCandidateCollector();
@@ -44,7 +42,6 @@ final class AnswerQualityCoordinator {
         this.criticRepairer = new AnswerCriticRepairer(mapper);
         this.evidenceLedgerCompiler = evidenceLedgerCompiler;
         this.runtimeProperties = runtimeProperties == null ? new AgentRuntimeProperties() : runtimeProperties;
-        this.modelRequestTimeoutMs = modelRequestTimeoutMs;
     }
 
     void registerCandidate(Map<String, Object> metadata,

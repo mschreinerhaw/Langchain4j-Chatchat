@@ -11,6 +11,42 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
 class VisualReportArtifactsTest {
+    @Test void preservesAnAuthoredLayoutWithExactValuesAndAuthorizedDataBindings(){
+        var value=raw();var metric=new LinkedHashMap<>((Map<String,Object>)((List<?>)value.get("metrics")).get(0));
+        metric.put("dataRefs",List.of("source:authorized"));value.put("metrics",List.of(metric));value.put("tables",List.of());
+        var layout=Map.of("schemaVersion","report_layout.v1","blocks",List.of(Map.of("id","value","type","metric","ref","sum","emphasis","important"),Map.of("id","meaning","type","summary")));
+        value.put("layout",layout);value.put("presentation",Map.of("strategy","auto","density","compact"));
+        var result=collect(value,Map.of());
+        assertThat(result).containsEntry("layout",layout).containsEntry("layoutValidationStatus","PASSED").containsEntry("status","SUCCESS");
+        assertThat(result.get("metrics")).isEqualTo(List.of(metric));
+    }
+    @Test void invalidLayoutKeepsTheCompleteAnalysisWithoutExecutingAnything(){
+        var value=raw();value.put("layout",Map.of("schemaVersion","report_layout.v1","blocks",List.of(Map.of("id","bad","type","javascript","code","alert(1)"))));
+        var result=collect(value,Map.of());
+        assertThat(result).containsEntry("layoutValidationStatus","FAILED").containsEntry("status","PARTIAL").containsEntry("artifactValidationStatus","PASSED");
+        assertThat(result).doesNotContainKey("layout");assertThat(result.get("markdown")).isEqualTo("Complete computed narrative");
+        assertThat((List<?>)result.get("metrics")).hasSize(1);
+    }
+    @Test void fabricatedPerChartOrMetricReferencesCannotBecomeVerified(){
+        var value=raw();var metric=new LinkedHashMap<>((Map<String,Object>)((List<?>)value.get("metrics")).get(0));
+        metric.put("dataRefs",List.of("source:other-owner"));value.put("metrics",List.of(metric));
+        assertThat(collect(value,Map.of())).containsEntry("artifactValidationStatus","FAILED");
+    }
+    @Test void theFrozenRequestPreferenceWinsOverModelAuthoredSettings(){
+        var value=raw();value.put("presentation",Map.of("strategy","template","template","evidence-first"));
+        var frozen=new LinkedHashMap<>(execution);frozen.put("reportPresentation",Map.of("strategy","concise","autoCharts",false,"autoImages",false));
+        var result=service.collect(scope,"task","op",List.of(Map.of("visualReport",value,"reportMarkdown","Original analysis","evidenceReferences",List.of("source:authorized"))),Map.of(),frozen);
+        assertThat(((Map<?,?>)result.get("presentation")).get("strategy")).isEqualTo("concise");
+        assertThat(((Map<?,?>)result.get("presentation")).get("autoCharts")).isEqualTo(false);
+        assertThat(result).containsEntry("layoutValidationStatus","FAILED").containsEntry("artifactValidationStatus","PASSED").containsEntry("markdown","Original analysis");
+    }
+    @Test void aNewLayoutWithoutPerElementBindingsFallsBackWithoutDiscardingTheData(){
+        var value=raw();value.put("layout",Map.of("schemaVersion","report_layout.v1","blocks",List.of(Map.of("id","summary","type","summary"))));
+        var result=collect(value,Map.of());
+        assertThat(result).containsEntry("layoutValidationStatus","FAILED").containsEntry("status","PARTIAL");
+        assertThat(result).doesNotContainKey("layout");
+        assertThat(((Map<?,?>)((List<?>)result.get("tables")).get(0)).get("rows")).isEqualTo(List.of(List.of("6.000000000000000001")));
+    }
     final ObjectMapper json=new ObjectMapper();final VisualReportArtifacts service=new VisualReportArtifacts(json);
     final KernelDataScope scope=new KernelDataScope("tenant","owner",null,null,"run",null,Map.of());
     final RuntimeAssetArchive archive=mock(RuntimeAssetArchive.class);

@@ -11,7 +11,13 @@ import java.util.concurrent.atomic.AtomicReference;
 /** Keeps the existing final-response contract; streams only inside the provider boundary. */
 final class RuntimeStreamingChatModel implements ChatModel {
     private final StreamingChatModel provider;
-    RuntimeStreamingChatModel(StreamingChatModel provider) { this.provider=provider; }
+    private final java.time.Duration timeout;
+    RuntimeStreamingChatModel(StreamingChatModel provider) {
+        this(provider, java.time.Duration.ofSeconds(com.chatchat.common.config.ModelsConfig.ModelConnectionConfig.DEFAULT_REQUEST_TIMEOUT_SECONDS));
+    }
+    RuntimeStreamingChatModel(StreamingChatModel provider, java.time.Duration timeout) {
+        this.provider=provider; this.timeout=timeout;
+    }
 
     @Override public ChatResponse doChat(ChatRequest request) {
         var result=new CompletableFuture<ChatResponse>();
@@ -38,7 +44,10 @@ final class RuntimeStreamingChatModel implements ChatModel {
                 if(!result.isDone())result.completeExceptionally(new IllegalStateException("Provider stream ended without a complete response"));
             }
         });
-        return result.get();
+        return result.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        } catch(TimeoutException expired) {
+            result.cancel(false);
+            throw new IllegalStateException("Model API request timed out after " + timeout.toMillis() + "ms", expired);
         } catch(InterruptedException interrupted) {
             result.cancel(false);Thread.currentThread().interrupt();
             throw new CancellationException("Runtime cancelled the provider stream");

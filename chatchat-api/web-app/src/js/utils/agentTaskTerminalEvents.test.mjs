@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { isTerminalAgentEvent, terminalEventFromEvents } from "./agentTaskTerminalEvents.js";
+import { isTerminalAgentEvent, terminalEventFromEvents, terminalEventForSnapshot } from "./agentTaskTerminalEvents.js";
 
 test("failed tool result does not terminate an Agent task with later partial result", () => {
   const failedTool = {
@@ -21,6 +21,22 @@ test("failed tool result does not terminate an Agent task with later partial res
   assert.equal(isTerminalAgentEvent(failedTool), false);
   assert.equal(isTerminalAgentEvent(partialResult), true);
   assert.equal(terminalEventFromEvents([failedTool, partialResult]), partialResult);
+});
+
+test('a failed round and an intermediate result cannot terminate an active or retrying task', () => {
+  const events = [{type:'ERROR',status:'FAILED',attemptId:'old',sequence:1},
+    {type:'RESULT',status:'SUCCESS',attemptId:'new',sequence:2}];
+  for (const state of ['RUNNING','REPAIRING','RETRY_WAIT','EXECUTING','DELIVERING']) {
+    assert.equal(terminalEventForSnapshot(events,{canonicalState:state,attemptId:'new'}),null);
+  }
+  assert.equal(terminalEventForSnapshot(events,{}),null);
+});
+
+test('final outcome comes from the current attempt and the fresh task snapshot', () => {
+  const old = {type:'ERROR',status:'FAILED',attemptId:'old',sequence:1};
+  const done = {type:'ANSWER',status:'SUCCESS',attemptId:'new',sequence:3};
+  assert.equal(terminalEventForSnapshot([old,done],{canonicalState:'SUCCEEDED',attemptId:'new'}),done);
+  assert.equal(terminalEventForSnapshot([old],{canonicalState:'FAILED',attemptId:'new'}).type,'STATUS');
 });
 
 test("fatal task events and explicit terminal status events still terminate polling", () => {

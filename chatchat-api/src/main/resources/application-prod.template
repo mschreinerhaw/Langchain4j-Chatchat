@@ -114,7 +114,7 @@ chatchat:
       apiKey:
       baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
 #      baseUrl: https://api.deepseek.com/v1
-      timeout: 300
+      request-timeout-seconds: 300
       # Maximum model completion tokens. -1 means do not set a model-side token limit.
       maxTokens: -1
       maxRetries: 3
@@ -152,7 +152,6 @@ chatchat:
     final-summary-web-search-max-keywords: 2
     final-summary-web-search-result-limit: 6
     final-summary-web-search-evidence-max-chars: 16000
-    final-summary-web-search-timeout-ms: 120000
   api:
     limits:
       # Frontend search result chunk count. -1 means unlimited.

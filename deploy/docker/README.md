@@ -1,5 +1,7 @@
 # ChatChat single-host production infrastructure
 
+For unified offline deployment, use [Runtime OS deployment and acceptance](RUNTIME-DEPLOYMENT.zh-CN.md). It preserves this independent MySQL infrastructure entry and the PostgreSQL application entry, and adds separate full-new-install and existing-infrastructure modes. Existing mode never creates replacement business databases. News now has an explicit PostgreSQL driver/profile/schema alongside its existing MySQL/H2 support. Container startup alone does not pass the business acceptance gate.
+
 For the current complete PostgreSQL application stack, use [application/compose.yaml](application/compose.yaml) and [the maintenance manual](../DOCKER-MAINTENANCE.zh-CN.md). This file describes the alternative MySQL infrastructure only. Do not start duplicate Redis/OpenSearch services from both entry points.
 
 `docker-compose.yaml` deploys the MySQL-compatible infrastructure:

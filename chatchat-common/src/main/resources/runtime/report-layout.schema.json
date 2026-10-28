@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "report_layout.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "blocks"],
+  "properties": {
+    "schemaVersion": {"const": "report_layout.v1"},
+    "blocks": {"type": "array", "maxItems": 256, "items": {
+      "type": "object", "additionalProperties": false, "required": ["id", "type"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$"},
+        "type": {"enum": ["summary", "metric", "section", "chart", "table", "limitations", "sources"]},
+        "ref": {"type": "string", "pattern": "^[A-Za-z0-9_][A-Za-z0-9_.-]{0,99}$"},
+        "span": {"enum": ["full", "half"]},
+        "emphasis": {"enum": ["normal", "important"]}
+      }
+    }}
+  }
+}

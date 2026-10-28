@@ -85,6 +85,54 @@
           @click="reportMode = reportMode === 'visual' ? 'off' : 'visual'"
           ><FileText :size="14" stroke-width="2" />图文报告</button
         >
+        <details v-if="reportMode === 'visual'" class="report-layout-settings">
+          <summary>报告排版</summary>
+          <div>
+            <label
+              >排版策略<select
+                v-model="reportPresentation.strategy"
+                :disabled="loading"
+                aria-label="报告排版策略"
+                ><option value="auto">智能自适应</option
+                ><option value="template">指定模板</option
+                ><option value="concise">简洁报告</option></select
+              ></label
+            >
+            <label v-if="reportPresentation.strategy === 'template'"
+              >模板<select
+                v-model="reportPresentation.template"
+                :disabled="loading"
+                aria-label="报告模板"
+                ><option value="briefing">结论优先</option
+                ><option value="evidence-first">证据优先</option></select
+              ></label
+            >
+            <label
+              >内容密度<select
+                v-model="reportPresentation.density"
+                :disabled="loading"
+                aria-label="报告内容密度"
+                ><option value="comfortable">舒适</option
+                ><option value="compact">紧凑</option></select
+              ></label
+            >
+            <label
+              ><input
+                v-model="reportPresentation.autoCharts"
+                :disabled="loading"
+                type="checkbox"
+              />自动图表</label
+            >
+            <label
+              ><input
+                v-model="reportPresentation.autoImages"
+                :disabled="loading"
+                type="checkbox"
+              />自动配图</label
+            >
+            <small>根据真实分析选择内容与顺序；没有数据时不生成图表。设置用于后续报告。</small>
+          </div>
+        </details>
         <div v-if="documentWorkflowActive" class="composer-toolbar-group tool-group">
           <span v-if="documentWorkflowActive" class="workflow-badge">
             <FileText :size="14" stroke-width="2" />

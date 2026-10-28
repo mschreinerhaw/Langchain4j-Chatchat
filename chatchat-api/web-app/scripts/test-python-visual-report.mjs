@@ -42,7 +42,8 @@ try{
     return {pages:document.numPages,image:canvas.toDataURL('image/png')};
    },[...bytes]);
    assert.ok(pdfCheck.pages>=2);await writeFile(resolve(output,'pdf-first-page.png'),Buffer.from(pdfCheck.image.split(',')[1],'base64'));checks.pdfParsedAndRendered=true;
-   assert.equal(await page.locator('.report-code,.report-provenance').count(),0);checks.internalDetailsHidden=true;
+   assert.equal(await page.locator('.report-code').count(),0);
+   assert.ok((await page.locator('.report-provenance').innerText()).includes('数据来源'));checks.internalDetailsHidden=true;
   }
   const images=page.locator('.python-report-chart img');await images.first().waitFor();for(let i=0;i<2;i++){await images.nth(i).scrollIntoViewIfNeeded();await page.waitForFunction(element=>element.complete&&element.naturalWidth>0,await images.nth(i).elementHandle());}checks.pythonPngAndSvgDisplayed=true;
   const iframe=page.locator('.python-report-chart iframe');await page.locator('[data-chart-id="plotly"]').scrollIntoViewIfNeeded();await iframe.waitFor();const frame=page.frameLocator('.python-report-chart iframe');await frame.locator('.main-svg').first().waitFor({timeout:30000});

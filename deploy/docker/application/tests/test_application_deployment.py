@@ -14,6 +14,25 @@ ROOT = Path(__file__).resolve().parents[1]
 GATEWAY_IMAGE = os.environ.get('GATEWAY_TEST_IMAGE', 'nginx:1.27.5-alpine')
 
 class ApplicationDeploymentTest(unittest.TestCase):
+    def test_mysql_infrastructure_accepts_external_secret_file_references(self):
+        env = dict(os.environ)
+        env.update({name + '_FILE': '/private/' + name.lower() for name in
+                    ('MYSQL_ROOT_PASSWORD', 'MYSQL_API_PASSWORD', 'MYSQL_MCP_PASSWORD',
+                     'MYSQL_NEWS_PASSWORD', 'REDIS_PASSWORD', 'OPENSEARCH_ADMIN_PASSWORD')})
+        rendered = json.loads(subprocess.check_output(['docker', 'compose', '-f', str(ROOT.parent / 'docker-compose.yaml'),
+                                                      'config', '--format', 'json'], env=env, text=True))
+        self.assertIn('mysql', rendered['services'])
+        self.assertNotIn('postgresql', rendered['services'])
+        self.assertEqual(rendered['secrets']['mysql_news_password']['file'], '/private/mysql_news_password')
+
+    def test_temporal_renders_file_secret_without_inline_database_password(self):
+        env = dict(os.environ, TEMPORAL_DATABASE_PASSWORD_FILE='/private/temporal-database')
+        rendered = json.loads(subprocess.check_output(['docker', 'compose', '-f', str(ROOT.parents[1] / 'temporal/docker-compose.yml'),
+                                                      'config', '--format', 'json'], env=env, text=True))
+        self.assertNotIn('POSTGRES_PASSWORD', rendered['services']['temporal-postgresql']['environment'])
+        self.assertNotIn('POSTGRES_PWD', rendered['services']['temporal']['environment'])
+        self.assertEqual(rendered['services']['temporal']['pull_policy'], 'never')
+
     def config(self, explicit=False, missing_api_data=False):
         with tempfile.TemporaryDirectory(prefix='runtime-compose-') as directory:
             stage = Path(directory)
@@ -29,7 +48,7 @@ class ApplicationDeploymentTest(unittest.TestCase):
                       'NEWS_DATA_DIR': '/existing/news/data', 'NEWS_CONFIG_DIR': '/existing/news/config'}
             for key in ['POSTGRESQL_ADMIN_PASSWORD_FILE', 'POSTGRESQL_API_PASSWORD_FILE',
                         'POSTGRESQL_MCP_PASSWORD_FILE', 'REDIS_PASSWORD_FILE',
-                        'OPENSEARCH_ADMIN_PASSWORD_FILE', 'BOOTSTRAP_ADMIN_PASSWORD_FILE']:
+                        'OPENSEARCH_ADMIN_PASSWORD_FILE', 'BOOTSTRAP_ADMIN_PASSWORD_FILE', 'NEWS_DATABASE_PASSWORD_FILE', 'NEWS_INTERNAL_KEY_FILE', 'INTERNAL_CREDENTIAL_ENCRYPTED_FILE', 'WSA_SECRET_ID_FILE', 'WSA_SECRET_KEY_FILE']:
                 values[key]='/keys/'+key.lower()
             values.update(OPENSEARCH_CERTS_DIR='/keys/opensearch-certs',
                           OPENSEARCH_TRUSTSTORE_FILE='/keys/opensearch-truststore.p12')

@@ -1,0 +1,19 @@
+{
+  "actual": {
+    "eventCount": 216,
+    "canonicalState": "SUCCEEDED",
+    "status": "completed"
+  },
+  "stream": {
+    "cursor": 216,
+    "eventCount": 216,
+    "status": "completed",
+    "finalType": "ANSWER"
+  },
+  "repairing": {
+    "failedReceipts": 2
+  },
+  "continuedEventCount": 214,
+  "terminalSpinnerStops": true,
+  "errors": []
+}

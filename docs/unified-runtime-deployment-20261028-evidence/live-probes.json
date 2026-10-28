@@ -1,0 +1,134 @@
+{
+  "health": {
+    "httpStatus": 200,
+    "envelopeCode": 200,
+    "success": null,
+    "facts": {
+      "status": "UP"
+    }
+  },
+  "sources": {
+    "httpStatus": 200,
+    "envelopeCode": 200,
+    "count": 37
+  },
+  "collections": {
+    "httpStatus": 200,
+    "envelopeCode": 200,
+    "count": 20
+  },
+  "local_search": {
+    "httpStatus": 200,
+    "envelopeCode": 200,
+    "success": true,
+    "facts": {
+      "count": 10
+    }
+  },
+  "unified_web_search": {
+    "httpStatus": 200,
+    "envelopeCode": 200,
+    "success": true,
+    "facts": {
+      "count": 3,
+      "mode": "news_index",
+      "newsIndexCount": 3,
+      "externalWebCount": 0,
+      "localEvidenceSufficient": true,
+      "externalSearchRequired": false,
+      "externalSearchSucceeded": false,
+      "webSearchCacheHit": false,
+      "webSearchCacheEnabled": false
+    }
+  },
+  "external_web_search": {
+    "httpStatus": 200,
+    "envelopeCode": 200,
+    "success": true,
+    "facts": {
+      "count": 3,
+      "mode": "hybrid_news_and_web",
+      "newsIndexCount": 3,
+      "externalWebCount": 3,
+      "localEvidenceSufficient": true,
+      "externalSearchRequired": true,
+      "externalSearchSucceeded": true,
+      "webSearchCacheHit": true,
+      "webSearchCacheEnabled": true,
+      "externalSearchQuerySource": "analyzed_keywords"
+    }
+  },
+  "local_insufficient_fallback": {
+    "httpStatus": 200,
+    "envelopeCode": 200,
+    "success": true,
+    "facts": {
+      "count": 3,
+      "mode": "hybrid_news_and_web",
+      "newsIndexCount": 0,
+      "externalWebCount": 3,
+      "localEvidenceSufficient": false,
+      "externalSearchRequired": true,
+      "externalSearchSucceeded": true,
+      "webSearchCacheHit": false,
+      "webSearchCacheEnabled": true,
+      "externalSearchQuerySource": "analyzed_intent"
+    }
+  },
+  "external_cache_reuse": {
+    "httpStatus": 200,
+    "envelopeCode": 200,
+    "success": true,
+    "facts": {
+      "count": 3,
+      "mode": "hybrid_news_and_web",
+      "newsIndexCount": 3,
+      "externalWebCount": 3,
+      "localEvidenceSufficient": true,
+      "externalSearchRequired": true,
+      "externalSearchSucceeded": true,
+      "webSearchCacheHit": true,
+      "webSearchCacheEnabled": true,
+      "externalSearchQuerySource": "analyzed_keywords"
+    }
+  },
+  "mcp_initialize": {
+    "httpStatus": 200,
+    "responseBytes": 295
+  },
+  "mcp_tools/list": {
+    "httpStatus": 200,
+    "responseBytes": 46
+  },
+  "runtime_registry": {
+    "httpStatus": 200,
+    "toolCount": 33,
+    "webSearchCount": 1
+  },
+  "runtime_finance": {
+    "httpStatus": 200,
+    "code": 200,
+    "status": "SUCCESS",
+    "facts": {
+      "mode": "unified_news_and_financial_asset_discovery",
+      "count": 3,
+      "financialDatasetCount": 1,
+      "financialObservationCount": 20,
+      "financialAssetCount": 1,
+      "newsCount": 3
+    }
+  },
+  "runtime_mcp_news": {
+    "httpStatus": 200,
+    "code": 200,
+    "status": "SUCCESS",
+    "facts": {
+      "mode": "unified_news_and_financial_asset_discovery",
+      "count": 2,
+      "financialDatasetCount": 0,
+      "financialObservationCount": 0,
+      "financialAssetCount": 0,
+      "newsCount": 2
+    }
+  }
+}

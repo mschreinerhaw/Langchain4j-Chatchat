@@ -69,7 +69,7 @@ chatchat:
     openai:
       apiKey:
       baseUrl: https://api.deepseek.com
-      timeout: 300000
+      request-timeout-seconds: 300
       maxTokens: -1
       maxRetries: 3
   search:

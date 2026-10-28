@@ -1,0 +1,43 @@
+{
+  "productionServices": {
+    "api": {
+      "sameContainer": true,
+      "sameImage": true,
+      "sameMounts": true,
+      "running": true
+    },
+    "mcp": {
+      "sameContainer": true,
+      "sameImage": true,
+      "sameMounts": true,
+      "running": true
+    },
+    "news": {
+      "sameContainer": true,
+      "sameImage": true,
+      "sameMounts": true,
+      "running": true
+    },
+    "coding-agent": {
+      "sameContainer": true,
+      "sameImage": true,
+      "sameMounts": true,
+      "running": true
+    },
+    "node-proxy": {
+      "sameContainer": true,
+      "sameImage": true,
+      "sameMounts": true,
+      "running": true
+    },
+    "gateway": {
+      "sameContainer": true,
+      "sameImage": true,
+      "sameMounts": true,
+      "running": true
+    }
+  },
+  "isolatedValidationStopped": true,
+  "productionCutover": false,
+  "productionDatabaseMigration": false
+}

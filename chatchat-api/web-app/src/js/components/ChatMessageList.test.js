@@ -10,6 +10,37 @@ import { renderArtifactHtml, renderArtifactMarkdownHtml } from "../ui-artifact/r
 
 const markdown = new MarkdownIt({ breaks: true });
 const methods = ChatMessageList.methods;
+it('shows running indicators and stops them when the task ends', async () => {
+  const workbench = reactive({status:'active', terminal:false, steps:[], alerts:[], timings:[],
+    allActivities:[{id:'one', sequence:1, state:'active', title:'正在计算', timeLabel:'10:00:00'}]});
+  const component = {...ChatMessageListVue, methods:{...ChatMessageListVue.methods,
+    executionWorkbench:()=>workbench}};
+  const host = document.createElement('div');
+  const app = createApp({render:()=>h(component,{messages:[{id:'running',role:'assistant',status:'running',taskId:'task'}]})});
+  try {
+    app.mount(host); await nextTick();
+    expect(host.querySelectorAll('.workbench-spinner')).toHaveLength(3);
+    expect(host.querySelector('[role="log"]').getAttribute('tabindex')).toBe('0');
+    workbench.terminal=true;workbench.status='cancelled';await nextTick();
+    expect(host.querySelectorAll('.workbench-spinner')).toHaveLength(0);
+  } finally {app.unmount();}
+});
+it('follows new log events until the reader scrolls up, and resumes at the bottom', () => {
+  const directive = ChatMessageList.directives.followActivity;
+  const el = document.createElement('div');
+  Object.defineProperties(el,{scrollHeight:{value:800,writable:true},clientHeight:{value:240}});
+  directive.mounted(el);
+  expect(el.scrollTop).toBe(800);
+  el.scrollTop=100;el.dispatchEvent(new Event('scroll'));
+  el.scrollHeight=900;directive.updated(el,{value:'new',oldValue:'old'});
+  expect(el.scrollTop).toBe(100);
+  el.scrollTop=660;el.dispatchEvent(new Event('scroll'));
+  el.scrollHeight=1000;directive.updated(el,{value:'next',oldValue:'new'});
+  expect(el.scrollTop).toBe(1000);
+  el.scrollTop=600;directive.updated(el,{value:'next',oldValue:'next'});
+  expect(el.scrollTop).toBe(600);
+  directive.beforeUnmount(el);
+});
 it('renders five numbered business steps and keeps technical recovery receipts out of the DOM', async () => {
   const event = (type, sequence, state = 'RUNNING') => ({eventId:`event-${sequence}`, sequence,
     type:'RUNTIME_OBSERVATION',status:'RUNNING',payload:{payload:{metadata:{eventKind:'CODING_TRACE',
@@ -32,7 +63,7 @@ it('renders five numbered business steps and keeps technical recovery receipts o
     expect(host.querySelector('.thinking-message')).toBeNull();
     expect(host.querySelectorAll('.workbench-phase-strip > li')[3].className).toContain('error');
     expect(host.querySelector('[aria-label="实时执行动态"]')).not.toBeNull();
-    expect(host.querySelector('[aria-label="阶段成果"]')).not.toBeNull();
+    expect(host.querySelector('[aria-label="阶段成果"]')).toBeNull();
     expect(host.querySelector('.runtime-progress-track')).toBeNull();
   } finally {app.unmount();host.remove();}
 });

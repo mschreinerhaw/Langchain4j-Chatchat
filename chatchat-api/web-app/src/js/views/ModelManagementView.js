@@ -30,7 +30,7 @@ const emptyForm = () => ({
   baseUrl: "",
   protocol: "auto",
   dimension: 1024,
-  timeout: 30000,
+  requestTimeoutSeconds: 300,
   maxTokens: -1,
   maxRetries: 3,
   apiKey: "",
@@ -138,11 +138,16 @@ export default {
       this.editing = true;
     },
     openEdit(model) {
-      this.form = { ...model, apiKey: "" };
+      this.form = { ...model, requestTimeoutSeconds: model.requestTimeoutSeconds ?? 300, apiKey: "" };
       this.isNew = false;
       this.editing = true;
     },
     async save() {
+      if (!Number.isInteger(this.form.requestTimeoutSeconds) || this.form.requestTimeoutSeconds < 1 || this.form.requestTimeoutSeconds > 1200) {
+        this.message = "模型请求超时时间必须为 1 至 1200 秒的整数";
+        this.error = true;
+        return;
+      }
       this.saving = true;
       try {
         await savePlatformModel(this.form);

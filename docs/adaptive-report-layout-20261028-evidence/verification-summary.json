@@ -1,0 +1,84 @@
+{
+  "scope": "USER_APPROVED_CONTROLLED_SAMPLES_NOT_CUSTOMER_DATA",
+  "java": {
+    "tests": 116,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "javaClasses": [
+    {
+      "name": "com.chatchat.common.runtime.coding.CodingJsonSchemaTest",
+      "tests": "39",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.common.runtime.coding.CodingRuntimeContextTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.common.runtime.coding.ReportPresentationTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.chat.interaction.service.handler.ToolDirectReportModeTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.analysis.ClineContextAnswerServiceTest",
+      "tests": "18",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest",
+      "tests": "34",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.evidence.VisualReportArtifactsTest",
+      "tests": "17",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    }
+  ],
+  "visualFrontend": {
+    "tests": 38,
+    "passed": 38
+  },
+  "nodeSdkRegression": {
+    "tests": 103,
+    "passed": 103,
+    "modelGateway": "TEST_ADAPTER_NOT_LIVE_PROVIDER"
+  },
+  "broaderFrontend": {
+    "tests": 339,
+    "passed": 338,
+    "failed": 1,
+    "failure": "Existing MCP button style source-string assertion"
+  },
+  "controlledCalculations": {
+    "cases": 6,
+    "checks": 13
+  },
+  "productionDeployed": false,
+  "liveProviderE2E": false,
+  "additionalLayoutModelCalls": 0,
+  "frontendBuild": "PASSED",
+  "vueStructure": "PASSED"
+}

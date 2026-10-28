@@ -20,6 +20,34 @@ class VisualReportArtifactsTest {
         assertThat(result).containsEntry("layout",layout).containsEntry("layoutValidationStatus","PASSED").containsEntry("status","SUCCESS");
         assertThat(result.get("metrics")).isEqualTo(List.of(metric));
     }
+    @Test void removesOnlyExactDuplicateElementProvenanceFromLayoutWithoutChangingTheReport(){
+        var value=raw();var metric=new LinkedHashMap<>((Map<String,Object>)((List<?>)value.get("metrics")).get(0));
+        metric.put("dataRefs",List.of("source:authorized"));value.put("metrics",List.of(metric));value.put("tables",List.of());
+        var block=Map.of("id","value","type","metric","ref","sum","dataRefs",metric.get("dataRefs"));
+        value.put("layout",Map.of("schemaVersion","report_layout.v1","blocks",List.of(block)));
+        var first=collect(value,Map.of());var restored=collect(value,Map.of());
+        assertThat(first).containsEntry("layoutValidationStatus","PASSED").containsEntry("status","SUCCESS");
+        assertThat(first).isEqualTo(restored);assertThat(first.get("metrics")).isEqualTo(List.of(metric));
+        assertThat(first.get("layout")).isEqualTo(Map.of("schemaVersion","report_layout.v1","blocks",List.of(Map.of("id","value","type","metric","ref","sum"))));
+        assertThat(block).containsKey("dataRefs");verifyNoInteractions(archive);
+    }
+    @Test void layoutNormalizationCannotHideConflictingReferencesOrExecutableFields(){
+        for(String forbidden:List.of("conflicting-source","javascript")){
+            var value=raw();var metric=new LinkedHashMap<>((Map<String,Object>)((List<?>)value.get("metrics")).get(0));
+            metric.put("dataRefs",List.of("source:authorized"));value.put("metrics",List.of(metric));value.put("tables",List.of());
+            var block=new LinkedHashMap<String,Object>(Map.of("id","value","type","metric","ref","sum","dataRefs",metric.get("dataRefs")));
+            if("javascript".equals(forbidden))block.put("code","alert(1)");else block.put("dataRefs",List.of("source:other-owner"));
+            value.put("layout",Map.of("schemaVersion","report_layout.v1","blocks",List.of(block)));
+            var result=collect(value,Map.of());assertThat(result).containsEntry("layoutValidationStatus","FAILED").doesNotContainKey("layout");
+            assertThat(result.get("metrics")).isEqualTo(List.of(metric));
+        }
+    }
+    @Test void matchingLayoutReferencesStillRequireAuthorizedElementSources(){
+        var value=raw();var metric=new LinkedHashMap<>((Map<String,Object>)((List<?>)value.get("metrics")).get(0));
+        metric.put("dataRefs",List.of("source:other-owner"));value.put("metrics",List.of(metric));value.put("tables",List.of());
+        value.put("layout",Map.of("schemaVersion","report_layout.v1","blocks",List.of(Map.of("id","value","type","metric","ref","sum","dataRefs",metric.get("dataRefs")))));
+        assertThat(collect(value,Map.of())).containsEntry("artifactValidationStatus","FAILED");
+    }
     @Test void invalidLayoutKeepsTheCompleteAnalysisWithoutExecutingAnything(){
         var value=raw();value.put("layout",Map.of("schemaVersion","report_layout.v1","blocks",List.of(Map.of("id","bad","type","javascript","code","alert(1)"))));
         var result=collect(value,Map.of());

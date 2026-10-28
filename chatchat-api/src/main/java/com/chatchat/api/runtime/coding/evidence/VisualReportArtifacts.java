@@ -90,7 +90,7 @@ public final class VisualReportArtifacts {
             result.put("presentation",presentation);
             if(raw.containsKey("layout")){
                 try{
-                    result.put("layout",ReportLayout.validate(raw.get("layout"),Map.of("metric",metricIds,"section",sectionIds,"chart",charts.stream()
+                    result.put("layout",ReportLayout.validate(normalizeLayout(raw),Map.of("metric",metricIds,"section",sectionIds,"chart",charts.stream()
                         .map(chart->(String)chart.get("id")).collect(java.util.stream.Collectors.toSet()),"table",tableIds)));
                     result.put("layoutValidationStatus","PASSED");
                 }catch(IllegalArgumentException invalid){
@@ -154,6 +154,24 @@ public final class VisualReportArtifacts {
                 "summary","The original text analysis is retained; visual report validation failed.","markdown",fallbackMarkdown(rows),
                 "artifactValidationStatus","FAILED","validation",Map.of("status","FAILED","warnings",List.of(safeReason(invalid))),"execution",execution);
         }
+    }
+    /** Remove only an exact duplicate of a referenced element's provenance, never an unknown layout field. */
+    private static Object normalizeLayout(Map<String,Object> report){
+        var layout=map(report.get("layout"));var blocks=new ArrayList<Object>();
+        var collections=Map.of("metric","metrics","chart","charts","table","tables");
+        for(Object value:list(layout.get("blocks"),256)){
+            if(value instanceof Map<?,?> block && block.get("type") instanceof String type
+                    && collections.containsKey(type) && block.get("ref") instanceof String reference
+                    && block.get("dataRefs") instanceof List<?> refs && !refs.isEmpty() && refs.size()<=64
+                    && refs.stream().allMatch(String.class::isInstance)){
+                boolean duplicate=list(report.get(collections.get(type)),128).stream()
+                    .filter(Map.class::isInstance).map(Map.class::cast)
+                    .anyMatch(element->reference.equals(element.get("id"))&&refs.equals(element.get("dataRefs")));
+                if(duplicate){var clean=new LinkedHashMap<>(block);clean.remove("dataRefs");blocks.add(clean);continue;}
+            }
+            blocks.add(value);
+        }
+        var clean=new LinkedHashMap<>(layout);clean.put("blocks",blocks);return clean;
     }
     private static void bindDataReferences(Map<String,Object> raw,String key,List<Map<String,Object>> accepted,List<String> sources){
         var originals=new HashMap<String,Map<String,Object>>();

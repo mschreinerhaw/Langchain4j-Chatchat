@@ -1,0 +1,14 @@
+{
+  "revision": "a076b3f323d35282cf5d9313e8fe3a80befc5c37",
+  "root": "/opt/chatchat-releases/cline-monitor-python-a076b3f323d3-20261029",
+  "api": {
+    "image": "runtime-os-api:cline-monitor-python-a076b3f323d3-20261029",
+    "id": "sha256:2b214f18a75708579843c095fad1a2ee74baa5de1426afd11f10038e3cb9c907",
+    "jarSha256": "c5d7843fb7759fdf6988e63221c5f931ce0c52419e0cced795132bd815f07422"
+  },
+  "node": {
+    "image": "runtime-os-coding-agent:cline-monitor-python-a076b3f323d3-20261029",
+    "id": "sha256:9d921d4a6d2452b2e5a73a0e3b519e069e2bee50588792f1f2e269c45ba1bd8f",
+    "monitorJsSha256": "ceddc7491860e402443ce18045c3719150b757ee099ae2593e1c6cb9fab8ddd0"
+  }
+}

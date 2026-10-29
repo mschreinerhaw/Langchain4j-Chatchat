@@ -1,0 +1,20 @@
+{
+  "scope": "Actual standalone Cline /monitor; durable Java Python receipts and code archives",
+  "cases": [
+    {
+      "taskId": "analysis-coding-c8f9291c39de7654a4f0036bfac1d8e5bfe4d68cb95f33e8d5aed42285113a05",
+      "observationId": "22c94c79dad21b6d6a540a0d5399b84f20617139093177a35ff2ce9c34d0d2f8",
+      "executions": 2,
+      "repairs": 1,
+      "exceptions": [
+        "KeyError"
+      ],
+      "authority": "DURABLE_CODING_JOURNAL",
+      "realArchivedTiming": true,
+      "readOnlyModelCountUnchanged": true,
+      "journalRevisionUnchanged": true,
+      "restoredAfterReload": true
+    }
+  ],
+  "errors": []
+}

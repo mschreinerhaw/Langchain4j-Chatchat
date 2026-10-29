@@ -1,4 +1,5 @@
 import type { CodeVersion, NodeSnapshot, TaskDetail, TaskPage } from '../src/monitor-types.ts';
+import { repairLinks, sourceDiff, type PythonProjection, type PythonSource } from './python-diagnostics.js';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 function el(tag: string, className = '', text = ''): HTMLElement {
@@ -24,6 +25,9 @@ let authenticated = false, paused = false, inFlight = false, activeTab = 'overvi
 let detail: TaskDetail | null = null, snapshot: NodeSnapshot | null = null, offset = 0, total = 0;
 let sourceCache = new Map<string, string>(), timer: ReturnType<typeof setTimeout>, codeEpoch = 0;
 let listSignature = '', detailSignature = '';
+let pythonState: PythonProjection | null = null, pythonTask = '', pythonLoading = false, pythonError = '', pythonEpoch = 0;
+let pythonOpen = new Set<string>();
+const pythonTimings=new Map<string,string>();
 class ApiError extends Error { constructor(public status: number, message: string) { super(message); } }
 async function api<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(path, { ...options, credentials: 'same-origin', signal: AbortSignal.timeout(12000), cache: 'no-store' });
@@ -36,6 +40,7 @@ function connection(online: boolean) {
   $('connection-text').textContent = online ? '实时连接' : '连接中断';
 }
 function signedOut() {
+  pythonState=null;pythonTask='';pythonEpoch++;pythonLoading=false;pythonError='';pythonOpen.clear();pythonTimings.clear();
   authenticated = false; $('login').hidden = false; $('console').hidden = true;
 }
 function renderNode(node: NodeSnapshot) {
@@ -184,18 +189,97 @@ async function loadSource(taskId: string, codeId: string) {
     if (epoch === codeEpoch) pre.textContent = `无法读取代码：${(error as Error).message}`;
   }
 }
+async function loadPython(task: TaskDetail) {
+  if(pythonTask!==task.id){pythonTask=task.id;pythonEpoch++;pythonState=null;pythonError='';pythonLoading=false;pythonOpen.clear();}
+  if(pythonLoading)return;pythonLoading=true;const epoch=pythonEpoch;
+  try {
+    const value=await api<PythonProjection>(`/v1/monitor/tasks/${task.id}/python`);
+    if(epoch!==pythonEpoch||selectedId!==task.id)return;
+    if(value.source!=='DURABLE_CODING_JOURNAL'||value.taskId!==task.taskId)throw new Error('执行诊断身份不匹配');
+    const changed=JSON.stringify(value)!==JSON.stringify(pythonState)||!!pythonError;pythonState=value;pythonError='';
+    if(changed&&activeTab==='python'){detailSignature='';renderDetail(task);}
+  }catch(error){if(epoch===pythonEpoch&&selectedId===task.id){pythonError=(error as Error).message;if(activeTab==='python'){detailSignature='';renderDetail(task);}}}
+  finally{if(epoch===pythonEpoch)pythonLoading=false;}
+}
+function renderPython(task: TaskDetail) {
+  const node=el('div','python-diagnostics');
+  node.append(el('p','notice','数据来自 Java 持久化执行回执。模型调用成功不代表 Python 成功；原始日志不可用时不补造 Traceback。'));
+  const ready=pythonTask===task.id;
+  if(ready&&pythonError)node.append(el('p','notice python-unavailable',`真实诊断暂不可用：${pythonError}。保留上次回执，不据此判定任务失败。`));
+  const value=ready?pythonState:null;
+  if(!value){node.append(empty(pythonError?'暂时无法读取执行回执':'正在读取真实 Python 执行记录','历史记录不完整时将明确显示不可用，不使用 Node 事件推测错误。'));if(!ready||!pythonError)queueMicrotask(()=>{void loadPython(task);});return node;}
+  const executions=value.executions,links=repairLinks(executions),last=executions.at(-1),error=executions.filter(e=>e.error).at(-1)?.error;
+  const stats=el('div','python-stats');
+  for(const [label,count] of [['已归档执行',executions.length],['进程退出 0',executions.filter(e=>e.exitCode===0).length],
+    ['执行失败/超时',executions.filter(e=>e.exitCode!==null&&e.exitCode!==0||e.status==='TIMED_OUT').length],
+    ['产物校验失败',executions.filter(e=>e.error?.category==='OUTPUT_CONTRACT').length],['自动修复',links.length],
+    ['修复后未通过',links.filter(l=>l.validation.status!=='SUCCEEDED'||!l.validation.resultAvailable).length]]) {
+    const card=el('div','mini-stat',String(label));card.append(el('strong','',String(count)));stats.append(card);
+  }
+  node.append(stats,kv([['Runtime 任务状态',value.status],['最近执行阶段',last?.stage??'尚无执行回执'],
+    ['最近执行代码版本',last?.script?.scriptVersion?`v${last.script.scriptVersion}`:'不可用'],['最后一次错误',error?`${error.exceptionType} / ${error.diagnosticCode}`:'无已记录错误'],
+    ['最后一次产物验证',last?`${last.validationStatus} · 结果${last.resultAvailable?'已归档':'不可用'}`:'尚未验证'],['业务独立校验',last?.businessValidationPassed?'PASSED':'未独立确认']]));
+  if(!executions.length)node.append(empty('暂无已归档 Python 执行回执','代码生成、工具派发或取消前的中间事件不计为已完成执行。'));
+  executions.forEach((execution,index)=>{
+    const record=el('details','python-execution') as HTMLDetailsElement;record.dataset.executionId=execution.executionId;record.open=pythonOpen.has(execution.executionId);
+    const timing=el('span','',pythonTimings.get(execution.executionId)??'展开记录后读取原归档时间');
+    record.addEventListener('toggle',()=>{record.open?pythonOpen.add(execution.executionId):pythonOpen.delete(execution.executionId);
+      if(record.open&&!pythonTimings.has(execution.executionId))void (async()=>{
+        const epoch=pythonEpoch;timing.textContent='正在核对原执行回执…';
+        try{const value=await api<{operationId:string;sha256:string;available:boolean;source?:string;startedAt?:string;finishedAt?:string}>(`/v1/monitor/tasks/${task.id}/python/timing/${execution.executionId}`);
+          if(value.operationId!==execution.executionId||value.sha256!==execution.codeHash)throw new Error('执行时间身份不匹配');
+          const text=value.available&&value.source==='MCP_ARCHIVED_RECEIPT'?`${time(value.startedAt??null)} → ${time(value.finishedAt??null)}（原 MCP 回执）`:'原执行时间未归档，不推测开始或结束时间';
+          if(epoch===pythonEpoch&&selectedId===task.id){pythonTimings.set(execution.executionId,text);timing.textContent=text;}
+        }catch{if(timing.isConnected)timing.textContent='原归档时间暂不可用，不使用模型或派发时间代替';}
+      })();
+    });
+    record.append(el('summary','',`第 ${index+1} 次 · v${execution.script?.scriptVersion??'?'} · ${execution.status} · ${execution.error?.exceptionType??(execution.resultAvailable?'产物已归档':'无可用结果')}`));
+    record.append(kv([['执行 ID',execution.executionId],['Python 文件',execution.script?.fileName??'未保留'],['实际进程起止时间',timing],
+      ['实际耗时',execution.durationMs===null?'不可用':duration(execution.durationMs)],['进程退出码',String(execution.exitCode??'不可用')],['代码 SHA256',execution.codeHash],
+      ['错误分类',execution.error?.category??'无'],['异常类型',execution.error?.exceptionType??'无'],['诊断错误码',execution.error?.diagnosticCode??'无'],
+      ['安全诊断',execution.error?.message??'无错误诊断'],['产物验证',execution.validationStatus],['业务独立校验',execution.businessValidationPassed?'PASSED':'未独立确认']]));
+    if(execution.error?.stack.length)record.append(el('pre','code-block python-stack',execution.error.stack.map(f=>`${f.file}:${f.line}${f.column?':'+f.column:''}`).join('\n')));
+    record.append(el('p','muted','原始日志不可用；以上为真实脱敏诊断和受限定位，不是完整 Traceback。'));
+    const relation=links.find(link=>link.validation.executionId===execution.executionId);
+    if(relation){
+      record.append(el('h3','','自动修复与后续验证'),kv([['触发失败执行',relation.failure.executionId],['修复前代码',relation.failure.codeHash],['修复后代码',execution.codeHash],
+        ['修复依据',`${relation.failure.error?.exceptionType??relation.failure.status} / ${relation.failure.error?.diagnosticCode??relation.failure.validationStatus}`],
+        ['后端修复决策',relation.failure.repair.reason],['修复指导',relation.failure.repair.guidance],['后续真实验证',`${execution.status} · ${execution.resultAvailable?'产物已归档':'结果不可用'}`]]));
+      record.append(el('p','muted','修复依据来自执行回执；模型判断不是已证实根因，代码变化以真实归档 Diff 为准。'));
+      const button=el('button','button','查看真实修复 Diff') as HTMLButtonElement,output=el('div','python-diff');
+      button.addEventListener('click',async()=>{
+        button.disabled=true;output.textContent='正在校验并读取归档代码…';const epoch=pythonEpoch;
+        try {
+          const [before,after]=await Promise.all([relation.failure,execution].map(e=>api<PythonSource>(`/v1/monitor/tasks/${task.id}/python/codes/${e.executionId}`)));
+          if(epoch!==pythonEpoch||selectedId!==task.id||!output.isConnected)return;
+          if(before.sha256!==relation.failure.codeHash||after.sha256!==execution.codeHash||before.taskId!==task.taskId||after.taskId!==task.taskId)throw new Error('源码摘要与真实执行不一致');
+          output.replaceChildren();
+          if(before.files.length===1&&after.files.length===1&&before.files[0].path!==after.files[0].path){output.append(el('h4','',`${before.files[0].path} → ${after.files[0].path}`),el('pre','code-block',sourceDiff(before.files[0].content,after.files[0].content)));return;}
+          for(const path of new Set([...before.files,...after.files].map(f=>f.path))){const a=before.files.find(f=>f.path===path)?.content??'',b=after.files.find(f=>f.path===path)?.content??'';output.append(el('h4','',path),el('pre','code-block',sourceDiff(a,b)));}
+        }catch(error){if(output.isConnected)output.textContent=`归档 Diff 不可用：${(error as Error).message}。不使用推测代码替代。`;}
+        finally{button.disabled=false;}
+      });record.append(button,output);
+    }
+    node.append(record);
+  });
+  node.append(el('h3','','真实执行时间线'));
+  const timeline=el('ol','python-timeline');
+  executions.forEach((execution,index)=>{timeline.append(el('li','',`代码版本 v${execution.script?.scriptVersion??'?'} → 第 ${index+1} 次 Python：${execution.error?.exceptionType??execution.status} → 产物 ${execution.validationStatus}`));
+    if(links.some(l=>l.failure.executionId===execution.executionId))timeline.append(el('li','','根据真实失败修复代码 → 后续执行验证（见上方版本与 Diff）'));});
+  node.append(timeline);return node;
+}
 function renderDetail(task: TaskDetail) {
   detail = task;
   replace($('detail-heading'), el('h2', '', '执行详情'), badge(task.status));
   const signature = JSON.stringify([activeTab, task]);
   if (signature === detailSignature) return;
   // Keep code selection and timeline expansion stable while only elapsed time changes.
-  const stable = JSON.stringify([activeTab, { ...task, elapsedMs: 0 }]);
+  const stable = activeTab==='python'?JSON.stringify([activeTab,task.id,pythonState,pythonError]):JSON.stringify([activeTab, { ...task, elapsedMs: 0 }]);
   if (activeTab !== 'overview' && stable === detailSignature) return;
   detailSignature = activeTab === 'overview' ? signature : stable;
   codeEpoch++;
   const renderers: Record<string, (task: TaskDetail) => HTMLElement> = {
-    overview: renderOverview, models: renderModels, skills: renderSkills, events: renderEvents, codes: renderCodes,
+    overview: renderOverview, models: renderModels, skills: renderSkills, events: renderEvents, codes: renderCodes, python: renderPython,
   };
   replace($('detail-content'), renderers[activeTab](task));
 }
@@ -214,6 +298,7 @@ async function refresh() {
       try {
         const value = await api<{ task: TaskDetail }>(`/v1/monitor/tasks/${requested}`);
         if (requested === selectedId) renderDetail(value.task);
+        if (requested === selectedId && activeTab === 'python') void loadPython(value.task);
       } catch (error) {
         if (error instanceof ApiError && error.status === 404) {
           replace($('detail-content'), empty('记录已过期', '该任务已不在当前节点的保留历史中。')); detail = null;

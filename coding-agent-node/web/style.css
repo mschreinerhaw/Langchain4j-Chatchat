@@ -2,3 +2,4 @@
 .mobile-logout{display:none}@media(max-width:700px){.mobile-logout{display:block;background:#edf4f1;color:#477b6b;font-size:10px;padding:5px 8px}}
 
 .brand{font-size:18px;letter-spacing:-.5px;white-space:nowrap}.brand-mark.small{flex-shrink:0}@media(min-width:701px) and (max-width:1150px){.sidebar .brand{font-size:15px;gap:7px}}
+.python-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:16px 0}.python-execution{border:1px solid #dce5ef;border-radius:9px;padding:12px;margin:12px 0}.python-execution>summary{cursor:pointer;font-weight:600;overflow-wrap:anywhere}.python-execution h3{font-size:14px;margin-top:18px}.python-execution .code-block{max-height:400px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}.python-timeline{line-height:1.9;padding-left:20px}.python-diff h4{overflow-wrap:anywhere}.python-unavailable{color:#9a6700}@media(max-width:700px){.python-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}

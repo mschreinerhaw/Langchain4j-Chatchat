@@ -272,8 +272,9 @@ export class MonitorStore {
   }
 }
 
-export function createMonitorHandler({ token, store, snapshot, secureCookie = false }: {
+export function createMonitorHandler({ token, store, snapshot, secureCookie = false, python }: {
   token?: string; store: MonitorStore; snapshot: () => NodeSnapshot; secureCookie?: boolean;
+  python?: (task: TaskDetail, operationId?: string, kind?: 'code'|'timing') => Promise<unknown>;
 }) {
   if (token && token.length < 32) throw new Error('Monitor token must contain at least 32 characters');
   const bootKey = randomUUID(); // Browser sessions expire on process restart; never a dispatch credential.
@@ -290,6 +291,7 @@ export function createMonitorHandler({ token, store, snapshot, secureCookie = fa
   const assetRoot = existsSync(new URL('./public/index.html', import.meta.url))
     ? new URL('./public/', import.meta.url) : new URL('../dist/public/', import.meta.url);
   const assets = new Map([['/monitor/', ['index.html', 'text/html; charset=utf-8']],
+    ['/monitor/python-diagnostics.js', ['python-diagnostics.js', 'text/javascript; charset=utf-8']],
     ['/monitor/app.js', ['app.js', 'text/javascript; charset=utf-8']], ['/monitor/style.css', ['style.css', 'text/css; charset=utf-8']]]);
   return async (request: IncomingMessage, reply: ServerResponse): Promise<boolean> => {
     const url = new URL(request.url ?? '/', 'http://localhost');
@@ -333,6 +335,15 @@ export function createMonitorHandler({ token, store, snapshot, secureCookie = fa
     const path = url.pathname.slice('/v1/monitor'.length);
     if (path === '/node') { json(reply, 200, snapshot()); return true; }
     if (path === '/openapi.json') { json(reply, 200, openapi); return true; }
+    const pythonRoute = /^\/tasks\/([a-f0-9]{64})\/python(?:\/(codes|timing)\/(cline-[a-f0-9]{64}))?$/.exec(path);
+    if (pythonRoute) {
+      const task = store.detail(pythonRoute[1]);
+      if (!task) { json(reply, 404, { message: 'Observation not retained on this node' }); return true; }
+      if (!python) { json(reply, 503, { message: 'Runtime execution diagnostics are not configured' }); return true; }
+      try { json(reply, 200, await python(task, pythonRoute[3],pythonRoute[2]==='timing'?'timing':'code')); }
+      catch { json(reply, 502, { message: 'Runtime execution diagnostics unavailable; observations are not execution receipts' }); }
+      return true;
+    }
     if (path === '/tasks') {
       const offset = Number(url.searchParams.get('offset') ?? 0), limit = Number(url.searchParams.get('limit') ?? 30);
       const state = url.searchParams.get('status') ?? '';
@@ -376,7 +387,7 @@ const openapi = {
   servers: [{ url: '/v1/monitor' }], security: [{ monitorToken: [] }],
   components: { securitySchemes: { monitorToken: { type: 'http', scheme: 'bearer' } } },
   paths: Object.fromEntries(['/node', '/tasks', '/tasks/{id}', '/tasks/{id}/events', '/tasks/{id}/models',
-    '/tasks/{id}/skills', '/tasks/{id}/codes', '/tasks/{id}/codes/{codeId}'].map(path => [path, {
+    '/tasks/{id}/skills', '/tasks/{id}/codes', '/tasks/{id}/codes/{codeId}', '/tasks/{id}/python'].map(path => [path, {
     get: { summary: path, parameters: [...path.matchAll(/\{(\w+)\}/g)].map(match => ({
       name: match[1], in: 'path', required: true, schema: { type: 'string', pattern: '^[a-f0-9]{64}$' },
     })), responses: { '200': { description: 'Versioned observation' }, '401': { description: 'Authentication required' },

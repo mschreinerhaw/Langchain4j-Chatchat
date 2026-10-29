@@ -26,6 +26,7 @@ export function createMonitorClient(options: { baseUrl: string; token: string; f
     models: (taskId: string) => get<{ schemaVersion: string; models: ModelCall[] }>(`/tasks/${id(taskId)}/models`),
     skills: (taskId: string) => get<{ schemaVersion: string; skills: TaskDetail['skills'] }>(`/tasks/${id(taskId)}/skills`),
     codes: (taskId: string) => get<{ schemaVersion: string; codes: CodeVersion[] }>(`/tasks/${id(taskId)}/codes`),
+    python: (taskId: string) => get<unknown>(`/tasks/${id(taskId)}/python`),
     code: (taskId: string, codeId: string) => get<CodeVersion>(`/tasks/${id(taskId)}/codes/${id(codeId)}`),
   };
 }

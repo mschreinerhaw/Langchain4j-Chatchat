@@ -47,6 +47,9 @@ public final class ClinePythonCallbackController {
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setFeedback(com.chatchat.api.runtime.coding.execution.CodingExecutionFeedbackService value) { feedback=value; }
     private CodingCodeArtifactStore codeArtifacts;
+    private com.chatchat.api.assets.RuntimePythonAssetArchiver monitorAssets;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setMonitorAssets(com.chatchat.api.assets.RuntimePythonAssetArchiver value){monitorAssets=value;}
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setCodeArtifacts(CodingCodeArtifactStore value) { codeArtifacts = value; }
     private static final Logger LOG = LoggerFactory.getLogger(ClinePythonCallbackController.class);
@@ -64,6 +67,59 @@ public final class ClinePythonCallbackController {
             CodingPythonExecutionBridge python, CodingEvidenceCollector collector, ObjectMapper mapper) {
         this.identity = identity; this.tasks = tasks; this.inputs = inputs;
         this.plans = plans; this.python = python; this.collector = collector; this.mapper = mapper;
+    }
+
+    /** Signed, peer-restricted operator projection. READ only; never renews leases or resumes a task. */
+    @PostMapping("/monitor-python")
+    public Map<String,Object> monitorPython(@RequestBody JsonNode body) {
+        if(body==null||!body.isObject())throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        final KernelDataScope requested;
+        try { requested=mapper.treeToValue(body.path("scope"),KernelDataScope.class); }
+        catch(Exception invalid){throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Monitor scope required");}
+        String taskId=body.path("taskId").asText("");
+        if(requested==null||taskId.isBlank()||taskId.length()>256||requested.tenantId()==null||requested.userId()==null||requested.runId()==null)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Monitor task identity required");
+        return identity.as(requested,EnumSet.of(CodingTaskAccess.Action.READ),()->{
+            var outcome=tasks.get(requested,taskId);var contract=tasks.contract(requested,taskId);var scope=contract.scope();
+            if(!java.util.Objects.equals(scope.tenantId(),requested.tenantId())||!java.util.Objects.equals(scope.userId(),requested.userId())
+                ||!java.util.Objects.equals(scope.runId(),requested.runId()))throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+            var executions=feedback==null?List.<com.chatchat.common.runtime.coding.ExecutionFeedback>of():feedback.timeline(scope,taskId);
+            String operation=body.path("operationId").asText("");
+            if(!operation.isBlank()) {
+                if(!operation.matches("cline-[0-9a-f]{64}"))throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+                var execution=executions.stream().filter(e->operation.equals(e.executionId())).findFirst()
+                    .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Archived execution unavailable"));
+                String kind=body.path("kind").asText("code");
+                if("timing".equals(kind)) {
+                    var bytes=monitorAssets==null?java.util.Optional.<byte[]>empty():monitorAssets.log(scope,taskId,operation,"receipt.json");
+                    if(bytes.isEmpty())return Map.of("operationId",operation,"sha256",execution.codeHash(),"available",false);
+                    if(bytes.get().length>8192)throw new ResponseStatusException(HttpStatus.CONFLICT,"Invalid archived timing");
+                    try {
+                        var receipt=mapper.readTree(bytes.get());
+                        if(!operation.equals(receipt.path("operationId").asText())||!execution.codeHash().equals(receipt.path("codeHash").asText()))throw new IllegalArgumentException();
+                        var timing=new LinkedHashMap<String,Object>();timing.put("source","MCP_ARCHIVED_RECEIPT");timing.put("operationId",operation);timing.put("sha256",execution.codeHash());timing.put("available",true);
+                        for(String field:List.of("startedAt","finishedAt"))timing.put(field,receipt.path(field).isTextual()?Instant.parse(receipt.path(field).asText()).toString():null);
+                        return timing;
+                    }catch(java.io.IOException|IllegalArgumentException|java.time.DateTimeException invalid){throw new ResponseStatusException(HttpStatus.CONFLICT,"Invalid archived timing");}
+                }
+                if(!"code".equals(kind))throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+                if(codeArtifacts==null)throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE);
+                var artifact=codeArtifacts.find(scope,taskId,operation).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Archived code unavailable"));
+                String source=(String)artifact.get("content"),hash=com.chatchat.common.runtime.coding.PythonCodeProject.hash(source);
+                if(!execution.codeHash().equals(hash)||!hash.equals(artifact.get("sha256")))throw new ResponseStatusException(HttpStatus.CONFLICT,"Archived code hash differs from execution");
+                var decoded=com.chatchat.common.runtime.coding.PythonCodeProject.decode(source);
+                Object files;
+                if(decoded.isPresent())try {
+                    files=com.chatchat.common.runtime.coding.PythonCodeProject.validate(mapper.readValue(decoded.get(),com.chatchat.common.runtime.coding.PythonCodeProject.Project.class)).files();
+                }catch(java.io.IOException invalid){throw new ResponseStatusException(HttpStatus.CONFLICT,"Invalid archived source project");}
+                else files=List.of(Map.of("path",artifact.get("fileName"),"content",source));
+                return Map.of("source","IMMUTABLE_CODE_ARTIFACT","taskId",taskId,"operationId",operation,"sha256",hash,"files",files);
+            }
+            var result=new LinkedHashMap<String,Object>();result.put("source","DURABLE_CODING_JOURNAL");result.put("taskId",taskId);
+            result.put("status",outcome.status());result.put("revision",outcome.revision());result.put("cancellationRequested",outcome.cancellationRequested());
+            result.put("executions",executions);result.put("diagnosticsAvailable",feedback!=null);result.put("rawLogsAvailable",false);
+            result.put("lastEventSequence",outcome.lastEventSequence());return result;
+        });
     }
 
     @PostMapping("/prepare-python")

@@ -55,6 +55,35 @@ class ClinePythonCallbackControllerTest {
         when(tasks.scriptFile(any(),anyString(),anyString())).thenReturn(CodingScript.LEGACY_FILE);
         controller=new ClinePythonCallbackController(identity,tasks,inputs,plans,python,collector,json);
     }
+    @Test void monitorReadsStoppedTaskWithoutWorkerLeaseOrExecutionSideEffects() {
+        var feedback=mock(com.chatchat.api.runtime.coding.execution.CodingExecutionFeedbackService.class);controller.setFeedback(feedback);
+        var historical=tasks.get(scope,"task");when(historical.status()).thenReturn(CodingTaskOutcome.Status.COMPLETED);
+        when(tasks.get(scope,"task")).thenAnswer(call->{identity.require(scope,CodingTaskAccess.Action.READ);
+            assertThatThrownBy(()->identity.require(scope,CodingTaskAccess.Action.WORKER)).isInstanceOf(CodingContractException.class);return historical;});
+        when(tasks.contract(scope,"task")).thenReturn(contract);when(feedback.timeline(scope,"task")).thenReturn(List.of());
+        var response=controller.monitorPython(json.valueToTree(Map.of("scope",scope,"taskId","task")));
+        assertThat(response).containsEntry("source","DURABLE_CODING_JOURNAL").containsEntry("rawLogsAvailable",false);
+        verify(tasks,never()).ownership(any(),anyString());verifyNoInteractions(python,collector);
+    }
+    @Test void monitorCodeRequiresTheActualExecutionAndMatchingArchivedHash() {
+        var feedback=mock(com.chatchat.api.runtime.coding.execution.CodingExecutionFeedbackService.class);controller.setFeedback(feedback);
+        var artifacts=mock(CodingCodeArtifactStore.class);controller.setCodeArtifacts(artifacts);when(tasks.contract(scope,"task")).thenReturn(contract);
+        var execution=mock(ExecutionFeedback.class);when(execution.executionId()).thenReturn(operation);when(execution.codeHash()).thenReturn("f".repeat(64));when(feedback.timeline(scope,"task")).thenReturn(List.of(execution));
+        when(artifacts.find(scope,"task",operation)).thenReturn(Optional.of(Map.of("content","print(7)","sha256","f".repeat(64),"fileName","main.py")));
+        assertThatThrownBy(()->controller.monitorPython(json.valueToTree(Map.of("scope",scope,"taskId","task","operationId",operation)))).hasMessageContaining("409");
+        assertThatThrownBy(()->controller.monitorPython(json.valueToTree(Map.of("scope",scope,"taskId","task","operationId","cline-"+"b".repeat(64))))).hasMessageContaining("404");
+        verifyNoInteractions(python,collector);
+    }
+    @Test void monitorTimingUsesOnlyHashBoundArchivedReceiptAndNeverQueriesSandbox() throws Exception {
+        var feedback=mock(com.chatchat.api.runtime.coding.execution.CodingExecutionFeedbackService.class);controller.setFeedback(feedback);
+        var archive=mock(com.chatchat.api.assets.RuntimePythonAssetArchiver.class);controller.setMonitorAssets(archive);when(tasks.contract(scope,"task")).thenReturn(contract);
+        var execution=mock(ExecutionFeedback.class);when(execution.executionId()).thenReturn(operation);when(execution.codeHash()).thenReturn("a".repeat(64));when(feedback.timeline(scope,"task")).thenReturn(List.of(execution));
+        when(archive.log(scope,"task",operation,"receipt.json")).thenReturn(Optional.of(json.writeValueAsBytes(Map.of("operationId",operation,"codeHash","a".repeat(64),"startedAt","2026-10-29T00:00:00Z","finishedAt","2026-10-29T00:00:01Z"))));
+        var request=json.valueToTree(Map.of("scope",scope,"taskId","task","operationId",operation,"kind","timing"));
+        assertThat(controller.monitorPython(request)).containsEntry("source","MCP_ARCHIVED_RECEIPT").containsEntry("startedAt","2026-10-29T00:00:00Z");
+        when(archive.log(scope,"task",operation,"receipt.json")).thenReturn(Optional.of(json.writeValueAsBytes(Map.of("operationId",operation,"codeHash","b".repeat(64)))));
+        assertThatThrownBy(()->controller.monitorPython(request)).hasMessageContaining("409");verifyNoInteractions(python,collector);
+    }
     Map<String,Object> body(){return new LinkedHashMap<>(Map.of("scope",scope,"taskId","task","contract",contract,
         "contractHash",CodingCanonicalHash.sha256(contract),"fencingToken",1,"operationId",operation));}
 

@@ -5,3 +5,4 @@ for (const project of ['tsconfig.json', 'tsconfig.web.json'])
 mkdirSync('dist/public', { recursive: true });
 for (const file of ['index.html', 'style.css']) copyFileSync(`web/${file}`, `dist/public/${file}`);
 copyFileSync('dist/client/web/main.js', 'dist/public/app.js');
+copyFileSync('dist/client/web/python-diagnostics.js', 'dist/public/python-diagnostics.js');

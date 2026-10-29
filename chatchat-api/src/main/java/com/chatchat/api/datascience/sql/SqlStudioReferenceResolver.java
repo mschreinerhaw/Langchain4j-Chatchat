@@ -61,7 +61,7 @@ public class SqlStudioReferenceResolver {
         }
         return List.copyOf(tables);
     }
-    private static boolean matches(Map<String,Object> table,Map<String,Object> ref) {
+    static boolean matches(Map<String,Object> table,Map<String,Object> ref) {
         boolean quoted=Boolean.TRUE.equals(ref.get("quoted"));
         String name=Objects.toString(ref.get("tableName"),""), actual=Objects.toString(table.get("tableName"),"");
         if (!(quoted?name.equals(actual):name.equalsIgnoreCase(actual))) return false;

@@ -87,6 +87,30 @@ public class SqlStudioMetadataGateway {
         return new Result(tool.serviceId(), data);
     }
 
+    /** Existing read-only enterprise reference and template tools; never a generic MCP proxy. */
+    public Map<String,Object> referenceScoped(com.chatchat.common.kernel.KernelDataScope scope,String serviceId,String name,Map<String,Object> arguments) {
+        if(scope.userId()==null || scope.tenantId()==null || !Set.of("enterprise_metadata_search","data_query_query").contains(name))
+            throw new SecurityException("Authenticated read-only metadata tool required");
+        var tools=kernel.tools(new McpToolQuery(serviceId,null,Set.of(name))).stream().filter(t->name.equals(t.remoteToolName())).toList();
+        if(tools.size()!=1)throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"METADATA_CAPABILITY_UNAVAILABLE: "+name);
+        long deadline=Math.min(System.currentTimeMillis()+15000,scope.attributes().get("deadlineAt") instanceof Number n?n.longValue():Long.MAX_VALUE);
+        var identity=new LinkedHashMap<String,Object>(Map.of("tenantId",scope.tenantId(),"userId",scope.userId(),"scopeAuthority","API_AUTHENTICATION_CONTEXT","invocationSource","sql_studio_metadata"));
+        if(scope.runId()!=null)identity.put("runId",scope.runId());
+        var result=kernel.execute(new McpServiceCall(null,scope.requestId(),serviceId,name,arguments,identity,deadline));
+        if(result==null || !result.successful()){
+            boolean denied=result!=null&&(result.status()==McpServiceResultStatus.REJECTED || Objects.toString(result.errorMessage(),"").contains("SecurityException:"));
+            throw new ResponseStatusException(denied?HttpStatus.FORBIDDEN:HttpStatus.SERVICE_UNAVAILABLE,
+                denied?"METADATA_ACCESS_DENIED":"METADATA_SERVICE_UNAVAILABLE");
+        }
+        return structured(result.data(),0);
+    }
+    @SuppressWarnings("unchecked") private Map<String,Object> structured(Object value,int depth){
+        if(!(value instanceof Map<?,?> map)||depth>4)throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,"Invalid structured metadata response");
+        if(map.containsKey("evidenceBundle")||map.containsKey("templates")||map.containsKey("results"))return (Map<String,Object>)map;
+        for(String key:List.of("structuredContent","structured_content","data","result"))if(map.get(key) instanceof Map<?,?>)return structured(map.get(key),depth+1);
+        return (Map<String,Object>)map;
+    }
+
     @SuppressWarnings("unchecked")
     private Map<String, Object> payload(Object value, int depth) {
         if (!(value instanceof Map<?, ?> map) || depth > 4) return Map.of();

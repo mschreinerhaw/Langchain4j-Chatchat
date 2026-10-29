@@ -36,6 +36,26 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class McpAuthorizationServiceTest {
+    @Test void publishedMetadataIsReadableWithoutBusinessDataGrantsButExecutorsStillRequireThem() throws Exception {
+        var authority=service(snapshot("[]"));
+        var call=new com.chatchat.common.mcp.service.McpServiceCall(null,"metadata-default","client","sql_schema_context_query",Map.of(),
+            Map.of("tenantId","tenant-1","userId","user-1"),0);
+        try(var ignored=McpInvocationContext.openCall(call)){
+            assertThat(authority.authorize("sql_schema_context_query",Map.of()).allowed()).isTrue();
+            assertThat(authority.authorizedAssetDomains("sql_schema_context_query").test("catalog-asset")).isTrue();
+            assertThat(authority.authorize("enterprise_metadata_search",Map.of()).allowed()).isTrue();
+            assertThat(authority.authorize("sql_query_execute",Map.of()).allowed()).isFalse();
+            assertThat(authority.authorize("other-service","sql_schema_context_query",Map.of()).allowed()).isFalse();
+        }
+    }
+    @Test void metadataDefaultsDoNotOverrideAnExplicitCatalogDenial() throws Exception {
+        var authority=service(snapshot("""
+            [{"tenantId":"tenant-1","targetType":"role","targetId":"role-1","localToolName":"sql_schema_context_query","effect":"deny","enabled":true}]
+            """));
+        var call=new com.chatchat.common.mcp.service.McpServiceCall(null,"metadata-deny","client","sql_schema_context_query",Map.of(),
+            Map.of("tenantId","tenant-1","userId","user-1"),0);
+        try(var ignored=McpInvocationContext.openCall(call)){assertThat(authority.authorize("sql_schema_context_query",Map.of()).allowed()).isFalse();}
+    }
     @Test void managementRefreshUsesTheFreshAuthorityPath() throws Exception {
         var calls=new AtomicInteger();var data=databaseSnapshot(snapshot("[]"));
         var properties=new McpAuthorizationProperties();properties.setEnabled(true);

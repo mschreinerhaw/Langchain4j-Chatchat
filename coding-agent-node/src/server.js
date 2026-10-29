@@ -123,6 +123,8 @@ export function httpGateway(callbackUrl, secret, binding, { timeoutMs = 90000 } 
     readArtifact: (contract, reference, signal) => callback('read-artifact', { contract, reference }, signal),
     readWorkspace: (contract, operationId, signal) => callback('workspace-read', { contract, operationId }, signal),
     proposeWorkspace: (contract, operationId, proposal, signal) => callback('workspace-propose', { contract, operationId, proposal }, signal),
+    queryWorkspaceMetadata: (contract, operationId, query, signal) => callback('workspace-metadata', { contract, operationId, query }, signal),
+    validateWorkspace: (contract, operationId, validation, signal) => callback('workspace-validate', { contract, operationId, validation }, signal),
     event: (event) => callback('event', { event }),
     finish: (contract, outcome) => callback('finish', { contract, outcome }),
     checkpoint: (contract, checkpoint) => callback('checkpoint', { contract, checkpoint }),
@@ -170,7 +172,7 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
           codeLifecycleVersions: ['runtime_os.code_lifecycle.v1'],
           analysisProfiles: ['runtime-coding:analysis-fast-path:v1'],
           analysisTools: ['input_read','report_submit'],
-          workspaceProfiles: ['runtime-coding:workspace-fast-path:v1'] });
+          workspaceProfiles: ['runtime-coding:workspace-fast-path:v1','runtime-coding:sql-metadata-tools:v1'] });
       }
       if (request.method === 'GET' && url.pathname === '/healthz')
         return response(reply, 200, { status: 'UP', sdk: '@cline/agents@0.0.93',

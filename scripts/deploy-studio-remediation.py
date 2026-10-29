@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import socket
+import shutil
 import subprocess
 import time
 import urllib.request
@@ -41,6 +42,11 @@ def main():
     manifest = json.loads((root / 'manifest.json').read_text())
     stage = Path('/opt/runtime-os-docker-stage')
     api, proxy = 'runtime-os-app-stage-api-1', 'runtime-os-app-stage-node-proxy-1'
+    node, mcp = 'runtime-os-app-stage-coding-agent-1', 'runtime-os-app-stage-mcp-1'
+    images = {api: manifest['image']}
+    if manifest.get('worker'): images[node] = manifest['worker']['image']
+    if manifest.get('mcp'): images[mcp] = manifest['mcp']['image']
+    order = ([mcp] if mcp in images else []) + [api] + ([node] if node in images else []) + [proxy]
     inspect = lambda name: json.loads(run('docker', 'inspect', name))[0]
     before = {name: inspect(name) for name in run('docker', 'ps', '--format', '{{.Names}}').splitlines()}
     assert run('docker', 'exec', api, 'sha256sum', '/srv/app/app.jar').split()[0] == manifest['baselineSha256']
@@ -50,7 +56,7 @@ def main():
     probe = "const f=require('fs');fetch('http://127.0.0.1:3100/readyz',{headers:{authorization:'Bearer '+f.readFileSync(process.env.RUNTIME_CODING_SHARED_SECRET_FILE,'utf8').trim()}}).then(r=>r.json()).then(r=>console.log(r.activeSessions))"
     assert run('docker', 'exec', 'runtime-os-app-stage-coding-agent-1', 'node', '-e', probe) == '0', 'Active Coding sessions'
     assert not run('docker', 'ps', '--filter', 'name=chatchat-py-', '--format', '{{.ID}}'), 'Active Python sandbox'
-    for name in [api, proxy]:
+    for name in order:
         for mount in before[name]['Mounts']:
             if mount['Type'] == 'bind' and not Path(mount['Source']).exists():
                 raise RuntimeError('Required bind source is missing: ' + mount['Source'])
@@ -59,10 +65,29 @@ def main():
     (root / 'Dockerfile').write_text('FROM ' + base + '\nWORKDIR /srv/app\nCOPY app.jar /srv/app/app.jar\nENTRYPOINT ["java","-jar","/srv/app/app.jar"]\n')
     (root / '.dockerignore').write_text('*\n!app.jar\n!Dockerfile\n')
     run('docker', 'build', '--network', 'none', '-t', manifest['image'], str(root))
+    if mcp in images:
+        entry=manifest['mcp']
+        assert run('docker','exec',mcp,'sha256sum','/srv/app/app.jar').split()[0]==entry['baselineSha256']
+        assert hashlib.sha256((root/'mcp.jar').read_bytes()).hexdigest()==entry['sha256']
+        build=root/'mcp-build';build.mkdir()
+        shutil.copy2(root/'mcp.jar',build/'app.jar')
+        run('docker','cp',mcp+':/usr/local/bin/docker',str(build/'docker'))
+        (build/'Dockerfile').write_text('FROM '+base+'\nCOPY docker /usr/local/bin/docker\nRUN chmod 0755 /usr/local/bin/docker && docker --version\nWORKDIR /srv/app\nCOPY app.jar /srv/app/app.jar\nENTRYPOINT ["java","-jar","/srv/app/app.jar"]\n')
+        run('docker','build','--network','none','-t',images[mcp],str(build))
+    if node in images:
+        entry=manifest['worker'];build=root/'worker-build';build.mkdir()
+        (build/'patched').mkdir()
+        for module,expected in entry['baselineModules'].items():
+            assert module in ['runner.js','server.js']
+            assert run('docker','exec',node,'sha256sum','/srv/coding-agent/dist/'+module).split()[0]==expected
+            assert hashlib.sha256((root/'worker'/module).read_bytes()).hexdigest()==entry['modules'][module]
+            shutil.copy2(root/'worker'/module,build/'patched'/module)
+        (build/'Dockerfile').write_text('FROM '+before[node]['Image']+'\nCOPY patched/ /srv/coding-agent/dist/\n')
+        run('docker','build','--network','none','-t',images[node],str(build))
     backup = root / 'backup'
     backup.mkdir(mode=0o700)
     (backup / 'containers.json').write_text(json.dumps(before))
-    configs = {name: (stage / name).read_bytes() for name in ['compose.yaml', 'config/deployment.env']}
+    configs = {name: (stage / name).read_bytes() for name in ['compose.yaml', 'config/deployment.env','config/node-proxy.conf']}
     for name, data in configs.items():
         (backup / Path(name).name).write_bytes(data)
     sql = lambda query: run('docker', 'exec', '-u', 'postgres', 'postgres', 'psql', '-At', '-d', 'runtime_os_acceptance_api', '-c', query)
@@ -72,14 +97,18 @@ def main():
     messages = sql('select count(*) from chat_message_index')
     with (backup / 'api.dump').open('wb') as stream:
         subprocess.run(['docker', 'exec', '-u', 'postgres', 'postgres', 'pg_dump', '-Fc', 'runtime_os_acceptance_api'], stdout=stream, check=True)
+    if mcp in images:
+        with (backup/'mcp.dump').open('wb') as stream: subprocess.run(['docker','exec','-u','postgres','postgres','pg_dump','-Fc','runtime_os_acceptance_mcp'],stdout=stream,check=True)
     stamp = str(int(time.time()))
     retired, created = {}, []
 
     def clone(name):
         old = before[name]
         config, host = copy.deepcopy(old['Config']), copy.deepcopy(old['HostConfig'])
-        if name == api:
-            config['Image'] = manifest['image']
+        if name in images:
+            config['Image'] = images[name]
+        if name==node:
+            config['Env']=[v for v in config['Env'] if not v.startswith('RUNTIME_CODING_BUILD=')]+['RUNTIME_CODING_BUILD='+manifest['sourceCommit']]
         host['Mounts'] = []
         host['Binds'] = [(m.get('Name') if m['Type'] == 'volume' else m['Source']) + ':' + m['Destination'] + ('' if m['RW'] else ':ro') for m in old['Mounts']]
         if name == proxy:
@@ -104,7 +133,13 @@ def main():
                 status = error.code
             except (OSError, urllib.error.URLError):
                 status = None
-            if status in [200, 401, 403]:
+            mcp_ready=mcp not in images
+            if mcp in images:
+                try:
+                    mcp_ready=client.open('http://127.0.0.1:18190/api/v1/admin/auth/me',timeout=3).status in [200,401,403]
+                except urllib.error.HTTPError as error: mcp_ready=error.code in [200,401,403]
+                except (OSError,urllib.error.URLError): pass
+            if status in [200, 401, 403] and mcp_ready and (node not in images or inspect(node)['State'].get('Health',{}).get('Status')=='healthy'):
                 return
             time.sleep(2)
         raise RuntimeError('Application readiness timed out')
@@ -115,8 +150,13 @@ def main():
         run('docker', 'exec', 'runtime-os-app-stage-gateway-1', 'nginx', '-s', 'reload')
 
     try:
-        run('docker', 'stop', '-t', '60', proxy, api)
-        for name in [api, proxy]:
+        run('docker', 'stop', '-t', '60', *reversed(order))
+        if manifest.get('sqlMetadataCallbacks'):
+            config=configs['config/node-proxy.conf'].decode()
+            assert '|workspace-propose|' in config
+            if '|workspace-metadata|' not in config: config=config.replace('|workspace-propose|','|workspace-propose|workspace-metadata|workspace-validate|',1)
+            (stage/'config/node-proxy.conf').write_text(config)
+        for name in order:
             retired[name] = name + '-before-studio-' + stamp
             run('docker', 'rename', name, retired[name])
             clone(name)
@@ -124,16 +164,23 @@ def main():
         networking()
         config = json.loads(configs['compose.yaml'])
         config['services']['api']['image'] = manifest['image']
+        if mcp in images: config['services']['mcp']['image']=images[mcp]
+        if node in images: config['services']['coding-agent']['image']=images[node]
         (stage / 'compose.yaml').write_text(json.dumps(config, indent=2))
-        lines = [line for line in configs['config/deployment.env'].decode().splitlines() if not line.startswith('API_IMAGE=')]
-        (stage / 'config/deployment.env').write_text('\n'.join(lines + ['API_IMAGE=' + manifest['image']]) + '\n')
+        replacements={'API_IMAGE':manifest['image']}
+        if mcp in images: replacements['MCP_IMAGE']=images[mcp]
+        lines = [line for line in configs['config/deployment.env'].decode().splitlines() if line.split('=',1)[0] not in replacements]
+        (stage / 'config/deployment.env').write_text('\n'.join(lines + [k+'='+v for k,v in replacements.items()]) + '\n')
         assert run('docker', 'exec', api, 'sha256sum', '/srv/app/app.jar').split()[0] == manifest['sha256']
-        assert all(inspect(name)['Id'] == old['Id'] for name, old in before.items() if name not in [api, proxy])
+        assert all(inspect(name)['Id'] == old['Id'] for name, old in before.items() if name not in order)
+        if mcp in images: assert run('docker','exec',mcp,'sha256sum','/srv/app/app.jar').split()[0]==manifest['mcp']['sha256']
+        if node in images:
+            for module,expected in manifest['worker']['modules'].items(): assert run('docker','exec',node,'sha256sum','/srv/coding-agent/dist/'+module).split()[0]==expected
         assert fingerprint == sql("select md5(coalesce(jsonb_agg(to_jsonb(t)-'source_channel' order by session_id)::text,'[]')) from chat_session t"), 'Conversation content changed during migration'
         assert messages == sql('select count(*) from chat_message_index'), 'Message index count changed during migration'
         report = {'status': 'DEPLOYED', 'image': manifest['image'], 'sha256': manifest['sha256'], 'backup': str(backup), 'retired': retired,
             'unrelatedContainersUnchanged': True, 'conversationContentUnchanged': True, 'messageIndexCountUnchanged': True,
-            'channelCounts': sql('select source_channel,count(*) from chat_session group by source_channel')}
+            'images':images,'channelCounts': sql('select source_channel,count(*) from chat_session group by source_channel')}
         (root / 'deployment.json').write_text(json.dumps(report, indent=2))
         print(json.dumps(report), flush=True)
     except Exception:
@@ -142,7 +189,7 @@ def main():
         for name in reversed(created):
             run('docker', 'stop', '-t', '30', name)
             run('docker', 'rename', name, name + '-failed-studio-' + stamp)
-        for name in [api, proxy]:
+        for name in order:
             if name in retired:
                 run('docker', 'rename', retired[name], name)
                 run('docker', 'start', name)

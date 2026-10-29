@@ -291,6 +291,12 @@ public class McpAuthorizationService {
         if (denied) {
             return AuthorizationDecision.denyDecision("no permission to execute mcp tool: " + authorizationToolName);
         }
+        // Published catalog information is not business-row access. Keep identity, tenant,
+        // disabled-tool and explicit-deny checks above; never extend this default to executors.
+        if ("chatchat-mcp-server".equals(serviceId) && Set.of("sql_schema_context_query","sql_metadata_search",
+                "enterprise_metadata_search","data_query_query").contains(authorizationToolName)) {
+            return AuthorizationDecision.allowDecision();
+        }
         // Administrator defaults never override a centrally maintained explicit denial.
         if (snapshot.isAdministrator(principal)) {
             return AuthorizationDecision.allowDecision();

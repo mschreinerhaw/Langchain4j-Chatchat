@@ -25,6 +25,9 @@ import org.springframework.stereotype.Service;
 @ConditionalOnProperty(prefix="chatchat.coding",name="enabled",havingValue="true")
 @ConditionalOnProperty(prefix="chatchat.coding.cline",name="enabled",havingValue="true")
 public final class CodingWorkspaceService {
+    private SqlWorkspaceMetadataTools exploration;
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setExploration(SqlWorkspaceMetadataTools value){exploration=value;}
     private SqlStudioReferenceResolver references;
     @org.springframework.beans.factory.annotation.Autowired
     public void setReferences(SqlStudioReferenceResolver value){references=value;}
@@ -97,18 +100,20 @@ public final class CodingWorkspaceService {
                 String decision="studio-workspace:"+task, workspace="studio-workspace:"+task;
                 var payload=Map.<String,Object>of("taskId",task,"context",context,"dialect",dialect,
                     "modelName",Objects.toString(modelName,""),"decisionRef",decision,"workspaceRef",workspace,"schema",schema);
-                boolean fast=fastPathEnabled && encode(payload).getBytes(StandardCharsets.UTF_8).length<=fastPathMaxContextBytes;
+                boolean autonomous=!python && schema.get("discoveryId") instanceof String && schema.get("projectId") instanceof String;
+                boolean fast=fastPathEnabled && !autonomous && encode(payload).getBytes(StandardCharsets.UTF_8).length<=fastPathMaxContextBytes;
                 register(scope,inputId,INPUT_TYPE,payload,List.of(),task,null);
                 var budget=new CodingTaskContract.Budget("workspace-budget:"+task,
-                    Instant.now().plusSeconds(timeoutSeconds).truncatedTo(ChronoUnit.MILLIS),8,maxModelTokens,16,0,
+                    Instant.now().plusSeconds(timeoutSeconds).truncatedTo(ChronoUnit.MILLIS),autonomous?24:8,maxModelTokens,autonomous?64:16,0,
                     "1","USD",0,0,1024*1024);
                 contract=new CodingTaskContract(CodingProtocol.WORKSPACE_VERSION,task,scope,
                     new CodingTaskContract.Objective((fast?"Use the Java-prefetched authorized ":"Read the authorized ")+language
                         +(fast?" engineering context and propose source files directly with workspace_propose. ":" engineering context with workspace_read, then propose complete source files with workspace_propose. ")
-                        +"Preserve unrelated code. The Runtime will parse proposals and return errors to repair. Never execute code or claim business validation.",
+                        +"Preserve unrelated code. The Runtime will parse proposals and return errors to repair. Never execute code or claim business validation. "
+                        +(autonomous?"Use workspace_metadata to autonomously discover tables, inspect fields, known relationships and enterprise business definitions in the selected database. No table has been preselected for you. Use workspace_validate, then continue exploring and repairing when metadata or columns are missing. Missing snapshot entries are not proof of invalid SQL. Unknown metric definitions and joins must be explicit; do not invent them.":""),
                         List.of("proposal.jsonl"),List.of(profile+":parse-and-review.v1")),
-                    "runtime-evidence:"+inputId,fast?List.of(FAST_PATH_REF):List.of(),workspace,
-                    new CodingTaskContract.Authorization(decision,List.of("workspace_read","workspace_propose"),List.of(),
+                    "runtime-evidence:"+inputId,autonomous?List.of(SqlWorkspaceMetadataTools.PROFILE):fast?List.of(FAST_PATH_REF):List.of(),workspace,
+                    new CodingTaskContract.Authorization(decision,new ArrayList<>(SqlWorkspaceMetadataTools.tools(autonomous)),List.of(),
                         List.of("context"),List.of(python?"candidate-python-files":"candidate-sql-files"),CodingTaskContract.NetworkPolicy.NONE,List.of(),
                         List.of(CodingTaskContract.SideEffect.WORKSPACE_WRITE)),budget,python?"python-ast:3":"sqlglot:30.23.0",
                     profile+":parse-and-review.v1",new CodingTaskContract.OutputContract(
@@ -143,14 +148,18 @@ public final class CodingWorkspaceService {
     public List<CodingExecutionEvent> events(KernelDataScope scope,String task){
         return identity.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->{
             var current=tasks.get(scope,task);
-            return tasks.events(scope,task,Math.max(0,current.lastEventSequence()-128),128);
+            return tasks.events(scope,task,Math.max(0,current.lastEventSequence()-128),128).stream().map(event->{
+                if(event.operationId()==null)return event;
+                var progress=evidence.readExecutionCheckpoint(scope,"coding:workspace-progress:"+event.operationId());
+                return progress.isEmpty()?event:event.withPayload(decode(progress.get(),Map.class));
+            }).toList();
         });
     }
     public Map<String,Object> requireAuthorized(CodingTaskContract contract){
         identity.require(contract.scope(),CodingTaskAccess.Action.READ);
         boolean python="python-studio.output.v1".equals(contract.outputContract().resultSchemaRef());
         String profile=python?"python-studio":"sql-studio";
-        if(!supports(contract) || !Set.of("workspace_read","workspace_propose").equals(new HashSet<>(contract.authorization().allowedTools()))
+        if(!supports(contract) || !SqlWorkspaceMetadataTools.tools(SqlWorkspaceMetadataTools.enabled(contract)).equals(new HashSet<>(contract.authorization().allowedTools()))
                 || !contract.authorization().allowedDataRefs().isEmpty()
                 || !contract.authorization().allowedSideEffects().equals(List.of(CodingTaskContract.SideEffect.WORKSPACE_WRITE))
                 || contract.authorization().networkPolicy()!=CodingTaskContract.NetworkPolicy.NONE
@@ -162,6 +171,9 @@ public final class CodingWorkspaceService {
             throw new SecurityException("Invalid workspace task authorization");
         var record=evidence.find(contract.scope(),id(contract.inputSnapshotRef())).orElseThrow();
         var data=record.payload();
+        if(SqlWorkspaceMetadataTools.enabled(contract) && (python || !(data.get("schema") instanceof Map<?,?> schema)
+                || !(schema.get("discoveryId") instanceof String) || !(schema.get("projectId") instanceof String)))
+            throw new SecurityException("SQL metadata profile must bind an owned discovery context");
         if(!INPUT_TYPE.equals(record.evidenceType()) || !contract.taskId().equals(data.get("taskId"))
                 || python!="python".equals(data.get("dialect"))
                 || !contract.authorization().decisionRef().equals(data.get("decisionRef"))
@@ -169,6 +181,96 @@ public final class CodingWorkspaceService {
                 || !evidence.contentHash(data).equals(record.contentSha256()))
             throw new SecurityException("Workspace input binding differs from contract");
         return data;
+    }
+    /** Both callbacks use the existing fenced A2 journal, cumulative tool budget and Evidence Store. */
+    public Map<String,Object> metadata(CodingTaskContract contract,CodingJournal.Lease lease,String operation,Map<String,Object> arguments){
+        return explorationTool(contract,lease,operation,"workspace_metadata",arguments);
+    }
+    public Map<String,Object> validateSql(CodingTaskContract contract,CodingJournal.Lease lease,String operation,Map<String,Object> arguments){
+        return explorationTool(contract,lease,operation,"workspace_validate",arguments);
+    }
+    @SuppressWarnings("unchecked")
+    private Map<String,Object> explorationTool(CodingTaskContract contract,CodingJournal.Lease lease,String operation,String tool,Map<String,Object> arguments){
+        var input=requireAuthorized(contract);
+        if(exploration==null||!SqlWorkspaceMetadataTools.enabled(contract)||!contract.authorization().allowedTools().contains(tool))throw new SecurityException("SQL exploration tool is outside this task authorization");
+        if(encode(arguments).length()>250000)throw new IllegalArgumentException("Workspace tool arguments exceed limit");
+        String hash=evidence.contentHash(Map.of("tool",tool,"arguments",arguments)),receiptId="coding:workspace:"+operation+":receipt";
+        var old=evidence.find(contract.scope(),receiptId);
+        if(old.isPresent()&&!hash.equals(old.get().payload().get("proposalHash")))throw new IllegalArgumentException("Workspace operation identity conflict");
+        if(old.isPresent()){
+            // Only task-bound physical cache reads are reused, and current grants/snapshots are rechecked.
+            var schema=json.convertValue(input.get("schema"),new TypeReference<Map<String,Object>>(){});
+            exploration.context(contract,schema);
+            if(tool.equals("workspace_metadata"))exploration.query(contract,schema,arguments);
+            if(tool.equals("workspace_validate")){
+                var files=SqlOutputBundle.parse(encode(Map.of("schemaVersion","sql-studio.output.v1","files",arguments.getOrDefault("files",List.of()),"notes","validation")),json);
+                var fresh=exploration.validate(contract,schema,files,(String)input.get("dialect"));
+                if(!Boolean.TRUE.equals(fresh.get("valid")))return fresh;
+            }
+            return response(old.get());
+        }
+        var reserved=reserve(contract,lease,operation,hash);
+        var intent=tasks.startIntent(contract.scope(),contract.taskId(),lease,reserved.revision(),operation,"runtime-workspace:"+operation);
+        if(!intent.dispatchIntentCreated())throw new IllegalStateException("Reconcile metadata read before retry");
+        String phase=tool.equals("workspace_validate")?"VALIDATING_SQL":Set.of("DESCRIBE","LINEAGE").contains(Objects.toString(arguments.get("operation"),""))?"CONFIRMING_FIELDS":"FINDING_TABLES";
+        evidence.mutateExecutionCheckpoint(contract.scope(),"coding:workspace-progress:"+operation,ignored->encode(Map.of("sqlProgressPhase",phase,"tool",tool,"state","RUNNING")));
+        long started=System.nanoTime();Map<String,Object> result;
+        try{
+            var schema=json.convertValue(input.get("schema"),new TypeReference<Map<String,Object>>(){});
+            if(tool.equals("workspace_metadata"))result=exploration.query(contract,schema,arguments);
+            else{
+                var files=SqlOutputBundle.parse(encode(Map.of("schemaVersion","sql-studio.output.v1","files",arguments.getOrDefault("files",List.of()),"notes","validation")),json);
+                result=exploration.validate(contract,schema,files,(String)input.get("dialect"));
+            }
+        }catch(SqlGlotToolchain.UnconfirmedStopException unknown){throw unknown;}
+        catch(Exception error){result=SqlWorkspaceMetadataTools.failure(error);}
+        result=new LinkedHashMap<>(result);result.put("durationMs",java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-started));
+        result.put("operationId",operation);result.put("tool",tool);
+        register(contract.scope(),receiptId,"CODING_WORKSPACE_TOOL_RECEIPT",Map.of("taskId",contract.taskId(),"operationId",operation,
+            "executionHandle","runtime-workspace:"+operation,"executorStopped",true,"sqlExecuted",false,"proposalHash",hash,"tool",tool,
+            "arguments",arguments,"response",result),List.of(id(contract.inputSnapshotRef())),contract.taskId(),operation);
+        var current=tasks.get(contract.scope(),contract.taskId());
+        current=tasks.reconcileStopped(contract.scope(),contract.taskId(),lease,current.revision(),operation,"runtime-evidence:"+receiptId);
+        tasks.settle(contract.scope(),contract.taskId(),lease,current.revision(),operation,count(1,encode(result).getBytes(StandardCharsets.UTF_8).length),true);
+        var completed=result;
+        evidence.mutateExecutionCheckpoint(contract.scope(),"coding:workspace-progress:"+operation,ignored->encode(Map.of("sqlProgressPhase",phase,"tool",tool,
+            "state",Boolean.FALSE.equals(completed.get("valid"))||Set.of("FAILED","NOT_FOUND").contains(Objects.toString(completed.get("status"),""))?"FAILED":"COMPLETED","durationMs",completed.get("durationMs"))));
+        log.info("studio_sql_tool task={} operation={} tool={} phase={} durationMs={} status={}",contract.taskId(),operation,tool,phase,result.get("durationMs"),result.getOrDefault("status",result.get("valid")));
+        recordExploration(contract,operation,tool,result);
+        return result;
+    }
+    private void recordExploration(CodingTaskContract contract,String operation,String tool,Map<String,Object> result){
+        evidence.mutateExecutionCheckpoint(contract.scope(),"coding:workspace-audit:"+contract.taskId(),previous->{
+            Map<String,Object> audit=previous==null?new LinkedHashMap<>():decode(previous,Map.class);
+            var row=new LinkedHashMap<String,Object>();row.put("operationId",operation);row.put("tool",tool);row.put("durationMs",result.getOrDefault("durationMs",result.getOrDefault("validationDurationMs",0)));
+            row.put("status",result.getOrDefault("status",Boolean.TRUE.equals(result.get("valid"))?"VALID":"FAILED"));
+            row.put("valid",Boolean.TRUE.equals(result.get("valid")));row.put("receiptRef","runtime-evidence:coding:workspace:"+operation+":receipt");
+            if(result.get("category")!=null)row.put("category",result.get("category"));
+            audit.put(operation,row);return encode(audit);
+        });
+    }
+    public Map<String,Object> diagnostics(KernelDataScope scope,String task){
+        return identity.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->{
+            tasks.get(scope,task);var saved=evidence.readExecutionCheckpoint(scope,"coding:workspace-audit:"+task);
+            if(saved.isEmpty())return Map.of();
+            var audit=decode(saved.get(),Map.class);var operations=json.convertValue(audit.values(),new TypeReference<List<Map<String,Object>>>(){});
+            long attempts=operations.stream().filter(row->"workspace_propose".equals(row.get("tool"))).count();
+            long validations=operations.stream().filter(row->Set.of("workspace_validate","workspace_propose").contains(row.get("tool"))).count();
+            long duration=operations.stream().mapToLong(row->((Number)row.get("durationMs")).longValue()).sum();
+            var proposals=operations.stream().filter(row->"workspace_propose".equals(row.get("tool"))).toList();
+            return Map.of("autonomous",true,"toolCalls",operations.size(),"validationAttempts",validations,"repairAttempts",Math.max(0,attempts-1),
+                "toolDurationMs",duration,"finalSqlValid",!proposals.isEmpty()&&Boolean.TRUE.equals(proposals.get(proposals.size()-1).get("valid")),"operations",operations);
+        });
+    }
+    private List<String> explorationParents(CodingTaskContract contract){
+        var parents=new ArrayList<String>();parents.add(id(contract.inputSnapshotRef()));
+        var audit=evidence.readExecutionCheckpoint(contract.scope(),"coding:workspace-audit:"+contract.taskId());
+        if(audit.isPresent())for(Object value:decode(audit.get(),Map.class).values())if(value instanceof Map<?,?> row
+                && Set.of("workspace_metadata","workspace_validate").contains(row.get("tool"))
+                && row.get("receiptRef") instanceof String reference){
+            String parent=id(reference);if(evidence.find(contract.scope(),parent).isPresent())parents.add(parent);
+        }
+        return parents;
     }
     /** Reads one server-captured snapshot; it cannot discover assets or resolve arbitrary paths. */
     public Map<String,Object> read(CodingTaskContract contract,CodingJournal.Lease lease,String operation){
@@ -202,11 +304,16 @@ public final class CodingWorkspaceService {
         evidence.mutateExecutionCheckpoint(contract.scope(),latestKey(contract),ignored->operation);
         Map<String,Object> validation;List<SqlOutputBundle.Candidate> files=List.of();
         long validationStarted=System.nanoTime();
+        if(SqlWorkspaceMetadataTools.enabled(contract))evidence.mutateExecutionCheckpoint(contract.scope(),"coding:workspace-progress:"+operation,
+            ignored->encode(Map.of("sqlProgressPhase","VALIDATING_SQL","tool","workspace_propose","state","RUNNING")));
         try{
             files="python".equals(input.get("dialect"))?SqlOutputBundle.parsePython(encode(proposal),json):SqlOutputBundle.parse(encode(proposal),json);
             if(encode(files).getBytes(StandardCharsets.UTF_8).length>contract.outputContract().maxResultBytes())
                 throw new IllegalArgumentException("SQL proposal exceeds task output limit");
             Map<String,Object> schema=json.convertValue(input.get("schema"),new TypeReference<Map<String,Object>>(){});
+            if(SqlWorkspaceMetadataTools.enabled(contract)){
+                validation=exploration.validate(contract,schema,files,(String)input.get("dialect"));
+            }else{
             if(!"python".equals(input.get("dialect")) && schema.get("discoveryId") instanceof String discovery && references!=null){
                 var context=metadata.getObject().getScoped(contract.scope(),schema.get("projectId").toString(),discovery);
                 var cached=json.convertValue(schema.getOrDefault("tables",List.of()),new TypeReference<List<Map<String,Object>>>(){});
@@ -214,9 +321,10 @@ public final class CodingWorkspaceService {
                 schema=new LinkedHashMap<>(schema);schema.put("tables",resolved);
             }
             validation=parser.validate((String)input.get("dialect"),files,schema);
+            }
         }catch(SqlGlotToolchain.UnconfirmedStopException unknown){throw unknown;}
         catch(Exception invalid){
-            validation=Map.of("valid",false,"sqlExecuted",false,"fieldValidation","NOT_EVALUATED",
+            validation=SqlWorkspaceMetadataTools.enabled(contract)?SqlWorkspaceMetadataTools.failure(invalid):Map.of("valid",false,"sqlExecuted",false,"fieldValidation","NOT_EVALUATED",
                 "diagnostics",List.of(Map.of("status","FAILED","category",invalid instanceof SecurityException
                     || invalid instanceof org.springframework.web.server.ResponseStatusException status && status.getStatusCode().value()==403 ? "AUTHORIZATION" : "VALIDATION",
                     "message",Objects.toString(invalid.getMessage(),"SQL proposal rejected"))));
@@ -230,6 +338,10 @@ public final class CodingWorkspaceService {
         result.put("valid",valid);result.put("validation",publicValidation);result.put("sqlExecuted",false);
         result.put("validationDurationMs",java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-validationStarted));
         result.put("operationId",operation);result.put("resultAvailable",valid);
+        if(SqlWorkspaceMetadataTools.enabled(contract)){
+            recordExploration(contract,operation,"workspace_propose",result);
+            evidence.mutateExecutionCheckpoint(contract.scope(),"coding:workspace-progress:"+operation,ignored->encode(Map.of("sqlProgressPhase","VALIDATING_SQL","tool","workspace_propose","state",valid?"COMPLETED":"FAILED")));
+        }
         if(valid){result.put("codeArtifactRef","runtime-evidence:"+base+":code");
             result.put("executionReceiptRef","runtime-evidence:"+receiptId);
             result.put("resultDatasetRef","runtime-evidence:"+base+":result");
@@ -239,7 +351,7 @@ public final class CodingWorkspaceService {
             "executionHandle","runtime-workspace:"+operation,"executorStopped",true,"sqlExecuted",false,
             "proposalHash",payloadHash,"response",result,"files",files,"notes",Objects.toString(proposal.get("notes"),""),"normalization",normalization);
         register(contract.scope(),receiptId,"CODING_WORKSPACE_TOOL_RECEIPT",receipt,
-            List.of(id(contract.inputSnapshotRef())),contract.taskId(),operation);
+            SqlWorkspaceMetadataTools.enabled(contract)?explorationParents(contract):List.of(id(contract.inputSnapshotRef())),contract.taskId(),operation);
         settleProposal(contract,lease,operation,receiptId,result,files);
         publish(contract,operation,payloadHash,files,result,Objects.toString(proposal.get("notes"),""),normalization);
         return Collections.unmodifiableMap(result);

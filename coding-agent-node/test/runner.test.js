@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createCodingRun as realCreateCodingRun } from '../src/runner.js';
 import { createRuntimeModel } from '../src/runtime-model.js';
+
 // Allocation is a Java callback fixture; Python results below remain branch-specific fixtures.
 const createCodingRun=(task,gateway,options)=>{
   let version=0;const assigned=new Map();
@@ -529,4 +530,37 @@ test('the same Cline loop stages multi-file SQL and repairs parser feedback with
   assert.match(finished.operationId, /^workspace-[0-9a-f]{64}$/);
   assert.throws(() => createCodingRun({ ...sqlTask, authorization: {
     ...sqlTask.authorization, allowedTools: ['workspace_read', 'python_execute'] } }, gateway, { model }), /Unrecognized/);
+});
+
+test('Cline autonomously discovers business metadata and iterates from missing metadata and column diagnostics',async()=>{
+  const contract={...task,schemaVersion:'runtime_os.coding.v2',metadataRefs:['runtime-coding:sql-metadata-tools:v1'],
+    authorization:{allowedTools:['workspace_read','workspace_propose','workspace_metadata','workspace_validate'],allowedSideEffects:['WORKSPACE_WRITE'],allowedDataRefs:[],networkPolicy:'NONE'},
+    outputContract:{resultFormat:'WORKSPACE_FILES',resultSchemaRef:'sql-studio.output.v1',requiredFiles:['proposal.jsonl']},budget:{maxModelCalls:16}};
+  const actions=[['workspace_read',{}],['workspace_metadata',{operation:'LIST_BINDINGS'}],
+    ['workspace_validate',{files:[{path:'q.sql',content:"SELECT amount FROM trades WHERE client_no='070200046604'"}]}],
+    ['workspace_metadata',{operation:'SEARCH',bindingId:'binding',query:'customer trades assets profit'}],
+    ['workspace_metadata',{operation:'BUSINESS_SEARCH',bindingId:'binding',query:'profit metric definition'}],
+    ['workspace_metadata',{operation:'DESCRIBE',bindingId:'binding',tableName:'trades'}],
+    ['workspace_metadata',{operation:'LINEAGE',bindingId:'binding',tableName:'trades'}],
+    ['workspace_propose',{files:[{path:'q.sql',content:'SELECT guessed_amount FROM trades'}],notes:'No execution'}],
+    ['workspace_metadata',{operation:'DESCRIBE',bindingId:'binding',tableName:'trades'}],
+    ['workspace_propose',{files:[{path:'q.sql',content:"SELECT amount FROM trades WHERE client_no='070200046604'"}],notes:'Asset and P/L definitions and joins remain unconfirmed; no execution.'}]];
+  let round=0,proposals=0,finished;const queried=[];
+  const model={async *stream(request){
+    assert.match(request.systemPrompt,/Decide your own exploration strategy/);
+    assert.deepEqual(new Set(request.tools.map(t=>t.name)),new Set(contract.authorization.allowedTools));
+    if(round===3)assert.match(JSON.stringify(request.messages),/METADATA_REQUIRED/);
+    if(round===8)assert.match(JSON.stringify(request.messages),/unknown column/);
+    if(round<actions.length){const [toolName,input]=actions[round++];yield {type:'tool-call-delta',toolName,toolCallId:'autonomous-'+round,input};yield {type:'finish',reason:'tool-calls'};}
+    else{yield {type:'text-delta',text:'SQL is ready; unknown business definitions remain disclosed.'};yield {type:'finish',reason:'stop'};}
+  }};
+  const gateway={reserveModel(){},settleModel(){},readWorkspace:async()=>({context:'Customer 070200046604 trades/assets/P&L; no table preselected.'}),
+    queryWorkspaceMetadata:async(_task,_id,input)=>{queried.push(input);return {status:'SUCCEEDED',bindingId:'binding',columns:['client_no','amount'],metricDefinitionStatus:'NOT_FOUND',lineageStatus:'NOT_COLLECTED'};},
+    validateWorkspace:async()=>({valid:false,status:'METADATA_REQUIRED',sqlValidity:'UNDETERMINED'}),
+    proposeWorkspace:async()=>++proposals===1?{valid:false,diagnostics:['unknown column guessed_amount']}:{valid:true,evidenceBundleRef:'evidence:bundle',sqlExecuted:false},
+    finish(_task,value){finished=value;}};
+  const result=await createCodingRun(contract,gateway,{model}).run();
+  assert.equal(result.status,'completed');assert.equal(proposals,2);assert.ok(queried.some(q=>q.operation==='BUSINESS_SEARCH'));
+  assert.ok(queried.some(q=>q.operation==='LINEAGE'));assert.match(finished.operationId,/^workspace-/);
+  assert.throws(()=>createCodingRun({...contract,metadataRefs:[]},gateway,{model}),/negotiated SQL exploration/);
 });

@@ -391,10 +391,16 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
     private void requireInputCapabilities(CodingTaskContract contract) {
         boolean fast=contract.metadataRefs().contains("runtime-coding:analysis-fast-path:v1");
         boolean workspaceFast=contract.metadataRefs().contains(CodingWorkspaceService.FAST_PATH_REF);
+        boolean sqlMetadata=contract.metadataRefs().contains(com.chatchat.api.datascience.sql.SqlWorkspaceMetadataTools.PROFILE);
         Object descriptor=contract.runtimeContext().get("inputFiles");
         Object lifecycle=contract.runtimeContext().get("codingLifecycle");
-        if(descriptor==null && !fast && !workspaceFast && lifecycle==null)return;
+        if(descriptor==null && !fast && !workspaceFast && !sqlMetadata && lifecycle==null)return;
         JsonNode capabilities=request("/v1/input-capabilities",Map.of());
+        if(sqlMetadata){
+            boolean supported=false;
+            for(var profile:capabilities.path("workspaceProfiles"))if(com.chatchat.api.datascience.sql.SqlWorkspaceMetadataTools.PROFILE.equals(profile.asText()))supported=true;
+            if(!supported)throw new IllegalStateException("Cline worker has not negotiated SQL metadata tools; update worker before dispatch");
+        }
         for(String required:List.of("input_read","report_submit"))if(contract.authorization().allowedTools().contains(required)) {
             boolean supported=false;
             for(var tool:capabilities.path("analysisTools"))if(required.equals(tool.asText()))supported=true;

@@ -43,6 +43,7 @@
         ></div
       >
       <div v-else-if="tab==='diagnostics'" aria-label="SQL AI 运行诊断">
+        <p v-if="result?.metadataExploration?.codingExploration?.autonomous">自主探索完成 {{ result.metadataExploration.codingExploration.toolCalls }} 次工具调用 · SQL 校验 {{ result.metadataExploration.codingExploration.validationAttempts }} 次 · 提案修复 {{ result.metadataExploration.codingExploration.repairAttempts }} 次 · 工具累计耗时 {{ result.metadataExploration.codingExploration.toolDurationMs }} ms · 最终 SQL {{ result.metadataExploration.codingExploration.finalSqlValid ? '已通过校验' : '尚未通过校验' }}</p>
         <p>模型调用和工具耗时独立记录；SQL 提案不代表已经执行。响应预览经过脱敏和长度限制。</p>
         <template v-if="result?.metadataExploration?.diagnostics?.schemaVersion">
           <p>本次尝试 {{ result.metadataExploration.diagnostics.elapsedMs }} ms · 授权核查 {{ result.metadataExploration.diagnostics.authorizationMs ?? '未记录' }} ms · 元数据工具 {{ result.metadataExploration.diagnostics.toolMs }} ms · 输出校验 {{ result.metadataExploration.diagnostics.outputValidationMs }} ms（含解析 {{ result.metadataExploration.diagnostics.outputParseMs ?? '未记录' }} ms） · 格式修复 {{ result.metadataExploration.diagnostics.repairCount }} 次</p>

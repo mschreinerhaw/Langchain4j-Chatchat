@@ -668,10 +668,13 @@ public class SqlStudioService {
         }
         var trace=coding.events(scope,generation.taskId()).stream().map(event->AgentEvent.builder()
             .eventId(event.eventId()).taskId(event.taskId()).runId(scope.runId()).tenantId(scope.tenantId()).userId(scope.userId())
-            .sequence(event.sequence()).type(event.type().name()).status(event.status().name()).payload(json(Map.of("summary",event.summary())))
+            .sequence(event.sequence()).type(event.type().name()).status(event.status().name()).payload(json(codingProgress(event)))
             .createTime(event.occurredAt().toEpochMilli()).build()).toList();
         return new GenerationView(generation,codingTask(project,generation,outcome,answer),trace,files,answer,error,
-            validation);
+            validation,Map.of("codingExploration",coding.diagnostics(scope,generation.taskId())));
+    }
+    private Map<String,Object> codingProgress(com.chatchat.common.runtime.coding.CodingExecutionEvent event){
+        var result=new LinkedHashMap<String,Object>(event.payload());result.put("summary",event.summary());return result;
     }
     @SuppressWarnings("unchecked") private Map<String,Object> codingSchema(Generation generation){
         Object schema=generation.prepared().taskRequest().getToolInput().get("sqlCodingMetadata");

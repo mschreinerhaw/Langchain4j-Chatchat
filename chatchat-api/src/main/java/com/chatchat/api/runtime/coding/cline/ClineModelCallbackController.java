@@ -266,6 +266,23 @@ public final class ClineModelCallbackController {
         });
     }
 
+    @PostMapping("/workspace-metadata")
+    public Map<String,Object> workspaceMetadata(@RequestBody JsonNode body){
+        return bound(body,call->{
+            var contract=contract(body,call);
+            if(workspace==null||!body.path("query").isObject())throw new SecurityException("Workspace metadata profile unavailable");
+            return workspace.metadata(contract,call.lease(),body.path("operationId").asText(),mapper.convertValue(body.path("query"),new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){}));
+        });
+    }
+    @PostMapping("/workspace-validate")
+    public Map<String,Object> workspaceValidate(@RequestBody JsonNode body){
+        return bound(body,call->{
+            var contract=contract(body,call);
+            if(workspace==null||!body.path("validation").isObject())throw new SecurityException("Workspace validation profile unavailable");
+            return workspace.validateSql(contract,call.lease(),body.path("operationId").asText(),mapper.convertValue(body.path("validation"),new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){}));
+        });
+    }
+
     public ClineModelCallbackController(CodingInvocationContext identity, DurableCodingTaskService tasks,
             ClineRuntimeModelBridge model, ClineModelReceiptStore receipts,
             CodingInputSnapshotService inputs, CodingValidationPlanService plans,

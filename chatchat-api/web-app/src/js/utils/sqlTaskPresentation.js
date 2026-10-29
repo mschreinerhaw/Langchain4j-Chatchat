@@ -11,6 +11,14 @@ const labels = {
   EMPTY: '未生成有效结果', NO_PRESENTABLE_RESULT: '未生成可展示结果',
   TIME_BUDGET_EXHAUSTED: '任务已超时', MODEL_BUDGET_EXHAUSTED: '模型预算已用尽', TIMEOUT_CANCELLED: '任务超时取消', DLQ: '任务执行失败'
 };
+export function sqlExplorationPhase(events=[]){
+  const titles={FINDING_TABLES:'正在查找业务表',CONFIRMING_FIELDS:'正在确认字段关联',VALIDATING_SQL:'正在校验 SQL'};
+  for(const event of [...events].reverse()){
+    let payload=event.payload;try{if(typeof payload==='string')payload=JSON.parse(payload);}catch{continue;}
+    if(titles[payload?.sqlProgressPhase])return titles[payload.sqlProgressPhase];
+  }
+  return '';
+}
 export function sqlTaskPresentation(result, pendingPhase = '', pendingStartedAt = 0, now = Date.now()) {
   if(result?.generation?.prepared?.taskRequest?.toolInput?.sqlStudioAction==='explore')return sqlMetadataProgress(result?.events,result?.task,pendingPhase,pendingStartedAt,now);
   const task = result?.task ? {...result.task,status:sqlTaskStatus(result.task)} : null;
@@ -34,6 +42,7 @@ export function sqlTaskPresentation(result, pendingPhase = '', pendingStartedAt 
   const start = pendingPhase ? pendingStartedAt : Date.parse(task?.createTime || '') || pendingStartedAt;
   const end = terminal ? Date.parse(task.finishedAt || task.updateTime || '') || start : now;
   const elapsed = start ? Math.max(0, Math.floor((end - start) / 1000)) : 0;
-  return { status, title, detail: progress.reason || detail, running, terminal, steps, progressLabel: progress.label, elapsed,
+  const exploration=running?sqlExplorationPhase(result?.events):'';
+  return { status, title:exploration||title, detail: exploration||progress.reason || detail, running, terminal, steps, progressLabel: exploration||progress.label, elapsed,
     elapsedLabel: `${Math.floor(elapsed / 60).toString().padStart(2, '0')}:${(elapsed % 60).toString().padStart(2, '0')}` };
 }

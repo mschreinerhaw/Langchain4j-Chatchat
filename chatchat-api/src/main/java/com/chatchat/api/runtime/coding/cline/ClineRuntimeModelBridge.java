@@ -287,7 +287,7 @@ public final class ClineRuntimeModelBridge {
 
     private static String allowedTool(CodingTaskContract contract, String name) {
         Set<String> profile = CodingWorkspaceService.supports(contract)
-            ? Set.of("workspace_read", "workspace_propose") : com.chatchat.common.runtime.coding.CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion())
+            ? com.chatchat.api.datascience.sql.SqlWorkspaceMetadataTools.tools(com.chatchat.api.datascience.sql.SqlWorkspaceMetadataTools.enabled(contract)) : com.chatchat.common.runtime.coding.CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion())
             ? ClineToolProfiles.ANALYSIS : Set.of("python_execute", "metadata_read", "artifact_read");
         if (!profile.contains(name)
                 || !contract.authorization().allowedTools().contains(name))

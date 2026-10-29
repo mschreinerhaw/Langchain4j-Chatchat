@@ -58,7 +58,7 @@ class CodingCallbackGatewayTest(unittest.TestCase):
                 time.sleep(.1)
             self.assertEqual(401, status('/internal/coding/cline/model'))
             for route in ('model', 'input-context', 'input-read', 'submit-report', 'read-skill', 'prepare-python', 'execute-python',
-                          'workspace-read', 'workspace-propose', 'checkpoint', 'finish', 'monitor-python'):
+                          'workspace-read', 'workspace-propose', 'workspace-metadata', 'workspace-validate', 'checkpoint', 'finish', 'monitor-python'):
                 self.assertEqual(200, status('/internal/coding/cline/' + route, authorized=True), route)
             for path in ('/api/v1/admin/auth/login', '/api/v1/mcp/services', '/api/v1/sql/templates',
                          '/_search', '/internal/coding/cline/data-request',

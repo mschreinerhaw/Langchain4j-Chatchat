@@ -86,7 +86,7 @@
           <p v-if="selected.testEvidence"
             >{{ selected.testEvidence.success ? "查询成功" : "查询失败" }} ·
             {{ selected.testEvidence.diagnostic }} · {{ selected.testEvidence.testedAt }} ·
-            {{ selected.testEvidence.durationMs }} ms</p
+            {{ selected.testEvidence.durationMs }} ms · 返回 {{ selected.testEvidence.rowCount ?? 0 }} 行 · 上限 {{ selected.testEvidence.maxRows }} 行</p
           >
           <p v-if="selected.testEvidence"
             >{{ selected.testEvidence.type }} · {{ selected.testEvidence.testId }} ·
@@ -98,6 +98,14 @@
           <p v-else-if="changed || !sourceCurrent"
             >保存版本或草稿参数已变化，请先同步草稿并重新测试。</p
           >
+          <h3>发布前校验</h3>
+          <ul aria-label="发布前校验状态">
+            <li>文件已保存：{{ dirty ? '未通过' : '通过' }}</li>
+            <li>来源版本一致：{{ sourceCurrent ? '通过' : '未通过' }}</li>
+            <li>草稿配置已同步：{{ changed ? '未通过' : '通过' }}</li>
+            <li>真实 SQL 测试：{{ selected.testEvidence?.success && sampleCurrent ? '通过' : '未通过' }}</li>
+            <li>发布权限、参数契约和数据源授权：发布时由服务端重新校验</li>
+          </ul>
           <h3>审核发布</h3
           ><label
             ><input v-model="reviewed" type="checkbox" :disabled="busy" />我已核对

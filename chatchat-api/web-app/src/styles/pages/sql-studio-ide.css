@@ -104,9 +104,11 @@
 }
 .sql-resource-sidebar{display:flex;flex-direction:column;overflow:hidden;min-height:0;}
 .sql-resource-sidebar>.sql-project-tree,.sql-resource-sidebar>.sql-schema-explorer{flex:1;min-height:0;}
-.sql-resource-tabs{display:flex;gap:4px;padding:8px;border-bottom:1px solid #e1e8f2;flex-shrink:0;}
-.sql-resource-tabs button{flex:1;border:0;border-radius:5px;padding:7px;background:transparent;color:#687e9d;cursor:pointer;}
-.sql-resource-tabs button[aria-pressed=true]{background:#e5edfb;color:#1756b1;}
+.sql-resource-heading{border-bottom:1px solid #e1e8f2;flex-shrink:0;}
+.sql-assistant-workbench{display:flex;gap:16px;align-items:center;padding:4px 16px;font-size:12px;flex-shrink:0;}
+.sql-assistant-workbench span{color:#2563eb;font-weight:600;}
+.sql-assistant-workbench button{border:0;background:transparent;color:#657b9b;padding:6px;cursor:pointer;}
+.sql-resource-sidebar>.sql-schema-explorer{border-top:1px solid #e1e8f2;}
 
 .sql-panel-resizer {
   z-index: 1;
@@ -1033,11 +1035,13 @@
   }
 }
 
-@media (max-width: 800px) {
+@media (max-width: 1400px) {
   .sql-ide-titlebar {
     flex-wrap: wrap;
   }
+}
 
+@media (max-width: 800px) {
   .sql-ide-status > span:nth-child(3) {
     display: none;
   }

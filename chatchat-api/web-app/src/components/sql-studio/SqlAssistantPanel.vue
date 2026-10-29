@@ -20,6 +20,10 @@
       aria-label="工程协作对话"
       @scroll="trackScroll"
     >
+      <slot name="database-context" />
+      <nav class="sql-assistant-workbench" aria-label="数据库助手工作区">
+        <span>AI 对话</span><button type="button" :disabled="currentFile?.kind !== 'SQL' || busy" @click="$emit('publication')">模板管理</button>
+      </nav>
       <section class="sql-current-context"
         ><strong>基于当前文件</strong
         ><div v-if="currentFile"
@@ -193,7 +197,7 @@
     </div>
     <div class="sql-chat-context">
       <details class="sql-chat-settings"
-        ><summary>工程上下文与执行设置</summary>
+        ><summary>高级设置</summary>
         <div v-if="selectedCode" class="sql-selection-chip"
           >已选代码：{{ selectedCode.path }} · {{ selectedCode.text.length }} 字<button
             aria-label="移除代码引用"
@@ -260,7 +264,7 @@
     </div>
     <form class="sql-chat-composer" @submit.prevent="send">
       <label class="sql-assistant-action">协作方式<select :value="aiAction" :disabled="busy || taskRunning" aria-label="SQL 助手方式" @change="$emit('action',$event.target.value)">
-        <option value="explore">数据库问答与 SQL 探索</option><option value="generate">工程代码生成 · Cline</option><option value="explain">解释当前 SQL</option><option value="fix">修复 SQL</option><option value="optimize">优化 SQL</option>
+        <option value="explore">数据库问答与 SQL 探索</option><option value="generate">工程代码生成</option><option value="explain">解释当前 SQL</option><option value="fix">修复 SQL</option><option value="optimize">优化 SQL</option>
       </select></label>
       <textarea
         ref="composer"

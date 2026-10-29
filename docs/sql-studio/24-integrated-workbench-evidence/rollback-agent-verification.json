@@ -1,0 +1,17 @@
+{
+  "status": "PASSED",
+  "realBackend": true,
+  "candidateFrontendOnly": true,
+  "checks": {
+    "rollbackRequiresReview": true,
+    "realRollbackSqlTestPassed": true,
+    "immutableSqlSchemaDatasourceRestored": true,
+    "originalAgentBindingStillApplies": true,
+    "actualAgentMcpInvocationReturned8": true,
+    "noPageErrors": true
+  },
+  "priorPublicationId": "0c19a18d-c00c-3cab-9625-80de1dc9b246",
+  "restoredPublicationId": "70d639ac-3365-3171-83f0-a1875e85f673",
+  "releaseId": "8d3dec56-453b-4e3d-85a7-b76257da803d",
+  "pageErrors": []
+}

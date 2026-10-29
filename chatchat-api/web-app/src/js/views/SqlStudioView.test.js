@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import {createApp,h,nextTick,reactive} from 'vue';
 import {afterEach,beforeEach,expect,it,vi} from 'vitest';
-const sql=vi.hoisted(()=>Object.fromEntries(['sqlProjects','sqlFiles','sqlGenerations','sqlReferences','sqlFolders','sqlAgentOptions','deleteSqlProject','sqlGeneration'].map(name=>[name,vi.fn()])));
+const sql=vi.hoisted(()=>Object.fromEntries(['sqlProjects','sqlFiles','sqlGenerations','sqlReferences','sqlFolders','sqlAgentOptions','deleteSqlProject','sqlGeneration','prepareSqlGeneration'].map(name=>[name,vi.fn()])));
 vi.mock('../../services/sqlStudioApi',()=>sql);
 vi.mock('../../components/sql-studio/SqlEditorPane.vue',()=>({default:{render:()=>null}}));
 vi.mock('../../components/editor/CodeChangeReview.vue',()=>({default:{render:()=>null}}));
@@ -24,6 +24,20 @@ beforeEach(()=>{
 });
 afterEach(()=>{app?.unmount();document.body.innerHTML='';});
 function seedAssistant(){view.generationId='old-generation';view.result={task:{taskId:'sql-coding-old',status:'SUCCESS'}};view.chatTurns=[{id:'old-answer'}];view.prompt='old prompt';view.reviewOpen=true;view.pollError='old error';}
+it('blocks exploration while the selected source is missing or being reauthorized',async()=>{
+  await mount([{id:'p1',name:'Project'}]);view.prompt='find tables';
+  view.schemaExplorer={assistantContext:()=>null};await view.generate();
+  expect(sql.prepareSqlGeneration).not.toHaveBeenCalled();expect(view.prompt).toBe('find tables');
+  expect(view.error).toContain('请先选择数据源');
+});
+it('passes the actual shared binding to exploration without requiring explicit tables',async()=>{
+  await mount([{id:'p1',name:'Project'}]);view.prompt='find tables';
+  view.schemaExplorer={assistantContext:()=> 'current-authorized-context',codingSelection:()=>null};
+  sql.prepareSqlGeneration.mockRejectedValue(new Error('stop after prepare'));
+  await view.generate();expect(sql.prepareSqlGeneration).toHaveBeenCalledWith('p1',expect.objectContaining({
+    action:'explore',metadataBindingContextId:'current-authorized-context',codingMetadataSelection:null,
+  }));
+});
 it('clears assistant output and saved selection when deleting the last project',async()=>{
   await mount([{id:'p1',name:'Project',dialect:'postgresql'}]);seedAssistant();
   saveWorkspaceDraft('sql-studio-project-p1',context,{conversationGenerationId:'old-generation'});

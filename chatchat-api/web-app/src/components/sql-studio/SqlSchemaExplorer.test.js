@@ -9,6 +9,7 @@ const tick=async()=>{await new Promise(resolve=>setTimeout(resolve,0));await nex
 const table={database:'catalog',schema:'public',tableName:'orders',tableRef:'public-orders'};
 const result=items=>({metadata:{contractVersion:'sql-studio.metadata.v2',status:'SUCCEEDED',snapshotId:'v1',doesNotExecuteSql:true,items,totalMatched:items.length,hasMore:false}});
 beforeEach(()=>{
+  localStorage.clear();
   vi.resetAllMocks();api.sqlMetadataProviders.mockResolvedValue([{serviceId:'registered',name:'Metadata'}]);
   api.sqlMetadataAssets.mockResolvedValue(result([{assetRef:'a',name:'Orders source'},{assetRef:'b',name:'Other source'}]));
   api.createSqlMetadataContext.mockImplementation(async(_p,input)=>({discoveryId:'d-'+input.bindings[0].assetRef,bindings:[{...input.bindings[0],bindingId:'binding',sourceDialect:'trino'}]}));
@@ -16,9 +17,58 @@ beforeEach(()=>{
   host=document.createElement('div');document.body.append(host);
 });
 afterEach(()=>{app?.unmount();host.remove();});
-async function mount(){const props=reactive({projectId:'project',identity:{tenantId:'t',userId:'u'},dialect:'trino'});app=createApp({render:()=>h(SqlSchemaExplorer,{...props,ref:value=>explorer=value})});app.mount(host);await tick();return props;}
+async function mount(extra={}){const props=reactive({projectId:'project',identity:{tenantId:'t',userId:'u'},dialect:'trino',...extra});app=createApp({render:()=>h(SqlSchemaExplorer,{...props,ref:value=>explorer=value})});app.mount(host);await tick();return props;}
 async function select(index,value){const input=host.querySelectorAll('select')[index];input.value=value;input.dispatchEvent(new Event('change',{bubbles:true}));await tick();}
 describe('Schema Explorer API integration',()=>{
+  it('uses one live context for the editor and assistant without preselecting tables',async()=>{
+    await mount();await select(1,'a');await select(2,JSON.stringify(['catalog','public']));
+    expect(explorer.assistantContext()).toBe('d-a');expect(explorer.codingSelection()).toBeNull();
+    expect(api.sqlMetadataOperation.mock.calls.some(([, , ,args])=>args.operation==='DESCRIBE')).toBe(false);
+    const input=host.querySelector('[aria-label="搜索数据源"]');input.value='Other';input.dispatchEvent(new Event('input',{bubbles:true}));await tick();
+    expect(host.querySelector('[aria-label="选择数据源"]').options).toHaveLength(3);
+    const schema=host.querySelector('[aria-label="搜索数据库或 Schema"]');schema.value='private';schema.dispatchEvent(new Event('input',{bubbles:true}));await tick();
+    expect(host.querySelector('[aria-label="选择数据库或 Schema"]').options).toHaveLength(3);
+  });
+  it('moves the same controls to the assistant and back without recreating its authorization context',async()=>{
+    const target=document.createElement('div');document.body.append(target);
+    try {
+      const props=await mount({controlsTarget:target});
+      const source=target.querySelector('[aria-label="选择数据源"]');source.value='a';source.dispatchEvent(new Event('change',{bubbles:true}));await tick();
+      const count=api.createSqlMetadataContext.mock.calls.length;
+      expect(host.querySelector('[aria-label="选择数据源"]')).toBeNull();
+      props.controlsTarget=null;await tick();
+      expect(host.querySelector('[aria-label="选择数据源"]').value).toBe('a');
+      expect(api.createSqlMetadataContext).toHaveBeenCalledTimes(count);expect(explorer.assistantContext()).toBe('d-a');
+    } finally {target.remove();}
+  });
+  it('restores each file selection through fresh authorized directories and rejects a revoked source',async()=>{
+    const props=await mount({fileId:'first',identity:{tenantId:'t',userId:'u',workspaceId:'data-science'}});
+    await select(1,'a');await select(2,JSON.stringify(['catalog','public']));
+    props.fileId='second';await tick();expect(explorer.assistantContext()).toBeNull();await select(1,'b');
+    props.fileId='first';await tick();expect(explorer.assistantContext()).toBe('d-a');
+    expect(host.querySelector('[aria-label="选择数据库或 Schema"]').value).toBe(JSON.stringify(['catalog','public']));
+    props.fileId='second';await tick();expect(explorer.assistantContext()).toBe('d-b');
+    api.sqlMetadataAssets.mockResolvedValue(result([{assetRef:'b',name:'Other source'}]));
+    props.fileId='first';await tick();expect(explorer.assistantContext()).toBeNull();
+    expect(host.querySelector('[aria-label="选择数据源"]').value).toBe('');
+  });
+  it('does not widen a saved namespace to the whole source when that namespace disappears',async()=>{
+    const props=await mount({fileId:'first',identity:{tenantId:'t',userId:'u',workspaceId:'data-science'}});
+    await select(1,'a');await select(2,JSON.stringify(['catalog','public']));props.fileId='second';await tick();
+    api.sqlMetadataOperation.mockClear();
+    api.sqlMetadataOperation.mockImplementation(async(_p,_d,_b,args)=>result(args.operation==='LIST_NAMESPACES'?[{database:'catalog',schema:'private'}]:[table]));
+    props.fileId='first';await tick();
+    expect(explorer.assistantContext()).toBeNull();expect(host.querySelector('[role=alert]').textContent).toContain('已不可用');
+    expect(api.sqlMetadataOperation.mock.calls.some(([, , ,args])=>args.operation==='SEARCH'&&args.pageSize!==1)).toBe(false);
+  });
+  it('does not restore an asset reference under a different metadata service',async()=>{
+    const props=await mount({fileId:'first',identity:{tenantId:'t',userId:'u',workspaceId:'data-science'}});
+    await select(1,'a');props.fileId='second';await tick();
+    api.sqlMetadataProviders.mockResolvedValue([{serviceId:'another-service',name:'Other service'}]);
+    api.createSqlMetadataContext.mockClear();props.fileId='first';await tick();
+    expect(api.createSqlMetadataContext).not.toHaveBeenCalled();expect(explorer.assistantContext()).toBeNull();
+    expect(host.querySelector('[aria-label="选择数据源"]').value).toBe('');
+  });
   it('lists actual authorized tables and fetches fields only on expansion',async()=>{
     await mount();await select(1,'a');
     expect(host.querySelectorAll('[role=treeitem]')).toHaveLength(1);

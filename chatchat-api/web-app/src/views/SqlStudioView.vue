@@ -94,21 +94,7 @@
         v-show="layout.explorer"
         class="sql-project-tree sql-resource-sidebar"
       >
-        <nav class="sql-resource-tabs" aria-label="资源浏览"
-          ><button
-            type="button"
-            :aria-pressed="explorerTab === 'files'"
-            @click="explorerTab = 'files'"
-            >工程文件</button
-          ><button
-            type="button"
-            :aria-pressed="explorerTab === 'schema'"
-            @click="explorerTab = 'schema'"
-            >数据库<span v-if="metadataTableCount">（{{ metadataTableCount }}）</span></button
-          ></nav
-        >
         <SqlProjectTree
-          v-show="explorerTab === 'files'"
           :folders="folders"
           :selected-folder="newFileFolder"
           :files="files"
@@ -135,8 +121,9 @@
           @rename="renameFile"
         ></SqlProjectTree>
         <SqlSchemaExplorer
-          v-show="explorerTab === 'schema'"
           ref="schemaExplorer"
+          :controls-target="layout.assistant ? databaseContextTarget : null"
+          :file-id="activeId"
           :project-id="projectId"
           :identity="{ ...workspaceContext, tenantId, userId }"
           :dialect="dialect"
@@ -184,7 +171,7 @@
         />
         <div v-else class="sql-ide-welcome"
           ><div class="sql-ide-welcome-mark">SQL</div><h1>开始一个 SQL 工程</h1
-          ><p>将 Mapping 与 SQL 文件放在工程中，引用用户空间文档辅助 Cline 生成代码。</p
+          ><p>将 Mapping 与 SQL 文件放在工程中，引用用户空间文档辅助工程代码生成。</p
           ><button class="sql-primary" @click="newProjectOpen = true">新建工程</button></div
         >
         <div
@@ -220,10 +207,12 @@
         @dblclick="resetSize('assistant')"
       ></div>
       <SqlAssistantPanel
-        v-if="layout.assistant && projectId"
+        v-if="projectId"
+        v-show="layout.assistant"
         :ai-action="aiAction"
         :project-id="projectId"
         @action="chooseAiAction"
+        @publication="publicationOpen = true"
         :current-file="activeFile"
         :dialect-label="dialects.find((item) => item.value === dialect)?.label"
         :task-running="taskRunning"
@@ -265,15 +254,8 @@
         @apply="reviewGeneration"
         @clear-selection="selectedCode = null"
         @reference-file="addFileMention"
-        ><template #context-documents
-          ><button
-            type="button"
-            class="sql-context-library"
-            @click="
-              explorerTab = 'schema';
-              layout.explorer = true;
-            "
-            >选择数据库与表（{{ metadataTableCount }}）</button
+        ><template #database-context><div ref="databaseContextTarget" /></template>
+        <template #context-documents
           ><SqlUserDocuments
             :key="tenantId + ':' + userId + ':' + projectId"
             v-model="userDocuments"

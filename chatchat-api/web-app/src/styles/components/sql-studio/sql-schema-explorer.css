@@ -20,26 +20,36 @@
   gap: 9px;
   flex: 0 1 auto;
   min-height: 0;
-  max-height: 55%;
+  max-height: 300px;
+  padding: 12px;
+  margin: 8px;
+  border: 1px solid #dce5f2;
+  border-radius: 12px;
+  background: #f8fafc;
+  font-size: 12px;
   overflow-y: auto;
 }
 .sql-schema-controls > * {
   flex-shrink: 0;
 }
 .sql-schema-explorer header,
+.sql-schema-controls header,
 .sql-schema-table > div {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 5px;
 }
-.sql-schema-explorer label {
+.sql-schema-explorer label,
+.sql-schema-controls label {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 .sql-schema-explorer select,
-.sql-schema-explorer input {
+.sql-schema-explorer input,
+.sql-schema-controls select,
+.sql-schema-controls input {
   min-width: 0;
   width: 100%;
   box-sizing: border-box;
@@ -49,7 +59,8 @@
   background: white;
   color: inherit;
 }
-.sql-schema-explorer button {
+.sql-schema-explorer button,
+.sql-schema-controls button {
   font-size: 11px;
   color: #2563eb;
   background: #f6f9ff;

@@ -1,0 +1,123 @@
+{
+  "status": "PASSED",
+  "java": {
+    "tests": 120,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "suites": [
+      {
+        "class": "com.chatchat.mcpserver.sql.execution.workflow.SqlQueryExecutionWorkflowTest",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.mcpserver.sql.template.SqlTemplateAuthoringServiceTest",
+        "tests": 14,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.mcpserver.sql.template.SqlTemplateServiceTest",
+        "tests": 14,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.mcpserver.templatepublication.admin.ControlledTemplateReleaseExecutorTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.mcpserver.templatepublication.admin.TemplateCapabilityServiceTest",
+        "tests": 8,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.mcpserver.templatepublication.admin.TemplateQueryAdminControllerTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.mcpserver.templatepublication.admin.ToolReleaseLifecycleTest",
+        "tests": 19,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.mcpserver.templatepublication.catalog.TemplateAssetCatalogServiceTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.mcpserver.templatepublication.publisher.TemplateQueryMcpToolPublisherTest",
+        "tests": 13,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.api.datascience.sql.SqlStudioGenerationToolPolicyTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.api.datascience.sql.SqlStudioMetadataAssistantTest",
+        "tests": 18,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.api.datascience.sql.SqlStudioMetadataGatewayTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.api.datascience.sql.SqlStudioMetadataServiceTest",
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "com.chatchat.api.datascience.sql.SqlStudioPublicationControllerTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    ]
+  },
+  "frontend": {
+    "files": 16,
+    "tests": 102,
+    "failures": 0
+  },
+  "build": {
+    "vueStructure": "PASSED",
+    "vite": "PASSED",
+    "existingWarning": "Large bundle chunks",
+    "indexSha256": "450fc6d159d5b0c6c0df8a7552c1c0130c68350c6f5f2db0fe19aa9d807c4953"
+  },
+  "backendChanged": false,
+  "databaseMigrationRequired": false,
+  "productionDeployed": false
+}

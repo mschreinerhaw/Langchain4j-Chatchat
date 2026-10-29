@@ -227,6 +227,7 @@ export default {
       sourceCurrent,
       changed,
       canPublish,
+      sampleCurrent,
       createDraft,
       saveDraft,
       perform,

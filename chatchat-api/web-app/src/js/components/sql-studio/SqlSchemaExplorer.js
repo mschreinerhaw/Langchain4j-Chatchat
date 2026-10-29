@@ -8,6 +8,7 @@ import {
   onDeactivated,
 } from "vue";
 import * as api from "../../../services/sqlStudioApi";
+import { readWorkspaceDraft, saveWorkspaceDraft } from "../../utils/workspaceDrafts";
 import { SqlMetadataSession, StaleMetadataRequest } from "../../utils/sqlMetadataSession";
 import {
   namespaceKey,
@@ -18,7 +19,7 @@ import {
 
 export default defineComponent({
   name: "SqlSchemaExplorer",
-  props: { projectId: String, identity: Object, dialect: { type: String, default: "spark" } },
+  props: { projectId: String, fileId: String, controlsTarget: Object, identity: Object, dialect: { type: String, default: "spark" } },
   emits: ["insert", "dialect", "selection-count"],
   setup(componentProps, { expose: exposeComponent, emit: emitEvent }) {
     const props = componentProps;
@@ -43,6 +44,26 @@ export default defineComponent({
       assetsMore = ref(false),
       namespacesMore = ref(false);
     const selectedTables = ref([]);
+    const assetSearch = ref(""), namespaceSearch = ref("");
+    const namespaceLabel = computed(() => {
+      const dialect = sourceDialect.value.toLowerCase();
+      if (['oracle', 'postgres', 'postgresql'].includes(dialect)) return '数据库 / Schema';
+      if (['mysql', 'hive', 'spark', 'clickhouse', 'doris'].includes(dialect)) return '数据库';
+      return '数据库 / Schema';
+    });
+    const filteredAssets = computed(() => assets.value.filter(item => item.assetRef === assetRef.value ||
+      (item.displayName || item.name || "").toLowerCase().includes(assetSearch.value.trim().toLowerCase())));
+    const filteredNamespaces = computed(() => namespaces.value.filter(item => namespaceKey(item) === selectedNamespace.value ||
+      [item.database, item.schema].filter(Boolean).join(" / ").toLowerCase().includes(namespaceSearch.value.trim().toLowerCase())));
+    const savedSelectionKey = () => `sql-studio-source-${props.projectId}-${props.fileId}`;
+    function rememberSelection() {
+      if (props.fileId && context.value) saveWorkspaceDraft(savedSelectionKey(), props.identity, {
+        serviceId: serviceId.value, assetRef: assetRef.value, namespace: selectedNamespace.value,
+      });
+    }
+    function forgetSelection() {
+      if (props.fileId) saveWorkspaceDraft(savedSelectionKey(), props.identity, null);
+    }
     watch(selectedTables, (value) => emit("selection-count", value.length));
     const tablePageSize = ref(50),
       tableList = ref(null),
@@ -131,6 +152,8 @@ export default defineComponent({
       namespaces.value = [];
       selectedNamespace.value = "";
       query.value = "";
+      assetSearch.value = "";
+      namespaceSearch.value = "";
       submittedQuery.value = "";
       clearRows();
       if (!props.projectId) return;
@@ -138,9 +161,31 @@ export default defineComponent({
         const values = await api.sqlMetadataProviders(props.projectId);
         if (turn !== serial) return;
         providers.value = values;
-        if (values.length === 1) {
-          serviceId.value = values[0].serviceId;
+        const stored = props.fileId && readWorkspaceDraft(savedSelectionKey(), props.identity);
+        const provider = values.find(item => item.serviceId === stored?.serviceId) || (values.length === 1 ? values[0] : null);
+        if (provider) {
+          serviceId.value = provider.serviceId;
           await fetchAssets(turn, false);
+          if (stored?.serviceId !== provider.serviceId) return;
+          // Restore identifiers only after the current user's authorized directory confirms them.
+          while (turn === serial && stored?.assetRef && assetsMore.value && !assets.value.some(item => item.assetRef === stored.assetRef)) await fetchAssets(turn, true);
+          if (turn !== serial || !assets.value.some(item => item.assetRef === stored?.assetRef)) return;
+          assetRef.value = stored.assetRef;
+          if (!await createContext(turn, {})) return;
+          namespaceSession.bind(scopeOf(context.value));
+          await fetchNamespaces(turn, false);
+          while (turn === serial && stored.namespace && namespacesMore.value && !namespaces.value.some(item => namespaceKey(item) === stored.namespace)) await fetchNamespaces(turn, true);
+          if (turn !== serial) return;
+          const namespace = namespaces.value.find(item => namespaceKey(item) === stored.namespace);
+          if (stored.namespace && !namespace) {
+            bind(null);
+            throw new Error('原数据库或 Schema 已不可用，请重新选择数据源。');
+          }
+          if (namespace) {
+            selectedNamespace.value = stored.namespace;
+            if (!await createContext(turn, namespace)) return;
+          }
+          await fetchTables(turn, 1);
         }
       });
     }
@@ -160,6 +205,7 @@ export default defineComponent({
       assetsMore.value = result.metadata.hasMore;
     }
     async function chooseService() {
+      forgetSelection();
       serial++;
       bind(null);
       namespaceSession.bind(null);
@@ -185,6 +231,8 @@ export default defineComponent({
       return true;
     }
     async function chooseAsset() {
+      forgetSelection();
+      namespaceSearch.value = "";
       serial++;
       bind(null);
       namespaceSession.bind(null);
@@ -198,6 +246,7 @@ export default defineComponent({
           namespaceSession.bind(scopeOf(context.value));
           await fetchNamespaces(turn, false);
           await fetchTables(turn, 1);
+          if (turn === serial) rememberSelection();
         }
       });
     }
@@ -224,7 +273,7 @@ export default defineComponent({
       session.bind(null);
       clearRows();
       await run(async (turn) => {
-        if (await createContext(turn, namespace)) await fetchTables(turn, 1);
+        if (await createContext(turn, namespace)) { await fetchTables(turn, 1); if (turn === serial) rememberSelection(); }
       });
     }
     async function fetchTables(turn, page) {
@@ -333,7 +382,7 @@ export default defineComponent({
     window.addEventListener("blur", suspend);
     window.addEventListener("focus", resume);
     document.addEventListener("visibilitychange", visibility);
-    watch([() => props.projectId, () => JSON.stringify(props.identity || {})], initialize, {
+    watch([() => props.projectId, () => props.fileId, () => JSON.stringify(props.identity || {})], initialize, {
       immediate: true,
     });
     onDeactivated(suspend);
@@ -432,12 +481,13 @@ export default defineComponent({
       return { sources: [...groups.values()] };
     }
 
-    exposeComponent({ complete, codingSelection, assistantContext:()=>context.value?.discoveryId || null });
+    exposeComponent({ complete, codingSelection, assistantContext:()=>!busy.value && !error.value ? context.value?.discoveryId || null : null });
     return {
       ref,
       namespaceKey,
       emit,
       providers,
+      assetSearch, namespaceSearch, filteredAssets, filteredNamespaces, namespaceLabel,
       serviceId,
       assets,
       assetRef,

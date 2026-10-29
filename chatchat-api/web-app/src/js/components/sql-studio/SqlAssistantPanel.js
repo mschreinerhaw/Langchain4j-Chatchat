@@ -18,7 +18,7 @@ export default {
     agentId: String, modelName: String, executionMode: String, prompt: String, messages: Array, busy: Boolean, generations: Array,
     generationId: String, result: Object, selectedCode: Object, currentFile: Object, dialectLabel: String, taskRunning: Boolean,
     pendingPhase: String, pendingStartedAt: Number, pollError: String, aiAction: String, projectId: String },
-  emits: ['action', 'new-conversation', 'reference-file', 'open-resource', 'remove-mapping-document', 'choose-library', 'agent', 'model', 'execution-mode', 'prompt', 'send', 'generation', 'resume', 'cancel', 'preview', 'apply', 'clear-selection'],
+  emits: ['publication', 'action', 'new-conversation', 'reference-file', 'open-resource', 'remove-mapping-document', 'choose-library', 'agent', 'model', 'execution-mode', 'prompt', 'send', 'generation', 'resume', 'cancel', 'preview', 'apply', 'clear-selection'],
   setup(props, { emit }) {
     const availableAgents=computed(()=>(props.agents||[]).filter(agent=>agent.marketStatus?.toLowerCase()==='published'));
     const terminal = computed(() => terminalSqlTask(sqlTaskStatus(props.result?.task)));

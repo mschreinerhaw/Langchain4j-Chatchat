@@ -1,11 +1,12 @@
 <template>
   <section class="sql-schema-explorer" aria-label="数据库 Schema 浏览器">
+    <Teleport :to="controlsTarget || 'body'" :disabled="!controlsTarget">
     <div class="sql-schema-controls">
       <header
-        ><strong>数据库</strong
+        ><strong>数据库上下文</strong
         ><button type="button" :disabled="busy" @click="refresh">刷新</button></header
       >
-      <label
+      <label v-show="providers.length > 1"
         >元数据服务<select v-model="serviceId" :disabled="busy" @change="chooseService"
           ><option value="">选择已注册服务</option
           ><option v-for="item in providers" :key="item.serviceId" :value="item.serviceId">{{
@@ -14,9 +15,10 @@
         ></label
       >
       <label
-        >数据源<select v-model="assetRef" :disabled="busy || !serviceId" @change="chooseAsset"
+        >数据源<input v-model="assetSearch" aria-label="搜索数据源" placeholder="搜索授权数据源…" />
+        <select v-model="assetRef" aria-label="选择数据源" :disabled="busy || !serviceId" @change="chooseAsset"
           ><option value="">选择授权数据源</option
-          ><option v-for="asset in assets" :key="asset.assetRef" :value="asset.assetRef">{{
+          ><option v-for="asset in filteredAssets" :key="asset.assetRef" :value="asset.assetRef">{{
             asset.displayName || asset.name
           }}</option></select
         ></label
@@ -25,13 +27,15 @@
         >更多数据源</button
       >
       <label
-        >Catalog / Schema<select
+        >{{ namespaceLabel }}<input v-model="namespaceSearch" aria-label="搜索数据库或 Schema" placeholder="搜索数据库或 Schema…" />
+        <select
           v-model="selectedNamespace"
+          aria-label="选择数据库或 Schema"
           :disabled="busy || !context"
           @change="chooseNamespace"
           ><option value="">全部授权命名空间</option
           ><option
-            v-for="item in namespaces"
+            v-for="item in filteredNamespaces"
             :key="namespaceKey(item)"
             :value="namespaceKey(item)"
             >{{
@@ -47,6 +51,13 @@
         >数据源方言：{{ sourceDialect
         }}<button type="button" @click="$emit('dialect', sourceDialect)">用于编辑器</button></small
       >
+      <small>AI 在当前授权范围内按需发现表结构，无需预选表。编辑器与助手共用此上下文。</small>
+      <p v-if="error" class="sql-schema-error" role="alert">{{ error }}</p>
+      <p v-if="busy" role="status">正在读取授权元数据…</p>
+      <p v-else-if="!providers.length">尚无可用元数据服务。</p>
+    </div>
+    </Teleport>
+    <header><strong>数据源导航</strong></header>
       <form @submit.prevent="searchTables"
         ><input
           v-model="query"
@@ -59,7 +70,6 @@
       <p v-if="busy" role="status">正在读取授权元数据…</p>
       <p v-else-if="!providers.length">尚无可用元数据服务。</p>
       <p v-else-if="!context">选择数据源后浏览 Schema。</p>
-    </div>
     <div
       v-if="context"
       ref="tableList"

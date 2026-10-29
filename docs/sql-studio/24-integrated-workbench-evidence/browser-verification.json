@@ -1,0 +1,109 @@
+{
+  "status": "PASSED",
+  "realBackend": true,
+  "candidateFrontendOnly": true,
+  "checks": {
+    "noSeparateDatabaseTab": true,
+    "advancedCollapsed": true,
+    "businessOnlyGenerationLabel": true,
+    "tablesVisibleWithoutSelectingTable": true,
+    "oneContextWhenAssistantHidden": true,
+    "sameSourceInProjectResources": true,
+    "authorizedContextRestored": true,
+    "realModelExplorationWithoutPreselectedTables": true,
+    "actualBackendProgressObserved": true,
+    "metadataOnlyNoSqlExecution": true,
+    "draftNotPublishedOrExecuted": true,
+    "untestedPublicationDisabled": true,
+    "invalidParametersRejected": true,
+    "failedTestCannotPublish": true,
+    "realDatabaseTestPassed": true,
+    "realPreflightDisplayed": true,
+    "realMcpPublicationRunning": true,
+    "publishedTemplateInExistingCatalog": true,
+    "publicationHistoryRestored": true,
+    "noBrowserErrors": true
+  },
+  "task": {
+    "taskId": "80bd91bd-8e9a-3d15-8aeb-f03f224e18a3",
+    "generationId": "d1e5673b-9cf6-4538-ab21-b73004c16fb6",
+    "stats": {
+      "modelReceipts": [
+        {
+          "modelCall": 1,
+          "durationMs": 3201,
+          "selectedModel": "qwen3.8-flash",
+          "providerModel": "qwen3.8-flash",
+          "protocol": "openai",
+          "requestTimeoutSeconds": 300,
+          "maxRetries": 3
+        },
+        {
+          "modelCall": 2,
+          "durationMs": 4313,
+          "selectedModel": "qwen3.8-flash",
+          "providerModel": "qwen3.8-flash",
+          "protocol": "openai",
+          "requestTimeoutSeconds": 300,
+          "maxRetries": 3
+        },
+        {
+          "modelCall": 3,
+          "durationMs": 6299,
+          "selectedModel": "qwen3.8-flash",
+          "providerModel": "qwen3.8-flash",
+          "protocol": "openai",
+          "requestTimeoutSeconds": 300,
+          "maxRetries": 3
+        },
+        {
+          "modelCall": 4,
+          "durationMs": 20129,
+          "selectedModel": "qwen3.8-flash",
+          "providerModel": "qwen3.8-flash",
+          "protocol": "openai",
+          "requestTimeoutSeconds": 300,
+          "maxRetries": 3
+        },
+        {
+          "modelCall": 5,
+          "durationMs": 6857,
+          "selectedModel": "qwen3.8-flash",
+          "providerModel": "qwen3.8-flash",
+          "protocol": "openai",
+          "requestTimeoutSeconds": 300,
+          "maxRetries": 3
+        },
+        {
+          "modelCall": 6,
+          "durationMs": 25512,
+          "selectedModel": "qwen3.8-flash",
+          "providerModel": "qwen3.8-flash",
+          "protocol": "openai",
+          "requestTimeoutSeconds": 300,
+          "maxRetries": 3
+        },
+        {
+          "modelCall": 7,
+          "durationMs": 32802,
+          "selectedModel": "qwen3.8-flash",
+          "providerModel": "qwen3.8-flash",
+          "protocol": "openai",
+          "requestTimeoutSeconds": 300,
+          "maxRetries": 3
+        }
+      ],
+      "reusedCalls": 0,
+      "totalMs": 108292,
+      "modelCalls": 7,
+      "toolCalls": 12,
+      "reusedEvidenceCount": 0
+    }
+  },
+  "publication": {
+    "id": "0c19a18d-c00c-3cab-9625-80de1dc9b246",
+    "toolName": "tpl_5e0b59df4a263b66bb5452f6c79deec4",
+    "state": "RUNNING"
+  },
+  "pageErrors": []
+}

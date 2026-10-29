@@ -1,0 +1,18 @@
+{
+  "status": "PASSED",
+  "realBackend": true,
+  "businessReadOnly": true,
+  "checks": {
+    "unifiedProjectResources": true,
+    "advancedSettingsCollapsed": true,
+    "optionalTablesRemainUnselected": true,
+    "sameContextInNavigation": true,
+    "singleSourceSelector": true,
+    "realPublishedTestRestored": true,
+    "conversationHasUsableHeight": true,
+    "saveActionWithinViewport": true,
+    "noBrowserErrors": true
+  },
+  "conversationHeightAt1280": 368,
+  "pageErrors": []
+}

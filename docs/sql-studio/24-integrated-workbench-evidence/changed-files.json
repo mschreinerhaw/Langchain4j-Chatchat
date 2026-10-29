@@ -1,0 +1,54 @@
+[
+  {
+    "path": "chatchat-api/web-app/src/components/sql-studio/SqlAssistantPanel.vue",
+    "sha256": "f4a0aed3ce7fd892eb051185ef491da6a8f04cb10c49c9c42b51b08d514ff6f1"
+  },
+  {
+    "path": "chatchat-api/web-app/src/components/sql-studio/SqlSchemaExplorer.test.js",
+    "sha256": "9e240279f334943ce8a3a34049596dd3ab91466c582742d0585fc36eda44b390"
+  },
+  {
+    "path": "chatchat-api/web-app/src/components/sql-studio/SqlSchemaExplorer.vue",
+    "sha256": "fc0b0b881f96348b819fecf4a022d7346970d4759d36e37e91879112efa7057e"
+  },
+  {
+    "path": "chatchat-api/web-app/src/components/sql-studio/SqlTemplatePublicationPanel.vue",
+    "sha256": "3cce2529e8926ec035cd680d51d9d1a787ec2cbf58e4dcd7450846a2f2cde1b9"
+  },
+  {
+    "path": "chatchat-api/web-app/src/js/components/sql-studio/SqlAssistantPanel.js",
+    "sha256": "659d73cb6fbcb3db5a01521f0aedf3b73776bba6e61671f358129767aefcb7fe"
+  },
+  {
+    "path": "chatchat-api/web-app/src/js/components/sql-studio/SqlSchemaExplorer.js",
+    "sha256": "cc33db9819b3ded722ac0915f3e071b7f148e213642c0462964071bb41a737e1"
+  },
+  {
+    "path": "chatchat-api/web-app/src/js/components/sql-studio/SqlTemplatePublicationPanel.js",
+    "sha256": "e90a3b9123859594f8a65a6ddf6c3843f7c6baf8eb216a44544e5d776415969d"
+  },
+  {
+    "path": "chatchat-api/web-app/src/js/views/SqlStudioView.js",
+    "sha256": "0ec8cf75dfe396479b6056e7820c67a85e9e522791a37ae967a848dc61d1a0b1"
+  },
+  {
+    "path": "chatchat-api/web-app/src/js/views/SqlStudioView.test.js",
+    "sha256": "8b8b88a3d3be9a5b2e6f9b19212ced8fea0dbc644276ed2ce7d74b5efb3172c3"
+  },
+  {
+    "path": "chatchat-api/web-app/src/styles/components/sql-studio/sql-schema-explorer.css",
+    "sha256": "33de35e285d8e609d2bce511f89a704fc8d18059605959d391f90b65f853211a"
+  },
+  {
+    "path": "chatchat-api/web-app/src/styles/pages/sql-studio-ide.css",
+    "sha256": "36580126c42dfebe2de1633d39f144bfb072400afec161d1978d4d972174c154"
+  },
+  {
+    "path": "chatchat-api/web-app/src/views/SqlStudioView.vue",
+    "sha256": "97aef7ad02ea41979bb844017cc19c1e09251852de030f8313cd42232498f94c"
+  },
+  {
+    "path": "scripts/verify-sql-workbench-browser.mjs",
+    "sha256": "157a6610411caf2d445eb28c3edaf0a5e07f59e94fe17b24bd0e27e02d0aa46e"
+  }
+]

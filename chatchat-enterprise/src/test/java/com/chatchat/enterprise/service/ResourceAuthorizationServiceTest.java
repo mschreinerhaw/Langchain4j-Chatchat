@@ -25,6 +25,17 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class ResourceAuthorizationServiceTest {
+    @Test void catalogReadersDefaultToVisibleButExplicitDenialsAndIdentityBoundariesStillApply(){
+        var grants=mock(ResourceGrantRepository.class);var users=mock(SysUserRepository.class);
+        var user=new SysUser();user.setId("user-1");user.setTenantId("tenant-1");user.setStatus("enabled");when(users.findById("user-1")).thenReturn(Optional.of(user));
+        var service=new ResourceAuthorizationService(grants,users,mock(SysUserRoleRepository.class),mock(SysRoleRepository.class),mock(RoleAgentBindingRepository.class));
+        assertThat(service.readableMetadataIds("tenant-1","user-1",Set.of("catalog"))).containsExactly("catalog");
+        assertThat(service.allowedIds("MCP_TOOL","tenant-1","user-1",Set.of(),Set.of("catalog"))).isEmpty();
+        assertThat(service.readableMetadataIds("other-tenant","user-1",Set.of("catalog"))).isEmpty();
+        when(grants.findByTenantIdAndResourceTypeAndResourceIdIn(eq("tenant-1"),eq("MCP_TOOL"),anyCollection())).thenReturn(List.of(grant("catalog","USER","user-1","DENY")));
+        assertThat(service.readableMetadataIds("tenant-1","user-1",Set.of("catalog"))).isEmpty();
+        user.setStatus("disabled");assertThat(service.readableMetadataIds("tenant-1","user-1",Set.of("catalog"))).isEmpty();
+    }
     @Test
     void usesDatabaseRoleMembershipAndDenyWinsOverAllow() {
         ResourceGrantRepository grants = mock(ResourceGrantRepository.class);

@@ -59,6 +59,22 @@ import static org.mockito.Mockito.times;
 import org.mockito.ArgumentCaptor;
 
 class McpToolRegistryBridgeLifecycleTest {
+    @Test void metadataCatalogUsesItsOwnPolicyWhileSqlExecutorsStillRequireToolGrants(){
+        var registry=new DefaultToolRegistry();var config=mock(McpServiceConfigService.class);var gateway=mock(McpGatewayClient.class);var service=service("catalog-service","Catalog");
+        var declaration=Map.<String,Object>of("readOnly",true,"runtimeAction","allow","sqlStudioGenerationBoundary",Map.of("operation","METADATA_READ","executesBusinessSql",false));
+        var definition=new McpToolDefinition("sql_schema_context_query","Metadata",Map.of(),null,null,null,null,true,Map.of(),Map.of(),Map.of(),Map.of(),null,declaration);
+        when(config.listEnabled()).thenReturn(List.of(service));when(config.getById(service.getId())).thenReturn(service);
+        when(gateway.discoverTools(service,0)).thenReturn(List.of(definition,new McpToolDefinition("sql_query_execute","SQL",Map.of())));
+        when(gateway.invokeTool(eq(service),eq("sql_schema_context_query"),anyMap(),any())).thenReturn(new com.chatchat.integration.mcp.model.McpToolInvokeResult(true,Map.of("items",List.of()),null,null));
+        var bridge=new McpToolRegistryBridge(registry,config,gateway,new ObjectMapper(),new DynamicMcpToolRouteService());
+        var authorization=mock(com.chatchat.common.retrieval.ResourceAuthorizationPort.class);
+        when(authorization.readableMetadataIds(eq("tenant-1"),eq("user-1"),any())).thenAnswer(c->c.getArgument(2));
+        org.springframework.test.util.ReflectionTestUtils.setField(bridge,"resourceAuthorization",authorization);bridge.refreshRegistry(0);
+        var identity=Map.<String,Object>of("tenantId","tenant-1","userId","user-1");
+        assertThat(bridge.invoke(new McpServiceCall(null,"catalog-request",service.getId(),"sql_schema_context_query",Map.of(),identity,0)).success()).isTrue();
+        assertThat(bridge.invoke(new McpServiceCall(null,"execution-request",service.getId(),"sql_query_execute",Map.of(),identity,0)).success()).isFalse();
+        verify(gateway,never()).invokeTool(eq(service),eq("sql_query_execute"),anyMap(),any());
+    }
     @Test
     void everyRegisteredRemoteToolFailsClosedAtBothInvocationBoundaries() {
         var registry = new DefaultToolRegistry();

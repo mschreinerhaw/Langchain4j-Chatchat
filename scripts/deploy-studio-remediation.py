@@ -69,20 +69,22 @@ def main():
         entry=manifest['mcp']
         assert run('docker','exec',mcp,'sha256sum','/srv/app/app.jar').split()[0]==entry['baselineSha256']
         assert hashlib.sha256((root/'mcp.jar').read_bytes()).hexdigest()==entry['sha256']
-        build=root/'mcp-build';build.mkdir()
+        build=root/'mcp-build';build.mkdir(exist_ok=True)
         shutil.copy2(root/'mcp.jar',build/'app.jar')
         run('docker','cp',mcp+':/usr/local/bin/docker',str(build/'docker'))
         (build/'Dockerfile').write_text('FROM '+base+'\nCOPY docker /usr/local/bin/docker\nRUN chmod 0755 /usr/local/bin/docker && docker --version\nWORKDIR /srv/app\nCOPY app.jar /srv/app/app.jar\nENTRYPOINT ["java","-jar","/srv/app/app.jar"]\n')
         run('docker','build','--network','none','-t',images[mcp],str(build))
     if node in images:
-        entry=manifest['worker'];build=root/'worker-build';build.mkdir()
-        (build/'patched').mkdir()
+        entry=manifest['worker'];build=root/'worker-build';build.mkdir(exist_ok=True)
+        (build/'patched').mkdir(exist_ok=True)
         for module,expected in entry['baselineModules'].items():
             assert module in ['runner.js','server.js']
             assert run('docker','exec',node,'sha256sum','/srv/coding-agent/dist/'+module).split()[0]==expected
             assert hashlib.sha256((root/'worker'/module).read_bytes()).hexdigest()==entry['modules'][module]
             shutil.copy2(root/'worker'/module,build/'patched'/module)
-        (build/'Dockerfile').write_text('FROM '+before[node]['Image']+'\nCOPY patched/ /srv/coding-agent/dist/\n')
+        baseline_tag='runtime-os-coding-agent:sql-metadata-baseline-'+before[node]['Image'].split(':')[-1][:16]
+        run('docker','tag',before[node]['Image'],baseline_tag)
+        (build/'Dockerfile').write_text('FROM '+baseline_tag+'\nCOPY patched/ /srv/coding-agent/dist/\n')
         run('docker','build','--network','none','-t',images[node],str(build))
     backup = root / 'backup'
     backup.mkdir(mode=0o700)

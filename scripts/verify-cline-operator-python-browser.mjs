@@ -43,6 +43,7 @@ try{
   await page.locator('[data-tab=codes]').click();
   await until(async()=>(await page.locator('#detail-content .code-info').innerText()).includes('平台不可变代码归档'),30000);
   const sourceText=await page.locator('#detail-content .code-block').innerText();assert.match(sourceText,/amount/);assert(!sourceText.includes('__project_b64__'));assert(!sourceText.includes('源代码已超出节点保留上限'));
+  assert.equal((await get(path)).task.modelCalls,initial.task.modelCalls);assert.equal((await get(path+'/python')).revision,before.revision);
   await page.screenshot({path:output+'/operator-python-'+test.case+'-generated-code.png'});
   proof.cases.push({taskId:test.taskId,observationId:observed.id,executions:test.expectedExecutions,repairs:test.expectedRepairs,exceptions:test.expectedErrors,authority:before.source,realArchivedTiming:true,timingSuffixRemoved:true,generatedCodeReadFromPlatform:true,readOnlyModelCountUnchanged:true,journalRevisionUnchanged:true,restoredAfterReload:true});
  }

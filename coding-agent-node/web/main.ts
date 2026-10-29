@@ -23,7 +23,7 @@ function empty(title: string, description: string) {
 }
 let authenticated = false, paused = false, inFlight = false, activeTab = 'overview', selectedId = '', selectedCode = '';
 let detail: TaskDetail | null = null, snapshot: NodeSnapshot | null = null, offset = 0, total = 0;
-let sourceCache = new Map<string, string>(), timer: ReturnType<typeof setTimeout>, codeEpoch = 0;
+let sourceCache = new Map<string, {source:string;archived:boolean}>(), timer: ReturnType<typeof setTimeout>, codeEpoch = 0;
 let listSignature = '', detailSignature = '';
 let pythonState: PythonProjection | null = null, pythonTask = '', pythonLoading = false, pythonError = '', pythonEpoch = 0;
 let pythonOpen = new Set<string>();
@@ -178,19 +178,23 @@ async function loadSource(taskId: string, codeId: string) {
   const info = $('detail-content').querySelector<HTMLElement>('.code-info'), pre = $('detail-content').querySelector<HTMLElement>('pre');
   if (!info || !pre || !code) return;
   info.textContent = `SHA-256 ${code.sha256}\n${bytes(code.sourceBytes)} · ${code.operationId}`; info.style.whiteSpace = 'pre-wrap';
-  if (sourceCache.has(codeId)) { if(!code.sourceRetained)info.textContent+='\n来源：平台不可变代码归档';pre.textContent = sourceCache.get(codeId)!; return; }
+  const cached=sourceCache.get(codeId);
+  if (cached) { if(cached.archived)info.textContent+='\n来源：平台不可变代码归档';pre.textContent = cached.source; return; }
   pre.textContent = '读取源代码…';
   try {
-    if(!code.sourceRetained){
-      const archived=await api<PythonSource>(`/v1/monitor/tasks/${taskId}/python/codes/${code.operationId}`);
+    let archived:PythonSource|undefined;
+    if(/^cline-[a-f0-9]{64}$/.test(code.operationId))try{archived=await api<PythonSource>(`/v1/monitor/tasks/${taskId}/python/codes/${code.operationId}`);}
+    catch(error){if(!code.sourceRetained)throw error;}
+    if(archived){
       if(epoch!==codeEpoch||selectedId!==taskId||activeTab!=='codes')return;
       if(archived.sha256!==code.sha256||archived.operationId!==code.operationId||archived.taskId!==detail?.taskId)throw new Error('平台归档与选中代码版本摘要不一致');
       const source=archived.files.map(file=>`# ${file.path}\n${file.content}`).join('\n\n');
-      sourceCache.set(codeId,source);info.textContent+='\n来源：平台不可变代码归档';pre.textContent=source;return;
+      sourceCache.set(codeId,{source,archived:true});info.textContent+='\n来源：平台不可变代码归档';pre.textContent=source;return;
     }
+    if(!code.sourceRetained)throw new Error('Code archive unavailable');
     const value = await api<CodeVersion>(`/v1/monitor/tasks/${taskId}/codes/${codeId}`);
     if (epoch !== codeEpoch || selectedId !== taskId || activeTab !== 'codes') return;
-    sourceCache.set(codeId, value.source ?? '源代码未保留'); pre.textContent = value.source ?? '源代码未保留';
+    sourceCache.set(codeId, {source:value.source ?? '源代码未保留',archived:false}); pre.textContent = value.source ?? '源代码未保留';
   } catch (error) {
     if (epoch === codeEpoch) pre.textContent = code.sourceRetained?`无法读取代码：${(error as Error).message}`:'节点未保留该版本正文，平台代码归档暂不可用。代码哈希与版本元信息仍可查阅。';
   }

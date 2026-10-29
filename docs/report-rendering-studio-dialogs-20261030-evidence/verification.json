@@ -1,0 +1,282 @@
+{
+  "baseCommit": "3eaa75b0f9d9ee740c5a3ce43d7dbee68cfb96a2",
+  "sourceCommits": [
+    "67769d07877241a8a8e56754afb8fabcd002a207",
+    "94992565b852e16b3ba835b31181ae53eb90e36c"
+  ],
+  "files": [
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/evidence/VisualReportArtifacts.java",
+      "blob": "b4dbe89e719be126df8219a301057eb8ee8485e8"
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/evidence/VisualReportArtifactsTest.java",
+      "blob": "417ef103b32230d0961d16bbe615d2e5f048078c"
+    },
+    {
+      "path": "chatchat-api/src/test/resources/visual-report/scheduling-layout.json",
+      "blob": "8e7004357df2162ab3b354bd6855aa30c5114520"
+    },
+    {
+      "path": "chatchat-api/src/test/resources/visual-report/scheduling-trend.png",
+      "blob": "435f17199f96462fd59f0346bf5b2e122f423c38"
+    },
+    {
+      "path": "chatchat-api/web-app/package.json",
+      "blob": "ba47873d032ed9a9bf950f6c72a5698ae7dd86b9"
+    },
+    {
+      "path": "chatchat-api/web-app/scripts/test-report-recovery.mjs",
+      "blob": "9c85f310f9937d06087f8ab1b90b4a7b3ec76f58"
+    },
+    {
+      "path": "chatchat-api/web-app/scripts/test-sql-studio.mjs",
+      "blob": "8a3282edf41215dfb281901419f02859e8a56b96"
+    },
+    {
+      "path": "chatchat-api/web-app/src/components/PythonReportChart.test.js",
+      "blob": "fd4695f0c94848f230724f0e64899e2daf422c5f"
+    },
+    {
+      "path": "chatchat-api/web-app/src/components/PythonReportChart.vue",
+      "blob": "ffc378815fc87333ebbe27e9813fa26af1a26b2f"
+    },
+    {
+      "path": "chatchat-api/web-app/src/components/PythonVisualReport.test.js",
+      "blob": "de519b965759b6fe2e79e7881823af50b43d0dd0"
+    },
+    {
+      "path": "chatchat-api/web-app/src/components/ReportRenderer.test.js",
+      "blob": "c98db35478813a3b151c50ff32a7716963fb46f5"
+    },
+    {
+      "path": "chatchat-api/web-app/src/components/ReportRenderer.vue",
+      "blob": "39235b1755d9e449def1dccfa35903c0eb2a0cd3"
+    },
+    {
+      "path": "chatchat-api/web-app/src/components/sql-studio/SqlAssistantPanel.test.js",
+      "blob": "b4a2c213e873e9f338ec66631e0debd591461989"
+    },
+    {
+      "path": "chatchat-api/web-app/src/components/sql-studio/SqlAssistantPanel.vue",
+      "blob": "aed56aaf272fc0df0827716d4aa0fb6246cec02c"
+    },
+    {
+      "path": "chatchat-api/web-app/src/components/sql-studio/SqlTemplatePublicationPanel.test.js",
+      "blob": "72a04689cc6d5073bd7b3419c74018c85e11e3d6"
+    },
+    {
+      "path": "chatchat-api/web-app/src/components/sql-studio/SqlTemplatePublicationPanel.vue",
+      "blob": "ed5afb17cbecb298a2bfea622b36167afe331f6c"
+    },
+    {
+      "path": "chatchat-api/web-app/src/js/components/PythonReportChart.js",
+      "blob": "03b1d9d595d2c95494bf5b8436eadd4b8402c2e1"
+    },
+    {
+      "path": "chatchat-api/web-app/src/js/components/PythonVisualReport.js",
+      "blob": "8f35720f8aa5665cbf9f53513e577740c4dd3a95"
+    },
+    {
+      "path": "chatchat-api/web-app/src/js/components/sql-studio/SqlAssistantPanel.js",
+      "blob": "f83298408965c3227b065f8ba176252396442c4f"
+    },
+    {
+      "path": "chatchat-api/web-app/src/js/components/sql-studio/SqlTemplatePublicationPanel.js",
+      "blob": "9bcd28d974e9438aafcf206f72ba8d43efb25adb"
+    },
+    {
+      "path": "chatchat-api/web-app/src/js/utils/pythonVisualReport.js",
+      "blob": "f65284c196433d78f877cb6728a2f8f3171fff14"
+    },
+    {
+      "path": "chatchat-api/web-app/src/js/utils/pythonVisualReport.test.js",
+      "blob": "f46234a75d6052618687c58cc754851060efb921"
+    },
+    {
+      "path": "chatchat-api/web-app/src/js/utils/reportLayout.js",
+      "blob": "ee0199af788fd5b56c9187376428abe6b445ac17"
+    },
+    {
+      "path": "chatchat-api/web-app/src/js/utils/reportLayout.test.js",
+      "blob": "0f7863542098b4f2595000c61efed8b4acc2a6a0"
+    },
+    {
+      "path": "chatchat-api/web-app/src/styles/components/python-report-chart.css",
+      "blob": "cf5acb9033886cc10fc61e1ddf199652bad9036d"
+    },
+    {
+      "path": "chatchat-api/web-app/src/styles/components/sql-studio/SqlTemplatePublicationPanel.css",
+      "blob": "626089c122264c33ffb3a961e394f9ac7e466812"
+    },
+    {
+      "path": "chatchat-api/web-app/src/styles/components/sql-studio/sql-assistant-dialog.css",
+      "blob": "cbb71fca29d22006449f274ddfd6a77ab984d56c"
+    },
+    {
+      "path": "chatchat-api/web-app/tests/report-recovery.html",
+      "blob": "7f496fc827dca4e0ee27cacdc1d6a9101df3c163"
+    },
+    {
+      "path": "chatchat-common/src/main/java/com/chatchat/common/runtime/coding/ReportLayout.java",
+      "blob": "7fc1c479bb5be217f246a8d2d3c9f11fd99b8975"
+    },
+    {
+      "path": "chatchat-common/src/main/java/com/chatchat/common/runtime/coding/ReportPresentation.java",
+      "blob": "1e2d5f5161886621273b400457e561cc8c858c78"
+    },
+    {
+      "path": "chatchat-common/src/test/java/com/chatchat/common/runtime/coding/ReportPresentationTest.java",
+      "blob": "b57b3b27074f878f9264b9d8a795d34a2594600f"
+    }
+  ],
+  "tests": {
+    "javaPrimary": [
+      {
+        "suite": "com.chatchat.common.runtime.coding.ReportPresentationTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "com.chatchat.mcpserver.sql.metadata.SqlMetadataDiscoveryWorkflowTest",
+        "tests": 15,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "com.chatchat.api.datascience.sql.SqlGlotToolchainTest",
+        "tests": 8,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "com.chatchat.api.datascience.sql.SqlStudioIntegrationTest",
+        "tests": 40,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "com.chatchat.api.datascience.sql.SqlStudioMetadataServiceTest",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "com.chatchat.api.datascience.sql.SqlWorkspaceMetadataToolsTest",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "com.chatchat.api.runtime.coding.evidence.CodingEvidenceCollectorTest",
+        "tests": 12,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "com.chatchat.api.runtime.coding.evidence.VisualReportArtifactsTest",
+        "tests": 25,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "com.chatchat.api.runtime.coding.workspace.CodingWorkspaceServiceTest",
+        "tests": 11,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    ],
+    "javaFollowupOverlapping": [
+      {
+        "suite": "com.chatchat.api.runtime.coding.evidence.VisualReportArtifactsTest",
+        "tests": 25,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    ],
+    "reportFrontendPassed": 45,
+    "sqlFrontendPassed": 166,
+    "nodePassed": 128,
+    "vueStructureComponents": 69
+  },
+  "logs": [
+    {
+      "path": "target/report-remediation-package.log",
+      "sha256": "593d812746ebb17f2c22a4a72c8679a3ae10611e8f116d05251458189bbc6d1f"
+    },
+    {
+      "path": "target/report-remediation-isolation-package.log",
+      "sha256": "a701bc0da3f557017b7a881af011b08ff7af1ec42ef136e2c9f4fed9efba9573"
+    },
+    {
+      "path": "target/report-remediation-web.log",
+      "sha256": "8ea3791ee82283641938670de83de8d487af4726d98c7f9b6cb11a16fdfce7d9"
+    },
+    {
+      "path": "target/report-remediation-sql-web.log",
+      "sha256": "1ecf04a6c7a785c1190a15f0462fef96a49d806fd09be18475446cde47282748"
+    },
+    {
+      "path": "target/report-remediation-node.log",
+      "sha256": "68bd0f494ac8c5a7463ec3e679bdb4a75522e3ceec39755c9c1962bc8fdebaed"
+    },
+    {
+      "path": "target/report-remediation-build.log",
+      "sha256": "8573310954feed5f835f747c7c61afae9593ab02876c43cadba1a167831e72e9"
+    },
+    {
+      "path": "target/report-remediation-final-package.log",
+      "sha256": "56df0a0b9b033c35d33fb419acb67e77d9effd54d7c5a5d665e67e0043350802"
+    },
+    {
+      "path": "target/report-remediation-deployed-browser.log",
+      "sha256": "e908ad8ed28c97e157f594f8d7b1a3139608abc9eec581dfdbc6978b17768b44"
+    }
+  ],
+  "scope": {
+    "report": "Real original PNG and Java-admitted manifest replay, HTTP fixtures, actual Vue/Plotly rendering",
+    "deployedFrontend": "Actual deployed assets with controlled API fixtures; no production business writes",
+    "originalOwnerAuthenticatedReview": false,
+    "ownerSessionStatus": 401,
+    "businessSqlExecuted": false
+  },
+  "originalArtifacts": {
+    "rowsSha256": "294cf685a4cc0ecf75b67f072a574e9ed7479e543b591e4eb47436c593742a38",
+    "pngSha256": "a0b5e7e4ec9c90121aadabe838109c3549df6d965b76cfe530ac8e74ecda38b0",
+    "layoutError": "Unknown report element reference",
+    "titleReferencesAtBlocks": [
+      3,
+      6
+    ],
+    "elementsMissingDataRefs": 7
+  },
+  "deployment": {
+    "status": "DEPLOYED",
+    "image": "runtime-os-api:report-ui-94992565b-20261030",
+    "sha256": "d88fd77b394fe42b6752d106a90e3afb55ff63efa2349a65c8e60b2bef409003",
+    "backup": "/opt/chatchat-releases/report-ui-isolation-20261030/backup",
+    "retired": {
+      "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-studio-1793294077",
+      "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-studio-1793294077"
+    },
+    "preservedExpiredReadOnlyTaskIds": [],
+    "unrelatedContainersUnchanged": true,
+    "conversationContentUnchanged": true,
+    "messageIndexCountUnchanged": true,
+    "images": {
+      "runtime-os-app-stage-api-1": "runtime-os-api:report-ui-94992565b-20261030"
+    },
+    "channelCounts": "SQL_STUDIO|28\nPYTHON_STUDIO|4\nAGENT_API|165\nPLATFORM_UI|827"
+  }
+}

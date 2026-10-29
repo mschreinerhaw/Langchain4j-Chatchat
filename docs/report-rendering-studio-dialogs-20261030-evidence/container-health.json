@@ -1,0 +1,20 @@
+[
+  {
+    "name": "/runtime-os-app-stage-api-1",
+    "image": "runtime-os-api:report-ui-94992565b-20261030",
+    "state": "running",
+    "health": null
+  },
+  {
+    "name": "/runtime-os-app-stage-mcp-1",
+    "image": "runtime-os-mcp:report-ui-67769d078-20261030",
+    "state": "running",
+    "health": null
+  },
+  {
+    "name": "/runtime-os-app-stage-coding-agent-1",
+    "image": "runtime-os-coding-agent:report-ui-67769d078-20261030",
+    "state": "running",
+    "health": "healthy"
+  }
+]

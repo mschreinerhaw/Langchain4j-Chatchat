@@ -178,15 +178,21 @@ async function loadSource(taskId: string, codeId: string) {
   const info = $('detail-content').querySelector<HTMLElement>('.code-info'), pre = $('detail-content').querySelector<HTMLElement>('pre');
   if (!info || !pre || !code) return;
   info.textContent = `SHA-256 ${code.sha256}\n${bytes(code.sourceBytes)} · ${code.operationId}`; info.style.whiteSpace = 'pre-wrap';
-  if (!code.sourceRetained) { pre.textContent = '源代码已超出节点保留上限。代码哈希与版本元信息仍可查阅；完整工件请向平台查询。'; return; }
-  if (sourceCache.has(codeId)) { pre.textContent = sourceCache.get(codeId)!; return; }
+  if (sourceCache.has(codeId)) { if(!code.sourceRetained)info.textContent+='\n来源：平台不可变代码归档';pre.textContent = sourceCache.get(codeId)!; return; }
   pre.textContent = '读取源代码…';
   try {
+    if(!code.sourceRetained){
+      const archived=await api<PythonSource>(`/v1/monitor/tasks/${taskId}/python/codes/${code.operationId}`);
+      if(epoch!==codeEpoch||selectedId!==taskId||activeTab!=='codes')return;
+      if(archived.sha256!==code.sha256||archived.operationId!==code.operationId||archived.taskId!==detail?.taskId)throw new Error('平台归档与选中代码版本摘要不一致');
+      const source=archived.files.map(file=>`# ${file.path}\n${file.content}`).join('\n\n');
+      sourceCache.set(codeId,source);info.textContent+='\n来源：平台不可变代码归档';pre.textContent=source;return;
+    }
     const value = await api<CodeVersion>(`/v1/monitor/tasks/${taskId}/codes/${codeId}`);
     if (epoch !== codeEpoch || selectedId !== taskId || activeTab !== 'codes') return;
     sourceCache.set(codeId, value.source ?? '源代码未保留'); pre.textContent = value.source ?? '源代码未保留';
   } catch (error) {
-    if (epoch === codeEpoch) pre.textContent = `无法读取代码：${(error as Error).message}`;
+    if (epoch === codeEpoch) pre.textContent = code.sourceRetained?`无法读取代码：${(error as Error).message}`:'节点未保留该版本正文，平台代码归档暂不可用。代码哈希与版本元信息仍可查阅。';
   }
 }
 async function loadPython(task: TaskDetail) {
@@ -221,13 +227,13 @@ function renderPython(task: TaskDetail) {
   if(!executions.length)node.append(empty('暂无已归档 Python 执行回执','代码生成、工具派发或取消前的中间事件不计为已完成执行。'));
   executions.forEach((execution,index)=>{
     const record=el('details','python-execution') as HTMLDetailsElement;record.dataset.executionId=execution.executionId;record.open=pythonOpen.has(execution.executionId);
-    const timing=el('span','',pythonTimings.get(execution.executionId)??'展开记录后读取原归档时间');
+    const timing=el('span','python-execution-timing',pythonTimings.get(execution.executionId)??'展开记录后读取原归档时间');
     record.addEventListener('toggle',()=>{record.open?pythonOpen.add(execution.executionId):pythonOpen.delete(execution.executionId);
       if(record.open&&!pythonTimings.has(execution.executionId))void (async()=>{
         const epoch=pythonEpoch;timing.textContent='正在核对原执行回执…';
         try{const value=await api<{operationId:string;sha256:string;available:boolean;source?:string;startedAt?:string;finishedAt?:string}>(`/v1/monitor/tasks/${task.id}/python/timing/${execution.executionId}`);
           if(value.operationId!==execution.executionId||value.sha256!==execution.codeHash)throw new Error('执行时间身份不匹配');
-          const text=value.available&&value.source==='MCP_ARCHIVED_RECEIPT'?`${time(value.startedAt??null)} → ${time(value.finishedAt??null)}（原 MCP 回执）`:'原执行时间未归档，不推测开始或结束时间';
+          const text=value.available&&value.source==='MCP_ARCHIVED_RECEIPT'?`${time(value.startedAt??null)} → ${time(value.finishedAt??null)}`:'原执行时间未归档，不推测开始或结束时间';
           if(epoch===pythonEpoch&&selectedId===task.id){pythonTimings.set(execution.executionId,text);timing.textContent=text;}
         }catch{if(timing.isConnected)timing.textContent='原归档时间暂不可用，不使用模型或派发时间代替';}
       })();

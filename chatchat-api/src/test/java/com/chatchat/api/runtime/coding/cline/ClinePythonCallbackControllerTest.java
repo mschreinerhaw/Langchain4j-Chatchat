@@ -65,13 +65,23 @@ class ClinePythonCallbackControllerTest {
         assertThat(response).containsEntry("source","DURABLE_CODING_JOURNAL").containsEntry("rawLogsAvailable",false);
         verify(tasks,never()).ownership(any(),anyString());verifyNoInteractions(python,collector);
     }
-    @Test void monitorCodeRequiresTheActualExecutionAndMatchingArchivedHash() {
+    @Test void monitorCodeBindsTheArchiveAndAnyExistingExecutionHash() {
         var feedback=mock(com.chatchat.api.runtime.coding.execution.CodingExecutionFeedbackService.class);controller.setFeedback(feedback);
         var artifacts=mock(CodingCodeArtifactStore.class);controller.setCodeArtifacts(artifacts);when(tasks.contract(scope,"task")).thenReturn(contract);
         var execution=mock(ExecutionFeedback.class);when(execution.executionId()).thenReturn(operation);when(execution.codeHash()).thenReturn("f".repeat(64));when(feedback.timeline(scope,"task")).thenReturn(List.of(execution));
         when(artifacts.find(scope,"task",operation)).thenReturn(Optional.of(Map.of("content","print(7)","sha256","f".repeat(64),"fileName","main.py")));
         assertThatThrownBy(()->controller.monitorPython(json.valueToTree(Map.of("scope",scope,"taskId","task","operationId",operation)))).hasMessageContaining("409");
         assertThatThrownBy(()->controller.monitorPython(json.valueToTree(Map.of("scope",scope,"taskId","task","operationId","cline-"+"b".repeat(64))))).hasMessageContaining("404");
+        verifyNoInteractions(python,collector);
+    }
+    @Test void monitorCanReadSubmittedCodeWithoutPretendingAnExecutionReceiptExists() {
+        var feedback=mock(com.chatchat.api.runtime.coding.execution.CodingExecutionFeedbackService.class);controller.setFeedback(feedback);
+        var artifacts=mock(CodingCodeArtifactStore.class);controller.setCodeArtifacts(artifacts);when(tasks.contract(scope,"task")).thenReturn(contract);when(feedback.timeline(scope,"task")).thenReturn(List.of());
+        String source="print(7)",hash=PythonCodeProject.hash(source);
+        when(artifacts.find(scope,"task",operation)).thenReturn(Optional.of(Map.of("content",source,"sha256",hash,"fileName","main.py")));
+        var request=Map.of("scope",scope,"taskId","task","operationId",operation);
+        assertThat(controller.monitorPython(json.valueToTree(request))).containsEntry("sha256",hash).containsEntry("executionReceiptAvailable",false);
+        assertThatThrownBy(()->controller.monitorPython(json.valueToTree(Map.of("scope",scope,"taskId","task","operationId",operation,"kind","timing")))).hasMessageContaining("404");
         verifyNoInteractions(python,collector);
     }
     @Test void monitorTimingUsesOnlyHashBoundArchivedReceiptAndNeverQueriesSandbox() throws Exception {

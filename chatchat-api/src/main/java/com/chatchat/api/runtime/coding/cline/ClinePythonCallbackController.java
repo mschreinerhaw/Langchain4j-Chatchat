@@ -87,10 +87,10 @@ public final class ClinePythonCallbackController {
             String operation=body.path("operationId").asText("");
             if(!operation.isBlank()) {
                 if(!operation.matches("cline-[0-9a-f]{64}"))throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
-                var execution=executions.stream().filter(e->operation.equals(e.executionId())).findFirst()
-                    .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Archived execution unavailable"));
+                var matchingExecution=executions.stream().filter(e->operation.equals(e.executionId())).findFirst();
                 String kind=body.path("kind").asText("code");
                 if("timing".equals(kind)) {
+                    var execution=matchingExecution.orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Archived execution unavailable"));
                     var bytes=monitorAssets==null?java.util.Optional.<byte[]>empty():monitorAssets.log(scope,taskId,operation,"receipt.json");
                     if(bytes.isEmpty())return Map.of("operationId",operation,"sha256",execution.codeHash(),"available",false);
                     if(bytes.get().length>8192)throw new ResponseStatusException(HttpStatus.CONFLICT,"Invalid archived timing");
@@ -106,14 +106,14 @@ public final class ClinePythonCallbackController {
                 if(codeArtifacts==null)throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE);
                 var artifact=codeArtifacts.find(scope,taskId,operation).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Archived code unavailable"));
                 String source=(String)artifact.get("content"),hash=com.chatchat.common.runtime.coding.PythonCodeProject.hash(source);
-                if(!execution.codeHash().equals(hash)||!hash.equals(artifact.get("sha256")))throw new ResponseStatusException(HttpStatus.CONFLICT,"Archived code hash differs from execution");
+                if(!hash.equals(artifact.get("sha256"))||matchingExecution.isPresent()&&!matchingExecution.get().codeHash().equals(hash))throw new ResponseStatusException(HttpStatus.CONFLICT,"Archived code hash differs from submission or execution");
                 var decoded=com.chatchat.common.runtime.coding.PythonCodeProject.decode(source);
                 Object files;
                 if(decoded.isPresent())try {
                     files=com.chatchat.common.runtime.coding.PythonCodeProject.validate(mapper.readValue(decoded.get(),com.chatchat.common.runtime.coding.PythonCodeProject.Project.class)).files();
                 }catch(java.io.IOException invalid){throw new ResponseStatusException(HttpStatus.CONFLICT,"Invalid archived source project");}
                 else files=List.of(Map.of("path",artifact.get("fileName"),"content",source));
-                return Map.of("source","IMMUTABLE_CODE_ARTIFACT","taskId",taskId,"operationId",operation,"sha256",hash,"files",files);
+                return Map.of("source","IMMUTABLE_CODE_ARTIFACT","taskId",taskId,"operationId",operation,"sha256",hash,"files",files,"executionReceiptAvailable",matchingExecution.isPresent());
             }
             var result=new LinkedHashMap<String,Object>();result.put("source","DURABLE_CODING_JOURNAL");result.put("taskId",taskId);
             result.put("status",outcome.status());result.put("revision",outcome.revision());result.put("cancellationRequested",outcome.cancellationRequested());

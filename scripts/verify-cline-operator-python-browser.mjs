@@ -27,7 +27,9 @@ try{
   }
   for(const type of test.expectedErrors)assert.match(await panel.innerText(),new RegExp(type));
   assert.match(await panel.innerText(),/project\/main.py:5/);
-  await until(async()=>(await panel.innerText()).includes('原 MCP 回执'),30000);
+  const archivedTime=await get(path+'/python/timing/'+before.executions[0].executionId);assert.equal(archivedTime.source,'MCP_ARCHIVED_RECEIPT');
+  await until(async()=>/\d{4}\/\d+\/\d+.* → .*\d{4}\/\d+\/\d+/.test(await panel.locator('.python-execution-timing').first().innerText()),30000);
+  assert.equal((await panel.innerText()).includes('（原 MCP 回执）'),false);
   await panel.locator('.python-execution').first().scrollIntoViewIfNeeded();await page.screenshot({path:output+'/operator-python-'+test.case+'-error.png'});
   const buttons=panel.getByRole('button',{name:'查看真实修复 Diff'});assert.equal(await buttons.count(),test.expectedRepairs);
   for(let i=0;i<test.expectedRepairs;i++){
@@ -38,7 +40,11 @@ try{
   const after=await get(path+'/python'),final=await get(path);assert.deepEqual(after.executions,before.executions);assert.equal(after.revision,before.revision);assert.equal(final.task.modelCalls,initial.task.modelCalls);
   await page.reload();await page.locator('[data-tab=python]').click();await until(async()=>await page.locator('.python-execution').count()===test.expectedExecutions);
   assert.equal(await panel.locator('.python-execution button').count(),test.expectedRepairs);
-  proof.cases.push({taskId:test.taskId,observationId:observed.id,executions:test.expectedExecutions,repairs:test.expectedRepairs,exceptions:test.expectedErrors,authority:before.source,realArchivedTiming:true,readOnlyModelCountUnchanged:true,journalRevisionUnchanged:true,restoredAfterReload:true});
+  await page.locator('[data-tab=codes]').click();
+  await until(async()=>(await page.locator('#detail-content .code-info').innerText()).includes('平台不可变代码归档'),30000);
+  const sourceText=await page.locator('#detail-content .code-block').innerText();assert.match(sourceText,/amount/);assert(!sourceText.includes('__project_b64__'));assert(!sourceText.includes('源代码已超出节点保留上限'));
+  await page.screenshot({path:output+'/operator-python-'+test.case+'-generated-code.png'});
+  proof.cases.push({taskId:test.taskId,observationId:observed.id,executions:test.expectedExecutions,repairs:test.expectedRepairs,exceptions:test.expectedErrors,authority:before.source,realArchivedTiming:true,timingSuffixRemoved:true,generatedCodeReadFromPlatform:true,readOnlyModelCountUnchanged:true,journalRevisionUnchanged:true,restoredAfterReload:true});
  }
  assert.deepEqual(proof.errors,[]);await writeFile(output+'/browser-proof.json',JSON.stringify(proof,null,2));console.log(JSON.stringify({passed:proof.cases.length,errors:proof.errors.length}));
 }catch(error){const page=browser.contexts()[0]?.pages()[0];if(page)await page.screenshot({path:output+'/browser-failure.png'});throw error;}

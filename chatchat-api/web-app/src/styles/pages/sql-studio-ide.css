@@ -160,8 +160,7 @@
 }
 
 .sql-ide .sql-editor-hidden {
-  visibility: hidden;
-  pointer-events: none;
+  display: none;
 }
 
 .sql-ide .sql-editor-empty {

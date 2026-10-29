@@ -6,6 +6,7 @@ import sqlglot
 from sqlglot import exp
 from sqlglot.optimizer.qualify import qualify
 from sqlglot.optimizer.scope import traverse_scope
+from sqlglot.optimizer.normalize_identifiers import normalize_identifiers
 from sqlglot.schema import MappingSchema
 
 
@@ -66,6 +67,8 @@ def validate(request):
         schema = MappingSchema(schema, dialect=dialect or None)
     diagnostics = []
     normalized = []
+    references = []
+    temporary_tables = {}
     for file in files:
         try:
             source = file["content"]
@@ -75,6 +78,36 @@ def validate(request):
             trees = [tree for tree in trees if tree is not None]
             if not trees or any(tree.find(exp.Command) for tree in trees):
                 raise ValueError("Statement is not supported by the SQL parser")
+            for tree in trees:
+                # Locally declared temporary objects are source declarations, never MCP assets.
+                declaration = None
+                if isinstance(tree, exp.Create) and tree.find(exp.TemporaryProperty):
+                    declaration = tree.this.this if isinstance(tree.this, exp.Schema) else tree.this
+                into = tree.args.get("into")
+                if isinstance(into, exp.Into) and into.args.get("temporary"):
+                    declaration = into.this
+                if isinstance(declaration, exp.Table):
+                    identity = normalize_identifiers(declaration.copy(), dialect=dialect or None)
+                    columns = [column.name for column in tree.find_all(exp.ColumnDef)]
+                    query = tree.expression if isinstance(tree, exp.Create) else tree
+                    if not columns and isinstance(query, exp.Query):
+                        columns = query.named_selects
+                    if not columns or "*" in columns:
+                        raise ValueError("Temporary table requires explicit column names")
+                    temporary_tables[identity.name] = (identity, columns)
+                for scope in traverse_scope(tree):
+                    for _, source in scope.selected_sources.values():
+                        if isinstance(source, exp.Table):
+                            identity = normalize_identifiers(source.copy(), dialect=dialect or None)
+                            if not identity.db and not identity.catalog and identity.name in temporary_tables:
+                                continue
+                            if source.this.args.get("temporary"):
+                                raise ValueError("Temporary table has no local declaration: " + source.sql())
+                            reference = {"tableName": identity.name, "schema": identity.db,
+                                         "database": identity.catalog,
+                                         "quoted": bool(source.this.args.get("quoted"))}
+                            if reference not in references:
+                                references.append(reference)
             if require_business_evidence:
                 for tree in trees:
                     analytical = any(tree.find(kind) for kind in (exp.AggFunc, exp.Case, exp.If, exp.Div, exp.Join))
@@ -97,12 +130,14 @@ def validate(request):
                             continue
                         business_literals.add(str(literal.this))
             if schema:
+                for identifier, columns in temporary_tables.values():
+                    schema.add_table(identifier, {column: "UNKNOWN" for column in columns})
                 # The caller supplies only authorized, versioned metadata. No DB discovery here.
                 for tree in trees:
                     for scope in traverse_scope(tree):
-                        for source in scope.sources.values():
+                        for _, source in scope.selected_sources.values():
                             if isinstance(source, exp.Table) and not schema.find(source):
-                                raise ValueError("Table is outside the delivered metadata snapshot: " + source.sql())
+                                raise ValueError("Table metadata has not been resolved in the authorized scope: " + source.sql())
                     qualify(tree.copy(), dialect=dialect or None, schema=schema,
                             validate_qualify_columns=True, identify=False)
             normalized.append({"path": file["path"], "content": ";\n".join(
@@ -115,7 +150,8 @@ def validate(request):
             "valid": all(item["status"] == "PARSED" for item in diagnostics),
             "fieldValidation": "CHECKED" if schema else "NOT_EVALUATED",
             "diagnostics": diagnostics, "normalizedFiles": normalized,
-            "requiresBusinessEvidence": derived, "businessLiteralValues": sorted(business_literals)}
+            "requiresBusinessEvidence": derived, "businessLiteralValues": sorted(business_literals),
+            "references": references}
 
 
 if __name__ == "__main__":

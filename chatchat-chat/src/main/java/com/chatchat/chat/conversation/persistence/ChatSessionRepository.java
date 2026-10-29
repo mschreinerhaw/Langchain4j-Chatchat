@@ -15,6 +15,12 @@ import java.util.List;
 
 public interface ChatSessionRepository extends JpaRepository<ChatSessionEntity, String> {
 
+    @Query("select s from ChatSessionEntity s where s.tenantId=:tenantId and s.userId in :owners "
+        + "and s.sourceChannel=:channel and (:keyword='' or lower(s.title) like lower(concat('%',:keyword,'%'))) order by s.updatedAt desc")
+    Page<ChatSessionEntity> findStudioHistoryByOwners(@Param("tenantId") String tenantId,
+        @Param("owners") java.util.Collection<String> owners, @Param("channel") String channel,
+        @Param("keyword") String keyword, Pageable pageable);
+
     @Query(value = "select s from ChatSessionEntity s where s.tenantId = :tenantId and s.userId in :owners "
         + "and coalesce(s.sourceChannel, 'PLATFORM_UI') = 'PLATFORM_UI' "
         + "and (:keyword = '' or lower(s.title) like lower(concat('%', :keyword, '%'))) order by s.updatedAt desc",

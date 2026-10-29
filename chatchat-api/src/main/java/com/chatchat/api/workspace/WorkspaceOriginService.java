@@ -40,6 +40,14 @@ public class WorkspaceOriginService {
         return conversation;
     }
     @Transactional
+    public Conversation createForStudio(HttpServletRequest request, String channel, String title) {
+        if (!Set.of("SQL_STUDIO", "PYTHON_STUDIO").contains(channel))
+            throw new IllegalArgumentException("Invalid Studio channel");
+        var conversation = createForWorkspace(request, "data-science", title);
+        conversations.classifyStudioConversation(access.tenant(request), conversation.getId(), access.user(request), channel);
+        return conversation;
+    }
+    @Transactional
     public String prepare(HttpServletRequest request, String sessionId) {
         boolean existing = access.conversationExists(sessionId);
         access.requireConversation(request, sessionId, true);

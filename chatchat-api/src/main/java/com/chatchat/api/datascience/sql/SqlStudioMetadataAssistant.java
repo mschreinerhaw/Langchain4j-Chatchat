@@ -35,6 +35,9 @@ public final class SqlStudioMetadataAssistant implements SqlMetadataAnswerPort {
     private final SqlGlotToolchain sqlglot;
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
+    private SqlStudioReferenceResolver references;
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setReferences(SqlStudioReferenceResolver value){references=value;}
 
     public SqlStudioMetadataService.Context prepare(HttpServletRequest request,String project,String previous,String selected,String dialect){
         if(previous!=null&&!previous.isBlank()){
@@ -279,6 +282,19 @@ public final class SqlStudioMetadataAssistant implements SqlMetadataAnswerPort {
             var canonical=new LinkedHashMap<String,Object>(Map.of("schemaVersion","sql-studio.output.v1","files",output.getOrDefault("files",List.of()),"notes",output.get("notes")));
             var files=SqlOutputBundle.parse(encode(canonical),json,canonical.get("files") instanceof List<?> list&&list.isEmpty());String validation="NOT_RUN",semantics="NOT_REQUIRED";int blocked=0;List<String> definitionQuotes=List.of();
             if(!files.isEmpty()){
+                if(references!=null){
+                    var resolved=references.resolve(scope,context,context.targetDialect(),files,available);
+                    for(var table:resolved)if(!available.contains(table)){
+                        String binding=table.get("bindingId").toString(),snapshot=table.get("expectedSnapshotId").toString();
+                        String previous=snapshots.putIfAbsent(binding,snapshot);
+                        if(previous!=null&&!previous.equals(snapshot))throw new ResponseStatusException(HttpStatus.CONFLICT,"SNAPSHOT_CONFLICT: metadata changed during reference resolution");
+                        var entry=Map.<String,Object>of("key","sql-reference:"+table.get("tableRef"),"bindingId",binding,
+                            "arguments",Map.of("operation","DESCRIBE","tableName",table.get("tableName")),
+                            "result",Map.of("snapshotId",snapshot,"items",List.of(table),"status","SUCCEEDED","doesNotExecuteSql",true));
+                        evidence.add(entry);saveEvidence(entry);
+                    }
+                    available=resolved;
+                }
                 require(!available.isEmpty(),"SQL requires an authorized table/column snapshot");var parsed=sqlglot.validate(context.targetDialect(),files,Map.of("tables",available,"requireBusinessEvidence",true));
                 require(Boolean.TRUE.equals(parsed.get("valid"))&&"CHECKED".equals(parsed.get("fieldValidation")),"SQL contains unresolved table/column references: "+encode(parsed.get("diagnostics")));validation="CHECKED";
                 if(Boolean.TRUE.equals(parsed.get("requiresBusinessEvidence"))){

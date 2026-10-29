@@ -36,6 +36,25 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
     "spring.datasource.url=jdbc:h2:mem:sql_studio_integration;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1"})
 @AutoConfigureMockMvc @ActiveProfiles("test")
 class SqlStudioIntegrationTest {
+    @Autowired com.chatchat.chat.conversation.service.ConversationService conversations;
+    @Test void studioChannelsFilterHistoryBeforeCountingAndKeepOwnerAndTenantScope() {
+        String isolatedTenant="channel-test-"+java.util.UUID.randomUUID(),owner="owner";
+        try {
+            conversations.createConversation(isolatedTenant,owner,"ordinary question");
+            var sql=conversations.createConversation(isolatedTenant,owner,"SQL code history");
+            var python=conversations.createConversation(isolatedTenant,owner,"Python code history");
+            conversations.classifyStudioConversation(isolatedTenant,sql.getId(),owner,"SQL_STUDIO");
+            conversations.classifyStudioConversation(isolatedTenant,python.getId(),owner,"PYTHON_STUDIO");
+            assertThat(conversations.listOwnerConversationSummaryPage(isolatedTenant,java.util.Set.of(owner),"",1,1).total()).isEqualTo(1);
+            assertThat(conversations.listOwnerConversationSummaryPage(isolatedTenant,java.util.Set.of(owner),"code",1,1).total()).isZero();
+            var page=conversations.listStudioConversationSummaryPage(isolatedTenant,java.util.Set.of(owner),"SQL_STUDIO","code",1,1);
+            assertThat(page.total()).isEqualTo(1);assertThat(page.items()).extracting(com.chatchat.chat.conversation.model.Conversation::getId).containsExactly(sql.getId());
+            assertThat(conversations.listStudioConversationSummaryPage(isolatedTenant,java.util.Set.of(owner),"PYTHON_STUDIO","",1,1).total()).isEqualTo(1);
+            assertThat(conversations.listStudioConversationSummaryPage(isolatedTenant,java.util.Set.of("other"),"SQL_STUDIO","",1,1).total()).isZero();
+            assertThat(conversations.listStudioConversationSummaryPage("other-tenant",java.util.Set.of(owner),"SQL_STUDIO","",1,1).total()).isZero();
+            assertThat(conversations.getConversation(isolatedTenant,sql.getId())).isPresent();
+        } finally { jdbc.update("delete from chat_session where tenant_id=?",isolatedTenant); }
+    }
     static final String ROOT="/api/v1/data-science/sql/projects";
     @Autowired MockMvc mvc; @Autowired ObjectMapper mapper; @Autowired JdbcTemplate jdbc;
     @Autowired EnterpriseAdminService identities; @Autowired AgentTaskLatestRepository tasks;

@@ -58,6 +58,17 @@ public class ConversationController {
     /**
      * List conversations for a user
      */
+    @GetMapping("/user/{userId}/studio-history")
+    public ApiResponse<?> studioHistory(@PathVariable("userId") String userId,
+            @RequestParam("channel") String channel,
+            @RequestParam(value="keyword",defaultValue="") String keyword,
+            @RequestParam(value="page",defaultValue="1") int page,
+            @RequestParam(value="pageSize",defaultValue="30") int pageSize,
+            HttpServletRequest request) {
+        return ApiResponse.success(conversationService.listStudioConversationSummaryPage(
+            resolveTenantId(request,null),historyOwners(request,userId),channel,keyword,page,pageSize));
+    }
+
     @GetMapping("/user/{userId}")
     @Operation(summary = "List user conversations")
     public ApiResponse<List<Conversation>> listUserConversations(@PathVariable("userId") String userId,

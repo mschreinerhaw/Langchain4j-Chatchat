@@ -6,7 +6,7 @@ export function observeSqlEditorLayout(entries, environment=globalThis) {
     frame=null;if(disposed)return;
     for(const [node,editor] of entries){
       const width=node?.clientWidth || 0,height=node?.clientHeight || 0;
-      if(!width || !height)continue;
+      if(!width || !height){sizes.delete(node);continue;}
       const previous=sizes.get(node);
       if(previous?.width===width && previous?.height===height)continue;
       // Monaco can move the first visible model position while recalculating wrapped

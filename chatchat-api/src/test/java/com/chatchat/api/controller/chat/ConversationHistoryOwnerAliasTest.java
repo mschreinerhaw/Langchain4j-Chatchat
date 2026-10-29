@@ -15,6 +15,15 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
 class ConversationHistoryOwnerAliasTest {
+    @Test void studioHistoryUsesAuthenticatedTenantAndOwnerAliases() {
+        var conversations=mock(ConversationService.class);
+        var controller=new ConversationController(conversations,mock(WorkspaceOriginService.class),
+            new ObjectAccessService(mock(JdbcTemplate.class),mock(EnterpriseAdminService.class)));
+        controller.studioHistory("stable-id","PYTHON_STUDIO","code",2,10,request());
+        verify(conversations).listStudioConversationSummaryPage("tenant",Set.of("stable-id","legacy-name"),"PYTHON_STUDIO","code",2,10);
+        assertThrows(com.chatchat.api.exception.RuntimeScopeAccessDeniedException.class,
+            ()->controller.studioHistory("another-owner","SQL_STUDIO","",1,30,request()));
+    }
     private MockHttpServletRequest request() {
         var request = new MockHttpServletRequest();
         request.setAttribute(ApiAuthenticationFilter.CURRENT_USER_ID, "stable-id");

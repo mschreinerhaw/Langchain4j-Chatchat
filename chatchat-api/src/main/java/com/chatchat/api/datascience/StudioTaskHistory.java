@@ -27,6 +27,8 @@ public class StudioTaskHistory {
         var existing=conversations.getConversation(scope.tenantId(),session);
         if(existing.isPresent() && !scope.userId().equals(existing.get().getUserId()))
             throw new SecurityException("Studio history owner differs");
+        conversations.classifyStudioConversation(scope.tenantId(), session, scope.userId(),
+            request.language().equals("sql") ? "SQL_STUDIO" : "PYTHON_STUDIO");
         String status=outcome==null?"running":switch(outcome.status()) {
             case CREATED,RUNNING -> "running";
             case COMPLETED -> "completed";

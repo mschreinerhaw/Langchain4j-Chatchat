@@ -1,6 +1,14 @@
 import {describe,it,expect,vi} from 'vitest';
 import {observeSqlEditorLayout} from './sqlEditorLayout';
 describe('SQL editor layout scheduling',()=>{
+  it('lays out an editor restored from display:none even when its size is unchanged',()=>{
+    let frame;const env={ResizeObserver:class{observe(){}disconnect(){}},requestAnimationFrame:callback=>{frame=callback;return 1;},cancelAnimationFrame(){}};
+    const node={clientWidth:400,clientHeight:300},editor={layout:vi.fn()};
+    const monitor=observeSqlEditorLayout([[node,editor]],env);frame();
+    node.clientWidth=0;node.clientHeight=0;monitor.schedule();frame();
+    node.clientWidth=400;node.clientHeight=300;monitor.schedule();frame();
+    expect(editor.layout).toHaveBeenCalledTimes(2);monitor.dispose();
+  });
   it('keeps the viewport at bottom when horizontal scrollbar changes content height by 12px',()=>{
     let frame,height=612,top=312;const env={ResizeObserver:class{observe(){}disconnect(){}},requestAnimationFrame:callback=>{frame=callback;return 1;},cancelAnimationFrame(){}};
     const node={clientWidth:200,clientHeight:300},editor={layout:({width})=>{height=width===200?612:600;},saveViewState:()=>({}),restoreViewState(){},getScrollTop:()=>top,getScrollHeight:()=>height,setScrollTop:value=>{top=value;}};

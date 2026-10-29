@@ -92,6 +92,22 @@ public class ConversationService {
         return toConversation(sessionRepository.save(session), List.of());
     }
 
+    /** Only Studio application services call this; HTTP source headers cannot classify sessions. */
+    @Transactional
+    public void classifyStudioConversation(String tenantId, String sessionId, String userId, String channel) {
+        if (!Set.of("SQL_STUDIO", "PYTHON_STUDIO").contains(channel))
+            throw new IllegalArgumentException("Invalid Studio channel");
+        String id = ensureConversationId(tenantId, sessionId, userId);
+        var session = sessionRepository.findBySessionIdAndTenantId(id, normalizeTenantId(tenantId)).orElseThrow();
+        if (!normalize(userId, DEFAULT_USER_ID).equals(session.getUserId()))
+            throw new SecurityException("Studio conversation owner differs");
+        String previous = session.getSourceChannel();
+        if (previous != null && !PLATFORM_UI.equals(previous) && !channel.equals(previous))
+            throw new SecurityException("Conversation channel cannot change");
+        session.setSourceChannel(channel);
+        sessionRepository.saveAndFlush(session);
+    }
+
     /**
      * Ensures the conversation id.
      *
@@ -252,6 +268,18 @@ public class ConversationService {
         int pageSize,
         int totalPages
     ) {
+    }
+
+    @Transactional(readOnly = true)
+    public ConversationPage listStudioConversationSummaryPage(String tenantId, java.util.Collection<String> owners,
+            String channel, String keyword, int page, int pageSize) {
+        if (!Set.of("SQL_STUDIO", "PYTHON_STUDIO").contains(channel) || owners == null || owners.isEmpty())
+            throw new IllegalArgumentException("Authenticated Studio history scope is required");
+        int normalizedPage=Math.max(1,page), size=Math.max(1,Math.min(pageSize,100));
+        var result=sessionRepository.findStudioHistoryByOwners(normalizeTenantId(tenantId), owners, channel,
+            keyword==null?"":keyword.trim(), PageRequest.of(normalizedPage-1,size));
+        return new ConversationPage(result.getContent().stream().map(s->toConversation(s,List.of())).toList(),
+            result.getTotalElements(),normalizedPage,size,result.getTotalPages());
     }
 
     /** Owners must be resolved from the authenticated principal by the API policy. */

@@ -25,6 +25,12 @@ import org.springframework.stereotype.Service;
 @ConditionalOnProperty(prefix="chatchat.coding",name="enabled",havingValue="true")
 @ConditionalOnProperty(prefix="chatchat.coding.cline",name="enabled",havingValue="true")
 public final class CodingWorkspaceService {
+    private SqlStudioReferenceResolver references;
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setReferences(SqlStudioReferenceResolver value){references=value;}
+    private ObjectProvider<SqlStudioMetadataService> metadata;
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setMetadata(ObjectProvider<SqlStudioMetadataService> value){metadata=value;}
     private com.chatchat.api.assets.RuntimeAssetArchive assets;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setAssets(com.chatchat.api.assets.RuntimeAssetArchive value){assets=value;}
@@ -200,11 +206,20 @@ public final class CodingWorkspaceService {
             files="python".equals(input.get("dialect"))?SqlOutputBundle.parsePython(encode(proposal),json):SqlOutputBundle.parse(encode(proposal),json);
             if(encode(files).getBytes(StandardCharsets.UTF_8).length>contract.outputContract().maxResultBytes())
                 throw new IllegalArgumentException("SQL proposal exceeds task output limit");
-            validation=parser.validate((String)input.get("dialect"),files,json.convertValue(input.get("schema"),new TypeReference<Map<String,Object>>(){}));
+            Map<String,Object> schema=json.convertValue(input.get("schema"),new TypeReference<Map<String,Object>>(){});
+            if(!"python".equals(input.get("dialect")) && schema.get("discoveryId") instanceof String discovery && references!=null){
+                var context=metadata.getObject().getScoped(contract.scope(),schema.get("projectId").toString(),discovery);
+                var cached=json.convertValue(schema.getOrDefault("tables",List.of()),new TypeReference<List<Map<String,Object>>>(){});
+                var resolved=references.resolve(contract.scope(),context,(String)input.get("dialect"),files,cached);
+                schema=new LinkedHashMap<>(schema);schema.put("tables",resolved);
+            }
+            validation=parser.validate((String)input.get("dialect"),files,schema);
         }catch(SqlGlotToolchain.UnconfirmedStopException unknown){throw unknown;}
         catch(Exception invalid){
             validation=Map.of("valid",false,"sqlExecuted",false,"fieldValidation","NOT_EVALUATED",
-                "diagnostics",List.of(Map.of("status","FAILED","message",Objects.toString(invalid.getMessage(),"SQL proposal rejected"))));
+                "diagnostics",List.of(Map.of("status","FAILED","category",invalid instanceof SecurityException
+                    || invalid instanceof org.springframework.web.server.ResponseStatusException status && status.getStatusCode().value()==403 ? "AUTHORIZATION" : "VALIDATION",
+                    "message",Objects.toString(invalid.getMessage(),"SQL proposal rejected"))));
         }
         boolean valid=Boolean.TRUE.equals(validation.get("valid"));
         Object normalization=validation.getOrDefault("normalizedFiles",List.of());

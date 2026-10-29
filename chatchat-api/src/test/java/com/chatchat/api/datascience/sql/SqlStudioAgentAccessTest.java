@@ -30,7 +30,7 @@ class SqlStudioAgentAccessTest {
         new ResourceDatabasePopulator(new ClassPathResource("sql-studio/schema-h2.sql")).execute(db);jdbc=new JdbcTemplate(db);
         var access=mock(ObjectAccessService.class);when(access.tenant(http)).thenReturn("tenant");when(access.user(http)).thenReturn("alice");
         var origins=mock(WorkspaceOriginService.class);var conversation=mock(Conversation.class);when(conversation.getId()).thenReturn("session");
-        when(origins.createForWorkspace(eq(http),anyString(),anyString())).thenReturn(conversation);
+        when(origins.createForStudio(eq(http),anyString(),anyString())).thenReturn(conversation);
         plans=mock(StudioCodePlanService.class);when(plans.create(anyString(),anyString(),anyString(),anyString(),anyString(),nullable(String.class)))
             .thenReturn(new StudioCodePlanService.Ticket("plan",null,"READY"));when(plans.context(any())).thenReturn("plan context");
         identities=mock(EnterpriseAdminService.class);catalog=mock(SkillCatalogService.class);

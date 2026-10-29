@@ -176,7 +176,7 @@ public class SqlStudioService {
     public Project create(HttpServletRequest request, String name, String dialect) {
         identity(request); require(name != null && !name.isBlank() && name.length() <= 180, "Project name is required (max 180)");
         dialect = dialect(dialect);
-        var session = origins.createForWorkspace(request, "data-science", "SQL Studio: " + name);
+        var session = origins.createForStudio(request, "SQL_STUDIO", "SQL Studio: " + name);
         String id = UUID.randomUUID().toString();
         jdbc.update("insert into ds_sql_project (id,name,dialect,session_id,tenant_id,owner_id,created_at) values (?,?,?,?,?,?,CURRENT_TIMESTAMP)",
             id, name.trim(), dialect, session.getId(), access.tenant(request), access.user(request));
@@ -478,6 +478,11 @@ public class SqlStudioService {
         applicationContext.put("sqlStudioAction", operation);
         applicationContext.put("studioUserRequest",body.prompt());
         applicationContext.put("sqlStudioDialect", dialect);
+        if(body.metadataBindingContextId()!=null && !body.metadataBindingContextId().isBlank()) {
+            var discovery=codingMetadata.getObject().get(request,projectId,body.metadataBindingContextId());
+            applicationContext.put("sqlCodingDiscoveryId",discovery.discoveryId());
+            applicationContext.put("sqlCodingProjectId",projectId);
+        }
         if(body.codingMetadataSelection()!=null){
             var snapshot=codingMetadata.getObject().captureCoding(request,projectId,body.codingMetadataSelection());
             applicationContext.put("sqlCodingMetadata",snapshot);
@@ -499,7 +504,7 @@ public class SqlStudioService {
         var taskRequest = new AgentTaskSubmitRequest();
         // Studio supplies its conversation explicitly in the query. Isolate each run's
         // Runtime memory so a new Studio conversation cannot inherit an old summary.
-        var runSession = origins.createForWorkspace(request, "data-science", "SQL Studio: " + project.name());
+        var runSession = origins.createForStudio(request, "SQL_STUDIO", "SQL Studio: " + project.name());
         taskRequest.setTenantId(project.tenantId()); taskRequest.setUserId(project.ownerId()); taskRequest.setSessionId(runSession.getId());
         taskRequest.setHistoryWindow(0);
         taskRequest.setToolInput(applicationContext);
@@ -522,7 +527,7 @@ public class SqlStudioService {
         require(body.agentId()==null||body.agentId().isBlank()||body.modelName()==null||body.modelName().isBlank(),"Choose either Agent or model");
         String selected=body.agentId()==null||body.agentId().isBlank()?body.modelName():requireUsableAgent(project.ownerId(),body.agentId()).modelName();
         var context=metadataAssistant.getObject().prepare(request,project.id(),body.metadataDiscoveryId(),body.metadataBindingContextId(),dialect(body.dialect()));
-        var session=origins.createForWorkspace(request,"data-science","SQL metadata: "+project.name());
+        var session=origins.createForStudio(request,"SQL_STUDIO","SQL metadata: "+project.name());
         var task=new AgentTaskSubmitRequest();task.setTenantId(project.tenantId());task.setUserId(project.ownerId());
         task.setSessionId(session.getId());task.setHistoryWindow(0);task.setMode("llm_chat");task.setModelName(selected);
         task.setQuery(body.prompt());task.setIdempotencyKey("sql-generation:"+id);
@@ -670,14 +675,18 @@ public class SqlStudioService {
     }
     @SuppressWarnings("unchecked") private Map<String,Object> codingSchema(Generation generation){
         Object schema=generation.prepared().taskRequest().getToolInput().get("sqlCodingMetadata");
-        return schema instanceof Map<?,?>?(Map<String,Object>)schema:Map.of();
+        var result=new LinkedHashMap<String,Object>(schema instanceof Map<?,?>?(Map<String,Object>)schema:Map.of());
+        Object discovery=generation.prepared().taskRequest().getToolInput().get("sqlCodingDiscoveryId");
+        if(discovery!=null){result.put("discoveryId",discovery);result.put("projectId",generation.prepared().taskRequest().getToolInput().get("sqlCodingProjectId"));}
+        return result;
     }
     private void requireCodingMetadata(HttpServletRequest request,String project,Generation generation){
         Object saved=generation.prepared().taskRequest().getToolInput().get("sqlCodingMetadataSelection");
         if(saved!=null){
             var selection=mapper.convertValue(saved,SqlStudioMetadataService.CodingSelection.class);
             var current=codingMetadata.getObject().captureCoding(request,project,selection);
-            require(SqlStudioMetadataService.sameCodingSnapshot(codingSchema(generation),current),"Authorized metadata changed; prepare a new generation");
+            var frozen=new LinkedHashMap<>(codingSchema(generation));frozen.remove("discoveryId");frozen.remove("projectId");
+            require(SqlStudioMetadataService.sameCodingSnapshot(frozen,current),"Authorized metadata changed; prepare a new generation");
         }
     }
     private AgentTaskResponse codingTask(Project project,Generation generation,

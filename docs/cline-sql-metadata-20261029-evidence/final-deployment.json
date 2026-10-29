@@ -1,0 +1,20 @@
+{
+  "status": "DEPLOYED",
+  "image": "runtime-os-api:cline-final-4815886b7-20261029",
+  "sha256": "0306c1b22cc109c24d37cdc389fdff994917d1b33902ed659b17e0960bb8e1af",
+  "backup": "/opt/chatchat-releases/cline-final-4815886b7-20261029/backup",
+  "retired": {
+    "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-studio-1793286700",
+    "runtime-os-app-stage-coding-agent-1": "runtime-os-app-stage-coding-agent-1-before-studio-1793286700",
+    "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-studio-1793286700"
+  },
+  "preservedExpiredReadOnlyTaskIds": [],
+  "unrelatedContainersUnchanged": true,
+  "conversationContentUnchanged": true,
+  "messageIndexCountUnchanged": true,
+  "images": {
+    "runtime-os-app-stage-api-1": "runtime-os-api:cline-final-4815886b7-20261029",
+    "runtime-os-app-stage-coding-agent-1": "runtime-os-coding-agent:cline-final-4815886b7-20261029"
+  },
+  "channelCounts": "SQL_STUDIO|26\nPYTHON_STUDIO|4\nAGENT_API|165\nPLATFORM_UI|827"
+}

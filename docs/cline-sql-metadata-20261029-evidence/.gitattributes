@@ -1,0 +1,2 @@
+# Preserve generated SQL bytes, including insignificant spaces, for receipt hashes.
+*.sql text eol=lf whitespace=-blank-at-eol

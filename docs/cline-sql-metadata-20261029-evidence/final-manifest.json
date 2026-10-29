@@ -1,0 +1,23 @@
+{
+  "sourceCommit": "4815886b7ea4f9ee93581e9e08406411fd83d683",
+  "image": "runtime-os-api:cline-final-4815886b7-20261029",
+  "baselineSha256": "e101483a321a35e6047cdf9e4fe2dceb4ced1b5e5581dcb47806ec12ef68f1be",
+  "sha256": "0306c1b22cc109c24d37cdc389fdff994917d1b33902ed659b17e0960bb8e1af",
+  "frontendIndexSha256": "58b5f85bf44de2003b2026f5da27e2bf4df01d5953f4c874446ae1ef7b4905da",
+  "sqlMetadataCallbacks": true,
+  "expiredReadOnlyTaskIds": [
+    "sql-coding-3bbe421d-c789-4670-ad63-ea09b97aa48a"
+  ],
+  "acceptanceOwnerId": "cc3315a8-f5ae-4c95-a76e-c41d69f12f4a",
+  "worker": {
+    "image": "runtime-os-coding-agent:cline-final-4815886b7-20261029",
+    "baselineModules": {
+      "runner.js": "d164bd163f95e975a65e9b51ece16ecb5e13d1e68377c862a64338849d596dd3",
+      "server.js": "7701c7253d9a736dc0eb1c019bf1fbe4b89acc8b84ac63436e541dea76ceff08"
+    },
+    "modules": {
+      "runner.js": "e1a2ed1afea593f5429c4f04869f88cac488e6f9329c01f683d4aae0a3a23391",
+      "server.js": "7701c7253d9a736dc0eb1c019bf1fbe4b89acc8b84ac63436e541dea76ceff08"
+    }
+  }
+}

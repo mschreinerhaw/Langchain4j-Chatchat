@@ -1,0 +1,10 @@
+{
+  "customerNumber": "070200046604",
+  "taskId": "sql-coding-bde630be-796d-4827-a78d-4804bf8f17c6",
+  "taskStatus": "SUCCESS",
+  "staticValidation": "PARSED; FIELDS_CHECKED; SQL_NOT_EXECUTED",
+  "businessAccepted": false,
+  "unconfirmedArithmeticExpressionCount": 10,
+  "sqlExecuted": false,
+  "reason": "Draft contained inferred P/L formulas even though labelled unconfirmed. Not accepted as the final business deliverable; final regressions require raw fields only."
+}

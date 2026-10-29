@@ -1,0 +1,12 @@
+{
+  "fixtureOnly": true,
+  "customerDataDeleted": false,
+  "credentialArtifactsPublished": false,
+  "oldTimeoutCancellationRequested": true,
+  "projectDeleteStatus": 409,
+  "projectRetainedForAudit": true,
+  "retainedReason": "Original timed-out model operation has no complete remote usage/stop receipt; existing project guard was preserved.",
+  "temporaryUserDisabled": true,
+  "temporaryRoleDeleted": true,
+  "disabledUserLoginStatus": 400
+}

@@ -1,0 +1,3483 @@
+{
+  "customerNumber": "070200046604",
+  "mockedRequests": false,
+  "preselectedTables": [],
+  "dataExecutionGrantsAdded": false,
+  "sqlExecuted": false,
+  "taskId": "sql-coding-34659bcb-4895-4717-9595-f4df1606eb83",
+  "taskStatus": "FAILED",
+  "error": "Coding loop failed without a verified result",
+  "createdAt": "2026-10-29T14:26:40.506Z",
+  "finishedAt": "2026-10-29T14:31:49.237Z",
+  "modelReceipts": [
+    {
+      "operationId": "model-1",
+      "modelInfo": {
+        "startedAt": "2026-10-29T14:26:41.043895818Z",
+        "deadlineAt": "2026-10-29T14:41:40.411Z",
+        "durationMs": 1555,
+        "finishedAt": "2026-10-29T14:26:42.599386031Z",
+        "queueTimeMs": 65,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 1,
+        "requestBytes": 4713,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 1270,
+        "outputTokens": 34,
+        "cacheReadTokens": 0,
+        "reasoningTokens": 17
+      }
+    },
+    {
+      "operationId": "model-2",
+      "modelInfo": {
+        "startedAt": "2026-10-29T14:26:43.297335119Z",
+        "deadlineAt": "2026-10-29T14:41:40.411Z",
+        "durationMs": 3467,
+        "finishedAt": "2026-10-29T14:26:46.764661798Z",
+        "queueTimeMs": 41,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 3,
+        "requestBytes": 8305,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 2094,
+        "outputTokens": 148,
+        "cacheReadTokens": 1152,
+        "reasoningTokens": 117
+      }
+    },
+    {
+      "operationId": "model-3",
+      "modelInfo": {
+        "startedAt": "2026-10-29T14:26:47.862579307Z",
+        "deadlineAt": "2026-10-29T14:41:40.411Z",
+        "durationMs": 4530,
+        "finishedAt": "2026-10-29T14:26:52.392993466Z",
+        "queueTimeMs": 32,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 5,
+        "requestBytes": 9520,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 2484,
+        "outputTokens": 189,
+        "cacheReadTokens": 1664,
+        "reasoningTokens": 39
+      }
+    },
+    {
+      "operationId": "model-4",
+      "modelInfo": {
+        "startedAt": "2026-10-29T14:26:55.022916249Z",
+        "deadlineAt": "2026-10-29T14:41:40.411Z",
+        "durationMs": 7184,
+        "finishedAt": "2026-10-29T14:27:02.207830385Z",
+        "queueTimeMs": 36,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 8,
+        "requestBytes": 12777,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 3732,
+        "outputTokens": 367,
+        "cacheReadTokens": 2304,
+        "reasoningTokens": 92
+      }
+    },
+    {
+      "operationId": "model-5",
+      "modelInfo": {
+        "startedAt": "2026-10-29T14:27:04.684789188Z",
+        "deadlineAt": "2026-10-29T14:41:40.411Z",
+        "durationMs": 10362,
+        "finishedAt": "2026-10-29T14:27:15.046884681Z",
+        "queueTimeMs": 35,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 11,
+        "requestBytes": 52309,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 18424,
+        "outputTokens": 559,
+        "cacheReadTokens": 3456,
+        "reasoningTokens": 267
+      }
+    },
+    {
+      "operationId": "model-6",
+      "modelInfo": {
+        "startedAt": "2026-10-29T14:27:17.947743070Z",
+        "deadlineAt": "2026-10-29T14:41:40.411Z",
+        "durationMs": 14490,
+        "finishedAt": "2026-10-29T14:27:32.438382463Z",
+        "queueTimeMs": 34,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 14,
+        "requestBytes": 91935,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 33146,
+        "outputTokens": 803,
+        "cacheReadTokens": 0,
+        "reasoningTokens": 217
+      }
+    },
+    {
+      "operationId": "model-7",
+      "modelInfo": {
+        "startedAt": "2026-10-29T14:27:38.394303553Z",
+        "deadlineAt": "2026-10-29T14:41:40.411Z",
+        "durationMs": 11168,
+        "finishedAt": "2026-10-29T14:27:49.562430168Z",
+        "queueTimeMs": 63,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 19,
+        "requestBytes": 130587,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 47442,
+        "outputTokens": 626,
+        "cacheReadTokens": 32640,
+        "reasoningTokens": 190
+      }
+    },
+    {
+      "operationId": "model-8",
+      "modelInfo": {
+        "startedAt": "2026-10-29T14:27:55.092085560Z",
+        "deadlineAt": "2026-10-29T14:41:40.411Z",
+        "durationMs": 15784,
+        "finishedAt": "2026-10-29T14:28:10.876266682Z",
+        "queueTimeMs": 72,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 23,
+        "requestBytes": 159821,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 57700,
+        "outputTokens": 756,
+        "cacheReadTokens": 45696,
+        "reasoningTokens": 96
+      }
+    },
+    {
+      "operationId": "model-9",
+      "modelInfo": {
+        "startedAt": "2026-10-29T14:28:20.182297085Z",
+        "deadlineAt": "2026-10-29T14:41:40.411Z",
+        "durationMs": 9441,
+        "finishedAt": "2026-10-29T14:28:29.623640094Z",
+        "queueTimeMs": 90,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 29,
+        "requestBytes": 181022,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 64541,
+        "outputTokens": 519,
+        "cacheReadTokens": 56576,
+        "reasoningTokens": 77
+      }
+    },
+    {
+      "operationId": "model-10",
+      "modelInfo": {
+        "startedAt": "2026-10-29T14:28:37.045361726Z",
+        "deadlineAt": "2026-10-29T14:41:40.411Z",
+        "durationMs": 24558,
+        "finishedAt": "2026-10-29T14:29:01.603450615Z",
+        "queueTimeMs": 74,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 33,
+        "requestBytes": 231038,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 83017,
+        "outputTokens": 1434,
+        "cacheReadTokens": 63104,
+        "reasoningTokens": 666
+      }
+    },
+    {
+      "operationId": "model-11",
+      "modelInfo": {
+        "startedAt": "2026-10-29T14:29:16.008221400Z",
+        "deadlineAt": "2026-10-29T14:41:40.411Z",
+        "durationMs": 36855,
+        "finishedAt": "2026-10-29T14:29:52.863734027Z",
+        "queueTimeMs": 92,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 40,
+        "requestBytes": 243453,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 87335,
+        "outputTokens": 2121,
+        "cacheReadTokens": 82688,
+        "reasoningTokens": 1762
+      }
+    },
+    {
+      "operationId": "model-12",
+      "modelInfo": {
+        "startedAt": "2026-10-29T14:30:02.929110677Z",
+        "deadlineAt": "2026-10-29T14:41:40.411Z",
+        "durationMs": 100981,
+        "finishedAt": "2026-10-29T14:31:43.910582043Z",
+        "queueTimeMs": 124,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 44,
+        "requestBytes": 250706,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 89573,
+        "outputTokens": 6149,
+        "cacheReadTokens": 87040,
+        "reasoningTokens": 766
+      }
+    }
+  ],
+  "operations": [
+    {
+      "tool": "workspace_read",
+      "operation": null,
+      "query": null,
+      "queryTerms": null,
+      "tableName": null,
+      "database": null,
+      "schema": null,
+      "status": null,
+      "valid": null,
+      "category": null,
+      "durationMs": null,
+      "metadataItemCount": 0,
+      "tables": [],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-45508d650776194df7520ec717f5b5c41f01101f7675e8c6800f4882d1b5138c:receipt",
+      "contentSha256": "4ae84fc80ef0a706b21c735f0420ad9bf7a8a12c7ac43459b69375e6c6a1b5c7",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "LIST_BINDINGS",
+      "query": null,
+      "queryTerms": null,
+      "tableName": null,
+      "database": null,
+      "schema": null,
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 332,
+      "metadataItemCount": 0,
+      "tables": [],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-f9809b0dec47ee3c7bb0620fa285568fe6d61abb58cecd633a33e1421cd36124:receipt",
+      "contentSha256": "ec5c7e39bce7e8ed83431f0fac0e9d45e8d75774cdf8427289954f17fd6a375f",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "LIST_NAMESPACES",
+      "query": null,
+      "queryTerms": null,
+      "tableName": null,
+      "database": null,
+      "schema": null,
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 653,
+      "metadataItemCount": 4,
+      "tables": [
+        {
+          "tableName": null,
+          "columnCount": null,
+          "relationsStatus": null
+        },
+        {
+          "tableName": null,
+          "columnCount": null,
+          "relationsStatus": null
+        },
+        {
+          "tableName": null,
+          "columnCount": null,
+          "relationsStatus": null
+        },
+        {
+          "tableName": null,
+          "columnCount": null,
+          "relationsStatus": null
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-ecdd32c6ee4997ad49da8d5ea6ef935195d72dd6cc558a9ae141e0ffd6df3264:receipt",
+      "contentSha256": "9bd6dfe76cf438a476bfd84d074e1c01e82644a067740fa34f6cb18912226c2a",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "LIST_NAMESPACES",
+      "query": null,
+      "queryTerms": null,
+      "tableName": null,
+      "database": null,
+      "schema": null,
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 461,
+      "metadataItemCount": 7,
+      "tables": [
+        {
+          "tableName": null,
+          "columnCount": null,
+          "relationsStatus": null
+        },
+        {
+          "tableName": null,
+          "columnCount": null,
+          "relationsStatus": null
+        },
+        {
+          "tableName": null,
+          "columnCount": null,
+          "relationsStatus": null
+        },
+        {
+          "tableName": null,
+          "columnCount": null,
+          "relationsStatus": null
+        },
+        {
+          "tableName": null,
+          "columnCount": null,
+          "relationsStatus": null
+        },
+        {
+          "tableName": null,
+          "columnCount": null,
+          "relationsStatus": null
+        },
+        {
+          "tableName": null,
+          "columnCount": null,
+          "relationsStatus": null
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-239878719fca85fa285d45c9dccc6b3b03f13e1f42a94cb2b5f0d627c4b1a9f8:receipt",
+      "contentSha256": "9f74060aca3dd980d1c549285a674f592098490184eb80e671e82889471582ec",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "SEARCH",
+      "query": null,
+      "queryTerms": [
+        "客户",
+        "交易",
+        "资产",
+        "盈亏",
+        "CUSTOMER",
+        "TRADE",
+        "ASSET",
+        "POSITION",
+        "PNL"
+      ],
+      "tableName": null,
+      "database": null,
+      "schema": null,
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 527,
+      "metadataItemCount": 60,
+      "tables": [
+        {
+          "tableName": "TDC_JJGSDY",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TDC_SJCJDY",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TDC_SJCJMX",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TDC_SJQXDY",
+          "columnCount": 3,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEMOF_JJJG",
+          "columnCount": 48,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEMOF_JJWT",
+          "columnCount": 51,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEMSBQQ_WT",
+          "columnCount": 40,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_DTRZLS",
+          "columnCount": 21,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_JJFELS",
+          "columnCount": 15,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_JJFETJ",
+          "columnCount": 14,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_JJJGLS",
+          "columnCount": 49,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_JJJYTJ",
+          "columnCount": 23,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_JJWTLS",
+          "columnCount": 58,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TRZXQ_HYXX",
+          "columnCount": 54,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYCCLS",
+          "columnCount": 37,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYDMLS",
+          "columnCount": 49,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYJYTJ",
+          "columnCount": 34,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYTGTJ",
+          "columnCount": 16,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYZHTJ",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_JGMXLS",
+          "columnCount": 69,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_KHJYTJ",
+          "columnCount": 8,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_KHXXLS",
+          "columnCount": 16,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_ZHCLCC",
+          "columnCount": 30,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_ZJXXLS",
+          "columnCount": 17,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_C101BB",
+          "columnCount": 38,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_CISPM2",
+          "columnCount": 49,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_FZXXLS",
+          "columnCount": 79,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_HTXXLS",
+          "columnCount": 87,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_HZKHXX",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_JYSRBB",
+          "columnCount": 31,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_KHLXTJ",
+          "columnCount": 35,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_KHTJXX",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_KSJYKH",
+          "columnCount": 4,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_RQZHTJ",
+          "columnCount": 17,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_RQZQTJ",
+          "columnCount": 20,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_RZRQTJ",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_RZZJTJ",
+          "columnCount": 21,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_TPZQXX",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_ZGZQLS",
+          "columnCount": 20,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_ZLXXLS",
+          "columnCount": 27,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TZQDMEX_BF",
+          "columnCount": 20,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEMZQYELS_1",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TKHMMCZMXLS",
+          "columnCount": 10,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_DKSFYLS",
+          "columnCount": 27,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_KHGXHXX",
+          "columnCount": 26,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_RQMXHZB",
+          "columnCount": 26,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_ZDCHBLS",
+          "columnCount": 14,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TZRT_CJWTLS",
+          "columnCount": 37,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TZRT_HYXXLS",
+          "columnCount": 66,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TZRT_HYXXTJ",
+          "columnCount": 6,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TZRT_XXPLLS",
+          "columnCount": 14,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEMZJJYSQ_WB",
+          "columnCount": 21,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEMZJJYSQ_ZQ",
+          "columnCount": 37,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TKHBSDJYRZLS",
+          "columnCount": 30,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TRZXQ_HYXXLS",
+          "columnCount": 54,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYCCYELS",
+          "columnCount": 20,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_KHXGXXLS",
+          "columnCount": 16,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_TZXXSQLS",
+          "columnCount": 23,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_ZHCLCCLS",
+          "columnCount": 27,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_BJS_SJTJ",
+          "columnCount": 37,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-1cd5e1ea0b2bd31093375142fe8c0fa6c4123c40db52e92c932c3c3adb4ebb45:receipt",
+      "contentSha256": "a428504fd91570c68138fd564c5edda40f0f5641d733094b5df7f434f7de5725",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "SEARCH",
+      "query": null,
+      "queryTerms": [
+        "客户",
+        "交易",
+        "资产",
+        "盈亏",
+        "CUSTOMER",
+        "TRADE",
+        "ASSET",
+        "POSITION",
+        "PNL"
+      ],
+      "tableName": null,
+      "database": null,
+      "schema": null,
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 446,
+      "metadataItemCount": 38,
+      "tables": [
+        {
+          "tableName": "FUND_NAV_MONITOR",
+          "columnCount": 11,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ODS_TRD_RUN_SECUORG_D_F",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ODS_CRM_CRMII_TKHJBXX_D_F",
+          "columnCount": 6,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ODS_TEST",
+          "columnCount": 1,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_BRCH_BIZ_RCD",
+          "columnCount": 20,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_BRCH_BIZ_COR_INFO",
+          "columnCount": 22,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_BRCH_BIZ_FIN_SURV",
+          "columnCount": 11,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_BRCH_BIZ_OPER_LOG",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_BRCH_BIZ_RCD_CONT",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_BRCH_BIZ_COR_INFO_CONT",
+          "columnCount": 22,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_COMM_DICT",
+          "columnCount": 11,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_COMM_DICT_ENTR",
+          "columnCount": 8,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "INCOME_AMT",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOT_AST_WAVE",
+          "columnCount": 3,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOT_CMS_INCM",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOT_MTCH_AMT",
+          "columnCount": 5,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CUST_ACC_STAT",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CUST_AST_RATE",
+          "columnCount": 10,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CUST_OACT_WAVE",
+          "columnCount": 3,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "INCOME_AMT_WAVE",
+          "columnCount": 3,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "INST_CUST_COUNT",
+          "columnCount": 3,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "SECUORG_LIAB_TOP5",
+          "columnCount": 4,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "SECUORG_FARE_TOP10",
+          "columnCount": 4,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ADS_IDS_HOLD_SCR_CHG_D_I",
+          "columnCount": 55,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ADS_IDS_MARG_AST_LIAB_D_I",
+          "columnCount": 30,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ADS_IDS_MARG_CONT_CHG_D_I",
+          "columnCount": 44,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ADS_IDS_MARG_CUST_LABE_D_I",
+          "columnCount": 14,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ADS_MARG_PORT_DEPT_INDX_TOT_STAT_D_I",
+          "columnCount": 19,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOT_AST",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ADS_TEST",
+          "columnCount": 1,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_PTY_CUST_D_F",
+          "columnCount": 35,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_ACC_CPTL_ACC_D_F",
+          "columnCount": 24,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_VAR_SCR_CODE_INFO_D_F",
+          "columnCount": 18,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_MARKET_QUOTE_MONITOR_D_I",
+          "columnCount": 8,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_MARKET_NEWS_EVENT_MONITOR_D_I",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_FUND_NAV_CONSISTENCY_CHECK_D_I",
+          "columnCount": 10,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_TEST",
+          "columnCount": 1,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWS_TEST",
+          "columnCount": 1,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-abcba2756c902e2e1787db4c17f621aed2c4148b4ddb85e5ebb3603d14b717b2:receipt",
+      "contentSha256": "19c29f9bf60ebf9e1ebe72301a71769aed6fa0fb78bdb35ec0318ac3bea4592c",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "SEARCH",
+      "query": null,
+      "queryTerms": [
+        "客户信息",
+        "资金",
+        "持仓",
+        "成交",
+        "委托",
+        "证券",
+        "余额",
+        "KHXX",
+        "ZJ",
+        "CC",
+        "WT",
+        "CJ"
+      ],
+      "tableName": null,
+      "database": null,
+      "schema": null,
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 518,
+      "metadataItemCount": 60,
+      "tables": [
+        {
+          "tableName": "TDC_JJGSDY",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TDC_SJCJDY",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TDC_SJCJMX",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TDC_SJQXDY",
+          "columnCount": 3,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEMOF_JJJG",
+          "columnCount": 48,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEMOF_JJWT",
+          "columnCount": 51,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEMSBQQ_WT",
+          "columnCount": 40,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_DTRZLS",
+          "columnCount": 21,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_JJFELS",
+          "columnCount": 15,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_JJFETJ",
+          "columnCount": 14,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_JJJGLS",
+          "columnCount": 49,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_JJJYTJ",
+          "columnCount": 23,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_JJWTLS",
+          "columnCount": 58,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TRZXQ_HYXX",
+          "columnCount": 54,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYCCLS",
+          "columnCount": 37,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYDMLS",
+          "columnCount": 49,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYJYTJ",
+          "columnCount": 34,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYTGTJ",
+          "columnCount": 16,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYZHTJ",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_JGMXLS",
+          "columnCount": 69,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_KHJYTJ",
+          "columnCount": 8,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_KHXXLS",
+          "columnCount": 16,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_ZHCLCC",
+          "columnCount": 30,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_ZJXXLS",
+          "columnCount": 17,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_C101BB",
+          "columnCount": 38,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_CISPM2",
+          "columnCount": 49,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_FZXXLS",
+          "columnCount": 79,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_HTXXLS",
+          "columnCount": 87,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_HZKHXX",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_JYSRBB",
+          "columnCount": 31,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_KHLXTJ",
+          "columnCount": 35,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_KHTJXX",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_KSJYKH",
+          "columnCount": 4,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_RQZHTJ",
+          "columnCount": 17,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_RQZQTJ",
+          "columnCount": 20,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_RZRQTJ",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_RZZJTJ",
+          "columnCount": 21,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_TPZQXX",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_ZGZQLS",
+          "columnCount": 20,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_ZLXXLS",
+          "columnCount": 27,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TZQDMEX_BF",
+          "columnCount": 20,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEMZQYELS_1",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TKHMMCZMXLS",
+          "columnCount": 10,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_DKSFYLS",
+          "columnCount": 27,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_KHGXHXX",
+          "columnCount": 26,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_RQMXHZB",
+          "columnCount": 26,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_ZDCHBLS",
+          "columnCount": 14,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TZRT_CJWTLS",
+          "columnCount": 37,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TZRT_HYXXLS",
+          "columnCount": 66,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TZRT_HYXXTJ",
+          "columnCount": 6,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TZRT_XXPLLS",
+          "columnCount": 14,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEMZJJYSQ_WB",
+          "columnCount": 21,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEMZJJYSQ_ZQ",
+          "columnCount": 37,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TKHBSDJYRZLS",
+          "columnCount": 30,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TRZXQ_HYXXLS",
+          "columnCount": 54,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYCCYELS",
+          "columnCount": 20,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_KHXGXXLS",
+          "columnCount": 16,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_TZXXSQLS",
+          "columnCount": 23,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_ZHCLCCLS",
+          "columnCount": 27,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_BJS_SJTJ",
+          "columnCount": 37,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-f798946335541bc2a4513f7b9ad1fcfdb21ca3591902daa1179bc761e4f2cd16:receipt",
+      "contentSha256": "ad34095c5f9cfc0821f2432c32fd486cc16becdd15edd9b6dd0b6965f234db0b",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "SEARCH",
+      "query": null,
+      "queryTerms": [
+        "客户",
+        "资金",
+        "持仓",
+        "成交",
+        "证券",
+        "余额",
+        "CUST",
+        "ASSET",
+        "CAPITAL",
+        "STOCK",
+        "HOLD"
+      ],
+      "tableName": null,
+      "database": null,
+      "schema": null,
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 358,
+      "metadataItemCount": 38,
+      "tables": [
+        {
+          "tableName": "FUND_NAV_MONITOR",
+          "columnCount": 11,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ODS_TRD_RUN_SECUORG_D_F",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ODS_CRM_CRMII_TKHJBXX_D_F",
+          "columnCount": 6,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ODS_TEST",
+          "columnCount": 1,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_BRCH_BIZ_RCD",
+          "columnCount": 20,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_BRCH_BIZ_COR_INFO",
+          "columnCount": 22,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_BRCH_BIZ_FIN_SURV",
+          "columnCount": 11,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_BRCH_BIZ_OPER_LOG",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_BRCH_BIZ_RCD_CONT",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_BRCH_BIZ_COR_INFO_CONT",
+          "columnCount": 22,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_COMM_DICT",
+          "columnCount": 11,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_COMM_DICT_ENTR",
+          "columnCount": 8,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "INCOME_AMT",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOT_AST_WAVE",
+          "columnCount": 3,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOT_CMS_INCM",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOT_MTCH_AMT",
+          "columnCount": 5,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CUST_ACC_STAT",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CUST_AST_RATE",
+          "columnCount": 10,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CUST_OACT_WAVE",
+          "columnCount": 3,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "INCOME_AMT_WAVE",
+          "columnCount": 3,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "INST_CUST_COUNT",
+          "columnCount": 3,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "SECUORG_LIAB_TOP5",
+          "columnCount": 4,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "SECUORG_FARE_TOP10",
+          "columnCount": 4,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ADS_IDS_HOLD_SCR_CHG_D_I",
+          "columnCount": 55,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ADS_IDS_MARG_AST_LIAB_D_I",
+          "columnCount": 30,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ADS_IDS_MARG_CONT_CHG_D_I",
+          "columnCount": 44,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ADS_IDS_MARG_CUST_LABE_D_I",
+          "columnCount": 14,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ADS_MARG_PORT_DEPT_INDX_TOT_STAT_D_I",
+          "columnCount": 19,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOT_AST",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ADS_TEST",
+          "columnCount": 1,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_PTY_CUST_D_F",
+          "columnCount": 35,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_ACC_CPTL_ACC_D_F",
+          "columnCount": 24,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_VAR_SCR_CODE_INFO_D_F",
+          "columnCount": 18,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_MARKET_QUOTE_MONITOR_D_I",
+          "columnCount": 8,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_MARKET_NEWS_EVENT_MONITOR_D_I",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_FUND_NAV_CONSISTENCY_CHECK_D_I",
+          "columnCount": 10,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_TEST",
+          "columnCount": 1,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWS_TEST",
+          "columnCount": 1,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-3f0cb2a4b0cd71dcf097094032792819a72a6f276b73cadbbce7b98db33cc13a:receipt",
+      "contentSha256": "cb845329ecbb2539b54753f3d34dbba6e6c44328cf6bd44fc4cc3a9605dca939",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "SEARCH",
+      "query": null,
+      "queryTerms": [
+        "KHXX",
+        "ZJYE",
+        "GGCX",
+        "CJMX",
+        "WTMX",
+        "ZQZH",
+        "KHZZ",
+        "ZJZH"
+      ],
+      "tableName": null,
+      "database": "ET_APP",
+      "schema": null,
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 550,
+      "metadataItemCount": 40,
+      "tables": [
+        {
+          "tableName": "TMP_FALSE5",
+          "columnCount": 29,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_ATM_DICT",
+          "columnCount": 12,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TMP_ENTRUST",
+          "columnCount": 52,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_BUSI_USER",
+          "columnCount": 14,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "WO_YJLC_BAK",
+          "columnCount": 23,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_DICTIONARY",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_FOC_BRANCH",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_LOG_RECORD",
+          "columnCount": 11,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_MONI_MODEL",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_PROD_GROUP",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_RELA_GROUP",
+          "columnCount": 11,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_ROUT_TRADE",
+          "columnCount": 38,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "WO_YJLC_0906",
+          "columnCount": 22,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEST_20231205",
+          "columnCount": 2,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEST_20231213",
+          "columnCount": 47,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TMP_OPEN_QUOT",
+          "columnCount": 56,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_COMP_HGFKZY",
+          "columnCount": 6,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_LETTER_CUST",
+          "columnCount": 19,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_MESSAGE_LOG",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ENTITY_XGZZQWH",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TMP_CLOSE_QUOT",
+          "columnCount": 6,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_ATM_DICT_BAK",
+          "columnCount": 10,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_CLIENT_PIREP",
+          "columnCount": 11,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "WORKFLOW_THIRD",
+          "columnCount": 26,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "WO_YJLC_240806",
+          "columnCount": 23,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEST_1019_TOTAL",
+          "columnCount": 23,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TMP_OPEN_QUOT_1",
+          "columnCount": 56,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_BUSI_USER_BAK",
+          "columnCount": 14,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_HOME_ICU_MENU",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_KEY_CUST_MAIN",
+          "columnCount": 10,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_MANUAL_CLIENT",
+          "columnCount": 10,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_PARAMS_DEFINE",
+          "columnCount": 2,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_SECO_WORKFLOW",
+          "columnCount": 14,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_WARN_GRAD_DEV",
+          "columnCount": 4,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEST_1019_DETAIL",
+          "columnCount": 28,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TMP_ENTRUST_JHJJ",
+          "columnCount": 56,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_BUSI_USER_0905",
+          "columnCount": 12,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_BUSI_USER_1106",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_MESSAGE_24_MOT",
+          "columnCount": 2,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "WO_PROGRAM_TRADE",
+          "columnCount": 17,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-19934f7a14799dc69733ac534dd2feb4f1ec44e297d459aad99d932bdfa7bc7c:receipt",
+      "contentSha256": "ed7d17251239ab766f5dbf92b9a3e48fa1ea679631363c0a9a110613fe2890c6",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "SEARCH",
+      "query": null,
+      "queryTerms": [
+        "KHXX",
+        "ZJYE",
+        "GGCX",
+        "CJMX",
+        "WTMX",
+        "ZQZH",
+        "KHZZ",
+        "ZJZH"
+      ],
+      "tableName": null,
+      "database": "ET_DB",
+      "schema": null,
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 701,
+      "metadataItemCount": 40,
+      "tables": [
+        {
+          "tableName": "FXGL_TUSER",
+          "columnCount": 35,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_REV_SEC1",
+          "columnCount": 2,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ZHYY_TUSER",
+          "columnCount": 34,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CIF_TGRKHXX",
+          "columnCount": 25,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CIF_TJGKHXX",
+          "columnCount": 97,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CIF_TKHYWSX",
+          "columnCount": 29,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TMP_ENTRUST",
+          "columnCount": 52,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_CIF_TGDZH",
+          "columnCount": 27,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_CIF_TXTDM",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_QUOT_OVER",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TRL_QUOT_ALL",
+          "columnCount": 57,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TRL_TSC_DRWT",
+          "columnCount": 76,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_CLIENT_GDH",
+          "columnCount": 5,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "AINDEXMEMBERS",
+          "columnCount": 8,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CIF_TSMZ_WGMD",
+          "columnCount": 11,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "QUOT_ALL_TEST",
+          "columnCount": 58,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TPD_QUOTATION",
+          "columnCount": 72,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TRL_QUOT_0705",
+          "columnCount": 57,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_LETTER_CUST",
+          "columnCount": 19,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_MATCH_UNION",
+          "columnCount": 36,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_SEC_CAPITAL",
+          "columnCount": 5,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "WIND_ASHAREST",
+          "columnCount": 10,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CBONDEODPRICES",
+          "columnCount": 17,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CIF_TKHXX_TEST",
+          "columnCount": 40,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "MATCH_20240313",
+          "columnCount": 47,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "MATCH_DATA_TMP",
+          "columnCount": 46,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TMP_QUOT_CXHJY",
+          "columnCount": 17,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TRPT_TFUNDINFO",
+          "columnCount": 185,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_CIF_TGDZH_ZX",
+          "columnCount": 27,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_SEC_CLASSIFY",
+          "columnCount": 12,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "WINDCUSTOMCODE",
+          "columnCount": 28,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "WOLF_T_MESSAGE",
+          "columnCount": 14,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "WO_YJLC_240410",
+          "columnCount": 23,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ZHYY_T_BM_CODE",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ZHYY_T_BM_HJLX",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ZHYY_T_BM_JGHJ",
+          "columnCount": 16,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ENTRUST_ALL_DAY",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "MATCH_DATA_TMP2",
+          "columnCount": 46,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "OS_WFENTRY_1106",
+          "columnCount": 6,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEST_20240111_2",
+          "columnCount": 25,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-9d118f402180cc4fda9afb75a95d2afa43b388e5f7bb3aa6209414aaedad3838:receipt",
+      "contentSha256": "641cda25077cc22e8e455e2398a804739c6744750a56c890e02c3cc0962296f4",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "DESCRIBE",
+      "query": null,
+      "queryTerms": null,
+      "tableName": "DWD_PTY_CUST_D_F",
+      "database": "GDP_DWD",
+      "schema": "GDP_DWD",
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 388,
+      "metadataItemCount": 1,
+      "tables": [
+        {
+          "tableName": "DWD_PTY_CUST_D_F",
+          "columnCount": 35,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-05f25399586fe31679edd56ed6153d89ba8bd1ca2e67198fe6aa163b0feaad49:receipt",
+      "contentSha256": "07538a36a4951bdbe851862f624ec0fab2c252971594fa2b4b7d53b12cacdaa9",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "DESCRIBE",
+      "query": null,
+      "queryTerms": null,
+      "tableName": "DWD_ACC_CPTL_ACC_D_F",
+      "database": "GDP_DWD",
+      "schema": "GDP_DWD",
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 359,
+      "metadataItemCount": 1,
+      "tables": [
+        {
+          "tableName": "DWD_ACC_CPTL_ACC_D_F",
+          "columnCount": 24,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-9e961d327eed50506a9e993960c07b46af89b534f5f12daf05e0d48f7fbc3387:receipt",
+      "contentSha256": "8e0e31769c87f36f76f2ff3f280c44e5541c0081a0fefa7bafc8010845540911",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "DESCRIBE",
+      "query": null,
+      "queryTerms": null,
+      "tableName": "CIF_TKHXX_TEST",
+      "database": "ET_DB",
+      "schema": "ET_DB",
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 507,
+      "metadataItemCount": 1,
+      "tables": [
+        {
+          "tableName": "CIF_TKHXX_TEST",
+          "columnCount": 40,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-20e37dc57cc5c1d2cb2787dab907047ca18f218266daecdb4b7ad4b0195d30b0:receipt",
+      "contentSha256": "21104a2dad3bbdfbdd9a05ea65e2bab3c9c2bbf3887a745b677e92ba2602d267",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "DESCRIBE",
+      "query": null,
+      "queryTerms": null,
+      "tableName": "CIF_TJGKHXX",
+      "database": "ET_DB",
+      "schema": "ET_DB",
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 590,
+      "metadataItemCount": 1,
+      "tables": [
+        {
+          "tableName": "CIF_TJGKHXX",
+          "columnCount": 97,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-6b052c09dd6b02291d105ab2fd83728e940147f8ea7dbf2c6834b96286dd03f4:receipt",
+      "contentSha256": "27da3f58f2c1bd259e4e77ec5fc544550bb28e529bc7d50f0da39205a388ad2e",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "SEARCH",
+      "query": null,
+      "queryTerms": [
+        "MATCH",
+        "ENTRUST",
+        "STOCKHOLD",
+        "FROZEN",
+        "BALANCE",
+        "ZQMC",
+        "GGMX",
+        "CCMX",
+        "ZJYE"
+      ],
+      "tableName": null,
+      "database": "ET_DB",
+      "schema": null,
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 446,
+      "metadataItemCount": 40,
+      "tables": [
+        {
+          "tableName": "FXGL_TUSER",
+          "columnCount": 35,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_REV_SEC1",
+          "columnCount": 2,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ZHYY_TUSER",
+          "columnCount": 34,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CIF_TGRKHXX",
+          "columnCount": 25,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CIF_TJGKHXX",
+          "columnCount": 97,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CIF_TKHYWSX",
+          "columnCount": 29,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TMP_ENTRUST",
+          "columnCount": 52,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_CIF_TGDZH",
+          "columnCount": 27,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_CIF_TXTDM",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_QUOT_OVER",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TRL_QUOT_ALL",
+          "columnCount": 57,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TRL_TSC_DRWT",
+          "columnCount": 76,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_CLIENT_GDH",
+          "columnCount": 5,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "AINDEXMEMBERS",
+          "columnCount": 8,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CIF_TSMZ_WGMD",
+          "columnCount": 11,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "QUOT_ALL_TEST",
+          "columnCount": 58,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TPD_QUOTATION",
+          "columnCount": 72,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TRL_QUOT_0705",
+          "columnCount": 57,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_LETTER_CUST",
+          "columnCount": 19,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_MATCH_UNION",
+          "columnCount": 36,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_SEC_CAPITAL",
+          "columnCount": 5,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "WIND_ASHAREST",
+          "columnCount": 10,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CBONDEODPRICES",
+          "columnCount": 17,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CIF_TKHXX_TEST",
+          "columnCount": 40,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "MATCH_20240313",
+          "columnCount": 47,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "MATCH_DATA_TMP",
+          "columnCount": 46,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TMP_QUOT_CXHJY",
+          "columnCount": 17,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TRPT_TFUNDINFO",
+          "columnCount": 185,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_CIF_TGDZH_ZX",
+          "columnCount": 27,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_SEC_CLASSIFY",
+          "columnCount": 12,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "WINDCUSTOMCODE",
+          "columnCount": 28,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "WOLF_T_MESSAGE",
+          "columnCount": 14,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "WO_YJLC_240410",
+          "columnCount": 23,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ZHYY_T_BM_CODE",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ZHYY_T_BM_HJLX",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ZHYY_T_BM_JGHJ",
+          "columnCount": 16,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ENTRUST_ALL_DAY",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "MATCH_DATA_TMP2",
+          "columnCount": 46,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "OS_WFENTRY_1106",
+          "columnCount": 6,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEST_20240111_2",
+          "columnCount": 25,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-419cacdac750386ea5cb7c23dacdb25cc0e8a721e81a7a9c4616ecf522de8678:receipt",
+      "contentSha256": "50993ceff8345573259e130120558863ddc49cbf4c697f79591aec2be31073af",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "DESCRIBE",
+      "query": null,
+      "queryTerms": null,
+      "tableName": "T_MATCH_UNION",
+      "database": "ET_DB",
+      "schema": "ET_DB",
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 655,
+      "metadataItemCount": 1,
+      "tables": [
+        {
+          "tableName": "T_MATCH_UNION",
+          "columnCount": 36,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-63b9d28c7ddc967c71d48087f8788208831ed1c2e510d57e62e766e34461fa2b:receipt",
+      "contentSha256": "c716963e81e020b632172e33dd64adda028a682ce295250aa596fa711606aeee",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "DESCRIBE",
+      "query": null,
+      "queryTerms": null,
+      "tableName": "TMP_ENTRUST",
+      "database": "ET_DB",
+      "schema": "ET_DB",
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 546,
+      "metadataItemCount": 1,
+      "tables": [
+        {
+          "tableName": "TMP_ENTRUST",
+          "columnCount": 52,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-cd563774fa6db0fb1d1422632e135ce00f17bb1505cff6ee0b34d180864585c8:receipt",
+      "contentSha256": "38264f34822af507ac3d2f8c1905f2ffcfeea313399bb8e375f9240c67fabcc0",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "DESCRIBE",
+      "query": null,
+      "queryTerms": null,
+      "tableName": "T_CIF_TGDZH",
+      "database": "ET_DB",
+      "schema": "ET_DB",
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 546,
+      "metadataItemCount": 1,
+      "tables": [
+        {
+          "tableName": "T_CIF_TGDZH",
+          "columnCount": 27,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-a1d98e02d3811b6082f14cdb0453443b9067c73d5eb87c3d268e67d356db3706:receipt",
+      "contentSha256": "5fe168324081c3bf0c2e694a0d1a6a5d75e23fcc628a842b4abab1faa5bc01c3",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "DESCRIBE",
+      "query": null,
+      "queryTerms": null,
+      "tableName": "T_SEC_CAPITAL",
+      "database": "ET_DB",
+      "schema": "ET_DB",
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 507,
+      "metadataItemCount": 1,
+      "tables": [
+        {
+          "tableName": "T_SEC_CAPITAL",
+          "columnCount": 5,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-4135fdf9549738abdaefd16df211eb93cf28ace5e546718d3c5c5f720d73a690:receipt",
+      "contentSha256": "3b9d2edc4e53247f3fc5774f26b4ef73d4e5a6fd1f69eb72c45d745e5cbb0bf3",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "DESCRIBE",
+      "query": null,
+      "queryTerms": null,
+      "tableName": "CIF_TGRKHXX",
+      "database": "ET_DB",
+      "schema": "ET_DB",
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 518,
+      "metadataItemCount": 1,
+      "tables": [
+        {
+          "tableName": "CIF_TGRKHXX",
+          "columnCount": 25,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-7f11cd8152bee5199062f1c29ae595d33e2f2c0d7367d03e8395b8c07a7a8eea:receipt",
+      "contentSha256": "f130bc403ffc16500c3bde106d8a86198ed2b0367ca2da7074251f1e792b594c",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "SEARCH",
+      "query": null,
+      "queryTerms": [
+        "GGCX",
+        "ZJYE",
+        "KHZJ",
+        "KHCC",
+        "GGMX",
+        "CCMX",
+        "ZQYE",
+        "ZJMX"
+      ],
+      "tableName": null,
+      "database": "DATACENTER",
+      "schema": null,
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 573,
+      "metadataItemCount": 40,
+      "tables": [
+        {
+          "tableName": "TDC_JJGSDY",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TDC_SJCJDY",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TDC_SJCJMX",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TDC_SJQXDY",
+          "columnCount": 3,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEMOF_JJJG",
+          "columnCount": 48,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEMOF_JJWT",
+          "columnCount": 51,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEMSBQQ_WT",
+          "columnCount": 40,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_DTRZLS",
+          "columnCount": 21,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_JJFELS",
+          "columnCount": 15,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_JJFETJ",
+          "columnCount": 14,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_JJJGLS",
+          "columnCount": 49,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_JJJYTJ",
+          "columnCount": 23,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_JJWTLS",
+          "columnCount": 58,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TRZXQ_HYXX",
+          "columnCount": 54,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYCCLS",
+          "columnCount": 37,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYDMLS",
+          "columnCount": 49,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYJYTJ",
+          "columnCount": 34,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYTGTJ",
+          "columnCount": 16,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYZHTJ",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_JGMXLS",
+          "columnCount": 69,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_KHJYTJ",
+          "columnCount": 8,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_KHXXLS",
+          "columnCount": 16,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_ZHCLCC",
+          "columnCount": 30,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_ZJXXLS",
+          "columnCount": 17,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_C101BB",
+          "columnCount": 38,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_CISPM2",
+          "columnCount": 49,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_FZXXLS",
+          "columnCount": 79,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_HTXXLS",
+          "columnCount": 87,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_HZKHXX",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_JYSRBB",
+          "columnCount": 31,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_KHLXTJ",
+          "columnCount": 35,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_KHTJXX",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_KSJYKH",
+          "columnCount": 4,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_RQZHTJ",
+          "columnCount": 17,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_RQZQTJ",
+          "columnCount": 20,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_RZRQTJ",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_RZZJTJ",
+          "columnCount": 21,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_TPZQXX",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_ZGZQLS",
+          "columnCount": 20,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_ZLXXLS",
+          "columnCount": 27,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-df891f0f7824a077f5cf8f79c8cefb468860c9331030cf1eb41f5c881dd051f3:receipt",
+      "contentSha256": "23b1034428b7bf21981282cb85df912fff8fb7e2715ffda3ecd4392242979d76",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "SEARCH",
+      "query": null,
+      "queryTerms": [
+        "TSS_KH",
+        "TSS_ZJ",
+        "TSS_GG",
+        "TSS_ZQ",
+        "TSS_CC"
+      ],
+      "tableName": null,
+      "database": "DATACENTER",
+      "schema": null,
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 515,
+      "metadataItemCount": 40,
+      "tables": [
+        {
+          "tableName": "TDC_JJGSDY",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TDC_SJCJDY",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TDC_SJCJMX",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TDC_SJQXDY",
+          "columnCount": 3,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEMOF_JJJG",
+          "columnCount": 48,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEMOF_JJWT",
+          "columnCount": 51,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEMSBQQ_WT",
+          "columnCount": 40,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_DTRZLS",
+          "columnCount": 21,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_JJFELS",
+          "columnCount": 15,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_JJFETJ",
+          "columnCount": 14,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_JJJGLS",
+          "columnCount": 49,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_JJJYTJ",
+          "columnCount": 23,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_JJWTLS",
+          "columnCount": 58,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TRZXQ_HYXX",
+          "columnCount": 54,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYCCLS",
+          "columnCount": 37,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYDMLS",
+          "columnCount": 49,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYJYTJ",
+          "columnCount": 34,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYTGTJ",
+          "columnCount": 16,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYZHTJ",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_JGMXLS",
+          "columnCount": 69,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_KHJYTJ",
+          "columnCount": 8,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_KHXXLS",
+          "columnCount": 16,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_ZHCLCC",
+          "columnCount": 30,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_ZJXXLS",
+          "columnCount": 17,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_C101BB",
+          "columnCount": 38,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_CISPM2",
+          "columnCount": 49,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_FZXXLS",
+          "columnCount": 79,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_HTXXLS",
+          "columnCount": 87,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_HZKHXX",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_JYSRBB",
+          "columnCount": 31,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_KHLXTJ",
+          "columnCount": 35,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_KHTJXX",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_KSJYKH",
+          "columnCount": 4,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_RQZHTJ",
+          "columnCount": 17,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_RQZQTJ",
+          "columnCount": 20,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_RZRQTJ",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_RZZJTJ",
+          "columnCount": 21,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_TPZQXX",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_ZGZQLS",
+          "columnCount": 20,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_ZLXXLS",
+          "columnCount": 27,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-ed268babfa07fa38380dad59231568c17aa82394fc9670221482d3a7f28e6b7f:receipt",
+      "contentSha256": "767a263b3c2c1f920c7be50729db64c5c02ab97372fbae7157047f9b78bb5e42",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "SEARCH",
+      "query": null,
+      "queryTerms": [
+        "资金余额",
+        "持仓",
+        "个股持仓",
+        "证券持仓",
+        "资金账户",
+        "股份"
+      ],
+      "tableName": null,
+      "database": "DATACENTER",
+      "schema": null,
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 445,
+      "metadataItemCount": 40,
+      "tables": [
+        {
+          "tableName": "TDC_JJGSDY",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TDC_SJCJDY",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TDC_SJCJMX",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TDC_SJQXDY",
+          "columnCount": 3,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEMOF_JJJG",
+          "columnCount": 48,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEMOF_JJWT",
+          "columnCount": 51,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEMSBQQ_WT",
+          "columnCount": 40,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_DTRZLS",
+          "columnCount": 21,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_JJFELS",
+          "columnCount": 15,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_JJFETJ",
+          "columnCount": 14,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_JJJGLS",
+          "columnCount": 49,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_JJJYTJ",
+          "columnCount": 23,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_JJWTLS",
+          "columnCount": 58,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TRZXQ_HYXX",
+          "columnCount": 54,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYCCLS",
+          "columnCount": 37,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYDMLS",
+          "columnCount": 49,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYJYTJ",
+          "columnCount": 34,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYTGTJ",
+          "columnCount": 16,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYZHTJ",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_JGMXLS",
+          "columnCount": 69,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_KHJYTJ",
+          "columnCount": 8,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_KHXXLS",
+          "columnCount": 16,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_ZHCLCC",
+          "columnCount": 30,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_ZJXXLS",
+          "columnCount": 17,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_C101BB",
+          "columnCount": 38,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_CISPM2",
+          "columnCount": 49,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_FZXXLS",
+          "columnCount": 79,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_HTXXLS",
+          "columnCount": 87,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_HZKHXX",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_JYSRBB",
+          "columnCount": 31,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_KHLXTJ",
+          "columnCount": 35,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_KHTJXX",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_KSJYKH",
+          "columnCount": 4,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_RQZHTJ",
+          "columnCount": 17,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_RQZQTJ",
+          "columnCount": 20,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_RZRQTJ",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_RZZJTJ",
+          "columnCount": 21,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_TPZQXX",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_ZGZQLS",
+          "columnCount": 20,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_ZLXXLS",
+          "columnCount": 27,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-a53a8ed22c1b957babeb16555011f0e9e399120abd3c77c9fc583b8e99d83e77:receipt",
+      "contentSha256": "bd2e0a6493be85f45f07556b7968f447705ff2a63ecd518d09adf14be32e0bd6",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "DESCRIBE",
+      "query": null,
+      "queryTerms": null,
+      "tableName": "TOT_AST",
+      "database": "GDP_ADS",
+      "schema": "GDP_ADS",
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 467,
+      "metadataItemCount": 1,
+      "tables": [
+        {
+          "tableName": "TOT_AST",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-0718077b664c861f3dff52cb10ada2e2bd1c2bd3ba30b9f0c21a0e12c3f50586:receipt",
+      "contentSha256": "8d37ae801aa96284d3baf95faa1dec8ebc9de2a40a3392f544ef59998776a81d",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "DESCRIBE",
+      "query": null,
+      "queryTerms": null,
+      "tableName": "CUST_AST_RATE",
+      "database": "GDP_ADS",
+      "schema": "GDP_ADS",
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 467,
+      "metadataItemCount": 1,
+      "tables": [
+        {
+          "tableName": "CUST_AST_RATE",
+          "columnCount": 10,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-2d5aad8fee484c3966cc99240409fdf83d4d9aeec65f5cb880c734a16e5db510:receipt",
+      "contentSha256": "4c32ea8748bbf813b54b5f9fae6b5455cc4229ff3013e0aa1d2d86ef2a27c10b",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "DESCRIBE",
+      "query": null,
+      "queryTerms": null,
+      "tableName": "ODS_CRM_CRMII_TKHJBXX_D_F",
+      "database": "ODS",
+      "schema": "ODS",
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 460,
+      "metadataItemCount": 1,
+      "tables": [
+        {
+          "tableName": "ODS_CRM_CRMII_TKHJBXX_D_F",
+          "columnCount": 6,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-35b4e2d4c424c6aa88d653d9258dfc0f57692f9385aaa7cea3bb8a2942531d2b:receipt",
+      "contentSha256": "25ab047d184b60ec23fa9a89ab97d1d77c9762a16ce861ec4f69ebf2f01f9813",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "DESCRIBE",
+      "query": null,
+      "queryTerms": null,
+      "tableName": "INCOME_AMT",
+      "database": "GDP_ADS",
+      "schema": "GDP_ADS",
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 405,
+      "metadataItemCount": 1,
+      "tables": [
+        {
+          "tableName": "INCOME_AMT",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-5eca971c209bfe78296684f257630f37fea3c162cec2df04be86703778232f6f:receipt",
+      "contentSha256": "af0f1136e7a55035eecbe58c41f05028b2e0a300ea1bf9cc1e3711691e229695",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "BUSINESS_SEARCH",
+      "query": null,
+      "queryTerms": [
+        "客户",
+        "交易",
+        "资产",
+        "盈亏",
+        "持仓",
+        "成交"
+      ],
+      "tableName": null,
+      "database": null,
+      "schema": null,
+      "status": "FAILED",
+      "valid": false,
+      "category": "VALIDATION",
+      "durationMs": 251,
+      "metadataItemCount": 0,
+      "tables": [],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-ed48a30a35c8c1540cb99562e2341d4747645935ec69d5a6467ee6e6ab23d13d:receipt",
+      "contentSha256": "60cd452c765c126e437c9761f65fba87a5530449c63228dbc63bf21b0f2cfcf9",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "BUSINESS_SEARCH",
+      "query": null,
+      "queryTerms": [
+        "客户",
+        "交易",
+        "资产",
+        "盈亏",
+        "持仓",
+        "成交"
+      ],
+      "tableName": null,
+      "database": null,
+      "schema": null,
+      "status": "FAILED",
+      "valid": false,
+      "category": "VALIDATION",
+      "durationMs": 234,
+      "metadataItemCount": 0,
+      "tables": [],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-a8153858c71f305088f662f68a42c471e354fab933245df41116307c69832dd4:receipt",
+      "contentSha256": "2b1450c1f77ca17a569355a213c97e7f10f66ed0b3e3dcb262e563a730479d88",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "BUSINESS_SEARCH",
+      "query": "客户交易 资产 盈亏 持仓",
+      "queryTerms": null,
+      "tableName": null,
+      "database": null,
+      "schema": null,
+      "status": "FAILED",
+      "valid": false,
+      "category": "METADATA_SERVICE_UNAVAILABLE",
+      "durationMs": 1795,
+      "metadataItemCount": 0,
+      "tables": [],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-6fd19d232ce3027a5ad92238589f2b30c3de1a9034b0d64d64b8b0de69936b1d:receipt",
+      "contentSha256": "9356413f6d6388eec475bd0a49afc9441c07274db250e4dd33917fec19ee5988",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "BUSINESS_SEARCH",
+      "query": "客户交易 资产 盈亏 持仓",
+      "queryTerms": null,
+      "tableName": null,
+      "database": null,
+      "schema": null,
+      "status": "FAILED",
+      "valid": false,
+      "category": "METADATA_SERVICE_UNAVAILABLE",
+      "durationMs": 987,
+      "metadataItemCount": 0,
+      "tables": [],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-784de818969dde8ef273a2554573013f3490d17a527cc7f65cd319a1e79a4f45:receipt",
+      "contentSha256": "382bd21f5b90d9da3dfde562da6639cc2cf13e673074efaa3a7fff930b9a0c57",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "DESCRIBE",
+      "query": null,
+      "queryTerms": null,
+      "tableName": "MATCH_20240313",
+      "database": "ET_DB",
+      "schema": "ET_DB",
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 494,
+      "metadataItemCount": 1,
+      "tables": [
+        {
+          "tableName": "MATCH_20240313",
+          "columnCount": 47,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-9b65e166a8d2b463bb9d78ba5fa548f6a13ae3db98270f6782386a165832e68b:receipt",
+      "contentSha256": "ca7fe05f9d8dbae5f46281f5aa22b0f2d87770c12cd1f437ded1a29405c311d5",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    },
+    {
+      "tool": "workspace_validate",
+      "operation": null,
+      "query": null,
+      "queryTerms": null,
+      "tableName": null,
+      "database": null,
+      "schema": null,
+      "status": null,
+      "valid": true,
+      "category": null,
+      "durationMs": 1749,
+      "metadataItemCount": 0,
+      "tables": [],
+      "fieldValidation": "CHECKED",
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-40220afa50e931eebe0801a2139731dcb2fa8860bdc431ef5e49a0361dc03a1b:receipt",
+      "contentSha256": "b25ed937d0a5d3792e8fa44bd2f9db13d9765ad84c0bd4798a6e7fadc6639ed1",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-34659bcb-4895-4717-9595-f4df1606eb83"
+      ]
+    }
+  ],
+  "accepted": false
+}

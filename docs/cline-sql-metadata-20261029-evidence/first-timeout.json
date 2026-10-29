@@ -1,0 +1,1716 @@
+{
+  "customerNumber": "070200046604",
+  "mockedRequests": false,
+  "preselectedTables": [],
+  "dataExecutionGrantsAdded": false,
+  "sqlExecuted": false,
+  "taskId": "sql-coding-3bbe421d-c789-4670-ad63-ea09b97aa48a",
+  "taskStatus": "RUNNING",
+  "error": "Execution ownership acquired; no operation was started",
+  "createdAt": "2026-10-29T14:05:39.874Z",
+  "finishedAt": null,
+  "modelReceipts": [
+    {
+      "operationId": "model-1",
+      "modelInfo": {
+        "startedAt": "2026-10-29T14:05:40.464536292Z",
+        "deadlineAt": "2026-10-29T14:10:39.799Z",
+        "durationMs": 2057,
+        "finishedAt": "2026-10-29T14:05:42.522522091Z",
+        "queueTimeMs": 58,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 1,
+        "requestBytes": 4713,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 1267,
+        "outputTokens": 47,
+        "cacheReadTokens": 0,
+        "reasoningTokens": 17
+      }
+    },
+    {
+      "operationId": "model-2",
+      "modelInfo": {
+        "startedAt": "2026-10-29T14:05:43.236287537Z",
+        "deadlineAt": "2026-10-29T14:10:39.799Z",
+        "durationMs": 4015,
+        "finishedAt": "2026-10-29T14:05:47.251302225Z",
+        "queueTimeMs": 31,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 3,
+        "requestBytes": 8131,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 2059,
+        "outputTokens": 188,
+        "cacheReadTokens": 1152,
+        "reasoningTokens": 140
+      }
+    },
+    {
+      "operationId": "model-3",
+      "modelInfo": {
+        "startedAt": "2026-10-29T14:05:48.368908853Z",
+        "deadlineAt": "2026-10-29T14:10:39.799Z",
+        "durationMs": 4115,
+        "finishedAt": "2026-10-29T14:05:52.484117240Z",
+        "queueTimeMs": 28,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 5,
+        "requestBytes": 9477,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 2467,
+        "outputTokens": 185,
+        "cacheReadTokens": 1664,
+        "reasoningTokens": 36
+      }
+    },
+    {
+      "operationId": "model-4",
+      "modelInfo": {
+        "startedAt": "2026-10-29T14:05:55.121431536Z",
+        "deadlineAt": "2026-10-29T14:10:39.799Z",
+        "durationMs": 11265,
+        "finishedAt": "2026-10-29T14:06:06.387419279Z",
+        "queueTimeMs": 25,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 8,
+        "requestBytes": 12734,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 3708,
+        "outputTokens": 644,
+        "cacheReadTokens": 2304,
+        "reasoningTokens": 39
+      }
+    },
+    {
+      "operationId": "model-5",
+      "modelInfo": {
+        "startedAt": "2026-10-29T14:06:28.783384464Z",
+        "deadlineAt": "2026-10-29T14:10:39.799Z",
+        "durationMs": 17399,
+        "finishedAt": "2026-10-29T14:06:46.182717156Z",
+        "queueTimeMs": 46,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 15,
+        "requestBytes": 59749,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 21507,
+        "outputTokens": 985,
+        "cacheReadTokens": 3456,
+        "reasoningTokens": 492
+      }
+    },
+    {
+      "operationId": "model-6",
+      "modelInfo": {
+        "startedAt": "2026-10-29T14:06:59.972975863Z",
+        "deadlineAt": "2026-10-29T14:10:39.799Z",
+        "durationMs": 11575,
+        "finishedAt": "2026-10-29T14:07:11.548922607Z",
+        "queueTimeMs": 64,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 20,
+        "requestBytes": 111783,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 40680,
+        "outputTokens": 600,
+        "cacheReadTokens": 0,
+        "reasoningTokens": 68
+      }
+    },
+    {
+      "operationId": "model-7",
+      "modelInfo": {
+        "startedAt": "2026-10-29T14:07:17.507636967Z",
+        "deadlineAt": "2026-10-29T14:10:39.799Z",
+        "durationMs": 10120,
+        "finishedAt": "2026-10-29T14:07:27.627675799Z",
+        "queueTimeMs": 49,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 25,
+        "requestBytes": 147116,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 53879,
+        "outputTokens": 559,
+        "cacheReadTokens": 39168,
+        "reasoningTokens": 63
+      }
+    }
+  ],
+  "operations": [
+    {
+      "tool": "workspace_read",
+      "operation": null,
+      "query": null,
+      "queryTerms": null,
+      "tableName": null,
+      "database": null,
+      "schema": null,
+      "status": null,
+      "valid": null,
+      "category": null,
+      "durationMs": null,
+      "metadataItemCount": 0,
+      "tables": [],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-15bf2d2ff522f93287224f7b74885b39e1fe07b0a3e974be144e0cfb1d701615:receipt",
+      "contentSha256": "a43ef64c72617230706b830653a998b08e7b15a1f2cc975a1ea8ae792cf421ad",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-3bbe421d-c789-4670-ad63-ea09b97aa48a"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "LIST_BINDINGS",
+      "query": null,
+      "queryTerms": null,
+      "tableName": null,
+      "database": null,
+      "schema": null,
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 343,
+      "metadataItemCount": 0,
+      "tables": [],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-67ccbc59010c2ea1f41324555dca1d90b9db34224dd4c7fdb6b808dd06249da9:receipt",
+      "contentSha256": "c11c3895590b26ef707b0f559fbc83f5a9f6cf8db525f6e3b090ae6441874286",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-3bbe421d-c789-4670-ad63-ea09b97aa48a"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "LIST_NAMESPACES",
+      "query": null,
+      "queryTerms": null,
+      "tableName": null,
+      "database": null,
+      "schema": null,
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 947,
+      "metadataItemCount": 4,
+      "tables": [
+        {
+          "tableName": null,
+          "columnCount": null,
+          "relationsStatus": null
+        },
+        {
+          "tableName": null,
+          "columnCount": null,
+          "relationsStatus": null
+        },
+        {
+          "tableName": null,
+          "columnCount": null,
+          "relationsStatus": null
+        },
+        {
+          "tableName": null,
+          "columnCount": null,
+          "relationsStatus": null
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-df1d3dc32c6195cf8d2cf955813cde4e8ef5f963a79afeb4966289ccfb36b247:receipt",
+      "contentSha256": "9fa93a47e04913be9f31d8cbbd1fe7b7cf88e498c99ed5a2a410ac75b792aeef",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-3bbe421d-c789-4670-ad63-ea09b97aa48a"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "LIST_NAMESPACES",
+      "query": null,
+      "queryTerms": null,
+      "tableName": null,
+      "database": null,
+      "schema": null,
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 487,
+      "metadataItemCount": 7,
+      "tables": [
+        {
+          "tableName": null,
+          "columnCount": null,
+          "relationsStatus": null
+        },
+        {
+          "tableName": null,
+          "columnCount": null,
+          "relationsStatus": null
+        },
+        {
+          "tableName": null,
+          "columnCount": null,
+          "relationsStatus": null
+        },
+        {
+          "tableName": null,
+          "columnCount": null,
+          "relationsStatus": null
+        },
+        {
+          "tableName": null,
+          "columnCount": null,
+          "relationsStatus": null
+        },
+        {
+          "tableName": null,
+          "columnCount": null,
+          "relationsStatus": null
+        },
+        {
+          "tableName": null,
+          "columnCount": null,
+          "relationsStatus": null
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-b2d8e90f7ca1c360af8f7a2162085eec0288bad342d25b4a1aef910aac0e16ec:receipt",
+      "contentSha256": "55c6d9953710a00e98dcd3c54a72629b81d10c06c98ba90da7dd596e6d17fbb0",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-3bbe421d-c789-4670-ad63-ea09b97aa48a"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "SEARCH",
+      "query": "交易 trade transaction customer",
+      "queryTerms": null,
+      "tableName": null,
+      "database": null,
+      "schema": null,
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 7225,
+      "metadataItemCount": 20,
+      "tables": [
+        {
+          "tableName": "T_ENTRUST_WITH_QUOT_PRI",
+          "columnCount": 70,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "WINDCUSTOMCODE",
+          "columnCount": 28,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_ENTRUST_UNION",
+          "columnCount": 43,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ASHARESTRANGETRADEDETAIL",
+          "columnCount": 17,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CBONDEODPRICES",
+          "columnCount": 17,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_ATM_PROGRAM_TRADE2_EXPA",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_MATCH_WITH_QUOT",
+          "columnCount": 69,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TRADE_TSTOCKHOLDER",
+          "columnCount": 34,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_MATCH_WITH_QUOT_PRI",
+          "columnCount": 75,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "LV_TRPT_TENTRUSTDIRECTION",
+          "columnCount": 24,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TRPT_TFUNDINFO",
+          "columnCount": 185,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ZZZX_UNI_CUSTOMER_MAPPING",
+          "columnCount": 27,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_ENTRUST_WITH_QUOT",
+          "columnCount": 58,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ZHYY_THGFK_PIREP_DATA",
+          "columnCount": 62,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_ENTRUST_WITH_QUOT_PRI_0410",
+          "columnCount": 70,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_ENTRUST_WITH_QUOT_PRI_0415",
+          "columnCount": 70,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_ENTRUST_WITH_QUOT_PRI_0520",
+          "columnCount": 70,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_ENTRUST_WITH_QUOT_PRI_TEST",
+          "columnCount": 82,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "WIND_WINDCUSTOMCODE",
+          "columnCount": 29,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "WIND_ASHARECAPITALIZATION",
+          "columnCount": 58,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-cec62516aeeb03f06787797745a3809401ef299b92dfe4c10da4727776019be5:receipt",
+      "contentSha256": "847fd08b6aa1fb3f107bfa4d5463346aade909377fec9ca039730293285efd7d",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-3bbe421d-c789-4670-ad63-ea09b97aa48a"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "SEARCH",
+      "query": "资产 asset position",
+      "queryTerms": null,
+      "tableName": null,
+      "database": null,
+      "schema": null,
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 4967,
+      "metadataItemCount": 20,
+      "tables": [
+        {
+          "tableName": "TXY_HTXXLS",
+          "columnCount": 87,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_TSBKRZRQTJ",
+          "columnCount": 21,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TKHBSDJYRZLS",
+          "columnCount": 30,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_BJS_SJTJ",
+          "columnCount": 37,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TZJZH",
+          "columnCount": 31,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_CISPM2",
+          "columnCount": 49,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_HZKHXXLS",
+          "columnCount": 56,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_KHLSFZHZXX",
+          "columnCount": 58,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TZCZHBCZ",
+          "columnCount": 4,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_ZQSQMXLS",
+          "columnCount": 35,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_PCKHQDLS",
+          "columnCount": 20,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_DPFXKHLS",
+          "columnCount": 24,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TKHXX",
+          "columnCount": 47,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_ZLXXLS",
+          "columnCount": 27,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_JJXX",
+          "columnCount": 74,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_KHXGXXLS",
+          "columnCount": 16,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_RZQYZCTZLS",
+          "columnCount": 17,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_RZQYZCTZ",
+          "columnCount": 16,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TZYHGLS",
+          "columnCount": 67,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TZQDMEXLS",
+          "columnCount": 21,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-bbb93ee44d769e2e2f3c69b0723d83a8069d5ba5abbcc4318dd9567da7ad3c5e:receipt",
+      "contentSha256": "084274ca42117a4cd066ea52930236996c43d747ed55699731db97691e57d769",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-3bbe421d-c789-4670-ad63-ea09b97aa48a"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "SEARCH",
+      "query": "盈亏 profit loss pnl",
+      "queryTerms": null,
+      "tableName": null,
+      "database": null,
+      "schema": null,
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 4770,
+      "metadataItemCount": 20,
+      "tables": [
+        {
+          "tableName": "TXY_HTXXLS",
+          "columnCount": 87,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYCCLS",
+          "columnCount": 37,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_C101BB",
+          "columnCount": 38,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYCC",
+          "columnCount": 44,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_CISPM2",
+          "columnCount": 49,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TZQYELS",
+          "columnCount": 17,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYCCYELS",
+          "columnCount": 20,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_JJFE",
+          "columnCount": 25,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_RZRQHYHZB",
+          "columnCount": 34,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TZQGL",
+          "columnCount": 41,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TJGMXLS",
+          "columnCount": 66,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEMJGMX",
+          "columnCount": 65,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_FZXXLS_BF",
+          "columnCount": 79,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_FZXXLS",
+          "columnCount": 79,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_JGMXLS",
+          "columnCount": 69,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TPD_QUOTATION",
+          "columnCount": 72,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_FZXXLS_OVER",
+          "columnCount": 97,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TRPT_TFUNDINFO",
+          "columnCount": 185,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TPT_CLIENT_INFO_ECIF",
+          "columnCount": 29,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TMP_MATCH_UNION_PROG",
+          "columnCount": 37,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-ccc6886a2925fec64371594b039834881cd6f4d075bc01f3d613c51c1622aece:receipt",
+      "contentSha256": "ed1bda29d6f22c00b02f537670154799e07be70d31ee3029eac84e0dacf9292f",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-3bbe421d-c789-4670-ad63-ea09b97aa48a"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "SEARCH",
+      "query": "交易 trade transaction customer",
+      "queryTerms": null,
+      "tableName": null,
+      "database": null,
+      "schema": null,
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 659,
+      "metadataItemCount": 20,
+      "tables": [
+        {
+          "tableName": "TOT_MTCH_AMT",
+          "columnCount": 5,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOT_CMS_INCM",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ADS_IDS_MARG_CUST_LABE_D_I",
+          "columnCount": 14,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "INST_CUST_COUNT",
+          "columnCount": 3,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CUST_OACT_WAVE",
+          "columnCount": 3,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CUST_ACC_STAT",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "INCOME_AMT_WAVE",
+          "columnCount": 3,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_MARKET_QUOTE_MONITOR_D_I",
+          "columnCount": 8,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOT_AST_WAVE",
+          "columnCount": 3,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOT_AST",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "FUND_NAV_MONITOR",
+          "columnCount": 11,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_MARKET_NEWS_EVENT_MONITOR_D_I",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_FUND_NAV_CONSISTENCY_CHECK_D_I",
+          "columnCount": 10,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CUST_AST_RATE",
+          "columnCount": 10,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_PTY_CUST_D_F",
+          "columnCount": 35,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_COMM_DICT",
+          "columnCount": 11,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "INCOME_AMT",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_COMM_DICT_ENTR",
+          "columnCount": 8,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ADS_MARG_PORT_DEPT_INDX_TOT_STAT_D_I",
+          "columnCount": 19,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_ACC_CPTL_ACC_D_F",
+          "columnCount": 24,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-05ef36d4edb6e0ed1055c01d18354be6e684be240686fb9957789c5bb12dffce:receipt",
+      "contentSha256": "918c435eca12e2347107352b374dcb3ef6639dc2ca4e4cfc48a2451ca4be5a08",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-3bbe421d-c789-4670-ad63-ea09b97aa48a"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "SEARCH",
+      "query": "资产 asset position",
+      "queryTerms": null,
+      "tableName": null,
+      "database": null,
+      "schema": null,
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 606,
+      "metadataItemCount": 20,
+      "tables": [
+        {
+          "tableName": "TOT_AST",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOT_AST_WAVE",
+          "columnCount": 3,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOT_CMS_INCM",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CUST_AST_RATE",
+          "columnCount": 10,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_BRCH_BIZ_COR_INFO",
+          "columnCount": 22,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_BRCH_BIZ_COR_INFO_CONT",
+          "columnCount": 22,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_MARKET_NEWS_EVENT_MONITOR_D_I",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_MARKET_QUOTE_MONITOR_D_I",
+          "columnCount": 8,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOT_MTCH_AMT",
+          "columnCount": 5,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ADS_IDS_HOLD_SCR_CHG_D_I",
+          "columnCount": 55,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ADS_IDS_MARG_CONT_CHG_D_I",
+          "columnCount": 44,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_PTY_CUST_D_F",
+          "columnCount": 35,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ADS_IDS_MARG_AST_LIAB_D_I",
+          "columnCount": 30,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_ACC_CPTL_ACC_D_F",
+          "columnCount": 24,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_BRCH_BIZ_RCD",
+          "columnCount": 20,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ADS_MARG_PORT_DEPT_INDX_TOT_STAT_D_I",
+          "columnCount": 19,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_VAR_SCR_CODE_INFO_D_F",
+          "columnCount": 18,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ADS_IDS_MARG_CUST_LABE_D_I",
+          "columnCount": 14,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ODS_TRD_RUN_SECUORG_D_F",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CUST_ACC_STAT",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-0e4850deec0a7d51703f0156e5935cc9bf7c6241a383a3adfcd5a5431fd6d786:receipt",
+      "contentSha256": "7f7de400d7c258310647c22fb1ab2804139daf59069527b6912c68e38ce1fa47",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-3bbe421d-c789-4670-ad63-ea09b97aa48a"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "SEARCH",
+      "query": "盈亏 profit loss pnl",
+      "queryTerms": null,
+      "tableName": null,
+      "database": null,
+      "schema": null,
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 631,
+      "metadataItemCount": 5,
+      "tables": [
+        {
+          "tableName": "ADS_IDS_MARG_CONT_CHG_D_I",
+          "columnCount": 44,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOT_CMS_INCM",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CUST_ACC_STAT",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_ACC_CPTL_ACC_D_F",
+          "columnCount": 24,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_PTY_CUST_D_F",
+          "columnCount": 35,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-14173799e9c3fa9078d61bb08dbe1ac5b4cbd7b9d32a4e759ca5758b04e67f28:receipt",
+      "contentSha256": "f94b14da7afdc5ce3dd5198802be5081ff8e55bf335b9d1176dafb514c99954b",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-3bbe421d-c789-4670-ad63-ea09b97aa48a"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "SEARCH",
+      "query": "客户资金 资金账户 资金余额 fund capital account",
+      "queryTerms": null,
+      "tableName": null,
+      "database": null,
+      "schema": null,
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 4590,
+      "metadataItemCount": 20,
+      "tables": [
+        {
+          "tableName": "TXY_C101BB_BB",
+          "columnCount": 34,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_C101BB",
+          "columnCount": 38,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_CISPM2",
+          "columnCount": 49,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TZJZH",
+          "columnCount": 31,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_HTXXLS",
+          "columnCount": 87,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_ZJXXLS",
+          "columnCount": 17,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_JGMXLS",
+          "columnCount": 69,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TRZXQTJ",
+          "columnCount": 19,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TZJYELS",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEMOF_JJJG",
+          "columnCount": 48,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOF_JJJGLS",
+          "columnCount": 49,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_KHLSFZHZXX",
+          "columnCount": 58,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_BJS_SJTJ",
+          "columnCount": 37,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_DKSFYBDMXLS",
+          "columnCount": 35,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEMJGMX",
+          "columnCount": 65,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TJGMXLS",
+          "columnCount": 66,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_FZXXLS_OVER",
+          "columnCount": 97,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TWBZH",
+          "columnCount": 22,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TZJZHTJ",
+          "columnCount": 23,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEMZJMXLS",
+          "columnCount": 30,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-d29c12ebe2e9ba2604ed1077686222cf084436cc25870b73408e840db699c8a9:receipt",
+      "contentSha256": "1a0eec2969b2fb93cee63a615d448b5dfe2b3f8a52429e0424c10d2277311448",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-3bbe421d-c789-4670-ad63-ea09b97aa48a"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "SEARCH",
+      "query": "证券余额 持仓 股份 stock position balance",
+      "queryTerms": null,
+      "tableName": null,
+      "database": null,
+      "schema": null,
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 4663,
+      "metadataItemCount": 20,
+      "tables": [
+        {
+          "tableName": "TZQGL",
+          "columnCount": 41,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TZQYELS",
+          "columnCount": 17,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_CISPM2",
+          "columnCount": 49,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_HTXXLS",
+          "columnCount": 87,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYCC",
+          "columnCount": 44,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_BJS_SJTJ",
+          "columnCount": 37,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_FZBDMXLS",
+          "columnCount": 45,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_C101BB_BB",
+          "columnCount": 34,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYCCYELS",
+          "columnCount": 20,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_C101BB",
+          "columnCount": 38,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_HYCCLS",
+          "columnCount": 37,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_TZSY",
+          "columnCount": 23,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TTZSY",
+          "columnCount": 18,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_PCKHQDLS",
+          "columnCount": 20,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TJGMXLS",
+          "columnCount": 66,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TEMJGMX",
+          "columnCount": 65,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_JGMXLS",
+          "columnCount": 69,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TXY_RQMXHZB",
+          "columnCount": 26,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_ZHCLCCLS",
+          "columnCount": 27,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TSO_ZHCLCC",
+          "columnCount": 30,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-a7c87b30bd4567bc22815395b33ad834fea64072aa4b5fc15977a6e4d9d7f200:receipt",
+      "contentSha256": "026d06cabf92bd3e3805b6ba1f8cd70c8a8b2d6c9dd7fedd9ba5bf7d4909faf4",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-3bbe421d-c789-4670-ad63-ea09b97aa48a"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "DESCRIBE",
+      "query": null,
+      "queryTerms": null,
+      "tableName": "T_MATCH_WITH_QUOT_PRI",
+      "database": "ET_DB",
+      "schema": "ET_DB",
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 498,
+      "metadataItemCount": 1,
+      "tables": [
+        {
+          "tableName": "T_MATCH_WITH_QUOT_PRI",
+          "columnCount": 75,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-60886501e9f672190142e74e5fbf4bd39d8c39d0dce48fda93c54873e19ff40f:receipt",
+      "contentSha256": "6f0ef2b250dd946889a40e90748210a82edc8feeab184220d4c38b2244a25faf",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-3bbe421d-c789-4670-ad63-ea09b97aa48a"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "DESCRIBE",
+      "query": null,
+      "queryTerms": null,
+      "tableName": "TZQGL",
+      "database": "DATACENTER",
+      "schema": "DATACENTER",
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 481,
+      "metadataItemCount": 1,
+      "tables": [
+        {
+          "tableName": "TZQGL",
+          "columnCount": 41,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-7e9a9be3aab79a905df12e695f1865ee068f7c33130ea045fbcc081c80f4f172:receipt",
+      "contentSha256": "3642c88ed657e813c91fc2e09c1adc4bfef3a647c829aa0245440edd60a9b2bd",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-3bbe421d-c789-4670-ad63-ea09b97aa48a"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "DESCRIBE",
+      "query": null,
+      "queryTerms": null,
+      "tableName": "TZJZH",
+      "database": "DATACENTER",
+      "schema": "DATACENTER",
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 525,
+      "metadataItemCount": 1,
+      "tables": [
+        {
+          "tableName": "TZJZH",
+          "columnCount": 31,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-e61e8f5e828403b355c6d6e023872a73a736583209c1174e6f6376b015dfd955:receipt",
+      "contentSha256": "edc6ad5f7084046ce6e00dda91a3b4d1afb0f2637d416bbc40c37b11f65e8411",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-3bbe421d-c789-4670-ad63-ea09b97aa48a"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "DESCRIBE",
+      "query": null,
+      "queryTerms": null,
+      "tableName": "TTZSY",
+      "database": "DATACENTER",
+      "schema": "DATACENTER",
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 494,
+      "metadataItemCount": 1,
+      "tables": [
+        {
+          "tableName": "TTZSY",
+          "columnCount": 18,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-c3475f0130b1fc5ebdabef3b9e1453b78aac90b88f9366478a2ce0c83ae3c254:receipt",
+      "contentSha256": "c41313fe65551c46d641e17bca07718ef3ce7c3fda9a8636e0811ed628a2d7e9",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-3bbe421d-c789-4670-ad63-ea09b97aa48a"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "DESCRIBE",
+      "query": null,
+      "queryTerms": null,
+      "tableName": "TZJYELS",
+      "database": "DATACENTER",
+      "schema": "DATACENTER",
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 454,
+      "metadataItemCount": 1,
+      "tables": [
+        {
+          "tableName": "TZJYELS",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-cba564b6f0b9cbeee48d3a810e28d1fc09825551af8a39f8f4ba01d0bdce39b9:receipt",
+      "contentSha256": "1f64c0c5e759f5e0166af8226f165c43940291c43116d4f19119ffe845323ff5",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-3bbe421d-c789-4670-ad63-ea09b97aa48a"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "DESCRIBE",
+      "query": null,
+      "queryTerms": null,
+      "tableName": "TKHXX",
+      "database": "DATACENTER",
+      "schema": "DATACENTER",
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 419,
+      "metadataItemCount": 1,
+      "tables": [
+        {
+          "tableName": "TKHXX",
+          "columnCount": 47,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-c9eda89314db1e1472f5acd4e1819fbea4754111df24983bfe14959c07776f64:receipt",
+      "contentSha256": "4606e9cd34a45d98a3c7b2f752078063812399d38647749f477a0ae6fa6efae6",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-3bbe421d-c789-4670-ad63-ea09b97aa48a"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "DESCRIBE",
+      "query": null,
+      "queryTerms": null,
+      "tableName": "DWD_ACC_CPTL_ACC_D_F",
+      "database": "GDP_DWD",
+      "schema": "GDP_DWD",
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 386,
+      "metadataItemCount": 1,
+      "tables": [
+        {
+          "tableName": "DWD_ACC_CPTL_ACC_D_F",
+          "columnCount": 24,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-60ca04df3d552837daa7b64483b8c09cd287af4d7263da4bbcdf17a2c3c20128:receipt",
+      "contentSha256": "7eff670ac8248dc68773f1be3f39671b0076669e0ac723ac449a6afc571e7e91",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-3bbe421d-c789-4670-ad63-ea09b97aa48a"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "DESCRIBE",
+      "query": null,
+      "queryTerms": null,
+      "tableName": "DWD_PTY_CUST_D_F",
+      "database": "GDP_DWD",
+      "schema": "GDP_DWD",
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 404,
+      "metadataItemCount": 1,
+      "tables": [
+        {
+          "tableName": "DWD_PTY_CUST_D_F",
+          "columnCount": 35,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-76e781ca6459bb509c247d16c59ce76d239aee221a4b8acfd3a70cedc467eebc:receipt",
+      "contentSha256": "e3b88c6c44628ddd612b66a1800deda1fd7134a3e97c36bd5bc16339e1b8d030",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-3bbe421d-c789-4670-ad63-ea09b97aa48a"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "SEARCH",
+      "query": "成交 match trade deal 委托 entrust",
+      "queryTerms": null,
+      "tableName": null,
+      "database": null,
+      "schema": null,
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 612,
+      "metadataItemCount": 20,
+      "tables": [
+        {
+          "tableName": "TOT_MTCH_AMT",
+          "columnCount": 5,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOT_CMS_INCM",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CUST_AST_RATE",
+          "columnCount": 10,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_MARKET_NEWS_EVENT_MONITOR_D_I",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ADS_IDS_HOLD_SCR_CHG_D_I",
+          "columnCount": 55,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_COMM_DICT_ENTR",
+          "columnCount": 8,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_COMM_DICT",
+          "columnCount": 11,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ADS_IDS_MARG_CUST_LABE_D_I",
+          "columnCount": 14,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ADS_IDS_MARG_CONT_CHG_D_I",
+          "columnCount": 44,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ADS_MARG_PORT_DEPT_INDX_TOT_STAT_D_I",
+          "columnCount": 19,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_MARKET_QUOTE_MONITOR_D_I",
+          "columnCount": 8,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "INST_CUST_COUNT",
+          "columnCount": 3,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CUST_OACT_WAVE",
+          "columnCount": 3,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOT_AST_WAVE",
+          "columnCount": 3,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "INCOME_AMT_WAVE",
+          "columnCount": 3,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOT_AST",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "FUND_NAV_MONITOR",
+          "columnCount": 11,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_FUND_NAV_CONSISTENCY_CHECK_D_I",
+          "columnCount": 10,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CUST_ACC_STAT",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_PTY_CUST_D_F",
+          "columnCount": 35,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-7259916fa1f061baf5fcb0bfaa1e762594aa3bd3a3318b7298d3fcd403fbd22d:receipt",
+      "contentSha256": "27c25674d81952d4f150460a38cb081c50f483415e0cc35afe6392eb81de9cf0",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-3bbe421d-c789-4670-ad63-ea09b97aa48a"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "operation": "SEARCH",
+      "query": "证券余额 持仓 stock position 股份",
+      "queryTerms": null,
+      "tableName": null,
+      "database": null,
+      "schema": null,
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 542,
+      "metadataItemCount": 20,
+      "tables": [
+        {
+          "tableName": "SECUORG_LIAB_TOP5",
+          "columnCount": 4,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOT_CMS_INCM",
+          "columnCount": 7,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CUST_AST_RATE",
+          "columnCount": 10,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_MARKET_NEWS_EVENT_MONITOR_D_I",
+          "columnCount": 9,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "INST_CUST_COUNT",
+          "columnCount": 3,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "TOT_AST_WAVE",
+          "columnCount": 3,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "INCOME_AMT_WAVE",
+          "columnCount": 3,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ADS_IDS_HOLD_SCR_CHG_D_I",
+          "columnCount": 55,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ADS_IDS_MARG_CONT_CHG_D_I",
+          "columnCount": 44,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_PTY_CUST_D_F",
+          "columnCount": 35,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ADS_IDS_MARG_AST_LIAB_D_I",
+          "columnCount": 30,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_ACC_CPTL_ACC_D_F",
+          "columnCount": 24,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_BRCH_BIZ_COR_INFO",
+          "columnCount": 22,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_BRCH_BIZ_COR_INFO_CONT",
+          "columnCount": 22,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "T_BRCH_BIZ_RCD",
+          "columnCount": 20,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ADS_MARG_PORT_DEPT_INDX_TOT_STAT_D_I",
+          "columnCount": 19,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "DWD_VAR_SCR_CODE_INFO_D_F",
+          "columnCount": 18,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ADS_IDS_MARG_CUST_LABE_D_I",
+          "columnCount": 14,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "ODS_TRD_RUN_SECUORG_D_F",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        },
+        {
+          "tableName": "CUST_ACC_STAT",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED"
+        }
+      ],
+      "fieldValidation": null,
+      "sqlExecuted": false,
+      "receiptId": "coding:workspace:workspace-f5cc426301ac9871e1029155e86cdcb38068a446a06056d97e548b053ad60970:receipt",
+      "contentSha256": "c7662089973a15d9a80945712bfb1b5c64a8a5c53b2c6081a19ba6be7cd26619",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-3bbe421d-c789-4670-ad63-ea09b97aa48a"
+      ]
+    }
+  ],
+  "accepted": false
+}

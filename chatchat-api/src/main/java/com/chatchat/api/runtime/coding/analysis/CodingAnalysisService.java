@@ -315,7 +315,8 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                     + "For each interpreted field record its exact datasetReference, sourceField, meaning, declarationSource and CONFIRMED/UNCONFIRMED status. Use UNCONFIRMED and an explicit missing declaration when no producer definition or authorized reference exists. "
                     + "Without confirmed meanings, report structural counts, observed types and missingness only. Do not sum/average identifier-like numeric columns, select the first date-like column as a business time, or call ETL/load timestamps transaction dates. "
                     + "Profile the original columns before adding helper columns; derived columns must never appear as source fields. State the exact source field for every date range and explain its confirmed meaning before calling it a business period. "
-                    + "Result review must verify these fields and withhold unsupported charts and conclusions. A safe INPUT_REQUIRED report is a valid deliverable; do not invent semantics to obtain COMPLETE.";
+                    + "Result review must verify these fields and withhold unsupported charts and conclusions. A safe INPUT_REQUIRED report is a valid deliverable; do not invent semantics to obtain COMPLETE. "
+                    + com.chatchat.api.runtime.coding.evidence.CodingSchemaResultVerifier.REPORT_SCOPE_RULE;
             }
             // Runtime acquires business data before analysis. Cline receives snapshots,
             // not a tool for choosing new business templates or query parameters.

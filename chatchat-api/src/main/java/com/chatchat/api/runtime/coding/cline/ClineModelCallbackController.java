@@ -114,7 +114,8 @@ public final class ClineModelCallbackController {
             response.put("fileLayout", CodingInputLayout.describe(c.runtimeContext()));
             var resultSchema=plans.rowSchema(c);
             if(!resultSchema.isEmpty())response.put("outputContract",Map.of("rowSchema",resultSchema,
-                "requiredFiles",c.outputContract().requiredFiles(),"authority","RUNTIME_RESULT_CONTRACT"));
+                "requiredFiles",c.outputContract().requiredFiles(),"authority","RUNTIME_RESULT_CONTRACT",
+                "reportDeclarationConsistency",com.chatchat.api.runtime.coding.evidence.CodingSchemaResultVerifier.REPORT_SCOPE_RULE));
             if(c.metadataRefs().contains(com.chatchat.api.runtime.coding.data.CodingInputObservation.POLICY_REF))
                 response.put("analysisPreview",inputs.observeForCoding(c));
             if(mapper.valueToTree(response).toString().getBytes(java.nio.charset.StandardCharsets.UTF_8).length>180000)

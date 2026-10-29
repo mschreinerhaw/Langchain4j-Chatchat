@@ -260,9 +260,18 @@ test('actual Cline Agent loop repairs a technical Python error through one Runti
 
 test('successful exploration without an output artifact can be corrected without claiming a result', async () => {
   let calls=0;const executions=[];let completed;
+  const contract={...task,schemaVersion:'runtime_os.coding.v3',outputContract:{...task.outputContract,resultFormat:'JSON_LINES'},
+    runtimeContext:{inputFiles:{schemaVersion:'runtime_os.coding.input.v1',format:'PARQUET',delivery:'SHARED_DIRECTORY',
+      manifestFileId:task.authorization.allowedDataRefs[0],manifestSha256:'b'.repeat(64)}}};
   const model={async *stream(request){
     calls++;
-    if(calls===2)assert.match(JSON.stringify(request.messages),/REQUIRED_OUTPUT_MISSING/);
+    if(calls===2){
+      assert.match(JSON.stringify(request.messages),/REQUIRED_OUTPUT_MISSING/);
+      assert.match(JSON.stringify(request.messages),/outputRepairGuidance/);
+      assert.match(JSON.stringify(request.messages),/Do not repeat a print-only or diagnostics-only probe/);
+      assert.match(JSON.stringify(request.messages),/INPUT_REQUIRED/);
+      assert.match(JSON.stringify(request.messages),/rowSchema/);
+    }
     if(calls<=2){
       yield {type:'tool-call-delta',toolCallId:`output-${calls}`,toolName:'python_execute',
         input:{fileName:'main.py',source:calls===1?'print("schema inspection")':'# complete program writes rows.jsonl'}};
@@ -275,6 +284,7 @@ test('successful exploration without an output artifact can be corrected without
   }};
   const gateway={
     reserveModel(){},settleModel(){},
+    readInputContext(){return {outputContract:{rowSchema:{type:'object',properties:{reportMarkdown:{type:'string'}},required:['reportMarkdown']}}};},
     executePython(_contract,item){
       executions.push(item);
       return executions.length===1
@@ -283,7 +293,7 @@ test('successful exploration without an output artifact can be corrected without
     },
     finish(_contract,value){completed=value;},
   };
-  assert.equal((await createCodingRun(task,gateway,{model}).run()).status,'completed');
+  assert.equal((await createCodingRun(contract,gateway,{model}).run()).status,'completed');
   assert.equal(executions.length,2);
   assert.equal(completed.operationId,executions[1].operationId);
   assert.notEqual(completed.operationId,executions[0].operationId);

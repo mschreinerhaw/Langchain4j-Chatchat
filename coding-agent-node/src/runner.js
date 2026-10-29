@@ -104,6 +104,7 @@ export function createCodingRun(contract, gateway, options = {}) {
       message.content?.some(part => part.type === 'tool-call' && part.toolName === 'python_execute')))
     throw new TypeError('Negotiated code lifecycle checkpoint is missing');
   let previousProgram = history?.currentSource ?? null;
+  let resultOutputContract = null;
   for (const message of restored?.messages ?? []) for (const part of message.content ?? []) {
     if (part.type === 'tool-call' && part.toolName === 'python_execute') {
       try { previousProgram = prepareProgram(part.input, previousProgram); } catch { /* Full source remains available after restoration. */ }
@@ -395,6 +396,12 @@ export function createCodingRun(contract, gateway, options = {}) {
           note:'Actual source project for the next exact patch; execution codeHash identifies the Runtime adapter plus this payload.' }
           : repairSourceContext(source, receipt.executionFeedback, fileName);
         const result = { ...receipt,
+          ...((receipt.outputStatus === 'REQUIRED_OUTPUT_MISSING' || receipt.executionFeedback?.error?.diagnosticCode === 'OUTPUT_CONTRACT')
+            ? { outputRepairGuidance: {
+              requiredFiles: contract.outputContract.requiredFiles,
+              ...(resultOutputContract ? { outputContract: resultOutputContract } : {}),
+              nextAction: 'Repair this latest program to write the complete required report in this execution. Raw stdout and auxiliary validation files are not returned as source previews and are not a report. Do not repeat a print-only or diagnostics-only probe. Read the immutable input and calculate and write the report in the same program. If business meanings are missing, write an INPUT_REQUIRED report with verifiable structure, explicit limitations and field provenance; withhold unsupported business metrics, dates and charts. Do not increase the task or repair budget.'
+            } } : {}),
           ...(reportReferenceFailure ? { resultAvailable: false, validationStatus: 'FAILED',
             outputStatus: 'INVALID_RESULT_REFERENCES' } : {}),
           ...(sourceContext ? { repairSourceContext: sourceContext } : {}),
@@ -479,6 +486,7 @@ export function createCodingRun(contract, gateway, options = {}) {
     ...(history ? ['This task negotiates runtime_os.code_lifecycle.v1. Generate complete source once; thereafter use repair {parentCodeVersion,baseCodeSha256,edits:[{oldText,newText}]}. Preserve verified behavior while correcting the current program; prior patch text remains editable. To roll back, use rollback {parentCodeVersion,parentCodeSha256,targetCodeSha256} naming lastValidatedHash. Every changed or rolled-back version must execute and validate again.'] : []),
     'Generate concise Python, inspect execution receipts, and repair the latest program using source frames and exact edits. Preserve unrelated verified code; never regenerate from an older version. Do not embed input datasets in code or repeat planning already supplied by Runtime.',
     'When validationStatus is FAILED, inspect and repair the output schema. INCONCLUSIVE structural validation does not certify business correctness.',
+    'Every analysis Python execution must write its required report, including an INPUT_REQUIRED report when business evidence is missing. Do not run print-only inspection programs: raw stdout and auxiliary validation files are not readable on the next model turn. Inspect the original data and produce the complete report in the same program.',
     fileInput ? 'Read the actual manifest. Prefer nativeFiles using their sourceDatasetRef and actual original format (text needs only open); verify each native file sha256. Parts preserve historical transport rows for compatibility. For structured datasets read declared part files using Python json/csv or installed Parquet readers. No application-specific Python module is required. Map storageName to logical name using the declared columns; decode JSON cells and preserve missing/null values. Batched logical rows contain datasetReference and record. Do not index raw Parquet storage columns by logical names. Each Python call starts a fresh sandbox with Java-authorized input versions. Use the exact files[].virtualPath values supplied by Java. All file ID directories are siblings directly under /data/input: the manifest is /data/input/{manifestFileId}/manifest.json, the schema is /data/input/{schemaFileId}/schema.json, and each part is /data/input/{part.fileId}/{part.fileName}. Never nest schema or part IDs under the manifest directory. Verify SHA-256 and row counts, map storage columns to logical names, and decode JSON cells. Use pyarrow or pandas.read_parquet(dtype_backend="pyarrow") to retain nullable integer/decimal precision. Parquet presence columns pN distinguish missing from null; CSV null/missing/backslash rules are explicit in schema.json. Full data stays in files, never ask to put it in a prompt. Do not reopen previous output in a new sandbox.' : 'Each Python call starts a fresh sandbox with only the immutable input versions explicitly authorized and delivered by Java, without earlier output files or Python variables. Single inputs use /data/input/{fileId}/input.jsonl; chunked inputs use /data/input/{fileId}/manifest.json and the ordered, hash-checked chunks listed there. Do not launch a new call just to open a previous output file.',
     'Runtime returns versioned executionFeedback after independently confirming process stop: safe exception category, normalized technical message, source locations, code hash, validation state and a Java-owned repair decision. Raw stdout/stderr and business values are omitted. When repair.allowed is true, stay in this task, keep the authorized immutable inputs, and prefer the smallest repair.edits against repair.baseCodeHash. Do not restart the analysis or fetch the same data again. When action is STOP do not execute another version, install dependencies, change permissions or expand access. Exit code zero without a validated result is a repairable output failure, never task completion.',
     'A SUCCEEDED receipt with resultDatasetRef, validationRecordRef and evidenceBundleRef means Runtime archived the result. INCONCLUSIVE with businessValidationPassed=false means business correctness was not evaluated, not an execution failure. You own the interpretation and must report that limitation; Runtime only validates structure and authorized references.',
@@ -753,6 +761,7 @@ export function createCodingRun(contract, gateway, options = {}) {
         if (fileInput && !restored) {
           if (typeof gateway.readInputContext !== 'function') throw new TypeError('Runtime input metadata callback is required');
           const metadata = await gateway.readInputContext(contract, contextSignal);
+          resultOutputContract = metadata.outputContract ?? null;
           if (metadata.analysisPreview && !contract.metadataRefs?.includes('runtime-coding:bounded-input-observation:v1'))
             throw new TypeError('Input observation was not declared by this task');
           const encoded = JSON.stringify(metadata);

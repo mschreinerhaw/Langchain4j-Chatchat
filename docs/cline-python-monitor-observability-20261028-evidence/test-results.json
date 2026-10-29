@@ -1,0 +1,24 @@
+{
+  "scope": "Selected suites, not entire repository; fixture tests are separate from real browser and model receipts",
+  "java": {
+    "total": 92,
+    "passed": 90,
+    "skipped": 2,
+    "failures": 0,
+    "errors": 0
+  },
+  "frontend": {
+    "passed": 44,
+    "failures": 0
+  },
+  "frontendBuild": "PASSED",
+  "browserRealCases": 2,
+  "realPythonExecutions": 7,
+  "realDiffRelationships": 4,
+  "previousRemediationFilesUnchanged": 64,
+  "logs": {
+    "backend-final.log": "8c62a9a14892474d811a0ffedf6aacdf2fae1f8ddb276edc643aae92ee3ada73",
+    "frontend-tests.log": "701e00472601c2c45866882ce78ac030e44997c6020290a4688677f2e795a5d2",
+    "frontend-build.log": "a1a7f52b8d07c726adc78e7c72d031f4c5b985dd257185d8490601ce4f00c992"
+  }
+}

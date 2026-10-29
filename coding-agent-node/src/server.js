@@ -117,6 +117,8 @@ export function httpGateway(callbackUrl, secret, binding, { timeoutMs = 90000 } 
     readMetadata: (contract, reference, signal) => callback('read-metadata', { contract, reference }, signal),
     readSkill: (contract, skillId, path, signal) => callback('read-skill', { contract, skillId, path }, signal),
     readInputContext: (contract, signal) => callback('input-context', { contract }, signal),
+    readInput: (contract, read, signal) => callback('input-read', { contract, read }, signal),
+    submitReport: (contract, submission, signal) => callback('submit-report', { contract, submission }, signal),
     readArtifact: (contract, reference, signal) => callback('read-artifact', { contract, reference }, signal),
     readWorkspace: (contract, operationId, signal) => callback('workspace-read', { contract, operationId }, signal),
     proposeWorkspace: (contract, operationId, proposal, signal) => callback('workspace-propose', { contract, operationId, proposal }, signal),
@@ -164,6 +166,7 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
         return response(reply, 200, { schemaVersion: 'runtime_os.coding.input.v1', formats: ['PARQUET', 'CSV'],
           codeLifecycleVersions: ['runtime_os.code_lifecycle.v1'],
           analysisProfiles: ['runtime-coding:analysis-fast-path:v1'],
+          analysisTools: ['input_read','report_submit'],
           workspaceProfiles: ['runtime-coding:workspace-fast-path:v1'] });
       }
       if (request.method === 'GET' && url.pathname === '/healthz')

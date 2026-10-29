@@ -22,6 +22,8 @@ public record CodingTaskContract(String schemaVersion, String taskId, KernelData
         runtimeContext = CodingRuntimeContext.validate(runtimeContext);
         CodingProtocol.require(!runtimeContext.containsKey("inputFiles") || CodingProtocol.ANALYSIS_VERSION.equals(schemaVersion),
             "Versioned file inputs require the analysis task profile");
+        CodingProtocol.require(!runtimeContext.containsKey("analysisResultMode") || CodingProtocol.ANALYSIS_VERSION.equals(schemaVersion),
+            "Text result policy requires the analysis task profile");
         CodingProtocol.version(schemaVersion); taskId = CodingProtocol.ref(taskId, "taskId");
         scope = CodingProtocol.scope(scope); CodingProtocol.required(objective, "objective");
         inputSnapshotRef = CodingProtocol.ref(inputSnapshotRef, "inputSnapshotRef");
@@ -38,6 +40,11 @@ public record CodingTaskContract(String schemaVersion, String taskId, KernelData
                 ? outputContract.resultFormat() == ResultFormat.JSON_LINES
                 : outputContract.resultFormat() == ResultFormat.WORKSPACE_FILES,
             "Task version and output profile do not match");
+    }
+
+    public boolean permitsTextResult() {
+        return CodingProtocol.ANALYSIS_VERSION.equals(schemaVersion) && "TEXT_OR_CODE".equals(runtimeContext.get("analysisResultMode"))
+            && !outputContract.requiredEvidence().contains(RequiredEvidence.CODE_ARTIFACT);
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

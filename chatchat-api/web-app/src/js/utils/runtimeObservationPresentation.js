@@ -70,8 +70,8 @@ function executionActivity(event, runtime, metadata) {
       const tool = worker.tool;
       // A proposed calculation is not execution-node confirmation. Its actual running/stop receipts are separate.
       if (tool === 'python_execute') return null;
-      category = {data_request:'DATA',metadata_read:'DATA',workspace_read:'DATA',skill_read:'PLAN',
-        sql_validate:'CODE_CHECK',workspace_propose:'PROGRAM',artifact_read:'VALIDATION'}[tool];
+      category = {data_request:'DATA',metadata_read:'DATA',workspace_read:'DATA',input_read:'DATA',skill_read:'PLAN',
+        sql_validate:'CODE_CHECK',workspace_propose:'PROGRAM',artifact_read:'VALIDATION',report_submit:'VALIDATION'}[tool];
       if (!category) return null;
       phase = {DATA:2,PLAN:1,CODE_CHECK:3,PROGRAM:3,VALIDATION:4}[category];
       identity = worker.toolCallId || operation;
@@ -369,8 +369,8 @@ export function runtimeObservationPresentation(runtimePayload = {}) {
   const type = upper(metadata.type);
   const stage = upper(metadata.stage);
   if (eventKind === 'FILE_ANALYSIS') {
-    const titles = { FILE_REFERENCES_PREPARING: '准备授权文件引用', CLINE_SUBMITTING: '提交 Cline 编程任务',
-      RESULT_VALIDATING: '校验分析结果' };
+    const titles = { FILE_REFERENCES_PREPARING: '正在准备分析数据', CLINE_SUBMITTING: '正在分析',
+      RESULT_VALIDATING: '正在生成结果' };
     return { title: titles[stage] || '文件分析任务', toolName: 'runtime',
       status: eventState === 'FAILED' ? 'error' : eventState === 'CANCELLED' ? 'cancelled'
         : eventState === 'COMPLETED' ? 'done' : 'active' };

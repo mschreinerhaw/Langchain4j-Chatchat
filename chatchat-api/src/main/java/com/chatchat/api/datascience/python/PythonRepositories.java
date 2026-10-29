@@ -29,6 +29,7 @@ interface PythonScriptRepository extends JpaRepository<PythonScriptEntity, Strin
 }
 
 interface PythonScriptFolderRepository extends JpaRepository<PythonScriptFolderEntity, String> {
+    Optional<PythonScriptFolderEntity> findFirstByIdAndTenantIdAndOwnerId(String id,String tenantId,String ownerId);
     List<PythonScriptFolderEntity> findByTenantIdAndOwnerIdOrderBySortOrderAscNameAsc(String tenantId, String ownerId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -40,6 +41,7 @@ interface PythonScriptFolderRepository extends JpaRepository<PythonScriptFolderE
 }
 
 interface PythonScriptVersionRepository extends JpaRepository<PythonScriptVersionEntity, String> {
+    Optional<PythonScriptVersionEntity> findByScriptIdAndVersionNumber(String scriptId,int versionNumber);
     List<PythonScriptVersionEntity> findByScriptIdOrderByVersionNumberDesc(String scriptId);
 
     void deleteByScriptId(String scriptId);

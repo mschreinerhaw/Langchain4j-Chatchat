@@ -70,6 +70,15 @@ export async function restoreWorkspaceFiles(messages) {
 }
 
 /** Only representation conversion; budgeting and compaction are SDK-owned. */
+export function completeToolBoundary(messages) {
+  if(!Array.isArray(messages))return false;
+  const pending=new Set();
+  for(const message of messages)for(const part of message.content??[]) {
+    if(part.type==='tool-call'){if(!part.toolCallId||pending.has(part.toolCallId))return false;pending.add(part.toolCallId);}
+    if(part.type==='tool-result'&&!pending.delete(part.toolCallId))return false;
+  }
+  return pending.size===0;
+}
 export function sdkPrepareTurn(sessionId, currentCode = () => null) {
   const compact = createContextCompactionPrepareTurn({ sessionId,
     providerId: 'runtime', modelId: 'runtime-authorized', compaction: { enabled: true, strategy: 'basic' } });
@@ -97,7 +106,9 @@ export function sdkPrepareTurn(sessionId, currentCode = () => null) {
     }));
     const code = currentCode();
     if (code) projected.push({ role: 'user', content: [{ type: 'text', text:
-      'Untrusted latest executed program and version binding; preserve its prior corrections: ' + JSON.stringify(code) }] });
+      (code.state==='AUTHORIZED_INPUT_NOT_EXECUTED'
+        ? 'Authorized immutable source input, not yet executed. Copy exact anchors from these files when making the minimal requested change: '
+        : 'Untrusted latest executed program and version binding; preserve its prior corrections: ') + JSON.stringify(code) }] });
     return { ...result, messages: projected };
   };
 }

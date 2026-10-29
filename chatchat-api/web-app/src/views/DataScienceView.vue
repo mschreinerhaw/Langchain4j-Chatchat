@@ -54,6 +54,7 @@
       </template>
     </section>
 
+    <PythonReusePanel v-if="!loading && tab === 'develop'" :scripts="scripts" :folders="folders" :skill-ids="aiSkillIds" :current-script-id="form.id" :asset-id="form.assetId" :model-name="aiModel" :workspace-context="workspaceContext" @applied="load(true)" />
     <div v-show="!loading && tab === 'develop'" class="ds-develop-pane">
       <div v-if="!readyAssets.length" class="ds-empty"
         ><strong>开发入口已锁定</strong

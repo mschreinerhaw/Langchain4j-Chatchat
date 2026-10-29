@@ -1,0 +1,44 @@
+[
+  {
+    "name": "callback",
+    "reachable": true,
+    "expected": true
+  },
+  {
+    "name": "api-admin",
+    "reachable": false,
+    "expected": false
+  },
+  {
+    "name": "mcp",
+    "reachable": false,
+    "expected": false
+  },
+  {
+    "name": "business-mysql",
+    "reachable": false,
+    "expected": false
+  },
+  {
+    "name": "opensearch",
+    "reachable": false,
+    "expected": false
+  },
+  {
+    "name": "internet",
+    "reachable": false,
+    "expected": false
+  },
+  {
+    "name": "unsigned",
+    "status": 401
+  },
+  {
+    "name": "general-api",
+    "status": 404
+  },
+  {
+    "name": "business-data",
+    "status": 404
+  }
+]

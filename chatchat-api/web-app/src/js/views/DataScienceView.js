@@ -30,6 +30,7 @@ import { pythonCompletionItems } from "../utils/pythonCompletions";
 import { getLanguageAdapter, editorPreferences, editorLanguageOptions, applyFormatIfUnchanged, pythonBlockIndent } from "../editor/codeIntelligence";
 import { buildPythonLineDiff } from "../utils/pythonCodeDiff";
 import PythonCodeDiff from "../../components/PythonCodeDiff.vue";
+import PythonReusePanel from "../../components/PythonReusePanel.vue";
 import AppConfirmDialog from "../../components/AppConfirmDialog.vue";
 import UserSpaceBrowser from "../../components/UserSpaceBrowser.vue";
 import CodeChangeReview from "../../components/editor/CodeChangeReview.vue";
@@ -85,7 +86,7 @@ const workspaceLayoutStorageKey = "chatchat.python-studio.layout.v1";
 
 export default {
   name: "DataScienceView",
-  components: { AppConfirmDialog, UserSpaceBrowser, StudioCodePlan, CodeChangeReview, PythonCodeDiff, EditorPreferences, Search, ChevronRight, ChevronDown, Folder, FileCode2, Plus, X,
+  components: { PythonReusePanel, AppConfirmDialog, UserSpaceBrowser, StudioCodePlan, CodeChangeReview, PythonCodeDiff, EditorPreferences, Search, ChevronRight, ChevronDown, Folder, FileCode2, Plus, X,
     Play, Save, Settings2, PanelLeft, PanelRight, PanelBottom, Maximize2, Minimize2, Sparkles, Send,
     RefreshCw, ListTree, Box, Terminal, CircleCheck, CircleAlert, LoaderCircle, Trash2, Code2, BookOpen, FlaskConical, WandSparkles },
   props: {

@@ -1,0 +1,71 @@
+{
+  "scope": "Selected regression suites, not entire repository; counts can overlap between commands. Live model and actual service tests are recorded separately. No live-case failures are counted as unit-test successes.",
+  "baseCommit": "378aff5264e866095fe958cbd2a6e6e111264bc3",
+  "build": "R12 offline Maven package success",
+  "checks": [
+    {
+      "suite": "Java selected reactor tests",
+      "run": 497,
+      "passed": 487,
+      "skipped": 10,
+      "failed": 0,
+      "log": "package-r12.log",
+      "logSha256": "afaa526896b7750cc440a5d0c7c219e7ea6f2c426034f3efb4e056df331481b3"
+    },
+    {
+      "suite": "Node actual SDK with fixture model and boundary tests",
+      "passed": 108,
+      "skipped": 0,
+      "failed": 0,
+      "log": "node-final-tests-r9.log",
+      "logSha256": "9518b8d2723b2d0f99cf03aaddccb700681052c3a995327039db7a1b5cc8ef5d"
+    },
+    {
+      "suite": "Frontend progress, renderer, Python Studio",
+      "passed": 35,
+      "failed": 0,
+      "log": "frontend-regression-r2.log",
+      "logSha256": "dddfaa2248084f534711f40d66280b23b99b7b8409623fe6ef363a692a192040"
+    },
+    {
+      "suite": "SQL/Python workspace native SDK opt-in regression",
+      "passed": 4,
+      "skipped": 1,
+      "failed": 0,
+      "log": "workspace-node-regression-r3.log",
+      "logSha256": "d6411184a424b9163c09051ed1579d2eda4a5dbcdd622ff774bf511d824abd00"
+    },
+    {
+      "suite": "Python unit tests in cached actual sandbox image",
+      "passed": 13,
+      "failed": 0,
+      "log": "real-boundary-checks-r12.log",
+      "logSha256": "6e82192284ed992efbfbdb56746ecc8f8c1bb927fd9f55da12b25f8574d76797"
+    },
+    {
+      "suite": "Real Docker component boundary cases (not full Cline E2E)",
+      "passed": 7,
+      "failed": 0,
+      "log": "real-boundary-checks-r12.log",
+      "logSha256": "6e82192284ed992efbfbdb56746ecc8f8c1bb927fd9f55da12b25f8574d76797"
+    },
+    {
+      "suite": "Real nginx gateway with authentication fixture",
+      "passed": 1,
+      "failed": 0,
+      "log": "real-boundary-checks-r12.log",
+      "logSha256": "6e82192284ed992efbfbdb56746ecc8f8c1bb927fd9f55da12b25f8574d76797"
+    },
+    {
+      "suite": "Real Docker Compose application checks",
+      "passed": 11,
+      "failed": 0,
+      "log": "compose-real-regression-r3.log",
+      "logSha256": "a9c56516447e1fd1609733262b9a65f7fedf804d696d7d73e348dc4df089ae35"
+    }
+  ],
+  "frontendBuild": "PASSED (frontend-build-r2.log)",
+  "actualPythonRunnerShaMatchesSource": true,
+  "gateSkippedJava": 10,
+  "workspaceRealModelGateSkipped": 1
+}

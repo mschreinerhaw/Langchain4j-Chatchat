@@ -24,6 +24,9 @@ public class CodingTraceArtifactController {
     private final AgentRuntime runtime;
     private final McpPythonControlPlanePort python;
     private com.chatchat.api.runtime.coding.cline.CodingCodeArtifactStore codeArtifacts;
+    private com.chatchat.api.assets.RuntimePythonAssetArchiver executionAssets;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setExecutionAssets(com.chatchat.api.assets.RuntimePythonAssetArchiver value) { executionAssets = value; }
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setCodeArtifacts(com.chatchat.api.runtime.coding.cline.CodingCodeArtifactStore value) { codeArtifacts = value; }
 
@@ -37,6 +40,32 @@ public class CodingTraceArtifactController {
                 || !Objects.equals(tenant, run.request().getTenantId())
                 || !Objects.equals(user, run.request().getUserId()))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        if ("timing".equals(kind)) {
+            if (executionAssets == null || !operationId.matches("cline-[0-9a-f]{64}"))
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+            var scope = new com.chatchat.common.kernel.KernelDataScope(tenant.toString(),user.toString(),null,null,runId,null,Map.of());
+            var bytes = executionAssets.log(scope, taskId, operationId, "receipt.json")
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Archived execution timing unavailable"));
+            if (bytes.length > 8192) throw new ResponseStatusException(HttpStatus.CONFLICT, "Invalid execution receipt");
+            try {
+                var receipt = new com.fasterxml.jackson.databind.ObjectMapper().readTree(bytes);
+                if (receipt == null || !receipt.isObject()) throw new IllegalArgumentException();
+                String hash = receipt.path("codeHash").asText();
+                if (!operationId.equals(receipt.path("operationId").asText()) || !hash.matches("[0-9a-f]{64}"))
+                    throw new IllegalArgumentException();
+                var response = new java.util.LinkedHashMap<String,Object>();
+                response.put("operationId", operationId); response.put("codeHash", hash);
+                response.put("source", "MCP_ARCHIVED_RECEIPT");
+                for (String field : java.util.List.of("startedAt", "finishedAt")) {
+                    var value = receipt.path(field);
+                    if (!value.isTextual() && !value.isNull() && !value.isMissingNode()) throw new IllegalArgumentException();
+                    response.put(field, value.isTextual() ? java.time.Instant.parse(value.asText()).toString() : null);
+                }
+                return ApiResponse.success(response);
+            } catch (java.io.IOException | IllegalArgumentException | java.time.DateTimeException invalid) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Invalid execution timing receipt");
+            }
+        }
         if (codeArtifacts != null && "code".equals(kind) && operationId.matches("cline-[0-9a-f]{64}")) {
             var scope = new com.chatchat.common.kernel.KernelDataScope(tenant.toString(),user.toString(),null,null,runId,null,Map.of());
             var submitted = codeArtifacts.find(scope,taskId,operationId);

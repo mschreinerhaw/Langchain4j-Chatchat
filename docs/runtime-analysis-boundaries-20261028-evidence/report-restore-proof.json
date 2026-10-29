@@ -1,0 +1,72 @@
+{
+  "native-markdown-r2": {
+    "runId": "c3257c3c-231e-4382-a621-6d357f956f3b",
+    "taskId": "analysis-coding-ea8ec4c3122d384f99a98343adb9844a2ae4bb0af58dbf12ed33dc49e400bce8",
+    "status": "COMPLETED",
+    "assets": [
+      {
+        "fileName": "rows.jsonl",
+        "sha256": "a79f9ba619d7019438e3003378453946bfbca095f52e320c99fb75c217c4b476",
+        "size": 5183
+      },
+      {
+        "fileName": "report.md",
+        "sha256": "c419a80a0be3313a506864be0d747ddad6438196844ef975095b740bf886b9e0",
+        "size": 3847
+      }
+    ],
+    "pngs": [],
+    "restorationNewModelOrPythonCalls": false
+  },
+  "sql-explanation-r2": {
+    "runId": "01fb1ccb-4db7-451a-bae2-51fa0c8b8b86",
+    "taskId": "analysis-coding-b9a7dd44793429a4a7d85b1ea5368e571eaf3f52578277e8bcf21e827715acca",
+    "status": "COMPLETED",
+    "assets": [
+      {
+        "fileName": "rows.jsonl",
+        "sha256": "0c54efac46929f5f8a02b4b8fbcd327fb95874839c0178f69210dbf99f17fcdc",
+        "size": 11550
+      },
+      {
+        "fileName": "report.md",
+        "sha256": "be3ffb286d351f7964904e818a790baa999c1da94d0d5c4b73115318cd02e507",
+        "size": 9504
+      }
+    ],
+    "pngs": [],
+    "restorationNewModelOrPythonCalls": false
+  },
+  "dwd-dws-ads-r12-concise": {
+    "runId": "53c7f156-3eb1-4050-8b6c-3bf63a159b18",
+    "taskId": "analysis-coding-a12346cb8a6e5a19baef0b2b9d942541d964dd95a735a6810b54ed651c6c036a",
+    "status": "COMPLETED",
+    "assets": [
+      {
+        "fileName": "rows.jsonl",
+        "sha256": "658ae69e807f1226807976b6c54d689416b0007b0395338569aa4cf3ae948405",
+        "size": 6256
+      },
+      {
+        "fileName": "daily_trend.png",
+        "sha256": "28888265243fddd9f40bddd80e22a9273bdc684c4139f3b0eb57955f47bbfb22",
+        "size": 40180
+      }
+    ],
+    "pngs": [
+      {
+        "name": "daily_trend.png",
+        "width": 960,
+        "height": 480,
+        "sha256": "28888265243fddd9f40bddd80e22a9273bdc684c4139f3b0eb57955f47bbfb22"
+      }
+    ],
+    "visualStatus": "PARTIAL",
+    "artifactValidationStatus": "PASSED",
+    "layoutValidationStatus": "FAILED",
+    "chartCount": 1,
+    "metricCount": 5,
+    "tableCount": 2,
+    "restorationNewModelOrPythonCalls": false
+  }
+}

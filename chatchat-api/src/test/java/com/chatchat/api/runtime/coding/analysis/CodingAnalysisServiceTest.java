@@ -24,6 +24,17 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class CodingAnalysisServiceTest {
+    @Test void largeOriginalMessagesAreDeliveredAsSnapshotsInsteadOfAnOversizedCodingInstruction(){
+        var service=spy(service());doReturn(Map.of("status","COMPLETED")).when(service).executeObserved(any(),anyMap(),anyMap(),any());
+        var original=context("tenant");String message="Analyze these supplied observations\n"+"observation 42\n".repeat(3000);
+        var parent=new AnalysisCoverageCoordinator.Request(original.model(),message,null,original.runtimeAttributes(),original.metadata(),
+            ()->false,()->{},original.isolationScope(),null);
+        var delivered=new LinkedHashMap<String,Dataset>(sources());service.executePrimaryAnalysis(parent,delivered,event->{});
+        String ref="runtime-user-message:"+parent.isolationScope().runId();
+        assertThat(delivered.get(ref).records()).singleElement().satisfies(row->assertThat(row).containsEntry("text",message));
+        verify(service).executeObserved(same(parent),argThat(request->request.get("instruction").toString().length()<16000
+            &&!request.get("instruction").toString().contains(message)&&((List<?>)request.get("datasetReferences")).contains(ref)),same(delivered),any());
+    }
     @Test void layoutPreferencesReachTheSameCodingContractWithoutAnAdditionalModelCall(){
         prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
         when(inputs.captureConfigured(any(),anyString(),anyList(),anyString(),anyString(),anyString(),anyLong(),anyLong(),any()))
@@ -60,6 +71,18 @@ class CodingAnalysisServiceTest {
         service.execute(context, request(), sources());
         verify(agent).submit(argThat(contract -> !contract.authorization().allowedTools().contains("data_request")));
         verify(supply, never()).describe(any());
+    }
+    @Test void newAnalysisTasksReceiveSnapshotsWithoutBusinessAcquisitionCapabilities() {
+        prepare(outcome(CodingTaskOutcome.Status.FAILED, CodingTaskOutcome.ValidationStatus.NOT_RUN));
+        var supply = mock(com.chatchat.api.runtime.coding.data.CodingDataSupplyService.class);
+        var service = service(); service.setDataSupply(supply);
+        service.execute(context("tenant"), request(), sources());
+        verify(agent).submit(argThat(contract -> !contract.authorization().allowedTools().contains("data_request")
+            && contract.metadataRefs().stream().noneMatch(ref -> ref.startsWith("coding-data-policy:"))
+            && !contract.objective().instruction().contains("from runtime_input")
+            && contract.objective().instruction().contains("No application-specific Python module is required")));
+        verify(supply, never()).describe(any());
+        verify(supply, never()).policyRef(any());
     }
     @Test void invalidCodingFieldsNameTheActualContractFailureWithoutRemovingBounds() {
         for (var field : List.of("requestId", "instruction", "datasetReference")) {
@@ -205,7 +228,7 @@ class CodingAnalysisServiceTest {
         assertThat((List<?>) value.get("datasetReferences")).hasSize(9);
         assertThat(value.get("requestId")).isEqualTo("primary-data-analysis-v1");
         assertThat(value.get("reviewResult")).isEqualTo(true);
-        assertThat(value.get("instruction").toString()).contains("Inspect their schemas and quality for the supplied Runtime task plan",
+        assertThat(value.get("instruction").toString()).contains("Choose your own analysis methods",
             "same declared metric, scope, period and unit", "every table header aligns with its values",
             "User objective", "Question").doesNotContain("customer", "security", "profit formula");
         assertThat((Map<String,Object>) value.get("outputSchema")).containsEntry("type", "object");

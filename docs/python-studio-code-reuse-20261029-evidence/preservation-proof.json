@@ -1,0 +1,18 @@
+{
+  "baselineFiles": 147,
+  "unchangedPreexistingFiles": 137,
+  "changedPreexistingFiles": [
+    "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.java",
+    "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClinePythonCallbackController.java",
+    "chatchat-common/src/main/java/com/chatchat/common/runtime/coding/CodingRuntimeContext.java",
+    "chatchat-common/src/main/resources/runtime/coding/coding-analysis.schema.json",
+    "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/python/PythonExecutionLogBoundary.java",
+    "chatchat-mcp-server/src/main/resources/python/runtime_capture.py",
+    "chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/python/PythonExecutionLogBoundaryTest.java",
+    "coding-agent-node/src/runner.js",
+    "coding-agent-node/test/monitor.test.js",
+    "coding-agent-node/test/reviewed-result.test.js"
+  ],
+  "unrelatedFilesDeleted": false,
+  "method": "Per-file SHA256 against task-start baseline; intentional shared analysis/SDK changes listed in manifest"
+}

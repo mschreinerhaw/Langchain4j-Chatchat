@@ -28,6 +28,13 @@ public final class CodingInputRows {
                 if(!manifest.columns().equals(schemaColumns) || !manifest.schemaVersion().equals(described.path("schemaVersion").asText())
                         || !manifest.format().name().equals(described.path("format").asText()))
                     throw new SecurityException("Input schema differs from manifest");
+                for(var original:manifest.nativeFiles()) {
+                    var file=files.remove(original.fileId());
+                    if(file==null || !file.fileName().equals(original.fileName()) || !file.sha256().equals(original.sha256())
+                            || file.size()!=original.sizeBytes() || file.rowCount()!=0)
+                        throw new SecurityException("Native input file binding mismatch");
+                    checked(file,fetch);
+                }
                 for(var part:manifest.parts()) {
                     var file=files.remove(part.fileId());
                     if(file==null || !file.fileName().equals(part.fileName()) || !file.sha256().equals(part.sha256())

@@ -20,6 +20,42 @@ class CodingTraceArtifactControllerTest {
     private final McpPythonControlPlanePort python=mock(McpPythonControlPlanePort.class);
     private final CodingTraceArtifactController controller=new CodingTraceArtifactController(runtime,python);
     private final String operation="cline-"+"a".repeat(64);
+    @Test void timingProjectsOnlyTaskBoundArchivedReceiptFieldsWithoutSandboxOrRawLogFetch() throws Exception {
+        var request=prepare("tenant","owner");
+        var assets=mock(com.chatchat.api.assets.RuntimePythonAssetArchiver.class);controller.setExecutionAssets(assets);
+        var receipt=new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsBytes(Map.of(
+            "operationId",operation,"codeHash","b".repeat(64),"startedAt","2026-10-28T01:00:00Z","finishedAt","2026-10-28T01:00:01Z",
+            "containerName","PRIVATE_CONTAINER","privateMessage","CUSTOMER_VALUE"));
+        when(assets.log(any(),eq("task"),eq(operation),eq("receipt.json"))).thenReturn(Optional.of(receipt));
+        var data=(Map<?,?>)controller.artifact("run","task",operation,"timing",request).getData();
+        assertThat(data).hasSize(5);
+        assertThat(data.get("startedAt")).isEqualTo("2026-10-28T01:00:00Z");
+        assertThat(data.get("source")).isEqualTo("MCP_ARCHIVED_RECEIPT");
+        assertThat(data.toString()).doesNotContain("PRIVATE_CONTAINER","CUSTOMER_VALUE");
+        var scope=org.mockito.ArgumentCaptor.forClass(com.chatchat.common.kernel.KernelDataScope.class);
+        verify(assets).log(scope.capture(),eq("task"),eq(operation),eq("receipt.json"));
+        assertThat(scope.getValue().tenantId()).isEqualTo("tenant");assertThat(scope.getValue().userId()).isEqualTo("owner");
+        assertThat(scope.getValue().runId()).isEqualTo("run");verifyNoInteractions(python);
+        for(var actor:List.of(List.of("tenant","other"),List.of("other","owner")))
+            assertThatThrownBy(()->controller.artifact("run","task",operation,"timing",prepare(actor.get(0),actor.get(1))))
+                .isInstanceOf(ResponseStatusException.class).hasMessageContaining("403");
+        verifyNoMoreInteractions(assets);
+    }
+    @Test void missingOrMismatchedHistoricalTimingDoesNotInventAStartTimeOrFetchMcp() throws Exception {
+        var request=prepare("tenant","owner");
+        var assets=mock(com.chatchat.api.assets.RuntimePythonAssetArchiver.class);controller.setExecutionAssets(assets);
+        when(assets.log(any(),eq("task"),eq(operation),eq("receipt.json"))).thenReturn(Optional.empty());
+        assertThatThrownBy(()->controller.artifact("run","task",operation,"timing",request))
+            .isInstanceOf(ResponseStatusException.class).hasMessageContaining("404");
+        for(var fields:List.of(Map.of("operationId","another-operation","codeHash","b".repeat(64)),
+            Map.of("operationId",operation,"codeHash","b".repeat(64),"startedAt","not-a-date"))) {
+            when(assets.log(any(),eq("task"),eq(operation),eq("receipt.json")))
+                .thenReturn(Optional.of(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsBytes(fields)));
+            assertThatThrownBy(()->controller.artifact("run","task",operation,"timing",request))
+                .isInstanceOf(ResponseStatusException.class).hasMessageContaining("409");
+        }
+        verifyNoInteractions(python);
+    }
     @Test void httpRouteBindsArtifactIdentityWithoutCompilerParameterMetadata() throws Exception {
         prepare("tenant","owner");
         when(python.artifact("tenant","owner","run","task",operation,"code","main.py"))

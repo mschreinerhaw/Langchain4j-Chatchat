@@ -16,6 +16,13 @@ import static org.mockito.Mockito.*;
 class SchemaDrivenTemplateParameterBinderTest {
     final ObjectMapper json=new ObjectMapper();
     final SchemaDrivenTemplateParameterBinder binder=new SchemaDrivenTemplateParameterBinder(json);
+    @Test void incompleteBusinessRequestCannotBindPublishedDefaults() {
+        var model=mock(ChatModel.class);
+        var result=binder.selectAndBind(model,"long untrusted material ".repeat(1000),List.of(template("assets")));
+        assertThat(result.status()).isEqualTo("NEEDS_INPUT");assertThat(result.protocols()).isEmpty();
+        assertThat(result.metrics()).containsEntry("selectionModelCalls",0);
+        verifyNoInteractions(model);
+    }
 
     @Test void unavailableModelCannotAuthorizeParameterFreeTemplates() {
         var result=binder.selectAndBind(null,"inspect",List.of(Map.of("templateId","fixed"),template("parameterized")));

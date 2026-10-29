@@ -95,6 +95,26 @@ class TemplateCapabilityServiceTest {
         assertEquals("revision", service.definition(previous).path("revision").asText());
         assertTrue(service.available(rows.get(1), proof("agent")));
     }
+    @Test @SuppressWarnings("unchecked") void sqlSnapshotAndRealEvidenceExistAtFirstInsert() throws Exception {
+        var author=mock(com.chatchat.mcpserver.sql.template.SqlTemplateAuthoringService.class);
+        ObjectProvider<com.chatchat.mcpserver.sql.template.SqlTemplateAuthoringService> provider=mock(ObjectProvider.class);
+        when(provider.getObject()).thenReturn(author);
+        org.springframework.test.util.ReflectionTestUtils.setField(service,"sqlAuthors",provider);
+        var binding=new LinkedHashMap<>(template.binding());binding.put("sqlRevisionId","sql-revision");
+        when(catalog.businessTemplates(false)).thenReturn(List.of(new TemplateAssetCatalogService.BoundTemplate(
+            template.key(),template.templateKey(),template.title(),template.description(),template.assetName(),template.category(),template.inputSchema(),template.revision(),template.executor(),binding)));
+        when(author.publicationEvidence("sql-revision","tenant","user")).thenReturn(Map.of("type","SQL_DATABASE_EXECUTION","success",true));
+        when(author.publicationSnapshot("sql-revision","tenant","user")).thenReturn(Map.of("sqlTemplate","select {{value}}","datasourceId","asset","parameterSchema",Map.of("type","object")));
+        doAnswer(call->{ToolRelease row=call.getArgument(0);var definition=json.readTree(row.getDefinitionJson());
+            assertEquals("select {{value}}",definition.path("sqlSnapshot").path("sqlTemplate").asText());
+            assertEquals("SQL_DATABASE_EXECUTION",json.readTree(row.getTestEvidenceJson()).path("type").asText());rows.add(row);return row;}).when(repository).saveAndFlush(any());
+        publish("user");verify(repository,times(1)).saveAndFlush(any());
+        assertEquals("array",json.readTree(rows.get(0).getOutputSchemaJson()).path("properties").path("data").path("properties").path("data").path("properties").path("rows").path("type").asText());
+        var original=rows.get(0);when(author.existingPublicationId("sql-revision","tenant","user")).thenReturn(Optional.of(original.getId()));
+        when(repository.findById(original.getId())).thenReturn(Optional.of(original));
+        assertEquals(original.getId(),publish("user").get("id"));verify(repository,times(1)).saveAndFlush(any());
+        original.setState("OFFLINE");assertThrows(IllegalArgumentException.class,()->publish("user"));
+    }
     @Test void discoveryAndExecutionRecheckAgentTemplateAssetAndSignedIdentity() {
         String name = publish("user").get("toolName").toString(); ToolRelease row = rows.get(0); allowAgent(name);
         assertTrue(service.available(row, proof("agent")));

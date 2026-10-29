@@ -1,8 +1,69 @@
 import { describe, expect, it } from 'vitest';
-import { codingStage, codeVersions, mergeCodingEvents, modelCalls, type CodingEvent, type CodingTask } from './codingMonitor';
+import { codingStage, codeVersions, mergeCodingEvents, modelCalls, pythonExecutions, pythonRepairs, pythonSummary, pythonTimeline, type CodingEvent, type CodingTask } from './codingMonitor';
 const event = (sequence: number, payload = {}, extra = {}): CodingEvent => ({
   eventId: `e${sequence}`, taskId: 'task', sequence, occurredAt: `2026-10-19T01:00:0${sequence}Z`,
   type: 'RECOVERY_RECONCILED', status: 'RUNNING', summary: 'worker', payload, ...extra,
+});
+
+function receipt(ordinal: number, status: string, diagnostic: string | null, repairs: number, resultAvailable = false): any {
+  return { schemaVersion: 'runtime_os.execution_feedback.v1', executionId: `cline-${ordinal}`, attemptId: `task:execution-${ordinal}`,
+    codeHash: String(ordinal).repeat(64), status, stage: resultAvailable ? 'VALIDATED' : status === 'SUCCEEDED' ? 'RESULT_VALIDATION_FAILED' : 'EXECUTION_FAILED',
+    script: { scriptVersion: ordinal, fileName: `analysis_v${ordinal}.py`, scriptPath: `/workspace/scripts/analysis_v${ordinal}.py`, workingDirectory: 'task' },
+    resultAvailable, validationStatus: resultAvailable ? 'INCONCLUSIVE' : diagnostic === 'OUTPUT_CONTRACT' ? 'FAILED' : 'NOT_RUN',
+    error: diagnostic ? { exceptionType: diagnostic === 'FIELD_ACCESS' ? 'KeyError' : diagnostic === 'SYNTAX_ERROR' ? 'SyntaxError' : null,
+      diagnosticCode: diagnostic, category: diagnostic === 'OUTPUT_CONTRACT' ? 'OUTPUT_CONTRACT' : 'PROGRAM', message: 'Safe system guidance', stack: [{ file: `analysis_v${ordinal}.py`, line: 2 }] } : null,
+    repair: { allowed: !resultAvailable, attemptsUsed: repairs, maxAttempts: 3, action: resultAvailable ? 'COMPLETE' : 'REPAIR_IN_CURRENT_CONTEXT' } };
+}
+describe('Python diagnostics from real receipt shapes', () => {
+  it('keeps the actual A2 dispatch intent separate from proof of process startup', () => {
+    const start=event(1,{}, {operationId:'cline-1',summary:'Start intent committed; execution result is not yet known'});
+    const rows=pythonExecutions(task(),[start,start]);
+    expect(rows).toHaveLength(1);expect(rows[0].requestedAt).toBe(start.occurredAt);
+    expect(rows[0].startedAt).toBeUndefined();expect(rows[0].state).toBe('DISPATCHED');
+    expect(pythonTimeline(rows,[],[start])[0].label).toContain('不是启动证明');
+  });
+  it('does not turn an absent historical output verdict into a known output failure', () => {
+    const old=receipt(1,'SUCCEEDED',null,0);delete old.resultAvailable;
+    const rows=pythonExecutions({...task(),executions:[old]},[]);
+    expect(rows[0].state).toBe('EXECUTED');expect(pythonSummary(rows,[]).outputFailed).toBe(0);
+    expect(pythonRepairs(rows,[])).toEqual([]);
+  });
+  it('keeps independent failures and repairs, and separates exit zero from valid output', () => {
+    const t = { ...task(), executions: [receipt(1,'FAILED','SYNTAX_ERROR',0), receipt(2,'FAILED','FIELD_ACCESS',1),
+      receipt(3,'SUCCEEDED','OUTPUT_CONTRACT',2), receipt(4,'SUCCEEDED',null,3,true)] };
+    const rows = pythonExecutions(t, []), repairs = pythonRepairs(rows, []);
+    expect(rows).toHaveLength(4); expect(rows[2].state).toBe('RESULT_VALIDATION_FAILED');
+    expect(repairs.map(r => [r.from.ordinal,r.to.ordinal])).toEqual([[1,2],[2,3],[3,4]]);
+    expect(pythonSummary(rows,repairs)).toMatchObject({total:4,processSucceeded:2,processFailed:2,outputFailed:1,repairs:3,repairFailed:2,
+      latestVersion:4,lastValidation:'INCONCLUSIVE',lastError:{diagnosticCode:'OUTPUT_CONTRACT'}});
+    expect(codeVersions([],rows).map(v => v.scriptVersion)).toEqual([1,2,3,4]);
+  });
+  it('deduplicates feedback and prefers the durable API over an older event copy', () => {
+    const f=receipt(1,'FAILED','FIELD_ACCESS',0), fixed={...f,error:{...f.error,exceptionType:'KeyError'}};
+    const events=[event(1,{}, {type:'EXECUTION_STARTED',operationId:'cline-1'}),event(2,{type:'EXECUTION_FEEDBACK',feedback:f},{operationId:'cline-1'})];
+    const rows=pythonExecutions({...task(),executions:[fixed,fixed]},[...events,events[1]]);
+    expect(rows).toHaveLength(1); expect(rows[0].startedAt).toBe(events[0].occurredAt);
+    expect(rows[0].feedback?.error?.exceptionType).toBe('KeyError');
+    expect(pythonTimeline(rows,[],[...events,events[1]])).toHaveLength(2);
+  });
+  it('never infers Python execution or repair from successful models or neighbouring version changes', () => {
+    expect(pythonExecutions(task(),[event(1,{type:'MODEL_USAGE',status:'SUCCEEDED'}),event(2,{type:'CODE_READY',proposedOperationId:'cline-1'})])).toEqual([]);
+    const rows=pythonExecutions({...task(),executions:[receipt(1,'SUCCEEDED',null,0,true),receipt(2,'SUCCEEDED',null,0,true)]},[]);
+    expect(pythonRepairs(rows,[])).toEqual([]);
+  });
+  it('shows pending execution after a proven failed parent without inventing its result', () => {
+    const events=[event(1,{}, {type:'EXECUTION_STARTED',operationId:'cline-1'}),event(2,{type:'CODE_READY',proposedOperationId:'cline-2',parentCodeHash:'1'.repeat(64)}),
+      event(3,{}, {type:'EXECUTION_STARTED',operationId:'cline-2'})];
+    const rows=pythonExecutions({...task(),executions:[receipt(1,'FAILED','FIELD_ACCESS',0)]},events);
+    expect(rows[1].state).toBe('EXECUTING'); expect(rows[1].feedback).toBeUndefined();
+    expect(pythonRepairs(rows,events)[0].status).toBe('执行中');
+    expect(pythonSummary(rows,pythonRepairs(rows,events))).toMatchObject({total:2,repairs:1,processSucceeded:0});
+  });
+  it('associates Node operationId payloads without overwriting another code version', () => {
+    const rows=codeVersions([event(1,{type:'CODE_READY',proposedOperationId:'cline-a'}),event(2,{type:'CODE_READY',proposedOperationId:'cline-b'}),
+      event(3,{type:'TOOL_FINISHED',operationId:'cline-a',status:'FAILED'})]);
+    expect(rows[0].state).toBe('FAILED');expect(rows[1].state).toBe('CODE_READY');
+  });
 });
 const task = (outcome = {}): CodingTask => ({ taskId: 'task', attemptId: 'fence-1', objective: 'calculate',
   canCancel: true, canRetry: false, configuration: {}, allowedTools: [],

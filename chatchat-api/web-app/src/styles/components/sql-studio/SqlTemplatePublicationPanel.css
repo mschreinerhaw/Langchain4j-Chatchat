@@ -1,0 +1,52 @@
+.sql-publication-panel {
+  width: min(920px, 94vw);
+  max-height: 90vh;
+  overflow: auto;
+  padding: 22px;
+}
+.sql-publication-panel button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.sql-publication-panel header {
+  display: flex;
+  justify-content: space-between;
+}
+.sql-publication-panel label {
+  display: block;
+  margin: 12px 0;
+}
+.sql-publication-panel input:not([type="checkbox"]),
+.sql-publication-panel textarea,
+.sql-publication-panel select {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px;
+  margin-top: 5px;
+}
+.sql-publication-panel textarea,
+.sql-publication-panel pre {
+  font: 12px/1.6 monospace;
+}
+.sql-publication-panel pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: #f4f7fb;
+  padding: 12px;
+}
+.sql-publication-panel p {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+}
+.sql-publication-panel [role="alert"] {
+  color: #ad3225;
+}
+.sql-publication-panel button {
+  padding: 8px 12px;
+  margin: 5px;
+}
+.sql-publication-panel fieldset {
+  border: 1px solid #dce5ef;
+}

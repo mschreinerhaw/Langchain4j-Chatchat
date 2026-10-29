@@ -14,6 +14,16 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class ProblemAnalysisPlannerTest {
+    @Test @SuppressWarnings("unchecked") void largeSuppliedMaterialsUseABoundedPlanningViewAndRetainTheOriginalRequest(){
+        var model=mock(ChatModel.class);when(model.chat(anyString())).thenReturn(READY);
+        var planner=new ProblemAnalysisPlanner(model,mock(ConfigurableChatModelFactory.class),new ObjectMapper(),mock(ObjectProvider.class));
+        String material="Explain the supplied document.\n"+"untrusted log data\n".repeat(2000)+"\nDo not query business data.";
+        var request=InteractionRequest.builder().query(material).build();
+        planner.analyze(request,InteractionContext.builder().build(),mock(SkillDefinition.class));
+        var prompt=org.mockito.ArgumentCaptor.forClass(String.class);verify(model).chat(prompt.capture());
+        assertThat(prompt.getValue()).hasSizeLessThan(20000).contains("originalSha256","complete", "NEEDS_CLARIFICATION").doesNotContain(material);
+        assertThat(request.getQuery()).isEqualTo(material);
+    }
     @Test @SuppressWarnings("unchecked") void missingSqlIntentIsAContractErrorWithoutGuessingOrAnotherModelCall() {
         var model = mock(ChatModel.class);
         when(model.chat(anyString())).thenReturn(READY.replace("ASSET_USAGE_GUIDANCE", "DIRECT_ANSWER"));

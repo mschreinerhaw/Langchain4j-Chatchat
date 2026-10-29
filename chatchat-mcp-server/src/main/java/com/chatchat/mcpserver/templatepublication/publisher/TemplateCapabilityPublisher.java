@@ -25,10 +25,16 @@ public class TemplateCapabilityPublisher implements McpToolContributor {
             var schema = snapshot.path("inputSchema");
             Map<String, Object> properties = json.convertValue(schema.path("properties"), new com.fasterxml.jackson.core.type.TypeReference<>(){});
             List<String> required = new ArrayList<>(); schema.path("required").forEach(value -> required.add(value.asText()));
+            boolean studioSql=snapshot.path("binding").path("sqlRevisionId").isTextual();
+            String description=row.getDescription() == null || row.getDescription().isBlank() ? row.getTitle() : row.getDescription();
+            if(studioSql)description+="\nReturns the existing ToolOutput envelope: SQL rows are at $.data.data.rows and rowCount at $.data.data.rowCount. SQL column names are NOT top-level result fields. Preserve this actual envelope in downstream contracts.";
+            Map<String,Object> outputSchema=Map.of("type", "object", "properties", Map.of());
+            if(studioSql)try {outputSchema=json.readValue(row.getOutputSchemaJson(),new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){});}
+                catch(Exception invalid){throw new IllegalStateException("Invalid published SQL output contract",invalid);}
             var tool = McpSchema.Tool.builder().name(TemplateCapabilityService.toolName(row)).title(row.getTitle())
-                .description(row.getDescription() == null || row.getDescription().isBlank() ? row.getTitle() : row.getDescription())
+                .description(description)
                 .inputSchema(json.convertValue(schema, new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){}))
-                .outputSchema(Map.of("type", "object", "properties", Map.of()))
+                .outputSchema(outputSchema)
                 .meta(Map.of("templateCapability", true, "schemaVersion", "template-capability.v1", "toolVersion", row.getReleaseNumber() + ".0.0",
                     "visibleTenantIds", List.of(row.getTenantId()), "breakingChangeApproved", true,
                     "runtimeLevel", "controlled", "riskLevel", "high", "operationType", "execute"))

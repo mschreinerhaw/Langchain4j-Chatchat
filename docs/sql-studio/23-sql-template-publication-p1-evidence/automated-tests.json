@@ -1,0 +1,31 @@
+{
+  "backend": {
+    "passed": 84,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "originalTestsPreserved": 63,
+    "addedTests": 21,
+    "mcp": 80,
+    "api": 4,
+    "log": "target/sql-publication-p1-final-all.log",
+    "logSha256": "5b6b080a7ec76537637f11f39b60531606b0da9c683b600c84fb1151eb3a740f",
+    "mcpLog": "target/sql-publication-p1-last-mcp.log",
+    "mcpLogSha256": "a1d9aa2c88f5d978372840e9b4b6acad43b13a03e39d4ba8b223b0596a5a552f"
+  },
+  "frontend": {
+    "passed": 95,
+    "testFiles": 16,
+    "failures": 0,
+    "log": "target/sql-publication-p1-frontend-regression.log",
+    "logSha256": "b3cb23435d85644bb18098803e0a4ebf762a3f8ae1d387122bf32ad180d8be8e"
+  },
+  "build": {
+    "frontend": "PASSED",
+    "backend": "PASSED",
+    "finalStaticPackageTestsSkippedBecauseJavaUnchanged": true,
+    "log": "target/sql-publication-p1-final-static.log",
+    "logSha256": "bb5ebd968684e9865398e44150a8fadd515427847d7318bedb1626c6f9258147"
+  },
+  "verificationBoundary": "Authoring service tests execute real H2 JDBC through the existing renderer/workflow/executor; repository/auth/routing fixtures are isolated. Live MySQL, MCP protocol, browser and model proofs are recorded separately."
+}

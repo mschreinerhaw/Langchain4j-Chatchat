@@ -55,6 +55,7 @@
         /></button>
       </nav>
       <span class="sql-ide-titlebar-spacer"></span>
+      <button type="button" :disabled="busy || activeFile?.kind !== 'SQL' || !!preview" @click="publicationOpen = true">发布为 MCP 模板</button>
       <button
         type="button"
         :disabled="busy || activeFile?.kind !== 'SQL' || !activeFile?.editable || !!preview"
@@ -463,6 +464,7 @@
         ></div
       ></Teleport
     >
+    <SqlTemplatePublicationPanel v-if="publicationOpen && activeFile" :project-id="projectId" :file="activeFile" @close="publicationOpen = false" />
     <CodeChangeReview
       v-if="reviewOpen"
       :files="reviewFiles"

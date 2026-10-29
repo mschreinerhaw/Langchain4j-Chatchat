@@ -1,0 +1,38 @@
+[
+  {
+    "path": "chatchat-api/src/main/java/com/chatchat/api/controller/agent/CodingTraceArtifactController.java",
+    "sha256": "e33c97d4b90f33f483087e8b9a572c64516bfdde773ac4f0f445fb5e4bf18b6b"
+  },
+  {
+    "path": "chatchat-api/src/test/java/com/chatchat/api/controller/agent/CodingTraceArtifactControllerTest.java",
+    "sha256": "670b291cdf43c9308e388922bb451007bf823bf32259498efba9c0ae8197f509"
+  },
+  {
+    "path": "chatchat-api/web-app/src/services/codingMonitor.ts",
+    "sha256": "1ae0d91d403fb979013737089a8041a700b19e84a2534b6d6272409d3b81c3db"
+  },
+  {
+    "path": "chatchat-api/web-app/src/services/codingMonitor.test.ts",
+    "sha256": "4d37415db47c4031afcf41bc4c7d7fb5f5cae462d2b36ade76686f6454c28d66"
+  },
+  {
+    "path": "chatchat-api/web-app/src/js/components/CodingTaskMonitor.ts",
+    "sha256": "df6fe24da5b583fb04f04e8f4d83e2a1c92e24d31bb017c95cccc17605118c54"
+  },
+  {
+    "path": "chatchat-api/web-app/src/components/CodingTaskMonitor.vue",
+    "sha256": "d3508a94f06973484e8d2481694be090428c2127a93955fb03c6c133b34b1264"
+  },
+  {
+    "path": "chatchat-api/web-app/src/components/CodingTaskMonitor.test.ts",
+    "sha256": "62f2bee1c502474a3874e109f64fcd730025a610533aa0c6ca5a125a2a193b77"
+  },
+  {
+    "path": "chatchat-api/web-app/src/styles/components/coding-task-monitor.css",
+    "sha256": "797156ee860d9f1e0d21f2707f4255e500c3bf9b0737b5c14f809140734e5892"
+  },
+  {
+    "path": "scripts/verify-coding-monitor-diagnostics-browser.mjs",
+    "sha256": "f22a466ed0327164596b3d7967beec63e760b9bdc0b41b4445a14beddedcd9b8"
+  }
+]

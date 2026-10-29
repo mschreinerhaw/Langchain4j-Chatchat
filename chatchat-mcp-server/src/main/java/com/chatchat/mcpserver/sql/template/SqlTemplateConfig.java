@@ -56,6 +56,27 @@ public class SqlTemplateConfig {
     @Column(nullable = false)
     private boolean enabled = true;
 
+    @Column(name="publication_group_id", length=64)
+    private String publicationGroupId;
+    @Column(name="publication_version")
+    private Integer publicationVersion;
+    @Column(name="author_tenant_id", length=64)
+    private String authorTenantId;
+    @Column(name="author_id", length=64)
+    private String authorId;
+    @Column(name="publication_state", length=24)
+    private String publicationState;
+    @Column(name="publication_lock")
+    private Long publicationLock = 0L;
+    @Column(name="authoring_source_json", length=org.hibernate.Length.LONG32)
+    private String authoringSourceJson;
+    @Column(name="sql_test_evidence_json", length=org.hibernate.Length.LONG32)
+    private String sqlTestEvidenceJson;
+    @Column(name="released_capability_id", length=64)
+    private String releasedCapabilityId;
+    @Column(name="draft_request_digest", length=64)
+    private String draftRequestDigest;
+
     @Column(nullable = false)
     private Instant createdAt;
 

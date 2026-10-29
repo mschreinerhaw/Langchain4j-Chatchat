@@ -1,0 +1,14 @@
+{
+  "api": {
+    "image": "runtime-os-api:sql-publication-20261029-r10",
+    "previousImage": "runtime-os-api:sql-publication-20261029-r9",
+    "jarSha256": "c33faad63185d755a49b334d36013da4394f56ad4f52676f097eb0f507bf320d"
+  },
+  "mcp": {
+    "image": "runtime-os-mcp:sql-publication-20261029-r10",
+    "previousImage": "runtime-os-mcp:sql-publication-20261029-r9",
+    "jarSha256": "65d915078ad0c777fc53ab9bcda2b41685a7fc4d6d0c0079175e979b5bf11771"
+  },
+  "scope": "ISOLATED_API_MCP_ONLY",
+  "productionReplaced": false
+}

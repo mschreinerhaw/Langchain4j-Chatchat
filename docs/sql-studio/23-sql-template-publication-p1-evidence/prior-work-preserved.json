@@ -1,0 +1,12 @@
+[
+  {
+    "manifest": "docs/runtime-analysis-boundaries-20261028-evidence/changed-files.json",
+    "checkedFiles": 64,
+    "changedFiles": 0
+  },
+  {
+    "manifest": "docs/cline-python-monitor-observability-20261028-evidence/changed-files.json",
+    "checkedFiles": 9,
+    "changedFiles": 0
+  }
+]

@@ -26,6 +26,14 @@ const contract = {
   runtimeContext: { model: { selectedModel: 'selected-by-java' }, skills: { status: 'APPLIED', fingerprint: 'approved-guidance',
     skills: [{ skillId: 'authorized-skill' }], stages: { ANALYSIS: ['Use measured values only'] } } },
 };
+test('user-supplied source projects retain real hashes but no encoded source in operations monitoring',()=>{
+  const store=new MonitorStore();const id=store.start(contract,1,'fresh');
+  const source='# runtime_os.python.code-project.v1\n__project_b64__ = "cHJpdmF0ZS1jdXN0b21lci1jb2Rl"\n';
+  store.code(id,{operationId:'operation',fileName:'analysis.py',source,retainSource:false});
+  const detail=store.detail(id);assert.equal(detail.codeCount,1);assert.equal(detail.codes[0].sourceRetained,false);
+  assert.equal(detail.codes[0].sha256,createHash('sha256').update(source).digest('hex'));assert.equal(detail.codes[0].sourceBytes,Buffer.byteLength(source));
+  assert(!JSON.stringify(store).includes('cHJpdmF0ZS1jdXN0b21lci1jb2Rl'));assert.equal(store.source(id,detail.codes[0].id).source,undefined);
+});
 test('callback timings remain distinct from provider timings and persist only bounded metadata', () => {
   const store = new MonitorStore();
   const id = store.start(contract, 1, 'NEW_SDK');
@@ -52,9 +60,9 @@ for (const skillStatus of ['APPLIED', 'DELIVERED']) test(`SDK receives ${skillSt
       resultDatasetRef: 'result', validationRecordRef: 'validation', evidenceBundleRef: 'bundle' }; },
   }, { attemptId: 'task:fence-3', model: { async *stream(request) {
     assert.doesNotMatch(request.systemPrompt, /selected-by-java/);
-    assert.match(request.systemPrompt, /Models own business understanding, template selection and analytical decisions/);
+    assert.match(request.systemPrompt, /Runtime owns business template selection, parameter binding, data acquisition/);
     assert.doesNotMatch(request.systemPrompt, /Runtime OS owns business interpretation/);
-    assert.match(request.systemPrompt, /already selected business template workflow is immutable/);
+    assert.match(request.systemPrompt, /Do not select or invoke business MCP templates/);
     assert.doesNotMatch(request.systemPrompt, /analysis agent owns analytical goals, methods/);
     assert.match(JSON.stringify(request.messages), /selected-by-java/);
     assert.match(JSON.stringify(request.messages), /authorized-skill/);

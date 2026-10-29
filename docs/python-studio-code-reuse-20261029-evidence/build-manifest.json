@@ -1,0 +1,19 @@
+{
+  "productionReplaced": false,
+  "artifacts": {
+    "api": {
+      "image": "runtime-os-api:python-studio-reuse-20261029-r6",
+      "previousImage": "runtime-os-api:python-studio-reuse-20261029-r5",
+      "sha256": "e2e9fb661133b3d4388bbf6fb34e55cbc4624ee30d202904af6c66e8550b399b"
+    },
+    "mcp": {
+      "image": "runtime-os-mcp:python-studio-reuse-20261029-r6",
+      "previousImage": "runtime-os-mcp:python-studio-reuse-20261029-r5",
+      "sha256": "694c50038f08e0f9b7d4eff4f844aa3934d35ca79506706e30db1944b06dbbf6"
+    },
+    "node": {
+      "image": "runtime-os-coding-agent:python-studio-reuse-20261029-r6",
+      "previousImage": "runtime-os-coding-agent:python-studio-reuse-20261029-r5"
+    }
+  }
+}

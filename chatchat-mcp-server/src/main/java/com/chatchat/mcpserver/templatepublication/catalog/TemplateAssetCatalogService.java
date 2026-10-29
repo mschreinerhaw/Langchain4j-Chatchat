@@ -29,6 +29,7 @@ import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -110,8 +111,9 @@ public class TemplateAssetCatalogService {
                             || !sqlTemplateService.isCompatible(template, datasource)) continue;
                         if (!management && !authorizationService.callerAllows("sql_query_execute",
                             McpScopeExpression.of(SQL, "execute", "query", caller.tenantId(), datasource.getId(), "read"))) continue;
-                        result.add(bound(asset, datasource.getId(), datasource.getName(), "sql_query_execute",
-                            Map.of("datasourceId", datasource.getId(), "template", template.getCode(), "permissionLevel", "read"), template, datasource));
+                        var binding=new LinkedHashMap<String,Object>(Map.of("datasourceId",datasource.getId(),"template",template.getCode(),"permissionLevel","read"));
+                        if(template.getPublicationGroupId()!=null)binding.put("sqlRevisionId",template.getId());
+                        result.add(bound(asset,datasource.getId(),datasource.getName(),"sql_query_execute",binding,template,datasource));
                     }
                 }
                 case HTTP -> httpEndpointConfigService.listEnabled().stream()
@@ -166,16 +168,34 @@ public class TemplateAssetCatalogService {
             for (var definition : definitions) {
                 var dependency = objectMapper.valueToTree(definition);
                 if (dependency.isObject()) ((com.fasterxml.jackson.databind.node.ObjectNode) dependency).remove(
-                    List.of("usageCount", "rating", "lastUsedAt", "lastExecutionAt", "discoveredAt", "createdAt", "updatedAt"));
+                    List.of("usageCount", "rating", "lastUsedAt", "lastExecutionAt", "discoveredAt", "createdAt", "updatedAt",
+                        "publicationLock","authoringSourceJson","sqlTestEvidenceJson","releasedCapabilityId","draftRequestDigest"));
+                if(definition instanceof com.chatchat.mcpserver.sql.template.SqlTemplateConfig legacy && legacy.getPublicationGroupId()==null)
+                    ((com.fasterxml.jackson.databind.node.ObjectNode)dependency).remove(List.of("publicationGroupId","publicationVersion","authorTenantId","authorId","publicationState"));
                 dependencies.add(dependency);
             }
             var snapshot = objectMapper.valueToTree(List.of(template, binding, dependencies));
+            boolean studioSql=definitions.length>0 && definitions[0] instanceof com.chatchat.mcpserver.sql.template.SqlTemplateConfig sql && sql.getPublicationGroupId()!=null;
+            if(studioSql)snapshot=orderedSnapshot(snapshot);
             String revision = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
                 .digest(objectMapper.writeValueAsBytes(snapshot)));
-            return new BoundTemplate(template.key() + "@" + assetId, template.key(), template.title(),
+            String stableKey=template.key();
+            if(definitions.length>0 && definitions[0] instanceof com.chatchat.mcpserver.sql.template.SqlTemplateConfig sql && sql.getPublicationGroupId()!=null)
+                stableKey=SQL+":"+sql.getPublicationGroupId();
+            return new BoundTemplate(stableKey + "@" + assetId, template.key(), template.title(),
                 template.description(), firstText(assetName, "关联资源"), template.businessCategoryName(),
                 contract, revision, executor, binding);
         } catch (Exception ex) { throw new IllegalStateException("Cannot snapshot template contract", ex); }
+    }
+
+    /** Object order is not part of a Studio SQL contract; Map.of order changes between JVMs. */
+    private com.fasterxml.jackson.databind.JsonNode orderedSnapshot(com.fasterxml.jackson.databind.JsonNode value) {
+        if(value.isObject()) {
+            var result=objectMapper.createObjectNode();var keys=new TreeSet<String>();value.fieldNames().forEachRemaining(keys::add);
+            keys.forEach(key->result.set(key,orderedSnapshot(value.get(key))));return result;
+        }
+        if(value.isArray()) {var result=objectMapper.createArrayNode();value.forEach(item->result.add(orderedSnapshot(item)));return result;}
+        return value;
     }
 
     private String httpLevel(String method) { return method != null && Set.of("GET", "HEAD", "OPTIONS").contains(method.toUpperCase(Locale.ROOT)) ? "read" : "write"; }
@@ -303,7 +323,7 @@ public class TemplateAssetCatalogService {
             SQL, item.getCode(), item.getTitle(), item.getDescription(), item.getCategory(),
             category(categoriesById, categoriesByCode, null, item.getCategory(), item.getCategory()),
             item.getParameterSchemaJson()),
-            refsForSqlTemplate(item.getCode(), datasources))));
+            refsForSqlTemplate(item.getCode(), datasources),item.getAuthorTenantId())));
         httpEndpointConfigService.listEnabled().forEach(item -> {
             String templateId = firstText(item.getToolName(), firstText(item.getName(), item.getId()));
             result.add(entry(asset(HTTP, templateId, firstText(item.getTitle(), item.getName()),

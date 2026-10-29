@@ -43,7 +43,7 @@ public final class VisualReportMode {
         User-facing title, summary, sections, captions and reportMarkdown must focus on analysis findings, supporting business data, implications and recommendations.
         Keep code, Python/library names, execution steps, task IDs, file references, hashes and technical validation receipts out of user-facing prose; retain these only in internal evidence and validation fields.
         Explain material data gaps, sample limits, uncertainty and business calculation assumptions in the narrative, using plain language. Never hide a limitation that affects a conclusion.
-        Generate rows and all charts in the SAME program, then use artifact_read to inspect visualReportValidation and repair technical artifact failures before finishing. Preserve partial output if a failure cannot be repaired within the existing permissions and budget.
+        Generate rows and all charts in the SAME program. Inspect visualReportValidation in the Runtime's automatically supplied reviewedArtifact when present; do not request that same report again. Use artifact_read only if the report has not already been supplied. Repair actual technical artifact failures before finishing. A PARTIAL report with disclosed missing business evidence or UNRESOLVED checks is not itself an artifact failure; preserve those limitations rather than rerunning a supported calculation solely to change its status or wording. Preserve partial output if a failure cannot be repaired within the existing permissions and budget.
         These output requirements do not change permissions, resource limits, task classification or controlled asset-template rules.
         """;
 }

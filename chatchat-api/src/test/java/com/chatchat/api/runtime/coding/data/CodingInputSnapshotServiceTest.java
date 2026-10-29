@@ -25,6 +25,50 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class CodingInputSnapshotServiceTest {
+    @Test void explicitTextReadChecksTaskScopeAndHashesAndConsumesTheExistingToolBudget() {
+        var db=new DriverManagerDataSource("jdbc:h2:mem:input-read-"+UUID.randomUUID()+";DB_CLOSE_DELAY=-1","sa","");
+        new ResourceDatabasePopulator(new ClassPathResource("runtime-evidence-schema.sql")).execute(db);
+        var json=new ObjectMapper();var evidence=new JdbcRuntimeEvidenceStore(new JdbcTemplate(db),json,new DataSourceTransactionManager(db));
+        var access=new CodingInvocationContext();var python=mock(McpPythonControlPlanePort.class);
+        var bytes=new java.util.concurrent.atomic.AtomicReference<byte[]>();
+        when(python.uploadDataFile(anyString(),anyString(),anyString(),anyString(),anyString(),any())).thenAnswer(call->{
+            bytes.set(call.getArgument(5));return new McpPythonControlPlanePort.DataFileResult(call.getArgument(2),"stored","mounted",bytes.get().length,call.getArgument(4),"AVAILABLE");});
+        var inputs=new CodingInputSnapshotService(evidence,python,access,json);
+        var scope=new KernelDataScope("tenant","owner",null,null,"run",null,Map.of());
+        var snapshot=access.as(scope,EnumSet.of(CodingTaskAccess.Action.SUBMIT),()->inputs.capture(scope,"task",
+            List.of(new Dataset("source",Map.of(),List.of(Map.of("text","original SQL")))),"source","decision:1","workspace:1",10,4096));
+        var old=contract(scope,snapshot);
+        var c=new CodingTaskContract(CodingProtocol.ANALYSIS_VERSION,old.taskId(),old.scope(),old.objective(),old.inputSnapshotRef(),old.metadataRefs(),old.workspaceRef(),
+            new CodingTaskContract.Authorization(old.authorization().decisionRef(),List.of("input_read"),old.authorization().allowedDataRefs(),List.of(),List.of(),
+                CodingTaskContract.NetworkPolicy.NONE,List.of(),List.of()),old.budget(),old.environmentRef(),old.validationPlanRef(),old.outputContract());
+        when(python.downloadDataFile("tenant","owner",snapshot.fileId())).thenAnswer(call->bytes.get());
+        var tasks=mock(com.chatchat.agents.runtime.coding.DurableCodingTaskService.class);inputs.setCodingTasks(tasks);
+        var current=mock(CodingTaskOutcome.class);when(tasks.get(any(),eq("task"))).thenReturn(current);
+        when(tasks.reserve(any(),eq("task"),any(),anyLong(),anyString(),anyString(),any(),any()))
+            .thenReturn(new com.chatchat.agents.runtime.coding.DurableCodingTaskService.ReservationResult(true,current));
+        when(tasks.reconcileStopped(any(),eq("task"),any(),anyLong(),anyString(),anyString())).thenReturn(current);
+        var lease=new com.chatchat.agents.runtime.coding.CodingJournal.Lease("worker",Instant.MAX,1);
+        when(tasks.startIntent(any(),eq("task"),any(),anyLong(),anyString(),anyString()))
+            .thenThrow(new CodingContractException(CodingErrorCode.INVALID_STATE_TRANSITION,"Coding task revision conflict"))
+            .thenReturn(new com.chatchat.agents.runtime.coding.DurableCodingTaskService.StartIntentResult(true,current));
+        var grants=EnumSet.of(CodingTaskAccess.Action.READ,CodingTaskAccess.Action.WORKER);
+        var result=access.as(scope,grants,()->inputs.readForCoding(c,lease,"read-1","source",0,500));
+        assertThat(result.get("content").toString()).contains("original SQL");
+        verify(tasks,times(2)).startIntent(eq(scope),eq("task"),eq(lease),anyLong(),anyString(),anyString());
+        verify(python,times(1)).downloadDataFile("tenant","owner",snapshot.fileId());
+        verify(tasks).settle(eq(scope),eq("task"),eq(lease),anyLong(),anyString(),argThat(counts->counts.toolCalls()==1&&counts.codeExecutions()==0),eq(true));
+        assertThatThrownBy(()->access.as(scope,grants,()->inputs.readForCoding(c,lease,"read-2","other-source",0,500))).isInstanceOf(SecurityException.class);
+        var other=new KernelDataScope("other","owner",null,null,"run",null,Map.of());
+        assertThatThrownBy(()->access.as(other,grants,()->inputs.readForCoding(c,lease,"read-2","source",0,500))).isInstanceOf(RuntimeException.class);
+        bytes.set("changed".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        assertThatThrownBy(()->access.as(scope,grants,()->inputs.readForCoding(c,lease,"read-3","source",0,500))).isInstanceOf(SecurityException.class);
+        clearInvocations(python);
+        when(tasks.reserve(any(),eq("task"),any(),anyLong(),anyString(),anyString(),any(),any()))
+            .thenReturn(new com.chatchat.agents.runtime.coding.DurableCodingTaskService.ReservationResult(false,current));
+        assertThatThrownBy(()->access.as(scope,grants,()->inputs.readForCoding(c,lease,"read-4","source",0,500)))
+            .isInstanceOf(IllegalStateException.class).hasMessageContaining("budget denied");
+        verify(python,never()).downloadDataFile(anyString(),anyString(),anyString());
+    }
     @Test void sortedAuthorizationDoesNotChangeManifestOrderAndStillRejectsMissingOrExtraFiles() {
         var db=new DriverManagerDataSource("jdbc:h2:mem:sorted-input-"+UUID.randomUUID()+";DB_CLOSE_DELAY=-1","sa","");
         new ResourceDatabasePopulator(new ClassPathResource("runtime-evidence-schema.sql")).execute(db);

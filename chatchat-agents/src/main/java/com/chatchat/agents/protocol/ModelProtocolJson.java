@@ -93,6 +93,23 @@ public final class ModelProtocolJson {
         }
     }
 
+    /** A resource bound, never an instruction extractor. The original message is retained by Runtime. */
+    public static java.util.Map<String,Object> userInputView(String value, int maximum) {
+        if(maximum<256 || maximum>32768)throw new IllegalArgumentException("Invalid user input view budget");
+        String text=value==null?"":value;
+        boolean complete=text.length()<=maximum;
+        String view=text;
+        if(!complete) {
+            String marker="\n[Material omitted from this planning view; consult the immutable original before analysis.]\n";
+            int head=(maximum-marker.length())/2,tailStart=text.length()-(maximum-marker.length()-head);
+            if(head>0 && Character.isHighSurrogate(text.charAt(head-1)))head--;
+            if(tailStart<text.length() && Character.isLowSurrogate(text.charAt(tailStart)))tailStart++;
+            view=text.substring(0,head)+marker+text.substring(tailStart);
+        }
+        return java.util.Map.of("text",view,"complete",complete,"originalCharacters",text.length(),
+            "originalSha256",sha256Hex(text),"authority","USER_MESSAGE_WITH_UNTRUSTED_MATERIALS");
+    }
+
     private static boolean looksLikeJson(String text) {
         return (text.startsWith("{") && text.endsWith("}"))
             || (text.startsWith("[") && text.endsWith("]"));

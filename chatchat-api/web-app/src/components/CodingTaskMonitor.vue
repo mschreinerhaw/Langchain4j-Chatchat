@@ -41,7 +41,8 @@
         ></label
       >
       <template v-if="selected">
-        <h3>{{ selected.objective }}</h3>
+        <h3 v-if="selected.objective.length <= 240">{{ selected.objective }}</h3>
+        <details v-else class="task-objective"><summary>查看完整任务目标与约束</summary><p>{{ selected.objective }}</p></details>
         <dl class="task-facts">
           <div><dt>任务编号</dt><dd>{{ selected.taskId }}</dd></div>
           <div><dt>尝试编号</dt><dd>{{ selected.attemptId }}</dd></div>
@@ -52,7 +53,6 @@
           <div><dt>运行时长</dt><dd>{{ elapsed }} 秒</dd></div>
           <div><dt>失败 / 停止原因</dt><dd>{{ selected.outcome.reasonCode || selected.outcome.executionControl?.stopReason || '无' }}</dd></div>
           <div><dt>代码版本变化</dt><dd>{{ Math.max(0, versions.length - 1) }}</dd></div>
-          <div><dt>自动修复次数</dt><dd>{{ selected.executions?.length ? Math.max(...selected.executions.map(item => item.repair.attemptsUsed)) : '历史任务未记录' }}</dd></div>
         </dl>
         <button v-if="selected.canCancel" @click="cancel" :disabled="cancelling">{{
           cancelling ? "取消请求中" : "取消任务"
@@ -62,15 +62,66 @@
         }}</button>
         <p v-if="selected.outcome.summary">{{ selected.outcome.summary }}</p>
         <h4>Python 执行与修复反馈</h4>
-        <p v-if="!selected.executions?.length">尚未取得已归档的执行反馈；请以现有事件时间线核对进行中的操作。</p>
-        <div v-else class="table-scroll"><table><thead><tr><th>执行 / 代码版本</th><th>状态 / 校验</th><th>耗时 / 退出码</th><th>错误与定位</th><th>自动修复</th></tr></thead>
-          <tbody><tr v-for="execution in selected.executions" :key="execution.executionId">
-            <td>{{ execution.attemptId }}<br><code>{{ execution.codeHash?.slice(0,12) }}</code><br>{{ execution.executionId }}</td>
-            <td>{{ execution.stage }}<br>{{ execution.validationStatus }}</td>
-            <td>{{ execution.durationMs ?? '未测得' }} ms / {{ execution.exitCode ?? '未知' }}</td>
-            <td>{{ execution.error?.category || '无执行错误' }}<br>{{ execution.error?.message }}<span v-for="(frame,index) in execution.error?.stack || []" :key="index"><br>{{ frame.file }}:{{ frame.line }}</span></td>
-            <td>{{ execution.repair.attemptsUsed }} / {{ execution.repair.maxAttempts }}<br>{{ execution.repair.allowed ? '允许在当前任务修复' : execution.resultAvailable ? '结果已归档' : '已停止自动修复' }}<br>{{ execution.repair.reason }}</td>
-          </tr></tbody></table></div>
+        <dl class="task-facts python-overview" data-testid="python-overview">
+          <div><dt>Python 执行次数</dt><dd>{{ diagnostics.total }}</dd></div>
+          <div><dt>进程成功次数</dt><dd>{{ diagnostics.processSucceeded }}</dd></div>
+          <div><dt>进程失败 / 超时次数</dt><dd>{{ diagnostics.processFailed }}</dd></div>
+          <div><dt>产物校验失败次数</dt><dd>{{ diagnostics.outputFailed }}</dd></div>
+          <div><dt>自动修复次数</dt><dd>{{ executions.length ? diagnostics.repairs : '历史任务未记录' }}</dd></div>
+          <div><dt>修复后仍失败次数</dt><dd>{{ diagnostics.repairFailed }}</dd></div>
+          <div><dt>已取消执行</dt><dd>{{ diagnostics.cancelled }}</dd></div>
+          <div><dt>当前代码版本</dt><dd>{{ diagnostics.latestVersion ? 'v' + diagnostics.latestVersion : versions.at(-1)?.scriptVersion ? 'v' + versions.at(-1)?.scriptVersion : '未记录' }}</dd></div>
+          <div><dt>最后一次错误分类（保留历史）</dt><dd>{{ diagnostics.lastError?.category || '未记录错误' }} · {{ diagnostics.lastError?.diagnosticCode || '—' }}</dd></div>
+          <div><dt>最后一次产物验证</dt><dd>{{ diagnostics.lastValidation || '尚无验证回执' }}</dd></div>
+        </dl>
+        <p>进程退出成功不等于产物有效，也不等于业务结论已验证。模型调用成功不会计入 Python 执行次数。</p>
+        <p>执行次数按已派发的执行尝试去重；等待执行器回执的请求不计为进程成功或失败。</p>
+        <p v-if="!executions.length">历史任务未记录 Python 执行反馈或调度证据；不会根据模型事件补造执行记录。</p>
+        <details v-for="execution in executions" :key="execution.executionId" class="python-execution"
+          :data-execution-id="execution.executionId" :open="!!execution.feedback?.error">
+          <summary>第 {{ execution.ordinal }} 次执行 · {{ execution.script ? 'v' + execution.script.scriptVersion : '版本未记录' }} · {{ stageLabels[execution.state] || execution.state }}
+            <strong v-if="execution.feedback?.error"> · {{ execution.feedback.error.exceptionType || execution.feedback.error.diagnosticCode }}</strong>
+          </summary>
+          <dl class="task-facts">
+            <div><dt>执行 ID</dt><dd>{{ execution.executionId }}</dd></div>
+            <div><dt>开始时间（执行器回执）</dt><dd data-testid="execution-started-at"><time v-if="timings[execution.executionId]?.startedAt" :datetime="timings[execution.executionId].startedAt || undefined">{{ time(timings[execution.executionId].startedAt || undefined) }}</time><span v-else>—</span></dd></div>
+            <div><dt>结束时间（执行器回执）</dt><dd data-testid="execution-finished-at"><time v-if="timings[execution.executionId]?.finishedAt" :datetime="timings[execution.executionId].finishedAt || undefined">{{ time(timings[execution.executionId].finishedAt || undefined) }}</time><span v-else>—</span></dd></div>
+            <div><dt>Java 执行请求时间</dt><dd>{{ time(execution.requestedAt) }}</dd></div>
+            <div><dt>反馈记录时间</dt><dd>{{ time(execution.feedbackRecordedAt) }}</dd></div>
+            <div><dt>耗时 / 退出码</dt><dd>{{ execution.feedback?.durationMs ?? '未测得' }} ms / {{ execution.feedback?.exitCode ?? '未知' }}</dd></div>
+            <div><dt>Python 文件</dt><dd>{{ execution.script?.fileName || '历史任务未记录' }}</dd></div>
+            <div><dt>本次代码 SHA-256</dt><dd>{{ execution.codeHash || '未记录' }}</dd></div>
+            <div><dt>异常类型</dt><dd>{{ execution.feedback?.error?.exceptionType || '未记录异常类型' }}</dd></div>
+            <div><dt>错误分类 / 诊断错误码</dt><dd>{{ execution.feedback?.error?.category || '无已记录错误' }} / {{ execution.feedback?.error?.diagnosticCode || '—' }}</dd></div>
+            <div><dt>进程状态</dt><dd>{{ execution.feedback?.status || '等待真实停止回执' }}</dd></div>
+            <div><dt>产物状态 / 验证</dt><dd>{{ execution.feedback?.outputStatus || (execution.feedback?.resultAvailable ? '已归档' : '无已验证产物') }} / {{ execution.feedback?.validationStatus || '未记录' }}</dd></div>
+            <div><dt>业务校验</dt><dd>{{ execution.feedback?.businessValidationPassed === true ? '回执记录通过' : '未独立验证通过' }}</dd></div>
+          </dl>
+          <p v-if="timingErrors[execution.executionId]">{{ timingErrors[execution.executionId] }}</p>
+          <p v-if="execution.feedback?.error" class="diagnostic-message">安全错误消息：{{ execution.feedback.error.message }}</p>
+          <p v-if="execution.feedback?.error">此处为执行器诊断及系统修复建议，不是模型编造的根因。</p>
+          <ol v-if="execution.feedback?.error?.stack?.length" class="safe-stack">
+            <li v-for="(frame, index) in execution.feedback.error.stack" :key="index"><code>{{ frame.file }}:{{ frame.line }}{{ frame.column ? ':' + frame.column : '' }}</code></li>
+          </ol>
+          <p v-else>安全定位帧未记录，无法还原完整 Traceback。</p>
+          <p>原始日志不可用 · 仅保留安全诊断元数据；stdout {{ execution.feedback?.stdoutBytes ?? '未记录' }} 字节，stderr {{ execution.feedback?.stderrBytes ?? '未记录' }} 字节。</p>
+          <p v-if="execution.feedback?.repair">修复策略：{{ execution.feedback.repair.action }} · {{ execution.feedback.repair.reason }} · 已用 {{ execution.feedback.repair.attemptsUsed }} / {{ execution.feedback.repair.maxAttempts }}</p>
+          <p v-if="execution.feedback?.error?.exceptionType === 'ModuleNotFoundError'">依赖名未从异常原文保存；请查看对应版本错误行的真实导入语句，不据固定诊断消息推测包名。</p>
+          <button type="button" @click="selectExecution(execution.executionId)">查看此版本源码与定位</button>
+        </details>
+        <h4>自动修复关系</h4>
+        <p v-if="!repairs.length">尚无可核对的修复关联。相邻代码版本不自动视为修复；旧记录缺少关联证据时保持未知。</p>
+        <article v-for="repair in repairs" :key="repair.to.executionId" class="python-repair" :data-repair-execution="repair.to.executionId">
+          <strong>失败执行 {{ repair.from.ordinal }}（{{ repair.from.script ? 'v' + repair.from.script.scriptVersion : '版本未记录' }}） → 后续执行 {{ repair.to.ordinal }}（{{ repair.to.script ? 'v' + repair.to.script.scriptVersion : '版本未记录' }}）</strong>
+          <p>{{ repair.from.executionId }} → {{ repair.to.executionId }}</p>
+          <p>{{ repair.status }} · 后续产物校验 {{ repair.to.feedback?.validationStatus || '待回执' }} · 业务校验 {{ repair.to.feedback?.businessValidationPassed === true ? '回执通过' : '未独立验证通过' }}</p>
+          <button type="button" @click="selectRepair(repair)">查看修复 Diff</button>
+        </article>
+        <h4>Python 执行时间线</h4>
+        <ol class="event-list python-timeline" data-testid="python-timeline">
+          <li v-for="event in executionTimeline" :key="event.id"><time>{{ time(event.occurredAt) }}</time><strong>#{{ event.sequence }} {{ event.label }}</strong><small>{{ event.executionId }}</small></li>
+        </ol>
+        <p v-if="!executionTimeline.length">历史事件时间未记录；已归档执行反馈仍在上方展示。</p>
         <h4>实际模型调用</h4>
         <p
           >配置快照：{{ selected.configuration.model?.selectedModel || "历史任务未记录" }} ·
@@ -156,13 +207,14 @@
             }}</pre>
           </details>
         </article>
-        <h4>代码工作区 · {{ version?.fileName || code?.fileName || '待提交' }}</h4>
+        <h4 ref="codePanel">代码工作区 · {{ version?.fileName || code?.fileName || '待提交' }}</h4>
         <p v-if="!versions.length">尚无完整代码版本。模型请求期间显示 CODING，返回完整工具参数后显示代码。</p>
         <label v-if="versions.length">版本 <select v-model="selectedOperation"><option v-for="(version, index) in versions" :key="version.operationId" :value="version.operationId">v{{ version.scriptVersion ?? index + 1 }} · {{ version.fileName }} · {{ stageLabels[version.state] || version.state }} · {{ time(version.generatedAt) }}</option></select></label>
         <p v-if="version">SHA-256：{{ version.hash }} · {{ stageLabels[version.state] || version.state }} · 校验 {{ version.validationStatus || '待回执' }} {{ version.outputStatus || '' }}</p>
         <p v-if="codeError" role="alert">{{ codeError }} <button @click="loadCode">重读源码</button></p>
         <nav v-if="code"><button @click="showDiff = false">完整源码</button><button @click="loadDiff" :disabled="!previousVersion">与上一版本对比</button></nav>
         <p v-if="code?.redacted">源码中的凭据已脱敏；展示文本不用于执行或哈希计算。</p>
+        <p v-if="focusedExecution?.feedback?.error?.stack?.length">当前执行错误定位：<span v-for="(frame,index) in focusedExecution.feedback.error.stack" :key="index"> {{ frame.file }}:{{ frame.line }} </span>；以上定位仅对应当前执行版本。</p>
         <PythonCodeDiff
           v-if="showDiff && code"
           :diff="diff"

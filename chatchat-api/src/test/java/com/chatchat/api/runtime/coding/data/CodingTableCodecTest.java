@@ -11,6 +11,25 @@ import java.util.*;
 import static org.assertj.core.api.Assertions.*;
 class CodingTableCodecTest {
     @TempDir Path temp;
+    @org.junit.jupiter.api.Test void originalParquetFooterAndCsvHeaderRevealStructureWithoutSourceRows() throws Exception {
+        Path parquet=temp.resolve("original.parquet");
+        var schema=org.apache.parquet.schema.MessageTypeParser.parseMessageType(
+            "message original { optional binary customer_id (STRING); optional double amount; }");
+        try(var writer=org.apache.parquet.hadoop.example.ExampleParquetWriter.builder(new org.apache.parquet.io.LocalOutputFile(parquet))
+                .withConf(new org.apache.parquet.conf.PlainParquetConfiguration()).withType(schema).build()) {
+            writer.write(new org.apache.parquet.example.data.simple.SimpleGroupFactory(schema).newGroup()
+                .append("customer_id","PRIVATE_RECORD_42").append("amount",1.25));
+        }
+        var metadata=CodingTableCodec.describeNative(parquet);
+        assertThat(metadata).containsEntry("format","PARQUET").containsEntry("rowCount",1L).containsEntry("status","AVAILABLE");
+        assertThat(metadata.get("schema").toString()).contains("customer_id","amount").doesNotContain("PRIVATE_RECORD_42","1.25");
+        Path csv=temp.resolve("original.csv");Files.writeString(csv,"\"trade,id\",amount\nPRIVATE_RECORD_42,1.25\n");
+        assertThat(CodingTableCodec.describeNative(csv)).containsEntry("columns",List.of("trade,id","amount"))
+            .containsEntry("types","UNSPECIFIED_IN_CSV");
+        assertThat(CodingTableCodec.describeNative(csv).toString()).doesNotContain("PRIVATE_RECORD_42","1.25");
+        Files.write(parquet,new byte[]{1,2,3});
+        assertThat(CodingTableCodec.describeNative(parquet)).containsEntry("status","STRUCTURE_UNAVAILABLE");
+    }
     @ParameterizedTest @EnumSource(value=Format.class,names={"PARQUET","CSV"})
     void realFilesPreserveDecimalsUnicodeEmptyNullAndMissing(Format format) throws Exception {
         var json=new ObjectMapper();

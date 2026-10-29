@@ -1,0 +1,58 @@
+[
+  {
+    "name": "sql-metadata-preview-api",
+    "id": "af853eedae5e95554de047f80b7e481869fa9ab06f74563bb182ba6f393a2ef0",
+    "image": "runtime-os-api:cline-monitor-20261028-r2",
+    "imageId": "sha256:5433e73e7469ef14447c297b13cd4019cbcef0d2bbf2ad3a4e417dc34b520170",
+    "startedAt": "2026-10-28T15:00:25.319023827Z",
+    "running": true
+  },
+  {
+    "name": "sql-metadata-preview-mcp",
+    "id": "12598bdcdc64c492c3af85f2b2a7fccc884ac34539f53cf6bda7b90c5a42953f",
+    "image": "runtime-os-mcp:analysis-boundary-20261028-r12",
+    "imageId": "sha256:34b3fb73f48526cc69d25b53508781ca3fde0c2287efcfee04c9af66f4ee8f33",
+    "startedAt": "2026-10-28T14:06:58.978339249Z",
+    "running": true
+  },
+  {
+    "name": "runtime-analysis-preview-node",
+    "id": "d6a55795697476fbf5e30d04fce38f90161ba7b7363f28487554395053b756ff",
+    "image": "runtime-os-coding-agent:analysis-boundary-20261028-r12",
+    "imageId": "sha256:61769244df6828a97d8550aab9e5ac61bf4e865f58d0f4bc252b4a3051ef2ed5",
+    "startedAt": "2026-10-28T14:06:59.807770332Z",
+    "running": true
+  },
+  {
+    "name": "runtime-os-app-stage-api-1",
+    "id": "7abfc1f92b7280258cb2ea280ff96fe167cf53fba116569896fd7d32bd16139a",
+    "image": "runtime-os-api:main-d9f39979d-20261028",
+    "imageId": "sha256:67a6e719aae98fcd28a547261aaa82ac98d4c902027c7a8e6637c9af295ce97b",
+    "startedAt": "2026-10-28T04:45:32.70642345Z",
+    "running": true
+  },
+  {
+    "name": "runtime-os-app-stage-mcp-1",
+    "id": "4453ca5fb737a1361f1bd109b637ee2fb468ebabe5bef2cb9f67b7efa220adb4",
+    "image": "runtime-os-mcp:main-9b18e67f9-20261028",
+    "imageId": "sha256:23afead305f7d16cd60d689c9c9d9b065d2cc93e37959febdea522e506c0e40b",
+    "startedAt": "2026-10-28T04:15:36.46874148Z",
+    "running": true
+  },
+  {
+    "name": "runtime-os-app-stage-coding-agent-1",
+    "id": "861b6b940e83b27e8cf6045bb53a1ba65bbf93cef870ebd448e2cc6183f34226",
+    "image": "runtime-os-coding-agent:repair-a7d3ddaf0040325c",
+    "imageId": "sha256:614a2656e6fcda77cfbbb403e1f6b956109a90ee2010e487c41a0c72458f0468",
+    "startedAt": "2026-10-27T06:17:17.874476137Z",
+    "running": true
+  },
+  {
+    "name": "runtime-os-app-stage-news-1",
+    "id": "6d88ae311cc51a68cb334ab5a10afca195a8849d9275d9922924b3401ada7dd4",
+    "image": "localhost:18443/runtime-os/news@sha256:dcd5b99623b7912bccddd7e37214b3a47c0f24c34ed633af283a3707788a5915",
+    "imageId": "sha256:9ba6b23c5a41d8762a027513a583b694d5799fd47c0b7274e96a765611c0a3f3",
+    "startedAt": "2026-10-26T09:23:29.649538727Z",
+    "running": true
+  }
+]

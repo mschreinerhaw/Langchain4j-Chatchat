@@ -38,7 +38,7 @@ class AssetAnalysisControllerTest {
             return Arrays.equals(Base64.getDecoder().decode((String)row.get("contentBase64")),original);
         }),any());
         assertThat(context.getValue().isolationScope().userId()).isEqualTo("alice");
-        assertThat(context.getValue().runtimeAttributes()).containsKey("checkpointModelConfig");
+        assertThat(context.getValue().runtimeAttributes()).containsKey("checkpointModelConfig").containsEntry("contextOnlyAnswer",true);
         assertThat(context.getValue().query()).contains("untrusted DATA");
         verify(assets,never()).list(any(),any(),any(),anyInt());
     }

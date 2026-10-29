@@ -106,17 +106,89 @@ public final class ClineModelCallbackController {
             var input=inputs.requireAuthorized(c);
             var description=inputs.describe(call.scope(),call.taskId(),input);
             var response=new java.util.LinkedHashMap<String,Object>();
-            for(String key:List.of("fileId","sha256","rowCount","format","inputManifest","inputVersions"))
+            for(String key:List.of("fileId","sha256","rowCount","format","inputManifest","inputVersions","nativeFileSchemas"))
                 if(description.containsKey(key))response.put(key,description.get(key));
             response.put("files",CodingInputSnapshotService.mountedFiles(input).stream().map(file->Map.of(
                 "fileId",file.fileId(),"fileName",file.fileName(),"sha256",file.sha256(),"rowCount",file.rowCount(),"size",file.size(),
                 "virtualPath","/data/input/"+file.fileId()+"/"+file.fileName())).toList());
             response.put("fileLayout", CodingInputLayout.describe(c.runtimeContext()));
+            var resultSchema=plans.rowSchema(c);
+            if(!resultSchema.isEmpty())response.put("outputContract",Map.of("rowSchema",resultSchema,
+                "requiredFiles",c.outputContract().requiredFiles(),"authority","RUNTIME_RESULT_CONTRACT"));
             if(c.metadataRefs().contains(com.chatchat.api.runtime.coding.data.CodingInputObservation.POLICY_REF))
                 response.put("analysisPreview",inputs.observeForCoding(c));
             if(mapper.valueToTree(response).toString().getBytes(java.nio.charset.StandardCharsets.UTF_8).length>180000)
                 throw new IllegalArgumentException("Input metadata exceeds the bounded Coding context; narrower authorized projection required");
             return response;
+        });
+    }
+
+    @PostMapping("/input-read")
+    public Map<String,Object> readInput(@RequestBody JsonNode body) {
+        return bound(body,call->{
+            var request=body.path("read");
+            if(!request.isObject() || request.size()!=4 || !request.path("datasetReference").isTextual()
+                    || !request.path("toolCallId").isTextual()
+                    || !request.path("offset").canConvertToInt() || !request.path("limit").canConvertToInt()
+                    || !request.path("offset").isIntegralNumber() || !request.path("limit").isIntegralNumber())
+                throw new IllegalArgumentException("Exact bounded input reference, offset and limit are required");
+            var result=inputs.readForCoding(contract(body,call),call.lease(),request.path("toolCallId").asText(),request.path("datasetReference").asText(),
+                request.path("offset").asInt(),request.path("limit").asInt());
+            assertStillOwned(call);
+            return result;
+        });
+    }
+
+    @PostMapping("/submit-report")
+    public Map<String,Object> submitReport(@RequestBody JsonNode body) {
+        return bound(body,call->{
+            var c=contract(body,call);var submission=body.path("submission");
+            if(!c.permitsTextResult() || !c.authorization().allowedTools().contains("report_submit")
+                    || !tasks.startedCodeOperations(call.scope(),call.taskId()).isEmpty())
+                throw new SecurityException("This task requires actual execution evidence");
+            if(!submission.isObject() || submission.size()!=2 || !submission.path("toolCallId").isTextual()
+                    || !submission.path("report").isObject())throw new IllegalArgumentException("Exact report submission required");
+            String toolId=submission.path("toolCallId").asText();
+            if(toolId.isBlank()||toolId.length()>512)throw new IllegalArgumentException("Bounded tool call identity required");
+            String operation="workspace-"+sha(call.taskId()+"\0report_submit\0"+toolId);
+            var report=mapper.convertValue(submission.path("report"),new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){});
+            long bytes=mapper.valueToTree(report).toString().getBytes(StandardCharsets.UTF_8).length;
+            if(bytes>Math.min(128*1024,c.outputContract().maxResultBytes()))throw new IllegalArgumentException("Report exceeds output budget");
+            var frozen=tasks.privateState(call.scope(),call.taskId(),"text-result-submission");
+            if(frozen!=null && !operation.equals(frozen.path("operationId").asText()))throw new IllegalStateException("A final text result was already submitted");
+            String fingerprint=sha(c.inputSnapshotRef()+"\0"+submission.path("report").toString());
+            var admitted=CodingTaskRevisions.mutate(tasks,call.scope(),call.taskId(),revision->
+                tasks.reserve(call.scope(),call.taskId(),call.lease(),revision,operation,fingerprint,
+                    CodingJournal.OperationKind.TOOL,new CodingTaskOutcome.Counters(0,0,1,0,0,0,bytes+4096,"0")));
+            if(!admitted.admitted())throw new IllegalStateException("Report tool budget denied");
+            CodingTaskRevisions.mutate(tasks,call.scope(),call.taskId(),revision->
+                tasks.startIntent(call.scope(),call.taskId(),call.lease(),revision,operation,"runtime-workspace:"+operation));
+            var input=inputs.requireAuthorized(c);var descriptor=inputs.describe(call.scope(),call.taskId(),input);
+            var allowed=new java.util.HashSet<String>();
+            if(descriptor.get("inputVersions") instanceof List<?> versions)for(Object version:versions)
+                if(version instanceof Map<?,?> fields && fields.get("datasetReference") instanceof String ref)allowed.add(ref);
+            if(allowed.isEmpty())allowed.add(input.sourceDatasetRef());
+            CodingEvidenceCollector.Collected collected;
+            try { collected=collector.collectText(c,operation,input,report,allowed,plans.validator(c)); }
+            catch(RuntimeException invalid) {
+                // No external executor ran. Archive a truthful stopped local-tool receipt so
+                // schema/reference repairs consume budget without leaving an unknown operation.
+                var record=collector.textSubmissionFailure(c,operation);
+                CodingTaskRevisions.mutate(tasks,call.scope(),call.taskId(),revision->
+                    tasks.reconcileStopped(call.scope(),call.taskId(),call.lease(),revision,operation,record));
+                CodingTaskRevisions.mutate(tasks,call.scope(),call.taskId(),revision->
+                    tasks.settle(call.scope(),call.taskId(),call.lease(),revision,operation,new CodingTaskOutcome.Counters(0,0,1,0,0,0,0,"0"),true));
+                throw invalid;
+            }
+            CodingTaskRevisions.mutate(tasks,call.scope(),call.taskId(),revision->
+                tasks.reconcileStopped(call.scope(),call.taskId(),call.lease(),revision,operation,collected.executionReceiptRef()));
+            CodingTaskRevisions.mutate(tasks,call.scope(),call.taskId(),revision->
+                tasks.settle(call.scope(),call.taskId(),call.lease(),revision,operation,new CodingTaskOutcome.Counters(0,0,1,0,0,0,bytes,"0"),true));
+            tasks.privateState(call.scope(),call.taskId(),call.lease(),"text-result-submission",null,mapper.valueToTree(Map.of("operationId",operation)));
+            assertStillOwned(call);
+            return Map.of("operationId",operation,"status","SUCCEEDED","executorStopped",true,"pythonExecuted",false,
+                "executionMode","TEXT_ONLY","resultAvailable",true,"resultDatasetRef",collected.resultDatasetRef(),
+                "validationRecordRef",collected.validationRecordRef(),"evidenceBundleRef",collected.evidenceBundleRef(),"validationStatus","INCONCLUSIVE");
         });
     }
 
@@ -138,6 +210,8 @@ public final class ClineModelCallbackController {
             response.put("reference",reference);response.put("rows",page.rows());response.put("complete",true);
             if(com.chatchat.common.runtime.coding.VisualReportMode.active(contract.runtimeContext()))collector.visualReport(call.scope(),call.taskId(),reference).ifPresent(report->
                 response.put("visualReportValidation",Map.of("status",report.getOrDefault("status","FAILED"),"validation",report.getOrDefault("validation",Map.of()),
+                    "artifactValidationStatus",report.getOrDefault("artifactValidationStatus","NOT_RECORDED"),
+                    "layoutValidationStatus",report.getOrDefault("layoutValidationStatus","NOT_RECORDED"),
                     "availableChartCount",report.get("charts") instanceof List<?> charts?charts.size():0)));
             var row=page.rows().get(0);
             if(row.containsKey("reportMarkdown") && row.containsKey("evidenceReferences")) {
@@ -437,18 +511,25 @@ public final class ClineModelCallbackController {
                 if(operationId==null)return failed(call);
                 return completion(workspace.complete(contract,call.lease(),operationId));
             }
+            boolean textResult=contract.permitsTextResult() && operationId!=null && operationId.matches("workspace-[0-9a-f]{64}");
+            if(textResult) {
+                var submitted=tasks.privateState(call.scope(),call.taskId(),"text-result-submission");
+                if(submitted==null || !operationId.equals(submitted.path("operationId").asText()))
+                    throw new SecurityException("No final text submission is bound to this task");
+            }
             if (!"completed".equals(sdkStatus)
-                    || operationId == null || !operationId.matches("cline-[0-9a-f]{64}"))
+                    || operationId == null || !textResult && !operationId.matches("cline-[0-9a-f]{64}"))
                 throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "SDK run has no completed, independently verifiable Python operation");
             var input = inputs.requireAuthorized(contract);
-            var collected = collector.collect(call.scope(), contract, operationId, tasks.scriptFile(call.scope(),call.taskId(),operationId),
+            var collected = textResult ? collector.textResult(contract,operationId) : collector.collect(call.scope(), contract, operationId, tasks.scriptFile(call.scope(),call.taskId(),operationId),
                 contract.outputContract().requiredFiles().get(0),
                 List.of(new CodingEvidenceCollector.InputFile(input.fileId(), input.fileName(), input.sha256())),
                 plans.validator(contract));
-            if(com.chatchat.common.runtime.coding.VisualReportMode.active(contract.runtimeContext())) {
+            if(!textResult && com.chatchat.common.runtime.coding.VisualReportMode.active(contract.runtimeContext())) {
                 var visual=collector.visualReport(call.scope(),call.taskId(),collected.resultDatasetRef());
-                if(visual.isEmpty() || "FAILED".equals(visual.get().get("artifactValidationStatus")))
+                if(visual.isEmpty() && plans.requiresVisualReport(contract)
+                        || visual.isPresent() && "FAILED".equals(visual.get().get("artifactValidationStatus")))
                     throw new ResponseStatusException(HttpStatus.CONFLICT,"Visual report artifact contract requires technical repair before completion");
             }
             CodingTaskOutcome current = tasks.get(call.scope(), call.taskId());
@@ -465,8 +546,8 @@ public final class ClineModelCallbackController {
                 current.scope(), current.contractSha256(), CodingTaskOutcome.Status.COMPLETED,
                 current.revision() + 1, current.lastEventSequence() + 1, current.createdAt(), at,
                 current.startedAt(), at, false, null,
-                "Coding execution archived; validation " + collected.validationStatus(),
-                current.limitations(), collected.inputSnapshotRef(), collected.codeArtifactRef(),
+                textResult?"Text report archived with authorized sources":"Coding execution archived; validation " + collected.validationStatus(),
+                textResult?List.of("Text explanation only; no calculations were executed or independently verified."):current.limitations(), collected.inputSnapshotRef(), collected.codeArtifactRef(),
                 collected.executionReceiptRef(), collected.resultDatasetRef(),
                 collected.validationRecordRef(), collected.evidenceBundleRef(),
                 collected.validationStatus(),

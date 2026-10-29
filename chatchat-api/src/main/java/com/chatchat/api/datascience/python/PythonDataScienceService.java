@@ -95,9 +95,10 @@ public class PythonDataScienceService {
     public PythonScriptEntity saveScript(String tenant, String owner, ScriptRequest request) {
         PythonAssetEntity asset = ownedReadyAsset(request.assetId(), tenant, owner);
         requireText(request.fileName(), "脚本文件名不能为空");
-        requireText(request.sourceCode(), "脚本代码不能为空");
+        if(!"__init__.py".equals(request.fileName()) || request.sourceCode()==null)
+            requireText(request.sourceCode(), "脚本代码不能为空");
         String file = request.fileName().trim();
-        if (!file.matches("[A-Za-z0-9][A-Za-z0-9_.-]{0,170}\\.py"))
+        if (!file.matches("[A-Za-z0-9_][A-Za-z0-9_.-]{0,170}\\.py"))
             throw new IllegalArgumentException("脚本文件名必须是安全的 .py 文件名");
         String folderId = trim(request.folderId());
         if (!folderId.isBlank()) ownedFolder(folderId, tenant, owner);

@@ -186,7 +186,7 @@ public class UserAssetService {
             case "py"->"text/x-python";case "txt","md","sql","log"->"text/plain";case "json","jsonl"->"application/json";
             case "png"->"image/png";case "jpg","jpeg"->"image/jpeg";case "webp"->"image/webp";case "gif"->"image/gif";
             default->throw new IllegalArgumentException("Unsupported user document format");};
-        if(bytes.length==0)throw new IllegalArgumentException("Empty document");
+        if(bytes.length==0&&!"py".equals(ext))throw new IllegalArgumentException("Empty document");
         if(type.startsWith("image/")) {
             boolean valid=switch(ext){
                 case "png"->bytes.length>=8 && HexFormat.of().formatHex(bytes,0,8).equals("89504e470d0a1a0a");

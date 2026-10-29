@@ -1,0 +1,1608 @@
+[
+  {
+    "case": "dwd-dws-ads-r11-concise",
+    "runId": "b4376d60-42ce-476b-a8b0-73275ab67d19",
+    "latencyMs": 140016,
+    "answerSha256": "e9d3c960423ce4621cfccfe7b4aa66af28e06586b91add819e5f9a5c93be8428",
+    "tasks": [
+      {
+        "taskId": "analysis-coding-bf234acca14fc7c27013592b8c4748ae7f6152536e156c1bc148ab0a8893707a",
+        "status": "COMPLETED",
+        "reasonCode": null,
+        "validationStatus": "INCONCLUSIVE",
+        "allowedTools": [
+          "artifact_read",
+          "input_read",
+          "python_execute",
+          "report_submit",
+          "sql_validate"
+        ],
+        "executions": [
+          {
+            "executionId": "cline-645682b65dd39f5f2654d42d8c07438a66f16124dc3cde96b9b60c0a1728b9e3",
+            "status": "FAILED",
+            "exitCode": 1,
+            "codeHash": "acd035391ab5a4a371b1450302a2ac8d37b0ef1a5c7e26cdc159ed61d5c8fbd9",
+            "resultAvailable": false,
+            "diagnosticCode": "PROGRAM_ERROR",
+            "repair": {
+              "allowed": true,
+              "action": "REPAIR_IN_CURRENT_CONTEXT",
+              "reason": "TECHNICAL_REPAIR",
+              "attemptsUsed": 0,
+              "maxAttempts": 3,
+              "baseCodeHash": "acd035391ab5a4a371b1450302a2ac8d37b0ef1a5c7e26cdc159ed61d5c8fbd9",
+              "guidance": "Inspect the reported line and existing code; make the smallest justified technical correction without changing source data."
+            }
+          },
+          {
+            "executionId": "cline-bef1501a8c1e16c5b1473b733d6d37d1dbd1db13d46151f68822170ecb7d2591",
+            "status": "SUCCEEDED",
+            "exitCode": 0,
+            "codeHash": "78dc32beb78940a1d8f307e6fdf46e289592857fbaf4e20ca35e9d093ab30d0b",
+            "resultAvailable": true,
+            "diagnosticCode": null,
+            "repair": {
+              "allowed": false,
+              "action": "COMPLETE",
+              "reason": "RESULT_VERIFIED",
+              "attemptsUsed": 1,
+              "maxAttempts": 3,
+              "baseCodeHash": "78dc32beb78940a1d8f307e6fdf46e289592857fbaf4e20ca35e9d093ab30d0b",
+              "guidance": "Result archived; business correctness remains governed by validationStatus."
+            }
+          }
+        ],
+        "inputs": [
+          {
+            "snapshotSha256": "ce535164664959c27037c4e78f8b0853239a1d889209b26c3cdadc28157ff04d",
+            "rowCount": 2,
+            "format": "PARQUET",
+            "nativeFiles": [
+              {
+                "fileId": "c8dcc3fc7445cef649858d027622d5039c94ee2e69af7458f18becf9481ee6b5",
+                "fileName": "original-0.csv",
+                "format": "CSV",
+                "originalName": "schedule.csv",
+                "readOnly": true,
+                "sha256": "27246d03593152a92b0350c1bd0f71f22cb6505e54edf2880ae388d3497eed36",
+                "sizeBytes": 187,
+                "sourceDatasetRef": "user-asset:08d115bc7d7d604e262fadcc3546213eb19a775f961b504e1a98bcaed64f39cc:27246d03593152a92b0350c1bd0f71f22cb6505e54edf2880ae388d3497eed36",
+                "virtualPath": "/data/input/c8dcc3fc7445cef649858d027622d5039c94ee2e69af7458f18becf9481ee6b5/original-0.csv"
+              },
+              {
+                "fileId": "c7dbc9546ed843f7501a7e9d235182f00e6b460429778430a860024c3eade0d7",
+                "fileName": "user-message-1.txt",
+                "format": "TEXT",
+                "originalName": "user-message.txt",
+                "readOnly": true,
+                "sha256": "2de1f564550ef7dc5cf6a50ead6940889a659d4018405765282a65e1bb17af00",
+                "sizeBytes": 864,
+                "sourceDatasetRef": "runtime-context:b4376d60-42ce-476b-a8b0-73275ab67d19",
+                "virtualPath": "/data/input/c7dbc9546ed843f7501a7e9d235182f00e6b460429778430a860024c3eade0d7/user-message-1.txt"
+              }
+            ],
+            "sourceCounts": [
+              {
+                "reference": "runtime-context:b4376d60-42ce-476b-a8b0-73275ab67d19",
+                "rowCount": 1
+              },
+              {
+                "reference": "user-asset:08d115bc7d7d604e262fadcc3546213eb19a775f961b504e1a98bcaed64f39cc:27246d03593152a92b0350c1bd0f71f22cb6505e54edf2880ae388d3497eed36",
+                "rowCount": 1
+              }
+            ]
+          }
+        ],
+        "modelCalls": 8,
+        "inputTokens": 153860,
+        "outputTokens": 14767,
+        "consumed": {
+          "modelCalls": 8,
+          "modelTokens": 168627,
+          "toolCalls": 3,
+          "codeExecutions": 2,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 45513,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 355661,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 50000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 654124,
+          "costAmount": "6.666666666664"
+        },
+        "meteringComplete": false
+      }
+    ]
+  },
+  {
+    "case": "dwd-dws-ads-r12-concise",
+    "runId": "53c7f156-3eb1-4050-8b6c-3bf63a159b18",
+    "latencyMs": 103049,
+    "answerSha256": "ea40d208c67837e61ef693f425071879c8ff4de3f207d9b60f4d8559cf142840",
+    "tasks": [
+      {
+        "taskId": "analysis-coding-a12346cb8a6e5a19baef0b2b9d942541d964dd95a735a6810b54ed651c6c036a",
+        "status": "COMPLETED",
+        "reasonCode": null,
+        "validationStatus": "INCONCLUSIVE",
+        "allowedTools": [
+          "artifact_read",
+          "input_read",
+          "python_execute",
+          "report_submit",
+          "sql_validate"
+        ],
+        "executions": [
+          {
+            "executionId": "cline-9ed34fd6c6e9c59d1b081ad5d8c5df14e2332ca1006e5241c213b60634336199",
+            "status": "FAILED",
+            "exitCode": 1,
+            "codeHash": "d309559a6eed33790b896e3e92fde6cfa861e42eb50c050a8c0aee610ae2bd3c",
+            "resultAvailable": false,
+            "diagnosticCode": "PACKAGE_API_UNAVAILABLE",
+            "repair": {
+              "allowed": true,
+              "action": "REPAIR_IN_CURRENT_CONTEXT",
+              "reason": "TECHNICAL_REPAIR",
+              "attemptsUsed": 0,
+              "maxAttempts": 3,
+              "baseCodeHash": "d309559a6eed33790b896e3e92fde6cfa861e42eb50c050a8c0aee610ae2bd3c",
+              "guidance": "Use an API supported by the captured package version."
+            }
+          },
+          {
+            "executionId": "cline-ce92e58fdf691bd9622aa09e0a02ebcd24a8420ccc07d7d8e07d4052845b1839",
+            "status": "FAILED",
+            "exitCode": 1,
+            "codeHash": "194d79448f1a67c6c48839298efb3194e617a065a1d5484b84515cf7037f1f75",
+            "resultAvailable": false,
+            "diagnosticCode": "PACKAGE_API_UNAVAILABLE",
+            "repair": {
+              "allowed": true,
+              "action": "REPAIR_IN_CURRENT_CONTEXT",
+              "reason": "TECHNICAL_REPAIR",
+              "attemptsUsed": 1,
+              "maxAttempts": 3,
+              "baseCodeHash": "194d79448f1a67c6c48839298efb3194e617a065a1d5484b84515cf7037f1f75",
+              "guidance": "Use an API supported by the captured package version."
+            }
+          },
+          {
+            "executionId": "cline-b56567c6ce0cdc7b342d6e0c4e92e31074563e81e161cdc84396a2c91f7b4368",
+            "status": "SUCCEEDED",
+            "exitCode": 0,
+            "codeHash": "1391445da43b136f8b38708a76d8582299bf640d1cccda3b5a90f716bbcc858a",
+            "resultAvailable": true,
+            "diagnosticCode": null,
+            "repair": {
+              "allowed": false,
+              "action": "COMPLETE",
+              "reason": "RESULT_VERIFIED",
+              "attemptsUsed": 2,
+              "maxAttempts": 3,
+              "baseCodeHash": "1391445da43b136f8b38708a76d8582299bf640d1cccda3b5a90f716bbcc858a",
+              "guidance": "Result archived; business correctness remains governed by validationStatus."
+            }
+          }
+        ],
+        "inputs": [
+          {
+            "snapshotSha256": "a96122abd8671b48d8a91ee9b99ae31638e2ba67e89f880b59b3d2c024ef6828",
+            "rowCount": 2,
+            "format": "PARQUET",
+            "nativeFiles": [
+              {
+                "fileId": "c05cc5c09ee1cd6421045d62b26c6fcca32af13058e5ab507ca93c937f842bc7",
+                "fileName": "original-0.csv",
+                "format": "CSV",
+                "originalName": "schedule.csv",
+                "readOnly": true,
+                "sha256": "27246d03593152a92b0350c1bd0f71f22cb6505e54edf2880ae388d3497eed36",
+                "sizeBytes": 187,
+                "sourceDatasetRef": "user-asset:08d115bc7d7d604e262fadcc3546213eb19a775f961b504e1a98bcaed64f39cc:27246d03593152a92b0350c1bd0f71f22cb6505e54edf2880ae388d3497eed36",
+                "virtualPath": "/data/input/c05cc5c09ee1cd6421045d62b26c6fcca32af13058e5ab507ca93c937f842bc7/original-0.csv"
+              },
+              {
+                "fileId": "c31125bb6bfc5c68ec16fe5fec2b5fca4dc95dcae82bde5d703d46eea20f568c",
+                "fileName": "user-message-1.txt",
+                "format": "TEXT",
+                "originalName": "user-message.txt",
+                "readOnly": true,
+                "sha256": "2de1f564550ef7dc5cf6a50ead6940889a659d4018405765282a65e1bb17af00",
+                "sizeBytes": 864,
+                "sourceDatasetRef": "runtime-context:53c7f156-3eb1-4050-8b6c-3bf63a159b18",
+                "virtualPath": "/data/input/c31125bb6bfc5c68ec16fe5fec2b5fca4dc95dcae82bde5d703d46eea20f568c/user-message-1.txt"
+              }
+            ],
+            "sourceCounts": [
+              {
+                "reference": "runtime-context:53c7f156-3eb1-4050-8b6c-3bf63a159b18",
+                "rowCount": 1
+              },
+              {
+                "reference": "user-asset:08d115bc7d7d604e262fadcc3546213eb19a775f961b504e1a98bcaed64f39cc:27246d03593152a92b0350c1bd0f71f22cb6505e54edf2880ae388d3497eed36",
+                "rowCount": 1
+              }
+            ]
+          }
+        ],
+        "modelCalls": 7,
+        "inputTokens": 131614,
+        "outputTokens": 8304,
+        "consumed": {
+          "modelCalls": 7,
+          "modelTokens": 139918,
+          "toolCalls": 4,
+          "codeExecutions": 3,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 53234,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 318834,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 75000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 995928,
+          "costAmount": "5.833333333331"
+        },
+        "meteringComplete": false
+      }
+    ]
+  },
+  {
+    "case": "dwd-dws-ads-r5",
+    "runId": "93e4dfc1-5d4c-4c46-90ea-ca80d3887de4",
+    "latencyMs": 310792,
+    "answerSha256": "e04ef8c958ff5402fab9a7cd3d7eecc42499a7ffb172ca42d57923f6b7f431fb",
+    "tasks": [
+      {
+        "taskId": "analysis-coding-3fd7e18c9cd097610df57746142868ccbfc25945c4fb3fe25537c755891200df",
+        "status": "COMPLETED",
+        "reasonCode": null,
+        "validationStatus": "INCONCLUSIVE",
+        "allowedTools": [
+          "artifact_read",
+          "input_read",
+          "python_execute",
+          "report_submit",
+          "sql_validate"
+        ],
+        "executions": [
+          {
+            "executionId": "cline-196e1a7b31eb3f0c0df2bf1c18d9386df5049ca6ac4e9e6957e0fb5c25fea8da",
+            "status": "FAILED",
+            "exitCode": 1,
+            "codeHash": "297453bb934392570bf5ab53312865a131a44376fe7a60e90567cbf23e764fc2",
+            "resultAvailable": false,
+            "diagnosticCode": "SYNTAX_ERROR",
+            "repair": {
+              "allowed": true,
+              "action": "REPAIR_IN_CURRENT_CONTEXT",
+              "reason": "TECHNICAL_REPAIR",
+              "attemptsUsed": 0,
+              "maxAttempts": 3,
+              "baseCodeHash": "297453bb934392570bf5ab53312865a131a44376fe7a60e90567cbf23e764fc2",
+              "guidance": "Repair Python syntax at the reported source location; preserve the existing calculation and authorized inputs."
+            }
+          },
+          {
+            "executionId": "cline-e1f781eedae27903f922251bb9ae2814ba64d42a38e109fd308420303ba9baa4",
+            "status": "SUCCEEDED",
+            "exitCode": 0,
+            "codeHash": "82d9bedca3853fe83eecc589727d52f848599423121aa76ab75599a5e8f2dbdf",
+            "resultAvailable": true,
+            "diagnosticCode": null,
+            "repair": {
+              "allowed": false,
+              "action": "COMPLETE",
+              "reason": "RESULT_VERIFIED",
+              "attemptsUsed": 1,
+              "maxAttempts": 3,
+              "baseCodeHash": "82d9bedca3853fe83eecc589727d52f848599423121aa76ab75599a5e8f2dbdf",
+              "guidance": "Result archived; business correctness remains governed by validationStatus."
+            }
+          },
+          {
+            "executionId": "cline-e43cc6eb56aee2f05abcf72ce37bc4f806cb11b6425fed65af5c93955526431e",
+            "status": "FAILED",
+            "exitCode": 1,
+            "codeHash": "e71ddea81458850aa85e497fc73e2d7a524ee2f9e00bd2ded6b7ae293fb948d2",
+            "resultAvailable": false,
+            "diagnosticCode": "SYNTAX_ERROR",
+            "repair": {
+              "allowed": true,
+              "action": "REPAIR_IN_CURRENT_CONTEXT",
+              "reason": "TECHNICAL_REPAIR",
+              "attemptsUsed": 1,
+              "maxAttempts": 3,
+              "baseCodeHash": "e71ddea81458850aa85e497fc73e2d7a524ee2f9e00bd2ded6b7ae293fb948d2",
+              "guidance": "Repair Python syntax at the reported source location; preserve the existing calculation and authorized inputs."
+            }
+          },
+          {
+            "executionId": "cline-58db8e60b50ec7d9d3d4d609fd6540bfcfeb96bd143c6e7c1cf861b8c7e9886d",
+            "status": "SUCCEEDED",
+            "exitCode": 0,
+            "codeHash": "efc1609785eeddd1ec5e978c9824265e5e178c0f28fb6c34ee4891b29beeb80a",
+            "resultAvailable": true,
+            "diagnosticCode": null,
+            "repair": {
+              "allowed": false,
+              "action": "COMPLETE",
+              "reason": "RESULT_VERIFIED",
+              "attemptsUsed": 2,
+              "maxAttempts": 3,
+              "baseCodeHash": "efc1609785eeddd1ec5e978c9824265e5e178c0f28fb6c34ee4891b29beeb80a",
+              "guidance": "Result archived; business correctness remains governed by validationStatus."
+            }
+          }
+        ],
+        "inputs": [
+          {
+            "snapshotSha256": "edb1f9f1dca7cb120eb11ba362b6d2584868fb45121cf7df64f61e9ae897c75e",
+            "rowCount": 2,
+            "format": "PARQUET",
+            "nativeFiles": [
+              {
+                "fileId": "c9cdc93df81505b0e89898e2cb5fc23d47bb2361b3900fd7a19d9c0e2e4d2f54",
+                "fileName": "original-0.csv",
+                "originalName": "schedule.csv",
+                "sha256": "27246d03593152a92b0350c1bd0f71f22cb6505e54edf2880ae388d3497eed36",
+                "sizeBytes": 187,
+                "sourceDatasetRef": "user-asset:08d115bc7d7d604e262fadcc3546213eb19a775f961b504e1a98bcaed64f39cc:27246d03593152a92b0350c1bd0f71f22cb6505e54edf2880ae388d3497eed36"
+              },
+              {
+                "fileId": "cf802340d97d7c3dceb1ff570d8bb34efa7aa5af658bfc31317569a4efd891b1",
+                "fileName": "user-message-1.txt",
+                "originalName": "user-message.txt",
+                "sha256": "1a2dc4445427253ab816384792c0b13af1cce4ff343b01b29c90c29c5b78bed0",
+                "sizeBytes": 354,
+                "sourceDatasetRef": "runtime-context:93e4dfc1-5d4c-4c46-90ea-ca80d3887de4"
+              }
+            ],
+            "sourceCounts": [
+              {
+                "reference": "runtime-context:93e4dfc1-5d4c-4c46-90ea-ca80d3887de4",
+                "rowCount": 1
+              },
+              {
+                "reference": "user-asset:08d115bc7d7d604e262fadcc3546213eb19a775f961b504e1a98bcaed64f39cc:27246d03593152a92b0350c1bd0f71f22cb6505e54edf2880ae388d3497eed36",
+                "rowCount": 1
+              }
+            ]
+          }
+        ],
+        "modelCalls": 7,
+        "inputTokens": 139098,
+        "outputTokens": 17826,
+        "consumed": {
+          "modelCalls": 7,
+          "modelTokens": 156924,
+          "toolCalls": 6,
+          "codeExecutions": 4,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 25635,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 301828,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 100000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 1374595,
+          "costAmount": "5.833333333331"
+        },
+        "meteringComplete": false
+      }
+    ]
+  },
+  {
+    "case": "empty-missing-module-r11",
+    "runId": "c9404a18-3317-4d08-9f8f-9d789bf040d8",
+    "latencyMs": 198902,
+    "answerSha256": "4f916b90258af8e5a40c412b485f85e8c137b6211c84921937bb240ec3005a9f",
+    "tasks": [
+      {
+        "taskId": "analysis-coding-676b375008f15b93f2e383e12af6650528ad5473d1ee23fb6935ae652b40fdff",
+        "status": "COMPLETED",
+        "reasonCode": null,
+        "validationStatus": "INCONCLUSIVE",
+        "allowedTools": [
+          "artifact_read",
+          "input_read",
+          "python_execute",
+          "report_submit",
+          "sql_validate"
+        ],
+        "executions": [
+          {
+            "executionId": "cline-d05c4d1d023f0f7a7972467eafc9431a05e3fbc7689bc3ba46977941ba6426cd",
+            "status": "FAILED",
+            "exitCode": 1,
+            "codeHash": "a35db257878606da4f56ba247cb3d7a3156a2ac6e72b0093f347b7da551faedf",
+            "resultAvailable": false,
+            "diagnosticCode": "PACKAGE_NOT_INSTALLED",
+            "repair": {
+              "allowed": true,
+              "action": "REPAIR_IN_CURRENT_CONTEXT",
+              "reason": "TECHNICAL_REPAIR",
+              "attemptsUsed": 0,
+              "maxAttempts": 3,
+              "baseCodeHash": "a35db257878606da4f56ba247cb3d7a3156a2ac6e72b0093f347b7da551faedf",
+              "guidance": "Use installed packages from the captured environment. Dependency installation and network access are prohibited."
+            }
+          },
+          {
+            "executionId": "cline-808472970086f8868bd8df53aee55e7550b077130762fef11b68c20f829135b7",
+            "status": "SUCCEEDED",
+            "exitCode": 0,
+            "codeHash": "30b0824c26223880852831a3ec82e301e08763613a54278f57183d2ee978b274",
+            "resultAvailable": true,
+            "diagnosticCode": null,
+            "repair": {
+              "allowed": false,
+              "action": "COMPLETE",
+              "reason": "RESULT_VERIFIED",
+              "attemptsUsed": 1,
+              "maxAttempts": 3,
+              "baseCodeHash": "30b0824c26223880852831a3ec82e301e08763613a54278f57183d2ee978b274",
+              "guidance": "Result archived; business correctness remains governed by validationStatus."
+            }
+          }
+        ],
+        "inputs": [
+          {
+            "snapshotSha256": "80e87722c9da9b6e1cf8cd08c8128ea4d8e25a3f9e470a929d60f4e299f2aa40",
+            "rowCount": 2,
+            "format": "PARQUET",
+            "nativeFiles": [
+              {
+                "fileId": "ca29cc6e3ee92e778663e49605c0621487e3e7b88b31c9d9b1fa051251a870e7",
+                "fileName": "original-0.csv",
+                "format": "CSV",
+                "originalName": "empty_schedule.csv",
+                "readOnly": true,
+                "sha256": "7400f0ff5a47ea8cfd06b90ab0ed91d22f63819a238736aeda0f2493d5537fb9",
+                "sizeBytes": 28,
+                "sourceDatasetRef": "user-asset:f1d11f848293d38abacffaf0dd07042643b5794033f52c874ca7b0b759622275:7400f0ff5a47ea8cfd06b90ab0ed91d22f63819a238736aeda0f2493d5537fb9",
+                "virtualPath": "/data/input/ca29cc6e3ee92e778663e49605c0621487e3e7b88b31c9d9b1fa051251a870e7/original-0.csv"
+              },
+              {
+                "fileId": "c0fbb016471989ee8934fe219f2bdc39c81f2ce4ded4624a5720020e8ae3d041",
+                "fileName": "user-message-1.txt",
+                "format": "TEXT",
+                "originalName": "user-message.txt",
+                "readOnly": true,
+                "sha256": "9d762746be93435711601d1ce58e2a0b6a1b44c0634a1105019f9f92fe948ad1",
+                "sizeBytes": 762,
+                "sourceDatasetRef": "runtime-context:c9404a18-3317-4d08-9f8f-9d789bf040d8",
+                "virtualPath": "/data/input/c0fbb016471989ee8934fe219f2bdc39c81f2ce4ded4624a5720020e8ae3d041/user-message-1.txt"
+              }
+            ],
+            "sourceCounts": [
+              {
+                "reference": "runtime-context:c9404a18-3317-4d08-9f8f-9d789bf040d8",
+                "rowCount": 1
+              },
+              {
+                "reference": "user-asset:f1d11f848293d38abacffaf0dd07042643b5794033f52c874ca7b0b759622275:7400f0ff5a47ea8cfd06b90ab0ed91d22f63819a238736aeda0f2493d5537fb9",
+                "rowCount": 1
+              }
+            ]
+          }
+        ],
+        "modelCalls": 5,
+        "inputTokens": 60663,
+        "outputTokens": 11899,
+        "consumed": {
+          "modelCalls": 5,
+          "modelTokens": 72562,
+          "toolCalls": 4,
+          "codeExecutions": 2,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 10123,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 255118,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 50000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 691708,
+          "costAmount": "4.166666666665"
+        },
+        "meteringComplete": false
+      }
+    ]
+  },
+  {
+    "case": "finance-r3",
+    "runId": "a44871af-7a0a-450d-83a9-89d1cbbad34b",
+    "latencyMs": 316224,
+    "answerSha256": "3d62b75a1a9a735e2ca20252331554426ad25c7352f92b6231cb00e317d0aaae",
+    "tasks": [
+      {
+        "taskId": "analysis-coding-24d65ac971b32a234ca34ba5359e7dfd6c1a47a2883b264acb8b118f262d5c24",
+        "status": "COMPLETED",
+        "reasonCode": null,
+        "validationStatus": "INCONCLUSIVE",
+        "allowedTools": [
+          "artifact_read",
+          "input_read",
+          "python_execute",
+          "skill_read",
+          "sql_validate"
+        ],
+        "executions": [
+          {
+            "executionId": "cline-aecf8f8bfe641a951a6bbbb4c84193711cff74e879482fbecef8664a53879418",
+            "status": "FAILED",
+            "exitCode": 1,
+            "codeHash": "7c1693c6928a720202f0428fb899c7619a2d752ab5eec736e30c910a6cafe1ba",
+            "resultAvailable": false,
+            "diagnosticCode": "PROGRAM_ERROR",
+            "repair": {
+              "allowed": true,
+              "action": "REPAIR_IN_CURRENT_CONTEXT",
+              "reason": "TECHNICAL_REPAIR",
+              "attemptsUsed": 0,
+              "maxAttempts": 3,
+              "baseCodeHash": "7c1693c6928a720202f0428fb899c7619a2d752ab5eec736e30c910a6cafe1ba",
+              "guidance": "Inspect the reported line and existing code; make the smallest justified technical correction without changing source data."
+            }
+          },
+          {
+            "executionId": "cline-a2cfd2fd5088e9ec5d78984f417e1bcaaca34befe5bf7ed299be77f97e6285a6",
+            "status": "FAILED",
+            "exitCode": 1,
+            "codeHash": "92169960930749d646627a8914093c9103d19b357fb07896fd68d2aa3841b81b",
+            "resultAvailable": false,
+            "diagnosticCode": "PROGRAM_ERROR",
+            "repair": {
+              "allowed": true,
+              "action": "REPAIR_IN_CURRENT_CONTEXT",
+              "reason": "TECHNICAL_REPAIR",
+              "attemptsUsed": 1,
+              "maxAttempts": 3,
+              "baseCodeHash": "92169960930749d646627a8914093c9103d19b357fb07896fd68d2aa3841b81b",
+              "guidance": "Inspect the reported line and existing code; make the smallest justified technical correction without changing source data."
+            }
+          },
+          {
+            "executionId": "cline-3a8cddc5d823d2f2e423754f80cef51909738f4796c50d2ed73f425c134a5dc7",
+            "status": "FAILED",
+            "exitCode": 1,
+            "codeHash": "dd34d2b5b481f7e9921c28b3f6010074622e386e631508b0a8bde5e092c3024b",
+            "resultAvailable": false,
+            "diagnosticCode": "PROGRAM_ERROR",
+            "repair": {
+              "allowed": true,
+              "action": "REPAIR_IN_CURRENT_CONTEXT",
+              "reason": "TECHNICAL_REPAIR",
+              "attemptsUsed": 2,
+              "maxAttempts": 3,
+              "baseCodeHash": "dd34d2b5b481f7e9921c28b3f6010074622e386e631508b0a8bde5e092c3024b",
+              "guidance": "Inspect the reported line and existing code; make the smallest justified technical correction without changing source data."
+            }
+          },
+          {
+            "executionId": "cline-b4a357c879ecd1a4c746a1dbd645ace1b1f3b0d1930e30ee9d9008b38b7080b4",
+            "status": "SUCCEEDED",
+            "exitCode": 0,
+            "codeHash": "273bcbbd3aed0fab9b4d03f5329333fa7e9090e3ce767e1e8f51ccd39801d576",
+            "resultAvailable": true,
+            "diagnosticCode": null,
+            "repair": {
+              "allowed": false,
+              "action": "COMPLETE",
+              "reason": "RESULT_VERIFIED",
+              "attemptsUsed": 3,
+              "maxAttempts": 3,
+              "baseCodeHash": "273bcbbd3aed0fab9b4d03f5329333fa7e9090e3ce767e1e8f51ccd39801d576",
+              "guidance": "Result archived; business correctness remains governed by validationStatus."
+            }
+          }
+        ],
+        "inputs": [
+          {
+            "snapshotSha256": "224e4212ea083d05dcaa93a25ff27f71374b92140e9a7ece95a020c137aba347",
+            "rowCount": 1,
+            "format": "PARQUET",
+            "nativeFiles": [],
+            "sourceCounts": [
+              {
+                "reference": "mcp_chatchat_mcp_server_api_template_execute",
+                "rowCount": 1
+              }
+            ]
+          }
+        ],
+        "modelCalls": 12,
+        "inputTokens": 233363,
+        "outputTokens": 23300,
+        "consumed": {
+          "modelCalls": 12,
+          "modelTokens": 256663,
+          "toolCalls": 4,
+          "codeExecutions": 4,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 10814,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 529769,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 100000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 1387286,
+          "costAmount": "9.999999999996"
+        },
+        "meteringComplete": false
+      }
+    ]
+  },
+  {
+    "case": "finance-r9",
+    "runId": "e579a41f-520e-422c-aeaf-5d053c110571",
+    "latencyMs": 222052,
+    "answerSha256": "8435370cf543528161e2b5c9c995d0c86eef807289d6f6ee64d9ad82e0defa19",
+    "tasks": [
+      {
+        "taskId": "analysis-coding-223379372aa08ce933d1dedf35d2f90a17999f3ee1969908a439e599291cbe95",
+        "status": "COMPLETED",
+        "reasonCode": null,
+        "validationStatus": "INCONCLUSIVE",
+        "allowedTools": [
+          "artifact_read",
+          "input_read",
+          "python_execute",
+          "skill_read",
+          "sql_validate"
+        ],
+        "executions": [
+          {
+            "executionId": "cline-9c512478a2307043bf4f99e1e78dca32fbc9827deefb17a4375d62e2b0e2958a",
+            "status": "FAILED",
+            "exitCode": 1,
+            "codeHash": "bf3bca1c4907fe2a0a709af23ab6b3f95325455e3fd95190d85dcf4eb4bd36fc",
+            "resultAvailable": false,
+            "diagnosticCode": "FIELD_ACCESS_ERROR",
+            "repair": {
+              "allowed": true,
+              "action": "REPAIR_IN_CURRENT_CONTEXT",
+              "reason": "TECHNICAL_REPAIR",
+              "attemptsUsed": 0,
+              "maxAttempts": 3,
+              "baseCodeHash": "bf3bca1c4907fe2a0a709af23ab6b3f95325455e3fd95190d85dcf4eb4bd36fc",
+              "guidance": "Compare the field access at the reported line with the authorized schema and variable definitions; do not guess missing business fields."
+            }
+          },
+          {
+            "executionId": "cline-07eac4f933d47938701d0985a99e9e5c638c5f6e75e38018ab70db78d36f0b65",
+            "status": "FAILED",
+            "exitCode": 1,
+            "codeHash": "ad0f7ce2d6039d5638731e5ad564bf5e75563ab77caf59f33852675f54873e73",
+            "resultAvailable": false,
+            "diagnosticCode": "FIELD_ACCESS_ERROR",
+            "repair": {
+              "allowed": true,
+              "action": "REPAIR_IN_CURRENT_CONTEXT",
+              "reason": "TECHNICAL_REPAIR",
+              "attemptsUsed": 1,
+              "maxAttempts": 3,
+              "baseCodeHash": "ad0f7ce2d6039d5638731e5ad564bf5e75563ab77caf59f33852675f54873e73",
+              "guidance": "Compare the field access at the reported line with the authorized schema and variable definitions; do not guess missing business fields."
+            }
+          },
+          {
+            "executionId": "cline-fc0e039f8afd650c77c3230c0d2e28490fc032cbcc5cc4a7534d24e1c00a9243",
+            "status": "SUCCEEDED",
+            "exitCode": 0,
+            "codeHash": "9e6e99854de12f63119f731b88da2461467d9fae4364129c291d8a7e50e282a4",
+            "resultAvailable": true,
+            "diagnosticCode": null,
+            "repair": {
+              "allowed": false,
+              "action": "COMPLETE",
+              "reason": "RESULT_VERIFIED",
+              "attemptsUsed": 2,
+              "maxAttempts": 3,
+              "baseCodeHash": "9e6e99854de12f63119f731b88da2461467d9fae4364129c291d8a7e50e282a4",
+              "guidance": "Result archived; business correctness remains governed by validationStatus."
+            }
+          }
+        ],
+        "inputs": [
+          {
+            "snapshotSha256": "1741e250d2b522f4cfba8719645e91b0a1b76d4d30c3376ed8034c3592e461a8",
+            "rowCount": 1,
+            "format": "PARQUET",
+            "nativeFiles": [],
+            "sourceCounts": [
+              {
+                "reference": "mcp_chatchat_mcp_server_api_template_execute",
+                "rowCount": 1
+              }
+            ]
+          }
+        ],
+        "modelCalls": 8,
+        "inputTokens": 130803,
+        "outputTokens": 8241,
+        "consumed": {
+          "modelCalls": 8,
+          "modelTokens": 139044,
+          "toolCalls": 3,
+          "codeExecutions": 3,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 8108,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 385244,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 75000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 1040467,
+          "costAmount": "6.666666666664"
+        },
+        "meteringComplete": false
+      }
+    ]
+  },
+  {
+    "case": "large-csv-r5",
+    "runId": "2e3daf71-ead7-4f48-9a59-cfe25050c9b0",
+    "latencyMs": 163217,
+    "answerSha256": "f0a510360d879f9c6e80f9b886b3af51e951c39fd372177727672527126b0a47",
+    "controlledExpectedTotalPresent": true,
+    "tasks": [
+      {
+        "taskId": "analysis-coding-815f65009cf6faa75bc6e087b0f2b4669a8b8f7bfb83ddedd88680d098b9ded4",
+        "status": "COMPLETED",
+        "reasonCode": null,
+        "validationStatus": "INCONCLUSIVE",
+        "allowedTools": [
+          "artifact_read",
+          "input_read",
+          "python_execute",
+          "report_submit",
+          "sql_validate"
+        ],
+        "executions": [
+          {
+            "executionId": "cline-6a7e47dfa47210e22a83a5130e49554c0834d0b1fb44385e2715030c5c4c7ab8",
+            "status": "SUCCEEDED",
+            "exitCode": 0,
+            "codeHash": "b33e80c9e6f4d5d5eef7828ba5bc42b9d2eddb0a0ed8c53d82d4529ced4b6088",
+            "resultAvailable": true,
+            "diagnosticCode": null,
+            "repair": {
+              "allowed": false,
+              "action": "COMPLETE",
+              "reason": "RESULT_VERIFIED",
+              "attemptsUsed": 0,
+              "maxAttempts": 3,
+              "baseCodeHash": "b33e80c9e6f4d5d5eef7828ba5bc42b9d2eddb0a0ed8c53d82d4529ced4b6088",
+              "guidance": "Result archived; business correctness remains governed by validationStatus."
+            }
+          }
+        ],
+        "inputs": [
+          {
+            "snapshotSha256": "4b93029622c84743ea70a48946e678ea3d186e7433341efcaf67e12b95b4f77d",
+            "rowCount": 2,
+            "format": "PARQUET",
+            "nativeFiles": [
+              {
+                "fileId": "cfbba1e38f9dc200f98165035cf27fe5d07b73816784c885b49ddbf227d9269c",
+                "fileName": "original-0.csv",
+                "originalName": "large.csv",
+                "sha256": "eb853e205e51aae05a4b5842d6f455dc40af159984f68f31815c8e820067c1e7",
+                "sizeBytes": 128906,
+                "sourceDatasetRef": "user-asset:515bdcbd9cf3451c4969ef7304442a0d084781806517cdcae3ad3a31beb78cd2:eb853e205e51aae05a4b5842d6f455dc40af159984f68f31815c8e820067c1e7"
+              },
+              {
+                "fileId": "cd80044f4c7452564cf91170f9bcb87db7255928275082f331f0be480ae370b7",
+                "fileName": "user-message-1.txt",
+                "originalName": "user-message.txt",
+                "sha256": "5bfeedf5ed03d5712eb20c66479320fce1a192ae825ba582dfb8912a58983023",
+                "sizeBytes": 230,
+                "sourceDatasetRef": "runtime-context:2e3daf71-ead7-4f48-9a59-cfe25050c9b0"
+              }
+            ],
+            "sourceCounts": [
+              {
+                "reference": "runtime-context:2e3daf71-ead7-4f48-9a59-cfe25050c9b0",
+                "rowCount": 1
+              },
+              {
+                "reference": "user-asset:515bdcbd9cf3451c4969ef7304442a0d084781806517cdcae3ad3a31beb78cd2:eb853e205e51aae05a4b5842d6f455dc40af159984f68f31815c8e820067c1e7",
+                "rowCount": 1
+              }
+            ]
+          }
+        ],
+        "modelCalls": 5,
+        "inputTokens": 73163,
+        "outputTokens": 9463,
+        "consumed": {
+          "modelCalls": 5,
+          "modelTokens": 82626,
+          "toolCalls": 5,
+          "codeExecutions": 1,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 12715,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 245054,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 25000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 342116,
+          "costAmount": "4.166666666665"
+        },
+        "meteringComplete": false
+      }
+    ]
+  },
+  {
+    "case": "long-pasted-log-r10",
+    "runId": "b69bd3fa-48d0-48ff-90ae-d5fb9793d991",
+    "latencyMs": 462685,
+    "answerSha256": "aaa54db7f4b5501e4c85cef9b335c069f24e6ef526744eccd6a64fd37486eb49",
+    "originalMessageSha256Verified": true,
+    "tasks": [
+      {
+        "taskId": "analysis-coding-4299b2613dde8bd74366854985258b466cf79fc03b85f9657ed723e96d99727c",
+        "status": "COMPLETED",
+        "reasonCode": null,
+        "validationStatus": "INCONCLUSIVE",
+        "allowedTools": [
+          "artifact_read",
+          "input_read",
+          "python_execute",
+          "report_submit",
+          "sql_validate"
+        ],
+        "executions": [
+          {
+            "executionId": "cline-4b6c9d82d8ea9de1c0cf0dff312ea56db7d39e4ae040a0db0510ad4ed17adec9",
+            "status": "SUCCEEDED",
+            "exitCode": 0,
+            "codeHash": "0c8251e6b39b9bcd09d25b7b0286c8914a8dff0a24b49a34e591671b84d15cc0",
+            "resultAvailable": false,
+            "diagnosticCode": "OUTPUT_CONTRACT",
+            "repair": {
+              "allowed": true,
+              "action": "REPAIR_IN_CURRENT_CONTEXT",
+              "reason": "TECHNICAL_REPAIR",
+              "attemptsUsed": 0,
+              "maxAttempts": 3,
+              "baseCodeHash": "0c8251e6b39b9bcd09d25b7b0286c8914a8dff0a24b49a34e591671b84d15cc0",
+              "guidance": "Repair the required output file, field names and types to match the authorized result contract; exit code zero alone is insufficient."
+            }
+          },
+          {
+            "executionId": "cline-f5a1816c8f2f3c2e460b040c833a15d759d135c438be14dd39207505381250bd",
+            "status": "FAILED",
+            "exitCode": 1,
+            "codeHash": "4533e27001089c6eb9b25d6d4bfac1cf002cf3a2f01b37ed6f473aff2d9442c1",
+            "resultAvailable": false,
+            "diagnosticCode": "PROGRAM_ERROR",
+            "repair": {
+              "allowed": true,
+              "action": "REPAIR_IN_CURRENT_CONTEXT",
+              "reason": "TECHNICAL_REPAIR",
+              "attemptsUsed": 1,
+              "maxAttempts": 3,
+              "baseCodeHash": "4533e27001089c6eb9b25d6d4bfac1cf002cf3a2f01b37ed6f473aff2d9442c1",
+              "guidance": "Inspect the reported line and existing code; make the smallest justified technical correction without changing source data."
+            }
+          },
+          {
+            "executionId": "cline-e2d535e8c20c87b9dd9ec808970d4fbd829ceb2630afa0abcae86e65790e5020",
+            "status": "SUCCEEDED",
+            "exitCode": 0,
+            "codeHash": "eeb9a3fce575c4f1e787d0ce3e3721378f801069e5a7983f3f347e795569b1c8",
+            "resultAvailable": true,
+            "diagnosticCode": null,
+            "repair": {
+              "allowed": false,
+              "action": "COMPLETE",
+              "reason": "RESULT_VERIFIED",
+              "attemptsUsed": 2,
+              "maxAttempts": 3,
+              "baseCodeHash": "eeb9a3fce575c4f1e787d0ce3e3721378f801069e5a7983f3f347e795569b1c8",
+              "guidance": "Result archived; business correctness remains governed by validationStatus."
+            }
+          },
+          {
+            "executionId": "cline-f5b3c9e41de2b2d5d45a974476cec06a59e107b91564806f19e3d9f8feb49200",
+            "status": "SUCCEEDED",
+            "exitCode": 0,
+            "codeHash": "a912c9557f5394d03093c293c75b57eff56e34f9d37cb37c2a77e43ffdc89ed9",
+            "resultAvailable": true,
+            "diagnosticCode": null,
+            "repair": {
+              "allowed": false,
+              "action": "COMPLETE",
+              "reason": "RESULT_VERIFIED",
+              "attemptsUsed": 2,
+              "maxAttempts": 3,
+              "baseCodeHash": "a912c9557f5394d03093c293c75b57eff56e34f9d37cb37c2a77e43ffdc89ed9",
+              "guidance": "Result archived; business correctness remains governed by validationStatus."
+            }
+          }
+        ],
+        "inputs": [
+          {
+            "snapshotSha256": "c3d0f6ef61f09feb107cb8b41ee4df4274e1228eaf56a589215e209c42b94ddd",
+            "rowCount": 1,
+            "format": "PARQUET",
+            "nativeFiles": [
+              {
+                "fileId": "c56a17d4ebac0e16aee7cb8a567370fe40bfd85e303acfb8ec7f40b929d97097",
+                "fileName": "user-message-0.txt",
+                "originalName": "user-message.txt",
+                "sha256": "b29aaa366c5405d5330f44522ec205e47e72f49e91da90a266d254e32657ca25",
+                "sizeBytes": 24212,
+                "sourceDatasetRef": "runtime-context:b69bd3fa-48d0-48ff-90ae-d5fb9793d991"
+              }
+            ],
+            "sourceCounts": [
+              {
+                "reference": "runtime-context:b69bd3fa-48d0-48ff-90ae-d5fb9793d991",
+                "rowCount": 1
+              }
+            ]
+          }
+        ],
+        "modelCalls": 8,
+        "inputTokens": 194968,
+        "outputTokens": 29778,
+        "consumed": {
+          "modelCalls": 8,
+          "modelTokens": 224746,
+          "toolCalls": 6,
+          "codeExecutions": 4,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 27112,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 299542,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 100000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 1377701,
+          "costAmount": "6.666666666664"
+        },
+        "meteringComplete": false
+      }
+    ]
+  },
+  {
+    "case": "long-pasted-log-r5",
+    "runId": "dae63ea3-bdfd-46bd-9788-aae0bd703c51",
+    "latencyMs": 660085,
+    "answerSha256": "661b243d260c60b8eab9d83fdaf20c0807d1e09f521361b4ca3c256b3b532bd1",
+    "originalMessageSha256Verified": true,
+    "tasks": [
+      {
+        "taskId": "analysis-coding-7bd06c1bf1d9476af7b9da4067a49b2d7623c33d5e5c6d13833efc3243bc9ca4",
+        "status": "COMPLETED",
+        "reasonCode": null,
+        "validationStatus": "INCONCLUSIVE",
+        "allowedTools": [
+          "artifact_read",
+          "input_read",
+          "python_execute",
+          "report_submit",
+          "sql_validate"
+        ],
+        "executions": [
+          {
+            "executionId": "cline-9b08c25215a83aed749b35fa607f656f91e951722f23e9e95cb27ba408b9f36f",
+            "status": "SUCCEEDED",
+            "exitCode": 0,
+            "codeHash": "d263250005a7c7295c7b22f5fb22991ae763c6ce8f01e0d8886329ed35aa92fa",
+            "resultAvailable": false,
+            "diagnosticCode": "OUTPUT_CONTRACT",
+            "repair": {
+              "allowed": true,
+              "action": "REPAIR_IN_CURRENT_CONTEXT",
+              "reason": "TECHNICAL_REPAIR",
+              "attemptsUsed": 0,
+              "maxAttempts": 3,
+              "baseCodeHash": "d263250005a7c7295c7b22f5fb22991ae763c6ce8f01e0d8886329ed35aa92fa",
+              "guidance": "Repair the required output file, field names and types to match the authorized result contract; exit code zero alone is insufficient."
+            }
+          },
+          {
+            "executionId": "cline-9d849361e0a08bbe3e8e86bf1cb5b76839c36c06eba334389d9619b873359e61",
+            "status": "SUCCEEDED",
+            "exitCode": 0,
+            "codeHash": "be9e16452d233fdea5217df83a62845d9deda1f9805d3d08a1268d44cba5c866",
+            "resultAvailable": false,
+            "diagnosticCode": "OUTPUT_CONTRACT",
+            "repair": {
+              "allowed": true,
+              "action": "REPAIR_IN_CURRENT_CONTEXT",
+              "reason": "TECHNICAL_REPAIR",
+              "attemptsUsed": 1,
+              "maxAttempts": 3,
+              "baseCodeHash": "be9e16452d233fdea5217df83a62845d9deda1f9805d3d08a1268d44cba5c866",
+              "guidance": "Repair the required output file, field names and types to match the authorized result contract; exit code zero alone is insufficient."
+            }
+          },
+          {
+            "executionId": "cline-9e0dcdc0a9cd7b2d00a564411a4ce580e2818797f4b2c28bb695e5e03ddbac95",
+            "status": "SUCCEEDED",
+            "exitCode": 0,
+            "codeHash": "7c82b53a6074a59c75550298bc972d1d0f29bd55b518aebad212a7b63c81fd57",
+            "resultAvailable": false,
+            "diagnosticCode": "OUTPUT_CONTRACT",
+            "repair": {
+              "allowed": true,
+              "action": "REPAIR_IN_CURRENT_CONTEXT",
+              "reason": "TECHNICAL_REPAIR",
+              "attemptsUsed": 2,
+              "maxAttempts": 3,
+              "baseCodeHash": "7c82b53a6074a59c75550298bc972d1d0f29bd55b518aebad212a7b63c81fd57",
+              "guidance": "Repair the required output file, field names and types to match the authorized result contract; exit code zero alone is insufficient."
+            }
+          },
+          {
+            "executionId": "cline-b87ee70203f58b78e136fecae8371d1629eb75d6874c7a1de2e2a87023da2055",
+            "status": "SUCCEEDED",
+            "exitCode": 0,
+            "codeHash": "1cc58ae3fe70a4385b003d44c3502bcaebddcd474bd7f99714ad691e7d301d4d",
+            "resultAvailable": true,
+            "diagnosticCode": null,
+            "repair": {
+              "allowed": false,
+              "action": "COMPLETE",
+              "reason": "RESULT_VERIFIED",
+              "attemptsUsed": 3,
+              "maxAttempts": 3,
+              "baseCodeHash": "1cc58ae3fe70a4385b003d44c3502bcaebddcd474bd7f99714ad691e7d301d4d",
+              "guidance": "Result archived; business correctness remains governed by validationStatus."
+            }
+          },
+          {
+            "executionId": "cline-0ef1d1b33974a1f7857c175b54e99907ed891cf7bf7000cc88b907a4f4f2cc24",
+            "status": "SUCCEEDED",
+            "exitCode": 0,
+            "codeHash": "0a7266508345bd05aab98898a38f2e53cb266abfbcb4339f42fa84580cf419b5",
+            "resultAvailable": true,
+            "diagnosticCode": null,
+            "repair": {
+              "allowed": false,
+              "action": "COMPLETE",
+              "reason": "RESULT_VERIFIED",
+              "attemptsUsed": 3,
+              "maxAttempts": 3,
+              "baseCodeHash": "0a7266508345bd05aab98898a38f2e53cb266abfbcb4339f42fa84580cf419b5",
+              "guidance": "Result archived; business correctness remains governed by validationStatus."
+            }
+          }
+        ],
+        "inputs": [
+          {
+            "snapshotSha256": "c230a296b65520298dcb16fde08dd1de6d8188674b5776a7287e5613d0f62472",
+            "rowCount": 1,
+            "format": "PARQUET",
+            "nativeFiles": [
+              {
+                "fileId": "c0bf06307f21373005e90f5e19afc39783c93cd0bef695129f0e70391d7b6319",
+                "fileName": "user-message-0.txt",
+                "originalName": "user-message.txt",
+                "sha256": "b29aaa366c5405d5330f44522ec205e47e72f49e91da90a266d254e32657ca25",
+                "sizeBytes": 24212,
+                "sourceDatasetRef": "runtime-context:dae63ea3-bdfd-46bd-9788-aae0bd703c51"
+              }
+            ],
+            "sourceCounts": [
+              {
+                "reference": "runtime-context:dae63ea3-bdfd-46bd-9788-aae0bd703c51",
+                "rowCount": 1
+              }
+            ]
+          }
+        ],
+        "modelCalls": 11,
+        "inputTokens": 334974,
+        "outputTokens": 46299,
+        "consumed": {
+          "modelCalls": 11,
+          "modelTokens": 381273,
+          "toolCalls": 7,
+          "codeExecutions": 5,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 54302,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 339623,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 125000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 1719080,
+          "costAmount": "9.166666666663"
+        },
+        "meteringComplete": false
+      }
+    ]
+  },
+  {
+    "case": "multi-csv-r2",
+    "runId": "fd27b9bb-7fb2-41f3-a698-eedcdf3ef856",
+    "latencyMs": 243129,
+    "answerSha256": "23da26fb401b964ef330f16b77496e6297f0a2764fe0b85c3083e8d19a10d960",
+    "controlledExpectedTotalPresent": true,
+    "tasks": [
+      {
+        "taskId": "analysis-coding-e1b63f6234804bbacd4deec5d7d0bd927431df41d43ffb4ff88f9de2c036c78f",
+        "status": "COMPLETED",
+        "reasonCode": null,
+        "validationStatus": "INCONCLUSIVE",
+        "allowedTools": [
+          "artifact_read",
+          "input_read",
+          "python_execute",
+          "report_submit",
+          "sql_validate"
+        ],
+        "executions": [
+          {
+            "executionId": "cline-4b05c95b44c808ce0196732a352c6520a75d3f9ecde08fb620e3c1f650162bf1",
+            "status": "FAILED",
+            "exitCode": 1,
+            "codeHash": "1bfebb163255509a962c5a23727f7fb9836534e81f1b3e3af0e836e518311b71",
+            "resultAvailable": false,
+            "diagnosticCode": "PROGRAM_ERROR",
+            "repair": {
+              "allowed": true,
+              "action": "REPAIR_IN_CURRENT_CONTEXT",
+              "reason": "TECHNICAL_REPAIR",
+              "attemptsUsed": 0,
+              "maxAttempts": 3,
+              "baseCodeHash": "1bfebb163255509a962c5a23727f7fb9836534e81f1b3e3af0e836e518311b71",
+              "guidance": "Inspect the reported line and existing code; make the smallest justified technical correction without changing source data."
+            }
+          },
+          {
+            "executionId": "cline-860aa166a1083980a7160281596e428a9db3473fc58bdc9c9035fe0075a1cfdf",
+            "status": "FAILED",
+            "exitCode": 1,
+            "codeHash": "895c03756bf902a8c0f1bae3315f39270677c9b11bcbda80064900b9691639ea",
+            "resultAvailable": false,
+            "diagnosticCode": "NUMERIC_TYPE_MISMATCH",
+            "repair": {
+              "allowed": true,
+              "action": "REPAIR_IN_CURRENT_CONTEXT",
+              "reason": "TECHNICAL_REPAIR",
+              "attemptsUsed": 1,
+              "maxAttempts": 3,
+              "baseCodeHash": "895c03756bf902a8c0f1bae3315f39270677c9b11bcbda80064900b9691639ea",
+              "guidance": "Normalize compatible numeric types according to the input schema and preserve exact decimal precision."
+            }
+          },
+          {
+            "executionId": "cline-859a314908264b5d2b6918e5dba6c86820480641e131489543987f7dce1986cb",
+            "status": "SUCCEEDED",
+            "exitCode": 0,
+            "codeHash": "36133109c67c58d537f9c2d6800e7966d391f1b89064e20aead706fd7ed55475",
+            "resultAvailable": true,
+            "diagnosticCode": null,
+            "repair": {
+              "allowed": false,
+              "action": "COMPLETE",
+              "reason": "RESULT_VERIFIED",
+              "attemptsUsed": 2,
+              "maxAttempts": 3,
+              "baseCodeHash": "36133109c67c58d537f9c2d6800e7966d391f1b89064e20aead706fd7ed55475",
+              "guidance": "Result archived; business correctness remains governed by validationStatus."
+            }
+          }
+        ],
+        "inputs": [
+          {
+            "snapshotSha256": "d4a3f05a2a26664aa7ce69cd68d64e2a8af5b19cfd6741ef1ce33e69c7efac48",
+            "rowCount": 3,
+            "format": "PARQUET",
+            "nativeFiles": [
+              {
+                "fileId": "cd9a2aff24460b8cce5e82d1fcc9dc3f1b2531d2b940b91703f7cc29259bac85",
+                "fileName": "original-0.csv",
+                "originalName": "trades.csv",
+                "sha256": "e5a503e126ecb3ba12c47776b2514ce1c915c20a7a7229e74c9d882a420fbdbe",
+                "sizeBytes": 63,
+                "sourceDatasetRef": "user-asset:47e220df81638cb1d39330136cadf53467e014fb828ae80c451ce701e56008b3:e5a503e126ecb3ba12c47776b2514ce1c915c20a7a7229e74c9d882a420fbdbe"
+              },
+              {
+                "fileId": "ccc9e4bc91daebbbf36092dad6f8ef6fc1d0675c3a1c8e987b7715be94bb929e",
+                "fileName": "original-1.csv",
+                "originalName": "assets.csv",
+                "sha256": "736aea191758bacb716d4e0b2f1b21f87b14b60b1f61678fceb499dc3f69b243",
+                "sizeBytes": 47,
+                "sourceDatasetRef": "user-asset:599dbf8dd43004eaa19e0afee151ad31242aab2d6004348ed162283823297076:736aea191758bacb716d4e0b2f1b21f87b14b60b1f61678fceb499dc3f69b243"
+              },
+              {
+                "fileId": "c30720381710a68a0f97393aa2c1bf6ef8d276b85f358dbde0ce350750c02e15",
+                "fileName": "user-message-2.txt",
+                "originalName": "user-message.txt",
+                "sha256": "4dbdf1d0dfecb431eb65cabb6fd8561398546acd7b53d1af47bac17828ebb2a3",
+                "sizeBytes": 299,
+                "sourceDatasetRef": "runtime-context:fd27b9bb-7fb2-41f3-a698-eedcdf3ef856"
+              }
+            ],
+            "sourceCounts": [
+              {
+                "reference": "runtime-context:fd27b9bb-7fb2-41f3-a698-eedcdf3ef856",
+                "rowCount": 1
+              },
+              {
+                "reference": "user-asset:47e220df81638cb1d39330136cadf53467e014fb828ae80c451ce701e56008b3:e5a503e126ecb3ba12c47776b2514ce1c915c20a7a7229e74c9d882a420fbdbe",
+                "rowCount": 1
+              },
+              {
+                "reference": "user-asset:599dbf8dd43004eaa19e0afee151ad31242aab2d6004348ed162283823297076:736aea191758bacb716d4e0b2f1b21f87b14b60b1f61678fceb499dc3f69b243",
+                "rowCount": 1
+              }
+            ]
+          }
+        ],
+        "modelCalls": 8,
+        "inputTokens": 162246,
+        "outputTokens": 17535,
+        "consumed": {
+          "modelCalls": 8,
+          "modelTokens": 179781,
+          "toolCalls": 6,
+          "codeExecutions": 3,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 13270,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 344507,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 75000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 1037939,
+          "costAmount": "6.666666666664"
+        },
+        "meteringComplete": false
+      }
+    ]
+  },
+  {
+    "case": "multi-parquet-r5",
+    "runId": "eae82448-5990-41b3-9061-0910aac9f095",
+    "latencyMs": 167196,
+    "answerSha256": "6fc815b5c557727111b8972b74b2fd25fe710d9384e86885a9c358e7343533d1",
+    "tasks": [
+      {
+        "taskId": "analysis-coding-30823921966aeb7b783f2765eea9e33a67f21b4e93195c31401817d11aa73b9f",
+        "status": "COMPLETED",
+        "reasonCode": null,
+        "validationStatus": "INCONCLUSIVE",
+        "allowedTools": [
+          "artifact_read",
+          "input_read",
+          "python_execute",
+          "report_submit",
+          "sql_validate"
+        ],
+        "executions": [
+          {
+            "executionId": "cline-714a27d9e1e1820c83e52209b17793a932ac920363acc882897a99c7386afcca",
+            "status": "FAILED",
+            "exitCode": 1,
+            "codeHash": "cadd2fcf42677b11a23ababb40b25014ed226cc894b536c8f60aad4e565a5114",
+            "resultAvailable": false,
+            "diagnosticCode": "PACKAGE_API_UNAVAILABLE",
+            "repair": {
+              "allowed": true,
+              "action": "REPAIR_IN_CURRENT_CONTEXT",
+              "reason": "TECHNICAL_REPAIR",
+              "attemptsUsed": 0,
+              "maxAttempts": 3,
+              "baseCodeHash": "cadd2fcf42677b11a23ababb40b25014ed226cc894b536c8f60aad4e565a5114",
+              "guidance": "Use an API supported by the captured package version."
+            }
+          },
+          {
+            "executionId": "cline-0c09439bfc1dc51ebe6215814850235b6e7a8f5d25253aa4890613058444c405",
+            "status": "SUCCEEDED",
+            "exitCode": 0,
+            "codeHash": "fcc1115a43b651ba854ebe321a057168f0e150134c1ee4cc5ff9ee262a7a89fe",
+            "resultAvailable": false,
+            "diagnosticCode": "OUTPUT_CONTRACT",
+            "repair": {
+              "allowed": true,
+              "action": "REPAIR_IN_CURRENT_CONTEXT",
+              "reason": "TECHNICAL_REPAIR",
+              "attemptsUsed": 1,
+              "maxAttempts": 3,
+              "baseCodeHash": "fcc1115a43b651ba854ebe321a057168f0e150134c1ee4cc5ff9ee262a7a89fe",
+              "guidance": "Repair the required output file, field names and types to match the authorized result contract; exit code zero alone is insufficient."
+            }
+          },
+          {
+            "executionId": "cline-a4e3b4ff4e70cac53958602a0b2b748a337e99e750f442be4eb5474bd589eca1",
+            "status": "SUCCEEDED",
+            "exitCode": 0,
+            "codeHash": "898e131b7bba19bf10f8e780ea220ee1ef2759ed47f88b43ccd42901f87cbe77",
+            "resultAvailable": true,
+            "diagnosticCode": null,
+            "repair": {
+              "allowed": false,
+              "action": "COMPLETE",
+              "reason": "RESULT_VERIFIED",
+              "attemptsUsed": 2,
+              "maxAttempts": 3,
+              "baseCodeHash": "898e131b7bba19bf10f8e780ea220ee1ef2759ed47f88b43ccd42901f87cbe77",
+              "guidance": "Result archived; business correctness remains governed by validationStatus."
+            }
+          }
+        ],
+        "inputs": [
+          {
+            "snapshotSha256": "fc70e9ee044498ff1d50398e8e733c8e694574d1e370266a4462e6395bcb620c",
+            "rowCount": 3,
+            "format": "PARQUET",
+            "nativeFiles": [
+              {
+                "fileId": "c8f2657a54b2b0a52308d23b18ae7994912ec2a4133641540247409d7e359a9b",
+                "fileName": "original-0.parquet",
+                "originalName": "trades.parquet",
+                "sha256": "82286fdea7c28ddfcd6978b32e87faca15d59b29dc7c17f139b66616684e0ee2",
+                "sizeBytes": 1764,
+                "sourceDatasetRef": "user-asset:154b5afa3f08ae03910a28bad175dfca434a5f0030e22cd35ca468c39f3ecd58:82286fdea7c28ddfcd6978b32e87faca15d59b29dc7c17f139b66616684e0ee2"
+              },
+              {
+                "fileId": "cd3fac72f8db0ff2ab902db47ddafc9436f93fcc32968639e93a3dddee468006",
+                "fileName": "original-1.parquet",
+                "originalName": "assets.parquet",
+                "sha256": "d02c698ea18c5f3579c163ac19467bc5c1c81def0b0778d7bff752c986eb0ddc",
+                "sizeBytes": 1769,
+                "sourceDatasetRef": "user-asset:cdbca896ec7a9d97c4c183acbb4ce621b26be84aab2475acac557349fcf0cb4b:d02c698ea18c5f3579c163ac19467bc5c1c81def0b0778d7bff752c986eb0ddc"
+              },
+              {
+                "fileId": "c9c29e98d77b1e68d330a4ec31a920d75525899f0910965b83801022932fc7ea",
+                "fileName": "user-message-2.txt",
+                "originalName": "user-message.txt",
+                "sha256": "4bd5f0b1de1f9fcc4ceb2819e096a94728a2e82c499cf92286b92755c292f352",
+                "sizeBytes": 291,
+                "sourceDatasetRef": "runtime-context:eae82448-5990-41b3-9061-0910aac9f095"
+              }
+            ],
+            "sourceCounts": [
+              {
+                "reference": "runtime-context:eae82448-5990-41b3-9061-0910aac9f095",
+                "rowCount": 1
+              },
+              {
+                "reference": "user-asset:154b5afa3f08ae03910a28bad175dfca434a5f0030e22cd35ca468c39f3ecd58:82286fdea7c28ddfcd6978b32e87faca15d59b29dc7c17f139b66616684e0ee2",
+                "rowCount": 1
+              },
+              {
+                "reference": "user-asset:cdbca896ec7a9d97c4c183acbb4ce621b26be84aab2475acac557349fcf0cb4b:d02c698ea18c5f3579c163ac19467bc5c1c81def0b0778d7bff752c986eb0ddc",
+                "rowCount": 1
+              }
+            ]
+          }
+        ],
+        "modelCalls": 6,
+        "inputTokens": 104604,
+        "outputTokens": 11932,
+        "consumed": {
+          "modelCalls": 6,
+          "modelTokens": 116536,
+          "toolCalls": 5,
+          "codeExecutions": 3,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 24207,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 276680,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 75000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 1026148,
+          "costAmount": "4.999999999998"
+        },
+        "meteringComplete": false
+      }
+    ]
+  },
+  {
+    "case": "native-markdown-r2",
+    "runId": "c3257c3c-231e-4382-a621-6d357f956f3b",
+    "latencyMs": 63850,
+    "answerSha256": "c419a80a0be3313a506864be0d747ddad6438196844ef975095b740bf886b9e0",
+    "tasks": [
+      {
+        "taskId": "analysis-coding-ea8ec4c3122d384f99a98343adb9844a2ae4bb0af58dbf12ed33dc49e400bce8",
+        "status": "COMPLETED",
+        "reasonCode": null,
+        "validationStatus": "INCONCLUSIVE",
+        "allowedTools": [
+          "artifact_read",
+          "input_read",
+          "python_execute",
+          "report_submit",
+          "sql_validate"
+        ],
+        "executions": [],
+        "inputs": [
+          {
+            "snapshotSha256": "3279f7e4835cc65c89c25a1e44b22669e23cbbf370ff15955447dd78dd00998b",
+            "rowCount": 2,
+            "format": "PARQUET",
+            "nativeFiles": [
+              {
+                "fileId": "cec96c397d58910dbd2eb4f168a301cac8d2b42d033cccf28a381321a3cec47a",
+                "fileName": "original-0.md",
+                "originalName": "controlled-note.md",
+                "sha256": "ee94933d64cd0746e3a93c9f0f1207a8903d4deb6a82f8dc96cc42cd3818d3e1",
+                "sizeBytes": 251,
+                "sourceDatasetRef": "user-asset:fe575541b295a4dbda3c2cdb3c87a6e3b91cd3b326265a3610766bb0184fd02d:ee94933d64cd0746e3a93c9f0f1207a8903d4deb6a82f8dc96cc42cd3818d3e1"
+              }
+            ],
+            "sourceCounts": [
+              {
+                "reference": "runtime-context:c3257c3c-231e-4382-a621-6d357f956f3b",
+                "rowCount": 1
+              },
+              {
+                "reference": "user-asset:fe575541b295a4dbda3c2cdb3c87a6e3b91cd3b326265a3610766bb0184fd02d:ee94933d64cd0746e3a93c9f0f1207a8903d4deb6a82f8dc96cc42cd3818d3e1",
+                "rowCount": 1
+              }
+            ]
+          }
+        ],
+        "modelCalls": 2,
+        "inputTokens": 15298,
+        "outputTokens": 2925,
+        "consumed": {
+          "modelCalls": 2,
+          "modelTokens": 18223,
+          "toolCalls": 3,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 6987,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 112849,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "1.666666666666"
+        },
+        "meteringComplete": false
+      }
+    ]
+  },
+  {
+    "case": "sql-explanation-r2",
+    "runId": "01fb1ccb-4db7-451a-bae2-51fa0c8b8b86",
+    "latencyMs": 191030,
+    "answerSha256": "be3ffb286d351f7964904e818a790baa999c1da94d0d5c4b73115318cd02e507",
+    "tasks": [
+      {
+        "taskId": "analysis-coding-b9a7dd44793429a4a7d85b1ea5368e571eaf3f52578277e8bcf21e827715acca",
+        "status": "COMPLETED",
+        "reasonCode": null,
+        "validationStatus": "INCONCLUSIVE",
+        "allowedTools": [
+          "artifact_read",
+          "input_read",
+          "python_execute",
+          "report_submit",
+          "sql_validate"
+        ],
+        "executions": [],
+        "inputs": [
+          {
+            "snapshotSha256": "61e866de2ab2c7a27197d9bab61c4a73d289a765cfd052a571a1419735b51fe2",
+            "rowCount": 2,
+            "format": "PARQUET",
+            "nativeFiles": [
+              {
+                "fileId": "cee5d969af14ba6f066adc55ab035ef2cffcf79f171830ba37d701d3e4509d2a",
+                "fileName": "original-0.sql",
+                "originalName": "controlled-query.sql",
+                "sha256": "db1cd128b1e0ba1b3c1356e120b73e40dbb1850f6afe938eccf74bac9720d50a",
+                "sizeBytes": 206,
+                "sourceDatasetRef": "user-asset:dcb0d0ab066179217d507e652b73d7ac15e9ecc963f46752544cdaccbb70c3da:db1cd128b1e0ba1b3c1356e120b73e40dbb1850f6afe938eccf74bac9720d50a"
+              }
+            ],
+            "sourceCounts": [
+              {
+                "reference": "runtime-context:01fb1ccb-4db7-451a-bae2-51fa0c8b8b86",
+                "rowCount": 1
+              },
+              {
+                "reference": "user-asset:dcb0d0ab066179217d507e652b73d7ac15e9ecc963f46752544cdaccbb70c3da:db1cd128b1e0ba1b3c1356e120b73e40dbb1850f6afe938eccf74bac9720d50a",
+                "rowCount": 1
+              }
+            ]
+          }
+        ],
+        "modelCalls": 4,
+        "inputTokens": 35439,
+        "outputTokens": 10399,
+        "consumed": {
+          "modelCalls": 4,
+          "modelTokens": 45838,
+          "toolCalls": 5,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 13266,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 216306,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "3.333333333332"
+        },
+        "meteringComplete": false
+      }
+    ]
+  }
+]

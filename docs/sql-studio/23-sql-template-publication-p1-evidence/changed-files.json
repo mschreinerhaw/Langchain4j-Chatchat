@@ -1,0 +1,110 @@
+[
+  {
+    "path": "chatchat-api/src/main/java/com/chatchat/api/controller/datascience/SqlStudioPublicationController.java",
+    "sha256": "7b5a345c94c3904f199d0c47d5ca66bfd694caddfe33ab23d10c4e47c6d0663d"
+  },
+  {
+    "path": "chatchat-api/src/main/java/com/chatchat/api/controller/mcp/TemplateCapabilityController.java",
+    "sha256": "ca5937d674c84a39aa8b1510e152791f6bef9f8f5e165e32e7acae20ea637a89"
+  },
+  {
+    "path": "chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioPublicationControllerTest.java",
+    "sha256": "82c35e324f97cf2d263256086b0372167c638562c7bacb70d46991a540448b73"
+  },
+  {
+    "path": "chatchat-api/web-app/package.json",
+    "sha256": "3defa2c90694a825726810e9924b76c31773d08474c68e1fce4fff223784ec76"
+  },
+  {
+    "path": "chatchat-api/web-app/src/services/sqlStudioApi.js",
+    "sha256": "18511e5d1c8508362ba2c595ff2ed38d194432e3b2c8f1408e7d5ec17613b574"
+  },
+  {
+    "path": "chatchat-api/web-app/src/js/views/SqlStudioView.js",
+    "sha256": "d4dc11876d042700f5aed5dbfce443100965023c78c24c87bb935a27c40afe42"
+  },
+  {
+    "path": "chatchat-api/web-app/src/views/SqlStudioView.vue",
+    "sha256": "75f5c7557fdcdd8d45c2ed1000e66571a6a8ede87153f2e60cc6a1dc41cb2d12"
+  },
+  {
+    "path": "chatchat-api/web-app/src/components/sql-studio/SqlTemplatePublicationPanel.vue",
+    "sha256": "a5757efa352006dfc492b8bbeaa9b4d44b72942b2ff37f407c721d5e8f41dc68"
+  },
+  {
+    "path": "chatchat-api/web-app/src/js/components/sql-studio/SqlTemplatePublicationPanel.js",
+    "sha256": "b9ee537a3a07d9f9b9b0c5b0a3968d7c209adcae305bb9e28d2fe0a33a4882ea"
+  },
+  {
+    "path": "chatchat-api/web-app/src/styles/components/sql-studio/SqlTemplatePublicationPanel.css",
+    "sha256": "518b3674280f3204a507480864eeda80a222097efcdf83dd2183e4380b9912cb"
+  },
+  {
+    "path": "chatchat-api/web-app/src/components/sql-studio/SqlTemplatePublicationPanel.test.js",
+    "sha256": "4a93a9f03d180091f21b08f853da088eeb0a5bb7cb12360cc7f602c0c225cefa"
+  },
+  {
+    "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/sql/template/SqlTemplateConfig.java",
+    "sha256": "55aa1576bd8803b379e5bee4daeecaddac141a8d9fe14af21324a718d5183c7a"
+  },
+  {
+    "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/sql/template/SqlTemplateConfigRepository.java",
+    "sha256": "597083e936cabec8f2dac4b47f975401a4c71b6430d9c4d03ae524cb4b53a298"
+  },
+  {
+    "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/sql/template/SqlTemplateService.java",
+    "sha256": "f6eaf454f094e4ef183be1386d4e3bb9613cc67c9b0057e904b7eaf05c090e38"
+  },
+  {
+    "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/sql/template/SqlTemplateAuthoringService.java",
+    "sha256": "c9ee43cf94bfbfe755962274ef45df7f9b428f8acbb9858c4796355dbf7b2d0f"
+  },
+  {
+    "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/sql/admin/SqlTemplateAuthoringController.java",
+    "sha256": "14f707b8e6adea52d5d6afe9d7af369cf761b7b6ba555f8b9ede879df25e8204"
+  },
+  {
+    "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/templatepublication/admin/TemplateCapabilityService.java",
+    "sha256": "3c3dfbc54ebd79beac0e3a4450abfc370ef04a86a095113932a75274aaf55049"
+  },
+  {
+    "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/templatepublication/catalog/TemplateAssetCatalogService.java",
+    "sha256": "186fd2d07044274ff668834b47570de711605bbef43362260a836d46f12ea615"
+  },
+  {
+    "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/templatepublication/publisher/TemplateCapabilityPublisher.java",
+    "sha256": "3653fb7d4ee2bb1c55f6d79b14e3cbe66cc464d7fc51511d35613cfe610ef6a2"
+  },
+  {
+    "path": "chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/sql/template/SqlTemplateAuthoringServiceTest.java",
+    "sha256": "2ad901d3aadd1b787cbe1efac0b8135134cde98e063a64270283a3599f182630"
+  },
+  {
+    "path": "chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/templatepublication/admin/TemplateCapabilityServiceTest.java",
+    "sha256": "930c691918d98e442725fe75e6a4a76f66cd94137276905e4431f533bfd93995"
+  },
+  {
+    "path": "chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/templatepublication/catalog/TemplateAssetCatalogServiceTest.java",
+    "sha256": "1ceaddfe23eb45c70241023a5b560fde2c348bc7b41937dc0f07189c0c98685a"
+  },
+  {
+    "path": "deploy/docker/application/migrations/20261029-sql-template-authoring.postgresql.sql",
+    "sha256": "f2854a64b1606dec44441e4a3e4131c116bb2d74921671502fe3b28a2d766907"
+  },
+  {
+    "path": "deploy/docker/application/migrations/20261029-sql-template-authoring.mysql.sql",
+    "sha256": "b1cc30f928c21168595579e4929d8bfade28234b78f6b7368279c8324cf59815"
+  },
+  {
+    "path": "deploy/docker/application/migrations/20261029-sql-template-authoring.rollback.sql",
+    "sha256": "739756a66dc005d248e0e001c20aaeaa4dc277ae44dfef74ea4b44c3dd9f2c08"
+  },
+  {
+    "path": "scripts/verify-sql-template-publication-browser.mjs",
+    "sha256": "a0294899abc89615aaa991d36667a7f1be7fa7c0021fb71c62476c9fd564a5c7"
+  },
+  {
+    "path": "docs/sql-studio/23-sql-template-publication-p1.md",
+    "sha256": "1a24cb15a0fe106ac9434560227e2040431b6743a31407715793786df228d130"
+  }
+]

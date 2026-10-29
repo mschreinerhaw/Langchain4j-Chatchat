@@ -26,8 +26,14 @@ class ClineContextAnswerServiceTest {
             requests.add(task.get("requestId").toString());
             var source = sources.get("runtime-context:run");
             assertThat(source.analysisContext()).containsEntry("isBusinessDataset", false);
-            assertThat(source.records()).singleElement().satisfies(row -> assertThat(row).containsEntry("question", sql)
-                .containsEntry("conversationSummary", longContext.conversationSummary()));
+            assertThat(source.records()).singleElement().satisfies(row -> {
+                assertThat(row).containsEntry("schemaVersion", "analysis-materials.v1")
+                    .doesNotContainKeys("question", "history", "conversationSummary", "conversationEvidence", "suppliedContext", "fileAnalysis");
+                @SuppressWarnings("unchecked") var materials = (List<Map<String,Object>>) row.get("materials");
+                assertThat(materials).anySatisfy(material -> assertThat(material).containsEntry("kind", "originalUserMessage").containsEntry("text", sql));
+                assertThat(materials).anySatisfy(material -> assertThat(material).containsEntry("kind", "conversationMemory")
+                    .containsEntry("text", longContext.conversationSummary()).containsEntry("isCurrentBusinessEvidence", false));
+            });
             sources.put("result", new Dataset("result", Map.of(), List.of(Map.of("reportMarkdown", "Source-only explanation",
                 "evidenceReferences", List.of("runtime-context:run")))));
             return Map.of("resultAvailable", true, "datasetReference", "result");
@@ -80,8 +86,8 @@ class ClineContextAnswerServiceTest {
         .tenantId("tenant").userId("user").toolInput(Map.of("__agentRunId", "run")).build(); }
 
     @org.junit.jupiter.params.ParameterizedTest
-    @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
-    void attachedOriginalsUseTheParentRunCancellationAndAuthorizedEvidence(boolean sql) {
+    @org.junit.jupiter.params.provider.CsvSource({"false,false","false,true","true,false"})
+    void attachedOriginalsUseTheParentRunCancellationAndAuthorizedEvidence(boolean sql,boolean visual) {
         var assets=mock(com.chatchat.api.assets.UserAssetService.class);
         var inputs=new com.chatchat.api.assets.AssetAnalysisInputs(assets);
         var beans=new org.springframework.beans.factory.support.DefaultListableBeanFactory();beans.registerSingleton("inputs",inputs);
@@ -90,7 +96,7 @@ class ClineContextAnswerServiceTest {
         String hash=com.chatchat.api.assets.UserAssetService.hash(bytes),ref="user-asset:"+id+":"+hash;
         when(assets.get(any(),eq(id))).thenReturn(new com.chatchat.api.assets.UserAssetService.File(id,"DOCUMENT","input.csv","text/csv",hash,bytes.length,"AVAILABLE","","","upload",1));
         when(assets.read(any(),eq(id))).thenReturn(bytes);
-        var request=request();request.setToolInput(Map.of("__agentRunId","run","__userAssetIds",List.of(id)));
+        var request=request();request.setToolInput(Map.of("__agentRunId","run","__userAssetIds",List.of(id),"reportMode",visual?"visual":"off"));
         var planned = context;
         if (sql) {
             request.setQuery("SELECT SUM(amount) FROM input_csv");
@@ -108,6 +114,12 @@ class ClineContextAnswerServiceTest {
             Map<String,Object> task=call.getArgument(1);Map<String,Dataset> sources=call.getArgument(2);
             assertThat(task).containsEntry("datasetReferences",List.of("runtime-context:run",ref));
             assertThat(task.get("instruction").toString()).contains("actual declared file format","untrusted DATA","Python");
+            if(visual) {
+                var schema=(Map<?,?>)task.get("outputSchema");
+                assertThat(((Map<?,?>)schema.get("properties")).containsKey("visualReport")).isTrue();
+                assertThat(((List<?>)schema.get("required")).contains("visualReport")).isFalse();
+                assertThat(task.get("instruction").toString()).contains("OMIT visualReport","ONLY if the actual request requires calculations");
+            }
             assertThat(sources.get(ref).handle().readPage(0,1).rows().get(0)).containsEntry("sha256",hash);
             sources.put("result",new Dataset("result",Map.of(),List.of(Map.of("reportMarkdown","3.75","evidenceReferences",List.of(ref)))));
             return Map.of("resultAvailable",true,"datasetReference","result");

@@ -1,0 +1,42 @@
+[
+  {
+    "name": "runtime-os-app-stage-api-1",
+    "id": "7abfc1f92b7280258cb2ea280ff96fe167cf53fba116569896fd7d32bd16139a",
+    "image": "runtime-os-api:main-d9f39979d-20261028",
+    "startedAt": "2026-10-28T04:45:32.70642345Z",
+    "running": true,
+    "mountDigest": "0c718283913034c574d0834123c2d434ad4f9acb70fd8bf4b79d04d864e3f0e9"
+  },
+  {
+    "name": "runtime-os-app-stage-mcp-1",
+    "id": "4453ca5fb737a1361f1bd109b637ee2fb468ebabe5bef2cb9f67b7efa220adb4",
+    "image": "runtime-os-mcp:main-9b18e67f9-20261028",
+    "startedAt": "2026-10-28T04:15:36.46874148Z",
+    "running": true,
+    "mountDigest": "0d8cf1f02aedcc9e98e4b6a39cd3742367734b513608aac8df91f96eb0127949"
+  },
+  {
+    "name": "runtime-os-app-stage-coding-agent-1",
+    "id": "861b6b940e83b27e8cf6045bb53a1ba65bbf93cef870ebd448e2cc6183f34226",
+    "image": "runtime-os-coding-agent:repair-a7d3ddaf0040325c",
+    "startedAt": "2026-10-27T06:17:17.874476137Z",
+    "running": true,
+    "mountDigest": "99f691ecf060ebb5f90d7dedd1860b3cd49f26e204a455fb71854d2303b7f512"
+  },
+  {
+    "name": "runtime-os-app-stage-node-proxy-1",
+    "id": "631a8c4962cd1a8aecd138db251a21a25faa4957583f70f4f5a1debc9d6c9a55",
+    "image": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+    "startedAt": "2026-10-28T04:46:12.257970387Z",
+    "running": true,
+    "mountDigest": "773f71a015fed5b2f6515d2291cee87d58d24fe1bdfa730d3bf976096d283e7e"
+  },
+  {
+    "name": "runtime-os-app-stage-news-1",
+    "id": "6d88ae311cc51a68cb334ab5a10afca195a8849d9275d9922924b3401ada7dd4",
+    "image": "localhost:18443/runtime-os/news@sha256:dcd5b99623b7912bccddd7e37214b3a47c0f24c34ed633af283a3707788a5915",
+    "startedAt": "2026-10-26T09:23:29.649538727Z",
+    "running": true,
+    "mountDigest": "238ea3d15cf0f408c0676f0ed5b0317daeb4f6b0d52f4678d535f8f64587a826"
+  }
+]

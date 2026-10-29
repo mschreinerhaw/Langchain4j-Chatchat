@@ -1,0 +1,355 @@
+[
+  {
+    "case": "syntax-field-output",
+    "parentTaskId": "6d021fab-0ae9-3ca4-bcb4-dc66763953cd",
+    "runId": "att-1-a7872437-bc74-4a65-b96e-6bc4ffc74263",
+    "codingTaskId": "analysis-coding-41b4d954f3803da35dc2854c008f615dbe19a47e8dfde5a41f61ca5c317d4d0f",
+    "codingStatus": "COMPLETED",
+    "feedbackBeforeRestartSha256": "8f2872ac40821c47f2df25d1a90b36fc7b61104b0dc0aab805d98dd219d340a4",
+    "feedbackAfterRestartSha256": "8f2872ac40821c47f2df25d1a90b36fc7b61104b0dc0aab805d98dd219d340a4",
+    "feedbackUnchangedAfterApiRestart": true,
+    "modelAndPythonUsageUnchanged": true,
+    "usage": {
+      "modelCalls": 6,
+      "modelTokens": 123493,
+      "toolCalls": 5,
+      "codeExecutions": 5,
+      "cpuMillis": 0,
+      "peakMemoryBytes": 0,
+      "outputBytes": 13576,
+      "costAmount": "0"
+    },
+    "uniqueEventCount": 119,
+    "executions": [
+      {
+        "executionId": "cline-5d95bc731101fdb701985c597783caee5292d9412530aff2b2bfe8e40e4b5f68",
+        "attemptId": "analysis-coding-41b4d954f3803da35dc2854c008f615dbe19a47e8dfde5a41f61ca5c317d4d0f:execution-1",
+        "status": "FAILED",
+        "stage": "EXECUTION_FAILED",
+        "exitCode": 1,
+        "durationMs": 536,
+        "codeHash": "a52534a51bd4c862ce170f8b0ea03f8d464707fa9c085d917b09cc05cf8dc360",
+        "script": {
+          "fileName": "controlled-monitoring-ac_20261028T143156900Z_11854933c14d_v1.py",
+          "scriptPath": "/workspace/scripts/controlled-monitoring-ac_20261028T143156900Z_11854933c14d_v1.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/05086db1edf95a96/d3c4796307325540/11854933c14d5661cb674543",
+          "scriptVersion": 1
+        },
+        "error": {
+          "category": "SYNTAX",
+          "exceptionType": "SyntaxError",
+          "diagnosticCode": "SYNTAX_ERROR",
+          "message": "Repair Python syntax at the reported source location; preserve the existing calculation and authorized inputs.",
+          "stack": [
+            {
+              "file": "controlled-monitoring-ac_20261028T143156900Z_11854933c14d_v1.py",
+              "line": 1,
+              "column": null
+            }
+          ],
+          "detailRef": "execution:cline-5d95bc731101fdb701985c597783caee5292d9412530aff2b2bfe8e40e4b5f68:logs:runtime-diagnostic.json"
+        },
+        "repair": {
+          "allowed": true,
+          "action": "REPAIR_IN_CURRENT_CONTEXT",
+          "reason": "TECHNICAL_REPAIR",
+          "attemptsUsed": 0,
+          "maxAttempts": 3,
+          "baseCodeHash": "a52534a51bd4c862ce170f8b0ea03f8d464707fa9c085d917b09cc05cf8dc360",
+          "guidance": "Repair Python syntax at the reported source location; preserve the existing calculation and authorized inputs."
+        },
+        "validationStatus": "NOT_RUN",
+        "resultAvailable": false,
+        "businessValidationPassed": false,
+        "timing": {
+          "operationId": "cline-5d95bc731101fdb701985c597783caee5292d9412530aff2b2bfe8e40e4b5f68",
+          "codeHash": "a52534a51bd4c862ce170f8b0ea03f8d464707fa9c085d917b09cc05cf8dc360",
+          "source": "MCP_ARCHIVED_RECEIPT",
+          "startedAt": "2026-10-28T14:32:01.350668260Z",
+          "finishedAt": "2026-10-28T14:32:01.886725521Z"
+        },
+        "archivedReceiptSha256": "b184828f9c7922aad1da6cb69d04c8bf25952574f12d9f138c57c4b9a26851bb",
+        "codeContentShaVerified": true
+      },
+      {
+        "executionId": "cline-13c1bec1381197d08a3aed1905b401412a245a21ece1e7988ad16c1845bba096",
+        "attemptId": "analysis-coding-41b4d954f3803da35dc2854c008f615dbe19a47e8dfde5a41f61ca5c317d4d0f:execution-2",
+        "status": "FAILED",
+        "stage": "EXECUTION_FAILED",
+        "exitCode": 1,
+        "durationMs": 475,
+        "codeHash": "9346724abe384de29b1dff78c5c3f0178a3e4ca5202a720247461ab1f5ea5856",
+        "script": {
+          "fileName": "controlled-monitoring-ac_20261028T143212600Z_11854933c14d_v2.py",
+          "scriptPath": "/workspace/scripts/controlled-monitoring-ac_20261028T143212600Z_11854933c14d_v2.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/05086db1edf95a96/d3c4796307325540/11854933c14d5661cb674543",
+          "scriptVersion": 2
+        },
+        "error": {
+          "category": "SCHEMA_ACCESS",
+          "exceptionType": "KeyError",
+          "diagnosticCode": "FIELD_ACCESS_ERROR",
+          "message": "Compare the field access at the reported line with the authorized schema and variable definitions; do not guess missing business fields.",
+          "stack": [
+            {
+              "file": "controlled-monitoring-ac_20261028T143212600Z_11854933c14d_v2.py",
+              "line": 1,
+              "column": null
+            }
+          ],
+          "detailRef": "execution:cline-13c1bec1381197d08a3aed1905b401412a245a21ece1e7988ad16c1845bba096:logs:runtime-diagnostic.json"
+        },
+        "repair": {
+          "allowed": true,
+          "action": "REPAIR_IN_CURRENT_CONTEXT",
+          "reason": "TECHNICAL_REPAIR",
+          "attemptsUsed": 1,
+          "maxAttempts": 3,
+          "baseCodeHash": "9346724abe384de29b1dff78c5c3f0178a3e4ca5202a720247461ab1f5ea5856",
+          "guidance": "Compare the field access at the reported line with the authorized schema and variable definitions; do not guess missing business fields."
+        },
+        "validationStatus": "NOT_RUN",
+        "resultAvailable": false,
+        "businessValidationPassed": false,
+        "timing": {
+          "operationId": "cline-13c1bec1381197d08a3aed1905b401412a245a21ece1e7988ad16c1845bba096",
+          "codeHash": "9346724abe384de29b1dff78c5c3f0178a3e4ca5202a720247461ab1f5ea5856",
+          "source": "MCP_ARCHIVED_RECEIPT",
+          "startedAt": "2026-10-28T14:32:13.469238041Z",
+          "finishedAt": "2026-10-28T14:32:13.944556921Z"
+        },
+        "archivedReceiptSha256": "c1396d034762d1d8fa6eb08d9043b071fa4e37c1ad7ad1c7098165a044ce74bc",
+        "codeContentShaVerified": true
+      },
+      {
+        "executionId": "cline-ba66c9d3c7ff9333d69dec7a14624d91cf192762cfa4ecf98133ce93f976c209",
+        "attemptId": "analysis-coding-41b4d954f3803da35dc2854c008f615dbe19a47e8dfde5a41f61ca5c317d4d0f:execution-3",
+        "status": "SUCCEEDED",
+        "stage": "RESULT_VALIDATION_FAILED",
+        "exitCode": 0,
+        "durationMs": 580,
+        "codeHash": "c018e2daeee613290069150e90ce3a7b861af3ee71acd37fa33236db20848650",
+        "script": {
+          "fileName": "controlled-monitoring-ac_20261028T143222330Z_11854933c14d_v3.py",
+          "scriptPath": "/workspace/scripts/controlled-monitoring-ac_20261028T143222330Z_11854933c14d_v3.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/05086db1edf95a96/d3c4796307325540/11854933c14d5661cb674543",
+          "scriptVersion": 3
+        },
+        "error": {
+          "category": "OUTPUT_CONTRACT",
+          "exceptionType": null,
+          "diagnosticCode": "OUTPUT_CONTRACT",
+          "message": "Repair the required output file, field names and types to match the authorized result contract; exit code zero alone is insufficient.",
+          "stack": [],
+          "detailRef": "execution:cline-ba66c9d3c7ff9333d69dec7a14624d91cf192762cfa4ecf98133ce93f976c209:logs:runtime-diagnostic.json"
+        },
+        "repair": {
+          "allowed": true,
+          "action": "REPAIR_IN_CURRENT_CONTEXT",
+          "reason": "TECHNICAL_REPAIR",
+          "attemptsUsed": 2,
+          "maxAttempts": 3,
+          "baseCodeHash": "c018e2daeee613290069150e90ce3a7b861af3ee71acd37fa33236db20848650",
+          "guidance": "Repair the required output file, field names and types to match the authorized result contract; exit code zero alone is insufficient."
+        },
+        "validationStatus": "FAILED",
+        "resultAvailable": false,
+        "businessValidationPassed": false,
+        "timing": {
+          "operationId": "cline-ba66c9d3c7ff9333d69dec7a14624d91cf192762cfa4ecf98133ce93f976c209",
+          "codeHash": "c018e2daeee613290069150e90ce3a7b861af3ee71acd37fa33236db20848650",
+          "source": "MCP_ARCHIVED_RECEIPT",
+          "startedAt": "2026-10-28T14:32:23.472382591Z",
+          "finishedAt": "2026-10-28T14:32:24.053103570Z"
+        },
+        "archivedReceiptSha256": "1e7572ecc4c267ec5553d05446808fa6f8d83ee543a45c53bedcd5fcdfc8f5d2",
+        "codeContentShaVerified": true
+      },
+      {
+        "executionId": "cline-1a0d5bfa7c350e6afa45d76a9e9372b85e406bcf8ae9847d532b93bbe6314d87",
+        "attemptId": "analysis-coding-41b4d954f3803da35dc2854c008f615dbe19a47e8dfde5a41f61ca5c317d4d0f:execution-4",
+        "status": "SUCCEEDED",
+        "stage": "VALIDATED",
+        "exitCode": 0,
+        "durationMs": 586,
+        "codeHash": "46857ff615f5d8bf5700eb1df097e4b62f96088c4052f493e4be82795993ee50",
+        "script": {
+          "fileName": "controlled-monitoring-ac_20261028T143301646Z_11854933c14d_v4.py",
+          "scriptPath": "/workspace/scripts/controlled-monitoring-ac_20261028T143301646Z_11854933c14d_v4.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/05086db1edf95a96/d3c4796307325540/11854933c14d5661cb674543",
+          "scriptVersion": 4
+        },
+        "error": null,
+        "repair": {
+          "allowed": false,
+          "action": "COMPLETE",
+          "reason": "RESULT_VERIFIED",
+          "attemptsUsed": 3,
+          "maxAttempts": 3,
+          "baseCodeHash": "46857ff615f5d8bf5700eb1df097e4b62f96088c4052f493e4be82795993ee50",
+          "guidance": "Result archived; business correctness remains governed by validationStatus."
+        },
+        "validationStatus": "INCONCLUSIVE",
+        "resultAvailable": true,
+        "businessValidationPassed": false,
+        "timing": {
+          "operationId": "cline-1a0d5bfa7c350e6afa45d76a9e9372b85e406bcf8ae9847d532b93bbe6314d87",
+          "codeHash": "46857ff615f5d8bf5700eb1df097e4b62f96088c4052f493e4be82795993ee50",
+          "source": "MCP_ARCHIVED_RECEIPT",
+          "startedAt": "2026-10-28T14:33:04.764607729Z",
+          "finishedAt": "2026-10-28T14:33:05.350808477Z"
+        },
+        "archivedReceiptSha256": "80144f2a2f61192dafcc461040b315444a3488326ed758f3df70443ddc9a1c74",
+        "codeContentShaVerified": true
+      },
+      {
+        "executionId": "cline-fb656a8281fbaa109e15233c0333dbc7c217ba30769c55c61f6120893e682fc2",
+        "attemptId": "analysis-coding-41b4d954f3803da35dc2854c008f615dbe19a47e8dfde5a41f61ca5c317d4d0f:execution-5",
+        "status": "SUCCEEDED",
+        "stage": "VALIDATED",
+        "exitCode": 0,
+        "durationMs": 563,
+        "codeHash": "a031bf933df1d4deacb715dbf57f89ea7554fc54bef7c29febeeb6c9704cf3ac",
+        "script": {
+          "fileName": "controlled-monitoring-ac_20261028T143322866Z_11854933c14d_v5.py",
+          "scriptPath": "/workspace/scripts/controlled-monitoring-ac_20261028T143322866Z_11854933c14d_v5.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/05086db1edf95a96/d3c4796307325540/11854933c14d5661cb674543",
+          "scriptVersion": 5
+        },
+        "error": null,
+        "repair": {
+          "allowed": false,
+          "action": "COMPLETE",
+          "reason": "RESULT_VERIFIED",
+          "attemptsUsed": 3,
+          "maxAttempts": 3,
+          "baseCodeHash": "a031bf933df1d4deacb715dbf57f89ea7554fc54bef7c29febeeb6c9704cf3ac",
+          "guidance": "Result archived; business correctness remains governed by validationStatus."
+        },
+        "validationStatus": "INCONCLUSIVE",
+        "resultAvailable": true,
+        "businessValidationPassed": false,
+        "timing": {
+          "operationId": "cline-fb656a8281fbaa109e15233c0333dbc7c217ba30769c55c61f6120893e682fc2",
+          "codeHash": "a031bf933df1d4deacb715dbf57f89ea7554fc54bef7c29febeeb6c9704cf3ac",
+          "source": "MCP_ARCHIVED_RECEIPT",
+          "startedAt": "2026-10-28T14:33:24.450813132Z",
+          "finishedAt": "2026-10-28T14:33:25.014523061Z"
+        },
+        "archivedReceiptSha256": "53646ac7af1e39013ffd937f60671f2a2af7334a44eb1ac8c57286ab281fa948",
+        "codeContentShaVerified": true
+      }
+    ]
+  },
+  {
+    "case": "dependency",
+    "parentTaskId": "3d0e7652-d206-3ffd-be7f-a54159b007ee",
+    "runId": "att-1-8d22de58-9687-45ec-bb82-2eae7c36bf70",
+    "codingTaskId": "analysis-coding-47995cf7a523cab02995dfa6539e43e831e4aad435b2c8a0382df33f6f229c44",
+    "codingStatus": "COMPLETED",
+    "feedbackBeforeRestartSha256": "16afa560eb35cccf0780afd670ae3f54e5258e638cc0d5109fe2baee35672079",
+    "feedbackAfterRestartSha256": "16afa560eb35cccf0780afd670ae3f54e5258e638cc0d5109fe2baee35672079",
+    "feedbackUnchangedAfterApiRestart": true,
+    "modelAndPythonUsageUnchanged": true,
+    "usage": {
+      "modelCalls": 4,
+      "modelTokens": 61434,
+      "toolCalls": 3,
+      "codeExecutions": 2,
+      "cpuMillis": 0,
+      "peakMemoryBytes": 0,
+      "outputBytes": 5896,
+      "costAmount": "0"
+    },
+    "uniqueEventCount": 74,
+    "executions": [
+      {
+        "executionId": "cline-78b9354a4294fcc229e86c8cdd94a2857691e020ddcf70b0488a741d67d6e1ab",
+        "attemptId": "analysis-coding-47995cf7a523cab02995dfa6539e43e831e4aad435b2c8a0382df33f6f229c44:execution-1",
+        "status": "FAILED",
+        "stage": "EXECUTION_FAILED",
+        "exitCode": 1,
+        "durationMs": 426,
+        "codeHash": "fd9e4f7907c1c435b4d8b9e716a25eccb7ccbfad1b34f34c333a8cfcc99035fb",
+        "script": {
+          "fileName": "controlled-monitoring-ac_20261028T143712629Z_30f64f282ee1_v1.py",
+          "scriptPath": "/workspace/scripts/controlled-monitoring-ac_20261028T143712629Z_30f64f282ee1_v1.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/05086db1edf95a96/f1fb40ae49a6d3fc/30f64f282ee169c518784260",
+          "scriptVersion": 1
+        },
+        "error": {
+          "category": "DEPENDENCY_UNAVAILABLE",
+          "exceptionType": "ModuleNotFoundError",
+          "diagnosticCode": "PACKAGE_NOT_INSTALLED",
+          "message": "Use installed packages from the captured environment. Dependency installation and network access are prohibited.",
+          "stack": [
+            {
+              "file": "controlled-monitoring-ac_20261028T143712629Z_30f64f282ee1_v1.py",
+              "line": 1,
+              "column": null
+            }
+          ],
+          "detailRef": "execution:cline-78b9354a4294fcc229e86c8cdd94a2857691e020ddcf70b0488a741d67d6e1ab:logs:runtime-diagnostic.json"
+        },
+        "repair": {
+          "allowed": true,
+          "action": "REPAIR_IN_CURRENT_CONTEXT",
+          "reason": "TECHNICAL_REPAIR",
+          "attemptsUsed": 0,
+          "maxAttempts": 3,
+          "baseCodeHash": "fd9e4f7907c1c435b4d8b9e716a25eccb7ccbfad1b34f34c333a8cfcc99035fb",
+          "guidance": "Use installed packages from the captured environment. Dependency installation and network access are prohibited."
+        },
+        "validationStatus": "NOT_RUN",
+        "resultAvailable": false,
+        "businessValidationPassed": false,
+        "timing": {
+          "operationId": "cline-78b9354a4294fcc229e86c8cdd94a2857691e020ddcf70b0488a741d67d6e1ab",
+          "codeHash": "fd9e4f7907c1c435b4d8b9e716a25eccb7ccbfad1b34f34c333a8cfcc99035fb",
+          "source": "MCP_ARCHIVED_RECEIPT",
+          "startedAt": "2026-10-28T14:37:13.529120169Z",
+          "finishedAt": "2026-10-28T14:37:13.955513223Z"
+        },
+        "archivedReceiptSha256": "c1f4f96a44404c0cc6f293c820cf68c08cc28332048e29eac35dda85ac148e13",
+        "codeContentShaVerified": true
+      },
+      {
+        "executionId": "cline-db68a4003cc4dd31750c6a84e8f423b145b8aba5470e84dbc245fd46d1864d17",
+        "attemptId": "analysis-coding-47995cf7a523cab02995dfa6539e43e831e4aad435b2c8a0382df33f6f229c44:execution-2",
+        "status": "SUCCEEDED",
+        "stage": "VALIDATED",
+        "exitCode": 0,
+        "durationMs": 600,
+        "codeHash": "64d145cf272ce7a9d504d01c5affaa8431416ae8106a06e057db05d27777a8f9",
+        "script": {
+          "fileName": "controlled-monitoring-ac_20261028T143748819Z_30f64f282ee1_v2.py",
+          "scriptPath": "/workspace/scripts/controlled-monitoring-ac_20261028T143748819Z_30f64f282ee1_v2.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/05086db1edf95a96/f1fb40ae49a6d3fc/30f64f282ee169c518784260",
+          "scriptVersion": 2
+        },
+        "error": null,
+        "repair": {
+          "allowed": false,
+          "action": "COMPLETE",
+          "reason": "RESULT_VERIFIED",
+          "attemptsUsed": 1,
+          "maxAttempts": 3,
+          "baseCodeHash": "64d145cf272ce7a9d504d01c5affaa8431416ae8106a06e057db05d27777a8f9",
+          "guidance": "Result archived; business correctness remains governed by validationStatus."
+        },
+        "validationStatus": "INCONCLUSIVE",
+        "resultAvailable": true,
+        "businessValidationPassed": false,
+        "timing": {
+          "operationId": "cline-db68a4003cc4dd31750c6a84e8f423b145b8aba5470e84dbc245fd46d1864d17",
+          "codeHash": "64d145cf272ce7a9d504d01c5affaa8431416ae8106a06e057db05d27777a8f9",
+          "source": "MCP_ARCHIVED_RECEIPT",
+          "startedAt": "2026-10-28T14:37:49.992884940Z",
+          "finishedAt": "2026-10-28T14:37:50.593745023Z"
+        },
+        "archivedReceiptSha256": "c082d9f0fd215839b206a8363c94b09701729e97f5242e27954ca4723285f01a",
+        "codeContentShaVerified": true
+      }
+    ]
+  }
+]

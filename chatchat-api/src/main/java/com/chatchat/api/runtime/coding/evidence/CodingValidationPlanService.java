@@ -75,6 +75,25 @@ public final class CodingValidationPlanService {
     public CodingEvidenceCollector.IndependentValidator validator(CodingTaskContract contract) {
         return validator(contract,List.of(inputs.requireAuthorized(contract)));
     }
+    /** Existing frozen structural contract, returned on output failure; no source rows or new authority. */
+    public Map<String,Object> rowSchema(CodingTaskContract contract) {
+        access.require(contract.scope(),CodingTaskAccess.Action.READ);
+        var record=evidence.find(contract.scope(),id(contract.validationPlanRef()))
+            .orElseThrow(()->new SecurityException("Validation plan is unavailable"));
+        var value=record.payload();
+        if(!TYPE.equals(record.evidenceType()) || !evidence.contentHash(value).equals(record.contentSha256())
+                || !contract.taskId().equals(value.get("taskId")) || !contract.inputSnapshotRef().equals(value.get("inputSnapshotRef")))
+            throw new SecurityException("Validation plan is not bound to this Coding task");
+        if(!"runtime-result-schema".equals(value.get("verifierId")) || !"v1".equals(value.get("ruleVersion")))return Map.of();
+        if(!(value.get("rules") instanceof Map<?,?> rules) || !(rules.get("rowSchema") instanceof Map<?,?> schema))
+            throw new SecurityException("Committed row schema is unavailable");
+        return mapper.convertValue(schema,new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){});
+    }
+    public boolean requiresVisualReport(CodingTaskContract contract) {
+        var schema=rowSchema(contract);
+        // Preserve strict behavior for legacy non-structural visual tasks.
+        return schema.isEmpty() || schema.get("required") instanceof Collection<?> required && required.contains("visualReport");
+    }
     public CodingEvidenceCollector.IndependentValidator validator(CodingTaskContract contract,List<CodingInputSnapshotService.Snapshot> inputVersions) {
         access.require(contract.scope(), CodingTaskAccess.Action.READ);
         var input = inputs.requireAuthorized(contract);

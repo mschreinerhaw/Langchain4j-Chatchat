@@ -28,6 +28,34 @@ public final class CodingTableCodec {
     private CodingTableCodec() { }
     public static final String CSV_NULL="\\N",CSV_MISSING="\\M";
     public static String presence(Column column){return "p"+column.storageName().substring(1);}
+    /** File structure only; never model-selected analysis or a new data source/cache. */
+    static Map<String,Object> describeNative(Path file) {
+        String name=file.getFileName().toString();
+        try {
+            if(name.endsWith(".parquet")) {
+                try(var reader=ParquetFileReader.open(new LocalInputFile(file),
+                        org.apache.parquet.ParquetReadOptions.builder(new PlainParquetConfiguration()).build())) {
+                    var schema=reader.getFooter().getFileMetaData().getSchema();String text=schema.toString();
+                    if(text.length()>16000 || schema.getFieldCount()>256)throw new IOException("Native schema exceeds observation bounds");
+                    long rows=0;for(var block:reader.getFooter().getBlocks())rows=Math.addExact(rows,block.getRowCount());
+                    return Map.of("format","PARQUET","status","AVAILABLE","schema",text,"rowCount",rows,
+                        "authority","UNTRUSTED_FILE_STRUCTURE_ONLY");
+                }
+            }
+            if(name.endsWith(".csv")) {
+                try(var values=new CsvMapper().readerFor(Map.class).with(CsvSchema.emptySchema().withHeader()).readValues(file.toFile())) {
+                    if(!values.hasNextValue())return Map.of("format","CSV","status","EMPTY_OR_HEADER_ONLY");
+                    var row=(Map<?,?>)values.nextValue();var names=row.keySet().stream().map(String::valueOf).toList();
+                    if(names.size()>256 || names.toString().length()>16000)throw new IOException("Native schema exceeds observation bounds");
+                    return Map.of("format","CSV","status","AVAILABLE","columns",names,"types","UNSPECIFIED_IN_CSV",
+                        "authority","UNTRUSTED_FILE_STRUCTURE_ONLY");
+                }
+            }
+            return Map.of("status","READ_ORIGINAL_FORMAT");
+        } catch(IOException|RuntimeException unavailable) {
+            return Map.of("status","STRUCTURE_UNAVAILABLE","reasonCode","FORMAT_READER_UNAVAILABLE_OR_INVALID_FILE");
+        }
+    }
     public static void write(Path target,Format format,List<Column> columns,List<JsonNode> rows,ObjectMapper json) throws IOException {
         if(format==Format.PARQUET) {
             var schema=parquetSchema(columns);var factory=new SimpleGroupFactory(schema);

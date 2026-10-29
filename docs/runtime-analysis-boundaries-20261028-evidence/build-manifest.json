@@ -1,0 +1,18 @@
+{
+  "baseCommit": "378aff5264e866095fe958cbd2a6e6e111264bc3",
+  "productionReplaced": false,
+  "artifacts": {
+    "api": {
+      "image": "runtime-os-api:analysis-boundary-20261028-r12",
+      "jarSha256": "925c932706e3ed18bded623e393e1645365a87fc7ee6ef0b33b815b4080cc3a7"
+    },
+    "mcp": {
+      "image": "runtime-os-mcp:analysis-boundary-20261028-r12",
+      "jarSha256": "6ad9c8de87750867ecb8cdec399819d7f0083547e41b42d7867cf5fcdcd67d57"
+    },
+    "node": {
+      "image": "runtime-os-coding-agent:analysis-boundary-20261028-r12",
+      "runnerSha256": "4cf3270bb6a547bfa3c3e721fd4e9d75cf565c27827e418581ed55f1e5c047f2"
+    }
+  }
+}

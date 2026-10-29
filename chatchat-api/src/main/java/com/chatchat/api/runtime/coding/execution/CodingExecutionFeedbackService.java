@@ -25,6 +25,8 @@ public class CodingExecutionFeedbackService {
     private final ObjectMapper json;
     private final int maxRepairs;
     private RuntimeAssetArchive archive;
+    private com.chatchat.api.runtime.coding.cline.CodingCodeArtifactStore codeArtifacts;
+    @Autowired(required=false) public void setCodeArtifacts(com.chatchat.api.runtime.coding.cline.CodingCodeArtifactStore value){codeArtifacts=value;}
     @Autowired(required=false) public void setArchive(RuntimeAssetArchive value) { archive=value; }
     public CodingExecutionFeedbackService(DurableCodingTaskService tasks, CodingPythonExecutionBridge python,
             ObjectMapper json, @Value("${chatchat.coding.max-auto-repairs:3}") int maxRepairs) {
@@ -118,8 +120,15 @@ public class CodingExecutionFeedbackService {
         String scriptFile=tasks.scriptFile(contract.scope(),contract.taskId(),operation.operationId());
         if(scriptFile==null)scriptFile=com.chatchat.common.runtime.coding.CodingScript.LEGACY_FILE;
         var frames=new ArrayList<ExecutionFeedback.Frame>();
-        for(var frame:diagnostic.path("stack"))if(frames.size()<16&&scriptFile.equals(frame.path("file").asText())&&frame.path("line").asInt()>0)
-            frames.add(new ExecutionFeedback.Frame(scriptFile,frame.path("line").asInt(),null));
+        var allowedFiles=new HashSet<String>();allowedFiles.add(scriptFile);
+        if(contract.runtimeContext().containsKey("codeProject")&&codeArtifacts!=null)codeArtifacts.find(contract.scope(),contract.taskId(),operation.operationId()).ifPresent(artifact->{
+            PythonCodeProject.decode((String)artifact.get("content")).ifPresent(payload->{
+                try{for(var file:PythonCodeProject.validate(json.readValue(payload,PythonCodeProject.Project.class)).files())allowedFiles.add("project/"+file.path());}
+                catch(java.io.IOException invalid){throw new IllegalArgumentException("Invalid archived project",invalid);}
+            });
+        });
+        for(var frame:diagnostic.path("stack"))if(frames.size()<16&&allowedFiles.contains(frame.path("file").asText())&&frame.path("line").asInt()>0)
+            frames.add(new ExecutionFeedback.Frame(frame.path("file").asText(),frame.path("line").asInt(),null));
         if(frames.isEmpty()&&diagnostic.path("line").asInt()>0)frames.add(new ExecutionFeedback.Frame(scriptFile,diagnostic.path("line").asInt(),null));
         Long duration=null;
         try{duration=Math.max(0,Duration.between(Instant.parse(receipt.path("startedAt").asText()),Instant.parse(receipt.path("finishedAt").asText())).toMillis());}

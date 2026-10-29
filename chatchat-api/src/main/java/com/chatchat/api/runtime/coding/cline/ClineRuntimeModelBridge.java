@@ -22,7 +22,7 @@ import org.springframework.stereotype.Service;
 @Service
 @ConditionalOnProperty(prefix = "chatchat.coding.cline", name = "enabled", havingValue = "true")
 public final class ClineRuntimeModelBridge {
-    private static final int MAX_MESSAGES = 64, MAX_TOOLS = 4, MAX_TEXT = 256_000;
+    private static final int MAX_MESSAGES = 64, MAX_TEXT = 256_000;
     private final ModelResourceRegistry resources;
     private final ConfigurableChatModelFactory models;
     private final ObjectMapper json;
@@ -133,10 +133,13 @@ public final class ClineRuntimeModelBridge {
             }
         }
         JsonNode exposed = request.path("tools");
-        if (!exposed.isArray() || exposed.size() > MAX_TOOLS) throw new IllegalArgumentException("Invalid model tool count");
+        if (!exposed.isArray() || exposed.size() > contract.authorization().allowedTools().size())
+            throw new IllegalArgumentException("Invalid model tool count");
         List<ToolSpecification> tools = new ArrayList<>();
+        Set<String> declaredNames = new HashSet<>();
         for (JsonNode tool : exposed) {
             String name = allowedTool(contract, tool.path("name").asText());
+            if(!declaredNames.add(name))throw new IllegalArgumentException("Duplicate model tool");
             if (!tool.path("inputSchema").isObject()) throw new IllegalArgumentException("Tool input schema is required");
             var spec = json.createObjectNode();
             spec.put("name", name);

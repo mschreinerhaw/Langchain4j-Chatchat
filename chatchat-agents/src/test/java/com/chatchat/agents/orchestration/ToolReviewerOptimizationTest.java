@@ -14,13 +14,17 @@ import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.agents.orchestration.analysis.context.ContextTokenEstimator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.request.ChatRequest;
+import dev.langchain4j.model.chat.response.ChatResponse;
+import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import java.util.*;
 import java.nio.file.*;
 import org.junit.jupiter.api.Test;
 
 class ToolReviewerOptimizationTest {
     @org.junit.jupiter.params.ParameterizedTest
-    @org.junit.jupiter.params.provider.EnumSource(ToolWorkflowRole.class)
+    @org.junit.jupiter.params.provider.EnumSource(value=ToolWorkflowRole.class,names={"ASSET_DISCOVERY","TEMPLATE_DISCOVERY"},mode=org.junit.jupiter.params.provider.EnumSource.Mode.EXCLUDE)
     void codingAdmissionNeverCallsAModelAndNeverGuessesDiscovery(ToolWorkflowRole role) {
         ChatModel model=mock(ChatModel.class);
         ToolRegistry registry=mock(ToolRegistry.class);
@@ -43,10 +47,12 @@ class ToolReviewerOptimizationTest {
     }
     @Test void ordinaryQaDoesNotInheritTheCodingToolAdmissionBoundary() {
         ChatModel model=mock(ChatModel.class);
+        when(model.chat(any(ChatRequest.class))).thenReturn(selectionResponse("NO_MATCH",List.of()));
         var review=engine(model).reviewInterpretationPlanToolResult(model,"question",null,()->false,
             fixture(),Map.of("taskType","QA"));
         assertThat(review.metadata()).doesNotContainKey("analysisDecisionOwner");
-        verify(model).chat(anyString());
+        verify(model).chat(any(ChatRequest.class));
+        verify(model,never()).chat(anyString());
     }
     @Test void stagedBridgeResolvesAnExplicitCanonicalUserReferenceWithoutModelReview() {
         ChatModel model=mock(ChatModel.class);ToolRegistry registry=mock(ToolRegistry.class);
@@ -82,8 +88,9 @@ class ToolReviewerOptimizationTest {
         assertThat(needsReview.metadata()).containsEntry("toolResultReviewUnavailable",true);
         verify(model,times(1)).chat(anyString());
     }
-    @Test void publisherBaselineUsesNoModelEvenWhenModelWouldRejectEveryCandidate() {
+    @Test void fixedBindingDoesNotReplaceTheModelsBusinessRelevanceDecision() {
         ChatModel model=mock(ChatModel.class);ToolRegistry registry=mock(ToolRegistry.class);
+        when(model.chat(any(ChatRequest.class))).thenReturn(selectionResponse("NO_MATCH",List.of()));
         when(registry.getToolMetadata(TOOL)).thenReturn(ToolMetadata.builder().metadata(Map.of(
             ToolWorkflowContract.METADATA_KEY,ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_DISCOVERY,"fixture","template_query.v1"),
             com.chatchat.common.mcp.capability.McpTemplateSelectionScope.METADATA_KEY,
@@ -98,8 +105,8 @@ class ToolReviewerOptimizationTest {
         var execution=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool",TOOL,true,output,null,null,null,1L);
         var review=engine.reviewInterpretationPlanToolResult(model,"collect the published baseline",null,()->false,
             new InterpretationPlanRuntime.StepReviewRequest(null,null,execution,Map.of(),1,1));
-        assertThat(review.satisfied()).isTrue();assertThat(review.metadata()).containsEntry("selectedTemplateIds",List.of("source-a"));
-        verifyNoInteractions(model);
+        assertThat(review.metadata()).containsEntry("selectedTemplateIds",List.of()).containsEntry("candidateSelectionStatus","NO_MATCH");
+        verify(model).chat(any(ChatRequest.class));verify(model,never()).chat(anyString());
     }
     static final String TOOL="publisher_declared_discovery";
     final ObjectMapper mapper=new ObjectMapper();
@@ -141,36 +148,39 @@ class ToolReviewerOptimizationTest {
         assertThat(prompt).contains("prior-1\"","prior-40\"").doesNotContain("prior-2\"","currentStepInput");
         assertThat(prompt.indexOf(input)).isGreaterThan(0).isEqualTo(prompt.lastIndexOf(input));
     }
-    @Test void independentCoverageAuditStillRunsAndCannotAdmitAnEmptySelection() {
+    @Test void oneSelectionDecisionNeedsNoIndependentCoverageReviewer() {
         ChatModel model=mock(ChatModel.class);
-        when(model.chat(anyString())).thenReturn("{\"satisfied\":false,\"selected_template_ids\":[],\"reason\":\"no declared match\"}",
-            "{\"coverage_decision\":\"SCOPE_INSUFFICIENT\",\"corrected_selected_template_ids\":[],\"reason\":\"no declared source\"}");
+        when(model.chat(any(ChatRequest.class))).thenReturn(selectionResponse("NO_MATCH",List.of()));
         var review=engine(model).reviewInterpretationPlanToolResult(model,"compare",null,()->false,fixture());
-        assertThat(review.satisfied()).isFalse();verify(model,times(2)).chat(anyString());
-        assertThat(review.metadata()).containsKeys("toolResultReviewPromptChars","toolResultReviewEstimatedTokens","toolResultReviewModelDurationMs","toolResultReviewCoverageDurationMs","toolResultReviewBindingDurationMs");
+        assertThat(review.metadata()).containsEntry("selectedTemplateIds",List.of()).containsEntry("candidateSelectionStatus","NO_MATCH")
+            .containsEntry("toolResultReviewModelCalls",1).containsKeys("selectionModelDurationMs","selectionDurationMs")
+            .doesNotContainKeys("toolResultReviewCoverageDurationMs");
+        verify(model,times(1)).chat(any(ChatRequest.class));verify(model,never()).chat(anyString());
     }
     @Test void cancellationAfterSelectionPreventsAdditionalModelRequests() {
         ChatModel model=mock(ChatModel.class);var cancelled=new java.util.concurrent.atomic.AtomicBoolean();
-        when(model.chat(anyString())).thenAnswer(call->{cancelled.set(true);return "{\"satisfied\":false}";});
+        when(model.chat(any(ChatRequest.class))).thenAnswer(call->{cancelled.set(true);return null;});
         assertThatThrownBy(()->engine(model).reviewInterpretationPlanToolResult(model,"compare",null,cancelled::get,fixture()))
             .isInstanceOf(java.util.concurrent.CancellationException.class);
-        verify(model,times(1)).chat(anyString());
+        verify(model,times(1)).chat(any(ChatRequest.class));
     }
-    @Test void missingModelResponseRetainsUnavailableMarkerWithoutNullMetadataFailure() {
+    @Test void invalidModelResponseGetsOnlyOneProtocolRepairAndNeverBecomesDataEvidence() {
         ChatModel model=mock(ChatModel.class);
         var review=engine(model).reviewInterpretationPlanToolResult(model,"compare",null,()->false,fixture());
-        assertThat(review.metadata()).containsEntry("toolResultReviewUnavailable",true);
-        verify(model,times(1)).chat(anyString());
+        assertThat(review.metadata()).containsEntry("candidateSelectionErrorCode","INVALID_MODEL_RESPONSE")
+            .containsEntry("selectedTemplateIds",List.of()).containsEntry("selectionProtocolCorrections",1);
+        verify(model,times(2)).chat(any(ChatRequest.class));verify(model,never()).chat(anyString());
     }
     @Test void allSelectedEmptySchemasRemainAOneModelCallPath() {
         ChatModel model=mock(ChatModel.class);
-        when(model.chat(anyString())).thenReturn("{\"satisfied\":true,\"selected_template_ids\":[\"approved-check\"],\"coverage_decision\":\"SUFFICIENT\"}");
+        when(model.chat(any(ChatRequest.class))).thenReturn(selectionResponse("SELECTED",List.of(Map.of("templateId","approved-check","parameters",Map.of()))));
         var execution=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool",TOOL,true,
             Map.of("templates",List.of(Map.of("templateId","approved-check","parameterSchema",Map.of("type","object","properties",Map.of())))),null,null,null,1L);
         var request=new InterpretationPlanRuntime.StepReviewRequest(null,null,execution,Map.of(),1,1);
         var review=engine(model).reviewInterpretationPlanToolResult(model,"inspect declared service",null,()->false,request);
-        assertThat(review.satisfied()).isTrue();assertThat(review.metadata()).containsEntry("parameterBindingMode","runtime_empty_schema");
-        verify(model,times(1)).chat(anyString());verify(model,never()).chat(org.mockito.ArgumentMatchers.any(dev.langchain4j.model.chat.request.ChatRequest.class));
+        assertThat(review.metadata()).containsEntry("parameterBindingMode","model_selection_and_binding")
+            .containsEntry("selectedTemplateIds",List.of("approved-check"));
+        verify(model,times(1)).chat(any(ChatRequest.class));verify(model,never()).chat(anyString());
     }
     @Test void largeResolvedArgumentsUseTraceReferencesWithoutChangingExecutionInput() {
         String resolved="large-resolved-record-".repeat(10000);
@@ -180,5 +190,11 @@ class ToolReviewerOptimizationTest {
         assertThat(prompt).contains("exact-target","runtimeStepInputRef","valueSha256","inputProjectionLimited").doesNotContain("large-resolved-record-");
         assertThat(step.input().get("records")).isEqualTo(resolved);
         assertThat(prompt).hasSizeLessThan(20000);
+    }
+    private ChatResponse selectionResponse(String status,List<Map<String,Object>> selections) {
+        try {return ChatResponse.builder().aiMessage(AiMessage.from(List.of(ToolExecutionRequest.builder()
+            .id("selection").name(SchemaDrivenTemplateParameterBinder.SELECTION_FUNCTION)
+            .arguments(mapper.writeValueAsString(Map.of("status",status,"selections",selections))).build()))).build();}
+        catch(Exception failure){throw new IllegalStateException(failure);}
     }
 }

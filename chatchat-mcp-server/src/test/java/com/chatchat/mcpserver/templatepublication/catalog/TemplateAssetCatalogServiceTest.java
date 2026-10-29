@@ -28,6 +28,36 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class TemplateAssetCatalogServiceTest {
+    @Test
+    void newNullableAuthorColumnsDoNotChangeLegacySqlRevision() {
+        var mapper=new ObjectMapper();var sql=mock(SqlTemplateService.class);var row=new com.chatchat.mcpserver.sql.template.SqlTemplateConfig();row.setId("legacy");row.setCode("LEGACY");row.setTitle("Legacy SQL");row.setSqlTemplate("SELECT 1");row.setEnabled(true);row.setParameterSchemaJson("{\"type\":\"object\",\"properties\":{}}");
+        when(sql.listEnabled()).thenReturn(List.of(row));
+        var service=new TemplateAssetCatalogService(mock(CommandTemplateService.class),sql,mock(HttpEndpointConfigService.class),mock(DatabaseQueryConfigService.class),mock(ApiServiceConfigService.class),mock(PythonTemplateCatalog.class),mock(BusinessCategoryService.class),mock(SshHostConfigService.class),mock(SqlDatasourceConfigService.class),mock(McpAuthorizationService.class),mapper);
+        var template=service.listEnabled().get(0);var datasource=new com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig();datasource.setId("db");datasource.setName("Db");datasource.setJdbcUrl("jdbc:h2:mem:legacy");
+        var oldDefinition=(com.fasterxml.jackson.databind.node.ObjectNode)mapper.valueToTree(row);
+        oldDefinition.remove(List.of("publicationGroupId","publicationVersion","authorTenantId","authorId","publicationState","publicationLock","authoringSourceJson","sqlTestEvidenceJson","releasedCapabilityId","draftRequestDigest"));
+        var binding=java.util.Map.<String,Object>of("datasourceId","db","template","LEGACY","permissionLevel","read");
+        TemplateAssetCatalogService.BoundTemplate before=org.springframework.test.util.ReflectionTestUtils.invokeMethod(service,"bound",template,"db","Db","sql_query_execute",binding,new Object[]{oldDefinition,datasource});
+        TemplateAssetCatalogService.BoundTemplate after=org.springframework.test.util.ReflectionTestUtils.invokeMethod(service,"bound",template,"db","Db","sql_query_execute",binding,new Object[]{row,datasource});
+        assertThat(after.revision()).isEqualTo(before.revision());
+    }
+    @Test
+    void studioSqlRevisionIgnoresMapOrderAndMutableLifecycleMetadata() {
+        var sql=mock(SqlTemplateService.class);
+        var row=new com.chatchat.mcpserver.sql.template.SqlTemplateConfig();row.setId("revision");row.setCode("STUDIO_REVISION");row.setTitle("Controlled SQL");row.setSqlTemplate("SELECT 1");row.setEnabled(true);row.setPublicationGroupId("group");row.setPublicationVersion(1);row.setAuthorTenantId("tenant");row.setAuthorId("author");row.setPublicationState("PUBLISHED");row.setParameterSchemaJson("{\"type\":\"object\",\"properties\":{}}");
+        when(sql.listEnabled()).thenReturn(List.of(row));
+        var service=new TemplateAssetCatalogService(mock(CommandTemplateService.class),sql,mock(HttpEndpointConfigService.class),mock(DatabaseQueryConfigService.class),mock(ApiServiceConfigService.class),mock(PythonTemplateCatalog.class),mock(BusinessCategoryService.class),mock(SshHostConfigService.class),mock(SqlDatasourceConfigService.class),mock(McpAuthorizationService.class),new ObjectMapper());
+        var asset=service.listEnabled().get(0);var datasource=new com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig();datasource.setId("db");datasource.setName("Db");datasource.setJdbcUrl("jdbc:h2:mem:revision");
+        var firstBinding=new java.util.LinkedHashMap<String,Object>();firstBinding.put("datasourceId","db");firstBinding.put("template",row.getCode());firstBinding.put("permissionLevel","read");firstBinding.put("sqlRevisionId",row.getId());
+        var secondBinding=new java.util.LinkedHashMap<String,Object>();secondBinding.put("sqlRevisionId",row.getId());secondBinding.put("permissionLevel","read");secondBinding.put("template",row.getCode());secondBinding.put("datasourceId","db");
+        TemplateAssetCatalogService.BoundTemplate first=org.springframework.test.util.ReflectionTestUtils.invokeMethod(service,"bound",asset,"db","Db","sql_query_execute",firstBinding,new Object[]{row,datasource});
+        row.setPublicationLock(99L);row.setReleasedCapabilityId("new-release");row.setSqlTestEvidenceJson("{\"success\":true}");
+        TemplateAssetCatalogService.BoundTemplate second=org.springframework.test.util.ReflectionTestUtils.invokeMethod(service,"bound",asset,"db","Db","sql_query_execute",secondBinding,new Object[]{row,datasource});
+        assertThat(second.revision()).isEqualTo(first.revision());
+        row.setSqlTemplate("SELECT 2");
+        TemplateAssetCatalogService.BoundTemplate changed=org.springframework.test.util.ReflectionTestUtils.invokeMethod(service,"bound",asset,"db","Db","sql_query_execute",secondBinding,new Object[]{row,datasource});
+        assertThat(changed.revision()).isNotEqualTo(first.revision());
+    }
 
     @Test
     void databaseFamiliesFollowCurrentCentralDatasourceType() {

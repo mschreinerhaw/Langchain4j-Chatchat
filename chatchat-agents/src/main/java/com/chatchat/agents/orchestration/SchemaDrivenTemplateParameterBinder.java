@@ -53,17 +53,28 @@ final class SchemaDrivenTemplateParameterBinder {
 
     SelectionResult selectAndBind(ChatModel model,String query,List<Map<String,Object>> templates,
                                   Map<String,Object> selectionContext) {
+        return selectAndBind(model,query,templates,selectionContext,()->{});
+    }
+    SelectionResult selectAndBind(ChatModel model,String query,List<Map<String,Object>> templates,
+                                  Map<String,Object> selectionContext,Runnable cancellationGuard) {
+        cancellationGuard.run();
+        if(query!=null && query.length()>6000)return new SelectionResult("NEEDS_INPUT",List.of(),List.of(),
+            Map.of("requestViewComplete",false),
+            "Separate the complete business-data objective and scope from long supplied material before binding a query; omitted constraints must not become template defaults",
+            Map.of("selectionModelCalls",0,"selectionUsageAvailable",false));
         var metrics=new LinkedHashMap<String,Object>();
         metrics.put("selectionModelCalls",0);metrics.put("selectionUsageAvailable",false);
         long started=System.nanoTime();
-        var result=selectionDecision(model,query,templates,selectionContext,metrics);
+        var result=selectionDecision(model,query,templates,selectionContext,metrics,cancellationGuard);
+        cancellationGuard.run();
         if(model!=null && Set.of("INVALID_MODEL_RESPONSE","INVALID_TEMPLATE_ID","INVALID_ASSET_BINDING","INVALID_PARAMETERS").contains(result.status())) {
             var previous=result;
             var correction=new LinkedHashMap<String,Object>(selectionContext);
             correction.put("protocolCorrection",Map.of("errorCode",result.status(),"previousDecision",result.decision(),
                 "instruction","Repair only the response protocol against the SAME request, candidates and schemas. Preserve every valid prior selection and its parameters. Do not change business scope or invent IDs."));
             metrics.put("selectionProtocolCorrections",1);metrics.put("selectionInitialErrorCode",result.status());
-            result=selectionDecision(model,query,templates,correction,metrics);
+            result=selectionDecision(model,query,templates,correction,metrics,cancellationGuard);
+            cancellationGuard.run();
             if(Set.of("SELECTED","NO_MATCH").contains(result.status())
                     && !preservesValidSelections(previous.decision(),result.decision(),templates))
                 result=new SelectionResult("INVALID_MODEL_RESPONSE",List.of(),List.of(),result.decision(),"Protocol correction changed a valid prior selection");
@@ -73,7 +84,7 @@ final class SchemaDrivenTemplateParameterBinder {
     }
 
     private SelectionResult selectionDecision(ChatModel model,String query,List<Map<String,Object>> templates,
-            Map<String,Object> selectionContext,Map<String,Object> metrics) {
+            Map<String,Object> selectionContext,Map<String,Object> metrics,Runnable cancellationGuard) {
         List<String> ids=templates.stream().map(this::templateId).filter(Objects::nonNull).toList();
         Map<String,Map<String,Object>> candidates=selectedTemplates(templates,ids);
         if(candidates.isEmpty()) return new SelectionResult("NO_CANDIDATES",List.of(),List.of(),Map.of(),null);
@@ -116,6 +127,7 @@ final class SchemaDrivenTemplateParameterBinder {
             metrics.put("selectionModelCalls",((Number)metrics.get("selectionModelCalls")).intValue()+1);
             long modelStarted=System.nanoTime();
             ChatResponse response;
+            cancellationGuard.run();
             try { response=nativeCall(model,List.of(SystemMessage.from(
                 "You own business interpretation, template relevance and coverage. Select all and only the returned templates needed "
                 +"for the complete user request, including complementary sources and multiple assets when needed. "

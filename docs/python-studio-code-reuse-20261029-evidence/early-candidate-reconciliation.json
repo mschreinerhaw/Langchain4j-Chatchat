@@ -1,0 +1,10 @@
+{
+  "scope": "EARLY_FAILED_CANDIDATE_RECONCILIATION_NOT_ACCEPTANCE",
+  "requestId": "reuse-A-828035c2a80a",
+  "taskId": "analysis-coding-8fc1d8c87db0236e87a5c8a3c02ca93573c4d0dc554d9a76b7f7b03e99a7e4ea",
+  "before": "CANCELLED",
+  "after": "CANCELLED",
+  "reason": "CANCEL_REQUESTED",
+  "resultAvailable": false,
+  "noRerunOrDatabaseStatusRewrite": true
+}

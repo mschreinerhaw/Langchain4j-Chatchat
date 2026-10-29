@@ -1,4 +1,4 @@
-import { defineComponent, computed, onBeforeUnmount, ref, watch } from "vue";
+import { defineComponent, computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import PythonCodeDiff from "../../components/PythonCodeDiff.vue";
 import { buildPythonLineDiff } from "../utils/pythonCodeDiff";
 import {
@@ -6,16 +6,23 @@ import {
   codingStage,
   codeVersions,
   fetchCodingCode,
+  fetchCodingTiming,
   fetchCodingEvents,
   fetchCodingTasks,
   fetchCodingInputs,
   mergeCodingEvents,
   modelCalls,
+  pythonExecutions,
+  pythonRepairs,
+  pythonSummary,
+  pythonTimeline,
+  type PythonRepair,
   resumeCodingTask,
   stageLabels,
   type CodingEvent,
   type CodingTask,
   type CodingInputVersion,
+  type CodingExecutionTiming,
 } from "../../services/codingMonitor";
 
 export default defineComponent({
@@ -33,6 +40,10 @@ export default defineComponent({
       error = ref(""),
       codeError = ref("");
     const resuming = ref(false);
+    const codePanel = ref<HTMLElement | null>(null);
+    const timings = ref<Record<string, CodingExecutionTiming>>({}), timingErrors = ref<Record<string, string>>({});
+    const timingRequested = new Set<string>();
+    let timingGeneration = 0;
     const inputVersions = ref<CodingInputVersion[]>([]),
       inputBinding = ref("TASK_LATEST"),
       inputError = ref("");
@@ -48,21 +59,26 @@ export default defineComponent({
       now = ref(Date.now());
     let timer: ReturnType<typeof setInterval> | undefined;
     let generation = 0;
+    let codeGeneration = 0, diffGeneration = 0, pendingDiff = false;
     const selected = computed(() => tasks.value.find((task) => task.taskId === selectedId.value));
     const selectedEvents = computed(() => events.value[selectedId.value] ?? []);
     const stage = computed(() =>
       selected.value ? codingStage(selected.value, selectedEvents.value) : "QUEUED"
     );
-    const versions = computed(() => codeVersions(selectedEvents.value));
+    const executions = computed(() => selected.value ? pythonExecutions(selected.value, selectedEvents.value) : []);
+    const repairs = computed(() => pythonRepairs(executions.value, selectedEvents.value));
+    const diagnostics = computed(() => pythonSummary(executions.value, repairs.value));
+    const executionTimeline = computed(() => pythonTimeline(executions.value, repairs.value, selectedEvents.value));
+    const versions = computed(() => codeVersions(selectedEvents.value, executions.value));
+    const focusedExecution = computed(() => executions.value.find(item => item.executionId === selectedOperation.value));
     const version = computed(() =>
       versions.value.find((item) => item.operationId === selectedOperation.value)
     );
-    const previousVersion = computed(
-      () =>
-        versions.value[
-          versions.value.findIndex((item) => item.operationId === selectedOperation.value) - 1
-        ]
-    );
+    const previousVersion = computed(() => {
+      const repair = repairs.value.find(item => item.to.executionId === selectedOperation.value);
+      return repair ? versions.value.find(item => item.operationId === repair.from.executionId)
+        : versions.value[versions.value.findIndex(item => item.operationId === selectedOperation.value) - 1];
+    });
     const calls = computed(() => modelCalls(selectedEvents.value, selected.value?.modelReceipts));
     const loadedSkills = computed(
       () =>
@@ -118,12 +134,28 @@ export default defineComponent({
           }
         }
         error.value = "";
+        await nextTick(); void loadTimings();
         void loadInputs();
       } catch (failure: any) {
         if (epoch === generation) error.value = failure.message || "读取任务失败";
       } finally {
         if (epoch === generation) loading.value = false;
       }
+    }
+    async function loadTimings() {
+      const run = props.runId, task = selectedId.value, epoch = timingGeneration;
+      await Promise.all(executions.value.filter(row => row.feedback && !timingRequested.has(row.executionId)).map(async row => {
+        timingRequested.add(row.executionId);
+        try {
+          const receipt = await fetchCodingTiming(run, task, row.executionId);
+          if (receipt.operationId !== row.executionId || receipt.codeHash !== row.codeHash || receipt.source !== 'MCP_ARCHIVED_RECEIPT')
+            throw new Error('归档时间回执与当前执行不一致');
+          if (epoch === timingGeneration && run === props.runId && task === selectedId.value) timings.value[row.executionId] = receipt;
+        } catch {
+          if (epoch === timingGeneration && run === props.runId && task === selectedId.value)
+            timingErrors.value[row.executionId] = '归档执行器起止时间不可用；不会以调度时间替代';
+        }
+      }));
     }
     async function loadInputs() {
       const epoch = generation,
@@ -150,6 +182,8 @@ export default defineComponent({
       }
     }
     async function loadCode() {
+      const request = ++codeGeneration;
+      diffGeneration++;
       code.value = null;
       showDiff.value = false;
       codeError.value = "";
@@ -162,27 +196,44 @@ export default defineComponent({
         if (
           run === props.runId &&
           task === selectedId.value &&
-          operation === selectedOperation.value
-        )
+          operation === selectedOperation.value && request === codeGeneration
+        ) {
+          if (version.value?.hash && result.sha256 && version.value.hash !== result.sha256)
+            throw new Error("源码哈希与执行版本不一致，已停止展示");
           code.value = result;
+          if (pendingDiff) { pendingDiff = false; await loadDiff(); }
+        }
       } catch (failure: any) {
-        if (operation === selectedOperation.value)
+        if (run === props.runId && task === selectedId.value && operation === selectedOperation.value && request === codeGeneration)
           codeError.value = failure.message || "源码尚未归档";
       }
     }
     async function loadDiff() {
       const previous = previousVersion.value,
-        operation = selectedOperation.value;
+        operation = selectedOperation.value, run = props.runId, task = selectedId.value, request = ++diffGeneration;
       if (!previous) return;
       try {
-        const result = await fetchCodingCode(props.runId, selectedId.value, previous.operationId);
-        if (operation === selectedOperation.value) {
+        const result = await fetchCodingCode(run, task, previous.operationId);
+        if (run === props.runId && task === selectedId.value && operation === selectedOperation.value && request === diffGeneration) {
+          if (previous.hash && result.sha256 && previous.hash !== result.sha256)
+            throw new Error("修复前源码哈希与执行记录不一致");
           previousCode.value = result.content;
           showDiff.value = true;
         }
       } catch (failure: any) {
-        codeError.value = failure.message;
+        if (request === diffGeneration && run === props.runId && task === selectedId.value) codeError.value = failure.message;
       }
+    }
+    async function selectExecution(operation: string) {
+      pendingDiff = false;
+      selectedOperation.value = operation;
+      await nextTick(); codePanel.value?.scrollIntoView?.({ block: 'start' });
+    }
+    async function selectRepair(repair: PythonRepair) {
+      pendingDiff = true;
+      if (selectedOperation.value === repair.to.executionId) { pendingDiff = false; void loadDiff(); }
+      else selectedOperation.value = repair.to.executionId;
+      await nextTick(); codePanel.value?.scrollIntoView?.({ block: 'start' });
     }
     async function cancel() {
       if (!selected.value?.canCancel || cancelling.value) return;
@@ -223,6 +274,8 @@ export default defineComponent({
       () => props.runId,
       () => {
         generation++;
+        timingGeneration++; timingRequested.clear(); timings.value = {}; timingErrors.value = {};
+        codeGeneration++; diffGeneration++; pendingDiff = false;
         loading.value = false;
         tasks.value = [];
         events.value = {};
@@ -233,6 +286,8 @@ export default defineComponent({
       }
     );
     watch(selectedId, () => {
+      timingGeneration++; timingRequested.clear(); timings.value = {}; timingErrors.value = {};
+      codeGeneration++; diffGeneration++; pendingDiff = false;
       selectedOperation.value = "";
       eventLimit.value = 100;
       code.value = null;
@@ -260,6 +315,9 @@ export default defineComponent({
       cancelling,
       error,
       codeError,
+      codePanel,
+      timings,
+      timingErrors,
       resuming,
       inputVersions,
       inputBinding,
@@ -276,6 +334,13 @@ export default defineComponent({
       versions,
       version,
       previousVersion,
+      executions,
+      repairs,
+      diagnostics,
+      executionTimeline,
+      focusedExecution,
+      selectExecution,
+      selectRepair,
       calls,
       loadedSkills,
       skillApplications,

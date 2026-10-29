@@ -83,7 +83,8 @@ public record CodingTaskOutcome(String schemaVersion, String taskId, KernelDataS
         if (status == Status.COMPLETED) {
             CodingProtocol.require(reasonCode == null && !cancellationRequested && executionControl.stopReason() == null,
                 "COMPLETED cannot override a stop request");
-            CodingProtocol.require(codeArtifactRef != null && executionReceiptRef != null && resultDatasetRef != null
+            CodingProtocol.require((codeArtifactRef != null || CodingProtocol.ANALYSIS_VERSION.equals(schemaVersion)
+                    && usage.consumed().codeExecutions()==0) && executionReceiptRef != null && resultDatasetRef != null
                 && validationRecordRef != null && evidenceBundleRef != null, "COMPLETED requires all six evidence references");
             CodingProtocol.require(validationStatus != ValidationStatus.NOT_RUN, "COMPLETED requires validation records");
         }
@@ -144,6 +145,12 @@ public record CodingTaskOutcome(String schemaVersion, String taskId, KernelDataS
             && inputSnapshotRef.equals(task.inputSnapshotRef()) && contractSha256.equals(CodingCanonicalHash.sha256(task))
             && usage.budgetId().equals(task.budget().budgetId())
             && usage.costCurrency().equals(task.budget().costCurrency()), "Outcome is not bound to the supplied contract");
+        if(status==Status.COMPLETED) {
+            CodingProtocol.require(codeArtifactRef!=null || task.permitsTextResult(),"Task requires executed code evidence");
+            for(var required:task.outputContract().requiredEvidence())CodingProtocol.require(
+                reference(required,inputSnapshotRef,codeArtifactRef,executionReceiptRef,resultDatasetRef,validationRecordRef,evidenceBundleRef)!=null,
+                "Completed result is missing required evidence: "+required);
+        }
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

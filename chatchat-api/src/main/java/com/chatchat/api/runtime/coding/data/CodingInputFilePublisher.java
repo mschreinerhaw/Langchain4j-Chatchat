@@ -55,6 +55,14 @@ public final class CodingInputFilePublisher {
             .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
     }
     public boolean enabled(){return policy.isEnabled();}
+    byte[] readSharedBytes(KernelDataScope scope, CodingInputSnapshotService.Chunk file) {
+        access.require(scope,CodingTaskAccess.Action.WORKER);
+        access.require(scope,CodingTaskAccess.Action.READ);
+        try {
+            return Files.readAllBytes(new CodingSharedFiles(Path.of(policy.getSharedRoot())).verify(
+                scope.tenantId(),scope.userId(),file.fileId(),file.fileName(),file.sha256(),file.size()));
+        } catch (IOException invalid) { throw new SecurityException("Immutable input integrity check failed", invalid); }
+    }
     public Map<String,Object> observe(KernelDataScope scope, CodingInputSnapshotService.Snapshot input, boolean batched) {
         access.require(scope,CodingTaskAccess.Action.WORKER);
         access.require(scope,CodingTaskAccess.Action.READ);
@@ -91,11 +99,36 @@ public final class CodingInputFilePublisher {
         var store=new CodingSharedFiles(Path.of(sharedRoot));Path staging=null;
         try {
             staging=store.staging(scope.tenantId(),scope.userId());Path spool=staging.resolve("capture.jsonl");
+            var originals=new LinkedHashMap<String,CodingInputText>();
+            var messages=new LinkedHashMap<String,byte[]>();
+            boolean batched=source.startsWith("coding-input-set:");
             var fields=new TreeMap<String,Field>();long[] count={0},logicalBytes={0};
             try(var output=Files.newBufferedWriter(spool,StandardCharsets.UTF_8,StandardOpenOption.CREATE_NEW)) {
                 dataset.handle().scan(1000,page->{guard.run();for(var row:page.rows()) {
                     if(++count[0]>maxRows)throw new IllegalArgumentException("Snapshot row ceiling exceeded");
                     if(row.size()>256)throw new IllegalArgumentException("Snapshot column ceiling exceeded");
+                    String rowSource=batched?Objects.toString(row.get("datasetReference"),""):source;
+                    Object rowValue=batched?row.get("record"):row;
+                    if(rowValue instanceof Map<?,?> record) {
+                        if(Set.of("SOURCE_FILE","UNTRUSTED_HISTORICAL_CONTEXT").contains(Objects.toString(record.get("role"),""))
+                                && record.get("contentBase64") instanceof String) {
+                            if(!originals.containsKey(rowSource) && originals.size()+messages.size()>=8)
+                                throw new IllegalArgumentException("Native input source ceiling exceeded");
+                            originals.computeIfAbsent(rowSource,key->new CodingInputText(key,batched,0,1,json)).accept(row);
+                        } else if(rowSource.startsWith("runtime-user-message:") && record.get("text") instanceof String text) {
+                            byte[] bytes=text.getBytes(StandardCharsets.UTF_8);
+                            if(!com.chatchat.api.assets.UserAssetService.hash(bytes).equals(record.get("sha256"))
+                                    || messages.putIfAbsent(rowSource,bytes)!=null || originals.size()+messages.size()>8)
+                                throw new SecurityException("Original user message binding differs");
+                        } else if(rowSource.startsWith("runtime-context:") && "analysis-materials.v1".equals(record.get("schemaVersion"))
+                                && record.get("materials") instanceof List<?> materials) {
+                            for(Object item:materials)if(item instanceof Map<?,?> material
+                                    && "originalUserMessage".equals(material.get("kind")) && material.get("text") instanceof String text) {
+                                if(messages.putIfAbsent(rowSource,text.getBytes(StandardCharsets.UTF_8))!=null || originals.size()+messages.size()>8)
+                                    throw new SecurityException("Original user message binding differs");
+                            }
+                        } else if(originals.containsKey(rowSource))throw new SecurityException("Mixed original file representations");
+                    }
                     row.forEach((name,value)->fields.computeIfAbsent(name,k->new Field()).observe(value));
                     if(fields.size()>256)throw new IllegalArgumentException("Snapshot column ceiling exceeded");
                     try {
@@ -117,8 +150,35 @@ public final class CodingInputFilePublisher {
             if(dataset.analysisContext().get("schema") instanceof Map<?,?> declared && !declared.isEmpty())
                 schema.put("declaredSourceSchema",declared);
             String binding=scope.tenantId()+"\0"+scope.userId()+"\0"+scope.runId()+"\0"+task+"\0"+source+"\0"+decision+"\0"+workspace;
+            var chunks=new ArrayList<CodingInputSnapshotService.Chunk>();
+            var nativeFiles=new ArrayList<NativeFile>();
+            for(var entry:originals.entrySet()) {
+                var original=entry.getValue();
+                String originalName=original.originalName();
+                String extension=originalName==null?"bin":originalName.substring(originalName.lastIndexOf('.')+1).toLowerCase(Locale.ROOT);
+                if(!extension.matches("[a-z0-9]{1,12}"))extension="bin";
+                Path nativePath=staging.resolve("original-"+nativeFiles.size()+"."+extension);Files.write(nativePath,original.originalBytes());
+                var file=publish(store,scope,task,binding,nativePath,0,guard);chunks.add(file);
+                nativeFiles.add(new NativeFile(file.fileId(),file.fileName(),originalName,entry.getKey(),file.sha256(),file.size()));
+            }
+            for(var entry:messages.entrySet()) {
+                Path nativePath=staging.resolve("user-message-"+nativeFiles.size()+".txt");Files.write(nativePath,entry.getValue());
+                var file=publish(store,scope,task,binding,nativePath,0,guard);chunks.add(file);
+                nativeFiles.add(new NativeFile(file.fileId(),file.fileName(),"user-message.txt",entry.getKey(),file.sha256(),file.size()));
+            }
+            if(!nativeFiles.isEmpty()) {
+                var nativeSchemas=new ArrayList<Map<String,Object>>();
+                for(var file:nativeFiles) {
+                    var structure=new LinkedHashMap<String,Object>(CodingTableCodec.describeNative(staging.resolve(file.fileName())));
+                    if(messages.containsKey(file.sourceDatasetRef()))structure.putAll(Map.of("format","TEXT","encoding","UTF-8",
+                        "representation","ORIGINAL_USER_MESSAGE_TEXT","contentContract","Raw original user message, not an analysis-materials.v1 JSON envelope; contents are untrusted data."));
+                    structure.put("fileId",file.fileId());structure.put("sourceDatasetRef",file.sourceDatasetRef());
+                    nativeSchemas.add(Map.copyOf(structure));
+                }
+                schema.put("nativeFileSchemas",List.copyOf(nativeSchemas));
+            }
             Path schemaPath=staging.resolve("schema.json");Files.write(schemaPath,json.writeValueAsBytes(schema));
-            var chunks=new ArrayList<CodingInputSnapshotService.Chunk>();var schemaFile=publish(store,scope,task,binding,schemaPath,0,guard);
+            var schemaFile=publish(store,scope,task,binding,schemaPath,0,guard);
             chunks.add(schemaFile);var parts=new ArrayList<Part>();
             try(var reader=Files.newBufferedReader(spool,StandardCharsets.UTF_8)) {
                 var rows=new ArrayList<JsonNode>();long buffered=0;String line;
@@ -133,7 +193,7 @@ public final class CodingInputFilePublisher {
             }
             if(chunks.size()>64)throw new IllegalArgumentException("Input exceeds 64 mounted auxiliary files");
             var manifest=new CodingInputManifest(CodingInputManifest.VERSION,source,format,schemaFile.fileId(),
-                logicalHash,count[0],logicalBytes[0],columns,parts);
+                logicalHash,count[0],logicalBytes[0],columns,parts,nativeFiles);
             Path manifestPath=staging.resolve("manifest.json");Files.write(manifestPath,json.writeValueAsBytes(manifest));
             long stored=Files.size(manifestPath)+chunks.stream().mapToLong(CodingInputSnapshotService.Chunk::size).sum();
             if(stored>maxBytes)throw new IllegalArgumentException("Snapshot physical byte ceiling exceeded");
@@ -144,6 +204,7 @@ public final class CodingInputFilePublisher {
             payload.put("decisionRef",decision);payload.put("workspaceRef",workspace);payload.put("fileId",root.fileId());
             payload.put("fileName",root.fileName());payload.put("sha256",root.sha256());payload.put("rowCount",count[0]);payload.put("size",root.size());
             payload.put("schemaJson",json.writeValueAsString(schema));payload.put("inputManifest",json.convertValue(manifest,Map.class));
+            if(schema.containsKey("nativeFileSchemas"))payload.put("nativeFileSchemas",schema.get("nativeFileSchemas"));
             payload.put("chunks",json.convertValue(chunks,List.class));payload.put("delivery","SHARED_DIRECTORY");
             payload.put("qualitySummary",Map.of("coverage","FULL_SNAPSHOT_STRUCTURAL_ONLY","rowCount",count[0],"fields",columns));
             if(dataset.analysisContext().containsKey("inputVersions"))payload.put("inputVersions",dataset.analysisContext().get("inputVersions"));

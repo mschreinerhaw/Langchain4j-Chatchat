@@ -24,9 +24,11 @@ worker = address(os.environ.get('CODING_WORKER_CONTAINER', 'runtime-os-app-stage
 api = address(os.environ.get('CODING_API_CONTAINER', 'runtime-os-app-stage-api-1'))
 if worker == api:
     raise SystemExit('Worker and Runtime must have separate identities')
-port = int(os.environ.get('CODING_CALLBACK_PORT', '8080'))
+port = int(os.environ.get('CODING_CALLBACK_PORT', '8081'))
 if not 1 <= port <= 65535:
     raise SystemExit('Invalid callback port')
+if port in (8080, 8791, 8792):
+    raise SystemExit('Coding callbacks must use a dedicated callback-only listener, not a general API or worker/monitor port')
 rules = subprocess.check_output(['iptables', '-S'], text=True).splitlines()
 if '-N DOCKER-USER' not in rules:
     raise SystemExit('Docker firewall chain is unavailable')

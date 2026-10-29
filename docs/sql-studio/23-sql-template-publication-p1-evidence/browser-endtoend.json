@@ -1,0 +1,13 @@
+{
+  "status": "PASSED",
+  "realBackend": true,
+  "checks": {
+    "uiDraftCreatedDisabled": true,
+    "uiParametersSaved": true,
+    "uiActualSqlTestPassed": true,
+    "uiPublicationActive": true
+  },
+  "pageErrors": [],
+  "publicationId": "027785b3-30b1-4c9e-9c07-35bb65195d71",
+  "sqlRevisionId": "70d639ac-3365-3171-83f0-a1875e85f673"
+}

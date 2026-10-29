@@ -19,9 +19,9 @@ final class CodingInputLayout {
         CodingInputManifest.fileId(fileId);
         CodingInputManifest.hash(hash);
         return Map.of("schemaVersion", "runtime_os.coding.input-layout.v1",
-            "reader", Map.of("module", "runtime_input", "function", "load_rows",
-                "usage", "from runtime_input import load_rows; rows = list(load_rows(manifestPath, expectedManifestSha256))",
-                "returns", "logical dictionaries; JSON decoded; missing/null distinct; exact integer/decimal types"),
+            "reader", Map.of("type", "DECLARED_FILES",
+                "usage", "Read manifestPath with json. If nativeFiles is nonempty, prefer those verified original bytes with installed readers (text files need only open); parts retain the historical transport representation. Otherwise read declared parts with installed Parquet/CSV readers. No application-specific Python module is required.",
+                "logicalColumns", "Map storageName to name using manifest columns; decode JSON cells and preserve missing/null and exact numeric types."),
             "manifestPath", "/data/input/" + fileId + "/manifest.json",
             "expectedManifestSha256", hash,
             "manifestRootFields", Arrays.stream(CodingInputManifest.class.getRecordComponents())

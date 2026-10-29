@@ -1,0 +1,197 @@
+[
+  {
+    "path": "chatchat-api/src/main/java/com/chatchat/api/assets/UserAssetService.java",
+    "sha256": "751bbc51207c7baeb6a3938c79819f4ca87e0dd34eda0899a65ceb756f3be3bc",
+    "preexistingTaskFile": false
+  },
+  {
+    "path": "chatchat-api/src/main/java/com/chatchat/api/controller/datascience/PythonCodeReuseController.java",
+    "sha256": "f20dbee3270a9b0756cc69c9e83ecc74aa9a06192bfc6dc218e6d373269bb06a",
+    "preexistingTaskFile": false
+  },
+  {
+    "path": "chatchat-api/src/main/java/com/chatchat/api/datascience/python/PythonCodeAssistantService.java",
+    "sha256": "6b7f9c5a1f52edd4857be6327667b087d202c36b9c8fbf1d3da0647dc7e4ffd7",
+    "preexistingTaskFile": false
+  },
+  {
+    "path": "chatchat-api/src/main/java/com/chatchat/api/datascience/python/PythonCodeReuseService.java",
+    "sha256": "67e3e8253ce76f2f6379afe4cf857140e01a7a62ba8e82678031588867c8c9f7",
+    "preexistingTaskFile": false
+  },
+  {
+    "path": "chatchat-api/src/main/java/com/chatchat/api/datascience/python/PythonDataScienceService.java",
+    "sha256": "b3c2d839ec5ce9920b0c7ac3114e711a5362ff9a23f8236e6a0cc20067c2d2ac",
+    "preexistingTaskFile": false
+  },
+  {
+    "path": "chatchat-api/src/main/java/com/chatchat/api/datascience/python/PythonRepositories.java",
+    "sha256": "45e71ae422857a2f34bb0b5c08de72f6563e8f964de41da76373deb56e0ccf28",
+    "preexistingTaskFile": false
+  },
+  {
+    "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.java",
+    "sha256": "416d57996970b7491c627a32530853cbf041ef166b11c0f8497719e5bcfa8cbb",
+    "preexistingTaskFile": true
+  },
+  {
+    "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClinePythonCallbackController.java",
+    "sha256": "4d0f9f9fce6268efc45462c3fb1092a071922429dd08d871561e89f6a45d2bf2",
+    "preexistingTaskFile": true
+  },
+  {
+    "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/execution/CodingExecutionFeedbackService.java",
+    "sha256": "ef3760e6451e6c9f3048af2bfe764d674f88ab7459bba5d42d345e779e7f5b88",
+    "preexistingTaskFile": false
+  },
+  {
+    "path": "chatchat-api/src/test/java/com/chatchat/api/assets/UserAssetServiceTest.java",
+    "sha256": "6a030400f800d53ac87455d2280cafe606c26a3caf91fb0bfdad4d851b1e00bc",
+    "preexistingTaskFile": false
+  },
+  {
+    "path": "chatchat-api/src/test/java/com/chatchat/api/datascience/python/PythonCodeReuseServiceTest.java",
+    "sha256": "7adf987aefc788d1aaef19f31798414ce2ba3d31929bb59164b3a73e84de451a",
+    "preexistingTaskFile": false
+  },
+  {
+    "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/execution/CodingExecutionFeedbackServiceTest.java",
+    "sha256": "d11e9e8914006dcd15c0d4b1a56159855af163203dc195cdbcfb02e350e2f615",
+    "preexistingTaskFile": false
+  },
+  {
+    "path": "chatchat-api/web-app/src/components/PythonReusePanel.test.js",
+    "sha256": "d2031e442597a49f977af1f13b8db3d44a6efb2f2b27a234d012fde84a68888e",
+    "preexistingTaskFile": false
+  },
+  {
+    "path": "chatchat-api/web-app/src/components/PythonReusePanel.vue",
+    "sha256": "b5bf68d3993d3326ff4bb72068a745ecc3b6f6fb1546baafff9889e902df8b66",
+    "preexistingTaskFile": false
+  },
+  {
+    "path": "chatchat-api/web-app/src/js/components/PythonReusePanel.js",
+    "sha256": "6aa0edce1520eb0afdeb2e9dde76ddeb3abfaa7e095b4c0cdbf6f683a2f3135f",
+    "preexistingTaskFile": false
+  },
+  {
+    "path": "chatchat-api/web-app/src/js/views/DataScienceView.js",
+    "sha256": "c1ae6821b7911562fbd0d1e25cc5b49329f4da6c18ebca15a9e7dfa985db8265",
+    "preexistingTaskFile": false
+  },
+  {
+    "path": "chatchat-api/web-app/src/styles/components/python-reuse-panel.css",
+    "sha256": "911552f258c20552f40d71b5cfa6203f094325e1c1548b8ce756b171061244c0",
+    "preexistingTaskFile": false
+  },
+  {
+    "path": "chatchat-api/web-app/src/views/DataScienceView.vue",
+    "sha256": "f1558486598c40531ba036e43e771e10d176f7684c186373c853a4bb31c3b5ad",
+    "preexistingTaskFile": false
+  },
+  {
+    "path": "chatchat-common/src/main/java/com/chatchat/common/runtime/coding/CodingRuntimeContext.java",
+    "sha256": "30fa225cca618a84983660c646557cf95454a815684700f38b4f82baf7a1dc8c",
+    "preexistingTaskFile": true
+  },
+  {
+    "path": "chatchat-common/src/main/java/com/chatchat/common/runtime/coding/ExecutionFeedback.java",
+    "sha256": "653d50797c7a885bf491edb0d0a40b74e06d60ed0c1ed84ba489adaa31ae932d",
+    "preexistingTaskFile": false
+  },
+  {
+    "path": "chatchat-common/src/main/java/com/chatchat/common/runtime/coding/PythonCodeProject.java",
+    "sha256": "0fc34ea63cefb9a858a28923a270d8c50b4a7a499d0d09ba074cb8a288e2ef85",
+    "preexistingTaskFile": false
+  },
+  {
+    "path": "chatchat-common/src/main/resources/runtime/coding/coding-analysis.schema.json",
+    "sha256": "4c068514082df27d6b68f41f604b8dabee572434dcf98e72c06ed7021cd56f22",
+    "preexistingTaskFile": true
+  },
+  {
+    "path": "chatchat-common/src/main/resources/runtime/coding/execution-feedback.schema.json",
+    "sha256": "14329033df945a2cd3dfcea6fb84417718fc306f31d4ed041ee5787794db5ca5",
+    "preexistingTaskFile": false
+  },
+  {
+    "path": "chatchat-common/src/main/resources/runtime/coding/python-project-adapter.legacy-output-v1.py",
+    "sha256": "8279b9cf856a03c82f916f1b61fcf70d7dc35629e3fbe122ceea9c1ef63ff0bf",
+    "preexistingTaskFile": false
+  },
+  {
+    "path": "chatchat-common/src/main/resources/runtime/coding/python-project-adapter.py",
+    "sha256": "859d6c1144f1bddb6d09a5584d2fdbcf2f8789c6dd406ded7b7042aeca958da2",
+    "preexistingTaskFile": false
+  },
+  {
+    "path": "chatchat-common/src/test/java/com/chatchat/common/runtime/coding/PythonCodeProjectTest.java",
+    "sha256": "7779050863a8cd413b8d74241baaf73feb7eb01d4581115b3afa8ca0f91bf2ec",
+    "preexistingTaskFile": false
+  },
+  {
+    "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/python/PythonExecutionLogBoundary.java",
+    "sha256": "dd9b4e449faf1474428f544026184664dca38ad54103520a7bb7da011e682853",
+    "preexistingTaskFile": true
+  },
+  {
+    "path": "chatchat-mcp-server/src/main/resources/python/runtime_capture.py",
+    "sha256": "41c0358a674314d459881917bda1c35e4261766a75522b0b5e16b7ea33eaef08",
+    "preexistingTaskFile": true
+  },
+  {
+    "path": "chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/python/PythonExecutionLogBoundaryTest.java",
+    "sha256": "2f031eb934586db000b530ed4256b7af5a4ab229bed6617688b70d373dbd31bd",
+    "preexistingTaskFile": true
+  },
+  {
+    "path": "coding-agent-node/src/monitor.ts",
+    "sha256": "8861381e920a7ab1e0ebfb0a96ba163b158f95b8228f39ff4a5e839429c0e820",
+    "preexistingTaskFile": false
+  },
+  {
+    "path": "coding-agent-node/src/python-project.js",
+    "sha256": "499a6194e70b1258c6d8f224436f53ef8af0db5f051d81de6b1bf3503dee2c64",
+    "preexistingTaskFile": false
+  },
+  {
+    "path": "coding-agent-node/src/runner.js",
+    "sha256": "06eb2d52f31bd2b329d5f059887a1069f325aac66b34f21aadd302a048bc9f7d",
+    "preexistingTaskFile": true
+  },
+  {
+    "path": "coding-agent-node/src/sdk-adapter.js",
+    "sha256": "fc797a0d144373f8d8101a4cedc7b8bb44af922527c3521393277f0b5de5b54f",
+    "preexistingTaskFile": false
+  },
+  {
+    "path": "coding-agent-node/test/monitor.test.js",
+    "sha256": "f6cac65f5c5d05b2d9e72e6d5f14adc0312c89512c8feeb9bb785a895041db0d",
+    "preexistingTaskFile": true
+  },
+  {
+    "path": "coding-agent-node/test/python-project.test.js",
+    "sha256": "87e99dfd8089d6ece961224b2d2d5e49182404f81f6908ee66fdda838a108ca8",
+    "preexistingTaskFile": false
+  },
+  {
+    "path": "coding-agent-node/test/reviewed-result.test.js",
+    "sha256": "f8ce84e2ac08d8b574de5df34ed81069df8fd0c61933398695304523be79d519",
+    "preexistingTaskFile": true
+  },
+  {
+    "path": "docs/python-studio-code-reuse-delivery-20261029.md",
+    "sha256": "268f0583d4f8684dd42d8fdca631983b9377de35d8d889db5e60b09bad647579",
+    "preexistingTaskFile": false
+  },
+  {
+    "path": "scripts/verify-python-code-reuse-browser.mjs",
+    "sha256": "e3a4502a3ea2f1a0f3394a68a26221f7fcc205814cde8bbda7ddb963ff89a33a",
+    "preexistingTaskFile": false
+  },
+  {
+    "path": "docs/python-studio-code-reuse-audit-20261029.md",
+    "sha256": "69eee82b5e06bc000c9e8843ab80869c49a1558ff1d976eccae39ebbf1de79af",
+    "createdDuringInitialAudit": true
+  }
+]

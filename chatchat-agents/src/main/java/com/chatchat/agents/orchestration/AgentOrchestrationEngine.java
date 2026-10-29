@@ -1952,7 +1952,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             prompt.append("- Context compression is inactive. Executed tool outputs below are complete Runtime inputs.\n");
         }
         prompt.append("- Do not call tools directly; Java will only execute the step ids you choose after safety validation.\n\n");
-        prompt.append("User query:\n").append(query == null ? "" : query).append("\n\n");
+        prompt.append("User query:\n").append(ModelProtocolJson.compact(ModelProtocolJson.userInputView(query,6000))).append("\n\n");
         prompt.append("decision_count: ").append(request.decisionCount()).append("\n");
         prompt.append("decision_purpose: ").append(request.decisionPurpose()).append("\n");
         prompt.append("ready_step_ids: ").append(request.readyStepIds() == null ? List.of() : request.readyStepIds()).append("\n");
@@ -2657,7 +2657,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         prompt.append("- Mandatory workflow observations are executed after the listed plan attempts. A successful local contract review in those observations is newer authoritative evidence and resolves earlier missing_evidence claims for the same tool result.\n");
         prompt.append("- Database layering labels (for example ADS/DWS/DWD/DIM), table names, schemas, databases, and fields are evidence facts only when the current tool output explicitly returned them. Never infer a layer from a naming convention. Never output 'possible table examples', 'common tables', or supplemental table recommendations that were not retrieved.\n");
         prompt.append(AgentRuntimeFactGroundingContract.promptSection());
-        prompt.append("User query:\n").append(query == null ? "" : query).append("\n\n");
+        prompt.append("User query:\n").append(ModelProtocolJson.compact(ModelProtocolJson.userInputView(query,6000))).append("\n\n");
         prompt.append("Authoritative Summary Evidence Ledger (runtime-generated):\n")
             .append("- This ledger is the factual boundary for final synthesis and reviewer rewrites. "
                 + "Every factual finding must be supported by an EXECUTED_RESULT entry and its evidenceId.\n")
@@ -2974,7 +2974,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             .append("Summarize every successful returned result with concrete values. Isolate failed or blocked children ")
             .append("and state their exact returned reasons. Never discard successful siblings because another child failed.\n")
             .append("Use only the structural Runtime evidence below. Return Chinese Markdown, not JSON.\n\n")
-            .append("User query:\n").append(query == null ? "" : query).append("\n\n")
+            .append("User query:\n").append(ModelProtocolJson.compact(ModelProtocolJson.userInputView(query,6000))).append("\n\n")
             .append("Structural Runtime evidence:\n");
         for (int attemptIndex = 0; attemptIndex < results.size(); attemptIndex++) {
             InterpretationPlanRuntime.ExecutionResult attempt = results.get(attemptIndex);
@@ -3498,7 +3498,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         }
         if (request != null && request.execution() != null && request.execution().success()
                 && workflowRole == ToolWorkflowRole.TEMPLATE_DISCOVERY) {
-            return selectPublishedTemplates(activeChatModel, query, request, runtimeAttributes);
+            return selectPublishedTemplates(activeChatModel, query, request, runtimeAttributes,cancellationCheck);
         }
         // Candidate admission precedes data analysis: LLM semantics select returned IDs and
         // extract parameters. Cline owns interpretation only after governed data acquisition.
@@ -3847,7 +3847,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     }
 
     private InterpretationPlanRuntime.StepReview selectPublishedTemplates(ChatModel model, String query,
-            InterpretationPlanRuntime.StepReviewRequest request,Map<String,Object> runtimeAttributes) {
+            InterpretationPlanRuntime.StepReviewRequest request,Map<String,Object> runtimeAttributes,BooleanSupplier cancellationCheck) {
         List<Map<String,Object>> candidates=findCandidateMaps(request.execution().output(),"templates",0);
         Set<String> returned=candidates.stream().map(item->stringValue(firstObject(item,"templateId","id")))
             .filter(Objects::nonNull).collect(java.util.stream.Collectors.toSet());
@@ -3870,7 +3870,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         recordLifecyclePhase(runtimeAttributes,null,"model_inference","Model selects templates and binds parameters.",
             metadataOf("eventKind","MODEL_INFERENCE","eventState","STARTED","modelPhase","template_selection_and_binding",
                 "stepId",request.execution().stepId(),"toolName",request.execution().toolName()));
-        var result=new SchemaDrivenTemplateParameterBinder(objectMapper).selectAndBind(model,query,candidates,context);
+        var result=new SchemaDrivenTemplateParameterBinder(objectMapper).selectAndBind(model,query,candidates,context,
+            ()->runtimeGuard.checkCancelled(cancellationCheck));
         recordLifecyclePhase(runtimeAttributes,null,"model_inference","Template selection decision returned.",
             metadataOf("eventKind","MODEL_INFERENCE","eventState","MODEL_UNAVAILABLE".equals(result.status())?"FAILED":"COMPLETED",
                 "modelPhase","template_selection_and_binding","stepId",request.execution().stepId(),
@@ -3914,7 +3915,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         appendToolResultReviewRules(prompt, request.execution().toolName(), request.execution().output());
         prompt.append("Attempt: ").append(request.attempt()).append('/').append(request.maxAttempts()).append('\n');
         Map<String, Object> context = new LinkedHashMap<>();
-        context.put("Current-turn user query", query == null ? "" : query);
+        context.put("Current-turn user query", ModelProtocolJson.userInputView(query,6000));
         context.put("Plan intent", request.plan() == null ? Map.of() : request.plan().intent());
         context.put("Current step", toolReviewStepProjection(request.step()));
         Map<String, Object> cumulative = templateRequirementReviewContext(request);

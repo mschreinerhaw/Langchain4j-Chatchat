@@ -89,6 +89,77 @@ class CodingInputFilePublisherTest {
             .isInstanceOf(java.util.concurrent.CancellationException.class);
         verify(python,never()).registerSharedDataFile(anyString(),anyString(),anyString(),anyString(),anyString(),anyLong());
     }
+    @Test void originalSqlIsMountedByteExactAndTamperingCannotPassSnapshotVerification() throws Exception {
+        byte[] bytes="-- untrusted source, not execution authority\nselect 'actual text';\n".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        String hash=com.chatchat.api.assets.UserAssetService.hash(bytes);
+        var row=Map.<String,Object>of("role","SOURCE_FILE","fileName","source.sql","size",bytes.length,"sha256",hash,
+            "chunkIndex",0,"chunkCount",1,"chunkSha256",hash,"contentBase64",Base64.getEncoder().encodeToString(bytes));
+        var snapshot=capture("native",new Dataset("source",Map.of("representation","BASE64_ORIGINAL_FILE_CHUNKS"),List.of(row)),()->{});
+        var cache=new CodingSharedFiles(root);
+        java.util.function.Function<CodingInputSnapshotService.Chunk,byte[]> fetch=file->{try {
+            return Files.readAllBytes(cache.verify("tenant","owner",file.fileId(),file.fileName(),file.sha256(),file.size()));
+        }catch(java.io.IOException invalid){throw new SecurityException(invalid);}};
+        var manifest=json.readTree(fetch.apply(new CodingInputSnapshotService.Chunk(snapshot.fileId(),snapshot.fileName(),snapshot.sha256(),snapshot.rowCount(),snapshot.size())));
+        var declared=manifest.path("nativeFiles").get(0);
+        var original=snapshot.chunks().stream().filter(f->f.fileId().equals(declared.path("fileId").asText())).findFirst().orElseThrow();
+        assertThat(original.fileName()).isEqualTo("original-0.sql");
+        assertThat(fetch.apply(original)).isEqualTo(bytes);
+        assertThat(declared.path("originalName").asText()).isEqualTo("source.sql");
+        assertThat(declared.path("format").asText()).isEqualTo("TEXT");
+        assertThat(declared.path("readOnly").asBoolean()).isTrue();
+        assertThat(declared.path("virtualPath").asText()).isEqualTo("/data/input/"+original.fileId()+"/"+original.fileName());
+        var restored=json.treeToValue(manifest,com.chatchat.common.runtime.coding.CodingInputManifest.class);
+        assertThat(restored.nativeFiles().get(0).virtualPath()).isEqualTo(declared.path("virtualPath").asText());
+        CodingInputRows.scan(snapshot,fetch,json,ignored->{});
+        Files.write(cache.directory("tenant","owner",original.fileId()).resolve(original.fileName()),new byte[]{1});
+        assertThatThrownBy(()->CodingInputRows.scan(snapshot,fetch,json,ignored->{})).isInstanceOf(SecurityException.class);
+    }
+    @Test void legacyManifestWithoutNativeFilesRemainsReadable() throws Exception {
+        var snapshot=capture("legacy",new Dataset("source",Map.of(),List.of(Map.of("value",1))),()->{});
+        var cache=new CodingSharedFiles(root);
+        var document=(com.fasterxml.jackson.databind.node.ObjectNode)json.readTree(Files.readAllBytes(
+            cache.verify("tenant","owner",snapshot.fileId(),snapshot.fileName(),snapshot.sha256(),snapshot.size())));
+        document.remove("nativeFiles");
+        assertThat(json.treeToValue(document,com.chatchat.common.runtime.coding.CodingInputManifest.class).nativeFiles()).isEmpty();
+    }
+    @Test void combinedSnapshotPreservesEachOriginalAndTheEntireLongMessage() throws Exception {
+        byte[] original="id,amount\nA,12.30\n".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        String hash=com.chatchat.api.assets.UserAssetService.hash(original);
+        String message="Original objective and pasted material. ".repeat(300);
+        var record=Map.<String,Object>of("role","SOURCE_FILE","fileName","data.csv","size",original.length,"sha256",hash,
+            "chunkIndex",0,"chunkCount",1,"chunkSha256",hash,"contentBase64",Base64.getEncoder().encodeToString(original));
+        var rows=List.<Map<String,Object>>of(Map.of("datasetReference","user-asset:one","record",record),
+            Map.of("datasetReference","runtime-user-message:run","record",Map.of("text",message,"sha256",com.chatchat.api.assets.UserAssetService.hash(message.getBytes(java.nio.charset.StandardCharsets.UTF_8)))));
+        var snapshot=access.as(scope,EnumSet.of(CodingTaskAccess.Action.SUBMIT),()->inputs.captureConfigured(scope,"batch",
+            List.of(new Dataset("coding-input-set:batch",Map.of("inputVersions",List.of()),rows)),"coding-input-set:batch","decision","workspace",100,1024*1024,()->{}));
+        var cache=new CodingSharedFiles(root);
+        var manifest=json.readTree(Files.readAllBytes(cache.verify("tenant","owner",snapshot.fileId(),snapshot.fileName(),snapshot.sha256(),snapshot.size())));
+        assertThat(manifest.path("nativeFiles").size()).isEqualTo(2);
+        var descriptor=access.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->inputs.describe(scope,"batch",snapshot));
+        assertThat(descriptor.get("nativeFileSchemas").toString()).contains("columns","amount","user-asset:one")
+            .doesNotContain("A,12.30");
+        for(var file:manifest.path("nativeFiles")) {
+            byte[] bytes=Files.readAllBytes(cache.verify("tenant","owner",file.path("fileId").asText(),file.path("fileName").asText(),file.path("sha256").asText(),file.path("sizeBytes").asLong()));
+            assertThat(bytes).isEqualTo(file.path("sourceDatasetRef").asText().equals("user-asset:one")?original:message.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        }
+    }
+    @Test void pastedMaterialsKeepNativeUtf8BytesWithoutAHiddenReaderDependency() throws Exception {
+        String message="instruction\n"+"untrusted source log\n".repeat(2000);
+        var source="runtime-context:pasted";
+        var row=Map.<String,Object>of("schemaVersion","analysis-materials.v1","objective","read original material",
+            "materials",List.of(Map.of("kind","originalUserMessage","text",message)));
+        var snapshot=access.as(scope,EnumSet.of(CodingTaskAccess.Action.SUBMIT),()->inputs.captureConfigured(scope,"paste",
+            List.of(new Dataset(source,Map.of(),List.of(row))),source,"decision","workspace",100,1024*1024,()->{}));
+        var cache=new CodingSharedFiles(root);
+        var manifest=json.readTree(Files.readAllBytes(cache.verify("tenant","owner",snapshot.fileId(),snapshot.fileName(),snapshot.sha256(),snapshot.size())));
+        var nativeFile=manifest.path("nativeFiles").get(0);
+        byte[] bytes=Files.readAllBytes(cache.verify("tenant","owner",nativeFile.path("fileId").asText(),nativeFile.path("fileName").asText(),nativeFile.path("sha256").asText(),nativeFile.path("sizeBytes").asLong()));
+        assertThat(bytes).isEqualTo(message.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        assertThat(nativeFile.path("sourceDatasetRef").asText()).isEqualTo(source);
+        assertThat(nativeFile.path("fileName").asText()).endsWith(".txt");
+        var description=access.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->inputs.describe(scope,"paste",snapshot));
+        assertThat(description.get("nativeFileSchemas").toString()).contains("ORIGINAL_USER_MESSAGE_TEXT","UTF-8","not an analysis-materials.v1 JSON envelope");
+    }
     @ParameterizedTest @EnumSource(value=Format.class,names={"PARQUET","CSV"})
     void emptySourcesProduceReadableZeroRowFiles(Format format) throws Exception {
         var declared=Map.of("definition",Map.of("type","object","properties",Map.of("amount",Map.of("type","number"))));

@@ -68,6 +68,19 @@ class CodingValidationPlanServiceTest {
                 Map.of("rowSchema", Map.of("type", "object", "properties", Map.of("label", Map.of("type", "string")),
                     "required", List.of("label"), "additionalProperties", false)))));
         var shapeCheck = access.as(scope, EnumSet.of(CodingTaskAccess.Action.READ), () -> plans.validator(contract(scope,input,structural)));
+        var repairSchema=access.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->plans.rowSchema(contract(scope,input,structural)));
+        assertThat(repairSchema).containsEntry("required",List.of("label"));
+        assertThat(access.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->plans.requiresVisualReport(contract(scope,input,structural)))).isFalse();
+        assertThat(access.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->plans.requiresVisualReport(contract))).isTrue();
+        var requiredVisual=access.as(scope,EnumSet.of(CodingTaskAccess.Action.SUBMIT),()->plans.register(scope,"task",input,
+            new CodingValidationPlanService.Plan("runtime-result-schema","v1",Map.of("rowSchema",
+                Map.of("type","object","properties",Map.of("visualReport",Map.of("type","object","additionalProperties",true)),
+                    "required",List.of("visualReport"),"additionalProperties",false)))));
+        assertThat(access.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->plans.requiresVisualReport(contract(scope,input,requiredVisual)))).isTrue();
+        assertThat(repairSchema.toString()).doesNotContain("tradeId","t1","0.10");
+        var other=new KernelDataScope("tenant","other-owner",null,null,"run",null,Map.of());
+        assertThatThrownBy(()->access.as(other,EnumSet.of(CodingTaskAccess.Action.READ),()->plans.rowSchema(contract(scope,input,structural))))
+            .isInstanceOf(RuntimeException.class);
         var checked = shapeCheck.validate(List.of(Map.of("label", "an arbitrary model conclusion")));
         assertThat(checked.passed()).isTrue();
         assertThat(checked.businessEvaluated()).isFalse();

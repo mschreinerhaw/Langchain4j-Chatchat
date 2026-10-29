@@ -1,0 +1,11 @@
+{
+  "scope": "ISOLATED_API_AND_CALLBACK_PROXY_ONLY",
+  "image": "runtime-os-api:cline-monitor-20261028-r2",
+  "previousImage": "runtime-os-api:cline-monitor-20261028-r1",
+  "previousContainerId": "1d3dab90e36c7cb86251e286106cd627446e333bef8a6cb08f9fa80c75b019b2",
+  "previousStartedAt": "2026-10-28T14:45:45.414691112Z",
+  "jarSha256": "8cd5832ffc8ec74f04a0e65b5bdac45a546133ee7d09e6ea2174094804388e7b",
+  "productionReplaced": false,
+  "mcpReplaced": false,
+  "nodeReplaced": false
+}

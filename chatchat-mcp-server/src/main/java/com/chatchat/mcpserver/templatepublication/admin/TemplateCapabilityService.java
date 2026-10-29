@@ -40,6 +40,8 @@ public class TemplateCapabilityService {
     private com.chatchat.mcpserver.audit.InvocationAuditService audit;
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.chatchat.mcpserver.license.McpLicenseService license;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private ObjectProvider<com.chatchat.mcpserver.sql.template.SqlTemplateAuthoringService> sqlAuthors;
 
     public List<Map<String, Object>> templates(String tenant, String actor, boolean management) {
         try (var ignored = callers.open(tenant, actor)) {
@@ -59,6 +61,20 @@ public class TemplateCapabilityService {
             var template = catalog.businessTemplates(false).stream().filter(item -> item.key().equals(key))
                 .findFirst().orElseThrow(() -> new SecurityException("Template or asset is not authorized"));
             if (!template.revision().equals(expectedRevision)) throw new IllegalArgumentException("Template changed; refresh and confirm the current version");
+            Map<String,Object> sqlEvidence=null;
+            Map<String,Object> sqlSnapshot=null;
+            if(template.binding().get("sqlRevisionId") instanceof String id) {
+                if(sqlAuthors==null)throw new IllegalStateException("SQL publication gate is unavailable");
+                sqlEvidence=sqlAuthors.getObject().publicationEvidence(id,tenant,actor);
+                sqlSnapshot=sqlAuthors.getObject().publicationSnapshot(id,tenant,actor);
+                var existing=sqlAuthors.getObject().existingPublicationId(id,tenant,actor);
+                if(existing.isPresent()) {
+                    var current=releases.findById(existing.get()).filter(r->KIND.equals(r.getKind())&&tenant.equals(r.getTenantId())&&actor.equals(r.getActorId())).orElseThrow(()->new SecurityException("SQL publication is outside author scope"));
+                    if(!"RUNNING".equals(current.getState())||!template.revision().equals(definition(current).path("revision").asText()))
+                        throw new IllegalArgumentException("Use SQL Studio to retest and publish or restore this SQL revision");
+                    refreshAfterCommit();return view(current);
+                }
+            }
             String logicalId = UUID.nameUUIDFromBytes((tenant + "\n" + actor + "\n" + key).getBytes(StandardCharsets.UTF_8)).toString();
             lock(logicalId);
             var history = releases.lockLogical(logicalId);
@@ -73,10 +89,16 @@ public class TemplateCapabilityService {
             row.setTitle(template.title()); row.setDescription(template.description());
             row.setCreatedAt(Instant.now()); row.setPublishedAt(row.getCreatedAt());
             var schema = json.valueToTree(template.inputSchema()); ToolReleaseSchemas.compile(schema);
-            row.setDefinitionJson(write(template)); row.setInputSchemaJson(schema.toString());
-            row.setOutputSchemaJson("{\"type\":\"object\",\"properties\":{}}");
+            var definition=(com.fasterxml.jackson.databind.node.ObjectNode)json.valueToTree(template);
+            if(sqlSnapshot!=null) {
+                definition.set("sqlSnapshot",json.valueToTree(sqlSnapshot));
+                definition.set("sqlTest",json.valueToTree(sqlEvidence));
+            }
+            row.setDefinitionJson(write(definition)); row.setInputSchemaJson(schema.toString());
+            row.setOutputSchemaJson(sqlSnapshot==null ? "{\"type\":\"object\",\"properties\":{}}" : write(sqlOutputSchema()));
             row.setTestEvidenceJson(write(Map.of("type", "TEMPLATE_CONTRACT_VALIDATION", "revision", template.revision(),
                 "validatedAt", Instant.now().toString(), "executor", template.executor())));
+            if(sqlEvidence!=null)row.setTestEvidenceJson(write(sqlEvidence));
             active.ifPresent(previous -> { previous.setState("OFFLINE"); releases.save(previous); });
             releases.saveAndFlush(row); refreshAfterCommit(); return view(row);
         }
@@ -200,6 +222,19 @@ public class TemplateCapabilityService {
         });
     }
     private String write(Object value) { try { return json.writeValueAsString(value); } catch (Exception ex) { throw new IllegalArgumentException(ex); } }
+    /** Actual ToolOutput -> sql_result.v1 -> result-set envelope, without invented SQL columns. */
+    private Map<String,Object> sqlOutputSchema() {
+        var resultSet=Map.of("type","object","properties",Map.of(
+            "rows",Map.of("type","array","items",Map.of("type","object")),
+            "columns",Map.of("type","array","items",Map.of("type","string")),
+            "rowCount",Map.of("type","integer")));
+        return Map.of("type","object","required",List.of("success"),"properties",Map.of(
+            "success",Map.of("type","boolean"),
+            "errorMessage",Map.of("type",List.of("string","null")),
+            "data",Map.of("type",List.of("object","null"),"properties",Map.of(
+                "success",Map.of("type","boolean"),"data",resultSet))),
+            "description","ToolOutput envelope. SQL rows are at $.data.data.rows, not top-level SQL column fields. Preserve the envelope when passing results to later steps.");
+    }
     @SuppressWarnings("unchecked") private Map<String,Object> map(Object value) { return value instanceof Map<?,?> m ? (Map<String,Object>)m : Map.of(); }
     private String text(Map<String,Object> values, String key) { return Objects.toString(values.get(key), ""); }
 }

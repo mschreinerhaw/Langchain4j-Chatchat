@@ -1,0 +1,170 @@
+{
+  "java": {
+    "passed": 131,
+    "failed": 0,
+    "classes": [
+      {
+        "name": "com.chatchat.common.runtime.coding.CodingJsonSchemaTest",
+        "tests": "40",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "1.205"
+      },
+      {
+        "name": "com.chatchat.common.runtime.coding.PythonCodeProjectTest",
+        "tests": "7",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "0.082"
+      },
+      {
+        "name": "com.chatchat.mcpserver.python.PythonExecutionLogBoundaryTest",
+        "tests": "5",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "0.81"
+      },
+      {
+        "name": "com.chatchat.api.assets.UserAssetServiceTest",
+        "tests": "10",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "1.729"
+      },
+      {
+        "name": "com.chatchat.api.datascience.python.PythonCodeReuseServiceTest",
+        "tests": "10",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "5.143"
+      },
+      {
+        "name": "com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest",
+        "tests": "36",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "3.571"
+      },
+      {
+        "name": "com.chatchat.api.runtime.coding.cline.ClinePythonCallbackControllerTest",
+        "tests": "15",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "0.286"
+      },
+      {
+        "name": "com.chatchat.api.runtime.coding.execution.CodingExecutionFeedbackServiceTest",
+        "tests": "8",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "0.203"
+      }
+    ]
+  },
+  "node": {
+    "passed": 116,
+    "failed": 0,
+    "skipped": 0
+  },
+  "frontend": {
+    "passed": 39,
+    "failed": 0,
+    "testFiles": 6,
+    "afterLabelOnlyEditComponentPassed": 6
+  },
+  "pythonCapture": {
+    "passed": 10,
+    "failed": 0
+  },
+  "automatedUniqueTests": 296,
+  "realBrowser": [
+    {
+      "case": "A",
+      "requestId": "reuse-A-9d8995562bc7",
+      "taskId": "analysis-coding-6260546d771e5922787219422946d2fc96d37d94f28b522225b0263d89332965",
+      "status": "COMPLETED",
+      "executions": 1,
+      "restoredAfterReload": true,
+      "sourceFiles": 2,
+      "screenshot": "python-code-reuse-A.png"
+    },
+    {
+      "case": "C",
+      "requestId": "reuse-C-0675397b0829",
+      "taskId": "analysis-coding-c8f9291c39de7654a4f0036bfac1d8e5bfe4d68cb95f33e8d5aed42285113a05",
+      "status": "COMPLETED",
+      "executions": 2,
+      "restoredAfterReload": true,
+      "sourceFiles": 1,
+      "screenshot": "python-code-reuse-C.png"
+    },
+    {
+      "case": "D",
+      "requestId": "reuse-D-8c893f73ce72",
+      "taskId": "analysis-coding-81870dbeb16f2256afe9f9cc16782f4180d4e8f5e7e65bf4cef1863a4e0e1c2a",
+      "status": "COMPLETED",
+      "executions": 5,
+      "restoredAfterReload": true,
+      "sourceFiles": 4,
+      "screenshot": "python-code-reuse-D.png"
+    },
+    {
+      "case": "B",
+      "requestId": "reuse-B-324df2f2401f",
+      "taskId": "analysis-coding-dd79b1f2eabda8ad03e2821192f44883f3d360419dacfb5425d9c6efd3b32a8f",
+      "status": "COMPLETED",
+      "executions": 2,
+      "restoredAfterReload": true,
+      "sourceFiles": 2,
+      "screenshot": "python-code-reuse-B.png"
+    },
+    {
+      "case": "F-controlled",
+      "requestId": "reuse-F-controlled-6aaa2bfb74c8",
+      "taskId": "analysis-coding-070595397df6b841a3dde86536105be5f325d758b3b49437e387dd1a5b5f6d4c",
+      "status": "COMPLETED",
+      "executions": 4,
+      "restoredAfterReload": true,
+      "sourceFiles": 2,
+      "screenshot": "python-code-reuse-F-controlled.png"
+    },
+    {
+      "case": "E-source-version",
+      "requestId": "reuse-E-source-version-8eecf6804ddc",
+      "taskId": "analysis-coding-bd1502d711cdc8cd9b88d827bd5c381001ada36c733e4d12f0415b84d1f27907",
+      "status": "COMPLETED",
+      "executions": 1,
+      "restoredAfterReload": true,
+      "sourceFiles": 1,
+      "screenshot": "python-code-reuse-E-source-version.png"
+    },
+    {
+      "case": "E-cancel",
+      "requestId": "reuse-cancel-7f11c99cae7e",
+      "taskId": "analysis-coding-897cd95479cabe6e2720f70c7fc9d5fdedee3f6f05a1425a9b2587ab1e53cdba",
+      "status": "CANCELLED",
+      "executions": 0,
+      "restoredAfterReload": true,
+      "sourceFiles": 1,
+      "screenshot": "python-code-reuse-E-cancel.png"
+    }
+  ],
+  "dockerBoundaryCases": [
+    "schedule",
+    "partial",
+    "empty",
+    "missing-dependency",
+    "write-input-denied",
+    "network-denied",
+    "timeout"
+  ],
+  "note": "Java/source regressions r8; final r9 only changes UI receipt count label; no claims of real customer acceptance"
+}

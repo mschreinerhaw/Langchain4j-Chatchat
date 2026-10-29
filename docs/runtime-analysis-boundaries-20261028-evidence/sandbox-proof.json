@@ -1,0 +1,157 @@
+{
+  "scope": "CONTROLLED_REAL_DOCKER_ONLY_NOT_CLINE_END_TO_END",
+  "imageId": "sha256:7c665132dd360b4f84a669a16b53de93c0ff142e1ecf8f56bef1a07d6346fdc8",
+  "runnerSha256": "aec50269b6d3c59a0b495147f1e44523d42f734e8fd133667752000484daf687",
+  "cases": {
+    "schedule": {
+      "exitCode": 0,
+      "executorStopped": true,
+      "timedOut": false,
+      "inputUnchanged": true,
+      "diagnostic": {
+        "cpuTimeMs": 1762,
+        "maxRssBytes": 75649024,
+        "policy": "METADATA_ONLY_V1",
+        "preflightStatus": "PASSED",
+        "schemaVersion": "runtime_os.python_diagnostic.v1",
+        "stderrBytes": 0,
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutBytes": 0,
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "verifiedResult": {
+        "recordCount": 9,
+        "firstDate": "2026-10-25",
+        "lastDate": "2026-10-27",
+        "totals": {
+          "2026-10-25": 30.0,
+          "2026-10-26": 24.0,
+          "2026-10-27": 36.0
+        },
+        "trend": "increasing",
+        "missing": []
+      },
+      "chartBytes": 23108
+    },
+    "partial": {
+      "exitCode": 0,
+      "executorStopped": true,
+      "timedOut": false,
+      "inputUnchanged": true,
+      "diagnostic": {
+        "cpuTimeMs": 1716,
+        "maxRssBytes": 75722752,
+        "policy": "METADATA_ONLY_V1",
+        "preflightStatus": "PASSED",
+        "schemaVersion": "runtime_os.python_diagnostic.v1",
+        "stderrBytes": 0,
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutBytes": 0,
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "missingDataDisclosed": true
+    },
+    "empty": {
+      "exitCode": 0,
+      "executorStopped": true,
+      "timedOut": false,
+      "inputUnchanged": true,
+      "diagnostic": {
+        "cpuTimeMs": 1796,
+        "maxRssBytes": 75526144,
+        "policy": "METADATA_ONLY_V1",
+        "preflightStatus": "PASSED",
+        "schemaVersion": "runtime_os.python_diagnostic.v1",
+        "stderrBytes": 0,
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutBytes": 0,
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "emptyHandled": true
+    },
+    "missing-dependency": {
+      "exitCode": 1,
+      "executorStopped": true,
+      "timedOut": false,
+      "inputUnchanged": true,
+      "diagnostic": {
+        "cpuTimeMs": 191,
+        "diagnosticCode": "PACKAGE_NOT_INSTALLED",
+        "exceptionType": "ModuleNotFoundError",
+        "line": 2,
+        "maxRssBytes": 21172224,
+        "policy": "METADATA_ONLY_V1",
+        "preflightStatus": "FAILED",
+        "schemaVersion": "runtime_os.python_diagnostic.v1",
+        "stack": [
+          {
+            "file": "main.py",
+            "line": 2
+          }
+        ],
+        "stderrBytes": 395,
+        "stderrSha256": "137d86b9631005db0d3ca2429e76b16285c73d2c4e1d2667f6f7570becff1d6c",
+        "stdoutBytes": 0,
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "write-input-denied": {
+      "exitCode": 1,
+      "executorStopped": true,
+      "timedOut": false,
+      "inputUnchanged": true,
+      "diagnostic": {
+        "cpuTimeMs": 367,
+        "diagnosticCode": "PERMISSION_DENIED",
+        "exceptionType": "OSError",
+        "line": 2,
+        "maxRssBytes": 21610496,
+        "policy": "METADATA_ONLY_V1",
+        "preflightStatus": "PASSED",
+        "schemaVersion": "runtime_os.python_diagnostic.v1",
+        "stack": [
+          {
+            "file": "main.py",
+            "line": 2
+          }
+        ],
+        "stderrBytes": 664,
+        "stderrSha256": "4a2146ab3c7d3aa4e10ff397b3ee69e6176f91d551a5e19e1ac3dc1339e4ee57",
+        "stdoutBytes": 0,
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "network-denied": {
+      "exitCode": 1,
+      "executorStopped": true,
+      "timedOut": false,
+      "inputUnchanged": true,
+      "diagnostic": {
+        "cpuTimeMs": 326,
+        "exceptionType": "OSError",
+        "line": 2,
+        "maxRssBytes": 21737472,
+        "policy": "METADATA_ONLY_V1",
+        "preflightStatus": "PASSED",
+        "schemaVersion": "runtime_os.python_diagnostic.v1",
+        "stack": [
+          {
+            "file": "main.py",
+            "line": 2
+          }
+        ],
+        "stderrBytes": 400,
+        "stderrSha256": "bc6552cea262b990c91c7529832c6def6ee3a4514243f637b910e4de18ec9b8f",
+        "stdoutBytes": 0,
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "timeout": {
+      "exitCode": 137,
+      "executorStopped": true,
+      "timedOut": true,
+      "inputUnchanged": true,
+      "diagnostic": {}
+    }
+  }
+}

@@ -45,7 +45,7 @@
         "category":{"type":"string","maxLength":80},"exceptionType":{"type":["string","null"],"maxLength":80},
         "diagnosticCode":{"type":"string","maxLength":80},"message":{"type":"string","maxLength":2000},
         "detailRef":{"type":"string","maxLength":512},
-        "stack":{"type":"array","maxItems":16,"items":{"type":"object","additionalProperties":false,"required":["file","line","column"],"properties":{"file":{"type":"string","maxLength":175,"pattern":"^[^/\\\\\\u0000]+\\.py$"},"line":{"type":"integer","minimum":1,"maximum":99999999},"column":{"type":["integer","null"],"minimum":1}}}}
+        "stack":{"type":"array","maxItems":16,"items":{"type":"object","additionalProperties":false,"required":["file","line","column"],"properties":{"file":{"type":"string","maxLength":248,"pattern":"^(?:[^/\\\\\\u0000]+\\.py|project/(?:[^./\\\\\\u0000:][^/\\\\\\u0000:]*/)*[^./\\\\\\u0000:][^/\\\\\\u0000:]*\\.py)$"},"line":{"type":"integer","minimum":1,"maximum":99999999},"column":{"type":["integer","null"],"minimum":1}}}}
       }
     },
     "repair": {

@@ -1,0 +1,7 @@
+{
+  "image": "runtime-os-coding-agent:python-studio-reuse-20261029-r7",
+  "previousImage": "runtime-os-coding-agent:python-studio-reuse-20261029-r6",
+  "runnerSha256": "fd28c1fb94985b812bbe22aad12875a4d54b1d460ad43e41f463e2bdc8d84ad1",
+  "productionReplaced": false,
+  "apiAndMcpReplaced": false
+}

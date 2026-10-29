@@ -144,3 +144,13 @@ td {
   color: #708198;
   overflow-wrap: anywhere;
 }
+.python-overview { padding: 12px; background: #f4f7fb; border-radius: 8px; }
+.python-execution { border: 1px solid #dce5ef; border-radius: 8px; margin: 10px 0; padding: 12px; }
+.python-execution > summary { cursor: pointer; font-size: 13px; line-height: 1.8; overflow-wrap: anywhere; }
+.python-execution > summary strong, .diagnostic-message { color: #9d3427; }
+.python-repair { padding: 12px; margin: 10px 0; border-left: 3px solid #5684ba; background: #f7f9fc; }
+.python-repair strong, .safe-stack { font-size: 12px; overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+  .task-facts { grid-template-columns: minmax(0, 1fr); }
+  .monitor-body { padding: 0 10px 12px; }
+}

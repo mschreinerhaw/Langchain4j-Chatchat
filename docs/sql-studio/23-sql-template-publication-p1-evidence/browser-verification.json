@@ -1,0 +1,12 @@
+{
+  "status": "PASSED",
+  "realBackend": true,
+  "project": "078d6a06-4f26-456b-a333-e615d3fdc735",
+  "revision": "70d639ac-3365-3171-83f0-a1875e85f673",
+  "checks": {
+    "persistedPublication": true,
+    "realTestEvidence": true,
+    "historyRecovered": true
+  },
+  "pageErrors": []
+}

@@ -1,0 +1,577 @@
+{
+  "missing_module_empty": {
+    "taskId": "analysis-coding-676b375008f15b93f2e383e12af6650528ad5473d1ee23fb6935ae652b40fdff",
+    "status": "COMPLETED",
+    "reasonCode": null,
+    "cancellationRequested": false,
+    "executionControl": {
+      "stopReason": null,
+      "stopRequestedAt": null,
+      "executorStopped": true,
+      "reconciliationRequired": false
+    },
+    "validationStatus": "INCONCLUSIVE",
+    "usage": {
+      "budgetId": "analysis-coding-tool-budget:analysis-coding-676b375008f15b93f2e383e12af6650528ad5473d1ee23fb6935ae652b40fdff",
+      "costCurrency": "USD",
+      "consumed": {
+        "modelCalls": 5,
+        "modelTokens": 72562,
+        "toolCalls": 4,
+        "codeExecutions": 2,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 10123,
+        "costAmount": "0"
+      },
+      "reserved": {
+        "modelCalls": 0,
+        "modelTokens": 255118,
+        "toolCalls": 0,
+        "codeExecutions": 0,
+        "cpuMillis": 50000,
+        "peakMemoryBytes": 0,
+        "outputBytes": 691708,
+        "costAmount": "4.166666666665"
+      },
+      "meteringComplete": false
+    },
+    "runId": "c9404a18-3317-4d08-9f8f-9d789bf040d8",
+    "executions": [
+      {
+        "executionId": "cline-d05c4d1d023f0f7a7972467eafc9431a05e3fbc7689bc3ba46977941ba6426cd",
+        "status": "FAILED",
+        "exitCode": 1,
+        "codeHash": "a35db257878606da4f56ba247cb3d7a3156a2ac6e72b0093f347b7da551faedf",
+        "durationMs": 462,
+        "resultAvailable": false,
+        "repair": {
+          "allowed": true,
+          "action": "REPAIR_IN_CURRENT_CONTEXT",
+          "reason": "TECHNICAL_REPAIR",
+          "attemptsUsed": 0,
+          "maxAttempts": 3,
+          "baseCodeHash": "a35db257878606da4f56ba247cb3d7a3156a2ac6e72b0093f347b7da551faedf",
+          "guidance": "Use installed packages from the captured environment. Dependency installation and network access are prohibited."
+        },
+        "error": {
+          "category": "DEPENDENCY_UNAVAILABLE",
+          "exceptionType": "ModuleNotFoundError",
+          "diagnosticCode": "PACKAGE_NOT_INSTALLED",
+          "message": "Use installed packages from the captured environment. Dependency installation and network access are prohibited.",
+          "stack": [
+            {
+              "file": "this-is-an-explicitly-co_20261028T134726489Z_ab2b268dce0c_v1.py",
+              "line": 1,
+              "column": null
+            }
+          ],
+          "detailRef": "execution:cline-d05c4d1d023f0f7a7972467eafc9431a05e3fbc7689bc3ba46977941ba6426cd:logs:runtime-diagnostic.json"
+        }
+      },
+      {
+        "executionId": "cline-808472970086f8868bd8df53aee55e7550b077130762fef11b68c20f829135b7",
+        "status": "SUCCEEDED",
+        "exitCode": 0,
+        "codeHash": "30b0824c26223880852831a3ec82e301e08763613a54278f57183d2ee978b274",
+        "durationMs": 530,
+        "resultAvailable": true,
+        "repair": {
+          "allowed": false,
+          "action": "COMPLETE",
+          "reason": "RESULT_VERIFIED",
+          "attemptsUsed": 1,
+          "maxAttempts": 3,
+          "baseCodeHash": "30b0824c26223880852831a3ec82e301e08763613a54278f57183d2ee978b274",
+          "guidance": "Result archived; business correctness remains governed by validationStatus."
+        },
+        "error": null
+      }
+    ],
+    "emptyRecordsZeroNoFabricatedChart": true
+  },
+  "python_timeout": {
+    "taskId": "analysis-coding-3d257bb4b8b64d6870de6674f40f38e79057b49c8b8009b37e18d0b64387a146",
+    "status": "FAILED",
+    "reasonCode": "EXECUTION_FAILED",
+    "cancellationRequested": false,
+    "executionControl": {
+      "stopReason": null,
+      "stopRequestedAt": null,
+      "executorStopped": true,
+      "reconciliationRequired": false
+    },
+    "validationStatus": "NOT_RUN",
+    "usage": {
+      "budgetId": "analysis-coding-tool-budget:analysis-coding-3d257bb4b8b64d6870de6674f40f38e79057b49c8b8009b37e18d0b64387a146",
+      "costCurrency": "USD",
+      "consumed": {
+        "modelCalls": 2,
+        "modelTokens": 15818,
+        "toolCalls": 2,
+        "codeExecutions": 1,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 3265,
+        "costAmount": "0"
+      },
+      "reserved": {
+        "modelCalls": 0,
+        "modelTokens": 115254,
+        "toolCalls": 0,
+        "codeExecutions": 0,
+        "cpuMillis": 25000,
+        "peakMemoryBytes": 0,
+        "outputBytes": 347976,
+        "costAmount": "1.666666666666"
+      },
+      "meteringComplete": false
+    },
+    "runId": "399936fc-c91a-4d47-b5ca-aac23aed3303",
+    "executions": [
+      {
+        "executionId": "cline-99a08271f5c0a28b1009f9575f74cc5d1f2c55a55da30cb4e639cb8a471e84a5",
+        "status": "TIMED_OUT",
+        "exitCode": 137,
+        "codeHash": "8c7dbfe3d562124ca5b8299a7ef4dc5f41f6676daf45b5524507a2f199fadf1c",
+        "durationMs": 302345,
+        "resultAvailable": false,
+        "repair": {
+          "allowed": false,
+          "action": "STOP",
+          "reason": "NON_REPAIRABLE",
+          "attemptsUsed": 0,
+          "maxAttempts": 3,
+          "baseCodeHash": "8c7dbfe3d562124ca5b8299a7ef4dc5f41f6676daf45b5524507a2f199fadf1c",
+          "guidance": "Execution timed out. Stop; do not replay the operation or extend its authorized deadline."
+        },
+        "error": {
+          "category": "TIMEOUT",
+          "exceptionType": null,
+          "diagnosticCode": "TIMEOUT",
+          "message": "Execution timed out. Stop; do not replay the operation or extend its authorized deadline.",
+          "stack": [],
+          "detailRef": "execution:cline-99a08271f5c0a28b1009f9575f74cc5d1f2c55a55da30cb4e639cb8a471e84a5:logs:runtime-diagnostic.json"
+        }
+      }
+    ],
+    "mcpOperation": {
+      "operationId": "cline-99a08271f5c0a28b1009f9575f74cc5d1f2c55a55da30cb4e639cb8a471e84a5",
+      "status": "TIMED_OUT",
+      "executorStopped": true,
+      "containerId": "chatchat-py-48467a6a1dd89d5914c11adf69b36d08e34dccef",
+      "durationMs": null,
+      "exitCode": 137,
+      "failureCode": null,
+      "stopReason": null,
+      "timeoutSeconds": null
+    }
+  },
+  "invalid_short_sleep_test": {
+    "taskId": "analysis-coding-b5105e315c4f0b576a0c818b3db8e7b66d59580f6374a80526a068dbca65efaa",
+    "status": "FAILED",
+    "reasonCode": "EXECUTION_FAILED",
+    "cancellationRequested": false,
+    "executionControl": {
+      "stopReason": null,
+      "stopRequestedAt": null,
+      "executorStopped": true,
+      "reconciliationRequired": false
+    },
+    "validationStatus": "NOT_RUN",
+    "usage": {
+      "budgetId": "analysis-coding-tool-budget:analysis-coding-b5105e315c4f0b576a0c818b3db8e7b66d59580f6374a80526a068dbca65efaa",
+      "costCurrency": "USD",
+      "consumed": {
+        "modelCalls": 4,
+        "modelTokens": 41881,
+        "toolCalls": 3,
+        "codeExecutions": 1,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 3367,
+        "costAmount": "0"
+      },
+      "reserved": {
+        "modelCalls": 0,
+        "modelTokens": 220263,
+        "toolCalls": 0,
+        "codeExecutions": 0,
+        "cpuMillis": 25000,
+        "peakMemoryBytes": 0,
+        "outputBytes": 347736,
+        "costAmount": "3.333333333332"
+      },
+      "meteringComplete": false
+    },
+    "runId": "a76f4457-f1f0-4fdb-b6a8-1334e0527b3c",
+    "executions": [
+      {
+        "executionId": "cline-d0e6b4ff082a00a26bb5c0976baaa3895f87e0b8c3382339db461233baef8f81",
+        "status": "SUCCEEDED",
+        "exitCode": 0,
+        "codeHash": "3c965e2c4c95736c9b58b9cf87d9bd3fc078b7ab3805771d34104bafb770c8bb",
+        "durationMs": 120482,
+        "resultAvailable": false,
+        "repair": {
+          "allowed": true,
+          "action": "REPAIR_IN_CURRENT_CONTEXT",
+          "reason": "TECHNICAL_REPAIR",
+          "attemptsUsed": 0,
+          "maxAttempts": 3,
+          "baseCodeHash": "3c965e2c4c95736c9b58b9cf87d9bd3fc078b7ab3805771d34104bafb770c8bb",
+          "guidance": "Repair the required output file, field names and types to match the authorized result contract; exit code zero alone is insufficient."
+        },
+        "error": {
+          "category": "OUTPUT_CONTRACT",
+          "exceptionType": null,
+          "diagnosticCode": "OUTPUT_CONTRACT",
+          "message": "Repair the required output file, field names and types to match the authorized result contract; exit code zero alone is insufficient.",
+          "stack": [],
+          "detailRef": "execution:cline-d0e6b4ff082a00a26bb5c0976baaa3895f87e0b8c3382339db461233baef8f81:logs:runtime-diagnostic.json"
+        }
+      }
+    ]
+  },
+  "repeated_valid_reports": {
+    "taskId": "analysis-coding-8c9ef8672b455e617e9bbd602436a2e5964cb8598b92f57f32bfbca4b3791c8e",
+    "status": "FAILED",
+    "reasonCode": "EXECUTION_FAILED",
+    "cancellationRequested": false,
+    "executionControl": {
+      "stopReason": null,
+      "stopRequestedAt": null,
+      "executorStopped": true,
+      "reconciliationRequired": false
+    },
+    "validationStatus": "NOT_RUN",
+    "usage": {
+      "budgetId": "analysis-coding-tool-budget:analysis-coding-8c9ef8672b455e617e9bbd602436a2e5964cb8598b92f57f32bfbca4b3791c8e",
+      "costCurrency": "USD",
+      "consumed": {
+        "modelCalls": 10,
+        "modelTokens": 412941,
+        "toolCalls": 7,
+        "codeExecutions": 5,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 758844,
+        "costAmount": "0"
+      },
+      "reserved": {
+        "modelCalls": 0,
+        "modelTokens": 250955,
+        "toolCalls": 0,
+        "codeExecutions": 0,
+        "cpuMillis": 125000,
+        "peakMemoryBytes": 0,
+        "outputBytes": 990911,
+        "costAmount": "8.33333333333"
+      },
+      "meteringComplete": false
+    },
+    "runId": "268d12e2-00be-4e7f-860a-83e52d4f1dcd",
+    "executions": [
+      {
+        "executionId": "cline-945c92f452b8b8a6688e29349c2e5b4e9e031c8bc5ed3034799a4dd96f916ced",
+        "status": "SUCCEEDED",
+        "exitCode": 0,
+        "codeHash": "79fe80a0ff46126040be85c387319d9cc116d51095e3bd48bfd6e2960256df89",
+        "durationMs": 3123,
+        "resultAvailable": true,
+        "repair": {
+          "allowed": false,
+          "action": "COMPLETE",
+          "reason": "RESULT_VERIFIED",
+          "attemptsUsed": 0,
+          "maxAttempts": 3,
+          "baseCodeHash": "79fe80a0ff46126040be85c387319d9cc116d51095e3bd48bfd6e2960256df89",
+          "guidance": "Result archived; business correctness remains governed by validationStatus."
+        },
+        "error": null
+      },
+      {
+        "executionId": "cline-4ae81d5f1f0edda181a07cc676985a47910b783eaa4d4d14802f6a1035e8a659",
+        "status": "SUCCEEDED",
+        "exitCode": 0,
+        "codeHash": "12fc1b7a64ee2a52cfb89b97fd0a92f63dcebaa3e8e03c04301cd7eb8e1f84a4",
+        "durationMs": 3027,
+        "resultAvailable": true,
+        "repair": {
+          "allowed": false,
+          "action": "COMPLETE",
+          "reason": "RESULT_VERIFIED",
+          "attemptsUsed": 0,
+          "maxAttempts": 3,
+          "baseCodeHash": "12fc1b7a64ee2a52cfb89b97fd0a92f63dcebaa3e8e03c04301cd7eb8e1f84a4",
+          "guidance": "Result archived; business correctness remains governed by validationStatus."
+        },
+        "error": null
+      },
+      {
+        "executionId": "cline-a0b7bd76f317995bb4629d538c5ad71baa617f848e08e6af48a2905f64e1f185",
+        "status": "SUCCEEDED",
+        "exitCode": 0,
+        "codeHash": "9f6c70bdfc7a28e375a402a0bebd8fb18f79fc84b704efaf3171b50d2ef41581",
+        "durationMs": 2922,
+        "resultAvailable": true,
+        "repair": {
+          "allowed": false,
+          "action": "COMPLETE",
+          "reason": "RESULT_VERIFIED",
+          "attemptsUsed": 0,
+          "maxAttempts": 3,
+          "baseCodeHash": "9f6c70bdfc7a28e375a402a0bebd8fb18f79fc84b704efaf3171b50d2ef41581",
+          "guidance": "Result archived; business correctness remains governed by validationStatus."
+        },
+        "error": null
+      },
+      {
+        "executionId": "cline-39967849bb03cc9e68a2eec3e65d544cf40ff4c567228504a14db166fea6bc4d",
+        "status": "SUCCEEDED",
+        "exitCode": 0,
+        "codeHash": "3c26d96785bcbeda8b5cd27cf59372b982b320936f44d85597cb60292f8089d8",
+        "durationMs": 3074,
+        "resultAvailable": true,
+        "repair": {
+          "allowed": false,
+          "action": "COMPLETE",
+          "reason": "RESULT_VERIFIED",
+          "attemptsUsed": 0,
+          "maxAttempts": 3,
+          "baseCodeHash": "3c26d96785bcbeda8b5cd27cf59372b982b320936f44d85597cb60292f8089d8",
+          "guidance": "Result archived; business correctness remains governed by validationStatus."
+        },
+        "error": null
+      },
+      {
+        "executionId": "cline-31cc59c46b5581b265aa8598fc5cf5747747589dd9da83e9c39893b37cd8a9cd",
+        "status": "SUCCEEDED",
+        "exitCode": 0,
+        "codeHash": "5205bd417ce0c42ee75d0bbb880f633c6941456a4ec0e6129b67955e4cf2c76f",
+        "durationMs": 2982,
+        "resultAvailable": true,
+        "repair": {
+          "allowed": false,
+          "action": "COMPLETE",
+          "reason": "RESULT_VERIFIED",
+          "attemptsUsed": 0,
+          "maxAttempts": 3,
+          "baseCodeHash": "5205bd417ce0c42ee75d0bbb880f633c6941456a4ec0e6129b67955e4cf2c76f",
+          "guidance": "Result archived; business correctness remains governed by validationStatus."
+        },
+        "error": null
+      }
+    ]
+  },
+  "model_timeout_unreconciled": {
+    "taskId": "analysis-coding-f0fb9e2f03e53e61ec095f565783f3171264e114c126c9663e135e0e8772f40d",
+    "status": "RUNNING",
+    "reasonCode": "CANCEL_REQUESTED",
+    "cancellationRequested": true,
+    "executionControl": {
+      "stopReason": "CANCEL_REQUESTED",
+      "stopRequestedAt": "2026-10-28T13:42:54.220Z",
+      "executorStopped": false,
+      "reconciliationRequired": true
+    },
+    "validationStatus": "NOT_RUN",
+    "usage": {
+      "budgetId": "analysis-coding-tool-budget:analysis-coding-f0fb9e2f03e53e61ec095f565783f3171264e114c126c9663e135e0e8772f40d",
+      "costCurrency": "USD",
+      "consumed": {
+        "modelCalls": 1,
+        "modelTokens": 10248,
+        "toolCalls": 2,
+        "codeExecutions": 0,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 2130,
+        "costAmount": "0"
+      },
+      "reserved": {
+        "modelCalls": 1,
+        "modelTokens": 120824,
+        "toolCalls": 0,
+        "codeExecutions": 0,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 0,
+        "costAmount": "1.666666666666"
+      },
+      "meteringComplete": false
+    },
+    "runId": "b72c1b62-1d9c-4e69-8a6b-75d7e504b54d",
+    "executions": []
+  },
+  "technical_repair_limit": {
+    "taskId": "analysis-coding-f31cbc44b23b155d7d55a8ed99e8aef3013be1fc9bd6a96d81ac1f77e9c07892",
+    "status": "FAILED",
+    "reasonCode": "EXECUTION_FAILED",
+    "cancellationRequested": false,
+    "executionControl": {
+      "stopReason": null,
+      "stopRequestedAt": null,
+      "executorStopped": true,
+      "reconciliationRequired": false
+    },
+    "validationStatus": "NOT_RUN",
+    "usage": {
+      "budgetId": "analysis-coding-tool-budget:analysis-coding-f31cbc44b23b155d7d55a8ed99e8aef3013be1fc9bd6a96d81ac1f77e9c07892",
+      "costCurrency": "USD",
+      "consumed": {
+        "modelCalls": 7,
+        "modelTokens": 171367,
+        "toolCalls": 6,
+        "codeExecutions": 4,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 11219,
+        "costAmount": "0"
+      },
+      "reserved": {
+        "modelCalls": 0,
+        "modelTokens": 287385,
+        "toolCalls": 0,
+        "codeExecutions": 0,
+        "cpuMillis": 100000,
+        "peakMemoryBytes": 0,
+        "outputBytes": 1389011,
+        "costAmount": "5.833333333331"
+      },
+      "meteringComplete": false
+    },
+    "runId": "d635e778-86b4-42bc-8ec3-972fa25f9d42",
+    "executions": [
+      {
+        "executionId": "cline-63089805ffdc0a330acbd701f1d5f076b652eed0346c5e22ad9ab11df2f93e3d",
+        "status": "FAILED",
+        "exitCode": 1,
+        "codeHash": "bb03af8e942296a83fde573fbbbec2b2ba26ff16cbb99dae79536f681253dc4f",
+        "durationMs": 2918,
+        "resultAvailable": false,
+        "repair": {
+          "allowed": true,
+          "action": "REPAIR_IN_CURRENT_CONTEXT",
+          "reason": "TECHNICAL_REPAIR",
+          "attemptsUsed": 0,
+          "maxAttempts": 3,
+          "baseCodeHash": "bb03af8e942296a83fde573fbbbec2b2ba26ff16cbb99dae79536f681253dc4f",
+          "guidance": "Compare the field access at the reported line with the authorized schema and variable definitions; do not guess missing business fields."
+        },
+        "error": {
+          "category": "SCHEMA_ACCESS",
+          "exceptionType": "KeyError",
+          "diagnosticCode": "FIELD_ACCESS_ERROR",
+          "message": "Compare the field access at the reported line with the authorized schema and variable definitions; do not guess missing business fields.",
+          "stack": [
+            {
+              "file": "analyze-only-the-attache_20261028T131252122Z_287df461730a_v1.py",
+              "line": 66,
+              "column": null
+            },
+            {
+              "file": "analyze-only-the-attache_20261028T131252122Z_287df461730a_v1.py",
+              "line": 66,
+              "column": null
+            }
+          ],
+          "detailRef": "execution:cline-63089805ffdc0a330acbd701f1d5f076b652eed0346c5e22ad9ab11df2f93e3d:logs:runtime-diagnostic.json"
+        }
+      },
+      {
+        "executionId": "cline-37ebea0ab2d63b25755d5b7b4da2d4a61bebd214eec9fe1ca714b53ffe4b4f38",
+        "status": "FAILED",
+        "exitCode": 1,
+        "codeHash": "2f61acd3b677e637ad7cd7745ce3b883d5025d4d379fe39cb2199b8abb7f067f",
+        "durationMs": 2553,
+        "resultAvailable": false,
+        "repair": {
+          "allowed": true,
+          "action": "REPAIR_IN_CURRENT_CONTEXT",
+          "reason": "TECHNICAL_REPAIR",
+          "attemptsUsed": 1,
+          "maxAttempts": 3,
+          "baseCodeHash": "2f61acd3b677e637ad7cd7745ce3b883d5025d4d379fe39cb2199b8abb7f067f",
+          "guidance": "Inspect the reported line and existing code; make the smallest justified technical correction without changing source data."
+        },
+        "error": {
+          "category": "PROGRAM",
+          "exceptionType": "AssertionError",
+          "diagnosticCode": "PROGRAM_ERROR",
+          "message": "Inspect the reported line and existing code; make the smallest justified technical correction without changing source data.",
+          "stack": [
+            {
+              "file": "analyze-only-the-attache_20261028T131312112Z_287df461730a_v2.py",
+              "line": 71,
+              "column": null
+            }
+          ],
+          "detailRef": "execution:cline-37ebea0ab2d63b25755d5b7b4da2d4a61bebd214eec9fe1ca714b53ffe4b4f38:logs:runtime-diagnostic.json"
+        }
+      },
+      {
+        "executionId": "cline-693f79d614d2ba80dce8127802bec07856c712eb9f61e599e52ff341f30dbecf",
+        "status": "FAILED",
+        "exitCode": 1,
+        "codeHash": "cbfa7790ec2330ca3262d47a68bc645a92539cd7f107e203877d088e8061a6b7",
+        "durationMs": 2563,
+        "resultAvailable": false,
+        "repair": {
+          "allowed": true,
+          "action": "REPAIR_IN_CURRENT_CONTEXT",
+          "reason": "TECHNICAL_REPAIR",
+          "attemptsUsed": 2,
+          "maxAttempts": 3,
+          "baseCodeHash": "cbfa7790ec2330ca3262d47a68bc645a92539cd7f107e203877d088e8061a6b7",
+          "guidance": "Compare the field access at the reported line with the authorized schema and variable definitions; do not guess missing business fields."
+        },
+        "error": {
+          "category": "SCHEMA_ACCESS",
+          "exceptionType": "KeyError",
+          "diagnosticCode": "FIELD_ACCESS_ERROR",
+          "message": "Compare the field access at the reported line with the authorized schema and variable definitions; do not guess missing business fields.",
+          "stack": [
+            {
+              "file": "analyze-only-the-attache_20261028T131339133Z_287df461730a_v3.py",
+              "line": 82,
+              "column": null
+            }
+          ],
+          "detailRef": "execution:cline-693f79d614d2ba80dce8127802bec07856c712eb9f61e599e52ff341f30dbecf:logs:runtime-diagnostic.json"
+        }
+      },
+      {
+        "executionId": "cline-ff564716b6ce1d5c8b819b45b9d0958171991484387d5e97d4d541e4e4de0425",
+        "status": "FAILED",
+        "exitCode": 1,
+        "codeHash": "50b34c63c2e7f5a68322b77ae9f63d95a36b02530630deac88fb4ac12ca5b323",
+        "durationMs": 4099,
+        "resultAvailable": false,
+        "repair": {
+          "allowed": false,
+          "action": "STOP",
+          "reason": "REPAIR_LIMIT_REACHED",
+          "attemptsUsed": 3,
+          "maxAttempts": 3,
+          "baseCodeHash": "50b34c63c2e7f5a68322b77ae9f63d95a36b02530630deac88fb4ac12ca5b323",
+          "guidance": "Use an API supported by the captured package version."
+        },
+        "error": {
+          "category": "PACKAGE_API",
+          "exceptionType": "AttributeError",
+          "diagnosticCode": "PACKAGE_API_UNAVAILABLE",
+          "message": "Use an API supported by the captured package version.",
+          "stack": [
+            {
+              "file": "analyze-only-the-attache_20261028T131507641Z_287df461730a_v4.py",
+              "line": 74,
+              "column": null
+            }
+          ],
+          "detailRef": "execution:cline-ff564716b6ce1d5c8b819b45b9d0958171991484387d5e97d4d541e4e4de0425:logs:runtime-diagnostic.json"
+        }
+      }
+    ]
+  }
+}

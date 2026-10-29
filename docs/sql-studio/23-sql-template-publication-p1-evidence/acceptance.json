@@ -1,0 +1,272 @@
+{
+  "status": "PASSED",
+  "scope": "ISOLATED_API_MCP_WITH_EXISTING_MYSQL",
+  "checks": {
+    "draftDisabledNoPublication": true,
+    "draftNotInCapabilityCatalog": true,
+    "realMySqlTestPassed": true,
+    "evidenceBoundedAndVersioned": true,
+    "staleVersionRejected": true,
+    "sourceChangeRejectsOldProof": true,
+    "editInvalidatesTest": true,
+    "publishWithoutRetestRejected": true,
+    "parameterFailureRecorded": true,
+    "publishedMcpCatalogEntry": true,
+    "immutableSqlSnapshot": true,
+    "publishedSqlCannotBeEdited": true,
+    "agentScopedRealMcpExecution": true,
+    "agentResultMatchesPublishedSql": true,
+    "sourceEditDoesNotChangePublishedSql": true,
+    "newVersionStableToolName": true,
+    "newParameterContractAcceptsDecimal": true,
+    "oldSqlAndSchemaRetained": true,
+    "rollbackStaleHeadRejected": true,
+    "failedRollbackKeepsCurrentVersion": true,
+    "rollbackRestoresSqlSchemaDatasource": true,
+    "restoredTemplateExecutes": true,
+    "runtimeInvalidParametersRejected": true,
+    "rollbackRestoresIntegerParameterContract": true,
+    "syntaxSqlRejected": true,
+    "writeSqlRejected": true,
+    "realMySqlRowCap": true,
+    "realMySqlTimeout": true,
+    "sourceNotOverwrittenByRollback": true,
+    "publishedSourceStillImmutable": true,
+    "alternateDatasourceReallyPublished": true,
+    "newDatasourceDoesNotAutoGrantAgent": true,
+    "alternateDatasourceAgentExecution": true,
+    "rollbackFromDifferentDatasourceRestoresAll": true,
+    "oldDatasourceAgentExecutionRestored": true,
+    "alternateDatasourceToolOfflineAfterRollback": true,
+    "same-tenantWorkspaceAccess": true,
+    "same-tenantCannotReadOtherSource": true,
+    "same-tenantCannotPublishOtherSource": true,
+    "same-tenantNoUngrantDatasource": true,
+    "foreign-tenantWorkspaceAccess": true,
+    "foreign-tenantCannotReadOtherSource": true,
+    "foreign-tenantCannotPublishOtherSource": true,
+    "foreign-tenantNoUngrantDatasource": true,
+    "unauthenticatedCannotUseControlPlane": true,
+    "realMcpToolsListContainsPublishedTemplate": true,
+    "unboundAgentCannotDiscoverTemplate": true,
+    "foreignTenantCannotDiscoverTemplate": true,
+    "directMcpAgentToolCall": true,
+    "foreignTenantCannotExecuteTemplate": true,
+    "modelCannotOverrideDatasourceBinding": true,
+    "postgresMigrationPreservesLegacyDefinitions": true,
+    "postgresAuthorRevisionUniqueIndexInstalled": true,
+    "nonDestructiveMigrationRollbackSqlVerifiedInTransaction": true,
+    "sourceOwnerWithoutPublishPermissionRejected": true,
+    "concurrentPublishIsSuccessOrSafeConflict": true,
+    "concurrentPublishHasOneImmutableRelease": true,
+    "concurrentDraftsHaveDistinctRevisions": true,
+    "concurrentStaleUpdateRejected": true,
+    "publishedSqlOutputSchemaMatchesRealEnvelope": true,
+    "realModelAgentRoundSucceeded": true,
+    "realModelAgentToolCallAndResultRecorded": true,
+    "realModelAnswerContainsActualAcceptanceValue": true,
+    "correctedResultContractHasNoEdgeFailure": true,
+    "uiDraftCreatedDisabled": true,
+    "uiParametersSaved": true,
+    "uiActualSqlTestPassed": true,
+    "uiPublicationActive": true,
+    "browserPublishedTemplateAgentReturnsRealValue": true,
+    "browserPublicationPersistedInSqlHistory": true,
+    "successfulModelTaskSurvivesApiRestart": true,
+    "originalBusinessDatasourceConfigurationPreserved": true,
+    "productionApiMcpContainersUnchanged": true,
+    "canonicalSqlContractRevalidatedWithoutChangingBody": true,
+    "genericCapabilityPageReusesStudioPublication": true,
+    "genericPublishDoesNotRepeatSqlOrCreateRelease": true,
+    "newSqlRevisionPublishesThroughSingleChain": true,
+    "rollbackCreatesNewReleaseRatherThanReusingOfflineRecord": true,
+    "singleChainRollbackRestoresWholeSqlContract": true,
+    "singleChainRestoredTemplateAgentExecution": true,
+    "canonicalSqlRevisionStableAcrossMcpColdRestart": true,
+    "publishedSqlAgentCallSurvivesMcpColdRestart": true
+  },
+  "checkCount": 82,
+  "fixture": "Controlled SQL constant, metadata row-limit and SLEEP timeout queries; no customer data fixture is represented as customer-business acceptance",
+  "projectId": "078d6a06-4f26-456b-a333-e615d3fdc735",
+  "fileId": "25aa5864-a590-4a63-bff1-7ee48b7e9c92",
+  "modelValidatedPublication": {
+    "id": "3a838219-7151-3ccd-bda4-03129e267b92",
+    "groupId": "09a22418-6ec2-398e-ade8-bfae7839c7c9",
+    "sqlVersion": 5,
+    "source": {
+      "projectId": "078d6a06-4f26-456b-a333-e615d3fdc735",
+      "fileId": "25aa5864-a590-4a63-bff1-7ee48b7e9c92",
+      "fileVersion": 10,
+      "sqlDigest": "1aa8b6e40e9da936bd49bdfbcc03f7942ace0b9934727981a8f695ccbfe4dda3"
+    },
+    "sqlTemplate": "SELECT {{value}} + 1 AS acceptance_value",
+    "parameterSchema": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "datasourceId": "733cccbe-02e6-461d-9f3f-62c084ff086a",
+    "publication": {
+      "description": "Controlled query on the existing MySQL",
+      "templateKey": "sql_datasource:STUDIO_3A83821971513CCDBDA403129E267B92",
+      "logicalId": "d8fe39fb-bb28-3d44-972c-b558b762709c",
+      "publishedAt": "2026-10-28T16:46:39.844060Z",
+      "version": 6,
+      "category": "sql_diagnostic",
+      "title": "Final SQL protocol acceptance",
+      "assetName": "SQL publication controlled existing MySQL 481a732f",
+      "revision": "89f634b28dfc20a829f8b2bad93f7b555b2ed3b2aec345badf2a2580e636830c",
+      "toolName": "tpl_d8fe39fbbb283d44972cb558b762709c",
+      "id": "2df28c59-013c-404c-9440-2c55c6bec5fd",
+      "state": "RUNNING"
+    },
+    "testEvidence": {
+      "type": "SQL_DATABASE_EXECUTION",
+      "testId": "a5178ef4-2bfd-4c76-a43a-564e609a714f",
+      "testedAt": "2026-10-28T16:46:28.251239527Z",
+      "fingerprint": "935b096c1674d43dd15fd2fe954c73654d5ad0c00e3847ce48dfcc6af70448bf",
+      "sqlDigest": "1aa8b6e40e9da936bd49bdfbcc03f7942ace0b9934727981a8f695ccbfe4dda3",
+      "datasourceId": "733cccbe-02e6-461d-9f3f-62c084ff086a",
+      "datasourceDigest": "15402ca1e29ef2f0d9b6c54926cd76ee127c49d14165c64e0471a781d3c74bbe",
+      "parameters": {
+        "value": 7
+      },
+      "parametersDigest": "9d709bba0358da8fdf5600bb3692fa32d0aa2a19a08152cf4307e0b4240e71ac",
+      "timeoutSeconds": 10,
+      "maxRows": 50,
+      "success": true,
+      "resultDigest": "1e6bdfce4e7bbea3b8979d8c50121e6f1be3af257dc591ede3433ce44cd9090b",
+      "rowCount": 1,
+      "diagnostic": "SQL query executed successfully",
+      "durationMs": 138
+    }
+  },
+  "finalBrowserPublication": {
+    "id": "70d639ac-3365-3171-83f0-a1875e85f673",
+    "groupId": "09a22418-6ec2-398e-ade8-bfae7839c7c9",
+    "sqlVersion": 8,
+    "source": {
+      "projectId": "078d6a06-4f26-456b-a333-e615d3fdc735",
+      "fileId": "25aa5864-a590-4a63-bff1-7ee48b7e9c92",
+      "fileVersion": 10,
+      "sqlDigest": "1aa8b6e40e9da936bd49bdfbcc03f7942ace0b9934727981a8f695ccbfe4dda3"
+    },
+    "sqlTemplate": "SELECT {{value}} + 1 AS acceptance_value",
+    "parameterSchema": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "datasourceId": "fa9b7d51-8fdb-40ba-9f25-4fb8c94b239d",
+    "publication": {
+      "title": "Browser verified MCP SQL publication",
+      "category": "sql_diagnostic",
+      "version": 4,
+      "publishedAt": "2026-10-28T17:31:36.594171781Z",
+      "logicalId": "5e0b59df-4a26-3b66-bb54-52f6c79deec4",
+      "templateKey": "sql_datasource:STUDIO_70D639AC3365317183F0A1875E85F673",
+      "description": "Controlled query on the existing MySQL",
+      "state": "RUNNING",
+      "id": "e1f66c92-7f9a-4045-bea7-0843e750e6cd",
+      "toolName": "tpl_5e0b59df4a263b66bb5452f6c79deec4",
+      "revision": "361a05c677466d31e9fb7d211bf96ce6239f0f124d2c8adb6b6778f84da0a032",
+      "assetName": "SQL publication alternate binding b88a0026"
+    },
+    "testEvidence": {
+      "type": "SQL_DATABASE_EXECUTION",
+      "testId": "3eff0e86-815a-45a5-b8f4-6272e0c42d22",
+      "testedAt": "2026-10-28T17:31:29.166812306Z",
+      "fingerprint": "29da4dda45f46bccacd55ae3d475e5653abd32923bd5fb9ac25d078046879230",
+      "sqlDigest": "1aa8b6e40e9da936bd49bdfbcc03f7942ace0b9934727981a8f695ccbfe4dda3",
+      "datasourceId": "fa9b7d51-8fdb-40ba-9f25-4fb8c94b239d",
+      "datasourceDigest": "60d3668d2527d16a5701ba57584f28ef8c95d5ea39582acba2019318f8a9372f",
+      "parameters": {
+        "value": 7
+      },
+      "parametersDigest": "9d709bba0358da8fdf5600bb3692fa32d0aa2a19a08152cf4307e0b4240e71ac",
+      "timeoutSeconds": 10,
+      "maxRows": 50,
+      "success": true,
+      "resultDigest": "e8a445016800e7dd7691724cb86dabe77fd17037cd2a2750663eddcb7068f78c",
+      "rowCount": 1,
+      "diagnostic": "SQL query executed successfully",
+      "durationMs": 41
+    }
+  },
+  "timeoutEvidence": {
+    "type": "SQL_DATABASE_EXECUTION",
+    "testId": "351c3a4c-4a4f-46a7-a96c-e3cde1ca6426",
+    "testedAt": "2026-10-28T16:14:02.102985884Z",
+    "fingerprint": "b3383daabbddd7816f2ecaae15c89337ade99e0c13b6abf75f878c8a036fb016",
+    "sqlDigest": "a695c620147f6dec1325b82a0a3e4592a486bb4f77993287d8f73561362c1fbc",
+    "datasourceId": "733cccbe-02e6-461d-9f3f-62c084ff086a",
+    "datasourceDigest": "29f8cb3f509c8f3babf42e48132faec02508d7b9e19501c2cf6b686ea7556360",
+    "parameters": {
+      "value": 7
+    },
+    "parametersDigest": "9d709bba0358da8fdf5600bb3692fa32d0aa2a19a08152cf4307e0b4240e71ac",
+    "timeoutSeconds": 10,
+    "maxRows": 50,
+    "success": false,
+    "resultDigest": "db75bd9dbbcee1dadc6b5989799da72bd43354b8284fa3ced2d5a6b4127a9d36",
+    "rowCount": 0,
+    "diagnostic": "SQL query execution failed; inspect governed query audit",
+    "durationMs": 10050
+  },
+  "rowCapEvidence": {
+    "type": "SQL_DATABASE_EXECUTION",
+    "testId": "2f6fd50d-f402-45ef-a3a1-ae65769588f6",
+    "testedAt": "2026-10-28T16:14:01.752779091Z",
+    "fingerprint": "f27e40ca7122a49427f81ade7f289f0dce567f75aa7755e88102887c12232a79",
+    "sqlDigest": "3e78ff2e6d48300ae5c58db7a7182234bb97fc629640bed2b45e3a0f955e74c1",
+    "datasourceId": "733cccbe-02e6-461d-9f3f-62c084ff086a",
+    "datasourceDigest": "29f8cb3f509c8f3babf42e48132faec02508d7b9e19501c2cf6b686ea7556360",
+    "parameters": {
+      "value": 7
+    },
+    "parametersDigest": "9d709bba0358da8fdf5600bb3692fa32d0aa2a19a08152cf4307e0b4240e71ac",
+    "timeoutSeconds": 10,
+    "maxRows": 50,
+    "success": true,
+    "resultDigest": "55a845ba1f7ad18bc2ae108fad47b9fbf3ca7c58c73c7c6a75260b6510e276b0",
+    "rowCount": 50,
+    "diagnostic": "SQL query executed successfully",
+    "durationMs": 76
+  },
+  "production": {
+    "api": {
+      "containerId": "7abfc1f92b7280258cb2ea280ff96fe167cf53fba116569896fd7d32bd16139a",
+      "image": "runtime-os-api:main-d9f39979d-20261028",
+      "startedAt": "2026-10-28T04:45:32.70642345Z"
+    },
+    "mcp": {
+      "containerId": "4453ca5fb737a1361f1bd109b637ee2fb468ebabe5bef2cb9f67b7efa220adb4",
+      "image": "runtime-os-mcp:main-9b18e67f9-20261028",
+      "startedAt": "2026-10-28T04:15:36.46874148Z"
+    }
+  },
+  "limitations": [
+    "MySQL configuration-database migration script has not been applied to a MySQL configuration database; PostgreSQL migration was applied and verified. Real query execution used existing MySQL.",
+    "Production containers were not replaced; validation used isolated API/MCP services."
+  ],
+  "resolvedFirstModelAttempt": {
+    "taskId": "d911be37-b89b-3549-a65c-3254a50c63a6",
+    "issue": "EDGE_CONTRACT_FAILED: SQL column was incorrectly expected at result root",
+    "resolution": "Published SQL tools declare the real ToolOutput / sql_result.v1 envelope; no Runtime safety check disabled",
+    "retained": true
+  }
+}

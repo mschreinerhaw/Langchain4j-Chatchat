@@ -1,0 +1,321 @@
+[
+  {
+    "case": "A",
+    "requestId": "reuse-A-9d8995562bc7",
+    "taskId": "analysis-coding-6260546d771e5922787219422946d2fc96d37d94f28b522225b0263d89332965",
+    "status": "COMPLETED",
+    "resultAvailable": true,
+    "executions": 1,
+    "errors": [],
+    "unchangedOriginals": {
+      "main.py": true,
+      "metrics.py": true
+    },
+    "codeVersions": 1,
+    "usage": {
+      "budgetId": "analysis-coding-tool-budget:analysis-coding-6260546d771e5922787219422946d2fc96d37d94f28b522225b0263d89332965",
+      "costCurrency": "USD",
+      "consumed": {
+        "modelCalls": 2,
+        "modelTokens": 23002,
+        "toolCalls": 2,
+        "codeExecutions": 1,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 2398,
+        "costAmount": "0"
+      },
+      "reserved": {
+        "modelCalls": 0,
+        "modelTokens": 108070,
+        "toolCalls": 0,
+        "codeExecutions": 0,
+        "cpuMillis": 25000,
+        "peakMemoryBytes": 0,
+        "outputBytes": 347549,
+        "costAmount": "1.666666666666"
+      },
+      "meteringComplete": false
+    },
+    "transportError": null,
+    "acceptedBuild": "r5",
+    "restoredBuild": "r6"
+  },
+  {
+    "case": "C",
+    "requestId": "reuse-C-0675397b0829",
+    "taskId": "analysis-coding-c8f9291c39de7654a4f0036bfac1d8e5bfe4d68cb95f33e8d5aed42285113a05",
+    "status": "COMPLETED",
+    "resultAvailable": true,
+    "executions": 2,
+    "errors": [
+      {
+        "category": "SCHEMA_ACCESS",
+        "exceptionType": "KeyError",
+        "diagnosticCode": "FIELD_ACCESS_ERROR",
+        "message": "Compare the field access at the reported line with the authorized schema and variable definitions; do not guess missing business fields.",
+        "stack": [
+          {
+            "file": "project/main.py",
+            "line": 5,
+            "column": null
+          }
+        ],
+        "detailRef": "execution:cline-d65cd11a0df28304391613bc47a0d98d9a2ff1760afcc5d8cb636134b863eb4c:logs:runtime-diagnostic.json"
+      }
+    ],
+    "unchangedOriginals": {
+      "main.py": false
+    },
+    "codeVersions": 2,
+    "usage": {
+      "budgetId": "analysis-coding-tool-budget:analysis-coding-c8f9291c39de7654a4f0036bfac1d8e5bfe4d68cb95f33e8d5aed42285113a05",
+      "costCurrency": "USD",
+      "consumed": {
+        "modelCalls": 3,
+        "modelTokens": 34590,
+        "toolCalls": 3,
+        "codeExecutions": 2,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 4566,
+        "costAmount": "0"
+      },
+      "reserved": {
+        "modelCalls": 0,
+        "modelTokens": 162018,
+        "toolCalls": 0,
+        "codeExecutions": 0,
+        "cpuMillis": 50000,
+        "peakMemoryBytes": 0,
+        "outputBytes": 694906,
+        "costAmount": "2.499999999999"
+      },
+      "meteringComplete": false
+    },
+    "transportError": null,
+    "acceptedBuild": "r5",
+    "restoredBuild": "r6"
+  },
+  {
+    "case": "D",
+    "requestId": "reuse-D-8c893f73ce72",
+    "taskId": "analysis-coding-81870dbeb16f2256afe9f9cc16782f4180d4e8f5e7e65bf4cef1863a4e0e1c2a",
+    "status": "COMPLETED",
+    "resultAvailable": true,
+    "executions": 5,
+    "errors": [
+      {
+        "category": "SCHEMA_ACCESS",
+        "exceptionType": "KeyError",
+        "diagnosticCode": "FIELD_ACCESS_ERROR",
+        "message": "Compare the field access at the reported line with the authorized schema and variable definitions; do not guess missing business fields.",
+        "stack": [
+          {
+            "file": "project/pkg/acceptance.py",
+            "line": 289,
+            "column": null
+          }
+        ],
+        "detailRef": "execution:cline-51c33d220291f11b189f9d92b90afd485042c3d66410e0d26a00f6933c10f21e:logs:runtime-diagnostic.json"
+      },
+      {
+        "category": "PROGRAM",
+        "exceptionType": "TypeError",
+        "diagnosticCode": "PROGRAM_ERROR",
+        "message": "Inspect the reported line and existing code; make the smallest justified technical correction without changing source data.",
+        "stack": [
+          {
+            "file": "project/pkg/acceptance.py",
+            "line": 368,
+            "column": null
+          }
+        ],
+        "detailRef": "execution:cline-1078bd6f6ae64535120c2f970e267438408c5dc84fc82b5d3fdb285aec697d2f:logs:runtime-diagnostic.json"
+      },
+      {
+        "category": "PROGRAM",
+        "exceptionType": "TypeError",
+        "diagnosticCode": "PROGRAM_ERROR",
+        "message": "Inspect the reported line and existing code; make the smallest justified technical correction without changing source data.",
+        "stack": [
+          {
+            "file": "project/pkg/acceptance.py",
+            "line": 378,
+            "column": null
+          }
+        ],
+        "detailRef": "execution:cline-49f02793c537ad4fc716266555b198c9d0ba56b9fe2393d0934f736b6e414a6b:logs:runtime-diagnostic.json"
+      }
+    ],
+    "unchangedOriginals": {
+      "pkg/__init__.py": true,
+      "pkg/main.py": true,
+      "pkg/metrics.py": true,
+      "pkg/test_metrics.py": true
+    },
+    "codeVersions": 5,
+    "usage": {
+      "budgetId": "analysis-coding-tool-budget:analysis-coding-81870dbeb16f2256afe9f9cc16782f4180d4e8f5e7e65bf4cef1863a4e0e1c2a",
+      "costCurrency": "USD",
+      "consumed": {
+        "modelCalls": 11,
+        "modelTokens": 549330,
+        "toolCalls": 5,
+        "codeExecutions": 5,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 56936,
+        "costAmount": "0"
+      },
+      "reserved": {
+        "modelCalls": 0,
+        "modelTokens": 205729,
+        "toolCalls": 0,
+        "codeExecutions": 0,
+        "cpuMillis": 125000,
+        "peakMemoryBytes": 0,
+        "outputBytes": 1690689,
+        "costAmount": "9.166666666663"
+      },
+      "meteringComplete": false
+    },
+    "transportError": null,
+    "completionConfirmedByAuthoritativeRead": true
+  },
+  {
+    "case": "B",
+    "requestId": "reuse-B-324df2f2401f",
+    "taskId": "analysis-coding-dd79b1f2eabda8ad03e2821192f44883f3d360419dacfb5425d9c6efd3b32a8f",
+    "status": "COMPLETED",
+    "resultAvailable": true,
+    "executions": 2,
+    "errors": [],
+    "unchangedOriginals": {
+      "main.py": false,
+      "metrics.py": false
+    },
+    "codeVersions": 2,
+    "usage": {
+      "budgetId": "analysis-coding-tool-budget:analysis-coding-dd79b1f2eabda8ad03e2821192f44883f3d360419dacfb5425d9c6efd3b32a8f",
+      "costCurrency": "USD",
+      "consumed": {
+        "modelCalls": 7,
+        "modelTokens": 147952,
+        "toolCalls": 3,
+        "codeExecutions": 2,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 21594,
+        "costAmount": "0"
+      },
+      "reserved": {
+        "modelCalls": 0,
+        "modelTokens": 310800,
+        "toolCalls": 0,
+        "codeExecutions": 0,
+        "cpuMillis": 50000,
+        "peakMemoryBytes": 0,
+        "outputBytes": 677878,
+        "costAmount": "5.833333333331"
+      },
+      "meteringComplete": false
+    },
+    "transportError": null,
+    "completionConfirmedByAuthoritativeRead": true
+  },
+  {
+    "case": "F-controlled",
+    "requestId": "reuse-F-controlled-6aaa2bfb74c8",
+    "taskId": "analysis-coding-070595397df6b841a3dde86536105be5f325d758b3b49437e387dd1a5b5f6d4c",
+    "status": "COMPLETED",
+    "resultAvailable": true,
+    "executions": 4,
+    "errors": [
+      {
+        "category": "SCHEMA_ACCESS",
+        "exceptionType": "KeyError",
+        "diagnosticCode": "FIELD_ACCESS_ERROR",
+        "message": "Compare the field access at the reported line with the authorized schema and variable definitions; do not guess missing business fields.",
+        "stack": [
+          {
+            "file": "project/main.py",
+            "line": 41,
+            "column": null
+          }
+        ],
+        "detailRef": "execution:cline-26d609285afd43674758f64c19da2066f3c2bd17b110cc312c06350fca0eb84a:logs:runtime-diagnostic.json"
+      }
+    ],
+    "unchangedOriginals": {
+      "main.py": false,
+      "metrics.py": true
+    },
+    "codeVersions": 4,
+    "usage": {
+      "budgetId": "analysis-coding-tool-budget:analysis-coding-070595397df6b841a3dde86536105be5f325d758b3b49437e387dd1a5b5f6d4c",
+      "costCurrency": "USD",
+      "consumed": {
+        "modelCalls": 8,
+        "modelTokens": 287390,
+        "toolCalls": 6,
+        "codeExecutions": 4,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 50926,
+        "costAmount": "0"
+      },
+      "reserved": {
+        "modelCalls": 0,
+        "modelTokens": 236898,
+        "toolCalls": 0,
+        "codeExecutions": 0,
+        "cpuMillis": 100000,
+        "peakMemoryBytes": 0,
+        "outputBytes": 1348084,
+        "costAmount": "6.666666666664"
+      },
+      "meteringComplete": false
+    },
+    "transportError": null
+  },
+  {
+    "case": "E-source-version",
+    "requestId": "reuse-E-source-version-8eecf6804ddc",
+    "taskId": "analysis-coding-bd1502d711cdc8cd9b88d827bd5c381001ada36c733e4d12f0415b84d1f27907",
+    "status": "COMPLETED",
+    "resultAvailable": true,
+    "executions": 1,
+    "errors": [],
+    "unchangedOriginals": {
+      "reuse_guard_377d9d3c33.py": true
+    },
+    "codeVersions": 1,
+    "usage": {
+      "budgetId": "analysis-coding-tool-budget:analysis-coding-bd1502d711cdc8cd9b88d827bd5c381001ada36c733e4d12f0415b84d1f27907",
+      "costCurrency": "USD",
+      "consumed": {
+        "modelCalls": 2,
+        "modelTokens": 21178,
+        "toolCalls": 1,
+        "codeExecutions": 1,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 1970,
+        "costAmount": "0"
+      },
+      "reserved": {
+        "modelCalls": 0,
+        "modelTokens": 109894,
+        "toolCalls": 0,
+        "codeExecutions": 0,
+        "cpuMillis": 25000,
+        "peakMemoryBytes": 0,
+        "outputBytes": 347555,
+        "costAmount": "1.666666666666"
+      },
+      "meteringComplete": false
+    },
+    "transportError": null
+  }
+]

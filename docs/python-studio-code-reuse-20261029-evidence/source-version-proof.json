@@ -1,0 +1,33 @@
+{
+  "scope": "REAL_API_STUDIO_SAVE_AND_VERSION_CAS",
+  "sourceVersionConflictRejected": true,
+  "userEditRetained": true,
+  "originalVersionRetained": true,
+  "reviewedImports": [
+    {
+      "case": "C",
+      "path": "main.py",
+      "sourceExact": true,
+      "version": 1,
+      "receiptRestored": true
+    },
+    {
+      "case": "D",
+      "path": "pkg/__init__.py",
+      "sourceExact": true,
+      "version": 1,
+      "receiptRestored": true
+    },
+    {
+      "case": "B",
+      "path": "preference.py",
+      "sourceExact": true,
+      "version": 1,
+      "receiptRestored": true
+    }
+  ],
+  "historicalSourcePreparedWithoutExecution": true,
+  "taskId": "analysis-coding-bd1502d711cdc8cd9b88d827bd5c381001ada36c733e4d12f0415b84d1f27907",
+  "requestId": "reuse-E-source-version-8eecf6804ddc",
+  "assetId": "65b28e2f-1fe5-4e07-acb7-110bd947b34b"
+}

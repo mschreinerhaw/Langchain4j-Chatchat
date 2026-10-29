@@ -177,6 +177,11 @@ public class PythonCodeAssistantService {
     private record Prepared(String action, String modelName, String prompt, String selection,
                             List<DomainSkillRuntimePort.DomainSkillContent> skills) { }
 
+    public List<DomainSkillRuntimePort.DomainSkillContent> codeReuseSkills(String tenantId,String userId,String query,List<String> ids) {
+        if(ids!=null&&(ids.size()>MAX_APPLIED_SKILLS||new java.util.HashSet<>(ids).size()!=ids.size()))throw new IllegalArgumentException("Select at most eight distinct authorized Skills");
+        return resolveSkills(tenantId,userId,query,ids);
+    }
+    public String codeReuseSkillGuidance(List<DomainSkillRuntimePort.DomainSkillContent> skills) { return skills.isEmpty()?"":skillContext(skills); }
     private List<DomainSkillRuntimePort.DomainSkillContent> resolveSkills(String tenantId, String userId,
                                                                           String query, List<String> requestedIds) {
         if (requestedIds == null || requestedIds.isEmpty()) return List.of();

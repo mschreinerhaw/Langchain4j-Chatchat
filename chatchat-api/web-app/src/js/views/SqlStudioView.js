@@ -7,6 +7,7 @@ import SqlUserDocuments from '../../components/sql-studio/SqlUserDocuments.vue';
 import SqlEditorPane from '../../components/sql-studio/SqlEditorPane.vue';
 import SqlAssistantPanel from '../../components/sql-studio/SqlAssistantPanel.vue';
 import SqlBottomPanel from '../../components/sql-studio/SqlBottomPanel.vue';
+import SqlTemplatePublicationPanel from '../../components/sql-studio/SqlTemplatePublicationPanel.vue';
 import CodeChangeReview from '../../components/editor/CodeChangeReview.vue';
 import { studioAiLabels, sqlGenerationAction } from '../utils/studioAi';
 import { FolderTree, PanelBottom, Sparkles, Plus, Save, WandSparkles, FileCode2, CircleCheck } from '@lucide/vue';
@@ -20,13 +21,13 @@ import { sqlTaskPresentation } from '../utils/sqlTaskPresentation';
 import {sqlTaskStatus} from '../utils/sqlMetadataProgress';
 import { beginStudioExchange, studioAssistantTurn, updateStudioTurn } from '../utils/studioConversation';
 export default {
-  components: { SqlUserDocuments, SqlSchemaExplorer, CodeChangeReview, AppNotice, AppConfirmDialog, SqlProjectTree, SqlEditorPane, SqlAssistantPanel, SqlBottomPanel, FolderTree, PanelBottom, Sparkles, Plus, Save, WandSparkles, FileCode2, CircleCheck },
+  components: { SqlTemplatePublicationPanel, SqlUserDocuments, SqlSchemaExplorer, CodeChangeReview, AppNotice, AppConfirmDialog, SqlProjectTree, SqlEditorPane, SqlAssistantPanel, SqlBottomPanel, FolderTree, PanelBottom, Sparkles, Plus, Save, WandSparkles, FileCode2, CircleCheck },
   props: { workspaceContext: Object, tenantId: String, userId: String },
   emits: [],
   setup(props, { emit: emitEvent }) {
 
 const dialects = [{ value:'spark',label:'Spark SQL' },{ value:'hive',label:'Hive' },{ value:'postgresql',label:'PostgreSQL' },{ value:'mysql',label:'MySQL' },{ value:'oracle',label:'Oracle' },{ value:'tsql',label:'T-SQL' },{ value:'trino',label:'Trino' },{ value:'ansi',label:'ANSI SQL' }];
-const folderOriginal=ref(''), metadataTableCount=ref(0);
+const folderOriginal=ref(''), metadataTableCount=ref(0), publicationOpen=ref(false);
 const folders = ref([]), folderOpen = ref(false), folderPath = ref(''), newFileFolder = ref('');
 const confirmation = ref(null);
 let confirmResolve;
@@ -370,7 +371,7 @@ onMounted(async () => {
 onActivated(() => { active = true; if (initialized) refreshGeneration(); });
 onDeactivated(() => { active = false; clearTimeout(pollTimer); persist(); });
 onBeforeUnmount(() => { resolveConfirm(false); active = false; resizeCleanup?.(); clearTimeout(pollTimer); clearTimeout(draftTimer); persist(); window.removeEventListener('beforeunload', beforeUnload); });
-  return { metadataTableCount, folderOriginal, editFolder, deleteFolder, userDocuments, documentsUploading, schemaExplorer, explorerTab, completeSchema, useSourceDialect, reviewTitle, reviewBlockedReason, reviewOpen, reviewPath, reviewFiles, reviewGeneration, chooseAiAction, aiAction, newConversation, taskStatusLabel, pendingPhase, pendingStartedAt, pollError, confirmation, resolveConfirm, folders, folderOpen, folderPath, newFileFolder, createFolder, openNewFolder, mappingDocuments, removeMappingDocument, dialects, projects, projectId, files, references, models, agents, dialect, agentId, modelName, executionMode, chooseExecutionMode, prompt, mappingIds, schemaColumns, selectedMappings, referenceIds, openIds, activeId, preview, generations, generationId, result, busy, error, message, newProjectOpen, projectName, versions, versionFile, activeFile, action, toggle, openFile, openReference, closeFile, editFile, selectProject, refreshFiles, createProject, deleteProject, createFile, deleteFile, saveActive, upload, generate, resume, selectGeneration, refreshGeneration, apply, cancel, showVersions, download, chatTurns, selectedCode, problemCount, cursor, layout, ideStyle, togglePanel, resetSize, startResize, useSelection, useMappingReference, addFileMention, renameFile, libraryOpen, libraryKind, libraryItems, librarySelected, chooseLibrary, importLibrary, editorPane, newFileOpen, newFilePath, openNewFile, formatActive, taskRunning, dirtyCount };
+  return { publicationOpen, metadataTableCount, folderOriginal, editFolder, deleteFolder, userDocuments, documentsUploading, schemaExplorer, explorerTab, completeSchema, useSourceDialect, reviewTitle, reviewBlockedReason, reviewOpen, reviewPath, reviewFiles, reviewGeneration, chooseAiAction, aiAction, newConversation, taskStatusLabel, pendingPhase, pendingStartedAt, pollError, confirmation, resolveConfirm, folders, folderOpen, folderPath, newFileFolder, createFolder, openNewFolder, mappingDocuments, removeMappingDocument, dialects, projects, projectId, files, references, models, agents, dialect, agentId, modelName, executionMode, chooseExecutionMode, prompt, mappingIds, schemaColumns, selectedMappings, referenceIds, openIds, activeId, preview, generations, generationId, result, busy, error, message, newProjectOpen, projectName, versions, versionFile, activeFile, action, toggle, openFile, openReference, closeFile, editFile, selectProject, refreshFiles, createProject, deleteProject, createFile, deleteFile, saveActive, upload, generate, resume, selectGeneration, refreshGeneration, apply, cancel, showVersions, download, chatTurns, selectedCode, problemCount, cursor, layout, ideStyle, togglePanel, resetSize, startResize, useSelection, useMappingReference, addFileMention, renameFile, libraryOpen, libraryKind, libraryItems, librarySelected, chooseLibrary, importLibrary, editorPane, newFileOpen, newFilePath, openNewFile, formatActive, taskRunning, dirtyCount };
 
   }
 };

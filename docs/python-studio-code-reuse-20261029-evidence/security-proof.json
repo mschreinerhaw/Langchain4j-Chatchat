@@ -1,0 +1,22 @@
+{
+  "scope": "REAL_AUTHENTICATED_API_REJECTION",
+  "cases": [
+    {
+      "case": "false_source_digest",
+      "httpStatus": 409,
+      "rejected": true
+    },
+    {
+      "case": "path_traversal",
+      "httpStatus": 400,
+      "rejected": true
+    },
+    {
+      "case": "execution_without_consent",
+      "httpStatus": 403,
+      "rejected": true
+    }
+  ],
+  "otherOwnerFixtureUnavailable": true,
+  "noExecutionOccurred": true
+}

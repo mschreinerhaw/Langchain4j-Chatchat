@@ -23,7 +23,7 @@ const verified = (version) => ({ status: 'SUCCEEDED', executorStopped: true, res
   resultDatasetRef: `runtime-evidence:result-${version}`, validationRecordRef: `validation-${version}`,
   evidenceBundleRef: `bundle-${version}`, validationStatus: 'INCONCLUSIVE' });
 
-function fixture(model, execute, read, taskContract = contract) {
+function fixture(model, execute, read, taskContract = contract, overrides = {}) {
   const counts = { models: 0, executions: 0, reads: 0, checkpoints: [], finish: null };
   const gateway = {
     async reserveModel() {}, async settleModel() {},
@@ -37,9 +37,38 @@ function fixture(model, execute, read, taskContract = contract) {
     async executePython(_task, input) { return execute(++counts.executions, input); },
     async readArtifact(task, reference) { assert.equal(task.scope.userId, 'owner'); return read(++counts.reads, reference); },
     async finish(_task, outcome) { counts.finish = outcome; },
+    ...overrides,
   };
   return { counts, gateway, run: createCodingRun(taskContract, gateway, { model: createRuntimeModel(gateway, taskContract) }) };
 }
+test('real SDK checkpoints only after every call in a multi-tool turn has its result',async()=>{
+  const task={...contract,authorization:{...contract.authorization,allowedTools:['python_execute','artifact_read','input_read']}};
+  let saved=0;
+  const {run,counts}=fixture(turn=>turn===1?{...python(turn),toolCalls:[...python(turn).toolCalls,{id:'input-1',name:'input_read',input:{datasetReference:'source',offset:0,limit:1}}]}:complete,verified,
+    (_count,reference)=>({reference,complete:true,rows:[{reportMarkdown:'actual derived result'}],reportReferenceValidation:{valid:true}}),task,
+    {async readInput(){return {rows:[{record:'authorized input'}]};},async checkpoint(_task,snapshot){
+      const pending=new Set();for(const message of snapshot.messages)for(const part of message.content){if(part.type==='tool-call')pending.add(part.toolCallId);if(part.type==='tool-result')pending.delete(part.toolCallId);}
+      assert.equal(pending.size,0,'Java rejects checkpoints with pending SDK tool calls');saved++;
+    }});
+  assert.equal((await run.run()).status,'completed');assert.equal(counts.executions,1);assert.equal(counts.models,2);assert(saved>=2);
+});
+test('native SDK reuses the supplied report and keeps Python repair without a second text submission path', async () => {
+  const task={...contract,runtimeContext:{analysisResultMode:'TEXT_OR_CODE'},
+    authorization:{...contract.authorization,allowedTools:['python_execute','artifact_read','report_submit']}};
+  const {run,counts}=fixture((turn,request)=>{
+    if(turn===1) {
+      assert(request.tools.some(t=>t.name==='report_submit'));
+      return python(turn);
+    }
+    assert.match(JSON.stringify(request.messages),/ACTUAL_REPORT_FOR_REVIEW/);
+    assert(request.tools.some(t=>t.name==='python_execute'));
+    assert(!request.tools.some(t=>['artifact_read','report_submit'].includes(t.name)));
+    return complete;
+  },verified,(_read,reference)=>({reference,complete:true,rows:[{reportMarkdown:'ACTUAL_REPORT_FOR_REVIEW'}],
+    reportReferenceValidation:{valid:true}}),task);
+  assert.equal((await run.run()).status,'completed');
+  assert.equal(counts.models,2);assert.equal(counts.executions,1);assert.equal(counts.reads,1);
+});
 
 test('real SDK repairs references inside an earlier patch without freezing text or reusing rejected evidence', async () => {
   const task = { ...contract, runtimeContext: { codingLifecycle: {

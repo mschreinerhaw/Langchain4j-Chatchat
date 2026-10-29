@@ -1,0 +1,19 @@
+// @vitest-environment jsdom
+import {createApp,h,nextTick} from 'vue';
+import {afterEach,expect,it,vi} from 'vitest';
+import {webcrypto} from 'node:crypto';
+import PythonReusePanel from './PythonReusePanel.vue';
+import {sourceHash,projectScriptPath} from '../js/components/PythonReusePanel';
+import {apiRequest} from '../services/api';
+vi.mock('../services/api',()=>({apiRequest:vi.fn(),getStoredAuthSession:()=>({user:{id:'alice',tenantId:'t'}})}));
+vi.mock('./PythonCodeDiff.vue',()=>({default:{props:['diff'],render(){return null;}}}));
+vi.mock('./ReportMarkdown.vue',()=>({default:{props:['content'],render(){return null;}}}));
+let app,host,vm;
+afterEach(()=>{app?.unmount();host?.remove();localStorage.clear();vi.useRealTimers();vi.clearAllMocks();});
+async function mount(){host=document.createElement('div');document.body.append(host);app=createApp({render:()=>h(PythonReusePanel,{scripts:[{id:'script',fileName:'main.py',sourceCode:'print(7)',currentVersion:2,assetId:'env'}],assetId:'env',modelName:'model-a',currentScriptId:'script'})});app.mount(host);await nextTick();vm=app._instance.subTree.component.proxy;return vm;}
+it('hashes exact UTF-8 source and keeps package hierarchy',async()=>{vi.stubGlobal('crypto',webcrypto);expect(await sourceHash('print(7)')).toHaveLength(64);expect(await sourceHash('x\r\n')).not.toBe(await sourceHash('x\n'));expect(projectScriptPath({fileName:'main.py',folderId:'p'},[{id:'p',name:'pkg'}])).toBe('pkg/main.py');});
+it('prepare freezes selected version without invoking execution',async()=>{vi.stubGlobal('crypto',webcrypto);await mount();vm.selected=['script'];vm.entryPath='main.py';vm.instruction='reuse';apiRequest.mockResolvedValue({snapshotSha256:'a'.repeat(64),sources:[],requestId:'r'});await vm.prepare();const [path,options]=apiRequest.mock.calls[0];expect(path).toBe('/data-science/python/code-reuse');expect(JSON.parse(options.body).references[0]).toMatchObject({kind:'SCRIPT',version:2,path:'main.py'});expect(vm.consent).toBe(false);await vm.execute();expect(apiRequest).toHaveBeenCalledTimes(1);});
+it('an execution error event does not stop the spinner while durable task is running',async()=>{await mount();vm.state={status:'RUNNING',outcome:{},events:[{eventId:'e',summary:'Python failed; repair pending'}],executions:[{status:'FAILED',resultAvailable:false}]};await nextTick();expect(vm.running).toBe(true);expect(host.querySelector('.python-reuse-spinner')).not.toBeNull();vm.state={...vm.state,status:'COMPLETED',outcome:{}};await nextTick();expect(vm.running).toBe(false);});
+it('shows source Diff separately from execution adapter and retains unchanged files',async()=>{await mount();vm.state={sources:[{path:'main.py',content:'def total(): return 7\n'}],codeVersions:[{operationId:'op',sha256:'a'.repeat(64),project:{files:[{path:'main.py',content:'def total(): return 7\n'},{path:'extra.py',content:'print(8)'}]}}]};expect(vm.diffs[0].diff.changed).toBe(false);expect(vm.diffs[1].diff.changed).toBe(true);expect(vm.diffs.some(f=>f.path.includes('adapter'))).toBe(false);});
+it('follows the repaired version by default and respects explicit history selection',async()=>{await mount();vm.requestId='reuse-history';vm.operation='version-1';const state={status:'COMPLETED',outcome:{},codeVersions:[{operationId:'version-1'},{operationId:'version-2'}]};apiRequest.mockResolvedValue(state);await vm.refresh();expect(vm.operation).toBe('version-2');vm.followLatest=false;vm.operation='version-1';await vm.refresh();expect(vm.operation).toBe('version-1');});
+it('keeps tracking preparation and allows explicit recovery without resetting the task',async()=>{await mount();vm.state={status:'PREPARING',recoveryRequired:true};expect(vm.running).toBe(true);expect(vm.canExecute).toBe(false);vm.consent=true;expect(vm.canExecute).toBe(true);vm.state={status:'RUNNING',outcome:{},recoveryRequired:false};expect(vm.canExecute).toBe(false);});

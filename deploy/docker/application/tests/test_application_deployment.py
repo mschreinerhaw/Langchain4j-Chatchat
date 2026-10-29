@@ -96,8 +96,8 @@ class ApplicationDeploymentTest(unittest.TestCase):
         doc,_=self.config()
         api=doc['services']['api']; worker=doc['services']['coding-agent']
         self.assertEqual(api['environment']['CHATCHAT_CODING_CLINE_ALLOWED_PEER_HOSTNAMES'],'coding-agent')
-        self.assertEqual(api['environment']['CHATCHAT_CODING_CLINE_ALLOWED_PEER_ADDRESSES'],'')
-        self.assertEqual(worker['environment']['RUNTIME_CODING_CALLBACK_URL'],'http://api:8080')
+        self.assertEqual(api['environment']['CHATCHAT_CODING_CLINE_ALLOWED_PEER_ADDRESSES'],'127.0.0.1')
+        self.assertEqual(worker['environment']['RUNTIME_CODING_CALLBACK_URL'],'http://api:8081')
         self.assertEqual(worker['environment']['RUNTIME_CODING_ALLOWED_CALLBACK_HOSTS'],'api')
         for service in (api,worker):
             self.assertFalse((service['networks']['coding'] or {}).get('ipv4_address'))

@@ -27,6 +27,76 @@ const task = {
   budget: { maxModelCalls: 4 },
 };
 
+test('business MCP, database, search and shell tools are rejected before the SDK runs', () => {
+  for (const name of ['mcp_call', 'sql_query_execute', 'opensearch_search', 'execute_command']) {
+    assert.throws(() => createCodingRun({ ...task, authorization: {
+      ...task.authorization, allowedTools: ['python_execute', name],
+    } }, { reserveModel() {}, executePython() {} }), /Unrecognized Coding tool/);
+  }
+});
+
+test('analysis prompts use actual files without requiring an application Python module', async () => {
+  let observed = false;
+  const model = { async *stream(request) {
+    observed = true;
+    assert.match(request.systemPrompt, /No application-specific Python module is required/);
+    assert.doesNotMatch(request.systemPrompt, /from runtime_input|load_rows/);
+    assert.match(request.systemPrompt, /Runtime owns business template selection/);
+    assert.deepEqual(request.tools.map(tool => tool.name), ['python_execute']);
+    yield { type: 'text-delta', text: 'No calculation has been executed.' };
+    yield { type: 'finish', reason: 'stop' };
+  } };
+  const contract = { ...task, schemaVersion: 'runtime_os.coding.v3',
+    outputContract: { ...task.outputContract, resultFormat: 'JSON_LINES' },
+    runtimeContext: { inputFiles: { schemaVersion: 'runtime_os.coding.input.v1', format: 'PARQUET',
+      delivery: 'SHARED_DIRECTORY', manifestFileId: task.authorization.allowedDataRefs[0], manifestSha256: 'b'.repeat(64) } } };
+  await createCodingRun(contract, { reserveModel() {}, settleModel() {}, finish() {},
+    readInputContext() { return { files: [] }; },
+    executePython() { throw new Error('No execution was requested'); } }, { model }).run();
+  assert.equal(observed, true);
+});
+
+test('Cline can read a delivered document without executing Python or receiving a business tool', async () => {
+  let turns=0,reads=0;
+  const contract={...task,schemaVersion:'runtime_os.coding.v3',
+    authorization:{...task.authorization,allowedTools:['input_read'],allowedSideEffects:[]},
+    outputContract:{...task.outputContract,resultFormat:'JSON_LINES'}};
+  await createCodingRun(contract,{reserveModel(){},settleModel(){},finish(){},
+    executePython(){throw new Error('Document reading must not execute code');},
+    readInput(_task,read){reads++;assert.equal(read.datasetReference,'source');assert.equal(read.toolCallId,'file-1');
+      return {content:'SELECT 1;',nextOffset:9,eof:true,authority:'UNTRUSTED_DATA_ONLY'};},
+  },{model:{async *stream(request){
+    assert.deepEqual(request.tools.map(tool=>tool.name),['input_read']);
+    if(++turns===1)yield {type:'tool-call-delta',toolCallId:'file-1',toolName:'input_read',input:{datasetReference:'source',offset:0,limit:1024}};
+    else yield {type:'text-delta',text:'Source read; no SQL executed.'};
+    yield {type:'finish',reason:turns===1?'tool-calls':'stop'};
+  }}}).run();
+  assert.equal(reads,1);
+});
+
+test('native SDK completes a reviewed text report without a Python process or an extra summary turn', async () => {
+  let turns=0,submitted=0,finished;
+  const operation='workspace-'+'a'.repeat(64);
+  const contract={...task,schemaVersion:'runtime_os.coding.v3',
+    authorization:{...task.authorization,allowedTools:['input_read','report_submit'],allowedSideEffects:[]},
+    runtimeContext:{analysisResultMode:'TEXT_OR_CODE'},outputContract:{...task.outputContract,resultFormat:'JSON_LINES'}};
+  const result=await createCodingRun(contract,{reserveModel(){},settleModel(){},
+    finish(_task,value){finished=value;},executePython(){throw new Error('Text report must not execute code');},
+    readInput(){return {content:'SELECT 1;',nextOffset:9,eof:true};},
+    submitReport(_task,submission){submitted++;assert.equal(submission.toolCallId,'report-1');
+      assert.deepEqual(submission.report.evidenceReferences,['source']);
+      return {operationId:operation,status:'SUCCEEDED',executorStopped:true,pythonExecuted:false,executionMode:'TEXT_ONLY',
+        resultDatasetRef:'result',validationRecordRef:'validation',evidenceBundleRef:'bundle',validationStatus:'INCONCLUSIVE'};},
+  },{nativeSdk:true,model:{async *stream(request){
+    assert.match(request.systemPrompt,/no Python code is required/);
+    if(++turns===1)yield {type:'tool-call-delta',toolCallId:'file-1',toolName:'input_read',input:{datasetReference:'source',offset:0,limit:1024}};
+    else yield {type:'tool-call-delta',toolCallId:'report-1',toolName:'report_submit',input:{reportMarkdown:'Selects a constant; no database was queried.',evidenceReferences:['source'],limitations:['Static explanation only']}};
+    yield {type:'finish',reason:'tool-calls'};
+  }}}).run();
+  assert.equal(result.status,'completed');assert.equal(turns,2);assert.equal(submitted,1);
+  assert.equal(finished.operationId,operation);assert.equal(result.codeFiles.length,0);
+});
+
 test('malformed provider arguments are repaired in the same SDK with fresh admissions and actual usage', async () => {
   const admitted=[],settled=[],checkpoints=[];let models=0,executions=0;
   const gateway={

@@ -13,6 +13,11 @@ import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import static org.assertj.core.api.Assertions.*;
 
 class UserAssetServiceTest {
+    @Test void emptyPythonPackageMarkerRetainsExactBytesAndOwnerScope(){
+        var file=assets.upload(alice,"__init__.py",new byte[0]);assertThat(file.size()).isZero();assertThat(assets.read(alice,file.id())).isEmpty();
+        assertThatThrownBy(()->assets.read(bob,file.id())).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+        assertThatThrownBy(()->assets.upload(alice,"empty.csv",new byte[0])).hasMessageContaining("Empty document");
+    }
     final UserAssetService.Owner alice=new UserAssetService.Owner("tenant","alice"),bob=new UserAssetService.Owner("tenant","bob");
     final byte[] data="date,amount\n2026-10-20,12.34\n".getBytes(StandardCharsets.UTF_8);
     JdbcTemplate jdbc;DataSourceTransactionManager tx;AssetStorageProperties config;MemoryBlobs blobs;UserAssetService assets;

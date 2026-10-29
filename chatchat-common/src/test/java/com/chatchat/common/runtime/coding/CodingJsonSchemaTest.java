@@ -16,6 +16,33 @@ import static org.assertj.core.api.Assertions.*;
 
 /** Validates the shipped draft-2020-12 bundle using an actual JSON Schema engine, not an imitation. */
 class CodingJsonSchemaTest {
+    @Test void textOnlyResultsRequireTheFrozenV3PolicyAndNoCodeExecution()throws Exception{
+        var task=fixture("task");set(task,"/schemaVersion",CodingProtocol.ANALYSIS_VERSION);
+        task.set("runtimeContext",JSON.valueToTree(Map.of("schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT","analysisResultMode","TEXT_OR_CODE")));
+        var required=(com.fasterxml.jackson.databind.node.ArrayNode)task.at("/outputContract/requiredEvidence");
+        for(int i=required.size()-1;i>=0;i--)if("CODE_ARTIFACT".equals(required.get(i).asText()))required.remove(i);
+        assertThat(analysisSchema("task").validate(task)).isEmpty();
+        var accepted=JSON.treeToValue(task,CodingTaskContract.class);assertThat(accepted.permitsTextResult()).isTrue();
+        var result=fixture("outcome");set(result,"/schemaVersion",CodingProtocol.ANALYSIS_VERSION);
+        set(result,"/codeArtifactRef",null);set(result,"/usage/consumed/codeExecutions",0);
+        if(result.get("perArtifactCompleteness") instanceof ObjectNode completeness)completeness.remove("CODE_ARTIFACT");
+        result.set("limitations",JSON.valueToTree(List.of("Text only; no program executed")));
+        set(result,"/contractSha256",CodingCanonicalHash.sha256(accepted));
+        assertThat(analysisSchema("outcome").validate(result)).isEmpty();
+        JSON.treeToValue(result,CodingTaskOutcome.class).validateAgainst(accepted);
+        set(result,"/usage/consumed/codeExecutions",1);
+        assertThat(analysisSchema("outcome").validate(result)).isNotEmpty();
+        set(result,"/usage/consumed/codeExecutions",0);set(result,"/schemaVersion",CodingProtocol.VERSION);
+        assertThat(analysisSchema("outcome").validate(result)).isNotEmpty();
+        set(task,"/schemaVersion",CodingProtocol.VERSION);
+        assertThat(analysisSchema("task").validate(task)).isNotEmpty();
+    }
+    private JsonSchema analysisSchema(String type)throws Exception{
+        try(var input=getClass().getResourceAsStream("/runtime/coding/coding-analysis.schema.json")){
+            var bundle=(ObjectNode)JSON.readTree(input);bundle.remove("oneOf");bundle.put("$ref","#/$defs/"+type);
+            return JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012).getSchema(bundle);
+        }
+    }
     @Test void reportPreferencesAreAcceptedByThePublishedTaskSchemaAndJava()throws Exception{
         var node=fixture("task");
         node.set("runtimeContext",JSON.valueToTree(Map.of("schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT",

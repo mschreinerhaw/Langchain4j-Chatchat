@@ -384,8 +384,8 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
         String message = "EXPIRED".equals(status)
             ? "您的产品授权已过期，任务委派已暂停。请联系管理员更新授权后重试。"
             : "UNAVAILABLE".equals(status) || status == null || status.isBlank()
-                ? "暂时无法核验产品授权，Cline 任务委派已暂停。请联系管理员检查授权服务后重试。"
-                : "当前产品授权无效，Cline 任务委派已暂停。请联系管理员更新有效授权后重试。";
+                ? "暂时无法核验产品授权，任务委派已暂停。请联系管理员检查授权服务后重试。"
+                : "当前产品授权无效，任务委派已暂停。请联系管理员更新有效授权后重试。";
         throw new CodingContractException(CodingErrorCode.AUTHORIZATION_DENIED, message);
     }
     private void requireInputCapabilities(CodingTaskContract contract) {
@@ -395,6 +395,11 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
         Object lifecycle=contract.runtimeContext().get("codingLifecycle");
         if(descriptor==null && !fast && !workspaceFast && lifecycle==null)return;
         JsonNode capabilities=request("/v1/input-capabilities",Map.of());
+        for(String required:List.of("input_read","report_submit"))if(contract.authorization().allowedTools().contains(required)) {
+            boolean supported=false;
+            for(var tool:capabilities.path("analysisTools"))if(required.equals(tool.asText()))supported=true;
+            if(!supported)throw new IllegalStateException("Cline worker has not negotiated "+required+"; update the worker before dispatch");
+        }
         if(workspaceFast) {
             boolean supported=false;
             for(var profile:capabilities.path("workspaceProfiles"))

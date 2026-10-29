@@ -68,6 +68,86 @@ public class CodingEvidenceCollector {
                             boolean businessValidationPassed,
                             com.chatchat.common.runtime.coding.CodingTaskOutcome.ValidationStatus validationStatus) { }
 
+    /** Text-only output uses the same evidence store and report row, with no fabricated code or Sandbox receipt. */
+    public Collected collectText(com.chatchat.common.runtime.coding.CodingTaskContract contract,String operation,
+            com.chatchat.api.runtime.coding.data.CodingInputSnapshotService.Snapshot input,
+            Map<String,Object> row, java.util.Set<String> allowedReferences, IndependentValidator validator) {
+        if(!contract.permitsTextResult() || !operation.matches("workspace-[0-9a-f]{64}")
+                || !tasks.startedCodeOperations(contract.scope(),contract.taskId()).isEmpty())
+            throw new SecurityException("Text submission cannot replace an actual Python execution");
+        var scope=contract.scope();
+        tasks.get(scope,contract.taskId()).validateAgainst(contract);
+        var rows=List.of(row);byte[] encoded=mapperBytes(rows);
+        if(encoded.length>Math.min(contract.outputContract().maxResultBytes(),128*1024)
+                || !(row.get("reportMarkdown") instanceof String report) || report.isBlank()
+                || row.containsKey("visualReport"))throw new IllegalArgumentException("Text result must be a bounded narrative without unexecuted chart artifacts");
+        if(!(row.get("evidenceReferences") instanceof List<?> refs) || refs.isEmpty()
+                || refs.stream().anyMatch(ref->!(ref instanceof String)||!allowedReferences.contains(ref)))
+            throw new SecurityException("Report references must identify the exact delivered inputs");
+        Validation validation=Objects.requireNonNull(validator.validate(rows));
+        if(!validation.passed())throw new IllegalArgumentException("Text result does not match the existing row schema");
+        var boundary=new ComputedResultBoundary(mapper);
+        com.chatchat.api.runtime.coding.data.CodingInputRows.scan(input,
+            file->python.downloadDataFile(scope.tenantId(),scope.userId(),file.fileId()),mapper,boundary::observeRow);
+        if(boundary.copiedSource(rows))throw new IllegalArgumentException("Raw input reproduction is not an analysis result");
+        String stem="coding:text:"+sha((scope.tenantId()+"\0"+scope.userId()+"\0"+contract.taskId()+"\0"+operation).getBytes(StandardCharsets.UTF_8));
+        String inputId=id(contract.inputSnapshotRef()),receiptId=stem+":receipt",resultId=stem+":result",validationId=stem+":validation",bundleId=stem+":bundle";
+        String key="coding-text-evidence:"+operation;
+        checkpoints.compareAndSetExecutionCheckpoint(scope,key+":time",null,Long.toString(System.currentTimeMillis()));
+        long occurredAt=Long.parseLong(checkpoints.readExecutionCheckpoint(scope,key+":time").orElseThrow());
+        List<EvidenceRecord> records=new ArrayList<>();List<EvidenceLineage> lineages=new ArrayList<>();
+        add(records,lineages,scope,receiptId,"CODING_WORKSPACE_TOOL_RECEIPT",
+            Map.of("taskId",contract.taskId(),"operationId",operation,"executionHandle","runtime-workspace:"+operation,
+                "executorStopped",true,"sqlExecuted",false,"executionMode","TEXT_ONLY","pythonExecuted",false,
+                "inputSnapshotRef",contract.inputSnapshotRef(),"reportSha256",sha(encoded)),List.of(inputId),contract.taskId(),occurredAt);
+        add(records,lineages,scope,resultId,"CODING_STRUCTURED_DATASET",
+            Map.of("taskId",contract.taskId(),"operationId",operation,"delivery","INLINE_ANALYSIS_REPORT",
+                "rows",rows,"rowCount",1,"size",encoded.length,"artifactSha256",sha(encoded),"schemaJson","{}"),
+            List.of(inputId,receiptId),contract.taskId(),occurredAt);
+        var checks=new LinkedHashMap<String,Object>(validation.checks());checks.put("sourceIntegrityVerified",true);
+        checks.put("authorizedReferencesVerified",true);checks.put("pythonExecuted",false);
+        add(records,lineages,scope,validationId,"CODING_COMPUTATION_VALIDATION",
+            Map.of("status","INCONCLUSIVE","checks",checks,"structuralChecksPassed",true,"businessEvaluated",false,
+                "verifierId",validation.verifierId(),"ruleVersion",validation.ruleVersion(),"validationPlanRef",contract.validationPlanRef(),
+                "resultDatasetRef","runtime-evidence:"+resultId),List.of(resultId),contract.taskId(),occurredAt);
+        Map<String,Object> metadata=Map.of("taskId",contract.taskId(),"operationId",operation,"executionMode","TEXT_ONLY",
+            "pythonExecuted",false,"validationPassed",true,"businessEvaluated",false);
+        String hash=sha(mapperBytes(Map.of("records",records,"lineages",lineages,"metadata",metadata)));
+        String staged=stageJson(Stage.STAGED,hash),verified=stageJson(Stage.VERIFIED,hash),committed=stageJson(Stage.COMMITTED,hash);
+        checkpoints.compareAndSetExecutionCheckpoint(scope,key,null,staged);
+        checkpoints.compareAndSetExecutionCheckpoint(scope,key,staged,verified);
+        String state=checkpoints.readExecutionCheckpoint(scope,key).orElseThrow();
+        if(!state.equals(verified)&&!state.equals(committed))throw new IllegalStateException("Text result changed under the same operation");
+        evidence.commitCodingEvidence(scope,key,verified,committed,records,lineages,bundleId,List.of(inputId,receiptId,resultId,validationId),metadata);
+        if(assets!=null) {
+            assets.save(scope,contract.taskId(),com.chatchat.api.assets.UserAssetService.Kind.ARTIFACT,
+                "text-result:"+operation+":report.md","report.md",report.getBytes(StandardCharsets.UTF_8));
+            assets.save(scope,contract.taskId(),com.chatchat.api.assets.UserAssetService.Kind.ARTIFACT,
+                "text-result:"+operation+":rows.jsonl","rows.jsonl",(new String(mapperBytes(row),StandardCharsets.UTF_8)+"\n").getBytes(StandardCharsets.UTF_8));
+        }
+        return textResult(contract,operation);
+    }
+    public Collected textResult(com.chatchat.common.runtime.coding.CodingTaskContract contract,String operation) {
+        if(!contract.permitsTextResult() || !operation.matches("workspace-[0-9a-f]{64}")
+                || !tasks.startedCodeOperations(contract.scope(),contract.taskId()).isEmpty())throw new SecurityException("Text result policy differs from the task");
+        String stem="coding:text:"+sha((contract.scope().tenantId()+"\0"+contract.scope().userId()+"\0"+contract.taskId()+"\0"+operation).getBytes(StandardCharsets.UTF_8));
+        var bundle=resolveBundle(contract.scope(),contract.taskId(),"runtime-evidence:"+stem+":bundle");
+        if(!Boolean.FALSE.equals(bundle.metadata().get("pythonExecuted")))throw new SecurityException("Not a text submission receipt");
+        return new Collected(contract.inputSnapshotRef(),null,"runtime-evidence:"+stem+":receipt","runtime-evidence:"+stem+":result",
+            "runtime-evidence:"+stem+":validation","runtime-evidence:"+stem+":bundle",false,
+            com.chatchat.common.runtime.coding.CodingTaskOutcome.ValidationStatus.INCONCLUSIVE);
+    }
+    public String textSubmissionFailure(CodingTaskContract contract,String operation) {
+        String recordId="coding:text-failure:"+operation;
+        Map<String,Object> payload=Map.of("taskId",contract.taskId(),"operationId",operation,
+            "executionHandle","runtime-workspace:"+operation,"executorStopped",true,"sqlExecuted",false,
+            "pythonExecuted",false,"resultAvailable",false);
+        evidence.register(new EvidenceRecord(null,recordId,contract.scope(),"CODING_WORKSPACE_TOOL_RECEIPT",
+            "CodingEvidenceCollector",evidence.contentHash(payload),payload,null,System.currentTimeMillis(),Map.of()),
+            new EvidenceLineage(null,recordId,contract.scope(),List.of(id(contract.inputSnapshotRef())),contract.taskId(),"CodingEvidenceCollector",null,Map.of()));
+        return "runtime-evidence:"+recordId;
+    }
+
     private final JdbcRuntimeEvidenceStore evidence;
     private final RuntimeExecutionCheckpointPort checkpoints;
     private final DurableCodingTaskService tasks;
@@ -297,6 +377,13 @@ public class CodingEvidenceCollector {
         EvidenceRecord record = resolve(scope, taskId, resultRef);
         if (!"CODING_STRUCTURED_DATASET".equals(record.evidenceType())) throw new IllegalArgumentException("Not a structured dataset");
         Map<String, Object> p = record.payload();
+        if("INLINE_ANALYSIS_REPORT".equals(p.get("delivery"))) {
+            var rows=mapper.convertValue(p.get("rows"),new com.fasterxml.jackson.core.type.TypeReference<List<Map<String,Object>>>(){});
+            byte[] content=mapperBytes(rows);
+            if(rows.size()!=1 || content.length>128*1024 || !sha(content).equals(p.get("artifactSha256"))
+                    || ((Number)p.get("size")).longValue()!=content.length)throw new SecurityException("Archived text result changed");
+            return new com.chatchat.agents.orchestration.analysis.dataset.InMemoryDatasetHandle(rows);
+        }
         long expectedSize=((Number)p.get("size")).longValue(), expectedRows=((Number)p.get("rowCount")).longValue();
         if(expectedSize<0||expectedSize>256L*1024*1024||expectedRows<0||expectedRows>1_000_000)
             throw new IllegalStateException("Archived result exceeds paging ceiling");
@@ -444,7 +531,8 @@ public class CodingEvidenceCollector {
         tasks.get(scope, taskId);
         EvidenceSnapshot bundle = evidence.snapshot(scope, id(bundleRef))
             .orElseThrow(() -> new SecurityException("Evidence bundle is not accessible"));
-        if (!taskId.equals(bundle.metadata().get("taskId")) || bundle.evidenceIds().size() != 5)
+        boolean textOnly="TEXT_ONLY".equals(bundle.metadata().get("executionMode")) && Boolean.FALSE.equals(bundle.metadata().get("pythonExecuted"));
+        if (!taskId.equals(bundle.metadata().get("taskId")) || bundle.evidenceIds().size() != (textOnly?4:5))
             throw new SecurityException("Evidence bundle does not belong to this task");
         for (String member : bundle.evidenceIds()) resolve(scope, taskId, "runtime-evidence:" + member);
         return bundle;

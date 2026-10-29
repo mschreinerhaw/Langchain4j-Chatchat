@@ -517,7 +517,7 @@
         },
         "runtimeContext": {
           "type": "object",
-          "maxProperties": 13,
+          "maxProperties": 14,
           "properties": {
             "schemaVersion": {
               "const": "runtime_os.coding.context.v1"
@@ -636,6 +636,20 @@
                 "patchOnlyAfterFirst": {
                   "const": true
                 }
+              }
+            },
+            "analysisResultMode": {
+              "const": "TEXT_OR_CODE"
+            },
+            "codeProject": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["schemaVersion", "sha256", "payloadChunks", "adapterTemplate"],
+              "properties": {
+                "schemaVersion": {"const": "runtime_os.python.code-project.v1"},
+                "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                "payloadChunks": {"type": "array", "minItems": 1, "maxItems": 40, "items": {"type": "string", "maxLength": 8000}},
+                "adapterTemplate": {"type": "string", "maxLength": 16000}
               }
             }
           },
@@ -1357,12 +1371,6 @@
                 "maxLength": 512,
                 "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
               },
-              "codeArtifactRef": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 512,
-                "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
-              },
               "executionReceiptRef": {
                 "type": "string",
                 "minLength": 1,
@@ -1824,6 +1832,40 @@
                 "minLength": 1,
                 "maxLength": 512,
                 "pattern": "[^\\u0009-\\u000d\\u001c-\\u0020\\u1680\\u2000-\\u2006\\u2008-\\u200a\\u2028\\u2029\\u205f\\u3000]"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "COMPLETED"
+              },
+              "codeArtifactRef": {
+                "type": "null"
+              }
+            },
+            "required": [
+              "status",
+              "codeArtifactRef"
+            ]
+          },
+          "then": {
+            "properties": {
+              "usage": {
+                "properties": {
+                  "consumed": {
+                    "properties": {
+                      "codeExecutions": {
+                        "const": 0
+                      }
+                    }
+                  }
+                }
+              },
+              "limitations": {
+                "minItems": 1
               }
             }
           }

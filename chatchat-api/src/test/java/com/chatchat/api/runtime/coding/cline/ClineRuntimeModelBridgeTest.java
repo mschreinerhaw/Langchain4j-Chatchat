@@ -23,6 +23,29 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClineRuntimeModelBridgeTest {
+    @Test void fullNativeAnalysisProfileReachesProviderAndDuplicateDeclarationsAreRejected() throws Exception {
+        var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);
+        var parent=mock(ChatModel.class);when(resources.defaultChatModel()).thenReturn("registered-model");
+        when(parent.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder().aiMessage(AiMessage.from("done"))
+            .tokenUsage(new TokenUsage(2,1,3)).build());
+        var registry=new CodingParentModels();var bridge=new ClineRuntimeModelBridge(resources,factory,json);bridge.setParentModels(registry);
+        json.findAndRegisterModules();var frozen=(com.fasterxml.jackson.databind.node.ObjectNode)json.valueToTree(contract());
+        frozen.put("schemaVersion",CodingProtocol.ANALYSIS_VERSION);
+        var names=List.of("python_execute","input_read","report_submit","artifact_read","sql_validate");
+        ((com.fasterxml.jackson.databind.node.ObjectNode)frozen.get("authorization")).set("allowedTools",json.valueToTree(names));
+        var contract=json.treeToValue(frozen,CodingTaskContract.class);
+        var request=(com.fasterxml.jackson.databind.node.ObjectNode)json.readTree("{\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"explain\"}]}],\"tools\":[]}");
+        var tools=(com.fasterxml.jackson.databind.node.ArrayNode)request.get("tools");
+        for(var name:names)tools.add(json.valueToTree(Map.of("name",name,"inputSchema",Map.of("type","object","properties",Map.of()))));
+        try(var ignored=registry.bind(contract.scope(),contract.taskId(),parent)) {
+            bridge.complete(contract,request);
+            verify(parent).chat(argThat((ChatRequest r)->r.toolSpecifications().size()==5));
+            tools.remove(4);tools.add(tools.get(0).deepCopy());
+            assertThatThrownBy(()->bridge.complete(contract,request)).isInstanceOf(ClineRuntimeModelBridge.InvalidModelResponseException.class)
+                .hasCauseInstanceOf(IllegalArgumentException.class);
+            verifyNoMoreInteractions(parent);
+        }
+    }
     @Test void actualClineProviderClientReceivesSelectedModelTimeoutOnEveryRound() throws Exception {
         var server=com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1",0),0);
         var calls=new java.util.concurrent.atomic.AtomicInteger();

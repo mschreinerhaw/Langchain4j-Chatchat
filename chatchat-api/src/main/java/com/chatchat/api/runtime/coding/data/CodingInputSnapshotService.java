@@ -2,6 +2,7 @@ package com.chatchat.api.runtime.coding.data;
 
 import com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator.Dataset;
 import com.chatchat.agents.runtime.coding.CodingTaskAccess;
+import com.chatchat.agents.runtime.coding.CodingTaskRevisions;
 import com.chatchat.api.runtime.evidence.JdbcRuntimeEvidenceStore;
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.mcp.python.McpPythonControlPlanePort;
@@ -34,6 +35,9 @@ public final class CodingInputSnapshotService {
     private final CodingTaskAccess access;
     private final ObjectMapper mapper;
     private CodingInputFilePublisher filePublisher;
+    private com.chatchat.agents.runtime.coding.DurableCodingTaskService codingTasks;
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setCodingTasks(com.chatchat.agents.runtime.coding.DurableCodingTaskService value){this.codingTasks=value;}
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setFilePublisher(CodingInputFilePublisher value){this.filePublisher=value;}
     public Map<String,Object> withInputContext(Map<String,Object> configuration,KernelDataScope scope,String task,Snapshot input) {
@@ -104,6 +108,7 @@ public final class CodingInputSnapshotService {
         }
         description.put("encoding","UTF-8");
         description.put("qualitySummary",record.payload().getOrDefault("qualitySummary",Map.of()));
+        if(record.payload().get("nativeFileSchemas") instanceof List<?> schemas)description.put("nativeFileSchemas",schemas);
         if(record.payload().get("inputVersions") instanceof List<?> versions) {
             var projected=new ArrayList<Map<String,Object>>();
             for(Object version:versions)if(version instanceof Map<?,?> fields) {
@@ -148,6 +153,72 @@ public final class CodingInputSnapshotService {
             description.containsKey("inputVersions")));
         observation.put("snapshotRef",input.reference());observation.put("inputSha256",input.sha256());
         return java.util.Collections.unmodifiableMap(observation);
+    }
+
+    /** Explicit bounded file disclosure; no paths, source lookup or new data acquisition. */
+    public Map<String,Object> readForCoding(CodingTaskContract contract, com.chatchat.agents.runtime.coding.CodingJournal.Lease lease,
+            String toolCallId, String reference, int offset, int limit) {
+        access.require(contract.scope(), CodingTaskAccess.Action.WORKER);
+        access.require(contract.scope(), CodingTaskAccess.Action.READ);
+        if (!com.chatchat.common.runtime.coding.CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion())
+                || !contract.authorization().allowedTools().contains("input_read"))
+            throw new SecurityException("Input reading is outside task authorization");
+        if (reference == null || reference.isBlank() || reference.length() > 2048 || offset < 0
+                || limit < 1 || limit > 16000 || toolCallId==null || toolCallId.isBlank() || toolCallId.length()>512)
+            throw new IllegalArgumentException("Invalid bounded input read");
+        var snapshot = requireAuthorized(contract);
+        var description = describe(contract.scope(), contract.taskId(), snapshot);
+        boolean batched = snapshot.sourceDatasetRef().startsWith("coding-input-set:");
+        var allowed = new java.util.HashSet<String>();
+        if (batched && description.get("inputVersions") instanceof List<?> versions)
+            for (Object item : versions) if (item instanceof Map<?,?> version
+                    && version.get("datasetReference") instanceof String ref) allowed.add(ref);
+        if (!batched) allowed.add(snapshot.sourceDatasetRef());
+        if (!allowed.contains(reference)) throw new SecurityException("Input reference was not delivered to this task");
+        if(codingTasks==null)throw new IllegalStateException("Input tool budgeting is unavailable");
+        String operation="workspace-"+com.chatchat.agents.protocol.ModelProtocolJson.sha256Hex(contract.taskId()+"\0input_read\0"+toolCallId);
+        String intent=evidence.contentHash(Map.of("snapshot",snapshot.sha256(),"reference",reference,"offset",offset,"limit",limit));
+        var reserved=CodingTaskRevisions.mutate(codingTasks,contract.scope(),contract.taskId(),revision->
+            codingTasks.reserve(contract.scope(),contract.taskId(),lease,revision,operation,intent,
+            com.chatchat.agents.runtime.coding.CodingJournal.OperationKind.TOOL,
+            new com.chatchat.common.runtime.coding.CodingTaskOutcome.Counters(0,0,1,0,0,0,limit*6L+16384,"0")));
+        if(!reserved.admitted())throw new IllegalStateException("Input read tool budget denied");
+        CodingTaskRevisions.mutate(codingTasks,contract.scope(),contract.taskId(),revision->
+            codingTasks.startIntent(contract.scope(),contract.taskId(),lease,revision,operation,"runtime-workspace:"+operation));
+        long bytes=0;
+        try {
+            var result=readAuthorizedInput(contract,reference,offset,limit,snapshot,description,batched);
+            bytes=mapper.writeValueAsBytes(result).length;
+            return result;
+        } catch(java.io.IOException invalid){throw new IllegalStateException("Input result cannot be encoded",invalid);}
+        finally {
+            String id="coding:input-read:"+operation+":receipt";
+            Map<String,Object> receipt=Map.of("taskId",contract.taskId(),"operationId",operation,
+                "executionHandle","runtime-workspace:"+operation,"executorStopped",true,"sqlExecuted",false,
+                "inputSnapshotSha256",snapshot.sha256(),"requestSha256",intent);
+            evidence.register(new EvidenceRecord(null,id,contract.scope(),"CODING_WORKSPACE_TOOL_RECEIPT",
+                "CodingInputSnapshotService",evidence.contentHash(receipt),receipt,null,System.currentTimeMillis(),Map.of()),
+                new EvidenceLineage(null,id,contract.scope(),List.of(snapshot.reference().substring("runtime-evidence:".length())),
+                    contract.taskId(),"CodingInputSnapshotService",null,Map.of()));
+            CodingTaskRevisions.mutate(codingTasks,contract.scope(),contract.taskId(),revision->
+                codingTasks.reconcileStopped(contract.scope(),contract.taskId(),lease,revision,operation,"runtime-evidence:"+id));
+            long actualBytes=bytes;
+            CodingTaskRevisions.mutate(codingTasks,contract.scope(),contract.taskId(),revision->
+                codingTasks.settle(contract.scope(),contract.taskId(),lease,revision,operation,
+                    new com.chatchat.common.runtime.coding.CodingTaskOutcome.Counters(0,0,1,0,0,0,actualBytes,"0"),true));
+        }
+    }
+    private Map<String,Object> readAuthorizedInput(CodingTaskContract contract,String reference,int offset,int limit,
+            Snapshot snapshot,Map<String,Object> description,boolean batched) {
+        var view = new CodingInputText(reference, batched, offset, limit, mapper);
+        CodingInputRows.scan(snapshot, file -> description.containsKey("inputManifest")
+            ? requireSharedBytes(contract.scope(), file)
+            : python.downloadDataFile(contract.scope().tenantId(), contract.scope().userId(), file.fileId()), mapper, view::accept);
+        return view.result(snapshot.sha256());
+    }
+    private byte[] requireSharedBytes(KernelDataScope scope, Chunk file) {
+        if (filePublisher == null) throw new IllegalStateException("Immutable input files are unavailable");
+        return filePublisher.readSharedBytes(scope, file);
     }
 
     /** Caller supplies the current run's trusted dataset collection, never a model-supplied handle. */

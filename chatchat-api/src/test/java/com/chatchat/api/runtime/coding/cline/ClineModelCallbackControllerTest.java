@@ -183,7 +183,7 @@ class ClineModelCallbackControllerTest {
                 new CodingTaskContract.Authorization("decision:1", List.of("artifact_read"), List.of(fileId), List.of(), List.of(),
                     CodingTaskContract.NetworkPolicy.NONE, List.of(), List.of()),
                 base.budget(), base.environmentRef(), base.validationPlanRef(), base.outputContract(),
-                Map.of("schemaVersion", "runtime_os.coding.context.v1", "consistency", "TASK_SNAPSHOT", "inputFiles",
+                Map.of("schemaVersion", "runtime_os.coding.context.v1", "consistency", "TASK_SNAPSHOT", "reportMode", "visual", "inputFiles",
                     Map.of("schemaVersion", "runtime_os.coding.input.v1", "format", "PARQUET", "delivery", "SHARED_DIRECTORY",
                         "manifestFileId", fileId, "manifestSha256", "a".repeat(64))));
             var lease = access.as(scope, EnumSet.allOf(CodingTaskAccess.Action.class), () -> {
@@ -222,9 +222,15 @@ class ClineModelCallbackControllerTest {
             String resultRef="runtime-evidence:"+"b".repeat(64);
             when(collector.readResultPage(scope,"task",resultRef,0,2)).thenReturn(
                 new DatasetHandle.Page(0,List.of(Map.of("report","reviewed")),false));
+            when(collector.visualReport(scope,"task",resultRef)).thenReturn(java.util.Optional.of(Map.of(
+                "status","PARTIAL","artifactValidationStatus","PASSED","layoutValidationStatus","FAILED")));
             body.put("reference",resultRef);
-            assertThat(controller.readArtifact(body)).containsEntry("complete",true)
+            var reviewed=controller.readArtifact(body);
+            assertThat(reviewed).containsEntry("complete",true)
                 .containsEntry("reference",resultRef);
+            assertThat(json.valueToTree(reviewed).path("visualReportValidation"))
+                .isEqualTo(json.valueToTree(Map.of("status","PARTIAL","validation",Map.of(),
+                    "artifactValidationStatus","PASSED","layoutValidationStatus","FAILED","availableChartCount",0)));
             verify(collector).readResultPage(scope,"task",resultRef,0,2);
             when(collector.readResultPage(scope,"task",resultRef,0,2)).thenReturn(
                 new DatasetHandle.Page(0,List.of(Map.of("reportMarkdown","report","evidenceReferences",List.of("shortened-source"))),false));

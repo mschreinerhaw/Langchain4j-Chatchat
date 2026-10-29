@@ -35,6 +35,25 @@ public class TemplateCapabilityController {
     private final McpRuntimeAccessService runtime;
     private final SysAuditLogRepository audits;
 
+    /** Studio uses this same capability control plane; it never creates CONTROLLED_TEMPLATE releases. */
+    public JsonNode sqlAuthoring(HttpServletRequest request,String method,String suffix,JsonNode body,String permission) {
+        authorize(request,permission);
+        if(!suffix.matches("(?:/[a-zA-Z0-9-]+){0,2}(?:\\?projectId=[a-zA-Z0-9-]+&fileId=[a-zA-Z0-9-]+)?"))
+            throw new IllegalArgumentException("Invalid authoring route");
+        String separator=suffix.contains("?")?"&":"?";
+        String path="/api/v1/template-capabilities/sql-authoring"+suffix+separator+"tenantId="+encode(access.tenant(request))+"&actorId="+encode(access.user(request));
+        var saved=client.request(method,path,body);
+        if(!"GET".equals(method)) {
+            if(saved.path("templateKey").isTextual())ownerGrants.ensureUserOwnerGrant(ResourceAuthorizationPort.TEMPLATE,access.tenant(request),saved.path("templateKey").asText(),access.user(request));
+            if(saved.path("publication").path("toolName").isTextual()) {
+                ownerGrants.ensureUserOwnerGrant(ResourceAuthorizationPort.MCP_TOOL,access.tenant(request),TemplateToolNames.local(saved.path("publication").path("toolName").asText()),access.user(request));
+                runtime.refresh();
+            }
+            audit(request,"sql-authoring-"+method.toLowerCase(Locale.ROOT),saved.path("id").asText());
+        }
+        return saved;
+    }
+
     @GetMapping("/templates") public ApiResponse<JsonNode> templates(HttpServletRequest request) {
         authorize(request, "mcp:publication:read");
         return ApiResponse.success(client.request("GET", "/api/v1/template-capabilities/templates" + scope(request), null));

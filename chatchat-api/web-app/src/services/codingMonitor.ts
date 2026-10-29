@@ -22,6 +22,7 @@ export const stageLabels: Record<string, string> = {
   EXECUTED: '进程执行成功', RESULT_READY: '结果文件已验收', RESULT_VALIDATION_FAILED: '结果文件验收失败',
   VALIDATING: 'Java 校验代码', EXECUTING: 'Sandbox 执行',
   RESULT_VALIDATING: '验证和登记结果', COMPLETED: '完成', FAILED: '失败',
+  DISPATCHED: '已请求执行，等待执行器回执',
   CANCELLED: '已取消', TIMED_OUT: '已超时', CANCELLING: '正在取消', RECONCILING: '等待异常恢复核对',
   WAITING_CONTEXT: '等待 Java 补充上下文', BUDGET_EXCEEDED: '预算耗尽', PARTIAL: '部分完成',
 };
@@ -51,11 +52,11 @@ export function codingStage(task: CodingTask, events: CodingEvent[]): string {
   }
   return outcome.status === 'CREATED' ? 'QUEUED' : 'CONTEXT_READY';
 }
-export function codeVersions(events: CodingEvent[]) {
+export function codeVersions(events: CodingEvent[], executions: PythonExecution[] = []) {
   const versions = new Map<string, Record<string, any>>();
   for (const event of events) {
     const p = event.payload ?? {};
-    const operation = p.proposedOperationId ?? event.operationId;
+    const operation = p.proposedOperationId ?? p.operationId ?? event.operationId;
     if (!operation?.startsWith('cline-')) continue;
     if (p.type === 'CODE_READY') versions.set(operation, {
       operationId: operation, hash: p.codeSha256, fileName: p.fileName, scriptPath:p.scriptPath, scriptVersion:p.scriptVersion, generatedAt: event.occurredAt, state: 'CODE_READY',
@@ -71,7 +72,110 @@ export function codeVersions(events: CodingEvent[]) {
         ? 'RESULT_VALIDATION_FAILED' : p.status === 'SUCCEEDED' ? p.resultAvailable === true ? 'RESULT_READY' : 'EXECUTED' : 'FAILED';
     }
   }
-  return [...versions.values()];
+  for (const execution of executions) {
+    const version = versions.get(execution.executionId) ?? { operationId: execution.executionId };
+    if (execution.script) Object.assign(version, execution.script);
+    Object.assign(version, { hash: execution.codeHash ?? version.hash, state: execution.state,
+      validationStatus: execution.feedback?.validationStatus ?? version.validationStatus,
+      outputStatus: execution.feedback?.outputStatus ?? version.outputStatus });
+    versions.set(execution.executionId, version);
+  }
+  return [...versions.values()].sort((a,b) => (a.scriptVersion ?? Number.MAX_SAFE_INTEGER) - (b.scriptVersion ?? Number.MAX_SAFE_INTEGER));
+}
+
+export interface PythonExecution {
+  executionId: string; ordinal: number; startSequence?: number; requestedAt?: string; startedAt?: string; feedbackRecordedAt?: string;
+  script?: ExecutionFeedback['script']; codeHash?: string; feedback?: ExecutionFeedback; state: string;
+}
+/** Reconstruct only existing journal facts. A model/tool observation is never a process receipt. */
+export function pythonExecutions(task: CodingTask, events: CodingEvent[]): PythonExecution[] {
+  const rows = new Map<string, PythonExecution>();
+  const feedback = new Map<string, ExecutionFeedback>();
+  for (const event of mergeCodingEvents([], events)) {
+    const p = event.payload ?? {};
+    if (p.type === 'EXECUTION_FEEDBACK' && p.feedback?.schemaVersion === 'runtime_os.execution_feedback.v1') {
+      feedback.set(p.feedback.executionId, p.feedback);
+    }
+    if (pythonDispatch(event)) {
+      rows.set(event.operationId, { executionId: event.operationId, ordinal: 0, startSequence: event.sequence,
+        requestedAt: event.occurredAt, ...(event.type === 'EXECUTION_STARTED' ? { startedAt: event.occurredAt } : {}),
+        state: event.type === 'EXECUTION_STARTED' ? 'EXECUTING' : 'DISPATCHED' });
+    }
+  }
+  // The durable API is authoritative over an old or duplicate event projection.
+  for (const item of task.executions ?? []) feedback.set(item.executionId, item);
+  for (const item of feedback.values()) {
+    const row = rows.get(item.executionId) ?? { executionId: item.executionId, ordinal: 0, state: 'UNKNOWN' };
+    row.feedback = item; row.script = item.script; row.codeHash = item.codeHash;
+    const recorded = events.find(e => e.payload?.type === 'EXECUTION_FEEDBACK' && e.payload.feedback?.executionId === item.executionId);
+    row.feedbackRecordedAt = recorded?.occurredAt;
+    row.ordinal = Number(item.attemptId?.match(/:execution-(\d+)$/)?.[1] ?? 0);
+    row.state = item.resultAvailable === true ? 'RESULT_READY' : item.status === 'SUCCEEDED'
+      ? item.resultAvailable === false ? 'RESULT_VALIDATION_FAILED' : 'EXECUTED' : item.status;
+    rows.set(item.executionId, row);
+  }
+  const result = [...rows.values()].sort((a,b) => a.startSequence && b.startSequence
+    ? a.startSequence - b.startSequence : (a.ordinal || Number.MAX_SAFE_INTEGER) - (b.ordinal || Number.MAX_SAFE_INTEGER));
+  result.forEach((row, index) => { if (!row.ordinal) row.ordinal = index + 1; });
+  return result;
+}
+function pythonDispatch(event: CodingEvent): event is CodingEvent & { operationId: string } {
+  return !!event.operationId?.startsWith('cline-') && (event.type === 'EXECUTION_STARTED'
+    || event.type === 'RECOVERY_RECONCILED' && event.summary === 'Start intent committed; execution result is not yet known');
+}
+export interface PythonRepair {
+  from: PythonExecution; to: PythonExecution; status: string;
+}
+export function pythonRepairs(executions: PythonExecution[], events: CodingEvent[]): PythonRepair[] {
+  const result: PythonRepair[] = [];
+  for (let index = 1; index < executions.length; index++) {
+    const from = executions[index - 1], to = executions[index];
+    if (!from.feedback || from.feedback.resultAvailable !== false || !from.feedback.repair?.allowed) continue;
+    const parent = events.find(e => e.payload?.type === 'CODE_READY' && e.payload.proposedOperationId === to.executionId)?.payload;
+    const counted = to.feedback?.repair && to.feedback.repair.attemptsUsed > from.feedback.repair.attemptsUsed;
+    const bound = parent?.parentCodeHash && parent.parentCodeHash === from.codeHash;
+    // Mere neighbouring versions are not evidence of a repair, especially in legacy records.
+    if (!counted && !bound) continue;
+    result.push({ from, to, status: !to.feedback ? '执行中' : to.feedback.resultAvailable === true ? '修复后产物已归档'
+      : to.feedback.resultAvailable === false ? '修复后仍失败' : '修复后验证未记录' });
+  }
+  return result;
+}
+export function pythonSummary(executions: PythonExecution[], repairs: PythonRepair[]) {
+  const stopped = executions.filter(e => e.feedback);
+  return { total: executions.length,
+    processSucceeded: stopped.filter(e => e.feedback?.status === 'SUCCEEDED').length,
+    processFailed: stopped.filter(e => ['FAILED','TIMED_OUT'].includes(e.feedback!.status)).length,
+    cancelled: stopped.filter(e => e.feedback?.status === 'CANCELLED').length,
+    outputFailed: stopped.filter(e => e.feedback?.status === 'SUCCEEDED' && e.feedback.resultAvailable === false).length,
+    repairs: Math.max(repairs.length, 0, ...stopped.map(e => e.feedback?.repair?.attemptsUsed ?? 0)),
+    repairFailed: repairs.filter(e => e.to.feedback?.resultAvailable === false).length,
+    lastError: [...stopped].reverse().find(e => e.feedback?.error)?.feedback?.error,
+    lastValidation: stopped.at(-1)?.feedback?.validationStatus,
+    latestVersion: executions.at(-1)?.script?.scriptVersion };
+}
+export function pythonTimeline(executions: PythonExecution[], repairs: PythonRepair[], events: CodingEvent[]) {
+  const result: { id: string; sequence: number; occurredAt: string; label: string; executionId: string }[] = [];
+  const codeSeen = new Set<string>();
+  for (const event of mergeCodingEvents([], events)) {
+    const p = event.payload ?? {}, operation = p.proposedOperationId ?? p.operationId ?? event.operationId;
+    const row = executions.find(e => e.executionId === operation);
+    if (!row) continue;
+    let label = '';
+    if ((p.type === 'CODE_READY' || event.type === 'CODE_COMMITTED') && !codeSeen.has(operation)) {
+      codeSeen.add(operation);
+      label = `${repairs.some(r => r.to.executionId === operation) ? '提交修复版本' : '代码已提交'}${row.script ? ' v' + row.script.scriptVersion : ''}`;
+    } else if (pythonDispatch(event)) label = `已请求第 ${row.ordinal} 次 Python 执行（Java 派发意图，不是启动证明）`;
+    else if (p.type === 'EXECUTION_FEEDBACK' && row.feedback) {
+      const f = row.feedback;
+      label = f.resultAvailable === true ? '进程执行成功，产物已归档；业务校验见回执'
+        : f.status === 'SUCCEEDED' ? f.resultAvailable === false
+          ? `进程退出成功，产物校验失败：${f.error?.diagnosticCode ?? 'OUTPUT_CONTRACT'}` : '进程退出成功，产物验证未记录'
+        : `执行${f.status === 'TIMED_OUT' ? '超时' : f.status === 'CANCELLED' ? '取消' : '失败'}：${f.error?.exceptionType || f.error?.diagnosticCode || '历史任务未记录原因'}`;
+    }
+    if (label) result.push({ id: event.eventId, sequence: event.sequence, occurredAt: event.occurredAt, label, executionId: operation });
+  }
+  return result;
 }
 export interface CodingModelCallTelemetry {
   operationId: string; attemptId?: string; modelCall: number; state: string;
@@ -113,6 +217,9 @@ export const fetchCodingEvents = (run: string, task: string, cursor = 0): Promis
   apiRequest(`${root(run)}/${encodeURIComponent(task)}/events?afterSequence=${cursor}&limit=128`);
 export const fetchCodingCode = (run: string, task: string, operation: string): Promise<Record<string, any>> =>
   apiRequest(`${root(run)}/${encodeURIComponent(task)}/${encodeURIComponent(operation)}/code`);
+export interface CodingExecutionTiming { operationId: string; codeHash: string; startedAt: string | null; finishedAt: string | null; source: string }
+export const fetchCodingTiming = (run: string, task: string, operation: string): Promise<CodingExecutionTiming> =>
+  apiRequest(`${root(run)}/${encodeURIComponent(task)}/${encodeURIComponent(operation)}/timing`);
 export const cancelCodingTask = (run: string, task: string) =>
   apiRequest(`${root(run)}/${encodeURIComponent(task)}/cancel`, { method: 'POST' });
 export const resumeCodingTask = (run: string, task: string) =>

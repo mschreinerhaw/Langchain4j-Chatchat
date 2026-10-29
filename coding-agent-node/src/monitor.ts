@@ -203,7 +203,7 @@ export class MonitorStore {
     }
     this.changed();
   }
-  code(id: string | null, value: { operationId: string; fileName: string; source: string; scriptPath?: string; scriptVersion?: number }) {
+  code(id: string | null, value: { operationId: string; fileName: string; source: string; scriptPath?: string; scriptVersion?: number; retainSource?: boolean }) {
     const task = id ? this.tasks.get(id) : null;
     if (!task || typeof value.source !== 'string' || Buffer.byteLength(value.source) > 256000) return;
     const hash = createHash('sha256').update(value.source).digest('hex');
@@ -213,7 +213,7 @@ export class MonitorStore {
     task.codes.push({ id: codeId, operationId: this.text(value.operationId), fileName: this.text(value.fileName, 256),
       scriptPath:this.text(value.scriptPath),scriptVersion:value.scriptVersion??null,
       sha256: hash, sourceBytes: Buffer.byteLength(value.source), createdAt: new Date().toISOString(),
-      source: value.source, sourceRetained: true });
+      ...(value.retainSource===false?{}:{source:value.source}), sourceRetained: value.retainSource!==false });
     task.codeCount++; this.trimSources(); this.changed();
   }
   private trimSources() {

@@ -1,0 +1,7 @@
+{
+  "image": "runtime-os-api:python-studio-reuse-20261029-r9",
+  "previousImage": "runtime-os-api:python-studio-reuse-20261029-r8",
+  "jarSha256": "733dd9971047f29134cdd8b1aeaea48c758c6f7cedef088167f0204bed82acbd",
+  "productionReplaced": false,
+  "mcpAndNodeReplaced": false
+}

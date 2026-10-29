@@ -25,6 +25,8 @@ class CodingInputLayoutTest {
         assertThat(document.has("sha256")).isFalse();
         assertThat(document.has("inputManifest")).isFalse();
         assertThat(layout.toString()).doesNotContain("PRIVATE_SOURCE_ROW");
+        assertThat(layout.get("reader").toString()).contains("DECLARED_FILES", "No application-specific Python module")
+            .doesNotContain("runtime_input", "load_rows");
         assertThat(layout.get("repairGuidance").toString()).contains("NOT the content", "no self", "never replace missing business values");
     }
     @Test void legacyJsonLinesDoesNotReceiveATableManifestHint() {

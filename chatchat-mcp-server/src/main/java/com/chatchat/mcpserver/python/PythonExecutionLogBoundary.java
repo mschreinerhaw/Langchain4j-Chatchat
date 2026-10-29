@@ -23,6 +23,15 @@ final class PythonExecutionLogBoundary {
         var snapshot=mapper.readTree(Files.readAllBytes(workspace.resolve("snapshot.json")));
         String scriptFile=snapshot.path("fileName").asText();
         if(!com.chatchat.common.runtime.coding.CodingScript.safeFileName(scriptFile))throw new IOException("Invalid diagnostic script binding");
+        var allowedFiles=new HashSet<String>();allowedFiles.add(scriptFile);
+        String projectRoot="/tmp/runtime-python-project/";
+        Path submitted=workspace.resolve("scripts").resolve(scriptFile);
+        if(Files.isRegularFile(submitted,LinkOption.NOFOLLOW_LINKS)&&Files.size(submitted)<=256000) {
+            String source=Files.readString(submitted);
+            if(source.contains("__root = Path('/workspace/output/validation/project')"))projectRoot="/workspace/output/validation/project/";
+            var project=com.chatchat.common.runtime.coding.PythonCodeProject.decode(source);
+            if(project.isPresent())for(var file:com.chatchat.common.runtime.coding.PythonCodeProject.validate(mapper.readValue(project.get(),com.chatchat.common.runtime.coding.PythonCodeProject.Project.class)).files())allowedFiles.add("project/"+file.path());
+        }
         safe.put("policy", "METADATA_ONLY_V1");
         if (Files.isRegularFile(diagnostic, LinkOption.NOFOLLOW_LINKS) && Files.size(diagnostic) <= 8192) {
             try {
@@ -40,12 +49,14 @@ final class PythonExecutionLogBoundary {
                     safe.put("exceptionType", value.path("exceptionType").asText());
                 String code = value.path("diagnosticCode").asText("");
                 if (ExecutionFailureClassifier.known(code)) safe.put("diagnosticCode", code);
+                String preflight=value.path("preflightStatus").asText("");
+                if(Set.of("PASSED","FAILED").contains(preflight))safe.put("preflightStatus",preflight);
                 var stack = new ArrayList<Map<String,Object>>();
                 for (var frame : value.path("stack")) {
                     if (stack.size() >= 16) break;
-                    if (scriptFile.equals(frame.path("file").asText()) && frame.path("line").canConvertToInt()
+                    if (allowedFiles.contains(frame.path("file").asText()) && frame.path("line").canConvertToInt()
                             && frame.path("line").asInt() > 0 && frame.path("line").asInt() < 100_000_000)
-                        stack.add(Map.of("file", scriptFile, "line", frame.path("line").asInt()));
+                        stack.add(Map.of("file", frame.path("file").asText(), "line", frame.path("line").asInt()));
                 }
                 if (!stack.isEmpty()) safe.put("stack", stack);
                 if (value.path("line").isIntegralNumber() && value.path("line").asLong() > 0
@@ -64,7 +75,10 @@ final class PythonExecutionLogBoundary {
         replace(directory.resolve("stdout.txt"), "[Runtime: raw stdout omitted; observedBytes="
             + safe.getOrDefault("stdoutBytes", "unavailable") + "]\n");
         String stderr = "[Runtime: raw stderr omitted; observedBytes=" + safe.getOrDefault("stderrBytes", "unavailable") + "]\n";
-        if (safe.containsKey("line")) stderr += "  File \"/workspace/scripts/"+scriptFile+"\", line " + safe.get("line") + "\n";
+        if (safe.get("stack") instanceof List<?> stack && !stack.isEmpty() && stack.get(stack.size()-1) instanceof Map<?,?> frame) {
+            String file=String.valueOf(frame.get("file"));String location=file.startsWith("project/")?projectRoot+file.substring("project/".length()):"/workspace/scripts/"+file;
+            stderr += "  File \""+location+"\", line "+frame.get("line")+"\n";
+        }else if (safe.containsKey("line")) stderr += "  File \"/workspace/scripts/"+scriptFile+"\", line " + safe.get("line") + "\n";
         if (safe.containsKey("exceptionType")) stderr += safe.get("exceptionType") + ":\n";
         if (safe.containsKey("diagnosticCode")) stderr += "Runtime diagnostic: " + safe.get("diagnosticCode")
             + "\nRepair guidance: " + ExecutionFailureClassifier.guidance((String)safe.get("diagnosticCode")) + "\n";

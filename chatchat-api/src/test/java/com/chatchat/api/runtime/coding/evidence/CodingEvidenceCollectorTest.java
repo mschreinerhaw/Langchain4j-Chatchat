@@ -25,6 +25,38 @@ import static org.mockito.Mockito.*;
 
 /** H2-backed owner transactions; the MCP port supplies archived bytes for collector isolation tests. */
 class CodingEvidenceCollectorTest {
+    @Test void textReportsRestoreFromTheExistingEvidenceStoreWithoutAnyPythonExecution()throws Exception{
+        var access=new BoundCodingTaskAccess(()->scope,EnumSet.allOf(CodingTaskAccess.Action.class));
+        var captured=new java.util.concurrent.atomic.AtomicReference<byte[]>();
+        when(python.uploadDataFile(anyString(),anyString(),anyString(),anyString(),anyString(),any())).thenAnswer(call->{
+            captured.set(call.getArgument(5));return new McpPythonControlPlanePort.DataFileResult(call.getArgument(2),"stored","mounted",captured.get().length,call.getArgument(4),"AVAILABLE");});
+        var inputs=new com.chatchat.api.runtime.coding.data.CodingInputSnapshotService(store,python,access,json);
+        var source=new com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator.Dataset("context",Map.of(),List.of(Map.of("statement","SELECT 1;")));
+        var snapshot=inputs.capture(scope,"text-task",List.of(source),"context","text-decision","text-workspace",10,4096);
+        when(python.downloadDataFile("tenant","owner",snapshot.fileId())).thenAnswer(call->captured.get());
+        var c=new CodingTaskContract(CodingProtocol.ANALYSIS_VERSION,"text-task",scope,contract.objective(),snapshot.reference(),List.of(),"text-workspace",
+            new CodingTaskContract.Authorization("text-decision",List.of("input_read","report_submit"),List.of(snapshot.fileId()),List.of(),List.of(),
+                CodingTaskContract.NetworkPolicy.NONE,List.of(),List.of()),contract.budget(),"env",contract.validationPlanRef(),
+            new CodingTaskContract.OutputContract(CodingTaskContract.ResultFormat.JSON_LINES,"report","schema",List.of("rows.jsonl"),List.of("application/x-ndjson"),1,64000,
+                Arrays.stream(CodingTaskContract.RequiredEvidence.values()).filter(kind->kind!=CodingTaskContract.RequiredEvidence.CODE_ARTIFACT).toList()),
+                Map.of("schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT","analysisResultMode","TEXT_OR_CODE"));
+        tasks.submit(c);String operation="workspace-"+"a".repeat(64);
+        var row=Map.<String,Object>of("reportMarkdown","This statement selects a constant; no database was queried.","evidenceReferences",List.of("context"),"limitations",List.of("Static explanation only"));
+        var collector=collector(store);
+        var result=collector.collectText(c,operation,snapshot,row,Set.of("context"),
+            records->new CodingEvidenceCollector.Validation(true,"schema","1",Map.of("schema",true),false));
+        assertThat(result.codeArtifactRef()).isNull();assertThat(result.validationStatus()).isEqualTo(CodingTaskOutcome.ValidationStatus.INCONCLUSIVE);
+        var restored=collector(reopen());
+        assertThat(restored.textResult(c,operation)).isEqualTo(result);
+        try(var handle=restored.openResult(scope,"text-task",result.resultDatasetRef())){
+            assertThat(handle.readPage(0,1).rows()).containsExactly(row);
+        }
+        assertThat(restored.resolve(scope,"text-task",result.executionReceiptRef()).payload()).containsEntry("pythonExecuted",false).containsEntry("executionMode","TEXT_ONLY");
+        assertThat(restored.resolveBundle(scope,"text-task",result.evidenceBundleRef()).evidenceIds()).hasSize(4);
+        verify(python,never()).start(any());
+        assertThatThrownBy(()->collector.collectText(c,"workspace-"+"b".repeat(64),snapshot,row,Set.of("other"),
+            records->new CodingEvidenceCollector.Validation(true,Map.of()))).isInstanceOf(SecurityException.class);
+    }
     final ObjectMapper json = new ObjectMapper().findAndRegisterModules();
     final KernelDataScope scope = new KernelDataScope("tenant", "owner", "trace", null, "run", null, Map.of());
     DriverManagerDataSource dataSource;

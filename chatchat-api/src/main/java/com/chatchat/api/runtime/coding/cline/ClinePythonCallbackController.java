@@ -40,6 +40,9 @@ import org.springframework.web.server.ResponseStatusException;
 @ConditionalOnProperty(prefix = "chatchat.coding.cline", name = "enabled", havingValue = "true")
 @ConditionalOnProperty(prefix = "chatchat.coding", name = "enabled", havingValue = "true")
 public final class ClinePythonCallbackController {
+    private JsonNode readProject(String payload) {
+        try{return mapper.readTree(payload);}catch(java.io.IOException invalid){throw new IllegalArgumentException("Invalid Python project payload",invalid);}
+    }
     private com.chatchat.api.runtime.coding.execution.CodingExecutionFeedbackService feedback;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setFeedback(com.chatchat.api.runtime.coding.execution.CodingExecutionFeedbackService value) { feedback=value; }
@@ -66,6 +69,8 @@ public final class ClinePythonCallbackController {
     @PostMapping("/prepare-python")
     public Map<String,Object> prepare(@RequestBody JsonNode body) {
         return bound(body,false,call->{
+            if(tasks.privateState(call.scope(),call.taskId(),"text-result-submission")!=null)
+                throw new SecurityException("A final text result was already submitted; code execution is closed");
             if(!call.contract().authorization().allowedTools().contains("python_execute")
                 ||!call.contract().authorization().allowedSideEffects().contains(CodingTaskContract.SideEffect.CODE_EXECUTION))
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Python tool is not authorized");
@@ -77,6 +82,8 @@ public final class ClinePythonCallbackController {
     @PostMapping("/execute-python")
     public Map<String, Object> execute(@RequestBody JsonNode body) {
         return bound(body, false, call -> {
+            if(tasks.privateState(call.scope(),call.taskId(),"text-result-submission")!=null)
+                throw new SecurityException("A final text result was already submitted; code execution is closed");
             CodingTaskContract contract = call.contract();
             if (!contract.authorization().allowedTools().contains("python_execute")
                     || !contract.authorization().allowedSideEffects().contains(CodingTaskContract.SideEffect.CODE_EXECUTION))
@@ -90,6 +97,14 @@ public final class ClinePythonCallbackController {
             if(!script.fileName().equals(requested) && !(com.chatchat.common.runtime.coding.CodingScript.LEGACY_FILE.equals(requested)&&!request.hasNonNull("script")))
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Script file name differs from Runtime assignment");
             String source = request.path("source").asText("");
+            if(contract.runtimeContext().containsKey("codeProject")) {
+                Object frozen=contract.runtimeContext().get("codeProject");
+                String payload=com.chatchat.common.runtime.coding.PythonCodeProject.decode(source,frozen).orElseThrow(()->new SecurityException("Runtime-managed project adapter required"));
+                var project=com.chatchat.common.runtime.coding.PythonCodeProject.validate(mapper.convertValue(readProject(payload),com.chatchat.common.runtime.coding.PythonCodeProject.Project.class));
+                var original=com.chatchat.common.runtime.coding.PythonCodeProject.validate(mapper.convertValue(readProject(com.chatchat.common.runtime.coding.PythonCodeProject.fromContext(frozen)),com.chatchat.common.runtime.coding.PythonCodeProject.Project.class));
+                var paths=project.files().stream().map(com.chatchat.common.runtime.coding.PythonCodeProject.File::path).collect(java.util.stream.Collectors.toSet());
+                if(!original.files().stream().allMatch(file->paths.contains(file.path())))throw new SecurityException("Original project files cannot be removed from an execution proposal");
+            }
             if (source.isBlank() || source.getBytes(StandardCharsets.UTF_8).length > 256_000)
                 throw new IllegalArgumentException("Python source exceeds the D1 limit");
             if (request.path("codeSha256").isTextual() && !sha(source).equals(request.path("codeSha256").asText()))
@@ -137,7 +152,7 @@ public final class ClinePythonCallbackController {
                 var cached=feedback.cached(call.scope(),call.taskId(),operationId);
                 if(cached!=null){
                     var response=feedback.response(cached);var layout=CodingInputLayout.describe(call.contract().runtimeContext());
-                    if(!layout.isEmpty())response.put("inputLayout",layout);return response;
+                    if(!layout.isEmpty())response.put("inputLayout",layout);return withOutputContract(call,response,cached);
                 }
             }
             var result = python.get(call.scope(), call.taskId(), operationId);
@@ -222,7 +237,8 @@ public final class ClinePythonCallbackController {
                 response.put("validationStatus", collected.validationStatus().name());
                 if(VisualReportMode.active(call.contract().runtimeContext())) {
                     var visual=collector.visualReport(call.scope(),call.taskId(),collected.resultDatasetRef());
-                    if(visual.isEmpty() || "FAILED".equals(visual.get().get("artifactValidationStatus"))) {
+                    if(visual.isEmpty() && plans.requiresVisualReport(call.contract())
+                            || visual.isPresent() && "FAILED".equals(visual.get().get("artifactValidationStatus"))) {
                         response.put("resultAvailable",false);
                         response.put("outputStatus","VISUAL_REPORT_INVALID");
                         response.put("diagnostic","Visual report artifact contract failed. Inspect artifact_read visualReportValidation, repair only the technical report schema, and preserve actual failed or unresolved business checks.");
@@ -248,6 +264,17 @@ public final class ClinePythonCallbackController {
         if(feedback!=null&&operation.executorStopped()&&operation.manifestHash()!=null){
             var completed=feedback.finish(call.contract(),call.lease(),operation,response);
             response.putAll(feedback.response(completed));
+            return withOutputContract(call,response,completed);
+        }
+        return response;
+    }
+    private Map<String,Object> withOutputContract(Call call,Map<String,Object> response,
+            com.chatchat.common.runtime.coding.ExecutionFeedback completed) {
+        if(completed.repair().allowed() && "OUTPUT_CONTRACT".equals(completed.error()==null?null:completed.error().category())) {
+            var schema=plans.rowSchema(call.contract());
+            if(!schema.isEmpty())response.put("expectedOutput",Map.of("rowSchema",schema,
+                "requiredFiles",call.contract().outputContract().requiredFiles(),
+                "instruction","Preserve the existing computation unless you identify a concrete calculation error. Write results into exactly this report row schema; put tables and computed summaries inside reportMarkdown. Do not replace report rows with a different metrics schema or repeat data acquisition. Business correctness has not been independently certified."));
         }
         return response;
     }

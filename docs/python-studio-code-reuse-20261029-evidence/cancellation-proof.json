@@ -1,0 +1,19 @@
+{
+  "scope": "REAL_CLINE_MCP_MANAGED_SANDBOX_CANCELLATION",
+  "requestId": "reuse-cancel-7f11c99cae7e",
+  "taskId": "analysis-coding-897cd95479cabe6e2720f70c7fc9d5fdedee3f6f05a1425a9b2587ab1e53cdba",
+  "operationId": "cline-b66f21e5c36ac0bb03e400b7f622e15fc09f8e9ed43f750a365de34931b85249",
+  "before": {
+    "status": "RUNNING",
+    "stopped": false,
+    "exitCode": null
+  },
+  "after": {
+    "status": "CANCELLED",
+    "stopped": true,
+    "exitCode": 137
+  },
+  "taskStatus": "CANCELLED",
+  "resultAvailable": false,
+  "noBudgetReset": true
+}

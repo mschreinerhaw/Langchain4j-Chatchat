@@ -1,0 +1,10 @@
+{
+  "checkedContainers": [
+    "runtime-os-app-stage-api-1",
+    "runtime-os-app-stage-mcp-1",
+    "runtime-os-app-stage-coding-agent-1",
+    "runtime-os-app-stage-news-1"
+  ],
+  "sameIdAndStartedAtAsPreviousAudit": true,
+  "businessDataWritesPerformed": false
+}

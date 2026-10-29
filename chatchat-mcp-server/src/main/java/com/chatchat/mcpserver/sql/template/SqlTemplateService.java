@@ -99,6 +99,8 @@ public class SqlTemplateService {
 
     @Transactional
     public SqlTemplateConfig save(SqlTemplateConfig config) {
+        if (config.getPublicationGroupId()!=null || config.getId()!=null && repository.findById(config.getId()).map(t->t.getPublicationGroupId()!=null).orElse(false))
+            throw new IllegalArgumentException("Authored SQL revisions must use the governed authoring entry");
         normalize(config);
         return repository.save(config);
     }
@@ -106,6 +108,7 @@ public class SqlTemplateService {
     @Transactional
     public SqlTemplateConfig update(String id, SqlTemplateConfig request) {
         SqlTemplateConfig config = getById(id);
+        if (config.getPublicationGroupId()!=null) throw new IllegalArgumentException("Authored SQL revisions are immutable outside authoring");
         config.setCode(firstText(request.getCode(), config.getCode()));
         config.setTitle(firstText(request.getTitle(), config.getTitle()));
         config.setDescription(request.getDescription());
@@ -126,6 +129,7 @@ public class SqlTemplateService {
     @Transactional
     public void delete(String id) {
         SqlTemplateConfig config = getById(id);
+        if (config.getPublicationGroupId()!=null) throw new IllegalArgumentException("Authored SQL history cannot be deleted");
         if (isDefaultCode(config.getCode())) {
             config.setEnabled(false);
             repository.save(config);
@@ -137,7 +141,9 @@ public class SqlTemplateService {
     @Transactional
     public List<SqlTemplateConfig> listEnabled() {
         ensureDefaultsOnce();
-        return repository.findByEnabledTrueOrderByCodeAsc();
+        var caller=com.chatchat.mcpserver.mcp.McpInvocationContext.current();
+        return repository.findByEnabledTrueOrderByCodeAsc().stream().filter(t->t.getPublicationGroupId()==null || caller==null
+            || java.util.Objects.equals(t.getAuthorTenantId(),caller.tenantId())).toList();
     }
 
     public String render(String code, Map<String, Object> parameters) {
@@ -153,7 +159,26 @@ public class SqlTemplateService {
         ensureDefaultsOnce();
         SqlTemplateConfig config = repository.findByCode(requireText(code, "SQL template code is required").toUpperCase(Locale.ROOT))
             .filter(SqlTemplateConfig::isEnabled)
+            .filter(this::authoringCallerAllowed)
             .orElseThrow(() -> new IllegalArgumentException("SQL template not found or disabled: " + code));
+        return renderDefinition(config, parameters, datasource, source);
+    }
+
+    /** Authoring reuses the real renderer; this does not enable or publish a draft. */
+    public String renderAuthoring(SqlTemplateConfig config, Map<String,Object> parameters, SqlDatasourceConfig datasource) {
+        var caller=com.chatchat.mcpserver.mcp.McpInvocationContext.current();
+        if(caller==null || !java.util.Objects.equals(caller.tenantId(),config.getAuthorTenantId())
+            || !java.util.Objects.equals(caller.userId(),config.getAuthorId())) throw new SecurityException("SQL revision is outside author scope");
+        return renderDefinition(config,parameters,datasource,Map.of());
+    }
+    public void validateAuthoring(SqlTemplateConfig config) { normalize(config); }
+    private boolean authoringCallerAllowed(SqlTemplateConfig config) {
+        if(config.getPublicationGroupId()==null)return true;
+        var caller=com.chatchat.mcpserver.mcp.McpInvocationContext.current();
+        return caller!=null && java.util.Objects.equals(caller.tenantId(),config.getAuthorTenantId());
+    }
+
+    private String renderDefinition(SqlTemplateConfig config, Map<String,Object> parameters, SqlDatasourceConfig datasource, Map<String,Object> source) {
         assertCompatible(config, datasource);
         parameters = dynamicDateParamService.enrichParameters(parameters, datasource, config.getSqlTemplate());
         rejectUndeclaredRawSqlParameters(config, parameters);
@@ -196,6 +221,7 @@ public class SqlTemplateService {
         ensureDefaultsOnce();
         SqlTemplateConfig config = repository.findByCode(code.trim().toUpperCase(Locale.ROOT))
             .filter(SqlTemplateConfig::isEnabled)
+            .filter(this::authoringCallerAllowed)
             .orElse(null);
         if (config == null) {
             return Map.of();
@@ -358,6 +384,18 @@ public class SqlTemplateService {
     }
 
     private void assertCompatible(SqlTemplateConfig template, SqlDatasourceConfig datasource) {
+        validateAuthoringBinding(template, datasource);
+        if (template == null || datasource == null) return;
+        List<String> allowedTemplates = readTemplateAllowlist(datasource.getAllowedTemplatesJson());
+        if (!allowedTemplates.isEmpty()
+            && !allowedTemplates.contains(template.getCode().trim().toUpperCase(Locale.ROOT))) {
+            throw new IllegalArgumentException("SQL template " + template.getCode()
+                + " is not allowed by datasource asset " + datasource.getName());
+        }
+    }
+
+    /** Saving an inert draft needs a valid binding; execution still requires the full allowlist. */
+    public void validateAuthoringBinding(SqlTemplateConfig template, SqlDatasourceConfig datasource) {
         if (template == null || datasource == null) {
             return;
         }
@@ -372,12 +410,6 @@ public class SqlTemplateService {
         if (boundDatasourceId != null && !boundDatasourceId.equals(datasource.getId())) {
             throw new IllegalArgumentException("SQL template " + template.getCode()
                 + " is bound to another datasource asset");
-        }
-        List<String> allowedTemplates = readTemplateAllowlist(datasource.getAllowedTemplatesJson());
-        if (!allowedTemplates.isEmpty()
-            && !allowedTemplates.contains(template.getCode().trim().toUpperCase(Locale.ROOT))) {
-            throw new IllegalArgumentException("SQL template " + template.getCode()
-                + " is not allowed by datasource asset " + datasource.getName());
         }
     }
 

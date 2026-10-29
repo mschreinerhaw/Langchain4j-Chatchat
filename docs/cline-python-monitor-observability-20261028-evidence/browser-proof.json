@@ -1,0 +1,172 @@
+{
+  "scope": "Real deployed Vue page, Cline SDK, MCP and Python receipts; no request interception",
+  "cases": [
+    {
+      "name": "syntax-field-output",
+      "runId": "att-1-a7872437-bc74-4a65-b96e-6bc4ffc74263",
+      "parentTaskId": "6d021fab-0ae9-3ca4-bcb4-dc66763953cd",
+      "codingTaskId": "analysis-coding-41b4d954f3803da35dc2854c008f615dbe19a47e8dfde5a41f61ca5c317d4d0f",
+      "facts": {
+        "Python 执行次数": "5",
+        "进程成功次数": "3",
+        "进程失败 / 超时次数": "2",
+        "产物校验失败次数": "1",
+        "自动修复次数": "3",
+        "修复后仍失败次数": "2",
+        "已取消执行": "0",
+        "当前代码版本": "v5",
+        "最后一次错误分类（保留历史）": "OUTPUT_CONTRACT · OUTPUT_CONTRACT",
+        "最后一次产物验证": "INCONCLUSIVE"
+      },
+      "diffChecks": [
+        {
+          "fromExecutionId": "cline-5d95bc731101fdb701985c597783caee5292d9412530aff2b2bfe8e40e4b5f68",
+          "toExecutionId": "cline-13c1bec1381197d08a3aed1905b401412a245a21ece1e7988ad16c1845bba096",
+          "beforeVersion": 1,
+          "afterVersion": 2,
+          "beforeSha256": "a52534a51bd4c862ce170f8b0ea03f8d464707fa9c085d917b09cc05cf8dc360",
+          "afterSha256": "9346724abe384de29b1dff78c5c3f0178a3e4ca5202a720247461ab1f5ea5856",
+          "redacted": false
+        },
+        {
+          "fromExecutionId": "cline-13c1bec1381197d08a3aed1905b401412a245a21ece1e7988ad16c1845bba096",
+          "toExecutionId": "cline-ba66c9d3c7ff9333d69dec7a14624d91cf192762cfa4ecf98133ce93f976c209",
+          "beforeVersion": 2,
+          "afterVersion": 3,
+          "beforeSha256": "9346724abe384de29b1dff78c5c3f0178a3e4ca5202a720247461ab1f5ea5856",
+          "afterSha256": "c018e2daeee613290069150e90ce3a7b861af3ee71acd37fa33236db20848650",
+          "redacted": false
+        },
+        {
+          "fromExecutionId": "cline-ba66c9d3c7ff9333d69dec7a14624d91cf192762cfa4ecf98133ce93f976c209",
+          "toExecutionId": "cline-1a0d5bfa7c350e6afa45d76a9e9372b85e406bcf8ae9847d532b93bbe6314d87",
+          "beforeVersion": 3,
+          "afterVersion": 4,
+          "beforeSha256": "c018e2daeee613290069150e90ce3a7b861af3ee71acd37fa33236db20848650",
+          "afterSha256": "46857ff615f5d8bf5700eb1df097e4b62f96088c4052f493e4be82795993ee50",
+          "redacted": false
+        }
+      ],
+      "timingChecks": [
+        {
+          "executionId": "cline-5d95bc731101fdb701985c597783caee5292d9412530aff2b2bfe8e40e4b5f68",
+          "operationId": "cline-5d95bc731101fdb701985c597783caee5292d9412530aff2b2bfe8e40e4b5f68",
+          "codeHash": "a52534a51bd4c862ce170f8b0ea03f8d464707fa9c085d917b09cc05cf8dc360",
+          "source": "MCP_ARCHIVED_RECEIPT",
+          "startedAt": "2026-10-28T14:32:01.350668260Z",
+          "finishedAt": "2026-10-28T14:32:01.886725521Z"
+        },
+        {
+          "executionId": "cline-13c1bec1381197d08a3aed1905b401412a245a21ece1e7988ad16c1845bba096",
+          "operationId": "cline-13c1bec1381197d08a3aed1905b401412a245a21ece1e7988ad16c1845bba096",
+          "codeHash": "9346724abe384de29b1dff78c5c3f0178a3e4ca5202a720247461ab1f5ea5856",
+          "source": "MCP_ARCHIVED_RECEIPT",
+          "startedAt": "2026-10-28T14:32:13.469238041Z",
+          "finishedAt": "2026-10-28T14:32:13.944556921Z"
+        },
+        {
+          "executionId": "cline-ba66c9d3c7ff9333d69dec7a14624d91cf192762cfa4ecf98133ce93f976c209",
+          "operationId": "cline-ba66c9d3c7ff9333d69dec7a14624d91cf192762cfa4ecf98133ce93f976c209",
+          "codeHash": "c018e2daeee613290069150e90ce3a7b861af3ee71acd37fa33236db20848650",
+          "source": "MCP_ARCHIVED_RECEIPT",
+          "startedAt": "2026-10-28T14:32:23.472382591Z",
+          "finishedAt": "2026-10-28T14:32:24.053103570Z"
+        },
+        {
+          "executionId": "cline-1a0d5bfa7c350e6afa45d76a9e9372b85e406bcf8ae9847d532b93bbe6314d87",
+          "operationId": "cline-1a0d5bfa7c350e6afa45d76a9e9372b85e406bcf8ae9847d532b93bbe6314d87",
+          "codeHash": "46857ff615f5d8bf5700eb1df097e4b62f96088c4052f493e4be82795993ee50",
+          "source": "MCP_ARCHIVED_RECEIPT",
+          "startedAt": "2026-10-28T14:33:04.764607729Z",
+          "finishedAt": "2026-10-28T14:33:05.350808477Z"
+        },
+        {
+          "executionId": "cline-fb656a8281fbaa109e15233c0333dbc7c217ba30769c55c61f6120893e682fc2",
+          "operationId": "cline-fb656a8281fbaa109e15233c0333dbc7c217ba30769c55c61f6120893e682fc2",
+          "codeHash": "a031bf933df1d4deacb715dbf57f89ea7554fc54bef7c29febeeb6c9704cf3ac",
+          "source": "MCP_ARCHIVED_RECEIPT",
+          "startedAt": "2026-10-28T14:33:24.450813132Z",
+          "finishedAt": "2026-10-28T14:33:25.014523061Z"
+        }
+      ],
+      "timeline": [
+        "#15 代码已提交 v1",
+        "#18 已请求第 1 次 Python 执行（Java 派发意图，不是启动证明）",
+        "#22 执行失败：SyntaxError",
+        "#35 提交修复版本 v2",
+        "#38 已请求第 2 次 Python 执行（Java 派发意图，不是启动证明）",
+        "#42 执行失败：KeyError",
+        "#55 提交修复版本 v3",
+        "#58 已请求第 3 次 Python 执行（Java 派发意图，不是启动证明）",
+        "#62 进程退出成功，产物校验失败：OUTPUT_CONTRACT",
+        "#75 提交修复版本 v4",
+        "#78 已请求第 4 次 Python 执行（Java 派发意图，不是启动证明）",
+        "#82 进程执行成功，产物已归档；业务校验见回执",
+        "#97 代码已提交 v5",
+        "#100 已请求第 5 次 Python 执行（Java 派发意图，不是启动证明）",
+        "#104 进程执行成功，产物已归档；业务校验见回执"
+      ],
+      "restoredExactly": true,
+      "newModelOrPythonCallsOnRestore": false
+    },
+    {
+      "name": "dependency",
+      "runId": "att-1-8d22de58-9687-45ec-bb82-2eae7c36bf70",
+      "parentTaskId": "3d0e7652-d206-3ffd-be7f-a54159b007ee",
+      "codingTaskId": "analysis-coding-47995cf7a523cab02995dfa6539e43e831e4aad435b2c8a0382df33f6f229c44",
+      "facts": {
+        "Python 执行次数": "2",
+        "进程成功次数": "1",
+        "进程失败 / 超时次数": "1",
+        "产物校验失败次数": "0",
+        "自动修复次数": "1",
+        "修复后仍失败次数": "0",
+        "已取消执行": "0",
+        "当前代码版本": "v2",
+        "最后一次错误分类（保留历史）": "DEPENDENCY_UNAVAILABLE · PACKAGE_NOT_INSTALLED",
+        "最后一次产物验证": "INCONCLUSIVE"
+      },
+      "diffChecks": [
+        {
+          "fromExecutionId": "cline-78b9354a4294fcc229e86c8cdd94a2857691e020ddcf70b0488a741d67d6e1ab",
+          "toExecutionId": "cline-db68a4003cc4dd31750c6a84e8f423b145b8aba5470e84dbc245fd46d1864d17",
+          "beforeVersion": 1,
+          "afterVersion": 2,
+          "beforeSha256": "fd9e4f7907c1c435b4d8b9e716a25eccb7ccbfad1b34f34c333a8cfcc99035fb",
+          "afterSha256": "64d145cf272ce7a9d504d01c5affaa8431416ae8106a06e057db05d27777a8f9",
+          "redacted": false
+        }
+      ],
+      "timingChecks": [
+        {
+          "executionId": "cline-78b9354a4294fcc229e86c8cdd94a2857691e020ddcf70b0488a741d67d6e1ab",
+          "operationId": "cline-78b9354a4294fcc229e86c8cdd94a2857691e020ddcf70b0488a741d67d6e1ab",
+          "codeHash": "fd9e4f7907c1c435b4d8b9e716a25eccb7ccbfad1b34f34c333a8cfcc99035fb",
+          "source": "MCP_ARCHIVED_RECEIPT",
+          "startedAt": "2026-10-28T14:37:13.529120169Z",
+          "finishedAt": "2026-10-28T14:37:13.955513223Z"
+        },
+        {
+          "executionId": "cline-db68a4003cc4dd31750c6a84e8f423b145b8aba5470e84dbc245fd46d1864d17",
+          "operationId": "cline-db68a4003cc4dd31750c6a84e8f423b145b8aba5470e84dbc245fd46d1864d17",
+          "codeHash": "64d145cf272ce7a9d504d01c5affaa8431416ae8106a06e057db05d27777a8f9",
+          "source": "MCP_ARCHIVED_RECEIPT",
+          "startedAt": "2026-10-28T14:37:49.992884940Z",
+          "finishedAt": "2026-10-28T14:37:50.593745023Z"
+        }
+      ],
+      "timeline": [
+        "#32 代码已提交 v1",
+        "#35 已请求第 1 次 Python 执行（Java 派发意图，不是启动证明）",
+        "#39 执行失败：ModuleNotFoundError",
+        "#52 提交修复版本 v2",
+        "#55 已请求第 2 次 Python 执行（Java 派发意图，不是启动证明）",
+        "#59 进程执行成功，产物已归档；业务校验见回执"
+      ],
+      "restoredExactly": true,
+      "newModelOrPythonCallsOnRestore": false
+    }
+  ],
+  "errors": [],
+  "passed": true
+}

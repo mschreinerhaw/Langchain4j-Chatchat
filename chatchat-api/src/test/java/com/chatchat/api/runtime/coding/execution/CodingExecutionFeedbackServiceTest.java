@@ -46,6 +46,18 @@ class CodingExecutionFeedbackServiceTest {
     }
     OperationView operation(String status){return new OperationView("operation",status,"container",1,false,true,
         "SUCCEEDED".equals(status)?0:1,"a".repeat(64),"sha256:"+"b".repeat(64),"c".repeat(64),null);}
+    @Test void actualProjectErrorFramesSurviveTheExistingRepairContract() throws Exception {
+        var project=new PythonCodeProject.Project("pkg/main.py",List.of(new PythonCodeProject.File("pkg/main.py","raise KeyError('private')\n")));
+        var context=Map.<String,Object>of("schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT","codeProject",PythonCodeProject.context(project,p->{try{return json.writeValueAsString(p);}catch(Exception e){throw new RuntimeException(e);}}));
+        contract=new CodingTaskContract(contract.schemaVersion(),contract.taskId(),contract.scope(),contract.objective(),contract.inputSnapshotRef(),contract.metadataRefs(),contract.workspaceRef(),contract.authorization(),contract.budget(),contract.environmentRef(),contract.validationPlanRef(),contract.outputContract(),context);
+        String source=PythonCodeProject.template().replace(PythonCodeProject.TOKEN,Base64.getEncoder().encodeToString(json.writeValueAsBytes(project)));
+        var artifacts=mock(com.chatchat.api.runtime.coding.cline.CodingCodeArtifactStore.class);service.setCodeArtifacts(artifacts);
+        when(artifacts.find(scope,"task","operation")).thenReturn(Optional.of(Map.of("content",source)));
+        when(python.diagnosticRecord(scope,"task","operation")).thenReturn("{\"exceptionType\":\"KeyError\",\"line\":1,\"stack\":[{\"file\":\"project/pkg/main.py\",\"line\":1},{\"file\":\"project/other.py\",\"line\":9}],\"message\":\"private\"}");
+        var feedback=service.finish(contract,lease,operation("FAILED"),Map.of());
+        assertThat(feedback.error().stack()).containsExactly(new ExecutionFeedback.Frame("project/pkg/main.py",1,null));
+        assertThat(feedback.repair().allowed()).isTrue();assertThat(json.writeValueAsString(feedback)).doesNotContain("private","other.py");
+    }
     @Test void safeFailureSurvivesIntoFeedbackAndRepeatedPollingDoesNotDownloadAgain(){
         when(python.diagnosticRecord(scope,"task","operation")).thenReturn("""
             {"exceptionType":"TypeError","diagnosticCode":"VALUE_NOT_SUBSCRIPTABLE","line":430,"cpuTimeMs":75,"maxRssBytes":1048576,

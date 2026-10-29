@@ -260,7 +260,10 @@ class CodingAnalysisServiceTest {
             .doesNotContain("runtime-coding:analysis-fast-path:v1");
         assertThat(contract.getValue().objective().instruction()).contains("automatically invokes", "reviewedArtifact",
             "confirm completion with artifact_read", "without a second read or Python execution", "Runtime will perform no semantic review",
-            "preserve the exact field meaning declared by fieldDefinitions", "a plausible value under the wrong label must be repaired");
+            "preserve the exact field meaning declared by fieldDefinitions", "a plausible value under the wrong label must be repaired",
+            "field-provenance section", "exact source column", "generic code/name/id/date/amount substring",
+            "a customer/counterparty name is not an instrument name", "request the missing dictionary",
+            "actual column-selection code", "report unknown semantics rather than passing a business-role check");
     }
     @Test void combinedSourcesKeepTheirOwnDeclaredRepresentationInTheAcceptedObjective() {
         prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));

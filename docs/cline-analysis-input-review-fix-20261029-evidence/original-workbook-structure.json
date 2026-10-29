@@ -1,0 +1,13 @@
+{
+  "originalNativeSha256Verified": true,
+  "sourceSha256": "0557591da06b7a8d692f3a93523e5f7faeec8ffdb5e4292482084d7ea9c7600c",
+  "sheets": [
+    {
+      "sheetPart": "xl/worksheets/sheet1.xml",
+      "dataRows": 218,
+      "headerCells": 73
+    }
+  ],
+  "method": "Read-only original OOXML row and header-cell enumeration; no business semantic inference",
+  "rawRecordsPublished": false
+}

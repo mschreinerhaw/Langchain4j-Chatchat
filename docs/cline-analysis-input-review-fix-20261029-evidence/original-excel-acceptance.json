@@ -1,0 +1,23 @@
+{
+  "taskId": "ef05fdfb-1576-4222-9ca5-a3cb9b11132f",
+  "codingTaskId": "analysis-coding-911917d3bb975f30666f2bd022f8be35bf7a41c180e9f32ba123b55fe3d9b135",
+  "publicStatus": "PARTIAL_SUCCESS",
+  "canonicalState": "PARTIAL",
+  "actualReportAnalysisStatus": "INPUT_REQUIRED",
+  "realModelCalls": 6,
+  "executedCodeVersions": 3,
+  "sourceColumnCount": 73,
+  "dataRows": 218,
+  "sheets": 1,
+  "unknownFieldDeclarations": 73,
+  "chartCount": 0,
+  "sourceStructureMatchesIndependentOriginalOOXMLInspection": true,
+  "fullBusinessAnalysisAccepted": false,
+  "structuralPartialReportRetained": true,
+  "remainingLimitations": [
+    "Producer field dictionary and population definition are missing.",
+    "The report infers population type from filename; this is not independently verified.",
+    "Some narrative references to removed structural charts remain; no charts are published."
+  ],
+  "rawBusinessRecordsPublished": false
+}

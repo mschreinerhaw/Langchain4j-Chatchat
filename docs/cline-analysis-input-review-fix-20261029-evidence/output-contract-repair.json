@@ -1,0 +1,12 @@
+{
+  "taskId": "9757263e-b008-449e-95f1-b1809e6c436c",
+  "codingTaskId": "analysis-coding-c6c1773c4cbffbba2f7bdb9d0be882bc81ef697b7825da9e7f5dbfa2a4a0ac63",
+  "realModelCalls": 4,
+  "codeVersions": 3,
+  "outputContractFailureFollowedByRepair": true,
+  "actualRowSchemaReturnedInFeedback": true,
+  "finalAnalysisStatus": "COMPLETE",
+  "finalReport": "# Analysis Report\n\n## Record Count\n- Total records: 3\n\n## State Counts\n- SUCCESS: 2\n- STOP: 1\n\n## Duration Statistics (seconds)\n- Total duration: 12\n- Mean duration: 4.00\n- Median duration: 2\n- Min duration: 1\n- Max duration: 9\n- Population std dev: 3.56\n- Sample std dev: 4.36\n\n## Notes\n- STOP state indicates stopped execution, not proven failure.\n- This is a controlled sample with 3 records only.\n- No network calls were made (curl command was not executed).\n",
+  "repairBudgetExtended": false,
+  "controlledSampleOnly": true
+}

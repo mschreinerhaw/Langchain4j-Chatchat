@@ -1,0 +1,17 @@
+{
+  "taskId": "e9703a8e-cd42-4d7d-b17f-563fff9eb0b5",
+  "analysisStatus": "COMPLETE",
+  "unconfirmedDeclaredFields": 0,
+  "chartCount": 3,
+  "consistentWithNewDeclarationRule": true,
+  "baselineRows": 7,
+  "baselineStates": {
+    "STOP": 1,
+    "SUCCESS": 3,
+    "RUNNING_EXECUTION": 3
+  },
+  "reportStateCountsMatch": true,
+  "suppliedCredentialLeaked": false,
+  "executionReplayedBeforeFinalAdmissionGuard": true,
+  "rawReportNotPublished": true
+}

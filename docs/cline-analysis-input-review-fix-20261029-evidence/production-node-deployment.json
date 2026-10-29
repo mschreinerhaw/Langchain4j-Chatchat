@@ -1,0 +1,12 @@
+{
+  "status": "DEPLOYED",
+  "mode": "production",
+  "nodeOnly": true,
+  "revision": "c2c127a2043a67f568f2687fde1cbd77a24ed32b",
+  "image": "runtime-os-coding-agent:report-scope-c2c127a2043a-20261029",
+  "previousImage": "runtime-os-coding-agent:report-scope-947f11c8fe18-20261029",
+  "retired": "runtime-os-app-stage-coding-agent-1-before-bindings-1793254269",
+  "unrelatedContainersUnchanged": true,
+  "databaseMigration": false,
+  "dataMountsPreserved": true
+}

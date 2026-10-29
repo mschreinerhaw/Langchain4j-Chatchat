@@ -1,0 +1,44 @@
+{
+  "taskId": "fb6b4247-106c-49f3-b72a-9193fdd474d7",
+  "agentId": "financial_data_analysis",
+  "codingTaskId": "analysis-coding-c7a7f5957b1aa57d0c3c69d5c972a46dde7e2d495f9537d8d82cf084730d3c34",
+  "publicStatus": "PARTIAL_SUCCESS",
+  "canonicalState": "PARTIAL",
+  "actualSubmittedAnalysisStatus": "INPUT_REQUIRED",
+  "actualSubmittedFieldProvenance": [
+    {
+      "datasetReference": "runtime-context:att-1-2d24d076-cd07-4a6c-a7e4-c06703447fc1",
+      "sourceField": "etl_date",
+      "meaning": "String field in ISO-8601 date format (YYYY-MM-DD); observed values 2026-01-01 and 2026-01-02. Business meaning (e.g., trade date, settlement date, ETL extraction date) is undefined.",
+      "declarationSource": "runtime-context:att-1-2d24d076-cd07-4a6c-a7e4-c06703447fc1",
+      "status": "UNCONFIRMED"
+    },
+    {
+      "datasetReference": "runtime-context:att-1-2d24d076-cd07-4a6c-a7e4-c06703447fc1",
+      "sourceField": "scr_code",
+      "meaning": "String field; observed values SAMPLE_CODE_A and SAMPLE_CODE_B. Business meaning (e.g., security code, screening code, source system code) is undefined.",
+      "declarationSource": "runtime-context:att-1-2d24d076-cd07-4a6c-a7e4-c06703447fc1",
+      "status": "UNCONFIRMED"
+    },
+    {
+      "datasetReference": "runtime-context:att-1-2d24d076-cd07-4a6c-a7e4-c06703447fc1",
+      "sourceField": "cust_name",
+      "meaning": "String field; observed values SAMPLE_NAME_A and SAMPLE_NAME_B. Business meaning (e.g., customer, counterparty, custodian) is undefined.",
+      "declarationSource": "runtime-context:att-1-2d24d076-cd07-4a6c-a7e4-c06703447fc1",
+      "status": "UNCONFIRMED"
+    },
+    {
+      "datasetReference": "runtime-context:att-1-2d24d076-cd07-4a6c-a7e4-c06703447fc1",
+      "sourceField": "opaque_amt",
+      "meaning": "Integer field; observed values 100 and 200. Explicitly named 'opaque' \u2014 semantics, units, currency, and sign convention are undefined.",
+      "declarationSource": "runtime-context:att-1-2d24d076-cd07-4a6c-a7e4-c06703447fc1",
+      "status": "UNCONFIRMED"
+    }
+  ],
+  "report": "# Structural Analysis of Controlled Sample\n\n## 1. Objective & Scope\n\nThe request asks to \"analyze trading preferences and daily transaction trends\" from a two-row controlled sample. The user explicitly states that **no producer field definitions or dictionary are available** and instructs: *\"If required meanings are absent, provide only verifiable structure and explicit missing definitions, withhold unsupported business interpretations.\"*\n\nAccordingly, this report provides **only verifiable structural observations** and an explicit catalogue of missing definitions. No business semantics (trading, transactions, preferences, trends) are inferred or asserted.\n\n## 2. Verifiable Structure\n\n### 2.1 Row Count & Grain\n\n| Observation | Value |\n|---|---|\n| Total rows | 2 |\n| Distinct `etl_date` values | 2 (`2026-01-01`, `2026-01-02`) |\n| Distinct `scr_code` values | 2 (`SAMPLE_CODE_A`, `SAMPLE_CODE_B`) |\n| Distinct `cust_name` values | 2 (`SAMPLE_NAME_A`, `SAMPLE_NAME_B`) |\n| Distinct `opaque_amt` values | 2 (`100`, `200`) |\n| Null / missing values | 0 across all fields |\n| Duplicate rows | 0 |\n\n### 2.2 Field-Level Observations\n\n| Field | Observed Type | Observed Values | Format Notes |\n|---|---|---|---|\n| `etl_date` | String | `2026-01-01`, `2026-01-02` | ISO-8601 calendar date (YYYY-MM-DD) |\n| `scr_code` | String | `SAMPLE_CODE_A`, `SAMPLE_CODE_B` | Alphabetic suffix pattern `_A`, `_B` |\n| `cust_name` | String | `SAMPLE_NAME_A`, `SAMPLE_NAME_B` | Alphabetic suffix pattern `_A`, `_B` |\n| `opaque_amt` | Integer | `100`, `200` | Non-negative; no decimal places observed |\n\n### 2.3 Structural Correspondences\n\n- There is a **one-to-one mapping** between `etl_date`, `scr_code`, and `cust_name` in this sample: each date pairs with exactly one code and one name.\n- `opaque_amt` increases by 100 from the first to the second row (100 \u2192 200). Whether this represents a trend, a difference between entities, or an arbitrary assignment **cannot be determined** without field definitions.\n- The naming pattern (`SAMPLE_CODE_*`, `SAMPLE_NAME_*`) suggests placeholder or test data rather than production values, but this is a structural observation only.\n\n### 2.4 Candidate Key Assessment\n\n- The composite `(etl_date, scr_code)` is unique across the 2 rows.\n- The composite `(etl_date, cust_name)` is unique across the 2 rows.\n- `etl_date` alone is unique across the 2 rows.\n- With only 2 rows, **no candidate key can be verified** as a true business key; uniqueness in a two-row sample is necessary but not sufficient to confirm grain.\n\n## 3. Missing Definitions (Explicit Catalogue)\n\nThe following definitions are **absent** and are required to fulfill the requested analysis of \"trading preferences and daily transaction trends\":\n\n| # | Missing Definition | Why It Is Required |\n|---|---|---|\n| 1 | **Meaning of `etl_date`** \u2014 Is this the ETL extraction timestamp, the trade date, the settlement date, or another business date? | Cannot determine the temporal grain or whether consecutive dates represent a \"trend.\" |\n| 2 | **Meaning of `scr_code`** \u2014 What entity or concept does this code identify? (e.g., security, screening rule, script, source system code) | Cannot determine what is being \"traded\" or what \"preferences\" would attach to. |\n| 3 | **Meaning of `cust_name`** \u2014 Does this identify a customer, counterparty, custodian, or something else? | Cannot determine whose \"trading preferences\" are under analysis. |\n| 4 | **Meaning of `opaque_amt`** \u2014 What does this amount measure? In what currency or unit? Is it signed? Is it a notional, a quantity, a price, a fee, or something else? | The field is explicitly named \"opaque,\" confirming its semantics are intentionally unspecified. Cannot interpret magnitude, direction, or aggregation. |\n| 5 | **Row grain / business event** \u2014 What does each row represent? A trade, a position snapshot, a transfer, a settlement instruction, or another event? | Cannot determine whether rows are comparable across dates or represent independent events. |\n| 6 | **Currency / unit of measure** | Cannot compare or aggregate `opaque_amt` values. |\n| 7 | **Sign convention** \u2014 Are amounts always non-negative, or can they be negative (e.g., reversals)? | Affects interpretation of sums and differences. |\n| 8 | **Data completeness** \u2014 Are these 2 rows the entire population or a sample? What time range and entity scope are covered? | A sum or trend over 2 rows from an unknown population is not a complete aggregate. |\n| 9 | **Relationship between `scr_code` and `cust_name`** \u2014 Is each code associated with one name, or is the one-to-one mapping coincidental in this sample? | Affects whether analysis is by code, by name, or by their combination. |\n\n## 4. Analysis of Requested Topics\n\n### 4.1 Trading Preferences\n\n**Cannot be analyzed.** No field definition confirms that any row represents a trade, that `scr_code` identifies a traded instrument, or that `cust_name` identifies a trader. The term \"preferences\" implies a choice pattern over multiple observations per entity, which cannot be assessed with one observation per entity in a two-row sample.\n\n### 4.2 Daily Transaction Trends\n\n**Cannot be analyzed.** No field definition confirms that rows represent transactions, that `etl_date` is a transaction date, or that `opaque_amt` is a transaction amount. With only two data points and no confirmed temporal or transactional semantics, no trend (direction, magnitude, seasonality, or statistical significance) can be established.\n\n## 5. Summary\n\n| Aspect | Status |\n|---|---|\n| Structural description | \u2705 Complete for the 2 delivered rows |\n| Field-level data types and values | \u2705 Verified from delivered sample |\n| Business semantics | \u274c No producer definitions available |\n| Trading preferences analysis | \u274c Withheld \u2014 unsupported without definitions |\n| Daily transaction trend analysis | \u274c Withheld \u2014 unsupported without definitions |\n| Candidate key verification | \u26a0\ufe0f Uniqueness observed but not verifiable as business key with 2 rows |\n\n**Conclusion:** The delivered sample contains 2 structurally valid rows with 4 fields each, no nulls, and no duplicates. All field meanings are unconfirmed. The requested analyses of trading preferences and daily transaction trends cannot be performed and are explicitly withheld per the user's instruction to avoid unsupported business interpretations.",
+  "controlledSampleOnly": true,
+  "realModel": true,
+  "businessTrendsWithheld": true,
+  "businessAmountsNotInvented": true,
+  "producerDefinitionsNotInferredFromNames": true
+}

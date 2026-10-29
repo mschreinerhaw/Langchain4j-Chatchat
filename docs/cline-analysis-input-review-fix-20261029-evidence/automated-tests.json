@@ -1,0 +1,25 @@
+{
+  "java": {
+    "targetedCurrent": 80,
+    "failures": 0,
+    "suites": {
+      "CodingAnalysisServiceTest": 37,
+      "ClineContextAnswerServiceTest": 21,
+      "ClineModelCallbackControllerTest": 16,
+      "CodingSchemaResultVerifierTest": 6
+    },
+    "otherPreviouslyPassedJava": 41
+  },
+  "node": {
+    "tests": 125,
+    "failures": 0,
+    "nativeSdkContractRoundTrip": true
+  },
+  "pythonCapture": {
+    "tests": 11,
+    "failures": 0
+  },
+  "noBudgetExtension": true,
+  "noThirdPartySdkSourceChanges": true,
+  "realEnvironmentAcceptanceRecordedSeparately": true
+}

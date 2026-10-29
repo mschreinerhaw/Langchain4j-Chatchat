@@ -1,0 +1,42 @@
+{
+  "taskId": "b474f23a-0c63-46ad-8bee-75e2e29c031f",
+  "codingTaskId": "analysis-coding-793f3b3cd39d4c951c23b910227929a91605e1a130c9dc5654139424f3cb8d00",
+  "canonicalState": "PARTIAL",
+  "realModelCalls": 2,
+  "tools": [
+    "input_read",
+    "report_submit"
+  ],
+  "controlledSampleOnly": true,
+  "customerAndMarketNotClaimedAsSecurities": true,
+  "undefinedQuantityNotClaimedAsHoldings": true,
+  "missingSemanticsExplicitInReport": true,
+  "noVerifiedSecuritiesAnalysisClaim": true,
+  "report": "# Securities Preference and Holdings Analysis Report\n\n## Executive Summary\n\n**Analysis Status: INPUT_REQUIRED**\n\nThe controlled sample provided does not contain securities data. The requested analysis of \"securities preference and holdings\" cannot be performed with the available fields.\n\n## Sample Contents\n\nThe sample contains 2 rows with the following structure:\n\n| cust_name | prtc_mkt_code | opaque_17 |\n|-----------|---------------|-----------|\n| SAMPLE_PERSON_A | MKT_A | 10 |\n| SAMPLE_PERSON_B | MKT_A | 20 |\n\n## Field Provenance and Confirmed Meanings\n\n### cust_name\n- **Status**: CONFIRMED\n- **Meaning**: Customer name\n- **Source**: Field definition in input materials\n- **Analysis **: Can identify and list customers, but these appear to be sample/placeholder identifiers\n\n### prtc_mkt_code\n- **Status**: CONFIRMED\n- **Meaning**: Market category code\n- **Source**: Field definition in input materials\n- **Analysis **: Can group customers by market category. Both customers in this sample belong to market \"MKT_A\"\n\n### opaque_17\n- **Status**: CONFIRMED\n- **Meaning**: No business meaning supplied\n- **Source**: Field definition in input materials\n- **Analysis **: Can perform arithmetic operations (sum = 30, count = 2, average = 15), but these operations have NO business interpretation. The field explicitly has no business meaning.\n\n## What This Sample CAN Support\n\n1. **Customer enumeration**: List of customer names (SAMPLE_PERSON_A, SAMPLE_PERSON_B)\n2. **Market grouping**: Both customers are in market category MKT_A\n3. **Arithmetic on opaque_17**: Sum (30), average (15), min (10), max (20) - but these have NO business meaning\n\n## What This Sample CANNOT Support\n\n1. **Securities preference analysis**: No securities identifiers, security names, or security types are present in the data\n2. **Holdings analysis**: No holdings quantities, positions, or portfolio data exists\n3. **Investment analysis**: No investment amounts, transaction data, or asset allocations are available\n4. **Business intelligence**: The opaque_17 field has no business meaning, so any analysis of it is purely mathematical with no business interpretation\n\n## Critical Limitations\n\n- **No securities data**: The sample contains zero information about securities\n- **No holdings data**: The sample contains zero information about holdings or positions\n- **Opaque field**: The opaque_17 field explicitly has no business meaning supplied\n- **Sample size**: Only 2 rows of data, both in the same market category\n- **Placeholder identifiers**: Customer names appear to be sample data (SAMPLE_PERSON_A, SAMPLE_PERSON_B)\n\n## Conclusion\n\nThe requested analysis of securities preference and holdings **cannot be performed** with this sample. The data does not contain any securities-related fields. To perform the requested analysis, the following data would be required:\n\n- Security identifiers (ticker symbols, ISINs, CUSIPs, etc.)\n- Security names and types\n- Holdings quantities or positions\n- Transaction or portfolio data\n- Business-meaningful numeric fields with defined units\n\nAny attempt to analyze securities preference or holdings from this sample would require inventing data or making unsupported assumptions, which violates the constraint to \"only use confirmed field meanings\" and \"do not invent aliases or units.\"",
+  "actualSubmittedAnalysisStatus": "INPUT_REQUIRED",
+  "actualSubmittedFieldProvenance": [
+    {
+      "datasetReference": "runtime-context:att-1-f170ca1d-81ea-4de2-b4e1-4cdada951490",
+      "sourceField": "cust_name",
+      "meaning": "Customer name",
+      "declarationSource": "fieldDefinitions in input materials",
+      "status": "CONFIRMED"
+    },
+    {
+      "datasetReference": "runtime-context:att-1-f170ca1d-81ea-4de2-b4e1-4cdada951490",
+      "sourceField": "prtc_mkt_code",
+      "meaning": "Market category code",
+      "declarationSource": "fieldDefinitions in input materials",
+      "status": "CONFIRMED"
+    },
+    {
+      "datasetReference": "runtime-context:att-1-f170ca1d-81ea-4de2-b4e1-4cdada951490",
+      "sourceField": "opaque_17",
+      "meaning": "No business meaning supplied",
+      "declarationSource": "fieldDefinitions in input materials",
+      "status": "CONFIRMED"
+    }
+  ],
+  "publicStatus": "PARTIAL_SUCCESS",
+  "structuredCompletionScopePropagated": true
+}

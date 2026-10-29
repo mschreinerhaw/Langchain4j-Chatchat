@@ -1,0 +1,34 @@
+{
+  "realPage": true,
+  "mockedRequests": false,
+  "cases": [
+    {
+      "taskId": "analysis-coding-ca1bbc342573e5e4211be66f69842d81ca7594ca95c50c550129d8d0a8f13407",
+      "observationId": "3fa3eb1bdb643cb3a8e2518c2fdf72c43467616a374a73484d339651994eb298",
+      "executionCount": 3,
+      "source": "DURABLE_CODING_JOURNAL",
+      "restoredAfterReload": true,
+      "readOnlyModelCountUnchanged": true,
+      "journalRevisionUnchanged": true
+    },
+    {
+      "taskId": "analysis-coding-363b12aedf92771636f0a265b24196a784d884c3e30708a25e6fa1dd684a4cde",
+      "observationId": "72446ca46ec1e7d1ce791ec7bc42c0278ab876e4909a65afe5860a3ae3b9b2e7",
+      "executionCount": 4,
+      "source": "DURABLE_CODING_JOURNAL",
+      "restoredAfterReload": true,
+      "readOnlyModelCountUnchanged": true,
+      "journalRevisionUnchanged": true
+    },
+    {
+      "taskId": "analysis-coding-911917d3bb975f30666f2bd022f8be35bf7a41c180e9f32ba123b55fe3d9b135",
+      "observationId": "ff2832a669ec42c69f30354b0e99f567452688afebb285543e31575adccdfbea",
+      "executionCount": 3,
+      "source": "DURABLE_CODING_JOURNAL",
+      "restoredAfterReload": true,
+      "readOnlyModelCountUnchanged": true,
+      "journalRevisionUnchanged": true
+    }
+  ],
+  "errors": []
+}

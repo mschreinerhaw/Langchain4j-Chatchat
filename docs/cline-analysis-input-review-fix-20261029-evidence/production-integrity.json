@@ -1,0 +1,13 @@
+{
+  "status": "PASSED",
+  "apiImage": "runtime-os-api:cline-field-provenance-5e692bd3efd9-20261029",
+  "apiImageId": "sha256:10c8e178084589e7fef8fed4a3bc59dd93099f0fdfb81931f0b8a3db16c33274",
+  "apiJarSha256Verified": true,
+  "nodeImage": "runtime-os-coding-agent:report-scope-c2c127a2043a-20261029",
+  "nodeImageId": "sha256:d3f4f3ea563d1e6657c46d441eb819939a1f1cca59a21d0c7d0dc5cd1e3e3b8e",
+  "nodeRunnerSha256Verified": true,
+  "nodeHealthy": true,
+  "mcpImage": "runtime-os-mcp:cline-analysis-repair-f2d5bb92ffa6-20261029",
+  "gatewayImage": "runtime-os-gateway:main-9b18e67f9-20261028",
+  "noSchemaMigration": true
+}

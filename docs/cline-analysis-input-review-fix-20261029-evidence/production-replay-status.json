@@ -1,0 +1,30 @@
+{
+  "tasks": [
+    {
+      "originalTaskId": "bbd8cfa0-e5f6-46af-9119-a9bbda8f1f7d",
+      "taskId": "e9703a8e-cd42-4d7d-b17f-563fff9eb0b5",
+      "rootExecutionId": "bbd8cfa0-e5f6-46af-9119-a9bbda8f1f7d",
+      "parentAttemptId": "att-1-de31b337-e23a-4add-a24c-7cf979212436",
+      "status": "SUCCESS",
+      "canonicalState": "SUCCEEDED",
+      "attemptNumber": 2,
+      "sameOriginalQuestion": true,
+      "answerCharacters": 2150,
+      "suppliedCredentialLeaked": false,
+      "errorMessage": null
+    },
+    {
+      "originalTaskId": "4b794d43-6451-4ea9-975c-f367410c5976",
+      "taskId": "ef05fdfb-1576-4222-9ca5-a3cb9b11132f",
+      "rootExecutionId": "4b794d43-6451-4ea9-975c-f367410c5976",
+      "parentAttemptId": "att-1-67b9ef3f-e8c3-4e2f-83b0-fa16c6dcdea4",
+      "status": "PARTIAL_SUCCESS",
+      "canonicalState": "PARTIAL",
+      "attemptNumber": 2,
+      "sameOriginalQuestion": true,
+      "answerCharacters": 4508,
+      "suppliedCredentialLeaked": false,
+      "errorMessage": null
+    }
+  ]
+}

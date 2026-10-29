@@ -1,0 +1,30 @@
+{
+  "revision": "3f92445e29d9110f68d51767327d24ed8a5d70a9",
+  "images": {
+    "api": {
+      "tag": "runtime-os-api:release-3f92445e29d9-20261029",
+      "id": "sha256:2d2c150193d3d49fad59e8a7b500381ea010758d7ffbd8dfcb9be0ca7ad027db",
+      "jarSha256": "733dd9971047f29134cdd8b1aeaea48c758c6f7cedef088167f0204bed82acbd"
+    },
+    "mcp": {
+      "tag": "runtime-os-mcp:release-3f92445e29d9-20261029",
+      "id": "sha256:1593e8fc6a29220852b78436390b97397e59d2a057315899b9034c94e1370823",
+      "jarSha256": "694c50038f08e0f9b7d4eff4f844aa3934d35ca79506706e30db1944b06dbbf6"
+    },
+    "coding-agent": {
+      "tag": "runtime-os-coding-agent:release-3f92445e29d9-20261029",
+      "id": "sha256:f70ddf5989d87f6adf221277f013cdb02a06a97aaf659794b50c20a966ef0f2e",
+      "runnerSha256": "fd28c1fb94985b812bbe22aad12875a4d54b1d460ad43e41f463e2bdc8d84ad1",
+      "packages": {
+        "status": "VERIFIED",
+        "packages": {
+          "@cline/sdk": "0.0.93",
+          "@cline/core": "0.0.93",
+          "@cline/agents": "0.0.93",
+          "@cline/llms": "0.0.93",
+          "@cline/shared": "0.0.93"
+        }
+      }
+    }
+  }
+}

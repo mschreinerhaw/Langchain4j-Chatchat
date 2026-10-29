@@ -1,0 +1,19 @@
+{
+  "health": {
+    "status": "UP",
+    "sdk": "@cline/agents@0.0.93",
+    "packages": {
+      "@cline/sdk": "0.0.93",
+      "@cline/core": "0.0.93",
+      "@cline/agents": "0.0.93",
+      "@cline/llms": "0.0.93",
+      "@cline/shared": "0.0.93"
+    },
+    "runtime": "v24.21.0",
+    "build": "3f92445e29d9110f68d51767327d24ed8a5d70a9"
+  },
+  "callbackGuard": 401,
+  "generalApiOnCallbackPort": 404,
+  "generalApiDirect": "BLOCKED",
+  "mcpDirect": "BLOCKED"
+}

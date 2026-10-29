@@ -1,0 +1,26 @@
+{
+  "scope": "Real Vue page, actual Cline SDK model calls and Python Sandbox receipts; controlled samples",
+  "cases": [
+    {
+      "case": "A",
+      "requestId": "reuse-A-fce6bc6b5a38",
+      "taskId": "analysis-coding-ae05e32aa55368b486a526aab7d11df245e38fb864d99456c47aecd0a9c609d1",
+      "status": "COMPLETED",
+      "executions": 1,
+      "restoredAfterReload": true,
+      "sourceFiles": 2,
+      "screenshot": "python-code-reuse-A.png"
+    },
+    {
+      "case": "C",
+      "requestId": "reuse-C-409be9b89dfb",
+      "taskId": "analysis-coding-3cdb574ebd28219f7545d4fb98d39fb750ade956d9a76b5b2e2362054a4fab5b",
+      "status": "COMPLETED",
+      "executions": 3,
+      "restoredAfterReload": true,
+      "sourceFiles": 1,
+      "screenshot": "python-code-reuse-C.png"
+    }
+  ],
+  "errors": []
+}

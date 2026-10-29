@@ -1,0 +1,45 @@
+{
+  "scope": "PRODUCTION_REAL_CODE_HASH_RESULT_AND_MANAGED_EXECUTION_CHECK",
+  "cases": [
+    {
+      "case": "A",
+      "requestId": "reuse-A-fce6bc6b5a38",
+      "taskId": "analysis-coding-ae05e32aa55368b486a526aab7d11df245e38fb864d99456c47aecd0a9c609d1",
+      "executionCount": 1,
+      "errors": [],
+      "reportValue": "60",
+      "lastCodeHash": "69c6a42aa241f5a2342a51dbe937d751b3ad3f888794469871719a86ca7a98a0",
+      "actualMcpExecutorsStopped": true
+    },
+    {
+      "case": "C",
+      "requestId": "reuse-C-409be9b89dfb",
+      "taskId": "analysis-coding-3cdb574ebd28219f7545d4fb98d39fb750ade956d9a76b5b2e2362054a4fab5b",
+      "executionCount": 3,
+      "errors": [
+        {
+          "exceptionType": "KeyError",
+          "diagnosticCode": "FIELD_ACCESS_ERROR"
+        },
+        {
+          "exceptionType": "SyntaxError",
+          "diagnosticCode": "SYNTAX_ERROR"
+        }
+      ],
+      "reportValue": "7",
+      "lastCodeHash": "03e7020fb7e9c88768f59fd19e5da1b464b2a8a72803bc0f008ef660a2a3319e",
+      "actualMcpExecutorsStopped": true
+    }
+  ],
+  "productionActiveClineSessions": 0,
+  "livePythonContainers": 0,
+  "previewAcceptedHistoryRestored": [
+    "A",
+    "C",
+    "D",
+    "B",
+    "F-controlled",
+    "E-source-version"
+  ],
+  "productionDateTimeUtc": "2026-10-29T01:06:47.248389+00:00"
+}

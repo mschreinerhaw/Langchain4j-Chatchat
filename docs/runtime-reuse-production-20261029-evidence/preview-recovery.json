@@ -1,0 +1,10 @@
+{
+  "status": "RESTORED",
+  "containers": [
+    "runtime-analysis-preview-node",
+    "runtime-analysis-preview-proxy"
+  ],
+  "dataVolumesRetained": true,
+  "previewComposeProjectSeparated": true,
+  "productionRolledBackBeforeRecovery": true
+}

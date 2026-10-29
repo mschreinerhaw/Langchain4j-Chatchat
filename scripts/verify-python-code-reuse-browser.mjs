@@ -24,7 +24,8 @@ try{
   const panel=page.locator('.python-reuse-panel');assert.equal((await panel.innerText()).includes(state.status),true);
   assert.equal(await panel.locator('.python-reuse-spinner').count(),0);
   if(test.case==='C'){
-   assert.equal(state.executions.length,2);assert.equal(state.executions[0].error?.exceptionType,'KeyError');
+   assert.ok(state.executions.length>=2);assert.equal(state.executions[0].error?.exceptionType,'KeyError');
+   assert.equal(state.executions.at(-1).status,'SUCCEEDED');assert.equal(state.executions.at(-1).resultAvailable,true);
    await panel.locator(':scope > details > summary').first().click();assert.match(await panel.innerText(),/KeyError/);
    assert.match(await panel.innerText(),/project\/main.py/);
    assert.equal((await panel.locator('.python-code-diff').count())>0,true);

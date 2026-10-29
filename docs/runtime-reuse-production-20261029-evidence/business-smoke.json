@@ -1,0 +1,121 @@
+{
+  "scope": "PRODUCTION_REAL_CLINE_MCP_SANDBOX_CONTROLLED_SOURCES",
+  "revision": "3f92445e29d9110f68d51767327d24ed8a5d70a9",
+  "cases": [
+    {
+      "case": "A",
+      "requestId": "reuse-A-fce6bc6b5a38",
+      "taskId": "analysis-coding-ae05e32aa55368b486a526aab7d11df245e38fb864d99456c47aecd0a9c609d1",
+      "status": "COMPLETED",
+      "resultAvailable": true,
+      "executions": 1,
+      "errors": [],
+      "unchangedOriginals": {
+        "main.py": true,
+        "metrics.py": true
+      },
+      "codeVersions": 1,
+      "usage": {
+        "budgetId": "analysis-coding-tool-budget:analysis-coding-ae05e32aa55368b486a526aab7d11df245e38fb864d99456c47aecd0a9c609d1",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 2,
+          "modelTokens": 20898,
+          "toolCalls": 1,
+          "codeExecutions": 1,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 1969,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 110174,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 25000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 347556,
+          "costAmount": "1.666666666666"
+        },
+        "meteringComplete": false
+      },
+      "transportError": null
+    },
+    {
+      "case": "C",
+      "requestId": "reuse-C-409be9b89dfb",
+      "taskId": "analysis-coding-3cdb574ebd28219f7545d4fb98d39fb750ade956d9a76b5b2e2362054a4fab5b",
+      "status": "COMPLETED",
+      "resultAvailable": true,
+      "executions": 3,
+      "errors": [
+        {
+          "category": "SCHEMA_ACCESS",
+          "exceptionType": "KeyError",
+          "diagnosticCode": "FIELD_ACCESS_ERROR",
+          "message": "Compare the field access at the reported line with the authorized schema and variable definitions; do not guess missing business fields.",
+          "stack": [
+            {
+              "file": "project/main.py",
+              "line": 5,
+              "column": null
+            }
+          ],
+          "detailRef": "execution:cline-d0e909196445e3db60faf0c9b9bf06b5e8c7a734256e0db307a5e32341e8907b:logs:runtime-diagnostic.json"
+        },
+        {
+          "category": "SYNTAX",
+          "exceptionType": "SyntaxError",
+          "diagnosticCode": "SYNTAX_ERROR",
+          "message": "Repair Python syntax at the reported source location; preserve the existing calculation and authorized inputs.",
+          "stack": [
+            {
+              "file": "deployment-controlled-re_20261029T010415614Z_50791dda7146_v2.py",
+              "line": 18,
+              "column": null
+            },
+            {
+              "file": "project/main.py",
+              "line": 5,
+              "column": null
+            }
+          ],
+          "detailRef": "execution:cline-eb1e76c34e5c40aa824ada822f56009fc1cde315ca63c557b8f480a2aaa0e508:logs:runtime-diagnostic.json"
+        }
+      ],
+      "unchangedOriginals": {
+        "main.py": false
+      },
+      "codeVersions": 3,
+      "usage": {
+        "budgetId": "analysis-coding-tool-budget:analysis-coding-3cdb574ebd28219f7545d4fb98d39fb750ade956d9a76b5b2e2362054a4fab5b",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 4,
+          "modelTokens": 50626,
+          "toolCalls": 3,
+          "codeExecutions": 3,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 6355,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 211518,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 75000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 1042220,
+          "costAmount": "3.333333333332"
+        },
+        "meteringComplete": false
+      },
+      "transportError": null
+    }
+  ],
+  "originalSourcesPreserved": true,
+  "realKeyErrorRepairVerified": true
+}

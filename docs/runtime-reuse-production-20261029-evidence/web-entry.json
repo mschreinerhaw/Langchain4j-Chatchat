@@ -1,0 +1,10 @@
+{
+  "publicIndexMatchesAcceptedApiIndex": true,
+  "indexSha256": "af8c5847234575947539c7863b0b2cb306ba344a18a39967f184a187ed867f4d",
+  "cacheControl": "no-store, max-age=0",
+  "previousStaticAssetsFallbackPreserved": true,
+  "gatewayContainerReplaced": false,
+  "originalGatewayConfigSha256": "11240eb46969ae1842ca050abd6f554b60ad7388b822ab673dab7e22560a5255",
+  "gatewayConfigSha256": "14e9f103f0298113bf9e1fc62c5ab89c86034652a4fd3663834e4d8d1382a8b5",
+  "backup": "/opt/chatchat-releases/runtime-reuse-release-3f92445e29d9-20261029/private-backup/public-gateway.conf"
+}

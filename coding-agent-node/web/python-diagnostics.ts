@@ -10,7 +10,7 @@ export interface PythonSource { source: string; taskId: string; operationId: str
 export function executionCounts(executions: PythonExecution[]) {
   const links=repairLinks(executions);
   return {total:executions.length,processSucceeded:executions.filter(e=>e.exitCode===0).length,
-    processFailed:executions.filter(e=>e.status!=='CANCELLED'&&(e.exitCode!==null&&e.exitCode!==0||e.status==='TIMED_OUT')).length,
+    processFailed:executions.filter(e=>e.status!=='CANCELLED'&&(typeof e.exitCode==='number'&&e.exitCode!==0||e.status==='TIMED_OUT')).length,
     outputFailed:executions.filter(e=>e.error?.category==='OUTPUT_CONTRACT').length,cancelled:executions.filter(e=>e.status==='CANCELLED').length,
     repairs:links.length,repairFailed:links.filter(l=>l.validation.status!=='SUCCEEDED'||!l.validation.resultAvailable).length};
 }

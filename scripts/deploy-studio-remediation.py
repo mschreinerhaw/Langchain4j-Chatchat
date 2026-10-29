@@ -57,6 +57,7 @@ def main():
     base = 'runtime-os-api-runtime:17-sqlglot-20261024'
     assert 'app.jar' not in run('docker', 'history', '--no-trunc', '--format', '{{.CreatedBy}}', base)
     (root / 'Dockerfile').write_text('FROM ' + base + '\nWORKDIR /srv/app\nCOPY app.jar /srv/app/app.jar\nENTRYPOINT ["java","-jar","/srv/app/app.jar"]\n')
+    (root / '.dockerignore').write_text('*\n!app.jar\n!Dockerfile\n')
     run('docker', 'build', '--network', 'none', '-t', manifest['image'], str(root))
     backup = root / 'backup'
     backup.mkdir(mode=0o700)

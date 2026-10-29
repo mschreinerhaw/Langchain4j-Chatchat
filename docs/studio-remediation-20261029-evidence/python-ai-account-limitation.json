@@ -1,0 +1,10 @@
+{
+  "mockedRequests": false,
+  "codeExecuted": false,
+  "http": 200,
+  "code": 400,
+  "message": "user not found",
+  "nonemptyAnswer": false,
+  "planPresent": false,
+  "durationSeconds": 0.28
+}

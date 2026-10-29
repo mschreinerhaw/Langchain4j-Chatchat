@@ -1,0 +1,7 @@
+{
+  "sourceCommit": "e91b2b11784f6d64b378e61c1ec1be1e1fbebb40",
+  "image": "runtime-os-api:studio-remediation-e91b2b117-20261029",
+  "baselineSha256": "2f77411b8e5b83300a8fa355bb749479c789f2275a7879f84325de3e73a7cf36",
+  "sha256": "ba96cfef6487fb9a2fccbdc6daf61a69b09d2c9b16bc4c636552087b60d22238",
+  "frontendIndexSha256": "36e3a5602e353011e935d2d7482aca029c7f1df923a82717d12d1a7d2d6f74ed"
+}

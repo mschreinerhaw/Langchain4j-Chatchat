@@ -1,0 +1,16 @@
+{
+  "mockedRequests": false,
+  "permissionChanges": false,
+  "sqlCreationClassified": true,
+  "recentListAndCountExcludeStudio": true,
+  "sqlHistoryScoped": true,
+  "pythonHistoryExcludesSql": true,
+  "crossOwnerDenied": true,
+  "detailRestoration": true,
+  "ordinaryConversationStillListed": true,
+  "metadataAssetsStatus": 403,
+  "businessTableAcceptance": "BLOCKED_BY_CURRENT_ACCOUNT_PERMISSION",
+  "pythonWorkbenchAvailable": true,
+  "readyPythonAssets": 0,
+  "temporaryFixturesCleaned": true
+}

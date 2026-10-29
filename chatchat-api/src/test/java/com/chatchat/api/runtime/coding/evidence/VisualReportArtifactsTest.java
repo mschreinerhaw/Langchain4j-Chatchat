@@ -45,11 +45,12 @@ class VisualReportArtifactsTest {
         assertThat(rejected).containsEntry("status","PARTIAL");assertThat(rejected.get("charts").toString()).contains("kind=unavailable");
     }
     @Test void aRejectedChartKeepsItsOwnPlaceholderAndCannotDiscardTheOtherValidatedChart()throws Exception{
-        var value=raw();value.put("charts",List.of(Map.of("id","good","kind","png","fileName","good.png"),Map.of("id","bad","kind","html","fileName","bad.html")));
+        var value=raw();value.put("charts",List.of(Map.of("id","good","kind","png","fileName","good.png"),Map.of("id","bad","kind","html","fileName","bad.html"),
+            Map.of("id","bad-title","kind","png","fileName","good.png","title",Map.of("text","not scalar")),Map.of("id","bad-kind","kind",List.of("png"),"fileName","good.png")));
         var result=collect(value,Map.of("results/good.png",png(),"results/bad.html","<script>bad()</script>".getBytes(StandardCharsets.UTF_8)));
-        assertThat((List<?>)result.get("charts")).hasSize(2);assertThat((List<?>)result.get("artifacts")).hasSize(1);
+        assertThat((List<?>)result.get("charts")).hasSize(4);assertThat((List<?>)result.get("artifacts")).hasSize(1);
         assertThat(result).containsEntry("status","PARTIAL").containsEntry("analysisStatus","SUCCESS");
-        assertThat(result.get("charts").toString()).contains("kind=png","kind=unavailable").doesNotContain("<script>");
+        assertThat(result.get("charts").toString()).contains("kind=png","kind=unavailable","图表暂不可用").doesNotContain("<script>");
     }
     @Test void replaysTheOriginalSchedulingFailureWithoutRecomputingData()throws Exception{
         Map<String,Object> row;byte[] image;

@@ -60,8 +60,8 @@ public final class VisualReportArtifacts {
             var charts=new ArrayList<Map<String,Object>>();var chartIds=new HashSet<String>();var artifacts=new ArrayList<Map<String,Object>>();
             for(var item:list(raw.get("charts"),64)) {
                 var chart=map(item);String chartId=id(chart.get("id"));require(chartIds.add(chartId),"Duplicate chart");
-                String kind=text(chart.get("kind"),16),name=text(chart.get("fileName"),255);
                 try {
+                    String kind=text(chart.get("kind"),16),name=text(chart.get("fileName"),255);
                     require(name.matches("[A-Za-z0-9_][A-Za-z0-9_.-]{0,254}"),"Invalid chart file name");
                     byte[] bytes=files.get("results/"+name);require(bytes!=null&&bytes.length>0&&bytes.length<=8*1024*1024,"Chart file unavailable or exceeds 8MiB");
                     if(!Set.of("png","svg","plotly").contains(kind)){
@@ -89,7 +89,8 @@ public final class VisualReportArtifacts {
                     }
                     artifacts.add(ref);charts.add(accepted);
                 }catch(Exception invalid){warnings.add("Chart "+chartId+" unavailable: "+safeReason(invalid));
-                    charts.add(new LinkedHashMap<>(Map.of("id",chartId,"title",text(chart.get("title"),240),"kind","unavailable","renderError","CHART_ARTIFACT_REJECTED")));
+                    String title;try{title=text(chart.get("title"),240);}catch(IllegalArgumentException invalidTitle){title="图表暂不可用";}
+                    charts.add(new LinkedHashMap<>(Map.of("id",chartId,"title",title,"kind","unavailable","renderError","CHART_ARTIFACT_REJECTED")));
                     diagnostics.add(diagnostic("CHART_VALIDATION","CHART_ARTIFACT_REJECTED","charts."+chartId,false,safeReason(invalid)));
                     log.warn("visual_report_chart_rejected task={} operation={} chart={} reason={}",task,operation,chartId,safeReason(invalid));}
             }

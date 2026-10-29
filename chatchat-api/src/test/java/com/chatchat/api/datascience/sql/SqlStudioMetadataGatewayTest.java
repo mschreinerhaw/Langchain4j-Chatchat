@@ -15,6 +15,29 @@ import static org.mockito.Mockito.*;
 class SqlStudioMetadataGatewayTest {
     McpRuntimeKernel kernel = mock(McpRuntimeKernel.class);
     SqlStudioMetadataGateway gateway = new SqlStudioMetadataGateway(kernel, new ApiKernelScopeResolver());
+    final com.chatchat.common.retrieval.ResourceAuthorizationPort authorization=mock(com.chatchat.common.retrieval.ResourceAuthorizationPort.class);
+    @org.junit.jupiter.api.BeforeEach void authorizeCatalog(){
+        when(authorization.readableMetadataIds(anyString(),anyString(),anySet())).thenAnswer(c->c.getArgument(2));
+        gateway.setCatalogAuthorization(authorization);
+    }
+    @Test void explicitDenyIsEnforcedBeforeEitherGrpcOrLocalTransport(){
+        when(kernel.tools(any())).thenReturn(List.of(tool()));
+        when(authorization.readableMetadataIds(anyString(),anyString(),anySet())).thenReturn(Set.of());
+        var scope=new com.chatchat.common.kernel.KernelDataScope("tenant","owner","request",null,"run",null,Map.of());
+        assertThatThrownBy(()->gateway.invokeScoped(scope,"registered",Map.of("operation","LIST_ASSETS")))
+            .isInstanceOf(ResponseStatusException.class).hasMessageContaining("403");
+        verify(kernel,never()).execute(any());
+    }
+    @Test void transportAndRegisteredToolAliasesCannotBypassTheSameDenial(){
+        when(kernel.tools(any())).thenReturn(List.of(tool()));
+        var registry=mock(com.chatchat.enterprise.repository.mcp.McpToolAssetRepository.class);
+        var registered=new com.chatchat.enterprise.entity.mcp.McpToolAsset();registered.setServiceId("registered");registered.setRemoteToolName("sql_schema_context_query");
+        registered.setLocalToolName("api-schema");when(registry.findByServiceIdOrderByLocalToolNameAsc("registered")).thenReturn(List.of(registered));gateway.setCatalogRegistry(registry);
+        when(authorization.readableMetadataIds(anyString(),anyString(),anySet())).thenAnswer(c->{var allowed=new HashSet<String>(c.<Set<String>>getArgument(2));allowed.remove("api-schema");return allowed;});
+        var scope=new com.chatchat.common.kernel.KernelDataScope("tenant","owner","request",null,"run",null,Map.of());
+        assertThatThrownBy(()->gateway.invokeScoped(scope,"registered",Map.of())).isInstanceOf(ResponseStatusException.class).hasMessageContaining("403");
+        verify(kernel,never()).execute(any());
+    }
     @Test void bindsAuthenticatedIdentityAndUsesRegisteredKernelContract() {
         var request = new MockHttpServletRequest();
         request.setAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID, "tenant"); request.setAttribute(ApiAuthenticationFilter.CURRENT_USER_ID, "owner");

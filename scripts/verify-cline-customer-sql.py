@@ -48,6 +48,7 @@ def main():
             'bindings':context['bindings'],'targetDialect':'oracle','customerNumber':'070200046604'},ensure_ascii=False,indent=2),encoding='utf-8')
         prompt='请为客户号字符串 070200046604 生成交易、资产和盈亏查询 SQL。先自主探索当前数据源的业务元数据、字段含义、指标定义和已知关联；没有提前指定任何表。使用真实发现的表字段，客户号保留前导零。对缺少定义的指标和未确认关联明确标注，不要臆造公式或关联。按 Oracle/达梦兼容方言生成完整 SQL 提案，不执行 SQL，也不读取客户业务明细。'
         prompt+='请检索现有业务术语及指标定义目录，并查询关联证据；未收录的定义请保留检索结果并明确说明。检索和深入顺序由你自主决定。'
+        prompt+='若没有已确认的指标口径，只返回已发现原始字段的明细查询；不要附带自行推断的计算公式，即使标注推断也不允许。'
         prepared=call(root+'/generations','POST',{'prompt':prompt,'action':'generate','dialect':'oracle',
             'metadataBindingContextId':context['discoveryId'],'mappingIds':[],'referenceIds':[],'mappingDocumentIds':[]})
         generation=prepared['generationId']

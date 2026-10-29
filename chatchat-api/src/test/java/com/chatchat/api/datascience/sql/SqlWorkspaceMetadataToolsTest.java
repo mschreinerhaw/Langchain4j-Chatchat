@@ -91,7 +91,7 @@ class SqlWorkspaceMetadataToolsTest {
     @Test void businessConceptOnlyArrayWorksAndBroadRequestsGetRepairableBudgetFeedback(){
         when(gateway.referenceScoped(any(),eq("service"),eq("enterprise_metadata_search"),anyMap())).thenReturn(Map.of("definitionStatus","NOT_FOUND"));
         tools.query(task,schema,Map.of("operation","BUSINESS_SEARCH","bindingId","binding","queryTerms",List.of("profit")));
-        verify(gateway).referenceScoped(any(),eq("service"),eq("enterprise_metadata_search"),argThat(args->List.of("profit").equals(args.get("queryTerms"))));
+        verify(gateway).referenceScoped(any(),eq("service"),eq("enterprise_metadata_search"),argThat(args->!args.containsKey("query")&&List.of("profit").equals(args.get("queryTerms"))));
         var failure=catchThrowableOfType(()->tools.query(task,schema,Map.of("operation","BUSINESS_SEARCH","bindingId","binding","queryTerms",List.of("profit","assets"))),ResponseStatusException.class);
         assertThat(SqlWorkspaceMetadataTools.failure(failure)).containsEntry("category","QUERY_BUDGET").containsEntry("retryable",true);
     }

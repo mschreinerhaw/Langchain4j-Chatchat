@@ -18,6 +18,21 @@ public class SqlStudioMetadataGateway {
     private static final String TOOL = "sql_schema_context_query";
     private final McpRuntimeKernel kernel;
     private final ApiKernelScopeResolver scopes;
+    private com.chatchat.common.retrieval.ResourceAuthorizationPort catalogAuthorization;
+    private com.chatchat.enterprise.repository.mcp.McpToolAssetRepository catalogRegistry;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setCatalogAuthorization(com.chatchat.common.retrieval.ResourceAuthorizationPort value){catalogAuthorization=value;}
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setCatalogRegistry(com.chatchat.enterprise.repository.mcp.McpToolAssetRepository value){catalogRegistry=value;}
+    private void authorizeCatalog(com.chatchat.common.kernel.KernelDataScope scope,McpToolDescriptor tool){
+        if(catalogAuthorization==null)throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"METADATA_AUTHORIZATION_UNAVAILABLE");
+        Set<String> names=new LinkedHashSet<>();names.add(tool.localToolName());
+        if(catalogRegistry!=null)catalogRegistry.findByServiceIdOrderByLocalToolNameAsc(tool.serviceId()).stream()
+            .filter(t->tool.remoteToolName().equals(t.getRemoteToolName()))
+            .forEach(t->names.add(t.getLocalToolName()));
+        if(!catalogAuthorization.readableMetadataIds(scope.tenantId(),scope.userId(),names).containsAll(names))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,"METADATA_ACCESS_DENIED");
+    }
 
     public record Result(String serviceId, Map<String, Object> metadata) { }
     public record Provider(String serviceId, String name) { }
@@ -50,6 +65,7 @@ public class SqlStudioMetadataGateway {
         if (tools.size() != 1) throw new ResponseStatusException(HttpStatus.CONFLICT,
             "Select one registered MCP service providing SQL metadata discovery");
         var tool = tools.get(0);
+        authorizeCatalog(authenticated,tool);
         // Version support must be declared by the registered contract, not guessed from an endpoint name.
         Object properties = tool.inputSchema().get("properties");
         Object version = properties instanceof Map<?, ?> props ? props.get("contractVersion") : null;
@@ -93,6 +109,7 @@ public class SqlStudioMetadataGateway {
             throw new SecurityException("Authenticated read-only metadata tool required");
         var tools=kernel.tools(new McpToolQuery(serviceId,null,Set.of(name))).stream().filter(t->name.equals(t.remoteToolName())).toList();
         if(tools.size()!=1)throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"METADATA_CAPABILITY_UNAVAILABLE: "+name);
+        authorizeCatalog(scope,tools.get(0));
         long deadline=Math.min(System.currentTimeMillis()+15000,scope.attributes().get("deadlineAt") instanceof Number n?n.longValue():Long.MAX_VALUE);
         var identity=new LinkedHashMap<String,Object>(Map.of("tenantId",scope.tenantId(),"userId",scope.userId(),"scopeAuthority","API_AUTHENTICATION_CONTEXT","invocationSource","sql_studio_metadata"));
         if(scope.runId()!=null)identity.put("runId",scope.runId());

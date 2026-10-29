@@ -57,7 +57,9 @@ public class SqlWorkspaceMetadataTools {
             if(operation.equals("BUSINESS_SEARCH")){
                 if(input.get("queryTerms") instanceof List<?> terms && terms.size()>1)
                     throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,"METADATA_QUERY_BUDGET: Search one focused business concept per call; choose further concepts in subsequent calls");
-                args.put("queryTerms",List.of(query));
+                // The existing workflow re-splits a singleton equal to raw query.
+                // Send the model's focused concept as its explicit independent unit.
+                args.remove("query");args.put("queryTerms",List.of(query));
             }else{
                 if(binding.schema()!=null)return Map.of("status","UNAVAILABLE_IN_SELECTED_SCOPE","reason","Existing template discovery has no schema boundary; use physical metadata within this schema","sqlExecuted",false);
                 args.put("assetId",binding.assetRef());if(binding.database()!=null)args.put("database",binding.database());

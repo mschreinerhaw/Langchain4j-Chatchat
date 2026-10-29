@@ -1,0 +1,12 @@
+{
+  "mode": "RECORDED_RECEIPTS_OFFLINE_CONTEXT_COMPARISON",
+  "modelCalled": false,
+  "toolCalls": 27,
+  "runtimeReceiptBytes": 221615,
+  "baseModelViewBytes": 166792,
+  "currentModelViewBytes": 142170,
+  "incrementalReductionPercent": 14.76,
+  "totalReductionPercent": 35.85,
+  "doesNotMeasureEndToEndLatency": true,
+  "auditReceiptsChanged": false
+}

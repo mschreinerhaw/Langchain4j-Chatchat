@@ -1,0 +1,534 @@
+{
+  "observedAt": "2026-10-29T16:13:48.622117+00:00",
+  "branch": "fix/sql-studio-benchmark-p0-20261029",
+  "sourceCommit": "08c4f8c1105db500aa6bda65b8217a6b58b03f64",
+  "baseCommit": "2dad077c0",
+  "originMain": "221efb9545dd6a0e0c9881448a4215edb89b29f7",
+  "sourceFiles": [
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/datascience/sql/SqlStudioMetadataService.java",
+      "gitBlobSha256": "90c9f4f7cf20cd528768d461a7ab2ff120e61eae39e4530c5dc4a9e71a60ddbb"
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/datascience/sql/SqlWorkspaceMetadataTools.java",
+      "gitBlobSha256": "7ca9fd6c4e91e4ded95effa89c674acdf2bcb240fcff2ad04c11e4892ffb00d7"
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/workspace/CodingWorkspaceService.java",
+      "gitBlobSha256": "c7c94de048cb6539314c07cfeb6117b4f8c0ef890e2789aaf67df3e01129368f"
+    },
+    {
+      "path": "chatchat-api/src/main/resources/sql-toolchain/validate.py",
+      "gitBlobSha256": "ef0977d37f307fdc170654bdbc7d8a24e8a2b592e5aac8f72aa0ad55638251e2"
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlGlotToolchainTest.java",
+      "gitBlobSha256": "8f23415c7f2e5bd7b44059241e162397445ba6a008fb27777c814e03c06dc5a3"
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlWorkspaceMetadataToolsTest.java",
+      "gitBlobSha256": "212d752e8682078897b85270b1e1c99921901f4eaeeb8da92762909562d871d3"
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/workspace/CodingWorkspaceServiceTest.java",
+      "gitBlobSha256": "a64c1c4d4dfad69a24e70a29b260a4ecaca93fe602f3265a2c58d35b96643dd5"
+    },
+    {
+      "path": "chatchat-api/web-app/scripts/test-sql-studio.mjs",
+      "gitBlobSha256": "ae5a40cd69d95cb3fbf89edf8341f8dcf21aa394cdd2a44a5068da6a50166d77"
+    },
+    {
+      "path": "chatchat-api/web-app/src/components/sql-studio/SqlAssistantPanel.test.js",
+      "gitBlobSha256": "dadc1583900412a10457f936deea1f37512afccba65fcf73a94e817239ba8b48"
+    },
+    {
+      "path": "chatchat-api/web-app/src/components/sql-studio/SqlAssistantPanel.vue",
+      "gitBlobSha256": "d92fdd2da9dedc14f7d4deba4da72c2d6fbe91645cb0c99cd57d3c05c73d79d3"
+    },
+    {
+      "path": "chatchat-api/web-app/src/components/sql-studio/SqlBottomPanel.test.js",
+      "gitBlobSha256": "6142b00cae17ea396c8affb9e33aa9822bc6e8fdb8690f624372b7e7c198b92a"
+    },
+    {
+      "path": "chatchat-api/web-app/src/components/sql-studio/SqlBottomPanel.vue",
+      "gitBlobSha256": "0a78273f4df6808cf2be53823a7502b1e6842d7cab83c1542fe618b4c3166cf0"
+    },
+    {
+      "path": "chatchat-api/web-app/src/js/components/sql-studio/SqlBottomPanel.js",
+      "gitBlobSha256": "e9cfbb289f07a2a581042db6efd55b116280b1abf50a5080dd3c09cd7b3cccd3"
+    },
+    {
+      "path": "chatchat-api/web-app/src/js/utils/sqlTaskPresentation.js",
+      "gitBlobSha256": "e1fa6262252f5876ff882a0085bfca9ece24c1c592473bb9a9b6edd9dbd275f7"
+    },
+    {
+      "path": "chatchat-api/web-app/src/js/utils/sqlTaskPresentation.test.js",
+      "gitBlobSha256": "86314058a97d7ff8860b719429dfe1ed96c23a154ee863552e968a8460977207"
+    },
+    {
+      "path": "chatchat-api/web-app/src/views/SqlStudioView.vue",
+      "gitBlobSha256": "d73b0317e2ad2bad56520efe815dd68057ff6534d22c2a05514ad760a84c18fb"
+    },
+    {
+      "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/sql/metadata/MetadataColumn.java",
+      "gitBlobSha256": "9b198c951810880c88eaa05926c8c08712ba598019a17afefa30f3ae8b2c07c5"
+    },
+    {
+      "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/sql/metadata/MetadataIndexService.java",
+      "gitBlobSha256": "edc468840802f4b5063fa8bd875637d1bde185105d2f478430a15ca243a31acb"
+    },
+    {
+      "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/sql/metadata/SqlMetadataDiscoveryService.java",
+      "gitBlobSha256": "18a1d3a5a70360eee97b9bdfd2f47397e5b13b258aef20fb6c0a860a148f8aef"
+    },
+    {
+      "path": "chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/sql/metadata/SqlMetadataDiscoveryWorkflowTest.java",
+      "gitBlobSha256": "b583eb4504bd743e407b4e13a47beeb6459b4403b161b3c1203d5863245a04ec"
+    },
+    {
+      "path": "coding-agent-node/scripts/benchmark-sql-metadata-context.mjs",
+      "gitBlobSha256": "52f77f9e7347215f92f63e330ac560adaf9f52445c693aa8c3fb9f21c51e7a2a"
+    },
+    {
+      "path": "coding-agent-node/src/runner.js",
+      "gitBlobSha256": "a2a057722e7d197e585b504cdf92f4a354d17c7cac34968683cdc90a41b3039d"
+    },
+    {
+      "path": "coding-agent-node/test/runner.test.js",
+      "gitBlobSha256": "a3c631fe631bb9b13cb32ff089cc362a4a8a11b921e5ea2c159a8e9174496e43"
+    },
+    {
+      "path": "scripts/replay-sql-customer-validation.py",
+      "gitBlobSha256": "2ddfc21b26d084db54a61982602dca459f63e67d7d86f3c66339680d75784d94"
+    },
+    {
+      "path": "scripts/tests/test_studio_sql_structure.py",
+      "gitBlobSha256": "59902cafc8f68cd8fcf27b3d1a2968f6aa41e989cb4f3d3afa3f48ec9b8096a1"
+    },
+    {
+      "path": "scripts/verify-sql-upstream-sources.py",
+      "gitBlobSha256": "9f019e9c20e4cc596a573e41064e95972b702d49f4c03d038293389efbb56e65"
+    }
+  ],
+  "originalWorkspaceClean": true,
+  "remoteFetchedBeforeAndAfter": true,
+  "productionDeployed": false,
+  "sqlExecuted": false,
+  "upstream": {
+    "pinnedRevisions": {
+      "dbeaver": "bd2f6f8a3c350d4f9bb914879bba791c27039a45",
+      "cloudbeaver": "5e30bbdc77b92c4b2276cf705d57ac42f0fa3684"
+    },
+    "verifiedFiles": 24,
+    "original21FilesExactlyMatch": true,
+    "sourceCopiedIntoProduct": false
+  },
+  "javaBroad": {
+    "suites": [
+      {
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.tools.workflow.SqlWorkflowEngineTest"
+      },
+      {
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.chat.interaction.service.SqlInputWorkflowTest"
+      },
+      {
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.mcpserver.contract.SqlPackageArchitectureTest"
+      },
+      {
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.mcpserver.sql.datasource.SqlDatasourceSchemaMigratorTest"
+      },
+      {
+        "tests": 15,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.mcpserver.sql.execution.SqlQueryExecuteServiceTest"
+      },
+      {
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.mcpserver.sql.execution.SqlSafetyServiceTest"
+      },
+      {
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.mcpserver.sql.execution.workflow.SqlQueryExecutionWorkflowTest"
+      },
+      {
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.mcpserver.sql.metadata.SqlMetadataAssetRegistryServiceTest"
+      },
+      {
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.mcpserver.sql.metadata.SqlMetadataAuthorizationProjectionTest"
+      },
+      {
+        "tests": 13,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.mcpserver.sql.metadata.SqlMetadataDiscoveryWorkflowTest"
+      },
+      {
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.mcpserver.sql.metadata.SqlMetadataLiveRegressionTest"
+      },
+      {
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.mcpserver.sql.metadata.SqlMetadataSearchServiceTest"
+      },
+      {
+        "tests": 14,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.mcpserver.sql.template.SqlTemplateAuthoringServiceTest"
+      },
+      {
+        "tests": 14,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.mcpserver.sql.template.SqlTemplateServiceTest"
+      },
+      {
+        "tests": 15,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.mcpserver.sql.tool.SqlMcpToolPublisherTest"
+      },
+      {
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.assets.SqlStudioUserDocumentsTest"
+      },
+      {
+        "tests": 8,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.datascience.sql.SqlGlotToolchainTest"
+      },
+      {
+        "tests": 14,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.datascience.sql.SqlMetadataOutputTest"
+      },
+      {
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.datascience.sql.SqlOutputBundleTest"
+      },
+      {
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.datascience.sql.SqlStudioAgentAccessTest"
+      },
+      {
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.datascience.sql.SqlStudioGenerationToolPolicyTest"
+      },
+      {
+        "tests": 40,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.datascience.sql.SqlStudioIntegrationTest"
+      },
+      {
+        "tests": 21,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.datascience.sql.SqlStudioMetadataAssistantTest"
+      },
+      {
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.datascience.sql.SqlStudioMetadataGatewayTest"
+      },
+      {
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.datascience.sql.SqlStudioMetadataServiceTest"
+      },
+      {
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.datascience.sql.SqlStudioPublicationControllerTest"
+      },
+      {
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.datascience.sql.SqlStudioReferenceResolverTest"
+      },
+      {
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.datascience.sql.SqlStudioUserDocumentContractTest"
+      },
+      {
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.datascience.sql.SqlWorkspaceMetadataToolsTest"
+      },
+      {
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 2,
+        "suite": "com.chatchat.api.runtime.coding.cline.CodingWorkspaceNodeIntegrationTest"
+      },
+      {
+        "tests": 11,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.runtime.coding.workspace.CodingWorkspaceServiceTest"
+      }
+    ],
+    "totals": {
+      "tests": 245,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 2
+    },
+    "buildSuccess": true,
+    "logSha256": "af39d27582b349a3da7a9f61a412a4d1b55257e4c39f6489ce590e5bd9253a9e"
+  },
+  "javaStructureAndRuntime": {
+    "suites": [
+      {
+        "tests": 15,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.mcpserver.sql.metadata.SqlMetadataDiscoveryWorkflowTest"
+      },
+      {
+        "tests": 8,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.datascience.sql.SqlGlotToolchainTest"
+      },
+      {
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.datascience.sql.SqlWorkspaceMetadataToolsTest"
+      },
+      {
+        "tests": 11,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.api.runtime.coding.workspace.CodingWorkspaceServiceTest"
+      }
+    ],
+    "totals": {
+      "tests": 44,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "buildSuccess": true,
+    "logSha256": "6cfeb616309d9ce0c12c8c7cd4449abc354d18cae6eda52415c392b9fdacb275"
+  },
+  "javaFinalMetadata": {
+    "suites": [
+      {
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.mcpserver.sql.metadata.MetadataIndexServiceTest"
+      },
+      {
+        "tests": 15,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "suite": "com.chatchat.mcpserver.sql.metadata.SqlMetadataDiscoveryWorkflowTest"
+      }
+    ],
+    "totals": {
+      "tests": 22,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "buildSuccess": true,
+    "logSha256": "e13239bf76c1d91f38c2cd024d94653f6cd51c8d456ac0c1f9d5b638a5f5aa01"
+  },
+  "javaActualNodeSdk": {
+    "suites": [
+      {
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 1,
+        "suite": "com.chatchat.api.runtime.coding.cline.CodingWorkspaceNodeIntegrationTest"
+      }
+    ],
+    "totals": {
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1
+    },
+    "buildSuccess": true,
+    "logSha256": "eea380cb3daf8ea050a51d088e03a6bea7d349b4539ebd7ad7161f70e9665ab1"
+  },
+  "web": {
+    "files": 22,
+    "passed": 165,
+    "failed": 0,
+    "workers": 2
+  },
+  "node": {
+    "passed": 128,
+    "failed": 0
+  },
+  "python": {
+    "passed": 18,
+    "failed": 0,
+    "realSqlGlotVersion": "30.23.0"
+  },
+  "browser": {
+    "passed": true,
+    "realVueMonacoChromium": true,
+    "mockedHttp": true,
+    "realModel": false,
+    "foldWidths": [
+      1920,
+      1366,
+      1024
+    ],
+    "cyclesPerWidth": 3,
+    "checks": [
+      "lazy metadata",
+      "125-table pagination",
+      "Monaco alias completion",
+      "focus/scroll retention",
+      "revocation clearing",
+      "nine sidebar cycles",
+      "document modal transition",
+      "Agent/model exclusion",
+      "Runtime progress/cancellation",
+      "Diff review/apply",
+      "history restore",
+      "project/file/folder operations"
+    ],
+    "screenshots": [
+      "sql-review.png",
+      "sql-schema-pagination.png"
+    ]
+  },
+  "frontendBuild": {
+    "passed": true,
+    "deployed": false,
+    "knownWarning": "Existing chunks above 900 kB",
+    "generatedStaticChangesCommitted": false
+  },
+  "customer": {
+    "mode": "RECORDED_REAL_METADATA_OFFLINE_REPLAY",
+    "customerNumber": "070200046604",
+    "liveDatabaseTest": false,
+    "modelCalled": false,
+    "sqlExecuted": false,
+    "resultFile": "customer-replay.json"
+  },
+  "performance": {
+    "mode": "OFFLINE_SAME_RECEIPTS_COMPARISON",
+    "resultFile": "context-performance.json",
+    "endToEndLatencyMeasuredThisTurn": false
+  },
+  "logs": {
+    "sql-studio-p0-web.log": "9b44998ceefb97c4481e2c403db8cdf865c148f082de8a97eb0abd536ef83349",
+    "sql-studio-p0-node.log": "57c0ccd2c7f1d8ba162c517162e9984351087bbd72d94b5d5442b022bde02cf8",
+    "sql-studio-p0-python.log": "e17909dc93836fabea5654b192e6ba2f20db504168d054fdfa6aedce69de6c1b",
+    "sql-studio-p0-browser.log": "f20860fea8a0e4a87cab0743a9eec829305dabb9b048179022395e809cd0efe1",
+    "sql-studio-p0-build.log": "8c3b294a2dd820ff7256f965ec717dbe3ebab19a0bd7d0e27424ec50292f9eed"
+  },
+  "limitations": [
+    "Current changes not exercised with a live provider and live metadata service together",
+    "Business financial definitions/grain/lineage remain unconfirmed",
+    "Oracle PK collection and derived-table uniqueness propagation not implemented",
+    "Model reasoning/tool-selection/internal waiting cannot be split from provider duration using existing receipts"
+  ],
+  "relatedBranchComparisons": {
+    "origin/feature/sql-studio-mvp": {
+      "tip": "375a15713016868208bb6a6b8b20b4cb1a84cc6e",
+      "ancestorOfOriginalHead": true,
+      "sqlSourceDiffFiles": 42
+    },
+    "origin/fix/sql-studio-composer-layout": {
+      "tip": "0400bacf4b0e074d223b13afd72f56f0079c72d3",
+      "ancestorOfOriginalHead": true,
+      "sqlSourceDiffFiles": 32
+    },
+    "origin/main": {
+      "tip": "221efb9545dd6a0e0c9881448a4215edb89b29f7",
+      "ancestorOfOriginalHead": true,
+      "sqlSourceDiffFiles": 2
+    }
+  }
+}

@@ -1,0 +1,152 @@
+{
+  "verificationMode": "RECORDED_REAL_METADATA_OFFLINE_REPLAY",
+  "liveDatabaseTest": false,
+  "modelCalled": false,
+  "metadataAuthorizationRecheckedLive": false,
+  "sqlExecuted": false,
+  "customerNumber": "070200046604",
+  "sourceTaskId": "sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8",
+  "describedTables": 10,
+  "validationMs": 72.517,
+  "result": {
+    "parser": "sqlglot",
+    "version": "30.23.0",
+    "sqlExecuted": false,
+    "valid": true,
+    "fieldValidation": "CHECKED",
+    "diagnostics": [
+      {
+        "path": "sql/customer_070200046604.sql",
+        "status": "PARSED",
+        "fields": "CHECKED"
+      }
+    ],
+    "requiresBusinessEvidence": false,
+    "businessLiteralValues": [],
+    "references": [
+      {
+        "tableName": "TKHXX",
+        "schema": "DATACENTER",
+        "database": "",
+        "quoted": false
+      },
+      {
+        "tableName": "TZJZH",
+        "schema": "DATACENTER",
+        "database": "",
+        "quoted": false
+      },
+      {
+        "tableName": "TZQGL",
+        "schema": "DATACENTER",
+        "database": "",
+        "quoted": false
+      },
+      {
+        "tableName": "TZJYELS",
+        "schema": "DATACENTER",
+        "database": "",
+        "quoted": false
+      },
+      {
+        "tableName": "TZQYELS",
+        "schema": "DATACENTER",
+        "database": "",
+        "quoted": false
+      },
+      {
+        "tableName": "TWTLS",
+        "schema": "DATACENTER",
+        "database": "",
+        "quoted": false
+      },
+      {
+        "tableName": "TJGMXLS",
+        "schema": "DATACENTER",
+        "database": "",
+        "quoted": false
+      },
+      {
+        "tableName": "TTZSY",
+        "schema": "DATACENTER",
+        "database": "",
+        "quoted": false
+      },
+      {
+        "tableName": "TSO_TZSY",
+        "schema": "DATACENTER",
+        "database": "",
+        "quoted": false
+      }
+    ],
+    "structuralDiagnostics": [],
+    "relationships": [],
+    "grains": [
+      {
+        "alias": "TKHXX",
+        "tableName": "TKHXX",
+        "primaryKeys": [],
+        "status": "UNKNOWN",
+        "businessGrain": "UNCONFIRMED"
+      },
+      {
+        "alias": "TZJZH",
+        "tableName": "TZJZH",
+        "primaryKeys": [],
+        "status": "UNKNOWN",
+        "businessGrain": "UNCONFIRMED"
+      },
+      {
+        "alias": "TZQGL",
+        "tableName": "TZQGL",
+        "primaryKeys": [],
+        "status": "UNKNOWN",
+        "businessGrain": "UNCONFIRMED"
+      },
+      {
+        "alias": "TZJYELS",
+        "tableName": "TZJYELS",
+        "primaryKeys": [],
+        "status": "UNKNOWN",
+        "businessGrain": "UNCONFIRMED"
+      },
+      {
+        "alias": "TZQYELS",
+        "tableName": "TZQYELS",
+        "primaryKeys": [],
+        "status": "UNKNOWN",
+        "businessGrain": "UNCONFIRMED"
+      },
+      {
+        "alias": "TWTLS",
+        "tableName": "TWTLS",
+        "primaryKeys": [],
+        "status": "UNKNOWN",
+        "businessGrain": "UNCONFIRMED"
+      },
+      {
+        "alias": "TJGMXLS",
+        "tableName": "TJGMXLS",
+        "primaryKeys": [],
+        "status": "UNKNOWN",
+        "businessGrain": "UNCONFIRMED"
+      },
+      {
+        "alias": "TTZSY",
+        "tableName": "TTZSY",
+        "primaryKeys": [],
+        "status": "UNKNOWN",
+        "businessGrain": "UNCONFIRMED"
+      },
+      {
+        "alias": "TSO_TZSY",
+        "tableName": "TSO_TZSY",
+        "primaryKeys": [],
+        "status": "UNKNOWN",
+        "businessGrain": "UNCONFIRMED"
+      }
+    ],
+    "structureReviewRequired": false,
+    "businessValidation": "NOT_EVALUATED"
+  }
+}

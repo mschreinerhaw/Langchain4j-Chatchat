@@ -1,0 +1,457 @@
+{
+  "tag": "25.2.0",
+  "sourceCopiedIntoProduct": false,
+  "repositories": {
+    "dbeaver": {
+      "sha": "bd2f6f8a3c350d4f9bb914879bba791c27039a45",
+      "licensePath": "LICENSE.md",
+      "licenseSha256": "3574a35d6ceb85fe03ed8dee865ebfcfbbd7c6de6899e890966f437ffe177373",
+      "files": [
+        {
+          "path": "plugins/org.jkiss.dbeaver.model/src/org/jkiss/dbeaver/model/struct/DBSEntity.java",
+          "sha256": "b4e6d82e11f8f2aeb4251d5b51a5e0e94cd88854cde6760ab6fce63124a01f4d",
+          "lines": 90,
+          "license": "Apache-2.0",
+          "licenseBasis": "file-header+root",
+          "symbols": {
+            "getAttributes(": [
+              48
+            ],
+            "getConstraints(": [
+              68
+            ],
+            "getAssociations(": [
+              78
+            ],
+            "getReferences(": [
+              88
+            ]
+          },
+          "url": "https://github.com/dbeaver/dbeaver/blob/bd2f6f8a3c350d4f9bb914879bba791c27039a45/plugins/org.jkiss.dbeaver.model/src/org/jkiss/dbeaver/model/struct/DBSEntity.java"
+        },
+        {
+          "path": "plugins/org.jkiss.dbeaver.model/src/org/jkiss/dbeaver/model/struct/DBSEntityAssociation.java",
+          "sha256": "0c8655b29850352b9a71ce3c68527102111e3a0b42d614df31283da310be0ffa",
+          "lines": 36,
+          "license": "Apache-2.0",
+          "licenseBasis": "file-header+root",
+          "symbols": {
+            "getReferencedConstraint(": [
+              27
+            ],
+            "getAssociatedEntity(": [
+              30
+            ]
+          },
+          "url": "https://github.com/dbeaver/dbeaver/blob/bd2f6f8a3c350d4f9bb914879bba791c27039a45/plugins/org.jkiss.dbeaver.model/src/org/jkiss/dbeaver/model/struct/DBSEntityAssociation.java"
+        },
+        {
+          "path": "plugins/org.jkiss.dbeaver.model/src/org/jkiss/dbeaver/model/struct/DBSEntityConstraint.java",
+          "sha256": "bf6cedf6074c2927053618867474de5aad92b8d3c7bbbbdd277ef59034c3983d",
+          "lines": 33,
+          "license": "Apache-2.0",
+          "licenseBasis": "file-header+root",
+          "symbols": {
+            "getConstraintType(": [
+              31
+            ]
+          },
+          "url": "https://github.com/dbeaver/dbeaver/blob/bd2f6f8a3c350d4f9bb914879bba791c27039a45/plugins/org.jkiss.dbeaver.model/src/org/jkiss/dbeaver/model/struct/DBSEntityConstraint.java"
+        },
+        {
+          "path": "plugins/org.jkiss.dbeaver.model/src/org/jkiss/dbeaver/model/navigator/DBNDatabaseNode.java",
+          "sha256": "8c8e84bb95f4eaa25dd4f73b3bdad9e918678554953897db5931bcf42a7ed9d6",
+          "lines": 1135,
+          "license": "Apache-2.0",
+          "licenseBasis": "file-header+root",
+          "symbols": {
+            "getChildren(": [
+              208,
+              220,
+              431,
+              551,
+              954,
+              966,
+              980
+            ],
+            "needsInitialization(": [
+              321,
+              749
+            ],
+            "refreshNode(": [
+              350,
+              382
+            ]
+          },
+          "url": "https://github.com/dbeaver/dbeaver/blob/bd2f6f8a3c350d4f9bb914879bba791c27039a45/plugins/org.jkiss.dbeaver.model/src/org/jkiss/dbeaver/model/navigator/DBNDatabaseNode.java"
+        },
+        {
+          "path": "plugins/org.jkiss.dbeaver.ui.navigator/src/org/jkiss/dbeaver/ui/navigator/database/DatabaseNavigatorContentProvider.java",
+          "sha256": "f76917481f94e2e4afcee7bd4d52e285fce769d9fdf2e86b55f66f2aba0c37dd",
+          "lines": 203,
+          "license": "Apache-2.0",
+          "licenseBasis": "file-header+root",
+          "symbols": {
+            "getChildren(": [
+              61,
+              64,
+              82
+            ],
+            "TreeLoadVisualizer.expandChildren": [
+              94
+            ]
+          },
+          "url": "https://github.com/dbeaver/dbeaver/blob/bd2f6f8a3c350d4f9bb914879bba791c27039a45/plugins/org.jkiss.dbeaver.ui.navigator/src/org/jkiss/dbeaver/ui/navigator/database/DatabaseNavigatorContentProvider.java"
+        },
+        {
+          "path": "plugins/org.jkiss.dbeaver.model.sql/src/org/jkiss/dbeaver/model/sql/semantics/SQLQueryModelRecognizer.java",
+          "sha256": "6c425e741cbeb518ca82ab79da44a91f6439c2ba4e9a7206ef6bbad93edf3bac",
+          "lines": 1026,
+          "license": "Apache-2.0",
+          "licenseBasis": "file-header+root",
+          "symbols": {
+            "recognizeQuery(": [
+              99,
+              1022,
+              1024
+            ],
+            "collectQueryExpression(": [
+              125,
+              147,
+              389,
+              742
+            ]
+          },
+          "url": "https://github.com/dbeaver/dbeaver/blob/bd2f6f8a3c350d4f9bb914879bba791c27039a45/plugins/org.jkiss.dbeaver.model.sql/src/org/jkiss/dbeaver/model/sql/semantics/SQLQueryModelRecognizer.java"
+        },
+        {
+          "path": "plugins/org.jkiss.dbeaver.model.sql/src/org/jkiss/dbeaver/model/sql/semantics/completion/SQLQueryCompletionAnalyzer.java",
+          "sha256": "849decf81587d3c4d61ba84317c1a8495fa969250b175cddd185089af912a95d",
+          "lines": 216,
+          "license": "Apache-2.0",
+          "licenseBasis": "file-header+root",
+          "symbols": {
+            "prepareContextfulCompletion(": [
+              83,
+              112
+            ],
+            "prepareReplacementString(": [
+              128,
+              179
+            ]
+          },
+          "url": "https://github.com/dbeaver/dbeaver/blob/bd2f6f8a3c350d4f9bb914879bba791c27039a45/plugins/org.jkiss.dbeaver.model.sql/src/org/jkiss/dbeaver/model/sql/semantics/completion/SQLQueryCompletionAnalyzer.java"
+        },
+        {
+          "path": "plugins/org.jkiss.dbeaver.model.sql/src/org/jkiss/dbeaver/model/sql/semantics/completion/SQLQueryCompletionContext.java",
+          "sha256": "7420b2aa4a060b44b20830c5cf4aa4d3a50842cc1ffa7de321c2fe6585b6312a",
+          "lines": 1984,
+          "license": "Apache-2.0",
+          "licenseBasis": "file-header+root",
+          "symbols": {
+            "prepareProposal(": [
+              103,
+              135,
+              221,
+              306
+            ],
+            "preparePrefixedColumnCompletions(": [
+              546,
+              552
+            ]
+          },
+          "url": "https://github.com/dbeaver/dbeaver/blob/bd2f6f8a3c350d4f9bb914879bba791c27039a45/plugins/org.jkiss.dbeaver.model.sql/src/org/jkiss/dbeaver/model/sql/semantics/completion/SQLQueryCompletionContext.java"
+        },
+        {
+          "path": "plugins/org.jkiss.dbeaver.model.ai/src/org/jkiss/dbeaver/model/ai/impl/AIEngineRequestFactory.java",
+          "sha256": "72372b0af9dbcb3fc0514edba41f8f1bb528953319e55c6a1843767e7d3e6344",
+          "lines": 128,
+          "license": "Apache-2.0",
+          "licenseBasis": "file-header+root",
+          "symbols": {
+            "AIEngineRequest build(": [
+              58
+            ],
+            "ChatTruncator.builder(": [
+              102
+            ]
+          },
+          "url": "https://github.com/dbeaver/dbeaver/blob/bd2f6f8a3c350d4f9bb914879bba791c27039a45/plugins/org.jkiss.dbeaver.model.ai/src/org/jkiss/dbeaver/model/ai/impl/AIEngineRequestFactory.java"
+        },
+        {
+          "path": "plugins/org.jkiss.dbeaver.model.ai/src/org/jkiss/dbeaver/model/ai/impl/AIDatabaseSnapshotService.java",
+          "sha256": "0cfb0c8af1301bcbd37607aebbc038653a357ebd66f55c5115f6560c8f946482",
+          "lines": 299,
+          "license": "Apache-2.0",
+          "licenseBasis": "file-header+root",
+          "symbols": {
+            "createDbSnapshot(": [
+              57
+            ],
+            "appendObjectDescription(": [
+              107,
+              122,
+              133,
+              183
+            ],
+            "shouldSkipObject(": [
+              146,
+              180,
+              200
+            ]
+          },
+          "url": "https://github.com/dbeaver/dbeaver/blob/bd2f6f8a3c350d4f9bb914879bba791c27039a45/plugins/org.jkiss.dbeaver.model.ai/src/org/jkiss/dbeaver/model/ai/impl/AIDatabaseSnapshotService.java"
+        },
+        {
+          "path": "plugins/org.jkiss.dbeaver.model.ai/src/org/jkiss/dbeaver/model/ai/engine/AIDatabaseContext.java",
+          "sha256": "bcc163c6eb75e4f76af610851e5f3275a4c1484cbdff5dda07637e885664b833",
+          "lines": 147,
+          "license": "Apache-2.0",
+          "licenseBasis": "file-header+root",
+          "symbols": {
+            "class Builder": [
+              73
+            ],
+            "setScope(": [
+              84
+            ]
+          },
+          "url": "https://github.com/dbeaver/dbeaver/blob/bd2f6f8a3c350d4f9bb914879bba791c27039a45/plugins/org.jkiss.dbeaver.model.ai/src/org/jkiss/dbeaver/model/ai/engine/AIDatabaseContext.java"
+        },
+        {
+          "path": "plugins/org.jkiss.dbeaver.model.ai/src/org/jkiss/dbeaver/model/ai/engine/openai/OpenAICompletionEngine.java",
+          "sha256": "8be42cd049e60595e3212650cd254c0248d8640cf8b39e1253d63551ea6cb0a3",
+          "lines": 205,
+          "license": "Apache-2.0",
+          "licenseBasis": "file-header+root",
+          "symbols": {
+            "requestCompletion(": [
+              79
+            ],
+            "requestCompletionStream(": [
+              93
+            ]
+          },
+          "url": "https://github.com/dbeaver/dbeaver/blob/bd2f6f8a3c350d4f9bb914879bba791c27039a45/plugins/org.jkiss.dbeaver.model.ai/src/org/jkiss/dbeaver/model/ai/engine/openai/OpenAICompletionEngine.java"
+        },
+        {
+          "path": "plugins/org.jkiss.dbeaver.ui.ai/src/org/jkiss/dbeaver/ui/ai/controls/ScopeSelectorControl.java",
+          "sha256": "38c3d3b1319e0712175d39b077578d28808870e7523c7e374445dc8245fb52ca",
+          "lines": 258,
+          "license": "Apache-2.0",
+          "licenseBasis": "file-header+root",
+          "symbols": {
+            "ScopeSelectorControl(": [
+              67
+            ],
+            "widgetSelected(": [
+              96
+            ]
+          },
+          "url": "https://github.com/dbeaver/dbeaver/blob/bd2f6f8a3c350d4f9bb914879bba791c27039a45/plugins/org.jkiss.dbeaver.ui.ai/src/org/jkiss/dbeaver/ui/ai/controls/ScopeSelectorControl.java"
+        },
+        {
+          "path": "plugins/org.jkiss.dbeaver.ui.ai/src/org/jkiss/dbeaver/ui/ai/legacy/AILegacyTranslator.java",
+          "sha256": "6879b14b97631d439cea587c143767bfa56073b8db9cf729082faa2180244d47",
+          "lines": 211,
+          "license": "Apache-2.0",
+          "licenseBasis": "file-header+root",
+          "symbols": {
+            "translateUserInputIntoSql(": [
+              120,
+              151
+            ],
+            "insertSqlCompletion(": [
+              134,
+              182
+            ]
+          },
+          "url": "https://github.com/dbeaver/dbeaver/blob/bd2f6f8a3c350d4f9bb914879bba791c27039a45/plugins/org.jkiss.dbeaver.ui.ai/src/org/jkiss/dbeaver/ui/ai/legacy/AILegacyTranslator.java"
+        },
+        {
+          "path": "plugins/org.jkiss.dbeaver.ui.editors.sql/src/org/jkiss/dbeaver/ui/editors/sql/semantics/SQLEditorSemanticMarkersManager.java",
+          "sha256": "cf481bc0348215fc8d5f8b84c23b9c6606d998af57d036f9a4f5af1432280d73",
+          "lines": 262,
+          "license": "Apache-2.0",
+          "licenseBasis": "file-header+root",
+          "symbols": {
+            "onScriptItemInvalidated(": [
+              68
+            ],
+            "updateMarkers(": [
+              86,
+              108
+            ]
+          },
+          "url": "https://github.com/dbeaver/dbeaver/blob/bd2f6f8a3c350d4f9bb914879bba791c27039a45/plugins/org.jkiss.dbeaver.ui.editors.sql/src/org/jkiss/dbeaver/ui/editors/sql/semantics/SQLEditorSemanticMarkersManager.java"
+        },
+        {
+          "path": "plugins/org.jkiss.dbeaver.model.ai/src/org/jkiss/dbeaver/model/ai/commands/SQLCommandAI.java",
+          "sha256": "74de5154d4efaa081e47c3436ed82f327553db2a4e89b72799d8752922953e0e",
+          "lines": 140,
+          "license": "Apache-2.0",
+          "licenseBasis": "file-header+root",
+          "symbols": {
+            "handleCommand(": [
+              58
+            ],
+            "AICommandRequest(": [
+              107
+            ]
+          },
+          "url": "https://github.com/dbeaver/dbeaver/blob/bd2f6f8a3c350d4f9bb914879bba791c27039a45/plugins/org.jkiss.dbeaver.model.ai/src/org/jkiss/dbeaver/model/ai/commands/SQLCommandAI.java"
+        }
+      ]
+    },
+    "cloudbeaver": {
+      "sha": "5e30bbdc77b92c4b2276cf705d57ac42f0fa3684",
+      "licensePath": "LICENSE",
+      "licenseSha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "files": [
+        {
+          "path": "webapp/packages/core-navigation-tree/src/NodesManager/NavTreeResource.ts",
+          "sha256": "e1f59ddbac4c71c4077bca02662392216f2169358c1bc3f32b0be6cfbaa170c4",
+          "lines": 617,
+          "license": "Apache-2.0",
+          "licenseBasis": "file-header+root",
+          "symbols": {
+            "refreshTree(": [
+              153
+            ],
+            "markTreeOutdated(": [
+              112,
+              113,
+              160,
+              179
+            ],
+            "loadNodeChildren(": [
+              498,
+              595
+            ],
+            "insertSlice(": [
+              565,
+              577,
+              581
+            ]
+          },
+          "url": "https://github.com/dbeaver/cloudbeaver/blob/5e30bbdc77b92c4b2276cf705d57ac42f0fa3684/webapp/packages/core-navigation-tree/src/NodesManager/NavTreeResource.ts"
+        },
+        {
+          "path": "webapp/packages/plugin-sql-editor-new/src/SQLEditor/useSqlDialectAutocompletion.ts",
+          "sha256": "911af418d004b0300c68dc84a267df7109f8b154e7628e6347a2c95211662a56",
+          "lines": 162,
+          "license": "Apache-2.0",
+          "licenseBasis": "file-header+root",
+          "symbols": {
+            "completionSource(": [
+              75
+            ],
+            "insertCompletionText(": [
+              67
+            ]
+          },
+          "url": "https://github.com/dbeaver/cloudbeaver/blob/5e30bbdc77b92c4b2276cf705d57ac42f0fa3684/webapp/packages/plugin-sql-editor-new/src/SQLEditor/useSqlDialectAutocompletion.ts"
+        },
+        {
+          "path": "webapp/packages/plugin-sql-editor/src/SqlEditor/useSqlEditor.ts",
+          "sha256": "995f0aee8e5cae9c9a479724d2f708b3252cf70ff31e3c7170a95a6632a0c526",
+          "lines": 573,
+          "license": "Apache-2.0",
+          "licenseBasis": "file-header+root",
+          "symbols": {
+            "getHintProposals:": [
+              192,
+              489
+            ],
+            "getExecutingQuery(": [
+              57,
+              220,
+              256,
+              429,
+              473
+            ]
+          },
+          "url": "https://github.com/dbeaver/cloudbeaver/blob/5e30bbdc77b92c4b2276cf705d57ac42f0fa3684/webapp/packages/plugin-sql-editor/src/SqlEditor/useSqlEditor.ts"
+        },
+        {
+          "path": "webapp/packages/plugin-sql-editor/src/SqlEditorService.ts",
+          "sha256": "59f6041266df154c102097f4c6c9f9dfbc47bea77f86f732742d8d376f33328e",
+          "lines": 272,
+          "license": "Apache-2.0",
+          "licenseBasis": "file-header+root",
+          "symbols": {
+            "getAutocomplete(": [
+              118
+            ],
+            "querySqlCompletionProposals(": [
+              127
+            ]
+          },
+          "url": "https://github.com/dbeaver/cloudbeaver/blob/5e30bbdc77b92c4b2276cf705d57ac42f0fa3684/webapp/packages/plugin-sql-editor/src/SqlEditorService.ts"
+        },
+        {
+          "path": "webapp/packages/core-sdk/src/queries/sql-editor/querySqlCompletionProposals.gql",
+          "sha256": "0998751c36fd00c5f07c78b195c90ecbbb0c6604e30925c7942da2b4b8b75b92",
+          "lines": 29,
+          "license": "Apache-2.0",
+          "licenseBasis": "root",
+          "symbols": {
+            "query querySqlCompletionProposals": [
+              1
+            ]
+          },
+          "url": "https://github.com/dbeaver/cloudbeaver/blob/5e30bbdc77b92c4b2276cf705d57ac42f0fa3684/webapp/packages/core-sdk/src/queries/sql-editor/querySqlCompletionProposals.gql"
+        },
+        {
+          "path": "server/bundles/io.cloudbeaver.server/src/io/cloudbeaver/service/sql/impl/WebServiceSQL.java",
+          "sha256": "f4aaccfd1bde1c3161f84b3efb7cb392ed133c6bb06aa7e2166a8c584d651c8c",
+          "lines": 705,
+          "license": "Apache-2.0",
+          "licenseBasis": "file-header+root",
+          "symbols": {
+            "getCompletionProposals(": [
+              140
+            ],
+            "SQLQueryCompletionAnalyzer(": [
+              178
+            ],
+            "SQLCompletionAnalyzer(": [
+              187
+            ]
+          },
+          "url": "https://github.com/dbeaver/cloudbeaver/blob/5e30bbdc77b92c4b2276cf705d57ac42f0fa3684/server/bundles/io.cloudbeaver.server/src/io/cloudbeaver/service/sql/impl/WebServiceSQL.java"
+        },
+        {
+          "path": "server/bundles/io.cloudbeaver.server/src/io/cloudbeaver/service/sql/WebSQLCompletionContext.java",
+          "sha256": "229cfcdecb2c4be6468a4bf016b8d31dd564b652509f39c21239aab8f4c43697",
+          "lines": 133,
+          "license": "Apache-2.0",
+          "licenseBasis": "file-header+root",
+          "symbols": {
+            "getExecutionContext(": [
+              52
+            ],
+            "getSyntaxManager(": [
+              59,
+              60
+            ]
+          },
+          "url": "https://github.com/dbeaver/cloudbeaver/blob/5e30bbdc77b92c4b2276cf705d57ac42f0fa3684/server/bundles/io.cloudbeaver.server/src/io/cloudbeaver/service/sql/WebSQLCompletionContext.java"
+        },
+        {
+          "path": "server/bundles/io.cloudbeaver.server/src/io/cloudbeaver/service/sql/WebSQLCompletionContextScriptParser.java",
+          "sha256": "fedbd01182557f6755696fdf68a612f21b7ed0c83ce5f8ae8804d9a1d9b88ea3",
+          "lines": 92,
+          "license": "Apache-2.0",
+          "licenseBasis": "file-header+root",
+          "symbols": {
+            "obtainCompletionContext(": [
+              36
+            ]
+          },
+          "url": "https://github.com/dbeaver/cloudbeaver/blob/5e30bbdc77b92c4b2276cf705d57ac42f0fa3684/server/bundles/io.cloudbeaver.server/src/io/cloudbeaver/service/sql/WebSQLCompletionContextScriptParser.java"
+        }
+      ]
+    }
+  }
+}

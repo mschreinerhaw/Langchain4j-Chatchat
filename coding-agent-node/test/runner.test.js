@@ -97,6 +97,23 @@ test('native SDK completes a reviewed text report without a Python process or an
   assert.equal(finished.operationId,operation);assert.equal(result.codeFiles.length,0);
 });
 
+test('native SDK preserves incomplete analysis scope and exact field provenance in text submission', async () => {
+  const report={reportMarkdown:'Cannot establish the business period without producer definitions.',evidenceReferences:['source'],
+    limitations:['Business time semantics missing'],analysisStatus:'INPUT_REQUIRED',fieldProvenance:[{
+      datasetReference:'source',sourceField:'opaque_time',meaning:'Unknown',declarationSource:'Not supplied',status:'UNCONFIRMED'}]};
+  let submitted;
+  const contract={...task,schemaVersion:'runtime_os.coding.v3',authorization:{...task.authorization,allowedTools:['report_submit'],allowedSideEffects:[]},
+    runtimeContext:{analysisResultMode:'TEXT_OR_CODE'},outputContract:{...task.outputContract,resultFormat:'JSON_LINES'}};
+  const result=await createCodingRun(contract,{reserveModel(){},settleModel(){},finish(){},
+    executePython(){throw Error('Must not execute unsupported analysis');},
+    submitReport(_task,value){submitted=value.report;return {operationId:'workspace-'+'a'.repeat(64),status:'SUCCEEDED',executorStopped:true,
+      pythonExecuted:false,executionMode:'TEXT_ONLY',resultDatasetRef:'result',validationRecordRef:'validation',evidenceBundleRef:'bundle'};}
+  },{nativeSdk:true,model:{async *stream(){
+    yield {type:'tool-call-delta',toolCallId:'incomplete-report',toolName:'report_submit',input:report};yield {type:'finish',reason:'tool-calls'};
+  }}}).run();
+  assert.equal(result.status,'completed');assert.deepEqual(submitted,report);assert.equal(result.codeFiles.length,0);
+});
+
 test('malformed provider arguments are repaired in the same SDK with fresh admissions and actual usage', async () => {
   const admitted=[],settled=[],checkpoints=[];let models=0,executions=0;
   const gateway={

@@ -627,6 +627,21 @@ class CodingAnalysisServiceTest {
         assertThat(deadline.get()-System.currentTimeMillis()).isBetween(55_000L,60_000L);
     }
 
+    @Test void reportContractRequiresCompletionScopeAndChecksFieldProvenanceShape() {
+        var schema = CodingAnalysisService.primaryReportSchema();
+        var row = new LinkedHashMap<String,Object>(Map.of("reportMarkdown", "Source structure only",
+            "evidenceReferences", List.of("source"), "limitations", List.of("Field meanings absent")));
+        assertThatThrownBy(() -> com.chatchat.agents.orchestration.analysis.graph.WorkspaceResultSchema.validate(row, schema))
+            .isInstanceOf(IllegalArgumentException.class);
+        row.put("analysisStatus", "INPUT_REQUIRED");
+        row.put("fieldProvenance", List.of(Map.of("datasetReference", "source", "sourceField", "opaque_time",
+            "meaning", "Unknown", "declarationSource", "Not supplied", "status", "UNCONFIRMED")));
+        com.chatchat.agents.orchestration.analysis.graph.WorkspaceResultSchema.validate(row, schema);
+        row.put("analysisStatus", "VERIFIED_BY_MODEL");
+        assertThatThrownBy(() -> com.chatchat.agents.orchestration.analysis.graph.WorkspaceResultSchema.validate(row, schema))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
+
     private CodingTaskOutcome outcome(CodingTaskOutcome.Status status,CodingTaskOutcome.ValidationStatus validation){
         var result=mock(CodingTaskOutcome.class);
         when(result.status()).thenReturn(status);when(result.validationStatus()).thenReturn(validation);

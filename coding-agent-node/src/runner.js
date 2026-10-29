@@ -155,7 +155,12 @@ export function createCodingRun(contract, gateway, options = {}) {
     name:'report_submit',...(nativeSdk?{lifecycle:{completesRun:true}}:{}),
     description:'Submit your reviewed text-only report using exact delivered evidence references. No Python runs and no calculation or chart execution is claimed. Do not use after executing Python; in that case finish through the real Python output contract.',
     inputSchema:{type:'object',properties:{reportMarkdown:{type:'string'},evidenceReferences:{type:'array',items:{type:'string'}},
-      limitations:{type:'array',items:{type:'string'}}},required:['reportMarkdown','evidenceReferences','limitations'],additionalProperties:false},
+      limitations:{type:'array',items:{type:'string'}},
+      analysisStatus:{type:'string',enum:['COMPLETE','PARTIAL','INPUT_REQUIRED']},
+      fieldProvenance:{type:'array',items:{type:'object',properties:{datasetReference:{type:'string'},sourceField:{type:'string'},
+        meaning:{type:'string'},declarationSource:{type:'string'},status:{type:'string',enum:['CONFIRMED','UNCONFIRMED']}},
+        required:['datasetReference','sourceField','meaning','declarationSource','status'],additionalProperties:false}}},
+      required:['reportMarkdown','evidenceReferences','limitations'],additionalProperties:false},
     executionMode:'sequential',
     async execute(report,context){
       if(typeof gateway.submitReport!=='function')throw new TypeError('Runtime text result submission is unavailable');

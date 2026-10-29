@@ -168,17 +168,23 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
     }
     static Map<String,Object> primaryReportSchema(boolean visual,boolean required) {
         Map<String,Object> stringArray = Map.of("type", "array", "items", Map.of("type", "string"));
-        if(visual)return Map.of("type","object","properties",Map.of("reportMarkdown",Map.of("type","string"),
-            "evidenceReferences",stringArray,"limitations",stringArray,"visualReport",Map.of("type","object","additionalProperties",true)),
-            "required",required?List.of("reportMarkdown","evidenceReferences","limitations","visualReport"):List.of("reportMarkdown","evidenceReferences","limitations"),"additionalProperties",false);
-        return Map.of(
-            "type", "object",
-            "properties", Map.of(
-                "reportMarkdown", Map.of("type", "string"),
-                "evidenceReferences", stringArray,
-                "limitations", stringArray),
-            "required", List.of("reportMarkdown", "evidenceReferences", "limitations"),
-            "additionalProperties", false);
+        var properties = new LinkedHashMap<String,Object>();
+        properties.put("reportMarkdown", Map.of("type", "string"));
+        properties.put("evidenceReferences", stringArray);
+        properties.put("limitations", stringArray);
+        properties.put("analysisStatus", Map.of("type", "string", "enum", List.of("COMPLETE", "PARTIAL", "INPUT_REQUIRED")));
+        properties.put("fieldProvenance", Map.of("type", "array", "items", Map.of("type", "object",
+            "properties", Map.of("datasetReference", Map.of("type", "string"), "sourceField", Map.of("type", "string"),
+                "meaning", Map.of("type", "string"), "declarationSource", Map.of("type", "string"),
+                "status", Map.of("type", "string", "enum", List.of("CONFIRMED", "UNCONFIRMED"))),
+            "required", List.of("datasetReference", "sourceField", "meaning", "declarationSource", "status"),
+            "additionalProperties", false)));
+        var fields = new ArrayList<>(List.of("reportMarkdown", "evidenceReferences", "limitations", "analysisStatus", "fieldProvenance"));
+        if (visual) {
+            properties.put("visualReport", Map.of("type", "object", "additionalProperties", true));
+            if (required) fields.add("visualReport");
+        }
+        return Map.of("type", "object", "properties", properties, "required", fields, "additionalProperties", false);
     }
     public Map<String,Object> execute(AnalysisCoverageCoordinator.Request context, Map<String,Object> request,
                                      Map<String,Dataset> sources) {
@@ -302,6 +308,15 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 +"For charts produce chart-ready columns and explicit chart specification in the contracted row schema; never fabricate plotted values. "
                 +"Use Decimal for exact money calculations when required. Inspect receipts and repair technical failures with a complete program. "
                 +"Schema checks do not establish business correctness. Explain limitations in your summary.";
+            if (schema.containsKey("properties") && ((Map<?,?>)schema.get("properties")).containsKey("analysisStatus")) {
+                goal += "\nReport admission contract: explicitly write analysisStatus and fieldProvenance in the report row. "
+                    + "Use INPUT_REQUIRED when missing field meanings, units, population or time semantics block the requested business analysis; use PARTIAL for other incomplete objectives, COMPLETE only when all requested objectives are supported. "
+                    + "An inspection report is not completion of a requested behavioral analysis. Explain missing evidence in both limitations and reportMarkdown. "
+                    + "For each interpreted field record its exact datasetReference, sourceField, meaning, declarationSource and CONFIRMED/UNCONFIRMED status. Use UNCONFIRMED and an explicit missing declaration when no producer definition or authorized reference exists. "
+                    + "Without confirmed meanings, report structural counts, observed types and missingness only. Do not sum/average identifier-like numeric columns, select the first date-like column as a business time, or call ETL/load timestamps transaction dates. "
+                    + "Profile the original columns before adding helper columns; derived columns must never appear as source fields. State the exact source field for every date range and explain its confirmed meaning before calling it a business period. "
+                    + "Result review must verify these fields and withhold unsupported charts and conclusions. A safe INPUT_REQUIRED report is a valid deliverable; do not invent semantics to obtain COMPLETE.";
+            }
             // Runtime acquires business data before analysis. Cline receives snapshots,
             // not a tool for choosing new business templates or query parameters.
             boolean sqlAvailable=analysisSql!=null&&analysisSql.available();

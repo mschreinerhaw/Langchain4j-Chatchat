@@ -14,6 +14,21 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClineContextAnswerServiceTest {
+    @Test void missingBusinessSemanticsPublishesUsablePartialReportInsteadOfFullSuccess() {
+        var outcome = ClineContextAnswerService.reportOutcome(Map.of("analysisStatus", "INPUT_REQUIRED",
+            "limitations", List.of("Producer field definitions and business time semantics are missing")));
+        assertThat(outcome.type()).isEqualTo(com.chatchat.common.runtime.capability.WorkflowOutcome.Type.INPUT_REQUIRED);
+        assertThat(outcome.publicStatus()).isEqualTo("PARTIAL_SUCCESS");
+        assertThat(outcome.usableResult()).isTrue();
+        assertThat(outcome.missingRequiredCapabilities()).hasSize(1);
+    }
+    @Test void incompleteReportRequiresExplicitEvidenceGapAndCannotInventAStatus() {
+        assertThatThrownBy(() -> ClineContextAnswerService.reportOutcome(Map.of("analysisStatus", "INPUT_REQUIRED", "limitations", List.of())))
+            .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> ClineContextAnswerService.reportOutcome(Map.of("analysisStatus", "VERIFIED_BY_MODEL")))
+            .isInstanceOf(IllegalArgumentException.class);
+        assertThat(ClineContextAnswerService.reportOutcome(Map.of("reportMarkdown", "Historical report")).publicStatus()).isEqualTo("SUCCESS");
+    }
     @Test void longSqlAndHistoryAreImmutableContextNotAnOversizedCodingInstruction() {
         String sql = "Explain the following SQL:\nSELECT * FROM sales WHERE note = '" + "x".repeat(14000) + "';";
         var request = request(); request.setQuery(sql);

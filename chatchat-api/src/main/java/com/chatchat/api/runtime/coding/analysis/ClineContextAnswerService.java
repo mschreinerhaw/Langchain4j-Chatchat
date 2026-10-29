@@ -254,8 +254,7 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
             var responseMetadata = new LinkedHashMap<String,Object>(Map.<String,Object>of("handler", "ClineContextAnswerService", "workflow", "coding_owned_context_answer",
                     "javaAnalysisModelCalls", 0, "codingReceipt", receipt, "currentBusinessDataAcquired", false,
                     "attachmentReferences", authorizedReferences.stream().filter(ref->ref.startsWith("user-asset:")).toList(),
-                    WorkflowOutcome.METADATA_KEY, new WorkflowOutcome(WorkflowOutcome.Type.READY_TO_ANSWER,
-                        "CODING_CONTEXT_ANSWER_COMPLETED", List.of(), List.of(), true)));
+                    WorkflowOutcome.METADATA_KEY, reportOutcome(rows.get(0))));
             if (withAttachments) responseMetadata.put("fileAnalysis", context.problemAnalysisPlan() == null
                 ? Map.of("inputs", input.get("files"), "toolDataDependency", "NONE") : context.problemAnalysisPlan());
             if (sqlIntent != null) responseMetadata.put("sqlIntent", sqlIntent.name());
@@ -282,6 +281,20 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
     private static Map<String,Object> contextMetadata(String inputKind) {
         return Map.of("recordMeaning", "SUPPLIED_CONTEXT_NOT_OBSERVATIONS", "inputKind", inputKind,
             "isBusinessDataset", false, "currentBusinessDataAcquired", false);
+    }
+    static WorkflowOutcome reportOutcome(Map<String,Object> row) {
+        // Historical report rows predate structured completion scope. Do not reclassify their text.
+        Object status = row.get("analysisStatus");
+        if (status == null || "COMPLETE".equals(status))
+            return new WorkflowOutcome(WorkflowOutcome.Type.READY_TO_ANSWER,
+                "CODING_CONTEXT_ANSWER_COMPLETED", List.of(), List.of(), true);
+        if (!Set.of("PARTIAL", "INPUT_REQUIRED").contains(status))
+            throw new IllegalArgumentException("Invalid Coding analysisStatus");
+        if (!(row.get("limitations") instanceof List<?> missing) || missing.isEmpty()
+                || missing.stream().anyMatch(item -> !(item instanceof String value) || value.isBlank()))
+            throw new IllegalArgumentException("Incomplete Coding reports must declare missing evidence");
+        return new WorkflowOutcome("INPUT_REQUIRED".equals(status) ? WorkflowOutcome.Type.INPUT_REQUIRED : WorkflowOutcome.Type.PARTIAL_RESULT,
+            "CODING_ANALYSIS_" + status, missing.stream().map(Object::toString).toList(), List.of(), true);
     }
     private static String preview(String source, int maximum) {
         if (maximum < 128) throw new IllegalArgumentException("ANALYSIS_INSTRUCTION_BUDGET_EXCEEDED: task envelope is too large");

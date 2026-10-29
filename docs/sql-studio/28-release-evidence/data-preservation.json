@@ -15,7 +15,7 @@
   "apiTables": {
     "agent_task_latest": {
       "rowsBefore": 1710,
-      "rowsAfter": 1711,
+      "rowsAfter": 1714,
       "everyOriginalRowUnchanged": true,
       "originalRowsetSha256": "9e8c9636f81a0e7d29efa45789eeac82fd3eaa3e7b7af446fece8ee1095d0eb2"
     },

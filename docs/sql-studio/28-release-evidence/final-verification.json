@@ -1,0 +1,123 @@
+{
+  "sourceCommit": "06ef716d4224368392c9d4a047f5e8f82ff3bf1f",
+  "apiSourceTree": "8cb48686b81c03b830d7a72d47413be6080d8cd8",
+  "buildAndCommittedApiSourceEqual": true,
+  "imageAlias": "runtime-os-api:sql-studio-06ef716d4224-20261029",
+  "imageId": "sha256:c00d42f8b5d3fd999d8256374d63d1af4c8e71dd8b1fcb8d3544835b21a66ed7",
+  "rollbackContainersVerified": true,
+  "unrelatedRunningContainerIdsUnchanged": true,
+  "nodeReadiness": {
+    "status": "READY",
+    "activeSessions": 0
+  },
+  "volumesBefore": 10,
+  "volumesAfter": 10,
+  "removedContainers": 134,
+  "imagesBefore": 179,
+  "imagesAfter": 51,
+  "removedImageTags": 164,
+  "unusedBuildCacheCutoff": "1h",
+  "cleanupErrors": 0,
+  "filesystemReclaimedBytes": 23416692736,
+  "filesystemFreeBytesAfter": 58671333376,
+  "filesystemAfter": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/sdb        180G  126G   55G  70% /opt",
+  "dockerDfAfter": "TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE\nImages          51        35        30.94GB   6.635GB (21%)\nContainers      66        16        1.446GB   1.132GB (78%)\nLocal Volumes   10        5         267.4MB   90B (0%)\nBuild Cache     29        0         69.87kB   69.87kB",
+  "services": {
+    "sql-stability-preview-coding": {
+      "id": "64b1976e4916f1e01363bac61e3635b779f69457a9a5dd3c6046d9ed3fde118d",
+      "imageId": "sha256:7a78d1f26db3f8682f5af7536c10939882f3827ffc0694377efd351612e73511",
+      "running": true,
+      "health": "healthy"
+    },
+    "sql-metadata-preview-api": {
+      "id": "e3c844d76b1aea8fef0b1ddc6b6480cae2944e5737f6ce8d0e23aafbb17f3fbe",
+      "imageId": "sha256:d6fc95e8e2cb2c76019068ce6676d1e67bd0b7a5ecc6215bc617218c4c8c7b88",
+      "running": true,
+      "health": null
+    },
+    "runtime-os-app-stage-node-proxy-1": {
+      "id": "b0a63664040227163ee61d2186a15c4081aeca73e1a706372df66492ce1e1aeb",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "running": true,
+      "health": "healthy"
+    },
+    "runtime-os-app-stage-api-1": {
+      "id": "0faf54aea1ec44777cffecb8d8349234901416682f214e25ba8610d6e333303c",
+      "imageId": "sha256:c00d42f8b5d3fd999d8256374d63d1af4c8e71dd8b1fcb8d3544835b21a66ed7",
+      "running": true,
+      "health": null
+    },
+    "runtime-analysis-preview-proxy": {
+      "id": "04f8b87e53e921533478ccc8538a8988f5d91c7faa7f45618c1af90fdcd481ef",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "running": true,
+      "health": "unhealthy"
+    },
+    "runtime-os-app-stage-coding-agent-1": {
+      "id": "845baeffa16d71d8f2088f0e1ef08a81f4e4781db647b7fb9c2637e8a68a9686",
+      "imageId": "sha256:d3f4f3ea563d1e6657c46d441eb819939a1f1cca59a21d0c7d0dc5cd1e3e3b8e",
+      "running": true,
+      "health": "healthy"
+    },
+    "runtime-analysis-preview-node": {
+      "id": "2b8e31c539883b475653a12dfe67c0cc1513614b580f47ef15310dfaffb385f8",
+      "imageId": "sha256:d3f4f3ea563d1e6657c46d441eb819939a1f1cca59a21d0c7d0dc5cd1e3e3b8e",
+      "running": true,
+      "health": "healthy"
+    },
+    "runtime-os-app-stage-mcp-1": {
+      "id": "8644a7d6bc25a130e4e15fd490a1a0312a39f2868916710c6629ce2846437e84",
+      "imageId": "sha256:f90a1f377daa1a2baf0710d5d92ed7f9ee358c4cb9695ec85db0787daca76fa1",
+      "running": true,
+      "health": null
+    },
+    "sql-metadata-preview-mcp": {
+      "id": "bb9b98d2b9bdfc07cad261419318043348abed353cbd5b871d6c5396bb406d3b",
+      "imageId": "sha256:f90a1f377daa1a2baf0710d5d92ed7f9ee358c4cb9695ec85db0787daca76fa1",
+      "running": true,
+      "health": null
+    },
+    "runtime-os-app-stage-gateway-1": {
+      "id": "14f6ca9db68e65eada303f02986d43f67c735844b17bd6b8cacd9d109111bea5",
+      "imageId": "sha256:d091b0f0efc51dc800a7bcba6b4b243d002f6e5308a60131f890a6658baf34d3",
+      "running": true,
+      "health": "healthy"
+    },
+    "runtime-os-app-stage-news-1": {
+      "id": "6d88ae311cc51a68cb334ab5a10afca195a8849d9275d9922924b3401ada7dd4",
+      "imageId": "sha256:9ba6b23c5a41d8762a027513a583b694d5799fd47c0b7274e96a765611c0a3f3",
+      "running": true,
+      "health": null
+    },
+    "silo": {
+      "id": "ab6b0580a2585ae170174680d1c6cd6da6916062bac12059b69c3b7f6342bbb6",
+      "imageId": "sha256:c676f34789e6598af571b590a782499df279d0d1cca41600752826634420d0bb",
+      "running": true,
+      "health": null
+    },
+    "postgres": {
+      "id": "7973ac268874e433aafcc1f48bd02bf7320e0cad405eb9aa9ab15ac3a4e88c91",
+      "imageId": "sha256:662db3da228c2ea2649b3ae04db4b4479e85fea5979f6a917a7f6d5cb1e7ec39",
+      "running": true,
+      "health": null
+    },
+    "opensearch-node": {
+      "id": "7f88eddff78018de371d041df49d3f70787378b27d2fdcb7d90d8bf3dbfb4464",
+      "imageId": "sha256:731779f1c50424e38335b0af191058642a4964a2b2c62175ebcc8d5734fee13a",
+      "running": true,
+      "health": null
+    },
+    "zookeeper": {
+      "id": "177e1bc85d6c1165e5675ec8915fe0b8e89f22578b23498de8b1c8125e275a41",
+      "imageId": "sha256:36c607e7b14df07e3976ebe6216db9aabd41ef0884f73d4e6b5ccf5d44d9c195",
+      "running": true,
+      "health": null
+    },
+    "redis": {
+      "id": "6fd55e0f7a35d6f9aa5e283ed3739c9cf3c35163e793292446f1a6609921d5f7",
+      "imageId": "sha256:7614ae9453d1d87e740a2056257a6de7135c84037c367e1fffa92ae922784631",
+      "running": true,
+      "health": null
+    }
+  }
+}

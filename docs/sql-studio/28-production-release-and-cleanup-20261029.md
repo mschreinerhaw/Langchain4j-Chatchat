@@ -45,7 +45,7 @@
 
 ## Git 与清理顺序
 
-代码提交到当前 `fix/runtime-analysis-boundaries-20261028` 分支并推送 origin；不隐式合并 main。按用户要求，生产部署及验证完成后提交，再实际清理磁盘。
+代码已提交为 `06ef716d4224368392c9d4a047f5e8f82ff3bf1f`，并推送 `origin/fix/runtime-analysis-boundaries-20261028`；没有合并 main。按用户要求，生产部署及验证完成后提交并推送，再实际清理磁盘。另以同一镜像 ID 添加 `runtime-os-api:sql-studio-06ef716d4224-20261029` 标签用于追溯，未重建或重启服务。构建快照与此提交的 `chatchat-api` Git 子树完全相同。
 
 清理脚本 `scripts/cleanup-obsolete-runtime-docker.py` 已完成真实只读规划：当前200个容器、179个镜像，计划移除134个已被替代的停用容器。规则为：
 
@@ -54,7 +54,21 @@
 - 仅处理已知 Runtime 旧发布容器和未被容器引用的应用版本镜像；Compose／env 引用的镜像和离线基础镜像保留。
 - 不使用 force，不删除 volumes、不执行 system prune，不删除数据库、原始数据、索引、配置、密钥和备份目录。
 
-清理结果将在实际执行并复查服务后追加，不以 Docker 显示的“可回收”估算冒充实际释放空间。
+实际清理已完成：
+
+| 项目 | 清理前 | 清理后 |
+| --- | --- | --- |
+| 容器 | 200 | 66（移除134个停用旧版本，运行容器仍为16） |
+| 镜像 ID | 179 | 51（移除128个旧镜像，合计164个旧标签／引用） |
+| 数据卷 | 10 | 10，名称集合未变化 |
+| `/opt` 使用率 | 82% | 70% |
+| `/opt` 可用空间 | 约34 GiB | 约55 GiB |
+
+容器／镜像清理没有使用 force。旧层仍被构建缓存引用，因此第一阶段实际释放896401408字节；随后通过 `docker builder prune --all --filter until=1h` 清理一小时前的未使用构建缓存，按已授权清理确认输入 `y`，没有使用 `--force`。缓存清理前后全部容器、运行容器、镜像ID和数据卷集合一致，额外实际释放22520291328字节。
+
+合计实际释放 **23416692736字节，约23.4GB（21.8GiB）**，不是 Docker 逻辑镜像大小的估算。保留近期构建缓存、当前／回退镜像、配置引用的镜像、离线基础镜像和未知客户服务。没有删除发布目录、数据库备份、原始业务目录和索引。
+
+清理后再次核对：生产 API 镜像ID与完整发布包一致，原 API／proxy 回退容器仍存在；发布前其余运行容器ID全部一致；Node READY 且活跃会话0；18100首页资源哈希、正常认证和 `/monitor/` 返回正常。数据库原始行再次逐行比对通过。清理错误0。
 
 ## 证据
 
@@ -62,3 +76,4 @@
 - [数据备份与原始行对比](28-release-evidence/data-preservation.json)、[生产烟测范围及403限制](28-release-evidence/production-smoke.json)。
 - [真实浏览器记录](28-release-evidence/production-browser-proof.json)、[生产页面](28-release-evidence/production-workbench.png)、[SQL解释](28-release-evidence/production-explain.png)、[Cline优化](28-release-evidence/production-optimize.png)。
 - [清理前规划](28-release-evidence/docker-cleanup-plan.json)。
+- [实际容器／镜像清理](28-release-evidence/docker-cleanup.json)、[未使用构建缓存清理](28-release-evidence/build-cache-cleanup.json)、[清理后验证及源代码绑定](28-release-evidence/final-verification.json)。

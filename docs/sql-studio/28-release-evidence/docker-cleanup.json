@@ -1,0 +1,1192 @@
+{
+  "graceMinutes": 30,
+  "freeBytesBefore": 35192102912,
+  "containersBefore": 200,
+  "imagesBefore": 179,
+  "protectedContainerIds": [
+    "01e4f5843fdb505c2005c226e26d6ac5291f24ec5d91652e9a14fe4ff13ad975",
+    "04f8b87e53e921533478ccc8538a8988f5d91c7faa7f45618c1af90fdcd481ef",
+    "06cb9ad97712f7a096f48073aad659daeecc4756407a8a3047f9d7edf4e074d1",
+    "0faf54aea1ec44777cffecb8d8349234901416682f214e25ba8610d6e333303c",
+    "102ff57822e844e09a1bcf11a2e966190d0745bd246ede54c2730bca522e4c57",
+    "1220534bf2803ea755df7aabbaef37d669e0b20c4ee2d9da52e3334897c2a03a",
+    "13a34f772925d6a0859a38c61c0f0f98a9a2d1c75c8d4b34b8abd9cb17c11820",
+    "14f6ca9db68e65eada303f02986d43f67c735844b17bd6b8cacd9d109111bea5",
+    "177e1bc85d6c1165e5675ec8915fe0b8e89f22578b23498de8b1c8125e275a41",
+    "1a786cce70afdbfbebe5f3b0af351fca20f1b100847e0fae24c1af184048e92b",
+    "203069c2eb1df106b975aa1d0ed80dd335f0db66f97f5619abdef5c8c838de31",
+    "22ba524dba283af93ed0df5e9d4c5a95885d6aeba57636ff16727aee2006fe96",
+    "2b416d18c80cef602a404b7f1ab37cfe4b30800eb255892924f9820cf9abd284",
+    "2b8e31c539883b475653a12dfe67c0cc1513614b580f47ef15310dfaffb385f8",
+    "2da11a1c40d1d4505f78de0b7ba3ce1f399f627a5a211b6a72da8142cebccb63",
+    "2fffd0af23c7d00f0a91992a95849c5d5b5d1208868f1fedb051a4a57eb52754",
+    "30ce3143831b44efb6d7fd93ddede5a3a10c559ebdf1a75b83e64e4df3ba7da0",
+    "3916eda796deaeb8b70526c09a12d4fc527597a215c01c4c3ab5bbf14a47afdf",
+    "43f8d11e890a4ddaf55da6445c5fb1736684d8944b57c98b2bf4f60c64cc541c",
+    "4d48329a5bd29e79c442ce263913862ddda83e547ab8af68574acb559a53be83",
+    "55f290ee54bd1ae177b7d7da3a34aef8da948bb2a74fdcda97899b885e69a5c5",
+    "60a9ea585b4e579d7cc1fe7a50f69f217318daa58e04a2a4b9ccd8e9fe0ea54e",
+    "613e9bf512354cd28229be80558a14467c4fc4ee9a5687969d5e1abc82d33864",
+    "62b0a07696ebd56e968fa5825a076be296336ecd3c6793d6c128ecead16907f4",
+    "64b1976e4916f1e01363bac61e3635b779f69457a9a5dd3c6046d9ed3fde118d",
+    "6b93ce407b15c5622478ce0701451e00d1a16dee5154ba1b830a7db695899759",
+    "6d22088df64072928e181654a763a2b8a0c38dd24641d1641977e3a0610fce48",
+    "6d88ae311cc51a68cb334ab5a10afca195a8849d9275d9922924b3401ada7dd4",
+    "6fd55e0f7a35d6f9aa5e283ed3739c9cf3c35163e793292446f1a6609921d5f7",
+    "7973ac268874e433aafcc1f48bd02bf7320e0cad405eb9aa9ab15ac3a4e88c91",
+    "7e03551b1fc5986728b5a47eecb46409514d40693b13e3d03f2a8315a4a071ae",
+    "7f88eddff78018de371d041df49d3f70787378b27d2fdcb7d90d8bf3dbfb4464",
+    "8361ba8e34d633f526278171be9191895a1c16f83059bd6e9f50d32a956fe4f7",
+    "845baeffa16d71d8f2088f0e1ef08a81f4e4781db647b7fb9c2637e8a68a9686",
+    "8644a7d6bc25a130e4e15fd490a1a0312a39f2868916710c6629ce2846437e84",
+    "906d936048396f1b86d9405348360fe458256307912c7517ced18534ca919ceb",
+    "908cc386b9147f57f16360d39909bdf79270d714a42c3fce66482d03c940c09b",
+    "98c09af83274150d098feddebd650df83152ff923e4ad54e12580ea32d4e12a0",
+    "9c77495eb5b66f2f37be0986830ff9af5096a25fb1da6bb040242c06b93c8842",
+    "9e8816dfe2ff97320a90eec61da4971682f072bfb297af6088f75b3a0df4c09f",
+    "a023009fd9b38170487ca8151b2ee8b1652508dd500bcf0392f5cce4f625ee62",
+    "a359651529875adb498b1bf60b3326a6a2d5b93e7877e97aeb2cd8af032ed192",
+    "a48e05b1a15672459118a2cc661459c01d427c61ec3b7fb01036ffb2da267e82",
+    "a84f78c1e897aeb578601223526c49116136ce51739491166b9ad54536a31288",
+    "a98533b7b7693b5a6415d740873896f0c2d7bd6875ea1a0c1021d852836cbf63",
+    "ab6b0580a2585ae170174680d1c6cd6da6916062bac12059b69c3b7f6342bbb6",
+    "ad0e9c9483510bb63497df9593d256e6452c07e0aa07f6fcd791b04d6da7a2f8",
+    "ae019afbad11f354cc5aecfd95d0b48ab64464a7620fd0ad913ef18771501304",
+    "b0a63664040227163ee61d2186a15c4081aeca73e1a706372df66492ce1e1aeb",
+    "b82460325ca1638ee8f8d16ae9c98e06ff4f9afb779fb22b43176a2bc253a385",
+    "bb9b98d2b9bdfc07cad261419318043348abed353cbd5b871d6c5396bb406d3b",
+    "bcd484c2b603279fc10dce51f7d7ccc4f937a53e14aea004bdedb6e1b75f49e6",
+    "bd2ce4402e3b49b9ace812550399b2eca242cddf5fb428db78e9d23b5eca9123",
+    "ca72c15d1109e765dc0c527e81c93173147567f7c48bec9d06118b1741e94a75",
+    "d0c344c488984c853777bb044d55a62f14b00277ebf685bb50a1c704de8937f1",
+    "d554f1cbcb011e09ec929c69e96cd87146a107f34323a0e060cec82eb6ab9ab1",
+    "d8bb762b7f4d5ecb7529fe70ef4c81cc5889c74b4ee50cdeb286bacbafcb2192",
+    "d8e12de72f15f014fc7be6a5b26788fab38bcae5d24a71ae58c4757dca0db757",
+    "e386c8e84ab60673c3e43848f6c39ce644aa6409a5f7b3eb739b8d753f1771fa",
+    "e3c844d76b1aea8fef0b1ddc6b6480cae2944e5737f6ce8d0e23aafbb17f3fbe",
+    "e6d3cb7e9da07b1f57a1e52c7d1af4fc781f7350233ad6317fd2906dbbb0060e",
+    "ebf63caed031e0b4fe360368076423a4f26a8f92cd6625d54262fbad349882a0",
+    "ef221ceb3ea4cb8ca3718bdca7aa1c9bd1cb62551f42284afd677c4ef0257929",
+    "f3cb873b00577515daaa58b66c55f084e78bff881f8a406d65517f72b2779e7d",
+    "f66d9eac86d93ecd63d75b38a5c3d8dcca0d851822ec0db6e95260f5db80721a",
+    "fedb728e5d0b119328319cd93eb21257928a62863c68661cf9b654acc9d9c424"
+  ],
+  "containers": [
+    {
+      "id": "df2ed410d52cf817a554935f2093c169a825478845ad8d971c4bdf4c7d5b0bf4",
+      "name": "sql-stability-preview-coding-1793266842",
+      "imageId": "sha256:7a78d1f26db3f8682f5af7536c10939882f3827ffc0694377efd351612e73511",
+      "created": "2026-10-29T09:31:21.960412152Z"
+    },
+    {
+      "id": "01fc5e27d008718af035e9d84d9dd6c92f724a5e06fc6397c43f45f4ca051965",
+      "name": "sql-metadata-preview-api-1793266840",
+      "imageId": "sha256:30a0ccf25c576c0aa82d85ba244ad07515de499e273eec981ea63d2fbc3f6042",
+      "created": "2026-10-29T09:31:20.070009611Z"
+    },
+    {
+      "id": "1196e5f987a996915a3b68cb32bf55fe2dfe2b478666c2ce38f567f526c67a6b",
+      "name": "sql-stability-preview-coding-1793266281",
+      "imageId": "sha256:032373f23e477cc05f266c270cdfbfd416038162f922fa6b056abac6115388f0",
+      "created": "2026-10-29T09:16:25.165699535Z"
+    },
+    {
+      "id": "41b12aa7601fa455db2ad919a80e3a481f40c15541be327e35f1b2cec4ccd126",
+      "name": "sql-stability-preview-coding-1793265385",
+      "imageId": "sha256:032373f23e477cc05f266c270cdfbfd416038162f922fa6b056abac6115388f0",
+      "created": "2026-10-29T09:10:58.833406092Z"
+    },
+    {
+      "id": "a23df361727bf37b115f500c226882d96a9820eaa90d3ae0262c936b468295ff",
+      "name": "sql-metadata-preview-api-1793266280",
+      "imageId": "sha256:11dc8619efe2e00e8dfb02e9bb71b1c93598a06358ad702b333759fc0ed32929",
+      "created": "2026-10-29T09:08:49.58113716Z"
+    },
+    {
+      "id": "bfeba7595d46382dc7c020da405ee6167bd06595d6bbd01796bd4db916678a6c",
+      "name": "sql-metadata-preview-api-1793264928",
+      "imageId": "sha256:b7fff2d1da854761f9721750b300181088c1fd45dc10d8a13870ac45efa3277d",
+      "created": "2026-10-29T08:41:35.93504321Z"
+    },
+    {
+      "id": "f0b0545fd0c3229a8f44d549485f4e36b19a8d2f80c17c714f5cbbb13d62355a",
+      "name": "runtime-os-app-stage-node-proxy-1-before-monitor-1793255231",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "created": "2026-10-29T05:45:35.666335103Z"
+    },
+    {
+      "id": "e575a890f41acbd16f079b1bbf726686d2efff6fcaaaa3bef94cb9083c182645",
+      "name": "runtime-os-app-stage-api-1-before-monitor-1793255231",
+      "imageId": "sha256:af7e64ba538fc5d5e446b1f332ba03ddd4e09dde840205640a1739a299ebcc2d",
+      "created": "2026-10-29T05:45:34.99142928Z"
+    },
+    {
+      "id": "0354eb6cf7e263d211dfaaa2a1209bff8fa15452b1cd8df663516e23bd7b8063",
+      "name": "runtime-os-app-stage-coding-agent-1-before-bindings-1793253440",
+      "imageId": "sha256:b8f36866628963ba87a80d92f399423d97f46f453ff8af983f58ac6b9023245f",
+      "created": "2026-10-29T05:44:35.732555774Z"
+    },
+    {
+      "id": "94b881ab4d046a7f0953fa16adf336745c350b6d552a0314009b7c7887f4ce1a",
+      "name": "runtime-analysis-preview-node-before-bindings-1793253276",
+      "imageId": "sha256:b8f36866628963ba87a80d92f399423d97f46f453ff8af983f58ac6b9023245f",
+      "created": "2026-10-29T05:40:21.187098752Z"
+    },
+    {
+      "id": "f48ce8ca9efc8ffdfba6023cb9426aafbbe5bdd2603e55ee345a3bc5f13c7e3e",
+      "name": "runtime-os-app-stage-node-proxy-1-before-monitor-1793252695",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "created": "2026-10-29T05:26:22.270987959Z"
+    },
+    {
+      "id": "fc66816a2cec468861fc053c9a6b910bbfbe6e9c99983ded61cb1a9be2545fe4",
+      "name": "runtime-os-app-stage-api-1-before-monitor-1793252695",
+      "imageId": "sha256:0d6aa9c67c524c967bbd29eaf7325c6375ccec03425d84961c48e51d04d18633",
+      "created": "2026-10-29T05:26:21.610668557Z"
+    },
+    {
+      "id": "09953b6755252cb67d8a6a5231313cc41cb6ef1a4547abbd5d69b345f5c0e24a",
+      "name": "runtime-analysis-preview-proxy-before-monitor-1793252442",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "created": "2026-10-29T05:23:24.557075931Z"
+    },
+    {
+      "id": "2bdca5224102f8c45a4aa656b800d56ade3c4cbff2f9fa7176ddab429ce00b09",
+      "name": "sql-metadata-preview-api-before-monitor-1793252442",
+      "imageId": "sha256:0d6aa9c67c524c967bbd29eaf7325c6375ccec03425d84961c48e51d04d18633",
+      "created": "2026-10-29T05:23:23.769563467Z"
+    },
+    {
+      "id": "d1155cb4d36c25352e36cc792cdc19bb9a95d2a1092fb42787d2e2a11f870da5",
+      "name": "runtime-os-app-stage-coding-agent-1-before-bindings-1793252674",
+      "imageId": "sha256:5212c2959e489749ffd19e090aa0d2fc54073d7ba5308422cd14f78aff721110",
+      "created": "2026-10-29T04:55:33.878869806Z"
+    },
+    {
+      "id": "437bf37b6b663be2da488c410c3ef0ba2b28709436aeb7d8f6c8867fd300ea3e",
+      "name": "runtime-analysis-preview-node-before-bindings-1793252420",
+      "imageId": "sha256:5212c2959e489749ffd19e090aa0d2fc54073d7ba5308422cd14f78aff721110",
+      "created": "2026-10-29T04:52:16.50515795Z"
+    },
+    {
+      "id": "16389ec5324385112c762e3f5398196f31d0b4e55fed2b14e60c09ee1befdd08",
+      "name": "runtime-os-app-stage-node-proxy-1-before-monitor-1793251541",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "created": "2026-10-29T04:37:29.312423649Z"
+    },
+    {
+      "id": "2bbee7a70487f0096ecddf77bd0dc3c14d05d7446b252358da84ff148cfaf3c1",
+      "name": "runtime-os-app-stage-api-1-before-monitor-1793251541",
+      "imageId": "sha256:ff24fd011152a2454f2ec1c68ff72349dcb75ee3718f71bf6573a35c570b4f97",
+      "created": "2026-10-29T04:37:28.621561956Z"
+    },
+    {
+      "id": "37864b0ef4137aaf5b7760c17f2aed1c8b3d2fa4b10e63df8f15e04f4f3bd597",
+      "name": "runtime-os-app-stage-node-proxy-1-before-monitor-1793248607",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "created": "2026-10-29T04:25:17.213977685Z"
+    },
+    {
+      "id": "70a27b7c523d4e7a48e2b798f75ae7f47514ccf22b64b99ea87ab3391d69b38c",
+      "name": "runtime-os-app-stage-coding-agent-1-before-bindings-1793249732",
+      "imageId": "sha256:6c13b97e38b029f3e2d7cc371c4deaf1e05f76c9c5be2b34462f87a692241362",
+      "created": "2026-10-29T04:25:16.54955444Z"
+    },
+    {
+      "id": "6d311f20cb8a8f3bb949662c2eb889625bf713348b09c67f8d3563ebf479b712",
+      "name": "runtime-os-app-stage-api-1-before-monitor-1793248607",
+      "imageId": "sha256:dea71d1e27e4cebe8d0e677c31225041ff1e57d11ec6231465f3019127b9c425",
+      "created": "2026-10-29T04:25:16.020847038Z"
+    },
+    {
+      "id": "c4f46d7876fab912387ed5c4bf63d94a9f9d73f29bcd586a3faa62c4fc582670",
+      "name": "runtime-analysis-preview-proxy-before-monitor-1793251363",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "created": "2026-10-29T04:17:49.204295422Z"
+    },
+    {
+      "id": "27e7e6f00a035fe5d6e4dd6cfd9d758a6e0d0ea62a53c1685e08f18889669f06",
+      "name": "runtime-analysis-preview-node-before-bindings-1793249535",
+      "imageId": "sha256:6c13b97e38b029f3e2d7cc371c4deaf1e05f76c9c5be2b34462f87a692241362",
+      "created": "2026-10-29T04:17:48.545078788Z"
+    },
+    {
+      "id": "e468049808c640d6b0122678e280219bd638d5f89fbbb5530bdf5b0a0bc9b557",
+      "name": "sql-metadata-preview-api-before-monitor-1793251363",
+      "imageId": "sha256:dea71d1e27e4cebe8d0e677c31225041ff1e57d11ec6231465f3019127b9c425",
+      "created": "2026-10-29T04:17:45.962131311Z"
+    },
+    {
+      "id": "4eea42350cda2616615b4e982a37aed1f80deeb57c533f16443544bbd7e00ce8",
+      "name": "runtime-os-app-stage-node-proxy-1-before-monitor-1793247841",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "created": "2026-10-29T03:59:51.273330475Z"
+    },
+    {
+      "id": "6a32b43b565d445625b468b615c14c792a91b0f5330becb69e6eb1aa67df8590",
+      "name": "runtime-os-app-stage-api-1-before-monitor-1793247841",
+      "imageId": "sha256:849b187df89fbe4f6b32778a63ab338084d7b755fe5988b06d12a96defb08928",
+      "created": "2026-10-29T03:59:50.587873405Z"
+    },
+    {
+      "id": "a90bec2301967f6c88fa92395e04296dbb1edb45851b2081dc29aac7eeb4409c",
+      "name": "runtime-os-app-stage-node-proxy-1-before-monitor-1793246347",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "created": "2026-10-29T02:52:36.392483367Z"
+    },
+    {
+      "id": "6448380feabced0461cc8a7289770eca75c7034a8189daf64c0308e49ab8c6e5",
+      "name": "runtime-os-app-stage-coding-agent-1-before-monitor-1793247841",
+      "imageId": "sha256:545c602e3ffeb9f092430e750a603eee9729ec670ceacaba49004934d4a26706",
+      "created": "2026-10-29T02:52:35.793134881Z"
+    },
+    {
+      "id": "c39ae4fcefe77fd175a4233653ad30ac64c29cc768b12f259c46a6e155c8975c",
+      "name": "runtime-os-app-stage-api-1-before-monitor-1793246347",
+      "imageId": "sha256:5587f3a073c7d836afa9a8bb586cfd49e0c906c162b2fd2c18c613db25a77bde",
+      "created": "2026-10-29T02:52:35.164519939Z"
+    },
+    {
+      "id": "ad87b640096cd18f62f0a9943f4d35e0b16fc743ed2eda5928778eecaa46478f",
+      "name": "runtime-analysis-preview-proxy-before-monitor-1793247390",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "created": "2026-10-29T02:49:32.216918007Z"
+    },
+    {
+      "id": "22f25f3d3de0dcde768a6d4671554753469f0fd3a428944495cb754920984842",
+      "name": "runtime-analysis-preview-node-before-monitor-1793247390",
+      "imageId": "sha256:545c602e3ffeb9f092430e750a603eee9729ec670ceacaba49004934d4a26706",
+      "created": "2026-10-29T02:49:31.615899411Z"
+    },
+    {
+      "id": "9e906bfa42676be1ecb8f18a803c91ecfadab8687ddda23e21d43ce356c273b7",
+      "name": "sql-metadata-preview-api-before-monitor-1793247390",
+      "imageId": "sha256:5587f3a073c7d836afa9a8bb586cfd49e0c906c162b2fd2c18c613db25a77bde",
+      "created": "2026-10-29T02:49:30.981333983Z"
+    },
+    {
+      "id": "cb34c20547935a178225b3d3e3f4fa6a612dd2073e400cd1b882af2c0ad8f842",
+      "name": "runtime-analysis-preview-proxy-before-monitor-1793242168",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "created": "2026-10-29T02:41:17.226015953Z"
+    },
+    {
+      "id": "24944e7dc7e473a940cfe4fbe9e5ae07c3f11ea82680bb3aafb8ac315ee7ef84",
+      "name": "runtime-analysis-preview-node-before-monitor-1793242168",
+      "imageId": "sha256:4b9ec656623c3893afd1352632c5f0e3ce22c9bccee1d7f2c9bd6b0bc67f8910",
+      "created": "2026-10-29T02:41:16.562591115Z"
+    },
+    {
+      "id": "dc9ab050cfa377f6245a5e348ec70000f0dc2b41bc961b1db2e1436278f842c7",
+      "name": "sql-metadata-preview-api-before-monitor-1793242168",
+      "imageId": "sha256:32d6c2a44cd7e6bb6572ac574dd8495a2dc3723c43d6f01329e98fffad24df66",
+      "created": "2026-10-29T02:41:15.736101196Z"
+    },
+    {
+      "id": "aef9e19066b615a6b437ba706529203c63ac4490e56763907d1182e9165306b9",
+      "name": "runtime-os-app-stage-node-proxy-1-before-monitor-1793242351",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "created": "2026-10-29T02:00:46.892662822Z"
+    },
+    {
+      "id": "9b25aa503a19b55c1879fd5f778aba6eb2613d30e6f5e99f700bb53652c5bb56",
+      "name": "runtime-os-app-stage-coding-agent-1-before-monitor-1793242351",
+      "imageId": "sha256:9d921d4a6d2452b2e5a73a0e3b519e069e2bee50588792f1f2e269c45ba1bd8f",
+      "created": "2026-10-29T02:00:46.35636364Z"
+    },
+    {
+      "id": "5d04480eff606f6efbc22aa59fb3f4549fb94602e5e516cf85136ba55b1de73f",
+      "name": "runtime-os-app-stage-api-1-before-monitor-1793242351",
+      "imageId": "sha256:2b214f18a75708579843c095fad1a2ee74baa5de1426afd11f10038e3cb9c907",
+      "created": "2026-10-29T02:00:45.737771187Z"
+    },
+    {
+      "id": "ba66fd5d1f37be74e691bdc03c1a7245c61ab862d2d3a61e96af5bc7d6626527",
+      "name": "runtime-analysis-preview-proxy-before-monitor-1793241671",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "created": "2026-10-29T01:51:46.966137294Z"
+    },
+    {
+      "id": "4189d86b8975048497ab0de92704aaa764cf384930fd73b023c7663bdcb40024",
+      "name": "runtime-analysis-preview-node-before-monitor-1793241671",
+      "imageId": "sha256:9d921d4a6d2452b2e5a73a0e3b519e069e2bee50588792f1f2e269c45ba1bd8f",
+      "created": "2026-10-29T01:51:46.409540241Z"
+    },
+    {
+      "id": "1321a1d07563106dac4ef62e0af8fd2d27f0bcabc65511aeacbfa1f6458920a7",
+      "name": "sql-metadata-preview-api-before-monitor-1793241671",
+      "imageId": "sha256:2b214f18a75708579843c095fad1a2ee74baa5de1426afd11f10038e3cb9c907",
+      "created": "2026-10-29T01:51:45.51301014Z"
+    },
+    {
+      "id": "ef44ed29be593279aa5f72994aee8b266b226f66c0639ee5fc3c48b4a8ec90c1",
+      "name": "runtime-os-app-stage-node-proxy-1-before-monitor-1793239241",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "created": "2026-10-29T00:55:57.43073492Z"
+    },
+    {
+      "id": "60fd66d5b0862f1c317224d23d14d9c0679ef513ef3ee6a6e2db7e99607fb1e8",
+      "name": "runtime-os-app-stage-coding-agent-1-before-monitor-1793239241",
+      "imageId": "sha256:f70ddf5989d87f6adf221277f013cdb02a06a97aaf659794b50c20a966ef0f2e",
+      "created": "2026-10-29T00:55:56.798218413Z"
+    },
+    {
+      "id": "ede613fc261a94f152d0f5fc78d502d7736e3e75d58ee60f4643e6e266c33d16",
+      "name": "runtime-os-app-stage-api-1-before-monitor-1793239241",
+      "imageId": "sha256:2d2c150193d3d49fad59e8a7b500381ea010758d7ffbd8dfcb9be0ca7ad027db",
+      "created": "2026-10-29T00:55:56.136553932Z"
+    },
+    {
+      "id": "62a8b5745ca13b983cf3dc98a30a90cb8953650ac84179a40cf0737cc1720505",
+      "name": "runtime-os-app-stage-node-proxy-1-retired-1793235285",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "created": "2026-10-29T00:52:38.199962581Z"
+    },
+    {
+      "id": "3626a6d3722cd7c822f81913d50c16a52b32433c10558ef96ad80a8c8dd831c4",
+      "name": "runtime-os-app-stage-coding-agent-1-retired-1793235285",
+      "imageId": "sha256:614a2656e6fcda77cfbbb403e1f6b956109a90ee2010e487c41a0c72458f0468",
+      "created": "2026-10-29T00:52:37.688600603Z"
+    },
+    {
+      "id": "f89aefdb70b60944f1f3937d7458b399812f5f519a602a37015f3bbd5a381a0b",
+      "name": "runtime-os-app-stage-api-1-retired-1793235285",
+      "imageId": "sha256:67a6e719aae98fcd28a547261aaa82ac98d4c902027c7a8e6637c9af295ce97b",
+      "created": "2026-10-29T00:52:37.15171324Z"
+    },
+    {
+      "id": "8d65c2aa11bcb5229a66a2248dd97e5f60dd2d2a142ede6e4ce5820ee5457af9",
+      "name": "runtime-os-app-stage-mcp-1-retired-1793235285",
+      "imageId": "sha256:23afead305f7d16cd60d689c9c9d9b065d2cc93e37959febdea522e506c0e40b",
+      "created": "2026-10-29T00:52:36.344552367Z"
+    },
+    {
+      "id": "c5ba059c9767d504afc3019a91588ac1d51a144e1a8835dec9ca8dc387f3d3cf",
+      "name": "runtime-os-app-stage-node-proxy-1-failed-1793235003",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "created": "2026-10-29T00:51:17.494290919Z"
+    },
+    {
+      "id": "16c6c757295df458f8f899bb7bba5293539bc0932677a7b91a503d626cb72d91",
+      "name": "runtime-os-app-stage-coding-agent-1-failed-1793235003",
+      "imageId": "sha256:f70ddf5989d87f6adf221277f013cdb02a06a97aaf659794b50c20a966ef0f2e",
+      "created": "2026-10-29T00:51:16.929988722Z"
+    },
+    {
+      "id": "fe4734e981ede7896e9f724a5b080cbe459a43a5fa8bf7eb648230b134c37463",
+      "name": "runtime-os-app-stage-api-1-failed-1793235003",
+      "imageId": "sha256:2d2c150193d3d49fad59e8a7b500381ea010758d7ffbd8dfcb9be0ca7ad027db",
+      "created": "2026-10-29T00:51:16.366583012Z"
+    },
+    {
+      "id": "52d11d59601bafe0fc20a5fe21acc8e082f7da95d5ed62ec3126dd539d555ce8",
+      "name": "runtime-os-app-stage-mcp-1-failed-1793235003",
+      "imageId": "sha256:1593e8fc6a29220852b78436390b97397e59d2a057315899b9034c94e1370823",
+      "created": "2026-10-29T00:51:15.444400623Z"
+    },
+    {
+      "id": "f47a6b95a314cd7475cdccd7baa19a2b34d668c45a59f5731453fb5e5c15b09c",
+      "name": "runtime-analysis-preview-proxy-before-monitor-1793238702",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "created": "2026-10-29T00:48:15.349545363Z"
+    },
+    {
+      "id": "1b38e1370eebbda5eb7f1c033ea6c22c180c0b8304b8cce1932305cfe35bdf0f",
+      "name": "runtime-analysis-preview-node-before-monitor-1793238702",
+      "imageId": "sha256:8efb7eaba2a58a4ef29363d92e4c4408c148c94468d9cbbc26f93e0d58943c0d",
+      "created": "2026-10-29T00:48:14.715253492Z"
+    },
+    {
+      "id": "678d404247a79fbd31986f03ed8622d51fe49ec8b77bfc4c68426a1fbadb08e5",
+      "name": "runtime-os-app-stage-node-proxy-1-retired-1793235003",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "created": "2026-10-29T00:46:41.928599039Z"
+    },
+    {
+      "id": "e5634ac4b6c6117a29dd16af8c7d1165271534579250faa31c668a32fc0d8acd",
+      "name": "runtime-os-app-stage-coding-agent-1-retired-1793235003",
+      "imageId": "sha256:614a2656e6fcda77cfbbb403e1f6b956109a90ee2010e487c41a0c72458f0468",
+      "created": "2026-10-29T00:46:30.267365729Z"
+    },
+    {
+      "id": "0acb25e41efae4a2f08290470e3f438aa58c1c92a5eec7b2b3daadfb5b2a9dc4",
+      "name": "runtime-os-app-stage-api-1-retired-1793235003",
+      "imageId": "sha256:67a6e719aae98fcd28a547261aaa82ac98d4c902027c7a8e6637c9af295ce97b",
+      "created": "2026-10-29T00:46:30.266629096Z"
+    },
+    {
+      "id": "38afb348ec1b4555ddcd0f49c5315275b2434377bc05af1621950e710f7a9d67",
+      "name": "runtime-os-app-stage-mcp-1-retired-1793235003",
+      "imageId": "sha256:23afead305f7d16cd60d689c9c9d9b065d2cc93e37959febdea522e506c0e40b",
+      "created": "2026-10-29T00:46:30.264784794Z"
+    },
+    {
+      "id": "75549ce24b5d87f9c47b48a5d356b2a63c2d9f6dbabd0e9988f985fcd3ab48c4",
+      "name": "sql-metadata-preview-api-before-monitor-1793238702",
+      "imageId": "sha256:195673d22f0eab701327162168b141de5fe32d1b578c5f171e5a05a568e2e2bf",
+      "created": "2026-10-28T21:24:00.205849341Z"
+    },
+    {
+      "id": "ddb3bda07ae874d8658589111981cadf3ef3b5deb51bd40b3b552fb6f82590db",
+      "name": "sql-metadata-preview-api-retired-1793222640",
+      "imageId": "sha256:3c28ba9830bad42762bc3dc1bac189cb53c30e469a02c7548653a2ca0c71b7f6",
+      "created": "2026-10-28T21:13:10.743757936Z"
+    },
+    {
+      "id": "27e633c0cb18d41c8118fe47b1cdfd8c2a332d4f607295cdfd824a4e1ee79115",
+      "name": "sql-metadata-preview-api-retired-1793221990",
+      "imageId": "sha256:b6bc2af313dd5c28b9335266b9b091cbd920b651b9181f22c379d7052071a408",
+      "created": "2026-10-28T19:38:01.411590913Z"
+    },
+    {
+      "id": "216a59dc51917e3218b148faef4d166f30bf4fd712cf6e750ce6352829e105f2",
+      "name": "sql-metadata-preview-api-retired-1793216281",
+      "imageId": "sha256:8462f45ebe2400e51f808c84d8af6e6982d9ffc24bf0e35d94d1f0f7a6a9ca33",
+      "created": "2026-10-28T19:24:14.949755676Z"
+    },
+    {
+      "id": "0f855d692e0261f977fb3027595b9e8e9d35fd1bbca0a16c190df21778337c9f",
+      "name": "sql-metadata-preview-mcp-retired-1793216275",
+      "imageId": "sha256:c62f88fc70c1277be719f8750bb38cdc2afda6f41ce1b2788deaafceb04447ea",
+      "created": "2026-10-28T19:24:07.107543945Z"
+    },
+    {
+      "id": "eb2289ccbefb8629b2556384cfdacb5a0249d6b2ac3c4404e06618afd99dab39",
+      "name": "sql-metadata-preview-api-retired-1793215454",
+      "imageId": "sha256:beb5456935ad9e5b40880f9806e7e6ef23a573552915376f38c0840ef1e9440c",
+      "created": "2026-10-28T19:12:34.990511426Z"
+    },
+    {
+      "id": "343f7aa9e97a199c69f72e32041387725c9a8817ac0b09ae1906a2ea3cc2029e",
+      "name": "sql-metadata-preview-mcp-retired-1793215447",
+      "imageId": "sha256:b2ea329d2e9eabecc0df36778077e8e3afd4db3a8f8c816779c9f4a00d582023",
+      "created": "2026-10-28T19:12:26.168832578Z"
+    },
+    {
+      "id": "6e2dd472266ff92a7eec9ad5412af8ecd187cb608b7cb3062c7fb4c60ba67e9b",
+      "name": "sql-metadata-preview-api-retired-1793214754",
+      "imageId": "sha256:605096557a3a19d33099b1ad27753d65125b4fd28f7eb92d5ea3c2b090dc5893",
+      "created": "2026-10-28T19:01:44.604045779Z"
+    },
+    {
+      "id": "a1ea0bff6387dacb6bf6cd722febdb43b5ae2bc4ccd53ce215fff5a8278bbc89",
+      "name": "sql-metadata-preview-mcp-retired-1793214746",
+      "imageId": "sha256:96b0f33c661328a9710d972c8fbe0b4521138e52836988607b2699e3d41ab981",
+      "created": "2026-10-28T19:01:35.211948702Z"
+    },
+    {
+      "id": "ca450cc589f57fe95d41d02077ae5cb26208033f720a0de298903f1eb7a8bdf7",
+      "name": "sql-metadata-preview-api-retired-1793214104",
+      "imageId": "sha256:4c9b5d46cd29c1dcec1a72dc8a7c5b07a4d5d37ba4d012ab6bd0b52095664e08",
+      "created": "2026-10-28T18:46:03.07273375Z"
+    },
+    {
+      "id": "81f38724c7a95c9cf3a7f781764a7757a87866bcd4e149fe515a04beaf71ae35",
+      "name": "sql-metadata-preview-mcp-retired-1793214095",
+      "imageId": "sha256:36d04d89910fa450450828615d5ee0c0717d962d1616c4e01ae97feecde9f0e9",
+      "created": "2026-10-28T18:45:55.637736882Z"
+    },
+    {
+      "id": "5938426e6978abc7547c35ce35b5351f475343eb7496e27b0f31bd2f872648ca",
+      "name": "sql-metadata-preview-api-retired-1793213163",
+      "imageId": "sha256:8ea324b89b0f9b86de3119e3cacc748481d42b9917d963af5b0dc67db2a91179",
+      "created": "2026-10-28T18:38:48.447934325Z"
+    },
+    {
+      "id": "6f6816943c079a4c1d87107855867084add6bbe510a8d3eebe08601dfaaa544f",
+      "name": "sql-metadata-preview-mcp-retired-1793213155",
+      "imageId": "sha256:fe0a5c538aa3904a2532efcb947a000f2ef22a263fa7d2b252605b721730d6c1",
+      "created": "2026-10-28T18:38:43.464321862Z"
+    },
+    {
+      "id": "8c81adfb844c100ea53bffa75723555aa901a55c1368338ed83c3e40061f0482",
+      "name": "sql-metadata-preview-api-retired-1793212728",
+      "imageId": "sha256:64d3fb284a221eb62371a6527ddbacce2799afb225fad7217232ba073ff6f3e1",
+      "created": "2026-10-28T17:46:04.848573047Z"
+    },
+    {
+      "id": "44bc8090887613b9abac0e919498850a11826a4148fb5e0b9ff3795d9b6274fa",
+      "name": "sql-metadata-preview-mcp-retired-1793212723",
+      "imageId": "sha256:f909cd839c761dd77d462bbd5fd8f8c4366480cf4f49010dc4c62f95d3552942",
+      "created": "2026-10-28T17:46:00.012219664Z"
+    },
+    {
+      "id": "f39e1de732e160e71ae8aa6a6e392f9129a634ddad2f96e43004c501ee5bd99d",
+      "name": "sql-metadata-preview-api-retired-1793209564",
+      "imageId": "sha256:f907b5294f58c4c50ce45fd0614c61b71344369be2bf003ac426435c2b81a428",
+      "created": "2026-10-28T17:29:47.893700418Z"
+    },
+    {
+      "id": "3c668452f98674b6891b6654d56342565284dfc89c1c9b7680b76d19007da973",
+      "name": "sql-metadata-preview-mcp-retired-1793209559",
+      "imageId": "sha256:8d14b8d0c1b0ae513e5b8c72163b007e908cbbdf11348d1e7c85c8b06761aee7",
+      "created": "2026-10-28T17:29:43.664229334Z"
+    },
+    {
+      "id": "4eee1524d3a67fcfb6c962d561a45b441968d798c9ecf6104f08989733ef15fc",
+      "name": "sql-metadata-preview-api-retired-1793208587",
+      "imageId": "sha256:c0a96a6230717d142dfb2179718163c5ecb2f4488e1fe86e6ac8f1a3b95fe248",
+      "created": "2026-10-28T17:16:36.596926053Z"
+    },
+    {
+      "id": "23ee637649cc9f9e4384b7910e7269978ac322d6c5a07ec38d07d1d909691835",
+      "name": "sql-metadata-preview-mcp-retired-1793208583",
+      "imageId": "sha256:b59b779f9eb0b24d5d1da81bb559df2bc22780c17156c247ad18b25d72665434",
+      "created": "2026-10-28T17:16:32.372452741Z"
+    },
+    {
+      "id": "1e3fd58f1cf4b45f10a70985878c4e3e952e844356ff362ab69bbd13fc7f9257",
+      "name": "sql-metadata-preview-api-retired-1793207796",
+      "imageId": "sha256:7b7cedf07a491f0e578fe066307dafb0244642071aaefb2d26f29e49f1350dbb",
+      "created": "2026-10-28T16:57:58.388205941Z"
+    },
+    {
+      "id": "e19ba3082e0e757c32352fdc86cf7d9d3cb953add306d68a697061669933153b",
+      "name": "sql-metadata-preview-api-retired-1793206678",
+      "imageId": "sha256:b02bcbd37edf131bff87b8e7e009953fe6f819f14f5104abb537985c930f1321",
+      "created": "2026-10-28T16:44:39.780971178Z"
+    },
+    {
+      "id": "a4a9ac1b519a7c703f376f33a53c78accc1cef68346c83918d2822db2b365124",
+      "name": "sql-metadata-preview-mcp-retired-1793207792",
+      "imageId": "sha256:4c92386176af37452cca66e1e2b914d080f7735259ab00f729224f03d646aee9",
+      "created": "2026-10-28T16:44:35.738416109Z"
+    },
+    {
+      "id": "a784283d2d8b4e4f4c3953714fef390998ca0ce7d2bf609e6ac5aaa4ac35f048",
+      "name": "sql-metadata-preview-api-retired-1793205879",
+      "imageId": "sha256:78455e804892084c04b5a5afe51d95ae9de2559c81b49d18588d8b6b1a807224",
+      "created": "2026-10-28T16:36:25.792750038Z"
+    },
+    {
+      "id": "ee3943006c7a7f87ea90c085c52ed8cf635bf18d4f895483446901f0aaa5ab6f",
+      "name": "sql-metadata-preview-mcp-retired-1793205875",
+      "imageId": "sha256:453597c0728d163426ed56cb7794871ebe857e1f51d78edb1c53055024ba50d1",
+      "created": "2026-10-28T16:36:21.687837779Z"
+    },
+    {
+      "id": "2761ddc6bb1f034168f8832f23d8c6184c25a263a0f5072f8ec97e6fc5d62aa9",
+      "name": "sql-metadata-preview-api-retired-1793205385",
+      "imageId": "sha256:afdf3ff0d9e394e5bec31fe6c47e310cb413183561e69437ab9beddfb39039ad",
+      "created": "2026-10-28T16:26:05.776570392Z"
+    },
+    {
+      "id": "46a7a494046af6e153baaa7cedb8e442d0ef56be967c5cf65e1403bdecf1ecbf",
+      "name": "sql-metadata-preview-api-retired-1793204765",
+      "imageId": "sha256:8a23694abef6bb2e2eb1bbc900f1fa9ee7e849bdc93dc0db3c1602385baf4198",
+      "created": "2026-10-28T16:10:25.035962328Z"
+    },
+    {
+      "id": "67c9b820e0384b13ff09dea3803f8a195413f672a2d44b95a9d4c9efc5df2197",
+      "name": "sql-metadata-preview-mcp-retired-1793205381",
+      "imageId": "sha256:188369c33497638c8e0ff271ced069e752d42b2b19876ee58fc5b8cf172dd0d2",
+      "created": "2026-10-28T16:10:19.144916385Z"
+    },
+    {
+      "id": "7236077bf0c1a048e4b3832966594464df24a00527899817916877c8581b2c29",
+      "name": "sql-metadata-preview-api-retired-1793203824",
+      "imageId": "sha256:ecce3361ea99708251c6f2a707e470766cad70e8eb6adb0fff95975ee8e73925",
+      "created": "2026-10-28T16:02:18.918718746Z"
+    },
+    {
+      "id": "c3e2498afd152fd2a8797c8166d2a455db785a545f5f3aefa05fd50f3a709842",
+      "name": "sql-metadata-preview-mcp-retired-1793203819",
+      "imageId": "sha256:b225ecb19402174e28889f3e1153c3353dfbd4d0f851db1fca1f16d167fa6a36",
+      "created": "2026-10-28T16:02:13.523709628Z"
+    },
+    {
+      "id": "c2a3c64c152b7d8b77a15a5779e4b4d3aed4f34edf9803bd6f7f09151bd3c196",
+      "name": "sql-metadata-preview-api-retired-1793203338",
+      "imageId": "sha256:348d8b9be83f7969cdf5f58d356230b56e413ed277fe580b08a5fb4cf2ae394a",
+      "created": "2026-10-28T15:54:27.700308954Z"
+    },
+    {
+      "id": "8739ea28e56898773c7a9296552372b8ad0bdadef733b687371fa5f3e3ee14f2",
+      "name": "sql-metadata-preview-mcp-retired-1793203333",
+      "imageId": "sha256:e9dcc5389fdf6d720d1a06e7349ea8e57d71e3cf97a2fc3727129fc3c1bc5389",
+      "created": "2026-10-28T15:54:23.57493562Z"
+    },
+    {
+      "id": "af853eedae5e95554de047f80b7e481869fa9ab06f74563bb182ba6f393a2ef0",
+      "name": "sql-metadata-preview-api-retired-1793202867",
+      "imageId": "sha256:5433e73e7469ef14447c297b13cd4019cbcef0d2bbf2ad3a4e417dc34b520170",
+      "created": "2026-10-28T15:00:24.778755586Z"
+    },
+    {
+      "id": "1d3dab90e36c7cb86251e286106cd627446e333bef8a6cb08f9fa80c75b019b2",
+      "name": "sql-metadata-preview-api-retired-1793199624",
+      "imageId": "sha256:87f57f9f71d6a6828397213640fa54c905836548733712cb3a105932a49284fa",
+      "created": "2026-10-28T14:45:44.908323697Z"
+    },
+    {
+      "id": "ba737160c864f93d0c298129d9ea57a926615f2157074c9090e40e1a55bb6eb0",
+      "name": "sql-metadata-preview-api-retired-1793198744",
+      "imageId": "sha256:9a7f049096721a7895bbb22d041745487e468b9e98b3c7d857fcfcf15458508a",
+      "created": "2026-10-28T14:06:59.842965935Z"
+    },
+    {
+      "id": "12598bdcdc64c492c3af85f2b2a7fccc884ac34539f53cf6bda7b90c5a42953f",
+      "name": "sql-metadata-preview-mcp-retired-1793202863",
+      "imageId": "sha256:34b3fb73f48526cc69d25b53508781ca3fde0c2287efcfee04c9af66f4ee8f33",
+      "created": "2026-10-28T14:06:58.490151364Z"
+    },
+    {
+      "id": "218ce42ff4fe6d6d0e9034ae13b2b17b83e82682beaa35da62ee67821a214684",
+      "name": "sql-metadata-preview-api-retired-1793196388",
+      "imageId": "sha256:d2134ebaa80c97c22e97c6a55f94307a2a21a9f430111d140c26776c5dcbc4e0",
+      "created": "2026-10-28T13:25:28.701550515Z"
+    },
+    {
+      "id": "b1a7580da56cfa81759f1679a4793c94bb9c2d40972725c6a479b75f07571ede",
+      "name": "sql-metadata-preview-mcp-retired-1793196418",
+      "imageId": "sha256:bf4060a9b6feda3bced577a65df11f13750c348eb5c135eae08e65e32396ce9f",
+      "created": "2026-10-28T13:25:27.129574329Z"
+    },
+    {
+      "id": "1dc57c21bb7e27e9b12a7438e547d6a5f17850b9c57ad7532c64a10e153db762",
+      "name": "sql-metadata-preview-api-retired-1793193896",
+      "imageId": "sha256:c2e43a14d69cbfb2074fd38e712f6c1962ad74dc8d69cfd998bac7406c11a8c8",
+      "created": "2026-10-28T13:07:15.276703604Z"
+    },
+    {
+      "id": "f96017b4adabc8b8db164844edac932d0b87e3d33e1fad330c7384ca04c2e837",
+      "name": "sql-metadata-preview-mcp-retired-1793193927",
+      "imageId": "sha256:5b08a7dbf3e24e6feac48a9ba8ae149f9a24ea5c1aaf10f8cbf7dad1323d5322",
+      "created": "2026-10-28T13:07:13.895116759Z"
+    },
+    {
+      "id": "3e04ad381b9ba518a2e86ab13e9d5030ad13ab3f20272941257ccc44747b975f",
+      "name": "sql-metadata-preview-api-retired-1793192802",
+      "imageId": "sha256:e23a29c8e8dd42dc5f957b434be399bf75ac9168964e24d325a9b3270d2104a3",
+      "created": "2026-10-28T12:19:55.168226352Z"
+    },
+    {
+      "id": "48b713dc060de1e659bd5ec667db248dbc29a725fe9e0fe4eae0e93c9a88d7cc",
+      "name": "sql-metadata-preview-mcp-retired-1793192833",
+      "imageId": "sha256:83a55c1c70b700c52c9436382724294ebb425d25a2a69601988abff339aaadd2",
+      "created": "2026-10-28T12:19:53.787339536Z"
+    },
+    {
+      "id": "265831cb725f5267b053813c64a95db91a142dbdaa324bd11916d03ac0ecf463",
+      "name": "sql-metadata-preview-api-retired-1793189962",
+      "imageId": "sha256:5e54f6fe29f746ddaafce06fb87e7e5ac297476997943170fdeb84bedf5a2c42",
+      "created": "2026-10-28T11:45:21.59310184Z"
+    },
+    {
+      "id": "8bbcc034db254cc38d509033a4fbd59f3a31f82b6e2abf7791f9d2c2ab3bfc09",
+      "name": "sql-metadata-preview-mcp-retired-1793189993",
+      "imageId": "sha256:b0abbe630cf26199b63872f9329e5505f46737ebffea1b7d9439d565f33a5bdd",
+      "created": "2026-10-28T11:45:20.160233685Z"
+    },
+    {
+      "id": "b7fbd2bf1dcfd94be80e9c71927b988e0316e9a1ad90b3fc7928bc57d69ff8c2",
+      "name": "sql-metadata-preview-api-retired-1793187888",
+      "imageId": "sha256:680d3fc51466f5c64500b77f30fb922a290ddfbb8a9b10b4ddd43576a42d68e1",
+      "created": "2026-10-28T11:25:41.306060382Z"
+    },
+    {
+      "id": "46356df05ee576017db0301164b909951a5d88ba1d5cbf53d091100365eba4d1",
+      "name": "sql-metadata-preview-api-retired-1793186741",
+      "imageId": "sha256:9287f665f464512aa13f4ca35edec47e2d155a66eadc09d05c299617b3772b89",
+      "created": "2026-10-28T11:18:08.967143931Z"
+    },
+    {
+      "id": "befb8bba20465688b51204324f30a7a91e383a3738693b184fc2ad29d4a10df5",
+      "name": "sql-metadata-preview-mcp-retired-1793187920",
+      "imageId": "sha256:d31b9541c492ec86fdc178d69a39663c2b59d3c2640465a596d138728c62d50f",
+      "created": "2026-10-28T11:18:07.57248946Z"
+    },
+    {
+      "id": "3f64d0ee2a3c8c53f246cc42d1b97fb940516a0efd6918659ab7b3ac95709d4d",
+      "name": "sql-metadata-preview-api-retired-1793186255",
+      "imageId": "sha256:3b504e09125dc945ecd229aee5dc771c3feab61bc4c13e301e9b1c9c03cc83ad",
+      "created": "2026-10-28T11:00:21.449870344Z"
+    },
+    {
+      "id": "93f965398211e64c465c3ca9c176706142323f636b57b4ce60f7e3710e7d38d9",
+      "name": "sql-metadata-preview-mcp-retired-1793186287",
+      "imageId": "sha256:b0efde28af5ca8be4673c41f4668b22d7ed7024c37d4f2688a3a44462b75ebf8",
+      "created": "2026-10-28T10:57:51.72376049Z"
+    },
+    {
+      "id": "2f65eae4ad98614fce12462a6eb61357ac0f8dc185bffd49594badc710b205b5",
+      "name": "sql-metadata-preview-api-retired-1793185221",
+      "imageId": "sha256:3b504e09125dc945ecd229aee5dc771c3feab61bc4c13e301e9b1c9c03cc83ad",
+      "created": "2026-10-28T10:22:04.720156585Z"
+    },
+    {
+      "id": "683f21fc2362186c4c778c4b431f49d60c0497659bbb227c581b77db4cd2a3a4",
+      "name": "sql-metadata-preview-api-retired-1793182924",
+      "imageId": "sha256:3b504e09125dc945ecd229aee5dc771c3feab61bc4c13e301e9b1c9c03cc83ad",
+      "created": "2026-10-28T10:04:39.334588474Z"
+    },
+    {
+      "id": "bab8d1c1824dd6b6a6407e5ea1dddbc219664459bec2597302203c2f6e20ef9f",
+      "name": "sql-metadata-preview-mcp-before-docker-1793185071",
+      "imageId": "sha256:7a7a089231faf158ed26e56124cd401049cb1252ee09fe425a13aeb6f8ecdf3d",
+      "created": "2026-10-28T10:04:38.450632183Z"
+    },
+    {
+      "id": "b7205c0caeb7f0cce9b887cb9e98e668d327c40f16157bf15667d594d98de89a",
+      "name": "sql-metadata-preview-api-mount-failure-1793181879",
+      "imageId": "sha256:3b504e09125dc945ecd229aee5dc771c3feab61bc4c13e301e9b1c9c03cc83ad",
+      "created": "2026-10-28T10:01:18.058257237Z"
+    },
+    {
+      "id": "67caaccccc51d0d1747f2b033fdc4339878486f6e8ced0a77c2bd0a24b7760dc",
+      "name": "sql-metadata-preview-mcp-mount-failure-1793181878",
+      "imageId": "sha256:7a7a089231faf158ed26e56124cd401049cb1252ee09fe425a13aeb6f8ecdf3d",
+      "created": "2026-10-28T10:01:14.105824427Z"
+    },
+    {
+      "id": "ac56456747d0aae9bc0e216158b8dd6559fca152a65b401b3ed784e72924778b",
+      "name": "sql-metadata-preview-api-before-analysis-1793181677",
+      "imageId": "sha256:15e6c0af84e52473a71f1ec79d5a4470948613adf930911e896ead72363da730",
+      "created": "2026-10-28T08:42:56.740623773Z"
+    },
+    {
+      "id": "271ff10cd95175cbe0ae47ba67c70f0f8ffbddbebe467917a9ee1d31c92b7449",
+      "name": "sql-metadata-preview-api-1793176976",
+      "imageId": "sha256:848adbb524edf7f1596b4c65947c47390404fb772b8acd136657b49c6e7d3653",
+      "created": "2026-10-28T08:07:45.972957188Z"
+    },
+    {
+      "id": "3321294d39a4d5f3624e7cb85592350548cd105fe56c0f398fbff472183e1a6b",
+      "name": "sql-metadata-preview-api-1793174865",
+      "imageId": "sha256:d8822c959abe34e25a4eb690b641a952114878e47398c907b7c4d320ed32eec1",
+      "created": "2026-10-28T07:37:27.169570189Z"
+    },
+    {
+      "id": "125daecd841179e33a49b432f589bcd64db23be370f0eadba3db7189330aeaf3",
+      "name": "sql-metadata-preview-api-1793173047",
+      "imageId": "sha256:d35c5a9cc6a6bcc6f1481ec95e8df61670a2faef3c2249c2a4712dfbe55dc0f3",
+      "created": "2026-10-28T07:19:20.441992914Z"
+    },
+    {
+      "id": "98565bfc5e8472f8765a9987cc5842af1b058c227fe476c3aaa6a287556a64a5",
+      "name": "sql-metadata-preview-api-1793171960",
+      "imageId": "sha256:e4111e2871558ca4c54dc222a9b6e6dfa61c8d5c5ebcf0f6d496f28931a45aa6",
+      "created": "2026-10-28T07:06:27.949507723Z"
+    },
+    {
+      "id": "97a59bc4cd5b1b971e3a759029588c2c4da1280da6d3c8fdbdba70eeddfef8e7",
+      "name": "sql-metadata-preview-api-1793171187",
+      "imageId": "sha256:47633e21daf3aab7815f0e9039260234e97859c1fb19b1f6e887832c84fb50ca",
+      "created": "2026-10-28T06:44:35.108022613Z"
+    },
+    {
+      "id": "d61d1bc99284d0542d31fabcd4ad2cddc6e59a8beebdffb093a55f10e6a50083",
+      "name": "sql-metadata-preview-api-1793169875",
+      "imageId": "sha256:fb407c74bb276fd3c087250651f426bdde15a993da22fd606981ceff2fcf336f",
+      "created": "2026-10-28T06:34:43.790234165Z"
+    },
+    {
+      "id": "d809553b16239726a15fa1dfb4f54a086f9361e0c2204af72530a3d95797b563",
+      "name": "sql-metadata-preview-api-1793169283",
+      "imageId": "sha256:b680b97094947387c69ad9c98fea99e2f6119853f15640da37082085fc64083c",
+      "created": "2026-10-28T06:22:20.502497988Z"
+    },
+    {
+      "id": "a4d423f01e9bcb59c353b293e911745e5f3d8bff9c54bdb7bf5557a14a5b6169",
+      "name": "sql-metadata-preview-api-1793168540",
+      "imageId": "sha256:7eb18406627869683997e5ddeed1f27cd8404cacf1dd20486a0ceeaf6d17942d",
+      "created": "2026-10-28T06:13:00.040970734Z"
+    },
+    {
+      "id": "47ed3a329ad4ca5a10ec7f6852edf0a286e0d4869043db58771cd61290178a1b",
+      "name": "sql-metadata-preview-mcp-before-analysis-1793181674",
+      "imageId": "sha256:31d81d18bc95391536a0b7ef0db306a7eb3436584b2021d5196997f8848bc7a1",
+      "created": "2026-10-28T06:12:58.411988342Z"
+    },
+    {
+      "id": "08063a5fd28748435236cf969d388619273f166999923c36a809145b5c646d1f",
+      "name": "sql-metadata-preview-api-r1-1793167979",
+      "imageId": "sha256:d793362fd793339ea1da55c73be0107da6fe49247f5cf7f27244302e610dadd0",
+      "created": "2026-10-28T06:09:51.229404597Z"
+    },
+    {
+      "id": "bdaa057b9940a2748a3c88973ec0259b1f81945f6ca55edf7f3a755554dc1c46",
+      "name": "sql-metadata-preview-mcp-r1-1793167978",
+      "imageId": "sha256:23afead305f7d16cd60d689c9c9d9b065d2cc93e37959febdea522e506c0e40b",
+      "created": "2026-10-28T05:56:36.163945816Z"
+    },
+    {
+      "id": "569d4e4e34899bb6804a3645808a67a75a39985f71ee10ef342f6f18dcf8acf9",
+      "name": "sql-metadata-preview-api-1793167791",
+      "imageId": "sha256:d793362fd793339ea1da55c73be0107da6fe49247f5cf7f27244302e610dadd0",
+      "created": "2026-10-28T05:48:24.820664336Z"
+    },
+    {
+      "id": "7743ed567d01886b6f1916d52f41e69c1fd2a0f9ade1c84b5cfea46c3720392f",
+      "name": "sql-metadata-preview-mcp-initial-network",
+      "imageId": "sha256:23afead305f7d16cd60d689c9c9d9b065d2cc93e37959febdea522e506c0e40b",
+      "created": "2026-10-28T05:48:21.936752247Z"
+    },
+    {
+      "id": "1837e077cc4ae2740642a99d660a1df253cd07ea28154fe5682da63558aaaf7d",
+      "name": "runtime-os-app-stage-gateway-1-before-task-lifecycle",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "created": "2026-10-26T14:48:56.279198946Z"
+    },
+    {
+      "id": "eb02813847f9c553a42ee50a55a6615e9f984dedb5878998a9b65905380ea03c",
+      "name": "runtime-os-app-stage-coding-agent-1-before-config-central-b870403d5f",
+      "imageId": "sha256:5e106b7df7c0954d816964ef31198b002206de29fbf0983c46f1301da098d6fd",
+      "created": "2026-10-26T06:06:48.796373208Z"
+    },
+    {
+      "id": "6abbeb2048b81c575058180c32d00e860e5fd55953cbf6e4f171fee4be6b1bc8",
+      "name": "runtime-os-app-stage-node-proxy-1-before-enterprise-82616b543",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "created": "2026-10-26T06:05:56.015212614Z"
+    },
+    {
+      "id": "6bf41ee7799c5f41f3e3e61012d42aa68bd7b26e59cc733744ef43d9e938589d",
+      "name": "runtime-os-app-stage-coding-agent-1-before-sdk-native-compat",
+      "imageId": "sha256:5e106b7df7c0954d816964ef31198b002206de29fbf0983c46f1301da098d6fd",
+      "created": "2026-10-26T06:05:55.344422344Z"
+    },
+    {
+      "id": "e87f3aac76886636e2d2927ba700286d91f5801fe99bf9954ba870c3b9cae5fd",
+      "name": "runtime-os-app-stage-mcp-1-before-config-central-b870403d5f",
+      "imageId": "sha256:4c7ece3a6e4abb8ce4e6ae859a9a5043420892600eefc696819448d54a369696",
+      "created": "2026-10-26T06:05:50.460686658Z"
+    },
+    {
+      "id": "b0909d15995d0c3bd0354a8844066f32f57ddc00d47dcf1895b50489919d1ff9",
+      "name": "runtime-os-app-stage-coding-agent-1-before-sdk-native",
+      "imageId": "sha256:b5d531b183e8d42c99e05d99260c94b4fc2b92dc198291d91cfbffabf1291c65",
+      "created": "2026-10-26T00:53:22.634791334Z"
+    },
+    {
+      "id": "a7c196845f8bc6c3016beab9e5809d1f13037e07593a5396ba8ba5109f28897c",
+      "name": "runtime-os-app-stage-node-proxy-1-before-sdk-native",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "created": "2026-10-25T22:52:22.316821232Z"
+    },
+    {
+      "id": "bb815ab0b087d458f4fd83ef413a0ed4726df0595d834d866f38702ed8ce7e97",
+      "name": "runtime-os-app-stage-coding-agent-1-before-repair-context-20261026",
+      "imageId": "sha256:62cdac1c8b41f492e6e8815974e9044c489634ed2780b285054e0064e0863d1f",
+      "created": "2026-10-25T22:52:22.240880038Z"
+    },
+    {
+      "id": "2c1127135a609dda79b52f510e0dda0081338bdfc50ce01de7ad28a92a2fd593",
+      "name": "runtime-os-app-stage-mcp-1-before-sdk-native",
+      "imageId": "sha256:dd86214b13ec53442c2434931525d87fd9765743a18da730d930a05b811b21df",
+      "created": "2026-10-25T22:52:22.240257687Z"
+    }
+  ],
+  "preservesVolumes": true,
+  "usesForce": false,
+  "offlineBasesPreserved": true,
+  "applied": true,
+  "removedContainers": [
+    "sql-stability-preview-coding-1793266842",
+    "sql-metadata-preview-api-1793266840",
+    "sql-stability-preview-coding-1793266281",
+    "sql-stability-preview-coding-1793265385",
+    "sql-metadata-preview-api-1793266280",
+    "sql-metadata-preview-api-1793264928",
+    "runtime-os-app-stage-node-proxy-1-before-monitor-1793255231",
+    "runtime-os-app-stage-api-1-before-monitor-1793255231",
+    "runtime-os-app-stage-coding-agent-1-before-bindings-1793253440",
+    "runtime-analysis-preview-node-before-bindings-1793253276",
+    "runtime-os-app-stage-node-proxy-1-before-monitor-1793252695",
+    "runtime-os-app-stage-api-1-before-monitor-1793252695",
+    "runtime-analysis-preview-proxy-before-monitor-1793252442",
+    "sql-metadata-preview-api-before-monitor-1793252442",
+    "runtime-os-app-stage-coding-agent-1-before-bindings-1793252674",
+    "runtime-analysis-preview-node-before-bindings-1793252420",
+    "runtime-os-app-stage-node-proxy-1-before-monitor-1793251541",
+    "runtime-os-app-stage-api-1-before-monitor-1793251541",
+    "runtime-os-app-stage-node-proxy-1-before-monitor-1793248607",
+    "runtime-os-app-stage-coding-agent-1-before-bindings-1793249732",
+    "runtime-os-app-stage-api-1-before-monitor-1793248607",
+    "runtime-analysis-preview-proxy-before-monitor-1793251363",
+    "runtime-analysis-preview-node-before-bindings-1793249535",
+    "sql-metadata-preview-api-before-monitor-1793251363",
+    "runtime-os-app-stage-node-proxy-1-before-monitor-1793247841",
+    "runtime-os-app-stage-api-1-before-monitor-1793247841",
+    "runtime-os-app-stage-node-proxy-1-before-monitor-1793246347",
+    "runtime-os-app-stage-coding-agent-1-before-monitor-1793247841",
+    "runtime-os-app-stage-api-1-before-monitor-1793246347",
+    "runtime-analysis-preview-proxy-before-monitor-1793247390",
+    "runtime-analysis-preview-node-before-monitor-1793247390",
+    "sql-metadata-preview-api-before-monitor-1793247390",
+    "runtime-analysis-preview-proxy-before-monitor-1793242168",
+    "runtime-analysis-preview-node-before-monitor-1793242168",
+    "sql-metadata-preview-api-before-monitor-1793242168",
+    "runtime-os-app-stage-node-proxy-1-before-monitor-1793242351",
+    "runtime-os-app-stage-coding-agent-1-before-monitor-1793242351",
+    "runtime-os-app-stage-api-1-before-monitor-1793242351",
+    "runtime-analysis-preview-proxy-before-monitor-1793241671",
+    "runtime-analysis-preview-node-before-monitor-1793241671",
+    "sql-metadata-preview-api-before-monitor-1793241671",
+    "runtime-os-app-stage-node-proxy-1-before-monitor-1793239241",
+    "runtime-os-app-stage-coding-agent-1-before-monitor-1793239241",
+    "runtime-os-app-stage-api-1-before-monitor-1793239241",
+    "runtime-os-app-stage-node-proxy-1-retired-1793235285",
+    "runtime-os-app-stage-coding-agent-1-retired-1793235285",
+    "runtime-os-app-stage-api-1-retired-1793235285",
+    "runtime-os-app-stage-mcp-1-retired-1793235285",
+    "runtime-os-app-stage-node-proxy-1-failed-1793235003",
+    "runtime-os-app-stage-coding-agent-1-failed-1793235003",
+    "runtime-os-app-stage-api-1-failed-1793235003",
+    "runtime-os-app-stage-mcp-1-failed-1793235003",
+    "runtime-analysis-preview-proxy-before-monitor-1793238702",
+    "runtime-analysis-preview-node-before-monitor-1793238702",
+    "runtime-os-app-stage-node-proxy-1-retired-1793235003",
+    "runtime-os-app-stage-coding-agent-1-retired-1793235003",
+    "runtime-os-app-stage-api-1-retired-1793235003",
+    "runtime-os-app-stage-mcp-1-retired-1793235003",
+    "sql-metadata-preview-api-before-monitor-1793238702",
+    "sql-metadata-preview-api-retired-1793222640",
+    "sql-metadata-preview-api-retired-1793221990",
+    "sql-metadata-preview-api-retired-1793216281",
+    "sql-metadata-preview-mcp-retired-1793216275",
+    "sql-metadata-preview-api-retired-1793215454",
+    "sql-metadata-preview-mcp-retired-1793215447",
+    "sql-metadata-preview-api-retired-1793214754",
+    "sql-metadata-preview-mcp-retired-1793214746",
+    "sql-metadata-preview-api-retired-1793214104",
+    "sql-metadata-preview-mcp-retired-1793214095",
+    "sql-metadata-preview-api-retired-1793213163",
+    "sql-metadata-preview-mcp-retired-1793213155",
+    "sql-metadata-preview-api-retired-1793212728",
+    "sql-metadata-preview-mcp-retired-1793212723",
+    "sql-metadata-preview-api-retired-1793209564",
+    "sql-metadata-preview-mcp-retired-1793209559",
+    "sql-metadata-preview-api-retired-1793208587",
+    "sql-metadata-preview-mcp-retired-1793208583",
+    "sql-metadata-preview-api-retired-1793207796",
+    "sql-metadata-preview-api-retired-1793206678",
+    "sql-metadata-preview-mcp-retired-1793207792",
+    "sql-metadata-preview-api-retired-1793205879",
+    "sql-metadata-preview-mcp-retired-1793205875",
+    "sql-metadata-preview-api-retired-1793205385",
+    "sql-metadata-preview-api-retired-1793204765",
+    "sql-metadata-preview-mcp-retired-1793205381",
+    "sql-metadata-preview-api-retired-1793203824",
+    "sql-metadata-preview-mcp-retired-1793203819",
+    "sql-metadata-preview-api-retired-1793203338",
+    "sql-metadata-preview-mcp-retired-1793203333",
+    "sql-metadata-preview-api-retired-1793202867",
+    "sql-metadata-preview-api-retired-1793199624",
+    "sql-metadata-preview-api-retired-1793198744",
+    "sql-metadata-preview-mcp-retired-1793202863",
+    "sql-metadata-preview-api-retired-1793196388",
+    "sql-metadata-preview-mcp-retired-1793196418",
+    "sql-metadata-preview-api-retired-1793193896",
+    "sql-metadata-preview-mcp-retired-1793193927",
+    "sql-metadata-preview-api-retired-1793192802",
+    "sql-metadata-preview-mcp-retired-1793192833",
+    "sql-metadata-preview-api-retired-1793189962",
+    "sql-metadata-preview-mcp-retired-1793189993",
+    "sql-metadata-preview-api-retired-1793187888",
+    "sql-metadata-preview-api-retired-1793186741",
+    "sql-metadata-preview-mcp-retired-1793187920",
+    "sql-metadata-preview-api-retired-1793186255",
+    "sql-metadata-preview-mcp-retired-1793186287",
+    "sql-metadata-preview-api-retired-1793185221",
+    "sql-metadata-preview-api-retired-1793182924",
+    "sql-metadata-preview-mcp-before-docker-1793185071",
+    "sql-metadata-preview-api-mount-failure-1793181879",
+    "sql-metadata-preview-mcp-mount-failure-1793181878",
+    "sql-metadata-preview-api-before-analysis-1793181677",
+    "sql-metadata-preview-api-1793176976",
+    "sql-metadata-preview-api-1793174865",
+    "sql-metadata-preview-api-1793173047",
+    "sql-metadata-preview-api-1793171960",
+    "sql-metadata-preview-api-1793171187",
+    "sql-metadata-preview-api-1793169875",
+    "sql-metadata-preview-api-1793169283",
+    "sql-metadata-preview-api-1793168540",
+    "sql-metadata-preview-mcp-before-analysis-1793181674",
+    "sql-metadata-preview-api-r1-1793167979",
+    "sql-metadata-preview-mcp-r1-1793167978",
+    "sql-metadata-preview-api-1793167791",
+    "sql-metadata-preview-mcp-initial-network",
+    "runtime-os-app-stage-gateway-1-before-task-lifecycle",
+    "runtime-os-app-stage-coding-agent-1-before-config-central-b870403d5f",
+    "runtime-os-app-stage-node-proxy-1-before-enterprise-82616b543",
+    "runtime-os-app-stage-coding-agent-1-before-sdk-native-compat",
+    "runtime-os-app-stage-mcp-1-before-config-central-b870403d5f",
+    "runtime-os-app-stage-coding-agent-1-before-sdk-native",
+    "runtime-os-app-stage-node-proxy-1-before-sdk-native",
+    "runtime-os-app-stage-coding-agent-1-before-repair-context-20261026",
+    "runtime-os-app-stage-mcp-1-before-sdk-native"
+  ],
+  "removedImageTags": [
+    "runtime-os-coding-agent:cline-monitor-python-af78f76ce08d-20261029",
+    "runtime-os-coding-agent:cline-monitor-python-ce6c21c87e7f-20261029",
+    "runtime-os-api:cline-monitor-python-af78f76ce08d-20261029",
+    "runtime-os-api:cline-monitor-python-ce6c21c87e7f-20261029",
+    "runtime-os-coding-agent:cline-monitor-python-a076b3f323d3-20261029",
+    "runtime-os-coding-agent:cline-monitor-python-2aef4c36e62c-20261029",
+    "runtime-os-api:cline-monitor-python-2aef4c36e62c-20261029",
+    "runtime-os-api:cline-monitor-python-a076b3f323d3-20261029",
+    "runtime-os-coding-agent:release-3f92445e29d9-20261029",
+    "runtime-os-api:release-3f92445e29d9-20261029",
+    "runtime-os-api:python-studio-reuse-20261029-r9",
+    "runtime-os-api:python-studio-reuse-20261029-r8",
+    "runtime-os-coding-agent:python-studio-reuse-20261029-r7",
+    "runtime-os-coding-agent:python-studio-reuse-20261029-r6",
+    "runtime-os-api:python-studio-reuse-20261029-r6",
+    "runtime-os-coding-agent:python-studio-reuse-20261029-r5",
+    "runtime-os-mcp:python-studio-reuse-20261029-r5",
+    "runtime-os-api:python-studio-reuse-20261029-r5",
+    "runtime-os-coding-agent:python-studio-reuse-20261029-r4",
+    "runtime-os-mcp:python-studio-reuse-20261029-r4",
+    "runtime-os-api:python-studio-reuse-20261029-r4",
+    "runtime-os-coding-agent:python-studio-reuse-20261029-r3",
+    "runtime-os-mcp:python-studio-reuse-20261029-r3",
+    "runtime-os-api:python-studio-reuse-20261029-r3",
+    "runtime-os-coding-agent:python-studio-reuse-20261029-r2",
+    "runtime-os-mcp:python-studio-reuse-20261029-r2",
+    "runtime-os-api:python-studio-reuse-20261029-r2",
+    "runtime-os-coding-agent:python-studio-reuse-20261029-r1",
+    "runtime-os-mcp:python-studio-reuse-20261029-r1",
+    "runtime-os-api:python-studio-reuse-20261029-r1",
+    "runtime-os-mcp:sql-publication-20261029-r10",
+    "runtime-os-api:sql-publication-20261029-r10",
+    "runtime-os-mcp:sql-publication-20261029-r9",
+    "runtime-os-api:sql-publication-20261029-r9",
+    "runtime-os-mcp:sql-publication-20261029-r8",
+    "runtime-os-api:sql-publication-20261029-r8",
+    "runtime-os-api:sql-publication-20261029-r7",
+    "runtime-os-mcp:sql-publication-20261029-r6",
+    "runtime-os-api:sql-publication-20261029-r6",
+    "runtime-os-mcp:sql-publication-20261029-r5",
+    "runtime-os-api:sql-publication-20261029-r5",
+    "runtime-os-api:sql-publication-20261029-r4",
+    "runtime-os-mcp:sql-publication-20261029-r3",
+    "runtime-os-api:sql-publication-20261029-r3",
+    "runtime-os-mcp:sql-publication-20261029-r2",
+    "runtime-os-api:sql-publication-20261029-r2",
+    "runtime-os-mcp:sql-publication-20261029-r1",
+    "runtime-os-api:sql-publication-20261029-r1",
+    "runtime-os-api:cline-monitor-20261028-r2",
+    "runtime-os-api:cline-monitor-20261028-r1",
+    "runtime-os-mcp:analysis-boundary-20261028-r12",
+    "runtime-os-api:analysis-boundary-20261028-r12",
+    "runtime-os-mcp:analysis-boundary-20261028-r11",
+    "runtime-os-api:analysis-boundary-20261028-r11",
+    "runtime-os-mcp:analysis-boundary-20261028-r10",
+    "runtime-os-api:analysis-boundary-20261028-r10",
+    "runtime-os-coding-agent:analysis-boundary-20261028-r10",
+    "runtime-os-coding-agent:analysis-boundary-20261028-r11",
+    "runtime-os-coding-agent:analysis-boundary-20261028-r12",
+    "runtime-os-coding-agent:analysis-boundary-20261028-r9",
+    "runtime-os-coding-agent:analysis-boundary-20261028-r8",
+    "runtime-os-mcp:analysis-boundary-20261028-r8",
+    "runtime-os-api:analysis-boundary-20261028-r8",
+    "runtime-os-mcp:analysis-boundary-20261028-r5",
+    "runtime-os-api:analysis-boundary-20261028-r5",
+    "runtime-os-api:analysis-boundary-20261028-r3",
+    "runtime-os-coding-agent:analysis-boundary-20261028-r2",
+    "runtime-os-coding-agent:analysis-boundary-20261028-r5",
+    "runtime-os-mcp:analysis-boundary-20261028-r2",
+    "runtime-os-api:analysis-boundary-20261028-r2",
+    "runtime-os-mcp:analysis-boundary-20261028-p0-r1-docker",
+    "runtime-os-coding-agent:analysis-boundary-20261028-p0-r1",
+    "runtime-os-mcp:analysis-boundary-20261028-p0-r1",
+    "runtime-os-api:analysis-boundary-20261028-p0-r1",
+    "runtime-os-api:sql-metadata-ai-20261028-r10",
+    "runtime-os-api:sql-metadata-ai-20261028-r9",
+    "runtime-os-api:sql-metadata-ai-20261028-r8",
+    "runtime-os-api:sql-metadata-ai-20261028-r7",
+    "runtime-os-api:sql-metadata-ai-20261028-r6",
+    "runtime-os-api:sql-metadata-ai-20261028-r5",
+    "runtime-os-api:sql-metadata-ai-20261028-r4",
+    "runtime-os-api:sql-metadata-ai-20261028-r3",
+    "runtime-os-mcp:sql-metadata-ai-20261028-r2",
+    "runtime-os-api:sql-metadata-ai-20261028-r2",
+    "runtime-os-api:sql-metadata-ai-20261028-r1",
+    "runtime-os-api:main-d9f39979d-20261028",
+    "runtime-os-news:main-9b18e67f9-20261028",
+    "runtime-os-mcp:main-9b18e67f9-20261028",
+    "runtime-os-api:main-9b18e67f9-20261028",
+    "runtime-os-api:before-template-supply-32c7ec947b62",
+    "runtime-os-api:template-supply-20261027-49c410ee6873",
+    "runtime-os-mcp:template-defaults-4465eeb44f0c",
+    "runtime-os-api:before-template-supply-e52e70f11913",
+    "runtime-os-api:template-defaults-49c410ee6873",
+    "runtime-os-mcp:before-defaults-47f230e99c38",
+    "runtime-os-mcp:template-defaults-47f230e99c38",
+    "runtime-os-api:before-defaults-409594251537",
+    "runtime-os-api:template-defaults-409594251537",
+    "runtime-os-api:before-defaults-b884d8deaea8",
+    "runtime-os-api:template-supply-20261027-b884d8deaea8",
+    "runtime-os-api:before-template-supply-0f95ed0e99ec",
+    "runtime-os-api:template-supply-20261027-fc1eec5a7a78",
+    "runtime-os-api:before-template-supply-9bad281b3f56",
+    "runtime-os-api:template-supply-20261027-0e2e0cb4f0d6",
+    "runtime-os-api:before-template-supply-468884853f7d",
+    "runtime-os-api:template-supply-20261027-da5298b92fc3",
+    "runtime-os-api:before-template-supply-9613f778cdf6",
+    "runtime-os-api:template-supply-20261027-940eb33b8ba5",
+    "runtime-os-api:before-template-supply-40a10c071f14",
+    "runtime-os-api:template-supply-20261027-7152b08dc24b",
+    "runtime-os-api:before-template-supply-56c5e89ef167",
+    "runtime-os-api:template-supply-20261027-ad2afe77a4fc",
+    "runtime-os-api:before-template-supply-9f7f77116c9f",
+    "runtime-os-api:template-supply-20261027-5231d8e14647",
+    "runtime-os-api:before-template-supply-11254501cf97",
+    "runtime-os-api:template-supply-20261027-df6f2498296f",
+    "runtime-os-coding-agent:repair-a7d3ddaf0040325c",
+    "runtime-os-api:before-template-supply-e64117fdb547",
+    "runtime-os-api:template-supply-20261027-73083421ec23",
+    "runtime-os-api:before-template-supply-70ef4984a550",
+    "runtime-os-api:template-supply-20261027-4718275ffeb9",
+    "runtime-os-mcp:before-defaults-a1be51854019",
+    "runtime-os-mcp:search-a1be51854019d246",
+    "runtime-os-api:before-template-supply-53bb567d21f9",
+    "runtime-os-api:template-supply-20261027-3192b778d6c3",
+    "runtime-os-coding-agent:baseline-2682eb7f9a8687d7",
+    "runtime-os-coding-agent:repair-742abef4f0076709",
+    "runtime-os-coding-agent:baseline-bed311e714d5b140",
+    "runtime-os-coding-agent:repair-9df1f0d2cfb0fa30",
+    "runtime-os-api:before-template-supply-9942297a1473",
+    "runtime-os-api:template-supply-20261027-496353c050dd",
+    "runtime-os-api:before-template-supply-57aef69a6fd2",
+    "runtime-os-api:template-supply-20261027-af96fe102dfa",
+    "runtime-os-api:before-template-supply-c32d01518174",
+    "runtime-os-api:template-supply-20261027-f6227115935e",
+    "runtime-os-api:before-template-supply-ecf62b86a1c0",
+    "runtime-os-api:template-supply-20261027-ab5ac75125a6",
+    "runtime-os-api:before-template-supply-3b077a9148e5",
+    "runtime-os-api:template-supply-20261027-e30d033e1a71",
+    "runtime-os-api:before-template-supply-b2f0717590c5",
+    "runtime-os-api:template-supply-20261027-6058a5b21733",
+    "runtime-os-api:before-template-supply-9d40a66622ce",
+    "runtime-os-api:template-supply-20261027-ff0de66e9687",
+    "runtime-os-api:before-template-supply-57137b66b514",
+    "runtime-os-api:review-cleanup-cbeb4c6e8",
+    "runtime-os-coding-agent:baseline-661380c333fb3f52",
+    "runtime-os-coding-agent:review-cleanup-e4e851aac",
+    "runtime-os-api:review-cleanup-50a1ce606",
+    "runtime-os-api:review-cleanup-a0d5401b8",
+    "runtime-os-coding-agent:review-cleanup-412f6bfc8",
+    "sha256:6625941497e1fad782cc690078962d005b370644ba0d3c3bb3ffee4f30580df2",
+    "runtime-os-api:codegen-webfix-20261026",
+    "runtime-os-api:rollback-enterprise-flat-20261026",
+    "runtime-os-coding-agent:codegen-e029621",
+    "sha256:6ef59d04f2b6ba941a56a9f2406f60b74b441d1ee8641f66f8169f8c0225aaf9",
+    "runtime-os-coding-agent:cline-sdk-native-20261026",
+    "runtime-os-mcp:before-search-18b04610f41eda60",
+    "runtime-os-mcp:cline-sdk-native-20261026",
+    "runtime-os-coding-agent:repair-context-20261026",
+    "runtime-os-coding-agent:sdk-native-base-b5d531b183e8",
+    "runtime-os-mcp:sdk-native-base-dd86214b13ec",
+    "localhost:18443/runtime-os/mcp:tool-review-e6eba0291",
+    "runtime-os-api:sdk-native-base-7ba12e49d602",
+    "localhost:18443/runtime-os/api:tool-review-e6eba0291"
+  ],
+  "errors": [],
+  "freeBytesAfter": 36088504320,
+  "reclaimedFilesystemBytes": 896401408,
+  "containersAfter": 66,
+  "imagesAfter": 51,
+  "allProtectedContainersRemain": true
+}

@@ -10,5 +10,8 @@
   },
   "frontendIndexSha256": "5e56bea51778173f498e4a83dc2fd701752d11c12bfdb421641f69b088240de0",
   "completeJar": true,
-  "offlineBuild": true
+  "offlineBuild": true,
+  "sourceCommit": "06ef716d4224368392c9d4a047f5e8f82ff3bf1f",
+  "gitImageAlias": "runtime-os-api:sql-studio-06ef716d4224-20261029",
+  "apiSourceTree": "8cb48686b81c03b830d7a72d47413be6080d8cd8"
 }

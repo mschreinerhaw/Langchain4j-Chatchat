@@ -103,6 +103,8 @@ public final class SqlStudioMetadataAssistant implements SqlMetadataAnswerPort {
         final List<Map<String,Object>> evidence=new ArrayList<>(),receipts=new ArrayList<>();
         final Map<String,String> snapshots=new LinkedHashMap<>();
         SqlStudioMetadataService.Context context;int calls,reused,toolCalls,repairs,preexistingEvidence;boolean changed,finalizing;
+        long toolMs,validationMs,parseMs,authorizationMs;
+        final List<Map<String,Object>> diagnostics=new ArrayList<>();
         Turn(Owned owner,InteractionRequest request,KernelDataScope scope,String discovery){this.owner=owner;this.request=request;this.scope=scope;this.discovery=discovery;
             session=new KernelDataScope(scope.tenantId(),scope.userId(),scope.requestId(),null,"sql-metadata:"+discovery,null,Map.of());}
         long remaining(){Object raw=request.getToolInput().get("__agentDeadlineAt");long deadline=raw instanceof Number n?n.longValue():raw instanceof Instant i?i.toEpochMilli():Long.MAX_VALUE;return deadline==Long.MAX_VALUE?-1:Math.max(0,deadline-System.currentTimeMillis());}
@@ -139,15 +141,17 @@ public final class SqlStudioMetadataAssistant implements SqlMetadataAnswerPort {
                 return response(answer,object(completed.get("result")));
             }
             event("authorize","AUTHORIZE","RUNNING",started,Map.of());
+            long authorizationAt=System.currentTimeMillis();
             try{authorizeEvidence();event("authorize","AUTHORIZE","COMPLETED",started,Map.of("reusedEvidenceCount",evidence.size()));}
             catch(RuntimeException failure){event("authorize","AUTHORIZE","FAILED",started,Map.of("reasonCode",failureCode(failure)));throw failure;}
+            finally{authorizationMs=System.currentTimeMillis()-authorizationAt;}
             var messages=new ArrayList<ChatMessage>();messages.add(SystemMessage.from(INSTRUCTIONS));
             messages.add(UserMessage.from(encode(Map.of("question",request.getQuery(),"discoveryId",discovery,"bindings",context.bindings(),"targetDialect",context.targetDialect(),
                 "priorConversation",changed?List.of():read(session,STATE).getOrDefault("history",List.of()),"revalidatedMetadataEvidence",evidence))));
             while(calls<12){
                 if(!finalizing&&(calls>=9||toolCalls>=20)){
                     finalizing=true;
-                    messages.add(UserMessage.from("The bounded exploration budget is closing. Do not request further tools. Return the required final JSON using only delivered evidence. State partial coverage and missing information explicitly; never invent tables, fields, relationships or SQL semantics."));
+                    messages.add(UserMessage.from("The bounded exploration budget is closing. Do not request further tools. Return a complete final explanation or the declared JSON presentation object using only delivered evidence. State partial coverage and missing information explicitly; never invent tables, fields, relationships or SQL semantics."));
                 }
                 check();String id="model-"+(++calls);long at=System.currentTimeMillis();event(id,"MODEL","RUNNING",at,Map.of("modelCall",calls));
                 dev.langchain4j.model.chat.response.ChatResponse response;
@@ -159,7 +163,13 @@ public final class SqlStudioMetadataAssistant implements SqlMetadataAnswerPort {
                 var receipt=new LinkedHashMap<String,Object>();receipt.put("modelCall",calls);receipt.put("durationMs",System.currentTimeMillis()-at);
                 receipt.put("selectedModel",Objects.toString(request.getModelName(),"DEFAULT"));
                 if(configuration!=null)for(String key:List.of("selectedModel","providerModel","protocol","requestTimeoutSeconds","maxRetries"))if(configuration.get(key)!=null)receipt.put(key,configuration.get(key));receipts.add(receipt);
+                if(response.finishReason()!=null)receipt.put("finishReason",response.finishReason().name());
+                if(response.tokenUsage()!=null){var usage=response.tokenUsage();if(usage.inputTokenCount()!=null)receipt.put("inputTokens",usage.inputTokenCount());if(usage.outputTokenCount()!=null)receipt.put("outputTokens",usage.outputTokenCount());}
                 event(id,"MODEL","COMPLETED",at,receipt);check();var ai=response.aiMessage();if(ai==null)throw new IllegalStateException("Model returned no metadata response");messages.add(ai);
+                var diagnostic=new LinkedHashMap<String,Object>(receipt);diagnostic.put("responseKind",ai.hasToolExecutionRequests()?"TOOL_REQUEST":"FINAL_TEXT");
+                diagnostic.put("responseChars",ai.text()==null?0:ai.text().length());diagnostic.put("responsePreview",SqlMetadataOutput.diagnosticPreview(ai.text()));
+                diagnostic.put("previewTruncated",ai.text()!=null&&ai.text().length()>8000);diagnostic.put("sdkTransport","SYNCHRONOUS_CHAT_RESPONSE");
+                diagnostics.add(diagnostic);saveDiagnostics();
                 if(ai.hasToolExecutionRequests()){
                     for(var call:ai.toolExecutionRequests()){
                         check();
@@ -177,16 +187,29 @@ public final class SqlStudioMetadataAssistant implements SqlMetadataAnswerPort {
                             if(!correctable)throw failure;
                             messages.add(ToolExecutionResultMessage.from(call,encode(Map.of("status","INVALID_ARGUMENTS","doesNotExecuteSql",true,
                                 "limitation","No successful metadata evidence was delivered. Correct the request using the declared tool schema. "+Objects.toString(failure.getMessage(),"Invalid metadata arguments")))));
-                        }
+                        }finally{toolMs+=Math.max(0,System.currentTimeMillis()-toolAt);saveDiagnostics();}
                     }
                 }else{
-                    try{return finish(ai.text());}
+                    long validationAt=System.currentTimeMillis();
+                    try{
+                        if("LENGTH".equals(diagnostic.get("finishReason")))throw new SqlMetadataOutput.Invalid("OUTPUT_TOKEN_LIMIT","模型输出达到 Token 上限，结果未完整返回；请缩短需求或更换模型。");
+                        return finish(ai.text());
+                    }
                     catch(IllegalArgumentException|ResponseStatusException invalid){if(invalid instanceof ResponseStatusException status&&status.getStatusCode().value()!=400)throw invalid;
-                        event("assemble","ASSEMBLE","FAILED",System.currentTimeMillis(),Map.of("reasonCode","OUTPUT_VALIDATION_FAILED"));
-                        if(++repairs>2)throw invalid;messages.add(UserMessage.from("Repair the final output using delivered evidence. Retrieve additional metadata only if genuinely missing; do not repeat identical successful queries. "+invalid.getMessage()));}
+                        String code=invalid instanceof SqlMetadataOutput.Invalid problem?problem.code:"OUTPUT_EVIDENCE_VALIDATION_FAILED";
+                        diagnostic.put("validationCode",code);diagnostic.put("validationMessage",SqlMetadataOutput.diagnosticPreview(invalid.getMessage()));
+                        diagnostic.put("repairAttempt",repairs+1);
+                        event("assemble-"+calls,"ASSEMBLE","FAILED",validationAt,Map.of("reasonCode",code));
+                        if(++repairs>2)throw invalid;messages.add(UserMessage.from("Repair the final output using delivered evidence. Return either a complete Markdown explanation/SQL fence, or ONE JSON object matching the declared schema. Do not repeat successful metadata queries. Reason: "+invalid.getMessage()));
+                    }finally{validationMs+=Math.max(0,System.currentTimeMillis()-validationAt);saveDiagnostics();}
                 }
             }
             throw new IllegalStateException("SQL metadata model-call budget exhausted; no business SQL was executed");
+        }
+        void saveDiagnostics(){
+            checkpoints.mutateExecutionCheckpoint(session,"diagnostics:"+owner.id(),ignored->encode(Map.of("schemaVersion","sql-studio.diagnostics.v1",
+                "modelResponses",diagnostics,"repairCount",Math.min(repairs,2),"validationFailureCount",repairs,"toolMs",toolMs,"outputValidationMs",validationMs,"outputParseMs",parseMs,"authorizationMs",authorizationMs,
+                "elapsedMs",Math.max(0,System.currentTimeMillis()-started))));
         }
         Map<String,Object> invoke(Map<String,Object> input){
             var args=new LinkedHashMap<>(input);String op=Objects.toString(args.get("operation"),"");
@@ -238,12 +261,14 @@ public final class SqlStudioMetadataAssistant implements SqlMetadataAnswerPort {
             }return List.copyOf(tables.values());}
         InteractionResponse finish(String text){
             long at=System.currentTimeMillis();event("assemble","ASSEMBLE","RUNNING",at,Map.of());
+            long parseAt=System.currentTimeMillis();Map<String,Object> output;
+            try{output=SqlMetadataOutput.normalize(text,json);}finally{parseMs+=System.currentTimeMillis()-parseAt;}
+            require(output.get("notes") instanceof String notes&&!notes.isBlank(),"Return nonempty Markdown notes");
             metadata.getScoped(scope,owner.project(),discovery);
             for(var snapshot:snapshots.entrySet()){
                 var fresh=operation(snapshot.getKey(),Map.of("operation","SEARCH","page",1,"pageSize",1,"includeColumns",false));
                 if(!snapshot.getValue().equals(fresh.get("snapshotId")))throw new ResponseStatusException(HttpStatus.CONFLICT,"SNAPSHOT_CONFLICT: metadata changed before publication");
             }
-            var output=decode(text);require(output.get("notes") instanceof String notes&&!notes.isBlank(),"Return nonempty Markdown notes");
             require(output.getOrDefault("files",List.of()) instanceof List<?>,"Return a files array");
             var available=tables();var candidates=new ArrayList<Map<String,Object>>();
             for(var selected:maps(output.get("candidateTables"))){require(candidates.size()<16,"At most 16 candidate tables");var table=available.stream().filter(t->Objects.equals(t.get("tableRef"),selected.get("tableRef"))).findFirst().orElseThrow(()->new IllegalArgumentException("Candidate table requires actual metadata evidence"));
@@ -305,13 +330,17 @@ public final class SqlStudioMetadataAssistant implements SqlMetadataAnswerPort {
     public Map<String,Object> review(HttpServletRequest request,String project,SqlStudioService.Generation generation){
         var input=generation.prepared().taskRequest();String discovery=input.getToolInput().get("sqlMetadataDiscoveryId").toString();
         var scope=new KernelDataScope(input.getTenantId(),input.getUserId(),null,null,"sql-metadata:"+discovery,null,Map.of());
-        var result=object(read(scope,"turn:"+generation.id()).get("result"));if(result.isEmpty())return Map.of("discoveryId",discovery);
+        var result=object(read(scope,"turn:"+generation.id()).get("result"));
+        var diagnostics=read(scope,"diagnostics:"+generation.id());
+        if(result.isEmpty()&&diagnostics.isEmpty())return Map.of("discoveryId",discovery);
         var context=metadata.get(request,project,discovery);
+        if(result.isEmpty())return Map.of("discoveryId",discovery,"diagnostics",diagnostics);
         for(var binding:context.bindings())if(object(result.get("snapshots")).get(binding.bindingId()) instanceof String expected){
             var probe=metadata.operate(request,project,discovery,new SqlStudioMetadataService.Operation(binding.bindingId(),Map.of("operation","SEARCH","page",1,"pageSize",1,"includeColumns",false))).metadata();
             if(!expected.equals(probe.get("snapshotId")))throw new ResponseStatusException(HttpStatus.CONFLICT,"SNAPSHOT_CONFLICT: 元数据或授权范围已变化，旧结果不能作为当前 SQL 依据");
         }
         var reviewed=new LinkedHashMap<>(result);
+        reviewed.put("diagnostics",diagnostics);
         var legacyAnswer=read(scope,"turn:"+generation.id()).get("answer");
         if(!result.containsKey("semanticValidation")&&legacyAnswer instanceof String answer&&decode(answer).get("files") instanceof List<?> files&&!files.isEmpty()){
             reviewed.put("semanticValidation","REVALIDATION_REQUIRED");reviewed.put("blockedSqlProposalCount",files.size());reviewed.put("fieldValidation","NOT_PUBLISHED");
@@ -360,7 +389,10 @@ public final class SqlStudioMetadataAssistant implements SqlMetadataAnswerPort {
         For failure rates and duration distinguish current scheduling state from execution history. Without documented outcomes, denominator, timestamps and failure-code meanings, explain the missing evidence rather than inventing a runnable statistic.
         Answer in the user's language with Markdown, tables and SQL fences as useful. Explain conclusions from exact visible fields and comments, and state index freshness and relationship limitations.
         Be concise: prefer a comparison table of representative candidates, 2-5 critical columns per table, and short conclusions/limitations. Do not repeat every delivered schema field. Normally keep discovery notes within about 1200 Chinese characters; SQL file content is separate.
-        Finish with ONE JSON object, at most 16 focused candidate tables: {schemaVersion:'sql-studio.output.v1',notes:'Markdown answer',candidateTables:[{tableRef:'exact observed reference',columns:['exact visible column'],reason:'evidence-based relevance'}],files:[]}.
+        For a plain explanation or simple question, a complete Markdown answer is sufficient. For SQL proposals you may return a complete SQL fence or a structured JSON object. Never send partial JSON or place explanatory prose around a JSON object.
+        The JSON presentation schema is {"type":"object","required":["notes"],"properties":{"schemaVersion":{"const":"sql-studio.output.v1"},"notes":{"type":"string","minLength":1},"files":{"type":"array","maxItems":32,"items":{"type":"object","required":["path","content"],"properties":{"path":{"type":"string"},"content":{"type":"string"}}}},"candidateTables":{"type":"array","maxItems":16,"items":{"type":"object","required":["tableRef","columns","reason"],"properties":{"tableRef":{"type":"string"},"columns":{"type":"array","items":{"type":"string"}},"reason":{"type":"string"}}}}}}.
+        When identifying named candidate tables, use structured JSON with candidateTables so the UI can expose clickable evidence. Example: {"schemaVersion":"sql-studio.output.v1","notes":"Markdown answer","candidateTables":[{"tableRef":"exact observed reference","columns":["exact visible column"],"reason":"evidence-based relevance"}],"files":[]}.
+        A single SQL proposal also accepts this alternate schema: {"type":"object","required":["sql"],"properties":{"sql":{"type":"string","minLength":1},"explanation":{"type":"string"},"executionStatus":{"enum":["PROPOSED","NOT_EXECUTED"]}}}. Do not combine sql with files. JSON strings must escape quotes and line breaks correctly. Never claim a proposed SQL query has executed.
         Candidate tables require actual observed columns. Return [] when evidence is insufficient. For an explicitly requested SQL proposal only, files may contain {path:'sql/proposed.sql',content:'SQL source'}.
         SQL must reference only observed tables/fields and confirmed semantics, using targetDialect. SQL is a proposal for the existing diff/review/save process, never executed.
         Derived analytics (aggregates, ratios, CASE, joins, time-unit conversions) require businessDefinitions:[{tableRef:'observed tableRef',column:'actual field',source:'METADATA_COMMENT or USER_REQUIREMENT',quote:'exact supporting column comment or user statement containing the field name'}]. Quotes must substantiate every business literal/code; prior model notes are never confirmation. Without these definitions return files:[] and explain missing semantics. Never replace unknown codes, units or placeholders with executable example values merely to pass SQL parsing.

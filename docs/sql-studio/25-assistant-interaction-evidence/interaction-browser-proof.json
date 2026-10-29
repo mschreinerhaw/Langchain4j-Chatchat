@@ -1,0 +1,167 @@
+{
+  "realVuePage": true,
+  "mockedRequests": false,
+  "checks": {
+    "threeRegionsAndNoLegacyCards": true,
+    "sourceSwitchClearsNamespaceAndRefreshPreservesAuthorizedSelection": true,
+    "sidebarTogglePreservesMonaco": true,
+    "advancedSettingsOverlay": true,
+    "realMetadataExplorationWithoutPreselectedTables": true,
+    "candidateAuthorizedFields": true,
+    "explicitEditorContextAndDiscoveryReuse": true,
+    "sqlCopy": true,
+    "realMonacoInsertReplaceUndoWithoutSaveOrExecution": true,
+    "sqlHighlight": true,
+    "realCancellationAndContextRemoval": true,
+    "terminalRetryEntry": true,
+    "realHistoryRestore": true,
+    "realTemplateHistoryViaMainWorkspace": true
+  },
+  "errors": [],
+  "generations": [
+    {
+      "id": "da5edc9a-1bea-4671-be5d-48f14c9612bb",
+      "taskId": "3214cf37-82a4-320c-aafb-9a83c070a895",
+      "status": "SUCCESS",
+      "stats": {
+        "reusedEvidenceCount": 0,
+        "toolCalls": 14,
+        "modelCalls": 10,
+        "totalMs": 100500,
+        "reusedCalls": 0,
+        "modelReceipts": [
+          {
+            "modelCall": 1,
+            "durationMs": 8378,
+            "selectedModel": "qwen3.8-flash",
+            "providerModel": "qwen3.8-flash",
+            "protocol": "openai",
+            "requestTimeoutSeconds": 300,
+            "maxRetries": 3
+          },
+          {
+            "modelCall": 2,
+            "durationMs": 4749,
+            "selectedModel": "qwen3.8-flash",
+            "providerModel": "qwen3.8-flash",
+            "protocol": "openai",
+            "requestTimeoutSeconds": 300,
+            "maxRetries": 3
+          },
+          {
+            "modelCall": 3,
+            "durationMs": 10837,
+            "selectedModel": "qwen3.8-flash",
+            "providerModel": "qwen3.8-flash",
+            "protocol": "openai",
+            "requestTimeoutSeconds": 300,
+            "maxRetries": 3
+          },
+          {
+            "modelCall": 4,
+            "durationMs": 3634,
+            "selectedModel": "qwen3.8-flash",
+            "providerModel": "qwen3.8-flash",
+            "protocol": "openai",
+            "requestTimeoutSeconds": 300,
+            "maxRetries": 3
+          },
+          {
+            "modelCall": 5,
+            "durationMs": 3544,
+            "selectedModel": "qwen3.8-flash",
+            "providerModel": "qwen3.8-flash",
+            "protocol": "openai",
+            "requestTimeoutSeconds": 300,
+            "maxRetries": 3
+          },
+          {
+            "modelCall": 6,
+            "durationMs": 4596,
+            "selectedModel": "qwen3.8-flash",
+            "providerModel": "qwen3.8-flash",
+            "protocol": "openai",
+            "requestTimeoutSeconds": 300,
+            "maxRetries": 3
+          },
+          {
+            "modelCall": 7,
+            "durationMs": 6728,
+            "selectedModel": "qwen3.8-flash",
+            "providerModel": "qwen3.8-flash",
+            "protocol": "openai",
+            "requestTimeoutSeconds": 300,
+            "maxRetries": 3
+          },
+          {
+            "modelCall": 8,
+            "durationMs": 9207,
+            "selectedModel": "qwen3.8-flash",
+            "providerModel": "qwen3.8-flash",
+            "protocol": "openai",
+            "requestTimeoutSeconds": 300,
+            "maxRetries": 3
+          },
+          {
+            "modelCall": 9,
+            "durationMs": 5668,
+            "selectedModel": "qwen3.8-flash",
+            "providerModel": "qwen3.8-flash",
+            "protocol": "openai",
+            "requestTimeoutSeconds": 300,
+            "maxRetries": 3
+          },
+          {
+            "modelCall": 10,
+            "durationMs": 39519,
+            "selectedModel": "qwen3.8-flash",
+            "providerModel": "qwen3.8-flash",
+            "protocol": "openai",
+            "requestTimeoutSeconds": 300,
+            "maxRetries": 3
+          }
+        ]
+      },
+      "candidateCount": 4
+    },
+    {
+      "id": "488beb80-f2da-418e-b4a1-07f5b2880ae6",
+      "taskId": "f6143608-9b9b-3c2a-b50a-7bf4ab24ddeb",
+      "status": "SUCCESS",
+      "stats": {
+        "reusedEvidenceCount": 13,
+        "toolCalls": 0,
+        "modelCalls": 2,
+        "totalMs": 61527,
+        "reusedCalls": 0,
+        "modelReceipts": [
+          {
+            "modelCall": 1,
+            "durationMs": 36663,
+            "selectedModel": "qwen3.8-flash",
+            "providerModel": "qwen3.8-flash",
+            "protocol": "openai",
+            "requestTimeoutSeconds": 300,
+            "maxRetries": 3
+          },
+          {
+            "modelCall": 2,
+            "durationMs": 23702,
+            "selectedModel": "qwen3.8-flash",
+            "providerModel": "qwen3.8-flash",
+            "protocol": "openai",
+            "requestTimeoutSeconds": 300,
+            "maxRetries": 3
+          }
+        ]
+      },
+      "candidateCount": 1
+    },
+    {
+      "id": "cf7ac810-db13-498a-8e82-47b305eb8cee",
+      "taskId": "34093d7a-d389-3d36-a4a6-c7c51aa1ed59",
+      "status": "CANCELLED",
+      "candidateCount": 0
+    }
+  ]
+}

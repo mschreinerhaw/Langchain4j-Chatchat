@@ -1,0 +1,221 @@
+{
+  "realVuePage": true,
+  "mockedRequests": false,
+  "checks": {
+    "threeRegionsAndNoLegacyCards": true,
+    "sourceSwitchClearsNamespaceAndRefreshPreservesAuthorizedSelection": true,
+    "sidebarTogglePreservesMonaco": true,
+    "advancedSettingsOverlay": true,
+    "realMetadataExplorationWithoutPreselectedTables": true,
+    "candidateAuthorizedFields": true,
+    "explicitEditorContextAndDiscoveryReuse": true,
+    "sqlCopy": true,
+    "realMonacoInsertReplaceUndoWithoutSaveOrExecution": true,
+    "sqlHighlight": true,
+    "realCancellationAndContextRemoval": true,
+    "terminalRetryEntry": true,
+    "realHistoryRestore": true,
+    "realTemplateHistoryViaMainWorkspace": true
+  },
+  "errors": [],
+  "generations": [
+    {
+      "id": "90e7d4cb-c887-44ef-82d3-cf47daa1a099",
+      "taskId": "d3d0ecc9-fbfe-3861-9a15-16afd5c9cd54",
+      "status": "SUCCESS",
+      "stats": {
+        "reusedCalls": 0,
+        "totalMs": 98183,
+        "modelCalls": 9,
+        "toolCalls": 12,
+        "reusedEvidenceCount": 0,
+        "modelReceipts": [
+          {
+            "modelCall": 1,
+            "durationMs": 7276,
+            "selectedModel": "qwen3.8-flash",
+            "providerModel": "qwen3.8-flash",
+            "protocol": "openai",
+            "requestTimeoutSeconds": 300,
+            "maxRetries": 3,
+            "finishReason": "TOOL_EXECUTION",
+            "inputTokens": 1740,
+            "outputTokens": 332
+          },
+          {
+            "modelCall": 2,
+            "durationMs": 4114,
+            "selectedModel": "qwen3.8-flash",
+            "providerModel": "qwen3.8-flash",
+            "protocol": "openai",
+            "requestTimeoutSeconds": 300,
+            "maxRetries": 3,
+            "finishReason": "TOOL_EXECUTION",
+            "inputTokens": 2764,
+            "outputTokens": 281
+          },
+          {
+            "modelCall": 3,
+            "durationMs": 5006,
+            "selectedModel": "qwen3.8-flash",
+            "providerModel": "qwen3.8-flash",
+            "protocol": "openai",
+            "requestTimeoutSeconds": 300,
+            "maxRetries": 3,
+            "finishReason": "TOOL_EXECUTION",
+            "inputTokens": 4687,
+            "outputTokens": 301
+          },
+          {
+            "modelCall": 4,
+            "durationMs": 7461,
+            "selectedModel": "qwen3.8-flash",
+            "providerModel": "qwen3.8-flash",
+            "protocol": "openai",
+            "requestTimeoutSeconds": 300,
+            "maxRetries": 3,
+            "finishReason": "TOOL_EXECUTION",
+            "inputTokens": 7006,
+            "outputTokens": 364
+          },
+          {
+            "modelCall": 5,
+            "durationMs": 5789,
+            "selectedModel": "qwen3.8-flash",
+            "providerModel": "qwen3.8-flash",
+            "protocol": "openai",
+            "requestTimeoutSeconds": 300,
+            "maxRetries": 3,
+            "finishReason": "TOOL_EXECUTION",
+            "inputTokens": 8392,
+            "outputTokens": 284
+          },
+          {
+            "modelCall": 6,
+            "durationMs": 10334,
+            "selectedModel": "qwen3.8-flash",
+            "providerModel": "qwen3.8-flash",
+            "protocol": "openai",
+            "requestTimeoutSeconds": 300,
+            "maxRetries": 3,
+            "finishReason": "TOOL_EXECUTION",
+            "inputTokens": 9558,
+            "outputTokens": 618
+          },
+          {
+            "modelCall": 7,
+            "durationMs": 11416,
+            "selectedModel": "qwen3.8-flash",
+            "providerModel": "qwen3.8-flash",
+            "protocol": "openai",
+            "requestTimeoutSeconds": 300,
+            "maxRetries": 3,
+            "finishReason": "TOOL_EXECUTION",
+            "inputTokens": 10196,
+            "outputTokens": 702
+          },
+          {
+            "modelCall": 8,
+            "durationMs": 8010,
+            "selectedModel": "qwen3.8-flash",
+            "providerModel": "qwen3.8-flash",
+            "protocol": "openai",
+            "requestTimeoutSeconds": 300,
+            "maxRetries": 3,
+            "finishReason": "TOOL_EXECUTION",
+            "inputTokens": 14443,
+            "outputTokens": 488
+          },
+          {
+            "modelCall": 9,
+            "durationMs": 35416,
+            "selectedModel": "qwen3.8-flash",
+            "providerModel": "qwen3.8-flash",
+            "protocol": "openai",
+            "requestTimeoutSeconds": 300,
+            "maxRetries": 3,
+            "finishReason": "STOP",
+            "inputTokens": 18558,
+            "outputTokens": 2182
+          }
+        ]
+      },
+      "candidateCount": 4
+    },
+    {
+      "id": "e519960a-236c-481e-b49a-6372ec20aad7",
+      "taskId": "40e43b75-baef-3902-9762-0f87870ee47a",
+      "status": "SUCCESS",
+      "stats": {
+        "reusedCalls": 0,
+        "totalMs": 18608,
+        "modelCalls": 1,
+        "toolCalls": 0,
+        "reusedEvidenceCount": 12,
+        "modelReceipts": [
+          {
+            "modelCall": 1,
+            "durationMs": 17817,
+            "selectedModel": "qwen3.8-flash",
+            "providerModel": "qwen3.8-flash",
+            "protocol": "openai",
+            "requestTimeoutSeconds": 300,
+            "maxRetries": 3,
+            "finishReason": "STOP",
+            "inputTokens": 19574,
+            "outputTokens": 868
+          }
+        ]
+      },
+      "candidateCount": 0
+    },
+    {
+      "id": "b2bbf76a-7f52-4909-ae47-5e56555083e0",
+      "taskId": "1e1ce3d1-1f96-34e4-b1d5-1f8d07ee8423",
+      "status": "CANCELLED",
+      "candidateCount": 0
+    }
+  ],
+  "widths": [
+    {
+      "width": 480,
+      "overflow": false,
+      "regions": 3,
+      "contextHeight": 79.1875,
+      "chatOverflow": "auto",
+      "footerOverflow": "visible"
+    },
+    {
+      "width": 336,
+      "overflow": false,
+      "regions": 3,
+      "contextHeight": 79.1875,
+      "chatOverflow": "auto",
+      "footerOverflow": "visible"
+    },
+    {
+      "width": 240,
+      "overflow": false,
+      "regions": 3,
+      "contextHeight": 117.1875,
+      "chatOverflow": "auto",
+      "footerOverflow": "visible"
+    },
+    {
+      "width": 180,
+      "overflow": false,
+      "regions": 3,
+      "contextHeight": 117.1875,
+      "chatOverflow": "auto",
+      "footerOverflow": "visible"
+    },
+    {
+      "width": 480,
+      "overflow": false,
+      "regions": 3,
+      "contextHeight": 79.1875,
+      "chatOverflow": "auto",
+      "footerOverflow": "visible"
+    }
+  ]
+}

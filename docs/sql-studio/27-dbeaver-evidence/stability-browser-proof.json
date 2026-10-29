@@ -1,0 +1,2227 @@
+{
+  "baseline": false,
+  "mockedRequests": false,
+  "zoomMethod": "Equivalent CSS viewport and device-pixel-ratio emulation, not native browser toolbar zoom",
+  "scenarios": [
+    {
+      "scale": 1,
+      "devicePixelRatio": 1,
+      "editorPreserved": true,
+      "editorId": "vs.editor.ICodeEditor:1",
+      "studioPreserved": true,
+      "noPageRefresh": true,
+      "draftPreserved": true,
+      "fileTabRoundTripPreserved": true,
+      "cursorPreserved": true,
+      "scrollPreserved": true,
+      "visibleAnchorBefore": {
+        "text": "-- controlled line 18",
+        "offset": -7,
+        "width": 766,
+        "height": 824
+      },
+      "visibleAnchorAfter": {
+        "text": "-- controlled line 18",
+        "offset": -7,
+        "width": 766,
+        "height": 824
+      },
+      "scrollbarThumbBefore": 262,
+      "scrollbarThumbAfter": 262,
+      "collapsedTracksZero": true,
+      "extremeWidths": [
+        {
+          "width": 1364,
+          "scrollWidth": 1364,
+          "editorWidth": 498
+        },
+        {
+          "width": 1364,
+          "scrollWidth": 1364,
+          "editorWidth": 582
+        }
+      ],
+      "fullTableDirectoryRequests": 2,
+      "metricsDelta": {
+        "LayoutCount": 688,
+        "RecalcStyleCount": 956,
+        "LayoutDuration": 0.13273399999999996,
+        "RecalcStyleDuration": 0.166348,
+        "TaskDuration": 1.4263909999999997
+      },
+      "traceSummary": {
+        "Layout": {
+          "count": 754,
+          "totalMs": 274.315
+        },
+        "UpdateLayoutTree": {
+          "count": 1093,
+          "totalMs": 192.649
+        },
+        "Paint": {
+          "count": 708,
+          "totalMs": 145.972
+        },
+        "PrePaint": {
+          "count": 1058,
+          "totalMs": 81.928
+        },
+        "RunTask": {
+          "count": 0,
+          "totalMs": 0
+        }
+      },
+      "observations": {
+        "shifts": [
+          {
+            "at": 255,
+            "duration": 0,
+            "value": 0.0005576953125,
+            "recentInput": false
+          },
+          {
+            "at": 344.09999990463257,
+            "duration": 0,
+            "value": 0.006814690551757812,
+            "recentInput": false
+          },
+          {
+            "at": 413,
+            "duration": 0,
+            "value": 0.019736725,
+            "recentInput": false
+          },
+          {
+            "at": 940.3999999761581,
+            "duration": 0,
+            "value": 0.00047635949707031247,
+            "recentInput": false
+          },
+          {
+            "at": 1005.0999999046326,
+            "duration": 0,
+            "value": 0.00002603018798828125,
+            "recentInput": false
+          },
+          {
+            "at": 1070.1999999284744,
+            "duration": 0,
+            "value": 0.0017388593750000002,
+            "recentInput": false
+          },
+          {
+            "at": 1154.2999999523163,
+            "duration": 0,
+            "value": 0.002094964636230469,
+            "recentInput": false
+          },
+          {
+            "at": 1374.1999999284744,
+            "duration": 0,
+            "value": 0.0017388593750000002,
+            "recentInput": true
+          },
+          {
+            "at": 1557.0999999046326,
+            "duration": 0,
+            "value": 0.00002603018798828125,
+            "recentInput": true
+          },
+          {
+            "at": 3324.6999999284744,
+            "duration": 0,
+            "value": 0.020971751562499998,
+            "recentInput": true
+          },
+          {
+            "at": 3820.5,
+            "duration": 0,
+            "value": 0.00074147421875,
+            "recentInput": true
+          },
+          {
+            "at": 3875.899999976158,
+            "duration": 0,
+            "value": 0.020971751562499998,
+            "recentInput": true
+          },
+          {
+            "at": 3912,
+            "duration": 0,
+            "value": 0.020971751562499998,
+            "recentInput": true
+          },
+          {
+            "at": 4050.399999976158,
+            "duration": 0,
+            "value": 0.020971751562499998,
+            "recentInput": true
+          },
+          {
+            "at": 4095.6999999284744,
+            "duration": 0,
+            "value": 0.00005465625,
+            "recentInput": true
+          },
+          {
+            "at": 4100.299999952316,
+            "duration": 0,
+            "value": 0.00000914375,
+            "recentInput": true
+          },
+          {
+            "at": 4262.799999952316,
+            "duration": 0,
+            "value": 0.00006221539306640625,
+            "recentInput": true
+          },
+          {
+            "at": 4267,
+            "duration": 0,
+            "value": 0.19157420625,
+            "recentInput": true
+          },
+          {
+            "at": 4277.899999976158,
+            "duration": 0,
+            "value": 0.000003093017578125,
+            "recentInput": true
+          },
+          {
+            "at": 4282.299999952316,
+            "duration": 0,
+            "value": 0.0399421125,
+            "recentInput": true
+          },
+          {
+            "at": 4300.699999928474,
+            "duration": 0,
+            "value": 2.3750000000000003e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4333.599999904633,
+            "duration": 0,
+            "value": 2.0781250000000002e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4368.799999952316,
+            "duration": 0,
+            "value": 2.3750000000000003e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4422.599999904633,
+            "duration": 0,
+            "value": 0.0025348968750000004,
+            "recentInput": true
+          },
+          {
+            "at": 4424.5,
+            "duration": 0,
+            "value": 0.00456681328125,
+            "recentInput": true
+          },
+          {
+            "at": 4438.799999952316,
+            "duration": 0,
+            "value": 0.00008602764892578126,
+            "recentInput": true
+          },
+          {
+            "at": 4458.299999952316,
+            "duration": 0,
+            "value": 2.0781250000000002e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4482.599999904633,
+            "duration": 0,
+            "value": 2.3750000000000003e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4511.399999976158,
+            "duration": 0,
+            "value": 2.3750000000000003e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4541.199999928474,
+            "duration": 0,
+            "value": 2.3750000000000003e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4581.199999928474,
+            "duration": 0,
+            "value": 0.000003093017578125,
+            "recentInput": true
+          },
+          {
+            "at": 4583,
+            "duration": 0,
+            "value": 2.0781250000000002e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4607.099999904633,
+            "duration": 0,
+            "value": 2.3750000000000003e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4635,
+            "duration": 0,
+            "value": 0.001810640625,
+            "recentInput": true
+          },
+          {
+            "at": 4636.899999976158,
+            "duration": 0,
+            "value": 0.0015312960937499999,
+            "recentInput": true
+          },
+          {
+            "at": 4665.899999976158,
+            "duration": 0,
+            "value": 0.0005431921875,
+            "recentInput": true
+          },
+          {
+            "at": 4668.099999904633,
+            "duration": 0,
+            "value": 0.0006408046875,
+            "recentInput": true
+          },
+          {
+            "at": 4695.799999952316,
+            "duration": 0,
+            "value": 0.0004828375,
+            "recentInput": true
+          },
+          {
+            "at": 4697.599999904633,
+            "duration": 0,
+            "value": 0.0063172765625,
+            "recentInput": true
+          },
+          {
+            "at": 4729.099999904633,
+            "duration": 0,
+            "value": 2.3750000000000003e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4753.599999904633,
+            "duration": 0,
+            "value": 2.0781250000000002e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4796.399999976158,
+            "duration": 0,
+            "value": 2.3750000000000003e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4814.699999928474,
+            "duration": 0,
+            "value": 2.3750000000000003e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4845.5,
+            "duration": 0,
+            "value": 2.3750000000000003e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4886.5,
+            "duration": 0,
+            "value": 2.0781250000000002e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4905.799999952316,
+            "duration": 0,
+            "value": 2.3750000000000003e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4947.299999952316,
+            "duration": 0,
+            "value": 0.00001128125,
+            "recentInput": true
+          },
+          {
+            "at": 4959,
+            "duration": 0,
+            "value": 0.00001128125,
+            "recentInput": true
+          },
+          {
+            "at": 5007.599999904633,
+            "duration": 0,
+            "value": 0.005490876507568359,
+            "recentInput": true
+          },
+          {
+            "at": 5013.699999928474,
+            "duration": 0,
+            "value": 0.00010200000000000001,
+            "recentInput": true
+          },
+          {
+            "at": 5054.599999904633,
+            "duration": 0,
+            "value": 0.000003093017578125,
+            "recentInput": true
+          },
+          {
+            "at": 5065,
+            "duration": 0,
+            "value": 0.0000066203125,
+            "recentInput": true
+          },
+          {
+            "at": 5099.699999928474,
+            "duration": 0,
+            "value": 0.0017388593750000002,
+            "recentInput": true
+          },
+          {
+            "at": 5119.699999928474,
+            "duration": 0,
+            "value": 0.0055237660949707034,
+            "recentInput": true
+          },
+          {
+            "at": 5126.899999976158,
+            "duration": 0,
+            "value": 0.17940374375,
+            "recentInput": true
+          },
+          {
+            "at": 5165.5,
+            "duration": 0,
+            "value": 0.00001128125,
+            "recentInput": true
+          },
+          {
+            "at": 5174.599999904633,
+            "duration": 0,
+            "value": 0.00001128125,
+            "recentInput": true
+          },
+          {
+            "at": 5244.099999904633,
+            "duration": 0,
+            "value": 5.640625e-7,
+            "recentInput": true
+          },
+          {
+            "at": 5260.5,
+            "duration": 0,
+            "value": 0.0017388593750000002,
+            "recentInput": true
+          },
+          {
+            "at": 5554.599999904633,
+            "duration": 0,
+            "value": 0.094380941015625,
+            "recentInput": true
+          },
+          {
+            "at": 5589.899999976158,
+            "duration": 0,
+            "value": 0.01902603125,
+            "recentInput": true
+          },
+          {
+            "at": 5733.799999952316,
+            "duration": 0,
+            "value": 0.094380941015625,
+            "recentInput": true
+          },
+          {
+            "at": 5774.899999976158,
+            "duration": 0,
+            "value": 0.009382961328125,
+            "recentInput": true
+          },
+          {
+            "at": 5801.599999904633,
+            "duration": 0,
+            "value": 0.025683693750000004,
+            "recentInput": true
+          },
+          {
+            "at": 5823.699999928474,
+            "duration": 0,
+            "value": 0.00759284453125,
+            "recentInput": true
+          },
+          {
+            "at": 5833.599999904633,
+            "duration": 0,
+            "value": 0.00023685546874999998,
+            "recentInput": true
+          },
+          {
+            "at": 5864.099999904633,
+            "duration": 0,
+            "value": 0.094380941015625,
+            "recentInput": true
+          },
+          {
+            "at": 5891.299999952316,
+            "duration": 0,
+            "value": 0.01902603125,
+            "recentInput": true
+          },
+          {
+            "at": 6019.899999976158,
+            "duration": 0,
+            "value": 0.094380941015625,
+            "recentInput": true
+          },
+          {
+            "at": 6058,
+            "duration": 0,
+            "value": 0.009382961328125,
+            "recentInput": true
+          },
+          {
+            "at": 6087,
+            "duration": 0,
+            "value": 0.025683693750000004,
+            "recentInput": true
+          },
+          {
+            "at": 6095.399999976158,
+            "duration": 0,
+            "value": 0.00759284453125,
+            "recentInput": true
+          },
+          {
+            "at": 6101.899999976158,
+            "duration": 0,
+            "value": 0.00023685546874999998,
+            "recentInput": true
+          },
+          {
+            "at": 6131.899999976158,
+            "duration": 0,
+            "value": 0.094380941015625,
+            "recentInput": true
+          },
+          {
+            "at": 6159.699999928474,
+            "duration": 0,
+            "value": 0.01902603125,
+            "recentInput": true
+          },
+          {
+            "at": 6288.299999952316,
+            "duration": 0,
+            "value": 0.094380941015625,
+            "recentInput": true
+          },
+          {
+            "at": 6329.699999928474,
+            "duration": 0,
+            "value": 0.009382961328125,
+            "recentInput": true
+          },
+          {
+            "at": 6355.199999928474,
+            "duration": 0,
+            "value": 0.025683693750000004,
+            "recentInput": true
+          },
+          {
+            "at": 6378.099999904633,
+            "duration": 0,
+            "value": 0.00759284453125,
+            "recentInput": true
+          },
+          {
+            "at": 6388.799999952316,
+            "duration": 0,
+            "value": 0.00023685546874999998,
+            "recentInput": true
+          },
+          {
+            "at": 6416.099999904633,
+            "duration": 0,
+            "value": 0.020971751562499998,
+            "recentInput": true
+          },
+          {
+            "at": 6445.199999928474,
+            "duration": 0,
+            "value": 0.020971751562499998,
+            "recentInput": true
+          },
+          {
+            "at": 6646,
+            "duration": 0,
+            "value": 0.008882949609375001,
+            "recentInput": true
+          },
+          {
+            "at": 6913.599999904633,
+            "duration": 0,
+            "value": 0.008997858984374999,
+            "recentInput": true
+          },
+          {
+            "at": 7148,
+            "duration": 0,
+            "value": 0.0807470860595703,
+            "recentInput": true
+          },
+          {
+            "at": 7400.399999976158,
+            "duration": 0,
+            "value": 0.08818606499633788,
+            "recentInput": true
+          },
+          {
+            "at": 8000.199999928474,
+            "duration": 0,
+            "value": 0.0000107171875,
+            "recentInput": true
+          },
+          {
+            "at": 8010.799999952316,
+            "duration": 0,
+            "value": 0.00001128125,
+            "recentInput": true
+          },
+          {
+            "at": 8070.299999952316,
+            "duration": 0,
+            "value": 0.07445081875000001,
+            "recentInput": true
+          },
+          {
+            "at": 8311.399999976158,
+            "duration": 0,
+            "value": 0.07417622343750001,
+            "recentInput": true
+          },
+          {
+            "at": 8342.899999976158,
+            "duration": 0,
+            "value": 0.014664625,
+            "recentInput": true
+          },
+          {
+            "at": 8455,
+            "duration": 0,
+            "value": 0.1201728458251953,
+            "recentInput": true
+          },
+          {
+            "at": 8700.699999928474,
+            "duration": 0,
+            "value": 0.12070635484619141,
+            "recentInput": true
+          },
+          {
+            "at": 8734,
+            "duration": 0,
+            "value": 0.010601275,
+            "recentInput": true
+          },
+          {
+            "at": 8814.099999904633,
+            "duration": 0,
+            "value": 0.000003093017578125,
+            "recentInput": true
+          },
+          {
+            "at": 8820.799999952316,
+            "duration": 0,
+            "value": 0.19157420625,
+            "recentInput": true
+          },
+          {
+            "at": 8874.399999976158,
+            "duration": 0,
+            "value": 3.0468750000000006e-8,
+            "recentInput": true
+          },
+          {
+            "at": 9089.799999952316,
+            "duration": 0,
+            "value": 0.0000466171875,
+            "recentInput": true
+          },
+          {
+            "at": 9091.299999952316,
+            "duration": 0,
+            "value": 0.0000038890625000000005,
+            "recentInput": true
+          }
+        ],
+        "longTasks": [
+          {
+            "at": 52.59999990463257,
+            "duration": 62,
+            "value": 0,
+            "recentInput": false
+          },
+          {
+            "at": 515.3999999761581,
+            "duration": 86,
+            "value": 0,
+            "recentInput": false
+          },
+          {
+            "at": 834.8999999761581,
+            "duration": 89,
+            "value": 0,
+            "recentInput": false
+          },
+          {
+            "at": 1638.8999999761581,
+            "duration": 178,
+            "value": 0,
+            "recentInput": false
+          },
+          {
+            "at": 4121.599999904633,
+            "duration": 140,
+            "value": 0,
+            "recentInput": false
+          }
+        ]
+      },
+      "errors": []
+    },
+    {
+      "scale": 1.25,
+      "devicePixelRatio": 1.25,
+      "editorPreserved": true,
+      "editorId": "vs.editor.ICodeEditor:1",
+      "studioPreserved": true,
+      "noPageRefresh": true,
+      "draftPreserved": true,
+      "fileTabRoundTripPreserved": true,
+      "cursorPreserved": true,
+      "scrollPreserved": true,
+      "visibleAnchorBefore": {
+        "text": "-- controlled line 31",
+        "offset": -5,
+        "width": 446,
+        "height": 579
+      },
+      "visibleAnchorAfter": {
+        "text": "-- controlled line 31",
+        "offset": -5,
+        "width": 446,
+        "height": 579
+      },
+      "scrollbarThumbBefore": 302,
+      "scrollbarThumbAfter": 302,
+      "collapsedTracksZero": true,
+      "extremeWidths": [
+        {
+          "width": 1044,
+          "scrollWidth": 1044,
+          "editorWidth": 220
+        },
+        {
+          "width": 1044,
+          "scrollWidth": 1044,
+          "editorWidth": 262
+        }
+      ],
+      "fullTableDirectoryRequests": 2,
+      "metricsDelta": {
+        "LayoutCount": 688,
+        "RecalcStyleCount": 967,
+        "LayoutDuration": 0.12145,
+        "RecalcStyleDuration": 0.151188,
+        "TaskDuration": 1.3953280000000001
+      },
+      "traceSummary": {
+        "Layout": {
+          "count": 753,
+          "totalMs": 265.705
+        },
+        "UpdateLayoutTree": {
+          "count": 1111,
+          "totalMs": 179.302
+        },
+        "Paint": {
+          "count": 725,
+          "totalMs": 151.306
+        },
+        "PrePaint": {
+          "count": 1067,
+          "totalMs": 82.93
+        },
+        "RunTask": {
+          "count": 0,
+          "totalMs": 0
+        }
+      },
+      "observations": {
+        "shifts": [
+          {
+            "at": 204.10000002384186,
+            "duration": 0,
+            "value": 0.0010892486572265626,
+            "recentInput": false
+          },
+          {
+            "at": 329,
+            "duration": 0,
+            "value": 0.010948945689201354,
+            "recentInput": false
+          },
+          {
+            "at": 416.5,
+            "duration": 0,
+            "value": 0.023620922851562504,
+            "recentInput": false
+          },
+          {
+            "at": 1001.7000000476837,
+            "duration": 0,
+            "value": 0.0009303896427154541,
+            "recentInput": false
+          },
+          {
+            "at": 1053.3000000715256,
+            "duration": 0,
+            "value": 0.00005084021091461182,
+            "recentInput": false
+          },
+          {
+            "at": 1093.3999999761581,
+            "duration": 0,
+            "value": 0.002018608093261719,
+            "recentInput": false
+          },
+          {
+            "at": 1160.1000000238419,
+            "duration": 0,
+            "value": 0.0026059058547019958,
+            "recentInput": false
+          },
+          {
+            "at": 1307.3000000715256,
+            "duration": 0,
+            "value": 0.002018608093261719,
+            "recentInput": true
+          },
+          {
+            "at": 1554.8999999761581,
+            "duration": 0,
+            "value": 0.00005084021091461182,
+            "recentInput": true
+          },
+          {
+            "at": 3132.3000000715256,
+            "duration": 0,
+            "value": 0.02201578178405762,
+            "recentInput": true
+          },
+          {
+            "at": 3492.600000023842,
+            "duration": 0,
+            "value": 0.0006600166320800782,
+            "recentInput": true
+          },
+          {
+            "at": 3580.399999976158,
+            "duration": 0,
+            "value": 0.02201578178405762,
+            "recentInput": true
+          },
+          {
+            "at": 3615.399999976158,
+            "duration": 0,
+            "value": 0.02201578178405762,
+            "recentInput": true
+          },
+          {
+            "at": 3757.100000023842,
+            "duration": 0,
+            "value": 0.02201578178405762,
+            "recentInput": true
+          },
+          {
+            "at": 3799.600000023842,
+            "duration": 0,
+            "value": 0.00010675048828124999,
+            "recentInput": true
+          },
+          {
+            "at": 3809.399999976158,
+            "duration": 0,
+            "value": 0.00001785888671875,
+            "recentInput": true
+          },
+          {
+            "at": 3968.8000000715256,
+            "duration": 0,
+            "value": 0.00012151443958282472,
+            "recentInput": true
+          },
+          {
+            "at": 3973.3000000715256,
+            "duration": 0,
+            "value": 0.12215048217773436,
+            "recentInput": true
+          },
+          {
+            "at": 3982.600000023842,
+            "duration": 0,
+            "value": 0.000006041049957275391,
+            "recentInput": true
+          },
+          {
+            "at": 3985.3000000715256,
+            "duration": 0,
+            "value": 0.031916738891601557,
+            "recentInput": true
+          },
+          {
+            "at": 4015.600000023842,
+            "duration": 0,
+            "value": 4.638671875e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4034.8000000715256,
+            "duration": 0,
+            "value": 4.058837890625e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4067.5,
+            "duration": 0,
+            "value": 4.638671875e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4122,
+            "duration": 0,
+            "value": 0.004141232299804687,
+            "recentInput": true
+          },
+          {
+            "at": 4123.899999976158,
+            "duration": 0,
+            "value": 0.0073323486328125,
+            "recentInput": true
+          },
+          {
+            "at": 4135.700000047684,
+            "duration": 0,
+            "value": 0.0001402881145477295,
+            "recentInput": true
+          },
+          {
+            "at": 4159.700000047684,
+            "duration": 0,
+            "value": 4.058837890625e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4184.399999976158,
+            "duration": 0,
+            "value": 4.638671875e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4224.5,
+            "duration": 0,
+            "value": 4.638671875e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4243.5,
+            "duration": 0,
+            "value": 4.638671875e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4271.399999976158,
+            "duration": 0,
+            "value": 0.000006041049957275391,
+            "recentInput": true
+          },
+          {
+            "at": 4273.200000047684,
+            "duration": 0,
+            "value": 4.058837890625e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4307.100000023842,
+            "duration": 0,
+            "value": 4.638671875e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4345.300000071526,
+            "duration": 0,
+            "value": 0.0025118408203124998,
+            "recentInput": true
+          },
+          {
+            "at": 4347.700000047684,
+            "duration": 0,
+            "value": 0.0020777770996093753,
+            "recentInput": true
+          },
+          {
+            "at": 4365.200000047684,
+            "duration": 0,
+            "value": 0.000733721923828125,
+            "recentInput": true
+          },
+          {
+            "at": 4367.200000047684,
+            "duration": 0,
+            "value": 0.000847601318359375,
+            "recentInput": true
+          },
+          {
+            "at": 4397.200000047684,
+            "duration": 0,
+            "value": 0.0006367736816406249,
+            "recentInput": true
+          },
+          {
+            "at": 4399.600000023842,
+            "duration": 0,
+            "value": 0.008678729248046874,
+            "recentInput": true
+          },
+          {
+            "at": 4434.300000071526,
+            "duration": 0,
+            "value": 4.638671875e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4451.600000023842,
+            "duration": 0,
+            "value": 4.058837890625e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4481.100000023842,
+            "duration": 0,
+            "value": 4.638671875e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4522,
+            "duration": 0,
+            "value": 4.638671875e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4541.100000023842,
+            "duration": 0,
+            "value": 4.638671875e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4570.700000047684,
+            "duration": 0,
+            "value": 4.058837890625e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4599.600000023842,
+            "duration": 0,
+            "value": 4.638671875e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4667.899999976158,
+            "duration": 0,
+            "value": 0.0000143218994140625,
+            "recentInput": true
+          },
+          {
+            "at": 4679.399999976158,
+            "duration": 0,
+            "value": 0.0000143218994140625,
+            "recentInput": true
+          },
+          {
+            "at": 4725.899999976158,
+            "duration": 0,
+            "value": 0.0069207262516021726,
+            "recentInput": true
+          },
+          {
+            "at": 4732.5,
+            "duration": 0,
+            "value": 0.00019921875000000001,
+            "recentInput": true
+          },
+          {
+            "at": 4771.700000047684,
+            "duration": 0,
+            "value": 0.000006041049957275391,
+            "recentInput": true
+          },
+          {
+            "at": 4782.899999976158,
+            "duration": 0,
+            "value": 0.0000129302978515625,
+            "recentInput": true
+          },
+          {
+            "at": 4830.700000047684,
+            "duration": 0,
+            "value": 0.0007040531754493713,
+            "recentInput": true
+          },
+          {
+            "at": 4839.200000047684,
+            "duration": 0,
+            "value": 0.10684429779052736,
+            "recentInput": true
+          },
+          {
+            "at": 4882.700000047684,
+            "duration": 0,
+            "value": 0.000015423583984375,
+            "recentInput": true
+          },
+          {
+            "at": 4906.800000071526,
+            "duration": 0,
+            "value": 0.000015423583984375,
+            "recentInput": true
+          },
+          {
+            "at": 4975.100000023842,
+            "duration": 0,
+            "value": 0.0000011016845703125,
+            "recentInput": true
+          },
+          {
+            "at": 5008.600000023842,
+            "duration": 0,
+            "value": 0.002018608093261719,
+            "recentInput": true
+          },
+          {
+            "at": 5282,
+            "duration": 0,
+            "value": 0.09290485687255859,
+            "recentInput": true
+          },
+          {
+            "at": 5313,
+            "duration": 0,
+            "value": 0.015439764404296874,
+            "recentInput": true
+          },
+          {
+            "at": 5487.300000071526,
+            "duration": 0,
+            "value": 0.09290485687255859,
+            "recentInput": true
+          },
+          {
+            "at": 5528,
+            "duration": 0,
+            "value": 0.018571689605712892,
+            "recentInput": true
+          },
+          {
+            "at": 5552.899999976158,
+            "duration": 0,
+            "value": 0.021691296386718753,
+            "recentInput": true
+          },
+          {
+            "at": 5577,
+            "duration": 0,
+            "value": 0.015634794068336486,
+            "recentInput": true
+          },
+          {
+            "at": 5585.100000023842,
+            "duration": 0,
+            "value": 0.00046260833740234373,
+            "recentInput": true
+          },
+          {
+            "at": 5612.399999976158,
+            "duration": 0,
+            "value": 0.09290485687255859,
+            "recentInput": true
+          },
+          {
+            "at": 5639.600000023842,
+            "duration": 0,
+            "value": 0.015439764404296874,
+            "recentInput": true
+          },
+          {
+            "at": 5766.100000023842,
+            "duration": 0,
+            "value": 0.09290485687255859,
+            "recentInput": true
+          },
+          {
+            "at": 5804.100000023842,
+            "duration": 0,
+            "value": 0.018571689605712892,
+            "recentInput": true
+          },
+          {
+            "at": 5831.800000071526,
+            "duration": 0,
+            "value": 0.021691296386718753,
+            "recentInput": true
+          },
+          {
+            "at": 5842.700000047684,
+            "duration": 0,
+            "value": 0.015634794068336486,
+            "recentInput": true
+          },
+          {
+            "at": 5848.100000023842,
+            "duration": 0,
+            "value": 0.00046260833740234373,
+            "recentInput": true
+          },
+          {
+            "at": 5888.5,
+            "duration": 0,
+            "value": 0.09290485687255859,
+            "recentInput": true
+          },
+          {
+            "at": 5919.300000071526,
+            "duration": 0,
+            "value": 0.015439764404296874,
+            "recentInput": true
+          },
+          {
+            "at": 6046.5,
+            "duration": 0,
+            "value": 0.09290485687255859,
+            "recentInput": true
+          },
+          {
+            "at": 6092.600000023842,
+            "duration": 0,
+            "value": 0.018571689605712892,
+            "recentInput": true
+          },
+          {
+            "at": 6116.800000071526,
+            "duration": 0,
+            "value": 0.021691296386718753,
+            "recentInput": true
+          },
+          {
+            "at": 6138.399999976158,
+            "duration": 0,
+            "value": 0.015634794068336486,
+            "recentInput": true
+          },
+          {
+            "at": 6149.100000023842,
+            "duration": 0,
+            "value": 0.00046260833740234373,
+            "recentInput": true
+          },
+          {
+            "at": 6179,
+            "duration": 0,
+            "value": 0.02201578178405762,
+            "recentInput": true
+          },
+          {
+            "at": 6223.200000047684,
+            "duration": 0,
+            "value": 0.02201578178405762,
+            "recentInput": true
+          },
+          {
+            "at": 6436.200000047684,
+            "duration": 0,
+            "value": 0.008301458740234375,
+            "recentInput": true
+          },
+          {
+            "at": 6695,
+            "duration": 0,
+            "value": 0.00834784164428711,
+            "recentInput": true
+          },
+          {
+            "at": 6940.800000071526,
+            "duration": 0,
+            "value": 0.08443393123149871,
+            "recentInput": true
+          },
+          {
+            "at": 7199.700000047684,
+            "duration": 0,
+            "value": 0.12318470822572708,
+            "recentInput": true
+          },
+          {
+            "at": 7796.700000047684,
+            "duration": 0,
+            "value": 0.0000143218994140625,
+            "recentInput": true
+          },
+          {
+            "at": 7807.5,
+            "duration": 0,
+            "value": 0.000015423583984375,
+            "recentInput": true
+          },
+          {
+            "at": 7847.200000047684,
+            "duration": 0,
+            "value": 0.05292081604003907,
+            "recentInput": true
+          },
+          {
+            "at": 7863,
+            "duration": 0,
+            "value": 8.331298828125e-7,
+            "recentInput": true
+          },
+          {
+            "at": 7879.100000023842,
+            "duration": 0,
+            "value": 0.05189584350585937,
+            "recentInput": true
+          },
+          {
+            "at": 8091.200000047684,
+            "duration": 0,
+            "value": 0.05272287292480469,
+            "recentInput": true
+          },
+          {
+            "at": 8123.100000023842,
+            "duration": 0,
+            "value": 0.04452582092285156,
+            "recentInput": true
+          },
+          {
+            "at": 8228.600000023842,
+            "duration": 0,
+            "value": 0.17173955576419833,
+            "recentInput": true
+          },
+          {
+            "at": 8242.899999976158,
+            "duration": 0,
+            "value": 0.0005404663085937499,
+            "recentInput": true
+          },
+          {
+            "at": 8259.200000047684,
+            "duration": 0,
+            "value": 0.001388836669921875,
+            "recentInput": true
+          },
+          {
+            "at": 8468.5,
+            "duration": 0,
+            "value": 0.17271467819213868,
+            "recentInput": true
+          },
+          {
+            "at": 8499.899999976158,
+            "duration": 0,
+            "value": 0.036251110839843746,
+            "recentInput": true
+          },
+          {
+            "at": 8580.700000047684,
+            "duration": 0,
+            "value": 0.000006041049957275391,
+            "recentInput": true
+          },
+          {
+            "at": 8587,
+            "duration": 0,
+            "value": 0.12352960052490233,
+            "recentInput": true
+          },
+          {
+            "at": 8640.300000071526,
+            "duration": 0,
+            "value": 5.950927734375e-8,
+            "recentInput": true
+          },
+          {
+            "at": 8843.600000023842,
+            "duration": 0,
+            "value": 0.0000910491943359375,
+            "recentInput": true
+          },
+          {
+            "at": 8845.700000047684,
+            "duration": 0,
+            "value": 0.0000075958251953124995,
+            "recentInput": true
+          }
+        ],
+        "longTasks": [
+          {
+            "at": 50.800000071525574,
+            "duration": 60,
+            "value": 0,
+            "recentInput": false
+          },
+          {
+            "at": 511,
+            "duration": 104,
+            "value": 0,
+            "recentInput": false
+          },
+          {
+            "at": 896.6000000238419,
+            "duration": 93,
+            "value": 0,
+            "recentInput": false
+          },
+          {
+            "at": 1629.6000000238419,
+            "duration": 189,
+            "value": 0,
+            "recentInput": false
+          },
+          {
+            "at": 3824.2000000476837,
+            "duration": 144,
+            "value": 0,
+            "recentInput": false
+          }
+        ]
+      },
+      "errors": []
+    },
+    {
+      "scale": 1.5,
+      "devicePixelRatio": 1.5,
+      "editorPreserved": true,
+      "editorId": "vs.editor.ICodeEditor:1",
+      "studioPreserved": true,
+      "noPageRefresh": true,
+      "draftPreserved": true,
+      "fileTabRoundTripPreserved": true,
+      "cursorPreserved": true,
+      "scrollPreserved": true,
+      "visibleAnchorBefore": {
+        "text": "-- controlled line 39",
+        "offset": 1,
+        "width": 232,
+        "height": 445
+      },
+      "visibleAnchorAfter": {
+        "text": "-- controlled line 39",
+        "offset": 1,
+        "width": 232,
+        "height": 445
+      },
+      "scrollbarThumbBefore": 283,
+      "scrollbarThumbAfter": 283,
+      "collapsedTracksZero": true,
+      "extremeWidths": [
+        {
+          "width": 830,
+          "scrollWidth": 830,
+          "editorWidth": 200
+        },
+        {
+          "width": 830,
+          "scrollWidth": 830,
+          "editorWidth": 200
+        }
+      ],
+      "fullTableDirectoryRequests": 2,
+      "metricsDelta": {
+        "LayoutCount": 763,
+        "RecalcStyleCount": 1017,
+        "LayoutDuration": 0.101274,
+        "RecalcStyleDuration": 0.167475,
+        "TaskDuration": 1.3950900000000002
+      },
+      "traceSummary": {
+        "Layout": {
+          "count": 830,
+          "totalMs": 224.401
+        },
+        "UpdateLayoutTree": {
+          "count": 1189,
+          "totalMs": 194.93
+        },
+        "Paint": {
+          "count": 1028,
+          "totalMs": 151.948
+        },
+        "PrePaint": {
+          "count": 1090,
+          "totalMs": 86.114
+        },
+        "RunTask": {
+          "count": 0,
+          "totalMs": 0
+        }
+      },
+      "observations": {
+        "shifts": [
+          {
+            "at": 240.29999995231628,
+            "duration": 0,
+            "value": 0.0018864631274826671,
+            "recentInput": false
+          },
+          {
+            "at": 327.89999997615814,
+            "duration": 0,
+            "value": 0.027101639900797912,
+            "recentInput": false
+          },
+          {
+            "at": 849.5,
+            "duration": 0,
+            "value": 0.0014695683777517508,
+            "recentInput": false
+          },
+          {
+            "at": 905,
+            "duration": 0,
+            "value": 0.0000845186798273903,
+            "recentInput": false
+          },
+          {
+            "at": 979.7999999523163,
+            "duration": 0,
+            "value": 0.002191095805244892,
+            "recentInput": false
+          },
+          {
+            "at": 1635.6999999284744,
+            "duration": 0,
+            "value": 0.002461527172093227,
+            "recentInput": false
+          },
+          {
+            "at": 1798.3999999761581,
+            "duration": 0,
+            "value": 0.002191095805244892,
+            "recentInput": true
+          },
+          {
+            "at": 2031.3999999761581,
+            "duration": 0,
+            "value": 0.0000845186798273903,
+            "recentInput": true
+          },
+          {
+            "at": 3234.100000023842,
+            "duration": 0,
+            "value": 0.024432967793147173,
+            "recentInput": true
+          },
+          {
+            "at": 3682.7999999523163,
+            "duration": 0,
+            "value": 0.024432967793147173,
+            "recentInput": true
+          },
+          {
+            "at": 3717.399999976158,
+            "duration": 0,
+            "value": 0.024432967793147173,
+            "recentInput": true
+          },
+          {
+            "at": 3847.6999999284744,
+            "duration": 0,
+            "value": 0.024432967793147173,
+            "recentInput": true
+          },
+          {
+            "at": 3889.6999999284744,
+            "duration": 0,
+            "value": 0.00022821189394428765,
+            "recentInput": true
+          },
+          {
+            "at": 3899.5,
+            "duration": 0,
+            "value": 0.017188180369436947,
+            "recentInput": true
+          },
+          {
+            "at": 4031.7999999523163,
+            "duration": 0,
+            "value": 0.00006201295801836917,
+            "recentInput": true
+          },
+          {
+            "at": 4035.100000023842,
+            "duration": 0,
+            "value": 0.10285625395678935,
+            "recentInput": true
+          },
+          {
+            "at": 4053.899999976158,
+            "duration": 0,
+            "value": 0.00002212427029671802,
+            "recentInput": true
+          },
+          {
+            "at": 4056.399999976158,
+            "duration": 0,
+            "value": 0.018006665148933943,
+            "recentInput": true
+          },
+          {
+            "at": 4072.6999999284744,
+            "duration": 0,
+            "value": 8.03368762001444e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4107.600000023842,
+            "duration": 0,
+            "value": 7.029476667512636e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4141.799999952316,
+            "duration": 0,
+            "value": 8.03368762001444e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4175.799999952316,
+            "duration": 0,
+            "value": 0.0028848972243471853,
+            "recentInput": true
+          },
+          {
+            "at": 4178.100000023842,
+            "duration": 0,
+            "value": 0.005155970503977643,
+            "recentInput": true
+          },
+          {
+            "at": 4195.199999928474,
+            "duration": 0,
+            "value": 7.029476667512636e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4218.699999928474,
+            "duration": 0,
+            "value": 8.03368762001444e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4246.299999952316,
+            "duration": 0,
+            "value": 8.03368762001444e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4277.199999928474,
+            "duration": 0,
+            "value": 8.03368762001444e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4316.5,
+            "duration": 0,
+            "value": 0.00002212427029671802,
+            "recentInput": true
+          },
+          {
+            "at": 4318.699999928474,
+            "duration": 0,
+            "value": 7.029476667512636e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4343.600000023842,
+            "duration": 0,
+            "value": 8.03368762001444e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4370.600000023842,
+            "duration": 0,
+            "value": 0.0017028907227049357,
+            "recentInput": true
+          },
+          {
+            "at": 4372.899999976158,
+            "duration": 0,
+            "value": 0.0014130754418129148,
+            "recentInput": true
+          },
+          {
+            "at": 4402.799999952316,
+            "duration": 0,
+            "value": 0.0005108672168114807,
+            "recentInput": true
+          },
+          {
+            "at": 4404.899999976158,
+            "duration": 0,
+            "value": 0.0005911036719163749,
+            "recentInput": true
+          },
+          {
+            "at": 4430.5,
+            "duration": 0,
+            "value": 0.0004541041927213162,
+            "recentInput": true
+          },
+          {
+            "at": 4432.299999952316,
+            "duration": 0,
+            "value": 0.006278231739266837,
+            "recentInput": true
+          },
+          {
+            "at": 4460.799999952316,
+            "duration": 0,
+            "value": 8.03368762001444e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4489.799999952316,
+            "duration": 0,
+            "value": 7.029476667512636e-7,
+            "recentInput": true
+          },
+          {
+            "at": 4530.399999976158,
+            "duration": 0,
+            "value": 0.0003951305832054471,
+            "recentInput": true
+          },
+          {
+            "at": 4548.899999976158,
+            "duration": 0,
+            "value": 0.0007902611664108942,
+            "recentInput": true
+          },
+          {
+            "at": 4580.399999976158,
+            "duration": 0,
+            "value": 0.0007902611664108942,
+            "recentInput": true
+          },
+          {
+            "at": 4611.699999928474,
+            "duration": 0,
+            "value": 0.0006914785206095324,
+            "recentInput": true
+          },
+          {
+            "at": 4654,
+            "duration": 0,
+            "value": 0.0007902611664108942,
+            "recentInput": true
+          },
+          {
+            "at": 4698.899999976158,
+            "duration": 0,
+            "value": 0.000019080008097534294,
+            "recentInput": true
+          },
+          {
+            "at": 4710.199999928474,
+            "duration": 0,
+            "value": 0.000019080008097534294,
+            "recentInput": true
+          },
+          {
+            "at": 4757.399999976158,
+            "duration": 0,
+            "value": 0.007493262432426248,
+            "recentInput": true
+          },
+          {
+            "at": 4764.5,
+            "duration": 0,
+            "value": 0.0003450257419964096,
+            "recentInput": true
+          },
+          {
+            "at": 4804.699999928474,
+            "duration": 0,
+            "value": 0.00002212427029671802,
+            "recentInput": true
+          },
+          {
+            "at": 4816.600000023842,
+            "duration": 0,
+            "value": 0.013236874537382476,
+            "recentInput": true
+          },
+          {
+            "at": 4831.600000023842,
+            "duration": 0,
+            "value": 0.002191095805244892,
+            "recentInput": true
+          },
+          {
+            "at": 4864.699999928474,
+            "duration": 0,
+            "value": 0.0077285207532270285,
+            "recentInput": true
+          },
+          {
+            "at": 4871.600000023842,
+            "duration": 0,
+            "value": 0.07858152602581285,
+            "recentInput": true
+          },
+          {
+            "at": 4912.299999952316,
+            "duration": 0,
+            "value": 0.000019080008097534294,
+            "recentInput": true
+          },
+          {
+            "at": 4922.5,
+            "duration": 0,
+            "value": 0.000019080008097534294,
+            "recentInput": true
+          },
+          {
+            "at": 4992.100000023842,
+            "duration": 0,
+            "value": 0.0000019080008097534295,
+            "recentInput": true
+          },
+          {
+            "at": 5008.899999976158,
+            "duration": 0,
+            "value": 0.002191095805244892,
+            "recentInput": true
+          },
+          {
+            "at": 5303.899999976158,
+            "duration": 0,
+            "value": 0.08966998636609216,
+            "recentInput": true
+          },
+          {
+            "at": 5337.299999952316,
+            "duration": 0,
+            "value": 0.07389471098687225,
+            "recentInput": true
+          },
+          {
+            "at": 5518.399999976158,
+            "duration": 0,
+            "value": 0.08966998636609216,
+            "recentInput": true
+          },
+          {
+            "at": 5549.299999952316,
+            "duration": 0,
+            "value": 0.000001038565537718972,
+            "recentInput": true
+          },
+          {
+            "at": 5558.100000023842,
+            "duration": 0,
+            "value": 0.030523657851713494,
+            "recentInput": true
+          },
+          {
+            "at": 5564.600000023842,
+            "duration": 0,
+            "value": 0.05197378349805934,
+            "recentInput": true
+          },
+          {
+            "at": 5585.100000023842,
+            "duration": 0,
+            "value": 0.11488950899443737,
+            "recentInput": true
+          },
+          {
+            "at": 5608.399999976158,
+            "duration": 0,
+            "value": 0.011255054890725622,
+            "recentInput": true
+          },
+          {
+            "at": 5618.399999976158,
+            "duration": 0,
+            "value": 0.0008011885671703546,
+            "recentInput": true
+          },
+          {
+            "at": 5640.299999952316,
+            "duration": 0,
+            "value": 0.000001038565537718972,
+            "recentInput": true
+          },
+          {
+            "at": 5650.399999976158,
+            "duration": 0,
+            "value": 0.08966998636609216,
+            "recentInput": true
+          },
+          {
+            "at": 5655.5,
+            "duration": 0,
+            "value": 0.05197378349805934,
+            "recentInput": true
+          },
+          {
+            "at": 5676.5,
+            "duration": 0,
+            "value": 0.07389471098687225,
+            "recentInput": true
+          },
+          {
+            "at": 5801.299999952316,
+            "duration": 0,
+            "value": 0.08966998636609216,
+            "recentInput": true
+          },
+          {
+            "at": 5835,
+            "duration": 0,
+            "value": 0.000001038565537718972,
+            "recentInput": true
+          },
+          {
+            "at": 5844.100000023842,
+            "duration": 0,
+            "value": 0.030523657851713494,
+            "recentInput": true
+          },
+          {
+            "at": 5849.600000023842,
+            "duration": 0,
+            "value": 0.05197378349805934,
+            "recentInput": true
+          },
+          {
+            "at": 5869.699999928474,
+            "duration": 0,
+            "value": 0.11488950899443737,
+            "recentInput": true
+          },
+          {
+            "at": 5892.899999976158,
+            "duration": 0,
+            "value": 0.011255054890725622,
+            "recentInput": true
+          },
+          {
+            "at": 5903,
+            "duration": 0,
+            "value": 0.0008011885671703546,
+            "recentInput": true
+          },
+          {
+            "at": 5924.399999976158,
+            "duration": 0,
+            "value": 0.000001038565537718972,
+            "recentInput": true
+          },
+          {
+            "at": 5932.600000023842,
+            "duration": 0,
+            "value": 0.08966998636609216,
+            "recentInput": true
+          },
+          {
+            "at": 5939,
+            "duration": 0,
+            "value": 0.05197378349805934,
+            "recentInput": true
+          },
+          {
+            "at": 5959.199999928474,
+            "duration": 0,
+            "value": 0.07389471098687225,
+            "recentInput": true
+          },
+          {
+            "at": 6069.899999976158,
+            "duration": 0,
+            "value": 0.08966998636609216,
+            "recentInput": true
+          },
+          {
+            "at": 6101.699999928474,
+            "duration": 0,
+            "value": 0.000001038565537718972,
+            "recentInput": true
+          },
+          {
+            "at": 6109.299999952316,
+            "duration": 0,
+            "value": 0.030523657851713494,
+            "recentInput": true
+          },
+          {
+            "at": 6118.199999928474,
+            "duration": 0,
+            "value": 0.05197378349805934,
+            "recentInput": true
+          },
+          {
+            "at": 6137.100000023842,
+            "duration": 0,
+            "value": 0.11488950899443737,
+            "recentInput": true
+          },
+          {
+            "at": 6144.5,
+            "duration": 0,
+            "value": 0.011255054890725622,
+            "recentInput": true
+          },
+          {
+            "at": 6153.299999952316,
+            "duration": 0,
+            "value": 0.0008011885671703546,
+            "recentInput": true
+          },
+          {
+            "at": 6173.600000023842,
+            "duration": 0,
+            "value": 0.000001038565537718972,
+            "recentInput": true
+          },
+          {
+            "at": 6189.5,
+            "duration": 0,
+            "value": 0.05197378349805934,
+            "recentInput": true
+          },
+          {
+            "at": 6197.699999928474,
+            "duration": 0,
+            "value": 0.024432967793147173,
+            "recentInput": true
+          },
+          {
+            "at": 6228.799999952316,
+            "duration": 0,
+            "value": 0.024432967793147173,
+            "recentInput": true
+          },
+          {
+            "at": 6429.199999928474,
+            "duration": 0,
+            "value": 0.0068868588923043685,
+            "recentInput": true
+          },
+          {
+            "at": 6439.100000023842,
+            "duration": 0,
+            "value": 0.0002434286628676415,
+            "recentInput": true
+          },
+          {
+            "at": 6697.899999976158,
+            "duration": 0,
+            "value": 0.005482734141270727,
+            "recentInput": true
+          },
+          {
+            "at": 6958.5,
+            "duration": 0,
+            "value": 0.07624171549748131,
+            "recentInput": true
+          },
+          {
+            "at": 6966.699999928474,
+            "duration": 0,
+            "value": 0.0002434286628676415,
+            "recentInput": true
+          },
+          {
+            "at": 7217.600000023842,
+            "duration": 0,
+            "value": 0.13045416640425048,
+            "recentInput": true
+          },
+          {
+            "at": 7825.100000023842,
+            "duration": 0,
+            "value": 0.000017172007287780864,
+            "recentInput": true
+          },
+          {
+            "at": 7838,
+            "duration": 0,
+            "value": 0.000019080008097534294,
+            "recentInput": true
+          },
+          {
+            "at": 7897.399999976158,
+            "duration": 0,
+            "value": 0.06047606780495643,
+            "recentInput": true
+          },
+          {
+            "at": 7909.100000023842,
+            "duration": 0,
+            "value": 0.0005630914716623773,
+            "recentInput": true
+          },
+          {
+            "at": 7926,
+            "duration": 0,
+            "value": 0.0004798014224637572,
+            "recentInput": true
+          },
+          {
+            "at": 8147.100000023842,
+            "duration": 0,
+            "value": 0.05200990639470911,
+            "recentInput": true
+          },
+          {
+            "at": 8176.5,
+            "duration": 0,
+            "value": 0.0031610446656435767,
+            "recentInput": true
+          },
+          {
+            "at": 8192.5,
+            "duration": 0,
+            "value": 1.5855962407923237e-8,
+            "recentInput": true
+          },
+          {
+            "at": 8282.5,
+            "duration": 0,
+            "value": 0.05694625270134067,
+            "recentInput": true
+          },
+          {
+            "at": 8299.100000023842,
+            "duration": 0,
+            "value": 0.0005630914716623773,
+            "recentInput": true
+          },
+          {
+            "at": 8312.699999928474,
+            "duration": 0,
+            "value": 0.0004798014224637572,
+            "recentInput": true
+          },
+          {
+            "at": 8525.699999928474,
+            "duration": 0,
+            "value": 0.05694625270134067,
+            "recentInput": true
+          },
+          {
+            "at": 8557,
+            "duration": 0,
+            "value": 0.0031610446656435767,
+            "recentInput": true
+          },
+          {
+            "at": 8572.399999976158,
+            "duration": 0,
+            "value": 1.5855962407923237e-8,
+            "recentInput": true
+          },
+          {
+            "at": 8642.399999976158,
+            "duration": 0,
+            "value": 0.00002212427029671802,
+            "recentInput": true
+          },
+          {
+            "at": 8644.299999952316,
+            "duration": 0,
+            "value": 0.10544812242519652,
+            "recentInput": true
+          },
+          {
+            "at": 8679.199999928474,
+            "duration": 0,
+            "value": 0.0023707834992326825,
+            "recentInput": true
+          },
+          {
+            "at": 8911.299999952316,
+            "duration": 0,
+            "value": 0.000020019804202753913,
+            "recentInput": true
+          },
+          {
+            "at": 8913.100000023842,
+            "duration": 0,
+            "value": 0.011458786912957966,
+            "recentInput": true
+          }
+        ],
+        "longTasks": [
+          {
+            "at": 54.10000002384186,
+            "duration": 67,
+            "value": 0,
+            "recentInput": false
+          },
+          {
+            "at": 434.89999997615814,
+            "duration": 88,
+            "value": 0,
+            "recentInput": false
+          },
+          {
+            "at": 764.1000000238419,
+            "duration": 74,
+            "value": 0,
+            "recentInput": false
+          },
+          {
+            "at": 1297.1999999284744,
+            "duration": 168,
+            "value": 0,
+            "recentInput": false
+          },
+          {
+            "at": 3916.5,
+            "duration": 114,
+            "value": 0,
+            "recentInput": false
+          }
+        ]
+      },
+      "errors": []
+    }
+  ]
+}

@@ -8,6 +8,7 @@ import { getLanguageAdapter, editorPreferences, editorLanguageOptions, applyForm
 import { sqlDiagnostics } from '../../editor/sqlDiagnostics';
 import EditorPreferences from '../../../components/editor/EditorPreferences.vue';
 import SqlMappingPreview from '../../../components/sql-studio/SqlMappingPreview.vue';
+import {observeSqlEditorLayout} from '../../utils/sqlEditorLayout';
 
 export default {
   components: { EditorPreferences, SqlMappingPreview },
@@ -18,12 +19,14 @@ const emit = emitEvent;
 
 
 const host = ref(null), diffHost = ref(null);
+const editorId=ref('');
 const current = computed(() => props.files.find(file => file.id === props.activeId));
 const diffVisible = computed(() => Boolean(props.preview && !props.preview.reference && props.files.some(file => file.path === props.preview.path)));
 const openFiles = computed(() => props.openIds.map(id => props.files.find(file => file.id === id)).filter(Boolean));
 const models = new Map(); const views = new Map();
 const instance = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 let editor, diffEditor, listener, cursorListener, completionProvider, displayed, setting = false, diagnosticTimer, diagnosticSerial = 0;
+let layoutObserver;
 const sqlAdapter = getLanguageAdapter('sql');
 const preferences = editorPreferences(props.workspaceContext, 'sql');
 function applyPreferences(next) {
@@ -64,6 +67,8 @@ function activate() {
   let model = models.get(key);
   if (!model) { model = monaco.editor.createModel(file.draft ?? file.content, file.kind === 'MAPPING' ? 'plaintext' : 'sql', monaco.Uri.parse(`inmemory://sql-studio/${instance}/${encodeURIComponent(key)}`)); models.set(key, model); }
   const content = file.draft ?? file.content;
+  if(displayed===key && editor.getModel()===model && model.getValue()===content
+      && editor.getOption(monaco.editor.EditorOption.readOnly)===!file.editable)return;
   setting = true;
   if (model.getValue() !== content) model.setValue(content);
   if (editor.getModel() !== model) { editor.setModel(model); editor.restoreViewState(views.get(key)); }
@@ -78,24 +83,38 @@ function activate() {
     else if (oldModel.getValue() !== (oldFile.draft ?? oldFile.content)) oldModel.setValue(oldFile.draft ?? oldFile.content);
     diffEditor?.setModel({ original: oldModel, modified: model });
   } else diffEditor?.setModel(null);
-  nextTick(() => { editor.layout(); diffEditor?.layout(); });
+  nextTick(()=>layoutObserver?.schedule());
 }
 function sendSelection() {
   const selection = editor?.getSelection();
   const text = selection && editor.getModel()?.getValueInRange(selection);
-  if (text?.trim() && current.value) emit('selection', { path: current.value.path, text: text.slice(0, 4000) });
+  if (text?.trim() && current.value) emit('selection', { fileId:current.value.id, version:current.value.version, path: current.value.path, text: text.slice(0, 4000) });
 }
 function insertIdentifier(text) {
   if(!editor || !current.value?.editable || props.preview || current.value.kind!=='SQL')return;
   editor.pushUndoStop();editor.executeEdits('schema-identifier',[{range:editor.getSelection(),text,forceMoveMarkers:true}]);editor.pushUndoStop();editor.focus();
 }
+function insertSql(text, replaceSelection=false, expectedFileId) {
+  if(!editor || !current.value?.editable || current.value.conflict || props.preview || current.value.kind!=='SQL'
+      || expectedFileId && expectedFileId!==current.value.id || typeof text!=='string' || !text.trim())return false;
+  const selection=editor.getSelection();
+  if(!selection || replaceSelection && selection.isEmpty())return false;
+  const position=selection.getEndPosition();
+  const range=replaceSelection?selection:new monaco.Range(position.lineNumber,position.column,position.lineNumber,position.column);
+  editor.pushUndoStop();editor.executeEdits('assistant-sql',[{range,text,forceMoveMarkers:true}]);editor.pushUndoStop();editor.focus();
+  return true;
+}
+function focusEditor(){editor?.focus();}
 onMounted(() => {
   globalThis.MonacoEnvironment = { ...(globalThis.MonacoEnvironment || {}), getWorker: () => new EditorWorker() };
   // Monaco 0.52's occurrence highlighter can reject a pending Delayer on a fast model switch.
   // SQL token coloring remains enabled; avoid that optional asynchronous contribution here.
-  editor = monaco.editor.create(host.value, { model: null, automaticLayout: true, occurrencesHighlight:'off', theme: 'vs', fontSize: 14,
-    fontFamily: 'Cascadia Code, Consolas, monospace', ...editorLanguageOptions('sql', preferences), scrollBeyondLastLine: false, minimap: { enabled: true }, padding: { top: 14, bottom: 14 } });
-  diffEditor = monaco.editor.createDiffEditor(diffHost.value, { automaticLayout: true, readOnly: true, renderSideBySide: true, theme: 'vs', fontSize: 13, minimap: { enabled: false } });
+  editor = monaco.editor.create(host.value, { model: null, automaticLayout: false, occurrencesHighlight:'off', theme: 'vs', fontSize: 14,
+    fontFamily: 'Cascadia Code, Consolas, monospace', ...editorLanguageOptions('sql', preferences), scrollBeyondLastLine: false,
+    hideCursorInOverviewRuler:true, overviewRulerBorder:false, minimap: { enabled: true }, padding: { top: 14, bottom: 14 } });
+  diffEditor = monaco.editor.createDiffEditor(diffHost.value, { automaticLayout: false, readOnly: true, renderSideBySide: true, theme: 'vs', fontSize: 13, minimap: { enabled: false } });
+  editorId.value=editor.getId();
+  layoutObserver=observeSqlEditorLayout([[host.value,editor],[diffHost.value,diffEditor]]);
   completionProvider = monaco.languages.registerCompletionItemProvider('sql', {
     triggerCharacters: ['.', ' '],
     async provideCompletionItems(model, position, context, token) {
@@ -114,17 +133,20 @@ onMounted(() => {
     }
   });
   listener = editor.onDidChangeModelContent(() => { if (!setting && current.value && !props.preview) emit('edit', { id: current.value.id, content: editor.getValue() }); scheduleDiagnostics(); });
-  cursorListener = editor.onDidChangeCursorPosition(event => emit('cursor', { line: event.position.lineNumber, column: event.position.column }));
+  cursorListener = editor.onDidChangeCursorSelection(event => emit('cursor', {
+    line:event.selection.positionLineNumber,column:event.selection.positionColumn,
+    hasSelection:!event.selection.isEmpty(),fileId:current.value?.id }));
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => emit('save'));
   editor.addAction({ id: 'code-intelligence.format-sql', label: 'Format SQL', keybindings: [monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF], run: formatDocument });
   activate();
 });
-watch(() => [props.activeId, props.preview, props.files], activate, { deep: true });
+watch(() => [props.activeId,props.preview?.path,props.preview?.content,props.preview?.reference,
+  current.value?.id,current.value?.draft ?? current.value?.content,current.value?.editable,current.value?.conflict], activate);
 watch(() => props.projectId, () => { editor?.setModel(null); diffEditor?.setModel(null); models.forEach(model => model.dispose()); models.clear(); views.clear(); displayed = null; activate(); });
 watch(() => props.dialect, scheduleDiagnostics);
-onActivated(() => nextTick(() => editor?.layout()));
-onBeforeUnmount(() => { clearTimeout(diagnosticTimer); diagnosticSerial++; completionProvider?.dispose(); listener?.dispose(); cursorListener?.dispose(); diffEditor?.dispose(); editor?.dispose(); models.forEach(model => model.dispose()); });
-  return { host, diffHost, diffVisible, current, openFiles, formatDocument, applyPreferences, sendSelection, insertIdentifier };
+onActivated(() => nextTick(() => layoutObserver?.schedule()));
+onBeforeUnmount(() => { layoutObserver?.dispose();clearTimeout(diagnosticTimer); diagnosticSerial++; completionProvider?.dispose(); listener?.dispose(); cursorListener?.dispose(); diffEditor?.dispose(); editor?.dispose(); models.forEach(model => model.dispose()); });
+  return { editorId,host, diffHost, diffVisible, current, openFiles, formatDocument, applyPreferences, sendSelection, insertIdentifier, insertSql, focusEditor };
 
   }
 };

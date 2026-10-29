@@ -1,0 +1,16 @@
+{
+  "status": "CORE_PASSED_WITH_METADATA_ACCOUNT_LIMIT",
+  "url": "http://192.168.195.221:18100",
+  "publicIndexSha256": "5e56bea51778173f498e4a83dc2fd701752d11c12bfdb421641f69b088240de0",
+  "existingNormalLogin": true,
+  "sqlProjectApis": true,
+  "realExplanation": "SUCCESS",
+  "realClineOptimization": "SUCCESS",
+  "sqlExecuted": false,
+  "metadataProbe": {
+    "httpStatus": 403,
+    "accountKind": "Existing configured service account",
+    "authorizationChanged": false,
+    "requiresAuthorizedApplicationAccountForAcceptance": true
+  }
+}

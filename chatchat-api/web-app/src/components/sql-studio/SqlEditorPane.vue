@@ -60,6 +60,7 @@
     <div
       ref="host"
       class="sql-monaco-host"
+      :data-monaco-editor-id="editorId"
       :class="{
         'sql-editor-hidden':
           (!current && !preview) || (current?.kind === 'MAPPING' && !preview) || diffVisible,

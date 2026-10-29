@@ -6,6 +6,13 @@ import java.util.*;
 import static org.assertj.core.api.Assertions.*;
 class SqlOutputBundleTest {
     final ObjectMapper mapper=new ObjectMapper();
+    @Test void readOnlyExplanationAcceptsPlainMarkdownButNeverTurnsItIntoFiles(){
+        String raw="## Explanation\n```sql\nSELECT 1;\n```\nReturns a constant row.";
+        String normalized=SqlOutputBundle.explanation(raw,mapper);
+        assertThat(SqlOutputBundle.parse(normalized,mapper,true)).isEmpty();assertThat(normalized).contains("Explanation");
+        assertThatThrownBy(()->SqlOutputBundle.explanation("{\"notes\":",mapper)).isInstanceOf(ResponseStatusException.class);
+        assertThatThrownBy(()->SqlOutputBundle.explanation("{\"schemaVersion\":\"sql-studio.output.v1\",\"files\":[{\"path\":\"x.sql\",\"content\":\"SELECT 2\"}],\"notes\":\"Changed\"}",mapper)).isInstanceOf(ResponseStatusException.class);
+    }
     String bundle(List<Map<String,Object>> files) throws Exception {return mapper.writeValueAsString(Map.of("schemaVersion","sql-studio.output.v1","files",files));}
     @Test void rawAndFencedBundlesSupportManySafeRelativeSqlPaths() throws Exception {
         String value=bundle(List.of(Map.of("path","sql/a.sql","content","SELECT 1;"),Map.of("path","数据/b.sql","content","SELECT 2;")));

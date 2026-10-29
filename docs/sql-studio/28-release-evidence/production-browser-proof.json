@@ -1,0 +1,79 @@
+{
+  "realVuePage": true,
+  "mockedRequests": false,
+  "checks": {
+    "threeRegionsAndNoLegacyCards": true,
+    "noMetadataPermissionBypass": true,
+    "sidebarTogglePreservesMonaco": true,
+    "advancedSettingsOverlay": true
+  },
+  "errors": [],
+  "generations": [
+    {
+      "id": "48989959-31f5-4b28-9934-3da3faafb4ce",
+      "taskId": "10766407-dbd3-3069-9c7a-4b6e7720f5c9",
+      "status": "SUCCESS",
+      "candidateCount": 0
+    },
+    {
+      "id": "5485789c-c578-4531-b07a-df148670ce2b",
+      "taskId": "sql-coding-5485789c-c578-4531-b07a-df148670ce2b",
+      "status": "SUCCESS",
+      "candidateCount": 0
+    }
+  ],
+  "widths": [
+    {
+      "width": 480,
+      "overflow": false,
+      "regions": 3,
+      "contextHeight": 101.1875,
+      "chatOverflow": "auto",
+      "footerOverflow": "visible"
+    },
+    {
+      "width": 336,
+      "overflow": false,
+      "regions": 3,
+      "contextHeight": 101.1875,
+      "chatOverflow": "auto",
+      "footerOverflow": "visible"
+    },
+    {
+      "width": 240,
+      "overflow": false,
+      "regions": 3,
+      "contextHeight": 154.1875,
+      "chatOverflow": "auto",
+      "footerOverflow": "visible"
+    },
+    {
+      "width": 180,
+      "overflow": false,
+      "regions": 3,
+      "contextHeight": 154.1875,
+      "chatOverflow": "auto",
+      "footerOverflow": "visible"
+    },
+    {
+      "width": 480,
+      "overflow": false,
+      "regions": 3,
+      "contextHeight": 101.1875,
+      "chatOverflow": "auto",
+      "footerOverflow": "visible"
+    }
+  ],
+  "engineering": {
+    "explain": {
+      "status": "SUCCESS",
+      "files": 0,
+      "validation": "NOT_RUN"
+    },
+    "optimize": {
+      "status": "SUCCESS",
+      "files": 1,
+      "validation": "PARSED; FIELDS_NOT_EVALUATED; SQL_NOT_EXECUTED"
+    }
+  }
+}

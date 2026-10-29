@@ -3,6 +3,7 @@
   flex-shrink: 0;
 }
 .sql-schema-explorer {
+  container-type:inline-size;
   display: flex;
   flex-direction: column;
   gap: 9px;
@@ -14,26 +15,27 @@
   color: #334764;
   font-size: 12px;
 }
-.sql-schema-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-  flex: 0 1 auto;
-  min-height: 0;
-  max-height: 300px;
-  padding: 12px;
-  margin: 8px;
-  border: 1px solid #dce5f2;
-  border-radius: 12px;
-  background: #f8fafc;
-  font-size: 12px;
-  overflow-y: auto;
+.sql-database-context-bar {
+  flex:0 0 auto;min-width:0;padding:10px 12px;border-bottom:1px solid #e8edf4;background:#fff;font-size:11px;
 }
-.sql-schema-controls > * {
-  flex-shrink: 0;
+.sql-database-toolbar{display:grid;grid-template-columns:14px minmax(0,1fr) minmax(0,1fr) 23px;align-items:center;gap:7px;min-width:0}
+.sql-database-icon{color:#71819a}
+.sql-database-toolbar .sql-database-refresh{display:grid;place-items:center;width:23px;height:28px;padding:0;border:0;background:transparent;color:#657b9b}
+.sql-database-status{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:7px;color:#78869b;font-size:10px;min-width:0}
+.sql-database-status>span{display:flex;align-items:center;gap:4px;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.sql-database-status[data-ready=true]>span>svg{color:#15a071;flex-shrink:0}
+.sql-database-status>small{font-size:10px;white-space:nowrap}
+.sql-database-status>.sql-database-current-file{display:flex;align-items:center;gap:4px;min-width:0;max-width:48%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sql-database-context-bar>p{margin:7px 0 0;font-size:11px;overflow-wrap:anywhere}
+.sql-metadata-provider{font-size:11px}
+@container (max-width:300px){
+  .sql-database-toolbar{grid-template-columns:14px minmax(0,1fr) 23px;gap:6px}
+  .sql-namespace-choice{grid-column:2;grid-row:2}
+  .sql-database-refresh{grid-column:3;grid-row:1/3}
+  .sql-database-status>small{display:none}
 }
 .sql-schema-explorer header,
-.sql-schema-controls header,
+.sql-database-context-bar header,
 .sql-schema-table > div {
   display: flex;
   align-items: center;
@@ -41,15 +43,15 @@
   gap: 5px;
 }
 .sql-schema-explorer label,
-.sql-schema-controls label {
+.sql-database-context-bar label {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 .sql-schema-explorer select,
 .sql-schema-explorer input,
-.sql-schema-controls select,
-.sql-schema-controls input {
+.sql-database-context-bar select,
+.sql-database-context-bar input {
   min-width: 0;
   width: 100%;
   box-sizing: border-box;
@@ -60,7 +62,7 @@
   color: inherit;
 }
 .sql-schema-explorer button,
-.sql-schema-controls button {
+.sql-database-context-bar button {
   font-size: 11px;
   color: #2563eb;
   background: #f6f9ff;
@@ -83,6 +85,8 @@
   overflow: auto;
   overscroll-behavior: contain;
 }
+.sql-schema-navigation-body{display:flex;flex-direction:column;gap:9px;min-height:0;flex:1}
+.sql-resource-sidebar>.sql-schema-explorer:not(.is-navigation-open){flex:0 0 auto}
 .sql-schema-table {
   padding: 7px 0;
   border-bottom: 1px solid #edf1f7;

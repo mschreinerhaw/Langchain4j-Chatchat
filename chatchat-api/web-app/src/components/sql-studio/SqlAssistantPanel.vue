@@ -1,18 +1,22 @@
 <template>
   <aside class="sql-assistant-panel sql-ide-assistant">
-    <header
-      ><div class="sql-assistant-heading"
-        ><strong><Sparkles :size="22" />{{ aiAction === 'explore' ? 'AI 数据库助手' : 'AI 工程助手' }}</strong
-        ><button
+    <header>
+      <div class="sql-assistant-heading">
+        <strong><Sparkles :size="18" />AI 数据库助手</strong>
+        <div class="sql-assistant-header-actions">
+          <button type="button" aria-label="历史会话" title="历史会话" :disabled="!generations.length" @click="showDialog(historyDialog)"><History :size="16" /></button>
+          <button
           class="sql-new-conversation"
           type="button"
           aria-label="新建会话"
           :title="busy || taskRunning || pendingPhase ? '请等待当前任务结束后新建会话' : '新建会话'"
           :disabled="busy || taskRunning || !!pendingPhase"
           @click="newConversation"
-          ><Plus :size="18" /></button></div
-      ><span>{{ aiAction === 'explore' ? '探索真实元数据，分析问题并审查 SQL 提案' : '基于当前工程，协助你完成 SQL 开发' }}</span></header
-    >
+          ><Plus :size="17" /></button>
+        </div>
+      </div>
+      <slot name="database-context" />
+    </header>
     <div
       ref="scroll"
       class="sql-assistant-scroll"
@@ -20,19 +24,14 @@
       aria-label="工程协作对话"
       @scroll="trackScroll"
     >
-      <slot name="database-context" />
-      <nav class="sql-assistant-workbench" aria-label="数据库助手工作区">
-        <span>AI 对话</span><button type="button" :disabled="currentFile?.kind !== 'SQL' || busy" @click="$emit('publication')">模板管理</button>
-      </nav>
-      <section class="sql-current-context"
-        ><strong>基于当前文件</strong
-        ><div v-if="currentFile"
-          ><FileCode2 :size="18" /><span :title="currentFile.path">{{
-            currentFile.path.split("/").at(-1)
-          }}</span
-          ><small>{{ currentFile.kind === "MAPPING" ? "Mapping" : dialectLabel }}</small></div
-        ><p v-else>打开工程文件，将其作为协作上下文。</p></section
-      >
+      <section v-if="!displayMessages.length" class="sql-chat-empty-state" aria-label="数据库助手建议">
+        <Database :size="28" />
+        <h3>今天想处理什么 SQL 问题？</h3>
+        <p>我可以探索数据库、生成 SQL、分析问题或优化查询</p>
+        <button type="button" :disabled="busy || taskRunning" @click="suggest('explore','探索当前数据库有哪些业务表')"><Search :size="17" /><span><strong>探索数据库</strong><small>查找表、字段与关联关系</small></span><ChevronRight :size="15" /></button>
+        <button type="button" :disabled="busy || taskRunning" @click="suggest('explore','请根据当前数据库的真实表结构生成 SQL，查询需求：')"><FileCode2 :size="17" /><span><strong>生成 SQL</strong><small>根据自然语言生成查询</small></span><ChevronRight :size="15" /></button>
+        <button type="button" :disabled="busy || taskRunning || currentFile?.kind !== 'SQL'" @click="suggest('explain','请解释当前 SQL 的逻辑，并检查潜在问题。',true)"><Wrench :size="17" /><span><strong>分析当前 SQL</strong><small>解释、排查和优化代码</small></span><ChevronRight :size="15" /></button>
+      </section>
       <article
         v-for="turn in displayMessages"
         :key="turn.id"
@@ -44,7 +43,9 @@
           >{{ turn.role === "user" ? "我" : turn.action === 'explore' ? 'AI 数据库助手' : "AI 工程助手"
           }}{{ turn.action ? " · " + studioAiLabels[turn.action] : "" }}</b
         >
-        <div v-if="turn.role==='assistant' && (!isCurrentTurn(turn) || !progress.running)" class="sql-ai-markdown" v-html="renderReportNarrative(turn.text)"></div>
+        <SqlAssistantMessage v-if="turn.role==='assistant' && (!isCurrentTurn(turn) || !progress.running)" :content="turn.text"
+          :insertable="canInsertTurn(turn)" :replaceable="canInsertTurn(turn) && editorSelectionAvailable"
+          @insert="$emit('insert-sql',$event)" @replace="$emit('replace-sql',$event)" />
         <p
           v-else-if="turn.role==='user'"
           :class="{ 'sql-chat-error': turn.status === 'failed' }"
@@ -81,12 +82,6 @@
               >继续提交</button
             >
             <button
-              v-else-if="result?.task && !terminal && !pendingPhase"
-              :disabled="busy"
-              @click="$emit('cancel')"
-              >取消</button
-            >
-            <button
               v-if="
                 result?.task &&
                 !terminal &&
@@ -113,7 +108,8 @@
             <ol><li v-for="operation in group.operations" :key="operation.id">{{ operation.id }} · {{ operation.state }} · {{ operation.elapsedMs }}ms<span v-if="operation.reused"> · 复用已验证证据</span><span v-if="operation.reason"> · {{ operation.reason }}</span></li></ol>
           </details>
         </section>
-        <SqlMetadataEvidence v-if="turn.role==='assistant'" :project-id="projectId" :evidence="isCurrentTurn(turn)?result?.metadataExploration:turn.metadataExploration" />
+        <button v-if="canRetry(turn)" type="button" class="sql-retry-question" :disabled="busy || taskRunning || !!pendingPhase" @click="retry(turn)"><RefreshCw :size="13" />重试请求</button>
+        <SqlMetadataEvidence v-if="turn.role==='assistant'" :project-id="projectId" :locked="busy || taskRunning || !!pendingPhase" :evidence="isCurrentTurn(turn)?result?.metadataExploration:turn.metadataExploration" @reference="$emit('reference-metadata',$event)" />
         <small v-if="isCurrentTurn(turn) && result?.metadataExploration?.stats" class="sql-metadata-stats">本次尝试：模型 {{ result.metadataExploration.stats.modelCalls }} 次 · 工具选择 {{ result.metadataExploration.stats.toolCalls }} 次 · 复用 {{ result.metadataExploration.stats.reusedEvidenceCount }} 份证据 · 耗时 {{ (result.metadataExploration.stats.totalMs/1000).toFixed(1) }} 秒</small>
         <button v-if="isCurrentTurn(turn) && result?.metadataExploration?.candidates?.length && terminal" type="button" @click="followupSql">据此生成 SQL</button>
         <StudioCodePlan
@@ -166,7 +162,7 @@
             }}</strong
           >
           <AppNotice v-if="!progress.running && (result.task?.errorMessage || result.outputError)" kind="error">{{
-            result.task?.errorMessage || result.outputError
+            sqlAssistantError(result.task?.errorMessage || result.outputError)
           }}</AppNotice>
           <div v-for="file in result.files" :key="file.path" class="sql-proposed-file"
             ><button @click="$emit('preview', file)"
@@ -179,7 +175,9 @@
             ><small
               ><b class="sql-added-count">+{{ fileDiff(file).additions }}</b> /
               <b class="sql-deleted-count">−{{ fileDiff(file).deletions }}</b></small
-            ></div
+            ><SqlAssistantMessage v-if="file.path.toLowerCase().endsWith('.sql') && !hasSql(turn.text,file.content)" :sql="file.content"
+              :insertable="canInsertTurn(turn)" :replaceable="canInsertTurn(turn) && editorSelectionAvailable"
+              @insert="$emit('insert-sql',$event)" @replace="$emit('replace-sql',$event)" /></div
           >
           <button
             v-if="result.files.length && !result.generation.applied"
@@ -189,22 +187,14 @@
             >审查 {{ result.files.length }} 个文件变更</button
           >
           <AppNotice v-if="result.files.length">生成结果尚未执行 SQL 或数据库校验。</AppNotice>
-          <details v-if="result.rawAnswer" class="sql-raw-answer"
-            ><summary>模型原始结果</summary><pre>{{ result.rawAnswer }}</pre>
-          </details>
+
         </section>
       </article>
     </div>
-    <div class="sql-chat-context">
-      <details class="sql-chat-settings"
-        ><summary>高级设置</summary>
-        <div v-if="selectedCode" class="sql-selection-chip"
-          >已选代码：{{ selectedCode.path }} · {{ selectedCode.text.length }} 字<button
-            aria-label="移除代码引用"
-            @click="$emit('clear-selection')"
-            >×</button
-          ></div
-        >
+    <Teleport to="body"><dialog ref="settingsDialog" class="sql-assistant-dialog" aria-label="AI 助手高级设置" @click.self="closeDialog(settingsDialog)">
+      <header><h3>高级设置</h3><button type="button" aria-label="关闭高级设置" @click="closeDialog(settingsDialog)"><X :size="17" /></button></header>
+      <div class="sql-chat-context"><div class="sql-chat-settings">
+        <button type="button" @click="$emit('diagnostics');closeDialog(settingsDialog)">查看本次运行诊断</button>
         <div v-for="document in userDocuments" :key="document.fileId" class="sql-selection-chip"
           >{{ document.fileName }} ·
           {{ document.purpose === "EVIDENCE" ? "分析依据" : "参考规则" }}</div
@@ -245,43 +235,44 @@
             }}</option></select
           ></label
         >
-        <label v-if="generations.length" class="sql-agent-choice"
-          >任务历史<select
-            :value="generationId"
-            :disabled="busy || taskRunning || !!pendingPhase"
-            @change="$emit('generation', $event.target.value)"
-            ><option value="" disabled>选择历史任务</option
-            ><option
-              v-for="(generation, index) in generations"
-              :key="generation.id"
-              :value="generation.id"
-              >{{ index === 0 ? "最近任务" : "历史任务 " + (index + 1) }} ·
-              {{ generation.applied ? "已应用" : "待查看" }}</option
-            ></select
-          ></label
-        >
-      </details>
-    </div>
+      </div></div>
+    </dialog>
+    <dialog ref="historyDialog" class="sql-assistant-dialog" aria-label="SQL 历史会话" @click.self="closeDialog(historyDialog)">
+      <header><h3>历史会话</h3><button type="button" aria-label="关闭历史会话" @click="closeDialog(historyDialog)"><X :size="17" /></button></header>
+      <div class="sql-assistant-history"><button v-for="(generation,index) in generations" :key="generation.id" type="button"
+        :aria-current="generation.id === generationId ? 'true' : undefined" :disabled="busy || taskRunning || !!pendingPhase"
+        @click="chooseHistory(generation.id)"><strong>{{ historyTitle(generation,index) }}</strong><small>{{ generation.applied ? '已应用到工程' : '查看会话与结果' }}</small></button></div>
+    </dialog></Teleport>
+    <footer class="sql-assistant-input">
     <form class="sql-chat-composer" @submit.prevent="send">
-      <label class="sql-assistant-action">协作方式<select :value="aiAction" :disabled="busy || taskRunning" aria-label="SQL 助手方式" @change="$emit('action',$event.target.value)">
-        <option value="explore">数据库问答与 SQL 探索</option><option value="generate">工程代码生成</option><option value="explain">解释当前 SQL</option><option value="fix">修复 SQL</option><option value="optimize">优化 SQL</option>
-      </select></label>
+      <div v-if="selectedCode || includeCurrentFile" class="sql-composer-context">
+        <FileCode2 :size="13" /><button type="button" class="sql-context-file-link" :title="(selectedCode?.path || currentFile?.path) + ' · 最多提供前 900 字符'" @click="$emit('view-file')">{{ selectedCode ? '已选 SQL · ' + Math.min(900,selectedCode.text.length) + ' 字符' + (selectedCode.text.length > 900 ? '（已截取）' : '') : currentFile?.path }}</button>
+        <button type="button" aria-label="移除 SQL 上下文" @click="clearSqlContext"><X :size="13" /></button>
+      </div>
+      <div class="sql-composer-box">
       <textarea
         ref="composer"
+        rows="3"
         :value="prompt"
         maxlength="4000"
         aria-label="发送给 AI 工程助手"
-        placeholder="输入你的问题或 SQL 开发需求…"
-        @input="$emit('prompt', $event.target.value)"
+        placeholder="描述需求，或让 AI 分析当前 SQL…"
+        @input="inputPrompt($event.target.value)"
         @keydown.ctrl.enter.prevent="send"
         @keydown.meta.enter.prevent="send"
-      ></textarea
-      ><div class="sql-composer-actions"
-        ><button class="sql-primary" :disabled="busy || taskRunning || !prompt.trim()"
-          ><Send :size="16" />{{ taskRunning ? "任务运行中" : "发送" }}</button
-        ></div
-      ></form
-    ><small class="sql-composer-hint">Ctrl / ⌘ + Enter 发送 · Enter 换行</small>
+      ></textarea></div>
+      <div class="sql-composer-actions">
+        <label class="sql-assistant-action"><select :value="aiAction" :disabled="busy || taskRunning" aria-label="SQL 助手方式" @change="$emit('action',$event.target.value)">
+          <option value="explore">数据库探索</option><option value="generate">工程代码生成</option><option value="explain">解释 SQL</option><option value="fix">修复 SQL</option><option value="optimize">优化 SQL</option>
+        </select></label>
+        <button type="button" class="sql-attach-current-file" :disabled="!editorEditable || busy || taskRunning" :aria-pressed="includeCurrentFile" aria-label="附加当前 SQL" :title="includeCurrentFile ? '取消附加当前 SQL' : '附加当前 SQL（最多 900 字符）'" @click="$emit('include-file',!includeCurrentFile)"><FileCode2 :size="14" /><span>当前文件</span></button>
+        <button type="button" class="sql-composer-settings" aria-label="高级设置" title="高级设置" @click="showDialog(settingsDialog)"><Settings2 :size="15" /></button>
+        <span class="sql-composer-spacer"></span>
+        <button v-if="taskRunning || pendingPhase" type="button" class="sql-stop-question" aria-label="停止任务" :disabled="busy || !result?.task || terminal" :title="result?.task ? '停止当前任务' : '任务提交后可停止'" @click="$emit('cancel')"><Square :size="12" /><span>停止</span></button>
+        <button v-else class="sql-primary sql-send-question" :disabled="!canSend" aria-label="发送" title="Ctrl / ⌘ + Enter 发送"><span>发送</span><ArrowUp :size="15" /></button>
+      </div></form>
+      <small class="sql-composer-hint">Ctrl / Cmd + Enter 发送</small>
+    </footer>
   </aside>
 </template>
 <script src="../../js/components/sql-studio/SqlAssistantPanel.js"></script>

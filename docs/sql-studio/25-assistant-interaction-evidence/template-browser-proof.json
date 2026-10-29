@@ -1,0 +1,60 @@
+{
+  "realVuePage": true,
+  "mockedRequests": false,
+  "checks": {
+    "threeRegionsAndNoLegacyCards": true,
+    "realTemplateHistoryViaMainWorkspace": true,
+    "templateAuthorizationDenialVisibleAndPublishBlocked": true,
+    "activePublishedRevisionPreserved": true
+  },
+  "errors": [],
+  "generations": [],
+  "widths": [
+    {
+      "width": 480,
+      "overflow": false,
+      "regions": 3,
+      "contextHeight": 79.1875,
+      "chatOverflow": "auto",
+      "footerOverflow": "visible"
+    },
+    {
+      "width": 336,
+      "overflow": false,
+      "regions": 3,
+      "contextHeight": 79.1875,
+      "chatOverflow": "auto",
+      "footerOverflow": "visible"
+    },
+    {
+      "width": 240,
+      "overflow": false,
+      "regions": 3,
+      "contextHeight": 117.1875,
+      "chatOverflow": "auto",
+      "footerOverflow": "visible"
+    },
+    {
+      "width": 180,
+      "overflow": false,
+      "regions": 3,
+      "contextHeight": 117.1875,
+      "chatOverflow": "auto",
+      "footerOverflow": "visible"
+    },
+    {
+      "width": 480,
+      "overflow": false,
+      "regions": 3,
+      "contextHeight": 79.1875,
+      "chatOverflow": "auto",
+      "footerOverflow": "visible"
+    }
+  ],
+  "templateTest": {
+    "success": false,
+    "httpStatus": 403,
+    "diagnostic": "Datasource binding or template allowlist is not effective",
+    "queryExecuted": false
+  }
+}

@@ -1,0 +1,111 @@
+{
+  "frontend": {
+    "files": 21,
+    "passed": 126,
+    "buildCompleted": true,
+    "indexSha256": "2ca13cd1e77116f8d46edf07f9a6f8b7130ed46cea3d72caa68c7fa02b66fc0a"
+  },
+  "backend": {
+    "passed": 109,
+    "classes": [
+      {
+        "class": "SqlMetadataOutputTest",
+        "tests": 14,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "SqlStudioMetadataAssistantTest",
+        "tests": 21,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "SqlOutputBundleTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "SqlStudioIntegrationTest",
+        "tests": 39,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "SqlStudioPublicationControllerTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "SqlStudioMetadataServiceTest",
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "CodingWorkspaceServiceTest",
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "DashScopeNativeChatModelTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "RuntimeStreamingChatModelTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "class": "ConfigurableChatModelFactoryTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    ],
+    "diagnosticFixtureRerun": 21,
+    "fixtureRerunOverlaps": true
+  },
+  "nodeRegression": {
+    "passed": 125,
+    "sourceChanged": false
+  },
+  "browser": {
+    "realBackend": true,
+    "mockedRequests": false,
+    "emulatedScales": [
+      1,
+      1.25,
+      1.5
+    ],
+    "nativeBrowserZoomVerified": false,
+    "stabilityChecksPassed": true
+  },
+  "knownLimits": [
+    "Original failed task ID/raw provider response unavailable",
+    "Native browser toolbar zoom and original site black-line reproduction pending",
+    "New template revision SQL test remains blocked by existing allowlist403",
+    "Only configured OpenAI-compatible model used online; other adapters have automated regression"
+  ],
+  "traces": {
+    "target\\sql-stability\\performance-final\\trace-100.json": "e89e8b92749e0c8e3e63ebfdc28755ff0a7b5a6bb9b0d946d0e12166427a6860",
+    "target\\sql-stability\\performance-final\\trace-125.json": "31c82f2e321bf9315353b096e349da80078d433b4e899b6e6d60d6fac8014a15",
+    "target\\sql-stability\\performance-final\\trace-150.json": "56f656a930e5367e6c15d1974935ea92422403b4c52b11eae570504a56b8182d"
+  }
+}

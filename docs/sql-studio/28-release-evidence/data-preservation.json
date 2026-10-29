@@ -1,0 +1,35 @@
+{
+  "schemaMigration": false,
+  "backups": {
+    "runtime_os_acceptance_api": {
+      "bytes": 188810564,
+      "sha256": "39fe85c09111c8d18057a7c75ca31504e0aa860d8728b638a4f4357ead15e5d3",
+      "archiveVerified": true
+    },
+    "runtime_os_acceptance_mcp": {
+      "bytes": 1665148,
+      "sha256": "241d836e92be67f4a5575cdf07b2d1dcc975ed444ec8f06b638f0b58cf6b8dce",
+      "archiveVerified": true
+    }
+  },
+  "apiTables": {
+    "agent_task_latest": {
+      "rowsBefore": 1710,
+      "rowsAfter": 1711,
+      "everyOriginalRowUnchanged": true,
+      "originalRowsetSha256": "9e8c9636f81a0e7d29efa45789eeac82fd3eaa3e7b7af446fece8ee1095d0eb2"
+    },
+    "ds_sql_project": {
+      "rowsBefore": 2,
+      "rowsAfter": 3,
+      "everyOriginalRowUnchanged": true,
+      "originalRowsetSha256": "baed845c96c2896cf59916fbf66d71285592e24250d9e9a16f236030219741a8"
+    },
+    "ds_sql_file": {
+      "rowsBefore": 1,
+      "rowsAfter": 2,
+      "everyOriginalRowUnchanged": true,
+      "originalRowsetSha256": "9d4c7e64f2a38f1b5fb62daafea7f03f61cf2f30bae120305a65bca5d032cd01"
+    }
+  }
+}

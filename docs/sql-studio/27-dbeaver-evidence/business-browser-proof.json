@@ -1,0 +1,102 @@
+{
+  "realVuePage": true,
+  "mockedRequests": false,
+  "checks": {
+    "threeRegionsAndNoLegacyCards": true,
+    "sourceSwitchClearsNamespaceAndRefreshPreservesAuthorizedSelection": true,
+    "sidebarTogglePreservesMonaco": true,
+    "advancedSettingsOverlay": true,
+    "sourceEntryDoesNotSubmit": true
+  },
+  "errors": [],
+  "generations": [
+    {
+      "id": "5a4bbaf4-e618-4d26-8245-236c182a9f62",
+      "taskId": "sql-coding-5a4bbaf4-e618-4d26-8245-236c182a9f62",
+      "status": "SUCCESS",
+      "candidateCount": 0
+    }
+  ],
+  "widths": [
+    {
+      "width": 480,
+      "overflow": false,
+      "regions": 3,
+      "contextHeight": 79.1875,
+      "chatOverflow": "auto",
+      "footerOverflow": "visible"
+    },
+    {
+      "width": 336,
+      "overflow": false,
+      "regions": 3,
+      "contextHeight": 79.1875,
+      "chatOverflow": "auto",
+      "footerOverflow": "visible"
+    },
+    {
+      "width": 240,
+      "overflow": false,
+      "regions": 3,
+      "contextHeight": 117.1875,
+      "chatOverflow": "auto",
+      "footerOverflow": "visible"
+    },
+    {
+      "width": 180,
+      "overflow": false,
+      "regions": 3,
+      "contextHeight": 117.1875,
+      "chatOverflow": "auto",
+      "footerOverflow": "visible"
+    },
+    {
+      "width": 480,
+      "overflow": false,
+      "regions": 3,
+      "contextHeight": 79.1875,
+      "chatOverflow": "auto",
+      "footerOverflow": "visible"
+    }
+  ],
+  "benchmark": {
+    "restoredGeneration": "90e7d4cb-c887-44ef-82d3-cf47daa1a099",
+    "candidate": {
+      "tableName": "t_brch_biz_oper_log",
+      "tableRef": "sha256:b9d619f11ccac5185066fe8d984cdcef94d941665bd7e98af78ee07690814e70",
+      "keyColumns": [
+        "ID",
+        "modl"
+      ]
+    },
+    "scopeCompletion": {
+      "withClause": true,
+      "realAuthorizedFields": true,
+      "proposals": [
+        "IDbrho.t_brch_biz_oper_log · decimal · 平台注册元数据",
+        "modlbrho.t_brch_biz_oper_log · decimal · 平台注册元数据",
+        "modl_idbrho.t_brch_biz_oper_log · decimal · 平台注册元数据",
+        "oper_descbrho.t_brch_biz_oper_log · varchar · 平台注册元数据",
+        "oper_prsnbrho.t_brch_biz_oper_log · decimal · 平台注册元数据",
+        "oper_timebrho.t_brch_biz_oper_log · datetime · 平台注册元数据",
+        "oper_typebrho.t_brch_biz_oper_log · decimal · 平台注册元数据"
+      ]
+    },
+    "coding": {
+      "generationId": "5a4bbaf4-e618-4d26-8245-236c182a9f62",
+      "status": "SUCCESS",
+      "validation": "PARSED; FIELDS_CHECKED; SQL_NOT_EXECUTED",
+      "files": [
+        "publication.sql"
+      ],
+      "provenance": {
+        "discoveryId": "2f516f5f-bf82-418b-94bf-b5e11dd6a505",
+        "bindingId": "53afbf9b-42f7-477d-8940-963db4d88b58",
+        "snapshotId": "sha256:e84e84e24f4f16a64e76a4e650817b18b947342472532a740029df02c3872e59",
+        "tableRef": "sha256:b9d619f11ccac5185066fe8d984cdcef94d941665bd7e98af78ee07690814e70"
+      }
+    },
+    "automaticSqlExecution": false,
+    "savedFiles": 0
+  }
+}

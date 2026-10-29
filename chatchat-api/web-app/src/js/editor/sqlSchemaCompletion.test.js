@@ -69,4 +69,32 @@ describe('authorized schema proposals',()=>{
     const result=await schemaSuggestions({source,position:{lineNumber:1,column:source.indexOf('c.')+3},dialect:'postgresql',session});
     expect(result.filter(x=>x.category==='field')).toEqual([]);
   });
+  it.each(['postgresql','mysql','spark','hive','trino'])('keeps a real physical table usable alongside a different CTE in %s',async dialect=>{
+    const session=sessionFor(),source='WITH recent AS (SELECT id FROM users) SELECT u. FROM users u';
+    const result=await schemaSuggestions({source,position:{lineNumber:1,column:source.indexOf('u.')+3},dialect,session});
+    expect(result.filter(x=>x.category==='field').map(x=>x.label)).toEqual(['id']);
+  });
+  it.each(['postgresql','mysql','spark','hive','trino'])('never substitutes a same-name physical table for a %s CTE',async dialect=>{
+    const session=sessionFor(),source='WITH users AS (SELECT 1 AS synthetic) SELECT c. FROM users c';
+    const result=await schemaSuggestions({source,position:{lineNumber:1,column:source.indexOf('c.')+3},dialect,session});
+    expect(result.filter(x=>x.category==='field')).toEqual([]);expect(session.read).not.toHaveBeenCalled();
+  });
+  it('does not expose aliases from a child query or another statement',async()=>{
+    for(const source of ['SELECT u. FROM users u WHERE EXISTS (SELECT 1 FROM hidden h)','SELECT u. FROM users u; SELECT h.id FROM hidden h']){
+      const session=sessionFor(),result=await schemaSuggestions({source,position:{lineNumber:1,column:10},dialect:'postgresql',session});
+      expect(result.filter(x=>x.category==='field').map(x=>x.label)).toEqual(['id']);
+      expect(session.read.mock.calls.every(([args])=>args.tableName==='users')).toBe(true);
+    }
+  });
+  it.each(['postgresql','mysql','spark','hive','trino'])('does not let a previous statement CTE hide a physical %s table',async dialect=>{
+    const session=sessionFor(),source='WITH users AS (SELECT 1 AS synthetic) SELECT * FROM users; SELECT u. FROM users u';
+    const result=await schemaSuggestions({source,position:{lineNumber:1,column:source.lastIndexOf('u.')+3},dialect,session});
+    expect(result.filter(x=>x.category==='field').map(x=>x.label)).toEqual(['id']);
+  });
+  it.each(['postgresql','mysql','spark','hive','trino'])('resolves a shadowed %s alias in the closest query scope',async dialect=>{
+    const source='SELECT u.id FROM users u WHERE EXISTS (SELECT u. FROM orders u)';
+    const session={read:vi.fn(async args=>({items:args.operation==='DESCRIBE'?[{columns:[{name:args.tableName==='orders'?'inner_id':'outer_id'}]}]:[{...users,tableName:args.tableName,tableRef:args.tableName}],hasMore:false}))};
+    const result=await schemaSuggestions({source,position:{lineNumber:1,column:source.lastIndexOf('u.')+3},dialect,session});
+    expect(result.filter(x=>x.category==='field').map(x=>x.label)).toEqual(['inner_id']);
+  });
 });

@@ -1,0 +1,13 @@
+{
+  "realVuePage": true,
+  "mockedRequests": false,
+  "generationId": "5a4bbaf4-e618-4d26-8245-236c182a9f62",
+  "status": "SUCCESS",
+  "newGenerationRequests": 0,
+  "metadataProvenance": {
+    "discoveryId": "2f516f5f-bf82-418b-94bf-b5e11dd6a505",
+    "bindingId": "53afbf9b-42f7-477d-8940-963db4d88b58",
+    "tableRef": "sha256:b9d619f11ccac5185066fe8d984cdcef94d941665bd7e98af78ee07690814e70",
+    "snapshotId": "sha256:e84e84e24f4f16a64e76a4e650817b18b947342472532a740029df02c3872e59"
+  }
+}

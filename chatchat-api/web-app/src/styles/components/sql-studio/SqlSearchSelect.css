@@ -1,0 +1,14 @@
+.sql-search-select{position:relative;min-width:0;width:100%;font-size:12px}
+.sql-search-select-field{display:flex;align-items:center;min-width:0;height:32px;border:1px solid #dce3ed;border-radius:8px;background:#fff;overflow:hidden}
+.sql-search-select-field:focus-within{border-color:#6c9bf0;box-shadow:0 0 0 2px #397aff16}
+.sql-search-select-field input{flex:1;min-width:0;width:0;height:100%;padding:0 9px;border:0;border-radius:0;background:transparent;font:inherit;color:#263b59;outline:none;text-overflow:ellipsis}
+.sql-search-select-field button{display:grid;place-items:center;flex:0 0 25px;height:100%;padding:0;border:0;background:transparent;color:#71819a}
+.is-disabled .sql-search-select-field{background:#f5f7fa;opacity:.65}
+.sql-search-select-menu{position:absolute;z-index:40;top:calc(100% + 5px);left:0;right:0;padding:4px;border:1px solid #dce3ed;border-radius:8px;background:#fff;box-shadow:0 8px 24px #21355422}
+[role=listbox]{max-height:220px;overflow:auto;overscroll-behavior:contain}
+.sql-search-select-menu [role=option]{display:flex;align-items:center;justify-content:space-between;gap:6px;width:100%;padding:8px;border:0;border-radius:5px;background:transparent;color:#263b59;font:inherit;text-align:left;cursor:pointer}
+[role=option] span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+[role=option] svg{flex-shrink:0;color:#2563eb}
+.sql-search-select-menu [role=option].active,.sql-search-select-menu [role=option]:hover{background:#edf3ff}
+.sql-search-select-menu p{margin:8px;color:#71819a}
+.sql-search-select-menu .sql-search-select-more{width:100%;padding:8px;border:0;border-top:1px solid #edf1f6;background:transparent;color:#2563eb;font:inherit}

@@ -1,0 +1,78 @@
+{
+  "codeExecutions" : 0,
+  "finalStatus" : "COMPLETED",
+  "failedReceiptId" : "coding:workspace:workspace-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:receipt",
+  "inputSnapshotRef" : "runtime-evidence:coding:workspace-input:metadata-task",
+  "kind" : "Controlled real SQLGlot and durable workspace receipts; no live model in this test",
+  "schema" : {
+    "tables" : [ {
+      "tableName" : "orders",
+      "database" : "db",
+      "discoveryId" : "controlled-discovery",
+      "columns" : [ {
+        "name" : "id",
+        "type" : "INT"
+      } ],
+      "snapshotId" : "controlled-snapshot",
+      "tableRef" : "controlled-orders",
+      "bindingId" : "controlled-binding"
+    } ]
+  },
+  "failed" : {
+    "valid" : false,
+    "validation" : {
+      "parser" : "sqlglot",
+      "version" : "30.23.0",
+      "sqlExecuted" : false,
+      "valid" : false,
+      "fieldValidation" : "CHECKED",
+      "diagnostics" : [ {
+        "path" : "sql/a.sql",
+        "status" : "FAILED",
+        "category" : "VALIDATION",
+        "errorType" : "OptimizeError",
+        "message" : "Column 'missing_field' could not be resolved. Line: 1, Col: 20"
+      }, {
+        "path" : "etl/b.sql",
+        "status" : "PARSED",
+        "fields" : "CHECKED"
+      } ],
+      "requiresBusinessEvidence" : false,
+      "businessLiteralValues" : [ ]
+    },
+    "sqlExecuted" : false,
+    "validationDurationMs" : 197,
+    "operationId" : "workspace-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "resultAvailable" : false
+  },
+  "repaired" : {
+    "valid" : true,
+    "validation" : {
+      "parser" : "sqlglot",
+      "version" : "30.23.0",
+      "sqlExecuted" : false,
+      "valid" : true,
+      "fieldValidation" : "CHECKED",
+      "diagnostics" : [ {
+        "path" : "sql/a.sql",
+        "status" : "PARSED",
+        "fields" : "CHECKED"
+      }, {
+        "path" : "etl/b.sql",
+        "status" : "PARSED",
+        "fields" : "CHECKED"
+      } ],
+      "requiresBusinessEvidence" : false,
+      "businessLiteralValues" : [ ]
+    },
+    "sqlExecuted" : false,
+    "validationDurationMs" : 149,
+    "operationId" : "workspace-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "resultAvailable" : true,
+    "codeArtifactRef" : "runtime-evidence:coding:workspace:workspace-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc:code",
+    "executionReceiptRef" : "runtime-evidence:coding:workspace:workspace-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc:receipt",
+    "resultDatasetRef" : "runtime-evidence:coding:workspace:workspace-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc:result",
+    "validationRecordRef" : "runtime-evidence:coding:workspace:workspace-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc:validation",
+    "evidenceBundleRef" : "runtime-evidence:coding:workspace:workspace-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc:bundle"
+  }
+}

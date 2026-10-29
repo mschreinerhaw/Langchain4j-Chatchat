@@ -8,7 +8,8 @@ export default {
       { id: 'problems', label: 'Problems' },
       { id: 'output', label: 'Output' },
       { id: 'tasks', label: 'Tasks' },
-      { id: 'validation', label: 'Validation' }
+      { id: 'validation', label: 'Validation' },
+      { id:'diagnostics',label:'运行诊断' }
     ] };
   }
 };

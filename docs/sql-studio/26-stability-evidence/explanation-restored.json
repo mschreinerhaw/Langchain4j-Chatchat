@@ -1,0 +1,9 @@
+{
+  "source": "Same real saved task read through corrected projection; no task resubmission",
+  "generationId": "e28b1af4-78a4-4e32-9c41-05afe149da63",
+  "taskStatus": "PARTIAL_SUCCESS",
+  "outputError": "",
+  "sqlFiles": 0,
+  "normalizedSchema": "sql-studio.output.v1",
+  "originalTaskStatusPreserved": true
+}

@@ -2,10 +2,16 @@ import {describe,it,expect} from 'vitest';
 import {sqlMetadataProgress,sqlTaskStatus} from './sqlMetadataProgress';
 const event=(id,operation,eventState,elapsedMs=0,extra={})=>({payload:JSON.stringify({payload:{metadata:{eventKind:'SQL_METADATA_EXPLORATION',operationId:id,operation,eventState,elapsedMs,...extra}}})});
 describe('SQL metadata progress from backend facts',()=>{
-  it('measures overall elapsed time from real predecessor events across retries',()=>{
+  it('explains damaged output and unsupported evidence without showing a generic JSON failure code',()=>{
+    const format=sqlMetadataProgress([event('a','ASSEMBLE','FAILED',1,{reasonCode:'OUTPUT_JSON_TRUNCATED'})],{taskId:'t',status:'FAILED'});
+    expect(format.detail).toContain('未完整返回');expect(format.detail).not.toContain('OUTPUT_JSON');
+    const evidence=sqlMetadataProgress([event('a','ASSEMBLE','FAILED',1,{reasonCode:'OUTPUT_EVIDENCE_VALIDATION_FAILED'})],{taskId:'t',status:'FAILED'});
+    expect(evidence.detail).toContain('证据校验');expect(evidence.detail).not.toContain('JSON');
+  });
+  it('measures the current task attempt without treating predecessor duration as one model call',()=>{
     const previous=event('model-1','MODEL','FAILED',100);previous.createTime='2026-10-28T00:00:00Z';
     const result=sqlMetadataProgress([previous],{taskId:'retry',status:'SUCCESS',canonicalState:'SUCCEEDED',createTime:'2026-10-28T00:02:00Z',finishedAt:'2026-10-28T00:03:00Z'});
-    expect(result.elapsed).toBe(180);
+    expect(result.elapsed).toBe(60);
   });
   it('keeps operations from separate backend attempts and does not label a recovered task as failed',()=>{
     const first=event('model-1','MODEL','FAILED',100,{reasonCode:'MODEL_REQUEST_TIMEOUT'});first.attemptId='first';

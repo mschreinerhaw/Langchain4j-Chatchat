@@ -9,6 +9,19 @@ import java.util.*;
 public final class SqlOutputBundle {
     private SqlOutputBundle() { }
     public record Candidate(String path, String content) { }
+    /** Read-only explanations accept Markdown; malformed JSON is never reinterpreted as source. */
+    public static String explanation(String answer,ObjectMapper mapper){
+        String text=Objects.toString(answer,"").strip();
+        if(text.isBlank())bad("模型未返回 SQL 解释内容，请重试。");
+        if(text.matches("(?is)^```json\\s*.*")){
+            var fence=java.util.regex.Pattern.compile("(?is)^```json\\s*\\R?(.*?)\\R?```\\s*$").matcher(text);
+            if(!fence.matches())bad("模型的 JSON 解释未完整返回，请重试；没有文件变更。");
+            text=fence.group(1).strip();
+        }
+        if(text.startsWith("{")||text.startsWith("[")){parse(text,mapper,true);return text;}
+        try{return mapper.writeValueAsString(Map.of("schemaVersion","sql-studio.output.v1","files",List.of(),"notes",text));}
+        catch(Exception invalid){throw new IllegalStateException("Cannot serialize SQL explanation",invalid);}
+    }
     public static String path(String value) {
         if (value == null || value.length() > 240 || value.isBlank() || !value.equals(value.trim())) bad("Invalid project path");
         String[] parts = value.split("/", -1);

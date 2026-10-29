@@ -128,6 +128,39 @@ class CodingWorkspaceServiceTest {
         assertThat(repaired).containsEntry("valid",true);
         assertThat(actor(()->service.complete(contract,lease,operation('c'))).status()).isEqualTo(CodingTaskOutcome.Status.COMPLETED);
     }
+    @Test void metadataBoundFieldFailureIsRepairedAgainstTheSameFrozenEvidenceWithoutDatabaseAccess() throws Exception {
+        var table=Map.<String,Object>of("tableName","orders","database","db","columns",List.of(Map.of("name","id","type","INT")),
+            "snapshotId","controlled-snapshot","discoveryId","controlled-discovery","bindingId","controlled-binding","tableRef","controlled-orders");
+        var schema=Map.<String,Object>of("tables",List.of(table));
+        service.submit(scope,"metadata-task","Use only supplied schema; propose SQL, never execute it.","mysql","",schema);
+        var bound=actor(()->tasks.contract(scope,"metadata-task"));
+        var worker=actor(()->tasks.claim(scope,"metadata-task","cline-adapter:test",Duration.ofMinutes(2),tasks.get(scope,"metadata-task").revision()));
+        assertThat(bound.authorization().allowedTools()).containsExactlyInAnyOrder("workspace_read","workspace_propose");
+        var input=actor(()->service.read(bound,worker,operation('a')));
+        assertThat(input.get("schema")).isEqualTo(schema);
+        var failed=actor(()->service.propose(bound,worker,operation('b'),proposal("SELECT missing_field FROM db.orders;")));
+        assertThat(failed).containsEntry("valid",false).containsEntry("sqlExecuted",false);
+        assertThat(failed.get("validation").toString()).contains("missing_field","FAILED");
+        assertThatThrownBy(()->actor(()->service.complete(bound,worker,operation('b')))).isInstanceOf(IllegalStateException.class);
+        var repaired=actor(()->service.propose(bound,worker,operation('c'),proposal("SELECT id FROM db.orders;")));
+        assertThat(repaired).containsEntry("valid",true).containsEntry("sqlExecuted",false);
+        assertThat(repaired.get("validation").toString()).contains("CHECKED");
+        var done=actor(()->service.complete(bound,worker,operation('c')));
+        assertThat(done.status()).isEqualTo(CodingTaskOutcome.Status.COMPLETED);
+        assertThat(done.usage().consumed().codeExecutions()).isZero();
+        assertThat(done.inputSnapshotRef()).isEqualTo(bound.inputSnapshotRef());
+        var failure=evidence.find(scope,"coding:workspace:"+operation('b')+":receipt").orElseThrow();
+        assertThat(json.readTree(json.writeValueAsBytes(failure.payload().get("response"))))
+            .isEqualTo(json.readTree(json.writeValueAsBytes(failed)));
+        var directory=System.getProperty("sql.benchmarkEvidenceDirectory");
+        if(directory!=null){
+            var path=java.nio.file.Path.of(directory);java.nio.file.Files.createDirectories(path);
+            json.writerWithDefaultPrettyPrinter().writeValue(path.resolve("real-sqlglot-repair.json").toFile(),Map.of(
+                "kind","Controlled real SQLGlot and durable workspace receipts; no live model in this test",
+                "schema",schema,"inputSnapshotRef",bound.inputSnapshotRef(),"failedReceiptId",failure.evidenceId(),
+                "failed",failed,"repaired",repaired,"finalStatus",done.status(),"codeExecutions",done.usage().consumed().codeExecutions()));
+        }
+    }
     @Test void olderSuccessfulProposalCannotReplaceTheLatestInvalidRevision(){
         actor(()->service.propose(contract,lease,operation('a'),proposal("SELECT 1;")));
         actor(()->service.propose(contract,lease,operation('b'),proposal("SELECT * FROM")));

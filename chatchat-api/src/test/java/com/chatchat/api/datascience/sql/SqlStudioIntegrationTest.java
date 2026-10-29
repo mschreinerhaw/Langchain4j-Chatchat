@@ -468,7 +468,8 @@ class SqlStudioIntegrationTest {
         String p=project();save(p,"sql/source.sql","SQL","SELECT 1;",0);
         var prepared=data(mvc.perform(post(ROOT+"/"+p+"/generations").header("Authorization","Bearer "+token).contentType("application/json")
             .content(json(Map.of("action","explain","prompt","Explain SELECT 1", "dialect","spark")))).andExpect(status().isOk()).andReturn());
-        assertThat(prepared.path("taskRequest").path("query").asText()).contains("Return files: [] only");
+        assertThat(prepared.path("taskRequest").path("query").asText()).contains("Markdown explanation directly");
+        assertThat(prepared.path("taskRequest").path("toolInput").has("codingWorkspaceProfile")).isFalse();
         run(p,prepared,List.of());
         var view=result(p,prepared);
         assertThat(view.path("files").size()).isZero();assertThat(view.path("outputError").asText()).isEmpty();

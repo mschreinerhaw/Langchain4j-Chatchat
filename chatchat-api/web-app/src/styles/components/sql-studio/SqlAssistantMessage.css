@@ -1,0 +1,8 @@
+.sql-assistant-message{min-width:0;overflow-wrap:anywhere}
+.sql-assistant-code{min-width:0;margin:10px 0;border:1px solid #dfe6ef;border-radius:8px;overflow:hidden;background:#f8fafc}
+.sql-assistant-code>header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:5px;padding:6px 8px;border-bottom:1px solid #e6ebf2;font-size:11px;color:#65758c}
+.sql-assistant-code>header>div{display:flex;flex-wrap:wrap;gap:4px}
+.sql-assistant-code button{display:inline-flex;align-items:center;gap:3px;padding:3px 5px;border:0;border-radius:4px;background:transparent;color:#315e9b;font-size:10px;cursor:pointer}
+.sql-assistant-code button:hover:not(:disabled){background:#e7eef9}
+.sql-assistant-code button:disabled{opacity:.45;cursor:not-allowed}
+.sql-assistant-code pre{margin:0;padding:12px;font:11px/1.65 Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;color:#23374e}

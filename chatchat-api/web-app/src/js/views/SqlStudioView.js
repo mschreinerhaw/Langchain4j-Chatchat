@@ -16,7 +16,7 @@ import { fetchPythonCodeModels, cancelAgentTask } from '../../services/api';
 import { saveWorkspaceDraft, readWorkspaceDraft } from '../utils/workspaceDrafts';
 import { dirtySqlFile, mergeSqlFiles, restoreSqlDrafts, assertSqlApplySafe, mergeAppliedSqlFile, terminalSqlTask } from '../utils/sqlStudioState';
 import { mappingSchemaColumns } from '../editor/codeIntelligence';
-import { clampSqlPanel, restoreSqlLayout, sqlAssistantAnswer, sqlConversationPrompt } from '../utils/sqlIdeState';
+import { clampSqlPanel, restoreSqlLayout, sqlAssistantAnswer, sqlConversationPrompt, sqlExplorationPrompt } from '../utils/sqlIdeState';
 import { sqlTaskPresentation } from '../utils/sqlTaskPresentation';
 import {sqlTaskStatus} from '../utils/sqlMetadataProgress';
 import { beginStudioExchange, studioAssistantTurn, updateStudioTurn } from '../utils/studioConversation';
@@ -72,7 +72,8 @@ const taskStatusLabel = computed(() => sqlTaskPresentation(result.value, pending
 const dirtyCount = computed(() => files.value.filter(dirtySqlFile).length);
 const schemaColumns = computed(() => mappingSchemaColumns(files.value, mappingIds.value));
 const selectedMappings = computed(() => files.value.filter(file => mappingIds.value.includes(file.id)));
-const chatTurns = ref([]), selectedCode = ref(null), problemCount = ref(0), cursor = ref(null);
+const chatTurns = ref([]), selectedCode = ref(null), includeCurrentFile=ref(false), problemCount = ref(0), cursor = ref(null);
+watch([activeId,projectId],()=>{selectedCode.value=null;includeCurrentFile.value=false;});
 const layout = ref(restoreSqlLayout(readWorkspaceDraft('sql-studio-ide-layout', props.workspaceContext)));
 const ideStyle = computed(() => ({ '--sql-explorer-width': layout.value.explorer ? `${layout.value.explorerWidth}px` : '0px', '--sql-assistant-width': layout.value.assistant ? `${layout.value.assistantWidth}px` : '0px', '--sql-explorer-grip': layout.value.explorer ? '5px' : '0px', '--sql-assistant-grip': layout.value.assistant ? '5px' : '0px' }));
 let active = true, pollTimer, draftTimer, loadSerial = 0, initialized = false, resizeCleanup;
@@ -91,20 +92,22 @@ function persist() {
 function beforeUnload(event) { persist(); if (files.value.some(dirtySqlFile)) { event.preventDefault(); event.returnValue = ''; } }
 watch([files, openIds, activeId, prompt, mappingIds, mappingDocuments, userDocuments, referenceIds, chatTurns, generationId, aiAction], () => { clearTimeout(draftTimer); draftTimer = setTimeout(persist, 200); }, { deep:true });
 watch(layout, value => saveWorkspaceDraft('sql-studio-ide-layout', props.workspaceContext, value), { deep:true });
-function togglePanel(panel) { layout.value[panel] = !layout.value[panel]; }
+function togglePanel(panel) { resizeCleanup?.();layout.value[panel] = !layout.value[panel]; }
 function resetSize(panel) { if (panel === 'bottom') layout.value.bottomHeight = 180; else layout.value[`${panel}Width`] = panel === 'explorer' ? 252 : 336; }
 function startResize(panel, event) {
   if (event.button !== 0) return;
   event.preventDefault(); resizeCleanup?.();
   const start = panel === 'bottom' ? event.clientY : event.clientX;
   const key = panel === 'bottom' ? 'bottomHeight' : `${panel}Width`;
-  const initial = layout.value[key];
+  const shell = event.currentTarget?.closest('.sql-ide-shell');
+  const pane = shell?.querySelector(panel === 'explorer' ? '.sql-resource-sidebar' : '.sql-ide-assistant');
+  const initial = panel === 'bottom' ? layout.value[key] : (pane?.getBoundingClientRect().width || layout.value[key]);
   const move = next => {
     const delta = (panel === 'assistant' || panel === 'bottom' ? -1 : 1) * ((panel === 'bottom' ? next.clientY : next.clientX) - start);
     layout.value[key] = clampSqlPanel(initial + delta, panel === 'bottom' ? 100 : 180, panel === 'bottom' ? 420 : 520);
   };
-  const stop = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', stop); resizeCleanup = null; };
-  resizeCleanup = stop; window.addEventListener('pointermove', move); window.addEventListener('pointerup', stop);
+  const stop = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', stop);window.removeEventListener('pointercancel',stop);window.removeEventListener('blur',stop); resizeCleanup = null; };
+  resizeCleanup = stop; window.addEventListener('pointermove', move); window.addEventListener('pointerup', stop);window.addEventListener('pointercancel',stop);window.addEventListener('blur',stop);
 }
 async function action(fn) { if (busy.value) return; busy.value = true; error.value = ''; try { return await fn(); } catch (ex) { error.value = ex.message || '操作失败'; } finally { busy.value = false; } }
 function toggle(list, id) { const index = list.indexOf(id); index < 0 ? list.push(id) : list.splice(index, 1); }
@@ -120,7 +123,20 @@ function openFile(id) { if (!openIds.value.includes(id)) openIds.value.push(id);
 function openReference(file) { if (files.value.some(item => item.id === file.id)) openFile(file.id); else preview.value = { path:file.path, content:file.content, reference:true }; }
 function closeFile(id) { openIds.value = openIds.value.filter(item => item !== id); if (activeId.value === id) activeId.value = openIds.value.at(-1) || ''; }
 function editFile({ id, content }) { const file = files.value.find(item => item.id === id); if (file) file.draft = content; }
-function useSelection(selection) { selectedCode.value = selection?.text ? selection : null; if (selectedCode.value) layout.value.assistant = true; }
+function useSelection(selection) { selectedCode.value = selection?.text ? selection : null; if (selectedCode.value) {includeCurrentFile.value=false;layout.value.assistant = true;} }
+function attachCurrentFile(value){includeCurrentFile.value=Boolean(value);if(value)selectedCode.value=null;}
+function insertAssistantSql(text,replaceSelection=false) {
+  if(busy.value || taskRunning.value || pendingPhase.value)return;
+  if(!editorPane.value?.insertSql(text,replaceSelection,activeFile.value?.id)) {
+    error.value=replaceSelection?'请先在可编辑 SQL 文件中选中需要替换的 SQL。':'请先打开可编辑的 SQL 工程文件。';return;
+  }
+  message.value=replaceSelection?'已替换选中 SQL，尚未保存或执行。':'已插入 SQL，尚未保存或执行。';
+}
+async function retryQuestion({question,action:nextAction}) {
+  if(busy.value || taskRunning.value || pendingPhase.value || !question?.trim())return;
+  if(studioAiLabels[nextAction])aiAction.value=nextAction;
+  prompt.value=question;await generate();
+}
 function useMappingReference(reference) {
   if (!reference?.file) return;
   addFileMention(reference.file);
@@ -229,6 +245,19 @@ function openNewFile(folder) {
   newFilePath.value='query.sql'; newFileOpen.value=true;
 }
 function formatActive() { editorPane.value?.formatDocument(); }
+function exploreDatabase(){
+  if(busy.value || taskRunning.value || pendingPhase.value || !schemaExplorer.value?.assistantContext?.())return;
+  aiAction.value='explore';layout.value.assistant=true;
+  if(!prompt.value.trim())prompt.value='探索当前数据库有哪些业务表，说明可用字段、已采集的关联依据和数据局限。';
+}
+async function referenceMetadata(table){
+  if(busy.value || taskRunning.value || pendingPhase.value)return;
+  const project=projectId.value;
+  if(await schemaExplorer.value?.referenceEvidence?.(table) && project===projectId.value){
+    aiAction.value='generate';layout.value.assistant=true;
+    message.value='已引用当前授权表结构到工程 SQL。请输入需求后发送；尚未生成或执行 SQL。';
+  }
+}
 async function saveActive() {
   const file = activeFile.value; if (!file?.editable || preview.value) return;
   await action(async () => {
@@ -247,14 +276,20 @@ async function generate() { if(documentsUploading.value)return; await action(asy
   if (files.value.some(dirtySqlFile)) throw new Error('请先保存工程中的编辑内容，让生成任务读取一致的文件版本。');
   const id = projectId.value, text = prompt.value.trim();
   if (!text) return;
-  const request = aiAction.value==='explore'?text:sqlConversationPrompt(`${activeFile.value ? 'Target file: '+activeFile.value.path+'\n' : ''}${text}`, chatTurns.value, selectedCode.value);
+  const codeContext=selectedCode.value || (includeCurrentFile.value && activeFile.value?.kind==='SQL'
+    ? {path:activeFile.value.path,text:activeFile.value.draft ?? activeFile.value.content} : null);
+  if(codeContext && selectedCode.value && (selectedCode.value.fileId && selectedCode.value.fileId!==activeId.value
+      || selectedCode.value.path!==activeFile.value?.path))throw new Error('SQL 引用所属文件已变化，请重新选择代码。');
+  if(selectedCode.value?.version!=null && selectedCode.value.version!==activeFile.value?.version)
+    throw new Error('SQL 引用对应的文件版本已变化，请重新选择代码。');
+  const request = aiAction.value==='explore'?sqlExplorationPrompt(text,codeContext):sqlConversationPrompt(`${activeFile.value ? 'Target file: '+activeFile.value.path+'\n' : ''}${text}`, chatTurns.value, codeContext);
   const localId = beginStudioExchange(chatTurns.value, text, aiAction.value, activeFile.value?.path || '');
   const assistantTurn = () => studioAssistantTurn(chatTurns.value, localId);
   prompt.value = '';
   pendingPhase.value = 'PREPARING'; pendingStartedAt.value = Date.now(); pollError.value = ''; result.value = null;
   try {
     const prepared = await sql.prepareSqlGeneration(id, { action:aiAction.value, prompt:request, dialect:dialect.value, mappingDocumentIds:mappingDocumentIds.value, mappingIds:mappingIds.value, referenceIds:referenceIds.value, userDocuments:userDocuments.value.map(({fileId,purpose})=>({fileId,purpose})), agentId:executionMode.value === 'agent' ? agentId.value || null : null, modelName:executionMode.value === 'model' ? modelName.value || null : null,
-      codingMetadataSelection:schemaExplorer.value?.codingSelection?.() || null,
+      codingMetadataSelection:aiAction.value==='explore'?null:schemaExplorer.value?.codingSelection?.() || null,
       metadataDiscoveryId:assistantBindingContext.value && assistantBindingContext.value!==schemaExplorer.value?.assistantContext?.()?null:assistantDiscoveryId.value,
       metadataBindingContextId:schemaExplorer.value?.assistantContext?.() || null });
     if (id !== projectId.value || !active) return;
@@ -296,7 +331,7 @@ function newConversation() {
   if (busy.value || taskRunning.value || pendingPhase.value || !projectId.value) return;
   clearTimeout(pollTimer); clearTimeout(draftTimer);
   reviewOpen.value=false;
-  chatTurns.value = []; prompt.value = ''; selectedCode.value = null; aiAction.value='explore';assistantDiscoveryId.value=null;assistantBindingContext.value=null;
+  chatTurns.value = []; prompt.value = ''; selectedCode.value = null; includeCurrentFile.value=false;aiAction.value='explore';assistantDiscoveryId.value=null;assistantBindingContext.value=null;
   generationId.value = ''; result.value = null; pendingStartedAt.value = 0; pollError.value = '';
   if (preview.value && !preview.value.reference) preview.value = null;
   error.value = ''; message.value = ''; persist();
@@ -372,7 +407,7 @@ onMounted(async () => {
 onActivated(() => { active = true; if (initialized) refreshGeneration(); });
 onDeactivated(() => { active = false; clearTimeout(pollTimer); persist(); });
 onBeforeUnmount(() => { resolveConfirm(false); active = false; resizeCleanup?.(); clearTimeout(pollTimer); clearTimeout(draftTimer); persist(); window.removeEventListener('beforeunload', beforeUnload); });
-  return { publicationOpen, metadataTableCount, folderOriginal, editFolder, deleteFolder, userDocuments, documentsUploading, schemaExplorer, databaseContextTarget, completeSchema, useSourceDialect, reviewTitle, reviewBlockedReason, reviewOpen, reviewPath, reviewFiles, reviewGeneration, chooseAiAction, aiAction, newConversation, taskStatusLabel, pendingPhase, pendingStartedAt, pollError, confirmation, resolveConfirm, folders, folderOpen, folderPath, newFileFolder, createFolder, openNewFolder, mappingDocuments, removeMappingDocument, dialects, projects, projectId, files, references, models, agents, dialect, agentId, modelName, executionMode, chooseExecutionMode, prompt, mappingIds, schemaColumns, selectedMappings, referenceIds, openIds, activeId, preview, generations, generationId, result, busy, error, message, newProjectOpen, projectName, versions, versionFile, activeFile, action, toggle, openFile, openReference, closeFile, editFile, selectProject, refreshFiles, createProject, deleteProject, createFile, deleteFile, saveActive, upload, generate, resume, selectGeneration, refreshGeneration, apply, cancel, showVersions, download, chatTurns, selectedCode, problemCount, cursor, layout, ideStyle, togglePanel, resetSize, startResize, useSelection, useMappingReference, addFileMention, renameFile, libraryOpen, libraryKind, libraryItems, librarySelected, chooseLibrary, importLibrary, editorPane, newFileOpen, newFilePath, openNewFile, formatActive, taskRunning, dirtyCount };
+  return { exploreDatabase, referenceMetadata, attachCurrentFile, includeCurrentFile, insertAssistantSql, retryQuestion, publicationOpen, metadataTableCount, folderOriginal, editFolder, deleteFolder, userDocuments, documentsUploading, schemaExplorer, databaseContextTarget, completeSchema, useSourceDialect, reviewTitle, reviewBlockedReason, reviewOpen, reviewPath, reviewFiles, reviewGeneration, chooseAiAction, aiAction, newConversation, taskStatusLabel, pendingPhase, pendingStartedAt, pollError, confirmation, resolveConfirm, folders, folderOpen, folderPath, newFileFolder, createFolder, openNewFolder, mappingDocuments, removeMappingDocument, dialects, projects, projectId, files, references, models, agents, dialect, agentId, modelName, executionMode, chooseExecutionMode, prompt, mappingIds, schemaColumns, selectedMappings, referenceIds, openIds, activeId, preview, generations, generationId, result, busy, error, message, newProjectOpen, projectName, versions, versionFile, activeFile, action, toggle, openFile, openReference, closeFile, editFile, selectProject, refreshFiles, createProject, deleteProject, createFile, deleteFile, saveActive, upload, generate, resume, selectGeneration, refreshGeneration, apply, cancel, showVersions, download, chatTurns, selectedCode, problemCount, cursor, layout, ideStyle, togglePanel, resetSize, startResize, useSelection, useMappingReference, addFileMention, renameFile, libraryOpen, libraryKind, libraryItems, librarySelected, chooseLibrary, importLibrary, editorPane, newFileOpen, newFilePath, openNewFile, formatActive, taskRunning, dirtyCount };
 
   }
 };

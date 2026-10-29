@@ -1,0 +1,10 @@
+{
+  "testCommand": "NODE_OPTIONS=--no-webstorage npm run test:sql-studio",
+  "testFiles": 19,
+  "passedTests": 119,
+  "buildCommand": "npm run build -- --outDir <isolated-preview>/frontend --emptyOutDir",
+  "buildCompleted": true,
+  "vueStructureCheck": 69,
+  "indexSha256": "fba7ede97ea3847a47ee76e04ca2c66027acf5d23840d5f92c790b02ef6712e9",
+  "warning": "Existing large bundle warning; dependencies unchanged"
+}

@@ -1,63 +1,38 @@
 <template>
-  <section class="sql-schema-explorer" aria-label="数据库 Schema 浏览器">
-    <Teleport :to="controlsTarget || 'body'" :disabled="!controlsTarget">
-    <div class="sql-schema-controls">
-      <header
-        ><strong>数据库上下文</strong
-        ><button type="button" :disabled="busy" @click="refresh">刷新</button></header
-      >
+  <section class="sql-schema-explorer" :class="{'is-navigation-open':navigationOpen}" aria-label="数据库 Schema 浏览器">
       <label v-show="providers.length > 1"
-        >元数据服务<select v-model="serviceId" :disabled="busy" @change="chooseService"
+        class="sql-metadata-provider">元数据服务<select v-model="serviceId" :disabled="busy || locked" @change="chooseService"
           ><option value="">选择已注册服务</option
           ><option v-for="item in providers" :key="item.serviceId" :value="item.serviceId">{{
             item.name
           }}</option></select
         ></label
       >
-      <label
-        >数据源<input v-model="assetSearch" aria-label="搜索数据源" placeholder="搜索授权数据源…" />
-        <select v-model="assetRef" aria-label="选择数据源" :disabled="busy || !serviceId" @change="chooseAsset"
-          ><option value="">选择授权数据源</option
-          ><option v-for="asset in filteredAssets" :key="asset.assetRef" :value="asset.assetRef">{{
-            asset.displayName || asset.name
-          }}</option></select
-        ></label
-      >
-      <button v-if="assetsMore" type="button" :disabled="busy" @click="loadAssets(true)"
-        >更多数据源</button
-      >
-      <label
-        >{{ namespaceLabel }}<input v-model="namespaceSearch" aria-label="搜索数据库或 Schema" placeholder="搜索数据库或 Schema…" />
-        <select
-          v-model="selectedNamespace"
-          aria-label="选择数据库或 Schema"
-          :disabled="busy || !context"
-          @change="chooseNamespace"
-          ><option value="">全部授权命名空间</option
-          ><option
-            v-for="item in filteredNamespaces"
-            :key="namespaceKey(item)"
-            :value="namespaceKey(item)"
-            >{{
-              [item.database, item.schema].filter((v, i, a) => v && a.indexOf(v) === i).join(" / ")
-            }}</option
-          ></select
-        ></label
-      >
-      <button v-if="namespacesMore" type="button" :disabled="busy" @click="loadNamespaces(true)"
-        >更多命名空间</button
-      >
-      <small v-if="sourceDialect"
-        >数据源方言：{{ sourceDialect
-        }}<button type="button" @click="$emit('dialect', sourceDialect)">用于编辑器</button></small
-      >
-      <small>AI 在当前授权范围内按需发现表结构，无需预选表。编辑器与助手共用此上下文。</small>
+    <Teleport :to="controlsTarget || 'body'" :disabled="!controlsTarget">
+    <div class="sql-database-context-bar" aria-label="数据库上下文">
+      <div class="sql-database-toolbar">
+        <Database :size="15" class="sql-database-icon" />
+        <SqlSearchSelect v-model="assetRef" class="sql-source-choice" label="选择数据源" placeholder="选择数据源"
+          :options="assetOptions" :disabled="locked || !serviceId" :loading="busy" :has-more="assetsMore"
+          @change="chooseAsset" @more="loadAssets(true)" />
+        <SqlSearchSelect v-model="selectedNamespace" class="sql-namespace-choice" label="选择数据库或 Schema" :placeholder="namespaceLabel"
+          :options="namespaceOptions" :disabled="locked || busy || !context" :loading="busy" :has-more="namespacesMore"
+          @change="chooseNamespace" @more="loadNamespaces(true)" />
+        <button type="button" class="sql-database-refresh" :disabled="locked || busy || !serviceId" aria-label="刷新数据库上下文" title="刷新授权数据库与表目录" @click="refresh"><RefreshCw :size="15" :class="{ 'sql-progress-spinner': busy }" /></button>
+      </div>
+      <div class="sql-database-status" :data-ready="!!context && !busy && !error">
+        <span v-if="busy" role="status"><LoaderCircle :size="12" class="sql-progress-spinner" />正在加载数据库上下文</span>
+        <span v-else-if="context && !error"><CircleCheck :size="12" />上下文就绪{{ sourceDialect ? ' · ' + sourceDialect : '' }}</span>
+        <span v-else>请选择授权数据源</span>
+        <small v-if="filePath" class="sql-database-current-file" :title="filePath"><span aria-hidden="true">⌁</span>{{ filePath.split('/').at(-1) }}</small>
+        <small v-else>仅访问授权范围</small>
+      </div>
       <p v-if="error" class="sql-schema-error" role="alert">{{ error }}</p>
-      <p v-if="busy" role="status">正在读取授权元数据…</p>
       <p v-else-if="!providers.length">尚无可用元数据服务。</p>
     </div>
     </Teleport>
-    <header><strong>数据源导航</strong></header>
+    <header><button type="button" aria-label="展开或折叠数据源导航" :aria-expanded="navigationOpen" @click="toggleNavigation">{{ navigationOpen ? '▾' : '▸' }} 数据源导航</button><button v-if="context" type="button" :disabled="locked || busy || !!error" aria-label="AI 探索当前数据库" @click="$emit('explore')">AI 探索</button><button v-if="sourceDialect" type="button" :title="'将编辑器方言设为 ' + sourceDialect" @click="$emit('dialect', sourceDialect)">{{ sourceDialect }}</button></header>
+    <div v-show="navigationOpen" class="sql-schema-navigation-body">
       <form @submit.prevent="searchTables"
         ><input
           v-model="query"
@@ -170,6 +145,8 @@
     <small class="sql-schema-evidence"
       >来源：平台注册元数据 · 未进行本轮联机核验。推断关系和业务口径不作为已确认 Schema。</small
     >
+    </div>
+    <button v-if="selectedTables.length && !navigationOpen" type="button" @click="toggleNavigation" aria-label="查看本次工程元数据引用">已引用 {{ selectedTables.length }} 张表 · 查看或移除</button>
   </section>
 </template>
 <script src="../../js/components/sql-studio/SqlSchemaExplorer.js"></script>

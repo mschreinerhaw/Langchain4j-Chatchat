@@ -1,0 +1,101 @@
+{
+  "frontend": {
+    "files": 21,
+    "passed": 157,
+    "build": "SUCCESS"
+  },
+  "java": {
+    "apiAndModelAdapters": 111,
+    "mcpMetadata": 12,
+    "passed": 123,
+    "classes": [
+      {
+        "module": "chatchat-api",
+        "class": "SqlMetadataOutputTest",
+        "passed": 14
+      },
+      {
+        "module": "chatchat-api",
+        "class": "SqlStudioMetadataAssistantTest",
+        "passed": 21
+      },
+      {
+        "module": "chatchat-api",
+        "class": "SqlOutputBundleTest",
+        "passed": 3
+      },
+      {
+        "module": "chatchat-api",
+        "class": "SqlStudioIntegrationTest",
+        "passed": 39
+      },
+      {
+        "module": "chatchat-api",
+        "class": "SqlStudioPublicationControllerTest",
+        "passed": 4
+      },
+      {
+        "module": "chatchat-api",
+        "class": "SqlStudioMetadataServiceTest",
+        "passed": 10
+      },
+      {
+        "module": "chatchat-api",
+        "class": "CodingWorkspaceServiceTest",
+        "passed": 10
+      },
+      {
+        "module": "chatchat-agents",
+        "class": "DashScopeNativeChatModelTest",
+        "passed": 2
+      },
+      {
+        "module": "chatchat-agents",
+        "class": "RuntimeStreamingChatModelTest",
+        "passed": 2
+      },
+      {
+        "module": "chatchat-agents",
+        "class": "ConfigurableChatModelFactoryTest",
+        "passed": 6
+      },
+      {
+        "module": "chatchat-mcp-server",
+        "class": "SqlMetadataDiscoveryWorkflowTest",
+        "passed": 12
+      }
+    ]
+  },
+  "research": {
+    "repositories": 2,
+    "pinnedTag": "25.2.0",
+    "fileLicensesVerified": 21,
+    "thirdPartySourceCopied": false
+  },
+  "browser": {
+    "mockedRequests": false,
+    "liveConfiguredModel": true,
+    "generationId": "5a4bbaf4-e618-4d26-8245-236c182a9f62",
+    "metadataBoundCoding": true,
+    "restoredWithoutModelRequest": true,
+    "emulatedScales": [
+      1,
+      1.25,
+      1.5
+    ],
+    "nativeZoomTested": false
+  },
+  "sqlglotRepair": {
+    "realParser": true,
+    "durableReceipts": true,
+    "liveModelInControlledRepairTest": false,
+    "sqlExecuted": false
+  },
+  "productionDeployed": false,
+  "frontendIndexSha256": "5e56bea51778173f498e4a83dc2fd701752d11c12bfdb421641f69b088240de0",
+  "traceSha256": {
+    "target\\sql-dbeaver\\stability-final\\trace-100.json": "96698f93e957254b8035a75261297296c2c53043496bd91a4fc6bad82ac5f20a",
+    "target\\sql-dbeaver\\stability-final\\trace-125.json": "087642a4c50091f281c64d2955c57f75210b3dd671209d86fa016f294aa88d36",
+    "target\\sql-dbeaver\\stability-final\\trace-150.json": "82b2f28b1d40807152ba39f2988004679a87cce90f6a81f4b44a90bedcdb399c"
+  }
+}

@@ -8,6 +8,8 @@ import {
   onDeactivated,
 } from "vue";
 import * as api from "../../../services/sqlStudioApi";
+import SqlSearchSelect from "../../../components/sql-studio/SqlSearchSelect.vue";
+import { Database, RefreshCw, CircleCheck, LoaderCircle } from '@lucide/vue';
 import { readWorkspaceDraft, saveWorkspaceDraft } from "../../utils/workspaceDrafts";
 import { SqlMetadataSession, StaleMetadataRequest } from "../../utils/sqlMetadataSession";
 import {
@@ -19,8 +21,9 @@ import {
 
 export default defineComponent({
   name: "SqlSchemaExplorer",
-  props: { projectId: String, fileId: String, controlsTarget: Object, identity: Object, dialect: { type: String, default: "spark" } },
-  emits: ["insert", "dialect", "selection-count"],
+  components: { SqlSearchSelect, Database, RefreshCw, CircleCheck, LoaderCircle },
+  props: { projectId: String, fileId: String, filePath: String, controlsTarget: Object, identity: Object, locked: Boolean, dialect: { type: String, default: "spark" } },
+  emits: ["explore", "insert", "dialect", "selection-count"],
   setup(componentProps, { expose: exposeComponent, emit: emitEvent }) {
     const props = componentProps;
     const emit = emitEvent;
@@ -43,18 +46,17 @@ export default defineComponent({
       tablePage = ref(1),
       assetsMore = ref(false),
       namespacesMore = ref(false);
-    const selectedTables = ref([]);
-    const assetSearch = ref(""), namespaceSearch = ref("");
+    const selectedTables = ref([]), navigationOpen=ref(false);
     const namespaceLabel = computed(() => {
       const dialect = sourceDialect.value.toLowerCase();
       if (['oracle', 'postgres', 'postgresql'].includes(dialect)) return '数据库 / Schema';
       if (['mysql', 'hive', 'spark', 'clickhouse', 'doris'].includes(dialect)) return '数据库';
       return '数据库 / Schema';
     });
-    const filteredAssets = computed(() => assets.value.filter(item => item.assetRef === assetRef.value ||
-      (item.displayName || item.name || "").toLowerCase().includes(assetSearch.value.trim().toLowerCase())));
-    const filteredNamespaces = computed(() => namespaces.value.filter(item => namespaceKey(item) === selectedNamespace.value ||
-      [item.database, item.schema].filter(Boolean).join(" / ").toLowerCase().includes(namespaceSearch.value.trim().toLowerCase())));
+    const assetOptions = computed(() => [{ value:'', label:'选择授权数据源' }, ...assets.value.map(item=>({
+      value:item.assetRef, label:item.displayName || item.name || item.assetRef }))]);
+    const namespaceOptions = computed(() => [{value:'',label:'全部授权库'}, ...namespaces.value.map(item=>({
+      value:namespaceKey(item),label:[item.database,item.schema].filter((v,i,a)=>v && a.indexOf(v)===i).join(' / ') }))]);
     const savedSelectionKey = () => `sql-studio-source-${props.projectId}-${props.fileId}`;
     function rememberSelection() {
       if (props.fileId && context.value) saveWorkspaceDraft(savedSelectionKey(), props.identity, {
@@ -69,12 +71,13 @@ export default defineComponent({
       tableList = ref(null),
       submittedQuery = ref("");
     const tablePages = computed(() => Math.max(1, Math.ceil(total.value / tablePageSize.value)));
-    let serial = 0,
+    let tablesLoaded = false, serial = 0,
       assetPage = 1,
       assetSnapshot,
       namespacePage = 1,
       active = true;
     function clearRows() {
+      tablesLoaded = false;
       tables.value = [];
       fields.value = {};
       expanded.value = {};
@@ -152,8 +155,6 @@ export default defineComponent({
       namespaces.value = [];
       selectedNamespace.value = "";
       query.value = "";
-      assetSearch.value = "";
-      namespaceSearch.value = "";
       submittedQuery.value = "";
       clearRows();
       if (!props.projectId) return;
@@ -185,7 +186,7 @@ export default defineComponent({
             selectedNamespace.value = stored.namespace;
             if (!await createContext(turn, namespace)) return;
           }
-          await fetchTables(turn, 1);
+          if(navigationOpen.value)await fetchTables(turn, 1);
         }
       });
     }
@@ -232,7 +233,6 @@ export default defineComponent({
     }
     async function chooseAsset() {
       forgetSelection();
-      namespaceSearch.value = "";
       serial++;
       bind(null);
       namespaceSession.bind(null);
@@ -245,7 +245,7 @@ export default defineComponent({
         if (await createContext(turn, {})) {
           namespaceSession.bind(scopeOf(context.value));
           await fetchNamespaces(turn, false);
-          await fetchTables(turn, 1);
+          if(navigationOpen.value)await fetchTables(turn, 1);
           if (turn === serial) rememberSelection();
         }
       });
@@ -273,7 +273,7 @@ export default defineComponent({
       session.bind(null);
       clearRows();
       await run(async (turn) => {
-        if (await createContext(turn, namespace)) { await fetchTables(turn, 1); if (turn === serial) rememberSelection(); }
+        if (await createContext(turn, namespace)) { if(navigationOpen.value)await fetchTables(turn, 1); if (turn === serial) rememberSelection(); }
       });
     }
     async function fetchTables(turn, page) {
@@ -287,6 +287,7 @@ export default defineComponent({
       const result = await session.read(args);
       if (turn !== serial) return;
       tables.value = result.items;
+      tablesLoaded = true;
       tablePage.value = page;
       tablesMore.value = result.hasMore;
       total.value = result.totalMatched;
@@ -296,6 +297,10 @@ export default defineComponent({
     }
     async function loadTables(page = 1) {
       if (context.value && !busy.value) await run((turn) => fetchTables(turn, page));
+    }
+    async function toggleNavigation(){
+      navigationOpen.value=!navigationOpen.value;
+      if(navigationOpen.value && context.value && !tablesLoaded)await loadTables();
     }
     async function searchTables() {
       if (busy.value) return;
@@ -323,7 +328,14 @@ export default defineComponent({
         namespaceSession.invalidate();
         await run(async (turn) => {
           await fetchNamespaces(turn, false);
-          await fetchTables(turn, 1);
+          while (turn === serial && selectedNamespace.value && namespacesMore.value
+              && !namespaces.value.some(item=>namespaceKey(item)===selectedNamespace.value)) await fetchNamespaces(turn, true);
+          if (turn !== serial) return;
+          if (selectedNamespace.value && !namespaces.value.some(item=>namespaceKey(item)===selectedNamespace.value)) {
+            selectedNamespace.value='';bind(null);forgetSelection();
+            throw new Error('所选数据库或 Schema 已不可用，请重新选择数据源。');
+          }
+          if(navigationOpen.value)await fetchTables(turn, 1);
         });
       } else if (serviceId.value) await loadAssets(false);
       else await initialize();
@@ -481,13 +493,50 @@ export default defineComponent({
       return { sources: [...groups.values()] };
     }
 
-    exposeComponent({ complete, codingSelection, assistantContext:()=>!busy.value && !error.value ? context.value?.discoveryId || null : null });
+    // Explicit user action only; Runtime revalidates persisted source identity and snapshot.
+    async function referenceEvidence(table) {
+      if (props.locked || busy.value || !active || !context.value) return false;
+      let accepted=false;
+      await run(async turn=>{
+        if (!table?.discoveryId || !table.bindingId || !table.expectedSnapshotId || !table.tableName)
+          throw new Error('此历史证据缺少完整身份，请重新探索。');
+        const original=await api.sqlMetadataContext(props.projectId,table.discoveryId);
+        if(turn!==serial)return;
+        const binding=original.bindings?.find(item=>item.bindingId===table.bindingId), current=context.value.bindings[0];
+        if(!binding || binding.serviceId!==current.serviceId || binding.assetRef!==current.assetRef
+          || ['database','schema'].some(key=>current[key]!=null && current[key]!==table[key]))
+          throw new Error('证据不属于当前数据源或数据库，请切回对应上下文后引用。');
+        const args={operation:'DESCRIBE',tableName:table.tableName,expectedSnapshotId:table.expectedSnapshotId,page:1,pageSize:1};
+        for(const key of ['database','schema'])if(table[key]!=null)args[key]=table[key];
+        const response=await api.sqlMetadataOperation(props.projectId,table.discoveryId,table.bindingId,args);
+        if(turn!==serial)return;
+        const metadata=response?.metadata,described=metadata?.items?.[0];
+        if(metadata?.status!=='SUCCEEDED' || metadata.doesNotExecuteSql!==true || metadata.snapshotId!==table.expectedSnapshotId
+          || metadata.items?.length!==1 || !described?.columns?.length
+          || ['tableName','tableRef','database','schema'].some(key=>table[key]!=null && table[key]!==described[key]))
+          throw new Error('证据快照或可见字段已变化，请重新探索。');
+        const key=tableKey(table);
+        if(!selectedTables.value.some(item=>item.key===key) && selectedTables.value.length>=16)throw new Error('单次最多选择 16 张表');
+        const sources=new Set(selectedTables.value.map(item=>JSON.stringify([item.serviceId,item.assetRef])));
+        sources.add(JSON.stringify([binding.serviceId,binding.assetRef]));
+        if(sources.size>8)throw new Error('单次最多选择 8 个数据源');
+        selectedTables.value=[...selectedTables.value.filter(item=>item.key!==key),{key,serviceId:binding.serviceId,assetRef:binding.assetRef,
+            label:[assetOptions.value.find(item=>item.value===binding.assetRef)?.label,table.database,table.schema,table.tableName].filter(Boolean).join(' / '),
+            discoveryId:table.discoveryId,bindingId:binding.bindingId,expectedSnapshotId:table.expectedSnapshotId,
+            table:{tableName:table.tableName,database:table.database,schema:table.schema}}];
+        accepted=true;
+      });
+      return accepted;
+    }
+
+    exposeComponent({ complete, codingSelection, referenceEvidence, assistantContext:()=>!busy.value && !error.value ? context.value?.discoveryId || null : null });
     return {
       ref,
       namespaceKey,
+      navigationOpen,toggleNavigation,
       emit,
       providers,
-      assetSearch, namespaceSearch, filteredAssets, filteredNamespaces, namespaceLabel,
+      assetOptions, namespaceOptions, namespaceLabel,
       serviceId,
       assets,
       assetRef,

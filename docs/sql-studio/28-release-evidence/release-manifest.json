@@ -1,0 +1,14 @@
+{
+  "revision": "source-tree:3eb9ab9f99f3a7afead175077fdf3f8dffc7c32c",
+  "sourceTree": "3eb9ab9f99f3a7afead175077fdf3f8dffc7c32c",
+  "baseCommit": "35550a6fce786411ff73485ae191a6afe7554eb5",
+  "root": "/opt/chatchat-releases/sql-studio-3eb9ab9f99f3-20261029",
+  "api": {
+    "image": "runtime-os-api:sql-studio-3eb9ab9f99f3-20261029",
+    "id": "sha256:c00d42f8b5d3fd999d8256374d63d1af4c8e71dd8b1fcb8d3544835b21a66ed7",
+    "jarSha256": "2f77411b8e5b83300a8fa355bb749479c789f2275a7879f84325de3e73a7cf36"
+  },
+  "frontendIndexSha256": "5e56bea51778173f498e4a83dc2fd701752d11c12bfdb421641f69b088240de0",
+  "completeJar": true,
+  "offlineBuild": true
+}

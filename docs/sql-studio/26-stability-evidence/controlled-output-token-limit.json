@@ -1,0 +1,59 @@
+{
+  "diagnostic" : {
+    "authorizationMs" : 0,
+    "repairCount" : 2,
+    "toolMs" : 0,
+    "modelResponses" : [ {
+      "modelCall" : 1,
+      "durationMs" : 1,
+      "selectedModel" : "model",
+      "finishReason" : "LENGTH",
+      "inputTokens" : 10,
+      "outputTokens" : 20,
+      "responseKind" : "FINAL_TEXT",
+      "responseChars" : 9,
+      "responsePreview" : "{\"notes\":",
+      "previewTruncated" : false,
+      "sdkTransport" : "SYNCHRONOUS_CHAT_RESPONSE",
+      "validationCode" : "OUTPUT_TOKEN_LIMIT",
+      "validationMessage" : "模型输出达到 Token 上限，结果未完整返回；请缩短需求或更换模型。",
+      "repairAttempt" : 1
+    }, {
+      "modelCall" : 2,
+      "durationMs" : 1,
+      "selectedModel" : "model",
+      "finishReason" : "LENGTH",
+      "inputTokens" : 10,
+      "outputTokens" : 20,
+      "responseKind" : "FINAL_TEXT",
+      "responseChars" : 9,
+      "responsePreview" : "{\"notes\":",
+      "previewTruncated" : false,
+      "sdkTransport" : "SYNCHRONOUS_CHAT_RESPONSE",
+      "validationCode" : "OUTPUT_TOKEN_LIMIT",
+      "validationMessage" : "模型输出达到 Token 上限，结果未完整返回；请缩短需求或更换模型。",
+      "repairAttempt" : 2
+    }, {
+      "modelCall" : 3,
+      "durationMs" : 1,
+      "selectedModel" : "model",
+      "finishReason" : "LENGTH",
+      "inputTokens" : 10,
+      "outputTokens" : 20,
+      "responseKind" : "FINAL_TEXT",
+      "responseChars" : 9,
+      "responsePreview" : "{\"notes\":",
+      "previewTruncated" : false,
+      "sdkTransport" : "SYNCHRONOUS_CHAT_RESPONSE",
+      "validationCode" : "OUTPUT_TOKEN_LIMIT",
+      "validationMessage" : "模型输出达到 Token 上限，结果未完整返回；请缩短需求或更换模型。",
+      "repairAttempt" : 3
+    } ],
+    "outputParseMs" : 0,
+    "elapsedMs" : 8,
+    "validationFailureCount" : 3,
+    "outputValidationMs" : 3,
+    "schemaVersion" : "sql-studio.diagnostics.v1"
+  },
+  "source" : "Controlled SDK fixture, not the unrecovered original user request"
+}

@@ -1,15 +1,60 @@
 // @vitest-environment jsdom
 import { createApp, h, nextTick, reactive } from 'vue';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import SqlAssistantPanel from './SqlAssistantPanel.vue';
 let app, host;
 afterEach(()=>{app?.unmount();host?.remove();});
-async function mount(values={}) {
+async function mount(values={},slots={}) {
   const props=reactive({models:[],agents:[],projectFiles:[],references:[],referenceIds:[],generations:[],messages:[],prompt:'',aiAction:'generate',pendingPhase:'',busy:false,...values});
   host=document.createElement('div');document.body.append(host);
-  app=createApp({render:()=>h(SqlAssistantPanel,props)});app.mount(host);await nextTick();return props;
+  app=createApp({render:()=>h(SqlAssistantPanel,props,slots)});app.mount(host);await nextTick();return props;
 }
 describe('SQL assistant conversation',()=>{
+  it('never inserts SQL from failed or unchecked Markdown notes',async()=>{
+    const props=await mount({editorEditable:true,aiAction:'explore',messages:[{id:'a',role:'assistant',generationId:'g',text:'```sql\nSELECT hidden FROM private\n```'}],
+      result:{generation:{id:'g',prepared:{taskRequest:{toolInput:{sqlStudioAction:'explore'}}}},task:{status:'SUCCESS'},files:[],events:[],rawAnswer:'',metadataExploration:{fieldValidation:'NOT_RUN'}}});
+    expect(host.querySelector('[title="插入编辑器"]')).toBeNull();
+    const insert=()=>[...host.querySelectorAll('button')].find(b=>b.textContent==='插入编辑器');
+    expect(insert().disabled).toBe(true);
+    props.result.metadataExploration.fieldValidation='CHECKED';await nextTick();expect(insert().disabled).toBe(false);
+    props.result.outputError='damaged output';await nextTick();expect(insert().disabled).toBe(true);
+  });
+  it('pins context above conversation and input below it without the old form or template tab',async()=>{
+    const prompt=vi.fn(),action=vi.fn();await mount({onPrompt:prompt,onAction:action},{'database-context':()=>h('div',{id:'source-toolbar'},'Shared context')});
+    expect(host.querySelector('aside>header #source-toolbar')).not.toBeNull();expect(host.querySelector('.sql-assistant-scroll #source-toolbar')).toBeNull();
+    expect(host.querySelector('aside>footer textarea')).not.toBeNull();expect(host.querySelector('.sql-assistant-workbench,.sql-current-context')).toBeNull();
+    host.querySelector('.sql-chat-empty-state button').click();await nextTick();
+    expect(prompt).toHaveBeenCalledWith('探索当前数据库有哪些业务表');expect(action).toHaveBeenCalledWith('explore');
+    expect(document.querySelector('[aria-label="AI 助手高级设置"]').open).toBe(false);
+  });
+  it('opens settings and real generation history outside the conversation flow',async()=>{
+    const generation=vi.fn();await mount({generations:[{id:'actual-history',prepared:{taskRequest:{toolInput:{studioUserRequest:'Saved question'}}}}],onGeneration:generation});
+    host.querySelector('[aria-label="高级设置"]').click();expect(document.querySelector('[aria-label="AI 助手高级设置"]').open).toBe(true);
+    document.querySelector('[aria-label="关闭高级设置"]').click();expect(document.querySelector('[aria-label="AI 助手高级设置"]').open).toBe(false);
+    host.querySelector('[aria-label="历史会话"]').click();document.querySelector('.sql-assistant-history button').click();await nextTick();
+    expect(generation).toHaveBeenCalledWith('actual-history');expect(document.querySelector('[aria-label="SQL 历史会话"]').open).toBe(false);
+  });
+  it('uses multiline Enter, Ctrl/Cmd Enter send, composition protection and source-ready button state',async()=>{
+    const send=vi.fn();const props=await mount({aiAction:'explore',contextReady:false,prompt:'Find tables',onSend:send});const textarea=host.querySelector('textarea');
+    expect(host.querySelector('.sql-send-question').disabled).toBe(true);props.contextReady=true;await nextTick();
+    textarea.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));expect(send).not.toHaveBeenCalled();
+    textarea.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',ctrlKey:true,isComposing:true,bubbles:true}));expect(send).not.toHaveBeenCalled();
+    textarea.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',ctrlKey:true,bubbles:true}));expect(send).toHaveBeenCalledOnce();
+    textarea.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',metaKey:true,bubbles:true}));expect(send).toHaveBeenCalledTimes(2);
+    props.taskRunning=true;await nextTick();expect(host.querySelector('.sql-send-question')).toBeNull();expect(host.querySelector('.sql-stop-question')).not.toBeNull();
+  });
+  it('keeps mode inside the input controls and stops only through the existing real task action',async()=>{
+    const cancel=vi.fn();await mount({taskRunning:true,onCancel:cancel,result:{generation:{id:'g'},task:{taskId:'real-task',status:'RUNNING'},files:[],events:[],rawAnswer:''}});
+    expect(host.querySelector('.sql-composer-actions [aria-label="SQL 助手方式"]')).not.toBeNull();
+    host.querySelector('[aria-label="停止任务"]').click();expect(cancel).toHaveBeenCalledOnce();
+    expect(host.querySelector('.sql-progress-spinner')).not.toBeNull();
+  });
+  it('retries the actual question only after terminal failure and never treats a repairing attempt as failed',async()=>{
+    const retry=vi.fn();const props=await mount({aiAction:'explore',onRetry:retry,messages:[{id:'u',role:'user',text:'Find actual scheduling tables'},
+      {id:'a',role:'assistant',generationId:'g',status:'failed',text:'Old failure'}],result:{generation:{id:'g'},task:{status:'FAILED',canonicalState:'REPAIRING'},files:[],events:[],rawAnswer:''}});
+    expect(host.querySelector('.sql-retry-question')).toBeNull();props.result.task.canonicalState='FAILED';await nextTick();
+    host.querySelector('.sql-retry-question').click();expect(retry).toHaveBeenCalledWith({question:'Find actual scheduling tables',action:'explore'});
+  });
   it('restores a real saved question and renders Markdown without executing model HTML',async()=>{
     await mount({aiAction:'explore',result:{generation:{id:'saved',prepared:{taskRequest:{toolInput:{sqlStudioAction:'explore',studioUserRequest:'哪些表可用于调度分析？'}}}},task:{status:'SUCCESS',canonicalState:'SUCCEEDED'},files:[],events:[],
       rawAnswer:JSON.stringify({notes:'| 表 | 依据 |\n| --- | --- |\n| jobs | 实际字段 |\n\n<script>bad()</script><img src=x onerror=bad()>'})}});
@@ -23,20 +68,20 @@ describe('SQL assistant conversation',()=>{
   });
   it('shows selected user documents and their actual purpose instead of a legacy case count',async()=>{
     await mount({mappingCount:0,userDocuments:[{fileId:'rules',fileName:'rules.md',purpose:'RULES'},{fileId:'facts',fileName:'facts.json',purpose:'EVIDENCE'}]});
-    const context=host.querySelector('.sql-chat-context');
+    const context=document.querySelector('.sql-chat-context');
     expect(context.querySelector('.sql-chat-settings').textContent).toContain('参考规则');expect(context.querySelector('.sql-chat-settings').textContent).toContain('分析依据');
     expect(host.querySelector('.sql-ai-modes')).toBeNull();expect(host.querySelector('.sql-composer-tools')).toBeNull();
-    expect(host.querySelector('.sql-chat-settings').open).toBe(false);
+    expect(document.querySelector('[aria-label="AI 助手高级设置"]').open).toBe(false);
     expect(context.textContent).not.toContain('案例');expect(context.textContent).not.toContain('????');
   });
   it('hides Agent execution without usable published options and filters out draft options',async()=>{
     const props=await mount({executionMode:'agent',agents:[{id:'draft',name:'Draft',marketStatus:'draft'}]});
-    expect(host.querySelector('.sql-execution-modes')).toBeNull();
+    expect(document.querySelector('.sql-execution-modes')).toBeNull();
     expect(host.querySelector('select').textContent).not.toContain('Draft');
     props.agents=[{id:'published',name:'Published',marketStatus:'published'},{id:'draft',name:'Draft',marketStatus:'draft'}];await nextTick();
-    expect(host.querySelector('.sql-execution-modes')).not.toBeNull();
-    const choices=[...host.querySelector('.sql-agent-choice select').options].map(option=>option.value);
-    expect(choices).toEqual(['','published']);expect(host.querySelector('option[value=""]').disabled).toBe(true);
+    expect(document.querySelector('.sql-execution-modes')).not.toBeNull();
+    const choices=[...document.querySelector('.sql-agent-choice select').options].map(option=>option.value);
+    expect(choices).toEqual(['','published']);expect(document.querySelector('.sql-agent-choice option[value=""]').disabled).toBe(true);
   });
   it('shows pending planning inside the assistant reply without an overlay or fabricated plan',async()=>{
     const props=await mount({pendingPhase:'PREPARING',pendingStartedAt:Date.now(),busy:true,

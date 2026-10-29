@@ -1,0 +1,44 @@
+{
+  "diagnostic" : {
+    "authorizationMs" : 0,
+    "repairCount" : 1,
+    "toolMs" : 1,
+    "modelResponses" : [ {
+      "modelCall" : 1,
+      "durationMs" : 0,
+      "selectedModel" : "model",
+      "responseKind" : "TOOL_REQUEST",
+      "responseChars" : 0,
+      "responsePreview" : "",
+      "previewTruncated" : false,
+      "sdkTransport" : "SYNCHRONOUS_CHAT_RESPONSE"
+    }, {
+      "modelCall" : 2,
+      "durationMs" : 0,
+      "selectedModel" : "model",
+      "responseKind" : "FINAL_TEXT",
+      "responseChars" : 9,
+      "responsePreview" : "{\"notes\":",
+      "previewTruncated" : false,
+      "sdkTransport" : "SYNCHRONOUS_CHAT_RESPONSE",
+      "validationCode" : "OUTPUT_JSON_TRUNCATED",
+      "validationMessage" : "模型结果在 JSON 结构结束前中断，尚未生成可用 SQL；请重试或缩短需求。",
+      "repairAttempt" : 1
+    }, {
+      "modelCall" : 3,
+      "durationMs" : 0,
+      "selectedModel" : "model",
+      "responseKind" : "FINAL_TEXT",
+      "responseChars" : 198,
+      "responsePreview" : "{\"candidateTables\":[{\"columns\":[\"status\"],\"reason\":\"Execution metadata\",\"tableRef\":\"table-ref\"}],\"notes\":\"Scheduling candidates are supported by the indexed fields; no SQL was executed.\",\"files\":[]}",
+      "previewTruncated" : false,
+      "sdkTransport" : "SYNCHRONOUS_CHAT_RESPONSE"
+    } ],
+    "outputParseMs" : 2,
+    "elapsedMs" : 5,
+    "validationFailureCount" : 1,
+    "outputValidationMs" : 2,
+    "schemaVersion" : "sql-studio.diagnostics.v1"
+  },
+  "source" : "Controlled SDK fixture, not the unrecovered original user request"
+}

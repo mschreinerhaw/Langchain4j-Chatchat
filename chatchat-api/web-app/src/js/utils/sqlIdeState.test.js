@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { clampSqlPanel, restoreSqlLayout, sqlAssistantAnswer, sqlConversationPrompt } from './sqlIdeState';
+import { clampSqlPanel, restoreSqlLayout, sqlAssistantAnswer, sqlConversationPrompt, sqlExplorationPrompt } from './sqlIdeState';
 import { sqlTaskPresentation } from './sqlTaskPresentation';
 
 describe('SQL IDE state', () => {
+  it('includes only explicitly attached bounded SQL in exploration and never truncates the user objective silently',()=>{
+    expect(sqlExplorationPrompt('find tables')).toBe('find tables');
+    const request=sqlExplorationPrompt('explain the referenced fields',{path:'sql/current.sql',text:'SELECT x '.repeat(200)+'PRIVATE_TAIL'});
+    expect(request).toContain('sql/current.sql');expect(request).toContain('SELECT x');expect(request).toContain('explain the referenced fields');
+    expect(request).not.toContain('PRIVATE_TAIL');expect(request).toContain('never authorization to execute');
+    expect(()=>sqlExplorationPrompt('q'.repeat(3900),{path:'current.sql',text:'SELECT 1;'})).toThrow('4000');
+  });
   it('keeps the current request and selected source inside the server prompt limit', () => {
     const text = sqlConversationPrompt('请修改目标表字段', [{ role: 'user', text: '先分析 Mapping' }], { path: 'sql/a.sql', text: 'SELECT a' });
     expect(text).toContain('先分析 Mapping');

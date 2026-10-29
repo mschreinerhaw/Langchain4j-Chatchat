@@ -79,10 +79,28 @@ public class SqlStudioMetadataService {
             if(table.get("schema")!=null)captured.put("schema",table.get("schema"));
             if(table.get("comment")!=null)captured.put("comment",table.get("comment").toString());
             captured.put("serviceId",binding.serviceId());captured.put("assetRef",binding.assetRef());captured.put("sourceDialect",binding.sourceDialect());
+            captured.put("discoveryId",context.discoveryId());captured.put("bindingId",binding.bindingId());
+            if(table.get("tableRef") instanceof String ref)captured.put("tableRef",ref);
             captured.put("columns",columns);captured.put("relationsStatus",table.getOrDefault("relationsStatus",null));
             captured.put("foreignKeys",table.get("foreignKeys"));captured.put("snapshotId",selection.expectedSnapshotId());tables.add(captured);
         }
         return Map.of("tables",tables);
+    }
+
+    /** Old frozen inputs predate provenance fields; compare their complete original projection. */
+    static boolean sameCodingSnapshot(Map<String,Object> frozen,Map<String,Object> current){
+        if(frozen.equals(current))return true;
+        if(!(frozen.get("tables") instanceof List<?> before) || !(current.get("tables") instanceof List<?> after)
+            || before.size()!=after.size())return false;
+        var aligned=new ArrayList<Map<Object,Object>>();
+        for(int i=0;i<before.size();i++){
+            if(!(before.get(i) instanceof Map<?,?> old) || !(after.get(i) instanceof Map<?,?> fresh))return false;
+            var value=new LinkedHashMap<Object,Object>(fresh);
+            for(String key:List.of("discoveryId","bindingId","tableRef"))if(!old.containsKey(key))value.remove(key);
+            aligned.add(value);
+        }
+        var projection=new LinkedHashMap<String,Object>(current);projection.put("tables",aligned);
+        return frozen.equals(projection);
     }
 
     public List<SqlStudioMetadataGateway.Provider> providers(HttpServletRequest request, String projectId) {

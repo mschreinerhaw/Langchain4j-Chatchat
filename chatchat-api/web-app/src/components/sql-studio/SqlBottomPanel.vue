@@ -42,6 +42,30 @@
           {{ generation.applied ? "已应用" : generation.taskId ? "查看执行" : "待提交" }}</button
         ></div
       >
+      <div v-else-if="tab==='diagnostics'" aria-label="SQL AI 运行诊断">
+        <p>模型调用和工具耗时独立记录；SQL 提案不代表已经执行。响应预览经过脱敏和长度限制。</p>
+        <template v-if="result?.metadataExploration?.diagnostics?.schemaVersion">
+          <p>本次尝试 {{ result.metadataExploration.diagnostics.elapsedMs }} ms · 授权核查 {{ result.metadataExploration.diagnostics.authorizationMs ?? '未记录' }} ms · 元数据工具 {{ result.metadataExploration.diagnostics.toolMs }} ms · 输出校验 {{ result.metadataExploration.diagnostics.outputValidationMs }} ms（含解析 {{ result.metadataExploration.diagnostics.outputParseMs ?? '未记录' }} ms） · 格式修复 {{ result.metadataExploration.diagnostics.repairCount }} 次</p>
+          <details v-for="receipt in result.metadataExploration.diagnostics.modelResponses" :key="receipt.modelCall">
+            <summary>模型调用 {{ receipt.modelCall }} · {{ receipt.durationMs }} ms · {{ receipt.responseKind }} · {{ receipt.validationCode || '未记录校验失败' }}</summary>
+            <p>{{ receipt.providerModel || receipt.selectedModel }} · {{ receipt.protocol }} · 结束原因 {{ receipt.finishReason || 'SDK 未提供' }} · 输入 {{ receipt.inputTokens ?? '未提供' }} / 输出 {{ receipt.outputTokens ?? '未提供' }} Token</p>
+            <p v-if="receipt.validationMessage">{{ receipt.validationMessage }}</p>
+            <p>{{ receipt.responseChars }} 字符{{ receipt.previewTruncated ? '，预览已截断' : '' }} · 修复序号 {{ receipt.repairAttempt ?? '无' }}</p>
+            <pre>{{ receipt.responsePreview || '没有文本内容（工具请求或 SDK 未提供）' }}</pre>
+          </details>
+        </template>
+        <p v-else-if="result?.generation?.prepared?.taskRequest?.toolInput?.sqlCodingMetadata">此工程任务的模型和工具记录保留在现有任务监控中，以下为实际交付的元数据版本。</p>
+        <p v-else>此任务尚无新版受控响应诊断记录。历史任务不会补造原始响应或 Token 数。</p>
+        <details v-if="result?.generation?.prepared?.taskRequest?.toolInput?.sqlCodingMetadata?.tables?.length" aria-label="工程 SQL 元数据证据">
+          <summary>工程 SQL 元数据证据 · {{ result.generation.prepared.taskRequest.toolInput.sqlCodingMetadata.tables.length }} 张表</summary>
+          <div v-for="(table,index) in result.generation.prepared.taskRequest.toolInput.sqlCodingMetadata.tables" :key="index">
+            <strong>{{ [table.database,table.schema,table.tableName].filter(Boolean).join('.') }}</strong>
+            <p>发现上下文 {{ table.discoveryId || '历史记录未保留' }} · 绑定 {{ table.bindingId || '历史记录未保留' }}</p>
+            <p>结构快照 {{ table.snapshotId }} · 表证据 {{ table.tableRef || '历史记录未保留' }} · 可见字段 {{ table.columns.length }} 个</p>
+          </div>
+          <small>此版本在提交任务时冻结；恢复和读取结果时仍重新核查授权及结构一致性。</small>
+        </details>
+      </div>
       <div v-else
         ><p>{{
           result?.validation === "NOT_RUN" || !result

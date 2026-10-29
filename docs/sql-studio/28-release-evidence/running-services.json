@@ -1,0 +1,44 @@
+{
+  "runtime-os-app-stage-api-1": {
+    "id": "0faf54aea1ec44777cffecb8d8349234901416682f214e25ba8610d6e333303c",
+    "imageId": "sha256:c00d42f8b5d3fd999d8256374d63d1af4c8e71dd8b1fcb8d3544835b21a66ed7",
+    "image": "runtime-os-api:sql-studio-3eb9ab9f99f3-20261029",
+    "running": true,
+    "health": null
+  },
+  "runtime-os-app-stage-node-proxy-1": {
+    "id": "b0a63664040227163ee61d2186a15c4081aeca73e1a706372df66492ce1e1aeb",
+    "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+    "image": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+    "running": true,
+    "health": "healthy"
+  },
+  "runtime-os-app-stage-coding-agent-1": {
+    "id": "845baeffa16d71d8f2088f0e1ef08a81f4e4781db647b7fb9c2637e8a68a9686",
+    "imageId": "sha256:d3f4f3ea563d1e6657c46d441eb819939a1f1cca59a21d0c7d0dc5cd1e3e3b8e",
+    "image": "runtime-os-coding-agent:report-scope-c2c127a2043a-20261029",
+    "running": true,
+    "health": "healthy"
+  },
+  "runtime-os-app-stage-gateway-1": {
+    "id": "14f6ca9db68e65eada303f02986d43f67c735844b17bd6b8cacd9d109111bea5",
+    "imageId": "sha256:d091b0f0efc51dc800a7bcba6b4b243d002f6e5308a60131f890a6658baf34d3",
+    "image": "runtime-os-gateway:main-9b18e67f9-20261028",
+    "running": true,
+    "health": "healthy"
+  },
+  "runtime-os-app-stage-mcp-1": {
+    "id": "8644a7d6bc25a130e4e15fd490a1a0312a39f2868916710c6629ce2846437e84",
+    "imageId": "sha256:f90a1f377daa1a2baf0710d5d92ed7f9ee358c4cb9695ec85db0787daca76fa1",
+    "image": "runtime-os-mcp:cline-analysis-repair-f2d5bb92ffa6-20261029",
+    "running": true,
+    "health": null
+  },
+  "runtime-os-app-stage-news-1": {
+    "id": "6d88ae311cc51a68cb334ab5a10afca195a8849d9275d9922924b3401ada7dd4",
+    "imageId": "sha256:9ba6b23c5a41d8762a027513a583b694d5799fd47c0b7274e96a765611c0a3f3",
+    "image": "localhost:18443/runtime-os/news@sha256:dcd5b99623b7912bccddd7e37214b3a47c0f24c34ed633af283a3707788a5915",
+    "running": true,
+    "health": null
+  }
+}

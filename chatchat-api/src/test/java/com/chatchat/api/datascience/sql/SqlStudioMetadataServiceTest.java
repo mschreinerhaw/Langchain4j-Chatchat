@@ -17,6 +17,20 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class SqlStudioMetadataServiceTest {
+    @Test void provenanceExtensionPreservesOldFrozenSnapshotsWithoutIgnoringChangedStructureOrNewIdentities(){
+        var old=Map.<String,Object>of("tables",List.of(Map.of("tableName","orders","snapshotId","s","columns",List.of(Map.of("name","id")))));
+        var fresh=new LinkedHashMap<String,Object>((Map<String,Object>)((List<?>)old.get("tables")).get(0));
+        fresh.put("discoveryId","d");fresh.put("bindingId","b");fresh.put("tableRef","t");
+        var current=Map.<String,Object>of("tables",List.of(fresh));
+        assertThat(SqlStudioMetadataService.sameCodingSnapshot(old,current)).isTrue();
+        assertThat(SqlStudioMetadataService.sameCodingSnapshot(current,current)).isTrue();
+        var changed=new LinkedHashMap<>(fresh);changed.put("columns",List.of(Map.of("name","hidden")));
+        assertThat(SqlStudioMetadataService.sameCodingSnapshot(old,Map.of("tables",List.of(changed)))).isFalse();
+        changed=new LinkedHashMap<>(fresh);changed.put("bindingId","other");
+        assertThat(SqlStudioMetadataService.sameCodingSnapshot(current,Map.of("tables",List.of(changed)))).isFalse();
+        changed=new LinkedHashMap<>(fresh);changed.put("snapshotId","new");
+        assertThat(SqlStudioMetadataService.sameCodingSnapshot(old,Map.of("tables",List.of(changed)))).isFalse();
+    }
     SqlStudioService studio = mock(SqlStudioService.class);
     SqlStudioMetadataGateway gateway = mock(SqlStudioMetadataGateway.class);
     MockHttpServletRequest request = new MockHttpServletRequest();
@@ -89,12 +103,16 @@ class SqlStudioMetadataServiceTest {
         var context=service.create(request,"project",input());
         when(gateway.invoke(eq(request),any(),argThat(args->args!=null && "DESCRIBE".equals(args.get("operation")))))
             .thenReturn(new SqlStudioMetadataGateway.Result("registered-mcp",Map.of("status","SUCCEEDED","snapshotId","snapshot-1",
-                "doesNotExecuteSql",true,"items",List.of(Map.of("tableName","orders","database","db","schema","public",
+                "doesNotExecuteSql",true,"items",List.of(Map.of("tableName","orders","tableRef","orders-ref","database","db","schema","public",
                     "columns",List.of(Map.of("name","id","columnType","INT")),"connectionSecret","must not be captured")))));
         var selection=new SqlStudioMetadataService.CodingSelection(context.discoveryId(),context.bindings().get(0).bindingId(),
             "snapshot-1",List.of(new SqlStudioMetadataService.CodingTable("orders","db","public")));
         var captured=service.captureCoding(request,"project",selection);
         assertThat(captured.toString()).contains("orders","id","snapshot-1").doesNotContain("connectionSecret","must not be captured");
+        var source=(Map<?,?>)((List<?>)captured.get("tables")).get(0);
+        assertThat(source.get("discoveryId")).isEqualTo(context.discoveryId());
+        assertThat(source.get("bindingId")).isEqualTo(selection.bindingId());
+        assertThat(source.get("tableRef")).isEqualTo("orders-ref");
         var stale=new SqlStudioMetadataService.CodingSelection(selection.discoveryId(),selection.bindingId(),"changed",selection.tables());
         assertThatThrownBy(()->service.captureCoding(request,"project",stale)).isInstanceOf(ResponseStatusException.class);
         when(gateway.invoke(eq(request),any(),anyMap())).thenThrow(new ResponseStatusException(HttpStatus.FORBIDDEN));

@@ -55,7 +55,7 @@
         /></button>
       </nav>
       <span class="sql-ide-titlebar-spacer"></span>
-      <button type="button" :disabled="busy || activeFile?.kind !== 'SQL' || !!preview" @click="publicationOpen = true">发布为 MCP 模板</button>
+      <button type="button" :disabled="busy || activeFile?.kind !== 'SQL' || !!preview" title="管理当前文件的模板草稿、测试、发布与历史" @click="publicationOpen = true">模板管理与发布</button>
       <button
         type="button"
         :disabled="busy || activeFile?.kind !== 'SQL' || !activeFile?.editable || !!preview"
@@ -124,12 +124,15 @@
           ref="schemaExplorer"
           :controls-target="layout.assistant ? databaseContextTarget : null"
           :file-id="activeId"
+          :file-path="activeFile?.kind === 'SQL' ? activeFile.path : ''"
           :project-id="projectId"
           :identity="{ ...workspaceContext, tenantId, userId }"
           :dialect="dialect"
+          :locked="busy || taskRunning || !!pendingPhase"
           @insert="editorPane?.insertIdentifier($event)"
           @dialect="useSourceDialect"
           @selection-count="metadataTableCount = $event"
+          @explore="exploreDatabase"
         />
       </aside>
       <aside v-else-if="layout.explorer" class="sql-project-tree sql-ide-no-project"
@@ -137,7 +140,7 @@
       >
       <div
         v-if="layout.explorer"
-        class="sql-panel-resizer"
+        class="sql-panel-resizer sql-explorer-resizer"
         role="separator"
         aria-orientation="vertical"
         aria-label="调整工程文件宽度"
@@ -199,7 +202,7 @@
       </main>
       <div
         v-if="layout.assistant"
-        class="sql-panel-resizer"
+        class="sql-panel-resizer sql-assistant-resizer"
         role="separator"
         aria-orientation="vertical"
         aria-label="调整 AI 助手宽度"
@@ -212,7 +215,8 @@
         :ai-action="aiAction"
         :project-id="projectId"
         @action="chooseAiAction"
-        @publication="publicationOpen = true"
+        @reference-metadata="referenceMetadata"
+        @diagnostics="layout.bottom=true;layout.bottomTab='diagnostics'"
         :current-file="activeFile"
         :dialect-label="dialects.find((item) => item.value === dialect)?.label"
         :task-running="taskRunning"
@@ -237,6 +241,15 @@
         :generation-id="generationId"
         :result="result"
         :selected-code="selectedCode"
+        :include-current-file="includeCurrentFile"
+        :context-ready="!!schemaExplorer?.assistantContext?.()"
+        :editor-editable="!!activeFile?.editable && activeFile?.kind === 'SQL' && !preview && !activeFile?.conflict && !busy && !taskRunning"
+        :editor-selection-available="!!cursor?.hasSelection && cursor?.fileId === activeId"
+        @include-file="attachCurrentFile"
+        @view-file="editorPane?.focusEditor()"
+        @insert-sql="insertAssistantSql($event)"
+        @replace-sql="insertAssistantSql($event,true)"
+        @retry="retryQuestion"
         @remove-mapping-document="removeMappingDocument"
         @reference="toggle(referenceIds, $event)"
         @open-resource="openReference"

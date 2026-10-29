@@ -67,6 +67,36 @@ class SqlStudioMetadataAssistantTest {
     ChatResponse tool(String asset){return ChatResponse.builder().aiMessage(AiMessage.builder().toolExecutionRequests(List.of(ToolExecutionRequest.builder().id("call").name("sql_schema_context_query")
         .arguments("{\"operation\":\"SEARCH\",\"assetId\":\""+asset+"\",\"query\":\"scheduler\"}").build())).build()).build();}
     ChatResponse answer(String column)throws Exception{return ChatResponse.builder().aiMessage(AiMessage.from(json.writeValueAsString(Map.of("notes","Scheduling candidates are supported by the indexed fields; no SQL was executed.","files",List.of(),"candidateTables",List.of(Map.of("tableRef","table-ref","columns",List.of(column),"reason","Execution metadata")))))).build();}
+    void exportDiagnostic(String name,String value)throws Exception{
+        String directory=System.getProperty("sql.outputEvidenceDirectory");
+        if(directory!=null){var path=java.nio.file.Path.of(directory);java.nio.file.Files.createDirectories(path);
+            java.nio.file.Files.writeString(path.resolve(name+".json"),json.writerWithDefaultPrettyPrinter().writeValueAsString(Map.of(
+                "source","Controlled SDK fixture, not the unrecovered original user request","diagnostic",json.readTree(value))));}
+    }
+    @Test void toolRequestsWithNonJsonTextAreNotMistakenForFinalAnswers()throws Exception{
+        var call=tool("asset").aiMessage().toolExecutionRequests();
+        replies.add(ChatResponse.builder().aiMessage(AiMessage.builder().text("Inspecting metadata, not final JSON").toolExecutionRequests(call).build()).build());
+        replies.add(ChatResponse.builder().aiMessage(AiMessage.from("The visible metadata documents a status field; no SQL was executed.")).build());
+        assertThat(assistant.answer(request("plain"),runtimeContext()).getAnswer()).contains("visible metadata");
+        assertThat(journal.values()).noneMatch(value->value.contains("OUTPUT_JSON_INVALID"));verify(model,times(2)).chat(any(ChatRequest.class));
+    }
+    @Test void malformedOutputHasAtMostTwoRepairsAndPersistentDiagnosticEvidence()throws Exception{
+        for(int i=0;i<3;i++)replies.add(ChatResponse.builder().aiMessage(AiMessage.from("{\"notes\":"))
+            .finishReason(dev.langchain4j.model.output.FinishReason.LENGTH).tokenUsage(new dev.langchain4j.model.output.TokenUsage(10,20)).build());
+        assertThatThrownBy(()->assistant.answer(request("truncated"),runtimeContext())).hasMessageContaining("Token");
+        verify(model,times(3)).chat(any(ChatRequest.class));
+        String diagnostic=journal.get("tenant:owner:sql-metadata:discovery:diagnostics:truncated");
+        assertThat(diagnostic).contains("OUTPUT_TOKEN_LIMIT","FINAL_TEXT","inputTokens","outputTokens","repairCount\":2");
+        exportDiagnostic("controlled-output-token-limit",diagnostic);
+        assertThat(journal).doesNotContainKey("tenant:owner:sql-metadata:discovery:turn:truncated");verifyNoInteractions(parser);
+    }
+    @Test void malformedJsonCanBeRepairedWithoutRepeatingSuccessfulMetadataQueries()throws Exception{
+        replies.add(tool("asset"));replies.add(ChatResponse.builder().aiMessage(AiMessage.from("{\"notes\":" )).build());replies.add(answer("status"));
+        assertThat(assistant.answer(request("repair-format"),runtimeContext()).getAnswer()).contains("Scheduling candidates");
+        verify(model,times(3)).chat(any(ChatRequest.class));
+        verify(metadata,times(2)).operateScoped(any(),eq(context),any());
+        exportDiagnostic("controlled-json-repair",journal.get("tenant:owner:sql-metadata:discovery:diagnostics:repair-format"));
+    }
     @Test void reusesReauthorizedEvidenceAcrossRoundsWithoutCreatingCodingOrQueryingTheSameSchema()throws Exception{
         replies.add(tool("asset"));replies.add(answer("status"));var a=assistant.answer(request("a"),runtimeContext());
         var first=(Map<?,?>)a.getMetadata().get("sqlMetadataExploration");assertThat(((Map<?,?>)first.get("stats")).get("toolCalls")).isEqualTo(1);

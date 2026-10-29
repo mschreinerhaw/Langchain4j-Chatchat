@@ -1,0 +1,148 @@
+{
+  "realVuePage": true,
+  "realAuthorizedMetadataApi": true,
+  "mockedRequests": false,
+  "errors": [],
+  "widths": [
+    {
+      "requested": 480,
+      "regions": 3,
+      "panel": {
+        "top": 55,
+        "bottom": 974,
+        "height": 919,
+        "width": 480
+      },
+      "context": {
+        "top": 109,
+        "bottom": 188.1875,
+        "height": 79.1875,
+        "width": 479
+      },
+      "chat": {
+        "top": 189.1875,
+        "bottom": 793,
+        "height": 603.8125,
+        "width": 479
+      },
+      "input": {
+        "top": 793,
+        "bottom": 974,
+        "height": 181,
+        "width": 479
+      },
+      "horizontalOverflow": false,
+      "legacyCards": 0,
+      "comboboxes": 2,
+      "modeInsideInput": true,
+      "scrollContainers": [
+        "sql-assistant-scroll"
+      ]
+    },
+    {
+      "requested": 336,
+      "regions": 3,
+      "panel": {
+        "top": 55,
+        "bottom": 974,
+        "height": 919,
+        "width": 336
+      },
+      "context": {
+        "top": 109,
+        "bottom": 188.1875,
+        "height": 79.1875,
+        "width": 335
+      },
+      "chat": {
+        "top": 189.1875,
+        "bottom": 793,
+        "height": 603.8125,
+        "width": 335
+      },
+      "input": {
+        "top": 793,
+        "bottom": 974,
+        "height": 181,
+        "width": 335
+      },
+      "horizontalOverflow": false,
+      "legacyCards": 0,
+      "comboboxes": 2,
+      "modeInsideInput": true,
+      "scrollContainers": [
+        "sql-assistant-scroll"
+      ]
+    },
+    {
+      "requested": 240,
+      "regions": 3,
+      "panel": {
+        "top": 55,
+        "bottom": 974,
+        "height": 919,
+        "width": 240
+      },
+      "context": {
+        "top": 105,
+        "bottom": 222.1875,
+        "height": 117.1875,
+        "width": 239
+      },
+      "chat": {
+        "top": 223.1875,
+        "bottom": 803,
+        "height": 579.8125,
+        "width": 239
+      },
+      "input": {
+        "top": 803,
+        "bottom": 974,
+        "height": 171,
+        "width": 239
+      },
+      "horizontalOverflow": false,
+      "legacyCards": 0,
+      "comboboxes": 2,
+      "modeInsideInput": true,
+      "scrollContainers": [
+        "sql-assistant-scroll"
+      ]
+    },
+    {
+      "requested": 180,
+      "regions": 3,
+      "panel": {
+        "top": 55,
+        "bottom": 974,
+        "height": 919,
+        "width": 180
+      },
+      "context": {
+        "top": 105,
+        "bottom": 222.1875,
+        "height": 117.1875,
+        "width": 179
+      },
+      "chat": {
+        "top": 223.1875,
+        "bottom": 803,
+        "height": 579.8125,
+        "width": 179
+      },
+      "input": {
+        "top": 803,
+        "bottom": 974,
+        "height": 171,
+        "width": 179
+      },
+      "horizontalOverflow": false,
+      "legacyCards": 0,
+      "comboboxes": 2,
+      "modeInsideInput": true,
+      "scrollContainers": [
+        "sql-assistant-scroll"
+      ]
+    }
+  ]
+}

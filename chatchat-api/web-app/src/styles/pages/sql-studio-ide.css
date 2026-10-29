@@ -53,8 +53,8 @@
   --sql-assistant-grip: 5px;
   display: grid;
   grid-template-columns:
-    var(--sql-explorer-width) var(--sql-explorer-grip)
-    minmax(220px, 1fr) var(--sql-assistant-grip) var(--sql-assistant-width);
+    minmax(0, var(--sql-explorer-width)) var(--sql-explorer-grip)
+    minmax(220px, 1fr) var(--sql-assistant-grip) minmax(0, var(--sql-assistant-width));
   grid-template-rows: minmax(0, 1fr) 26px;
   flex: 1;
   min-width: 0;
@@ -104,10 +104,8 @@
 }
 .sql-resource-sidebar{display:flex;flex-direction:column;overflow:hidden;min-height:0;}
 .sql-resource-sidebar>.sql-project-tree,.sql-resource-sidebar>.sql-schema-explorer{flex:1;min-height:0;}
+.sql-resource-sidebar>.sql-schema-explorer:not(.is-navigation-open){flex:0 0 auto;}
 .sql-resource-heading{border-bottom:1px solid #e1e8f2;flex-shrink:0;}
-.sql-assistant-workbench{display:flex;gap:16px;align-items:center;padding:4px 16px;font-size:12px;flex-shrink:0;}
-.sql-assistant-workbench span{color:#2563eb;font-weight:600;}
-.sql-assistant-workbench button{border:0;background:transparent;color:#657b9b;padding:6px;cursor:pointer;}
 .sql-resource-sidebar>.sql-schema-explorer{border-top:1px solid #e1e8f2;}
 
 .sql-panel-resizer {
@@ -122,7 +120,7 @@
   background: #78a8ee;
 }
 
-.sql-ide-shell > .sql-project-tree + .sql-panel-resizer {
+.sql-ide-shell > .sql-explorer-resizer {
   grid-column: 2;
   grid-row: 1;
 }
@@ -176,7 +174,7 @@
   color: #a0acc0;
 }
 
-.sql-ide-main + .sql-panel-resizer {
+.sql-ide-shell > .sql-assistant-resizer {
   grid-column: 4;
   grid-row: 1;
 }
@@ -279,8 +277,7 @@
 }
 
 .sql-ide-assistant > header {
-  border-bottom: 0;
-  padding: 17px 18px 8px;
+  border-bottom:1px solid #e8edf4;padding:0;
 }
 
 .sql-assistant-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -298,7 +295,7 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  font-size: 19px;
+  font-size:14px;min-width:0;overflow:hidden;white-space:nowrap;
 }
 
 .sql-ide-assistant > header strong svg {
@@ -312,105 +309,12 @@
 
 
 
-.sql-current-context {
-  padding: 12px;
-  border: 1px solid #e1eafa;
-  border-radius: 8px;
-  background: #fbfcff;
-}
-
-.sql-current-context > div {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 10px;
-  color: #3b5277;
-}
-
-.sql-current-context span, .sql-related-resources button span {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sql-current-context svg, .sql-related-resources svg {
-  color: #397aff;
-  flex-shrink: 0;
-}
-
-.sql-current-context small, .sql-related-resources small {
-  border-radius: 5px;
-  padding: 3px 6px;
-  background: #edf3ff;
-  color: #627da9;
-  font-size: 10px;
-}
-
-.sql-current-context p {
-  margin: 8px 0 0;
-  color: #7d91ae;
-  font-size: 12px;
-}
-
-.sql-assistant-suggestions h3, .sql-related-resources h3 {
-  margin: 8px 0 10px;
-  font-size: 14px;
-}
-
-.sql-assistant-suggestions > button {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  width: 100%;
-  margin-bottom: 6px;
-  padding: 9px 10px;
-  border-color: #e0e9fa;
-  text-align: left;
-  font-size: 12px;
-}
-
-.sql-assistant-suggestions svg {
-  flex-shrink: 0;
-  color: #397aff;
-}
-
-.sql-related-resources > header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.sql-related-resources > header button {
-  border: 0;
-  font-size: 11px;
-  color: #8095b7;
-  padding: 3px;
-}
-
-.sql-related-resources > button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  border: 0;
-  padding: 7px 0;
-  text-align: left;
-  font-size: 12px;
-}
-
 .sql-ide .sql-chat-composer {
   margin: 8px 14px 4px;
   border-color: #a8c5ff;
 }
 
-.sql-chat-composer .sql-composer-tools {
-  display: flex;
-  gap: 7px;
-}
-
-.sql-composer-tools button, .sql-chat-composer .sql-primary {
+.sql-chat-composer .sql-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -773,9 +677,7 @@
 }
 
 .sql-ide-assistant .sql-chat-context {
-  flex-shrink: 0;
-  max-height: 30dvh;
-  overflow: auto;
+  min-width:0;
 }
 
 .sql-ide-assistant .sql-chat-composer,
@@ -1111,3 +1013,63 @@
 .sql-metadata-operations li {font-size:11px;overflow-wrap:anywhere}
 .sql-assistant-action {display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:12px}
 .sql-assistant-action select {min-width:0;max-width:100%;flex:1}
+
+/* Assistant: pinned context, one conversation scroll container, pinned composer. */
+.sql-ide-assistant{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;container-type:inline-size;container-name:sql-assistant}
+.sql-ide-assistant>header{flex:0 0 auto;min-width:0;grid-template-columns:minmax(0,1fr)}
+.sql-ide-assistant .sql-assistant-heading{min-width:0;padding:12px;gap:6px}
+.sql-assistant-header-actions{display:flex;gap:2px;align-items:center;flex-shrink:0}
+.sql-ide-assistant .sql-assistant-header-actions button{display:grid;place-items:center;width:25px;height:25px;min-height:0;padding:0;border:0;background:transparent;color:#71819a;border-radius:5px}
+.sql-ide-assistant .sql-assistant-header-actions button:hover:not(:disabled){background:#edf3ff;color:#2563eb}
+.sql-ide-assistant .sql-assistant-scroll{flex:1 1 0;min-height:0;min-width:0;overflow-y:auto;overflow-x:hidden;padding:14px 12px}
+.sql-chat-empty-state{display:flex;flex-direction:column;align-items:center;gap:9px;min-width:0;margin:auto 0;text-align:center}
+.sql-chat-empty-state>svg{color:#3478f6;margin-bottom:5px}
+.sql-chat-empty-state h3{margin:3px 0;color:#26364b;font-size:15px}
+.sql-chat-empty-state p{margin:0 0 8px;color:#7a8799;font-size:11px;line-height:1.7}
+.sql-studio .sql-chat-empty-state>button{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-width:0;padding:10px;border:1px solid #e0e6ef;border-radius:9px;background:#fff;color:#40516b;text-align:left;font-size:11px;line-height:1.6;white-space:normal}
+.sql-chat-empty-state>button>svg{flex-shrink:0;color:#8393aa}
+.sql-chat-empty-state>button>span{display:grid;flex:1;min-width:0;gap:2px;text-align:left}
+.sql-chat-empty-state>button strong{font-size:12px;font-weight:500;color:#30445e}
+.sql-chat-empty-state>button small{font-size:10px;color:#8290a3;line-height:1.6}
+.sql-chat-empty-state>button:hover:not(:disabled){background:#f7faff;border-color:#bbd0f1}
+.sql-assistant-input{flex:0 0 auto;min-width:0;padding:8px 12px 12px;border-top:1px solid #edf1f6;background:#fff}
+.sql-ide-assistant .sql-chat-composer{margin:0;padding:10px;border:1px solid #dfe5ed;border-radius:13px;background:#fff;overflow:visible;gap:8px}
+.sql-ide-assistant .sql-chat-composer:focus-within{box-shadow:none}
+.sql-ide-assistant .sql-assistant-action{flex:0 1 124px;margin:0;min-width:72px;gap:0;font-size:11px;color:#52647e}
+.sql-ide-assistant .sql-assistant-action>svg{flex-shrink:0}
+.sql-ide-assistant .sql-assistant-action select{width:100%;min-width:0;max-width:100%;height:28px;padding:3px 7px;border:1px solid #dfe5ed;border-radius:16px;background:#fff;color:#40516b;font-size:11px}
+.sql-ide-assistant .sql-chat-composer>.sql-composer-box{display:block;min-width:0;padding:0;border:1px solid #dce4ef;border-radius:10px;overflow:hidden;background:#fff}
+.sql-composer-box:focus-within{border-color:#8eb3ee;box-shadow:0 0 0 2px #397aff12}
+.sql-ide-assistant .sql-chat-composer textarea{min-height:68px;max-height:160px;padding:10px;resize:none;font-size:12px;line-height:1.6;overflow-y:auto}
+.sql-ide-assistant .sql-chat-composer>.sql-composer-actions{display:flex;align-items:center;justify-content:flex-start;gap:5px;padding:0}
+.sql-studio .sql-composer-settings{display:grid;place-items:center;flex:0 0 23px;width:23px;height:26px;min-height:0;padding:0;border:0;background:transparent;color:#71819a}
+.sql-studio .sql-attach-current-file{display:flex;align-items:center;justify-content:center;gap:4px;flex:0 1 auto;min-width:22px;height:27px;min-height:0;padding:3px 4px;border:0;background:transparent;color:#71819a;font-size:10px;white-space:nowrap}
+.sql-attach-current-file>svg{flex-shrink:0}
+.sql-attach-current-file>span{white-space:nowrap}
+.sql-composer-actions>button[aria-pressed=true]{background:#edf3ff!important;color:#2563eb!important;border-radius:5px}
+.sql-composer-spacer{flex:1;min-width:0}
+.sql-studio .sql-composer-actions>.sql-send-question,.sql-studio .sql-composer-actions>.sql-stop-question{display:flex;align-items:center;justify-content:center;gap:4px;flex:0 0 auto;height:29px;min-height:0;padding:4px 10px;border-radius:18px;font-size:11px;white-space:nowrap}
+.sql-studio .sql-stop-question{border:1px solid #e1b8b8;background:#fff8f8;color:#b04b4b}
+.sql-assistant-input>.sql-composer-hint{display:block;margin:7px 0 0;color:#8190a5;font-size:10px}
+.sql-ide-assistant .sql-chat-composer>.sql-composer-context{display:flex;align-items:center;justify-content:flex-start;gap:5px;padding:4px 6px;border-radius:5px;background:#f1f6ff;color:#5574a1;font-size:10px}
+.sql-composer-context span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sql-composer-context>.sql-context-file-link{flex:1;min-width:0;padding:0;overflow:hidden;text-align:left;text-overflow:ellipsis;white-space:nowrap}
+.sql-composer-context>svg{flex-shrink:0}
+.sql-composer-context button{display:grid;place-items:center;padding:2px;border:0;background:transparent;color:inherit}
+.sql-ide-assistant .sql-proposed-file{flex-wrap:wrap}
+.sql-proposed-file>.sql-assistant-message{flex-basis:100%;width:100%;min-width:0}
+.sql-studio .sql-retry-question{display:inline-flex;align-items:center;gap:5px;margin:8px 0;padding:5px 8px;border-color:#dce5f1;background:#fff;color:#3868ab;font-size:11px}
+.sql-assistant-dialog{box-sizing:border-box;width:min(540px,90vw);max-height:80dvh;margin:auto;padding:0;border:1px solid #dbe3ee;border-radius:12px;box-shadow:0 18px 70px #172b4a33;overflow:auto;color:#354865;background:white}
+.sql-assistant-dialog::backdrop{background:#1b2e4a55}
+.sql-assistant-dialog>header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid #e8edf4}
+.sql-assistant-dialog h3{margin:0;font-size:15px}
+.sql-assistant-dialog>header button{display:grid;place-items:center;padding:4px;border:0;background:transparent;color:#71819a}
+.sql-assistant-dialog .sql-chat-context{padding:14px 16px;border:0;font-size:12px}
+.sql-assistant-dialog .sql-chat-settings{margin:0}
+.sql-assistant-history{display:grid;gap:6px;padding:12px}
+.sql-assistant-history>button{display:grid;gap:5px;min-width:0;padding:10px;border:1px solid #e5eaf2;border-radius:7px;background:white;text-align:left;color:#395575;overflow-wrap:anywhere}
+.sql-assistant-history>button[aria-current=true]{border-color:#abc8f4;background:#f4f8ff}
+.sql-assistant-history strong{font-size:12px;font-weight:500}
+.sql-assistant-history small{font-size:10px;color:#8391a5}
+@container sql-assistant (max-width:300px){.sql-attach-current-file>span{display:none}.sql-ide-assistant .sql-assistant-action{flex-basis:110px}.sql-composer-spacer{display:none}.sql-studio .sql-composer-settings{flex-basis:20px;width:20px}.sql-studio .sql-composer-actions>.sql-send-question,.sql-studio .sql-composer-actions>.sql-stop-question{padding:4px 7px}}
+@container sql-assistant (max-width:240px){.sql-ide-assistant .sql-assistant-heading{padding:10px 8px}.sql-assistant-header-actions button{width:21px!important}.sql-assistant-input{padding:8px}.sql-ide-assistant .sql-assistant-scroll{padding:10px 8px}.sql-ide-assistant .sql-chat-composer{padding:7px}.sql-send-question>span,.sql-stop-question>span{display:none}}

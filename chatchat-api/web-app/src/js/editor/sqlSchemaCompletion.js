@@ -20,12 +20,31 @@ export async function sqlCompletionContext(source,position,dialect) {
   const suggestions=parser.getSuggestionAtCaretPosition(source,position);
   const entities=parser.getAllEntities(source,position)||[];
   const tokens=parser.getAllTokens(source);
+  const ctes=[];
+  if(tokens.some(token=>token.channel===0 && token.text?.toUpperCase()==='WITH')) {
+    // Read declarations from the installed grammar, rather than treating every FROM name as physical.
+    const rules=parser.createParser(source).ruleNames, pending=[parser.parse(source)];
+    while(pending.length){const node=pending.pop(),rule=rules[node.ruleIndex];
+      if(['commonTableExpr','commonTableExpressions','namedQuery','cteStatement'].includes(rule)){
+        const name=node.colId?.() || node._cteName || node.errorCapturingIdentifier?.() || node.identifier?.() || node.id_?.();
+        if(name)ctes.push({name:identifierParts(name.getText())[0]?.toLowerCase(),start:node.start?.start});
+      }
+      for(const child of node.children||[])if(child.ruleIndex!=null)pending.push(child);
+    }
+  }
   const tables=entities.filter(entity=>['table','view'].includes(entity.entityContextType) && entity.isAccessible===true).filter(entity=>{
-    // This parser version does not expose complete CTE bindings. Do not substitute a same-name physical table.
     if(identifierParts(entity.text).length>1)return true;
-    const statement=entity.belongStmt?.rootStmt || entity.belongStmt;
-    return !tokens.some(token=>token.channel===0 && token.text?.toUpperCase()==='WITH'
-      && token.start>=(statement?.position?.startIndex??0) && token.start<=(statement?.position?.endIndex??source.length));
+    // Some dialect collectors start rootStmt after WITH. Lexer statement delimiters
+    // keep the declaration in scope and exclude CTEs belonging to other statements.
+    const offset=entity.position?.startIndex??0;
+    const delimiters=tokens.filter(token=>token.channel===0 && token.text===';');
+    const start=(delimiters.filter(token=>token.start<offset).at(-1)?.start??-1)+1;
+    const end=delimiters.find(token=>token.start>=offset)?.start??source.length;
+    const withClause=tokens.some(token=>token.channel===0 && token.text?.toUpperCase()==='WITH' && token.start>=start && token.start<=end);
+    const declarations=ctes.filter(cte=>cte.start>=start && cte.start<=end);
+    // Incomplete/unsupported WITH stays conservative. Nested declarations can suppress a
+    // physical proposal, but never cause a CTE to inherit a same-name physical table's fields.
+    return !withClause || declarations.length>0 && !declarations.some(cte=>cte.name===identifierParts(entity.text)[0]?.toLowerCase());
   });
   return {supported:true,limited:['oracle','tsql'].includes(dialect),syntax:suggestions?.syntax?.map(item=>item.syntaxContextType)||[],keywords:suggestions?.keywords||[],tables};
 }

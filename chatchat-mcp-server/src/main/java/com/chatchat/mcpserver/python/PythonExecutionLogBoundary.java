@@ -13,7 +13,7 @@ final class PythonExecutionLogBoundary {
         "OSError", "FileNotFoundError", "PermissionError", "RuntimeError", "NotImplementedError",
         "RecursionError", "StopIteration", "SyntaxError", "IndentationError", "TabError", "TypeError",
         "ValueError", "UnicodeError", "UnicodeDecodeError", "UnicodeEncodeError", "ZeroDivisionError",
-        "OverflowError", "MemoryError", "TimeoutError", "SystemExit", "KeyboardInterrupt");
+        "OverflowError", "MemoryError", "TimeoutError", "SystemExit", "KeyboardInterrupt", "JSONDecodeError");
 
     static void persist(Path workspace, ObjectMapper mapper) throws IOException {
         Path directory = workspace.resolve("output/logs");

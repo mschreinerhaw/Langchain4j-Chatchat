@@ -89,6 +89,8 @@ def main():
     for name in re.findall(r'^([A-Za-z]+Error|[A-Za-z]+Exception|StopIteration|KeyboardInterrupt|SystemExit)(?=:|$)', err['tail'], re.M):
         if name in exceptions:
             diagnostic['exceptionType'] = name
+    if re.search(r'^json\.decoder\.JSONDecodeError:', err['tail'], re.M):
+        diagnostic['exceptionType'] = 'JSONDecodeError'
     allowed = {source: os.path.basename(source)}
     # Only names declared by the Runtime-owned project envelope may cross the log boundary.
     try:
@@ -126,6 +128,8 @@ def diagnostic_code(tail):
         return 'PERMISSION_DENIED'
     if re.search(r'^sqlite3\.(?:OperationalError|ProgrammingError|IntegrityError|DataError|InterfaceError|DatabaseError|NotSupportedError):', tail, re.M):
         return 'LOCAL_SQL_ERROR'
+    if re.search(r'^json\.decoder\.JSONDecodeError: Extra data:', tail, re.M):
+        return 'JSON_TRAILING_CONTENT'
     if re.search(r'^(?:json\.decoder\.JSONDecodeError|_?csv\.Error):', tail, re.M):
         return 'INPUT_FORMAT_ERROR'
     if re.search(r'^re\.(?:error|PatternError):', tail, re.M):

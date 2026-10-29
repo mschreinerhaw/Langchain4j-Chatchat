@@ -62,7 +62,8 @@ test('native SDK reuses the supplied report and keeps Python repair without a se
     }
     assert.match(JSON.stringify(request.messages),/ACTUAL_REPORT_FOR_REVIEW/);
     assert(request.tools.some(t=>t.name==='python_execute'));
-    assert(!request.tools.some(t=>['artifact_read','report_submit'].includes(t.name)));
+    assert(request.tools.some(t=>t.name==='artifact_read'));
+    assert(!request.tools.some(t=>t.name==='report_submit'));
     return complete;
   },verified,(_read,reference)=>({reference,complete:true,rows:[{reportMarkdown:'ACTUAL_REPORT_FOR_REVIEW'}],
     reportReferenceValidation:{valid:true}}),task);
@@ -159,12 +160,36 @@ test('a stopped process with missing output is repaired before any automatic rep
   assert.equal(counts.executions, 2); assert.equal(counts.reads, 1);
 });
 
+test('native review confirmation finishes with the exact admitted report without another read or execution', async () => {
+  const {run,counts}=fixture((turn,request)=>{
+    if(turn===1)return python(turn);
+    assert.equal(turn,2);
+    assert.match(JSON.stringify(request.messages),/ACTUAL_REVIEWED_REPORT/);
+    assert(request.tools.some(t=>t.name==='artifact_read'));
+    return {toolCalls:[{id:'confirm',name:'artifact_read',input:{reference:'runtime-evidence:result-1'}}]};
+  },verified,(_count,reference)=>({reference,complete:true,rows:[{reportMarkdown:'ACTUAL_REVIEWED_REPORT'}],reportReferenceValidation:{valid:true}}));
+  assert.equal((await run.run()).status,'completed');
+  assert.equal(counts.models,2);assert.equal(counts.executions,1);assert.equal(counts.reads,1);
+  assert.equal(counts.finish.operationId,counts.checkpoints.at(-1).lastCollectedOperation);
+  assert(run.events.some(e=>e.tool==='artifact_read'&&e.reused===true));
+});
+
 test('Runtime STOP takes precedence over a contradictory successful receipt and never reads an artifact', async () => {
   const { run, counts } = fixture(turn => python(turn), version => ({ ...verified(version),
     executionFeedback: { repair: { action: 'STOP', allowed: false, reason: 'POLICY_STOP' } } }),
   () => { throw Error('must not read'); });
   assert.equal((await run.run()).status, 'failed');
   assert.equal(counts.models, 1); assert.equal(counts.executions, 1); assert.equal(counts.reads, 0);
+});
+
+test('a later failed execution invalidates the cached earlier report for completion',async()=>{
+  const task={...contract,budget:{maxModelCalls:3}};
+  const {run,counts}=fixture(turn=>turn<3?python(turn):{
+    toolCalls:[{id:'stale-confirm',name:'artifact_read',input:{reference:'runtime-evidence:result-1'}}],
+  },version=>version===1?verified(version):{status:'FAILED',executorStopped:true,resultAvailable:false},
+  (_count,reference)=>({reference,complete:true,rows:[{reportMarkdown:'earlier report'}],reportReferenceValidation:{valid:true}}),task);
+  assert.equal((await run.run()).status,'failed');assert.equal(counts.executions,2);assert.equal(counts.reads,2);
+  assert.equal(counts.finish?.operationId??null,null);
 });
 
 test('review metadata cannot grant artifact read authority', () => {

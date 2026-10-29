@@ -100,5 +100,14 @@ class StreamBoundaryTest(unittest.TestCase):
                 self.assertNotIn('PRIVATE_',content)
 
 
+    def test_mixed_message_trailing_requirements_have_specific_safe_json_feedback(self):
+        result, diagnostic, content = self.execute("import json\njson.loads('{\"rows\":[1,2]} PRIVATE_REQUIREMENT_94')\n")
+        self.assertNotEqual(0, result.returncode)
+        self.assertEqual('JSONDecodeError', diagnostic['exceptionType'])
+        self.assertEqual('JSON_TRAILING_CONTENT', diagnostic['diagnosticCode'])
+        self.assertEqual(2, diagnostic['line'])
+        self.assertNotIn('PRIVATE_REQUIREMENT_94', content)
+        self.assertNotIn('rows', content)
+
 if __name__ == '__main__':
     unittest.main()

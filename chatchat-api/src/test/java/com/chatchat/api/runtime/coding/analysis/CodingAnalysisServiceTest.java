@@ -259,7 +259,7 @@ class CodingAnalysisServiceTest {
         assertThat(contract.getValue().metadataRefs()).contains("runtime-coding:analysis-reviewed-path:v1")
             .doesNotContain("runtime-coding:analysis-fast-path:v1");
         assertThat(contract.getValue().objective().instruction()).contains("automatically invokes", "reviewedArtifact",
-            "Do not request the same report again", "Runtime will perform no semantic review",
+            "confirm completion with artifact_read", "without a second read or Python execution", "Runtime will perform no semantic review",
             "preserve the exact field meaning declared by fieldDefinitions", "a plausible value under the wrong label must be repaired");
     }
     @Test void combinedSourcesKeepTheirOwnDeclaredRepresentationInTheAcceptedObjective() {

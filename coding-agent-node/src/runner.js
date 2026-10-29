@@ -94,6 +94,7 @@ export function createCodingRun(contract, gateway, options = {}) {
     ?? restored?.messages?.flatMap(message => message.content ?? []).filter(part =>
       part.type === 'tool-result' && verifiedReceipt(part.output)).at(-1)?.output.resultDatasetRef ?? null;
   let reportReferenceFailure = restored?.reportReferenceFailure ?? null;
+  let reviewedArtifactCache = null;
   let terminalFeedback = restored?.terminalFeedback ?? null;
   const lifecyclePolicy = !workspace && contract.runtimeContext?.codingLifecycle;
   if (lifecyclePolicy && (lifecyclePolicy.schemaVersion !== CODE_LIFECYCLE_VERSION || lifecyclePolicy.patchOnlyAfterFirst !== true))
@@ -132,7 +133,11 @@ export function createCodingRun(contract, gateway, options = {}) {
     throw new TypeError('Reviewed analysis requires authorized Runtime artifact reads');
   const readArtifact = async (reference, signal, automatic = false) => {
     await forward({ type: 'TOOL_STARTED', tool: 'artifact_read', reference, automatic });
-    const result = await gateway.readArtifact(contract, reference, signal);
+    // Confirmation reuses only the exact immutable report admitted for this task's
+    // latest execution. A new execution clears it, including failed executions.
+    const reused = !automatic && lastCollectedOperation && reference === lastCollectedDatasetRef
+      && reviewedArtifactCache?.reference === reference;
+    const result = reused ? reviewedArtifactCache : await gateway.readArtifact(contract, reference, signal);
     if (automatic && (result?.reference !== reference || result.complete !== true
         || !Array.isArray(result.rows) || result.rows.length !== 1))
       throw new TypeError('REVIEWED_ARTIFACT_INVALID: exact complete Runtime report required');
@@ -141,6 +146,7 @@ export function createCodingRun(contract, gateway, options = {}) {
       if (reportReferenceFailure) lastCollectedOperation = null;
     }
     await forward({ type: 'TOOL_FINISHED', tool: 'artifact_read', reference, automatic,
+      ...(reused ? { reused: true } : {}),
       status: reportReferenceFailure ? 'FAILED' : 'SUCCEEDED' });
     return result;
   };
@@ -319,6 +325,7 @@ export function createCodingRun(contract, gateway, options = {}) {
       // A later attempt must never finish using an earlier program's evidence.
       lastCollectedOperation = null;
       lastCollectedDatasetRef = null;
+      reviewedArtifactCache = null;
       await forward({ type: 'TOOL_STARTED', tool: 'python_execute', operationId: id });
       const abort = () => { void gateway.cancelPython?.(contract, id).catch(() => {}); };
       context.signal?.addEventListener('abort', abort, { once: true });
@@ -376,7 +383,7 @@ export function createCodingRun(contract, gateway, options = {}) {
           // semantic review and any necessary repair still happen there.
           lastCollectedOperation = null;
           const artifact = await readArtifact(receipt.resultDatasetRef, context.signal, true);
-          if (!reportReferenceFailure) lastCollectedOperation = id;
+          if (!reportReferenceFailure) { lastCollectedOperation = id; reviewedArtifactCache = artifact; }
           receipt = { ...receipt, reviewedArtifact: artifact };
         }
         const sourceContext = contract.runtimeContext?.codeProject ? { project:decodeProject(source,contract.runtimeContext.codeProject),
@@ -432,7 +439,7 @@ export function createCodingRun(contract, gateway, options = {}) {
   if (permitted.has('artifact_read')) tools.push({
     name: 'artifact_read',
     ...(nativeSdk && reviewedAnalysis ? { lifecycle: { completesRun: true } } : {}),
-    description: 'Read a previously committed Coding result through Runtime authorization. If reportReferenceValidation.valid is false, repair the Python output using the exact authorizedDatasetReferences (including every suffix), rerun it, and review the new result before finishing.',
+    description: 'Review a previously committed Coding result through Runtime authorization. After reviewing reviewedArtifact, call this with its exact resultDatasetRef to confirm completion without rerunning Python; the latest immutable report is reused. If reportReferenceValidation.valid is false, repair the Python output using the exact authorizedDatasetReferences (including every suffix), rerun it, and review the new result before finishing.',
     inputSchema: { type: 'object', properties: { reference: { type: 'string' } },
       required: ['reference'], additionalProperties: false },
     executionMode: 'sequential',
@@ -470,7 +477,7 @@ export function createCodingRun(contract, gateway, options = {}) {
     fileInput ? 'Read the actual manifest. Prefer nativeFiles using their sourceDatasetRef and actual original format (text needs only open); verify each native file sha256. Parts preserve historical transport rows for compatibility. For structured datasets read declared part files using Python json/csv or installed Parquet readers. No application-specific Python module is required. Map storageName to logical name using the declared columns; decode JSON cells and preserve missing/null values. Batched logical rows contain datasetReference and record. Do not index raw Parquet storage columns by logical names. Each Python call starts a fresh sandbox with Java-authorized input versions. Use the exact files[].virtualPath values supplied by Java. All file ID directories are siblings directly under /data/input: the manifest is /data/input/{manifestFileId}/manifest.json, the schema is /data/input/{schemaFileId}/schema.json, and each part is /data/input/{part.fileId}/{part.fileName}. Never nest schema or part IDs under the manifest directory. Verify SHA-256 and row counts, map storage columns to logical names, and decode JSON cells. Use pyarrow or pandas.read_parquet(dtype_backend="pyarrow") to retain nullable integer/decimal precision. Parquet presence columns pN distinguish missing from null; CSV null/missing/backslash rules are explicit in schema.json. Full data stays in files, never ask to put it in a prompt. Do not reopen previous output in a new sandbox.' : 'Each Python call starts a fresh sandbox with only the immutable input versions explicitly authorized and delivered by Java, without earlier output files or Python variables. Single inputs use /data/input/{fileId}/input.jsonl; chunked inputs use /data/input/{fileId}/manifest.json and the ordered, hash-checked chunks listed there. Do not launch a new call just to open a previous output file.',
     'Runtime returns versioned executionFeedback after independently confirming process stop: safe exception category, normalized technical message, source locations, code hash, validation state and a Java-owned repair decision. Raw stdout/stderr and business values are omitted. When repair.allowed is true, stay in this task, keep the authorized immutable inputs, and prefer the smallest repair.edits against repair.baseCodeHash. Do not restart the analysis or fetch the same data again. When action is STOP do not execute another version, install dependencies, change permissions or expand access. Exit code zero without a validated result is a repairable output failure, never task completion.',
     'A SUCCEEDED receipt with resultDatasetRef, validationRecordRef and evidenceBundleRef means Runtime archived the result. INCONCLUSIVE with businessValidationPassed=false means business correctness was not evaluated, not an execution failure. You own the interpretation and must report that limitation; Runtime only validates structure and authorized references.',
-    ...(reviewedAnalysis ? ['For reviewed analysis, python_execute automatically calls the authorized artifact_read for the exact registered resultDatasetRef and returns the complete report under reviewedArtifact. Perform your semantic review on that actual report in your next turn. Do not call artifact_read again for the same report already supplied. Repair unsupported findings or invalid references when necessary; otherwise finish without another execution. Automatic reading does not establish business correctness. When the report is supported, finish with one concise confirmation. Runtime publishes the archived report with its complete business explanation; repeating that report in the final assistant message adds no deliverable. Keep all required review checks and repair unsupported findings before finishing.'] : []),
+    ...(reviewedAnalysis ? ['For reviewed analysis, python_execute automatically calls the authorized artifact_read for the exact registered resultDatasetRef and returns the complete report under reviewedArtifact. Perform your semantic review on that actual report in your next turn. Use artifact_read with that exact resultDatasetRef to confirm completion after your review; it reuses the supplied immutable report without executing Python again. Repair unsupported findings or invalid references when necessary; otherwise confirm completion without another execution. Automatic reading does not establish business correctness. When the report is supported, finish with one concise confirmation. Runtime publishes the archived report with its complete business explanation; repeating that report in the final assistant message adds no deliverable. Keep all required review checks and repair unsupported findings before finishing.'] : []),
   ]).join('\n');
   const workspaceRepairGuidance = workspaceFast
     ? '\nGenerate each source file once. For existing files use files[].repair {baseCodeSha256,edits:[{oldText,newText}]} against codeVersions in the last receipt. The SDK editor applies exact edits; all current files are retained and parsed again. Preserve previous corrections and unrelated code. Never replace existing files with a complete regenerated source.' : '';
@@ -554,8 +561,7 @@ export function createCodingRun(contract, gateway, options = {}) {
         // The complete derived report is already in the preceding tool receipt.
         // Reuse it for review; keep Python available for justified corrections.
         if (Array.isArray(request?.tools)) request.tools = request.tools.filter(tool =>
-          !(reviewedAnalysis && lastCollectedOperation && !reportReferenceFailure && tool.name === 'artifact_read')
-          && !(textResults && (codeFiles.length || /^cline-/.test(lastCollectedOperation ?? '')) && tool.name === 'report_submit'));
+          !(textResults && (codeFiles.length || /^cline-/.test(lastCollectedOperation ?? '')) && tool.name === 'report_submit'));
         if (terminalFeedback) throw new Error('Runtime execution policy denied automatic repair');
         const repairingModelResponse = Boolean(modelResponseFeedback);
         if (repairingModelResponse) {

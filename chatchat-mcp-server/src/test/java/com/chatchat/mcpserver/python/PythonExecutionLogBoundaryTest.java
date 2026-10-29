@@ -7,6 +7,15 @@ import org.junit.jupiter.api.io.TempDir;
 import static org.junit.jupiter.api.Assertions.*;
 
 class PythonExecutionLogBoundaryTest {
+    @Test void trailingJsonGuidanceRetainsTypeWithoutInputOrExceptionText() throws Exception {
+        Path logs=Files.createDirectories(workspace.resolve("output/logs"));
+        Files.writeString(logs.resolve("runtime-diagnostic.json"),"{\"exceptionType\":\"JSONDecodeError\",\"diagnosticCode\":\"JSON_TRAILING_CONTENT\",\"line\":2,\"message\":\"PRIVATE_CUSTOMER_TEXT\"}");
+        PythonExecutionLogBoundary.persist(workspace,new ObjectMapper());
+        String safe=Files.readString(logs.resolve("runtime-diagnostic.json"));
+        assertTrue(safe.contains("JSONDecodeError"));assertTrue(safe.contains("JSON_TRAILING_CONTENT"));
+        assertFalse(safe.contains("PRIVATE_CUSTOMER_TEXT"));
+        assertTrue(Files.readString(logs.resolve("stderr.txt")).contains("raw_decode"));
+    }
     @Test void retainsOnlyFramesBoundToTheActualProjectSource() throws Exception {
         var mapper=new ObjectMapper();var project=new com.chatchat.common.runtime.coding.PythonCodeProject.Project("pkg/main.py",java.util.List.of(new com.chatchat.common.runtime.coding.PythonCodeProject.File("pkg/main.py","raise KeyError('private')\n")));
         String source=com.chatchat.common.runtime.coding.PythonCodeProject.template().replace(com.chatchat.common.runtime.coding.PythonCodeProject.TOKEN,java.util.Base64.getEncoder().encodeToString(mapper.writeValueAsBytes(project)));

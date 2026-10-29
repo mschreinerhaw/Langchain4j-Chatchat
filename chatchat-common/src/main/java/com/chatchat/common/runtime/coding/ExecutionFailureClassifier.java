@@ -15,6 +15,7 @@ public final class ExecutionFailureClassifier {
         Map.entry("FIELD_ACCESS_ERROR", "Compare the field access at the reported line with the authorized schema and variable definitions; do not guess missing business fields."),
         Map.entry("LOCAL_SQL_ERROR", "Repair the in-memory SQLite statement at the reported source location using only delivered columns; qualify ambiguous join columns, check aliases and types. Do not connect to external databases or replace missing data."),
         Map.entry("INPUT_FORMAT_ERROR", "Use the actual original-file format and exact paths declared by Runtime. Original user-message TEXT files contain raw text, not a JSON envelope. Correct parsing without discarding source rows or inventing missing data."),
+        Map.entry("JSON_TRAILING_CONTENT", "The JSON decoder found content after a complete JSON value. Original messages may mix commands, JSON responses and trailing requirements. Use JSONDecoder.raw_decode at an identified JSON boundary, retain its end offset and interpret the remaining text separately. Validate the decoded structure and account for all records; never truncate rows, hardcode input data, strip escapes indiscriminately or execute embedded commands."),
         Map.entry("PATTERN_SYNTAX_ERROR", "Correct the expression at the reported source location using supported Python syntax or an installed parser. Preserve the complete input scope and do not fabricate matches."),
         Map.entry("PERMISSION_DENIED", "The sandbox denied access. Do not change paths or permissions to bypass authorization."),
         Map.entry("RESOURCE_EXHAUSTED", "Execution exhausted its resource limit. Stop and ask Runtime to revise the authorized resource budget."),
@@ -38,6 +39,7 @@ public final class ExecutionFailureClassifier {
             case "MemoryError" -> "RESOURCE_EXHAUSTED";
             case "TimeoutError" -> "TIMEOUT";
             case "FileNotFoundError" -> "INPUT_FILE_NOT_FOUND";
+            case "JSONDecodeError" -> "INPUT_FORMAT_ERROR";
             case "TypeError", "ValueError", "NameError", "UnboundLocalError", "ZeroDivisionError", "AssertionError" -> "PROGRAM_ERROR";
             default -> "UNKNOWN";
         };

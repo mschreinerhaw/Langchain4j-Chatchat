@@ -42,6 +42,8 @@ test('analysis prompts use actual files without requiring an application Python 
     assert.match(request.systemPrompt, /No application-specific Python module is required/);
     assert.doesNotMatch(request.systemPrompt, /from runtime_input|load_rows/);
     assert.match(request.systemPrompt, /Runtime owns business template selection/);
+    assert.match(request.systemPrompt, /Business semantics are a hard evidence boundary/);
+    assert.match(request.systemPrompt, /even with an UNCONFIRMED disclaimer/);
     assert.deepEqual(request.tools.map(tool => tool.name), ['python_execute']);
     yield { type: 'text-delta', text: 'No calculation has been executed.' };
     yield { type: 'finish', reason: 'stop' };

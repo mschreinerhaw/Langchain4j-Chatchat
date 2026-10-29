@@ -13,6 +13,26 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class InteractionWorkflowCoordinatorTest {
+    @Test void readingStructureAndAnalyzingTheSameAuthorizedFileInvokeCodingOnlyOnce() {
+        var policy=mock(AgentToolPolicyResolver.class);var planner=mock(ProblemAnalysisPlanner.class);
+        var direct=mock(DirectAnswerWorkflow.class);var governed=mock(InteractionWorkflowCoordinator.GovernedExecution.class);
+        var agent=mock(SkillDefinition.class);when(agent.boundMcpToolNames()).thenReturn(List.of());
+        var request=InteractionRequest.builder().query("understand and analyze uploaded originals").toolInput(Map.of("__userAssetIds",List.of("a".repeat(64)))).build();
+        var context=InteractionContext.builder().build();
+        var file=new ProblemAnalysisPlan.FileInput("controlled.xlsx","user-asset:"+"a".repeat(64)+":"+"b".repeat(64),"application/xlsx",100,"b".repeat(64));
+        var files=List.of(file);when(direct.describeFiles(request)).thenReturn(files);
+        var plan=new ProblemAnalysisPlan(ProblemAnalysisPlan.Status.READY,"one analysis","files","data","Same delivered evidence",
+            List.of(new ProblemAnalysisPlan.Task("read structure",ProblemAnalysisPlan.Intent.DOCUMENT_UNDERSTANDING,List.of("original"),"structure"),
+                new ProblemAnalysisPlan.Task("analyze",ProblemAnalysisPlan.Intent.DATA_ANALYSIS,List.of("original"),"report")),"",new ProblemAnalysisPlan.FileAnalysis(files,ProblemAnalysisPlan.ToolDataDependency.NONE));
+        when(planner.analyzeFiles(eq(request),eq(context),eq(agent),anyList(),eq(files))).thenReturn(plan);
+        when(direct.execute(eq(request),any(),eq(agent))).thenAnswer(call->{
+            InteractionContext planned=call.getArgument(1);assertThat(planned.problemAnalysisPlan()).isSameAs(plan);
+            assertThat(planned.problemAnalysisPlan().tasks()).hasSize(2);
+            return InteractionResponse.builder().answer("reviewed report").build();
+        });
+        new InteractionWorkflowCoordinator(policy,planner,direct,null).execute(request,context,agent,governed);
+        verify(direct,times(1)).execute(eq(request),any(),eq(agent));verifyNoInteractions(governed);
+    }
     @org.junit.jupiter.params.ParameterizedTest @org.junit.jupiter.params.provider.ValueSource(strings={"OPTIONAL","REQUIRED"})
     void mixedSourcesKeepTheGovernedWorkflowAndBothAuthorizedFileReferences(String dependency) {
         var policy=mock(AgentToolPolicyResolver.class);var planner=mock(ProblemAnalysisPlanner.class);

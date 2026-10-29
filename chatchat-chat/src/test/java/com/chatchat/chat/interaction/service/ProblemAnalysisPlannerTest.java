@@ -190,6 +190,28 @@ class ProblemAnalysisPlannerTest {
         assertThat(ProblemAnalysisPlanner.blockedResponse(plan).getAnswer()).isEqualTo("请说明你希望分析的对象。");
     }
 
+    @Test void understandingDeliveredFilesAndOneAnalysisUseTheSameCodingWorkflowWithoutDroppingGoals() {
+        var plan=filePreparationPlan(ProblemAnalysisPlan.ToolDataDependency.NONE);
+        assertThat(new CapabilityWorkflowRouter().requiredWorkflows(plan)).containsExactly(RuntimeWorkflowFamily.DATA_ANALYSIS);
+        assertThat(ProblemAnalysisPlanner.executable(plan)).isTrue();
+        assertThat(plan.tasks()).hasSize(2);
+    }
+    @Test void externalDataDependencyCannotBeBypassedByTheFilePreparationRoute() {
+        assertThat(ProblemAnalysisPlanner.executable(filePreparationPlan(ProblemAnalysisPlan.ToolDataDependency.REQUIRED))).isFalse();
+        var original=filePreparationPlan(ProblemAnalysisPlan.ToolDataDependency.NONE);
+        var noFiles=new ProblemAnalysisPlan(original.status(),original.objective(),original.subject(),original.domain(),original.explanation(),original.tasks(),"");
+        assertThat(ProblemAnalysisPlanner.executable(noFiles)).isFalse();
+        var tasks=new java.util.ArrayList<>(original.tasks());
+        tasks.add(new ProblemAnalysisPlan.Task("perform external action",ProblemAnalysisPlan.Intent.ACTION_EXECUTION,List.of(),"action result"));
+        var action=new ProblemAnalysisPlan(original.status(),original.objective(),original.subject(),original.domain(),original.explanation(),tasks,"",original.fileAnalysis());
+        assertThat(ProblemAnalysisPlanner.executable(action)).isFalse();
+    }
+    private static ProblemAnalysisPlan filePreparationPlan(ProblemAnalysisPlan.ToolDataDependency dependency) {
+        var file=new ProblemAnalysisPlan.FileInput("controlled.xlsx","user-asset:"+"a".repeat(64)+":"+"b".repeat(64),"application/octet-stream",100,"b".repeat(64));
+        return new ProblemAnalysisPlan(ProblemAnalysisPlan.Status.READY,"understand and analyze the supplied workbook","workbook","analysis","One analysis over the same authorized originals",
+            List.of(new ProblemAnalysisPlan.Task("understand structure",ProblemAnalysisPlan.Intent.DOCUMENT_UNDERSTANDING,List.of("uploaded original"),"field explanation"),
+                new ProblemAnalysisPlan.Task("analyze records",ProblemAnalysisPlan.Intent.DATA_ANALYSIS,List.of("uploaded original"),"computed report")),"",new ProblemAnalysisPlan.FileAnalysis(List.of(file),dependency));
+    }
     @Test void multipleGoalsArePreservedAndNotSilentlyReducedToOneWorkflow() {
         var plan = new ProblemAnalysisPlan(ProblemAnalysisPlan.Status.READY, "先解释再执行", "API", "金融", "两个不同目标",
             List.of(new ProblemAnalysisPlan.Task("解释用途", ProblemAnalysisPlan.Intent.ASSET_USAGE_GUIDANCE, List.of("契约"), "说明"),

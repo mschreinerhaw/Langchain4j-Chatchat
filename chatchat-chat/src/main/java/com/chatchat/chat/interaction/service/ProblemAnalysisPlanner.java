@@ -218,6 +218,7 @@ public class ProblemAnalysisPlanner {
             + "When a business lookup supplies evidence for the file-analysis objective, represent that lookup in the DATA_ANALYSIS task's dataRequirements, "
             + "not as a separate ASSET_USAGE_GUIDANCE task. ASSET_USAGE_GUIDANCE explains declared purpose/usage only; it does not acquire business records. "
             + "File analysis plus an optional or required business source normally remains ONE DATA_ANALYSIS workflow with source dependencies. "
+            + "Reading workbook structure, sheet types and field definitions is preparation inside that DATA_ANALYSIS task, not a separate DOCUMENT_UNDERSTANDING workflow. "
             + "Only retain distinct intents when the user requests genuinely separate deliverables, such as explaining a tool's usage or performing an authorized business action. "
             + "Do not downgrade a necessary dependency just because files are present. A maintained assistant workflow alone does not make its data necessary. "
             + "Use REQUIRED when dependency is uncertain, or NEEDS_CLARIFICATION if the objective is unclear. "

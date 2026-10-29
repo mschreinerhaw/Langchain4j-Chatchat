@@ -25,3 +25,11 @@ INCONCLUSIVE 仅代表 Runtime 未作业务正确性判定，不能被伪造为�
 ## 验证进度
 
 修复正在进行隔离联调与原始请求重试验证；最终计数、部署和残留限制以完成后的证据补充为准，不将自动化替身当作真实业务验收。
+
+## 生产回放补充：同一文件的理解与分析
+
+`f2d5bb92f` 部署后，接口原始请求重试 `18f57036-29ee-4cf5-a225-1b9a6ca124b4` 已 SUCCESS / SUCCEEDED，原问题完全一致，报告约 4,500 字。提供的响应实际为 7 条：3 SUCCESS、3 RUNNING_EXECUTION、1 STOP，与报告计数一致；报告未带出原 curl 凭据。
+
+Excel 的首次原始重试 `f38c557a-8a49-4345-a5f6-37c572d9fd32` 被规划阶段以“多个工作流目标”阻止，实际没有进入 Cline。本次保留该 PARTIAL / NO_PRESENTABLE_RESULT 记录，未伪装成功。真实计划将理解同一上传文件结构和分析同一文件数据分为 DOCUMENT_UNDERSTANDING、DATA_ANALYSIS。
+
+最小补齐：仅当 Runtime 已绑定原始文件、外部数据依赖为 NONE、恰有一个 DATA_ANALYSIS，且其他任务全部是 DOCUMENT_UNDERSTANDING 时，统一进入原 DATA_ANALYSIS/Cline 流程。所有任务目标和文件引用原样保留，不创建独立文档执行器。外部数据依赖、业务动作及无授权文件的组合仍保留原门禁。规划提示词同步明确文件结构理解是分析准备步骤；路由正确性不只依赖模型遵循提示词。

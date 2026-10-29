@@ -8,6 +8,16 @@ public final class CapabilityWorkflowRouter {
     public List<RuntimeWorkflowFamily> requiredWorkflows(ProblemAnalysisPlan plan) {
         if (plan == null || plan.status() != ProblemAnalysisPlan.Status.READY)
             throw new IllegalArgumentException("A ready problem analysis plan is required before workflow selection");
+        // Understanding delivered originals is already part of the same Coding
+        // analysis. Preserve all objectives, but do not create a second executor
+        // for file preparation. External data and action intents keep their gates.
+        if (plan.fileAnalysis() != null
+                && plan.fileAnalysis().toolDataDependency() == ProblemAnalysisPlan.ToolDataDependency.NONE
+                && plan.tasks().stream().filter(task -> task.intent() == ProblemAnalysisPlan.Intent.DATA_ANALYSIS).count() == 1
+                && plan.tasks().stream().anyMatch(task -> task.intent() == ProblemAnalysisPlan.Intent.DOCUMENT_UNDERSTANDING)
+                && plan.tasks().stream().allMatch(task -> task.intent() == ProblemAnalysisPlan.Intent.DOCUMENT_UNDERSTANDING
+                    || task.intent() == ProblemAnalysisPlan.Intent.DATA_ANALYSIS))
+            return List.of(RuntimeWorkflowFamily.DATA_ANALYSIS);
         return plan.tasks().stream().map(task -> switch (task.intent()) {
             case DIRECT_ANSWER -> RuntimeWorkflowFamily.DIRECT_ANSWER;
             case DOCUMENT_UNDERSTANDING -> RuntimeWorkflowFamily.DOCUMENT;

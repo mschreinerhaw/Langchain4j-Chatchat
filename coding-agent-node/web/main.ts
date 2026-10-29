@@ -1,5 +1,5 @@
 import type { CodeVersion, NodeSnapshot, TaskDetail, TaskPage } from '../src/monitor-types.ts';
-import { repairLinks, sourceDiff, type PythonProjection, type PythonSource } from './python-diagnostics.js';
+import { repairLinks, executionCounts, sourceDiff, type PythonProjection, type PythonSource } from './python-diagnostics.js';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 function el(tag: string, className = '', text = ''): HTMLElement {
@@ -209,13 +209,12 @@ function renderPython(task: TaskDetail) {
   const value=ready?pythonState:null;
   if(!value){node.append(empty(pythonError?'暂时无法读取执行回执':'正在读取真实 Python 执行记录','历史记录不完整时将明确显示不可用，不使用 Node 事件推测错误。'));if(!ready||!pythonError)queueMicrotask(()=>{void loadPython(task);});return node;}
   const executions=value.executions,links=repairLinks(executions),last=executions.at(-1),error=executions.filter(e=>e.error).at(-1)?.error;
-  const stats=el('div','python-stats');
-  for(const [label,count] of [['已归档执行',executions.length],['进程退出 0',executions.filter(e=>e.exitCode===0).length],
-    ['执行失败/超时',executions.filter(e=>e.exitCode!==null&&e.exitCode!==0||e.status==='TIMED_OUT').length],
-    ['产物校验失败',executions.filter(e=>e.error?.category==='OUTPUT_CONTRACT').length],['自动修复',links.length],
-    ['修复后未通过',links.filter(l=>l.validation.status!=='SUCCEEDED'||!l.validation.resultAvailable).length]]) {
+  const stats=el('div','python-stats'),counts=executionCounts(executions);
+  for(const [label,count] of [['已归档执行',counts.total],['进程退出 0',counts.processSucceeded],
+    ['执行失败/超时',counts.processFailed],['产物校验失败',counts.outputFailed],['自动修复',counts.repairs],['修复后未通过',counts.repairFailed]]) {
     const card=el('div','mini-stat',String(label));card.append(el('strong','',String(count)));stats.append(card);
   }
+  if(counts.cancelled)node.append(el('p','muted',`取消回执 ${counts.cancelled} 条，不计为执行失败。`));
   node.append(stats,kv([['Runtime 任务状态',value.status],['最近执行阶段',last?.stage??'尚无执行回执'],
     ['最近执行代码版本',last?.script?.scriptVersion?`v${last.script.scriptVersion}`:'不可用'],['最后一次错误',error?`${error.exceptionType} / ${error.diagnosticCode}`:'无已记录错误'],
     ['最后一次产物验证',last?`${last.validationStatus} · 结果${last.resultAvailable?'已归档':'不可用'}`:'尚未验证'],['业务独立校验',last?.businessValidationPassed?'PASSED':'未独立确认']]));

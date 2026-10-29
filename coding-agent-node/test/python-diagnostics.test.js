@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { repairLinks, sourceDiff } from '../dist/client/web/python-diagnostics.js';
+import { repairLinks, executionCounts, sourceDiff } from '../dist/client/web/python-diagnostics.js';
 import { createServer } from 'node:http';
 import { MonitorStore, createMonitorHandler } from '../src/monitor.ts';
 import { contract } from '../fixtures/monitor-server.mjs';
@@ -19,6 +19,11 @@ test('diff shows actual minimal changes, unchanged files and bounded large chang
  assert.equal(sourceDiff('same','same'),'内容未修改');
  const diff=sourceDiff("row['missing']\n", "row['amount']\n");assert.match(diff,/- row\['missing'\]/);assert.match(diff,/\+ row\['amount'\]/);
  assert.match(sourceDiff('',Array(1000).fill('x').join('\n')),/展示已截断/);
+});
+test('output failure, process failure and cancellation are distinct execution facts',()=>{
+ const counts=executionCounts([{...execution('a',0,false),exitCode:0,error:{category:'OUTPUT_CONTRACT'}},
+   {...execution('b',0,false,'CANCELLED'),exitCode:137},{...execution('c',0,false),exitCode:1}]);
+ assert.equal(counts.total,3);assert.equal(counts.processSucceeded,1);assert.equal(counts.outputFailed,1);assert.equal(counts.processFailed,1);assert.equal(counts.cancelled,1);assert.equal(counts.repairs,0);
 });
 test('operator Python projection is read-only, retained-task-bound and never persisted in Node history',async()=>{
  const token='monitor-only-token-0123456789abcdef01234567',store=new MonitorStore();const id=store.start(contract,1,'NEW_SDK');let calls=[];

@@ -12,7 +12,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.*;
 
 /** Uses the existing MCP directory, authenticated envelope and Runtime kernel. No direct database connection. */
-@Component @RequiredArgsConstructor
+@Component @RequiredArgsConstructor @lombok.extern.slf4j.Slf4j
 public class SqlStudioMetadataGateway {
     public static final String CONTRACT = "sql-studio.metadata.v2";
     private static final String TOOL = "sql_schema_context_query";
@@ -99,6 +99,11 @@ public class SqlStudioMetadataGateway {
         var result=kernel.execute(new McpServiceCall(null,scope.requestId(),serviceId,name,arguments,identity,deadline));
         if(result==null || !result.successful()){
             boolean denied=result!=null&&(result.status()==McpServiceResultStatus.REJECTED || Objects.toString(result.errorMessage(),"").contains("SecurityException:"));
+            log.warn("SQL metadata reference failed service={} tool={} status={} errorCode={}",serviceId,name,
+                result==null?"NO_RESPONSE":result.status(),result==null?"NO_RESPONSE":result.errorCode());
+            String details=result==null?"":Objects.toString(result.errorMessage(),"")+Objects.toString(result.data(),"");
+            if(!denied&&(details.contains("QUERY_BATCH_BUDGET_EXCEEDED")||details.contains("Too many requests in one retrieval")))
+                throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,"METADATA_QUERY_BUDGET: Narrow the business concept and retry; existing catalog retrieval budget was exceeded");
             throw new ResponseStatusException(denied?HttpStatus.FORBIDDEN:HttpStatus.SERVICE_UNAVAILABLE,
                 denied?"METADATA_ACCESS_DENIED":"METADATA_SERVICE_UNAVAILABLE");
         }

@@ -181,7 +181,10 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
     /** Same owner lock/transaction as leases, budget reservations and stop requests. */
     public void saveSdkCheckpoint(KernelDataScope scope, String taskId, CodingJournal.Lease lease,
             com.fasterxml.jackson.databind.JsonNode checkpoint) {
-        require(checkpoint != null && checkpoint.isObject() && checkpoint.toString().length() <= 262144,
+        var contract=task(read(scope,WORKER),taskId).contract;
+        boolean metadata=contract.metadataRefs().contains("runtime-coding:sql-metadata-tools:v1")
+            && contract.outputContract().resultFormat()==CodingTaskContract.ResultFormat.WORKSPACE_FILES;
+        require(checkpoint != null && checkpoint.isObject() && checkpoint.toString().length() <= (metadata?750000:262144),
             CONTRACT_INVALID, "Bounded SDK checkpoint required");
         var value = checkpoint.deepCopy();
         mutateTask(scope, taskId, WORKER, task -> {
@@ -198,7 +201,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
             require(value.path("modelOrdinal").asLong(-1) == ordinal && value.path("eventOrdinal").asLong(-1) >= 0,
                 CONTRACT_INVALID, "Checkpoint ordinals differ from durable operations");
             require(value.path("messages").isArray() && value.path("messages").size() > 0
-                && value.path("messages").size() <= 64 && value.path("sdkSessionId").asText().matches("[a-zA-Z0-9-]{1,64}"),
+                && value.path("messages").size() <= (metadata?192:64) && value.path("sdkSessionId").asText().matches("[a-zA-Z0-9-]{1,64}"),
                 CONTRACT_INVALID, "SDK messages/session identity required");
             // Complete call/result pairs only; restore() cannot resume pending SDK calls.
             Set<String> pending = new HashSet<>();

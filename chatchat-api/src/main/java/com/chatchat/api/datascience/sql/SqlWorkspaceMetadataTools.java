@@ -51,14 +51,13 @@ public class SqlWorkspaceMetadataTools {
         var binding=context.bindings().stream().filter(b->b.bindingId().equals(input.get("bindingId"))).findFirst()
             .orElseThrow(()->new SecurityException("Choose a binding returned by LIST_BINDINGS"));
         if(Set.of("BUSINESS_SEARCH","TEMPLATE_SEARCH").contains(operation)){
-            String query=Objects.toString(input.get("query"),"");
+            String query=searchQuery(input);
             if(query.isBlank()||query.length()>512)throw new IllegalArgumentException("Supply a short business search query (max 512)");
             Map<String,Object> args=new LinkedHashMap<>();args.put("query",query);
             if(operation.equals("BUSINESS_SEARCH")){
-                if(input.get("queryTerms") instanceof List<?> terms){
-                    if(terms.isEmpty()||terms.size()>12||terms.stream().anyMatch(t->!(t instanceof String s)||s.length()>128))throw new IllegalArgumentException("Expected 1 to 12 short business concepts");
-                    args.put("queryTerms",terms);
-                }
+                if(input.get("queryTerms") instanceof List<?> terms && terms.size()>1)
+                    throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,"METADATA_QUERY_BUDGET: Search one focused business concept per call; choose further concepts in subsequent calls");
+                args.put("queryTerms",List.of(query));
             }else{
                 if(binding.schema()!=null)return Map.of("status","UNAVAILABLE_IN_SELECTED_SCOPE","reason","Existing template discovery has no schema boundary; use physical metadata within this schema","sqlExecuted",false);
                 args.put("assetId",binding.assetRef());if(binding.database()!=null)args.put("database",binding.database());
@@ -79,6 +78,9 @@ public class SqlWorkspaceMetadataTools {
         }
         if(!Set.of("LIST_NAMESPACES","SEARCH","DESCRIBE","LINEAGE").contains(operation))throw new IllegalArgumentException("Unsupported metadata operation");
         var args=new LinkedHashMap<>(input);args.remove("bindingId");args.remove("queryTerms");
+        if(operation.equals("SEARCH")){
+            String query=searchQuery(input);if(!query.isBlank())args.put("query",query);
+        }
         args.put("operation",operation.equals("LINEAGE")?"DESCRIBE":operation);args.putIfAbsent("page",1);args.putIfAbsent("pageSize",10);
         if(operation.equals("SEARCH"))args.putIfAbsent("includeColumns",false);
         String hash=evidence.contentHash(Map.of("bindingId",binding.bindingId(),"arguments",args));
@@ -111,6 +113,24 @@ public class SqlWorkspaceMetadataTools {
         });
         return result;
     }
+    private String searchQuery(Map<String,Object> input){
+        var parts=new ArrayList<String>();
+        if(input.get("query")!=null){
+            if(!(input.get("query") instanceof String query))throw new IllegalArgumentException("Expected a text search query");
+            if(!query.isBlank())parts.add(query.trim());
+        }
+        if(input.containsKey("queryTerms")){
+            if(!(input.get("queryTerms") instanceof List<?> terms)||terms.isEmpty()||terms.size()>12)
+                throw new IllegalArgumentException("Expected 1 to 12 short search concepts");
+            for(Object term:terms){
+                if(!(term instanceof String text)||text.isBlank()||text.length()>128)throw new IllegalArgumentException("Expected short text search concepts");
+                parts.add(text.trim());
+            }
+        }
+        String query=String.join(" ",new LinkedHashSet<>(parts));
+        if(query.length()>512)throw new IllegalArgumentException("Search query is too long (max 512)");
+        return query;
+    }
     public Map<String,Object> validate(CodingTaskContract contract,Map<String,Object> schema,List<SqlOutputBundle.Candidate> files,String dialect){
         var syntax=parser.validate(dialect,files,Map.of());if(!Boolean.TRUE.equals(syntax.get("valid")))return syntax;
         var scope=bounded(contract);var context=context(contract,schema,scope);var state=state(contract);
@@ -133,8 +153,8 @@ public class SqlWorkspaceMetadataTools {
     }
     public static Map<String,Object> failure(Exception error){
         int status=error instanceof ResponseStatusException response?response.getStatusCode().value():0;
-        String category=error instanceof SecurityException||status==403?"AUTHORIZATION":status==409?"METADATA_STALE":status>=500||error instanceof IllegalStateException?"METADATA_SERVICE_UNAVAILABLE":"VALIDATION";
-        return Map.of("status","FAILED","valid",false,"sqlValidity","UNDETERMINED","sqlExecuted",false,"retryable",status>=500||error instanceof IllegalStateException,
+        String category=error instanceof SecurityException||status==403?"AUTHORIZATION":status==409?"METADATA_STALE":status==429?"QUERY_BUDGET":status>=500||error instanceof IllegalStateException?"METADATA_SERVICE_UNAVAILABLE":"VALIDATION";
+        return Map.of("status","FAILED","valid",false,"sqlValidity","UNDETERMINED","sqlExecuted",false,"retryable",status==429||status>=500||error instanceof IllegalStateException,
             "category",category,"diagnostics",List.of(Map.of("category",category,"message",Objects.toString(error.getMessage(),"Metadata request failed"))));
     }
     private void invalidate(CodingTaskContract contract,String binding){

@@ -46,6 +46,15 @@ class SqlWorkspaceMetadataToolsTest {
         tools=new SqlWorkspaceMetadataTools(provider,gateway,parser,evidence,new ObjectMapper());
     }
     Map<String,Object> describe(){return Map.of("operation","DESCRIBE","bindingId","binding","tableName","trades");}
+    @Test void keywordArraysReachPhysicalSearchAndDifferentConceptsDoNotReuseTheSameQuery(){
+        tools.query(task,schema,Map.of("operation","SEARCH","bindingId","binding","queryTerms",List.of("customer","trade")));
+        assertThat(tools.query(task,schema,Map.of("operation","SEARCH","bindingId","binding","queryTerms",List.of("asset"))))
+            .doesNotContainKey("reusedEvidence");
+        verify(metadata).operateScoped(any(),eq(context),argThat(op->"customer trade".equals(op.arguments().get("query"))));
+        verify(metadata).operateScoped(any(),eq(context),argThat(op->"asset".equals(op.arguments().get("query"))));
+        assertThatThrownBy(()->tools.query(task,schema,Map.of("operation","SEARCH","bindingId","binding","queryTerms",List.of(42))))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
     @Test void snapshotAbsenceRequestsDiscoveryInsteadOfCallingSqlInvalid(){
         assertThat(tools.validate(task,schema,List.of(new SqlOutputBundle.Candidate("q.sql","select client_no from trades")),"mysql"))
             .containsEntry("status","METADATA_REQUIRED").containsEntry("sqlValidity","UNDETERMINED");
@@ -78,5 +87,12 @@ class SqlWorkspaceMetadataToolsTest {
         var result=tools.query(task,schema,Map.of("operation","BUSINESS_SEARCH","bindingId","binding","query","profit and loss definition","queryTerms",List.of("profit")));
         assertThat(result).containsEntry("evidenceScope","ENTERPRISE_STANDARD_REFERENCES_NOT_PHYSICAL_TABLE_AUTHORITY");
         verify(gateway).referenceScoped(argThat(s->s.userId().equals("owner")&&s.tenantId().equals("tenant")&&s.attributes().containsKey("deadlineAt")),eq("service"),eq("enterprise_metadata_search"),anyMap());
+    }
+    @Test void businessConceptOnlyArrayWorksAndBroadRequestsGetRepairableBudgetFeedback(){
+        when(gateway.referenceScoped(any(),eq("service"),eq("enterprise_metadata_search"),anyMap())).thenReturn(Map.of("definitionStatus","NOT_FOUND"));
+        tools.query(task,schema,Map.of("operation","BUSINESS_SEARCH","bindingId","binding","queryTerms",List.of("profit")));
+        verify(gateway).referenceScoped(any(),eq("service"),eq("enterprise_metadata_search"),argThat(args->List.of("profit").equals(args.get("queryTerms"))));
+        var failure=catchThrowableOfType(()->tools.query(task,schema,Map.of("operation","BUSINESS_SEARCH","bindingId","binding","queryTerms",List.of("profit","assets"))),ResponseStatusException.class);
+        assertThat(SqlWorkspaceMetadataTools.failure(failure)).containsEntry("category","QUERY_BUDGET").containsEntry("retryable",true);
     }
 }

@@ -68,6 +68,13 @@ class CodingWorkspaceServiceTest {
         var repaired=Map.<String,Object>of("schemaVersion","sql-studio.output.v1","files",List.of(Map.of("path","q.sql","content","SELECT amount FROM customer_trade WHERE client_no='070200046604'")),"notes","Used actual amount field; asset/P&L joins and definitions remain unconfirmed; no SQL executed.");
         assertThat(actor(()->service.propose(task,owner,operation('2'),repaired))).containsEntry("valid",true);
         assertThat(service.diagnostics(scope,"autonomous")).containsEntry("repairAttempts",1L).containsEntry("finalSqlValid",true);
+        var checkpoint=json.valueToTree(Map.of("inputSnapshotRef",task.inputSnapshotRef(),"workspaceRef",task.workspaceRef(),
+            "contractHash",CodingCanonicalHash.sha256(task),"checkpointOrdinal",1,"modelOrdinal",0,"eventOrdinal",0,"sdkSessionId","metadata-regression",
+            "messages",List.of(Map.of("role","user","content",List.of(Map.of("type","text","text","metadata".repeat(40000)))))));
+        actor(()->{tasks.saveSdkCheckpoint(scope,"autonomous",owner,checkpoint);return true;});
+        assertThat(actor(()->tasks.sdkCheckpoint(scope,"autonomous")).path("messages").get(0).path("content").get(0).path("text").asText()).hasSize(320000);
+        assertThatThrownBy(()->actor(()->{tasks.saveSdkCheckpoint(scope,"task",lease,checkpoint);return true;}))
+            .isInstanceOf(CodingContractException.class);
         assertThat(actor(()->service.complete(task,owner,operation('2'))).status()).isEqualTo(CodingTaskOutcome.Status.COMPLETED);
         assertThat(service.diagnostics(scope,"autonomous").get("operations").toString()).contains("receiptRef");
     }

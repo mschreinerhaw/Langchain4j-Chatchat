@@ -571,7 +571,7 @@ test('Cline autonomously discovers business metadata and iterates from missing m
   const gateway={reserveModel(){},settleModel(){},readWorkspace:async()=>({context:'Customer 070200046604 trades/assets/P&L; no table preselected.'}),
     queryWorkspaceMetadata:async(_task,_id,input)=>{queried.push(input);return {status:'SUCCEEDED',bindingId:'binding',columns:['client_no','amount'],metricDefinitionStatus:'NOT_FOUND',lineageStatus:'NOT_COLLECTED'};},
     validateWorkspace:async()=>({valid:false,status:'METADATA_REQUIRED',sqlValidity:'UNDETERMINED'}),
-    proposeWorkspace:async()=>++proposals===1?{valid:false,diagnostics:['unknown column guessed_amount']}:{valid:true,evidenceBundleRef:'evidence:bundle',sqlExecuted:false},
+    proposeWorkspace:async()=>++proposals===1?{valid:false,diagnostics:['unknown column guessed_amount']}:{valid:true,resultAvailable:true,codeArtifactRef:'evidence:code',executionReceiptRef:'evidence:receipt',resultDatasetRef:'evidence:files',validationRecordRef:'evidence:validation',evidenceBundleRef:'evidence:bundle',sqlExecuted:false},
     finish(_task,value){finished=value;}};
   const result=await createCodingRun(contract,gateway,{model}).run();
   assert.equal(result.status,'completed');assert.equal(proposals,2);assert.ok(queried.some(q=>q.operation==='BUSINESS_SEARCH'));

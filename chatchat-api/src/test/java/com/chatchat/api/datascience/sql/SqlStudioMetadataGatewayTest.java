@@ -76,4 +76,12 @@ class SqlStudioMetadataGatewayTest {
         return new McpToolDescriptor("registered", "local-schema", "sql_schema_context_query", "", "metadata",
             Map.of("properties", Map.of("contractVersion", Map.of("enum", List.of(SqlStudioMetadataGateway.CONTRACT)))), Map.of(), Map.of(), Map.of());
     }
+    @Test void businessRetrievalBudgetIsRepairableAndDistinctFromServiceOutage(){
+        when(kernel.tools(any())).thenReturn(List.of(new McpToolDescriptor("registered","local-business","enterprise_metadata_search","","metadata",Map.of(),Map.of(),Map.of(),Map.of())));
+        when(kernel.execute(any(McpServiceCall.class))).thenReturn(new McpServiceResult(null,"request","registered","enterprise_metadata_search",McpServiceResultStatus.FAILED,
+            Map.of("error","Too many requests in one retrieval"),null,"MCP_TOOL_FAILED","retrieval failed",false,null,Map.of(),0));
+        var scope=new com.chatchat.common.kernel.KernelDataScope("tenant","owner","request",null,"run",null,Map.of());
+        var error=catchThrowableOfType(()->gateway.referenceScoped(scope,"registered","enterprise_metadata_search",Map.of("query","assets")),ResponseStatusException.class);
+        assertThat(SqlWorkspaceMetadataTools.failure(error)).containsEntry("category","QUERY_BUDGET").containsEntry("retryable",true);
+    }
 }

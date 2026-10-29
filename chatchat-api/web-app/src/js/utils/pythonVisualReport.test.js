@@ -1,10 +1,16 @@
 // @vitest-environment jsdom
 import {describe,it,expect,vi,afterEach} from 'vitest';
-import {checkedPlotlyFigure,plotlyFrameDocument,readReportArtifact,reviewArchivedVisualReport} from './pythonVisualReport';
+import {checkedPlotlyFigure,plotlyFrameDocument,readReportArtifact,reviewArchivedVisualReport,plotlyDataTable} from './pythonVisualReport';
 vi.mock('../../services/api',()=>({getStoredAuthSession:()=>({token:'scoped-token'})}));
 vi.mock('./workspaceContext',()=>({workspaceHeaders:()=>({'X-Workspace-Id':'test'})}));
 afterEach(()=>vi.unstubAllGlobals());
 describe('Python chart isolation and file authorization',()=>{
+ it('retains exact validated series values in a bounded table for an unsupported renderer',()=>{
+   expect(plotlyDataTable({data:[{type:'unavailable-type',name:'Measured',labels:['A','B'],values:[1.25,2.5]}]}).rows)
+     .toEqual([['Measured','A',1.25],['Measured','B',2.5]]);
+   const table=plotlyDataTable({data:[{y:Array.from({length:201},(_,i)=>i)}]});expect(table.rows).toHaveLength(200);expect(table.truncated).toBe(true);
+   expect(()=>plotlyDataTable({data:[{y:['<script>bad()</script>']}]})).toThrow();
+ });
  it('revalidates only the same owner-bound archived task, operation and result hashes',async()=>{
    const execution={taskId:'task',operationId:'op',codeSha256:'code-hash',resultSha256:'result-hash',resultDatasetRef:'runtime-evidence:result',codeArtifact:{fileId:'file_1'}};
    const reviewed={schemaVersion:'python_visual_report.v1',status:'PARTIAL',execution};

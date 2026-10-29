@@ -1,0 +1,21 @@
+/* Teleported dialogs own their controls; no dependency on a .sql-studio ancestor. */
+.sql-assistant-dialog { width:min(600px,calc(100vw - 32px)); max-height:calc(100dvh - 48px); color:var(--text); background:var(--surface); border-color:var(--line); }
+.sql-assistant-dialog > header { position:sticky; top:0; z-index:2; background:var(--surface); padding:18px 22px; }
+.sql-assistant-dialog > header button { width:30px; height:30px; padding:5px; border-radius:7px; cursor:pointer; }
+.sql-assistant-dialog > header button:hover { background:var(--surface-soft); color:var(--text); }
+.sql-assistant-dialog button:focus-visible, .sql-assistant-dialog :deep(input:focus-visible), .sql-assistant-dialog :deep(summary:focus-visible) { outline:2px solid var(--primary); outline-offset:2px; }
+.sql-assistant-dialog .sql-chat-context { padding:20px 22px; color:var(--text); font:inherit; font-size:13px; line-height:1.6; }
+.sql-settings-model, .sql-settings-context { min-width:0; }
+.sql-assistant-dialog h4 { margin:0 0 6px; font-size:14px; font-weight:600; }
+.sql-settings-help { margin:0 0 14px; color:var(--muted); font-size:12px; }
+.sql-settings-context { margin-top:24px; padding-top:20px; border-top:1px solid var(--line); }
+.sql-execution-modes { display:flex; gap:4px; padding:4px; margin:0 0 16px; border:1px solid var(--line); border-radius:9px; background:var(--surface-soft); }
+.sql-execution-modes button { flex:1; min-height:34px; border:1px solid transparent; border-radius:6px; background:transparent; color:var(--muted); font:inherit; cursor:pointer; }
+.sql-execution-modes button.active { border-color:var(--line); background:var(--surface); color:var(--primary-strong); box-shadow:0 1px 3px #172b4a0c; }
+.sql-agent-choice { display:grid; gap:7px; font-size:12px; color:var(--muted); }
+.sql-settings-context > button { padding:6px 0; border:0; background:transparent; color:var(--primary-strong); font:inherit; cursor:pointer; }
+.sql-assistant-dialog :deep(.sql-user-documents) { margin:12px 0 0; padding:12px 14px; border:1px solid var(--line); border-radius:9px; background:var(--surface); }
+.sql-assistant-dialog :deep(.sql-user-documents > summary) { min-height:24px; line-height:24px; color:var(--text); }
+.sql-assistant-dialog :deep(.sql-user-documents > summary small) { float:right; padding:0 7px; border-radius:12px; background:var(--primary-soft); color:var(--primary-strong); font-weight:400; }
+.sql-assistant-dialog :deep(.sql-user-documents input:not([type=checkbox]):not([type=file])), .sql-assistant-dialog :deep(.sql-user-documents select) { padding:7px 9px; border:1px solid var(--line); border-radius:7px; background:var(--surface); color:var(--text); font:inherit; }
+@media(max-width:600px) { .sql-assistant-dialog > header, .sql-assistant-dialog .sql-chat-context { padding:14px; } }

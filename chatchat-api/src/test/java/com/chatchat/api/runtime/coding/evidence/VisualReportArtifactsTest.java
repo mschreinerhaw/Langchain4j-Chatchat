@@ -11,6 +11,59 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
 class VisualReportArtifactsTest {
+    @Test void serializesValidatedLineBarPieAndLocalFallbackCasesForTheActualBrowser()throws Exception{
+        var value=raw();var numbers=List.of(1.25,2.50,3.75);var labels=List.of("A","B","C");
+        value.put("summary","受控样本 1.25 + 2.50 + 3.75 = 7.50；仅用于渲染验证。");
+        value.put("metrics",List.of(Map.of("id","sum","label","受控样本合计","value","7.50","unit","测试单位")));
+        value.put("tables",List.of(Map.of("id","summary","title","同批受控数据","columns",List.of("类别","数值"),"rows",List.of(List.of("A","1.25"),List.of("B","2.50"),List.of("C","3.75")))));
+        var files=new LinkedHashMap<String,byte[]>();var definitions=new ArrayList<Map<String,Object>>();var serialized=new LinkedHashMap<String,String>();
+        for(String type:List.of("scatter","bar","pie","unsupported-test-type","empty")){
+            var trace=new LinkedHashMap<String,Object>();trace.put("type",type.equals("empty")?"scatter":type);
+            if(type.equals("pie")){trace.put("labels",labels);trace.put("values",numbers);}else{trace.put("x",type.equals("empty")?List.of():labels);trace.put("y",type.equals("empty")?List.of():numbers);}
+            if(type.equals("scatter"))trace.put("mode","lines+markers");
+            String data=json.writeValueAsString(Map.of("data",List.of(trace),"layout",Map.of("title",Map.of("text","受控渲染验证 · "+type))));
+            files.put("results/"+type+".json",data.getBytes(StandardCharsets.UTF_8));serialized.put(type+".json",data);
+            definitions.add(Map.of("id",type,"title","受控图表 · "+type,"kind","plotly","fileName",type+".json"));
+        }
+        value.put("charts",definitions);var result=collect(value,files);
+        assertThat(result).containsEntry("status","SUCCESS");assertThat((List<?>)result.get("artifacts")).hasSize(5);
+        String output=System.getProperty("visual.chartReplayOutput");if(output!=null)java.nio.file.Files.writeString(java.nio.file.Path.of(output),json.writeValueAsString(Map.of("report",result,"files",serialized)),StandardCharsets.UTF_8);
+    }
+    @Test void multipleSourcesAreNeverGuessedForAnUnboundElement(){
+        var value=raw();value.put("dataSources",List.of("source:authorized","source:other"));
+        value.put("layout",Map.of("schemaVersion","report_layout.v1","blocks",List.of(Map.of("id","m","type","metric","ref","sum"))));
+        var result=service.collect(scope,"task","op",List.of(Map.of("visualReport",value,"evidenceReferences",List.of("source:authorized","source:other"))),Map.of(),execution);
+        assertThat(result).containsEntry("layoutValidationStatus","FAILED").containsEntry("status","PARTIAL");
+        assertThat(result.get("metrics").toString()).doesNotContain("dataRefs");
+        assertThat(result.get("presentationDiagnostics").toString()).contains("ELEMENT_SOURCE_AMBIGUOUS","recovered=false");
+    }
+    @Test void aMislabeledChartStillRequiresTheActualBytesToPassTheArtifactValidator()throws Exception{
+        var value=raw();value.put("charts",List.of(Map.of("id","plot","kind","line","fileName","plot.png")));
+        var accepted=collect(value,Map.of("results/plot.png",png()));
+        assertThat(accepted).containsEntry("status","SUCCESS");assertThat(accepted.get("charts").toString()).contains("kind=png");
+        var rejected=collect(value,Map.of("results/plot.png","not an image".getBytes(StandardCharsets.UTF_8)));
+        assertThat(rejected).containsEntry("status","PARTIAL");assertThat(rejected.get("charts").toString()).contains("kind=unavailable");
+    }
+    @Test void aRejectedChartKeepsItsOwnPlaceholderAndCannotDiscardTheOtherValidatedChart()throws Exception{
+        var value=raw();value.put("charts",List.of(Map.of("id","good","kind","png","fileName","good.png"),Map.of("id","bad","kind","html","fileName","bad.html")));
+        var result=collect(value,Map.of("results/good.png",png(),"results/bad.html","<script>bad()</script>".getBytes(StandardCharsets.UTF_8)));
+        assertThat((List<?>)result.get("charts")).hasSize(2);assertThat((List<?>)result.get("artifacts")).hasSize(1);
+        assertThat(result).containsEntry("status","PARTIAL").containsEntry("analysisStatus","SUCCESS");
+        assertThat(result.get("charts").toString()).contains("kind=png","kind=unavailable").doesNotContain("<script>");
+    }
+    @Test void replaysTheOriginalSchedulingFailureWithoutRecomputingData()throws Exception{
+        Map<String,Object> row;byte[] image;
+        try(var input=getClass().getResourceAsStream("/visual-report/scheduling-layout.json")){row=json.readValue(input,Map.class);}
+        try(var input=getClass().getResourceAsStream("/visual-report/scheduling-trend.png")){image=input.readAllBytes();}
+        var output=service.collect(scope,"task","op",List.of(row),Map.of("results/duration_trend.png",image),execution);
+        assertThat(output).containsEntry("artifactValidationStatus","PASSED").containsEntry("layoutValidationStatus","RECOVERED");
+        assertThat(output.get("charts").toString()).contains("image/png","duration_trend_chart");
+        assertThat(output.get("presentationDiagnostics").toString()).contains("SECTION_TITLE_RESOLVED","SINGLE_SOURCE_INHERITED");
+        assertThat(((Map<?,?>)output.get("layout")).get("blocks").toString()).contains("section-1","section-2");
+        assertThat(output.get("metrics").toString()).contains("value=76.0","value=7");
+        assertThat(output.get("validation").toString()).doesNotContain("optional report layout was invalid");
+        String target=System.getProperty("visual.reportReplayOutput");if(target!=null)java.nio.file.Files.writeString(java.nio.file.Path.of(target),json.writeValueAsString(output),StandardCharsets.UTF_8);
+    }
     @Test void preservesAnAuthoredLayoutWithExactValuesAndAuthorizedDataBindings(){
         var value=raw();var metric=new LinkedHashMap<>((Map<String,Object>)((List<?>)value.get("metrics")).get(0));
         metric.put("dataRefs",List.of("source:authorized"));value.put("metrics",List.of(metric));value.put("tables",List.of());
@@ -38,7 +91,7 @@ class VisualReportArtifactsTest {
             var block=new LinkedHashMap<String,Object>(Map.of("id","value","type","metric","ref","sum","dataRefs",metric.get("dataRefs")));
             if("javascript".equals(forbidden))block.put("code","alert(1)");else block.put("dataRefs",List.of("source:other-owner"));
             value.put("layout",Map.of("schemaVersion","report_layout.v1","blocks",List.of(block)));
-            var result=collect(value,Map.of());assertThat(result).containsEntry("layoutValidationStatus","FAILED").doesNotContainKey("layout");
+            var result=collect(value,Map.of());assertThat(result).containsEntry("layoutValidationStatus","RECOVERED").containsKey("layout");
             assertThat(result.get("metrics")).isEqualTo(List.of(metric));
         }
     }
@@ -51,8 +104,8 @@ class VisualReportArtifactsTest {
     @Test void invalidLayoutKeepsTheCompleteAnalysisWithoutExecutingAnything(){
         var value=raw();value.put("layout",Map.of("schemaVersion","report_layout.v1","blocks",List.of(Map.of("id","bad","type","javascript","code","alert(1)"))));
         var result=collect(value,Map.of());
-        assertThat(result).containsEntry("layoutValidationStatus","FAILED").containsEntry("status","PARTIAL").containsEntry("artifactValidationStatus","PASSED");
-        assertThat(result).doesNotContainKey("layout");assertThat(result.get("markdown")).isEqualTo("Complete computed narrative");
+        assertThat(result).containsEntry("layoutValidationStatus","RECOVERED").containsEntry("status","SUCCESS").containsEntry("artifactValidationStatus","PASSED");
+        assertThat(((Map<?,?>)result.get("layout")).get("blocks")).isEqualTo(List.of());assertThat(result.get("markdown")).isEqualTo("Complete computed narrative");
         assertThat((List<?>)result.get("metrics")).hasSize(1);
     }
     @Test void fabricatedPerChartOrMetricReferencesCannotBecomeVerified(){
@@ -66,13 +119,13 @@ class VisualReportArtifactsTest {
         var result=service.collect(scope,"task","op",List.of(Map.of("visualReport",value,"reportMarkdown","Original analysis","evidenceReferences",List.of("source:authorized"))),Map.of(),frozen);
         assertThat(((Map<?,?>)result.get("presentation")).get("strategy")).isEqualTo("concise");
         assertThat(((Map<?,?>)result.get("presentation")).get("autoCharts")).isEqualTo(false);
-        assertThat(result).containsEntry("layoutValidationStatus","FAILED").containsEntry("artifactValidationStatus","PASSED").containsEntry("markdown","Original analysis");
+        assertThat(result).containsEntry("layoutValidationStatus","RECOVERED").containsEntry("artifactValidationStatus","PASSED").containsEntry("markdown","Original analysis");
     }
     @Test void aNewLayoutWithoutPerElementBindingsFallsBackWithoutDiscardingTheData(){
         var value=raw();value.put("layout",Map.of("schemaVersion","report_layout.v1","blocks",List.of(Map.of("id","summary","type","summary"))));
         var result=collect(value,Map.of());
-        assertThat(result).containsEntry("layoutValidationStatus","FAILED").containsEntry("status","PARTIAL");
-        assertThat(result).doesNotContainKey("layout");
+        assertThat(result).containsEntry("layoutValidationStatus","RECOVERED").containsEntry("status","SUCCESS");
+        assertThat(result).containsKey("layout");
         assertThat(((Map<?,?>)((List<?>)result.get("tables")).get(0)).get("rows")).isEqualTo(List.of(List.of("6.000000000000000001")));
     }
     final ObjectMapper json=new ObjectMapper();final VisualReportArtifacts service=new VisualReportArtifacts(json);
@@ -93,7 +146,8 @@ class VisualReportArtifactsTest {
     }
     @Test void missingOrMaliciousChartKeepsValidTextAndMarksReportPartial(){
         var report=raw();report.put("charts",List.of(Map.of("id","missing","kind","png","fileName","missing.png"),Map.of("id","traversal","kind","png","fileName","../other-user.png")));
-        var result=collect(report,Map.of());assertThat(result.get("status")).isEqualTo("PARTIAL");assertThat(result.get("markdown")).isEqualTo("Complete computed narrative");assertThat((List<?>)result.get("charts")).isEmpty();verifyNoInteractions(archive);
+        var result=collect(report,Map.of());assertThat(result.get("status")).isEqualTo("PARTIAL");assertThat(result.get("markdown")).isEqualTo("Complete computed narrative");
+        assertThat((List<?>)result.get("charts")).hasSize(2);assertThat(result.get("charts").toString()).contains("kind=unavailable","renderError=CHART_ARTIFACT_REJECTED");verifyNoInteractions(archive);
     }
     @Test void failedComputationChecksCannotBePublishedAsSuccess(){var report=raw();report.put("validation",Map.of("checks",List.of(Map.of("name","consistency","status","FAILED"))));assertThat(collect(report,Map.of()).get("status")).isEqualTo("FAILED");}
     @Test void unresolvedReconciliationPreservesReportAndChartsWithoutCertifyingBusinessSuccess()throws Exception{

@@ -1,0 +1,233 @@
+{
+  "reportMarkdown": "# DWD-DWS-ADS调度流程运行情况分析\n\n## 分析概述\n\n本报告分析了2026年10月16日至10月27日期间DWD-DWS-ADS调度流程的运行情况，重点关注全流程运行耗时和流程执行开始时间的趋势变化。\n\n## 关键发现\n\n### 运行耗时统计\n\n- **观测天数**: 7天\n- **平均运行耗时**: 76.0分钟\n- **最短运行耗时**: 58分钟（20261020）\n- **最长运行耗时**: 97分钟（20261027）\n- **耗时波动范围**: 39分钟\n\n### 流程执行开始时间\n\n- **统一开始时间**: 06:30\n- **时间一致性**: 是\n\n### 运行趋势分析\n\n从趋势图可以观察到：\n\n1. **初期稳定阶段**（10月16日-10月20日）：运行耗时在58-69分钟之间，整体较为稳定\n2. **中期上升阶段**（10月21日-10月23日）：运行耗时逐步上升至76-90分钟\n3. **峰值阶段**（10月27日）：达到观测期内最高值97分钟\n\n### 耗时变化详情\n\n- 20261016 → 20261019：增加2分钟\n- 20261019 → 20261020：减少11分钟\n- 20261020 → 20261021：增加18分钟\n- 20261021 → 20261022：减少1分钟\n- 20261022 → 20261023：增加15分钟\n- 20261023 → 20261027：增加7分钟\n\n\n## 详细数据表\n\n| 日期 | 开始时间 | 运行耗时 |\n|------|----------|----------|\n| 20261016 | 06:30 | 67min |\n| 20261019 | 06:30 | 69min |\n| 20261020 | 06:30 | 58min |\n| 20261021 | 06:30 | 76min |\n| 20261022 | 06:30 | 75min |\n| 20261023 | 06:30 | 90min |\n| 20261027 | 06:30 | 97min |\n\n\n## 趋势图\n\n![运行耗时趋势图](duration_trend.png)\n\n## 分析结论\n\n1. **流程执行时间稳定**：所有观测日的流程均在06:30准时启动，体现了良好的调度规范性\n\n2. **运行耗时呈上升趋势**：从10月16日的67分钟逐步上升至10月27日的97分钟，增幅达44.8%\n\n3. **需要关注性能下降**：10月21日后运行耗时明显增加，建议检查以下方面：\n   - 数据量是否持续增长\n   - 系统资源使用情况\n   - 是否存在数据倾斜或锁等待\n   - 下游系统响应时间\n\n4. **数据访问正常**：两融画像数据和驾驶舱数据在所有观测日均显示正常，未出现数据质量问题\n\n## 建议\n\n1. 建立运行耗时监控告警机制，当耗时超过阈值时及时预警\n2. 分析10月21日后耗时增加的根本原因\n3. 考虑优化调度流程或扩展系统资源\n4. 持续监控后续运行趋势，评估是否需要性能调优\n",
+  "evidenceReferences": [
+    "fixture:scheduling-records"
+  ],
+  "limitations": [
+    "观测期包含非连续日期（10月17-18日、10月24-26日缺失），可能为周末或节假日，影响趋势分析的连续性",
+    "仅包含运行耗时数据，未包含各子流程的详细耗时分解",
+    "未提供系统资源使用情况、数据量变化等性能影响因素的详细数据",
+    "运行耗时上升趋势的根本原因需要进一步的性能分析和问题排查"
+  ],
+  "visualReport": {
+    "schemaVersion": "python_visual_report.v1",
+    "title": "DWD-DWS-ADS调度流程运行耗时趋势分析",
+    "summary": "分析2026年10月16日至27日期间DWD-DWS-ADS调度流程的运行情况。共观测7天，平均运行耗时76.0分钟，耗时范围58-97分钟，呈现上升趋势。所有流程均在06:30准时启动。",
+    "status": "SUCCESS",
+    "metrics": [
+      {
+        "id": "total_days",
+        "label": "观测天数",
+        "value": "7",
+        "unit": "天",
+        "calculation": "count(distinct dates)"
+      },
+      {
+        "id": "avg_duration",
+        "label": "平均运行耗时",
+        "value": "76.0",
+        "unit": "分钟",
+        "calculation": "sum(durations) / count(durations)"
+      },
+      {
+        "id": "min_duration",
+        "label": "最短运行耗时",
+        "value": "58",
+        "unit": "分钟",
+        "calculation": "min(durations)"
+      },
+      {
+        "id": "max_duration",
+        "label": "最长运行耗时",
+        "value": "97",
+        "unit": "分钟",
+        "calculation": "max(durations)"
+      },
+      {
+        "id": "duration_range",
+        "label": "耗时波动范围",
+        "value": "39",
+        "unit": "分钟",
+        "calculation": "max(durations) - min(durations)"
+      }
+    ],
+    "sections": [
+      {
+        "title": "运行耗时趋势",
+        "narrative": "从20261016到20261027，流程运行耗时从67分钟变化至97分钟，整体呈上升趋势。平均耗时76.0分钟，波动范围39分钟。",
+        "chartIds": [
+          "duration_trend_chart"
+        ],
+        "tableIds": [
+          "detail_table"
+        ]
+      },
+      {
+        "title": "流程执行时间分析",
+        "narrative": "所有观测日的流程执行开始时间均为06:30，体现了调度系统的稳定性和规范性。",
+        "chartIds": [],
+        "tableIds": []
+      }
+    ],
+    "charts": [
+      {
+        "id": "duration_trend_chart",
+        "title": "DWD-DWS-ADS调度流程运行耗时趋势图",
+        "kind": "png",
+        "fileName": "duration_trend.png",
+        "caption": "展示2026年10月16日至27日期间流程运行耗时的变化趋势，包含平均值参考线"
+      }
+    ],
+    "tables": [
+      {
+        "id": "detail_table",
+        "title": "详细运行数据",
+        "columns": [
+          "日期",
+          "开始时间",
+          "运行耗时"
+        ],
+        "rows": [
+          [
+            "20261016",
+            "06:30",
+            "67min"
+          ],
+          [
+            "20261019",
+            "06:30",
+            "69min"
+          ],
+          [
+            "20261020",
+            "06:30",
+            "58min"
+          ],
+          [
+            "20261021",
+            "06:30",
+            "76min"
+          ],
+          [
+            "20261022",
+            "06:30",
+            "75min"
+          ],
+          [
+            "20261023",
+            "06:30",
+            "90min"
+          ],
+          [
+            "20261027",
+            "06:30",
+            "97min"
+          ]
+        ],
+        "scope": "全部观测日"
+      }
+    ],
+    "dataSources": [
+      "fixture:scheduling-records"
+    ],
+    "validation": {
+      "checks": [
+        {
+          "name": "数据完整性检查",
+          "status": "PASSED",
+          "detail": "成功解析7天的运行数据"
+        },
+        {
+          "name": "时间一致性检查",
+          "status": "PASSED",
+          "detail": "所有流程开始时间一致"
+        },
+        {
+          "name": "数值合理性检查",
+          "status": "PASSED",
+          "detail": "运行耗时范围58-97分钟，数值合理"
+        }
+      ],
+      "warnings": [
+        "观测期包含非连续日期（缺少10月17-18日、10月24-26日数据），可能为周末或节假日",
+        "运行耗时呈上升趋势，建议关注性能变化原因"
+      ]
+    },
+    "presentation": {
+      "strategy": "auto",
+      "template": "briefing",
+      "density": "comfortable",
+      "autoCharts": true,
+      "autoImages": true
+    },
+    "layout": {
+      "schemaVersion": "report_layout.v1",
+      "blocks": [
+        {
+          "id": "summary_block",
+          "type": "summary",
+          "span": "full",
+          "emphasis": "important"
+        },
+        {
+          "id": "metric_avg",
+          "type": "metric",
+          "ref": "avg_duration",
+          "span": "half",
+          "emphasis": "normal"
+        },
+        {
+          "id": "metric_range",
+          "type": "metric",
+          "ref": "duration_range",
+          "span": "half",
+          "emphasis": "normal"
+        },
+        {
+          "id": "section_trend",
+          "type": "section",
+          "ref": "运行耗时趋势",
+          "span": "full",
+          "emphasis": "important"
+        },
+        {
+          "id": "chart_trend",
+          "type": "chart",
+          "ref": "duration_trend_chart",
+          "span": "full",
+          "emphasis": "normal"
+        },
+        {
+          "id": "table_detail",
+          "type": "table",
+          "ref": "detail_table",
+          "span": "full",
+          "emphasis": "normal"
+        },
+        {
+          "id": "section_time",
+          "type": "section",
+          "ref": "流程执行时间分析",
+          "span": "full",
+          "emphasis": "normal"
+        },
+        {
+          "id": "limitations_block",
+          "type": "limitations",
+          "span": "full",
+          "emphasis": "normal"
+        },
+        {
+          "id": "sources_block",
+          "type": "sources",
+          "span": "full",
+          "emphasis": "normal"
+        }
+      ]
+    },
+    "timings": {
+      "analysisMs": 814,
+      "chartMs": 624
+    }
+  }
+}

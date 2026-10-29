@@ -12,14 +12,8 @@
         ><small>图文报告 · {{ statusLabel }}</small
         ><h2>{{ report.title || "分析报告" }}</h2></header
       >
-      <p v-if="deliveryStatus !== 'SUCCESS'" class="report-notice" role="status"
-        >{{ statusLabel }}。已取得的分析内容会继续保留。</p
-      >
-      <p
-        v-if="layout.warning || report.layoutValidationStatus === 'FAILED'"
-        class="report-notice"
-        role="status"
-        >{{ layout.warning || "排版描述未通过校验，已保留原分析并使用兼容布局。" }}</p
+      <p v-if="showStatusNotice" class="report-notice" role="status"
+        >{{ report.analysisStatus === 'FAILED' || report.status === 'FAILED' ? '本次分析尚未完成，已取得的内容仍可查看。' : report.status === 'NO_DATA' ? '当前没有可分析的数据。' : '部分分析结论仍待确认，已完成的正文和图表可正常查看。' }}</p
       >
       <nav v-if="contents.length >= 4" class="report-contents" aria-label="报告章节"
         ><a
@@ -92,6 +86,7 @@
               ><li v-for="source in block.value.dataRefs" :key="source">{{ source }}</li></ul
             ></details
           >
+          <p v-if="['metric','chart','table'].includes(block.type) && !block.value?.dataRefs?.length && report.presentationDiagnostics?.some(item=>item.code==='ELEMENT_SOURCE_AMBIGUOUS')" class="report-local-notice">此项尚缺逐项来源绑定，请结合报告数据范围审阅。</p>
         </article>
       </div>
     </template>

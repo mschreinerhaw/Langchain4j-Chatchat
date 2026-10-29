@@ -40,8 +40,23 @@ export function checkedPlotlyFigure(figure){
   visit(figure);return JSON.parse(JSON.stringify({data:figure.data,layout:figure.layout||{},frames:figure.frames||[]}));
 }
 
+/** Bounded alternative from the same validated series, never a second calculation. */
+export function plotlyDataTable(figure){
+  const safe=checkedPlotlyFigure(figure),rows=[];let count=0;
+  const scalar=value=>value==null||['string','number','boolean'].includes(typeof value);
+  for(const [index,trace] of safe.data.entries()){
+    const values=Array.isArray(trace.y)?trace.y:trace.values;
+    const labels=Array.isArray(trace.x)?trace.x:trace.labels;
+    if(!Array.isArray(values) || labels && (!Array.isArray(labels)||labels.length!==values.length)
+        || !values.every(scalar) || labels && !labels.every(scalar))continue;
+    count+=values.length;
+    for(let i=0;i<values.length && rows.length<200;i++)rows.push([typeof trace.name==='string'?trace.name:`序列 ${index+1}`,labels?.[i]??i+1,values[i]]);
+  }
+  return rows.length?{columns:['序列','类别 / 序号','数值'],rows,truncated:count>rows.length}:null;
+}
+
 export function plotlyFrameDocument(runtimeUrl,origin){
   const url=new URL(runtimeUrl,origin);if(url.origin!==new URL(origin).origin)throw new Error('绘图组件必须来自本站');
   const escaped=url.href.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
-  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src ${url.origin} 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"><style>html,body,#plot{margin:0;width:100%;height:100%;overflow:hidden}body{font-family:sans-serif}</style></head><body><div id="plot"></div><script src="${escaped}"></script><script>addEventListener('message',async event=>{if(event.source!==parent||event.data?.type!=='runtime-plotly-figure')return;try{const figure=event.data.figure;await Plotly.newPlot('plot',figure.data,{...figure.layout,autosize:true},{responsive:true,displaylogo:false,showLink:false,scrollZoom:true,modeBarButtonsToRemove:['sendDataToCloud']});if(figure.frames?.length)await Plotly.addFrames('plot',figure.frames);parent.postMessage({type:'runtime-plotly-rendered'},'*');const image=await Plotly.toImage('plot',{format:'png',width:1000,height:560});parent.postMessage({type:'runtime-plotly-snapshot',image},'*')}catch(error){document.getElementById('plot').textContent='交互图渲染失败';parent.postMessage({type:'runtime-plotly-failed'},'*')}});</script></body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src ${url.origin} 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"><style>html,body,#plot{margin:0;width:100%;height:100%;overflow:hidden}body{font-family:sans-serif}</style></head><body><div id="plot"></div><script src="${escaped}"></script><script>addEventListener('message',async event=>{if(event.source!==parent||event.data?.type!=='runtime-plotly-figure')return;try{const figure=event.data.figure;const registry=Plotly.PlotSchema.get().traces;if(figure.data.some(trace=>trace.type&&!Object.hasOwn(registry,trace.type))){parent.postMessage({type:'runtime-plotly-unsupported'},'*');return;}await Plotly.newPlot('plot',figure.data,{...figure.layout,autosize:true},{responsive:true,displaylogo:false,showLink:false,scrollZoom:true,modeBarButtonsToRemove:['sendDataToCloud']});if(figure.frames?.length)await Plotly.addFrames('plot',figure.frames);parent.postMessage({type:'runtime-plotly-rendered'},'*');const image=await Plotly.toImage('plot',{format:'png',width:1000,height:560});parent.postMessage({type:'runtime-plotly-snapshot',image},'*')}catch(error){document.getElementById('plot').textContent='交互图渲染失败';parent.postMessage({type:'runtime-plotly-failed'},'*')}});</script></body></html>`;
 }

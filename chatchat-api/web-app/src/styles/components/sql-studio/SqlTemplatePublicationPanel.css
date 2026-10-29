@@ -10,8 +10,20 @@
 }
 .sql-publication-panel header {
   display: flex;
+  align-items:center;
+  gap:16px;
   justify-content: space-between;
+  margin-bottom:16px;
+  position:sticky;
+  top:0;
+  z-index:1;
+  padding-bottom:12px;
+  background:var(--surface);
 }
+.sql-publication-panel header h2 { margin:0; }
+.sql-publication-panel button.sql-dialog-close { display:grid; place-items:center; flex:none; width:30px; height:30px; margin:0; padding:5px; border:1px solid transparent; border-radius:7px; background:transparent; color:var(--muted); }
+.sql-publication-panel button.sql-dialog-close:hover:not(:disabled) { background:var(--surface-soft); border-color:transparent; color:var(--text); }
+.sql-publication-panel button.sql-dialog-close:focus-visible { outline:2px solid var(--primary); outline-offset:2px; }
 .sql-publication-panel label {
   display: block;
   margin: 12px 0;
@@ -24,6 +36,10 @@
   box-sizing: border-box;
   padding: 8px;
   margin-top: 5px;
+  border:1px solid var(--line);
+  border-radius:7px;
+  background:var(--surface);
+  color:var(--text);
 }
 .sql-publication-panel textarea,
 .sql-publication-panel pre {

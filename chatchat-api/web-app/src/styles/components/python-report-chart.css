@@ -42,6 +42,9 @@
   border-radius: 5px;
   cursor: pointer;
 }
+.chart-data-fallback { max-height:340px; overflow:auto; }
+.chart-data-fallback table { width:100%; border-collapse:collapse; font-size:12px; }
+.chart-data-fallback th,.chart-data-fallback td { padding:8px; border-bottom:1px solid var(--line); text-align:left; overflow-wrap:anywhere; }
 @media (max-width: 600px) {
   .python-report-chart {
     padding: 8px;

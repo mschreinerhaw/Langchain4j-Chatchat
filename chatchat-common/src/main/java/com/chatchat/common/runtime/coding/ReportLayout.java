@@ -7,6 +7,35 @@ public final class ReportLayout {
     public static final String VERSION="report_layout.v1";
     public static final Set<String> TYPES=Set.of("summary","metric","section","chart","table","limitations","sources");
     private ReportLayout() { }
+    /** Recover presentation only, retaining the strict validator and data authority. */
+    public static Map<String,Object> recover(Object raw,Map<String,Set<String>> available,Map<String,String> sectionAliases){
+        var diagnostics=new ArrayList<Map<String,Object>>();var accepted=new ArrayList<Map<String,Object>>();
+        if(!(raw instanceof Map<?,?> layout) || !VERSION.equals(layout.get("schemaVersion"))
+                || !layout.keySet().equals(Set.of("schemaVersion","blocks")) || !(layout.get("blocks") instanceof List<?> blocks) || blocks.size()>256){
+            diagnostics.add(Map.of("stage","LAYOUT_VALIDATION","code","INVALID_LAYOUT_ENVELOPE","path","layout","recovered",true,
+                "message","Unsupported layout envelope; registered report elements use compatible placement."));
+        }else{
+            for(int index=0;index<blocks.size();index++){
+                try{
+                    require(blocks.get(index) instanceof Map<?,?>,"Layout block required");
+                    var block=new LinkedHashMap<String,Object>();((Map<?,?>)blocks.get(index)).forEach((key,value)->block.put(key.toString(),value));
+                    if("section".equals(block.get("type")) && block.get("ref") instanceof String ref && !available.getOrDefault("section",Set.of()).contains(ref)
+                            && sectionAliases.containsKey(ref)){
+                        block.put("ref",sectionAliases.get(ref));
+                        diagnostics.add(Map.of("stage","LAYOUT_VALIDATION","code","SECTION_TITLE_RESOLVED","path","layout.blocks["+index+"].ref","recovered",true,
+                            "message","Unique section title resolved to its registered section ID."));
+                    }
+                    var candidate=new ArrayList<>(accepted);candidate.add(block);
+                    validate(Map.of("schemaVersion",VERSION,"blocks",candidate),available);accepted.add(block);
+                }catch(IllegalArgumentException invalid){
+                    diagnostics.add(Map.of("stage","LAYOUT_VALIDATION","code","INVALID_LAYOUT_BLOCK","path","layout.blocks["+index+"]","recovered",true,
+                        "message",Objects.toString(invalid.getMessage(),"Invalid layout block")));
+                }
+            }
+        }
+        return Map.of("layout",validate(Map.of("schemaVersion",VERSION,"blocks",accepted),available),
+            "status",diagnostics.isEmpty()?"PASSED":"RECOVERED","diagnostics",List.copyOf(diagnostics));
+    }
     public static Map<String,Object> validate(Object raw,Map<String,Set<String>> available){
         require(raw instanceof Map<?,?>,"Layout must be an object");var layout=(Map<?,?>)raw;
         require(layout.keySet().equals(Set.of("schemaVersion","blocks"))&&VERSION.equals(layout.get("schemaVersion")),"Unknown layout schema");

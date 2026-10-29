@@ -9,6 +9,12 @@ const api = vi.hoisted(() => ({
 }));
 vi.mock("../../services/sqlStudioApi", () => api);
 import Panel from "./SqlTemplatePublicationPanel.vue";
+it('uses an accessible icon close action without changing the close event',async()=>{
+ const closed=vi.fn();await mount(file,{onClose:closed});
+ const close=document.querySelector('[aria-label="关闭发布模板"]');
+ expect(close.title).toBe('关闭');expect(close.querySelector('svg')).not.toBeNull();expect(close.textContent.trim()).toBe('');
+ close.click();expect(closed).toHaveBeenCalledOnce();
+});
 let app, host;
 const file = {
   id: "file",
@@ -38,10 +44,10 @@ const settle = async () => {
 };
 const button = (text) =>
   [...document.querySelectorAll("button")].find((b) => b.textContent.includes(text));
-async function mount(value = file) {
+async function mount(value = file, extra = {}) {
   host = document.createElement("div");
   document.body.append(host);
-  app = createApp({ render: () => h(Panel, { projectId: "project", file: value }) });
+  app = createApp({ render: () => h(Panel, { projectId: "project", file: value, ...extra }) });
   app.mount(host);
   await settle();
 }

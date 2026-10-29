@@ -88,8 +88,10 @@ describe('SQL assistant conversation',()=>{
     expect(host.querySelector('select').textContent).not.toContain('Draft');
     props.agents=[{id:'published',name:'Published',marketStatus:'published'},{id:'draft',name:'Draft',marketStatus:'draft'}];await nextTick();
     expect(document.querySelector('.sql-execution-modes')).not.toBeNull();
-    const choices=[...document.querySelector('.sql-agent-choice select').options].map(option=>option.value);
-    expect(choices).toEqual(['','published']);expect(document.querySelector('.sql-agent-choice option[value=""]').disabled).toBe(true);
+    const picker=document.querySelector('[aria-label="选择已发布 Agent"][role="combobox"]');
+    expect(picker.placeholder).toBe('选择已发布 Agent');picker.click();await nextTick();
+    const choices=[...document.querySelectorAll('.sql-agent-choice [role=option]')].map(option=>option.dataset.value);
+    expect(choices).toEqual(['published']);expect(document.querySelector('.sql-agent-choice').textContent).not.toContain('Draft');
   });
   it('shows pending planning inside the assistant reply without an overlay or fabricated plan',async()=>{
     const props=await mount({pendingPhase:'PREPARING',pendingStartedAt:Date.now(),busy:true,

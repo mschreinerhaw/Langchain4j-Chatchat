@@ -6,6 +6,19 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.*;
 
 class ReportPresentationTest {
+    @Test void recoversOnlyUnambiguousSectionTitlesAndQuarantinesBadBlocks(){
+        var refs=Map.of("section",Set.of("section-1"),"chart",Set.of("trend"));
+        var raw=Map.of("schemaVersion","report_layout.v1","blocks",List.of(
+            Map.of("id","a","type","section","ref","运行趋势"),Map.of("id","bad","type","script","code","alert(1)"),
+            Map.of("id","b","type","chart","ref","trend")));
+        assertThatThrownBy(()->ReportLayout.validate(raw,refs)).isInstanceOf(IllegalArgumentException.class);
+        var result=ReportLayout.recover(raw,refs,Map.of("运行趋势","section-1"));
+        assertThat(result).containsEntry("status","RECOVERED");
+        var layout=(Map<String,Object>)result.get("layout");assertThat((List<?>)layout.get("blocks")).hasSize(2);
+        assertThat(layout.toString()).contains("section-1","trend").doesNotContain("script","alert");
+        assertThat(ReportLayout.validate(layout,refs)).isEqualTo(layout);
+        assertThat(result.get("diagnostics").toString()).contains("SECTION_TITLE_RESOLVED","INVALID_LAYOUT_BLOCK");
+    }
     @Test void defaultsAreAdaptiveAndPreferencesAreFrozenIntoTheExistingContext(){
         assertThat(ReportPresentation.read(Map.of())).containsEntry("strategy","auto");
         var chosen=new HashMap<String,Object>(Map.of("strategy","template","template","evidence-first","density","compact","autoCharts",false,"autoImages",false));

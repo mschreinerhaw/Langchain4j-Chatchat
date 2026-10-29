@@ -3,6 +3,7 @@ import plotlyRuntime from "plotly.js-dist-min/plotly.min.js?url";
 import {
   readReportArtifact,
   checkedPlotlyFigure,
+  plotlyDataTable,
   plotlyFrameDocument,
 } from "../utils/pythonVisualReport";
 
@@ -19,14 +20,18 @@ export default defineComponent({
       imageUrl = ref(""),
       frameDocument = ref(""),
       loading = ref(false),
-      error = ref("");
+      error = ref(""),fallbackTable=ref(null),empty=ref(false);
     let controller,
       observer,
       figure,
       serial = 0,
       renderTimeout,
       renderStarted = 0;
-    watch(error, (value) => emit("status", { id: props.chart.id, error: value }));
+    watch(error, (value,previous) => {
+      emit("status", { id: props.chart.id, error: value });
+      if(value || previous)window.dispatchEvent(new CustomEvent('runtime:report-presentation-diagnostic',{detail:{stage:'CHART_RENDER',
+        code:value?'CHART_RENDER_FAILED':'CHART_RENDER_RECOVERED',chartId:props.chart.id,recovered:!value,message:value}}));
+    });
     function recordTiming() {
       if (!renderStarted) return;
       performance.measure?.("runtime-report-chart-render", {
@@ -52,6 +57,8 @@ export default defineComponent({
       imageUrl.value = "";
       frameDocument.value = "";
       figure = null;
+      fallbackTable.value=null;
+      empty.value=false;
       loading.value = false;
     }
     async function load() {
@@ -63,10 +70,14 @@ export default defineComponent({
       loading.value = true;
       renderStarted = performance.now();
       try {
+        if(props.chart.renderError)throw new Error('此图表产物暂不可用，可查看正文及数据表。');
         const bytes = await readReportArtifact(props.chart.artifact, controller.signal);
         if (turn !== serial) return;
         if (props.chart.kind === "plotly") {
           figure = checkedPlotlyFigure(JSON.parse(new TextDecoder().decode(bytes)));
+          fallbackTable.value=plotlyDataTable(figure);
+          if(figure.data.every(trace=>['scatter','bar','pie','histogram','box'].includes(trace.type || 'scatter'))
+              && !figure.data.some(trace=>['x','y','values'].some(key=>Array.isArray(trace[key])&&trace[key].length))){empty.value=true;loading.value=false;recordTiming();return;}
           frameDocument.value = plotlyFrameDocument(plotlyRuntime, window.location.href);
         } else {
           const media = { png: "image/png", svg: "image/svg+xml" }[props.chart.kind];
@@ -111,6 +122,11 @@ export default defineComponent({
         clearTimeout(renderTimeout);
         error.value = "交互图渲染失败，原始分析结果仍保留";
         loading.value = false;
+        frameDocument.value='';
+      }
+      if(event.data?.type === 'runtime-plotly-unsupported'){
+        clearTimeout(renderTimeout);loading.value=false;frameDocument.value='';
+        error.value=fallbackTable.value?'此图表类型暂不支持，已保留同一数据的表格。':'此图表类型暂不支持，其他报告内容仍保留。';
       }
     }
     function prepareExport(event) {
@@ -146,7 +162,7 @@ export default defineComponent({
       } else void load();
     });
     watch(
-      () => props.chart.artifact?.fileId,
+      () => [props.chart.id,props.chart.kind,props.chart.renderError,props.chart.artifact?.fileId,props.chart.artifact?.size,props.chart.artifact?.sha256,props.chart.artifact?.mediaType],
       () => {
         clear();
         void load();
@@ -165,6 +181,8 @@ export default defineComponent({
       frameDocument,
       loading,
       error,
+      fallbackTable,
+      empty,
       figure,
       load,
       sendFigure,

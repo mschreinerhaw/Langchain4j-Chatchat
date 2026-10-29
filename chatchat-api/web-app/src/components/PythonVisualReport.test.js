@@ -13,6 +13,14 @@ vi.mock("./PythonReportChart.vue", () => ({
   },
 }));
 let app, host;
+it('does not let a late archived review replace an in-place final report update',async()=>{
+ let resolve;reviewArchivedVisualReport.mockReturnValueOnce(new Promise(done=>resolve=done));
+ const props=reactive({report:{status:'PARTIAL',layoutValidationStatus:'FAILED',title:'Old archived report',execution:{resultDatasetRef:'result',codeArtifact:{fileId:'source'}}}});
+ host=document.createElement('div');document.body.append(host);app=createApp({render:()=>h(PythonVisualReport,props)});app.mount(host);await nextTick();
+ props.report.title='Final streamed report';props.report.status='SUCCESS';props.report.layoutValidationStatus='PASSED';await nextTick();
+ resolve({status:'PARTIAL',title:'Stale reviewed report'});await nextTick();await nextTick();
+ expect(host.textContent).toContain('Final streamed report');expect(host.textContent).not.toContain('Stale reviewed report');
+});
 it("renders archived Markdown narratives as semantic HTML while preserving report values", async () => {
   host = document.createElement("div");
   document.body.append(host);
@@ -181,6 +189,7 @@ it("marks a delivery partial when a chart cannot render without rewriting immuta
   expect(host.querySelector(".python-visual-report").dataset.status).toBe("PARTIAL");
   expect(host.textContent).toContain("部分完成");
   expect(report.status).toBe("SUCCESS");
+  expect(host.querySelector('.report-notice')).toBeNull();
 });
 
 it("keeps internal execution metadata out of the report while retaining business limitations", async () => {

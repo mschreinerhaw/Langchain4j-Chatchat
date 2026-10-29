@@ -268,8 +268,8 @@ export function createCodingRun(contract, gateway, options = {}) {
       fileName: { type: 'string', description: 'Optional compatibility hint; Runtime assigns the actual immutable script name and version.' }, source: { type: 'string', description: 'Initial complete program only. Never combine source with repair or rollback. After the first version use repair with the latest parentCodeVersion and baseCodeSha256.' },
       ...(history ? { rollback: { type: 'object', properties: { parentCodeVersion: { type: 'integer' }, parentCodeSha256: { type: 'string' }, targetCodeSha256: { type: 'string' } }, required: ['parentCodeVersion','parentCodeSha256','targetCodeSha256'], additionalProperties: false } } : {}),
       ...(repairableAnalysis ? { repair: { type: 'object', description: 'Exact edits of the existing program; exclude source and rollback.', properties: {
-        baseCodeSha256: { type: 'string' }, parentCodeVersion: { type: 'integer' }, edits: { type: 'array', items: { type: 'object', properties: {
-          oldText: { type: 'string' }, newText: { type: 'string' },
+        baseCodeSha256: { type: 'string' }, parentCodeVersion: { type: 'integer' }, edits: { type: 'array', minItems: 1, maxItems: 32, items: { type: 'object', properties: {
+          oldText: { type: 'string', minLength: 1, maxLength: 16000 }, newText: { type: 'string', maxLength: 16000 },
         }, required: ['oldText', 'newText'], additionalProperties: false } },
       }, required: history ? ['baseCodeSha256', 'parentCodeVersion', 'edits'] : ['baseCodeSha256', 'edits'], additionalProperties: false } } : {}),
     }, required: repairableAnalysis ? [] : ['source'], additionalProperties: false },

@@ -192,6 +192,23 @@ test('a later failed execution invalidates the cached earlier report for complet
   assert.equal(counts.finish?.operationId??null,null);
 });
 
+test('native loop repairs an output-only probe after a rejected anchor using the refreshed uncompacted source',async()=>{
+  const initial="value = 3\nprint('inspection only')\n";
+  const task={...contract,runtimeContext:{codingLifecycle:{schemaVersion:'runtime_os.code_lifecycle.v1',patchOnlyAfterFirst:true}}};
+  const {run,counts}=fixture((turn,request)=>{
+    if(turn===1)return {toolCalls:[{id:'inspect',name:'python_execute',input:{source:initial}}]};
+    if(turn===4)return {toolCalls:[{id:'confirm',name:'artifact_read',input:{reference:'runtime-evidence:result-2'}}]};
+    const binding=request.messages.flatMap(m=>m.content).filter(p=>p.type==='text'&&p.text.startsWith('Untrusted latest executed program')).at(-1);
+    assert(binding,'The ordinary short conversation must receive fresh source without requiring compaction');
+    assert(binding.text.includes(JSON.stringify(initial)));assert(binding.text.includes('Rejected proposals did not change this program'));
+    return {toolCalls:[{id:'repair-'+turn,name:'python_execute',input:{repair:{parentCodeVersion:1,baseCodeSha256:createHash('sha256').update(initial).digest('hex'),
+      edits:[{oldText:turn===2?"print('imagined rejected program')":"print('inspection only')",newText:"print('contracted report')"}]}}}]};
+  },version=>version===1?{status:'SUCCEEDED',executorStopped:true,resultAvailable:false,validationStatus:'FAILED',outputStatus:'REQUIRED_OUTPUT_MISSING'}:verified(version),
+  (_count,reference)=>({reference,complete:true,rows:[{reportMarkdown:'actual computed result'}],reportReferenceValidation:{valid:true}}),task);
+  assert.equal((await run.run()).status,'completed');assert.equal(counts.models,4);assert.equal(counts.executions,2);assert.equal(counts.reads,1);
+  assert.equal(run.events.filter(e=>e.type==='CODE_PROPOSAL_REJECTED').length,1);
+});
+
 test('review metadata cannot grant artifact read authority', () => {
   assert.throws(() => createCodingRun({ ...contract, authorization: {
     ...contract.authorization, allowedTools: ['python_execute'] } },

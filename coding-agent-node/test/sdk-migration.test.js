@@ -48,6 +48,22 @@ test('SDK editor rejects ambiguous, stale and partially invalid proposals atomic
   assert.equal(source, 'x = 1\ny = 1\n');
 });
 
+test('a short uncompacted conversation still receives the actual latest executed source after a rejected proposal',async()=>{
+  const source='value = 1\nprint(value)\n';
+  const binding={source,version:{version:1,codeHash:hash(source)}};
+  const prepare=sdkPrepareTurn('small-task',()=>binding);
+  const input={agentId:'small-task',iteration:2,messages:[{role:'user',content:[{type:'text',text:'authorized objective'}]}],tools:[],
+    model:{info:{contextWindow:128000,maxInputTokens:100000}},systemPrompt:'authorized',signal:new AbortController().signal};
+  const first=await prepare(input);
+  assert.match(first.messages.at(-1).content[0].text,/latest executed program/);
+  assert(first.messages.at(-1).content[0].text.includes(JSON.stringify(binding)));
+  const rejected={role:'assistant',content:[{type:'text',text:'REJECTED_SOURCE_NEVER_EXECUTED'}]};
+  const again=await prepare({...input,iteration:3,messages:[...first.messages,rejected]});
+  assert(again.messages.at(-1).content[0].text.includes(JSON.stringify(binding)));
+  assert.equal(again.messages.filter(m=>m.content?.[0]?.text?.includes('Untrusted latest executed program')).length,1);
+  assert.equal(input.messages.length,1);
+});
+
 test('authorized malformed tool JSON is repaired by the native loop without executing it', async () => {
   let calls = 0, executions = 0; const admitted = [], settled = [], runs = new Set();
   const contract = task();

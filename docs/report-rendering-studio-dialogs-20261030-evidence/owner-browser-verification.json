@@ -1,0 +1,27 @@
+{
+  "mode": "REAL_DEPLOYED_BROWSER_AUTHENTICATED_HISTORY_NO_HTTP_FIXTURES",
+  "passed": true,
+  "originalConversationId": "1793187047843-7f12ee365404e",
+  "metrics": 5,
+  "rows": 7,
+  "chartNaturalSize": {
+    "width": 1785,
+    "height": 884
+  },
+  "topLayoutFailureNotices": 0,
+  "requests": [
+    {
+      "url": "http://192.168.195.221:18100/api/v1/agent/runtime/runs/att-1-0eb47bf8-0f9f-48cf-8ca1-38cd18f52548/coding/analysis-coding-20131eae617cd98a663adbd33a4e620d2f9597991d51d8667d0c02e8a75fda26/visual-report?resultRef=runtime-evidence%3Acoding%3Abc22250826c23320f9d95829365b399a328251d92379ba497a09833ccb398fe1%3Aresult",
+      "status": 200
+    },
+    {
+      "url": "http://192.168.195.221:18100/api/v1/interactions/user-assets/ae8347f0cf27fedb041669cc92fd95cd05ce5b1d31afd0a16ebcb802112c3ba8/content",
+      "status": 200
+    }
+  ],
+  "errors": [],
+  "modelCalled": false,
+  "sqlExecuted": false,
+  "historyContentModified": false,
+  "selectionMethod": "Existing App.selectConversation with real summary; normal detail hydration and archived review"
+}

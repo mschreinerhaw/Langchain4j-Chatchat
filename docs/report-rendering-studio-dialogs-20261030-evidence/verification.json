@@ -247,9 +247,10 @@
   "scope": {
     "report": "Real original PNG and Java-admitted manifest replay, HTTP fixtures, actual Vue/Plotly rendering",
     "deployedFrontend": "Actual deployed assets with controlled API fixtures; no production business writes",
-    "originalOwnerAuthenticatedReview": false,
-    "ownerSessionStatus": 401,
-    "businessSqlExecuted": false
+    "originalOwnerAuthenticatedReview": true,
+    "ownerSessionStatus": 200,
+    "businessSqlExecuted": false,
+    "ownerLiveBrowser": "Real deployed assets and authenticated original history, no HTTP fixtures; 200 archive review and chart download, actual image decoded"
   },
   "originalArtifacts": {
     "rowsSha256": "294cf685a4cc0ecf75b67f072a574e9ed7479e543b591e4eb47436c593742a38",

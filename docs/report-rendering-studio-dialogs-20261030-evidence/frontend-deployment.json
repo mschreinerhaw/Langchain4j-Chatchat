@@ -41,8 +41,8 @@
     }
   ],
   "unauthenticatedApiStatus": 401,
-  "originalReportOwnerAuthenticatedTest": false,
-  "ownerTestLimitation": "Existing owner sessions returned 401; no credential or permission bypass was used.",
+  "originalReportOwnerAuthenticatedTest": true,
   "sqlExecuted": false,
-  "mode": "REAL_DEPLOYED_STATIC_BYTES_AND_AUTH_BOUNDARY"
+  "mode": "REAL_DEPLOYED_STATIC_BYTES_AND_AUTH_BOUNDARY",
+  "ownerVerificationEvidence": "owner-http-verification.json and owner-browser-verification.json"
 }

@@ -1,0 +1,18 @@
+{
+  "origin": "http://192.168.195.221:18100",
+  "mode": "REAL_AUTHENTICATED_OWNER_HTTP_NO_FIXTURES",
+  "ownerMatch": true,
+  "codeArchiveIdentityVerified": true,
+  "executionIdentityUnchanged": true,
+  "layoutValidationStatus": "RECOVERED",
+  "analysisStatus": "SUCCESS",
+  "status": "PARTIAL",
+  "chartBytes": 82050,
+  "chartSha256": "a0b5e7e4ec9c90121aadabe838109c3549df6d965b76cfe530ac8e74ecda38b0",
+  "metrics": 5,
+  "charts": 1,
+  "sqlExecuted": false,
+  "modelCalled": false,
+  "passwordOrTokenStoredInEvidence": false,
+  "reviewPath": "/api/v1/agent/runtime/runs/att-1-0eb47bf8-0f9f-48cf-8ca1-38cd18f52548/coding/analysis-coding-20131eae617cd98a663adbd33a4e620d2f9597991d51d8667d0c02e8a75fda26/visual-report?resultRef=runtime-evidence%3Acoding%3Abc22250826c23320f9d95829365b399a328251d92379ba497a09833ccb398fe1%3Aresult"
+}

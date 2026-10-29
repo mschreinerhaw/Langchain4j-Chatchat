@@ -64,6 +64,14 @@ class SqlWorkspaceMetadataToolsTest {
         snapshot="v2";assertThatThrownBy(()->tools.query(task,schema,describe())).isInstanceOf(ResponseStatusException.class);
         assertThat(tools.query(task,schema,describe())).containsEntry("snapshotId","v2");
     }
+    @Test void lineageAndDescribeShareEvidenceButRetainTheRequestedOperation(){
+        tools.query(task,schema,describe());
+        assertThat(tools.query(task,schema,Map.of("operation","LINEAGE","bindingId","binding","tableName","trades")))
+            .containsEntry("operation","LINEAGE").containsEntry("lineageStatus","NOT_COLLECTED").containsEntry("reusedEvidence",true);
+        assertThat(tools.query(task,schema,describe())).containsEntry("operation","DESCRIBE").doesNotContainKey("lineageStatus");
+        verify(metadata,times(1)).operateScoped(any(),eq(context),argThat(op->"DESCRIBE".equals(op.arguments().get("operation"))));
+        verify(metadata,times(2)).operateScoped(any(),eq(context),argThat(op->"SEARCH".equals(op.arguments().get("operation"))));
+    }
     @Test void rejectsAnotherBindingAndExecutionArguments(){
         assertThatThrownBy(()->tools.query(task,schema,Map.of("operation","DESCRIBE","bindingId","other","tableName","secret"))).isInstanceOf(SecurityException.class);
         assertThatThrownBy(()->tools.query(task,schema,Map.of("operation","SEARCH","sql","select secret"))).isInstanceOf(IllegalArgumentException.class);

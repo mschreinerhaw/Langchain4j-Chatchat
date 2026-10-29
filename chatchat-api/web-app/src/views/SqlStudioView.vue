@@ -268,14 +268,14 @@
         @clear-selection="selectedCode = null"
         @reference-file="addFileMention"
         ><template #database-context><div ref="databaseContextTarget" /></template>
-        <template #context-documents
+        <template #context-documents="{closeSettings}"
           ><SqlUserDocuments
             :key="tenantId + ':' + userId + ':' + projectId"
             v-model="userDocuments"
             :busy="busy || taskRunning"
             @uploading="documentsUploading = $event"
             ><template #actions
-              ><button type="button" :disabled="busy || taskRunning" @click="chooseLibrary"
+                ><button type="button" :disabled="busy || taskRunning" @click="closeSettings();chooseLibrary()"
                 >选择知识库文档</button
               ></template
             ><div v-for="item in mappingDocuments" :key="item.docId" class="sql-selection-chip"

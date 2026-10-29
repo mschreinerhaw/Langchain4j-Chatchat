@@ -258,6 +258,12 @@ public final class CodingWorkspaceService {
             row.put("status",result.getOrDefault("status",Boolean.TRUE.equals(result.get("valid"))?"VALID":"FAILED"));
             row.put("valid",Boolean.TRUE.equals(result.get("valid")));row.put("receiptRef","runtime-evidence:coding:workspace:"+operation+":receipt");
             if(result.get("category")!=null)row.put("category",result.get("category"));
+            for(String key:List.of("operation","reusedEvidence"))if(result.containsKey(key))row.put(key,result.get(key));
+            var validation=result.get("validation") instanceof Map<?,?> nested?nested:result;
+            var review=new LinkedHashMap<String,Object>();
+            for(String key:List.of("structuralDiagnostics","relationships","grains","structureReviewRequired","businessValidation"))
+                if(validation.containsKey(key))review.put(key,validation.get(key));
+            if(!review.isEmpty())row.put("structureReview",review);
             audit.put(operation,row);return encode(audit);
         });
     }
@@ -270,8 +276,11 @@ public final class CodingWorkspaceService {
             long validations=operations.stream().filter(row->Set.of("workspace_validate","workspace_propose").contains(row.get("tool"))).count();
             long duration=operations.stream().mapToLong(row->((Number)row.get("durationMs")).longValue()).sum();
             var proposals=operations.stream().filter(row->"workspace_propose".equals(row.get("tool"))).toList();
-            return Map.of("autonomous",true,"toolCalls",operations.size(),"validationAttempts",validations,"repairAttempts",Math.max(0,attempts-1),
-                "toolDurationMs",duration,"finalSqlValid",!proposals.isEmpty()&&Boolean.TRUE.equals(proposals.get(proposals.size()-1).get("valid")),"operations",operations);
+            var summary=new LinkedHashMap<String,Object>(Map.of("autonomous",true,"toolCalls",operations.size(),"validationAttempts",validations,"repairAttempts",Math.max(0,attempts-1),
+                "toolDurationMs",duration,"finalSqlValid",!proposals.isEmpty()&&Boolean.TRUE.equals(proposals.get(proposals.size()-1).get("valid")),"operations",operations));
+            summary.put("reusedMetadataCalls",operations.stream().filter(row->Boolean.TRUE.equals(row.get("reusedEvidence"))).count());
+            for(var row:operations)if(row.containsKey("structureReview"))summary.put("structureReview",row.get("structureReview"));
+            return summary;
         });
     }
     private List<String> explorationParents(CodingTaskContract contract){

@@ -13,7 +13,15 @@ const labels = {
 };
 export function sqlExplorationPhase(events=[]){
   const titles={FINDING_TABLES:'正在查找业务表',CONFIRMING_FIELDS:'正在确认字段关联',VALIDATING_SQL:'正在校验 SQL'};
-  for(const event of [...events].reverse()){
+  // Polling/replayed pages can arrive out of sequence. Present each event once,
+  // then use its server sequence; keep independent tool operations distinct.
+  const seen=new Set();
+  const ordered=[...events].filter(event=>{
+    if(!event.eventId)return true;
+    if(seen.has(event.eventId))return false;
+    seen.add(event.eventId);return true;
+  }).sort((a,b)=>Number(a.sequence||a.order||0)-Number(b.sequence||b.order||0));
+  for(const event of ordered.reverse()){
     let payload=event.payload;try{if(typeof payload==='string')payload=JSON.parse(payload);}catch{continue;}
     if(titles[payload?.sqlProgressPhase])return titles[payload.sqlProgressPhase];
   }

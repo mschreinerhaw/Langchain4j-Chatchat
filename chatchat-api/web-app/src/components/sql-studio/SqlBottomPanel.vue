@@ -68,6 +68,19 @@
         </details>
       </div>
       <div v-else
+        ><section v-if="structureReview" aria-label="SQL 结构审查">
+          <p>静态校验不代表业务验收通过；数据库 SQL 未执行。</p>
+          <p v-if="!structureReview.structureReviewRequired">本次静态检查未发现已覆盖的结构风险。业务口径仍需确认。</p>
+          <p v-for="(issue,index) in structureReview.structuralDiagnostics" :key="index">
+            {{ warningLabel(issue.code) }} · {{ issue.path }}<span v-if="issue.columns?.length"> · {{ issue.columns.join('、') }}</span>
+          </p>
+          <p v-for="(link,index) in structureReview.relationships" :key="`link-${index}`">
+            {{ link.left || link.alias }}<span v-if="link.right"> → {{ link.right }}</span>：{{ link.status === 'DECLARED_FOREIGN_KEY' ? '已匹配完整外键结构证据（业务含义仍需确认）' : '关联尚未验证，不能仅凭字段同名确认' }}
+          </p>
+          <p v-for="(grain,index) in structureReview.grains" :key="`grain-${index}`">
+            {{ grain.tableName || grain.alias }}：{{ grain.status === 'DECLARED_KEY' ? `声明主键 ${grain.primaryKeys.join('、')}` : '未获得完整主键证据' }}；业务粒度未确认。
+          </p>
+        </section
         ><p>{{
           result?.validation === "NOT_RUN" || !result
             ? "尚未执行 SQL 方言或数据库校验。"

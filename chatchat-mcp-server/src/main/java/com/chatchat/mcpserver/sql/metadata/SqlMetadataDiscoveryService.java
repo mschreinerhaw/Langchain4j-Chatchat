@@ -54,10 +54,13 @@ public class SqlMetadataDiscoveryService {
             result.put("limitations", List.of("Metadata snapshot is unavailable; collect it through the existing metadata administration service."));
             return result;
         }
+        // The legacy collector caps columns at 50,000. A truncated composite key
+        // must never be mistaken for a complete key and certify JOIN uniqueness.
+        boolean columnsComplete = index.tableColumns().values().stream().mapToLong(List::size).sum() < 50000;
         List<Map<String, Object>> tables = index.tables().stream()
             .filter(table -> MetadataVisibility.tableVisible(asset, table))
             .sorted(Comparator.comparing(table -> identity(table.database(), table.schema(), table.table())))
-            .map(table -> tableProjection(asset, index, table)).toList();
+            .map(table -> tableProjection(asset, index, table, columnsComplete)).toList();
         String snapshot = hash(List.of(assetProjection(asset), tables));
         Map<String, Object> provenance = new LinkedHashMap<>();
         provenance.put("assetRef", asset.getId());
@@ -117,15 +120,17 @@ public class SqlMetadataDiscoveryService {
                 .thenComparing(table -> (String) table.get("tableRef"))).toList();
     }
 
-    private Map<String, Object> tableProjection(SqlDatasourceConfig asset, MetadataIndex index, TableLocation table) {
+    private Map<String, Object> tableProjection(SqlDatasourceConfig asset, MetadataIndex index, TableLocation table, boolean columnsComplete) {
         String key = "trino".equals(index.databaseType())
             ? MetadataIndex.tableKey(Objects.toString(table.database(), ""), Objects.toString(table.schema(), ""), table.table())
             : (Objects.toString(table.database(), "") + "." + table.table()).toLowerCase(Locale.ROOT);
-        List<MetadataColumn> columns = index.tableColumns().getOrDefault(key, List.of()).stream()
+        List<MetadataColumn> allColumns = index.tableColumns().getOrDefault(key, List.of()).stream()
             // Legacy index keys may merge namespaces/case variants. Never attach another physical object's fields.
             .filter(column -> Objects.equals(column.datasourceId(), asset.getId())
                 && Objects.equals(column.database(), table.database()) && Objects.equals(column.schema(), table.schema())
                 && Objects.equals(column.table(), table.table()))
+            .toList();
+        List<MetadataColumn> columns = allColumns.stream()
             .filter(column -> MetadataVisibility.fieldVisible(asset, table, column.name()))
             .sorted(Comparator.comparing(MetadataColumn::name)).toList();
         Map<String, Object> value = new LinkedHashMap<>();
@@ -134,6 +139,18 @@ public class SqlMetadataDiscoveryService {
         value.put("tableName", table.table()); value.put("tableType", table.tableType()); value.put("comment", table.tableComment());
         value.put("columns", columns.stream().map(MetadataColumn::toDiagnostic).toList());
         value.put("columnCount", columns.size());
+        // Only MySQL's documented PRI marker establishes a primary key here. Other
+        // collectors (including Inceptor's unique_constraint) do not prove a PK.
+        boolean primarySource = columnsComplete && "mysql".equals(index.databaseType());
+        var primary = primarySource ? allColumns.stream().filter(c -> "PRI".equals(c.columnKey())).map(MetadataColumn::name).sorted().toList() : List.<String>of();
+        var partitions = allColumns.stream().flatMap(c -> c.partitionKeys().stream()).distinct().sorted().toList();
+        var visible = columns.stream().map(MetadataColumn::name).collect(Collectors.toSet());
+        boolean primaryVisible = visible.containsAll(primary), partitionVisible = visible.containsAll(partitions);
+        value.put("primaryKeys", primaryVisible ? primary : List.of());
+        value.put("primaryKeyStatus", primary.isEmpty() ? "NOT_COLLECTED" : primaryVisible ? "COLLECTED_VISIBLE" : "REDACTED");
+        value.put("partitionKeys", partitionVisible ? partitions : List.of());
+        value.put("partitionKeyStatus", partitions.isEmpty() ? "NOT_COLLECTED" : partitionVisible ? "COLLECTED_VISIBLE" : "REDACTED");
+        value.put("businessGrainStatus", "UNCONFIRMED");
         var relationshipKey = MetadataIndex.relationshipKey(table.database(), table.schema(), table.table());
         value.put("relationsStatus", index.foreignKeys().containsKey(relationshipKey) ? "COLLECTED_VISIBLE" : "NOT_COLLECTED");
         value.put("foreignKeys", visibleForeignKeys(asset, index, table, columns));

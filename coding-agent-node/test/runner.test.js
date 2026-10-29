@@ -16,6 +16,19 @@ test('SQL metadata model view preserves meanings, precise types and relationship
   assert.ok(JSON.stringify(view).length<JSON.stringify(receipt).length*0.7);
   assert.equal(compactSqlMetadata({...receipt,items:[{...receipt.items[0],columns:[{...column,schema:'different'}]}]}).items[0].columns[0].schema,'different');
 });
+test('SQL context compaction keeps structure evidence and scope while removing only repeated transport metadata',()=>{
+  const receipt={contractVersion:'sql-studio.metadata.v2',supportedOperations:['SEARCH','DESCRIBE'],
+    evidenceClass:'REGISTERED_METADATA',verificationStatus:'NOT_VERIFIED_LIVE',bindingId:'bound',snapshotId:'version',
+    items:[{tableName:'accounts',evidenceClass:'REGISTERED_METADATA',verificationStatus:'NOT_VERIFIED_LIVE',
+      primaryKeys:['id','part'],primaryKeyStatus:'COLLECTED_VISIBLE',partitionKeys:['part'],partitionKeyStatus:'COLLECTED_VISIBLE',
+      foreignKeys:[],businessGrainStatus:'UNCONFIRMED',columns:[{name:'id',dataType:'INT',comment:'Identifier'}]},
+      {tableName:'inferred',evidenceClass:'MODEL_INFERENCE',verificationStatus:'UNCONFIRMED'}]};
+  const before=structuredClone(receipt),view=compactSqlMetadata(receipt);
+  assert.deepEqual(receipt,before);assert.equal(view.contractVersion,undefined);assert.equal(view.supportedOperations,undefined);
+  assert.equal(view.evidenceClass,receipt.evidenceClass);assert.equal(view.verificationStatus,receipt.verificationStatus);
+  assert.deepEqual(view.items[0].primaryKeys,['id','part']);assert.equal(view.items[0].partitionKeyStatus,'COLLECTED_VISIBLE');
+  assert.equal(view.items[0].businessGrainStatus,'UNCONFIRMED');assert.equal(view.items[1].evidenceClass,'MODEL_INFERENCE');
+});
 
 // Allocation is a Java callback fixture; Python results below remain branch-specific fixtures.
 const createCodingRun=(task,gateway,options)=>{

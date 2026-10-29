@@ -164,6 +164,31 @@ class SqlMetadataDiscoveryWorkflowTest {
         asset.setSensitiveFieldsJson(null); asset.setSensitiveTablesJson("[\"db.parent\"]");
         assertThat(run(args("DESCRIBE","assetId","a","tableName","orders")).toString()).doesNotContain("referencedTable=parent");
     }
+    @Test void projectsOnlyCompleteVisiblePrimaryAndPartitionKeysAndVersionsThem() {
+        var id=new MetadataColumn("a","db","public","orders","id","int",null,"PRI",null,false,1,List.of("part"));
+        var part=new MetadataColumn("a","db","public","orders","part","int",null,"PRI",null,false,2,List.of("part"));
+        when(indexes.indexFor(asset)).thenReturn(index(List.of(table("orders")),Map.of("db.orders",List.of(id,part)),100));
+        var before=run(args("DESCRIBE","assetId","a","tableName","orders"));
+        assertThat(before.toString()).contains("primaryKeys=[id, part]","partitionKeys=[part]","primaryKeyStatus=COLLECTED_VISIBLE","businessGrainStatus=UNCONFIRMED");
+        asset.setSensitiveFieldsJson("[\"db.orders.part\"]");
+        var after=run(args("DESCRIBE","assetId","a","tableName","orders"));
+        assertThat(after.toString()).contains("primaryKeys=[]","primaryKeyStatus=REDACTED","partitionKeys=[]","partitionKeyStatus=REDACTED").doesNotContain("name=part","primaryKeys=[id]");
+        assertThat(after.get("snapshotId")).isNotEqualTo(before.get("snapshotId"));
+    }
+    @Test void truncatedColumnCollectionCannotCertifyACompletePrimaryKey() {
+        var id=new MetadataColumn("a","db","public","orders","id","int",null,"PRI",null,false,1);
+        when(indexes.indexFor(asset)).thenReturn(index(List.of(table("orders")),Map.of("db.orders",List.of(id),
+            "db.unlisted",Collections.nCopies(49999,column("filler"))),100));
+        assertThat(run(args("DESCRIBE","assetId","a","tableName","orders")).toString())
+            .contains("primaryKeys=[]","primaryKeyStatus=NOT_COLLECTED");
+    }
+    @Test void inceptorUniqueConstraintMarkerCannotBePromotedToPrimaryKeyEvidence() {
+        var id=new MetadataColumn("a","db","public","orders","id","int",null,"PRI",null,false,1);
+        when(indexes.indexFor(asset)).thenReturn(new MetadataIndex("a","inceptor",List.of(table("orders")),Map.of(),Map.of(),
+            Map.of("db.orders",List.of(id)),List.of("db"),100,false,null));
+        assertThat(run(args("DESCRIBE","assetId","a","tableName","orders")).toString())
+            .contains("primaryKeys=[]","primaryKeyStatus=NOT_COLLECTED");
+    }
     private Map<String, Object> run(Map<String, Object> args) { return run(args, id -> id.equals("a")); }
     private Map<String, Object> run(Map<String, Object> args, Predicate<String> allowed) {
         return workflow.execute(new SqlMetadataDiscoveryWorkflow.Request(args, allowed), caller);

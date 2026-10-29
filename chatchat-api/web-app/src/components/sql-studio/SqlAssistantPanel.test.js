@@ -10,6 +10,14 @@ async function mount(values={},slots={}) {
   app=createApp({render:()=>h(SqlAssistantPanel,props,slots)});app.mount(host);await nextTick();return props;
 }
 describe('SQL assistant conversation',()=>{
+  it('releases the native modal before opening document selection through the context slot',async()=>{
+    const openLibrary=vi.fn();
+    await mount({}, {'context-documents':({closeSettings})=>h('button',{id:'library-launch',onClick:()=>{closeSettings();openLibrary();}},'Choose document')});
+    host.querySelector('[aria-label="高级设置"]').click();
+    expect(document.querySelector('[aria-label="AI 助手高级设置"]').open).toBe(true);
+    document.querySelector('#library-launch').click();await nextTick();
+    expect(openLibrary).toHaveBeenCalledOnce();expect(document.querySelector('[aria-label="AI 助手高级设置"]').open).toBe(false);
+  });
   it('never inserts SQL from failed or unchecked Markdown notes',async()=>{
     const props=await mount({editorEditable:true,aiAction:'explore',messages:[{id:'a',role:'assistant',generationId:'g',text:'```sql\nSELECT hidden FROM private\n```'}],
       result:{generation:{id:'g',prepared:{taskRequest:{toolInput:{sqlStudioAction:'explore'}}}},task:{status:'SUCCESS'},files:[],events:[],rawAnswer:'',metadataExploration:{fieldValidation:'NOT_RUN'}}});

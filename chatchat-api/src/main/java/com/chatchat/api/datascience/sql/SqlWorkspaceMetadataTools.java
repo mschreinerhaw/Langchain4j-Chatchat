@@ -91,7 +91,7 @@ public class SqlWorkspaceMetadataTools {
             var cached=map(prior);
             try{checkSnapshot(scope,context,binding.bindingId(),cached.get("snapshotId"));}
             catch(ResponseStatusException changed){if(changed.getStatusCode().value()==409)invalidate(contract,binding.bindingId());throw changed;}
-            var reused=new LinkedHashMap<>(cached);reused.put("reusedEvidence",true);return reused;
+            var reused=new LinkedHashMap<>(cached);reused.put("reusedEvidence",true);return operationView(reused,operation);
         }
         var raw=metadata.getObject().operateScoped(scope,context,new SqlStudioMetadataService.Operation(binding.bindingId(),args)).metadata();
         if(!"SUCCEEDED".equals(raw.get("status")))throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"METADATA_SERVICE_UNAVAILABLE: "+raw.get("status"));
@@ -113,7 +113,13 @@ public class SqlWorkspaceMetadataTools {
             saved.put("tables",tables);saved.put("snapshots",snapshots);saved.put("queries",queries);
             if(encode(saved).length()>750000)throw new IllegalArgumentException("Metadata context budget reached");return encode(saved);
         });
-        return result;
+        return operationView(result,operation);
+    }
+    private Map<String,Object> operationView(Map<String,Object> result,String operation){
+        var view=new LinkedHashMap<>(result);view.put("operation",operation);
+        view.remove("lineageStatus");view.remove("relationshipSource");
+        if(operation.equals("LINEAGE")){view.put("lineageStatus","NOT_COLLECTED");view.put("relationshipSource","JDBC_IMPORTED_KEYS");}
+        return view;
     }
     private String searchQuery(Map<String,Object> input){
         var parts=new ArrayList<String>();

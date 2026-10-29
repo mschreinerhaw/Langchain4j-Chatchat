@@ -2,6 +2,17 @@
 import {createApp,h,nextTick} from 'vue';
 import {it,expect} from 'vitest';
 import SqlBottomPanel from './SqlBottomPanel.vue';
+it('separates static SQL success from business grain and relationship review',async()=>{
+ const host=document.createElement('div');document.body.append(host);
+ const app=createApp({render:()=>h(SqlBottomPanel,{tab:'validation',generations:[],result:{validation:'静态校验通过',metadataExploration:{codingExploration:{structureReview:{
+  structureReviewRequired:true,structuralDiagnostics:[{path:'sql/query.sql',code:'JOIN_FANOUT_AGGREGATION_RISK'}],
+  relationships:[{left:'a',right:'t',status:'INFERRED'}],grains:[{alias:'a',tableName:'<img src=x>',status:'UNKNOWN'}]
+ }}}}})});
+ app.mount(host);await nextTick();
+ expect(host.textContent).toContain('汇总可能重复计数');expect(host.textContent).toContain('关联尚未验证');
+ expect(host.textContent).toContain('业务粒度未确认');expect(host.textContent).toContain('数据库 SQL 未执行');
+ expect(host.querySelector('img')).toBeNull();app.unmount();host.remove();
+});
 it('keeps per-model diagnostics separate from task elapsed time and renders previews as inert text',async()=>{
  const host=document.createElement('div');document.body.append(host);
  const app=createApp({render:()=>h(SqlBottomPanel,{tab:'diagnostics',generations:[],result:{metadataExploration:{diagnostics:{schemaVersion:'sql-studio.diagnostics.v1',elapsedMs:119800,

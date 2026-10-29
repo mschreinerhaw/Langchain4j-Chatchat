@@ -82,7 +82,10 @@ public class SqlStudioMetadataService {
             captured.put("discoveryId",context.discoveryId());captured.put("bindingId",binding.bindingId());
             if(table.get("tableRef") instanceof String ref)captured.put("tableRef",ref);
             captured.put("columns",columns);captured.put("relationsStatus",table.getOrDefault("relationsStatus",null));
-            captured.put("foreignKeys",table.get("foreignKeys"));captured.put("snapshotId",selection.expectedSnapshotId());tables.add(captured);
+            captured.put("foreignKeys",table.get("foreignKeys"));
+            for(String key:List.of("primaryKeys","primaryKeyStatus","partitionKeys","partitionKeyStatus","businessGrainStatus"))
+                if(table.containsKey(key))captured.put(key,table.get(key));
+            captured.put("snapshotId",selection.expectedSnapshotId());tables.add(captured);
         }
         return Map.of("tables",tables);
     }

@@ -199,7 +199,7 @@
           >{{ document.fileName }} ·
           {{ document.purpose === "EVIDENCE" ? "分析依据" : "参考规则" }}</div
         >
-        <slot name="context-documents" />
+        <slot name="context-documents" :close-settings="() => closeDialog(settingsDialog)" />
         <div
           v-if="availableAgents.length"
           class="sql-execution-modes"

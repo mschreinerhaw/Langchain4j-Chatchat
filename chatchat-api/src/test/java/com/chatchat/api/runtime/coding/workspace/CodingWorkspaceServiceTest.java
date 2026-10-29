@@ -48,6 +48,10 @@ class CodingWorkspaceServiceTest {
         service.setFastPathEnabled(true);
         service.submit(scope,"autonomous","Find transactions, assets and P/L for customer 070200046604. Do not invent unknown definitions.","mysql","",Map.of("discoveryId","discovery","projectId","project"));
         var task=actor(()->tasks.contract(scope,"autonomous"));
+        assertThat(Duration.between(Instant.now(),task.budget().deadlineAt()).toSeconds()).isBetween(850L,900L);
+        assertThat(Duration.between(Instant.now(),contract.budget().deadlineAt()).toSeconds()).isLessThanOrEqualTo(120L);
+        assertThat(task.budget().maxModelTokens()).isEqualTo(1048576);
+        assertThat(contract.budget().maxModelTokens()).isEqualTo(262144);
         var owner=actor(()->tasks.claim(scope,"autonomous","cline-adapter:discovery",Duration.ofMinutes(2),tasks.get(scope,"autonomous").revision()));
         assertThat(task.authorization().allowedTools()).contains("workspace_metadata","workspace_validate");
         assertThat(task.metadataRefs()).doesNotContain(CodingWorkspaceService.FAST_PATH_REF);

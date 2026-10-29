@@ -1,7 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createCodingRun as realCreateCodingRun } from '../src/runner.js';
+import { createCodingRun as realCreateCodingRun, compactSqlMetadata } from '../src/runner.js';
 import { createRuntimeModel } from '../src/runtime-model.js';
+
+test('SQL metadata model view preserves meanings, precise types and relationships without repeating field owners',()=>{
+  const column={name:'client_no',table:'trades',database:'biz',schema:'public',datasourceId:'a-long-source-identifier',
+    dataType:'VARCHAR',columnType:'VARCHAR(12)',comment:'Customer identifier; retain leading zeroes',nullable:false,columnKey:null};
+  const receipt={bindingId:'bound-source',snapshotId:'v1',status:'SUCCEEDED',items:[{tableName:'trades',database:'biz',schema:'public',
+    columns:Array.from({length:100},()=>({...column})),foreignKeys:[{column:'client_no',targetTable:'customers'}]}]};
+  const original=structuredClone(receipt),view=compactSqlMetadata(receipt);
+  assert.deepEqual(receipt,original);
+  assert.deepEqual(view.items[0].columns[0],{name:'client_no',dataType:'VARCHAR',columnType:'VARCHAR(12)',comment:column.comment,nullable:false});
+  assert.deepEqual(view.items[0].foreignKeys,receipt.items[0].foreignKeys);
+  assert.equal(view.bindingId,receipt.bindingId);assert.equal(view.snapshotId,receipt.snapshotId);
+  assert.ok(JSON.stringify(view).length<JSON.stringify(receipt).length*0.7);
+  assert.equal(compactSqlMetadata({...receipt,items:[{...receipt.items[0],columns:[{...column,schema:'different'}]}]}).items[0].columns[0].schema,'different');
+});
 
 // Allocation is a Java callback fixture; Python results below remain branch-specific fixtures.
 const createCodingRun=(task,gateway,options)=>{

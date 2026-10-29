@@ -58,6 +58,18 @@ public final class CodingWorkspaceService {
     private final SqlGlotToolchain parser;
     private final ObjectMapper json;
     private final long timeoutSeconds;
+    private long sqlMetadataTimeoutSeconds=900;
+    private long sqlMetadataMaxModelTokens=1048576;
+    @Value("${chatchat.coding.workspace.sql-metadata-max-model-tokens:1048576}")
+    public void setSqlMetadataMaxModelTokens(long value){
+        if(value<32768 || value>8388608)throw new IllegalArgumentException("Invalid SQL metadata model token budget");
+        sqlMetadataMaxModelTokens=value;
+    }
+    @Value("${chatchat.coding.workspace.sql-metadata-timeout-seconds:900}")
+    public void setSqlMetadataTimeoutSeconds(long value){
+        if(value<1 || value>3600)throw new IllegalArgumentException("Invalid SQL metadata exploration timeout");
+        sqlMetadataTimeoutSeconds=value;
+    }
     private long maxModelTokens=262144;
     @org.springframework.beans.factory.annotation.Value("${chatchat.coding.workspace.max-model-tokens:262144}")
     public void setMaxModelTokens(long value){
@@ -104,7 +116,7 @@ public final class CodingWorkspaceService {
                 boolean fast=fastPathEnabled && !autonomous && encode(payload).getBytes(StandardCharsets.UTF_8).length<=fastPathMaxContextBytes;
                 register(scope,inputId,INPUT_TYPE,payload,List.of(),task,null);
                 var budget=new CodingTaskContract.Budget("workspace-budget:"+task,
-                    Instant.now().plusSeconds(timeoutSeconds).truncatedTo(ChronoUnit.MILLIS),autonomous?24:8,maxModelTokens,autonomous?64:16,0,
+                    Instant.now().plusSeconds(autonomous?sqlMetadataTimeoutSeconds:timeoutSeconds).truncatedTo(ChronoUnit.MILLIS),autonomous?24:8,autonomous?sqlMetadataMaxModelTokens:maxModelTokens,autonomous?64:16,0,
                     "1","USD",0,0,1024*1024);
                 contract=new CodingTaskContract(CodingProtocol.WORKSPACE_VERSION,task,scope,
                     new CodingTaskContract.Objective((fast?"Use the Java-prefetched authorized ":"Read the authorized ")+language

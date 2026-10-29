@@ -1,5 +1,7 @@
 # Studio 页面、元数据校验与会话隔离整改
 
+后续 P0 补充见 [Cline 自主元数据探索整改](cline-sql-metadata-20261029.md)。本文末尾的元数据 403 是首次部署时的观察；后续已确认普通用户也会受影响，属于系统将元数据读取误用业务执行授权的问题，并非需要给业务用户追加数据权限。
+
 ## 基线与范围
 
 修复分支：`fix/studio-isolation-metadata-20261029`。先同步 `origin/main`，再快进纳入当前环境的最新分支 `origin/fix/runtime-analysis-boundaries-20261028`，代码基线为 `d29a2c538`。原工作区干净，没有覆盖未提交修改。

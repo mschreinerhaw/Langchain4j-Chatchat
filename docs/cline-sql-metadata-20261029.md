@@ -38,6 +38,8 @@
 ## 预算与可追踪性
 
 - 每任务最多 24 次模型调用、64 次工具调用；单次元数据调用最多 15 秒，且不能超过任务截止时间。
+- 自主探索任务默认 900 秒，可用 `chatchat.coding.workspace.sql-metadata-timeout-seconds` 在 1–3600 秒内配置；普通 SQL/Python 文件任务继续使用原有超时。真实首轮回归触发了旧 300 秒期限，故将探索任务的时间预算单独配置，保留该失败样本。
+- 自主探索累计模型 token 上限默认 1048576，可用 `chatchat.coding.workspace.sql-metadata-max-model-tokens` 在 32768–8388608 内配置。普通文件任务保留原预算；模型侧列结果去除重复的所属表/库/Schema、数据源 ID 和空值，后端审计仍保存完整回执。
 - 单次结构化结果最多 64 KB；任务缓存最多 64 张表、32 个查询、750 KB 状态。
 - SQL profile 不提供 shell、网络、Python 或业务 SQL 执行能力。
 - 元数据操作使用现有预算预留、执行意图、结算和 Evidence Store 回执；最终提案保存父回执关系。

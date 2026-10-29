@@ -33,7 +33,7 @@ def main():
     project=identity['projectId'];root='/data-science/sql/projects/'+project
     started=time.monotonic()
     if args.resume:
-        generation=json.loads((args.output/'request.json').read_text())['generationId']
+        generation=json.loads((args.output/'request.json').read_text(encoding='utf-8'))['generationId']
     else:
         assets=call(root+'/metadata/assets?serviceId='+urllib.parse.quote(identity['serviceId']))['metadata']
         assert assets['status']=='SUCCEEDED'
@@ -51,7 +51,7 @@ def main():
         (args.output/'request.json').write_text(json.dumps({'generationId':generation,'projectId':project,
             'prompt':prompt,'preselectedTables':[]},ensure_ascii=False,indent=2),encoding='utf-8')
         call(root+'/generations/'+generation+'/coding','POST',{})
-    deadline=time.monotonic()+420
+    deadline=time.monotonic()+1020
     while True:
         result=call(root+'/generations/'+generation)
         (args.output/'result.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')

@@ -7,6 +7,23 @@ import { initialProject, proposeProject, projectSchema, decodeProject } from './
 const TOOL_NAMES = new Set(['python_execute', 'metadata_read', 'artifact_read', 'skill_read']);
 const WORKSPACE_TOOLS = new Set(['workspace_read', 'workspace_propose', 'workspace_metadata', 'workspace_validate']);
 
+// Runtime retains the complete receipt. Avoid repeating the same table ownership
+// on every field in the model's growing conversation; preserve field semantics.
+export function compactSqlMetadata(receipt) {
+  if (!Array.isArray(receipt?.items)) return receipt;
+  return {...receipt,items:receipt.items.map(table=>{
+    if (!Array.isArray(table?.columns)) return table;
+    return {...table,columns:table.columns.map(column=>{
+      const field=Object.fromEntries(Object.entries(column).filter(([,value])=>value!==null));
+      for (const [key,parent] of [['table','tableName'],['database','database'],['schema','schema']])
+        if (field[key]===table[parent]) delete field[key];
+      delete field.datasourceId; // The authorized source is already identified by bindingId.
+      if (field.columnType===field.dataType) delete field.columnType;
+      return field;
+    })};
+  })};
+}
+
 function required(value, label) {
   if (typeof value !== 'string' || !value.trim()) throw new TypeError(`${label} is required`);
   return value.trim();
@@ -245,7 +262,7 @@ export function createCodingRun(contract, gateway, options = {}) {
         await forward({type:'TOOL_STARTED',tool:name,operationId:id});
         const receipt=name==='workspace_metadata'?await gateway.queryWorkspaceMetadata(contract,id,input,context.signal):await gateway.validateWorkspace(contract,id,input,context.signal);
         await forward({type:'TOOL_FINISHED',tool:name,operationId:id,status:receipt.valid===false||['FAILED','NOT_FOUND'].includes(receipt.status)?'FAILED':'SUCCEEDED'});
-        return receipt;
+        return name==='workspace_metadata'?compactSqlMetadata(receipt):receipt;
       },
     });
     for (const name of ['workspace_read', 'workspace_propose']) if (permitted.has(name)) tools.push({

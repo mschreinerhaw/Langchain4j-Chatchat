@@ -1,0 +1,15 @@
+{
+  "status": "DEPLOYED",
+  "mode": "production",
+  "revision": "af78f76ce08d02c0384374d8088bb3531548a927",
+  "backup": "/opt/chatchat-releases/cline-monitor-python-af78f76ce08d-20261029/private/production",
+  "retired": {
+    "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-monitor-1793242351",
+    "runtime-os-app-stage-coding-agent-1": "runtime-os-app-stage-coding-agent-1-before-monitor-1793242351",
+    "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-monitor-1793242351"
+  },
+  "unrelatedContainersUnchanged": true,
+  "schemaOrDataMigration": false,
+  "apiImage": "runtime-os-api:cline-monitor-python-af78f76ce08d-20261029",
+  "nodeImage": "runtime-os-coding-agent:cline-monitor-python-af78f76ce08d-20261029"
+}

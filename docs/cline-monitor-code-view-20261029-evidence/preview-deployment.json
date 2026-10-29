@@ -1,0 +1,15 @@
+{
+  "status": "DEPLOYED",
+  "mode": "preview",
+  "revision": "af78f76ce08d02c0384374d8088bb3531548a927",
+  "backup": "/opt/chatchat-releases/cline-monitor-python-af78f76ce08d-20261029/private/preview",
+  "retired": {
+    "sql-metadata-preview-api": "sql-metadata-preview-api-before-monitor-1793242168",
+    "runtime-analysis-preview-node": "runtime-analysis-preview-node-before-monitor-1793242168",
+    "runtime-analysis-preview-proxy": "runtime-analysis-preview-proxy-before-monitor-1793242168"
+  },
+  "unrelatedContainersUnchanged": true,
+  "schemaOrDataMigration": false,
+  "apiImage": "runtime-os-api:cline-monitor-python-af78f76ce08d-20261029",
+  "nodeImage": "runtime-os-coding-agent:cline-monitor-python-af78f76ce08d-20261029"
+}

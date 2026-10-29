@@ -1,0 +1,10 @@
+{
+  "taskId": "analysis-coding-897cd95479cabe6e2720f70c7fc9d5fdedee3f6f05a1425a9b2587ab1e53cdba",
+  "state": "CANCELLED",
+  "sourceReturnedFromArchive": true,
+  "nodeRetainedSource": false,
+  "executionReceiptAvailable": false,
+  "noNewModelCalls": true,
+  "journalRevisionUnchanged": true,
+  "sourceHash": "54e1009d8ad48da30bdeb530060f04acebd58a775835b6896a30a1f290fc661e"
+}

@@ -7,6 +7,16 @@ import SystemManagementView from "./views/SystemManagementView.js";
 import * as api from "../services/api.js";
 import { setWorkspaceContext } from "./utils/workspaceContext";
 
+it('keeps exploration workspace and node selection when the shell canonicalizes the same route',()=>{
+  vi.stubGlobal('window',{location:{hash:'#/w/data-science/dataExploration?exploration=space&node=parent'}});
+  try{
+    App.methods.setHashRoute.call({},'w/data-science/dataExploration');
+    expect(window.location.hash).toBe('#/w/data-science/dataExploration?exploration=space&node=parent');
+    App.methods.setHashRoute.call({},'w/data-science/sqlStudio');
+    expect(window.location.hash).toBe('#/w/data-science/sqlStudio');
+  }finally{vi.unstubAllGlobals();}
+});
+
 it.each([{token:'new-login',user:{id:'new-user'}},null])('ignores an old identity refresh after the login session changes (%s)',async current=>{
   let finish;
   const spy=vi.spyOn(api,'fetchCurrentEnterpriseUser').mockImplementation(()=>new Promise(resolve=>{finish=resolve;}));

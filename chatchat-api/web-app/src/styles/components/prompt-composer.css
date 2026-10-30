@@ -1,4 +1,10 @@
 .report-layout-settings { font-size:12px; }
+.prompt-compact{margin:0;padding:0;border:0;background:transparent}
+.prompt-compact .composer-box{display:flex;align-items:flex-end;gap:12px;position:relative;padding:12px 14px;border:1px solid #dce5f2;border-radius:12px;background:#fff;box-shadow:0 3px 14px #1e4d8c06}
+.prompt-compact .composer-box:focus-within{border-color:#5997ff;box-shadow:0 0 0 3px #397ffc0a}
+.prompt-compact textarea{flex:1;width:100%;min-height:42px;max-height:110px;border:0;outline:0;background:transparent;font:inherit;line-height:1.7;resize:none;padding:4px 0;color:var(--ink,#25354f)}
+.prompt-compact .send-button{position:static;flex-shrink:0;width:40px;height:40px;display:grid;place-items:center;border:0;border-radius:9px;background:#1670f8;color:white;cursor:pointer}
+.prompt-compact .send-button:disabled{opacity:.45;cursor:default}
 .report-layout-settings > summary { cursor:pointer; color:#3b5f93; padding:6px; }
 .report-layout-settings > div { display:flex; flex-wrap:wrap; gap:10px; padding:12px; border:1px solid #dce5f2; border-radius:8px; background:#f8fafc; }
 .report-layout-settings label { display:flex; align-items:center; gap:6px; }
@@ -44,3 +50,9 @@
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
+.prompt-compact:has(.agent-picker) .composer-box{display:grid;grid-template-columns:minmax(0,1fr) 40px;gap:6px 12px}
+.prompt-compact .composer-toolbar{grid-row:1;grid-column:1 / -1;display:flex;align-items:center;padding:0 0 5px;margin:0;border:0;min-height:27px}
+.prompt-compact:has(.agent-picker) textarea{grid-row:2;grid-column:1;min-height:42px}
+.prompt-compact:has(.agent-picker) .send-button{grid-row:2;grid-column:2;align-self:end}
+.prompt-compact .agent-picker{display:inline-flex;align-items:center;gap:7px;border:1px solid #e1e9f5;border-radius:7px;padding:5px 9px;background:#f8faff;color:#47688e;position:relative;max-width:min(420px,70vw);font-size:12px}
+.prompt-compact .agent-picker span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.prompt-compact .agent-picker select{position:absolute;inset:0;opacity:0;width:100%;cursor:pointer}.prompt-compact .agent-picker:focus-within{outline:2px solid #aacbff}.prompt-compact .agent-picker:after{content:'⌄';margin-left:6px}

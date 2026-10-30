@@ -1,0 +1,64 @@
+{
+  "scope": "REAL_PUBLISHED_AGENT_WORKSPACE",
+  "status": "PASSED_NO_CHART_HANDLING",
+  "checks": {
+    "publishedAuthorizedDirectory": true,
+    "realCodingPythonAndCodeHash": true,
+    "noFabricatedCharts": true,
+    "agentRestoredWithoutExecution": true,
+    "noDatasetListing": true,
+    "unpublishedAgentRejectedByServer": true
+  },
+  "agentId": "financial_data_analysis",
+  "workspaceId": "0035417e-a1c3-4b08-bc62-c719a4e46e27",
+  "nodeId": "64bc9da8-5c0c-4a89-831c-c56d1fbb139a",
+  "agentTaskId": "8f2eb10d-e896-3d76-adaa-9c259152eefd",
+  "replayMode": true,
+  "businessOutcome": "NO_CHART_NO_MATCHING_BUSINESS_DATA",
+  "agentTask": {
+    "id": "8f2eb10d-e896-3d76-adaa-9c259152eefd",
+    "agentId": "financial_data_analysis",
+    "state": "SUCCEEDED",
+    "eventCount": 187,
+    "tools": [
+      "skill_analysis_context",
+      "knowledge_skills",
+      "agent_lifecycle",
+      "mcp_chatchat_mcp_server_finance_local_service_template_query",
+      "interpretation_plan_controller",
+      "mcp_chatchat_mcp_server_web_search",
+      "interpretation_plan_state",
+      "agent",
+      "coding_agent",
+      "runtime",
+      "analysis_summary_governance",
+      "interpretation_plan_summary"
+    ]
+  },
+  "execution": {
+    "codeArtifact": {
+      "fileId": "74a85ae3043ede9e486c378748b9e0ff448b5f96e9de815840d88016c9c571ba",
+      "fileName": "221-schema-sql-schema_20261030T092034063Z_72a53f57268e_v2.py",
+      "mediaType": "text/x-python",
+      "sha256": "bd4a4136c812dac827c43ee0a686cbfa47b7cff2f1dffa34d73826135ee5ef7f",
+      "size": 12445
+    },
+    "codeSha256": "bd4a4136c812dac827c43ee0a686cbfa47b7cff2f1dffa34d73826135ee5ef7f",
+    "executorStopped": true,
+    "operationId": "cline-232ec471e045754d8c4149d619d8e2f792df8c78225960f093decff9f25fa35a",
+    "receiptSha256": "1113ab77328129aa4588e73c18a9e7c30772c9f7bf7b2a0e387126c83c1a3929",
+    "reportPresentation": {
+      "autoCharts": true,
+      "autoImages": true,
+      "density": "comfortable",
+      "strategy": "auto",
+      "template": "briefing"
+    },
+    "resultDatasetRef": "runtime-evidence:coding:19c64c25eb69d450575a91d8a14a721f0f14a6ff7f96d4c6cb6183a8ed151691:result",
+    "resultSha256": "2dcadab5d9abe3352eb36c86bb67f66fde3131ac5c11be8ccca041c6a0d967e5",
+    "status": "SUCCEEDED",
+    "taskId": "analysis-coding-a7afcdc48711d146b874377c96fdfea45b106ede803c01a94abc9dda9b52895f"
+  },
+  "browserErrors": [],
+  "executeRequests": 0
+}

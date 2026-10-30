@@ -25,3 +25,7 @@ it('shows an explicit empty chart state instead of a blank interactive frame',as
  host=document.createElement('div');app=createApp({render:()=>h(Chart,{chart:{id:'empty',title:'Empty',kind:'plotly',artifact:{fileId:'empty',size:42}}})});app.mount(host);await settle();
  expect(host.textContent).toContain('此图表暂无可绘制数据');expect(host.querySelector('iframe')).toBeNull();expect(host.querySelector('[role=alert]')).toBeNull();
 });
+
+it('redraws presentation from cached authentic bytes without reloading the artifact or iframe',async()=>{
+ const figure={data:[{type:'bar',x:['A','B'],y:[2,3]}],layout:{}};read.mockResolvedValue(new TextEncoder().encode(JSON.stringify(figure)).buffer);const props=reactive({presentation:'bar'});host=document.createElement('div');app=createApp({render:()=>h(Chart,{chart:{id:'real',title:'Real',kind:'plotly',artifact:{fileId:'real'}},...props})});app.mount(host);await settle();const frame=host.querySelector('iframe');props.presentation='line';await settle();expect(read).toHaveBeenCalledTimes(1);expect(host.querySelector('iframe')).toBe(frame);
+});

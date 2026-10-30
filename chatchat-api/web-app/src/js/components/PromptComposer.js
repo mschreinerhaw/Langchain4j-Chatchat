@@ -13,6 +13,12 @@ export default {
     XCircle,
   },
   props: {
+    compact: {type:Boolean,default:false},
+    showAgentPicker: {type:Boolean,default:false},
+    agentRequired: {type:Boolean,default:false},
+    inputDisabled: {type:Boolean,default:false},
+    placeholder: {type:String,default:'输入问题，拖拽或粘贴分析附件，Shift + Enter 换行'},
+    maxLength: {type:Number,default:8000},
     workspaceContext: {type:Object,default:null},
     conversationKey: { type: String, default: "" },
     attachments: { type: Array, default: () => [] },
@@ -77,7 +83,7 @@ export default {
       return [
         {
           id: "",
-          name: this.defaultModelName || "通用对话",
+          name: this.agentRequired ? "选择已授权 Agent" : this.defaultModelName || "通用对话",
           description: this.defaultModelName ? "默认模型" : "不绑定 Agent 设置",
           documentWorkflow: false,
         },
@@ -107,6 +113,8 @@ export default {
       return exceedsChatTextLimit(this.draft);
     },
     primaryButtonDisabled() {
+      if(this.agentRequired&&!this.selectedAgentId)return true;
+      if(this.inputDisabled)return true;
       return this.loading
         ? !this.stopAvailable
         : (!this.draft.trim() && !this.attachments.length) ||
@@ -142,10 +150,12 @@ export default {
       this.send();
     },
     send() {
+      if(this.agentRequired&&!this.selectedAgentId)return;
       const value = this.draft;
       if (
         (!value.trim() && !this.attachments.length) ||
         this.loading ||
+        this.inputDisabled ||
         this.attachments.some((file) => file.state === "uploading")
       ) {
         return;

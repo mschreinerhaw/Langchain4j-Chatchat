@@ -27,7 +27,7 @@ export function parseWorkspaceRoute(hash = "") {
 export function chooseWorkspace(items, route, preference = {}) {
   const valid = (id) => items.find((item) => item.workspaceId === id);
   if (route.workspaceId) return valid(route.workspaceId) || null;
-  if ((route.legacyView?.startsWith("dataScience") && route.legacyView !== "dataScienceSkills") || route.legacyView === "sqlStudio")
+  if ((route.legacyView?.startsWith("dataScience") && route.legacyView !== "dataScienceSkills") || ['sqlStudio','dataExploration'].includes(route.legacyView))
     return valid("data-science") || null;
   if (route.legacyView?.startsWith("system") || route.legacyView === "permissionTools") return valid("permissions") || null;
   if (["toolPublications", "toolCategories"].includes(route.legacyView)) return valid("mcp-publication") || null;

@@ -80,6 +80,7 @@ const FavoritesView = asyncView(() => import("../views/FavoritesView.vue"));
 const McpCenterView = asyncView(() => import("../views/McpCenterView.vue"));
 const DataScienceView = asyncView(() => import("../views/DataScienceView.vue"));
 const SqlStudioView = asyncView(() => import("../views/SqlStudioView.vue"));
+const DataExplorationView = asyncView(() => import("../views/DataExplorationView.vue"));
 const DomainSkillsView = asyncView(() => import("../views/DomainSkillsView.vue"));
 const AgentWorkshopView = asyncView(() => import("../views/AgentWorkshopView.vue"));
 const AgentScheduleView = asyncView(() => import("../views/AgentScheduleView.vue"));
@@ -116,6 +117,7 @@ const views = {
   dataScienceScripts: DataScienceView,
   dataScienceSkills: DomainSkillsView,
   sqlStudio: SqlStudioView,
+  dataExploration: DataExplorationView,
   agents: AgentWorkshopView,
   schedules: AgentScheduleView,
   rules: RetrievalRulesView,
@@ -725,7 +727,7 @@ export default {
       if (
         ((workspaceRoute.legacyView?.startsWith("dataScience") &&
           workspaceRoute.legacyView !== "dataScienceSkills") ||
-          workspaceRoute.legacyView === "sqlStudio") &&
+          ['sqlStudio','dataExploration'].includes(workspaceRoute.legacyView)) &&
         this.currentWorkspace?.workspaceId !== "data-science"
       ) {
         this.switchWorkspace("data-science", workspaceRoute.legacyView);
@@ -802,7 +804,10 @@ export default {
       );
     },
     setHashRoute(route) {
-      const nextHash = `#/${route}`;
+      const queryStart = window.location.hash.indexOf('?');
+      const explorationSelection = route === 'w/data-science/dataExploration' && currentHashRoute() === route && queryStart >= 0
+        ? window.location.hash.slice(queryStart) : '';
+      const nextHash = `#/${route}${explorationSelection}`;
       if (window.location.hash !== nextHash) {
         window.location.hash = nextHash;
       }

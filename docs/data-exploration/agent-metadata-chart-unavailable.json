@@ -1,0 +1,14 @@
+{
+  "scope": "REAL_PUBLISHED_AGENT_WORKSPACE",
+  "status": "FAILED",
+  "checks": {
+    "publishedAuthorizedDirectory": true,
+    "startsWithoutDatasetSelection": true
+  },
+  "agentId": "financial_data_analysis",
+  "workspaceId": "0035417e-a1c3-4b08-bc62-c719a4e46e27",
+  "nodeId": "64bc9da8-5c0c-4a89-831c-c56d1fbb139a",
+  "agentTaskId": "8f2eb10d-e896-3d76-adaa-9c259152eefd",
+  "error": "Actual Agent result did not include charts",
+  "scopeNote": "A chart-producing acceptance case did not pass. Agent selection and actual task execution succeeded, but the selected Agent did not return the business data required for this question. This is not visual-result success."
+}

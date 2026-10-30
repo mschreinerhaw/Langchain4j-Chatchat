@@ -1,0 +1,23 @@
+{
+  "status": "NUMERIC_VALUES_PASSED",
+  "taskId": "analysis-coding-19877440d3cc98086025a1236e28e83976b1fe2df3a387565b839319e4604aa6",
+  "actualCustomer": "1500007073",
+  "sourceRows": 5,
+  "sourceKind": "EXISTING_RUNTIME_ARCHIVED_INPUT",
+  "sourceArchiveSha256": "fc6c0a616641f3a0236fefeb88f8667685d29881ce22924298eda1d168b36f26",
+  "selectedDatasetSha256": "e59a46f4b0c6a989ba1b21c9d06a9d585d8ace8ec5735e1cb6ad76b5a88dfa0a",
+  "figureSha256": "1f345efe47544d9b4f6e5a849011aa55da1d8488ebfac53f0b62bddca3a90d69",
+  "independentBaselineSha256": "f5d6c88255efa02f0022e69b9ff2bc0dd3f08a2e82a42c461b6b97d329f60416",
+  "baselineComputedAt": "2026-10-30T06:58:38.097192+00:00",
+  "comparedTraceFields": [
+    "cptl_bal"
+  ],
+  "exactValueAndPercentComparisons": 10,
+  "sourceUnchanged": true,
+  "reportStatus": "PARTIAL",
+  "businessSemanticStatus": "SOURCE_UNIT_UNDECLARED_CORRECTLY_LABELLED",
+  "limitations": [
+    "Archived snapshot, not a current customer query.",
+    "Only listed chart series and the corresponding structure table were independently checked."
+  ]
+}

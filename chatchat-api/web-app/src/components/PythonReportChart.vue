@@ -2,10 +2,11 @@
   <figure
     ref="container"
     class="python-report-chart"
+    :class="{'chart-compact':compact}"
     :data-chart-id="chart.id"
     :aria-busy="loading"
   >
-    <figcaption
+    <figcaption v-if="!compact"
       ><strong>{{ chart.title }}</strong></figcaption
     >
     <p v-if="error" role="alert">{{ error }} <button v-if="!chart.renderError" type="button" @click="load">重试</button></p>
@@ -29,7 +30,7 @@
       referrerpolicy="no-referrer"
       @load="sendFigure"
     ></iframe>
-    <p v-if="chart.caption" class="chart-caption">{{ chart.caption }}</p>
+    <p v-if="chart.caption && !compact" class="chart-caption">{{ chart.caption }}</p>
   </figure>
 </template>
 <script src="../js/components/PythonReportChart.js"></script>

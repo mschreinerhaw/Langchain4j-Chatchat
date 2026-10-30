@@ -1,0 +1,56 @@
+{
+  "scope": "REAL_PUBLISHED_AGENT_WORKSPACE",
+  "status": "PASSED",
+  "checks": {
+    "publishedAuthorizedDirectory": true,
+    "realPythonChartBytes": true,
+    "executedCodeHashVerified": true,
+    "agentAndChartRestoredWithoutAnalysis": true,
+    "noDatasetListing": true,
+    "serverRejectsUnpublishedOrUnknownAgent": true,
+    "sameAgentBranchAndParentReceiptUnchanged": true
+  },
+  "agentId": "financial_data_analysis",
+  "workspaceId": "0035417e-a1c3-4b08-bc62-c719a4e46e27",
+  "nodeId": "555cff16-be82-4f69-bfaa-5c2bbbeafd19",
+  "agentTaskId": "3fc654e4-4a66-3b2a-8b91-a212dacfc0f6",
+  "replayMode": true,
+  "execution": {
+    "codeArtifact": {
+      "fileId": "6f7014233fd50cb436946b3e9ce2bfa38a8bab861810dc2c9978ebb8b21f3105",
+      "fileName": "analysis_20261030T093928419Z_9df5ced16dc6_v5.py",
+      "mediaType": "text/x-python",
+      "sha256": "28b082a6dad0be66454f7935e9761339139a63cc34153da85e96a46347fb2c54",
+      "size": 18261
+    },
+    "codeSha256": "28b082a6dad0be66454f7935e9761339139a63cc34153da85e96a46347fb2c54",
+    "executorStopped": true,
+    "operationId": "cline-f96b78045e110c6c10c6d4a610c08799d3de94df7a06f5e3ee30528e97efe5eb",
+    "receiptSha256": "5657b32c04879f7f8ada40b1e949b05255d1ab0a3dfd0bd41528eb01d9f22e04",
+    "reportPresentation": {
+      "autoCharts": true,
+      "autoImages": true,
+      "density": "comfortable",
+      "strategy": "auto",
+      "template": "briefing"
+    },
+    "resultDatasetRef": "runtime-evidence:coding:c2b8957aeeedc08f2d6c934f808c4d77d1c6b106d509e5459a3db56c63ee6bfc:result",
+    "resultSha256": "adb32e2e0483e74b55e3044f3dd0aaf0446c5bee54d46b97a12b210c6ed71c45",
+    "status": "SUCCEEDED",
+    "taskId": "analysis-coding-0799838fe644473ad3f623cecf3fd13b488cef90265db95d1c58f4021ec3ff6f"
+  },
+  "task": {
+    "taskId": "3fc654e4-4a66-3b2a-8b91-a212dacfc0f6",
+    "agentId": "financial_data_analysis",
+    "canonicalState": "SUCCEEDED",
+    "datasets": []
+  },
+  "chartKind": "png",
+  "chartSha256": "54fc92c0c7111badca17ab0cc844284ebe95da6e3feddb1ef122662a8dc67506",
+  "presentationLimitation": "Agent returned a static chart; type switching is only available for compatible Plotly artifacts.",
+  "browserErrors": [],
+  "executeRequests": 0,
+  "parentId": "64bc9da8-5c0c-4a89-831c-c56d1fbb139a",
+  "reportStatus": "SUCCESS",
+  "scopeNote": "Real Agent/Coding/Python execution, saved artifact hashes, rendering, restored Agent and node lineage verified. PNG is a real static generated chart; this case does not verify client-side chart-type conversion or independently certify external production financial values."
+}

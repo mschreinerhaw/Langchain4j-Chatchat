@@ -45,6 +45,9 @@
 .chart-data-fallback { max-height:340px; overflow:auto; }
 .chart-data-fallback table { width:100%; border-collapse:collapse; font-size:12px; }
 .chart-data-fallback th,.chart-data-fallback td { padding:8px; border-bottom:1px solid var(--line); text-align:left; overflow-wrap:anywhere; }
+.python-report-chart.chart-compact{position:relative;margin:0;border:0;padding:0;border-radius:0;background:transparent}
+.chart-compact iframe{height:400px;margin:0}
+.chart-compact>p[role=status]{position:absolute;top:0;left:14px;font-size:12px;color:#77879d;pointer-events:none;z-index:1}
 @media (max-width: 600px) {
   .python-report-chart {
     padding: 8px;

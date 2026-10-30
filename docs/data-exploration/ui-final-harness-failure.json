@@ -1,0 +1,1 @@
+﻿{"status":"HARNESS_FAILED","scope":"FINAL_DISPLAY_RECHECK","reason":"Chinese selector was encoded as question marks in supplemental test edit; response waiter timed out. Application layout and real Coding execution were not the cause.","correctiveAction":"Corrected UTF-8 selector and reran without AI. Previous real branch execution evidence retained."}

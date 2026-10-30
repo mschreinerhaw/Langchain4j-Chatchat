@@ -1,0 +1,45 @@
+{
+  "scope": "REAL_DEPLOYMENT_ONLY",
+  "status": "FAILED",
+  "checks": {
+    "originalBytesVerified": true,
+    "archivedExecutedCodeHashVerified": true,
+    "existingCodingAndPythonReceipt": true
+  },
+  "businessValuesValidated": true,
+  "inputs": [
+    {
+      "id": "15d7bb4f8264f90c3a599fb70e47c34a6f32e5302b930b5148bcb1d62456cb9c",
+      "sha256": "e59a46f4b0c6a989ba1b21c9d06a9d585d8ace8ec5735e1cb6ad76b5a88dfa0a",
+      "size": 5629
+    }
+  ],
+  "workspaceId": "0537ce20-0435-4a84-b3cb-efc950c84ab7",
+  "replayMode": "RESTORE_EXISTING_REAL_EXECUTIONS",
+  "execution": {
+    "codeSha256": "dfa19cae6c6f2ab7dea50d7c39da46bf66701fb0d8a60137a760e2188168de2e",
+    "receiptSha256": "05448fa2c42238c6339b4466bcb2aa1a0897348d249902e98f83e6eead2b2e88",
+    "resultSha256": "dc125c473a419c39806e98d46b462041e56f02e30d8745d35e873d43a0abcca0",
+    "executorStopped": true
+  },
+  "taskId": "analysis-coding-06afcde2b9241ab94ee2ff66b4064aaa20c5ea8ee37ec7c0ae486ceeb4b0099a",
+  "operationId": "cline-4397b5161d9db16a7de15c6fbc10cebc87ac3af14acdb6bd471fa76c30865c7a",
+  "evidenceRefs": [
+    "runtime-evidence:coding:input:f29330ccac3adedff45fad80b2aa4eeee23815cfa351b440d4a15b551c37b69",
+    "runtime-evidence:coding:e4fd3e4545b7f11526659f7032c29aeb348b75b7d62da252a66edb33b5d64066:code",
+    "runtime-evidence:coding:e4fd3e4545b7f11526659f7032c29aeb348b75b7d62da252a66edb33b5d64066:receipt",
+    "runtime-evidence:coding:e4fd3e4545b7f11526659f7032c29aeb348b75b7d62da252a66edb33b5d64066:result",
+    "runtime-evidence:coding:e4fd3e4545b7f11526659f7032c29aeb348b75b7d62da252a66edb33b5d64066:validation",
+    "runtime-evidence:coding:e4fd3e4545b7f11526659f7032c29aeb348b75b7d62da252a66edb33b5d64066:bundle"
+  ],
+  "chartSha256": "2a2c8da31dd80b6d0806f3173f75e13b2ac3c57a60f0a500f5fb1f651f8459d7",
+  "businessValuesValidationScope": {
+    "series": [
+      "资金余额",
+      "场内流通证券市值",
+      "在途资产"
+    ],
+    "points": 15
+  },
+  "reason": "locator.scrollIntoViewIfNeeded: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.exploration-workspace').locator('[data-chart-id=\"chart_composition\"]')\u001b[22m\n"
+}

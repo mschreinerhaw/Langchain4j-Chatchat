@@ -10,6 +10,12 @@
   "layoutType": "studio",
   "pages": [
     {
+      "id": "dataExploration",
+      "menuCode": "dataExploration",
+      "componentKey": "dataExploration",
+      "props": {}
+    },
+    {
       "id": "dataScience",
       "menuCode": "dataScience",
       "componentKey": "dataScience",

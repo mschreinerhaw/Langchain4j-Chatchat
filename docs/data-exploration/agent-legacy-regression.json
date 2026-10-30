@@ -1,0 +1,41 @@
+{
+  "scope": "REAL_AUTHENTICATED_UI",
+  "status": "PASSED",
+  "checks": {
+    "simplifiedBusinessLayout": true,
+    "localPresentationSameFrameNoArtifactReload": true,
+    "originalChartBytesAndExactSeries": true,
+    "tableSortExpandAndChartFullscreen": true,
+    "inputAnchoredToWorkArea": true,
+    "historyAndSaveWithoutExecutionOrNavigation": true,
+    "branchCollapsePreservesDisplayedResult": true,
+    "pointerResize": true,
+    "reloadRestoresSelectedNodeChartAndWidth": true,
+    "newBranchReloadAndResponsivePlot": true
+  },
+  "workspaceId": "0537ce20-0435-4a84-b3cb-efc950c84ab7",
+  "originalNodes": [
+    {
+      "id": "4aaa9845-91e5-4361-811d-e9e8a82b254e",
+      "parentId": "",
+      "receiptHash": "bd2e4bf6921178da92b9de60cf637a11536c422e8efecf52e1c6ace092bcac72"
+    },
+    {
+      "id": "c3661947-8f4d-42b4-aa2b-c8a257bdc366",
+      "parentId": "4aaa9845-91e5-4361-811d-e9e8a82b254e",
+      "receiptHash": "6ac02f8d28ebd9194b5351756b571135b82c498604f37d25334e97e4fb884e3b"
+    },
+    {
+      "id": "29f00c84-c1a8-4667-9d2c-68ba18d2e79a",
+      "parentId": "c3661947-8f4d-42b4-aa2b-c8a257bdc366",
+      "receiptHash": "bc36aec3eb48852767b53276f7f2e344efec50caffa2de1e39b53dde5038b973"
+    },
+    {
+      "id": "d60b9b1d-cd99-4536-ad00-b679a87a5062",
+      "parentId": "4aaa9845-91e5-4361-811d-e9e8a82b254e",
+      "receiptHash": "d78a3da489d8aa3079c9b8789fe8ce40f5cfdb0c99bc3963c54318b6faef9ed1"
+    }
+  ],
+  "browserErrors": [],
+  "analysisExecuteRequests": 0
+}

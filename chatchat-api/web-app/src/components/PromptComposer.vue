@@ -1,5 +1,5 @@
 <template>
-  <section class="prompt-card" @dragover="handleDragOver" @drop="handleDrop">
+  <section class="prompt-card" :class="{'prompt-compact':compact}" @dragover="handleDragOver" @drop="handleDrop">
     <div v-if="showSuggestions" class="prompt-suggestions">
       <span class="prompt-suggestions-label">快捷问题</span>
       <button
@@ -17,8 +17,10 @@
         ref="composerTextarea"
         v-model="draft"
         rows="2"
-        :disabled="loading"
-        placeholder="输入问题，拖拽或粘贴分析附件，Shift + Enter 换行"
+        :disabled="loading || inputDisabled"
+        :placeholder="placeholder"
+        :maxlength="compact ? maxLength : undefined"
+        :aria-label="compact ? placeholder : undefined"
         @input="adjustTextareaHeight"
         @paste="handlePaste"
         @keydown.enter.exact="handleEnter"
@@ -56,15 +58,16 @@
         </li>
       </ul>
 
-      <div class="composer-toolbar">
+      <div v-if="!compact || showAgentPicker" class="composer-toolbar">
         <div class="composer-toolbar-group mode-group">
-          <span class="toolbar-group-label">当前模式</span>
+          <span v-if="!compact" class="toolbar-group-label">当前模式</span>
           <label class="agent-picker" :class="{ active: selectedAgentId, loading: agentsLoading }">
             <Bot class="tool-icon" :size="16" stroke-width="1.9" />
             <span>{{ agentSelectLabel }}</span>
             <select
               :value="selectedAgentId"
-              :disabled="agentsLoading"
+              :disabled="agentsLoading || loading"
+              aria-label="选择 Agent"
               @change="updateSelectedAgent"
             >
               <option v-for="agent in agentOptions" :key="agent.id || 'general'" :value="agent.id">
@@ -74,6 +77,7 @@
           </label>
         </div>
         <button
+          v-if="!compact"
           type="button"
           role="switch"
           aria-label="图文报告"
@@ -85,7 +89,7 @@
           @click="reportMode = reportMode === 'visual' ? 'off' : 'visual'"
           ><FileText :size="14" stroke-width="2" />图文报告</button
         >
-        <details v-if="reportMode === 'visual'" class="report-layout-settings">
+        <details v-if="!compact && reportMode === 'visual'" class="report-layout-settings">
           <summary>报告排版</summary>
           <div>
             <label
@@ -133,7 +137,7 @@
             <small>根据真实分析选择内容与顺序；没有数据时不生成图表。设置用于后续报告。</small>
           </div>
         </details>
-        <div v-if="documentWorkflowActive" class="composer-toolbar-group tool-group">
+        <div v-if="!compact && documentWorkflowActive" class="composer-toolbar-group tool-group">
           <span v-if="documentWorkflowActive" class="workflow-badge">
             <FileText :size="14" stroke-width="2" />
             文档工作流

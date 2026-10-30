@@ -1,0 +1,18 @@
+{
+  "status": "DEPLOYED",
+  "image": "runtime-os-api:data-exploration-ui-fit-20261030",
+  "sha256": "2e8e9d93a9c36d8aef89fa29f28f4e8729732e3182f39634d33fbd7e6bd502f7",
+  "backup": "/opt/chatchat-releases/data-exploration-ui-fit-20261030/backup",
+  "retired": {
+    "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-studio-1793349460",
+    "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-studio-1793349460"
+  },
+  "preservedExpiredReadOnlyTaskIds": [],
+  "unrelatedContainersUnchanged": true,
+  "conversationContentUnchanged": true,
+  "messageIndexCountUnchanged": true,
+  "images": {
+    "runtime-os-app-stage-api-1": "runtime-os-api:data-exploration-ui-fit-20261030"
+  },
+  "channelCounts": "SQL_STUDIO|36\nPYTHON_STUDIO|4\nAGENT_API|165\nPLATFORM_UI|827"
+}

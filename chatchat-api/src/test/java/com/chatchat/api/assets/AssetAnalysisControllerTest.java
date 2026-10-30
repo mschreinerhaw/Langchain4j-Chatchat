@@ -53,4 +53,14 @@ class AssetAnalysisControllerTest {
         assertThatThrownBy(()->controller.analyze(request,new AssetAnalysisController.Request("request-1",List.of("file"),null,"run it",null))).isInstanceOf(IllegalArgumentException.class);
         verifyNoInteractions(coding,models);
     }
+    @Test void explorationUsesExistingPrimaryAnalysisWithVisualPythonContract(){
+        byte[] original="category,amount\nstock,100".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        when(assets.get(any(),eq("file"))).thenReturn(new UserAssetService.File("file","DOCUMENT","customer.csv","text/csv",UserAssetService.hash(original),original.length,"AVAILABLE","","","upload",1));
+        when(assets.read(any(),eq("file"))).thenReturn(original);
+        controller.analyzeVisual(request,new AssetAnalysisController.Request("exploration-1",List.of("file"),List.of(),"分析资产结构",null));
+        var context=org.mockito.ArgumentCaptor.forClass(AnalysisCoverageCoordinator.Request.class);
+        verify(coding).executePrimaryAnalysis(context.capture(),anyMap(),any());
+        assertThat(context.getValue().runtimeAttributes()).containsEntry("reportMode","visual").containsEntry("taskType","DATA_ANALYSIS").containsEntry("contextOnlyAnswer",false);
+        assertThat(context.getValue().query()).contains("Python sandbox","Plotly","分析资产结构");
+    }
 }

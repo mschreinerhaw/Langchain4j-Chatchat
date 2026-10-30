@@ -1,0 +1,60 @@
+{
+    "scope":  "AUTOMATED_REGRESSION_NOT_LIVE_AI",
+    "backend":  [
+                    {
+                        "name":  "com.chatchat.api.assets.AssetAnalysisControllerTest",
+                        "tests":  5,
+                        "failures":  0,
+                        "errors":  0,
+                        "skipped":  0
+                    },
+                    {
+                        "name":  "com.chatchat.api.exploration.ExplorationWorkspaceMigrationTest",
+                        "tests":  1,
+                        "failures":  0,
+                        "errors":  0,
+                        "skipped":  0
+                    },
+                    {
+                        "name":  "com.chatchat.api.exploration.ExplorationWorkspaceTest",
+                        "tests":  7,
+                        "failures":  0,
+                        "errors":  0,
+                        "skipped":  0
+                    },
+                    {
+                        "name":  "com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest",
+                        "tests":  37,
+                        "failures":  0,
+                        "errors":  0,
+                        "skipped":  0
+                    },
+                    {
+                        "name":  "com.chatchat.api.runtime.coding.CodingTaskPersistenceTest",
+                        "tests":  37,
+                        "failures":  0,
+                        "errors":  0,
+                        "skipped":  0
+                    },
+                    {
+                        "name":  "com.chatchat.api.runtime.coding.evidence.VisualReportArtifactsTest",
+                        "tests":  25,
+                        "failures":  0,
+                        "errors":  0,
+                        "skipped":  0
+                    },
+                    {
+                        "name":  "com.chatchat.api.runtime.coding.execution.CodingPythonExecutionBridgeTest",
+                        "tests":  1,
+                        "failures":  0,
+                        "errors":  0,
+                        "skipped":  0
+                    }
+                ],
+    "backendUniqueTests":  113,
+    "frontendFiles":  7,
+    "frontendTests":  56,
+    "frontendPassed":  true,
+    "frontendBuildPassed":  true,
+    "notes":  "112-case broad backend run followed by 13-case targeted HTTP route fix run; overlapping tests counted once."
+}

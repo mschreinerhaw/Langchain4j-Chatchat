@@ -1,0 +1,35 @@
+{
+  "scope": "REAL_PUBLISHED_AGENT_WORKSPACE",
+  "status": "PASSED_NO_CHART_HANDLING",
+  "checks": {
+    "publishedAuthorizedDirectory": true,
+    "noFabricatedCharts": true,
+    "agentRestoredWithoutExecution": true,
+    "noDatasetListing": true,
+    "unpublishedAgentRejectedByServer": true
+  },
+  "agentId": "ids_data_audit",
+  "workspaceId": "6c461a21-1764-4bad-bec8-fa8a679adf7e",
+  "nodeId": "e5872092-a4e3-4315-a383-383ce446f607",
+  "agentTaskId": "8c931fab-070e-36da-8203-ad610fc2429e",
+  "replayMode": true,
+  "businessOutcome": "NO_CHART_NO_MATCHING_BUSINESS_DATA",
+  "agentTask": {
+    "id": "8c931fab-070e-36da-8203-ad610fc2429e",
+    "agentId": "ids_data_audit",
+    "state": "SUCCEEDED",
+    "eventCount": 40,
+    "tools": [
+      "skill_analysis_context",
+      "knowledge_skills",
+      "agent_lifecycle",
+      "mcp_chatchat_mcp_server_customer_service_template_query",
+      "interpretation_plan_controller",
+      "interpretation_plan_state",
+      "final_answer",
+      "agent"
+    ]
+  },
+  "browserErrors": [],
+  "executeRequests": 0
+}

@@ -1,0 +1,8 @@
+{
+  "status": "PASSED",
+  "scope": "REAL_SERVER_PERMISSION_CHECK",
+  "agentId": "busi_data_query",
+  "marketStatus": "recalled",
+  "prepareHttpStatus": 403,
+  "taskSubmitted": false
+}

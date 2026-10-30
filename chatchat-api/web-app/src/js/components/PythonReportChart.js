@@ -1,5 +1,6 @@
-import { defineComponent, ref, onMounted, onBeforeUnmount, watch } from "vue";
+import { defineComponent, ref, onMounted, onBeforeUnmount, onActivated, onDeactivated, nextTick, watch } from "vue";
 import plotlyRuntime from "plotly.js-dist-min/plotly.min.js?url";
+import { explorationFigure, explorationChartStyle, explorationChartTypes, explorationChartTable } from '../utils/explorationPresentation';
 import {
   readReportArtifact,
   checkedPlotlyFigure,
@@ -9,8 +10,8 @@ import {
 
 export default defineComponent({
   name: "PythonReportChart",
-  props: { chart: { type: Object, required: true } },
-  emits: ["status"],
+  props: { chart: { type: Object, required: true }, presentation: { type: String, default: '' }, compact:{type:Boolean,default:false} },
+  emits: ["status","ready"],
   setup(componentProps, { expose: exposeComponent, emit: emitEvent }) {
     exposeComponent();
     const props = componentProps;
@@ -23,7 +24,7 @@ export default defineComponent({
       error = ref(""),fallbackTable=ref(null),empty=ref(false);
     let controller,
       observer,
-      figure,
+      figure,originalFigure,
       serial = 0,
       renderTimeout,
       renderStarted = 0;
@@ -57,6 +58,7 @@ export default defineComponent({
       imageUrl.value = "";
       frameDocument.value = "";
       figure = null;
+      originalFigure=null;
       fallbackTable.value=null;
       empty.value=false;
       loading.value = false;
@@ -74,7 +76,9 @@ export default defineComponent({
         const bytes = await readReportArtifact(props.chart.artifact, controller.signal);
         if (turn !== serial) return;
         if (props.chart.kind === "plotly") {
-          figure = checkedPlotlyFigure(JSON.parse(new TextDecoder().decode(bytes)));
+          originalFigure = checkedPlotlyFigure(JSON.parse(new TextDecoder().decode(bytes)));
+          emit('ready',{id:props.chart.id,fileId:props.chart.artifact?.fileId,figure:originalFigure,compatibleTypes:explorationChartTypes(originalFigure),table:explorationChartTable(originalFigure)});
+          figure = present(originalFigure);
           fallbackTable.value=plotlyDataTable(figure);
           if(figure.data.every(trace=>['scatter','bar','pie','histogram','box'].includes(trace.type || 'scatter'))
               && !figure.data.some(trace=>['x','y','values'].some(key=>Array.isArray(trace[key])&&trace[key].length))){empty.value=true;loading.value=false;recordTiming();return;}
@@ -96,6 +100,7 @@ export default defineComponent({
     }
     function sendFigure() {
       if (!figure) return;
+      if(frame.value)delete frame.value.dataset.pdfImage;
       frame.value?.contentWindow?.postMessage({ type: "runtime-plotly-figure", figure }, "*");
       clearTimeout(renderTimeout);
       renderTimeout = setTimeout(() => {
@@ -104,6 +109,12 @@ export default defineComponent({
           loading.value = false;
         }
       }, 20000);
+    }
+    function present(original){const value=explorationFigure(original,props.presentation);return props.compact?explorationChartStyle(value):value;}
+    function updatePresentation(){
+      if(props.chart.kind!=='plotly'||!originalFigure)return;
+      try{figure=present(originalFigure);error.value='';loading.value=true;renderStarted=performance.now();sendFigure();}
+      catch(ex){error.value=ex.message;loading.value=false;}
     }
     function rendered(event) {
       if (event.source !== frame.value?.contentWindow) return;
@@ -162,12 +173,15 @@ export default defineComponent({
       } else void load();
     });
     watch(
-      () => [props.chart.id,props.chart.kind,props.chart.renderError,props.chart.artifact?.fileId,props.chart.artifact?.size,props.chart.artifact?.sha256,props.chart.artifact?.mediaType],
+      () => JSON.stringify([props.chart.id,props.chart.kind,props.chart.renderError,props.chart.artifact?.fileId,props.chart.artifact?.size,props.chart.artifact?.sha256,props.chart.artifact?.mediaType]),
       () => {
         clear();
         void load();
       }
     );
+    watch(()=>[props.presentation,props.compact],updatePresentation);
+    onDeactivated(()=>clearTimeout(renderTimeout));
+    onActivated(()=>{if(figure&&frameDocument.value){error.value='';loading.value=true;nextTick(sendFigure);}});
     onBeforeUnmount(() => {
       clear();
       observer?.disconnect();

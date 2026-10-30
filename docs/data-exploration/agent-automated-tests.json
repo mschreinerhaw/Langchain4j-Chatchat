@@ -1,0 +1,28 @@
+{
+  "status": "PASSED",
+  "frontendExploration": {
+    "files": 10,
+    "tests": 75,
+    "failures": 0
+  },
+  "originalVisualReportRegression": {
+    "files": 7,
+    "tests": 48,
+    "failures": 0
+  },
+  "note": "Suites overlap; counts must not be summed as independent tests. Boundary mocks do not prove live model execution.",
+  "backend": {
+    "tests": 18,
+    "failures": 0
+  },
+  "productionBuild": "PASSED",
+  "mavenPackage": "PASSED",
+  "legacyRealGraphRegression": "agent-legacy-regression.json",
+  "liveAgentVisualEvidence": "agent-visual-acceptance.json",
+  "liveNoChartCases": [
+    "agent-no-data-acceptance.json",
+    "agent-python-no-chart-acceptance.json"
+  ],
+  "liveUnpublishedAgentDenial": "agent-unpublished-denial.json",
+  "deployment": "agent-deployment.json"
+}

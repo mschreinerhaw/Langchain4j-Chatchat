@@ -1,0 +1,54 @@
+{
+  "scope": "REAL_AUTHENTICATED_UI",
+  "status": "PASSED",
+  "checks": {
+    "simplifiedBusinessLayout": true,
+    "localPresentationSameFrameNoArtifactReload": true,
+    "originalChartBytesAndExactSeries": true,
+    "tableSortExpandAndChartFullscreen": true,
+    "inputAnchoredToWorkArea": true,
+    "historyAndSaveWithoutExecutionOrNavigation": true,
+    "reloadRestoresSelectedNodeChartAndWidth": true,
+    "realFollowupInheritedReferencesAndContext": true,
+    "trueSiblingBranchAndOriginalReceiptsUnchanged": true,
+    "followupCashValuesMatchOriginalArchive": true,
+    "browseHistoryDuringExecutionPreservesSelection": true
+  },
+  "workspaceId": "0537ce20-0435-4a84-b3cb-efc950c84ab7",
+  "originalNodes": [
+    {
+      "id": "4aaa9845-91e5-4361-811d-e9e8a82b254e",
+      "parentId": "",
+      "receiptHash": "bd2e4bf6921178da92b9de60cf637a11536c422e8efecf52e1c6ace092bcac72"
+    },
+    {
+      "id": "c3661947-8f4d-42b4-aa2b-c8a257bdc366",
+      "parentId": "4aaa9845-91e5-4361-811d-e9e8a82b254e",
+      "receiptHash": "6ac02f8d28ebd9194b5351756b571135b82c498604f37d25334e97e4fb884e3b"
+    },
+    {
+      "id": "29f00c84-c1a8-4667-9d2c-68ba18d2e79a",
+      "parentId": "c3661947-8f4d-42b4-aa2b-c8a257bdc366",
+      "receiptHash": "bc36aec3eb48852767b53276f7f2e344efec50caffa2de1e39b53dde5038b973"
+    }
+  ],
+  "newNode": {
+    "id": "d60b9b1d-cd99-4536-ad00-b679a87a5062",
+    "parentId": "4aaa9845-91e5-4361-811d-e9e8a82b254e",
+    "taskId": "analysis-coding-19877440d3cc98086025a1236e28e83976b1fe2df3a387565b839319e4604aa6",
+    "operationId": "cline-e3cc9fcfbae476819c8bbee567e50c5bfcf3b5de9b0e99b057a88c3cf79dfd08",
+    "codeSha256": "c397d3b48a1412eb02d95c6f0e23dd157e9b50161759fd3c669aa179cbbe35fd",
+    "resultSha256": "b7b0e81ed3e8d82a765519979c0affa4a5f4536c81993c4485862eef1f2d5eb3",
+    "receiptSha256": "6227eb415f74722e30473185f752a214bc34a0de816110043707fed5fc28c38b",
+    "evidenceRefs": [
+      "runtime-evidence:coding:input:54d7e84d3b8e265f8e7c53fb567bf4461ec4e86c68e34889844048e7bf33c01",
+      "runtime-evidence:coding:4f7ab6760163c44cc42b9c79d0047ee97ff233d100fcbbdf75a18049740e304e:code",
+      "runtime-evidence:coding:4f7ab6760163c44cc42b9c79d0047ee97ff233d100fcbbdf75a18049740e304e:receipt",
+      "runtime-evidence:coding:4f7ab6760163c44cc42b9c79d0047ee97ff233d100fcbbdf75a18049740e304e:result",
+      "runtime-evidence:coding:4f7ab6760163c44cc42b9c79d0047ee97ff233d100fcbbdf75a18049740e304e:validation",
+      "runtime-evidence:coding:4f7ab6760163c44cc42b9c79d0047ee97ff233d100fcbbdf75a18049740e304e:bundle"
+    ]
+  },
+  "browserErrors": [],
+  "analysisExecuteRequests": 1
+}

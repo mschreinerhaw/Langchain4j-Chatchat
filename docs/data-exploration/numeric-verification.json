@@ -1,0 +1,27 @@
+{
+  "status": "NUMERIC_VALUES_PASSED",
+  "taskId": "analysis-coding-06afcde2b9241ab94ee2ff66b4064aaa20c5ea8ee37ec7c0ae486ceeb4b0099a",
+  "actualCustomer": "1500007073",
+  "sourceRows": 5,
+  "sourceKind": "EXISTING_RUNTIME_ARCHIVED_INPUT",
+  "sourceArchiveSha256": "fc6c0a616641f3a0236fefeb88f8667685d29881ce22924298eda1d168b36f26",
+  "selectedDatasetSha256": "e59a46f4b0c6a989ba1b21c9d06a9d585d8ace8ec5735e1cb6ad76b5a88dfa0a",
+  "figureSha256": "2a2c8da31dd80b6d0806f3173f75e13b2ac3c57a60f0a500f5fb1f651f8459d7",
+  "independentBaselineSha256": "f5d6c88255efa02f0022e69b9ff2bc0dd3f08a2e82a42c461b6b97d329f60416",
+  "baselineComputedAt": "2026-10-30T06:58:38.097192+00:00",
+  "comparedTraceFields": [
+    "cptl_bal",
+    "exch_cir_scr_mval",
+    "roug_ast"
+  ],
+  "exactValueAndPercentComparisons": 27,
+  "sourceUnchanged": true,
+  "reportStatus": "PARTIAL",
+  "businessSemanticStatus": "PARTIAL_UNDECLARED_CURRENCY",
+  "limitations": [
+    "Archived snapshot, not a current customer query.",
+    "Only listed chart series and latest structure table were independently checked.",
+    "Report uses a currency unit absent from producer metadata; numeric agreement does not validate that unit."
+  ],
+  "supersededBy": "corrected-numeric-verification.json"
+}

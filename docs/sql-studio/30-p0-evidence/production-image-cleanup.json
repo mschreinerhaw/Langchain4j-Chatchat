@@ -1,0 +1,160 @@
+{
+  "scope": "UNREFERENCED_SUPERSEDED_RUNTIME_OS_APPLICATION_IMAGES",
+  "deployedSourceCommit": "f6f71eece",
+  "mainDocumentationCommit": "c66178240",
+  "deploymentAlreadyCurrent": true,
+  "serviceRestarted": false,
+  "beforeChecks": {
+    "frontend": 200,
+    "api": 401,
+    "mcp": 401
+  },
+  "beforeDisk": {
+    "usedBytes": 150032691200,
+    "availableBytes": 43146465280
+  },
+  "beforeDockerDisk": "TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE\nImages          71        55        36.49GB   6.7GB (18%)\nContainers      98        16        1.446GB   1.132GB (78%)\nLocal Volumes   10        5         267.4MB   90B (0%)\nBuild Cache     57        0         69.87kB   69.87kB",
+  "protectedContainerImages": 55,
+  "candidates": [
+    {
+      "tag": "runtime-os-api:sql-stability-20261029-173102",
+      "imageId": "sha256:30a0ccf25c576c0aa82d85ba244ad07515de499e273eec981ea63d2fbc3f6042",
+      "displaySize": "742MB"
+    },
+    {
+      "tag": "runtime-os-coding-agent:sql-stability-20261029-170829",
+      "imageId": "sha256:032373f23e477cc05f266c270cdfbfd416038162f922fa6b056abac6115388f0",
+      "displaySize": "419MB"
+    },
+    {
+      "tag": "runtime-os-api:sql-stability-20261029-170829",
+      "imageId": "sha256:11dc8619efe2e00e8dfb02e9bb71b1c93598a06358ad702b333759fc0ed32929",
+      "displaySize": "742MB"
+    },
+    {
+      "tag": "runtime-os-api:sql-stability-20261029-164115",
+      "imageId": "sha256:b7fff2d1da854761f9721750b300181088c1fd45dc10d8a13870ac45efa3277d",
+      "displaySize": "742MB"
+    },
+    {
+      "tag": "runtime-os-coding-agent:report-scope-c449fdb07f37-20261029",
+      "imageId": "sha256:b8f36866628963ba87a80d92f399423d97f46f453ff8af983f58ac6b9023245f",
+      "displaySize": "418MB"
+    },
+    {
+      "tag": "runtime-os-api:cline-field-provenance-511afa83c0c2-20261029",
+      "imageId": "sha256:0d6aa9c67c524c967bbd29eaf7325c6375ccec03425d84961c48e51d04d18633",
+      "displaySize": "742MB"
+    },
+    {
+      "tag": "runtime-os-coding-agent:source-bindings-ccbde66d32d0-20261029",
+      "imageId": "sha256:5212c2959e489749ffd19e090aa0d2fc54073d7ba5308422cd14f78aff721110",
+      "displaySize": "418MB"
+    },
+    {
+      "tag": "runtime-os-api:cline-file-plan-fe5a9db710ca-20261029",
+      "imageId": "sha256:ff24fd011152a2454f2ec1c68ff72349dcb75ee3718f71bf6573a35c570b4f97",
+      "displaySize": "742MB"
+    },
+    {
+      "tag": "runtime-os-coding-agent:cline-analysis-repair-f2d5bb92ffa6-20261029",
+      "imageId": "sha256:6c13b97e38b029f3e2d7cc371c4deaf1e05f76c9c5be2b34462f87a692241362",
+      "displaySize": "418MB"
+    },
+    {
+      "tag": "runtime-os-api:cline-analysis-repair-f2d5bb92ffa6-20261029",
+      "imageId": "sha256:dea71d1e27e4cebe8d0e677c31225041ff1e57d11ec6231465f3019127b9c425",
+      "displaySize": "742MB"
+    },
+    {
+      "tag": "runtime-os-api:sql-workbench-c9e70d232c30-20261029",
+      "imageId": "sha256:849b187df89fbe4f6b32778a63ab338084d7b755fe5988b06d12a96defb08928",
+      "displaySize": "742MB"
+    }
+  ],
+  "removed": [
+    {
+      "tag": "runtime-os-api:sql-stability-20261029-173102",
+      "imageId": "sha256:30a0ccf25c576c0aa82d85ba244ad07515de499e273eec981ea63d2fbc3f6042",
+      "displaySize": "742MB",
+      "result": "Untagged: runtime-os-api:sql-stability-20261029-173102\nDeleted: sha256:30a0ccf25c576c0aa82d85ba244ad07515de499e273eec981ea63d2fbc3f6042\nDeleted: sha256:a99502d5e297ef75e9451134fe4d9a57b9e8a053de3510ee476a465b6ff8ffed"
+    },
+    {
+      "tag": "runtime-os-coding-agent:sql-stability-20261029-170829",
+      "imageId": "sha256:032373f23e477cc05f266c270cdfbfd416038162f922fa6b056abac6115388f0",
+      "displaySize": "419MB",
+      "result": "Untagged: runtime-os-coding-agent:sql-stability-20261029-170829\nDeleted: sha256:032373f23e477cc05f266c270cdfbfd416038162f922fa6b056abac6115388f0\nDeleted: sha256:81a65bc59454717238637e87bba0ee3351fcd3de84cd4561b0791e1e3908fcc5"
+    },
+    {
+      "tag": "runtime-os-api:sql-stability-20261029-170829",
+      "imageId": "sha256:11dc8619efe2e00e8dfb02e9bb71b1c93598a06358ad702b333759fc0ed32929",
+      "displaySize": "742MB",
+      "result": "Untagged: runtime-os-api:sql-stability-20261029-170829\nDeleted: sha256:11dc8619efe2e00e8dfb02e9bb71b1c93598a06358ad702b333759fc0ed32929\nDeleted: sha256:f734463e1a3c26717a68b2fa8cef3b0e8099d497ebe347b4d7bc06a01a81d87c"
+    },
+    {
+      "tag": "runtime-os-api:sql-stability-20261029-164115",
+      "imageId": "sha256:b7fff2d1da854761f9721750b300181088c1fd45dc10d8a13870ac45efa3277d",
+      "displaySize": "742MB",
+      "result": "Untagged: runtime-os-api:sql-stability-20261029-164115\nDeleted: sha256:b7fff2d1da854761f9721750b300181088c1fd45dc10d8a13870ac45efa3277d\nDeleted: sha256:10de532080d31316a238c10b48d02a7fa0af126a1bbd17eda67b5b2d3d690974"
+    },
+    {
+      "tag": "runtime-os-coding-agent:report-scope-c449fdb07f37-20261029",
+      "imageId": "sha256:b8f36866628963ba87a80d92f399423d97f46f453ff8af983f58ac6b9023245f",
+      "displaySize": "418MB",
+      "result": "Untagged: runtime-os-coding-agent:report-scope-c449fdb07f37-20261029\nDeleted: sha256:b8f36866628963ba87a80d92f399423d97f46f453ff8af983f58ac6b9023245f\nDeleted: sha256:afd98d3ecdd31b3dacff6829ce145d2154c83bf2870470b8bc9e537b672cb906\nDeleted: sha256:00c582b894ad0ab23e7cc3a5b47c4d134d941e068c9ebde0addc6ca49f3f7f1c\nDeleted: sha256:9a07d33fabf6daf5cf7c24b3356187ddadb26217b139c224ccaf972b5129c34c\nDeleted: sha256:2b0308ca9263e8a5c959f0340458b84dfc21a7354e8cc63c05abe5aa3e6118b0"
+    },
+    {
+      "tag": "runtime-os-api:cline-field-provenance-511afa83c0c2-20261029",
+      "imageId": "sha256:0d6aa9c67c524c967bbd29eaf7325c6375ccec03425d84961c48e51d04d18633",
+      "displaySize": "742MB",
+      "result": "Untagged: runtime-os-api:cline-field-provenance-511afa83c0c2-20261029\nDeleted: sha256:0d6aa9c67c524c967bbd29eaf7325c6375ccec03425d84961c48e51d04d18633\nDeleted: sha256:875a28644ccc6a5b3ac1e7d3730aff18a53667181881e791d80e83f59bb04cbb"
+    },
+    {
+      "tag": "runtime-os-coding-agent:source-bindings-ccbde66d32d0-20261029",
+      "imageId": "sha256:5212c2959e489749ffd19e090aa0d2fc54073d7ba5308422cd14f78aff721110",
+      "displaySize": "418MB",
+      "result": "Untagged: runtime-os-coding-agent:source-bindings-ccbde66d32d0-20261029\nDeleted: sha256:5212c2959e489749ffd19e090aa0d2fc54073d7ba5308422cd14f78aff721110\nDeleted: sha256:c13014b7489de58ae2e53669c3664b0c4ab97418cb7d2964f1800a74a5357d2f\nDeleted: sha256:7262c61225f4592b382a628d73a6f4c120647c705a6b676be1e5e302f5adc22b\nDeleted: sha256:c3b77e1efc68d08fe52de4faa5a657777a9aa2f10d6302b85a8f43b6a8858d5a\nDeleted: sha256:8d6bf15f83e1f7a22e9114e48d7436fd7090c668ee7efe4a479b1bfa1e3b511f"
+    },
+    {
+      "tag": "runtime-os-api:cline-file-plan-fe5a9db710ca-20261029",
+      "imageId": "sha256:ff24fd011152a2454f2ec1c68ff72349dcb75ee3718f71bf6573a35c570b4f97",
+      "displaySize": "742MB",
+      "result": "Untagged: runtime-os-api:cline-file-plan-fe5a9db710ca-20261029\nDeleted: sha256:ff24fd011152a2454f2ec1c68ff72349dcb75ee3718f71bf6573a35c570b4f97\nDeleted: sha256:78a78516f0206295f538b3f37f2f3db3c36973e56b8352d3938f8bedf346b436"
+    },
+    {
+      "tag": "runtime-os-coding-agent:cline-analysis-repair-f2d5bb92ffa6-20261029",
+      "imageId": "sha256:6c13b97e38b029f3e2d7cc371c4deaf1e05f76c9c5be2b34462f87a692241362",
+      "displaySize": "418MB",
+      "result": "Untagged: runtime-os-coding-agent:cline-analysis-repair-f2d5bb92ffa6-20261029\nDeleted: sha256:6c13b97e38b029f3e2d7cc371c4deaf1e05f76c9c5be2b34462f87a692241362\nDeleted: sha256:1655bbd105669704137159a07eff8a0941989c91f29ad3790b1e1478ae7111c4\nDeleted: sha256:265fe554585a72a618b7d2fbde123a2e53348ddd4b25f6ec25ce3f1bd18044a6\nDeleted: sha256:14ac8a3aec6b7cd6f6d94a7390359b18983527a6b1ab526ead667e4a8bccdc5c\nDeleted: sha256:04966c2ffe4ed4914e2c7bf5cdc6c6629785cb8c83b14c5aaf7f3236517fba7f"
+    },
+    {
+      "tag": "runtime-os-api:cline-analysis-repair-f2d5bb92ffa6-20261029",
+      "imageId": "sha256:dea71d1e27e4cebe8d0e677c31225041ff1e57d11ec6231465f3019127b9c425",
+      "displaySize": "742MB",
+      "result": "Untagged: runtime-os-api:cline-analysis-repair-f2d5bb92ffa6-20261029\nDeleted: sha256:dea71d1e27e4cebe8d0e677c31225041ff1e57d11ec6231465f3019127b9c425\nDeleted: sha256:e09250686ed70c1b877e6541af92d480cbd7c61c2b54b7ffd4806b46624e15a0"
+    },
+    {
+      "tag": "runtime-os-api:sql-workbench-c9e70d232c30-20261029",
+      "imageId": "sha256:849b187df89fbe4f6b32778a63ab338084d7b755fe5988b06d12a96defb08928",
+      "displaySize": "742MB",
+      "result": "Untagged: runtime-os-api:sql-workbench-c9e70d232c30-20261029\nDeleted: sha256:849b187df89fbe4f6b32778a63ab338084d7b755fe5988b06d12a96defb08928\nDeleted: sha256:c2e1d5cf464db4da4072faf9bde29d7aae9db5b88340ea1cd36d3509a0382455"
+    }
+  ],
+  "failed": [],
+  "containersDeleted": false,
+  "volumesDeleted": false,
+  "baseRuntimeImagesDeleted": false,
+  "afterDisk": {
+    "usedBytes": 147675197440,
+    "availableBytes": 45503959040
+  },
+  "afterChecks": {
+    "frontend": 200,
+    "api": 401,
+    "mcp": 401
+  },
+  "existingContainersPreserved": true,
+  "releasedBytesObserved": 2357493760,
+  "afterDockerDisk": "TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE\nImages          60        55        33.49GB   3.701GB (11%)\nContainers      98        16        1.446GB   1.132GB (78%)\nLocal Volumes   10        5         267.4MB   90B (0%)\nBuild Cache     57        0         69.87kB   69.87kB",
+  "status": "PASSED"
+}

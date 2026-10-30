@@ -64,7 +64,7 @@ class SqlStudioMetadataServiceTest {
         var context = service.create(request, "project", input()); clearInvocations(gateway);
         service.operate(request, "project", context.discoveryId(), new SqlStudioMetadataService.Operation(context.bindings().get(0).bindingId(), Map.of("operation", "DESCRIBE", "tableName", "orders")));
         verify(gateway).invoke(request, "registered-mcp", Map.of("contractVersion", SqlStudioMetadataGateway.CONTRACT, "operation", "DESCRIBE", "assetId", "asset", "database", "db", "schema", "public", "tableName", "orders"));
-        for (var args : List.of(Map.<String,Object>of("operation", "SEARCH", "assetId", "other"), Map.<String,Object>of("operation", "SEARCH", "schema", "hidden"), Map.<String,Object>of("operation", "SEARCH", "sql", "SELECT 1"), Map.<String,Object>of("operation", "REFRESH"))) {
+        for (var args : List.of(Map.<String,Object>of("operation", "SEARCH", "assetId", "other"), Map.<String,Object>of("operation", "SEARCH", "schema", "hidden"), Map.<String,Object>of("operation", "SEARCH", "sql", "SELECT 1"), Map.<String,Object>of("operation", "EXECUTE_SQL"))) {
             assertThatThrownBy(() -> service.operate(request, "project", context.discoveryId(), new SqlStudioMetadataService.Operation(context.bindings().get(0).bindingId(), args)))
                 .isInstanceOf(ResponseStatusException.class);
         }

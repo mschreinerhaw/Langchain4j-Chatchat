@@ -90,6 +90,8 @@ public class SqlStudioMetadataGateway {
                 throw new ResponseStatusException(HttpStatus.GATEWAY_TIMEOUT,"METADATA_TOOL_TIMEOUT: 元数据工具请求超时");
             if(result!=null&&Objects.toString(result.errorMessage(),"").contains("METADATA_SNAPSHOT_CHANGED"))
                 throw new ResponseStatusException(HttpStatus.CONFLICT,"SNAPSHOT_CONFLICT: 元数据或授权范围发生变化，请重新翻页");
+            if(result!=null&&Objects.toString(result.errorMessage(),"").contains("Ambiguous table"))
+                throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,"METADATA_AMBIGUOUS_OBJECT: 存在同名表，请指定数据库和 Schema");
             if(result!=null&&Objects.toString(result.errorMessage(),"").contains("IllegalArgumentException:"))
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"METADATA_ARGUMENTS_INVALID: 检查工具协议、名称、命名空间及分页参数");
             boolean denied=result!=null&&(result.status()==McpServiceResultStatus.REJECTED

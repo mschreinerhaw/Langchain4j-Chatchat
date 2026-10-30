@@ -13,6 +13,9 @@ DB = "plugins/"
 JAVA = "/src/org/jkiss/dbeaver/"
 FILES = {
     "dbeaver": [
+        (DB+"org.jkiss.dbeaver.model.jdbc"+JAVA+"model/impl/jdbc/JDBCDataSource.java", ["openConnection("]),
+        (DB+"org.jkiss.dbeaver.ui.editors.sql"+JAVA+"ui/editors/sql/execute/SQLQueryJob.java", ["executeStatement(", "curResult.setError("]),
+        (DB+"org.jkiss.dbeaver.ext.oracle"+JAVA+"ext/oracle/data/QueryTransformerRowNum.java", ["transformQueryString("]),
         (DB+"org.jkiss.dbeaver.model"+JAVA+"model/struct/DBSEntity.java", ["getAttributes(", "getConstraints(", "getAssociations(", "getReferences("]),
         (DB+"org.jkiss.dbeaver.model"+JAVA+"model/struct/DBSEntityAssociation.java", ["getReferencedConstraint(", "getAssociatedEntity("]),
         (DB+"org.jkiss.dbeaver.model"+JAVA+"model/struct/DBSEntityConstraint.java", ["getConstraintType("]),
@@ -31,6 +34,8 @@ FILES = {
         (DB+"org.jkiss.dbeaver.model.ai"+JAVA+"model/ai/commands/SQLCommandAI.java", ["handleCommand(", "AICommandRequest("]),
     ],
     "cloudbeaver": [
+        ("server/bundles/io.cloudbeaver.server/src/io/cloudbeaver/service/sql/WebSQLProcessor.java", ["createContext("]),
+        ("server/bundles/io.cloudbeaver.server/src/io/cloudbeaver/service/sql/WebSQLQueryResults.java", ["getResultSet("]),
         ("webapp/packages/core-navigation-tree/src/NodesManager/NavTreeResource.ts", ["refreshTree(", "markTreeOutdated(", "loadNodeChildren(", "insertSlice("]),
         ("webapp/packages/plugin-sql-editor-new/src/SQLEditor/useSqlDialectAutocompletion.ts", ["completionSource(", "insertCompletionText("]),
         ("webapp/packages/plugin-sql-editor/src/SqlEditor/useSqlEditor.ts", ["getHintProposals:", "getExecutingQuery("]),

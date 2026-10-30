@@ -64,6 +64,9 @@ class StudioCodePlanServiceTest {
     @Test void initialOutlineDeclaresGoalsAndAllowsGovernedEvidenceDrivenRevisions() {
         var ticket=plan(PLAN);
         verifyNoInteractions(model);
+        assertThat(ticket.interpretationPlan().intent().goal()).doesNotContain("Cline", "Runtime");
+        assertThat(ticket.interpretationPlan().steps()).allSatisfy(step ->
+            assertThat(String.valueOf(step.input().get("description"))).doesNotContain("Cline", "Runtime"));
         assertThat(service.context(ticket)).contains("not an analytical plan", "Cline owns", "does not prescribe a fixed tool order");
     }
     @Test void separateNewConversationsAlwaysReceiveNewPlanIds() {

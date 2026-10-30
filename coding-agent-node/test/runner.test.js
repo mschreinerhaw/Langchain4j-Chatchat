@@ -591,3 +591,20 @@ test('Cline autonomously discovers business metadata and iterates from missing m
   assert.ok(queried.some(q=>q.operation==='LINEAGE'));assert.match(finished.operationId,/^workspace-/);
   assert.throws(()=>createCodingRun({...contract,metadataRefs:[]},gateway,{model}),/negotiated SQL exploration/);
 });
+
+test('SQL repair budget STOP terminates without claiming delivery or requesting another model turn',async()=>{
+  const contract={...task,schemaVersion:'runtime_os.coding.v2',metadataRefs:['runtime-coding:sql-metadata-tools:v1'],
+    authorization:{allowedTools:['workspace_read','workspace_propose','workspace_metadata','workspace_validate'],allowedSideEffects:['WORKSPACE_WRITE'],allowedDataRefs:[],networkPolicy:'NONE'},
+    outputContract:{resultFormat:'WORKSPACE_FILES',resultSchemaRef:'sql-studio.output.v1',requiredFiles:['proposal.jsonl']}};
+  let calls=0,finished;
+  const model={async *stream(){calls++;yield {type:'tool-call-delta',toolCallId:'failed-proposal',toolName:'workspace_propose',input:{files:[{path:'q.sql',content:'SELECT missing FROM orders'}],notes:'repair'}};yield {type:'finish',reason:'tool-calls'};}};
+  const gateway={reserveModel(){},settleModel(){},
+    readWorkspace:async()=>({context:'Authorized SQL source context'}),
+    queryWorkspaceMetadata:async()=>{throw new Error('Unexpected metadata call');},
+    validateWorkspace:async()=>{throw new Error('Unexpected validation call');},
+    proposeWorkspace:async()=>({valid:false,resultAvailable:false,repair:{action:'STOP',reasonCode:'SQL_REPAIR_LIMIT_REACHED'}}),
+    finish(_contract,value){finished=value;}};
+  const result=await createCodingRun(contract,gateway,{model}).run();
+  assert.equal(calls,1);assert.equal(result.status,'failed');assert.equal(finished.status,'failed');
+  assert.equal(finished.operationId,null);assert.equal(finished.summary,'SQL_REPAIR_LIMIT_REACHED');
+});

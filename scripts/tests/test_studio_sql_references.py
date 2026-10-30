@@ -10,6 +10,21 @@ spec.loader.exec_module(validator)
 
 
 class StudioReferencesTest(unittest.TestCase):
+    def test_quoted_column_case_remains_exact_after_normalization_fix(self):
+        tables=[{'tableName':'MixedTable','schema':'App','columns':[{'name':'ExactColumn'}]}]
+        self.assertTrue(self.parse('SELECT "ExactColumn" FROM "App"."MixedTable"',tables=tables)['valid'])
+        self.assertFalse(self.parse('SELECT exactcolumn FROM "App"."MixedTable"',tables=tables)['valid'])
+    def test_registered_metadata_and_lookup_use_the_same_dialect_normalization(self):
+        for dialect, table, column, sql in [
+            ('hive', 'TOF_JJWTLS', 'WTJE', 'SELECT WTJE FROM TOF_JJWTLS'),
+            ('oracle', 'ORDERS', 'ID', 'select id from orders'),
+            ('postgresql', 'orders', 'id', 'SELECT ID FROM ORDERS')]:
+            with self.subTest(dialect=dialect):
+                tables=[{'tableName':table,'database':'APP','schema':'APP',
+                         'columns':[{'name':column}]}]
+                self.assertTrue(self.parse(sql,dialect,tables)['valid'])
+                self.assertFalse(self.parse('SELECT missing_field FROM '+table,dialect,tables)['valid'])
+
     def parse(self, sql, dialect='postgresql', tables=None):
         return validator.validate({'dialect': dialect, 'files': [{'path': 'query.sql', 'content': sql}],
                                    'schema': {} if tables is None else {'tables': tables}})
@@ -25,7 +40,14 @@ class StudioReferencesTest(unittest.TestCase):
 
     def test_catalog_schema_table_and_quoted_case(self):
         result = self.parse('SELECT "ID" FROM "catalog"."Mixed"."CamelTable"', 'postgresql')
-        self.assertEqual(result['references'], [{'tableName': 'CamelTable', 'database': 'catalog', 'schema': 'Mixed', 'quoted': True}])
+        self.assertEqual(result['references'], [{'tableName': 'CamelTable', 'database': 'catalog', 'schema': 'Mixed', 'quoted': True, 'caseSensitive': True,
+                                               'schemaQuoted': True, 'databaseQuoted': True}])
+    def test_hive_backticks_remain_case_insensitive_while_postgres_quotes_are_exact(self):
+        result=self.parse('SELECT `ID` FROM `APP`.`ORDERS`','hive',
+                          [{'tableName':'ORDERS','schema':'APP','columns':[{'name':'ID'}]}])
+        self.assertTrue(result['valid'])
+        self.assertFalse(result['references'][0]['caseSensitive'])
+        self.assertFalse(result['references'][0]['schemaCaseSensitive'])
 
     def test_oracle_unquoted_identifiers_are_folded(self):
         result = self.parse('select id from app.tzrt_hyxxls', 'oracle')

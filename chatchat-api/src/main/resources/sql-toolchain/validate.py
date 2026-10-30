@@ -8,6 +8,7 @@ from sqlglot.optimizer.qualify import qualify
 from sqlglot.optimizer.scope import traverse_scope
 from sqlglot.optimizer.normalize_identifiers import normalize_identifiers
 from sqlglot.schema import MappingSchema
+from sqlglot.dialects.dialect import Dialect, NormalizationStrategy
 
 
 def failure(file, error):
@@ -29,6 +30,15 @@ def structure_review(tree, tables, dialect, path):
     """Static evidence/risk review only. Absence of keys never proves uniqueness."""
     issues, relationships, grains = [], [], []
     root = normalize_identifiers(tree.copy(), dialect=dialect or None)
+    def physical_name(value):
+        return normalize_identifiers(exp.to_identifier(value, quoted=True), dialect=dialect or None).name if value else value
+    tables = [dict(table, tableName=physical_name(table.get("tableName")),
+                   schema=physical_name(table.get("schema")), database=physical_name(table.get("database")),
+                   primaryKeys=[physical_name(value) for value in table.get("primaryKeys") or []],
+                   partitionKeys=[physical_name(value) for value in table.get("partitionKeys") or []],
+                   foreignKeys=[dict(key, **{field: physical_name(key.get(field)) for field in
+                       ("column", "referencedColumn", "referencedTable", "referencedSchema", "referencedDatabase")})
+                       for key in table.get("foreignKeys") or []]) for table in tables]
 
     def report(code, message, **detail):
         issues.append(dict(path=path, category="STRUCTURE", severity="WARNING", code=code,
@@ -173,13 +183,14 @@ def validate(request):
                 identifier.set("db", exp.to_identifier(namespace or database, quoted=True))
             if database and namespace and database != namespace:
                 identifier.set("catalog", exp.to_identifier(database, quoted=True))
-            mapped.add_table(identifier, {column["name"]: "UNKNOWN" for column in table["columns"]})
+            mapped.add_table(identifier, {exp.to_identifier(column["name"], quoted=True): "UNKNOWN" for column in table["columns"]})
         schema = mapped
     if schema and not isinstance(schema, MappingSchema):
         schema = MappingSchema(schema, dialect=dialect or None)
     diagnostics = []
     normalized = []
     references = []
+    referenced_columns = []
     temporary_tables = {}
     for file in files:
         try:
@@ -218,6 +229,15 @@ def validate(request):
                             reference = {"tableName": identity.name, "schema": identity.db,
                                          "database": identity.catalog,
                                          "quoted": bool(source.this.args.get("quoted"))}
+                            strategy = Dialect.get_or_raise(dialect or None).normalization_strategy
+                            if strategy == NormalizationStrategy.CASE_SENSITIVE or reference["quoted"]:
+                                reference["caseSensitive"] = strategy != NormalizationStrategy.CASE_INSENSITIVE
+                            for part in ("db", "catalog"):
+                                qualifier = source.args.get(part)
+                                if qualifier is not None and qualifier.args.get("quoted"):
+                                    reference["schemaQuoted" if part == "db" else "databaseQuoted"] = True
+                                    if strategy == NormalizationStrategy.CASE_INSENSITIVE:
+                                        reference["schemaCaseSensitive" if part == "db" else "databaseCaseSensitive"] = False
                             if reference not in references:
                                 references.append(reference)
             if require_business_evidence:
@@ -248,10 +268,24 @@ def validate(request):
                 for tree in trees:
                     for scope in traverse_scope(tree):
                         for _, source in scope.selected_sources.values():
-                            if isinstance(source, exp.Table) and not schema.find(source):
+                            # MappingSchema normalizes registered identifiers by dialect,
+                            # while find() itself expects an already normalized table.
+                            # Raw uppercase Hive / lowercase Oracle names otherwise fail
+                            # before qualify() can perform the same normalization.
+                            if isinstance(source, exp.Table) and not schema.find(
+                                    normalize_identifiers(source.copy(), dialect=dialect or None)):
                                 raise ValueError("Table metadata has not been resolved in the authorized scope: " + source.sql())
-                    qualify(tree.copy(), dialect=dialect or None, schema=schema,
-                            validate_qualify_columns=True, identify=False)
+                    qualified = qualify(tree.copy(), dialect=dialect or None, schema=schema,
+                                        validate_qualify_columns=True, identify=False)
+                    for scope in traverse_scope(qualified):
+                        for column in scope.columns:
+                            selected = scope.selected_sources.get(column.table)
+                            if selected and isinstance(selected[1], exp.Table):
+                                table = selected[1]
+                                use = dict(path=file["path"], tableName=table.name, schema=table.db,
+                                           database=table.catalog, column=column.name, sourceAlias=column.table)
+                                if use not in referenced_columns:
+                                    referenced_columns.append(use)
             for tree in trees:
                 review, links, keys = structure_review(tree, table_evidence, dialect, file["path"])
                 structural_diagnostics.extend(review); relationships.extend(links); grains.extend(keys)
@@ -266,7 +300,7 @@ def validate(request):
             "fieldValidation": "CHECKED" if schema else "NOT_EVALUATED",
             "diagnostics": diagnostics, "normalizedFiles": normalized,
             "requiresBusinessEvidence": derived, "businessLiteralValues": sorted(business_literals),
-            "references": references, "structuralDiagnostics": structural_diagnostics,
+            "references": references, "referencedColumns": referenced_columns, "structuralDiagnostics": structural_diagnostics,
             "relationships": relationships, "grains": grains,
             "structureReviewRequired": bool(structural_diagnostics), "businessValidation": "NOT_EVALUATED"}
 

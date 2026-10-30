@@ -41,6 +41,18 @@ class SqlMetadataDiscoveryWorkflowTest {
         assertThat(output.toString()).doesNotContain("secret", "jdbc", "assetRef=b");
         verifyNoInteractions(indexes);
     }
+    @Test void physicalMetadataOperationsKeepPaginationAndVisibleDdlScope(){
+        when(indexes.indexFor(asset)).thenReturn(index(List.of(table("orders")),Map.of("db.orders",List.of(column("id"))),100));
+        assertThat(run(args("LIST_CATALOGS","assetId","a"))).containsEntry("totalMatched",1);
+        assertThat(run(args("LIST_SCHEMAS","assetId","a"))).containsEntry("totalMatched",1);
+        assertThat(run(args("LIST_TABLES","assetId","a"))).containsEntry("totalMatched",1);
+        assertThat(run(args("GET_TABLE_DDL","assetId","a","tableName","orders")).toString())
+            .contains("CREATE TABLE","GENERATED_FROM_AUTHORIZED_METADATA","VISIBLE_COLUMNS_ONLY");
+    }
+    @Test void refreshChecksCurrentAssetGrantBeforeTouchingTheCollector(){
+        assertThatThrownBy(()->run(args("REFRESH","assetId","a"),id->false)).isInstanceOf(SecurityException.class);
+        verifyNoInteractions(indexes);
+    }
 
     @Test void paginatesBeyondFiveHundredWithStableOrderAndRequiresPinnedSnapshot() {
         when(indexes.indexFor(asset)).thenReturn(index(IntStream.range(0, 503).mapToObj(i -> table("t" + String.format("%04d", i))).toList(), Map.of(), 100));

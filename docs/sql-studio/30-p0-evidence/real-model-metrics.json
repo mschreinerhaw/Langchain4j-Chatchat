@@ -1,0 +1,36 @@
+{
+  "scope": "REAL_PROVIDER_ISOLATED_JAVA_NODE_H2_PARSER",
+  "productionModified": false,
+  "model": "qwen3.7-plus",
+  "language": "hive",
+  "wallMs": 39340,
+  "status": "COMPLETED",
+  "usage": {
+    "budgetId": "workspace-budget:node-task",
+    "costCurrency": "USD",
+    "consumed": {
+      "modelCalls": 6,
+      "modelTokens": 18143,
+      "toolCalls": 7,
+      "codeExecutions": 0,
+      "cpuMillis": 0,
+      "peakMemoryBytes": 0,
+      "outputBytes": 9730,
+      "costAmount": "0"
+    },
+    "reserved": {
+      "modelCalls": 0,
+      "modelTokens": 80161,
+      "toolCalls": 0,
+      "codeExecutions": 0,
+      "cpuMillis": 0,
+      "peakMemoryBytes": 0,
+      "outputBytes": 0,
+      "costAmount": "0.249999999996"
+    },
+    "meteringComplete": false
+  },
+  "generatedCodeExecuted": false,
+  "modelCallCount": 6,
+  "toolCallCount": 7
+}

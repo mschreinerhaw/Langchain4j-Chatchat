@@ -107,4 +107,12 @@ class SqlStudioMetadataGatewayTest {
         var error=catchThrowableOfType(()->gateway.referenceScoped(scope,"registered","enterprise_metadata_search",Map.of("query","assets")),ResponseStatusException.class);
         assertThat(SqlWorkspaceMetadataTools.failure(error)).containsEntry("category","QUERY_BUDGET").containsEntry("retryable",true);
     }
+    @Test void ambiguousObjectKeepsItsOwnErrorTypeInsteadOfGenericArgumentFailure(){
+        when(kernel.tools(any())).thenReturn(List.of(tool()));
+        when(kernel.execute(any(McpServiceCall.class))).thenReturn(new McpServiceResult(null,"request","registered","sql_schema_context_query",
+            McpServiceResultStatus.FAILED,null,null,"MCP_TOOL_FAILED","IllegalArgumentException: Ambiguous table; specify database and schema",false,null,Map.of(),0));
+        var scope=new com.chatchat.common.kernel.KernelDataScope("tenant","owner","request",null,"run",null,Map.of());
+        var error=catchThrowableOfType(()->gateway.invokeScoped(scope,"registered",Map.of()),ResponseStatusException.class);
+        assertThat(SqlWorkspaceMetadataTools.failure(error)).containsEntry("category","AMBIGUOUS_OBJECT").containsEntry("retryable",false);
+    }
 }

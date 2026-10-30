@@ -29,22 +29,7 @@ import static org.mockito.Mockito.*;
 @EnabledIfSystemProperty(named="coding.sqlglotPython",matches=".+")
 class CodingWorkspaceServiceTest {
     @Test void clineCanDiscoverThenRepairCustomerSqlWithoutAnyPreselectedTable(){
-        var metadata=mock(com.chatchat.api.datascience.sql.SqlStudioMetadataService.class);
-        var gateway=mock(com.chatchat.api.datascience.sql.SqlStudioMetadataGateway.class);
-        var beans=new DefaultListableBeanFactory();beans.registerSingleton("metadata",metadata);
-        var context=new com.chatchat.api.datascience.sql.SqlStudioMetadataService.Context("discovery","project","QUERY","mysql",List.of(
-            new com.chatchat.api.datascience.sql.SqlStudioMetadataService.Binding("binding","service","asset","SOURCE","biz",null,"mysql")),"READY");
-        when(metadata.getScoped(any(),eq("project"),eq("discovery"))).thenReturn(context);
-        when(metadata.operateScoped(any(),eq(context),any())).thenAnswer(call->{
-            var arguments=call.<com.chatchat.api.datascience.sql.SqlStudioMetadataService.Operation>getArgument(2).arguments();
-            boolean describe="DESCRIBE".equals(arguments.get("operation"));
-            var table=Map.of("tableRef","trade-ref","tableName","customer_trade","database","biz","columns",describe?List.of(Map.of("name","client_no"),Map.of("name","amount"),Map.of("name","security_id")):List.of(),"relationsStatus","NOT_COLLECTED");
-            return new com.chatchat.api.datascience.sql.SqlStudioMetadataGateway.Result("service",Map.of("status","SUCCEEDED","snapshotId","v1","items",List.of(table),"doesNotExecuteSql",true));
-        });
-        when(gateway.referenceScoped(any(),eq("service"),eq("enterprise_metadata_search"),anyMap())).thenReturn(
-            Map.of("evidenceBundle",Map.of("standardDefinition","Customer identifier is the registered client number","metricDefinitionStatus","NOT_COLLECTED")));
-        service.setExploration(new com.chatchat.api.datascience.sql.SqlWorkspaceMetadataTools(beans.getBeanProvider(com.chatchat.api.datascience.sql.SqlStudioMetadataService.class),gateway,
-            new SqlGlotToolchain(System.getProperty("coding.sqlglotPython"),json),evidence,json));
+        configureAutonomousMetadata();
         service.setFastPathEnabled(true);
         service.submit(scope,"autonomous","Find transactions, assets and P/L for customer 070200046604. Do not invent unknown definitions.","mysql","",Map.of("discoveryId","discovery","projectId","project"));
         var task=actor(()->tasks.contract(scope,"autonomous"));
@@ -67,6 +52,8 @@ class CodingWorkspaceServiceTest {
         assertThat(actor(()->service.propose(task,owner,operation('1'),invalid))).containsEntry("valid",false);
         var repaired=Map.<String,Object>of("schemaVersion","sql-studio.output.v1","files",List.of(Map.of("path","q.sql","content","SELECT amount FROM customer_trade WHERE client_no='070200046604'")),"notes","Used actual amount field; asset/P&L joins and definitions remain unconfirmed; no SQL executed.");
         assertThat(actor(()->service.propose(task,owner,operation('2'),repaired))).containsEntry("valid",true);
+        var revision=evidence.find(scope,"coding:workspace:"+operation('2')+":receipt").orElseThrow().payload().get("revision");
+        assertThat(revision.toString()).contains("previousReceiptRef=runtime-evidence:coding:workspace:"+operation('1'),"guessed_","reason=Used actual amount field");
         assertThat(service.diagnostics(scope,"autonomous")).containsEntry("repairAttempts",1L).containsEntry("finalSqlValid",true);
         assertThat(service.diagnostics(scope,"autonomous")).containsEntry("reusedMetadataCalls",1L);
         assertThat(service.diagnostics(scope,"autonomous").get("structureReview").toString())
@@ -80,6 +67,38 @@ class CodingWorkspaceServiceTest {
             .isInstanceOf(CodingContractException.class);
         assertThat(actor(()->service.complete(task,owner,operation('2'))).status()).isEqualTo(CodingTaskOutcome.Status.COMPLETED);
         assertThat(service.diagnostics(scope,"autonomous").get("operations").toString()).contains("receiptRef");
+    }
+    @Test void repairLimitIsFrozenPerTaskAndStopsAfterTheConfiguredNumberOfCorrections(){
+        configureAutonomousMetadata();service.setMaxSqlRepairAttempts(1);
+        service.submit(scope,"repair-limit","Generate source only","mysql","",Map.of("discoveryId","discovery","projectId","project"));
+        var task=actor(()->tasks.contract(scope,"repair-limit"));
+        var owner=actor(()->tasks.claim(scope,"repair-limit","cline-adapter:repair",Duration.ofMinutes(2),tasks.get(scope,"repair-limit").revision()));
+        service.setMaxSqlRepairAttempts(32); // Existing task retains its original one-repair policy.
+        actor(()->service.metadata(task,owner,operation('c'),Map.of("operation","DESCRIBE","bindingId","binding","tableName","customer_trade")));
+        var invalid=Map.<String,Object>of("schemaVersion","sql-studio.output.v1","files",List.of(Map.of("path","q.sql","content","SELECT missing FROM customer_trade")),"notes","Repair the unknown field");
+        assertThat(actor(()->service.propose(task,owner,operation('d'),invalid))).containsEntry("valid",false).doesNotContainKey("repair");
+        var stopped=actor(()->service.propose(task,owner,operation('e'),invalid));
+        assertThat(stopped.get("repair").toString()).contains("action=STOP","SQL_REPAIR_LIMIT_REACHED");
+        assertThat(actor(()->service.failureSummary(task))).contains("修复次数已达到上限");
+        assertThatThrownBy(()->actor(()->service.complete(task,owner,operation('e')))).isInstanceOf(IllegalStateException.class);
+    }
+    private void configureAutonomousMetadata(){
+        var metadata=mock(com.chatchat.api.datascience.sql.SqlStudioMetadataService.class);
+        var gateway=mock(com.chatchat.api.datascience.sql.SqlStudioMetadataGateway.class);
+        var beans=new DefaultListableBeanFactory();beans.registerSingleton("metadata",metadata);
+        var context=new com.chatchat.api.datascience.sql.SqlStudioMetadataService.Context("discovery","project","QUERY","mysql",List.of(
+            new com.chatchat.api.datascience.sql.SqlStudioMetadataService.Binding("binding","service","asset","SOURCE","biz",null,"mysql")),"READY");
+        when(metadata.getScoped(any(),eq("project"),eq("discovery"))).thenReturn(context);
+        when(metadata.operateScoped(any(),eq(context),any())).thenAnswer(call->{
+            var arguments=call.<com.chatchat.api.datascience.sql.SqlStudioMetadataService.Operation>getArgument(2).arguments();
+            boolean describe="DESCRIBE".equals(arguments.get("operation"));
+            var table=Map.of("tableRef","trade-ref","tableName","customer_trade","database","biz","columns",describe?List.of(Map.of("name","client_no"),Map.of("name","amount"),Map.of("name","security_id")):List.of(),"relationsStatus","NOT_COLLECTED");
+            return new com.chatchat.api.datascience.sql.SqlStudioMetadataGateway.Result("service",Map.of("status","SUCCEEDED","snapshotId","v1","items",List.of(table),"doesNotExecuteSql",true));
+        });
+        when(gateway.referenceScoped(any(),eq("service"),eq("enterprise_metadata_search"),anyMap())).thenReturn(
+            Map.of("evidenceBundle",Map.of("standardDefinition","Customer identifier is the registered client number","metricDefinitionStatus","NOT_COLLECTED")));
+        service.setExploration(new com.chatchat.api.datascience.sql.SqlWorkspaceMetadataTools(beans.getBeanProvider(com.chatchat.api.datascience.sql.SqlStudioMetadataService.class),gateway,
+            new SqlGlotToolchain(System.getProperty("coding.sqlglotPython"),json),evidence,json));
     }
     final ObjectMapper json=new ObjectMapper().findAndRegisterModules().disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     final CodingInvocationContext identity=new CodingInvocationContext();

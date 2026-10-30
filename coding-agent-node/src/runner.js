@@ -259,7 +259,7 @@ export function createCodingRun(contract, gateway, options = {}) {
         ? 'Autonomously explore ONLY the selected authorized database. LIST_BINDINGS yields opaque bindingId values. Choose your own SEARCH terms, DESCRIBE physical fields/comments/foreignKeys, BUSINESS_SEARCH enterprise definitions/dictionaries, TEMPLATE_SEARCH governed templates, LINEAGE known foreign keys and explicit unknown lineage. BUSINESS_SEARCH accepts one focused business concept per call under the existing catalog budget; choose additional concepts in subsequent calls. Metadata context is a cache, not an authorization boundary. Results are evidence; never invent business formulas or unconfirmed joins.'
         : 'Validate SQL syntax, references and columns against metadata discovered in this task. Does not execute SQL. METADATA_REQUIRED means query/describe missing objects with workspace_metadata, then validate and repair. Service outages are distinct from invalid SQL.',
       inputSchema:name==='workspace_metadata'?{type:'object',properties:{
-        operation:{type:'string',enum:['LIST_BINDINGS','LIST_NAMESPACES','SEARCH','DESCRIBE','BUSINESS_SEARCH','TEMPLATE_SEARCH','LINEAGE']},
+        operation:{type:'string',enum:['LIST_BINDINGS','LIST_NAMESPACES','SEARCH','DESCRIBE','BUSINESS_SEARCH','TEMPLATE_SEARCH','LINEAGE','LIST_CATALOGS','LIST_SCHEMAS','LIST_TABLES','SEARCH_TABLES','SEARCH_COLUMNS','DESCRIBE_TABLE','GET_TABLE_DDL','GET_TABLE_RELATIONSHIPS','REFRESH']},
         bindingId:{type:'string'},query:{type:'string',maxLength:512},queryTerms:{type:'array',maxItems:12,items:{type:'string',maxLength:128}},
         tableName:{type:'string'},database:{type:'string'},schema:{type:'string'},page:{type:'integer',minimum:1},pageSize:{type:'integer',minimum:1,maximum:100},expectedSnapshotId:{type:'string'},includeColumns:{type:'boolean'}},required:['operation'],additionalProperties:false}
         :{type:'object',properties:{files:{type:'array',minItems:1,maxItems:32,items:{type:'object',properties:{path:{type:'string'},content:{type:'string'}},required:['path','content'],additionalProperties:false}}},required:['files'],additionalProperties:false},
@@ -583,6 +583,11 @@ export function createCodingRun(contract, gateway, options = {}) {
         catch { /* SDK result and Java evidence remain authoritative if telemetry is unavailable. */ }
         if ((workspaceFast || sqlExploration) && toolCall.toolName === 'workspace_propose') {
           const receipt = result.output;
+          if (receipt?.repair?.action === 'STOP') {
+            terminalFeedback = receipt.repair.reasonCode || 'SQL_REPAIR_LIMIT_REACHED';
+            agent.abort('SQL proposal repair budget exhausted');
+            return { result: { ...result, isError: true } };
+          }
           const accepted = !result.isError && receipt?.valid === true && receipt.resultAvailable === true
             && receipt.codeArtifactRef && receipt.executionReceiptRef && receipt.resultDatasetRef
             && receipt.validationRecordRef && receipt.evidenceBundleRef;

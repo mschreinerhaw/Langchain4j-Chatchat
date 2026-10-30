@@ -39,4 +39,10 @@ class SqlStudioReferenceResolverTest {
     }
     @Test void cachedObjectsAreReauthorizedAndReplacedWithoutDuplicates(){result(List.of(table()));var resolved=resolver.resolve(scope,context,"oracle",files,List.of(table()));assertThat(resolved).hasSize(1);verify(metadata).operateScoped(eq(scope),eq(context),any());}
     @Test void refusesAmbiguousUnqualifiedNames(){result(List.of(table(),table()));assertThatThrownBy(()->resolver.resolve(scope,context,"oracle",files,List.of())).hasMessageContaining("AMBIGUOUS_TABLE");}
+    @Test void namespaceAndQuoteMatchingFollowTheTargetDialectCaseSemantics(){
+        var table=Map.<String,Object>of("tableName","ORDERS","database","APP","schema","APP");
+        assertThat(SqlStudioReferenceResolver.matches(table,Map.of("tableName","orders","schema","app","quoted",true,
+            "caseSensitive",false,"schemaQuoted",true,"schemaCaseSensitive",false))).isTrue();
+        assertThat(SqlStudioReferenceResolver.matches(table,Map.of("tableName","orders","schema","app","quoted",true,"caseSensitive",true))).isFalse();
+    }
 }

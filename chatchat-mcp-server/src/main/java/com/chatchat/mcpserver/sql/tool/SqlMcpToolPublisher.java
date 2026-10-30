@@ -740,7 +740,7 @@ public class SqlMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
     private McpSchema.JsonSchema sqlMetadataBridgeInputSchema() {
         Map<String, Object> properties = new LinkedHashMap<>();
         properties.put("contractVersion", Map.of("type", "string", "enum", List.of("sql-studio.metadata.v2")));
-        properties.put("operation", Map.of("type", "string", "enum", List.of("LIST_ASSETS", "LIST_NAMESPACES", "SEARCH", "DESCRIBE")));
+        properties.put("operation", Map.of("type", "string", "enum", com.chatchat.mcpserver.sql.metadata.SqlMetadataDiscoveryService.OPERATIONS.stream().sorted().toList()));
         properties.put("page", Map.of("type", "integer", "minimum", 1, "maximum", 1000000));
         properties.put("pageSize", Map.of("type", "integer", "minimum", 1, "maximum", 100, "default", 25));
         properties.put("expectedSnapshotId", Map.of("type", "string", "description", "Required after page 1; copy snapshotId from page 1. Restart pagination if the authorized schema changes."));
@@ -924,7 +924,7 @@ public class SqlMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
         ));
         meta.put("doesNotExecuteSql", true);
         meta.put("metadataDiscovery", Map.of("contractVersion", "sql-studio.metadata.v2",
-            "workflowId", "SQL_METADATA_DISCOVERY", "supportedOperations", List.of("LIST_ASSETS", "LIST_NAMESPACES", "SEARCH", "DESCRIBE"),
+            "workflowId", "SQL_METADATA_DISCOVERY", "supportedOperations", com.chatchat.mcpserver.sql.metadata.SqlMetadataDiscoveryService.OPERATIONS.stream().sorted().toList(),
             "maximumPageSize", 100, "snapshotPolicy", "AUTHORIZED_CONTENT_HASH"));
         meta.put("supportedUseCases", List.of(
             "schema_lookup", "table_design", "sql_generation", "sql_review", "schema_comparison"));

@@ -84,6 +84,23 @@ class SqlWorkspaceMetadataToolsTest {
         assertThat(SqlWorkspaceMetadataTools.failure(new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"offline")))
             .containsEntry("category","METADATA_SERVICE_UNAVAILABLE").containsEntry("retryable",true).containsEntry("sqlValidity","UNDETERMINED");
         assertThat(SqlWorkspaceMetadataTools.failure(new SecurityException("denied"))).containsEntry("category","AUTHORIZATION").containsEntry("retryable",false);
+        assertThat(SqlWorkspaceMetadataTools.failure(new ResponseStatusException(HttpStatus.GATEWAY_TIMEOUT,"timeout"))).containsEntry("category","METADATA_TIMEOUT");
+        assertThat(SqlWorkspaceMetadataTools.failure(new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"METADATA_CONNECTION_FAILED"))).containsEntry("category","METADATA_CONNECTION_FAILED");
+        assertThat(SqlWorkspaceMetadataTools.failure(new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"METADATA_INCOMPLETE"))).containsEntry("category","METADATA_INCOMPLETE");
+        assertThat(SqlWorkspaceMetadataTools.failure(new ResponseStatusException(HttpStatus.NOT_FOUND,"not found"))).containsEntry("category","OBJECT_NOT_FOUND");
+    }
+    @Test void ordinaryAnalysisCannotOptIntoSqlMetadataWithoutTheStudioProfile(){
+        when(task.metadataRefs()).thenReturn(List.of());
+        assertThatThrownBy(()->tools.context(task,schema)).isInstanceOf(SecurityException.class);
+        verify(metadata,never()).getScoped(any(),anyString(),anyString());
+    }
+    @Test void malformedToolOutputIsNotAnAbsentObjectOrInvalidSql(){
+        when(metadata.operateScoped(any(),any(),any())).thenReturn(new SqlStudioMetadataGateway.Result("service",Map.of("status","SUCCEEDED","snapshotId","v1","items","broken")));
+        var malformed=catchThrowableOfType(()->tools.query(task,schema,describe()),ResponseStatusException.class);
+        assertThat(SqlWorkspaceMetadataTools.failure(malformed)).containsEntry("category","METADATA_RESPONSE_INVALID").containsEntry("sqlValidity","UNDETERMINED");
+        when(metadata.operateScoped(any(),any(),any())).thenReturn(new SqlStudioMetadataGateway.Result("service",Map.of("status","SUCCEEDED","snapshotId","v1","items",List.of(Map.of("tableName","trades","columns",List.of())))));
+        var incomplete=catchThrowableOfType(()->tools.query(task,schema,describe()),ResponseStatusException.class);
+        assertThat(SqlWorkspaceMetadataTools.failure(incomplete)).containsEntry("category","METADATA_INCOMPLETE");
     }
     @Test void explicitlyReportsMissingObjectAndUncollectedLineage(){
         assertThat(tools.query(task,schema,Map.of("operation","LINEAGE","bindingId","binding","tableName","trades"))).containsEntry("lineageStatus","NOT_COLLECTED");

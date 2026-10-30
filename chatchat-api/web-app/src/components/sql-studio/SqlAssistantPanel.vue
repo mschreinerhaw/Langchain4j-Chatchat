@@ -186,7 +186,15 @@
             @click="$emit('apply')"
             >审查 {{ result.files.length }} 个文件变更</button
           >
-          <AppNotice v-if="result.files.length">生成结果尚未执行 SQL 或数据库校验。</AppNotice>
+          <details v-if="result.metadataExploration?.delivery?.schemaVersion" aria-label="SQL 交付依据">
+            <summary>SQL 交付依据 · {{ result.metadataExploration.delivery.targetDialect }}</summary>
+            <p>{{ result.metadataExploration.delivery.execution.reason }}</p>
+            <ul><li v-for="file in result.metadataExploration.delivery.files" :key="file.path" :title="file.sha256">{{ file.path }} · 已保存，待审查</li></ul>
+            <ul><li v-for="table in result.metadataExploration.delivery.metadata.tables" :key="table.bindingId + table.tableRef" :title="table.snapshotId">{{ [table.database,table.schema,table.tableName].filter(Boolean).join('.') }} · {{ table.columns?.length || 0 }} 个授权字段</li></ul>
+          </details>
+          <AppNotice v-if="result.files.length">{{ result.metadataExploration?.delivery?.schemaVersion
+            ? '已完成目标方言解析及授权字段校验；生成结果尚未在目标数据库执行。'
+            : '生成结果尚未执行 SQL 或数据库校验。' }}</AppNotice>
 
         </section>
       </article>

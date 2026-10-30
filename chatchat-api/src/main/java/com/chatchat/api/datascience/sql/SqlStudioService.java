@@ -491,7 +491,7 @@ public class SqlStudioService {
             require(query.length()<=250000,"Project and metadata context exceeds limit");
         }
         if(!"explain".equals(operation)) {
-            require(coding!=null,"Cline workspace profile must be enabled for SQL code generation");
+            require(coding!=null,"代码生成服务暂不可用，请联系管理员检查配置");
             applicationContext.put("codingWorkspaceProfile","SQL_WORKSPACE_V2");
         }
         // Every request at this endpoint invokes a model. Local deterministic editor actions never enter it.
@@ -658,8 +658,10 @@ public class SqlStudioService {
         if(coding==null)throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"Coding workspace profile is unavailable");
         var scope=codingScope(project,generation.id());var outcome=coding.get(scope,generation.taskId());
         List<SqlOutputBundle.Candidate> files=List.of();String answer="",validation="NOT_RUN",error="";
+        Map<String,Object> delivery=Map.of();
         if(outcome.status()==com.chatchat.common.runtime.coding.CodingTaskOutcome.Status.COMPLETED){
             var output=coding.output(scope,generation.taskId(),outcome);
+            if(output.get("delivery") instanceof Map<?,?> saved)delivery=mapper.convertValue(saved,new TypeReference<Map<String,Object>>(){});
             answer=json(Map.of("schemaVersion","sql-studio.output.v1","files",output.get("files"),"notes",output.get("notes")));
             try{files=SqlOutputBundle.parse(answer,mapper);}
             catch(ResponseStatusException invalid){error=invalid.getReason();}
@@ -671,7 +673,7 @@ public class SqlStudioService {
             .sequence(event.sequence()).type(event.type().name()).status(event.status().name()).payload(json(codingProgress(event)))
             .createTime(event.occurredAt().toEpochMilli()).build()).toList();
         return new GenerationView(generation,codingTask(project,generation,outcome,answer),trace,files,answer,error,
-            validation,Map.of("codingExploration",coding.diagnostics(scope,generation.taskId())));
+            validation,Map.of("codingExploration",coding.diagnostics(scope,generation.taskId()),"delivery",delivery));
     }
     private Map<String,Object> codingProgress(com.chatchat.common.runtime.coding.CodingExecutionEvent event){
         var result=new LinkedHashMap<String,Object>(event.payload());result.put("summary",event.summary());return result;

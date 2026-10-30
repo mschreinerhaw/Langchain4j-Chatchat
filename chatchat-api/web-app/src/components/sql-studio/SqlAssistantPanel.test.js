@@ -115,6 +115,13 @@ describe('SQL assistant conversation',()=>{
     props.result={...props.result,task:{status:'SUCCESS'},files:[{path:'sql/fix.sql',content:'SELECT 1;'}],rawAnswer:'{"notes":"已生成候选代码，未执行 SQL"}'};await nextTick();
     expect(reply.querySelector('.sql-chat-result').textContent).toContain('审查 1 个文件变更');
     expect(host.querySelector('.sql-assistant-scroll > .sql-chat-result')).toBeNull();
+    props.result.metadataExploration={delivery:{schemaVersion:'sql-studio.delivery.v1',targetDialect:'hive',
+      execution:{reason:'Oracle 仅提供源表结构，尚未授权 Hive 目标试执行。'},
+      files:[{path:'sql/fix.sql',sha256:'source-hash'}],metadata:{tables:[{bindingId:'b',tableRef:'orders',database:'APP',schema:'APP',tableName:'ORDERS',columns:[{name:'ID'}]}]}}};
+    await nextTick();
+    expect(reply.querySelector('[aria-label="SQL 交付依据"]').textContent).toContain('尚未授权 Hive 目标试执行');
+    expect(reply.querySelector('[aria-label="SQL 交付依据"]').textContent).toContain('APP.APP.ORDERS');
+    expect(reply.querySelector('.sql-chat-result').textContent).toContain('授权字段校验');
   });
   it('wraps a restored historical generation in a reply without inventing a user message',async()=>{
     await mount({result:{generation:{id:'saved',applied:false},task:{status:'SUCCESS'},files:[],events:[],rawAnswer:'{"notes":"历史回答"}'}});

@@ -1,0 +1,100 @@
+{
+  "status": "PASSED",
+  "mockedRequests": false,
+  "permissionChanges": false,
+  "snapshotId": "sha256:ba3b9b8e151c4cd17ab43d5c744f95bb1a8063728f87701d73f3c462040d8a54",
+  "sourceCollectedAt": "2026-10-30T04:25:34.520Z",
+  "checks": [
+    {
+      "operation": "LIST_CATALOGS",
+      "status": "SUCCEEDED",
+      "page": 1,
+      "items": 1,
+      "totalMatched": 1,
+      "hasMore": false,
+      "elapsedMs": 376,
+      "doesNotExecuteSql": true
+    },
+    {
+      "operation": "LIST_SCHEMAS",
+      "status": "SUCCEEDED",
+      "page": 1,
+      "items": 1,
+      "totalMatched": 1,
+      "hasMore": false,
+      "elapsedMs": 520,
+      "doesNotExecuteSql": true
+    },
+    {
+      "operation": "LIST_TABLES",
+      "status": "SUCCEEDED",
+      "page": 1,
+      "items": 2,
+      "totalMatched": 196,
+      "hasMore": true,
+      "elapsedMs": 351,
+      "doesNotExecuteSql": true
+    },
+    {
+      "operation": "LIST_TABLES_PAGE_2",
+      "status": "SUCCEEDED",
+      "page": 2,
+      "items": 2,
+      "totalMatched": 196,
+      "hasMore": true,
+      "elapsedMs": 321,
+      "doesNotExecuteSql": true
+    },
+    {
+      "operation": "SEARCH_TABLES",
+      "status": "SUCCEEDED",
+      "page": 1,
+      "items": 2,
+      "totalMatched": 29,
+      "hasMore": true,
+      "elapsedMs": 1642,
+      "doesNotExecuteSql": true
+    },
+    {
+      "operation": "SEARCH_COLUMNS",
+      "status": "SUCCEEDED",
+      "page": 1,
+      "items": 2,
+      "totalMatched": 22,
+      "hasMore": true,
+      "elapsedMs": 1721,
+      "doesNotExecuteSql": true
+    },
+    {
+      "operation": "DESCRIBE_TABLE",
+      "status": "SUCCEEDED",
+      "page": 1,
+      "items": 1,
+      "totalMatched": 1,
+      "hasMore": false,
+      "elapsedMs": 340,
+      "doesNotExecuteSql": true
+    },
+    {
+      "operation": "GET_TABLE_DDL",
+      "status": "SUCCEEDED",
+      "page": 1,
+      "items": 1,
+      "totalMatched": 1,
+      "hasMore": false,
+      "elapsedMs": 338,
+      "doesNotExecuteSql": true
+    },
+    {
+      "operation": "GET_TABLE_RELATIONSHIPS",
+      "status": "SUCCEEDED",
+      "page": 1,
+      "items": 1,
+      "totalMatched": 1,
+      "hasMore": false,
+      "elapsedMs": 382,
+      "doesNotExecuteSql": true
+    }
+  ],
+  "ddlScope": "GENERATED_VISIBLE_COLUMNS_ONLY_NOT_ORIGINAL_COMPLETE_DDL"
+}

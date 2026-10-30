@@ -1,0 +1,21 @@
+{
+  "tests": 23,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "buildSuccess": true,
+  "scope": [
+    "SqlStudioMetadataGatewayTest",
+    "SqlWorkspaceMetadataToolsTest"
+  ],
+  "observedPriorFailure": {
+    "httpStatus": 502,
+    "serverStatus": "TIMEOUT",
+    "tool": "sql_schema_context_query",
+    "timeoutMs": 30000,
+    "collectionCommittedBeforeIndexSynchronizationTimeout": true
+  },
+  "fix": "Recognize the structured server TIMEOUT envelope even if an adapter replaces its outer error code. No deadline or validation was relaxed.",
+  "latestLiveRefreshStatus": "SUCCEEDED",
+  "postFixTimeoutWasNotReproduced": true
+}

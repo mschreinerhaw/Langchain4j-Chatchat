@@ -1,0 +1,38 @@
+{
+  "status": "PASSED",
+  "mockedRequests": false,
+  "generationRequests": 0,
+  "postApiRestartHistoryRecovered": true,
+  "taskId": "sql-coding-4b0f5306-4875-4d24-a02b-218b14b24021",
+  "projectId": "4ce59c4c-e5c1-4fa9-8894-954f8bb8e602",
+  "downloads": [
+    {
+      "path": "sql/dwd_delivery_flow_sample.sql",
+      "sha256": "4d919367dfb7485b8222332e2dc4844d5cfb820bab048af0ac1c9c7b04ee373d",
+      "bytes": 9620,
+      "downloadMatchesSavedFile": true
+    }
+  ],
+  "originalFailedTaskPreserved": true,
+  "activeCodingSessions": 0,
+  "containers": {
+    "api": {
+      "image": "runtime-os-api:sql-hive-p0-timeout-f6f71eece-20261030",
+      "running": true,
+      "jarSha256": "58383447c63a247e1d00bf035dd9c96860530b656e5d1f2081eb5dd70f53e12a"
+    },
+    "mcp": {
+      "image": "runtime-os-mcp:sql-hive-p0-e45b34305-20261030",
+      "running": true,
+      "jarSha256": "3516cc87b72d9a6569870f47dc05f06f513d7fe28447a004f6f3ad5537000871",
+      "oracleDriverReadOnly": true
+    },
+    "coding-agent": {
+      "image": "runtime-os-coding-agent:sql-hive-p0-e45b34305-20261030",
+      "running": true,
+      "health": "healthy"
+    }
+  },
+  "sqlExecuted": false,
+  "permissionChanges": false
+}

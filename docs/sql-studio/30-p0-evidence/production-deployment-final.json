@@ -1,0 +1,18 @@
+{
+  "status": "DEPLOYED",
+  "image": "runtime-os-api:sql-hive-p0-timeout-f6f71eece-20261030",
+  "sha256": "58383447c63a247e1d00bf035dd9c96860530b656e5d1f2081eb5dd70f53e12a",
+  "backup": "/opt/chatchat-releases/sql-hive-p0-timeout-f6f71eece-20261030/backup",
+  "retired": {
+    "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-studio-1793334266",
+    "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-studio-1793334266"
+  },
+  "preservedExpiredReadOnlyTaskIds": [],
+  "unrelatedContainersUnchanged": true,
+  "conversationContentUnchanged": true,
+  "messageIndexCountUnchanged": true,
+  "images": {
+    "runtime-os-app-stage-api-1": "runtime-os-api:sql-hive-p0-timeout-f6f71eece-20261030"
+  },
+  "channelCounts": "SQL_STUDIO|34\nPYTHON_STUDIO|4\nAGENT_API|165\nPLATFORM_UI|827"
+}

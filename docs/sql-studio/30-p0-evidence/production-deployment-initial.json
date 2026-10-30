@@ -1,0 +1,22 @@
+{
+  "status": "DEPLOYED",
+  "image": "runtime-os-api:sql-hive-p0-e45b34305-20261030",
+  "sha256": "3d63736335b68dc2dcc102763a485613ec105152c5b42d435210be10b06aa915",
+  "backup": "/opt/chatchat-releases/sql-hive-p0-e45b34305-20261030/backup",
+  "retired": {
+    "runtime-os-app-stage-mcp-1": "runtime-os-app-stage-mcp-1-before-studio-1793333164",
+    "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-studio-1793333164",
+    "runtime-os-app-stage-coding-agent-1": "runtime-os-app-stage-coding-agent-1-before-studio-1793333164",
+    "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-studio-1793333164"
+  },
+  "preservedExpiredReadOnlyTaskIds": [],
+  "unrelatedContainersUnchanged": true,
+  "conversationContentUnchanged": true,
+  "messageIndexCountUnchanged": true,
+  "images": {
+    "runtime-os-app-stage-api-1": "runtime-os-api:sql-hive-p0-e45b34305-20261030",
+    "runtime-os-app-stage-coding-agent-1": "runtime-os-coding-agent:sql-hive-p0-e45b34305-20261030",
+    "runtime-os-app-stage-mcp-1": "runtime-os-mcp:sql-hive-p0-e45b34305-20261030"
+  },
+  "channelCounts": "SQL_STUDIO|32\nPYTHON_STUDIO|4\nAGENT_API|165\nPLATFORM_UI|827"
+}

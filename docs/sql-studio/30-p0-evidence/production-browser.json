@@ -1,0 +1,13 @@
+{
+  "status": "PASSED",
+  "mockedRequests": false,
+  "projectId": "4ce59c4c-e5c1-4fa9-8894-954f8bb8e602",
+  "persistedHistoryLoaded": true,
+  "deliveryEvidenceVisible": true,
+  "targetDialect": "hive",
+  "sourceFieldsVisible": true,
+  "executionSkipReasonVisible": true,
+  "frameworkNamesAbsent": true,
+  "generationRequests": 0,
+  "pageErrors": []
+}

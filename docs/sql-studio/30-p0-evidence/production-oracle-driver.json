@@ -1,0 +1,10 @@
+{
+  "status": "ATTACHED",
+  "container": "runtime-os-app-stage-mcp-1",
+  "driverSha256": "b3a51360ef96cd6053c4707a3f5b44f6adb30262306d7ccfbec9861d1e15ea07",
+  "readOnly": true,
+  "applicationImageUnchanged": true,
+  "retiredContainer": "runtime-os-app-stage-mcp-1-before-oracle-driver-1793333517",
+  "source": "/opt/chatchat-mcp-server-1.0.0-SNAPSHOT/lib/drivers/oracle",
+  "target": "/srv/app/lib/drivers/oracle"
+}

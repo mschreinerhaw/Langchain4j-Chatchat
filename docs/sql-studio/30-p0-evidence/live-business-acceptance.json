@@ -1,0 +1,114 @@
+{
+  "status": "PASSED_FOR_HIVE_SOURCE_GENERATION",
+  "fullP0AcceptanceComplete": false,
+  "sourceCommit": "e45b34305",
+  "apiFollowupCommit": "f6f71eece",
+  "mockedRequests": false,
+  "businessIdentityMatchesOriginalTask": true,
+  "projectId": "4ce59c4c-e5c1-4fa9-8894-954f8bb8e602",
+  "taskId": "sql-coding-4b0f5306-4875-4d24-a02b-218b14b24021",
+  "targetDialect": "hive",
+  "sourceDialect": "oracle",
+  "preselectedTables": false,
+  "sqlExecuted": false,
+  "permissionChanges": false,
+  "durationMs": 196082,
+  "validation": "PARSED; FIELDS_CHECKED; SQL_NOT_EXECUTED",
+  "files": [
+    {
+      "path": "sql/dwd_delivery_flow_sample.sql",
+      "sha256": "4d919367dfb7485b8222332e2dc4844d5cfb820bab048af0ac1c9c7b04ee373d",
+      "bytes": 9620,
+      "downloadMatchesSavedFile": true
+    }
+  ],
+  "sourceSnapshotId": "sha256:ba3b9b8e151c4cd17ab43d5c744f95bb1a8063728f87701d73f3c462040d8a54",
+  "sourceCollectedAt": "2026-10-30T04:25:34.520Z",
+  "sourceMetadataRefreshStatus": "SUCCEEDED",
+  "referencedSourceTableCount": 4,
+  "referencedColumnEntries": 65,
+  "unresolvedIssues": [
+    {
+      "category": "STRUCTURE",
+      "code": "JOIN_RELATION_UNCONFIRMED",
+      "left": "d",
+      "message": "Equality columns alone do not establish a business relationship; no complete visible foreign-key evidence matches.",
+      "path": "sql/dwd_delivery_flow_sample.sql",
+      "right": "a",
+      "severity": "WARNING",
+      "sqlExecuted": false
+    },
+    {
+      "category": "STRUCTURE",
+      "code": "JOIN_RELATION_UNCONFIRMED",
+      "left": "d",
+      "message": "Equality columns alone do not establish a business relationship; no complete visible foreign-key evidence matches.",
+      "path": "sql/dwd_delivery_flow_sample.sql",
+      "right": "o",
+      "severity": "WARNING",
+      "sqlExecuted": false
+    }
+  ],
+  "taskMetrics": {
+    "taskId": "sql-coding-4b0f5306-4875-4d24-a02b-218b14b24021",
+    "status": "COMPLETED",
+    "usage": {
+      "budgetId": "workspace-budget:sql-coding-4b0f5306-4875-4d24-a02b-218b14b24021",
+      "costCurrency": "USD",
+      "consumed": {
+        "modelCalls": 8,
+        "modelTokens": 92166,
+        "toolCalls": 11,
+        "codeExecutions": 0,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 101068,
+        "costAmount": "0"
+      },
+      "reserved": {
+        "modelCalls": 0,
+        "modelTokens": 51366,
+        "toolCalls": 0,
+        "codeExecutions": 0,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 0,
+        "costAmount": "0.333333333328"
+      },
+      "meteringComplete": false
+    },
+    "executionControl": {
+      "stopReason": null,
+      "stopRequestedAt": null,
+      "executorStopped": true,
+      "reconciliationRequired": false
+    },
+    "budget": {
+      "budgetId": "workspace-budget:sql-coding-4b0f5306-4875-4d24-a02b-218b14b24021",
+      "deadlineAt": "2026-10-30T04:33:24.056Z",
+      "maxModelCalls": 24,
+      "maxModelTokens": 1048576,
+      "maxToolCalls": 64,
+      "maxCodeExecutions": 0,
+      "maxCostAmount": "1",
+      "costCurrency": "USD",
+      "maxCpuMillis": 0,
+      "maxMemoryBytes": 0,
+      "maxOutputBytes": 1048576
+    },
+    "allowedTools": [
+      "workspace_metadata",
+      "workspace_propose",
+      "workspace_read",
+      "workspace_validate"
+    ],
+    "networkPolicy": "NONE"
+  },
+  "costMeteringSettled": false,
+  "remaining": [
+    "Business statistical definitions and inferred joins require review",
+    "Live Hive execution and database execution-error repair",
+    "Original complete database DDL",
+    "Production interruption/recovery drill during an active task"
+  ]
+}

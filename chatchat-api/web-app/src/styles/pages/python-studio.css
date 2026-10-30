@@ -77,7 +77,11 @@
 .python-studio .editor-tabs .new-tab { height: 35px; width: 29px; flex-basis: 29px; }
 .python-studio .editor-breadcrumb { height: 27px; padding: 0 12px; gap: 7px; border-bottom: 1px solid #f0f3f9; color: #8a9bb9; font-size: 10px; }
 .python-studio .editor-breadcrumb select { max-width: 160px; font-size: 10px; }
-.python-studio .monaco-host { min-height: 0; min-width: 0; contain: size layout; overflow: hidden; }
+.python-studio .monaco-host { grid-area: 3 / 1; min-height: 0; min-width: 0; contain: size layout; overflow: hidden; }
+.python-editor-empty { grid-area: 3 / 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; color: #8291ac; text-align: center; }
+.python-editor-empty strong { color: #485c7c; font-size: 16px; }
+.python-editor-empty p { margin: 0; font-size: 13px; }
+.python-editor-empty button { display: flex; align-items: center; gap: 6px; }
 .python-studio .pane-resizer-vertical { top: 46px; bottom: 25px; }
 .python-studio .pane-resizer-horizontal { height: var(--bottom-resizer-size); background: #f8faff; }
 .python-studio .ide-bottom { border-top: 1px solid var(--studio-line); background: #fbfcff; }

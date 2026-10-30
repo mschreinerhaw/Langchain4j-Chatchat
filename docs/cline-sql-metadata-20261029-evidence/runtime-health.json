@@ -1,0 +1,24 @@
+{
+  "apiArtifactVerified": true,
+  "apiSha256": "0306c1b22cc109c24d37cdc389fdff994917d1b33902ed659b17e0960bb8e1af",
+  "worker": {
+    "health": {
+      "status": "UP",
+      "sdk": "@cline/agents@0.0.93",
+      "packages": {
+        "@cline/sdk": "0.0.93",
+        "@cline/core": "0.0.93",
+        "@cline/agents": "0.0.93",
+        "@cline/llms": "0.0.93",
+        "@cline/shared": "0.0.93"
+      },
+      "runtime": "v24.21.0",
+      "build": "4815886b7ea4f9ee93581e9e08406411fd83d683"
+    },
+    "ready": {
+      "status": "READY",
+      "activeSessions": 0
+    }
+  },
+  "customerSqlExecuted": false
+}

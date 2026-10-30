@@ -26,6 +26,18 @@ class SqlGlotToolchainTest {
         assertThat(tree.path("column").asInt()).isGreaterThan(0);
     }
     SqlGlotToolchain parser(){return new SqlGlotToolchain(System.getProperty("coding.sqlglotPython"),new ObjectMapper());}
+    @Test void realParserReportsStructureReviewWithoutClaimingBusinessAcceptance(){
+        var schema=Map.<String,Object>of("tables",List.of(
+            Map.of("tableName","accounts","primaryKeys",List.of("id"),"primaryKeyStatus","COLLECTED_VISIBLE",
+                "columns",List.of(Map.of("name","id"),Map.of("name","amount"))),
+            Map.of("tableName","trades","partitionKeys",List.of("day"),"partitionKeyStatus","COLLECTED_VISIBLE",
+                "columns",List.of(Map.of("name","account_id"),Map.of("name","day")))));
+        var result=parser().validate("mysql",List.of(new SqlOutputBundle.Candidate("sql/customer.sql",
+            "SELECT SUM(a.amount) FROM accounts a JOIN trades t ON a.id=t.account_id")),schema);
+        assertThat(result).containsEntry("valid",true).containsEntry("sqlExecuted",false)
+            .containsEntry("structureReviewRequired",true).containsEntry("businessValidation","NOT_EVALUATED");
+        assertThat(result.get("structuralDiagnostics").toString()).contains("JOIN_FANOUT_AGGREGATION_RISK","MISSING_PARTITION_FILTER","JOIN_RELATION_UNCONFIRMED");
+    }
     @Test void parsesAllStudioDialectsAndReturnsNormalizationWithoutExecutingSql(){
         for(String dialect:SqlStudioService.DIALECTS){
             var result=parser().validate(dialect,List.of(new SqlOutputBundle.Candidate("sql/query.sql","SELECT 1 AS value;")),Map.of());

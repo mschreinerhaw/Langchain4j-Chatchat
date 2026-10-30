@@ -433,10 +433,12 @@ public class MetadataIndexService {
         SystemMetadataQueryProvider.MetadataSql sql = metadataQueryProvider.columnIndexSql(datasourceType);
         try (Connection connection = openConnection(datasource)) {
             List<MetadataColumn> columns = new ArrayList<>();
+            Map<String,List<String>> partitionKeys = new LinkedHashMap<>();
             for (String databaseName : queryDatabaseNames(sql, scopeValues)) {
                 try (PreparedStatement statement = connection.prepareStatement(sql.sql())) {
                     bindDatabaseName(statement, sql.databaseNameParameterCount(), databaseName);
                     try (ResultSet resultSet = statement.executeQuery()) {
+                        boolean partitionsAvailable = hasMetadataColumn(resultSet, "partition_keys");
                         while (resultSet.next() && columns.size() < 50000) {
                             String schema = blankToNull(resultSet.getString("table_schema"));
                             String table = blankToNull(resultSet.getString("table_name"));
@@ -455,7 +457,8 @@ public class MetadataIndexService {
                                 readOptionalString(resultSet, "column_key"),
                                 blankToNull(readOptionalString(resultSet, "column_comment")),
                                 !"NO".equalsIgnoreCase(readOptionalString(resultSet, "is_nullable")),
-                                readOptionalInteger(resultSet, "ordinal_position")
+                                readOptionalInteger(resultSet, "ordinal_position"),
+                                partitionsAvailable ? partitionKeys.computeIfAbsent(schema+"\u0000"+table, ignored -> readPartitionKeys(resultSet)) : List.of()
                             ));
                         }
                     }
@@ -467,6 +470,23 @@ public class MetadataIndexService {
                 datasource.getId(), datasourceType, ex.getMessage());
             return queryColumnsFromJdbcMetadata(datasource, datasourceType, scopeValues);
         }
+    }
+
+    /** Existing system metadata supplies an array; never infer partition columns from names. */
+    private boolean hasMetadataColumn(ResultSet result, String column) {
+        try { return result.findColumn(column) > 0; }
+        catch (java.sql.SQLException absent) { return false; }
+    }
+    private List<String> readPartitionKeys(ResultSet result) {
+        try {
+            Object raw = result.getObject("partition_keys");
+            if (raw instanceof java.sql.Array array) raw = array.getArray();
+            if (raw instanceof Object[] array) raw = java.util.Arrays.asList(array);
+            if (raw instanceof String text) raw = objectMapper.readValue(text, List.class);
+            if (raw instanceof List<?> list && list.stream().allMatch(v -> v instanceof String s && !s.isBlank()))
+                return list.stream().map(String.class::cast).distinct().toList();
+        } catch (Exception unavailable) { /* Unsupported metadata is unknown, never guessed. */ }
+        return List.of();
     }
 
     private List<TableLocation> queryTableLocationsFromJdbcMetadata(SqlDatasourceConfig datasource,

@@ -1,0 +1,17 @@
+{
+  "status": "DEPLOYED",
+  "image": "runtime-os-api:cline-catalog-775dd7893-20261029",
+  "sha256": "8de681c79063c7cb0a61176f46ce134c00b643816001c4503a10253f2fce6e76",
+  "backup": "/opt/chatchat-releases/cline-catalog-775dd7893-20261029/backup",
+  "retired": {
+    "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-studio-1793282689",
+    "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-studio-1793282689"
+  },
+  "unrelatedContainersUnchanged": true,
+  "conversationContentUnchanged": true,
+  "messageIndexCountUnchanged": true,
+  "images": {
+    "runtime-os-app-stage-api-1": "runtime-os-api:cline-catalog-775dd7893-20261029"
+  },
+  "channelCounts": "SQL_STUDIO|23\nPYTHON_STUDIO|4\nAGENT_API|165\nPLATFORM_UI|827"
+}

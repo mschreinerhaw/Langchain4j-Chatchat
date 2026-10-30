@@ -1,0 +1,23 @@
+{
+  "dialect": "hive",
+  "files": [
+    {
+      "path": "orders.sql",
+      "content": "SELECT AMOUNT FROM ORDERS"
+    }
+  ],
+  "schema": {
+    "tables": [
+      {
+        "tableName": "ORDERS",
+        "database": "APP",
+        "schema": "APP",
+        "columns": [
+          {
+            "name": "AMOUNT"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "java": [
+    {
+      "name": "ResourceAuthorizationServiceTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "4.815"
+    },
+    {
+      "name": "McpToolRegistryBridgeLifecycleTest",
+      "tests": "29",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "9.561"
+    },
+    {
+      "name": "McpAuthorizationServiceTest",
+      "tests": "45",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "8.694"
+    },
+    {
+      "name": "SqlStudioIntegrationTest",
+      "tests": "40",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "91.417"
+    },
+    {
+      "name": "SqlWorkspaceMetadataToolsTest",
+      "tests": "9",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "3.272"
+    },
+    {
+      "name": "ClineModelCallbackControllerTest",
+      "tests": "16",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "6.254"
+    },
+    {
+      "name": "ClineRuntimeModelBridgeTest",
+      "tests": "17",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "8.733"
+    },
+    {
+      "name": "CodingWorkspaceServiceTest",
+      "tests": "11",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "16.854"
+    },
+    {
+      "name": "SqlStudioMetadataGatewayTest",
+      "tests": "9",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "5.851"
+    }
+  ],
+  "javaTests": 180,
+  "nodeTests": 127,
+  "webTests": 162,
+  "nativeSdkRetry": "Initial 20-second harness wait expired; isolated rerun passed all 17 tests in 12.57s without code changes",
+  "frontendBuild": "PASSED",
+  "apiBuild": "PASSED",
+  "finalJavaRunTests": 44,
+  "finalJavaRun": "PASSED",
+  "finalPackage": "PASSED",
+  "lastBusinessAuthorizationRunTests": 29,
+  "lastBusinessAuthorizationRun": "PASSED"
+}

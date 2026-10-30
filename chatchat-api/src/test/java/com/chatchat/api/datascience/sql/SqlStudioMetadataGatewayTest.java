@@ -15,6 +15,29 @@ import static org.mockito.Mockito.*;
 class SqlStudioMetadataGatewayTest {
     McpRuntimeKernel kernel = mock(McpRuntimeKernel.class);
     SqlStudioMetadataGateway gateway = new SqlStudioMetadataGateway(kernel, new ApiKernelScopeResolver());
+    final com.chatchat.common.retrieval.ResourceAuthorizationPort authorization=mock(com.chatchat.common.retrieval.ResourceAuthorizationPort.class);
+    @org.junit.jupiter.api.BeforeEach void authorizeCatalog(){
+        when(authorization.readableMetadataIds(anyString(),anyString(),anySet())).thenAnswer(c->c.getArgument(2));
+        gateway.setCatalogAuthorization(authorization);
+    }
+    @Test void explicitDenyIsEnforcedBeforeEitherGrpcOrLocalTransport(){
+        when(kernel.tools(any())).thenReturn(List.of(tool()));
+        when(authorization.readableMetadataIds(anyString(),anyString(),anySet())).thenReturn(Set.of());
+        var scope=new com.chatchat.common.kernel.KernelDataScope("tenant","owner","request",null,"run",null,Map.of());
+        assertThatThrownBy(()->gateway.invokeScoped(scope,"registered",Map.of("operation","LIST_ASSETS")))
+            .isInstanceOf(ResponseStatusException.class).hasMessageContaining("403");
+        verify(kernel,never()).execute(any());
+    }
+    @Test void transportAndRegisteredToolAliasesCannotBypassTheSameDenial(){
+        when(kernel.tools(any())).thenReturn(List.of(tool()));
+        var registry=mock(com.chatchat.enterprise.repository.mcp.McpToolAssetRepository.class);
+        var registered=new com.chatchat.enterprise.entity.mcp.McpToolAsset();registered.setServiceId("registered");registered.setRemoteToolName("sql_schema_context_query");
+        registered.setLocalToolName("api-schema");when(registry.findByServiceIdOrderByLocalToolNameAsc("registered")).thenReturn(List.of(registered));gateway.setCatalogRegistry(registry);
+        when(authorization.readableMetadataIds(anyString(),anyString(),anySet())).thenAnswer(c->{var allowed=new HashSet<String>(c.<Set<String>>getArgument(2));allowed.remove("api-schema");return allowed;});
+        var scope=new com.chatchat.common.kernel.KernelDataScope("tenant","owner","request",null,"run",null,Map.of());
+        assertThatThrownBy(()->gateway.invokeScoped(scope,"registered",Map.of())).isInstanceOf(ResponseStatusException.class).hasMessageContaining("403");
+        verify(kernel,never()).execute(any());
+    }
     @Test void bindsAuthenticatedIdentityAndUsesRegisteredKernelContract() {
         var request = new MockHttpServletRequest();
         request.setAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID, "tenant"); request.setAttribute(ApiAuthenticationFilter.CURRENT_USER_ID, "owner");
@@ -75,5 +98,21 @@ class SqlStudioMetadataGatewayTest {
     private McpToolDescriptor tool() {
         return new McpToolDescriptor("registered", "local-schema", "sql_schema_context_query", "", "metadata",
             Map.of("properties", Map.of("contractVersion", Map.of("enum", List.of(SqlStudioMetadataGateway.CONTRACT)))), Map.of(), Map.of(), Map.of());
+    }
+    @Test void businessRetrievalBudgetIsRepairableAndDistinctFromServiceOutage(){
+        when(kernel.tools(any())).thenReturn(List.of(new McpToolDescriptor("registered","local-business","enterprise_metadata_search","","metadata",Map.of(),Map.of(),Map.of(),Map.of())));
+        when(kernel.execute(any(McpServiceCall.class))).thenReturn(new McpServiceResult(null,"request","registered","enterprise_metadata_search",McpServiceResultStatus.FAILED,
+            Map.of("error","Too many requests in one retrieval"),null,"MCP_TOOL_FAILED","retrieval failed",false,null,Map.of(),0));
+        var scope=new com.chatchat.common.kernel.KernelDataScope("tenant","owner","request",null,"run",null,Map.of());
+        var error=catchThrowableOfType(()->gateway.referenceScoped(scope,"registered","enterprise_metadata_search",Map.of("query","assets")),ResponseStatusException.class);
+        assertThat(SqlWorkspaceMetadataTools.failure(error)).containsEntry("category","QUERY_BUDGET").containsEntry("retryable",true);
+    }
+    @Test void ambiguousObjectKeepsItsOwnErrorTypeInsteadOfGenericArgumentFailure(){
+        when(kernel.tools(any())).thenReturn(List.of(tool()));
+        when(kernel.execute(any(McpServiceCall.class))).thenReturn(new McpServiceResult(null,"request","registered","sql_schema_context_query",
+            McpServiceResultStatus.FAILED,null,null,"MCP_TOOL_FAILED","IllegalArgumentException: Ambiguous table; specify database and schema",false,null,Map.of(),0));
+        var scope=new com.chatchat.common.kernel.KernelDataScope("tenant","owner","request",null,"run",null,Map.of());
+        var error=catchThrowableOfType(()->gateway.invokeScoped(scope,"registered",Map.of()),ResponseStatusException.class);
+        assertThat(SqlWorkspaceMetadataTools.failure(error)).containsEntry("category","AMBIGUOUS_OBJECT").containsEntry("retryable",false);
     }
 }

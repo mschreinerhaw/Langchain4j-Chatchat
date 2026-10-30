@@ -17,6 +17,11 @@ public interface ResourceAuthorizationPort {
 
     default boolean hasConfiguredRules(String resourceType, String tenantId) { return false; }
 
+    /** Candidates must already be publisher-declared catalog readers, never executors. */
+    default Set<String> readableMetadataIds(String tenantId,String userId,Set<String> candidateIds) {
+        return allowedIds(MCP_TOOL,tenantId,userId,Set.of(),candidateIds);
+    }
+
     default Set<String> allowedIdsForAgent(String resourceType, String tenantId, String userId,
                                            Set<String> roleIds, Set<String> candidateIds, String agentId) {
         return allowedIds(resourceType, tenantId, userId, roleIds, candidateIds);

@@ -1,0 +1,8 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>报告恢复回归</title><link rel="stylesheet" href="/src/styles/base.css"><style>html,body{height:auto;overflow:auto}body{margin:0;background:#f5f7fb;font:14px 'Microsoft YaHei',sans-serif}#app{height:auto;max-width:1200px;margin:auto;padding:20px;box-sizing:border-box}</style></head><body><div id="app"></div><script type="module">
+import {createApp,h,shallowReactive,markRaw,nextTick} from 'vue';
+import ReportRenderer from '/src/components/ReportRenderer.vue';
+const state=shallowReactive({report:null,legacy:null});
+window.setRecoveryReport=async(report,legacyUrl)=>{state.legacy=legacyUrl?markRaw((await import(/* @vite-ignore */ legacyUrl)).default):null;state.report=report;await nextTick();};
+window.reportDiagnostics=[];window.addEventListener('runtime:report-presentation-diagnostic',event=>window.reportDiagnostics.push(event.detail));
+createApp({render:()=>h(state.legacy||ReportRenderer,{report:state.report})}).mount('#app');
+</script></body></html>

@@ -1,0 +1,252 @@
+{
+  "taskId": "sql-coding-104d7c7e-d3a3-43ef-bf9b-a8ccf3aebef5",
+  "targetDialect": "hive",
+  "sourceDialect": "oracle",
+  "sameSqlAndSnapshot": true,
+  "sqlExecuted": false,
+  "historicalTaskModified": false,
+  "beforePassed": 0,
+  "afterPassed": 8,
+  "proposals": [
+    {
+      "operationId": "workspace-96a0a6621c0eb1b37dc5778bf53d1ac32535415a5fa6eaebc27ec07de1b5ff58",
+      "fileHashes": {
+        "sql/dwd_delivery_flow_sample.sql": "cb9da47b8b66155b06d2ff658604696339a6361cc9712729cb39c582195e37ea"
+      },
+      "before": {
+        "valid": false,
+        "fieldValidation": "CHECKED",
+        "diagnostics": [
+          {
+            "path": "sql/dwd_delivery_flow_sample.sql",
+            "status": "FAILED",
+            "category": "VALIDATION",
+            "errorType": "ValueError",
+            "message": "Table metadata has not been resolved in the authorized scope: DATACENTER.DATACENTER.TOF_JJWTLS"
+          }
+        ]
+      },
+      "after": {
+        "valid": true,
+        "fieldValidation": "CHECKED",
+        "diagnostics": [
+          {
+            "path": "sql/dwd_delivery_flow_sample.sql",
+            "status": "PARSED",
+            "fields": "CHECKED"
+          }
+        ]
+      }
+    },
+    {
+      "operationId": "workspace-62eefc490b4aded4d09beaeb1e26078afbe4aff4b626172eb5b995f371a6657e",
+      "fileHashes": {
+        "sql/dwd_delivery_flow_sample.sql": "1a40700b46f1f22d628eda653f4ce2135d5123a6986b04c49940ecf6409c1669"
+      },
+      "before": {
+        "valid": false,
+        "fieldValidation": "CHECKED",
+        "diagnostics": [
+          {
+            "path": "sql/dwd_delivery_flow_sample.sql",
+            "status": "FAILED",
+            "category": "VALIDATION",
+            "errorType": "ValueError",
+            "message": "Table metadata has not been resolved in the authorized scope: TOF_JJWTLS"
+          }
+        ]
+      },
+      "after": {
+        "valid": true,
+        "fieldValidation": "CHECKED",
+        "diagnostics": [
+          {
+            "path": "sql/dwd_delivery_flow_sample.sql",
+            "status": "PARSED",
+            "fields": "CHECKED"
+          }
+        ]
+      }
+    },
+    {
+      "operationId": "workspace-89f37aab2b5a7f1933b47f2150a3672b8d7fcdb6ad600105d843e299b989022b",
+      "fileHashes": {
+        "sql/dwd_delivery_flow_sample.sql": "1a40700b46f1f22d628eda653f4ce2135d5123a6986b04c49940ecf6409c1669"
+      },
+      "before": {
+        "valid": false,
+        "fieldValidation": "CHECKED",
+        "diagnostics": [
+          {
+            "path": "sql/dwd_delivery_flow_sample.sql",
+            "status": "FAILED",
+            "category": "VALIDATION",
+            "errorType": "ValueError",
+            "message": "Table metadata has not been resolved in the authorized scope: TOF_JJWTLS"
+          }
+        ]
+      },
+      "after": {
+        "valid": true,
+        "fieldValidation": "CHECKED",
+        "diagnostics": [
+          {
+            "path": "sql/dwd_delivery_flow_sample.sql",
+            "status": "PARSED",
+            "fields": "CHECKED"
+          }
+        ]
+      }
+    },
+    {
+      "operationId": "workspace-1a4c79302ed7e3b79a614e6da28332b30732c8f9970a8c84ae26850071af2d10",
+      "fileHashes": {
+        "sql/dwd_delivery_flow_sample.sql": "1a40700b46f1f22d628eda653f4ce2135d5123a6986b04c49940ecf6409c1669"
+      },
+      "before": {
+        "valid": false,
+        "fieldValidation": "CHECKED",
+        "diagnostics": [
+          {
+            "path": "sql/dwd_delivery_flow_sample.sql",
+            "status": "FAILED",
+            "category": "VALIDATION",
+            "errorType": "ValueError",
+            "message": "Table metadata has not been resolved in the authorized scope: TOF_JJWTLS"
+          }
+        ]
+      },
+      "after": {
+        "valid": true,
+        "fieldValidation": "CHECKED",
+        "diagnostics": [
+          {
+            "path": "sql/dwd_delivery_flow_sample.sql",
+            "status": "PARSED",
+            "fields": "CHECKED"
+          }
+        ]
+      }
+    },
+    {
+      "operationId": "workspace-98c3e0484f2a802d9a445a265f52bc12f5c159511c218a65d19b40c120199765",
+      "fileHashes": {
+        "sql/dwd_delivery_flow_sample.sql": "3c2f884486d98b7390b8c997dc5de3a481a7ce24cc2e0f16284544f72ed6185e"
+      },
+      "before": {
+        "valid": false,
+        "fieldValidation": "CHECKED",
+        "diagnostics": [
+          {
+            "path": "sql/dwd_delivery_flow_sample.sql",
+            "status": "FAILED",
+            "category": "VALIDATION",
+            "errorType": "ValueError",
+            "message": "Table metadata has not been resolved in the authorized scope: TOF_JJWTLS"
+          }
+        ]
+      },
+      "after": {
+        "valid": true,
+        "fieldValidation": "CHECKED",
+        "diagnostics": [
+          {
+            "path": "sql/dwd_delivery_flow_sample.sql",
+            "status": "PARSED",
+            "fields": "CHECKED"
+          }
+        ]
+      }
+    },
+    {
+      "operationId": "workspace-bb868a2028c41dc052517b122e3e975977bcc1eae53ea62676dc2aff44202a3a",
+      "fileHashes": {
+        "sql/dwd_delivery_flow_sample.sql": "3c2f884486d98b7390b8c997dc5de3a481a7ce24cc2e0f16284544f72ed6185e"
+      },
+      "before": {
+        "valid": false,
+        "fieldValidation": "CHECKED",
+        "diagnostics": [
+          {
+            "path": "sql/dwd_delivery_flow_sample.sql",
+            "status": "FAILED",
+            "category": "VALIDATION",
+            "errorType": "ValueError",
+            "message": "Table metadata has not been resolved in the authorized scope: TOF_JJWTLS"
+          }
+        ]
+      },
+      "after": {
+        "valid": true,
+        "fieldValidation": "CHECKED",
+        "diagnostics": [
+          {
+            "path": "sql/dwd_delivery_flow_sample.sql",
+            "status": "PARSED",
+            "fields": "CHECKED"
+          }
+        ]
+      }
+    },
+    {
+      "operationId": "workspace-408421548dd01b3e66534d1f84829a5061494bceebdf2c6761629828b7824101",
+      "fileHashes": {
+        "sql/dwd_delivery_flow_sample.sql": "3c2f884486d98b7390b8c997dc5de3a481a7ce24cc2e0f16284544f72ed6185e"
+      },
+      "before": {
+        "valid": false,
+        "fieldValidation": "CHECKED",
+        "diagnostics": [
+          {
+            "path": "sql/dwd_delivery_flow_sample.sql",
+            "status": "FAILED",
+            "category": "VALIDATION",
+            "errorType": "ValueError",
+            "message": "Table metadata has not been resolved in the authorized scope: TOF_JJWTLS"
+          }
+        ]
+      },
+      "after": {
+        "valid": true,
+        "fieldValidation": "CHECKED",
+        "diagnostics": [
+          {
+            "path": "sql/dwd_delivery_flow_sample.sql",
+            "status": "PARSED",
+            "fields": "CHECKED"
+          }
+        ]
+      }
+    },
+    {
+      "operationId": "workspace-28aa6bfd044a563378db92ad26f8155cfebc02803a0a052c9886530856a4ec19",
+      "fileHashes": {
+        "sql/dwd_delivery_flow_sample.sql": "ba03e62f972a0ca4b767532e0d7f63cd1cf2a9fddf1f5ca9186e615e48f9ec37"
+      },
+      "before": {
+        "valid": false,
+        "fieldValidation": "CHECKED",
+        "diagnostics": [
+          {
+            "path": "sql/dwd_delivery_flow_sample.sql",
+            "status": "FAILED",
+            "category": "VALIDATION",
+            "errorType": "ValueError",
+            "message": "Table metadata has not been resolved in the authorized scope: TOF_JJWTLS"
+          }
+        ]
+      },
+      "after": {
+        "valid": true,
+        "fieldValidation": "CHECKED",
+        "diagnostics": [
+          {
+            "path": "sql/dwd_delivery_flow_sample.sql",
+            "status": "PARSED",
+            "fields": "CHECKED"
+          }
+        ]
+      }
+    }
+  ]
+}

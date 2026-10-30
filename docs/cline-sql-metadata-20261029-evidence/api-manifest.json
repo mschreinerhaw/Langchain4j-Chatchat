@@ -1,0 +1,8 @@
+{
+  "sourceCommit": "775dd789301acfac8ebdfc47b6a5d033a5a7b686",
+  "image": "runtime-os-api:cline-catalog-775dd7893-20261029",
+  "baselineSha256": "e389103ec0d39a2c8fe06bcd333ffca46ba681faad93254a098166e1c93fa3d2",
+  "sha256": "8de681c79063c7cb0a61176f46ce134c00b643816001c4503a10253f2fce6e76",
+  "frontendIndexSha256": "58b5f85bf44de2003b2026f5da27e2bf4df01d5953f4c874446ae1ef7b4905da",
+  "sqlMetadataCallbacks": true
+}

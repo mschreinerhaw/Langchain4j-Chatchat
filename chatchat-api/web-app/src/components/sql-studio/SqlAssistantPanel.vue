@@ -186,7 +186,15 @@
             @click="$emit('apply')"
             >审查 {{ result.files.length }} 个文件变更</button
           >
-          <AppNotice v-if="result.files.length">生成结果尚未执行 SQL 或数据库校验。</AppNotice>
+          <details v-if="result.metadataExploration?.delivery?.schemaVersion" aria-label="SQL 交付依据">
+            <summary>SQL 交付依据 · {{ result.metadataExploration.delivery.targetDialect }}</summary>
+            <p>{{ result.metadataExploration.delivery.execution.reason }}</p>
+            <ul><li v-for="file in result.metadataExploration.delivery.files" :key="file.path" :title="file.sha256">{{ file.path }} · 已保存，待审查</li></ul>
+            <ul><li v-for="table in result.metadataExploration.delivery.metadata.tables" :key="table.bindingId + table.tableRef" :title="table.snapshotId">{{ [table.database,table.schema,table.tableName].filter(Boolean).join('.') }} · {{ table.columns?.length || 0 }} 个授权字段</li></ul>
+          </details>
+          <AppNotice v-if="result.files.length">{{ result.metadataExploration?.delivery?.schemaVersion
+            ? '已完成目标方言解析及授权字段校验；生成结果尚未在目标数据库执行。'
+            : '生成结果尚未执行 SQL 或数据库校验。' }}</AppNotice>
 
         </section>
       </article>
@@ -194,47 +202,23 @@
     <Teleport to="body"><dialog ref="settingsDialog" class="sql-assistant-dialog" aria-label="AI 助手高级设置" @click.self="closeDialog(settingsDialog)">
       <header><h3>高级设置</h3><button type="button" aria-label="关闭高级设置" @click="closeDialog(settingsDialog)"><X :size="17" /></button></header>
       <div class="sql-chat-context"><div class="sql-chat-settings">
+        <section class="sql-settings-model" aria-label="模型配置"><h4>模型配置</h4>
+          <p class="sql-settings-help">选择本次协作使用的 Agent 或模型，配置更改即时生效。</p>
+          <div v-if="availableAgents.length" class="sql-execution-modes" role="group" aria-label="执行方式">
+            <button type="button" :class="{active:executionMode==='agent'}" :aria-pressed="executionMode==='agent'" @click="$emit('execution-mode','agent')">Agent</button>
+            <button type="button" :class="{active:executionMode==='model'}" :aria-pressed="executionMode==='model'" @click="$emit('execution-mode','model')">模型</button>
+          </div>
+          <div v-if="availableAgents.length && executionMode==='agent'" class="sql-agent-choice"><span>Agent</span><SqlSearchSelect :model-value="agentId" label="选择已发布 Agent" placeholder="选择已发布 Agent" :options="availableAgents.map(agent=>({value:agent.id,label:agent.name}))" @update:model-value="$emit('agent',$event)" /></div>
+          <div v-else class="sql-agent-choice"><span>模型</span><SqlSearchSelect :model-value="modelName" label="选择模型" :options="[{value:'',label:'系统默认模型'},...models.map(model=>({value:model.value,label:model.label || model.value}))]" @update:model-value="$emit('model',$event)" /></div>
+        </section>
+        <section class="sql-settings-context" aria-label="上下文配置"><h4>上下文配置</h4><p class="sql-settings-help">文档和参考脚本仅用于本次任务的授权上下文。</p>
         <button type="button" @click="$emit('diagnostics');closeDialog(settingsDialog)">查看本次运行诊断</button>
         <div v-for="document in userDocuments" :key="document.fileId" class="sql-selection-chip"
           >{{ document.fileName }} ·
           {{ document.purpose === "EVIDENCE" ? "分析依据" : "参考规则" }}</div
         >
-        <slot name="context-documents" />
-        <div
-          v-if="availableAgents.length"
-          class="sql-execution-modes"
-          role="group"
-          aria-label="执行方式"
-          ><button
-            type="button"
-            :class="{ active: executionMode === 'agent' }"
-            :aria-pressed="executionMode === 'agent'"
-            @click="$emit('execution-mode', 'agent')"
-            >Agent</button
-          ><button
-            type="button"
-            :class="{ active: executionMode === 'model' }"
-            :aria-pressed="executionMode === 'model'"
-            @click="$emit('execution-mode', 'model')"
-            >模型</button
-          ></div
-        >
-        <label v-if="availableAgents.length && executionMode === 'agent'" class="sql-agent-choice"
-          >Agent<select :value="agentId" @change="$emit('agent', $event.target.value)"
-            ><option value="" disabled>选择已发布 Agent</option
-            ><option v-for="agent in availableAgents" :key="agent.id" :value="agent.id">{{
-              agent.name
-            }}</option></select
-          ></label
-        >
-        <label v-else class="sql-agent-choice"
-          >模型<select :value="modelName" @change="$emit('model', $event.target.value)"
-            ><option value="">系统默认模型</option
-            ><option v-for="model in models" :key="model.value" :value="model.value">{{
-              model.label || model.value
-            }}</option></select
-          ></label
-        >
+        <slot name="context-documents" :close-settings="() => closeDialog(settingsDialog)" />
+        </section>
       </div></div>
     </dialog>
     <dialog ref="historyDialog" class="sql-assistant-dialog" aria-label="SQL 历史会话" @click.self="closeDialog(historyDialog)">
@@ -276,3 +260,4 @@
   </aside>
 </template>
 <script src="../../js/components/sql-studio/SqlAssistantPanel.js"></script>
+<style scoped src="../../styles/components/sql-studio/sql-assistant-dialog.css"></style>

@@ -26,6 +26,10 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 public class ResourceAuthorizationService implements ResourceAuthorizationPort {
+    @Override @Transactional(readOnly=true)
+    public Set<String> readableMetadataIds(String tenantId,String userId,Set<String> candidates){
+        return evaluate(MCP_TOOL,tenantId,userId,candidates,null,true);
+    }
     private final ResourceGrantRepository grants;
     private final SysUserRepository users;
     private final SysUserRoleRepository userRoles;
@@ -69,11 +73,16 @@ public class ResourceAuthorizationService implements ResourceAuthorizationPort {
 
     private Set<String> evaluate(String resourceType, String tenantId, String userId,
                                  Set<String> candidateIds, String agentId) {
+        return evaluate(resourceType,tenantId,userId,candidateIds,agentId,false);
+    }
+    private Set<String> evaluate(String resourceType,String tenantId,String userId,
+                                 Set<String> candidateIds,String agentId,boolean catalogDefault){
         if (candidateIds == null || candidateIds.isEmpty()) return Set.of();
         if (tenantId == null || tenantId.isBlank() || resourceType == null || resourceType.isBlank()) return Set.of();
         SysUser user = userId == null ? null : users.findById(userId).orElse(null);
         boolean validUser = user != null && tenantId.equals(user.getTenantId())
             && "enabled".equalsIgnoreCase(user.getStatus());
+        if(catalogDefault&&!validUser)return Set.of();
         Set<String> activeRoleIds = new HashSet<>();
         if (validUser) {
             Set<String> assigned = new HashSet<>();
@@ -115,9 +124,9 @@ public class ResourceAuthorizationService implements ResourceAuthorizationPort {
         Set<String> allowed = new LinkedHashSet<>();
         for (String id : candidateIds) {
             List<ResourceGrant> directRules = rulesById.getOrDefault(id, List.of());
-            if (directRules.isEmpty() && wildcardRules.isEmpty()) continue;
+            if (directRules.isEmpty() && wildcardRules.isEmpty()&&!catalogDefault) continue;
             boolean deny = false;
-            boolean allow = false;
+            boolean allow = catalogDefault&&validUser;
             for (ResourceGrant rule : directRules) {
                 if (!active(rule, now) || !principalMatches(rule, tenantId, userId, validUser, activeRoleIds)) continue;
                 deny |= "DENY".equalsIgnoreCase(rule.getEffect());

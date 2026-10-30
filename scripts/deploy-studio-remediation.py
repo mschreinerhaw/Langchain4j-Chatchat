@@ -1,5 +1,6 @@
 """Deploy a complete Studio application JAR, preserving runtime policy and an exact rollback."""
 import copy
+from datetime import datetime, timezone
 import hashlib
 import http.client
 import json
@@ -51,8 +52,23 @@ def main():
     before = {name: inspect(name) for name in run('docker', 'ps', '--format', '{{.Names}}').splitlines()}
     assert run('docker', 'exec', api, 'sha256sum', '/srv/app/app.jar').split()[0] == manifest['baselineSha256']
     assert hashlib.sha256((root / 'app.jar').read_bytes()).hexdigest() == manifest['sha256']
-    assert run('docker', 'exec', '-u', 'postgres', 'postgres', 'psql', '-At', '-d', 'runtime_os_acceptance_api', '-c',
-        "select count(*) from agent_task_latest where canonical_state is null or canonical_state not in ('SUCCEEDED','PARTIAL','FAILED','CANCELLED','REJECTED')") == '0', 'Active Runtime tasks'
+    active=run('docker', 'exec', '-u', 'postgres', 'postgres', 'psql', '-At', '-d', 'runtime_os_acceptance_api', '-c',
+        "select task_id from agent_task_latest where canonical_state is null or canonical_state not in ('SUCCEEDED','PARTIAL','FAILED','CANCELLED','REJECTED')").splitlines()
+    # A timed-out metadata-only acceptance fixture can retain unknown provider
+    # usage. Preserve that reservation and evidence; never fabricate a stop proof.
+    for task in active:
+        assert task in manifest.get('expiredReadOnlyTaskIds',[]), 'Active Runtime task: '+task
+        assert task.startswith('sql-coding-') and all(c.isalnum() or c=='-' for c in task)
+        raw=run('docker','exec','-u','postgres','postgres','psql','-At','-d','runtime_os_acceptance_api','-c',
+            "select record_json from runtime_evidence_entry where entry_kind='EXEC_CHECKPOINT' and entry_id='coding:workspace-contract:"+task+"'")
+        envelope=json.loads(raw);assert envelope['schemaVersion']=='runtime_execution_checkpoint.v1'
+        contract=json.loads(envelope['value'])
+        assert contract['taskId']==task and contract['scope']['userId']==manifest['acceptanceOwnerId']
+        assert 'runtime-coding:sql-metadata-tools:v1' in contract['metadataRefs']
+        assert set(contract['authorization']['allowedTools'])=={'workspace_read','workspace_propose','workspace_metadata','workspace_validate'}
+        assert contract['authorization']['networkPolicy']=='NONE' and contract['authorization']['allowedSideEffects']==['WORKSPACE_WRITE']
+        assert contract['budget']['maxCodeExecutions']==0
+        assert datetime.fromisoformat(contract['budget']['deadlineAt'].replace('Z','+00:00'))<datetime.now(timezone.utc)
     probe = "const f=require('fs');fetch('http://127.0.0.1:3100/readyz',{headers:{authorization:'Bearer '+f.readFileSync(process.env.RUNTIME_CODING_SHARED_SECRET_FILE,'utf8').trim()}}).then(r=>r.json()).then(r=>console.log(r.activeSessions))"
     assert run('docker', 'exec', 'runtime-os-app-stage-coding-agent-1', 'node', '-e', probe) == '0', 'Active Coding sessions'
     assert not run('docker', 'ps', '--filter', 'name=chatchat-py-', '--format', '{{.ID}}'), 'Active Python sandbox'
@@ -69,20 +85,22 @@ def main():
         entry=manifest['mcp']
         assert run('docker','exec',mcp,'sha256sum','/srv/app/app.jar').split()[0]==entry['baselineSha256']
         assert hashlib.sha256((root/'mcp.jar').read_bytes()).hexdigest()==entry['sha256']
-        build=root/'mcp-build';build.mkdir()
+        build=root/'mcp-build';build.mkdir(exist_ok=True)
         shutil.copy2(root/'mcp.jar',build/'app.jar')
         run('docker','cp',mcp+':/usr/local/bin/docker',str(build/'docker'))
         (build/'Dockerfile').write_text('FROM '+base+'\nCOPY docker /usr/local/bin/docker\nRUN chmod 0755 /usr/local/bin/docker && docker --version\nWORKDIR /srv/app\nCOPY app.jar /srv/app/app.jar\nENTRYPOINT ["java","-jar","/srv/app/app.jar"]\n')
         run('docker','build','--network','none','-t',images[mcp],str(build))
     if node in images:
-        entry=manifest['worker'];build=root/'worker-build';build.mkdir()
-        (build/'patched').mkdir()
+        entry=manifest['worker'];build=root/'worker-build';build.mkdir(exist_ok=True)
+        (build/'patched').mkdir(exist_ok=True)
         for module,expected in entry['baselineModules'].items():
             assert module in ['runner.js','server.js']
             assert run('docker','exec',node,'sha256sum','/srv/coding-agent/dist/'+module).split()[0]==expected
             assert hashlib.sha256((root/'worker'/module).read_bytes()).hexdigest()==entry['modules'][module]
             shutil.copy2(root/'worker'/module,build/'patched'/module)
-        (build/'Dockerfile').write_text('FROM '+before[node]['Image']+'\nCOPY patched/ /srv/coding-agent/dist/\n')
+        baseline_tag='runtime-os-coding-agent:sql-metadata-baseline-'+before[node]['Image'].split(':')[-1][:16]
+        run('docker','tag',before[node]['Image'],baseline_tag)
+        (build/'Dockerfile').write_text('FROM '+baseline_tag+'\nCOPY patched/ /srv/coding-agent/dist/\n')
         run('docker','build','--network','none','-t',images[node],str(build))
     backup = root / 'backup'
     backup.mkdir(mode=0o700)
@@ -179,6 +197,7 @@ def main():
         assert fingerprint == sql("select md5(coalesce(jsonb_agg(to_jsonb(t)-'source_channel' order by session_id)::text,'[]')) from chat_session t"), 'Conversation content changed during migration'
         assert messages == sql('select count(*) from chat_message_index'), 'Message index count changed during migration'
         report = {'status': 'DEPLOYED', 'image': manifest['image'], 'sha256': manifest['sha256'], 'backup': str(backup), 'retired': retired,
+            'preservedExpiredReadOnlyTaskIds':active,
             'unrelatedContainersUnchanged': True, 'conversationContentUnchanged': True, 'messageIndexCountUnchanged': True,
             'images':images,'channelCounts': sql('select source_channel,count(*) from chat_session group by source_channel')}
         (root / 'deployment.json').write_text(json.dumps(report, indent=2))

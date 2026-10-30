@@ -1,8 +1,27 @@
 import { describe, it, expect } from "vitest";
 import { reportLayout, checkedReportLayout, reportPresentation } from "./reportLayout";
 import { reportLayoutCases } from "./fixtures/report-layout-cases";
+import scheduling from '../../../../src/test/resources/visual-report/scheduling-layout.json';
 
 describe("the existing report protocol supports content-driven layouts", () => {
+  it('recovers the observed section-title mismatch without losing valid authored placement or chart data',()=>{
+    const raw=structuredClone(scheduling.visualReport),before=JSON.stringify(raw),layout=reportLayout(raw);
+    expect(layout.diagnostics.filter(d=>d.code==='SECTION_TITLE_RESOLVED')).toHaveLength(2);
+    expect(layout.blocks.slice(0,5).map(block=>block.type)).toEqual(['summary','metric','metric','section','chart']);
+    expect(layout.blocks.find(block=>block.type==='chart').ref).toBe('duration_trend_chart');
+    expect(layout.blocks.filter(block=>block.type==='metric')).toHaveLength(5);
+    expect(JSON.stringify(raw)).toBe(before);
+  });
+  it('rejects a broken block locally while retaining both neighboring charts and all numeric evidence',()=>{
+    const report=reportLayoutCases[0].report;
+    const layout={schemaVersion:'report_layout.v1',blocks:[{id:'start',type:'summary'},
+      {id:'unsafe',type:'Html',html:'<script>bad()</script>'},...report.layout.blocks]};
+    const result=reportLayout({...report,layout});
+    expect(result.blocks[0].type).toBe('summary');
+    expect(result.blocks.filter(block=>block.type==='chart')).toHaveLength(report.charts.length);
+    expect(result.diagnostics.some(d=>d.code==='INVALID_LAYOUT_BLOCK')).toBe(true);
+    expect(result.warning).toBe('');
+  });
   it('binds each component to the same controlled calculation inputs',()=>{
     for(const {report,input,checks,figure} of reportLayoutCases){
       expect(report.dataSources).toEqual([input.reference]);expect(checks.length).toBeGreaterThan(0);
@@ -60,7 +79,8 @@ describe("the existing report protocol supports content-driven layouts", () => {
       const layout = { schemaVersion: "report_layout.v1", blocks };
       expect(() => checkedReportLayout(layout, report)).toThrow();
       const fallback = reportLayout({ ...report, layout });
-      expect(fallback.warning).toBeTruthy();
+      expect(fallback.diagnostics.some(item=>item.code==='INVALID_LAYOUT_BLOCK')).toBe(true);
+      expect(fallback.warning).toBe('');
       expect(fallback.blocks.some((block) => block.type === "limitations")).toBe(true);
     }
   });

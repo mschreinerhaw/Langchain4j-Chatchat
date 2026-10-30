@@ -1,0 +1,70 @@
+{
+  "mockedRequests": false,
+  "layouts": [
+    {
+      "width": 1600,
+      "cycle": 0,
+      "expandedWidth": 1107,
+      "collapsedWidth": 1364,
+      "hiddenEditorsHaveNoBox": true
+    },
+    {
+      "width": 1600,
+      "cycle": 1,
+      "expandedWidth": 1107,
+      "collapsedWidth": 1364,
+      "hiddenEditorsHaveNoBox": true
+    },
+    {
+      "width": 1600,
+      "cycle": 2,
+      "expandedWidth": 1107,
+      "collapsedWidth": 1364,
+      "hiddenEditorsHaveNoBox": true
+    },
+    {
+      "width": 1280,
+      "cycle": 0,
+      "expandedWidth": 787,
+      "collapsedWidth": 1044,
+      "hiddenEditorsHaveNoBox": true
+    },
+    {
+      "width": 1280,
+      "cycle": 1,
+      "expandedWidth": 787,
+      "collapsedWidth": 1044,
+      "hiddenEditorsHaveNoBox": true
+    },
+    {
+      "width": 1280,
+      "cycle": 2,
+      "expandedWidth": 787,
+      "collapsedWidth": 1044,
+      "hiddenEditorsHaveNoBox": true
+    },
+    {
+      "width": 1066,
+      "cycle": 0,
+      "expandedWidth": 573,
+      "collapsedWidth": 830,
+      "hiddenEditorsHaveNoBox": true
+    },
+    {
+      "width": 1066,
+      "cycle": 1,
+      "expandedWidth": 573,
+      "collapsedWidth": 830,
+      "hiddenEditorsHaveNoBox": true
+    },
+    {
+      "width": 1066,
+      "cycle": 2,
+      "expandedWidth": 573,
+      "collapsedWidth": 830,
+      "hiddenEditorsHaveNoBox": true
+    }
+  ],
+  "pythonBannerRemoved": true,
+  "errors": []
+}

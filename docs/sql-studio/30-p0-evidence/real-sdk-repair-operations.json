@@ -1,0 +1,128 @@
+{
+  "validationAttempts": 2,
+  "toolDurationMs": 636,
+  "toolCalls": 6,
+  "autonomous": true,
+  "operations": [
+    {
+      "operationId": "workspace-904bafc8f38c1bf749b7fa8d25cce82d87893a2bb84b48083ffbaaa54e03235e",
+      "tool": "workspace_metadata",
+      "durationMs": 1,
+      "status": "SUCCEEDED",
+      "valid": false,
+      "receiptRef": "runtime-evidence:coding:workspace:workspace-904bafc8f38c1bf749b7fa8d25cce82d87893a2bb84b48083ffbaaa54e03235e:receipt"
+    },
+    {
+      "operationId": "workspace-519c8ea640a6a4de3449f34dab629088fa07dd24f28bea9da7e02c2e7f8c88a6",
+      "tool": "workspace_metadata",
+      "durationMs": 2,
+      "status": "SUCCEEDED",
+      "valid": false,
+      "receiptRef": "runtime-evidence:coding:workspace:workspace-519c8ea640a6a4de3449f34dab629088fa07dd24f28bea9da7e02c2e7f8c88a6:receipt",
+      "operation": "LIST_TABLES"
+    },
+    {
+      "operationId": "workspace-3ec9088b3a1e88670e66de791c24cb546a2d5ff6bb328847a616fefb43b8135a",
+      "tool": "workspace_metadata",
+      "durationMs": 1,
+      "status": "SUCCEEDED",
+      "valid": false,
+      "receiptRef": "runtime-evidence:coding:workspace:workspace-3ec9088b3a1e88670e66de791c24cb546a2d5ff6bb328847a616fefb43b8135a:receipt",
+      "operation": "DESCRIBE_TABLE"
+    },
+    {
+      "operationId": "workspace-0f5825a89e2ec55feb76e82373140b19960546fb1e5a1903aabb34f52234bc59",
+      "tool": "workspace_metadata",
+      "durationMs": 3,
+      "status": "SUCCEEDED",
+      "valid": false,
+      "receiptRef": "runtime-evidence:coding:workspace:workspace-0f5825a89e2ec55feb76e82373140b19960546fb1e5a1903aabb34f52234bc59:receipt",
+      "operation": "DESCRIBE_TABLE"
+    },
+    {
+      "operationId": "workspace-e146d6e6ffd45a5055fa5c97edd3bd43b3d75425d07e43f421c16c5683aac37d",
+      "tool": "workspace_validate",
+      "durationMs": 334,
+      "status": "VALID",
+      "valid": true,
+      "receiptRef": "runtime-evidence:coding:workspace:workspace-e146d6e6ffd45a5055fa5c97edd3bd43b3d75425d07e43f421c16c5683aac37d:receipt",
+      "structureReview": {
+        "structuralDiagnostics": [],
+        "relationships": [],
+        "grains": [
+          {
+            "alias": "o",
+            "tableName": "orders",
+            "primaryKeys": [],
+            "status": "UNKNOWN",
+            "businessGrain": "UNCONFIRMED"
+          },
+          {
+            "alias": "c",
+            "tableName": "customers",
+            "primaryKeys": [],
+            "status": "UNKNOWN",
+            "businessGrain": "UNCONFIRMED"
+          }
+        ],
+        "structureReviewRequired": false,
+        "businessValidation": "NOT_EVALUATED"
+      }
+    },
+    {
+      "operationId": "workspace-2e388ca39aef7b1d6db464c26c4a06aa61b50ac050cce22e2a219109c5ee4847",
+      "tool": "workspace_propose",
+      "durationMs": 295,
+      "status": "VALID",
+      "valid": true,
+      "receiptRef": "runtime-evidence:coding:workspace:workspace-2e388ca39aef7b1d6db464c26c4a06aa61b50ac050cce22e2a219109c5ee4847:receipt",
+      "structureReview": {
+        "structuralDiagnostics": [],
+        "relationships": [],
+        "grains": [
+          {
+            "alias": "o",
+            "tableName": "orders",
+            "primaryKeys": [],
+            "status": "UNKNOWN",
+            "businessGrain": "UNCONFIRMED"
+          },
+          {
+            "alias": "c",
+            "tableName": "customers",
+            "primaryKeys": [],
+            "status": "UNKNOWN",
+            "businessGrain": "UNCONFIRMED"
+          }
+        ],
+        "structureReviewRequired": false,
+        "businessValidation": "NOT_EVALUATED"
+      }
+    }
+  ],
+  "finalSqlValid": true,
+  "repairAttempts": 0,
+  "reusedMetadataCalls": 0,
+  "structureReview": {
+    "structuralDiagnostics": [],
+    "relationships": [],
+    "grains": [
+      {
+        "alias": "o",
+        "tableName": "orders",
+        "primaryKeys": [],
+        "status": "UNKNOWN",
+        "businessGrain": "UNCONFIRMED"
+      },
+      {
+        "alias": "c",
+        "tableName": "customers",
+        "primaryKeys": [],
+        "status": "UNKNOWN",
+        "businessGrain": "UNCONFIRMED"
+      }
+    ],
+    "structureReviewRequired": false,
+    "businessValidation": "NOT_EVALUATED"
+  }
+}

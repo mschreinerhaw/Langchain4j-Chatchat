@@ -8,7 +8,7 @@
     "build": "npm run check:vue-structure && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "test": "npm run check:vue-structure && npm run test:ui-artifact && npm run test:sql-studio && npm run test:code-intelligence && npm run test:chat-assets && npm run test:user-space && npm run test:visual-report",
-    "test:visual-report": "vitest run src/components/PromptComposer.test.js src/components/PythonVisualReport.test.js src/components/ReportRenderer.test.js src/js/utils/reportLayout.test.js src/js/utils/pythonVisualReport.test.js src/js/ui-artifact/presentation.test.js",
+    "test:visual-report": "vitest run src/components/PromptComposer.test.js src/components/PythonVisualReport.test.js src/components/PythonReportChart.test.js src/components/ReportRenderer.test.js src/js/utils/reportLayout.test.js src/js/utils/pythonVisualReport.test.js src/js/ui-artifact/presentation.test.js",
     "test:report-layout:browser": "node scripts/test-report-layout.mjs",
     "test:visual-report:browser": "node scripts/test-python-visual-report.mjs",
     "test:user-space": "vitest run src/components/UserSpaceBrowser.test.js src/js/utils/userSpaceFiles.test.js",

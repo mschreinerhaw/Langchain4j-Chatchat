@@ -1,0 +1,7 @@
+{
+  "fixture": "real first-round customer metadata receipts",
+  "toolCalls": 21,
+  "beforeBytes": 166605,
+  "afterBytes": 119911,
+  "reductionPercent": 28.03
+}

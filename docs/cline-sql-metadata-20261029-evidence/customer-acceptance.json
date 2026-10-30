@@ -1,0 +1,3656 @@
+{
+  "mockedRequests": false,
+  "customerNumber": "070200046604",
+  "dataExecutionGrantsAdded": false,
+  "sqlExecuted": false,
+  "taskId": "sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8",
+  "generationId": "7298b64c-569a-4877-b228-fc921f3b32b8",
+  "status": "SUCCESS",
+  "elapsedSeconds": 348.64,
+  "fileCount": 1,
+  "validation": "PARSED; FIELDS_CHECKED; SQL_NOT_EXECUTED",
+  "diagnostics": {
+    "finalSqlValid": true,
+    "repairAttempts": 0,
+    "validationAttempts": 2,
+    "toolDurationMs": 32852,
+    "toolCalls": 31,
+    "autonomous": true,
+    "operations": [
+      {
+        "operationId": "workspace-3f634cc0f7ec745fcb8158539bae4e069c8c3eaa216fd8ab757f5997f717566e",
+        "tool": "workspace_metadata",
+        "durationMs": 150,
+        "status": "SUCCEEDED",
+        "valid": false,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-3f634cc0f7ec745fcb8158539bae4e069c8c3eaa216fd8ab757f5997f717566e:receipt"
+      },
+      {
+        "operationId": "workspace-0a8e7ae2afe57d3160e13679d06759c56963dfb91bca2f045f2baaad746894f6",
+        "tool": "workspace_metadata",
+        "durationMs": 569,
+        "status": "SUCCEEDED",
+        "valid": false,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-0a8e7ae2afe57d3160e13679d06759c56963dfb91bca2f045f2baaad746894f6:receipt"
+      },
+      {
+        "operationId": "workspace-c8cc9514cfad15d6d34bde7062a8caa26be2a528773d61a30accf2768ba8d946",
+        "tool": "workspace_metadata",
+        "durationMs": 1685,
+        "status": "SUCCEEDED",
+        "valid": false,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-c8cc9514cfad15d6d34bde7062a8caa26be2a528773d61a30accf2768ba8d946:receipt"
+      },
+      {
+        "operationId": "workspace-0db0613fed73fea451bf3878c0477f8f1f5fdde89c0fbb3f2259bc82bf312aef",
+        "tool": "workspace_metadata",
+        "durationMs": 1800,
+        "status": "SUCCEEDED",
+        "valid": false,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-0db0613fed73fea451bf3878c0477f8f1f5fdde89c0fbb3f2259bc82bf312aef:receipt"
+      },
+      {
+        "operationId": "workspace-687323c062791904315f78b622841af788e3707906d641d3372c973cbdeed2d7",
+        "tool": "workspace_metadata",
+        "durationMs": 1649,
+        "status": "SUCCEEDED",
+        "valid": false,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-687323c062791904315f78b622841af788e3707906d641d3372c973cbdeed2d7:receipt"
+      },
+      {
+        "operationId": "workspace-87c0bcea88e217d590ad385d7c8c3215e7ee3e843798a01fdf926ad25ab555b2",
+        "tool": "workspace_metadata",
+        "durationMs": 1683,
+        "status": "SUCCEEDED",
+        "valid": false,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-87c0bcea88e217d590ad385d7c8c3215e7ee3e843798a01fdf926ad25ab555b2:receipt"
+      },
+      {
+        "operationId": "workspace-fdb4c2486f59e87ed7fea6c2ee608b39fa5a3209a272a16e09a133028fa6f9e0",
+        "tool": "workspace_metadata",
+        "durationMs": 389,
+        "status": "SUCCEEDED",
+        "valid": false,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-fdb4c2486f59e87ed7fea6c2ee608b39fa5a3209a272a16e09a133028fa6f9e0:receipt"
+      },
+      {
+        "operationId": "workspace-05c9e1d3482d4480917f3b2ba654f00b43a3b7cfd75038bf24ca00e1f334b6f8",
+        "tool": "workspace_metadata",
+        "durationMs": 475,
+        "status": "SUCCEEDED",
+        "valid": false,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-05c9e1d3482d4480917f3b2ba654f00b43a3b7cfd75038bf24ca00e1f334b6f8:receipt"
+      },
+      {
+        "operationId": "workspace-ca227bd10aeee125b078dd6a0b7c227ad03725c849dbc4d9bc20f8af817ef225",
+        "tool": "workspace_metadata",
+        "durationMs": 411,
+        "status": "SUCCEEDED",
+        "valid": false,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-ca227bd10aeee125b078dd6a0b7c227ad03725c849dbc4d9bc20f8af817ef225:receipt"
+      },
+      {
+        "operationId": "workspace-ce8c64d2ace5b25e090d995f6293bdccc5ca14ad93687c5674d5865226ae847b",
+        "tool": "workspace_metadata",
+        "durationMs": 415,
+        "status": "SUCCEEDED",
+        "valid": false,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-ce8c64d2ace5b25e090d995f6293bdccc5ca14ad93687c5674d5865226ae847b:receipt"
+      },
+      {
+        "operationId": "workspace-4804fbe738d3b99d3d261f12abef5645878292ab67effd5e91de768bf3ae0dc0",
+        "tool": "workspace_metadata",
+        "durationMs": 1782,
+        "status": "SUCCEEDED",
+        "valid": false,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-4804fbe738d3b99d3d261f12abef5645878292ab67effd5e91de768bf3ae0dc0:receipt"
+      },
+      {
+        "operationId": "workspace-f2efb3668af98c814b9d417c5e5bdb733793b1f954393f48e4e38789ebd33476",
+        "tool": "workspace_metadata",
+        "durationMs": 1633,
+        "status": "SUCCEEDED",
+        "valid": false,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-f2efb3668af98c814b9d417c5e5bdb733793b1f954393f48e4e38789ebd33476:receipt"
+      },
+      {
+        "operationId": "workspace-a36239459cf218cb3f95758a9acf563f00b5b177fd105dcc56738584b8ad3093",
+        "tool": "workspace_metadata",
+        "durationMs": 1789,
+        "status": "SUCCEEDED",
+        "valid": false,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-a36239459cf218cb3f95758a9acf563f00b5b177fd105dcc56738584b8ad3093:receipt"
+      },
+      {
+        "operationId": "workspace-ed5a10bec0bc937f581114f44d59aa4d9530a6207e0250bd76e2a5728ca3576f",
+        "tool": "workspace_metadata",
+        "durationMs": 1698,
+        "status": "SUCCEEDED",
+        "valid": false,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-ed5a10bec0bc937f581114f44d59aa4d9530a6207e0250bd76e2a5728ca3576f:receipt"
+      },
+      {
+        "operationId": "workspace-2ea37ccc445c7a7c43f94784d6f64d0a688705299507df02815b96c58783eea3",
+        "tool": "workspace_metadata",
+        "durationMs": 1560,
+        "status": "SUCCEEDED",
+        "valid": false,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-2ea37ccc445c7a7c43f94784d6f64d0a688705299507df02815b96c58783eea3:receipt"
+      },
+      {
+        "operationId": "workspace-7f9b4ab1c2e6bb9d7f1d889f6c66fdf04f5f8d79f158e8e89103bf20de793ccf",
+        "tool": "workspace_metadata",
+        "durationMs": 1585,
+        "status": "SUCCEEDED",
+        "valid": false,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-7f9b4ab1c2e6bb9d7f1d889f6c66fdf04f5f8d79f158e8e89103bf20de793ccf:receipt"
+      },
+      {
+        "operationId": "workspace-a8e1bf6e532dbfd281a34e1199265c385f6e4d4ee7aed663a68372e2bedcb344",
+        "tool": "workspace_metadata",
+        "durationMs": 1089,
+        "status": "SUCCEEDED",
+        "valid": false,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-a8e1bf6e532dbfd281a34e1199265c385f6e4d4ee7aed663a68372e2bedcb344:receipt"
+      },
+      {
+        "operationId": "workspace-7417118c0f36e9fdc8c151615303de73a529c6191a3c4a6b03347024e93b93e8",
+        "tool": "workspace_metadata",
+        "durationMs": 1221,
+        "status": "SUCCEEDED",
+        "valid": false,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-7417118c0f36e9fdc8c151615303de73a529c6191a3c4a6b03347024e93b93e8:receipt"
+      },
+      {
+        "operationId": "workspace-50c62fa21b5cecaa0077c26ef6b7c608566e0ed71e324d6a23d2db1d888ee21c",
+        "tool": "workspace_metadata",
+        "durationMs": 1146,
+        "status": "SUCCEEDED",
+        "valid": false,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-50c62fa21b5cecaa0077c26ef6b7c608566e0ed71e324d6a23d2db1d888ee21c:receipt"
+      },
+      {
+        "operationId": "workspace-f207b45bbec4e947d65f6e95481d3368b98ce19293f8b66e6e87c5a0d8bc42ce",
+        "tool": "workspace_metadata",
+        "durationMs": 318,
+        "status": "SUCCEEDED",
+        "valid": false,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-f207b45bbec4e947d65f6e95481d3368b98ce19293f8b66e6e87c5a0d8bc42ce:receipt"
+      },
+      {
+        "operationId": "workspace-4e3830836b5175bdb2aabba589c593ba382c8b5385c05c345542ac94b8234893",
+        "tool": "workspace_metadata",
+        "durationMs": 307,
+        "status": "SUCCEEDED",
+        "valid": false,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-4e3830836b5175bdb2aabba589c593ba382c8b5385c05c345542ac94b8234893:receipt"
+      },
+      {
+        "operationId": "workspace-03b8ce59802884e8baeff56be2b6893d6a3432e3e7344082aa01078d8d27f13b",
+        "tool": "workspace_metadata",
+        "durationMs": 1631,
+        "status": "SUCCEEDED",
+        "valid": false,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-03b8ce59802884e8baeff56be2b6893d6a3432e3e7344082aa01078d8d27f13b:receipt"
+      },
+      {
+        "operationId": "workspace-fcd88a12d9cf207e59c174bf1b220c09cc1202ea12d8548ccc66200561dccc32",
+        "tool": "workspace_metadata",
+        "durationMs": 1545,
+        "status": "SUCCEEDED",
+        "valid": false,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-fcd88a12d9cf207e59c174bf1b220c09cc1202ea12d8548ccc66200561dccc32:receipt"
+      },
+      {
+        "operationId": "workspace-9de1508cd0c00b080fcc6eed631a850ca6c586c7ca2f3e060933fdc87220c4bc",
+        "tool": "workspace_metadata",
+        "durationMs": 1635,
+        "status": "SUCCEEDED",
+        "valid": false,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-9de1508cd0c00b080fcc6eed631a850ca6c586c7ca2f3e060933fdc87220c4bc:receipt"
+      },
+      {
+        "operationId": "workspace-3dbfefa8736bd5d43f63ee88dd56fec026fb015ef56438938bede5f36c0bafee",
+        "tool": "workspace_metadata",
+        "durationMs": 512,
+        "status": "SUCCEEDED",
+        "valid": false,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-3dbfefa8736bd5d43f63ee88dd56fec026fb015ef56438938bede5f36c0bafee:receipt"
+      },
+      {
+        "operationId": "workspace-9c432facba9198e4f7e4a1b386ec485f079896ba6a229c94a96f5bba0c901cad",
+        "tool": "workspace_metadata",
+        "durationMs": 353,
+        "status": "SUCCEEDED",
+        "valid": false,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-9c432facba9198e4f7e4a1b386ec485f079896ba6a229c94a96f5bba0c901cad:receipt"
+      },
+      {
+        "operationId": "workspace-b4ec75c36a6711ee8175af3fa00dd44577ee86070d223213c261054ab015ac02",
+        "tool": "workspace_metadata",
+        "durationMs": 391,
+        "status": "SUCCEEDED",
+        "valid": false,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-b4ec75c36a6711ee8175af3fa00dd44577ee86070d223213c261054ab015ac02:receipt"
+      },
+      {
+        "operationId": "workspace-2549287928e5080256258c632e24f48b6e6e6a31465c73e24fa60a42027f3d51",
+        "tool": "workspace_metadata",
+        "durationMs": 334,
+        "status": "SUCCEEDED",
+        "valid": false,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-2549287928e5080256258c632e24f48b6e6e6a31465c73e24fa60a42027f3d51:receipt"
+      },
+      {
+        "operationId": "workspace-9219321edffece4e6c6c7df969e88546fe6962200792117617240b41e9b6b845",
+        "tool": "workspace_metadata",
+        "durationMs": 393,
+        "status": "SUCCEEDED",
+        "valid": false,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-9219321edffece4e6c6c7df969e88546fe6962200792117617240b41e9b6b845:receipt"
+      },
+      {
+        "operationId": "workspace-35c87565756206b36f986ec1a62e277dea51e3e44b750575a68632112fe4943a",
+        "tool": "workspace_validate",
+        "durationMs": 1693,
+        "status": "VALID",
+        "valid": true,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-35c87565756206b36f986ec1a62e277dea51e3e44b750575a68632112fe4943a:receipt"
+      },
+      {
+        "operationId": "workspace-b05c0afdec157538a2773e6b9fcdcef0388e1490066af76aa9a9d923510b9816",
+        "tool": "workspace_propose",
+        "durationMs": 1011,
+        "status": "VALID",
+        "valid": true,
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-b05c0afdec157538a2773e6b9fcdcef0388e1490066af76aa9a9d923510b9816:receipt"
+      }
+    ]
+  },
+  "preselectedTables": [],
+  "selectedBindings": [
+    {
+      "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+      "serviceId": "chatchat-mcp-server",
+      "assetRef": "74b06700-409c-4959-a983-9306796d1079",
+      "role": "SOURCE",
+      "database": null,
+      "schema": null,
+      "sourceDialect": "oracle"
+    }
+  ],
+  "createdAt": "2026-10-29T15:13:16.647Z",
+  "finishedAt": "2026-10-29T15:19:00.055Z",
+  "notes": "## 元数据探索与SQL生成说明\n\n### 数据源发现\n- 绑定: chatchat-mcp-server (SOURCE), 方言: Oracle\n- 命名空间: DATACENTER, ET_DB, DBSNMP, ET_APP\n- 主要业务表集中在 DATACENTER.DATACENTER 模式\n\n### 使用的表(全部经DESCRIBE验证字段)\n| 表名 | 注释 | 用途 |\n|------|------|------|\n| TKHXX | 备份日终后的客户信息数据 | 客户基本信息 |\n| TZJZH | 备份上次日终时的数据(资金帐户) | 资金余额 |\n| TZQGL | (备份表)证券余额 | 证券持仓 |\n| TZJYELS | (历史表)资金余额历史 | 资金历史 |\n| TZQYELS | 记录历史股份余额情况 | 股份历史 |\n| TWTLS | (历史流水表)证券委托记录历史 | 委托/交易 |\n| TJGMXLS | (历史流水表)证券交割资料历史 | 成交明细+费用 |\n| TTZSY | (历史表)投资损益表 | 普通证券盈亏 |\n| TSO_TZSY | (历史_流水)个股期权投资损益 | 期权盈亏 |\n\n### 企业术语检索结果\n- \"交易(TRD)\" 匹配自 证券期货行业标准模版, 场景: 交易与订单\n- 未找到已注册的 \"浮动盈亏\"、\"资产净值\" 等指标定义\n\n### 未确认事项(明确标注,不臆造)\n1. **无已确认外键**: 所有表 relationsStatus=NOT_COLLECTED, 未做跨表JOIN\n2. **无推断公式**: LJYK(累计盈亏)、BCYK(本次盈亏) 均为原始字段直接选取\n3. **未推断浮动盈亏**: ZXSZ(最新市值) 和 CCCB(持仓成本) 仅作为原始字段展示\n4. **未推断实现盈亏公式**: TTZSY 的 MRJE/MCJE/JYFY 仅展示原始值\n5. **所有表为备份/历史快照**: 非实时在线数据\n6. **客户号保留前导零**: CHAR类型用 TRIM(KHH)='070200046604' 匹配\n\n### 验证状态\n- SQL解析: ✅ PASSED (sqlglot v30.23.0)\n- 字段校验: ✅ CHECKED (所有引用字段均在DESCRIBE中确认)\n- 业务验证: NOT_EVALUATED (未执行SQL, 未读取客户业务明细)",
+  "files": [
+    {
+      "path": "sql/customer_070200046604_queries.sql",
+      "exportedFile": "customer_070200046604_queries.sql",
+      "sha256": "7005496fdcdf2a1ea36a5ea0e10ee3179fdd0dd6c00960de3ab12a35756869cc",
+      "statements": 10,
+      "arithmeticExpressions": 0,
+      "aggregateFunctions": 0,
+      "joins": 0
+    }
+  ],
+  "businessMetadata": [
+    {
+      "arguments": {
+        "query": "客户号 交易 资产 盈亏",
+        "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+        "operation": "BUSINESS_SEARCH"
+      },
+      "status": "SUCCEEDED",
+      "count": 1,
+      "results": [
+        {
+          "id": "LD_ETM_529960673497800704",
+          "name": "交易",
+          "metadataType": "metadata_term",
+          "technicalName": "TRD",
+          "description": "事件",
+          "definition": null,
+          "source": "证券期货行业标准模版.xlsx#证券期货行业标准模版"
+        }
+      ],
+      "evidenceCoverage": {
+        "scope": "ENTERPRISE_FIELD_METADATA",
+        "evidenceRole": "STANDARD_REFERENCE_DATA",
+        "policyVersion": "metadata_governance_policy_v1",
+        "interpretation": "Describes enterprise field metadata returned as standard reference data; conclusions are produced by the model from all available evidence",
+        "contractVersion": "enterprise_metadata_evidence_coverage.v2",
+        "declarationSource": "metadata_governance_policy",
+        "returnedEvidenceTypes": [
+          "standard field metadata",
+          "business term and root metadata",
+          "code dictionary metadata"
+        ]
+      },
+      "queryOptimization": {
+        "budgets": {
+          "maxBatches": 16,
+          "maxCandidates": 500,
+          "totalTimeoutMs": 20000,
+          "maxTotalCandidates": 4000,
+          "maxEstimatedClauses": 512
+        },
+        "coverage": "BOUNDED_TOP_K",
+        "requestCount": 6,
+        "schemaVersion": "query-optimization.v1",
+        "refinementCalls": 0,
+        "transformations": [
+          {
+            "keywords": [
+              "交易",
+              "资产",
+              "盈亏",
+              "客户",
+              "交易规费",
+              "资产净值",
+              "交易员",
+              "交易所",
+              "交易日",
+              "客户号",
+              "客户关系管理",
+              "Customer",
+              "Asset",
+              "Trade",
+              "Relationship",
+              "Transaction",
+              "Management",
+              "Exchange",
+              "Dealer",
+              "Profit"
+            ],
+            "optimizedQuery": "交易 资产 盈亏 客户 交易规费 资产净值 交易员 交易所 交易日 客户号 客户关系管理 Customer Asset Trade Relationship Transaction Management Exchange Dealer Profit",
+            "protectedPhrases": [],
+            "semanticGuarantee": "LEXICAL_APPROXIMATION",
+            "originalQuerySha256": "f4254302dc8db856393200bb930896fdef1eabb292598c25609f6e3cd0cab779"
+          }
+        ]
+      }
+    }
+  ],
+  "toolReceipts": [
+    {
+      "tool": "workspace_read",
+      "arguments": null,
+      "status": null,
+      "valid": null,
+      "category": null,
+      "durationMs": null,
+      "sqlExecuted": false,
+      "metadataItemCount": 0,
+      "candidateTableNames": [],
+      "describedTables": [],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-a33eb3cd992d4c59f358c0dbd0bb5c647ad02708258012ba967bdd3f5516901e:receipt",
+      "contentSha256": "3def67b5a965f34f5bf566771b47f040a7c81538193b7ee5a71bb0bc4707daa0",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "arguments": {
+        "operation": "LIST_BINDINGS"
+      },
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 150,
+      "sqlExecuted": false,
+      "metadataItemCount": 0,
+      "candidateTableNames": [],
+      "describedTables": [],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-3f634cc0f7ec745fcb8158539bae4e069c8c3eaa216fd8ab757f5997f717566e:receipt",
+      "contentSha256": "5780aa606e26de22d4655e94d168a5447df6c9b7b615a4243a610ecece64a159",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "arguments": {
+        "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+        "operation": "LIST_NAMESPACES"
+      },
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 569,
+      "sqlExecuted": false,
+      "metadataItemCount": 4,
+      "candidateTableNames": [],
+      "describedTables": [],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-0a8e7ae2afe57d3160e13679d06759c56963dfb91bca2f045f2baaad746894f6:receipt",
+      "contentSha256": "f8be7b2b7bacef6b486c76773031a25bd5744aa6c267b06f41a26d903050f58c",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "arguments": {
+        "query": "交易 transaction",
+        "schema": "DATACENTER",
+        "database": "DATACENTER",
+        "pageSize": 20,
+        "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+        "operation": "SEARCH"
+      },
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 1685,
+      "sqlExecuted": false,
+      "metadataItemCount": 20,
+      "candidateTableNames": [
+        "TXY_ZGZQJZCYLS",
+        "TXY_ZGZQLS",
+        "TXY_ZGZQLS_BF",
+        "TSO_HYDMLS",
+        "TXY_RZRQHYHZB",
+        "TCTXXMXLS",
+        "TZQJYTJ",
+        "TEMZQJYTJ",
+        "TWTLS",
+        "TXY_ZGZQSGTZLS",
+        "TEMDRWT",
+        "TKHBSDJYRZLS",
+        "TGDH",
+        "TSO_WTLS",
+        "TXY_RZRQTJ",
+        "TKHXX",
+        "TXY_CISPM2",
+        "TZQGL",
+        "TDJSQSZL",
+        "TZQDMEXLS"
+      ],
+      "describedTables": [],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-c8cc9514cfad15d6d34bde7062a8caa26be2a528773d61a30accf2768ba8d946:receipt",
+      "contentSha256": "4c5f8bea1e41c84de43fa17123346ad180c911b70c5ca019a11bfae95e2e7d89",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "arguments": {
+        "query": "资产 asset",
+        "schema": "DATACENTER",
+        "database": "DATACENTER",
+        "pageSize": 20,
+        "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+        "operation": "SEARCH"
+      },
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 1800,
+      "sqlExecuted": false,
+      "metadataItemCount": 20,
+      "candidateTableNames": [
+        "TXY_HTXXLS",
+        "TXY_TSBKRZRQTJ",
+        "TKHBSDJYRZLS",
+        "TXY_BJS_SJTJ",
+        "TZCZHBCZ",
+        "TZJZH",
+        "TXY_CISPM2",
+        "TXY_HZKHXXLS",
+        "TXY_PCKHQDLS",
+        "TXY_KHLSFZHZXX",
+        "TXY_ZQSQMXLS",
+        "TXY_DPFXKHLS",
+        "TXY_ZLXXLS",
+        "TKHXX",
+        "TSO_KHXGXXLS",
+        "TXY_RZQYZCTZLS",
+        "TXY_RZQYZCTZ",
+        "TZQDMEX_BF",
+        "TZQDMEXLS",
+        "TOF_JJXX"
+      ],
+      "describedTables": [],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-0db0613fed73fea451bf3878c0477f8f1f5fdde89c0fbb3f2259bc82bf312aef:receipt",
+      "contentSha256": "a51dd93f28bac96cb0a43f2f7d4ef62ce44b8b4fe9a4697a5f8d2e5b5ac81ed8",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "arguments": {
+        "query": "盈亏 profit loss pnl",
+        "schema": "DATACENTER",
+        "database": "DATACENTER",
+        "pageSize": 20,
+        "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+        "operation": "SEARCH"
+      },
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 1649,
+      "sqlExecuted": false,
+      "metadataItemCount": 20,
+      "candidateTableNames": [
+        "TXY_HTXXLS",
+        "TSO_HYCCLS",
+        "TXY_C101BB",
+        "TSO_HYCC",
+        "TXY_CISPM2",
+        "TZQYELS",
+        "TDC_DBXX",
+        "TSO_HYCCYELS",
+        "TOF_JJFE",
+        "TXY_RZRQHYHZB",
+        "TPROCVER",
+        "TZQGL",
+        "TJGMXLS",
+        "TEMJGMX",
+        "TXY_FZXXLS_BF",
+        "TXY_FZXXLS",
+        "TSO_JGMXLS",
+        "TXY_FZXXLS_OVER",
+        "TDC_SJQXDY",
+        "TJGGL"
+      ],
+      "describedTables": [],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-687323c062791904315f78b622841af788e3707906d641d3372c973cbdeed2d7:receipt",
+      "contentSha256": "49668a9968fe7e357990312fc6bf7f4870fdc863c92d4eb1a441885d1ac4975c",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "arguments": {
+        "query": "客户 customer client",
+        "schema": "DATACENTER",
+        "database": "DATACENTER",
+        "pageSize": 20,
+        "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+        "operation": "SEARCH"
+      },
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 1683,
+      "sqlExecuted": false,
+      "metadataItemCount": 20,
+      "candidateTableNames": [
+        "TKHXX",
+        "TZRT_RRZQCJQK",
+        "TZJZH",
+        "TKHBSDJYRZLS",
+        "TXY_CISPM2",
+        "TOF_JJZH",
+        "TSO_HYZH",
+        "TKHJLKH",
+        "TKHFLTJ",
+        "TXY_C101BB",
+        "TCGZHDY",
+        "TZJYELS",
+        "TGDH",
+        "TOF_JJFE",
+        "TEMZJYELS",
+        "TDJSQSZL",
+        "TOF_JJFELS",
+        "TZJDJMXLS",
+        "TSO_HYCCYELS",
+        "TEMJGMX"
+      ],
+      "describedTables": [],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-87c0bcea88e217d590ad385d7c8c3215e7ee3e843798a01fdf926ad25ab555b2:receipt",
+      "contentSha256": "0146947418287e9153d877eaf87ccfe18822dd05c6aff56429eda1a18956321d",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "arguments": {
+        "schema": "DATACENTER",
+        "database": "DATACENTER",
+        "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+        "operation": "DESCRIBE",
+        "tableName": "TKHXX",
+        "includeColumns": true
+      },
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 389,
+      "sqlExecuted": false,
+      "metadataItemCount": 1,
+      "candidateTableNames": [
+        "TKHXX"
+      ],
+      "describedTables": [
+        {
+          "tableName": "TKHXX",
+          "database": "DATACENTER",
+          "schema": "DATACENTER",
+          "columnCount": 47,
+          "relationsStatus": "NOT_COLLECTED",
+          "knownForeignKeyCount": 0,
+          "columns": [
+            {
+              "name": "CITY",
+              "dataType": "VARCHAR2",
+              "comment": "所在城市"
+            },
+            {
+              "name": "CPXMFW",
+              "dataType": "NUMBER",
+              "comment": "产品项目"
+            },
+            {
+              "name": "CZ",
+              "dataType": "VARCHAR2",
+              "comment": "传真"
+            },
+            {
+              "name": "DH",
+              "dataType": "VARCHAR2",
+              "comment": "联系电话"
+            },
+            {
+              "name": "DZ",
+              "dataType": "VARCHAR2",
+              "comment": "通讯地址"
+            },
+            {
+              "name": "EMAIL",
+              "dataType": "VARCHAR2",
+              "comment": "电子邮件地址"
+            },
+            {
+              "name": "FWXMFW",
+              "dataType": "NUMBER",
+              "comment": "服务项目"
+            },
+            {
+              "name": "FXCJYMM",
+              "dataType": "CHAR",
+              "comment": "非现场交易密码"
+            },
+            {
+              "name": "FXJB",
+              "dataType": "NUMBER",
+              "comment": "风险级别"
+            },
+            {
+              "name": "GJDM",
+              "dataType": "NUMBER",
+              "comment": "国籍代码"
+            },
+            {
+              "name": "GSFL",
+              "dataType": "CHAR",
+              "comment": "公司分类"
+            },
+            {
+              "name": "JFQSRQ",
+              "dataType": "NUMBER",
+              "comment": "积分起始日期"
+            },
+            {
+              "name": "JGBZ",
+              "dataType": "NUMBER",
+              "comment": "机构标志"
+            },
+            {
+              "name": "JYMM",
+              "dataType": "CHAR",
+              "comment": "交易密码"
+            },
+            {
+              "name": "KHH",
+              "dataType": "CHAR",
+              "comment": "客户号"
+            },
+            {
+              "name": "KHJF",
+              "dataType": "NUMBER",
+              "comment": "客户积分"
+            },
+            {
+              "name": "KHKH",
+              "dataType": "VARCHAR2",
+              "comment": "客户卡号"
+            },
+            {
+              "name": "KHQC",
+              "dataType": "VARCHAR2",
+              "comment": "全称"
+            },
+            {
+              "name": "KHQZ",
+              "dataType": "CHAR",
+              "comment": "客户群组"
+            },
+            {
+              "name": "KHRQ",
+              "dataType": "NUMBER",
+              "comment": "客户开户日期"
+            },
+            {
+              "name": "KHSX",
+              "dataType": "NUMBER",
+              "comment": "客户???制属性"
+            },
+            {
+              "name": "KHXM",
+              "dataType": "VARCHAR2",
+              "comment": "客户姓名"
+            },
+            {
+              "name": "KHZT",
+              "dataType": "NUMBER",
+              "comment": "客户状态"
+            },
+            {
+              "name": "MMBDRQ",
+              "dataType": "NUMBER",
+              "comment": "密码变动日期"
+            },
+            {
+              "name": "MMTBBZ",
+              "dataType": "NUMBER",
+              "comment": "0资金密码和交易密码独立设置\n1资金密码和交易密码同步"
+            },
+            {
+              "name": "MOBILE",
+              "dataType": "VARCHAR2",
+              "comment": "手机"
+            },
+            {
+              "name": "PROVINCE",
+              "dataType": "VARCHAR2",
+              "comment": "所属省份"
+            },
+            {
+              "name": "SEC",
+              "dataType": "VARCHAR2",
+              "comment": "所在辖区"
+            },
+            {
+              "name": "TBTS",
+              "dataType": "VARCHAR2",
+              "comment": "特别提示信息"
+            },
+            {
+              "name": "TZZFL",
+              "dataType": "NUMBER",
+              "comment": "指个人，机构，自营"
+            },
+            {
+              "name": "WTFSFW",
+              "dataType": "NUMBER",
+              "comment": "委托方式"
+            },
+            {
+              "name": "XB",
+              "dataType": "NUMBER",
+              "comment": "性别"
+            },
+            {
+              "name": "XHRQ",
+              "dataType": "NUMBER",
+              "comment": "客户销户日期"
+            },
+            {
+              "name": "XLDM",
+              "dataType": "NUMBER",
+              "comment": "学历代码"
+            },
+            {
+              "name": "YXZZDM",
+              "dataType": "CHAR",
+              "comment": "营销组织代码"
+            },
+            {
+              "name": "YYB",
+              "dataType": "CHAR",
+              "comment": "营业部"
+            },
+            {
+              "name": "YZBM",
+              "dataType": "CHAR",
+              "comment": "邮政编码"
+            },
+            {
+              "name": "ZJBH",
+              "dataType": "VARCHAR2",
+              "comment": "证件编号"
+            },
+            {
+              "name": "ZJDLFS",
+              "dataType": "NUMBER",
+              "comment": "最近登录方式"
+            },
+            {
+              "name": "ZJDLRQ",
+              "dataType": "NUMBER",
+              "comment": "最近登录日期"
+            },
+            {
+              "name": "ZJDLSJ",
+              "dataType": "DATE",
+              "comment": "最近登录时间"
+            },
+            {
+              "name": "ZJDLZD",
+              "dataType": "VARCHAR2",
+              "comment": "最近登录站点"
+            },
+            {
+              "name": "ZJDZ",
+              "dataType": "VARCHAR2",
+              "comment": "证件地址"
+            },
+            {
+              "name": "ZJLB",
+              "dataType": "NUMBER",
+              "comment": "证件类别"
+            },
+            {
+              "name": "ZJMM",
+              "dataType": "CHAR",
+              "comment": "资金密码"
+            },
+            {
+              "name": "ZJYXQ",
+              "dataType": "NUMBER",
+              "comment": "证件有效期"
+            },
+            {
+              "name": "ZYDM",
+              "dataType": "NUMBER",
+              "comment": "职业代码"
+            }
+          ]
+        }
+      ],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-fdb4c2486f59e87ed7fea6c2ee608b39fa5a3209a272a16e09a133028fa6f9e0:receipt",
+      "contentSha256": "956e27b89fca66637ddcf6d542281b2660db7c5264cb39f8428a2dd235a2213e",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "arguments": {
+        "schema": "DATACENTER",
+        "database": "DATACENTER",
+        "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+        "operation": "DESCRIBE",
+        "tableName": "TZQGL",
+        "includeColumns": true
+      },
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 475,
+      "sqlExecuted": false,
+      "metadataItemCount": 1,
+      "candidateTableNames": [
+        "TZQGL"
+      ],
+      "describedTables": [
+        {
+          "tableName": "TZQGL",
+          "database": "DATACENTER",
+          "schema": "DATACENTER",
+          "columnCount": 41,
+          "relationsStatus": "NOT_COLLECTED",
+          "knownForeignKeyCount": 0,
+          "columns": [
+            {
+              "name": "BDRQ",
+              "dataType": "NUMBER",
+              "comment": "变动日期"
+            },
+            {
+              "name": "BZ",
+              "dataType": "CHAR",
+              "comment": "结算币种"
+            },
+            {
+              "name": "CCCB",
+              "dataType": "NUMBER",
+              "comment": "持仓成本"
+            },
+            {
+              "name": "DJSL",
+              "dataType": "NUMBER",
+              "comment": "冻结数量"
+            },
+            {
+              "name": "FLTSL",
+              "dataType": "NUMBER",
+              "comment": "非流通数量"
+            },
+            {
+              "name": "GDH",
+              "dataType": "CHAR",
+              "comment": "股东号"
+            },
+            {
+              "name": "GSFL",
+              "dataType": "CHAR",
+              "comment": "公司分类"
+            },
+            {
+              "name": "HLJE",
+              "dataType": "NUMBER",
+              "comment": "红利金额"
+            },
+            {
+              "name": "JYFY",
+              "dataType": "NUMBER",
+              "comment": "交易费用"
+            },
+            {
+              "name": "JYS",
+              "dataType": "CHAR",
+              "comment": "交易所"
+            },
+            {
+              "name": "KCRQ",
+              "dataType": "NUMBER",
+              "comment": "开仓日期"
+            },
+            {
+              "name": "KHH",
+              "dataType": "CHAR",
+              "comment": "客户号"
+            },
+            {
+              "name": "KHQZ",
+              "dataType": "CHAR",
+              "comment": "客户群组"
+            },
+            {
+              "name": "KHXM",
+              "dataType": "VARCHAR2",
+              "comment": "客户姓名"
+            },
+            {
+              "name": "LJYK",
+              "dataType": "NUMBER",
+              "comment": "累计盈亏"
+            },
+            {
+              "name": "MCCJJE",
+              "dataType": "NUMBER",
+              "comment": "当日卖出成交金额"
+            },
+            {
+              "name": "MCCJSL",
+              "dataType": "NUMBER",
+              "comment": "当日卖出成交数量"
+            },
+            {
+              "name": "MCDXSL",
+              "dataType": "NUMBER",
+              "comment": "对ETF来说,指卖出委托数量可以被申购成交抵消的数量；\n对股票来说，指卖出委托数量可以被赎回成交抵消的数量；"
+            },
+            {
+              "name": "MCJE",
+              "dataType": "NUMBER",
+              "comment": "卖出金额"
+            },
+            {
+              "name": "MCSL",
+              "dataType": "NUMBER",
+              "comment": "卖出数量"
+            },
+            {
+              "name": "MCWTSL",
+              "dataType": "NUMBER",
+              "comment": "当日卖出委托数量"
+            },
+            {
+              "name": "MRCJJE",
+              "dataType": "NUMBER",
+              "comment": "当日买入成交金额"
+            },
+            {
+              "name": "MRCJSL",
+              "dataType": "NUMBER",
+              "comment": "当日买入成交数量"
+            },
+            {
+              "name": "MRDXSL",
+              "dataType": "NUMBER",
+              "comment": "对ETF来说,指赎回委托数量（记在卖出委托数量中）可以被买入成交抵消的数量；\n对股票来说，指申购委托数量（记在卖出委托数量中）可以被买入成交抵消的数量；"
+            },
+            {
+              "name": "MRJE",
+              "dataType": "NUMBER",
+              "comment": "买入金额"
+            },
+            {
+              "name": "MRSL",
+              "dataType": "NUMBER",
+              "comment": "买入数量"
+            },
+            {
+              "name": "MRWTSL",
+              "dataType": "NUMBER",
+              "comment": "当日买入委托数量"
+            },
+            {
+              "name": "PGJE",
+              "dataType": "NUMBER",
+              "comment": "配股缴款金额"
+            },
+            {
+              "name": "PGSL",
+              "dataType": "NUMBER",
+              "comment": "配股数量"
+            },
+            {
+              "name": "SGCJSL",
+              "dataType": "NUMBER",
+              "comment": "当日申购成交数量"
+            },
+            {
+              "name": "SGSL",
+              "dataType": "NUMBER",
+              "comment": "送股数量"
+            },
+            {
+              "name": "SHCJSL",
+              "dataType": "NUMBER",
+              "comment": "当日赎回成交数量"
+            },
+            {
+              "name": "WJSSL",
+              "dataType": "NUMBER",
+              "comment": "未交收证券数量"
+            },
+            {
+              "name": "XWDM",
+              "dataType": "VARCHAR2",
+              "comment": "托管席位"
+            },
+            {
+              "name": "YYB",
+              "dataType": "CHAR",
+              "comment": "客户营业部"
+            },
+            {
+              "name": "ZHGLJG",
+              "dataType": "CHAR",
+              "comment": "帐户管理机构"
+            },
+            {
+              "name": "ZQDM",
+              "dataType": "VARCHAR2",
+              "comment": "证券代码"
+            },
+            {
+              "name": "ZQLB",
+              "dataType": "CHAR",
+              "comment": "证券类别"
+            },
+            {
+              "name": "ZQMC",
+              "dataType": "VARCHAR2",
+              "comment": "证券名称"
+            },
+            {
+              "name": "ZQSL",
+              "dataType": "NUMBER",
+              "comment": "证券数量"
+            },
+            {
+              "name": "ZXSZ",
+              "dataType": "NUMBER",
+              "comment": "最新市值"
+            }
+          ]
+        }
+      ],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-05c9e1d3482d4480917f3b2ba654f00b43a3b7cfd75038bf24ca00e1f334b6f8:receipt",
+      "contentSha256": "90845408d75dfd873bb3066420cfa60b09df917931fc3337d4159bf6bdfa3362",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "arguments": {
+        "schema": "DATACENTER",
+        "database": "DATACENTER",
+        "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+        "operation": "DESCRIBE",
+        "tableName": "TZJZH",
+        "includeColumns": true
+      },
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 411,
+      "sqlExecuted": false,
+      "metadataItemCount": 1,
+      "candidateTableNames": [
+        "TZJZH"
+      ],
+      "describedTables": [
+        {
+          "tableName": "TZJZH",
+          "database": "DATACENTER",
+          "schema": "DATACENTER",
+          "columnCount": 31,
+          "relationsStatus": "NOT_COLLECTED",
+          "knownForeignKeyCount": 0,
+          "columns": [
+            {
+              "name": "BDRQ",
+              "dataType": "NUMBER",
+              "comment": "最近变动日期"
+            },
+            {
+              "name": "BZ",
+              "dataType": "CHAR",
+              "comment": "币种"
+            },
+            {
+              "name": "DJJE",
+              "dataType": "NUMBER",
+              "comment": "冻结金额"
+            },
+            {
+              "name": "DRCKJE",
+              "dataType": "NUMBER",
+              "comment": "当日存款金额"
+            },
+            {
+              "name": "DZLX",
+              "dataType": "NUMBER",
+              "comment": "待转利息"
+            },
+            {
+              "name": "GSFL",
+              "dataType": "CHAR",
+              "comment": "公司分类"
+            },
+            {
+              "name": "KHH",
+              "dataType": "CHAR",
+              "comment": "客户号"
+            },
+            {
+              "name": "KHQZ",
+              "dataType": "CHAR",
+              "comment": "客户群组"
+            },
+            {
+              "name": "KHRQ",
+              "dataType": "NUMBER",
+              "comment": "开户日期"
+            },
+            {
+              "name": "KHXM",
+              "dataType": "VARCHAR2",
+              "comment": "客户姓名"
+            },
+            {
+              "name": "LXJS",
+              "dataType": "NUMBER",
+              "comment": "利息积数"
+            },
+            {
+              "name": "SRYE",
+              "dataType": "NUMBER",
+              "comment": "上日余额"
+            },
+            {
+              "name": "TZJS",
+              "dataType": "NUMBER",
+              "comment": "透支积数"
+            },
+            {
+              "name": "WJSZJ",
+              "dataType": "NUMBER",
+              "comment": "未交收资金"
+            },
+            {
+              "name": "XHRQ",
+              "dataType": "NUMBER",
+              "comment": "销户日期"
+            },
+            {
+              "name": "XJYE",
+              "dataType": "NUMBER",
+              "comment": "现金存款余额"
+            },
+            {
+              "name": "YJLX",
+              "dataType": "NUMBER",
+              "comment": "预计利息"
+            },
+            {
+              "name": "YWFW",
+              "dataType": "NUMBER",
+              "comment": "资金帐户可以办理的业务范围：证券交易结算，期货结算，开放式基金结算，银证转帐"
+            },
+            {
+              "name": "YYB",
+              "dataType": "CHAR",
+              "comment": "客户营业部"
+            },
+            {
+              "name": "ZCFZ",
+              "dataType": "CHAR",
+              "comment": "资产分组"
+            },
+            {
+              "name": "ZHGLJG",
+              "dataType": "CHAR",
+              "comment": "帐户管理机构"
+            },
+            {
+              "name": "ZHLB",
+              "dataType": "NUMBER",
+              "comment": "帐户类别"
+            },
+            {
+              "name": "ZHMC",
+              "dataType": "VARCHAR2",
+              "comment": "帐户名称"
+            },
+            {
+              "name": "ZHSX",
+              "dataType": "NUMBER",
+              "comment": "帐户属性"
+            },
+            {
+              "name": "ZHYE",
+              "dataType": "NUMBER",
+              "comment": "帐户余额"
+            },
+            {
+              "name": "ZHZT",
+              "dataType": "NUMBER",
+              "comment": "帐户状态"
+            },
+            {
+              "name": "ZJZH",
+              "dataType": "VARCHAR2",
+              "comment": "资金帐号"
+            },
+            {
+              "name": "ZPYE",
+              "dataType": "NUMBER",
+              "comment": "支票存款余额"
+            },
+            {
+              "name": "ZRSZ",
+              "dataType": "NUMBER",
+              "comment": "库存现值"
+            },
+            {
+              "name": "ZZHBZ",
+              "dataType": "NUMBER",
+              "comment": "主帐户标志"
+            },
+            {
+              "name": "ZZJZH",
+              "dataType": "VARCHAR2",
+              "comment": "主资金账户"
+            }
+          ]
+        }
+      ],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-ca227bd10aeee125b078dd6a0b7c227ad03725c849dbc4d9bc20f8af817ef225:receipt",
+      "contentSha256": "082d920af29e245bc7f89b23646a431f24010186fb72859b132ad2fcd72a3ab3",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "arguments": {
+        "schema": "DATACENTER",
+        "database": "DATACENTER",
+        "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+        "operation": "DESCRIBE",
+        "tableName": "TZQJYTJ",
+        "includeColumns": true
+      },
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 415,
+      "sqlExecuted": false,
+      "metadataItemCount": 1,
+      "candidateTableNames": [
+        "TZQJYTJ"
+      ],
+      "describedTables": [
+        {
+          "tableName": "TZQJYTJ",
+          "database": "DATACENTER",
+          "schema": "DATACENTER",
+          "columnCount": 32,
+          "relationsStatus": "NOT_COLLECTED",
+          "knownForeignKeyCount": 0,
+          "columns": [
+            {
+              "name": "BZ",
+              "dataType": "CHAR",
+              "comment": "币种"
+            },
+            {
+              "name": "BZS1",
+              "dataType": "NUMBER",
+              "comment": "标准佣金"
+            },
+            {
+              "name": "CJBS",
+              "dataType": "NUMBER",
+              "comment": "成交笔数"
+            },
+            {
+              "name": "CJJE",
+              "dataType": "NUMBER",
+              "comment": "成交金额"
+            },
+            {
+              "name": "CJSL",
+              "dataType": "NUMBER",
+              "comment": "成交数量"
+            },
+            {
+              "name": "FSYYB",
+              "dataType": "CHAR",
+              "comment": "发生营业部"
+            },
+            {
+              "name": "JYLB",
+              "dataType": "NUMBER",
+              "comment": "交易类别"
+            },
+            {
+              "name": "JYS",
+              "dataType": "CHAR",
+              "comment": "交易所"
+            },
+            {
+              "name": "KHFL",
+              "dataType": "VARCHAR2",
+              "comment": "客户类别"
+            },
+            {
+              "name": "KHFLFS",
+              "dataType": "NUMBER",
+              "comment": "取值参照数据字典FLDM='KHFLFS'\n特别增加KHFLFS=9,按照席位统计，KHFL记席位号"
+            },
+            {
+              "name": "LXJE",
+              "dataType": "NUMBER",
+              "comment": "利息金额"
+            },
+            {
+              "name": "RQ",
+              "dataType": "NUMBER",
+              "comment": "日期"
+            },
+            {
+              "name": "S1",
+              "dataType": "NUMBER",
+              "comment": "实收佣金"
+            },
+            {
+              "name": "S11",
+              "dataType": "NUMBER",
+              "comment": "一级经手费"
+            },
+            {
+              "name": "S12",
+              "dataType": "NUMBER",
+              "comment": "一级证管费"
+            },
+            {
+              "name": "S13",
+              "dataType": "NUMBER",
+              "comment": "一级过户费"
+            },
+            {
+              "name": "S15",
+              "dataType": "NUMBER",
+              "comment": "一级结算费"
+            },
+            {
+              "name": "S16",
+              "dataType": "NUMBER",
+              "comment": "一级风险基金"
+            },
+            {
+              "name": "S2",
+              "dataType": "NUMBER",
+              "comment": "印花税"
+            },
+            {
+              "name": "S3",
+              "dataType": "NUMBER",
+              "comment": "过户费"
+            },
+            {
+              "name": "S4",
+              "dataType": "NUMBER",
+              "comment": "附加费"
+            },
+            {
+              "name": "S5",
+              "dataType": "NUMBER",
+              "comment": "结算费"
+            },
+            {
+              "name": "S6",
+              "dataType": "NUMBER",
+              "comment": "交易规费"
+            },
+            {
+              "name": "TJFL",
+              "dataType": "NUMBER",
+              "comment": "统计分类"
+            },
+            {
+              "name": "WTFS",
+              "dataType": "NUMBER",
+              "comment": "委托方式"
+            },
+            {
+              "name": "XWDM",
+              "dataType": "VARCHAR2",
+              "comment": "席位代码"
+            },
+            {
+              "name": "YHDM",
+              "dataType": "VARCHAR2",
+              "comment": "结算银行"
+            },
+            {
+              "name": "YSJE",
+              "dataType": "NUMBER",
+              "comment": "应收金额"
+            },
+            {
+              "name": "YSJE_YJ",
+              "dataType": "NUMBER",
+              "comment": "一级应收付金额"
+            },
+            {
+              "name": "YYB",
+              "dataType": "CHAR",
+              "comment": "营业部"
+            },
+            {
+              "name": "ZHGLJG",
+              "dataType": "CHAR",
+              "comment": "帐户管理机构"
+            },
+            {
+              "name": "ZQLB",
+              "dataType": "CHAR",
+              "comment": "证券类别"
+            }
+          ]
+        }
+      ],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-ce8c64d2ace5b25e090d995f6293bdccc5ca14ad93687c5674d5865226ae847b:receipt",
+      "contentSha256": "592f71a971f29b9edcf03cc90eb2651389c361e051666fdf89f5edb50d64c53f",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "arguments": {
+        "query": "成交 deal trade cj",
+        "schema": "DATACENTER",
+        "database": "DATACENTER",
+        "pageSize": 20,
+        "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+        "operation": "SEARCH"
+      },
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 1782,
+      "sqlExecuted": false,
+      "metadataItemCount": 20,
+      "candidateTableNames": [
+        "TZYHG",
+        "TZQGL",
+        "TSO_HYCC",
+        "TSO_ZHCLCC",
+        "TDJSQSZL",
+        "TEMDRWT",
+        "TJGMXLS",
+        "TEMJGMX",
+        "TWTLS",
+        "TSO_JGMXLS",
+        "TSO_WTLS",
+        "TXY_FZXXLS_OVER",
+        "TZYHGLS",
+        "TYDGH",
+        "TYDGHLS",
+        "TSO_HYJYTJ",
+        "TSO_ZHCLCCLS",
+        "TZRT_RRZQCJQK",
+        "TSO_HYCCLS",
+        "TXY_RZRQHYHZB"
+      ],
+      "describedTables": [],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-4804fbe738d3b99d3d261f12abef5645878292ab67effd5e91de768bf3ae0dc0:receipt",
+      "contentSha256": "b3d43836c7eb47aa9bbba683c69680b5180392743b8bc58e64e4e6849704da29",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "arguments": {
+        "query": "盈亏 浮动盈亏 实现盈亏",
+        "schema": "DATACENTER",
+        "database": "DATACENTER",
+        "pageSize": 20,
+        "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+        "operation": "SEARCH"
+      },
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 1633,
+      "sqlExecuted": false,
+      "metadataItemCount": 20,
+      "candidateTableNames": [
+        "TXY_HTXXLS",
+        "TXY_C101BB",
+        "TXY_CISPM2",
+        "TSO_HYCCLS",
+        "TSO_HYCC",
+        "TJGMXLS",
+        "TEMJGMX",
+        "TSO_JGMXLS",
+        "TZQGL",
+        "TXY_FZXXLS_BF",
+        "TXY_FZXXLS",
+        "TZQYELS",
+        "TSO_HYCCYELS",
+        "TXY_FZXXLS_OVER",
+        "TOF_JJFE",
+        "TXY_RZRQHYHZB",
+        "TXY_KHGXHXX",
+        "TXY_KHDBZQSZ",
+        "TZRT_KHYYBYWTLS_BF",
+        "TZRT_KHYYBYWTLS"
+      ],
+      "describedTables": [],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-f2efb3668af98c814b9d417c5e5bdb733793b1f954393f48e4e38789ebd33476:receipt",
+      "contentSha256": "187e3f70a1a0b60cc692c3d60cf069734111518d232186810c79912928898a8c",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "arguments": {
+        "query": "成交流水 成交记录 CJLS",
+        "schema": "DATACENTER",
+        "database": "DATACENTER",
+        "pageSize": 20,
+        "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+        "operation": "SEARCH"
+      },
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 1789,
+      "sqlExecuted": false,
+      "metadataItemCount": 20,
+      "candidateTableNames": [
+        "TWTLS",
+        "TSO_WTLS",
+        "TEMDRWT",
+        "TZRT_HYXXLS_BF",
+        "TZRT_HYXXLS",
+        "TZRT_CJWTSBMXLS",
+        "TDC_SJCJMX",
+        "TJGMXLS",
+        "TEMJGMX",
+        "TSO_JGMXLS",
+        "TZQYELS",
+        "TSO_HYCCLS",
+        "TZQGL",
+        "TSO_HYCCYELS",
+        "TXY_TZXXSQLS",
+        "TDJSQSZL",
+        "TOF_JJJGLS",
+        "TEMOF_JJJG",
+        "TXY_FZXXLS_OVER",
+        "TSO_HYCC"
+      ],
+      "describedTables": [],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-a36239459cf218cb3f95758a9acf563f00b5b177fd105dcc56738584b8ad3093:receipt",
+      "contentSha256": "5d89166ee002701c7a57a031ceafda7d06770d61cd3eea6a9d2cca9f8e8a8725",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "arguments": {
+        "query": "委托 WTLB 成交",
+        "schema": "DATACENTER",
+        "database": "DATACENTER",
+        "pageSize": 20,
+        "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+        "operation": "SEARCH"
+      },
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 1698,
+      "sqlExecuted": false,
+      "metadataItemCount": 20,
+      "candidateTableNames": [
+        "TWTLS",
+        "TSO_WTLS",
+        "TZRT_WTLS",
+        "TEMDRWT",
+        "TDJSQSZL",
+        "TJGMXLS",
+        "TEMJGMX",
+        "TYDGH",
+        "TYDGHLS",
+        "TZYHGLS",
+        "TZYHG",
+        "TZRT_KHYYBYWTLS_BF",
+        "TZRT_KHYYBYWTLS",
+        "TOF_JJWTLS",
+        "TZRT_CJWTLS",
+        "TSBQQWTLS",
+        "TZQGL",
+        "TXY_FZXXLS_OVER",
+        "TZRT_CJWTSBMXLS",
+        "TSO_JGMXLS"
+      ],
+      "describedTables": [],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-ed5a10bec0bc937f581114f44d59aa4d9530a6207e0250bd76e2a5728ca3576f:receipt",
+      "contentSha256": "5eb6c84f0dbeaf3fe9179b6797996c9d3569b0f702005a8d2cbff439171f82ad",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "arguments": {
+        "query": "资金余额 资金流水 ZJLS",
+        "schema": "DATACENTER",
+        "database": "DATACENTER",
+        "pageSize": 20,
+        "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+        "operation": "SEARCH"
+      },
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 1560,
+      "sqlExecuted": false,
+      "metadataItemCount": 20,
+      "candidateTableNames": [
+        "TEMZJMXLS",
+        "TZJMXLS",
+        "TEMDRZJMX",
+        "TCGZHDY",
+        "TOF_JJJGLS",
+        "TEMOF_JJJG",
+        "TJGMXLS",
+        "TEMJGMX",
+        "TSO_JGMXLS",
+        "TXY_FZXXLS_OVER",
+        "TXY_PCKHQDLS",
+        "TZJJYSQLS_ZQ",
+        "TCGJYSQLS",
+        "TSO_ZJXXLS",
+        "TEMZJJYSQ_ZQ",
+        "TZJYWTJ",
+        "TEMZJYWTJ",
+        "TXY_DKSFYBDMXLS",
+        "TXY_FZXXLS_BF",
+        "TXY_FZXXLS"
+      ],
+      "describedTables": [],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-2ea37ccc445c7a7c43f94784d6f64d0a688705299507df02815b96c58783eea3:receipt",
+      "contentSha256": "fdcf34a766824aa8d46b12904a4b9fe9234676f8e0e1bb690330f3015331cb86",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "arguments": {
+        "query": "持仓 股份余额 证券持仓",
+        "schema": "DATACENTER",
+        "database": "DATACENTER",
+        "pageSize": 20,
+        "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+        "operation": "SEARCH"
+      },
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 1585,
+      "sqlExecuted": false,
+      "metadataItemCount": 20,
+      "candidateTableNames": [
+        "TXY_HTXXLS",
+        "TZQGL",
+        "TXY_CISPM2",
+        "TSO_HYCC",
+        "TZQYELS",
+        "TXY_BJS_SJTJ",
+        "TXY_C101BB_BB",
+        "TXY_C101BB",
+        "TSO_HYCCYELS",
+        "TSO_TZSY",
+        "TXY_PCKHQDLS",
+        "TSO_ZHCLCCLS",
+        "TSO_HYCCLS",
+        "TSO_ZHCLCC",
+        "TTZSY",
+        "TXY_KHLSFZHZXX",
+        "TOF_JJFE",
+        "TXY_DPFXKHLS",
+        "TXY_KHGXHXX",
+        "TXY_FZBDMXLS"
+      ],
+      "describedTables": [],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-7f9b4ab1c2e6bb9d7f1d889f6c66fdf04f5f8d79f158e8e89103bf20de793ccf:receipt",
+      "contentSha256": "edc1ea7b4a72e1f70704dcb27350dbc0cbace77b578a62c5556391541c8c522d",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "arguments": {
+        "query": "TCJLS CJLS 成交",
+        "schema": "ET_APP",
+        "database": "ET_APP",
+        "pageSize": 30,
+        "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+        "operation": "SEARCH"
+      },
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 1089,
+      "sqlExecuted": false,
+      "metadataItemCount": 1,
+      "candidateTableNames": [
+        "T_ENTRUST_INDEX_TOTAL"
+      ],
+      "describedTables": [],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-a8e1bf6e532dbfd281a34e1199265c385f6e4d4ee7aed663a68372e2bedcb344:receipt",
+      "contentSha256": "347fe4acf7af33812394d3a29382991f58d8f5d09e46dbbe2c328477e97829fb",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "arguments": {
+        "query": "ZQGL ZJZH KHXX",
+        "schema": "ET_APP",
+        "database": "ET_APP",
+        "pageSize": 30,
+        "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+        "operation": "SEARCH"
+      },
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 1221,
+      "sqlExecuted": false,
+      "metadataItemCount": 0,
+      "candidateTableNames": [],
+      "describedTables": [],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-7417118c0f36e9fdc8c151615303de73a529c6191a3c4a6b03347024e93b93e8:receipt",
+      "contentSha256": "6530c821d139802a08633642faeae3e91f3ec711180a28fb3a764c593dc73ad2",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "arguments": {
+        "query": "投资损益 TZSY 盈亏",
+        "schema": "ET_APP",
+        "database": "ET_APP",
+        "pageSize": 30,
+        "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+        "operation": "SEARCH"
+      },
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 1146,
+      "sqlExecuted": false,
+      "metadataItemCount": 0,
+      "candidateTableNames": [],
+      "describedTables": [],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-50c62fa21b5cecaa0077c26ef6b7c608566e0ed71e324d6a23d2db1d888ee21c:receipt",
+      "contentSha256": "6474bd98f8bc5ce86c371ac62ec250f12f75c16d1771a7787679f17057e96d6a",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "arguments": {
+        "schema": "DATACENTER",
+        "database": "DATACENTER",
+        "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+        "operation": "DESCRIBE",
+        "tableName": "TTZSY",
+        "includeColumns": true
+      },
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 318,
+      "sqlExecuted": false,
+      "metadataItemCount": 1,
+      "candidateTableNames": [
+        "TTZSY"
+      ],
+      "describedTables": [
+        {
+          "tableName": "TTZSY",
+          "database": "DATACENTER",
+          "schema": "DATACENTER",
+          "columnCount": 18,
+          "relationsStatus": "NOT_COLLECTED",
+          "knownForeignKeyCount": 0,
+          "columns": [
+            {
+              "name": "BZ",
+              "dataType": "CHAR",
+              "comment": "币种"
+            },
+            {
+              "name": "CCSL",
+              "dataType": "NUMBER",
+              "comment": "持仓数量"
+            },
+            {
+              "name": "GDH",
+              "dataType": "CHAR",
+              "comment": "股东号"
+            },
+            {
+              "name": "GSFL",
+              "dataType": "CHAR",
+              "comment": "公司分类"
+            },
+            {
+              "name": "JSRQ",
+              "dataType": "NUMBER",
+              "comment": "清仓日期"
+            },
+            {
+              "name": "JYFY",
+              "dataType": "NUMBER",
+              "comment": "交易费用"
+            },
+            {
+              "name": "JYS",
+              "dataType": "CHAR",
+              "comment": "交易所"
+            },
+            {
+              "name": "KCRQ",
+              "dataType": "NUMBER",
+              "comment": "开仓日期"
+            },
+            {
+              "name": "KHH",
+              "dataType": "CHAR",
+              "comment": "客户号"
+            },
+            {
+              "name": "KHQZ",
+              "dataType": "CHAR",
+              "comment": "客户群组"
+            },
+            {
+              "name": "KHXM",
+              "dataType": "VARCHAR2",
+              "comment": "客户姓名"
+            },
+            {
+              "name": "LSH",
+              "dataType": "NUMBER",
+              "comment": "流水号"
+            },
+            {
+              "name": "MCJE",
+              "dataType": "NUMBER",
+              "comment": "卖出金额"
+            },
+            {
+              "name": "MRJE",
+              "dataType": "NUMBER",
+              "comment": "买入金额"
+            },
+            {
+              "name": "SEQNO",
+              "dataType": "NUMBER",
+              "comment": "序号"
+            },
+            {
+              "name": "YYB",
+              "dataType": "CHAR",
+              "comment": "营业部"
+            },
+            {
+              "name": "ZQDM",
+              "dataType": "VARCHAR2",
+              "comment": "证券代码"
+            },
+            {
+              "name": "ZQMC",
+              "dataType": "VARCHAR2",
+              "comment": "证券名称"
+            }
+          ]
+        }
+      ],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-f207b45bbec4e947d65f6e95481d3368b98ce19293f8b66e6e87c5a0d8bc42ce:receipt",
+      "contentSha256": "b63f0bb005f068f729c215daf88629601b6561935ebdeef423f6273f85bb4729",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "arguments": {
+        "schema": "DATACENTER",
+        "database": "DATACENTER",
+        "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+        "operation": "DESCRIBE",
+        "tableName": "TZJYELS",
+        "includeColumns": true
+      },
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 307,
+      "sqlExecuted": false,
+      "metadataItemCount": 1,
+      "candidateTableNames": [
+        "TZJYELS"
+      ],
+      "describedTables": [
+        {
+          "tableName": "TZJYELS",
+          "database": "DATACENTER",
+          "schema": "DATACENTER",
+          "columnCount": 13,
+          "relationsStatus": "NOT_COLLECTED",
+          "knownForeignKeyCount": 0,
+          "columns": [
+            {
+              "name": "BZ",
+              "dataType": "CHAR",
+              "comment": "币种"
+            },
+            {
+              "name": "DZLX",
+              "dataType": "NUMBER",
+              "comment": "待转利息"
+            },
+            {
+              "name": "GSFL",
+              "dataType": "CHAR",
+              "comment": "公司分类"
+            },
+            {
+              "name": "JSRQ",
+              "dataType": "NUMBER",
+              "comment": "结束日期"
+            },
+            {
+              "name": "KHH",
+              "dataType": "CHAR",
+              "comment": "客户号"
+            },
+            {
+              "name": "KHQZ",
+              "dataType": "CHAR",
+              "comment": "客户群组"
+            },
+            {
+              "name": "KHXM",
+              "dataType": "VARCHAR2",
+              "comment": "客户姓名"
+            },
+            {
+              "name": "KSRQ",
+              "dataType": "NUMBER",
+              "comment": "开始日期"
+            },
+            {
+              "name": "LXJS",
+              "dataType": "NUMBER",
+              "comment": "利息积数"
+            },
+            {
+              "name": "YYB",
+              "dataType": "CHAR",
+              "comment": "客户营业部"
+            },
+            {
+              "name": "ZHLB",
+              "dataType": "NUMBER",
+              "comment": "账户类别"
+            },
+            {
+              "name": "ZHYE",
+              "dataType": "NUMBER",
+              "comment": "帐户余额"
+            },
+            {
+              "name": "ZJZH",
+              "dataType": "VARCHAR2",
+              "comment": "资金帐号"
+            }
+          ]
+        }
+      ],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-4e3830836b5175bdb2aabba589c593ba382c8b5385c05c345542ac94b8234893:receipt",
+      "contentSha256": "63504cec294f160d9e8b97b6d9ae1fceeac05c13e15b53dd8a6d34222f31db5d",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "arguments": {
+        "query": "TCJLS 成交流水",
+        "schema": "DATACENTER",
+        "database": "DATACENTER",
+        "pageSize": 20,
+        "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+        "operation": "SEARCH"
+      },
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 1631,
+      "sqlExecuted": false,
+      "metadataItemCount": 20,
+      "candidateTableNames": [
+        "TZRT_HYXXLS_BF",
+        "TZRT_HYXXLS",
+        "TDC_SJCJMX",
+        "TDJSQSZL",
+        "TSO_WTLS",
+        "TJGMXLS",
+        "TEMJGMX",
+        "TWTLS",
+        "TSO_JGMXLS",
+        "TEMDRWT",
+        "TZRT_CJWTSBMXLS",
+        "TXY_FZXXLS_OVER",
+        "TDC_SJCJDY",
+        "TZRT_WTLS",
+        "TSO_ZHCLCCLS",
+        "TSO_HYCCLS",
+        "TSO_QQHQ",
+        "TRZXQ_HYXXLS",
+        "TRZXQ_HYXX",
+        "TZRT_KHYYBLS"
+      ],
+      "describedTables": [],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-03b8ce59802884e8baeff56be2b6893d6a3432e3e7344082aa01078d8d27f13b:receipt",
+      "contentSha256": "639f0e7b158c0f9bc3718cb8582ae17bee17b6e5aa19c2d5cc7c94937002b49a",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "arguments": {
+        "query": "TWT 委托 当日",
+        "schema": "DATACENTER",
+        "database": "DATACENTER",
+        "pageSize": 20,
+        "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+        "operation": "SEARCH"
+      },
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 1545,
+      "sqlExecuted": false,
+      "metadataItemCount": 20,
+      "candidateTableNames": [
+        "TWTLS",
+        "TWTFSKHTJ",
+        "TXY_FZXXLS_OVER",
+        "TZQGL",
+        "TSO_HYCC",
+        "TXY_FZXXLS_BF",
+        "TXY_FZXXLS",
+        "TSO_HYDMLS",
+        "TEMDRWT",
+        "TZRT_WTLS",
+        "TOF_JJWTLS",
+        "TKHBSDJYRZLS",
+        "TXY_KHYDHYLS_BF",
+        "TXY_KHYDHYLS",
+        "TOF_JJXX",
+        "TXY_DKSFYBDMXLS",
+        "TSO_WTLS",
+        "TEMOF_JJWT",
+        "TZRT_CJWTSBMXLS",
+        "TZRT_CJWTLS"
+      ],
+      "describedTables": [],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-fcd88a12d9cf207e59c174bf1b220c09cc1202ea12d8548ccc66200561dccc32:receipt",
+      "contentSha256": "abbf82661996a6b90a13123e4c5cd540ac4664467439f0f1fec73d7c2d9f4939",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "arguments": {
+        "query": "TZQY GFYE 股份余额 当前持仓",
+        "schema": "DATACENTER",
+        "database": "DATACENTER",
+        "pageSize": 20,
+        "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+        "operation": "SEARCH"
+      },
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 1635,
+      "sqlExecuted": false,
+      "metadataItemCount": 20,
+      "candidateTableNames": [
+        "TZQGL",
+        "TXY_JYSRBB",
+        "TXY_CISPM2",
+        "TXY_HTXXLS",
+        "TZQYELS",
+        "TOF_JJXX",
+        "TXY_C101BB",
+        "TXY_C101BB_BB",
+        "TXY_RQMXHZB",
+        "TSO_HYCC",
+        "TXY_BJS_SJTJ",
+        "TXY_FZXXLS_OVER",
+        "TXY_KHPCMXLS",
+        "TOF_JJFE",
+        "TEMZQYELS",
+        "TSO_HYDMLS",
+        "TXY_RZRQRJHZB",
+        "TZQZHTJ",
+        "TXY_KHYDHYLS_BF",
+        "TSO_ZJXXLS"
+      ],
+      "describedTables": [],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-9de1508cd0c00b080fcc6eed631a850ca6c586c7ca2f3e060933fdc87220c4bc:receipt",
+      "contentSha256": "824b4306df49a2bd368271ed84cce232d8537ad904537c5e27bd0ff65770a764",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "arguments": {
+        "query": "客户号 交易 资产 盈亏",
+        "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+        "operation": "BUSINESS_SEARCH"
+      },
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 512,
+      "sqlExecuted": false,
+      "metadataItemCount": 0,
+      "candidateTableNames": [],
+      "describedTables": [],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-3dbfefa8736bd5d43f63ee88dd56fec026fb015ef56438938bede5f36c0bafee:receipt",
+      "contentSha256": "26c615af1228f21b27ed285ed3deaf2e2f6ba3f6d867c518b4a78c5b61e1836e",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "arguments": {
+        "schema": "DATACENTER",
+        "database": "DATACENTER",
+        "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+        "operation": "DESCRIBE",
+        "tableName": "TZQYELS",
+        "includeColumns": true
+      },
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 353,
+      "sqlExecuted": false,
+      "metadataItemCount": 1,
+      "candidateTableNames": [
+        "TZQYELS"
+      ],
+      "describedTables": [
+        {
+          "tableName": "TZQYELS",
+          "database": "DATACENTER",
+          "schema": "DATACENTER",
+          "columnCount": 17,
+          "relationsStatus": "NOT_COLLECTED",
+          "knownForeignKeyCount": 0,
+          "columns": [
+            {
+              "name": "BZ",
+              "dataType": "CHAR",
+              "comment": "币种"
+            },
+            {
+              "name": "CCCB",
+              "dataType": "NUMBER",
+              "comment": "持仓成本"
+            },
+            {
+              "name": "FLTSL",
+              "dataType": "NUMBER",
+              "comment": "非流通数量"
+            },
+            {
+              "name": "GDH",
+              "dataType": "CHAR",
+              "comment": "股东号"
+            },
+            {
+              "name": "GSFL",
+              "dataType": "CHAR",
+              "comment": "公司分类"
+            },
+            {
+              "name": "JSRQ",
+              "dataType": "NUMBER",
+              "comment": "结束日期"
+            },
+            {
+              "name": "JYS",
+              "dataType": "CHAR",
+              "comment": "交易所"
+            },
+            {
+              "name": "KHH",
+              "dataType": "CHAR",
+              "comment": "客户号"
+            },
+            {
+              "name": "KHQZ",
+              "dataType": "CHAR",
+              "comment": "客户群组"
+            },
+            {
+              "name": "KHXM",
+              "dataType": "VARCHAR2",
+              "comment": "客户姓名"
+            },
+            {
+              "name": "KSRQ",
+              "dataType": "NUMBER",
+              "comment": "开始日期"
+            },
+            {
+              "name": "LJYK",
+              "dataType": "NUMBER",
+              "comment": "累计盈亏"
+            },
+            {
+              "name": "XWDM",
+              "dataType": "VARCHAR2",
+              "comment": "席位代码"
+            },
+            {
+              "name": "YYB",
+              "dataType": "CHAR",
+              "comment": "客户营业部"
+            },
+            {
+              "name": "ZQDM",
+              "dataType": "VARCHAR2",
+              "comment": "证券代码"
+            },
+            {
+              "name": "ZQLB",
+              "dataType": "CHAR",
+              "comment": "证券类别"
+            },
+            {
+              "name": "ZQSL",
+              "dataType": "NUMBER",
+              "comment": "证券数量"
+            }
+          ]
+        }
+      ],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-9c432facba9198e4f7e4a1b386ec485f079896ba6a229c94a96f5bba0c901cad:receipt",
+      "contentSha256": "c85e5afbd871b4561c0ab485802951de064b6e8678ea2c0e52b1c77643abbd13",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "arguments": {
+        "schema": "DATACENTER",
+        "database": "DATACENTER",
+        "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+        "operation": "DESCRIBE",
+        "tableName": "TWTLS",
+        "includeColumns": true
+      },
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 391,
+      "sqlExecuted": false,
+      "metadataItemCount": 1,
+      "candidateTableNames": [
+        "TWTLS"
+      ],
+      "describedTables": [
+        {
+          "tableName": "TWTLS",
+          "database": "DATACENTER",
+          "schema": "DATACENTER",
+          "columnCount": 64,
+          "relationsStatus": "NOT_COLLECTED",
+          "knownForeignKeyCount": 0,
+          "columns": [
+            {
+              "name": "BPGDH",
+              "dataType": "CHAR",
+              "comment": "报盘股东号"
+            },
+            {
+              "name": "BRCJJE",
+              "dataType": "NUMBER",
+              "comment": "本日成交金额"
+            },
+            {
+              "name": "BRCJSL",
+              "dataType": "NUMBER",
+              "comment": "本日成交数量"
+            },
+            {
+              "name": "BZ",
+              "dataType": "CHAR",
+              "comment": "清算币种"
+            },
+            {
+              "name": "CDSL",
+              "dataType": "NUMBER",
+              "comment": "撤单数量"
+            },
+            {
+              "name": "CJJE",
+              "dataType": "NUMBER",
+              "comment": "总成交金额"
+            },
+            {
+              "name": "CJJG",
+              "dataType": "NUMBER",
+              "comment": "成交均价"
+            },
+            {
+              "name": "CJSJ",
+              "dataType": "CHAR",
+              "comment": "成交时间"
+            },
+            {
+              "name": "CJSL",
+              "dataType": "NUMBER",
+              "comment": "总成交数量"
+            },
+            {
+              "name": "CXBZ",
+              "dataType": "CHAR",
+              "comment": "O 委托\nW 撤单\nM 修改订单"
+            },
+            {
+              "name": "CXWTH",
+              "dataType": "NUMBER",
+              "comment": "撤销(修改)对应的委托号"
+            },
+            {
+              "name": "CZZD",
+              "dataType": "VARCHAR2",
+              "comment": "委托站点"
+            },
+            {
+              "name": "DDJYXZ",
+              "dataType": "NUMBER",
+              "comment": "订单交易限制"
+            },
+            {
+              "name": "DDLX",
+              "dataType": "NUMBER",
+              "comment": "订单类型"
+            },
+            {
+              "name": "DDSXXZ",
+              "dataType": "NUMBER",
+              "comment": "订单时效限制"
+            },
+            {
+              "name": "DDYXRQ",
+              "dataType": "NUMBER",
+              "comment": "订单有效日期"
+            },
+            {
+              "name": "DJZJ",
+              "dataType": "NUMBER",
+              "comment": "冻结资金"
+            },
+            {
+              "name": "FHGY",
+              "dataType": "CHAR",
+              "comment": "复核柜员"
+            },
+            {
+              "name": "FSYYB",
+              "dataType": "CHAR",
+              "comment": "发生营业部"
+            },
+            {
+              "name": "GDH",
+              "dataType": "CHAR",
+              "comment": "股东号"
+            },
+            {
+              "name": "GSFL",
+              "dataType": "CHAR",
+              "comment": "公司分类"
+            },
+            {
+              "name": "ISIN",
+              "dataType": "VARCHAR2",
+              "comment": "国际证券代码"
+            },
+            {
+              "name": "JGSM",
+              "dataType": "VARCHAR2",
+              "comment": "结果说明"
+            },
+            {
+              "name": "JSJG",
+              "dataType": "VARCHAR2",
+              "comment": "结算机构"
+            },
+            {
+              "name": "JSLX",
+              "dataType": "NUMBER",
+              "comment": "结算类型"
+            },
+            {
+              "name": "JSZH",
+              "dataType": "VARCHAR2",
+              "comment": "结算帐号"
+            },
+            {
+              "name": "JYS",
+              "dataType": "CHAR",
+              "comment": "交易所"
+            },
+            {
+              "name": "JYSDDBH",
+              "dataType": "NUMBER",
+              "comment": "交易所订单编号"
+            },
+            {
+              "name": "JYY",
+              "dataType": "VARCHAR2",
+              "comment": "交易员"
+            },
+            {
+              "name": "KHH",
+              "dataType": "CHAR",
+              "comment": "客户号"
+            },
+            {
+              "name": "KHQZ",
+              "dataType": "CHAR",
+              "comment": "客户群组"
+            },
+            {
+              "name": "KHXM",
+              "dataType": "VARCHAR2",
+              "comment": "客户姓名"
+            },
+            {
+              "name": "LSH",
+              "dataType": "NUMBER",
+              "comment": "流水号"
+            },
+            {
+              "name": "LSH_ZJDJXM",
+              "dataType": "NUMBER",
+              "comment": "资金冻结项目流水号"
+            },
+            {
+              "name": "LSH_ZQDJXM",
+              "dataType": "NUMBER",
+              "comment": "股份冻结项目流水号"
+            },
+            {
+              "name": "PLWTPCH",
+              "dataType": "NUMBER",
+              "comment": "单笔委托为0，批量委托或组合委托为第一笔委托的委托号"
+            },
+            {
+              "name": "QSZJ",
+              "dataType": "NUMBER",
+              "comment": "清算资金"
+            },
+            {
+              "name": "SBGY",
+              "dataType": "CHAR",
+              "comment": "申报柜员"
+            },
+            {
+              "name": "SBJB",
+              "dataType": "NUMBER",
+              "comment": "帐户申报级别"
+            },
+            {
+              "name": "SBJG",
+              "dataType": "NUMBER",
+              "comment": "申报结果(订单状态)"
+            },
+            {
+              "name": "SBJLH",
+              "dataType": "NUMBER",
+              "comment": "申报记录号"
+            },
+            {
+              "name": "SBRQ",
+              "dataType": "NUMBER",
+              "comment": "申报日期"
+            },
+            {
+              "name": "SBSJ",
+              "dataType": "CHAR",
+              "comment": "申报时间"
+            },
+            {
+              "name": "SBWTH",
+              "dataType": "VARCHAR2",
+              "comment": "申报委托号"
+            },
+            {
+              "name": "SBXW",
+              "dataType": "VARCHAR2",
+              "comment": "申报席位"
+            },
+            {
+              "name": "SEQNO",
+              "dataType": "NUMBER",
+              "comment": "序号"
+            },
+            {
+              "name": "SQCZRH",
+              "dataType": "CHAR",
+              "comment": "授权操作人号"
+            },
+            {
+              "name": "STEP",
+              "dataType": "VARCHAR2",
+              "comment": "STEP字段"
+            },
+            {
+              "name": "WTFS",
+              "dataType": "NUMBER",
+              "comment": "委托方式"
+            },
+            {
+              "name": "WTGY",
+              "dataType": "CHAR",
+              "comment": "委托柜员"
+            },
+            {
+              "name": "WTH",
+              "dataType": "NUMBER",
+              "comment": "内部委托号"
+            },
+            {
+              "name": "WTJG",
+              "dataType": "NUMBER",
+              "comment": "委托限价"
+            },
+            {
+              "name": "WTLB",
+              "dataType": "NUMBER",
+              "comment": "委托类别"
+            },
+            {
+              "name": "WTRQ",
+              "dataType": "NUMBER",
+              "comment": "委托日期"
+            },
+            {
+              "name": "WTSJ",
+              "dataType": "CHAR",
+              "comment": "委托时间"
+            },
+            {
+              "name": "WTSL",
+              "dataType": "NUMBER",
+              "comment": "委托数量"
+            },
+            {
+              "name": "YWSQH",
+              "dataType": "NUMBER",
+              "comment": "业务申请号"
+            },
+            {
+              "name": "YYB",
+              "dataType": "CHAR",
+              "comment": "客户营业部"
+            },
+            {
+              "name": "ZDPLSL",
+              "dataType": "NUMBER",
+              "comment": "冰山订单披露数量"
+            },
+            {
+              "name": "ZHGLJG",
+              "dataType": "CHAR",
+              "comment": "帐户管理机构"
+            },
+            {
+              "name": "ZQDM",
+              "dataType": "VARCHAR2",
+              "comment": "证券代码"
+            },
+            {
+              "name": "ZQLB",
+              "dataType": "CHAR",
+              "comment": "证券类别"
+            },
+            {
+              "name": "ZQMC",
+              "dataType": "VARCHAR2",
+              "comment": "证券名称"
+            },
+            {
+              "name": "ZSXJ",
+              "dataType": "NUMBER",
+              "comment": "触发止损订单进入主订单簿的市场成交价格"
+            }
+          ]
+        }
+      ],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-b4ec75c36a6711ee8175af3fa00dd44577ee86070d223213c261054ab015ac02:receipt",
+      "contentSha256": "a7f3148404887a829148c4873ef698985abfb64241332df3ae23fe75bf3e9f67",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "arguments": {
+        "schema": "DATACENTER",
+        "database": "DATACENTER",
+        "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+        "operation": "DESCRIBE",
+        "tableName": "TJGMXLS",
+        "includeColumns": true
+      },
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 334,
+      "sqlExecuted": false,
+      "metadataItemCount": 1,
+      "candidateTableNames": [
+        "TJGMXLS"
+      ],
+      "describedTables": [
+        {
+          "tableName": "TJGMXLS",
+          "database": "DATACENTER",
+          "schema": "DATACENTER",
+          "columnCount": 66,
+          "relationsStatus": "NOT_COLLECTED",
+          "knownForeignKeyCount": 0,
+          "columns": [
+            {
+              "name": "BCDJSL",
+              "dataType": "NUMBER",
+              "comment": "本次股份冻结余额"
+            },
+            {
+              "name": "BCSL",
+              "dataType": "NUMBER",
+              "comment": "本次股份余额"
+            },
+            {
+              "name": "BCYE",
+              "dataType": "NUMBER",
+              "comment": "本次资金余额"
+            },
+            {
+              "name": "BCYK",
+              "dataType": "NUMBER",
+              "comment": "本次盈亏"
+            },
+            {
+              "name": "BZ",
+              "dataType": "CHAR",
+              "comment": "结算币种"
+            },
+            {
+              "name": "BZS1",
+              "dataType": "NUMBER",
+              "comment": "标准佣金"
+            },
+            {
+              "name": "CJBH",
+              "dataType": "VARCHAR2",
+              "comment": "成交编号"
+            },
+            {
+              "name": "CJBS",
+              "dataType": "NUMBER",
+              "comment": "成交笔数"
+            },
+            {
+              "name": "CJJE",
+              "dataType": "NUMBER",
+              "comment": "成交金额"
+            },
+            {
+              "name": "CJJG",
+              "dataType": "NUMBER",
+              "comment": "成交价格"
+            },
+            {
+              "name": "CJRQ",
+              "dataType": "NUMBER",
+              "comment": "成交日期"
+            },
+            {
+              "name": "CJSJ",
+              "dataType": "CHAR",
+              "comment": "成交时间"
+            },
+            {
+              "name": "CJSL",
+              "dataType": "NUMBER",
+              "comment": "成交数量"
+            },
+            {
+              "name": "DJJE",
+              "dataType": "NUMBER",
+              "comment": "实际冻结(解冻)金额"
+            },
+            {
+              "name": "DJSL",
+              "dataType": "NUMBER",
+              "comment": "实际冻结(解冻)股份"
+            },
+            {
+              "name": "DLSF",
+              "dataType": "CHAR",
+              "comment": "登录身份"
+            },
+            {
+              "name": "FHGY",
+              "dataType": "VARCHAR2",
+              "comment": "复核柜员"
+            },
+            {
+              "name": "FID",
+              "dataType": "NUMBER",
+              "comment": "佣金策略编号"
+            },
+            {
+              "name": "FSYYB",
+              "dataType": "CHAR",
+              "comment": "委托发生营业部"
+            },
+            {
+              "name": "GDH",
+              "dataType": "CHAR",
+              "comment": "股东号"
+            },
+            {
+              "name": "GDXM",
+              "dataType": "VARCHAR2",
+              "comment": "股东姓名"
+            },
+            {
+              "name": "GSFL",
+              "dataType": "CHAR",
+              "comment": "公司分类"
+            },
+            {
+              "name": "JGZLLB",
+              "dataType": "NUMBER",
+              "comment": "取值参照数据字典 FLDM=JGZLLB"
+            },
+            {
+              "name": "JSJ",
+              "dataType": "NUMBER",
+              "comment": "结算价"
+            },
+            {
+              "name": "JSJG",
+              "dataType": "VARCHAR2",
+              "comment": "结算机构"
+            },
+            {
+              "name": "JSLX",
+              "dataType": "NUMBER",
+              "comment": "结算类型"
+            },
+            {
+              "name": "JSRQ",
+              "dataType": "NUMBER",
+              "comment": "交收日期"
+            },
+            {
+              "name": "JSZH",
+              "dataType": "VARCHAR2",
+              "comment": "结算帐户"
+            },
+            {
+              "name": "JYS",
+              "dataType": "CHAR",
+              "comment": "交易所"
+            },
+            {
+              "name": "KHH",
+              "dataType": "CHAR",
+              "comment": "客户号"
+            },
+            {
+              "name": "KHQZ",
+              "dataType": "CHAR",
+              "comment": "客户群组"
+            },
+            {
+              "name": "KHXM",
+              "dataType": "VARCHAR2",
+              "comment": "客户姓名"
+            },
+            {
+              "name": "LOGINID",
+              "dataType": "VARCHAR2",
+              "comment": "操作人登录ID"
+            },
+            {
+              "name": "LSH",
+              "dataType": "NUMBER",
+              "comment": "流水号"
+            },
+            {
+              "name": "LXJE",
+              "dataType": "NUMBER",
+              "comment": "利息金额"
+            },
+            {
+              "name": "LXJG",
+              "dataType": "NUMBER",
+              "comment": "利息价格"
+            },
+            {
+              "name": "RZRQ",
+              "dataType": "NUMBER",
+              "comment": "入帐日期"
+            },
+            {
+              "name": "S1",
+              "dataType": "NUMBER",
+              "comment": "实收佣金"
+            },
+            {
+              "name": "S11",
+              "dataType": "NUMBER",
+              "comment": "一级费用_经手费"
+            },
+            {
+              "name": "S12",
+              "dataType": "NUMBER",
+              "comment": "一级费用_证管费"
+            },
+            {
+              "name": "S13",
+              "dataType": "NUMBER",
+              "comment": "一级费用_过户费"
+            },
+            {
+              "name": "S15",
+              "dataType": "NUMBER",
+              "comment": "一级费用_结算费"
+            },
+            {
+              "name": "S16",
+              "dataType": "NUMBER",
+              "comment": "一级费用_风险基金"
+            },
+            {
+              "name": "S2",
+              "dataType": "NUMBER",
+              "comment": "印花税"
+            },
+            {
+              "name": "S3",
+              "dataType": "NUMBER",
+              "comment": "过户费"
+            },
+            {
+              "name": "S4",
+              "dataType": "NUMBER",
+              "comment": "附加费"
+            },
+            {
+              "name": "S5",
+              "dataType": "NUMBER",
+              "comment": "结算费"
+            },
+            {
+              "name": "S6",
+              "dataType": "NUMBER",
+              "comment": "交易规费"
+            },
+            {
+              "name": "SBSJ",
+              "dataType": "CHAR",
+              "comment": "申报时间"
+            },
+            {
+              "name": "SEQNO",
+              "dataType": "NUMBER",
+              "comment": "序号"
+            },
+            {
+              "name": "WTFS",
+              "dataType": "NUMBER",
+              "comment": "委托方式"
+            },
+            {
+              "name": "WTH",
+              "dataType": "NUMBER",
+              "comment": "委托合同号"
+            },
+            {
+              "name": "WTLB",
+              "dataType": "NUMBER",
+              "comment": "委托类别"
+            },
+            {
+              "name": "XWDM",
+              "dataType": "CHAR",
+              "comment": "席位代码"
+            },
+            {
+              "name": "YJDJFS",
+              "dataType": "NUMBER",
+              "comment": "佣金策略类别"
+            },
+            {
+              "name": "YSJE",
+              "dataType": "NUMBER",
+              "comment": "实???(付)金额"
+            },
+            {
+              "name": "YSJE_YJ",
+              "dataType": "NUMBER",
+              "comment": "一级实收付"
+            },
+            {
+              "name": "YSSL",
+              "dataType": "NUMBER",
+              "comment": "实收(付)股份"
+            },
+            {
+              "name": "YWSQH",
+              "dataType": "NUMBER",
+              "comment": "业务申请号"
+            },
+            {
+              "name": "YYB",
+              "dataType": "CHAR",
+              "comment": "营业部"
+            },
+            {
+              "name": "ZHGLJG",
+              "dataType": "CHAR",
+              "comment": "帐户管理机构"
+            },
+            {
+              "name": "ZJDJMX_LSH",
+              "dataType": "NUMBER",
+              "comment": "资金冻结明细流水号"
+            },
+            {
+              "name": "ZJMX_LSH",
+              "dataType": "NUMBER",
+              "comment": "资金明细流水号"
+            },
+            {
+              "name": "ZQDM",
+              "dataType": "VARCHAR2",
+              "comment": "证券代码"
+            },
+            {
+              "name": "ZQLB",
+              "dataType": "CHAR",
+              "comment": "证券类别"
+            },
+            {
+              "name": "ZQMC",
+              "dataType": "VARCHAR2",
+              "comment": "证券名称"
+            }
+          ]
+        }
+      ],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-2549287928e5080256258c632e24f48b6e6e6a31465c73e24fa60a42027f3d51:receipt",
+      "contentSha256": "c62af71e224172c9c53188eeeeeff658912ef48b1fd5951d0a69e8e18a03a2d0",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_metadata",
+      "arguments": {
+        "schema": "DATACENTER",
+        "database": "DATACENTER",
+        "bindingId": "8d5db572-1a76-4459-8955-1fd902fbc430",
+        "operation": "DESCRIBE",
+        "tableName": "TSO_TZSY",
+        "includeColumns": true
+      },
+      "status": "SUCCEEDED",
+      "valid": null,
+      "category": null,
+      "durationMs": 393,
+      "sqlExecuted": false,
+      "metadataItemCount": 1,
+      "candidateTableNames": [
+        "TSO_TZSY"
+      ],
+      "describedTables": [
+        {
+          "tableName": "TSO_TZSY",
+          "database": "DATACENTER",
+          "schema": "DATACENTER",
+          "columnCount": 23,
+          "relationsStatus": "NOT_COLLECTED",
+          "knownForeignKeyCount": 0,
+          "columns": [
+            {
+              "name": "BDBQ",
+              "dataType": "NUMBER",
+              "comment": "备兑期权标志"
+            },
+            {
+              "name": "BZ",
+              "dataType": "CHAR",
+              "comment": "币种"
+            },
+            {
+              "name": "CCSL",
+              "dataType": "NUMBER",
+              "comment": "持仓数量"
+            },
+            {
+              "name": "GDH",
+              "dataType": "CHAR",
+              "comment": "股东号"
+            },
+            {
+              "name": "HYDM",
+              "dataType": "VARCHAR2",
+              "comment": "期权合约代码"
+            },
+            {
+              "name": "HYMC",
+              "dataType": "VARCHAR2",
+              "comment": "期权合约简称"
+            },
+            {
+              "name": "JSRQ",
+              "dataType": "NUMBER",
+              "comment": "清仓日期"
+            },
+            {
+              "name": "JYS",
+              "dataType": "CHAR",
+              "comment": "交易所"
+            },
+            {
+              "name": "KCJE",
+              "dataType": "NUMBER",
+              "comment": "开仓金额"
+            },
+            {
+              "name": "KCRQ",
+              "dataType": "NUMBER",
+              "comment": "开仓日期"
+            },
+            {
+              "name": "KHH",
+              "dataType": "CHAR",
+              "comment": "客户号"
+            },
+            {
+              "name": "KHQZ",
+              "dataType": "CHAR",
+              "comment": "客户群组"
+            },
+            {
+              "name": "KHXM",
+              "dataType": "VARCHAR2",
+              "comment": "客户姓名"
+            },
+            {
+              "name": "LSH",
+              "dataType": "NUMBER",
+              "comment": "流水号"
+            },
+            {
+              "name": "MMFX",
+              "dataType": "CHAR",
+              "comment": "买卖方向"
+            },
+            {
+              "name": "PCJE",
+              "dataType": "NUMBER",
+              "comment": "平仓金额"
+            },
+            {
+              "name": "QQLX",
+              "dataType": "CHAR",
+              "comment": "期权合约类型"
+            },
+            {
+              "name": "SEQNO",
+              "dataType": "NUMBER",
+              "comment": "序号"
+            },
+            {
+              "name": "YYB",
+              "dataType": "CHAR",
+              "comment": "营业部"
+            },
+            {
+              "name": "ZQDM",
+              "dataType": "VARCHAR2",
+              "comment": "标的证券"
+            },
+            {
+              "name": "ZQLX",
+              "dataType": "VARCHAR2",
+              "comment": "标的证券类型"
+            },
+            {
+              "name": "ZQMC",
+              "dataType": "VARCHAR2",
+              "comment": "标的证券名称"
+            },
+            {
+              "name": "ZZHBM",
+              "dataType": "VARCHAR2",
+              "comment": "子账户编号"
+            }
+          ]
+        }
+      ],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-9219321edffece4e6c6c7df969e88546fe6962200792117617240b41e9b6b845:receipt",
+      "contentSha256": "29b87d1ee14994ef92706757ba1ad501299a1d92afb1aa631acc838aeb7ca84c",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_validate",
+      "arguments": null,
+      "status": null,
+      "valid": true,
+      "category": null,
+      "durationMs": 1693,
+      "sqlExecuted": false,
+      "metadataItemCount": 0,
+      "candidateTableNames": [],
+      "describedTables": [],
+      "fieldValidation": "CHECKED",
+      "receiptId": "coding:workspace:workspace-35c87565756206b36f986ec1a62e277dea51e3e44b750575a68632112fe4943a:receipt",
+      "contentSha256": "09ed9160fa2d1809ab70cd1654256aeba592315952ce1045091daad8c017a3d9",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8"
+      ]
+    },
+    {
+      "tool": "workspace_propose",
+      "arguments": null,
+      "status": null,
+      "valid": true,
+      "category": null,
+      "durationMs": null,
+      "sqlExecuted": false,
+      "metadataItemCount": 0,
+      "candidateTableNames": [],
+      "describedTables": [],
+      "fieldValidation": null,
+      "receiptId": "coding:workspace:workspace-b05c0afdec157538a2773e6b9fcdcef0388e1490066af76aa9a9d923510b9816:receipt",
+      "contentSha256": "23c6487a7fb059c9d8c43043c118874bcfa2a9158665d6bbcd9a6503cfc0336c",
+      "parentEvidenceIds": [
+        "coding:workspace-input:sql-coding-7298b64c-569a-4877-b228-fc921f3b32b8",
+        "coding:workspace:workspace-3f634cc0f7ec745fcb8158539bae4e069c8c3eaa216fd8ab757f5997f717566e:receipt",
+        "coding:workspace:workspace-0a8e7ae2afe57d3160e13679d06759c56963dfb91bca2f045f2baaad746894f6:receipt",
+        "coding:workspace:workspace-c8cc9514cfad15d6d34bde7062a8caa26be2a528773d61a30accf2768ba8d946:receipt",
+        "coding:workspace:workspace-0db0613fed73fea451bf3878c0477f8f1f5fdde89c0fbb3f2259bc82bf312aef:receipt",
+        "coding:workspace:workspace-687323c062791904315f78b622841af788e3707906d641d3372c973cbdeed2d7:receipt",
+        "coding:workspace:workspace-87c0bcea88e217d590ad385d7c8c3215e7ee3e843798a01fdf926ad25ab555b2:receipt",
+        "coding:workspace:workspace-fdb4c2486f59e87ed7fea6c2ee608b39fa5a3209a272a16e09a133028fa6f9e0:receipt",
+        "coding:workspace:workspace-05c9e1d3482d4480917f3b2ba654f00b43a3b7cfd75038bf24ca00e1f334b6f8:receipt",
+        "coding:workspace:workspace-ca227bd10aeee125b078dd6a0b7c227ad03725c849dbc4d9bc20f8af817ef225:receipt",
+        "coding:workspace:workspace-ce8c64d2ace5b25e090d995f6293bdccc5ca14ad93687c5674d5865226ae847b:receipt",
+        "coding:workspace:workspace-4804fbe738d3b99d3d261f12abef5645878292ab67effd5e91de768bf3ae0dc0:receipt",
+        "coding:workspace:workspace-f2efb3668af98c814b9d417c5e5bdb733793b1f954393f48e4e38789ebd33476:receipt",
+        "coding:workspace:workspace-a36239459cf218cb3f95758a9acf563f00b5b177fd105dcc56738584b8ad3093:receipt",
+        "coding:workspace:workspace-ed5a10bec0bc937f581114f44d59aa4d9530a6207e0250bd76e2a5728ca3576f:receipt",
+        "coding:workspace:workspace-2ea37ccc445c7a7c43f94784d6f64d0a688705299507df02815b96c58783eea3:receipt",
+        "coding:workspace:workspace-7f9b4ab1c2e6bb9d7f1d889f6c66fdf04f5f8d79f158e8e89103bf20de793ccf:receipt",
+        "coding:workspace:workspace-a8e1bf6e532dbfd281a34e1199265c385f6e4d4ee7aed663a68372e2bedcb344:receipt",
+        "coding:workspace:workspace-7417118c0f36e9fdc8c151615303de73a529c6191a3c4a6b03347024e93b93e8:receipt",
+        "coding:workspace:workspace-50c62fa21b5cecaa0077c26ef6b7c608566e0ed71e324d6a23d2db1d888ee21c:receipt",
+        "coding:workspace:workspace-f207b45bbec4e947d65f6e95481d3368b98ce19293f8b66e6e87c5a0d8bc42ce:receipt",
+        "coding:workspace:workspace-4e3830836b5175bdb2aabba589c593ba382c8b5385c05c345542ac94b8234893:receipt",
+        "coding:workspace:workspace-03b8ce59802884e8baeff56be2b6893d6a3432e3e7344082aa01078d8d27f13b:receipt",
+        "coding:workspace:workspace-fcd88a12d9cf207e59c174bf1b220c09cc1202ea12d8548ccc66200561dccc32:receipt",
+        "coding:workspace:workspace-9de1508cd0c00b080fcc6eed631a850ca6c586c7ca2f3e060933fdc87220c4bc:receipt",
+        "coding:workspace:workspace-3dbfefa8736bd5d43f63ee88dd56fec026fb015ef56438938bede5f36c0bafee:receipt",
+        "coding:workspace:workspace-9c432facba9198e4f7e4a1b386ec485f079896ba6a229c94a96f5bba0c901cad:receipt",
+        "coding:workspace:workspace-b4ec75c36a6711ee8175af3fa00dd44577ee86070d223213c261054ab015ac02:receipt",
+        "coding:workspace:workspace-2549287928e5080256258c632e24f48b6e6e6a31465c73e24fa60a42027f3d51:receipt",
+        "coding:workspace:workspace-9219321edffece4e6c6c7df969e88546fe6962200792117617240b41e9b6b845:receipt",
+        "coding:workspace:workspace-35c87565756206b36f986ec1a62e277dea51e3e44b750575a68632112fe4943a:receipt"
+      ]
+    }
+  ],
+  "modelReceipts": [
+    {
+      "operationId": "model-1",
+      "modelInfo": {
+        "startedAt": "2026-10-29T15:13:17.202489140Z",
+        "deadlineAt": "2026-10-29T15:28:16.557Z",
+        "durationMs": 3335,
+        "finishedAt": "2026-10-29T15:13:20.537756959Z",
+        "queueTimeMs": 56,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 2,
+        "requestBytes": 5357,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 1374,
+        "outputTokens": 110,
+        "cacheReadTokens": 0,
+        "reasoningTokens": 34
+      }
+    },
+    {
+      "operationId": "model-2",
+      "modelInfo": {
+        "startedAt": "2026-10-29T15:13:21.284492802Z",
+        "deadlineAt": "2026-10-29T15:28:16.557Z",
+        "durationMs": 4442,
+        "finishedAt": "2026-10-29T15:13:25.727384812Z",
+        "queueTimeMs": 51,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 4,
+        "requestBytes": 9108,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 2234,
+        "outputTokens": 163,
+        "cacheReadTokens": 1152,
+        "reasoningTokens": 132
+      }
+    },
+    {
+      "operationId": "model-3",
+      "modelInfo": {
+        "startedAt": "2026-10-29T15:13:26.608856119Z",
+        "deadlineAt": "2026-10-29T15:28:16.557Z",
+        "durationMs": 3481,
+        "finishedAt": "2026-10-29T15:13:30.090075443Z",
+        "queueTimeMs": 28,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 6,
+        "requestBytes": 10119,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 2532,
+        "outputTokens": 153,
+        "cacheReadTokens": 1664,
+        "reasoningTokens": 76
+      }
+    },
+    {
+      "operationId": "model-4",
+      "modelInfo": {
+        "startedAt": "2026-10-29T15:13:31.521274666Z",
+        "deadlineAt": "2026-10-29T15:28:16.557Z",
+        "durationMs": 9883,
+        "finishedAt": "2026-10-29T15:13:41.404849318Z",
+        "queueTimeMs": 23,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 8,
+        "requestBytes": 11716,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 3152,
+        "outputTokens": 559,
+        "cacheReadTokens": 2304,
+        "reasoningTokens": 54
+      }
+    },
+    {
+      "operationId": "model-5",
+      "modelInfo": {
+        "startedAt": "2026-10-29T15:13:50.480466355Z",
+        "deadlineAt": "2026-10-29T15:28:16.557Z",
+        "durationMs": 19882,
+        "finishedAt": "2026-10-29T15:14:10.362587903Z",
+        "queueTimeMs": 37,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 13,
+        "requestBytes": 47768,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 16628,
+        "outputTokens": 1169,
+        "cacheReadTokens": 2816,
+        "reasoningTokens": 374
+      }
+    },
+    {
+      "operationId": "model-6",
+      "modelInfo": {
+        "startedAt": "2026-10-29T15:14:20.104249247Z",
+        "deadlineAt": "2026-10-29T15:28:16.557Z",
+        "durationMs": 14796,
+        "finishedAt": "2026-10-29T15:14:34.900556296Z",
+        "queueTimeMs": 73,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 20,
+        "requestBytes": 88943,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 30312,
+        "outputTokens": 781,
+        "cacheReadTokens": 2816,
+        "reasoningTokens": 259
+      }
+    },
+    {
+      "operationId": "model-7",
+      "modelInfo": {
+        "startedAt": "2026-10-29T15:14:46.303074481Z",
+        "deadlineAt": "2026-10-29T15:28:16.557Z",
+        "durationMs": 16844,
+        "finishedAt": "2026-10-29T15:15:03.147549535Z",
+        "queueTimeMs": 58,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 25,
+        "requestBytes": 125156,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 43807,
+        "outputTokens": 917,
+        "cacheReadTokens": 0,
+        "reasoningTokens": 253
+      }
+    },
+    {
+      "operationId": "model-8",
+      "modelInfo": {
+        "startedAt": "2026-10-29T15:15:12.233931847Z",
+        "deadlineAt": "2026-10-29T15:28:16.557Z",
+        "durationMs": 12002,
+        "finishedAt": "2026-10-29T15:15:24.236350808Z",
+        "queueTimeMs": 71,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 31,
+        "requestBytes": 136672,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 48038,
+        "outputTokens": 649,
+        "cacheReadTokens": 43520,
+        "reasoningTokens": 148
+      }
+    },
+    {
+      "operationId": "model-9",
+      "modelInfo": {
+        "startedAt": "2026-10-29T15:15:36.769590386Z",
+        "deadlineAt": "2026-10-29T15:28:16.557Z",
+        "durationMs": 20854,
+        "finishedAt": "2026-10-29T15:15:57.623884072Z",
+        "queueTimeMs": 85,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 36,
+        "requestBytes": 172429,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 60300,
+        "outputTokens": 1196,
+        "cacheReadTokens": 47872,
+        "reasoningTokens": 790
+      }
+    },
+    {
+      "operationId": "model-10",
+      "modelInfo": {
+        "startedAt": "2026-10-29T15:16:04.486716048Z",
+        "deadlineAt": "2026-10-29T15:28:16.557Z",
+        "durationMs": 19879,
+        "finishedAt": "2026-10-29T15:16:24.365972212Z",
+        "queueTimeMs": 85,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 40,
+        "requestBytes": 192930,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 66353,
+        "outputTokens": 1125,
+        "cacheReadTokens": 58752,
+        "reasoningTokens": 973
+      }
+    },
+    {
+      "operationId": "model-11",
+      "modelInfo": {
+        "startedAt": "2026-10-29T15:16:28.767160925Z",
+        "deadlineAt": "2026-10-29T15:28:16.557Z",
+        "durationMs": 73844,
+        "finishedAt": "2026-10-29T15:17:42.611203884Z",
+        "queueTimeMs": 108,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 42,
+        "requestBytes": 197197,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 67708,
+        "outputTokens": 4416,
+        "cacheReadTokens": 65280,
+        "reasoningTokens": 958
+      }
+    },
+    {
+      "operationId": "model-12",
+      "modelInfo": {
+        "startedAt": "2026-10-29T15:17:48.443623041Z",
+        "deadlineAt": "2026-10-29T15:28:16.557Z",
+        "durationMs": 67111,
+        "finishedAt": "2026-10-29T15:18:55.555531901Z",
+        "queueTimeMs": 133,
+        "retryTimeMs": 0,
+        "firstTokenMs": null,
+        "messageCount": 44,
+        "requestBytes": 209739,
+        "responseMode": "NON_STREAMING",
+        "providerModel": "qwen3.7-plus",
+        "selectedModel": "qwen3.7-plus",
+        "maxOutputTokens": 8192,
+        "generationTimeMs": null
+      },
+      "usage": {
+        "inputTokens": 71509,
+        "outputTokens": 4074,
+        "cacheReadTokens": 67456,
+        "reasoningTokens": 22
+      }
+    }
+  ],
+  "performance": {
+    "metadataCalls": 29,
+    "metadataTotalMs": 30148,
+    "metadataMedianMs": 1146,
+    "metadataP95Ms": 1789,
+    "metadataMaxMs": 1800,
+    "modelCalls": 12,
+    "modelTotalMs": 266353,
+    "inputTokens": 413947,
+    "outputTokens": 15312,
+    "cacheReadTokens": 293632
+  },
+  "businessLimitations": [
+    "Calculation formulas, period/currency semantics and uncollected relationships remain unconfirmed.",
+    "Registered source metadata contains historical/backup tables; no business rows were read or SQL executed."
+  ]
+}

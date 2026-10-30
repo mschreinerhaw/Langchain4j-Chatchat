@@ -32,7 +32,7 @@ public final class ReportPresentation {
             Persist presentation=%s in visualReport. Give each section a unique safe id.
             In the SAME report/program, author layout:{schemaVersion:'report_layout.v1',blocks:[{id,type,ref?,span?,emphasis?}]}.
             Allowed block types ONLY: summary, metric, section, chart, table, limitations, sources.
-            metric/section/chart/table ref MUST name an existing element id in the matching array; never put inline data, HTML, JavaScript, CSS, component names or external URLs in layout.
+            metric/section/chart/table ref MUST name an existing element id in the matching array. Sections MUST have explicit safe IDs; a section title is display text, never its reference. Never put inline data, HTML, JavaScript, CSS, component names or external URLs in layout.
             span is full or half; emphasis normal or important. IDs are [A-Za-z0-9_-], maximum 64 characters. Include each content reference once; never invent an element to fill a slot.
             auto: choose chapter order and component count from the evidence; prefer important conclusions and anomalies first, with their supporting evidence nearby. No fixed four-metric dashboard and no mandatory chapter outline.
             Avoid repeating metric values across summary and every section; use narrative to explain meaning, scope and consequences rather than restating cards and table cells.

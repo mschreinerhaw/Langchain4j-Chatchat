@@ -1,0 +1,434 @@
+{
+  "files": [
+    {
+      "content": "-- sql/a.sql\n-- Order details: order identifier, customer identifier, order amount\n-- Source: APP.ORDERS (Oracle)\n-- Hive dialect\nSELECT\n    o.ID           AS order_id,\n    o.CUSTOMER_ID  AS customer_id,\n    o.AMOUNT       AS order_amount\nFROM APP.ORDERS o\n;\n",
+      "path": "sql/a.sql"
+    },
+    {
+      "content": "-- sql/b.sql\n-- Customer identifiers\n-- Source: APP.CUSTOMERS (Oracle)\n-- Hive dialect\nSELECT\n    c.ID AS customer_id\nFROM APP.CUSTOMERS c\n;\n",
+      "path": "sql/b.sql"
+    }
+  ],
+  "notes": "Source discovery: Oracle APP schema contains APP.ORDERS (ID INTEGER NOT NULL, CUSTOMER_ID INTEGER, AMOUNT DECIMAL) and APP.CUSTOMERS (ID INTEGER NOT NULL). Known FK: ORDERS.CUSTOMER_ID -> CUSTOMERS.ID (JDBC_IMPORTED_KEYS). Both queries are single-table SELECTs, so no join cardinality or fanout risk. Business grain and primary keys on both tables are UNCONFIRMED (NOT_COLLECTED); no business metric definitions were required or invented — queries return direct column values only. No Hive target connection authorized; SQL is not executed. Validation: parser valid, all referenced columns CHECKED against metadata, no structural diagnostics.",
+  "validation": {
+    "businessLiteralValues": [],
+    "businessValidation": "NOT_EVALUATED",
+    "diagnostics": [
+      {
+        "fields": "CHECKED",
+        "path": "sql/a.sql",
+        "status": "PARSED"
+      },
+      {
+        "fields": "CHECKED",
+        "path": "sql/b.sql",
+        "status": "PARSED"
+      }
+    ],
+    "fieldValidation": "CHECKED",
+    "grains": [
+      {
+        "alias": "o",
+        "businessGrain": "UNCONFIRMED",
+        "primaryKeys": [],
+        "status": "UNKNOWN",
+        "tableName": "orders"
+      },
+      {
+        "alias": "c",
+        "businessGrain": "UNCONFIRMED",
+        "primaryKeys": [],
+        "status": "UNKNOWN",
+        "tableName": "customers"
+      }
+    ],
+    "normalizedFiles": [
+      {
+        "content": "/* sql/a.sql */\n/* Order details: order identifier, customer identifier, order amount */\n/* Source: APP.ORDERS (Oracle) */\n/* Hive dialect */\nSELECT\n  o.ID AS order_id,\n  o.CUSTOMER_ID AS customer_id,\n  o.AMOUNT AS order_amount\nFROM APP.ORDERS AS o;\n",
+        "path": "sql/a.sql"
+      },
+      {
+        "content": "/* sql/b.sql */\n/* Customer identifiers */\n/* Source: APP.CUSTOMERS (Oracle) */\n/* Hive dialect */\nSELECT\n  c.ID AS customer_id\nFROM APP.CUSTOMERS AS c;\n",
+        "path": "sql/b.sql"
+      }
+    ],
+    "parser": "sqlglot",
+    "referencedColumns": [
+      {
+        "column": "id",
+        "database": "",
+        "path": "sql/a.sql",
+        "schema": "app",
+        "sourceAlias": "o",
+        "tableName": "orders"
+      },
+      {
+        "column": "customer_id",
+        "database": "",
+        "path": "sql/a.sql",
+        "schema": "app",
+        "sourceAlias": "o",
+        "tableName": "orders"
+      },
+      {
+        "column": "amount",
+        "database": "",
+        "path": "sql/a.sql",
+        "schema": "app",
+        "sourceAlias": "o",
+        "tableName": "orders"
+      },
+      {
+        "column": "id",
+        "database": "",
+        "path": "sql/b.sql",
+        "schema": "app",
+        "sourceAlias": "c",
+        "tableName": "customers"
+      }
+    ],
+    "references": [
+      {
+        "database": "",
+        "quoted": false,
+        "schema": "app",
+        "tableName": "orders"
+      },
+      {
+        "database": "",
+        "quoted": false,
+        "schema": "app",
+        "tableName": "customers"
+      }
+    ],
+    "relationships": [],
+    "requiresBusinessEvidence": false,
+    "sqlExecuted": false,
+    "structuralDiagnostics": [],
+    "structureReviewRequired": false,
+    "valid": true,
+    "version": "30.23.0"
+  },
+  "delivery": {
+    "execution": {
+      "reason": "本任务仅生成目标方言 SQL；已授权数据源仅提供元数据，未配置并授权目标数据库试执行。",
+      "reasonCode": "SOURCE_GENERATION_ONLY_NO_TARGET_EXECUTION_AUTHORITY",
+      "sqlExecuted": false,
+      "state": "SKIPPED"
+    },
+    "files": [
+      {
+        "bytes": 259,
+        "path": "sql/a.sql",
+        "sha256": "377b2e8c5f7e8c9bcceb15ac56d038b8a76b53d3c03f05e080d45b178dad4bcb",
+        "state": "SAVED_FOR_REVIEW"
+      },
+      {
+        "bytes": 141,
+        "path": "sql/b.sql",
+        "sha256": "2bf0f16a4d7b7ae5b9736e078ffa8703d9dea68fd7003061e4b8e062692dede8",
+        "state": "SAVED_FOR_REVIEW"
+      }
+    ],
+    "metadata": {
+      "snapshots": {
+        "binding": "sha256:bfbc0a23642a01f311844806f468d59173dee0889d38eb9e7942beb157024e77"
+      },
+      "tables": [
+        {
+          "bindingId": "binding",
+          "businessGrainStatus": "UNCONFIRMED",
+          "columnCount": 3,
+          "columns": [
+            {
+              "columnKey": null,
+              "columnType": "DECIMAL",
+              "comment": null,
+              "dataType": "DECIMAL",
+              "database": "APP",
+              "datasourceId": "asset",
+              "name": "AMOUNT",
+              "nullable": true,
+              "ordinalPosition": 3,
+              "schema": "APP",
+              "table": "ORDERS"
+            },
+            {
+              "columnKey": null,
+              "columnType": "INTEGER",
+              "comment": null,
+              "dataType": "INTEGER",
+              "database": "APP",
+              "datasourceId": "asset",
+              "name": "CUSTOMER_ID",
+              "nullable": true,
+              "ordinalPosition": 2,
+              "schema": "APP",
+              "table": "ORDERS"
+            },
+            {
+              "columnKey": null,
+              "columnType": "INTEGER",
+              "comment": null,
+              "dataType": "INTEGER",
+              "database": "APP",
+              "datasourceId": "asset",
+              "name": "ID",
+              "nullable": false,
+              "ordinalPosition": 1,
+              "schema": "APP",
+              "table": "ORDERS"
+            }
+          ],
+          "comment": null,
+          "database": "APP",
+          "discoveryId": "discovery",
+          "evidenceClass": "REGISTERED_METADATA",
+          "foreignKeys": [
+            {
+              "column": "CUSTOMER_ID",
+              "constraintRef": "sha256:4a02907a4dabd6ee304ad707022b10b005ee8e7d7cf98f2e2ab6bb4f4c6be65d",
+              "keySequence": 1,
+              "referencedColumn": "ID",
+              "referencedDatabase": "APP",
+              "referencedSchema": "APP",
+              "referencedTable": "CUSTOMERS",
+              "source": "JDBC_IMPORTED_KEYS"
+            }
+          ],
+          "partitionKeyStatus": "NOT_COLLECTED",
+          "partitionKeys": [],
+          "primaryKeyStatus": "NOT_COLLECTED",
+          "primaryKeys": [],
+          "relationsStatus": "COLLECTED_VISIBLE",
+          "schema": "APP",
+          "snapshotId": "sha256:bfbc0a23642a01f311844806f468d59173dee0889d38eb9e7942beb157024e77",
+          "sourceDialect": "oracle",
+          "tableName": "ORDERS",
+          "tableRef": "sha256:dbc6446dae640bfabdf60f62672dfc9098dd3a352469503507a577e8d9eba61b",
+          "tableType": "TABLE",
+          "verificationStatus": "NOT_VERIFIED_LIVE"
+        },
+        {
+          "bindingId": "binding",
+          "businessGrainStatus": "UNCONFIRMED",
+          "columnCount": 1,
+          "columns": [
+            {
+              "columnKey": null,
+              "columnType": "INTEGER",
+              "comment": null,
+              "dataType": "INTEGER",
+              "database": "APP",
+              "datasourceId": "asset",
+              "name": "ID",
+              "nullable": false,
+              "ordinalPosition": 1,
+              "schema": "APP",
+              "table": "CUSTOMERS"
+            }
+          ],
+          "comment": null,
+          "database": "APP",
+          "discoveryId": "discovery",
+          "evidenceClass": "REGISTERED_METADATA",
+          "foreignKeys": [],
+          "partitionKeyStatus": "NOT_COLLECTED",
+          "partitionKeys": [],
+          "primaryKeyStatus": "NOT_COLLECTED",
+          "primaryKeys": [],
+          "relationsStatus": "COLLECTED_VISIBLE",
+          "schema": "APP",
+          "snapshotId": "sha256:bfbc0a23642a01f311844806f468d59173dee0889d38eb9e7942beb157024e77",
+          "sourceDialect": "oracle",
+          "tableName": "CUSTOMERS",
+          "tableRef": "sha256:f17af0c2a842564976a1f7df027f59f2a48f2f070ae008cb44c565d24a44e362",
+          "tableType": "TABLE",
+          "verificationStatus": "NOT_VERIFIED_LIVE"
+        }
+      ]
+    },
+    "referencedColumns": [
+      {
+        "column": "id",
+        "database": "",
+        "path": "sql/a.sql",
+        "schema": "app",
+        "sourceAlias": "o",
+        "tableName": "orders"
+      },
+      {
+        "column": "customer_id",
+        "database": "",
+        "path": "sql/a.sql",
+        "schema": "app",
+        "sourceAlias": "o",
+        "tableName": "orders"
+      },
+      {
+        "column": "amount",
+        "database": "",
+        "path": "sql/a.sql",
+        "schema": "app",
+        "sourceAlias": "o",
+        "tableName": "orders"
+      },
+      {
+        "column": "id",
+        "database": "",
+        "path": "sql/b.sql",
+        "schema": "app",
+        "sourceAlias": "c",
+        "tableName": "customers"
+      }
+    ],
+    "referencedObjects": [
+      {
+        "database": "",
+        "quoted": false,
+        "schema": "app",
+        "tableName": "orders"
+      },
+      {
+        "database": "",
+        "quoted": false,
+        "schema": "app",
+        "tableName": "customers"
+      }
+    ],
+    "relationships": [],
+    "repairHistory": [
+      {
+        "durationMs": 1,
+        "operationId": "workspace-904bafc8f38c1bf749b7fa8d25cce82d87893a2bb84b48083ffbaaa54e03235e",
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-904bafc8f38c1bf749b7fa8d25cce82d87893a2bb84b48083ffbaaa54e03235e:receipt",
+        "status": "SUCCEEDED",
+        "tool": "workspace_metadata",
+        "valid": false
+      },
+      {
+        "durationMs": 2,
+        "operation": "LIST_TABLES",
+        "operationId": "workspace-519c8ea640a6a4de3449f34dab629088fa07dd24f28bea9da7e02c2e7f8c88a6",
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-519c8ea640a6a4de3449f34dab629088fa07dd24f28bea9da7e02c2e7f8c88a6:receipt",
+        "status": "SUCCEEDED",
+        "tool": "workspace_metadata",
+        "valid": false
+      },
+      {
+        "durationMs": 1,
+        "operation": "DESCRIBE_TABLE",
+        "operationId": "workspace-3ec9088b3a1e88670e66de791c24cb546a2d5ff6bb328847a616fefb43b8135a",
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-3ec9088b3a1e88670e66de791c24cb546a2d5ff6bb328847a616fefb43b8135a:receipt",
+        "status": "SUCCEEDED",
+        "tool": "workspace_metadata",
+        "valid": false
+      },
+      {
+        "durationMs": 3,
+        "operation": "DESCRIBE_TABLE",
+        "operationId": "workspace-0f5825a89e2ec55feb76e82373140b19960546fb1e5a1903aabb34f52234bc59",
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-0f5825a89e2ec55feb76e82373140b19960546fb1e5a1903aabb34f52234bc59:receipt",
+        "status": "SUCCEEDED",
+        "tool": "workspace_metadata",
+        "valid": false
+      },
+      {
+        "durationMs": 334,
+        "operationId": "workspace-e146d6e6ffd45a5055fa5c97edd3bd43b3d75425d07e43f421c16c5683aac37d",
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-e146d6e6ffd45a5055fa5c97edd3bd43b3d75425d07e43f421c16c5683aac37d:receipt",
+        "status": "VALID",
+        "structureReview": {
+          "businessValidation": "NOT_EVALUATED",
+          "grains": [
+            {
+              "alias": "o",
+              "businessGrain": "UNCONFIRMED",
+              "primaryKeys": [],
+              "status": "UNKNOWN",
+              "tableName": "orders"
+            },
+            {
+              "alias": "c",
+              "businessGrain": "UNCONFIRMED",
+              "primaryKeys": [],
+              "status": "UNKNOWN",
+              "tableName": "customers"
+            }
+          ],
+          "relationships": [],
+          "structuralDiagnostics": [],
+          "structureReviewRequired": false
+        },
+        "tool": "workspace_validate",
+        "valid": true
+      },
+      {
+        "durationMs": 295,
+        "operationId": "workspace-2e388ca39aef7b1d6db464c26c4a06aa61b50ac050cce22e2a219109c5ee4847",
+        "receiptRef": "runtime-evidence:coding:workspace:workspace-2e388ca39aef7b1d6db464c26c4a06aa61b50ac050cce22e2a219109c5ee4847:receipt",
+        "status": "VALID",
+        "structureReview": {
+          "businessValidation": "NOT_EVALUATED",
+          "grains": [
+            {
+              "alias": "o",
+              "businessGrain": "UNCONFIRMED",
+              "primaryKeys": [],
+              "status": "UNKNOWN",
+              "tableName": "orders"
+            },
+            {
+              "alias": "c",
+              "businessGrain": "UNCONFIRMED",
+              "primaryKeys": [],
+              "status": "UNKNOWN",
+              "tableName": "customers"
+            }
+          ],
+          "relationships": [],
+          "structuralDiagnostics": [],
+          "structureReviewRequired": false
+        },
+        "tool": "workspace_propose",
+        "valid": true
+      }
+    ],
+    "schemaVersion": "sql-studio.delivery.v1",
+    "stages": [
+      {
+        "stage": "METADATA_DISCOVERY",
+        "state": "COMPLETED"
+      },
+      {
+        "stage": "SQL_GENERATION",
+        "state": "COMPLETED"
+      },
+      {
+        "stage": "SQL_VALIDATION",
+        "state": "COMPLETED"
+      },
+      {
+        "stage": "SQL_EXECUTION",
+        "state": "SKIPPED"
+      },
+      {
+        "stage": "SQL_REPAIR",
+        "state": "SEE_OPERATION_RECEIPTS"
+      },
+      {
+        "stage": "ARTIFACT_DELIVERY",
+        "state": "SAVED_FOR_REVIEW"
+      }
+    ],
+    "targetDialect": "hive",
+    "unresolvedIssues": [],
+    "validation": {
+      "businessSemantics": "NOT_EVALUATED",
+      "fields": "CHECKED",
+      "parser": "sqlglot",
+      "syntax": "PARSED",
+      "version": "30.23.0"
+    }
+  }
+}

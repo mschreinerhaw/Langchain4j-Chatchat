@@ -567,6 +567,16 @@ public class McpToolRegistryBridge {
         String userId = stringValue(context.get("userId"));
         if (tenantId == null || userId == null) return false;
         try {
+            ToolMetadata declared=toolRegistry.getToolMetadata(toolName);
+            Map<String,Object> extra=declared==null||declared.getMetadata()==null?Map.of():declared.getMetadata();
+            String remote=stringValue(extra.get("remoteToolName"));
+            Map<?,?> publisher=extra.get("mcpToolMeta") instanceof Map<?,?> value?value:Map.of();
+            Map<?,?> boundary=publisher.get("sqlStudioGenerationBoundary") instanceof Map<?,?> value?value:Map.of();
+            boolean catalog=remote!=null&&Set.of("sql_schema_context_query","sql_metadata_search","enterprise_metadata_search","data_query_query").contains(remote)
+                &&Boolean.TRUE.equals(publisher.get("readOnly"))
+                &&("METADATA_READ".equals(boundary.get("operation"))&&Boolean.FALSE.equals(boundary.get("executesBusinessSql"))
+                    ||"data_query_query".equals(remote)&&"read_only".equals(publisher.get("runtimeAction")));
+            if(catalog)return resourceAuthorization.readableMetadataIds(tenantId,userId,Set.of(toolName)).contains(toolName);
             return resourceAuthorization.allowedIdsForAgent(ResourceAuthorizationPort.MCP_TOOL,
                 tenantId, userId, Set.of(), Set.of(toolName),
                 stringValue(context.get("authorizationAgentId"))).contains(toolName);

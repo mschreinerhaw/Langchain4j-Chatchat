@@ -22,7 +22,7 @@
       </div>
       <div class="sql-database-status" :data-ready="!!context && !busy && !error">
         <span v-if="busy" role="status"><LoaderCircle :size="12" class="sql-progress-spinner" />正在加载数据库上下文</span>
-        <span v-else-if="context && !error"><CircleCheck :size="12" />上下文就绪{{ sourceDialect ? ' · ' + sourceDialect : '' }}</span>
+        <span v-else-if="context && !error"><CircleCheck :size="12" />源：{{ sourceDialect || '未知' }} · 目标：{{ dialect }}</span>
         <span v-else>请选择授权数据源</span>
         <small v-if="filePath" class="sql-database-current-file" :title="filePath"><span aria-hidden="true">⌁</span>{{ filePath.split('/').at(-1) }}</small>
         <small v-else>仅访问授权范围</small>

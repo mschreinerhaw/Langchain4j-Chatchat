@@ -590,7 +590,8 @@ public final class ClineModelCallbackController {
         var proposal = new CodingTaskOutcome(current.schemaVersion(), current.taskId(), current.scope(),
             current.contractSha256(), CodingTaskOutcome.Status.FAILED, current.revision() + 1,
             current.lastEventSequence() + 1, current.createdAt(), at, current.startedAt(), at,
-            false, CodingErrorCode.EXECUTION_FAILED, "Coding loop failed without a verified result",
+            false, CodingErrorCode.EXECUTION_FAILED, workspace!=null&&CodingWorkspaceService.supports(tasks.contract(call.scope(),call.taskId()))
+                ?workspace.failureSummary(tasks.contract(call.scope(),call.taskId())):"Coding loop failed without a verified result",
             List.of("No completed Coding result or independent validation was submitted"),
             current.inputSnapshotRef(), null, null, null, null, null,
             CodingTaskOutcome.ValidationStatus.NOT_RUN, current.reproducibility(), current.usage(),

@@ -1,0 +1,8 @@
+{
+  "fixtureOnly": true,
+  "executionAllowsAdded": 0,
+  "beforeStatus": 200,
+  "explicitDenyStatus": 403,
+  "temporaryDenyRemoved": true,
+  "afterStatus": 200
+}

@@ -41,13 +41,13 @@ public class StudioCodePlanService {
         String id = "studio-code-" + UUID.randomUUID();
         try {
             var plan = mapper.convertValue(Map.of("version", "1.0",
-                "intent", Map.of("type", "code_development", "goal", "将授权代码任务交付 Cline，由 Cline 制定分析与生成方案", "risk_level", "low"),
+                "intent", Map.of("type", "code_development", "goal", "根据当前需求与已授权资料，制定分析与代码生成方案", "risk_level", "low"),
                 "context", Map.of("key_facts", List.of("Language: " + language, "Action: " + action),
                     "assumptions", List.of(), "missing_info", List.of(),
                     "constraints", List.of("analysisDecisionOwner=CLINE", "Runtime admission only; no exploration or execution has occurred",
                         ORIGIN + fingerprint(tenant, user, language, action, input, modelName))),
                 "plan", Map.of("steps", List.of(Map.of("id", 1, "action_type", "reasoning",
-                    "input", Map.of("description", "Cline 根据授权上下文自主规划、生成代码并处理解析反馈；代码变更等待用户审查"),
+                    "input", Map.of("description", "分析需求和相关资料，生成代码并检查语法；代码变更需审查后应用"),
                     "depends_on", List.of())))), InterpretationPlan.class);
             validate(plan);
             store().savePlan(tenant, id, id, plan, "ANALYSIS_READY");
@@ -90,7 +90,7 @@ public class StudioCodePlanService {
     }
     private InterpretationPlanStore store() {
         if (runStore instanceof InterpretationPlanStore store) return store;
-        throw new IllegalStateException("当前 Runtime 未配置解释计划存储，尚未开始探索");
+        throw new IllegalStateException("任务计划服务暂不可用，尚未开始分析");
     }
     private String fingerprint(String tenant, String user, String language, String action, String input, String modelName) {
         try {

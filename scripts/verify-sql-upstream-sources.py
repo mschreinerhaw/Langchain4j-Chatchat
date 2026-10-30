@@ -13,6 +13,12 @@ DB = "plugins/"
 JAVA = "/src/org/jkiss/dbeaver/"
 FILES = {
     "dbeaver": [
+        (DB+"org.jkiss.dbeaver.model.jdbc"+JAVA+"model/impl/jdbc/JDBCDataSource.java", ["openConnection("]),
+        (DB+"org.jkiss.dbeaver.ui.editors.sql"+JAVA+"ui/editors/sql/execute/SQLQueryJob.java", ["executeStatement(", "curResult.setError("]),
+        (DB+"org.jkiss.dbeaver.ext.oracle"+JAVA+"ext/oracle/data/QueryTransformerRowNum.java", ["transformQueryString("]),
+        (DB+"org.jkiss.dbeaver.model"+JAVA+"model/struct/DBSEntity.java", ["getAttributes(", "getConstraints(", "getAssociations(", "getReferences("]),
+        (DB+"org.jkiss.dbeaver.model"+JAVA+"model/struct/DBSEntityAssociation.java", ["getReferencedConstraint(", "getAssociatedEntity("]),
+        (DB+"org.jkiss.dbeaver.model"+JAVA+"model/struct/DBSEntityConstraint.java", ["getConstraintType("]),
         (DB+"org.jkiss.dbeaver.model"+JAVA+"model/navigator/DBNDatabaseNode.java", ["getChildren(", "needsInitialization(", "refreshNode("]),
         (DB+"org.jkiss.dbeaver.ui.navigator"+JAVA+"ui/navigator/database/DatabaseNavigatorContentProvider.java", ["getChildren(", "TreeLoadVisualizer.expandChildren"]),
         (DB+"org.jkiss.dbeaver.model.sql"+JAVA+"model/sql/semantics/SQLQueryModelRecognizer.java", ["recognizeQuery(", "collectQueryExpression("]),
@@ -28,6 +34,8 @@ FILES = {
         (DB+"org.jkiss.dbeaver.model.ai"+JAVA+"model/ai/commands/SQLCommandAI.java", ["handleCommand(", "AICommandRequest("]),
     ],
     "cloudbeaver": [
+        ("server/bundles/io.cloudbeaver.server/src/io/cloudbeaver/service/sql/WebSQLProcessor.java", ["createContext("]),
+        ("server/bundles/io.cloudbeaver.server/src/io/cloudbeaver/service/sql/WebSQLQueryResults.java", ["getResultSet("]),
         ("webapp/packages/core-navigation-tree/src/NodesManager/NavTreeResource.ts", ["refreshTree(", "markTreeOutdated(", "loadNodeChildren(", "insertSlice("]),
         ("webapp/packages/plugin-sql-editor-new/src/SQLEditor/useSqlDialectAutocompletion.ts", ["completionSource(", "insertCompletionText("]),
         ("webapp/packages/plugin-sql-editor/src/SqlEditor/useSqlEditor.ts", ["getHintProposals:", "getExecutingQuery("]),
@@ -41,6 +49,11 @@ FILES = {
 
 
 def git(directory, *args):
+    # `git show revision:path` may stat the entire object expression on Windows,
+    # hitting MAX_PATH even with a partial clone. Resolve then read the blob.
+    if args[0] == "show":
+        object_id = subprocess.check_output(["git", "-C", str(directory), "rev-parse", args[1]]).decode().strip()
+        return subprocess.check_output(["git", "-C", str(directory), "cat-file", "blob", object_id])
     return subprocess.check_output(["git", "-C", str(directory), *args])
 
 
@@ -83,7 +96,7 @@ def main():
             symbols="；".join("`"+name+"` L"+"/".join(map(str,lines)) for name,lines in file["symbols"].items())
             rows.append(f"| {repo} | [{file['path']}]({file['url']}) | {symbols} | Apache-2.0 ({file['licenseBasis']}) |")
     args.output.with_name("source-index.md").write_text("\n".join(rows)+"\n",encoding="utf8")
-    print("Verified 2 pinned revisions, 21 source files and their license bases")
+    print(f"Verified 2 pinned revisions, {sum(len(v['files']) for v in manifest['repositories'].values())} source files and their license bases")
 
 
 if __name__ == "__main__":

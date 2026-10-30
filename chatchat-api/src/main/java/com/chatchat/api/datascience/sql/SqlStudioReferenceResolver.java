@@ -31,15 +31,17 @@ public class SqlStudioReferenceResolver {
             var found=new ArrayList<Map<String,Object>>();
             boolean eligible=false;
             for (var binding:context.bindings()) {
-                if (!catalog.isEmpty() && binding.database()!=null && !catalog.equals(binding.database())) continue;
-                if (!namespace.isEmpty() && binding.schema()!=null && !namespace.equals(binding.schema())) continue;
+                if (!catalog.isEmpty() && binding.database()!=null && !sameIdentifier(catalog,binding.database(),caseSensitive(ref,"database"))) continue;
+                if (!namespace.isEmpty() && binding.schema()!=null && !sameIdentifier(namespace,binding.schema(),caseSensitive(ref,"schema"))) continue;
                 // A two-part MySQL identifier is database.table, represented as db by SQLGlot.
-                if (twoPartDatabase && !namespace.isEmpty() && binding.schema()==null && binding.database()!=null && !namespace.equals(binding.database())) continue;
+                if (twoPartDatabase && !namespace.isEmpty() && binding.schema()==null && binding.database()!=null && !sameIdentifier(namespace,binding.database(),caseSensitive(ref,"schema"))) continue;
                 eligible=true;
                 var args=new LinkedHashMap<String,Object>();
-                args.put("operation","DESCRIBE");args.put("tableName",name);args.put("page",1);args.put("pageSize",100);
-                if (!catalog.isEmpty()) args.put("database",catalog);
-                if (!namespace.isEmpty()) args.put(twoPartDatabase && binding.schema()==null ? "database" : "schema",namespace);
+                String physicalName=!caseSensitive(ref,"") && "oracle".equals(binding.sourceDialect()) ? name.toUpperCase(Locale.ROOT) : name;
+                args.put("operation","DESCRIBE");args.put("tableName",physicalName);args.put("page",1);args.put("pageSize",100);
+                if (!catalog.isEmpty()) args.put("database",binding.database()==null?catalog:binding.database());
+                if (!namespace.isEmpty()) args.put(twoPartDatabase && binding.schema()==null ? "database" : "schema",
+                    twoPartDatabase && binding.schema()==null && binding.database()!=null ? binding.database() : binding.schema()==null?namespace:binding.schema());
                 var result=metadata.getObject().operateScoped(scope,context,new SqlStudioMetadataService.Operation(binding.bindingId(),args)).metadata();
                 if (!"SUCCEEDED".equals(result.get("status"))) throw new IllegalArgumentException("Metadata discovery failed for table: "+name);
                 if (result.get("items") instanceof List<?> items) for(Object value:items) {
@@ -50,6 +52,7 @@ public class SqlStudioReferenceResolver {
                     var enriched=new LinkedHashMap<>(table);
                     enriched.put("bindingId",binding.bindingId());enriched.put("discoveryId",context.discoveryId());
                     enriched.put("expectedSnapshotId",Objects.toString(result.get("snapshotId"),""));
+                    enriched.put("snapshotId",Objects.toString(result.get("snapshotId"),""));enriched.put("sourceDialect",binding.sourceDialect());
                     found.add(enriched);
                 }
             }
@@ -62,11 +65,17 @@ public class SqlStudioReferenceResolver {
         return List.copyOf(tables);
     }
     static boolean matches(Map<String,Object> table,Map<String,Object> ref) {
-        boolean quoted=Boolean.TRUE.equals(ref.get("quoted"));
+        boolean quoted=caseSensitive(ref,"");
         String name=Objects.toString(ref.get("tableName"),""), actual=Objects.toString(table.get("tableName"),"");
         if (!(quoted?name.equals(actual):name.equalsIgnoreCase(actual))) return false;
         String catalog=Objects.toString(ref.get("database"),""), namespace=Objects.toString(ref.get("schema"),"");
-        return (catalog.isEmpty()||catalog.equals(table.get("database")))
-            && (namespace.isEmpty()||namespace.equals(table.get("schema"))||namespace.equals(table.get("database")));
+        return (catalog.isEmpty()||sameIdentifier(catalog,Objects.toString(table.get("database"),""),caseSensitive(ref,"database")))
+            && (namespace.isEmpty()||sameIdentifier(namespace,Objects.toString(table.get("schema"),""),caseSensitive(ref,"schema"))
+                ||sameIdentifier(namespace,Objects.toString(table.get("database"),""),caseSensitive(ref,"schema")));
     }
+    private static boolean caseSensitive(Map<String,Object> reference,String part){
+        String key=part.isEmpty()?"caseSensitive":part+"CaseSensitive";
+        return reference.get(key) instanceof Boolean value?value:Boolean.TRUE.equals(reference.get(part.isEmpty()?"quoted":part+"Quoted"));
+    }
+    private static boolean sameIdentifier(String requested,String actual,boolean quoted){return quoted?requested.equals(actual):requested.equalsIgnoreCase(actual);}
 }

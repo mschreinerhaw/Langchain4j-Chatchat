@@ -50,5 +50,6 @@ it("never executes model HTML, layout scripts or remote Markdown images", async 
   await nextTick();
   expect(host.querySelector("script,img,iframe")).toBeNull();
   expect(window.compromised).toBeUndefined();
-  expect(host.textContent).toContain("排版描述未通过校验");
+  expect(host.textContent).not.toContain("排版描述未通过校验");
+  expect(host.textContent).toContain('数据范围');
 });

@@ -1,0 +1,429 @@
+{
+  "date": "2026-10-30",
+  "baselineProductionSource": "984cb7038",
+  "fullP0AcceptanceComplete": false,
+  "confirmedScope": "HIVE_SOURCE_GENERATION_WITH_ORACLE_METADATA_ONLY",
+  "sourceFiles": [
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/datascience/StudioCodePlanService.java",
+      "sha256": "9bac517ec6ba924478046466f17fb8eb114e721a9a0482a0d5dd349a5f83b337",
+      "symbols": {}
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/datascience/StudioTaskHistory.java",
+      "sha256": "31b8e21cb600ba821883f94d90fff3e267a4506fb5a6fe91eb69d45f1bb91e08",
+      "symbols": {}
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/datascience/sql/SqlStudioDelivery.java",
+      "sha256": "2b2728ce9d6ae4c3dc0cb249c2a1e8b468ee51650b484919f166fd7861402688",
+      "symbols": {
+        "manifest(": [
+          28
+        ]
+      }
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/datascience/sql/SqlStudioMetadataGateway.java",
+      "sha256": "c91c47548210233e888ff6dd2d13a6650c6fcc2cdb750406ed002b38e6f3198b",
+      "symbols": {
+        "METADATA_AMBIGUOUS_OBJECT": [
+          94
+        ]
+      }
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/datascience/sql/SqlStudioMetadataService.java",
+      "sha256": "e89274427a953cbd4257d938478466cd3e0451afdc72acd02afbc99376d60ee7",
+      "symbols": {
+        "GET_TABLE_DDL": [
+          186
+        ]
+      }
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/datascience/sql/SqlStudioReferenceResolver.java",
+      "sha256": "9ad7ad39a1e3180cfbec957d7791c6f2587f25eecae556a9d6e0bbb0febedff0",
+      "symbols": {
+        "caseSensitive(": [
+          34,
+          35,
+          37,
+          40,
+          68,
+          72,
+          73,
+          74,
+          76
+        ]
+      }
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/datascience/sql/SqlStudioService.java",
+      "sha256": "94bf5495699a53d39b1fc4fe7b6d86f8f484051cadf17d55482ff2a321f39ac3",
+      "symbols": {}
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/datascience/sql/SqlWorkspaceMetadataTools.java",
+      "sha256": "f986316e8ef115be3802b93274810b9bd2daba77392713e340889491472dd39d",
+      "symbols": {
+        "deliveryEvidence(": [
+          32
+        ],
+        "GET_TABLE_DDL": [
+          20,
+          111,
+          121
+        ],
+        "METADATA_AMBIGUOUS_OBJECT": [
+          187
+        ]
+      }
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineModelCallbackController.java",
+      "sha256": "d84958fb0e0983c68ebf2e886745b451bf6d889a0dfea88d0f0c7942d8294990",
+      "symbols": {
+        "failureSummary(": [
+          594
+        ],
+        "workspaceMetadata(": [
+          270
+        ]
+      }
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/workspace/CodingWorkspaceService.java",
+      "sha256": "8a3dec94c857949cffb42e9fbb5c908f4d10b58fd7336025c6724b9c2ded7ae9",
+      "symbols": {
+        "failureSummary(": [
+          295
+        ],
+        "sqlRepairLimit(": [
+          334,
+          371,
+          406
+        ],
+        "manifest(": [
+          463
+        ],
+        "deliveryEvidence(": [
+          464
+        ],
+        "SQL_REPAIR_LIMIT_REACHED": [
+          371,
+          405,
+          407
+        ]
+      }
+    },
+    {
+      "path": "chatchat-api/src/main/resources/sql-toolchain/validate.py",
+      "sha256": "fb6c20e8a2044a15d1a49311bc752f095751ac9f5c082a88a24701cb59a3add1",
+      "symbols": {
+        "normalize_identifiers(source.copy()": [
+          224,
+          276
+        ]
+      }
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/datascience/StudioCodePlanServiceTest.java",
+      "sha256": "352b7d9ab1d71af36b59dd26a12f7cc48ff95d4404b9e3765a337c4a0d46a8ab",
+      "symbols": {}
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioJdbcDeliveryIntegrationTest.java",
+      "sha256": "23e1fd889ce116fb4b9ea24888681c7f9ee667e4bf4e816374fcacb5803a8721",
+      "symbols": {
+        "manifest(": [
+          37,
+          40,
+          42
+        ],
+        "GET_TABLE_DDL": [
+          51
+        ]
+      }
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioJdbcMetadataFixture.java",
+      "sha256": "c649ae812fc75033666951c1b822ed0ea449544bd9e847ac9e1ce9b64ef87817",
+      "symbols": {}
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioMetadataGatewayTest.java",
+      "sha256": "4e2dfd24b587b58f74d97e4946aa78c147d1dc9a07e11da5e8a483e3faf8e76d",
+      "symbols": {}
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioMetadataServiceTest.java",
+      "sha256": "ffdd239e4fa1c25e768024dfbb7c1cbd1a68cea46664534b2845f3c0b820a912",
+      "symbols": {}
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioReferenceResolverTest.java",
+      "sha256": "8689f8905b3bf2e9ff8c8b9c2aa89eb070075ebbdce2714ac990d5dc8f9fa3ae",
+      "symbols": {}
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlWorkspaceMetadataToolsTest.java",
+      "sha256": "182ccb880f9b375c4db24cacd8d6bb16bb762365b584f8a8c35503f20e17222e",
+      "symbols": {}
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/CodingWorkspaceNodeIntegrationTest.java",
+      "sha256": "f58406da0ec5f5ce2d314de0790b900a79be9c80b9c9df06b103d702d70c1ed4",
+      "symbols": {
+        "workspaceMetadata(": [
+          179
+        ]
+      }
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/workspace/CodingWorkspaceServiceTest.java",
+      "sha256": "bad5591d044e680f673469f93aea844e28055df9da38d2afcffdf5eca96c4382",
+      "symbols": {
+        "failureSummary(": [
+          82
+        ],
+        "SQL_REPAIR_LIMIT_REACHED": [
+          81
+        ]
+      }
+    },
+    {
+      "path": "chatchat-api/web-app/src/components/editor/StudioCodePlan.test.js",
+      "sha256": "91933332b0064400ecddbd0d97d95ed579fff0d7a9057c1d074dd174f9e03f73",
+      "symbols": {}
+    },
+    {
+      "path": "chatchat-api/web-app/src/components/editor/StudioCodePlan.vue",
+      "sha256": "450e9722960d068be3f3270d9146d68a5bdeaedd495808325851ebe40fe4c158",
+      "symbols": {}
+    },
+    {
+      "path": "chatchat-api/web-app/src/components/sql-studio/SqlAssistantPanel.test.js",
+      "sha256": "72fbd987ce52b03eae8834c1485615c6833a89ec408ec697365c5e3268cda256",
+      "symbols": {}
+    },
+    {
+      "path": "chatchat-api/web-app/src/components/sql-studio/SqlAssistantPanel.vue",
+      "sha256": "bd4466d7ad70475823956f597c87e081b11c2db63463850dd4bd0b4e11f52939",
+      "symbols": {}
+    },
+    {
+      "path": "chatchat-api/web-app/src/components/sql-studio/SqlSchemaExplorer.vue",
+      "sha256": "6b5995a7d5a7eae0cc084f60a135b488af9777b9e80f95c0e80c2d90259b69de",
+      "symbols": {}
+    },
+    {
+      "path": "chatchat-api/web-app/src/js/components/editor/StudioCodePlan.js",
+      "sha256": "f7634c59510416d42335be51f0c6239b6b937b4dbf969d16f438041f9885a987",
+      "symbols": {}
+    },
+    {
+      "path": "chatchat-api/web-app/src/js/utils/studioConversation.js",
+      "sha256": "18e0d5301f00ef33accdd60c03e24339b76c286a2d6257552e33d3b7aac3b937",
+      "symbols": {}
+    },
+    {
+      "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/sql/metadata/SqlMetadataDiscoveryService.java",
+      "sha256": "6e36618a39c0de052443fae79ac43ca32be455880ca83bd7fe6232725eb67d60",
+      "symbols": {
+        "GET_TABLE_DDL": [
+          24,
+          98,
+          106
+        ]
+      }
+    },
+    {
+      "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/sql/tool/SqlMcpToolPublisher.java",
+      "sha256": "77e73ef9fe473d7b3320d4671bc0da3eb407ae09e54ce5b73c02ed6e779cd58b",
+      "symbols": {}
+    },
+    {
+      "path": "chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/sql/metadata/SqlMetadataDiscoveryWorkflowTest.java",
+      "sha256": "b4d50edfca33f66651372e6cec124beff13afd1fed958f3fe92fc4425815209e",
+      "symbols": {
+        "GET_TABLE_DDL": [
+          49
+        ]
+      }
+    },
+    {
+      "path": "coding-agent-node/src/runner.js",
+      "sha256": "2a2cc0f116bc8af988e290a4ddba4ecb2c9f7efcb081164a00959cdf046bafcc",
+      "symbols": {
+        "GET_TABLE_DDL": [
+          262
+        ],
+        "SQL_REPAIR_LIMIT_REACHED": [
+          587
+        ]
+      }
+    },
+    {
+      "path": "coding-agent-node/test/runner.test.js",
+      "sha256": "eaf3e27ba53b4760fd947751d672e796131d4d19ff5b5d221a132c414d953952",
+      "symbols": {
+        "SQL_REPAIR_LIMIT_REACHED": [
+          605,
+          609
+        ]
+      }
+    },
+    {
+      "path": "scripts/replay-sql-studio-validation.py",
+      "sha256": "113038804ed600c3d29a4c99275aa3d3b0805963cca3c51138c796345a9fe91a",
+      "symbols": {}
+    },
+    {
+      "path": "scripts/tests/test_studio_sql_references.py",
+      "sha256": "c83028a33912a36d18d83dea144e8656df01aacd1bc2737a3304d5b9036298f5",
+      "symbols": {}
+    },
+    {
+      "path": "scripts/verify-sql-upstream-sources.py",
+      "sha256": "ab91a93bd7886fb145203c2c4fa3784d3d6529ca166e89f1ae4b97b96e50a0e6",
+      "symbols": {}
+    }
+  ],
+  "javaRuns": [
+    {
+      "name": "java-final.log",
+      "buildSuccess": true,
+      "moduleSummaries": [
+        {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "tests": 93,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "tests": 170,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      ]
+    },
+    {
+      "name": "java-diagnostics-final.log",
+      "buildSuccess": true,
+      "moduleSummaries": [
+        {
+          "tests": 33,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      ]
+    },
+    {
+      "name": "java-last.log",
+      "buildSuccess": true,
+      "moduleSummaries": [
+        {
+          "tests": 17,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "tests": 50,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      ]
+    },
+    {
+      "name": "java-malformed-final.log",
+      "buildSuccess": true,
+      "moduleSummaries": [
+        {
+          "tests": 28,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      ]
+    }
+  ],
+  "frontend": {
+    "passed": 167,
+    "failed": 0,
+    "node25Options": "--no-experimental-webstorage",
+    "maxWorkers": 2,
+    "buildPassed": true
+  },
+  "node": {
+    "passed": 129,
+    "failed": 0
+  },
+  "python": {
+    "passed": 21,
+    "failed": 0
+  },
+  "browser": {
+    "passed": true,
+    "httpFixtures": true
+  },
+  "realModel": {
+    "scope": "REAL_PROVIDER_ISOLATED_JAVA_NODE_H2_PARSER",
+    "productionModified": false,
+    "model": "qwen3.7-plus",
+    "language": "hive",
+    "wallMs": 39340,
+    "status": "COMPLETED",
+    "usage": {
+      "budgetId": "workspace-budget:node-task",
+      "costCurrency": "USD",
+      "consumed": {
+        "modelCalls": 6,
+        "modelTokens": 18143,
+        "toolCalls": 7,
+        "codeExecutions": 0,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 9730,
+        "costAmount": "0"
+      },
+      "reserved": {
+        "modelCalls": 0,
+        "modelTokens": 80161,
+        "toolCalls": 0,
+        "codeExecutions": 0,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 0,
+        "costAmount": "0.249999999996"
+      },
+      "meteringComplete": false
+    },
+    "generatedCodeExecuted": false,
+    "modelCallCount": 6,
+    "toolCallCount": 7
+  },
+  "productionDeploymentPerformed": false,
+  "remaining": [
+    "Current business-user end-to-end revalidation",
+    "Live Hive execution and database execution-error repair",
+    "Original complete database DDL",
+    "Production process interruption/recovery drill"
+  ]
+}

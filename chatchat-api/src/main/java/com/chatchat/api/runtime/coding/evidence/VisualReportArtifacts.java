@@ -27,6 +27,7 @@ public final class VisualReportArtifacts {
     public Map<String,Object> collect(KernelDataScope scope,String task,String operation,List<Map<String,Object>> rows,
                                      Map<String,byte[]> files,Map<String,Object> execution) {
         var warnings=new ArrayList<String>();
+        var diagnostics=new ArrayList<Map<String,Object>>();
         long started=System.nanoTime();
         try {
             require(rows.size()==1 && rows.get(0).get("visualReport") instanceof Map<?,?>,"Missing Python visual report");
@@ -59,10 +60,17 @@ public final class VisualReportArtifacts {
             var charts=new ArrayList<Map<String,Object>>();var chartIds=new HashSet<String>();var artifacts=new ArrayList<Map<String,Object>>();
             for(var item:list(raw.get("charts"),64)) {
                 var chart=map(item);String chartId=id(chart.get("id"));require(chartIds.add(chartId),"Duplicate chart");
-                String kind=text(chart.get("kind"),16),name=text(chart.get("fileName"),255);
                 try {
+                    String kind=text(chart.get("kind"),16),name=text(chart.get("fileName"),255);
                     require(name.matches("[A-Za-z0-9_][A-Za-z0-9_.-]{0,254}"),"Invalid chart file name");
                     byte[] bytes=files.get("results/"+name);require(bytes!=null&&bytes.length>0&&bytes.length<=8*1024*1024,"Chart file unavailable or exceeds 8MiB");
+                    if(!Set.of("png","svg","plotly").contains(kind)){
+                        String inferred=name.endsWith(".png")?"png":name.endsWith(".svg")?"svg":name.endsWith(".json")?"plotly":"";
+                        if(!inferred.isEmpty()){
+                            kind=inferred;
+                            diagnostics.add(diagnostic("CHART_VALIDATION","CHART_KIND_RECHECKED","charts."+chartId,true,"Chart format derived from filename and subjected to the full artifact validator."));
+                        }
+                    }
                     String media;
                     switch(kind){
                         case "png" -> {require(name.endsWith(".png"),"PNG extension required");validatePng(bytes);media="image/png";}
@@ -73,9 +81,18 @@ public final class VisualReportArtifacts {
                     require(archive!=null,"Object storage unavailable");
                     var stored=archive.save(scope,task,UserAssetService.Kind.ARTIFACT,"execution:"+operation+":results:"+name,name,bytes);
                     var ref=Map.<String,Object>of("fileId",stored.id(),"fileName",name,"sha256",stored.sha256(),"size",stored.size(),"mediaType",media);
-                    artifacts.add(ref);charts.add(Map.of("id",chartId,"title",text(chart.get("title"),240),"kind",kind,"artifact",ref,"caption",text(chart.get("caption"),8000)));
+                    var accepted=new LinkedHashMap<String,Object>(Map.of("id",chartId,"title",text(chart.get("title"),240),"kind",kind,"artifact",ref,"caption",text(chart.get("caption"),8000)));
+                    if(chart.containsKey("role")){require(Set.of("chart","illustration").contains(chart.get("role")),"Invalid chart role");accepted.put("role",chart.get("role"));}
+                    if(chart.containsKey("chartType")){
+                        if(Set.of("line","bar","pie","scatter","histogram","box").contains(chart.get("chartType")))accepted.put("chartType",chart.get("chartType"));
+                        else diagnostics.add(diagnostic("CHART_VALIDATION","UNSUPPORTED_CHART_TYPE_HINT","charts."+chartId,true,"Valid archived chart retained without unsupported presentation hint."));
+                    }
+                    artifacts.add(ref);charts.add(accepted);
                 }catch(Exception invalid){warnings.add("Chart "+chartId+" unavailable: "+safeReason(invalid));
-                    log.warn("visual_report_chart_rejected task={} operation={} chart={} reason={}",task,operation,chartId,invalid.getClass().getSimpleName());}
+                    String title;try{title=text(chart.get("title"),240);}catch(IllegalArgumentException invalidTitle){title="图表暂不可用";}
+                    charts.add(new LinkedHashMap<>(Map.of("id",chartId,"title",title,"kind","unavailable","renderError","CHART_ARTIFACT_REJECTED")));
+                    diagnostics.add(diagnostic("CHART_VALIDATION","CHART_ARTIFACT_REJECTED","charts."+chartId,false,safeReason(invalid)));
+                    log.warn("visual_report_chart_rejected task={} operation={} chart={} reason={}",task,operation,chartId,safeReason(invalid));}
             }
             var sections=new ArrayList<Map<String,Object>>();
             var sectionIds=new HashSet<String>();
@@ -89,16 +106,16 @@ public final class VisualReportArtifacts {
                 raw.getOrDefault("presentation",ReportPresentation.defaults()))));
             result.put("presentation",presentation);
             if(raw.containsKey("layout")){
-                try{
-                    result.put("layout",ReportLayout.validate(normalizeLayout(raw),Map.of("metric",metricIds,"section",sectionIds,"chart",charts.stream()
-                        .map(chart->(String)chart.get("id")).collect(java.util.stream.Collectors.toSet()),"table",tableIds)));
-                    result.put("layoutValidationStatus","PASSED");
-                }catch(IllegalArgumentException invalid){
-                    result.put("layoutValidationStatus","FAILED");warnings.add("The optional report layout was invalid; original analysis is retained in compatible layout.");
-                }
+                var aliases=new HashMap<String,String>();var ambiguous=new HashSet<String>();
+                for(var section:sections){String title=(String)section.get("title");if(aliases.putIfAbsent(title,(String)section.get("id"))!=null)ambiguous.add(title);}
+                ambiguous.forEach(aliases::remove);
+                Object normalized;try{normalized=normalizeLayout(raw);}catch(IllegalArgumentException invalid){normalized=raw.get("layout");}
+                var recovered=ReportLayout.recover(normalized,Map.of("metric",metricIds,"section",sectionIds,"chart",chartIds,"table",tableIds),aliases);
+                result.put("layout",recovered.get("layout"));result.put("layoutValidationStatus",recovered.get("status"));
+                diagnostics.addAll((List<Map<String,Object>>)recovered.get("diagnostics"));
             }else if(execution.containsKey("reportPresentation")){
-                result.put("layoutValidationStatus","FAILED");
-                warnings.add("The optional report layout was not supplied; original analysis is retained in compatible layout.");
+                result.put("layoutValidationStatus","RECOVERED");
+                diagnostics.add(diagnostic("LAYOUT_VALIDATION","LAYOUT_NOT_SUPPLIED","layout",true,"Registered elements use compatible placement."));
             }
             var validation=map(raw.get("validation"));var checks=new ArrayList<Map<String,Object>>();boolean failed=false,unresolved=false;
             for(var item:list(validation.get("checks"),128)) {
@@ -106,6 +123,10 @@ public final class VisualReportArtifacts {
                 checks.add(Map.of("name",text(check.get("name"),240),"status",state,"detail",text(check.get("detail"),4000)));
             }
             for(var warning:list(validation.get("warnings"),64))warnings.add(text(warning,4000));
+            String analysisStatus=status;
+            if(failed)analysisStatus="FAILED";
+            else if((unresolved||checks.isEmpty())&&"SUCCESS".equals(analysisStatus))analysisStatus="PARTIAL";
+            result.put("analysisStatus",analysisStatus);
             if(failed)status="FAILED";
             else if(unresolved||!warnings.isEmpty()||checks.isEmpty()) {if("SUCCESS".equals(status))status="PARTIAL";}
             if(checks.isEmpty())warnings.add("The analysis program supplied no computation checks; business correctness is not certified.");
@@ -114,24 +135,15 @@ public final class VisualReportArtifacts {
             var sources=list(raw.get("dataSources"),64).stream().map(source->text(source,512)).toList();
             var cited=list(rows.get(0).get("evidenceReferences"),64).stream().map(source->text(source,512)).toList();
             require(!sources.isEmpty()&&cited.containsAll(sources),"Report data sources must match the report's authorized citations");
-            bindDataReferences(raw,"metrics",metrics,sources);
-            bindDataReferences(raw,"tables",tables,sources);
-            bindDataReferences(raw,"charts",charts,sources);
-            if(result.containsKey("layout")&&java.util.stream.Stream.of(metrics,tables,charts).flatMap(Collection::stream).anyMatch(item->!item.containsKey("dataRefs"))){
+            bindDataReferences(raw,"metrics",metrics,sources,diagnostics);
+            bindDataReferences(raw,"tables",tables,sources,diagnostics);
+            bindDataReferences(raw,"charts",charts,sources,diagnostics);
+            if("PASSED".equals(result.get("layoutValidationStatus")) && !diagnostics.isEmpty())result.put("layoutValidationStatus","RECOVERED");
+            if(raw.containsKey("layout")&&result.containsKey("layout")&&java.util.stream.Stream.of(metrics,tables,charts).flatMap(Collection::stream).anyMatch(item->!item.containsKey("dataRefs"))){
                 result.remove("layout");result.put("layoutValidationStatus","FAILED");
+                diagnostics.add(diagnostic("DATA_BINDING","ELEMENT_SOURCE_AMBIGUOUS","layout",false,"Multiple authorized sources require explicit per-element references."));
                 warnings.add("The optional layout lacks per-element source references; original analysis is retained in compatible layout.");
                 if("SUCCESS".equals(status)){status="PARTIAL";result.put("status",status);}
-            }
-            for(int index=0;index<charts.size();index++){
-                String acceptedId=(String)charts.get(index).get("id");
-                var original=list(raw.get("charts"),64).stream().map(VisualReportArtifacts::map)
-                    .filter(chart->Objects.equals(chart.get("id"),acceptedId)).findFirst();
-                if(original.isPresent()){
-                    var chart=new LinkedHashMap<>(charts.get(index));var input=original.get();
-                    if(input.containsKey("role")){require(Set.of("chart","illustration").contains(input.get("role")),"Invalid chart role");chart.put("role",input.get("role"));}
-                    if(input.containsKey("chartType")){require(Set.of("line","bar","pie","scatter","histogram","box").contains(input.get("chartType")),"Invalid chart type");chart.put("chartType",input.get("chartType"));}
-                    charts.set(index,chart);
-                }
             }
             var limitations=new LinkedHashSet<String>();
             for(Object value:list(rows.get(0).get("limitations"),64))limitations.add(text(value,4000));
@@ -144,12 +156,14 @@ public final class VisualReportArtifacts {
             // duration belongs in telemetry, never in the immutable evidence payload/hash.
             long elapsed=(System.nanoTime()-started)/1_000_000;result.put("timings",timings);
             result.put("artifactValidationStatus","PASSED");
+            result.put("presentationDiagnostics",List.copyOf(diagnostics));
+            for(var diagnostic:diagnostics)log.info("visual_report_diagnostic task={} operation={} stage={} code={} path={} recovered={} reason={}",task,operation,diagnostic.get("stage"),diagnostic.get("code"),diagnostic.get("path"),diagnostic.get("recovered"),diagnostic.get("message"));
             result.put("validation",Map.of("status",failed?"FAILED":unresolved||checks.isEmpty()||!warnings.isEmpty()?"PARTIAL":"ARTIFACTS_VERIFIED","checks",checks,"warnings",warnings,
                 "scope","STOPPED_EXECUTION_AND_ARTIFACT_INTEGRITY; COMPUTATION_CHECKS_ARE_PROGRAM_DECLARED; BUSINESS_SEMANTICS_NOT_CERTIFIED"));
             require(json.writeValueAsBytes(result).length<=1024*1024,"Report manifest exceeds 1MiB");
             log.info("visual_report_admission task={} operation={} status={} charts={} metrics={} durationMs={}",task,operation,status,charts.size(),metrics.size(),elapsed);return result;
         }catch(Exception invalid){
-            log.warn("visual_report_rejected task={} operation={} reasonType={}",task,operation,invalid.getClass().getSimpleName());
+            log.warn("visual_report_rejected task={} operation={} reasonType={} reason={}",task,operation,invalid.getClass().getSimpleName(),safeReason(invalid),invalid);
             return Map.of("schemaVersion",VisualReportMode.SCHEMA,"reportMode","visual","status","FAILED","title","Visual report unavailable",
                 "summary","The original text analysis is retained; visual report validation failed.","markdown",fallbackMarkdown(rows),
                 "artifactValidationStatus","FAILED","validation",Map.of("status","FAILED","warnings",List.of(safeReason(invalid))),"execution",execution);
@@ -173,12 +187,22 @@ public final class VisualReportArtifacts {
         }
         var clean=new LinkedHashMap<>(layout);clean.put("blocks",blocks);return clean;
     }
-    private static void bindDataReferences(Map<String,Object> raw,String key,List<Map<String,Object>> accepted,List<String> sources){
+    private static Map<String,Object> diagnostic(String stage,String code,String path,boolean recovered,String message){return Map.of("stage",stage,"code",code,"path",path,"recovered",recovered,"message",message);}
+    private static void bindDataReferences(Map<String,Object> raw,String key,List<Map<String,Object>> accepted,List<String> sources,List<Map<String,Object>> diagnostics){
         var originals=new HashMap<String,Map<String,Object>>();
         for(Object value:list(raw.get(key),128)){var item=map(value);originals.put(Objects.toString(item.get("id"),""),item);}
         for(int index=0;index<accepted.size();index++){
             var original=originals.get(accepted.get(index).get("id"));
-            if(original==null||!original.containsKey("dataRefs"))continue;
+            if(original==null)continue;
+            if(!original.containsKey("dataRefs")){
+                // Only a single already-authorized report source is unambiguous.
+                // Mark inheritance explicitly; this is not a new computation proof.
+                if(raw.containsKey("layout")&&sources.size()==1){
+                    var item=new LinkedHashMap<>(accepted.get(index));item.put("dataRefs",sources);item.put("dataRefsStatus","INHERITED_REPORT_SOURCE");accepted.set(index,item);
+                    diagnostics.add(diagnostic("DATA_BINDING","SINGLE_SOURCE_INHERITED",key+"."+item.get("id"),true,"Inherited the sole authorized report source; computation semantics remain program-declared."));
+                }
+                continue;
+            }
             var refs=list(original.get("dataRefs"),64).stream().map(ref->text(ref,512)).toList();
             require(!refs.isEmpty()&&sources.containsAll(refs),"Visual data references must name authorized report sources");
             var item=new LinkedHashMap<>(accepted.get(index));item.put("dataRefs",refs);accepted.set(index,item);

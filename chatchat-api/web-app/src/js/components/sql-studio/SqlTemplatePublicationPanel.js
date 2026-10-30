@@ -1,4 +1,5 @@
 import { ref, computed, watch } from "vue";
+import { X } from '@lucide/vue';
 import {
   sqlTemplateSources,
   sqlTemplateHistory,
@@ -13,6 +14,7 @@ function operationKey() {
   ).join("");
 }
 export default {
+  components:{X},
   props: { projectId: { type: String, required: true }, file: { type: Object, required: true } },
   emits: ["close"],
   setup(props) {

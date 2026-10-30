@@ -42,7 +42,11 @@ import static org.mockito.Mockito.*;
 @EnabledIfSystemProperty(named="coding.nodeE2e",matches="true")
 @EnabledIfSystemProperty(named="coding.sqlglotPython",matches=".+")
 class CodingWorkspaceNodeIntegrationTest {
-    @ParameterizedTest @org.junit.jupiter.params.provider.CsvSource({"mysql,false","mysql,true","python,false","python,true"})
+    @Test @EnabledIfSystemProperty(named="coding.realModelConfig",matches=".+")
+    void authorizedRealModelDiscoversOracleMetadataAndDeliversHive() throws Exception {
+        exercise("hive",false,true);
+    }
+    @ParameterizedTest @org.junit.jupiter.params.provider.CsvSource({"mysql,false","mysql,true","python,false","python,true","hive,false"})
     void sharedWorkerReadsContextRepairsSourceAndCommitsVersionedCandidatesWithoutExecution(String dialect,boolean fast) throws Exception {
         exercise(dialect,fast,false);
     }
@@ -54,6 +58,7 @@ class CodingWorkspaceNodeIntegrationTest {
     }
     private void exercise(String dialect,boolean fast,boolean realProvider) throws Exception {
         boolean pythonProfile="python".equals(dialect);
+        boolean autonomous="hive".equals(dialect);
         String secret="fixture-only-coding-workspace-shared-secret";
         var json=new ObjectMapper().findAndRegisterModules().disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         var source=new DriverManagerDataSource("jdbc:h2:mem:node-workspace-"+UUID.randomUUID()+";DB_CLOSE_DELAY=-1","sa","");
@@ -75,6 +80,13 @@ class CodingWorkspaceNodeIntegrationTest {
             var workspace=new CodingWorkspaceService(tasks,identity,evidence,beans.getBeanProvider(CodingAgentSPI.class),
                 new SqlGlotToolchain(System.getProperty("coding.sqlglotPython"),json),json,realProvider?300:60);
             workspace.setFastPathEnabled(fast);
+            if(autonomous){
+                var jdbcMetadata=new com.chatchat.api.datascience.sql.SqlStudioJdbcMetadataFixture(source,json);
+                beans.registerSingleton("metadata",jdbcMetadata.metadata);
+                workspace.setExploration(new com.chatchat.api.datascience.sql.SqlWorkspaceMetadataTools(
+                    beans.getBeanProvider(com.chatchat.api.datascience.sql.SqlStudioMetadataService.class),jdbcMetadata.gateway,
+                    new SqlGlotToolchain(System.getProperty("coding.sqlglotPython"),json),evidence,json));
+            }
             var turns=new AtomicInteger();
             var telemetry=new java.util.concurrent.CopyOnWriteArrayList<Map<String,Object>>();
             ClineRuntimeModelBridge provider;
@@ -108,7 +120,19 @@ class CodingWorkspaceNodeIntegrationTest {
             when(provider.complete(any(),any())).thenAnswer(call->{
                 int turn=turns.incrementAndGet()+(fast?1:0);JsonNode request=call.getArgument(1);
                 List<Map<String,Object>> tools;
-                if(turn==1)tools=List.of(Map.of("id","read-context","name","workspace_read","input",Map.of()));
+                if(autonomous){
+                    if(turn==1)tools=List.of(Map.of("id","read-context","name","workspace_read","input",Map.of()));
+                    else if(turn<=3)tools=List.of(Map.of("id","discover-"+turn,"name","workspace_metadata","input",turn==2
+                        ?Map.of("operation","LIST_BINDINGS"):Map.of("operation","DESCRIBE_TABLE","bindingId","binding","tableName","ORDERS")));
+                    else {
+                        assertThat(request.toString()).contains("AMOUNT","snapshotId");
+                        if(turn==5)assertThat(request.toString()).contains("MISSING_FIELD");
+                        tools=List.of(Map.of("id","proposal-"+turn,"name","workspace_propose","input",Map.of(
+                            "files",List.of(Map.of("path","sql/a.sql","content",turn==4?"SELECT MISSING_FIELD FROM ORDERS":"SELECT ID, AMOUNT FROM ORDERS"),
+                                Map.of("path","sql/b.sql","content","SELECT 1 AS constant_value")),"notes","Hive source delivery; Oracle source metadata only, no target execution authority")));
+                    }
+                }
+                else if(turn==1)tools=List.of(Map.of("id","read-context","name","workspace_read","input",Map.of()));
                 else if(turn<=3){
                     if(turn==2)assertThat(request.toString()).contains("authorized Mapping","historical SQL");
                     if(turn==3)assertThat(request.toString()).contains("FAILED");
@@ -152,6 +176,8 @@ class CodingWorkspaceNodeIntegrationTest {
                         case "checkpoint"->controller.checkpoint(body);
                         case "finish"->controller.finish(body);case "workspace-read"->controller.readWorkspace(body);
                         case "workspace-propose"->controller.proposeWorkspace(body);
+                        case "workspace-metadata"->controller.workspaceMetadata(body);
+                        case "workspace-validate"->controller.workspaceValidate(body);
                         default->throw new IllegalArgumentException("Unexpected callback "+action);
                     };
                 }catch(ResponseStatusException failure){callbackErrors.add(exchange.getRequestURI().getPath()+": "+failure.getReason());status=failure.getStatusCode().value();reply=Map.of("message",failure.getReason());}
@@ -184,12 +210,14 @@ class CodingWorkspaceNodeIntegrationTest {
                 }
             });
             var scope=new KernelDataScope("tenant","owner",null,null,"node-run",null,Map.of());
-            String workload=realProvider?(pythonProfile
+            String workload=autonomous
+                ?"Generate Hive SQL source files for customer order details, including the order identifier, customer identifier and order amount. Create exactly sql/a.sql for order details and sql/b.sql for customer identifiers. Discover the authorized Oracle source schema yourself through workspace_metadata; no table is preselected. Oracle supplies source structure only. No Hive target connection is authorized. Never execute SQL. Do not invent financial metrics, joins or fields. Validate and deliver both complete SQL source files; retain concise relationship and execution limitations in notes."
+                :realProvider?(pythonProfile
                 ?"Generate exactly src/a.py and src/b.py as complete source candidates. In src/a.py implement total(values), returning the sum of the supplied list. In src/b.py implement average(values), returning None for an empty list and otherwise its arithmetic mean. Functions must be pure: no imports, I/O, network, shell, execution, dependencies or files at import. Preserve the comment '# candidate for review' in both files. Do not create tests or extra files. Return concise notes."
                 :"Generate exactly sql/a.sql and sql/b.sql as complete source candidates. sql/a.sql must contain SELECT SUM(value) AS total FROM input_values;. sql/b.sql must contain SELECT AVG(value) AS average FROM input_values;. Preserve the comment '-- candidate for review' in both files. No DDL, DML, procedures, source connections or extra files. Return concise notes.")
                 :"Use authorized Mapping and historical SQL to produce a two-file source project.";
             long started=System.nanoTime();
-            var outcome=workspace.submit(scope,"node-task",workload,dialect,"");
+            var outcome=workspace.submit(scope,"node-task",workload,dialect,"",autonomous?Map.of("projectId","project","discoveryId","discovery"):Map.of());
             long deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(realProvider?300:30);
             while(!outcome.status().terminal() && System.nanoTime()<deadline){Thread.sleep(50);outcome=workspace.get(scope,"node-task");}
             if(realProvider) {
@@ -209,12 +237,19 @@ class CodingWorkspaceNodeIntegrationTest {
                 .isEqualTo(CodingTaskOutcome.Status.COMPLETED);
             assertThat(outcome.schemaVersion()).isEqualTo(CodingProtocol.WORKSPACE_VERSION);
             if(!realProvider) {
-                assertThat(outcome.usage().consumed().modelCalls()).isEqualTo(fast?2:4);
-                assertThat(outcome.usage().consumed().toolCalls()).isEqualTo(3);
+                assertThat(outcome.usage().consumed().modelCalls()).isEqualTo(autonomous?5:fast?2:4);
+                assertThat(outcome.usage().consumed().toolCalls()).isEqualTo(autonomous?5:3);
             }
             assertThat(outcome.usage().consumed().codeExecutions()).isZero();
             assertThat(outcome.validationStatus()).isEqualTo(CodingTaskOutcome.ValidationStatus.INCONCLUSIVE);
             assertThat((List<?>)workspace.output(scope,"node-task",outcome).get("files")).hasSize(2);
+            if(autonomous){
+                var output=workspace.output(scope,"node-task",outcome);
+                assertThat(output.get("delivery").toString()).contains("targetDialect=hive","sqlExecuted=false","SOURCE_GENERATION_ONLY_NO_TARGET_EXECUTION_AUTHORITY","snapshotId");
+                var dir=Path.of("target","sql-p0-node-jdbc");Files.createDirectories(dir);
+                Files.writeString(dir.resolve("delivery.json"),json.writeValueAsString(output));
+                Files.writeString(dir.resolve("operations.json"),json.writeValueAsString(workspace.diagnostics(scope,"node-task")));
+            }
             assertThat(callbacks.get()).isGreaterThan(10);verifyNoInteractions(python);
         }finally{
             if(node!=null){

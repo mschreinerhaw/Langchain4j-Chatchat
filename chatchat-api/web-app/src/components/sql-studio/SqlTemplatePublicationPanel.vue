@@ -7,7 +7,7 @@
         aria-modal="true"
         aria-label="发布 MCP SQL 模板"
       >
-        <header><h2>发布为 MCP 模板</h2><button @click="$emit('close')">关闭</button></header>
+        <header><h2>发布为 MCP 模板</h2><button type="button" class="sql-dialog-close" aria-label="关闭发布模板" title="关闭" @click="$emit('close')"><X :size="18" /></button></header>
         <p
           >{{ file.path }} · 保存版本 v{{ file.version }}。保存草稿不会执行
           SQL，也不会修改线上模板。</p

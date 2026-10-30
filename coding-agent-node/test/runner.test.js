@@ -1,7 +1,34 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createCodingRun as realCreateCodingRun } from '../src/runner.js';
+import { createCodingRun as realCreateCodingRun, compactSqlMetadata } from '../src/runner.js';
 import { createRuntimeModel } from '../src/runtime-model.js';
+
+test('SQL metadata model view preserves meanings, precise types and relationships without repeating field owners',()=>{
+  const column={name:'client_no',table:'trades',database:'biz',schema:'public',datasourceId:'a-long-source-identifier',
+    dataType:'VARCHAR',columnType:'VARCHAR(12)',comment:'Customer identifier; retain leading zeroes',nullable:false,columnKey:null};
+  const receipt={bindingId:'bound-source',snapshotId:'v1',status:'SUCCEEDED',items:[{tableName:'trades',database:'biz',schema:'public',
+    columns:Array.from({length:100},()=>({...column})),foreignKeys:[{column:'client_no',targetTable:'customers'}]}]};
+  const original=structuredClone(receipt),view=compactSqlMetadata(receipt);
+  assert.deepEqual(receipt,original);
+  assert.deepEqual(view.items[0].columns[0],{name:'client_no',dataType:'VARCHAR',columnType:'VARCHAR(12)',comment:column.comment,nullable:false});
+  assert.deepEqual(view.items[0].foreignKeys,receipt.items[0].foreignKeys);
+  assert.equal(view.bindingId,receipt.bindingId);assert.equal(view.snapshotId,receipt.snapshotId);
+  assert.ok(JSON.stringify(view).length<JSON.stringify(receipt).length*0.7);
+  assert.equal(compactSqlMetadata({...receipt,items:[{...receipt.items[0],columns:[{...column,schema:'different'}]}]}).items[0].columns[0].schema,'different');
+});
+test('SQL context compaction keeps structure evidence and scope while removing only repeated transport metadata',()=>{
+  const receipt={contractVersion:'sql-studio.metadata.v2',supportedOperations:['SEARCH','DESCRIBE'],
+    evidenceClass:'REGISTERED_METADATA',verificationStatus:'NOT_VERIFIED_LIVE',bindingId:'bound',snapshotId:'version',
+    items:[{tableName:'accounts',evidenceClass:'REGISTERED_METADATA',verificationStatus:'NOT_VERIFIED_LIVE',
+      primaryKeys:['id','part'],primaryKeyStatus:'COLLECTED_VISIBLE',partitionKeys:['part'],partitionKeyStatus:'COLLECTED_VISIBLE',
+      foreignKeys:[],businessGrainStatus:'UNCONFIRMED',columns:[{name:'id',dataType:'INT',comment:'Identifier'}]},
+      {tableName:'inferred',evidenceClass:'MODEL_INFERENCE',verificationStatus:'UNCONFIRMED'}]};
+  const before=structuredClone(receipt),view=compactSqlMetadata(receipt);
+  assert.deepEqual(receipt,before);assert.equal(view.contractVersion,undefined);assert.equal(view.supportedOperations,undefined);
+  assert.equal(view.evidenceClass,receipt.evidenceClass);assert.equal(view.verificationStatus,receipt.verificationStatus);
+  assert.deepEqual(view.items[0].primaryKeys,['id','part']);assert.equal(view.items[0].partitionKeyStatus,'COLLECTED_VISIBLE');
+  assert.equal(view.items[0].businessGrainStatus,'UNCONFIRMED');assert.equal(view.items[1].evidenceClass,'MODEL_INFERENCE');
+});
 
 // Allocation is a Java callback fixture; Python results below remain branch-specific fixtures.
 const createCodingRun=(task,gateway,options)=>{
@@ -557,10 +584,27 @@ test('Cline autonomously discovers business metadata and iterates from missing m
   const gateway={reserveModel(){},settleModel(){},readWorkspace:async()=>({context:'Customer 070200046604 trades/assets/P&L; no table preselected.'}),
     queryWorkspaceMetadata:async(_task,_id,input)=>{queried.push(input);return {status:'SUCCEEDED',bindingId:'binding',columns:['client_no','amount'],metricDefinitionStatus:'NOT_FOUND',lineageStatus:'NOT_COLLECTED'};},
     validateWorkspace:async()=>({valid:false,status:'METADATA_REQUIRED',sqlValidity:'UNDETERMINED'}),
-    proposeWorkspace:async()=>++proposals===1?{valid:false,diagnostics:['unknown column guessed_amount']}:{valid:true,evidenceBundleRef:'evidence:bundle',sqlExecuted:false},
+    proposeWorkspace:async()=>++proposals===1?{valid:false,diagnostics:['unknown column guessed_amount']}:{valid:true,resultAvailable:true,codeArtifactRef:'evidence:code',executionReceiptRef:'evidence:receipt',resultDatasetRef:'evidence:files',validationRecordRef:'evidence:validation',evidenceBundleRef:'evidence:bundle',sqlExecuted:false},
     finish(_task,value){finished=value;}};
   const result=await createCodingRun(contract,gateway,{model}).run();
   assert.equal(result.status,'completed');assert.equal(proposals,2);assert.ok(queried.some(q=>q.operation==='BUSINESS_SEARCH'));
   assert.ok(queried.some(q=>q.operation==='LINEAGE'));assert.match(finished.operationId,/^workspace-/);
   assert.throws(()=>createCodingRun({...contract,metadataRefs:[]},gateway,{model}),/negotiated SQL exploration/);
+});
+
+test('SQL repair budget STOP terminates without claiming delivery or requesting another model turn',async()=>{
+  const contract={...task,schemaVersion:'runtime_os.coding.v2',metadataRefs:['runtime-coding:sql-metadata-tools:v1'],
+    authorization:{allowedTools:['workspace_read','workspace_propose','workspace_metadata','workspace_validate'],allowedSideEffects:['WORKSPACE_WRITE'],allowedDataRefs:[],networkPolicy:'NONE'},
+    outputContract:{resultFormat:'WORKSPACE_FILES',resultSchemaRef:'sql-studio.output.v1',requiredFiles:['proposal.jsonl']}};
+  let calls=0,finished;
+  const model={async *stream(){calls++;yield {type:'tool-call-delta',toolCallId:'failed-proposal',toolName:'workspace_propose',input:{files:[{path:'q.sql',content:'SELECT missing FROM orders'}],notes:'repair'}};yield {type:'finish',reason:'tool-calls'};}};
+  const gateway={reserveModel(){},settleModel(){},
+    readWorkspace:async()=>({context:'Authorized SQL source context'}),
+    queryWorkspaceMetadata:async()=>{throw new Error('Unexpected metadata call');},
+    validateWorkspace:async()=>{throw new Error('Unexpected validation call');},
+    proposeWorkspace:async()=>({valid:false,resultAvailable:false,repair:{action:'STOP',reasonCode:'SQL_REPAIR_LIMIT_REACHED'}}),
+    finish(_contract,value){finished=value;}};
+  const result=await createCodingRun(contract,gateway,{model}).run();
+  assert.equal(calls,1);assert.equal(result.status,'failed');assert.equal(finished.status,'failed');
+  assert.equal(finished.operationId,null);assert.equal(finished.summary,'SQL_REPAIR_LIMIT_REACHED');
 });

@@ -88,7 +88,7 @@ export function reportLayout(report = {}) {
   const catalog = available(report),
     blocks = [],
     seen = new Set();
-  let warning = "";
+  const diagnostics = [...(Array.isArray(report.presentationDiagnostics) ? report.presentationDiagnostics : [])];
   const add = (type, ref, options = {}) => {
     const key = `${type}:${ref || ""}`;
     if (seen.has(key)) return;
@@ -118,13 +118,29 @@ export function reportLayout(report = {}) {
     });
   };
   if (report.layout) {
-    try {
-      for (const block of checkedReportLayout(report.layout, report))
-        add(block.type, block.ref, block);
-    } catch {
-      warning = "排版描述未通过校验，已保留原分析并使用兼容布局。";
-      blocks.length = 0;
-      seen.clear();
+    const accepted=[];
+    const aliases=new Map(),ambiguous=new Set();
+    for(const [id,section] of catalog.section){
+      if(aliases.has(section.title))ambiguous.add(section.title);
+      else aliases.set(section.title,id);
+    }
+    for(const title of ambiguous)aliases.delete(title);
+    const envelope=report.layout;
+    if(envelope.schemaVersion!==schema.$id || !Array.isArray(envelope.blocks) || envelope.blocks.length>256
+        || Object.keys(envelope).some(key=>!['schemaVersion','blocks'].includes(key))){
+      diagnostics.push({stage:'LAYOUT_VALIDATION',code:'INVALID_LAYOUT_ENVELOPE',path:'layout',recovered:true});
+    }else for(const [index,input] of envelope.blocks.entries()){
+      try{
+        const block={...input};
+        if(block.type==='section' && !catalog.section.has(block.ref) && aliases.has(block.ref)){
+          block.ref=aliases.get(block.ref);
+          diagnostics.push({stage:'LAYOUT_VALIDATION',code:'SECTION_TITLE_RESOLVED',path:`layout.blocks[${index}].ref`,recovered:true});
+        }
+        checkedReportLayout({schemaVersion:schema.$id,blocks:[...accepted,block]},report);
+        accepted.push(block);add(block.type,block.ref,block);
+      }catch(error){
+        diagnostics.push({stage:'LAYOUT_VALIDATION',code:'INVALID_LAYOUT_BLOCK',path:`layout.blocks[${index}]`,recovered:true,message:error.message});
+      }
     }
   }
   // Older manifests keep their authored order. Unplaced evidence is retained,
@@ -147,5 +163,5 @@ export function reportLayout(report = {}) {
         : ["summary", "section", "metric", "chart", "table", "limitations", "sources"];
     blocks.sort((a, b) => order.indexOf(a.type) - order.indexOf(b.type));
   }
-  return { blocks, preferences, warning };
+  return { blocks, preferences, warning:'', diagnostics };
 }

@@ -1,10 +1,11 @@
 import { chromium } from 'playwright-core';
 import { createServer } from 'vite';
-import { readFile, mkdir, access } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 
 // Real Vue/Monaco in Chromium; HTTP fixtures only, no model or production access.
 const manifests = {};
+const deployedOrigin=process.env.SQL_UI_DEPLOY_ORIGIN?.replace(/\/$/,'');
 for (const id of ['zhice', 'data-science']) manifests[id] = JSON.parse(await readFile(`../src/main/resources/workspace/${id}.json`, 'utf8'));
 let executablePath;
 for (const candidate of ['C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe']) {
@@ -12,11 +13,11 @@ for (const candidate of ['C:/Program Files/Google/Chrome/Application/chrome.exe'
 }
 assert.ok(executablePath, 'Local Chromium required');
 const server = await createServer({ server: { host: '127.0.0.1', port: 0 }, logLevel: 'error' });
-let browser;
+let browser,page;
 try {
   await server.listen();
   browser = await chromium.launch({ executablePath, headless: true });
-  const page = await browser.newPage({ viewport: { width: 1560, height: 980 } });
+  page = await browser.newPage({ viewport: { width: 1560, height: 980 } });
   const errors = [];
   page.on('pageerror', error => { errors.push(error.message); console.error(error.stack); });
   page.on('dialog', dialog => dialog.accept());
@@ -27,7 +28,7 @@ try {
     const key = `sql-studio-ide-layout:${value.tenantId}:${value.id}:data-science`;
     if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify({version:1,value:{explorerWidth:260,assistantWidth:380,bottom:false}}));
   }, user);
-  let projects = [{ id: 'project', name: 'Spark customer ETL', dialect: 'spark', sessionId: 'session', tenantId: user.tenantId, ownerId: user.id }];
+  let projects = [{ id: 'project', name: deployedOrigin?'部署 UI 验证（接口夹具）':'Spark customer ETL', dialect: 'spark', sessionId: 'session', tenantId: user.tenantId, ownerId: user.id }];
   const filesByProject = { project: [{ id: 'a', projectId: 'project', path: 'sql/a.sql', kind: 'SQL', content: 'SELECT 1;', version: 1, editable: true }] };
   const foldersByProject = {project:['sql']};
   const library = [{ docId: 'mapping-1', fileName: 'customer.csv', title: 'Customer Mapping', version: 1, latestVersion: true }];
@@ -49,6 +50,7 @@ try {
       else data = projects;
     }
     else if(path.endsWith('/metadata/providers'))data=[{serviceId:'registered',name:'Registered MCP'}];
+    else if(path.endsWith('/sql/agent-options'))data=[{id:'published-sql-agent',name:'Published SQL assistant',marketStatus:'published'}];
     else if(path.endsWith('/metadata/assets'))data=metadata([{assetRef:'source',name:'Authorized source',sourceDialect:'trino'}]);
     else if(path.endsWith('/metadata/contexts'))data={discoveryId:'discovery',bindings:[{...request.postDataJSON().bindings[0],bindingId:'binding',sourceDialect:'trino'}]};
     else if(path.endsWith('/metadata/contexts/discovery/operations')){
@@ -120,7 +122,8 @@ try {
     else if (path.endsWith('/new-project/generations')) data = [];
     await route.fulfill({ json: { code: 200, message: 'Success', data } });
   });
-  await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/#/w/data-science/sqlStudio`, { waitUntil: 'domcontentloaded' });
+  const origin=deployedOrigin||`http://127.0.0.1:${server.httpServer.address().port}`;
+  await page.goto(`${origin}/#/w/data-science/sqlStudio`, { waitUntil: 'domcontentloaded' });
   await page.locator('.sql-ide-shell').waitFor({ timeout: 90000 });
   assert.ok((await page.getByRole('button',{name:'新建会话',exact:true}).locator('svg').boundingBox()).width >= 18,'New conversation icon is not squeezed by global button padding');
   assert.equal(await page.locator('.sql-ide-shell').evaluate(el => el.style.getPropertyValue('--sql-assistant-width')), '380px', 'Saved panel widths are present on initial render');
@@ -130,14 +133,22 @@ try {
   assert.ok(saveBounds.x + saveBounds.width <= 1024, 'Save remains visible on smaller desktop screens');
   await page.setViewportSize({ width: 1560, height: 980 });
   await page.locator('.sql-tree-file button[title="sql/a.sql"]').click();
-  await page.getByRole('button',{name:'数据库',exact:true}).click();
-  await page.locator('.sql-schema-explorer select').nth(1).selectOption('source');
+  assert.equal(await page.getByLabel('展开或折叠数据源导航').getAttribute('aria-expanded'),'false','Datasource navigation starts collapsed');
+  await page.getByRole('combobox',{name:'选择数据源',exact:true}).click();
+  await page.getByRole('option',{name:'Authorized source',exact:true}).click();
+  await page.getByRole('combobox',{name:'选择数据库或 Schema',exact:true}).click();
+  await page.getByRole('option').filter({hasText:'analytics'}).click();
+  await page.getByLabel('展开或折叠数据源导航').click();
+  await page.getByLabel('SQL 方言',{exact:true}).selectOption('trino');
   await page.getByLabel('展开 orders',{exact:true}).waitFor();
   assert.equal(descriptions,0,'Table listing never requests field descriptions');
   await page.getByLabel('展开 orders',{exact:true}).click();
   await page.locator('.sql-schema-explorer [role=group]').filter({hasText:'order_id'}).waitFor();
-  await page.getByRole('button',{name:'用于编辑器',exact:true}).click();
-  await page.evaluate(async()=>{
+  if(deployedOrigin){
+    await page.locator('.sql-editor-pane .monaco-editor').first().click({position:{x:160,y:70}});
+    await page.keyboard.press('Control+A');await page.keyboard.insertText('SELECT o. FROM analytics.public.orders o');
+    await page.keyboard.press('Home');for(let i=0;i<9;i++)await page.keyboard.press('ArrowRight');await page.keyboard.press('Control+Space');
+  }else await page.evaluate(async()=>{
     const source=await (await fetch('/src/js/components/sql-studio/SqlEditorPane.js')).text();
     const modulePath=/import \* as monaco from "([^"]+)"/.exec(source)[1];
     const monaco=await import(modulePath);
@@ -150,11 +161,30 @@ try {
   await page.keyboard.press('Escape');
   await page.getByRole('button',{name:'保存文件',exact:true}).click();
   assert.equal(filesByProject.project[0].content,'SELECT o. FROM analytics.public.orders o');
+  await mkdir('../../target/report-remediation-browser',{recursive:true});
+  await page.getByRole('button',{name:'模板管理与发布',exact:true}).click();
+  const publication=page.getByRole('dialog',{name:'发布 MCP SQL 模板',exact:true});
+  const publicationClose=publication.getByRole('button',{name:'关闭发布模板',exact:true});
+  assert.equal(await publicationClose.textContent(),'');
+  assert.equal(await publicationClose.evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)');
+  await page.screenshot({path:'../../target/report-remediation-browser/publication-desktop.png'});
+  await publicationClose.click();await publication.waitFor({state:'detached'});
+  for(const width of [1920,1366,1024]) {
+    await page.setViewportSize({width,height:900});
+    for(let cycle=0;cycle<3;cycle++) {
+      await page.getByLabel('切换工程文件',{exact:true}).click();
+      assert.equal(await page.locator('.sql-resource-sidebar').boundingBox(),null,'Collapsed sidebar leaves no visible layout box');
+      assert.equal(await page.locator('.sql-ide-shell').evaluate(el=>el.style.getPropertyValue('--sql-explorer-grip')),'0px','Collapsed divider has zero width');
+      await page.getByLabel('切换工程文件',{exact:true}).click();
+      assert.ok(await page.locator('.sql-resource-sidebar').isVisible());
+    }
+  }
+  await page.setViewportSize({width:1560,height:980});
   await mkdir('../../target/sql-studio-ide-audit',{recursive:true});
   await page.screenshot({path:'../../target/sql-studio-ide-audit/sql-schema-explorer.png',fullPage:true});
   metadataPaged=true;
   const explorer=page.locator('.sql-schema-explorer');
-  await explorer.locator('header button').click();
+  await page.getByLabel('刷新数据库上下文',{exact:true}).click();
   await page.waitForFunction(()=>document.querySelectorAll('.sql-schema-explorer [role=treeitem]').length===50);
   const pager=explorer.getByLabel('元数据分页');
   await page.setViewportSize({width:1280,height:720});
@@ -194,7 +224,7 @@ try {
   await page.locator('.sql-schema-explorer [role=alert]').waitFor();
   assert.equal(await page.locator('.sql-schema-explorer [role=treeitem]').count(),0,'Revocation removes cached visible fields');
   metadataDenied=false;
-  await page.getByRole('button',{name:'工程文件',exact:true}).click();
+  assert.ok(await page.locator('.sql-resource-sidebar').isVisible(),'Project tree and metadata coexist in the unified explorer');
   await page.locator('.sql-tree-scroll').click({ button: 'right', position: { x: 180, y: 120 } });
   await page.getByRole('menuitem', { name: '新建 SQL 文件…' }).click();
   await page.getByLabel('SQL 文件名').fill('new.sql');
@@ -209,33 +239,47 @@ try {
   await page.getByLabel('搜索工程文件').fill('missing');
   await page.getByText('没有匹配的工程文件。').waitFor();
   await page.getByLabel('搜索工程文件').fill('');
-  await page.locator('.sql-current-context').filter({ hasText: 'new.sql' }).waitFor();
-  await page.getByRole('button', { name: '解释这段 SQL 的作用', exact: true }).click();
-  assert.equal(await page.getByLabel('发送给 AI 工程助手').inputValue(), '@sql/new.sql 解释这段 SQL 的作用');
+  await page.locator('.sql-database-current-file').filter({ hasText: 'new.sql' }).waitFor();
+  await page.getByRole('button', { name: /分析当前 SQL/ }).click();
+  assert.equal(await page.getByLabel('发送给 AI 工程助手').inputValue(), '请解释当前 SQL 的逻辑，并检查潜在问题。');
+  assert.ok(await page.locator('.sql-context-file-link').filter({hasText:'new.sql'}).isVisible());
   assert.equal(await page.getByRole('button', { name: '智能生成', exact: true }).count(), 0);
   assert.equal(await page.getByRole('button', { name: '对话', exact: true }).count(), 0);
-  await page.getByRole('button', { name: '基于 Mapping 生成目标表建表与 ETL SQL', exact: true }).waitFor();
   await page.getByLabel('发送给 AI 工程助手').press('Enter');
   assert.equal(submissionCount, 0, 'Enter must insert a newline without submitting a task');
   assert.equal(await page.locator('.sql-chat-composer .sql-primary').isDisabled(), false, 'Mapping is optional');
   assert.equal(await page.getByRole('button', { name: '从文档库选 SQL 案例' }).count(), 0);
   assert.equal(await page.locator('.sql-project-tree > header button').count(),0);
   assert.equal(await page.getByRole('button', { name: '选择 Mapping（可选）' }).count(),0);
-  await page.getByRole('button', { name: '关联 Mapping 文档', exact:true }).click();
+  await page.getByLabel('高级设置',{exact:true}).click();
+  await page.locator('.sql-user-documents > summary').click();
+  await page.getByRole('button', { name: '选择知识库文档', exact:true }).click();
   await page.locator('.sql-library-list input').check();
   await page.getByRole('button', { name: '确认上下文' }).click();
+  await page.getByLabel('高级设置',{exact:true}).click();
   await page.locator('.sql-selection-chip').filter({ hasText:'customer.csv' }).waitFor();
   assert.equal(await page.locator('.sql-tree-file button[title="mapping/customer.csv"]').count(), 0);
   assert.equal(filesByProject.project.length, 2, 'Document selection must not import editor files');
-  await page.locator('.sql-chat-settings summary').click();
   await page.getByRole('button', { name: '模型', exact: true }).click();
-  assert.equal(await page.locator('.sql-chat-settings .sql-agent-choice').filter({ hasText: 'Agent / Skills' }).count(), 0);
+  const settings=page.getByRole('dialog',{name:'AI 助手高级设置',exact:true});
+  assert.equal(await settings.locator('.sql-search-select-field').evaluate(el=>getComputedStyle(el).borderRadius),'8px');
+  assert.ok(await settings.getByRole('combobox',{name:'选择模型',exact:true}).isVisible());
+  await page.screenshot({path:'../../target/report-remediation-browser/settings-desktop.png'});
+  await page.setViewportSize({width:390,height:844});
+  const settingsBounds=await settings.boundingBox();assert.ok(settingsBounds.x>=0&&settingsBounds.x+settingsBounds.width<=390);
+  assert.ok(await settings.evaluate(el=>el.scrollWidth<=el.clientWidth+1));
+  await page.screenshot({path:'../../target/report-remediation-browser/settings-mobile.png'});
+  await page.setViewportSize({width:1560,height:980});
+  assert.equal(await page.locator('.sql-chat-settings .sql-agent-choice').filter({ hasText: 'Agent' }).count(), 0);
   assert.equal(await page.locator('.sql-chat-settings .sql-agent-choice').filter({ hasText: '模型' }).count(), 1);
   await page.getByRole('button', { name: 'Agent', exact: true }).click();
-  await page.getByRole('button',{name:'代码生成',exact:true}).click();
+  await page.getByRole('combobox',{name:'选择已发布 Agent',exact:true}).click();
+  await page.getByRole('option',{name:'Published SQL assistant',exact:true}).click();
+  assert.equal(await page.locator('.sql-chat-settings .sql-agent-choice').filter({ hasText: 'Agent' }).count(), 1);
+  await page.getByLabel('关闭高级设置',{exact:true}).click();
+  await page.getByLabel('SQL 助手方式',{exact:true}).selectOption('generate');
   await page.getByRole('button',{name:'发送',exact:true}).hover();
   assert.equal(await page.getByRole('button',{name:'发送',exact:true}).evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(29, 78, 216)','SQL send retains blue on hover');
-  assert.equal(await page.locator('.sql-chat-settings .sql-agent-choice').filter({ hasText: 'Agent / Skills' }).count(), 1);
   await page.getByLabel('发送给 AI 工程助手').press('Control+Enter');
   await page.locator('.sql-assistant-progress').filter({ hasText: '正在制定代码协作计划' }).waitFor();
   assert.equal(await page.locator('.sql-assistant-panel > .sql-assistant-progress').count(),0,'Progress never overlays chat messages');
@@ -263,14 +307,15 @@ try {
   await mkdir('../../target/sql-studio-ide-audit', { recursive: true });
   await page.screenshot({ path: '../../target/sql-studio-ide-audit/sql-assistant-running.png', fullPage: true });
   assert.equal(submissionCount, 1);
-  assert.equal(await page.locator('.sql-chat-composer .sql-primary').isDisabled(), true, 'Running Runtime task blocks duplicate submission');
+  assert.equal(await page.locator('.sql-send-question').count(), 0, 'Running Runtime task replaces send with stop to block duplicate submission');
+  assert.ok(await page.getByLabel('停止任务',{exact:true}).isEnabled());
   assert.equal(await page.getByRole('button', {name:'新建会话',exact:true}).isDisabled(), true);
-  await page.getByRole('button', { name: '取消', exact: true }).click();
+  await page.getByLabel('停止任务',{exact:true}).click();
   await page.locator('.sql-task-status').filter({ hasText: '任务已取消' }).waitFor();
   await page.getByLabel('发送给 AI 工程助手').fill('继续修改');
   assert.equal(await page.locator('.sql-chat-composer .sql-primary').isDisabled(), false, 'Runtime terminal state unlocks submission');
   taskStatus='SUCCESS';
-  await page.getByRole('button',{name:'代码修复',exact:true}).click();
+  await page.getByLabel('SQL 助手方式',{exact:true}).selectOption('fix');
   await page.getByLabel('发送给 AI 工程助手').fill('@sql/new.sql 修复当前文件');
   await page.getByRole('button',{name:'发送',exact:true}).click();
   await page.getByRole('button',{name:'审查 2 个文件变更',exact:true}).waitFor();
@@ -288,7 +333,7 @@ try {
   await page.getByRole('dialog',{name:'审查代码变更'}).waitFor({state:'detached'});
   assert.equal(filesByProject.project.find(file=>file.path==='sql/new.sql').content,'SELECT 42 AS repaired;');
   await page.getByRole('button',{name:'新建会话',exact:true}).click();
-  await page.getByRole('button',{name:'代码解释',exact:true}).click();
+  await page.getByLabel('SQL 助手方式',{exact:true}).selectOption('explain');
   await page.getByLabel('发送给 AI 工程助手').fill('@sql/new.sql 解释当前 SQL');
   await page.getByRole('button',{name:'发送',exact:true}).click();
   await page.getByText('代码解释 · 回答完成',{exact:true}).waitFor();
@@ -297,8 +342,9 @@ try {
   assert.equal(await page.locator('.sql-chat-turn,.sql-chat-result').count(), 0);
   assert.equal(await page.getByLabel('发送给 AI 工程助手').inputValue(), '');
   assert.equal(await page.getByLabel('发送给 AI 工程助手').evaluate(el=>el===document.activeElement), true);
-  await page.locator('.sql-current-context').filter({hasText:'new.sql'}).waitFor();
+  await page.locator('.sql-database-current-file').filter({hasText:'new.sql'}).waitFor();
   const submittedBeforeFailure=submissionCount;failNextPrepare=true;
+  await page.getByLabel('SQL 助手方式',{exact:true}).selectOption('generate');
   await page.getByLabel('发送给 AI 工程助手').fill('验证计划失败反馈');
   await page.getByRole('button',{name:'发送',exact:true}).click();
   await page.locator('.sql-chat-turn.assistant').filter({hasText:'studio-code-fixture-timeout'}).waitFor();
@@ -306,11 +352,10 @@ try {
   await page.screenshot({path:'../../target/sql-studio-ide-audit/sql-chat-error.png',fullPage:true});
   await page.getByRole('button',{name:'新建会话',exact:true}).click();
   await page.reload({waitUntil:'domcontentloaded'});
-  await page.locator('.sql-current-context').filter({hasText:'new.sql'}).waitFor();
+  await page.locator('.sql-database-current-file').filter({hasText:'new.sql'}).waitFor();
   assert.equal(await page.locator('.sql-chat-turn,.sql-chat-result').count(), 0, 'Reload must retain the fresh conversation despite existing history');
-  await page.locator('.sql-chat-settings summary').click();
-  const history=page.locator('.sql-chat-settings label').filter({hasText:'任务历史'}).locator('select');
-  await history.selectOption(generation.id);
+  await page.getByLabel('历史会话',{exact:true}).click();
+  await page.locator('.sql-assistant-history button').first().click();
   await page.locator('.sql-chat-result').waitFor();
   await page.getByRole('button', {name:'新建会话',exact:true}).click();
   await page.locator('.sql-tree-file button[title="sql/new.sql"]').click({ button: 'right' });
@@ -330,7 +375,7 @@ try {
   assert.equal(await page.getByRole('menuitem',{name:'新建 SQL 文件…'}).isDisabled(),true,'Empty project needs a folder first');
   await page.getByRole('menuitem',{name:'新建文件夹…',exact:true}).click();
   await page.getByLabel('文件夹路径').fill('scripts');
-  await page.getByRole('button',{name:'创建文件夹',exact:true}).click();
+  await page.getByRole('button',{name:'保存文件夹',exact:true}).click();
   await page.locator('summary[data-folder="scripts"]').waitFor();
   assert.equal(filesByProject['new-project'].length,0,'Empty folder is not an editor file');
   await page.reload({waitUntil:'domcontentloaded'});
@@ -347,7 +392,7 @@ try {
   assert.equal(projects.length, 1);
   const login = await browser.newPage();
   await login.route('**/api/v1/**', route => route.fulfill({ json:{code:200,data:Object.values(manifests)} }));
-  await login.goto(`http://127.0.0.1:${server.httpServer.address().port}/#/login`,{waitUntil:'domcontentloaded'});
+  await login.goto(`${origin}/#/login`,{waitUntil:'domcontentloaded'});
   await login.locator('.login-submit').waitFor();
   assert.equal(await login.locator('.login-form select').count(),0,'Login must not contain a workspace dropdown');
   for (const viewport of [{width:1920,height:1080},{width:1366,height:768},{width:1280,height:720},{width:1024,height:768},{width:390,height:844}]) {
@@ -368,4 +413,9 @@ try {
   await page.screenshot({ path: '../../target/sql-studio-ide-audit/sql-studio-ide.png', fullPage: true });
   assert.deepEqual(errors, []);
   console.log('PASS: authorized Schema Explorer, scrollable 125-table pagination, page sizes, focus/page/field/scroll retention, lazy fields, actual Monaco alias completion, revocation cache clearing, responsive toolbar, file search, current-file context, quick actions, Ctrl+Enter submission, Runtime running/cancelled states, Diff accept/reject, file creation/deletion, authorized library selection, Agent/model exclusivity, project deletion (HTTP fixtures only).');
+  if(deployedOrigin)console.log(JSON.stringify({deployedFrontend:deployedOrigin,mockedHttp:true,businessSqlExecuted:false,productionDataModified:false}));
+} catch(error) {
+  await mkdir('../../target/sql-studio-ide-audit',{recursive:true});
+  if(page){await page.screenshot({path:'../../target/sql-studio-ide-audit/failure.png',fullPage:true});await writeFile('../../target/sql-studio-ide-audit/failure.html',await page.content());}
+  throw error;
 } finally { await browser?.close(); await server.close(); }

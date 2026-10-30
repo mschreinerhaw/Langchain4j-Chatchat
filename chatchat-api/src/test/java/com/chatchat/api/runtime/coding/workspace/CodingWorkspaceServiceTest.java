@@ -29,6 +29,60 @@ import static org.mockito.Mockito.*;
 @EnabledIfSystemProperty(named="coding.sqlglotPython",matches=".+")
 class CodingWorkspaceServiceTest {
     @Test void clineCanDiscoverThenRepairCustomerSqlWithoutAnyPreselectedTable(){
+        configureAutonomousMetadata();
+        service.setFastPathEnabled(true);
+        service.submit(scope,"autonomous","Find transactions, assets and P/L for customer 070200046604. Do not invent unknown definitions.","mysql","",Map.of("discoveryId","discovery","projectId","project"));
+        var task=actor(()->tasks.contract(scope,"autonomous"));
+        assertThat(Duration.between(Instant.now(),task.budget().deadlineAt()).toSeconds()).isBetween(850L,900L);
+        assertThat(Duration.between(Instant.now(),contract.budget().deadlineAt()).toSeconds()).isLessThanOrEqualTo(120L);
+        assertThat(task.budget().maxModelTokens()).isEqualTo(1048576);
+        assertThat(contract.budget().maxModelTokens()).isEqualTo(262144);
+        var owner=actor(()->tasks.claim(scope,"autonomous","cline-adapter:discovery",Duration.ofMinutes(2),tasks.get(scope,"autonomous").revision()));
+        assertThat(task.authorization().allowedTools()).contains("workspace_metadata","workspace_validate");
+        assertThat(task.metadataRefs()).doesNotContain(CodingWorkspaceService.FAST_PATH_REF);
+        var missing=actor(()->service.validateSql(task,owner,operation('a'),Map.of("files",List.of(Map.of("path","q.sql","content","SELECT amount FROM customer_trade WHERE client_no='070200046604'")))));
+        assertThat(missing).containsEntry("status","METADATA_REQUIRED").containsEntry("sqlValidity","UNDETERMINED");
+        actor(()->service.metadata(task,owner,operation('b'),Map.of("operation","LIST_BINDINGS")));
+        actor(()->service.metadata(task,owner,operation('c'),Map.of("operation","SEARCH","bindingId","binding","query","customer transactions assets profit")));
+        actor(()->service.metadata(task,owner,operation('d'),Map.of("operation","BUSINESS_SEARCH","bindingId","binding","query","customer identifier and P/L definition")));
+        actor(()->service.metadata(task,owner,operation('e'),Map.of("operation","DESCRIBE","bindingId","binding","tableName","customer_trade")));
+        var repeated=actor(()->service.metadata(task,owner,operation('f'),Map.of("operation","DESCRIBE","bindingId","binding","tableName","customer_trade")));
+        assertThat(repeated).containsEntry("reusedEvidence",true);
+        var invalid=Map.<String,Object>of("schemaVersion","sql-studio.output.v1","files",List.of(Map.of("path","q.sql","content","SELECT guessed_amount FROM customer_trade WHERE client_no='070200046604'")),"notes","Asset and P/L definitions/relationships remain unconfirmed.");
+        assertThat(actor(()->service.propose(task,owner,operation('1'),invalid))).containsEntry("valid",false);
+        var repaired=Map.<String,Object>of("schemaVersion","sql-studio.output.v1","files",List.of(Map.of("path","q.sql","content","SELECT amount FROM customer_trade WHERE client_no='070200046604'")),"notes","Used actual amount field; asset/P&L joins and definitions remain unconfirmed; no SQL executed.");
+        assertThat(actor(()->service.propose(task,owner,operation('2'),repaired))).containsEntry("valid",true);
+        var revision=evidence.find(scope,"coding:workspace:"+operation('2')+":receipt").orElseThrow().payload().get("revision");
+        assertThat(revision.toString()).contains("previousReceiptRef=runtime-evidence:coding:workspace:"+operation('1'),"guessed_","reason=Used actual amount field");
+        assertThat(service.diagnostics(scope,"autonomous")).containsEntry("repairAttempts",1L).containsEntry("finalSqlValid",true);
+        assertThat(service.diagnostics(scope,"autonomous")).containsEntry("reusedMetadataCalls",1L);
+        assertThat(service.diagnostics(scope,"autonomous").get("structureReview").toString())
+            .contains("businessValidation=NOT_EVALUATED","businessGrain=UNCONFIRMED","status=UNKNOWN");
+        var checkpoint=json.valueToTree(Map.of("inputSnapshotRef",task.inputSnapshotRef(),"workspaceRef",task.workspaceRef(),
+            "contractHash",CodingCanonicalHash.sha256(task),"checkpointOrdinal",1,"modelOrdinal",0,"eventOrdinal",0,"sdkSessionId","metadata-regression",
+            "messages",List.of(Map.of("role","user","content",List.of(Map.of("type","text","text","metadata".repeat(40000)))))));
+        actor(()->{tasks.saveSdkCheckpoint(scope,"autonomous",owner,checkpoint);return true;});
+        assertThat(actor(()->tasks.sdkCheckpoint(scope,"autonomous")).path("messages").get(0).path("content").get(0).path("text").asText()).hasSize(320000);
+        assertThatThrownBy(()->actor(()->{tasks.saveSdkCheckpoint(scope,"task",lease,checkpoint);return true;}))
+            .isInstanceOf(CodingContractException.class);
+        assertThat(actor(()->service.complete(task,owner,operation('2'))).status()).isEqualTo(CodingTaskOutcome.Status.COMPLETED);
+        assertThat(service.diagnostics(scope,"autonomous").get("operations").toString()).contains("receiptRef");
+    }
+    @Test void repairLimitIsFrozenPerTaskAndStopsAfterTheConfiguredNumberOfCorrections(){
+        configureAutonomousMetadata();service.setMaxSqlRepairAttempts(1);
+        service.submit(scope,"repair-limit","Generate source only","mysql","",Map.of("discoveryId","discovery","projectId","project"));
+        var task=actor(()->tasks.contract(scope,"repair-limit"));
+        var owner=actor(()->tasks.claim(scope,"repair-limit","cline-adapter:repair",Duration.ofMinutes(2),tasks.get(scope,"repair-limit").revision()));
+        service.setMaxSqlRepairAttempts(32); // Existing task retains its original one-repair policy.
+        actor(()->service.metadata(task,owner,operation('c'),Map.of("operation","DESCRIBE","bindingId","binding","tableName","customer_trade")));
+        var invalid=Map.<String,Object>of("schemaVersion","sql-studio.output.v1","files",List.of(Map.of("path","q.sql","content","SELECT missing FROM customer_trade")),"notes","Repair the unknown field");
+        assertThat(actor(()->service.propose(task,owner,operation('d'),invalid))).containsEntry("valid",false).doesNotContainKey("repair");
+        var stopped=actor(()->service.propose(task,owner,operation('e'),invalid));
+        assertThat(stopped.get("repair").toString()).contains("action=STOP","SQL_REPAIR_LIMIT_REACHED");
+        assertThat(actor(()->service.failureSummary(task))).contains("修复次数已达到上限");
+        assertThatThrownBy(()->actor(()->service.complete(task,owner,operation('e')))).isInstanceOf(IllegalStateException.class);
+    }
+    private void configureAutonomousMetadata(){
         var metadata=mock(com.chatchat.api.datascience.sql.SqlStudioMetadataService.class);
         var gateway=mock(com.chatchat.api.datascience.sql.SqlStudioMetadataGateway.class);
         var beans=new DefaultListableBeanFactory();beans.registerSingleton("metadata",metadata);
@@ -45,27 +99,6 @@ class CodingWorkspaceServiceTest {
             Map.of("evidenceBundle",Map.of("standardDefinition","Customer identifier is the registered client number","metricDefinitionStatus","NOT_COLLECTED")));
         service.setExploration(new com.chatchat.api.datascience.sql.SqlWorkspaceMetadataTools(beans.getBeanProvider(com.chatchat.api.datascience.sql.SqlStudioMetadataService.class),gateway,
             new SqlGlotToolchain(System.getProperty("coding.sqlglotPython"),json),evidence,json));
-        service.setFastPathEnabled(true);
-        service.submit(scope,"autonomous","Find transactions, assets and P/L for customer 070200046604. Do not invent unknown definitions.","mysql","",Map.of("discoveryId","discovery","projectId","project"));
-        var task=actor(()->tasks.contract(scope,"autonomous"));
-        var owner=actor(()->tasks.claim(scope,"autonomous","cline-adapter:discovery",Duration.ofMinutes(2),tasks.get(scope,"autonomous").revision()));
-        assertThat(task.authorization().allowedTools()).contains("workspace_metadata","workspace_validate");
-        assertThat(task.metadataRefs()).doesNotContain(CodingWorkspaceService.FAST_PATH_REF);
-        var missing=actor(()->service.validateSql(task,owner,operation('a'),Map.of("files",List.of(Map.of("path","q.sql","content","SELECT amount FROM customer_trade WHERE client_no='070200046604'")))));
-        assertThat(missing).containsEntry("status","METADATA_REQUIRED").containsEntry("sqlValidity","UNDETERMINED");
-        actor(()->service.metadata(task,owner,operation('b'),Map.of("operation","LIST_BINDINGS")));
-        actor(()->service.metadata(task,owner,operation('c'),Map.of("operation","SEARCH","bindingId","binding","query","customer transactions assets profit")));
-        actor(()->service.metadata(task,owner,operation('d'),Map.of("operation","BUSINESS_SEARCH","bindingId","binding","query","customer identifier and P/L definition")));
-        actor(()->service.metadata(task,owner,operation('e'),Map.of("operation","DESCRIBE","bindingId","binding","tableName","customer_trade")));
-        var repeated=actor(()->service.metadata(task,owner,operation('f'),Map.of("operation","DESCRIBE","bindingId","binding","tableName","customer_trade")));
-        assertThat(repeated).containsEntry("reusedEvidence",true);
-        var invalid=Map.<String,Object>of("schemaVersion","sql-studio.output.v1","files",List.of(Map.of("path","q.sql","content","SELECT guessed_amount FROM customer_trade WHERE client_no='070200046604'")),"notes","Asset and P/L definitions/relationships remain unconfirmed.");
-        assertThat(actor(()->service.propose(task,owner,operation('1'),invalid))).containsEntry("valid",false);
-        var repaired=Map.<String,Object>of("schemaVersion","sql-studio.output.v1","files",List.of(Map.of("path","q.sql","content","SELECT amount FROM customer_trade WHERE client_no='070200046604'")),"notes","Used actual amount field; asset/P&L joins and definitions remain unconfirmed; no SQL executed.");
-        assertThat(actor(()->service.propose(task,owner,operation('2'),repaired))).containsEntry("valid",true);
-        assertThat(service.diagnostics(scope,"autonomous")).containsEntry("repairAttempts",1L).containsEntry("finalSqlValid",true);
-        assertThat(actor(()->service.complete(task,owner,operation('2'))).status()).isEqualTo(CodingTaskOutcome.Status.COMPLETED);
-        assertThat(service.diagnostics(scope,"autonomous").get("operations").toString()).contains("receiptRef");
     }
     final ObjectMapper json=new ObjectMapper().findAndRegisterModules().disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     final CodingInvocationContext identity=new CodingInvocationContext();

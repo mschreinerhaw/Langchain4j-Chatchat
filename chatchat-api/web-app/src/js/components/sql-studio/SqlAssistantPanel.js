@@ -1,4 +1,5 @@
 import AppNotice from '../../../components/AppNotice.vue';
+import SqlSearchSelect from '../../../components/sql-studio/SqlSearchSelect.vue';
 import SqlMetadataEvidence from '../../../components/sql-studio/SqlMetadataEvidence.vue';
 import SqlAssistantMessage from '../../../components/sql-studio/SqlAssistantMessage.vue';
 import {sqlAssistantParts} from '../../utils/sqlAssistantContent';
@@ -15,7 +16,7 @@ import { Sparkles, FileCode2, CircleHelp, LoaderCircle, CircleCheck, Clock3, Plu
   Database, ArrowUp, Settings2, RefreshCw, Search, Wrench, ChevronRight, Square } from '@lucide/vue';
 
 export default {
-  components: { SqlAssistantMessage, SqlMetadataEvidence, StudioCodePlan, AppNotice, Sparkles, FileCode2, CircleHelp, LoaderCircle, CircleCheck, Clock3, Plus,
+  components: { SqlSearchSelect, SqlAssistantMessage, SqlMetadataEvidence, StudioCodePlan, AppNotice, Sparkles, FileCode2, CircleHelp, LoaderCircle, CircleCheck, Clock3, Plus,
     History, X, Database, ArrowUp, Settings2, RefreshCw, Search, Wrench, ChevronRight, Square },
   props: { userDocuments: { type:Array, default:()=>[] }, mappingDocuments: { type:Array, default:() => [] }, mappingCount: Number, projectFiles: Array, references: Array, referenceIds: Array, models: Array, agents: Array,
     agentId: String, modelName: String, executionMode: String, prompt: String, messages: Array, busy: Boolean, generations: Array,

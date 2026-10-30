@@ -19,7 +19,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class SqlMetadataDiscoveryService {
     public static final String CONTRACT = "sql-studio.metadata.v2";
-    public static final Set<String> OPERATIONS = Set.of("LIST_ASSETS", "LIST_NAMESPACES", "SEARCH", "DESCRIBE");
+    public static final Set<String> OPERATIONS = Set.of("LIST_ASSETS", "LIST_NAMESPACES", "SEARCH", "DESCRIBE",
+        "LIST_CATALOGS", "LIST_SCHEMAS", "LIST_TABLES", "SEARCH_TABLES", "SEARCH_COLUMNS", "DESCRIBE_TABLE",
+        "GET_TABLE_DDL", "GET_TABLE_RELATIONSHIPS", "REFRESH");
     private static final Set<String> FIELDS = Set.of("contractVersion", "operation", "assetId", "database", "schema",
         "tableName", "query", "page", "pageSize", "expectedSnapshotId", "includeColumns");
     private static final ObjectMapper JSON = new ObjectMapper();
@@ -47,6 +49,15 @@ public class SqlMetadataDiscoveryService {
         }
 
         SqlDatasourceConfig asset = assets.get(0);
+        if (operation.equals("REFRESH")) {
+            var refreshed = indexes.refreshDatasource(asset);
+            if (refreshed.error() != null) {
+                var failed = result(arguments, List.of(), null, List.of(), page, size, "CONNECTION_FAILED");
+                failed.put("category", "METADATA_CONNECTION_FAILED");
+                failed.put("limitations", List.of("Metadata refresh failed; previous snapshot was retained."));
+                return failed;
+            }
+        }
         // Capture exactly one index revision. Do not mix columns from a subsequent refresh into this response.
         MetadataIndex index = indexes.indexFor(asset);
         if (index.error() != null) {
@@ -54,10 +65,13 @@ public class SqlMetadataDiscoveryService {
             result.put("limitations", List.of("Metadata snapshot is unavailable; collect it through the existing metadata administration service."));
             return result;
         }
+        // The legacy collector caps columns at 50,000. A truncated composite key
+        // must never be mistaken for a complete key and certify JOIN uniqueness.
+        boolean columnsComplete = index.tableColumns().values().stream().mapToLong(List::size).sum() < 50000;
         List<Map<String, Object>> tables = index.tables().stream()
             .filter(table -> MetadataVisibility.tableVisible(asset, table))
             .sorted(Comparator.comparing(table -> identity(table.database(), table.schema(), table.table())))
-            .map(table -> tableProjection(asset, index, table)).toList();
+            .map(table -> tableProjection(asset, index, table, columnsComplete)).toList();
         String snapshot = hash(List.of(assetProjection(asset), tables));
         Map<String, Object> provenance = new LinkedHashMap<>();
         provenance.put("assetRef", asset.getId());
@@ -70,20 +84,39 @@ public class SqlMetadataDiscoveryService {
             .filter(table -> matches(arguments, table, "database") && matches(arguments, table, "schema"))
             .filter(table -> text(arguments, "tableName") == null || Objects.equals(table.get("tableName"), text(arguments, "tableName")))
             .toList();
-        if (operation.equals("LIST_NAMESPACES")) {
+        if (Set.of("LIST_NAMESPACES", "LIST_CATALOGS", "LIST_SCHEMAS").contains(operation)) {
             Map<String, Map<String, Object>> namespaces = new TreeMap<>();
             matches.forEach(table -> {
                 Map<String, Object> namespace = new LinkedHashMap<>();
-                namespace.put("database", table.get("database")); namespace.put("schema", table.get("schema"));
-                namespaces.put(identity((String) table.get("database"), (String) table.get("schema")), namespace);
+                namespace.put("database", table.get("database"));
+                if (!operation.equals("LIST_CATALOGS")) namespace.put("schema", table.get("schema"));
+                namespaces.put(identity((String) table.get("database"), operation.equals("LIST_CATALOGS") ? null : (String) table.get("schema")), namespace);
             });
             matches = List.copyOf(namespaces.values());
-        } else if (operation.equals("SEARCH")) {
+        } else if (Set.of("SEARCH", "SEARCH_TABLES", "SEARCH_COLUMNS").contains(operation)) {
             matches = rank(asset, matches, text(arguments, "query"));
-        } else if (operation.equals("DESCRIBE")) {
+        } else if (Set.of("DESCRIBE", "DESCRIBE_TABLE", "GET_TABLE_DDL", "GET_TABLE_RELATIONSHIPS").contains(operation)) {
             if (text(arguments, "tableName") == null) throw new IllegalArgumentException("tableName is required for DESCRIBE");
             if (matches.size() > 1) throw new IllegalArgumentException("Ambiguous table; specify database and schema");
+            if (matches.stream().anyMatch(table -> !(table.get("columns") instanceof List<?> fields) || fields.isEmpty())) {
+                var incomplete=result(arguments,matches,snapshot,List.of(provenance),page,size,"METADATA_INCOMPLETE");
+                incomplete.put("category","METADATA_INCOMPLETE");return incomplete;
+            }
         }
+        if (operation.equals("GET_TABLE_DDL")) matches = matches.stream().map(table -> {
+            var value = new LinkedHashMap<>(table);
+            String dialect = SqlDatasourceConfigService.normalizeDatabaseTypeToken(asset.getDatabaseType());
+            String quote = Set.of("mysql", "hive", "spark").contains(dialect) ? "`" : "\"";
+            java.util.function.Function<String,String> identifier = name -> quote + name.replace(quote,quote+quote) + quote;
+            @SuppressWarnings("unchecked") var columns = (List<Map<String,Object>>)table.get("columns");
+            String qualified = (table.get("schema") == null ? "" : identifier.apply(table.get("schema").toString()) + ".") + identifier.apply(table.get("tableName").toString());
+            value.put("ddl", "CREATE TABLE " + qualified + " (\n" + columns.stream().map(column -> "  " + identifier.apply(column.get("name").toString()) + " "
+                + Objects.toString(column.get("columnType"),Objects.toString(column.get("dataType"),"UNKNOWN")))
+                .collect(Collectors.joining(",\n")) + "\n);");
+            value.put("ddlSource", "GENERATED_FROM_AUTHORIZED_METADATA");
+            value.put("ddlScope", "VISIBLE_COLUMNS_ONLY; ORIGINAL_DDL_AND_UNCOLLECTED_CONSTRAINTS_NOT_INCLUDED");
+            return (Map<String,Object>)value;
+        }).toList();
         if (Boolean.FALSE.equals(arguments.get("includeColumns"))) matches = matches.stream().map(item -> {
             Map<String, Object> lightweight = new LinkedHashMap<>(item); lightweight.remove("columns"); return lightweight;
         }).toList();
@@ -117,15 +150,17 @@ public class SqlMetadataDiscoveryService {
                 .thenComparing(table -> (String) table.get("tableRef"))).toList();
     }
 
-    private Map<String, Object> tableProjection(SqlDatasourceConfig asset, MetadataIndex index, TableLocation table) {
+    private Map<String, Object> tableProjection(SqlDatasourceConfig asset, MetadataIndex index, TableLocation table, boolean columnsComplete) {
         String key = "trino".equals(index.databaseType())
             ? MetadataIndex.tableKey(Objects.toString(table.database(), ""), Objects.toString(table.schema(), ""), table.table())
             : (Objects.toString(table.database(), "") + "." + table.table()).toLowerCase(Locale.ROOT);
-        List<MetadataColumn> columns = index.tableColumns().getOrDefault(key, List.of()).stream()
+        List<MetadataColumn> allColumns = index.tableColumns().getOrDefault(key, List.of()).stream()
             // Legacy index keys may merge namespaces/case variants. Never attach another physical object's fields.
             .filter(column -> Objects.equals(column.datasourceId(), asset.getId())
                 && Objects.equals(column.database(), table.database()) && Objects.equals(column.schema(), table.schema())
                 && Objects.equals(column.table(), table.table()))
+            .toList();
+        List<MetadataColumn> columns = allColumns.stream()
             .filter(column -> MetadataVisibility.fieldVisible(asset, table, column.name()))
             .sorted(Comparator.comparing(MetadataColumn::name)).toList();
         Map<String, Object> value = new LinkedHashMap<>();
@@ -134,6 +169,18 @@ public class SqlMetadataDiscoveryService {
         value.put("tableName", table.table()); value.put("tableType", table.tableType()); value.put("comment", table.tableComment());
         value.put("columns", columns.stream().map(MetadataColumn::toDiagnostic).toList());
         value.put("columnCount", columns.size());
+        // Only MySQL's documented PRI marker establishes a primary key here. Other
+        // collectors (including Inceptor's unique_constraint) do not prove a PK.
+        boolean primarySource = columnsComplete && "mysql".equals(index.databaseType());
+        var primary = primarySource ? allColumns.stream().filter(c -> "PRI".equals(c.columnKey())).map(MetadataColumn::name).sorted().toList() : List.<String>of();
+        var partitions = allColumns.stream().flatMap(c -> c.partitionKeys().stream()).distinct().sorted().toList();
+        var visible = columns.stream().map(MetadataColumn::name).collect(Collectors.toSet());
+        boolean primaryVisible = visible.containsAll(primary), partitionVisible = visible.containsAll(partitions);
+        value.put("primaryKeys", primaryVisible ? primary : List.of());
+        value.put("primaryKeyStatus", primary.isEmpty() ? "NOT_COLLECTED" : primaryVisible ? "COLLECTED_VISIBLE" : "REDACTED");
+        value.put("partitionKeys", partitionVisible ? partitions : List.of());
+        value.put("partitionKeyStatus", partitions.isEmpty() ? "NOT_COLLECTED" : partitionVisible ? "COLLECTED_VISIBLE" : "REDACTED");
+        value.put("businessGrainStatus", "UNCONFIRMED");
         var relationshipKey = MetadataIndex.relationshipKey(table.database(), table.schema(), table.table());
         value.put("relationsStatus", index.foreignKeys().containsKey(relationshipKey) ? "COLLECTED_VISIBLE" : "NOT_COLLECTED");
         value.put("foreignKeys", visibleForeignKeys(asset, index, table, columns));

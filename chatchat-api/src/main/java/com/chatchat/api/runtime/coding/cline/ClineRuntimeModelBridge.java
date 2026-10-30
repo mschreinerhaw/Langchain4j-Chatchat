@@ -99,7 +99,7 @@ public final class ClineRuntimeModelBridge {
         String system = bounded(request.path("systemPrompt").asText(""), "system prompt");
         if (!system.isBlank()) messages.add(SystemMessage.from(system));
         JsonNode turns = request.path("messages");
-        if (!turns.isArray() || turns.size() > MAX_MESSAGES) throw new IllegalArgumentException("Invalid model message count");
+        if (!turns.isArray() || turns.size() > (com.chatchat.api.datascience.sql.SqlWorkspaceMetadataTools.enabled(contract)?192:MAX_MESSAGES)) throw new IllegalArgumentException("Invalid model message count");
         for (JsonNode turn : turns) {
             String role = turn.path("role").asText();
             StringBuilder text = new StringBuilder();

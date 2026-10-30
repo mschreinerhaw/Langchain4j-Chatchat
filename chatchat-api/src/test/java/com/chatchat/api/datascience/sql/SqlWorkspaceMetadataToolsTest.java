@@ -46,6 +46,15 @@ class SqlWorkspaceMetadataToolsTest {
         tools=new SqlWorkspaceMetadataTools(provider,gateway,parser,evidence,new ObjectMapper());
     }
     Map<String,Object> describe(){return Map.of("operation","DESCRIBE","bindingId","binding","tableName","trades");}
+    @Test void keywordArraysReachPhysicalSearchAndDifferentConceptsDoNotReuseTheSameQuery(){
+        tools.query(task,schema,Map.of("operation","SEARCH","bindingId","binding","queryTerms",List.of("customer","trade")));
+        assertThat(tools.query(task,schema,Map.of("operation","SEARCH","bindingId","binding","queryTerms",List.of("asset"))))
+            .doesNotContainKey("reusedEvidence");
+        verify(metadata).operateScoped(any(),eq(context),argThat(op->"customer trade".equals(op.arguments().get("query"))));
+        verify(metadata).operateScoped(any(),eq(context),argThat(op->"asset".equals(op.arguments().get("query"))));
+        assertThatThrownBy(()->tools.query(task,schema,Map.of("operation","SEARCH","bindingId","binding","queryTerms",List.of(42))))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
     @Test void snapshotAbsenceRequestsDiscoveryInsteadOfCallingSqlInvalid(){
         assertThat(tools.validate(task,schema,List.of(new SqlOutputBundle.Candidate("q.sql","select client_no from trades")),"mysql"))
             .containsEntry("status","METADATA_REQUIRED").containsEntry("sqlValidity","UNDETERMINED");
@@ -54,6 +63,14 @@ class SqlWorkspaceMetadataToolsTest {
         tools.query(task,schema,describe());assertThat(tools.query(task,schema,describe())).containsEntry("reusedEvidence",true);
         snapshot="v2";assertThatThrownBy(()->tools.query(task,schema,describe())).isInstanceOf(ResponseStatusException.class);
         assertThat(tools.query(task,schema,describe())).containsEntry("snapshotId","v2");
+    }
+    @Test void lineageAndDescribeShareEvidenceButRetainTheRequestedOperation(){
+        tools.query(task,schema,describe());
+        assertThat(tools.query(task,schema,Map.of("operation","LINEAGE","bindingId","binding","tableName","trades")))
+            .containsEntry("operation","LINEAGE").containsEntry("lineageStatus","NOT_COLLECTED").containsEntry("reusedEvidence",true);
+        assertThat(tools.query(task,schema,describe())).containsEntry("operation","DESCRIBE").doesNotContainKey("lineageStatus");
+        verify(metadata,times(1)).operateScoped(any(),eq(context),argThat(op->"DESCRIBE".equals(op.arguments().get("operation"))));
+        verify(metadata,times(2)).operateScoped(any(),eq(context),argThat(op->"SEARCH".equals(op.arguments().get("operation"))));
     }
     @Test void rejectsAnotherBindingAndExecutionArguments(){
         assertThatThrownBy(()->tools.query(task,schema,Map.of("operation","DESCRIBE","bindingId","other","tableName","secret"))).isInstanceOf(SecurityException.class);
@@ -67,6 +84,23 @@ class SqlWorkspaceMetadataToolsTest {
         assertThat(SqlWorkspaceMetadataTools.failure(new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"offline")))
             .containsEntry("category","METADATA_SERVICE_UNAVAILABLE").containsEntry("retryable",true).containsEntry("sqlValidity","UNDETERMINED");
         assertThat(SqlWorkspaceMetadataTools.failure(new SecurityException("denied"))).containsEntry("category","AUTHORIZATION").containsEntry("retryable",false);
+        assertThat(SqlWorkspaceMetadataTools.failure(new ResponseStatusException(HttpStatus.GATEWAY_TIMEOUT,"timeout"))).containsEntry("category","METADATA_TIMEOUT");
+        assertThat(SqlWorkspaceMetadataTools.failure(new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"METADATA_CONNECTION_FAILED"))).containsEntry("category","METADATA_CONNECTION_FAILED");
+        assertThat(SqlWorkspaceMetadataTools.failure(new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"METADATA_INCOMPLETE"))).containsEntry("category","METADATA_INCOMPLETE");
+        assertThat(SqlWorkspaceMetadataTools.failure(new ResponseStatusException(HttpStatus.NOT_FOUND,"not found"))).containsEntry("category","OBJECT_NOT_FOUND");
+    }
+    @Test void ordinaryAnalysisCannotOptIntoSqlMetadataWithoutTheStudioProfile(){
+        when(task.metadataRefs()).thenReturn(List.of());
+        assertThatThrownBy(()->tools.context(task,schema)).isInstanceOf(SecurityException.class);
+        verify(metadata,never()).getScoped(any(),anyString(),anyString());
+    }
+    @Test void malformedToolOutputIsNotAnAbsentObjectOrInvalidSql(){
+        when(metadata.operateScoped(any(),any(),any())).thenReturn(new SqlStudioMetadataGateway.Result("service",Map.of("status","SUCCEEDED","snapshotId","v1","items","broken")));
+        var malformed=catchThrowableOfType(()->tools.query(task,schema,describe()),ResponseStatusException.class);
+        assertThat(SqlWorkspaceMetadataTools.failure(malformed)).containsEntry("category","METADATA_RESPONSE_INVALID").containsEntry("sqlValidity","UNDETERMINED");
+        when(metadata.operateScoped(any(),any(),any())).thenReturn(new SqlStudioMetadataGateway.Result("service",Map.of("status","SUCCEEDED","snapshotId","v1","items",List.of(Map.of("tableName","trades","columns",List.of())))));
+        var incomplete=catchThrowableOfType(()->tools.query(task,schema,describe()),ResponseStatusException.class);
+        assertThat(SqlWorkspaceMetadataTools.failure(incomplete)).containsEntry("category","METADATA_INCOMPLETE");
     }
     @Test void explicitlyReportsMissingObjectAndUncollectedLineage(){
         assertThat(tools.query(task,schema,Map.of("operation","LINEAGE","bindingId","binding","tableName","trades"))).containsEntry("lineageStatus","NOT_COLLECTED");
@@ -78,5 +112,12 @@ class SqlWorkspaceMetadataToolsTest {
         var result=tools.query(task,schema,Map.of("operation","BUSINESS_SEARCH","bindingId","binding","query","profit and loss definition","queryTerms",List.of("profit")));
         assertThat(result).containsEntry("evidenceScope","ENTERPRISE_STANDARD_REFERENCES_NOT_PHYSICAL_TABLE_AUTHORITY");
         verify(gateway).referenceScoped(argThat(s->s.userId().equals("owner")&&s.tenantId().equals("tenant")&&s.attributes().containsKey("deadlineAt")),eq("service"),eq("enterprise_metadata_search"),anyMap());
+    }
+    @Test void businessConceptOnlyArrayWorksAndBroadRequestsGetRepairableBudgetFeedback(){
+        when(gateway.referenceScoped(any(),eq("service"),eq("enterprise_metadata_search"),anyMap())).thenReturn(Map.of("definitionStatus","NOT_FOUND"));
+        tools.query(task,schema,Map.of("operation","BUSINESS_SEARCH","bindingId","binding","queryTerms",List.of("profit")));
+        verify(gateway).referenceScoped(any(),eq("service"),eq("enterprise_metadata_search"),argThat(args->!args.containsKey("query")&&List.of("profit").equals(args.get("queryTerms"))));
+        var failure=catchThrowableOfType(()->tools.query(task,schema,Map.of("operation","BUSINESS_SEARCH","bindingId","binding","queryTerms",List.of("profit","assets"))),ResponseStatusException.class);
+        assertThat(SqlWorkspaceMetadataTools.failure(failure)).containsEntry("category","QUERY_BUDGET").containsEntry("retryable",true);
     }
 }

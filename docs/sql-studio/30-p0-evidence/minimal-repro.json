@@ -1,0 +1,69 @@
+{
+  "requestSha256": "f2bfceb36104b3759f14945950f8f1047314e2b37c4dc7cad5e3dbf07922753b",
+  "dialect": "hive",
+  "sqlExecuted": false,
+  "sameInputForBothRuns": true,
+  "files": [
+    {
+      "path": "orders.sql",
+      "sha256": "2b3d3b4a80abffdd11761e0d1d442adf0706d71a0f387427b358b71614edb142"
+    }
+  ],
+  "before": {
+    "valid": false,
+    "fieldValidation": "CHECKED",
+    "diagnostics": [
+      {
+        "path": "orders.sql",
+        "status": "FAILED",
+        "category": "VALIDATION",
+        "errorType": "ValueError",
+        "message": "Table metadata has not been resolved in the authorized scope: ORDERS"
+      }
+    ],
+    "references": [
+      {
+        "tableName": "orders",
+        "schema": "",
+        "database": "",
+        "quoted": false
+      }
+    ],
+    "referencedColumns": null,
+    "sqlExecuted": false,
+    "version": "30.23.0",
+    "validatorSha256": "ef0977d37f307fdc170654bdbc7d8a24e8a2b592e5aac8f72aa0ad55638251e2"
+  },
+  "after": {
+    "valid": true,
+    "fieldValidation": "CHECKED",
+    "diagnostics": [
+      {
+        "path": "orders.sql",
+        "status": "PARSED",
+        "fields": "CHECKED"
+      }
+    ],
+    "references": [
+      {
+        "tableName": "orders",
+        "schema": "",
+        "database": "",
+        "quoted": false
+      }
+    ],
+    "referencedColumns": [
+      {
+        "path": "orders.sql",
+        "tableName": "orders",
+        "schema": "",
+        "database": "",
+        "column": "amount",
+        "sourceAlias": "orders"
+      }
+    ],
+    "sqlExecuted": false,
+    "version": "30.23.0",
+    "validatorSha256": "fb6c20e8a2044a15d1a49311bc752f095751ac9f5c082a88a24701cb59a3add1"
+  }
+}

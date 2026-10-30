@@ -82,7 +82,10 @@ public class SqlStudioMetadataService {
             captured.put("discoveryId",context.discoveryId());captured.put("bindingId",binding.bindingId());
             if(table.get("tableRef") instanceof String ref)captured.put("tableRef",ref);
             captured.put("columns",columns);captured.put("relationsStatus",table.getOrDefault("relationsStatus",null));
-            captured.put("foreignKeys",table.get("foreignKeys"));captured.put("snapshotId",selection.expectedSnapshotId());tables.add(captured);
+            captured.put("foreignKeys",table.get("foreignKeys"));
+            for(String key:List.of("primaryKeys","primaryKeyStatus","partitionKeys","partitionKeyStatus","businessGrainStatus"))
+                if(table.containsKey(key))captured.put(key,table.get(key));
+            captured.put("snapshotId",selection.expectedSnapshotId());tables.add(captured);
         }
         return Map.of("tables",tables);
     }
@@ -179,7 +182,9 @@ public class SqlStudioMetadataService {
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Metadata binding not found"));
         Set<String> allowed = Set.of("operation", "query", "tableName", "database", "schema", "page", "pageSize", "expectedSnapshotId", "includeColumns");
         require(allowed.containsAll(input.arguments().keySet()), "Unsupported metadata operation argument");
-        require(Set.of("LIST_NAMESPACES", "SEARCH", "DESCRIBE").contains(Objects.toString(input.arguments().get("operation"), "")), "Unsupported metadata operation");
+        require(Set.of("LIST_NAMESPACES", "SEARCH", "DESCRIBE", "LIST_CATALOGS", "LIST_SCHEMAS", "LIST_TABLES",
+            "SEARCH_TABLES", "SEARCH_COLUMNS", "DESCRIBE_TABLE", "GET_TABLE_DDL", "GET_TABLE_RELATIONSHIPS", "REFRESH")
+            .contains(Objects.toString(input.arguments().get("operation"), "")), "Unsupported metadata operation");
         Map<String, Object> args = new LinkedHashMap<>(input.arguments());
         args.put("contractVersion", SqlStudioMetadataGateway.CONTRACT); args.put("assetId", binding.assetRef());
         restrict(args, "database", binding.database()); restrict(args, "schema", binding.schema());

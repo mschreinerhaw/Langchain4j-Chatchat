@@ -36,7 +36,7 @@ public class StudioTaskHistory {
             default -> "failed";
         };
         String label=request.language().equals("sql")?"SQLStudio":"PythonStudio";
-        String answer=outcome==null?"任务已交付 Cline，等待生成结果。":outcome.summary();
+        String answer=outcome==null?"任务已提交，正在等待生成结果。":outcome.summary();
         if(output!=null && !output.isEmpty()) {
             var text=new StringBuilder(Objects.toString(output.get("notes"),""));
             if(output.get("files") instanceof List<?> files) for(Object item:files) {

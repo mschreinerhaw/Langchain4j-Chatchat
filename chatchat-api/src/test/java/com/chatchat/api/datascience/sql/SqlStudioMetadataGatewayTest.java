@@ -115,4 +115,19 @@ class SqlStudioMetadataGatewayTest {
         var error=catchThrowableOfType(()->gateway.invokeScoped(scope,"registered",Map.of()),ResponseStatusException.class);
         assertThat(SqlWorkspaceMetadataTools.failure(error)).containsEntry("category","AMBIGUOUS_OBJECT").containsEntry("retryable",false);
     }
+    @Test void preservesServerConcurrencyTimeoutThroughWrappedProviderFailure(){
+        when(kernel.tools(any())).thenReturn(List.of(tool()));
+        var raw=Map.of("structuredContent",Map.of("success",false,"status","TIMEOUT","toolName","sql_schema_context_query",
+            "runtimeLevel","tool","errorMessage","MCP tool execution timed out after 30 seconds"));
+        when(kernel.execute(any(McpServiceCall.class))).thenReturn(new McpServiceResult(null,"request","registered","sql_schema_context_query",
+            McpServiceResultStatus.FAILED,null,raw,"MCP_TOOL_CALL_FAILED","Tool execution failed",false,null,Map.of(),0));
+        var scope=new com.chatchat.common.kernel.KernelDataScope("tenant","owner","request",null,"run",null,Map.of());
+        var error=catchThrowableOfType(()->gateway.invokeScoped(scope,"registered",Map.of()),ResponseStatusException.class);
+        assertThat(error.getStatusCode().value()).isEqualTo(504);
+        assertThat(SqlWorkspaceMetadataTools.failure(error)).containsEntry("category","METADATA_TIMEOUT");
+        when(kernel.execute(any(McpServiceCall.class))).thenReturn(new McpServiceResult(null,"request","registered","sql_schema_context_query",
+            McpServiceResultStatus.FAILED,null,Map.of("status","TIMEOUT"),"MCP_TOOL_CALL_FAILED","Tool execution failed",false,null,Map.of(),0));
+        var generic=catchThrowableOfType(()->gateway.invokeScoped(scope,"registered",Map.of()),ResponseStatusException.class);
+        assertThat(generic.getStatusCode().value()).isEqualTo(502);
+    }
 }

@@ -86,7 +86,8 @@ public class SqlStudioMetadataGateway {
         if (result == null || !result.successful()) {
             if(authenticated.attributes().get("deadlineAt") instanceof Number taskDeadline&&taskDeadline.longValue()<=System.currentTimeMillis())
                 throw new com.chatchat.agents.orchestration.model.AgentDeadlineExceededException("SQL metadata task deadline reached during tool invocation");
-            if(result!=null&&Set.of("MCP_TOOL_TIMEOUT","MCP_CALL_DEADLINE_EXCEEDED").contains(Objects.toString(result.errorCode(),"")))
+            if(result!=null&&(Set.of("MCP_TOOL_TIMEOUT","MCP_CALL_DEADLINE_EXCEEDED").contains(Objects.toString(result.errorCode(),""))
+                || metadataToolTimeout(result.rawData(),0) || metadataToolTimeout(result.data(),0)))
                 throw new ResponseStatusException(HttpStatus.GATEWAY_TIMEOUT,"METADATA_TOOL_TIMEOUT: 元数据工具请求超时");
             if(result!=null&&Objects.toString(result.errorMessage(),"").contains("METADATA_SNAPSHOT_CHANGED"))
                 throw new ResponseStatusException(HttpStatus.CONFLICT,"SNAPSHOT_CONFLICT: 元数据或授权范围发生变化，请重新翻页");
@@ -103,6 +104,16 @@ public class SqlStudioMetadataGateway {
         if (!CONTRACT.equals(data.get("contractVersion")) || !Boolean.TRUE.equals(data.get("doesNotExecuteSql")))
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Invalid metadata-only MCP response");
         return new Result(tool.serviceId(), data);
+    }
+
+    /** Preserve the server's structured concurrency failure when an adapter replaces its outer error code. */
+    private boolean metadataToolTimeout(Object value,int depth) {
+        if(!(value instanceof Map<?,?> map) || depth>4)return false;
+        if(Boolean.FALSE.equals(map.get("success")) && "TIMEOUT".equals(map.get("status"))
+            && TOOL.equals(map.get("toolName")))return true;
+        for(String key:List.of("structuredContent","structured_content","data","result","rawData","payload"))
+            if(metadataToolTimeout(map.get(key),depth+1))return true;
+        return false;
     }
 
     /** Existing read-only enterprise reference and template tools; never a generic MCP proxy. */

@@ -93,7 +93,7 @@
               title="保存文件 · Ctrl/Cmd + S"
               aria-label="保存 Python 文件"
               @click="save"
-              :disabled="busy"
+              :disabled="busy || !activeEditorTabKey"
               ><Save :size="15" /><span>保存</span></button
             ><button
               title="运行脚本 · Ctrl/Cmd + Enter"
@@ -334,7 +334,7 @@
                 ><Plus :size="15"
               /></button> </div
             ><div class="editor-tools"
-              ><button title="格式化代码" aria-label="格式化 Python 代码" @click="formatDocument"
+              ><button title="格式化代码" aria-label="格式化 Python 代码" :disabled="!activeEditorTabKey" @click="formatDocument"
                 ><WandSparkles :size="14" /></button
               ><button :aria-pressed="aiOpen" aria-label="切换 AI 助手面板" @click="toggleAi"
                 ><Sparkles :size="15" /></button
@@ -343,7 +343,7 @@
               ></div
             ></div
           >
-          <div class="editor-breadcrumb"
+          <div class="editor-breadcrumb" v-show="activeEditorTabKey"
             ><span>workspace</span><b>›</b
             ><select v-model="form.folderId" title="移动到逻辑文件夹"
               ><option value="">未分类</option
@@ -353,7 +353,13 @@
             ><b>›</b><span>{{ form.fileName }}</span
             ><b>›</b><strong>Python</strong></div
           >
-          <div ref="codeEditor" class="monaco-host" aria-label="Python 脚本编辑器"></div>
+          <div ref="codeEditor" v-show="activeEditorTabKey" class="monaco-host" aria-label="Python 脚本编辑器"></div>
+          <div v-if="!activeEditorTabKey" class="python-editor-empty">
+            <FileCode2 :size="40" />
+            <strong>没有打开的脚本</strong>
+            <p>从资源管理器打开脚本，或新建一个 Python 脚本。</p>
+            <button type="button" :disabled="busy" @click="newScript"><Plus :size="15" />新建脚本</button>
+          </div>
           <div
             class="pane-resizer pane-resizer-horizontal bottom-resizer"
             role="separator"
@@ -704,7 +710,7 @@
               ><button
                 aria-label="发送 Python AI 请求"
                 @click="askAi"
-                :disabled="aiBusy || !aiPrompt || !aiModel"
+                :disabled="aiBusy || !aiPrompt || !aiModel || !activeEditorTabKey"
                 ><LoaderCircle v-if="aiBusy" :size="16" class="studio-spinner" /><Send
                   v-else
                   :size="16" /></button

@@ -300,6 +300,7 @@ export default {
       return this.form.id && this.form.status === "TESTED";
     },
     dirty() {
+      if (!this.activeEditorTabKey) return false;
       return (
         this.form.sourceCode !== this.savedSource ||
         String(this.form.fileName || "").trim() !== this.savedFileName ||
@@ -487,10 +488,6 @@ export default {
     dataQuery() { this.dataPage = 1; },
     tab(value) {
       if (value !== "develop") return;
-      if (!this.editorTabs.length) {
-        if (this.scripts[0]) this.selectScript(this.scripts[0], false);
-        else this.newScript(false);
-      }
       nextTick(() => this.initializeEditor());
     },
     form: {
@@ -596,8 +593,9 @@ export default {
         this.editorTabs = tabs;
         const active = tabs.find((tab) => tab.key === stored.activeKey) || tabs[0];
         this.activateEditorTab(active, { navigate: false });
-      }
+      } else if (Array.isArray(stored?.tabs)) this.clearActiveEditorTab();
       if (this.dataFiles.some((file) => file.id === stored?.selectedDataFileId)) this.selectedDataFileId = stored.selectedDataFileId;
+      return Array.isArray(stored?.tabs);
     },
     navigateToSection(section) {
       const routes = {
@@ -656,11 +654,13 @@ export default {
         if (!this.assetForm.environmentId && this.environmentCatalog[0])
           this.assetForm.environmentId = this.environmentCatalog[0].id;
         if (!this.form.assetId && this.readyAssets[0]) this.form.assetId = this.defaultAssetId || this.readyAssets[0].id;
-        if (this.tab === "develop" && !this.editorTabs.length) {
-          if (this.scripts[0]) this.selectScript(this.scripts[0], false);
-          else this.newScript(false);
+        if (!this.draftRestored) {
+          const restored = this.restoreWorkspaceDraft();
+          if (!restored && this.tab === "develop" && !this.editorTabs.length) {
+            if (this.scripts[0]) this.selectScript(this.scripts[0], false);
+            else this.newScript(false);
+          }
         }
-        this.restoreWorkspaceDraft();
       } catch (error) {
         this.showTransientError(errorMessage(error, "工作台加载失败"));
       } finally {
@@ -765,8 +765,7 @@ export default {
       }));
       this.editor = markRaw(
         monaco.editor.create(this.$refs.codeEditor, {
-          value: this.form.sourceCode || "",
-          language: "python",
+          model: null,
           theme: "chatchat-python",
           automaticLayout: true,
           occurrencesHighlight: 'off',
@@ -1063,11 +1062,31 @@ export default {
       const model = this._studioModels?.get(editorTab.key);
       if (model && this.editor?.getModel() === model) this.editor.setModel(null);
       model?.dispose(); this._studioModels?.delete(editorTab.key);
-      if (!wasActive) return;
+      if (!wasActive) { this.scheduleWorkspaceDraft(); return; }
       this.activeEditorTabKey = "";
       const nextTab = this.editorTabs[index] || this.editorTabs[index - 1];
       if (nextTab) this.activateEditorTab(nextTab, { capture: false });
-      else this.newScript();
+      else this.clearActiveEditorTab();
+      this.scheduleWorkspaceDraft();
+    },
+    clearActiveEditorTab() {
+      this.activeEditorTabKey = "";
+      this.editor?.setModel(null);
+      clearTimeout(this._ruffTimer);
+      this._ruffSerial = (this._ruffSerial || 0) + 1;
+      this.form = { id: "", assetId: this.defaultAssetId || this.readyAssets[0]?.id || "", folderId: "", fileName: "", title: "", sourceCode: "", status: "DRAFT" };
+      this.savedSource = this.savedFileName = this.savedFolderId = "";
+      this.consoleText = "";
+      this.parametersText = "{}";
+      this.inputSchemaText = defaultInputSchema;
+      this.runState = "idle";
+      this.runFeedback = null;
+      this.pythonProblems = [];
+      this.lintState = "idle";
+      this.cursorPosition = { lineNumber: 1, column: 1 };
+      this.aiMessages = [];
+      this.resetAiSuggestion();
+      this.scheduleWorkspaceDraft();
     },
     editorTabDirty(editorTab) {
       return (
@@ -1078,6 +1097,7 @@ export default {
       );
     },
     async save() {
+      if (!this.activeEditorTabKey || this.busy) return;
       const fileName = String(this.form.fileName || "").trim();
       if (!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,170}\.py$/.test(fileName)) {
         this.showTransientError("脚本文件名只能包含字母、数字、点、下划线或短横线，并且必须以 .py 结尾");
@@ -1147,16 +1167,9 @@ export default {
       })) return;
       await this.action(async () => {
         await deletePythonScript(script.id);
-        const removedIndex = this.editorTabs.findIndex((item) => item.form.id === script.id);
-        const removedWasActive = removedIndex >= 0 && this.editorTabs[removedIndex].key === this.activeEditorTabKey;
-        if (removedIndex >= 0) this.editorTabs.splice(removedIndex, 1);
+        const removedTab = this.editorTabs.find((item) => item.form.id === script.id);
+        if (removedTab) this.closeEditorTabNow(removedTab);
         await this.refreshExplorer();
-        if (!removedWasActive) return;
-        this.activeEditorTabKey = "";
-        const nextTab = this.editorTabs[removedIndex] || this.editorTabs[removedIndex - 1];
-        if (nextTab) this.activateEditorTab(nextTab, { capture: false });
-        else if (this.scripts[0]) this.selectScript(this.scripts[0]);
-        else this.newScript();
       });
     },
     async createFolder() {
@@ -1384,6 +1397,7 @@ export default {
       this.aiSkillDraftIds = [];
     },
     async askAi() {
+      if (!this.activeEditorTabKey) return;
       if (this.aiBusy) return;
       if (!this.aiPrompt.trim()) {
         this.showTransientError("请先输入代码生成提示词");

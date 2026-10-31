@@ -1,0 +1,63 @@
+{
+  "status": "SQL_CHAIN_EXACT_MATCH",
+  "taskId": "2da894bb-edfc-35dc-970d-27b6cc93f70d",
+  "attemptId": "att-1-516a6b2c-96fc-4485-bcc8-6fcd408c7737",
+  "jdbcCapturedAt": "2026-10-31T19:30:32.622745+00:00",
+  "sourceCapturedAt": "2026-10-31T19:36:49.721Z",
+  "results": [
+    {
+      "name": "yearly",
+      "releaseId": "90d8efbe-ba6b-4314-921c-65841244b241",
+      "version": 3,
+      "code": "STUDIO_18042D964C823181832DB6E79E771FFB",
+      "sqlSha256": "5f4f3df594c630722d6d30eb4e46af4391d0eb2544bac3ae5d45cfc1b92774f1",
+      "generationTaskId": "sql-coding-a348834c-8980-4be9-ad14-75dbea53debc",
+      "trialTraceId": "47a9e386-73dc-4601-bff1-9c3ec68df263",
+      "tool": "mcp_chatchat_mcp_server_tpl_212b88329a673657979943bbeaa7479b",
+      "requestId": "799e9151-fafb-4b43-b28c-d7847ebd494d",
+      "durationMs": 3761,
+      "actualParameters": {},
+      "effectiveParameters": {},
+      "rows": 6,
+      "comparedFields": 42
+    },
+    {
+      "name": "monthly",
+      "releaseId": "81cc9e0e-a2a6-4125-a6e0-1f82ecbe5caf",
+      "version": 3,
+      "code": "STUDIO_2B689C67D34336599B05C753F0473B60",
+      "sqlSha256": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8",
+      "generationTaskId": "sql-coding-7f505192-43bf-4eb6-a7d5-fecd2f1fe586",
+      "trialTraceId": "fbe992f2-4b7c-4070-8728-bf7ffd72a186",
+      "tool": "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+      "requestId": "799e9151-fafb-4b43-b28c-d7847ebd494d",
+      "durationMs": 3568,
+      "actualParameters": {
+        "product_id": 1,
+        "start_date": "1999-01-01",
+        "end_date": "1999-12-31",
+        "min_quantity": 0
+      },
+      "effectiveParameters": {
+        "product_id": 1,
+        "min_quantity": 0,
+        "category": null,
+        "start_date": "1999-01-01",
+        "end_date": "1999-12-31"
+      },
+      "rows": 11,
+      "comparedFields": 77
+    }
+  ],
+  "limitations": [
+    "Generation PARSED is not static field validation or execution.",
+    "SQL result verification does not certify business units or Python analysis."
+  ],
+  "evidenceSha256": {
+    "source-chain.json": "ed2e91433476f24f0012ad6f58ac257176ff33ff1b0d99a318bc86e9bbd9e8e7",
+    "agent-result.json": "d310627b663c104c19683c48378cbf304ce46c763668ac60ce6f81a130fb8b1d",
+    "run-index.json": "f13282a62adba433c7c72554ca790f712a55f2e0a421a8be7bda73dd9a5ea746",
+    "observations-att-1-516a6b2c-96fc-4485-bcc8-6fcd408c7737.json": "c00365664286a53fe859a88232648685528dd05c638a4ba93316f9f9579d7272"
+  },
+  "jdbcSha256": "b6c1dfcc2cbb95d8da5713d64a2afeb17d9c442bef66ae7e3dfadc29f911bc36"
+}

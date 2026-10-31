@@ -1,0 +1,39 @@
+{
+  "repository": "https://github.com/microsoft/microsoft-sql",
+  "commit": "eeb1c6867c2d128763516a1aad41671c593cc189",
+  "capturedAt": "2026-10-31T19:33:08.826Z",
+  "decision": "REVIEWED_NOT_VENDORED",
+  "reason": "Azure SQL Database and T-SQL scope; do not inject into MySQL tpcds",
+  "files": [
+    {
+      "path": "README.md",
+      "url": "https://github.com/microsoft/microsoft-sql/blob/eeb1c6867c2d128763516a1aad41671c593cc189/README.md",
+      "sha256": "fcb84435e0866039b8c4c304f1d7587f4ea2788a469a0bdb8fcec9dcefe4b917",
+      "bytes": 14984
+    },
+    {
+      "path": "LICENSE",
+      "url": "https://github.com/microsoft/microsoft-sql/blob/eeb1c6867c2d128763516a1aad41671c593cc189/LICENSE",
+      "sha256": "e7c8a93f63429e322ccc9b79c927320adee6e8422781762990c9955071ebbcd6",
+      "bytes": 1102
+    },
+    {
+      "path": "plugins/microsoft-sql/skills/azure-sql/SKILL.md",
+      "url": "https://github.com/microsoft/microsoft-sql/blob/eeb1c6867c2d128763516a1aad41671c593cc189/plugins/microsoft-sql/skills/azure-sql/SKILL.md",
+      "sha256": "b24187c216819f800684e48ea8ec545affe214bfd2383f50e0f386f442f14560",
+      "bytes": 13338
+    },
+    {
+      "path": "plugins/microsoft-sql/skills/t-sql-correctness/SKILL.md",
+      "url": "https://github.com/microsoft/microsoft-sql/blob/eeb1c6867c2d128763516a1aad41671c593cc189/plugins/microsoft-sql/skills/t-sql-correctness/SKILL.md",
+      "sha256": "19533393bf7592944ac621bab6537f83e85bfddce1d972abd572e8d2150c6dc8",
+      "bytes": 11627
+    },
+    {
+      "path": "plugins/microsoft-sql/skills/prevent-sql-injection/SKILL.md",
+      "url": "https://github.com/microsoft/microsoft-sql/blob/eeb1c6867c2d128763516a1aad41671c593cc189/plugins/microsoft-sql/skills/prevent-sql-injection/SKILL.md",
+      "sha256": "bcbeb3689fe8eb19f09378195f07a5b1b0fc41f59fbd029c273ba858ba7183df",
+      "bytes": 11524
+    }
+  ]
+}

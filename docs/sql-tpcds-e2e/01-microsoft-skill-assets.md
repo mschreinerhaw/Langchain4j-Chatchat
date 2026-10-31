@@ -11,6 +11,8 @@
 
 通用 Pandas / NumPy 分析和 Data Visualization **待补充微软官方直接适用资产**。现有 `python-data-analysis` 与 `python-code-development` 是 Runtime OS 自有技能，未冒充 Microsoft。Fabric、Cosmos DB 与其他 Azure SDK 技能本批未引入；TPC-DS MySQL 场景不需要这些额外服务及凭据。
 
+2026-11-01 任务书允许通用能力由既有技能与适用的微软原生技能组合提供。因此“待补充”指微软直接来源的通用资产，不代表系统没有 Python 分析、可视化或数据探索方法。各项能力的实际来源、执行证据，以及新增 `microsoft/microsoft-sql` 来源的 MySQL 兼容性审查，见[本轮复验记录](../sql-chain-revalidation/README.md)。不能把 Azure/T-SQL 包改名或改写成微软 MySQL 分析技能。
+
 ## 完整性及升级
 
 `coding-agent-node/skills/catalog.json` 记录每包 repository、原始 path、commit、license、引入日期、SKILL.md SHA256 及全部子文件大小和 SHA256。25 个文件（含各包许可证）从固定提交的 Git blob 导入，避免 Windows checkout 自动转换换行。`.gitattributes` 对这四个目录禁用文本转换。

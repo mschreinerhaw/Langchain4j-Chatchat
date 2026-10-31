@@ -1,0 +1,25 @@
+{
+  "status": "PYTHON_EXECUTION_VERIFIED",
+  "parentTaskId": "2da894bb-edfc-35dc-970d-27b6cc93f70d",
+  "executions": [
+    {
+      "taskId": "analysis-coding-15b3baad341da769c630cfc0473e58c8eee2b3369b027f7b6b5285e2b638a82c",
+      "executionId": "cline-ca4960effa34b4b164b2d9cdc81b7a63154e55a651ca47f740e1049e5ab7cdca",
+      "codeSha256": "f060de2e4ff5f6c2c0046f96f599fe5a542429e67e0bd8810bfc6c987e993d94",
+      "sourceBytes": 22240,
+      "stage": "VALIDATED",
+      "exitCode": 0,
+      "executorStopped": true,
+      "validationStatus": "INCONCLUSIVE",
+      "businessValidationPassed": false,
+      "timing": {
+        "operationId": "cline-ca4960effa34b4b164b2d9cdc81b7a63154e55a651ca47f740e1049e5ab7cdca",
+        "codeHash": "f060de2e4ff5f6c2c0046f96f599fe5a542429e67e0bd8810bfc6c987e993d94",
+        "source": "MCP_ARCHIVED_RECEIPT",
+        "startedAt": "2026-10-31T19:39:26.629969337Z",
+        "finishedAt": "2026-10-31T19:39:28.312960796Z"
+      }
+    }
+  ],
+  "limitation": "Execution and byte integrity only; preserve business INCONCLUSIVE and verify computed results separately."
+}

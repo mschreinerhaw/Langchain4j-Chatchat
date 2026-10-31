@@ -66,3 +66,25 @@ node scripts/sql-tpcds-acceptance/reconcile-python.mjs docs/sql-tpcds-e2e/python
 ```
 
 运行成功、产物完整与业务检查是不同证据。`poll` 验证真实 Python 退出、持久回执和下载文件哈希，保留原始业务验证状态；`reconcile-python` 独立验证计算结果，不会把缺少月份、未知单位或未认证业务口径改为通过。
+
+## 复验现有已发布链路
+
+`revalidate.mjs` 从真实接口重新读取生成任务、已保存源码、实际数据库试执行回执、当前发布版本、MCP Schema 与 Agent 绑定，并提交新的正常 Agent 任务。它不修改共享数据源白名单、SQL 模板或发布版本。先前已完成的生成和发布时间会原样保留，不能声称本次重新生成或重新发布了 SQL。
+
+```powershell
+$env:TPCDS_STATE='已有验收 state.json 的私有绝对路径'
+$env:TPCDS_OUTPUT='target/sql-chain-revalidation-new'
+# 其它登录环境变量与上文相同；可选 TPCDS_AGENT_ID、TPCDS_QUESTION。
+node scripts/sql-tpcds-acceptance/revalidate.mjs capture
+node scripts/sql-tpcds-acceptance/revalidate.mjs ask
+node scripts/sql-tpcds-acceptance/revalidate.mjs poll
+# 普通 Python 分析可核验持久回执、停止证明及实际源码字节，不要求它是图表报告。
+node scripts/sql-tpcds-acceptance/revalidate.mjs python-proof
+# 等待真正终态；基准必须由独立 JDBC 重新读取，不能复制工具返回行。
+node scripts/sql-tpcds-acceptance/verify-chain.mjs target/sql-chain-revalidation-new fresh-jdbc.json target/sql-chain-proof.json
+node --test scripts/sql-tpcds-acceptance/verify-chain.test.mjs
+```
+
+`verify-chain` 仅接收本次商品 1、1999 年、数量下限 0 的固定业务范围；校验生成原文到保存/试执行/发布的 SHA256、参数 Schema、Agent 授权、同一 attempt 的两个实际 SQL 执行信封、真实数据源/模板标识、有效参数、完整性与独立 JDBC 的全部 119 个字段。`PARTIAL`、仅工具列表、没有执行、过期试执行、参数偏移、结果截断或数据不符均失败。运行器 requestId、耗时和输入文件摘要写入输出证据；输出不认证币种、业务口径或 Python 执行。Python 使用独立的 `reconcile-template-python.mjs` 校验。
+
+本地回归用的是已归档的真实成功记录和受控损坏副本，用于检查校验器能否拒绝假阳性；它们不代替新一轮在线验收。新轮记录见 `docs/sql-chain-revalidation/README.md`。

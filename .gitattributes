@@ -26,3 +26,6 @@ docs/sql-tpcds-e2e/*.py -text
 docs/sql-tpcds-e2e/*.sql -text
 docs/studio-sql-python-e2e/*.json -text
 docs/studio-sql-python-e2e/*.py -text
+docs/sql-chain-revalidation/**/*.json -text
+docs/sql-chain-revalidation/**/*.py -text
+docs/sql-chain-revalidation/*.json -text

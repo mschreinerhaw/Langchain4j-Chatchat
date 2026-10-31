@@ -1,0 +1,34 @@
+{
+  "capturedAt": "2026-10-31T19:35:21.666Z",
+  "status": "HASHES_MATCH",
+  "assets": [
+    {
+      "name": "azure-kusto",
+      "version": "upstream-3f5b461b2314",
+      "repository": "https://github.com/microsoft/skills",
+      "commit": "3f5b461b2314e01c400564051e92469114c5b68f",
+      "verifiedFiles": 2
+    },
+    {
+      "name": "azure-ai-ml-py",
+      "version": "upstream-3f5b461b2314",
+      "repository": "https://github.com/microsoft/skills",
+      "commit": "3f5b461b2314e01c400564051e92469114c5b68f",
+      "verifiedFiles": 4
+    },
+    {
+      "name": "mcp-builder",
+      "version": "upstream-3f5b461b2314",
+      "repository": "https://github.com/microsoft/skills",
+      "commit": "3f5b461b2314e01c400564051e92469114c5b68f",
+      "verifiedFiles": 11
+    },
+    {
+      "name": "skill-creator",
+      "version": "upstream-3f5b461b2314",
+      "repository": "https://github.com/microsoft/skills",
+      "commit": "3f5b461b2314e01c400564051e92469114c5b68f",
+      "verifiedFiles": 8
+    }
+  ]
+}

@@ -29,3 +29,5 @@ docs/studio-sql-python-e2e/*.py -text
 docs/sql-chain-revalidation/**/*.json -text
 docs/sql-chain-revalidation/**/*.py -text
 docs/sql-chain-revalidation/*.json -text
+# Keep the remote JDBC receipt's original CRLF bytes without treating CR as trailing spaces.
+docs/sql-chain-revalidation/fresh-jdbc.json -text whitespace=cr-at-eol

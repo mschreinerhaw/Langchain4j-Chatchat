@@ -19,6 +19,7 @@ class ExplorationWorkspaceTest {
     JdbcTemplate jdbc;ObjectMapper json=new ObjectMapper();ExplorationWorkspaceStore store;
     UserAssetService assets;AssetAnalysisController analysis;ObjectAccessService access;ExplorationWorkspaceController controller;
     ExplorationAgentBridge bridge=mock(ExplorationAgentBridge.class);
+    com.chatchat.api.workspace.WorkspaceService workspaces;
     MockHttpServletRequest http=new MockHttpServletRequest();UserAssetService.Owner alice=new UserAssetService.Owner("tenant","alice");
     @BeforeEach void setup(){
         jdbc=new JdbcTemplate(new DriverManagerDataSource("jdbc:h2:mem:exploration-"+UUID.randomUUID()+";DB_CLOSE_DELAY=-1","sa",""));
@@ -26,7 +27,14 @@ class ExplorationWorkspaceTest {
         store=new ExplorationWorkspaceStore(jdbc,json);assets=mock(UserAssetService.class);analysis=mock(AssetAnalysisController.class);access=mock(ObjectAccessService.class);
         when(access.tenant(http)).thenReturn("tenant");when(access.user(http)).thenReturn("alice");
         when(assets.get(eq(alice),eq("file"))).thenReturn(new UserAssetService.File("file","DOCUMENT","customer.csv","text/csv","hash",10,"AVAILABLE","","","upload",0));
-        controller=new ExplorationWorkspaceController(store,access,assets,analysis,json,bridge);
+        workspaces=mock(com.chatchat.api.workspace.WorkspaceService.class);
+        controller=new ExplorationWorkspaceController(store,access,assets,analysis,json,bridge,workspaces);
+    }
+    @Test void requiresTheExplorationApplicationEvenWhenTheClientClaimsAnotherWorkspace() {
+        http.addHeader("X-Workspace-Id","data-science");
+        doThrow(new SecurityException("Workspace access denied")).when(workspaces).requireAvailable(http,"data-exploration");
+        assertThatThrownBy(()->controller.list(http)).isInstanceOf(SecurityException.class);
+        verify(workspaces).requireAvailable(http,"data-exploration");
     }
     ObjectNode prepared(){
         var space=store.create(alice,"客户账户分析");

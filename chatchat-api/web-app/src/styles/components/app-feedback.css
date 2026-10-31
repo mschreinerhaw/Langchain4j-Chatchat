@@ -88,6 +88,8 @@
   background: var(--red, #ef4f5f);
   border-color: var(--red, #ef4f5f);
 }
+.app-confirm-dialog .app-confirm-primary { color:#fff; background:var(--primary,#2f7cf6); border-color:var(--primary,#2f7cf6); }
+.app-confirm-dialog .app-confirm-primary:hover:not(:disabled) { background:#2563eb; border-color:#2563eb; }
 .app-confirm-dialog button:focus-visible,
 .app-notice button:focus-visible {
   outline: 2px solid var(--primary, #2f7cf6);

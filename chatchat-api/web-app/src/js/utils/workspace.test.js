@@ -46,6 +46,9 @@ describe("Workspace identity and state isolation", () => {
     expect(mergeChatRuntimeState({ id: "conversation" }, identity).messages[0].taskId).toBe("task");
   });
   it("validates explicit routes and restores only still-authorized defaults", () => {
+    expect(parseWorkspaceRoute('#/w/data-science/dataExploration?exploration=owned')).toEqual({workspaceId:'data-exploration',pageId:'dataExploration'});
+    expect(chooseWorkspace([{workspaceId:'data-science'}],{legacyView:'dataExploration'})).toBeNull();
+    expect(chooseWorkspace([{workspaceId:'data-exploration'}],{legacyView:'dataExploration'}).workspaceId).toBe('data-exploration');
     expect(parseWorkspaceRoute("#/w/data-science/dataScienceDevelop")).toEqual({ workspaceId: "data-science", pageId: "dataScienceDevelop" });
     expect(parseWorkspaceRoute("#/%broken").invalid).toBe(true);
     expect(parseWorkspaceRoute("#/dataScience").legacyView).toBe("dataScienceEnvironment");

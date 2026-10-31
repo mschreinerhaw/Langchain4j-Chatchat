@@ -117,10 +117,14 @@ public class ApiPermissionAuthorizationFilter extends OncePerRequestFilter {
     // Exact read routes only. Resource ACLs still filter every returned item in the controller.
     static List<String> callerCatalogPermissions(String method, String path) {
         if (!"GET".equalsIgnoreCase(method)) return List.of();
+        String exploration = "workspace:data-exploration:access";
+        if (path.matches("/api/v1/interactions/user-assets/[a-zA-Z0-9_-]{1,100}(/content)?")
+            || path.matches("/api/v1/agent/runtime/runs/[a-zA-Z0-9_-]+/coding/[a-zA-Z0-9_-]+/visual-report"))
+            return List.of(exploration);
         if (path.matches("/api/v1/ui-artifacts/[a-zA-Z0-9_-]{1,128}(/resources/[^/]+)?"))
-            return List.of("workspace:chat:interact", "workspace:search:api", "capability:library", "capability:data-science");
+            return List.of("workspace:chat:interact", "workspace:search:api", "capability:library", "capability:data-science", exploration);
         if ("/api/v1/ui-display/trend-semantics".equals(path))
-            return List.of("workspace:chat:interact", "workspace:search:api", "capability:library");
+            return List.of("workspace:chat:interact", "workspace:search:api", "capability:library", exploration);
         if (path.matches("/api/v1/interactions/resources/agents/[a-zA-Z0-9_-]{1,128}"))
             return List.of("platform:agents:published", "platform:agents:workshop", "platform:schedules:manage");
         return switch (path) {

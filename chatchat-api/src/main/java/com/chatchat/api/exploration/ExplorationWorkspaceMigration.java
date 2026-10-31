@@ -19,6 +19,7 @@ public class ExplorationWorkspaceMigration {
             return product.contains("mysql")||product.contains("mariadb")?"longtext":"text";
         });
         jdbc.execute("create table if not exists runtime_exploration_workspace (id varchar(36) primary key,tenant_id varchar(128) not null,user_id varchar(128) not null,state_json "+textType+" not null,version bigint not null,updated_at bigint not null)");
+        if (!jdbc.queryForList("select id from sys_permission where permission_code='system:exploration-workspace:v1'").isEmpty()) return;
         jdbc.update("insert into sys_menu(id,menu_code,menu_name,menu_type,route_path,icon,sort_order,status,created_at,updated_at) select 'dataExploration','dataExploration','数据探索','menu','/index.html#/w/data-science/dataExploration','chart-column',35,'enabled',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP where not exists(select 1 from sys_menu where menu_code='dataExploration')");
         // Equivalent navigation only: reuse the exact user-space menu permissions, never grant a role.
         var bindings=jdbc.queryForList("select distinct target.id as menu_id,mp.permission_id from sys_menu source join sys_menu_permission mp on mp.menu_id=source.id join sys_menu target on target.menu_code='dataExploration' where source.menu_code='dataScienceData' and not exists(select 1 from sys_menu_permission e where e.menu_id=target.id and e.permission_id=mp.permission_id)");

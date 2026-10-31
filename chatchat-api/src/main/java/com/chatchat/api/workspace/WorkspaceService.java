@@ -34,6 +34,13 @@ public class WorkspaceService {
                                boolean defaultWorkspace, Long version) {}
     public record Update(WorkspaceManifest manifest, String status, String accessPermissionCode, Long expectedVersion) {}
 
+    public record AuthorizationOption(String workspaceId, String name, String accessPermissionCode, String status) {}
+    @Transactional(readOnly = true)
+    public List<AuthorizationOption> authorizationCatalog() {
+        return registry.findAll().stream().map(row -> new AuthorizationOption(row.getId(), read(row).name(),
+            row.getAccessPermissionCode(), row.getStatus())).toList();
+    }
+
     @Transactional(readOnly = true)
     public List<Available> licensedCatalog() {
         var entitlement = license.workspaceEntitlement();

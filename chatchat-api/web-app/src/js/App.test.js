@@ -7,6 +7,24 @@ import SystemManagementView from "./views/SystemManagementView.js";
 import * as api from "../services/api.js";
 import { setWorkspaceContext } from "./utils/workspaceContext";
 
+it("does not request chat history, shortcuts or task monitoring for an exploration-only role", async () => {
+  const history = vi.spyOn(api, "fetchConversationHistory");
+  const shortcuts = vi.spyOn(api, "fetchWorkbenchShortcuts");
+  const todos = vi.spyOn(api, "fetchAgentTodos");
+  const context = { authSession: { user: { permissionCodes: ["workspace:data-exploration:access", "workspace:api:access"] } },
+    userId: "explorer", stopTodoTimeoutKill: vi.fn() };
+  try {
+    await App.methods.loadConversationHistory.call(context);
+    await App.methods.loadFavoriteConversationIds.call(context);
+    await App.methods.loadRuntimeTodos.call(context);
+    expect(history).not.toHaveBeenCalled();
+    expect(shortcuts).not.toHaveBeenCalled();
+    expect(todos).not.toHaveBeenCalled();
+    expect(context.conversationHistory).toEqual([]);
+    expect(context.runtimeTodos).toEqual([]);
+  } finally { history.mockRestore(); shortcuts.mockRestore(); todos.mockRestore(); }
+});
+
 it('keeps exploration workspace and node selection when the shell canonicalizes the same route',()=>{
   vi.stubGlobal('window',{location:{hash:'#/w/data-science/dataExploration?exploration=space&node=parent'}});
   try{

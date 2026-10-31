@@ -346,6 +346,7 @@
         ></div
       ></Teleport
     >
+    <AppConfirmDialog v-if="confirmation" v-bind="confirmation" @confirm="settleConfirmation(true)" @cancel="settleConfirmation(false)" />
   </section>
 </template>
 <script src="../js/views/PermissionConsoleView.js"></script>

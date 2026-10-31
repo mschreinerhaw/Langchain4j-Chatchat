@@ -1,3 +1,5 @@
+import AppConfirmDialog from "../../components/AppConfirmDialog.vue";
+import { useAppConfirmation } from "../utils/useAppConfirmation.js";
 import { computed, ref, onMounted, onActivated, watch, onBeforeUnmount } from "vue";
 import PermissionResourceEditor from "../../components/PermissionResourceEditor.vue";
 import { saveResourceAuthorization } from "../utils/permissionWrites.js";
@@ -27,9 +29,10 @@ import "../../styles/pages/permission-resource-catalog.css";
 
 export default {
   name: "PermissionConsoleView",
-  components: { PermissionResourceEditor },
+  components: { AppConfirmDialog, PermissionResourceEditor },
   props: { mode: { type: String, default: "roles" } },
   setup(props) {
+    const { confirmation, confirmAction, settleConfirmation } = useAppConfirmation();
     const catalog = ref({
         roles: [],
         users: [],
@@ -195,7 +198,7 @@ export default {
         return;
       }
       if (
-        !window.confirm(
+        !await confirmAction(
           `为“${selectedRole.value.roleName}”添加 ${rows.length} 项资源的允许规则？现有拒绝、继承及资源原有约束仍生效。`
         )
       )
@@ -228,11 +231,11 @@ export default {
       originalPermissions.value = [...selectedAuthorization.value.permissionIds];
       permissionDraft.value = [...originalPermissions.value];
     }
-    function discard() {
-      return !permissionDirty.value || window.confirm("有尚未保存的权限变更，确认放弃？");
+    async function discard() {
+      return !permissionDirty.value || await confirmAction("有尚未保存的权限变更，确认放弃？");
     }
-    function chooseMaster(item) {
-      if (!discard()) return;
+    async function chooseMaster(item) {
+      if (!(await discard())) return;
       resourceKey.value = props.mode === "resources" ? item.key : "";
       if (props.mode === "roles") {
         roleId.value = item.id;
@@ -259,7 +262,7 @@ export default {
       ready.value = true;
     }
     async function load() {
-      if (!discard()) return;
+      if (!(await discard())) return;
       busy.value = true;
       failed.value = false;
       notice.value = "";
@@ -332,7 +335,7 @@ export default {
     }
     async function savePermissions() {
       const removed = originalPermissions.value.some((id) => !permissionDraft.value.includes(id));
-      if (removed && !window.confirm("确认撤销已取消勾选的权限？保存后将影响角色成员的操作。"))
+      if (removed && !await confirmAction("确认撤销已取消勾选的权限？保存后将影响角色成员的操作。", {title:'撤销角色权限',confirmLabel:'确认撤销',tone:'danger'}))
         return;
       busy.value = true;
       failed.value = false;
@@ -416,8 +419,8 @@ export default {
     }
     async function removeRole() {
       if (
-        !window.confirm(
-          `确认删除“${selectedRole.value.roleName}”？角色成员将失去该角色授予的权限。`
+        !await confirmAction(
+          `确认删除“${selectedRole.value.roleName}”？角色成员将失去该角色授予的权限。`, {title:'删除角色',confirmLabel:'确认删除',tone:'danger'}
         )
       )
         return;
@@ -464,6 +467,7 @@ export default {
       window.removeEventListener("beforeunload", preventUnload);
     });
     return {
+      confirmation, settleConfirmation,
       resourceGroups,
       catalog,
       extras,

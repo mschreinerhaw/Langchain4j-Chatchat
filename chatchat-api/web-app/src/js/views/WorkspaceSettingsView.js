@@ -1,3 +1,5 @@
+import AppConfirmDialog from "../../components/AppConfirmDialog.vue";
+import { useAppConfirmation } from "../utils/useAppConfirmation.js";
 import { ref, computed, watch, onMounted } from "vue";
 import { RefreshCw, Search, Layers3, ArrowRight, Settings2 } from "@lucide/vue";
 import AppPagination from "../../components/AppPagination.vue";
@@ -7,10 +9,11 @@ import "../../styles/pages/permission-workspace.css";
 import "../../styles/pages/workspace-catalog.css";
 export default {
   name: "WorkspaceSettingsView",
-  components: { AppPagination, RefreshCw, Search, Layers3, ArrowRight, Settings2 },
+  components: { AppConfirmDialog, AppPagination, RefreshCw, Search, Layers3, ArrowRight, Settings2 },
   props: {},
   emits: ["reload-workspaces", "switch-workspace"],
   setup(props, { emit }) {
+    const { confirmation, confirmAction, settleConfirmation } = useAppConfirmation();
     const rows = ref([]),
       busy = ref(false),
       notice = ref(""),
@@ -81,7 +84,7 @@ export default {
     async function save() {
       if (
         draft.value.status === "disabled" &&
-        !window.confirm("确认停用此工作空间？用户将无法进入。")
+        !await confirmAction("确认停用此工作空间？用户将无法进入。", {title:'停用工作空间',confirmLabel:'确认停用',tone:'danger'})
       )
         return;
       busy.value = true;
@@ -109,7 +112,7 @@ export default {
       }
     }
     async function setDefault(row) {
-      if (!window.confirm("将“" + row.manifest.name + "”设为平台默认登录空间？")) return;
+      if (!await confirmAction("将“" + row.manifest.name + "”设为平台默认登录空间？")) return;
       busy.value = true;
       try {
         await apiRequest("/enterprise/workspaces/default", {
@@ -129,6 +132,7 @@ export default {
     }
     onMounted(load);
     return {
+      confirmation, settleConfirmation,
       rows,
       searchQuery,
       statusFilter,

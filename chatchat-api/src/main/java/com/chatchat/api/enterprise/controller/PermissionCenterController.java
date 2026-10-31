@@ -41,7 +41,7 @@ public class PermissionCenterController {
             "permissions",identities.listPermissions().stream().filter(p->!"internal".equals(p.getPermissionType())).toList(),
             "resourceGrants",resources.findByTenantIdOrderByUpdatedAtDesc(tenant).stream().filter(rule -> !companionIds.contains(rule.getId())).toList(),
             "roleAuthorizations",tenantRoles.stream().map(role->identities.getRoleAuthorization(role.getId())).toList(),
-            "tenantId",tenant));
+            "tenantId",tenant,"workspaces",workspaces.authorizationCatalog()));
     }
     @PostMapping("/tool-grants") @Transactional
     public ApiResponse<McpToolPermission> save(HttpServletRequest request,@RequestBody McpToolPermission input) {

@@ -231,6 +231,10 @@ describe("permission console", () => {
       .find((b) => b.text() === "保存权限变更")
       .trigger("click");
     await flushPromises();
+    expect(api.saveRoleAuthorization).not.toHaveBeenCalled();
+    expect(document.querySelector('.app-confirm-dialog').textContent).toContain('确认撤销');
+    document.querySelector('.app-confirm-dialog .app-confirm-submit').click();
+    await flushPromises();
     expect(api.saveRoleAuthorization).toHaveBeenCalledWith(
       "role",
       expect.objectContaining({
@@ -251,6 +255,8 @@ describe("permission console", () => {
       .findAll("button")
       .find((b) => b.text() === "保存权限变更")
       .trigger("click");
+    await flushPromises();
+    document.querySelector('.app-confirm-dialog .app-confirm-submit').click();
     await flushPromises();
     expect(wrapper.find(".permission-notice.error").text()).toContain("授权保存失败");
     expect(wrapper.find('[aria-label="授权 权限管理"]').element.checked).toBe(false);

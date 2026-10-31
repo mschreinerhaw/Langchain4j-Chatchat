@@ -16,10 +16,11 @@
         ><button type="button" autofocus :disabled="busy" @click="cancel">{{ cancelLabel }}</button
         ><button
           type="button"
-          class="app-confirm-danger"
+          class="app-confirm-submit"
+          :class="tone === 'danger' ? 'app-confirm-danger' : 'app-confirm-primary'"
           :disabled="busy || !!error"
           @click="confirm"
-          >{{ busy ? "正在删除…" : "确认删除" }}</button
+          >{{ busy ? busyLabel : confirmLabel }}</button
         ></footer
       >
     </dialog></Teleport

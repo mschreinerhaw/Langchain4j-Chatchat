@@ -725,9 +725,15 @@ export default {
         return;
       }
       if (
+        workspaceRoute.legacyView === 'dataExploration' && this.currentWorkspace?.workspaceId !== 'data-exploration'
+      ) {
+        this.switchWorkspace('data-exploration', 'dataExploration');
+        return;
+      }
+      if (
         ((workspaceRoute.legacyView?.startsWith("dataScience") &&
           workspaceRoute.legacyView !== "dataScienceSkills") ||
-          ['sqlStudio','dataExploration'].includes(workspaceRoute.legacyView)) &&
+          ['sqlStudio'].includes(workspaceRoute.legacyView)) &&
         this.currentWorkspace?.workspaceId !== "data-science"
       ) {
         this.switchWorkspace("data-science", workspaceRoute.legacyView);
@@ -805,7 +811,7 @@ export default {
     },
     setHashRoute(route) {
       const queryStart = window.location.hash.indexOf('?');
-      const explorationSelection = route === 'w/data-science/dataExploration' && currentHashRoute() === route && queryStart >= 0
+      const explorationSelection = route.endsWith('/dataExploration') && /(^|\/)dataExploration$/.test(currentHashRoute()) && queryStart >= 0
         ? window.location.hash.slice(queryStart) : '';
       const nextHash = `#/${route}${explorationSelection}`;
       if (window.location.hash !== nextHash) {
@@ -911,6 +917,11 @@ export default {
       }, IDLE_LOGOUT_MS);
     },
     async loadConversationHistory(filters = {}) {
+      const codes = this.authSession?.user?.permissionCodes;
+      if (Array.isArray(codes) && !codes.includes("capability:data-science:data") && !codes.includes("system:api:all")) {
+        this.conversationHistory = [];
+        return;
+      }
       const { suppressError = false, append = false, ...historyFilters } = filters || {};
       if (append && (!this.historyHasMore || this.historyLoading)) {
         return;
@@ -993,6 +1004,12 @@ export default {
       }
     },
     async loadFavoriteConversationIds() {
+      const codes = this.authSession?.user?.permissionCodes;
+      if (Array.isArray(codes) && !codes.includes("capability:data-science:data") && !codes.includes("system:api:all")) {
+        this.favoriteConversationIds = [];
+        this.favoriteConversationRecordIds = {};
+        return;
+      }
       if (!this.authSession || !this.userId) {
         return;
       }
@@ -1016,6 +1033,12 @@ export default {
       }
     },
     async loadRuntimeTodos(options = {}) {
+      const codes = this.authSession?.user?.permissionCodes;
+      if (Array.isArray(codes) && !codes.some(code => ["workspace:chat:interact", "platform:tasks:monitor", "system:api:all"].includes(code))) {
+        this.runtimeTodos = [];
+        this.stopTodoTimeoutKill();
+        return;
+      }
       if (!this.authSession || !this.userId) {
         return;
       }

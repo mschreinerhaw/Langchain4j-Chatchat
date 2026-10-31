@@ -727,6 +727,15 @@ public class EnterpriseAdminService implements ApplicationRunner {
             ? List.of()
             : request.permissionIds();
         Set<String> normalizedPermissionIds = normalizePermissionIds(permissionIds);
+        // Entering an application requires its own account/menu/workspace directory APIs,
+        // not unrelated feature, management or resource privileges.
+        boolean workspaceAccess = permissionRepository.findAllById(normalizedPermissionIds).stream()
+            .anyMatch(permission -> "capability:data-science".equals(permission.getPermissionCode())
+                || permission.getPermissionCode().matches("workspace:(?!api:)[^:]+:access"));
+        if (workspaceAccess) permissionRepository.findAllByOrderBySortOrderAscPermissionNameAsc().stream()
+            .filter(permission -> "enabled".equalsIgnoreCase(permission.getStatus()))
+            .filter(permission -> Set.of("workspace:api:access", "account:self:read", "account:menus:read").contains(permission.getPermissionCode()))
+            .map(SysPermission::getId).forEach(normalizedPermissionIds::add);
         normalizedPermissionIds.stream()
             .forEach(permissionId -> {
                 SysRolePermission rolePermission = new SysRolePermission();

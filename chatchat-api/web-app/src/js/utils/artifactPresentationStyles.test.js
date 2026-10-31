@@ -149,8 +149,8 @@ describe("dynamic report presentation contract", () => {
   });
 
   it("keeps MCP management actions aligned with Agent scheduler buttons", () => {
-    expect(mcpCenterView).toContain('class="light-button" :disabled="loading || syncing"');
-    expect(mcpCenterView).toContain('class="primary-button" :disabled="syncing || loading"');
+    expect(mcpCenterView).toContain('class="light-button" :disabled="loading"');
+    expect(mcpCenterView).toContain('class="light-button" :disabled="syncing"');
     expect(skillHubStyles).toMatch(
       /\.mcp-center-view \.mcp-actions button\s*\{[^}]*min-height:\s*34px[^}]*border-radius:\s*7px[^}]*font-size:\s*13px/s
     );

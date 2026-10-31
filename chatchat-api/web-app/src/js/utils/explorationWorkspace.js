@@ -1,5 +1,5 @@
 export function workspaceBusinessName(value){
-  const name=String(value||'客户资产分析').replace(/\s*\d{4}-\d{2}-\d{2}T\S+/g,'').trim();
+  const name=String(value||'客户资产分析').replace(/\s*\d{4}-\d{2}-\d{2}T\S+/g,'').replace(/\s+[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i,'').trim();
   return name.replace(/^客户资产探索验收$/,'客户资产分析')||'数据分析';
 }
 export function businessNodeTitle(node){

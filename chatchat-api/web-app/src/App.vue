@@ -118,6 +118,7 @@
 
     <template #right-panel="{ collapsed, toggleCollapsed }">
       <RightPanel
+        v-if="workspaceReady && currentWorkspace?.layoutType === 'assistant'"
         :collapsed="collapsed"
         :tenant-id="tenantId"
         :user-id="userId"

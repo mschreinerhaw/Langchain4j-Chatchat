@@ -145,6 +145,7 @@
         ></dl
       ></details
     >
+    <AppConfirmDialog v-if="confirmation" v-bind="confirmation" @confirm="settleConfirmation(true)" @cancel="settleConfirmation(false)" />
   </section>
 </template>
 <script src="../js/components/PermissionResourceEditor.js"></script>

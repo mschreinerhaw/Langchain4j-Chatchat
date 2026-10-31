@@ -1,3 +1,5 @@
+import AppConfirmDialog from "../../components/AppConfirmDialog.vue";
+import { useAppConfirmation } from "../utils/useAppConfirmation.js";
 import { saveResourceAuthorization } from "../utils/permissionWrites.js";
 import { useTransientNotice } from "../utils/useTransientNotice.js";
 import { computed, ref, watch } from "vue";
@@ -5,7 +7,7 @@ import { apiRequest, fetchRoleAuthorization, saveRoleAuthorization } from "../..
 import { activeGrant, resourceRules, resourceGroups } from "../utils/permissionWorkspace.js";
 export default {
   name: "PermissionResourceEditor",
-  components: {},
+  components: { AppConfirmDialog,},
   props: {
     resource: { type: Object, required: true },
     catalog: { type: Object, required: true },
@@ -15,6 +17,7 @@ export default {
   },
   emits: ["changed"],
   setup(props, { emit }) {
+    const { confirmation, confirmAction, settleConfirmation } = useAppConfirmation();
     const busy = ref(false),
       notice = ref(""),
       failed = ref(false),
@@ -29,6 +32,7 @@ export default {
     watch(
       () => props.resource.key,
       () => {
+        settleConfirmation(false);
         form.value = {
           targetType: "ROLE",
           targetId: props.roleId,
@@ -99,7 +103,7 @@ export default {
       if (!targetId) return;
       if (
         (form.value.targetType === "TENANT" || form.value.effect === "deny") &&
-        !window.confirm(
+        !await confirmAction(
           "确认保存此" +
             (form.value.effect === "deny" ? "拒绝" : "租户级") +
             "规则？它将影响该范围内的资源调用。"
@@ -112,8 +116,8 @@ export default {
     }
     async function revoke(rule) {
       if (
-        !window.confirm(
-          `确认撤销“${subjectName(rule)}”的这条授权？其他角色或租户规则可能仍然生效。`
+        !await confirmAction(
+          `确认撤销“${subjectName(rule)}”的这条授权？其他角色或租户规则可能仍然生效。`, {title:'撤销资源授权',confirmLabel:'确认撤销',tone:'danger'}
         )
       )
         return;
@@ -135,6 +139,7 @@ export default {
       }, "授权已撤销，目录正在刷新");
     }
     return {
+      confirmation, settleConfirmation,
       activeGrant,
       busy,
       notice,

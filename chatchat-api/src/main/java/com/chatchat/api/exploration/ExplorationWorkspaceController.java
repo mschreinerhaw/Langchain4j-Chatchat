@@ -24,6 +24,7 @@ public class ExplorationWorkspaceController {
     private final AssetAnalysisController analysis;
     private final ObjectMapper json;
     private final ExplorationAgentBridge agents;
+    private final com.chatchat.api.workspace.WorkspaceService workspaces;
     public record Create(String title,String sourceWorkspaceId,String sourceNodeId){
         public Create(String title){this(title,null,null);}
     }
@@ -31,7 +32,10 @@ public class ExplorationWorkspaceController {
         public Question(long version,String parentId,List<String> fileIds,String question,String modelName){this(version,parentId,fileIds,question,modelName,null);}
     }
     public record Presentation(long version,boolean saved,Map<String,String> chartTypes){}
-    private UserAssetService.Owner owner(HttpServletRequest http){return new UserAssetService.Owner(access.tenant(http),access.user(http));}
+    private UserAssetService.Owner owner(HttpServletRequest http){
+        workspaces.requireAvailable(http,"data-exploration");
+        return new UserAssetService.Owner(access.tenant(http),access.user(http));
+    }
     @GetMapping public ApiResponse<?> list(HttpServletRequest http){return ApiResponse.success(store.list(owner(http)));}
     @GetMapping("/agents") public ApiResponse<?> agents(HttpServletRequest http){return ApiResponse.success(agents.options(owner(http)));}
     @PostMapping public ApiResponse<?> create(HttpServletRequest http,@RequestBody Create body){
@@ -47,7 +51,7 @@ public class ExplorationWorkspaceController {
     @PostMapping("/{id}/nodes") public ApiResponse<?> prepare(HttpServletRequest http,@PathVariable("id") String id,@RequestBody Question body){
         var owner=owner(http);var state=store.get(owner,id);version(state,body.version());
         if(body.question()==null||body.question().isBlank()||body.question().length()>6000)throw new IllegalArgumentException("请输入 1–6000 字的分析问题");
-        if(state.withArray("nodes").size()>=100)throw new IllegalArgumentException("每个工作空间最多 100 个节点");
+        if(state.withArray("nodes").size()>=100)throw new IllegalArgumentException("每个分析项目最多 100 个节点");
         var files=body.fileIds()==null||body.fileIds().isEmpty()?strings(state,"fileIds"):body.fileIds();var contexts=new ArrayList<String>();String parentId=Objects.toString(body.parentId(),"");
         String model=body.modelName(),agentId=Objects.toString(body.agentId(),"").strip();
         if(!agentId.isBlank())agents.authorize(owner,agentId);
@@ -123,5 +127,5 @@ public class ExplorationWorkspaceController {
     }
     private List<String> strings(ObjectNode node,String key){return node.path(key).isArray()?json.convertValue(node.path(key),json.getTypeFactory().constructCollectionType(List.class,String.class)):List.of();}
     private static ObjectNode node(ObjectNode state,String id){for(var node:state.withArray("nodes"))if(id.equals(node.path("id").asText()))return (ObjectNode)node;throw new ResponseStatusException(HttpStatus.NOT_FOUND,"分析节点不存在");}
-    private static void version(ObjectNode state,long expected){if(state.path("version").asLong()!=expected)throw new ResponseStatusException(HttpStatus.CONFLICT,"工作空间已更新，请刷新后重试");}
+    private static void version(ObjectNode state,long expected){if(state.path("version").asLong()!=expected)throw new ResponseStatusException(HttpStatus.CONFLICT,"分析项目已更新，请刷新后重试");}
 }

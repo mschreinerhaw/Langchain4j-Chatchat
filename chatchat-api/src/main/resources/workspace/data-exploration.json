@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "workspace-manifest.v1",
+  "configVersion": 1,
+  "workspaceId": "data-exploration",
+  "appVersion": "1.0.0",
+  "name": "数据探索",
+  "icon": "chart-column",
+  "description": "围绕业务问题组织分析项目、思维链和金融图表。",
+  "entryPage": "dataExploration",
+  "layoutType": "studio",
+  "pages": [{"id":"dataExploration","menuCode":"dataExploration","componentKey":"dataExploration","props":{}}],
+  "requiredCapabilities": [],
+  "optionalCapabilities": [],
+  "defaultSkillIds": []
+}

@@ -27,6 +27,7 @@ export function activeGrant(grant, now = Date.now()) {
   return grant.enabled !== false && (!grant.expiresAt || new Date(grant.expiresAt).getTime() > now);
 }
 export function resourceCatalog(catalog, extras = {}) {
+  const workspacePermissions = new Map((catalog.workspaces || []).map(w => [w.accessPermissionCode, w]));
   const result = [],
     seen = new Set();
   const add = (item) => {
@@ -40,11 +41,12 @@ export function resourceCatalog(catalog, extras = {}) {
     name: template.title, group: "template", action: "使用" });
   for (const p of catalog.permissions || []) {
     if (p.permissionType === "internal") continue;
+    const workspacePermission = workspacePermissions.has(p.permissionCode) || /^workspace:(?!api:)[^:]+:access$/.test(p.permissionCode);
     add({
       backend: "permission",
       id: p.id,
       type: "PERMISSION",
-      name:
+      name: workspacePermissions.has(p.permissionCode) ? workspacePermissions.get(p.permissionCode).name + "访问" :
         {
           "Workspace access": "基础工作空间访问",
           "Zhice access": "智策工作空间访问",
@@ -52,8 +54,8 @@ export function resourceCatalog(catalog, extras = {}) {
         }[p.permissionName] ||
         p.permissionName ||
         "未命名权限",
-      group: /^workspace:[^:]+:access$/.test(p.permissionCode) ? "workspace" : "function",
-      action: actionLabel(p.httpMethod),
+      group: workspacePermission ? "workspace" : "function",
+      action: workspacePermission ? "进入" : actionLabel(p.httpMethod),
       code: p.permissionCode,
       enabled: p.status === "enabled",
     });

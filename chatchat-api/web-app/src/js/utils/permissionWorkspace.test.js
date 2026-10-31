@@ -9,6 +9,16 @@ import {
 } from "./permissionWorkspace.js";
 import { parseWorkspaceRoute } from "./workspaceContext.js";
 describe("unified permission workspace projections", () => {
+  it('lists registered applications as workspace grants, including the legacy data-science permission',()=>{
+    const rows=resourceCatalog({workspaces:[{workspaceId:'data-science',name:'数据车间',accessPermissionCode:'capability:data-science'},
+      {workspaceId:'data-exploration',name:'数据探索',accessPermissionCode:'workspace:data-exploration:access'}],permissions:[
+      {id:'science',permissionCode:'capability:data-science',status:'enabled'},
+      {id:'explore',permissionCode:'workspace:data-exploration:access',status:'enabled'},
+      {id:'directory',permissionCode:'workspace:api:access',status:'enabled'}]});
+    expect(rows.filter(r=>r.group==='workspace').map(r=>r.name)).toEqual(['数据车间访问','数据探索访问']);
+    expect(rows.filter(r=>r.group==='workspace').every(r=>r.action==='进入')).toBe(true);
+    expect(rows.find(r=>r.id==='directory').group).toBe('function');
+  });
   it("separates domain skills and agents, including wildcard and historical grants", () => {
     const catalog = { resourceGrants: [
       { resourceType: "SKILL", resourceId: "*" },

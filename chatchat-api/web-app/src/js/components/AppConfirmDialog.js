@@ -8,6 +8,9 @@ export default defineComponent({
     busy: Boolean,
     error: String,
     cancelLabel: { type: String, default: "取消" },
+    confirmLabel: { type: String, default: "确认删除" },
+    busyLabel: { type: String, default: "正在删除…" },
+    tone: { type: String, default: "danger" },
   },
   emits: ["cancel", "confirm"],
   setup(props, { expose: exposeComponent, emit }) {

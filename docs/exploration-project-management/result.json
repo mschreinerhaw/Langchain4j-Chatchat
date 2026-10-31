@@ -1,0 +1,16 @@
+{
+  "status": "PASSED",
+  "origin": "http://192.168.195.221:18100",
+  "fixtureId": "3d276f64-79bc-4ea0-98ba-89c6e17575ae",
+  "renamedTitle": "项目管理真实验收 1793464944663 已修改",
+  "checks": [
+    "per-item actions",
+    "rename persisted",
+    "current project label updated",
+    "shared confirmation CSS",
+    "cancel retains project",
+    "confirmed deletion persisted",
+    "reload excludes deleted project"
+  ],
+  "capturedAt": "2026-10-31T16:42:31.920Z"
+}

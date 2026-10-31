@@ -72,9 +72,12 @@ public class McpSkillFederationController {
     }
 
     private Scope scope(HttpServletRequest request) {
+        Object identity = request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_VIEW);
+        boolean manage = identity instanceof com.chatchat.enterprise.service.EnterpriseAdminService.UserView user
+            && user.permissionCodes().contains("capability:data-science");
         return new Scope(attribute(request, ApiAuthenticationFilter.CURRENT_TENANT_ID, "default"),
             first(attribute(request, ApiAuthenticationFilter.CURRENT_USERNAME, ""),
-                attribute(request, ApiAuthenticationFilter.CURRENT_USER_ID, "default")));
+                attribute(request, ApiAuthenticationFilter.CURRENT_USER_ID, "default")), manage);
     }
 
     private String attribute(HttpServletRequest request, String key, String fallback) {
@@ -84,7 +87,7 @@ public class McpSkillFederationController {
 
     private String first(String first, String second) { return first == null || first.isBlank() ? second : first; }
     private void requireAdmin(Scope scope) {
-        if (!"admin".equalsIgnoreCase(scope.ownerId())) throw new SecurityException("Only admin can manage MCP Skill sources");
+        if (!scope.manage()) throw new SecurityException("Domain skill management permission required");
     }
 
     private ApiResponse<?> call(Action action) {
@@ -101,7 +104,7 @@ public class McpSkillFederationController {
 
     private interface Action { Object run(); }
 
-    private record Scope(String tenantId, String ownerId) { }
+    private record Scope(String tenantId, String ownerId, boolean manage) { }
     private record SourceRequest(String name, String endpoint, String authorization, String defaultCategory,
                                  boolean allowPrivateNetwork, boolean enabled) { }
 }

@@ -68,6 +68,23 @@ public class AgentWorkshopController {
     private final SkillResourceScopeSynchronizationService skillResourceScopes;
     private final com.chatchat.api.service.PublishedMcpToolCatalog publishedTools;
 
+    /** Caller discovery must not depend on management catalogs or unrelated document/MCP availability. */
+    public Map<String, Object> authorizedCatalog(HttpServletRequest request) {
+        var visibility = agentVisibility(request);
+        var agents = skillCatalogService.list().stream()
+            .filter(skill -> "published".equalsIgnoreCase(skill.marketStatus()) && visibility.canView(skill.id(), skill.marketStatus()))
+            .map(skill -> toAgentCard(skill, List.of(), Map.of())).toList();
+        return Map.of("agents", agents, "models", modelOptions());
+    }
+
+    public ApiResponse<AgentCard> authorizedAgent(String agentId, HttpServletRequest request) {
+        if (!skillCatalogService.isPublished(agentId)) return ApiResponse.notFound("Agent unavailable or unauthorized");
+        var agent = skillCatalogService.resolve(agentId);
+        if (!agentId.equalsIgnoreCase(agent.id()) || !canCurrentUserViewAgent(request, agent.id(), agent.marketStatus()))
+            return ApiResponse.notFound("Agent unavailable or unauthorized");
+        return ApiResponse.success(toAgentCard(agent, List.of(), Map.of()));
+    }
+
     @GetMapping("/{agentId}/releases")
     @Operation(summary = "List immutable Agent releases and quality-gate reports")
     public ApiResponse<List<AgentReleaseService.AgentReleaseView>> releases(
@@ -552,7 +569,10 @@ public class AgentWorkshopController {
             || (currentUser == null && enterpriseAdminService.hasAllAgentAccess(currentUserId))) {
             return AgentVisibility.allAccess();
         }
-        return AgentVisibility.restricted(enterpriseAdminService.accessibleAgentIds(currentUserId));
+        var accessible = enterpriseAdminService.accessibleAgentIds(currentUserId);
+        return AgentVisibility.restricted(skillCatalogService.list().stream()
+            .filter(skill -> accessible.contains(skill.id()) || enterpriseAdminService.canAccessAgent(currentUserId, skill.id()))
+            .map(SkillDefinition::id).collect(java.util.stream.Collectors.toSet()));
     }
 
     private String currentUserId(HttpServletRequest request) {

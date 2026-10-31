@@ -357,6 +357,54 @@ class EnterpriseAdminServiceIntegrationTest {
     }
 
     @Test
+    void roleResourceGrantsAndExistingSessionsFollowCurrentAuthorization() {
+        SysTenant tenant = service.saveTenant(tenant("role-live"));
+        SysRole role = service.saveRole(role(tenant.getId(), "RESOURCE_READER"));
+        var caller = service.saveUser(user(tenant.getId(), null, "role-live-reader"), List.of(role.getId()));
+        var login = service.login("role-live-reader", "release-password");
+        var permission = service.listPermissions().stream().filter(p -> "workspace:chat:interact".equals(p.getPermissionCode())).findFirst().orElseThrow();
+        service.saveRoleAuthorization(role.getId(), new EnterpriseAdminService.RoleAuthorizationRequest(
+            List.of(permission.getId()), List.of(), null, List.of("legacy-agent")));
+        assertThat(service.resolveSessionByToken(login.token()).orElseThrow().permissionCodes()).contains("workspace:chat:interact");
+        ResourceGrant allow = new ResourceGrant();
+        allow.setTenantId(tenant.getId()); allow.setResourceType(ResourceAuthorizationPort.AGENT_SKILL);
+        allow.setResourceId("*"); allow.setPrincipalType("ROLE"); allow.setPrincipalId(role.getId());
+        allow.setEffect("ALLOW"); allow.setEnabled(true); resourceGrantRepository.saveAndFlush(allow);
+        assertThat(service.canAccessAgent(caller.id(), "new-agent")).isTrue();
+        ResourceGrant deny = new ResourceGrant();
+        deny.setTenantId(tenant.getId()); deny.setResourceType(ResourceAuthorizationPort.AGENT_SKILL);
+        deny.setResourceId("legacy-agent"); deny.setPrincipalType("USER"); deny.setPrincipalId(caller.id());
+        deny.setEffect("DENY"); deny.setEnabled(true); resourceGrantRepository.saveAndFlush(deny);
+        assertThat(service.canAccessAgent(caller.id(), "legacy-agent")).isFalse();
+        allow.setEnabled(false); resourceGrantRepository.saveAndFlush(allow);
+        assertThat(service.canAccessAgent(caller.id(), "new-agent")).isFalse();
+        service.saveRoleAuthorization(role.getId(), new EnterpriseAdminService.RoleAuthorizationRequest(List.of(), List.of(), null, List.of()));
+        assertThat(service.resolveSessionByToken(login.token()).orElseThrow().permissionCodes()).doesNotContain("workspace:chat:interact");
+        var persisted = userRepository.findById(caller.id()).orElseThrow(); persisted.setStatus("disabled"); userRepository.saveAndFlush(persisted);
+        assertThat(service.resolveSessionByToken(login.token())).isEmpty();
+    }
+
+    @Test
+    void consoleToolGrantMaintainsItsResourceCompanionAndRevokesItOnDelete() {
+        var tenant = service.saveTenant(tenant("mcp-console-sync"));
+        var role = service.saveRole(role(tenant.getId(), "MCP_CALLER"));
+        var tool = toolPermission(tenant.getId(), role.getId(), "role-test-tool");
+        tool.setScopeExpression("mcp:*:*:*@tenant=" + tenant.getId());
+        var saved = service.saveToolPermission(tool);
+        var rows = resourceGrantRepository.findByTenantIdAndResourceTypeOrderByUpdatedAtDesc(tenant.getId(), "MCP_TOOL");
+        assertThat(rows).hasSize(1);
+        assertThat(rows.get(0).getPrincipalId()).isEqualTo(role.getId());
+        assertThat(rows.get(0).getEffect()).isEqualTo("ALLOW");
+        saved.setEnabled(false); service.saveToolPermission(saved);
+        assertThat(resourceGrantRepository.findById(rows.get(0).getId()).orElseThrow().isEnabled()).isFalse();
+        service.deleteToolPermissions(List.of(saved.getId()));
+        assertThat(resourceGrantRepository.findById(rows.get(0).getId())).isEmpty();
+        tool.setId(null); tool.setEffect("deny"); tool.setEnabled(true);
+        service.saveToolPermission(tool);
+        assertThat(resourceGrantRepository.findByTenantIdAndResourceTypeOrderByUpdatedAtDesc(tenant.getId(), "MCP_TOOL")).isEmpty();
+    }
+
+    @Test
     void persistsToolAndDatasourceGovernanceAndProducesAuditSummary() {
         long initialDataSources = ((Number) service.summary().get("dataSourceCount")).longValue();
         long initialToolPermissions = ((Number) service.summary().get("toolPermissionCount")).longValue();

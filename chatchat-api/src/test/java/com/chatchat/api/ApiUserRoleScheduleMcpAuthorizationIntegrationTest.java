@@ -79,6 +79,11 @@ class ApiUserRoleScheduleMcpAuthorizationIntegrationTest {
     private com.chatchat.enterprise.repository.security.ResourceGrantRepository resourceGrantRepository;
 
     @Autowired
+    private com.chatchat.chat.task.core.AgentTaskLatestRepository taskRepository;
+
+    @Autowired private com.chatchat.common.retrieval.SkillExecutionScopePort executionScopes;
+
+    @Autowired
     private EnterpriseToolRuntimePolicyProvider toolPolicyProvider;
 
     @MockBean
@@ -117,6 +122,10 @@ class ApiUserRoleScheduleMcpAuthorizationIntegrationTest {
                 List.of(workspaceChat.getId(), menuRead.getId()), List.of(), null, List.of()
             ));
         skillConfigRepository.save(publishedAgent(agentId));
+        var runtimeScope = executionScopes.resolve(tenantA.getId(), scheduler.id(), agentId, List.of(), List.of());
+        assertThat(runtimeScope.skillAllowed()).isTrue();
+        assertThat(runtimeScope.hasKnowledgeResources()).isFalse();
+        assertThat(executionScopes.resolve(tenantB.getId(), viewer.id(), agentId, List.of(), List.of()).skillAllowed()).isFalse();
 
         McpToolAsset tool = toolAssetRepository.save(tool("joint_sql_query_" + suffix));
         toolPermissionRepository.save(toolPermission(tenantA.getId(), schedulerRole.getId(), tool));
@@ -184,6 +193,57 @@ class ApiUserRoleScheduleMcpAuthorizationIntegrationTest {
         assertThat(allowed.allowed()).isTrue();
         assertThat(forgedTenant.allowed()).isFalse();
         assertThat(forgedTenant.reason()).contains("does not belong");
+    }
+
+    @Test
+    void chatCallerDiscoversOnlyGrantedPublishedAgentsWithoutManagementPrivileges() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        var tenant = adminService.saveTenant(tenant("caller-" + suffix));
+        var role = adminService.saveRole(role(tenant.getId(), "CALLER_" + suffix));
+        var caller = adminService.saveUser(user(tenant.getId(), "caller-" + suffix), List.of(role.getId()));
+        adminService.saveRoleAuthorization(role.getId(), new EnterpriseAdminService.RoleAuthorizationRequest(
+            List.of(permission("workspace:chat:interact").getId(), permission("account:self:read").getId()), List.of(), null, List.of()));
+        String allowedId = "allowed-" + suffix;
+        skillConfigRepository.save(publishedAgent(allowedId));
+        skillConfigRepository.save(publishedAgent("hidden-" + suffix));
+        var grant = new com.chatchat.enterprise.entity.security.ResourceGrant();
+        grant.setTenantId(tenant.getId()); grant.setResourceType("AGENT_SKILL"); grant.setResourceId(allowedId);
+        grant.setPrincipalType("ROLE"); grant.setPrincipalId(role.getId()); grant.setEffect("ALLOW");
+        grant = resourceGrantRepository.saveAndFlush(grant);
+        String token = login("caller-" + suffix, "joint-password");
+        var owned = new com.chatchat.chat.task.core.AgentTaskLatestEntity();
+        owned.setTenantId(tenant.getId()); owned.setUserId(caller.id()); owned.setStatus("SUCCESS"); owned.setQuestion("Owned task");
+        var foreign = new com.chatchat.chat.task.core.AgentTaskLatestEntity();
+        foreign.setTenantId(tenant.getId()); foreign.setUserId("other-owner"); foreign.setStatus("SUCCESS"); foreign.setQuestion("Other task");
+        taskRepository.saveAllAndFlush(List.of(owned, foreign));
+        mockMvc.perform(get("/api/v1/agent/tasks/" + owned.getTaskId()).param("tenantId", "spoofed-tenant")
+            .header("Authorization", bearer(token))).andExpect(status().isOk()).andExpect(jsonPath("$.code").value(200));
+        mockMvc.perform(get("/api/v1/agent/tasks/" + foreign.getTaskId()).param("tenantId", tenant.getId())
+            .header("Authorization", bearer(token))).andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/agent/tasks/runtime").param("tenantId", tenant.getId())
+            .header("Authorization", bearer(token))).andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/interactions/resources/agents/" + allowedId).header("Authorization", bearer(token)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.id").value(allowedId));
+        mockMvc.perform(get("/api/v1/interactions/resources/agents").header("Authorization", bearer(token)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.agents.length()").value(1))
+            .andExpect(jsonPath("$.data.agents[0].id").value(allowedId));
+        mockMvc.perform(get("/api/v1/agents/workshop").header("Authorization", bearer(token)))
+            .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/v1/agents/workshop").header("Authorization", bearer(token))
+            .contentType(MediaType.APPLICATION_JSON).content("{}")) .andExpect(status().isForbidden());
+        grant.setEffect("DENY"); resourceGrantRepository.saveAndFlush(grant);
+        assertThat(adminService.canAccessAgent(caller.id(), allowedId)).isFalse();
+        mockMvc.perform(get("/api/v1/interactions/resources/agents").header("Authorization", bearer(token)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.agents.length()").value(0));
+        adminService.saveRoleAuthorization(role.getId(), new EnterpriseAdminService.RoleAuthorizationRequest(List.of(), List.of(), null, List.of()));
+        mockMvc.perform(get("/api/v1/interactions/resources/agents").header("Authorization", bearer(token)))
+            .andExpect(status().isForbidden());
+        adminService.saveRoleAuthorization(role.getId(), new EnterpriseAdminService.RoleAuthorizationRequest(
+            List.of(permission("capability:data-science").getId()), List.of(), null, List.of()));
+        mockMvc.perform(post("/api/v1/data-science/domain-skills/categories").header("Authorization", bearer(token))
+            .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Role skill manager\"}"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.data.name").value("Role skill manager"));
     }
 
     private String login(String username, String password) throws Exception {

@@ -30,11 +30,16 @@ public class PermissionCenterController {
     @GetMapping public ApiResponse<Map<String,Object>> catalog(HttpServletRequest request) {
         authorizeCatalog(request); String tenant=access.tenant(request);
         var tenantRoles=roles.findByTenantIdOrderByRoleNameAsc(tenant);
+        var toolGrants=grants.findByTenantIdOrderByUpdatedAtDesc(tenant);
+        // Internal companion IDs follow EnterpriseAdminService's persisted source-ID contract.
+        // Manage these through the tool rule, so deleting a projected duplicate cannot break its resource gate.
+        var companionIds=toolGrants.stream().map(tool -> UUID.nameUUIDFromBytes(
+            ("mcp-tool-permission:"+tool.getId()).getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString()).collect(java.util.stream.Collectors.toSet());
         return ApiResponse.success(Map.of("roles",tenantRoles,
             "users",identities.listUserViews(tenant),"tools",tools.findAllByOrderByLocalToolNameAsc(),
-            "grants",grants.findByTenantIdOrderByUpdatedAtDesc(tenant),"audits",audits.findTop100ByTenantIdOrderByCreatedAtDesc(tenant),
+            "grants",toolGrants,"audits",audits.findTop100ByTenantIdOrderByCreatedAtDesc(tenant),
             "permissions",identities.listPermissions().stream().filter(p->!"internal".equals(p.getPermissionType())).toList(),
-            "resourceGrants",resources.findByTenantIdOrderByUpdatedAtDesc(tenant),
+            "resourceGrants",resources.findByTenantIdOrderByUpdatedAtDesc(tenant).stream().filter(rule -> !companionIds.contains(rule.getId())).toList(),
             "roleAuthorizations",tenantRoles.stream().map(role->identities.getRoleAuthorization(role.getId())).toList(),
             "tenantId",tenant));
     }
@@ -58,7 +63,7 @@ public class PermissionCenterController {
     }
     @DeleteMapping("/tool-grants/{id}") @Transactional
     public ApiResponse<Void> delete(HttpServletRequest request,@PathVariable("id") String id) {
-        authorize(request);requireGrant(access.tenant(request),id);grants.deleteById(id);audit(request,"delete",id);return ApiResponse.success(null);
+        authorize(request);requireGrant(access.tenant(request),id);identities.deleteToolPermissions(List.of(id));audit(request,"delete",id);return ApiResponse.success(null);
     }
     private void requireGrant(String tenant,String id) {
         if(grants.findById(id).filter(row->tenant.equals(row.getTenantId())).isEmpty())throw new SecurityException("Grant outside current tenant");

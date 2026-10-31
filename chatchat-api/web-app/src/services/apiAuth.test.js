@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { apiRequest, getStoredAuthSession, storeAuthSession, AUTH_REQUIRED_EVENT } from './api.js';
+import { apiRequest, getStoredAuthSession, storeAuthSession, AUTH_REQUIRED_EVENT, fetchAuthorizedAgents, fetchDomainSkills } from './api.js';
 
 beforeEach(() => {
   const values = new Map();
@@ -8,6 +8,17 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 describe('authentication response ownership', () => {
+  it('uses caller catalogs for role users and preserves the dedicated Skills management route', async () => {
+    const fetcher = vi.fn(async () => ({ok:true,status:200,json:async()=>({code:200,data:{}})}));
+    vi.stubGlobal('fetch', fetcher);
+    storeAuthSession({token:'caller',user:{permissionCodes:['workspace:chat:interact']}});
+    await fetchAuthorizedAgents(); await fetchDomainSkills({keyword:'audit',page:0});
+    expect(String(fetcher.mock.calls[0][0])).toContain('/interactions/resources/agents');
+    expect(String(fetcher.mock.calls[1][0])).toContain('/interactions/resources/skills?keyword=audit&page=0');
+    storeAuthSession({token:'manager',user:{permissionCodes:['capability:data-science']}});
+    await fetchDomainSkills();
+    expect(String(fetcher.mock.calls[2][0])).toContain('/data-science/domain-skills');
+  });
   it.each([401,200])('does not let a stale HTTP %s response clear a newer login', async status => {
     storeAuthSession({token:'expired'});
     let respond;

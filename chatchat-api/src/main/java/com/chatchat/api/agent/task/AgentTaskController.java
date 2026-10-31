@@ -68,6 +68,7 @@ public class AgentTaskController {
     private final McpToolCatalogQueryPort mcpCatalog;
     private final AgentLearningService learningService;
     private final EnterpriseAdminService enterpriseAdminService;
+    private final com.chatchat.chat.skills.catalog.SkillCatalogService skillCatalogService;
     private final AgentTodoService todoService;
     private final InterpretationPlanStore interpretationPlanStore;
     private final AgentTaskFeedbackQueueService feedbackQueueService;
@@ -95,6 +96,11 @@ public class AgentTaskController {
             }
             String requestedAgentId = firstText(request.getSkillId(), request.getAgentId());
             String currentUserId = authenticatedUserId;
+            if (currentUserId != null && !enterpriseAdminService.hasAllAgentAccess(currentUserId)) {
+                if (requestedAgentId == null) return ApiResponse.badRequest("Select an authorized published Agent");
+                if (!skillCatalogService.isPublished(requestedAgentId))
+                    return ApiResponse.badRequest("Select an authorized published Agent");
+            }
             if (requestedAgentId != null
                 && currentUserId != null
                 && !enterpriseAdminService.canAccessAgent(currentUserId, requestedAgentId)) {

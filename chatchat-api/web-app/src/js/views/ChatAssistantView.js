@@ -11,7 +11,7 @@ import {
   fetchAgentTaskEvents,
   fetchAgentRuntimeSummary,
   fetchResearchLibrary,
-  fetchAgentWorkshop,
+  fetchAuthorizedAgents,
   recordUserActivity,
   saveConversationHistory,
   saveVisualizationPreference,
@@ -2841,7 +2841,7 @@ export default {
       try {
         // Use the same exact-Agent resolver as execution, not a persisted conversation mode
         // or a potentially stale workshop list. Never retry by escalating role_chat to tools.
-        const agent = await apiRequest(`/agents/workshop/${encodeURIComponent(agentId)}`);
+        const agent = await apiRequest(`/interactions/resources/agents/${encodeURIComponent(agentId)}`);
         if (this.selectedAgentId !== agentId || this.historyId !== historyId) return false;
         if (agent?.id !== agentId || agent.marketStatus !== "published") {
           throw new Error("当前 Agent 不可用或尚未发布，请重新选择。");
@@ -3095,7 +3095,7 @@ export default {
     async loadAgents() {
       this.agentsLoading = true;
       try {
-        const payload = await fetchAgentWorkshop({ status: "published" });
+        const payload = await fetchAuthorizedAgents();
         const models = Array.isArray(payload?.models) ? payload.models : [];
         this.defaultModelName = this.defaultModelFromOptions(models);
         const agents = Array.isArray(payload?.agents) ? payload.agents : [];

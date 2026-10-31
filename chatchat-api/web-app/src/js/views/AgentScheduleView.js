@@ -5,7 +5,7 @@ import {
   fetchAgentScheduleNotificationChannels,
   fetchAgentScheduleNotificationHistory,
   fetchAgentSchedules,
-  fetchAgentWorkshop,
+  fetchAuthorizedAgents,
   getStoredAuthSession,
   pauseAgentSchedule,
   rerunAgentSchedule,
@@ -283,10 +283,7 @@ export default {
       this.error = "";
       this.notice = "";
       try {
-        const payload = await fetchAgentWorkshop({
-          page: 1,
-          pageSize: 100
-        });
+        const payload = await fetchAuthorizedAgents();
         this.agents = Array.isArray(payload?.agents) ? payload.agents : [];
         if (!this.form.agentId && this.agentOptions.length) {
           this.form = emptyForm(this.agentOptions[0].id);

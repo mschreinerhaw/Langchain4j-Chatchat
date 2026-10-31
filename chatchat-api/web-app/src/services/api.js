@@ -143,7 +143,10 @@ export function fetchDomainSkills(filters = {}) {
   ["keyword", "category", "status", "page", "pageSize"].forEach((key) => {
     if (filters[key] !== undefined && filters[key] !== null && String(filters[key]) !== "") params.set(key, String(filters[key]));
   });
-  return apiRequest(`/data-science/domain-skills${params.size ? `?${params}` : ""}`);
+  const session = getStoredAuthSession();
+  const managesSkills = (session?.user?.permissionCodes || session?.permissionCodes || []).includes("capability:data-science");
+  const path = managesSkills ? "/data-science/domain-skills" : "/interactions/resources/skills";
+  return apiRequest(`${path}${params.size ? `?${params}` : ""}`);
 }
 
 export function createDomainSkill(payload) {
@@ -1151,6 +1154,10 @@ export function rollbackSkillVersion(skillId, versionId) {
 
 
 
+
+export function fetchAuthorizedAgents() {
+  return apiRequest("/interactions/resources/agents");
+}
 
 export function fetchAgentWorkshop(filters = {}) {
   const params = new URLSearchParams();

@@ -55,6 +55,14 @@ public class ApiPermissionAuthorizationFilter extends OncePerRequestFilter {
         }
         String path = applicationPath(request);
         String method = request.getMethod();
+        if (callerTaskRoute(method, path)
+            && adminService.getUserView(String.valueOf(userId)).permissionCodes().contains("workspace:chat:interact")
+            && adminService.listPermissions().stream().anyMatch(permission -> "workspace:chat:interact".equals(permission.getPermissionCode())
+                && "enabled".equalsIgnoreCase(permission.getStatus()))) {
+            // ObjectAccessInterceptor still verifies every task ID against its persisted tenant/owner.
+            filterChain.doFilter(request, response);
+            return;
+        }
         // New template workflows reuse maintained permission codes, independently of legacy draft POST policies.
         String capabilityPermission = templateCapabilityPermission(method, path);
         if (capabilityPermission != null) {
@@ -95,7 +103,8 @@ public class ApiPermissionAuthorizationFilter extends OncePerRequestFilter {
         }
         ResourcePermission required = matches.get(0);
         List<String> permissionCodes = adminService.getUserView(String.valueOf(userId)).permissionCodes();
-        if (permissionCodes.contains(required.permission().getPermissionCode())) {
+        if (permissionCodes.contains(required.permission().getPermissionCode())
+            || callerCatalogPermissions(method, path).stream().anyMatch(permissionCodes::contains)) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -103,6 +112,31 @@ public class ApiPermissionAuthorizationFilter extends OncePerRequestFilter {
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
         objectMapper.writeValue(response.getWriter(), ApiResponse.error(403, "无权访问该资源"));
+    }
+
+    // Exact read routes only. Resource ACLs still filter every returned item in the controller.
+    static List<String> callerCatalogPermissions(String method, String path) {
+        if (!"GET".equalsIgnoreCase(method)) return List.of();
+        if (path.matches("/api/v1/ui-artifacts/[a-zA-Z0-9_-]{1,128}(/resources/[^/]+)?"))
+            return List.of("workspace:chat:interact", "workspace:search:api", "capability:library", "capability:data-science");
+        if ("/api/v1/ui-display/trend-semantics".equals(path))
+            return List.of("workspace:chat:interact", "workspace:search:api", "capability:library");
+        if (path.matches("/api/v1/interactions/resources/agents/[a-zA-Z0-9_-]{1,128}"))
+            return List.of("platform:agents:published", "platform:agents:workshop", "platform:schedules:manage");
+        return switch (path) {
+            case "/api/v1/interactions/resources/agents" -> List.of("platform:agents:published", "platform:agents:workshop", "platform:schedules:manage");
+            case "/api/v1/interactions/resources/skills" -> List.of("capability:library", "capability:data-science");
+            default -> List.of();
+        };
+    }
+
+    static boolean callerTaskRoute(String method, String path) {
+        String root = "/api/v1/agent/tasks";
+        String id = "[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}";
+        if ("GET".equals(method) && (root + "/runtime/todos").equals(path)) return true;
+        if ("GET".equals(method)) return path.matches(root + "/" + id + "(/events(/stream)?|/result|/plan(-dag|/versions)?)?");
+        return "POST".equals(method) && (root.equals(path) || path.matches(root + "/" + id + "/(cancel|retry|feedback)")
+            || path.matches(root + "/runtime/tasks/" + id + "/(confirm|reject)"));
     }
 
     private boolean methodMatches(String configured, String requested) {

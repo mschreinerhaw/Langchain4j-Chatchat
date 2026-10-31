@@ -15,6 +15,18 @@ import static org.mockito.Mockito.*;
 import static org.assertj.core.api.Assertions.*;
 
 class PermissionCenterControllerTest {
+    @Test void toolCompanionsAreNotExposedAsIndependentlyEditableDuplicateRules() {
+        when(access.user(request)).thenReturn("operator"); when(access.tenant(request)).thenReturn("tenant");
+        when(identities.hasPermission("operator","system:role:authorize")).thenReturn(true);
+        var tool = new com.chatchat.enterprise.entity.mcp.McpToolPermission(); tool.setId("tool-source");
+        when(grants.findByTenantIdOrderByUpdatedAtDesc("tenant")).thenReturn(List.of(tool));
+        var companion = new ResourceGrant(); companion.setId(UUID.nameUUIDFromBytes("mcp-tool-permission:tool-source".getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString());
+        var manual = new ResourceGrant(); manual.setId("independent-deny"); manual.setEffect("DENY");
+        when(resources.findByTenantIdOrderByUpdatedAtDesc("tenant")).thenReturn(List.of(companion,manual));
+        var result = controller.catalog(request).getData();
+        assertThat(result.get("grants")).isEqualTo(List.of(tool));
+        assertThat(result.get("resourceGrants")).isEqualTo(List.of(manual));
+    }
     final ObjectAccessService access=mock(ObjectAccessService.class);
     final WorkspaceService workspaces=mock(WorkspaceService.class);
     final EnterpriseAdminService identities=mock(EnterpriseAdminService.class);

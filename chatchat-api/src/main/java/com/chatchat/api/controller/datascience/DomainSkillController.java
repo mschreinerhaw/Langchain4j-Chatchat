@@ -224,9 +224,12 @@ public class DomainSkillController {
     }
 
     private Scope scope(HttpServletRequest request) {
+        Object identity = request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_VIEW);
+        boolean manage = identity instanceof com.chatchat.enterprise.service.EnterpriseAdminService.UserView user
+            && user.permissionCodes().contains("capability:data-science");
         return new Scope(attribute(request, ApiAuthenticationFilter.CURRENT_TENANT_ID, "default"),
             first(attribute(request, ApiAuthenticationFilter.CURRENT_USERNAME, ""),
-                attribute(request, ApiAuthenticationFilter.CURRENT_USER_ID, "default")));
+                attribute(request, ApiAuthenticationFilter.CURRENT_USER_ID, "default")), manage);
     }
 
     private String attribute(HttpServletRequest request, String key, String fallback) {
@@ -239,7 +242,7 @@ public class DomainSkillController {
     }
 
     private void requireAdmin(Scope scope) {
-        if (!"admin".equalsIgnoreCase(scope.ownerId())) throw new SecurityException("Only admin can manage domain skills");
+        if (!scope.manage()) throw new SecurityException("Domain skill management permission required");
     }
 
     private ApiResponse<?> call(Action action) {
@@ -256,7 +259,7 @@ public class DomainSkillController {
 
     private interface Action { Object run(); }
 
-    private record Scope(String tenantId, String ownerId) {}
+    private record Scope(String tenantId, String ownerId, boolean manage) {}
     private record SkillRequest(String id, String name, String category, String description, String markdownContent, Boolean runtimeCompilationEnabled) {
         DomainSkillService.SaveSkillCommand toCommand(String id) {
             return new DomainSkillService.SaveSkillCommand(id, name, category, description, markdownContent,runtimeCompilationEnabled);

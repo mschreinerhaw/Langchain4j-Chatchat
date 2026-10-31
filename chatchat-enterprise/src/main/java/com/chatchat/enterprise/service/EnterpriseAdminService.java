@@ -311,9 +311,12 @@ public class EnterpriseAdminService implements ApplicationRunner {
             return Optional.empty();
         }
         String normalized = token.trim();
-        UserView cached = activeTokenUsers.get(normalized);
-        if (cached != null && activeTokens.get(normalized) != null) {
-            return Optional.of(cached);
+        String userId = activeTokens.get(normalized);
+        if (userId != null) {
+            // A token authenticates identity, never a frozen copy of role/permission state.
+            var current = userRepository.findById(userId).filter(user -> "enabled".equalsIgnoreCase(user.getStatus()));
+            if (current.isPresent()) return current.map(this::toUserView);
+            activeTokens.remove(normalized);
         }
         activeTokenUsers.remove(normalized);
         return Optional.empty();
@@ -1083,9 +1086,31 @@ public class EnterpriseAdminService implements ApplicationRunner {
         entity.setExpiresAt(input.getExpiresAt());
         entity.setRemark(trimToNull(input.getRemark()));
         McpToolPermission saved = toolPermissionRepository.save(entity);
+        synchronizeToolResourceGrant(saved);
         audit(saved.getTenantId(), null, "system", "tool_permission", input.getId() == null ? "grant" : "update",
             "mcp_tool_permission", saved.getId(), saved.getTargetType() + ":" + saved.getTargetId());
         return saved;
+    }
+
+    /** A managed companion row joins console tool grants to the shared resource gate. */
+    @Transactional
+    public void synchronizeToolResourceGrant(McpToolPermission tool) {
+        String id = toolResourceGrantId(tool.getId());
+        // Scoped denies belong to invocation-time evaluation, not a whole-tool deny.
+        if ("deny".equalsIgnoreCase(tool.getEffect()) && tool.getScopeExpression() != null && !tool.getScopeExpression().isBlank()) {
+            resourceGrantRepository.findById(id).ifPresent(resourceGrantRepository::delete);
+            return;
+        }
+        ResourceGrant grant = resourceGrantRepository.findById(id).orElseGet(ResourceGrant::new);
+        grant.setId(id); grant.setTenantId(tool.getTenantId()); grant.setResourceType(ResourceAuthorizationPort.MCP_TOOL);
+        grant.setResourceId(tool.getLocalToolName()); grant.setPrincipalType(tool.getTargetType().toUpperCase(java.util.Locale.ROOT));
+        grant.setPrincipalId(tool.getTargetId()); grant.setEffect(tool.getEffect().toUpperCase(java.util.Locale.ROOT));
+        grant.setEnabled(tool.isEnabled()); grant.setExpiresAt(tool.getExpiresAt());
+        resourceGrantRepository.save(grant);
+    }
+
+    private String toolResourceGrantId(String id) {
+        return java.util.UUID.nameUUIDFromBytes(("mcp-tool-permission:" + id).getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
     }
 
     /**
@@ -1109,6 +1134,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
 
         List<McpToolPermission> permissions = toolPermissionRepository.findAllById(normalizedIds);
         if (!permissions.isEmpty()) {
+            resourceGrantRepository.deleteAllById(permissions.stream().map(p -> toolResourceGrantId(p.getId())).toList());
             toolPermissionRepository.deleteAllInBatch(permissions);
             audit(null, null, "system", "tool_permission", "batch_delete", "mcp_tool_permission", null,
                 "deleted tool permissions: " + permissions.size());
@@ -1156,7 +1182,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
                 userRepository.deleteById(id);
             }
             case "data-source" -> dataSourceRepository.deleteById(id);
-            case "tool-permission" -> toolPermissionRepository.deleteById(id);
+            case "tool-permission" -> deleteToolPermissions(List.of(id));
             default -> throw new IllegalArgumentException("unsupported delete module: " + module);
         }
         audit(null, null, "system", module, "delete", module, id, "delete " + module);
@@ -1403,7 +1429,8 @@ public class EnterpriseAdminService implements ApplicationRunner {
         if (hasAllAgentAccess(user.get())) {
             return true;
         }
-        return accessibleAgentIdsForUser(user.get()).contains(normalizedAgentId);
+        return allowedAgentIds(user.get(), Set.of(normalizedAgentId), legacyAgentIdsForUser(user.get()))
+            .contains(normalizedAgentId);
     }
 
     /**
@@ -1514,6 +1541,48 @@ public class EnterpriseAdminService implements ApplicationRunner {
     }
 
     private Set<String> accessibleAgentIdsForUser(SysUser user) {
+        Set<String> legacy = legacyAgentIdsForUser(user);
+        Set<String> candidates = new LinkedHashSet<>(legacy);
+        resourceGrantRepository.findByTenantIdAndResourceTypeOrderByUpdatedAtDesc(user.getTenantId(), ResourceAuthorizationPort.AGENT_SKILL)
+            .stream().map(ResourceGrant::getResourceId).filter(id -> id != null && !"*".equals(id)).forEach(candidates::add);
+        return allowedAgentIds(user, candidates, legacy);
+    }
+
+    /** Central resource grants and legacy role bindings are alternative allows; an explicit deny wins. */
+    private Set<String> allowedAgentIds(SysUser user, Set<String> candidates, Set<String> legacy) {
+        if (!"enabled".equalsIgnoreCase(user.getStatus())) return Set.of();
+        Set<String> roleIds = userRoleRepository.findByUserId(user.getId()).stream()
+            .filter(binding -> user.getTenantId().equals(binding.getTenantId()))
+            .map(SysUserRole::getRoleId).collect(Collectors.toSet());
+        List<String> lookup = new java.util.ArrayList<>(candidates);
+        lookup.add("*");
+        var rules = resourceGrantRepository.findByTenantIdAndResourceTypeAndResourceIdIn(
+            user.getTenantId(), ResourceAuthorizationPort.AGENT_SKILL, lookup);
+        Instant now = Instant.now();
+        Set<String> allowed = new LinkedHashSet<>();
+        for (String id : candidates) {
+            boolean allow = legacy.contains(id), deny = false;
+            for (ResourceGrant rule : rules) {
+                if (!rule.isEnabled() || rule.getExpiresAt() != null && !rule.getExpiresAt().isAfter(now)
+                    || rule.getAgentId() != null && !rule.getAgentId().isBlank()
+                    || !(id.equals(rule.getResourceId()) || "*".equals(rule.getResourceId()))) continue;
+                boolean matches = switch (rule.getPrincipalType()) {
+                    case "USER" -> user.getId().equals(rule.getPrincipalId());
+                    case "ROLE" -> roleIds.contains(rule.getPrincipalId()) && roleRepository.findById(rule.getPrincipalId())
+                        .filter(role -> user.getTenantId().equals(role.getTenantId()) && "enabled".equalsIgnoreCase(role.getStatus())).isPresent();
+                    case "TENANT" -> user.getTenantId().equals(rule.getPrincipalId());
+                    default -> false;
+                };
+                if (!matches) continue;
+                allow |= "ALLOW".equalsIgnoreCase(rule.getEffect());
+                deny |= "DENY".equalsIgnoreCase(rule.getEffect());
+            }
+            if (allow && !deny) allowed.add(id);
+        }
+        return allowed;
+    }
+
+    private Set<String> legacyAgentIdsForUser(SysUser user) {
         if (user == null || user.getId() == null || user.getTenantId() == null) {
             return Set.of();
         }

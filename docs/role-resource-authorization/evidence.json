@@ -1,0 +1,140 @@
+{
+  "deployment": {
+    "status": "DEPLOYED",
+    "image": "runtime-os-api:role-authorization-20261031-r3",
+    "sha256": "57a31c9f102ddcf71085f467c8b4a3c2cf3cdfe639980d6159f854de1ae91d16",
+    "backup": "/opt/chatchat-releases/role-authorization-20261031-r3/backup",
+    "unrelatedContainersUnchanged": true,
+    "conversationContentUnchanged": true,
+    "messageIndexCountUnchanged": true
+  },
+  "tests": {
+    "java": {
+      "total": 75,
+      "suites": {
+        "EnterpriseAdminServiceIntegrationTest": {
+          "tests": 18,
+          "failures": 0,
+          "errors": 0
+        },
+        "ResourceAuthorizationServiceTest": {
+          "tests": 10,
+          "failures": 0,
+          "errors": 0
+        },
+        "McpRoleGrantMigrationTest": {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0
+        },
+        "AgentAuthorizationIsolationTest": {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0
+        },
+        "ApiUserRoleScheduleMcpAuthorizationIntegrationTest": {
+          "tests": 2,
+          "failures": 0,
+          "errors": 0
+        },
+        "AuthorizedResourceCatalogControllerTest": {
+          "tests": 1,
+          "failures": 0,
+          "errors": 0
+        },
+        "ApiPermissionAuthorizationFilterTest": {
+          "tests": 14,
+          "failures": 0,
+          "errors": 0
+        },
+        "AgentTaskSubmissionAuthorizationTest": {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0
+        },
+        "ObjectAccessPolicyTest": {
+          "tests": 14,
+          "failures": 0,
+          "errors": 0
+        },
+        "PermissionCenterControllerTest": {
+          "tests": 4,
+          "failures": 0,
+          "errors": 0
+        },
+        "EnterpriseAdminProtectedUserTest": {
+          "tests": 3,
+          "failures": 0,
+          "errors": 0
+        }
+      }
+    },
+    "frontend": {
+      "passed": 95
+    },
+    "packagedFrontendSha256": "56669af6c7e2ef2449ed3908b8c8c567a67401fa00687915be6ff01f2ea8e5ab"
+  },
+  "scopeVerification": {
+    "agent": {
+      "authorizedPublishedCount": 2,
+      "exactAgentRefresh": true,
+      "unassignedDenied": true,
+      "managementDenied": true,
+      "tenantMonitorDenied": true,
+      "denyWinsInExistingSession": true
+    },
+    "skills": {
+      "authorizedCount": 1,
+      "denyWinsInExistingSession": true
+    },
+    "documents": {
+      "authorizedCount": 1,
+      "authorizedDetail": true,
+      "unassignedDetailDenied": true,
+      "denyWinsInExistingSession": true
+    },
+    "workspace": {
+      "available": [
+        "zhice"
+      ],
+      "permissionsWorkspaceDenied": true,
+      "revocationObservedWithoutNewLogin": true,
+      "restoredInSameSession": true
+    },
+    "mcp": {
+      "companionSynchronized": true
+    }
+  },
+  "mcp": {
+    "authorizedInvocation": "SUCCESS",
+    "revokedInvocation": "REJECTED",
+    "queryWasSyntheticNoMatch": true
+  },
+  "browser": {
+    "sameBusinessRoleAsExistingTestAccount": true,
+    "authorizedAgentCount": 2,
+    "taskId": "d84e9420-510e-47c4-92c8-64f46b724daf",
+    "state": "SUCCEEDED",
+    "answerRendered": true,
+    "answer": "角色授权功能已生效",
+    "reportReadRequests": 2,
+    "allReportReadsSucceeded": true,
+    "pageErrors": 0,
+    "failedApiRequests": 0,
+    "permissionBanner": false
+  },
+  "cleanup": {
+    "temporaryConfigurationRemoved": true,
+    "deletedUserSessionRejected": true,
+    "existingTestUserRolesUnchanged": true,
+    "existingBusinessRoleAuthorizationUnchanged": true,
+    "acceptanceTaskAuditHistoryRetained": true
+  },
+  "reportOwnership": {
+    "ownReportHttpStatus": 200,
+    "otherUserReportHttpStatus": 403
+  },
+  "limitations": [
+    "The existing AgentTaskControllerTest fixture could not initialize with mocked identity bootstrap; its 14 cases are excluded from passed counts and documented in acceptance.md."
+  ]
+}

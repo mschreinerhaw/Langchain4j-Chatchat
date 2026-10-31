@@ -210,7 +210,7 @@ describe("restored assistant result deduplication", () => {
     const context = { selectedAgentId: "asset", historyId: "old-history", loading: false,
       agents: [{ id: "asset", defaultMode: mode === "role_chat" ? "agent_chat" : "role_chat" }] };
     expect(await ChatAssistantView.methods.refreshSelectedAgentForSend.call(context)).toBe(true);
-    expect(apiRequest).toHaveBeenCalledWith("/agents/workshop/asset");
+    expect(apiRequest).toHaveBeenCalledWith("/interactions/resources/agents/asset");
     expect(context.agents).toEqual([agent]);
     expect(ChatAssistantView.methods.agentInteractionMode.call({}, context.agents[0])).toBe(mode);
     expect(context.loading).toBe(false);

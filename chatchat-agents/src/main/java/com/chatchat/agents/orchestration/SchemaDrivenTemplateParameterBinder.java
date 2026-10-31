@@ -95,6 +95,12 @@ final class SchemaDrivenTemplateParameterBinder {
                 Map<String,Object> fields=new LinkedHashMap<>();
                 fields.put("templateId",Map.of("type","string","enum",List.of(templateId(template))));
                 fields.put("parameters",bindingParameterSchema(template));
+                Map<String,Object> references = new LinkedHashMap<>();
+                map(parameterSchema(template).get("properties")).forEach((name, ignored) -> references.put(name,
+                    Map.of("type","object","properties",Map.of("stepId",Map.of("type","integer"),
+                        "outputPath",Map.of("type","string")),"required",List.of("stepId","outputPath"),
+                        "additionalProperties",false)));
+                fields.put("parameterBindings",Map.of("type","object","properties",references,"additionalProperties",false));
                 fields.put("parameterEvidence", Map.of("type", "object", "properties",
                     map(parameterSchema(template).get("properties")).keySet().stream().collect(
                         java.util.stream.Collectors.toMap(name -> name, name -> Map.of("type", "string"))),
@@ -134,6 +140,9 @@ final class SchemaDrivenTemplateParameterBinder {
                 +"Treat IDs as opaque. Return exactly one designated function call with selections containing templateId and parameters. "
                 +"Use assetId only when published in that template's contract; fixed binding assets are resolved by the supplier. "
                 +"Infer parameter values from the user request, including schema-valid arrays and normalized dates. "
+                +"For arrays supplied by completedRecordsets, use parameterBindings: {parameterName: {stepId, outputPath}}. "
+                +"Choose an offered reference whose columns match the published parameter's purpose; Runtime binds the COMPLETE actual rows. "
+                +"Do not copy previews into parameters, invent rows, or cite unavailable steps. Omit reference-bound fields from parameters. "
                 +"For values not literally present, provide parameterEvidence mapping each parameter to an exact supporting quote from the user request. "
                 +"Omit unknown values. Java applies published defaults and omits optional fields; parameters may be {}. "
                 +"Do not request another extraction to fill defaults. Only required fields without valid defaults need input. "
@@ -141,7 +150,7 @@ final class SchemaDrivenTemplateParameterBinder {
                 +"Technical executability with defaults does not establish that results match the requested business scope. Do not invent values. "
                 +"Use NO_MATCH with an empty selection when no candidate is suitable. Java validates identities, permissions and schemas only."),
                 UserMessage.from("User request: "+Objects.toString(query,"")+"\nCandidates: "+objectMapper.writeValueAsString(catalog)
-                    +"\nPublished scope and prior observations: "+objectMapper.writeValueAsString(selectionContext))),spec,ToolChoice.AUTO);
+                    +"\nPublished scope and prior observations: "+objectMapper.writeValueAsString(TemplateRecordsetBindings.modelContext(selectionContext)))),spec,ToolChoice.AUTO);
             } finally {metrics.put("selectionModelDurationMs",((Number)metrics.getOrDefault("selectionModelDurationMs",0L)).longValue()
                     +(System.nanoTime()-modelStarted)/1_000_000);}
             var usage=com.chatchat.agents.orchestration.model.ModelUsageMetrics.observed(response==null?null:response.tokenUsage());
@@ -178,12 +187,13 @@ final class SchemaDrivenTemplateParameterBinder {
                 Map<String,Object> binding=new LinkedHashMap<>();binding.put("template_id",templateId(template));
                 binding.put("arguments",parameters);if(selection.get("bindingId")!=null)binding.put("binding_id",selection.get("bindingId"));
                 binding.put("parameter_evidence", map(selection.get("parameterEvidence")));
+                binding.put("parameter_bindings", map(selection.get("parameterBindings")));
                 binding.put("unmapped_constraints", selection.getOrDefault("unmappedConstraints",List.of()));
                 bindings.add(binding);
             }
             if("NO_MATCH".equals(status)&&!selected.isEmpty()||"SELECTED".equals(status)&&selected.isEmpty())
                 return new SelectionResult("INVALID_MODEL_RESPONSE",List.of(),List.of(),decision,"status and selections disagree");
-            List<Map<String,Object>> bound=protocols(bindings,query,candidates);
+            List<Map<String,Object>> bound=protocols(bindings,query,candidates,selectionContext);
             if(!bound.isEmpty() && bound.stream().allMatch(protocol->protocol.containsKey("binding_error"))) {
                 boolean invalidDefault=bound.stream().anyMatch(protocol->String.valueOf(protocol.get("binding_error")).contains("INVALID_TEMPLATE_DEFAULT"));
                 return new SelectionResult(invalidDefault?"INVALID_TEMPLATE_DEFAULT":"PARAMETERS_REQUIRED",List.copyOf(new LinkedHashSet<>(selected)),bound,decision,"No selected invocation has valid executable parameters");
@@ -253,7 +263,8 @@ final class SchemaDrivenTemplateParameterBinder {
     @SuppressWarnings("unchecked")
     private List<Map<String, Object>> protocols(Object value,
                                                 String userQuery,
-                                                Map<String, Map<String, Object>> selected) {
+                                                Map<String, Map<String, Object>> selected,
+                                                Map<String, Object> selectionContext) {
         if (!(value instanceof Collection<?> bindings)) return List.of();
         List<Map<String, Object>> result = new ArrayList<>();
         Set<String> fingerprints = new LinkedHashSet<>();
@@ -273,6 +284,7 @@ final class SchemaDrivenTemplateParameterBinder {
             Map<String, Object> supportingQuotes = map(binding.get("parameter_evidence"));
             Map<String, Object> audited = new LinkedHashMap<>();
             List<String> unresolved = new ArrayList<>();
+            List<String> invalidReferences = new ArrayList<>();
             for (Map.Entry<String, Object> argument : proposed.entrySet()) {
                 if (!schemaProperties.containsKey(argument.getKey()) || !hasValue(argument.getValue())) continue;
                 String quote = exactEvidenceQuote(userQuery, argument.getValue());
@@ -293,6 +305,18 @@ final class SchemaDrivenTemplateParameterBinder {
                         : Map.of("quote", quote, "generated_by", "native_function_calling")
                 ));
             }
+            map(binding.get("parameter_bindings")).forEach((name, reference) -> {
+                if (!schemaProperties.containsKey(name) || proposed.containsKey(name)) {
+                    unresolved.add(name);
+                    invalidReferences.add(name);
+                    audited.remove(name);
+                    return;
+                }
+                TemplateRecordsetBindings.Rows rows = TemplateRecordsetBindings.resolve(selectionContext, reference);
+                if (rows == null) { unresolved.add(name); invalidReferences.add(name); return; }
+                audited.put(name, Map.of("value",rows.value(),"source","tool_result",
+                    "evidence",Map.of("step_id",rows.stepId(),"output_path",rows.path())));
+            });
             for (String required : requiredWithoutDefaults(parameterSchema(template), schemaProperties)) {
                 if (!audited.containsKey(required) && !unresolved.contains(required)) unresolved.add(required);
             }
@@ -321,6 +345,8 @@ final class SchemaDrivenTemplateParameterBinder {
             }});
             protocol.put("rejected_parameter_overrides",List.copyOf(rejected));
             if(!compilation.valid())protocol.put("binding_error",Map.of("code",compilation.status(),"errors",compilation.validationErrors()));
+            if(!invalidReferences.isEmpty())protocol.put("binding_error",Map.of(
+                "code","INVALID_TOOL_RESULT_REFERENCE","fields",List.copyOf(invalidReferences)));
             result.add(Map.copyOf(protocol));
         }
         return result;

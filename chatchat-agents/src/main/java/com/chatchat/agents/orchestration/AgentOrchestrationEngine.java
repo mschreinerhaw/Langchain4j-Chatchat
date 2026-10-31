@@ -3866,6 +3866,12 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         context.put("priorAssets",request.completed()==null?List.of():request.completed().values().stream()
             .filter(step->step!=null&&step.success())
             .map(step->findSelectedAssetContext(step.output(),0)).filter(asset->!asset.isEmpty()).toList());
+        Map<String,Object> completedOutputs = new LinkedHashMap<>();
+        if (request.completed() != null) request.completed().forEach((id, execution) -> {
+            if (id != null && execution != null && execution.success() && execution.output() != null)
+                completedOutputs.put(String.valueOf(id), execution.output());
+        });
+        context.put(TemplateRecordsetBindings.OUTPUTS, completedOutputs);
         context.put("role",AgentRoleAnalysisContext.promptSectionFromRuntime(runtimeAttributes,"TEMPLATE_SELECTION"));
         recordLifecyclePhase(runtimeAttributes,null,"model_inference","Model selects templates and binds parameters.",
             metadataOf("eventKind","MODEL_INFERENCE","eventState","STARTED","modelPhase","template_selection_and_binding",

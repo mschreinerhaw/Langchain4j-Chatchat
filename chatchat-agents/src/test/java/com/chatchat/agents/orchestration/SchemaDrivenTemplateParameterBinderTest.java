@@ -151,6 +151,61 @@ class SchemaDrivenTemplateParameterBinderTest {
         assertThat(result.status()).isEqualTo("SELECTED");verify(model,times(1)).chat(any(ChatRequest.class));
     }
 
+    @Test void completeUpstreamRecordsetsBindByReferenceWithoutCopyingPreview() throws Exception {
+        var rows=java.util.stream.IntStream.range(0,11).mapToObj(i->Map.<String,Object>of("amount",i)).toList();
+        var recordset=Map.<String,Object>of("rows",rows,"columns",List.of(Map.of("name","amount")),"complete",true,"possiblyTruncated",false);
+        var output=Map.<String,Object>of("data",Map.of("data",recordset));
+        var context=Map.<String,Object>of(TemplateRecordsetBindings.OUTPUTS,Map.of("7",output));
+        var template=Map.<String,Object>of("templateId","analysis","parameterSchema",Map.of("type","object",
+            "properties",Map.of("input_rows",Map.of("type","array","items",Map.of("type","object"))),"required",List.of("input_rows")));
+        var selection=Map.<String,Object>of("templateId","analysis","parameters",Map.of(),"parameterBindings",
+            Map.of("input_rows",Map.of("stepId",7,"outputPath","$.data.data.rows")));
+        var model=model(List.of(selection));
+        var result=binder.selectAndBind(model,"Analyze the actual query results",List.of(template),context);
+        assertThat(result.status()).isEqualTo("SELECTED");
+        var argument=(Map<?,?>)((Map<?,?>)result.protocols().get(0).get("arguments")).get("input_rows");
+        assertThat(argument.get("value")).isEqualTo(rows);assertThat(argument.get("source")).isEqualTo("tool_result");
+        var executionProtocol=new java.util.LinkedHashMap<String,Object>(result.protocols().get(0));
+        executionProtocol.put("step_id",8);
+        var bridged=new com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge().prepare(
+            new com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge.BridgeRequest("executor",8,"analysis",template,
+                Map.of(),executionProtocol,false,true,
+                new com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge.EvidenceContext("Analyze the actual query results",Map.of(7,output))));
+        assertThat(bridged.parameters().get("input_rows")).isEqualTo(rows);
+        var capture=org.mockito.ArgumentCaptor.forClass(ChatRequest.class);verify(model).chat(capture.capture());
+        String prompt=capture.getValue().messages().toString();
+        assertThat(prompt).contains("completedRecordsets","rowCount","outputPath").doesNotContain("completedStepOutputs");
+        assertThat(((List<?>)TemplateRecordsetBindings.modelContext(context).get("completedRecordsets"))).hasSize(1);
+        assertThat((List<?>)((Map<?,?>)((List<?>)TemplateRecordsetBindings.modelContext(context).get("completedRecordsets")).get(0)).get("preview")).hasSize(2);
+    }
+
+    @Test void unavailableTruncatedAndUnknownReferencesCannotUseDefaultsOrInventValues() throws Exception {
+        var template=Map.<String,Object>of("templateId","analysis","parameterSchema",Map.of("type","object",
+            "properties",Map.of("input_rows",Map.of("type","array","default",List.of(Map.of("amount",0))))));
+        for(var context:List.of(Map.<String,Object>of(),Map.<String,Object>of(TemplateRecordsetBindings.OUTPUTS,Map.of("7",
+                Map.of("rows",List.of(Map.of("amount",1)),"columns",List.of("amount"),"complete",false,"possiblyTruncated",true))))) {
+            var selection=Map.<String,Object>of("templateId","analysis","parameters",Map.of(),"parameterBindings",
+                Map.of("input_rows",Map.of("stepId",7,"outputPath","$.rows")));
+            var result=binder.selectAndBind(model(List.of(selection)),"Analyze",List.of(template),context);
+            assertThat(result.status()).isEqualTo("PARAMETERS_REQUIRED");
+            assertThat(result.protocols().get(0)).containsKey("binding_error");
+        }
+        var valid=Map.<String,Object>of(TemplateRecordsetBindings.OUTPUTS,Map.of("7",Map.of("rows",List.of(Map.of("amount",1)),
+            "columns",List.of("amount"),"complete",true,"possiblyTruncated",false)));
+        for(var ref:List.of(Map.<String,Object>of("stepId",99,"outputPath","$.rows"),
+                Map.<String,Object>of("stepId",7,"outputPath","$.rows[0]"),Map.<String,Object>of("stepId",7,"outputPath","$.rawData.rows"))) {
+            var selection=Map.<String,Object>of("templateId","analysis","parameters",Map.of(),"parameterBindings",Map.of("input_rows",ref));
+            assertThat(binder.selectAndBind(model(List.of(selection)),"Analyze",List.of(template),valid).status()).isEqualTo("PARAMETERS_REQUIRED");
+        }
+    }
+
+    @Test void literalPreviewAndReferenceCannotCompeteForTheSameParameter() throws Exception {
+        var candidate=Map.<String,Object>of("templateId","analysis","parameterSchema",Map.of("properties",Map.of("rows",Map.of("type","array"))));
+        var result=binder.selectAndBind(model(List.of(Map.of("templateId","analysis","parameters",Map.of("rows",List.of()),
+            "parameterBindings",Map.of("rows",Map.of("stepId",1,"outputPath","$.rows"))))),"Analyze",List.of(candidate));
+        assertThat(result.status()).isEqualTo("PARAMETERS_REQUIRED");
+    }
+
     private Map<String,Object> template(String id) {
         return Map.of("templateId",id,"parameterSchema",Map.of("type","object","required",List.of("subject"),
             "properties",Map.of("subject",Map.of("type","string"))));

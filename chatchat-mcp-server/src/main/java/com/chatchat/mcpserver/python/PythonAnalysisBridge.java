@@ -2,6 +2,7 @@ package com.chatchat.mcpserver.python;
 
 import com.chatchat.mcpserver.mcp.McpInvocationContext;
 import com.chatchat.mcpserver.templatepublication.binding.TemplateQueryBindingService;
+import com.chatchat.mcpserver.templatepublication.catalog.TemplateAssetCatalogService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -165,7 +166,7 @@ public class PythonAnalysisBridge {
         Map<String, Object> arguments = new LinkedHashMap<>(rawArguments == null ? Map.of() : rawArguments);
         if (templateBindings != null) {
             Set<String> allowed = templateBindings.resolvePolicy(McpInvocationContext.current(), null)
-                .allowedTemplates().getOrDefault("python", Set.of());
+                .allowedTemplates().getOrDefault(TemplateAssetCatalogService.PYTHON, Set.of());
             arguments.put("_authorizedTemplateIds", List.copyOf(allowed));
         }
         return Map.copyOf(arguments);

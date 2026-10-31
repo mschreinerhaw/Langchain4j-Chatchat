@@ -267,4 +267,38 @@ class PythonAnalysisBridgeTest {
         template.setInputSchemaJson("{}");
         return template;
     }
+
+    @Test
+    void canonicalPublishedPythonGrantAllowsExecutionAndOtherScopesRemainDenied() {
+        PythonTemplateAssetRepository templates = mock(PythonTemplateAssetRepository.class);
+        @SuppressWarnings("unchecked") ObjectProvider<PythonCapabilityService> services = mock(ObjectProvider.class);
+        PythonCapabilityService service = mock(PythonCapabilityService.class);
+        var bindings = mock(com.chatchat.mcpserver.templatepublication.binding.TemplateQueryBindingService.class);
+        var mapper = new ObjectMapper();
+        var bridge = new PythonAnalysisBridge(templates, services, new PythonTemplateArgumentResolver(mapper),
+            mock(PythonDataFileService.class), mapper);
+        bridge.setTemplateBindings(bindings);
+        when(templates.findByIdAndTenantId("published", "tenant-a"))
+            .thenReturn(java.util.Optional.of(template("published", "asset-a", "env-a", "analysis.py")));
+        when(services.getObject()).thenReturn(service);
+        var execution = new PythonExecution(); execution.setId("real-execution");
+        execution.setStatus("SUCCEEDED"); execution.setExitCode(0); execution.setStdout("{}"); execution.setDurationMs(1L);
+        when(service.executeTemplateForUser("published", "tenant-a", "alice", Map.of())).thenReturn(execution);
+        when(bindings.resolvePolicy(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.isNull()))
+            .thenReturn(new com.chatchat.mcpserver.templatepublication.binding.TemplateQueryBindingService.PolicyResolution(
+                Map.of("python_runtime", java.util.Set.of("published")), java.util.Set.of(), "v1", false, 1, java.time.Instant.now()));
+        assertThat(bridge.execute(Map.of("tenantId", "tenant-a", "username", "alice", "templateId", "published")).body())
+            .containsEntry("executionId", "real-execution").containsEntry("status", "SUCCEEDED");
+
+        for (var scope : List.of(Map.<String, java.util.Set<String>>of(),
+            Map.of("sql_datasource", java.util.Set.of("published")))) {
+            when(bindings.resolvePolicy(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.isNull()))
+                .thenReturn(new com.chatchat.mcpserver.templatepublication.binding.TemplateQueryBindingService.PolicyResolution(
+                    scope, java.util.Set.of(), "v2", false, 0, java.time.Instant.now()));
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> bridge.execute(Map.of("tenantId", "tenant-a",
+                "username", "alice", "templateId", "published", "_authorizedTemplateIds", List.of("published"))))
+                .hasMessageContaining("not authorized");
+        }
+        verify(service, org.mockito.Mockito.times(1)).executeTemplateForUser("published", "tenant-a", "alice", Map.of());
+    }
 }

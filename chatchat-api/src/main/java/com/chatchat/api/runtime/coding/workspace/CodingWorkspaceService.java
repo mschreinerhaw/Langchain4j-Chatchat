@@ -299,17 +299,18 @@ public final class CodingWorkspaceService {
     /** Preserve the last archived cause when the worker stops without a deliverable. */
     public String failureSummary(CodingTaskContract contract){
         requireAuthorized(contract);
+        String language="python-studio.output.v1".equals(contract.outputContract().resultSchemaRef())?"Python":"SQL";
         var latest=evidence.readExecutionCheckpoint(contract.scope(),latestKey(contract));
-        if(latest.isEmpty())return "SQL 任务未交付有效文件，请查看任务处理记录。";
+        if(latest.isEmpty())return language+" 任务未交付有效文件，请查看任务处理记录。";
         var receipt=evidence.find(contract.scope(),"coding:workspace:"+latest.get()+":receipt");
-        if(receipt.isEmpty())return "SQL 文件验证未完成，请查看任务处理记录。";
+        if(receipt.isEmpty())return language+" 文件验证未完成，请查看任务处理记录。";
         var response=response(receipt.get());
-        if(response.get("repair") instanceof Map<?,?> repair&&"STOP".equals(repair.get("action")))return "SQL 修复次数已达到上限，未交付通过校验的文件。";
+        if(response.get("repair") instanceof Map<?,?> repair&&"STOP".equals(repair.get("action")))return language+" 修复次数已达到上限，未交付通过校验的文件。";
         if(response.get("validation") instanceof Map<?,?> validation&&validation.get("diagnostics") instanceof List<?> list){
             for(Object item:list)if(item instanceof Map<?,?> diagnostic&&diagnostic.get("message") instanceof String message)
-                return "SQL 校验未通过："+message.substring(0,Math.min(message.length(),512));
+                return language+" 校验未通过："+message.substring(0,Math.min(message.length(),512));
         }
-        return "SQL 任务未交付通过校验的文件，请查看处理记录。";
+        return language+" 任务未交付通过校验的文件，请查看处理记录。";
     }
     private List<String> explorationParents(CodingTaskContract contract){
         var parents=new ArrayList<String>();parents.add(id(contract.inputSnapshotRef()));

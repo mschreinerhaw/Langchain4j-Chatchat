@@ -87,10 +87,9 @@ class PythonTemplatePublicationLifecycleTest {
         PythonScriptEntity script = script("print('version 2')", 2);
         PythonAssetEntity asset = asset();
         PythonTemplateEntity existing = publishedTemplate();
-        when(scriptRepository.findByIdAndTenantIdAndOwnerId("script-1", "tenant-1", "alice"))
-                .thenReturn(Optional.of(script));
         when(assetRepository.findByIdAndTenantIdAndOwnerId("asset-1", "tenant-1", "alice"))
                 .thenReturn(Optional.of(asset));
+        verifyByTrial(script,"{}");
         when(templateRepository.findFirstByScriptIdOrderByPublishedAtDesc("script-1"))
                 .thenReturn(Optional.of(existing));
         when(templateRepository.saveAndFlush(any(PythonTemplateEntity.class)))
@@ -106,7 +105,7 @@ class PythonTemplatePublicationLifecycleTest {
 
         PythonTemplateEntity result = service.publish("tenant-1", "alice", "script-1",
                 new PythonDataScienceService.PublishRequest("Updated log analysis", "logs", "new description",
-                        "log,error", "operations", "2.0.0", "{}", "{}"));
+                        "log,error", "operations", "2.0.0", " { } ", "{}"));
 
         assertThat(result.getId()).isEqualTo("template-1");
         assertThat(result.getToolName()).isEqualTo("python_log_stable");
@@ -126,10 +125,9 @@ class PythonTemplatePublicationLifecycleTest {
     void disablesNewRemoteTemplateWhenInitialPublicationFails() {
         PythonScriptEntity script = script("print('first version')", 1);
         PythonAssetEntity asset = asset();
-        when(scriptRepository.findByIdAndTenantIdAndOwnerId("script-1", "tenant-1", "alice"))
-                .thenReturn(Optional.of(script));
         when(assetRepository.findByIdAndTenantIdAndOwnerId("asset-1", "tenant-1", "alice"))
                 .thenReturn(Optional.of(asset));
+        verifyByTrial(script,"{}");
         when(templateRepository.findFirstByScriptIdOrderByPublishedAtDesc("script-1"))
                 .thenReturn(Optional.empty());
         when(templateRepository.saveAndFlush(any(PythonTemplateEntity.class))).thenAnswer(invocation -> {
@@ -182,6 +180,7 @@ class PythonTemplatePublicationLifecycleTest {
     private PythonAssetEntity asset() {
         PythonAssetEntity asset = new PythonAssetEntity();
         asset.setId("asset-1");
+        asset.setMcpEnvironmentId("env-1");
         asset.setTenantId("tenant-1");
         asset.setOwnerId("alice");
         asset.setName("Python environment");
@@ -189,6 +188,39 @@ class PythonTemplatePublicationLifecycleTest {
         asset.setMcpEnvironmentId("env-1");
         asset.setStatus("READY");
         return asset;
+    }
+    private McpPythonControlPlanePort.EnvironmentView environment(int version){
+        return new McpPythonControlPlanePort.EnvironmentView("env-1","Test","", "python:test","3.11","1","512m","16m","16m","1000:1000","NONE","","[]",30,false,version,"PUBLISHED");
+    }
+    private void verifyByTrial(PythonScriptEntity script,String schema){
+        when(scriptRepository.findLockedByIdAndTenantIdAndOwnerId("script-1","tenant-1","alice")).thenReturn(Optional.of(script));
+        when(mcp.environment("env-1")).thenReturn(environment(1));
+        when(mcp.preview(eq("env-1"),eq("tenant-1"),eq("alice"),eq("asset-1"),any(),any(),any(),any()))
+            .thenReturn(new McpPythonControlPlanePort.ExecutionResult("execution-1","container-1","SUCCEEDED","{}","",0,10L));
+        when(executionRepository.save(any())).thenAnswer(i->i.getArgument(0));
+        service.testScript("tenant-1","alice","script-1",java.util.Map.of(),schema);
+        assertThat(script.getLastTestEvidenceJson()).contains("execution-1");
+    }
+    @Test void rejectsSchemaCodeAndEnvironmentChangesAfterSuccessfulTrial(){
+        var script=script("print(1)",1);var asset=asset();
+        when(assetRepository.findByIdAndTenantIdAndOwnerId("asset-1","tenant-1","alice")).thenReturn(Optional.of(asset));
+        verifyByTrial(script,"{}");
+        var request=new PythonDataScienceService.PublishRequest("Test","Sales","Stats","","","1","{\"required\":[\"rows\"]}","{}");
+        assertThatThrownBy(()->service.publish("tenant-1","alice","script-1",request)).hasMessageContaining("重新试运行");
+        final var plain=new PythonDataScienceService.PublishRequest("Test","Sales","Stats","","","1","{}","{}");script.setSourceCode("print(2)");
+        assertThatThrownBy(()->service.publish("tenant-1","alice","script-1",plain)).hasMessageContaining("重新试运行");
+        script.setSourceCode("print(1)");when(mcp.environment("env-1")).thenReturn(environment(2));
+        assertThatThrownBy(()->service.publish("tenant-1","alice","script-1",plain)).hasMessageContaining("重新试运行");
+        verify(mcp,never()).synchronizeTemplate(any(),any());
+    }
+    @Test void failedTrialClearsPriorSuccessfulEvidence(){
+        var script=script("print(1)",1);when(assetRepository.findByIdAndTenantIdAndOwnerId("asset-1","tenant-1","alice")).thenReturn(Optional.of(asset()));
+        verifyByTrial(script,"{}");
+        when(mcp.preview(eq("env-1"),eq("tenant-1"),eq("alice"),eq("asset-1"),any(),any(),any(),any()))
+            .thenReturn(new McpPythonControlPlanePort.ExecutionResult("execution-2","container-2","FAILED","","error",1,10L));
+        service.testScript("tenant-1","alice","script-1",java.util.Map.of(),"{}");
+        assertThat(script.isLastTestSucceeded()).isFalse();assertThat(script.getLastTestEvidenceJson()).isNull();
+        assertThat(script.getStatus()).isEqualTo("DRAFT");
     }
 
     private PythonTemplateEntity publishedTemplate() {

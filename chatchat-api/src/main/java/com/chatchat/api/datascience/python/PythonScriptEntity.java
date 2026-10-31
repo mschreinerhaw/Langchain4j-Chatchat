@@ -39,6 +39,8 @@ public class PythonScriptEntity {
     private Instant lastTestedAt;
     @Column(name = "last_test_succeeded", nullable = false)
     private boolean lastTestSucceeded;
+    @Column(name = "last_test_evidence_json", columnDefinition = "TEXT")
+    private String lastTestEvidenceJson;
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
     @Column(name = "updated_at", nullable = false)

@@ -124,6 +124,7 @@ public class PythonDataScienceService {
         script.setSourceCode(request.sourceCode());
         script.setStatus("DRAFT");
         script.setLastTestSucceeded(false);
+        script.setLastTestEvidenceJson(null);
         script.setCurrentVersion(script.getCurrentVersion() + 1);
         script = scriptRepository.saveAndFlush(script);
         PythonScriptVersionEntity version = new PythonScriptVersionEntity();
@@ -137,23 +138,32 @@ public class PythonDataScienceService {
 
     @Transactional
     public PythonExecutionEntity testScript(String tenant, String owner, String scriptId, Map<String, Object> parameters, String inputSchema) {
-        PythonScriptEntity script = ownedScript(scriptId, tenant, owner);
+        PythonScriptEntity script = lockedScript(scriptId, tenant, owner);
         PythonAssetEntity asset = ownedReadyAsset(script.getAssetId(), tenant, owner);
         validateJsonObject(inputSchema, "输入 Schema");
+        var fingerprint=testFingerprint(script,asset,inputSchema);
         var result = mcp.preview(asset.getMcpEnvironmentId(), tenant, owner, asset.getId(), script.getFileName(), script.getSourceCode(), parameters, inputSchema);
         PythonExecutionEntity execution = recordExecution(asset, script.getId(), null, tenant, owner, parameters, result);
-        if ("SUCCEEDED".equals(execution.getStatus())) {
+        script.setLastTestSucceeded(false);script.setStatus("DRAFT");script.setLastTestEvidenceJson(null);
+        script.setLastTestedAt(Instant.now());
+        if ("SUCCEEDED".equals(execution.getStatus()) && Integer.valueOf(0).equals(result.exitCode())
+                && result.id()!=null && !result.id().isBlank() && fingerprint.equals(testFingerprint(script,asset,inputSchema))) {
             script.setStatus("TESTED");
             script.setLastTestSucceeded(true);
-            script.setLastTestedAt(Instant.now());
-            scriptRepository.save(script);
+            var evidence=objectMapper.createObjectNode();evidence.put("schemaVersion","python_studio_test.v1");
+            evidence.set("fingerprint",fingerprint);evidence.put("executionId",result.id());
+            evidence.put("testedAt",script.getLastTestedAt().toString());evidence.put("exitCode",0);
+            evidence.put("parametersSha256",sha256(json(parameters==null?Map.of():parameters)));
+            evidence.put("stdoutSha256",sha256(Objects.toString(result.stdout(),"")));
+            script.setLastTestEvidenceJson(evidence.toString());
         }
+        scriptRepository.save(script);
         return execution;
     }
 
     @Transactional
     public PythonTemplateEntity publish(String tenant, String owner, String scriptId, PublishRequest request) {
-        PythonScriptEntity script = ownedScript(scriptId, tenant, owner);
+        PythonScriptEntity script = lockedScript(scriptId, tenant, owner);
         PythonAssetEntity asset = ownedReadyAsset(script.getAssetId(), tenant, owner);
         if (!script.isLastTestSucceeded() || !"TESTED".equals(script.getStatus()))
             throw new IllegalArgumentException("脚本必须先在 MCP 环境成功测试后才能发布");
@@ -162,6 +172,15 @@ public class PythonDataScienceService {
         requireText(request.description(), "功能描述不能为空");
         validateJsonObject(request.inputSchema(), "输入 Schema");
         validateJsonObject(request.outputSchema(), "输出 Schema");
+        try {
+            var evidence=objectMapper.readTree(Objects.toString(script.getLastTestEvidenceJson(),"{}"));
+            if(!"python_studio_test.v1".equals(evidence.path("schemaVersion").asText())
+                || evidence.path("executionId").asText().isBlank()
+                || !testFingerprint(script,asset,request.inputSchema()).equals(evidence.path("fingerprint")))
+                throw new IllegalArgumentException("代码、输入 Schema 或环境已变化，请重新试运行后发布");
+        } catch(com.fasterxml.jackson.core.JsonProcessingException invalid) {
+            throw new IllegalArgumentException("试运行证据无效，请重新试运行后发布",invalid);
+        }
         Optional<PythonTemplateEntity> existing = templateRepository
                 .findFirstByScriptIdOrderByPublishedAtDesc(script.getId());
         PythonTemplateEntity t = existing.orElseGet(PythonTemplateEntity::new);
@@ -498,6 +517,21 @@ public class PythonDataScienceService {
 
     private PythonScriptEntity ownedScript(String id, String tenant, String owner) {
         return scriptRepository.findByIdAndTenantIdAndOwnerId(id, tenant, owner).orElseThrow(() -> new IllegalArgumentException("Python 脚本不存在或不属于当前用户"));
+    }
+    private PythonScriptEntity lockedScript(String id,String tenant,String owner) {
+        return scriptRepository.findLockedByIdAndTenantIdAndOwnerId(id,tenant,owner)
+            .orElseThrow(()->new IllegalArgumentException("Python 脚本不存在或不属于当前用户"));
+    }
+    /** JSON equality ignores object key order and formatting, preserving schema meaning. */
+    private com.fasterxml.jackson.databind.JsonNode testFingerprint(PythonScriptEntity script,PythonAssetEntity asset,String schema) {
+        try {
+            var environment=mcp.environment(asset.getMcpEnvironmentId());
+            if(environment==null||!"PUBLISHED".equals(environment.status()))throw new IllegalStateException("MCP 环境不可用，请重新选择已发布环境");
+            var result=objectMapper.createObjectNode();result.put("scriptId",script.getId());
+            result.put("scriptVersion",script.getCurrentVersion());result.put("sourceSha256",sha256(script.getSourceCode()));
+            result.put("assetId",asset.getId());result.set("inputSchema",objectMapper.readTree(or(schema,"{}")));
+            result.set("environment",objectMapper.valueToTree(environment));return result;
+        } catch(com.fasterxml.jackson.core.JsonProcessingException invalid){throw new IllegalArgumentException("输入 Schema 无效",invalid);}
     }
 
     private PythonScriptFolderEntity ownedFolder(String id, String tenant, String owner) {

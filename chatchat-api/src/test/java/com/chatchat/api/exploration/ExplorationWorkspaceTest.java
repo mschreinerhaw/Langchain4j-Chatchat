@@ -41,6 +41,19 @@ class ExplorationWorkspaceTest {
         controller.prepare(http,space.path("id").asText(),new ExplorationWorkspaceController.Question(0,null,List.of("file"),"分析资产结构",null));
         return store.get(alice,space.path("id").asText());
     }
+    @Test void agentFollowupUnionsInheritedAndSupplementalFilesAndRejectsUnavailableInput(){
+        var state=store.create(alice,"补充数据分析");String id=state.path("id").asText();
+        controller.prepare(http,id,new ExplorationWorkspaceController.Question(0,null,List.of("file"),"初始分析",null,"authorized"));
+        state=store.get(alice,id);var parent=(ObjectNode)state.withArray("nodes").get(0);parent.put("saved",true);parent.putObject("receipt").put("resultAvailable",true);
+        String parentId=parent.path("id").asText();state=store.save(alice,state,1);
+        when(assets.get(alice,"supplement")).thenReturn(new UserAssetService.File("supplement","DOCUMENT","补充.csv","text/csv","hash",20,"AVAILABLE","","","upload",0));
+        controller.prepare(http,id,new ExplorationWorkspaceController.Question(state.path("version").asLong(),parentId,List.of("supplement"),"使用新增资料核对",null,"authorized"));
+        var updated=store.get(alice,id);assertThat(updated.withArray("nodes").get(1).path("fileIds").toString()).isEqualTo("[\"file\",\"supplement\"]");
+        when(assets.get(alice,"foreign")).thenThrow(new SecurityException("foreign asset"));
+        long version=updated.path("version").asLong();
+        assertThatThrownBy(()->controller.prepare(http,id,new ExplorationWorkspaceController.Question(version,parentId,List.of("foreign"),"越权补充",null,"authorized"))).isInstanceOf(SecurityException.class);
+        assertThat(store.get(alice,id).withArray("nodes").size()).isEqualTo(2);
+    }
     String nodeId(ObjectNode space){return space.path("nodes").get(0).path("id").asText();}
     ObjectNode complete(){
         var space=prepared();doReturn(ApiResponse.success(Map.of("resultAvailable",true,"executionMode","PYTHON","taskId","task","evidenceRefs",List.of("test-boundary-ref"),"visualReport",Map.of("charts",List.of(Map.of("id","chart","kind","plotly")))))).when(analysis).analyzeVisual(eq(http),any());
@@ -73,10 +86,13 @@ class ExplorationWorkspaceTest {
         assertThatThrownBy(()->controller.prepare(http,id,new ExplorationWorkspaceController.Question(space.path("version").asLong(),node,List.of("other"),"继续分析",null))).hasMessageContaining("保存");
         controller.presentation(http,id,node,new ExplorationWorkspaceController.Presentation(space.path("version").asLong(),true,Map.of()));
         when(assets.listPage(alice,UserAssetService.Kind.CONTEXT,"task",100,0)).thenReturn(List.of(new UserAssetService.File("ctx","CONTEXT","context.json","application/json","sha",100,"AVAILABLE","task","run","user-analysis-result",0)));
-        var current=store.get(alice,id);controller.prepare(http,id,new ExplorationWorkspaceController.Question(current.path("version").asLong(),node,List.of("foreign"),"分析变化原因",null));
+        when(assets.get(alice,"foreign")).thenThrow(new SecurityException("foreign attachment"));
+        var current=store.get(alice,id);
+        assertThatThrownBy(()->controller.prepare(http,id,new ExplorationWorkspaceController.Question(current.path("version").asLong(),node,List.of("foreign"),"分析变化原因",null))).isInstanceOf(SecurityException.class);
+        controller.prepare(http,id,new ExplorationWorkspaceController.Question(current.path("version").asLong(),node,List.of(),"分析变化原因",null));
         var child=store.get(alice,id).path("nodes").get(1);
         assertThat(child.path("parentId").asText()).isEqualTo(node);assertThat(child.path("fileIds").get(0).asText()).isEqualTo("file");assertThat(child.path("contextIds").get(0).asText()).isEqualTo("ctx");
-        verify(assets,never()).get(any(),eq("foreign"));
+        verify(assets).get(alice,"foreign");
     }
     @Test void rejectedExecutionPersistsRecoverableStateAndCannotBeSaved(){
         var space=prepared();String id=space.path("id").asText(),node=nodeId(space);

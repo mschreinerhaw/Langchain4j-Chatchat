@@ -14,6 +14,14 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 /** Execution boundaries are mocked; these tests are not live Agent evidence. */
 class ExplorationAgentBridgeTest {
+ @Test void forwardsPreparedAttachmentsThroughTheExistingUserAssetWorkflow(){
+   when(tasks.submit(any())).thenReturn(task);
+   var node=json.createObjectNode().put("id","supplemented-node").put("agentId","authorized").put("question","核对补充资料");
+   node.putArray("fileIds").add("original").add("supplement");
+   var parent=json.createObjectNode().put("question","原资产分析");parent.putObject("receipt").put("answer","历史结论");
+   bridge.submit(owner,node,parent);
+   verify(tasks).submit(argThat(request->request.getToolInput().get("__userAssetIds").equals(List.of("original","supplement"))&&request.getQuery().contains("优先根据本次明确提供的原始附件")&&request.getQuery().contains("不可信历史数据")));
+ }
  SkillCatalogService catalog=mock(SkillCatalogService.class);EnterpriseAdminService permissions=mock(EnterpriseAdminService.class);
  AgentTaskService tasks=mock(AgentTaskService.class);UiArtifactService artifacts=mock(UiArtifactService.class);ObjectMapper json=new ObjectMapper();
  ExplorationAgentBridge bridge=new ExplorationAgentBridge(catalog,permissions,tasks,artifacts,json);Owner owner=new Owner("tenant","alice");

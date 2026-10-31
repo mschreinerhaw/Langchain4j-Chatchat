@@ -38,6 +38,11 @@ public class ExplorationWorkspaceController {
     }
     @GetMapping public ApiResponse<?> list(HttpServletRequest http){return ApiResponse.success(store.list(owner(http)));}
     @GetMapping("/agents") public ApiResponse<?> agents(HttpServletRequest http){return ApiResponse.success(agents.options(owner(http)));}
+    @PostMapping(value="/attachments",consumes="multipart/form-data") public ApiResponse<?> attachment(HttpServletRequest http,
+        @RequestParam("file") org.springframework.web.multipart.MultipartFile file) throws java.io.IOException {
+        var owner=owner(http);
+        return ApiResponse.success(assets.upload(owner,file.getOriginalFilename(),file.getBytes()));
+    }
     @PostMapping public ApiResponse<?> create(HttpServletRequest http,@RequestBody Create body){
         var owner=owner(http);List<String> files=List.of();
         if(body.sourceWorkspaceId()!=null&&!body.sourceWorkspaceId().isBlank()){
@@ -50,7 +55,7 @@ public class ExplorationWorkspaceController {
     @GetMapping("/{id}") public ApiResponse<?> get(HttpServletRequest http,@PathVariable("id") String id){return ApiResponse.success(store.get(owner(http),id));}
     @PostMapping("/{id}/nodes") public ApiResponse<?> prepare(HttpServletRequest http,@PathVariable("id") String id,@RequestBody Question body){
         var owner=owner(http);var state=store.get(owner,id);version(state,body.version());
-        if(body.question()==null||body.question().isBlank()||body.question().length()>6000)throw new IllegalArgumentException("请输入 1–6000 字的分析问题");
+        if(body.question()==null||body.question().isBlank()||body.question().length()>8000)throw new IllegalArgumentException("请输入 1–8000 字的分析问题");
         if(state.withArray("nodes").size()>=100)throw new IllegalArgumentException("每个分析项目最多 100 个节点");
         var files=body.fileIds()==null||body.fileIds().isEmpty()?strings(state,"fileIds"):body.fileIds();var contexts=new ArrayList<String>();String parentId=Objects.toString(body.parentId(),"");
         String model=body.modelName(),agentId=Objects.toString(body.agentId(),"").strip();
@@ -77,7 +82,11 @@ public class ExplorationWorkspaceController {
         if(agentId.isBlank()){
         if(files==null||files.isEmpty()||files.size()>8||new HashSet<>(files).size()!=files.size())throw new IllegalArgumentException("请选择 1–8 个数据文件");
         for(String file:files){var asset=assets.get(owner,file);if(!Set.of("DOCUMENT","DATASET","ARTIFACT").contains(asset.kind())||!"AVAILABLE".equals(asset.state()))throw new IllegalArgumentException("数据文件不可用");}
-        }else{files=List.of();contexts.clear();}
+        }
+        var combined=new LinkedHashSet<String>(files==null?List.of():files);
+        if(body.fileIds()!=null)combined.addAll(body.fileIds());
+        files=List.copyOf(combined);
+        validateFiles(owner,files);
         var node=state.withArray("nodes").addObject();node.put("id",UUID.randomUUID().toString());node.put("parentId",parentId);
         node.put("question",body.question().strip());node.put("modelName",Objects.toString(model,""));node.put("status","PREPARED");
         if(!agentId.isBlank())node.put("agentId",agentId);
@@ -89,6 +98,7 @@ public class ExplorationWorkspaceController {
         var owner=owner(http);var state=store.get(owner,id);var node=node(state,nodeId);
         if(node.path("receipt").path("resultAvailable").asBoolean())return ApiResponse.success(state);
         if(!node.path("agentId").asText().isBlank()){
+            validateFiles(owner,strings(node,"fileIds"));
             ObjectNode parent=node.path("parentId").asText().isBlank()?null:node(state,node.path("parentId").asText());
             var receipt=agents.submit(owner,node,parent);
             return ApiResponse.success(finish(owner,id,nodeId,receipt,null));
@@ -98,6 +108,15 @@ public class ExplorationWorkspaceController {
         try{result=json.valueToTree(analysis.analyzeVisual(http,request).getData());}
         catch(RuntimeException failure){finish(owner,id,nodeId,null,"执行未完成，可使用原请求恢复；"+failure.getClass().getSimpleName());throw failure;}
         return ApiResponse.success(finish(owner,id,nodeId,result,null));
+    }
+    private void validateFiles(UserAssetService.Owner owner,List<String> ids){
+        if(ids.size()>8)throw new IllegalArgumentException("每次分析最多 8 个附件，请开始新的分析以更换数据");
+        long total=0;
+        for(String id:ids){var file=assets.get(owner,id);
+            if(!"AVAILABLE".equals(file.state())||!Set.of("DOCUMENT","DATASET","ARTIFACT").contains(file.kind()))throw new IllegalArgumentException("分析附件不可用");
+            total+=file.size();
+        }
+        if(total>16L*1024*1024)throw new IllegalArgumentException("本次分析附件总大小不能超过 16 MB");
     }
     @GetMapping("/{id}/nodes/{nodeId}/status") public ApiResponse<?> status(HttpServletRequest http,@PathVariable("id") String id,@PathVariable("nodeId") String nodeId){
         var owner=owner(http);var state=store.get(owner,id);var node=node(state,nodeId);

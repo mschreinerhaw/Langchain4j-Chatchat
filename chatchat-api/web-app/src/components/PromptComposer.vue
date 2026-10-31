@@ -1,5 +1,5 @@
 <template>
-  <section class="prompt-card" :class="{'prompt-compact':compact}" @dragover="handleDragOver" @drop="handleDrop" @keydown.esc="ideasOpen=false">
+  <section class="prompt-card" :class="{'prompt-compact':compact}" @dragover="handleDragOver" @drop="handleDrop" @keydown.esc="invalidateIdeas">
     <div v-if="showSuggestions" class="prompt-suggestions">
       <span class="prompt-suggestions-label">快捷问题</span>
       <button
@@ -145,8 +145,9 @@
         </div>
       </div>
 
-      <div v-if="showIdea" class="composer-idea-control">
-        <button type="button" class="composer-idea-button" aria-label="提问灵感" :aria-expanded="ideasOpen" :disabled="loading || inputDisabled" title="帮我想一个分析问题" @click="ideasOpen=!ideasOpen; ideaError=''">
+      <div v-if="showIdea || allowFilePicker" class="composer-idea-control">
+        <template v-if="allowFilePicker"><input ref="attachmentInput" type="file" multiple class="composer-file-input" accept=".pdf,.docx,.xlsx,.csv,.parquet,.txt,.md,.json,.jsonl,.png,.jpg,.jpeg,.webp,.gif" aria-label="选择补充资料" :disabled="loading || inputDisabled" @change="pickFiles" /><button type="button" class="composer-attach-button" aria-label="添加补充资料" :disabled="loading || inputDisabled" @click="$refs.attachmentInput.click()"><Paperclip :size="17" />补充资料</button></template>
+        <button v-if="showIdea" type="button" class="composer-idea-button" aria-label="提问灵感" :aria-expanded="ideasOpen" :disabled="loading || inputDisabled || attachments.some(f=>f.state!=='ready')" title="结合当前分析生成提问建议" @click="toggleIdeas">
           <Lightbulb :size="19" stroke-width="1.9" /><span>灵感</span>
         </button>
       </div>
@@ -172,9 +173,11 @@
       <span class="composer-keyboard-hint">Shift + Enter 换行</span>
     </div>
     <section v-if="showIdea && ideasOpen" class="composer-ideas" aria-label="提问建议">
-      <header><div><strong><Lightbulb :size="17" />提问灵感</strong><p>结合当前输入和分析方向整理，选择后可继续修改。</p></div><button type="button" aria-label="关闭提问建议" @click="ideasOpen=false"><X :size="17" /></button></header>
+      <header><div><strong><Lightbulb :size="17" />提问灵感</strong><p>结合当前分析、输入与补充资料生成，选择后可继续修改。</p></div><button type="button" aria-label="关闭提问建议" @click="invalidateIdeas"><X :size="17" /></button></header>
+      <p v-if="ideasLoading" role="status" class="composer-idea-status">正在结合当前情况生成提问建议…</p>
       <p v-if="ideaError" class="composer-idea-error" role="alert">{{ ideaError }}</p>
       <button v-for="idea in ideas" :key="idea.title" type="button" class="composer-idea-option" @click="applyIdea(idea)"><strong>{{ idea.title }}</strong><span>{{ idea.prompt }}</span></button>
+      <button v-if="!ideasLoading" type="button" class="composer-idea-refresh" @click="generateIdeas">{{ ideaError ? '重新生成' : '换一组建议' }}</button>
       <small>仅帮助组织问题；确认并发送后才会开始分析。</small>
     </section>
   </section>

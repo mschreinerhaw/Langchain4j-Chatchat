@@ -77,6 +77,9 @@ export default {
     "rename-conversation",
     "select-conversation"
   ],
+  watch: {
+    activeView: {immediate:true,handler(view,previous){if(view==='dataExploration')this.sidebarCollapsed=true;else if(previous==='dataExploration')this.sidebarCollapsed=false;}},
+  },
   methods: {
     toggleRightPanel() {
       this.rightPanelCollapsed = !this.rightPanelCollapsed;

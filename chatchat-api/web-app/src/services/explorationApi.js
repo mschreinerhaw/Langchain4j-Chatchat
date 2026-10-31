@@ -7,6 +7,8 @@ export const explorationAgents=()=>apiRequest(`${base}/agents`);
 export const explorationNodeStatus=(id,nodeId)=>apiRequest(`${base}/${part(id)}/nodes/${part(nodeId)}/status`);
 export const createExploration=(title,source={})=>write(base,'POST',{title,...source});
 export const getExploration=id=>apiRequest(`${base}/${part(id)}`);
+export const generateExplorationIdeas=body=>write(`${base}/ideas`,'POST',body);
+export const uploadExplorationAttachment=(file,workspaceContext)=>{const body=new FormData();body.append('file',file);return apiRequest(`${base}/attachments`,{method:'POST',body,workspaceContext});};
 export const prepareExploration=(id,question)=>write(`${base}/${part(id)}/nodes`,'POST',question);
 export const executeExploration=(id,nodeId)=>write(`${base}/${part(id)}/nodes/${part(nodeId)}/execute`,'POST',{});
 export const saveExplorationNode=(id,nodeId,body)=>write(`${base}/${part(id)}/nodes/${part(nodeId)}`,'PUT',body);

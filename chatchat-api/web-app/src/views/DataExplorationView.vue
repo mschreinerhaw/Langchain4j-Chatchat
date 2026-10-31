@@ -20,17 +20,19 @@
           <div v-else class="exploration-empty-result"><Table2 :size="29" /><h2>{{ agentAvailable?'从一个问题开始探索':'选择 Agent，开始图形分析' }}</h2><p>{{ agentAvailable?'描述你关心的问题，Agent 将获取已授权数据并生成分析结果。':'先写下关心的问题，在输入框下方选择 Agent；也可以点击黄色小灯泡获取提问灵感。' }}</p><button v-if="!space" type="button" @click="showDialog(workspaceDialog)">选择分析项目</button></div>
         </div>
         <footer class="exploration-input-region">
-          <div v-if="taskRunning || active?.receipt?.resultAvailable" class="exploration-input-context">
+          <div v-if="taskRunning || active" class="exploration-input-context">
             <span v-if="taskRunning"><LoaderCircle :size="12" class="is-spinning" />正在分析<button v-if="runningSpaceId===space?.id && runningId!==activeId" type="button" @click="showRunning">查看当前分析</button></span>
-            <span v-else>从“{{ heading }}”继续提问</span>
+            <span v-else-if="active.receipt?.resultAvailable">从“{{ heading }}”继续提问</span>
+            <span v-else>补充问题或资料后开始新的分析，原节点保留。</span>
           </div>
           <PromptComposer v-model="question" compact show-agent-picker agent-required show-idea
+            allow-file-picker :attachments="attachments" @files="addFiles" @retry-file="retryFile" @remove-file="removeFile" :idea-provider="suggestIdeas"
             :idea-context="ideaContext" :agents="agents" :agents-loading="agentsLoading || busy"
             :selected-agent-id="selectedAgentId" @update:selected-agent-id="selectAgent"
             :show-suggestions="false" :loading="analyzing"
-            :input-disabled="busy || (!!active && !active.receipt?.resultAvailable && !analyzing)"
-            :max-length="6000" :workspace-context="workspaceContext" :conversation-key="space?.id || ''"
-            :placeholder="active?.receipt?.resultAvailable ? '继续提问或描述想进一步分析的问题……' : '描述你想分析的问题，或点击小灯泡寻找灵感…'" @send="ask" />
+            :input-disabled="busy || taskRunning"
+            :max-length="200000" :workspace-context="workspaceContext" :conversation-key="space?.id || ''"
+            :placeholder="active?.receipt?.resultAvailable ? '继续提问，粘贴文件或补充文本资料…' : '描述分析问题，上传、拖拽或粘贴补充资料…'" @send="ask" />
         </footer>
       </main>
     </div>

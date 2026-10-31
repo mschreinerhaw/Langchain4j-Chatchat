@@ -1,5 +1,4 @@
-import { Bot, FileText, Send, XCircle, Lightbulb, ChevronDown, X } from "@lucide/vue";
-import {questionIdeas} from '../utils/questionIdeas';
+import { Bot, FileText, Send, XCircle, Lightbulb, ChevronDown, X, Paperclip } from "@lucide/vue";
 import { exceedsChatTextLimit, pastedFiles } from "../utils/chatUserAssets";
 import { reportPresentation } from '../utils/reportLayout';
 import { readWorkspaceDraft, saveWorkspaceDraft } from '../utils/workspaceDrafts';
@@ -12,12 +11,14 @@ export default {
     FileText,
     Send,
     XCircle,
-    Lightbulb, ChevronDown, X,
+    Lightbulb, ChevronDown, X, Paperclip,
   },
   props: {
     compact: {type:Boolean,default:false},
     showIdea: {type:Boolean,default:false},
     ideaContext: {type:Object,default:()=>({})},
+    ideaProvider: {type:Function,default:null},
+    allowFilePicker: {type:Boolean,default:false},
     showAgentPicker: {type:Boolean,default:false},
     agentRequired: {type:Boolean,default:false},
     inputDisabled: {type:Boolean,default:false},
@@ -79,11 +80,10 @@ export default {
       reportMode: "off",
       reportPresentation: reportPresentation(readWorkspaceDraft('report-presentation',this.workspaceContext || getWorkspaceContext()) || {}),
       draft: this.modelValue,
-      ideasOpen: false, ideaError: '',
+      ideasOpen: false, ideaError: '', ideas: [], ideasLoading: false, ideaSerial: 0,
     };
   },
   computed: {
-    ideas() { return questionIdeas({draft:this.draft,context:this.ideaContext,agent:this.selectedAgentId?this.selectedAgent:{}}); },
     reportPreferenceKey(){return workspaceStorageKey('report-presentation',this.workspaceContext || getWorkspaceContext());},
     agentOptions() {
       return [
@@ -132,10 +132,11 @@ export default {
     },
   },
   watch: {
-    selectedAgentId() { this.ideasOpen=false; this.ideaError=''; },
-    conversationKey() { this.ideasOpen=false; this.ideaError=''; },
-    ideaContext() { this.ideasOpen=false; this.ideaError=''; },
-    loading(value) { if(value)this.ideasOpen=false; },
+    selectedAgentId() { this.invalidateIdeas(); },
+    conversationKey() { this.invalidateIdeas(); },
+    ideaContext() { this.invalidateIdeas(); },
+    attachments: {deep:true,handler(){this.invalidateIdeas();}},
+    loading(value) { if(value)this.invalidateIdeas(); },
     reportPresentation: {deep:true,handler(value){saveWorkspaceDraft('report-presentation',this.workspaceContext || getWorkspaceContext(),reportPresentation(value));}},
     reportPreferenceKey(){this.reportPresentation=reportPresentation(readWorkspaceDraft('report-presentation',this.workspaceContext || getWorkspaceContext()) || {});},
     modelValue(value) {
@@ -143,6 +144,7 @@ export default {
       this.$nextTick(this.adjustTextareaHeight);
     },
     draft(value) {
+      this.invalidateIdeas();
       this.$emit("update:modelValue", value);
       this.$nextTick(this.adjustTextareaHeight);
     },
@@ -150,11 +152,29 @@ export default {
   mounted() {
     this.adjustTextareaHeight();
   },
+  beforeUnmount(){this.invalidateIdeas();},
   methods: {
+    invalidateIdeas(){this.ideaSerial++;this.ideasOpen=false;this.ideasLoading=false;this.ideas=[];this.ideaError='';},
+    toggleIdeas(){if(this.ideasOpen){this.invalidateIdeas();return;}return this.generateIdeas();},
+    async generateIdeas(){
+      const serial=++this.ideaSerial;this.ideasOpen=true;this.ideasLoading=true;this.ideaError='';this.ideas=[];
+      try{
+        if(!this.ideaProvider)throw new Error('提问建议服务暂不可用，请稍后重试。');
+        const result=await this.ideaProvider({draft:this.draft,agentId:this.selectedAgentId});
+        if(serial!==this.ideaSerial)return;
+        const ideas=Array.isArray(result?.ideas)?result.ideas:[];
+        if(!ideas.length)throw new Error('暂未生成提问建议，请重试。');
+        this.ideas=ideas;
+      }catch(error){if(serial===this.ideaSerial)this.ideaError=error.message||'提问建议生成失败，请重试。';}
+      finally{if(serial===this.ideaSerial)this.ideasLoading=false;}
+    },
+    pickFiles(event){const files=Array.from(event.target.files||[]);event.target.value='';if(files.length&&!this.loading&&!this.inputDisabled)this.$emit('files',files);},
     applyIdea(idea) {
       if(this.loading || this.inputDisabled)return;
-      if(idea.prompt.length>this.maxLength){this.ideaError=`建议加上原问题超过 ${this.maxLength} 字，请先精简当前问题。`;return;}
-      this.draft=idea.prompt;this.ideasOpen=false;this.ideaError='';this.focusComposer();
+      const original=this.draft;
+      const prompt=original.trim()&&!idea.prompt.includes(original)?`${original}\n\n分析问题：\n${idea.prompt}`:idea.prompt;
+      if(prompt.length>this.maxLength){this.ideaError=`建议加上原问题超过 ${this.maxLength} 字，请先精简当前问题。`;return;}
+      this.draft=prompt;this.ideasOpen=false;this.ideaError='';this.focusComposer();
     },
     handlePrimaryAction() {
       if (this.loading) {
@@ -189,7 +209,7 @@ export default {
       const files = pastedFiles(event.clipboardData);
       if (!files.length) return;
       event.preventDefault();
-      if (!this.loading) this.$emit("files", files);
+      if (!this.loading && !this.inputDisabled) this.$emit("files", files);
     },
     handleEnter(event) {
       if (event.isComposing || event.keyCode === 229) return;
@@ -202,7 +222,7 @@ export default {
     handleDrop(event) {
       if (!event.dataTransfer?.files?.length) return;
       event.preventDefault();
-      if (!this.loading) this.$emit("files", Array.from(event.dataTransfer.files));
+      if (!this.loading && !this.inputDisabled) this.$emit("files", Array.from(event.dataTransfer.files));
     },
     updateSelectedAgent(event) {
       this.$emit("update:selectedAgentId", event.target.value);

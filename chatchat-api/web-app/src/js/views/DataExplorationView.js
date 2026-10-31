@@ -6,7 +6,8 @@ import ReportMarkdown from '../../components/ReportMarkdown.vue';
 import PromptComposer from '../../components/PromptComposer.vue';
 import ExplorationChain from '../../components/ExplorationChain.vue';
 import ExplorationDataTable from '../../components/ExplorationDataTable.vue';
-import {createExploration,listExplorations,getExploration,prepareExploration,executeExploration,saveExplorationNode,explorationAgents,explorationNodeStatus} from '../../services/explorationApi';
+import {createExploration,listExplorations,getExploration,prepareExploration,executeExploration,saveExplorationNode,explorationAgents,explorationNodeStatus,generateExplorationIdeas,uploadExplorationAttachment} from '../../services/explorationApi';
+import {validateChatFiles,chatTextFile,exceedsChatTextLimit,CHAT_FILE_ANALYSIS_OBJECTIVE} from '../utils/chatUserAssets';
 import {workspaceStorageKey} from '../utils/workspaceContext';
 import {workspaceBusinessName,businessNodeTitle} from '../utils/explorationWorkspace';
 import {explorationFigure} from '../utils/explorationPresentation';
@@ -21,6 +22,20 @@ export default {
     const markdown=new MarkdownIt({html:false,linkify:false,breaks:true});
     const spaces=ref([]),space=ref(null),selected=ref([]),activeId=ref(''),title=ref('客户资产分析'),question=ref('');
     const agents=ref([]),agentsLoading=ref(false),selectedAgentId=ref('');
+    const attachments=ref([]);
+    async function uploadAttachment(item){item.state='uploading';item.error='';try{item.asset=await uploadExplorationAttachment(item.file,item.workspaceContext);item.state='ready';}catch(e){item.state='failed';item.error=e.message||'上传失败，可重试';}}
+    async function addFiles(files){
+      if(analyzing.value||busy.value)return false;
+      try{validateChatFiles(files,attachments.value.map(f=>f.file));const items=files.map((file,index)=>({clientId:`attachment-${Date.now()}-${index}-${Math.random().toString(36).slice(2)}`,name:file.name,file,state:'uploading',asset:null,error:'',workspaceContext:props.workspaceContext?{...props.workspaceContext}:null}));
+        attachments.value.push(...items);const added=attachments.value.filter(f=>items.some(i=>i.clientId===f.clientId));await Promise.all(added.map(uploadAttachment));return added;
+      }catch(e){error.value=e.message;return false;}
+    }
+    async function retryFile(id){const item=attachments.value.find(f=>f.clientId===id);if(item&&!analyzing.value&&!busy.value)await uploadAttachment(item);}
+    function removeFile(id){if(!analyzing.value&&!busy.value)attachments.value=attachments.value.filter(f=>f.clientId!==id);}
+    async function suggestIdeas({draft,agentId}){
+      if(attachments.value.some(f=>f.state!=='ready'))throw new Error('请先完成附件上传，或移除失败的附件。');
+      return generateExplorationIdeas({draft,agentId,workspaceId:space.value?.id,nodeId:activeId.value||undefined,fileIds:attachments.value.map(f=>f.asset.id)});
+    }
     const agentAvailable=computed(()=>agents.value.some(a=>a.id===selectedAgentId.value));
     const loading=ref(false),mutationBusy=ref(false),refreshing=ref(false),analyzing=ref(false),saving=ref(false);
     const runningId=ref(''),runningSpaceId=ref(''),error=ref(''),notice=ref('');
@@ -75,12 +90,12 @@ export default {
     function revealAncestors(node){const nodes=space.value?.nodes||[],parents=new Set();let parent=node?.parentId;while(parent&&!parents.has(parent)){parents.add(parent);parent=nodes.find(n=>n.id===parent)?.parentId;}collapsedBranches.value=collapsedBranches.value.filter(id=>!parents.has(id));}
     function selectNode(node){
       const actual=space.value?.nodes.find(n=>n.id===node.id);if(!actual)return;
-      activeId.value=actual.id;selectedAgentId.value=actual.agentId||'';selected.value=[...actual.fileIds];tableOpen.value=false;error.value='';revealAncestors(actual);remember();
+      attachments.value=[];activeId.value=actual.id;selectedAgentId.value=actual.agentId||'';selected.value=[...actual.fileIds];tableOpen.value=false;error.value='';revealAncestors(actual);remember();
       if(narrowViewport)sidebarCollapsed.value=true;
     }
     async function refreshList(){spaces.value=await listExplorations();}
     async function open(id){
-      const params=selection(),loaded=await getExploration(id);space.value=loaded;
+      const params=selection(),loaded=await getExploration(id);attachments.value=[];space.value=loaded;
       activeId.value=params.get('exploration')===id&&loaded.nodes.some(n=>n.id===params.get('node'))?params.get('node'):loaded.nodes.at(-1)?.id||'';
       selectedAgentId.value=active.value?.agentId||'';selected.value=[...(active.value?.fileIds||loaded.fileIds||[])];scheduleStatus();tableOpen.value=false;revealAncestors(active.value);remember();
     }
@@ -90,7 +105,7 @@ export default {
     async function create(){await run(async()=>{
       const source=space.value?{sourceWorkspaceId:space.value.id,...(active.value?{sourceNodeId:active.value.id}:{})}:{};
       const created=await createExploration(title.value,source);space.value=created;activeId.value='';selected.value=[...(created.fileIds||[])];tableOpen.value=false;remember();
-      await refreshList();closeDialog(workspaceDialog.value);question.value='';
+      await refreshList();closeDialog(workspaceDialog.value);question.value='';attachments.value=[];
     });}
     async function save(types=active.value?.chartTypes||{},saved=true,nodeId=activeId.value){
       if(!space.value||!nodeId)return;const id=space.value.id;
@@ -103,20 +118,30 @@ export default {
       }catch(e){error.value=e.message||'分析暂未完成';try{const updated=await getExploration(id);if(space.value?.id===id)space.value=updated;}catch{}}
     }
     async function ask(payload){
-      if(analyzing.value||busy.value)return;
-      const text=(payload?.query??question.value).trim();if(!text)return;if(text.length>6000){error.value='问题最多6000字';return;}
+      if(taskRunning.value||busy.value)return;
+      const original=payload?.query??question.value,originSpace=space.value?.id,originNode=activeId.value,originAgent=selectedAgentId.value;
+      let text=original.trim();if(!text&&!attachments.value.length)return;
       if(!agentAvailable.value){error.value='请选择已发布且获授权的 Agent';return;}
+      if(exceedsChatTextLimit(original)||original.length>8000){
+        let item=attachments.value.find(f=>f.originalText===original);
+        if(!item){const added=await addFiles([chatTextFile(original)]);if(!added)return;item=added[0];item.originalText=original;}
+        text=CHAT_FILE_ANALYSIS_OBJECTIVE;
+      }
+      if(disposed||space.value?.id!==originSpace||activeId.value!==originNode||selectedAgentId.value!==originAgent)return;
+      if(attachments.value.some(f=>f.state!=='ready')){error.value='请先重试或移除上传失败的附件';return;}
+      if(!text)text='请结合补充资料与当前分析，核对数据、说明主要变化和需要进一步确认的问题。';
+      const fileIds=[...new Set([...(active.value?.fileIds||selected.value||space.value?.fileIds||[]),...attachments.value.map(f=>f.asset.id)])];
+      if(fileIds.length>8){error.value='当前节点与补充资料合计最多 8 个附件，请开始新的分析以更换数据';return;}
       if(!space.value){try{space.value=await createExploration(agents.value.find(a=>a.id===selectedAgentId.value).name+'分析');await refreshList();remember();}catch(e){error.value=e.message;return;}}
-      const id=space.value.id,parent=active.value,selectionAtSend=activeId.value;
-      if(parent&&!parent.receipt?.resultAvailable){error.value='当前分析尚未完成，请先恢复或选择已完成的分析';return;}
+      const id=space.value.id,parent=active.value?.receipt?.resultAvailable?active.value:null,selectionAtSend=activeId.value;
       if(parent&&parent.agentId!==selectedAgentId.value){error.value='切换 Agent 请开始新的分析';return;}
       analyzing.value=true;runningSpaceId.value=id;error.value='';mutationBusy.value=true;
       try{
         if(parent&&!parent.saved)await save(parent.chartTypes||{},true,parent.id);
-        const prepared=await prepareExploration(id,{version:space.value.version,parentId:parent?.id||null,agentId:selectedAgentId.value,fileIds:parent?.fileIds||selected.value||space.value.fileIds,question:text,modelName:parent?.modelName||null});
+        const prepared=await prepareExploration(id,{version:space.value.version,parentId:parent?.id||null,agentId:selectedAgentId.value,fileIds,question:text,modelName:parent?.modelName||null});
         const node=prepared.nodes.at(-1);runningId.value=node.id;
         if(space.value?.id===id){space.value=prepared;if(activeId.value===selectionAtSend){activeId.value=node.id;tableOpen.value=false;remember();}}
-        question.value='';mutationBusy.value=false;await execute(id,node);
+        question.value='';attachments.value=[];mutationBusy.value=false;await execute(id,node);
       }catch(e){error.value=e.message||'暂时无法开始分析';}
       finally{mutationBusy.value=false;analyzing.value=false;runningId.value='';runningSpaceId.value='';}
     }
@@ -150,7 +175,7 @@ export default {
       syncViewport();window.addEventListener('resize',syncViewport);
       try{await refreshList();if(spaces.value.length)await open(spaces.value.find(s=>s.id===selection().get('exploration'))?.id||spaces.value[0].id);}catch(e){error.value=e.message;}finally{loading.value=false;}});
     onBeforeUnmount(()=>{disposed=true;stopResize();clearTimeout(noticeTimer);clearTimeout(pollTimer);window.removeEventListener('resize',syncViewport);});
-    return {agents,agentsLoading,selectedAgentId,agentAvailable,selectAgent,taskRunning,spaces,space,selected,activeId,title,question,active,report,authoredReport,charts,currentChart,chartKey,chartData,chartTypes,compatibleTypes,effectiveChartType,heading,summary,
+    return {attachments,addFiles,retryFile,removeFile,suggestIdeas,agents,agentsLoading,selectedAgentId,agentAvailable,selectAgent,taskRunning,spaces,space,selected,activeId,title,question,active,report,authoredReport,charts,currentChart,chartKey,chartData,chartTypes,compatibleTypes,effectiveChartType,heading,summary,
       loading,busy,refreshing,analyzing,saving,runningId,runningSpaceId,error,notice,hasData,sidebarWidth,sidebarCollapsed,collapsedBranches,resizing,contentStyle,
       workspaceElement,workspaceDialog,chartDialog,tableDialog,detailsDialog,tableOpen,expandedChart,workspaceBusinessName,businessNodeTitle,
       open,run,create,ask,recover,reload,saveNode,save,selectNode,chartType,chartReady,selectChart,startRoot,toggleBranch,startResize,

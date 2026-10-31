@@ -1,17 +1,45 @@
 // @vitest-environment jsdom
 import {createApp,h,nextTick} from 'vue';
 import {it,expect,vi,afterEach} from 'vitest';
-const api=vi.hoisted(()=>Object.fromEntries(['createExploration','listExplorations','getExploration','prepareExploration','executeExploration','saveExplorationNode','explorationDatasets','explorationAgents','explorationNodeStatus'].map(k=>[k,vi.fn()])));
+const api=vi.hoisted(()=>Object.fromEntries(['createExploration','listExplorations','getExploration','prepareExploration','executeExploration','saveExplorationNode','explorationDatasets','explorationAgents','explorationNodeStatus','generateExplorationIdeas','uploadExplorationAttachment'].map(k=>[k,vi.fn()])));
 vi.mock('../../services/explorationApi',()=>api);
 vi.mock('../../components/PythonReportChart.vue',()=>({default:{props:['chart','presentation'],render(){return h('div',{'data-chart-type':this.presentation},this.chart.title);}}}));
 import View from '../../views/DataExplorationView.vue';
 let app,host;const settle=async()=>{for(let i=0;i<15;i++)await nextTick();};
 const node=(id,parentId=null)=>({id,parentId,agentId:'agent',question:'分析资产结构',fileIds:['file'],chartTypes:{},saved:true,receipt:{resultAvailable:true,visualReport:{title:'客户资产结构',summary:'真实结果',charts:[{id:'chart',kind:'plotly',title:'资产结构',artifact:{fileId:'artifact-'+id}}]},results:[{reportMarkdown:'<think>private</think>业务结论'}]}});
 const space={id:'space',title:'客户资产分析',version:3,nodes:[node('root'),node('child','root'),node('sibling','root')]};
-async function mount(state=space){api.explorationAgents.mockResolvedValue([{id:'agent',name:'Authorized agent',marketStatus:'published'}]);location.hash='#/w/data-science/dataExploration?exploration=space&node=root';api.listExplorations.mockResolvedValue([{id:'space'}]);api.getExploration.mockResolvedValue(structuredClone(state));host=document.createElement('div');document.body.append(host);app=createApp(View);const vm=app.mount(host);await settle();return vm;}
+it('uploads supplemental data and includes it with inherited files when continuing analysis',async()=>{
+ const vm=await mount(structuredClone(space)),file=new File(['date,pnl\n2026-07-31,47'],'补充.csv',{type:'text/csv'});
+ api.uploadExplorationAttachment.mockResolvedValue({id:'supplement',fileName:file.name});
+ await vm.addFiles([file]);await settle();expect(vm.attachments[0].state).toBe('ready');expect(host.querySelector('.composer-attachments').textContent).toContain('补充.csv');
+ await vm.suggestIdeas({draft:'核对新数据',agentId:'agent'});expect(api.generateExplorationIdeas).toHaveBeenCalledWith({draft:'核对新数据',agentId:'agent',workspaceId:'space',nodeId:'root',fileIds:['supplement']});
+ const next=structuredClone(space);next.nodes.push({...node('new','root'),fileIds:['file','supplement']});api.prepareExploration.mockResolvedValue(next);api.executeExploration.mockResolvedValue(next);
+ await vm.ask({query:'使用补充数据核对'});expect(api.prepareExploration).toHaveBeenCalledWith('space',expect.objectContaining({parentId:'root',fileIds:['file','supplement'],question:'使用补充数据核对'}));expect(vm.attachments).toHaveLength(0);
+});
+it('blocks incomplete uploads and keeps the draft available for retry',async()=>{
+ const vm=await mount(structuredClone(space));api.uploadExplorationAttachment.mockRejectedValueOnce(new Error('上传中断'));
+ await vm.addFiles([new File(['unit=CNY'],'口径.txt',{type:'text/plain'})]);await settle();expect(vm.attachments[0].state).toBe('failed');
+ await vm.ask({query:'核对口径'});expect(api.prepareExploration).not.toHaveBeenCalled();expect(vm.error).toContain('重试');
+ api.uploadExplorationAttachment.mockResolvedValueOnce({id:'fixed'});await vm.retryFile(vm.attachments[0].clientId);expect(vm.attachments[0].state).toBe('ready');
+});
+it('preserves a long pasted text as a complete attachment instead of truncating the analysis input',async()=>{
+ const vm=await mount(structuredClone(space)),original='  '+('完整口径补充资料。'.repeat(1000))+'\n';
+ api.uploadExplorationAttachment.mockResolvedValue({id:'long-text'});
+ const updated=structuredClone(space);updated.nodes.push(node('text-root','root'));api.prepareExploration.mockResolvedValue(updated);api.executeExploration.mockResolvedValue(updated);
+ await vm.ask({query:original});const uploaded=api.uploadExplorationAttachment.mock.calls[0][0],reader=new FileReader();
+ const content=new Promise(resolve=>{reader.onload=()=>resolve(reader.result);});reader.readAsText(uploaded);expect(await content).toBe(original);
+ expect(api.prepareExploration).toHaveBeenCalledWith('space',expect.objectContaining({fileIds:['file','long-text'],question:expect.stringContaining('完整资料')}));
+});
+it('allows supplemental data after a failed analysis and creates a new root without rewriting the failed node',async()=>{
+ const state=structuredClone(space);state.nodes[0].receipt={resultAvailable:false,terminal:true,status:'INPUT_REQUIRED'};
+ const vm=await mount(state);expect(host.querySelector('textarea').disabled).toBe(false);expect(host.textContent).toContain('原节点保留');
+ const updated=structuredClone(state);updated.nodes.push(node('retry-root'));api.prepareExploration.mockResolvedValue(updated);api.executeExploration.mockResolvedValue(updated);
+ await vm.ask({query:'补充口径后重新分析'});expect(api.prepareExploration).toHaveBeenCalledWith('space',expect.objectContaining({parentId:null,question:'补充口径后重新分析'}));expect(api.saveExplorationNode).not.toHaveBeenCalled();
+});
+async function mount(state=space){api.generateExplorationIdeas.mockResolvedValue({ideas:[{title:'核对当前数据',prompt:'基于当前客户资产分析，核对比较基准和新增资料'}]});api.explorationAgents.mockResolvedValue([{id:'agent',name:'Authorized agent',marketStatus:'published'}]);location.hash='#/w/data-science/dataExploration?exploration=space&node=root';api.listExplorations.mockResolvedValue([{id:'space'}]);api.getExploration.mockResolvedValue(structuredClone(state));host=document.createElement('div');document.body.append(host);app=createApp(View);const vm=app.mount(host);await settle();return vm;}
 afterEach(()=>{app?.unmount();host?.remove();vi.resetAllMocks();});
 it('restores and navigates without analysis or file enumeration, hides configuration and private reasoning',async()=>{
- const vm=await mount();expect(vm.active.id).toBe('root');expect(api.explorationDatasets).not.toHaveBeenCalled();expect(host.querySelector('.exploration-config,input[type=checkbox]')).toBeNull();expect(host.textContent).toContain('思维链');expect(host.querySelector('textarea').placeholder).toBe('继续提问或描述想进一步分析的问题……');vm.selectNode(space.nodes[1]);await vm.reload();expect(vm.active.id).toBe('child');expect(location.hash).toContain('node=child');expect(api.executeExploration).not.toHaveBeenCalled();expect(vm.authoredReport).toBe('业务结论');
+ const vm=await mount();expect(vm.active.id).toBe('root');expect(api.explorationDatasets).not.toHaveBeenCalled();expect(host.querySelector('.exploration-config,input[type=checkbox]')).toBeNull();expect(host.textContent).toContain('思维链');expect(host.querySelector('textarea').placeholder).toBe('继续提问，粘贴文件或补充文本资料…');vm.selectNode(space.nodes[1]);await vm.reload();expect(vm.active.id).toBe('child');expect(location.hash).toContain('node=child');expect(api.executeExploration).not.toHaveBeenCalled();expect(vm.authoredReport).toBe('业务结论');
 });
 it('changes presentation in place and rejects incompatible pie without execution',async()=>{
  const vm=await mount(),element=host.querySelector('[data-chart-type]');vm.chartReady({id:'chart',fileId:'artifact-root',figure:{data:[{type:'bar',x:['A'],y:[2]},{type:'bar',x:['A'],y:[3]}],layout:{}},compatibleTypes:['bar','line','scatter']});api.saveExplorationNode.mockResolvedValue({...space,nodes:[{...node('root'),chartTypes:{chart:'line'}},...space.nodes.slice(1)]});await vm.chartType(vm.currentChart,{target:{value:'line'}});await settle();expect(host.querySelector('[data-chart-type]')).toBe(element);expect(element.dataset.chartType).toBe('line');await vm.chartType(vm.currentChart,{target:{value:'pie'}});expect(vm.error).toContain('非负');expect(api.saveExplorationNode).toHaveBeenCalledTimes(1);expect(api.executeExploration).not.toHaveBeenCalled();

@@ -58,6 +58,23 @@ import static org.mockito.Mockito.when;
 class InterpretationPlanRuntimeTest {
 
     @Test
+    void passesExplicitNullableBusinessInputToEnricherWithoutDroppingIt() throws Exception {
+        var runtime=new InterpretationPlanRuntime(mock(ToolRuntimeService.class),new InterpretationPlanValidator(),
+            new InterpretationPlanOptimizer(mock(ToolRegistry.class)),null,null,null,request->{
+            assertThat(request.input()).containsEntry("category",null);
+            org.assertj.core.api.Assertions.assertThatThrownBy(()->request.input().put("category","changed"))
+                .isInstanceOf(UnsupportedOperationException.class);
+            return new LinkedHashMap<>(request.input());
+        });
+        var input=new LinkedHashMap<String,Object>();input.put("category",null);
+        var method=InterpretationPlanRuntime.class.getDeclaredMethod("applyStepInputEnricher",InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class,Map.class,Map.class);method.setAccessible(true);
+        var step=new InterpretationPlan.Step(1,"mcp_tool","published_sql",Map.of(),List.of(),null,null);
+        method.invoke(runtime,step,null,Map.of(),input);
+        assertThat(input).containsEntry("category",null);
+    }
+
+    @Test
     void rejectsUndeclaredDiscoveryFilterBeforeProviderInvocation() throws Exception {
         String tool = "mcp_chatchat_mcp_server_server_capability_query";
         var registry = mock(ToolRegistry.class);

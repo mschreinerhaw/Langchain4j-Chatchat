@@ -177,3 +177,11 @@ it("historical rollback calls the existing action and reports a failed retest wi
   );
   expect(document.body.textContent).toContain("线上版本未变更");
 });
+it('shows actual bounded query rows and truncation evidence while escaping untrusted cells',async()=>{
+ const snapshot={...row(),testEvidence:{success:true,parameters:{},preview:{columns:['amount','note'],rows:[{amount:'1234.50',note:'<script>alert(1)</script>'},{amount:null,note:'empty'}],returnedRowCount:50,possiblyTruncated:true,previewTruncated:true}}};
+ api.sqlTemplateHistory.mockResolvedValue([snapshot]);await mount();
+ const preview=document.querySelector('[aria-label="真实查询结果预览"]');
+ expect(preview.textContent).toContain('1234.50');expect(preview.textContent).toContain('NULL');
+ expect(preview.textContent).toContain('结果可能不完整');expect(preview.textContent).toContain('不能据此认定完整业务对账通过');
+ expect(preview.querySelector('script')).toBeNull();expect(preview.textContent).toContain('<script>');
+});

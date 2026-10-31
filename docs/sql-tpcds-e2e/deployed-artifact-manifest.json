@@ -1,0 +1,34 @@
+{
+  "api": {
+    "sha256": "fac6f6830b323665db10b23a7b1b55e6977885902c22023325c93ebce3fba389",
+    "image": "runtime-os-api:sql-tpcds-e2e-20261031-r3"
+  },
+  "mcp": {
+    "image": "runtime-os-mcp:sql-tpcds-e2e-20261031-r3",
+    "baselineSha256": "3e228acfb4c4031511c5ecb5f60793992910fa5ccbb6e2f79b0290160ce4027c",
+    "sha256": "71f18b5ffc67394672ec6114af286382324bba30b6f3a7eb21da0dd2dd3298c0"
+  },
+  "codingAgent": {
+    "image": "runtime-os-coding-agent:agent-skills-microsoft-20261031-r1",
+    "imageId": "sha256:8033635169a6695010b4a6c6ce0d1f177e697c9f52560b5a668b0b068ef6def5"
+  },
+  "sourceBranch": "feature/sql-tpcds-e2e-microsoft-skills",
+  "status": "DEPLOYED_HEALTHY_REAL_CHAIN_AND_NUMERIC_RECONCILIATION_VERIFIED",
+  "deployment": {
+    "backupVerified": true,
+    "conversationContentUnchanged": true,
+    "messageIndexCountUnchanged": true,
+    "unrelatedContainersUnchanged": true
+  },
+  "acceptance": {
+    "agentTaskId": "d31c32ef-41a1-3c45-81e4-a870faf6ba21",
+    "realSqlReturnedFields": 119,
+    "pythonMetricsVerified": 7,
+    "pythonMonthlyNumericCellsVerified": 33,
+    "pythonReconciliationCellsVerified": 9,
+    "artifactIntegrity": "PASSED",
+    "runtimeBusinessValidation": "INCONCLUSIVE",
+    "programDataQualityValidation": "FAILED: month 3 unobserved",
+    "businessSemanticsCertified": false
+  }
+}

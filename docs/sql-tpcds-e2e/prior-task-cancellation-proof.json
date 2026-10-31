@@ -1,0 +1,56 @@
+{
+  "capturedAt": "2026-10-31T16:26:49.861Z",
+  "checks": [
+    {
+      "parent": "bab56176-0d04-3395-914c-9f52e55040fb",
+      "runId": "att-1-2f18d4ba-69ea-43f9-a219-79e76753d3bc",
+      "tasks": [
+        {
+          "taskId": "analysis-coding-eb9a91b46e5af0c695071087ec5924af56828a56f517a89605f331689d7c8ef6",
+          "status": "FAILED",
+          "cancellationRequested": false,
+          "executionControl": {
+            "stopReason": null,
+            "stopRequestedAt": null,
+            "executorStopped": true,
+            "reconciliationRequired": false
+          }
+        }
+      ]
+    },
+    {
+      "parent": "61513e04-05f0-327b-862f-7da8d834a3e6",
+      "runId": "att-1-22202adc-7040-47bf-b3f6-ae53521ba1c4",
+      "tasks": [
+        {
+          "taskId": "analysis-coding-8cbf88d313b16a487bbbf7eeeeb857b011b199bf6952cb8a18cd1ef5640a8408",
+          "status": "RUNNING",
+          "cancellationRequested": true,
+          "executionControl": {
+            "stopReason": "CANCEL_REQUESTED",
+            "stopRequestedAt": "2026-10-31T15:59:20.638Z",
+            "executorStopped": false,
+            "reconciliationRequired": true
+          }
+        }
+      ]
+    },
+    {
+      "parent": "e14ab620-8ec6-33c1-84d5-54031225ff34",
+      "runId": "att-1-7977487b-043a-4900-a351-71e698449b84",
+      "tasks": [
+        {
+          "taskId": "analysis-coding-5b99471fddc04c1a98be2f27c0f4144c4573da97422c1236c1b40411b38a8837",
+          "status": "RUNNING",
+          "cancellationRequested": true,
+          "executionControl": {
+            "stopReason": "CANCEL_REQUESTED",
+            "stopRequestedAt": "2026-10-31T16:08:25.219Z",
+            "executorStopped": false,
+            "reconciliationRequired": true
+          }
+        }
+      ]
+    }
+  ]
+}

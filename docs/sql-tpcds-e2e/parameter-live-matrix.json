@@ -1,0 +1,156 @@
+[
+  {
+    "name": "default-null",
+    "expected": true,
+    "replayDidNotBumpVersion": true,
+    "testId": "733ef9e0-b35e-47f0-b8ea-a0c63ca85c01",
+    "traceId": "733ef9e0-b35e-47f0-b8ea-a0c63ca85c01",
+    "success": true,
+    "rowCount": 11,
+    "errorCode": "",
+    "parameters": {
+      "start_date": "1999-01-01",
+      "end_date": "1999-12-31"
+    },
+    "durationMs": 396,
+    "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8"
+  },
+  {
+    "name": "explicit-null",
+    "expected": true,
+    "testId": "4699c711-cdda-4fde-ac49-885785459244",
+    "traceId": "4699c711-cdda-4fde-ac49-885785459244",
+    "success": true,
+    "rowCount": 11,
+    "errorCode": "",
+    "parameters": {
+      "start_date": "1999-01-01",
+      "end_date": "1999-12-31",
+      "category": null,
+      "min_quantity": 0
+    },
+    "durationMs": 247,
+    "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8"
+  },
+  {
+    "name": "changed-period",
+    "expected": true,
+    "testId": "d676b604-de8b-4141-94bd-e0b3be8eb8c1",
+    "traceId": "d676b604-de8b-4141-94bd-e0b3be8eb8c1",
+    "success": true,
+    "rowCount": 11,
+    "errorCode": "",
+    "parameters": {
+      "start_date": "2000-01-01",
+      "end_date": "2000-12-31",
+      "category": "Music",
+      "min_quantity": 10
+    },
+    "durationMs": 181,
+    "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8"
+  },
+  {
+    "name": "quoted-category",
+    "expected": true,
+    "testId": "084d11fc-0023-445d-9ac7-d963cdb6fe5c",
+    "traceId": "084d11fc-0023-445d-9ac7-d963cdb6fe5c",
+    "success": true,
+    "rowCount": 0,
+    "errorCode": "",
+    "parameters": {
+      "start_date": "1999-01-01",
+      "end_date": "1999-12-31",
+      "category": "O'Reilly"
+    },
+    "durationMs": 178,
+    "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8"
+  },
+  {
+    "name": "backslash-injection-literal",
+    "expected": true,
+    "testId": "582886bb-08a9-47bb-9918-e510e8f1abee",
+    "traceId": "582886bb-08a9-47bb-9918-e510e8f1abee",
+    "success": true,
+    "rowCount": 0,
+    "errorCode": "",
+    "parameters": {
+      "start_date": "1999-01-01",
+      "end_date": "1999-12-31",
+      "category": "O\\' OR 1=1 #"
+    },
+    "durationMs": 183,
+    "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8"
+  },
+  {
+    "name": "missing-date",
+    "expected": false,
+    "testId": "da0e209c-41fa-4801-bc1d-2e036f9bf96d",
+    "traceId": "da0e209c-41fa-4801-bc1d-2e036f9bf96d",
+    "success": false,
+    "errorCode": "SQL_OR_PARAMETER_VALIDATION_FAILED",
+    "parameters": {
+      "end_date": "1999-12-31"
+    },
+    "durationMs": 5,
+    "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8"
+  },
+  {
+    "name": "invalid-date",
+    "expected": false,
+    "testId": "ada9c1a9-f006-49ee-ba73-88e869b23b53",
+    "traceId": "ada9c1a9-f006-49ee-ba73-88e869b23b53",
+    "success": false,
+    "errorCode": "SQL_OR_PARAMETER_VALIDATION_FAILED",
+    "parameters": {
+      "start_date": "1999-99-99",
+      "end_date": "1999-12-31"
+    },
+    "durationMs": 4,
+    "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8"
+  },
+  {
+    "name": "negative-quantity",
+    "expected": false,
+    "testId": "b3429eed-0b14-49bc-9068-1eda8b3d57a7",
+    "traceId": "b3429eed-0b14-49bc-9068-1eda8b3d57a7",
+    "success": false,
+    "errorCode": "SQL_OR_PARAMETER_VALIDATION_FAILED",
+    "parameters": {
+      "start_date": "1999-01-01",
+      "end_date": "1999-12-31",
+      "min_quantity": -1
+    },
+    "durationMs": 0,
+    "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8"
+  },
+  {
+    "name": "fractional-integer",
+    "expected": false,
+    "testId": "fcbc6f5d-5d7b-4af4-800d-fea35c687184",
+    "traceId": "fcbc6f5d-5d7b-4af4-800d-fea35c687184",
+    "success": false,
+    "errorCode": "SQL_OR_PARAMETER_VALIDATION_FAILED",
+    "parameters": {
+      "start_date": "1999-01-01",
+      "end_date": "1999-12-31",
+      "product_id": 1.5
+    },
+    "durationMs": 0,
+    "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8"
+  },
+  {
+    "name": "invalid-number",
+    "expected": false,
+    "testId": "b9e6b333-f347-4d5d-8b06-71ac4c4064c6",
+    "traceId": "b9e6b333-f347-4d5d-8b06-71ac4c4064c6",
+    "success": false,
+    "errorCode": "SQL_OR_PARAMETER_VALIDATION_FAILED",
+    "parameters": {
+      "start_date": "1999-01-01",
+      "end_date": "1999-12-31",
+      "product_id": "1 OR 1=1"
+    },
+    "durationMs": 0,
+    "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8"
+  }
+]

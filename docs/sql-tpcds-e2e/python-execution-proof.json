@@ -1,0 +1,382 @@
+{
+  "agentTaskId": "d31c32ef-41a1-3c45-81e4-a870faf6ba21",
+  "runId": "att-1-dd39d001-e1b0-4b31-8a3a-ac6da92881a0",
+  "explorationId": "f03e9781-931f-4300-870b-1abf7c932fe4",
+  "nodeId": "377f0735-8455-4078-9804-bee1a7797108",
+  "receiptStatus": "SUCCEEDED",
+  "terminal": true,
+  "resultAvailable": true,
+  "codingTaskId": "analysis-coding-fd69bebc97ba69856d4891f8f2a5703808e92e75ee69299e418673353ea642dd",
+  "codingOutcome": {
+    "schemaVersion": "runtime_os.coding.v3",
+    "taskId": "analysis-coding-fd69bebc97ba69856d4891f8f2a5703808e92e75ee69299e418673353ea642dd",
+    "scope": {
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+      "requestId": "2592e15d-589c-428c-ad5d-1f23b7b61523",
+      "conversationId": "exploration-377f0735-8455-4078-9804-bee1a7797108",
+      "runId": "att-1-dd39d001-e1b0-4b31-8a3a-ac6da92881a0",
+      "environment": null,
+      "attributes": {}
+    },
+    "contractSha256": "075b7aaf02222ab7849534371cd5246875df35bb8b75eb1e388cd7f42951cfd3",
+    "status": "COMPLETED",
+    "revision": 140,
+    "lastEventSequence": 141,
+    "createdAt": "2026-10-31T16:16:38.165Z",
+    "updatedAt": "2026-10-31T16:20:55.447Z",
+    "startedAt": "2026-10-31T16:16:38.182Z",
+    "endedAt": "2026-10-31T16:20:55.447Z",
+    "cancellationRequested": false,
+    "reasonCode": null,
+    "summary": "Coding execution archived; validation INCONCLUSIVE",
+    "limitations": [
+      "A2 enforces cumulative admission reservations only; model/process hard limits, instantaneous memory and disk enforcement require execution-node adapters."
+    ],
+    "inputSnapshotRef": "runtime-evidence:coding:input:8d61f12ea9144abe850053cc9c4cf25c569794b269b7c596871f3bd5d8ad867",
+    "codeArtifactRef": "runtime-evidence:coding:5f03422b7b28106f92f1746ffbd34e8b0c05b64701ca07ea84a521ab04815638:code",
+    "executionReceiptRef": "runtime-evidence:coding:5f03422b7b28106f92f1746ffbd34e8b0c05b64701ca07ea84a521ab04815638:receipt",
+    "resultDatasetRef": "runtime-evidence:coding:5f03422b7b28106f92f1746ffbd34e8b0c05b64701ca07ea84a521ab04815638:result",
+    "validationRecordRef": "runtime-evidence:coding:5f03422b7b28106f92f1746ffbd34e8b0c05b64701ca07ea84a521ab04815638:validation",
+    "evidenceBundleRef": "runtime-evidence:coding:5f03422b7b28106f92f1746ffbd34e8b0c05b64701ca07ea84a521ab04815638:bundle",
+    "validationStatus": "INCONCLUSIVE",
+    "reproducibility": {
+      "level": "CONDITIONAL",
+      "limitations": [
+        "Execution and reproducibility have not been verified"
+      ],
+      "dependencyRefs": [
+        "b1068ad2-7b8d-4fb0-9230-316c86c596a4"
+      ]
+    },
+    "usage": {
+      "budgetId": "analysis-coding-tool-budget:analysis-coding-fd69bebc97ba69856d4891f8f2a5703808e92e75ee69299e418673353ea642dd",
+      "costCurrency": "USD",
+      "consumed": {
+        "modelCalls": 8,
+        "modelTokens": 366540,
+        "toolCalls": 4,
+        "codeExecutions": 4,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 516605,
+        "costAmount": "0"
+      },
+      "reserved": {
+        "modelCalls": 0,
+        "modelTokens": 158844,
+        "toolCalls": 0,
+        "codeExecutions": 0,
+        "cpuMillis": 100000,
+        "peakMemoryBytes": 0,
+        "outputBytes": 881495,
+        "costAmount": "6.666666666664"
+      },
+      "meteringComplete": false
+    },
+    "executionControl": {
+      "stopReason": null,
+      "stopRequestedAt": null,
+      "executorStopped": true,
+      "reconciliationRequired": false
+    },
+    "parentTaskId": null,
+    "supersedesTaskId": null,
+    "perArtifactCompleteness": {}
+  },
+  "executions": [
+    {
+      "schemaVersion": "runtime_os.execution_feedback.v1",
+      "taskId": "analysis-coding-fd69bebc97ba69856d4891f8f2a5703808e92e75ee69299e418673353ea642dd",
+      "executionId": "cline-1e49dc6b9f4cdd39da45e0f0afc635bf53d9d7d1070043f6ba2066f3a4b31085",
+      "attemptId": "analysis-coding-fd69bebc97ba69856d4891f8f2a5703808e92e75ee69299e418673353ea642dd:execution-1",
+      "traceId": "att-1-dd39d001-e1b0-4b31-8a3a-ac6da92881a0",
+      "status": "FAILED",
+      "stage": "EXECUTION_FAILED",
+      "exitCode": 1,
+      "durationMs": 5150,
+      "cpuTimeMs": 2715,
+      "maxRssBytes": 159055872,
+      "codeHash": "8da0c48691a0a54f0fc6e4b85400cf53983c540a1ba347a66c97e112669763f6",
+      "stdoutBytes": 0,
+      "stderrBytes": 440,
+      "error": {
+        "category": "SCHEMA_ACCESS",
+        "exceptionType": "KeyError",
+        "diagnosticCode": "FIELD_ACCESS_ERROR",
+        "message": "Compare the field access at the reported line with the authorized schema and variable definitions; do not guess missing business fields.",
+        "stack": [
+          {
+            "file": "248-tpcds-1-1999-1999-01_20261031T161851577Z_52b5bb943a1e_v1.py",
+            "line": 98,
+            "column": null
+          }
+        ],
+        "detailRef": "execution:cline-1e49dc6b9f4cdd39da45e0f0afc635bf53d9d7d1070043f6ba2066f3a4b31085:logs:runtime-diagnostic.json"
+      },
+      "inputDataRefs": [
+        "runtime-evidence:coding:input:8d61f12ea9144abe850053cc9c4cf25c569794b269b7c596871f3bd5d8ad867"
+      ],
+      "schemaRef": "runtime-coding-schema:a0e8ae094a70a0b96aa43db24fc839596818b67920f99467c94c83c88591434e",
+      "inputFiles": [
+        {
+          "fileId": "c8d61f12ea9144abe850053cc9c4cf25c569794b269b7c596871f3bd5d8ad867",
+          "fileName": "manifest.json",
+          "sha256": "9d8c0837c5a71430fd6cdfa6f1c16dea2c2e27fefe638201ba8fcfa316128ad6"
+        }
+      ],
+      "inputSchemaSummary": {
+        "manifestSha256": "9d8c0837c5a71430fd6cdfa6f1c16dea2c2e27fefe638201ba8fcfa316128ad6",
+        "manifestFileId": "c8d61f12ea9144abe850053cc9c4cf25c569794b269b7c596871f3bd5d8ad867",
+        "format": "PARQUET"
+      },
+      "artifactRefs": {
+        "diagnosticRef": "execution:cline-1e49dc6b9f4cdd39da45e0f0afc635bf53d9d7d1070043f6ba2066f3a4b31085:logs:runtime-diagnostic.json",
+        "stderrRef": "execution:cline-1e49dc6b9f4cdd39da45e0f0afc635bf53d9d7d1070043f6ba2066f3a4b31085:logs:stderr.txt"
+      },
+      "validationStatus": "NOT_RUN",
+      "resultAvailable": false,
+      "manifestHash": "9acbc82d3e47c5256e272f2cf6ae3c38bfc74193f4d6940b973a311d86a373d0",
+      "outputStatus": null,
+      "businessValidationPassed": false,
+      "repair": {
+        "allowed": true,
+        "action": "REPAIR_IN_CURRENT_CONTEXT",
+        "reason": "TECHNICAL_REPAIR",
+        "attemptsUsed": 0,
+        "maxAttempts": 3,
+        "baseCodeHash": "8da0c48691a0a54f0fc6e4b85400cf53983c540a1ba347a66c97e112669763f6",
+        "guidance": "Compare the field access at the reported line with the authorized schema and variable definitions; do not guess missing business fields."
+      },
+      "diagnosticPolicy": "METADATA_ONLY_V1"
+    },
+    {
+      "schemaVersion": "runtime_os.execution_feedback.v1",
+      "taskId": "analysis-coding-fd69bebc97ba69856d4891f8f2a5703808e92e75ee69299e418673353ea642dd",
+      "executionId": "cline-09e7ab0a077ab6728d7f8d4c1936612b61e47a355e0e8bac7a1b5a317b9a3d60",
+      "attemptId": "analysis-coding-fd69bebc97ba69856d4891f8f2a5703808e92e75ee69299e418673353ea642dd:execution-2",
+      "traceId": "att-1-dd39d001-e1b0-4b31-8a3a-ac6da92881a0",
+      "status": "FAILED",
+      "stage": "EXECUTION_FAILED",
+      "exitCode": 1,
+      "durationMs": 2512,
+      "cpuTimeMs": 2435,
+      "maxRssBytes": 159916032,
+      "codeHash": "751a91760efc0545bb59a93c816e504a3a09ae12da6abe978f3a79a4ddb00530",
+      "stdoutBytes": 0,
+      "stderrBytes": 706,
+      "error": {
+        "category": "SCHEMA_ACCESS",
+        "exceptionType": "KeyError",
+        "diagnosticCode": "FIELD_ACCESS_ERROR",
+        "message": "Compare the field access at the reported line with the authorized schema and variable definitions; do not guess missing business fields.",
+        "stack": [
+          {
+            "file": "248-tpcds-1-1999-1999-01_20261031T161907095Z_52b5bb943a1e_v2.py",
+            "line": 254,
+            "column": null
+          },
+          {
+            "file": "248-tpcds-1-1999-1999-01_20261031T161907095Z_52b5bb943a1e_v2.py",
+            "line": 254,
+            "column": null
+          }
+        ],
+        "detailRef": "execution:cline-09e7ab0a077ab6728d7f8d4c1936612b61e47a355e0e8bac7a1b5a317b9a3d60:logs:runtime-diagnostic.json"
+      },
+      "inputDataRefs": [
+        "runtime-evidence:coding:input:8d61f12ea9144abe850053cc9c4cf25c569794b269b7c596871f3bd5d8ad867"
+      ],
+      "schemaRef": "runtime-coding-schema:a0e8ae094a70a0b96aa43db24fc839596818b67920f99467c94c83c88591434e",
+      "inputFiles": [
+        {
+          "fileId": "c8d61f12ea9144abe850053cc9c4cf25c569794b269b7c596871f3bd5d8ad867",
+          "fileName": "manifest.json",
+          "sha256": "9d8c0837c5a71430fd6cdfa6f1c16dea2c2e27fefe638201ba8fcfa316128ad6"
+        }
+      ],
+      "inputSchemaSummary": {
+        "manifestSha256": "9d8c0837c5a71430fd6cdfa6f1c16dea2c2e27fefe638201ba8fcfa316128ad6",
+        "manifestFileId": "c8d61f12ea9144abe850053cc9c4cf25c569794b269b7c596871f3bd5d8ad867",
+        "format": "PARQUET"
+      },
+      "artifactRefs": {
+        "diagnosticRef": "execution:cline-09e7ab0a077ab6728d7f8d4c1936612b61e47a355e0e8bac7a1b5a317b9a3d60:logs:runtime-diagnostic.json",
+        "stderrRef": "execution:cline-09e7ab0a077ab6728d7f8d4c1936612b61e47a355e0e8bac7a1b5a317b9a3d60:logs:stderr.txt"
+      },
+      "validationStatus": "NOT_RUN",
+      "resultAvailable": false,
+      "manifestHash": "dcf0c872d79544549cf25aadc961cd9b39b4603315a7e7d1ba4f74be098d0d48",
+      "outputStatus": null,
+      "businessValidationPassed": false,
+      "repair": {
+        "allowed": true,
+        "action": "REPAIR_IN_CURRENT_CONTEXT",
+        "reason": "TECHNICAL_REPAIR",
+        "attemptsUsed": 1,
+        "maxAttempts": 3,
+        "baseCodeHash": "751a91760efc0545bb59a93c816e504a3a09ae12da6abe978f3a79a4ddb00530",
+        "guidance": "Compare the field access at the reported line with the authorized schema and variable definitions; do not guess missing business fields."
+      },
+      "diagnosticPolicy": "METADATA_ONLY_V1"
+    },
+    {
+      "schemaVersion": "runtime_os.execution_feedback.v1",
+      "taskId": "analysis-coding-fd69bebc97ba69856d4891f8f2a5703808e92e75ee69299e418673353ea642dd",
+      "executionId": "cline-331f675f3eb2e874871d4d61b7d9cc029632a0f232faf3c8f352c6a884765c96",
+      "attemptId": "analysis-coding-fd69bebc97ba69856d4891f8f2a5703808e92e75ee69299e418673353ea642dd:execution-3",
+      "traceId": "att-1-dd39d001-e1b0-4b31-8a3a-ac6da92881a0",
+      "status": "SUCCEEDED",
+      "stage": "VALIDATED",
+      "exitCode": 0,
+      "durationMs": 3175,
+      "cpuTimeMs": 2786,
+      "maxRssBytes": 174804992,
+      "codeHash": "38bcbf4bd4e13ee53c6fbf88eee6869f01d2ea16a7060710ad857596f1c8dce8",
+      "stdoutBytes": 0,
+      "stderrBytes": 0,
+      "error": null,
+      "inputDataRefs": [
+        "runtime-evidence:coding:input:8d61f12ea9144abe850053cc9c4cf25c569794b269b7c596871f3bd5d8ad867"
+      ],
+      "schemaRef": "runtime-coding-schema:a0e8ae094a70a0b96aa43db24fc839596818b67920f99467c94c83c88591434e",
+      "inputFiles": [
+        {
+          "fileId": "c8d61f12ea9144abe850053cc9c4cf25c569794b269b7c596871f3bd5d8ad867",
+          "fileName": "manifest.json",
+          "sha256": "9d8c0837c5a71430fd6cdfa6f1c16dea2c2e27fefe638201ba8fcfa316128ad6"
+        }
+      ],
+      "inputSchemaSummary": {
+        "manifestSha256": "9d8c0837c5a71430fd6cdfa6f1c16dea2c2e27fefe638201ba8fcfa316128ad6",
+        "manifestFileId": "c8d61f12ea9144abe850053cc9c4cf25c569794b269b7c596871f3bd5d8ad867",
+        "format": "PARQUET"
+      },
+      "artifactRefs": {
+        "evidenceBundleRef": "runtime-evidence:coding:6fec5426f38fc46b92a424a51d5493f8692d66949ade1e1d18b21445de3012a9:bundle",
+        "diagnosticRef": "execution:cline-331f675f3eb2e874871d4d61b7d9cc029632a0f232faf3c8f352c6a884765c96:logs:runtime-diagnostic.json",
+        "stderrRef": "execution:cline-331f675f3eb2e874871d4d61b7d9cc029632a0f232faf3c8f352c6a884765c96:logs:stderr.txt",
+        "executionReceiptRef": "runtime-evidence:coding:6fec5426f38fc46b92a424a51d5493f8692d66949ade1e1d18b21445de3012a9:receipt",
+        "codeArtifactRef": "runtime-evidence:coding:6fec5426f38fc46b92a424a51d5493f8692d66949ade1e1d18b21445de3012a9:code",
+        "inputSnapshotRef": "runtime-evidence:coding:input:8d61f12ea9144abe850053cc9c4cf25c569794b269b7c596871f3bd5d8ad867",
+        "resultDatasetRef": "runtime-evidence:coding:6fec5426f38fc46b92a424a51d5493f8692d66949ade1e1d18b21445de3012a9:result",
+        "validationRecordRef": "runtime-evidence:coding:6fec5426f38fc46b92a424a51d5493f8692d66949ade1e1d18b21445de3012a9:validation"
+      },
+      "validationStatus": "INCONCLUSIVE",
+      "resultAvailable": true,
+      "manifestHash": "6c264ce6055d3c28b9f5fcd646dc311ba7ffaad53258be05e7923da9c103e945",
+      "outputStatus": null,
+      "businessValidationPassed": false,
+      "repair": {
+        "allowed": false,
+        "action": "COMPLETE",
+        "reason": "RESULT_VERIFIED",
+        "attemptsUsed": 2,
+        "maxAttempts": 3,
+        "baseCodeHash": "38bcbf4bd4e13ee53c6fbf88eee6869f01d2ea16a7060710ad857596f1c8dce8",
+        "guidance": "Result archived; business correctness remains governed by validationStatus."
+      },
+      "diagnosticPolicy": "METADATA_ONLY_V1"
+    },
+    {
+      "schemaVersion": "runtime_os.execution_feedback.v1",
+      "taskId": "analysis-coding-fd69bebc97ba69856d4891f8f2a5703808e92e75ee69299e418673353ea642dd",
+      "executionId": "cline-d6072cc5dd7287bcbcad6e8af94830d34adce9ae73bb2c2b19e2cfaa468843d2",
+      "attemptId": "analysis-coding-fd69bebc97ba69856d4891f8f2a5703808e92e75ee69299e418673353ea642dd:execution-4",
+      "traceId": "att-1-dd39d001-e1b0-4b31-8a3a-ac6da92881a0",
+      "status": "SUCCEEDED",
+      "stage": "VALIDATED",
+      "exitCode": 0,
+      "durationMs": 4986,
+      "cpuTimeMs": 2880,
+      "maxRssBytes": 172371968,
+      "codeHash": "c9407f627b4e6070acff3da84a8c0925c4eabeeb65657e1e01c0ade5a14eb4c3",
+      "stdoutBytes": 0,
+      "stderrBytes": 0,
+      "error": null,
+      "inputDataRefs": [
+        "runtime-evidence:coding:input:8d61f12ea9144abe850053cc9c4cf25c569794b269b7c596871f3bd5d8ad867"
+      ],
+      "schemaRef": "runtime-coding-schema:a0e8ae094a70a0b96aa43db24fc839596818b67920f99467c94c83c88591434e",
+      "inputFiles": [
+        {
+          "fileId": "c8d61f12ea9144abe850053cc9c4cf25c569794b269b7c596871f3bd5d8ad867",
+          "fileName": "manifest.json",
+          "sha256": "9d8c0837c5a71430fd6cdfa6f1c16dea2c2e27fefe638201ba8fcfa316128ad6"
+        }
+      ],
+      "inputSchemaSummary": {
+        "manifestSha256": "9d8c0837c5a71430fd6cdfa6f1c16dea2c2e27fefe638201ba8fcfa316128ad6",
+        "manifestFileId": "c8d61f12ea9144abe850053cc9c4cf25c569794b269b7c596871f3bd5d8ad867",
+        "format": "PARQUET"
+      },
+      "artifactRefs": {
+        "evidenceBundleRef": "runtime-evidence:coding:5f03422b7b28106f92f1746ffbd34e8b0c05b64701ca07ea84a521ab04815638:bundle",
+        "diagnosticRef": "execution:cline-d6072cc5dd7287bcbcad6e8af94830d34adce9ae73bb2c2b19e2cfaa468843d2:logs:runtime-diagnostic.json",
+        "stderrRef": "execution:cline-d6072cc5dd7287bcbcad6e8af94830d34adce9ae73bb2c2b19e2cfaa468843d2:logs:stderr.txt",
+        "executionReceiptRef": "runtime-evidence:coding:5f03422b7b28106f92f1746ffbd34e8b0c05b64701ca07ea84a521ab04815638:receipt",
+        "codeArtifactRef": "runtime-evidence:coding:5f03422b7b28106f92f1746ffbd34e8b0c05b64701ca07ea84a521ab04815638:code",
+        "inputSnapshotRef": "runtime-evidence:coding:input:8d61f12ea9144abe850053cc9c4cf25c569794b269b7c596871f3bd5d8ad867",
+        "resultDatasetRef": "runtime-evidence:coding:5f03422b7b28106f92f1746ffbd34e8b0c05b64701ca07ea84a521ab04815638:result",
+        "validationRecordRef": "runtime-evidence:coding:5f03422b7b28106f92f1746ffbd34e8b0c05b64701ca07ea84a521ab04815638:validation"
+      },
+      "validationStatus": "INCONCLUSIVE",
+      "resultAvailable": true,
+      "manifestHash": "129214f90e957c22195ce785e60e8dd9d3330bf95c89bcc4183845b1388fde74",
+      "outputStatus": null,
+      "businessValidationPassed": false,
+      "repair": {
+        "allowed": false,
+        "action": "COMPLETE",
+        "reason": "RESULT_VERIFIED",
+        "attemptsUsed": 2,
+        "maxAttempts": 3,
+        "baseCodeHash": "c9407f627b4e6070acff3da84a8c0925c4eabeeb65657e1e01c0ade5a14eb4c3",
+        "guidance": "Result archived; business correctness remains governed by validationStatus."
+      },
+      "diagnosticPolicy": "METADATA_ONLY_V1"
+    }
+  ],
+  "modelReceipts": [
+    {
+      "operationId": "model-1",
+      "startedAt": "2026-10-31T16:16:38.695285654Z",
+      "durationMs": 41846
+    },
+    {
+      "operationId": "model-2",
+      "startedAt": "2026-10-31T16:17:21.760535902Z",
+      "durationMs": 89338
+    },
+    {
+      "operationId": "model-3",
+      "startedAt": "2026-10-31T16:19:00.754773859Z",
+      "durationMs": 5532
+    },
+    {
+      "operationId": "model-4",
+      "startedAt": "2026-10-31T16:19:13.633668156Z",
+      "durationMs": 5786
+    },
+    {
+      "operationId": "model-5",
+      "startedAt": "2026-10-31T16:19:22.697390478Z",
+      "durationMs": 5723
+    },
+    {
+      "operationId": "model-6",
+      "startedAt": "2026-10-31T16:19:38.091384192Z",
+      "durationMs": 40153
+    },
+    {
+      "operationId": "model-7",
+      "startedAt": "2026-10-31T16:20:20.869640164Z",
+      "durationMs": 14828
+    },
+    {
+      "operationId": "model-8",
+      "startedAt": "2026-10-31T16:20:48.820023191Z",
+      "durationMs": 3698
+    }
+  ]
+}

@@ -561,6 +561,27 @@ class SqlTemplateServiceTest {
         return config;
     }
 
+    @Test void mysqlBackslashesCannotEscapeThePublishedStringLiteral() {
+        var config=template("ESCAPED_VALUE");config.setDatabaseType("mysql");
+        config.setSqlTemplate("SELECT {{value}} AS value");
+        config.setParameterSchemaJson("{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\"}},\"required\":[\"value\"]}");
+        when(repository.findByCode(config.getCode())).thenReturn(Optional.of(config));
+        String payload="O\\' OR 1=1 #";
+        String literal="CONVERT(X'"+java.util.HexFormat.of().formatHex(payload.getBytes(java.nio.charset.StandardCharsets.UTF_8))+"' USING utf8mb4)";
+        assertThat(service(new SqlTemplateSeedProperties()).render(config.getCode(),Map.of("value",payload)))
+            .isEqualTo("SELECT "+literal+" AS value");
+    }
+
+    @Test void onlyExplicitlyNullableParametersCanRenderSqlNull() {
+        var config=template("NULLABLE_VALUE");config.setSqlTemplate("SELECT {{value}} AS value");
+        config.setParameterSchemaJson("{\"type\":\"object\",\"properties\":{\"value\":{\"type\":[\"string\",\"null\"],\"default\":null}}}");
+        when(repository.findByCode(config.getCode())).thenReturn(Optional.of(config));
+        var renderer=service(new SqlTemplateSeedProperties());
+        assertThat(renderer.render(config.getCode(),Map.of())).isEqualTo("SELECT NULL AS value");
+        config.setParameterSchemaJson("{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\"}}}");
+        assertThatThrownBy(()->renderer.render(config.getCode(),Map.of())).hasMessageContaining("parameter is required");
+    }
+
     private SqlTemplateService service(SqlTemplateSeedProperties properties) {
         return new SqlTemplateService(
             repository,

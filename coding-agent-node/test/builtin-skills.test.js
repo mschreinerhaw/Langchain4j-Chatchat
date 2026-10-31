@@ -6,15 +6,15 @@ import { createSkillsConfigDefinition, UnifiedConfigFileWatcher } from '@cline/c
 import { taskSkills, bundledSkillFiles } from '../src/skills.js';
 import { createCodingRun } from '../src/runner.js';
 
-test('pinned Cline discovers and parses both packaged Skills without network access', async () => {
+test('pinned Cline discovers all original packaged Skills without network access', async () => {
   const folders = bundledSkillFiles().map(item => dirname(item.filePath));
   const definition = createSkillsConfigDefinition({ directories: [resolve(folders[0], '..')], includePluginSkills: false });
   const watcher = new UnifiedConfigFileWatcher([definition]);
   try {
     await watcher.start();
     const snapshot = [...watcher.getSnapshot('skill').values()];
-    assert.equal(snapshot.length, 2);
-    assert.deepEqual(snapshot.map(item => item.item.name).sort(), ['python-code-development','python-data-analysis']);
+    assert.equal(snapshot.length, 6);
+    assert.deepEqual(snapshot.map(item => item.item.name).sort(), ['azure-ai-ml-py','azure-kusto','mcp-builder','python-code-development','python-data-analysis','skill-creator']);
   } finally { watcher.stop(); }
 });
 
@@ -27,10 +27,10 @@ test('Agent policy, collisions and resources are task scoped and do not modify t
   dynamic.version = '2';
   assert.equal(a.catalog.skills.find(card => card.id === 'domain-a').version, '1');
   assert.equal(a.catalog.conflicts[0].reason, 'BUILTIN_NAME_RESERVED');
-  assert.equal(a.catalog.skills.length, 3);
-  assert.equal(b.catalog.skills.length, 1);
+  assert.equal(a.catalog.skills.length, 7);
+  assert.equal(b.catalog.skills.length, 5);
   assert.equal(b.readBuiltin('builtin:python-data-analysis'), null);
-  assert.equal(taskSkills().catalog.skills.length, 2);
+  assert.equal(taskSkills().catalog.skills.length, 6);
   const instructions = a.readBuiltin('builtin:python-data-analysis');
   assert.match(instructions.instructions, /Python Sandbox/);
   assert.match(a.readBuiltin('builtin:python-data-analysis', instructions.resources[0].path).content, /Parquet/);

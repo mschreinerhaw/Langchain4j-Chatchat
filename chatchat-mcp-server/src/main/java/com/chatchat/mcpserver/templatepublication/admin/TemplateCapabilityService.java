@@ -108,6 +108,8 @@ public class TemplateCapabilityService {
     public Map<String, Object> offline(String tenant, String actor, String id) {
         var row = releases.findById(id).filter(item -> KIND.equals(item.getKind()) && tenant.equals(item.getTenantId())
             && actor.equals(item.getActorId())).orElseThrow(() -> new SecurityException("Publication is outside current user scope"));
+        var revision=definition(row).path("binding").path("sqlRevisionId");
+        if(revision.isTextual())sqlAuthors.getObject().offlinePublication(revision.asText(),tenant,actor,id);
         lock(row.getLogicalId());
         row = releases.lockLogical(row.getLogicalId()).stream().filter(item -> id.equals(item.getId())).findFirst().orElseThrow();
         row.setState("OFFLINE"); releases.saveAndFlush(row); refreshAfterCommit(); return view(row);
@@ -138,6 +140,7 @@ public class TemplateCapabilityService {
         }
         long started = System.currentTimeMillis();
         boolean successful = false;
+        var invocation=com.chatchat.mcpserver.mcp.McpInvocationContext.current();
         try (var ignored = callers.open(text(proof, "tenantId"), text(proof, "userId"))) {
             var snapshot = definition(row);
             var schema = json.readTree(row.getInputSchemaJson());
@@ -167,6 +170,10 @@ public class TemplateCapabilityService {
             if ("http_request_execute".equals(executor)) arguments.put(com.chatchat.mcpserver.routing.target.TemplateExecutionTarget.KEY,
                 new com.chatchat.mcpserver.routing.target.TemplateExecutionTarget("http_endpoint", arguments.get("endpointId").toString()));
             arguments.put("tenantId", text(proof, "tenantId")); arguments.put("userId", text(proof, "userId"));
+            if("sql_query_execute".equals(executor) && invocation!=null) {
+                String trace=invocation.traceId()==null?invocation.requestId():invocation.traceId();
+                if(trace!=null&&!trace.isBlank())arguments.put("sourceTaskId",trace);
+            }
             Map<String,Object> trustedContext = new LinkedHashMap<>();
             trustedContext.put("tenantId", text(proof, "tenantId")); trustedContext.put("userId", text(proof, "userId"));
             trustedContext.put("agentId", text(proof, "agentId")); trustedContext.put("authorizationAgentId", text(proof, "agentId"));
@@ -180,6 +187,10 @@ public class TemplateCapabilityService {
             output.setMetadata(new LinkedHashMap<>(output.getMetadata() == null ? Map.of() : output.getMetadata()));
             output.getMetadata().put("templatePublication", Map.of("releaseId", row.getId(), "toolName", name,
                 "templateRevision", snapshot.path("revision").asText(), "userId", text(proof, "userId"), "agentId", text(proof, "agentId")));
+            if(invocation!=null){
+                if(invocation.requestId()!=null)output.getMetadata().put("requestId",invocation.requestId());
+                if(invocation.traceId()!=null)output.getMetadata().put("traceId",invocation.traceId());
+            }
             successful = output.isSuccess(); return output;
         } catch (com.fasterxml.jackson.core.JsonProcessingException invalid) { throw new IllegalStateException("Invalid stored template contract", invalid); }
         finally {

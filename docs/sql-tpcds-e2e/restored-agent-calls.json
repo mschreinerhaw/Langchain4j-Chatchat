@@ -1,0 +1,41 @@
+{
+  "taskId": "bab56176-0d04-3395-914c-9f52e55040fb",
+  "runId": "att-1-2f18d4ba-69ea-43f9-a219-79e76753d3bc",
+  "calls": [
+    {
+      "source": "mcp_chatchat_mcp_server_tpl_212b88329a673657979943bbeaa7479b",
+      "resolvedInput": {},
+      "durationMs": 3567,
+      "requestId": "bccf0408-baa7-41db-b26a-bc7927556e44",
+      "release": {
+        "releaseId": "90d8efbe-ba6b-4314-921c-65841244b241",
+        "toolName": "tpl_212b88329a673657979943bbeaa7479b",
+        "agentId": "tpcds_sql_studio_acceptance_20261031",
+        "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+        "templateRevision": "9038f6b9782a56378039cada38ce873797e586ea980b3c9ab49a3cb7019627fd"
+      },
+      "sourceTaskId": "bccf0408-baa7-41db-b26a-bc7927556e44",
+      "queryDurationMs": 64
+    },
+    {
+      "source": "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+      "resolvedInput": {
+        "product_id": 1,
+        "start_date": "1999-01-01",
+        "end_date": "1999-12-31",
+        "min_quantity": 0
+      },
+      "durationMs": 3647,
+      "requestId": "bccf0408-baa7-41db-b26a-bc7927556e44",
+      "release": {
+        "releaseId": "81cc9e0e-a2a6-4125-a6e0-1f82ecbe5caf",
+        "toolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+        "agentId": "tpcds_sql_studio_acceptance_20261031",
+        "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+        "templateRevision": "bdd725ea7e4b50ab2e0727cc00a33cc33f00b89095608ba89fe6fcaca0721fac"
+      },
+      "sourceTaskId": "bccf0408-baa7-41db-b26a-bc7927556e44",
+      "queryDurationMs": 141
+    }
+  ]
+}

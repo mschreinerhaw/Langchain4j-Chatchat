@@ -66,3 +66,7 @@
 .sql-publication-panel fieldset {
   border: 1px solid #dce5ef;
 }
+.sql-test-result-preview { max-height: 260px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+.sql-test-result-preview table { border-collapse: collapse; width: 100%; font-size: 12px; }
+.sql-test-result-preview th, .sql-test-result-preview td { padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; text-align: right; }
+.sql-test-result-preview th { position: sticky; top: 0; background: var(--surface-soft); }

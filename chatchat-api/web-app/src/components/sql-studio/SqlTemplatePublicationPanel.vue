@@ -48,7 +48,7 @@
         </fieldset>
         <p
           >参数采用 <code v-pre>{{ name }}</code
-          >。可选参数不自动删除条件，NULL 不作缺参默认值。测试支持单条只读查询，最长 10 秒、最多 50
+          >，占位符外不要添加引号。可选参数不自动删除条件；需要 NULL 时须显式声明可空类型（如 type: ["string", "null"]，default: null）。测试支持单条只读查询，最长 10 秒、最多 50
           行。</p
         >
         <button :disabled="busy || dirty || !form.datasourceId" @click="createDraft"
@@ -92,6 +92,16 @@
             >{{ selected.testEvidence.type }} · {{ selected.testEvidence.testId }} ·
             {{ selected.testEvidence.resultDigest }}</p
           >
+          <section v-if="selected.testEvidence?.success && selected.testEvidence.preview" aria-label="真实查询结果预览">
+            <h3>真实查询结果预览</h3>
+            <p v-if="selected.testEvidence.preview.possiblyTruncated">查询达到返回上限，结果可能不完整，请缩小业务范围后重试。</p>
+            <p v-if="selected.testEvidence.preview.previewTruncated">此处仅展示部分查询结果，不能据此认定完整业务对账通过。</p>
+            <div class="sql-test-result-preview"><table>
+              <thead><tr><th v-for="column in selected.testEvidence.preview.columns" :key="column">{{ column }}</th></tr></thead>
+              <tbody><tr v-for="(row, index) in selected.testEvidence.preview.rows" :key="index"><td v-for="column in selected.testEvidence.preview.columns" :key="column">{{ row[column] === null ? 'NULL' : row[column] }}</td></tr></tbody>
+            </table></div>
+            <p v-if="!selected.testEvidence.preview.returnedRowCount">查询成功，未返回记录。空结果不代表业务链路已通过验收。</p>
+          </section>
           <p v-if="published && !sourceCurrent"
             >当前文件已更新，线上仍使用下方不可变 SQL 快照。修改须创建下一修订。</p
           >

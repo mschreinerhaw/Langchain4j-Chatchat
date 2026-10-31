@@ -27,7 +27,7 @@ public final class ContextualToolArgumentResolver {
             ? Map.of() : request.schema();
         if (!(schema.get("properties") instanceof Map<?, ?> rawProperties)) {
             arguments.remove(MODEL_EVIDENCE_FIELD);
-            return new Resolution(Map.copyOf(arguments), List.of(), List.of());
+            return new Resolution(CompiledToolArguments.immutableMap(arguments), List.of(), List.of());
         }
         Map<String, Object> properties = stringMap(rawProperties);
         Set<String> required = new LinkedHashSet<>(stringList(schema.get("required")));
@@ -55,7 +55,7 @@ public final class ContextualToolArgumentResolver {
                 field, candidate.sourceType(), candidate.stepId(), candidate.outputPath(),
                 candidate.modelProposed()));
         }
-        return new Resolution(Map.copyOf(arguments), List.copyOf(recovered), List.copyOf(unresolved));
+        return new Resolution(CompiledToolArguments.immutableMap(arguments), List.copyOf(recovered), List.copyOf(unresolved));
     }
 
     private VerifiedCandidate verifiedProposal(String field,

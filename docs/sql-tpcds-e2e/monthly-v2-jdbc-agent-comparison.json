@@ -1,0 +1,109 @@
+{
+  "status": "EXACT_MATCH",
+  "toolName": "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+  "rows": 11,
+  "comparedFields": 77,
+  "baselineSha256": "b49865314611d3ff3d3f136a275c13762d554b7a0ac1a167453372da1a7caa06",
+  "observationsSha256": "a2a4eeb592ccd6fce0c2bbe7644129ac61386287b60abe2992d5bfefbd581253",
+  "actualRows": [
+    {
+      "sale_year": 1999,
+      "sale_month": 1,
+      "category": "Music",
+      "row_count": 2,
+      "total_quantity": 176,
+      "total_net_paid": 20375.3,
+      "total_net_profit": 7378.91
+    },
+    {
+      "sale_year": 1999,
+      "sale_month": 2,
+      "category": "Music",
+      "row_count": 2,
+      "total_quantity": 154,
+      "total_net_paid": 1377.24,
+      "total_net_profit": -2211.62
+    },
+    {
+      "sale_year": 1999,
+      "sale_month": 4,
+      "category": "Music",
+      "row_count": 2,
+      "total_quantity": 151,
+      "total_net_paid": 8459.79,
+      "total_net_profit": -3151.9
+    },
+    {
+      "sale_year": 1999,
+      "sale_month": 5,
+      "category": "Music",
+      "row_count": 1,
+      "total_quantity": 64,
+      "total_net_paid": 2899.84,
+      "total_net_profit": 636.8
+    },
+    {
+      "sale_year": 1999,
+      "sale_month": 6,
+      "category": "Music",
+      "row_count": 1,
+      "total_quantity": 93,
+      "total_net_paid": 6054.3,
+      "total_net_profit": -186.93
+    },
+    {
+      "sale_year": 1999,
+      "sale_month": 7,
+      "category": "Music",
+      "row_count": 3,
+      "total_quantity": 177,
+      "total_net_paid": 6585.36,
+      "total_net_profit": -4990.27
+    },
+    {
+      "sale_year": 1999,
+      "sale_month": 8,
+      "category": "Music",
+      "row_count": 4,
+      "total_quantity": 312,
+      "total_net_paid": 12467.81,
+      "total_net_profit": -11601.83
+    },
+    {
+      "sale_year": 1999,
+      "sale_month": 9,
+      "category": "Music",
+      "row_count": 3,
+      "total_quantity": 257,
+      "total_net_paid": 11845.79,
+      "total_net_profit": 405.8
+    },
+    {
+      "sale_year": 1999,
+      "sale_month": 10,
+      "category": "Music",
+      "row_count": 2,
+      "total_quantity": 163,
+      "total_net_paid": 910.89,
+      "total_net_profit": -11068.13
+    },
+    {
+      "sale_year": 1999,
+      "sale_month": 11,
+      "category": "Music",
+      "row_count": 5,
+      "total_quantity": 407,
+      "total_net_paid": 10618.29,
+      "total_net_profit": -15224.6
+    },
+    {
+      "sale_year": 1999,
+      "sale_month": 12,
+      "category": "Music",
+      "row_count": 8,
+      "total_quantity": 581,
+      "total_net_paid": 19363.73,
+      "total_net_profit": -13336.54
+    }
+  ]
+}

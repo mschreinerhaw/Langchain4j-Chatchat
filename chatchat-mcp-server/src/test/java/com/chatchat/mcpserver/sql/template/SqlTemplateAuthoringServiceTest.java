@@ -89,12 +89,29 @@ class SqlTemplateAuthoringServiceTest {
         var evidence=json.valueToTree(result.get("testEvidence"));
         assertThat(evidence.path("success").asBoolean()).isTrue();
         assertThat(evidence.path("rowCount").asInt()).isEqualTo(50);
+        assertThat(evidence.path("preview").path("rows").size()).isEqualTo(10);
+        assertThat(evidence.path("preview").path("returnedRowCount").asInt()).isEqualTo(50);
+        assertThat(evidence.path("preview").path("previewTruncated").asBoolean()).isTrue();
+        assertThat(evidence.path("preview").path("rows").get(0).path("ID").asInt()).isGreaterThan(0);
+        assertThat(evidence.path("traceId").asText()).isEqualTo(evidence.path("testId").asText());
         assertThat(evidence.path("timeoutSeconds").asInt()).isEqualTo(10);
         assertThat(evidence.path("fingerprint").asText()).isEqualTo(service.fingerprint(row));
         verify(audit).recordSqlQueryCall(any(),anyMap(),argThat(r->r.success()&&r.rowCount()==50));
         verify(router).routeSqlQuery(argThat(args->args.get(com.chatchat.mcpserver.routing.target.TemplateExecutionTarget.KEY)
             instanceof com.chatchat.mcpserver.routing.target.TemplateExecutionTarget fixed && fixed.resourceId().equals("db")));
         assertThat(row.isEnabled()).isFalse();
+    }
+    @Test void offlineWithdrawsOnlyCurrentReleaseAndPreservesImmutableSqlForRollback() throws Exception {
+        var row=create("select {{value}}");row.setPublicationState("PUBLISHED");row.setEnabled(true);row.setReleasedCapabilityId("current");
+        long before=row.getPublicationLock();
+        service.offlinePublication(row.getId(),"tenant","owner","historical");assertThat(row.isEnabled()).isTrue();
+        org.springframework.transaction.support.TransactionSynchronizationManager.initSynchronization();
+        try {
+            service.offlinePublication(row.getId(),"tenant","owner","current");
+            assertThat(row.isEnabled()).isFalse();assertThat(row.getSqlTemplate()).isEqualTo("select {{value}}");
+            assertThat(row.getPublicationState()).isEqualTo("PUBLISHED");assertThat(row.getPublicationLock()).isEqualTo(before+1);
+            service.offlinePublication(row.getId(),"tenant","owner","current");assertThat(row.getPublicationLock()).isEqualTo(before+1);
+        } finally {org.springframework.transaction.support.TransactionSynchronizationManager.clearSynchronization();}
     }
     @Test void databaseSyntaxFailureIsRecordedAsFailure() throws Exception {
         var row=create("select nonexistent from publication_rows where id = {{value}}");
@@ -105,6 +122,14 @@ class SqlTemplateAuthoringServiceTest {
     @Test void parameterFailureDoesNotExecuteJdbc() throws Exception {
         var row=create("select {{value}}");service.test("tenant","owner",row.getId(),action(row,Map.of("value","wrong-type")));
         assertThat(json.readTree(row.getSqlTestEvidenceJson()).path("success").asBoolean()).isFalse();verifyNoInteractions(audit);
+    }
+    @Test void malformedExplicitOverrideCannotBeReplacedByADeclaredDefaultDuringTrial() throws Exception {
+        var row=create("select {{value}}");
+        row.setParameterSchemaJson("{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"integer\",\"default\":1}}}");
+        service.test("tenant","owner",row.getId(),action(row,Map.of("value","1 OR 1=1")));
+        assertThat(json.readTree(row.getSqlTestEvidenceJson()).path("success").asBoolean()).isFalse();
+        assertThat(json.readTree(row.getSqlTestEvidenceJson()).path("errorCode").asText()).isEqualTo("SQL_OR_PARAMETER_VALIDATION_FAILED");
+        verifyNoInteractions(audit);
     }
     @Test void forbiddenWriteCannotPassRealGatewayAndLeavesDataUntouched() throws Exception {
         var row=create("delete from publication_rows where id = {{value}}");

@@ -134,6 +134,16 @@ public class TemplateCapabilityController {
     private String encode(String value) { return URLEncoder.encode(Objects.requireNonNull(value), StandardCharsets.UTF_8); }
     private void audit(HttpServletRequest request, String action, String id) {
         var log = new SysAuditLog(); log.setTenantId(access.tenant(request)); log.setActorId(access.user(request));
-        log.setModuleName("template-capability"); log.setActionName(action); log.setResourceType("template-tool"); log.setResourceId(id); audits.saveAndFlush(log);
+        log.setModuleName("template-capability"); log.setActionName(action); log.setResourceType("template-tool");
+        // Agent ID + published tool name can exceed the existing 64-character
+        // audit column. Preserve the complete reference without breaking a
+        // successful binding with an audit persistence error.
+        if(id.length()>64) {
+            try {log.setResourceId(java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                .digest(id.getBytes(StandardCharsets.UTF_8))));}
+            catch(java.security.NoSuchAlgorithmException impossible){throw new IllegalStateException(impossible);}
+            log.setDetail(id);
+        } else log.setResourceId(id);
+        audits.saveAndFlush(log);
     }
 }

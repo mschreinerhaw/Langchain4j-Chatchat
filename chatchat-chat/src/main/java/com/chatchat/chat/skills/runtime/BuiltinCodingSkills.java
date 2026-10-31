@@ -15,6 +15,7 @@ public final class BuiltinCodingSkills {
             return values.stream().map(value -> {
                 var card = new LinkedHashMap<String,Object>(value);
                 card.remove("references");
+                card.remove("resources");
                 card.put("builtin", true);
                 card.put("removable", false);
                 card.put("applicableAgents", "CLINE_CODING");

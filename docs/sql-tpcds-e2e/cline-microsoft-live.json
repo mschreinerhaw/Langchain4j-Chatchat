@@ -1,0 +1,48 @@
+{
+  "taskId": "python-coding-59c79cecd6975f28d92088c49c31865fa6f8931aff8f83f38aa9322ea6a2fc64",
+  "status": "COMPLETED",
+  "loaded": [
+    {
+      "attemptId": "python-coding-59c79cecd6975f28d92088c49c31865fa6f8931aff8f83f38aa9322ea6a2fc64:fence-1",
+      "stage": "CODING",
+      "type": "SKILLS_LOADED",
+      "source": "NODE_CLINE",
+      "timestamp": "2026-10-31T15:12:00.730Z",
+      "skillVersion": "upstream-3f5b461b2314",
+      "skillId": "builtin:microsoft:mcp-builder"
+    },
+    {
+      "attemptId": "python-coding-59c79cecd6975f28d92088c49c31865fa6f8931aff8f83f38aa9322ea6a2fc64:fence-1",
+      "stage": "CODING",
+      "type": "SKILLS_LOADED",
+      "source": "NODE_CLINE",
+      "timestamp": "2026-10-31T15:12:09.096Z",
+      "skillVersion": "upstream-3f5b461b2314",
+      "skillId": "builtin:microsoft:mcp-builder"
+    }
+  ],
+  "output": {
+    "files": [
+      {
+        "path": "mcp_result_validator.py",
+        "sha256": "df6b007d4cf19252cc2c97e561576592fae33e56298967ad53f78c25c5493e57"
+      }
+    ]
+  },
+  "validation": {
+    "codeExecuted": false,
+    "diagnostics": [
+      {
+        "path": "mcp_result_validator.py",
+        "status": "PARSED"
+      }
+    ],
+    "fieldValidation": "NOT_EVALUATED",
+    "normalizedFiles": [],
+    "parser": "python-ast",
+    "sqlExecuted": false,
+    "valid": true,
+    "version": "30.23.0"
+  },
+  "limitation": "Code proposal only; generated validator was not executed and is not the Python analysis acceptance."
+}

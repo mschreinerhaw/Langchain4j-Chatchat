@@ -4404,7 +4404,7 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         }
         Map<String, Object> enriched = stepInputEnricher.enrich(new StepInputEnrichmentRequest(
             step,
-            Map.copyOf(input),
+            java.util.Collections.unmodifiableMap(new LinkedHashMap<>(input)),
             completed == null ? Map.of() : Map.copyOf(completed),
             request
         ));

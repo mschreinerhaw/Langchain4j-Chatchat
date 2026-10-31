@@ -1,0 +1,71 @@
+{
+  "release": {
+    "version": 2,
+    "category": "business_analysis",
+    "title": "TPCDS 248 单品期间月度销售分析验收（最低数量默认50）",
+    "assetName": "248测试数据库",
+    "revision": "b51a2bcf5fe5c259301939cf76b9728b38904dfeb88953760b802c0daa3e0762",
+    "toolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+    "id": "75a1d986-886f-4e34-805e-f980da5791c2",
+    "state": "OFFLINE",
+    "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。 此修订将最低购买数量默认值改为50。",
+    "templateKey": "sql_datasource:STUDIO_FB1F5A8BD694306E9726D2AAFB9E6794",
+    "logicalId": "b1e518f3-811f-3fb1-8d55-dc959b24e3d7",
+    "publishedAt": "2026-10-31T15:32:21.721076Z"
+  },
+  "sqlRevision": {
+    "id": "fb1f5a8b-d694-306e-9726-d2aafb9e6794",
+    "active": false,
+    "state": "PUBLISHED",
+    "version": 20,
+    "publication": {
+      "version": 2,
+      "category": "business_analysis",
+      "title": "TPCDS 248 单品期间月度销售分析验收（最低数量默认50）",
+      "assetName": "248测试数据库",
+      "revision": "b51a2bcf5fe5c259301939cf76b9728b38904dfeb88953760b802c0daa3e0762",
+      "toolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+      "id": "75a1d986-886f-4e34-805e-f980da5791c2",
+      "state": "OFFLINE",
+      "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。 此修订将最低购买数量默认值改为50。",
+      "templateKey": "sql_datasource:STUDIO_FB1F5A8BD694306E9726D2AAFB9E6794",
+      "logicalId": "b1e518f3-811f-3fb1-8d55-dc959b24e3d7",
+      "publishedAt": "2026-10-31T15:32:21.721076Z"
+    }
+  },
+  "discovered": [
+    "tpl_212b88329a673657979943bbeaa7479b"
+  ],
+  "agentTaskId": "e14ab620-8ec6-33c1-84d5-54031225ff34",
+  "agentDiscovery": {
+    "type": "lifecycle",
+    "source": "agent_lifecycle",
+    "contentPreview": "Tool discovery completed and capability space was constructed.",
+    "metadata": {
+      "type": "lifecycle",
+      "workflow": "agent_problem_solving",
+      "lifecyclePhase": "tool_discovery",
+      "createdAt": 1793462604488,
+      "availableTools": [
+        "mcp_chatchat_mcp_server_tpl_212b88329a673657979943bbeaa7479b"
+      ],
+      "plannerVisibleTools": [
+        "mcp_chatchat_mcp_server_tpl_212b88329a673657979943bbeaa7479b"
+      ],
+      "internalToolDelegations": {},
+      "mandatoryTools": [],
+      "structuredRuntimeObservation": true
+    },
+    "eventMetadataCompacted": true,
+    "rawObservationLocation": "agent_run_observation_index",
+    "eventPayloadCompacted": true
+  },
+  "actualInvocation": {
+    "requestId": "7da3ff37-2545-41f1-963b-d4cb0403c93b",
+    "status": "REJECTED",
+    "errorCode": "MCP_CONTRACT_PREFLIGHT_FAILED",
+    "errorMessage": "MCP invocation rejected by Runtime OS contract preflight: MCP_TOOL_NOT_FOUND"
+  },
+  "agentTaskStatus": "CANCELLED",
+  "limitation": "Negative Agent run was stopped after unavailable-tool discovery and unrelated annual analysis repairs; it returned no successful monthly query. The direct normal Runtime invocation was deterministically rejected as MCP_TOOL_NOT_FOUND."
+}

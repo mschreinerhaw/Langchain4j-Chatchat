@@ -12,6 +12,20 @@ class ContextualToolArgumentResolverTest {
     private final ContextualToolArgumentResolver resolver = new ContextualToolArgumentResolver();
 
     @Test
+    void preservesExplicitNullWhileRecoveringAnIndependentRequiredField() {
+        var arguments=new java.util.LinkedHashMap<String,Object>();arguments.put("category",null);
+        var result=resolver.resolve(new ContextualToolArgumentResolver.Request(arguments,
+            Map.of("properties",Map.of("category",Map.of("type",List.of("string","null")),
+                "symbol",Map.of("type","string")),"required",List.of("symbol")),"",
+            Map.of(1,Map.of("symbol","actual-source"))));
+        assertThat(result.arguments()).containsEntry("category",null).containsEntry("symbol","actual-source");
+        arguments.put("category","changed");
+        assertThat(result.arguments()).containsEntry("category",null);
+        org.assertj.core.api.Assertions.assertThatThrownBy(()->result.arguments().put("category","x"))
+            .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
     void recoversUniquePublishedAliasFromCompletedStructuredOutput() {
         Map<String, Object> schema = Map.of(
             "type", "object",

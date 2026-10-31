@@ -1,4 +1,214 @@
 [
-  {"id":"builtin:python-data-analysis","name":"python-data-analysis","description":"Analyze delivered Python datasets, inspect quality, join sources, compute statistics and business metrics, and deliver reproducible static charts and Runtime OS reports.","version":"1.3.0","origin":"SYSTEM_BUILTIN","category":"Python","references":["references/data-methods.md","references/financial-reporting.md"]},
-  {"id":"builtin:python-code-development","name":"python-code-development","description":"Design, implement, debug and refactor maintainable Python programs, reusable analysis components and tests with typed interfaces, validation, logging and reliable file handling.","version":"1.0.0","origin":"SYSTEM_BUILTIN","category":"Python","references":["references/engineering-checks.md"]}
+  {
+    "id": "builtin:python-data-analysis",
+    "name": "python-data-analysis",
+    "description": "Analyze delivered Python datasets, inspect quality, join sources, compute statistics and business metrics, and deliver reproducible static charts and Runtime OS reports.",
+    "version": "1.3.0",
+    "origin": "SYSTEM_BUILTIN",
+    "category": "Python",
+    "references": [
+      "references/data-methods.md",
+      "references/financial-reporting.md"
+    ]
+  },
+  {
+    "id": "builtin:python-code-development",
+    "name": "python-code-development",
+    "description": "Design, implement, debug and refactor maintainable Python programs, reusable analysis components and tests with typed interfaces, validation, logging and reliable file handling.",
+    "version": "1.0.0",
+    "origin": "SYSTEM_BUILTIN",
+    "category": "Python",
+    "references": [
+      "references/engineering-checks.md"
+    ]
+  },
+  {
+    "id": "builtin:microsoft:azure-kusto",
+    "name": "azure-kusto",
+    "description": "Query and analyze data in Azure Data Explorer (Kusto/ADX) using KQL for log analytics, telemetry, and time series analysis. WHEN: KQL queries, Kusto database queries, Azure Data Explorer, ADX clusters, log analytics, time series data, IoT telemetry, anomaly detection.",
+    "version": "upstream-3f5b461b2314",
+    "origin": "SYSTEM_BUILTIN",
+    "category": "Microsoft",
+    "publisher": "Microsoft",
+    "nativeOriginal": true,
+    "compatibility": "Azure Data Explorer / KQL; requires an independently authorized ADX connection. Not a MySQL SQL skill.",
+    "provenance": {
+      "repository": "https://github.com/microsoft/skills",
+      "directory": ".github/plugins/azure-skills/skills/azure-kusto",
+      "commit": "3f5b461b2314e01c400564051e92469114c5b68f",
+      "license": "MIT",
+      "importedAt": "2026-10-31",
+      "sha256": "f0920e96ac8a4b8941e0bc29591d53bcfdd3a3a61e713249d3d489c55f6d98c8"
+    },
+    "resources": [
+      {
+        "path": "LICENSE.microsoft",
+        "sha256": "d9a1b1e30d633d5732ea18e3cba9538d293ebc53e1a9e4e96ab739e0c5c4f1cb",
+        "size": 1140
+      }
+    ]
+  },
+  {
+    "id": "builtin:microsoft:azure-ai-ml-py",
+    "name": "azure-ai-ml-py",
+    "description": "Azure Machine Learning SDK v2 for Python. Use for ML workspaces, jobs, models, datasets, compute, and pipelines.\nTriggers: \"azure-ai-ml\", \"MLClient\", \"workspace\", \"model registry\", \"training jobs\", \"datasets\".",
+    "version": "upstream-3f5b461b2314",
+    "origin": "SYSTEM_BUILTIN",
+    "category": "Microsoft",
+    "publisher": "Microsoft",
+    "nativeOriginal": true,
+    "compatibility": "Azure ML SDK v2 methodology; Azure services and SDK are not installed or authorized by this package.",
+    "provenance": {
+      "repository": "https://github.com/microsoft/skills",
+      "directory": ".github/plugins/azure-sdk-python/skills/azure-ai-ml-py",
+      "commit": "3f5b461b2314e01c400564051e92469114c5b68f",
+      "license": "MIT",
+      "importedAt": "2026-10-31",
+      "sha256": "07491b57acea5747c3474bc1401e4813ce292dcf35658b33512aebd73d21609f"
+    },
+    "resources": [
+      {
+        "path": "references/capabilities.md",
+        "sha256": "d355f0a328700cabb2e4fcf700b7cc2f86022be37e6c6be0216a243904bd219d",
+        "size": 1627
+      },
+      {
+        "path": "references/non-hero-scenarios.md",
+        "sha256": "a97c6fcccedcab8850567696deed7f86bdb5f82d876092733a31372a7ccc0144",
+        "size": 2434
+      },
+      {
+        "path": "LICENSE.microsoft",
+        "sha256": "d9a1b1e30d633d5732ea18e3cba9538d293ebc53e1a9e4e96ab739e0c5c4f1cb",
+        "size": 1140
+      }
+    ]
+  },
+  {
+    "id": "builtin:microsoft:mcp-builder",
+    "name": "mcp-builder",
+    "description": "Guide for creating high-quality MCP (Model Context Protocol) servers that enable LLMs to interact with external services through well-designed tools. Use when building MCP servers to integrate external APIs or services, whether in Python (FastMCP), Node/TypeScript (MCP SDK), or C#/.NET (Microsoft MCP SDK).",
+    "version": "upstream-3f5b461b2314",
+    "origin": "SYSTEM_BUILTIN",
+    "category": "Microsoft",
+    "publisher": "Microsoft",
+    "nativeOriginal": true,
+    "compatibility": "MCP development methodology; published SQL services still use the existing Runtime release controls.",
+    "provenance": {
+      "repository": "https://github.com/microsoft/skills",
+      "directory": ".github/skills/mcp-builder",
+      "commit": "3f5b461b2314e01c400564051e92469114c5b68f",
+      "license": "MIT",
+      "importedAt": "2026-10-31",
+      "sha256": "621e771c22224140752ddf933923467b2d1148580194ad59d3f1f21f9f27bdc9"
+    },
+    "resources": [
+      {
+        "path": "reference/evaluation.md",
+        "sha256": "8c99479f8a2d22a636c38e274537aac3610879e26f34e0709825077c4576f427",
+        "size": 21663
+      },
+      {
+        "path": "reference/mcp_best_practices.md",
+        "sha256": "0101c57aa61782a24ea81087c208643e7db9195af7c0852586b0021f2c4b9a07",
+        "size": 12375
+      },
+      {
+        "path": "reference/microsoft_mcp_patterns.md",
+        "sha256": "41a1ee03edfc3bda496cf9e448065c5ce17ed44491424553c25f7e0b2f8bb4e2",
+        "size": 21541
+      },
+      {
+        "path": "reference/node_mcp_server.md",
+        "sha256": "47fed0116f47a09d10203704e0af527315d1f4cf52adf444413e322720799466",
+        "size": 29189
+      },
+      {
+        "path": "reference/python_mcp_server.md",
+        "sha256": "9296d8b1966ebf8547b8ded64745a625237f281c8c4dc808c675630213d04c55",
+        "size": 25744
+      },
+      {
+        "path": "scripts/connections.py",
+        "sha256": "9403668a2041568772082a8b334122c1f88daf0541fb393af4522d0094a47a6e",
+        "size": 4875
+      },
+      {
+        "path": "scripts/evaluation.py",
+        "sha256": "49ed1d17cdce5da101b210197740713f49b935c29d4f339542a14b132658e6f7",
+        "size": 12579
+      },
+      {
+        "path": "scripts/example_evaluation.xml",
+        "sha256": "9272b348ddcc4b06ba562367ccd0770e018158c0068ac5116d5e34aaeff8777a",
+        "size": 1194
+      },
+      {
+        "path": "scripts/requirements.txt",
+        "sha256": "d5d7558b2368ecea9dfeed7d1fbc71ee9e0750bebd1282faa527d528a344c3c7",
+        "size": 29
+      },
+      {
+        "path": "LICENSE.microsoft",
+        "sha256": "d9a1b1e30d633d5732ea18e3cba9538d293ebc53e1a9e4e96ab739e0c5c4f1cb",
+        "size": 1140
+      }
+    ]
+  },
+  {
+    "id": "builtin:microsoft:skill-creator",
+    "name": "skill-creator",
+    "description": "Guide for creating effective skills for AI coding agents working with Azure SDKs and Microsoft Foundry services. Use when creating new skills or updating existing skills.",
+    "version": "upstream-3f5b461b2314",
+    "origin": "SYSTEM_BUILTIN",
+    "category": "Microsoft",
+    "publisher": "Microsoft",
+    "nativeOriginal": true,
+    "compatibility": "Native Skill authoring methodology; does not invoke or replace the Runtime domain compiler.",
+    "provenance": {
+      "repository": "https://github.com/microsoft/skills",
+      "directory": ".github/skills/skill-creator",
+      "commit": "3f5b461b2314e01c400564051e92469114c5b68f",
+      "license": "MIT",
+      "importedAt": "2026-10-31",
+      "sha256": "15ce951aec071c813150e6794628664725c164223108792e15bd3db18e959da0"
+    },
+    "resources": [
+      {
+        "path": "references/azure-sdk-patterns.md",
+        "sha256": "1be5f8b256d0c73defa2b3dfc88342018859ffeaeb77a320b440217703bd289a",
+        "size": 32551
+      },
+      {
+        "path": "references/output-patterns.md",
+        "sha256": "b9e4284e89c75d7b9eb3613130a6272ab531a60f0f22f4ccda12d67bf5d4f27c",
+        "size": 4176
+      },
+      {
+        "path": "references/workflows.md",
+        "sha256": "34b9b4fc5d40000b8042be8ca7b2365f16a735827402046a858c2c7854e140e1",
+        "size": 3196
+      },
+      {
+        "path": "scripts/init_skill.py",
+        "sha256": "0bba250b94caa4cb2b28b15dad26fdcf371aeda4c9797b8120e55c2e33e0c73c",
+        "size": 10863
+      },
+      {
+        "path": "scripts/package_skill.py",
+        "sha256": "b31fbcb3e362d5c5308e99255ff8e83cde3a513e0636953964a648494ca10931",
+        "size": 3288
+      },
+      {
+        "path": "scripts/quick_validate.py",
+        "sha256": "381ab2d3d1fd5ec32371016413063eff99d0d48c415747085c61517e967dbb87",
+        "size": 3523
+      },
+      {
+        "path": "LICENSE.microsoft",
+        "sha256": "d9a1b1e30d633d5732ea18e3cba9538d293ebc53e1a9e4e96ab739e0c5c4f1cb",
+        "size": 1140
+      }
+    ]
+  }
 ]

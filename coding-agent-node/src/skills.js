@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, realpathSync, lstatSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { parseSkillConfigFromMarkdown } from '@cline/core';
@@ -8,21 +8,41 @@ import { parseSkillConfigFromMarkdown } from '@cline/core';
 const root = new URL('../skills/', import.meta.url);
 const digest = text => createHash('sha256').update(text).digest('hex');
 const definitions = JSON.parse(readFileSync(new URL('catalog.json', root), 'utf8'));
+function readPackageFile(folder, path, expected) {
+  // Manifest paths are opaque, relative POSIX names. Never follow symlinks or
+  // interpret a resource path as a URL (queries, escaping and schemes included).
+  if (typeof path !== 'string' || !path.split('/').every(part => /^[A-Za-z0-9_][A-Za-z0-9_.-]*$/.test(part)))
+    throw new TypeError('Invalid bundled resource path');
+  let current = folder;
+  const segments=path.split('/');
+  for (const [index,segment] of segments.entries()) {
+    current = new URL(segment + (index === segments.length-1 ? '' : '/'), current);
+    if (lstatSync(current).isSymbolicLink()) throw new TypeError('Bundled Skill symlinks are forbidden');
+  }
+  const target = new URL(path, folder);
+  if (!realpathSync(target).startsWith(realpathSync(folder) + (process.platform === 'win32' ? '\\' : '/')))
+    throw new TypeError('Bundled resource escapes package');
+  const bytes=readFileSync(target);
+  if(bytes.length>2*1024*1024 || expected && (bytes.length!==expected.size || digest(bytes)!==expected.sha256))
+    throw new TypeError('Bundled Skill resource integrity mismatch');
+  return bytes;
+}
 const builtin = definitions.map(definition => {
+  if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(definition.name))throw new Error('Invalid bundled Skill name');
   const folder = new URL(`${definition.name}/`, root);
-  const source = readFileSync(new URL('SKILL.md', folder), 'utf8');
+  const source = readPackageFile(folder, 'SKILL.md').toString('utf8');
   const parsed = parseSkillConfigFromMarkdown(source, definition.name);
   if (parsed.name !== definition.name || parsed.description !== definition.description
-      || parsed.frontmatter.version !== definition.version || !parsed.instructions.trim())
+      || (!definition.nativeOriginal && parsed.frontmatter.version !== definition.version) || !parsed.instructions.trim()
+      || definition.nativeOriginal && digest(source)!==definition.provenance?.sha256)
     throw new Error(`Invalid bundled Skill: ${definition.name}`);
-  const resources = definition.references.map(path => {
-    if (!/^references\/[a-z0-9-]+\.md$/.test(path)) throw new Error('Invalid bundled reference');
-    const content = readFileSync(new URL(path, folder), 'utf8');
-    return Object.freeze({ path, sha256: digest(content), content });
+  const resources = (definition.resources ?? definition.references.map(path => ({path}))).map(resource => {
+    const bytes=readPackageFile(folder,resource.path,definition.nativeOriginal?resource:undefined);
+    return Object.freeze({path:resource.path,sha256:digest(bytes),size:bytes.length});
   });
-  return { card: Object.freeze({ ...definition, references: undefined,
+  return { card: Object.freeze({ ...definition, references: undefined, resources: undefined,
     contentSha256: digest(source), selectionOwner: 'CLINE', contentDelivery: 'ON_DEMAND' }),
-    instructions: parsed.instructions, resources,
+    instructions: definition.nativeOriginal ? source : parsed.instructions, resources, folder,
     filePath: fileURLToPath(new URL('SKILL.md', folder)) };
 });
 
@@ -63,11 +83,15 @@ export function taskSkills(context = {}) {
       const item = builtin.find(item => item.card.id === id && cards.some(card => card.id === id));
       if (!item) return null;
       if (!path || path === 'SKILL.md') return { skillId: id, version: item.card.version,
+        ...(item.card.nativeOriginal ? {nativeOriginal:true} : {}),
         contentSha256: item.card.contentSha256, instructions: item.instructions,
         resources: item.resources.map(({ path, sha256 }) => ({ path, sha256 })), authority: 'METHODOLOGY_ONLY' };
       const resource = item.resources.find(resource => resource.path === path);
       if (!resource) throw new TypeError('Skill reference is outside the task manifest');
-      return { skillId: id, version: item.card.version, ...resource, authority: 'METHODOLOGY_ONLY' };
+      const bytes=readPackageFile(item.folder,path,resource);
+      const text=bytes.toString('utf8'),binary=!Buffer.from(text,'utf8').equals(bytes)||text.includes('\0');
+      return { skillId: id, version: item.card.version, ...resource,
+        content:binary?bytes.toString('base64'):text,encoding:binary?'base64':'utf-8',authority: 'METHODOLOGY_ONLY' };
     } };
 }
 

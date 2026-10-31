@@ -26,18 +26,25 @@ public class TemplateCapabilityPublisher implements McpToolContributor {
             Map<String, Object> properties = json.convertValue(schema.path("properties"), new com.fasterxml.jackson.core.type.TypeReference<>(){});
             List<String> required = new ArrayList<>(); schema.path("required").forEach(value -> required.add(value.asText()));
             boolean studioSql=snapshot.path("binding").path("sqlRevisionId").isTextual();
+            // Only Studio snapshots admitted by the real read-only execution gate
+            // have this evidence. Keep controlled execution and fresh authorization;
+            // other template families retain their existing high-risk classification.
+            boolean verifiedReadOnly=studioSql && "sql_query_execute".equals(snapshot.path("executor").asText())
+                && snapshot.path("sqlTest").path("success").asBoolean(false);
             String description=row.getDescription() == null || row.getDescription().isBlank() ? row.getTitle() : row.getDescription();
             if(studioSql)description+="\nReturns the existing ToolOutput envelope: SQL rows are at $.data.data.rows and rowCount at $.data.data.rowCount. SQL column names are NOT top-level result fields. Preserve this actual envelope in downstream contracts.";
             Map<String,Object> outputSchema=Map.of("type", "object", "properties", Map.of());
             if(studioSql)try {outputSchema=json.readValue(row.getOutputSchemaJson(),new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){});}
                 catch(Exception invalid){throw new IllegalStateException("Invalid published SQL output contract",invalid);}
+            var metadata=new LinkedHashMap<String,Object>(Map.of("templateCapability", true, "schemaVersion", "template-capability.v1", "toolVersion", row.getReleaseNumber() + ".0.0",
+                "visibleTenantIds", List.of(row.getTenantId()), "breakingChangeApproved", true,
+                "runtimeLevel", "controlled", "riskLevel", verifiedReadOnly?"low":"high", "operationType", "execute"));
+            if(studioSql) {metadata.put("resultKind","RAW_RECORDS");metadata.put("resultSchemaRef","sql_result.v1");}
             var tool = McpSchema.Tool.builder().name(TemplateCapabilityService.toolName(row)).title(row.getTitle())
                 .description(description)
                 .inputSchema(json.convertValue(schema, new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){}))
                 .outputSchema(outputSchema)
-                .meta(Map.of("templateCapability", true, "schemaVersion", "template-capability.v1", "toolVersion", row.getReleaseNumber() + ".0.0",
-                    "visibleTenantIds", List.of(row.getTenantId()), "breakingChangeApproved", true,
-                    "runtimeLevel", "controlled", "riskLevel", "high", "operationType", "execute"))
+                .meta(metadata)
                 .build();
             return ToolPublication.from(McpServerFeatures.SyncToolSpecification.builder().tool(tool).callHandler((exchange, request) -> {
                 try {

@@ -11,6 +11,16 @@ chatchat-mcp-server/web-app-mcp/package*.json text eol=lf
 .prettierrc.json text eol=lf
 scripts/check-vue-structure.mjs text eol=lf
 
+# Vendor packages retain the exact upstream Git blob bytes, including assets.
+coding-agent-node/skills/azure-kusto/** -text -whitespace
+coding-agent-node/skills/azure-ai-ml-py/** -text -whitespace
+coding-agent-node/skills/mcp-builder/** -text -whitespace
+coding-agent-node/skills/skill-creator/** -text -whitespace
+
 # Preserve the hash-verified deployment evidence, including original patch whitespace.
 docs/runtime-os-audit-20261027/deployed-source.patch -text -whitespace
 
+# Execution evidence is hashed as bytes, including on Windows checkouts.
+docs/sql-tpcds-e2e/*.json -text
+docs/sql-tpcds-e2e/*.py -text
+docs/sql-tpcds-e2e/*.sql -text

@@ -134,12 +134,22 @@ public class SqlTemplateAuthoringService {
         String testId=required(input.testId(),128);var datasource=authorizedDatasource(row);
         var result=new LinkedHashMap<String,Object>();
         result.put("type","SQL_DATABASE_EXECUTION");result.put("testId",testId);result.put("testedAt",Instant.now().toString());
+        result.put("traceId",testId);result.put("source",tree(row.getAuthoringSourceJson()));
         result.put("fingerprint",fingerprint(row));result.put("sqlDigest",digest(row.getSqlTemplate()));
         result.put("datasourceId",row.getDatasourceId());result.put("datasourceDigest",digest(datasource));
         result.put("parameters",parameters(input));result.put("parametersDigest",digest(parameters(input)));
         result.put("timeoutSeconds",10);result.put("maxRows",50);
         long started=System.nanoTime();
         try {
+            // Match the published MCP contract: only absent keys receive defaults.
+            // The legacy argument compiler may repair malformed optional overrides;
+            // such a repair must not certify a Studio query using different inputs.
+            var schema=tree(row.getParameterSchemaJson());
+            var sample=(com.fasterxml.jackson.databind.node.ObjectNode)json.valueToTree(parameters(input));
+            schema.path("properties").fields().forEachRemaining(field->{
+                if(!sample.has(field.getKey())&&field.getValue().has("default"))sample.set(field.getKey(),field.getValue().get("default"));
+            });
+            ToolReleaseSchemas.validate(schema,sample);
             String sql=templates.renderAuthoring(row,parameters(input),datasource);
             if(com.chatchat.mcpserver.sql.parsing.SqlStatementExtractor.splitStatements(sql).size()!=1)
                 throw new IllegalArgumentException("Authoring test requires one read-only query");
@@ -154,9 +164,27 @@ public class SqlTemplateAuthoringService {
             boolean success=!Boolean.TRUE.equals(output.isError()) && structured.path("success").asBoolean(false);
             result.put("success",success);result.put("resultDigest",digest(structured));
             result.put("rowCount",structured.path("data").path("rowCount").asInt(0));
+            result.put("errorCode",success?"":"SQL_EXECUTION_FAILED");
+            if(success)result.put("preview",preview(structured.path("data")));
             result.put("diagnostic",success?"SQL query executed successfully":"SQL query execution failed; inspect governed query audit");
-        } catch(IllegalArgumentException invalid) {result.put("success",false);result.put("diagnostic","SQL or parameter validation failed");}
+        } catch(IllegalArgumentException invalid) {result.put("success",false);result.put("errorCode","SQL_OR_PARAMETER_VALIDATION_FAILED");result.put("diagnostic","SQL or parameter validation failed");}
         result.put("durationMs",Math.max(0,(System.nanoTime()-started)/1_000_000));return result;
+    }
+    /** Small owner-scoped review sample, never a replacement for the full execution result. */
+    private JsonNode preview(JsonNode data) {
+        var preview=json.createObjectNode();var columns=preview.putArray("columns");
+        for(var column:data.path("columns")) {if(columns.size()>=128)break;columns.add(column.asText().substring(0,Math.min(256,column.asText().length())));}
+        var rows=preview.putArray("rows");int bytes=0;
+        for(var value:data.path("rows")) {
+            int size=write(value).getBytes(StandardCharsets.UTF_8).length;
+            if(rows.size()>=10||bytes+size>32_000)break;
+            rows.add(value);bytes+=size;
+        }
+        preview.put("returnedRowCount",data.path("returnedRowCount").asInt(data.path("rows").size()));
+        preview.put("possiblyTruncated",data.path("possiblyTruncated").asBoolean(true));
+        preview.put("complete",data.path("complete").asBoolean(false));
+        preview.put("previewTruncated",rows.size()<data.path("rows").size()||columns.size()<data.path("columns").size());
+        return preview;
     }
     private SqlDatasourceConfig authorizedDatasource(SqlTemplateConfig row) {
         return authorizedDatasource(row,true);
@@ -216,6 +244,19 @@ public class SqlTemplateAuthoringService {
         requireTest(row);var evidence=tree(row.getSqlTestEvidenceJson());
         if(!evidence.path("datasourceDigest").asText().equals(digest(authorizedDatasource(row))))conflict();
         return json.convertValue(evidence,new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){});
+    }
+    /** Existing capability offlining also withdraws the authored SQL definition.
+     * Lock the SQL publication group before the capability logical ID, matching
+     * authoring publish/rollback lock order. A historical release cannot disable
+     * a newer release of the same SQL revision. */
+    @Transactional
+    public void offlinePublication(String id,String tenant,String actor,String releaseId) {
+        var row=locked(id,tenant,actor);
+        if(!row.isEnabled()||!Objects.equals(releaseId,row.getReleasedCapabilityId()))return;
+        row.setEnabled(false);bump(row);repository.saveAndFlush(row);
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization(){
+            @Override public void afterCommit(){index.upsertSqlTemplates(List.of(row));}
+        });
     }
     public Map<String,Object> publicationSnapshot(String id,String tenant,String actor) {
         publicationEvidence(id,tenant,actor);

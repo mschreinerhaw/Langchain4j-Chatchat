@@ -203,7 +203,8 @@ public class SqlTemplateService {
         while (matcher.find()) {
             String name = matcher.group(1);
             Object value = validatedParameters.get(name);
-            String replacement = safeSqlLiteral(name, value);
+            String replacement = value == null && nullableParameter(config, name) ? "NULL"
+                : safeSqlLiteral(name, value, datasource == null ? config.getDatabaseType() : datasource.getDatabaseType());
             matcher.appendReplacement(buffer, Matcher.quoteReplacement(replacement));
         }
         matcher.appendTail(buffer);
@@ -596,7 +597,15 @@ public class SqlTemplateService {
         return writeJson(readJsonObject(json));
     }
 
-    private String safeSqlLiteral(String name, Object value) {
+    private boolean nullableParameter(SqlTemplateConfig config, String name) {
+        try {
+            var type = objectMapper.readTree(config.getParameterSchemaJson()).path("properties").path(name).path("type");
+            if (type.isArray()) for (var option : type) if ("null".equals(option.asText())) return true;
+            return "null".equals(type.asText());
+        } catch (Exception invalid) { throw new IllegalArgumentException("Invalid nullable SQL parameter schema", invalid); }
+    }
+
+    private String safeSqlLiteral(String name, Object value, String dialect) {
         if (value == null) {
             throw new IllegalArgumentException("SQL template parameter is required: " + name);
         }
@@ -609,20 +618,20 @@ public class SqlTemplateService {
             if (items.size() > 100) {
                 throw new IllegalArgumentException("SQL_PARAMETER_LIST_TOO_LARGE: " + name);
             }
-            return items.stream().map(item -> safeSqlListElement(name, item))
+            return items.stream().map(item -> safeSqlListElement(name, item, dialect))
                 .collect(java.util.stream.Collectors.joining(", "));
         }
-        return safeSqlScalar(name, value);
+        return safeSqlScalar(name, value, dialect);
     }
 
-    private String safeSqlListElement(String name, Object value) {
+    private String safeSqlListElement(String name, Object value, String dialect) {
         if (value == null || value instanceof Iterable<?> || value.getClass().isArray()) {
             throw new IllegalArgumentException("SQL_PARAMETER_LIST_ELEMENT_INVALID: " + name);
         }
-        return safeSqlScalar(name, value);
+        return safeSqlScalar(name, value, dialect);
     }
 
-    private String safeSqlScalar(String name, Object value) {
+    private String safeSqlScalar(String name, Object value, String dialect) {
         if ("table".equals(name) || name.endsWith("Table")) {
             String identifier = String.valueOf(value).trim();
             if (!identifier.matches("[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)?")) {
@@ -633,9 +642,17 @@ public class SqlTemplateService {
         if (value instanceof Number || value instanceof Boolean) {
             return String.valueOf(value);
         }
-        String text = String.valueOf(value).trim();
+        String text = String.valueOf(value);
         if (text.length() > 300) {
             throw new IllegalArgumentException("SQL template parameter is too long: " + name);
+        }
+        // MySQL backslash escaping can defeat quote doubling. Hex UTF-8 literals
+        // preserve exact data independently of NO_BACKSLASH_ESCAPES and never
+        // put backslashes or quote characters into the SQL grammar.
+        if (text.indexOf('\\') >= 0 || text.indexOf('\0') >= 0) {
+            if (Set.of("mysql", "mariadb", "tidb", "tdsql").contains(Objects.toString(dialect, "").toLowerCase(Locale.ROOT)))
+                return "CONVERT(X'" + java.util.HexFormat.of().formatHex(text.getBytes(java.nio.charset.StandardCharsets.UTF_8)) + "' USING utf8mb4)";
+            throw new IllegalArgumentException("SQL_PARAMETER_ESCAPE_UNSUPPORTED: " + name);
         }
         return "'" + text.replace("'", "''") + "'";
     }

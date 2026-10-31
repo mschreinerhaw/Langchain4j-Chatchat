@@ -1,0 +1,90 @@
+{
+  "status": "EXACT_MATCH",
+  "scope": "7 report metrics, 33 monthly numeric cells, 9 reconciliation cells; absent month remains unobserved. Not certification of currency, business semantics or completeness.",
+  "operationId": "cline-d6072cc5dd7287bcbcad6e8af94830d34adce9ae73bb2c2b19e2cfaa468843d2",
+  "codeSha256": "c9407f627b4e6070acff3da84a8c0925c4eabeeb65657e1e01c0ade5a14eb4c3",
+  "reportSha256": "9b6fba31ec155d163c6f344af1ab79837c594fc62309a32924ba7505fa5b9430",
+  "yearlyBaselineSha256": "9fc0de527e2e6e72aa088fac506219641c273586892ab29e04a611504f7c251a",
+  "monthlyBaselineSha256": "ed26574f746c84d69acc45fc186972d421cfe527097bc49e32bb33779ae37316",
+  "comparedMetrics": 7,
+  "comparedMonthlyFields": 33,
+  "comparedReconciliationFields": 9,
+  "reportBusinessValidation": {
+    "checks": [
+      {
+        "detail": "清单哈希与声明一致；1个分片 17 行，分片哈希与声明一致；合计 17 行，与声明 rowCount 一致。",
+        "name": "输入校验（清单与分片哈希、行数）",
+        "status": "PASSED"
+      },
+      {
+        "detail": "月度口径 11 行、年度口径 6 行；未识别来源 0 个；所需字段齐备。",
+        "name": "数据集拆分与字段完整性",
+        "status": "PASSED"
+      },
+      {
+        "detail": "已覆盖 11 个月的观测；缺 3 月（不补零）。",
+        "name": "1999年1–12月覆盖",
+        "status": "FAILED"
+      },
+      {
+        "detail": "重复键 0 组；每期返回行数 [1]。",
+        "name": "月度粒度唯一性（sale_year, sale_month, category）",
+        "status": "PASSED"
+      },
+      {
+        "detail": "sales_year=1999 的行数 1；年度口径实际返回年度 [1998, 1999, 2000, 2001, 2002, 2003]。",
+        "name": "年度口径 1999 行唯一性",
+        "status": "PASSED"
+      },
+      {
+        "detail": "earliest_date=1999-01-12、latest_date=1999-12-31。",
+        "name": "1999年期间核对（年度口径实际销售日期区间）",
+        "status": "PASSED"
+      },
+      {
+        "detail": "年度汇总口径 136,947.06，月度合计口径 136,714.55，差额 +232.51（容差 0.005）；差额属口径差异，不认定为数据错误。",
+        "name": "净收款两口径合计一致性",
+        "status": "FAILED"
+      },
+      {
+        "detail": "年度汇总口径 -65,502.46，月度合计口径 -63,358.97，差额 -2,143.49（容差 0.005）；年度汇总口径亏损大于月度合计口径，差额属口径差异，不认定为数据错误。",
+        "name": "利润两口径合计一致性",
+        "status": "FAILED"
+      },
+      {
+        "detail": "年度口径 3,362，月度合计 3,362，差额 +0。",
+        "name": "数量合计两口径一致",
+        "status": "PASSED"
+      },
+      {
+        "detail": "交付数据无数量为空明细行或其小计，无法直接量化该子集贡献；现仅能说明差额方向与该口径机制一致，不认定为数据错误。",
+        "name": "金额差额归因（数量为空记录被过滤）",
+        "status": "UNRESOLVED"
+      },
+      {
+        "detail": "源字段定义与需求均未声明金额单位，报告中金额无单位标注，未做换算。",
+        "name": "金额单位与币种声明",
+        "status": "UNRESOLVED"
+      },
+      {
+        "detail": "未交付 effectiveParameters/parameterSources；商品主键1与期间绑定以模板声明与需求为据。",
+        "name": "模板参数绑定证据",
+        "status": "UNRESOLVED"
+      }
+    ],
+    "scope": "STOPPED_EXECUTION_AND_ARTIFACT_INTEGRITY; COMPUTATION_CHECKS_ARE_PROGRAM_DECLARED; BUSINESS_SEMANTICS_NOT_CERTIFIED",
+    "status": "FAILED",
+    "warnings": [
+      "1999年存在未覆盖月份，月度合计不含这些月份。"
+    ]
+  },
+  "expectedCents": {
+    "m_annual_net_paid": "13694706",
+    "m_monthly_net_paid": "13671455",
+    "m_diff_net_paid": "23251",
+    "m_annual_net_profit": "-6550246",
+    "m_monthly_net_profit": "-6335897",
+    "m_diff_net_profit": "-214349",
+    "m_months_covered": "1100"
+  }
+}

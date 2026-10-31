@@ -6,6 +6,16 @@ import static org.assertj.core.api.Assertions.*;
 class PythonCodeProjectTest {
     final ObjectMapper json=new ObjectMapper();
     String encode(Object value){try{return json.writeValueAsString(value);}catch(Exception e){throw new RuntimeException(e);}}
+    @Test void readsExactRuntimeAdaptersFromWindowsAndLinuxWithoutAcceptingCodeChanges(){
+        String payload=encode(new PythonCodeProject.Project("main.py",List.of(new PythonCodeProject.File("main.py","print(7)\r\n"))));
+        String encoded=Base64.getEncoder().encodeToString(payload.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        String lf=PythonCodeProject.template().replace("\r\n","\n");
+        for(String template:List.of(lf,lf.replace("\n","\r\n"))){
+            String source=template.replace(PythonCodeProject.TOKEN,encoded);
+            assertThat(PythonCodeProject.decode(source)).contains(payload);
+            assertThatThrownBy(()->PythonCodeProject.decode(source+"print('injected')\n")).isInstanceOf(SecurityException.class);
+        }
+    }
     @Test void preservesExactBytesAndDirectoryRelationsWithoutChangingTheSource() throws Exception {
         var project=new PythonCodeProject.Project("pkg/main.py",List.of(new PythonCodeProject.File("pkg/main.py","from .calc import total\r\nprint(total())\r\n"),new PythonCodeProject.File("pkg/__init__.py",""),new PythonCodeProject.File("pkg/calc.py","def total(): return 7\n")));
         var config=PythonCodeProject.context(project,this::encode);String payload=PythonCodeProject.fromContext(config);

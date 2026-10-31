@@ -43,7 +43,7 @@ public final class PythonCodeProject {
         }catch(java.io.IOException e){throw new IllegalStateException("Cannot read project adapter",e);}
     }
     public static Optional<String> decode(String source) {
-        if(source==null||!source.startsWith(MARKER))return Optional.empty();
+        if(source==null||!source.startsWith(MARKER)&&!source.startsWith(MARKER.replace("\n","\r\n")))return Optional.empty();
         var match=java.util.regex.Pattern.compile("(?m)^__project_b64__ = \"([A-Za-z0-9+/=]{1,250000})\"$").matcher(source);
         if(!match.find())throw new SecurityException("Invalid project adapter payload");
         String encoded=match.group(1);
@@ -79,5 +79,12 @@ public final class PythonCodeProject {
         if(!hash(payload.toString()).equals(context.get("sha256")))throw new SecurityException("Python project digest mismatch");
         return payload.toString();
     }
-    private static List<String> templates(){return List.of(template(),resource("python-project-adapter.legacy-output-v1.py"));}
+    private static List<String> templates(){
+        // Git checkouts on Windows and Linux can carry different line endings.
+        // Approve only exact Runtime-owned template variants; never normalize
+        // supplied source or its hashes. Frozen task adapters still match bytes.
+        return List.of(template(),resource("python-project-adapter.legacy-output-v1.py")).stream()
+            .flatMap(value->{String lf=value.replace("\r\n","\n");return java.util.stream.Stream.of(value,lf,lf.replace("\n","\r\n"));})
+            .distinct().toList();
+    }
 }

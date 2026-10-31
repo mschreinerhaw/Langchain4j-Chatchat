@@ -100,8 +100,9 @@ public class AgentToolPolicyResolver {
         WorkflowToolResolution workflowTools = registrationChanged
             ? resolveRequiredWorkflowTools(skill, availableTools) : initialWorkflowTools;
         List<String> requiredTools = mergeToolNames(workflowTools.requiredTools(), activatedRequiredTools);
-        ToolSelection selection = registrationChanged
+        ToolSelection selected = registrationChanged
             ? selectRelevantTools(request, skill, availableTools, requiredTools) : initialSelection;
+        ToolSelection selection = withPublishedExecutors(request, selected);
         List<String> effectiveRequiredTools = requiredTools.stream()
             .filter(selection.availableTools()::contains).toList();
         List<ToolActivation> effectiveActivations = activations.stream()
@@ -129,9 +130,49 @@ public class AgentToolPolicyResolver {
             effectiveActivations.stream().map(ToolActivation::intentName).toList(),
             selection.selectedCandidateTools(),
             skippedToolReasons,
-            workflowTools.autoAddedTools(),
+            mergeToolNames(workflowTools.autoAddedTools(),selection.availableTools().stream()
+                .filter(name -> !selected.availableTools().contains(name)).toList()),
             requiredCapabilityGaps
         );
+    }
+
+    /** A published fixed discovery group carries its declared execution protocol,
+     * not permission to execute arbitrary templates. Database authorization and
+     * Runtime/MCP candidate admission still apply to the dependency itself. */
+    private ToolSelection withPublishedExecutors(InteractionRequest request,ToolSelection selected) {
+        var catalog=mcpToolCatalog.registeredTools();
+        var byName=new LinkedHashMap<String,McpToolCatalogQueryPort.RegisteredTool>();
+        catalog.forEach(tool->byName.put(tool.localToolName(),tool));
+        var names=new LinkedHashSet<>(selected.availableTools());
+        var skipped=new LinkedHashMap<>(selected.skippedToolReasons());
+        var plugins=com.chatchat.agents.runtime.plan.template.TemplateWorkflowPluginRegistry.load();
+        for(String name:selected.availableTools()) {
+            var provider=byName.get(name);var metadata=toolRegistry.getToolMetadata(name);
+            if(provider==null||com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata.fixedScope(metadata).isEmpty())continue;
+            var attributes=com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata.publisher(metadata);
+            var route=com.chatchat.common.mcp.capability.McpDynamicCapabilityRoute.fromToolMetadata(attributes).orElse(null);
+            if(route==null)continue;
+            var discovery=new com.chatchat.agents.runtime.plan.template.TemplateWorkflowTool(name,ToolWorkflowRole.TEMPLATE_DISCOVERY,
+                ToolWorkflowContract.declaredProtocolFamily(metadata).orElse(null),
+                com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata.assetType(metadata),route.parentToolName());
+            for(var candidate:catalog) {
+                if(names.contains(candidate.localToolName())||!provider.serviceId().equals(candidate.serviceId())||!toolRegistry.hasTool(candidate.localToolName()))continue;
+                var executor=toolRegistry.getToolMetadata(candidate.localToolName());
+                if(ToolWorkflowContract.resolveRole(candidate.localToolName(),executor)!=ToolWorkflowRole.TEMPLATE_EXECUTION)continue;
+                var extra=com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata.publisher(executor);
+                if(!route.parentToolName().equals(extra.get("templateDiscoveryTool")))continue;
+                var descriptor=new com.chatchat.agents.runtime.plan.template.TemplateWorkflowTool(candidate.localToolName(),ToolWorkflowRole.TEMPLATE_EXECUTION,
+                    ToolWorkflowContract.declaredProtocolFamily(executor).orElse(null),
+                    com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata.assetType(executor));
+                var plugin=plugins.resolve(descriptor).orElse(null);
+                if(plugin==null||!plugin.accepts(discovery,descriptor))continue;
+                if(candidateRetriever!=null&&!candidateRetriever.retrieve(request,List.of(candidate.localToolName()),1).allowedNames().contains(candidate.localToolName())) {
+                    skipped.put(candidate.localToolName(),"Publisher-declared executor is not enabled or authorized in the database");continue;
+                }
+                names.add(candidate.localToolName());
+            }
+        }
+        return new ToolSelection(List.copyOf(names),mergeToolNames(selected.selectedCandidateTools(),names.stream().filter(name->!selected.availableTools().contains(name)).toList()),skipped);
     }
 
     /**

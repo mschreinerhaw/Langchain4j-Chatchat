@@ -17,6 +17,34 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AgentToolPolicyResolverTest {
+    @Test void addsOnlyTheAuthorizedExecutorDeclaredByASameServiceFixedPublication(){
+        var registry=mock(ToolRegistry.class);var catalog=mock(McpToolCatalogQueryPort.class);var skills=mock(SkillCatalogService.class);
+        var retriever=mock(McpToolCandidateRetriever.class);String child="mcp_bound_analysis",executor="mcp_calculate";
+        when(catalog.registeredTools()).thenReturn(List.of(registered(child,"bound_analysis"),registered(executor,"calculate"),
+            new McpToolCatalogQueryPort.RegisteredTool("mcp_other_server","another-server","Other","calculate","Other service")));
+        when(registry.hasTool(executor)).thenReturn(true);
+        when(registry.getToolMetadata(child)).thenReturn(ToolMetadata.builder().id(child).metadata(Map.of(
+            "workflowContract",com.chatchat.common.tool.ToolWorkflowContract.declaration(com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_DISCOVERY,"mcp.authorized-template-query.v1","filters","template"),
+            "assetType","python_runtime","templateSelectionScope",com.chatchat.common.mcp.capability.McpTemplateSelectionScope.fixedBinding("python_runtime").toMetadata(),
+            "mcpDynamicCapabilityRoute",com.chatchat.common.mcp.capability.McpDynamicCapabilityRoute.parentDelegation("analysis_gateway","_child").toMetadata())).build());
+        when(registry.getToolMetadata(executor)).thenReturn(ToolMetadata.builder().id(executor).metadata(Map.of(
+            "workflowContract",com.chatchat.common.tool.ToolWorkflowContract.declaration(com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_EXECUTION,"mcp.python-template.v1","templateId+parameters"),
+            "assetType","python_runtime","templateDiscoveryTool","analysis_gateway")).build());
+        when(registry.hasTool("mcp_other_server")).thenReturn(true);
+        var sameProtocol=registry.getToolMetadata(executor);
+        when(registry.getToolMetadata("mcp_other_server")).thenReturn(sameProtocol);
+        when(retriever.retrieve(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.anyList(),org.mockito.ArgumentMatchers.anyInt()))
+            .thenAnswer(i->{List<String> names=i.getArgument(1);return new McpToolCandidateRetriever.Selection(java.util.Set.copyOf(names),java.util.Set.copyOf(names),names);});
+        var resolver=new AgentToolPolicyResolver(registry,skills,catalog,retriever);
+        var request=InteractionRequest.builder().query("calculate").availableTools(List.of(child)).build();
+        var policy=resolver.resolve(request,null);assertThat(policy.availableTools()).containsExactly(child,executor);assertThat(policy.workflowAutoAddedTools()).contains(executor);
+        when(retriever.retrieve(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.eq(List.of(executor)),org.mockito.ArgumentMatchers.eq(1)))
+            .thenReturn(new McpToolCandidateRetriever.Selection(java.util.Set.of(executor),java.util.Set.of(),List.of()));
+        assertThat(resolver.resolve(request,null).availableTools()).containsExactly(child);
+        // A stale or unrelated parent declaration cannot expand the Agent scope.
+        when(registry.getToolMetadata(executor)).thenReturn(ToolMetadata.builder().id(executor).metadata(Map.of("templateDiscoveryTool","other_gateway")).build());
+        assertThat(resolver.resolve(request,null).availableTools()).containsExactly(child);
+    }
     @Test void registrationDuringAuthorizationDoesNotLeaveStaleRequiredCapabilityGaps() {
         ToolRegistry registry=mock(ToolRegistry.class);
         var ready=new java.util.concurrent.atomic.AtomicBoolean();

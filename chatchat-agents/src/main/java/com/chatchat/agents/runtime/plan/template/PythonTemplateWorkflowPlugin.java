@@ -6,6 +6,6 @@ import java.util.Set;
 public final class PythonTemplateWorkflowPlugin extends ProtocolFamilyTemplateWorkflowPlugin {
     public PythonTemplateWorkflowPlugin() {
         super("python-template-workflow.v1", Set.of("mcp.python-template.v1"),
-            Set.of("python_analysis", "python"));
+            Set.of("python_analysis", "python", "python_runtime"));
     }
 }

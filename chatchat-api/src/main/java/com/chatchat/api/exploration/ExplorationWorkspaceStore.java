@@ -43,6 +43,27 @@ public class ExplorationWorkspaceStore {
             throw new ResponseStatusException(HttpStatus.CONFLICT,"工作空间已更新，请刷新后重试");
         return state;
     }
+    public ObjectNode rename(Owner owner,String id,long expected,String title){
+        if(title==null||title.isBlank()||title.length()>120)throw new IllegalArgumentException("分析项目名称应为 1–120 字");
+        var state=get(owner,id);
+        if(state.path("version").asLong()!=expected)throw new ResponseStatusException(HttpStatus.CONFLICT,"分析项目已更新，请刷新后重试");
+        state.put("title",title.strip());
+        return save(owner,state,expected);
+    }
+    public void delete(Owner owner,String id,long expected){
+        var state=get(owner,id);
+        if(state.path("version").asLong()!=expected)throw new ResponseStatusException(HttpStatus.CONFLICT,"分析项目已更新，请刷新后重试");
+        for(var node:state.path("nodes")){
+            var receipt=node.path("receipt");
+            if(!receipt.path("agentTaskId").asText().isBlank()&&!receipt.path("terminal").asBoolean()&&!receipt.path("resultAvailable").asBoolean())
+                throw new ResponseStatusException(HttpStatus.CONFLICT,"项目中仍有分析任务运行，请等待任务结束后再删除");
+        }
+        // Remove only this owner's project. Runtime evidence and user assets have
+        // independent lifecycles and must not be cascaded from project removal.
+        if(jdbc.update("delete from runtime_exploration_workspace where id=? and tenant_id=? and user_id=? and version=?",
+            id,owner.tenant(),owner.user(),expected)!=1)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"分析项目已更新，请刷新后重试");
+    }
     private String encode(ObjectNode state){try{return json.writeValueAsString(state);}catch(Exception e){throw new IllegalStateException(e);}}
     private ObjectNode decode(String value){try{return (ObjectNode)json.readTree(value);}catch(Exception e){throw new IllegalStateException(e);}}
 }

@@ -41,6 +41,28 @@ class ExplorationWorkspaceTest {
         controller.prepare(http,space.path("id").asText(),new ExplorationWorkspaceController.Question(0,null,List.of("file"),"分析资产结构",null));
         return store.get(alice,space.path("id").asText());
     }
+    @Test void renameAndDeleteAreOwnerScopedAndVersionedWithoutChangingAnalysisHistory(){
+        var state=prepared();String id=state.path("id").asText();String nodes=state.path("nodes").toString();
+        var renamed=(ObjectNode)controller.rename(http,id,new ExplorationWorkspaceController.Rename(1,"  新项目名称  ")).getData();
+        assertThat(renamed.path("title").asText()).isEqualTo("新项目名称");assertThat(renamed.path("version").asLong()).isEqualTo(2);
+        assertThat(renamed.path("nodes").toString()).isEqualTo(nodes);
+        assertThatThrownBy(()->store.rename(new UserAssetService.Owner("other","alice"),id,2,"越权")).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+        assertThatThrownBy(()->store.delete(new UserAssetService.Owner("tenant","bob"),id,2)).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+        assertThatThrownBy(()->store.delete(alice,id,1)).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+        assertThatThrownBy(()->store.rename(alice,id,2,"   ")).isInstanceOf(IllegalArgumentException.class);
+        assertThat(store.get(alice,id).path("version").asLong()).isEqualTo(2);
+        controller.delete(http,id,new ExplorationWorkspaceController.Delete(2));assertThat(store.list(alice)).isEmpty();
+        assertThatThrownBy(()->store.get(alice,id)).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+        verifyNoInteractions(analysis);
+    }
+    @Test void deletingProjectWithPendingAgentTaskIsRejected(){
+        var state=prepared();String id=state.path("id").asText();
+        ((ObjectNode)state.path("nodes").get(0)).putObject("receipt").put("agentTaskId","running-task").put("terminal",false).put("resultAvailable",false);
+        store.save(alice,state,1);
+        assertThatThrownBy(()->controller.delete(http,id,new ExplorationWorkspaceController.Delete(2)))
+            .isInstanceOf(org.springframework.web.server.ResponseStatusException.class).hasMessageContaining("仍有分析任务运行");
+        assertThat(store.get(alice,id).path("nodes").size()).isEqualTo(1);
+    }
     @Test void agentFollowupUnionsInheritedAndSupplementalFilesAndRejectsUnavailableInput(){
         var state=store.create(alice,"补充数据分析");String id=state.path("id").asText();
         controller.prepare(http,id,new ExplorationWorkspaceController.Question(0,null,List.of("file"),"初始分析",null,"authorized"));

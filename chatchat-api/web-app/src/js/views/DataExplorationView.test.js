@@ -1,11 +1,33 @@
 // @vitest-environment jsdom
 import {createApp,h,nextTick} from 'vue';
 import {it,expect,vi,afterEach} from 'vitest';
-const api=vi.hoisted(()=>Object.fromEntries(['createExploration','listExplorations','getExploration','prepareExploration','executeExploration','saveExplorationNode','explorationDatasets','explorationAgents','explorationNodeStatus','generateExplorationIdeas','uploadExplorationAttachment'].map(k=>[k,vi.fn()])));
+const api=vi.hoisted(()=>Object.fromEntries(['createExploration','listExplorations','getExploration','renameExploration','deleteExploration','prepareExploration','executeExploration','saveExplorationNode','explorationDatasets','explorationAgents','explorationNodeStatus','generateExplorationIdeas','uploadExplorationAttachment'].map(k=>[k,vi.fn()])));
 vi.mock('../../services/explorationApi',()=>api);
 vi.mock('../../components/PythonReportChart.vue',()=>({default:{props:['chart','presentation'],render(){return h('div',{'data-chart-type':this.presentation},this.chart.title);}}}));
 import View from '../../views/DataExplorationView.vue';
 let app,host;const settle=async()=>{for(let i=0;i<15;i++)await nextTick();};
+it('offers per-project actions and renames without altering nodes or submitting analysis',async()=>{
+ const vm=await mount();const original=JSON.stringify(vm.space.nodes);document.querySelector('.exploration-project-more').click();await settle();
+ expect(document.querySelector('.exploration-project-actions').textContent).toContain('修改名称');
+ await vm.manageProject(vm.spaces[0],'rename');vm.projectName='  修改后的项目  ';api.renameExploration.mockResolvedValue({...structuredClone(space),version:4,title:'修改后的项目'});
+ await vm.submitProjectAction();expect(api.renameExploration).toHaveBeenCalledWith('space',{version:3,title:'修改后的项目'});expect(vm.space.title).toBe('修改后的项目');expect(vm.spaces[0].title).toBe('修改后的项目');expect(JSON.stringify(vm.space.nodes)).toBe(original);expect(api.executeExploration).not.toHaveBeenCalled();
+});
+it('uses the shared delete confirmation, cancellation sends no request, and failures remain retryable',async()=>{
+ const vm=await mount();await vm.manageProject(vm.spaces[0],'delete');await settle();
+ const dialog=document.querySelector('.app-confirm-dialog');expect(dialog.textContent).toContain('无法恢复');expect(dialog.querySelector('.app-confirm-danger')).not.toBeNull();
+ vm.cancelProjectAction();expect(api.deleteExploration).not.toHaveBeenCalled();
+ await vm.manageProject(vm.spaces[0],'delete');api.deleteExploration.mockRejectedValueOnce(new Error('仍有分析任务运行'));
+ await vm.submitProjectAction();expect(vm.projectActionError).toContain('仍有分析任务');expect(vm.space.id).toBe('space');expect(vm.projectAction.kind).toBe('delete');
+});
+it('clears the deleted last project and URL so a refresh cannot restore removed history',async()=>{
+ const vm=await mount();vm.question='旧项目草稿';await vm.manageProject(vm.spaces[0],'delete');api.deleteExploration.mockResolvedValue({deleted:true});
+ await vm.submitProjectAction();expect(api.deleteExploration).toHaveBeenCalledWith('space',3);expect(vm.space).toBeNull();expect(vm.spaces).toHaveLength(0);expect(vm.activeId).toBe('');expect(vm.question).toBe('');expect(location.hash).not.toContain('exploration=');expect(location.hash).not.toContain('node=');
+});
+it('deleting a different project preserves the active selection, report and draft',async()=>{
+ const vm=await mount();vm.spaces.push({id:'other',title:'另一项目'});vm.question='保留此问题';api.getExploration.mockResolvedValueOnce({id:'other',title:'另一项目',version:7,nodes:[]});
+ await vm.manageProject(vm.spaces[1],'delete');api.deleteExploration.mockResolvedValue({deleted:true});await vm.submitProjectAction();
+ expect(api.deleteExploration).toHaveBeenCalledWith('other',7);expect(vm.space.id).toBe('space');expect(vm.activeId).toBe('root');expect(vm.question).toBe('保留此问题');expect(vm.spaces.map(s=>s.id)).toEqual(['space']);
+});
 const node=(id,parentId=null)=>({id,parentId,agentId:'agent',question:'分析资产结构',fileIds:['file'],chartTypes:{},saved:true,receipt:{resultAvailable:true,visualReport:{title:'客户资产结构',summary:'真实结果',charts:[{id:'chart',kind:'plotly',title:'资产结构',artifact:{fileId:'artifact-'+id}}]},results:[{reportMarkdown:'<think>private</think>业务结论'}]}});
 const space={id:'space',title:'客户资产分析',version:3,nodes:[node('root'),node('child','root'),node('sibling','root')]};
 it('uploads supplemental data and includes it with inherited files when continuing analysis',async()=>{

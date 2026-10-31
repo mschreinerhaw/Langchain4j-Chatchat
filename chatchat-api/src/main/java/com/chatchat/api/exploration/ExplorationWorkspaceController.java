@@ -32,6 +32,8 @@ public class ExplorationWorkspaceController {
         public Question(long version,String parentId,List<String> fileIds,String question,String modelName){this(version,parentId,fileIds,question,modelName,null);}
     }
     public record Presentation(long version,boolean saved,Map<String,String> chartTypes){}
+    public record Rename(long version,String title){}
+    public record Delete(long version){}
     private UserAssetService.Owner owner(HttpServletRequest http){
         workspaces.requireAvailable(http,"data-exploration");
         return new UserAssetService.Owner(access.tenant(http),access.user(http));
@@ -53,6 +55,12 @@ public class ExplorationWorkspaceController {
         return ApiResponse.success(store.create(owner,body.title(),files));
     }
     @GetMapping("/{id}") public ApiResponse<?> get(HttpServletRequest http,@PathVariable("id") String id){return ApiResponse.success(store.get(owner(http),id));}
+    @PutMapping("/{id}") public ApiResponse<?> rename(HttpServletRequest http,@PathVariable("id") String id,@RequestBody Rename body){
+        return ApiResponse.success(store.rename(owner(http),id,body.version(),body.title()));
+    }
+    @DeleteMapping("/{id}") public ApiResponse<?> delete(HttpServletRequest http,@PathVariable("id") String id,@RequestBody Delete body){
+        store.delete(owner(http),id,body.version());return ApiResponse.success(Map.of("deleted",true));
+    }
     @PostMapping("/{id}/nodes") public ApiResponse<?> prepare(HttpServletRequest http,@PathVariable("id") String id,@RequestBody Question body){
         var owner=owner(http);var state=store.get(owner,id);version(state,body.version());
         if(body.question()==null||body.question().isBlank()||body.question().length()>8000)throw new IllegalArgumentException("请输入 1–8000 字的分析问题");

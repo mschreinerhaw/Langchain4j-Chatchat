@@ -37,11 +37,31 @@
       </main>
     </div>
     <Teleport to="body">
-      <dialog ref="workspaceDialog" class="exploration-dialog exploration-space-dialog" aria-labelledby="exploration-space-heading" @cancel.prevent="closeDialog(workspaceDialog)"><header><h2 id="exploration-space-heading">选择分析项目</h2><button type="button" aria-label="关闭分析项目切换" @click="closeDialog(workspaceDialog)"><X :size="18" /></button></header><div class="exploration-space-options"><button v-for="item in spaces" :key="item.id" type="button" :disabled="busy" :class="{selected:space?.id===item.id}" @click="switchSpace(item.id)"><span>{{ workspaceBusinessName(item.title) }}</span><Check v-if="space?.id===item.id" :size="16" /></button></div><form @submit.prevent="create"><h3>新建分析项目</h3><p>用于整理一次分析的思维链、数据和图表，数据访问仍遵循原授权。</p><input v-model="title" aria-label="分析项目名称" maxlength="120" required /><button type="submit" :disabled="busy"><Plus :size="15" />创建分析项目</button></form></dialog>
+      <dialog ref="workspaceDialog" class="exploration-dialog exploration-space-dialog" aria-labelledby="exploration-space-heading" @click="projectMenu=''" @cancel.prevent="closeDialog(workspaceDialog)">
+        <header><h2 id="exploration-space-heading">选择分析项目</h2><button type="button" aria-label="关闭分析项目切换" @click="closeDialog(workspaceDialog)"><X :size="18" /></button></header>
+        <p v-if="error" class="app-notice app-notice-error" role="alert">{{ error }}</p>
+        <div class="exploration-space-options">
+          <div v-for="item in spaces" :key="item.id" class="exploration-project-row" :class="{selected:space?.id===item.id}">
+            <button class="exploration-project-select" type="button" :disabled="busy" @click="switchSpace(item.id)"><span>{{ workspaceBusinessName(item.title) }}</span><Check v-if="space?.id===item.id" :size="16" /></button>
+            <button class="exploration-project-more" type="button" :disabled="busy || (analyzing && space?.id===item.id)" :aria-label="'管理分析项目：'+workspaceBusinessName(item.title)" :aria-expanded="projectMenu===item.id" :aria-controls="'project-actions-'+item.id" @click.stop="projectMenu=projectMenu===item.id?'':item.id" @keydown.esc.stop.prevent="projectMenu=''"><Ellipsis :size="19" /></button>
+            <div v-if="projectMenu===item.id" :id="'project-actions-'+item.id" class="exploration-project-actions" aria-label="项目操作" @keydown.esc.stop.prevent="projectMenu=''">
+              <button type="button" @click.stop="manageProject(item,'rename')"><Pencil :size="14" />修改名称</button>
+              <button type="button" class="is-danger" @click.stop="manageProject(item,'delete')"><Trash2 :size="14" />删除项目</button>
+            </div>
+          </div>
+          <p v-if="!spaces.length" class="exploration-project-empty">暂无分析项目，可以在下方新建。</p>
+        </div>
+        <form @submit.prevent="create"><h3>新建分析项目</h3><p>用于整理一次分析的思维链、数据和图表，数据访问仍遵循原授权。</p><input v-model="title" aria-label="分析项目名称" maxlength="120" required /><button type="submit" :disabled="busy"><Plus :size="15" />创建分析项目</button></form>
+      </dialog>
       <dialog ref="chartDialog" class="exploration-dialog exploration-expanded-dialog" aria-label="图表放大查看" @cancel.prevent="closeDialog(chartDialog)"><header><h2>{{ chartDisplayTitle(currentChart?.title) }}</h2><button type="button" aria-label="关闭图表放大" @click="closeDialog(chartDialog)"><X :size="19" /></button></header><PythonReportChart v-if="expandedChart && currentChart" :key="chartKey" :chart="currentChart" :presentation="active.chartTypes[currentChart.id] || ''" compact /></dialog>
       <dialog ref="tableDialog" class="exploration-dialog exploration-expanded-dialog" aria-label="数据明细展开查看" @cancel.prevent="closeDialog(tableDialog)"><header><h2>分析数据</h2><button type="button" aria-label="关闭数据展开" @click="closeDialog(tableDialog)"><X :size="19" /></button></header><ExplorationDataTable v-if="chartData" :table="chartData" /></dialog>
       <dialog ref="detailsDialog" class="exploration-dialog exploration-details-dialog" aria-label="分析说明" @cancel.prevent="closeDialog(detailsDialog)"><header><h2>分析说明</h2><button type="button" aria-label="关闭分析说明" @click="closeDialog(detailsDialog)"><X :size="19" /></button></header><div class="exploration-details-body"><p v-if="report?.summary">{{ report.summary }}</p><ul v-if="report?.validation?.warnings?.length"><li v-for="warning in report.validation.warnings" :key="warning">{{ warning }}</li></ul><ReportMarkdown :content="authoredReport" :render-markdown="renderMarkdown" /><details><summary>原始问题</summary><p>{{ active?.question }}</p></details><details><summary>执行凭据</summary><p>{{ active?.receipt?.executionMode }} · {{ active?.receipt?.taskId }}</p><ul><li v-for="reference in active?.receipt?.evidenceRefs || []" :key="reference">{{ reference }}</li></ul></details></div></dialog>
     </Teleport>
+    <AppConfirmDialog v-if="projectAction" :title="projectAction.kind==='rename'?'修改分析项目名称':'删除分析项目'" :confirm-label="projectAction.kind==='rename'?'保存修改':'确认删除'" :busy-label="projectAction.kind==='rename'?'保存中…':'删除中…'" :tone="projectAction.kind==='rename'?'primary':'danger'" :busy="projectActionBusy" @cancel="cancelProjectAction" @confirm="submitProjectAction">
+      <template v-if="projectAction.kind==='rename'"><p><label for="exploration-project-name">分析项目名称</label></p><input id="exploration-project-name" v-model="projectName" class="exploration-project-name" maxlength="120" autofocus :disabled="projectActionBusy" @input="projectActionError=''" @keydown.enter.prevent="submitProjectAction" /></template>
+      <p v-else>确认删除“{{ workspaceBusinessName(projectAction.state.title) }}”？删除后将移除该项目及其全部思维链，无法恢复。原始文件和独立执行记录会保留。</p>
+      <p v-if="projectActionError" class="app-confirm-error" role="alert">{{ projectActionError }}</p>
+    </AppConfirmDialog>
   </section>
 </template>
 <script src="../js/views/DataExplorationView.js"></script>

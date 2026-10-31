@@ -1,12 +1,13 @@
 import {computed,onMounted,onBeforeUnmount,ref,watch} from 'vue';
-import {ChevronDown,RefreshCw,Save,PanelLeftOpen,Maximize2,Table2,Info,X,Plus,LoaderCircle,Check,ChevronRight} from '@lucide/vue';
+import {ChevronDown,RefreshCw,Save,PanelLeftOpen,Maximize2,Table2,Info,X,Plus,LoaderCircle,Check,ChevronRight,Ellipsis,Pencil,Trash2} from '@lucide/vue';
 import MarkdownIt from 'markdown-it';
 import PythonReportChart from '../../components/PythonReportChart.vue';
 import ReportMarkdown from '../../components/ReportMarkdown.vue';
 import PromptComposer from '../../components/PromptComposer.vue';
 import ExplorationChain from '../../components/ExplorationChain.vue';
 import ExplorationDataTable from '../../components/ExplorationDataTable.vue';
-import {createExploration,listExplorations,getExploration,prepareExploration,executeExploration,saveExplorationNode,explorationAgents,explorationNodeStatus,generateExplorationIdeas,uploadExplorationAttachment} from '../../services/explorationApi';
+import AppConfirmDialog from '../../components/AppConfirmDialog.vue';
+import {createExploration,listExplorations,getExploration,renameExploration,deleteExploration,prepareExploration,executeExploration,saveExplorationNode,explorationAgents,explorationNodeStatus,generateExplorationIdeas,uploadExplorationAttachment} from '../../services/explorationApi';
 import {validateChatFiles,chatTextFile,exceedsChatTextLimit,CHAT_FILE_ANALYSIS_OBJECTIVE} from '../utils/chatUserAssets';
 import {workspaceStorageKey} from '../utils/workspaceContext';
 import {workspaceBusinessName,businessNodeTitle} from '../utils/explorationWorkspace';
@@ -15,13 +16,14 @@ import {splitThinkBlocks} from '../utils/thinkBlocks';
 import {chartDisplayTitle} from '../utils/chartDisplayTitle';
 
 export default {
-  name:'DataExplorationView',components:{PythonReportChart,ReportMarkdown,PromptComposer,ExplorationChain,ExplorationDataTable,
-    ChevronDown,RefreshCw,Save,PanelLeftOpen,Maximize2,Table2,Info,X,Plus,LoaderCircle,Check,ChevronRight},
+  name:'DataExplorationView',components:{PythonReportChart,ReportMarkdown,PromptComposer,ExplorationChain,ExplorationDataTable,AppConfirmDialog,
+    ChevronDown,RefreshCw,Save,PanelLeftOpen,Maximize2,Table2,Info,X,Plus,LoaderCircle,Check,ChevronRight,Ellipsis,Pencil,Trash2},
   props:{workspaceContext:{type:Object,default:null}},
   setup(props){
     const markdown=new MarkdownIt({html:false,linkify:false,breaks:true});
     const spaces=ref([]),space=ref(null),selected=ref([]),activeId=ref(''),title=ref('客户资产分析'),question=ref('');
     const agents=ref([]),agentsLoading=ref(false),selectedAgentId=ref('');
+    const projectMenu=ref(''),projectAction=ref(null),projectName=ref(''),projectActionBusy=ref(false),projectActionError=ref('');
     const attachments=ref([]);
     async function uploadAttachment(item){item.state='uploading';item.error='';try{item.asset=await uploadExplorationAttachment(item.file,item.workspaceContext);item.state='ready';}catch(e){item.state='failed';item.error=e.message||'上传失败，可重试';}}
     async function addFiles(files){
@@ -107,6 +109,37 @@ export default {
       const created=await createExploration(title.value,source);space.value=created;activeId.value='';selected.value=[...(created.fileIds||[])];tableOpen.value=false;remember();
       await refreshList();closeDialog(workspaceDialog.value);question.value='';attachments.value=[];
     });}
+    async function manageProject(item,kind){
+      if(busy.value||projectAction.value)return;projectMenu.value='';
+      await run(async()=>{const state=await getExploration(item.id);projectName.value=state.title;projectActionError.value='';projectAction.value={kind,state};});
+    }
+    function cancelProjectAction(){if(!projectActionBusy.value)projectAction.value=null;}
+    async function submitProjectAction(){
+      if(!projectAction.value||projectActionBusy.value)return;
+      const {kind,state}=projectAction.value,name=projectName.value.trim();
+      if(kind==='rename'&&(!name||name.length>120)){projectActionError.value='请输入 1–120 字的分析项目名称';return;}
+      projectActionBusy.value=true;projectActionError.value='';
+      try{
+        if(kind==='rename'){
+          const updated=await renameExploration(state.id,{version:state.version,title:name});
+          if(space.value?.id===state.id)space.value=updated;
+          spaces.value=spaces.value.map(item=>item.id===state.id?{...item,title:updated.title,version:updated.version}:item);
+          message('分析项目名称已修改');
+        }else{
+          await deleteExploration(state.id,state.version);
+          spaces.value=spaces.value.filter(item=>item.id!==state.id);
+          if(space.value?.id===state.id){
+            clearTimeout(pollTimer);space.value=null;activeId.value='';selected.value=[];selectedAgentId.value='';question.value='';attachments.value=[];tableOpen.value=false;chartCache.value={};
+            const params=selection();params.delete('exploration');params.delete('node');
+            window.history.replaceState(null,'',window.location.hash.split('?')[0]+(params.size?'?'+params:''));
+            if(spaces.value.length){try{await open(spaces.value[0].id);}catch(e){error.value=e.message||'项目已删除，请重新选择分析项目';}}
+          }
+          message('分析项目已删除');
+        }
+        projectAction.value=null;
+      }catch(e){projectActionError.value=e.message||'暂时无法完成操作，请重试';}
+      finally{projectActionBusy.value=false;}
+    }
     async function save(types=active.value?.chartTypes||{},saved=true,nodeId=activeId.value){
       if(!space.value||!nodeId)return;const id=space.value.id;
       const updated=await saveExplorationNode(id,nodeId,{version:space.value.version,saved,chartTypes:types});
@@ -175,7 +208,7 @@ export default {
       syncViewport();window.addEventListener('resize',syncViewport);
       try{await refreshList();if(spaces.value.length)await open(spaces.value.find(s=>s.id===selection().get('exploration'))?.id||spaces.value[0].id);}catch(e){error.value=e.message;}finally{loading.value=false;}});
     onBeforeUnmount(()=>{disposed=true;stopResize();clearTimeout(noticeTimer);clearTimeout(pollTimer);window.removeEventListener('resize',syncViewport);});
-    return {attachments,addFiles,retryFile,removeFile,suggestIdeas,agents,agentsLoading,selectedAgentId,agentAvailable,selectAgent,taskRunning,spaces,space,selected,activeId,title,question,active,report,authoredReport,charts,currentChart,chartKey,chartData,chartTypes,compatibleTypes,effectiveChartType,heading,summary,
+    return {projectMenu,projectAction,projectName,projectActionBusy,projectActionError,manageProject,cancelProjectAction,submitProjectAction,attachments,addFiles,retryFile,removeFile,suggestIdeas,agents,agentsLoading,selectedAgentId,agentAvailable,selectAgent,taskRunning,spaces,space,selected,activeId,title,question,active,report,authoredReport,charts,currentChart,chartKey,chartData,chartTypes,compatibleTypes,effectiveChartType,heading,summary,
       loading,busy,refreshing,analyzing,saving,runningId,runningSpaceId,error,notice,hasData,sidebarWidth,sidebarCollapsed,collapsedBranches,resizing,contentStyle,
       workspaceElement,workspaceDialog,chartDialog,tableDialog,detailsDialog,tableOpen,expandedChart,workspaceBusinessName,businessNodeTitle,
       open,run,create,ask,recover,reload,saveNode,save,selectNode,chartType,chartReady,selectChart,startRoot,toggleBranch,startResize,

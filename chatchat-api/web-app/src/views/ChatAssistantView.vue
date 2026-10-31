@@ -206,6 +206,7 @@
 
     <div class="chat-input-dock">
       <PromptComposer
+        show-idea :idea-provider="suggestChatIdeas" :idea-context="chatIdeaContext" :max-length="200000"
         :workspace-context="workspaceContext"
         ref="promptComposer"
         :conversation-key="[composerGeneration, tenantId, userId].join(':')"

@@ -6,6 +6,18 @@ vi.mock("../../services/api", async (importOriginal) => ({
   fetchAgentTaskEvents: vi.fn(), streamAgentTaskEvents: vi.fn()
 }));
 afterEach(() => {vi.resetAllMocks();vi.unstubAllGlobals();});
+describe('Zhice contextual question suggestions',()=>{
+ it('uses the chat endpoint with the current owned conversation and ready attachment ids',async()=>{
+  apiRequest.mockResolvedValue({ideas:[{title:'确认范围',prompt:'请确认影响范围'}]});
+  const context={workspaceContext:{workspaceId:'zhice'},conversationId:'owned',composerAttachments:[{state:'ready',asset:{id:'file'}}]};
+  await ChatAssistantView.methods.suggestChatIdeas.call(context,{draft:'登录超时',agentId:'ops'});
+  expect(apiRequest).toHaveBeenCalledWith('/interactions/ideas',expect.objectContaining({method:'POST',workspaceContext:context.workspaceContext}));
+  expect(JSON.parse(apiRequest.mock.calls[0][1].body)).toEqual({draft:'登录超时',agentId:'ops',conversationId:'owned',fileIds:['file']});
+ });
+ it('blocks suggestion generation while an attachment is incomplete',async()=>{
+  await expect(ChatAssistantView.methods.suggestChatIdeas.call({composerAttachments:[{state:'failed'}]},{draft:'draft'})).rejects.toThrow('附件');expect(apiRequest).not.toHaveBeenCalled();
+ });
+});
 
 describe('task completion reconciles with the backend lifecycle', () => {
   it('keeps streaming after a failed round and a result while the task is repairing, then accepts final success', async () => {

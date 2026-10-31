@@ -5,6 +5,18 @@ import PromptComposer from "./PromptComposer.vue";
 import {setWorkspaceContext} from '../js/utils/workspaceContext';
 let app, host;
 const settleIdeas=async()=>{for(let i=0;i<6;i++)await nextTick();};
+it('can append a model question to long pasted chat material without discarding the original',async()=>{
+ const original='补充日志\n'+('09:30 华东区登录超时\n'.repeat(700));
+ host=document.createElement('div');app=createApp({render:()=>h(PromptComposer,{showIdea:true,modelValue:original,maxLength:200000,ideaProvider:async()=>({ideas:[{title:'确认范围',prompt:'请确认华东区故障的影响范围。'}]})})});app.mount(host);
+ host.querySelector('[aria-label="提问灵感"]').click();await settleIdeas();host.querySelector('.composer-idea-option').click();await settleIdeas();
+ expect(host.querySelector('textarea').value).toBe(original+'\n\n分析问题：\n请确认华东区故障的影响范围。');expect(host.querySelector('.composer-idea-error')).toBeNull();
+});
+it('shows one yellow idea button in the normal chat toolbar and never submits a selected suggestion',async()=>{
+ const send=vi.fn();host=document.createElement('div');app=createApp({render:()=>h(PromptComposer,{showIdea:true,showSuggestions:false,modelValue:'登录故障',ideaProvider:async()=>({ideas:[{title:'确认影响范围',prompt:'请确认哪些用户出现登录故障及起始时间。'}]}),onSend:send})});app.mount(host);
+ expect(host.querySelectorAll('[aria-label="提问灵感"]')).toHaveLength(1);expect(host.querySelector('.composer-toolbar [aria-label="提问灵感"]')).not.toBeNull();
+ host.querySelector('[aria-label="提问灵感"]').click();await settleIdeas();host.querySelector('.composer-idea-option').click();await settleIdeas();
+ expect(host.querySelector('textarea').value).toContain('登录故障');expect(host.querySelector('textarea').value).toContain('起始时间');expect(send).not.toHaveBeenCalled();
+});
 it('keeps pasted source text intact when the model suggests a differently worded question',async()=>{
  const original='  date,assets\n2026-07-31,12200\n原始补充口径\n';
  host=document.createElement('div');app=createApp({render:()=>h(PromptComposer,{compact:true,showIdea:true,modelValue:original,ideaProvider:async()=>({ideas:[{title:'核对资产',prompt:'请核对期末资产与净流入之间的差异。'}]})})});app.mount(host);

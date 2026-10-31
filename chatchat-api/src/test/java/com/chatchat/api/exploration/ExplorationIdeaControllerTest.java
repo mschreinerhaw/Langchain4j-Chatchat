@@ -23,7 +23,7 @@ class ExplorationIdeaControllerTest {
     UserAssetService assets=mock(UserAssetService.class);AgentChatModelResolver models=mock(AgentChatModelResolver.class);
     ChatModel model=mock(ChatModel.class);ObjectMapper json=new ObjectMapper();MockHttpServletRequest http=new MockHttpServletRequest();
     UserAssetService.Owner owner=new UserAssetService.Owner("tenant","alice");
-    ExplorationIdeaController controller=new ExplorationIdeaController(workspaces,access,store,agents,assets,models,json);
+    ExplorationIdeaController controller=new ExplorationIdeaController(workspaces,access,store,agents,json,new com.chatchat.api.assistance.QuestionIdeaService(assets,models,json));
     @BeforeEach void setup(){when(access.tenant(http)).thenReturn("tenant");when(access.user(http)).thenReturn("alice");when(models.resolveChatModel(null)).thenReturn(model);}
     @Test void loadsOwnedCurrentNodeAndSupplementalTextBeforeOneModelCall() throws Exception {
         var project=json.createObjectNode().put("title","七月客户分析");var node=project.putArray("nodes").addObject().put("id","node").put("question","核对资产盈亏");

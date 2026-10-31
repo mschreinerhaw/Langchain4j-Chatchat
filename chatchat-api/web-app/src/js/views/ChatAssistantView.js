@@ -1741,6 +1741,10 @@ export default {
     hasConversation() {
       return this.messages.length > 0 || this.loading;
     },
+    chatIdeaContext(){
+      const last=this.messages.at(-1);
+      return {conversationId:this.conversationId,generation:this.composerGeneration,messageCount:this.messages.length,lastMessage:last?.id,lastContent:last?.content};
+    },
     statusNotice() {
       if (!this.hasConversation || this.loading) {
         return "";
@@ -1901,6 +1905,11 @@ export default {
     }
   },
   methods: {
+    async suggestChatIdeas({draft,agentId}){
+      if(this.composerAttachments.some(file=>file.state!=='ready'))throw new Error('请先完成附件上传，或移除失败的附件。');
+      return apiRequest('/interactions/ideas',{method:'POST',workspaceContext:this.workspaceContext,
+        body:JSON.stringify({draft,agentId:agentId||undefined,conversationId:this.conversationId||undefined,fileIds:this.composerAttachments.map(file=>file.asset.id)})});
+    },
     async uploadComposerAttachment(item) {
       item.state='uploading';item.error='';
       try {

@@ -1,0 +1,110 @@
+{
+  "mockedProvider": false,
+  "implementationAndDeployment": "PASSED",
+  "fullPlanAcceptance": "PASSED_IN_GUIDED_ACCEPTANCE_MODE_WITH_SOURCE_LIMITATIONS",
+  "analysis": {
+    "taskId": "analysis-coding-b0dbae8c40d3dff8355fecc2ba10396633dde5a55f82ace1316ae8c675552646",
+    "status": "COMPLETED",
+    "analysisStatus": "COMPLETE",
+    "validationStatus": "INCONCLUSIVE",
+    "expected": {
+      "rows": 6,
+      "validAmounts": 5,
+      "missing": 1,
+      "total": 80,
+      "mean": 16,
+      "regions": {
+        "East": 30,
+        "West": 45,
+        "North": 5
+      }
+    },
+    "observedMetrics": {
+      "total_amount": 80,
+      "mean_amount": 16,
+      "valid_count": 5,
+      "missing_amount_count": 1,
+      "trade_rows": 6,
+      "region_keys": 3,
+      "dup_trade_id": 0,
+      "dup_region": 0
+    },
+    "staticPng": true,
+    "chartCount": 2,
+    "codeAndExecutionViaExistingRuntime": true
+  },
+  "development": {
+    "taskId": "python-coding-d59cba53dc6273b6bc780e399f2f3989f83744d0e5999dff014bd3b47f1887f7",
+    "status": "COMPLETED",
+    "executedByWorkspaceAgent": false,
+    "independentIsolatedUnitTests": 29,
+    "files": [
+      {
+        "path": "main.py",
+        "sha256": "6c2aed5c29d3ee604caf7e3fbc5c919d6d7538753a5d89f6f624f6e1490fc05e"
+      },
+      {
+        "path": "test_main.py",
+        "sha256": "05bd055bc2228c04b0df1dd0298c04b6ca8495f74d400f9dc6750a5241185e70"
+      }
+    ]
+  },
+  "isolation": {
+    "parallel": true,
+    "a": {
+      "taskId": "analysis-coding-841ceea4c3763627a3961cf6ef16d3e03c411818256857705a3a6f5a97c93619",
+      "dynamicCards": 3,
+      "frozenDynamicPackages": 3,
+      "disabledBuiltins": []
+    },
+    "b": {
+      "taskId": "analysis-coding-4cc2b33fcc653d3104cef1a6cf917420aa995d93e6dbd5a9717761271bab28fc",
+      "dynamicCards": 0,
+      "frozenDynamicPackages": 0,
+      "disabledBuiltins": [
+        "builtin:python-data-analysis"
+      ],
+      "parentTaskStatus": "PARTIAL",
+      "computationMatchedFixture": true,
+      "semanticLimitationsRetained": true
+    }
+  },
+  "customer": {
+    "requestedDate": "2026-07-31",
+    "sourceRecordsAvailable": true,
+    "sourceFieldDefinitionsAvailable": true,
+    "permissionScopeExpanded": false,
+    "sourceDataOrTemplateMappingModified": false,
+    "latestCompletedUnifiedDateTask": "467bdfe8-3382-372e-b2d6-4149912203e9",
+    "latestCompletedCodingCharts": 2,
+    "latestCompletedHumanQualityReview": "PASSED_CODING_AGENT_INDEPENDENT_NUMERICAL_AND_VISUAL_REVIEW_WITH_SOURCE_LIMITATIONS",
+    "cancelledMissingTradeDatasetTask": "71633538-09a8-3dc9-8c14-45cef62d4869",
+    "cancelledTaskAcceptance": "NOT_PASSED",
+    "reviewStatus": "COMPLETED_WITH_SOURCE_LIMITATIONS",
+    "previousCompletedUnifiedDateTask": "4ecb3513-f269-3643-936b-2eb8b36d8870",
+    "cancelledReportQualityTask": "4a7cf385-c8ca-3bdc-b873-777b697f0f23",
+    "currentRetest": {
+      "taskId": "467bdfe8-3382-372e-b2d6-4149912203e9",
+      "model": "deepseek-v4-flash",
+      "skillVersion": "1.3.0",
+      "status": "SUCCEEDED",
+      "originalModelRestored": true
+    },
+    "latestEvidence": "customer-verified-runtime.json",
+    "qualityEvidence": "customer-final-quality-review.json",
+    "readOnlyExport": "customer-final-export.json",
+    "businessSemanticsCertified": false,
+    "historicalIndependentSupplement": "customer-reviewed-supplement.json"
+  },
+  "latestCustomerRetest": "03-customer-retest.md",
+  "customerInitialMetadataOnly": {
+    "taskId": "8b49dfc0-11c5-3a41-b1d0-36c66a205163",
+    "agentId": "ids_data_audit",
+    "terminalState": "SUCCEEDED",
+    "acceptance": "BLOCKED_NO_CUSTOMER_RECORDS",
+    "actualCustomerCodingAnalysis": false,
+    "actualCustomerCharts": false,
+    "permissionScopeExpanded": false
+  },
+  "acceptanceMode": "Real provider, explicit business period and targeted methodological constraints; no claim of default-model zero-shot success"
+}

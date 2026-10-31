@@ -1,0 +1,148 @@
+{
+  "java": {
+    "suites": [
+      {
+        "suite": "SkillCatalogServiceTest",
+        "tests": 16,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "DomainSkillServiceTest",
+        "tests": 24,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "SkillAnalysisContextServiceTest",
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "AgentWorkshopControllerTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "ClineModelCallbackControllerTest",
+        "tests": 16,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "ClineRuntimeModelBridgeTest",
+        "tests": 17,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "CodingConfigurationSnapshotTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "CodingSkillReaderTest",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "CodingWorkspaceServiceTest",
+        "tests": 12,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 12
+      }
+    ],
+    "tests": 109,
+    "failures": 0,
+    "skipped": 12
+  },
+  "nodeLocal": {
+    "tests": 144,
+    "passed": 144,
+    "node": "22.14.0",
+    "options": "--experimental-strip-types"
+  },
+  "nodeRemoteOffline": {
+    "tests": 144,
+    "passed": 144,
+    "node": "24.21.0",
+    "network": "none",
+    "readOnly": true
+  },
+  "frontend": {
+    "tests": 50,
+    "passed": 50
+  },
+  "productionBuild": "PASSED",
+  "realProviderPythonAnalysis": "PASSED_SYNTHETIC_EXPECTED_VALUES_AND_ARTIFACTS",
+  "realProviderPythonDevelopment": "PASSED_WITH_29_ISOLATED_UNITTESTS",
+  "customer070200046604": "PASSED_GUIDED_REAL_PROVIDER_NUMERICAL_VISUAL_REVIEW_WITH_SOURCE_LIMITATIONS",
+  "javaFinancialReporting": {
+    "tests": 29,
+    "passed": 29
+  },
+  "javaInstructionBudgetAndAnalysis": {
+    "tests": 42,
+    "passed": 42
+  },
+  "javaClineCallback": {
+    "tests": 16,
+    "passed": 16,
+    "overlapsOriginalJavaSuite": true
+  },
+  "javaCheckpointPersistence": {
+    "tests": 38,
+    "passed": 38,
+    "skipped": 0
+  },
+  "latestJavaFocusedRun": {
+    "tests": 117,
+    "passed": 117,
+    "skipped": 0,
+    "overlapsOtherJavaEntries": true
+  },
+  "javaBaselineHistorical": true,
+  "javaModelBridgeLatest": {
+    "tests": 21,
+    "passed": 21,
+    "skipped": 0
+  },
+  "financialRecipesPython": {
+    "tests": 31,
+    "passed": 31,
+    "skipped": 0,
+    "syntheticOnly": true,
+    "proof": "financial-recipes-tests.json"
+  },
+  "javaCatalogLatest": {
+    "tests": 16,
+    "passed": 16,
+    "skipped": 0,
+    "overlapsOriginalJavaSuite": true
+  },
+  "latestJavaFinancialPromptRegression": {
+    "tests": 25,
+    "passed": 25,
+    "skipped": 0,
+    "overlapsJavaFinancialReporting": true
+  },
+  "latestJavaInstructionRegression": {
+    "tests": 42,
+    "passed": 42,
+    "skipped": 0,
+    "overlapsPreviousJavaRuns": true
+  }
+}

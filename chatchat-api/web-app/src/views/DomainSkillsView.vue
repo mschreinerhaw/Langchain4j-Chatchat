@@ -156,6 +156,16 @@
       </aside>
 
       <section class="domain-skills-content" :aria-busy="refreshing">
+        <section v-if="builtinSkills.length" aria-label="系统内置技能">
+          <article v-for="skill in builtinSkills" :key="skill.id" class="domain-skill-item">
+            <div class="domain-skill-item-body">
+              <strong>{{ skill.name }}</strong>
+              <span class="feature-status builtin">系统内置</span>
+              <p>{{ skill.description }}</p>
+              <span>版本 {{ skill.version }} · Coding · 随镜像升级，不可卸载</span>
+            </div>
+          </article>
+        </section>
         <div class="domain-skills-summary">
           <span>{{ loading ? "加载中" : `共 ${total} 个技能` }}</span>
           <strong v-if="filters.category">{{ filters.category }}</strong>
@@ -192,7 +202,7 @@
               <p v-if="skill.executionEngine" class="skill-execution-binding"
                 >{{ engineLabel(skill.executionEngine) }} · 使用 Agent 配置的模型</p
               >
-              <span>{{ skill.category }} · {{ formatTime(skill.updatedAt) }} · {{ skill.id }}</span>
+              <span>{{ skill.category }} · 版本 {{ skill.publishedCompilationId || skill.federatedDigest || '未发布' }} · {{ formatTime(skill.updatedAt) }} · {{ skill.id }}</span>
             </div>
             <div v-if="isAdmin" class="domain-skill-item-actions">
               <button

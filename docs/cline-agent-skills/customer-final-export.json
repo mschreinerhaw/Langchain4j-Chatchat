@@ -1,0 +1,20 @@
+{
+  "kind": "READ_ONLY_EXPORT_OF_ORIGINAL_REGISTERED_MODEL_REPORT",
+  "taskId": "467bdfe8-3382-372e-b2d6-4149912203e9",
+  "codingTaskId": "analysis-coding-dd6a034810a6d65e6472a68365082c2f848ec537dc3ff609f665a08dda4fb2a1",
+  "registeredReportSha256": "fb96965f490d731493cbda14674b0d3ab9a518b8d881f106c655fdc4dd6cfc16",
+  "exportSha256": "2303cc8cd088f603a77ffaabd102534831d8ae0d40815156fbf866799daad84e",
+  "exportBytes": 416252,
+  "narrativeTablesAndImageValuesNotEdited": true,
+  "tables": 5,
+  "images": 2,
+  "customerContentExcludedFromGit": true,
+  "browser": {
+    "imagesDecoded": 2,
+    "s6MatrixRows": 12,
+    "holdingRows": 23,
+    "unroundedTotalDisplayed": true,
+    "tableColumnCountsConsistent": true,
+    "errors": 0
+  }
+}

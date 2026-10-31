@@ -37,9 +37,9 @@ class CodingSkillReaderTest {
         when(scopes.resolve(anyString(),anyString(),anyString(),anyList(),anyList())).thenReturn(
             new SkillExecutionScopePort.EffectiveScope(List.of(),List.of(),List.of("role"),true,true));
         resolve("ORIGINAL_METHOD",List.of());
-        when(tasks.privateState(any(),eq("task"),anyString())).thenAnswer(call -> saved.get(call.getArgument(2)));
-        doAnswer(call -> { saved.put(call.getArgument(3),call.getArgument(5)); return null; })
-            .when(tasks).privateState(any(),eq("task"),eq(lease),anyString(),isNull(),any());
+        when(tasks.privateState(any(),anyString(),anyString())).thenAnswer(call -> saved.get(call.getArgument(1)+"\0"+call.getArgument(2)));
+        doAnswer(call -> { saved.put(call.getArgument(1)+"\0"+call.getArgument(3),call.getArgument(5)); return null; })
+            .when(tasks).privateState(any(),anyString(),eq(lease),anyString(),isNull(),any());
     }
     void resolve(String instructions,List<SkillResourceDescriptor> resources) {
         when(resolver.resolve(any())).thenReturn(new SkillResolution(
@@ -51,7 +51,7 @@ class CodingSkillReaderTest {
         verify(resolver).resolve(argThat(r -> r.version().equals("v1") && r.roleContext().tenantId().equals("tenant")
             && r.roleContext().userId().equals("owner") && r.roleContext().attributes().get("agentId").equals("agent")));
         verify(resolver,never()).readResource(any());
-        assertThat(saved).hasSize(1);
+        assertThat(saved).hasSize(2);
     }
     @Test void anotherSkillOrMissingToolGrantCannotResolveContent() {
         assertThatThrownBy(() -> reader.read(contract,lease,"other","")).isInstanceOf(SecurityException.class);
@@ -74,22 +74,37 @@ class CodingSkillReaderTest {
             new ResolvedSkill(changed,"Changed",List.of(),null,Map.of()),allowed,"db","RESOLVED",Map.of()));
         assertThatThrownBy(() -> reader.read(contract,lease,"method","")).isInstanceOf(SecurityException.class);
     }
-    @Test void resumedReadsRejectChangedContentUnderTheSameVersion() {
+    @Test void resumedReadsKeepTheTaskSnapshotWhenPublishedContentChanges() {
         reader.read(contract,lease,"method","");
         resolve("ALTERED_METHOD",List.of());
-        assertThatThrownBy(() -> reader.read(contract,lease,"method","")).isInstanceOf(SecurityException.class);
+        assertThat(reader.read(contract,lease,"method","")).containsEntry("instructions","ORIGINAL_METHOD");
+    }
+    @Test void catalogIsFrozenBeforeInferenceAndNewTasksReceiveTheNewVersion() {
+        reader.freezeCatalog(contract,lease);
+        var next=new SkillDescriptor("method","v2","Comparison","Method","","DB","","","",1,Map.of());
+        when(resolver.resolve(any())).thenReturn(new SkillResolution(
+            new ResolvedSkill(next,"UPDATED_METHOD",List.of(),null,Map.of()),allowed,"db","RESOLVED",Map.of()));
+        assertThat(reader.read(contract,lease,"method","")).containsEntry("instructions","ORIGINAL_METHOD").containsEntry("version","v1");
+        when(contract.taskId()).thenReturn("next-task");
+        when(contract.runtimeContext()).thenReturn(Map.of("skills",Map.of("skills",List.of(Map.of("id","method","version","v2","agentId","agent")))));
+        assertThat(reader.read(contract,lease,"method","")).containsEntry("instructions","UPDATED_METHOD").containsEntry("version","v2");
+    }
+    @Test void aDynamicCollisionCannotLoadContentOrBlockTheImageDefault() {
+        when(contract.runtimeContext()).thenReturn(Map.of("skills",Map.of("skills",List.of(Map.of(
+            "id","method","version","v999","name","Python-Data-Analysis","agentId","agent")))));
+        reader.freezeCatalog(contract,lease);
+        verifyNoInteractions(resolver,scopes,tasks);
     }
     @Test void resourceIsLoadedOnlyOnDemandAndHashVerified() throws Exception {
         byte[] bytes="REFERENCE_CONTENT".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         String digest=HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(bytes));
         var ref=new SkillResourceDescriptor("reference","references/method.md","text/plain",digest,Map.of());
         resolve("ORIGINAL_METHOD",List.of(ref));
-        reader.read(contract,lease,"method","");
-        verify(resolver,never()).readResource(any());
         when(resolver.readResource(any())).thenReturn(Optional.of(new SkillResourceContent(ref,bytes)));
+        reader.read(contract,lease,"method","");
         assertThat(reader.read(contract,lease,"method",ref.relativePath())).containsEntry("content","REFERENCE_CONTENT");
         when(resolver.readResource(any())).thenReturn(Optional.of(new SkillResourceContent(ref,"altered".getBytes())));
-        assertThatThrownBy(() -> reader.read(contract,lease,"method",ref.relativePath())).isInstanceOf(SecurityException.class);
+        assertThat(reader.read(contract,lease,"method",ref.relativePath())).containsEntry("content","REFERENCE_CONTENT");
     }
     @Test void scriptsTraversalAndUndeclaredResourcesCannotBeRead() {
         for (String path : List.of("scripts/run.py","../secret","references/../../secret","unknown.md","C:\\secret"))

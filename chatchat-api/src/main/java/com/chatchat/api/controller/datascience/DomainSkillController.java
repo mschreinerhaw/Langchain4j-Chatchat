@@ -31,6 +31,12 @@ public class DomainSkillController {
     private final DomainSkillService service;
     private final DomainSkillImportTaskService importTaskService;
 
+    @GetMapping("/builtins")
+    public ApiResponse<?> builtins(HttpServletRequest request) {
+        scope(request);
+        return ApiResponse.success(com.chatchat.chat.skills.runtime.BuiltinCodingSkills.catalog());
+    }
+
     @GetMapping("/{id}/protocol")
     public ApiResponse<?> protocol(@PathVariable("id") String id, HttpServletRequest request) {
         return call(() -> { Scope scope = scope(request); requireAdmin(scope); return service.compilation(scope.tenantId(), id); });

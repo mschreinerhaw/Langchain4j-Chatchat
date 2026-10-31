@@ -1,0 +1,4 @@
+[
+  {"id":"builtin:python-data-analysis","name":"python-data-analysis","description":"Analyze delivered Python datasets, inspect quality, join sources, compute statistics and business metrics, and deliver reproducible static charts and Runtime OS reports.","version":"1.3.0","origin":"SYSTEM_BUILTIN","category":"Python","references":["references/data-methods.md","references/financial-reporting.md"]},
+  {"id":"builtin:python-code-development","name":"python-code-development","description":"Design, implement, debug and refactor maintainable Python programs, reusable analysis components and tests with typed interfaces, validation, logging and reliable file handling.","version":"1.0.0","origin":"SYSTEM_BUILTIN","category":"Python","references":["references/engineering-checks.md"]}
+]

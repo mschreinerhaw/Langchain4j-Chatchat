@@ -1,0 +1,28 @@
+{
+  "uid": 1000,
+  "gid": 32101,
+  "home": "/home/node",
+  "searchPaths": [
+    "/srv/coding-agent/.clinerules/skills",
+    "/srv/coding-agent/.cline/skills",
+    "/srv/coding-agent/.claude/skills",
+    "/srv/coding-agent/.agents/skills",
+    "/home/node/.cline/skills",
+    "/home/node/.agents/skills"
+  ],
+  "discovered": [
+    {
+      "name": "python-code-development",
+      "description": "Design, implement, debug and refactor maintainable Python programs, reusable analysis components and tests with typed interfaces, validation, logging and reliable file handling.",
+      "path": "/srv/coding-agent/.cline/skills/python-code-development/SKILL.md"
+    },
+    {
+      "name": "python-data-analysis",
+      "description": "Analyze delivered Python datasets, inspect quality, join sources, compute statistics and business metrics, and deliver reproducible static charts and Runtime OS reports.",
+      "path": "/srv/coding-agent/.cline/skills/python-data-analysis/SKILL.md"
+    }
+  ],
+  "referencesReadable": true,
+  "historicalEvidence": true,
+  "currentEvidence": "customer-verified-runtime.json"
+}

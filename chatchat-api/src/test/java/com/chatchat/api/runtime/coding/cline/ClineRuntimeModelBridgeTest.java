@@ -205,6 +205,51 @@ class ClineRuntimeModelBridgeTest {
             assertThat((List<?>)rejected.receipt().get("toolCalls")).isEmpty();
         }
     }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
+    void lengthWithoutToolCallsCarriesBoundedFeedbackOnlyWhenUsageIsKnown(boolean knownUsage) throws Exception {
+        var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);
+        var parent=mock(ChatModel.class);when(resources.defaultChatModel()).thenReturn("registered-model");
+        when(parent.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder()
+            .aiMessage(AiMessage.from("unfinished response"))
+            .tokenUsage(knownUsage?new TokenUsage(12,512,524):null)
+            .finishReason(dev.langchain4j.model.output.FinishReason.LENGTH).build());
+        var bridge=new ClineRuntimeModelBridge(resources,factory,json);
+        var registry=new CodingParentModels();bridge.setParentModels(registry);var task=contract();
+        try(var binding=registry.bind(task.scope(),task.taskId(),parent)) {
+            var rejected=catchThrowableOfType(()->bridge.complete(task,json.readTree("{\"systemPrompt\":\"calculate\",\"messages\":[],\"tools\":[]}")),
+                ClineRuntimeModelBridge.InvalidModelResponseException.class);
+            var receipt=json.valueToTree(rejected.receipt());
+            assertThat(receipt.path("toolCalls").isEmpty()).isTrue();
+            assertThat(receipt.path("finishReason").asText()).as("receipt=%s; cause=%s",receipt,rejected.getCause()).isEqualTo("LENGTH");
+            assertThat(receipt.path("modelResponseFeedback").path("diagnosticCode").asText()).isEqualTo("MODEL_OUTPUT_TRUNCATED");
+            assertThat(receipt.path("modelResponseFeedback").path("repairAllowed").asBoolean()).isEqualTo(knownUsage);
+        }
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
+    void lengthNeverExecutesAValidToolPrefixOrRepairsAnUnauthorizedTool(boolean unauthorized) throws Exception {
+        var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);
+        var parent=mock(ChatModel.class);when(resources.defaultChatModel()).thenReturn("registered-model");
+        when(parent.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder()
+            .aiMessage(AiMessage.from(List.of(ToolExecutionRequest.builder().id("call")
+                .name(unauthorized?"outside_contract":"python_execute").arguments("{\"source\":\"print(1)\"}").build())))
+            .tokenUsage(new TokenUsage(12,512,524))
+            .finishReason(dev.langchain4j.model.output.FinishReason.LENGTH).build());
+        var bridge=new ClineRuntimeModelBridge(resources,factory,json);
+        var registry=new CodingParentModels();bridge.setParentModels(registry);var task=contract();
+        try(var binding=registry.bind(task.scope(),task.taskId(),parent)) {
+            var rejected=catchThrowableOfType(()->bridge.complete(task,json.readTree("{\"systemPrompt\":\"calculate\",\"messages\":[],\"tools\":[]}")),
+                ClineRuntimeModelBridge.InvalidModelResponseException.class);
+            var receipt=json.valueToTree(rejected.receipt());
+            assertThat(receipt.path("toolCalls").isEmpty()).isTrue();
+            assertThat(receipt.path("modelResponseFeedback").path("diagnosticCode").asText()).as("receipt=%s; cause=%s",receipt,rejected.getCause())
+                .isEqualTo(unauthorized?"MODEL_TOOL_NOT_AUTHORIZED":"MODEL_OUTPUT_TRUNCATED");
+            assertThat(receipt.path("modelResponseFeedback").path("repairAllowed").asBoolean()).isEqualTo(!unauthorized);
+        }
+    }
+
     @Test void rejectedResponseWithoutProviderUsageCannotAuthorizeAnUnmeteredRetry() throws Exception {
         var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);
         var parent=mock(ChatModel.class);when(resources.defaultChatModel()).thenReturn("registered-model");

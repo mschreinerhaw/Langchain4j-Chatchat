@@ -1,0 +1,20 @@
+{
+  "status": "DEPLOYED",
+  "image": "runtime-os-api:cline-financial-charts-20261031-r8",
+  "sha256": "909d8b4756e2b0cf710c99aec714c0dda7f8c66eef0935979918e119e63d1395",
+  "backup": "/opt/chatchat-releases/cline-financial-recipes-20261031/backup",
+  "retired": {
+    "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-studio-1793425917",
+    "runtime-os-app-stage-coding-agent-1": "runtime-os-app-stage-coding-agent-1-before-studio-1793425917",
+    "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-studio-1793425917"
+  },
+  "preservedExpiredReadOnlyTaskIds": [],
+  "unrelatedContainersUnchanged": true,
+  "conversationContentUnchanged": true,
+  "messageIndexCountUnchanged": true,
+  "images": {
+    "runtime-os-app-stage-api-1": "runtime-os-api:cline-financial-charts-20261031-r8",
+    "runtime-os-app-stage-coding-agent-1": "runtime-os-coding-agent:agent-skills-financial-recipes-20261031"
+  },
+  "channelCounts": "SQL_STUDIO|36\nPYTHON_STUDIO|5\nPLATFORM_UI|830\nAGENT_API|188"
+}

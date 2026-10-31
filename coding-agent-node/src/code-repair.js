@@ -119,7 +119,11 @@ export class CodeHistory {
       source = this.validSource;
     } else {
       if (input?.source !== undefined || input?.repair?.parentCodeVersion !== parent.version)
-        throw new CodeProposalError('PATCH_REQUIRED', 'repair must name the latest parentCodeVersion and baseCodeSha256');
+        throw new CodeProposalError('PATCH_REQUIRED',
+          `Use the latest parent. Put parentCodeVersion and baseCodeSha256 INSIDE repair, not at the top level. `
+          + `repair.parentCodeVersion must be the integer ${parent.version}, not a string. `
+          + `Required shape: ${JSON.stringify({ repair: { parentCodeVersion: parent.version,
+            baseCodeSha256: parent.codeHash, edits: [{ oldText: '<exact existing text>', newText: '<replacement text>' }] } })}`);
       if (editedSource !== undefined && input.repair.baseCodeSha256 !== parent.codeHash)
         throw new TypeError('Repair base code hash mismatch');
       source = editedSource === undefined ? prepareProgram(input, this.currentSource) : bounded(editedSource);

@@ -1,0 +1,187 @@
+{
+  "immutableInputHashesVerified": true,
+  "rows": 115,
+  "tradeShape": {
+    "records": 27,
+    "sourceFieldZQDMContainsChinese": 27,
+    "sourceFieldZQMCEmpty": 27,
+    "sixDigitZQDM": 0,
+    "tradeCodeValuesMatchingPositionNames": 23
+  },
+  "negativeFieldCounts": {
+    "CJSL": 0,
+    "CJJG": 0,
+    "CJJE": 0,
+    "S1": 0,
+    "S2": 0,
+    "S3": 0,
+    "S5": 0,
+    "S6": 15,
+    "YSJE": 0
+  },
+  "numericalRelationsNotSemanticCertification": {
+    "buyS6PlusFundPaid": "0.00",
+    "sellS6MinusFundReceived": "0.00"
+  },
+  "independentArithmeticResiduals": {
+    "totalAssetsMinusComponents": "0.00",
+    "assetDailyPnlMinusHoldingAndClosedDailyPnl": "0.00",
+    "assetMarketValueMinusHoldingMarketValues": "0.00",
+    "assetCashMinusAccountBalance": "0.00"
+  },
+  "customer": "******6604",
+  "requestedDate": "2026-07-31",
+  "taskId": "467bdfe8-3382-372e-b2d6-4149912203e9",
+  "runId": "att-1-dc7526aa-3554-4d41-ab1f-c55a5c7daf90",
+  "dataSourceCount": 10,
+  "isolation": {
+    "image": "chatchat-python-runtime:3.11-v1.2-fonts-r2-20261022",
+    "network": "none",
+    "readOnly": true,
+    "user": "1000:32101",
+    "capDrop": "ALL",
+    "noNewPrivileges": true,
+    "mountedFiles": 3,
+    "filesTaskAuthorizedAndScopeMatched": true
+  },
+  "interpretation": "Arithmetic residuals and cross-source numerical matches do not certify business semantics. ZQDM/ZQMC have code/name shape discrepancies; signed S6 values and zero YSJE require semantic review. No revised field meaning or accounting error is certified. Source records and template mappings were not modified.",
+  "declaredFieldDefinitions": 142,
+  "observedFlowOrdering": [
+    {
+      "records": 27,
+      "tiedTimeGroups": 1,
+      "lastTimeGroupRows": 27,
+      "candidateUnambiguousIntervals": 0,
+      "candidateNonzeroIntervalResiduals": 0
+    }
+  ],
+  "parameterProvenance": {
+    "exactRequestedCustomer": 10,
+    "originUserQuery": 10,
+    "idsRequests": 2,
+    "idsReturnedRows": 0,
+    "previousRetestsWithTwoDefaultsAreHistorical": true,
+    "independentCrossSystemIdentityCertification": false
+  },
+  "sourceDataOrTemplateMappingModifiedByImplementation": false,
+  "dateProvenance": [
+    {
+      "datasetReference": "livedata_cx_mncg_khzc_r#template-binding-1-binding-1",
+      "effectiveDates": {
+        "ksrq": "20260731",
+        "jsrq": "20260731"
+      },
+      "dateOrigins": {
+        "ksrq": "user_query",
+        "jsrq": "user_query"
+      },
+      "rejectedOverrides": null
+    },
+    {
+      "datasetReference": "livedata_cx_mncg_zqyels#template-binding-2-binding-2",
+      "effectiveDates": {
+        "ksrq": "20260731",
+        "jsrq": "20260731"
+      },
+      "dateOrigins": {
+        "ksrq": "user_query",
+        "jsrq": "user_query"
+      },
+      "rejectedOverrides": null
+    },
+    {
+      "datasetReference": "livedata_cx_mncg_wtls#template-binding-3-binding-3",
+      "effectiveDates": {
+        "ksrq": "20260731",
+        "jsrq": "20260731"
+      },
+      "dateOrigins": {
+        "ksrq": "user_query",
+        "jsrq": "user_query"
+      },
+      "rejectedOverrides": null
+    },
+    {
+      "datasetReference": "livedata_cx_mncg_jgmxls#template-binding-4-binding-4",
+      "effectiveDates": {
+        "ksrq": "20260731",
+        "jsrq": "20260731"
+      },
+      "dateOrigins": {
+        "ksrq": "user_query",
+        "jsrq": "user_query"
+      },
+      "rejectedOverrides": []
+    },
+    {
+      "datasetReference": "livedata_cx_mncg_zjmxls#template-binding-5-binding-5",
+      "effectiveDates": {
+        "ksrq": "20260731",
+        "jsrq": "20260731"
+      },
+      "dateOrigins": {
+        "ksrq": "user_query",
+        "jsrq": "user_query"
+      },
+      "rejectedOverrides": null
+    },
+    {
+      "datasetReference": "livedata_cx_mncg_zjyels#template-binding-6-binding-6",
+      "effectiveDates": {
+        "ksrq": "20260731",
+        "jsrq": "20260731"
+      },
+      "dateOrigins": {
+        "ksrq": "user_query",
+        "jsrq": "user_query"
+      },
+      "rejectedOverrides": null
+    },
+    {
+      "datasetReference": "livedata_cx_mncg_qcfx#template-binding-7-binding-7",
+      "effectiveDates": {
+        "ksrq": "20260731",
+        "jsrq": "20260731"
+      },
+      "dateOrigins": {
+        "ksrq": "user_query",
+        "jsrq": "user_query"
+      },
+      "rejectedOverrides": null
+    },
+    {
+      "datasetReference": "livedata_cx_mncg_zcxzmx#template-binding-8-binding-8",
+      "effectiveDates": {
+        "rq": "20260731"
+      },
+      "dateOrigins": {
+        "rq": "user_query"
+      },
+      "rejectedOverrides": null
+    },
+    {
+      "datasetReference": "livedata_SQL_ADS_IDS_CLR_DELI_JOUR_SECU#template-binding-9-binding-9",
+      "effectiveDates": {
+        "START_DATE": "20260731",
+        "END_DATE": "20260731"
+      },
+      "dateOrigins": {
+        "START_DATE": "user_query",
+        "END_DATE": "user_query"
+      },
+      "rejectedOverrides": null
+    },
+    {
+      "datasetReference": "livedata_SQL_ADS_IDS_SECU_AST_LIAB#template-binding-10-binding-10",
+      "effectiveDates": {
+        "START_DATE": "20260731",
+        "END_DATE": "20260731"
+      },
+      "dateOrigins": {
+        "START_DATE": "user_query",
+        "END_DATE": "user_query"
+      },
+      "rejectedOverrides": null
+    }
+  ]
+}

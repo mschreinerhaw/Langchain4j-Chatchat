@@ -1,0 +1,22 @@
+{
+  "syntheticOnly": true,
+  "tests": 18,
+  "passed": 18,
+  "failed": 0,
+  "skipped": 0,
+  "testMethod": "Extract and execute actual packaged Markdown recipe code blocks with unittest",
+  "pythonImage": "chatchat-python-runtime:3.11-v1.2-fonts-r2-20261022",
+  "pythonImageId": "sha256:7c665132dd360b4f84a669a16b53de93c0ff142e1ecf8f56bef1a07d6346fdc8",
+  "workerImageId": "sha256:e5274de9c84fa82f70b4eaa0c5088262abb34a9f52ab913f8ff7e02ec7cd3c01",
+  "archiveSha256": "26c2d56a141792102e2d775ec9e3e24bb3b5ab141a631db5ef9d58691cb593ab",
+  "network": "none",
+  "readOnly": true,
+  "user": "1000:32101",
+  "capDrop": "ALL",
+  "noNewPrivileges": true,
+  "sha256": {
+    "test/financial-methods.test.py": "936ab7212b39c2abf5f2fb3cf52dab7127571fa17cda7f64315e519ff286ecb1",
+    "skills/python-data-analysis/references/financial-reporting.md": "534103862c6274cc0d506f1bc5a850432e2245fe4cc8a376f341bb30986d4073",
+    "skills/python-data-analysis/references/data-methods.md": "5822b77b91f427b9053287ca582f1c1b6bc6e5636c6e2acde9fafd75d632e5ad"
+  }
+}

@@ -24,6 +24,14 @@ vi.mock("../../services/api.js", () => ({
 import AgentWorkshopView from "./AgentWorkshopView.js";
 
 describe("AgentWorkshopView query service management", () => {
+  it("preserves each Agent's builtin Skill disable policy while normalizing workflow tools", () => {
+    const context = { form: { id: "agent-a" } };
+    const a = AgentWorkshopView.methods.normalizeWorkflowConfig.call(context,
+      { disabledBuiltinSkillIds: ["builtin:python-data-analysis"] }, []);
+    const b = AgentWorkshopView.methods.normalizeWorkflowConfig.call({ form: { id: "agent-b" } }, {}, []);
+    expect(a.disabledBuiltinSkillIds).toEqual(["builtin:python-data-analysis"]);
+    expect(b.disabledBuiltinSkillIds).toEqual([]);
+  });
   it("retains the local service editor and removes professional compute registration", () => {
     const template = readFileSync(new URL("../../views/AgentWorkshopView.vue", import.meta.url), "utf8");
     expect(() => parseVueTemplate(template)).not.toThrow();

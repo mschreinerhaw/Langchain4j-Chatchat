@@ -54,7 +54,7 @@ def main():
     assert old['State']['Running']
     baseline_file = root / 'node-baseline.json'
     baselines = json.loads(baseline_file.read_text()) if baseline_file.is_file() else BASELINES
-    assert baselines and all(module in {'runner.js', 'code-repair.js'} for module in baselines)
+    assert baselines and all(module in {'runner.js', 'sdk-adapter.js', 'runtime-model.js', 'code-repair.js', 'skills.js'} for module in baselines)
     for module, expected in baselines.items():
         assert run('docker', 'exec', name, 'sha256sum', '/srv/coding-agent/dist/' + module).split()[0] == expected
     (root / 'container-before-private.json').write_text(json.dumps(old))
@@ -74,7 +74,8 @@ def main():
             source.chmod(0o640)
             uid, _, gid = config['User'].partition(':')
             os.chown(source, 0, int(gid or uid))
-    image = 'runtime-os-coding-agent:repair-' + hashlib.sha256((root/'patched/runner.js').read_bytes()).hexdigest()[:16]
+    image = 'runtime-os-coding-agent:repair-' + hashlib.sha256(b''.join(
+        module.encode() + b'\0' + (root/'patched'/module).read_bytes() for module in sorted(baselines))).hexdigest()[:16]
     baseline_tag = 'runtime-os-coding-agent:baseline-' + old['Image'].split(':')[1][:16]
     run('docker', 'tag', old['Image'], baseline_tag)
     assert run('docker', 'image', 'inspect', '--format', '{{.Id}}', baseline_tag) == old['Image']
@@ -86,6 +87,8 @@ def main():
     verify.chmod(0o755)
     for directory in ['src', 'test', 'fixtures']:
         shutil.copytree(root / directory, verify / directory, dirs_exist_ok=True)
+    if (root / 'skills').is_dir():
+        shutil.copytree(root / 'skills', verify / 'skills', dirs_exist_ok=True)
     (verify / 'package.json').write_text('{"type":"module"}')
     (verify / 'package.json').chmod(0o644)
     if not (verify / 'node_modules').is_symlink():
@@ -96,7 +99,8 @@ def main():
                         '--test', 'test/code-repair.test.js', 'test/code-lifecycle.test.js',
                         'test/reviewed-result.test.js', 'test/runner.test.js',
                         'test/recovery.test.js', 'test/runtime-model.test.js',
-                        'test/server.test.js', 'test/sdk-packages.test.js'],
+                        'test/server.test.js', 'test/sdk-packages.test.js',
+                        *(['test/builtin-skills.test.js'] if (root/'test/builtin-skills.test.js').is_file() else [])],
                        stdout=log, stderr=subprocess.STDOUT, check=True)
     def idle():
         assert run('docker', 'exec', '-u', 'postgres', 'postgres', 'psql', '-At', '-d',

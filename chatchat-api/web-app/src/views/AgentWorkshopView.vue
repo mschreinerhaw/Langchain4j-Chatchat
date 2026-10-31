@@ -628,6 +628,15 @@
             <div class="agent-resource-selector-copy">
               <strong>Skills</strong>
               <span>选择当前账号已获授权且处于已发布状态的领域技能。</span>
+              <label>
+                <input v-model="form.workflowConfig.disabledBuiltinSkillIds" type="checkbox" value="builtin:python-data-analysis" />
+                在此 Agent 中禁用内置 python-data-analysis
+              </label>
+              <label>
+                <input v-model="form.workflowConfig.disabledBuiltinSkillIds" type="checkbox" value="builtin:python-code-development" />
+                在此 Agent 中禁用内置 python-code-development
+              </label>
+              <span>默认启用，仅在 Coding 任务中按需使用；不授予工具或数据权限。</span>
             </div>
             <div class="agent-resource-selector-action">
               <span :class="{ 'is-selected': selectedDomainSkillIds.length }">

@@ -1,0 +1,10 @@
+{
+  "temporaryAgent": "cline_skills_acceptance_20261030",
+  "sourceAgent": "ids_data_audit",
+  "originalAgentUnchanged": true,
+  "disablePersisted": true,
+  "enablePersisted": true,
+  "dynamicSkillCount": 3,
+  "defaultSkillFilesRemoved": false,
+  "sourceDefinitionSha256": "fa7fbcd6897021f2cade1246b98ce0f1be02a1adbfba8af08812dd77eca38671"
+}

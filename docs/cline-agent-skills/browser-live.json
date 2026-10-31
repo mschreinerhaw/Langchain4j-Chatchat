@@ -1,0 +1,11 @@
+{
+  "mockedRequests": false,
+  "builtinCardsVisible": 2,
+  "builtinUninstallButtons": 0,
+  "dynamicPublishedVersionVisible": true,
+  "historyReplayExecutions": 0,
+  "staticPngRendered": true,
+  "browserErrors": [],
+  "historicalEvidence": true,
+  "currentEvidence": "customer-verified-runtime.json"
+}

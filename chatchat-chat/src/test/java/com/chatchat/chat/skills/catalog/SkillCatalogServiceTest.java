@@ -172,7 +172,8 @@ class SkillCatalogServiceTest {
             List.of("mcp_"), List.of("customer-service"), List.of(toolName), List.of(), List.of(),
             List.of(new SkillToolConfig(toolName, "客户持仓", "mcp", null, List.of(), "read", 5, true)),
             null, Map.of("enabled", true, "steps", List.of(Map.of("tool", toolName)),
-                "boundDomainSkillIds", List.of("skill-risk")),
+                "boundDomainSkillIds", List.of("skill-risk"),
+                "disabledBuiltinSkillIds", List.of("builtin:python-data-analysis")),
             new SkillDefinition.DefaultDataAsset("asset-1", "客户库", "database", null, true),
             null, List.of(), SkillCatalogService.MARKET_STATUS_DRAFT, false));
 
@@ -182,7 +183,8 @@ class SkillCatalogServiceTest {
         assertThat(saved.boundMcpToolNames()).isEmpty();
         assertThat(saved.toolConfigs()).isEmpty();
         assertThat(saved.workflowConfig())
-            .containsOnly(Map.entry("boundDomainSkillIds", List.of("skill-risk")));
+            .containsOnly(Map.entry("boundDomainSkillIds", List.of("skill-risk")),
+                Map.entry("disabledBuiltinSkillIds", List.of("builtin:python-data-analysis")));
         assertThat(saved.defaultDataAsset()).isNull();
     }
 
@@ -236,11 +238,13 @@ class SkillCatalogServiceTest {
 
         SkillDefinition saved = service.upsert(draftWithWorkflow(Map.of(
             "enabled", true,
-            "boundDomainSkillIds", List.of("skill-risk", "skill-market", "skill-risk")
+            "boundDomainSkillIds", List.of("skill-risk", "skill-market", "skill-risk"),
+            "disabledBuiltinSkillIds", List.of("builtin:python-data-analysis")
         )));
 
         assertThat(saved.workflowConfig().get("boundDomainSkillIds"))
             .isEqualTo(List.of("skill-risk", "skill-market"));
+        assertThat(saved.workflowConfig()).containsEntry("disabledBuiltinSkillIds",List.of("builtin:python-data-analysis"));
         ArgumentCaptor<SkillConfigEntity> entityCaptor = ArgumentCaptor.forClass(SkillConfigEntity.class);
         verify(repository).save(entityCaptor.capture());
         assertThat(entityCaptor.getValue().getWorkflowConfigJson())

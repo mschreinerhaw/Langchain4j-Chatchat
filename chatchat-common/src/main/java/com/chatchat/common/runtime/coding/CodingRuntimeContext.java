@@ -8,7 +8,11 @@ public final class CodingRuntimeContext {
     public static Map<String, Object> validate(Map<String, Object> value) {
         if (value == null || value.isEmpty()) return Map.of();
         CodingProtocol.require(value.keySet().stream().allMatch(Set.of("schemaVersion", "capturedAt",
-            "consistency", "model", "skills", "configuredSkillIds", "inputFiles", "executionProfile", "reportMode", "reportPresentation", "pythonEnvironment", "scriptPurpose", "codingLifecycle", "analysisResultMode", "codeProject")::contains), "Unknown Coding context field");
+            "consistency", "model", "skills", "builtinSkillPolicy", "configuredSkillIds", "inputFiles", "executionProfile", "reportMode", "reportPresentation", "pythonEnvironment", "scriptPurpose", "codingLifecycle", "analysisResultMode", "analysisInstructions", "codeProject")::contains), "Unknown Coding context field");
+        if(value.containsKey("analysisInstructions"))CodingProtocol.require(
+            value.get("analysisInstructions") instanceof List<?> rules && !rules.isEmpty() && rules.size()<=16
+                && rules.stream().allMatch(rule->rule instanceof String text && text.length()<=12000),
+            "Invalid Runtime analysis instructions");
         if(value.containsKey("codeProject"))PythonCodeProject.fromContext(value.get("codeProject"));
         if(value.containsKey("analysisResultMode"))CodingProtocol.require("TEXT_OR_CODE".equals(value.get("analysisResultMode")),"Invalid analysis result mode");
         if(value.containsKey("scriptPurpose"))CodingProtocol.require(value.get("scriptPurpose") instanceof String purpose

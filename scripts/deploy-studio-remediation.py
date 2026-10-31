@@ -40,6 +40,7 @@ def docker(path, body):
 def main():
     os.umask(0o077)
     root = Path(__file__).resolve().parent
+    assert (root / 'restrict-coding-worker.sh').is_file(), 'Missing network restriction deployment dependency'
     manifest = json.loads((root / 'manifest.json').read_text())
     stage = Path('/opt/runtime-os-docker-stage')
     api, proxy = 'runtime-os-app-stage-api-1', 'runtime-os-app-stage-node-proxy-1'
@@ -92,16 +93,23 @@ def main():
         run('docker','build','--network','none','-t',images[mcp],str(build))
     if node in images:
         entry=manifest['worker'];build=root/'worker-build';build.mkdir(exist_ok=True)
-        (build/'patched').mkdir(exist_ok=True)
-        for module,expected in entry['baselineModules'].items():
-            assert module in ['runner.js','server.js']
-            assert run('docker','exec',node,'sha256sum','/srv/coding-agent/dist/'+module).split()[0]==expected
-            assert hashlib.sha256((root/'worker'/module).read_bytes()).hexdigest()==entry['modules'][module]
-            shutil.copy2(root/'worker'/module,build/'patched'/module)
-        baseline_tag='runtime-os-coding-agent:sql-metadata-baseline-'+before[node]['Image'].split(':')[-1][:16]
-        run('docker','tag',before[node]['Image'],baseline_tag)
-        (build/'Dockerfile').write_text('FROM '+baseline_tag+'\nCOPY patched/ /srv/coding-agent/dist/\n')
-        run('docker','build','--network','none','-t',images[node],str(build))
+        if entry.get('preparedImageId'):
+            # Skill packages are built and tested offline by build-cline-skills-stage.py.
+            assert before[node]['Image']==entry['baselineImageId']
+            assert run('docker','image','inspect','-f','{{.Id}}',images[node])==entry['preparedImageId']
+            proof=json.loads((root/'worker-build.json').read_text())
+            assert proof['imageId']==entry['preparedImageId'] and proof['offlineBuildAndTests']
+        else:
+            (build/'patched').mkdir(exist_ok=True)
+            for module,expected in entry['baselineModules'].items():
+                assert module in ['runner.js','server.js']
+                assert run('docker','exec',node,'sha256sum','/srv/coding-agent/dist/'+module).split()[0]==expected
+                assert hashlib.sha256((root/'worker'/module).read_bytes()).hexdigest()==entry['modules'][module]
+                shutil.copy2(root/'worker'/module,build/'patched'/module)
+            baseline_tag='runtime-os-coding-agent:sql-metadata-baseline-'+before[node]['Image'].split(':')[-1][:16]
+            run('docker','tag',before[node]['Image'],baseline_tag)
+            (build/'Dockerfile').write_text('FROM '+baseline_tag+'\nCOPY patched/ /srv/coding-agent/dist/\n')
+            run('docker','build','--network','none','-t',images[node],str(build))
     backup = root / 'backup'
     backup.mkdir(mode=0o700)
     (backup / 'containers.json').write_text(json.dumps(before))

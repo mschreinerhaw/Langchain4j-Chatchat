@@ -179,7 +179,12 @@ public final class CodingWorkspaceService {
         identity.require(contract.scope(),CodingTaskAccess.Action.READ);
         boolean python="python-studio.output.v1".equals(contract.outputContract().resultSchemaRef());
         String profile=python?"python-studio":"sql-studio";
-        if(!supports(contract) || !SqlWorkspaceMetadataTools.tools(SqlWorkspaceMetadataTools.enabled(contract)).equals(new HashSet<>(contract.authorization().allowedTools()))
+        var expectedTools=new HashSet<>(SqlWorkspaceMetadataTools.tools(SqlWorkspaceMetadataTools.enabled(contract)));
+        var actualTools=new HashSet<>(contract.authorization().allowedTools());
+        // Older immutable workspace tasks predate read-only Skill discovery.
+        // Their original grants remain sufficient for history and recovery.
+        expectedTools.remove("skill_read");actualTools.remove("skill_read");
+        if(!supports(contract) || !expectedTools.equals(actualTools)
                 || !contract.authorization().allowedDataRefs().isEmpty()
                 || !contract.authorization().allowedSideEffects().equals(List.of(CodingTaskContract.SideEffect.WORKSPACE_WRITE))
                 || contract.authorization().networkPolicy()!=CodingTaskContract.NetworkPolicy.NONE

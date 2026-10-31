@@ -1,0 +1,10 @@
+{
+  "isolatedFixture": true,
+  "compiledNativeOutputRepairPassed": true,
+  "originalContextPreserved": true,
+  "modelCalls": 3,
+  "executions": 1,
+  "reads": 1,
+  "noExecutionForTruncatedResponse": true,
+  "imageId": "sha256:95230a823377870e144a88841028bffa0e6bfc81220d5435ec8ff3a576dd5c25"
+}

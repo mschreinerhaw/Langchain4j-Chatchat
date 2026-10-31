@@ -1,0 +1,116 @@
+{
+  "question": "查询客户号070200046604的交易和资产、盈亏情况.总结这个客户的交易偏好.分析数据之间是否存在勾稽关系错误",
+  "taskId": "422adb43-7b11-3a81-81d5-cb5582f03a8c",
+  "runId": "att-1-2940c3ad-a306-40e4-bd23-c4ed2a214b96",
+  "codingTaskId": "analysis-coding-f96e3d064b0c02a6092a37a89d3b970eeefeaa0dd1fe8df0025ad268f9170c50",
+  "taskState": "SUCCEEDED",
+  "codingState": "COMPLETED",
+  "model": "qwen3.7-plus",
+  "reportMode": "visual",
+  "analysisStatus": "INPUT_REQUIRED",
+  "validationStatus": "INCONCLUSIVE",
+  "fullPlanAcceptance": "NOT_PASSED",
+  "reportScopeReview": "PASSED_LIMITATION_DISCLOSURE_AND_SNAPSHOT_ARITHMETIC",
+  "modelCalls": 5,
+  "codeExecutions": 3,
+  "requestedSkillReads": [],
+  "customerSkillBodyReadObserved": false,
+  "staticChartCount": 0,
+  "visualReportProduced": true,
+  "unconfirmedFields": [
+    {
+      "datasetReference": "livedata_SQL_ADS_IDS_CLR_DELI_JOUR_SECU#template-binding-2-sel-2",
+      "sourceField": "cust_num"
+    },
+    {
+      "datasetReference": "livedata_SQL_ADS_IDS_CLR_DELI_JOUR_SECU#template-binding-2-sel-2",
+      "sourceField": "busi_date"
+    },
+    {
+      "datasetReference": "livedata_SQL_ADS_IDS_CLR_DELI_JOUR_SECU#template-binding-2-sel-2",
+      "sourceField": "sett_date"
+    },
+    {
+      "datasetReference": "livedata_SQL_ADS_IDS_CLR_DELI_JOUR_SECU#template-binding-2-sel-2",
+      "sourceField": "scr_code"
+    },
+    {
+      "datasetReference": "livedata_SQL_ADS_IDS_CLR_DELI_JOUR_SECU#template-binding-2-sel-2",
+      "sourceField": "scr_name"
+    },
+    {
+      "datasetReference": "livedata_SQL_ADS_IDS_CLR_DELI_JOUR_SECU#template-binding-2-sel-2",
+      "sourceField": "mtch_vol"
+    },
+    {
+      "datasetReference": "livedata_SQL_ADS_IDS_CLR_DELI_JOUR_SECU#template-binding-2-sel-2",
+      "sourceField": "mtch_amt"
+    },
+    {
+      "datasetReference": "livedata_SQL_ADS_IDS_CLR_DELI_JOUR_SECU#template-binding-2-sel-2",
+      "sourceField": "clr_real_pl"
+    },
+    {
+      "datasetReference": "livedata_SQL_ADS_IDS_SECU_AST_LIAB#template-binding-3-sel-3",
+      "sourceField": "cust_num"
+    },
+    {
+      "datasetReference": "livedata_SQL_ADS_IDS_SECU_AST_LIAB#template-binding-3-sel-3",
+      "sourceField": "busi_date"
+    },
+    {
+      "datasetReference": "livedata_SQL_ADS_IDS_SECU_AST_LIAB#template-binding-3-sel-3",
+      "sourceField": "tot_ast"
+    },
+    {
+      "datasetReference": "livedata_SQL_ADS_IDS_SECU_AST_LIAB#template-binding-3-sel-3",
+      "sourceField": "cptl_bal"
+    },
+    {
+      "datasetReference": "livedata_SQL_ADS_IDS_SECU_AST_LIAB#template-binding-3-sel-3",
+      "sourceField": "tot_mval"
+    },
+    {
+      "datasetReference": "livedata_SQL_ADS_IDS_SECU_AST_LIAB#template-binding-3-sel-3",
+      "sourceField": "tdy_pl"
+    },
+    {
+      "datasetReference": "livedata_SQL_ADS_IDS_SECU_AST_LIAB#template-binding-3-sel-3",
+      "sourceField": "net_ast_in"
+    }
+  ],
+  "versions": [
+    {
+      "version": 1,
+      "codeHash": "58955c557ddb8b23239768dd2c76d33bb998967b7c00a26a462e8f27510b750a",
+      "parentHash": null,
+      "status": "REJECTED",
+      "kind": "INITIAL"
+    },
+    {
+      "version": 2,
+      "codeHash": "61f9910bba2b5ce50dd60ccaaeec2713add1220a7938dc4e7c1ab223f17f2313",
+      "parentHash": "58955c557ddb8b23239768dd2c76d33bb998967b7c00a26a462e8f27510b750a",
+      "status": "REJECTED",
+      "kind": "PATCH"
+    },
+    {
+      "version": 3,
+      "codeHash": "446d0e90a41d0074f3db1d3ca13d976934fdf0d004c0c84c60302d1da710c568",
+      "parentHash": "61f9910bba2b5ce50dd60ccaaeec2713add1220a7938dc4e7c1ab223f17f2313",
+      "status": "VALIDATED",
+      "kind": "PATCH"
+    }
+  ],
+  "remaining": [
+    "统一资产快照与交割/资产负债明细的查询期间",
+    "补充交易和盈亏字段定义、单位及勾稽口径",
+    "重新验证客户任务中的内置技能正文选用与静态图表"
+  ],
+  "originalModelRestored": true,
+  "originalEffectiveAgentConfigurationRestored": true,
+  "emptyBuiltinPolicyNormalized": true,
+  "gitCommitCreated": false,
+  "historicalEvidence": true,
+  "currentEvidence": "customer-verified-runtime.json"
+}

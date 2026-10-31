@@ -35,6 +35,14 @@ public final class SkillAnalysisContext {
         return validate(attributes == null ? null : attributes.get(ATTRIBUTE));
     }
 
+    public static Map<String,Object> withBuiltinPolicy(Map<String,Object> context, String agentId, List<String> disabled) {
+        var value = new LinkedHashMap<String,Object>(context);
+        value.remove("fingerprint");
+        value.put("builtinSkillPolicy", Map.of("agentId", agentId, "disabledSkillIds", List.copyOf(disabled)));
+        value.put("fingerprint", ModelProtocolJson.sha256Hex(canonical(value)));
+        return Map.copyOf(value);
+    }
+
     public static Map<String, Object> validate(Object raw) {
         if (!(raw instanceof Map<?, ?> map) || !VERSION.equals(map.get("schemaVersion"))) return Map.of();
         var copy = new LinkedHashMap<String, Object>();
@@ -60,7 +68,11 @@ public final class SkillAnalysisContext {
             card.put("contentDelivery", "ON_DEMAND");
             cards.add(Map.copyOf(card));
         }
-        return create(context.get("status").toString().contains("LIMITS") ? "AVAILABLE_WITH_LIMITS" : "AVAILABLE", cards, Map.of());
+        var catalog = create(context.get("status").toString().contains("LIMITS") ? "AVAILABLE_WITH_LIMITS" : "AVAILABLE", cards, Map.of());
+        if (context.get("builtinSkillPolicy") instanceof Map<?,?> policy
+                && policy.get("agentId") instanceof String agentId && policy.get("disabledSkillIds") instanceof List<?> disabled)
+            return withBuiltinPolicy(catalog, agentId, disabled.stream().filter(String.class::isInstance).map(String.class::cast).toList());
+        return catalog;
     }
 
     public static Map<String, Object> attach(Map<String, Object> target, Map<String, Object> attributes) {

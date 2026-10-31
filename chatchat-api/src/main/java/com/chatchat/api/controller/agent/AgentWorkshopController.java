@@ -796,6 +796,8 @@ public class AgentWorkshopController {
     private Map<String, Object> workflowConfig(AgentUpsertRequest request) {
         Map<String, Object> workflow = new LinkedHashMap<>();
         if (request.getWorkflowConfig() != null) workflow.putAll(request.getWorkflowConfig());
+        workflow.put("disabledBuiltinSkillIds", com.chatchat.chat.skills.runtime.BuiltinCodingSkills.disabled(
+            workflow.get("disabledBuiltinSkillIds")));
         workflow.put("boundDomainSkillIds", request.getBoundDomainSkillIds() == null ? List.of()
             : request.getBoundDomainSkillIds().stream().filter(id -> id != null && !id.isBlank()).map(String::trim).distinct().toList());
         return workflow;

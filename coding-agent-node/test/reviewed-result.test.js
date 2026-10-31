@@ -23,7 +23,7 @@ const verified = (version) => ({ status: 'SUCCEEDED', executorStopped: true, res
   resultDatasetRef: `runtime-evidence:result-${version}`, validationRecordRef: `validation-${version}`,
   evidenceBundleRef: `bundle-${version}`, validationStatus: 'INCONCLUSIVE' });
 
-function fixture(model, execute, read, taskContract = contract, overrides = {}) {
+function fixture(model, execute, read, taskContract = contract, overrides = {}, runOptions = {}) {
   const counts = { models: 0, executions: 0, reads: 0, checkpoints: [], finish: null };
   const gateway = {
     async reserveModel() {}, async settleModel() {},
@@ -39,8 +39,42 @@ function fixture(model, execute, read, taskContract = contract, overrides = {}) 
     async finish(_task, outcome) { counts.finish = outcome; },
     ...overrides,
   };
-  return { counts, gateway, run: createCodingRun(taskContract, gateway, { model: createRuntimeModel(gateway, taskContract) }) };
+  return { counts, gateway, run: createCodingRun(taskContract, gateway, {
+    model: createRuntimeModel(gateway, taskContract, 0, { nativeSdk: true }), ...runOptions }) };
 }
+
+const truncated = { error: 'Provider output truncated', finishReason: 'LENGTH', toolCalls: [],
+  usage: { inputTokens: 10, outputTokens: 32 }, modelResponseFeedback: {
+    schemaVersion: 'runtime_os.coding.model_feedback.v1', diagnosticCode: 'MODEL_OUTPUT_TRUNCATED',
+    repairAllowed: true, maxRepairAttempts: 1 } };
+
+test('native output truncation retains context and reaches one admitted concise repair instead of restarting discovery', async () => {
+  const { run, counts } = fixture((turn, request) => {
+    if (turn === 1) return truncated;
+    assert.match(JSON.stringify(request.messages), /MODEL_OUTPUT_TRUNCATED/);
+    assert.match(JSON.stringify(request.messages), /Analyze the authorized immutable input/);
+    if (turn === 2) return python(turn);
+    assert.equal(turn, 3);
+    return { toolCalls: [{ id: 'confirm', name: 'artifact_read', input: { reference: 'runtime-evidence:result-1' } }] };
+  }, verified, (_read, reference) => ({ reference, complete: true,
+    rows: [{ reportMarkdown: 'ACTUAL_COMPLETE_REPORT' }], reportReferenceValidation: { valid: true } }));
+  assert.equal((await run.run()).status, 'completed');
+  assert.equal(counts.models, 3); assert.equal(counts.executions, 1); assert.equal(counts.reads, 1);
+  assert.equal(run.events.filter(e => e.type === 'MODEL_RESPONSE_REJECTED').length, 1);
+});
+
+test('native rejected-response repair ceiling persists at a settled boundary and cannot reset on restore', async () => {
+  const first = fixture(() => truncated, () => assert.fail('No Python may execute'), () => assert.fail('No report exists'));
+  assert.notEqual((await first.run.run()).status, 'completed');
+  assert.equal(first.counts.models, 2);
+  const saved = first.counts.checkpoints.at(-1);
+  assert.equal(saved.modelResponseRepairs, 1);
+  assert.equal(saved.modelResponseFeedback.diagnosticCode, 'MODEL_OUTPUT_TRUNCATED');
+  const resumed = fixture(() => assert.fail('No new model admission after the ceiling'),
+    () => assert.fail('No Python may execute'), () => assert.fail('No report exists'), contract, {}, { checkpoint: saved });
+  assert.notEqual((await resumed.run.run()).status, 'completed');
+  assert.equal(resumed.counts.models, 0); assert.equal(resumed.counts.executions, 0);
+});
 test('real SDK checkpoints only after every call in a multi-tool turn has its result',async()=>{
   const task={...contract,authorization:{...contract.authorization,allowedTools:['python_execute','artifact_read','input_read']}};
   let saved=0;
@@ -172,6 +206,33 @@ test('native review confirmation finishes with the exact admitted report without
   assert.equal(counts.models,2);assert.equal(counts.executions,1);assert.equal(counts.reads,1);
   assert.equal(counts.finish.operationId,counts.checkpoints.at(-1).lastCollectedOperation);
   assert(run.events.some(e=>e.tool==='artifact_read'&&e.reused===true));
+});
+
+test('valid visual artifacts can complete with failed source reconciliation findings preserved',async()=>{
+  const task={...contract,runtimeContext:{reportMode:'visual'}};
+  const finding={name:'source reconciliation',status:'FAILED',detail:'Observed source values disagree; not an execution failure.'};
+  const {run,counts}=fixture(turn=>turn===1?python(turn):{toolCalls:[{id:'confirm',name:'artifact_read',input:{reference:'runtime-evidence:result-1'}}]},
+    verified,(_count,reference)=>({reference,complete:true,rows:[{reportMarkdown:'A correctly reported source discrepancy',
+      visualReport:{validation:{status:'FAILED',checks:[finding]}}}],reportReferenceValidation:{valid:true},
+      visualReportValidation:{status:'FAILED',artifactValidationStatus:'PASSED',layoutValidationStatus:'PASSED'}}),task);
+  assert.equal((await run.run()).status,'completed');assert.equal(counts.models,2);assert.equal(counts.executions,1);assert.equal(counts.reads,1);
+  const confirmed=counts.checkpoints.at(-1).messages.flatMap(m=>m.content).filter(p=>p.type==='tool-result'&&p.toolName==='artifact_read').at(-1);
+  assert.deepEqual(confirmed.output.rows[0].visualReport.validation.checks,[finding]);
+});
+
+for(const [name,validation]of [
+  ['artifact integrity',{status:'PASSED',artifactValidationStatus:'FAILED',layoutValidationStatus:'PASSED'}],
+  ['layout',{status:'PASSED',artifactValidationStatus:'PASSED',layoutValidationStatus:'FAILED'}],
+  ['legacy aggregate failure',{status:'FAILED'}],
+])test(`review confirmation still rejects ${name}`,async()=>{
+  const task={...contract,runtimeContext:{reportMode:'visual'},budget:{maxModelCalls:2}};
+  const {run,counts}=fixture(turn=>turn===1?python(turn):{toolCalls:[{id:'confirm',name:'artifact_read',input:{reference:'runtime-evidence:result-1'}}]},
+    verified,(_count,reference)=>({reference,complete:true,rows:[{reportMarkdown:'Requires technical repair'}],
+      reportReferenceValidation:{valid:true},visualReportValidation:validation}),task);
+  assert.notEqual((await run.run()).status,'completed');assert.equal(counts.executions,1);assert.equal(counts.reads,1);
+  assert.notEqual(counts.finish?.status,'completed');
+  const confirmation=counts.checkpoints.at(-1).messages.flatMap(m=>m.content).filter(p=>p.type==='tool-result'&&p.toolName==='artifact_read').at(-1);
+  assert.equal(confirmation.isError,true);
 });
 
 test('Runtime STOP takes precedence over a contradictory successful receipt and never reads an artifact', async () => {

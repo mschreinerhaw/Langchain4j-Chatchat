@@ -55,7 +55,7 @@ export default {
   components: { ChevronDown, MoreHorizontal, Pencil, RefreshCw, Trash2 },
   data: () => ({
     loading: true, refreshing: false, initialLoadComplete: false,
-    busy: false, error: "", message: "", skills: [], categories: [],
+    busy: false, error: "", message: "", skills: [], builtinSkills: [], categories: [],
     publishOpen: false, publishLoading: false, publishError: "", publishTarget: null,
     publishEngines: [], publishBinding: { engine: "GOOGLE_ADK_NATIVE" },
     quota: { maximum: 5, published: 0, remaining: 5, source: "DEFAULT", limited: true, licenseValid: true },
@@ -183,6 +183,7 @@ export default {
       try {
         const payload = await fetchDomainSkills(this.filters);
         this.skills = Array.isArray(payload?.skills) ? payload.skills : [];
+        this.builtinSkills = Array.isArray(payload?.builtinSkills) ? payload.builtinSkills : [];
         this.categories = Array.isArray(payload?.categories) ? payload.categories : [];
         this.quota = payload?.quota || this.quota;
         this.total = Number(payload?.total || 0); this.skillCount = Number(payload?.skillCount ?? payload?.total ?? 0);

@@ -1,0 +1,18 @@
+{
+  "status": "DEPLOYED",
+  "image": "runtime-os-api:cline-financial-charts-20261031-r10",
+  "sha256": "f7cdc901d639de0b8a4975b0d6e1ecc86fa319fe0c06eec3e8814b4557da7ad0",
+  "backup": "/opt/chatchat-releases/cline-financial-presentation-20261031/backup",
+  "retired": {
+    "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-studio-1793430426",
+    "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-studio-1793430426"
+  },
+  "preservedExpiredReadOnlyTaskIds": [],
+  "unrelatedContainersUnchanged": true,
+  "conversationContentUnchanged": true,
+  "messageIndexCountUnchanged": true,
+  "images": {
+    "runtime-os-app-stage-api-1": "runtime-os-api:cline-financial-charts-20261031-r10"
+  },
+  "channelCounts": "SQL_STUDIO|36\nPYTHON_STUDIO|5\nPLATFORM_UI|830\nAGENT_API|191"
+}

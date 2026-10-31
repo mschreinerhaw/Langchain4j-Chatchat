@@ -26,6 +26,10 @@ WORKDIR /srv/coding-agent
 COPY --from=build --chown=node:node /srv/coding-agent/node_modules ./node_modules
 COPY --from=build --chown=node:node /srv/coding-agent/dist ./dist
 COPY --chown=node:node package.json ./
+COPY --chown=root:root skills ./skills
+# Native Cline discovery uses the workspace .cline/skills directory. The adapter
+# reads the same immutable package through its existing task-scoped skill_read.
+RUN mkdir -p .cline && ln -s ../skills .cline/skills && chmod -R a+rX skills
 # Retain the health probe path used by existing Runtime deployment tooling.
 COPY --chown=node:node src/healthcheck.js ./src/healthcheck.js
 RUN node dist/sdk-packages.js && mkdir /srv/monitor-data && chown node:node /srv/monitor-data

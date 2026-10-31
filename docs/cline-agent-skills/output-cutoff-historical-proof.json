@@ -1,0 +1,26 @@
+[
+  {
+    "case": "pro-review",
+    "taskId": "analysis-coding-6cd62070b68a2e2f995bc5b7f04fcc0739dd234b6cc3cfb0ed4e3f22093657a1",
+    "finishReason": "LENGTH",
+    "outputTokens": 32768,
+    "toolCallCount": 0,
+    "textCharacters": 0,
+    "nativeToolCallCount": 1,
+    "repairFeedbackPresent": true,
+    "diagnosticCode": "MODEL_OUTPUT_TRUNCATED",
+    "repairAllowed": true
+  },
+  {
+    "case": "compact-review",
+    "taskId": "analysis-coding-6d8b1b2fa8a77dcf4891b7bf4174400b2aff9dc79dc41b830b983b61a0e28da2",
+    "finishReason": "LENGTH",
+    "outputTokens": 32770,
+    "toolCallCount": 0,
+    "textCharacters": 136,
+    "nativeToolCallCount": 1,
+    "repairFeedbackPresent": true,
+    "diagnosticCode": "MODEL_OUTPUT_TRUNCATED",
+    "repairAllowed": true
+  }
+]

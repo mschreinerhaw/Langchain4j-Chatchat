@@ -28,7 +28,7 @@ class SkillAnalysisContextServiceTest {
     @SuppressWarnings("unchecked") final SkillAnalysisContextService service = new SkillAnalysisContextService(router,resolver,models,new ObjectMapper(),mock(ObjectProvider.class));
     SkillAnalysisContextServiceTest() {
         request.setTenantId("t"); request.setUserId("u"); request.setQuery("Compare cohorts");
-        when(agent.id()).thenReturn("agent"); when(agent.workflowConfig()).thenReturn(Map.of());
+        when(agent.id()).thenReturn("agent"); when(agent.workflowConfig()).thenReturn(Map.of("boundDomainSkillIds",List.of("method-a")));
         when(router.route(any())).thenReturn(new SkillRouteResult(List.of(descriptor),"ROUTED",Map.of()));
         resolved(skill);
     }
@@ -47,7 +47,8 @@ class SkillAnalysisContextServiceTest {
             .doesNotContainKeys("instructions","resources");
         assertThat(result.toString()).doesNotContain(skill.instructions());
         verifyNoInteractions(resolver,models);
-        verify(router).route(argThat(search -> search.roleContext().attributes().get("agentId").equals("agent")));
+        verify(router).route(argThat(search -> search.roleContext().attributes().get("agentId").equals("agent")
+            && search.query().isEmpty() && search.requestedSkillIds().equals(List.of("method-a"))));
     }
     @Test void availableCandidatesAreNeitherLoadedNorActivated() {
         var projection=SkillAnalysisContext.planningProjection(service.prepare(request,agent,List.of()),List.of("method-a"));
@@ -65,12 +66,13 @@ class SkillAnalysisContextServiceTest {
         verify(router,times(1)).route(argThat(search -> search.requestedSkillIds().equals(List.of("chosen"))));
         verifyNoInteractions(resolver,models);
     }
-    @Test void searchMissFallsBackOnlyToAuthorizedMetadata() {
-        when(router.route(any())).thenReturn(new SkillRouteResult(List.of(),"EMPTY",Map.of()))
-            .thenReturn(new SkillRouteResult(List.of(descriptor),"ROUTED",Map.of()));
-        assertThat(service.prepare(request,agent,List.of("role"))).containsEntry("status","AVAILABLE");
-        verify(router).route(argThat(search -> search.query().isEmpty() && search.roleContext().tenantId().equals("t")));
-        verifyNoInteractions(resolver,models);
+    @Test void unboundAgentNeverReceivesAnotherAgentsDynamicSkills() {
+        when(agent.workflowConfig()).thenReturn(Map.of("disabledBuiltinSkillIds",List.of("builtin:python-data-analysis")));
+        var context=service.prepare(request,agent,List.of("role"));
+        assertThat(context).containsEntry("status","NO_CANDIDATES");
+        assertThat(SkillAnalysisContext.catalog(context)).containsEntry("builtinSkillPolicy",
+            Map.of("agentId","agent","disabledSkillIds",List.of("builtin:python-data-analysis")));
+        verifyNoInteractions(router,resolver,models);
     }
     @Test void cancellationBeforeBindingDoesNotCallSources() {
         request.setToolInput(Map.of("__agentCancellation",(java.util.function.BooleanSupplier)() -> true));

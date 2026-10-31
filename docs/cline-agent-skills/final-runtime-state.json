@@ -1,0 +1,18 @@
+{
+  "apiImage": "runtime-os-api:cline-financial-charts-20261031-r10",
+  "apiJarSha256": "f7cdc901d639de0b8a4975b0d6e1ecc86fa319fe0c06eec3e8814b4557da7ad0",
+  "workerImage": "runtime-os-coding-agent:agent-skills-financial-composition-20261031",
+  "workerImageId": "sha256:0d09647231c59ac45fdc88a6268120e028b86fb94137112bc8b6ebb010bdb13a",
+  "runtimePolicyMatchesBeforeSkillUpgrade": true,
+  "productionIdentity": {
+    "uid": 1000,
+    "gid": 32101
+  },
+  "readOnlyRoot": true,
+  "privileged": false,
+  "activeCodingSessions": 0,
+  "workerHealthy": true,
+  "environmentDifferencesLimitedToExpectedBuildMetadata": true,
+  "originalCustomerExportHashVerified": true,
+  "originalCustomerExportMode": "0600"
+}

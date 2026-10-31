@@ -184,7 +184,11 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
         var contract=task(read(scope,WORKER),taskId).contract;
         boolean metadata=contract.metadataRefs().contains("runtime-coding:sql-metadata-tools:v1")
             && contract.outputContract().resultFormat()==CodingTaskContract.ResultFormat.WORKSPACE_FILES;
-        require(checkpoint != null && checkpoint.isObject() && checkpoint.toString().length() <= (metadata?750000:262144),
+        // Versioned analysis carries the complete input dictionary and reviewed reports
+        // in the native SDK transcript. Reuse the existing bounded metadata envelope.
+        boolean fileAnalysis=CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion())
+            && contract.runtimeContext().containsKey("inputFiles");
+        require(checkpoint != null && checkpoint.isObject() && checkpoint.toString().length() <= (metadata||fileAnalysis?750000:262144),
             CONTRACT_INVALID, "Bounded SDK checkpoint required");
         var value = checkpoint.deepCopy();
         mutateTask(scope, taskId, WORKER, task -> {

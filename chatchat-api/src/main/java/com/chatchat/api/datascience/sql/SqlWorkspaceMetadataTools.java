@@ -27,7 +27,7 @@ public class SqlWorkspaceMetadataTools {
     private static final Set<String> INPUTS=Set.of("operation","bindingId","query","queryTerms","tableName","database","schema","page","pageSize","expectedSnapshotId","includeColumns");
 
     public static boolean enabled(CodingTaskContract contract){return contract.metadataRefs().contains(PROFILE);}
-    public static Set<String> tools(boolean enabled){return enabled?Set.of("workspace_read","workspace_propose","workspace_metadata","workspace_validate"):Set.of("workspace_read","workspace_propose");}
+    public static Set<String> tools(boolean enabled){return enabled?Set.of("workspace_read","workspace_propose","workspace_metadata","workspace_validate","skill_read"):Set.of("workspace_read","workspace_propose","skill_read");}
     /** Immutable provenance included in the committed delivery, never a new tool grant. */
     public Map<String,Object> deliveryEvidence(CodingTaskContract contract){
         if(!enabled(contract))return Map.of();

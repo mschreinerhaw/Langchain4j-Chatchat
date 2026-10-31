@@ -36,15 +36,17 @@ public final class SkillAnalysisContextService {
         Object bound = agent.workflowConfig() == null ? null : agent.workflowConfig().get("boundDomainSkillIds");
         List<String> ids = bound instanceof List<?> list ? list.stream().filter(String.class::isInstance).map(String.class::cast).toList() : List.of();
         publish(request,"RUNNING",Map.of());
+        if (ids.isEmpty()) return completed(request,SkillAnalysisContext.create("NO_CANDIDATES",List.of(),Map.of()),agent);
         try {
-            var routed = router.route(new SkillSearchRequest(request.getQuery(),identity,ids,20,Map.of()));
-            if (routed.candidates().isEmpty() && ids.isEmpty())
-                routed = router.route(new SkillSearchRequest("",identity,List.of(),20,Map.of()));
+            // Explicit Agent bindings are a capability catalog, not a task-time
+            // semantic selection. Avoid requiring the search index for known IDs.
+            var routed = router.route(new SkillSearchRequest("",identity,ids,20,Map.of()));
             if (routed.candidates().isEmpty()) return completed(request,SkillAnalysisContext.create(
-                "SOURCE_FAILED".equals(routed.status()) ? "UNAVAILABLE" : "NO_CANDIDATES",List.of(),Map.of()));
+                "SOURCE_FAILED".equals(routed.status()) ? "UNAVAILABLE" : "NO_CANDIDATES",List.of(),Map.of()),agent);
             var delivered = new ArrayList<Map<String,Object>>();
             boolean limited = routed.candidates().size() > MAX_SKILLS || "PARTIAL_SOURCE_FAILURE".equals(routed.status());
             for (var descriptor : routed.candidates().stream().limit(MAX_SKILLS).toList()) {
+                if (!ids.contains(descriptor.id())) continue;
                 InteractionExecution.checkCancellation(request);
                 /* Binding registers L1 capabilities only. Instructions and resources are
                    resolved by the authenticated Coding callback when Cline requests them. */
@@ -54,13 +56,13 @@ public final class SkillAnalysisContextService {
                     "selectionOwner", "CLINE", "contentDelivery", "ON_DEMAND"));
             }
             InteractionExecution.checkCancellation(request);
-            return completed(request,SkillAnalysisContext.create(limited ? "AVAILABLE_WITH_LIMITS" : "AVAILABLE",delivered,Map.of()));
+            return completed(request,SkillAnalysisContext.create(limited ? "AVAILABLE_WITH_LIMITS" : "AVAILABLE",delivered,Map.of()),agent);
         } catch (java.util.concurrent.CancellationException cancelled) {
             publish(request,"CANCELLED",Map.of()); throw cancelled;
         } catch (Exception failure) {
             InteractionExecution.propagateCancellation(request,failure);
             log.warn("Skill delivery unavailable agentId={} failureType={}",agent.id(),failure.getClass().getSimpleName());
-            return completed(request,SkillAnalysisContext.create("UNAVAILABLE",List.of(),Map.of()));
+            return completed(request,SkillAnalysisContext.create("UNAVAILABLE",List.of(),Map.of()),agent);
         }
     }
     public static List<String> contentChunks(String text) {
@@ -72,7 +74,9 @@ public final class SkillAnalysisContextService {
         }
         return List.copyOf(result);
     }
-    private Map<String,Object> completed(InteractionRequest request,Map<String,Object> context) {
+    private Map<String,Object> completed(InteractionRequest request,Map<String,Object> context,SkillDefinition agent) {
+        context=SkillAnalysisContext.withBuiltinPolicy(context,agent.id(),BuiltinCodingSkills.disabled(
+            agent.workflowConfig()==null?null:agent.workflowConfig().get("disabledBuiltinSkillIds")));
         publish(request,"COMPLETED",context); return context;
     }
     private void publish(InteractionRequest request,String state,Map<String,Object> context) {

@@ -1,0 +1,82 @@
+{
+  "taskId": "125ce3ce-6ed0-31fc-b7b9-5d8e95d17fc1",
+  "runId": "att-1-ae1b848b-5c43-4fbe-b5d5-6a0fed36d4b3",
+  "codingTaskId": "analysis-coding-befd2950d170ea160c1d82ed2b52a4051ff8e195118d7df1613ea2ebf6dbac69",
+  "model": "deepseek-v4-flash",
+  "testMode": "GUIDED_TARGETED_CORRECTION_AFTER_PRIOR_FAILURES",
+  "parentState": "SUCCEEDED",
+  "codingState": "COMPLETED",
+  "validationStatus": "INCONCLUSIVE",
+  "modelCalls": 10,
+  "codeExecutions": 6,
+  "sourceCodeProof": {
+    "codingTaskId": "analysis-coding-befd2950d170ea160c1d82ed2b52a4051ff8e195118d7df1613ea2ebf6dbac69",
+    "sourceSha256": "58318b83e17b87d59fe6f084f419be110ce979ed4b890a40da56439a62a5d105",
+    "recipeFunctions": {
+      "financial_amount": {
+        "present": true,
+        "unchangedAst": true,
+        "called": true
+      },
+      "reconcile_components": {
+        "present": true,
+        "unchangedAst": true,
+        "called": true
+      },
+      "ordered_balances": {
+        "present": true,
+        "unchangedAst": true,
+        "called": true
+      },
+      "candidate_matrix": {
+        "present": true,
+        "unchangedAst": true,
+        "called": true
+      },
+      "logical_parquet_rows": {
+        "present": true,
+        "unchangedAst": true,
+        "called": true
+      }
+    },
+    "codeVersions": 6,
+    "modelCalls": 10,
+    "codeExecutions": 6,
+    "modelResponseRepairs": 0
+  },
+  "analysisSkillVersion": "1.2.0",
+  "developmentSkillVersion": "1.0.0",
+  "allInputSourceCount": 10,
+  "inputRows": 115,
+  "declaredFieldDefinitions": 142,
+  "requestedDate": "2026-07-31",
+  "reportStatus": "PARTIAL",
+  "artifactValidationStatus": "PASSED",
+  "layoutValidationStatus": "PASSED",
+  "charts": [
+    {
+      "fileName": "chart_pnl_breakdown_20260731.png",
+      "sha256": "e82f2485f5eb9c355b7e341ec416301e95baa2a94556df7d025a43034bd91cea",
+      "size": 80561
+    },
+    {
+      "fileName": "chart_holdings_structure_20260731.png",
+      "sha256": "dd5854ff595e7f5d4ec36ef6e27a92b082aa3077fbb5820882e45ba0573a16cf",
+      "size": 195966
+    }
+  ],
+  "technicalAcceptance": "PASSED",
+  "standaloneModelReportQuality": "PARTIAL_REQUIRES_REVIEW",
+  "remainingFindings": [
+    "The holdings percentage total sums individually rounded display values without a rounding explanation.",
+    "The report evaluates trade-amount candidates against YSJE and fee-only candidates against S6; it does not cover S6 versus signed trade amount plus declared fees."
+  ],
+  "independentHumanReviewedSupplement": "customer-reviewed-supplement.json",
+  "businessSemanticsCertified": false,
+  "sourceDataOrTemplateMappingModified": false,
+  "permissionScopeExpanded": false,
+  "originalModelRestored": true,
+  "originalEffectiveConfigurationRestored": true,
+  "historicalEvidence": true,
+  "currentEvidence": "customer-verified-runtime.json"
+}

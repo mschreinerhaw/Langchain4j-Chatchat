@@ -210,6 +210,14 @@ public final class ClineRuntimeModelBridge {
                 break;
             }
         }
+        // LENGTH can contain only reasoning/text, or a syntactically complete
+        // prefix of tool calls. Neither is an executable completed provider turn.
+        if (answer.finishReason() == dev.langchain4j.model.output.FinishReason.LENGTH
+                && !"MODEL_TOOL_NOT_AUTHORIZED".equals(responseDiagnostic)) {
+            responseError = "Model output was truncated before a complete response";
+            responseDiagnostic = "MODEL_OUTPUT_TRUNCATED";
+            toolCalls.clear();
+        }
         Map<String, Object> usage = new LinkedHashMap<>();
         if (answer.tokenUsage() != null) {
             usage.put("inputTokens", answer.tokenUsage().inputTokenCount());
@@ -288,7 +296,7 @@ public final class ClineRuntimeModelBridge {
     private static String allowedTool(CodingTaskContract contract, String name) {
         Set<String> profile = CodingWorkspaceService.supports(contract)
             ? com.chatchat.api.datascience.sql.SqlWorkspaceMetadataTools.tools(com.chatchat.api.datascience.sql.SqlWorkspaceMetadataTools.enabled(contract)) : com.chatchat.common.runtime.coding.CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion())
-            ? ClineToolProfiles.ANALYSIS : Set.of("python_execute", "metadata_read", "artifact_read");
+            ? ClineToolProfiles.ANALYSIS : Set.of("python_execute", "metadata_read", "artifact_read", "skill_read");
         if (!profile.contains(name)
                 || !contract.authorization().allowedTools().contains(name))
             throw new SecurityException("Model tool is outside the Runtime authorization");

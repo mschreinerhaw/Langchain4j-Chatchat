@@ -21,6 +21,28 @@ const failed = { status: 'FAILED', executorStopped: true, resultAvailable: false
 const patch = (version, source, oldText, newText) => ({ repair: {
   parentCodeVersion: version, baseCodeSha256: sha(source), edits: [{ oldText, newText }] } });
 
+test('misplaced or string parent versions return the current nested repair shape without changing code', () => {
+  const history = new CodeHistory(contract()), source = 'answer = 1';
+  history.record(source, { source }, { scriptVersion: 2 }, 'op-2');
+  const valid = patch(2, source, 'answer = 1', 'answer = 2');
+  for (const input of [
+    { parentCodeVersion: '2', repair: { baseCodeSha256: sha(source), edits: valid.repair.edits } },
+    { repair: { ...valid.repair, parentCodeVersion: '2' } },
+  ]) {
+    assert.throws(() => history.propose(input), error => {
+      assert.match(error.message, /INSIDE repair/);
+      assert.match(error.message, /integer 2, not a string/);
+      const example = JSON.parse(error.message.split('Required shape: ')[1]);
+      assert.equal(example.repair.parentCodeVersion, 2);
+      assert.equal(example.repair.baseCodeSha256, sha(source));
+      return true;
+    });
+    assert.equal(history.currentSource, source);
+    assert.equal(history.versions.length, 1);
+  }
+  assert.equal(history.propose(valid), 'answer = 2');
+});
+
 test('validated patches survive later failures, rollback, restart and stale-parent rejection', () => {
   const task = contract(); const history = new CodeHistory(task);
   const one = 'value = 1\nanswer = value[0]\nextra = 0';
@@ -59,6 +81,47 @@ test('SDK basic compaction retains the latest bound program without another mode
   assert.equal(messages.length, 9); // Canonical history is not replaced.
 });
 
+test('budget compaction preserves the entire current report and immutable initial context', async () => {
+  const initial = 'authorized metadata ' + 'dictionary'.repeat(6000);
+  const review = { reference: 'latest-report', complete: true,
+    rows: [{ markdown: 'BEGIN' + 'business evidence '.repeat(1500) + 'END' }],
+    reportReferenceValidation: { valid: false, reason: 'unconfirmed reference' },
+    visualReportValidation: { status: 'FAILED', artifactValidationStatus: 'PASSED', layoutValidationStatus: 'PASSED' } };
+  const messages = [{ role: 'user', content: [{ type: 'text', text: initial }] },
+    ...Array.from({ length: 12 }, () => ({ role: 'assistant', content: [{ type: 'text', text: 'x'.repeat(30000) }] })),
+    { role: 'assistant', content: [{ type: 'tool-call', toolCallId: 'read', toolName: 'artifact_read', input: {} }] },
+    { role: 'tool', content: [{ type: 'tool-result', toolCallId: 'read', toolName: 'artifact_read', output: review }] },
+    ...Array.from({ length: 3 }, () => ({ role: 'assistant', content: [{ type: 'text', text: 'later review reasoning '.repeat(1500) }] }))];
+  const original = structuredClone(messages);
+  const prepare = sdkPrepareTurn('budget-task', () => ({ source: 'corrected = True', version: 4 }), {
+    inputTokenBudget: 65536, reviewReference: () => 'latest-report', reviewArtifact: () => review,
+  });
+  const result = await prepare({ messages, tools: [], model: {}, systemPrompt: '', signal: new AbortController().signal });
+  assert.ok(JSON.stringify(result.messages).length < JSON.stringify(messages).length / 2);
+  assert.ok(result.messages.some(m => m.content.some(p => p.text === initial)));
+  const protectedText = result.messages.flatMap(m => m.content).find(p => p.text?.startsWith('Complete latest Java-authorized'))?.text;
+  assert.ok(protectedText);
+  const protectedReport = JSON.parse(protectedText.slice(protectedText.indexOf('{')));
+  assert.deepEqual(protectedReport.rows, review.rows);
+  assert.equal(protectedReport.reportReferenceValidation.valid, false);
+  assert.equal(protectedReport.visualReportValidation.status, 'FAILED');
+  assert.match(JSON.stringify(result.messages), /corrected = True/);
+  assert.deepEqual(messages, original);
+  const next = await prepare({ messages: result.messages, tools: [], model: {}, systemPrompt: '', signal: new AbortController().signal });
+  assert.ok(next.messages.flatMap(m => m.content).some(p => p.text?.includes(JSON.stringify(review.rows))));
+});
+
+test('compaction never restores a previous report after its current reference is cleared', async () => {
+  const stale = { reference: 'old', complete: true, rows: [{ markdown: 'STALE_REPORT' }] };
+  const messages = [{ role: 'user', content: [{ type: 'text', text: 'objective' }] },
+    ...Array.from({ length: 8 }, () => ({ role: 'assistant', content: [{ type: 'text', text: 'x'.repeat(24000) }] }))];
+  const result = await sdkPrepareTurn('cleared', () => null, {
+    inputTokenBudget: 3500, reviewReference: () => null, reviewArtifact: () => stale,
+  })({ messages, tools: [], model: {}, systemPrompt: '', signal: new AbortController().signal });
+  assert.ok(result);
+  assert.doesNotMatch(JSON.stringify(result.messages), /STALE_REPORT/);
+});
+
 test('patch text is editable after validation and restored legacy fragments do not become authority', () => {
   const task = contract(), history = new CodeHistory(task);
   let source = Array.from({ length: 128 }, (_, i) => `v_${i} = 0`).join('\n') + '\nextra = 0';
@@ -89,6 +152,27 @@ test('archived output with invalid authorized references is not a validated roll
   assert.equal(history.versions[1].status, 'STARTED');
   history.receipt({ ...passed, reviewedArtifact: { reportReferenceValidation: { valid: true } } });
   assert.equal(history.validHash, sha(corrected));
+});
+
+test('native SDK hash rejection supplies the actual parent without executing the rejected patch', async () => {
+  const original='answer = 1';let calls=0,executions=0,version=0;
+  const gateway={async reserveModel(){},async settleModel(){},async checkpoint(){},async finish(){},
+    async preparePython(){const scriptVersion=++version;const fileName=`case_20261026T000000000Z_abcdef012345_v${scriptVersion}.py`;
+      return {scriptVersion,fileName,scriptPath:'/workspace/scripts/'+fileName,
+        workingDirectory:'tasks/'+['a'.repeat(16),'b'.repeat(16),'c'.repeat(16),'d'.repeat(24)].join('/')};},
+    async executePython(){return ++executions===1?failed:passed;}};
+  const model={async *stream(request){calls++;
+    if(calls===1)yield {type:'tool-call-delta',toolCallId:'initial',toolName:'python_execute',input:{source:original}};
+    if(calls===2)yield {type:'tool-call-delta',toolCallId:'bad-hash',toolName:'python_execute',input:{repair:{parentCodeVersion:1,baseCodeSha256:'0'.repeat(64),edits:[{oldText:'1',newText:'2'}]}}};
+    if(calls===3){assert.equal(executions,1);assert.equal(version,1);
+      const result=request.messages.flatMap(m=>m.content).filter(p=>p.type==='tool-result').at(-1);
+      assert.match(JSON.stringify(result),new RegExp(sha(original)));assert.match(JSON.stringify(result),/parentCodeVersion/);
+      yield {type:'tool-call-delta',toolCallId:'correct-hash',toolName:'python_execute',input:patch(1,original,'1','2')};}
+    if(calls===4)yield {type:'text-delta',text:'Reviewed the actual result.'};
+    yield {type:'usage',usage:{inputTokens:10,outputTokens:10}};yield {type:'finish',reason:calls<4?'tool-calls':'stop'};
+  }};
+  const result=await createCodingRun(contract(),gateway,{model}).run();assert.equal(result.status,'completed',result.error);
+  assert.equal(executions,2);assert.equal(version,2);
 });
 
 test('real SDK uses exact patches, exposes local proposal rejection and resumes without replay', async () => {

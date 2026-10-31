@@ -1,0 +1,73 @@
+{
+  "artifactKind": "INDEPENDENT_CODING_AGENT_SUPPLEMENT_NOT_RUNTIME_MODEL_GENERATED_REPORT",
+  "taskId": "125ce3ce-6ed0-31fc-b7b9-5d8e95d17fc1",
+  "originalReportSha256": "d6d947c3243d1a0205201f16cc90e3b2258117e7b0515dcca189b884fc473a20",
+  "htmlSha256": "a4785995a1ce7b2962ced19b0af752ec14727267821b9fe924ecb6302e25926d",
+  "htmlBytes": 393465,
+  "originalReportUnchanged": true,
+  "customerSourceRecordsUnchanged": true,
+  "independentInputHashesVerified": true,
+  "independentArithmeticChecksMatched": true,
+  "holdingTotalCalculatedBeforeDisplayRounding": true,
+  "displayRoundingDifferenceExplained": true,
+  "additionalS6CandidateMatrix": [
+    {
+      "group": "买入",
+      "candidate": "-(CJJE+S1+S2+S3+S5)",
+      "records": 15,
+      "comparable": 15,
+      "matches": 15,
+      "missing": 0,
+      "invalid": 0,
+      "meaning_confirmed": false,
+      "tolerance": null
+    },
+    {
+      "group": "买入",
+      "candidate": "CJJE-(S1+S2+S3+S5)",
+      "records": 15,
+      "comparable": 15,
+      "matches": 0,
+      "missing": 0,
+      "invalid": 0,
+      "meaning_confirmed": false,
+      "tolerance": null
+    },
+    {
+      "group": "卖出",
+      "candidate": "-(CJJE+S1+S2+S3+S5)",
+      "records": 12,
+      "comparable": 12,
+      "matches": 0,
+      "missing": 0,
+      "invalid": 0,
+      "meaning_confirmed": false,
+      "tolerance": null
+    },
+    {
+      "group": "卖出",
+      "candidate": "CJJE-(S1+S2+S3+S5)",
+      "records": 12,
+      "comparable": 12,
+      "matches": 12,
+      "missing": 0,
+      "invalid": 0,
+      "meaning_confirmed": false,
+      "tolerance": null
+    }
+  ],
+  "meaningConfirmed": false,
+  "chartHashesVerified": true,
+  "actualCustomerHtmlExcludedFromGit": true,
+  "browser": {
+    "imagesDecoded": 2,
+    "candidateRows": 4,
+    "tableColumnCountsConsistent": true,
+    "roundingExplanationVisible": true,
+    "errors": 0
+  },
+  "historicalEvidence": true,
+  "currentEvidence": "customer-verified-runtime.json",
+  "reviewerKind": "CODING_AGENT_WITH_READ_ONLY_PYTHON_AND_BROWSER_TOOLS",
+  "externalHumanAuditClaimed": false
+}

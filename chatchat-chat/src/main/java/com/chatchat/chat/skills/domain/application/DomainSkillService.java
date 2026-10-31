@@ -80,7 +80,7 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
         int p = Math.max(0, page), size = Math.max(1, Math.min(100, pageSize));
         Page<DomainSkillEntity> result = repository.search(tenantId, text(category), text(status), text(keyword), PageRequest.of(p, size));
         return new Workspace(result.getContent(), result.getTotalElements(), repository.countVisible(tenantId), p, size, result.getTotalPages(),
-            categories(tenantId), quota(tenantId));
+            categories(tenantId), quota(tenantId), com.chatchat.chat.skills.runtime.BuiltinCodingSkills.catalog());
     }
 
     @Transactional
@@ -692,7 +692,7 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
     private record MarkdownEntry(String name, String content) { }
     public record SaveSkillCommand(String id, String name, String category, String description,
                                    String markdownContent) { }
-    public record Workspace(List<DomainSkillEntity> skills, long total, long skillCount, int page, int pageSize, int totalPages, List<CategoryOption> categories, PublicationQuota quota) { }
+    public record Workspace(List<DomainSkillEntity> skills, long total, long skillCount, int page, int pageSize, int totalPages, List<CategoryOption> categories, PublicationQuota quota, List<Map<String,Object>> builtinSkills) { }
     public record CategoryOption(String id, String name, long count, boolean manageable) { }
     public record ReindexResult(String id, String name, String mode, String message) { }
     public record CategoryReindexResult(String category, int matched, int reindexed, int skipped, int failed,

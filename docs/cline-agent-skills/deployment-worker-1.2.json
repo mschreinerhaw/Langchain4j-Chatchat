@@ -1,0 +1,21 @@
+{
+  "image": "runtime-os-coding-agent:agent-skills-financial-recipes-20261031",
+  "imageId": "sha256:e5274de9c84fa82f70b4eaa0c5088262abb34a9f52ab913f8ff7e02ec7cd3c01",
+  "baselineImageId": "sha256:95230a823377870e144a88841028bffa0e6bfc81220d5435ec8ff3a576dd5c25",
+  "archiveSha256": "26c2d56a141792102e2d775ec9e3e24bb3b5ab141a631db5ef9d58691cb593ab",
+  "offlineBuildAndTests": true,
+  "tests": [
+    "✔ task deadline aborts prefetch without extending the model budget (41.665471ms)",
+    "ℹ tests 144",
+    "ℹ suites 0",
+    "ℹ pass 144",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ todo 0",
+    "ℹ duration_ms 3816.428985"
+  ],
+  "status": "DEPLOYED",
+  "runtimePolicyPreserved": true,
+  "finalVerification": "final-worker-verification.json"
+}

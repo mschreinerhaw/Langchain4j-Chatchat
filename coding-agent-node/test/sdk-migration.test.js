@@ -91,7 +91,9 @@ test('authorized malformed tool JSON is repaired by the native loop without exec
   assert.equal(result.status, 'completed', result.error); assert.equal(executions, 1);
   assert.deepEqual(admitted, ['model-1', 'model-2', 'model-3']); assert.deepEqual(settled, admitted);
   assert.equal(runs.size, 1); assert.ok(run.snapshot().messages.some(m => m.role === 'tool'));
-  assert.equal(run.events.some(e => e.type === 'MODEL_RESPONSE_REJECTED'), false);
+  const rejections = run.events.filter(e => e.type === 'MODEL_RESPONSE_REJECTED');
+  assert.equal(rejections.length, 1);
+  assert.equal(rejections[0].diagnosticCode, 'MODEL_TOOL_ARGUMENTS_INVALID');
 });
 
 test('native finish reasons reach the SDK without collapsing filter, cutoff or unknown', async () => {

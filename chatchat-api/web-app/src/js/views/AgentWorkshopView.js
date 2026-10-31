@@ -110,6 +110,7 @@ function defaultRoutingSettings() {
 
 function defaultWorkflowConfig() {
   return {
+    disabledBuiltinSkillIds: [],
     enabled: true,
     runtimeEnvironment: "",
     requiredToolParameters: {},
@@ -1154,6 +1155,7 @@ export default {
       const workflowConfig = roleChat
         ? defaultWorkflowConfig()
         : this.normalizeWorkflowConfig(this.form.workflowConfig, selectedToolNames);
+      workflowConfig.disabledBuiltinSkillIds = parseList(this.form.workflowConfig?.disabledBuiltinSkillIds);
       const defaultDataAsset = this.defaultDataAssetFromForm();
       this.form.workflowConfig = workflowConfig;
       return {
@@ -1867,6 +1869,7 @@ export default {
       );
       return {
         enabled: base.enabled !== false,
+        disabledBuiltinSkillIds: parseList(base.disabledBuiltinSkillIds),
         runtimeEnvironment: normalizeRuntimeEnvironment(base.runtimeEnvironment),
         requiredToolParameters:
           base.requiredToolParameters && typeof base.requiredToolParameters === "object"

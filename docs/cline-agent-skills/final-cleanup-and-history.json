@@ -1,0 +1,22 @@
+{
+  "temporaryAgentsRemoved": [
+    "cline_skills_acceptance_20261030",
+    "cline_skills_isolation_20261030"
+  ],
+  "originalAgentUnchanged": true,
+  "originalAgentCanonicalSha256": "ef59c15f54570684a9e10bda07ae85e7284e6de17ae06c7565bd6749386cfd24",
+  "builtinDeleteRejected": {
+    "http": 200,
+    "code": 400
+  },
+  "builtinCatalogCountAfterAttempt": 2,
+  "legacySqlHistory": {
+    "taskId": "sql-coding-4b0f5306-4875-4d24-a02b-218b14b24021",
+    "restored": true,
+    "fileCount": 1,
+    "sourceUnchanged": true,
+    "executedAgain": false
+  },
+  "historicalEvidence": true,
+  "currentEvidence": "customer-verified-runtime.json"
+}

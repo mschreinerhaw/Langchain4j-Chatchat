@@ -1,0 +1,64 @@
+{
+  "question": "查询客户号070200046604的交易和资产、盈亏情况.总结这个客户的交易偏好.分析数据之间是否存在勾稽关系错误",
+  "originalAgentId": "financial_indicator",
+  "taskId": "e9d87144-9829-31ee-ac1c-e607bf462206",
+  "runId": "att-1-24a823a3-6309-43f6-9c9c-d86986f09997",
+  "taskState": "SUCCEEDED",
+  "codingTaskId": "analysis-coding-4a30fcfe778b45aa2311d7793dafe309bcb9b4657038effdfa68932febc70404",
+  "codingState": "COMPLETED",
+  "validationStatus": "INCONCLUSIVE",
+  "technicalChain": "PASSED",
+  "businessAcceptance": "NOT_PASSED_DATA_AND_REPORT_QUALITY",
+  "inputRows": 38,
+  "assetSnapshots": 1,
+  "entrustmentRecords": 37,
+  "settlementDetailAvailable": false,
+  "assetLiabilityDetailAvailable": false,
+  "modelCalls": 6,
+  "codeExecutions": 3,
+  "requestedSkillReads": [],
+  "versions": [
+    {
+      "version": 1,
+      "codeHash": "e57206b0f0d6db5506ea2556f5e562fc3e8b21d344de8703739aac75180cb059",
+      "parentHash": null,
+      "status": "REJECTED",
+      "kind": "INITIAL"
+    },
+    {
+      "version": 2,
+      "codeHash": "5a864ec0c19cb1629bc43eccadc79e5a5645cb92e23c34b160fd6f91abbb0d63",
+      "parentHash": "e57206b0f0d6db5506ea2556f5e562fc3e8b21d344de8703739aac75180cb059",
+      "status": "REJECTED",
+      "kind": "PATCH"
+    },
+    {
+      "version": 3,
+      "codeHash": "ecbfb061563e6cb2abade3193a5f5fef3eb1d3999506dff56e6b05ae897d50a8",
+      "parentHash": "5a864ec0c19cb1629bc43eccadc79e5a5645cb92e23c34b160fd6f91abbb0d63",
+      "status": "VALIDATED",
+      "kind": "PATCH"
+    }
+  ],
+  "qualityFindings": [
+    "委托记录不得等同于成交笔数",
+    "单个窗口不支持程序化交易或波段偏好的确定性判断",
+    "代码中的资产差额与部分结论为固定文本，未由实际计算结果驱动",
+    "缺少交割及资产负债明细，完整盈亏勾稽不可认证",
+    "未生成客户静态图表"
+  ],
+  "cloneAttempt": "REJECTED_BY_PUBLISHED_TOOL_BINDING_CHECK_NO_AGENT_CREATED",
+  "originalAgents": {
+    "financial_indicator": {
+      "unchanged": true,
+      "definitionSha256": "fe61983bf9d4186d383e8960e8710efcf46b6e97a5ba0ec8b4a9a7fac63a49de"
+    },
+    "ids_data_audit": {
+      "unchanged": true,
+      "definitionSha256": "ef59c15f54570684a9e10bda07ae85e7284e6de17ae06c7565bd6749386cfd24"
+    }
+  },
+  "gitCommitCreated": false,
+  "historicalEvidence": true,
+  "currentEvidence": "customer-verified-runtime.json"
+}

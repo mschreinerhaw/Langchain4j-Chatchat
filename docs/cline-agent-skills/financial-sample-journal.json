@@ -1,0 +1,24 @@
+{
+  "taskId": "analysis-coding-94eaa15a2a77ffbe4282b7271b994f554d73079c266d6bec35082d422f15b884",
+  "runId": "asset-analysis-2416a1e3b6fbe6852dadf3e6b5dd2a1a39aad2120a8e08e13a3a6c745a8eabb7",
+  "status": "COMPLETED",
+  "validationStatus": "INCONCLUSIVE",
+  "modelCalls": 5,
+  "codeExecutions": 1,
+  "requestedSkillReads": [
+    {
+      "skillId": "builtin:python-data-analysis"
+    },
+    {
+      "skillId": "builtin:python-data-analysis",
+      "path": "references/financial-reporting.md"
+    }
+  ],
+  "allowedTools": [
+    "artifact_read",
+    "input_read",
+    "python_execute",
+    "skill_read",
+    "sql_validate"
+  ]
+}

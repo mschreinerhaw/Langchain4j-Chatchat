@@ -1,0 +1,53 @@
+{
+  "syntheticData": true,
+  "taskId": "analysis-coding-94eaa15a2a77ffbe4282b7271b994f554d73079c266d6bec35082d422f15b884",
+  "status": "PASSED",
+  "validationStatus": "INCONCLUSIVE",
+  "businessCertification": false,
+  "expected": {
+    "rows": 5,
+    "pnlCny": "8000.00",
+    "netFlowCny": "2000.00",
+    "assetChangeCny": "10000.00",
+    "dailyResidualCny": "0.00",
+    "wholePeriodResidualCny": "0.00"
+  },
+  "independentMethod": "BigInt integer cents from the original supplied CSV; reconciled to both authored and archived metrics",
+  "chartKinds": [
+    "png",
+    "plotly",
+    "plotly"
+  ],
+  "pnlColors": [
+    "#D32F2F",
+    "#388E3C",
+    "#9E9E9E",
+    "#D32F2F",
+    "#388E3C"
+  ],
+  "artifacts": [
+    {
+      "fileName": "daily_pnl_and_closing_assets.png",
+      "sha256": "85c648174abdace0c29989d29de88746f5e0232cf39b6394ebc07d78d0c161ef",
+      "size": 140077
+    },
+    {
+      "fileName": "plotly_daily_pnl.json",
+      "sha256": "eceaedda51eca767f8133d31180df9332c9daaea88b9584b7aa230168605b829",
+      "size": 662
+    },
+    {
+      "fileName": "plotly_closing_assets.json",
+      "sha256": "2fadd1e9b153eab28b5d07e62f517a6d8948e31fd18693b9aaaf341c83b4b983",
+      "size": 721
+    }
+  ],
+  "browser": {
+    "mockedRequests": false,
+    "removedExplanationAbsent": true,
+    "builtinDataAnalysisVersion": "1.1.0",
+    "browserErrors": [],
+    "syntheticFinancialChartRendered": true,
+    "historyReplayExecutions": 0
+  }
+}

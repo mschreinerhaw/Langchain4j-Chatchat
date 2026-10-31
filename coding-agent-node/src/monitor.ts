@@ -1,5 +1,6 @@
 import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
+import { taskSkills } from './skills.js';
 import { mkdir, writeFile, rename } from 'node:fs/promises';
 import { join } from 'node:path';
 import { arch, cpus, hostname, loadavg, platform } from 'node:os';
@@ -127,7 +128,8 @@ export class MonitorStore {
       contract.scope.tenantId, contract.scope.userId, contract.scope.runId, contract.taskId, fencingToken,
     ])).digest('hex');
     const now = new Date().toISOString();
-    const skills = contract.runtimeContext?.skills;
+    const skills = contract.authorization?.allowedTools?.includes('skill_read')
+      ? taskSkills(contract.runtimeContext).catalog : contract.runtimeContext?.skills;
     const model = contract.runtimeContext?.model;
     const configuredModel: TaskDetail['configuredModel'] = {};
     for (const key of ['selectedModel', 'providerModel', 'protocol'] as const)
@@ -142,7 +144,7 @@ export class MonitorStore {
       outputTokens: 0, usageKnownCalls: 0, configuredModel,
       skills: { status: this.text(skills?.status) || 'NOT_CONFIGURED', fingerprint: this.text(skills?.fingerprint) || null,
         configured: (Array.isArray(skills?.skills) ? skills.skills : []).slice(0, 128).map((skill: Contract) => ({
-          skillId: this.text(skill.skillId, 200), name: this.text(skill.name, 200), version: this.text(skill.version, 80),
+          skillId: this.text(skill.id ?? skill.skillId, 200), name: this.text(skill.name, 200), version: this.text(skill.version, 80),
         })), stages: Object.keys(skills?.stages ?? {}).slice(0, 32),
         loadedAt: null, applications: 0, lastAppliedAt: null },
       budget: { maxModelCalls: integer(contract.budget?.maxModelCalls), deadlineAt: contract.budget?.deadlineAt ?? null },

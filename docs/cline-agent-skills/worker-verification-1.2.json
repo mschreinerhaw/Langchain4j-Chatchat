@@ -1,0 +1,31 @@
+{
+  "image": "runtime-os-coding-agent:agent-skills-financial-recipes-20261031",
+  "imageId": "sha256:e5274de9c84fa82f70b4eaa0c5088262abb34a9f52ab913f8ff7e02ec7cd3c01",
+  "tests": 144,
+  "passed": 144,
+  "failed": 0,
+  "skipped": 0,
+  "network": "none",
+  "readOnly": true,
+  "discovery": {
+    "uid": 1000,
+    "gid": 32101,
+    "names": [
+      "python-code-development",
+      "python-data-analysis"
+    ],
+    "versions": [
+      {
+        "id": "builtin:python-data-analysis",
+        "version": "1.2.0"
+      },
+      {
+        "id": "builtin:python-code-development",
+        "version": "1.0.0"
+      }
+    ],
+    "referencesReadable": true
+  },
+  "productionHealthy": true,
+  "moduleHashes": "fb3d001c01b67de49281c956e4200fa4dd0bdd81e6e6a505ec03a73c3b5024af  /srv/coding-agent/dist/runner.js\n18a590330c5ed251bc616d26e558a3ae5722ad1345764e1f6b9249d1799d993d  /srv/coding-agent/dist/sdk-adapter.js\n07b0c9553722d8be183df275e1f6ca4b1ee30e62334e1d071153b8ec52a10008  /srv/coding-agent/dist/runtime-model.js\n87837d9f27771fb8716ed7b782046bb5efd1ff0085cd5af8ca83d8ff8662fec5  /srv/coding-agent/dist/skills.js\n436d9ebaecd29fb09ca955bb01a199218b5252aa441d44e1ef987d861cee9bc6  /srv/coding-agent/dist/monitor.js\ncf2009842df28e1e222888ff995121a3fc9883824b1dccd5d782bace1b3cb354  /srv/coding-agent/dist/code-repair.js"
+}

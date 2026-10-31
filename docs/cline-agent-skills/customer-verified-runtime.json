@@ -1,0 +1,90 @@
+{
+  "taskId": "467bdfe8-3382-372e-b2d6-4149912203e9",
+  "runId": "att-1-dc7526aa-3554-4d41-ab1f-c55a5c7daf90",
+  "codingTaskId": "analysis-coding-dd6a034810a6d65e6472a68365082c2f848ec537dc3ff609f665a08dda4fb2a1",
+  "model": "deepseek-v4-flash",
+  "acceptanceMode": "GUIDED_BUSINESS_CASE_WITH_EXPLICIT_PERIOD_AND_METHOD_CONSTRAINTS",
+  "defaultModelUnassistedSuccessClaimed": false,
+  "parentState": "SUCCEEDED",
+  "codingState": "COMPLETED",
+  "validationStatus": "INCONCLUSIVE",
+  "reportStatus": "FAILED",
+  "reportStatusExplanation": "Program-declared source security-identity shape check failed; calculation basis remains unresolved. These are preserved findings, not a technical execution or artifact failure.",
+  "technicalAcceptance": "PASSED",
+  "reportQualityReview": "PASSED_WITH_SOURCE_LIMITATIONS",
+  "modelCalls": 9,
+  "codeExecutions": 4,
+  "sourceCodeProof": {
+    "codingTaskId": "analysis-coding-dd6a034810a6d65e6472a68365082c2f848ec537dc3ff609f665a08dda4fb2a1",
+    "sourceSha256": "eebabd71f24cbf3cf7e840757ac322cd244f6da3b7fe7b98909507f3754f769b",
+    "recipeFunctions": {
+      "financial_amount": {
+        "present": true,
+        "unchangedAst": true,
+        "called": true
+      },
+      "reconcile_components": {
+        "present": true,
+        "unchangedAst": true,
+        "called": true
+      },
+      "ordered_balances": {
+        "present": true,
+        "unchangedAst": true,
+        "called": true
+      },
+      "candidate_matrix": {
+        "present": true,
+        "unchangedAst": true,
+        "called": true
+      },
+      "percentage_composition": {
+        "present": true,
+        "unchangedAst": true,
+        "called": true
+      },
+      "signed_amount_matrix": {
+        "present": true,
+        "unchangedAst": true,
+        "called": true
+      },
+      "logical_parquet_rows": {
+        "present": true,
+        "unchangedAst": true,
+        "called": true
+      }
+    },
+    "codeVersions": 4,
+    "modelCalls": 9,
+    "codeExecutions": 4,
+    "modelResponseRepairs": 1
+  },
+  "analysisSkillVersion": "1.3.0",
+  "developmentSkillVersion": "1.0.0",
+  "dataSourceCount": 10,
+  "inputRows": 115,
+  "declaredFieldDefinitions": 142,
+  "requestedDate": "2026-07-31",
+  "artifactValidationStatus": "PASSED",
+  "layoutValidationStatus": "PASSED",
+  "charts": [
+    {
+      "fileName": "chart_pnl_decomposition.png",
+      "sha256": "999d729a08ac3d2a077eb7234c5c370aa63b7cb165b8239f9d5e60a5fcb39768",
+      "size": 79389
+    },
+    {
+      "fileName": "chart_holding_structure.png",
+      "sha256": "87b2d880c9ad3029235e9ed68890fd3da55e68ea722b8ac8674786cc8b9c9ff7",
+      "size": 218575
+    }
+  ],
+  "qualityEvidence": "customer-final-quality-review.json",
+  "readOnlyExport": "customer-final-export.json",
+  "businessSemanticsCertified": false,
+  "originalModelReportValuesEditedByTester": false,
+  "sourceDataOrTemplateMappingModified": false,
+  "permissionScopeExpanded": false,
+  "originalModelRestored": true,
+  "originalEffectiveConfigurationRestored": true
+}

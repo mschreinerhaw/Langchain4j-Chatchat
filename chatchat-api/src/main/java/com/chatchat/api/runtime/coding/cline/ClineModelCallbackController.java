@@ -302,6 +302,7 @@ public final class ClineModelCallbackController {
     public Map<String, Object> reserve(@RequestBody JsonNode body) {
         return bound(body, call -> {
             CodingTaskContract contract = contract(body, call);
+            if (skillReader!=null) skillReader.freezeCatalog(contract,call.lease());
             JsonNode request = body.path("model");
             String operationId = operationId(request.path("operationId").asText(null));
             if (request.path("modelCalls").asLong(-1) != 1)

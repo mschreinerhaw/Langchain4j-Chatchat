@@ -194,6 +194,37 @@ class CodingTaskPersistenceTest {
         assertThatThrownBy(()->restarted.saveSdkCheckpoint(scope,"sdk",successor,sdkBoundary("sdk",2))).isInstanceOf(CodingContractException.class);
     }
 
+    @Test void versionedAnalysisRetainsTwoReviewedReportsWithoutLosingItsBoundariesOrLegacyLimits() {
+        var base=contract("reviewed-files",10);var a=base.authorization();String file="c"+"a".repeat(63);
+        var authorization=new CodingTaskContract.Authorization(a.decisionRef(),a.allowedTools(),List.of("input:fixture",file),
+            a.readablePathRefs(),a.writablePathRefs(),a.networkPolicy(),a.networkAllowlist(),a.allowedSideEffects());
+        var configured=new CodingTaskContract(CodingProtocol.ANALYSIS_VERSION,base.taskId(),base.scope(),base.objective(),
+            base.inputSnapshotRef(),base.metadataRefs(),base.workspaceRef(),authorization,base.budget(),base.environmentRef(),
+            base.validationPlanRef(),base.outputContract(),Map.of("schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT",
+                "inputFiles",Map.of("schemaVersion",CodingInputManifest.VERSION,"format","PARQUET","delivery","SHARED_DIRECTORY",
+                    "manifestFileId",file,"manifestSha256","b".repeat(64))));
+        service.submit(configured);var lease=claim(base.taskId(),"worker");var first=sdkBoundary(base.taskId(),1);
+        var messages=(com.fasterxml.jackson.databind.node.ArrayNode)first.path("messages");
+        ((com.fasterxml.jackson.databind.node.ObjectNode)messages.get(0).path("content").get(0)).put("text","Field metadata ".repeat(8000));
+        var report=Map.of("rows",List.of(Map.of("reportMarkdown","Computed report ".repeat(7000))));
+        messages.add(json.valueToTree(Map.of("role","assistant","content",List.of(Map.of("type","tool-call","toolCallId","python-1","toolName","python_execute","input",Map.of("source","calculate()"))))));
+        messages.add(json.valueToTree(Map.of("role","tool","content",List.of(Map.of("type","tool-result","toolCallId","python-1","output",report)))));
+        assertThat(first.toString().length()).isLessThan(262144);service.saveSdkCheckpoint(scope,base.taskId(),lease,first);
+        var reviewed=first.deepCopy();reviewed.put("checkpointOrdinal",2);var repairedMessages=(com.fasterxml.jackson.databind.node.ArrayNode)reviewed.path("messages");
+        repairedMessages.add(json.valueToTree(Map.of("role","assistant","content",List.of(Map.of("type","tool-call","toolCallId","python-2","toolName","python_execute","input",Map.of("repair","exact edit"))))));
+        repairedMessages.add(json.valueToTree(Map.of("role","tool","content",List.of(Map.of("type","tool-result","toolCallId","python-2","output",report)))));
+        assertThat(reviewed.toString().length()).isGreaterThan(262144);service.saveSdkCheckpoint(scope,base.taskId(),lease,reviewed);
+        var restarted=service(store(new JdbcTemplate(dataSource)));
+        assertThat(restarted.sdkCheckpoint(scope,base.taskId()).path("messages")).isEqualTo(reviewed.path("messages"));
+        var wrongScope=reviewed.deepCopy();wrongScope.put("workspaceRef","workspace:other");
+        code(()->service.saveSdkCheckpoint(scope,base.taskId(),lease,wrongScope),CONTRACT_INVALID);
+        var excessive=reviewed.deepCopy();((com.fasterxml.jackson.databind.node.ObjectNode)excessive.path("messages").get(0).path("content").get(0)).put("text","x".repeat(750001));
+        code(()->service.saveSdkCheckpoint(scope,base.taskId(),lease,excessive),CONTRACT_INVALID);
+        service.submit(contract("legacy",10));var legacyLease=claim("legacy","worker");var legacy=sdkBoundary("legacy",1);legacy.set("messages",reviewed.path("messages"));
+        code(()->service.saveSdkCheckpoint(scope,"legacy",legacyLease,legacy),CONTRACT_INVALID);
+        assertThat(service.sdkCheckpoint(scope,base.taskId()).path("checkpointOrdinal").asInt()).isEqualTo(2);
+    }
+
     @Test void sdkBoundaryCannotReplayWorkBeyondCheckpointOrRestoreUnpairedCalls() {
         service.submit(contract("sdk",10));var lease=claim("sdk","worker");var boundary=sdkBoundary("sdk",1);
         var broken=boundary.deepCopy();((com.fasterxml.jackson.databind.node.ArrayNode)broken.path("messages").get(0).path("content"))

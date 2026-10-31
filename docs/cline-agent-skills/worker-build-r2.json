@@ -1,0 +1,18 @@
+{
+  "image": "runtime-os-coding-agent:agent-skills-20261030-r2",
+  "imageId": "sha256:cccff16f43ce587e3588a205bc0bc4ad387a09b7b1d5b5fef742541467c361e3",
+  "baselineImageId": "sha256:eb3436b5f259c25dbda2007508819da14357f39d4ff040b765097d98134decd8",
+  "archiveSha256": "bd165ed8a3dea508aad1ee6e86f4ae376c222c161d0847458c49674c525d7e15",
+  "offlineBuildAndTests": true,
+  "tests": [
+    "\u2714 task deadline aborts prefetch without extending the model budget (41.672035ms)",
+    "\u2139 tests 132",
+    "\u2139 suites 0",
+    "\u2139 pass 132",
+    "\u2139 fail 0",
+    "\u2139 cancelled 0",
+    "\u2139 skipped 0",
+    "\u2139 todo 0",
+    "\u2139 duration_ms 3747.556146"
+  ]
+}

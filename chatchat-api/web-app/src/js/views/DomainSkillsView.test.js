@@ -14,6 +14,15 @@ vi.mock("../../services/api.js", () => api);
 import DomainSkillsView from "./DomainSkillsView.js";
 
 describe("DomainSkillsView", () => {
+  it("keeps image builtins separate from the dynamic pageable and removable catalog", async () => {
+    const builtins = [{ id: "builtin:python-data-analysis", origin: "SYSTEM_BUILTIN", version: "1.0.0", removable: false }];
+    api.fetchDomainSkills.mockResolvedValueOnce({ skills: [{ id: "domain-a" }], builtinSkills: builtins, total: 1, totalPages: 1 });
+    const context = { ...DomainSkillsView.data() };
+    await DomainSkillsView.methods.load.call(context);
+    expect(context.builtinSkills).toEqual(builtins);
+    expect(context.skills.map(skill => skill.id)).toEqual(["domain-a"]);
+    expect(context.total).toBe(1);
+  });
   it("ignores legacy model binding and publishes using the Agent model", async () => {
     api.fetchSkillPublicationOptions.mockResolvedValue({ engines: ["GOOGLE_ADK_NATIVE", "LANGCHAIN4J"], modelSource: "AGENT" });
     const context = { ...DomainSkillsView.data(), publishSkill: vi.fn() };

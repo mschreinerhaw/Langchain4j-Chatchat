@@ -1256,7 +1256,7 @@ public class SkillCatalogService {
 
     private Map<String, Object> normalizeRoleRuntimePolicy(Map<String, Object> config) {
         Map<String, Object> normalized = new LinkedHashMap<>(normalizeRuntimePolicy(config, 1200));
-        preserveBoundDomainSkillIds(config, normalized);
+        preserveSkillConfiguration(config, normalized);
         return normalized.isEmpty() ? Map.of() : Map.copyOf(normalized);
     }
 
@@ -1295,7 +1295,7 @@ public class SkillCatalogService {
         if (runtimeEnvironment != null) {
             normalized.put("runtimeEnvironment", runtimeEnvironment);
         }
-        preserveBoundDomainSkillIds(source, normalized);
+        preserveSkillConfiguration(source, normalized);
         String documentScopeMode = normalizeText(String.valueOf(firstObject(
             source, "documentScopeMode", "document_scope_mode")));
         if (documentScopeMode != null && !"null".equalsIgnoreCase(documentScopeMode)) {
@@ -1409,8 +1409,11 @@ public class SkillCatalogService {
         return normalized;
     }
 
-    private void preserveBoundDomainSkillIds(Map<String, Object> source, Map<String, Object> target) {
+    private void preserveSkillConfiguration(Map<String, Object> source, Map<String, Object> target) {
         if (source == null || target == null) return;
+        if (source.containsKey("disabledBuiltinSkillIds"))
+            target.put("disabledBuiltinSkillIds", com.chatchat.chat.skills.runtime.BuiltinCodingSkills.disabled(
+                source.get("disabledBuiltinSkillIds")));
         boolean configured = source.containsKey("boundDomainSkillIds")
             || source.containsKey("bound_domain_skill_ids");
         if (!configured) return;

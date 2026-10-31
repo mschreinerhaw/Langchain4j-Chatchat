@@ -179,6 +179,32 @@ class CodingAnalysisServiceTest {
             .isEqualTo("sha256:" + "a".repeat(64));
         verify(python, never()).environment("environment");
     }
+    @Test void largeEnvironmentMetadataFitsWithoutTruncatingTheObjectiveOrPackageSnapshot() {
+        prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
+        var packages=new LinkedHashMap<String,String>();
+        for(int i=0;i<50;i++)packages.put("package-"+i,"version-".repeat(45));
+        when(python.environmentRuntime("environment")).thenReturn(new McpPythonControlPlanePort.EnvironmentRuntime(
+            "environment",1,"image","sha256:"+"a".repeat(64),"3",packages));
+        var request=new LinkedHashMap<>(request());
+        String objective="核对客户资产 🧮\n"+"x".repeat(14000);request.put("instruction",objective);
+        service().execute(context("tenant"),request,sources());
+        var captured=org.mockito.ArgumentCaptor.forClass(CodingTaskContract.class);verify(agent).submit(captured.capture());
+        var accepted=captured.getValue();
+        assertThat(accepted.objective().instruction()).startsWith(objective).contains("runtimeContext.pythonEnvironment");
+        assertThat(accepted.objective().instruction().codePointCount(0,accepted.objective().instruction().length())).isLessThanOrEqualTo(32768);
+        assertThat(((Map<?,?>)accepted.runtimeContext().get("pythonEnvironment")).get("packages")).isEqualTo(packages);
+    }
+    @Test void largeInputDescriptorDefersOnlyItsDuplicateWhileKeepingScopeAndSourceSemanticsInline() {
+        prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
+        when(inputs.describe(any(),anyString(),any())).thenReturn(Map.of("rowCount",1,
+            "inputVersions",List.of(Map.of("fieldDefinitions",Map.of("amount",Map.of("description","declared-meaning-".repeat(2400)))))));
+        service().execute(context("tenant"),request(),sources());
+        var captured=org.mockito.ArgumentCaptor.forClass(CodingTaskContract.class);verify(agent).submit(captured.capture());
+        String goal=captured.getValue().objective().instruction();
+        assertThat(goal).contains("This replaces only the duplicate descriptor",
+            "Producer-declared source representation:","Runtime template parameter provenance:","Scope applicability:");
+        assertThat(goal.codePointCount(0,goal.length())).isLessThanOrEqualTo(32768);
+    }
     @Test void nineSourceFileContractRetainsTheAuthorizedParentModelAcrossComplexitySelection() {
         prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
         policy.setComplexModelName("must-not-replace-parent");

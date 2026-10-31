@@ -1,0 +1,51 @@
+{
+  "method": "Independent BigInt cents arithmetic on the complete authorized single asset row; no aggregate verification from sampled order rows",
+  "assetSnapshotDate": "20260731",
+  "assetCompositionResidualCents": "0",
+  "assetChangeResidualCents": "0",
+  "scope": "Arithmetic identities only; no certification of field semantics, settlement, fees, historical preference or cross-source business correctness",
+  "sourceRows": [
+    {
+      "datasetReference": "livedata_cx_mncg_khzc_r#template-binding-1-binding-1",
+      "rowCount": 1
+    },
+    {
+      "datasetReference": "livedata_cx_mncg_wtls#template-binding-2-binding-2",
+      "rowCount": 37
+    },
+    {
+      "datasetReference": "livedata_SQL_ADS_IDS_CLR_DELI_JOUR_SECU#template-binding-3-binding-3",
+      "rowCount": 0
+    },
+    {
+      "datasetReference": "livedata_SQL_ADS_IDS_SECU_AST_LIAB#template-binding-4-binding-4",
+      "rowCount": 0
+    }
+  ],
+  "queryPeriods": [
+    {
+      "template": "livedata_cx_mncg_khzc_r",
+      "start": "20260731",
+      "end": "20260731"
+    },
+    {
+      "template": "livedata_cx_mncg_wtls",
+      "start": "20260731",
+      "end": "20260731"
+    },
+    {
+      "template": "livedata_SQL_ADS_IDS_CLR_DELI_JOUR_SECU",
+      "start": "20260801",
+      "end": "20260831"
+    },
+    {
+      "template": "livedata_SQL_ADS_IDS_SECU_AST_LIAB",
+      "start": "20260801",
+      "end": "20260831"
+    }
+  ],
+  "periodsAligned": false,
+  "orderAggregatesIndependentlyVerified": false,
+  "historicalEvidence": true,
+  "currentEvidence": "customer-verified-runtime.json"
+}

@@ -4,6 +4,10 @@
 
 组件仍通过既有 Runtime 回调协议取得模型、工具权限、预算和执行回执。Node 不自行连接业务数据库、模型供应商或 Docker；对任务执行及结果准入的最终判断由 Runtime 管理。
 
+镜像默认交付 `python-data-analysis`（1.3.0）和 `python-code-development`（1.0.0）。原始包位于 `skills/`，镜像提供 `.cline/skills` 发现链接；裸 Agent 由现有适配器通过同一个 `skill_read` 按需加载，不依赖启动后联网安装。动态技能仍来自当前 Agent 的 Runtime 任务契约。内置 ID/名称被保留，同名动态包会报告冲突而不会覆盖内置版本；每个 Agent 可通过 `workflowConfig.disabledBuiltinSkillIds` 禁用内置能力。技能不扩展数据、执行或网络权限。[源码审查与传递机制](../docs/cline-agent-skills/01-source-audit.md)记录了加载路径、版本和任务快照规则。
+
+文件分析使用 SDK 原生 basic 上下文压缩。软输入额度取任务累计 Token 预算与模型调用次数之比，并服从已知模型输入上限；累计预算保持不变。压缩保留原始授权上下文，并补回最新版本程序及完整的 Java 归档报告行，供下一轮复核。旧报告不能替代最新引用，来源校验失败和业务勾稽失败均原样保留；此投影不授予额外读取或执行权限。
+
 工作区代码生成的可选快速路径复用同一 SDK Agent、原生完成工具和编辑器。Java 通过有界快照选择策略；失败在当前会话按源码 Hash 局部修复，保留其他文件并重新解析。默认关闭，不影响已有契约。[配置示例](../config/coding-workspace-performance.example.yml)、[实施依据](../docs/cline-codegen-performance-analysis-20261026.md)及[性能与验证报告](../docs/cline-codegen-performance-results-20261026.md)说明了实际测量范围。
 
 ## 构建与运行
@@ -19,6 +23,8 @@ npm start
 ```
 
 `src/server.js`、`runner.js` 保持已有执行协议；新增监控后端、前端及客户端均使用 TypeScript。编译产物位于 `dist/`；Docker 多阶段构建只保留运行依赖与产物。浏览器验证命令 `npm run test:browser` 使用仓库已有 Playwright / Edge；`CHATCHAT_BROWSER_PATH` 可指定浏览器路径。
+
+金融参考代码另用 `python test/financial-methods.test.py` 验证，需在已有 PyArrow 的 Python 环境运行。测试只使用合成数据，直接提取打包 Markdown 中的示例代码；不会连接业务数据源。部署验收在现有 Python Sandbox 镜像中使用断网、只读及 UID1000/GID32101 运行，记录见 [参考函数测试](../docs/cline-agent-skills/financial-recipes-tests.json)。这组测试验证参考函数，不认证模型生成的任意程序或客户业务口径。
 
 五个 Cline 包均作为生产依赖显式锁定在 `0.0.93`：`@cline/sdk`、`@cline/core`、`@cline/agents`、`@cline/llms`、`@cline/shared`。SDK 入口依赖 core，core 依赖另外三个包；锁文件固定实际依赖和完整性。镜像构建与服务启动会实际导入五包并核对版本，失败时不进入就绪状态；已验证版本在受保护的 `/healthz` 中返回。`verify:sdk` 可独立执行。Docker 在 Node 24 Linux 内先 `npm ci --ignore-scripts`、编译，再 `npm prune --omit=dev --ignore-scripts`；独立生产依赖安装也可用 `npm ci --omit=dev --ignore-scripts`。离线构建必须更新生产 node_modules，不能继续复制缺包的旧目录。
 

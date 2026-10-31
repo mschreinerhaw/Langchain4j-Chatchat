@@ -1,0 +1,10 @@
+{
+  "templateName": "TPCDS门店销售年度月度对账20261101",
+  "scenario": "对248测试数据库tpcds的真实SQL年度与月度结果进行精确金额对账和趋势分析",
+  "description": "接收年度服务完整annual_rows与月度服务完整monthly_rows，使用Decimal计算年度净收款、利润、月度合计、差额和数量，输出覆盖月份、缺失月份及Plotly趋势数据。CHATCHAT_INPUT_JSON；stdout为tpcds_reconciliation.v1 JSON。不能把模板发现当作查询结果，不推断币种，不把缺少月份补零或将筛选差额认定数据库错误。",
+  "keywords": "tpcds,销售,年度,月度,对账,SQL,Python,net_paid,net_profit",
+  "domain": "retail_analysis",
+  "version": "1.0.0",
+  "inputSchema": "{\"type\":\"object\",\"properties\":{\"annual_rows\":{\"type\":\"array\",\"minItems\":1,\"maxItems\":100,\"items\":{\"type\":\"object\"},\"description\":\"年度SQL服务实际返回的完整rows，不是工具列表或说明\"},\"monthly_rows\":{\"type\":\"array\",\"minItems\":1,\"maxItems\":100,\"items\":{\"type\":\"object\"},\"description\":\"月度SQL服务实际返回的完整rows，保留实际数值及字段\"},\"sales_year\":{\"type\":\"integer\",\"default\":1999,\"minimum\":1900,\"maximum\":2100}},\"required\":[\"annual_rows\",\"monthly_rows\"],\"additionalProperties\":false}",
+  "outputSchema": "{\"type\":\"object\",\"properties\":{\"schemaVersion\":{\"type\":\"string\"},\"metrics\":{\"type\":\"object\"},\"monthly\":{\"type\":\"array\"},\"chart\":{\"type\":\"object\"}},\"required\":[\"schemaVersion\",\"metrics\",\"monthly\",\"chart\"]}"
+}

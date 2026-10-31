@@ -1,0 +1,79 @@
+{
+  "sourceCommit": "b9fbbf615",
+  "java": 17,
+  "total": 146,
+  "results": [
+    {
+      "name": "com.chatchat.agents.runtime.plan.ReviewedTemplateParameterProtocolTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.agents.orchestration.SchemaDrivenTemplateParameterBinderTest",
+      "tests": 17,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.common.runtime.coding.PythonCodeProjectTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.agents.orchestration.retrieval.McpParamBindingResolverTest",
+      "tests": 30,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.agents.runtime.plan.InterpretationPlanValidatorTest",
+      "tests": 34,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.agents.runtime.plan.template.TemplateWorkflowPluginRegistryTest",
+      "tests": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.chat.interaction.service.AgentToolPolicyResolverTest",
+      "tests": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.api.datascience.python.PythonCodeReuseServiceTest",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.api.datascience.python.PythonDataScienceScriptDeletionTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.api.datascience.python.PythonTemplatePublicationLifecycleTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "frontend": "npm run build: succeeded; 72 Vue components passed structure check",
+  "scope": "Selected changed-boundary tests, not an assertion that all repository tests passed."
+}

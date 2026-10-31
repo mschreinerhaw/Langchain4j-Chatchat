@@ -1,0 +1,42 @@
+{
+  "taskId": "433b09b2-6287-34c5-8523-bbac8c3acdfb",
+  "runId": "att-1-ceb60d39-a469-4836-b714-06f34b85caaa",
+  "accepted": false,
+  "state": "CANCELLED",
+  "reason": "Native selection had complete actual rows and correct paths. The DAG controller regenerated a shorter path; the existing bridge correctly rejected mismatched source evidence.",
+  "calls": [
+    {
+      "source": "mcp_chatchat_mcp_server_python_template_execute",
+      "success": false,
+      "error": "TEMPLATE_PARAMETER_EVIDENCE_MISMATCH: argument annual_rows does not match completed step 1 at $.data.data.rows"
+    }
+  ],
+  "cancellation": {
+    "taskId": "433b09b2-6287-34c5-8523-bbac8c3acdfb",
+    "executionId": "433b09b2-6287-34c5-8523-bbac8c3acdfb",
+    "rootExecutionId": "433b09b2-6287-34c5-8523-bbac8c3acdfb",
+    "attemptId": "att-1-ceb60d39-a469-4836-b714-06f34b85caaa",
+    "parentAttemptId": null,
+    "attemptNumber": 1,
+    "canonicalState": "CANCELLED",
+    "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+    "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+    "agentId": "tpcds_studio_sql_python_20261101",
+    "sessionId": "6773fb2a-1c95-38c9-b6cf-67215c111504",
+    "status": "CANCELLED",
+    "question": "请通过248测试数据库tpcds已发布的年度与月度门店销售数据服务，分析商品主键1在1999-01-01至1999-12-31的销售对账。月度最低购买数量0，品类不限。使用已发布的TPCDS门店销售年度月度对账Python服务处理实际查询返回的完整记录，返回程序实际计算的净收款、利润、数量、口径差额、覆盖月份与月度趋势数据，并说明限制。",
+    "answerSummary": null,
+    "errorMessage": "Task cancelled by tenant request",
+    "feedbackUseful": null,
+    "feedbackAdopted": null,
+    "feedbackResolved": null,
+    "feedbackComment": null,
+    "feedbackReasonCategory": null,
+    "feedbackTime": null,
+    "createTime": "2026-10-31T18:30:05.370863Z",
+    "updateTime": "2026-10-31T18:36:57.174554Z",
+    "finishedAt": "2026-10-31T18:36:57.160Z",
+    "lastEventSequence": 105,
+    "datasets": []
+  }
+}

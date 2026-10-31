@@ -1,0 +1,188 @@
+{
+  "runId": "att-1-7980ab3e-a927-4b7f-9911-e7b11328a2ab",
+  "tasks": [
+    {
+      "taskId": "analysis-coding-36596a82aa7791cbd67c5bde46b6a86d7af5a42ce9fabec91955a7767ef26090",
+      "status": "COMPLETED",
+      "modelReceipts": [
+        {
+          "operationId": "model-1",
+          "attemptId": "analysis-coding-36596a82aa7791cbd67c5bde46b6a86d7af5a42ce9fabec91955a7767ef26090:fence-1",
+          "modelCall": 1,
+          "state": "SUCCEEDED",
+          "selectedModel": "qwen3.6-plus",
+          "providerModel": "qwen3.6-plus",
+          "protocol": "openai",
+          "startedAt": "2026-10-31T19:14:15.823130257Z",
+          "finishedAt": "2026-10-31T19:14:28.544972798Z",
+          "durationMs": 12721,
+          "usage": {
+            "outputTokens": 686,
+            "inputTokens": 12421,
+            "reasoningTokens": 650
+          },
+          "source": "JAVA_MODEL_RECEIPT"
+        },
+        {
+          "operationId": "model-2",
+          "attemptId": "analysis-coding-36596a82aa7791cbd67c5bde46b6a86d7af5a42ce9fabec91955a7767ef26090:fence-1",
+          "modelCall": 2,
+          "state": "SUCCEEDED",
+          "selectedModel": "qwen3.6-plus",
+          "providerModel": "qwen3.6-plus",
+          "protocol": "openai",
+          "startedAt": "2026-10-31T19:14:29.419384495Z",
+          "finishedAt": "2026-10-31T19:14:35.775195442Z",
+          "durationMs": 6355,
+          "usage": {
+            "outputTokens": 319,
+            "inputTokens": 13633,
+            "reasoningTokens": 16
+          },
+          "source": "JAVA_MODEL_RECEIPT"
+        },
+        {
+          "operationId": "model-3",
+          "attemptId": "analysis-coding-36596a82aa7791cbd67c5bde46b6a86d7af5a42ce9fabec91955a7767ef26090:fence-1",
+          "modelCall": 3,
+          "state": "SUCCEEDED",
+          "selectedModel": "qwen3.6-plus",
+          "providerModel": "qwen3.6-plus",
+          "protocol": "openai",
+          "startedAt": "2026-10-31T19:14:45.442300278Z",
+          "finishedAt": "2026-10-31T19:16:09.890852088Z",
+          "durationMs": 84448,
+          "usage": {
+            "outputTokens": 4914,
+            "inputTokens": 17487,
+            "reasoningTokens": 496
+          },
+          "source": "JAVA_MODEL_RECEIPT"
+        },
+        {
+          "operationId": "model-4",
+          "attemptId": "analysis-coding-36596a82aa7791cbd67c5bde46b6a86d7af5a42ce9fabec91955a7767ef26090:fence-1",
+          "modelCall": 4,
+          "state": "SUCCEEDED",
+          "selectedModel": "qwen3.6-plus",
+          "providerModel": "qwen3.6-plus",
+          "protocol": "openai",
+          "startedAt": "2026-10-31T19:16:11.921692376Z",
+          "finishedAt": "2026-10-31T19:17:37.816427389Z",
+          "durationMs": 85894,
+          "usage": {
+            "outputTokens": 4979,
+            "inputTokens": 17556,
+            "reasoningTokens": 506
+          },
+          "source": "JAVA_MODEL_RECEIPT"
+        },
+        {
+          "operationId": "model-5",
+          "attemptId": "analysis-coding-36596a82aa7791cbd67c5bde46b6a86d7af5a42ce9fabec91955a7767ef26090:fence-1",
+          "modelCall": 5,
+          "state": "SUCCEEDED",
+          "selectedModel": "qwen3.6-plus",
+          "providerModel": "qwen3.6-plus",
+          "protocol": "openai",
+          "startedAt": "2026-10-31T19:17:45.092857Z",
+          "finishedAt": "2026-10-31T19:18:11.574446086Z",
+          "durationMs": 26481,
+          "usage": {
+            "outputTokens": 1458,
+            "inputTokens": 33362,
+            "reasoningTokens": 1189
+          },
+          "source": "JAVA_MODEL_RECEIPT"
+        },
+        {
+          "operationId": "model-6",
+          "attemptId": "analysis-coding-36596a82aa7791cbd67c5bde46b6a86d7af5a42ce9fabec91955a7767ef26090:fence-1",
+          "modelCall": 6,
+          "state": "SUCCEEDED",
+          "selectedModel": "qwen3.6-plus",
+          "providerModel": "qwen3.6-plus",
+          "protocol": "openai",
+          "startedAt": "2026-10-31T19:18:19.008748983Z",
+          "finishedAt": "2026-10-31T19:18:27.484536344Z",
+          "durationMs": 8475,
+          "usage": {
+            "outputTokens": 404,
+            "inputTokens": 41060,
+            "reasoningTokens": 290
+          },
+          "source": "JAVA_MODEL_RECEIPT"
+        }
+      ],
+      "executions": [
+        {
+          "executionId": "cline-b8a4032fc172183a1500469c7496e10eb008304017d18733acba67b0f61ecb1a",
+          "status": "SUCCEEDED",
+          "exitCode": 0,
+          "stage": "RESULT_VALIDATION_FAILED",
+          "codeHash": "a8f64d77b6f557fd098b3a6499fbee29498acc867703beaf46524ab97756beb3",
+          "validationStatus": "FAILED",
+          "resultAvailable": false,
+          "businessValidationPassed": false,
+          "outputStatus": "REQUIRED_OUTPUT_MISSING",
+          "artifactRefs": {
+            "diagnosticRef": "execution:cline-b8a4032fc172183a1500469c7496e10eb008304017d18733acba67b0f61ecb1a:logs:runtime-diagnostic.json",
+            "stderrRef": "execution:cline-b8a4032fc172183a1500469c7496e10eb008304017d18733acba67b0f61ecb1a:logs:stderr.txt"
+          },
+          "error": {
+            "category": "OUTPUT_CONTRACT",
+            "exceptionType": null,
+            "diagnosticCode": "OUTPUT_CONTRACT",
+            "message": "Repair the required output file, field names and types to match the authorized result contract; exit code zero alone is insufficient.",
+            "stack": [],
+            "detailRef": "execution:cline-b8a4032fc172183a1500469c7496e10eb008304017d18733acba67b0f61ecb1a:logs:runtime-diagnostic.json"
+          }
+        },
+        {
+          "executionId": "cline-5e65bc61b99d03c8c45099ff3204310f529c53b3d86f817bf2856374403aee95",
+          "status": "SUCCEEDED",
+          "exitCode": 0,
+          "stage": "VALIDATED",
+          "codeHash": "7120c2f2fe6684f87776e6440babfb6b05f931b8a1d7225449b88c660f00eb2d",
+          "validationStatus": "INCONCLUSIVE",
+          "resultAvailable": true,
+          "businessValidationPassed": false,
+          "outputStatus": null,
+          "artifactRefs": {
+            "stderrRef": "execution:cline-5e65bc61b99d03c8c45099ff3204310f529c53b3d86f817bf2856374403aee95:logs:stderr.txt",
+            "executionReceiptRef": "runtime-evidence:coding:6479d0b805ed9659becaeec1c7ec5a1e9dbce9a7fe4c85e2a9636e3de0dbd876:receipt",
+            "codeArtifactRef": "runtime-evidence:coding:6479d0b805ed9659becaeec1c7ec5a1e9dbce9a7fe4c85e2a9636e3de0dbd876:code",
+            "inputSnapshotRef": "runtime-evidence:coding:input:e156484f5991738b8595cda352f09c058082ec3765b0fcd2837dee5a0fe1095",
+            "resultDatasetRef": "runtime-evidence:coding:6479d0b805ed9659becaeec1c7ec5a1e9dbce9a7fe4c85e2a9636e3de0dbd876:result",
+            "validationRecordRef": "runtime-evidence:coding:6479d0b805ed9659becaeec1c7ec5a1e9dbce9a7fe4c85e2a9636e3de0dbd876:validation",
+            "evidenceBundleRef": "runtime-evidence:coding:6479d0b805ed9659becaeec1c7ec5a1e9dbce9a7fe4c85e2a9636e3de0dbd876:bundle",
+            "diagnosticRef": "execution:cline-5e65bc61b99d03c8c45099ff3204310f529c53b3d86f817bf2856374403aee95:logs:runtime-diagnostic.json"
+          },
+          "error": null
+        },
+        {
+          "executionId": "cline-46e45955119b22b8926b8bd2c734db89f2e1fe9ae9bf1446e7549b21124b9a48",
+          "status": "SUCCEEDED",
+          "exitCode": 0,
+          "stage": "VALIDATED",
+          "codeHash": "8ba0eed5546289f84b904410ff346ebf0b52164994fe2cf99a329c1c2b414279",
+          "validationStatus": "INCONCLUSIVE",
+          "resultAvailable": true,
+          "businessValidationPassed": false,
+          "outputStatus": null,
+          "artifactRefs": {
+            "stderrRef": "execution:cline-46e45955119b22b8926b8bd2c734db89f2e1fe9ae9bf1446e7549b21124b9a48:logs:stderr.txt",
+            "executionReceiptRef": "runtime-evidence:coding:37d2db21a6a9a9ef1e8208810a220321738d5728742adb4ebc73abfeb3f1a7d9:receipt",
+            "codeArtifactRef": "runtime-evidence:coding:37d2db21a6a9a9ef1e8208810a220321738d5728742adb4ebc73abfeb3f1a7d9:code",
+            "inputSnapshotRef": "runtime-evidence:coding:input:e156484f5991738b8595cda352f09c058082ec3765b0fcd2837dee5a0fe1095",
+            "resultDatasetRef": "runtime-evidence:coding:37d2db21a6a9a9ef1e8208810a220321738d5728742adb4ebc73abfeb3f1a7d9:result",
+            "validationRecordRef": "runtime-evidence:coding:37d2db21a6a9a9ef1e8208810a220321738d5728742adb4ebc73abfeb3f1a7d9:validation",
+            "evidenceBundleRef": "runtime-evidence:coding:37d2db21a6a9a9ef1e8208810a220321738d5728742adb4ebc73abfeb3f1a7d9:bundle",
+            "diagnosticRef": "execution:cline-46e45955119b22b8926b8bd2c734db89f2e1fe9ae9bf1446e7549b21124b9a48:logs:runtime-diagnostic.json"
+          },
+          "error": null
+        }
+      ]
+    }
+  ]
+}

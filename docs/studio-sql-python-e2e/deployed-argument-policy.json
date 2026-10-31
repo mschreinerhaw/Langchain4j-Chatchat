@@ -1,0 +1,25 @@
+{
+  "executionProtocolBindings": {
+    "mcp.api-template.v1": "HTTP_EXECUTION",
+    "mcp.sql-template.v1": "SQL_EXECUTION",
+    "mcp.ssh-template.v1": "SHELL_EXECUTION",
+    "mcp.http-template.v1": "HTTP_EXECUTION",
+    "mcp.python-template.v1": "PARAMETER_EXECUTION"
+  },
+  "pythonRuntimeOwnedInputs": [
+    "parameters"
+  ],
+  "pythonForbiddenFields": [
+    "code",
+    "source",
+    "sourcecode",
+    "script",
+    "command",
+    "sql",
+    "rawsql",
+    "host",
+    "url",
+    "assetid",
+    "environmentid"
+  ]
+}

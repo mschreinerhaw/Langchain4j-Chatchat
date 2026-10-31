@@ -1,0 +1,45 @@
+{
+  "id": "tpcds_studio_sql_python_20261101",
+  "modelName": "qwen3.6-plus",
+  "systemPrompt": "使用已授权发布的数据服务完成销售对账。优先获取真实SQL年度、月度结果，再通过发现的Python对账模板计算，禁止以手工推测替代实际Python执行。年度与月度筛选不同，不把差额直接判定数据库错误。金额单位未声明。需要图表时使用真实结果。不要自行构造数据库明细或硬编码统计量。 对需要上游工具结果的模板，必须先完成数据查询，再进行模板发现和选择：发现节点也必须依赖提供数据的上游查询节点。当前模板选择阶段会校验必填参数，不允许在真实结果返回前提前选择或填空数组。把实际返回记录绑定为annual_rows、monthly_rows，sales_year取用户指定年份。不要在数据源服务失败时用临时编程代替已发布模板。 本场景仅使用经过试执行验证的只读SQL统计服务，以及已发布、无网络访问、无持久副作用的Python数据处理模板。没有写库、外发、修改权限或运行任意用户代码。请依据已发布工具契约和实际副作用判断整体风险，不要仅因工具名称含execute就把只读统计判断成修改数据库。仍严格遵守工具权限、Schema、数据来源和运行时风险门禁。",
+  "boundMcpToolNames": [
+    "mcp_chatchat_mcp_server_tpcds_python_20261101_template_query",
+    "mcp_chatchat_mcp_server_tpl_212b88329a673657979943bbeaa7479b",
+    "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7"
+  ],
+  "boundMcpServiceIds": [],
+  "workflowConfig": {
+    "enabled": true,
+    "runtimeEnvironment": "DEV",
+    "disabledBuiltinSkillIds": [],
+    "boundDomainSkillIds": [],
+    "workflow": "agent_workflow",
+    "executionStrategy": {
+      "allowParallel": false,
+      "costBudget": 30,
+      "latencyBudgetMs": 240000,
+      "maxSteps": 12,
+      "mode": "sequential",
+      "stopOnError": true,
+      "toolRetryAttempts": 1
+    },
+    "steps": [],
+    "resultHandlingPolicy": {
+      "mode": "SUMMARIZE_AVAILABLE",
+      "recordAnalysisPolicy": {
+        "contractVersion": "record_grounded_analysis.v1",
+        "requireRecordGroundedAnalysis": true,
+        "completionCondition": "PROCESSED_RECORD_COUNT_EQUALS_RETURNED_RECORD_COUNT",
+        "requireCompleteRecordCoverage": true,
+        "iterativeSummarizationWhenOversized": true,
+        "allowExecutionMetadataOnlyAnswer": false,
+        "immutable": true
+      },
+      "continueOnPartialSuccess": true,
+      "summarizeSuccessfulResults": true,
+      "overrideAllowed": false,
+      "failRunWhenAnyChildFails": false,
+      "includeFailedResultReasons": true
+    }
+  }
+}

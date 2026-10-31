@@ -1,0 +1,76 @@
+{
+  "accepted": false,
+  "reason": "Python executor was available but its published argument-binding policy did not declare the Python protocol. Actual planner validation rejected execution.",
+  "attempts": [
+    {
+      "header": "2026-11-01T01:33:44.274+08:00  INFO 1 --- [chatchat] [   agent-task-1] c.c.agents.orchestration.AgentPlanner    : agentPlannerInterpretationPlanValidation phase=planner_parse runId=att-1-b4fa775f-35b8-4288-a150-a84e882a2b0b attempt=1/3 validationMetadata=",
+      "issues": [
+        {
+          "severity": "error",
+          "message": "Required tool input is missing for mcp_chatchat_mcp_server_python_template_execute: parameters",
+          "path": "plan.steps[4].input.parameters"
+        },
+        {
+          "severity": "error",
+          "message": "MCP executor has no published argument binding policy.",
+          "path": "plan.steps[4].tool_name"
+        }
+      ]
+    },
+    {
+      "header": "2026-11-01T01:35:35.991+08:00  INFO 1 --- [chatchat] [   agent-task-1] c.c.agents.orchestration.AgentPlanner    : agentPlannerInterpretationPlanValidation phase=planner_parse runId=att-1-b4fa775f-35b8-4288-a150-a84e882a2b0b attempt=2/3 validationMetadata=",
+      "issues": [
+        {
+          "severity": "error",
+          "message": "Required tool input is missing for mcp_chatchat_mcp_server_python_template_execute: parameters",
+          "path": "plan.steps[3].input.parameters"
+        },
+        {
+          "severity": "error",
+          "message": "MCP executor has no published argument binding policy.",
+          "path": "plan.steps[3].tool_name"
+        }
+      ]
+    },
+    {
+      "header": "2026-11-01T01:36:58.831+08:00  INFO 1 --- [chatchat] [   agent-task-1] c.c.agents.orchestration.AgentPlanner    : agentPlannerInterpretationPlanValidation phase=planner_parse runId=att-1-b4fa775f-35b8-4288-a150-a84e882a2b0b attempt=3/3 validationMetadata=",
+      "issues": [
+        {
+          "severity": "error",
+          "message": "MCP executor has no published argument binding policy.",
+          "path": "plan.steps[4].tool_name"
+        }
+      ]
+    },
+    {
+      "header": "2026-11-01T01:36:58.841+08:00  INFO 1 --- [chatchat] [   agent-task-1] c.c.agents.orchestration.AgentPlanner    : agentPlannerInterpretationPlanValidation phase=planner_parse runId=att-1-b4fa775f-35b8-4288-a150-a84e882a2b0b attempt=3/3 validationMetadata=",
+      "issues": [
+        {
+          "severity": "error",
+          "message": "MCP executor has no published argument binding policy.",
+          "path": "plan.steps[4].tool_name"
+        }
+      ]
+    },
+    {
+      "header": "2026-11-01T01:40:53.134+08:00  INFO 1 --- [chatchat] [   agent-task-2] c.c.agents.orchestration.AgentPlanner    : agentPlannerInterpretationPlanValidation phase=planner_parse runId=att-1-329d150f-9124-4562-9803-ca898b15d4b3 attempt=1/3 validationMetadata=",
+      "issues": [
+        {
+          "severity": "error",
+          "message": "Required tool input is missing for mcp_chatchat_mcp_server_python_template_execute: parameters",
+          "path": "plan.steps[3].input.parameters"
+        },
+        {
+          "severity": "error",
+          "message": "MCP executor has no published argument binding policy.",
+          "path": "plan.steps[3].tool_name"
+        },
+        {
+          "severity": "warning",
+          "message": "Tool is not currently registered: RUN_CODING",
+          "path": "execution_policy.deny_tool"
+        }
+      ]
+    }
+  ]
+}

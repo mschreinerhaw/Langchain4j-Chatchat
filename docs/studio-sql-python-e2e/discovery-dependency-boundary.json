@@ -1,0 +1,4164 @@
+{
+  "accepted": false,
+  "taskId": "74d63270-0e33-3b5a-ac41-38bc2be4ad37",
+  "cancellation": {
+    "taskId": "74d63270-0e33-3b5a-ac41-38bc2be4ad37",
+    "executionId": "74d63270-0e33-3b5a-ac41-38bc2be4ad37",
+    "rootExecutionId": "74d63270-0e33-3b5a-ac41-38bc2be4ad37",
+    "attemptId": "att-1-c02d392a-e89e-41b0-ac67-040fe967ef85",
+    "parentAttemptId": null,
+    "attemptNumber": 1,
+    "canonicalState": "CANCELLED",
+    "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+    "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+    "agentId": "tpcds_studio_sql_python_20261101",
+    "sessionId": "db38365f-0672-30a6-b600-59a05e41e68b",
+    "status": "CANCELLED",
+    "question": "请通过248测试数据库tpcds已发布的年度与月度门店销售数据服务，分析商品主键1在1999-01-01至1999-12-31的销售对账。月度最低购买数量0，品类不限。使用已发布的TPCDS门店销售年度月度对账Python服务处理实际查询返回的完整记录，返回程序实际计算的净收款、利润、数量、口径差额、覆盖月份与月度趋势数据，并说明限制。",
+    "answerSummary": null,
+    "errorMessage": "Task cancelled by tenant request",
+    "feedbackUseful": null,
+    "feedbackAdopted": null,
+    "feedbackResolved": null,
+    "feedbackComment": null,
+    "feedbackReasonCategory": null,
+    "feedbackTime": null,
+    "createTime": "2026-10-31T18:02:00.478284Z",
+    "updateTime": "2026-10-31T18:08:44.118426Z",
+    "finishedAt": "2026-10-31T18:08:43.838Z",
+    "lastEventSequence": 117,
+    "datasets": []
+  },
+  "reason": "Discovery selection requires executable parameters. Parallel discovery started before SQL results were available; actual selection rejected PARAMETERS_REQUIRED. Configured Agent dependencies before retry; no raw code fallback accepted.",
+  "observations": [
+    {
+      "type": "tool",
+      "source": "skill_analysis_context",
+      "content": "Skill methodology snapshot inherited by analysis workflow",
+      "metadata": {
+        "status": "NO_CANDIDATES",
+        "fingerprint": "b3c0dfeffc53a582d01634f79671f2919377ab5146d30a7b30d9f976eb966ea9",
+        "skills": [],
+        "stages": [
+          "PLAN",
+          "ACQUISITION",
+          "ANALYSIS",
+          "VALIDATION",
+          "REPORT"
+        ],
+        "structuredRuntimeObservation": true
+      }
+    },
+    {
+      "type": "knowledge_skill_lifecycle",
+      "source": "knowledge_skills",
+      "content": "Knowledge Skill routing completed: activated 0 Knowledge Skill(s), selected 0 domain skill(s) []",
+      "metadata": {
+        "type": "knowledge_skill_lifecycle",
+        "eventKind": "KNOWLEDGE_SKILLS",
+        "eventState": "COMPLETED",
+        "stage": "SKILLS_EXTRACTED",
+        "schemaVersion": "knowledge_context.v1",
+        "status": "NO_CANDIDATES",
+        "skillCount": 0,
+        "activatedSkills": [],
+        "domainSkillCount": 0,
+        "activatedDomainSkillCount": 0,
+        "methodologyFingerprint": "b3c0dfeffc53a582d01634f79671f2919377ab5146d30a7b30d9f976eb966ea9",
+        "methodologyStatus": "NO_CANDIDATES",
+        "skillTypes": [],
+        "structuredRuntimeObservation": true
+      }
+    },
+    {
+      "type": "knowledge_skill_lifecycle",
+      "source": "knowledge_skills",
+      "content": "领域知识未应用到分析流程，共使用 0 个文档来源、0 个 Knowledge Skill、0 个领域技能。",
+      "metadata": {
+        "type": "knowledge_skill_lifecycle",
+        "eventKind": "KNOWLEDGE_SKILLS",
+        "eventState": "NOT_APPLIED",
+        "stage": "CONTEXT_APPLIED",
+        "schemaVersion": "knowledge_context.v1",
+        "status": "NO_CANDIDATES",
+        "applied": false,
+        "skillCount": 0,
+        "activatedSkills": [],
+        "domainSkillCount": 0,
+        "activatedDomainSkillCount": 0,
+        "methodologyFingerprint": "b3c0dfeffc53a582d01634f79671f2919377ab5146d30a7b30d9f976eb966ea9",
+        "methodologyStatus": "NO_CANDIDATES",
+        "sourceCount": 0,
+        "sources": [],
+        "skillTypes": [],
+        "estimatedTokens": 0,
+        "maxTokens": 1500,
+        "truncated": false,
+        "currentFactAuthority": false,
+        "structuredRuntimeObservation": true
+      }
+    },
+    {
+      "type": "lifecycle",
+      "source": "agent_lifecycle",
+      "content": "Problem identified from user input.",
+      "metadata": {
+        "type": "lifecycle",
+        "workflow": "agent_problem_solving",
+        "lifecyclePhase": "problem_identification",
+        "createdAt": 1793469742641,
+        "queryPreview": "请通过248测试数据库tpcds已发布的年度与月度门店销售数据服务，分析商品主键1在1999-01-01至1999-12-31的销售对账。月度最低购买数量0，品类不限。使用已发布的TPCDS门店销售年度月度对账Python服务处理实际查询返回的完整记录，返回程序实际计算的净收款、利润、数量、口径差额、覆盖月份与月度趋势数据，并说明限制。",
+        "skillId": "tpcds_studio_sql_python_20261101",
+        "documentWebVerificationRequired": false,
+        "structuredRuntimeObservation": true
+      }
+    },
+    {
+      "type": "lifecycle",
+      "source": "agent_lifecycle",
+      "content": "Tool discovery completed and capability space was constructed.",
+      "metadata": {
+        "type": "lifecycle",
+        "workflow": "agent_problem_solving",
+        "lifecyclePhase": "tool_discovery",
+        "createdAt": 1793469742646,
+        "availableTools": [
+          "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+          "mcp_chatchat_mcp_server_tpl_212b88329a673657979943bbeaa7479b",
+          "mcp_chatchat_mcp_server_tpcds_python_20261101_template_query",
+          "mcp_chatchat_mcp_server_python_template_execute"
+        ],
+        "plannerVisibleTools": [
+          "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+          "mcp_chatchat_mcp_server_tpl_212b88329a673657979943bbeaa7479b",
+          "mcp_chatchat_mcp_server_tpcds_python_20261101_template_query",
+          "mcp_chatchat_mcp_server_python_template_execute"
+        ],
+        "internalToolDelegations": {},
+        "mandatoryTools": [],
+        "structuredRuntimeObservation": true
+      }
+    },
+    {
+      "type": "lifecycle",
+      "source": "agent_lifecycle",
+      "content": "Planner generated an executable InterpretationPlan DAG.",
+      "metadata": {
+        "type": "lifecycle",
+        "workflow": "agent_problem_solving",
+        "lifecyclePhase": "plan_generation",
+        "createdAt": 1793469915997,
+        "step": 1,
+        "action": "tool",
+        "toolName": "mcp_chatchat_mcp_server_tpcds_python_20261101_template_query",
+        "resolvedToolName": "mcp_chatchat_mcp_server_tpcds_python_20261101_template_query",
+        "plannerProtocol": "interpretation_plan",
+        "eventKind": "DAG_VALIDATION",
+        "eventState": "PASSED",
+        "structuredRuntimeObservation": true
+      }
+    },
+    {
+      "type": "lifecycle",
+      "source": "agent_lifecycle",
+      "content": "InterpretationPlan passed evaluation and may proceed to execution.",
+      "metadata": {
+        "type": "lifecycle",
+        "workflow": "agent_problem_solving",
+        "lifecyclePhase": "plan_evaluation",
+        "createdAt": 1793469917935,
+        "stage": "initial",
+        "valid": true,
+        "executable": true,
+        "approvalRequired": false,
+        "eventKind": "DAG_VALIDATION",
+        "eventState": "PASSED",
+        "errors": [],
+        "warnings": [],
+        "approvalRequests": [],
+        "structuredRuntimeObservation": true
+      }
+    },
+    {
+      "type": "lifecycle",
+      "source": "agent_lifecycle",
+      "content": "InterpretationPlan DAG execution started.",
+      "metadata": {
+        "type": "lifecycle",
+        "workflow": "agent_problem_solving",
+        "lifecyclePhase": "step_execution",
+        "createdAt": 1793469917944,
+        "stage": "initial",
+        "planVersion": "1.0",
+        "stepCount": 5,
+        "structuredRuntimeObservation": true
+      }
+    },
+    {
+      "type": "controller_decision",
+      "source": "interpretation_plan_controller",
+      "content": "LLM DAG controller decision 1 was accepted by runtime guard.",
+      "metadata": {
+        "decisionCount": 1,
+        "lifecyclePhase": "controller_decision",
+        "executionTraceId": "att-1-c02d392a-e89e-41b0-ac67-040fe967ef85::interpretation_plan",
+        "protocolVersion": "interpretation_execution_protocol_v1",
+        "workflow": "interpretation_plan",
+        "structuredRuntimeObservation": true,
+        "type": "controller_decision",
+        "workflowExecutionAttempt": 0,
+        "planExecutionScope": "att-1-c02d392a-e89e-41b0-ac67-040fe967ef85::attempt:0",
+        "decision": {
+          "runtimeDeterministicScheduling": true,
+          "readyStepIds": [
+            1,
+            2,
+            3
+          ],
+          "decisionCount": 1,
+          "executionTraceId": "att-1-c02d392a-e89e-41b0-ac67-040fe967ef85::interpretation_plan",
+          "protocolVersion": "interpretation_execution_protocol_v1",
+          "action": "execute_parallel_steps",
+          "stepIds": [
+            1,
+            2,
+            3
+          ],
+          "reason": "Java Runtime selected Ready node(s) deterministically."
+        },
+        "guardResult": {
+          "protocolVersion": "interpretation_execution_protocol_v1",
+          "allowed": true,
+          "status": "accepted",
+          "reason": "Runtime guard accepted DAG decision.",
+          "validatedAction": "execute_parallel_steps",
+          "validatedStepIds": [
+            1,
+            2,
+            3
+          ]
+        },
+        "remainingStepIds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "completedStepIds": []
+      }
+    },
+    {
+      "type": "lifecycle",
+      "source": "agent_lifecycle",
+      "content": "Model selects templates and binds parameters.",
+      "metadata": {
+        "type": "lifecycle",
+        "workflow": "agent_problem_solving",
+        "lifecyclePhase": "model_inference",
+        "createdAt": 1793469920032,
+        "eventKind": "MODEL_INFERENCE",
+        "eventState": "STARTED",
+        "modelPhase": "template_selection_and_binding",
+        "stepId": 1,
+        "toolName": "mcp_chatchat_mcp_server_tpcds_python_20261101_template_query",
+        "structuredRuntimeObservation": true
+      }
+    },
+    {
+      "type": "tool",
+      "source": "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+      "content": "InterpretationPlan step 2 mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7 completed.",
+      "metadata": {
+        "structuredRuntimeObservation": true,
+        "workflow": "interpretation_plan",
+        "protocolVersion": "interpretation_execution_protocol_v1",
+        "executionTraceId": "att-1-c02d392a-e89e-41b0-ac67-040fe967ef85::interpretation_plan",
+        "workflowExecutionAttempt": 0,
+        "planExecutionScope": "att-1-c02d392a-e89e-41b0-ac67-040fe967ef85::attempt:0",
+        "evidenceIteration": 1,
+        "lifecyclePhase": "observation",
+        "interpretationPlanStepId": 2,
+        "evidenceId": "iteration:1:step:2:tool:mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+        "interpretationPlanActionType": "mcp_tool",
+        "toolName": "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+        "planStepDefinitionFingerprint": "O8o5kKpZE0vDAlYGoTa0XFB8I_-rNoA5_P3I3qIlbH8",
+        "success": true,
+        "durationMs": 6729,
+        "type": "tool",
+        "resolvedInput": {
+          "product_id": 1,
+          "start_date": "1999-01-01",
+          "end_date": "1999-12-31",
+          "min_quantity": 0
+        },
+        "toolResultReviewEnabled": true,
+        "localDecisionPhase": "fact_check",
+        "toolResultReviewMaxAttempts": 1,
+        "toolResultReviewSatisfied": true,
+        "toolResultReviewReason": "Admit governed tool evidence; Cline owns exploration, execution feedback and business interpretation.",
+        "toolResultReviewAttempts": 1,
+        "toolResultReviewSkipped": true,
+        "analysisDecisionOwner": "CLINE",
+        "toolResultReviewModelCalls": 0,
+        "toolResultReviewMode": "CODING_DETERMINISTIC_ADMISSION",
+        "stepOutput": {
+          "schemaVersion": "mcp_analysis_payload.v1",
+          "requestId": "31c92c6e-8fc8-4297-b364-70d48266a602",
+          "serviceId": "chatchat-mcp-server",
+          "toolName": "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+          "status": "SUCCESS",
+          "resultKind": "RAW_RECORDS",
+          "resultSchemaRef": "sql_result.v1",
+          "provenance": {
+            "sourceRef": null,
+            "dataVersion": null,
+            "asOf": null,
+            "inputFingerprint": "f03d2346d3579e16ba41f803f4589e60d9bed6b7e173275dc0e1b3af2db1c577",
+            "rowRange": {},
+            "filterSummary": {}
+          },
+          "completeness": {
+            "repairApplied": false,
+            "complete": true,
+            "status": "SUCCESS"
+          },
+          "data": {
+            "success": true,
+            "data": {
+              "schemaVersion": "tool_execution_result.v1",
+              "kind": "sql_query",
+              "dataSchema": "sql_result.v1",
+              "payloadType": "structured",
+              "success": true,
+              "status": "success",
+              "durationMs": 306,
+              "generatedAt": "2026-10-31T18:05:25.913199326Z",
+              "dataCompleteness": {
+                "contractVersion": "mcp_complete_result.v1",
+                "complete": true,
+                "gatewayTruncated": false,
+                "projectionRequiredByConsumer": true
+              },
+              "error": null,
+              "target": {
+                "type": "database",
+                "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                "name": "248测试数据库",
+                "toolName": "db_query_mysql_248_test_db",
+                "environment": "DEV"
+              },
+              "sourceMetadata": {
+                "schemaVersion": "execution_source.v1",
+                "executionType": "SQL_QUERY",
+                "sourceType": "sql_statement",
+                "toolName": "db_query_mysql_248_test_db",
+                "asset": {
+                  "type": "database",
+                  "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                  "name": "248测试数据库",
+                  "environment": "DEV"
+                },
+                "operation": {
+                  "statementHash": "3d93c3ea75ffa2197977921ca692a2f769622ff87ca66f8394003da4c39e3dfd",
+                  "templateId": "STUDIO_2B689C67D34336599B05C753F0473B60"
+                },
+                "business": {
+                  "name": "TPCDS 248 单品期间月度销售分析验收",
+                  "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+                  "category": "business_analysis"
+                }
+              },
+              "operation": {
+                "type": "sql.query",
+                "statement": "SELECT\n    d.d_year                           AS sale_year,\n    d.d_moy                            AS sale_month,\n    i.i_category                       AS category,\n    COUNT(*)                           AS row_count,\n    SUM(ss.ss_quantity)                AS total_quantity,\n    SUM(ss.ss_net_paid)                AS total_net_paid,\n    SUM(ss.ss_net_profit)              AS total_net_profit\nFROM tpcds.store_sales ss\nINNER JOIN tpcds.date_dim d\n        ON ss.ss_sold_date_sk = d.d_date_sk\nINNER JOIN tpcds.item i\n        ON ss.ss_item_sk = i.i_item_sk\nWHERE ss.ss_item_sk = 1\n  AND d.d_date >= '1999-01-01'\n  AND d.d_date <= '1999-12-31'\n  AND ss.ss_quantity >= 0\n  AND (NULL IS NULL OR i.i_category = NULL)\nGROUP BY d.d_year,\n         d.d_moy,\n         i.i_category\nORDER BY d.d_year ASC,\n         d.d_moy ASC,\n         i.i_category ASC\nLIMIT 24",
+                "timeoutSeconds": 30,
+                "purpose": null,
+                "sourceTaskId": "31c92c6e-8fc8-4297-b364-70d48266a602",
+                "diagnostics": {
+                  "requestedCatalog": null,
+                  "requestedSchema": null,
+                  "schemaVersion": "sql_query_diagnostics.v1",
+                  "templateId": "STUDIO_2B689C67D34336599B05C753F0473B60",
+                  "templateParameters": {
+                    "product_id": 1,
+                    "start_date": "1999-01-01",
+                    "end_date": "1999-12-31",
+                    "min_quantity": 0,
+                    "category": null,
+                    "schemaName": "tpcds",
+                    "databaseName": "tpcds",
+                    "schema": "tpcds",
+                    "database": "tpcds",
+                    "today": "20261101",
+                    "natural_date": "20261101",
+                    "month": "202611",
+                    "month_start": "20261101",
+                    "month_end": "20261130"
+                  },
+                  "executionContext": {
+                    "database": "tpcds",
+                    "schema": "tpcds",
+                    "schemaName": "tpcds",
+                    "databaseName": "tpcds"
+                  },
+                  "tableResolution": null,
+                  "routedTarget": null,
+                  "routingDecisionLog": null,
+                  "datasource": {
+                    "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                    "name": "248测试数据库",
+                    "toolName": "db_query_mysql_248_test_db",
+                    "environment": "DEV",
+                    "databaseType": "mysql",
+                    "jdbcDatabase": "tpcds"
+                  },
+                  "templateMetadata": {
+                    "templateId": "STUDIO_2B689C67D34336599B05C753F0473B60",
+                    "businessName": "TPCDS 248 单品期间月度销售分析验收",
+                    "businessDescription": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+                    "category": "business_analysis",
+                    "riskLevel": "MEDIUM",
+                    "evidencePolicy": {}
+                  },
+                  "appliedCatalog": "tpcds",
+                  "connection": {
+                    "catalog": "tpcds",
+                    "schema": null,
+                    "jdbcDatabase": "tpcds",
+                    "databaseType": "mysql"
+                  },
+                  "columnCommentResolution": "enabled",
+                  "rowCount": 11,
+                  "possiblyTruncated": false
+                }
+              },
+              "limits": {
+                "maxRowsRequested": 500,
+                "configuredDatabaseMaxRows": 500,
+                "rowsFetchedFromDatabase": 11,
+                "fullFetchedRowsAvailable": true,
+                "analysisStrategy": "RUNTIME_EXTERNALIZE_AND_CHUNK",
+                "truncationStrategy": "DATABASE_MAX_ROWS_500"
+              },
+              "data": {
+                "resultSetMode": "ONE_PER_TEMPLATE_EXECUTION",
+                "resultSetId": "3d93c3ea75ffa2197977921ca692a2f769622ff87ca66f8394003da4c39e3dfd",
+                "commandContext": {
+                  "schemaVersion": "template_result_context.v1",
+                  "templateId": "db_query_mysql_248_test_db",
+                  "templateName": "db_query_mysql_248_test_db",
+                  "description": null,
+                  "executionMode": "SINGLE_SQL",
+                  "commands": [
+                    {
+                      "commandId": "sql_query",
+                      "order": 1,
+                      "name": "db_query_mysql_248_test_db",
+                      "description": null,
+                      "analysisHint": null,
+                      "resultReference": "$.data"
+                    }
+                  ],
+                  "references": []
+                },
+                "rowCount": 11,
+                "returnedRowCount": 11,
+                "complete": true,
+                "possiblyTruncated": false,
+                "truncationStrategy": "DATABASE_MAX_ROWS_500",
+                "columns": [
+                  "sale_year",
+                  "sale_month",
+                  "category",
+                  "row_count",
+                  "total_quantity",
+                  "total_net_paid",
+                  "total_net_profit"
+                ],
+                "columnMetadata": [
+                  {
+                    "name": "d_year",
+                    "label": "sale_year",
+                    "comment": null,
+                    "tableName": "date_dim",
+                    "schemaName": null,
+                    "catalogName": "tpcds",
+                    "jdbcType": 4,
+                    "typeName": "INT",
+                    "displaySize": 10,
+                    "nullable": true,
+                    "masked": false
+                  },
+                  {
+                    "name": "d_moy",
+                    "label": "sale_month",
+                    "comment": null,
+                    "tableName": "date_dim",
+                    "schemaName": null,
+                    "catalogName": "tpcds",
+                    "jdbcType": 4,
+                    "typeName": "INT",
+                    "displaySize": 10,
+                    "nullable": true,
+                    "masked": false
+                  },
+                  {
+                    "name": "i_category",
+                    "label": "category",
+                    "comment": null,
+                    "tableName": "item",
+                    "schemaName": null,
+                    "catalogName": "tpcds",
+                    "jdbcType": 1,
+                    "typeName": "CHAR",
+                    "displaySize": 50,
+                    "nullable": true,
+                    "masked": false
+                  },
+                  {
+                    "name": "row_count",
+                    "label": "row_count",
+                    "comment": null,
+                    "tableName": null,
+                    "schemaName": null,
+                    "catalogName": null,
+                    "jdbcType": -5,
+                    "typeName": "BIGINT",
+                    "displaySize": 19,
+                    "nullable": false,
+                    "masked": false
+                  },
+                  {
+                    "name": "total_quantity",
+                    "label": "total_quantity",
+                    "comment": null,
+                    "tableName": null,
+                    "schemaName": null,
+                    "catalogName": null,
+                    "jdbcType": 3,
+                    "typeName": "DECIMAL",
+                    "displaySize": 32,
+                    "nullable": true,
+                    "masked": false
+                  },
+                  {
+                    "name": "total_net_paid",
+                    "label": "total_net_paid",
+                    "comment": null,
+                    "tableName": null,
+                    "schemaName": null,
+                    "catalogName": null,
+                    "jdbcType": 3,
+                    "typeName": "DECIMAL",
+                    "displaySize": 29,
+                    "nullable": true,
+                    "masked": false
+                  },
+                  {
+                    "name": "total_net_profit",
+                    "label": "total_net_profit",
+                    "comment": null,
+                    "tableName": null,
+                    "schemaName": null,
+                    "catalogName": null,
+                    "jdbcType": 3,
+                    "typeName": "DECIMAL",
+                    "displaySize": 29,
+                    "nullable": true,
+                    "masked": false
+                  }
+                ],
+                "governance": {
+                  "schemaVersion": "sql_output_governance.v1",
+                  "readOnly": true,
+                  "rowCount": 11,
+                  "returnedRowCount": 11,
+                  "possiblyTruncated": false,
+                  "truncationStrategy": "DATABASE_MAX_ROWS_500",
+                  "maskedColumns": [],
+                  "columnCommentsIncluded": false
+                },
+                "diagnostics": {
+                  "requestedCatalog": null,
+                  "requestedSchema": null,
+                  "schemaVersion": "sql_query_diagnostics.v1",
+                  "templateId": "STUDIO_2B689C67D34336599B05C753F0473B60",
+                  "templateParameters": {
+                    "product_id": 1,
+                    "start_date": "1999-01-01",
+                    "end_date": "1999-12-31",
+                    "min_quantity": 0,
+                    "category": null,
+                    "schemaName": "tpcds",
+                    "databaseName": "tpcds",
+                    "schema": "tpcds",
+                    "database": "tpcds",
+                    "today": "20261101",
+                    "natural_date": "20261101",
+                    "month": "202611",
+                    "month_start": "20261101",
+                    "month_end": "20261130"
+                  },
+                  "executionContext": {
+                    "database": "tpcds",
+                    "schema": "tpcds",
+                    "schemaName": "tpcds",
+                    "databaseName": "tpcds"
+                  },
+                  "tableResolution": null,
+                  "routedTarget": null,
+                  "routingDecisionLog": null,
+                  "datasource": {
+                    "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                    "name": "248测试数据库",
+                    "toolName": "db_query_mysql_248_test_db",
+                    "environment": "DEV",
+                    "databaseType": "mysql",
+                    "jdbcDatabase": "tpcds"
+                  },
+                  "templateMetadata": {
+                    "templateId": "STUDIO_2B689C67D34336599B05C753F0473B60",
+                    "businessName": "TPCDS 248 单品期间月度销售分析验收",
+                    "businessDescription": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+                    "category": "business_analysis",
+                    "riskLevel": "MEDIUM",
+                    "evidencePolicy": {}
+                  },
+                  "appliedCatalog": "tpcds",
+                  "connection": {
+                    "catalog": "tpcds",
+                    "schema": null,
+                    "jdbcDatabase": "tpcds",
+                    "databaseType": "mysql"
+                  },
+                  "columnCommentResolution": "enabled",
+                  "rowCount": 11,
+                  "possiblyTruncated": false
+                },
+                "rows": [
+                  {
+                    "sale_year": 1999,
+                    "sale_month": 1,
+                    "category": "Music",
+                    "row_count": 3,
+                    "total_quantity": 217,
+                    "total_net_paid": 21884.51,
+                    "total_net_profit": 7416.63
+                  },
+                  {
+                    "sale_year": 1999,
+                    "sale_month": 2,
+                    "category": "Music",
+                    "row_count": 3,
+                    "total_quantity": 170,
+                    "total_net_paid": 2138.52,
+                    "total_net_profit": -2296.74
+                  },
+                  {
+                    "sale_year": 1999,
+                    "sale_month": 4,
+                    "category": "Music",
+                    "row_count": 2,
+                    "total_quantity": 151,
+                    "total_net_paid": 8459.79,
+                    "total_net_profit": -3151.9
+                  },
+                  {
+                    "sale_year": 1999,
+                    "sale_month": 5,
+                    "category": "Music",
+                    "row_count": 1,
+                    "total_quantity": 64,
+                    "total_net_paid": 2899.84,
+                    "total_net_profit": 636.8
+                  },
+                  {
+                    "sale_year": 1999,
+                    "sale_month": 6,
+                    "category": "Music",
+                    "row_count": 2,
+                    "total_quantity": 122,
+                    "total_net_paid": 6473.64,
+                    "total_net_profit": -1004.15
+                  },
+                  {
+                    "sale_year": 1999,
+                    "sale_month": 7,
+                    "category": "Music",
+                    "row_count": 3,
+                    "total_quantity": 177,
+                    "total_net_paid": 6585.36,
+                    "total_net_profit": -4990.27
+                  },
+                  {
+                    "sale_year": 1999,
+                    "sale_month": 8,
+                    "category": "Music",
+                    "row_count": 7,
+                    "total_quantity": 336,
+                    "total_net_paid": 13543.25,
+                    "total_net_profit": -11742.7
+                  },
+                  {
+                    "sale_year": 1999,
+                    "sale_month": 9,
+                    "category": "Music",
+                    "row_count": 8,
+                    "total_quantity": 349,
+                    "total_net_paid": 19070.61,
+                    "total_net_profit": 783
+                  },
+                  {
+                    "sale_year": 1999,
+                    "sale_month": 10,
+                    "category": "Music",
+                    "row_count": 10,
+                    "total_quantity": 460,
+                    "total_net_paid": 15368.53,
+                    "total_net_profit": -12015.39
+                  },
+                  {
+                    "sale_year": 1999,
+                    "sale_month": 11,
+                    "category": "Music",
+                    "row_count": 11,
+                    "total_quantity": 575,
+                    "total_net_paid": 17273.35,
+                    "total_net_profit": -20266.71
+                  },
+                  {
+                    "sale_year": 1999,
+                    "sale_month": 12,
+                    "category": "Music",
+                    "row_count": 15,
+                    "total_quantity": 741,
+                    "total_net_paid": 23017.15,
+                    "total_net_profit": -16727.54
+                  }
+                ]
+              },
+              "execution": {
+                "schemaVersion": "execution_unit.v1",
+                "executionId": "244312dc-cb6f-4ef8-92ca-fdf624c63ece",
+                "toolName": "db_query_mysql_248_test_db",
+                "startedAt": "2026-10-31T18:05:25.611268136Z",
+                "finishedAt": "2026-10-31T18:05:25.917268136Z",
+                "durationMs": 306,
+                "stepCount": 1,
+                "steps": [
+                  {
+                    "stepIndex": 1,
+                    "stepId": "sql_1",
+                    "stepType": "sql",
+                    "input": {
+                      "statement": "SELECT\n    d.d_year                           AS sale_year,\n    d.d_moy                            AS sale_month,\n    i.i_category                       AS category,\n    COUNT(*)                           AS row_count,\n    SUM(ss.ss_quantity)                AS total_quantity,\n    SUM(ss.ss_net_paid)                AS total_net_paid,\n    SUM(ss.ss_net_profit)              AS total_net_profit\nFROM tpcds.store_sales ss\nINNER JOIN tpcds.date_dim d\n        ON ss.ss_sold_date_sk = d.d_date_sk\nINNER JOIN tpcds.item i\n        ON ss.ss_item_sk = i.i_item_sk\nWHERE ss.ss_item_sk = 1\n  AND d.d_date >= '1999-01-01'\n  AND d.d_date <= '1999-12-31'\n  AND ss.ss_quantity >= 0\n  AND (NULL IS NULL OR i.i_category = NULL)\nGROUP BY d.d_year,\n         d.d_moy,\n         i.i_category\nORDER BY d.d_year ASC,\n         d.d_moy ASC,\n         i.i_category ASC\nLIMIT 24",
+                      "timeoutSeconds": 30,
+                      "purpose": null,
+                      "sourceTaskId": "31c92c6e-8fc8-4297-b364-70d48266a602"
+                    },
+                    "output": {
+                      "resultSetReference": "$.data",
+                      "rowCount": 11,
+                      "returnedRowCount": 11,
+                      "possiblyTruncated": false,
+                      "columnCount": 7
+                    },
+                    "success": true,
+                    "status": "success",
+                    "durationMs": 306,
+                    "error": null,
+                    "rowCount": 11
+                  }
+                ]
+              },
+              "executionGraph": {
+                "schemaVersion": "execution_graph.v1",
+                "nodes": [
+                  {
+                    "id": "sql_query",
+                    "type": "sql.query",
+                    "status": "success",
+                    "durationMs": 306,
+                    "attributes": {}
+                  }
+                ],
+                "edges": []
+              },
+              "executionWorkflow": {
+                "verified": true,
+                "steps": [
+                  "VALIDATE_ARGUMENT_CONTRACT",
+                  "ROUTE_LOGICAL_DATASOURCE",
+                  "RESOLVE_TEMPLATE_PARAMETERS_IF_PRESENT",
+                  "CLASSIFY_SQL_CARDINALITY",
+                  "ENFORCE_READ_ONLY_POLICY",
+                  "EXECUTE_QUERY_OR_SCRIPT",
+                  "VERIFY_RESULT",
+                  "ASSEMBLE_EVIDENCE"
+                ],
+                "workflowId": "execute.sql-query.v1",
+                "mode": "SQL_QUERY",
+                "parameterWorkflow": {
+                  "parameterCount": 5,
+                  "steps": [
+                    "NORMALIZE_REQUEST",
+                    "COLLECT_EXPLICIT_PARAMETERS",
+                    "COLLECT_REQUEST_FIELDS",
+                    "APPLY_DECLARED_DEFAULTS",
+                    "COERCE_DECLARED_TYPES",
+                    "VALIDATE_REQUIRED_PARAMETERS",
+                    "ASSEMBLE_BINDING"
+                  ],
+                  "verified": true,
+                  "scopeStatus": "REQUIRES_SCOPE_VERIFICATION",
+                  "workflowId": "resolve.template-parameters.v1",
+                  "parameterRepairs": [
+                    {
+                      "field": "category",
+                      "repairCode": "DEFAULT_VALUE_APPLIED"
+                    },
+                    {
+                      "field": "category",
+                      "repairCode": "UNKNOWN_TEMPLATE_PARAMETER_DROPPED"
+                    }
+                  ],
+                  "parameterSources": {
+                    "product_id": "EXPLICIT_PARAMETERS",
+                    "start_date": "EXPLICIT_PARAMETERS",
+                    "end_date": "EXPLICIT_PARAMETERS",
+                    "min_quantity": "EXPLICIT_PARAMETERS",
+                    "category": "SCHEMA_DEFAULT"
+                  },
+                  "mode": "DECLARED_SCHEMA"
+                }
+              }
+            },
+            "message": null,
+            "errorMessage": null,
+            "exceptionType": null,
+            "errorDetails": null,
+            "executionTimeMs": 442,
+            "tokenUsage": {},
+            "metadata": {
+              "templatePublication": {
+                "templateRevision": "bdd725ea7e4b50ab2e0727cc00a33cc33f00b89095608ba89fe6fcaca0721fac",
+                "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+                "agentId": "tpcds_studio_sql_python_20261101",
+                "toolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+                "releaseId": "81cc9e0e-a2a6-4125-a6e0-1f82ecbe5caf"
+              },
+              "requestId": "31c92c6e-8fc8-4297-b364-70d48266a602"
+            }
+          },
+          "rawData": {
+            "success": true,
+            "data": {
+              "schemaVersion": "tool_execution_result.v1",
+              "kind": "sql_query",
+              "dataSchema": "sql_result.v1",
+              "payloadType": "structured",
+              "success": true,
+              "status": "success",
+              "durationMs": 306,
+              "generatedAt": "2026-10-31T18:05:25.913199326Z",
+              "dataCompleteness": {
+                "contractVersion": "mcp_complete_result.v1",
+                "complete": true,
+                "gatewayTruncated": false,
+                "projectionRequiredByConsumer": true
+              },
+              "error": null,
+              "target": {
+                "type": "database",
+                "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                "name": "248测试数据库",
+                "toolName": "db_query_mysql_248_test_db",
+                "environment": "DEV"
+              },
+              "sourceMetadata": {
+                "schemaVersion": "execution_source.v1",
+                "executionType": "SQL_QUERY",
+                "sourceType": "sql_statement",
+                "toolName": "db_query_mysql_248_test_db",
+                "asset": {
+                  "type": "database",
+                  "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                  "name": "248测试数据库",
+                  "environment": "DEV"
+                },
+                "operation": {
+                  "statementHash": "3d93c3ea75ffa2197977921ca692a2f769622ff87ca66f8394003da4c39e3dfd",
+                  "templateId": "STUDIO_2B689C67D34336599B05C753F0473B60"
+                },
+                "business": {
+                  "name": "TPCDS 248 单品期间月度销售分析验收",
+                  "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+                  "category": "business_analysis"
+                }
+              },
+              "operation": {
+                "type": "sql.query",
+                "statement": "SELECT\n    d.d_year                           AS sale_year,\n    d.d_moy                            AS sale_month,\n    i.i_category                       AS category,\n    COUNT(*)                           AS row_count,\n    SUM(ss.ss_quantity)                AS total_quantity,\n    SUM(ss.ss_net_paid)                AS total_net_paid,\n    SUM(ss.ss_net_profit)              AS total_net_profit\nFROM tpcds.store_sales ss\nINNER JOIN tpcds.date_dim d\n        ON ss.ss_sold_date_sk = d.d_date_sk\nINNER JOIN tpcds.item i\n        ON ss.ss_item_sk = i.i_item_sk\nWHERE ss.ss_item_sk = 1\n  AND d.d_date >= '1999-01-01'\n  AND d.d_date <= '1999-12-31'\n  AND ss.ss_quantity >= 0\n  AND (NULL IS NULL OR i.i_category = NULL)\nGROUP BY d.d_year,\n         d.d_moy,\n         i.i_category\nORDER BY d.d_year ASC,\n         d.d_moy ASC,\n         i.i_category ASC\nLIMIT 24",
+                "timeoutSeconds": 30,
+                "purpose": null,
+                "sourceTaskId": "31c92c6e-8fc8-4297-b364-70d48266a602",
+                "diagnostics": {
+                  "requestedCatalog": null,
+                  "requestedSchema": null,
+                  "schemaVersion": "sql_query_diagnostics.v1",
+                  "templateId": "STUDIO_2B689C67D34336599B05C753F0473B60",
+                  "templateParameters": {
+                    "product_id": 1,
+                    "start_date": "1999-01-01",
+                    "end_date": "1999-12-31",
+                    "min_quantity": 0,
+                    "category": null,
+                    "schemaName": "tpcds",
+                    "databaseName": "tpcds",
+                    "schema": "tpcds",
+                    "database": "tpcds",
+                    "today": "20261101",
+                    "natural_date": "20261101",
+                    "month": "202611",
+                    "month_start": "20261101",
+                    "month_end": "20261130"
+                  },
+                  "executionContext": {
+                    "database": "tpcds",
+                    "schema": "tpcds",
+                    "schemaName": "tpcds",
+                    "databaseName": "tpcds"
+                  },
+                  "tableResolution": null,
+                  "routedTarget": null,
+                  "routingDecisionLog": null,
+                  "datasource": {
+                    "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                    "name": "248测试数据库",
+                    "toolName": "db_query_mysql_248_test_db",
+                    "environment": "DEV",
+                    "databaseType": "mysql",
+                    "jdbcDatabase": "tpcds"
+                  },
+                  "templateMetadata": {
+                    "templateId": "STUDIO_2B689C67D34336599B05C753F0473B60",
+                    "businessName": "TPCDS 248 单品期间月度销售分析验收",
+                    "businessDescription": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+                    "category": "business_analysis",
+                    "riskLevel": "MEDIUM",
+                    "evidencePolicy": {}
+                  },
+                  "appliedCatalog": "tpcds",
+                  "connection": {
+                    "catalog": "tpcds",
+                    "schema": null,
+                    "jdbcDatabase": "tpcds",
+                    "databaseType": "mysql"
+                  },
+                  "columnCommentResolution": "enabled",
+                  "rowCount": 11,
+                  "possiblyTruncated": false
+                }
+              },
+              "limits": {
+                "maxRowsRequested": 500,
+                "configuredDatabaseMaxRows": 500,
+                "rowsFetchedFromDatabase": 11,
+                "fullFetchedRowsAvailable": true,
+                "analysisStrategy": "RUNTIME_EXTERNALIZE_AND_CHUNK",
+                "truncationStrategy": "DATABASE_MAX_ROWS_500"
+              },
+              "data": {
+                "resultSetMode": "ONE_PER_TEMPLATE_EXECUTION",
+                "resultSetId": "3d93c3ea75ffa2197977921ca692a2f769622ff87ca66f8394003da4c39e3dfd",
+                "commandContext": {
+                  "schemaVersion": "template_result_context.v1",
+                  "templateId": "db_query_mysql_248_test_db",
+                  "templateName": "db_query_mysql_248_test_db",
+                  "description": null,
+                  "executionMode": "SINGLE_SQL",
+                  "commands": [
+                    {
+                      "commandId": "sql_query",
+                      "order": 1,
+                      "name": "db_query_mysql_248_test_db",
+                      "description": null,
+                      "analysisHint": null,
+                      "resultReference": "$.data"
+                    }
+                  ],
+                  "references": []
+                },
+                "rowCount": 11,
+                "returnedRowCount": 11,
+                "complete": true,
+                "possiblyTruncated": false,
+                "truncationStrategy": "DATABASE_MAX_ROWS_500",
+                "columns": [
+                  "sale_year",
+                  "sale_month",
+                  "category",
+                  "row_count",
+                  "total_quantity",
+                  "total_net_paid",
+                  "total_net_profit"
+                ],
+                "columnMetadata": [
+                  {
+                    "name": "d_year",
+                    "label": "sale_year",
+                    "comment": null,
+                    "tableName": "date_dim",
+                    "schemaName": null,
+                    "catalogName": "tpcds",
+                    "jdbcType": 4,
+                    "typeName": "INT",
+                    "displaySize": 10,
+                    "nullable": true,
+                    "masked": false
+                  },
+                  {
+                    "name": "d_moy",
+                    "label": "sale_month",
+                    "comment": null,
+                    "tableName": "date_dim",
+                    "schemaName": null,
+                    "catalogName": "tpcds",
+                    "jdbcType": 4,
+                    "typeName": "INT",
+                    "displaySize": 10,
+                    "nullable": true,
+                    "masked": false
+                  },
+                  {
+                    "name": "i_category",
+                    "label": "category",
+                    "comment": null,
+                    "tableName": "item",
+                    "schemaName": null,
+                    "catalogName": "tpcds",
+                    "jdbcType": 1,
+                    "typeName": "CHAR",
+                    "displaySize": 50,
+                    "nullable": true,
+                    "masked": false
+                  },
+                  {
+                    "name": "row_count",
+                    "label": "row_count",
+                    "comment": null,
+                    "tableName": null,
+                    "schemaName": null,
+                    "catalogName": null,
+                    "jdbcType": -5,
+                    "typeName": "BIGINT",
+                    "displaySize": 19,
+                    "nullable": false,
+                    "masked": false
+                  },
+                  {
+                    "name": "total_quantity",
+                    "label": "total_quantity",
+                    "comment": null,
+                    "tableName": null,
+                    "schemaName": null,
+                    "catalogName": null,
+                    "jdbcType": 3,
+                    "typeName": "DECIMAL",
+                    "displaySize": 32,
+                    "nullable": true,
+                    "masked": false
+                  },
+                  {
+                    "name": "total_net_paid",
+                    "label": "total_net_paid",
+                    "comment": null,
+                    "tableName": null,
+                    "schemaName": null,
+                    "catalogName": null,
+                    "jdbcType": 3,
+                    "typeName": "DECIMAL",
+                    "displaySize": 29,
+                    "nullable": true,
+                    "masked": false
+                  },
+                  {
+                    "name": "total_net_profit",
+                    "label": "total_net_profit",
+                    "comment": null,
+                    "tableName": null,
+                    "schemaName": null,
+                    "catalogName": null,
+                    "jdbcType": 3,
+                    "typeName": "DECIMAL",
+                    "displaySize": 29,
+                    "nullable": true,
+                    "masked": false
+                  }
+                ],
+                "governance": {
+                  "schemaVersion": "sql_output_governance.v1",
+                  "readOnly": true,
+                  "rowCount": 11,
+                  "returnedRowCount": 11,
+                  "possiblyTruncated": false,
+                  "truncationStrategy": "DATABASE_MAX_ROWS_500",
+                  "maskedColumns": [],
+                  "columnCommentsIncluded": false
+                },
+                "diagnostics": {
+                  "requestedCatalog": null,
+                  "requestedSchema": null,
+                  "schemaVersion": "sql_query_diagnostics.v1",
+                  "templateId": "STUDIO_2B689C67D34336599B05C753F0473B60",
+                  "templateParameters": {
+                    "product_id": 1,
+                    "start_date": "1999-01-01",
+                    "end_date": "1999-12-31",
+                    "min_quantity": 0,
+                    "category": null,
+                    "schemaName": "tpcds",
+                    "databaseName": "tpcds",
+                    "schema": "tpcds",
+                    "database": "tpcds",
+                    "today": "20261101",
+                    "natural_date": "20261101",
+                    "month": "202611",
+                    "month_start": "20261101",
+                    "month_end": "20261130"
+                  },
+                  "executionContext": {
+                    "database": "tpcds",
+                    "schema": "tpcds",
+                    "schemaName": "tpcds",
+                    "databaseName": "tpcds"
+                  },
+                  "tableResolution": null,
+                  "routedTarget": null,
+                  "routingDecisionLog": null,
+                  "datasource": {
+                    "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                    "name": "248测试数据库",
+                    "toolName": "db_query_mysql_248_test_db",
+                    "environment": "DEV",
+                    "databaseType": "mysql",
+                    "jdbcDatabase": "tpcds"
+                  },
+                  "templateMetadata": {
+                    "templateId": "STUDIO_2B689C67D34336599B05C753F0473B60",
+                    "businessName": "TPCDS 248 单品期间月度销售分析验收",
+                    "businessDescription": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+                    "category": "business_analysis",
+                    "riskLevel": "MEDIUM",
+                    "evidencePolicy": {}
+                  },
+                  "appliedCatalog": "tpcds",
+                  "connection": {
+                    "catalog": "tpcds",
+                    "schema": null,
+                    "jdbcDatabase": "tpcds",
+                    "databaseType": "mysql"
+                  },
+                  "columnCommentResolution": "enabled",
+                  "rowCount": 11,
+                  "possiblyTruncated": false
+                },
+                "rows": [
+                  {
+                    "sale_year": 1999,
+                    "sale_month": 1,
+                    "category": "Music",
+                    "row_count": 3,
+                    "total_quantity": 217,
+                    "total_net_paid": 21884.51,
+                    "total_net_profit": 7416.63
+                  },
+                  {
+                    "sale_year": 1999,
+                    "sale_month": 2,
+                    "category": "Music",
+                    "row_count": 3,
+                    "total_quantity": 170,
+                    "total_net_paid": 2138.52,
+                    "total_net_profit": -2296.74
+                  },
+                  {
+                    "sale_year": 1999,
+                    "sale_month": 4,
+                    "category": "Music",
+                    "row_count": 2,
+                    "total_quantity": 151,
+                    "total_net_paid": 8459.79,
+                    "total_net_profit": -3151.9
+                  },
+                  {
+                    "sale_year": 1999,
+                    "sale_month": 5,
+                    "category": "Music",
+                    "row_count": 1,
+                    "total_quantity": 64,
+                    "total_net_paid": 2899.84,
+                    "total_net_profit": 636.8
+                  },
+                  {
+                    "sale_year": 1999,
+                    "sale_month": 6,
+                    "category": "Music",
+                    "row_count": 2,
+                    "total_quantity": 122,
+                    "total_net_paid": 6473.64,
+                    "total_net_profit": -1004.15
+                  },
+                  {
+                    "sale_year": 1999,
+                    "sale_month": 7,
+                    "category": "Music",
+                    "row_count": 3,
+                    "total_quantity": 177,
+                    "total_net_paid": 6585.36,
+                    "total_net_profit": -4990.27
+                  },
+                  {
+                    "sale_year": 1999,
+                    "sale_month": 8,
+                    "category": "Music",
+                    "row_count": 7,
+                    "total_quantity": 336,
+                    "total_net_paid": 13543.25,
+                    "total_net_profit": -11742.7
+                  },
+                  {
+                    "sale_year": 1999,
+                    "sale_month": 9,
+                    "category": "Music",
+                    "row_count": 8,
+                    "total_quantity": 349,
+                    "total_net_paid": 19070.61,
+                    "total_net_profit": 783
+                  },
+                  {
+                    "sale_year": 1999,
+                    "sale_month": 10,
+                    "category": "Music",
+                    "row_count": 10,
+                    "total_quantity": 460,
+                    "total_net_paid": 15368.53,
+                    "total_net_profit": -12015.39
+                  },
+                  {
+                    "sale_year": 1999,
+                    "sale_month": 11,
+                    "category": "Music",
+                    "row_count": 11,
+                    "total_quantity": 575,
+                    "total_net_paid": 17273.35,
+                    "total_net_profit": -20266.71
+                  },
+                  {
+                    "sale_year": 1999,
+                    "sale_month": 12,
+                    "category": "Music",
+                    "row_count": 15,
+                    "total_quantity": 741,
+                    "total_net_paid": 23017.15,
+                    "total_net_profit": -16727.54
+                  }
+                ]
+              },
+              "execution": {
+                "schemaVersion": "execution_unit.v1",
+                "executionId": "244312dc-cb6f-4ef8-92ca-fdf624c63ece",
+                "toolName": "db_query_mysql_248_test_db",
+                "startedAt": "2026-10-31T18:05:25.611268136Z",
+                "finishedAt": "2026-10-31T18:05:25.917268136Z",
+                "durationMs": 306,
+                "stepCount": 1,
+                "steps": [
+                  {
+                    "stepIndex": 1,
+                    "stepId": "sql_1",
+                    "stepType": "sql",
+                    "input": {
+                      "statement": "SELECT\n    d.d_year                           AS sale_year,\n    d.d_moy                            AS sale_month,\n    i.i_category                       AS category,\n    COUNT(*)                           AS row_count,\n    SUM(ss.ss_quantity)                AS total_quantity,\n    SUM(ss.ss_net_paid)                AS total_net_paid,\n    SUM(ss.ss_net_profit)              AS total_net_profit\nFROM tpcds.store_sales ss\nINNER JOIN tpcds.date_dim d\n        ON ss.ss_sold_date_sk = d.d_date_sk\nINNER JOIN tpcds.item i\n        ON ss.ss_item_sk = i.i_item_sk\nWHERE ss.ss_item_sk = 1\n  AND d.d_date >= '1999-01-01'\n  AND d.d_date <= '1999-12-31'\n  AND ss.ss_quantity >= 0\n  AND (NULL IS NULL OR i.i_category = NULL)\nGROUP BY d.d_year,\n         d.d_moy,\n         i.i_category\nORDER BY d.d_year ASC,\n         d.d_moy ASC,\n         i.i_category ASC\nLIMIT 24",
+                      "timeoutSeconds": 30,
+                      "purpose": null,
+                      "sourceTaskId": "31c92c6e-8fc8-4297-b364-70d48266a602"
+                    },
+                    "output": {
+                      "resultSetReference": "$.data",
+                      "rowCount": 11,
+                      "returnedRowCount": 11,
+                      "possiblyTruncated": false,
+                      "columnCount": 7
+                    },
+                    "success": true,
+                    "status": "success",
+                    "durationMs": 306,
+                    "error": null,
+                    "rowCount": 11
+                  }
+                ]
+              },
+              "executionGraph": {
+                "schemaVersion": "execution_graph.v1",
+                "nodes": [
+                  {
+                    "id": "sql_query",
+                    "type": "sql.query",
+                    "status": "success",
+                    "durationMs": 306,
+                    "attributes": {}
+                  }
+                ],
+                "edges": []
+              },
+              "executionWorkflow": {
+                "verified": true,
+                "steps": [
+                  "VALIDATE_ARGUMENT_CONTRACT",
+                  "ROUTE_LOGICAL_DATASOURCE",
+                  "RESOLVE_TEMPLATE_PARAMETERS_IF_PRESENT",
+                  "CLASSIFY_SQL_CARDINALITY",
+                  "ENFORCE_READ_ONLY_POLICY",
+                  "EXECUTE_QUERY_OR_SCRIPT",
+                  "VERIFY_RESULT",
+                  "ASSEMBLE_EVIDENCE"
+                ],
+                "workflowId": "execute.sql-query.v1",
+                "mode": "SQL_QUERY",
+                "parameterWorkflow": {
+                  "parameterCount": 5,
+                  "steps": [
+                    "NORMALIZE_REQUEST",
+                    "COLLECT_EXPLICIT_PARAMETERS",
+                    "COLLECT_REQUEST_FIELDS",
+                    "APPLY_DECLARED_DEFAULTS",
+                    "COERCE_DECLARED_TYPES",
+                    "VALIDATE_REQUIRED_PARAMETERS",
+                    "ASSEMBLE_BINDING"
+                  ],
+                  "verified": true,
+                  "scopeStatus": "REQUIRES_SCOPE_VERIFICATION",
+                  "workflowId": "resolve.template-parameters.v1",
+                  "parameterRepairs": [
+                    {
+                      "field": "category",
+                      "repairCode": "DEFAULT_VALUE_APPLIED"
+                    },
+                    {
+                      "field": "category",
+                      "repairCode": "UNKNOWN_TEMPLATE_PARAMETER_DROPPED"
+                    }
+                  ],
+                  "parameterSources": {
+                    "product_id": "EXPLICIT_PARAMETERS",
+                    "start_date": "EXPLICIT_PARAMETERS",
+                    "end_date": "EXPLICIT_PARAMETERS",
+                    "min_quantity": "EXPLICIT_PARAMETERS",
+                    "category": "SCHEMA_DEFAULT"
+                  },
+                  "mode": "DECLARED_SCHEMA"
+                }
+              }
+            },
+            "message": null,
+            "errorMessage": null,
+            "exceptionType": null,
+            "errorDetails": null,
+            "executionTimeMs": 442,
+            "tokenUsage": {},
+            "metadata": {
+              "templatePublication": {
+                "templateRevision": "bdd725ea7e4b50ab2e0727cc00a33cc33f00b89095608ba89fe6fcaca0721fac",
+                "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+                "agentId": "tpcds_studio_sql_python_20261101",
+                "toolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+                "releaseId": "81cc9e0e-a2a6-4125-a6e0-1f82ecbe5caf"
+              },
+              "requestId": "31c92c6e-8fc8-4297-b364-70d48266a602"
+            }
+          },
+          "runtimeMetadata": {
+            "resultKind": "RAW_RECORDS",
+            "resultSchemaRef": "sql_result.v1",
+            "preflightAudit": {
+              "schemaVersion": "mcp_contract_audit.v1",
+              "compliant": true,
+              "evidence": [
+                {
+                  "serviceId": "chatchat-mcp-server",
+                  "toolName": "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+                  "domainCode": "generic",
+                  "domainContractId": "runtime-os/generic-mcp-service",
+                  "domainContractVersion": "mcp_domain_contract.v1",
+                  "observedContract": {
+                    "serviceId": "chatchat-mcp-server",
+                    "localToolName": "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+                    "remoteToolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+                    "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。\nReturns the existing ToolOutput envelope: SQL rows are at $.data.data.rows and rowCount at $.data.data.rowCount. SQL column names are NOT top-level result fields. Preserve this actual envelope in downstream contracts.",
+                    "capabilityCode": "mcp_tool",
+                    "inputSchema": {
+                      "type": "object",
+                      "properties": {
+                        "product_id": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "default": 1,
+                          "description": "store_sales.ss_item_sk 商品主键"
+                        },
+                        "start_date": {
+                          "type": "string",
+                          "format": "date",
+                          "description": "date_dim.d_date 含边界起日"
+                        },
+                        "end_date": {
+                          "type": "string",
+                          "format": "date",
+                          "description": "date_dim.d_date 含边界止日"
+                        },
+                        "min_quantity": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "default": 0,
+                          "description": "每行最低ss_quantity"
+                        },
+                        "category": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "default": null,
+                          "description": "item.i_category精确品类；NULL不过滤"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "start_date",
+                        "end_date"
+                      ]
+                    },
+                    "outputSchema": {
+                      "required": [
+                        "success"
+                      ],
+                      "description": "ToolOutput envelope. SQL rows are at $.data.data.rows, not top-level SQL column fields. Preserve the envelope when passing results to later steps.",
+                      "additionalProperties": true,
+                      "type": "object",
+                      "properties": {
+                        "success": {
+                          "type": "boolean"
+                        },
+                        "errorMessage": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "data": {
+                          "properties": {
+                            "success": {
+                              "type": "boolean"
+                            },
+                            "data": {
+                              "properties": {
+                                "columns": {
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "type": "array"
+                                },
+                                "rowCount": {
+                                  "type": "integer"
+                                },
+                                "rows": {
+                                  "items": {
+                                    "type": "object"
+                                  },
+                                  "type": "array"
+                                }
+                              },
+                              "type": "object"
+                            }
+                          },
+                          "type": [
+                            "object",
+                            "null"
+                          ]
+                        }
+                      }
+                    },
+                    "governance": {
+                      "riskLevel": "low",
+                      "operationType": "execute",
+                      "runtimeLevel": "controlled",
+                      "confirmation": null,
+                      "permissions": null
+                    },
+                    "metadata": {
+                      "riskLevel": "low",
+                      "schemaVersion": "template-capability.v1",
+                      "breakingChangeApproved": true,
+                      "visibleTenantIds": [
+                        "9001fee4-482b-4851-9eb9-df269765291f"
+                      ],
+                      "runtimeLevel": "controlled",
+                      "toolVersion": "3.0.0",
+                      "operationType": "execute",
+                      "templateCapability": true,
+                      "resultKind": "RAW_RECORDS",
+                      "resultSchemaRef": "sql_result.v1",
+                      "data_type": "UNKNOWN",
+                      "chineseAlias": "TPCDS 248 单品期间月度销售分析验收",
+                      "publicationStatus": "active",
+                      "rolloutLabels": [],
+                      "rolloutPercentage": 100,
+                      "contractVersion": "mcp_tool_contract.v1"
+                    },
+                    "resultKind": "RAW_RECORDS",
+                    "resultSchemaRef": "sql_result.v1",
+                    "paginationSupported": false
+                  },
+                  "satisfiedPaths": [
+                    "INPUT_SCHEMA:type",
+                    "OUTPUT_SCHEMA:type",
+                    "GOVERNANCE:riskLevel",
+                    "METADATA:contractVersion"
+                  ],
+                  "missingPaths": [],
+                  "normalizedResultAvailable": false,
+                  "rawResultAvailable": false
+                }
+              ],
+              "findings": [],
+              "findingCounts": {},
+              "auditedAt": 1793469919387
+            },
+            "postflightAudit": {
+              "schemaVersion": "mcp_contract_audit.v1",
+              "compliant": true,
+              "evidence": [
+                {
+                  "serviceId": "chatchat-mcp-server",
+                  "toolName": "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+                  "domainCode": "generic",
+                  "domainContractId": "runtime-os/generic-mcp-service",
+                  "domainContractVersion": "mcp_domain_contract.v1",
+                  "observedContract": {
+                    "serviceId": "chatchat-mcp-server",
+                    "localToolName": "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+                    "remoteToolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+                    "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。\nReturns the existing ToolOutput envelope: SQL rows are at $.data.data.rows and rowCount at $.data.data.rowCount. SQL column names are NOT top-level result fields. Preserve this actual envelope in downstream contracts.",
+                    "capabilityCode": "mcp_tool",
+                    "inputSchema": {
+                      "type": "object",
+                      "properties": {
+                        "product_id": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "default": 1,
+                          "description": "store_sales.ss_item_sk 商品主键"
+                        },
+                        "start_date": {
+                          "type": "string",
+                          "format": "date",
+                          "description": "date_dim.d_date 含边界起日"
+                        },
+                        "end_date": {
+                          "type": "string",
+                          "format": "date",
+                          "description": "date_dim.d_date 含边界止日"
+                        },
+                        "min_quantity": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "default": 0,
+                          "description": "每行最低ss_quantity"
+                        },
+                        "category": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "default": null,
+                          "description": "item.i_category精确品类；NULL不过滤"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "start_date",
+                        "end_date"
+                      ]
+                    },
+                    "outputSchema": {
+                      "required": [
+                        "success"
+                      ],
+                      "description": "ToolOutput envelope. SQL rows are at $.data.data.rows, not top-level SQL column fields. Preserve the envelope when passing results to later steps.",
+                      "additionalProperties": true,
+                      "type": "object",
+                      "properties": {
+                        "success": {
+                          "type": "boolean"
+                        },
+                        "errorMessage": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "data": {
+                          "properties": {
+                            "success": {
+                              "type": "boolean"
+                            },
+                            "data": {
+                              "properties": {
+                                "columns": {
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "type": "array"
+                                },
+                                "rowCount": {
+                                  "type": "integer"
+                                },
+                                "rows": {
+                                  "items": {
+                                    "type": "object"
+                                  },
+                                  "type": "array"
+                                }
+                              },
+                              "type": "object"
+                            }
+                          },
+                          "type": [
+                            "object",
+                            "null"
+                          ]
+                        }
+                      }
+                    },
+                    "governance": {
+                      "riskLevel": "low",
+                      "operationType": "execute",
+                      "runtimeLevel": "controlled",
+                      "confirmation": null,
+                      "permissions": null
+                    },
+                    "metadata": {
+                      "riskLevel": "low",
+                      "schemaVersion": "template-capability.v1",
+                      "breakingChangeApproved": true,
+                      "visibleTenantIds": [
+                        "9001fee4-482b-4851-9eb9-df269765291f"
+                      ],
+                      "runtimeLevel": "controlled",
+                      "toolVersion": "3.0.0",
+                      "operationType": "execute",
+                      "templateCapability": true,
+                      "resultKind": "RAW_RECORDS",
+                      "resultSchemaRef": "sql_result.v1",
+                      "data_type": "UNKNOWN",
+                      "chineseAlias": "TPCDS 248 单品期间月度销售分析验收",
+                      "publicationStatus": "active",
+                      "rolloutLabels": [],
+                      "rolloutPercentage": 100,
+                      "contractVersion": "mcp_tool_contract.v1"
+                    },
+                    "resultKind": "RAW_RECORDS",
+                    "resultSchemaRef": "sql_result.v1",
+                    "paginationSupported": false
+                  },
+                  "satisfiedPaths": [
+                    "INPUT_SCHEMA:type",
+                    "OUTPUT_SCHEMA:type",
+                    "GOVERNANCE:riskLevel",
+                    "METADATA:contractVersion",
+                    "RAW_RESULT:$",
+                    "RESULT_CONTRACT:resultKind"
+                  ],
+                  "missingPaths": [
+                    "RESULT_CONTRACT:provenance"
+                  ],
+                  "normalizedResultAvailable": true,
+                  "rawResultAvailable": true
+                }
+              ],
+              "findings": [
+                {
+                  "severity": "WARNING",
+                  "code": "MCP_RESULT_PROVENANCE_UNDECLARED",
+                  "serviceId": "chatchat-mcp-server",
+                  "toolName": "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+                  "domainCode": "generic",
+                  "source": "NORMALIZED_RESULT",
+                  "path": "provenance",
+                  "message": "MCP result does not identify the observed source/version/scope",
+                  "observed": "absent",
+                  "recoveryAction": "DECLARE_RESULT_PROVENANCE"
+                }
+              ],
+              "findingCounts": {
+                "WARNING": 1
+              },
+              "auditedAt": 1793469925961
+            },
+            "kernelProtocolVersion": "runtime_os_mcp_kernel.v1",
+            "discoveryRefreshAttempted": false,
+            "templateBindingValidation": {
+              "executorTool": "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+              "templateIdPresent": false,
+              "schemaVersion": "runtime_template_binding.v3",
+              "runtimeEvidenceValidated": false
+            },
+            "mcpExecutionWorkflow": {
+              "discoveryRefreshAttempted": false,
+              "workflowId": "execute.mcp-tool.v1",
+              "transport": "in-process",
+              "extensions": [],
+              "localToolName": "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+              "steps": [
+                "DISCOVER_SERVICE",
+                "DISCOVER_TOOL_TEMPLATE",
+                "VALIDATE_TEMPLATE_BINDING",
+                "VALIDATE_TOOL_CONTRACT_SNAPSHOT",
+                "CONTRACT_PREFLIGHT",
+                "REFRESH_CATALOG_IF_STALE",
+                "APPLY_EXECUTION_EXTENSIONS",
+                "INVOKE_PROVIDER",
+                "REPAIR_RESULT_IF_REQUIRED",
+                "CONTRACT_POSTFLIGHT",
+                "ASSEMBLE_RESULT"
+              ],
+              "route": "INTERNAL",
+              "toolDiscovered": true,
+              "providerId": "local-mcp-tool-registry",
+              "remoteToolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+              "repairApplied": false
+            }
+          }
+        },
+        "toolExecutionTimeMs": 6661
+      }
+    },
+    {
+      "type": "tool",
+      "source": "mcp_chatchat_mcp_server_tpl_212b88329a673657979943bbeaa7479b",
+      "content": "InterpretationPlan step 3 mcp_chatchat_mcp_server_tpl_212b88329a673657979943bbeaa7479b completed.",
+      "metadata": {
+        "structuredRuntimeObservation": true,
+        "workflow": "interpretation_plan",
+        "protocolVersion": "interpretation_execution_protocol_v1",
+        "executionTraceId": "att-1-c02d392a-e89e-41b0-ac67-040fe967ef85::interpretation_plan",
+        "workflowExecutionAttempt": 0,
+        "planExecutionScope": "att-1-c02d392a-e89e-41b0-ac67-040fe967ef85::attempt:0",
+        "evidenceIteration": 1,
+        "lifecyclePhase": "observation",
+        "interpretationPlanStepId": 3,
+        "evidenceId": "iteration:1:step:3:tool:mcp_chatchat_mcp_server_tpl_212b88329a673657979943bbeaa7479b",
+        "interpretationPlanActionType": "mcp_tool",
+        "toolName": "mcp_chatchat_mcp_server_tpl_212b88329a673657979943bbeaa7479b",
+        "planStepDefinitionFingerprint": "CNXux-ppRs1J2R7Afc7rnt1eWidDBP9u2W_krfOB4sM",
+        "success": true,
+        "durationMs": 6728,
+        "type": "tool",
+        "resolvedInput": {},
+        "toolResultReviewEnabled": true,
+        "localDecisionPhase": "fact_check",
+        "toolResultReviewMaxAttempts": 1,
+        "toolResultReviewSatisfied": true,
+        "toolResultReviewReason": "Admit governed tool evidence; Cline owns exploration, execution feedback and business interpretation.",
+        "toolResultReviewAttempts": 1,
+        "toolResultReviewSkipped": true,
+        "analysisDecisionOwner": "CLINE",
+        "toolResultReviewModelCalls": 0,
+        "toolResultReviewMode": "CODING_DETERMINISTIC_ADMISSION",
+        "stepOutput": {
+          "schemaVersion": "mcp_analysis_payload.v1",
+          "requestId": "31c92c6e-8fc8-4297-b364-70d48266a602",
+          "serviceId": "chatchat-mcp-server",
+          "toolName": "mcp_chatchat_mcp_server_tpl_212b88329a673657979943bbeaa7479b",
+          "status": "SUCCESS",
+          "resultKind": "RAW_RECORDS",
+          "resultSchemaRef": "sql_result.v1",
+          "provenance": {
+            "sourceRef": null,
+            "dataVersion": null,
+            "asOf": null,
+            "inputFingerprint": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "rowRange": {},
+            "filterSummary": {}
+          },
+          "completeness": {
+            "repairApplied": false,
+            "complete": true,
+            "status": "SUCCESS"
+          },
+          "data": {
+            "success": true,
+            "data": {
+              "schemaVersion": "tool_execution_result.v1",
+              "kind": "sql_query",
+              "dataSchema": "sql_result.v1",
+              "payloadType": "structured",
+              "success": true,
+              "status": "success",
+              "durationMs": 69,
+              "generatedAt": "2026-10-31T18:05:25.927166344Z",
+              "dataCompleteness": {
+                "contractVersion": "mcp_complete_result.v1",
+                "complete": true,
+                "gatewayTruncated": false,
+                "projectionRequiredByConsumer": true
+              },
+              "error": null,
+              "target": {
+                "type": "database",
+                "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                "name": "248测试数据库",
+                "toolName": "db_query_mysql_248_test_db",
+                "environment": "DEV"
+              },
+              "sourceMetadata": {
+                "schemaVersion": "execution_source.v1",
+                "executionType": "SQL_QUERY",
+                "sourceType": "sql_statement",
+                "toolName": "db_query_mysql_248_test_db",
+                "asset": {
+                  "type": "database",
+                  "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                  "name": "248测试数据库",
+                  "environment": "DEV"
+                },
+                "operation": {
+                  "statementHash": "eb14c540a2e743bc4bbc03b9d65e357ed586ed490ce318afe768fddb4c972ce1",
+                  "templateId": "STUDIO_18042D964C823181832DB6E79E771FFB"
+                },
+                "business": {
+                  "name": "TPCDS 248 商品1年度销售汇总验收",
+                  "description": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。",
+                  "category": "business_analysis"
+                }
+              },
+              "operation": {
+                "type": "sql.query",
+                "statement": "SELECT\n    d.d_year                                            AS sales_year,\n    COUNT(*)                                            AS sales_rows,\n    SUM(ss.ss_quantity)                                 AS total_quantity,\n    SUM(ss.ss_net_paid)                                 AS total_net_paid,\n    SUM(ss.ss_net_profit)                               AS total_net_profit,\n    MIN(d.d_date)                                       AS earliest_date,\n    MAX(d.d_date)                                       AS latest_date\nFROM store_sales  ss\nINNER JOIN date_dim d\n        ON d.d_date_sk = ss.ss_sold_date_sk\nWHERE ss.ss_item_sk = 1          \nGROUP BY d.d_year\nORDER BY sales_year ASC\nLIMIT 10",
+                "timeoutSeconds": 30,
+                "purpose": null,
+                "sourceTaskId": "31c92c6e-8fc8-4297-b364-70d48266a602",
+                "diagnostics": {
+                  "requestedCatalog": null,
+                  "requestedSchema": null,
+                  "schemaVersion": "sql_query_diagnostics.v1",
+                  "templateId": "STUDIO_18042D964C823181832DB6E79E771FFB",
+                  "templateParameters": {
+                    "schemaName": "tpcds",
+                    "databaseName": "tpcds",
+                    "schema": "tpcds",
+                    "database": "tpcds",
+                    "today": "20261101",
+                    "natural_date": "20261101",
+                    "month": "202611",
+                    "month_start": "20261101",
+                    "month_end": "20261130"
+                  },
+                  "executionContext": {
+                    "database": "tpcds",
+                    "schema": "tpcds",
+                    "schemaName": "tpcds",
+                    "databaseName": "tpcds"
+                  },
+                  "tableResolution": null,
+                  "routedTarget": null,
+                  "routingDecisionLog": null,
+                  "datasource": {
+                    "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                    "name": "248测试数据库",
+                    "toolName": "db_query_mysql_248_test_db",
+                    "environment": "DEV",
+                    "databaseType": "mysql",
+                    "jdbcDatabase": "tpcds"
+                  },
+                  "templateMetadata": {
+                    "templateId": "STUDIO_18042D964C823181832DB6E79E771FFB",
+                    "businessName": "TPCDS 248 商品1年度销售汇总验收",
+                    "businessDescription": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。",
+                    "category": "business_analysis",
+                    "riskLevel": "MEDIUM",
+                    "evidencePolicy": {}
+                  },
+                  "appliedCatalog": "tpcds",
+                  "connection": {
+                    "catalog": "tpcds",
+                    "schema": null,
+                    "jdbcDatabase": "tpcds",
+                    "databaseType": "mysql"
+                  },
+                  "columnCommentResolution": "enabled",
+                  "rowCount": 6,
+                  "possiblyTruncated": false
+                }
+              },
+              "limits": {
+                "maxRowsRequested": 500,
+                "configuredDatabaseMaxRows": 500,
+                "rowsFetchedFromDatabase": 6,
+                "fullFetchedRowsAvailable": true,
+                "analysisStrategy": "RUNTIME_EXTERNALIZE_AND_CHUNK",
+                "truncationStrategy": "DATABASE_MAX_ROWS_500"
+              },
+              "data": {
+                "resultSetMode": "ONE_PER_TEMPLATE_EXECUTION",
+                "resultSetId": "eb14c540a2e743bc4bbc03b9d65e357ed586ed490ce318afe768fddb4c972ce1",
+                "commandContext": {
+                  "schemaVersion": "template_result_context.v1",
+                  "templateId": "db_query_mysql_248_test_db",
+                  "templateName": "db_query_mysql_248_test_db",
+                  "description": null,
+                  "executionMode": "SINGLE_SQL",
+                  "commands": [
+                    {
+                      "commandId": "sql_query",
+                      "order": 1,
+                      "name": "db_query_mysql_248_test_db",
+                      "description": null,
+                      "analysisHint": null,
+                      "resultReference": "$.data"
+                    }
+                  ],
+                  "references": []
+                },
+                "rowCount": 6,
+                "returnedRowCount": 6,
+                "complete": true,
+                "possiblyTruncated": false,
+                "truncationStrategy": "DATABASE_MAX_ROWS_500",
+                "columns": [
+                  "sales_year",
+                  "sales_rows",
+                  "total_quantity",
+                  "total_net_paid",
+                  "total_net_profit",
+                  "earliest_date",
+                  "latest_date"
+                ],
+                "columnMetadata": [
+                  {
+                    "name": "d_year",
+                    "label": "sales_year",
+                    "comment": null,
+                    "tableName": "date_dim",
+                    "schemaName": null,
+                    "catalogName": "tpcds",
+                    "jdbcType": 4,
+                    "typeName": "INT",
+                    "displaySize": 10,
+                    "nullable": true,
+                    "masked": false
+                  },
+                  {
+                    "name": "sales_rows",
+                    "label": "sales_rows",
+                    "comment": null,
+                    "tableName": null,
+                    "schemaName": null,
+                    "catalogName": null,
+                    "jdbcType": -5,
+                    "typeName": "BIGINT",
+                    "displaySize": 19,
+                    "nullable": false,
+                    "masked": false
+                  },
+                  {
+                    "name": "total_quantity",
+                    "label": "total_quantity",
+                    "comment": null,
+                    "tableName": null,
+                    "schemaName": null,
+                    "catalogName": null,
+                    "jdbcType": 3,
+                    "typeName": "DECIMAL",
+                    "displaySize": 32,
+                    "nullable": true,
+                    "masked": false
+                  },
+                  {
+                    "name": "total_net_paid",
+                    "label": "total_net_paid",
+                    "comment": null,
+                    "tableName": null,
+                    "schemaName": null,
+                    "catalogName": null,
+                    "jdbcType": 3,
+                    "typeName": "DECIMAL",
+                    "displaySize": 29,
+                    "nullable": true,
+                    "masked": false
+                  },
+                  {
+                    "name": "total_net_profit",
+                    "label": "total_net_profit",
+                    "comment": null,
+                    "tableName": null,
+                    "schemaName": null,
+                    "catalogName": null,
+                    "jdbcType": 3,
+                    "typeName": "DECIMAL",
+                    "displaySize": 29,
+                    "nullable": true,
+                    "masked": false
+                  },
+                  {
+                    "name": "earliest_date",
+                    "label": "earliest_date",
+                    "comment": null,
+                    "tableName": null,
+                    "schemaName": null,
+                    "catalogName": null,
+                    "jdbcType": 91,
+                    "typeName": "DATE",
+                    "displaySize": 10,
+                    "nullable": true,
+                    "masked": false
+                  },
+                  {
+                    "name": "latest_date",
+                    "label": "latest_date",
+                    "comment": null,
+                    "tableName": null,
+                    "schemaName": null,
+                    "catalogName": null,
+                    "jdbcType": 91,
+                    "typeName": "DATE",
+                    "displaySize": 10,
+                    "nullable": true,
+                    "masked": false
+                  }
+                ],
+                "governance": {
+                  "schemaVersion": "sql_output_governance.v1",
+                  "readOnly": true,
+                  "rowCount": 6,
+                  "returnedRowCount": 6,
+                  "possiblyTruncated": false,
+                  "truncationStrategy": "DATABASE_MAX_ROWS_500",
+                  "maskedColumns": [],
+                  "columnCommentsIncluded": false
+                },
+                "diagnostics": {
+                  "requestedCatalog": null,
+                  "requestedSchema": null,
+                  "schemaVersion": "sql_query_diagnostics.v1",
+                  "templateId": "STUDIO_18042D964C823181832DB6E79E771FFB",
+                  "templateParameters": {
+                    "schemaName": "tpcds",
+                    "databaseName": "tpcds",
+                    "schema": "tpcds",
+                    "database": "tpcds",
+                    "today": "20261101",
+                    "natural_date": "20261101",
+                    "month": "202611",
+                    "month_start": "20261101",
+                    "month_end": "20261130"
+                  },
+                  "executionContext": {
+                    "database": "tpcds",
+                    "schema": "tpcds",
+                    "schemaName": "tpcds",
+                    "databaseName": "tpcds"
+                  },
+                  "tableResolution": null,
+                  "routedTarget": null,
+                  "routingDecisionLog": null,
+                  "datasource": {
+                    "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                    "name": "248测试数据库",
+                    "toolName": "db_query_mysql_248_test_db",
+                    "environment": "DEV",
+                    "databaseType": "mysql",
+                    "jdbcDatabase": "tpcds"
+                  },
+                  "templateMetadata": {
+                    "templateId": "STUDIO_18042D964C823181832DB6E79E771FFB",
+                    "businessName": "TPCDS 248 商品1年度销售汇总验收",
+                    "businessDescription": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。",
+                    "category": "business_analysis",
+                    "riskLevel": "MEDIUM",
+                    "evidencePolicy": {}
+                  },
+                  "appliedCatalog": "tpcds",
+                  "connection": {
+                    "catalog": "tpcds",
+                    "schema": null,
+                    "jdbcDatabase": "tpcds",
+                    "databaseType": "mysql"
+                  },
+                  "columnCommentResolution": "enabled",
+                  "rowCount": 6,
+                  "possiblyTruncated": false
+                },
+                "rows": [
+                  {
+                    "sales_year": 1998,
+                    "sales_rows": 69,
+                    "total_quantity": 3271,
+                    "total_net_paid": 95321.87,
+                    "total_net_profit": -56881.4,
+                    "earliest_date": "1998-01-11",
+                    "latest_date": "1998-12-28"
+                  },
+                  {
+                    "sales_year": 1999,
+                    "sales_rows": 66,
+                    "total_quantity": 3362,
+                    "total_net_paid": 136947.06,
+                    "total_net_profit": -65502.46,
+                    "earliest_date": "1999-01-12",
+                    "latest_date": "1999-12-31"
+                  },
+                  {
+                    "sales_year": 2000,
+                    "sales_rows": 64,
+                    "total_quantity": 3276,
+                    "total_net_paid": 133897.01,
+                    "total_net_profit": -39360.37,
+                    "earliest_date": "2000-01-02",
+                    "latest_date": "2000-12-30"
+                  },
+                  {
+                    "sales_year": 2001,
+                    "sales_rows": 48,
+                    "total_quantity": 2076,
+                    "total_net_paid": 66291,
+                    "total_net_profit": -42350.41,
+                    "earliest_date": "2001-01-24",
+                    "latest_date": "2001-12-29"
+                  },
+                  {
+                    "sales_year": 2002,
+                    "sales_rows": 60,
+                    "total_quantity": 3115,
+                    "total_net_paid": 138561.11,
+                    "total_net_profit": -48800.13,
+                    "earliest_date": "2002-01-01",
+                    "latest_date": "2002-12-29"
+                  },
+                  {
+                    "sales_year": 2003,
+                    "sales_rows": 2,
+                    "total_quantity": 157,
+                    "total_net_paid": 2373.12,
+                    "total_net_profit": -7540.34,
+                    "earliest_date": "2003-01-02",
+                    "latest_date": "2003-01-02"
+                  }
+                ]
+              },
+              "execution": {
+                "schemaVersion": "execution_unit.v1",
+                "executionId": "2793f37b-f3fb-4059-bf1a-91b1cee4a62c",
+                "toolName": "db_query_mysql_248_test_db",
+                "startedAt": "2026-10-31T18:05:25.858429956Z",
+                "finishedAt": "2026-10-31T18:05:25.927429956Z",
+                "durationMs": 69,
+                "stepCount": 1,
+                "steps": [
+                  {
+                    "stepIndex": 1,
+                    "stepId": "sql_1",
+                    "stepType": "sql",
+                    "input": {
+                      "statement": "SELECT\n    d.d_year                                            AS sales_year,\n    COUNT(*)                                            AS sales_rows,\n    SUM(ss.ss_quantity)                                 AS total_quantity,\n    SUM(ss.ss_net_paid)                                 AS total_net_paid,\n    SUM(ss.ss_net_profit)                               AS total_net_profit,\n    MIN(d.d_date)                                       AS earliest_date,\n    MAX(d.d_date)                                       AS latest_date\nFROM store_sales  ss\nINNER JOIN date_dim d\n        ON d.d_date_sk = ss.ss_sold_date_sk\nWHERE ss.ss_item_sk = 1          \nGROUP BY d.d_year\nORDER BY sales_year ASC\nLIMIT 10",
+                      "timeoutSeconds": 30,
+                      "purpose": null,
+                      "sourceTaskId": "31c92c6e-8fc8-4297-b364-70d48266a602"
+                    },
+                    "output": {
+                      "resultSetReference": "$.data",
+                      "rowCount": 6,
+                      "returnedRowCount": 6,
+                      "possiblyTruncated": false,
+                      "columnCount": 7
+                    },
+                    "success": true,
+                    "status": "success",
+                    "durationMs": 69,
+                    "error": null,
+                    "rowCount": 6
+                  }
+                ]
+              },
+              "executionGraph": {
+                "schemaVersion": "execution_graph.v1",
+                "nodes": [
+                  {
+                    "id": "sql_query",
+                    "type": "sql.query",
+                    "status": "success",
+                    "durationMs": 69,
+                    "attributes": {}
+                  }
+                ],
+                "edges": []
+              },
+              "executionWorkflow": {
+                "verified": true,
+                "steps": [
+                  "VALIDATE_ARGUMENT_CONTRACT",
+                  "ROUTE_LOGICAL_DATASOURCE",
+                  "RESOLVE_TEMPLATE_PARAMETERS_IF_PRESENT",
+                  "CLASSIFY_SQL_CARDINALITY",
+                  "ENFORCE_READ_ONLY_POLICY",
+                  "EXECUTE_QUERY_OR_SCRIPT",
+                  "VERIFY_RESULT",
+                  "ASSEMBLE_EVIDENCE"
+                ],
+                "workflowId": "execute.sql-query.v1",
+                "mode": "SQL_QUERY",
+                "parameterWorkflow": {
+                  "parameterCount": 0,
+                  "steps": [
+                    "NORMALIZE_REQUEST",
+                    "COLLECT_EXPLICIT_PARAMETERS",
+                    "COLLECT_REQUEST_FIELDS",
+                    "APPLY_DECLARED_DEFAULTS",
+                    "COERCE_DECLARED_TYPES",
+                    "VALIDATE_REQUIRED_PARAMETERS",
+                    "ASSEMBLE_BINDING"
+                  ],
+                  "verified": true,
+                  "scopeStatus": "EXPLICIT_PARAMETERS",
+                  "workflowId": "resolve.template-parameters.v1",
+                  "parameterRepairs": [],
+                  "parameterSources": {},
+                  "mode": "DECLARED_SCHEMA"
+                }
+              }
+            },
+            "message": null,
+            "errorMessage": null,
+            "exceptionType": null,
+            "errorDetails": null,
+            "executionTimeMs": 138,
+            "tokenUsage": {},
+            "metadata": {
+              "templatePublication": {
+                "templateRevision": "9038f6b9782a56378039cada38ce873797e586ea980b3c9ab49a3cb7019627fd",
+                "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+                "agentId": "tpcds_studio_sql_python_20261101",
+                "toolName": "tpl_212b88329a673657979943bbeaa7479b",
+                "releaseId": "90d8efbe-ba6b-4314-921c-65841244b241"
+              },
+              "requestId": "31c92c6e-8fc8-4297-b364-70d48266a602"
+            }
+          },
+          "rawData": {
+            "success": true,
+            "data": {
+              "schemaVersion": "tool_execution_result.v1",
+              "kind": "sql_query",
+              "dataSchema": "sql_result.v1",
+              "payloadType": "structured",
+              "success": true,
+              "status": "success",
+              "durationMs": 69,
+              "generatedAt": "2026-10-31T18:05:25.927166344Z",
+              "dataCompleteness": {
+                "contractVersion": "mcp_complete_result.v1",
+                "complete": true,
+                "gatewayTruncated": false,
+                "projectionRequiredByConsumer": true
+              },
+              "error": null,
+              "target": {
+                "type": "database",
+                "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                "name": "248测试数据库",
+                "toolName": "db_query_mysql_248_test_db",
+                "environment": "DEV"
+              },
+              "sourceMetadata": {
+                "schemaVersion": "execution_source.v1",
+                "executionType": "SQL_QUERY",
+                "sourceType": "sql_statement",
+                "toolName": "db_query_mysql_248_test_db",
+                "asset": {
+                  "type": "database",
+                  "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                  "name": "248测试数据库",
+                  "environment": "DEV"
+                },
+                "operation": {
+                  "statementHash": "eb14c540a2e743bc4bbc03b9d65e357ed586ed490ce318afe768fddb4c972ce1",
+                  "templateId": "STUDIO_18042D964C823181832DB6E79E771FFB"
+                },
+                "business": {
+                  "name": "TPCDS 248 商品1年度销售汇总验收",
+                  "description": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。",
+                  "category": "business_analysis"
+                }
+              },
+              "operation": {
+                "type": "sql.query",
+                "statement": "SELECT\n    d.d_year                                            AS sales_year,\n    COUNT(*)                                            AS sales_rows,\n    SUM(ss.ss_quantity)                                 AS total_quantity,\n    SUM(ss.ss_net_paid)                                 AS total_net_paid,\n    SUM(ss.ss_net_profit)                               AS total_net_profit,\n    MIN(d.d_date)                                       AS earliest_date,\n    MAX(d.d_date)                                       AS latest_date\nFROM store_sales  ss\nINNER JOIN date_dim d\n        ON d.d_date_sk = ss.ss_sold_date_sk\nWHERE ss.ss_item_sk = 1          \nGROUP BY d.d_year\nORDER BY sales_year ASC\nLIMIT 10",
+                "timeoutSeconds": 30,
+                "purpose": null,
+                "sourceTaskId": "31c92c6e-8fc8-4297-b364-70d48266a602",
+                "diagnostics": {
+                  "requestedCatalog": null,
+                  "requestedSchema": null,
+                  "schemaVersion": "sql_query_diagnostics.v1",
+                  "templateId": "STUDIO_18042D964C823181832DB6E79E771FFB",
+                  "templateParameters": {
+                    "schemaName": "tpcds",
+                    "databaseName": "tpcds",
+                    "schema": "tpcds",
+                    "database": "tpcds",
+                    "today": "20261101",
+                    "natural_date": "20261101",
+                    "month": "202611",
+                    "month_start": "20261101",
+                    "month_end": "20261130"
+                  },
+                  "executionContext": {
+                    "database": "tpcds",
+                    "schema": "tpcds",
+                    "schemaName": "tpcds",
+                    "databaseName": "tpcds"
+                  },
+                  "tableResolution": null,
+                  "routedTarget": null,
+                  "routingDecisionLog": null,
+                  "datasource": {
+                    "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                    "name": "248测试数据库",
+                    "toolName": "db_query_mysql_248_test_db",
+                    "environment": "DEV",
+                    "databaseType": "mysql",
+                    "jdbcDatabase": "tpcds"
+                  },
+                  "templateMetadata": {
+                    "templateId": "STUDIO_18042D964C823181832DB6E79E771FFB",
+                    "businessName": "TPCDS 248 商品1年度销售汇总验收",
+                    "businessDescription": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。",
+                    "category": "business_analysis",
+                    "riskLevel": "MEDIUM",
+                    "evidencePolicy": {}
+                  },
+                  "appliedCatalog": "tpcds",
+                  "connection": {
+                    "catalog": "tpcds",
+                    "schema": null,
+                    "jdbcDatabase": "tpcds",
+                    "databaseType": "mysql"
+                  },
+                  "columnCommentResolution": "enabled",
+                  "rowCount": 6,
+                  "possiblyTruncated": false
+                }
+              },
+              "limits": {
+                "maxRowsRequested": 500,
+                "configuredDatabaseMaxRows": 500,
+                "rowsFetchedFromDatabase": 6,
+                "fullFetchedRowsAvailable": true,
+                "analysisStrategy": "RUNTIME_EXTERNALIZE_AND_CHUNK",
+                "truncationStrategy": "DATABASE_MAX_ROWS_500"
+              },
+              "data": {
+                "resultSetMode": "ONE_PER_TEMPLATE_EXECUTION",
+                "resultSetId": "eb14c540a2e743bc4bbc03b9d65e357ed586ed490ce318afe768fddb4c972ce1",
+                "commandContext": {
+                  "schemaVersion": "template_result_context.v1",
+                  "templateId": "db_query_mysql_248_test_db",
+                  "templateName": "db_query_mysql_248_test_db",
+                  "description": null,
+                  "executionMode": "SINGLE_SQL",
+                  "commands": [
+                    {
+                      "commandId": "sql_query",
+                      "order": 1,
+                      "name": "db_query_mysql_248_test_db",
+                      "description": null,
+                      "analysisHint": null,
+                      "resultReference": "$.data"
+                    }
+                  ],
+                  "references": []
+                },
+                "rowCount": 6,
+                "returnedRowCount": 6,
+                "complete": true,
+                "possiblyTruncated": false,
+                "truncationStrategy": "DATABASE_MAX_ROWS_500",
+                "columns": [
+                  "sales_year",
+                  "sales_rows",
+                  "total_quantity",
+                  "total_net_paid",
+                  "total_net_profit",
+                  "earliest_date",
+                  "latest_date"
+                ],
+                "columnMetadata": [
+                  {
+                    "name": "d_year",
+                    "label": "sales_year",
+                    "comment": null,
+                    "tableName": "date_dim",
+                    "schemaName": null,
+                    "catalogName": "tpcds",
+                    "jdbcType": 4,
+                    "typeName": "INT",
+                    "displaySize": 10,
+                    "nullable": true,
+                    "masked": false
+                  },
+                  {
+                    "name": "sales_rows",
+                    "label": "sales_rows",
+                    "comment": null,
+                    "tableName": null,
+                    "schemaName": null,
+                    "catalogName": null,
+                    "jdbcType": -5,
+                    "typeName": "BIGINT",
+                    "displaySize": 19,
+                    "nullable": false,
+                    "masked": false
+                  },
+                  {
+                    "name": "total_quantity",
+                    "label": "total_quantity",
+                    "comment": null,
+                    "tableName": null,
+                    "schemaName": null,
+                    "catalogName": null,
+                    "jdbcType": 3,
+                    "typeName": "DECIMAL",
+                    "displaySize": 32,
+                    "nullable": true,
+                    "masked": false
+                  },
+                  {
+                    "name": "total_net_paid",
+                    "label": "total_net_paid",
+                    "comment": null,
+                    "tableName": null,
+                    "schemaName": null,
+                    "catalogName": null,
+                    "jdbcType": 3,
+                    "typeName": "DECIMAL",
+                    "displaySize": 29,
+                    "nullable": true,
+                    "masked": false
+                  },
+                  {
+                    "name": "total_net_profit",
+                    "label": "total_net_profit",
+                    "comment": null,
+                    "tableName": null,
+                    "schemaName": null,
+                    "catalogName": null,
+                    "jdbcType": 3,
+                    "typeName": "DECIMAL",
+                    "displaySize": 29,
+                    "nullable": true,
+                    "masked": false
+                  },
+                  {
+                    "name": "earliest_date",
+                    "label": "earliest_date",
+                    "comment": null,
+                    "tableName": null,
+                    "schemaName": null,
+                    "catalogName": null,
+                    "jdbcType": 91,
+                    "typeName": "DATE",
+                    "displaySize": 10,
+                    "nullable": true,
+                    "masked": false
+                  },
+                  {
+                    "name": "latest_date",
+                    "label": "latest_date",
+                    "comment": null,
+                    "tableName": null,
+                    "schemaName": null,
+                    "catalogName": null,
+                    "jdbcType": 91,
+                    "typeName": "DATE",
+                    "displaySize": 10,
+                    "nullable": true,
+                    "masked": false
+                  }
+                ],
+                "governance": {
+                  "schemaVersion": "sql_output_governance.v1",
+                  "readOnly": true,
+                  "rowCount": 6,
+                  "returnedRowCount": 6,
+                  "possiblyTruncated": false,
+                  "truncationStrategy": "DATABASE_MAX_ROWS_500",
+                  "maskedColumns": [],
+                  "columnCommentsIncluded": false
+                },
+                "diagnostics": {
+                  "requestedCatalog": null,
+                  "requestedSchema": null,
+                  "schemaVersion": "sql_query_diagnostics.v1",
+                  "templateId": "STUDIO_18042D964C823181832DB6E79E771FFB",
+                  "templateParameters": {
+                    "schemaName": "tpcds",
+                    "databaseName": "tpcds",
+                    "schema": "tpcds",
+                    "database": "tpcds",
+                    "today": "20261101",
+                    "natural_date": "20261101",
+                    "month": "202611",
+                    "month_start": "20261101",
+                    "month_end": "20261130"
+                  },
+                  "executionContext": {
+                    "database": "tpcds",
+                    "schema": "tpcds",
+                    "schemaName": "tpcds",
+                    "databaseName": "tpcds"
+                  },
+                  "tableResolution": null,
+                  "routedTarget": null,
+                  "routingDecisionLog": null,
+                  "datasource": {
+                    "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                    "name": "248测试数据库",
+                    "toolName": "db_query_mysql_248_test_db",
+                    "environment": "DEV",
+                    "databaseType": "mysql",
+                    "jdbcDatabase": "tpcds"
+                  },
+                  "templateMetadata": {
+                    "templateId": "STUDIO_18042D964C823181832DB6E79E771FFB",
+                    "businessName": "TPCDS 248 商品1年度销售汇总验收",
+                    "businessDescription": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。",
+                    "category": "business_analysis",
+                    "riskLevel": "MEDIUM",
+                    "evidencePolicy": {}
+                  },
+                  "appliedCatalog": "tpcds",
+                  "connection": {
+                    "catalog": "tpcds",
+                    "schema": null,
+                    "jdbcDatabase": "tpcds",
+                    "databaseType": "mysql"
+                  },
+                  "columnCommentResolution": "enabled",
+                  "rowCount": 6,
+                  "possiblyTruncated": false
+                },
+                "rows": [
+                  {
+                    "sales_year": 1998,
+                    "sales_rows": 69,
+                    "total_quantity": 3271,
+                    "total_net_paid": 95321.87,
+                    "total_net_profit": -56881.4,
+                    "earliest_date": "1998-01-11",
+                    "latest_date": "1998-12-28"
+                  },
+                  {
+                    "sales_year": 1999,
+                    "sales_rows": 66,
+                    "total_quantity": 3362,
+                    "total_net_paid": 136947.06,
+                    "total_net_profit": -65502.46,
+                    "earliest_date": "1999-01-12",
+                    "latest_date": "1999-12-31"
+                  },
+                  {
+                    "sales_year": 2000,
+                    "sales_rows": 64,
+                    "total_quantity": 3276,
+                    "total_net_paid": 133897.01,
+                    "total_net_profit": -39360.37,
+                    "earliest_date": "2000-01-02",
+                    "latest_date": "2000-12-30"
+                  },
+                  {
+                    "sales_year": 2001,
+                    "sales_rows": 48,
+                    "total_quantity": 2076,
+                    "total_net_paid": 66291,
+                    "total_net_profit": -42350.41,
+                    "earliest_date": "2001-01-24",
+                    "latest_date": "2001-12-29"
+                  },
+                  {
+                    "sales_year": 2002,
+                    "sales_rows": 60,
+                    "total_quantity": 3115,
+                    "total_net_paid": 138561.11,
+                    "total_net_profit": -48800.13,
+                    "earliest_date": "2002-01-01",
+                    "latest_date": "2002-12-29"
+                  },
+                  {
+                    "sales_year": 2003,
+                    "sales_rows": 2,
+                    "total_quantity": 157,
+                    "total_net_paid": 2373.12,
+                    "total_net_profit": -7540.34,
+                    "earliest_date": "2003-01-02",
+                    "latest_date": "2003-01-02"
+                  }
+                ]
+              },
+              "execution": {
+                "schemaVersion": "execution_unit.v1",
+                "executionId": "2793f37b-f3fb-4059-bf1a-91b1cee4a62c",
+                "toolName": "db_query_mysql_248_test_db",
+                "startedAt": "2026-10-31T18:05:25.858429956Z",
+                "finishedAt": "2026-10-31T18:05:25.927429956Z",
+                "durationMs": 69,
+                "stepCount": 1,
+                "steps": [
+                  {
+                    "stepIndex": 1,
+                    "stepId": "sql_1",
+                    "stepType": "sql",
+                    "input": {
+                      "statement": "SELECT\n    d.d_year                                            AS sales_year,\n    COUNT(*)                                            AS sales_rows,\n    SUM(ss.ss_quantity)                                 AS total_quantity,\n    SUM(ss.ss_net_paid)                                 AS total_net_paid,\n    SUM(ss.ss_net_profit)                               AS total_net_profit,\n    MIN(d.d_date)                                       AS earliest_date,\n    MAX(d.d_date)                                       AS latest_date\nFROM store_sales  ss\nINNER JOIN date_dim d\n        ON d.d_date_sk = ss.ss_sold_date_sk\nWHERE ss.ss_item_sk = 1          \nGROUP BY d.d_year\nORDER BY sales_year ASC\nLIMIT 10",
+                      "timeoutSeconds": 30,
+                      "purpose": null,
+                      "sourceTaskId": "31c92c6e-8fc8-4297-b364-70d48266a602"
+                    },
+                    "output": {
+                      "resultSetReference": "$.data",
+                      "rowCount": 6,
+                      "returnedRowCount": 6,
+                      "possiblyTruncated": false,
+                      "columnCount": 7
+                    },
+                    "success": true,
+                    "status": "success",
+                    "durationMs": 69,
+                    "error": null,
+                    "rowCount": 6
+                  }
+                ]
+              },
+              "executionGraph": {
+                "schemaVersion": "execution_graph.v1",
+                "nodes": [
+                  {
+                    "id": "sql_query",
+                    "type": "sql.query",
+                    "status": "success",
+                    "durationMs": 69,
+                    "attributes": {}
+                  }
+                ],
+                "edges": []
+              },
+              "executionWorkflow": {
+                "verified": true,
+                "steps": [
+                  "VALIDATE_ARGUMENT_CONTRACT",
+                  "ROUTE_LOGICAL_DATASOURCE",
+                  "RESOLVE_TEMPLATE_PARAMETERS_IF_PRESENT",
+                  "CLASSIFY_SQL_CARDINALITY",
+                  "ENFORCE_READ_ONLY_POLICY",
+                  "EXECUTE_QUERY_OR_SCRIPT",
+                  "VERIFY_RESULT",
+                  "ASSEMBLE_EVIDENCE"
+                ],
+                "workflowId": "execute.sql-query.v1",
+                "mode": "SQL_QUERY",
+                "parameterWorkflow": {
+                  "parameterCount": 0,
+                  "steps": [
+                    "NORMALIZE_REQUEST",
+                    "COLLECT_EXPLICIT_PARAMETERS",
+                    "COLLECT_REQUEST_FIELDS",
+                    "APPLY_DECLARED_DEFAULTS",
+                    "COERCE_DECLARED_TYPES",
+                    "VALIDATE_REQUIRED_PARAMETERS",
+                    "ASSEMBLE_BINDING"
+                  ],
+                  "verified": true,
+                  "scopeStatus": "EXPLICIT_PARAMETERS",
+                  "workflowId": "resolve.template-parameters.v1",
+                  "parameterRepairs": [],
+                  "parameterSources": {},
+                  "mode": "DECLARED_SCHEMA"
+                }
+              }
+            },
+            "message": null,
+            "errorMessage": null,
+            "exceptionType": null,
+            "errorDetails": null,
+            "executionTimeMs": 138,
+            "tokenUsage": {},
+            "metadata": {
+              "templatePublication": {
+                "templateRevision": "9038f6b9782a56378039cada38ce873797e586ea980b3c9ab49a3cb7019627fd",
+                "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+                "agentId": "tpcds_studio_sql_python_20261101",
+                "toolName": "tpl_212b88329a673657979943bbeaa7479b",
+                "releaseId": "90d8efbe-ba6b-4314-921c-65841244b241"
+              },
+              "requestId": "31c92c6e-8fc8-4297-b364-70d48266a602"
+            }
+          },
+          "runtimeMetadata": {
+            "resultKind": "RAW_RECORDS",
+            "resultSchemaRef": "sql_result.v1",
+            "preflightAudit": {
+              "schemaVersion": "mcp_contract_audit.v1",
+              "compliant": true,
+              "evidence": [
+                {
+                  "serviceId": "chatchat-mcp-server",
+                  "toolName": "mcp_chatchat_mcp_server_tpl_212b88329a673657979943bbeaa7479b",
+                  "domainCode": "generic",
+                  "domainContractId": "runtime-os/generic-mcp-service",
+                  "domainContractVersion": "mcp_domain_contract.v1",
+                  "observedContract": {
+                    "serviceId": "chatchat-mcp-server",
+                    "localToolName": "mcp_chatchat_mcp_server_tpl_212b88329a673657979943bbeaa7479b",
+                    "remoteToolName": "tpl_212b88329a673657979943bbeaa7479b",
+                    "description": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。\nReturns the existing ToolOutput envelope: SQL rows are at $.data.data.rows and rowCount at $.data.data.rowCount. SQL column names are NOT top-level result fields. Preserve this actual envelope in downstream contracts.",
+                    "capabilityCode": "mcp_tool",
+                    "inputSchema": {
+                      "additionalProperties": false,
+                      "properties": {},
+                      "type": "object"
+                    },
+                    "outputSchema": {
+                      "required": [
+                        "success"
+                      ],
+                      "description": "ToolOutput envelope. SQL rows are at $.data.data.rows, not top-level SQL column fields. Preserve the envelope when passing results to later steps.",
+                      "additionalProperties": true,
+                      "type": "object",
+                      "properties": {
+                        "success": {
+                          "type": "boolean"
+                        },
+                        "errorMessage": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "data": {
+                          "properties": {
+                            "success": {
+                              "type": "boolean"
+                            },
+                            "data": {
+                              "properties": {
+                                "columns": {
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "type": "array"
+                                },
+                                "rowCount": {
+                                  "type": "integer"
+                                },
+                                "rows": {
+                                  "items": {
+                                    "type": "object"
+                                  },
+                                  "type": "array"
+                                }
+                              },
+                              "type": "object"
+                            }
+                          },
+                          "type": [
+                            "object",
+                            "null"
+                          ]
+                        }
+                      }
+                    },
+                    "governance": {
+                      "riskLevel": "low",
+                      "operationType": "execute",
+                      "runtimeLevel": "controlled",
+                      "confirmation": null,
+                      "permissions": null
+                    },
+                    "metadata": {
+                      "riskLevel": "low",
+                      "schemaVersion": "template-capability.v1",
+                      "breakingChangeApproved": true,
+                      "visibleTenantIds": [
+                        "9001fee4-482b-4851-9eb9-df269765291f"
+                      ],
+                      "runtimeLevel": "controlled",
+                      "toolVersion": "3.0.0",
+                      "operationType": "execute",
+                      "templateCapability": true,
+                      "resultKind": "RAW_RECORDS",
+                      "resultSchemaRef": "sql_result.v1",
+                      "data_type": "UNKNOWN",
+                      "chineseAlias": "TPCDS 248 商品1年度销售汇总验收",
+                      "publicationStatus": "active",
+                      "rolloutLabels": [],
+                      "rolloutPercentage": 100,
+                      "contractVersion": "mcp_tool_contract.v1"
+                    },
+                    "resultKind": "RAW_RECORDS",
+                    "resultSchemaRef": "sql_result.v1",
+                    "paginationSupported": false
+                  },
+                  "satisfiedPaths": [
+                    "INPUT_SCHEMA:type",
+                    "OUTPUT_SCHEMA:type",
+                    "GOVERNANCE:riskLevel",
+                    "METADATA:contractVersion"
+                  ],
+                  "missingPaths": [],
+                  "normalizedResultAvailable": false,
+                  "rawResultAvailable": false
+                }
+              ],
+              "findings": [],
+              "findingCounts": {},
+              "auditedAt": 1793469919394
+            },
+            "postflightAudit": {
+              "schemaVersion": "mcp_contract_audit.v1",
+              "compliant": true,
+              "evidence": [
+                {
+                  "serviceId": "chatchat-mcp-server",
+                  "toolName": "mcp_chatchat_mcp_server_tpl_212b88329a673657979943bbeaa7479b",
+                  "domainCode": "generic",
+                  "domainContractId": "runtime-os/generic-mcp-service",
+                  "domainContractVersion": "mcp_domain_contract.v1",
+                  "observedContract": {
+                    "serviceId": "chatchat-mcp-server",
+                    "localToolName": "mcp_chatchat_mcp_server_tpl_212b88329a673657979943bbeaa7479b",
+                    "remoteToolName": "tpl_212b88329a673657979943bbeaa7479b",
+                    "description": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。\nReturns the existing ToolOutput envelope: SQL rows are at $.data.data.rows and rowCount at $.data.data.rowCount. SQL column names are NOT top-level result fields. Preserve this actual envelope in downstream contracts.",
+                    "capabilityCode": "mcp_tool",
+                    "inputSchema": {
+                      "additionalProperties": false,
+                      "properties": {},
+                      "type": "object"
+                    },
+                    "outputSchema": {
+                      "required": [
+                        "success"
+                      ],
+                      "description": "ToolOutput envelope. SQL rows are at $.data.data.rows, not top-level SQL column fields. Preserve the envelope when passing results to later steps.",
+                      "additionalProperties": true,
+                      "type": "object",
+                      "properties": {
+                        "success": {
+                          "type": "boolean"
+                        },
+                        "errorMessage": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "data": {
+                          "properties": {
+                            "success": {
+                              "type": "boolean"
+                            },
+                            "data": {
+                              "properties": {
+                                "columns": {
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "type": "array"
+                                },
+                                "rowCount": {
+                                  "type": "integer"
+                                },
+                                "rows": {
+                                  "items": {
+                                    "type": "object"
+                                  },
+                                  "type": "array"
+                                }
+                              },
+                              "type": "object"
+                            }
+                          },
+                          "type": [
+                            "object",
+                            "null"
+                          ]
+                        }
+                      }
+                    },
+                    "governance": {
+                      "riskLevel": "low",
+                      "operationType": "execute",
+                      "runtimeLevel": "controlled",
+                      "confirmation": null,
+                      "permissions": null
+                    },
+                    "metadata": {
+                      "riskLevel": "low",
+                      "schemaVersion": "template-capability.v1",
+                      "breakingChangeApproved": true,
+                      "visibleTenantIds": [
+                        "9001fee4-482b-4851-9eb9-df269765291f"
+                      ],
+                      "runtimeLevel": "controlled",
+                      "toolVersion": "3.0.0",
+                      "operationType": "execute",
+                      "templateCapability": true,
+                      "resultKind": "RAW_RECORDS",
+                      "resultSchemaRef": "sql_result.v1",
+                      "data_type": "UNKNOWN",
+                      "chineseAlias": "TPCDS 248 商品1年度销售汇总验收",
+                      "publicationStatus": "active",
+                      "rolloutLabels": [],
+                      "rolloutPercentage": 100,
+                      "contractVersion": "mcp_tool_contract.v1"
+                    },
+                    "resultKind": "RAW_RECORDS",
+                    "resultSchemaRef": "sql_result.v1",
+                    "paginationSupported": false
+                  },
+                  "satisfiedPaths": [
+                    "INPUT_SCHEMA:type",
+                    "OUTPUT_SCHEMA:type",
+                    "GOVERNANCE:riskLevel",
+                    "METADATA:contractVersion",
+                    "RAW_RESULT:$",
+                    "RESULT_CONTRACT:resultKind"
+                  ],
+                  "missingPaths": [
+                    "RESULT_CONTRACT:provenance"
+                  ],
+                  "normalizedResultAvailable": true,
+                  "rawResultAvailable": true
+                }
+              ],
+              "findings": [
+                {
+                  "severity": "WARNING",
+                  "code": "MCP_RESULT_PROVENANCE_UNDECLARED",
+                  "serviceId": "chatchat-mcp-server",
+                  "toolName": "mcp_chatchat_mcp_server_tpl_212b88329a673657979943bbeaa7479b",
+                  "domainCode": "generic",
+                  "source": "NORMALIZED_RESULT",
+                  "path": "provenance",
+                  "message": "MCP result does not identify the observed source/version/scope",
+                  "observed": "absent",
+                  "recoveryAction": "DECLARE_RESULT_PROVENANCE"
+                }
+              ],
+              "findingCounts": {
+                "WARNING": 1
+              },
+              "auditedAt": 1793469925961
+            },
+            "kernelProtocolVersion": "runtime_os_mcp_kernel.v1",
+            "discoveryRefreshAttempted": false,
+            "templateBindingValidation": {
+              "executorTool": "mcp_chatchat_mcp_server_tpl_212b88329a673657979943bbeaa7479b",
+              "templateIdPresent": false,
+              "schemaVersion": "runtime_template_binding.v3",
+              "runtimeEvidenceValidated": false
+            },
+            "mcpExecutionWorkflow": {
+              "discoveryRefreshAttempted": false,
+              "workflowId": "execute.mcp-tool.v1",
+              "transport": "in-process",
+              "extensions": [],
+              "localToolName": "mcp_chatchat_mcp_server_tpl_212b88329a673657979943bbeaa7479b",
+              "steps": [
+                "DISCOVER_SERVICE",
+                "DISCOVER_TOOL_TEMPLATE",
+                "VALIDATE_TEMPLATE_BINDING",
+                "VALIDATE_TOOL_CONTRACT_SNAPSHOT",
+                "CONTRACT_PREFLIGHT",
+                "REFRESH_CATALOG_IF_STALE",
+                "APPLY_EXECUTION_EXTENSIONS",
+                "INVOKE_PROVIDER",
+                "REPAIR_RESULT_IF_REQUIRED",
+                "CONTRACT_POSTFLIGHT",
+                "ASSEMBLE_RESULT"
+              ],
+              "route": "INTERNAL",
+              "toolDiscovered": true,
+              "providerId": "local-mcp-tool-registry",
+              "remoteToolName": "tpl_212b88329a673657979943bbeaa7479b",
+              "repairApplied": false
+            }
+          }
+        },
+        "toolExecutionTimeMs": 6663
+      }
+    },
+    {
+      "type": "lifecycle",
+      "source": "agent_lifecycle",
+      "content": "Template selection decision returned.",
+      "metadata": {
+        "type": "lifecycle",
+        "workflow": "agent_problem_solving",
+        "lifecyclePhase": "model_inference",
+        "createdAt": 1793469980871,
+        "eventKind": "MODEL_INFERENCE",
+        "eventState": "COMPLETED",
+        "modelPhase": "template_selection_and_binding",
+        "stepId": 1,
+        "toolName": "mcp_chatchat_mcp_server_tpcds_python_20261101_template_query",
+        "selectionStatus": "PARAMETERS_REQUIRED",
+        "modelMetrics": {
+          "selectionDurationMs": 60826,
+          "selectionOutputTokens": 3526,
+          "selectionInputTokens": 1165,
+          "selectionUsageKnownCalls": 1,
+          "selectionModelCalls": 1,
+          "selectionModelDurationMs": 60789,
+          "selectionUsageAvailable": true
+        },
+        "structuredRuntimeObservation": true
+      }
+    },
+    {
+      "type": "tool_failure",
+      "source": "mcp_chatchat_mcp_server_tpcds_python_20261101_template_query",
+      "content": "InterpretationPlan step 1 mcp_chatchat_mcp_server_tpcds_python_20261101_template_query failed: Data supply selection could not be completed: PARAMETERS_REQUIRED: No selected invocation has valid executable parameters",
+      "metadata": {
+        "structuredRuntimeObservation": true,
+        "workflow": "interpretation_plan",
+        "protocolVersion": "interpretation_execution_protocol_v1",
+        "executionTraceId": "att-1-c02d392a-e89e-41b0-ac67-040fe967ef85::interpretation_plan",
+        "workflowExecutionAttempt": 0,
+        "planExecutionScope": "att-1-c02d392a-e89e-41b0-ac67-040fe967ef85::attempt:0",
+        "evidenceIteration": 1,
+        "lifecyclePhase": "observation",
+        "interpretationPlanStepId": 1,
+        "evidenceId": "iteration:1:step:1:tool:mcp_chatchat_mcp_server_tpcds_python_20261101_template_query",
+        "interpretationPlanActionType": "mcp_tool",
+        "toolName": "mcp_chatchat_mcp_server_tpcds_python_20261101_template_query",
+        "planStepDefinitionFingerprint": "WXkQFJ7tzo44yvGNeK7TYm1BrkaGL7V6mTgq9yxqO2Q",
+        "success": false,
+        "durationMs": 61668,
+        "type": "tool_failure",
+        "errorMessage": "Data supply selection could not be completed: PARAMETERS_REQUIRED: No selected invocation has valid executable parameters",
+        "resolvedInput": {
+          "query": "TPCDS门店销售年度月度对账",
+          "filters": {
+            "env": "DEV"
+          }
+        },
+        "toolResultReviewEnabled": true,
+        "localDecisionPhase": "fact_check",
+        "localFactCheckSatisfied": true,
+        "localFactCheckReason": "typed template discovery returned non-empty template metadata",
+        "localFactCheckHasEvidence": true,
+        "templateDiscoveryReturnedCount": 1,
+        "templateDiscoveryStepId": 1,
+        "localFactCheckEvidenceType": "template_discovery",
+        "toolResultReviewMaxAttempts": 1,
+        "toolResultReviewSatisfied": true,
+        "toolResultReviewReason": "Model selection status: PARAMETERS_REQUIRED",
+        "toolResultReviewAttempts": 1,
+        "modelSelectedTemplateIds": [
+          "495b9f07-1df1-4b34-b121-e871a3ede1fe"
+        ],
+        "selectionInputTokens": 1165,
+        "toolResultReviewMode": "MODEL_SELECTION_AND_BINDING",
+        "selectionOutputTokens": 3526,
+        "selectionDurationMs": 60826,
+        "mcpDiscoverySucceeded": true,
+        "selectedTemplateIds": [
+          "495b9f07-1df1-4b34-b121-e871a3ede1fe"
+        ],
+        "toolResultReviewModelCalls": 1,
+        "selectionModelCalls": 1,
+        "selectionModelDurationMs": 60789,
+        "candidateSelectionErrorCode": "PARAMETERS_REQUIRED",
+        "selectionUsageAvailable": true,
+        "candidateDecisionOwner": "MODEL",
+        "candidateSelectionError": "No selected invocation has valid executable parameters",
+        "parameterBindingMode": "model_selection_and_binding",
+        "toolResultReviewUnavailable": false,
+        "candidateSelectionStatus": "PARAMETERS_REQUIRED",
+        "parameterProtocols": [
+          {
+            "arguments": {
+              "sales_year": {
+                "evidence": {
+                  "quote": "布的年度与月度门店销售数据服务，分析商品主键1在1999-01-01至1999-12-31的销售对账。月",
+                  "generated_by": "native_function_calling"
+                },
+                "value": 1999,
+                "source": "user_query"
+              }
+            },
+            "protocol_version": "template_parameter_protocol_v2",
+            "generation_mode": "native_function_calling",
+            "unmapped_constraints": [
+              "年度与月度门店销售数据服务",
+              "商品主键1",
+              "月度最低购买数量0",
+              "实际查询返回的完整记录"
+            ],
+            "binding_status": "INVALID_TOOL_ARGUMENTS",
+            "binding_error": {
+              "code": "INVALID_TOOL_ARGUMENTS",
+              "errors": [
+                {
+                  "field": "annual_rows",
+                  "errorCode": "REQUIRED_PARAMETER_MISSING",
+                  "message": "Missing required parameter",
+                  "receivedValue": null,
+                  "expectedType": "array"
+                },
+                {
+                  "field": "monthly_rows",
+                  "errorCode": "REQUIRED_PARAMETER_MISSING",
+                  "message": "Missing required parameter",
+                  "receivedValue": null,
+                  "expectedType": "array"
+                }
+              ]
+            },
+            "unresolved_parameters": [
+              "annual_rows",
+              "monthly_rows"
+            ],
+            "template_id": "495b9f07-1df1-4b34-b121-e871a3ede1fe",
+            "rejected_parameter_overrides": [],
+            "dropped_parameter_overrides": [],
+            "binding_id": "binding-1"
+          }
+        ],
+        "modelCandidateDecision": {
+          "status": "SELECTED",
+          "selections": [
+            {
+              "templateId": "495b9f07-1df1-4b34-b121-e871a3ede1fe",
+              "parameters": {
+                "sales_year": 1999
+              },
+              "parameterEvidence": {
+                "sales_year": "1999-01-01至1999-12-31"
+              },
+              "unmappedConstraints": [
+                "年度与月度门店销售数据服务",
+                "商品主键1",
+                "月度最低购买数量0",
+                "实际查询返回的完整记录"
+              ]
+            }
+          ],
+          "reason": "Template matches the requested TPCDS store sales annual and monthly reconciliation logic. sales_year is reliably mapped to 1999. The actual annual_rows and monthly_rows data, along with specific SQL query filters (product key 1, minimum quantity 0), are unmapped as they depend on external database service execution and are not provided directly in the prompt."
+        },
+        "selectionUsageKnownCalls": 1,
+        "runtimeTemplateSelectionApplied": true,
+        "runtimeTemplateCandidateCount": 1,
+        "runtimeTemplateSelectedCount": 1,
+        "runtimeSelectedTemplateIds": [
+          "495b9f07-1df1-4b34-b121-e871a3ede1fe"
+        ],
+        "runtimeTemplateCandidateEvaluations": [],
+        "runtimeTemplateSelectionReason": "TEMPLATE_PARAMETERS_REQUIRED: [495b9f07-1df1-4b34-b121-e871a3ede1fe]",
+        "templateMatchAnalysis": {
+          "pageRef": {
+            "hasMore": false
+          },
+          "templateMatches": [
+            {
+              "templateId": "495b9f07-1df1-4b34-b121-e871a3ede1fe",
+              "decision": "ACCEPT"
+            }
+          ],
+          "selectedTemplateIds": [
+            "495b9f07-1df1-4b34-b121-e871a3ede1fe"
+          ],
+          "schemaVersion": "template_match_analysis.v2",
+          "businessGroups": [],
+          "candidateEvaluations": [],
+          "excludedTemplates": [],
+          "event": "BUSINESS_TEMPLATE_REQUIREMENT_MATCHING",
+          "userQuestion": "请通过248测试数据库tpcds已发布的年度与月度门店销售数据服务，分析商品主键1在1999-01-01至1999-12-31的销售对账。月度最低购买数量0，品类不限。使用已发布的TPCDS门店销售年度月度对账Python服务处理实际查询返回的完整记录，返回程序实际计算的净收款、利润、数量、口径差额、覆盖月份与月度趋势数据，并说明限制。",
+          "excludedTemplateIds": [],
+          "selectionAuthority": "MODEL",
+          "globalAnalysisContext": {
+            "completedEvidence": [],
+            "contextRole": "TEMPLATE_REQUIREMENT_ADMISSION_INPUT",
+            "candidateDiscovery": {
+              "returnedCandidateCount": 1,
+              "toolName": "mcp_chatchat_mcp_server_tpcds_python_20261101_template_query",
+              "stepId": 1
+            },
+            "planIntent": {
+              "type": "data_query",
+              "goal": "基于真实SQL年度与月度门店销售数据，通过Python对账模板计算商品1在1999年的净收款、利润、数量、口径差额及月度趋势",
+              "risk_level": "low"
+            }
+          },
+          "retrievalOutcome": "PARAMS_UNRESOLVABLE",
+          "objectType": "TEMPLATE_MATCH_ANALYSIS"
+        },
+        "templateCoverageDecision": null,
+        "templateRetrievalOutcome": "PARAMS_UNRESOLVABLE",
+        "templateDiscoveryContinuationRequired": false,
+        "templateDiscoveryTerminal": false,
+        "semanticCandidateReviewSatisfied": false,
+        "semanticCandidateReviewError": "PARAMETERS_REQUIRED: No selected invocation has valid executable parameters",
+        "stepOutput": {
+          "schemaVersion": "mcp_analysis_payload.v1",
+          "requestId": "31c92c6e-8fc8-4297-b364-70d48266a602",
+          "serviceId": "chatchat-mcp-server",
+          "toolName": "mcp_chatchat_mcp_server_tpcds_python_20261101_template_query",
+          "status": "SUCCESS",
+          "resultKind": "RAW_RECORDS",
+          "resultSchemaRef": "template_query_result.v1",
+          "provenance": {
+            "sourceRef": "mcp://chatchat-mcp-server/tpcds_python_20261101_template_query",
+            "dataVersion": "da810e5e883586f0d8d685ae",
+            "asOf": "2026-10-31T18:05:19.766120908Z",
+            "inputFingerprint": "32ad97940d236e8a42a54f67ef16639d2773cac3b5ae7129449a599351bbafdd",
+            "rowRange": {
+              "offset": 0,
+              "count": 1
+            },
+            "filterSummary": {
+              "scopeMode": "FIXED_BINDING",
+              "candidateUniverseCount": 1
+            }
+          },
+          "pagination": {
+            "nextPageToken": null,
+            "hasMore": false,
+            "pageSize": 20,
+            "returnedCount": 1
+          },
+          "completeness": {
+            "repairApplied": false,
+            "complete": true,
+            "status": "SUCCESS"
+          },
+          "data": {
+            "selectionMode": "BOUND_SCOPE_RECALL",
+            "pagination": {
+              "offset": 0,
+              "limit": 20,
+              "hasMore": false,
+              "nextPageToken": null,
+              "pageSize": 20,
+              "returnedCount": 1,
+              "nextCursor": null
+            },
+            "resultSchemaRef": "template_query_result.v1",
+            "publicationScope": {
+              "configuredAssetTypes": [
+                "python_runtime"
+              ],
+              "configuredTemplateCount": 1,
+              "parentToolNames": [
+                "python_analysis_query"
+              ],
+              "serviceId": "chatchat-mcp-server",
+              "roleBound": true,
+              "policyVersion": "da810e5e883586f0d8d685ae"
+            },
+            "schemaVersion": "template_query_result.v1",
+            "resultKind": "RAW_RECORDS",
+            "semanticReviewRequired": true,
+            "success": true,
+            "filterAudit": {
+              "retrievalSignalCount": 1,
+              "policyCacheHit": false,
+              "unavailableOrUnauthorizedCount": 0,
+              "policyResolvedAt": "2026-10-31T18:05:19.766120908Z",
+              "candidateCount": 1,
+              "returnedCount": 1
+            },
+            "bindingComplete": true,
+            "rawExecutionSpecReturned": false,
+            "candidateUniverseCount": 1,
+            "boundScopeRecallPerformed": true,
+            "provenance": {
+              "asOf": "2026-10-31T18:05:19.766120908Z",
+              "sourceRef": "mcp://chatchat-mcp-server/tpcds_python_20261101_template_query",
+              "rowRange": {
+                "offset": 0,
+                "count": 1
+              },
+              "dataVersion": "da810e5e883586f0d8d685ae",
+              "filterSummary": {
+                "scopeMode": "FIXED_BINDING",
+                "candidateUniverseCount": 1
+              }
+            },
+            "resultEntityKind": "template",
+            "hasMore": false,
+            "globalSearchPerformed": false,
+            "scopeMode": "FIXED_BINDING",
+            "returnedCount": 1,
+            "toolName": "tpcds_python_20261101_template_query",
+            "templates": [
+              {
+                "description": "接收年度服务完整annual_rows与月度服务完整monthly_rows，使用Decimal计算年度净收款、利润、月度合计、差额和数量，输出覆盖月份、缺失月份及Plotly趋势数据。CHATCHAT_INPUT_JSON；stdout为tpcds_reconciliation.v1 JSON。不能把模板发现当作查询结果，不推断币种，不把缺少月份补零或将筛选差额认定数据库错误。",
+                "templateId": "495b9f07-1df1-4b34-b121-e871a3ede1fe",
+                "assetType": "python_runtime",
+                "businessCategoryCode": "retail_analysis",
+                "title": "TPCDS门店销售年度月度对账20261101",
+                "exists": true,
+                "selectionSource": "template_query_binding",
+                "businessCategoryName": "retail_analysis",
+                "category": "retail_analysis",
+                "parameterSchema": {
+                  "type": "object",
+                  "properties": {
+                    "annual_rows": {
+                      "type": "array",
+                      "minItems": 1,
+                      "maxItems": 100,
+                      "items": {
+                        "type": "object"
+                      },
+                      "description": "年度SQL服务实际返回的完整rows，不是工具列表或说明"
+                    },
+                    "monthly_rows": {
+                      "type": "array",
+                      "minItems": 1,
+                      "maxItems": 100,
+                      "items": {
+                        "type": "object"
+                      },
+                      "description": "月度SQL服务实际返回的完整rows，保留实际数值及字段"
+                    },
+                    "sales_year": {
+                      "type": "integer",
+                      "default": 1999,
+                      "minimum": 1900,
+                      "maximum": 2100
+                    }
+                  },
+                  "required": [
+                    "annual_rows",
+                    "monthly_rows"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            ],
+            "runtimeTemplateSelection": {
+              "selectionAuthority": "model_selection_validated",
+              "selectedCount": 1,
+              "deferredTemplateIds": [],
+              "selectedTemplateIds": [
+                "495b9f07-1df1-4b34-b121-e871a3ede1fe"
+              ],
+              "mcpScoresAreWeakPriors": true,
+              "candidateEvaluations": [],
+              "rejectedTemplateIds": [],
+              "schemaVersion": "runtime_template_selection.v2",
+              "candidateCount": 1,
+              "reviewedInvocations": [
+                {
+                  "templateId": "495b9f07-1df1-4b34-b121-e871a3ede1fe",
+                  "arguments": {
+                    "templateId": "495b9f07-1df1-4b34-b121-e871a3ede1fe",
+                    "parameterProtocol": {
+                      "arguments": {
+                        "sales_year": {
+                          "evidence": {
+                            "quote": "布的年度与月度门店销售数据服务，分析商品主键1在1999-01-01至1999-12-31的销售对账。月",
+                            "generated_by": "native_function_calling"
+                          },
+                          "value": 1999,
+                          "source": "user_query"
+                        }
+                      },
+                      "protocol_version": "template_parameter_protocol_v2",
+                      "generation_mode": "native_function_calling",
+                      "unmapped_constraints": [
+                        "年度与月度门店销售数据服务",
+                        "商品主键1",
+                        "月度最低购买数量0",
+                        "实际查询返回的完整记录"
+                      ],
+                      "binding_status": "INVALID_TOOL_ARGUMENTS",
+                      "binding_error": {
+                        "code": "INVALID_TOOL_ARGUMENTS",
+                        "errors": [
+                          {
+                            "field": "annual_rows",
+                            "errorCode": "REQUIRED_PARAMETER_MISSING",
+                            "message": "Missing required parameter",
+                            "receivedValue": null,
+                            "expectedType": "array"
+                          },
+                          {
+                            "field": "monthly_rows",
+                            "errorCode": "REQUIRED_PARAMETER_MISSING",
+                            "message": "Missing required parameter",
+                            "receivedValue": null,
+                            "expectedType": "array"
+                          }
+                        ]
+                      },
+                      "unresolved_parameters": [
+                        "annual_rows",
+                        "monthly_rows"
+                      ],
+                      "template_id": "495b9f07-1df1-4b34-b121-e871a3ede1fe",
+                      "rejected_parameter_overrides": [],
+                      "dropped_parameter_overrides": [],
+                      "binding_id": "binding-1"
+                    }
+                  },
+                  "bindingId": "binding-1"
+                }
+              ],
+              "templateMatchAnalysis": {
+                "pageRef": {
+                  "hasMore": false
+                },
+                "templateMatches": [
+                  {
+                    "templateId": "495b9f07-1df1-4b34-b121-e871a3ede1fe",
+                    "decision": "ACCEPT"
+                  }
+                ],
+                "selectedTemplateIds": [
+                  "495b9f07-1df1-4b34-b121-e871a3ede1fe"
+                ],
+                "schemaVersion": "template_match_analysis.v2",
+                "businessGroups": [],
+                "candidateEvaluations": [],
+                "excludedTemplates": [],
+                "event": "BUSINESS_TEMPLATE_REQUIREMENT_MATCHING",
+                "userQuestion": "请通过248测试数据库tpcds已发布的年度与月度门店销售数据服务，分析商品主键1在1999-01-01至1999-12-31的销售对账。月度最低购买数量0，品类不限。使用已发布的TPCDS门店销售年度月度对账Python服务处理实际查询返回的完整记录，返回程序实际计算的净收款、利润、数量、口径差额、覆盖月份与月度趋势数据，并说明限制。",
+                "excludedTemplateIds": [],
+                "selectionAuthority": "MODEL",
+                "globalAnalysisContext": {
+                  "completedEvidence": [],
+                  "contextRole": "TEMPLATE_REQUIREMENT_ADMISSION_INPUT",
+                  "candidateDiscovery": {
+                    "returnedCandidateCount": 1,
+                    "toolName": "mcp_chatchat_mcp_server_tpcds_python_20261101_template_query",
+                    "stepId": 1
+                  },
+                  "planIntent": {
+                    "type": "data_query",
+                    "goal": "基于真实SQL年度与月度门店销售数据，通过Python对账模板计算商品1在1999年的净收款、利润、数量、口径差额及月度趋势",
+                    "risk_level": "low"
+                  }
+                },
+                "retrievalOutcome": "PARAMS_UNRESOLVABLE",
+                "objectType": "TEMPLATE_MATCH_ANALYSIS"
+              }
+            }
+          },
+          "rawData": {
+            "selectionMode": "BOUND_SCOPE_RECALL",
+            "pagination": {
+              "offset": 0,
+              "limit": 20,
+              "hasMore": false,
+              "nextPageToken": null,
+              "pageSize": 20,
+              "returnedCount": 1,
+              "nextCursor": null
+            },
+            "resultSchemaRef": "template_query_result.v1",
+            "publicationScope": {
+              "configuredAssetTypes": [
+                "python_runtime"
+              ],
+              "configuredTemplateCount": 1,
+              "parentToolNames": [
+                "python_analysis_query"
+              ],
+              "serviceId": "chatchat-mcp-server",
+              "roleBound": true,
+              "policyVersion": "da810e5e883586f0d8d685ae"
+            },
+            "schemaVersion": "template_query_result.v1",
+            "resultKind": "RAW_RECORDS",
+            "semanticReviewRequired": true,
+            "success": true,
+            "filterAudit": {
+              "retrievalSignalCount": 1,
+              "policyCacheHit": false,
+              "unavailableOrUnauthorizedCount": 0,
+              "policyResolvedAt": "2026-10-31T18:05:19.766120908Z",
+              "candidateCount": 1,
+              "returnedCount": 1
+            },
+            "bindingComplete": true,
+            "rawExecutionSpecReturned": false,
+            "candidateUniverseCount": 1,
+            "boundScopeRecallPerformed": true,
+            "provenance": {
+              "asOf": "2026-10-31T18:05:19.766120908Z",
+              "sourceRef": "mcp://chatchat-mcp-server/tpcds_python_20261101_template_query",
+              "rowRange": {
+                "offset": 0,
+                "count": 1
+              },
+              "dataVersion": "da810e5e883586f0d8d685ae",
+              "filterSummary": {
+                "scopeMode": "FIXED_BINDING",
+                "candidateUniverseCount": 1
+              }
+            },
+            "resultEntityKind": "template",
+            "hasMore": false,
+            "globalSearchPerformed": false,
+            "scopeMode": "FIXED_BINDING",
+            "returnedCount": 1,
+            "toolName": "tpcds_python_20261101_template_query",
+            "templates": [
+              {
+                "description": "接收年度服务完整annual_rows与月度服务完整monthly_rows，使用Decimal计算年度净收款、利润、月度合计、差额和数量，输出覆盖月份、缺失月份及Plotly趋势数据。CHATCHAT_INPUT_JSON；stdout为tpcds_reconciliation.v1 JSON。不能把模板发现当作查询结果，不推断币种，不把缺少月份补零或将筛选差额认定数据库错误。",
+                "templateId": "495b9f07-1df1-4b34-b121-e871a3ede1fe",
+                "assetType": "python_runtime",
+                "businessCategoryCode": "retail_analysis",
+                "title": "TPCDS门店销售年度月度对账20261101",
+                "exists": true,
+                "selectionSource": "template_query_binding",
+                "businessCategoryName": "retail_analysis",
+                "category": "retail_analysis",
+                "parameterSchema": {
+                  "type": "object",
+                  "properties": {
+                    "annual_rows": {
+                      "type": "array",
+                      "minItems": 1,
+                      "maxItems": 100,
+                      "items": {
+                        "type": "object"
+                      },
+                      "description": "年度SQL服务实际返回的完整rows，不是工具列表或说明"
+                    },
+                    "monthly_rows": {
+                      "type": "array",
+                      "minItems": 1,
+                      "maxItems": 100,
+                      "items": {
+                        "type": "object"
+                      },
+                      "description": "月度SQL服务实际返回的完整rows，保留实际数值及字段"
+                    },
+                    "sales_year": {
+                      "type": "integer",
+                      "default": 1999,
+                      "minimum": 1900,
+                      "maximum": 2100
+                    }
+                  },
+                  "required": [
+                    "annual_rows",
+                    "monthly_rows"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            ]
+          },
+          "runtimeMetadata": {
+            "resultKind": "RAW_RECORDS",
+            "resultSchemaRef": "template_query_result.v1",
+            "provenance": {
+              "asOf": "2026-10-31T18:05:19.766120908Z",
+              "sourceRef": "mcp://chatchat-mcp-server/tpcds_python_20261101_template_query",
+              "rowRange": {
+                "offset": 0,
+                "count": 1
+              },
+              "dataVersion": "da810e5e883586f0d8d685ae",
+              "filterSummary": {
+                "scopeMode": "FIXED_BINDING",
+                "candidateUniverseCount": 1
+              }
+            },
+            "pagination": {
+              "offset": 0,
+              "limit": 20,
+              "hasMore": false,
+              "nextPageToken": null,
+              "pageSize": 20,
+              "returnedCount": 1,
+              "nextCursor": null
+            },
+            "preflightAudit": {
+              "schemaVersion": "mcp_contract_audit.v1",
+              "compliant": true,
+              "evidence": [
+                {
+                  "serviceId": "chatchat-mcp-server",
+                  "toolName": "mcp_chatchat_mcp_server_tpcds_python_20261101_template_query",
+                  "domainCode": "generic",
+                  "domainContractId": "runtime-os/generic-mcp-service",
+                  "domainContractVersion": "mcp_domain_contract.v1",
+                  "observedContract": {
+                    "serviceId": "chatchat-mcp-server",
+                    "localToolName": "mcp_chatchat_mcp_server_tpcds_python_20261101_template_query",
+                    "remoteToolName": "tpcds_python_20261101_template_query",
+                    "description": "发现已验证的TPCDS年度月度销售对账Python模板。该连接只发现模板；必须通过Runtime Python执行器取得真实执行回执。\n\nAgent-selectable child capability representing a fixed, system-maintained template set. It is never executed directly: Runtime delegates it to the declared parent toolbox, which returns this child's bound template information and parameter contracts without another search. The result scope is fixed by the authenticated MCP service and caller roles. It only returns templates selected in Template Query Publication administration and never returns raw commands, SQL, URLs, headers, request bodies, credentials, or other execution specifications. An explicitly published dataSupplyPolicy admits parameter-free bound templates as a Runtime-managed baseline; parameterized templates retain controlled schema binding. Discovery metadata is not business evidence, and analytical relevance and coverage remain with the analysis graph.",
+                    "capabilityCode": "template_discovery",
+                    "inputSchema": {
+                      "additionalProperties": false,
+                      "type": "object",
+                      "properties": {
+                        "query": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "query"
+                      ]
+                    },
+                    "outputSchema": {
+                      "additionalProperties": true,
+                      "properties": {},
+                      "type": "object"
+                    },
+                    "governance": {
+                      "riskLevel": "low",
+                      "operationType": "read",
+                      "runtimeLevel": "discovery",
+                      "confirmation": null,
+                      "permissions": null
+                    },
+                    "metadata": {
+                      "outputPolicy": {
+                        "raw_execution_spec": false,
+                        "only_selected_templates": true,
+                        "maximum_templates": 20
+                      },
+                      "workflowContract": {
+                        "workflowRole": "TEMPLATE_DISCOVERY",
+                        "protocolFamily": "mcp.authorized-template-query.v1",
+                        "inputEnvelope": "filters",
+                        "schemaVersion": "tool_workflow_contract.v1",
+                        "resultEntityKind": "template"
+                      },
+                      "operationType": "read",
+                      "scopeMode": "FIXED_BINDING",
+                      "output_policy": {
+                        "raw_execution_spec": false,
+                        "only_selected_templates": true,
+                        "maximum_templates": 20
+                      },
+                      "data_scope": "service_role_template_binding",
+                      "inputPolicy": {
+                        "allow_raw_command": false,
+                        "allow_raw_sql": false,
+                        "allow_raw_http_spec": false,
+                        "allow_template_scope_override": false
+                      },
+                      "toolVersion": "1.0.0",
+                      "rawExecutionSpecReturned": false,
+                      "dataScope": "service_role_template_binding",
+                      "assetType": "python_runtime",
+                      "riskLevel": "low",
+                      "permission": {
+                        "mode": "service_and_role_binding",
+                        "deny_unbound": true,
+                        "scope_source": "server_managed_template_query_binding"
+                      },
+                      "input_policy": {
+                        "allow_raw_command": false,
+                        "allow_raw_sql": false,
+                        "allow_raw_http_spec": false,
+                        "allow_template_scope_override": false
+                      },
+                      "applicability": {
+                        "descriptiveOnly": true,
+                        "scopeId": "template_query:authorized_discovery",
+                        "schemaVersion": "tool_applicability.v1",
+                        "summary": "Recall relevant candidates only inside the fixed templates bound to the authenticated service and caller role.",
+                        "useWhen": [
+                          "Resolve a bounded page of bound templates and their current parameter contracts for Runtime review."
+                        ],
+                        "scopeLabel": "Authorized template discovery",
+                        "backendServiceTypes": [
+                          "template_discovery",
+                          "service_role_scope"
+                        ],
+                        "notFor": [
+                          "Executing templates",
+                          "Changing governance",
+                          "Expanding publication scope"
+                        ],
+                        "maySelectOrReplaceTool": false
+                      },
+                      "sourceId": "system-managed",
+                      "user_visible": true,
+                      "category": "template_discovery",
+                      "breakingChangeApproved": true,
+                      "resultEntityKind": "template",
+                      "readOnly": true,
+                      "schemaVersion": "template_query.v1",
+                      "controlPlane": "server_managed",
+                      "resultSchemaRef": "template_query_result.v1",
+                      "templateSelectionScope": {
+                        "contractVersion": "mcp.template-selection-scope.v1",
+                        "assetType": "python_runtime",
+                        "selectionMode": "FIXED_BINDING",
+                        "authoritative": true
+                      },
+                      "permissions": {
+                        "mode": "service_and_role_binding",
+                        "deny_unbound": true,
+                        "scope_source": "server_managed_template_query_binding"
+                      },
+                      "resultKind": "RAW_RECORDS",
+                      "mcpDynamicCapabilityRoute": {
+                        "contractVersion": "mcp.dynamic-capability-route.v1",
+                        "parentToolName": "python_analysis_query",
+                        "implementationIdentityArgument": "_templateQueryChildToolName",
+                        "routingMode": "parent_delegation"
+                      },
+                      "runtime_level": "discovery",
+                      "releaseId": "63028326-4194-4921-b1cf-a2ac7a713b6f",
+                      "mcp_tool_limit": {
+                        "tool_name": "tpcds_python_20261101_template_query",
+                        "max_concurrency": 8,
+                        "timeout_seconds": 90,
+                        "queue_size": 128,
+                        "queue_timeout_seconds": 10,
+                        "runtime_level": "discovery",
+                        "max_output_chars": -1,
+                        "output_control": "template_or_remote_command",
+                        "retry_attempts": 0,
+                        "failure_threshold": 5,
+                        "circuit_open_seconds": 30
+                      },
+                      "operation_type": "read",
+                      "userVisible": true,
+                      "audit": {
+                        "enabled": true
+                      },
+                      "governance": {
+                        "category": "template_discovery",
+                        "operation_type": "read",
+                        "runtime_level": "discovery",
+                        "risk_level": "low",
+                        "data_scope": "service_role_template_binding",
+                        "user_visible": true,
+                        "confirmation": {
+                          "default": "auto_execute",
+                          "allow_user_override": false
+                        },
+                        "permission": {
+                          "mode": "service_and_role_binding",
+                          "deny_unbound": true,
+                          "scope_source": "server_managed_template_query_binding"
+                        },
+                        "input_policy": {
+                          "allow_raw_command": false,
+                          "allow_raw_sql": false,
+                          "allow_raw_http_spec": false,
+                          "allow_template_scope_override": false
+                        },
+                        "output_policy": {
+                          "raw_execution_spec": false,
+                          "only_selected_templates": true,
+                          "maximum_templates": 20
+                        },
+                        "audit": {
+                          "enabled": true
+                        }
+                      },
+                      "routingMode": "parent_delegation",
+                      "logicalToolId": "29d35a65-04ff-49ac-b9fd-3ef52eb429c7",
+                      "publicationStatus": "active",
+                      "confirmation": {
+                        "default": "auto_execute",
+                        "allow_user_override": false
+                      },
+                      "selectionMode": "BOUND_SCOPE_RECALL",
+                      "risk_level": "low",
+                      "governanceEditable": false,
+                      "source": "template_query_publication",
+                      "runtimeAction": "read_only",
+                      "runtimeLevel": "discovery",
+                      "data_type": "TEMPLATE_QUERY",
+                      "chineseAlias": "TPCDS Python对账服务20261101",
+                      "visibleTenantIds": [],
+                      "rolloutLabels": [],
+                      "rolloutPercentage": 100,
+                      "contractVersion": "mcp_tool_contract.v1"
+                    },
+                    "resultKind": "RAW_RECORDS",
+                    "resultSchemaRef": "template_query_result.v1",
+                    "paginationSupported": false
+                  },
+                  "satisfiedPaths": [
+                    "INPUT_SCHEMA:type",
+                    "OUTPUT_SCHEMA:type",
+                    "GOVERNANCE:riskLevel",
+                    "METADATA:contractVersion"
+                  ],
+                  "missingPaths": [],
+                  "normalizedResultAvailable": false,
+                  "rawResultAvailable": false
+                }
+              ],
+              "findings": [],
+              "findingCounts": {},
+              "auditedAt": 1793469919389
+            },
+            "postflightAudit": {
+              "schemaVersion": "mcp_contract_audit.v1",
+              "compliant": true,
+              "evidence": [
+                {
+                  "serviceId": "chatchat-mcp-server",
+                  "toolName": "mcp_chatchat_mcp_server_tpcds_python_20261101_template_query",
+                  "domainCode": "generic",
+                  "domainContractId": "runtime-os/generic-mcp-service",
+                  "domainContractVersion": "mcp_domain_contract.v1",
+                  "observedContract": {
+                    "serviceId": "chatchat-mcp-server",
+                    "localToolName": "mcp_chatchat_mcp_server_tpcds_python_20261101_template_query",
+                    "remoteToolName": "tpcds_python_20261101_template_query",
+                    "description": "发现已验证的TPCDS年度月度销售对账Python模板。该连接只发现模板；必须通过Runtime Python执行器取得真实执行回执。\n\nAgent-selectable child capability representing a fixed, system-maintained template set. It is never executed directly: Runtime delegates it to the declared parent toolbox, which returns this child's bound template information and parameter contracts without another search. The result scope is fixed by the authenticated MCP service and caller roles. It only returns templates selected in Template Query Publication administration and never returns raw commands, SQL, URLs, headers, request bodies, credentials, or other execution specifications. An explicitly published dataSupplyPolicy admits parameter-free bound templates as a Runtime-managed baseline; parameterized templates retain controlled schema binding. Discovery metadata is not business evidence, and analytical relevance and coverage remain with the analysis graph.",
+                    "capabilityCode": "template_discovery",
+                    "inputSchema": {
+                      "additionalProperties": false,
+                      "type": "object",
+                      "properties": {
+                        "query": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "query"
+                      ]
+                    },
+                    "outputSchema": {
+                      "additionalProperties": true,
+                      "properties": {},
+                      "type": "object"
+                    },
+                    "governance": {
+                      "riskLevel": "low",
+                      "operationType": "read",
+                      "runtimeLevel": "discovery",
+                      "confirmation": null,
+                      "permissions": null
+                    },
+                    "metadata": {
+                      "outputPolicy": {
+                        "raw_execution_spec": false,
+                        "only_selected_templates": true,
+                        "maximum_templates": 20
+                      },
+                      "workflowContract": {
+                        "workflowRole": "TEMPLATE_DISCOVERY",
+                        "protocolFamily": "mcp.authorized-template-query.v1",
+                        "inputEnvelope": "filters",
+                        "schemaVersion": "tool_workflow_contract.v1",
+                        "resultEntityKind": "template"
+                      },
+                      "operationType": "read",
+                      "scopeMode": "FIXED_BINDING",
+                      "output_policy": {
+                        "raw_execution_spec": false,
+                        "only_selected_templates": true,
+                        "maximum_templates": 20
+                      },
+                      "data_scope": "service_role_template_binding",
+                      "inputPolicy": {
+                        "allow_raw_command": false,
+                        "allow_raw_sql": false,
+                        "allow_raw_http_spec": false,
+                        "allow_template_scope_override": false
+                      },
+                      "toolVersion": "1.0.0",
+                      "rawExecutionSpecReturned": false,
+                      "dataScope": "service_role_template_binding",
+                      "assetType": "python_runtime",
+                      "riskLevel": "low",
+                      "permission": {
+                        "mode": "service_and_role_binding",
+                        "deny_unbound": true,
+                        "scope_source": "server_managed_template_query_binding"
+                      },
+                      "input_policy": {
+                        "allow_raw_command": false,
+                        "allow_raw_sql": false,
+                        "allow_raw_http_spec": false,
+                        "allow_template_scope_override": false
+                      },
+                      "applicability": {
+                        "descriptiveOnly": true,
+                        "scopeId": "template_query:authorized_discovery",
+                        "schemaVersion": "tool_applicability.v1",
+                        "summary": "Recall relevant candidates only inside the fixed templates bound to the authenticated service and caller role.",
+                        "useWhen": [
+                          "Resolve a bounded page of bound templates and their current parameter contracts for Runtime review."
+                        ],
+                        "scopeLabel": "Authorized template discovery",
+                        "backendServiceTypes": [
+                          "template_discovery",
+                          "service_role_scope"
+                        ],
+                        "notFor": [
+                          "Executing templates",
+                          "Changing governance",
+                          "Expanding publication scope"
+                        ],
+                        "maySelectOrReplaceTool": false
+                      },
+                      "sourceId": "system-managed",
+                      "user_visible": true,
+                      "category": "template_discovery",
+                      "breakingChangeApproved": true,
+                      "resultEntityKind": "template",
+                      "readOnly": true,
+                      "schemaVersion": "template_query.v1",
+                      "controlPlane": "server_managed",
+                      "resultSchemaRef": "template_query_result.v1",
+                      "templateSelectionScope": {
+                        "contractVersion": "mcp.template-selection-scope.v1",
+                        "assetType": "python_runtime",
+                        "selectionMode": "FIXED_BINDING",
+                        "authoritative": true
+                      },
+                      "permissions": {
+                        "mode": "service_and_role_binding",
+                        "deny_unbound": true,
+                        "scope_source": "server_managed_template_query_binding"
+                      },
+                      "resultKind": "RAW_RECORDS",
+                      "mcpDynamicCapabilityRoute": {
+                        "contractVersion": "mcp.dynamic-capability-route.v1",
+                        "parentToolName": "python_analysis_query",
+                        "implementationIdentityArgument": "_templateQueryChildToolName",
+                        "routingMode": "parent_delegation"
+                      },
+                      "runtime_level": "discovery",
+                      "releaseId": "63028326-4194-4921-b1cf-a2ac7a713b6f",
+                      "mcp_tool_limit": {
+                        "tool_name": "tpcds_python_20261101_template_query",
+                        "max_concurrency": 8,
+                        "timeout_seconds": 90,
+                        "queue_size": 128,
+                        "queue_timeout_seconds": 10,
+                        "runtime_level": "discovery",
+                        "max_output_chars": -1,
+                        "output_control": "template_or_remote_command",
+                        "retry_attempts": 0,
+                        "failure_threshold": 5,
+                        "circuit_open_seconds": 30
+                      },
+                      "operation_type": "read",
+                      "userVisible": true,
+                      "audit": {
+                        "enabled": true
+                      },
+                      "governance": {
+                        "category": "template_discovery",
+                        "operation_type": "read",
+                        "runtime_level": "discovery",
+                        "risk_level": "low",
+                        "data_scope": "service_role_template_binding",
+                        "user_visible": true,
+                        "confirmation": {
+                          "default": "auto_execute",
+                          "allow_user_override": false
+                        },
+                        "permission": {
+                          "mode": "service_and_role_binding",
+                          "deny_unbound": true,
+                          "scope_source": "server_managed_template_query_binding"
+                        },
+                        "input_policy": {
+                          "allow_raw_command": false,
+                          "allow_raw_sql": false,
+                          "allow_raw_http_spec": false,
+                          "allow_template_scope_override": false
+                        },
+                        "output_policy": {
+                          "raw_execution_spec": false,
+                          "only_selected_templates": true,
+                          "maximum_templates": 20
+                        },
+                        "audit": {
+                          "enabled": true
+                        }
+                      },
+                      "routingMode": "parent_delegation",
+                      "logicalToolId": "29d35a65-04ff-49ac-b9fd-3ef52eb429c7",
+                      "publicationStatus": "active",
+                      "confirmation": {
+                        "default": "auto_execute",
+                        "allow_user_override": false
+                      },
+                      "selectionMode": "BOUND_SCOPE_RECALL",
+                      "risk_level": "low",
+                      "governanceEditable": false,
+                      "source": "template_query_publication",
+                      "runtimeAction": "read_only",
+                      "runtimeLevel": "discovery",
+                      "data_type": "TEMPLATE_QUERY",
+                      "chineseAlias": "TPCDS Python对账服务20261101",
+                      "visibleTenantIds": [],
+                      "rolloutLabels": [],
+                      "rolloutPercentage": 100,
+                      "contractVersion": "mcp_tool_contract.v1"
+                    },
+                    "resultKind": "RAW_RECORDS",
+                    "resultSchemaRef": "template_query_result.v1",
+                    "paginationSupported": false
+                  },
+                  "satisfiedPaths": [
+                    "INPUT_SCHEMA:type",
+                    "OUTPUT_SCHEMA:type",
+                    "GOVERNANCE:riskLevel",
+                    "METADATA:contractVersion",
+                    "RAW_RESULT:$",
+                    "RESULT_CONTRACT:resultKind",
+                    "RESULT_CONTRACT:provenance"
+                  ],
+                  "missingPaths": [],
+                  "normalizedResultAvailable": true,
+                  "rawResultAvailable": true
+                }
+              ],
+              "findings": [],
+              "findingCounts": {},
+              "auditedAt": 1793469919988
+            },
+            "kernelProtocolVersion": "runtime_os_mcp_kernel.v1",
+            "discoveryRefreshAttempted": false,
+            "templateBindingValidation": {
+              "executorTool": "mcp_chatchat_mcp_server_tpcds_python_20261101_template_query",
+              "templateIdPresent": false,
+              "schemaVersion": "runtime_template_binding.v3",
+              "runtimeEvidenceValidated": false
+            },
+            "mcpExecutionWorkflow": {
+              "discoveryRefreshAttempted": false,
+              "workflowId": "execute.mcp-tool.v1",
+              "transport": "in-process",
+              "extensions": [],
+              "localToolName": "mcp_chatchat_mcp_server_tpcds_python_20261101_template_query",
+              "steps": [
+                "DISCOVER_SERVICE",
+                "DISCOVER_TOOL_TEMPLATE",
+                "VALIDATE_TEMPLATE_BINDING",
+                "VALIDATE_TOOL_CONTRACT_SNAPSHOT",
+                "CONTRACT_PREFLIGHT",
+                "REFRESH_CATALOG_IF_STALE",
+                "APPLY_EXECUTION_EXTENSIONS",
+                "INVOKE_PROVIDER",
+                "REPAIR_RESULT_IF_REQUIRED",
+                "CONTRACT_POSTFLIGHT",
+                "ASSEMBLE_RESULT"
+              ],
+              "route": "INTERNAL",
+              "toolDiscovered": true,
+              "providerId": "local-mcp-tool-registry",
+              "remoteToolName": "tpcds_python_20261101_template_query",
+              "repairApplied": false
+            }
+          }
+        },
+        "toolExecutionTimeMs": 700
+      }
+    },
+    {
+      "type": "state_update_failed",
+      "source": "interpretation_plan_state",
+      "content": "InterpretationPlan state updated after failed wave.",
+      "metadata": {
+        "structuredRuntimeObservation": true,
+        "workflow": "interpretation_plan",
+        "protocolVersion": "interpretation_execution_protocol_v1",
+        "executionTraceId": "att-1-c02d392a-e89e-41b0-ac67-040fe967ef85::interpretation_plan",
+        "workflowExecutionAttempt": 0,
+        "planExecutionScope": "att-1-c02d392a-e89e-41b0-ac67-040fe967ef85::attempt:0",
+        "lifecyclePhase": "state_update",
+        "completedPlanStepIds": [
+          1,
+          2,
+          3
+        ],
+        "remainingPlanStepIds": [
+          4,
+          5
+        ],
+        "waveStepIds": [
+          1,
+          2,
+          3
+        ],
+        "failedStepId": 1
+      }
+    },
+    {
+      "type": "text",
+      "source": "agent",
+      "content": "InterpretationPlan initial step 1 mcp_chatchat_mcp_server_tpcds_python_20261101_template_query failed: Data supply selection could not be completed: PARAMETERS_REQUIRED: No selected invocation has valid executable parameters",
+      "metadata": {
+        "legacyTextObservation": true,
+        "length": 224
+      }
+    },
+    {
+      "type": "text",
+      "source": "agent",
+      "content": "InterpretationPlan template selection feedback: {\"selectedTemplateIds\":[\"495b9f07-1df1-4b34-b121-e871a3ede1fe\"],\"runtimeSelectedTemplateIds\":[\"495b9f07-1df1-4b34-b121-e871a3ede1fe\"],\"runtimeTemplateSelectionReason\":\"TEMPLATE_PARAMETERS_REQUIRED: [495b9f07-1df1-4b34-b121-e871a3ede1fe]\",\"schemaVersion\":\"template_selection_feedback.v1\",\"stage\":\"initial\",\"stepId\":1,\"toolName\":\"mcp_chatchat_mcp_server_tpcds_python_20261101_template_query\"}",
+      "metadata": {
+        "legacyTextObservation": true,
+        "length": 438
+      }
+    },
+    {
+      "type": "text",
+      "source": "agent",
+      "content": "InterpretationPlan initial step 2 mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7 succeeded.",
+      "metadata": {
+        "legacyTextObservation": true,
+        "length": 105
+      }
+    },
+    {
+      "type": "text",
+      "source": "agent",
+      "content": "InterpretationPlan initial step 3 mcp_chatchat_mcp_server_tpl_212b88329a673657979943bbeaa7479b succeeded.",
+      "metadata": {
+        "legacyTextObservation": true,
+        "length": 105
+      }
+    },
+    {
+      "type": "analysis_operation",
+      "source": "runtime",
+      "content": "Execution node status observed",
+      "metadata": {
+        "observedAt": "2026-10-31T18:08:17.206616901Z",
+        "taskId": "analysis-coding-6154a2e46e40be52da6c24d63548ccda14c798f1fdd4fe04e0d9c104b40e69e7",
+        "eventState": "ACCEPTED",
+        "operationKind": "EXECUTION",
+        "executorStopped": false,
+        "eventKind": "ANALYSIS_OPERATION",
+        "executorConfirmed": false,
+        "operationId": "cline-38c8c9da3da615ccfc5854a1ef3fcde53bf07513629baf35773c464c2706bdd6",
+        "timeBasis": "OBSERVED_STATE"
+      }
+    }
+  ]
+}

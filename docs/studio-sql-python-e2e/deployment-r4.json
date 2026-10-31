@@ -1,0 +1,19 @@
+{
+  "status": "DEPLOYED",
+  "image": "runtime-os-api:studio-python-services-20261101-r4",
+  "sha256": "65f3adf9b1e1951f00eab8c71242114f7616bce990bdb947ebd3e2b5308d28cb",
+  "backup": "/opt/chatchat-releases/studio-python-services-20261101-r4/backup",
+  "retired": {
+    "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-studio-1793470975",
+    "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-studio-1793470975"
+  },
+  "databaseMigrationSha256": null,
+  "preservedExpiredReadOnlyTaskIds": [],
+  "unrelatedContainersUnchanged": true,
+  "conversationContentUnchanged": true,
+  "messageIndexCountUnchanged": true,
+  "images": {
+    "runtime-os-app-stage-api-1": "runtime-os-api:studio-python-services-20261101-r4"
+  },
+  "channelCounts": "SQL_STUDIO|40\nPYTHON_STUDIO|9\nPLATFORM_UI|852\nAGENT_API|194"
+}

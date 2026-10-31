@@ -1,0 +1,60 @@
+{
+  "capturedAt": "2026-10-31T17:08:13.495Z",
+  "results": [
+    {
+      "name": "changed-schema-after-success",
+      "status": "REJECTED",
+      "reason": "{\"path\":\"/data-science/python/scripts/61cdfd73-267a-4227-993e-0941a86344f3/publish\",\"status\":200,\"code\":400,\"message\":\"代码、输入 Schema 或环境已变化，请重新试运行后发布\",\"data\":null,\"timestamp\":1793466485557,\"requestId\":\"9be750bd-3caf-492f-8a25-40644fc75140\"}"
+    },
+    {
+      "name": "missing-annual",
+      "executionId": "b400260a-b41d-4559-ac4d-76efb5e355b0",
+      "status": "FAILED",
+      "exitCode": 1,
+      "stderr": "Missing annual_rows or monthly_rows input\n",
+      "inputSha256": "b7d2a3f6d0d141cff440d7a9c979594066ec094a85aa0ca309d41188fb06ab12"
+    },
+    {
+      "name": "empty-monthly",
+      "executionId": "3d4e9c0a-ecd0-4917-a5a3-13198e551ba5",
+      "status": "FAILED",
+      "exitCode": 1,
+      "stderr": "No monthly rows for sale_year=1999\n",
+      "inputSha256": "d091895a7f23ee8e618945f9d916588218d70fd7a94465d716931f1fe12ad877"
+    },
+    {
+      "name": "duplicate-month-key",
+      "executionId": "b9071186-4b4f-4bbd-86db-d36813e5492d",
+      "status": "FAILED",
+      "exitCode": 1,
+      "stderr": "Duplicate monthly key: (1999, 1, 'Music')\n",
+      "inputSha256": "828a0fe710d65a7c2a5a167e0807083adc31f9f52ee5d578178e5cd02aa9113c"
+    },
+    {
+      "name": "non-finite-amount",
+      "executionId": "778c5106-c66a-47fa-8db6-c091202e8d50",
+      "status": "FAILED",
+      "exitCode": 1,
+      "stderr": "Non-finite Decimal value: 'NaN'\n",
+      "inputSha256": "4cd24639f2e5694285358627527c46c61feed7287610cf5b5f67ebd7d8f44209"
+    },
+    {
+      "name": "invalid-month",
+      "executionId": "8fe663dd-31b8-4214-ab52-c1020cc19913",
+      "status": "FAILED",
+      "exitCode": 1,
+      "stderr": "Invalid sale_month: 13\n",
+      "inputSha256": "518ec5a15214dd2c7af8c131a89c8b54eeb61c0161835a606c95e07e7da6010b"
+    },
+    {
+      "name": "failed-trial-invalidates-success",
+      "status": "REJECTED",
+      "reason": "{\"path\":\"/data-science/python/scripts/61cdfd73-267a-4227-993e-0941a86344f3/publish\",\"status\":200,\"code\":400,\"message\":\"脚本必须先在 MCP 环境成功测试后才能发布\",\"data\":null,\"timestamp\":1793466493155,\"requestId\":\"d836d164-df2c-4672-aa22-66cf6f869427\"}"
+    }
+  ],
+  "scriptStateAfterFailures": {
+    "status": "DRAFT",
+    "lastTestSucceeded": false,
+    "lastTestEvidenceJson": null
+  }
+}

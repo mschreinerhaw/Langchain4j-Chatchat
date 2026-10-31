@@ -1,0 +1,77 @@
+{
+  "scriptId": "61cdfd73-267a-4227-993e-0941a86344f3",
+  "fileName": "tpcds_reconcile_20261101.py",
+  "ownerId": "admin",
+  "version": 1,
+  "status": "TESTED",
+  "sourceSha256": "290bdcfeea0488973bd2b7997253f9cfc6c797551de9e00ab031799e4954274b",
+  "lastTestSucceeded": true,
+  "lastTestedAt": "2026-10-31T17:08:14.233336Z",
+  "testEvidence": {
+    "schemaVersion": "python_studio_test.v1",
+    "fingerprint": {
+      "scriptId": "61cdfd73-267a-4227-993e-0941a86344f3",
+      "scriptVersion": 1,
+      "sourceSha256": "290bdcfeea0488973bd2b7997253f9cfc6c797551de9e00ab031799e4954274b",
+      "assetId": "ee158b37-c7dc-43ab-87cf-c887fa60ec71",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "annual_rows": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "items": {
+              "type": "object"
+            },
+            "description": "年度SQL服务实际返回的完整rows，不是工具列表或说明"
+          },
+          "monthly_rows": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "items": {
+              "type": "object"
+            },
+            "description": "月度SQL服务实际返回的完整rows，保留实际数值及字段"
+          },
+          "sales_year": {
+            "type": "integer",
+            "default": 1999,
+            "minimum": 1900,
+            "maximum": 2100
+          }
+        },
+        "required": [
+          "annual_rows",
+          "monthly_rows"
+        ],
+        "additionalProperties": false
+      },
+      "environment": {
+        "id": "b1068ad2-7b8d-4fb0-9230-316c86c596a4",
+        "name": "数据科学 Python 3.11 标准环境",
+        "description": "用于数据分析脚本开发、调试与 MCP 模板隔离执行。",
+        "dockerImage": "chatchat-python-runtime:3.11-v1.2-fonts-r2-20261022",
+        "pythonVersion": "3.11",
+        "cpuLimit": "2",
+        "memoryLimit": "4g",
+        "diskLimit": "2g",
+        "tmpfsLimit": "512m",
+        "runtimeUser": "10001:10001",
+        "networkPolicy": "NONE",
+        "networkName": "",
+        "requirementsJson": "[\"numpy==1.26.4\",\"pandas==2.2.3\",\"scipy==1.14.1\",\"scikit-learn==1.5.2\",\"pyarrow==17.0.0\",\"openpyxl==3.1.5\",\"requests==2.32.3\",\"pydantic==2.9.2\",\"matplotlib==3.9.2\",\"SQLAlchemy==2.0.36\",\"PyMySQL==1.1.1\",\"psycopg==3.2.3\",\"oracledb==2.5.1\"]",
+        "timeoutSeconds": 300,
+        "networkEnabled": false,
+        "versionNumber": 7,
+        "status": "PUBLISHED"
+      }
+    },
+    "executionId": "48bbd8c0-aa8b-4349-b8c4-1c2125ebdc92",
+    "testedAt": "2026-10-31T17:08:14.233335929Z",
+    "exitCode": 0,
+    "parametersSha256": "893609ec66b8db6fdd859556f311bc67f6c24f3154b26b012536dad7e4df34f9",
+    "stdoutSha256": "4847884806bdb031245ad5ffd41de7315a563eb708a2f1332cfa2be3a48a173b"
+  }
+}

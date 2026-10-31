@@ -1,0 +1,30 @@
+[
+  {
+    "toolName": "mcp_chatchat_mcp_server_python_template_execute",
+    "riskLevel": "low",
+    "operationType": "read",
+    "runtimeLevel": "readonly",
+    "defaultAction": "auto_execute"
+  },
+  {
+    "toolName": "mcp_chatchat_mcp_server_tpcds_python_20261101_template_query",
+    "riskLevel": "low",
+    "operationType": "read",
+    "runtimeLevel": "readonly",
+    "defaultAction": "auto_execute"
+  },
+  {
+    "toolName": "mcp_chatchat_mcp_server_tpl_212b88329a673657979943bbeaa7479b",
+    "riskLevel": "low",
+    "operationType": "execute",
+    "runtimeLevel": "readonly",
+    "defaultAction": "auto_execute"
+  },
+  {
+    "toolName": "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+    "riskLevel": "low",
+    "operationType": "execute",
+    "runtimeLevel": "readonly",
+    "defaultAction": "auto_execute"
+  }
+]

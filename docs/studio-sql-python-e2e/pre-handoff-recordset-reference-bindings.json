@@ -1,0 +1,64 @@
+{
+  "taskId": "433b09b2-6287-34c5-8523-bbac8c3acdfb",
+  "runId": "att-1-ceb60d39-a469-4836-b714-06f34b85caaa",
+  "stepId": 5,
+  "status": "SELECTED",
+  "modelDecision": {
+    "status": "SELECTED",
+    "selections": [
+      {
+        "templateId": "495b9f07-1df1-4b34-b121-e871a3ede1fe",
+        "parameters": {
+          "sales_year": 1999
+        },
+        "parameterBindings": {
+          "annual_rows": {
+            "stepId": 1,
+            "outputPath": "$.data.data.data.rows"
+          },
+          "monthly_rows": {
+            "stepId": 2,
+            "outputPath": "$.data.data.data.rows"
+          }
+        },
+        "parameterEvidence": {
+          "sales_year": "1999-01-01至1999-12-31",
+          "annual_rows": "tpcds已发布的年度...服务...实际查询返回的完整记录",
+          "monthly_rows": "tpcds...月度...服务...实际查询返回的完整记录"
+        }
+      }
+    ]
+  },
+  "bindings": [
+    {
+      "templateId": "495b9f07-1df1-4b34-b121-e871a3ede1fe",
+      "status": "READY",
+      "arguments": {
+        "annual_rows": {
+          "source": "tool_result",
+          "evidence": {
+            "step_id": 1,
+            "output_path": "$.data.data.data.rows"
+          },
+          "valueCount": 6
+        },
+        "monthly_rows": {
+          "source": "tool_result",
+          "evidence": {
+            "step_id": 2,
+            "output_path": "$.data.data.data.rows"
+          },
+          "valueCount": 11
+        },
+        "sales_year": {
+          "source": "user_query",
+          "evidence": {
+            "generated_by": "native_function_calling",
+            "quote": "布的年度与月度门店销售数据服务，分析商品主键1在1999-01-01至1999-12-31的销售对账。月"
+          },
+          "scalarValue": 1999
+        }
+      }
+    }
+  ]
+}

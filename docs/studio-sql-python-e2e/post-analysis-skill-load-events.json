@@ -1,0 +1,31 @@
+[
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "taskId": "analysis-coding-36596a82aa7791cbd67c5bde46b6a86d7af5a42ce9fabec91955a7767ef26090",
+      "stepId": "analysis-coding-36596a82aa7791cbd67c5bde46b6a86d7af5a42ce9fabec91955a7767ef26090",
+      "evidenceRefs": [],
+      "codingEventType": "RECOVERY_RECONCILED",
+      "summary": "Worker observation: SKILLS_LOADED",
+      "sequence": 15,
+      "eventState": "RUNNING",
+      "payload": {
+        "stage": "CODING",
+        "type": "SKILLS_LOADED",
+        "source": "NODE_CLINE",
+        "timestamp": "2026-10-31T19:14:28.912Z",
+        "skillVersion": "1.3.0",
+        "skillId": "builtin:python-data-analysis",
+        "attemptId": "analysis-coding-36596a82aa7791cbd67c5bde46b6a86d7af5a42ce9fabec91955a7767ef26090:fence-1"
+      },
+      "occurredAt": "2026-10-31T19:14:28.947Z",
+      "eventId": "coding:e976eade-90a2-4dee-99f2-d09fa096f6e9",
+      "runId": "att-1-7980ab3e-a927-4b7f-9911-e7b11328a2ab",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "eventKind": "CODING_TRACE",
+      "structuredRuntimeObservation": true
+    }
+  }
+]

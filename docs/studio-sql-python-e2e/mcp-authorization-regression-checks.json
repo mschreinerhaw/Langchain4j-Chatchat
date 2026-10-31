@@ -1,0 +1,34 @@
+{
+  "sourceCommit": "788ec8a2d",
+  "total": 29,
+  "results": [
+    {
+      "name": "com.chatchat.mcpserver.python.PythonAnalysisBridgeTest",
+      "tests": 8,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.mcpserver.python.PythonCapabilityServiceTest",
+      "tests": 2,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.mcpserver.templatepublication.binding.TemplateQueryBindingServiceTest",
+      "tests": 14,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.mcpserver.templatepublication.catalog.TemplateAssetCatalogServiceTest",
+      "tests": 5,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    }
+  ]
+}

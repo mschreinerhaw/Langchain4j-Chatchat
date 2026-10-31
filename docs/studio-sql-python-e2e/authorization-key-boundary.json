@@ -1,0 +1,385 @@
+{
+  "accepted": false,
+  "taskId": "eca08cc4-c7f2-3a04-b1ea-596e25c60028",
+  "runId": "att-1-373e36f6-2450-4324-a95b-67244ff70959",
+  "cancellation": {
+    "taskId": "eca08cc4-c7f2-3a04-b1ea-596e25c60028",
+    "executionId": "eca08cc4-c7f2-3a04-b1ea-596e25c60028",
+    "rootExecutionId": "eca08cc4-c7f2-3a04-b1ea-596e25c60028",
+    "attemptId": "att-1-373e36f6-2450-4324-a95b-67244ff70959",
+    "parentAttemptId": null,
+    "attemptNumber": 1,
+    "canonicalState": "CANCELLED",
+    "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+    "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+    "agentId": "tpcds_studio_sql_python_20261101",
+    "sessionId": "a3e927c1-73c2-3d31-9368-4ad2e598ae0c",
+    "status": "CANCELLED",
+    "question": "请通过248测试数据库tpcds已发布的年度与月度门店销售数据服务，分析商品主键1在1999-01-01至1999-12-31的销售对账。月度最低购买数量0，品类不限。使用已发布的TPCDS门店销售年度月度对账Python服务处理实际查询返回的完整记录，返回程序实际计算的净收款、利润、数量、口径差额、覆盖月份与月度趋势数据，并说明限制。",
+    "answerSummary": null,
+    "errorMessage": "Task cancelled by tenant request",
+    "feedbackUseful": null,
+    "feedbackAdopted": null,
+    "feedbackResolved": null,
+    "feedbackComment": null,
+    "feedbackReasonCategory": null,
+    "feedbackTime": null,
+    "createTime": "2026-10-31T18:47:25.242047Z",
+    "updateTime": "2026-10-31T18:54:25.943380Z",
+    "finishedAt": "2026-10-31T18:54:25.930Z",
+    "lastEventSequence": 131,
+    "datasets": []
+  },
+  "reason": "Runtime scalar handoff passed; MCP execute reached its independent resource grant check and rejected because it read the legacy python policy key rather than the catalog canonical python_runtime key. Check retained; canonical key reused.",
+  "execution": {
+    "success": false,
+    "error": "{success=false, status=FAILED, toolName=python_template_execute, runtimeLevel=tool, errorMessage=IllegalArgumentException: Python template is not authorized for current caller, timestamp=2026-10-31T18:52:17.540460917Z}",
+    "input": {
+      "parameters": {
+        "annual_rows": [
+          {
+            "sales_year": 1998,
+            "sales_rows": 69,
+            "total_quantity": 3271,
+            "total_net_paid": 95321.87,
+            "total_net_profit": -56881.4,
+            "earliest_date": "1998-01-11",
+            "latest_date": "1998-12-28"
+          },
+          {
+            "sales_year": 1999,
+            "sales_rows": 66,
+            "total_quantity": 3362,
+            "total_net_paid": 136947.06,
+            "total_net_profit": -65502.46,
+            "earliest_date": "1999-01-12",
+            "latest_date": "1999-12-31"
+          },
+          {
+            "sales_year": 2000,
+            "sales_rows": 64,
+            "total_quantity": 3276,
+            "total_net_paid": 133897.01,
+            "total_net_profit": -39360.37,
+            "earliest_date": "2000-01-02",
+            "latest_date": "2000-12-30"
+          },
+          {
+            "sales_year": 2001,
+            "sales_rows": 48,
+            "total_quantity": 2076,
+            "total_net_paid": 66291,
+            "total_net_profit": -42350.41,
+            "earliest_date": "2001-01-24",
+            "latest_date": "2001-12-29"
+          },
+          {
+            "sales_year": 2002,
+            "sales_rows": 60,
+            "total_quantity": 3115,
+            "total_net_paid": 138561.11,
+            "total_net_profit": -48800.13,
+            "earliest_date": "2002-01-01",
+            "latest_date": "2002-12-29"
+          },
+          {
+            "sales_year": 2003,
+            "sales_rows": 2,
+            "total_quantity": 157,
+            "total_net_paid": 2373.12,
+            "total_net_profit": -7540.34,
+            "earliest_date": "2003-01-02",
+            "latest_date": "2003-01-02"
+          }
+        ],
+        "monthly_rows": [
+          {
+            "sale_year": 1999,
+            "sale_month": 1,
+            "category": "Music",
+            "row_count": 3,
+            "total_quantity": 217,
+            "total_net_paid": 21884.51,
+            "total_net_profit": 7416.63
+          },
+          {
+            "sale_year": 1999,
+            "sale_month": 2,
+            "category": "Music",
+            "row_count": 3,
+            "total_quantity": 170,
+            "total_net_paid": 2138.52,
+            "total_net_profit": -2296.74
+          },
+          {
+            "sale_year": 1999,
+            "sale_month": 4,
+            "category": "Music",
+            "row_count": 2,
+            "total_quantity": 151,
+            "total_net_paid": 8459.79,
+            "total_net_profit": -3151.9
+          },
+          {
+            "sale_year": 1999,
+            "sale_month": 5,
+            "category": "Music",
+            "row_count": 1,
+            "total_quantity": 64,
+            "total_net_paid": 2899.84,
+            "total_net_profit": 636.8
+          },
+          {
+            "sale_year": 1999,
+            "sale_month": 6,
+            "category": "Music",
+            "row_count": 2,
+            "total_quantity": 122,
+            "total_net_paid": 6473.64,
+            "total_net_profit": -1004.15
+          },
+          {
+            "sale_year": 1999,
+            "sale_month": 7,
+            "category": "Music",
+            "row_count": 3,
+            "total_quantity": 177,
+            "total_net_paid": 6585.36,
+            "total_net_profit": -4990.27
+          },
+          {
+            "sale_year": 1999,
+            "sale_month": 8,
+            "category": "Music",
+            "row_count": 7,
+            "total_quantity": 336,
+            "total_net_paid": 13543.25,
+            "total_net_profit": -11742.7
+          },
+          {
+            "sale_year": 1999,
+            "sale_month": 9,
+            "category": "Music",
+            "row_count": 8,
+            "total_quantity": 349,
+            "total_net_paid": 19070.61,
+            "total_net_profit": 783
+          },
+          {
+            "sale_year": 1999,
+            "sale_month": 10,
+            "category": "Music",
+            "row_count": 10,
+            "total_quantity": 460,
+            "total_net_paid": 15368.53,
+            "total_net_profit": -12015.39
+          },
+          {
+            "sale_year": 1999,
+            "sale_month": 11,
+            "category": "Music",
+            "row_count": 11,
+            "total_quantity": 575,
+            "total_net_paid": 17273.35,
+            "total_net_profit": -20266.71
+          },
+          {
+            "sale_year": 1999,
+            "sale_month": 12,
+            "category": "Music",
+            "row_count": 15,
+            "total_quantity": 741,
+            "total_net_paid": 23017.15,
+            "total_net_profit": -16727.54
+          }
+        ],
+        "sales_year": 1999
+      },
+      "templateId": "495b9f07-1df1-4b34-b121-e871a3ede1fe",
+      "runtimeTemplateBinding": {
+        "toolContractHash": "9bbdc3fcb15cd6c29fe613d71b779381dffdb9d706298a827169ed769c3b84fe",
+        "schemaVersion": "runtime_template_binding.v3",
+        "toolContractVersion": "3",
+        "executorTool": "mcp_chatchat_mcp_server_python_template_execute",
+        "templateId": "495b9f07-1df1-4b34-b121-e871a3ede1fe",
+        "source": "plan_binding_from_template_discovery"
+      },
+      "template": "495b9f07-1df1-4b34-b121-e871a3ede1fe",
+      "runtimeParameterBindingAudit": {
+        "schemaVersion": "runtime_os.template_parameter_binding.v1",
+        "templateId": "495b9f07-1df1-4b34-b121-e871a3ede1fe",
+        "effectiveParameters": {
+          "annual_rows": [
+            {
+              "sales_year": 1998,
+              "sales_rows": 69,
+              "total_quantity": 3271,
+              "total_net_paid": 95321.87,
+              "total_net_profit": -56881.4,
+              "earliest_date": "1998-01-11",
+              "latest_date": "1998-12-28"
+            },
+            {
+              "sales_year": 1999,
+              "sales_rows": 66,
+              "total_quantity": 3362,
+              "total_net_paid": 136947.06,
+              "total_net_profit": -65502.46,
+              "earliest_date": "1999-01-12",
+              "latest_date": "1999-12-31"
+            },
+            {
+              "sales_year": 2000,
+              "sales_rows": 64,
+              "total_quantity": 3276,
+              "total_net_paid": 133897.01,
+              "total_net_profit": -39360.37,
+              "earliest_date": "2000-01-02",
+              "latest_date": "2000-12-30"
+            },
+            {
+              "sales_year": 2001,
+              "sales_rows": 48,
+              "total_quantity": 2076,
+              "total_net_paid": 66291,
+              "total_net_profit": -42350.41,
+              "earliest_date": "2001-01-24",
+              "latest_date": "2001-12-29"
+            },
+            {
+              "sales_year": 2002,
+              "sales_rows": 60,
+              "total_quantity": 3115,
+              "total_net_paid": 138561.11,
+              "total_net_profit": -48800.13,
+              "earliest_date": "2002-01-01",
+              "latest_date": "2002-12-29"
+            },
+            {
+              "sales_year": 2003,
+              "sales_rows": 2,
+              "total_quantity": 157,
+              "total_net_paid": 2373.12,
+              "total_net_profit": -7540.34,
+              "earliest_date": "2003-01-02",
+              "latest_date": "2003-01-02"
+            }
+          ],
+          "monthly_rows": [
+            {
+              "sale_year": 1999,
+              "sale_month": 1,
+              "category": "Music",
+              "row_count": 3,
+              "total_quantity": 217,
+              "total_net_paid": 21884.51,
+              "total_net_profit": 7416.63
+            },
+            {
+              "sale_year": 1999,
+              "sale_month": 2,
+              "category": "Music",
+              "row_count": 3,
+              "total_quantity": 170,
+              "total_net_paid": 2138.52,
+              "total_net_profit": -2296.74
+            },
+            {
+              "sale_year": 1999,
+              "sale_month": 4,
+              "category": "Music",
+              "row_count": 2,
+              "total_quantity": 151,
+              "total_net_paid": 8459.79,
+              "total_net_profit": -3151.9
+            },
+            {
+              "sale_year": 1999,
+              "sale_month": 5,
+              "category": "Music",
+              "row_count": 1,
+              "total_quantity": 64,
+              "total_net_paid": 2899.84,
+              "total_net_profit": 636.8
+            },
+            {
+              "sale_year": 1999,
+              "sale_month": 6,
+              "category": "Music",
+              "row_count": 2,
+              "total_quantity": 122,
+              "total_net_paid": 6473.64,
+              "total_net_profit": -1004.15
+            },
+            {
+              "sale_year": 1999,
+              "sale_month": 7,
+              "category": "Music",
+              "row_count": 3,
+              "total_quantity": 177,
+              "total_net_paid": 6585.36,
+              "total_net_profit": -4990.27
+            },
+            {
+              "sale_year": 1999,
+              "sale_month": 8,
+              "category": "Music",
+              "row_count": 7,
+              "total_quantity": 336,
+              "total_net_paid": 13543.25,
+              "total_net_profit": -11742.7
+            },
+            {
+              "sale_year": 1999,
+              "sale_month": 9,
+              "category": "Music",
+              "row_count": 8,
+              "total_quantity": 349,
+              "total_net_paid": 19070.61,
+              "total_net_profit": 783
+            },
+            {
+              "sale_year": 1999,
+              "sale_month": 10,
+              "category": "Music",
+              "row_count": 10,
+              "total_quantity": 460,
+              "total_net_paid": 15368.53,
+              "total_net_profit": -12015.39
+            },
+            {
+              "sale_year": 1999,
+              "sale_month": 11,
+              "category": "Music",
+              "row_count": 11,
+              "total_quantity": 575,
+              "total_net_paid": 17273.35,
+              "total_net_profit": -20266.71
+            },
+            {
+              "sale_year": 1999,
+              "sale_month": 12,
+              "category": "Music",
+              "row_count": 15,
+              "total_quantity": 741,
+              "total_net_paid": 23017.15,
+              "total_net_profit": -16727.54
+            }
+          ],
+          "sales_year": 1999
+        },
+        "parameterSources": {
+          "sales_year": "user_query",
+          "annual_rows": "tool_result",
+          "monthly_rows": "tool_result"
+        },
+        "droppedOverrideFields": [],
+        "rejectedOverrides": [],
+        "defaultFields": [],
+        "unmappedConstraints": [],
+        "scopeStatus": "USER_PARAMETERS_VERIFIED",
+        "scopeRule": "Technical execution success does not prove the requested business scope. Compare effective parameters with the original request; never attribute default-scope rows to an unmatched requested entity or time range."
+      }
+    }
+  }
+}

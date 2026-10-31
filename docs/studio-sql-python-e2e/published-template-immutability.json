@@ -1,0 +1,11 @@
+{
+  "taskId": "487d57af-b11a-385c-8274-b1fc3d7f4d9d",
+  "templateId": "495b9f07-1df1-4b34-b121-e871a3ede1fe",
+  "version": "1.0.0",
+  "sourceSha256": "290bdcfeea0488973bd2b7997253f9cfc6c797551de9e00ab031799e4954274b",
+  "inputSchemaSha256": "b317a92dc5e77e3d19682ae91ae7ec1ddef1d43dd4ee9a7d71f318daaad40530",
+  "outputSchemaSha256": "ea556db3a7007a2d51193b48a67e9380b4fbf74d133af38962ab0fbe119fe92a",
+  "beforeCapturedAt": "2026-10-31T19:05:03.071Z",
+  "afterCapturedAt": "2026-10-31T19:20:43.205Z",
+  "unchanged": true
+}

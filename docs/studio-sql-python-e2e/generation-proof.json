@@ -1,0 +1,158 @@
+{
+  "generation": {
+    "taskId": "python-coding-537aae28eccbb44f7896022ab1a42595b6e7fab5fd9d939016daeee38c5890e8",
+    "status": "COMPLETED",
+    "contractSha256": "cbb143b27b2daf381a50cb70e46211866d977d7e896079673ffcb4f1f3cad565",
+    "output": {
+      "notes": "Complete tpcds_reconcile.py: reads CHATCHAT_INPUT_JSON, validates annual/monthly rows, aggregates monthly by month using Decimal, outputs reconciliation JSON with metrics, monthly detail, missing months, and Plotly chart figure.",
+      "validation": {
+        "codeExecuted": false,
+        "diagnostics": [
+          {
+            "path": "tpcds_reconcile.py",
+            "status": "PARSED"
+          }
+        ],
+        "fieldValidation": "NOT_EVALUATED",
+        "normalizedFiles": [],
+        "parser": "python-ast",
+        "sqlExecuted": false,
+        "valid": true,
+        "version": "30.23.0"
+      },
+      "files": [
+        {
+          "content": "import json, os, sys\nfrom decimal import Decimal, InvalidOperation\n\ndef _d(v):\n    try:\n        return Decimal(str(v))\n    except (InvalidOperation, TypeError, ValueError):\n        raise ValueError(f\"Illegal numeric value: {v!r}\")\n\ndef _validate_annual(rows, year):\n    keys = {'sales_year','sales_rows','total_quantity','total_net_paid','total_net_profit','earliest_date','latest_date'}\n    seen = set()\n    for r in rows:\n        if not isinstance(r, dict):\n            raise ValueError(f\"annual_rows item not dict: {r!r}\")\n        miss = keys - r.keys()\n        if miss:\n            raise ValueError(f\"annual_rows missing fields: {miss}\")\n        if r['sales_year'] in seen:\n            raise ValueError(f\"Duplicate annual sales_year: {r['sales_year']}\")\n        seen.add(r['sales_year'])\n    matched = [r for r in rows if r['sales_year'] == year]\n    if not matched:\n        raise ValueError(f\"No annual row for sales_year={year}\")\n    return matched[0]\n\ndef _validate_monthly(rows, year):\n    keys = {'sale_year','sale_month','category','row_count','total_quantity','total_net_paid','total_net_profit'}\n    seen = set()\n    for r in rows:\n        if not isinstance(r, dict):\n            raise ValueError(f\"monthly_rows item not dict: {r!r}\")\n        miss = keys - r.keys()\n        if miss:\n            raise ValueError(f\"monthly_rows missing fields: {miss}\")\n        k = (r['sale_year'], r['sale_month'], r['category'])\n        if k in seen:\n            raise ValueError(f\"Duplicate monthly key: {k}\")\n        seen.add(k)\n    matched = [r for r in rows if r['sale_year'] == year]\n    if not matched:\n        raise ValueError(f\"No monthly rows for sale_year={year}\")\n    return matched\n\ndef _agg_monthly(rows):\n    by_month = {}\n    for r in rows:\n        m = int(r['sale_month'])\n        if m < 1 or m > 12:\n            raise ValueError(f\"Invalid sale_month: {m}\")\n        qty = _d(r['total_quantity'])\n        paid = _d(r['total_net_paid'])\n        profit = _d(r['total_net_profit'])\n        if m not in by_month:\n            by_month[m] = {'quantity': Decimal(0), 'net_paid': Decimal(0), 'net_profit': Decimal(0)}\n        by_month[m]['quantity'] += qty\n        by_month[m]['net_paid'] += paid\n        by_month[m]['net_profit'] += profit\n    return by_month\n\ndef main():\n    raw = os.environ.get('CHATCHAT_INPUT_JSON', '{}')\n    inp = json.loads(raw)\n    year = int(inp.get('sales_year', 1999))\n    annual_rows = inp.get('annual_rows')\n    monthly_rows = inp.get('monthly_rows')\n    if annual_rows is None or monthly_rows is None:\n        raise ValueError(\"Missing annual_rows or monthly_rows input\")\n    a = _validate_annual(annual_rows, year)\n    m_rows = _validate_monthly(monthly_rows, year)\n    by_month = _agg_monthly(m_rows)\n    a_paid = _d(a['total_net_paid'])\n    a_profit = _d(a['total_net_profit'])\n    a_qty = _d(a['total_quantity'])\n    m_paid = sum((v['net_paid'] for v in by_month.values()), Decimal(0))\n    m_profit = sum((v['net_profit'] for v in by_month.values()), Decimal(0))\n    m_qty = sum((v['quantity'] for v in by_month.values()), Decimal(0))\n    covered = sorted(by_month.keys())\n    missing = [m for m in range(1, 13) if m not in by_month]\n    monthly_detail = [{'month': m, 'total_quantity': str(by_month[m]['quantity']),\n        'total_net_paid': str(by_month[m]['net_paid']),\n        'total_net_profit': str(by_month[m]['net_profit'])} for m in covered]\n    x_vals = list(range(1, 13))\n    y_paid = [float(by_month[m]['net_paid']) if m in by_month else None for m in x_vals]\n    y_profit = [float(by_month[m]['net_profit']) if m in by_month else None for m in x_vals]\n    chart = {'data': [\n        {'type': 'scatter', 'mode': 'lines+markers', 'name': 'net_paid', 'x': x_vals, 'y': y_paid},\n        {'type': 'scatter', 'mode': 'lines+markers', 'name': 'net_profit', 'x': x_vals, 'y': y_profit}],\n        'layout': {'title': f'TPC-DS Monthly Reconciliation (year={year})',\n            'xaxis': {'title': 'Month', 'dtick': 1},\n            'yaxis': {'title': 'Amount', 'zeroline': True}}}\n    result = {'schemaVersion': 'tpcds_reconciliation.v1',\n        'metrics': {'annual_net_paid': str(a_paid), 'monthly_net_paid': str(m_paid),\n            'diff_net_paid': str(a_paid - m_paid),\n            'annual_net_profit': str(a_profit), 'monthly_net_profit': str(m_profit),\n            'diff_net_profit': str(a_profit - m_profit),\n            'annual_quantity': str(a_qty), 'monthly_quantity': str(m_qty),\n            'months_covered': covered},\n        'monthly': monthly_detail, 'missing_months': missing, 'chart': chart}\n    json.dump(result, sys.stdout, ensure_ascii=False)\n\nif __name__ == '__main__':\n    try:\n        main()\n    except Exception as e:\n        print(str(e), file=sys.stderr)\n        sys.exit(1)\n",
+          "path": "tpcds_reconcile.py"
+        }
+      ]
+    }
+  },
+  "review": {
+    "taskId": "python-coding-eaf150bdb94c7ed77b9f4e6fba50ec84d35a03b158171bc89dfc1426397eb89f",
+    "status": "COMPLETED",
+    "contractSha256": "234fc6b18bd4d02e1460775949b44056d7e4ae76e9ec07f442eff1593166f14e",
+    "output": {
+      "notes": "审查修复tpcds_reconcile.py：1) _d()增加is_finite()检查拒绝NaN/Infinity；2) 新增_int_year/_int_month辅助函数，接受int和整数字符串，拒绝bool/小数/浮点，重复键按规范化整数判定；3) months_covered改为len(covered)整数，另加covered_months列表；4) json.loads使用parse_float=Decimal；5) 图表标题和y轴标注单位源端未声明，scatter设置connectgaps=False，缺失月份保持null不补零；6) 输出limitations字段说明模板筛选口径差异。保持schemaVersion和字段名不变，代码约120行。",
+      "validation": {
+        "codeExecuted": false,
+        "diagnostics": [
+          {
+            "path": "tpcds_reconcile.py",
+            "status": "PARSED"
+          }
+        ],
+        "fieldValidation": "NOT_EVALUATED",
+        "normalizedFiles": [],
+        "parser": "python-ast",
+        "sqlExecuted": false,
+        "valid": true,
+        "version": "30.23.0"
+      },
+      "files": [
+        {
+          "content": "import json, os, sys\nfrom decimal import Decimal, InvalidOperation\n\ndef _d(v):\n    if isinstance(v, Decimal):\n        d = v\n    else:\n        try:\n            d = Decimal(str(v))\n        except (InvalidOperation, TypeError, ValueError):\n            raise ValueError(f\"Illegal numeric value: {v!r}\")\n    if not d.is_finite():\n        raise ValueError(f\"Non-finite Decimal value: {v!r}\")\n    return d\n\ndef _int_year(v, name='year'):\n    if isinstance(v, bool):\n        raise ValueError(f\"{name} must be int or int-string, got bool\")\n    if isinstance(v, int):\n        return v\n    if isinstance(v, str):\n        s = v.strip()\n        if '.' in s:\n            raise ValueError(f\"{name} must be int or int-string, got {v!r}\")\n        try:\n            return int(s)\n        except ValueError:\n            raise ValueError(f\"{name} must be int or int-string, got {v!r}\")\n    raise ValueError(f\"{name} must be int or int-string, got {type(v).__name__}\")\n\ndef _int_month(v):\n    m = _int_year(v, 'sale_month')\n    if m < 1 or m > 12:\n        raise ValueError(f\"Invalid sale_month: {m}\")\n    return m\n\ndef _validate_annual(rows, year):\n    keys = {'sales_year','sales_rows','total_quantity','total_net_paid','total_net_profit','earliest_date','latest_date'}\n    seen = set()\n    for r in rows:\n        if not isinstance(r, dict):\n            raise ValueError(f\"annual_rows item not dict: {r!r}\")\n        miss = keys - r.keys()\n        if miss:\n            raise ValueError(f\"annual_rows missing fields: {miss}\")\n        y = _int_year(r['sales_year'], 'sales_year')\n        if y in seen:\n            raise ValueError(f\"Duplicate annual sales_year: {y}\")\n        seen.add(y)\n    matched = [r for r in rows if _int_year(r['sales_year'], 'sales_year') == year]\n    if not matched:\n        raise ValueError(f\"No annual row for sales_year={year}\")\n    return matched[0]\n\ndef _validate_monthly(rows, year):\n    keys = {'sale_year','sale_month','category','row_count','total_quantity','total_net_paid','total_net_profit'}\n    seen = set()\n    for r in rows:\n        if not isinstance(r, dict):\n            raise ValueError(f\"monthly_rows item not dict: {r!r}\")\n        miss = keys - r.keys()\n        if miss:\n            raise ValueError(f\"monthly_rows missing fields: {miss}\")\n        y = _int_year(r['sale_year'], 'sale_year')\n        m = _int_month(r['sale_month'])\n        k = (y, m, r['category'])\n        if k in seen:\n            raise ValueError(f\"Duplicate monthly key: {k}\")\n        seen.add(k)\n    matched = [r for r in rows if _int_year(r['sale_year'], 'sale_year') == year]\n    if not matched:\n        raise ValueError(f\"No monthly rows for sale_year={year}\")\n    return matched\n\ndef _agg_monthly(rows):\n    by_month = {}\n    for r in rows:\n        m = _int_month(r['sale_month'])\n        qty = _d(r['total_quantity'])\n        paid = _d(r['total_net_paid'])\n        profit = _d(r['total_net_profit'])\n        if m not in by_month:\n            by_month[m] = {'quantity': Decimal(0), 'net_paid': Decimal(0), 'net_profit': Decimal(0)}\n        by_month[m]['quantity'] += qty\n        by_month[m]['net_paid'] += paid\n        by_month[m]['net_profit'] += profit\n    return by_month\n\ndef main():\n    raw = os.environ.get('CHATCHAT_INPUT_JSON', '{}')\n    inp = json.loads(raw, parse_float=Decimal)\n    year = _int_year(inp.get('sales_year', 1999), 'sales_year')\n    annual_rows = inp.get('annual_rows')\n    monthly_rows = inp.get('monthly_rows')\n    if annual_rows is None or monthly_rows is None:\n        raise ValueError(\"Missing annual_rows or monthly_rows input\")\n    a = _validate_annual(annual_rows, year)\n    m_rows = _validate_monthly(monthly_rows, year)\n    by_month = _agg_monthly(m_rows)\n    a_paid = _d(a['total_net_paid'])\n    a_profit = _d(a['total_net_profit'])\n    a_qty = _d(a['total_quantity'])\n    m_paid = sum((v['net_paid'] for v in by_month.values()), Decimal(0))\n    m_profit = sum((v['net_profit'] for v in by_month.values()), Decimal(0))\n    m_qty = sum((v['quantity'] for v in by_month.values()), Decimal(0))\n    covered = sorted(by_month.keys())\n    missing = [m for m in range(1, 13) if m not in by_month]\n    monthly_detail = [{'month': m, 'total_quantity': str(by_month[m]['quantity']),\n        'total_net_paid': str(by_month[m]['net_paid']),\n        'total_net_profit': str(by_month[m]['net_profit'])} for m in covered]\n    x_vals = list(range(1, 13))\n    y_paid = [float(by_month[m]['net_paid']) if m in by_month else None for m in x_vals]\n    y_profit = [float(by_month[m]['net_profit']) if m in by_month else None for m in x_vals]\n    chart = {'data': [\n        {'type': 'scatter', 'mode': 'lines+markers', 'name': 'net_paid',\n         'x': x_vals, 'y': y_paid, 'connectgaps': False},\n        {'type': 'scatter', 'mode': 'lines+markers', 'name': 'net_profit',\n         'x': x_vals, 'y': y_profit, 'connectgaps': False}],\n        'layout': {'title': f'TPC-DS Monthly Reconciliation (year={year}, unit=source-undeclared)',\n            'xaxis': {'title': 'Month', 'dtick': 1},\n            'yaxis': {'title': 'Amount (unit undeclared by source)', 'zeroline': True}}}\n    limitations = (\"Annual and monthly templates may use different filtering criteria; \"\n                   \"differences do not necessarily indicate database errors.\")\n    result = {'schemaVersion': 'tpcds_reconciliation.v1',\n        'metrics': {'annual_net_paid': str(a_paid), 'monthly_net_paid': str(m_paid),\n            'diff_net_paid': str(a_paid - m_paid),\n            'annual_net_profit': str(a_profit), 'monthly_net_profit': str(m_profit),\n            'diff_net_profit': str(a_profit - m_profit),\n            'annual_quantity': str(a_qty), 'monthly_quantity': str(m_qty),\n            'months_covered': len(covered), 'covered_months': covered},\n        'monthly': monthly_detail, 'missing_months': missing, 'chart': chart,\n        'limitations': limitations}\n    json.dump(result, sys.stdout, ensure_ascii=False)\n\nif __name__ == '__main__':\n    try:\n        main()\n    except Exception as e:\n        print(str(e), file=sys.stderr)\n        sys.exit(1)\n",
+          "path": "tpcds_reconcile.py"
+        }
+      ]
+    }
+  },
+  "firstFailed": {
+    "taskId": "python-coding-ea4d24391a79c483cedb7c5e8a269343063ad8baf72f04508bfdb64ba7848224",
+    "outcome": {
+      "schemaVersion": "runtime_os.coding.v2",
+      "taskId": "python-coding-ea4d24391a79c483cedb7c5e8a269343063ad8baf72f04508bfdb64ba7848224",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-ea4d24391a79c483cedb7c5e8a269343063ad8baf72f04508bfdb64ba7848224",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-ea4d24391a79c483cedb7c5e8a269343063ad8baf72f04508bfdb64ba7848224",
+        "environment": null,
+        "attributes": {}
+      },
+      "contractSha256": "28b22cd999d46a75381d8c8c6b02f3e88e402ab107f7795572470bc61c821132",
+      "status": "FAILED",
+      "revision": 56,
+      "lastEventSequence": 57,
+      "createdAt": "2026-10-31T16:46:24.489Z",
+      "updatedAt": "2026-10-31T16:48:19.350Z",
+      "startedAt": "2026-10-31T16:46:24.595Z",
+      "endedAt": "2026-10-31T16:48:19.350Z",
+      "cancellationRequested": false,
+      "reasonCode": "EXECUTION_FAILED",
+      "summary": "SQL 任务未交付有效文件，请查看任务处理记录。",
+      "limitations": [
+        "No completed Coding result or independent validation was submitted",
+        "A2 enforces cumulative admission reservations only; model/process hard limits, instantaneous memory and disk enforcement require execution-node adapters.",
+        "Required execution evidence was not produced"
+      ],
+      "inputSnapshotRef": "runtime-evidence:coding:workspace-input:python-coding-ea4d24391a79c483cedb7c5e8a269343063ad8baf72f04508bfdb64ba7848224",
+      "codeArtifactRef": null,
+      "executionReceiptRef": null,
+      "resultDatasetRef": null,
+      "validationRecordRef": null,
+      "evidenceBundleRef": null,
+      "validationStatus": "NOT_RUN",
+      "reproducibility": {
+        "level": "CONDITIONAL",
+        "limitations": [
+          "Execution and reproducibility have not been verified"
+        ],
+        "dependencyRefs": [
+          "python-ast:3"
+        ]
+      },
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-ea4d24391a79c483cedb7c5e8a269343063ad8baf72f04508bfdb64ba7848224",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 4,
+          "modelTokens": 40927,
+          "toolCalls": 2,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 24609,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.5"
+        },
+        "meteringComplete": false
+      },
+      "executionControl": {
+        "stopReason": null,
+        "stopRequestedAt": null,
+        "executorStopped": true,
+        "reconciliationRequired": false
+      },
+      "parentTaskId": null,
+      "supersedesTaskId": null,
+      "perArtifactCompleteness": {}
+    }
+  },
+  "generationRequest": {
+    "action": "generate",
+    "sourceCode": "import json\nimport os\n",
+    "modelName": "qwen3.7-plus",
+    "skillIds": [],
+    "prompt": "开发一个可以在Python Studio试运行、发布为可复用Agent数据服务的tpcds年度与月度门店销售对账程序。完整生成tpcds_reconcile.py。只读CHATCHAT_INPUT_JSON环境变量JSON，不联网、不执行SQL、不读主机文件。输入annual_rows数组为真实SQL年度结果(sales_year,sales_rows,total_quantity,total_net_paid,total_net_profit,earliest_date,latest_date)，monthly_rows数组为SQL月度结果(sale_year,sale_month,category,row_count,total_quantity,total_net_paid,total_net_profit)，sales_year整数默认1999。按sales_year筛选两个数组并用Decimal精确汇总，返回年度金额、月度金额、年度减月度差额、数量、月份覆盖、缺失月份和月度明细。金额输出十进制字符串，不假设币种或量纲。不要硬编码任何数据行或计算结果。验证行结构、字段、重复年度/月份品类键和非法数值，缺少月份不补零、不插值，多个品类要先按月聚合；缺少年度或月度实际输入应报错且非零退出。仅stdout输出一个JSON对象schemaVersion=tpcds_reconciliation.v1，metrics为对象包含annual_net_paid,monthly_net_paid,diff_net_paid,annual_net_profit,monthly_net_profit,diff_net_profit,annual_quantity,monthly_quantity,months_covered；monthly为逐月实际汇总数组；missing_months为1到12未覆盖月份。另外输出chart为一个合法Plotly figure对象data/layout，两个scatter lines+markers轨迹分别净收款、利润，x为1到12月份，y采用数值且缺失月份null，金额单位未声明、零基准线与负值保留。差额只说明不同筛选口径，不能直接断言数据库错误。解释利润差额率负分母含义（如计算该指标）。用__main__调用main，异常输出到stderr并退出非零。请按需选择Python开发/数据分析技能；若需要MCP语义可按需读取Microsoft MCP Builder，不要加载Azure技能。无需执行示例数据，也不要凭编译结果声称运行成功。\n实现保持简洁，代码不超过120行，不生成说明文档或测试文件，优先完整交付本程序。",
+    "planId": "studio-code-18c996b0-5330-427d-af1e-c7fe4e7f79f1"
+  },
+  "reviewRequest": {
+    "action": "fix",
+    "sourceCode": "import json, os, sys\nfrom decimal import Decimal, InvalidOperation\n\ndef _d(v):\n    try:\n        return Decimal(str(v))\n    except (InvalidOperation, TypeError, ValueError):\n        raise ValueError(f\"Illegal numeric value: {v!r}\")\n\ndef _validate_annual(rows, year):\n    keys = {'sales_year','sales_rows','total_quantity','total_net_paid','total_net_profit','earliest_date','latest_date'}\n    seen = set()\n    for r in rows:\n        if not isinstance(r, dict):\n            raise ValueError(f\"annual_rows item not dict: {r!r}\")\n        miss = keys - r.keys()\n        if miss:\n            raise ValueError(f\"annual_rows missing fields: {miss}\")\n        if r['sales_year'] in seen:\n            raise ValueError(f\"Duplicate annual sales_year: {r['sales_year']}\")\n        seen.add(r['sales_year'])\n    matched = [r for r in rows if r['sales_year'] == year]\n    if not matched:\n        raise ValueError(f\"No annual row for sales_year={year}\")\n    return matched[0]\n\ndef _validate_monthly(rows, year):\n    keys = {'sale_year','sale_month','category','row_count','total_quantity','total_net_paid','total_net_profit'}\n    seen = set()\n    for r in rows:\n        if not isinstance(r, dict):\n            raise ValueError(f\"monthly_rows item not dict: {r!r}\")\n        miss = keys - r.keys()\n        if miss:\n            raise ValueError(f\"monthly_rows missing fields: {miss}\")\n        k = (r['sale_year'], r['sale_month'], r['category'])\n        if k in seen:\n            raise ValueError(f\"Duplicate monthly key: {k}\")\n        seen.add(k)\n    matched = [r for r in rows if r['sale_year'] == year]\n    if not matched:\n        raise ValueError(f\"No monthly rows for sale_year={year}\")\n    return matched\n\ndef _agg_monthly(rows):\n    by_month = {}\n    for r in rows:\n        m = int(r['sale_month'])\n        if m < 1 or m > 12:\n            raise ValueError(f\"Invalid sale_month: {m}\")\n        qty = _d(r['total_quantity'])\n        paid = _d(r['total_net_paid'])\n        profit = _d(r['total_net_profit'])\n        if m not in by_month:\n            by_month[m] = {'quantity': Decimal(0), 'net_paid': Decimal(0), 'net_profit': Decimal(0)}\n        by_month[m]['quantity'] += qty\n        by_month[m]['net_paid'] += paid\n        by_month[m]['net_profit'] += profit\n    return by_month\n\ndef main():\n    raw = os.environ.get('CHATCHAT_INPUT_JSON', '{}')\n    inp = json.loads(raw)\n    year = int(inp.get('sales_year', 1999))\n    annual_rows = inp.get('annual_rows')\n    monthly_rows = inp.get('monthly_rows')\n    if annual_rows is None or monthly_rows is None:\n        raise ValueError(\"Missing annual_rows or monthly_rows input\")\n    a = _validate_annual(annual_rows, year)\n    m_rows = _validate_monthly(monthly_rows, year)\n    by_month = _agg_monthly(m_rows)\n    a_paid = _d(a['total_net_paid'])\n    a_profit = _d(a['total_net_profit'])\n    a_qty = _d(a['total_quantity'])\n    m_paid = sum((v['net_paid'] for v in by_month.values()), Decimal(0))\n    m_profit = sum((v['net_profit'] for v in by_month.values()), Decimal(0))\n    m_qty = sum((v['quantity'] for v in by_month.values()), Decimal(0))\n    covered = sorted(by_month.keys())\n    missing = [m for m in range(1, 13) if m not in by_month]\n    monthly_detail = [{'month': m, 'total_quantity': str(by_month[m]['quantity']),\n        'total_net_paid': str(by_month[m]['net_paid']),\n        'total_net_profit': str(by_month[m]['net_profit'])} for m in covered]\n    x_vals = list(range(1, 13))\n    y_paid = [float(by_month[m]['net_paid']) if m in by_month else None for m in x_vals]\n    y_profit = [float(by_month[m]['net_profit']) if m in by_month else None for m in x_vals]\n    chart = {'data': [\n        {'type': 'scatter', 'mode': 'lines+markers', 'name': 'net_paid', 'x': x_vals, 'y': y_paid},\n        {'type': 'scatter', 'mode': 'lines+markers', 'name': 'net_profit', 'x': x_vals, 'y': y_profit}],\n        'layout': {'title': f'TPC-DS Monthly Reconciliation (year={year})',\n            'xaxis': {'title': 'Month', 'dtick': 1},\n            'yaxis': {'title': 'Amount', 'zeroline': True}}}\n    result = {'schemaVersion': 'tpcds_reconciliation.v1',\n        'metrics': {'annual_net_paid': str(a_paid), 'monthly_net_paid': str(m_paid),\n            'diff_net_paid': str(a_paid - m_paid),\n            'annual_net_profit': str(a_profit), 'monthly_net_profit': str(m_profit),\n            'diff_net_profit': str(a_profit - m_profit),\n            'annual_quantity': str(a_qty), 'monthly_quantity': str(m_qty),\n            'months_covered': covered},\n        'monthly': monthly_detail, 'missing_months': missing, 'chart': chart}\n    json.dump(result, sys.stdout, ensure_ascii=False)\n\nif __name__ == '__main__':\n    try:\n        main()\n    except Exception as e:\n        print(str(e), file=sys.stderr)\n        sys.exit(1)\n",
+    "modelName": "qwen3.7-plus",
+    "skillIds": [],
+    "prompt": "审查并修复当前tpcds对账程序：1. Decimal数值必须is_finite，拒绝NaN和Infinity。2. sales_year、sale_year、sales_year输入及sale_month需接受整数与整数字符串但拒绝小数/布尔；重复键按规范化后的整数年月判定，月份必须1到12。3. metrics.months_covered应为覆盖月份个数而非数组，可另保留covered_months列表。4. json.loads使用parse_float=Decimal保留金额精度。5. 图表轴和标题明确金额单位源端未声明，缺失月份为null且connectgaps=false，不补零。6. 输出limitations说明不同模板筛选口径，差额不能直接认定数据库错误。仍只从CHATCHAT_INPUT_JSON读取实际数组，不联网，不写死任何行或结果。保持现有schemaVersion和字段名称，仅修复必要内容，完整交付tpcds_reconcile.py，不附测试文件，代码保持简洁不超过150行。",
+    "planId": "studio-code-a36f547b-bd6c-4da6-8b28-ea6e48b0a128"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "63028326-4194-4921-b1cf-a2ac7a713b6f",
+  "logicalId": "29d35a65-04ff-49ac-b9fd-3ef52eb429c7",
+  "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+  "releaseNumber": 1,
+  "state": "RUNNING",
+  "kind": "CONTROLLED_TEMPLATE",
+  "title": "TPCDS Python对账服务20261101",
+  "description": "发现已验证的TPCDS年度月度销售对账Python模板。该连接只发现模板；必须通过Runtime Python执行器取得真实执行回执。",
+  "definitionJson": "{\"parentToolName\":\"python_analysis_query\",\"roleId\":\"40a041d7-a0f0-45b8-a552-bffe56d07f77\",\"subjectType\":\"USER\",\"userId\":\"2f219487-11a3-4a1d-9130-ac500b62f268\",\"domainCode\":\"tpcds_python_20261101\",\"templateKeys\":[\"python_runtime:495b9f07-1df1-4b34-b121-e871a3ede1fe\"],\"enabled\":false}",
+  "inputSchemaJson": "{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"],\"additionalProperties\":false}",
+  "outputSchemaJson": "{\"type\":\"object\",\"properties\":{}}",
+  "testEvidenceJson": "{\"input\":{\"query\":\"TPCDS 年度月度销售对账 Python\"},\"testedAt\":\"2026-10-31T17:05:45.130363124Z\",\"type\":\"CONTROLLED_EXECUTOR_CONTRACT_TEST\",\"actorId\":\"2f219487-11a3-4a1d-9130-ac500b62f268\",\"output\":{\"schemaVersion\":\"template_query_result.v1\",\"publicationScope\":{\"configuredAssetTypes\":[\"python_runtime\"],\"policyVersion\":\"draft-contract-test\",\"roleBound\":false,\"serviceId\":\"chatchat-mcp-server\",\"parentToolNames\":[\"python_analysis_query\"],\"configuredTemplateCount\":1},\"resultSchemaRef\":\"template_query_result.v1\",\"pagination\":{\"offset\":0,\"limit\":20,\"hasMore\":false,\"nextPageToken\":null,\"pageSize\":20,\"returnedCount\":1,\"nextCursor\":null},\"selectionMode\":\"BOUND_SCOPE_RECALL\",\"templates\":[{\"parameterSchema\":{\"type\":\"object\",\"properties\":{\"annual_rows\":{\"type\":\"array\",\"minItems\":1,\"maxItems\":100,\"items\":{\"type\":\"object\"},\"description\":\"年度SQL服务实际返回的完整rows，不是工具列表或说明\"},\"monthly_rows\":{\"type\":\"array\",\"minItems\":1,\"maxItems\":100,\"items\":{\"type\":\"object\"},\"description\":\"月度SQL服务实际返回的完整rows，保留实际数值及字段\"},\"sales_year\":{\"type\":\"integer\",\"default\":1999,\"minimum\":1900,\"maximum\":2100}},\"required\":[\"annual_rows\",\"monthly_rows\"],\"additionalProperties\":false},\"category\":\"retail_analysis\",\"businessCategoryName\":\"retail_analysis\",\"selectionSource\":\"template_query_binding\",\"exists\":true,\"title\":\"TPCDS门店销售年度月度对账20261101\",\"businessCategoryCode\":\"retail_analysis\",\"assetType\":\"python_runtime\",\"templateId\":\"495b9f07-1df1-4b34-b121-e871a3ede1fe\",\"description\":\"接收年度服务完整annual_rows与月度服务完整monthly_rows，使用Decimal计算年度净收款、利润、月度合计、差额和数量，输出覆盖月份、缺失月份及Plotly趋势数据。CHATCHAT_INPUT_JSON；stdout为tpcds_reconciliation.v1 JSON。不能把模板发现当作查询结果，不推断币种，不把缺少月份补零或将筛选差额认定数据库错误。\"}],\"toolName\":\"tpcds_python_20261101_template_query\",\"returnedCount\":1,\"scopeMode\":\"FIXED_BINDING\",\"globalSearchPerformed\":false,\"hasMore\":false,\"resultEntityKind\":\"template\",\"provenance\":{\"filterSummary\":{\"candidateUniverseCount\":1,\"scopeMode\":\"FIXED_BINDING\"},\"dataVersion\":\"draft-contract-test\",\"rowRange\":{\"count\":1,\"offset\":0},\"sourceRef\":\"mcp://chatchat-mcp-server/tpcds_python_20261101_template_query\",\"asOf\":\"2026-10-31T17:05:45.041623601Z\"},\"boundScopeRecallPerformed\":true,\"candidateUniverseCount\":1,\"rawExecutionSpecReturned\":false,\"bindingComplete\":true,\"filterAudit\":{\"retrievalSignalCount\":1,\"returnedCount\":1,\"candidateCount\":1,\"policyResolvedAt\":\"2026-10-31T17:05:45.041623601Z\",\"unavailableOrUnauthorizedCount\":0,\"policyCacheHit\":false},\"success\":true,\"semanticReviewRequired\":true,\"resultKind\":\"RAW_RECORDS\"}}",
+  "bindingId": "697c8f64-17ed-41f8-a159-bb89ef565f21",
+  "actorId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+  "createdAt": "2026-10-31T17:05:19.437274Z",
+  "publishedAt": "2026-10-31T17:05:45.517480181Z",
+  "version": 3,
+  "businessCategory": null,
+  "businessCategoryId": null
+}

@@ -1,0 +1,19 @@
+{
+  "id": "161a2dea-d99b-4b28-9ba7-8a2982530fef",
+  "tenant_id": "9001fee4-482b-4851-9eb9-df269765291f",
+  "owner_id": "admin",
+  "asset_id": "ee158b37-c7dc-43ab-87cf-c887fa60ec71",
+  "environment_id": "b1068ad2-7b8d-4fb0-9230-316c86c596a4",
+  "template_id": "495b9f07-1df1-4b34-b121-e871a3ede1fe",
+  "container_id": "chatchat-py-ee158b37-c7dc-43ab-87cf-c887fa60ec71-9d606f62",
+  "status": "SUCCEEDED",
+  "exit_code": 0,
+  "duration_ms": 2037,
+  "started_at": "2026-10-31T19:14:06.645352+00:00",
+  "finished_at": "2026-10-31T19:14:08.799719+00:00",
+  "stdoutSha256": "f75022521f66c41c2f47e16ac3bc0b81cc062977e3b1d618e335255636f73659",
+  "stdoutBytes": 2397,
+  "containerPresent": false,
+  "executorStopped": true,
+  "capturedAt": "2026-10-31T19:20:00.072083+00:00"
+}

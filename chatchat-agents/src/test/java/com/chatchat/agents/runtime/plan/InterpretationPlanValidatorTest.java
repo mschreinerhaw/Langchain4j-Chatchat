@@ -1572,6 +1572,39 @@ class InterpretationPlanValidatorTest {
             .anyMatch(message -> message.contains("Unsupported mutable action_type"));
     }
 
+    @Test
+    void pythonParametersRequireCompatibleDiscoveryAndRejectSourceOrMalformedArguments() {
+        String discovery = "mcp_python_discovery";
+        String executor = "mcp_python_executor";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.hasTool(discovery)).thenReturn(true);
+        when(registry.hasTool(executor)).thenReturn(true);
+        when(registry.getToolMetadata(executor)).thenReturn(ToolMetadata.builder().id(executor).riskLevel("low")
+            .parameters(List.of(requiredParameter("templateId", "string"), requiredParameter("parameters", "object")))
+            .metadata(Map.of("argumentBindingPolicy", bindingPolicy(), ToolWorkflowContract.METADATA_KEY,
+                ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_EXECUTION, "mcp.python-template.v1", "parameters")))
+            .build());
+        for (String discoveryProtocol : List.of("mcp.python-template.v1", "mcp.http-template.v1")) {
+            when(registry.getToolMetadata(discovery)).thenReturn(workflowMetadata(discovery,
+                ToolWorkflowRole.TEMPLATE_DISCOVERY, discoveryProtocol));
+            for (Map<String, Object> input : List.of(Map.<String, Object>of("parameters", Map.of()),
+                    Map.<String, Object>of("parameters", List.of("wrong-type")),
+                    Map.<String, Object>of("parameters", Map.of("sourceCode", "print(1)")))) {
+                InterpretationPlan plan = new InterpretationPlan("1.0",
+                    new InterpretationPlan.Intent("data_analysis", "Analyze actual rows", "low"), context(),
+                    new InterpretationPlan.Plan(List.of(
+                        new InterpretationPlan.Step(1, "mcp_tool", discovery, Map.of(), List.of(), null, null),
+                        new InterpretationPlan.Step(2, "mcp_tool", executor, input, List.of(1), null, null),
+                        finalStep(3, List.of(2))), List.of(),
+                        List.of(new InterpretationPlan.Binding(1, "$.templates[0].templateId", 2, "templateId", "jsonpath", true)), null),
+                    new InterpretationPlan.ExecutionPolicy(3, false, List.of(discovery, executor), List.of(), 30000), review(true));
+                var result = validator.validate(plan, registry, Set.of(discovery, executor));
+                assertThat(result.valid()).as("%s %s: %s", discoveryProtocol, input, result.issues())
+                    .isEqualTo(discoveryProtocol.equals("mcp.python-template.v1") && input.get("parameters").equals(Map.of()));
+            }
+        }
+    }
+
     private InterpretationPlan validPlan(String riskLevel, List<String> allowTools, List<String> denyTools) {
         return new InterpretationPlan(
             "1.0",
@@ -1629,11 +1662,13 @@ class InterpretationPlanValidatorTest {
                 "mcp.sql-template.v1", List.of("parameters", "params", "arguments", "executionContext", "mcpExecutionContext"),
                 "mcp.ssh-template.v1", List.of("parameters", "params", "arguments", "executionContext", "mcpExecutionContext"),
                 "mcp.http-template.v1", List.of("parameters", "params", "arguments"),
-                "mcp.api-template.v1", List.of("parameters", "params", "arguments"))),
+                "mcp.api-template.v1", List.of("parameters", "params", "arguments"),
+                "mcp.python-template.v1", List.of("parameters"))),
             Map.entry("executionProtocolBindings", Map.of("mcp.sql-template.v1", "SQL_EXECUTION",
                 "mcp.http-template.v1", "HTTP_EXECUTION", "mcp.api-template.v1", "HTTP_EXECUTION",
-                "mcp.ssh-template.v1", "SHELL_EXECUTION")),
+                "mcp.ssh-template.v1", "SHELL_EXECUTION", "mcp.python-template.v1", "PARAMETER_EXECUTION")),
             Map.entry("executionValidationFields", Map.of(
+                "PARAMETER_EXECUTION", List.of("code", "sourcecode", "script", "assetid"),
                 "SQL_EXECUTION", List.of("sql", "rawsql", "raw_sql", "statement", "query"),
                 "HTTP_EXECUTION", List.of("url", "uri", "method", "headers", "body", "bodytemplate",
                     "body_template", "endpointid", "endpoint_id", "host", "hostname", "ip", "ipaddress",

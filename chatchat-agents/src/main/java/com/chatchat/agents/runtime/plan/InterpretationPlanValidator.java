@@ -364,14 +364,17 @@ public class InterpretationPlanValidator {
                         fieldPolicy, state);
                     case HTTP_EXECUTION -> validateHttpTemplateExecutionContract(step, path,
                         fieldPolicy.validationFields(binding.name()), state);
-                    case SHELL_EXECUTION -> validateSshTemplateExecutionContract(step, path,
+                    case SHELL_EXECUTION -> validateProgramTemplateExecutionContract(step, path,
+                        fieldPolicy.validationFields(binding.name()), state);
+                    case PARAMETER_EXECUTION -> validateProgramTemplateExecutionContract(step, path,
                         fieldPolicy.validationFields(binding.name()), state);
                     default -> { }
                 }
             }
             if (binding == McpBindingPolicyRegistry.Policy.SQL_EXECUTION
                 || binding == McpBindingPolicyRegistry.Policy.HTTP_EXECUTION
-                || binding == McpBindingPolicyRegistry.Policy.SHELL_EXECUTION) {
+                || binding == McpBindingPolicyRegistry.Policy.SHELL_EXECUTION
+                || binding == McpBindingPolicyRegistry.Policy.PARAMETER_EXECUTION) {
                 validateTemplateArgumentShape(plan, step, path, state);
             }
         }
@@ -486,7 +489,7 @@ public class InterpretationPlanValidator {
         }
     }
 
-    private void validateSshTemplateExecutionContract(InterpretationPlan.Step step,
+    private void validateProgramTemplateExecutionContract(InterpretationPlan.Step step,
                                                       String path,
                                                       Set<String> rawFields,
                                                       ValidationState state) {
@@ -1180,7 +1183,8 @@ public class InterpretationPlanValidator {
             if (target != null
                 && (executionBinding(target.toolName(), toolRegistry) == McpBindingPolicyRegistry.Policy.SQL_EXECUTION
                 || executionBinding(target.toolName(), toolRegistry) == McpBindingPolicyRegistry.Policy.HTTP_EXECUTION
-                || executionBinding(target.toolName(), toolRegistry) == McpBindingPolicyRegistry.Policy.SHELL_EXECUTION)
+                || executionBinding(target.toolName(), toolRegistry) == McpBindingPolicyRegistry.Policy.SHELL_EXECUTION
+                || executionBinding(target.toolName(), toolRegistry) == McpBindingPolicyRegistry.Policy.PARAMETER_EXECUTION)
                 && (sameField(binding.inputField(), "template")
                 || sameField(binding.inputField(), "templateId")
                 || sameField(binding.inputField(), "template_id"))

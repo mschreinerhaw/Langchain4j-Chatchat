@@ -74,9 +74,39 @@ public class McpParamBindingResolver {
             case SHELL_EXECUTION -> bindLinuxCommand(values, userQuery, fields);
             case HTTP_EXECUTION -> bindHttpRequest(values, userQuery, fields);
             case SQL_EXECUTION -> bindSqlQuery(values, userQuery, fields);
+            case PARAMETER_EXECUTION -> bindTemplateParameters(values, fields);
             case PASSTHROUGH -> values;
             case REJECTED -> denied(values, "Unsupported MCP execution binding policy.");
         };
+    }
+
+    /** Published programs accept values, never planner-supplied source or execution targets. */
+    private Map<String, Object> bindTemplateParameters(Map<String, Object> values,
+                                                      McpArgumentBindingFieldPolicy fields) {
+        String forbidden = firstPresentField(values, fields.concreteTargetFields());
+        if (forbidden == null) {
+            forbidden = firstExecutionField(values, fields.validationFields("PARAMETER_EXECUTION"));
+        }
+        if (forbidden != null) {
+            return denied(values, "Raw source or concrete execution target is not allowed: " + forbidden);
+        }
+        Object parameters = values.get("parameters");
+        if (parameters instanceof Map<?, ?> map) {
+            Map<String, Object> parameterValues = new LinkedHashMap<>();
+            map.forEach((key, value) -> parameterValues.put(String.valueOf(key), value));
+            forbidden = firstExecutionField(parameterValues, fields.validationFields("PARAMETER_EXECUTION"));
+            if (forbidden != null) {
+                return denied(values, "Raw execution fields are not template parameters: " + forbidden);
+            }
+        }
+        // Preserve upstream bindings and types. The selected template's schema owns business parameters.
+        return values;
+    }
+
+    private String firstExecutionField(Map<String, Object> values, Set<String> forbidden) {
+        return values.keySet().stream()
+            .filter(key -> forbidden.contains(key.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "")))
+            .findFirst().orElse(null);
     }
 
     private Map<String, Object> bindSqlQuery(Map<String, Object> values, String userQuery,

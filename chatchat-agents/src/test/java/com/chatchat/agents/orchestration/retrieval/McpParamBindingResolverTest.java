@@ -633,6 +633,35 @@ class McpParamBindingResolverTest {
             .build();
     }
 
+    @Test
+    void parameterExecutorPreservesActualRowsAndRejectsRawSource() {
+        Map<String, Object> policy = new java.util.LinkedHashMap<>(bindingPolicy());
+        Map<String, String> modes = new java.util.LinkedHashMap<>((Map<String, String>) policy.get("executionProtocolBindings"));
+        modes.put("mcp.python-template.v1", "PARAMETER_EXECUTION");
+        policy.put("executionProtocolBindings", modes);
+        Map<String, Object> validation = new java.util.LinkedHashMap<>((Map<String, Object>) policy.get("executionValidationFields"));
+        validation.put("PARAMETER_EXECUTION", List.of("sourceCode", "script", "assetId"));
+        policy.put("executionValidationFields", validation);
+        ToolMetadata metadata = ToolMetadata.builder().id("mcp_python_executor").categories(List.of("mcp"))
+            .metadata(Map.of("argumentBindingPolicy", policy, ToolWorkflowContract.METADATA_KEY,
+                ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_EXECUTION, "mcp.python-template.v1", "parameters")))
+            .build();
+        Map<String, Object> inputs = Map.of("templateId", "published-id", "parameters",
+            Map.of("annual_rows", List.of(Map.of("net_paid", "123.45"))));
+        assertThat(resolver.resolve("mcp_python_executor", metadata, inputs, "analyze")).isEqualTo(inputs);
+        for (Map<String, Object> invalid : List.of(Map.<String, Object>of("sourceCode", "print(1)"),
+                Map.<String, Object>of("host", "physical-target"),
+                Map.<String, Object>of("parameters", Map.of("script", "print(1)")))) {
+            assertThat(resolver.resolve("mcp_python_executor", metadata, invalid, "analyze"))
+                .containsEntry(McpParamBindingResolver.STATUS_KEY, "DENIED");
+        }
+        ToolMetadata missingPolicy = ToolMetadata.builder().id("mcp_python_executor").categories(List.of("mcp"))
+            .metadata(Map.of(ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
+                ToolWorkflowRole.TEMPLATE_EXECUTION, "mcp.python-template.v1", "parameters"))).build();
+        assertThat(resolver.resolve("mcp_python_executor", missingPolicy, inputs, "analyze"))
+            .containsEntry(McpParamBindingResolver.STATUS_KEY, "DENIED");
+    }
+
     private Map<String, Object> bindingPolicy() {
         Map<String, Object> policy = new java.util.LinkedHashMap<>(Map.of(
             "logicalContextKeys", List.of("env", "environment", "cluster", "namespace", "target",

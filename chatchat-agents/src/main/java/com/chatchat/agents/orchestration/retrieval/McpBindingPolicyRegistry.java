@@ -12,7 +12,8 @@ import java.util.Map;
 public final class McpBindingPolicyRegistry {
 
     public enum Policy {
-        PASSTHROUGH, ASSET_DISCOVERY, TEMPLATE_DISCOVERY, SQL_EXECUTION, HTTP_EXECUTION, SHELL_EXECUTION, REJECTED
+        PASSTHROUGH, ASSET_DISCOVERY, TEMPLATE_DISCOVERY, SQL_EXECUTION, HTTP_EXECUTION, SHELL_EXECUTION,
+        PARAMETER_EXECUTION, REJECTED
     }
 
     private final Map<String, Policy> executionProtocols;
@@ -42,7 +43,8 @@ public final class McpBindingPolicyRegistry {
         try {
             Policy selected = Policy.valueOf(fields.executionProtocolBindings().getOrDefault(protocol, "REJECTED"));
             return selected == Policy.SQL_EXECUTION || selected == Policy.HTTP_EXECUTION
-                || selected == Policy.SHELL_EXECUTION ? selected : Policy.REJECTED;
+                || selected == Policy.SHELL_EXECUTION || selected == Policy.PARAMETER_EXECUTION
+                ? selected : Policy.REJECTED;
         } catch (IllegalArgumentException invalidMode) {
             return Policy.REJECTED;
         }

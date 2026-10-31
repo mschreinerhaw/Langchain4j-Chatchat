@@ -1,0 +1,44 @@
+{
+  "browser": {
+    "base": "http://192.168.195.221:18100",
+    "realAuthorizedHistoricalReport": true,
+    "technicalChartLabelsReplaced": true,
+    "actualDynamicChartRendered": true,
+    "agentPickerBelowInput": true,
+    "desktopTextareaHeight": 66,
+    "ideaPreservesDraft": true,
+    "selectionDoesNotExecute": true,
+    "agentChangePreservesDraft": true,
+    "smallScreenWidth": 390,
+    "mobilePanelWithinViewport": true,
+    "escapeClosesIdeas": true,
+    "browserErrors": [],
+    "explorationMutationRequests": 0,
+    "otherBackgroundRequestPaths": [
+      "/api/v1/workspaces/preferences",
+      "/api/v1/workspaces/preferences"
+    ]
+  },
+  "deployment": {
+    "status": "DEPLOYED",
+    "image": "runtime-os-api:exploration-composer-20261031-r1",
+    "sha256": "613f55e4369c72244339996b0b425c5b8800f4b8edab863d7bf5d7739459fa78",
+    "backup": "/opt/chatchat-releases/exploration-composer-20261031-r1/backup",
+    "retired": {
+      "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-studio-1793439631",
+      "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-studio-1793439631"
+    },
+    "databaseMigrationSha256": null,
+    "preservedExpiredReadOnlyTaskIds": [],
+    "unrelatedContainersUnchanged": true,
+    "conversationContentUnchanged": true,
+    "messageIndexCountUnchanged": true,
+    "images": {
+      "runtime-os-app-stage-api-1": "runtime-os-api:exploration-composer-20261031-r1"
+    }
+  },
+  "frontendTests": 51,
+  "productionBuildPassed": true,
+  "backendSourcesUnchanged": true,
+  "questionIdeas": "Local contextual question templates; editable; no model call, business data request or automatic analysis"
+}

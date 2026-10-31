@@ -1,5 +1,6 @@
 import { defineComponent, ref, onMounted, onBeforeUnmount, onActivated, onDeactivated, nextTick, watch } from "vue";
 import plotlyRuntime from "plotly.js-dist-min/plotly.min.js?url";
+import {chartDisplayTitle} from '../utils/chartDisplayTitle';
 import { explorationFigure, explorationChartStyle, explorationChartTypes, explorationChartTable } from '../utils/explorationPresentation';
 import {
   readReportArtifact,
@@ -110,7 +111,12 @@ export default defineComponent({
         }
       }, 20000);
     }
-    function present(original){const value=explorationFigure(original,props.presentation);return props.compact?explorationChartStyle(value):value;}
+    function present(original){
+      const value=explorationFigure(original,props.presentation);
+      if(typeof value.layout?.title==='string')value.layout.title=chartDisplayTitle(value.layout.title);
+      else if(typeof value.layout?.title?.text==='string')value.layout.title.text=chartDisplayTitle(value.layout.title.text);
+      return props.compact?explorationChartStyle(value):value;
+    }
     function updatePresentation(){
       if(props.chart.kind!=='plotly'||!originalFigure)return;
       try{figure=present(originalFigure);error.value='';loading.value=true;renderStarted=performance.now();sendFigure();}
@@ -189,6 +195,7 @@ export default defineComponent({
     });
     return {
       ref,
+      chartDisplayTitle,
       container,
       frame,
       imageUrl,

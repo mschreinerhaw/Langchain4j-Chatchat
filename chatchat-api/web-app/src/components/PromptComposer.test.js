@@ -123,4 +123,26 @@ it('uses compact input with inherited-data disabling while preserving send behav
  const props=reactive({compact:true,inputDisabled:true,modelValue:'继续分析',placeholder:'继续提问'}),sends=[];host=document.createElement('div');app=createApp({render:()=>h(PromptComposer,{...props,onSend:v=>sends.push(v)})});app.mount(host);await nextTick();expect(host.querySelector('[role=switch]')).toBeNull();expect(host.querySelector('textarea').disabled).toBe(true);host.querySelector('form').dispatchEvent(new Event('submit',{cancelable:true}));expect(sends).toHaveLength(0);props.inputDisabled=false;await nextTick();host.querySelector('form').dispatchEvent(new Event('submit',{cancelable:true}));expect(sends[0].query).toBe('继续分析');
 });
 
+it('puts Agent selection below the input and only fills an editable draft when an idea is picked',async()=>{
+ const props=reactive({compact:true,showAgentPicker:true,showIdea:true,agentRequired:true,modelValue:'核对本期交易',agents:[],ideaContext:{hasResult:true,title:'客户资产'}}),sends=[];
+ host=document.createElement('div');document.body.append(host);app=createApp({render:()=>h(PromptComposer,{...props,onSend:v=>sends.push(v)})});app.mount(host);await nextTick();
+ expect(host.querySelector('form [aria-label="选择 Agent"]')).toBeNull();expect(host.querySelector('.composer-agent-footer select')).not.toBeNull();
+ expect(host.querySelector('textarea').disabled).toBe(false);expect(host.querySelector('[type=submit]').disabled).toBe(true);
+ host.querySelector('[aria-label="提问灵感"]').click();await nextTick();expect(host.querySelector('[aria-label="提问建议"]')).not.toBeNull();
+ host.querySelector('.composer-idea-option').click();await nextTick();expect(host.querySelector('textarea').value).toContain('核对本期交易');expect(host.querySelector('textarea').value).toContain('比较基准');
+ expect(sends).toHaveLength(0);expect(host.querySelector('[aria-label="提问建议"]')).toBeNull();
+});
+it('closes stale ideas when the analysis changes and never truncates an overlong draft',async()=>{
+ const props=reactive({compact:true,showIdea:true,modelValue:'原问题',maxLength:5,ideaContext:{title:'原分析'}});
+ host=document.createElement('div');document.body.append(host);app=createApp({render:()=>h(PromptComposer,props)});app.mount(host);await nextTick();
+ host.querySelector('[aria-label="提问灵感"]').click();await nextTick();host.querySelector('.composer-idea-option').click();await nextTick();
+ expect(host.querySelector('textarea').value).toBe('原问题');expect(host.querySelector('[role=alert]').textContent).toContain('超过');
+ props.ideaContext={title:'新分析'};await nextTick();expect(host.querySelector('[aria-label="提问建议"]')).toBeNull();
+});
+it('keeps sending disabled for a stale Agent id while allowing question drafting and ideas',async()=>{
+ const sends=[];host=document.createElement('div');app=createApp({render:()=>h(PromptComposer,{compact:true,showIdea:true,agentRequired:true,selectedAgentId:'revoked',agents:[{id:'available',name:'已发布',marketStatus:'published'}],modelValue:'我的问题',onSend:v=>sends.push(v)})});app.mount(host);await nextTick();
+ expect(host.querySelector('textarea').disabled).toBe(false);expect(host.querySelector('[aria-label="提问灵感"]').disabled).toBe(false);expect(host.querySelector('[type=submit]').disabled).toBe(true);
+ host.querySelector('form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));expect(sends).toHaveLength(0);
+});
+
 it('offers only published agents in compact mode and requires a selection before sending',async()=>{const props=reactive({compact:true,showAgentPicker:true,agentRequired:true,modelValue:'分析资产',selectedAgentId:'',agents:[{id:'a',name:'业务分析',marketStatus:'published'},{id:'b',name:'未发布',marketStatus:'draft'}]}),sends=[],changes=[];host=document.createElement('div');app=createApp({render:()=>h(PromptComposer,{...props,onSend:v=>sends.push(v),'onUpdate:selectedAgentId':v=>changes.push(v)})});app.mount(host);await nextTick();const picker=host.querySelector('[aria-label="选择 Agent"]');expect([...picker.options].map(o=>o.value)).toEqual(['','a']);expect(host.querySelector('[type=submit]').disabled).toBe(true);picker.value='a';picker.dispatchEvent(new Event('change'));expect(changes).toEqual(['a']);props.selectedAgentId='a';await nextTick();host.querySelector('form').dispatchEvent(new Event('submit',{cancelable:true}));expect(sends[0].agentId).toBe('a');expect(host.querySelector('[role=switch]')).toBeNull();});

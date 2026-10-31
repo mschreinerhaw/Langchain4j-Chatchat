@@ -1,9 +1,9 @@
 .report-layout-settings { font-size:12px; }
-.prompt-compact{margin:0;padding:0;border:0;background:transparent}
-.prompt-compact .composer-box{display:flex;align-items:flex-end;gap:12px;position:relative;padding:12px 14px;border:1px solid #dce5f2;border-radius:12px;background:#fff;box-shadow:0 3px 14px #1e4d8c06}
+.prompt-compact{position:relative;width:100%;max-width:none;min-height:0;margin:0;padding:0;border:0;background:transparent;box-shadow:none}
+.prompt-compact .composer-box{display:grid;grid-template-columns:minmax(0,1fr) 40px;grid-template-rows:auto auto;align-items:end;gap:6px 12px;position:relative;min-height:0;margin:0;padding:14px 16px 12px;border:1px solid #dce5f2;border-radius:16px;background:#fff;box-shadow:0 5px 20px #1e4d8c06;overflow:visible}
 .prompt-compact .composer-box:focus-within{border-color:#5997ff;box-shadow:0 0 0 3px #397ffc0a}
-.prompt-compact textarea{flex:1;width:100%;min-height:42px;max-height:110px;border:0;outline:0;background:transparent;font:inherit;line-height:1.7;resize:none;padding:4px 0;color:var(--ink,#25354f)}
-.prompt-compact .send-button{position:static;flex-shrink:0;width:40px;height:40px;display:grid;place-items:center;border:0;border-radius:9px;background:#1670f8;color:white;cursor:pointer}
+.prompt-compact textarea{grid-row:1;grid-column:1 / -1;width:100%;box-sizing:border-box;min-height:66px;max-height:176px;border:0;outline:0;background:transparent;font:inherit;font-size:14px;line-height:1.8;resize:none;padding:2px 0 6px;color:var(--ink,#25354f)}
+.prompt-compact .send-button{position:static;grid-row:2;grid-column:2;justify-self:end;flex-shrink:0;width:38px;height:38px;display:grid;place-items:center;border:0;border-radius:12px;background:#1670f8;color:white;cursor:pointer}
 .prompt-compact .send-button:disabled{opacity:.45;cursor:default}
 .report-layout-settings > summary { cursor:pointer; color:#3b5f93; padding:6px; }
 .report-layout-settings > div { display:flex; flex-wrap:wrap; gap:10px; padding:12px; border:1px solid #dce5f2; border-radius:8px; background:#f8fafc; }
@@ -50,9 +50,15 @@
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
-.prompt-compact:has(.agent-picker) .composer-box{display:grid;grid-template-columns:minmax(0,1fr) 40px;gap:6px 12px}
-.prompt-compact .composer-toolbar{grid-row:1;grid-column:1 / -1;display:flex;align-items:center;padding:0 0 5px;margin:0;border:0;min-height:27px}
-.prompt-compact:has(.agent-picker) textarea{grid-row:2;grid-column:1;min-height:42px}
-.prompt-compact:has(.agent-picker) .send-button{grid-row:2;grid-column:2;align-self:end}
-.prompt-compact .agent-picker{display:inline-flex;align-items:center;gap:7px;border:1px solid #e1e9f5;border-radius:7px;padding:5px 9px;background:#f8faff;color:#47688e;position:relative;max-width:min(420px,70vw);font-size:12px}
-.prompt-compact .agent-picker span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.prompt-compact .agent-picker select{position:absolute;inset:0;opacity:0;width:100%;cursor:pointer}.prompt-compact .agent-picker:focus-within{outline:2px solid #aacbff}.prompt-compact .agent-picker:after{content:'⌄';margin-left:6px}
+.composer-agent-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 2px 0;min-height:32px}
+.prompt-compact .agent-picker{display:inline-flex;align-items:center;gap:8px;min-height:32px;box-sizing:border-box;border:1px solid #e1e9f5;border-radius:18px;padding:6px 11px;background:#fff;color:#526a8a;position:relative;max-width:min(420px,75%);font-size:12px;font-weight:500}
+.prompt-compact .agent-picker.active{background:#edf4ff;border-color:#d7e6ff;color:#286bd1}
+.prompt-compact .agent-picker span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}.prompt-compact .agent-picker select{position:absolute;inset:0;opacity:0;width:100%;cursor:pointer}.prompt-compact .agent-picker:focus-within{outline:2px solid #aacbff;outline-offset:2px}.prompt-compact .agent-picker>svg{flex-shrink:0}
+.composer-keyboard-hint{font-size:11px;color:#96a2b5;white-space:nowrap}
+.composer-idea-control{grid-row:2;grid-column:1;align-self:center}
+.composer-idea-button{display:inline-flex;align-items:center;gap:5px;border:0;border-radius:9px;padding:7px 9px;background:#fffae9;color:#a76d07;font:inherit;font-size:12px;cursor:pointer}
+.composer-idea-button svg{color:#e2a312;fill:#ffe78c}.composer-idea-button:hover,.composer-idea-button[aria-expanded=true]{background:#fff0bc;color:#8a5700}.composer-idea-button:focus-visible{outline:2px solid #dba62b;outline-offset:2px}.composer-idea-button:disabled{opacity:.45;cursor:default}
+.composer-ideas{position:absolute;left:0;bottom:calc(100% + 10px);z-index:25;width:min(560px,100%);box-sizing:border-box;max-height:min(450px,55dvh);overflow:auto;padding:16px;border:1px solid #e6eaf0;border-radius:16px;background:white;box-shadow:0 12px 45px #2238591f;color:#34445f}
+.composer-ideas>header{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:10px}.composer-ideas header strong{display:flex;align-items:center;gap:6px;font-size:14px}.composer-ideas header svg{color:#d39b16}.composer-ideas header p{font-size:12px;color:#8491a6;margin:7px 0;line-height:1.6}.composer-ideas header button{border:0;background:transparent;color:#8390a4;cursor:pointer;padding:4px;border-radius:6px}
+.composer-idea-option{display:flex;flex-direction:column;gap:5px;width:100%;padding:11px 12px;margin:7px 0;border:1px solid #edf0f6;border-radius:10px;background:#fafbfe;text-align:left;cursor:pointer;font:inherit;color:#425775}.composer-idea-option:hover,.composer-idea-option:focus-visible{background:#eff5ff;border-color:#c8dcfa;outline:none}.composer-idea-option strong{font-size:12px;font-weight:600}.composer-idea-option span{font-size:12px;color:#8290a6;line-height:1.65;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}.composer-ideas>small{display:block;color:#9aa5b6;font-size:11px;margin-top:10px}.composer-idea-error{font-size:12px;color:#b45309}
+@media(max-width:600px){.composer-keyboard-hint{display:none}.prompt-compact .agent-picker{max-width:100%}.prompt-compact .composer-box{padding:12px;border-radius:13px}.prompt-compact textarea{min-height:60px;max-height:132px}.composer-ideas{max-height:45dvh}}

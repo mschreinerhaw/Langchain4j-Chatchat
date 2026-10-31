@@ -27,7 +27,19 @@ it('retains recoverable execution without creating a replacement node',async()=>
 });
 
 it('starts from an authorized agent without requiring a dataset and carries agent identity into preparation',async()=>{const vm=await mount({...space,nodes:[],fileIds:[]});vm.selectAgent('agent');vm.question='分析客户资产';api.prepareExploration.mockResolvedValue({...space,nodes:[{...node('new'),receipt:null}]});api.executeExploration.mockResolvedValue({...space,nodes:[node('new')]});await vm.ask();expect(api.prepareExploration.mock.calls[0][1]).toMatchObject({agentId:'agent',parentId:null});expect(api.explorationDatasets).not.toHaveBeenCalled();});
-it('switching agent starts a fresh analysis while keeping old results intact',async()=>{const vm=await mount();vm.agents.push({id:'other',name:'Other',marketStatus:'published'});vm.selectAgent('other');expect(vm.activeId).toBe('');expect(vm.selectedAgentId).toBe('other');expect(vm.space.nodes[0].agentId).toBe('agent');expect(api.executeExploration).not.toHaveBeenCalled();});
+it('switching agent starts a fresh analysis while keeping the typed question and old results intact',async()=>{const vm=await mount();vm.question='我已经输入的问题';vm.agents.push({id:'other',name:'Other',marketStatus:'published'});vm.selectAgent('other');expect(vm.activeId).toBe('');expect(vm.question).toBe('我已经输入的问题');expect(vm.selectedAgentId).toBe('other');expect(vm.space.nodes[0].agentId).toBe('agent');expect(api.executeExploration).not.toHaveBeenCalled();});
 
 it('restores an Agent task by reading status without submitting or executing it again',async()=>{vi.useFakeTimers();try{const pending={...node('root'),receipt:{agentTaskId:'runtime-task',status:'EXECUTING',resultAvailable:false,terminal:false}};api.explorationNodeStatus.mockResolvedValue({...space,nodes:[node('root')]});const vm=await mount({...space,nodes:[pending]});await vi.advanceTimersByTimeAsync(1501);await settle();expect(api.explorationNodeStatus).toHaveBeenCalledWith('space','root');expect(vm.active.receipt.resultAvailable).toBe(true);expect(api.executeExploration).not.toHaveBeenCalled();expect(api.prepareExploration).not.toHaveBeenCalled();}finally{vi.useRealTimers();}});
 it('does not silently bind legacy file results to a newly selected Agent',async()=>{const legacy={...node('root'),agentId:undefined};const vm=await mount({...space,nodes:[legacy]});expect(vm.selectedAgentId).toBe('');const receipt=JSON.stringify(vm.active.receipt);vm.selectAgent('agent');expect(vm.activeId).toBe('');expect(JSON.stringify(vm.space.nodes[0].receipt)).toBe(receipt);expect(api.prepareExploration).not.toHaveBeenCalled();});
+it('shows dynamic chart labels and fills contextual question ideas without modifying history or starting analysis',async()=>{
+ const state=structuredClone(space);state.nodes[0].receipt.visualReport.charts[0].title='资产结构（Plotly）';
+ const vm=await mount(state);const archived=JSON.stringify(vm.active.receipt);
+ expect(host.querySelector('.exploration-chart-card h2').textContent).toBe('资产结构（动态）');
+ host.querySelector('[aria-label="提问灵感"]').click();await settle();host.querySelector('.composer-idea-option').click();await settle();
+ expect(vm.question).toContain('基于当前');expect(vm.question).toContain('比较基准');expect(JSON.stringify(vm.active.receipt)).toBe(archived);
+ expect(api.executeExploration).not.toHaveBeenCalled();expect(api.prepareExploration).not.toHaveBeenCalled();expect(api.saveExplorationNode).not.toHaveBeenCalled();
+ vm.startRoot();await settle();expect(host.querySelector('textarea').disabled).toBe(false);
+});
+it('collapses the branch pane on small screens so it cannot cover the composer, and closes it after node selection',async()=>{
+ const width=window.innerWidth;try{const vm=await mount();vm.question='保留草稿';window.innerWidth=390;window.dispatchEvent(new Event('resize'));await settle();expect(vm.sidebarCollapsed).toBe(true);expect(vm.question).toBe('保留草稿');vm.sidebarCollapsed=false;vm.selectNode(vm.space.nodes[1]);expect(vm.sidebarCollapsed).toBe(true);}finally{window.innerWidth=width;window.dispatchEvent(new Event('resize'));}
+});

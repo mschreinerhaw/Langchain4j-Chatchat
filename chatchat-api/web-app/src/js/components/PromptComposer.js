@@ -1,4 +1,5 @@
-import { Bot, FileText, Send, XCircle } from "@lucide/vue";
+import { Bot, FileText, Send, XCircle, Lightbulb, ChevronDown, X } from "@lucide/vue";
+import {questionIdeas} from '../utils/questionIdeas';
 import { exceedsChatTextLimit, pastedFiles } from "../utils/chatUserAssets";
 import { reportPresentation } from '../utils/reportLayout';
 import { readWorkspaceDraft, saveWorkspaceDraft } from '../utils/workspaceDrafts';
@@ -11,9 +12,12 @@ export default {
     FileText,
     Send,
     XCircle,
+    Lightbulb, ChevronDown, X,
   },
   props: {
     compact: {type:Boolean,default:false},
+    showIdea: {type:Boolean,default:false},
+    ideaContext: {type:Object,default:()=>({})},
     showAgentPicker: {type:Boolean,default:false},
     agentRequired: {type:Boolean,default:false},
     inputDisabled: {type:Boolean,default:false},
@@ -75,9 +79,11 @@ export default {
       reportMode: "off",
       reportPresentation: reportPresentation(readWorkspaceDraft('report-presentation',this.workspaceContext || getWorkspaceContext()) || {}),
       draft: this.modelValue,
+      ideasOpen: false, ideaError: '',
     };
   },
   computed: {
+    ideas() { return questionIdeas({draft:this.draft,context:this.ideaContext,agent:this.selectedAgentId?this.selectedAgent:{}}); },
     reportPreferenceKey(){return workspaceStorageKey('report-presentation',this.workspaceContext || getWorkspaceContext());},
     agentOptions() {
       return [
@@ -109,11 +115,12 @@ export default {
     documentWorkflowActive() {
       return !!this.selectedAgent?.documentWorkflow;
     },
+    agentSelectionValid() { return !!this.selectedAgentId && this.agentOptions.some(agent=>agent.id===this.selectedAgentId); },
     longText() {
       return exceedsChatTextLimit(this.draft);
     },
     primaryButtonDisabled() {
-      if(this.agentRequired&&!this.selectedAgentId)return true;
+      if(this.agentRequired&&!this.agentSelectionValid)return true;
       if(this.inputDisabled)return true;
       return this.loading
         ? !this.stopAvailable
@@ -125,6 +132,10 @@ export default {
     },
   },
   watch: {
+    selectedAgentId() { this.ideasOpen=false; this.ideaError=''; },
+    conversationKey() { this.ideasOpen=false; this.ideaError=''; },
+    ideaContext() { this.ideasOpen=false; this.ideaError=''; },
+    loading(value) { if(value)this.ideasOpen=false; },
     reportPresentation: {deep:true,handler(value){saveWorkspaceDraft('report-presentation',this.workspaceContext || getWorkspaceContext(),reportPresentation(value));}},
     reportPreferenceKey(){this.reportPresentation=reportPresentation(readWorkspaceDraft('report-presentation',this.workspaceContext || getWorkspaceContext()) || {});},
     modelValue(value) {
@@ -140,6 +151,11 @@ export default {
     this.adjustTextareaHeight();
   },
   methods: {
+    applyIdea(idea) {
+      if(this.loading || this.inputDisabled)return;
+      if(idea.prompt.length>this.maxLength){this.ideaError=`建议加上原问题超过 ${this.maxLength} 字，请先精简当前问题。`;return;}
+      this.draft=idea.prompt;this.ideasOpen=false;this.ideaError='';this.focusComposer();
+    },
     handlePrimaryAction() {
       if (this.loading) {
         if (this.stopAvailable) {
@@ -150,7 +166,7 @@ export default {
       this.send();
     },
     send() {
-      if(this.agentRequired&&!this.selectedAgentId)return;
+      if(this.agentRequired&&!this.agentSelectionValid)return;
       const value = this.draft;
       if (
         (!value.trim() && !this.attachments.length) ||

@@ -11,6 +11,7 @@ import {workspaceStorageKey} from '../utils/workspaceContext';
 import {workspaceBusinessName,businessNodeTitle} from '../utils/explorationWorkspace';
 import {explorationFigure} from '../utils/explorationPresentation';
 import {splitThinkBlocks} from '../utils/thinkBlocks';
+import {chartDisplayTitle} from '../utils/chartDisplayTitle';
 
 export default {
   name:'DataExplorationView',components:{PythonReportChart,ReportMarkdown,PromptComposer,ExplorationChain,ExplorationDataTable,
@@ -26,7 +27,8 @@ export default {
     const workspaceElement=ref(null),workspaceDialog=ref(null),chartDialog=ref(null),tableDialog=ref(null),detailsDialog=ref(null);
     const sidebarWidth=ref(260),sidebarCollapsed=ref(false),collapsedBranches=ref([]),resizing=ref(false);
     const chartSelections=ref({}),chartCache=ref({}),tableOpen=ref(false),expandedChart=ref(false);
-    let noticeTimer,resizeOrigin,resizeStartWidth,pollTimer,polling=false,disposed=false;
+    let noticeTimer,resizeOrigin,resizeStartWidth,pollTimer,polling=false,disposed=false,narrowViewport=false;
+    function syncViewport(){const narrow=window.innerWidth<=980;if(narrow&&!narrowViewport)sidebarCollapsed.value=true;narrowViewport=narrow;}
     const preferenceKey=computed(()=>workspaceStorageKey('chatchat.exploration.ui.v1',props.workspaceContext));
     const busy=computed(()=>loading.value||mutationBusy.value||refreshing.value);
     const active=computed(()=>space.value?.nodes.find(n=>n.id===activeId.value));
@@ -50,6 +52,7 @@ export default {
       return new Set(types).size===1&&chartTypes.some(t=>t.value===types[0])?types[0]:'';
     });
     const heading=computed(()=>active.value?businessNodeTitle(active.value):'新的分析');
+    const ideaContext=computed(()=>({hasResult:!!active.value?.receipt?.resultAvailable,title:heading.value}));
     const summary=computed(()=>{const text=report.value?.summary||authoredReport.value.replace(/^#{1,6}[^\n]*\n/gm,'').replace(/[*#`]/g,'').trim().split('\n').filter(Boolean).slice(0,2).join(' ');return text.length>190?text.slice(0,189)+'…':text;});
     const hasData=computed(()=>!!(active.value?.fileIds?.length||selected.value.length||space.value?.fileIds?.length));
     const contentStyle=computed(()=>({'--chain-width':sidebarCollapsed.value?'0px':`${sidebarWidth.value}px`}));
@@ -73,6 +76,7 @@ export default {
     function selectNode(node){
       const actual=space.value?.nodes.find(n=>n.id===node.id);if(!actual)return;
       activeId.value=actual.id;selectedAgentId.value=actual.agentId||'';selected.value=[...actual.fileIds];tableOpen.value=false;error.value='';revealAncestors(actual);remember();
+      if(narrowViewport)sidebarCollapsed.value=true;
     }
     async function refreshList(){spaces.value=await listExplorations();}
     async function open(id){
@@ -128,7 +132,7 @@ export default {
     }
     function toggleBranch(id){collapsedBranches.value=collapsedBranches.value.includes(id)?collapsedBranches.value.filter(x=>x!==id):[...collapsedBranches.value,id];}
     function selectChart(id){chartSelections.value={...chartSelections.value,[activeId.value]:id};tableOpen.value=false;}
-    function selectAgent(id){if(analyzing.value)return;if(active.value&&active.value.agentId!==id)startRoot();selectedAgentId.value=id;error.value='';}
+    function selectAgent(id){if(analyzing.value)return;const draft=question.value;if(active.value&&active.value.agentId!==id){startRoot();question.value=draft;}selectedAgentId.value=id;error.value='';}
     function startRoot(){selected.value=[...(active.value?.fileIds||space.value?.fileIds||selected.value)];activeId.value='';tableOpen.value=false;question.value='';remember();}
     function moveResize(event){const available=workspaceElement.value?.clientWidth||1200;sidebarWidth.value=Math.round(Math.max(200,Math.min(420,available*.38,resizeStartWidth+event.clientX-resizeOrigin)));}
     function stopResize(){resizing.value=false;window.removeEventListener('pointermove',moveResize);window.removeEventListener('pointerup',stopResize);}
@@ -143,15 +147,16 @@ export default {
     const taskRunning=computed(()=>analyzing.value||!!space.value?.nodes.some(n=>n.agentId&&n.receipt?.agentTaskId&&!n.receipt.resultAvailable&&!n.receipt.terminal));
     onMounted(async()=>{loading.value=true;agentsLoading.value=true;
       try{agents.value=await explorationAgents();}catch(e){error.value=e.message;}finally{agentsLoading.value=false;}const restored=readPreferences(),width=workspaceElement.value?.clientWidth;if(!restored&&width>0&&width<850)sidebarCollapsed.value=true;
+      syncViewport();window.addEventListener('resize',syncViewport);
       try{await refreshList();if(spaces.value.length)await open(spaces.value.find(s=>s.id===selection().get('exploration'))?.id||spaces.value[0].id);}catch(e){error.value=e.message;}finally{loading.value=false;}});
-    onBeforeUnmount(()=>{disposed=true;stopResize();clearTimeout(noticeTimer);clearTimeout(pollTimer);});
+    onBeforeUnmount(()=>{disposed=true;stopResize();clearTimeout(noticeTimer);clearTimeout(pollTimer);window.removeEventListener('resize',syncViewport);});
     return {agents,agentsLoading,selectedAgentId,agentAvailable,selectAgent,taskRunning,spaces,space,selected,activeId,title,question,active,report,authoredReport,charts,currentChart,chartKey,chartData,chartTypes,compatibleTypes,effectiveChartType,heading,summary,
       loading,busy,refreshing,analyzing,saving,runningId,runningSpaceId,error,notice,hasData,sidebarWidth,sidebarCollapsed,collapsedBranches,resizing,contentStyle,
       workspaceElement,workspaceDialog,chartDialog,tableDialog,detailsDialog,tableOpen,expandedChart,workspaceBusinessName,businessNodeTitle,
       open,run,create,ask,recover,reload,saveNode,save,selectNode,chartType,chartReady,selectChart,startRoot,toggleBranch,startResize,
       resizeBy:amount=>sidebarWidth.value=Math.max(200,Math.min(420,sidebarWidth.value+amount)),
       switchSpace:id=>run(async()=>{await open(id);closeDialog(workspaceDialog.value);}),
-      showDialog,closeDialog,renderMarkdown:text=>markdown.render(text),
+      showDialog,closeDialog,chartDisplayTitle,ideaContext,renderMarkdown:text=>markdown.render(text),
       showRunning:()=>{if(space.value?.id===runningSpaceId.value){const node=space.value.nodes.find(n=>n.id===runningId.value);if(node)selectNode(node);}}};
   }
 };

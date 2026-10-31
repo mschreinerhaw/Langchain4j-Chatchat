@@ -4917,6 +4917,13 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         }
         Map<String, Object> templateMetadata = templateId == null
             ? Map.of() : completedTemplateMetadata(completed, templateId);
+        if (runtimeTemplateAuthoritative && request != null) {
+            StepExecution reviewed = reviewedTemplateSelectionExecution(step, request.plan(), completed);
+            if (reviewedSelectedTemplateIds(reviewed).contains(templateId)) {
+                Map<String, Object> verifiedProtocol = ReviewedTemplateParameterProtocol.bind(reviewed, templateId, step.id());
+                if (!verifiedProtocol.isEmpty()) input.put("parameterProtocol", verifiedProtocol);
+            }
+        }
         Object rawProtocol = firstMapValue(input, "parameterProtocol", "parameter_protocol");
         Map<String, Object> protocol = rawProtocol instanceof Map<?, ?> map
             ? new LinkedHashMap<>((Map<String, Object>) map)

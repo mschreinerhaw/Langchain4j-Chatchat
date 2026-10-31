@@ -72,3 +72,13 @@ export function taskSkills(context = {}) {
 }
 
 export const bundledSkillFiles = () => builtin.map(item => ({ ...item.card, filePath: item.filePath }));
+
+/** Validate with the installed Cline parser; preserve the original disclosure byte for byte. */
+export function validateNativeDisclosure(result, card) {
+  if (!result?.nativeOriginal || typeof result.instructions !== 'string') return result;
+  if (digest(result.instructions) !== result.contentSha256) throw new TypeError('Native Skill content hash mismatch');
+  const parsed = parseSkillConfigFromMarkdown(result.instructions, card.name);
+  if (parsed.name !== card.name || !parsed.description?.trim() || !parsed.instructions?.trim())
+    throw new TypeError('Native Skill cannot be loaded by this Cline version');
+  return result;
+}

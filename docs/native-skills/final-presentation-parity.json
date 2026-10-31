@@ -1,0 +1,12 @@
+{
+  "apiImageAtNativeAndBrowserExecution": "runtime-os-api:native-skills-20261031-r2",
+  "finalApiImage": "runtime-os-api:native-skills-20261031-r3",
+  "frontendIndexBytesUnchanged": true,
+  "directFrontendAssetsBytesUnchanged": [
+    "assets/index-DQJ8zhvt.js",
+    "assets/index-B98dJxCk.css"
+  ],
+  "workerUnchanged": true,
+  "finalDifference": "Successful manual Runtime protocol recompile marks SUCCEEDED and clears stale compilationError",
+  "finalJavaRegressionTests": 79
+}

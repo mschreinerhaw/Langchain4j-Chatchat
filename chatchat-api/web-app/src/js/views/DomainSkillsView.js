@@ -4,7 +4,7 @@ import {
   createDomainSkill, createDomainSkillCategory, deleteDomainSkill, deleteDomainSkillCategory, fetchDomainSkills,
   fetchDomainSkillImportTask, getStoredAuthSession, fetchMcpSkillSources, createMcpSkillSource,
   updateMcpSkillSource, syncMcpSkillSource, deleteMcpSkillSource,
-  importDomainSkill, importDomainSkillFromUrl, publishDomainSkill, recallDomainSkill, reindexDomainSkill,
+  importDomainSkill, importDomainSkillFromUrl, importDomainSkillDirectory, publishDomainSkill, recallDomainSkill, reindexDomainSkill,
   reindexDomainSkillCategory, renameDomainSkillCategory, updateDomainSkill, fetchSkillPublicationOptions
 } from "../../services/api.js";
 import { formatDateTime } from "../utils/uiFormatters.js";
@@ -22,18 +22,20 @@ const starter = `# 领域技能名称
 2. 按领域规则分析并验证。
 3. 输出结论、依据和风险提示。`;
 
-const emptyForm = () => ({ id: "", name: "", category: "", description: "", markdownContent: starter });
+const emptyForm = () => ({ id: "", name: "", category: "", description: "", markdownContent: starter, runtimeCompilationEnabled: true, nativeSourceId: "" });
 const emptyMcpSource = () => ({ id: "", name: "", endpoint: "", authorization: "", defaultCategory: "MCP Skills", allowPrivateNetwork: false, enabled: true });
 const editorStateKey = (form = {}) => JSON.stringify({
   id: form.id || "", name: form.name || "", category: form.category || "",
-  description: form.description || "", markdownContent: form.markdownContent || ""
+  description: form.description || "", markdownContent: form.markdownContent || "", runtimeCompilationEnabled: form.runtimeCompilationEnabled !== false
 });
 const importStateKey = (state = {}) => JSON.stringify({
   mode: state.importMode || "file", name: state.importName || "", category: state.importCategory || "",
   url: state.importUrl || "", fileName: state.importFile?.name || "", fileSize: state.importFile?.size || 0,
   fileModified: state.importFile?.lastModified || 0, httpMethod: state.importHttpMethod || "GET",
   queryParams: state.importQueryParams || "", headers: state.importHeaders || "",
-  requestBody: state.importRequestBody || "", allowPrivateNetwork: Boolean(state.importAllowPrivateNetwork)
+  requestBody: state.importRequestBody || "", allowPrivateNetwork: Boolean(state.importAllowPrivateNetwork),
+  kind: state.importSkillKind, compile: state.importCompilationEnabled,
+  directory: (state.importFiles || []).map(f => [f.webkitRelativePath, f.size, f.lastModified])
 });
 
 const parseRequestMap = (value, label) => {
@@ -62,6 +64,7 @@ export default {
     filters: { keyword: "", category: "", status: "", page: 0, pageSize: 12 },
     total: 0, skillCount: 0, totalPages: 0, editorOpen: false, importOpen: false, form: emptyForm(),
     importMode: "file", importFile: null, importUrl: "", importName: "", importCategory: "",
+    importSkillKind: "NATIVE", importCompilationEnabled: false, importFiles: [], importDirectory: false,
     importAdvancedOpen: false, importHttpMethod: "GET", importQueryParams: "", importHeaders: "",
     importRequestBody: "", importAllowPrivateNetwork: false, categoryDialogOpen: false,
     newCategoryName: "", categorySaving: false, categoryError: "", categoryDialogMode: "create",
@@ -98,6 +101,10 @@ export default {
     Object.values(this.noticeTimers || {}).forEach((timer) => { if (timer) clearTimeout(timer); });
   },
   methods: {
+    nativeInfo(skill) { try { return JSON.parse(skill.nativeMetadataJson || "{}"); } catch { return {}; } },
+    compilationLabel(skill) { return skill.runtimeCompilationEnabled === false ? "系统编译关闭" : ({ SUCCEEDED: "系统编译成功", FAILED: "系统编译失败", DISABLED: "待系统编译" })[skill.compilationStatus] || "沿用原编译行为"; },
+    changeImportKind() { this.importCompilationEnabled = this.importSkillKind === "RUNTIME"; this.importFiles = []; this.importDirectory = false; },
+    chooseDirectory(event) { this.importFiles = [...(event.target.files || [])]; this.importMessage = ""; },
     engineLabel(engine) { return ({ GOOGLE_ADK_NATIVE: "Google ADK（原生 Skills）", LANGCHAIN4J: "LangChain4j", OPENAI_COMPATIBLE: "OpenAI 兼容运行时" })[engine] || engine; },
     async openPublish(skill) {
       this.publishTarget = skill; this.publishOpen = true; this.publishLoading = true; this.publishError = "";
@@ -225,6 +232,7 @@ export default {
       this.importCategory = this.filters.category || this.categoryOptions[0]?.name || "";
       this.importMode = "file";
       this.importFile = null;
+      this.importFiles = []; this.importDirectory = false; this.importSkillKind = "NATIVE"; this.importCompilationEnabled = false;
       this.importUrl = "";
       this.importName = "";
       this.importAdvancedOpen = false;
@@ -322,7 +330,7 @@ export default {
           : `确定删除空分类“${category.name}”吗？`,
         category.count > 0 ? "我知道了" : "删除", category.count === 0, null, category);
     },
-    openEdit(skill) { this.form = { id: skill.id, name: skill.name || "", category: skill.category || "", description: skill.description || "", markdownContent: skill.markdownContent || "" }; this.editorSnapshot = editorStateKey(this.form); this.editorMessage = ""; this.editorOpen = true; },
+    openEdit(skill) { this.form = { id: skill.id, name: skill.name || "", category: skill.category || "", description: skill.description || "", markdownContent: skill.markdownContent || "", nativeSourceId: skill.nativeSourceId || "", runtimeCompilationEnabled: skill.runtimeCompilationEnabled !== false }; this.editorSnapshot = editorStateKey(this.form); this.editorMessage = ""; this.editorOpen = true; },
     async save() {
       if (!this.form.name.trim() || !this.form.category.trim() || !this.form.markdownContent.trim()) return;
       await this.perform(async () => {
@@ -341,7 +349,7 @@ export default {
     async importSkill() {
       const category = this.importCategory.trim();
       const url = this.importUrl.trim();
-      if (!category || (this.importMode === "file" ? !this.importFile : !url)) return;
+      if (!category || (this.importMode === "file" ? this.importDirectory ? !this.importFiles.length : !this.importFile : !url)) return;
       let request = {};
       if (this.importMode === "url") {
         try {
@@ -363,10 +371,13 @@ export default {
       this.error = "";
       try {
         let task;
+        const options = { skillKind: this.importSkillKind || "NATIVE", runtimeCompilationEnabled: Boolean(this.importCompilationEnabled) };
         if (this.importMode === "url") {
-          task = await importDomainSkillFromUrl(url, this.importName.trim(), category, request);
+          task = await importDomainSkillFromUrl(url, this.importName.trim(), category, request, options);
+        } else if (this.importDirectory) {
+          task = await importDomainSkillDirectory(this.importFiles, this.importName.trim(), category, options.runtimeCompilationEnabled);
         } else {
-          task = await importDomainSkill(this.importFile, this.importName.trim(), category);
+          task = await importDomainSkill(this.importFile, this.importName.trim(), category, options);
         }
         this.importTask = task;
         this.importMessage = "已提交后台处理，可以关闭弹窗继续使用其他功能。";
@@ -385,7 +396,7 @@ export default {
         if (this.importTask?.taskId !== taskId) return;
         this.importTask = task;
         if (task.status === "SUCCEEDED") {
-          this.importFile = null; this.importUrl = ""; this.importName = "";
+          this.importFile = null; this.importFiles = []; this.importUrl = ""; this.importName = "";
           this.importHttpMethod = "GET"; this.importQueryParams = ""; this.importHeaders = "";
           this.importRequestBody = ""; this.importAllowPrivateNetwork = false; this.importAdvancedOpen = false;
           if (this.$refs?.importFileInput) this.$refs.importFileInput.value = "";

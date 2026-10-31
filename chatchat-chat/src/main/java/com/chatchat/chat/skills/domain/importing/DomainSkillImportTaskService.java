@@ -42,18 +42,26 @@ public class DomainSkillImportTaskService {
 
     public ImportTaskView enqueueFile(String tenantId, String ownerId, byte[] content, String fileName,
                                       String requestedName, String category) {
+        return enqueueFile(tenantId,ownerId,content,fileName,requestedName,category,null);
+    }
+    public ImportTaskView enqueueFile(String tenantId, String ownerId, byte[] content, String fileName,
+                                      String requestedName, String category, DomainSkillService.ImportOptions options) {
         if (content == null || content.length == 0) throw new IllegalArgumentException("Select a ZIP or Markdown file");
         if (content.length > MAX_UPLOAD_BYTES) throw new IllegalArgumentException("Skill file must not exceed 5MB");
         return enqueue(tenantId, ownerId, "FILE", requestedName, category, fileName,
-            new FileWorkItem(content.clone(), fileName, requestedName, category));
+            new FileWorkItem(content.clone(), fileName, requestedName, category,options));
     }
 
     public ImportTaskView enqueueUrl(String tenantId, String ownerId, String sourceUrl, String requestedName,
                                      String category, DomainSkillRemoteImporter.DownloadRequest request) {
+        return enqueueUrl(tenantId,ownerId,sourceUrl,requestedName,category,request,null);
+    }
+    public ImportTaskView enqueueUrl(String tenantId, String ownerId, String sourceUrl, String requestedName,
+                                     String category, DomainSkillRemoteImporter.DownloadRequest request, DomainSkillService.ImportOptions options) {
         if (sourceUrl == null || sourceUrl.isBlank()) throw new IllegalArgumentException("Skill URL is required");
         return enqueue(tenantId, ownerId, "URL", requestedName, category, sourceUrl,
             new UrlWorkItem(sourceUrl, requestedName, category,
-                request == null ? DomainSkillRemoteImporter.DownloadRequest.defaults() : request));
+                request == null ? DomainSkillRemoteImporter.DownloadRequest.defaults() : request,options));
     }
 
     public ImportTaskView status(String tenantId, String taskId) {
@@ -95,12 +103,14 @@ public class DomainSkillImportTaskService {
             repository.save(task);
             DomainSkillEntity skill;
             if (workItem instanceof FileWorkItem file) {
-                skill = skillService.importFile(task.getTenantId(), task.getOwnerId(),
-                    file.content(), file.fileName(), file.requestedName(), file.category());
+                skill = file.options()==null ? skillService.importFile(task.getTenantId(), task.getOwnerId(),
+                    file.content(), file.fileName(), file.requestedName(), file.category())
+                    : skillService.importFile(task.getTenantId(),task.getOwnerId(),file.content(),file.fileName(),file.requestedName(),file.category(),file.options());
             } else {
                 UrlWorkItem url = (UrlWorkItem) workItem;
-                skill = skillService.importUrl(task.getTenantId(), task.getOwnerId(),
-                    url.sourceUrl(), url.requestedName(), url.category(), url.request());
+                skill = url.options()==null ? skillService.importUrl(task.getTenantId(), task.getOwnerId(),
+                    url.sourceUrl(), url.requestedName(), url.category(), url.request())
+                    : skillService.importUrl(task.getTenantId(),task.getOwnerId(),url.sourceUrl(),url.requestedName(),url.category(),url.request(),url.options());
             }
             task.setSkillId(skill.getId());
             task.setStatus(SUCCEEDED);
@@ -146,9 +156,9 @@ public class DomainSkillImportTaskService {
 
     private sealed interface ImportWorkItem permits FileWorkItem, UrlWorkItem { }
     private record FileWorkItem(byte[] content, String fileName, String requestedName,
-                                String category) implements ImportWorkItem { }
+                                String category, DomainSkillService.ImportOptions options) implements ImportWorkItem { }
     private record UrlWorkItem(String sourceUrl, String requestedName, String category,
-                               DomainSkillRemoteImporter.DownloadRequest request) implements ImportWorkItem { }
+                               DomainSkillRemoteImporter.DownloadRequest request, DomainSkillService.ImportOptions options) implements ImportWorkItem { }
 
     public record ImportTaskView(String taskId, String status, String skillId, String errorMessage,
                                  Instant createdAt, Instant startedAt, Instant completedAt) { }

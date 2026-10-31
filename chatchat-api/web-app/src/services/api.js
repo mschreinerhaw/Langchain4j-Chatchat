@@ -205,13 +205,15 @@ export function deleteDomainSkill(id) {
   return apiRequest(`/data-science/domain-skills/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
-export async function importDomainSkill(file, name = "", category = "") {
+export async function importDomainSkill(file, name = "", category = "", options = {}) {
   const session = getStoredAuthSession();
   const path = "/data-science/domain-skills/import";
   const formData = new FormData();
   formData.append("file", file);
   if (name) formData.append("name", name);
   formData.append("category", category);
+  if (options.skillKind) formData.append("skillKind", options.skillKind);
+  if (typeof options.runtimeCompilationEnabled === "boolean") formData.append("runtimeCompilationEnabled", String(options.runtimeCompilationEnabled));
   const response = await fetch(`${API_BASE}${path}`, {
     method: "POST",
     headers: { ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}) },
@@ -223,11 +225,17 @@ export async function importDomainSkill(file, name = "", category = "") {
   return unwrapApiPayload(payload, path);
 }
 
-export function importDomainSkillFromUrl(url, name = "", category = "", request = {}) {
+export function importDomainSkillFromUrl(url, name = "", category = "", request = {}, options = {}) {
   return apiRequest("/data-science/domain-skills/import-url", {
     method: "POST",
-    body: JSON.stringify({ url, name, category, request })
+    body: JSON.stringify({ url, name, category, request, ...options })
   });
+}
+
+export async function importDomainSkillDirectory(files, name, category, runtimeCompilationEnabled = false) {
+  const { createSkillDirectoryArchive } = await import('../js/utils/skillDirectoryArchive.js');
+  const archive = await createSkillDirectoryArchive(files);
+  return importDomainSkill(archive, name, category, { skillKind: 'NATIVE', runtimeCompilationEnabled });
 }
 
 export function fetchDomainSkillImportTask(taskId) {

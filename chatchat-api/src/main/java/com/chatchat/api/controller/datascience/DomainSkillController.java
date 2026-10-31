@@ -120,13 +120,16 @@ public class DomainSkillController {
     public ApiResponse<?> importFile(@RequestPart("file") MultipartFile file,
                                      @RequestParam(value = "name", required = false) String name,
                                      @RequestParam("category") String category,
+                                     @RequestParam(value="runtimeCompilationEnabled",required=false) Boolean runtimeCompilationEnabled,
+                                     @RequestParam(value="skillKind",required=false) String skillKind,
                                      HttpServletRequest request) {
         return call(() -> {
             Scope scope = scope(request);
             requireAdmin(scope);
             try {
                 return importTaskService.enqueueFile(scope.tenantId(), scope.ownerId(), file.getBytes(),
-                    file.getOriginalFilename(), name, category);
+                    file.getOriginalFilename(), name, category,skillKind==null && runtimeCompilationEnabled==null?null:
+                        new DomainSkillService.ImportOptions(runtimeCompilationEnabled,skillKind));
             } catch (IOException ex) {
                 throw new IllegalArgumentException("Unable to read skill file", ex);
             }
@@ -145,8 +148,17 @@ public class DomainSkillController {
                 : new DomainSkillRemoteImporter.DownloadRequest(http.method(), http.queryParams(), http.headers(),
                     http.body(), http.allowPrivateNetwork());
             return importTaskService.enqueueUrl(scope.tenantId(), scope.ownerId(), body.url(), body.name(), body.category(),
-                downloadRequest);
+                downloadRequest,body.skillKind()==null && body.runtimeCompilationEnabled()==null?null:
+                    new DomainSkillService.ImportOptions(body.runtimeCompilationEnabled(),body.skillKind()));
         });
+    }
+
+    @GetMapping("/{id}/original")
+    public org.springframework.http.ResponseEntity<byte[]> original(@PathVariable("id") String id,HttpServletRequest request) {
+        var scope=scope(request); requireAdmin(scope); var original=service.original(scope.tenantId(),id);
+        return org.springframework.http.ResponseEntity.ok().contentType(MediaType.APPLICATION_OCTET_STREAM)
+            .header("Content-Disposition","attachment; filename=\"original-skill"+(original.getSourceType().contains("ZIP")?".zip":".md")+"\"")
+            .header("X-Content-SHA256",original.getOriginalHash()).body(original.getOriginalArtifact());
     }
 
     @GetMapping("/imports/{taskId}")
@@ -245,14 +257,14 @@ public class DomainSkillController {
     private interface Action { Object run(); }
 
     private record Scope(String tenantId, String ownerId) {}
-    private record SkillRequest(String id, String name, String category, String description, String markdownContent) {
+    private record SkillRequest(String id, String name, String category, String description, String markdownContent, Boolean runtimeCompilationEnabled) {
         DomainSkillService.SaveSkillCommand toCommand(String id) {
-            return new DomainSkillService.SaveSkillCommand(id, name, category, description, markdownContent);
+            return new DomainSkillService.SaveSkillCommand(id, name, category, description, markdownContent,runtimeCompilationEnabled);
         }
     }
     private record CategoryRequest(String name) {}
     private record CategoryReindexRequest(String category) {}
-    private record ImportUrlRequest(String url, String name, String category, ImportHttpRequest request) {}
+    private record ImportUrlRequest(String url, String name, String category, ImportHttpRequest request, Boolean runtimeCompilationEnabled, String skillKind) {}
     private record ImportHttpRequest(String method, Map<String, String> queryParams, Map<String, String> headers,
                                      String body, boolean allowPrivateNetwork) {}
 }

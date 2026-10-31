@@ -26,6 +26,26 @@ import java.util.zip.ZipInputStream;
 /** Reads immutable SKILL.md bundle resources and non-authoritative resource declarations. */
 @Component
 public class DomainSkillPackageReader {
+    @Transactional(readOnly=true)
+    public DomainSkillSourceArtifactEntity original(String tenantId,String skillId,String sourceId) {
+        return artifacts.findById(sourceId).filter(s -> tenantId.equals(s.getTenantId()) && skillId.equals(s.getSkillId()))
+            .filter(s -> NativeSkillPackage.sha256(s.getOriginalArtifact()).equals(s.getOriginalHash()))
+            .orElseThrow(() -> new IllegalArgumentException("Original Skill is unavailable or has changed"));
+    }
+    @Transactional(readOnly = true)
+    public NativeSkillPackage.Inspection nativePackage(String tenantId, String skillId, String sourceId) {
+        var source=artifacts.findById(sourceId).filter(s -> tenantId.equals(s.getTenantId()) && skillId.equals(s.getSkillId()))
+            .orElseThrow(() -> new IllegalArgumentException("Original native Skill is unavailable"));
+        if(!NativeSkillPackage.sha256(source.getOriginalArtifact()).equals(source.getOriginalHash()))
+            throw new IllegalArgumentException("Original native Skill hash mismatch");
+        return NativeSkillPackage.inspect(source.getOriginalArtifact(),source.getSourceType().contains("ZIP"));
+    }
+
+    public List<SkillResourceDescriptor> nativeResources(NativeSkillPackage.Inspection pack) {
+        return pack.files().entrySet().stream().filter(e -> e.getKey().startsWith(pack.root()) && !e.getKey().equals(pack.entryPath()))
+            .map(e -> new SkillResourceDescriptor(e.getKey(),e.getKey().substring(pack.root().length()),mediaType(e.getKey()),
+                NativeSkillPackage.sha256(e.getValue()),Map.of("nativeOriginal",true))).toList();
+    }
     private static final int MAX_ENTRIES = 500;
     private static final int MAX_RESOURCE_BYTES = 2 * 1024 * 1024;
     private static final int MAX_TOTAL_BYTES = 16 * 1024 * 1024;

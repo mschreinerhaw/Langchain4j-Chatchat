@@ -12,6 +12,7 @@ import com.chatchat.chat.skills.domain.adapter.ExternalSkillSource;
 import com.chatchat.chat.skills.domain.adapter.RuntimeSkillIr;
 import com.chatchat.chat.skills.domain.artifact.DomainSkillArtifactStore;
 import com.chatchat.chat.skills.domain.artifact.DomainSkillPackageReader;
+import com.chatchat.chat.skills.domain.artifact.NativeSkillPackage;
 import com.chatchat.chat.skills.domain.catalog.DomainSkillCategoryEntity;
 import com.chatchat.chat.skills.domain.catalog.DomainSkillCategoryRepository;
 import com.chatchat.chat.skills.domain.catalog.DomainSkillEntity;
@@ -76,9 +77,44 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
     @Autowired(required = false)
     private ResourceAuthorizationPort resourceAuthorization;
 
+    @Autowired(required = false)
+    private com.chatchat.chat.skills.persistence.SkillConfigRepository agentConfigurations;
+
+    public record ImportOptions(Boolean runtimeCompilationEnabled, String skillKind) {
+        public ImportOptions {
+            if(skillKind!=null && !Set.of("NATIVE","RUNTIME").contains(skillKind)) throw new IllegalArgumentException("Invalid skill kind");
+        }
+    }
+    @Transactional(readOnly=true)
+    public com.chatchat.chat.skills.domain.artifact.DomainSkillSourceArtifactEntity original(String tenantId,String id) {
+        var skill=owned(id,tenantId);
+        if(!skill.isNativeSkill()) throw new IllegalArgumentException("No native original package is registered");
+        return packageReader.original(tenantId,id,skill.getNativeSourceId());
+    }
+    private boolean nativePurpose(SkillRoleContext context) { return "AGENT_NATIVE".equals(context.attributes().get("skillPurpose")); }
+    private boolean runtimeEligible(DomainSkillEntity skill) {
+        return skill.participatesInRuntimeCompilation() && !"FAILED".equals(skill.getCompilationStatus())
+            && (!skill.isNativeSkill() || "SUCCEEDED".equals(skill.getCompilationStatus()));
+    }
+    private boolean nativeLoadable(DomainSkillEntity skill) {
+        if(!skill.isNativeSkill()) return true;
+        try { return Boolean.TRUE.equals(PROTOCOL_MAPPER.readValue(skill.getNativeMetadataJson(),Map.class).get("loadable")); }
+        catch(Exception invalid) { return false; }
+    }
+
     public Workspace workspace(String tenantId, String keyword, String category, String status, int page, int pageSize) {
         int p = Math.max(0, page), size = Math.max(1, Math.min(100, pageSize));
         Page<DomainSkillEntity> result = repository.search(tenantId, text(category), text(status), text(keyword), PageRequest.of(p, size));
+        if(agentConfigurations!=null) {
+            Map<String,Integer> counts=new HashMap<>();
+            // Read existing bindings only. No second Agent assignment state is introduced.
+            for(var agent:agentConfigurations.findAll()) try {
+                var config=PROTOCOL_MAPPER.readTree(text(agent.getWorkflowConfigJson()).isEmpty()?"{}":agent.getWorkflowConfigJson());
+                var ids=config.path("boundDomainSkillIds");
+                if(ids.isArray()) { Set<String> unique=new HashSet<>(); ids.forEach(id -> unique.add(id.asText())); unique.forEach(id -> counts.merge(id,1,Integer::sum)); }
+            } catch(java.io.IOException invalid) { /* invalid Agent config is never a new grant */ }
+            result.getContent().forEach(skill -> skill.setAssignedAgentCount(counts.getOrDefault(skill.getId(),0)));
+        }
         return new Workspace(result.getContent(), result.getTotalElements(), repository.countVisible(tenantId), p, size, result.getTotalPages(),
             categories(tenantId), quota(tenantId), com.chatchat.chat.skills.runtime.BuiltinCodingSkills.catalog());
     }
@@ -153,7 +189,8 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
         String tenantId = request.roleContext().tenantId();
         Set<String> roleIds = new LinkedHashSet<>(request.roleContext().roleIds());
         Map<String, DomainSkillEntity> published = repository.findVisibleByStatus(tenantId, PUBLISHED).stream()
-            .filter(skill -> !skill.isPublicationDirty())
+            .filter(skill -> nativePurpose(request.roleContext()) ? nativeLoadable(skill) : runtimeEligible(skill))
+            .filter(skill -> !skill.isPublicationDirty() || nativePurpose(request.roleContext()) && skill.isNativeSkill())
             .filter(skill -> skill.isBuiltin() || tenantId.equals(skill.getTenantId()))
             .collect(java.util.stream.Collectors.toMap(DomainSkillEntity::getId, skill -> skill,
                 (left, right) -> left, LinkedHashMap::new));
@@ -195,15 +232,22 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
         if (resourceAuthorization == null) return Optional.empty();
         String tenantId = request.roleContext().tenantId();
         DomainSkillEntity skill = repository.findVisibleById(tenantId, request.skillId()).orElse(null);
-        if (skill == null || !PUBLISHED.equalsIgnoreCase(skill.getStatus()) || skill.isPublicationDirty()
+        if (skill == null || !PUBLISHED.equalsIgnoreCase(skill.getStatus()) || skill.isPublicationDirty() && !(nativePurpose(request.roleContext()) && skill.isNativeSkill())
             || (!skill.isBuiltin() && !tenantId.equals(skill.getTenantId()))) return Optional.empty();
+        if(nativePurpose(request.roleContext()) ? !nativeLoadable(skill) : !runtimeEligible(skill)) return Optional.empty();
         Set<String> roles = new LinkedHashSet<>(request.roleContext().roleIds());
         if (!skillGrantAllowed(request.roleContext(), Set.of(skill.getId()))
             .contains(skill.getId())) return Optional.empty();
         SkillDescriptor descriptor = descriptor(skill, 1D);
         if (!request.version().isBlank() && !request.version().equals(descriptor.version())) return Optional.empty();
+        if(nativePurpose(request.roleContext()) && skill.isNativeSkill()) {
+            var pack=packageReader.nativePackage(skill.getTenantId(),skill.getId(),skill.getNativeSourceId());
+            if(!pack.loadable()) return Optional.empty();
+            return Optional.of(new ResolvedSkill(descriptor,pack.markdown(),packageReader.nativeResources(pack),
+                com.chatchat.runtime.skill.api.skill.SkillRequirements.empty(),Map.of("nativeOriginal",true,"entryPath",pack.entryPath())));
+        }
         DomainSkillPackageReader.PackageView skillPackage = packageReader.readPublished(skill.getTenantId(), skill.getId(), skill.getPublishedCompilationId());
-        return Optional.of(new ResolvedSkill(descriptor, skill.getMarkdownContent(), skillPackage.resources(),
+        return Optional.of(new ResolvedSkill(descriptor, runtimeInstructions(skill), skillPackage.resources(),
             skillPackage.requirements(), Map.of("storage", "POSTGRESQL", "index", "OPENSEARCH")));
     }
 
@@ -213,9 +257,16 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
                                                        SkillRoleContext context) {
         if (resourceAuthorization == null || context == null) return Optional.empty();
         DomainSkillEntity skill = repository.findVisibleById(context.tenantId(), skillId).orElse(null);
-        if (skill == null || !PUBLISHED.equalsIgnoreCase(skill.getStatus()) || skill.isPublicationDirty())
+        if (skill == null || !PUBLISHED.equalsIgnoreCase(skill.getStatus()) || skill.isPublicationDirty() && !(nativePurpose(context) && skill.isNativeSkill()))
             return Optional.empty();
         if (!skillGrantAllowed(context, Set.of(skillId)).contains(skillId)) return Optional.empty();
+        if(skill.isNativeSkill() && nativePurpose(context)) {
+            var pack=packageReader.nativePackage(skill.getTenantId(),skillId,skill.getNativeSourceId());
+            if(!pack.loadable()) return Optional.empty();
+            return packageReader.nativeResources(pack).stream().filter(r -> r.resourceId().equals(resourceId)).findFirst()
+                .map(r -> new SkillResourceContent(r,pack.files().get(resourceId)));
+        }
+        if(!runtimeEligible(skill)) return Optional.empty();
         return packageReader.readResource(context.tenantId(), skillId, resourceId);
     }
 
@@ -241,6 +292,10 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
             catch (java.io.IOException invalid) { throw new IllegalStateException("Invalid published Skill metadata", invalid); }
         }
         metadata.put("builtin", skill.isBuiltin()); metadata.put("published", true);
+        if(skill.isNativeSkill()) try {
+            var original=PROTOCOL_MAPPER.readValue(skill.getNativeMetadataJson(),Map.class);
+            metadata.put("nativeOriginal",true); metadata.put("nativeName",original.get("name"));
+        } catch(java.io.IOException invalid) { throw new IllegalStateException("Invalid native metadata",invalid); }
         if (!text(skill.getExecutionEngine()).isBlank()) {
             metadata.put("executionEngine", skill.getExecutionEngine());
             metadata.put("modelSource", "AGENT");
@@ -251,6 +306,8 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
     @Transactional
     public DomainSkillEntity compileProtocol(String tenantId, String id, Map<String, Object> protocol) {
         DomainSkillEntity skill = owned(id, tenantId);
+        requireCompilationEnabled(skill);
+        if(skill.isNativeSkill()) { compileNative(skill); return repository.save(skill); }
         Map<String, Object> document = new LinkedHashMap<>();
         document.put("name", skill.getName());
         document.put("description", text(skill.getDescription()));
@@ -262,6 +319,8 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
     @Transactional
     public DomainSkillEntity recompileProtocol(String tenantId, String id) {
         DomainSkillEntity skill = owned(id, tenantId);
+        requireCompilationEnabled(skill);
+        if(skill.isNativeSkill()) { compileNative(skill); return repository.save(skill); }
         RuntimeSkillIr previous = packageReader.latestCompilation(tenantId, id)
             .orElseThrow(() -> new IllegalArgumentException(
                 "SKILL_PROTOCOL_UNAVAILABLE: 当前技能没有可重新编译的协议"))
@@ -298,6 +357,8 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
                 "editor:" + skill.getId(), json, json.getBytes(StandardCharsets.UTF_8)));
             artifactStore.store(tenantId, skill.getId(), "JSON", "skill.json", result);
             skill.setMarkdownContent(result.skillIr().markdownInstructions());
+            skill.setCompilationStatus("SUCCEEDED");
+            skill.setCompilationError(null);
             skill.setPublicationDirty(true);
             return repository.save(skill);
         } catch (java.io.IOException invalid) { throw new IllegalArgumentException("Invalid Skill protocol", invalid); }
@@ -322,6 +383,7 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
         Map<String, DomainSkillEntity> found = new HashMap<>();
         repository.findVisibleByIdInAndStatus(tenantId, ordered, PUBLISHED).stream()
             .filter(s -> !s.isPublicationDirty())
+            .filter(this::runtimeEligible)
             .filter(s -> s.isBuiltin() || tenantId.equals(s.getTenantId()))
             .forEach(s -> found.put(s.getId(), s));
         Set<String> roleIds = roles == null ? Set.of() : new LinkedHashSet<>(roles);
@@ -341,6 +403,7 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
                 DomainSkillEntity skill = repository.findVisibleById(tenantId, id).orElse(null);
                 if (skill != null) finalFound.put(id, skill);
                 return skill != null && PUBLISHED.equalsIgnoreCase(skill.getStatus())
+                    && runtimeEligible(skill)
                     && !skill.isPublicationDirty()
                     && (skill.isBuiltin() || tenantId.equals(skill.getTenantId()))
                     && (resourceAuthorization == null
@@ -348,7 +411,7 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
             }, Math.min(12, ordered.size()));
         return verifiedIds.stream().map(finalFound::get)
             .map(s -> new DomainSkillContent(s.getId(), s.getName(), s.getCategory(),
-                trim(s.getMarkdownContent(), 64 * 1024), s.getSourceType(), s.getFederatedSourceId(),
+                trim(runtimeInstructions(s), 64 * 1024), s.getSourceType(), s.getFederatedSourceId(),
                 s.getFederatedSkillUri(), s.getFederatedDigest())).toList();
     }
 
@@ -444,12 +507,23 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
         String markdown = required(request.markdownContent(), "Markdown content is required");
         validateMarkdown(markdown);
         DomainSkillEntity skill = text(request.id()).isBlank() ? new DomainSkillEntity() : owned(request.id(), tenantId);
+        boolean newSkill=skill.getId()==null;
         boolean published = PUBLISHED.equalsIgnoreCase(skill.getStatus());
         if (skill.getId() == null) {
             skill.setTenantId(tenantId); skill.setOwnerId(ownerId); skill.setStatus("DRAFT"); skill.setSourceType("EDITOR");
         }
         skill.setName(name); skill.setCategory(category); skill.setDescription(text(request.description()));
-        skill.setMarkdownContent(markdown.trim());
+        if(skill.isNativeSkill() && !Objects.equals(skill.getMarkdownContent(),request.markdownContent()))
+            throw new IllegalArgumentException("Native Skill files are immutable; import a new original package to update content");
+        boolean wasEnabled=skill.participatesInRuntimeCompilation();
+        if(request.runtimeCompilationEnabled()!=null) skill.setRuntimeCompilationEnabled(request.runtimeCompilationEnabled());
+        skill.setMarkdownContent(skill.isNativeSkill()?request.markdownContent():markdown.trim());
+        if(!skill.participatesInRuntimeCompilation()) skill.setCompilationStatus("DISABLED");
+        else if(skill.isNativeSkill() && !wasEnabled) compileNative(skill);
+        else if(!skill.isNativeSkill() && Boolean.TRUE.equals(request.runtimeCompilationEnabled()) && (newSkill || !wasEnabled)) {
+            if(newSkill) skill.setId(UUID.randomUUID().toString());
+            skill=repository.save(skill); compileSystemContent(skill);
+        }
         ensureCategory(tenantId, category);
         DomainSkillEntity saved = repository.saveAndFlush(skill);
         // Content updates do not invalidate the imported executable protocol or require publication.
@@ -464,11 +538,17 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
     @Transactional
     public DomainSkillEntity importFile(String tenantId, String ownerId, byte[] content, String originalFileName,
                                         String name, String category) {
+        return importFile(tenantId,ownerId,content,originalFileName,name,category,null);
+    }
+
+    @Transactional
+    public DomainSkillEntity importFile(String tenantId, String ownerId, byte[] content, String originalFileName,
+                                        String name, String category, ImportOptions options) {
         if (content == null || content.length == 0) throw new IllegalArgumentException("Select a ZIP or Markdown file");
         if (content.length > MAX_UPLOAD_BYTES) throw new IllegalArgumentException("Skill file must not exceed 5MB");
         String fileName = safeFileName(originalFileName);
         return importBytes(tenantId, ownerId, content, fileName, name, category,
-            "Imported from " + fileName, false);
+            "Imported from " + fileName, false, options);
     }
 
     @Transactional
@@ -476,22 +556,30 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
                                        String name, String category) {
         DomainSkillRemoteImporter.RemoteFile file = remoteImporter.download(sourceUrl);
         return importBytes(tenantId, ownerId, file.bytes(), file.fileName(), name, category,
-            "Imported from " + trim(file.sourceUrl(), 1900), true);
+            "Imported from " + trim(file.sourceUrl(), 1900), true, null);
     }
 
     @Transactional
     public DomainSkillEntity importUrl(String tenantId, String ownerId, String sourceUrl,
                                        String name, String category,
                                        DomainSkillRemoteImporter.DownloadRequest request) {
+        return importUrl(tenantId,ownerId,sourceUrl,name,category,request,null);
+    }
+
+    @Transactional
+    public DomainSkillEntity importUrl(String tenantId, String ownerId, String sourceUrl,
+                                       String name, String category, DomainSkillRemoteImporter.DownloadRequest request, ImportOptions options) {
         DomainSkillRemoteImporter.RemoteFile file = remoteImporter.download(sourceUrl, request);
         return importBytes(tenantId, ownerId, file.bytes(), file.fileName(), name, category,
-            "Imported from " + trim(file.sourceUrl(), 1900), true);
+            "Imported from " + trim(file.sourceUrl(), 1900), true, options);
     }
 
     @Transactional
     public synchronized DomainSkillEntity publish(String tenantId, String id) {
         DomainSkillEntity skill = owned(id, tenantId);
-        packageReader.latestCompilation(tenantId, id).ifPresent(compilation -> {
+        if(skill.isNativeSkill() && !nativeLoadable(skill) && !runtimeEligible(skill))
+            throw new IllegalArgumentException("Native Skill is incompatible or restricted; original package is retained as a draft");
+        if(runtimeEligible(skill)) packageReader.latestCompilation(tenantId, id).ifPresent(compilation -> {
             RuntimeSkillIr ir = compilation.protocol();
             // Publication activates an existing artifact; compilation belongs to import/protocol editing.
             skill.setPublishedCompilationId(compilation.id());
@@ -626,10 +714,13 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
     }
 
     private DomainSkillEntity importBytes(String tenantId, String ownerId, byte[] bytes, String originalFileName,
-                                          String name, String category, String description, boolean remote) {
+                                          String name, String category, String description, boolean remote, ImportOptions options) {
         String fileName = safeFileName(originalFileName), lower = fileName.toLowerCase(Locale.ROOT);
         if (!lower.matches(".*\\.(md|markdown|zip|json|yaml|yml)$"))
             throw new IllegalArgumentException("Supported Skill files: .zip, .md, .markdown, .json, .yaml, .yml");
+        boolean nativeImport=options!=null && "NATIVE".equals(options.skillKind())
+            || options==null && remote && description.matches("(?i).*https://(?:github\\.com|raw\\.githubusercontent\\.com)/(?:anthropics|openai|microsoft|cline)/skills/.*");
+        if(nativeImport) return importNative(tenantId,ownerId,bytes,fileName,name,category,description,options);
         String markdown;
         try {
             markdown = lower.endsWith(".zip") ? markdownFromZip(bytes) : new String(bytes, StandardCharsets.UTF_8);
@@ -642,8 +733,15 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
         if (lower.endsWith(".yaml") || lower.endsWith(".yml")) sourceType = remote ? "URL_YAML" : "YAML";
         String sourceReference = remote && description.startsWith("Imported from ")
             ? description.substring("Imported from ".length()) : fileName;
-        ExternalSkillCompilation compilation = externalSkillGateway.adaptAndCompile(new ExternalSkillSource(
-            fileName, sourceType, sourceReference, markdown, bytes));
+        if(options!=null && Boolean.FALSE.equals(options.runtimeCompilationEnabled()))
+            return importUncompiled(tenantId,ownerId,bytes,fileName,name,category,description,sourceType,markdown,null);
+        externalSkillGateway.validateSource(new ExternalSkillSource(fileName,sourceType,sourceReference,markdown,bytes));
+        ExternalSkillCompilation compilation;
+        try { compilation = externalSkillGateway.adaptAndCompile(new ExternalSkillSource(
+            fileName, sourceType, sourceReference, markdown, bytes)); }
+        catch(RuntimeException failure) {
+            return importUncompiled(tenantId,ownerId,bytes,fileName,name,category,description,sourceType,markdown,failure);
+        }
         RuntimeSkillIr compiled = compilation.skillIr();
         markdown = compiled.markdownInstructions();
         validateMarkdown(markdown);
@@ -657,10 +755,84 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
         skill.setSourceType(sourceType);
         skill.setId(UUID.randomUUID().toString());
         skill.setOriginalFileName(fileName); skill.setStatus("DRAFT");
+        skill.setRuntimeCompilationEnabled(options==null?null:options.runtimeCompilationEnabled());
+        skill.setCompilationStatus("SUCCEEDED");
         ensureCategory(tenantId, skill.getCategory());
         DomainSkillEntity saved = repository.save(skill);
         artifactStore.store(tenantId, saved.getId(), sourceType, fileName, compilation);
         return saved;
+    }
+
+    private DomainSkillEntity importNative(String tenantId,String ownerId,byte[] bytes,String fileName,String name,
+                                           String category,String reference,ImportOptions options) {
+        if(!fileName.toLowerCase(Locale.ROOT).matches(".*\\.(zip|md|markdown)$"))
+            throw new IllegalArgumentException("Native Skills require an original ZIP or SKILL.md");
+        var pack=NativeSkillPackage.inspect(bytes,fileName.toLowerCase(Locale.ROOT).endsWith(".zip"));
+        var skill=new DomainSkillEntity(); skill.setId(UUID.randomUUID().toString());
+        skill.setTenantId(tenantId); skill.setOwnerId(ownerId); skill.setCategory(required(category,"Skill category is required"));
+        skill.setName(trim(text(name).isBlank()?(pack.name().isBlank()?fileName:pack.name()):name,200));
+        skill.setDescription(trim(pack.description(),2000)); skill.setMarkdownContent(pack.markdown());
+        skill.setOriginalFileName(fileName); skill.setSourceType(fileName.toLowerCase(Locale.ROOT).endsWith(".zip")?"NATIVE_ZIP":"NATIVE_MARKDOWN");
+        skill.setRuntimeCompilationEnabled(options!=null && Boolean.TRUE.equals(options.runtimeCompilationEnabled()));
+        skill.setStatus("DRAFT"); skill.setCompilationStatus("DISABLED");
+        try {
+            var metadata=new LinkedHashMap<String,Object>(pack.metadata());
+            metadata.put("sourceReference",reference.replaceFirst("^Imported from ",""));
+            metadata.put("originalSha256",NativeSkillPackage.sha256(bytes));
+            skill.setNativeMetadataJson(PROTOCOL_MAPPER.writeValueAsString(metadata));
+            skill=repository.save(skill);
+            skill.setNativeSourceId(artifactStore.storeOriginal(tenantId,skill.getId(),skill.getSourceType(),fileName,
+                reference,bytes,skill.getNativeMetadataJson()));
+            ensureCategory(tenantId,skill.getCategory());
+            if(skill.participatesInRuntimeCompilation()) compileNative(skill);
+            return repository.save(skill);
+        } catch(java.io.IOException invalid) { throw new IllegalArgumentException("Invalid Skill metadata",invalid); }
+    }
+
+    private DomainSkillEntity importUncompiled(String tenantId,String ownerId,byte[] bytes,String fileName,String name,
+            String category,String description,String sourceType,String markdown,RuntimeException failure) {
+        var skill=new DomainSkillEntity(); skill.setId(UUID.randomUUID().toString()); skill.setTenantId(tenantId); skill.setOwnerId(ownerId);
+        skill.setName(text(name).isBlank()?inferName(markdown,fileName):trim(name,200)); skill.setCategory(required(category,"Skill category is required"));
+        skill.setDescription(trim(description,2000)); skill.setSourceType(sourceType); skill.setOriginalFileName(fileName);
+        skill.setMarkdownContent(markdown); skill.setStatus("DRAFT"); skill.setRuntimeCompilationEnabled(failure!=null);
+        skill.setCompilationStatus(failure==null?"DISABLED":"FAILED");
+        skill.setCompilationError(failure==null?null:trim(failure.getMessage(),2000));
+        skill=repository.save(skill); artifactStore.storeOriginal(tenantId,skill.getId(),sourceType,fileName,description,bytes,"{}");
+        ensureCategory(tenantId,skill.getCategory()); return repository.save(skill);
+    }
+
+    private void requireCompilationEnabled(DomainSkillEntity skill) {
+        if(!skill.participatesInRuntimeCompilation()) throw new IllegalArgumentException("Runtime OS system compilation is disabled for this Skill");
+    }
+    private void compileSystemContent(DomainSkillEntity skill) {
+        try {
+            String content=skill.getMarkdownContent();
+            var result=externalSkillGateway.adaptAndCompile(new ExternalSkillSource("SKILL.md","MARKDOWN","editor:"+skill.getId(),
+                content,content.getBytes(StandardCharsets.UTF_8)));
+            artifactStore.store(skill.getTenantId(),skill.getId(),"MARKDOWN","SKILL.md",result);
+            skill.setCompilationStatus("SUCCEEDED"); skill.setCompilationError(null); skill.setPublicationDirty(true);
+            skill.setMarkdownContent(result.skillIr().markdownInstructions());
+        } catch(RuntimeException failure) {
+            skill.setCompilationStatus("FAILED"); skill.setCompilationError(trim(failure.getMessage(),2000));
+        }
+    }
+    private String runtimeInstructions(DomainSkillEntity skill) {
+        if(!skill.isNativeSkill()) return skill.getMarkdownContent();
+        return packageReader.latestCompilation(skill.getTenantId(),skill.getId())
+            .filter(c -> Objects.equals(c.id(),skill.getPublishedCompilationId())).map(c -> c.protocol().markdownInstructions()).orElse("");
+    }
+    private void compileNative(DomainSkillEntity skill) {
+        requireCompilationEnabled(skill);
+        var pack=packageReader.nativePackage(skill.getTenantId(),skill.getId(),skill.getNativeSourceId());
+        try {
+            var original=pack.markdown().getBytes(StandardCharsets.UTF_8);
+            var compiled=externalSkillGateway.adaptAndCompile(new ExternalSkillSource("SKILL.md","MARKDOWN",
+                "original:"+skill.getNativeSourceId(),pack.markdown(),original));
+            artifactStore.store(skill.getTenantId(),skill.getId(),"NATIVE_COMPILATION_INPUT","SKILL.md",compiled);
+            skill.setCompilationStatus("SUCCEEDED"); skill.setCompilationError(null); skill.setPublicationDirty(true);
+        } catch(RuntimeException failure) {
+            skill.setCompilationStatus("FAILED"); skill.setCompilationError(trim(failure.getMessage(),2000));
+        }
     }
 
     private String markdownFromZip(byte[] bytes) throws IOException {
@@ -691,7 +863,11 @@ public class DomainSkillService implements DomainSkillRuntimePort, SkillSource {
 
     private record MarkdownEntry(String name, String content) { }
     public record SaveSkillCommand(String id, String name, String category, String description,
-                                   String markdownContent) { }
+                                   String markdownContent, Boolean runtimeCompilationEnabled) {
+        public SaveSkillCommand(String id,String name,String category,String description,String markdownContent) {
+            this(id,name,category,description,markdownContent,null);
+        }
+    }
     public record Workspace(List<DomainSkillEntity> skills, long total, long skillCount, int page, int pageSize, int totalPages, List<CategoryOption> categories, PublicationQuota quota, List<Map<String,Object>> builtinSkills) { }
     public record CategoryOption(String id, String name, long count, boolean manageable) { }
     public record ReindexResult(String id, String name, String mode, String message) { }

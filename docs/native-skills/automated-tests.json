@@ -1,0 +1,38 @@
+{
+  "status": "PASSED",
+  "java": {
+    "total": 79,
+    "chat": 63,
+    "api": 14,
+    "runtime": 2,
+    "skipped": 0,
+    "includesActualJpaPersistence": true,
+    "includesIdempotentLegacySchemaMigration": true
+  },
+  "frontend": {
+    "total": 42,
+    "includesNativeDirectoryArchive": 3,
+    "productionBuildPassed": true
+  },
+  "node": {
+    "total": 147,
+    "local": true,
+    "actualServerImage": true,
+    "offlineServerBuildAndTests": true,
+    "sameSuiteNotAddedTwice": true
+  },
+  "deploymentMigrationScripts": {
+    "total": 6,
+    "pythonStandardLibrary": true,
+    "networkAndDatabaseMocked": true
+  },
+  "protectedSourcesUnchanged": [
+    "chatchat-chat/src/main/java/com/chatchat/chat/skills/domain/adapter/ModelDrivenExternalSkillCompiler.java",
+    "chatchat-chat/src/main/java/com/chatchat/chat/skills/domain/adapter/ExternalSkillProtocolConverter.java",
+    "chatchat-chat/src/main/java/com/chatchat/chat/skills/domain/planning/DomainSkillPlanningRouter.java",
+    "chatchat-chat/src/main/java/com/chatchat/chat/skills/runtime/RuntimeOsDomainSkillAdapter.java",
+    "coding-agent-node/skills"
+  ],
+  "compilerSchemaVersionUnchanged": "runtime_skill_ir.v2",
+  "preexistingTestFixtureCorrection": "Artifact store test asserted v1 while constructing current v2 IR; now asserts the actual incoming IR schema. Compiler and converter unchanged."
+}

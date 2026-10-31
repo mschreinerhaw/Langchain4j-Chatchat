@@ -199,6 +199,18 @@
                 </div>
               </div>
               <p>{{ skill.description || "暂无说明" }}</p>
+              <p class="skill-native-status">{{ skill.sourceType }} · {{ compilationLabel(skill) }} · {{ skill.assignedAgentCount || 0 }} 个 Agent 已绑定</p>
+              <template v-if="skill.nativeSourceId">
+                <p>Agent Skills · 兼容 {{ nativeInfo(skill).grade }} · {{ nativeInfo(skill).loadable ? '可供 Agent 使用' : '加载受限' }} · 版本 {{ nativeInfo(skill).version || nativeInfo(skill).originalSha256 }}</p>
+                <p v-for="issue in [...(nativeInfo(skill).issues || []), ...(nativeInfo(skill).risks || [])]" :key="issue" class="domain-skill-field-hint">{{ issue }}</p>
+                <details><summary>原始包与兼容信息</summary>
+                  <p>来源：{{ nativeInfo(skill).sourceReference }} · 许可：{{ nativeInfo(skill).license || '未声明' }}</p>
+                  <p>入口：{{ nativeInfo(skill).entryPath }} · SHA-256：{{ nativeInfo(skill).originalSha256 }}</p>
+                  <p v-for="file in nativeInfo(skill).files || []" :key="file.path">{{ file.path }} · {{ file.size }} 字节 · {{ file.sha256 }}</p>
+                  <small>兼容等级仅评估文件与依赖；原始脚本不会在导入时执行，也不会增加 Agent 工具权限。</small>
+                </details>
+              </template>
+              <p v-if="skill.compilationError" class="domain-skill-dialog-error">{{ skill.compilationError }}</p>
               <p v-if="skill.executionEngine" class="skill-execution-binding"
                 >{{ engineLabel(skill.executionEngine) }} · 使用 Agent 配置的模型</p
               >
@@ -473,8 +485,10 @@
         </label>
         <label class="markdown-field"
           ><span>SKILL.md *</span
-          ><textarea v-model="form.markdownContent" required spellcheck="false"></textarea>
+          ><textarea v-model="form.markdownContent" :readonly="Boolean(form.nativeSourceId)" required spellcheck="false"></textarea>
         </label>
+        <label class="domain-skill-private-network"><input v-model="form.runtimeCompilationEnabled" type="checkbox" /><span>是否参与 Runtime OS 系统编译</span></label>
+        <small v-if="form.nativeSourceId">原始技能文件只读；编译开关不会修改原文件。Agent 使用仍由现有绑定配置管理。</small>
         <footer
           ><button type="button" class="secondary-button" @click="requestCloseEditor">取消</button
           ><button :disabled="busy">保存草稿</button></footer
@@ -508,8 +522,8 @@
         >
           <span class="domain-skill-import-spinner" aria-hidden="true"></span>
           <span
-            ><strong>正在后台解析并生成内部 Skill 协议</strong
-            ><small>模型处理时间较长属于正常情况，可以关闭弹窗继续使用其他功能。</small></span
+            ><strong>正在后台处理技能包</strong
+            ><small>按所选类型保留原始文件并检查兼容性；仅在开启系统编译时调用编译器。</small></span
           >
         </div>
         <div class="domain-skill-import-modes" role="tablist" aria-label="导入方式">
@@ -531,6 +545,8 @@
           >
         </div>
         <label><span>名称（可选）</span><input v-model="importName" maxlength="200" /></label>
+        <label><span>技能类型</span><select v-model="importSkillKind" @change="changeImportKind"><option value="NATIVE">Agent 原生 Skills（保留原始文件）</option><option value="RUNTIME">Runtime OS 系统技能</option></select></label>
+        <label class="domain-skill-private-network"><input v-model="importCompilationEnabled" type="checkbox" /><span>是否参与 Runtime OS 系统编译</span></label>
         <label
           ><span>分类 *</span
           ><select v-model="importCategory" required
@@ -619,6 +635,9 @@
             >
           </section>
         </div>
+        <template v-else>
+        <label v-if="importSkillKind === 'NATIVE'" class="domain-skill-private-network"><input v-model="importDirectory" type="checkbox" /><span>选择原生技能目录</span></label>
+        <label v-if="importDirectory" class="file-picker"><input type="file" webkitdirectory multiple required @change="chooseDirectory" /><strong>{{ importFiles.length ? `已选择 ${importFiles.length} 个文件` : '选择技能目录' }}</strong><small>保留文件及目录结构；请选择含一个 SKILL.md 的具体技能目录，最大 5MB。</small></label>
         <label v-else class="file-picker"
           ><input
             ref="importFileInput"
@@ -629,6 +648,7 @@
           /><strong>{{ importFile?.name || "选择文件" }}</strong
           ><small>支持 ZIP、Markdown、JSON、YAML，最大 5MB；导入后保存为草稿</small></label
         >
+        </template>
         <footer
           ><button type="button" class="secondary-button" @click="requestCloseImport">取消</button
           ><button
@@ -636,7 +656,7 @@
               busy ||
               importTaskRunning ||
               !importCategory ||
-              (importMode === 'file' ? !importFile : !importUrl.trim())
+              (importMode === 'file' ? importDirectory ? !importFiles.length : !importFile : !importUrl.trim())
             "
             ><span
               v-if="busy || importTaskRunning"

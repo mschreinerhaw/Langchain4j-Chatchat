@@ -17,6 +17,12 @@ public final class ExternalSkillAdapterGateway {
     private final ExternalSkillCompiler compiler;
     private final ObjectMapper objectMapper;
 
+    /** Preserve legacy format validation before the recoverable compilation boundary. */
+    public void validateSource(ExternalSkillSource source) {
+        adapters.stream().filter(candidate -> candidate.supports(source)).findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("No adapter supports this external skill format")).adapt(source);
+    }
+
     public ExternalSkillCompilation adaptAndCompile(ExternalSkillSource source) {
         ExternalSkillAdapter adapter = adapters.stream().filter(candidate -> candidate.supports(source)).findFirst()
             .orElseThrow(() -> new IllegalArgumentException("No adapter supports this external skill format"));

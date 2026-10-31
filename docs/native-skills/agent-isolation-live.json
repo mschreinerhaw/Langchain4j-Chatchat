@@ -1,0 +1,25 @@
+{
+  "parentTaskId": "5b4afac6-d10e-3162-90cf-7ff55a9675e1",
+  "runId": "att-1-278cba51-6491-46ec-8c2a-66f233ff567b",
+  "codingTaskId": "analysis-coding-8b1c39a48eafcf5e6a006d9b61f6cba6c035e32029d252d0a744353508e8f938",
+  "parentState": "SUCCEEDED",
+  "codingState": "COMPLETED",
+  "ownerScopedJournalIntegrityVerified": true,
+  "dynamicCatalogCount": 0,
+  "nativeSnapshotsCount": 0,
+  "disabledBuiltinSkillIds": [
+    "builtin:python-data-analysis"
+  ],
+  "requestedSkillReads": [
+    {
+      "skillId": "builtin:python-code-development"
+    }
+  ],
+  "nativeSkillFromAgentANotVisible": true,
+  "disabledAnalysisBuiltinNotRead": true,
+  "developmentBuiltinActuallyRead": true,
+  "model": "deepseek-v4-flash",
+  "modelCalls": 4,
+  "codeExecutions": 2,
+  "sourceAgentAUnchanged": true
+}

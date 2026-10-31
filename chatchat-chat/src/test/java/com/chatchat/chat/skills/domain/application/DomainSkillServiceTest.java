@@ -130,6 +130,8 @@ class DomainSkillServiceTest {
         var gateway = mock(ExternalSkillAdapterGateway.class);
         var skill = skill("compiled", "Sales", "# Changed\n\nUse the latest instructions.");
         skill.setPublicationDirty(true);
+        skill.setCompilationStatus("FAILED");
+        skill.setCompilationError("Previous compilation unavailable");
         var previous = new RuntimeSkillIr(RuntimeSkillIr.SCHEMA_VERSION, "sales", "", "# Old",
             List.of("sales.summary"), List.of(), "TEST");
         when(repository.findByIdAndTenantId("compiled", "tenant-a")).thenReturn(Optional.of(skill));
@@ -151,6 +153,8 @@ class DomainSkillServiceTest {
             mock(DomainSkillRemoteImporter.class), gateway, artifactStore, packageReader);
 
         DomainSkillEntity result = service.recompileProtocol("tenant-a", "compiled");
+        assertThat(result.getCompilationStatus()).isEqualTo("SUCCEEDED");
+        assertThat(result.getCompilationError()).isNull();
 
         var compilation = org.mockito.ArgumentCaptor.forClass(ExternalSkillCompilation.class);
         verify(artifactStore).store(eq("tenant-a"), eq("compiled"), eq("JSON"), eq("skill.json"),

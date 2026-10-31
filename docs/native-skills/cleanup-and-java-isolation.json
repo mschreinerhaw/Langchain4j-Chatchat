@@ -1,0 +1,11 @@
+{
+  "temporaryAgentsRemoved": 2,
+  "temporaryNativeSkillsRemoved": 2,
+  "originalAgentConfigurationUnchanged": true,
+  "originalDomainSkillCountRestored": 19,
+  "disabledNativeExcludedFromJavaPlanning": true,
+  "javaPlanningMode": "NO_AUTHORIZED_CANDIDATES",
+  "originalSourceAgentSha256": "fa7fbcd6897021f2cade1246b98ce0f1be02a1adbfba8af08812dd77eca38671",
+  "completedTaskEvidenceRetained": true,
+  "unknownUsageReservationsNotCleared": true
+}

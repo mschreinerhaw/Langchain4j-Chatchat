@@ -1,0 +1,58 @@
+{
+  "parentTaskId": "b1deb8c4-a045-3d96-9f60-92a592a957c5",
+  "runId": "att-1-a45d1c50-2a2e-4e60-8b49-ed339352ce93",
+  "codingTaskId": "analysis-coding-17ecdc26bb475b2df5e97a6cb8d4cc91c35f4773139b302fc88266e707f9febe",
+  "canonicalState": "SUCCEEDED",
+  "codingStatus": "COMPLETED",
+  "ownerScopedJournalIntegrityVerified": true,
+  "nativeMarkdownBytesUnchanged": true,
+  "allThreeOriginalResourcesFrozenAndHashVerified": true,
+  "scriptResourcePreserved": true,
+  "binaryBytesPreserved": [
+    0,
+    255,
+    13,
+    10
+  ],
+  "originalInstructionSha256": "d9295cf1dcaa7454841c2cb0047e882f160708eee0d5a497fcda175d665a8297",
+  "requestedNativeSkillReads": [
+    {
+      "skillId": "42d8a251-2960-4cfe-8b0a-e3753ef00f0a"
+    },
+    {
+      "skillId": "42d8a251-2960-4cfe-8b0a-e3753ef00f0a",
+      "path": "references/checks.md"
+    },
+    {
+      "skillId": "42d8a251-2960-4cfe-8b0a-e3753ef00f0a",
+      "path": "scripts/check.py"
+    },
+    {
+      "skillId": "42d8a251-2960-4cfe-8b0a-e3753ef00f0a",
+      "path": "assets/probe.bin"
+    }
+  ],
+  "allowedTools": [
+    "artifact_read",
+    "input_read",
+    "python_execute",
+    "skill_read",
+    "sql_validate"
+  ],
+  "networkPolicy": "NONE",
+  "model": "deepseek-v4-flash",
+  "modelCalls": 5,
+  "codeExecutions": 2,
+  "meteringComplete": false,
+  "apiImageAtExecution": "runtime-os-api:native-skills-20261031-r2",
+  "unknownReservationsPreserved": true,
+  "acceptanceMode": "EXPLICIT_SYNTHETIC_NATIVE_PACKAGE_READ_AND_AUTHORIZED_CSV_ANALYSIS",
+  "nativeVersion": "1.0.0",
+  "syntheticCsv": {
+    "rows": 6,
+    "amountTotal": "80.00",
+    "missingAmounts": 1,
+    "independentIntegerCentsCheckPassed": true
+  },
+  "defaultModelUnassistedSuccessClaimed": false
+}

@@ -1,0 +1,32 @@
+{
+  "apiImage": "runtime-os-api:native-skills-20261031-r3",
+  "apiJarSha256": "6892848e1619896b950b5851224382fa70ebe033e2dea52e2591ca95d3bdf452",
+  "workerImage": "runtime-os-coding-agent:agent-skills-native-20261031-r1",
+  "workerImageId": "sha256:7e8e374bbdac6804d90f7997073185fca206d9306454dcd2d265b977bba5ae9c",
+  "runtimePolicyMatchesBeforeUpgrade": true,
+  "productionIdentity": {
+    "uid": 1000,
+    "gid": 32101
+  },
+  "readOnlyRoot": true,
+  "privileged": false,
+  "activeCodingSessions": 0,
+  "workerHealthy": true,
+  "environmentDifferencesLimitedToExpectedBuildMetadata": true,
+  "legacySkillContentFingerprintUnchanged": true,
+  "legacyFingerprint": "7659869c8e41e18efb0a324de6f0e6b8",
+  "databaseMigrationSha256": "fac1275d6caeec89e8d9dc0689d5c7243430a3c6655054fe2c948d9df41421cd",
+  "activePythonSandboxes": 0,
+  "builtinCatalogActuallyLoaded": [
+    {
+      "name": "python-data-analysis",
+      "version": "1.3.0"
+    },
+    {
+      "name": "python-code-development",
+      "version": "1.0.0"
+    }
+  ],
+  "builtinFilesRootOwned": true,
+  "temporaryAgentsAbsentFromDatabase": true
+}

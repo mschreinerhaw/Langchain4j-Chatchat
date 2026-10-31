@@ -6,7 +6,7 @@ const api = vi.hoisted(() => ({
   fetchDomainSkillImportTask: vi.fn(),
   fetchMcpSkillSources: vi.fn(), createMcpSkillSource: vi.fn(), updateMcpSkillSource: vi.fn(),
   syncMcpSkillSource: vi.fn(), deleteMcpSkillSource: vi.fn(),
-  getStoredAuthSession: vi.fn(() => ({ username: "admin" })), importDomainSkill: vi.fn(), importDomainSkillFromUrl: vi.fn(),
+  getStoredAuthSession: vi.fn(() => ({ username: "admin" })), importDomainSkill: vi.fn(), importDomainSkillFromUrl: vi.fn(), importDomainSkillDirectory: vi.fn(),
   publishDomainSkill: vi.fn(), recompileDomainSkill: vi.fn(), recallDomainSkill: vi.fn(), reindexDomainSkill: vi.fn(),
   reindexDomainSkillCategory: vi.fn(), renameDomainSkillCategory: vi.fn(), updateDomainSkill: vi.fn()
 }));
@@ -14,6 +14,26 @@ vi.mock("../../services/api.js", () => api);
 import DomainSkillsView from "./DomainSkillsView.js";
 
 describe("DomainSkillsView", () => {
+  it("defaults external Skills to original native mode with compilation off", () => {
+    const context = { ...DomainSkillsView.data(), categoryOptions: [{ name: "Research" }] };
+    DomainSkillsView.methods.openImport.call(context);
+    expect(context.importSkillKind).toBe("NATIVE"); expect(context.importCompilationEnabled).toBe(false);
+    context.importSkillKind = "RUNTIME"; DomainSkillsView.methods.changeImportKind.call(context);
+    expect(context.importCompilationEnabled).toBe(true);
+  });
+  it("preserves an explicit disabled compilation flag when editing", () => {
+    const context = DomainSkillsView.data();
+    DomainSkillsView.methods.openEdit.call(context, { id: "native", nativeSourceId: "original", markdownContent: "RAW\r\n", runtimeCompilationEnabled: false });
+    expect(context.form.runtimeCompilationEnabled).toBe(false); expect(context.form.markdownContent).toBe("RAW\r\n");
+    expect(context.form.nativeSourceId).toBe("original");
+  });
+  it("submits directory files through the same original-native import queue", async () => {
+    api.importDomainSkillDirectory.mockResolvedValue({ taskId: "directory-task", status: "QUEUED" });
+    const context = { ...DomainSkillsView.data(), importDirectory: true, importFiles: [{ name: "SKILL.md", webkitRelativePath: "sample/SKILL.md" }], importCategory: "Research", pollImportTask: vi.fn() };
+    await DomainSkillsView.methods.importSkill.call(context);
+    expect(api.importDomainSkillDirectory).toHaveBeenCalledWith(context.importFiles, "", "Research", false);
+    expect(context.pollImportTask).toHaveBeenCalledWith("directory-task");
+  });
   it("keeps image builtins separate from the dynamic pageable and removable catalog", async () => {
     const builtins = [{ id: "builtin:python-data-analysis", origin: "SYSTEM_BUILTIN", version: "1.0.0", removable: false }];
     api.fetchDomainSkills.mockResolvedValueOnce({ skills: [{ id: "domain-a" }], builtinSkills: builtins, total: 1, totalPages: 1 });
@@ -209,7 +229,7 @@ describe("DomainSkillsView", () => {
       "https://skills.example/SKILL.md", "Internet Skill", "Research", {
         method: "POST", queryParams: { version: "latest" }, headers: { Authorization: "Bearer token" },
         body: '{"format":"markdown"}', allowPrivateNetwork: true
-      });
+      }, { skillKind: "NATIVE", runtimeCompilationEnabled: false });
     expect(context.importOpen).toBe(true);
     expect(context.importTask).toEqual({ taskId: "import-1", status: "QUEUED" });
     expect(context.importMessage).toContain("后台处理");

@@ -115,4 +115,28 @@ class CodingSkillReaderTest {
         resolve("x".repeat(72001),List.of());
         assertThatThrownBy(() -> reader.read(contract,lease,"method","")).isInstanceOf(IllegalArgumentException.class);
     }
+    @Test void nativeScriptsAndBinaryAssetsAreFrozenExactlyWithoutExecutionAuthority() throws Exception {
+        byte[] binary=new byte[]{0,(byte)255,13,10}, script="def sample():\n    return 1\n".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        String hash=HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(binary));
+        String scriptHash=HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(script));
+        var asset=new SkillResourceDescriptor("original/assets/data.bin","assets/data.bin","application/octet-stream",hash,Map.of());
+        var code=new SkillResourceDescriptor("original/scripts/check.py","scripts/check.py","text/plain",scriptHash,Map.of());
+        String original="---\nname: native-sample\ndescription: Analyze data\nlicense: MIT\n---\n# Original\r\n";
+        when(resolver.resolve(any())).thenReturn(new SkillResolution(new ResolvedSkill(descriptor,original,List.of(asset,code),null,
+            Map.of("nativeOriginal",true)),allowed,"db","RESOLVED",Map.of()));
+        when(resolver.readResource(any())).thenAnswer(c -> {
+            SkillResourceRequest request=c.getArgument(0);
+            return Optional.of(request.resourceId().equals(asset.resourceId())?new SkillResourceContent(asset,binary):new SkillResourceContent(code,script));
+        });
+        reader.freezeCatalog(contract,lease);
+        assertThat(reader.read(contract,lease,"method","SKILL.md")).containsEntry("instructions",original).containsEntry("nativeOriginal",true);
+        var frozen=reader.read(contract,lease,"method","assets/data.bin");
+        assertThat(frozen).containsEntry("encoding","base64").containsEntry("sha256",hash);
+        assertThat(Base64.getDecoder().decode((String)frozen.get("content"))).isEqualTo(binary);
+        assertThat(reader.read(contract,lease,"method","scripts/check.py")).containsEntry("content",new String(script,java.nio.charset.StandardCharsets.UTF_8));
+        clearInvocations(resolver);
+        reader.read(contract,lease,"method","scripts/check.py");
+        verify(resolver,never()).readResource(any());
+        verify(authority,never()).allowedSideEffects();
+    }
 }

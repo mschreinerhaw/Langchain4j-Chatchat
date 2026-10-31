@@ -3,7 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { prepareProgram, repairSourceContext, CodeHistory, CODE_LIFECYCLE_VERSION } from './code-repair.js';
 import { editProgram, sdkPrepareTurn, resolveWorkspaceFiles, restoreWorkspaceFiles, completeToolBoundary } from './sdk-adapter.js';
 import { initialProject, proposeProject, projectSchema, decodeProject } from './python-project.js';
-import { taskSkills } from './skills.js';
+import { taskSkills, validateNativeDisclosure } from './skills.js';
 
 const TOOL_NAMES = new Set(['python_execute', 'metadata_read', 'artifact_read', 'skill_read']);
 const WORKSPACE_TOOLS = new Set(['workspace_read', 'workspace_propose', 'workspace_metadata', 'workspace_validate', 'skill_read']);
@@ -492,6 +492,7 @@ export function createCodingRun(contract, gateway, options = {}) {
         throw new TypeError('Skill is outside the Runtime task catalog');
       const result = availableSkills.readBuiltin(id, input.path ?? '')
         ?? await gateway.readSkill(contract, id, input.path ?? '', context.signal);
+        validateNativeDisclosure(result, availableSkills.catalog.skills.find(card => card.id === id));
       await forward({ type: 'SKILLS_LOADED', stage: 'CODING', skillId: id, skillVersion: result.version });
       return result;
     },

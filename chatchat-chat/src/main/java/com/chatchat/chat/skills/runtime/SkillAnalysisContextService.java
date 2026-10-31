@@ -32,7 +32,7 @@ public final class SkillAnalysisContextService {
     public Map<String,Object> prepare(InteractionRequest request, SkillDefinition agent, List<String> roles,
                                      com.chatchat.chat.interaction.model.InteractionContext conversation) {
         InteractionExecution.checkCancellation(request);
-        var identity = new SkillRoleContext(request.getTenantId(),request.getUserId(),roles,List.of(),Map.of("agentId",agent.id()));
+        var identity = new SkillRoleContext(request.getTenantId(),request.getUserId(),roles,List.of(),Map.of("agentId",agent.id(),"skillPurpose","AGENT_NATIVE"));
         Object bound = agent.workflowConfig() == null ? null : agent.workflowConfig().get("boundDomainSkillIds");
         List<String> ids = bound instanceof List<?> list ? list.stream().filter(String.class::isInstance).map(String.class::cast).toList() : List.of();
         publish(request,"RUNNING",Map.of());
@@ -51,7 +51,7 @@ public final class SkillAnalysisContextService {
                 /* Binding registers L1 capabilities only. Instructions and resources are
                    resolved by the authenticated Coding callback when Cline requests them. */
                 delivered.add(Map.of("id", descriptor.id(), "version", descriptor.version(),
-                    "name", descriptor.name(), "description", descriptor.description(),
+                    "name", Objects.toString(descriptor.metadata().get("nativeName"),descriptor.name()), "description", descriptor.description(),
                     "category", descriptor.category(), "agentId", agent.id(),
                     "selectionOwner", "CLINE", "contentDelivery", "ON_DEMAND"));
             }

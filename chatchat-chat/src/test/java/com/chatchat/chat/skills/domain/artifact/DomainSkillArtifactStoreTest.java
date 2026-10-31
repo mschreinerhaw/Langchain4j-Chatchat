@@ -41,7 +41,7 @@ class DomainSkillArtifactStoreTest {
             ArgumentCaptor.forClass(DomainSkillCompilationEntity.class);
         verify(compilations).save(compilationCaptor.capture());
         assertThat(compilationCaptor.getValue().getSourceId()).isEqualTo(sourceCaptor.getValue().getId());
-        assertThat(compilationCaptor.getValue().getIrSchemaVersion()).isEqualTo("runtime_skill_ir.v1");
+        assertThat(compilationCaptor.getValue().getIrSchemaVersion()).isEqualTo(ir.schemaVersion());
         assertThat(compilationCaptor.getValue().getCompilerVersion()).isEqualTo(RuntimeSkillIr.COMPILER_VERSION);
         assertThat(compilationCaptor.getValue().getCompilationMode()).isEqualTo("MODEL");
         assertThat(compilationCaptor.getValue().getSkillIrJson()).contains("runtime_skill_ir.v1");

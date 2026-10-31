@@ -14,6 +14,16 @@ public class DomainSkillArtifactStore {
     private final DomainSkillSourceArtifactRepository sourceRepository;
     private final DomainSkillCompilationRepository compilationRepository;
 
+    public String storeOriginal(String tenantId, String skillId, String sourceType, String fileName,
+                                String reference, byte[] bytes, String inspectionJson) {
+        DomainSkillSourceArtifactEntity source = new DomainSkillSourceArtifactEntity();
+        source.setId(UUID.randomUUID().toString()); source.setTenantId(tenantId); source.setSkillId(skillId);
+        source.setSourceType(sourceType); source.setOriginalFileName(trim(fileName,300));
+        source.setSourceReference(trim(reference,2000)); source.setOriginalArtifact(bytes.clone());
+        source.setOriginalHash(NativeSkillPackage.sha256(bytes)); source.setParsedDocumentJson(inspectionJson);
+        return sourceRepository.save(source).getId();
+    }
+
     public void store(String tenantId, String skillId, String sourceType, String fileName,
                       ExternalSkillCompilation compilation) {
         DomainSkillSourceArtifactEntity source = new DomainSkillSourceArtifactEntity();

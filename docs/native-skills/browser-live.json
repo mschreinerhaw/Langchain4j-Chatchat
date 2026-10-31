@@ -1,0 +1,16 @@
+{
+  "actualRemoteBrowser": true,
+  "builtinCards": 2,
+  "redundantBlurbAbsent": true,
+  "nativeImportDefaultCompileOff": true,
+  "systemImportDefaultCompileOn": true,
+  "directoryPickerPresent": true,
+  "directoryActuallyUploadedThroughBrowser": true,
+  "uploadedFilesHashVerified": 3,
+  "unicodePathAndBinaryPreserved": true,
+  "originalManifestVisible": true,
+  "originalEditorReadonlyAndTextEquivalent": true,
+  "textareaLineEndings": "Browser DOM normalizes CRLF to LF; original server bytes verified independently",
+  "browserErrors": [],
+  "executeRequests": 0
+}

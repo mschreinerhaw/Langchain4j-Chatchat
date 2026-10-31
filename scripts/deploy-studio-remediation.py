@@ -18,6 +18,22 @@ def run(*args):
     return subprocess.check_output(args, text=True, stderr=subprocess.STDOUT).strip()
 
 
+def apply_database_migration(root, manifest, execute=subprocess.run):
+    """Apply an explicit hash-pinned additive migration after backup, before JPA validate starts."""
+    migration = manifest.get('databaseMigration')
+    if migration is None:
+        return None
+    assert migration['file'] == 'schema.sql', 'Unexpected database migration path'
+    path = root / migration['file']
+    assert not path.is_symlink() and path.is_file(), 'Missing regular migration file'
+    content = path.read_bytes()
+    assert hashlib.sha256(content).hexdigest() == migration['sha256'], 'Database migration digest mismatch'
+    execute(['docker', 'exec', '-i', '-u', 'postgres', 'postgres', 'psql', '--single-transaction',
+             '-v', 'ON_ERROR_STOP=1', '-d', 'runtime_os_acceptance_api'], input=content, check=True,
+            stdout=subprocess.DEVNULL)
+    return migration['sha256']
+
+
 class DockerConnection(http.client.HTTPConnection):
     def connect(self):
         self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -125,6 +141,7 @@ def main():
         subprocess.run(['docker', 'exec', '-u', 'postgres', 'postgres', 'pg_dump', '-Fc', 'runtime_os_acceptance_api'], stdout=stream, check=True)
     if mcp in images:
         with (backup/'mcp.dump').open('wb') as stream: subprocess.run(['docker','exec','-u','postgres','postgres','pg_dump','-Fc','runtime_os_acceptance_mcp'],stdout=stream,check=True)
+    applied_migration = apply_database_migration(root, manifest)
     stamp = str(int(time.time()))
     retired, created = {}, []
 
@@ -205,6 +222,7 @@ def main():
         assert fingerprint == sql("select md5(coalesce(jsonb_agg(to_jsonb(t)-'source_channel' order by session_id)::text,'[]')) from chat_session t"), 'Conversation content changed during migration'
         assert messages == sql('select count(*) from chat_message_index'), 'Message index count changed during migration'
         report = {'status': 'DEPLOYED', 'image': manifest['image'], 'sha256': manifest['sha256'], 'backup': str(backup), 'retired': retired,
+            'databaseMigrationSha256': applied_migration,
             'preservedExpiredReadOnlyTaskIds':active,
             'unrelatedContainersUnchanged': True, 'conversationContentUnchanged': True, 'messageIndexCountUnchanged': True,
             'images':images,'channelCounts': sql('select source_channel,count(*) from chat_session group by source_channel')}

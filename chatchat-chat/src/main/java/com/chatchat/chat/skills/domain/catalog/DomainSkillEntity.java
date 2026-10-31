@@ -42,6 +42,21 @@ public class DomainSkillEntity {
     private String publishedCompilationId;
     @Column(name = "runtime_metadata_json", length = org.hibernate.Length.LONG32)
     private String runtimeMetadataJson;
+    @Column(name = "runtime_compilation_enabled")
+    private Boolean runtimeCompilationEnabled;
+    @Column(name = "compilation_status", length = 24)
+    private String compilationStatus;
+    @Column(name = "compilation_error", length = 2000)
+    private String compilationError;
+    @Column(name = "native_source_id", length = 64)
+    private String nativeSourceId;
+    @Column(name = "native_metadata_json", length = org.hibernate.Length.LONG32)
+    private String nativeMetadataJson;
+    /** Null is the legacy behavior; never migrate existing skills to disabled. */
+    public boolean participatesInRuntimeCompilation() { return !Boolean.FALSE.equals(runtimeCompilationEnabled); }
+    public boolean isNativeSkill() { return nativeSourceId != null && !nativeSourceId.isBlank(); }
+    @jakarta.persistence.Transient
+    private int assignedAgentCount;
     @Column(name = "execution_engine", length = 40)
     private String executionEngine;
     @Column(name = "execution_model", length = 200)

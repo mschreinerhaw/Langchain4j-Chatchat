@@ -56,7 +56,7 @@ public final class CodingSkillReader {
         var current=scopes.resolve(contract.scope().tenantId(),contract.scope().userId(),agentId,List.of(),List.of());
         if (!current.skillAllowed()) throw denied();
         var identity=new SkillRoleContext(contract.scope().tenantId(),contract.scope().userId(),current.roles(),
-            List.of(),Map.of("agentId",agentId));
+            List.of(),Map.of("agentId",agentId,"skillPurpose","AGENT_NATIVE"));
         String snapshotKey="skill-snapshot:"+ModelProtocolJson.sha256Hex(id);
         var snapshot=tasks.privateState(contract.scope(),contract.taskId(),snapshotKey);
         // Recheck live authorization, while retaining the content already acquired by
@@ -66,6 +66,7 @@ public final class CodingSkillReader {
                 || snapshot==null && !version.equals(resolution.skill().descriptor().version())) throw denied();
         if (snapshot!=null) return frozenRead(snapshot,id,version,path);
         var skill=resolution.skill();
+        boolean nativeOriginal=Boolean.TRUE.equals(skill.metadata().get("nativeOriginal"));
         String hash=ModelProtocolJson.sha256Hex(skill.instructions());
         if (card.get("contentSha256") instanceof String expected && !expected.equals(hash)) throw denied();
         // First read freezes the content manifest. Resume/repeated reads cannot silently change it.
@@ -79,8 +80,8 @@ public final class CodingSkillReader {
         var resources=new ArrayList<Map<String,Object>>();
         for (var declared : skill.resources()) {
             String relative=declared.relativePath();
-            if (relative.startsWith("scripts/")) continue;
-            if (!(declared.mediaType().startsWith("text/") || relative.matches(".*\\.(md|txt|json|ya?ml|csv)$"))) continue;
+            if (!nativeOriginal && relative.startsWith("scripts/")) continue;
+            if (!nativeOriginal && !(declared.mediaType().startsWith("text/") || relative.matches(".*\\.(md|txt|json|ya?ml|csv)$"))) continue;
             if (relative.length()>512 || relative.startsWith("/") || relative.contains("\\") || relative.contains("..")) throw denied();
             var resource=resolver.readResource(new SkillResourceRequest(id,declared.resourceId(),identity)).orElseThrow(CodingSkillReader::denied);
             byte[] bytes=resource.content();
@@ -88,30 +89,35 @@ public final class CodingSkillReader {
                 String digest=HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(bytes));
                 if (bytes.length>24000 || !declared.digest().equals(digest)
                         || !declared.digest().equals(resource.descriptor().digest())) throw denied();
-                String text=StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString();
-                resources.add(Map.of("path",relative,"sha256",digest,"content",text));
+                String text; String encoding="utf-8";
+                try { text=StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString(); }
+                catch(java.nio.charset.CharacterCodingException invalid) {
+                    if(!nativeOriginal) throw invalid;
+                    text=Base64.getEncoder().encodeToString(bytes); encoding="base64";
+                }
+                resources.add(Map.of("path",relative,"sha256",digest,"content",text,"encoding",encoding));
             } catch (java.nio.charset.CharacterCodingException | java.security.NoSuchAlgorithmException invalid) {
                 throw new IllegalArgumentException("Skill resource cannot be disclosed",invalid);
             }
         }
-        snapshot=json.valueToTree(Map.of("instructions",skill.instructions(),"contentSha256",hash,"resources",resources));
+        snapshot=json.valueToTree(Map.of("instructions",skill.instructions(),"contentSha256",hash,"resources",resources,"nativeOriginal",nativeOriginal));
         if (snapshot.toString().length()>250000) throw new IllegalArgumentException("Skill snapshot exceeds disclosure budget");
         tasks.privateState(contract.scope(),contract.taskId(),lease,snapshotKey,null,snapshot);
         return frozenRead(snapshot,id,version,path);
     }
     private Map<String,Object> frozenRead(com.fasterxml.jackson.databind.JsonNode snapshot,String id,String version,String path) {
-        if (path==null || path.isBlank()) {
+        if (path==null || path.isBlank() || path.equals("SKILL.md") && snapshot.path("nativeOriginal").asBoolean()) {
             var resources=new ArrayList<Map<String,Object>>();
-            snapshot.path("resources").forEach(r -> resources.add(Map.of("path",r.path("path").asText(),"sha256",r.path("sha256").asText())));
+            snapshot.path("resources").forEach(r -> resources.add(Map.of("path",r.path("path").asText(),"sha256",r.path("sha256").asText(),"encoding",r.path("encoding").asText("utf-8"))));
             return Map.of("skillId",id,"version",version,"contentSha256",snapshot.path("contentSha256").asText(),
                 "instructions",snapshot.path("instructions").asText(),"resources",resources,
-                "authority","METHODOLOGY_ONLY");
+                "authority","METHODOLOGY_ONLY","nativeOriginal",snapshot.path("nativeOriginal").asBoolean());
         }
         if (path.length()>512 || path.startsWith("/") || path.contains("\\") || path.contains("..")
-                || path.startsWith("scripts/")) throw denied();
+                ) throw denied();
         for (var resource : snapshot.path("resources")) if (path.equals(resource.path("path").asText()))
             return Map.of("skillId",id,"version",version,"path",path,"sha256",resource.path("sha256").asText(),
-                "content",resource.path("content").asText(),"authority","METHODOLOGY_ONLY");
+                "content",resource.path("content").asText(),"encoding",resource.path("encoding").asText("utf-8"),"authority","METHODOLOGY_ONLY");
         throw denied();
     }
     private static SecurityException denied() { return new SecurityException("Skill is outside the task catalog, revoked or changed"); }

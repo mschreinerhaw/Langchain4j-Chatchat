@@ -1,0 +1,18 @@
+{
+  "status": "DEPLOYED",
+  "image": "runtime-os-api:native-skills-20261031-r3",
+  "sha256": "6892848e1619896b950b5851224382fa70ebe033e2dea52e2591ca95d3bdf452",
+  "backup": "/opt/chatchat-releases/native-skills-20261031-r3/backup",
+  "retired": {
+    "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-studio-1793437806",
+    "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-studio-1793437806"
+  },
+  "databaseMigrationSha256": "fac1275d6caeec89e8d9dc0689d5c7243430a3c6655054fe2c948d9df41421cd",
+  "preservedExpiredReadOnlyTaskIds": [],
+  "unrelatedContainersUnchanged": true,
+  "conversationContentUnchanged": true,
+  "messageIndexCountUnchanged": true,
+  "images": {
+    "runtime-os-app-stage-api-1": "runtime-os-api:native-skills-20261031-r3"
+  }
+}

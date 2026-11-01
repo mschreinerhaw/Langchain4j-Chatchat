@@ -517,11 +517,11 @@
     </div>
 
     <div v-if="dialogOpen" class="agent-dialog-backdrop">
-      <form class="agent-dialog" @submit.prevent="saveAgent">
+      <form class="agent-dialog" role="dialog" aria-modal="true" aria-labelledby="agent-settings-title" @submit.prevent="saveAgent">
         <header>
           <div>
             <p>{{ dialogMode === "create" ? "新增Agent" : "Agent设置" }}</p>
-            <h2>{{ dialogMode === "create" ? "创建自研 Agent" : form.name || form.id }}</h2>
+            <h2 id="agent-settings-title">{{ dialogMode === "create" ? "创建自研 Agent" : form.name || form.id }}</h2>
           </div>
           <button
             type="button"
@@ -628,14 +628,16 @@
             <div class="agent-resource-selector-copy">
               <strong>Skills</strong>
               <span>选择当前账号已获授权且处于已发布状态的领域技能。</span>
-              <label>
-                <input v-model="form.workflowConfig.disabledBuiltinSkillIds" type="checkbox" value="builtin:python-data-analysis" />
-                在此 Agent 中禁用内置 python-data-analysis
-              </label>
-              <label>
-                <input v-model="form.workflowConfig.disabledBuiltinSkillIds" type="checkbox" value="builtin:python-code-development" />
-                在此 Agent 中禁用内置 python-code-development
-              </label>
+              <div class="agent-builtin-skill-options">
+                <label class="agent-builtin-skill-option">
+                  <input v-model="form.workflowConfig.disabledBuiltinSkillIds" type="checkbox" value="builtin:python-data-analysis" />
+                  <span>在此 Agent 中禁用内置 python-data-analysis</span>
+                </label>
+                <label class="agent-builtin-skill-option">
+                  <input v-model="form.workflowConfig.disabledBuiltinSkillIds" type="checkbox" value="builtin:python-code-development" />
+                  <span>在此 Agent 中禁用内置 python-code-development</span>
+                </label>
+              </div>
               <span>默认启用，仅在 Coding 任务中按需使用；不授予工具或数据权限。</span>
             </div>
             <div class="agent-resource-selector-action">

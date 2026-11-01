@@ -1,0 +1,10 @@
+
+ RUN  v3.2.7 D:/IdeaProjects/Langchain4j-AI/Langchain4j-Chatchat/chatchat-api/web-app
+
+ ✓ src/js/views/AgentWorkshopView.test.js (13 tests) 98ms
+ ✓ src/views/AgentWorkshopVisibility.test.js (3 tests) 133ms
+
+ Test Files  2 passed (2)
+      Tests  16 passed (16)
+   Start at  08:10:54
+   Duration  3.24s (transform 676ms, setup 0ms, collect 1.14s, tests 231ms, environment 1.73s, prepare 471ms)

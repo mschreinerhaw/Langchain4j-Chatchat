@@ -1,4 +1,4 @@
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, nextTick } from "vue";
 import { X } from "@lucide/vue";
 import {
   sqlTemplateSources,
@@ -28,6 +28,138 @@ export default {
       status = ref(""),
       reviewed = ref(false),
       sample = ref("{}");
+    const testDialog = ref(null),
+      testOpen = ref(false),
+      testError = ref(""),
+      testFields = ref([]);
+    let testTrigger;
+    function parameterDefinition(schema, value, seen = new Set()) {
+      if (!value?.$ref) return value || {};
+      if (!value.$ref.startsWith("#/") || seen.has(value.$ref))
+        throw new Error("此参数定义需要在“参数定义与 SQL 说明”中检查引用。");
+      seen.add(value.$ref);
+      const resolved = value.$ref
+        .slice(2)
+        .split("/")
+        .reduce((v, key) => v?.[key.replaceAll("~1", "/").replaceAll("~0", "~")], schema);
+      if (!resolved) throw new Error("参数定义引用不存在，请先修正参数定义。");
+      return {
+        ...parameterDefinition(schema, resolved, seen),
+        ...Object.fromEntries(Object.entries(value).filter(([key]) => key !== "$ref")),
+      };
+    }
+    async function openTest(event) {
+      testTrigger = event?.currentTarget;
+      error.value = "";
+      try {
+        const schema = JSON.parse(form.value.schema),
+          previous = JSON.parse(sample.value);
+        testFields.value = Object.entries(schema.properties || {}).map(([name, raw]) => {
+          const definition = parameterDefinition(schema, raw);
+          const types = Array.isArray(definition.type)
+            ? definition.type
+            : [definition.type || "string"];
+          const type = types.find((t) => t !== "null") || "null";
+          const required = (schema.required || []).includes(name);
+          const hasValue = Object.hasOwn(previous, name) || Object.hasOwn(definition, "default");
+          const value = Object.hasOwn(previous, name) ? previous[name] : definition.default;
+          return {
+            name,
+            definition,
+            type,
+            required,
+            nullable: types.includes("null"),
+            mode: hasValue
+              ? value === null
+                ? "null"
+                : "value"
+              : required
+                ? type === "null"
+                  ? "null"
+                  : "value"
+                : "omit",
+            value:
+              value === undefined || value === null
+                ? ""
+                : ["object", "array"].includes(type)
+                  ? JSON.stringify(value, null, 2)
+                  : String(value),
+            inputType:
+              type === "integer" || type === "number"
+                ? "number"
+                : definition.format === "date"
+                  ? "date"
+                  : "text",
+          };
+        });
+        testError.value = "";
+        testOpen.value = true;
+        await nextTick();
+        testDialog.value
+          ?.querySelector("input:not(:disabled), select:not(:disabled), button")
+          ?.focus();
+      } catch (e) {
+        error.value = e.message;
+      }
+    }
+    function closeTest() {
+      if (busy.value) return;
+      testOpen.value = false;
+      nextTick(() => testTrigger?.focus());
+    }
+    function trapTestFocus(event) {
+      const items = [
+        ...testDialog.value.querySelectorAll(
+          "button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled)"
+        ),
+      ];
+      const first = items[0],
+        last = items.at(-1);
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    }
+    async function submitTest() {
+      if (busy.value) return;
+      testError.value = "";
+      try {
+        const values = {};
+        for (const field of testFields.value) {
+          if (field.mode === "omit") continue;
+          if (field.mode === "null") {
+            if (!field.nullable) throw new Error(`${field.name} 不允许空值。`);
+            values[field.name] = null;
+            continue;
+          }
+          let value = field.value;
+          if (field.required && value === "") throw new Error(`请填写 ${field.name}。`);
+          if (["integer", "number"].includes(field.type)) {
+            if (value === "" || !Number.isFinite(Number(value)))
+              throw new Error(`${field.name} 需要填写有效数字。`);
+            value = Number(value);
+            if (field.type === "integer" && !Number.isSafeInteger(value))
+              throw new Error(`${field.name} 需要填写安全范围内的整数。`);
+          } else if (field.type === "boolean") {
+            if (!["true", "false"].includes(value)) throw new Error(`请选择 ${field.name}。`);
+            value = value === "true";
+          } else if (["object", "array"].includes(field.type)) value = JSON.parse(value);
+          values[field.name] = value;
+        }
+        sample.value = JSON.stringify(values, null, 2);
+        await perform("test");
+        if (error.value) {
+          testError.value = error.value;
+          return;
+        }
+        closeTest();
+      } catch (e) {
+        testError.value = e.message;
+      }
+    }
     const form = ref({
       title: "",
       description: "",
@@ -97,6 +229,7 @@ export default {
               : "发布会先验证查询，成功后同步更新。"
     );
     function choose() {
+      testOpen.value = false;
       reviewed.value = false;
       if (selected.value) {
         form.value = fields(selected.value);
@@ -332,6 +465,14 @@ export default {
       createDraft,
       saveDraft,
       perform,
+      testDialog,
+      testOpen,
+      testError,
+      testFields,
+      openTest,
+      closeTest,
+      submitTest,
+      trapTestFocus,
     };
   },
 };

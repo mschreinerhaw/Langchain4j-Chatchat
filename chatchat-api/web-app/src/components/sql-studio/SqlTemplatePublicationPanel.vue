@@ -1,6 +1,6 @@
 ﻿<template>
   <Teleport to="body">
-    <div class="sql-dialog-backdrop" @mousedown.self="!busy && $emit('close')">
+    <div class="sql-dialog-backdrop" :inert="testOpen" @mousedown.self="!busy && $emit('close')">
       <section
         class="sql-dialog sql-publication-panel"
         role="dialog"
@@ -106,22 +106,18 @@
             >
           </div>
           <section v-if="selected">
-            <h3>查询测试</h3>
-            <label
-              >测试参数<textarea
-                v-model="sample"
-                rows="3"
-                aria-label="模板测试参数"
-                spellcheck="false"
-                :disabled="busy"
-              />
-            </label>
-            <button
-              v-if="!published"
-              type="button"
-              :disabled="busy || dirty || changed || !sourceCurrent"
-              @click="perform('test')"
-              >执行真实 SQL 测试</button
+            <div class="sql-query-test-heading">
+              <h3>查询测试</h3>
+              <button
+                type="button"
+                class="sql-query-test-link"
+                :disabled="busy || dirty || changed || !sourceCurrent"
+                @click="openTest"
+                >{{ busy ? "处理中…" : "测试查询" }}</button
+              >
+            </div>
+            <p v-if="!selected.testEvidence" class="sql-publication-hint"
+              >点击“测试查询”，填写参数后查看查询结果。</p
             >
             <p v-if="selected.testEvidence"
               >{{ selected.testEvidence.success ? "查询成功" : "查询失败" }} · 返回
@@ -252,6 +248,108 @@
           >
         </footer>
       </section>
+    </div>
+    <div
+      v-if="testOpen"
+      class="sql-dialog-backdrop sql-test-parameters-backdrop"
+      @mousedown.self="closeTest"
+    >
+      <form
+        ref="testDialog"
+        class="sql-dialog sql-publication-panel sql-test-parameters-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="sql-test-parameters-title"
+        @submit.prevent="submitTest"
+        @keydown.esc.stop.prevent="closeTest"
+        @keydown.tab="trapTestFocus"
+      >
+        <header
+          ><h2 id="sql-test-parameters-title">填写测试参数</h2>
+          <button
+            type="button"
+            class="sql-dialog-close"
+            aria-label="关闭测试参数"
+            :disabled="busy"
+            @click="closeTest"
+            ><X :size="18"
+          /></button>
+        </header>
+        <div class="sql-publication-body">
+          <p class="sql-publication-hint"
+            >{{ selected?.title }} · 仅执行查询测试，不发布或修改线上模板。</p
+          >
+          <p v-if="testError" role="alert">{{ testError }}</p>
+          <p v-if="!testFields.length">此查询无需参数，点击“执行测试”即可运行。</p>
+          <fieldset
+            v-for="field in testFields"
+            :key="field.name"
+            :disabled="busy"
+            class="sql-test-parameter-field"
+          >
+            <legend
+              >{{ field.definition.title || field.name
+              }}<span v-if="field.required" class="sql-publication-hint"> · 必填</span></legend
+            >
+            <p v-if="field.definition.description" class="sql-publication-hint">{{
+              field.definition.description
+            }}</p>
+            <label v-if="!field.required || field.nullable"
+              >取值方式
+              <select v-model="field.mode" :aria-label="field.name + ' 取值方式'">
+                <option v-if="field.type !== 'null'" value="value">填写值</option>
+                <option v-if="field.nullable" value="null">空值（NULL）</option>
+                <option v-if="!field.required" value="omit">不传入</option>
+              </select>
+            </label>
+            <label v-if="field.mode === 'value'"
+              >{{ field.name }}
+              <select
+                v-if="field.definition.enum || field.type === 'boolean'"
+                v-model="field.value"
+                :aria-label="field.name"
+                :required="field.required"
+              >
+                <option value="" disabled>请选择</option>
+                <option
+                  v-for="value in (field.definition.enum || [true, false]).filter(
+                    (v) => v !== null
+                  )"
+                  :key="String(value)"
+                  :value="String(value)"
+                  >{{ String(value) }}</option
+                >
+              </select>
+              <textarea
+                v-else-if="['object', 'array'].includes(field.type)"
+                v-model="field.value"
+                :aria-label="field.name"
+                :required="field.required"
+                rows="3"
+                spellcheck="false"
+              />
+              <input
+                v-else
+                v-model="field.value"
+                :aria-label="field.name"
+                :type="field.inputType"
+                :required="field.required"
+                :min="field.definition.minimum"
+                :max="field.definition.maximum"
+                :step="field.type === 'integer' ? 1 : 'any'"
+                :minlength="field.definition.minLength"
+                :maxlength="field.definition.maxLength"
+              />
+            </label>
+          </fieldset>
+        </div>
+        <footer class="sql-publication-footer sql-test-parameters-footer">
+          <button type="button" :disabled="busy" @click="closeTest">取消</button>
+          <button type="submit" class="sql-publication-primary" :disabled="busy">{{
+            busy ? "查询中…" : "执行测试"
+          }}</button>
+        </footer>
+      </form>
     </div>
   </Teleport>
 </template>

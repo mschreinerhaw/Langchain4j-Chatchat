@@ -112,7 +112,15 @@ public class SqlTemplateAuthoringService {
     @Transactional
     public Map<String,Object> test(String tenant,String actor,String id,Action input) {
         try(var ignored=callers.open(tenant,actor)) {
-            var row=locked(id,tenant,actor);draft(row);source(row,input.source());
+            var row=locked(id,tenant,actor);source(row,input.source());
+            if("PUBLISHED".equals(row.getPublicationState())) {
+                // A published snapshot can be queried without mutating its release or saved test evidence.
+                expected(row,input.expectedVersion());
+                var preview=new LinkedHashMap<String,Object>(view(row));
+                preview.put("testEvidence",execute(row,input));
+                return preview;
+            }
+            draft(row);
             var old=tree(row.getSqlTestEvidenceJson());
             if(old.path("testId").asText().equals(input.testId()) && old.path("fingerprint").asText().equals(fingerprint(row))
                 && old.path("parametersDigest").asText().equals(digest(parameters(input)))) return view(row);

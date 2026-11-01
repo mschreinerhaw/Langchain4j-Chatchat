@@ -112,6 +112,30 @@ class SqlTemplateAuthoringServiceTest {
         assertThatThrownBy(()->service.updateMetadata("tenant","owner",row.getId(),new SqlTemplateAuthoringService.MetadataEdit(a.expectedVersion(),"改名","说明","finance",a.testId(),a.parameters(),a.source(),"active"))).hasMessageContaining("线上信息未修改");
         assertThat(row.getTitle()).isEqualTo("Sample");assertThat(row.getCategory()).isEqualTo("sql_diagnostic");assertThat(row.getReleasedCapabilityId()).isEqualTo("active");assertThat(row.isEnabled()).isTrue();verifyNoInteractions(capabilities);
     }
+    @Test void publishedQueryTestReturnsRealRowsWithoutMutatingReleaseOrSavedEvidence() throws Exception {
+        var row=create("select * from publication_rows where id = {{value}}");
+        row.setPublicationState("PUBLISHED");row.setEnabled(true);row.setReleasedCapabilityId("live-release");
+        row.setSqlTestEvidenceJson("{\"success\":true,\"parameters\":{\"value\":1}}");
+        long version=row.getPublicationLock();String saved=row.getSqlTestEvidenceJson();
+        clearInvocations(repository);
+        var result=service.test("tenant","owner",row.getId(),action(row,Map.of("value",2)));
+        var evidence=json.valueToTree(result.get("testEvidence"));
+        assertThat(evidence.path("success").asBoolean()).isTrue();
+        assertThat(evidence.path("preview").path("rows").get(0).path("ID").asInt()).isEqualTo(2);
+        assertThat(row.getPublicationState()).isEqualTo("PUBLISHED");assertThat(row.isEnabled()).isTrue();
+        assertThat(row.getReleasedCapabilityId()).isEqualTo("live-release");
+        assertThat(row.getPublicationLock()).isEqualTo(version);assertThat(row.getSqlTestEvidenceJson()).isEqualTo(saved);
+        verify(repository,never()).saveAndFlush(any());verifyNoInteractions(capabilities);
+    }
+    @Test void publishedQueryTestStillRejectsStaleVersionsAndRevokedDatasourceAccess() throws Exception {
+        var row=create("select {{value}}");row.setPublicationState("PUBLISHED");row.setEnabled(true);
+        var valid=action(row,Map.of("value",1));
+        var stale=new SqlTemplateAuthoringService.Action(99L,valid.testId(),valid.parameters(),valid.source(),"");
+        assertThatThrownBy(()->service.test("tenant","owner",row.getId(),stale)).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+        when(authorization.callerAllowsOperation(anyString(),anyString(),anyString(),anyString())).thenReturn(false);
+        assertThatThrownBy(()->service.test("tenant","owner",row.getId(),valid)).isInstanceOf(SecurityException.class);
+        verifyNoInteractions(audit,capabilities);
+    }
     @Test void realJdbcQueryProducesBoundedVersionEvidence() throws Exception {
         var row=create("\n-- Parameter description: {{value}} is a lower bound, not another SQL binding.\nselect * from publication_rows where id > {{value}}\n");
         var result=service.test("tenant","owner",row.getId(),action(row,Map.of("value",0)));

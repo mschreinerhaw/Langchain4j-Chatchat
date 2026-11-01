@@ -29,6 +29,46 @@
   font-size: 14px;
   margin: 16px 0 8px;
 }
+.sql-query-test-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+}
+.sql-query-test-heading h3 {
+  margin: 0;
+}
+.sql-publication-panel .sql-query-test-link {
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font-size: 13px;
+  padding: 4px 0;
+}
+.sql-query-test-link:hover:not(:disabled) {
+  text-decoration: underline;
+}
+.sql-query-test-link:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+.sql-test-parameters-backdrop {
+  z-index: 190;
+}
+.sql-test-parameters-dialog {
+  width: min(540px, 94vw);
+}
+.sql-test-parameters-footer {
+  justify-content: flex-end;
+}
+.sql-test-parameter-field legend {
+  font-size: 13px;
+  font-weight: 600;
+}
+.sql-test-parameter-field .sql-publication-hint {
+  margin: 0;
+}
 .sql-publication-panel button:disabled {
   opacity: 0.45;
   cursor: not-allowed;

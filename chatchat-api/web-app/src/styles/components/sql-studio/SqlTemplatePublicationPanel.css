@@ -60,7 +60,7 @@
   font-size: 13px;
 }
 .sql-publication-panel input:not([type="checkbox"]),
-.sql-publication-panel textarea[spellcheck="false"],
+.sql-publication-panel textarea,
 .sql-publication-panel select {
   display: block;
   width: 100%;
@@ -72,7 +72,7 @@
   background: var(--surface);
   color: var(--text);
 }
-.sql-publication-panel textarea,
+.sql-publication-panel textarea[spellcheck="false"],
 .sql-publication-panel pre {
   font: 12px/1.6 monospace;
 }

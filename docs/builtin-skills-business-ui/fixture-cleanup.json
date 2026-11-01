@@ -1,0 +1,8 @@
+{
+  "status": "PASS",
+  "agentId": "builtin_skills_ui_20261101",
+  "recalled": true,
+  "deleted": true,
+  "actualAnalysisTaskPreserved": "4fa9e0ba-ddea-3ed8-a03a-63053f95b66e",
+  "scope": "Only the isolated acceptance Agent was recalled/deleted; task history and uploaded evidence retained."
+}

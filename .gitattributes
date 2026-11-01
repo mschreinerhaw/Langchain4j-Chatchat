@@ -36,3 +36,6 @@ docs/sql-chain-revalidation/fresh-jdbc.json -text whitespace=cr-at-eol
 docs/sql-template-remediation/** -text whitespace=cr-at-eol
 docs/sql-template-remediation/**/*.sql -whitespace
 docs/sql-template-remediation/**/request.md -whitespace
+
+# Preserve real Cline task source, receipt and uploaded-artifact hashes.
+docs/builtin-skills-business-ui/** -text whitespace=cr-at-eol

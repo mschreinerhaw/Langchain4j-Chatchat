@@ -1,0 +1,16 @@
+{
+  "status": "PASS",
+  "builtinOptionsAbsent": true,
+  "selectedBusinessCount": 2,
+  "businessUnbindRebind": true,
+  "chineseTitles": [
+    "Python 数据分析",
+    "Python 程序开发",
+    "Azure 数据探索与查询",
+    "Azure 机器学习开发",
+    "MCP 服务开发",
+    "技能创作指导"
+  ],
+  "originalIdsAndProvenanceInDetails": true,
+  "agentId": "builtin_skills_ui_20261101"
+}

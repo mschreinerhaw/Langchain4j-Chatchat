@@ -1,0 +1,61 @@
+{
+  "status": "PASS",
+  "java": {
+    "total": 33,
+    "suites": [
+      {
+        "name": "com.chatchat.chat.skills.catalog.SkillCatalogServiceTest",
+        "tests": 16,
+        "failures": 0,
+        "errors": 0,
+        "reportSha256": "4b052858e6c02d4b2930ed151f5b4350ecd67701004bc3921686884e8400c96d"
+      },
+      {
+        "name": "com.chatchat.chat.skills.runtime.SkillAnalysisContextServiceTest",
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "reportSha256": "a4fbe12cafba21de637f5c9ff234025a26abd43f579253f610e3088ef23dd1e3"
+      },
+      {
+        "name": "com.chatchat.chat.skills.runtime.BuiltinCodingSkillsTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "reportSha256": "b9738868f7c97e38bfe33e53db0b1d98adb114eb2982c6f0505dcd38a67211d4"
+      },
+      {
+        "name": "com.chatchat.api.controller.agent.AgentWorkshopControllerTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "reportSha256": "34c9e68080be9f4019a8baf6516853823471066567a79339def479186d3dbe54"
+      },
+      {
+        "name": "com.chatchat.api.runtime.coding.CodingConfigurationSnapshotTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "reportSha256": "db5897937ce4d5faed877204775521baef38236bf584e681071a9a13e70f0c93"
+      }
+    ]
+  },
+  "frontend": {
+    "files": 2,
+    "tests": 40,
+    "failures": 0
+  },
+  "worker": {
+    "tests": 150,
+    "failures": 0,
+    "proof": "worker-build.json",
+    "note": "Contains the focused 7 Skill tests; do not add them again."
+  },
+  "build": {
+    "vueStructure": "72 components checked",
+    "frontend": "VITE_BUILD_SUCCESS",
+    "api": "BUILD_SUCCESS",
+    "packagedAssets": "EXACT_105_FILE_MATCH"
+  },
+  "scope": "Focused regression, complete worker suite and real environment evidence; not a full-repository test-green claim."
+}

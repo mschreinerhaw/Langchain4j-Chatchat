@@ -1,0 +1,3688 @@
+[
+  {
+    "type": "file_analysis",
+    "source": "runtime",
+    "content": "FILE_REFERENCES_PREPARING",
+    "metadata": {
+      "eventKind": "FILE_ANALYSIS",
+      "stage": "FILE_REFERENCES_PREPARING",
+      "eventState": "RUNNING"
+    }
+  },
+  {
+    "type": "file_analysis",
+    "source": "runtime",
+    "content": "FILE_REFERENCES_PREPARING",
+    "metadata": {
+      "eventKind": "FILE_ANALYSIS",
+      "stage": "FILE_REFERENCES_PREPARING",
+      "eventState": "COMPLETED"
+    }
+  },
+  {
+    "type": "analysis_task",
+    "source": "runtime",
+    "content": "Analysis task built and inputs bound",
+    "metadata": {
+      "requestId": "answer-5f0c8d88-8e17-3f73-94fd-d903f129332b",
+      "contextReference": "runtime-context:att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "eventKind": "ANALYSIS_TASK_BUILT",
+      "inputKind": "USER_ATTACHMENTS",
+      "fileReferenceCount": 1,
+      "contextIsBusinessData": false,
+      "planningOwner": "RUNTIME_PLAN",
+      "instructionCharacters": 14039
+    }
+  },
+  {
+    "type": "context_analysis",
+    "source": "runtime",
+    "content": "CLINE_SUBMITTING",
+    "metadata": {
+      "eventKind": "FILE_ANALYSIS",
+      "stage": "CLINE_SUBMITTING",
+      "eventState": "RUNNING"
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_REQUEST_VALIDATED",
+      "inputReferenceCount": 2,
+      "instructionCharacters": 14039,
+      "requestId": "answer-5f0c8d88-8e17-3f73-94fd-d903f129332b"
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_INPUT_PREPARING",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "source": "JAVA_RUNTIME"
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "snapshotRef": "runtime-evidence:coding:input:d8d0e3c134d547425599701275e5ec365a2230f6350fc61065202c09482da18",
+      "sha256": "b80bb833abe9d04ee389cdcae20898c5acbc356abf10519418a076e8efa1d434",
+      "fileId": "cd8d0e3c134d547425599701275e5ec365a2230f6350fc61065202c09482da18",
+      "eventKind": "CODING_INPUT_READY",
+      "format": "PARQUET",
+      "durationMs": 911,
+      "rowCount": 2,
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "source": "JAVA_RUNTIME"
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "budgetId": "analysis-coding-tool-budget:analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "eventKind": "CODING_BUDGET_ISOLATED",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "deadlineAt": "2026-11-01T04:37:51.750Z",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "budgetScope": "TOOL_INVOCATION"
+    }
+  },
+  {
+    "type": "context_analysis",
+    "source": "runtime",
+    "content": "CLINE_SUBMITTING",
+    "metadata": {
+      "eventKind": "FILE_ANALYSIS",
+      "stage": "CLINE_SUBMITTING",
+      "eventState": "COMPLETED"
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:d3889ed8-9c43-4bfb-8541-45c43488dba1",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 1,
+      "occurredAt": "2026-11-01T04:17:52.887Z",
+      "codingEventType": "TASK_CREATED",
+      "eventState": "CREATED",
+      "summary": "Coding task accepted durably",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "QUEUED",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-0"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:a5b7154e-3523-42df-9260-f4a929e9ab60",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 2,
+      "occurredAt": "2026-11-01T04:17:52.917Z",
+      "codingEventType": "TASK_STARTED",
+      "eventState": "RUNNING",
+      "summary": "Execution ownership acquired; no operation was started",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "CONTEXT_READY",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:5b458872-b697-4e6a-8fd5-323703723e79",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 3,
+      "occurredAt": "2026-11-01T04:17:53.126Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: CONTEXT_READY",
+      "evidenceRefs": [],
+      "payload": {
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "source": "NODE_CLINE",
+        "stage": "CONTEXT_READY",
+        "type": "CONTEXT_READY",
+        "timestamp": "2026-11-01T04:17:53.091Z"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:75ea0f7f-08b8-4803-b4b1-ef0c73000508",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 4,
+      "occurredAt": "2026-11-01T04:17:53.280Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: SKILLS_AVAILABLE",
+      "evidenceRefs": [],
+      "payload": {
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "stage": "CONTEXT_READY",
+        "source": "NODE_CLINE",
+        "timestamp": "2026-11-01T04:17:53.246Z",
+        "skillFingerprint": "53a271d11d37f69e1090e3059e56637707f475b983e4b0c5aa2484e82694f2cd",
+        "type": "SKILLS_AVAILABLE"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:fad6faee-6888-4f6c-bd82-75b182ebd144",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 5,
+      "occurredAt": "2026-11-01T04:17:53.555Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: MODEL_STARTED",
+      "evidenceRefs": [],
+      "payload": {
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "stage": "CODING",
+        "modelCall": 1,
+        "source": "NODE_CLINE",
+        "timestamp": "2026-11-01T04:17:53.513Z",
+        "type": "MODEL_STARTED"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:7bb4178b-2664-47e2-9615-37f416fbdea6",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-1",
+      "operationId": "model-1",
+      "operationAttempt": 1,
+      "sequence": 6,
+      "occurredAt": "2026-11-01T04:17:53.998Z",
+      "codingEventType": "BUDGET_UPDATED",
+      "eventState": "RUNNING",
+      "summary": "Operation budget reserved",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:ede44ad4-72cb-4e29-96ac-e9b9abb6f22d",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-1",
+      "operationId": "model-1",
+      "operationAttempt": 1,
+      "sequence": 7,
+      "occurredAt": "2026-11-01T04:17:54.032Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Start intent committed; execution result is not yet known",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:13a2b261-532c-4d37-b69f-07b2bd1ce9c1",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 8,
+      "occurredAt": "2026-11-01T04:17:54.079Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Lease renewed",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:1a8d6c65-4660-47cc-ab58-de249ed70a60",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "reasonCode": "EXECUTION_OUTCOME_UNKNOWN",
+      "sequence": 9,
+      "occurredAt": "2026-11-01T04:17:54.189Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Existing execution must be reconciled before new work",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "status": "RUNNING",
+      "reconciliationRequired": true,
+      "eventKind": "CODING_RECONCILIATION_REQUIRED",
+      "retryable": false,
+      "deadlineAt": "2026-11-01T04:37:51.750Z"
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:41475099-3afa-4a2e-aefd-4f0ef9a9aa1b",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-1",
+      "operationId": "model-1",
+      "operationAttempt": 1,
+      "sequence": 10,
+      "occurredAt": "2026-11-01T04:17:58.079Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Verified stop evidence recorded",
+      "evidenceRefs": [
+        "runtime-evidence:coding:model:850a0cd16807ac5ed951e1cfbc0c41167c85d3a36a9979ffe253024595c94bc5"
+      ],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:2b490321-331a-434a-8be0-3ff63aba495c",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-1",
+      "operationId": "model-1",
+      "operationAttempt": 1,
+      "sequence": 11,
+      "occurredAt": "2026-11-01T04:17:58.117Z",
+      "codingEventType": "BUDGET_UPDATED",
+      "eventState": "RUNNING",
+      "summary": "Unknown usage retains unspent reservation",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:177783bf-99a0-41a8-a90c-a50d1d0276a9",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-1",
+      "operationId": "model-1",
+      "operationAttempt": 1,
+      "sequence": 12,
+      "occurredAt": "2026-11-01T04:17:58.188Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: MODEL_RESOLVED",
+      "evidenceRefs": [],
+      "payload": {
+        "providerModel": "deepseek-flash",
+        "queueTimeMs": 34,
+        "responseMode": "NON_STREAMING",
+        "timestamp": "2026-11-01T04:17:58.139Z",
+        "modelCall": 1,
+        "requestBytes": 60547,
+        "retryTimeMs": 0,
+        "startedAt": "2026-11-01T04:17:54.098302163Z",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "finishedAt": "2026-11-01T04:17:57.971901210Z",
+        "source": "NODE_CLINE",
+        "messageCount": 1,
+        "durationMs": 3873,
+        "selectedModel": "deepseek-v4-flash",
+        "maxOutputTokens": 32768,
+        "protocol": "openai",
+        "type": "MODEL_RESOLVED",
+        "stage": "CODING"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:f9f70e4c-25c4-4f1d-abaf-e1df0d7b4e9e",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-1",
+      "operationId": "model-1",
+      "operationAttempt": 1,
+      "sequence": 13,
+      "occurredAt": "2026-11-01T04:17:58.264Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: MODEL_USAGE",
+      "evidenceRefs": [],
+      "payload": {
+        "type": "MODEL_USAGE",
+        "source": "NODE_CLINE",
+        "stage": "CODING",
+        "usage": {
+          "inputTokens": 14470,
+          "outputTokens": 559
+        },
+        "status": "SUCCEEDED",
+        "timestamp": "2026-11-01T04:17:58.213Z",
+        "modelCall": 1,
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:ee15d599-5212-460a-a519-77e598d32a05",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-1",
+      "operationId": "model-1",
+      "operationAttempt": 1,
+      "sequence": 14,
+      "occurredAt": "2026-11-01T04:17:58.331Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: MODEL_TIMING",
+      "evidenceRefs": [],
+      "payload": {
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "requestHash": "be11bf4da595be4a9cf4f3eb39c0aecacd9217e2064677829724fcded4ea39b6",
+        "stage": "CODING",
+        "callbackFirstEventMs": 4626,
+        "requestBytes": 60478,
+        "toolCount": 5,
+        "status": "SUCCEEDED",
+        "type": "MODEL_TIMING",
+        "durationMs": 4771,
+        "timestamp": "2026-11-01T04:17:58.286Z",
+        "modelCall": 1,
+        "source": "NODE_CLINE",
+        "responseBytes": 1118,
+        "responseMode": "RUNTIME_MODEL_CALLBACK",
+        "messageCount": 1
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:a7e97805-2395-4113-8de8-6464bc6ee877",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 15,
+      "occurredAt": "2026-11-01T04:17:58.446Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: TOOL_STARTED",
+      "evidenceRefs": [],
+      "payload": {
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "stage": "CODING",
+        "toolCallId": "call_00_NI4XcSGMXSiRODw3s6y48902",
+        "type": "TOOL_STARTED",
+        "source": "NODE_CLINE",
+        "timestamp": "2026-11-01T04:17:58.400Z",
+        "tool": "input_read"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:f73c304e-77d4-439f-9199-f3812f360df2",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "workspace-e580afebc9c6c022b454ef53fe3deb32d08b860299d5b7edd5b63c0c70b1c368",
+      "operationId": "workspace-e580afebc9c6c022b454ef53fe3deb32d08b860299d5b7edd5b63c0c70b1c368",
+      "operationAttempt": 1,
+      "sequence": 16,
+      "occurredAt": "2026-11-01T04:17:58.528Z",
+      "codingEventType": "BUDGET_UPDATED",
+      "eventState": "RUNNING",
+      "summary": "Operation budget reserved",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:1d163e63-9527-4a19-94d9-ef78ed820a08",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "workspace-e580afebc9c6c022b454ef53fe3deb32d08b860299d5b7edd5b63c0c70b1c368",
+      "operationId": "workspace-e580afebc9c6c022b454ef53fe3deb32d08b860299d5b7edd5b63c0c70b1c368",
+      "operationAttempt": 1,
+      "sequence": 17,
+      "occurredAt": "2026-11-01T04:17:58.562Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Start intent committed; execution result is not yet known",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:73e2079a-cd53-4865-97f6-f551fec2bc22",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "workspace-e580afebc9c6c022b454ef53fe3deb32d08b860299d5b7edd5b63c0c70b1c368",
+      "operationId": "workspace-e580afebc9c6c022b454ef53fe3deb32d08b860299d5b7edd5b63c0c70b1c368",
+      "operationAttempt": 1,
+      "sequence": 18,
+      "occurredAt": "2026-11-01T04:17:58.631Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Verified stop evidence recorded",
+      "evidenceRefs": [
+        "runtime-evidence:coding:input-read:workspace-e580afebc9c6c022b454ef53fe3deb32d08b860299d5b7edd5b63c0c70b1c368:receipt"
+      ],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:390c38a5-7c4b-49e0-b375-f4843ef0c1ae",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "workspace-e580afebc9c6c022b454ef53fe3deb32d08b860299d5b7edd5b63c0c70b1c368",
+      "operationId": "workspace-e580afebc9c6c022b454ef53fe3deb32d08b860299d5b7edd5b63c0c70b1c368",
+      "operationAttempt": 1,
+      "sequence": 19,
+      "occurredAt": "2026-11-01T04:17:58.681Z",
+      "codingEventType": "BUDGET_UPDATED",
+      "eventState": "RUNNING",
+      "summary": "Actual usage settled",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:63a79e9c-566c-4587-8410-85e12658439f",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 20,
+      "occurredAt": "2026-11-01T04:17:58.789Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: TOOL_FINISHED",
+      "evidenceRefs": [],
+      "payload": {
+        "type": "TOOL_FINISHED",
+        "source": "NODE_CLINE",
+        "stage": "CODING",
+        "toolCallId": "call_00_NI4XcSGMXSiRODw3s6y48902",
+        "status": "SUCCEEDED",
+        "timestamp": "2026-11-01T04:17:58.740Z",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "tool": "input_read"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:d31b26f8-31e5-417d-84ea-e4322bdb716d",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 21,
+      "occurredAt": "2026-11-01T04:17:58.882Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: TOOL_TIMING",
+      "evidenceRefs": [],
+      "payload": {
+        "status": "RETURNED",
+        "toolDurationMs": 427,
+        "tool": "input_read",
+        "timestamp": "2026-11-01T04:17:58.827Z",
+        "toolCallId": "call_00_NI4XcSGMXSiRODw3s6y48902",
+        "type": "TOOL_TIMING",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "source": "NODE_CLINE"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:fb65569a-03b8-4e92-8f7d-194613dc3582",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 22,
+      "occurredAt": "2026-11-01T04:17:59.058Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: SKILLS_LOADED",
+      "evidenceRefs": [],
+      "payload": {
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "stage": "CODING",
+        "type": "SKILLS_LOADED",
+        "source": "NODE_CLINE",
+        "timestamp": "2026-11-01T04:17:59.007Z",
+        "skillVersion": "1.3.0",
+        "skillId": "builtin:python-data-analysis"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:dde949e1-123e-4541-8e7a-78a87df61f0e",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 23,
+      "occurredAt": "2026-11-01T04:17:59.196Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: TOOL_TIMING",
+      "evidenceRefs": [],
+      "payload": {
+        "status": "RETURNED",
+        "toolDurationMs": 110,
+        "tool": "skill_read",
+        "timestamp": "2026-11-01T04:17:59.117Z",
+        "toolCallId": "call_01_2efhygxeMl5tLq5EaCf39657",
+        "type": "TOOL_TIMING",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "source": "NODE_CLINE"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:c8f67e02-ab04-40c6-a17e-84d4d291544f",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 24,
+      "occurredAt": "2026-11-01T04:17:59.456Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: MODEL_STARTED",
+      "evidenceRefs": [],
+      "payload": {
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "stage": "CODING",
+        "modelCall": 2,
+        "source": "NODE_CLINE",
+        "timestamp": "2026-11-01T04:17:59.402Z",
+        "type": "MODEL_STARTED"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:f6044250-cb04-4ee9-a6c2-d42ff8425d7c",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-2",
+      "operationId": "model-2",
+      "operationAttempt": 1,
+      "sequence": 25,
+      "occurredAt": "2026-11-01T04:17:59.620Z",
+      "codingEventType": "BUDGET_UPDATED",
+      "eventState": "RUNNING",
+      "summary": "Operation budget reserved",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:6a61963d-a5e3-418a-8dc4-b360c0c66244",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-2",
+      "operationId": "model-2",
+      "operationAttempt": 1,
+      "sequence": 26,
+      "occurredAt": "2026-11-01T04:17:59.668Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Start intent committed; execution result is not yet known",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:96fd203a-550a-4dbb-8872-2228ab2a374c",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 27,
+      "occurredAt": "2026-11-01T04:17:59.736Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Lease renewed",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:95f43999-2d27-4bd2-b2d0-c70ce6858f5b",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "reasonCode": "EXECUTION_OUTCOME_UNKNOWN",
+      "sequence": 28,
+      "occurredAt": "2026-11-01T04:18:00.339Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Existing execution must be reconciled before new work",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:c7f98728-601a-4be6-956e-7592930f2219",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-2",
+      "operationId": "model-2",
+      "operationAttempt": 1,
+      "sequence": 29,
+      "occurredAt": "2026-11-01T04:18:36.352Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Verified stop evidence recorded",
+      "evidenceRefs": [
+        "runtime-evidence:coding:model:aaa4a40f008f3eb1765abe6852e39576eb5bbdab585da993270345a1683311ea"
+      ],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:2569de92-08fa-4078-aca2-c7d220d032ea",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-2",
+      "operationId": "model-2",
+      "operationAttempt": 1,
+      "sequence": 30,
+      "occurredAt": "2026-11-01T04:18:36.400Z",
+      "codingEventType": "BUDGET_UPDATED",
+      "eventState": "RUNNING",
+      "summary": "Unknown usage retains unspent reservation",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:2e9c5d1f-6ce8-4c00-9bb2-ceecfc5d9227",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-2",
+      "operationId": "model-2",
+      "operationAttempt": 1,
+      "sequence": 31,
+      "occurredAt": "2026-11-01T04:18:36.482Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: MODEL_RESOLVED",
+      "evidenceRefs": [],
+      "payload": {
+        "providerModel": "deepseek-flash",
+        "queueTimeMs": 49,
+        "responseMode": "NON_STREAMING",
+        "timestamp": "2026-11-01T04:18:36.421Z",
+        "modelCall": 2,
+        "requestBytes": 67470,
+        "retryTimeMs": 0,
+        "startedAt": "2026-11-01T04:17:59.762141180Z",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "finishedAt": "2026-11-01T04:18:36.244791366Z",
+        "source": "NODE_CLINE",
+        "messageCount": 4,
+        "durationMs": 36482,
+        "selectedModel": "deepseek-v4-flash",
+        "maxOutputTokens": 32768,
+        "protocol": "openai",
+        "type": "MODEL_RESOLVED",
+        "stage": "CODING"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:1deb756f-9a70-410c-b114-c3304b79f3d3",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-2",
+      "operationId": "model-2",
+      "operationAttempt": 1,
+      "sequence": 32,
+      "occurredAt": "2026-11-01T04:18:36.553Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: MODEL_USAGE",
+      "evidenceRefs": [],
+      "payload": {
+        "type": "MODEL_USAGE",
+        "source": "NODE_CLINE",
+        "stage": "CODING",
+        "usage": {
+          "inputTokens": 16391,
+          "outputTokens": 8262
+        },
+        "status": "SUCCEEDED",
+        "timestamp": "2026-11-01T04:18:36.504Z",
+        "modelCall": 2,
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:efb8bc32-7dbc-4a31-ae9a-2a65237d3100",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-2",
+      "operationId": "model-2",
+      "operationAttempt": 1,
+      "sequence": 33,
+      "occurredAt": "2026-11-01T04:18:36.752Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: MODEL_TIMING",
+      "evidenceRefs": [],
+      "payload": {
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "requestHash": "1d252690518eb9fd4a28eed3b187c1fcdb6578b1982a34c5dabc4a0537e05a17",
+        "stage": "CODING",
+        "callbackFirstEventMs": 37019,
+        "requestBytes": 67634,
+        "toolCount": 5,
+        "status": "SUCCEEDED",
+        "type": "MODEL_TIMING",
+        "durationMs": 37288,
+        "timestamp": "2026-11-01T04:18:36.691Z",
+        "modelCall": 2,
+        "source": "NODE_CLINE",
+        "responseBytes": 24028,
+        "responseMode": "RUNTIME_MODEL_CALLBACK",
+        "messageCount": 4
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:753a9c2c-e727-4a6a-adec-0af4902329de",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 34,
+      "occurredAt": "2026-11-01T04:18:37.027Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: CODE_READY",
+      "evidenceRefs": [],
+      "payload": {
+        "sourceBytes": 21707,
+        "source": "NODE_CLINE",
+        "modelCall": 2,
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "scriptPath": "/workspace/scripts/python-sales-csv-region_20261101T041836872Z_83252ba38c98_v1.py",
+        "timestamp": "2026-11-01T04:18:36.982Z",
+        "codeVersion": 1,
+        "fileName": "python-sales-csv-region_20261101T041836872Z_83252ba38c98_v1.py",
+        "scriptVersion": 1,
+        "stage": "CODE_READY",
+        "type": "CODE_READY",
+        "changeKind": "INITIAL",
+        "codeSha256": "4249a1399e8bfa2afd1116a231680a1c96fe50c5350fff658033b7d27bfaf2b3",
+        "proposedOperationId": "cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:b5d51c97-b62c-4d8e-9dec-d9de6e941ba5",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 35,
+      "occurredAt": "2026-11-01T04:18:37.113Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: TOOL_STARTED",
+      "evidenceRefs": [],
+      "payload": {
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "stage": "VALIDATING",
+        "type": "TOOL_STARTED",
+        "operationId": "cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd",
+        "source": "NODE_CLINE",
+        "timestamp": "2026-11-01T04:18:37.052Z",
+        "tool": "python_execute"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:69b2670f-503e-4fdc-b6ec-65e7b907455e",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd",
+      "operationId": "cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd",
+      "operationAttempt": 1,
+      "sequence": 36,
+      "occurredAt": "2026-11-01T04:18:37.720Z",
+      "codingEventType": "BUDGET_UPDATED",
+      "eventState": "RUNNING",
+      "summary": "Operation budget reserved",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "VALIDATING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:099aabeb-08e2-4bea-b83d-04837aa0b431",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd",
+      "operationId": "cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd",
+      "operationAttempt": 1,
+      "sequence": 37,
+      "occurredAt": "2026-11-01T04:18:37.763Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Start intent committed; execution result is not yet known",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "EXECUTING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd",
+      "executorConfirmed": false,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": false,
+      "operationKind": "EXECUTION",
+      "eventState": "ACCEPTED",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:18:37.928128682Z"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd",
+      "executorConfirmed": false,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": false,
+      "operationKind": "EXECUTION",
+      "eventState": "STARTING",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:18:38.349463698Z"
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:f87fbfae-0f7a-4519-bce6-e7ce74822b23",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "reasonCode": "EXECUTION_OUTCOME_UNKNOWN",
+      "sequence": 38,
+      "occurredAt": "2026-11-01T04:18:38.111Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Existing execution must be reconciled before new work",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "EXECUTING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd",
+      "executorConfirmed": true,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": false,
+      "operationKind": "EXECUTION",
+      "eventState": "RUNNING",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:18:41.931015615Z"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd",
+      "executorConfirmed": true,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": false,
+      "operationKind": "EXECUTION",
+      "eventState": "RUNNING",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:18:42.317314886Z"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd",
+      "executorConfirmed": true,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": false,
+      "operationKind": "EXECUTION",
+      "eventState": "RUNNING",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:18:43.045119016Z"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd",
+      "executorConfirmed": true,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": false,
+      "operationKind": "EXECUTION",
+      "eventState": "RUNNING",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:18:43.431759071Z"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd",
+      "executorConfirmed": true,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": false,
+      "operationKind": "EXECUTION",
+      "eventState": "RUNNING",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:18:43.847777450Z"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd",
+      "executorConfirmed": true,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": false,
+      "operationKind": "EXECUTION",
+      "eventState": "RUNNING",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:18:44.268315679Z"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd",
+      "executorConfirmed": false,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": true,
+      "operationKind": "EXECUTION",
+      "eventState": "FAILED",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:18:44.608913315Z"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd",
+      "executorConfirmed": false,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": true,
+      "operationKind": "EXECUTION",
+      "eventState": "FAILED",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:18:44.864828290Z"
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:aab6d7ec-f004-4436-9088-de0e3590a9e9",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd",
+      "operationId": "cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd",
+      "operationAttempt": 1,
+      "sequence": 39,
+      "occurredAt": "2026-11-01T04:18:44.966Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Verified stop evidence recorded",
+      "evidenceRefs": [
+        "mcp-python-receipt:76b3ab244833a56c97fd5dabf6c1dceca59608d5a9e5ec74ed50f1c59a34beb1"
+      ],
+      "payload": {
+        "stage": "RESULT_VALIDATING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:e008052d-1133-487d-9b8f-8460ba2ae90e",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd",
+      "operationId": "cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd",
+      "operationAttempt": 1,
+      "sequence": 40,
+      "occurredAt": "2026-11-01T04:18:45.042Z",
+      "codingEventType": "BUDGET_UPDATED",
+      "eventState": "RUNNING",
+      "summary": "Unknown usage retains unspent reservation",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "RESULT_VALIDATING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:a19fbd10-5809-43e2-b250-1a03cd2609b2",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd",
+      "operationId": "cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd",
+      "operationAttempt": 1,
+      "sequence": 41,
+      "occurredAt": "2026-11-01T04:18:45.268Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Python feedback: EXECUTION_FAILED",
+      "evidenceRefs": [
+        "mcp-python-receipt:76b3ab244833a56c97fd5dabf6c1dceca59608d5a9e5ec74ed50f1c59a34beb1"
+      ],
+      "payload": {
+        "stage": "EXECUTION_FAILED",
+        "type": "EXECUTION_FEEDBACK",
+        "feedback": {
+          "artifactRefs": {
+            "diagnosticRef": "execution:cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd:logs:runtime-diagnostic.json",
+            "stderrRef": "execution:cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd:logs:stderr.txt"
+          },
+          "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:execution-1",
+          "businessValidationPassed": false,
+          "codeHash": "4249a1399e8bfa2afd1116a231680a1c96fe50c5350fff658033b7d27bfaf2b3",
+          "cpuTimeMs": 212,
+          "diagnosticPolicy": "METADATA_ONLY_V1",
+          "durationMs": 2364,
+          "error": {
+            "category": "SYNTAX",
+            "detailRef": "execution:cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd:logs:runtime-diagnostic.json",
+            "diagnosticCode": "SYNTAX_ERROR",
+            "exceptionType": "SyntaxError",
+            "message": "Repair Python syntax at the reported source location; preserve the existing calculation and authorized inputs.",
+            "stack": [
+              {
+                "column": null,
+                "file": "python-sales-csv-region_20261101T041836872Z_83252ba38c98_v1.py",
+                "line": 236
+              }
+            ]
+          },
+          "executionId": "cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd",
+          "exitCode": 1,
+          "inputDataRefs": [
+            "runtime-evidence:coding:input:d8d0e3c134d547425599701275e5ec365a2230f6350fc61065202c09482da18"
+          ],
+          "inputFiles": [
+            {
+              "fileId": "cd8d0e3c134d547425599701275e5ec365a2230f6350fc61065202c09482da18",
+              "fileName": "manifest.json",
+              "sha256": "b80bb833abe9d04ee389cdcae20898c5acbc356abf10519418a076e8efa1d434"
+            }
+          ],
+          "inputSchemaSummary": {
+            "format": "PARQUET",
+            "manifestFileId": "cd8d0e3c134d547425599701275e5ec365a2230f6350fc61065202c09482da18",
+            "manifestSha256": "b80bb833abe9d04ee389cdcae20898c5acbc356abf10519418a076e8efa1d434"
+          },
+          "manifestHash": "64116b580d2d1d162faf1aa9c630049f27ad531498654d817f2d5e11d0eeb33f",
+          "maxRssBytes": 21528576,
+          "outputStatus": null,
+          "repair": {
+            "action": "REPAIR_IN_CURRENT_CONTEXT",
+            "allowed": true,
+            "attemptsUsed": 0,
+            "baseCodeHash": "4249a1399e8bfa2afd1116a231680a1c96fe50c5350fff658033b7d27bfaf2b3",
+            "guidance": "Repair Python syntax at the reported source location; preserve the existing calculation and authorized inputs.",
+            "maxAttempts": 3,
+            "reason": "TECHNICAL_REPAIR"
+          },
+          "resultAvailable": false,
+          "schemaRef": "runtime-coding-schema:a0e8ae094a70a0b96aa43db24fc839596818b67920f99467c94c83c88591434e",
+          "schemaVersion": "runtime_os.execution_feedback.v1",
+          "script": {
+            "fileName": "python-sales-csv-region_20261101T041836872Z_83252ba38c98_v1.py",
+            "scriptPath": "/workspace/scripts/python-sales-csv-region_20261101T041836872Z_83252ba38c98_v1.py",
+            "scriptVersion": 1,
+            "workingDirectory": "tasks/2abd2c828f4ebf3c/6432cc690bc93efe/9df3f9c9b1421157/83252ba38c98c8b8fe6e31de"
+          },
+          "stage": "EXECUTION_FAILED",
+          "status": "FAILED",
+          "stderr": "Repair Python syntax at the reported source location; preserve the existing calculation and authorized inputs.",
+          "stderrBytes": 857,
+          "stdout": "[raw stdout omitted]",
+          "stdoutBytes": 0,
+          "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+          "traceId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+          "validationStatus": "NOT_RUN"
+        }
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:571be0a1-7afb-4944-8fa7-e8dab87fd51a",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd",
+      "operationId": "cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd",
+      "operationAttempt": 1,
+      "sequence": 42,
+      "occurredAt": "2026-11-01T04:18:45.380Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: TOOL_FINISHED",
+      "evidenceRefs": [],
+      "payload": {
+        "repairAttempts": 0,
+        "codeSha256": "4249a1399e8bfa2afd1116a231680a1c96fe50c5350fff658033b7d27bfaf2b3",
+        "diagnosticCode": "SYNTAX_ERROR",
+        "status": "FAILED",
+        "tool": "python_execute",
+        "timestamp": "2026-11-01T04:18:45.310Z",
+        "cpuTimeMs": 212,
+        "repairAllowed": true,
+        "validationStatus": "NOT_RUN",
+        "errorCategory": "SYNTAX",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "source": "NODE_CLINE",
+        "maxRssBytes": 21528576,
+        "durationMs": 2364,
+        "operationId": "cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd",
+        "resultAvailable": false,
+        "type": "TOOL_FINISHED",
+        "stage": "RESULT_VALIDATING"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:cb118eb5-7f22-4f8e-a56f-62ab642fc8ff",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 43,
+      "occurredAt": "2026-11-01T04:18:45.486Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: TOOL_TIMING",
+      "evidenceRefs": [],
+      "payload": {
+        "status": "RETURNED",
+        "toolDurationMs": 8617,
+        "tool": "python_execute",
+        "timestamp": "2026-11-01T04:18:45.433Z",
+        "toolCallId": "call_00_BPnBdkHwb4k987TjUoc98175",
+        "type": "TOOL_TIMING",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "source": "NODE_CLINE"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:864b4e4e-364d-4086-b840-f45f0366b62d",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 44,
+      "occurredAt": "2026-11-01T04:18:45.750Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: MODEL_STARTED",
+      "evidenceRefs": [],
+      "payload": {
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "stage": "CODING",
+        "modelCall": 3,
+        "source": "NODE_CLINE",
+        "timestamp": "2026-11-01T04:18:45.692Z",
+        "type": "MODEL_STARTED"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:761b1dd3-bbe0-4ab7-9f6c-c0fca7beec80",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-3",
+      "operationId": "model-3",
+      "operationAttempt": 1,
+      "sequence": 45,
+      "occurredAt": "2026-11-01T04:18:45.944Z",
+      "codingEventType": "BUDGET_UPDATED",
+      "eventState": "RUNNING",
+      "summary": "Operation budget reserved",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:888da2b3-6d9d-401c-b540-a41f449783dd",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-3",
+      "operationId": "model-3",
+      "operationAttempt": 1,
+      "sequence": 46,
+      "occurredAt": "2026-11-01T04:18:45.993Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Start intent committed; execution result is not yet known",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:f0b3a005-06ef-434e-8767-ec44848bc1e5",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 47,
+      "occurredAt": "2026-11-01T04:18:46.067Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Lease renewed",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:80e5a05b-447e-4b54-a839-5fe02577433a",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "reasonCode": "EXECUTION_OUTCOME_UNKNOWN",
+      "sequence": 48,
+      "occurredAt": "2026-11-01T04:18:46.674Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Existing execution must be reconciled before new work",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:9e09a236-7347-494a-b5b4-3e89144f5def",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-3",
+      "operationId": "model-3",
+      "operationAttempt": 1,
+      "sequence": 49,
+      "occurredAt": "2026-11-01T04:18:50.387Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Verified stop evidence recorded",
+      "evidenceRefs": [
+        "runtime-evidence:coding:model:2eebd893867e1f1efc9177437b57c92d127ab4164cc97890b6daa15168fc647d"
+      ],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:6492cd84-3695-490b-b7f2-b157d8763cab",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-3",
+      "operationId": "model-3",
+      "operationAttempt": 1,
+      "sequence": 50,
+      "occurredAt": "2026-11-01T04:18:50.453Z",
+      "codingEventType": "BUDGET_UPDATED",
+      "eventState": "RUNNING",
+      "summary": "Unknown usage retains unspent reservation",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:c669e6b2-4834-41bf-ab34-ea89be31e5de",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-3",
+      "operationId": "model-3",
+      "operationAttempt": 1,
+      "sequence": 51,
+      "occurredAt": "2026-11-01T04:18:50.551Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: MODEL_RESOLVED",
+      "evidenceRefs": [],
+      "payload": {
+        "providerModel": "deepseek-flash",
+        "queueTimeMs": 43,
+        "responseMode": "NON_STREAMING",
+        "timestamp": "2026-11-01T04:18:50.496Z",
+        "modelCall": 3,
+        "requestBytes": 124235,
+        "retryTimeMs": 0,
+        "startedAt": "2026-11-01T04:18:46.094269468Z",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "finishedAt": "2026-11-01T04:18:50.189245437Z",
+        "source": "NODE_CLINE",
+        "messageCount": 7,
+        "durationMs": 4094,
+        "selectedModel": "deepseek-v4-flash",
+        "maxOutputTokens": 32768,
+        "protocol": "openai",
+        "type": "MODEL_RESOLVED",
+        "stage": "CODING"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:c77452d0-eb3f-43cf-af66-c12189209683",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-3",
+      "operationId": "model-3",
+      "operationAttempt": 1,
+      "sequence": 52,
+      "occurredAt": "2026-11-01T04:18:50.658Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: MODEL_USAGE",
+      "evidenceRefs": [],
+      "payload": {
+        "type": "MODEL_USAGE",
+        "source": "NODE_CLINE",
+        "stage": "CODING",
+        "usage": {
+          "inputTokens": 32363,
+          "outputTokens": 784
+        },
+        "status": "SUCCEEDED",
+        "timestamp": "2026-11-01T04:18:50.582Z",
+        "modelCall": 3,
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:df3a3d35-79de-4030-ac3c-5b16a8a23df0",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-3",
+      "operationId": "model-3",
+      "operationAttempt": 1,
+      "sequence": 53,
+      "occurredAt": "2026-11-01T04:18:50.835Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: MODEL_TIMING",
+      "evidenceRefs": [],
+      "payload": {
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "requestHash": "236870d3fc55f73b3f406ffbbfdc90177262c22e7142c19ef32513df9b6e7cf0",
+        "stage": "CODING",
+        "callbackFirstEventMs": 4804,
+        "requestBytes": 124588,
+        "toolCount": 5,
+        "status": "SUCCEEDED",
+        "type": "MODEL_TIMING",
+        "durationMs": 5075,
+        "timestamp": "2026-11-01T04:18:50.768Z",
+        "modelCall": 3,
+        "source": "NODE_CLINE",
+        "responseBytes": 2384,
+        "responseMode": "RUNTIME_MODEL_CALLBACK",
+        "messageCount": 7
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:0f0a59ea-cd59-4c79-bb32-9b97ac7a6499",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 54,
+      "occurredAt": "2026-11-01T04:18:51.087Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: CODE_READY",
+      "evidenceRefs": [],
+      "payload": {
+        "codeSha256": "2565eab8b7f49a5bd5bca2f6ed84106a6c2d111ad234354e3d2592fdae178a7e",
+        "timestamp": "2026-11-01T04:18:51.032Z",
+        "type": "CODE_READY",
+        "source": "NODE_CLINE",
+        "proposedOperationId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+        "stage": "CODE_READY",
+        "parentCodeVersion": 1,
+        "changeKind": "PATCH",
+        "parentCodeHash": "4249a1399e8bfa2afd1116a231680a1c96fe50c5350fff658033b7d27bfaf2b3",
+        "fileName": "python-sales-csv-region_20261101T041850964Z_83252ba38c98_v2.py",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "modelCall": 3,
+        "codeVersion": 2,
+        "scriptVersion": 2,
+        "scriptPath": "/workspace/scripts/python-sales-csv-region_20261101T041850964Z_83252ba38c98_v2.py",
+        "sourceBytes": 21673
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:b4b6f944-0348-48df-a160-d64847559456",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 55,
+      "occurredAt": "2026-11-01T04:18:51.186Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: TOOL_STARTED",
+      "evidenceRefs": [],
+      "payload": {
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "stage": "VALIDATING",
+        "type": "TOOL_STARTED",
+        "operationId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+        "source": "NODE_CLINE",
+        "timestamp": "2026-11-01T04:18:51.117Z",
+        "tool": "python_execute"
+      }
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+      "executorConfirmed": false,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": false,
+      "operationKind": "EXECUTION",
+      "eventState": "ACCEPTED",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:18:51.908862789Z"
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:2d851a5b-3570-4432-bb95-a33cc837a3f7",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+      "operationId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+      "operationAttempt": 1,
+      "sequence": 56,
+      "occurredAt": "2026-11-01T04:18:51.696Z",
+      "codingEventType": "BUDGET_UPDATED",
+      "eventState": "RUNNING",
+      "summary": "Operation budget reserved",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "VALIDATING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:3f4861b8-45d3-4681-a116-1dc567a5a968",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+      "operationId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+      "operationAttempt": 1,
+      "sequence": 57,
+      "occurredAt": "2026-11-01T04:18:51.756Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Start intent committed; execution result is not yet known",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "EXECUTING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+      "executorConfirmed": true,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": false,
+      "operationKind": "EXECUTION",
+      "eventState": "RUNNING",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:18:52.584490751Z"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+      "executorConfirmed": true,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": false,
+      "operationKind": "EXECUTION",
+      "eventState": "RUNNING",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:18:52.983223232Z"
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:cee6a0c6-6fbc-42cf-ad44-1ebfb9c2816e",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "reasonCode": "EXECUTION_OUTCOME_UNKNOWN",
+      "sequence": 58,
+      "occurredAt": "2026-11-01T04:18:53.010Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Existing execution must be reconciled before new work",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "EXECUTING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+      "executorConfirmed": true,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": false,
+      "operationKind": "EXECUTION",
+      "eventState": "RUNNING",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:18:53.395281405Z"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+      "executorConfirmed": true,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": false,
+      "operationKind": "EXECUTION",
+      "eventState": "RUNNING",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:18:53.784127154Z"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+      "executorConfirmed": true,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": false,
+      "operationKind": "EXECUTION",
+      "eventState": "RUNNING",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:18:54.180575302Z"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+      "executorConfirmed": true,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": false,
+      "operationKind": "EXECUTION",
+      "eventState": "RUNNING",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:18:54.556875361Z"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+      "executorConfirmed": true,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": false,
+      "operationKind": "EXECUTION",
+      "eventState": "RUNNING",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:18:54.974026057Z"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+      "executorConfirmed": true,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": false,
+      "operationKind": "EXECUTION",
+      "eventState": "RUNNING",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:18:55.395467158Z"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+      "executorConfirmed": true,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": false,
+      "operationKind": "EXECUTION",
+      "eventState": "RUNNING",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:18:55.819442195Z"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+      "executorConfirmed": true,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": false,
+      "operationKind": "EXECUTION",
+      "eventState": "RUNNING",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:18:56.238832612Z"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+      "executorConfirmed": true,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": false,
+      "operationKind": "EXECUTION",
+      "eventState": "RUNNING",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:18:56.655603883Z"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+      "executorConfirmed": true,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": false,
+      "operationKind": "EXECUTION",
+      "eventState": "RUNNING",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:18:57.089965766Z"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+      "executorConfirmed": false,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": true,
+      "operationKind": "EXECUTION",
+      "eventState": "SUCCEEDED",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:18:57.599518621Z"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+      "executorConfirmed": false,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": true,
+      "operationKind": "EXECUTION",
+      "eventState": "SUCCEEDED",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:18:57.853527419Z"
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:077e9e9d-42aa-48c8-8ac2-1404df3d9b86",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+      "operationId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+      "operationAttempt": 1,
+      "sequence": 59,
+      "occurredAt": "2026-11-01T04:18:57.974Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Verified stop evidence recorded",
+      "evidenceRefs": [
+        "mcp-python-receipt:f3dc59220e5cdf7bf95e3e938e33d59e1a11d1852c9d3cc4d5daa99bfca46d49"
+      ],
+      "payload": {
+        "stage": "RESULT_VALIDATING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:4a676cda-35a5-406b-97a5-7fe960d03603",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+      "operationId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+      "operationAttempt": 1,
+      "sequence": 60,
+      "occurredAt": "2026-11-01T04:18:58.083Z",
+      "codingEventType": "BUDGET_UPDATED",
+      "eventState": "RUNNING",
+      "summary": "Unknown usage retains unspent reservation",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "RESULT_VALIDATING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:5465bb10-a80c-4109-b85d-14a73e516451",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+      "operationId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+      "operationAttempt": 1,
+      "sequence": 61,
+      "occurredAt": "2026-11-01T04:18:59.237Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Python feedback: VALIDATED",
+      "evidenceRefs": [
+        "mcp-python-receipt:f3dc59220e5cdf7bf95e3e938e33d59e1a11d1852c9d3cc4d5daa99bfca46d49"
+      ],
+      "payload": {
+        "stage": "VALIDATED",
+        "type": "EXECUTION_FEEDBACK",
+        "feedback": {
+          "artifactRefs": {
+            "codeArtifactRef": "runtime-evidence:coding:60131ee875daf9cdcbc5cd07480cf27523b1e5141ab974b26d0acd6ed29bd44b:code",
+            "diagnosticRef": "execution:cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168:logs:runtime-diagnostic.json",
+            "evidenceBundleRef": "runtime-evidence:coding:60131ee875daf9cdcbc5cd07480cf27523b1e5141ab974b26d0acd6ed29bd44b:bundle",
+            "executionReceiptRef": "runtime-evidence:coding:60131ee875daf9cdcbc5cd07480cf27523b1e5141ab974b26d0acd6ed29bd44b:receipt",
+            "inputSnapshotRef": "runtime-evidence:coding:input:d8d0e3c134d547425599701275e5ec365a2230f6350fc61065202c09482da18",
+            "resultDatasetRef": "runtime-evidence:coding:60131ee875daf9cdcbc5cd07480cf27523b1e5141ab974b26d0acd6ed29bd44b:result",
+            "stderrRef": "execution:cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168:logs:stderr.txt",
+            "validationRecordRef": "runtime-evidence:coding:60131ee875daf9cdcbc5cd07480cf27523b1e5141ab974b26d0acd6ed29bd44b:validation"
+          },
+          "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:execution-2",
+          "businessValidationPassed": false,
+          "codeHash": "2565eab8b7f49a5bd5bca2f6ed84106a6c2d111ad234354e3d2592fdae178a7e",
+          "cpuTimeMs": 3015,
+          "diagnosticPolicy": "METADATA_ONLY_V1",
+          "durationMs": 4781,
+          "error": null,
+          "executionId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+          "exitCode": 0,
+          "inputDataRefs": [
+            "runtime-evidence:coding:input:d8d0e3c134d547425599701275e5ec365a2230f6350fc61065202c09482da18"
+          ],
+          "inputFiles": [
+            {
+              "fileId": "cd8d0e3c134d547425599701275e5ec365a2230f6350fc61065202c09482da18",
+              "fileName": "manifest.json",
+              "sha256": "b80bb833abe9d04ee389cdcae20898c5acbc356abf10519418a076e8efa1d434"
+            }
+          ],
+          "inputSchemaSummary": {
+            "format": "PARQUET",
+            "manifestFileId": "cd8d0e3c134d547425599701275e5ec365a2230f6350fc61065202c09482da18",
+            "manifestSha256": "b80bb833abe9d04ee389cdcae20898c5acbc356abf10519418a076e8efa1d434"
+          },
+          "manifestHash": "937f21173ebe82a98d87b583167efec854b17be042bbd750729b8ff607cb6639",
+          "maxRssBytes": 166395904,
+          "outputStatus": null,
+          "repair": {
+            "action": "COMPLETE",
+            "allowed": false,
+            "attemptsUsed": 1,
+            "baseCodeHash": "2565eab8b7f49a5bd5bca2f6ed84106a6c2d111ad234354e3d2592fdae178a7e",
+            "guidance": "Result archived; business correctness remains governed by validationStatus.",
+            "maxAttempts": 3,
+            "reason": "RESULT_VERIFIED"
+          },
+          "resultAvailable": true,
+          "schemaRef": "runtime-coding-schema:a0e8ae094a70a0b96aa43db24fc839596818b67920f99467c94c83c88591434e",
+          "schemaVersion": "runtime_os.execution_feedback.v1",
+          "script": {
+            "fileName": "python-sales-csv-region_20261101T041850964Z_83252ba38c98_v2.py",
+            "scriptPath": "/workspace/scripts/python-sales-csv-region_20261101T041850964Z_83252ba38c98_v2.py",
+            "scriptVersion": 2,
+            "workingDirectory": "tasks/2abd2c828f4ebf3c/6432cc690bc93efe/9df3f9c9b1421157/83252ba38c98c8b8fe6e31de"
+          },
+          "stage": "VALIDATED",
+          "status": "SUCCEEDED",
+          "stderr": "[raw stderr omitted]",
+          "stderrBytes": 0,
+          "stdout": "[raw stdout omitted]",
+          "stdoutBytes": 5,
+          "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+          "traceId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+          "validationStatus": "INCONCLUSIVE"
+        }
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:df7bb2a5-cee1-4918-b752-a51d38b1bb25",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+      "operationId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+      "operationAttempt": 1,
+      "sequence": 62,
+      "occurredAt": "2026-11-01T04:18:59.354Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: TOOL_FINISHED",
+      "evidenceRefs": [],
+      "payload": {
+        "maxRssBytes": 166395904,
+        "resultAvailable": true,
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "resultDatasetRef": "runtime-evidence:coding:60131ee875daf9cdcbc5cd07480cf27523b1e5141ab974b26d0acd6ed29bd44b:result",
+        "stage": "RESULT_VALIDATING",
+        "timestamp": "2026-11-01T04:18:59.295Z",
+        "cpuTimeMs": 3015,
+        "durationMs": 4781,
+        "type": "TOOL_FINISHED",
+        "validationStatus": "INCONCLUSIVE",
+        "repairAttempts": 1,
+        "codeSha256": "2565eab8b7f49a5bd5bca2f6ed84106a6c2d111ad234354e3d2592fdae178a7e",
+        "source": "NODE_CLINE",
+        "validationRecordRef": "runtime-evidence:coding:60131ee875daf9cdcbc5cd07480cf27523b1e5141ab974b26d0acd6ed29bd44b:validation",
+        "operationId": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+        "status": "SUCCEEDED",
+        "tool": "python_execute",
+        "evidenceBundleRef": "runtime-evidence:coding:60131ee875daf9cdcbc5cd07480cf27523b1e5141ab974b26d0acd6ed29bd44b:bundle",
+        "repairAllowed": false
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:55e624fb-ed5f-4e4e-9306-a3c37a6ce1b3",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 63,
+      "occurredAt": "2026-11-01T04:18:59.452Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: TOOL_STARTED",
+      "evidenceRefs": [],
+      "payload": {
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "tool": "artifact_read",
+        "stage": "CODING",
+        "source": "NODE_CLINE",
+        "timestamp": "2026-11-01T04:18:59.386Z",
+        "type": "TOOL_STARTED"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:27f6b514-cb54-470c-a056-e1cc99d2c0dc",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 64,
+      "occurredAt": "2026-11-01T04:18:59.831Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: TOOL_FINISHED",
+      "evidenceRefs": [],
+      "payload": {
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "stage": "CODING",
+        "status": "FAILED",
+        "type": "TOOL_FINISHED",
+        "source": "NODE_CLINE",
+        "timestamp": "2026-11-01T04:18:59.733Z",
+        "tool": "artifact_read"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:3a42241f-5504-48e4-bf88-e7f45e4b786b",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 65,
+      "occurredAt": "2026-11-01T04:18:59.949Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: TOOL_TIMING",
+      "evidenceRefs": [],
+      "payload": {
+        "status": "RETURNED",
+        "toolDurationMs": 9004,
+        "tool": "python_execute",
+        "timestamp": "2026-11-01T04:18:59.877Z",
+        "toolCallId": "call_00_92HQcnW4mz4Riysrw2V56234",
+        "type": "TOOL_TIMING",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "source": "NODE_CLINE"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:5283a6d9-3a89-4b3d-bba4-deb254135614",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 66,
+      "occurredAt": "2026-11-01T04:19:00.231Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: MODEL_STARTED",
+      "evidenceRefs": [],
+      "payload": {
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "stage": "CODING",
+        "modelCall": 4,
+        "source": "NODE_CLINE",
+        "timestamp": "2026-11-01T04:19:00.149Z",
+        "type": "MODEL_STARTED"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:61783230-a6a5-4e7b-926c-0a4e798eb558",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-4",
+      "operationId": "model-4",
+      "operationAttempt": 1,
+      "sequence": 67,
+      "occurredAt": "2026-11-01T04:19:00.434Z",
+      "codingEventType": "BUDGET_UPDATED",
+      "eventState": "RUNNING",
+      "summary": "Operation budget reserved",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:5509da6e-70da-4c20-9e1e-df7455399399",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-4",
+      "operationId": "model-4",
+      "operationAttempt": 1,
+      "sequence": 68,
+      "occurredAt": "2026-11-01T04:19:00.497Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Start intent committed; execution result is not yet known",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:a9685746-0673-49c1-b009-7639f196b0cb",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 69,
+      "occurredAt": "2026-11-01T04:19:00.574Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Lease renewed",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:54def7d2-1035-416a-8c5d-67ee01f88316",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "reasonCode": "EXECUTION_OUTCOME_UNKNOWN",
+      "sequence": 70,
+      "occurredAt": "2026-11-01T04:19:00.607Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Existing execution must be reconciled before new work",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:9854f73e-f130-4baf-b04a-8d1ad88ded47",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-4",
+      "operationId": "model-4",
+      "operationAttempt": 1,
+      "sequence": 71,
+      "occurredAt": "2026-11-01T04:19:11.553Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Verified stop evidence recorded",
+      "evidenceRefs": [
+        "runtime-evidence:coding:model:3e5980b32b6782e47fc39669cddaa8712b72d5717ced160dfade16e2f7980460"
+      ],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:308686db-3e23-4461-ac77-ac1b9c6e31c8",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-4",
+      "operationId": "model-4",
+      "operationAttempt": 1,
+      "sequence": 72,
+      "occurredAt": "2026-11-01T04:19:11.653Z",
+      "codingEventType": "BUDGET_UPDATED",
+      "eventState": "RUNNING",
+      "summary": "Unknown usage retains unspent reservation",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:2f9a6efd-7026-4a34-8cd1-d8e1b5868337",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-4",
+      "operationId": "model-4",
+      "operationAttempt": 1,
+      "sequence": 73,
+      "occurredAt": "2026-11-01T04:19:11.783Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: MODEL_RESOLVED",
+      "evidenceRefs": [],
+      "payload": {
+        "providerModel": "deepseek-flash",
+        "queueTimeMs": 61,
+        "responseMode": "NON_STREAMING",
+        "timestamp": "2026-11-01T04:19:11.689Z",
+        "modelCall": 4,
+        "requestBytes": 149360,
+        "retryTimeMs": 0,
+        "startedAt": "2026-11-01T04:19:00.603831686Z",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "finishedAt": "2026-11-01T04:19:11.351474710Z",
+        "source": "NODE_CLINE",
+        "messageCount": 9,
+        "durationMs": 10747,
+        "selectedModel": "deepseek-v4-flash",
+        "maxOutputTokens": 32768,
+        "protocol": "openai",
+        "type": "MODEL_RESOLVED",
+        "stage": "CODING"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:371a9a7e-d910-45ba-b979-409c19b4d925",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-4",
+      "operationId": "model-4",
+      "operationAttempt": 1,
+      "sequence": 74,
+      "occurredAt": "2026-11-01T04:19:11.910Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: MODEL_USAGE",
+      "evidenceRefs": [],
+      "payload": {
+        "type": "MODEL_USAGE",
+        "source": "NODE_CLINE",
+        "stage": "CODING",
+        "usage": {
+          "inputTokens": 40874,
+          "outputTokens": 1974
+        },
+        "status": "SUCCEEDED",
+        "timestamp": "2026-11-01T04:19:11.831Z",
+        "modelCall": 4,
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:e91f92aa-8cb8-485c-819e-c03c27a66660",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-4",
+      "operationId": "model-4",
+      "operationAttempt": 1,
+      "sequence": 75,
+      "occurredAt": "2026-11-01T04:19:12.109Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: MODEL_TIMING",
+      "evidenceRefs": [],
+      "payload": {
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "requestHash": "c2b67efa8a166db2d71a1009535749f8e4f14d4787b942901064a58a9571de56",
+        "stage": "CODING",
+        "callbackFirstEventMs": 11540,
+        "requestBytes": 149901,
+        "toolCount": 5,
+        "status": "SUCCEEDED",
+        "type": "MODEL_TIMING",
+        "durationMs": 11863,
+        "timestamp": "2026-11-01T04:19:12.013Z",
+        "modelCall": 4,
+        "source": "NODE_CLINE",
+        "responseBytes": 2439,
+        "responseMode": "RUNTIME_MODEL_CALLBACK",
+        "messageCount": 9
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:d77fa139-5737-42de-8b98-604ad6d4d8ea",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 76,
+      "occurredAt": "2026-11-01T04:19:12.580Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: CODE_READY",
+      "evidenceRefs": [],
+      "payload": {
+        "codeSha256": "e49ae5d6ea64774920365b5d4f503bb4aebdbb878efafe1ecd2ce4a98a2894b4",
+        "timestamp": "2026-11-01T04:19:12.490Z",
+        "type": "CODE_READY",
+        "source": "NODE_CLINE",
+        "proposedOperationId": "cline-944bb175254bcdd2272de43b2934cec78ebcba1cd49020a2d3a819de9028342a",
+        "stage": "CODE_READY",
+        "parentCodeVersion": 2,
+        "changeKind": "PATCH",
+        "parentCodeHash": "2565eab8b7f49a5bd5bca2f6ed84106a6c2d111ad234354e3d2592fdae178a7e",
+        "fileName": "python-sales-csv-region_20261101T041912440Z_83252ba38c98_v3.py",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "modelCall": 4,
+        "codeVersion": 3,
+        "scriptVersion": 3,
+        "scriptPath": "/workspace/scripts/python-sales-csv-region_20261101T041912440Z_83252ba38c98_v3.py",
+        "sourceBytes": 22052
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:701f6bd3-1a38-4b39-9a1e-a5ca508dae67",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 77,
+      "occurredAt": "2026-11-01T04:19:12.703Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: TOOL_STARTED",
+      "evidenceRefs": [],
+      "payload": {
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "stage": "VALIDATING",
+        "type": "TOOL_STARTED",
+        "operationId": "cline-944bb175254bcdd2272de43b2934cec78ebcba1cd49020a2d3a819de9028342a",
+        "source": "NODE_CLINE",
+        "timestamp": "2026-11-01T04:19:12.626Z",
+        "tool": "python_execute"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:90bd65bc-d295-4d3e-b410-8bf9f3bcbc5b",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "cline-944bb175254bcdd2272de43b2934cec78ebcba1cd49020a2d3a819de9028342a",
+      "operationId": "cline-944bb175254bcdd2272de43b2934cec78ebcba1cd49020a2d3a819de9028342a",
+      "operationAttempt": 1,
+      "sequence": 78,
+      "occurredAt": "2026-11-01T04:19:13.240Z",
+      "codingEventType": "BUDGET_UPDATED",
+      "eventState": "RUNNING",
+      "summary": "Operation budget reserved",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "VALIDATING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:9d8c546a-bfe4-4456-8945-3191b6e4e54b",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "cline-944bb175254bcdd2272de43b2934cec78ebcba1cd49020a2d3a819de9028342a",
+      "operationId": "cline-944bb175254bcdd2272de43b2934cec78ebcba1cd49020a2d3a819de9028342a",
+      "operationAttempt": 1,
+      "sequence": 79,
+      "occurredAt": "2026-11-01T04:19:13.291Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Start intent committed; execution result is not yet known",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "EXECUTING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-944bb175254bcdd2272de43b2934cec78ebcba1cd49020a2d3a819de9028342a",
+      "executorConfirmed": false,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": false,
+      "operationKind": "EXECUTION",
+      "eventState": "ACCEPTED",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:19:13.804841172Z"
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:d4983a13-2af5-4093-83c9-7fc7e4a35d85",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "reasonCode": "EXECUTION_OUTCOME_UNKNOWN",
+      "sequence": 80,
+      "occurredAt": "2026-11-01T04:19:13.500Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Existing execution must be reconciled before new work",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "EXECUTING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-944bb175254bcdd2272de43b2934cec78ebcba1cd49020a2d3a819de9028342a",
+      "executorConfirmed": true,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": false,
+      "operationKind": "EXECUTION",
+      "eventState": "RUNNING",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:19:16.777886003Z"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-944bb175254bcdd2272de43b2934cec78ebcba1cd49020a2d3a819de9028342a",
+      "executorConfirmed": true,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": false,
+      "operationKind": "EXECUTION",
+      "eventState": "RUNNING",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:19:17.200850983Z"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-944bb175254bcdd2272de43b2934cec78ebcba1cd49020a2d3a819de9028342a",
+      "executorConfirmed": true,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": false,
+      "operationKind": "EXECUTION",
+      "eventState": "RUNNING",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:19:17.621120751Z"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-944bb175254bcdd2272de43b2934cec78ebcba1cd49020a2d3a819de9028342a",
+      "executorConfirmed": false,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": true,
+      "operationKind": "EXECUTION",
+      "eventState": "SUCCEEDED",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:19:18.121509304Z"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "timeBasis": "OBSERVED_STATE",
+      "operationId": "cline-944bb175254bcdd2272de43b2934cec78ebcba1cd49020a2d3a819de9028342a",
+      "executorConfirmed": false,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorStopped": true,
+      "operationKind": "EXECUTION",
+      "eventState": "SUCCEEDED",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "observedAt": "2026-11-01T04:19:18.732326385Z"
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:f35cf2b6-9431-4ef8-87c3-455c4ba724e4",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "cline-944bb175254bcdd2272de43b2934cec78ebcba1cd49020a2d3a819de9028342a",
+      "operationId": "cline-944bb175254bcdd2272de43b2934cec78ebcba1cd49020a2d3a819de9028342a",
+      "operationAttempt": 1,
+      "sequence": 81,
+      "occurredAt": "2026-11-01T04:19:18.838Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Verified stop evidence recorded",
+      "evidenceRefs": [
+        "mcp-python-receipt:1577e085e370a0b6d0aad9dfc3659395c348028c6f3846026b8123231fd897b8"
+      ],
+      "payload": {
+        "stage": "RESULT_VALIDATING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:61161f64-66bc-40be-b5e5-98c805c011a7",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "cline-944bb175254bcdd2272de43b2934cec78ebcba1cd49020a2d3a819de9028342a",
+      "operationId": "cline-944bb175254bcdd2272de43b2934cec78ebcba1cd49020a2d3a819de9028342a",
+      "operationAttempt": 1,
+      "sequence": 82,
+      "occurredAt": "2026-11-01T04:19:18.931Z",
+      "codingEventType": "BUDGET_UPDATED",
+      "eventState": "RUNNING",
+      "summary": "Unknown usage retains unspent reservation",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "RESULT_VALIDATING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:70142e92-9da1-49c6-8814-1691ff8c0d1f",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "cline-944bb175254bcdd2272de43b2934cec78ebcba1cd49020a2d3a819de9028342a",
+      "operationId": "cline-944bb175254bcdd2272de43b2934cec78ebcba1cd49020a2d3a819de9028342a",
+      "operationAttempt": 1,
+      "sequence": 83,
+      "occurredAt": "2026-11-01T04:19:19.781Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Python feedback: VALIDATED",
+      "evidenceRefs": [
+        "mcp-python-receipt:1577e085e370a0b6d0aad9dfc3659395c348028c6f3846026b8123231fd897b8"
+      ],
+      "payload": {
+        "stage": "VALIDATED",
+        "type": "EXECUTION_FEEDBACK",
+        "feedback": {
+          "artifactRefs": {
+            "codeArtifactRef": "runtime-evidence:coding:f29ea1ecf16092ebd4f65556c9c385b27d7eb0c393729eecacfd7b8e0bf70fca:code",
+            "diagnosticRef": "execution:cline-944bb175254bcdd2272de43b2934cec78ebcba1cd49020a2d3a819de9028342a:logs:runtime-diagnostic.json",
+            "evidenceBundleRef": "runtime-evidence:coding:f29ea1ecf16092ebd4f65556c9c385b27d7eb0c393729eecacfd7b8e0bf70fca:bundle",
+            "executionReceiptRef": "runtime-evidence:coding:f29ea1ecf16092ebd4f65556c9c385b27d7eb0c393729eecacfd7b8e0bf70fca:receipt",
+            "inputSnapshotRef": "runtime-evidence:coding:input:d8d0e3c134d547425599701275e5ec365a2230f6350fc61065202c09482da18",
+            "resultDatasetRef": "runtime-evidence:coding:f29ea1ecf16092ebd4f65556c9c385b27d7eb0c393729eecacfd7b8e0bf70fca:result",
+            "stderrRef": "execution:cline-944bb175254bcdd2272de43b2934cec78ebcba1cd49020a2d3a819de9028342a:logs:stderr.txt",
+            "validationRecordRef": "runtime-evidence:coding:f29ea1ecf16092ebd4f65556c9c385b27d7eb0c393729eecacfd7b8e0bf70fca:validation"
+          },
+          "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:execution-3",
+          "businessValidationPassed": false,
+          "codeHash": "e49ae5d6ea64774920365b5d4f503bb4aebdbb878efafe1ecd2ce4a98a2894b4",
+          "cpuTimeMs": 2634,
+          "diagnosticPolicy": "METADATA_ONLY_V1",
+          "durationMs": 2742,
+          "error": null,
+          "executionId": "cline-944bb175254bcdd2272de43b2934cec78ebcba1cd49020a2d3a819de9028342a",
+          "exitCode": 0,
+          "inputDataRefs": [
+            "runtime-evidence:coding:input:d8d0e3c134d547425599701275e5ec365a2230f6350fc61065202c09482da18"
+          ],
+          "inputFiles": [
+            {
+              "fileId": "cd8d0e3c134d547425599701275e5ec365a2230f6350fc61065202c09482da18",
+              "fileName": "manifest.json",
+              "sha256": "b80bb833abe9d04ee389cdcae20898c5acbc356abf10519418a076e8efa1d434"
+            }
+          ],
+          "inputSchemaSummary": {
+            "format": "PARQUET",
+            "manifestFileId": "cd8d0e3c134d547425599701275e5ec365a2230f6350fc61065202c09482da18",
+            "manifestSha256": "b80bb833abe9d04ee389cdcae20898c5acbc356abf10519418a076e8efa1d434"
+          },
+          "manifestHash": "ede0558cfd0b1a2b3815acd1b54753f7a48a492b7988e4a652a798cd8e861128",
+          "maxRssBytes": 167059456,
+          "outputStatus": null,
+          "repair": {
+            "action": "COMPLETE",
+            "allowed": false,
+            "attemptsUsed": 1,
+            "baseCodeHash": "e49ae5d6ea64774920365b5d4f503bb4aebdbb878efafe1ecd2ce4a98a2894b4",
+            "guidance": "Result archived; business correctness remains governed by validationStatus.",
+            "maxAttempts": 3,
+            "reason": "RESULT_VERIFIED"
+          },
+          "resultAvailable": true,
+          "schemaRef": "runtime-coding-schema:a0e8ae094a70a0b96aa43db24fc839596818b67920f99467c94c83c88591434e",
+          "schemaVersion": "runtime_os.execution_feedback.v1",
+          "script": {
+            "fileName": "python-sales-csv-region_20261101T041912440Z_83252ba38c98_v3.py",
+            "scriptPath": "/workspace/scripts/python-sales-csv-region_20261101T041912440Z_83252ba38c98_v3.py",
+            "scriptVersion": 3,
+            "workingDirectory": "tasks/2abd2c828f4ebf3c/6432cc690bc93efe/9df3f9c9b1421157/83252ba38c98c8b8fe6e31de"
+          },
+          "stage": "VALIDATED",
+          "status": "SUCCEEDED",
+          "stderr": "[raw stderr omitted]",
+          "stderrBytes": 0,
+          "stdout": "[raw stdout omitted]",
+          "stdoutBytes": 5,
+          "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+          "traceId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+          "validationStatus": "INCONCLUSIVE"
+        }
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:498f047a-973c-413f-a8e9-c8311c61f7de",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "cline-944bb175254bcdd2272de43b2934cec78ebcba1cd49020a2d3a819de9028342a",
+      "operationId": "cline-944bb175254bcdd2272de43b2934cec78ebcba1cd49020a2d3a819de9028342a",
+      "operationAttempt": 1,
+      "sequence": 84,
+      "occurredAt": "2026-11-01T04:19:19.953Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: TOOL_FINISHED",
+      "evidenceRefs": [],
+      "payload": {
+        "maxRssBytes": 167059456,
+        "resultAvailable": true,
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "resultDatasetRef": "runtime-evidence:coding:f29ea1ecf16092ebd4f65556c9c385b27d7eb0c393729eecacfd7b8e0bf70fca:result",
+        "stage": "RESULT_VALIDATING",
+        "timestamp": "2026-11-01T04:19:19.847Z",
+        "cpuTimeMs": 2634,
+        "durationMs": 2742,
+        "type": "TOOL_FINISHED",
+        "validationStatus": "INCONCLUSIVE",
+        "repairAttempts": 1,
+        "codeSha256": "e49ae5d6ea64774920365b5d4f503bb4aebdbb878efafe1ecd2ce4a98a2894b4",
+        "source": "NODE_CLINE",
+        "validationRecordRef": "runtime-evidence:coding:f29ea1ecf16092ebd4f65556c9c385b27d7eb0c393729eecacfd7b8e0bf70fca:validation",
+        "operationId": "cline-944bb175254bcdd2272de43b2934cec78ebcba1cd49020a2d3a819de9028342a",
+        "status": "SUCCEEDED",
+        "tool": "python_execute",
+        "evidenceBundleRef": "runtime-evidence:coding:f29ea1ecf16092ebd4f65556c9c385b27d7eb0c393729eecacfd7b8e0bf70fca:bundle",
+        "repairAllowed": false
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:faba6954-9b6e-4ca1-8db9-0d0cddfc1a4f",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 85,
+      "occurredAt": "2026-11-01T04:19:20.192Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: TOOL_STARTED",
+      "evidenceRefs": [],
+      "payload": {
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "tool": "artifact_read",
+        "stage": "CODING",
+        "source": "NODE_CLINE",
+        "timestamp": "2026-11-01T04:19:20.099Z",
+        "type": "TOOL_STARTED"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:ae196597-8e5c-42e5-8149-bcf9bd5c3f93",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 86,
+      "occurredAt": "2026-11-01T04:19:20.604Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: TOOL_FINISHED",
+      "evidenceRefs": [],
+      "payload": {
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "stage": "CODING",
+        "status": "SUCCEEDED",
+        "type": "TOOL_FINISHED",
+        "source": "NODE_CLINE",
+        "timestamp": "2026-11-01T04:19:20.520Z",
+        "tool": "artifact_read"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:7700e918-fa9c-4fc7-b70e-9c0a3d2c245e",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 87,
+      "occurredAt": "2026-11-01T04:19:20.757Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: TOOL_TIMING",
+      "evidenceRefs": [],
+      "payload": {
+        "status": "RETURNED",
+        "toolDurationMs": 8490,
+        "tool": "python_execute",
+        "timestamp": "2026-11-01T04:19:20.638Z",
+        "toolCallId": "call_00_uMeqMMekPlp108lXwH0L4183",
+        "type": "TOOL_TIMING",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "source": "NODE_CLINE"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:36132c70-da53-4392-b4e6-1800ecfec0e9",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 88,
+      "occurredAt": "2026-11-01T04:19:21.200Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: MODEL_STARTED",
+      "evidenceRefs": [],
+      "payload": {
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "stage": "CODING",
+        "modelCall": 5,
+        "source": "NODE_CLINE",
+        "timestamp": "2026-11-01T04:19:21.106Z",
+        "type": "MODEL_STARTED"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:d4235fcf-0d6f-44b2-8057-25ecb41a78c3",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-5",
+      "operationId": "model-5",
+      "operationAttempt": 1,
+      "sequence": 89,
+      "occurredAt": "2026-11-01T04:19:21.610Z",
+      "codingEventType": "BUDGET_UPDATED",
+      "eventState": "RUNNING",
+      "summary": "Operation budget reserved",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:c9ca8ee4-1389-40c4-8237-718db9cc05bb",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-5",
+      "operationId": "model-5",
+      "operationAttempt": 1,
+      "sequence": 90,
+      "occurredAt": "2026-11-01T04:19:21.698Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Start intent committed; execution result is not yet known",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:cdc3ec45-9526-43f3-b5c8-51d23f483e40",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 91,
+      "occurredAt": "2026-11-01T04:19:21.811Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Lease renewed",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:dff2b4a4-e39b-4e7a-a095-af3852af3385",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "reasonCode": "EXECUTION_OUTCOME_UNKNOWN",
+      "sequence": 92,
+      "occurredAt": "2026-11-01T04:19:21.870Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Existing execution must be reconciled before new work",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:49b58148-f631-4ad4-9180-d86ccffbb365",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-5",
+      "operationId": "model-5",
+      "operationAttempt": 1,
+      "sequence": 93,
+      "occurredAt": "2026-11-01T04:19:26.569Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Verified stop evidence recorded",
+      "evidenceRefs": [
+        "runtime-evidence:coding:model:648893ca64e0ac9a9e0d0b028d68bbdc7af3db2e32cf22ca5c19f7a7ae94021c"
+      ],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:d1ffdb08-0ec7-4117-95bb-a3b2174be4ab",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-5",
+      "operationId": "model-5",
+      "operationAttempt": 1,
+      "sequence": 94,
+      "occurredAt": "2026-11-01T04:19:26.677Z",
+      "codingEventType": "BUDGET_UPDATED",
+      "eventState": "RUNNING",
+      "summary": "Unknown usage retains unspent reservation",
+      "evidenceRefs": [],
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:32ef1ffe-4672-43e9-aab6-70a51d72347f",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-5",
+      "operationId": "model-5",
+      "operationAttempt": 1,
+      "sequence": 95,
+      "occurredAt": "2026-11-01T04:19:26.857Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: MODEL_RESOLVED",
+      "evidenceRefs": [],
+      "payload": {
+        "providerModel": "deepseek-flash",
+        "queueTimeMs": 94,
+        "responseMode": "NON_STREAMING",
+        "timestamp": "2026-11-01T04:19:26.728Z",
+        "modelCall": 5,
+        "requestBytes": 175508,
+        "retryTimeMs": 0,
+        "startedAt": "2026-11-01T04:19:21.854558760Z",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "finishedAt": "2026-11-01T04:19:26.266576353Z",
+        "source": "NODE_CLINE",
+        "messageCount": 11,
+        "durationMs": 4412,
+        "selectedModel": "deepseek-v4-flash",
+        "maxOutputTokens": 32768,
+        "protocol": "openai",
+        "type": "MODEL_RESOLVED",
+        "stage": "CODING"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:f91248e9-7027-4b09-bcbb-bce4f3eea430",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-5",
+      "operationId": "model-5",
+      "operationAttempt": 1,
+      "sequence": 96,
+      "occurredAt": "2026-11-01T04:19:27.232Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: MODEL_USAGE",
+      "evidenceRefs": [],
+      "payload": {
+        "type": "MODEL_USAGE",
+        "source": "NODE_CLINE",
+        "stage": "CODING",
+        "usage": {
+          "inputTokens": 49576,
+          "outputTokens": 606
+        },
+        "status": "SUCCEEDED",
+        "timestamp": "2026-11-01T04:19:26.991Z",
+        "modelCall": 5,
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:f33bed87-fa9c-4b57-8a94-df0224afaad9",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "model-5",
+      "operationId": "model-5",
+      "operationAttempt": 1,
+      "sequence": 97,
+      "occurredAt": "2026-11-01T04:19:27.385Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: MODEL_TIMING",
+      "evidenceRefs": [],
+      "payload": {
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "requestHash": "ea7c91ef012dfa8201f938f3b3f411be9131f8466de45960aabbcbf28ad3133d",
+        "stage": "CODING",
+        "callbackFirstEventMs": 5622,
+        "requestBytes": 176238,
+        "toolCount": 5,
+        "status": "SUCCEEDED",
+        "type": "MODEL_TIMING",
+        "durationMs": 6189,
+        "timestamp": "2026-11-01T04:19:27.296Z",
+        "modelCall": 5,
+        "source": "NODE_CLINE",
+        "responseBytes": 900,
+        "responseMode": "RUNTIME_MODEL_CALLBACK",
+        "messageCount": 11
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:d19f6427-f433-4beb-bfad-0fc24545ab8a",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 98,
+      "occurredAt": "2026-11-01T04:19:27.525Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: TOOL_STARTED",
+      "evidenceRefs": [],
+      "payload": {
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "tool": "artifact_read",
+        "stage": "CODING",
+        "source": "NODE_CLINE",
+        "timestamp": "2026-11-01T04:19:27.434Z",
+        "type": "TOOL_STARTED"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:ad3ab6bc-b772-460a-a78a-d17abacf8a1b",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 99,
+      "occurredAt": "2026-11-01T04:19:27.684Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: TOOL_FINISHED",
+      "evidenceRefs": [],
+      "payload": {
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "stage": "CODING",
+        "status": "SUCCEEDED",
+        "type": "TOOL_FINISHED",
+        "source": "NODE_CLINE",
+        "timestamp": "2026-11-01T04:19:27.599Z",
+        "tool": "artifact_read"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:eb6ea3af-65a2-4ecd-96c7-8a665abc7b57",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 100,
+      "occurredAt": "2026-11-01T04:19:27.820Z",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "eventState": "RUNNING",
+      "summary": "Worker observation: TOOL_TIMING",
+      "evidenceRefs": [],
+      "payload": {
+        "status": "RETURNED",
+        "toolDurationMs": 296,
+        "tool": "artifact_read",
+        "timestamp": "2026-11-01T04:19:27.730Z",
+        "toolCallId": "call_00_QQLhjOLJDFQMcfES7Kg55794",
+        "type": "TOOL_TIMING",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+        "source": "NODE_CLINE"
+      }
+    }
+  },
+  {
+    "type": "coding",
+    "source": "coding_agent",
+    "content": "Coding task progress",
+    "metadata": {
+      "eventKind": "CODING_TRACE",
+      "eventId": "coding:638bb79e-4230-4530-bad4-ae4ffd92b65a",
+      "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "runId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+      "stepId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+      "sequence": 101,
+      "occurredAt": "2026-11-01T04:19:28.684Z",
+      "codingEventType": "TASK_FINISHED",
+      "eventState": "COMPLETED",
+      "summary": "Coding execution archived; validation INCONCLUSIVE",
+      "evidenceRefs": [
+        "runtime-evidence:coding:f29ea1ecf16092ebd4f65556c9c385b27d7eb0c393729eecacfd7b8e0bf70fca:bundle",
+        "runtime-evidence:coding:f29ea1ecf16092ebd4f65556c9c385b27d7eb0c393729eecacfd7b8e0bf70fca:code",
+        "runtime-evidence:coding:f29ea1ecf16092ebd4f65556c9c385b27d7eb0c393729eecacfd7b8e0bf70fca:receipt",
+        "runtime-evidence:coding:f29ea1ecf16092ebd4f65556c9c385b27d7eb0c393729eecacfd7b8e0bf70fca:result",
+        "runtime-evidence:coding:f29ea1ecf16092ebd4f65556c9c385b27d7eb0c393729eecacfd7b8e0bf70fca:validation",
+        "runtime-evidence:coding:input:d8d0e3c134d547425599701275e5ec365a2230f6350fc61065202c09482da18"
+      ],
+      "payload": {
+        "stage": "COMPLETED",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1"
+      }
+    }
+  },
+  {
+    "type": "context_analysis",
+    "source": "runtime",
+    "content": "RESULT_VALIDATING",
+    "metadata": {
+      "eventKind": "FILE_ANALYSIS",
+      "stage": "RESULT_VALIDATING",
+      "eventState": "RUNNING"
+    }
+  },
+  {
+    "type": "context_analysis",
+    "source": "runtime",
+    "content": "RESULT_VALIDATING",
+    "metadata": {
+      "eventKind": "FILE_ANALYSIS",
+      "stage": "RESULT_VALIDATING",
+      "eventState": "COMPLETED"
+    }
+  },
+  {
+    "type": "final_summary",
+    "source": "runtime",
+    "content": "Published Coding context report",
+    "metadata": {
+      "modelCalls": 0,
+      "type": "final_summary",
+      "resultAdmissionScope": "STRUCTURE_AND_AUTHORIZED_REFERENCES",
+      "workflow": "coding_owned_analysis",
+      "inputKind": "USER_ATTACHMENTS"
+    }
+  }
+]

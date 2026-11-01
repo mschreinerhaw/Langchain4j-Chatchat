@@ -1,0 +1,14 @@
+{
+  "scope": "ACTUAL_CLINE_EVENT_PAYLOADS",
+  "events": [
+    {
+      "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:fence-1",
+      "stage": "CODING",
+      "type": "SKILLS_LOADED",
+      "source": "NODE_CLINE",
+      "timestamp": "2026-11-01T04:17:59.007Z",
+      "skillVersion": "1.3.0",
+      "skillId": "builtin:python-data-analysis"
+    }
+  ]
+}

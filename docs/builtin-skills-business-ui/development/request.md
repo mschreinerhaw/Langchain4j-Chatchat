@@ -1,0 +1,1 @@
+编写一个可维护的 Python 命令行小程序。summarize(values) 接受数字列表，返回 count 和 sum；支持空列表，拒绝非列表、布尔值、非数值和非有限数。请使用类型注解、清晰的参数校验、异常处理及 main 入口，从 CHATCHAT_INPUT_JSON 读取 values 并输出 JSON。返回完整 main.py 和使用标准库 unittest 的 test_main.py，测试应导入真实 main 模块，覆盖正常、空列表和非法输入，不复制实现。本任务仅编写源码，不执行代码或声称测试已执行。

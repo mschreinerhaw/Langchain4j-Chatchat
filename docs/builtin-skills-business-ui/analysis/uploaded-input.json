@@ -1,0 +1,13 @@
+{
+  "id": "ed5e3191e15945e0a20c74fcd9c9d7740628131eda42acb7c08b9499b5272b09",
+  "kind": "DOCUMENT",
+  "fileName": "sales.csv",
+  "contentType": "text/csv",
+  "sha256": "04c2cf7d03d8b3c53dd1b3fd6dd9038dc91426e441ffaedd0e906ae473382c58",
+  "size": 95,
+  "state": "AVAILABLE",
+  "taskId": "",
+  "runId": "",
+  "sourceRef": "upload",
+  "createdAt": 1793506632845
+}

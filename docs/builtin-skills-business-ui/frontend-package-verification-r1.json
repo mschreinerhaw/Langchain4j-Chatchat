@@ -1,0 +1,6 @@
+{
+  "status": "EXACT_PACKAGED_FRONTEND_AND_CATALOG_MATCH",
+  "frontendFiles": 105,
+  "catalogSha256": "df659cf9bfcf14216280e84b08fa43f0259002a241bc31da31c269cda4d19e72",
+  "apiJarSha256": "0068223eb7cb1519b275cfbbc31a85a9bcfea0414fbe8b017842443daa9eeb58"
+}

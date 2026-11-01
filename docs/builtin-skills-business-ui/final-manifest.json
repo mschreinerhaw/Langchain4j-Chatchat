@@ -1,0 +1,66 @@
+{
+  "status": "PASS",
+  "sourceCommits": [
+    "52d6d624e",
+    "c75ade121",
+    "41befb032"
+  ],
+  "skillsAutomatic": true,
+  "businessSkillsBindingsPreserved": true,
+  "rawSkillFilesUnchanged": 30,
+  "evidence": [
+    {
+      "file": "ui-final/ui-verdict.json",
+      "sha256": "ce5ca65e54af4e87a3ee8f78987e2b34a8e76a0fc67552427531a2799f7f9570"
+    },
+    {
+      "file": "development/verdict.json",
+      "sha256": "7505c78bf3a26e31c6ca49c265aadf2081e8067d047bf7748dd9c7edb1bd2043"
+    },
+    {
+      "file": "development/selected-skills.json",
+      "sha256": "57a7c4ee259ff5ed7a98955768791f8c5f6dfca7678cc23141d0454bc8f3f4ab"
+    },
+    {
+      "file": "analysis/verdict.json",
+      "sha256": "cacf1860c523f764575fce7b6dbb1a31c81fd0617eaed0e40b9cd00f5d951f02"
+    },
+    {
+      "file": "analysis/selected-skills.json",
+      "sha256": "8464b9ea5c6700025bc7fb8b070e262f179a3037f01725356018ef7d41300d3d"
+    },
+    {
+      "file": "analysis/execution-and-numerical-validation.json",
+      "sha256": "dc66d0d64e7bd230c8d17af7a2c95e6209466fd914c2d620fa76a0d7271247dc"
+    },
+    {
+      "file": "unrelated/verdict.json",
+      "sha256": "9f3e7c7bf3c791deb8ea7a5cdab3fcd6d3befd777289a179aee3586594799f37"
+    },
+    {
+      "file": "worker-build.json",
+      "sha256": "baba715a8f70c7b3576c60fd2a190e1b8f07098f87f7c838700216d95fee104b"
+    },
+    {
+      "file": "original-files-integrity.json",
+      "sha256": "7df183a65086dba191a0bc70c6b27602a1aa7287c12726397dc7068e9a9fa850"
+    },
+    {
+      "file": "regression-tests.json",
+      "sha256": "ee37e32f4b08b8f74e5feea8f93318836420289bc9fcd3e153f9a45a76954043"
+    },
+    {
+      "file": "deployment.json",
+      "sha256": "513c12722548ef7622b2727c7f1ad2685d3af8a144a17e494798b936eedeaf54"
+    },
+    {
+      "file": "final-java-bytecode-comparison.json",
+      "sha256": "247a73aaee0f2dff3f88bc32dd58080698a44bb9f9471d238474b102bb3ed46a"
+    },
+    {
+      "file": "fixture-cleanup.json",
+      "sha256": "5b54b0f1718726a2a45e605e71f4f4a1a6b0f2e58a26e1aabf65d7435f1dda93"
+    }
+  ],
+  "scope": "Specified product change, regression and two real Cline tasks. Generated development tests were not executed; analysis limitations and earlier execution failures remain in original receipts."
+}

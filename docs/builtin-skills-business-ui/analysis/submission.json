@@ -1,0 +1,13 @@
+{
+  "taskId": "4fa9e0ba-ddea-3ed8-a03a-63053f95b66e",
+  "executionId": "4fa9e0ba-ddea-3ed8-a03a-63053f95b66e",
+  "attemptId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+  "sessionId": "builtin-skills-analysis-d0770c95-79cc-48bf-b7e4-d4cb90ab8285",
+  "agentId": "builtin_skills_ui_20261101",
+  "status": "PENDING",
+  "canonicalState": "SUBMITTED",
+  "statusUrl": "/api/v1/published-agents/builtin_skills_ui_20261101/questions/4fa9e0ba-ddea-3ed8-a03a-63053f95b66e/status",
+  "cancelUrl": "/api/v1/published-agents/builtin_skills_ui_20261101/questions/4fa9e0ba-ddea-3ed8-a03a-63053f95b66e",
+  "answerUrl": "/api/v1/published-agents/builtin_skills_ui_20261101/questions/4fa9e0ba-ddea-3ed8-a03a-63053f95b66e/answer",
+  "submittedAt": "2026-11-01T04:17:43.090858548Z"
+}

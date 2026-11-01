@@ -1,0 +1,120 @@
+{
+  "id": "builtin_skills_ui_20261101",
+  "shortName": "内",
+  "name": "内置技能产品体验验收",
+  "description": "Temporary UI and upgrade compatibility fixture.",
+  "status": "待接入工具",
+  "defaultMode": "agent_chat",
+  "modelName": "deepseek-v4-flash",
+  "usageScenarios": [
+    "IDS 数据质量检查",
+    "IDS 日报指标核对",
+    "数据缺失与重复排查",
+    "跨系统指标差异",
+    "异常波动分析",
+    "数据加工链路追踪"
+  ],
+  "skillTags": [
+    "IDS",
+    "数据质量",
+    "指标稽核",
+    "异常分析"
+  ],
+  "systemPrompt": "根据用户问题和已授权材料回答；信息不足时明确说明。",
+  "firstUseGreeting": "请告诉我需要稽核的 IDS 指标、业务日期或异常现象。",
+  "preferredToolPrefixes": [],
+  "boundMcpServiceIds": [],
+  "boundMcpToolNames": [],
+  "boundDocumentIds": [],
+  "boundDomainSkillIds": [
+    "9a1df284-a65e-42ab-ae77-01db68caecc1",
+    "7704e35b-f526-48d4-819d-8b465ac4731e"
+  ],
+  "boundDocumentTags": [],
+  "toolConfigs": [],
+  "routingSettings": {
+    "smartSelectionEnabled": true,
+    "limitParallelCalls": true,
+    "maxParallelCalls": 3,
+    "maxRelevantMcpTools": 8
+  },
+  "workflowConfig": {
+    "enabled": false,
+    "disabledBuiltinSkillIds": [
+      "builtin:python-code-development",
+      "builtin:python-data-analysis"
+    ],
+    "boundDomainSkillIds": [
+      "9a1df284-a65e-42ab-ae77-01db68caecc1",
+      "7704e35b-f526-48d4-819d-8b465ac4731e"
+    ],
+    "requiredToolParameters": {},
+    "workflow": "agent_workflow",
+    "executionStrategy": {
+      "allowParallel": false,
+      "costBudget": 10,
+      "latencyBudgetMs": 1800000,
+      "maxSteps": 3,
+      "mode": "sequential",
+      "stopOnError": true,
+      "toolRetryAttempts": 3
+    },
+    "steps": [],
+    "resultHandlingPolicy": {
+      "overrideAllowed": false,
+      "summarizeSuccessfulResults": true,
+      "continueOnPartialSuccess": true,
+      "recordAnalysisPolicy": {
+        "immutable": true,
+        "allowExecutionMetadataOnlyAnswer": false,
+        "iterativeSummarizationWhenOversized": true,
+        "requireCompleteRecordCoverage": true,
+        "completionCondition": "PROCESSED_RECORD_COUNT_EQUALS_RETURNED_RECORD_COUNT",
+        "requireRecordGroundedAnalysis": true,
+        "contractVersion": "record_grounded_analysis.v1"
+      },
+      "mode": "SUMMARIZE_AVAILABLE",
+      "includeFailedResultReasons": true,
+      "failRunWhenAnyChildFails": false
+    }
+  },
+  "defaultDataAsset": null,
+  "assetSelectionPolicy": {
+    "strategy": "BOUND_ASSET_ONLY",
+    "minRelevanceScore": 1,
+    "fallbackWhenEmpty": false,
+    "fallbackWhenInvalid": false
+  },
+  "quickQuestions": [
+    "检查今天 IDS 日报的数据完整性",
+    "对账指定指标与源系统的数据差异",
+    "分析最近七天异常波动的指标",
+    "找出昨日尚未更新的数据"
+  ],
+  "marketStatus": "draft",
+  "marketStatusLabel": "未发布",
+  "defaultAgent": false,
+  "resolvedToolNames": [],
+  "resolvedToolCount": 0,
+  "boundServiceCount": 0,
+  "boundDocumentCount": 2,
+  "builtin": false,
+  "editableFields": [
+    "label",
+    "description",
+    "usageScenarios",
+    "skillTags",
+    "defaultMode",
+    "systemPrompt",
+    "firstUseGreeting",
+    "preferredToolPrefixes",
+    "boundMcpServiceIds",
+    "boundMcpToolNames",
+    "toolConfigs",
+    "routingSettings",
+    "workflowConfig",
+    "defaultDataAsset",
+    "assetSelectionPolicy",
+    "quickQuestions"
+  ]
+}

@@ -1,0 +1,374 @@
+{
+  "schemaVersion": "python_visual_report.v1",
+  "reportMode": "visual",
+  "title": "附件 sales.csv：缺失值检查、总金额/总销量与区域金额分析",
+  "summary": "附件 sales.csv 共 5 笔交易、3 个区域，总金额 325.25 元，总销量 8 件；全部 15 个单元格无缺失。区域金额最高为华东 160.50 元，占总金额 49.35%。",
+  "markdown": "# 附件 sales.csv 分析报告\n\n## 结论摘要\n- 附件共 **5 笔交易**、**3 个区域**；总金额 **325.25 元**，总销量 **8 件**。\n- **缺失值检查：** 15 个单元格（3 字段 × 5 行）中缺失 **0 个**，数据完整。\n- **区域金额：** 华东 160.50 元（占 49.35%）、华南 89.50 元、华北 75.25 元；三区域合计与总金额完全勾稽（差额 0）。\n- 华南 1 笔交易的 units 与 amount 均为 0，按用户说明为**真实零值**，保留在行数与汇总中，未剔除、未填补。\n\n## 一、数据概况与质量\n| 项目 | 结果 |\n| --- | --- |\n| 文件格式 | CSV（region,units,amount 三列） |\n| 数据行数 | 5 行（不含表头） |\n| 缺失单元格 | 0 个 / 15 个 |\n| 完全重复行 | 0 行 |\n| 数值可解析性 | units 均为整数，amount 均为可精确表示的两位小数 |\n| 时间字段 | 无（不含任何日期列） |\n\n各字段缺失情况：\n\n| 字段 | 缺失单元格数 | 缺失率 |\n| --- | --- | --- |\n| region | 0 | 0.0% |\n| units | 0 | 0.0% |\n| amount | 0 | 0.0% |\n\n## 二、总量指标\n| 指标 | 数值 | 单位 | 计算方式 |\n| --- | --- | --- | --- |\n| 总金额 | 325.25 | 人民币元 | 5 笔交易 amount 逐行精确求和 |\n| 总销量 | 8 | 件 | 5 笔交易 units 逐行求和（含真实零值行） |\n| 交易笔数 | 5 | 笔 | 解析到的数据行数 |\n| 区域个数 | 3 | 个 | region 去重计数 |\n\n## 三、各区域金额\n| 区域 | 金额（人民币元） | 销量（件） | 交易笔数 | 金额占比（%） |\n| --- | --- | --- | --- | --- |\n| 华东 | 160.50 | 3 | 2 | 49.35 |\n| 华南 | 89.50 | 3 | 2 | 27.52 |\n| 华北 | 75.25 | 2 | 1 | 23.14 |\n| 合计 | 325.25 | 8 | 5 | 100.00 |\n\n区域金额排序：华东 > 华南 > 华北。华东以 160.50 元领先，较大程度上来自该区域两笔交易中金额较高的 120.50 元一笔；华南金额集中在 89.50 元一笔，另有一笔真实零额交易；华北仅 1 笔 75.25 元。销量方面，华东与华南均为 3 件、华北为 2 件；销量相同的两个区域金额分别为 160.50 元与 89.50 元，可见本附件中每件交易对应的金额并不相同。由于未提供价格、品类或折扣口径，此处不对该差异做单价或业务归因。\n\n![各区域交易金额柱状图](region_amount_bar.png)\n\n## 四、口径与假设\n- 字段含义（region=区域、units=销量/件、amount=金额/人民币元、每行一笔交易、零值为真实零）依据本次用户说明，未提供额外数据字典；单位与币种按该说明标注，未做换算。\n- 金额与销量均为原始数值的直接汇总，未推断含税/折扣/退货口径，不解读为收入或毛利。\n- 缺失与零值严格区分：0 保留为观测值，缺失才会计为不完整记录。\n\n## 五、限制\n- 附件为合成测试数据，仅 5 笔交易、单一批次快照，且不含任何日期、订单号或客户字段，因此无法给出时间趋势、期间对比或去重校验。\n- 字段业务含义（region=区域、units=销量/件、amount=金额/人民币元、每行一笔交易、零值为真实零）来自本次用户说明，未提供数据字典或口径文件；货币与计量单位按该说明标注，未做任何换算。\n- 未提供金额是否含税、是否含折扣/退货、销量是否为成交数量等口径说明，因此金额与销量仅作原样汇总，不解读为收入、毛利或净销量。\n- 区域排名基于极小样本，单个区域的金额差异不具备统计显著性，不能外推为长期区域结构或业务结论。\n- 用户要求的缺失值检查、总金额、总销量、区域金额与区域柱状图均已完成；报告状态设为部分完成，仅因附件缺少时间字段与金额口径，无法开展期间对比和含税/折扣口径校验。\n\n## 六、字段来源（溯源）\n| 数据集 | 源字段 | 业务含义 | 声明来源 | 状态 |\n| --- | --- | --- | --- | --- |\n| 用户附件 sales.csv | region | 区域（交易所属地区类别，取值为华东/华南/华北） | 本次用户说明（附件 objectives/materials 原文：region 为区域） | 已确认 |\n| 用户附件 sales.csv | units | 销量，单位：件 | 本次用户说明（原文：units 为销量（件）） | 已确认 |\n| 用户附件 sales.csv | amount | 交易金额，单位：人民币元 | 本次用户说明（原文：amount 为金额（人民币元）；每行是一笔交易，零值是真实零） | 已确认 |",
+  "presentation": {
+    "strategy": "auto",
+    "template": "briefing",
+    "autoImages": true,
+    "density": "comfortable",
+    "autoCharts": true
+  },
+  "layout": {
+    "schemaVersion": "report_layout.v1",
+    "blocks": [
+      {
+        "id": "b-summary",
+        "type": "summary"
+      },
+      {
+        "ref": "m-total-amount",
+        "emphasis": "important",
+        "type": "metric",
+        "span": "half",
+        "id": "b-m1"
+      },
+      {
+        "span": "half",
+        "type": "metric",
+        "id": "b-m2",
+        "ref": "m-total-units"
+      },
+      {
+        "span": "half",
+        "type": "metric",
+        "id": "b-m3",
+        "ref": "m-transactions"
+      },
+      {
+        "span": "half",
+        "type": "metric",
+        "id": "b-m4",
+        "ref": "m-missing"
+      },
+      {
+        "span": "half",
+        "type": "metric",
+        "id": "b-m5",
+        "ref": "m-regions"
+      },
+      {
+        "span": "half",
+        "type": "metric",
+        "id": "b-m6",
+        "ref": "m-top-share"
+      },
+      {
+        "ref": "sec-overview",
+        "type": "section",
+        "id": "b-sec1"
+      },
+      {
+        "emphasis": "important",
+        "type": "section",
+        "id": "b-sec2",
+        "ref": "sec-region"
+      },
+      {
+        "ref": "c-region-amount",
+        "type": "chart",
+        "id": "b-chart"
+      },
+      {
+        "ref": "t-region",
+        "type": "table",
+        "id": "b-t1"
+      },
+      {
+        "ref": "t-quality",
+        "type": "table",
+        "id": "b-t2"
+      },
+      {
+        "id": "b-limits",
+        "type": "limitations"
+      },
+      {
+        "id": "b-sources",
+        "type": "sources"
+      }
+    ]
+  },
+  "layoutValidationStatus": "PASSED",
+  "analysisStatus": "PARTIAL",
+  "status": "PARTIAL",
+  "metrics": [
+    {
+      "id": "m-total-amount",
+      "label": "总金额",
+      "value": "325.25",
+      "unit": "人民币元",
+      "calculation": "对全部 5 笔交易的 amount 字段逐行求和（Decimal 精确累加），无缺失剔除",
+      "dataRefs": [
+        "user-asset:ed5e3191e15945e0a20c74fcd9c9d7740628131eda42acb7c08b9499b5272b09:04c2cf7d03d8b3c53dd1b3fd6dd9038dc91426e441ffaedd0e906ae473382c58"
+      ]
+    },
+    {
+      "id": "m-total-units",
+      "label": "总销量",
+      "value": "8",
+      "unit": "件",
+      "calculation": "对全部 5 笔交易的 units 字段逐行求和，含真实零值行",
+      "dataRefs": [
+        "user-asset:ed5e3191e15945e0a20c74fcd9c9d7740628131eda42acb7c08b9499b5272b09:04c2cf7d03d8b3c53dd1b3fd6dd9038dc91426e441ffaedd0e906ae473382c58"
+      ]
+    },
+    {
+      "id": "m-transactions",
+      "label": "交易笔数",
+      "value": "5",
+      "unit": "笔",
+      "calculation": "解析到的数据行数（不含表头）",
+      "dataRefs": [
+        "user-asset:ed5e3191e15945e0a20c74fcd9c9d7740628131eda42acb7c08b9499b5272b09:04c2cf7d03d8b3c53dd1b3fd6dd9038dc91426e441ffaedd0e906ae473382c58"
+      ]
+    },
+    {
+      "id": "m-regions",
+      "label": "区域个数",
+      "value": "3",
+      "unit": "个",
+      "calculation": "region 字段去重后的取值个数",
+      "dataRefs": [
+        "user-asset:ed5e3191e15945e0a20c74fcd9c9d7740628131eda42acb7c08b9499b5272b09:04c2cf7d03d8b3c53dd1b3fd6dd9038dc91426e441ffaedd0e906ae473382c58"
+      ]
+    },
+    {
+      "id": "m-missing",
+      "label": "缺失单元格数",
+      "value": "0",
+      "unit": "个",
+      "calculation": "逐个检查 15 个单元格是否为空或 NA 标记",
+      "dataRefs": [
+        "user-asset:ed5e3191e15945e0a20c74fcd9c9d7740628131eda42acb7c08b9499b5272b09:04c2cf7d03d8b3c53dd1b3fd6dd9038dc91426e441ffaedd0e906ae473382c58"
+      ]
+    },
+    {
+      "id": "m-top-share",
+      "label": "最大区域金额占比",
+      "value": "49.35",
+      "unit": "%",
+      "calculation": "华东金额 ÷ 总金额 × 100",
+      "dataRefs": [
+        "user-asset:ed5e3191e15945e0a20c74fcd9c9d7740628131eda42acb7c08b9499b5272b09:04c2cf7d03d8b3c53dd1b3fd6dd9038dc91426e441ffaedd0e906ae473382c58"
+      ]
+    }
+  ],
+  "tables": [
+    {
+      "scope": "附件 sales.csv 全部 5 笔交易，按 region 汇总",
+      "rows": [
+        [
+          "华东",
+          "160.50",
+          "3",
+          "2",
+          "49.35"
+        ],
+        [
+          "华南",
+          "89.50",
+          "3",
+          "2",
+          "27.52"
+        ],
+        [
+          "华北",
+          "75.25",
+          "2",
+          "1",
+          "23.14"
+        ],
+        [
+          "合计",
+          "325.25",
+          "8",
+          "5",
+          "100.00"
+        ]
+      ],
+      "columns": [
+        "区域",
+        "金额（人民币元）",
+        "销量（件）",
+        "交易笔数",
+        "金额占比（%）"
+      ],
+      "id": "t-region",
+      "title": "各区域金额、销量与交易笔数",
+      "dataRefs": [
+        "user-asset:ed5e3191e15945e0a20c74fcd9c9d7740628131eda42acb7c08b9499b5272b09:04c2cf7d03d8b3c53dd1b3fd6dd9038dc91426e441ffaedd0e906ae473382c58"
+      ]
+    },
+    {
+      "scope": "附件 sales.csv 3 个字段 × 5 行 = 15 个单元格",
+      "rows": [
+        [
+          "region",
+          "0",
+          "0.0%"
+        ],
+        [
+          "units",
+          "0",
+          "0.0%"
+        ],
+        [
+          "amount",
+          "0",
+          "0.0%"
+        ]
+      ],
+      "columns": [
+        "字段",
+        "缺失单元格数",
+        "缺失率"
+      ],
+      "id": "t-quality",
+      "title": "各字段缺失单元格检查",
+      "dataRefs": [
+        "user-asset:ed5e3191e15945e0a20c74fcd9c9d7740628131eda42acb7c08b9499b5272b09:04c2cf7d03d8b3c53dd1b3fd6dd9038dc91426e441ffaedd0e906ae473382c58"
+      ]
+    }
+  ],
+  "charts": [
+    {
+      "artifact": {
+        "sha256": "70137053491cbd864e8039284a745cf88903b6d7f562b11ea85e5b4b43ab979d",
+        "mediaType": "image/png",
+        "fileId": "991d73d746752e269d949a0aef4404580fa7a8eb3a3d09777b5b6788b96b311d",
+        "size": 48540,
+        "fileName": "region_amount_bar.png"
+      },
+      "kind": "png",
+      "caption": "对象：附件 sales.csv 全部 5 笔合成交易；期间：无日期字段，为文件全集快照；金额单位：人民币元；纵轴自 0 起，标注为精确计算金额。",
+      "id": "c-region-amount",
+      "title": "各区域交易金额（人民币元）",
+      "chartType": "bar",
+      "dataRefs": [
+        "user-asset:ed5e3191e15945e0a20c74fcd9c9d7740628131eda42acb7c08b9499b5272b09:04c2cf7d03d8b3c53dd1b3fd6dd9038dc91426e441ffaedd0e906ae473382c58"
+      ]
+    }
+  ],
+  "sections": [
+    {
+      "narrative": "文件为 CSV 原始字节，表头为 region,units,amount，与用户说明的三个业务字段一一对应；共解析 5 行、0 处缺失。总金额 325.25 元、总销量 8 件，二者均由逐行精确累加得到，并按区域汇总后反向核对一致。其中 1 笔交易（华南）units 与 amount 均为 0，按用户说明视为真实零值保留，未作剔除或填补。",
+      "chartIds": [],
+      "tableIds": [
+        "t-quality"
+      ],
+      "id": "sec-overview",
+      "title": "总体规模与数据完整性"
+    },
+    {
+      "narrative": "三个区域按金额降序为：华东 160.50 元、华南 89.50 元、华北 75.25 元。华东以 160.50 元居首，占 49.35%；最低为华北 75.25 元。各区域交易笔数分别为 华东 2 笔、华南 2 笔、华北 1 笔，样本量很小，单笔大额即可显著改变排序。",
+      "chartIds": [
+        "c-region-amount"
+      ],
+      "tableIds": [
+        "t-region"
+      ],
+      "id": "sec-region",
+      "title": "区域金额结构"
+    }
+  ],
+  "limitations": [
+    "附件为合成测试数据，仅 5 笔交易、单一批次快照，且不含任何日期、订单号或客户字段，因此无法给出时间趋势、期间对比或去重校验。",
+    "字段业务含义（region=区域、units=销量/件、amount=金额/人民币元、每行一笔交易、零值为真实零）来自本次用户说明，未提供数据字典或口径文件；货币与计量单位按该说明标注，未做任何换算。",
+    "未提供金额是否含税、是否含折扣/退货、销量是否为成交数量等口径说明，因此金额与销量仅作原样汇总，不解读为收入、毛利或净销量。",
+    "区域排名基于极小样本，单个区域的金额差异不具备统计显著性，不能外推为长期区域结构或业务结论。",
+    "用户要求的缺失值检查、总金额、总销量、区域金额与区域柱状图均已完成；报告状态设为部分完成，仅因附件缺少时间字段与金额口径，无法开展期间对比和含税/折扣口径校验。"
+  ],
+  "dataSources": [
+    "user-asset:ed5e3191e15945e0a20c74fcd9c9d7740628131eda42acb7c08b9499b5272b09:04c2cf7d03d8b3c53dd1b3fd6dd9038dc91426e441ffaedd0e906ae473382c58",
+    "runtime-context:att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173"
+  ],
+  "artifacts": [
+    {
+      "sha256": "70137053491cbd864e8039284a745cf88903b6d7f562b11ea85e5b4b43ab979d",
+      "mediaType": "image/png",
+      "fileId": "991d73d746752e269d949a0aef4404580fa7a8eb3a3d09777b5b6788b96b311d",
+      "size": 48540,
+      "fileName": "region_amount_bar.png"
+    }
+  ],
+  "execution": {
+    "codeArtifact": {
+      "fileId": "522e12694161496adda95d73a3fb5d468cdfce5f3547795a7f0f910abef06f3b",
+      "fileName": "python-sales-csv-region_20261101T041912440Z_83252ba38c98_v3.py",
+      "mediaType": "text/x-python",
+      "sha256": "e49ae5d6ea64774920365b5d4f503bb4aebdbb878efafe1ecd2ce4a98a2894b4",
+      "size": 22052
+    },
+    "codeSha256": "e49ae5d6ea64774920365b5d4f503bb4aebdbb878efafe1ecd2ce4a98a2894b4",
+    "executorStopped": true,
+    "operationId": "cline-944bb175254bcdd2272de43b2934cec78ebcba1cd49020a2d3a819de9028342a",
+    "receiptSha256": "1577e085e370a0b6d0aad9dfc3659395c348028c6f3846026b8123231fd897b8",
+    "reportPresentation": {
+      "autoCharts": true,
+      "autoImages": true,
+      "density": "comfortable",
+      "strategy": "auto",
+      "template": "briefing"
+    },
+    "resultDatasetRef": "runtime-evidence:coding:f29ea1ecf16092ebd4f65556c9c385b27d7eb0c393729eecacfd7b8e0bf70fca:result",
+    "resultSha256": "5ba8ca25b8c196731f40522647ae42a6fc433faa911652eb848c35275d8c16b3",
+    "status": "SUCCEEDED",
+    "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423"
+  },
+  "timings": {
+    "analysisMs": 469,
+    "chartMs": 211
+  },
+  "artifactValidationStatus": "PASSED",
+  "presentationDiagnostics": [],
+  "validation": {
+    "warnings": [],
+    "status": "PARTIAL",
+    "checks": [
+      {
+        "detail": "sales.csv 的 SHA-256 与清单一致，大小 95 字节，与交付声明一致。",
+        "status": "PASSED",
+        "name": "原始文件哈希与大小校验"
+      },
+      {
+        "detail": "实际表头为 region,units,amount，与用户说明的三个业务字段完全对应，无额外或缺失列。",
+        "status": "PASSED",
+        "name": "字段与表头一致性"
+      },
+      {
+        "detail": "逐单元格检查 15 个单元格，缺失 0 个；零值与缺失已分开处理。",
+        "status": "PASSED",
+        "name": "缺失值检查"
+      },
+      {
+        "detail": "各区域金额合计 325.25 元、销量合计 8 件，与总额一致（差额为 0）。",
+        "status": "PASSED",
+        "name": "区域汇总与总计勾稽"
+      },
+      {
+        "detail": "逐行比较三字段组合，无完全相同的重复行（重复行数 0）。",
+        "status": "PASSED",
+        "name": "重复交易行检查"
+      },
+      {
+        "detail": "销量负值 0 行、金额负值 0 行；units 均为整数，金额均为两位小数可解析。",
+        "status": "PASSED",
+        "name": "负值与异常数值检查"
+      },
+      {
+        "detail": "附件无任何日期或时间字段，无法建立业务期间，故未计算任何趋势或同比环比。",
+        "status": "UNRESOLVED",
+        "name": "时间趋势/期间对比"
+      },
+      {
+        "detail": "用户说明未提供金额口径，未据此推断收入或利润含义。",
+        "status": "UNRESOLVED",
+        "name": "金额业务口径（含税/折扣/退货）"
+      }
+    ],
+    "scope": "STOPPED_EXECUTION_AND_ARTIFACT_INTEGRITY; COMPUTATION_CHECKS_ARE_PROGRAM_DECLARED; BUSINESS_SEMANTICS_NOT_CERTIFIED"
+  }
+}

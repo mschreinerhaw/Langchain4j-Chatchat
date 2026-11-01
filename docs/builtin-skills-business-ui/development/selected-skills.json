@@ -1,0 +1,14 @@
+{
+  "scope": "ACTUAL_CLINE_EVENT_PAYLOADS",
+  "events": [
+    {
+      "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1",
+      "stage": "CODING",
+      "type": "SKILLS_LOADED",
+      "source": "NODE_CLINE",
+      "timestamp": "2026-11-01T04:16:32.659Z",
+      "skillVersion": "1.0.0",
+      "skillId": "builtin:python-code-development"
+    }
+  ]
+}

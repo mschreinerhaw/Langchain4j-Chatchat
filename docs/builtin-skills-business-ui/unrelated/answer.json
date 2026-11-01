@@ -1,0 +1,15 @@
+{
+  "taskId": "13b74f98-b9b2-4087-95ec-eea6f6f31f77",
+  "executionId": "13b74f98-b9b2-4087-95ec-eea6f6f31f77",
+  "attemptId": "att-1-7e1fc692-f145-4378-a074-72b62ece8b19",
+  "sessionId": "skills-unrelated-1793506771027",
+  "agentId": "builtin_skills_ui_20261101",
+  "status": "SUCCESS",
+  "canonicalState": "SUCCEEDED",
+  "terminal": true,
+  "ready": true,
+  "answer": "版本控制是一种把文件（或项目）的每一次修改连同时间与说明记录下来，从而可以随时查看、比较、追溯并恢复任意历史版本的机制，用来避免改动被覆盖或丢失，也便于多人协作。",
+  "references": [],
+  "error": null,
+  "updatedAt": "2026-11-01T04:19:39.522588Z"
+}

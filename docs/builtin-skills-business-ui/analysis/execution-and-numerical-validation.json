@@ -1,0 +1,114 @@
+{
+  "status": "PASS",
+  "codingTaskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+  "actualExecutions": [
+    {
+      "id": "cline-482af331b0180c4ad135212977933e70b5a52ae81b83f80304c80d88d8e6e8dd",
+      "status": "FAILED",
+      "exitCode": 1,
+      "codeHash": "4249a1399e8bfa2afd1116a231680a1c96fe50c5350fff658033b7d27bfaf2b3"
+    },
+    {
+      "id": "cline-5c8bdaa1629fb04187d23dc795b231404a5eb8668fd79198f43e49e28d0b5168",
+      "status": "SUCCEEDED",
+      "exitCode": 0,
+      "codeHash": "2565eab8b7f49a5bd5bca2f6ed84106a6c2d111ad234354e3d2592fdae178a7e"
+    },
+    {
+      "id": "cline-944bb175254bcdd2272de43b2934cec78ebcba1cd49020a2d3a819de9028342a",
+      "status": "SUCCEEDED",
+      "exitCode": 0,
+      "codeHash": "e49ae5d6ea64774920365b5d4f503bb4aebdbb878efafe1ecd2ce4a98a2894b4"
+    }
+  ],
+  "finalExecution": {
+    "schemaVersion": "runtime_os.execution_feedback.v1",
+    "taskId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423",
+    "executionId": "cline-944bb175254bcdd2272de43b2934cec78ebcba1cd49020a2d3a819de9028342a",
+    "attemptId": "analysis-coding-36569784b5f6d48e591317a08874c3f02343ea5c26f1cb5599ce9960144ff423:execution-3",
+    "traceId": "att-1-a6b5ff99-c48e-40ca-9cb3-89335f4ab173",
+    "status": "SUCCEEDED",
+    "stage": "VALIDATED",
+    "exitCode": 0,
+    "durationMs": 2742,
+    "cpuTimeMs": 2634,
+    "maxRssBytes": 167059456,
+    "codeHash": "e49ae5d6ea64774920365b5d4f503bb4aebdbb878efafe1ecd2ce4a98a2894b4",
+    "stdout": "[raw stdout omitted]",
+    "stderr": "[raw stderr omitted]",
+    "stdoutBytes": 5,
+    "stderrBytes": 0,
+    "error": null,
+    "inputDataRefs": [
+      "runtime-evidence:coding:input:d8d0e3c134d547425599701275e5ec365a2230f6350fc61065202c09482da18"
+    ],
+    "schemaRef": "runtime-coding-schema:a0e8ae094a70a0b96aa43db24fc839596818b67920f99467c94c83c88591434e",
+    "inputFiles": [
+      {
+        "fileId": "cd8d0e3c134d547425599701275e5ec365a2230f6350fc61065202c09482da18",
+        "fileName": "manifest.json",
+        "sha256": "b80bb833abe9d04ee389cdcae20898c5acbc356abf10519418a076e8efa1d434"
+      }
+    ],
+    "inputSchemaSummary": {
+      "manifestSha256": "b80bb833abe9d04ee389cdcae20898c5acbc356abf10519418a076e8efa1d434",
+      "manifestFileId": "cd8d0e3c134d547425599701275e5ec365a2230f6350fc61065202c09482da18",
+      "format": "PARQUET"
+    },
+    "artifactRefs": {
+      "evidenceBundleRef": "runtime-evidence:coding:f29ea1ecf16092ebd4f65556c9c385b27d7eb0c393729eecacfd7b8e0bf70fca:bundle",
+      "diagnosticRef": "execution:cline-944bb175254bcdd2272de43b2934cec78ebcba1cd49020a2d3a819de9028342a:logs:runtime-diagnostic.json",
+      "stderrRef": "execution:cline-944bb175254bcdd2272de43b2934cec78ebcba1cd49020a2d3a819de9028342a:logs:stderr.txt",
+      "executionReceiptRef": "runtime-evidence:coding:f29ea1ecf16092ebd4f65556c9c385b27d7eb0c393729eecacfd7b8e0bf70fca:receipt",
+      "codeArtifactRef": "runtime-evidence:coding:f29ea1ecf16092ebd4f65556c9c385b27d7eb0c393729eecacfd7b8e0bf70fca:code",
+      "inputSnapshotRef": "runtime-evidence:coding:input:d8d0e3c134d547425599701275e5ec365a2230f6350fc61065202c09482da18",
+      "resultDatasetRef": "runtime-evidence:coding:f29ea1ecf16092ebd4f65556c9c385b27d7eb0c393729eecacfd7b8e0bf70fca:result",
+      "validationRecordRef": "runtime-evidence:coding:f29ea1ecf16092ebd4f65556c9c385b27d7eb0c393729eecacfd7b8e0bf70fca:validation"
+    },
+    "validationStatus": "INCONCLUSIVE",
+    "resultAvailable": true,
+    "manifestHash": "ede0558cfd0b1a2b3815acd1b54753f7a48a492b7988e4a652a798cd8e861128",
+    "outputStatus": null,
+    "businessValidationPassed": false,
+    "repair": {
+      "allowed": false,
+      "action": "COMPLETE",
+      "reason": "RESULT_VERIFIED",
+      "attemptsUsed": 1,
+      "maxAttempts": 3,
+      "baseCodeHash": "e49ae5d6ea64774920365b5d4f503bb4aebdbb878efafe1ecd2ce4a98a2894b4",
+      "guidance": "Result archived; business correctness remains governed by validationStatus."
+    },
+    "diagnosticPolicy": "METADATA_ONLY_V1",
+    "script": {
+      "fileName": "python-sales-csv-region_20261101T041912440Z_83252ba38c98_v3.py",
+      "scriptPath": "/workspace/scripts/python-sales-csv-region_20261101T041912440Z_83252ba38c98_v3.py",
+      "workingDirectory": "tasks/2abd2c828f4ebf3c/6432cc690bc93efe/9df3f9c9b1421157/83252ba38c98c8b8fe6e31de",
+      "scriptVersion": 3
+    }
+  },
+  "artifacts": [
+    {
+      "kind": "code",
+      "fileId": "522e12694161496adda95d73a3fb5d468cdfce5f3547795a7f0f910abef06f3b",
+      "sha256": "e49ae5d6ea64774920365b5d4f503bb4aebdbb878efafe1ecd2ce4a98a2894b4",
+      "bytes": 22052
+    },
+    {
+      "kind": "png",
+      "fileId": "991d73d746752e269d949a0aef4404580fa7a8eb3a3d09777b5b6788b96b311d",
+      "sha256": "70137053491cbd864e8039284a745cf88903b6d7f562b11ea85e5b4b43ab979d",
+      "bytes": 48540
+    }
+  ],
+  "independentBaseline": {
+    "scope": "ORIGINAL_SYNTHETIC_CSV; EXACT_INTEGER_CENTS",
+    "rows": 5,
+    "totalCents": "32525",
+    "units": "8",
+    "regions": 3
+  },
+  "comparedRegionalSourceCells": 9,
+  "analysisStatus": "PARTIAL",
+  "scope": "REAL_CLINE_AND_PYTHON_EXECUTION, UPLOAD_INTEGRITY, CSV_RECONCILIATION; NOT_A_UI_CHART_RENDER_TEST"
+}

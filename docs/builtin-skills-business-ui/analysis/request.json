@@ -1,0 +1,12 @@
+{
+  "question": "请用 Python 分析附件 sales.csv，检查缺失值，计算总金额、总销量和各区域金额，并生成区域金额柱状图。附件是合成测试数据：region 为区域，units 为销量（件），amount 为金额（人民币元）；每行是一笔交易，零值是真实零。只使用本次附件，不查询数据库，不联网或安装依赖；结论应有实际计算依据。",
+  "sessionId": "builtin-skills-analysis-d0770c95-79cc-48bf-b7e4-d4cb90ab8285",
+  "idempotencyKey": "builtin-skills-analysis-d0770c95-79cc-48bf-b7e4-d4cb90ab8285",
+  "attachmentIds": [
+    "ed5e3191e15945e0a20c74fcd9c9d7740628131eda42acb7c08b9499b5272b09"
+  ],
+  "parameters": {
+    "reportMode": "visual",
+    "taskType": "DATA_ANALYSIS"
+  }
+}

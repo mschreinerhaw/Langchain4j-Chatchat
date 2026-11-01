@@ -1,0 +1,2697 @@
+{
+  "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+  "status": "COMPLETED",
+  "outcome": {
+    "schemaVersion": "runtime_os.coding.v2",
+    "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+    "scope": {
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "userId": "admin",
+      "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "conversationId": null,
+      "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "environment": null,
+      "attributes": {}
+    },
+    "contractSha256": "41d5bd453b1c313ca384afdbe3d811e4f594d8c22889b58fe83741df2156e285",
+    "status": "COMPLETED",
+    "revision": 44,
+    "lastEventSequence": 45,
+    "createdAt": "2026-11-01T04:16:29.927Z",
+    "updatedAt": "2026-11-01T04:17:05.283Z",
+    "startedAt": "2026-11-01T04:16:30.102Z",
+    "endedAt": "2026-11-01T04:17:05.283Z",
+    "cancellationRequested": false,
+    "reasonCode": null,
+    "summary": "Source candidates parsed and staged for user review; no code executed",
+    "limitations": [
+      "Business semantics and database execution were not evaluated; field validation scope is recorded separately",
+      "A2 enforces cumulative admission reservations only; model/process hard limits, instantaneous memory and disk enforcement require execution-node adapters."
+    ],
+    "inputSnapshotRef": "runtime-evidence:coding:workspace-input:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+    "codeArtifactRef": "runtime-evidence:coding:workspace:workspace-fe7d70f905d33389f39a75f57108b1979dad273f7159051e83144b6e0fad440d:code",
+    "executionReceiptRef": "runtime-evidence:coding:workspace:workspace-fe7d70f905d33389f39a75f57108b1979dad273f7159051e83144b6e0fad440d:receipt",
+    "resultDatasetRef": "runtime-evidence:coding:workspace:workspace-fe7d70f905d33389f39a75f57108b1979dad273f7159051e83144b6e0fad440d:result",
+    "validationRecordRef": "runtime-evidence:coding:workspace:workspace-fe7d70f905d33389f39a75f57108b1979dad273f7159051e83144b6e0fad440d:validation",
+    "evidenceBundleRef": "runtime-evidence:coding:workspace:workspace-fe7d70f905d33389f39a75f57108b1979dad273f7159051e83144b6e0fad440d:bundle",
+    "validationStatus": "INCONCLUSIVE",
+    "reproducibility": {
+      "level": "CONDITIONAL",
+      "limitations": [
+        "Execution and reproducibility have not been verified"
+      ],
+      "dependencyRefs": [
+        "python-ast:3"
+      ]
+    },
+    "usage": {
+      "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "costCurrency": "USD",
+      "consumed": {
+        "modelCalls": 2,
+        "modelTokens": 14115,
+        "toolCalls": 3,
+        "codeExecutions": 0,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 10792,
+        "costAmount": "0"
+      },
+      "reserved": {
+        "modelCalls": 0,
+        "modelTokens": 18653,
+        "toolCalls": 0,
+        "codeExecutions": 0,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 0,
+        "costAmount": "0.25"
+      },
+      "meteringComplete": false
+    },
+    "executionControl": {
+      "stopReason": null,
+      "stopRequestedAt": null,
+      "executorStopped": true,
+      "reconciliationRequired": false
+    },
+    "parentTaskId": null,
+    "supersedesTaskId": null,
+    "perArtifactCompleteness": {}
+  },
+  "events": [
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:06c995ca-0c9d-464a-a40c-42633ab93af9",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 1,
+      "revision": 0,
+      "occurredAt": "2026-11-01T04:16:29.927Z",
+      "type": "TASK_CREATED",
+      "operationId": null,
+      "attempt": null,
+      "status": "CREATED",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "meteringComplete": true
+      },
+      "summary": "Coding task accepted durably",
+      "payload": {
+        "stage": "QUEUED",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-0"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:7b6f9ee0-5bd4-4a00-b1f9-efa8ce21d219",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 2,
+      "revision": 1,
+      "occurredAt": "2026-11-01T04:16:30.102Z",
+      "type": "TASK_STARTED",
+      "operationId": null,
+      "attempt": null,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "meteringComplete": true
+      },
+      "summary": "Execution ownership acquired; no operation was started",
+      "payload": {
+        "stage": "CONTEXT_READY",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:3fa45857-7fe4-42a3-bc8c-9eb5be601e33",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 3,
+      "revision": 2,
+      "occurredAt": "2026-11-01T04:16:30.222Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": null,
+      "attempt": null,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "meteringComplete": true
+      },
+      "summary": "Worker observation: TOOL_STARTED",
+      "payload": {
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1",
+        "stage": "CODING",
+        "type": "TOOL_STARTED",
+        "operationId": "workspace-8d554d99556a7ad0f6b2b850dee65aab6e093972d0c720707540eccedf156322",
+        "source": "NODE_CLINE",
+        "timestamp": "2026-11-01T04:16:30.145Z",
+        "tool": "workspace_read"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:a1115a6f-25b4-4600-af51-3c52c292712e",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 4,
+      "revision": 3,
+      "occurredAt": "2026-11-01T04:16:30.303Z",
+      "type": "BUDGET_UPDATED",
+      "operationId": "workspace-8d554d99556a7ad0f6b2b850dee65aab6e093972d0c720707540eccedf156322",
+      "attempt": 1,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 524288,
+          "costAmount": "0"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Operation budget reserved",
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:72cddacf-4a9b-40af-bef2-734cc322b767",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 5,
+      "revision": 4,
+      "occurredAt": "2026-11-01T04:16:30.318Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": "workspace-8d554d99556a7ad0f6b2b850dee65aab6e093972d0c720707540eccedf156322",
+      "attempt": 1,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 524288,
+          "costAmount": "0"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Start intent committed; execution result is not yet known",
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:3790b61c-7148-4a07-878a-024e2e62c1b2",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 6,
+      "revision": 5,
+      "occurredAt": "2026-11-01T04:16:30.365Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": "workspace-8d554d99556a7ad0f6b2b850dee65aab6e093972d0c720707540eccedf156322",
+      "attempt": 1,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [
+        "runtime-evidence:coding:workspace:workspace-8d554d99556a7ad0f6b2b850dee65aab6e093972d0c720707540eccedf156322:receipt"
+      ],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 524288,
+          "costAmount": "0"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Verified stop evidence recorded",
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:dfaa058b-e422-4072-bf2f-e15ce33f8a3e",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 7,
+      "revision": 6,
+      "occurredAt": "2026-11-01T04:16:30.386Z",
+      "type": "BUDGET_UPDATED",
+      "operationId": "workspace-8d554d99556a7ad0f6b2b850dee65aab6e093972d0c720707540eccedf156322",
+      "attempt": 1,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "meteringComplete": true
+      },
+      "summary": "Actual usage settled",
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:376e01ce-8ed4-4059-938f-8c9d8a407b20",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 8,
+      "revision": 7,
+      "occurredAt": "2026-11-01T04:16:30.465Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": "workspace-8d554d99556a7ad0f6b2b850dee65aab6e093972d0c720707540eccedf156322",
+      "attempt": 1,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "meteringComplete": true
+      },
+      "summary": "Worker observation: TOOL_FINISHED",
+      "payload": {
+        "type": "TOOL_FINISHED",
+        "source": "NODE_CLINE",
+        "stage": "CODING",
+        "operationId": "workspace-8d554d99556a7ad0f6b2b850dee65aab6e093972d0c720707540eccedf156322",
+        "status": "SUCCEEDED",
+        "timestamp": "2026-11-01T04:16:30.437Z",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1",
+        "tool": "workspace_read"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:cf40f01d-1407-42d0-81dc-f8ec053f5a0d",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 9,
+      "revision": 8,
+      "occurredAt": "2026-11-01T04:16:30.505Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": null,
+      "attempt": null,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "meteringComplete": true
+      },
+      "summary": "Worker observation: EXECUTION_STRATEGY",
+      "payload": {
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1",
+        "requestBytes": 3589,
+        "stage": "CONTEXT_READY",
+        "strategy": "WORKSPACE_FAST",
+        "type": "EXECUTION_STRATEGY",
+        "source": "NODE_CLINE",
+        "timestamp": "2026-11-01T04:16:30.477Z"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:e1f6a624-512e-44f4-9b6b-d5a56b457240",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 10,
+      "revision": 9,
+      "occurredAt": "2026-11-01T04:16:30.551Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": null,
+      "attempt": null,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "meteringComplete": true
+      },
+      "summary": "Worker observation: TOOL_TIMING",
+      "payload": {
+        "status": "SUCCEEDED",
+        "toolDurationMs": 372,
+        "tool": "workspace_read",
+        "timestamp": "2026-11-01T04:16:30.517Z",
+        "toolCallId": "context-prefetch-v1",
+        "type": "TOOL_TIMING",
+        "stage": "CONTEXT_READY",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1",
+        "source": "NODE_CLINE"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:12f089c2-008b-4c48-9935-22eacbac5a45",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 11,
+      "revision": 10,
+      "occurredAt": "2026-11-01T04:16:30.720Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": null,
+      "attempt": null,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "meteringComplete": true
+      },
+      "summary": "Worker observation: MODEL_STARTED",
+      "payload": {
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1",
+        "stage": "CODING",
+        "modelCall": 1,
+        "source": "NODE_CLINE",
+        "timestamp": "2026-11-01T04:16:30.672Z",
+        "type": "MODEL_STARTED"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:fa83c942-c995-41b5-a113-be887697cb20",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 12,
+      "revision": 11,
+      "occurredAt": "2026-11-01T04:16:30.800Z",
+      "type": "BUDGET_UPDATED",
+      "operationId": "model-1",
+      "attempt": 1,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 1,
+          "modelTokens": 16384,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.125"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Operation budget reserved",
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:3def39b7-940c-4f41-b754-315159a48457",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 13,
+      "revision": 12,
+      "occurredAt": "2026-11-01T04:16:30.823Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": "model-1",
+      "attempt": 1,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 1,
+          "modelTokens": 16384,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.125"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Start intent committed; execution result is not yet known",
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:bcbca9c3-fb0e-48b0-9bc2-8f469cabd404",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 14,
+      "revision": 13,
+      "occurredAt": "2026-11-01T04:16:30.853Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": null,
+      "attempt": null,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 1,
+          "modelTokens": 16384,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.125"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Lease renewed",
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:94ed449b-187e-462b-952c-8c8c4d2626bd",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 15,
+      "revision": 14,
+      "occurredAt": "2026-11-01T04:16:32.470Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": "model-1",
+      "attempt": 1,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [
+        "runtime-evidence:coding:model:bb7d59ddcd15bc0e3f634ea034d8696e36d13188254c60f81496df0f681615dd"
+      ],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 1,
+          "modelTokens": 16384,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.125"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Verified stop evidence recorded",
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:70ee1bf7-b054-4994-b01a-4bfb9599afef",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 16,
+      "revision": 15,
+      "occurredAt": "2026-11-01T04:16:32.493Z",
+      "type": "BUDGET_UPDATED",
+      "operationId": "model-1",
+      "attempt": 1,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 1,
+          "modelTokens": 2974,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 13410,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.125"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Unknown usage retains unspent reservation",
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:4d4505a1-f823-4f75-b52d-01e8fd526dc2",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 17,
+      "revision": 16,
+      "occurredAt": "2026-11-01T04:16:32.544Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": "model-1",
+      "attempt": 1,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 1,
+          "modelTokens": 2974,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 13410,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.125"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Worker observation: MODEL_RESOLVED",
+      "payload": {
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1",
+        "durationMs": 1504,
+        "startedAt": "2026-11-01T04:16:30.906174095Z",
+        "providerModel": "deepseek-flash",
+        "type": "MODEL_RESOLVED",
+        "queueTimeMs": 68,
+        "responseMode": "NON_STREAMING",
+        "requestBytes": 11510,
+        "retryTimeMs": 0,
+        "selectedModel": "deepseek-v4-flash",
+        "maxOutputTokens": 8192,
+        "modelCall": 1,
+        "stage": "CODING",
+        "finishedAt": "2026-11-01T04:16:32.410341563Z",
+        "source": "NODE_CLINE",
+        "messageCount": 2,
+        "timestamp": "2026-11-01T04:16:32.509Z"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:36cf5e14-16f1-440e-9f2e-75d06632da5c",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 18,
+      "revision": 17,
+      "occurredAt": "2026-11-01T04:16:32.593Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": "model-1",
+      "attempt": 1,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 1,
+          "modelTokens": 2974,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 13410,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.125"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Worker observation: MODEL_USAGE",
+      "payload": {
+        "type": "MODEL_USAGE",
+        "source": "NODE_CLINE",
+        "stage": "CODING",
+        "usage": {
+          "inputTokens": 2885,
+          "outputTokens": 89
+        },
+        "status": "SUCCEEDED",
+        "timestamp": "2026-11-01T04:16:32.559Z",
+        "modelCall": 1,
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:2fa77040-9a71-4227-8e4c-1cb596e0dea1",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 19,
+      "revision": 18,
+      "occurredAt": "2026-11-01T04:16:32.640Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": "model-1",
+      "attempt": 1,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 1,
+          "modelTokens": 2974,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 13410,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.125"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Worker observation: MODEL_TIMING",
+      "payload": {
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1",
+        "requestHash": "4fe4bdf7a863a366abbb97c4c0a3c7eb44df9116cdf7036e32da0862a860323c",
+        "stage": "CODING",
+        "callbackFirstEventMs": 1838,
+        "requestBytes": 11516,
+        "toolCount": 3,
+        "status": "SUCCEEDED",
+        "type": "MODEL_TIMING",
+        "durationMs": 1935,
+        "timestamp": "2026-11-01T04:16:32.607Z",
+        "modelCall": 1,
+        "source": "NODE_CLINE",
+        "responseBytes": 892,
+        "responseMode": "RUNTIME_MODEL_CALLBACK",
+        "messageCount": 2
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:6d595ab1-4734-4abf-866b-c6d2b872a144",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 20,
+      "revision": 19,
+      "occurredAt": "2026-11-01T04:16:32.687Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": null,
+      "attempt": null,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 1,
+          "modelTokens": 2974,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 13410,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.125"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Worker observation: SKILLS_LOADED",
+      "payload": {
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1",
+        "stage": "CODING",
+        "type": "SKILLS_LOADED",
+        "source": "NODE_CLINE",
+        "timestamp": "2026-11-01T04:16:32.659Z",
+        "skillVersion": "1.0.0",
+        "skillId": "builtin:python-code-development"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:67997aa4-8354-4123-8367-faec00b2a26b",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 21,
+      "revision": 20,
+      "occurredAt": "2026-11-01T04:16:32.826Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": null,
+      "attempt": null,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 1,
+          "modelTokens": 2974,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 13410,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.125"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Worker observation: TOOL_TIMING",
+      "payload": {
+        "status": "RETURNED",
+        "toolDurationMs": 81,
+        "tool": "skill_read",
+        "timestamp": "2026-11-01T04:16:32.740Z",
+        "toolCallId": "call_00_vcZXQ7lDr8EllHsAKGck1646",
+        "type": "TOOL_TIMING",
+        "stage": "CODING",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1",
+        "source": "NODE_CLINE"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:ed1d4e21-547a-47ce-9016-d6bae5594f64",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 22,
+      "revision": 21,
+      "occurredAt": "2026-11-01T04:16:32.876Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": null,
+      "attempt": null,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 1,
+          "modelTokens": 2974,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 13410,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.125"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Worker observation: TOOL_STARTED",
+      "payload": {
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1",
+        "stage": "CODING",
+        "type": "TOOL_STARTED",
+        "operationId": "workspace-774a5de7c23d62bd3a678261a3522b2fb8bc927fcab3fd6e11d6502dc95a10fc",
+        "source": "NODE_CLINE",
+        "timestamp": "2026-11-01T04:16:32.841Z",
+        "tool": "workspace_read"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:9c7f58a3-9dd5-4c07-a691-35da44825236",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 23,
+      "revision": 22,
+      "occurredAt": "2026-11-01T04:16:33.011Z",
+      "type": "BUDGET_UPDATED",
+      "operationId": "workspace-774a5de7c23d62bd3a678261a3522b2fb8bc927fcab3fd6e11d6502dc95a10fc",
+      "attempt": 1,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 1,
+          "modelTokens": 2974,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 13410,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 524288,
+          "costAmount": "0.125"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Operation budget reserved",
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:7821abff-f214-4be4-9ff3-9e35fe832b50",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 24,
+      "revision": 23,
+      "occurredAt": "2026-11-01T04:16:33.024Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": "workspace-774a5de7c23d62bd3a678261a3522b2fb8bc927fcab3fd6e11d6502dc95a10fc",
+      "attempt": 1,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 1,
+          "modelTokens": 2974,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 13410,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 524288,
+          "costAmount": "0.125"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Start intent committed; execution result is not yet known",
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:b9a201ce-3cc4-4858-901c-ca167848ae02",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 25,
+      "revision": 24,
+      "occurredAt": "2026-11-01T04:16:33.059Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": "workspace-774a5de7c23d62bd3a678261a3522b2fb8bc927fcab3fd6e11d6502dc95a10fc",
+      "attempt": 1,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [
+        "runtime-evidence:coding:workspace:workspace-774a5de7c23d62bd3a678261a3522b2fb8bc927fcab3fd6e11d6502dc95a10fc:receipt"
+      ],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 1,
+          "modelTokens": 2974,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 13410,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 524288,
+          "costAmount": "0.125"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Verified stop evidence recorded",
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:a1c4943a-d4ec-4e0d-942b-eccce13b7b1e",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 26,
+      "revision": 25,
+      "occurredAt": "2026-11-01T04:16:33.081Z",
+      "type": "BUDGET_UPDATED",
+      "operationId": "workspace-774a5de7c23d62bd3a678261a3522b2fb8bc927fcab3fd6e11d6502dc95a10fc",
+      "attempt": 1,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 1,
+          "modelTokens": 2974,
+          "toolCalls": 2,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 13410,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.125"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Actual usage settled",
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:4cfb8b34-2d62-44b1-ac49-09290372dc5a",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 27,
+      "revision": 26,
+      "occurredAt": "2026-11-01T04:16:33.138Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": "workspace-774a5de7c23d62bd3a678261a3522b2fb8bc927fcab3fd6e11d6502dc95a10fc",
+      "attempt": 1,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 1,
+          "modelTokens": 2974,
+          "toolCalls": 2,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 13410,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.125"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Worker observation: TOOL_FINISHED",
+      "payload": {
+        "type": "TOOL_FINISHED",
+        "source": "NODE_CLINE",
+        "stage": "CODING",
+        "operationId": "workspace-774a5de7c23d62bd3a678261a3522b2fb8bc927fcab3fd6e11d6502dc95a10fc",
+        "status": "SUCCEEDED",
+        "timestamp": "2026-11-01T04:16:33.106Z",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1",
+        "tool": "workspace_read"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:46ef523d-b1ee-48f0-9758-f958d7a347e1",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 28,
+      "revision": 27,
+      "occurredAt": "2026-11-01T04:16:33.185Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": null,
+      "attempt": null,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 1,
+          "modelTokens": 2974,
+          "toolCalls": 2,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 13410,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.125"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Worker observation: TOOL_TIMING",
+      "payload": {
+        "status": "RETURNED",
+        "toolDurationMs": 311,
+        "tool": "workspace_read",
+        "timestamp": "2026-11-01T04:16:33.151Z",
+        "toolCallId": "call_01_rM10UzkRiPtuzDtmZrss1361",
+        "type": "TOOL_TIMING",
+        "stage": "CODING",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1",
+        "source": "NODE_CLINE"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:f0d97d0b-4edb-41ed-9088-05d92405cfcf",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 29,
+      "revision": 28,
+      "occurredAt": "2026-11-01T04:16:33.285Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": null,
+      "attempt": null,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 1,
+          "modelTokens": 2974,
+          "toolCalls": 2,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 13410,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.125"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Worker observation: MODEL_STARTED",
+      "payload": {
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1",
+        "stage": "CODING",
+        "modelCall": 2,
+        "source": "NODE_CLINE",
+        "timestamp": "2026-11-01T04:16:33.249Z",
+        "type": "MODEL_STARTED"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:b4a4d801-dde2-4a86-9fe3-813e98332fcc",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 30,
+      "revision": 29,
+      "occurredAt": "2026-11-01T04:16:33.386Z",
+      "type": "BUDGET_UPDATED",
+      "operationId": "model-2",
+      "attempt": 1,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 1,
+          "modelTokens": 2974,
+          "toolCalls": 2,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 1,
+          "modelTokens": 29794,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.25"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Operation budget reserved",
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:0d92c063-4f92-40fa-9a40-62a9fa80e8b8",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 31,
+      "revision": 30,
+      "occurredAt": "2026-11-01T04:16:33.414Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": "model-2",
+      "attempt": 1,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 1,
+          "modelTokens": 2974,
+          "toolCalls": 2,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 1,
+          "modelTokens": 29794,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.25"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Start intent committed; execution result is not yet known",
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:90aaf9e1-89d6-4c0b-ac2c-d04c911b4c6f",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 32,
+      "revision": 31,
+      "occurredAt": "2026-11-01T04:16:33.441Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": null,
+      "attempt": null,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 1,
+          "modelTokens": 2974,
+          "toolCalls": 2,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 1,
+          "modelTokens": 29794,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.25"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Lease renewed",
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:a08d0d36-7a31-455a-9bee-08b22afd5ff4",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 33,
+      "revision": 32,
+      "occurredAt": "2026-11-01T04:17:03.292Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": "model-2",
+      "attempt": 1,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [
+        "runtime-evidence:coding:model:8b668f48f02a116972563bd71675a9bc95e792ad9099d564221074b6ec391b8c"
+      ],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 1,
+          "modelTokens": 2974,
+          "toolCalls": 2,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 1,
+          "modelTokens": 29794,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.25"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Verified stop evidence recorded",
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:7ba3c256-6fe0-4384-bdac-40aed67ec1f5",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 34,
+      "revision": 33,
+      "occurredAt": "2026-11-01T04:17:03.322Z",
+      "type": "BUDGET_UPDATED",
+      "operationId": "model-2",
+      "attempt": 1,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 2,
+          "modelTokens": 14115,
+          "toolCalls": 2,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 18653,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.25"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Unknown usage retains unspent reservation",
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:3f137f44-f2fe-49b9-b6a8-9b881195e613",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 35,
+      "revision": 34,
+      "occurredAt": "2026-11-01T04:17:03.380Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": "model-2",
+      "attempt": 1,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 2,
+          "modelTokens": 14115,
+          "toolCalls": 2,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 18653,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.25"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Worker observation: MODEL_RESOLVED",
+      "payload": {
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1",
+        "durationMs": 29749,
+        "startedAt": "2026-11-01T04:16:33.459748073Z",
+        "providerModel": "deepseek-flash",
+        "type": "MODEL_RESOLVED",
+        "queueTimeMs": 28,
+        "responseMode": "NON_STREAMING",
+        "requestBytes": 18521,
+        "retryTimeMs": 0,
+        "selectedModel": "deepseek-v4-flash",
+        "maxOutputTokens": 8192,
+        "modelCall": 2,
+        "stage": "CODING",
+        "finishedAt": "2026-11-01T04:17:03.209085948Z",
+        "source": "NODE_CLINE",
+        "messageCount": 5,
+        "timestamp": "2026-11-01T04:17:03.341Z"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:e66cef61-6e1a-49f9-b81e-c033055e26be",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 36,
+      "revision": 35,
+      "occurredAt": "2026-11-01T04:17:03.434Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": "model-2",
+      "attempt": 1,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 2,
+          "modelTokens": 14115,
+          "toolCalls": 2,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 18653,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.25"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Worker observation: MODEL_USAGE",
+      "payload": {
+        "type": "MODEL_USAGE",
+        "source": "NODE_CLINE",
+        "stage": "CODING",
+        "usage": {
+          "inputTokens": 4412,
+          "outputTokens": 6729
+        },
+        "status": "SUCCEEDED",
+        "timestamp": "2026-11-01T04:17:03.397Z",
+        "modelCall": 2,
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:177da1ba-31ce-41d5-ad99-5697704357e0",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 37,
+      "revision": 36,
+      "occurredAt": "2026-11-01T04:17:03.495Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": "model-2",
+      "attempt": 1,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 2,
+          "modelTokens": 14115,
+          "toolCalls": 2,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 18653,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.25"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Worker observation: MODEL_TIMING",
+      "payload": {
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1",
+        "requestHash": "126d78271443e18bd920d8cd7cbd29f6842c30cf7e2bffa2befb56993e0f53e3",
+        "stage": "CODING",
+        "callbackFirstEventMs": 30092,
+        "requestBytes": 18755,
+        "toolCount": 3,
+        "status": "SUCCEEDED",
+        "type": "MODEL_TIMING",
+        "durationMs": 30200,
+        "timestamp": "2026-11-01T04:17:03.450Z",
+        "modelCall": 2,
+        "source": "NODE_CLINE",
+        "responseBytes": 12843,
+        "responseMode": "RUNTIME_MODEL_CALLBACK",
+        "messageCount": 5
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:227e444b-54ba-4aa3-923d-56d8484697c4",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 38,
+      "revision": 37,
+      "occurredAt": "2026-11-01T04:17:03.633Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": null,
+      "attempt": null,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 2,
+          "modelTokens": 14115,
+          "toolCalls": 2,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 18653,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.25"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Worker observation: TOOL_STARTED",
+      "payload": {
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1",
+        "stage": "CODING",
+        "type": "TOOL_STARTED",
+        "operationId": "workspace-fe7d70f905d33389f39a75f57108b1979dad273f7159051e83144b6e0fad440d",
+        "source": "NODE_CLINE",
+        "timestamp": "2026-11-01T04:17:03.599Z",
+        "tool": "workspace_propose"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:8d4e04de-41a8-4a64-8bcf-c099425c758f",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 39,
+      "revision": 38,
+      "occurredAt": "2026-11-01T04:17:03.696Z",
+      "type": "BUDGET_UPDATED",
+      "operationId": "workspace-fe7d70f905d33389f39a75f57108b1979dad273f7159051e83144b6e0fad440d",
+      "attempt": 1,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 2,
+          "modelTokens": 14115,
+          "toolCalls": 2,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 18653,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 524288,
+          "costAmount": "0.25"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Operation budget reserved",
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:83247fca-2143-432a-94c4-8e473741c852",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 40,
+      "revision": 39,
+      "occurredAt": "2026-11-01T04:17:03.715Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": "workspace-fe7d70f905d33389f39a75f57108b1979dad273f7159051e83144b6e0fad440d",
+      "attempt": 1,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 2,
+          "modelTokens": 14115,
+          "toolCalls": 2,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 18653,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 524288,
+          "costAmount": "0.25"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Start intent committed; execution result is not yet known",
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:e6b3de85-3fa1-45cf-8849-22747a0ef364",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 41,
+      "revision": 40,
+      "occurredAt": "2026-11-01T04:17:04.710Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": "workspace-fe7d70f905d33389f39a75f57108b1979dad273f7159051e83144b6e0fad440d",
+      "attempt": 1,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [
+        "runtime-evidence:coding:workspace:workspace-fe7d70f905d33389f39a75f57108b1979dad273f7159051e83144b6e0fad440d:receipt"
+      ],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 2,
+          "modelTokens": 14115,
+          "toolCalls": 2,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 18653,
+          "toolCalls": 1,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 524288,
+          "costAmount": "0.25"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Verified stop evidence recorded",
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:0ee6da34-5f48-491a-8a44-cc7eefe706d9",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 42,
+      "revision": 41,
+      "occurredAt": "2026-11-01T04:17:04.731Z",
+      "type": "BUDGET_UPDATED",
+      "operationId": "workspace-fe7d70f905d33389f39a75f57108b1979dad273f7159051e83144b6e0fad440d",
+      "attempt": 1,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 2,
+          "modelTokens": 14115,
+          "toolCalls": 3,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 10792,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 18653,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.25"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Actual usage settled",
+      "payload": {
+        "stage": "CODING",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:e828a516-a8bc-45ac-b3a3-4739315cf181",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 43,
+      "revision": 42,
+      "occurredAt": "2026-11-01T04:17:05.018Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": "workspace-fe7d70f905d33389f39a75f57108b1979dad273f7159051e83144b6e0fad440d",
+      "attempt": 1,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 2,
+          "modelTokens": 14115,
+          "toolCalls": 3,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 10792,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 18653,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.25"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Worker observation: TOOL_FINISHED",
+      "payload": {
+        "type": "TOOL_FINISHED",
+        "source": "NODE_CLINE",
+        "stage": "CODING",
+        "operationId": "workspace-fe7d70f905d33389f39a75f57108b1979dad273f7159051e83144b6e0fad440d",
+        "status": "SUCCEEDED",
+        "timestamp": "2026-11-01T04:17:04.967Z",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1",
+        "tool": "workspace_propose"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:02c9d5da-5e7c-4f0d-8fcb-696a3f624939",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 44,
+      "revision": 43,
+      "occurredAt": "2026-11-01T04:17:05.075Z",
+      "type": "RECOVERY_RECONCILED",
+      "operationId": null,
+      "attempt": null,
+      "status": "RUNNING",
+      "reasonCode": null,
+      "evidenceRefs": [],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 2,
+          "modelTokens": 14115,
+          "toolCalls": 3,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 10792,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 18653,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.25"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Worker observation: TOOL_TIMING",
+      "payload": {
+        "timestamp": "2026-11-01T04:17:05.041Z",
+        "validationDurationMs": 939,
+        "tool": "workspace_propose",
+        "toolCallId": "call_00_ERNsKIUhww6NS8wcldlz9585",
+        "toolDurationMs": 1443,
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1",
+        "stage": "CODING",
+        "status": "RETURNED",
+        "source": "NODE_CLINE",
+        "type": "TOOL_TIMING"
+      }
+    },
+    {
+      "schemaVersion": "runtime_os.coding.v2",
+      "eventId": "coding:459efada-101e-4b35-9591-8ee78ede000e",
+      "taskId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "admin",
+        "requestId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "conversationId": null,
+        "runId": "python-studio-python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "environment": null,
+        "attributes": {}
+      },
+      "sequence": 45,
+      "revision": 44,
+      "occurredAt": "2026-11-01T04:17:05.283Z",
+      "type": "TASK_FINISHED",
+      "operationId": null,
+      "attempt": null,
+      "status": "COMPLETED",
+      "reasonCode": null,
+      "evidenceRefs": [
+        "runtime-evidence:coding:workspace-input:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "runtime-evidence:coding:workspace:workspace-fe7d70f905d33389f39a75f57108b1979dad273f7159051e83144b6e0fad440d:bundle",
+        "runtime-evidence:coding:workspace:workspace-fe7d70f905d33389f39a75f57108b1979dad273f7159051e83144b6e0fad440d:code",
+        "runtime-evidence:coding:workspace:workspace-fe7d70f905d33389f39a75f57108b1979dad273f7159051e83144b6e0fad440d:receipt",
+        "runtime-evidence:coding:workspace:workspace-fe7d70f905d33389f39a75f57108b1979dad273f7159051e83144b6e0fad440d:result",
+        "runtime-evidence:coding:workspace:workspace-fe7d70f905d33389f39a75f57108b1979dad273f7159051e83144b6e0fad440d:validation"
+      ],
+      "usage": {
+        "budgetId": "workspace-budget:python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 2,
+          "modelTokens": 14115,
+          "toolCalls": 3,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 10792,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 18653,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0.25"
+        },
+        "meteringComplete": false
+      },
+      "summary": "Source candidates parsed and staged for user review; no code executed",
+      "payload": {
+        "stage": "COMPLETED",
+        "source": "JAVA_RUNTIME",
+        "attemptId": "python-coding-6b1d5b733bf18c5f432a1972ee6c0300db81a3b24f6553c7aff4a2db33496599:fence-1"
+      }
+    }
+  ],
+  "output": {
+    "validation": {
+      "codeExecuted": false,
+      "diagnostics": [
+        {
+          "path": "main.py",
+          "status": "PARSED"
+        },
+        {
+          "path": "test_main.py",
+          "status": "PARSED"
+        }
+      ],
+      "fieldValidation": "NOT_EVALUATED",
+      "normalizedFiles": [],
+      "parser": "python-ast",
+      "sqlExecuted": false,
+      "valid": true,
+      "version": "30.23.0"
+    },
+    "notes": "已按需求生成两个完整源文件（仅源码，未执行、未声称测试通过）。\\n\\nmain.py：\\n- `summarize(values: object) -> Summary` 使用 TypedDict 类型注解，返回 count 与 sum；空列表返回 {count: 0, sum: 0}。\\n- 校验严格：非 list、bool（含 True/False，先于 int 判断）、非 int/float、以及 NaN/±inf 均抛出 InputError（ValueError 子类），保留原有异常原因（JSON 解析错误使用 raise ... from exc）。\\n- 分层：extract_values 负责 CHATCHAT_INPUT_JSON 的 JSON 解析与结构校验，run 负责编排与退出码（0 成功 / 2 输入非法），main 只做环境变量读取与 JSON 输出，`if __name__ == '__main__': raise SystemExit(main())` 提供入口。\\n- 使用模块级 logging logger 记录校验失败原因，不打印完整数据集。\\n\\ntest_main.py：\\n- `import main` 导入真实模块，不复制实现；使用 unittest 与 subTest 覆盖正常、混合、负数、空列表、单值、非列表、布尔值、非数值、非有限数、非法 JSON、非对象 JSON、缺字段，以及 main 入口的环境变量与 stdout JSON 输出（mock.patch.dict + redirect_stdout）。\\n- 未进行任何执行或业务正确性验证，待 Runtime 解析与用户 Diff 审查。",
+    "files": [
+      {
+        "content": "\"\"\"汇总数值列表的 count 与 sum。\n\n程序从环境变量 ``CHATCHAT_INPUT_JSON`` 读取 JSON 对象（其中 ``values`` 字段应为数字列表），\n校验后把统计结果以 JSON 形式输出到标准输出。\n\n退出码：\n    0 -- 成功；\n    2 -- 输入不合法（缺失、非 JSON、非对象、values 非法等）。\n\"\"\"\n\nfrom __future__ import annotations\n\nimport json\nimport logging\nimport math\nimport os\nfrom typing import Any, TypedDict\n\nINPUT_ENV_VAR = \"CHATCHAT_INPUT_JSON\"\n\n#: 允许的数值类型；bool 是 int 的子类，需在运行时单独排除。\nNumber = int | float\n\nlogger = logging.getLogger(__name__)\n\n\nclass InputError(ValueError):\n    \"\"\"输入数据不合法：非列表、布尔值、非数值或非有限数。\"\"\"\n\n\nclass Summary(TypedDict):\n    \"\"\"汇总结果结构。\"\"\"\n\n    count: int\n    sum: Number\n\n\ndef _validate_number(value: Any, index: int) -> Number:\n    \"\"\"校验单个元素并返回其数值。\n\n    Args:\n        value: 待校验的列表元素。\n        index: 元素在列表中的下标，仅用于错误信息。\n\n    Returns:\n        原样返回的 ``int`` 或 ``float``。\n\n    Raises:\n        InputError: 元素是布尔值、非数值或非有限数。\n    \"\"\"\n    if isinstance(value, bool):\n        raise InputError(f\"values[{index}] 不能是布尔值: {value!r}\")\n    if not isinstance(value, (int, float)):\n        raise InputError(\n            f\"values[{index}] 必须是数值，实际类型为 {type(value).__name__}\"\n        )\n    if isinstance(value, float) and not math.isfinite(value):\n        raise InputError(f\"values[{index}] 必须是有限数，实际为 {value!r}\")\n    return value\n\n\ndef summarize(values: object) -> Summary:\n    \"\"\"汇总数字列表。\n\n    Args:\n        values: 期望为 ``list[int | float]``；空列表合法。\n\n    Returns:\n        含 ``count``（元素个数）与 ``sum``（元素之和）的字典。\n        全部为整数时 ``sum`` 为 ``int``，否则为 ``float``。\n\n    Raises:\n        InputError: ``values`` 不是列表，或包含布尔值、非数值、非有限数。\n    \"\"\"\n    if not isinstance(values, list):\n        raise InputError(f\"values 必须是列表，实际类型为 {type(values).__name__}\")\n\n    numbers = [_validate_number(item, index) for index, item in enumerate(values)]\n    total: Number = sum(numbers)\n    return {\"count\": len(numbers), \"sum\": total}\n\n\ndef extract_values(raw: str | None) -> object:\n    \"\"\"从原始 JSON 文本中取出 ``values`` 字段（不做列表校验）。\n\n    Args:\n        raw: 环境变量 ``CHATCHAT_INPUT_JSON`` 的原始内容。\n\n    Returns:\n        ``values`` 字段的原始值，交由 :func:`summarize` 校验。\n\n    Raises:\n        InputError: 内容缺失、不是合法 JSON、不是 JSON 对象或缺少 ``values`` 字段。\n    \"\"\"\n    if raw is None:\n        raise InputError(f\"缺少环境变量 {INPUT_ENV_VAR}\")\n\n    text = raw.strip()\n    if not text:\n        raise InputError(f\"环境变量 {INPUT_ENV_VAR} 为空\")\n\n    try:\n        payload = json.loads(text)\n    except json.JSONDecodeError as exc:\n        raise InputError(f\"环境变量 {INPUT_ENV_VAR} 不是合法 JSON: {exc.msg}\") from exc\n\n    if not isinstance(payload, dict):\n        raise InputError(\n            f\"环境变量 {INPUT_ENV_VAR} 必须是 JSON 对象，实际为 {type(payload).__name__}\"\n        )\n    if \"values\" not in payload:\n        raise InputError(f\"环境变量 {INPUT_ENV_VAR} 缺少 values 字段\")\n    return payload[\"values\"]\n\n\ndef run(raw: str | None) -> tuple[int, dict[str, Any]]:\n    \"\"\"执行一次完整流程并返回退出码与待输出的结果字典。\n\n    Args:\n        raw: 环境变量 ``CHATCHAT_INPUT_JSON`` 的原始内容。\n\n    Returns:\n        ``(exit_code, payload)``：成功时 payload 含 ``ok``/``count``/``sum``，\n        失败时 payload 含 ``ok=False`` 与 ``error`` 说明。\n    \"\"\"\n    try:\n        summary = summarize(extract_values(raw))\n    except InputError as exc:\n        logger.debug(\"输入校验失败: %s\", exc)\n        return 2, {\"ok\": False, \"error\": str(exc)}\n\n    return 0, {\"ok\": True, \"count\": summary[\"count\"], \"sum\": summary[\"sum\"]}\n\n\ndef main() -> int:\n    \"\"\"命令行入口：读取环境变量、输出 JSON 并返回退出码。\"\"\"\n    exit_code, payload = run(os.environ.get(INPUT_ENV_VAR))\n    print(json.dumps(payload, ensure_ascii=False))\n    return exit_code\n\n\nif __name__ == \"__main__\":\n    raise SystemExit(main())\n",
+        "path": "main.py"
+      },
+      {
+        "content": "\"\"\"main 模块的单元测试（标准库 unittest，直接导入真实实现）。\"\"\"\n\nfrom __future__ import annotations\n\nimport io\nimport json\nimport os\nimport unittest\nfrom contextlib import redirect_stdout\nfrom unittest import mock\n\nimport main\n\n\nclass SummarizeTests(unittest.TestCase):\n    \"\"\"summarize 的正常与边界行为。\"\"\"\n\n    def test_summarize_integers(self) -> None:\n        self.assertEqual(main.summarize([1, 2, 3]), {\"count\": 3, \"sum\": 6})\n\n    def test_summarize_mixed_numbers(self) -> None:\n        self.assertEqual(main.summarize([1, 2.5, -0.5]), {\"count\": 3, \"sum\": 3.0})\n\n    def test_summarize_single_value(self) -> None:\n        self.assertEqual(main.summarize([42]), {\"count\": 1, \"sum\": 42})\n\n    def test_summarize_negative_values(self) -> None:\n        result = main.summarize([-1, -2, -3])\n        self.assertEqual(result[\"count\"], 3)\n        self.assertEqual(result[\"sum\"], -6)\n\n    def test_summarize_empty_list(self) -> None:\n        self.assertEqual(main.summarize([]), {\"count\": 0, \"sum\": 0})\n\n    def test_rejects_non_list(self) -> None:\n        for candidate in (None, 0, 1.5, \"123\", (1, 2), {1, 2}, {\"a\": 1}):\n            with self.subTest(candidate=candidate):\n                with self.assertRaises(main.InputError):\n                    main.summarize(candidate)\n\n    def test_rejects_bool_elements(self) -> None:\n        for candidate in ([True], [False], [1, True], [0, False]):\n            with self.subTest(candidate=candidate):\n                with self.assertRaises(main.InputError):\n                    main.summarize(candidate)\n\n    def test_rejects_non_numeric_elements(self) -> None:\n        for candidate in ([\"1\"], [None], [[1]], [{\"v\": 1}], [1, \"2\"]):\n            with self.subTest(candidate=candidate):\n                with self.assertRaises(main.InputError):\n                    main.summarize(candidate)\n\n    def test_rejects_non_finite_elements(self) -> None:\n        for candidate in ([float(\"nan\")], [float(\"inf\")], [float(\"-inf\")], [1.0, float(\"nan\")]):\n            with self.subTest(candidate=candidate):\n                with self.assertRaises(main.InputError):\n                    main.summarize(candidate)\n\n    def test_input_error_is_value_error(self) -> None:\n        with self.assertRaises(ValueError):\n            main.summarize(\"not-a-list\")\n\n\nclass ExtractValuesTests(unittest.TestCase):\n    \"\"\"输入解析与校验。\"\"\"\n\n    def test_extracts_values_field(self) -> None:\n        self.assertEqual(main.extract_values('{\"values\": [1, 2, 3]}'), [1, 2, 3])\n\n    def test_rejects_missing_input(self) -> None:\n        with self.assertRaises(main.InputError):\n            main.extract_values(None)\n\n    def test_rejects_blank_input(self) -> None:\n        with self.assertRaises(main.InputError):\n            main.extract_values(\"   \")\n\n    def test_rejects_invalid_json(self) -> None:\n        with self.assertRaises(main.InputError):\n            main.extract_values('{\"values\": [1, 2,')\n\n    def test_rejects_non_object_json(self) -> None:\n        with self.assertRaises(main.InputError):\n            main.extract_values(\"[1, 2, 3]\")\n\n    def test_rejects_missing_values_key(self) -> None:\n        with self.assertRaises(main.InputError):\n            main.extract_values('{\"other\": 1}')\n\n\nclass RunTests(unittest.TestCase):\n    \"\"\"run 的退出码与结果结构。\"\"\"\n\n    def test_success_payload(self) -> None:\n        exit_code, payload = main.run('{\"values\": [1, 2, 3]}')\n        self.assertEqual(exit_code, 0)\n        self.assertEqual(payload, {\"ok\": True, \"count\": 3, \"sum\": 6})\n\n    def test_empty_list_payload(self) -> None:\n        exit_code, payload = main.run('{\"values\": []}')\n        self.assertEqual(exit_code, 0)\n        self.assertEqual(payload, {\"ok\": True, \"count\": 0, \"sum\": 0})\n\n    def test_invalid_input_payload(self) -> None:\n        exit_code, payload = main.run('{\"values\": [true]}')\n        self.assertEqual(exit_code, 2)\n        self.assertFalse(payload[\"ok\"])\n        self.assertIn(\"error\", payload)\n\n\nclass MainEntryTests(unittest.TestCase):\n    \"\"\"main 入口的环境变量读取与 JSON 输出。\"\"\"\n\n    def _invoke_main(self, raw: str | None) -> tuple[int, dict[str, object]]:\n        buffer = io.StringIO()\n        environment = {}\n        if raw is not None:\n            environment[main.INPUT_ENV_VAR] = raw\n        with mock.patch.dict(os.environ, environment, clear=True):\n            with redirect_stdout(buffer):\n                exit_code = main.main()\n        output = buffer.getvalue().strip()\n        self.assertTrue(output, \"main 必须输出内容\")\n        return exit_code, json.loads(output)\n\n    def test_main_success(self) -> None:\n        exit_code, payload = self._invoke_main('{\"values\": [1, 2, 3.5]}')\n        self.assertEqual(exit_code, 0)\n        self.assertEqual(payload, {\"ok\": True, \"count\": 3, \"sum\": 6.5})\n\n    def test_main_empty_list(self) -> None:\n        exit_code, payload = self._invoke_main('{\"values\": []}')\n        self.assertEqual(exit_code, 0)\n        self.assertEqual(payload, {\"ok\": True, \"count\": 0, \"sum\": 0})\n\n    def test_main_missing_environment_variable(self) -> None:\n        exit_code, payload = self._invoke_main(None)\n        self.assertEqual(exit_code, 2)\n        self.assertFalse(payload[\"ok\"])\n\n    def test_main_rejects_non_list_values(self) -> None:\n        exit_code, payload = self._invoke_main('{\"values\": \"1,2,3\"}')\n        self.assertEqual(exit_code, 2)\n        self.assertFalse(payload[\"ok\"])\n\n    def test_main_rejects_non_finite_value(self) -> None:\n        exit_code, payload = self._invoke_main('{\"values\": [1, NaN]}')\n        self.assertEqual(exit_code, 2)\n        self.assertFalse(payload[\"ok\"])\n\n\nif __name__ == \"__main__\":\n    unittest.main()\n",
+        "path": "test_main.py"
+      }
+    ]
+  }
+}

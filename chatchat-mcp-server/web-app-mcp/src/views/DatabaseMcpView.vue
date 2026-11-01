@@ -8,13 +8,18 @@
       @select="selectCategory"
     />
 
-    <el-card class="workspace-panel el-workspace-card" shadow="never">
+    <el-card
+      v-if="activeTab !== 'queries'"
+      class="workspace-panel el-workspace-card"
+      shadow="never"
+    >
       <template #header>
         <div class="panel-heading">
           <div>
             <h2>{{ pageTitle }}</h2>
             <p v-if="section === 'queries'"
-              >展示手工查询模板及 SQL Studio 已发布的查询能力。SQL Studio 模板可查看详情，编辑、试执行及版本恢复请进入来源工程。</p
+              >展示手工查询模板及 SQL Studio 已发布的查询能力。SQL Studio
+              模板可查看详情，编辑、试执行及版本恢复请进入来源工程。</p
             >
             <p v-else>沿用原有交易日历和批量导入配置流程。</p>
           </div>
@@ -26,14 +31,23 @@
       v-if="activeTab === 'queries'"
       ref="catalog"
       :title="pageTitle"
-      subtitle="分类维护金融数据服务，并将安全查询发布为带业务元数据的 MCP 工具。"
-      search-placeholder="搜索名称、描述、实现步骤、工作台步骤、标签或数据源"
+      subtitle="统一管理查询模板，按业务分类查找和使用。"
+      search-placeholder="搜索模板名称、描述或数据源"
       :columns="columns"
       :form-fields="formFields"
       :query-sources="querySources"
       :query-family="queryFamily"
       :defaults="defaults"
-      :list-filters="[{ key: 'sourceKind', label: '模板来源', options: [{ value: 'SQL_STUDIO', label: 'SQL Studio' }, { value: 'MANUAL', label: '手工模板' }] }]"
+      :list-filters="[
+        {
+          key: 'sourceKind',
+          label: '模板来源',
+          options: [
+            { value: 'SQL_STUDIO', label: 'SQL Studio' },
+            { value: 'MANUAL', label: '手工模板' },
+          ],
+        },
+      ]"
       :searchable-fields="[
         'toolName',
         'title',
@@ -63,46 +77,105 @@
       form-preview-type="databaseQuery"
       :rebuild-action="api.rebuildIndex"
       rebuild-label="重建索引"
-      form-subtitle="配置可检索的数据能力。显示名称、描述、实现步骤、工作台步骤名称与说明、业务及索引标签都会进入 BM25+kNN 混合索引。"
+      form-subtitle="维护模板用途、数据源与查询参数。"
       @notify="$emit('notify', $event)"
       @error="$emit('error', $event)"
       @result="$emit('result', $event)"
     />
 
-    <ModalPanel v-if="studioDetail" :open="studioDetailOpen" :title="studioDetail.title" wide @close="studioDetailOpen = false">
-      <el-alert :title="studioDetail.accessNotice" type="info" :closable="false" show-icon />
-      <el-descriptions :column="2" border class="mt-3">
-        <el-descriptions-item label="来源">SQL Studio</el-descriptions-item>
-        <el-descriptions-item label="MCP 工具"><code>{{ studioDetail.toolName }}</code></el-descriptions-item>
-        <el-descriptions-item label="发布版本">v{{ studioDetail.version }}</el-descriptions-item>
-        <el-descriptions-item label="发布状态">{{ studioDetail.publicationState }}</el-descriptions-item>
-        <el-descriptions-item label="数据源">{{ studioDetail.datasourceName }}</el-descriptions-item>
-        <el-descriptions-item label="发布时间">{{ studioDetail.publishedAt }}</el-descriptions-item>
-        <el-descriptions-item label="所属租户">{{ studioDetail.tenantId }}</el-descriptions-item>
-        <el-descriptions-item label="发布者">{{ studioDetail.createdBy }}</el-descriptions-item>
-        <el-descriptions-item label="模板编号">{{ studioDetail.code }}</el-descriptions-item>
-        <el-descriptions-item label="发布编号">{{ studioDetail.publicationId }}</el-descriptions-item>
-        <el-descriptions-item label="源工程">{{ studioDetail.source?.projectId }}</el-descriptions-item>
-        <el-descriptions-item label="源文件">{{ studioDetail.source?.fileId }} / v{{ studioDetail.source?.fileVersion }}</el-descriptions-item>
-      </el-descriptions>
-      <h3 class="mt-3">SQL</h3>
-      <pre class="json-block"><code>{{ studioDetail.sqlTemplate }}</code></pre>
-      <h3>参数 Schema</h3>
-      <pre class="json-block"><code>{{ prettyJson(studioDetail.parameterSchema) }}</code></pre>
-      <h3>真实试执行记录</h3>
-      <pre class="json-block"><code>{{ prettyJson(studioDetail.testEvidence) }}</code></pre>
-      <h3>发布版本记录</h3>
-      <pre class="json-block"><code>{{ prettyJson(studioDetail.history) }}</code></pre>
-      <h3>同步授权规则</h3>
-      <p>调用还需满足 Runtime OS 的 Agent 工具绑定及当前用户、角色授权；以下规则不替代运行时权限判定。</p>
-      <pre v-if="studioDetail.authorizationRules" class="json-block"><code>{{ prettyJson(studioDetail.authorizationRules) }}</code></pre>
-      <template v-if="studioDetail.agentScopeStatus">
-        <h4>发布者可调用的 Agent 范围</h4>
-        <el-alert :title="studioDetail.agentScopeNotice" type="info" :closable="false" />
-        <el-alert v-if="studioDetail.agentScopeStatus === 'UNAVAILABLE'" title="当前无法读取 Agent 授权范围，请稍后刷新。" type="warning" :closable="false" />
-        <pre v-else class="json-block"><code>{{ prettyJson(studioDetail.accessibleAgents) }}</code></pre>
-      </template>
-      <p v-else>当前管理账号无权读取授权详情，请使用 Runtime OS 对应租户账号查看。</p>
+    <ModalPanel
+      v-if="studioDetail"
+      :open="studioDetailOpen"
+      :title="studioDetail.title || studioDetail.toolName"
+      subtitle="查询模板详情"
+      wide
+      @close="studioDetailOpen = false"
+    >
+      <div class="database-query-detail">
+        <p class="database-query-description">{{ studioDetail.description || "暂无描述" }}</p>
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="业务分类">{{
+            queryCategory(studioDetail)
+          }}</el-descriptions-item>
+          <el-descriptions-item label="状态"
+            ><el-tag :type="studioDetail.enabled === false ? 'info' : 'success'" effect="light">{{
+              queryStatus(studioDetail)
+            }}</el-tag></el-descriptions-item
+          >
+          <el-descriptions-item label="数据源">{{
+            studioDetail.datasourceName || datasourceLabel(studioDetail.datasourceId)
+          }}</el-descriptions-item>
+          <el-descriptions-item label="来源">{{
+            studioDetail.sourceKind === "SQL_STUDIO" ? "SQL Studio" : "手工模板"
+          }}</el-descriptions-item>
+          <el-descriptions-item v-if="studioDetail.sourceKind === 'SQL_STUDIO'" label="发布时间">{{
+            queryDate(studioDetail.publishedAt)
+          }}</el-descriptions-item>
+          <el-descriptions-item v-if="studioDetail.sourceKind === 'SQL_STUDIO'" label="发布版本"
+            >v{{ studioDetail.version }}</el-descriptions-item
+          >
+        </el-descriptions>
+        <p v-if="studioDetail.sourceKind === 'SQL_STUDIO'" class="database-query-help"
+          >如需修改或重新测试，请在 SQL Studio 对应工程中操作。</p
+        >
+        <el-collapse
+          v-model="detailSections"
+          class="database-query-technical"
+          aria-label="模板技术详情"
+        >
+          <el-collapse-item title="查询与参数" name="query">
+            <template v-if="studioDetail.sourceKind === 'SQL_STUDIO'">
+              <h4>查询语句</h4><pre>{{ studioDetail.sqlTemplate }}</pre> <h4>参数定义</h4
+              ><pre>{{ prettyJson(studioDetail.parameterSchema) }}</pre>
+            </template>
+            <template v-else>
+              <h4>查询步骤</h4
+              ><pre>{{ prettyJson(studioDetail.sqlSteps || studioDetail.sqlTemplate) }}</pre>
+              <h4>参数定义</h4><pre>{{ prettyJson(studioDetail.inputSchema) }}</pre>
+            </template>
+          </el-collapse-item>
+          <el-collapse-item title="技术记录" name="records">
+            <dl class="database-query-identifiers">
+              <dt>工具标识</dt><dd>{{ studioDetail.toolName }}</dd> <dt>模板编号</dt
+              ><dd>{{ studioDetail.code || studioDetail.id }}</dd>
+              <template v-if="studioDetail.sourceKind === 'SQL_STUDIO'">
+                <dt>所属租户</dt><dd>{{ studioDetail.tenantId }}</dd> <dt>发布者</dt
+                ><dd>{{ studioDetail.createdBy }}</dd> <dt>发布编号</dt
+                ><dd>{{ studioDetail.publicationId }}</dd> <dt>来源工程</dt
+                ><dd>{{ studioDetail.source?.projectId }}</dd> <dt>来源文件</dt
+                ><dd
+                  >{{ studioDetail.source?.fileId }} / v{{ studioDetail.source?.fileVersion }}</dd
+                >
+              </template>
+            </dl>
+            <template v-if="studioDetail.sourceKind === 'SQL_STUDIO'">
+              <h4>试执行记录</h4><pre>{{ prettyJson(studioDetail.testEvidence) }}</pre>
+              <h4>发布历史</h4><pre>{{ prettyJson(studioDetail.history) }}</pre>
+            </template>
+            <template v-else
+              ><h4>元数据</h4><pre>{{ prettyJson(studioDetail.technicalMetadata) }}</pre>
+            </template>
+          </el-collapse-item>
+          <el-collapse-item
+            v-if="studioDetail.sourceKind === 'SQL_STUDIO'"
+            title="权限说明"
+            name="permissions"
+          >
+            <p>{{ studioDetail.accessNotice }}</p>
+            <pre v-if="studioDetail.authorizationRules">{{
+              prettyJson(studioDetail.authorizationRules)
+            }}</pre>
+            <template v-if="studioDetail.agentScopeStatus">
+              <p>{{ studioDetail.agentScopeNotice }}</p>
+              <p v-if="studioDetail.agentScopeStatus === 'UNAVAILABLE'"
+                >当前无法读取 Agent 授权范围，请稍后刷新。</p
+              >
+              <pre v-else>{{ prettyJson(studioDetail.accessibleAgents) }}</pre>
+            </template>
+            <p v-else>当前账号无权读取授权详情。</p>
+          </el-collapse-item>
+        </el-collapse>
+      </div>
       <template #footer><el-button @click="studioDetailOpen = false">关闭</el-button></template>
     </ModalPanel>
 

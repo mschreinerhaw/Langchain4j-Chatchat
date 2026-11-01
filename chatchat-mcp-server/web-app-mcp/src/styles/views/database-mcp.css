@@ -1,3 +1,61 @@
+.database-query-detail {
+  font-family: inherit;
+  color: var(--text-primary);
+}
+
+.database-query-description {
+  margin: 0 0 20px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.database-query-help {
+  margin: 16px 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.database-query-technical {
+  margin-top: 20px;
+}
+
+.database-query-technical .el-collapse-item__header,
+.database-query-technical .el-collapse-item__content {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.database-query-technical h4 {
+  margin: 12px 0 8px;
+  color: inherit;
+  font-size: 12px;
+}
+
+.database-query-technical pre {
+  max-height: 260px;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--el-fill-color-light);
+  color: inherit;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.database-query-identifiers {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr);
+  gap: 8px 12px;
+}
+
+.database-query-identifiers dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 .database-calendar-panel .panel-heading {
   align-items: center;
   padding-bottom: 12px;

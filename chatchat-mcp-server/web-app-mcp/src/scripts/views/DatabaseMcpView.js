@@ -27,16 +27,16 @@ export default {
       api,
       studioDetail: null,
       studioDetailOpen: false,
+      detailSections: [],
       metadataActions: [{
-        key: 'query-metadata', label: row => row.sourceKind === 'SQL_STUDIO' ? '详情' : '元数据', disabled: row => !row?.id,
+        key: 'query-metadata', label: '详情', disabled: row => !row?.id,
         run: async row => {
-          if (row.sourceKind === 'SQL_STUDIO') {
-            this.studioDetail = await api.studioPublication(row.templateId);
-            this.studioDetailOpen = true;
-            return;
-          }
-          const value = await api.metadata(row.id);
-          this.$emit('result', { title: `${row.title || row.toolName} 元数据与结构复核状态`, value });
+          const detail = row.sourceKind === 'SQL_STUDIO'
+            ? await api.studioPublication(row.templateId)
+            : { ...row, technicalMetadata: await api.metadata(row.id) };
+          this.studioDetail = detail;
+          this.detailSections = [];
+          this.studioDetailOpen = true;
         }
       }],
       activeTab: this.section,
@@ -74,21 +74,11 @@ export default {
         sqlSteps: []
       },
       columns: [
-        { key: 'toolName', label: '工具名称', type: 'code' },
-        { key: 'title', label: '显示名称' },
+        { key: 'title', label: '模板名称', formatter: (value, row) => value || row.toolName },
+        { key: 'businessGroupName', label: '业务分类', formatter: (value, row) => this.queryCategory(row) },
         { key: 'sourceLabel', label: '来源', formatter: value => value || '手工模板' },
         { key: 'datasourceId', label: '数据源', formatter: (value, row) => row.datasourceName || this.datasourceLabel(value) },
-        { key: 'version', label: '发布版本', formatter: value => value == null ? '—' : `v${value}` },
-        { key: 'publicationState', label: '发布状态', formatter: value => value || '由子模板发布管理' },
-        { key: 'parameterSummary', label: '参数摘要', formatter: value => value || '见详情' },
-        { key: 'publishedAt', label: '发布时间', formatter: value => value || '—' },
-        { key: 'businessGroupName', label: '能力分类', formatter: (value, row) => row.sourceKind === 'SQL_STUDIO'
-          ? this.categories.find(category => category.code === row.capabilityCategory)?.name || '未分类'
-          : value },
-        { key: 'domain', label: '业务领域' },
-        { key: 'maxRows', label: '最大行数' },
-        { key: 'dataAvailabilityStatus', label: '数据状态', formatter: (value, row) => this.dataAvailabilityLabel(value, row) },
-        { key: 'enabled', label: '状态', type: 'badge', formatter: value => value === false ? '停用' : '启用' }
+        { key: 'enabled', label: '状态', type: 'badge', formatter: (value, row) => this.queryStatus(row) }
       ],
       formFields: [
         {
@@ -307,6 +297,20 @@ export default {
   },
   methods: {
     prettyJson,
+    queryCategory(row) {
+      return this.categories.find(category => category.code === row.capabilityCategory || category.id === row.categoryId)?.name
+        || row.businessGroupName || '未分类';
+    },
+    queryStatus(row) {
+      if (row.sourceKind !== 'SQL_STUDIO') return row.enabled === false ? '已停用' : '已启用';
+      return { RUNNING: '已发布', OFFLINE: '已下线', FAILED: '发布失败', STARTING: '发布中', DRAFT: '草稿' }[row.publicationState]
+        || (row.enabled === false ? '暂不可用' : '已发布');
+    },
+    queryDate(value) {
+      if (!value) return '—';
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('zh-CN', { hour12: false });
+    },
     async loadCatalogQueries() {
       const manual = await api.list() || [];
       const studio = this.queryFamily === 'relational' ? await api.studioPublications() || [] : [];

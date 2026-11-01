@@ -38,7 +38,10 @@ def main():
         'COPY --chown=node:node dist/ /srv/coding-agent/dist/\n'
         'COPY --chown=root:root skills/ /srv/coding-agent/skills/\n'
         'RUN mkdir -p /srv/coding-agent/.cline && ln -sfnT ../skills /srv/coding-agent/.cline/skills && chmod -R a+rX /srv/coding-agent/skills\n'
-        'USER node\n')
+        'USER node\n'
+        'RUN node --input-type=module -e "import {taskSkills,bundledSkillFiles} from \'./dist/skills.js\'; '
+        'if (taskSkills().catalog.skills.length !== bundledSkillFiles().filter(s => s.enabled !== false).length) '
+        'throw new Error(\'Bundled Skills discovery failed\');"\n')
     run('docker', 'build', '--network', 'none', '-t', image, str(context))
     context.chmod(0o755)
     for path in context.rglob('*'):

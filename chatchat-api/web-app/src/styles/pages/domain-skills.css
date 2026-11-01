@@ -1227,3 +1227,11 @@
 .skill-publication-help { font-size: 13px; color: #64748b; line-height: 1.6; }
 .domain-skill-dialog.skill-publication-dialog { box-sizing: border-box; width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; }
 .skill-publication-dialog *, .skill-publication-dialog *::before, .skill-publication-dialog *::after { box-sizing: border-box; }
+.builtin-skill-details {
+  display: grid;
+  grid-template-columns: minmax(90px, auto) minmax(0, 1fr);
+  gap: 12px 20px;
+  margin: 16px 0;
+}
+.builtin-skill-details dt { color: var(--muted); }
+.builtin-skill-details dd { margin: 0; overflow-wrap: anywhere; }

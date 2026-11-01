@@ -23,6 +23,10 @@ function parseList(value) {
   return uniqueList(String(value || "").split(/[\n,，]/));
 }
 
+function businessSkillIds(value) {
+  return parseList(value).filter(id => !id.startsWith("builtin:"));
+}
+
 function joinList(values) {
   return Array.isArray(values) ? values.join("\n") : "";
 }
@@ -110,7 +114,6 @@ function defaultRoutingSettings() {
 
 function defaultWorkflowConfig() {
   return {
-    disabledBuiltinSkillIds: [],
     enabled: true,
     runtimeEnvironment: "",
     requiredToolParameters: {},
@@ -340,7 +343,7 @@ export default {
       return parseList(this.form.boundDocumentIds);
     },
     selectedDomainSkillIds() {
-      return parseList(this.form.boundDomainSkillIds);
+      return businessSkillIds(this.form.boundDomainSkillIds);
     },
     selectedResourceCount() {
       return this.selectedDocumentIds.length + this.selectedDomainSkillIds.length;
@@ -372,7 +375,7 @@ export default {
           tags: Array.isArray(document.tags) ? document.tags.filter(Boolean) : [],
         }));
       const domainSkillDocuments = (Array.isArray(this.domainSkills) ? this.domainSkills : [])
-        .filter((skill) => skill?.id)
+        .filter((skill) => skill?.id && !String(skill.id).startsWith("builtin:"))
         .map((skill) => ({
           docId: String(skill.id),
           resourceKey: `domain-skill:${skill.id}`,
@@ -1133,7 +1136,7 @@ export default {
           parseList(agent?.boundMcpToolNames)
         ),
         boundDocumentIds: parseList(agent?.boundDocumentIds),
-        boundDomainSkillIds: parseList(agent?.boundDomainSkillIds),
+        boundDomainSkillIds: businessSkillIds(agent?.boundDomainSkillIds),
         boundDocumentTags: parseList(agent?.boundDocumentTags),
         ...this.defaultDataAssetToForm(agent?.defaultDataAsset),
         ...this.assetSelectionPolicyToForm(agent?.assetSelectionPolicy),
@@ -1155,7 +1158,6 @@ export default {
       const workflowConfig = roleChat
         ? defaultWorkflowConfig()
         : this.normalizeWorkflowConfig(this.form.workflowConfig, selectedToolNames);
-      workflowConfig.disabledBuiltinSkillIds = parseList(this.form.workflowConfig?.disabledBuiltinSkillIds);
       const defaultDataAsset = this.defaultDataAssetFromForm();
       this.form.workflowConfig = workflowConfig;
       return {
@@ -1172,7 +1174,7 @@ export default {
         boundMcpServiceIds: [],
         boundMcpToolNames: selectedToolNames,
         boundDocumentIds: this.selectedDocumentIds,
-        boundDomainSkillIds: parseList(this.form.boundDomainSkillIds),
+        boundDomainSkillIds: businessSkillIds(this.form.boundDomainSkillIds),
         boundDocumentTags: parseList(this.form.boundDocumentTags),
         toolConfigs: this.buildToolConfigs(selectedToolNames),
         routingSettings: {
@@ -1869,7 +1871,6 @@ export default {
       );
       return {
         enabled: base.enabled !== false,
-        disabledBuiltinSkillIds: parseList(base.disabledBuiltinSkillIds),
         runtimeEnvironment: normalizeRuntimeEnvironment(base.runtimeEnvironment),
         requiredToolParameters:
           base.requiredToolParameters && typeof base.requiredToolParameters === "object"

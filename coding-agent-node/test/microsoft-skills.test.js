@@ -32,9 +32,9 @@ test('Microsoft originals remain separate assets; metadata does not contain inst
   assert.throws(()=>view.readBuiltin('builtin:microsoft:mcp-builder',path),/outside the task manifest/);
 });
 
-test('per-Agent disable removes Microsoft discovery and prevents reads without changing other Agents',()=>{
+test('legacy disable cannot override platform-owned native asset availability',()=>{
  const id='builtin:microsoft:azure-kusto';
  const isolated=taskSkills({builtinSkillPolicy:{disabledSkillIds:[id]}});
- assert.ok(!isolated.catalog.skills.some(c=>c.id===id));assert.equal(isolated.readBuiltin(id),null);
+ assert.ok(isolated.catalog.skills.some(c=>c.id===id));assert.ok(isolated.readBuiltin(id));
  assert.ok(taskSkills().readBuiltin(id).instructions.startsWith('---\n'));
 });

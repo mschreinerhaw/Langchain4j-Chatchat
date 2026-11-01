@@ -34,7 +34,8 @@ public final class SkillAnalysisContextService {
         InteractionExecution.checkCancellation(request);
         var identity = new SkillRoleContext(request.getTenantId(),request.getUserId(),roles,List.of(),Map.of("agentId",agent.id(),"skillPurpose","AGENT_NATIVE"));
         Object bound = agent.workflowConfig() == null ? null : agent.workflowConfig().get("boundDomainSkillIds");
-        List<String> ids = bound instanceof List<?> list ? list.stream().filter(String.class::isInstance).map(String.class::cast).toList() : List.of();
+        List<String> ids = BuiltinCodingSkills.businessIds(bound instanceof List<?> list
+            ? list.stream().filter(String.class::isInstance).map(String.class::cast).toList() : List.of());
         publish(request,"RUNNING",Map.of());
         if (ids.isEmpty()) return completed(request,SkillAnalysisContext.create("NO_CANDIDATES",List.of(),Map.of()),agent);
         try {
@@ -75,8 +76,6 @@ public final class SkillAnalysisContextService {
         return List.copyOf(result);
     }
     private Map<String,Object> completed(InteractionRequest request,Map<String,Object> context,SkillDefinition agent) {
-        context=SkillAnalysisContext.withBuiltinPolicy(context,agent.id(),BuiltinCodingSkills.disabled(
-            agent.workflowConfig()==null?null:agent.workflowConfig().get("disabledBuiltinSkillIds")));
         publish(request,"COMPLETED",context); return context;
     }
     private void publish(InteractionRequest request,String state,Map<String,Object> context) {

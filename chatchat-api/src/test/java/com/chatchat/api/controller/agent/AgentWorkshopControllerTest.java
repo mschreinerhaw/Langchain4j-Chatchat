@@ -26,6 +26,16 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentWorkshopControllerTest {
+    @Test void legacyImageTogglesAreIgnoredAndNeverBecomeUserSwitches() {
+        var controller = new AgentWorkshopController(mock(SkillCatalogService.class),mock(ToolRegistry.class),mock(McpToolCatalogQueryPort.class),mock(ModelResourceRegistry.class),mock(DocumentLibraryReadPort.class),mock(EnterpriseAdminService.class),mock(AgentPublicationLicenseService.class),mock(AgentReleaseService.class),mock(DomainSkillService.class),mock(ResourceAuthorizationPort.class),mock(SkillResourceScopeSynchronizationService.class),mock(com.chatchat.api.service.PublishedMcpToolCatalog.class));
+        var input=new AgentWorkshopController.AgentUpsertRequest();
+        input.setWorkflowConfig(java.util.Map.of("disabledBuiltinSkillIds","legacy-malformed", "builtinSkillPolicy",java.util.Map.of("disabledSkillIds",List.of("builtin:python-data-analysis"))));
+        input.setBoundDomainSkillIds(List.of("business-a","builtin:python-data-analysis","builtin:python-code-development"));
+        java.util.Map<?,?> config=org.springframework.test.util.ReflectionTestUtils.invokeMethod(controller,"workflowConfig",input);
+        assertThat(config.containsKey("disabledBuiltinSkillIds")).isFalse();
+        assertThat(config.containsKey("builtinSkillPolicy")).isFalse();
+        assertThat(config.get("boundDomainSkillIds")).isEqualTo(List.of("business-a"));
+    }
     @Test void removesOnlyDeletedHistoricalSkillsAndStillRejectsUnauthorizedOrInventedSelections() {
         var catalog = mock(SkillCatalogService.class); var domain = mock(DomainSkillService.class);
         var controller = new AgentWorkshopController(catalog,mock(ToolRegistry.class),mock(McpToolCatalogQueryPort.class),

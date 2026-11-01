@@ -9,7 +9,13 @@
     "references": [
       "references/data-methods.md",
       "references/financial-reporting.md"
-    ]
+    ],
+    "displayName": "Python 数据分析",
+    "descriptionZh": "支持数据清洗、质量检查、统计分析、指标计算与可视化报告生成。",
+    "source": "Runtime OS",
+    "sourceVersion": "1.3.0",
+    "builtin": true,
+    "enabled": true
   },
   {
     "id": "builtin:python-code-development",
@@ -20,7 +26,13 @@
     "category": "Python",
     "references": [
       "references/engineering-checks.md"
-    ]
+    ],
+    "displayName": "Python 程序开发",
+    "descriptionZh": "支持 Python 代码编写、调试、重构与测试。",
+    "source": "Runtime OS",
+    "sourceVersion": "1.0.0",
+    "builtin": true,
+    "enabled": true
   },
   {
     "id": "builtin:microsoft:azure-kusto",
@@ -46,7 +58,13 @@
         "sha256": "d9a1b1e30d633d5732ea18e3cba9538d293ebc53e1a9e4e96ab739e0c5c4f1cb",
         "size": 1140
       }
-    ]
+    ],
+    "displayName": "Azure 数据探索与查询",
+    "descriptionZh": "支持使用 Kusto 查询语言分析 Azure 中的日志、遥测与时间序列数据。",
+    "source": "Microsoft",
+    "sourceVersion": "3f5b461b2314e01c400564051e92469114c5b68f",
+    "builtin": true,
+    "enabled": true
   },
   {
     "id": "builtin:microsoft:azure-ai-ml-py",
@@ -82,7 +100,13 @@
         "sha256": "d9a1b1e30d633d5732ea18e3cba9538d293ebc53e1a9e4e96ab739e0c5c4f1cb",
         "size": 1140
       }
-    ]
+    ],
+    "displayName": "Azure 机器学习开发",
+    "descriptionZh": "支持 Azure 机器学习任务、数据集、模型训练与部署，需要对应环境支持。",
+    "source": "Microsoft",
+    "sourceVersion": "3f5b461b2314e01c400564051e92469114c5b68f",
+    "builtin": true,
+    "enabled": true
   },
   {
     "id": "builtin:microsoft:mcp-builder",
@@ -153,7 +177,13 @@
         "sha256": "d9a1b1e30d633d5732ea18e3cba9538d293ebc53e1a9e4e96ab739e0c5c4f1cb",
         "size": 1140
       }
-    ]
+    ],
+    "displayName": "MCP 服务开发",
+    "descriptionZh": "辅助设计、实现与验证可供智能体调用的 MCP 服务，需要独立授权相关资源。",
+    "source": "Microsoft",
+    "sourceVersion": "3f5b461b2314e01c400564051e92469114c5b68f",
+    "builtin": true,
+    "enabled": true
   },
   {
     "id": "builtin:microsoft:skill-creator",
@@ -209,6 +239,12 @@
         "sha256": "d9a1b1e30d633d5732ea18e3cba9538d293ebc53e1a9e4e96ab739e0c5c4f1cb",
         "size": 1140
       }
-    ]
+    ],
+    "displayName": "技能创作指导",
+    "descriptionZh": "辅助编写、完善与验证技能说明及附属资源。",
+    "source": "Microsoft",
+    "sourceVersion": "3f5b461b2314e01c400564051e92469114c5b68f",
+    "builtin": true,
+    "enabled": true
   }
 ]

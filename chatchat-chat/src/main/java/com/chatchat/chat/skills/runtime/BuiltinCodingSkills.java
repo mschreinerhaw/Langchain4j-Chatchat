@@ -17,6 +17,7 @@ public final class BuiltinCodingSkills {
                 card.remove("references");
                 card.remove("resources");
                 card.put("builtin", true);
+                card.putIfAbsent("enabled", true);
                 card.put("removable", false);
                 card.put("applicableAgents", "CLINE_CODING");
                 return Map.copyOf(card);
@@ -24,11 +25,10 @@ public final class BuiltinCodingSkills {
         } catch (java.io.IOException failure) { throw new IllegalStateException("Invalid builtin Coding Skill catalog", failure); }
     }
     public static List<Map<String,Object>> catalog() { return CATALOG; }
-    public static List<String> disabled(Object raw) {
-        if (raw == null) return List.of();
-        if (!(raw instanceof List<?> values) || values.stream().anyMatch(value ->
-                !(value instanceof String) || CATALOG.stream().noneMatch(card -> value.equals(card.get("id")))))
-            throw new IllegalArgumentException("Unknown builtin Coding Skill ID");
-        return values.stream().map(String.class::cast).distinct().sorted().toList();
+    /** Reserved image assets are never user-bindable business Skills. */
+    public static boolean isBuiltinId(String id) { return id != null && id.trim().startsWith("builtin:"); }
+    public static List<String> businessIds(Collection<String> ids) {
+        return ids == null ? List.of() : ids.stream().filter(Objects::nonNull).map(String::trim)
+            .filter(id -> !id.isBlank() && !isBuiltinId(id)).distinct().toList();
     }
 }

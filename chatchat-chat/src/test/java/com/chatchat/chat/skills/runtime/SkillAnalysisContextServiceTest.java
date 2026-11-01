@@ -60,7 +60,7 @@ class SkillAnalysisContextServiceTest {
         verifyNoInteractions(resolver,models);
     }
     @Test void explicitBindingConstrainsDiscoveryWithoutFallback() {
-        when(agent.workflowConfig()).thenReturn(Map.of("boundDomainSkillIds",List.of("chosen")));
+        when(agent.workflowConfig()).thenReturn(Map.of("boundDomainSkillIds",List.of("chosen","builtin:python-data-analysis")));
         when(router.route(any())).thenReturn(new SkillRouteResult(List.of(),"EMPTY",Map.of()));
         service.prepare(request,agent,List.of());
         verify(router,times(1)).route(argThat(search -> search.requestedSkillIds().equals(List.of("chosen"))));
@@ -70,8 +70,7 @@ class SkillAnalysisContextServiceTest {
         when(agent.workflowConfig()).thenReturn(Map.of("disabledBuiltinSkillIds",List.of("builtin:python-data-analysis")));
         var context=service.prepare(request,agent,List.of("role"));
         assertThat(context).containsEntry("status","NO_CANDIDATES");
-        assertThat(SkillAnalysisContext.catalog(context)).containsEntry("builtinSkillPolicy",
-            Map.of("agentId","agent","disabledSkillIds",List.of("builtin:python-data-analysis")));
+        assertThat(SkillAnalysisContext.catalog(context)).doesNotContainKey("builtinSkillPolicy");
         verifyNoInteractions(router,resolver,models);
     }
     @Test void cancellationBeforeBindingDoesNotCallSources() {

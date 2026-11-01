@@ -42,7 +42,7 @@ class SkillCatalogServiceTest {
         current.setDescription("Financial analysis");
         current.setDefaultMode("agent_chat");
         current.setMarketStatus(SkillCatalogService.MARKET_STATUS_PUBLISHED);
-        current.setWorkflowConfigJson("{\"boundDomainSkillIds\":[\"skill-market\"]}");
+        current.setWorkflowConfigJson("{\"boundDomainSkillIds\":[\"skill-market\",\"builtin:python-data-analysis\"],\"disabledBuiltinSkillIds\":[\"builtin:python-data-analysis\"],\"builtinSkillPolicy\":{\"disabledSkillIds\":[\"builtin:python-code-development\"]}}");
         when(repository.findById("finance_agent")).thenReturn(Optional.of(current));
         when(releases.resolvePublished("finance_agent")).thenReturn(Optional.of(mock(SkillDefinition.class)));
         SkillCatalogService service = new SkillCatalogService(repository, mock(SkillConfigVersionRepository.class),
@@ -52,7 +52,9 @@ class SkillCatalogServiceTest {
         SkillDefinition resolved = service.resolve("finance_agent");
 
         assertThat(resolved.workflowConfig())
-            .containsEntry("boundDomainSkillIds", List.of("skill-market"));
+            .containsEntry("boundDomainSkillIds", List.of("skill-market"))
+            .doesNotContainKeys("disabledBuiltinSkillIds", "builtinSkillPolicy");
+        assertThat(current.getWorkflowConfigJson()).contains("disabledBuiltinSkillIds"); // History is not rewritten by a read.
     }
 
     @Test
@@ -183,8 +185,7 @@ class SkillCatalogServiceTest {
         assertThat(saved.boundMcpToolNames()).isEmpty();
         assertThat(saved.toolConfigs()).isEmpty();
         assertThat(saved.workflowConfig())
-            .containsOnly(Map.entry("boundDomainSkillIds", List.of("skill-risk")),
-                Map.entry("disabledBuiltinSkillIds", List.of("builtin:python-data-analysis")));
+            .containsOnly(Map.entry("boundDomainSkillIds", List.of("skill-risk")));
         assertThat(saved.defaultDataAsset()).isNull();
     }
 
@@ -238,13 +239,13 @@ class SkillCatalogServiceTest {
 
         SkillDefinition saved = service.upsert(draftWithWorkflow(Map.of(
             "enabled", true,
-            "boundDomainSkillIds", List.of("skill-risk", "skill-market", "skill-risk"),
+            "boundDomainSkillIds", List.of("skill-risk", "builtin:python-data-analysis", "skill-market", "skill-risk"),
             "disabledBuiltinSkillIds", List.of("builtin:python-data-analysis")
         )));
 
         assertThat(saved.workflowConfig().get("boundDomainSkillIds"))
             .isEqualTo(List.of("skill-risk", "skill-market"));
-        assertThat(saved.workflowConfig()).containsEntry("disabledBuiltinSkillIds",List.of("builtin:python-data-analysis"));
+        assertThat(saved.workflowConfig()).doesNotContainKeys("disabledBuiltinSkillIds","builtinSkillPolicy");
         ArgumentCaptor<SkillConfigEntity> entityCaptor = ArgumentCaptor.forClass(SkillConfigEntity.class);
         verify(repository).save(entityCaptor.capture());
         assertThat(entityCaptor.getValue().getWorkflowConfigJson())

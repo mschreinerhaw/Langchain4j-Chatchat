@@ -1411,14 +1411,13 @@ public class SkillCatalogService {
 
     private void preserveSkillConfiguration(Map<String, Object> source, Map<String, Object> target) {
         if (source == null || target == null) return;
-        if (source.containsKey("disabledBuiltinSkillIds"))
-            target.put("disabledBuiltinSkillIds", com.chatchat.chat.skills.runtime.BuiltinCodingSkills.disabled(
-                source.get("disabledBuiltinSkillIds")));
         boolean configured = source.containsKey("boundDomainSkillIds")
             || source.containsKey("bound_domain_skill_ids");
         if (!configured) return;
-        target.put("boundDomainSkillIds", stringValues(firstObject(
-            source, "boundDomainSkillIds", "bound_domain_skill_ids")));
+        // Retire legacy per-Agent image toggles on reads, saves and version restores.
+        // Only business bindings survive; immutable history remains auditable.
+        target.put("boundDomainSkillIds", com.chatchat.chat.skills.runtime.BuiltinCodingSkills.businessIds(
+            stringValues(firstObject(source, "boundDomainSkillIds", "bound_domain_skill_ids"))));
     }
 
     private Map<String, Object> normalizeResultHandlingPolicy(Object rawPolicy) {

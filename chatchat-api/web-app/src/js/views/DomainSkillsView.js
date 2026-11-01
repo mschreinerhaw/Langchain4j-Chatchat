@@ -57,7 +57,7 @@ export default {
   components: { ChevronDown, MoreHorizontal, Pencil, RefreshCw, Trash2 },
   data: () => ({
     loading: true, refreshing: false, initialLoadComplete: false,
-    busy: false, error: "", message: "", skills: [], builtinSkills: [], categories: [],
+    busy: false, error: "", message: "", skills: [], builtinSkills: [], builtinDetail: null, categories: [],
     publishOpen: false, publishLoading: false, publishError: "", publishTarget: null,
     publishEngines: [], publishBinding: { engine: "GOOGLE_ADK_NATIVE" },
     quota: { maximum: 5, published: 0, remaining: 5, source: "DEFAULT", limited: true, licenseValid: true },
@@ -77,6 +77,14 @@ export default {
     confirmDialog: { open: false, kind: "", title: "", message: "", confirmLabel: "确定", danger: false, skill: null, category: null }
   }),
   computed: {
+    visibleBuiltinSkills() {
+      const keyword = String(this.filters.keyword || "").trim().toLowerCase();
+      return this.builtinSkills.filter(skill =>
+        (!this.filters.category || this.filters.category === skill.category)
+        && (!this.filters.status || (this.filters.status === "PUBLISHED" && skill.enabled !== false))
+        && (!keyword || [skill.displayName, skill.descriptionZh, skill.name, skill.id, skill.source]
+          .join(" ").toLowerCase().includes(keyword)));
+    },
     isAdmin() {
       const session = getStoredAuthSession() || {};
       const permissionCodes = session.user?.permissionCodes || session.permissionCodes;

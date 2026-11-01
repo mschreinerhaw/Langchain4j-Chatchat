@@ -32,7 +32,9 @@ COPY --chown=root:root skills ./skills
 RUN mkdir -p .cline && ln -s ../skills .cline/skills && chmod -R a+rX skills
 # Retain the health probe path used by existing Runtime deployment tooling.
 COPY --chown=node:node src/healthcheck.js ./src/healthcheck.js
-RUN node dist/sdk-packages.js && mkdir /srv/monitor-data && chown node:node /srv/monitor-data
+RUN node dist/sdk-packages.js \
+    && node --input-type=module -e "import {bundledSkillFiles, taskSkills} from './dist/skills.js'; const files=bundledSkillFiles(); if (!files.length || taskSkills().catalog.skills.length !== files.filter(s => s.enabled !== false).length) throw new Error('Bundled Skills discovery failed');" \
+    && mkdir /srv/monitor-data && chown node:node /srv/monitor-data
 USER node
 EXPOSE 3100
 HEALTHCHECK --interval=15s --timeout=5s --start-period=15s --retries=3 CMD ["node", "dist/healthcheck.js"]

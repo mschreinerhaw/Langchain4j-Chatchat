@@ -156,13 +156,18 @@
       </aside>
 
       <section class="domain-skills-content" :aria-busy="refreshing">
-        <section v-if="builtinSkills.length" aria-label="系统内置技能">
-          <article v-for="skill in builtinSkills" :key="skill.id" class="domain-skill-item">
+        <section v-if="visibleBuiltinSkills.length" aria-label="系统内置技能">
+          <article v-for="skill in visibleBuiltinSkills" :key="skill.id" class="domain-skill-item">
             <div class="domain-skill-item-body">
-              <strong>{{ skill.name }}</strong>
-              <span class="feature-status builtin">系统内置</span>
-              <p>{{ skill.description }}</p>
-              <span>版本 {{ skill.version }} · Coding · 随镜像升级，不可卸载</span>
+              <div class="domain-skill-item-title">
+                <strong>{{ skill.displayName }}</strong>
+                <span class="feature-status builtin">系统内置</span>
+              </div>
+              <p>{{ skill.descriptionZh }}</p>
+              <span>{{ skill.enabled === false ? "暂不可用" : skill.source === "Microsoft" ? "Microsoft 来源 · 需对应环境支持" : "内置基础能力 · 按需自动使用" }}</span>
+            </div>
+            <div class="domain-skill-item-actions">
+              <button type="button" class="secondary-button" @click="builtinDetail = skill">查看详情</button>
             </div>
           </article>
         </section>
@@ -446,6 +451,30 @@
           ></footer
         >
       </form>
+    </div>
+
+    <div v-if="builtinDetail" class="domain-skill-dialog-backdrop" @click.self="builtinDetail = null" @keydown.esc="builtinDetail = null">
+      <section class="domain-skill-dialog" role="dialog" aria-modal="true" aria-labelledby="builtin-skill-detail-title" tabindex="-1">
+        <header>
+          <div><p>系统内置</p><h2 id="builtin-skill-detail-title">{{ builtinDetail.displayName }}</h2></div>
+          <button type="button" class="app-dialog-close" aria-label="关闭" @click="builtinDetail = null">×</button>
+        </header>
+        <p>{{ builtinDetail.descriptionZh }}</p>
+        <dl class="builtin-skill-details">
+          <dt>原始 Skill ID</dt><dd>{{ builtinDetail.id }}</dd>
+          <dt>原始名称</dt><dd>{{ builtinDetail.name }}</dd>
+          <dt>技能版本</dt><dd>{{ builtinDetail.version }}</dd>
+          <dt>来源</dt><dd>{{ builtinDetail.source }}</dd>
+          <dt>上游版本</dt><dd>{{ builtinDetail.sourceVersion }}</dd>
+          <template v-if="builtinDetail.provenance">
+            <dt>源代码仓库</dt><dd>{{ builtinDetail.provenance.repository }}</dd>
+            <dt>Git Commit</dt><dd>{{ builtinDetail.provenance.commit }}</dd>
+            <dt>许可证</dt><dd>{{ builtinDetail.provenance.license }}</dd>
+          </template>
+          <dt>可用状态</dt><dd>{{ builtinDetail.enabled === false ? "暂不可用" : "可用" }}</dd>
+        </dl>
+        <footer><button type="button" class="secondary-button" @click="builtinDetail = null">关闭</button></footer>
+      </section>
     </div>
 
     <div v-if="editorOpen" class="domain-skill-dialog-backdrop">

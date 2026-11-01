@@ -2985,41 +2985,6 @@
   gap: 4px;
 }
 
-.agent-workshop-view .agent-builtin-skill-options {
-  display: grid;
-  gap: 10px;
-  margin: 8px 0;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface-soft);
-}
-
-.agent-workshop-view .dialog-body .agent-builtin-skill-option {
-  grid-template-columns: 16px minmax(0, 1fr);
-  align-items: start;
-  gap: 8px;
-  cursor: pointer;
-}
-
-.agent-workshop-view .agent-builtin-skill-option input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  min-height: 16px;
-  margin: 2px 0 0;
-  padding: 0;
-  accent-color: var(--primary);
-}
-
-.agent-workshop-view .dialog-body .agent-builtin-skill-option > span {
-  min-width: 0;
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.6;
-  overflow-wrap: anywhere;
-}
-
 .agent-workshop-view .agent-resource-selector-copy strong {
   color: var(--text);
   font-size: 14px;

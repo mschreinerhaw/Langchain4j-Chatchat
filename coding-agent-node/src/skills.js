@@ -47,9 +47,8 @@ const builtin = definitions.map(definition => {
 });
 
 export function taskSkills(context = {}) {
-  const disabled = context.builtinSkillPolicy?.disabledSkillIds ?? [];
-  if (!Array.isArray(disabled) || disabled.some(id => !builtin.some(item => item.card.id === id)))
-    throw new TypeError('Invalid Agent builtin Skill policy');
+  // Historical Agent/snapshot disable fields are intentionally ignored. Only the
+  // platform image catalog owns availability; Cline still chooses content on demand.
   const dynamic = structuredClone(context.skills?.skills ?? []).map(card => ({ ...card, id: card.id ?? card.skillId }));
   const reserved = new Set(builtin.flatMap(item => [item.card.id.toLowerCase(), item.card.name.toLowerCase()]));
   const conflicts = dynamic.filter(card => [card.id, card.name].some(value => reserved.has(String(value).trim().toLowerCase())))
@@ -66,9 +65,9 @@ export function taskSkills(context = {}) {
       retainedSkillId: retained.id, retainedVersion: retained.version });
     else { uniqueDynamic.push(card); if (name) dynamicNames.set(name, card); }
   }
-  // Image defaults win for every version, even when disabled for this Agent.
+  // Image defaults win for every version; business bindings cannot replace them.
   // Report collisions explicitly; never let a dynamic package replace a default.
-  const cards = [...builtin.filter(item => !disabled.includes(item.card.id)).map(item => item.card),
+  const cards = [...builtin.filter(item => item.card.enabled !== false).map(item => item.card),
     ...uniqueDynamic.map(card => ({ ...card, origin: 'AGENT_DYNAMIC' }))];
   const ids = new Set();
   for (const card of cards) {

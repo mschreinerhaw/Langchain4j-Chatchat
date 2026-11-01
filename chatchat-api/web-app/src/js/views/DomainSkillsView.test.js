@@ -14,6 +14,15 @@ vi.mock("../../services/api.js", () => api);
 import DomainSkillsView from "./DomainSkillsView.js";
 
 describe("DomainSkillsView", () => {
+  it("searches Chinese display metadata while retaining original identifiers in the detail model", () => {
+    const skill={id:"builtin:python-data-analysis",name:"python-data-analysis",displayName:"Python 数据分析",descriptionZh:"数据清洗与统计分析",source:"Runtime OS",enabled:true};
+    const context={builtinSkills:[skill],filters:{keyword:"数据清洗",category:"",status:""}};
+    expect(DomainSkillsView.computed.visibleBuiltinSkills.call(context)).toEqual([skill]);
+    context.filters.keyword="python-data-analysis";
+    expect(DomainSkillsView.computed.visibleBuiltinSkills.call(context)[0].id).toBe(skill.id);
+    context.filters.category="公司研究";
+    expect(DomainSkillsView.computed.visibleBuiltinSkills.call(context)).toEqual([]);
+  });
   it("defaults external Skills to original native mode with compilation off", () => {
     const context = { ...DomainSkillsView.data(), categoryOptions: [{ name: "Research" }] };
     DomainSkillsView.methods.openImport.call(context);

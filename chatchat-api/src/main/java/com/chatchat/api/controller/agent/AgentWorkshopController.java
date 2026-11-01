@@ -682,12 +682,7 @@ public class AgentWorkshopController {
         Set<String> allowedSkills = authorizedDomainSkills(request).stream()
             .map(DomainSkillOption::id)
             .collect(java.util.stream.Collectors.toSet());
-        List<String> requestedSkills = input.getBoundDomainSkillIds() == null ? List.of()
-            : input.getBoundDomainSkillIds().stream()
-                .filter(id -> id != null && !id.isBlank())
-                .map(String::trim)
-                .distinct()
-                .toList();
+        List<String> requestedSkills = com.chatchat.chat.skills.runtime.BuiltinCodingSkills.businessIds(input.getBoundDomainSkillIds());
         if (!allowedSkills.containsAll(requestedSkills)) {
             throw new SecurityException("Agent contains domain Skills outside the current user's permissions");
         }
@@ -816,10 +811,10 @@ public class AgentWorkshopController {
     private Map<String, Object> workflowConfig(AgentUpsertRequest request) {
         Map<String, Object> workflow = new LinkedHashMap<>();
         if (request.getWorkflowConfig() != null) workflow.putAll(request.getWorkflowConfig());
-        workflow.put("disabledBuiltinSkillIds", com.chatchat.chat.skills.runtime.BuiltinCodingSkills.disabled(
-            workflow.get("disabledBuiltinSkillIds")));
+        workflow.remove("disabledBuiltinSkillIds");
+        workflow.remove("builtinSkillPolicy");
         workflow.put("boundDomainSkillIds", request.getBoundDomainSkillIds() == null ? List.of()
-            : request.getBoundDomainSkillIds().stream().filter(id -> id != null && !id.isBlank()).map(String::trim).distinct().toList());
+            : com.chatchat.chat.skills.runtime.BuiltinCodingSkills.businessIds(request.getBoundDomainSkillIds()));
         return workflow;
     }
 
@@ -827,7 +822,7 @@ public class AgentWorkshopController {
         if (workflow == null || !(workflow.get("boundDomainSkillIds") instanceof Iterable<?> values)) return List.of();
         List<String> ids = new ArrayList<>();
         values.forEach(value -> { if (value != null && !String.valueOf(value).isBlank()) ids.add(String.valueOf(value)); });
-        return ids.stream().distinct().toList();
+        return com.chatchat.chat.skills.runtime.BuiltinCodingSkills.businessIds(ids);
     }
 
     private String tenantId(HttpServletRequest request) {

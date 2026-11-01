@@ -1,0 +1,16 @@
+{
+  "status": "PASS",
+  "scope": "REAL_UI_PUBLISHED_QUERY_PARAMETER_DIALOG_CANCEL_AND_EXECUTE; real 248 TPCDS queries; online release and persisted evidence unchanged",
+  "queryRequests": 2,
+  "cancelRequests": 0,
+  "thresholds": [
+    294242,
+    0
+  ],
+  "returnedRows": [
+    3,
+    4
+  ],
+  "publishedHistoryUnchanged": true,
+  "capturedAt": "2026-11-01T08:02:33.316Z"
+}

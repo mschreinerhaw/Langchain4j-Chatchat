@@ -1,0 +1,26 @@
+{
+  "status": "PASS",
+  "frontend": {
+    "tests": 177,
+    "suites": 22,
+    "scope": "SQL Studio frontend regression, including 20 publication dialog tests"
+  },
+  "backend": {
+    "tests": 21,
+    "scope": "SqlTemplateAuthoringServiceTest with real H2 JDBC; includes immutable published preview, stale revision and revoked access"
+  },
+  "logs": [
+    {
+      "path": "target/sql-test-parameters-studio-regression.log",
+      "sha256": "50875f4cb2881a2ca850a60276379ae86789b6a9d081bcd09cccb64c30766d28"
+    },
+    {
+      "path": "target/sql-test-parameter-backend-tests.log",
+      "sha256": "fba87a0006d9d9c5a5df07eda91def3980926d33274a441059111536eb2d61e1"
+    },
+    {
+      "path": "target/sql-test-parameters-web-build.log",
+      "sha256": "53951222cb1d2621eb8d9032895304423f5e82324c615dbd3f5c28931953f9d2"
+    }
+  ]
+}

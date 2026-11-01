@@ -14,9 +14,7 @@
           <div>
             <h2>{{ pageTitle }}</h2>
             <p v-if="section === 'queries'"
-              >本页展示手工查询模板与 SQL Studio 发布记录；SQL Studio 记录通过详情查看，修改及版本恢复沿用源工程。手工查询父模板
-              {{ parentTemplateName }}
-              默认不发布。通过“子模板发布”继承，限定角色、用户及可用查询模板。</p
+              >展示手工查询模板及 SQL Studio 已发布的查询能力。SQL Studio 模板可查看详情，编辑、试执行及版本恢复请进入来源工程。</p
             >
             <p v-else>沿用原有交易日历和批量导入配置流程。</p>
           </div>

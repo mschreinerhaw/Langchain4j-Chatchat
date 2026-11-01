@@ -33,6 +33,19 @@ public class TemplateCapabilityPublisher implements McpToolContributor {
                 && snapshot.path("sqlTest").path("success").asBoolean(false);
             String description=row.getDescription() == null || row.getDescription().isBlank() ? row.getTitle() : row.getDescription();
             if(studioSql)description+="\nReturns the existing ToolOutput envelope: SQL rows are at $.data.data.rows and rowCount at $.data.data.rowCount. SQL column names are NOT top-level result fields. Preserve this actual envelope in downstream contracts.";
+            List<String> resultColumns = new ArrayList<>();
+            if (verifiedReadOnly && snapshot.path("sqlTest").path("preview").path("columns").isArray()) {
+                for (var column : snapshot.path("sqlTest").path("preview").path("columns")) {
+                    if (!column.isTextual() || column.asText().isBlank() || column.asText().length() > 256
+                        || column.asText().chars().anyMatch(Character::isISOControl) || resultColumns.size() >= 256) {
+                        resultColumns.clear(); break;
+                    }
+                    resultColumns.add(column.asText());
+                }
+            }
+            if (!resultColumns.isEmpty()) description += "\nVerified trial declares SQL row column identifiers at $.data.data.rows[*]: "
+                + json.valueToTree(resultColumns) + ". Identifiers only, never sample values or proof of current rows. "
+                + "Bind the exact scalar leaf using field selectors and numeric array indexes. jq pipes, map, min and alternative field guesses are not executable output paths.";
             Map<String,Object> outputSchema=Map.of("type", "object", "properties", Map.of());
             if(studioSql)try {outputSchema=json.readValue(row.getOutputSchemaJson(),new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){});}
                 catch(Exception invalid){throw new IllegalStateException("Invalid published SQL output contract",invalid);}
@@ -40,6 +53,7 @@ public class TemplateCapabilityPublisher implements McpToolContributor {
                 "visibleTenantIds", List.of(row.getTenantId()), "breakingChangeApproved", true,
                 "runtimeLevel", "controlled", "riskLevel", verifiedReadOnly?"low":"high", "operationType", "execute"));
             if(studioSql) {metadata.put("resultKind","RAW_RECORDS");metadata.put("resultSchemaRef","sql_result.v1");}
+            if(!resultColumns.isEmpty()) metadata.put("sqlResultColumns",List.copyOf(resultColumns));
             var tool = McpSchema.Tool.builder().name(TemplateCapabilityService.toolName(row)).title(row.getTitle())
                 .description(description)
                 .inputSchema(json.convertValue(schema, new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){}))

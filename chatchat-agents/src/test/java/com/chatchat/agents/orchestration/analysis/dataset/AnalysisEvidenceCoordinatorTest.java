@@ -33,8 +33,14 @@ class AnalysisEvidenceCoordinatorTest {
             "sourceMetadata",Map.of("executionType","SQL_QUERY","operation",Map.of("templateId","opaque-definition","statementHash","hash"),"asset",Map.of("id","source-id"),"business",Map.of("description","Count records by declared region")),
             "operation",Map.of("diagnostics",diagnostics,"statement","SELECT region,COUNT(*) AS total FROM source GROUP BY region"),
             "data",Map.of("rows",List.of(Map.of("count",7)),"rowCount",1,"complete",true,"possiblyTruncated",false));
+        var transported=Map.of("schemaVersion",com.chatchat.common.mcp.runtime.McpAnalysisPayload.SCHEMA_VERSION,
+            "resultKind","RAW_RECORDS","resultSchemaRef","sql_result.v1","status","SUCCESS",
+            "completeness",Map.of("complete",true),
+            "data",new ObjectMapper().convertValue(com.chatchat.common.tool.ToolOutput.success(envelope),Map.class),
+            "rawData",Map.of("rows",List.of(Map.of("poison",9999))));
+        for(Object carrier:List.of(envelope,transported)) {
         assertThat(coordinator(mock(ToolRegistry.class),new com.chatchat.agents.runtime.analysis.McpResultAnalysisBridge())
-            .project(result(step("published-query",envelope))).datasets()).singleElement().satisfies(dataset->{
+            .project(result(step("published-query",carrier))).datasets()).singleElement().satisfies(dataset->{
                 var audit=(Map<String,Object>)dataset.analysisContext().get("templateParameterBinding");
                 assertThat(audit).containsEntry("scopeStatus","EXECUTION_VALUES_RECORDED")
                     .containsEntry("userConstraintAlignment","NOT_EVALUATED");
@@ -46,6 +52,7 @@ class AnalysisEvidenceCoordinatorTest {
                     .containsEntry("description","Count records by declared region");
                 assertThat(dataset.records()).singleElement().satisfies(row->assertThat(row).containsEntry("count",7));
             });
+        }
     }
 
     @Test void T13_defaultScopeAuditTravelsWithTheActualDataset() {
@@ -150,7 +157,9 @@ class AnalysisEvidenceCoordinatorTest {
         return List.of(envelope,json.writeValueAsString(envelope),json.valueToTree(envelope),
             canonical,json.writeValueAsString(canonical),json.valueToTree(canonical),
             json.convertValue(canonical,com.chatchat.common.mcp.runtime.McpAnalysisPayload.class),
-            com.chatchat.common.tool.ToolOutput.success(canonical));
+            com.chatchat.common.tool.ToolOutput.success(canonical),
+            Map.of("schemaVersion",com.chatchat.common.mcp.runtime.McpAnalysisPayload.SCHEMA_VERSION,
+                "resultKind","UNDECLARED","data",json.convertValue(com.chatchat.common.tool.ToolOutput.success(envelope),Map.class)));
     }
 
     @Test void declaredDocumentContainingSqlJsonRemainsATextAnalysisSource() throws Exception {

@@ -379,7 +379,7 @@ public final class AnalysisEvidenceCoordinator {
     }
 
     private Map<String,Object> sqlEnvelope(Object output) {
-        Object payload=output instanceof com.chatchat.common.tool.ToolOutput tool ? tool.getData() : output;
+        Object payload=output;
         for (int depth=0;depth<12;depth++) {
             try {
                 if (payload instanceof com.fasterxml.jackson.databind.JsonNode node)
@@ -390,6 +390,18 @@ public final class AnalysisEvidenceCoordinator {
                 }
             } catch (java.io.IOException invalidEnvelope) {
                 return Map.of(); // Ordinary text retains its existing governed projection.
+            }
+            if(payload instanceof com.chatchat.common.tool.ToolOutput tool) {
+                if(!tool.isSuccess())return Map.of();
+                payload=tool.getData();continue;
+            }
+            // MCP JSON transport serializes nested ToolOutput instances to maps. Do not stop
+            // at that transport layer and silently discard the actual SQL declaration/bindings.
+            if(payload instanceof Map<?,?> transport && !transport.containsKey("dataSchema")
+                && transport.get("success") instanceof Boolean success && transport.containsKey("data")
+                && (transport.containsKey("executionTimeMs") || transport.containsKey("exceptionType"))) {
+                if(!success)return Map.of();
+                payload=transport.get("data");continue;
             }
             String declaredKind=payload instanceof com.chatchat.common.mcp.runtime.McpAnalysisPayload declared
                 ? declared.resultKind().name()

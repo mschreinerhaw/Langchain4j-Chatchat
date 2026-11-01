@@ -40,11 +40,22 @@ try {
  save('submission',payload);save('agent-task',envelope.data);
  fs.writeFileSync(path.join(out,'request.md'),scenario.question+'\n');
  await page.screenshot({path:path.join(out,'conversation-start.png')});
- let task=envelope.data,lastLog=0;
+ let task=envelope.data,lastLog=0,confirmationCount=0;
  const deadline=Date.now()+Number(process.env.E2E_TIMEOUT_MS||1200000);
  while(!['SUCCEEDED','FAILED','PARTIAL','CANCELLED','REJECTED'].includes(task.canonicalState)) {
   assert.ok(Date.now()<deadline,'Task is still running; do not claim pass or silently cancel');
   await new Promise(r=>setTimeout(r,3000));task=await api('/agent/tasks/'+task.taskId+'?tenantId='+auth.user.tenantId);save('agent-result',task);
+  if(['WAITING_APPROVAL','WAIT_CONFIRMATION','WAIT_CONFIRM'].includes(task.canonicalState)||task.status==='WAIT_CONFIRMATION') {
+   assert.equal(process.env.E2E_ALLOW_CONFIRMATION,'true','A real confirmation is pending; explicitly authorize this test to click Allow once');
+   assert.ok(++confirmationCount<=4,'Repeated confirmation loop');
+   const dialog=page.locator('.mcp-confirm-dialog');
+   await dialog.waitFor({timeout:20000});
+   await page.screenshot({path:path.join(out,'confirmation-'+confirmationCount+'.png')});
+   const confirmed=page.waitForResponse(r=>r.request().method()==='POST'&&/\/agent\/tasks(?:\/runtime\/tasks\/[^/]+\/confirm)?$/.test(new URL(r.url()).pathname),{timeout:60000});
+   await dialog.getByRole('button',{name:'Confirm',exact:true}).click();
+   const confirmationResponse=await confirmed;
+   save('confirmation-'+confirmationCount,{request:confirmationResponse.request().postDataJSON(),response:await confirmationResponse.json(),remember:'Allow once'});
+  }
   if(Date.now()-lastLog>30000){console.log(JSON.stringify({caseId:scenario.caseId,taskId:task.taskId,state:task.canonicalState}));lastLog=Date.now();}
  }
  save('agent-result',task);

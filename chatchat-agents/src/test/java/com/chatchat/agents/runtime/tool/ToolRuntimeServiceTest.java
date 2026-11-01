@@ -45,6 +45,44 @@ import org.mockito.ArgumentCaptor;
 
 class ToolRuntimeServiceTest {
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void batchConfirmationCoversOnlyTheUnchangedBatchAndRechecksChildDenials() {
+        String tool = "mcp_sql_execute";
+        var registry = mock(ToolRegistry.class);
+        when(registry.getToolMetadata(tool)).thenReturn(ToolMetadata.builder().id(tool)
+            .categories(List.of("mcp")).riskLevel("high").operationType("read_sql")
+            .metadata(Map.of("capabilities", List.of("template_execution", "batch_execution")))
+            .build());
+        when(registry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.success(Map.of("rows", List.of(1))));
+        var revokeSecond = new java.util.concurrent.atomic.AtomicBoolean();
+        ToolRuntimePolicyProvider permissions = (request, metadata) -> ToolRuntimePolicy.builder()
+            .allowed(!(revokeSecond.get() && "two".equals(request.getToolInput().getParameters().get("templateCode"))))
+            .reason("Current child authorization").build();
+        var service = new ToolRuntimeService(registry, new ObjectMapper(), properties(),
+            new McpPolicyProperties(), List.of(permissions), List.of());
+        var calls = List.of(batchCall("first", tool, "one"), batchCall("second", tool, "two"));
+        try {
+            var pending = service.execute(batchRequest(calls, false, Map.of()));
+            assertThat(pending.outcome()).isEqualTo("confirmation_required");
+            verify(registry, never()).executeEnhancedTool(any(), any());
+            var confirmation = (Map<String,Object>) pending.audit().get("confirmation");
+            var approval = Map.<String,Object>of("mcpConfirmation", Map.of("approved", true, "token", confirmation.get("token")));
+            var changed = service.execute(batchRequest(List.of(batchCall("first", tool, "changed")), false, approval));
+            assertThat(changed.outcome()).isEqualTo("confirmation_required");
+            verify(registry, never()).executeEnhancedTool(any(), any());
+            var confirmed = service.execute(batchRequest(calls, false, approval));
+            assertThat(confirmed.output().isSuccess()).isTrue();
+            verify(registry, times(2)).executeEnhancedTool(any(), any());
+            revokeSecond.set(true);
+            var revoked = service.execute(batchRequest(calls, false, approval));
+            var batch = (ToolCallBatchResult) revoked.output().getData();
+            assertThat(batch.results().get(1).evidenceUsable()).isFalse();
+            assertThat(batch.results().get(1).invoked()).isFalse();
+            verify(registry, times(3)).executeEnhancedTool(any(), any());
+        } finally { service.shutdown(); }
+    }
+
     @Test void recoveryAdmissionReusesCurrentGovernanceWithoutInvokingOrRetryingTool() {
         var registry = mock(ToolRegistry.class);
         when(registry.getToolMetadata("read_tool")).thenReturn(ToolMetadata.builder().id("read_tool")
@@ -2030,7 +2068,8 @@ class ToolRuntimeServiceTest {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         for (String tool : List.of(shortName, fullName)) {
             when(toolRegistry.getToolMetadata(tool)).thenReturn(ToolMetadata.builder()
-                .id(tool).title(tool).categories(List.of("mcp")).build());
+                .id(tool).title(tool).categories(List.of("mcp"))
+                .metadata(Map.of("capabilities", List.of("template_execution", "batch_execution"))).build());
         }
         List<String> executedTemplates = new ArrayList<>();
         when(toolRegistry.executeEnhancedTool(any(), any())).thenAnswer(invocation -> {
@@ -2101,7 +2140,8 @@ class ToolRuntimeServiceTest {
         String toolName = "api_template_execute";
         ToolRegistry registry = mock(ToolRegistry.class);
         when(registry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
-            .id(toolName).title(toolName).categories(List.of("mcp")).build());
+            .id(toolName).title(toolName).categories(List.of("mcp"))
+                .metadata(Map.of("capabilities", List.of("template_execution", "batch_execution"))).build());
         when(registry.executeEnhancedTool(any(), any()))
             .thenReturn(ToolOutput.failure("local contract rejection"));
         ToolRuntimeProperties runtimeProperties = properties();
@@ -2197,7 +2237,8 @@ class ToolRuntimeServiceTest {
         String independent = "mcp_chatchat_mcp_server_financial_data_search";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.getToolMetadata(independent)).thenReturn(ToolMetadata.builder()
-            .id(independent).title("financial data").categories(List.of("mcp")).build());
+            .id(independent).title("financial data").categories(List.of("mcp"))
+                .metadata(Map.of("capabilities", List.of("template_execution", "batch_execution"))).build());
         when(toolRegistry.executeEnhancedTool(eq(independent), any()))
             .thenReturn(ToolOutput.success(Map.of("records", List.of())));
         ToolRuntimeService service = new ToolRuntimeService(
@@ -2241,7 +2282,8 @@ class ToolRuntimeServiceTest {
         String toolName = "api_template_execute";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
-            .id(toolName).title(toolName).categories(List.of("mcp")).build());
+            .id(toolName).title(toolName).categories(List.of("mcp"))
+                .metadata(Map.of("capabilities", List.of("template_execution", "batch_execution"))).build());
         List<String> invoked = new ArrayList<>();
         when(toolRegistry.executeEnhancedTool(any(), any())).thenAnswer(invocation -> {
             ToolInput input = invocation.getArgument(1);
@@ -2282,7 +2324,8 @@ class ToolRuntimeServiceTest {
         String toolName = "sql_query_execute";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
-            .id(toolName).title(toolName).categories(List.of("mcp")).build());
+            .id(toolName).title(toolName).categories(List.of("mcp"))
+                .metadata(Map.of("capabilities", List.of("template_execution", "batch_execution"))).build());
         when(toolRegistry.executeEnhancedTool(any(), any())).thenAnswer(invocation -> {
             ToolInput input = invocation.getArgument(1);
             String template = String.valueOf(input.getParameters().get("templateCode"));
@@ -2350,7 +2393,8 @@ class ToolRuntimeServiceTest {
         String toolName = "sql_query_execute";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
-            .id(toolName).title(toolName).categories(List.of("mcp")).build());
+            .id(toolName).title(toolName).categories(List.of("mcp"))
+                .metadata(Map.of("capabilities", List.of("template_execution", "batch_execution"))).build());
         when(toolRegistry.executeEnhancedTool(any(), any()))
             .thenReturn(ToolOutput.success(Map.of("ok", true)));
         ToolRuntimeService service = new ToolRuntimeService(
@@ -2391,7 +2435,8 @@ class ToolRuntimeServiceTest {
         String toolName = "sql_query_execute";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
-            .id(toolName).title(toolName).categories(List.of("mcp")).build());
+            .id(toolName).title(toolName).categories(List.of("mcp"))
+                .metadata(Map.of("capabilities", List.of("template_execution", "batch_execution"))).build());
         ToolRuntimeService service = new ToolRuntimeService(
             toolRegistry, new ObjectMapper(), properties(), new McpPolicyProperties(),
             new McpWorkflowProperties(), List.of(), List.of());
@@ -2431,7 +2476,8 @@ class ToolRuntimeServiceTest {
         String toolName = "sql_query_execute";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
-            .id(toolName).title(toolName).categories(List.of("mcp")).build());
+            .id(toolName).title(toolName).categories(List.of("mcp"))
+                .metadata(Map.of("capabilities", List.of("template_execution", "batch_execution"))).build());
         when(toolRegistry.executeEnhancedTool(any(), any()))
             .thenReturn(ToolOutput.success(Map.of("status", "ok")));
         ToolRuntimeService service = new ToolRuntimeService(
@@ -2479,7 +2525,8 @@ class ToolRuntimeServiceTest {
         String toolName = "http_request_execute";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
-            .id(toolName).title(toolName).categories(List.of("mcp")).build());
+            .id(toolName).title(toolName).categories(List.of("mcp"))
+                .metadata(Map.of("capabilities", List.of("template_execution", "batch_execution"))).build());
         when(toolRegistry.executeEnhancedTool(any(), any()))
             .thenReturn(ToolOutput.success(Map.of("ok", true)));
         ToolRuntimeService service = new ToolRuntimeService(
@@ -2519,7 +2566,8 @@ class ToolRuntimeServiceTest {
         String toolName = "http_request_execute";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
-            .id(toolName).title(toolName).categories(List.of("mcp")).build());
+            .id(toolName).title(toolName).categories(List.of("mcp"))
+                .metadata(Map.of("capabilities", List.of("template_execution", "batch_execution"))).build());
         ToolRuntimeService service = new ToolRuntimeService(
             toolRegistry, new ObjectMapper(), properties(), new McpPolicyProperties(),
             new McpWorkflowProperties(), List.of(), List.of());
@@ -2550,7 +2598,8 @@ class ToolRuntimeServiceTest {
         String toolName = "sql_query_execute";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
-            .id(toolName).title(toolName).categories(List.of("mcp")).build());
+            .id(toolName).title(toolName).categories(List.of("mcp"))
+                .metadata(Map.of("capabilities", List.of("template_execution", "batch_execution"))).build());
         when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.success(List.of()));
         ToolRuntimeService service = new ToolRuntimeService(
             toolRegistry, new ObjectMapper(), properties(), new McpPolicyProperties(),
@@ -2580,7 +2629,8 @@ class ToolRuntimeServiceTest {
         String toolName = "sql_query_execute";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
-            .id(toolName).title(toolName).categories(List.of("mcp")).build());
+            .id(toolName).title(toolName).categories(List.of("mcp"))
+                .metadata(Map.of("capabilities", List.of("template_execution", "batch_execution"))).build());
         when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.failure("first failed"));
         ToolRuntimeProperties runtimeProperties = properties();
         runtimeProperties.setDefaultRetryAttempts(0);
@@ -2618,7 +2668,8 @@ class ToolRuntimeServiceTest {
         String toolName = "sql_query_execute";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
-            .id(toolName).title(toolName).categories(List.of("mcp")).build());
+            .id(toolName).title(toolName).categories(List.of("mcp"))
+                .metadata(Map.of("capabilities", List.of("template_execution", "batch_execution"))).build());
         when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.failure("child failed"));
         ToolRuntimeProperties runtimeProperties = properties();
         runtimeProperties.setDefaultRetryAttempts(0);
@@ -2647,7 +2698,8 @@ class ToolRuntimeServiceTest {
         String registeredTool = "mcp_chatchat_mcp_server_api_template_execute";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.getToolMetadata(registeredTool)).thenReturn(ToolMetadata.builder()
-            .id(registeredTool).title("API template executor").categories(List.of("mcp")).build());
+            .id(registeredTool).title("API template executor").categories(List.of("mcp"))
+                .metadata(Map.of("capabilities", List.of("template_execution", "batch_execution"))).build());
         when(toolRegistry.executeEnhancedTool(eq(registeredTool), any()))
             .thenReturn(ToolOutput.success(Map.of("records", List.of())));
         ToolRuntimeService service = new ToolRuntimeService(
@@ -2729,7 +2781,8 @@ class ToolRuntimeServiceTest {
         String toolName = "sql_query_execute";
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
-            .id(toolName).title(toolName).categories(List.of("mcp")).build());
+            .id(toolName).title(toolName).categories(List.of("mcp"))
+                .metadata(Map.of("capabilities", List.of("template_execution", "batch_execution"))).build());
         ToolRuntimeService service = new ToolRuntimeService(
             toolRegistry, new ObjectMapper(), properties(), new McpPolicyProperties(),
             new McpWorkflowProperties(), List.of(), List.of());
@@ -2754,7 +2807,8 @@ class ToolRuntimeServiceTest {
     void rejectsOversizedBatchBeforeAnyRemoteInvocation() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.getToolMetadata(any())).thenReturn(ToolMetadata.builder()
-            .id("sql_query_execute").categories(List.of("mcp")).build());
+            .id("sql_query_execute").categories(List.of("mcp"))
+                .metadata(Map.of("capabilities", List.of("template_execution", "batch_execution"))).build());
         ToolRuntimeProperties runtimeProperties = properties();
         runtimeProperties.setMaxBatchPayloadBytes(1024);
         ToolRuntimeService service = new ToolRuntimeService(
@@ -2780,7 +2834,8 @@ class ToolRuntimeServiceTest {
     void rejectsCallLimitAndNestedBatchBeforeAnyRemoteInvocation() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.getToolMetadata(any())).thenReturn(ToolMetadata.builder()
-            .id("sql_query_execute").categories(List.of("mcp")).build());
+            .id("sql_query_execute").categories(List.of("mcp"))
+                .metadata(Map.of("capabilities", List.of("template_execution", "batch_execution"))).build());
         ToolRuntimeProperties runtimeProperties = properties();
         runtimeProperties.setMaxBatchCalls(1);
         ToolRuntimeService service = new ToolRuntimeService(

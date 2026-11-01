@@ -14,6 +14,8 @@ import com.chatchat.common.mcp.service.McpToolQuery;
 import com.chatchat.common.kernel.KernelHealth;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.chatchat.common.mcp.admin.McpAdministrationPort;
 
 import java.util.List;
 
@@ -21,18 +23,31 @@ import java.util.List;
 @Service
 public class McpRuntimeAccessService {
     private final McpRuntimeTransportPort transport;
+    private final McpAdministrationPort administration;
 
     public McpRuntimeAccessService(
         @Qualifier("mcpRuntimeTransportPort") McpRuntimeTransportPort transport
     ) {
+        this(transport, null);
+    }
+
+    @Autowired
+    public McpRuntimeAccessService(
+        @Qualifier("mcpRuntimeTransportPort") McpRuntimeTransportPort transport,
+        McpAdministrationPort administration
+    ) {
         this.transport = transport;
+        this.administration = administration;
     }
 
     public List<McpServiceDescriptor> services() { return transport.services(); }
     public List<McpToolDescriptor> tools(McpToolQuery query) { return transport.tools(query); }
     public McpServiceResult invoke(McpServiceCall call) { return transport.invoke(call); }
     public McpResultRepairResult repair(McpResultRepairRequest request) { return transport.repair(request); }
-    public void refresh() { transport.refresh(); }
+    public void refresh() {
+        if (administration == null) transport.refresh();
+        else administration.refresh();
+    }
     public List<McpDomainContractDescriptor> contracts() { return transport.contracts(); }
     public McpContractAuditReport audit(McpContractAuditRequest request) { return transport.audit(request); }
     public KernelHealth health() { return transport.health(); }

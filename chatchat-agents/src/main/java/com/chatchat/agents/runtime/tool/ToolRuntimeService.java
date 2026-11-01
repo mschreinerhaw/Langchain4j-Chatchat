@@ -567,6 +567,18 @@ public class ToolRuntimeService {
                 }
                 ToolRuntimeRequest childRequest = batchChildRequest(
                     context, batchId, callId, toolName, arguments, index);
+                if (confirmedBatch(context, batch)) {
+                    // Approval is bound to the entire unchanged batch. Each child
+                    // still passes its own schema, authorization and deny gates.
+                    var admission = executeOnce(childRequest, true);
+                    if (admission != null && "confirmation_required".equals(admission.outcome())) {
+                        var confirmation = asMap(admission.audit().get("confirmation"));
+                        childRequest.getAttributes().put("mcpConfirmation", Map.of(
+                            "approved", true, "token", confirmation.get("token")));
+                    } else if (admission != null) {
+                        return TemplateExecutionLayer.Invocation.completed(admission);
+                    }
+                }
                 return TemplateExecutionLayer.Invocation.completed(context.getAttributes() != null
                     && context.getAttributes().containsKey("harnessToolRequestId")
                     ? executeRecoverableBatchChild(childRequest, callId, index) : execute(childRequest));
@@ -744,6 +756,19 @@ public class ToolRuntimeService {
 
     private ToolRuntimeExecution executeBatchRequest(ToolCallBatch batch, ToolRuntimeRequest request) {
         long startedAt = System.currentTimeMillis();
+        ToolMetadata outerMetadata = toolRegistry.getToolMetadata(request.getToolName());
+        ToolExecutionPlan batchPlan = buildExecutionPlan(request.getToolName(), request, outerMetadata, request.getToolInput());
+        ToolRuntimePolicy batchPolicy = resolvePolicy(request, outerMetadata);
+        ToolPolicyDecision decision = batchPolicyDecision(request, outerMetadata, batchPolicy, batchPlan);
+        if (isDeniedByPolicy(request.getToolName(), request) || isDeniedByResolvedPolicy(batchPolicy)
+                || decision.action() == ToolRuntimeAction.DENY) {
+            return deniedExecution(request.getToolName(), request, outerMetadata,
+                firstText(batchPolicy == null ? null : batchPolicy.reason(), decision.reason()),
+                "BATCH_POLICY_DENIED", batchPlan, decision);
+        }
+        if (decision.action() == ToolRuntimeAction.ASK_BEFORE_EXECUTE && !isConfirmed(request, decision)) {
+            return confirmationRequiredExecution(request.getToolName(), request, outerMetadata, batchPlan, decision);
+        }
         ToolCallBatchResult result = executeBatch(batch, request);
         long finishedAt = System.currentTimeMillis();
         boolean summarizeAvailable = summarizeAvailableResults(request);
@@ -812,6 +837,22 @@ public class ToolRuntimeService {
             result.status().toLowerCase(Locale.ROOT),
             runtimeMetadata
         );
+    }
+
+    private ToolPolicyDecision batchPolicyDecision(ToolRuntimeRequest request, ToolMetadata metadata,
+            ToolRuntimePolicy policy, ToolExecutionPlan plan) {
+        return applyWorkflowDecision(decideMcpPolicy(request.getToolName(), request, metadata,
+            request.getToolInput(), policy, plan),
+            decideWorkflow(request.getToolName(), request, request.getToolInput(), plan));
+    }
+
+    private boolean confirmedBatch(ToolRuntimeRequest request, ToolCallBatch batch) {
+        if (request == null || request.getToolInput() == null) return false;
+        if (!Objects.equals(batch, toolCallBatch(request))) return false;
+        ToolMetadata metadata = toolRegistry.getToolMetadata(request.getToolName());
+        var plan = buildExecutionPlan(request.getToolName(), request, metadata, request.getToolInput());
+        var decision = batchPolicyDecision(request, metadata, resolvePolicy(request, metadata), plan);
+        return decision.action() == ToolRuntimeAction.ASK_BEFORE_EXECUTE && isConfirmed(request, decision);
     }
 
     private String batchFailureMessage(ToolCallBatchResult result) {
@@ -2202,6 +2243,7 @@ public class ToolRuntimeService {
                 stringValue(firstPresent(call.get("toolName"), call.get("tool_name"))),
                 outerTool
             );
+            toolName = resolveBatchChildToolName(request, toolName);
             if (!batchCapableTool(toolName)) {
                 return BatchValidation.invalid("BATCH_TOOL_NOT_ALLOWED",
                     "Batch call " + callId + " is not a registered batch-capable executor");

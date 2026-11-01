@@ -121,6 +121,9 @@ public class DefaultMcpAdministrationAdapter implements McpAdministrationPort {
     @Override
     public RefreshResult refresh() {
         runtimeKernel.refresh();
+        // With gRPC the kernel refreshes the remote registry. Agent planning still
+        // reads the local registry, so reconcile its publisher metadata as well.
+        registryBridge.refreshRegistryIfCatalogChanged(0);
         return new RefreshResult(registryBridge.listRegisteredTools().size());
     }
 

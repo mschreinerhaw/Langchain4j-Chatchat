@@ -13,6 +13,14 @@ import static org.mockito.Mockito.when;
 
 class McpRuntimeAccessServiceTest {
     @Test
+    void refreshUsesAdministrationToUpdateBothRemoteAndLocalAgentRegistries() {
+        var transport = mock(McpRuntimeTransportPort.class);
+        var administration = mock(com.chatchat.common.mcp.admin.McpAdministrationPort.class);
+        new McpRuntimeAccessService(transport, administration).refresh();
+        org.mockito.Mockito.verify(administration).refresh();
+        org.mockito.Mockito.verifyNoInteractions(transport);
+    }
+    @Test
     void apiLayerDependsOnCommonDirectoryAndExposesInjectedServices() {
         McpRuntimeTransportPort transport = mock(McpRuntimeTransportPort.class);
         when(transport.services()).thenReturn(List.of(

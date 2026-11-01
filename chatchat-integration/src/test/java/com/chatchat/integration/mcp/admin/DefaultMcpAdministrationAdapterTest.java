@@ -24,6 +24,21 @@ import static org.mockito.Mockito.when;
 class DefaultMcpAdministrationAdapterTest {
 
     @Test
+    void refreshReconcilesLocalAgentRegistryAfterRemoteKernelRefresh() {
+        var bridge = mock(McpToolRegistryBridge.class);
+        var kernel = mock(McpRuntimeKernel.class);
+        when(bridge.listRegisteredTools()).thenReturn(List.of());
+        var adapter = new DefaultMcpAdministrationAdapter(mock(McpServiceConfigService.class),
+            mock(McpStdioProxyService.class), bridge, kernel, mock(McpCenterSyncService.class),
+            mock(McpCenterRecoveryService.class), mock(ToolRegistry.class), new ObjectMapper());
+        assertThat(adapter.refresh().registeredToolCount()).isZero();
+        var order = inOrder(kernel, bridge);
+        order.verify(kernel).refresh();
+        order.verify(bridge).refreshRegistryIfCatalogChanged(0);
+        order.verify(bridge).listRegisteredTools();
+    }
+
+    @Test
     void registeredToolsExposeTheSameChineseAliasAsCapabilityCards() {
         McpToolRegistryBridge bridge = mock(McpToolRegistryBridge.class);
         when(bridge.listRegisteredTools()).thenReturn(List.of(

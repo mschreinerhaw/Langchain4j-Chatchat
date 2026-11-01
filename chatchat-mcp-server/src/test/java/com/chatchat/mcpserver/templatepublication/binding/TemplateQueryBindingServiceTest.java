@@ -21,6 +21,28 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class TemplateQueryBindingServiceTest {
+    @Test
+    void relationalBindingRetainsStudioKeysAndIntersectsRolePolicy() {
+        var repository = mock(TemplateQueryBindingRepository.class);
+        var roles = mock(McpSynchronizedRoleRepository.class);
+        var authorization = centralAuthorization();
+        var catalog = mock(TemplateAssetCatalogService.class);
+        var service = new TemplateQueryBindingService(repository, catalog, new TemplateQueryParentCatalog(), roles, new ObjectMapper(), authorization);
+        var binding = binding("binding-1", "tenant-1", TemplateQueryParentCatalog.SERVICE_ID, "role-1",
+            "[\"database_query:manual\",\"sql_datasource:STUDIO_ALLOWED\",\"sql_datasource:STUDIO_DENIED\"]");
+        binding.setParentToolName("database_query_template_query");
+        when(repository.findByDomainCode("customer")).thenReturn(List.of(binding));
+        when(roles.findById("role-1")).thenReturn(Optional.of(role("role-1", "FINANCE")));
+        when(authorization.currentCallerContext()).thenReturn(new McpAuthorizationService.CallerAuthorizationContext(
+            "tenant-1", "user-1", "user", List.of("role-1")));
+        when(catalog.listAuthorizedForRoleAndType("role-1", TemplateAssetCatalogService.DATABASE_QUERY))
+            .thenReturn(List.of(asset("database_query:manual")));
+        when(catalog.listAuthorizedForRoleAndType("role-1", TemplateAssetCatalogService.SQL))
+            .thenReturn(List.of(asset("sql_datasource:STUDIO_ALLOWED").withQueryFamily("relational")));
+        assertThat(service.allowedTemplates(context(TemplateQueryParentCatalog.SERVICE_ID, "FINANCE"), "customer_template_query"))
+            .containsEntry("database_query", Set.of("manual"))
+            .containsEntry("sql_datasource", Set.of("STUDIO_ALLOWED"));
+    }
     @Test void deleteInactiveRefusesRunningBindingsAndRemovesOnlyTheRequestedStoppedBinding() {
         var repository=mock(TemplateQueryBindingRepository.class);
         var service=new TemplateQueryBindingService(repository,mock(TemplateAssetCatalogService.class),new TemplateQueryParentCatalog(),

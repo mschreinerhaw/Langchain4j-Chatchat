@@ -1,4 +1,4 @@
-﻿/** Real Studio API workflow. SQL comes from the model, never from this harness. */
+/** Real Studio API workflow. SQL comes from the model, never from this harness. */
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -59,4 +59,3 @@ if(command==='setup'){
   }
  }
 }
-

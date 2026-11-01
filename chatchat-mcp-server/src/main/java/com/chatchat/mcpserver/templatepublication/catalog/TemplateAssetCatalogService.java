@@ -174,8 +174,10 @@ public class TemplateAssetCatalogService {
                     ((com.fasterxml.jackson.databind.node.ObjectNode)dependency).remove(List.of("publicationGroupId","publicationVersion","authorTenantId","authorId","publicationState"));
                 dependencies.add(dependency);
             }
-            var snapshot = objectMapper.valueToTree(List.of(template, binding, dependencies));
             boolean studioSql=definitions.length>0 && definitions[0] instanceof com.chatchat.mcpserver.sql.template.SqlTemplateConfig sql && sql.getPublicationGroupId()!=null;
+            // Query family is discovery metadata, not an execution-contract revision.
+            // Existing Studio releases were hashed with this field unset.
+            var snapshot = objectMapper.valueToTree(List.of(studioSql ? template.withQueryFamily(null) : template, binding, dependencies));
             if(studioSql)snapshot=orderedSnapshot(snapshot);
             String revision = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
                 .digest(objectMapper.writeValueAsBytes(snapshot)));

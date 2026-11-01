@@ -81,6 +81,8 @@ class TemplateAssetCatalogServiceTest {
         var firstBinding=new java.util.LinkedHashMap<String,Object>();firstBinding.put("datasourceId","db");firstBinding.put("template",row.getCode());firstBinding.put("permissionLevel","read");firstBinding.put("sqlRevisionId",row.getId());
         var secondBinding=new java.util.LinkedHashMap<String,Object>();secondBinding.put("sqlRevisionId",row.getId());secondBinding.put("permissionLevel","read");secondBinding.put("template",row.getCode());secondBinding.put("datasourceId","db");
         TemplateAssetCatalogService.BoundTemplate first=org.springframework.test.util.ReflectionTestUtils.invokeMethod(service,"bound",asset,"db","Db","sql_query_execute",firstBinding,new Object[]{row,datasource});
+        TemplateAssetCatalogService.BoundTemplate legacyFamily=org.springframework.test.util.ReflectionTestUtils.invokeMethod(service,"bound",asset.withQueryFamily(null),"db","Db","sql_query_execute",firstBinding,new Object[]{row,datasource});
+        assertThat(first.revision()).isEqualTo(legacyFamily.revision());
         row.setPublicationLock(99L);row.setReleasedCapabilityId("new-release");row.setSqlTestEvidenceJson("{\"success\":true}");
         TemplateAssetCatalogService.BoundTemplate second=org.springframework.test.util.ReflectionTestUtils.invokeMethod(service,"bound",asset,"db","Db","sql_query_execute",secondBinding,new Object[]{row,datasource});
         assertThat(second.revision()).isEqualTo(first.revision());

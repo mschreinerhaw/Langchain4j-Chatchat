@@ -167,7 +167,7 @@
               <span>{{ skill.enabled === false ? "暂不可用" : skill.source === "Microsoft" ? "Microsoft 来源 · 需对应环境支持" : "内置基础能力 · 按需自动使用" }}</span>
             </div>
             <div class="domain-skill-item-actions">
-              <button type="button" class="secondary-button" @click="builtinDetail = skill">查看详情</button>
+              <button type="button" class="feature-button secondary" @click="builtinDetail = skill">查看详情</button>
             </div>
           </article>
         </section>

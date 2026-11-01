@@ -82,7 +82,9 @@ export default {
         { key: 'publicationState', label: '发布状态', formatter: value => value || '由子模板发布管理' },
         { key: 'parameterSummary', label: '参数摘要', formatter: value => value || '见详情' },
         { key: 'publishedAt', label: '发布时间', formatter: value => value || '—' },
-        { key: 'businessGroupName', label: '能力分类' },
+        { key: 'businessGroupName', label: '能力分类', formatter: (value, row) => row.sourceKind === 'SQL_STUDIO'
+          ? this.categories.find(category => category.code === row.capabilityCategory)?.name || '未分类'
+          : value },
         { key: 'domain', label: '业务领域' },
         { key: 'maxRows', label: '最大行数' },
         { key: 'dataAvailabilityStatus', label: '数据状态', formatter: (value, row) => this.dataAvailabilityLabel(value, row) },

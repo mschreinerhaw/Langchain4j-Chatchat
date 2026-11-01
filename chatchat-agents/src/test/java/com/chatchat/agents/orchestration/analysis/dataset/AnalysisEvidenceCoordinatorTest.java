@@ -30,8 +30,8 @@ class AnalysisEvidenceCoordinatorTest {
         var diagnostics=Map.of("templateParameters",values,"templateMetadata",Map.of("inputSchema",Map.of(
             "properties",Map.of("region",Map.of("type",List.of("string","null")),"threshold",Map.of("type","integer")))));
         var envelope=Map.of("dataSchema","sql_result.v1","success",true,
-            "sourceMetadata",Map.of("executionType","SQL_QUERY","operation",Map.of("templateId","opaque-definition","statementHash","hash"),"asset",Map.of("id","source-id")),
-            "operation",Map.of("diagnostics",diagnostics),
+            "sourceMetadata",Map.of("executionType","SQL_QUERY","operation",Map.of("templateId","opaque-definition","statementHash","hash"),"asset",Map.of("id","source-id"),"business",Map.of("description","Count records by declared region")),
+            "operation",Map.of("diagnostics",diagnostics,"statement","SELECT region,COUNT(*) AS total FROM source GROUP BY region"),
             "data",Map.of("rows",List.of(Map.of("count",7)),"rowCount",1,"complete",true,"possiblyTruncated",false));
         assertThat(coordinator(mock(ToolRegistry.class),new com.chatchat.agents.runtime.analysis.McpResultAnalysisBridge())
             .project(result(step("published-query",envelope))).datasets()).singleElement().satisfies(dataset->{
@@ -40,6 +40,10 @@ class AnalysisEvidenceCoordinatorTest {
                     .containsEntry("userConstraintAlignment","NOT_EVALUATED");
                 assertThat((Map<String,Object>)audit.get("effectiveParameters")).containsEntry("region",null)
                     .containsEntry("threshold",4).doesNotContainKey("ambientDate");
+                assertThat((Map<String,Object>)dataset.analysisContext().get("source"))
+                    .containsEntry("queryDefinition","SELECT region,COUNT(*) AS total FROM source GROUP BY region")
+                    .containsEntry("queryDefinitionOrigin","MCP_SQL_EXECUTION_RECEIPT")
+                    .containsEntry("description","Count records by declared region");
                 assertThat(dataset.records()).singleElement().satisfies(row->assertThat(row).containsEntry("count",7));
             });
     }

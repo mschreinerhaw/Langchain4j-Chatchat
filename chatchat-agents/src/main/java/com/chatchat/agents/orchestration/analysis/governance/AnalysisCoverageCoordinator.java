@@ -282,6 +282,9 @@ public final class AnalysisCoverageCoordinator {
         if (page.rows().size() != 1)
             throw new IllegalStateException("Primary Coding report row is unavailable");
         Map<String,Object> row = page.rows().get(0);
+        if(row.get("analysisStatus") instanceof String status
+            && Set.of("COMPLETE","PARTIAL","INPUT_REQUIRED").contains(status))
+            request.metadata().put("codingOwnedAnalysisStatus",status);
         String report = String.valueOf(row.getOrDefault("reportMarkdown", "")).trim();
         if (report.isBlank()) throw new IllegalStateException("Primary Coding report is empty");
         List<String> cited = stringList(row.get("evidenceReferences"));

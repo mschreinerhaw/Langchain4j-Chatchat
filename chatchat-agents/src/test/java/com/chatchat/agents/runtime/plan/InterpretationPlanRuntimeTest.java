@@ -61,12 +61,13 @@ class InterpretationPlanRuntimeTest {
         String name="mcp_published_query";
         var service=mock(ToolRuntimeService.class);
         var registry=mock(ToolRegistry.class);
-        var schema=Map.of("type","object","properties",Map.of("period",Map.of("type","string","format","date")),"required",List.of("period"));
+        var schema=Map.of("type","object","properties",Map.of("site",Map.of("type","integer"),
+            "period",Map.of("type","string","format","date")),"required",List.of("site","period"));
         when(registry.getToolMetadata(name)).thenReturn(ToolMetadata.builder().id(name).metadata(Map.of(
             "inputSchema",schema,
             "mcpToolMeta",Map.of("templateCapability",true,"resultSchemaRef","sql_result.v1"))).build());
         var runtime=new InterpretationPlanRuntime(service,new InterpretationPlanValidator(),mock(InterpretationPlanRuntime.DagExecutionController.class));
-        var step=new InterpretationPlan.Step(1,"mcp_tool",name,Map.of("period","1890-01-01"),List.of(),null,null);
+        var step=new InterpretationPlan.Step(1,"mcp_tool",name,Map.of("site",7,"period","1890-01-01"),List.of(),null,null);
         var method=InterpretationPlanRuntime.class.getDeclaredMethod("resolvedStepInput",InterpretationPlan.Step.class,
             InterpretationPlanRuntime.ExecutionRequest.class,Map.class);method.setAccessible(true);
         var request=new InterpretationPlanRuntime.ExecutionRequest(minimalPlan(step),registry,List.of(name),"tenant","request","conversation","user",

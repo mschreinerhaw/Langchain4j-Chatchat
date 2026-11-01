@@ -32,7 +32,7 @@ public final class RequiredTemporalArgumentGrounding {
         for (Object key : required) {
             String field = String.valueOf(key);
             if (!(properties.get(field) instanceof Map<?, ?> property)) continue;
-            if (!List.of("date", "date-time").contains(property.get("format"))) continue;
+            if (!"date".equals(property.get("format")) && !"date-time".equals(property.get("format"))) continue;
             Object value = arguments.get(field);
             if (value == null) continue; // Missing/invalid values are handled by schema validation.
             if (property.containsKey("default") && Objects.equals(value, property.get("default"))) continue;

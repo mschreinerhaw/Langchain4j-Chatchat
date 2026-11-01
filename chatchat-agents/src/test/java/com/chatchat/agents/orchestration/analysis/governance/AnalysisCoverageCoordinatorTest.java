@@ -109,6 +109,7 @@ class AnalysisCoverageCoordinatorTest {
                 calls.incrementAndGet();
                 sources.put("coding-result", new AnalysisEvidenceCoordinator.Dataset("coding-result", Map.of(), List.of(Map.of(
                     "reportMarkdown", "# Result\nComputed by Coding.",
+                    "analysisStatus", "PARTIAL",
                     "evidenceReferences", List.of("source-1", "source-2"),
                     "limitations", List.of("None declared")))));
                 return Map.of("status", "COMPLETED", "resultAvailable", true,
@@ -129,6 +130,7 @@ class AnalysisCoverageCoordinatorTest {
         assertThat(calls).hasValue(1);
         assertThat(metadata).containsEntry("datasetAnalysisMode", "CODING_OWNED_DATA_ANALYSIS")
             .containsEntry("modelNativeReportDraft", "# Result\nComputed by Coding.")
+            .containsEntry("codingOwnedAnalysisStatus", "PARTIAL")
             .containsEntry("javaDataExplorationSkipped", true)
             .doesNotContainKey("modelAnalysisProtocol");
         assertThat(coverage.returnedRecordCount()).isEqualTo(2);

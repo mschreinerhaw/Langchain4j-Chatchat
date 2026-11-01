@@ -17,6 +17,12 @@ public final class CodingFieldDefinitions {
             if (source.get(key) instanceof String text && !text.isBlank() && text.length()<=4096)
                 result.put(key,text);
         }
+        if(source.get("queryDefinition") instanceof String sql && !sql.isBlank() && sql.length()<=16000
+            && "MCP_SQL_EXECUTION_RECEIPT".equals(source.get("queryDefinitionOrigin"))) {
+            result.put("queryDefinition",sql);result.put("queryDefinitionOrigin","MCP_SQL_EXECUTION_RECEIPT");
+        }
+        if(source.get("resultComplete") instanceof Boolean complete)result.put("resultComplete",complete);
+        if(source.get("returnedRowCount") instanceof Number count)result.put("returnedRowCount",count);
         return Map.copyOf(result);
     }
 

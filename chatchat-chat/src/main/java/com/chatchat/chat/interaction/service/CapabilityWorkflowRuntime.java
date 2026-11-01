@@ -86,6 +86,13 @@ public final class CapabilityWorkflowRuntime {
             return new WorkflowOutcome(WorkflowOutcome.Type.PARTIAL_RESULT, "ANSWER_EVIDENCE_AUDIT_FAILED",
                 List.copyOf(missing), outcome.missingOptionalCapabilities(), outcome.usableResult());
         }
+        String analysisStatus=String.valueOf(agent.get("codingOwnedAnalysisStatus"));
+        if(outcome.type()==WorkflowOutcome.Type.READY_TO_ANSWER
+            && Set.of("PARTIAL","INPUT_REQUIRED").contains(analysisStatus)) {
+            Set<String> missing=new LinkedHashSet<>(outcome.missingRequiredCapabilities());missing.add("analysis_evidence");
+            return new WorkflowOutcome(WorkflowOutcome.Type.PARTIAL_RESULT,"CODING_ANALYSIS_"+analysisStatus,
+                List.copyOf(missing),outcome.missingOptionalCapabilities(),outcome.usableResult());
+        }
         return outcome;
     }
 

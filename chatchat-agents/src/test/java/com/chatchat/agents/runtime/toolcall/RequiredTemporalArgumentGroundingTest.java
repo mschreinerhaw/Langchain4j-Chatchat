@@ -46,4 +46,13 @@ class RequiredTemporalArgumentGroundingTest {
         assertThatCode(() -> guard.validate(Map.of("period","2026-10-01"),schema,"上月",Map.of())).doesNotThrowAnyException();
         assertThatThrownBy(() -> guard.validate(Map.of("period","2024-01-01"),schema,"去年",Map.of())).hasMessageContaining("USER_INPUT_REQUIRED");
     }
+    @Test void nonTemporalRequiredFieldsWithoutFormatDoNotBreakMixedSchemas() {
+        var mixed=Map.<String,Object>of("properties",Map.of(
+            "site",Map.of("type","integer"),"period",Map.of("type","string","format","date")),
+            "required",List.of("site","period"));
+        assertThatCode(()->guard.validate(Map.of("site",7,"period","2025-07-01"),mixed,"2025-07-01",Map.of()))
+            .doesNotThrowAnyException();
+        assertThatThrownBy(()->guard.validate(Map.of("site",7,"period","2025-07-01"),mixed,"分析站点7",Map.of()))
+            .hasMessageContaining("USER_INPUT_REQUIRED").hasMessageNotContaining("site");
+    }
 }

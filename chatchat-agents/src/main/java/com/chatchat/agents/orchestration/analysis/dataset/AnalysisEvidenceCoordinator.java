@@ -347,12 +347,26 @@ public final class AnalysisEvidenceCoordinator {
     }
 
     private Map<String,Object> sqlExecutionParameterContext(Map<String,Object> context,Map<String,Object> envelope) {
-        if(context.containsKey("templateParameterBinding") || !"sql_result.v1".equals(envelope.get("dataSchema"))
+        if(!"sql_result.v1".equals(envelope.get("dataSchema"))
             || !Boolean.TRUE.equals(envelope.get("success")))return context;
         var source=map(envelope.get("sourceMetadata"));var operation=map(source.get("operation"));
         if(!"SQL_QUERY".equals(source.get("executionType")) || !(operation.get("templateId") instanceof String templateId) || templateId.isBlank())return context;
+        // Preserve actual producer declarations and executed expressions alongside the rows.
+        // Expressions establish calculation lineage, never an unprovided unit/currency or business meaning.
+        var result=new LinkedHashMap<>(context);var declaration=new LinkedHashMap<>(map(context.get("source")));
+        var business=map(source.get("business"));
+        if(business.get("description") instanceof String description && !description.isBlank())declaration.put("description",description);
+        if(business.get("name") instanceof String name && !name.isBlank())declaration.put("displayName",name);
+        if(map(envelope.get("operation")).get("statement") instanceof String sql && !sql.isBlank()) {
+            declaration.put("queryDefinition",sql);declaration.put("queryDefinitionOrigin","MCP_SQL_EXECUTION_RECEIPT");
+        }
+        var data=map(envelope.get("data"));
+        declaration.put("resultComplete",Boolean.TRUE.equals(data.get("complete")) && !Boolean.TRUE.equals(data.get("possiblyTruncated")));
+        if(data.get("rowCount") instanceof Number count)declaration.put("returnedRowCount",count);
+        result.put("source",declaration);result.put("sourceTemplateId",templateId);
+        if(context.containsKey("templateParameterBinding"))return result;
         var diagnostics=map(map(envelope.get("operation")).get("diagnostics"));
-        if(!(diagnostics.get("templateParameters") instanceof Map<?,?>))return context;
+        if(!(diagnostics.get("templateParameters") instanceof Map<?,?>))return result;
         var effective=new LinkedHashMap<>(map(diagnostics.get("templateParameters")));
         var schema=map(map(diagnostics.get("templateMetadata")).get("inputSchema"));
         if(schema.get("properties") instanceof Map<?,?> fields)effective.keySet().retainAll(fields.keySet());
@@ -361,7 +375,7 @@ public final class AnalysisEvidenceCoordinator {
         audit.put("parameterSources",provenance);audit.put("scopeStatus","EXECUTION_VALUES_RECORDED");
         audit.put("userConstraintAlignment","NOT_EVALUATED");audit.put("provenanceSource","MCP_SQL_EXECUTION_RECEIPT");
         audit.put("statementHash",operation.get("statementHash"));audit.put("datasourceId",map(source.get("asset")).get("id"));
-        var result=new LinkedHashMap<>(context);result.put("templateParameterBinding",audit);return result;
+        result.put("templateParameterBinding",audit);return result;
     }
 
     private Map<String,Object> sqlEnvelope(Object output) {

@@ -248,6 +248,11 @@ public class ProblemAnalysisPlanner {
             .readTree(json);
         if (node == null || !node.isObject() || !node.path("tasks").isArray() || node.path("tasks").size() > 8)
             throw new IllegalArgumentException("Invalid analysis plan schema");
+        // READY has no clarification to ask. Normalize only this unused nullable field;
+        // unresolved plans still require a real nonblank question and no task is invented.
+        if("READY".equals(node.path("status").asText())
+            && (!node.has("clarificationQuestion") || node.path("clarificationQuestion").isNull()))
+            ((com.fasterxml.jackson.databind.node.ObjectNode)node).put("clarificationQuestion","");
         for (String field : List.of("status", "objective", "subject", "domain", "explanation", "clarificationQuestion"))
             if (!node.path(field).isTextual() || node.path(field).asText().length() > 1000)
                 throw new IllegalArgumentException("Invalid plan field: " + field);

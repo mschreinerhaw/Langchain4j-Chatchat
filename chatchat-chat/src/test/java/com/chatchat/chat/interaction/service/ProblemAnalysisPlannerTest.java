@@ -14,6 +14,27 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class ProblemAnalysisPlannerTest {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans={false,true})
+    @SuppressWarnings("unchecked") void readyPlanDoesNotFailForAnUnusedNullOrOmittedClarification(boolean omitted) {
+        var model=mock(ChatModel.class);
+        String answer=omitted?READY.replace(",\"clarificationQuestion\":\"\"","")
+            :READY.replace("\"clarificationQuestion\":\"\"","\"clarificationQuestion\":null");
+        when(model.chat(anyString())).thenReturn(answer);
+        var planner=new ProblemAnalysisPlanner(model,mock(ConfigurableChatModelFactory.class),new ObjectMapper(),mock(ObjectProvider.class));
+        var plan=planner.analyze(InteractionRequest.builder().query("说明模板用途").build(),InteractionContext.builder().build(),mock(SkillDefinition.class));
+        assertThat(plan.status()).isEqualTo(ProblemAnalysisPlan.Status.READY);
+        assertThat(plan.clarificationQuestion()).isEmpty();assertThat(plan.tasks()).hasSize(1);
+        assertThat(ProblemAnalysisPlanner.executable(plan)).isTrue();verify(model,times(1)).chat(anyString());
+    }
+    @Test @SuppressWarnings("unchecked") void unresolvedPlanStillRequiresAnActualClarificationQuestion() {
+        var model=mock(ChatModel.class);when(model.chat(anyString())).thenReturn(READY
+            .replace("\"status\":\"READY\"","\"status\":\"NEEDS_CLARIFICATION\"")
+            .replace("\"clarificationQuestion\":\"\"","\"clarificationQuestion\":null"));
+        var planner=new ProblemAnalysisPlanner(model,mock(ConfigurableChatModelFactory.class),new ObjectMapper(),mock(ObjectProvider.class));
+        var plan=planner.analyze(InteractionRequest.builder().query("分析这个").build(),InteractionContext.builder().build(),mock(SkillDefinition.class));
+        assertThat(plan.status()).isEqualTo(ProblemAnalysisPlan.Status.PLANNING_FAILED);verify(model,times(1)).chat(anyString());
+    }
     @Test @SuppressWarnings("unchecked") void largeSuppliedMaterialsUseABoundedPlanningViewAndRetainTheOriginalRequest(){
         var model=mock(ChatModel.class);when(model.chat(anyString())).thenReturn(READY);
         var planner=new ProblemAnalysisPlanner(model,mock(ConfigurableChatModelFactory.class),new ObjectMapper(),mock(ObjectProvider.class));

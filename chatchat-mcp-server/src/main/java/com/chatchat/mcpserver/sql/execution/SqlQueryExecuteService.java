@@ -217,7 +217,7 @@ public class SqlQueryExecuteService {
         }
         if (sql != null && !sql.isBlank()) {
             if(request.get(StudioPreparedSql.KEY) instanceof StudioPreparedSql prepared) {
-                if(!sql.equals(prepared.sql()))throw new IllegalArgumentException("Prepared Studio SQL does not match request");
+                if(!sql.equals(prepared.sql().trim()))throw new IllegalArgumentException("Prepared Studio SQL does not match request");
                 return prepared.sql();
             }
             return dynamicDateParamService.resolveSqlPlaceholders(sql, datasource);

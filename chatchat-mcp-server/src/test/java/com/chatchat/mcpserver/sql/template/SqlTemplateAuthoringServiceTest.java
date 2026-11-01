@@ -84,7 +84,7 @@ class SqlTemplateAuthoringServiceTest {
         verifyNoInteractions(audit,capabilities);
     }
     @Test void realJdbcQueryProducesBoundedVersionEvidence() throws Exception {
-        var row=create("select * from publication_rows where id > {{value}}");
+        var row=create("\n-- Parameter description: {{value}} is a lower bound, not another SQL binding.\nselect * from publication_rows where id > {{value}}\n");
         var result=service.test("tenant","owner",row.getId(),action(row,Map.of("value",0)));
         var evidence=json.valueToTree(result.get("testEvidence"));
         assertThat(evidence.path("success").asBoolean()).isTrue();

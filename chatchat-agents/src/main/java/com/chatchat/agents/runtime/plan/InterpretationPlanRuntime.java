@@ -2670,7 +2670,8 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             ? routingDecision.resolvedToolName()
             : step.toolName());
         executionPlan.put("requestedTool", step.toolName());
-        executionPlan.put("risk_level", request.plan().intent() == null ? "low" : request.plan().intent().riskLevel());
+        // Intent risk is model-authored context, never the authoritative tool execution classification.
+        executionPlan.put("intentRiskLevel", request.plan().intent() == null ? "low" : request.plan().intent().riskLevel());
         executionPlan.put("parameters", resolvedInput == null ? Map.of() : resolvedInput);
         executionPlan.put("reason", "InterpretationPlan step " + step.id());
         if (routingDecision != null && routingDecision.routed()) {

@@ -53,6 +53,40 @@ def docker(path, body):
         client.close()
 
 
+def verify_catalog_readiness(root, manifest):
+    """A listening/auth socket is insufficient: require the API-side tool registry."""
+    if not manifest.get('catalogReadinessAuthFile'):
+        return None
+    assert manifest['catalogReadinessAuthFile'] == 'catalog-readiness-private.json'
+    credentials_path = root / manifest['catalogReadinessAuthFile']
+    assert credentials_path.is_file() and not credentials_path.is_symlink()
+    credentials = json.loads(credentials_path.read_text())
+    expected = set(manifest.get('catalogReadinessExpectedTools', []))
+    assert expected, 'Declare the existing published tools required for release readiness'
+    client = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    def request(path, body=None, token=None):
+        headers = {'Content-Type': 'application/json'}
+        if token: headers['Authorization'] = 'Bearer ' + token
+        req = urllib.request.Request('http://127.0.0.1:18180/api/v1' + path,
+            data=None if body is None else json.dumps(body).encode(), headers=headers)
+        with client.open(req, timeout=10) as response:
+            value = json.load(response)
+            if value.get('code') != 200: raise RuntimeError('Catalog readiness API rejected request')
+            return value['data']
+    token = request('/enterprise/auth/login', credentials)['token']
+    deadline = time.monotonic() + 240
+    while time.monotonic() < deadline:
+        status = request('/mcp/center/recovery/status', token=token)
+        tools = request('/mcp/tools', token=token)
+        present = {tool.get('localToolName') for tool in tools if tool.get('description')}
+        if status.get('state') == 'HEALTHY' and expected <= present:
+            return {'status': 'API_MCP_CATALOG_READY', 'registryState': status['state'],
+                'registeredToolCount': len(tools), 'requiredTools': sorted(expected),
+                'capturedAt': datetime.now(timezone.utc).isoformat()}
+        time.sleep(2)
+    raise RuntimeError('API-side MCP catalog did not become ready; publication/listening alone is insufficient')
+
+
 def main():
     os.umask(0o077)
     root = Path(__file__).resolve().parent
@@ -205,6 +239,7 @@ def main():
             clone(name)
         ready()
         networking()
+        catalog_readiness = verify_catalog_readiness(root, manifest)
         config = json.loads(configs['compose.yaml'])
         config['services']['api']['image'] = manifest['image']
         if mcp in images: config['services']['mcp']['image']=images[mcp]
@@ -222,7 +257,7 @@ def main():
         assert fingerprint == sql("select md5(coalesce(jsonb_agg(to_jsonb(t)-'source_channel' order by session_id)::text,'[]')) from chat_session t"), 'Conversation content changed during migration'
         assert messages == sql('select count(*) from chat_message_index'), 'Message index count changed during migration'
         report = {'status': 'DEPLOYED', 'image': manifest['image'], 'sha256': manifest['sha256'], 'backup': str(backup), 'retired': retired,
-            'databaseMigrationSha256': applied_migration,
+            'databaseMigrationSha256': applied_migration, 'catalogReadiness': catalog_readiness,
             'preservedExpiredReadOnlyTaskIds':active,
             'unrelatedContainersUnchanged': True, 'conversationContentUnchanged': True, 'messageIndexCountUnchanged': True,
             'images':images,'channelCounts': sql('select source_channel,count(*) from chat_session group by source_channel')}

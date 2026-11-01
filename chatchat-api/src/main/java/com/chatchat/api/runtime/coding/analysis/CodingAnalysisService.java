@@ -136,6 +136,8 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             + "Before submission, recalculate every reported total from program output and verify that every table header aligns with its values. "
             + "Distinguish an arithmetic difference from a data error: only call it an error when the compared values have the same declared metric, scope, period and unit; otherwise state the unresolved reconciliation components and evidence limits. "
             + "reportMarkdown must be the complete user-facing Markdown report with computed findings and explicit limitations. "
+            + "Lead with the business answer, relevant numbers and readable tables. Do not lead with transport formats, file hashes, storage paths, runtime manifests or internal operation IDs. "
+            + "Keep technical integrity and execution details in evidence references or a short audit appendix when useful, without weakening verification or hiding failures. "
             + "evidenceReferences must list the exact delivered dataset references actually used; do not invent or shorten them. "
             + "limitations must record material data or method limits. Do not delegate calculations back to Runtime OS.\n"
             + "User objective:\n" + userObjective;

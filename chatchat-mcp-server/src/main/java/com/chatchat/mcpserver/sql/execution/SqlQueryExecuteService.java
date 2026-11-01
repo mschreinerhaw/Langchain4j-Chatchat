@@ -8,6 +8,7 @@ import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigService;
 import com.chatchat.mcpserver.sql.parsing.SqlStatementExtractor;
 import com.chatchat.mcpserver.sql.parsing.SqlTableNameParser;
 import com.chatchat.mcpserver.sql.template.SqlTemplateService;
+import com.chatchat.mcpserver.sql.template.StudioPreparedSql;
 import com.chatchat.mcpserver.sql.resolution.TableLocation;
 import com.chatchat.mcpserver.sql.resolution.TableResolution;
 
@@ -26,6 +27,7 @@ import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.Statement;
+import java.sql.PreparedStatement;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -95,10 +97,12 @@ public class SqlQueryExecuteService {
                 datasource.getId(), datasource.getName(), datasource.getEnvironment(), datasource.getToolName(),
                 requestedTemplate(request), timeoutSeconds, maxRows, text(request, "purpose"), text(request, "sourceTaskId"),
                 truncateSql(normalizedSql));
+            var prepared=request.get(StudioPreparedSql.KEY) instanceof StudioPreparedSql p?p:null;
+            if(prepared!=null){diagnostics.put("executionMode","PREPARED_STATEMENT");diagnostics.put("boundParameterCount",prepared.values().size());diagnostics.put("boundParameterNames",prepared.names());}
             result = query(datasource, executableSql, normalizedSql, timeoutSeconds, maxRows,
-                text(request, "purpose"), text(request, "sourceTaskId"), startedAt, diagnostics, pageConsumer);
+                text(request, "purpose"), text(request, "sourceTaskId"), startedAt, diagnostics, pageConsumer,prepared);
             // A delivered stream cannot be transparently replayed without duplicating records.
-            if (pageConsumer == null) result = attemptSelfHealingIfNeeded(datasource, request, result, timeoutSeconds, maxRows,
+            if (pageConsumer == null && prepared == null) result = attemptSelfHealingIfNeeded(datasource, request, result, timeoutSeconds, maxRows,
                 text(request, "purpose"), text(request, "sourceTaskId"), startedAt);
         } catch (StackOverflowError ex) {
             long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
@@ -212,6 +216,10 @@ public class SqlQueryExecuteService {
             throw new IllegalArgumentException("Use either sql or SQL template, not both");
         }
         if (sql != null && !sql.isBlank()) {
+            if(request.get(StudioPreparedSql.KEY) instanceof StudioPreparedSql prepared) {
+                if(!sql.equals(prepared.sql()))throw new IllegalArgumentException("Prepared Studio SQL does not match request");
+                return prepared.sql();
+            }
             return dynamicDateParamService.resolveSqlPlaceholders(sql, datasource);
         }
         if (template == null || template.isBlank()) {
@@ -225,6 +233,8 @@ public class SqlQueryExecuteService {
         );
         parameters = enrichTemplateParameters(parameters, datasource, request);
         request.put("parameters", parameters);
+        var prepared=templateService.preparePublished(template,parameters,datasource,request);
+        if(prepared!=null){request.put(StudioPreparedSql.KEY,prepared);request.put("parameters",prepared.effectiveParameters());return prepared.sql();}
         return dynamicDateParamService.resolveSqlPlaceholders(
             templateService.render(template, parameters, datasource, request),
             datasource
@@ -421,16 +431,22 @@ public class SqlQueryExecuteService {
     private SqlQueryResult query(SqlDatasourceConfig datasource, String originalSql, String sql,
                                  int timeoutSeconds, int maxRows, String purpose,
                                  String sourceTaskId, long startedAt, Map<String, Object> diagnostics) throws Exception {
-        return query(datasource, originalSql, sql, timeoutSeconds, maxRows, purpose, sourceTaskId, startedAt, diagnostics, null);
+        return query(datasource, originalSql, sql, timeoutSeconds, maxRows, purpose, sourceTaskId, startedAt, diagnostics, null,null);
     }
 
     private SqlQueryResult query(SqlDatasourceConfig datasource, String originalSql, String sql,
                                  int timeoutSeconds, int maxRows, String purpose,
                                  String sourceTaskId, long startedAt, Map<String, Object> diagnostics,
                                  java.util.function.Consumer<List<Map<String, Object>>> pageConsumer) throws Exception {
+        return query(datasource,originalSql,sql,timeoutSeconds,maxRows,purpose,sourceTaskId,startedAt,diagnostics,pageConsumer,null);
+    }
+
+    private SqlQueryResult query(SqlDatasourceConfig datasource,String originalSql,String sql,int timeoutSeconds,int maxRows,
+                                String purpose,String sourceTaskId,long startedAt,Map<String,Object> diagnostics,
+                                java.util.function.Consumer<List<Map<String,Object>>> pageConsumer,StudioPreparedSql prepared)throws Exception {
         try (Connection connection = openConnection(datasource);
-             Statement statement = pageConsumer == null ? connection.createStatement()
-                 : connection.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
+             Statement statement = prepared!=null ? connection.prepareStatement(sql,ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_READ_ONLY)
+                 : pageConsumer == null ? connection.createStatement() : connection.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
             connection.setReadOnly(true);
             if (pageConsumer != null) {
                 connection.setAutoCommit(false);
@@ -454,7 +470,8 @@ public class SqlQueryExecuteService {
             log.info("MCP SQL query JDBC connected: datasourceId={}, datasourceName={}, env={}, jdbcUrl={}, readOnly=true, timeoutSeconds={}, maxRows={}",
                 datasource.getId(), datasource.getName(), datasource.getEnvironment(), redactJdbcUrl(datasource.getJdbcUrl()),
                 timeoutSeconds, maxRows);
-            try (ResultSet resultSet = statement.executeQuery(sql)) {
+            if(prepared!=null)for(int i=0;i<prepared.values().size();i++)((PreparedStatement)statement).setObject(i+1,prepared.values().get(i));
+            try (ResultSet resultSet = prepared!=null?((PreparedStatement)statement).executeQuery():statement.executeQuery(sql)) {
                 ResultSetMetaData metaData = resultSet.getMetaData();
                 List<String> columns = columns(metaData);
                 Set<String> sensitiveFields = sensitiveFields(datasource);

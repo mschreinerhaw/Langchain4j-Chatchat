@@ -172,6 +172,28 @@ public class SqlTemplateService {
         return renderDefinition(config,parameters,datasource,Map.of());
     }
     public void validateAuthoring(SqlTemplateConfig config) { normalize(config); }
+    public StudioPreparedSql prepareAuthoring(SqlTemplateConfig config,Map<String,Object> parameters,SqlDatasourceConfig datasource) {
+        renderAuthoring(config,parameters,datasource); // Preserve the existing owner, schema and datasource gates.
+        return prepareStudio(config,parameters);
+    }
+    public StudioPreparedSql preparePublished(String code,Map<String,Object> parameters,SqlDatasourceConfig datasource,Map<String,Object> source) {
+        var config=repository.findByCode(requireText(code,"SQL template code is required").toUpperCase(Locale.ROOT))
+            .filter(SqlTemplateConfig::isEnabled).filter(this::authoringCallerAllowed)
+            .orElseThrow(()->new IllegalArgumentException("SQL template not found or disabled: "+code));
+        if(config.getPublicationGroupId()==null)return null; // Legacy template compiler/execution is unchanged.
+        renderDefinition(config,parameters,datasource,source);
+        return prepareStudio(config,parameters);
+    }
+    private StudioPreparedSql prepareStudio(SqlTemplateConfig config,Map<String,Object> parameters) {
+        var effective=new LinkedHashMap<String,Object>();
+        try {
+            var schema=objectMapper.readTree(config.getParameterSchemaJson());
+            schema.path("properties").fields().forEachRemaining(e->effective.put(e.getKey(),
+                parameters!=null&&parameters.containsKey(e.getKey())?parameters.get(e.getKey()):
+                    e.getValue().has("default")?objectMapper.convertValue(e.getValue().get("default"),Object.class):null));
+        }catch(Exception e){throw new IllegalArgumentException("Invalid SQL parameter Schema",e);}
+        return StudioPreparedSql.compile(config.getSqlTemplate(),effective);
+    }
     private boolean authoringCallerAllowed(SqlTemplateConfig config) {
         if(config.getPublicationGroupId()==null)return true;
         var caller=com.chatchat.mcpserver.mcp.McpInvocationContext.current();
@@ -233,6 +255,7 @@ public class SqlTemplateService {
         metadata.put("businessDescription", config.getDescription());
         metadata.put("category", config.getCategory());
         metadata.put("riskLevel", config.getRiskLevel());
+        if(config.getPublicationGroupId()!=null)metadata.put("inputSchema",readJsonObject(config.getParameterSchemaJson()));
         metadata.put("evidencePolicy", readJsonObject(config.getEvidencePolicyJson()));
         return metadata;
     }

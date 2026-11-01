@@ -356,6 +356,14 @@ public class McpAuthorizationService {
         );
     }
 
+    /** Administrative read projection, never used to grant execution access. */
+    public JsonNode templateAgentBindings(String tenant, String user, String toolName) throws Exception {
+        String query="tenantId="+java.net.URLEncoder.encode(tenant,java.nio.charset.StandardCharsets.UTF_8)
+            +"&userId="+java.net.URLEncoder.encode(user,java.nio.charset.StandardCharsets.UTF_8)
+            +"&toolName="+java.net.URLEncoder.encode(toolName,java.nio.charset.StandardCharsets.UTF_8);
+        return apiJson("GET","/api/v1/enterprise/mcp-auth/template-bindings?"+query,null);
+    }
+
     /**
      * Combines the centrally synchronized tool assets with the external MCP
      * tools published by this node. External tools are local dynamic assets,

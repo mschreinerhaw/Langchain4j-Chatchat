@@ -5042,6 +5042,20 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                 semantic, schema, originalUserQuery(request), completedOutputs));
         semantic.clear();
         semantic.putAll(contextual.arguments());
+        Map<String, Object> publishedMeta = asStringMap(metadata.getMetadata() == null
+            ? null : metadata.getMetadata().get("mcpToolMeta"));
+        if (Boolean.TRUE.equals(publishedMeta.get("templateCapability"))
+            && "sql_result.v1".equals(publishedMeta.get("resultSchemaRef"))) {
+            Map<String, Object> dateSchema = asStringMap(metadata.getMetadata().get("inputSchema"));
+            if (!(dateSchema.get("properties") instanceof Map<?, ?>)
+                && dateSchema.get("anyOf") instanceof List<?> alternatives) {
+                dateSchema = alternatives.stream().filter(Map.class::isInstance).map(this::asStringMap)
+                    .filter(candidate -> candidate.get("properties") instanceof Map<?, ?> fields
+                        && !fields.containsKey("calls")).findFirst().orElse(schema);
+            }
+            new com.chatchat.agents.runtime.toolcall.RequiredTemporalArgumentGrounding().validate(
+                semantic, dateSchema, originalUserQuery(request), completedOutputs);
+        }
         ToolArgumentCompiler.CompilationResult compilation = TOOL_ARGUMENT_COMPILER.compile(semantic, schema);
         if (!compilation.valid()) {
             throw new IllegalStateException(compilation.structuredError(step.toolName(), stringValue(input.get("action"))));

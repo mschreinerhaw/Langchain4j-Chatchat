@@ -24,6 +24,26 @@ import static org.mockito.Mockito.when;
 
 class AnalysisEvidenceCoordinatorTest {
 
+    @Test void successfulSqlReceiptCarriesOnlyDeclaredParametersWithoutClaimingUserAlignment() {
+        var values = new java.util.LinkedHashMap<String,Object>();
+        values.put("region",null);values.put("threshold",4);values.put("ambientDate","not-a-query-parameter");
+        var diagnostics=Map.of("templateParameters",values,"templateMetadata",Map.of("inputSchema",Map.of(
+            "properties",Map.of("region",Map.of("type",List.of("string","null")),"threshold",Map.of("type","integer")))));
+        var envelope=Map.of("dataSchema","sql_result.v1","success",true,
+            "sourceMetadata",Map.of("executionType","SQL_QUERY","operation",Map.of("templateId","opaque-definition","statementHash","hash"),"asset",Map.of("id","source-id")),
+            "operation",Map.of("diagnostics",diagnostics),
+            "data",Map.of("rows",List.of(Map.of("count",7)),"rowCount",1,"complete",true,"possiblyTruncated",false));
+        assertThat(coordinator(mock(ToolRegistry.class),new com.chatchat.agents.runtime.analysis.McpResultAnalysisBridge())
+            .project(result(step("published-query",envelope))).datasets()).singleElement().satisfies(dataset->{
+                var audit=(Map<String,Object>)dataset.analysisContext().get("templateParameterBinding");
+                assertThat(audit).containsEntry("scopeStatus","EXECUTION_VALUES_RECORDED")
+                    .containsEntry("userConstraintAlignment","NOT_EVALUATED");
+                assertThat((Map<String,Object>)audit.get("effectiveParameters")).containsEntry("region",null)
+                    .containsEntry("threshold",4).doesNotContainKey("ambientDate");
+                assertThat(dataset.records()).singleElement().satisfies(row->assertThat(row).containsEntry("count",7));
+            });
+    }
+
     @Test void T13_defaultScopeAuditTravelsWithTheActualDataset() {
         var audit=Map.<String,Object>of("effectiveParameters",Map.of("subject","catalog-B"),
             "parameterSources",Map.of("subject","template_default"),"scopeStatus","REQUIRES_SCOPE_VERIFICATION",

@@ -31,7 +31,7 @@ public class StudioSqlCatalogController {
         for(var row:templates.findByPublicationGroupIdIsNotNullOrderByCreatedAtDesc())
             if(row.getReleasedCapabilityId()!=null) groups.computeIfAbsent(row.getPublicationGroupId(),k->new ArrayList<>()).add(row);
         return ApiResponse.success(groups.values().stream().map(rows->rows.stream().max(Comparator
-            .comparing(SqlTemplateConfig::isEnabled).thenComparingInt(r->Objects.requireNonNullElse(r.getPublicationVersion(),0))).orElseThrow())
+            .comparing(SqlTemplateConfig::isEnabled).thenComparingInt(r->releases.findById(r.getReleasedCapabilityId()).map(ToolRelease::getReleaseNumber).orElse(0))).orElseThrow())
             .map(row->summary(row)).toList());
     }
 
@@ -54,9 +54,18 @@ public class StudioSqlCatalogController {
             var m=new LinkedHashMap<String,Object>();m.put("id",r.getId());m.put("version",r.getReleaseNumber());m.put("state",r.getState());m.put("publishedAt",r.getPublishedAt());
             if(sqlVisible){var d=tree(r.getDefinitionJson());m.put("sqlSnapshot",d.path("sqlSnapshot"));m.put("sqlTest",d.path("sqlTest"));}return m;
         }).toList());
-        if(sqlVisible) view.put("authorizationRules",authorization.currentView().permissions().stream()
+        if(sqlVisible) {
+          view.put("authorizationRules",authorization.currentView().permissions().stream()
             .filter(p->Objects.equals(p.tenantId(),row.getAuthorTenantId()) && (Objects.equals(p.localToolName(),view.get("toolName"))
                 || Objects.equals(p.localToolName(),"mcp_chatchat_mcp_server_"+view.get("toolName"))) ).toList());
+          try {
+            view.put("accessibleAgents",authorization.templateAgentBindings(row.getAuthorTenantId(),row.getAuthorId(),String.valueOf(view.get("toolName"))));
+            view.put("agentScopeStatus","CURRENT_PUBLICATION_AUTHOR_POLICY");
+          } catch(Exception unavailable) {
+            view.put("agentScopeStatus","UNAVAILABLE");
+          }
+          view.put("agentScopeNotice","按发布者当前租户、用户权限、已发布 Agent 的实际工具绑定实时核验；其他用户须另行满足角色及资源授权。范围读取失败时不代表没有绑定。");
+        }
         view.put("accessNotice","此处为 SQL Studio 原始发布记录的只读视图。修改、试执行和版本恢复请在源工程操作；调用仍须同时满足租户、数据源、模板、用户/角色和 Agent 工具授权。发布状态不等于当前账号具备执行权限。");
         return ApiResponse.success(view);
     }

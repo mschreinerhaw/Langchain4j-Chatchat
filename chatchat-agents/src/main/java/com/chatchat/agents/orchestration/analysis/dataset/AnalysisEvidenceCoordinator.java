@@ -317,8 +317,9 @@ public final class AnalysisEvidenceCoordinator {
     }
 
     private List<Dataset> outputDatasets(Object output, String reference, ToolMetadata metadata) {
-        Map<String, Object> rootContext = analysisContextProtocol.adapt(reference, metadata, output);
         Map<String,Object> envelope=sqlEnvelope(output);
+        Map<String, Object> rootContext = sqlExecutionParameterContext(
+            analysisContextProtocol.adapt(reference, metadata, output),envelope);
         if ("sql_result.v1".equals(envelope.get("dataSchema"))
                 && map(envelope.get("data")).get("rows") instanceof List<?> empty && empty.isEmpty()) {
             // An incomplete/failed empty SQL result is unavailable evidence. Its
@@ -343,6 +344,24 @@ public final class AnalysisEvidenceCoordinator {
         if (!sets.isEmpty()) return deduplicate(sets);
         typed = governedHandleProjection(output, reference, rootContext, true);
         return !typed.isEmpty() ? typed : governedProjection(output, reference, rootContext, true);
+    }
+
+    private Map<String,Object> sqlExecutionParameterContext(Map<String,Object> context,Map<String,Object> envelope) {
+        if(context.containsKey("templateParameterBinding") || !"sql_result.v1".equals(envelope.get("dataSchema"))
+            || !Boolean.TRUE.equals(envelope.get("success")))return context;
+        var source=map(envelope.get("sourceMetadata"));var operation=map(source.get("operation"));
+        if(!"SQL_QUERY".equals(source.get("executionType")) || !(operation.get("templateId") instanceof String templateId) || templateId.isBlank())return context;
+        var diagnostics=map(map(envelope.get("operation")).get("diagnostics"));
+        if(!(diagnostics.get("templateParameters") instanceof Map<?,?>))return context;
+        var effective=new LinkedHashMap<>(map(diagnostics.get("templateParameters")));
+        var schema=map(map(diagnostics.get("templateMetadata")).get("inputSchema"));
+        if(schema.get("properties") instanceof Map<?,?> fields)effective.keySet().retainAll(fields.keySet());
+        var provenance=new LinkedHashMap<String,Object>();effective.keySet().forEach(key->provenance.put(key,"EXECUTION_RECEIPT"));
+        var audit=new LinkedHashMap<String,Object>();audit.put("templateId",templateId);audit.put("effectiveParameters",effective);
+        audit.put("parameterSources",provenance);audit.put("scopeStatus","EXECUTION_VALUES_RECORDED");
+        audit.put("userConstraintAlignment","NOT_EVALUATED");audit.put("provenanceSource","MCP_SQL_EXECUTION_RECEIPT");
+        audit.put("statementHash",operation.get("statementHash"));audit.put("datasourceId",map(source.get("asset")).get("id"));
+        var result=new LinkedHashMap<>(context);result.put("templateParameterBinding",audit);return result;
     }
 
     private Map<String,Object> sqlEnvelope(Object output) {

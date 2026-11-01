@@ -96,7 +96,9 @@ class SqlTemplateAuthoringServiceTest {
         assertThat(evidence.path("traceId").asText()).isEqualTo(evidence.path("testId").asText());
         assertThat(evidence.path("timeoutSeconds").asInt()).isEqualTo(10);
         assertThat(evidence.path("fingerprint").asText()).isEqualTo(service.fingerprint(row));
-        verify(audit).recordSqlQueryCall(any(),anyMap(),argThat(r->r.success()&&r.rowCount()==50));
+        verify(audit).recordSqlQueryCall(any(),anyMap(),argThat(r->r.success()&&r.rowCount()==50
+            && "PREPARED_STATEMENT".equals(r.diagnostics().get("executionMode"))
+            && Integer.valueOf(1).equals(r.diagnostics().get("boundParameterCount"))));
         verify(router).routeSqlQuery(argThat(args->args.get(com.chatchat.mcpserver.routing.target.TemplateExecutionTarget.KEY)
             instanceof com.chatchat.mcpserver.routing.target.TemplateExecutionTarget fixed && fixed.resourceId().equals("db")));
         assertThat(row.isEnabled()).isFalse();

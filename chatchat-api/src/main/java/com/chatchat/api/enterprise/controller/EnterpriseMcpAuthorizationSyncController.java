@@ -42,6 +42,32 @@ public class EnterpriseMcpAuthorizationSyncController {
     @Value("${chatchat.mcp.authorization.snapshot-cache-ttl-ms:300000}")
     private long snapshotCacheTtlMs;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.chatchat.chat.skills.catalog.SkillCatalogService agents;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.chatchat.api.service.AgentTemplateToolPolicy agentTools;
+
+    /** Fresh configuration projection through the same principal policy used for execution. */
+    @GetMapping("/template-bindings")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public ApiResponse<List<java.util.Map<String,Object>>> templateBindings(
+        @RequestParam("tenantId") String tenant, @RequestParam("userId") String user,
+        @RequestParam("toolName") String toolName) {
+        if (com.chatchat.common.tool.TemplateToolNames.remote(toolName) == null)
+            throw new IllegalArgumentException("Published template tool name required");
+        var principal=adminService.getUserView(user);
+        if (!tenant.equals(principal.tenantId()) || !"enabled".equalsIgnoreCase(principal.status()))
+            throw new SecurityException("Publication principal is unavailable in this tenant");
+        return ApiResponse.success(agents.list().stream()
+            .filter(agent -> !agentTools.allowed(tenant,user,agent.id(),java.util.Set.of(toolName)).isEmpty())
+            .map(agent -> {
+                var value=new java.util.LinkedHashMap<String,Object>();
+                value.put("agentId",agent.id());value.put("name",agent.label());value.put("marketStatus",agent.marketStatus());
+                value.put("tenantId",tenant);value.put("evaluatedUserId",user);value.put("toolName",toolName);
+                return (java.util.Map<String,Object>)value;
+            }).toList());
+    }
+
     @GetMapping("/snapshot")
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     @Operation(summary = "Pull the current MCP authorization snapshot")

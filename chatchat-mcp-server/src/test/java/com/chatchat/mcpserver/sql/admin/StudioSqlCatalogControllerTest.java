@@ -46,6 +46,13 @@ class StudioSqlCatalogControllerTest {
         assertEquals(true,controller.list(request).getData().get(0).get("enabled"));release.setState("OFFLINE");
         assertEquals(false,controller.list(request).getData().get(0).get("enabled"));assertEquals("OFFLINE",controller.list(request).getData().get(0).get("publicationState"));
     }
+    @Test void restoredOlderSqlRevisionStillShowsNewestReleaseAfterOffline(){
+        row.setEnabled(false);release.setState("OFFLINE");release.setReleaseNumber(3);
+        var newerSql=new SqlTemplateConfig();newerSql.setId("sql-v2");newerSql.setPublicationGroupId("group");newerSql.setPublicationVersion(2);newerSql.setReleasedCapabilityId("release-v2");newerSql.setEnabled(false);
+        var previous=new ToolRelease();previous.setReleaseNumber(2);when(releases.findById("release-v2")).thenReturn(Optional.of(previous));
+        when(templates.findByPublicationGroupIdIsNotNullOrderByCreatedAtDesc()).thenReturn(List.of(newerSql,row));
+        assertEquals("revision",controller.list(request).getData().get(0).get("templateId"));
+    }
     @Test void nonSuperAdminDoesNotReceiveSqlOrExecutionPreviews(){
         var detail=controller.detail("revision",request).getData();assertEquals(false,detail.get("sqlVisible"));assertFalse(detail.toString().contains("SELECT value"));assertFalse(detail.toString().contains("trial"));verifyNoInteractions(auth);
     }

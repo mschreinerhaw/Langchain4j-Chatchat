@@ -98,6 +98,12 @@
       <h3>同步授权规则</h3>
       <p>调用还需满足 Runtime OS 的 Agent 工具绑定及当前用户、角色授权；以下规则不替代运行时权限判定。</p>
       <pre v-if="studioDetail.authorizationRules" class="json-block"><code>{{ prettyJson(studioDetail.authorizationRules) }}</code></pre>
+      <template v-if="studioDetail.agentScopeStatus">
+        <h4>发布者可调用的 Agent 范围</h4>
+        <el-alert :title="studioDetail.agentScopeNotice" type="info" :closable="false" />
+        <el-alert v-if="studioDetail.agentScopeStatus === 'UNAVAILABLE'" title="当前无法读取 Agent 授权范围，请稍后刷新。" type="warning" :closable="false" />
+        <pre v-else class="json-block"><code>{{ prettyJson(studioDetail.accessibleAgents) }}</code></pre>
+      </template>
       <p v-else>当前管理账号无权读取授权详情，请使用 Runtime OS 对应租户账号查看。</p>
       <template #footer><el-button @click="studioDetailOpen = false">关闭</el-button></template>
     </ModalPanel>

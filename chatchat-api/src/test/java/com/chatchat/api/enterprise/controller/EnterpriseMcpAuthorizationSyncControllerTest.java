@@ -18,6 +18,29 @@ import static org.mockito.Mockito.when;
 
 class EnterpriseMcpAuthorizationSyncControllerTest {
 
+    @Test void templateAgentScopeUsesCurrentPrincipalAndActualPublishedBindingPolicy() {
+        var identities=mock(EnterpriseAdminService.class);
+        var principal=mock(EnterpriseAdminService.UserView.class);
+        when(principal.tenantId()).thenReturn("tenant");when(principal.status()).thenReturn("enabled");
+        when(identities.getUserView("author")).thenReturn(principal);
+        var controller=new EnterpriseMcpAuthorizationSyncController(identities,mock(SysRoleRepository.class),
+            mock(SysTenantRepository.class),mock(McpToolAssetRepository.class),mock(McpToolPermissionRepository.class),mock(InternalCredentialProperties.class));
+        var agents=mock(com.chatchat.chat.skills.catalog.SkillCatalogService.class);
+        var policy=mock(com.chatchat.api.service.AgentTemplateToolPolicy.class);
+        ReflectionTestUtils.setField(controller,"agents",agents);ReflectionTestUtils.setField(controller,"agentTools",policy);
+        var bound=mock(com.chatchat.chat.skills.model.SkillDefinition.class);when(bound.id()).thenReturn("bound");
+        when(bound.label()).thenReturn("Bound agent");when(bound.marketStatus()).thenReturn("published");
+        var unbound=mock(com.chatchat.chat.skills.model.SkillDefinition.class);when(unbound.id()).thenReturn("unbound");
+        when(agents.list()).thenReturn(List.of(bound,unbound));
+        String tool="tpl_01234567890123456789012345678901";
+        when(policy.allowed("tenant","author","bound",java.util.Set.of(tool))).thenReturn(java.util.Set.of(tool));
+        when(policy.allowed("tenant","author","unbound",java.util.Set.of(tool))).thenReturn(java.util.Set.of());
+        org.assertj.core.api.Assertions.assertThat(controller.templateBindings("tenant","author",tool).getData())
+            .singleElement().satisfies(value->org.assertj.core.api.Assertions.assertThat(value).containsEntry("agentId","bound"));
+        org.assertj.core.api.Assertions.assertThatThrownBy(()->controller.templateBindings("other","author",tool))
+            .isInstanceOf(SecurityException.class);
+    }
+
     @Test
     void cachesDiscoveryButExecutionHttpRequestsReadCurrentDatabase() throws Exception {
         EnterpriseAdminService adminService = mock(EnterpriseAdminService.class);

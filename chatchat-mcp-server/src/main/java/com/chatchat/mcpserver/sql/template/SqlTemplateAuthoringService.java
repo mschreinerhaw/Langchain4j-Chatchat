@@ -150,10 +150,12 @@ public class SqlTemplateAuthoringService {
                 if(!sample.has(field.getKey())&&field.getValue().has("default"))sample.set(field.getKey(),field.getValue().get("default"));
             });
             ToolReleaseSchemas.validate(schema,sample);
-            String sql=templates.renderAuthoring(row,parameters(input),datasource);
+            var prepared=templates.prepareAuthoring(row,parameters(input),datasource);
+            String sql=prepared.sql();
             if(com.chatchat.mcpserver.sql.parsing.SqlStatementExtractor.splitStatements(sql).size()!=1)
                 throw new IllegalArgumentException("Authoring test requires one read-only query");
             var arguments=new LinkedHashMap<String,Object>();arguments.put("datasourceId",datasource.getId());arguments.put("sql",sql);
+            arguments.put(StudioPreparedSql.KEY,prepared);arguments.put("parameters",prepared.effectiveParameters());
             arguments.put(com.chatchat.mcpserver.routing.target.TemplateExecutionTarget.KEY,
                 new com.chatchat.mcpserver.routing.target.TemplateExecutionTarget("sql_datasource",datasource.getId()));
             arguments.put("timeoutSeconds",10);arguments.put("maxRows",50);arguments.put("permissionLevel","read");

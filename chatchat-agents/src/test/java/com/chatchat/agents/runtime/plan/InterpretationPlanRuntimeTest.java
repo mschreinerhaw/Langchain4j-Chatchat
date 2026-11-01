@@ -57,6 +57,25 @@ import static org.mockito.Mockito.when;
 
 class InterpretationPlanRuntimeTest {
 
+    @Test void publishedSqlDatesWithoutUserBasisNeverReachTheTool() throws Exception {
+        String name="mcp_published_query";
+        var service=mock(ToolRuntimeService.class);
+        var registry=mock(ToolRegistry.class);
+        var schema=Map.of("type","object","properties",Map.of("period",Map.of("type","string","format","date")),"required",List.of("period"));
+        when(registry.getToolMetadata(name)).thenReturn(ToolMetadata.builder().id(name).metadata(Map.of(
+            "inputSchema",schema,
+            "mcpToolMeta",Map.of("templateCapability",true,"resultSchemaRef","sql_result.v1"))).build());
+        var runtime=new InterpretationPlanRuntime(service,new InterpretationPlanValidator(),mock(InterpretationPlanRuntime.DagExecutionController.class));
+        var step=new InterpretationPlan.Step(1,"mcp_tool",name,Map.of("period","1890-01-01"),List.of(),null,null);
+        var method=InterpretationPlanRuntime.class.getDeclaredMethod("resolvedStepInput",InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class,Map.class);method.setAccessible(true);
+        var request=new InterpretationPlanRuntime.ExecutionRequest(minimalPlan(step),registry,List.of(name),"tenant","request","conversation","user",
+            Map.of("originalUserQuery","分析仓储情况"));
+        assertThatThrownBy(()->method.invoke(runtime,step,request,Map.of())).hasRootCauseMessage(
+            "USER_INPUT_REQUIRED: required date parameters have no user, declared default, or successful record evidence: [period]. Ask the user for the query period before execution; do not invent dates or expand the period to an arbitrary full range.");
+        org.mockito.Mockito.verifyNoInteractions(service);
+    }
+
     @Test
     void passesExplicitNullableBusinessInputToEnricherWithoutDroppingIt() throws Exception {
         var runtime=new InterpretationPlanRuntime(mock(ToolRuntimeService.class),new InterpretationPlanValidator(),

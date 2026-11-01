@@ -761,6 +761,7 @@ public class AgentPlanner implements AgentPlanningPort {
                 issues.add("final_answer must depend on web verification evidence.");
             }
         }
+        com.chatchat.agents.orchestration.planning.validation.DeclarativeStepOutputContract.validate(plan, issues);
         validateAssetDiscoveryIsNotGuessed(plan, context, toolStepIds, issues);
         validateWebSearchCrawlerSplit(plan, context, stepsById, toolStepIds, finalStep, issues);
         return issues;

@@ -7,6 +7,17 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DataSupplyStatusTest {
+    @Test void finalAnswerWithoutAcquisitionIsNotADatabaseFailure() {
+        var step=new InterpretationPlanRuntime.StepExecution(1,"final_answer","final_answer",true,
+            Map.of("answer","No authorized capability matches this request"),null,null,"No matching capability",1);
+        var execution=new InterpretationPlanRuntime.ExecutionResult("completed",true,false,null,"No matching capability",List.of(step),Map.of(),1);
+        assertThat(DataSupplyStatus.describe(execution,List.of(),List.of()))
+            .containsEntry("status","NOT_REQUESTED").containsEntry("businessDataAvailable",false).containsEntry("deliveryComplete",false);
+        var actualQuery=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool","query",true,Map.of(),null,null,null,1);
+        var missingProjection=new InterpretationPlanRuntime.ExecutionResult("completed",true,false,null,"done",List.of(actualQuery),Map.of(),1);
+        assertThat(DataSupplyStatus.describe(missingProjection,List.of(),List.of()))
+            .containsEntry("status","EXECUTION_FAILED").containsEntry("code","NO_VERIFIED_DATASET");
+    }
     @Test void actualMcpSuccessSurvivesMissingProjectionFlags() {
         var tool=org.mockito.Mockito.mock(com.chatchat.agents.runtime.tool.ToolRuntimeExecution.class);
         org.mockito.Mockito.when(tool.output()).thenReturn(com.chatchat.common.tool.ToolOutput.success(Map.of("assets",List.of())));

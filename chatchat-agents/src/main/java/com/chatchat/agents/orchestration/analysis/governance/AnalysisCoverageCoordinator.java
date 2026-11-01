@@ -88,6 +88,16 @@ public final class AnalysisCoverageCoordinator {
             request.metadata().put("businessDataAvailable",false);
             request.metadata().put("primaryCodingDispatchCount", 0);
             var supply = (Map<?, ?>) request.metadata().get("dataSupply");
+            if ("NOT_REQUESTED".equals(supply.get("status")) && filePlan == null
+                && request.result() != null && request.result().finalAnswer() != null
+                && !request.result().finalAnswer().isBlank()) {
+                // Preserve the model-authored capability-gap answer; no query or Python ran.
+                request.metadata().put(com.chatchat.common.runtime.analysis.execution.ModelAnalysisIntent.active(request.metadata())
+                    ? "modelAnalysisOutput" : "modelNativeReportDraft", request.result().finalAnswer());
+                request.metadata().put("analysisNoAcquisitionAnswer", true);
+                request.metadata().put("analysisExecutionPolicy", "NOT_REQUESTED");
+                return CoverageBundle.empty();
+            }
             throw new IllegalStateException("DATA_SUPPLY_" + supply.get("status") + ": "
                 + status.handle().readPage(0,1).rows().get(0));
         }

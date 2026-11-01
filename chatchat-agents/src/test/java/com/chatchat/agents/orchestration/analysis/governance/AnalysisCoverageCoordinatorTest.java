@@ -40,6 +40,22 @@ class AnalysisCoverageCoordinatorTest {
             .hasMessageNotContaining("PRIMARY_CODING_ANALYSIS_FAILED");
         org.mockito.Mockito.verify(coding,org.mockito.Mockito.times(1)).executePrimaryAnalysis(any(),any(),any());
     }
+    @Test void noAcquisitionAnswerIsPreservedWithoutStartingPython() {
+        var evidence=mock(AnalysisEvidenceCoordinator.class);
+        when(evidence.project(any(),any())).thenReturn(new AnalysisEvidenceCoordinator.Projection(List.of(),List.of()));
+        var base=request(new LinkedHashMap<>());var coding=mock(AnalysisCodingPort.class);
+        String answer="No authorized capability matches; please provide an appropriate data source.";
+        var step=new InterpretationPlanRuntime.StepExecution(1,"final_answer","final_answer",true,Map.of("answer",answer),null,null,answer,1);
+        var result=new InterpretationPlanRuntime.ExecutionResult("completed",true,false,null,answer,List.of(step),Map.of(),1);
+        var coordinator=coordinator(evidence);coordinator.setCodingPort(coding);
+        coordinator.analyze(new AnalysisCoverageCoordinator.Request(null,"Analyze",result,Map.of("taskType","DATA_ANALYSIS"),
+            base.metadata(),base.cancellationCheck(),base.cancellationGuard(),base.isolationScope(),base.summaryProtocol()));
+        assertThat(base.metadata()).containsEntry("modelNativeReportDraft",answer)
+            .containsEntry("analysisNoAcquisitionAnswer",true).containsEntry("analysisExecutionPolicy","NOT_REQUESTED")
+            .containsEntry("primaryCodingDispatchCount",0).containsEntry("businessDataAvailable",false);
+        assertThat(base.metadata()).doesNotContainKey("codingOwnedAnalysisStatus");
+        org.mockito.Mockito.verifyNoInteractions(coding);
+    }
     @Test void selectionFailureReturnsItsSupplyStatusWithoutStartingCoding() {
         var evidence=mock(AnalysisEvidenceCoordinator.class);
         when(evidence.project(any(),any())).thenReturn(new AnalysisEvidenceCoordinator.Projection(List.of(),List.of()));

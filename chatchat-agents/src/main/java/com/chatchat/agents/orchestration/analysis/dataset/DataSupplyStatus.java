@@ -53,7 +53,7 @@ public enum DataSupplyStatus {
             : !sources.isEmpty() && sources.stream().allMatch(dataset -> dataset.handle().recordCountExact()
                 && Boolean.TRUE.equals(dataset.analysisContext().get("sourceVerifiedEmpty"))) ? EMPTY_RESULT
             : !failures.isEmpty() ? valueOf(failures.get(0).get("status").toString())
-            : execution == null && sources.isEmpty() ? NOT_REQUESTED : EXECUTION_FAILED;
+            : sources.isEmpty() && exclusions.isEmpty() && noAcquisition(execution) ? NOT_REQUESTED : EXECUTION_FAILED;
         var result = new LinkedHashMap<String,Object>();
         result.put("schemaVersion", VERSION); result.put("status", status.name());
         result.put("datasetCount", sources.size()); result.put("rowCount", rows);
@@ -68,6 +68,11 @@ public enum DataSupplyStatus {
             result.put("stage", "DATASET_PROJECTION"); result.put("code", "NO_VERIFIED_DATASET");
         }
         return Map.copyOf(result);
+    }
+
+    private static boolean noAcquisition(InterpretationPlanRuntime.ExecutionResult execution) {
+        return execution == null || execution.steps() != null && execution.steps().stream().allMatch(step ->
+            step.success() && Set.of("final_answer", "reasoning", "aggregation", "validation").contains(step.actionType()));
     }
 
     private static String text(Object value) {

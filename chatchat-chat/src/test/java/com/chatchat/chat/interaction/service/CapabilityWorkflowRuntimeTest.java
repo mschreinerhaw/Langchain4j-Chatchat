@@ -9,6 +9,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.assertj.core.api.Assertions.*;
 
 class CapabilityWorkflowRuntimeTest {
+    @Test void capabilityGapPreservesAnswerAndDoesNotClaimCompletedAnalysis() {
+        var response=InteractionResponse.builder().answer("No matching authorized capability")
+            .metadata(Map.of("agent",Map.of("publicStatus","SUCCESS","analysisNoAcquisitionAnswer",true),
+                WorkflowOutcome.METADATA_KEY,new WorkflowOutcome(WorkflowOutcome.Type.READY_TO_ANSWER,"EXECUTION_COMPLETE",List.of(),List.of(),true))).build();
+        CapabilityWorkflowRuntime.normalizeOutcome(response);
+        var outcome=(WorkflowOutcome)response.getMetadata().get(WorkflowOutcome.METADATA_KEY);
+        assertThat(outcome.publicStatus()).isEqualTo("PARTIAL_SUCCESS");
+        assertThat(outcome.reason()).isEqualTo("DATA_ANALYSIS_NOT_EXECUTED");
+        assertThat(response.getAnswer()).isEqualTo("No matching authorized capability");
+    }
+
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(strings={"INPUT_REQUIRED","PARTIAL"})
     void codingDeclaredIncompleteAnalysisDoesNotBecomeFullSuccess(String status) {

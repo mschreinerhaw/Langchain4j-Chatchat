@@ -1,0 +1,1 @@
+-- NOT_EXECUTED: this case has no successful SQL execution receipt.

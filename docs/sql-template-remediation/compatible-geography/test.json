@@ -1,0 +1,80 @@
+{
+  "id": "e717a2e9-639e-37c5-8d59-fb184e92c781",
+  "code": "STUDIO_E717A2E9639E37C58D59FB184E92C781",
+  "sqlTemplate": "-- ============================================================\n-- warehouse_geography.sql\n-- 仓库地理分布维表查询（无参数、只读、全量）\n-- 口径：按国家(w_country)、省州(w_state)分组，\n--       统计每组仓库数量、覆盖城市数量，\n--       并返回该组最小/最大仓库主键(w_warehouse_sk)，\n--       便于后续选择仓库开展库存分析。\n-- 保留空值分组（不对 NULL 做过滤），按国家、省州升序排列。\n-- 不固定任何商品或仓库，不添加人为业务过滤条件。\n-- 数据来源：tpcds.warehouse（基于已注册元数据）\n-- ============================================================\n\nSELECT\n    w_country,                                              -- 国家\n    w_state,                                                -- 省州\n    COUNT(*)                AS warehouse_count,             -- 该分组仓库数量\n    COUNT(DISTINCT w_city)  AS city_count,                  -- 该分组覆盖城市数量\n    MIN(w_warehouse_sk)     AS min_warehouse_sk,            -- 最小仓库主键\n    MAX(w_warehouse_sk)     AS max_warehouse_sk,            -- 最大仓库主键\n    (SELECT MIN(w_warehouse_sk) FROM warehouse)\n                            AS global_min_warehouse_sk      -- 全表最小仓库主键（每行重复）\nFROM warehouse\nGROUP BY\n    w_country,\n    w_state\nORDER BY\n    w_country,\n    w_state;\n",
+  "parameterSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+  "databaseType": "mysql",
+  "title": "TPCDS 248 仓库地理分布",
+  "description": "按国家和省州统计仓库数量、覆盖城市数及分组主键范围，保留空分组。global_min_warehouse_sk 为整个 warehouse 维表实际最小主键，每行重复同一全局值，允许后续库存查询直接绑定该值，不按返回行排名选择仓库。无参数、全仓库。",
+  "category": "business_analysis",
+  "source": {
+    "projectId": "0fec15ec-f8aa-4950-a84c-07f220fd5a6b",
+    "fileId": "0f56fe58-fc66-4835-aceb-cff31d496f0d",
+    "fileVersion": 3,
+    "sqlDigest": "a8ef16753fbe22c486e734d462d1dd035207e67af913a2b4c2d47a477b61b56f"
+  },
+  "groupId": "59383865-bc1a-350c-8e1f-b5b198d8e7a2",
+  "version": 3,
+  "expectedVersion": 1,
+  "state": "TESTED",
+  "active": false,
+  "testEvidence": {
+    "type": "SQL_DATABASE_EXECUTION",
+    "testId": "56bee812-0041-4c31-a846-deefe2d8cc34",
+    "testedAt": "2026-11-01T03:35:13.320574204Z",
+    "traceId": "56bee812-0041-4c31-a846-deefe2d8cc34",
+    "source": {
+      "projectId": "0fec15ec-f8aa-4950-a84c-07f220fd5a6b",
+      "fileId": "0f56fe58-fc66-4835-aceb-cff31d496f0d",
+      "fileVersion": 3,
+      "sqlDigest": "a8ef16753fbe22c486e734d462d1dd035207e67af913a2b4c2d47a477b61b56f"
+    },
+    "fingerprint": "a2785dcd0f50b541a7cc01ba01bf1aa87cf8d358fa786858a5c0e9866b700706",
+    "sqlDigest": "a8ef16753fbe22c486e734d462d1dd035207e67af913a2b4c2d47a477b61b56f",
+    "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+    "datasourceDigest": "3658210dd54eea7de135b7cbfd8f18e5775405cb5e87c6b45c767ee6f6b11b7c",
+    "parameters": {},
+    "parametersDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "timeoutSeconds": 10,
+    "maxRows": 50,
+    "success": true,
+    "resultDigest": "c7ebb367c00024c5b54f940e9c0bc680439f740623aecc14dc1d1edb97cc5ccb",
+    "rowCount": 1,
+    "errorCode": "",
+    "preview": {
+      "columns": [
+        "w_country",
+        "w_state",
+        "warehouse_count",
+        "city_count",
+        "min_warehouse_sk",
+        "max_warehouse_sk",
+        "global_min_warehouse_sk"
+      ],
+      "rows": [
+        {
+          "w_country": "United States",
+          "w_state": "TN",
+          "warehouse_count": 5,
+          "city_count": 1,
+          "min_warehouse_sk": 1,
+          "max_warehouse_sk": 5,
+          "global_min_warehouse_sk": 1
+        }
+      ],
+      "returnedRowCount": 1,
+      "possiblyTruncated": false,
+      "complete": true,
+      "previewTruncated": false
+    },
+    "diagnostic": "SQL query executed successfully",
+    "durationMs": 115
+  },
+  "templateKey": "sql_datasource:STUDIO_E717A2E9639E37C58D59FB184E92C781",
+  "releaseHistory": []
+}

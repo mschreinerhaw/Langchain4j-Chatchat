@@ -1,0 +1,16 @@
+{
+  "status": "RECORDED_TOOL_OBSERVATIONS",
+  "calls": [
+    {
+      "source": "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+      "requested": {},
+      "definition": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "effective": {},
+      "boundParameterNames": []
+    }
+  ]
+}

@@ -1,0 +1,191 @@
+{
+  "status": "SPECIFIED_ACCEPTANCE_PASSED_WITH_DECLARED_DATA_LIMITS",
+  "capturedAt": "2026-11-01T03:55:16.310Z",
+  "branch": "fix/sql-template-e2e-remediation",
+  "deployedApiSourceCommit": "fe7dc9e7a6995c71fe984cd2bd8f4ba8d3fc3c97",
+  "catalog": [
+    {
+      "title": "TPCDS 248 商品1年度销售汇总验收",
+      "toolName": "tpl_212b88329a673657979943bbeaa7479b",
+      "releaseId": "c5dceb47-905c-4d26-8f88-cdc3bbf1032d",
+      "version": 6,
+      "source": {
+        "projectId": "b6f7520b-2a55-430a-9351-a601e32dcfa3",
+        "fileId": "86eb8b55-800f-4d2f-ba67-87b7ea7a3e7e",
+        "fileVersion": 2,
+        "sqlDigest": "5f4f3df594c630722d6d30eb4e46af4391d0eb2544bac3ae5d45cfc1b92774f1"
+      },
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+      "publicationState": "RUNNING",
+      "accessibleAgents": [
+        {
+          "agentId": "sql_template_e2e_20261101_r1",
+          "name": "SQL Template E2E Acceptance Agent",
+          "marketStatus": "published",
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "evaluatedUserId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "toolName": "tpl_212b88329a673657979943bbeaa7479b"
+        },
+        {
+          "agentId": "tpcds_sql_studio_acceptance_20261031",
+          "name": "TPCDS SQL Studio 全链路验收",
+          "marketStatus": "published",
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "evaluatedUserId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "toolName": "tpl_212b88329a673657979943bbeaa7479b"
+        },
+        {
+          "agentId": "tpcds_studio_sql_python_20261101",
+          "name": "TPCDS SQL与Python模板验收",
+          "marketStatus": "published",
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "evaluatedUserId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "toolName": "tpl_212b88329a673657979943bbeaa7479b"
+        }
+      ]
+    },
+    {
+      "title": "TPCDS 248 单品期间月度销售分析验收",
+      "toolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+      "releaseId": "922184b0-f4e4-4849-b570-368d0dbe5f85",
+      "version": 6,
+      "source": {
+        "projectId": "b6f7520b-2a55-430a-9351-a601e32dcfa3",
+        "fileId": "609b856c-72e0-4f99-b8e3-856ca905d2f4",
+        "fileVersion": 1,
+        "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8"
+      },
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+      "publicationState": "RUNNING",
+      "accessibleAgents": [
+        {
+          "agentId": "sql_template_e2e_20261101_r1",
+          "name": "SQL Template E2E Acceptance Agent",
+          "marketStatus": "published",
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "evaluatedUserId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "toolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7"
+        },
+        {
+          "agentId": "tpcds_sql_studio_acceptance_20261031",
+          "name": "TPCDS SQL Studio 全链路验收",
+          "marketStatus": "published",
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "evaluatedUserId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "toolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7"
+        },
+        {
+          "agentId": "tpcds_studio_sql_python_20261101",
+          "name": "TPCDS SQL与Python模板验收",
+          "marketStatus": "published",
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "evaluatedUserId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "toolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7"
+        }
+      ]
+    },
+    {
+      "title": "TPCDS 248 仓库地理分布",
+      "toolName": "tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+      "releaseId": "4b0ebd36-3b07-4c38-9214-f1e9118a815f",
+      "version": 4,
+      "source": {
+        "projectId": "0fec15ec-f8aa-4950-a84c-07f220fd5a6b",
+        "fileId": "0f56fe58-fc66-4835-aceb-cff31d496f0d",
+        "fileVersion": 3,
+        "sqlDigest": "a8ef16753fbe22c486e734d462d1dd035207e67af913a2b4c2d47a477b61b56f"
+      },
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+      "publicationState": "RUNNING",
+      "accessibleAgents": [
+        {
+          "agentId": "sql_template_e2e_20261101_r1",
+          "name": "SQL Template E2E Acceptance Agent",
+          "marketStatus": "published",
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "evaluatedUserId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "toolName": "tpl_f61ea326b46f30aca4ecc717c2d2f9bc"
+        }
+      ]
+    },
+    {
+      "title": "TPCDS 248 仓库期间库存快照",
+      "toolName": "tpl_190c862b57813ca38fbe5a0edc614970",
+      "releaseId": "37e1baef-1191-4475-a7b7-d344f2d16c42",
+      "version": 3,
+      "source": {
+        "projectId": "0fec15ec-f8aa-4950-a84c-07f220fd5a6b",
+        "fileId": "20adf18b-50ad-4684-ac12-6a4a16240029",
+        "fileVersion": 1,
+        "sqlDigest": "2df1647d48b21e817f80e4384aabeced6f116615063988542622588258d64444"
+      },
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+      "publicationState": "RUNNING",
+      "accessibleAgents": [
+        {
+          "agentId": "sql_template_e2e_20261101_r1",
+          "name": "SQL Template E2E Acceptance Agent",
+          "marketStatus": "published",
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "evaluatedUserId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "toolName": "tpl_190c862b57813ca38fbe5a0edc614970"
+        }
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "file": "deployment-r9.json",
+      "sha256": "3916afa857e7ba256883ec2d72f7d9eb910468602a6e30d2889cc3fead575d01"
+    },
+    {
+      "file": "catalog-final-pagination/filter-and-pagination.json",
+      "sha256": "1c2de66bacd7b11dbc9339c574d36cdd178abfe660706074ed34bc2255ffa0e9"
+    },
+    {
+      "file": "mcp-final-r9-comparison.json",
+      "sha256": "2b56219bb36492b8fd9aacfba4bdedc04d921ee1f9ff1620e726b95f5d487a87"
+    },
+    {
+      "file": "mcp-product-final-r9-comparison.json",
+      "sha256": "eddcac9c3ca6facc2028580eda7c7c8fe115c81196815f945af706be9953f78a"
+    },
+    {
+      "file": "workspace-role-isolation.json",
+      "sha256": "1cbeb23287e02c8df945081f1e33cfad91b0d09bb809918b31d957606ee14ee1"
+    },
+    {
+      "file": "production-no-scenario-hardcoding-audit.json",
+      "sha256": "6579543a2bc7dcb15da43693fae8d17a6fb7688b712b8ec4c0423c50f3be448c"
+    },
+    {
+      "file": "sql-python-skill-load-proof-r9.json",
+      "sha256": "61361c3a2c123b3371ba5cbd2e644fd9a0b968ccd8e3cfd5fce641543b8521de"
+    },
+    {
+      "file": "cases/A06/after-r9/verdict.md",
+      "sha256": "6152fba6321e5c9f0e74358aa5d5ef231766d3567cc454e5954c105dbcdd9339"
+    },
+    {
+      "file": "cases/A02-productdata/after-r9/verdict.md",
+      "sha256": "e609481cc303ea26557ee127b2ba6f59edb54dbb43fcffc0c030daefee0b8385"
+    },
+    {
+      "file": "cases/C01/after-r9/verdict.md",
+      "sha256": "b9c4123dbacba94fb1c693b3e86d70fd6582a656854a85306b5b33edbc436dc0"
+    },
+    {
+      "file": "cases/C02/after-r9/verdict.md",
+      "sha256": "2ad982fd82635def6c45f76f5017dabcea32a1019db833dbd82e84ac817cd4c2"
+    }
+  ],
+  "limits": [
+    "Current specified capabilities and archived cases only; not arbitrary business/model reliability certification.",
+    "PARTIAL analysis limitations preserved; no unknown currency/unit inference or missing-date zero fill.",
+    "Nine existing AgentPlannerTest baseline failures preserved; no full-repository-green claim."
+  ]
+}

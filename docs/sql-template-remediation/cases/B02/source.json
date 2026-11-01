@@ -1,0 +1,26 @@
+{
+  "project": {
+    "id": "0fec15ec-f8aa-4950-a84c-07f220fd5a6b",
+    "name": "TPCDS warehouse blind business 20261101",
+    "dialect": "mysql",
+    "sessionId": "a8f03287-2fd8-4d4c-9fce-20da90ccb349",
+    "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+    "ownerId": "2f219487-11a3-4a1d-9130-ac500b62f268"
+  },
+  "file": {
+    "id": "20adf18b-50ad-4684-ac12-6a4a16240029",
+    "projectId": "0fec15ec-f8aa-4950-a84c-07f220fd5a6b",
+    "path": "sql/warehouse_inventory.sql",
+    "kind": "SQL",
+    "content": "-- =============================================================================\n-- 逐日库存快照分析\n-- 功能：按快照日期统计指定仓库在含边界日期期间内的库存概况\n-- 统计指标：\n--   sku_record_count  - SKU记录数（满足条件的库存记录条数）\n--   nonzero_sku_count - 现存数量大于零的SKU数\n--   zero_sku_count    - 零库存SKU数（现存数量等于零的记录条数）\n--   total_on_hand     - 现存数量合计（所有满足条件的记录的数量之和，不推测计量单位）\n-- 参数（占位符外不加引号，由模板引擎处理）：\n--   {{warehouse_id}}  - 仓库 surrogate key（整数，必填）\n--   {{start_date}}    - 起始日期（日期字符串，必填，含边界）\n--   {{end_date}}      - 结束日期（日期字符串，必填，含边界）\n--   {{min_on_hand}}   - 现存数量下限（整数，默认 0）\n--   {{category}}      - 商品类别（可空字符串，NULL 表示不过滤类别）\n-- =============================================================================\n\nSELECT\n    dd.d_date                                                       AS snapshot_date,\n    /* SKU记录数：该日期下满足筛选条件的库存记录条数 */\n    COUNT(*)                                                        AS sku_record_count,\n    /* 现存数量大于零的SKU数 */\n    SUM(CASE WHEN inv.inv_quantity_on_hand > 0 THEN 1 ELSE 0 END)  AS nonzero_sku_count,\n    /* 零库存SKU数：现存数量等于零的记录条数 */\n    SUM(CASE WHEN inv.inv_quantity_on_hand = 0 THEN 1 ELSE 0 END)  AS zero_sku_count,\n    /* 现存数量合计：所有满足条件的库存记录的 inv_quantity_on_hand 之和（不推测计量单位） */\n    SUM(inv.inv_quantity_on_hand)                                   AS total_on_hand\nFROM inventory inv\nINNER JOIN date_dim dd\n    ON inv.inv_date_sk = dd.d_date_sk\nINNER JOIN item i\n    ON inv.inv_item_sk = i.i_item_sk\nWHERE inv.inv_warehouse_sk = {{warehouse_id}}\n  AND dd.d_date >= {{start_date}}\n  AND dd.d_date <= {{end_date}}\n  AND inv.inv_quantity_on_hand >= {{min_on_hand}}\n  AND ({{category}} IS NULL OR i.i_category = {{category}})\nGROUP BY dd.d_date\nORDER BY dd.d_date ASC\nLIMIT 100;\n",
+    "version": 1,
+    "editable": true,
+    "sourceTaskId": "sql-coding-b65b6542-a0e0-418e-9595-2cc5294dc0e1"
+  },
+  "generationId": "b65b6542-a0e0-418e-9595-2cc5294dc0e1",
+  "parameters": {
+    "warehouse_id": 2,
+    "start_date": "1998-01-01",
+    "end_date": "1998-01-29"
+  }
+}

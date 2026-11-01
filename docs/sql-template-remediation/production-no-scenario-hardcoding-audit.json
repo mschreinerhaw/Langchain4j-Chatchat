@@ -1,0 +1,30 @@
+{
+  "sourceCommit": "fe7dc9e7a6995c71fe984cd2bd8f4ba8d3fc3c97",
+  "base": "96c8ca17d^",
+  "scope": "Added production Java in this remediation, not a claim about every historical source line. Business SQL templates and model-generated Python are separately archived.",
+  "filesAudited": 21,
+  "scenarioIdentifierMatches": [],
+  "fileSha256": {
+    "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentPlanner.java": "e7bc06f995a5e53632006ed5530b1ffea0306a232722449e64da4abbeb8d4755",
+    "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/dataset/AnalysisEvidenceCoordinator.java": "66168f3a517564897890dae5d5be9cac4a1ddbc390fa6e7223409d2e3a43972c",
+    "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/dataset/DataSupplyStatus.java": "429286470c06e7c28ef8508e817a1d490eec38f4c0dbea50cafc89d9dbefc8b8",
+    "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/analysis/governance/AnalysisCoverageCoordinator.java": "3cbae73964016ab8c82cc7eadae96de48801cfe728472201ebfd50c5ce962d70",
+    "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/planning/generation/AgentPlannerPromptBuilder.java": "f1acd7320fe0387676251535e2d03285c6db65f3c3c45c9d2942109884073fba",
+    "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/planning/validation/DeclarativeStepOutputContract.java": "1ab78bac646da7ed4055a6f02395d168b73d0d5ce40d2debe744eb0b3eaa85d8",
+    "chatchat-agents/src/main/java/com/chatchat/agents/runtime/plan/InterpretationPlanRuntime.java": "a579751aaf93ea390bbd5af72dca81b085f554339d760faeca968120a4a52de3",
+    "chatchat-agents/src/main/java/com/chatchat/agents/runtime/toolcall/RequiredTemporalArgumentGrounding.java": "e94ad5e0a1d3e8327089778c5554d7eb07e232e8fddf9ca222e6a4218d654b31",
+    "chatchat-api/src/main/java/com/chatchat/api/enterprise/controller/EnterpriseMcpAuthorizationSyncController.java": "ac00eaebbf57e8e40f264d4520e2b5068a7d20725e47eb6c760dd43828547312",
+    "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.java": "341a11ceccdb9468d0528e6135fd0ed0de96723287d24eed67882f4c7b2799c0",
+    "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/data/CodingFieldDefinitions.java": "2705e5efc151eec2280a7ba4ed358503729cc85f0225e5a89d85a5bf97171fda",
+    "chatchat-chat/src/main/java/com/chatchat/chat/interaction/service/CapabilityWorkflowRuntime.java": "9cd5366841c461a6337a09cfd33cec555a04ba0c984a47d26e7328679619784c",
+    "chatchat-chat/src/main/java/com/chatchat/chat/interaction/service/ProblemAnalysisPlanner.java": "33c5f6f0bdc66853dee41da8a116bc03c7ce6a305173cc4a9fe4319f423f6142",
+    "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/authorization/McpAuthorizationService.java": "f0e827b195975f4aba2c7a99f9ca79718b1482c1adeed7641b2f3049da013ffa",
+    "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/sql/admin/StudioSqlCatalogController.java": "c852cfb235f650766ba6d5b7a8c7b910f90a7e3517f6d76ba3ace8ccd6e6560b",
+    "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/sql/execution/SqlQueryExecuteService.java": "c628b86f5e877e3170331921f0b3e3441f483072b3dd26b77800c975439d79b0",
+    "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/sql/template/SqlTemplateAuthoringService.java": "215d6a755fad36992b14a7aba97751bc10cbcae89722e46810e407be96cb5a36",
+    "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/sql/template/SqlTemplateConfigRepository.java": "c05c77930f5196188e0f82cbd4d467047071567a9640bc34e8697bd10cadda16",
+    "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/sql/template/SqlTemplateService.java": "ef379236dbb7d715931154c946fc172f05772685187314810ed3a5086847d0d3",
+    "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/sql/template/StudioPreparedSql.java": "e3fada59f6ecf767c59627e97cdb87103703009759186b43404d185740c8e460",
+    "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/templatepublication/publisher/TemplateCapabilityPublisher.java": "0882767cf58d427e544547fa033e9d2f19be4bc3820dd31d033b4e2f7095be59"
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "contractVersion": "ui_response_v2",
+  "conversationId": "1793499188650-1a7abebf74f2f8",
+  "requestId": "31898f3c-3035-46bd-9c8d-fc9614ac59f4",
+  "mode": "agent_chat",
+  "status": "FAILED",
+  "answer": "暂时无法生成问题分析计划，本次未选择或执行工作流，请稍后重试。",
+  "citations": [],
+  "evidencePremises": [],
+  "confidence": null,
+  "evidenceSummary": "",
+  "visualization": {
+    "type": "artifact"
+  },
+  "sources": [],
+  "toolTraces": [],
+  "metadata": {
+    "workflowOutcome": {
+      "type": "FAILED",
+      "reason": "PROBLEM_ANALYSIS_FAILED",
+      "missingRequiredCapabilities": [],
+      "missingOptionalCapabilities": [],
+      "usableResult": false
+    },
+    "skillAnalysisContext": {
+      "schemaVersion": "skill_analysis_context.v1",
+      "status": "NO_CANDIDATES",
+      "fingerprint": "e45547bc6369bd24b3bee8fa56e5f3755d74d84d15f20f1982689b6c4f566dd8",
+      "skills": [],
+      "authority": "AUTHORIZED_SKILL_METHODOLOGY_NOT_EVIDENCE"
+    }
+  },
+  "latencyMs": 7658,
+  "timestamp": 1793499196756,
+  "uiResponse": {
+    "contractVersion": "ui_response_v2",
+    "sourceContractVersion": "ui_response_v2",
+    "status": "FAILED",
+    "answer": "暂时无法生成问题分析计划，本次未选择或执行工作流，请稍后重试。",
+    "citations": [],
+    "evidencePremises": [],
+    "confidence": null,
+    "evidenceSummary": "",
+    "visualization": {
+      "type": "artifact"
+    },
+    "uiArtifact": {
+      "contractVersion": "ui_artifact_ref_v1",
+      "artifactId": "ui_1a17435025ec4dc58f882479c28dab78",
+      "revision": 1,
+      "catalogVersion": "enterprise_catalog_v1",
+      "manifestUrl": "/ui-artifacts/ui_1a17435025ec4dc58f882479c28dab78",
+      "renderMode": "markdown"
+    },
+    "renderMode": "markdown"
+  },
+  "executionResult": {
+    "status": "FAILED",
+    "uiResponse": {
+      "contractVersion": "ui_response_v2",
+      "sourceContractVersion": "ui_response_v2",
+      "status": "FAILED",
+      "answer": "暂时无法生成问题分析计划，本次未选择或执行工作流，请稍后重试。",
+      "citations": [],
+      "evidencePremises": [],
+      "confidence": null,
+      "evidenceSummary": "",
+      "visualization": {
+        "type": "artifact"
+      },
+      "uiArtifact": {
+        "contractVersion": "ui_artifact_ref_v1",
+        "artifactId": "ui_1a17435025ec4dc58f882479c28dab78",
+        "revision": 1,
+        "catalogVersion": "enterprise_catalog_v1",
+        "manifestUrl": "/ui-artifacts/ui_1a17435025ec4dc58f882479c28dab78",
+        "renderMode": "markdown"
+      },
+      "renderMode": "markdown"
+    },
+    "semanticFlags": {
+      "hasAnswer": true,
+      "hasInsight": false,
+      "hasToolOutput": false,
+      "hasSources": false,
+      "hasArtifact": true
+    },
+    "message": "Agent task failed before required tool workflow completed",
+    "traceSummary": {
+      "toolTraceCount": 0,
+      "sourceCount": 0
+    },
+    "debug": {}
+  },
+  "debug": {},
+  "uiArtifact": {
+    "contractVersion": "ui_artifact_ref_v1",
+    "artifactId": "ui_1a17435025ec4dc58f882479c28dab78",
+    "revision": 1,
+    "catalogVersion": "enterprise_catalog_v1",
+    "manifestUrl": "/ui-artifacts/ui_1a17435025ec4dc58f882479c28dab78",
+    "renderMode": "markdown"
+  }
+}

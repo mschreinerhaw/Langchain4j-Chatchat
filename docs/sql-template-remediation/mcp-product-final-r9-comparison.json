@@ -1,0 +1,17 @@
+{
+  "status": "PASS",
+  "caseId": "MCP-PRODUCT-NONDEFAULT",
+  "traceId": "b4eed155-b4a2-401a-b00f-2847ab93b514",
+  "toolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+  "releaseId": "922184b0-f4e4-4849-b570-368d0dbe5f85",
+  "version": 6,
+  "parameters": {
+    "product_id": 2,
+    "start_date": "1999-01-01",
+    "end_date": "1999-12-31",
+    "min_quantity": 0,
+    "category": null
+  },
+  "rows": 12,
+  "comparedFields": 84
+}

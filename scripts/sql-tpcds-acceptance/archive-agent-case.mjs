@@ -1,0 +1,15 @@
+﻿/** Assemble original receipts; never infer PASS from successful HTTP or task status. */
+import fs from 'node:fs';import path from 'node:path';import assert from 'node:assert/strict';
+const [caseDir,protocolPath,publicationPath]=process.argv.slice(2);assert.ok(publicationPath,'Usage: archive-agent-case.mjs case-dir protocol.json publication-snapshots.json');
+const read=p=>JSON.parse(fs.readFileSync(p,'utf8')),save=(n,v)=>fs.writeFileSync(path.join(caseDir,n+'.json'),JSON.stringify(v,null,2));
+const observations=fs.readdirSync(caseDir).filter(n=>/^observations-.*\.json$/.test(n)).flatMap(n=>read(path.join(caseDir,n)));
+function receipt(v){if(!v||typeof v!=='object')return null;if(v.operation?.type==='sql.query'&&v.data?.rows)return v;return receipt(v.data);}
+const calls=observations.filter(o=>o.metadata?.stepOutput&&o.source?.includes('tpl_')).map(o=>({observationId:o.id??o.observationId,source:o.source,resolvedInput:o.metadata.resolvedInput,success:o.metadata.success,receipt:receipt(o.metadata.stepOutput),stepOutput:o.metadata.stepOutput}));
+const statements=calls.map(c=>c.receipt?.operation?.statement).filter(Boolean);fs.writeFileSync(path.join(caseDir,'sql.sql'),statements.length?statements.join('\n\n-- Next actual SQL execution\n\n'):'-- NOT_EXECUTED: this case has no successful SQL execution receipt.\n');
+save('parameters',{status:calls.length?'RECORDED_TOOL_OBSERVATIONS':'NOT_EXECUTED',calls:calls.map(c=>({source:c.source,requested:c.resolvedInput,definition:c.receipt?.operation?.diagnostics?.templateMetadata?.inputSchema,effective:c.receipt?.operation?.diagnostics?.templateParameters,boundParameterNames:c.receipt?.operation?.diagnostics?.boundParameterNames}))});
+save('mcp-call',{scope:'ACTUAL_AGENT_TOOL_OBSERVATIONS; independent protocol calls are archived separately',status:calls.length?'OBSERVED':'NOT_EXECUTED',calls});
+const p=read(protocolPath);save('mcp-tools-list',{capturedAt:p.capturedAt,clientKind:p.clientKind,scope:p.scope,initialization:p.initialization,records:p.records.filter(r=>r.request?.method==='tools/list')});
+save('publication',{snapshotSource:publicationPath,snapshot:read(publicationPath),observedTemplateCodes:calls.map(c=>c.receipt?.operation?.diagnostics?.templateId).filter(Boolean),warning:'Snapshot time and executed release must be assessed together; this is not a new live publication query.'});
+const screenshots=path.join(caseDir,'screenshots');fs.mkdirSync(screenshots,{recursive:true});for(const n of fs.readdirSync(caseDir).filter(n=>n.endsWith('.png')))fs.copyFileSync(path.join(caseDir,n),path.join(screenshots,n));
+const comparison=path.join(caseDir,'sql-comparison.json');if(!fs.existsSync(path.join(caseDir,'reconciliation.md')))fs.writeFileSync(path.join(caseDir,'reconciliation.md'),fs.existsSync(comparison)?'实际 SQL 返回与独立只读 JDBC 查询对账：见 [sql-comparison.json](sql-comparison.json)。该结论不自动覆盖模型文字、Python 数值或图表。\n':'未产生独立数据库对账文件。拒绝或追问场景须以无执行轨迹为依据；正向场景在补齐对账前为 INCONCLUSIVE。\n');
+console.log(JSON.stringify({caseDir,calls:calls.length,sqlExecutions:statements.length,verdict:'UNCHANGED_REQUIRES_EVIDENCE_REVIEW'}));

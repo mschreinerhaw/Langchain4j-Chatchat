@@ -1,0 +1,129 @@
+{
+  "status": "RENDERED_IN_SYSTEM_PAGE",
+  "charts": [
+    {
+      "id": "c_bar",
+      "kind": "static",
+      "image": {
+        "width": 1680,
+        "height": 980,
+        "title": "当前全部仓库按国家/省州分布（快照，单位：个）"
+      }
+    },
+    {
+      "id": "c_bar_interactive",
+      "kind": "plotly",
+      "figure": {
+        "data": [
+          {
+            "customdata": [
+              1
+            ],
+            "hovertemplate": "%{x}<br>仓库数量：%{y} 个<br>覆盖城市数：%{customdata} 个<extra></extra>",
+            "marker": {
+              "color": "#3B6EA5",
+              "line": {
+                "color": "#1F3F5F",
+                "width": 1
+              }
+            },
+            "text": [
+              "5"
+            ],
+            "textposition": "outside",
+            "x": [
+              "United States / TN"
+            ],
+            "y": [
+              5
+            ],
+            "type": "bar"
+          }
+        ],
+        "layout": {
+          "template": {},
+          "font": {
+            "color": "#222222",
+            "size": 12
+          },
+          "title": {
+            "font": {
+              "size": 15
+            },
+            "text": "当前全部仓库按国家/省州分布（快照，单位：个）",
+            "x": 0.02
+          },
+          "xaxis": {
+            "tickfont": {
+              "size": 12
+            },
+            "title": {
+              "text": "国家 / 省州"
+            },
+            "showgrid": false,
+            "linecolor": "#888888",
+            "type": "category",
+            "range": [
+              -0.5,
+              0.5
+            ],
+            "autorange": true
+          },
+          "yaxis": {
+            "title": {
+              "text": "仓库数量（个）"
+            },
+            "rangemode": "tozero",
+            "range": [
+              0,
+              7.85
+            ],
+            "gridcolor": "#E5E5E5",
+            "zeroline": true,
+            "zerolinecolor": "#999999",
+            "type": "linear"
+          },
+          "margin": {
+            "l": 72,
+            "r": 32,
+            "t": 72,
+            "b": 64
+          },
+          "paper_bgcolor": "#FFFFFF",
+          "plot_bgcolor": "#FFFFFF",
+          "bargap": 0.55,
+          "showlegend": false,
+          "annotations": [
+            {
+              "align": "left",
+              "font": {
+                "color": "#555555",
+                "size": 10
+              },
+              "showarrow": false,
+              "text": "无参数全仓库；仓库主键 1–5；覆盖城市 1 个",
+              "x": 0,
+              "xref": "paper",
+              "y": -0.24,
+              "yref": "paper"
+            }
+          ],
+          "autosize": true
+        }
+      }
+    }
+  ],
+  "events": [
+    {
+      "fileId": "3a78298667bca5b7b9da8669ea1611d657b3d0aedfa23ceba061f65fdb62e77b",
+      "kind": "png",
+      "durationMs": 88
+    },
+    {
+      "fileId": "75baf814839e6af610315f721145ed774461b4f81b0c4c2a05a8aa9a05efc641",
+      "kind": "plotly",
+      "durationMs": 1958
+    }
+  ],
+  "diagnostics": []
+}

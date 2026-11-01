@@ -1,0 +1,8 @@
+{
+  "status": "DERIVED_RATIO_MATCH",
+  "metric": "平均每城市仓库数（个/城市）",
+  "formula": "JDBC warehouse_count / JDBC city_count",
+  "expected": 5,
+  "actual": 5,
+  "scope": "Current single geographic group only, not a cross-group distinct-city claim"
+}

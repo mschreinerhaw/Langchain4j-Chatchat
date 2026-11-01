@@ -1,0 +1,20 @@
+{
+  "caseId": "A05",
+  "attempt": "r3",
+  "verdict": "FAIL",
+  "reason": "FAIL：查询未交付可核验数据集；同轮混合Schema执行失败，不能用最终回答替代实际数据。",
+  "taskId": "0b2639e8-4df7-4142-9e8e-281fb9607661",
+  "sessionId": "1793497100381-601a9d2376e05",
+  "evidence": [
+    "request.md",
+    "agent-config.json",
+    "submission.json",
+    "agent-result.json",
+    "agent-trace.json",
+    "agent-answer.md",
+    "ui-receipt.json",
+    "conversation-result.png"
+  ],
+  "remediationSource": "3e3d398e5",
+  "retest": "PENDING_DO_NOT_OVERWRITE_THIS_ATTEMPT"
+}

@@ -1,0 +1,35 @@
+{
+  "scope": "REAL_SQL_TO_CLINE_TO_PYTHON_ANALYSIS",
+  "observations": [
+    {
+      "type": "tool",
+      "source": "coding_agent",
+      "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+      "metadata": {
+        "sequence": 15,
+        "eventState": "RUNNING",
+        "payload": {
+          "source": "NODE_CLINE",
+          "timestamp": "2026-11-01T02:36:36.896Z",
+          "skillVersion": "1.3.0",
+          "skillId": "builtin:python-data-analysis",
+          "attemptId": "analysis-coding-881382ed7c1a715341d06d963600310dea626c2899ee37aaa847496e36da097f:fence-1",
+          "stage": "CODING",
+          "type": "SKILLS_LOADED"
+        },
+        "occurredAt": "2026-11-01T02:36:36.931Z",
+        "eventId": "coding:d788e5ed-46ec-498f-a47d-d16ea894102c",
+        "runId": "att-1-044898ff-3368-49e1-85ec-98613b4f1ab4",
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "eventKind": "CODING_TRACE",
+        "taskId": "analysis-coding-881382ed7c1a715341d06d963600310dea626c2899ee37aaa847496e36da097f",
+        "stepId": "analysis-coding-881382ed7c1a715341d06d963600310dea626c2899ee37aaa847496e36da097f",
+        "evidenceRefs": [],
+        "codingEventType": "RECOVERY_RECONCILED",
+        "summary": "Worker observation: SKILLS_LOADED",
+        "structuredRuntimeObservation": true
+      }
+    }
+  ],
+  "executionProof": "cases/C02/after-r6/python-and-artifact-validation.json"
+}

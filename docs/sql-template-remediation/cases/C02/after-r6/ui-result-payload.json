@@ -1,0 +1,791 @@
+{
+  "contractVersion": "ui_response_v2",
+  "conversationId": "1793500459000-dc3ab6d90f0d08",
+  "requestId": "7b24e981-07e4-4bcf-8411-682abc0e6f61",
+  "mode": "agent_chat",
+  "status": "PARTIAL_SUCCESS",
+  "answer": "# 仓库2 库存快照记录数（1998-01-01 至 1998-01-29，返回 5 个快照日期）\n\n## 结论\n\n仓库2 在 1998-01-01 至 1998-01-29 的查询共返回 5 个快照日期、合计 42,752 条库存记录；这 5 个观测日相邻间隔 7 天，29 个日历日中另有 24 天没有任何返回记录。单日记录数在 8,538 条至 8,566 条之间，首末观测日（1998-01-01 → 1998-01-29）下降 8 条。现存数量合计在观测日为 4,297,887（1998-01-29，最低）至 4,349,344（1998-01-22，最高），计量单位数据源未声明，未作推断。空缺日期未补零、未插值，因此本结果不是连续 29 天的逐日完整快照。\n\n## 期间概况\n\n查询条件为仓库 2、快照日期 1998-01-01 至 1998-01-29（含边界）、现存数量下限 0、类别不限，返回结果按快照日期升序排列并已聚合成逐日汇总。观测到的 5 个日期为 1998-01-01、1998-01-08、1998-01-15、1998-01-22、1998-01-29，相邻观测间隔 7 天，并非每个日历日都有观测；因此记录数折线只连接这些观测点，跨越的未观测区间不代表逐日取值。库存记录数在观测日之间最大相差 28 条，首末观测日下降 8 条，属描述性对比。其中数量为 0 的记录每日 7 至 13 条，占当日记录数的 0.08% 至 0.15%（最高为 1998-01-15 的 13 条／8,542 条）。\n\n### 逐日库存快照记录数（横轴：快照日期；纵轴：记录数，条）\n\n![仓库2 逐日库存快照记录数](inventory_record_count_line.png)\n\n图示口径：仅绘出查询返回的 5 个快照日期（相邻间隔 7 天），折线只连接这些观测点，未观测日期不作为逐日取值、未插值；纵轴未从零开始（约 8,538–8,566 条）。\n\n## 现存数量合计明细\n\n下表按快照日期列示库存记录数与现存数量合计。现存数量合计为查询中 SUM(inv_quantity_on_hand) 的逐日结果，只能在同一日期内加总；不同日期之间相加没有库存业务含义，因此未提供跨日合计。记录数合计（42,752 条）是同一条查询在 5 个观测日返回的记录条数之和，仅用于核对返回规模。\n\n| 快照日期 | 库存记录数（条） | 其中数量>0记录数（条） | 其中数量=0记录数（条） | 现存数量合计（单位未由数据源声明） |\n| --- | ---: | ---: | ---: | ---: |\n| 1998-01-01 | 8,546 | 8,539 | 7 | 4,301,064 |\n| 1998-01-08 | 8,566 | 8,559 | 7 | 4,309,382 |\n| 1998-01-15 | 8,542 | 8,529 | 13 | 4,309,203 |\n| 1998-01-22 | 8,560 | 8,550 | 10 | 4,349,344 |\n| 1998-01-29 | 8,538 | 8,529 | 9 | 4,297,887 |\n\n![仓库2 逐日现存数量合计](inventory_onhand_total_line.png)\n\n## 日期覆盖与空缺\n\n请求区间共 29 个日历日，查询只返回 5 天。缺失的 24 天为：1998-01-02、1998-01-03、1998-01-04、1998-01-05、1998-01-06、1998-01-07、1998-01-09、1998-01-10、1998-01-11、1998-01-12、1998-01-13、1998-01-14、1998-01-16、1998-01-17、1998-01-18、1998-01-19、1998-01-20、1998-01-21、1998-01-23、1998-01-24、1998-01-25、1998-01-26、1998-01-27、1998-01-28。查询为按日期分组的聚合结果，某日没有匹配的库存记录时不会产生输出行，因此这些空缺既可能表示当日无符合条件的库存记录，也可能表示数据未覆盖，交付数据中没有任何证据可以区分两者。图上这些日期显示为空缺，未按 0 处理，也未做插值。\n\n| 核对项 | 值 |\n| --- | ---: |\n| 请求区间起点（含） | 1998-01-01 |\n| 请求区间终点（含） | 1998-01-29 |\n| 区间日历天数 | 29 |\n| 返回观测的快照日期数 | 5 |\n| 未返回观测的日期数 | 24 |\n| 返回库存记录数合计（观测日累计） | 42,752 |\n\n## 口径与字段来源\n\n字段含义以查询声明为准：snapshot_date 为日期维度的 d_date 分组键；sku_record_count 为 COUNT(*)，即该日库存记录条数；nonzero_sku_count / zero_sku_count 为 inv_quantity_on_hand 分别 > 0 与 = 0 的条件计数；total_on_hand 为 SUM(inv_quantity_on_hand)。筛选条件 inv_warehouse_sk = 2、日期区间含边界、inv_quantity_on_hand >= 0、类别条件为空，与用户请求一致。数量与现存数量的计量单位未由数据源声明，报告中的数量类数值均不标注单位。\n\n| 逻辑字段 | 声明含义 | 声明来源 | 状态 |\n| --- | --- | --- | --- |\n| snapshot_date | 快照日期（date_dim.d_date，按日分组键） | 查询声明（执行回执 SQL） | 已确认 |\n| sku_record_count | 该日库存记录条数（COUNT(*)） | 查询声明（执行回执 SQL） | 已确认 |\n| nonzero_sku_count | inv_quantity_on_hand > 0 的记录条数 | 查询声明（执行回执 SQL） | 已确认 |\n| zero_sku_count | inv_quantity_on_hand = 0 的记录条数 | 查询声明（执行回执 SQL） | 已确认 |\n| total_on_hand | SUM(inv_quantity_on_hand)，逐日现存数量合计；单位未声明 | 查询声明（执行回执 SQL） | 已确认（单位未声明） |\n\n## 局限\n\n1. 请求区间 29 个日历日中仅 5 天返回观测，其余 24 天无记录；无法判定是当日本身无记录还是数据缺失，因此不能把本结果当作连续 29 天的完整逐日快照，也不对空缺日期补零或插值。\n2. 现存数量与库存数量的计量单位未由数据源声明，报告未标注单位、未做单位换算，相关数值只能做同期同口径比较。\n3. 现存数量合计为逐日 SUM，跨日期相加不构成业务指标，报告不提供跨日合计；记录数合计仅为观测日记录条数之和，用于核对返回规模。\n4. 结果来自单次模板查询（仓库 2、含边界日期、数量下限 0、类别不限、LIMIT 100），返回 5 行未触及上限；仓库标识与日期参数来自执行回执，未与源库独立复核。\n5. 样本仅覆盖单一仓库、单一时段与 5 个观测日，不能据此推断长期库存趋势或库存管理偏好。\n6. 首末观测日之间的变化（-8 条）只描述 5 个观测点的首末差异，不是连续 28 个区间的完整时间序列变化。\n\n## 查询结果明细\n\n已找到 5 行数据，下面展示前 5 行；完整结构化数据已随结果返回用于表格展示。\n\n| snapshot_date | sku_record_count | nonzero_sku_count | zero_sku_count | total_on_hand |\n| --- | --- | --- | --- | --- |\n| 1998-01-01 | 8546 | 8539 | 7 | 4301064 |\n| 1998-01-08 | 8566 | 8559 | 7 | 4309382 |\n| 1998-01-15 | 8542 | 8529 | 13 | 4309203 |\n| 1998-01-22 | 8560 | 8550 | 10 | 4349344 |\n| 1998-01-29 | 8538 | 8529 | 9 | 4297887 |",
+  "citations": [],
+  "evidencePremises": [],
+  "confidence": null,
+  "evidenceSummary": "",
+  "visualization": {
+    "type": "artifact"
+  },
+  "sources": [],
+  "toolTraces": [
+    {
+      "toolName": "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970",
+      "displayName": "tpl_190c862b57813ca38fbe5a0edc614970",
+      "serviceId": "chatchat-mcp-server",
+      "serviceName": "ChatChat MCP Server",
+      "success": true,
+      "input": {},
+      "output": null,
+      "errorMessage": null,
+      "durationMs": 3887,
+      "startedAt": 1793500537979,
+      "finishedAt": 1793500541866,
+      "runtimeMetadata": {}
+    }
+  ],
+  "metadata": {
+    "availableTools": [
+      "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970",
+      "mcp_chatchat_mcp_server_tpl_212b88329a673657979943bbeaa7479b",
+      "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7"
+    ],
+    "requiredTools": [],
+    "toolIntents": [],
+    "handler": "AgentChatModeHandler",
+    "skillId": "sql_template_e2e_20261101_r1",
+    "modelName": "deepseek-v4-flash",
+    "historyUsed": 1,
+    "summaryUsed": false,
+    "workflowOutcome": {
+      "type": "PARTIAL_RESULT",
+      "reason": "CODING_ANALYSIS_PARTIAL",
+      "missingRequiredCapabilities": [
+        "analysis_evidence"
+      ],
+      "missingOptionalCapabilities": [],
+      "usableResult": true
+    },
+    "experienceHintsUsed": false,
+    "knowledgeRetrieval": "not_configured",
+    "domainKnowledgeUsed": false,
+    "domainKnowledgeSourceCount": 0,
+    "domainKnowledgeTokens": 0,
+    "domainKnowledgeTokenBudget": 1500,
+    "domainKnowledgeTruncated": false,
+    "domainKnowledgeSkillCount": 0,
+    "selectedDomainSkillCount": 0,
+    "activatedDomainSkillCount": 0,
+    "skillAnalysisContext": {
+      "schemaVersion": "skill_analysis_context.v1",
+      "status": "NO_CANDIDATES",
+      "fingerprint": "e45547bc6369bd24b3bee8fa56e5f3755d74d84d15f20f1982689b6c4f566dd8",
+      "skills": [],
+      "authority": "AUTHORIZED_SKILL_METHODOLOGY_NOT_EVIDENCE"
+    },
+    "domainKnowledgeContext": {
+      "schemaVersion": "knowledge_context.v1",
+      "status": "not_configured",
+      "used": false,
+      "estimatedTokens": 0,
+      "maxTokens": 1500,
+      "truncated": false,
+      "skillTypes": [],
+      "activatedSkills": [],
+      "sources": [],
+      "usageContract": {
+        "directFinalAllowed": true,
+        "examplesAreCurrentFacts": false,
+        "toolEvidenceRequiredForDynamicFacts": true,
+        "role": "AUTHORIZED_DOCUMENT_KNOWLEDGE_EVIDENCE",
+        "sourceCitationRequired": true,
+        "partialAnswerRequired": false,
+        "answersSupportedByKnowledge": true
+      }
+    }
+  },
+  "latencyMs": 266171,
+  "timestamp": 1793500725638,
+  "uiResponse": {
+    "contractVersion": "ui_response_v2",
+    "sourceContractVersion": "ui_response_v2",
+    "status": "PARTIAL_SUCCESS",
+    "answer": "# 仓库2 库存快照记录数（1998-01-01 至 1998-01-29，返回 5 个快照日期）\n\n## 结论\n\n仓库2 在 1998-01-01 至 1998-01-29 的查询共返回 5 个快照日期、合计 42,752 条库存记录；这 5 个观测日相邻间隔 7 天，29 个日历日中另有 24 天没有任何返回记录。单日记录数在 8,538 条至 8,566 条之间，首末观测日（1998-01-01 → 1998-01-29）下降 8 条。现存数量合计在观测日为 4,297,887（1998-01-29，最低）至 4,349,344（1998-01-22，最高），计量单位数据源未声明，未作推断。空缺日期未补零、未插值，因此本结果不是连续 29 天的逐日完整快照。\n\n## 期间概况\n\n查询条件为仓库 2、快照日期 1998-01-01 至 1998-01-29（含边界）、现存数量下限 0、类别不限，返回结果按快照日期升序排列并已聚合成逐日汇总。观测到的 5 个日期为 1998-01-01、1998-01-08、1998-01-15、1998-01-22、1998-01-29，相邻观测间隔 7 天，并非每个日历日都有观测；因此记录数折线只连接这些观测点，跨越的未观测区间不代表逐日取值。库存记录数在观测日之间最大相差 28 条，首末观测日下降 8 条，属描述性对比。其中数量为 0 的记录每日 7 至 13 条，占当日记录数的 0.08% 至 0.15%（最高为 1998-01-15 的 13 条／8,542 条）。\n\n### 逐日库存快照记录数（横轴：快照日期；纵轴：记录数，条）\n\n![仓库2 逐日库存快照记录数](inventory_record_count_line.png)\n\n图示口径：仅绘出查询返回的 5 个快照日期（相邻间隔 7 天），折线只连接这些观测点，未观测日期不作为逐日取值、未插值；纵轴未从零开始（约 8,538–8,566 条）。\n\n## 现存数量合计明细\n\n下表按快照日期列示库存记录数与现存数量合计。现存数量合计为查询中 SUM(inv_quantity_on_hand) 的逐日结果，只能在同一日期内加总；不同日期之间相加没有库存业务含义，因此未提供跨日合计。记录数合计（42,752 条）是同一条查询在 5 个观测日返回的记录条数之和，仅用于核对返回规模。\n\n| 快照日期 | 库存记录数（条） | 其中数量>0记录数（条） | 其中数量=0记录数（条） | 现存数量合计（单位未由数据源声明） |\n| --- | ---: | ---: | ---: | ---: |\n| 1998-01-01 | 8,546 | 8,539 | 7 | 4,301,064 |\n| 1998-01-08 | 8,566 | 8,559 | 7 | 4,309,382 |\n| 1998-01-15 | 8,542 | 8,529 | 13 | 4,309,203 |\n| 1998-01-22 | 8,560 | 8,550 | 10 | 4,349,344 |\n| 1998-01-29 | 8,538 | 8,529 | 9 | 4,297,887 |\n\n![仓库2 逐日现存数量合计](inventory_onhand_total_line.png)\n\n## 日期覆盖与空缺\n\n请求区间共 29 个日历日，查询只返回 5 天。缺失的 24 天为：1998-01-02、1998-01-03、1998-01-04、1998-01-05、1998-01-06、1998-01-07、1998-01-09、1998-01-10、1998-01-11、1998-01-12、1998-01-13、1998-01-14、1998-01-16、1998-01-17、1998-01-18、1998-01-19、1998-01-20、1998-01-21、1998-01-23、1998-01-24、1998-01-25、1998-01-26、1998-01-27、1998-01-28。查询为按日期分组的聚合结果，某日没有匹配的库存记录时不会产生输出行，因此这些空缺既可能表示当日无符合条件的库存记录，也可能表示数据未覆盖，交付数据中没有任何证据可以区分两者。图上这些日期显示为空缺，未按 0 处理，也未做插值。\n\n| 核对项 | 值 |\n| --- | ---: |\n| 请求区间起点（含） | 1998-01-01 |\n| 请求区间终点（含） | 1998-01-29 |\n| 区间日历天数 | 29 |\n| 返回观测的快照日期数 | 5 |\n| 未返回观测的日期数 | 24 |\n| 返回库存记录数合计（观测日累计） | 42,752 |\n\n## 口径与字段来源\n\n字段含义以查询声明为准：snapshot_date 为日期维度的 d_date 分组键；sku_record_count 为 COUNT(*)，即该日库存记录条数；nonzero_sku_count / zero_sku_count 为 inv_quantity_on_hand 分别 > 0 与 = 0 的条件计数；total_on_hand 为 SUM(inv_quantity_on_hand)。筛选条件 inv_warehouse_sk = 2、日期区间含边界、inv_quantity_on_hand >= 0、类别条件为空，与用户请求一致。数量与现存数量的计量单位未由数据源声明，报告中的数量类数值均不标注单位。\n\n| 逻辑字段 | 声明含义 | 声明来源 | 状态 |\n| --- | --- | --- | --- |\n| snapshot_date | 快照日期（date_dim.d_date，按日分组键） | 查询声明（执行回执 SQL） | 已确认 |\n| sku_record_count | 该日库存记录条数（COUNT(*)） | 查询声明（执行回执 SQL） | 已确认 |\n| nonzero_sku_count | inv_quantity_on_hand > 0 的记录条数 | 查询声明（执行回执 SQL） | 已确认 |\n| zero_sku_count | inv_quantity_on_hand = 0 的记录条数 | 查询声明（执行回执 SQL） | 已确认 |\n| total_on_hand | SUM(inv_quantity_on_hand)，逐日现存数量合计；单位未声明 | 查询声明（执行回执 SQL） | 已确认（单位未声明） |\n\n## 局限\n\n1. 请求区间 29 个日历日中仅 5 天返回观测，其余 24 天无记录；无法判定是当日本身无记录还是数据缺失，因此不能把本结果当作连续 29 天的完整逐日快照，也不对空缺日期补零或插值。\n2. 现存数量与库存数量的计量单位未由数据源声明，报告未标注单位、未做单位换算，相关数值只能做同期同口径比较。\n3. 现存数量合计为逐日 SUM，跨日期相加不构成业务指标，报告不提供跨日合计；记录数合计仅为观测日记录条数之和，用于核对返回规模。\n4. 结果来自单次模板查询（仓库 2、含边界日期、数量下限 0、类别不限、LIMIT 100），返回 5 行未触及上限；仓库标识与日期参数来自执行回执，未与源库独立复核。\n5. 样本仅覆盖单一仓库、单一时段与 5 个观测日，不能据此推断长期库存趋势或库存管理偏好。\n6. 首末观测日之间的变化（-8 条）只描述 5 个观测点的首末差异，不是连续 28 个区间的完整时间序列变化。\n\n## 查询结果明细\n\n已找到 5 行数据，下面展示前 5 行；完整结构化数据已随结果返回用于表格展示。\n\n| snapshot_date | sku_record_count | nonzero_sku_count | zero_sku_count | total_on_hand |\n| --- | --- | --- | --- | --- |\n| 1998-01-01 | 8546 | 8539 | 7 | 4301064 |\n| 1998-01-08 | 8566 | 8559 | 7 | 4309382 |\n| 1998-01-15 | 8542 | 8529 | 13 | 4309203 |\n| 1998-01-22 | 8560 | 8550 | 10 | 4349344 |\n| 1998-01-29 | 8538 | 8529 | 9 | 4297887 |",
+    "citations": [],
+    "evidencePremises": [],
+    "confidence": null,
+    "evidenceSummary": "",
+    "visualization": {
+      "type": "inline",
+      "spec": {
+        "version": "v1",
+        "type": "table",
+        "chartType": "",
+        "title": "查询结果明细",
+        "analysisType": "tool_result_rows",
+        "dataset": {
+          "columns": [
+            "snapshot_date",
+            "sku_record_count",
+            "nonzero_sku_count",
+            "zero_sku_count",
+            "total_on_hand"
+          ],
+          "xKey": "snapshot_date",
+          "series": [
+            {
+              "yKey": "sku_record_count",
+              "name": "sku_record_count"
+            },
+            {
+              "yKey": "nonzero_sku_count",
+              "name": "nonzero_sku_count"
+            },
+            {
+              "yKey": "zero_sku_count",
+              "name": "zero_sku_count"
+            },
+            {
+              "yKey": "total_on_hand",
+              "name": "total_on_hand"
+            }
+          ],
+          "rows": [
+            {
+              "snapshot_date": "1998-01-01",
+              "sku_record_count": 8546,
+              "nonzero_sku_count": 8539,
+              "zero_sku_count": 7,
+              "total_on_hand": 4301064
+            },
+            {
+              "snapshot_date": "1998-01-08",
+              "sku_record_count": 8566,
+              "nonzero_sku_count": 8559,
+              "zero_sku_count": 7,
+              "total_on_hand": 4309382
+            },
+            {
+              "snapshot_date": "1998-01-15",
+              "sku_record_count": 8542,
+              "nonzero_sku_count": 8529,
+              "zero_sku_count": 13,
+              "total_on_hand": 4309203
+            },
+            {
+              "snapshot_date": "1998-01-22",
+              "sku_record_count": 8560,
+              "nonzero_sku_count": 8550,
+              "zero_sku_count": 10,
+              "total_on_hand": 4349344
+            },
+            {
+              "snapshot_date": "1998-01-29",
+              "sku_record_count": 8538,
+              "nonzero_sku_count": 8529,
+              "zero_sku_count": 9,
+              "total_on_hand": 4297887
+            }
+          ]
+        },
+        "ui": {
+          "allowSwitch": true,
+          "allowChartTypeSelection": true,
+          "defaultView": "table"
+        },
+        "insight": {
+          "summary": "",
+          "anomaly": "",
+          "trend": "",
+          "drivers": []
+        },
+        "analysisResult": {
+          "type": "tool_result_rows",
+          "summary": "",
+          "drivers": []
+        },
+        "insightSpec": {
+          "summary": "",
+          "anomaly": "",
+          "trend": "",
+          "drivers": []
+        }
+      }
+    },
+    "visualizationSpec": {
+      "version": "v1",
+      "type": "table",
+      "chartType": "",
+      "title": "查询结果明细",
+      "analysisType": "tool_result_rows",
+      "dataset": {
+        "columns": [
+          "snapshot_date",
+          "sku_record_count",
+          "nonzero_sku_count",
+          "zero_sku_count",
+          "total_on_hand"
+        ],
+        "xKey": "snapshot_date",
+        "series": [
+          {
+            "yKey": "sku_record_count",
+            "name": "sku_record_count"
+          },
+          {
+            "yKey": "nonzero_sku_count",
+            "name": "nonzero_sku_count"
+          },
+          {
+            "yKey": "zero_sku_count",
+            "name": "zero_sku_count"
+          },
+          {
+            "yKey": "total_on_hand",
+            "name": "total_on_hand"
+          }
+        ],
+        "rows": [
+          {
+            "snapshot_date": "1998-01-01",
+            "sku_record_count": 8546,
+            "nonzero_sku_count": 8539,
+            "zero_sku_count": 7,
+            "total_on_hand": 4301064
+          },
+          {
+            "snapshot_date": "1998-01-08",
+            "sku_record_count": 8566,
+            "nonzero_sku_count": 8559,
+            "zero_sku_count": 7,
+            "total_on_hand": 4309382
+          },
+          {
+            "snapshot_date": "1998-01-15",
+            "sku_record_count": 8542,
+            "nonzero_sku_count": 8529,
+            "zero_sku_count": 13,
+            "total_on_hand": 4309203
+          },
+          {
+            "snapshot_date": "1998-01-22",
+            "sku_record_count": 8560,
+            "nonzero_sku_count": 8550,
+            "zero_sku_count": 10,
+            "total_on_hand": 4349344
+          },
+          {
+            "snapshot_date": "1998-01-29",
+            "sku_record_count": 8538,
+            "nonzero_sku_count": 8529,
+            "zero_sku_count": 9,
+            "total_on_hand": 4297887
+          }
+        ]
+      },
+      "ui": {
+        "allowSwitch": true,
+        "allowChartTypeSelection": true,
+        "defaultView": "table"
+      },
+      "insight": {
+        "summary": "",
+        "anomaly": "",
+        "trend": "",
+        "drivers": []
+      },
+      "analysisResult": {
+        "type": "tool_result_rows",
+        "summary": "",
+        "drivers": []
+      },
+      "insightSpec": {
+        "summary": "",
+        "anomaly": "",
+        "trend": "",
+        "drivers": []
+      }
+    },
+    "uiArtifact": {
+      "contractVersion": "ui_artifact_ref_v1",
+      "artifactId": "ui_4a010452635947b8aaad9f6c791a4214",
+      "revision": 1,
+      "catalogVersion": "enterprise_catalog_v1",
+      "manifestUrl": "/ui-artifacts/ui_4a010452635947b8aaad9f6c791a4214",
+      "renderMode": "markdown"
+    },
+    "renderMode": "markdown"
+  },
+  "executionResult": {
+    "status": "PARTIAL_SUCCESS",
+    "uiResponse": {
+      "contractVersion": "ui_response_v2",
+      "sourceContractVersion": "ui_response_v2",
+      "status": "PARTIAL_SUCCESS",
+      "answer": "# 仓库2 库存快照记录数（1998-01-01 至 1998-01-29，返回 5 个快照日期）\n\n## 结论\n\n仓库2 在 1998-01-01 至 1998-01-29 的查询共返回 5 个快照日期、合计 42,752 条库存记录；这 5 个观测日相邻间隔 7 天，29 个日历日中另有 24 天没有任何返回记录。单日记录数在 8,538 条至 8,566 条之间，首末观测日（1998-01-01 → 1998-01-29）下降 8 条。现存数量合计在观测日为 4,297,887（1998-01-29，最低）至 4,349,344（1998-01-22，最高），计量单位数据源未声明，未作推断。空缺日期未补零、未插值，因此本结果不是连续 29 天的逐日完整快照。\n\n## 期间概况\n\n查询条件为仓库 2、快照日期 1998-01-01 至 1998-01-29（含边界）、现存数量下限 0、类别不限，返回结果按快照日期升序排列并已聚合成逐日汇总。观测到的 5 个日期为 1998-01-01、1998-01-08、1998-01-15、1998-01-22、1998-01-29，相邻观测间隔 7 天，并非每个日历日都有观测；因此记录数折线只连接这些观测点，跨越的未观测区间不代表逐日取值。库存记录数在观测日之间最大相差 28 条，首末观测日下降 8 条，属描述性对比。其中数量为 0 的记录每日 7 至 13 条，占当日记录数的 0.08% 至 0.15%（最高为 1998-01-15 的 13 条／8,542 条）。\n\n### 逐日库存快照记录数（横轴：快照日期；纵轴：记录数，条）\n\n![仓库2 逐日库存快照记录数](inventory_record_count_line.png)\n\n图示口径：仅绘出查询返回的 5 个快照日期（相邻间隔 7 天），折线只连接这些观测点，未观测日期不作为逐日取值、未插值；纵轴未从零开始（约 8,538–8,566 条）。\n\n## 现存数量合计明细\n\n下表按快照日期列示库存记录数与现存数量合计。现存数量合计为查询中 SUM(inv_quantity_on_hand) 的逐日结果，只能在同一日期内加总；不同日期之间相加没有库存业务含义，因此未提供跨日合计。记录数合计（42,752 条）是同一条查询在 5 个观测日返回的记录条数之和，仅用于核对返回规模。\n\n| 快照日期 | 库存记录数（条） | 其中数量>0记录数（条） | 其中数量=0记录数（条） | 现存数量合计（单位未由数据源声明） |\n| --- | ---: | ---: | ---: | ---: |\n| 1998-01-01 | 8,546 | 8,539 | 7 | 4,301,064 |\n| 1998-01-08 | 8,566 | 8,559 | 7 | 4,309,382 |\n| 1998-01-15 | 8,542 | 8,529 | 13 | 4,309,203 |\n| 1998-01-22 | 8,560 | 8,550 | 10 | 4,349,344 |\n| 1998-01-29 | 8,538 | 8,529 | 9 | 4,297,887 |\n\n![仓库2 逐日现存数量合计](inventory_onhand_total_line.png)\n\n## 日期覆盖与空缺\n\n请求区间共 29 个日历日，查询只返回 5 天。缺失的 24 天为：1998-01-02、1998-01-03、1998-01-04、1998-01-05、1998-01-06、1998-01-07、1998-01-09、1998-01-10、1998-01-11、1998-01-12、1998-01-13、1998-01-14、1998-01-16、1998-01-17、1998-01-18、1998-01-19、1998-01-20、1998-01-21、1998-01-23、1998-01-24、1998-01-25、1998-01-26、1998-01-27、1998-01-28。查询为按日期分组的聚合结果，某日没有匹配的库存记录时不会产生输出行，因此这些空缺既可能表示当日无符合条件的库存记录，也可能表示数据未覆盖，交付数据中没有任何证据可以区分两者。图上这些日期显示为空缺，未按 0 处理，也未做插值。\n\n| 核对项 | 值 |\n| --- | ---: |\n| 请求区间起点（含） | 1998-01-01 |\n| 请求区间终点（含） | 1998-01-29 |\n| 区间日历天数 | 29 |\n| 返回观测的快照日期数 | 5 |\n| 未返回观测的日期数 | 24 |\n| 返回库存记录数合计（观测日累计） | 42,752 |\n\n## 口径与字段来源\n\n字段含义以查询声明为准：snapshot_date 为日期维度的 d_date 分组键；sku_record_count 为 COUNT(*)，即该日库存记录条数；nonzero_sku_count / zero_sku_count 为 inv_quantity_on_hand 分别 > 0 与 = 0 的条件计数；total_on_hand 为 SUM(inv_quantity_on_hand)。筛选条件 inv_warehouse_sk = 2、日期区间含边界、inv_quantity_on_hand >= 0、类别条件为空，与用户请求一致。数量与现存数量的计量单位未由数据源声明，报告中的数量类数值均不标注单位。\n\n| 逻辑字段 | 声明含义 | 声明来源 | 状态 |\n| --- | --- | --- | --- |\n| snapshot_date | 快照日期（date_dim.d_date，按日分组键） | 查询声明（执行回执 SQL） | 已确认 |\n| sku_record_count | 该日库存记录条数（COUNT(*)） | 查询声明（执行回执 SQL） | 已确认 |\n| nonzero_sku_count | inv_quantity_on_hand > 0 的记录条数 | 查询声明（执行回执 SQL） | 已确认 |\n| zero_sku_count | inv_quantity_on_hand = 0 的记录条数 | 查询声明（执行回执 SQL） | 已确认 |\n| total_on_hand | SUM(inv_quantity_on_hand)，逐日现存数量合计；单位未声明 | 查询声明（执行回执 SQL） | 已确认（单位未声明） |\n\n## 局限\n\n1. 请求区间 29 个日历日中仅 5 天返回观测，其余 24 天无记录；无法判定是当日本身无记录还是数据缺失，因此不能把本结果当作连续 29 天的完整逐日快照，也不对空缺日期补零或插值。\n2. 现存数量与库存数量的计量单位未由数据源声明，报告未标注单位、未做单位换算，相关数值只能做同期同口径比较。\n3. 现存数量合计为逐日 SUM，跨日期相加不构成业务指标，报告不提供跨日合计；记录数合计仅为观测日记录条数之和，用于核对返回规模。\n4. 结果来自单次模板查询（仓库 2、含边界日期、数量下限 0、类别不限、LIMIT 100），返回 5 行未触及上限；仓库标识与日期参数来自执行回执，未与源库独立复核。\n5. 样本仅覆盖单一仓库、单一时段与 5 个观测日，不能据此推断长期库存趋势或库存管理偏好。\n6. 首末观测日之间的变化（-8 条）只描述 5 个观测点的首末差异，不是连续 28 个区间的完整时间序列变化。\n\n## 查询结果明细\n\n已找到 5 行数据，下面展示前 5 行；完整结构化数据已随结果返回用于表格展示。\n\n| snapshot_date | sku_record_count | nonzero_sku_count | zero_sku_count | total_on_hand |\n| --- | --- | --- | --- | --- |\n| 1998-01-01 | 8546 | 8539 | 7 | 4301064 |\n| 1998-01-08 | 8566 | 8559 | 7 | 4309382 |\n| 1998-01-15 | 8542 | 8529 | 13 | 4309203 |\n| 1998-01-22 | 8560 | 8550 | 10 | 4349344 |\n| 1998-01-29 | 8538 | 8529 | 9 | 4297887 |",
+      "citations": [],
+      "evidencePremises": [],
+      "confidence": null,
+      "evidenceSummary": "",
+      "visualization": {
+        "type": "inline",
+        "spec": {
+          "version": "v1",
+          "type": "table",
+          "chartType": "",
+          "title": "查询结果明细",
+          "analysisType": "tool_result_rows",
+          "dataset": {
+            "columns": [
+              "snapshot_date",
+              "sku_record_count",
+              "nonzero_sku_count",
+              "zero_sku_count",
+              "total_on_hand"
+            ],
+            "xKey": "snapshot_date",
+            "series": [
+              {
+                "yKey": "sku_record_count",
+                "name": "sku_record_count"
+              },
+              {
+                "yKey": "nonzero_sku_count",
+                "name": "nonzero_sku_count"
+              },
+              {
+                "yKey": "zero_sku_count",
+                "name": "zero_sku_count"
+              },
+              {
+                "yKey": "total_on_hand",
+                "name": "total_on_hand"
+              }
+            ],
+            "rows": [
+              {
+                "snapshot_date": "1998-01-01",
+                "sku_record_count": 8546,
+                "nonzero_sku_count": 8539,
+                "zero_sku_count": 7,
+                "total_on_hand": 4301064
+              },
+              {
+                "snapshot_date": "1998-01-08",
+                "sku_record_count": 8566,
+                "nonzero_sku_count": 8559,
+                "zero_sku_count": 7,
+                "total_on_hand": 4309382
+              },
+              {
+                "snapshot_date": "1998-01-15",
+                "sku_record_count": 8542,
+                "nonzero_sku_count": 8529,
+                "zero_sku_count": 13,
+                "total_on_hand": 4309203
+              },
+              {
+                "snapshot_date": "1998-01-22",
+                "sku_record_count": 8560,
+                "nonzero_sku_count": 8550,
+                "zero_sku_count": 10,
+                "total_on_hand": 4349344
+              },
+              {
+                "snapshot_date": "1998-01-29",
+                "sku_record_count": 8538,
+                "nonzero_sku_count": 8529,
+                "zero_sku_count": 9,
+                "total_on_hand": 4297887
+              }
+            ]
+          },
+          "ui": {
+            "allowSwitch": true,
+            "allowChartTypeSelection": true,
+            "defaultView": "table"
+          },
+          "insight": {
+            "summary": "",
+            "anomaly": "",
+            "trend": "",
+            "drivers": []
+          },
+          "analysisResult": {
+            "type": "tool_result_rows",
+            "summary": "",
+            "drivers": []
+          },
+          "insightSpec": {
+            "summary": "",
+            "anomaly": "",
+            "trend": "",
+            "drivers": []
+          }
+        }
+      },
+      "visualizationSpec": {
+        "version": "v1",
+        "type": "table",
+        "chartType": "",
+        "title": "查询结果明细",
+        "analysisType": "tool_result_rows",
+        "dataset": {
+          "columns": [
+            "snapshot_date",
+            "sku_record_count",
+            "nonzero_sku_count",
+            "zero_sku_count",
+            "total_on_hand"
+          ],
+          "xKey": "snapshot_date",
+          "series": [
+            {
+              "yKey": "sku_record_count",
+              "name": "sku_record_count"
+            },
+            {
+              "yKey": "nonzero_sku_count",
+              "name": "nonzero_sku_count"
+            },
+            {
+              "yKey": "zero_sku_count",
+              "name": "zero_sku_count"
+            },
+            {
+              "yKey": "total_on_hand",
+              "name": "total_on_hand"
+            }
+          ],
+          "rows": [
+            {
+              "snapshot_date": "1998-01-01",
+              "sku_record_count": 8546,
+              "nonzero_sku_count": 8539,
+              "zero_sku_count": 7,
+              "total_on_hand": 4301064
+            },
+            {
+              "snapshot_date": "1998-01-08",
+              "sku_record_count": 8566,
+              "nonzero_sku_count": 8559,
+              "zero_sku_count": 7,
+              "total_on_hand": 4309382
+            },
+            {
+              "snapshot_date": "1998-01-15",
+              "sku_record_count": 8542,
+              "nonzero_sku_count": 8529,
+              "zero_sku_count": 13,
+              "total_on_hand": 4309203
+            },
+            {
+              "snapshot_date": "1998-01-22",
+              "sku_record_count": 8560,
+              "nonzero_sku_count": 8550,
+              "zero_sku_count": 10,
+              "total_on_hand": 4349344
+            },
+            {
+              "snapshot_date": "1998-01-29",
+              "sku_record_count": 8538,
+              "nonzero_sku_count": 8529,
+              "zero_sku_count": 9,
+              "total_on_hand": 4297887
+            }
+          ]
+        },
+        "ui": {
+          "allowSwitch": true,
+          "allowChartTypeSelection": true,
+          "defaultView": "table"
+        },
+        "insight": {
+          "summary": "",
+          "anomaly": "",
+          "trend": "",
+          "drivers": []
+        },
+        "analysisResult": {
+          "type": "tool_result_rows",
+          "summary": "",
+          "drivers": []
+        },
+        "insightSpec": {
+          "summary": "",
+          "anomaly": "",
+          "trend": "",
+          "drivers": []
+        }
+      },
+      "uiArtifact": {
+        "contractVersion": "ui_artifact_ref_v1",
+        "artifactId": "ui_4a010452635947b8aaad9f6c791a4214",
+        "revision": 1,
+        "catalogVersion": "enterprise_catalog_v1",
+        "manifestUrl": "/ui-artifacts/ui_4a010452635947b8aaad9f6c791a4214",
+        "renderMode": "markdown"
+      },
+      "renderMode": "markdown"
+    },
+    "semanticFlags": {
+      "hasAnswer": true,
+      "hasInsight": true,
+      "hasToolOutput": true,
+      "hasSources": false,
+      "hasArtifact": true
+    },
+    "message": "Agent task completed with partial result",
+    "traceSummary": {
+      "toolTraceCount": 1,
+      "sourceCount": 0
+    },
+    "debug": {
+      "agent": {
+        "plannerSteps": [
+          {
+            "step": 1,
+            "action": "tool",
+            "toolName": "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970",
+            "resolvedToolName": "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970",
+            "reason": "查询仓库2在1998-01-01至1998-01-29（含边界）的逐日库存快照，数量下限0、类别不限，获取真实查询结果，为后续按快照日期统计库存记录数、绘制折线图并输出现存数量合计明细表提供数据。",
+            "executionPlan": {
+              "plannerProtocol": "interpretation_plan",
+              "interpretationPlanValid": true,
+              "interpretationPlanSchemaValid": true,
+              "interpretationPlanRuntimeRulesValid": true,
+              "interpretationPlanExecutable": true,
+              "interpretationPlanApprovalRequired": false,
+              "interpretationPlanIssues": [],
+              "interpretationPlanRuntimeIssues": [],
+              "orderedStepIds": [
+                1,
+                2
+              ],
+              "planTransformation": {
+                "schemaVersion": "dag_repair_result.v1",
+                "status": "UNCHANGED",
+                "changeKind": "UNCHANGED",
+                "materialTopologyChanged": false,
+                "sourceFingerprint": "7398a8c8813e028b8caa3ec3784770a87a0fccb6e306186cd89d6621966dc679",
+                "executableFingerprint": "468bccddf520eb5f32b0686c0acf5f9820ff03a5ca2fd5769f732624be9fa354",
+                "appliedPasses": [],
+                "passFailures": [],
+                "stepIdMappings": {
+                  "1": 1,
+                  "2": 2
+                },
+                "operations": []
+              },
+              "planTransformationValidationState": "ACCEPTED",
+              "plan_step_id": 1,
+              "action_type": "mcp_tool",
+              "intent": "查询仓库2在1998-01-01至1998-01-29（含边界）的逐日库存快照，数量下限0、类别不限，获取真实查询结果，为后续按快照日期统计库存记录数、绘制折线图并输出现存数量合计明细表提供数据。",
+              "risk_level": "low",
+              "tool": "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970",
+              "plannerAttributionSelection": true,
+              "plannerAttributionSource": "deterministic_java",
+              "plannerAttributionContractVersion": "plan_attribution_v1",
+              "plannerGenerationLimit": 3,
+              "plannerGenerationCount": 1,
+              "plannerAttributionCandidateCount": 1,
+              "plannerAttributionSelected": "A",
+              "plannerAttributionSelectedAttempt": 1,
+              "plannerAttributionReason": "Selected the first runtime-valid plan candidate.",
+              "plannerAttributionAnalysis": "Selected the first runtime-valid plan candidate.",
+              "plannerAttributionScores": {
+                "A": 100
+              },
+              "plannerAttributionCandidates": [
+                {
+                  "label": "A",
+                  "attempt": 1,
+                  "failurePattern": "UNKNOWN",
+                  "fingerprint": "40bd391b",
+                  "deterministicScore": 100,
+                  "scoreDetails": {
+                    "toolAvailability": 30,
+                    "dagValidity": 25,
+                    "executionCost": 15,
+                    "runtimePolicyFit": 20,
+                    "coverageScore": 16,
+                    "coverage": {
+                      "coverageScore": 16,
+                      "mandatoryCoverage": 5,
+                      "evidenceDependency": 5,
+                      "workflowCoverage": 0,
+                      "stageCoverage": 4,
+                      "goalCoverage": 2,
+                      "matchedCapabilities": [
+                        "no_mandatory_tool_gap",
+                        "final_answer_depends_on_tool_evidence",
+                        "final_answer_stage",
+                        "tool_execution_stage",
+                        "goal_term:查询仓库2在1998",
+                        "goal_term:数量下限0",
+                        "goal_term:类别不限"
+                      ],
+                      "missingCapabilities": [
+                        "goal_term:01到1998",
+                        "goal_term:29的逐日库存快照",
+                        "goal_term:使用python从真实查询结果绘制按日期展示库存记录数的折线图"
+                      ]
+                    },
+                    "experienceFit": 0,
+                    "experience": {
+                      "reasons": [],
+                      "applied": false,
+                      "experienceFit": 0
+                    },
+                    "baseTotal": 100,
+                    "total": 100
+                  },
+                  "issues": [],
+                  "valid": true
+                }
+              ],
+              "plannerAttributionFailurePattern": "UNKNOWN",
+              "plannerAttributionCandidateFingerprints": [
+                {
+                  "label": "A",
+                  "fingerprint": "40bd391b",
+                  "failurePattern": "UNKNOWN",
+                  "deterministicScore": 100
+                }
+              ],
+              "plannerAttributionRepairApplied": false,
+              "plannerAttributionRepairNotes": []
+            },
+            "answerPreview": null,
+            "plannedAt": 1793500471794,
+            "observationCount": 0
+          }
+        ],
+        "observations": [
+          "InterpretationPlan initial step 1 mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970 succeeded.",
+          "InterpretationPlan initial final answer step 2 completed."
+        ]
+      }
+    }
+  },
+  "debug": {
+    "agent": {
+      "plannerSteps": [
+        {
+          "step": 1,
+          "action": "tool",
+          "toolName": "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970",
+          "resolvedToolName": "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970",
+          "reason": "查询仓库2在1998-01-01至1998-01-29（含边界）的逐日库存快照，数量下限0、类别不限，获取真实查询结果，为后续按快照日期统计库存记录数、绘制折线图并输出现存数量合计明细表提供数据。",
+          "executionPlan": {
+            "plannerProtocol": "interpretation_plan",
+            "interpretationPlanValid": true,
+            "interpretationPlanSchemaValid": true,
+            "interpretationPlanRuntimeRulesValid": true,
+            "interpretationPlanExecutable": true,
+            "interpretationPlanApprovalRequired": false,
+            "interpretationPlanIssues": [],
+            "interpretationPlanRuntimeIssues": [],
+            "orderedStepIds": [
+              1,
+              2
+            ],
+            "planTransformation": {
+              "schemaVersion": "dag_repair_result.v1",
+              "status": "UNCHANGED",
+              "changeKind": "UNCHANGED",
+              "materialTopologyChanged": false,
+              "sourceFingerprint": "7398a8c8813e028b8caa3ec3784770a87a0fccb6e306186cd89d6621966dc679",
+              "executableFingerprint": "468bccddf520eb5f32b0686c0acf5f9820ff03a5ca2fd5769f732624be9fa354",
+              "appliedPasses": [],
+              "passFailures": [],
+              "stepIdMappings": {
+                "1": 1,
+                "2": 2
+              },
+              "operations": []
+            },
+            "planTransformationValidationState": "ACCEPTED",
+            "plan_step_id": 1,
+            "action_type": "mcp_tool",
+            "intent": "查询仓库2在1998-01-01至1998-01-29（含边界）的逐日库存快照，数量下限0、类别不限，获取真实查询结果，为后续按快照日期统计库存记录数、绘制折线图并输出现存数量合计明细表提供数据。",
+            "risk_level": "low",
+            "tool": "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970",
+            "plannerAttributionSelection": true,
+            "plannerAttributionSource": "deterministic_java",
+            "plannerAttributionContractVersion": "plan_attribution_v1",
+            "plannerGenerationLimit": 3,
+            "plannerGenerationCount": 1,
+            "plannerAttributionCandidateCount": 1,
+            "plannerAttributionSelected": "A",
+            "plannerAttributionSelectedAttempt": 1,
+            "plannerAttributionReason": "Selected the first runtime-valid plan candidate.",
+            "plannerAttributionAnalysis": "Selected the first runtime-valid plan candidate.",
+            "plannerAttributionScores": {
+              "A": 100
+            },
+            "plannerAttributionCandidates": [
+              {
+                "label": "A",
+                "attempt": 1,
+                "failurePattern": "UNKNOWN",
+                "fingerprint": "40bd391b",
+                "deterministicScore": 100,
+                "scoreDetails": {
+                  "toolAvailability": 30,
+                  "dagValidity": 25,
+                  "executionCost": 15,
+                  "runtimePolicyFit": 20,
+                  "coverageScore": 16,
+                  "coverage": {
+                    "coverageScore": 16,
+                    "mandatoryCoverage": 5,
+                    "evidenceDependency": 5,
+                    "workflowCoverage": 0,
+                    "stageCoverage": 4,
+                    "goalCoverage": 2,
+                    "matchedCapabilities": [
+                      "no_mandatory_tool_gap",
+                      "final_answer_depends_on_tool_evidence",
+                      "final_answer_stage",
+                      "tool_execution_stage",
+                      "goal_term:查询仓库2在1998",
+                      "goal_term:数量下限0",
+                      "goal_term:类别不限"
+                    ],
+                    "missingCapabilities": [
+                      "goal_term:01到1998",
+                      "goal_term:29的逐日库存快照",
+                      "goal_term:使用python从真实查询结果绘制按日期展示库存记录数的折线图"
+                    ]
+                  },
+                  "experienceFit": 0,
+                  "experience": {
+                    "reasons": [],
+                    "applied": false,
+                    "experienceFit": 0
+                  },
+                  "baseTotal": 100,
+                  "total": 100
+                },
+                "issues": [],
+                "valid": true
+              }
+            ],
+            "plannerAttributionFailurePattern": "UNKNOWN",
+            "plannerAttributionCandidateFingerprints": [
+              {
+                "label": "A",
+                "fingerprint": "40bd391b",
+                "failurePattern": "UNKNOWN",
+                "deterministicScore": 100
+              }
+            ],
+            "plannerAttributionRepairApplied": false,
+            "plannerAttributionRepairNotes": []
+          },
+          "answerPreview": null,
+          "plannedAt": 1793500471794,
+          "observationCount": 0
+        }
+      ],
+      "observations": [
+        "InterpretationPlan initial step 1 mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970 succeeded.",
+        "InterpretationPlan initial final answer step 2 completed."
+      ]
+    }
+  },
+  "uiArtifact": {
+    "contractVersion": "ui_artifact_ref_v1",
+    "artifactId": "ui_4a010452635947b8aaad9f6c791a4214",
+    "revision": 1,
+    "catalogVersion": "enterprise_catalog_v1",
+    "manifestUrl": "/ui-artifacts/ui_4a010452635947b8aaad9f6c791a4214",
+    "renderMode": "markdown"
+  }
+}

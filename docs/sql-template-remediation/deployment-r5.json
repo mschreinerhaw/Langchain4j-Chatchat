@@ -1,0 +1,19 @@
+{
+  "status": "DEPLOYED",
+  "image": "runtime-os-api:sql-template-remediation-20261101-r5",
+  "sha256": "0205e395e9460861462aa39e64e50c70007eb2398cba88125d3de797fa66397b",
+  "backup": "/opt/chatchat-releases/sql-template-remediation-20261101-r5/backup",
+  "retired": {
+    "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-studio-1793499084",
+    "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-studio-1793499084"
+  },
+  "databaseMigrationSha256": null,
+  "preservedExpiredReadOnlyTaskIds": [],
+  "unrelatedContainersUnchanged": true,
+  "conversationContentUnchanged": true,
+  "messageIndexCountUnchanged": true,
+  "images": {
+    "runtime-os-app-stage-api-1": "runtime-os-api:sql-template-remediation-20261101-r5"
+  },
+  "channelCounts": "SQL_STUDIO|44\nPYTHON_STUDIO|9\nPLATFORM_UI|874\nAGENT_API|194"
+}

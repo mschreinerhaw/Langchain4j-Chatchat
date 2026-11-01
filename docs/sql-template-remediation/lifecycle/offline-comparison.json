@@ -1,0 +1,30 @@
+{
+  "status": "OFFLINE_NOT_DISCOVERABLE_AND_NOT_CALLABLE",
+  "initializationSucceeded": true,
+  "toolName": "tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+  "call": {
+    "traceId": "63335ea0-dfa6-474c-b634-97268061b9d8",
+    "durationMs": 5,
+    "request": {
+      "method": "tools/call",
+      "id": 3,
+      "jsonrpc": "2.0",
+      "params": {
+        "name": "tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+        "arguments": {}
+      }
+    },
+    "httpStatus": 403,
+    "response": {
+      "retryable": false,
+      "message": "Template or Agent permission denied",
+      "error": "MCP_ASSET_ACCESS_DENIED",
+      "success": false,
+      "action": "STOP",
+      "licenseStatus": ""
+    },
+    "caseId": "MCP-GEOGRAPHY"
+  },
+  "unrelatedInventorySucceeded": true,
+  "capturedAt": "2026-11-01T02:52:58.381206630Z"
+}

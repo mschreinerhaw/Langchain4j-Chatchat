@@ -1,0 +1,16 @@
+{
+  "kind": "code",
+  "status": "SUBMITTED_TO_RUNTIME",
+  "redacted": false,
+  "sourceBytes": 22819,
+  "truncated": false,
+  "version": "cline-44d6a2208fb7152a9528e65ff0181cfa575dfb41d0bd0f97a97fb3e99ed550bc",
+  "sha256": "973fcb0af5dd6569c67189c0a3f03d6b416746ba39bb4f11626313b8241d35ad",
+  "fileName": "2-1999-01-01-1999-12-31_20261101T031501130Z_f05ad1638878_v3.py",
+  "script": {
+    "fileName": "2-1999-01-01-1999-12-31_20261101T031501130Z_f05ad1638878_v3.py",
+    "scriptPath": "/workspace/scripts/2-1999-01-01-1999-12-31_20261101T031501130Z_f05ad1638878_v3.py",
+    "workingDirectory": "tasks/2abd2c828f4ebf3c/6432cc690bc93efe/6c8d193b7142bdfc/f05ad1638878f389821ba970",
+    "scriptVersion": 3
+  }
+}

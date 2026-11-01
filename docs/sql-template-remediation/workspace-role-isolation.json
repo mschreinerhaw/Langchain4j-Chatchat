@@ -1,0 +1,223 @@
+{
+  "capturedAt": "2026-11-01T03:49:30.584Z",
+  "scope": "TEMPORARY_ROLE_REAL_LOGIN_WORKSPACE_AND_OBJECT_ACL",
+  "checks": [
+    {
+      "route": "/workspaces",
+      "httpStatus": 200,
+      "response": {
+        "code": 200,
+        "message": "Success",
+        "data": [
+          {
+            "workspaceId": "data-exploration",
+            "name": "数据探索",
+            "icon": "chart-column",
+            "description": "围绕业务问题组织分析项目、思维链和金融图表。",
+            "entryPage": "dataExploration",
+            "layoutType": "studio",
+            "defaultWorkspace": false,
+            "configVersion": 1
+          }
+        ],
+        "timestamp": 1793504971668,
+        "requestId": "c5ad34ac-12b7-4501-bbfe-f574f233ed69"
+      }
+    },
+    {
+      "route": "/workspaces/data-science/manifest",
+      "httpStatus": 403,
+      "response": {
+        "code": 403,
+        "message": "Workspace access denied",
+        "data": null,
+        "timestamp": 1793504971746,
+        "requestId": "d85743a6-8853-4088-a9a4-2db14f5253a7"
+      }
+    },
+    {
+      "route": "/data-science/sql/projects/0fec15ec-f8aa-4950-a84c-07f220fd5a6b?tenantId=9001fee4-482b-4851-9eb9-df269765291f&userId=2f219487-11a3-4a1d-9130-ac500b62f268",
+      "httpStatus": 403,
+      "response": {
+        "code": 403,
+        "message": "无权访问该资源",
+        "data": null,
+        "timestamp": 1793504971880,
+        "requestId": null
+      }
+    },
+    {
+      "route": "/workspaces",
+      "httpStatus": 200,
+      "response": {
+        "code": 200,
+        "message": "Success",
+        "data": [
+          {
+            "workspaceId": "data-exploration",
+            "name": "数据探索",
+            "icon": "chart-column",
+            "description": "围绕业务问题组织分析项目、思维链和金融图表。",
+            "entryPage": "dataExploration",
+            "layoutType": "studio",
+            "defaultWorkspace": false,
+            "configVersion": 1
+          },
+          {
+            "workspaceId": "data-science",
+            "name": "数据车间",
+            "icon": "flask",
+            "description": "一站式完成数据接入、Python 开发、SQL / ETL 加工与脚本发布。",
+            "entryPage": "dataScienceEnvironment",
+            "layoutType": "studio",
+            "defaultWorkspace": false,
+            "configVersion": 7
+          }
+        ],
+        "timestamp": 1793504972033,
+        "requestId": "66749157-dca8-4f3a-9c54-01c6a0ceb8c7"
+      }
+    },
+    {
+      "route": "/workspaces/data-science/manifest",
+      "httpStatus": 200,
+      "response": {
+        "code": 200,
+        "message": "Success",
+        "data": {
+          "manifest": {
+            "schemaVersion": "workspace-manifest.v1",
+            "configVersion": 7,
+            "workspaceId": "data-science",
+            "appVersion": "1.0.0",
+            "name": "数据车间",
+            "icon": "flask",
+            "description": "一站式完成数据接入、Python 开发、SQL / ETL 加工与脚本发布。",
+            "entryPage": "dataScienceEnvironment",
+            "layoutType": "studio",
+            "pages": [
+              {
+                "id": "dataScience",
+                "menuCode": "dataScience",
+                "componentKey": "dataScience",
+                "props": {}
+              },
+              {
+                "id": "dataScienceEnvironment",
+                "menuCode": "dataScienceEnvironment",
+                "componentKey": "dataScienceEnvironment",
+                "props": {}
+              },
+              {
+                "id": "dataScienceDevelop",
+                "menuCode": "dataScienceDevelop",
+                "componentKey": "dataScienceDevelop",
+                "props": {}
+              },
+              {
+                "id": "dataScienceData",
+                "menuCode": "dataScienceData",
+                "componentKey": "dataScienceData",
+                "props": {}
+              },
+              {
+                "id": "sqlStudio",
+                "menuCode": "sqlStudio",
+                "componentKey": "sqlStudio",
+                "props": {}
+              }
+            ],
+            "requiredCapabilities": [
+              "capability:data-science"
+            ],
+            "optionalCapabilities": [],
+            "defaultSkillIds": []
+          },
+          "menus": [
+            {
+              "id": "capability",
+              "title": "能力管理",
+              "path": null,
+              "icon": null,
+              "type": "directory",
+              "children": [
+                {
+                  "id": "dataScience",
+                  "title": "数据车间",
+                  "path": "/index.html#dataScience",
+                  "icon": "code",
+                  "type": "menu",
+                  "children": [
+                    {
+                      "id": "dataScienceEnvironment",
+                      "title": "Python 环境",
+                      "path": "/index.html#dataScienceEnvironment",
+                      "icon": "runtime",
+                      "type": "menu",
+                      "children": []
+                    },
+                    {
+                      "id": "dataScienceDevelop",
+                      "title": "Python 开发",
+                      "path": "/index.html#dataScienceDevelop",
+                      "icon": "code",
+                      "type": "menu",
+                      "children": []
+                    },
+                    {
+                      "id": "dataScienceData",
+                      "title": "用户空间",
+                      "path": "/index.html#dataScienceData",
+                      "icon": "folder",
+                      "type": "menu",
+                      "children": []
+                    },
+                    {
+                      "id": "sqlStudio",
+                      "title": "SQL Studio",
+                      "path": "/index.html#sqlStudio",
+                      "icon": "database",
+                      "type": "menu",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "timestamp": 1793504972170,
+        "requestId": "f859b3e3-d315-483d-8697-daed97ff0caf"
+      }
+    },
+    {
+      "route": "/data-science/sql/projects",
+      "httpStatus": 200,
+      "response": {
+        "code": 200,
+        "message": "Success",
+        "data": [],
+        "timestamp": 1793504972323,
+        "requestId": "50e91a30-3a1c-426f-aae1-70838ea08ccc"
+      }
+    },
+    {
+      "route": "/data-science/sql/projects/0fec15ec-f8aa-4950-a84c-07f220fd5a6b?tenantId=9001fee4-482b-4851-9eb9-df269765291f&userId=2f219487-11a3-4a1d-9130-ac500b62f268",
+      "httpStatus": 403,
+      "response": {
+        "code": 403,
+        "message": "Object is outside the authenticated user's scope",
+        "data": null,
+        "timestamp": 1793504972460,
+        "requestId": "35595cfd-773b-4ed7-a29c-55213c28df29"
+      }
+    }
+  ],
+  "cleanup": {
+    "userDeleted": true,
+    "roleDeleted": true
+  },
+  "userId": "3a6df217-04e0-4ac2-93c4-228c64459f44",
+  "roleId": "c2555042-dc1a-4952-ba88-70c12b867b65",
+  "status": "PASS"
+}

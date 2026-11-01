@@ -1,0 +1,6 @@
+{
+  "status": "PASS",
+  "comparedSourceAndTotalCells": 64,
+  "sqlReceiptComparedFields": 84,
+  "scope": "Displayed month and four source metrics for all 12 rows, plus exact totals. SQL receipts separately verify all seven source columns; currency and profit causation remain undeclared."
+}

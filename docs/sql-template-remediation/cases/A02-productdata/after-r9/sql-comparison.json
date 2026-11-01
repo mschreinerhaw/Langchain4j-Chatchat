@@ -1,0 +1,118 @@
+{
+  "status": "EXACT_MATCH",
+  "toolName": "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+  "rows": 12,
+  "comparedFields": 84,
+  "baselineSha256": "d9cda73fcd8eaf66da6c052c31e543e62fb9f01a7d775c4ffe8b030969e80fb9",
+  "observationsSha256": "f35ca6f117c0df6afc32a3c236df34dd331de4cef0f5a028ac36a6cdeab57939",
+  "actualRows": [
+    {
+      "sale_year": 1999,
+      "sale_month": 1,
+      "category": "Women",
+      "row_count": 1,
+      "total_quantity": 19,
+      "total_net_paid": 2576.4,
+      "total_net_profit": 690.46
+    },
+    {
+      "sale_year": 1999,
+      "sale_month": 2,
+      "category": "Women",
+      "row_count": 6,
+      "total_quantity": 285,
+      "total_net_paid": 12337.41,
+      "total_net_profit": -316.95
+    },
+    {
+      "sale_year": 1999,
+      "sale_month": 3,
+      "category": "Women",
+      "row_count": 6,
+      "total_quantity": 318,
+      "total_net_paid": 13697.72,
+      "total_net_profit": -5403.38
+    },
+    {
+      "sale_year": 1999,
+      "sale_month": 4,
+      "category": "Women",
+      "row_count": 1,
+      "total_quantity": 77,
+      "total_net_paid": 2473.21,
+      "total_net_profit": -3518.16
+    },
+    {
+      "sale_year": 1999,
+      "sale_month": 5,
+      "category": "Women",
+      "row_count": 2,
+      "total_quantity": 106,
+      "total_net_paid": 1962.98,
+      "total_net_profit": -2172.6
+    },
+    {
+      "sale_year": 1999,
+      "sale_month": 6,
+      "category": "Women",
+      "row_count": 6,
+      "total_quantity": 335,
+      "total_net_paid": 11294.37,
+      "total_net_profit": -9399.39
+    },
+    {
+      "sale_year": 1999,
+      "sale_month": 7,
+      "category": "Women",
+      "row_count": 1,
+      "total_quantity": 89,
+      "total_net_paid": 602.53,
+      "total_net_profit": -4470.47
+    },
+    {
+      "sale_year": 1999,
+      "sale_month": 8,
+      "category": "Women",
+      "row_count": 5,
+      "total_quantity": 269,
+      "total_net_paid": 4294.14,
+      "total_net_profit": -8688.51
+    },
+    {
+      "sale_year": 1999,
+      "sale_month": 9,
+      "category": "Women",
+      "row_count": 6,
+      "total_quantity": 365,
+      "total_net_paid": 14815.52,
+      "total_net_profit": -7887.61
+    },
+    {
+      "sale_year": 1999,
+      "sale_month": 10,
+      "category": "Women",
+      "row_count": 5,
+      "total_quantity": 249,
+      "total_net_paid": 1710.33,
+      "total_net_profit": -2485.52
+    },
+    {
+      "sale_year": 1999,
+      "sale_month": 11,
+      "category": "Women",
+      "row_count": 9,
+      "total_quantity": 326,
+      "total_net_paid": 8509.65,
+      "total_net_profit": -9961.6
+    },
+    {
+      "sale_year": 1999,
+      "sale_month": 12,
+      "category": "Women",
+      "row_count": 13,
+      "total_quantity": 593,
+      "total_net_paid": 15109.79,
+      "total_net_profit": -17885.6
+    }
+  ]
+}

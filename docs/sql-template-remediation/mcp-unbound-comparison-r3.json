@@ -1,0 +1,21 @@
+{
+  "status": "UNBOUND_AGENT_DENIED",
+  "agentId": "sql_template_unbound_20261101",
+  "discoverableTemplateCount": 0,
+  "calls": [
+    {
+      "caseId": "MCP-GEOGRAPHY",
+      "traceId": "abeb22b0-445f-4fd1-80ab-358fd62e93fb",
+      "toolName": "tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+      "httpStatus": 403,
+      "error": "MCP_ASSET_ACCESS_DENIED"
+    },
+    {
+      "caseId": "MCP-INVENTORY-DEFAULTS",
+      "traceId": "4a9f88f6-7fc4-4e9e-b9bd-7b583f54711c",
+      "toolName": "tpl_190c862b57813ca38fbe5a0edc614970",
+      "httpStatus": 403,
+      "error": "MCP_ASSET_ACCESS_DENIED"
+    }
+  ]
+}

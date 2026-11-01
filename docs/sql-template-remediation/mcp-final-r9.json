@@ -1,0 +1,2883 @@
+{
+  "capturedAt" : "2026-11-01T03:41:12.259476142Z",
+  "clientKind" : "INDEPENDENT_MCP_PROTOCOL_CLIENT_NOT_AGENT_EXECUTION",
+  "identitySource" : "Authenticated Runtime OS /enterprise/auth/me and accessible Agent configuration",
+  "scope" : {
+    "userId" : "2f219487-11a3-4a1d-9130-ac500b62f268",
+    "agentId" : "sql_template_e2e_20261101_r1",
+    "tenantId" : "9001fee4-482b-4851-9eb9-df269765291f"
+  },
+  "initialization" : {
+    "httpStatus" : 200,
+    "response" : {
+      "jsonrpc" : "2.0",
+      "id" : 1,
+      "result" : {
+        "protocolVersion" : "2025-11-25",
+        "capabilities" : {
+          "logging" : { },
+          "tools" : {
+            "listChanged" : true
+          }
+        },
+        "serverInfo" : {
+          "name" : "chatchat-langchain4j-mcp-server",
+          "version" : "1.0.0-SNAPSHOT"
+        },
+        "instructions" : "ChatChat standalone MCP server exposing LangChain4j-compatible tools."
+      }
+    },
+    "traceId" : "ef27200e-0606-45f0-8164-1b2c969ea1df",
+    "durationMs" : 82,
+    "request" : {
+      "jsonrpc" : "2.0",
+      "params" : {
+        "capabilities" : { },
+        "clientInfo" : {
+          "name" : "runtime-sql-independent-probe",
+          "version" : "1.0"
+        },
+        "protocolVersion" : "2025-11-25"
+      },
+      "method" : "initialize",
+      "id" : 1
+    }
+  },
+  "protocolVersion" : "2025-11-25",
+  "records" : [ {
+    "httpStatus" : 200,
+    "response" : {
+      "id" : 2,
+      "result" : {
+        "tools" : [ {
+          "name" : "tpl_190c862b57813ca38fbe5a0edc614970",
+          "title" : "TPCDS 248 仓库期间库存快照",
+          "description" : "按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。\nReturns the existing ToolOutput envelope: SQL rows are at $.data.data.rows and rowCount at $.data.data.rowCount. SQL column names are NOT top-level result fields. Preserve this actual envelope in downstream contracts.\nVerified trial declares SQL row column identifiers at $.data.data.rows[*]: [\"snapshot_date\",\"sku_record_count\",\"nonzero_sku_count\",\"zero_sku_count\",\"total_on_hand\"]. Identifiers only, never sample values or proof of current rows. Bind the exact scalar leaf using field selectors and numeric array indexes. jq pipes, map, min and alternative field guesses are not executable output paths.",
+          "inputSchema" : {
+            "type" : "object",
+            "additionalProperties" : false,
+            "properties" : {
+              "warehouse_id" : {
+                "type" : "integer",
+                "minimum" : 1,
+                "description" : "仓库维表主键，无默认值"
+              },
+              "start_date" : {
+                "type" : "string",
+                "format" : "date",
+                "description" : "含边界的库存快照开始日期"
+              },
+              "end_date" : {
+                "type" : "string",
+                "format" : "date",
+                "description" : "含边界的库存快照结束日期"
+              },
+              "min_on_hand" : {
+                "type" : "integer",
+                "minimum" : 0,
+                "default" : 0,
+                "description" : "现存数量下限"
+              },
+              "category" : {
+                "type" : [ "string", "null" ],
+                "default" : null,
+                "description" : "商品类别，null表示不限"
+              }
+            },
+            "required" : [ "warehouse_id", "start_date", "end_date" ]
+          },
+          "outputSchema" : {
+            "required" : [ "success" ],
+            "type" : "object",
+            "properties" : {
+              "errorMessage" : {
+                "type" : [ "string", "null" ]
+              },
+              "success" : {
+                "type" : "boolean"
+              },
+              "data" : {
+                "type" : [ "object", "null" ],
+                "properties" : {
+                  "data" : {
+                    "type" : "object",
+                    "properties" : {
+                      "columns" : {
+                        "items" : {
+                          "type" : "string"
+                        },
+                        "type" : "array"
+                      },
+                      "rows" : {
+                        "items" : {
+                          "type" : "object"
+                        },
+                        "type" : "array"
+                      },
+                      "rowCount" : {
+                        "type" : "integer"
+                      }
+                    }
+                  },
+                  "success" : {
+                    "type" : "boolean"
+                  }
+                }
+              }
+            },
+            "description" : "ToolOutput envelope. SQL rows are at $.data.data.rows, not top-level SQL column fields. Preserve the envelope when passing results to later steps."
+          },
+          "_meta" : {
+            "runtimeLevel" : "controlled",
+            "toolVersion" : "3.0.0",
+            "operationType" : "execute",
+            "templateCapability" : true,
+            "riskLevel" : "low",
+            "schemaVersion" : "template-capability.v1",
+            "breakingChangeApproved" : true,
+            "visibleTenantIds" : [ "9001fee4-482b-4851-9eb9-df269765291f" ],
+            "resultKind" : "RAW_RECORDS",
+            "resultSchemaRef" : "sql_result.v1",
+            "sqlResultColumns" : [ "snapshot_date", "sku_record_count", "nonzero_sku_count", "zero_sku_count", "total_on_hand" ]
+          }
+        }, {
+          "name" : "tpl_212b88329a673657979943bbeaa7479b",
+          "title" : "TPCDS 248 商品1年度销售汇总验收",
+          "description" : "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。\nReturns the existing ToolOutput envelope: SQL rows are at $.data.data.rows and rowCount at $.data.data.rowCount. SQL column names are NOT top-level result fields. Preserve this actual envelope in downstream contracts.\nVerified trial declares SQL row column identifiers at $.data.data.rows[*]: [\"sales_year\",\"sales_rows\",\"total_quantity\",\"total_net_paid\",\"total_net_profit\",\"earliest_date\",\"latest_date\"]. Identifiers only, never sample values or proof of current rows. Bind the exact scalar leaf using field selectors and numeric array indexes. jq pipes, map, min and alternative field guesses are not executable output paths.",
+          "inputSchema" : {
+            "type" : "object",
+            "properties" : { },
+            "additionalProperties" : false
+          },
+          "outputSchema" : {
+            "required" : [ "success" ],
+            "type" : "object",
+            "properties" : {
+              "errorMessage" : {
+                "type" : [ "string", "null" ]
+              },
+              "success" : {
+                "type" : "boolean"
+              },
+              "data" : {
+                "type" : [ "object", "null" ],
+                "properties" : {
+                  "data" : {
+                    "type" : "object",
+                    "properties" : {
+                      "columns" : {
+                        "items" : {
+                          "type" : "string"
+                        },
+                        "type" : "array"
+                      },
+                      "rows" : {
+                        "items" : {
+                          "type" : "object"
+                        },
+                        "type" : "array"
+                      },
+                      "rowCount" : {
+                        "type" : "integer"
+                      }
+                    }
+                  },
+                  "success" : {
+                    "type" : "boolean"
+                  }
+                }
+              }
+            },
+            "description" : "ToolOutput envelope. SQL rows are at $.data.data.rows, not top-level SQL column fields. Preserve the envelope when passing results to later steps."
+          },
+          "_meta" : {
+            "runtimeLevel" : "controlled",
+            "toolVersion" : "6.0.0",
+            "operationType" : "execute",
+            "templateCapability" : true,
+            "riskLevel" : "low",
+            "schemaVersion" : "template-capability.v1",
+            "breakingChangeApproved" : true,
+            "visibleTenantIds" : [ "9001fee4-482b-4851-9eb9-df269765291f" ],
+            "resultKind" : "RAW_RECORDS",
+            "resultSchemaRef" : "sql_result.v1",
+            "sqlResultColumns" : [ "sales_year", "sales_rows", "total_quantity", "total_net_paid", "total_net_profit", "earliest_date", "latest_date" ]
+          }
+        }, {
+          "name" : "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+          "title" : "TPCDS 248 单品期间月度销售分析验收",
+          "description" : "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。\nReturns the existing ToolOutput envelope: SQL rows are at $.data.data.rows and rowCount at $.data.data.rowCount. SQL column names are NOT top-level result fields. Preserve this actual envelope in downstream contracts.\nVerified trial declares SQL row column identifiers at $.data.data.rows[*]: [\"sale_year\",\"sale_month\",\"category\",\"row_count\",\"total_quantity\",\"total_net_paid\",\"total_net_profit\"]. Identifiers only, never sample values or proof of current rows. Bind the exact scalar leaf using field selectors and numeric array indexes. jq pipes, map, min and alternative field guesses are not executable output paths.",
+          "inputSchema" : {
+            "type" : "object",
+            "properties" : {
+              "product_id" : {
+                "type" : "integer",
+                "minimum" : 1,
+                "default" : 1,
+                "description" : "store_sales.ss_item_sk 商品主键"
+              },
+              "start_date" : {
+                "type" : "string",
+                "format" : "date",
+                "description" : "date_dim.d_date 含边界起日"
+              },
+              "end_date" : {
+                "type" : "string",
+                "format" : "date",
+                "description" : "date_dim.d_date 含边界止日"
+              },
+              "min_quantity" : {
+                "type" : "integer",
+                "minimum" : 0,
+                "default" : 0,
+                "description" : "每行最低ss_quantity"
+              },
+              "category" : {
+                "type" : [ "string", "null" ],
+                "default" : null,
+                "description" : "item.i_category精确品类；NULL不过滤"
+              }
+            },
+            "required" : [ "start_date", "end_date" ],
+            "additionalProperties" : false
+          },
+          "outputSchema" : {
+            "required" : [ "success" ],
+            "type" : "object",
+            "properties" : {
+              "errorMessage" : {
+                "type" : [ "string", "null" ]
+              },
+              "success" : {
+                "type" : "boolean"
+              },
+              "data" : {
+                "type" : [ "object", "null" ],
+                "properties" : {
+                  "data" : {
+                    "type" : "object",
+                    "properties" : {
+                      "columns" : {
+                        "items" : {
+                          "type" : "string"
+                        },
+                        "type" : "array"
+                      },
+                      "rows" : {
+                        "items" : {
+                          "type" : "object"
+                        },
+                        "type" : "array"
+                      },
+                      "rowCount" : {
+                        "type" : "integer"
+                      }
+                    }
+                  },
+                  "success" : {
+                    "type" : "boolean"
+                  }
+                }
+              }
+            },
+            "description" : "ToolOutput envelope. SQL rows are at $.data.data.rows, not top-level SQL column fields. Preserve the envelope when passing results to later steps."
+          },
+          "_meta" : {
+            "runtimeLevel" : "controlled",
+            "toolVersion" : "6.0.0",
+            "operationType" : "execute",
+            "templateCapability" : true,
+            "riskLevel" : "low",
+            "schemaVersion" : "template-capability.v1",
+            "breakingChangeApproved" : true,
+            "visibleTenantIds" : [ "9001fee4-482b-4851-9eb9-df269765291f" ],
+            "resultKind" : "RAW_RECORDS",
+            "resultSchemaRef" : "sql_result.v1",
+            "sqlResultColumns" : [ "sale_year", "sale_month", "category", "row_count", "total_quantity", "total_net_paid", "total_net_profit" ]
+          }
+        }, {
+          "name" : "tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+          "title" : "TPCDS 248 仓库地理分布",
+          "description" : "按国家和省州统计仓库数量、覆盖城市数及分组主键范围，保留空分组。global_min_warehouse_sk 为整个 warehouse 维表实际最小主键，每行重复同一全局值，允许后续库存查询直接绑定该值，不按返回行排名选择仓库。无参数、全仓库。\nReturns the existing ToolOutput envelope: SQL rows are at $.data.data.rows and rowCount at $.data.data.rowCount. SQL column names are NOT top-level result fields. Preserve this actual envelope in downstream contracts.\nVerified trial declares SQL row column identifiers at $.data.data.rows[*]: [\"w_country\",\"w_state\",\"warehouse_count\",\"city_count\",\"min_warehouse_sk\",\"max_warehouse_sk\",\"global_min_warehouse_sk\"]. Identifiers only, never sample values or proof of current rows. Bind the exact scalar leaf using field selectors and numeric array indexes. jq pipes, map, min and alternative field guesses are not executable output paths.",
+          "inputSchema" : {
+            "type" : "object",
+            "properties" : { },
+            "additionalProperties" : false
+          },
+          "outputSchema" : {
+            "required" : [ "success" ],
+            "type" : "object",
+            "properties" : {
+              "errorMessage" : {
+                "type" : [ "string", "null" ]
+              },
+              "success" : {
+                "type" : "boolean"
+              },
+              "data" : {
+                "type" : [ "object", "null" ],
+                "properties" : {
+                  "data" : {
+                    "type" : "object",
+                    "properties" : {
+                      "columns" : {
+                        "items" : {
+                          "type" : "string"
+                        },
+                        "type" : "array"
+                      },
+                      "rows" : {
+                        "items" : {
+                          "type" : "object"
+                        },
+                        "type" : "array"
+                      },
+                      "rowCount" : {
+                        "type" : "integer"
+                      }
+                    }
+                  },
+                  "success" : {
+                    "type" : "boolean"
+                  }
+                }
+              }
+            },
+            "description" : "ToolOutput envelope. SQL rows are at $.data.data.rows, not top-level SQL column fields. Preserve the envelope when passing results to later steps."
+          },
+          "_meta" : {
+            "runtimeLevel" : "controlled",
+            "toolVersion" : "4.0.0",
+            "operationType" : "execute",
+            "templateCapability" : true,
+            "riskLevel" : "low",
+            "schemaVersion" : "template-capability.v1",
+            "breakingChangeApproved" : true,
+            "visibleTenantIds" : [ "9001fee4-482b-4851-9eb9-df269765291f" ],
+            "resultKind" : "RAW_RECORDS",
+            "resultSchemaRef" : "sql_result.v1",
+            "sqlResultColumns" : [ "w_country", "w_state", "warehouse_count", "city_count", "min_warehouse_sk", "max_warehouse_sk", "global_min_warehouse_sk" ]
+          }
+        } ]
+      },
+      "jsonrpc" : "2.0"
+    },
+    "traceId" : "68c9b4e3-232c-491c-9730-bc8f3de2404e",
+    "durationMs" : 9833,
+    "request" : {
+      "jsonrpc" : "2.0",
+      "params" : { },
+      "method" : "tools/list",
+      "id" : 2
+    },
+    "caseId" : "MCP-LIST"
+  }, {
+    "httpStatus" : 200,
+    "response" : {
+      "jsonrpc" : "2.0",
+      "id" : 3,
+      "result" : {
+        "content" : [ {
+          "type" : "text",
+          "text" : "模板执行完成"
+        } ],
+        "isError" : false,
+        "structuredContent" : {
+          "success" : true,
+          "data" : {
+            "schemaVersion" : "tool_execution_result.v1",
+            "kind" : "sql_query",
+            "dataSchema" : "sql_result.v1",
+            "payloadType" : "structured",
+            "success" : true,
+            "status" : "success",
+            "durationMs" : 68,
+            "generatedAt" : "2026-11-01T03:40:34.550440782Z",
+            "dataCompleteness" : {
+              "contractVersion" : "mcp_complete_result.v1",
+              "complete" : true,
+              "gatewayTruncated" : false,
+              "projectionRequiredByConsumer" : true
+            },
+            "error" : null,
+            "target" : {
+              "type" : "database",
+              "id" : "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+              "name" : "248测试数据库",
+              "toolName" : "db_query_mysql_248_test_db",
+              "environment" : "DEV"
+            },
+            "sourceMetadata" : {
+              "schemaVersion" : "execution_source.v1",
+              "executionType" : "SQL_QUERY",
+              "sourceType" : "sql_statement",
+              "toolName" : "db_query_mysql_248_test_db",
+              "asset" : {
+                "type" : "database",
+                "id" : "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                "name" : "248测试数据库",
+                "environment" : "DEV"
+              },
+              "operation" : {
+                "statementHash" : "4184e6ba0624c0c94a8bf5aeddc2b73556979da371aa65bb01f24363802deba8",
+                "templateId" : "STUDIO_E717A2E9639E37C58D59FB184E92C781"
+              },
+              "business" : {
+                "name" : "TPCDS 248 仓库地理分布",
+                "description" : "按国家和省州统计仓库数量、覆盖城市数及分组主键范围，保留空分组。global_min_warehouse_sk 为整个 warehouse 维表实际最小主键，每行重复同一全局值，允许后续库存查询直接绑定该值，不按返回行排名选择仓库。无参数、全仓库。",
+                "category" : "business_analysis"
+              }
+            },
+            "operation" : {
+              "type" : "sql.query",
+              "statement" : "SELECT\n    w_country,                                              \n    w_state,                                                \n    COUNT(*)                AS warehouse_count,             \n    COUNT(DISTINCT w_city)  AS city_count,                  \n    MIN(w_warehouse_sk)     AS min_warehouse_sk,            \n    MAX(w_warehouse_sk)     AS max_warehouse_sk,            \n    (SELECT MIN(w_warehouse_sk) FROM warehouse)\n                            AS global_min_warehouse_sk      \nFROM warehouse\nGROUP BY\n    w_country,\n    w_state\nORDER BY\n    w_country,\n    w_state",
+              "timeoutSeconds" : 30,
+              "purpose" : null,
+              "sourceTaskId" : "f6d8e9d3-13fc-4ee4-ab4d-b5f59840aa33",
+              "diagnostics" : {
+                "requestedCatalog" : null,
+                "requestedSchema" : null,
+                "schemaVersion" : "sql_query_diagnostics.v1",
+                "templateId" : "STUDIO_E717A2E9639E37C58D59FB184E92C781",
+                "templateParameters" : { },
+                "executionContext" : { },
+                "tableResolution" : null,
+                "routedTarget" : null,
+                "routingDecisionLog" : null,
+                "datasource" : {
+                  "id" : "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                  "name" : "248测试数据库",
+                  "toolName" : "db_query_mysql_248_test_db",
+                  "environment" : "DEV",
+                  "databaseType" : "mysql",
+                  "jdbcDatabase" : "tpcds"
+                },
+                "templateMetadata" : {
+                  "templateId" : "STUDIO_E717A2E9639E37C58D59FB184E92C781",
+                  "businessName" : "TPCDS 248 仓库地理分布",
+                  "businessDescription" : "按国家和省州统计仓库数量、覆盖城市数及分组主键范围，保留空分组。global_min_warehouse_sk 为整个 warehouse 维表实际最小主键，每行重复同一全局值，允许后续库存查询直接绑定该值，不按返回行排名选择仓库。无参数、全仓库。",
+                  "category" : "business_analysis",
+                  "riskLevel" : "MEDIUM",
+                  "inputSchema" : {
+                    "type" : "object",
+                    "properties" : { },
+                    "additionalProperties" : false
+                  },
+                  "evidencePolicy" : { }
+                },
+                "executionMode" : "PREPARED_STATEMENT",
+                "boundParameterCount" : 0,
+                "boundParameterNames" : [ ],
+                "appliedCatalog" : "tpcds",
+                "connection" : {
+                  "catalog" : "tpcds",
+                  "schema" : null,
+                  "jdbcDatabase" : "tpcds",
+                  "databaseType" : "mysql"
+                },
+                "columnCommentResolution" : "enabled",
+                "rowCount" : 1,
+                "possiblyTruncated" : false
+              }
+            },
+            "limits" : {
+              "maxRowsRequested" : 500,
+              "configuredDatabaseMaxRows" : 500,
+              "rowsFetchedFromDatabase" : 1,
+              "fullFetchedRowsAvailable" : true,
+              "analysisStrategy" : "RUNTIME_EXTERNALIZE_AND_CHUNK",
+              "truncationStrategy" : "DATABASE_MAX_ROWS_500"
+            },
+            "data" : {
+              "resultSetMode" : "ONE_PER_TEMPLATE_EXECUTION",
+              "resultSetId" : "4184e6ba0624c0c94a8bf5aeddc2b73556979da371aa65bb01f24363802deba8",
+              "commandContext" : {
+                "schemaVersion" : "template_result_context.v1",
+                "templateId" : "db_query_mysql_248_test_db",
+                "templateName" : "db_query_mysql_248_test_db",
+                "description" : null,
+                "executionMode" : "SINGLE_SQL",
+                "commands" : [ {
+                  "commandId" : "sql_query",
+                  "order" : 1,
+                  "name" : "db_query_mysql_248_test_db",
+                  "description" : null,
+                  "analysisHint" : null,
+                  "resultReference" : "$.data"
+                } ],
+                "references" : [ ]
+              },
+              "rowCount" : 1,
+              "returnedRowCount" : 1,
+              "complete" : true,
+              "possiblyTruncated" : false,
+              "truncationStrategy" : "DATABASE_MAX_ROWS_500",
+              "columns" : [ "w_country", "w_state", "warehouse_count", "city_count", "min_warehouse_sk", "max_warehouse_sk", "global_min_warehouse_sk" ],
+              "columnMetadata" : [ {
+                "name" : "w_country",
+                "label" : "w_country",
+                "comment" : null,
+                "tableName" : "warehouse",
+                "schemaName" : null,
+                "catalogName" : "tpcds",
+                "jdbcType" : 12,
+                "typeName" : "VARCHAR",
+                "displaySize" : 20,
+                "nullable" : true,
+                "masked" : false
+              }, {
+                "name" : "w_state",
+                "label" : "w_state",
+                "comment" : null,
+                "tableName" : "warehouse",
+                "schemaName" : null,
+                "catalogName" : "tpcds",
+                "jdbcType" : 1,
+                "typeName" : "CHAR",
+                "displaySize" : 2,
+                "nullable" : true,
+                "masked" : false
+              }, {
+                "name" : "warehouse_count",
+                "label" : "warehouse_count",
+                "comment" : null,
+                "tableName" : null,
+                "schemaName" : null,
+                "catalogName" : null,
+                "jdbcType" : -5,
+                "typeName" : "BIGINT",
+                "displaySize" : 19,
+                "nullable" : false,
+                "masked" : false
+              }, {
+                "name" : "city_count",
+                "label" : "city_count",
+                "comment" : null,
+                "tableName" : null,
+                "schemaName" : null,
+                "catalogName" : null,
+                "jdbcType" : -5,
+                "typeName" : "BIGINT",
+                "displaySize" : 19,
+                "nullable" : false,
+                "masked" : false
+              }, {
+                "name" : "min_warehouse_sk",
+                "label" : "min_warehouse_sk",
+                "comment" : null,
+                "tableName" : null,
+                "schemaName" : null,
+                "catalogName" : null,
+                "jdbcType" : 4,
+                "typeName" : "INT",
+                "displaySize" : 10,
+                "nullable" : true,
+                "masked" : false
+              }, {
+                "name" : "max_warehouse_sk",
+                "label" : "max_warehouse_sk",
+                "comment" : null,
+                "tableName" : null,
+                "schemaName" : null,
+                "catalogName" : null,
+                "jdbcType" : 4,
+                "typeName" : "INT",
+                "displaySize" : 10,
+                "nullable" : true,
+                "masked" : false
+              }, {
+                "name" : "global_min_warehouse_sk",
+                "label" : "global_min_warehouse_sk",
+                "comment" : null,
+                "tableName" : null,
+                "schemaName" : null,
+                "catalogName" : null,
+                "jdbcType" : 4,
+                "typeName" : "INT",
+                "displaySize" : 10,
+                "nullable" : true,
+                "masked" : false
+              } ],
+              "governance" : {
+                "schemaVersion" : "sql_output_governance.v1",
+                "readOnly" : true,
+                "rowCount" : 1,
+                "returnedRowCount" : 1,
+                "possiblyTruncated" : false,
+                "truncationStrategy" : "DATABASE_MAX_ROWS_500",
+                "maskedColumns" : [ ],
+                "columnCommentsIncluded" : false
+              },
+              "diagnostics" : {
+                "requestedCatalog" : null,
+                "requestedSchema" : null,
+                "schemaVersion" : "sql_query_diagnostics.v1",
+                "templateId" : "STUDIO_E717A2E9639E37C58D59FB184E92C781",
+                "templateParameters" : { },
+                "executionContext" : { },
+                "tableResolution" : null,
+                "routedTarget" : null,
+                "routingDecisionLog" : null,
+                "datasource" : {
+                  "id" : "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                  "name" : "248测试数据库",
+                  "toolName" : "db_query_mysql_248_test_db",
+                  "environment" : "DEV",
+                  "databaseType" : "mysql",
+                  "jdbcDatabase" : "tpcds"
+                },
+                "templateMetadata" : {
+                  "templateId" : "STUDIO_E717A2E9639E37C58D59FB184E92C781",
+                  "businessName" : "TPCDS 248 仓库地理分布",
+                  "businessDescription" : "按国家和省州统计仓库数量、覆盖城市数及分组主键范围，保留空分组。global_min_warehouse_sk 为整个 warehouse 维表实际最小主键，每行重复同一全局值，允许后续库存查询直接绑定该值，不按返回行排名选择仓库。无参数、全仓库。",
+                  "category" : "business_analysis",
+                  "riskLevel" : "MEDIUM",
+                  "inputSchema" : {
+                    "type" : "object",
+                    "properties" : { },
+                    "additionalProperties" : false
+                  },
+                  "evidencePolicy" : { }
+                },
+                "executionMode" : "PREPARED_STATEMENT",
+                "boundParameterCount" : 0,
+                "boundParameterNames" : [ ],
+                "appliedCatalog" : "tpcds",
+                "connection" : {
+                  "catalog" : "tpcds",
+                  "schema" : null,
+                  "jdbcDatabase" : "tpcds",
+                  "databaseType" : "mysql"
+                },
+                "columnCommentResolution" : "enabled",
+                "rowCount" : 1,
+                "possiblyTruncated" : false
+              },
+              "rows" : [ {
+                "w_country" : "United States",
+                "w_state" : "TN",
+                "warehouse_count" : 5,
+                "city_count" : 1,
+                "min_warehouse_sk" : 1,
+                "max_warehouse_sk" : 5,
+                "global_min_warehouse_sk" : 1
+              } ]
+            },
+            "execution" : {
+              "schemaVersion" : "execution_unit.v1",
+              "executionId" : "3b1213ed-5e3f-4c4c-b5e3-9cbce5565c24",
+              "toolName" : "db_query_mysql_248_test_db",
+              "startedAt" : "2026-11-01T03:40:34.482578554Z",
+              "finishedAt" : "2026-11-01T03:40:34.550578554Z",
+              "durationMs" : 68,
+              "stepCount" : 1,
+              "steps" : [ {
+                "stepIndex" : 1,
+                "stepId" : "sql_1",
+                "stepType" : "sql",
+                "input" : {
+                  "statement" : "SELECT\n    w_country,                                              \n    w_state,                                                \n    COUNT(*)                AS warehouse_count,             \n    COUNT(DISTINCT w_city)  AS city_count,                  \n    MIN(w_warehouse_sk)     AS min_warehouse_sk,            \n    MAX(w_warehouse_sk)     AS max_warehouse_sk,            \n    (SELECT MIN(w_warehouse_sk) FROM warehouse)\n                            AS global_min_warehouse_sk      \nFROM warehouse\nGROUP BY\n    w_country,\n    w_state\nORDER BY\n    w_country,\n    w_state",
+                  "timeoutSeconds" : 30,
+                  "purpose" : null,
+                  "sourceTaskId" : "f6d8e9d3-13fc-4ee4-ab4d-b5f59840aa33"
+                },
+                "output" : {
+                  "resultSetReference" : "$.data",
+                  "rowCount" : 1,
+                  "returnedRowCount" : 1,
+                  "possiblyTruncated" : false,
+                  "columnCount" : 7
+                },
+                "success" : true,
+                "status" : "success",
+                "durationMs" : 68,
+                "error" : null,
+                "rowCount" : 1
+              } ]
+            },
+            "executionGraph" : {
+              "schemaVersion" : "execution_graph.v1",
+              "nodes" : [ {
+                "id" : "sql_query",
+                "type" : "sql.query",
+                "status" : "success",
+                "durationMs" : 68,
+                "attributes" : { }
+              } ],
+              "edges" : [ ]
+            },
+            "executionWorkflow" : {
+              "verified" : true,
+              "steps" : [ "VALIDATE_ARGUMENT_CONTRACT", "ROUTE_LOGICAL_DATASOURCE", "RESOLVE_TEMPLATE_PARAMETERS_IF_PRESENT", "CLASSIFY_SQL_CARDINALITY", "ENFORCE_READ_ONLY_POLICY", "EXECUTE_QUERY_OR_SCRIPT", "VERIFY_RESULT", "ASSEMBLE_EVIDENCE" ],
+              "workflowId" : "execute.sql-query.v1",
+              "mode" : "SQL_QUERY",
+              "parameterWorkflow" : {
+                "parameterRepairs" : [ ],
+                "parameterSources" : { },
+                "mode" : "DECLARED_SCHEMA",
+                "parameterCount" : 0,
+                "steps" : [ "NORMALIZE_REQUEST", "COLLECT_EXPLICIT_PARAMETERS", "COLLECT_REQUEST_FIELDS", "APPLY_DECLARED_DEFAULTS", "COERCE_DECLARED_TYPES", "VALIDATE_REQUIRED_PARAMETERS", "ASSEMBLE_BINDING" ],
+                "verified" : true,
+                "scopeStatus" : "EXPLICIT_PARAMETERS",
+                "workflowId" : "resolve.template-parameters.v1"
+              }
+            }
+          },
+          "message" : null,
+          "errorMessage" : null,
+          "exceptionType" : null,
+          "errorDetails" : null,
+          "executionTimeMs" : 126,
+          "tokenUsage" : { },
+          "metadata" : {
+            "templatePublication" : {
+              "toolName" : "tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+              "releaseId" : "4b0ebd36-3b07-4c38-9214-f1e9118a815f",
+              "templateRevision" : "8a14ad44cef4c37c12a5fc1186b8e9c719f8d21e7c26daf0279ec35372f5b4c7",
+              "userId" : "2f219487-11a3-4a1d-9130-ac500b62f268",
+              "agentId" : "sql_template_e2e_20261101_r1"
+            },
+            "traceId" : "f6d8e9d3-13fc-4ee4-ab4d-b5f59840aa33"
+          }
+        }
+      }
+    },
+    "traceId" : "f6d8e9d3-13fc-4ee4-ab4d-b5f59840aa33",
+    "durationMs" : 5186,
+    "request" : {
+      "jsonrpc" : "2.0",
+      "params" : {
+        "name" : "tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+        "arguments" : { }
+      },
+      "method" : "tools/call",
+      "id" : 3
+    },
+    "caseId" : "MCP-GEOGRAPHY"
+  }, {
+    "httpStatus" : 200,
+    "response" : {
+      "jsonrpc" : "2.0",
+      "id" : 4,
+      "result" : {
+        "content" : [ {
+          "type" : "text",
+          "text" : "模板执行完成"
+        } ],
+        "isError" : false,
+        "structuredContent" : {
+          "success" : true,
+          "data" : {
+            "schemaVersion" : "tool_execution_result.v1",
+            "kind" : "sql_query",
+            "dataSchema" : "sql_result.v1",
+            "payloadType" : "structured",
+            "success" : true,
+            "status" : "success",
+            "durationMs" : 316,
+            "generatedAt" : "2026-11-01T03:40:40.089852714Z",
+            "dataCompleteness" : {
+              "contractVersion" : "mcp_complete_result.v1",
+              "complete" : true,
+              "gatewayTruncated" : false,
+              "projectionRequiredByConsumer" : true
+            },
+            "error" : null,
+            "target" : {
+              "type" : "database",
+              "id" : "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+              "name" : "248测试数据库",
+              "toolName" : "db_query_mysql_248_test_db",
+              "environment" : "DEV"
+            },
+            "sourceMetadata" : {
+              "schemaVersion" : "execution_source.v1",
+              "executionType" : "SQL_QUERY",
+              "sourceType" : "sql_statement",
+              "toolName" : "db_query_mysql_248_test_db",
+              "asset" : {
+                "type" : "database",
+                "id" : "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                "name" : "248测试数据库",
+                "environment" : "DEV"
+              },
+              "operation" : {
+                "statementHash" : "a9f7b152d179a885b94a9417e721ee8459d22ed202af8a54e876daf0a71e3841",
+                "templateId" : "STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A"
+              },
+              "business" : {
+                "name" : "TPCDS 248 仓库期间库存快照",
+                "description" : "按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。",
+                "category" : "business_analysis"
+              }
+            },
+            "operation" : {
+              "type" : "sql.query",
+              "statement" : "SELECT\n    dd.d_date                                                       AS snapshot_date,\n    \n    COUNT(*)                                                        AS sku_record_count,\n    \n    SUM(CASE WHEN inv.inv_quantity_on_hand > 0 THEN 1 ELSE 0 END)  AS nonzero_sku_count,\n    \n    SUM(CASE WHEN inv.inv_quantity_on_hand = 0 THEN 1 ELSE 0 END)  AS zero_sku_count,\n    \n    SUM(inv.inv_quantity_on_hand)                                   AS total_on_hand\nFROM inventory inv\nINNER JOIN date_dim dd\n    ON inv.inv_date_sk = dd.d_date_sk\nINNER JOIN item i\n    ON inv.inv_item_sk = i.i_item_sk\nWHERE inv.inv_warehouse_sk = ?\n  AND dd.d_date >= ?\n  AND dd.d_date <= ?\n  AND inv.inv_quantity_on_hand >= ?\n  AND (? IS NULL OR i.i_category = ?)\nGROUP BY dd.d_date\nORDER BY dd.d_date ASC\nLIMIT 100",
+              "timeoutSeconds" : 30,
+              "purpose" : null,
+              "sourceTaskId" : "12c279a2-d190-424c-8475-5f1e23952040",
+              "diagnostics" : {
+                "requestedCatalog" : null,
+                "requestedSchema" : null,
+                "schemaVersion" : "sql_query_diagnostics.v1",
+                "templateId" : "STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A",
+                "templateParameters" : {
+                  "warehouse_id" : 2,
+                  "start_date" : "1998-01-01",
+                  "end_date" : "1998-01-29",
+                  "min_on_hand" : 0,
+                  "category" : null
+                },
+                "executionContext" : { },
+                "tableResolution" : null,
+                "routedTarget" : null,
+                "routingDecisionLog" : null,
+                "datasource" : {
+                  "id" : "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                  "name" : "248测试数据库",
+                  "toolName" : "db_query_mysql_248_test_db",
+                  "environment" : "DEV",
+                  "databaseType" : "mysql",
+                  "jdbcDatabase" : "tpcds"
+                },
+                "templateMetadata" : {
+                  "templateId" : "STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A",
+                  "businessName" : "TPCDS 248 仓库期间库存快照",
+                  "businessDescription" : "按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。",
+                  "category" : "business_analysis",
+                  "riskLevel" : "MEDIUM",
+                  "inputSchema" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : {
+                      "warehouse_id" : {
+                        "type" : "integer",
+                        "minimum" : 1,
+                        "description" : "仓库维表主键，无默认值"
+                      },
+                      "start_date" : {
+                        "type" : "string",
+                        "format" : "date",
+                        "description" : "含边界的库存快照开始日期"
+                      },
+                      "end_date" : {
+                        "type" : "string",
+                        "format" : "date",
+                        "description" : "含边界的库存快照结束日期"
+                      },
+                      "min_on_hand" : {
+                        "type" : "integer",
+                        "minimum" : 0,
+                        "default" : 0,
+                        "description" : "现存数量下限"
+                      },
+                      "category" : {
+                        "type" : [ "string", "null" ],
+                        "default" : null,
+                        "description" : "商品类别，null表示不限"
+                      }
+                    },
+                    "required" : [ "warehouse_id", "start_date", "end_date" ]
+                  },
+                  "evidencePolicy" : { }
+                },
+                "executionMode" : "PREPARED_STATEMENT",
+                "boundParameterCount" : 6,
+                "boundParameterNames" : [ "warehouse_id", "start_date", "end_date", "min_on_hand", "category", "category" ],
+                "appliedCatalog" : "tpcds",
+                "connection" : {
+                  "catalog" : "tpcds",
+                  "schema" : null,
+                  "jdbcDatabase" : "tpcds",
+                  "databaseType" : "mysql"
+                },
+                "columnCommentResolution" : "enabled",
+                "rowCount" : 5,
+                "possiblyTruncated" : false
+              }
+            },
+            "limits" : {
+              "maxRowsRequested" : 500,
+              "configuredDatabaseMaxRows" : 500,
+              "rowsFetchedFromDatabase" : 5,
+              "fullFetchedRowsAvailable" : true,
+              "analysisStrategy" : "RUNTIME_EXTERNALIZE_AND_CHUNK",
+              "truncationStrategy" : "DATABASE_MAX_ROWS_500"
+            },
+            "data" : {
+              "resultSetMode" : "ONE_PER_TEMPLATE_EXECUTION",
+              "resultSetId" : "a9f7b152d179a885b94a9417e721ee8459d22ed202af8a54e876daf0a71e3841",
+              "commandContext" : {
+                "schemaVersion" : "template_result_context.v1",
+                "templateId" : "db_query_mysql_248_test_db",
+                "templateName" : "db_query_mysql_248_test_db",
+                "description" : null,
+                "executionMode" : "SINGLE_SQL",
+                "commands" : [ {
+                  "commandId" : "sql_query",
+                  "order" : 1,
+                  "name" : "db_query_mysql_248_test_db",
+                  "description" : null,
+                  "analysisHint" : null,
+                  "resultReference" : "$.data"
+                } ],
+                "references" : [ ]
+              },
+              "rowCount" : 5,
+              "returnedRowCount" : 5,
+              "complete" : true,
+              "possiblyTruncated" : false,
+              "truncationStrategy" : "DATABASE_MAX_ROWS_500",
+              "columns" : [ "snapshot_date", "sku_record_count", "nonzero_sku_count", "zero_sku_count", "total_on_hand" ],
+              "columnMetadata" : [ {
+                "name" : "d_date",
+                "label" : "snapshot_date",
+                "comment" : null,
+                "tableName" : "date_dim",
+                "schemaName" : null,
+                "catalogName" : "tpcds",
+                "jdbcType" : 91,
+                "typeName" : "DATE",
+                "displaySize" : 10,
+                "nullable" : true,
+                "masked" : false
+              }, {
+                "name" : "sku_record_count",
+                "label" : "sku_record_count",
+                "comment" : null,
+                "tableName" : null,
+                "schemaName" : null,
+                "catalogName" : null,
+                "jdbcType" : -5,
+                "typeName" : "BIGINT",
+                "displaySize" : 19,
+                "nullable" : false,
+                "masked" : false
+              }, {
+                "name" : "nonzero_sku_count",
+                "label" : "nonzero_sku_count",
+                "comment" : null,
+                "tableName" : null,
+                "schemaName" : null,
+                "catalogName" : null,
+                "jdbcType" : 3,
+                "typeName" : "DECIMAL",
+                "displaySize" : 23,
+                "nullable" : true,
+                "masked" : false
+              }, {
+                "name" : "zero_sku_count",
+                "label" : "zero_sku_count",
+                "comment" : null,
+                "tableName" : null,
+                "schemaName" : null,
+                "catalogName" : null,
+                "jdbcType" : 3,
+                "typeName" : "DECIMAL",
+                "displaySize" : 23,
+                "nullable" : true,
+                "masked" : false
+              }, {
+                "name" : "total_on_hand",
+                "label" : "total_on_hand",
+                "comment" : null,
+                "tableName" : null,
+                "schemaName" : null,
+                "catalogName" : null,
+                "jdbcType" : 3,
+                "typeName" : "DECIMAL",
+                "displaySize" : 32,
+                "nullable" : true,
+                "masked" : false
+              } ],
+              "governance" : {
+                "schemaVersion" : "sql_output_governance.v1",
+                "readOnly" : true,
+                "rowCount" : 5,
+                "returnedRowCount" : 5,
+                "possiblyTruncated" : false,
+                "truncationStrategy" : "DATABASE_MAX_ROWS_500",
+                "maskedColumns" : [ ],
+                "columnCommentsIncluded" : false
+              },
+              "diagnostics" : {
+                "requestedCatalog" : null,
+                "requestedSchema" : null,
+                "schemaVersion" : "sql_query_diagnostics.v1",
+                "templateId" : "STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A",
+                "templateParameters" : {
+                  "warehouse_id" : 2,
+                  "start_date" : "1998-01-01",
+                  "end_date" : "1998-01-29",
+                  "min_on_hand" : 0,
+                  "category" : null
+                },
+                "executionContext" : { },
+                "tableResolution" : null,
+                "routedTarget" : null,
+                "routingDecisionLog" : null,
+                "datasource" : {
+                  "id" : "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                  "name" : "248测试数据库",
+                  "toolName" : "db_query_mysql_248_test_db",
+                  "environment" : "DEV",
+                  "databaseType" : "mysql",
+                  "jdbcDatabase" : "tpcds"
+                },
+                "templateMetadata" : {
+                  "templateId" : "STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A",
+                  "businessName" : "TPCDS 248 仓库期间库存快照",
+                  "businessDescription" : "按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。",
+                  "category" : "business_analysis",
+                  "riskLevel" : "MEDIUM",
+                  "inputSchema" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : {
+                      "warehouse_id" : {
+                        "type" : "integer",
+                        "minimum" : 1,
+                        "description" : "仓库维表主键，无默认值"
+                      },
+                      "start_date" : {
+                        "type" : "string",
+                        "format" : "date",
+                        "description" : "含边界的库存快照开始日期"
+                      },
+                      "end_date" : {
+                        "type" : "string",
+                        "format" : "date",
+                        "description" : "含边界的库存快照结束日期"
+                      },
+                      "min_on_hand" : {
+                        "type" : "integer",
+                        "minimum" : 0,
+                        "default" : 0,
+                        "description" : "现存数量下限"
+                      },
+                      "category" : {
+                        "type" : [ "string", "null" ],
+                        "default" : null,
+                        "description" : "商品类别，null表示不限"
+                      }
+                    },
+                    "required" : [ "warehouse_id", "start_date", "end_date" ]
+                  },
+                  "evidencePolicy" : { }
+                },
+                "executionMode" : "PREPARED_STATEMENT",
+                "boundParameterCount" : 6,
+                "boundParameterNames" : [ "warehouse_id", "start_date", "end_date", "min_on_hand", "category", "category" ],
+                "appliedCatalog" : "tpcds",
+                "connection" : {
+                  "catalog" : "tpcds",
+                  "schema" : null,
+                  "jdbcDatabase" : "tpcds",
+                  "databaseType" : "mysql"
+                },
+                "columnCommentResolution" : "enabled",
+                "rowCount" : 5,
+                "possiblyTruncated" : false
+              },
+              "rows" : [ {
+                "snapshot_date" : "1998-01-01",
+                "sku_record_count" : 8546,
+                "nonzero_sku_count" : 8539,
+                "zero_sku_count" : 7,
+                "total_on_hand" : 4301064
+              }, {
+                "snapshot_date" : "1998-01-08",
+                "sku_record_count" : 8566,
+                "nonzero_sku_count" : 8559,
+                "zero_sku_count" : 7,
+                "total_on_hand" : 4309382
+              }, {
+                "snapshot_date" : "1998-01-15",
+                "sku_record_count" : 8542,
+                "nonzero_sku_count" : 8529,
+                "zero_sku_count" : 13,
+                "total_on_hand" : 4309203
+              }, {
+                "snapshot_date" : "1998-01-22",
+                "sku_record_count" : 8560,
+                "nonzero_sku_count" : 8550,
+                "zero_sku_count" : 10,
+                "total_on_hand" : 4349344
+              }, {
+                "snapshot_date" : "1998-01-29",
+                "sku_record_count" : 8538,
+                "nonzero_sku_count" : 8529,
+                "zero_sku_count" : 9,
+                "total_on_hand" : 4297887
+              } ]
+            },
+            "execution" : {
+              "schemaVersion" : "execution_unit.v1",
+              "executionId" : "609e02f0-01df-48a5-8069-028320d73af7",
+              "toolName" : "db_query_mysql_248_test_db",
+              "startedAt" : "2026-11-01T03:40:39.774032713Z",
+              "finishedAt" : "2026-11-01T03:40:40.090032713Z",
+              "durationMs" : 316,
+              "stepCount" : 1,
+              "steps" : [ {
+                "stepIndex" : 1,
+                "stepId" : "sql_1",
+                "stepType" : "sql",
+                "input" : {
+                  "statement" : "SELECT\n    dd.d_date                                                       AS snapshot_date,\n    \n    COUNT(*)                                                        AS sku_record_count,\n    \n    SUM(CASE WHEN inv.inv_quantity_on_hand > 0 THEN 1 ELSE 0 END)  AS nonzero_sku_count,\n    \n    SUM(CASE WHEN inv.inv_quantity_on_hand = 0 THEN 1 ELSE 0 END)  AS zero_sku_count,\n    \n    SUM(inv.inv_quantity_on_hand)                                   AS total_on_hand\nFROM inventory inv\nINNER JOIN date_dim dd\n    ON inv.inv_date_sk = dd.d_date_sk\nINNER JOIN item i\n    ON inv.inv_item_sk = i.i_item_sk\nWHERE inv.inv_warehouse_sk = ?\n  AND dd.d_date >= ?\n  AND dd.d_date <= ?\n  AND inv.inv_quantity_on_hand >= ?\n  AND (? IS NULL OR i.i_category = ?)\nGROUP BY dd.d_date\nORDER BY dd.d_date ASC\nLIMIT 100",
+                  "timeoutSeconds" : 30,
+                  "purpose" : null,
+                  "sourceTaskId" : "12c279a2-d190-424c-8475-5f1e23952040"
+                },
+                "output" : {
+                  "resultSetReference" : "$.data",
+                  "rowCount" : 5,
+                  "returnedRowCount" : 5,
+                  "possiblyTruncated" : false,
+                  "columnCount" : 5
+                },
+                "success" : true,
+                "status" : "success",
+                "durationMs" : 316,
+                "error" : null,
+                "rowCount" : 5
+              } ]
+            },
+            "executionGraph" : {
+              "schemaVersion" : "execution_graph.v1",
+              "nodes" : [ {
+                "id" : "sql_query",
+                "type" : "sql.query",
+                "status" : "success",
+                "durationMs" : 316,
+                "attributes" : { }
+              } ],
+              "edges" : [ ]
+            },
+            "executionWorkflow" : {
+              "verified" : true,
+              "steps" : [ "VALIDATE_ARGUMENT_CONTRACT", "ROUTE_LOGICAL_DATASOURCE", "RESOLVE_TEMPLATE_PARAMETERS_IF_PRESENT", "CLASSIFY_SQL_CARDINALITY", "ENFORCE_READ_ONLY_POLICY", "EXECUTE_QUERY_OR_SCRIPT", "VERIFY_RESULT", "ASSEMBLE_EVIDENCE" ],
+              "workflowId" : "execute.sql-query.v1",
+              "mode" : "SQL_QUERY",
+              "parameterWorkflow" : {
+                "parameterRepairs" : [ {
+                  "field" : "category",
+                  "repairCode" : "DEFAULT_VALUE_APPLIED"
+                }, {
+                  "field" : "category",
+                  "repairCode" : "UNKNOWN_TEMPLATE_PARAMETER_DROPPED"
+                } ],
+                "parameterSources" : {
+                  "warehouse_id" : "EXPLICIT_PARAMETERS",
+                  "start_date" : "EXPLICIT_PARAMETERS",
+                  "end_date" : "EXPLICIT_PARAMETERS",
+                  "min_on_hand" : "EXPLICIT_PARAMETERS",
+                  "category" : "SCHEMA_DEFAULT"
+                },
+                "mode" : "DECLARED_SCHEMA",
+                "parameterCount" : 5,
+                "steps" : [ "NORMALIZE_REQUEST", "COLLECT_EXPLICIT_PARAMETERS", "COLLECT_REQUEST_FIELDS", "APPLY_DECLARED_DEFAULTS", "COERCE_DECLARED_TYPES", "VALIDATE_REQUIRED_PARAMETERS", "ASSEMBLE_BINDING" ],
+                "verified" : true,
+                "scopeStatus" : "REQUIRES_SCOPE_VERIFICATION",
+                "workflowId" : "resolve.template-parameters.v1"
+              }
+            }
+          },
+          "message" : null,
+          "errorMessage" : null,
+          "exceptionType" : null,
+          "errorDetails" : null,
+          "executionTimeMs" : 353,
+          "tokenUsage" : { },
+          "metadata" : {
+            "templatePublication" : {
+              "toolName" : "tpl_190c862b57813ca38fbe5a0edc614970",
+              "releaseId" : "37e1baef-1191-4475-a7b7-d344f2d16c42",
+              "templateRevision" : "a1382b452a921a73523c0e105971bbc1afaa9a8145c15f26d205e39580bc19ab",
+              "userId" : "2f219487-11a3-4a1d-9130-ac500b62f268",
+              "agentId" : "sql_template_e2e_20261101_r1"
+            },
+            "traceId" : "12c279a2-d190-424c-8475-5f1e23952040"
+          }
+        }
+      }
+    },
+    "traceId" : "12c279a2-d190-424c-8475-5f1e23952040",
+    "durationMs" : 5536,
+    "request" : {
+      "jsonrpc" : "2.0",
+      "params" : {
+        "name" : "tpl_190c862b57813ca38fbe5a0edc614970",
+        "arguments" : {
+          "warehouse_id" : 2,
+          "start_date" : "1998-01-01",
+          "end_date" : "1998-01-29"
+        }
+      },
+      "method" : "tools/call",
+      "id" : 4
+    },
+    "caseId" : "MCP-INVENTORY-DEFAULTS"
+  }, {
+    "httpStatus" : 200,
+    "response" : {
+      "jsonrpc" : "2.0",
+      "id" : 5,
+      "result" : {
+        "content" : [ {
+          "type" : "text",
+          "text" : "模板执行完成"
+        } ],
+        "isError" : false,
+        "structuredContent" : {
+          "success" : true,
+          "data" : {
+            "schemaVersion" : "tool_execution_result.v1",
+            "kind" : "sql_query",
+            "dataSchema" : "sql_result.v1",
+            "payloadType" : "structured",
+            "success" : true,
+            "status" : "success",
+            "durationMs" : 325,
+            "generatedAt" : "2026-11-01T03:40:45.145292712Z",
+            "dataCompleteness" : {
+              "contractVersion" : "mcp_complete_result.v1",
+              "complete" : true,
+              "gatewayTruncated" : false,
+              "projectionRequiredByConsumer" : true
+            },
+            "error" : null,
+            "target" : {
+              "type" : "database",
+              "id" : "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+              "name" : "248测试数据库",
+              "toolName" : "db_query_mysql_248_test_db",
+              "environment" : "DEV"
+            },
+            "sourceMetadata" : {
+              "schemaVersion" : "execution_source.v1",
+              "executionType" : "SQL_QUERY",
+              "sourceType" : "sql_statement",
+              "toolName" : "db_query_mysql_248_test_db",
+              "asset" : {
+                "type" : "database",
+                "id" : "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                "name" : "248测试数据库",
+                "environment" : "DEV"
+              },
+              "operation" : {
+                "statementHash" : "a9f7b152d179a885b94a9417e721ee8459d22ed202af8a54e876daf0a71e3841",
+                "templateId" : "STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A"
+              },
+              "business" : {
+                "name" : "TPCDS 248 仓库期间库存快照",
+                "description" : "按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。",
+                "category" : "business_analysis"
+              }
+            },
+            "operation" : {
+              "type" : "sql.query",
+              "statement" : "SELECT\n    dd.d_date                                                       AS snapshot_date,\n    \n    COUNT(*)                                                        AS sku_record_count,\n    \n    SUM(CASE WHEN inv.inv_quantity_on_hand > 0 THEN 1 ELSE 0 END)  AS nonzero_sku_count,\n    \n    SUM(CASE WHEN inv.inv_quantity_on_hand = 0 THEN 1 ELSE 0 END)  AS zero_sku_count,\n    \n    SUM(inv.inv_quantity_on_hand)                                   AS total_on_hand\nFROM inventory inv\nINNER JOIN date_dim dd\n    ON inv.inv_date_sk = dd.d_date_sk\nINNER JOIN item i\n    ON inv.inv_item_sk = i.i_item_sk\nWHERE inv.inv_warehouse_sk = ?\n  AND dd.d_date >= ?\n  AND dd.d_date <= ?\n  AND inv.inv_quantity_on_hand >= ?\n  AND (? IS NULL OR i.i_category = ?)\nGROUP BY dd.d_date\nORDER BY dd.d_date ASC\nLIMIT 100",
+              "timeoutSeconds" : 30,
+              "purpose" : null,
+              "sourceTaskId" : "e5931e8d-9846-4ede-845f-999262df3114",
+              "diagnostics" : {
+                "requestedCatalog" : null,
+                "requestedSchema" : null,
+                "schemaVersion" : "sql_query_diagnostics.v1",
+                "templateId" : "STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A",
+                "templateParameters" : {
+                  "warehouse_id" : 2,
+                  "start_date" : "1998-01-01",
+                  "end_date" : "1998-01-29",
+                  "min_on_hand" : 0,
+                  "category" : null
+                },
+                "executionContext" : { },
+                "tableResolution" : null,
+                "routedTarget" : null,
+                "routingDecisionLog" : null,
+                "datasource" : {
+                  "id" : "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                  "name" : "248测试数据库",
+                  "toolName" : "db_query_mysql_248_test_db",
+                  "environment" : "DEV",
+                  "databaseType" : "mysql",
+                  "jdbcDatabase" : "tpcds"
+                },
+                "templateMetadata" : {
+                  "templateId" : "STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A",
+                  "businessName" : "TPCDS 248 仓库期间库存快照",
+                  "businessDescription" : "按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。",
+                  "category" : "business_analysis",
+                  "riskLevel" : "MEDIUM",
+                  "inputSchema" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : {
+                      "warehouse_id" : {
+                        "type" : "integer",
+                        "minimum" : 1,
+                        "description" : "仓库维表主键，无默认值"
+                      },
+                      "start_date" : {
+                        "type" : "string",
+                        "format" : "date",
+                        "description" : "含边界的库存快照开始日期"
+                      },
+                      "end_date" : {
+                        "type" : "string",
+                        "format" : "date",
+                        "description" : "含边界的库存快照结束日期"
+                      },
+                      "min_on_hand" : {
+                        "type" : "integer",
+                        "minimum" : 0,
+                        "default" : 0,
+                        "description" : "现存数量下限"
+                      },
+                      "category" : {
+                        "type" : [ "string", "null" ],
+                        "default" : null,
+                        "description" : "商品类别，null表示不限"
+                      }
+                    },
+                    "required" : [ "warehouse_id", "start_date", "end_date" ]
+                  },
+                  "evidencePolicy" : { }
+                },
+                "executionMode" : "PREPARED_STATEMENT",
+                "boundParameterCount" : 6,
+                "boundParameterNames" : [ "warehouse_id", "start_date", "end_date", "min_on_hand", "category", "category" ],
+                "appliedCatalog" : "tpcds",
+                "connection" : {
+                  "catalog" : "tpcds",
+                  "schema" : null,
+                  "jdbcDatabase" : "tpcds",
+                  "databaseType" : "mysql"
+                },
+                "columnCommentResolution" : "enabled",
+                "rowCount" : 5,
+                "possiblyTruncated" : false
+              }
+            },
+            "limits" : {
+              "maxRowsRequested" : 500,
+              "configuredDatabaseMaxRows" : 500,
+              "rowsFetchedFromDatabase" : 5,
+              "fullFetchedRowsAvailable" : true,
+              "analysisStrategy" : "RUNTIME_EXTERNALIZE_AND_CHUNK",
+              "truncationStrategy" : "DATABASE_MAX_ROWS_500"
+            },
+            "data" : {
+              "resultSetMode" : "ONE_PER_TEMPLATE_EXECUTION",
+              "resultSetId" : "a9f7b152d179a885b94a9417e721ee8459d22ed202af8a54e876daf0a71e3841",
+              "commandContext" : {
+                "schemaVersion" : "template_result_context.v1",
+                "templateId" : "db_query_mysql_248_test_db",
+                "templateName" : "db_query_mysql_248_test_db",
+                "description" : null,
+                "executionMode" : "SINGLE_SQL",
+                "commands" : [ {
+                  "commandId" : "sql_query",
+                  "order" : 1,
+                  "name" : "db_query_mysql_248_test_db",
+                  "description" : null,
+                  "analysisHint" : null,
+                  "resultReference" : "$.data"
+                } ],
+                "references" : [ ]
+              },
+              "rowCount" : 5,
+              "returnedRowCount" : 5,
+              "complete" : true,
+              "possiblyTruncated" : false,
+              "truncationStrategy" : "DATABASE_MAX_ROWS_500",
+              "columns" : [ "snapshot_date", "sku_record_count", "nonzero_sku_count", "zero_sku_count", "total_on_hand" ],
+              "columnMetadata" : [ {
+                "name" : "d_date",
+                "label" : "snapshot_date",
+                "comment" : null,
+                "tableName" : "date_dim",
+                "schemaName" : null,
+                "catalogName" : "tpcds",
+                "jdbcType" : 91,
+                "typeName" : "DATE",
+                "displaySize" : 10,
+                "nullable" : true,
+                "masked" : false
+              }, {
+                "name" : "sku_record_count",
+                "label" : "sku_record_count",
+                "comment" : null,
+                "tableName" : null,
+                "schemaName" : null,
+                "catalogName" : null,
+                "jdbcType" : -5,
+                "typeName" : "BIGINT",
+                "displaySize" : 19,
+                "nullable" : false,
+                "masked" : false
+              }, {
+                "name" : "nonzero_sku_count",
+                "label" : "nonzero_sku_count",
+                "comment" : null,
+                "tableName" : null,
+                "schemaName" : null,
+                "catalogName" : null,
+                "jdbcType" : 3,
+                "typeName" : "DECIMAL",
+                "displaySize" : 23,
+                "nullable" : true,
+                "masked" : false
+              }, {
+                "name" : "zero_sku_count",
+                "label" : "zero_sku_count",
+                "comment" : null,
+                "tableName" : null,
+                "schemaName" : null,
+                "catalogName" : null,
+                "jdbcType" : 3,
+                "typeName" : "DECIMAL",
+                "displaySize" : 23,
+                "nullable" : true,
+                "masked" : false
+              }, {
+                "name" : "total_on_hand",
+                "label" : "total_on_hand",
+                "comment" : null,
+                "tableName" : null,
+                "schemaName" : null,
+                "catalogName" : null,
+                "jdbcType" : 3,
+                "typeName" : "DECIMAL",
+                "displaySize" : 32,
+                "nullable" : true,
+                "masked" : false
+              } ],
+              "governance" : {
+                "schemaVersion" : "sql_output_governance.v1",
+                "readOnly" : true,
+                "rowCount" : 5,
+                "returnedRowCount" : 5,
+                "possiblyTruncated" : false,
+                "truncationStrategy" : "DATABASE_MAX_ROWS_500",
+                "maskedColumns" : [ ],
+                "columnCommentsIncluded" : false
+              },
+              "diagnostics" : {
+                "requestedCatalog" : null,
+                "requestedSchema" : null,
+                "schemaVersion" : "sql_query_diagnostics.v1",
+                "templateId" : "STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A",
+                "templateParameters" : {
+                  "warehouse_id" : 2,
+                  "start_date" : "1998-01-01",
+                  "end_date" : "1998-01-29",
+                  "min_on_hand" : 0,
+                  "category" : null
+                },
+                "executionContext" : { },
+                "tableResolution" : null,
+                "routedTarget" : null,
+                "routingDecisionLog" : null,
+                "datasource" : {
+                  "id" : "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                  "name" : "248测试数据库",
+                  "toolName" : "db_query_mysql_248_test_db",
+                  "environment" : "DEV",
+                  "databaseType" : "mysql",
+                  "jdbcDatabase" : "tpcds"
+                },
+                "templateMetadata" : {
+                  "templateId" : "STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A",
+                  "businessName" : "TPCDS 248 仓库期间库存快照",
+                  "businessDescription" : "按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。",
+                  "category" : "business_analysis",
+                  "riskLevel" : "MEDIUM",
+                  "inputSchema" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : {
+                      "warehouse_id" : {
+                        "type" : "integer",
+                        "minimum" : 1,
+                        "description" : "仓库维表主键，无默认值"
+                      },
+                      "start_date" : {
+                        "type" : "string",
+                        "format" : "date",
+                        "description" : "含边界的库存快照开始日期"
+                      },
+                      "end_date" : {
+                        "type" : "string",
+                        "format" : "date",
+                        "description" : "含边界的库存快照结束日期"
+                      },
+                      "min_on_hand" : {
+                        "type" : "integer",
+                        "minimum" : 0,
+                        "default" : 0,
+                        "description" : "现存数量下限"
+                      },
+                      "category" : {
+                        "type" : [ "string", "null" ],
+                        "default" : null,
+                        "description" : "商品类别，null表示不限"
+                      }
+                    },
+                    "required" : [ "warehouse_id", "start_date", "end_date" ]
+                  },
+                  "evidencePolicy" : { }
+                },
+                "executionMode" : "PREPARED_STATEMENT",
+                "boundParameterCount" : 6,
+                "boundParameterNames" : [ "warehouse_id", "start_date", "end_date", "min_on_hand", "category", "category" ],
+                "appliedCatalog" : "tpcds",
+                "connection" : {
+                  "catalog" : "tpcds",
+                  "schema" : null,
+                  "jdbcDatabase" : "tpcds",
+                  "databaseType" : "mysql"
+                },
+                "columnCommentResolution" : "enabled",
+                "rowCount" : 5,
+                "possiblyTruncated" : false
+              },
+              "rows" : [ {
+                "snapshot_date" : "1998-01-01",
+                "sku_record_count" : 8546,
+                "nonzero_sku_count" : 8539,
+                "zero_sku_count" : 7,
+                "total_on_hand" : 4301064
+              }, {
+                "snapshot_date" : "1998-01-08",
+                "sku_record_count" : 8566,
+                "nonzero_sku_count" : 8559,
+                "zero_sku_count" : 7,
+                "total_on_hand" : 4309382
+              }, {
+                "snapshot_date" : "1998-01-15",
+                "sku_record_count" : 8542,
+                "nonzero_sku_count" : 8529,
+                "zero_sku_count" : 13,
+                "total_on_hand" : 4309203
+              }, {
+                "snapshot_date" : "1998-01-22",
+                "sku_record_count" : 8560,
+                "nonzero_sku_count" : 8550,
+                "zero_sku_count" : 10,
+                "total_on_hand" : 4349344
+              }, {
+                "snapshot_date" : "1998-01-29",
+                "sku_record_count" : 8538,
+                "nonzero_sku_count" : 8529,
+                "zero_sku_count" : 9,
+                "total_on_hand" : 4297887
+              } ]
+            },
+            "execution" : {
+              "schemaVersion" : "execution_unit.v1",
+              "executionId" : "471875f7-b69e-479a-abc2-81247f5e19cf",
+              "toolName" : "db_query_mysql_248_test_db",
+              "startedAt" : "2026-11-01T03:40:44.820457592Z",
+              "finishedAt" : "2026-11-01T03:40:45.145457592Z",
+              "durationMs" : 325,
+              "stepCount" : 1,
+              "steps" : [ {
+                "stepIndex" : 1,
+                "stepId" : "sql_1",
+                "stepType" : "sql",
+                "input" : {
+                  "statement" : "SELECT\n    dd.d_date                                                       AS snapshot_date,\n    \n    COUNT(*)                                                        AS sku_record_count,\n    \n    SUM(CASE WHEN inv.inv_quantity_on_hand > 0 THEN 1 ELSE 0 END)  AS nonzero_sku_count,\n    \n    SUM(CASE WHEN inv.inv_quantity_on_hand = 0 THEN 1 ELSE 0 END)  AS zero_sku_count,\n    \n    SUM(inv.inv_quantity_on_hand)                                   AS total_on_hand\nFROM inventory inv\nINNER JOIN date_dim dd\n    ON inv.inv_date_sk = dd.d_date_sk\nINNER JOIN item i\n    ON inv.inv_item_sk = i.i_item_sk\nWHERE inv.inv_warehouse_sk = ?\n  AND dd.d_date >= ?\n  AND dd.d_date <= ?\n  AND inv.inv_quantity_on_hand >= ?\n  AND (? IS NULL OR i.i_category = ?)\nGROUP BY dd.d_date\nORDER BY dd.d_date ASC\nLIMIT 100",
+                  "timeoutSeconds" : 30,
+                  "purpose" : null,
+                  "sourceTaskId" : "e5931e8d-9846-4ede-845f-999262df3114"
+                },
+                "output" : {
+                  "resultSetReference" : "$.data",
+                  "rowCount" : 5,
+                  "returnedRowCount" : 5,
+                  "possiblyTruncated" : false,
+                  "columnCount" : 5
+                },
+                "success" : true,
+                "status" : "success",
+                "durationMs" : 325,
+                "error" : null,
+                "rowCount" : 5
+              } ]
+            },
+            "executionGraph" : {
+              "schemaVersion" : "execution_graph.v1",
+              "nodes" : [ {
+                "id" : "sql_query",
+                "type" : "sql.query",
+                "status" : "success",
+                "durationMs" : 325,
+                "attributes" : { }
+              } ],
+              "edges" : [ ]
+            },
+            "executionWorkflow" : {
+              "verified" : true,
+              "steps" : [ "VALIDATE_ARGUMENT_CONTRACT", "ROUTE_LOGICAL_DATASOURCE", "RESOLVE_TEMPLATE_PARAMETERS_IF_PRESENT", "CLASSIFY_SQL_CARDINALITY", "ENFORCE_READ_ONLY_POLICY", "EXECUTE_QUERY_OR_SCRIPT", "VERIFY_RESULT", "ASSEMBLE_EVIDENCE" ],
+              "workflowId" : "execute.sql-query.v1",
+              "mode" : "SQL_QUERY",
+              "parameterWorkflow" : {
+                "parameterRepairs" : [ {
+                  "field" : "category",
+                  "repairCode" : "DEFAULT_VALUE_APPLIED"
+                }, {
+                  "field" : "category",
+                  "repairCode" : "UNKNOWN_TEMPLATE_PARAMETER_DROPPED"
+                } ],
+                "parameterSources" : {
+                  "warehouse_id" : "EXPLICIT_PARAMETERS",
+                  "start_date" : "EXPLICIT_PARAMETERS",
+                  "end_date" : "EXPLICIT_PARAMETERS",
+                  "min_on_hand" : "EXPLICIT_PARAMETERS",
+                  "category" : "SCHEMA_DEFAULT"
+                },
+                "mode" : "DECLARED_SCHEMA",
+                "parameterCount" : 5,
+                "steps" : [ "NORMALIZE_REQUEST", "COLLECT_EXPLICIT_PARAMETERS", "COLLECT_REQUEST_FIELDS", "APPLY_DECLARED_DEFAULTS", "COERCE_DECLARED_TYPES", "VALIDATE_REQUIRED_PARAMETERS", "ASSEMBLE_BINDING" ],
+                "verified" : true,
+                "scopeStatus" : "REQUIRES_SCOPE_VERIFICATION",
+                "workflowId" : "resolve.template-parameters.v1"
+              }
+            }
+          },
+          "message" : null,
+          "errorMessage" : null,
+          "exceptionType" : null,
+          "errorDetails" : null,
+          "executionTimeMs" : 363,
+          "tokenUsage" : { },
+          "metadata" : {
+            "templatePublication" : {
+              "toolName" : "tpl_190c862b57813ca38fbe5a0edc614970",
+              "releaseId" : "37e1baef-1191-4475-a7b7-d344f2d16c42",
+              "templateRevision" : "a1382b452a921a73523c0e105971bbc1afaa9a8145c15f26d205e39580bc19ab",
+              "userId" : "2f219487-11a3-4a1d-9130-ac500b62f268",
+              "agentId" : "sql_template_e2e_20261101_r1"
+            },
+            "traceId" : "e5931e8d-9846-4ede-845f-999262df3114"
+          }
+        }
+      }
+    },
+    "traceId" : "e5931e8d-9846-4ede-845f-999262df3114",
+    "durationMs" : 5052,
+    "request" : {
+      "jsonrpc" : "2.0",
+      "params" : {
+        "name" : "tpl_190c862b57813ca38fbe5a0edc614970",
+        "arguments" : {
+          "warehouse_id" : 2,
+          "start_date" : "1998-01-01",
+          "end_date" : "1998-01-29",
+          "min_on_hand" : 0,
+          "category" : null
+        }
+      },
+      "method" : "tools/call",
+      "id" : 5
+    },
+    "caseId" : "MCP-INVENTORY-EXPLICIT-NULL"
+  }, {
+    "httpStatus" : 200,
+    "response" : {
+      "jsonrpc" : "2.0",
+      "id" : 6,
+      "result" : {
+        "content" : [ {
+          "type" : "text",
+          "text" : "模板执行完成"
+        } ],
+        "isError" : false,
+        "structuredContent" : {
+          "success" : true,
+          "data" : {
+            "schemaVersion" : "tool_execution_result.v1",
+            "kind" : "sql_query",
+            "dataSchema" : "sql_result.v1",
+            "payloadType" : "structured",
+            "success" : true,
+            "status" : "success",
+            "durationMs" : 167,
+            "generatedAt" : "2026-11-01T03:40:49.934685313Z",
+            "dataCompleteness" : {
+              "contractVersion" : "mcp_complete_result.v1",
+              "complete" : true,
+              "gatewayTruncated" : false,
+              "projectionRequiredByConsumer" : true
+            },
+            "error" : null,
+            "target" : {
+              "type" : "database",
+              "id" : "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+              "name" : "248测试数据库",
+              "toolName" : "db_query_mysql_248_test_db",
+              "environment" : "DEV"
+            },
+            "sourceMetadata" : {
+              "schemaVersion" : "execution_source.v1",
+              "executionType" : "SQL_QUERY",
+              "sourceType" : "sql_statement",
+              "toolName" : "db_query_mysql_248_test_db",
+              "asset" : {
+                "type" : "database",
+                "id" : "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                "name" : "248测试数据库",
+                "environment" : "DEV"
+              },
+              "operation" : {
+                "statementHash" : "a9f7b152d179a885b94a9417e721ee8459d22ed202af8a54e876daf0a71e3841",
+                "templateId" : "STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A"
+              },
+              "business" : {
+                "name" : "TPCDS 248 仓库期间库存快照",
+                "description" : "按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。",
+                "category" : "business_analysis"
+              }
+            },
+            "operation" : {
+              "type" : "sql.query",
+              "statement" : "SELECT\n    dd.d_date                                                       AS snapshot_date,\n    \n    COUNT(*)                                                        AS sku_record_count,\n    \n    SUM(CASE WHEN inv.inv_quantity_on_hand > 0 THEN 1 ELSE 0 END)  AS nonzero_sku_count,\n    \n    SUM(CASE WHEN inv.inv_quantity_on_hand = 0 THEN 1 ELSE 0 END)  AS zero_sku_count,\n    \n    SUM(inv.inv_quantity_on_hand)                                   AS total_on_hand\nFROM inventory inv\nINNER JOIN date_dim dd\n    ON inv.inv_date_sk = dd.d_date_sk\nINNER JOIN item i\n    ON inv.inv_item_sk = i.i_item_sk\nWHERE inv.inv_warehouse_sk = ?\n  AND dd.d_date >= ?\n  AND dd.d_date <= ?\n  AND inv.inv_quantity_on_hand >= ?\n  AND (? IS NULL OR i.i_category = ?)\nGROUP BY dd.d_date\nORDER BY dd.d_date ASC\nLIMIT 100",
+              "timeoutSeconds" : 30,
+              "purpose" : null,
+              "sourceTaskId" : "8f573e82-6d8d-4ad2-8a80-49466e4af735",
+              "diagnostics" : {
+                "requestedCatalog" : null,
+                "requestedSchema" : null,
+                "schemaVersion" : "sql_query_diagnostics.v1",
+                "templateId" : "STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A",
+                "templateParameters" : {
+                  "warehouse_id" : 4,
+                  "start_date" : "1998-01-15",
+                  "end_date" : "1998-01-29",
+                  "min_on_hand" : 500,
+                  "category" : "Books"
+                },
+                "executionContext" : { },
+                "tableResolution" : null,
+                "routedTarget" : null,
+                "routingDecisionLog" : null,
+                "datasource" : {
+                  "id" : "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                  "name" : "248测试数据库",
+                  "toolName" : "db_query_mysql_248_test_db",
+                  "environment" : "DEV",
+                  "databaseType" : "mysql",
+                  "jdbcDatabase" : "tpcds"
+                },
+                "templateMetadata" : {
+                  "templateId" : "STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A",
+                  "businessName" : "TPCDS 248 仓库期间库存快照",
+                  "businessDescription" : "按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。",
+                  "category" : "business_analysis",
+                  "riskLevel" : "MEDIUM",
+                  "inputSchema" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : {
+                      "warehouse_id" : {
+                        "type" : "integer",
+                        "minimum" : 1,
+                        "description" : "仓库维表主键，无默认值"
+                      },
+                      "start_date" : {
+                        "type" : "string",
+                        "format" : "date",
+                        "description" : "含边界的库存快照开始日期"
+                      },
+                      "end_date" : {
+                        "type" : "string",
+                        "format" : "date",
+                        "description" : "含边界的库存快照结束日期"
+                      },
+                      "min_on_hand" : {
+                        "type" : "integer",
+                        "minimum" : 0,
+                        "default" : 0,
+                        "description" : "现存数量下限"
+                      },
+                      "category" : {
+                        "type" : [ "string", "null" ],
+                        "default" : null,
+                        "description" : "商品类别，null表示不限"
+                      }
+                    },
+                    "required" : [ "warehouse_id", "start_date", "end_date" ]
+                  },
+                  "evidencePolicy" : { }
+                },
+                "executionMode" : "PREPARED_STATEMENT",
+                "boundParameterCount" : 6,
+                "boundParameterNames" : [ "warehouse_id", "start_date", "end_date", "min_on_hand", "category", "category" ],
+                "appliedCatalog" : "tpcds",
+                "connection" : {
+                  "catalog" : "tpcds",
+                  "schema" : null,
+                  "jdbcDatabase" : "tpcds",
+                  "databaseType" : "mysql"
+                },
+                "columnCommentResolution" : "enabled",
+                "rowCount" : 3,
+                "possiblyTruncated" : false
+              }
+            },
+            "limits" : {
+              "maxRowsRequested" : 500,
+              "configuredDatabaseMaxRows" : 500,
+              "rowsFetchedFromDatabase" : 3,
+              "fullFetchedRowsAvailable" : true,
+              "analysisStrategy" : "RUNTIME_EXTERNALIZE_AND_CHUNK",
+              "truncationStrategy" : "DATABASE_MAX_ROWS_500"
+            },
+            "data" : {
+              "resultSetMode" : "ONE_PER_TEMPLATE_EXECUTION",
+              "resultSetId" : "a9f7b152d179a885b94a9417e721ee8459d22ed202af8a54e876daf0a71e3841",
+              "commandContext" : {
+                "schemaVersion" : "template_result_context.v1",
+                "templateId" : "db_query_mysql_248_test_db",
+                "templateName" : "db_query_mysql_248_test_db",
+                "description" : null,
+                "executionMode" : "SINGLE_SQL",
+                "commands" : [ {
+                  "commandId" : "sql_query",
+                  "order" : 1,
+                  "name" : "db_query_mysql_248_test_db",
+                  "description" : null,
+                  "analysisHint" : null,
+                  "resultReference" : "$.data"
+                } ],
+                "references" : [ ]
+              },
+              "rowCount" : 3,
+              "returnedRowCount" : 3,
+              "complete" : true,
+              "possiblyTruncated" : false,
+              "truncationStrategy" : "DATABASE_MAX_ROWS_500",
+              "columns" : [ "snapshot_date", "sku_record_count", "nonzero_sku_count", "zero_sku_count", "total_on_hand" ],
+              "columnMetadata" : [ {
+                "name" : "d_date",
+                "label" : "snapshot_date",
+                "comment" : null,
+                "tableName" : "date_dim",
+                "schemaName" : null,
+                "catalogName" : "tpcds",
+                "jdbcType" : 91,
+                "typeName" : "DATE",
+                "displaySize" : 10,
+                "nullable" : true,
+                "masked" : false
+              }, {
+                "name" : "sku_record_count",
+                "label" : "sku_record_count",
+                "comment" : null,
+                "tableName" : null,
+                "schemaName" : null,
+                "catalogName" : null,
+                "jdbcType" : -5,
+                "typeName" : "BIGINT",
+                "displaySize" : 19,
+                "nullable" : false,
+                "masked" : false
+              }, {
+                "name" : "nonzero_sku_count",
+                "label" : "nonzero_sku_count",
+                "comment" : null,
+                "tableName" : null,
+                "schemaName" : null,
+                "catalogName" : null,
+                "jdbcType" : 3,
+                "typeName" : "DECIMAL",
+                "displaySize" : 23,
+                "nullable" : true,
+                "masked" : false
+              }, {
+                "name" : "zero_sku_count",
+                "label" : "zero_sku_count",
+                "comment" : null,
+                "tableName" : null,
+                "schemaName" : null,
+                "catalogName" : null,
+                "jdbcType" : 3,
+                "typeName" : "DECIMAL",
+                "displaySize" : 23,
+                "nullable" : true,
+                "masked" : false
+              }, {
+                "name" : "total_on_hand",
+                "label" : "total_on_hand",
+                "comment" : null,
+                "tableName" : null,
+                "schemaName" : null,
+                "catalogName" : null,
+                "jdbcType" : 3,
+                "typeName" : "DECIMAL",
+                "displaySize" : 32,
+                "nullable" : true,
+                "masked" : false
+              } ],
+              "governance" : {
+                "schemaVersion" : "sql_output_governance.v1",
+                "readOnly" : true,
+                "rowCount" : 3,
+                "returnedRowCount" : 3,
+                "possiblyTruncated" : false,
+                "truncationStrategy" : "DATABASE_MAX_ROWS_500",
+                "maskedColumns" : [ ],
+                "columnCommentsIncluded" : false
+              },
+              "diagnostics" : {
+                "requestedCatalog" : null,
+                "requestedSchema" : null,
+                "schemaVersion" : "sql_query_diagnostics.v1",
+                "templateId" : "STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A",
+                "templateParameters" : {
+                  "warehouse_id" : 4,
+                  "start_date" : "1998-01-15",
+                  "end_date" : "1998-01-29",
+                  "min_on_hand" : 500,
+                  "category" : "Books"
+                },
+                "executionContext" : { },
+                "tableResolution" : null,
+                "routedTarget" : null,
+                "routingDecisionLog" : null,
+                "datasource" : {
+                  "id" : "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                  "name" : "248测试数据库",
+                  "toolName" : "db_query_mysql_248_test_db",
+                  "environment" : "DEV",
+                  "databaseType" : "mysql",
+                  "jdbcDatabase" : "tpcds"
+                },
+                "templateMetadata" : {
+                  "templateId" : "STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A",
+                  "businessName" : "TPCDS 248 仓库期间库存快照",
+                  "businessDescription" : "按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。",
+                  "category" : "business_analysis",
+                  "riskLevel" : "MEDIUM",
+                  "inputSchema" : {
+                    "type" : "object",
+                    "additionalProperties" : false,
+                    "properties" : {
+                      "warehouse_id" : {
+                        "type" : "integer",
+                        "minimum" : 1,
+                        "description" : "仓库维表主键，无默认值"
+                      },
+                      "start_date" : {
+                        "type" : "string",
+                        "format" : "date",
+                        "description" : "含边界的库存快照开始日期"
+                      },
+                      "end_date" : {
+                        "type" : "string",
+                        "format" : "date",
+                        "description" : "含边界的库存快照结束日期"
+                      },
+                      "min_on_hand" : {
+                        "type" : "integer",
+                        "minimum" : 0,
+                        "default" : 0,
+                        "description" : "现存数量下限"
+                      },
+                      "category" : {
+                        "type" : [ "string", "null" ],
+                        "default" : null,
+                        "description" : "商品类别，null表示不限"
+                      }
+                    },
+                    "required" : [ "warehouse_id", "start_date", "end_date" ]
+                  },
+                  "evidencePolicy" : { }
+                },
+                "executionMode" : "PREPARED_STATEMENT",
+                "boundParameterCount" : 6,
+                "boundParameterNames" : [ "warehouse_id", "start_date", "end_date", "min_on_hand", "category", "category" ],
+                "appliedCatalog" : "tpcds",
+                "connection" : {
+                  "catalog" : "tpcds",
+                  "schema" : null,
+                  "jdbcDatabase" : "tpcds",
+                  "databaseType" : "mysql"
+                },
+                "columnCommentResolution" : "enabled",
+                "rowCount" : 3,
+                "possiblyTruncated" : false
+              },
+              "rows" : [ {
+                "snapshot_date" : "1998-01-15",
+                "sku_record_count" : 396,
+                "nonzero_sku_count" : 396,
+                "zero_sku_count" : 0,
+                "total_on_hand" : 293287
+              }, {
+                "snapshot_date" : "1998-01-22",
+                "sku_record_count" : 423,
+                "nonzero_sku_count" : 423,
+                "zero_sku_count" : 0,
+                "total_on_hand" : 317127
+              }, {
+                "snapshot_date" : "1998-01-29",
+                "sku_record_count" : 410,
+                "nonzero_sku_count" : 410,
+                "zero_sku_count" : 0,
+                "total_on_hand" : 309009
+              } ]
+            },
+            "execution" : {
+              "schemaVersion" : "execution_unit.v1",
+              "executionId" : "9e700d9b-45e3-457c-a710-8d0a658bd766",
+              "toolName" : "db_query_mysql_248_test_db",
+              "startedAt" : "2026-11-01T03:40:49.767828384Z",
+              "finishedAt" : "2026-11-01T03:40:49.934828384Z",
+              "durationMs" : 167,
+              "stepCount" : 1,
+              "steps" : [ {
+                "stepIndex" : 1,
+                "stepId" : "sql_1",
+                "stepType" : "sql",
+                "input" : {
+                  "statement" : "SELECT\n    dd.d_date                                                       AS snapshot_date,\n    \n    COUNT(*)                                                        AS sku_record_count,\n    \n    SUM(CASE WHEN inv.inv_quantity_on_hand > 0 THEN 1 ELSE 0 END)  AS nonzero_sku_count,\n    \n    SUM(CASE WHEN inv.inv_quantity_on_hand = 0 THEN 1 ELSE 0 END)  AS zero_sku_count,\n    \n    SUM(inv.inv_quantity_on_hand)                                   AS total_on_hand\nFROM inventory inv\nINNER JOIN date_dim dd\n    ON inv.inv_date_sk = dd.d_date_sk\nINNER JOIN item i\n    ON inv.inv_item_sk = i.i_item_sk\nWHERE inv.inv_warehouse_sk = ?\n  AND dd.d_date >= ?\n  AND dd.d_date <= ?\n  AND inv.inv_quantity_on_hand >= ?\n  AND (? IS NULL OR i.i_category = ?)\nGROUP BY dd.d_date\nORDER BY dd.d_date ASC\nLIMIT 100",
+                  "timeoutSeconds" : 30,
+                  "purpose" : null,
+                  "sourceTaskId" : "8f573e82-6d8d-4ad2-8a80-49466e4af735"
+                },
+                "output" : {
+                  "resultSetReference" : "$.data",
+                  "rowCount" : 3,
+                  "returnedRowCount" : 3,
+                  "possiblyTruncated" : false,
+                  "columnCount" : 5
+                },
+                "success" : true,
+                "status" : "success",
+                "durationMs" : 167,
+                "error" : null,
+                "rowCount" : 3
+              } ]
+            },
+            "executionGraph" : {
+              "schemaVersion" : "execution_graph.v1",
+              "nodes" : [ {
+                "id" : "sql_query",
+                "type" : "sql.query",
+                "status" : "success",
+                "durationMs" : 167,
+                "attributes" : { }
+              } ],
+              "edges" : [ ]
+            },
+            "executionWorkflow" : {
+              "verified" : true,
+              "steps" : [ "VALIDATE_ARGUMENT_CONTRACT", "ROUTE_LOGICAL_DATASOURCE", "RESOLVE_TEMPLATE_PARAMETERS_IF_PRESENT", "CLASSIFY_SQL_CARDINALITY", "ENFORCE_READ_ONLY_POLICY", "EXECUTE_QUERY_OR_SCRIPT", "VERIFY_RESULT", "ASSEMBLE_EVIDENCE" ],
+              "workflowId" : "execute.sql-query.v1",
+              "mode" : "SQL_QUERY",
+              "parameterWorkflow" : {
+                "parameterRepairs" : [ ],
+                "parameterSources" : {
+                  "warehouse_id" : "EXPLICIT_PARAMETERS",
+                  "start_date" : "EXPLICIT_PARAMETERS",
+                  "end_date" : "EXPLICIT_PARAMETERS",
+                  "min_on_hand" : "EXPLICIT_PARAMETERS",
+                  "category" : "EXPLICIT_PARAMETERS"
+                },
+                "mode" : "DECLARED_SCHEMA",
+                "parameterCount" : 5,
+                "steps" : [ "NORMALIZE_REQUEST", "COLLECT_EXPLICIT_PARAMETERS", "COLLECT_REQUEST_FIELDS", "APPLY_DECLARED_DEFAULTS", "COERCE_DECLARED_TYPES", "VALIDATE_REQUIRED_PARAMETERS", "ASSEMBLE_BINDING" ],
+                "verified" : true,
+                "scopeStatus" : "EXPLICIT_PARAMETERS",
+                "workflowId" : "resolve.template-parameters.v1"
+              }
+            }
+          },
+          "message" : null,
+          "errorMessage" : null,
+          "exceptionType" : null,
+          "errorDetails" : null,
+          "executionTimeMs" : 211,
+          "tokenUsage" : { },
+          "metadata" : {
+            "templatePublication" : {
+              "toolName" : "tpl_190c862b57813ca38fbe5a0edc614970",
+              "releaseId" : "37e1baef-1191-4475-a7b7-d344f2d16c42",
+              "templateRevision" : "a1382b452a921a73523c0e105971bbc1afaa9a8145c15f26d205e39580bc19ab",
+              "userId" : "2f219487-11a3-4a1d-9130-ac500b62f268",
+              "agentId" : "sql_template_e2e_20261101_r1"
+            },
+            "traceId" : "8f573e82-6d8d-4ad2-8a80-49466e4af735"
+          }
+        }
+      }
+    },
+    "traceId" : "8f573e82-6d8d-4ad2-8a80-49466e4af735",
+    "durationMs" : 4789,
+    "request" : {
+      "jsonrpc" : "2.0",
+      "params" : {
+        "name" : "tpl_190c862b57813ca38fbe5a0edc614970",
+        "arguments" : {
+          "warehouse_id" : 4,
+          "start_date" : "1998-01-15",
+          "end_date" : "1998-01-29",
+          "min_on_hand" : 500,
+          "category" : "Books"
+        }
+      },
+      "method" : "tools/call",
+      "id" : 6
+    },
+    "caseId" : "MCP-INVENTORY-VARIANT"
+  }, {
+    "httpStatus" : 200,
+    "response" : {
+      "jsonrpc" : "2.0",
+      "id" : 7,
+      "result" : {
+        "content" : [ {
+          "type" : "text",
+          "text" : "Tool (tpl_190c862b57813ca38fbe5a0edc614970) input validation failed: Validation failed: JSON schema validation errors: [: required property 'start_date' not found, : required property 'end_date' not found]"
+        } ],
+        "isError" : true
+      }
+    },
+    "traceId" : "26eed1dc-6cca-48d1-b69f-56a786c0ab16",
+    "durationMs" : 2486,
+    "request" : {
+      "jsonrpc" : "2.0",
+      "params" : {
+        "name" : "tpl_190c862b57813ca38fbe5a0edc614970",
+        "arguments" : {
+          "warehouse_id" : 2
+        }
+      },
+      "method" : "tools/call",
+      "id" : 7
+    },
+    "caseId" : "MCP-MISSING-DATES"
+  }, {
+    "httpStatus" : 200,
+    "response" : {
+      "jsonrpc" : "2.0",
+      "id" : 8,
+      "result" : {
+        "content" : [ {
+          "type" : "text",
+          "text" : "{success=false, status=FAILED, toolName=sql_query_execute, runtimeLevel=sql, errorMessage=ParameterValidationException: INVALID_TOOL_ARGUMENTS: [start_date (INVALID_REQUIRED_PARAMETER)], timestamp=2026-11-01T03:40:57.198595290Z}"
+        } ],
+        "isError" : true,
+        "structuredContent" : {
+          "success" : false,
+          "data" : null,
+          "message" : null,
+          "errorMessage" : "{success=false, status=FAILED, toolName=sql_query_execute, runtimeLevel=sql, errorMessage=ParameterValidationException: INVALID_TOOL_ARGUMENTS: [start_date (INVALID_REQUIRED_PARAMETER)], timestamp=2026-11-01T03:40:57.198595290Z}",
+          "exceptionType" : null,
+          "errorDetails" : null,
+          "executionTimeMs" : 12,
+          "tokenUsage" : { },
+          "metadata" : {
+            "templatePublication" : {
+              "toolName" : "tpl_190c862b57813ca38fbe5a0edc614970",
+              "releaseId" : "37e1baef-1191-4475-a7b7-d344f2d16c42",
+              "templateRevision" : "a1382b452a921a73523c0e105971bbc1afaa9a8145c15f26d205e39580bc19ab",
+              "userId" : "2f219487-11a3-4a1d-9130-ac500b62f268",
+              "agentId" : "sql_template_e2e_20261101_r1"
+            },
+            "traceId" : "a296652c-e621-48f3-bb93-fe33fd713fee"
+          }
+        }
+      }
+    },
+    "traceId" : "a296652c-e621-48f3-bb93-fe33fd713fee",
+    "durationMs" : 4767,
+    "request" : {
+      "jsonrpc" : "2.0",
+      "params" : {
+        "name" : "tpl_190c862b57813ca38fbe5a0edc614970",
+        "arguments" : {
+          "warehouse_id" : 2,
+          "start_date" : "1998-99-99",
+          "end_date" : "1998-01-29"
+        }
+      },
+      "method" : "tools/call",
+      "id" : 8
+    },
+    "caseId" : "MCP-INVALID-DATE"
+  }, {
+    "httpStatus" : 200,
+    "response" : {
+      "jsonrpc" : "2.0",
+      "id" : 9,
+      "result" : {
+        "content" : [ {
+          "type" : "text",
+          "text" : "Tool (tpl_190c862b57813ca38fbe5a0edc614970) input validation failed: Validation failed: JSON schema validation errors: [/min_on_hand: must have a minimum value of 0]"
+        } ],
+        "isError" : true
+      }
+    },
+    "traceId" : "5268b5ee-b68d-4c17-a4e3-19ceaa44608a",
+    "durationMs" : 2775,
+    "request" : {
+      "jsonrpc" : "2.0",
+      "params" : {
+        "name" : "tpl_190c862b57813ca38fbe5a0edc614970",
+        "arguments" : {
+          "warehouse_id" : 2,
+          "start_date" : "1998-01-01",
+          "end_date" : "1998-01-29",
+          "min_on_hand" : -1
+        }
+      },
+      "method" : "tools/call",
+      "id" : 9
+    },
+    "caseId" : "MCP-INVALID-RANGE"
+  }, {
+    "httpStatus" : 200,
+    "response" : {
+      "jsonrpc" : "2.0",
+      "id" : 10,
+      "result" : {
+        "content" : [ {
+          "type" : "text",
+          "text" : "Tool (tpl_190c862b57813ca38fbe5a0edc614970) input validation failed: Validation failed: JSON schema validation errors: [/warehouse_id: string found, integer expected]"
+        } ],
+        "isError" : true
+      }
+    },
+    "traceId" : "4b5dcf43-738a-4cfe-8956-aab8133f55c4",
+    "durationMs" : 2534,
+    "request" : {
+      "jsonrpc" : "2.0",
+      "params" : {
+        "name" : "tpl_190c862b57813ca38fbe5a0edc614970",
+        "arguments" : {
+          "warehouse_id" : "1 OR 1=1",
+          "start_date" : "1998-01-01",
+          "end_date" : "1998-01-29"
+        }
+      },
+      "method" : "tools/call",
+      "id" : 10
+    },
+    "caseId" : "MCP-INVALID-TYPE"
+  }, {
+    "httpStatus" : 200,
+    "response" : {
+      "jsonrpc" : "2.0",
+      "id" : 11,
+      "result" : {
+        "content" : [ {
+          "type" : "text",
+          "text" : "{schemaVersion=tool_execution_result.v1, kind=sql_query, dataSchema=sql_result.v1, payloadType=structured, success=false, status=failed, durationMs=3, generatedAt=2026-11-01T03:41:07.203522712Z, dataCompleteness={contractVersion=mcp_complete_result.v1, complete=true, gatewayTruncated=false, projectionRequiredByConsumer=true}, error={message=SQL template STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A parameter category contains SQL syntax. SQL templates are strict; select a registered template and pass typed values only.}, target={type=database, id=f0421bd7-1be8-4d5c-8f65-b216d4f997cb, name=248测试数据库, toolName=db_query_mysql_248_test_db, environment=DEV}, sourceMetadata={schemaVersion=execution_source.v1, executionType=SQL_QUERY, sourceType=sql_statement, toolName=db_query_mysql_248_test_db, asset={type=database, id=f0421bd7-1be8-4d5c-8f65-b216d4f997cb, name=248测试数据库, environment=DEV}, operation={statementHash=null, templateId=STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A}, business={name=TPCDS 248 仓库期间库存快照, description=按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。, category=business_analysis}}, operation={type=sql.query, statement=null, timeoutSeconds=30, purpose=null, sourceTaskId=02819ffe-643a-4183-ae8b-3ce6b6728309, diagnostics={requestedCatalog=null, requestedSchema=null, schemaVersion=sql_query_diagnostics.v1, templateId=STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A, templateParameters={warehouse_id=2, start_date=1998-01-01, end_date=1998-01-29, min_on_hand=0, category=Books' OR 1=1 --, schemaName=tpcds, databaseName=tpcds, schema=tpcds, database=tpcds, today=20261101, natural_date=20261101, month=202611, month_start=20261101, month_end=20261130}, executionContext={database=tpcds, schema=tpcds, schemaName=tpcds, databaseName=tpcds}, tableResolution=null, routedTarget=null, routingDecisionLog=null, datasource={id=f0421bd7-1be8-4d5c-8f65-b216d4f997cb, name=248测试数据库, toolName=db_query_mysql_248_test_db, environment=DEV, databaseType=mysql, jdbcDatabase=tpcds}, templateMetadata={templateId=STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A, businessName=TPCDS 248 仓库期间库存快照, businessDescription=按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。, category=business_analysis, riskLevel=MEDIUM, inputSchema={type=object, additionalProperties=false, properties={warehouse_id={type=integer, minimum=1, description=仓库维表主键，无默认值}, start_date={type=string, format=date, description=含边界的库存快照开始日期}, end_date={type=string, format=date, description=含边界的库存快照结束日期}, min_on_hand={type=integer, minimum=0, default=0, description=现存数量下限}, category={type=[string, null], default=null, description=商品类别，null表示不限}}, required=[warehouse_id, start_date, end_date]}, evidencePolicy={}}, failureStage=prepare, errorType=IllegalArgumentException}}, limits={maxRowsRequested=500, configuredDatabaseMaxRows=500, rowsFetchedFromDatabase=0, fullFetchedRowsAvailable=true, analysisStrategy=RUNTIME_EXTERNALIZE_AND_CHUNK, truncationStrategy=DATABASE_MAX_ROWS_500}, data={resultSetMode=ONE_PER_TEMPLATE_EXECUTION, resultSetId=02819ffe-643a-4183-ae8b-3ce6b6728309, commandContext={schemaVersion=template_result_context.v1, templateId=db_query_mysql_248_test_db, templateName=db_query_mysql_248_test_db, description=null, executionMode=SINGLE_SQL, commands=[{commandId=sql_query, order=1, name=db_query_mysql_248_test_db, description=null, analysisHint=null, resultReference=$.data}], references=[]}, rowCount=0, returnedRowCount=0, complete=true, possiblyTruncated=false, truncationStrategy=DATABASE_MAX_ROWS_500, columns=[], columnMetadata=[], governance={schemaVersion=sql_output_governance.v1, readOnly=true, rowCount=0, returnedRowCount=0, possiblyTruncated=false, truncationStrategy=DATABASE_MAX_ROWS_500, maskedColumns=[], columnCommentsIncluded=false}, diagnostics={requestedCatalog=null, requestedSchema=null, schemaVersion=sql_query_diagnostics.v1, templateId=STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A, templateParameters={warehouse_id=2, start_date=1998-01-01, end_date=1998-01-29, min_on_hand=0, category=Books' OR 1=1 --, schemaName=tpcds, databaseName=tpcds, schema=tpcds, database=tpcds, today=20261101, natural_date=20261101, month=202611, month_start=20261101, month_end=20261130}, executionContext={database=tpcds, schema=tpcds, schemaName=tpcds, databaseName=tpcds}, tableResolution=null, routedTarget=null, routingDecisionLog=null, datasource={id=f0421bd7-1be8-4d5c-8f65-b216d4f997cb, name=248测试数据库, toolName=db_query_mysql_248_test_db, environment=DEV, databaseType=mysql, jdbcDatabase=tpcds}, templateMetadata={templateId=STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A, businessName=TPCDS 248 仓库期间库存快照, businessDescription=按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。, category=business_analysis, riskLevel=MEDIUM, inputSchema={type=object, additionalProperties=false, properties={warehouse_id={type=integer, minimum=1, description=仓库维表主键，无默认值}, start_date={type=string, format=date, description=含边界的库存快照开始日期}, end_date={type=string, format=date, description=含边界的库存快照结束日期}, min_on_hand={type=integer, minimum=0, default=0, description=现存数量下限}, category={type=[string, null], default=null, description=商品类别，null表示不限}}, required=[warehouse_id, start_date, end_date]}, evidencePolicy={}}, failureStage=prepare, errorType=IllegalArgumentException}, rows=[]}, execution={schemaVersion=execution_unit.v1, executionId=2c632e9a-48fb-4d2f-a776-e3782d8d4527, toolName=db_query_mysql_248_test_db, startedAt=2026-11-01T03:41:07.200591145Z, finishedAt=2026-11-01T03:41:07.203591145Z, durationMs=3, stepCount=1, steps=[{stepIndex=1, stepId=sql_1, stepType=sql, input={statement=null, timeoutSeconds=30, purpose=null, sourceTaskId=02819ffe-643a-4183-ae8b-3ce6b6728309}, output={resultSetReference=$.data, rowCount=0, returnedRowCount=0, possiblyTruncated=false, columnCount=0}, success=false, status=failed, durationMs=3, error={message=SQL template STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A parameter category contains SQL syntax. SQL templates are strict; select a registered template and pass typed values only.}, rowCount=0}]}, executionGraph={schemaVersion=execution_graph.v1, nodes=[{id=sql_query, type=sql.query, status=failed, durationMs=3, attributes={}}], edges=[]}, executionWorkflow={verified=false, steps=[VALIDATE_ARGUMENT_CONTRACT, ROUTE_LOGICAL_DATASOURCE, RESOLVE_TEMPLATE_PARAMETERS_IF_PRESENT, CLASSIFY_SQL_CARDINALITY, ENFORCE_READ_ONLY_POLICY, EXECUTE_QUERY_OR_SCRIPT, VERIFY_RESULT, ASSEMBLE_EVIDENCE], workflowId=execute.sql-query.v1, mode=SQL_QUERY, parameterWorkflow={parameterRepairs=[], parameterSources={warehouse_id=EXPLICIT_PARAMETERS, start_date=EXPLICIT_PARAMETERS, end_date=EXPLICIT_PARAMETERS, min_on_hand=EXPLICIT_PARAMETERS, category=EXPLICIT_PARAMETERS}, mode=DECLARED_SCHEMA, parameterCount=5, steps=[NORMALIZE_REQUEST, COLLECT_EXPLICIT_PARAMETERS, COLLECT_REQUEST_FIELDS, APPLY_DECLARED_DEFAULTS, COERCE_DECLARED_TYPES, VALIDATE_REQUIRED_PARAMETERS, ASSEMBLE_BINDING], verified=true, scopeStatus=EXPLICIT_PARAMETERS, workflowId=resolve.template-parameters.v1}}}"
+        } ],
+        "isError" : true,
+        "structuredContent" : {
+          "success" : false,
+          "data" : null,
+          "message" : null,
+          "errorMessage" : "{schemaVersion=tool_execution_result.v1, kind=sql_query, dataSchema=sql_result.v1, payloadType=structured, success=false, status=failed, durationMs=3, generatedAt=2026-11-01T03:41:07.203522712Z, dataCompleteness={contractVersion=mcp_complete_result.v1, complete=true, gatewayTruncated=false, projectionRequiredByConsumer=true}, error={message=SQL template STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A parameter category contains SQL syntax. SQL templates are strict; select a registered template and pass typed values only.}, target={type=database, id=f0421bd7-1be8-4d5c-8f65-b216d4f997cb, name=248测试数据库, toolName=db_query_mysql_248_test_db, environment=DEV}, sourceMetadata={schemaVersion=execution_source.v1, executionType=SQL_QUERY, sourceType=sql_statement, toolName=db_query_mysql_248_test_db, asset={type=database, id=f0421bd7-1be8-4d5c-8f65-b216d4f997cb, name=248测试数据库, environment=DEV}, operation={statementHash=null, templateId=STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A}, business={name=TPCDS 248 仓库期间库存快照, description=按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。, category=business_analysis}}, operation={type=sql.query, statement=null, timeoutSeconds=30, purpose=null, sourceTaskId=02819ffe-643a-4183-ae8b-3ce6b6728309, diagnostics={requestedCatalog=null, requestedSchema=null, schemaVersion=sql_query_diagnostics.v1, templateId=STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A, templateParameters={warehouse_id=2, start_date=1998-01-01, end_date=1998-01-29, min_on_hand=0, category=Books' OR 1=1 --, schemaName=tpcds, databaseName=tpcds, schema=tpcds, database=tpcds, today=20261101, natural_date=20261101, month=202611, month_start=20261101, month_end=20261130}, executionContext={database=tpcds, schema=tpcds, schemaName=tpcds, databaseName=tpcds}, tableResolution=null, routedTarget=null, routingDecisionLog=null, datasource={id=f0421bd7-1be8-4d5c-8f65-b216d4f997cb, name=248测试数据库, toolName=db_query_mysql_248_test_db, environment=DEV, databaseType=mysql, jdbcDatabase=tpcds}, templateMetadata={templateId=STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A, businessName=TPCDS 248 仓库期间库存快照, businessDescription=按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。, category=business_analysis, riskLevel=MEDIUM, inputSchema={type=object, additionalProperties=false, properties={warehouse_id={type=integer, minimum=1, description=仓库维表主键，无默认值}, start_date={type=string, format=date, description=含边界的库存快照开始日期}, end_date={type=string, format=date, description=含边界的库存快照结束日期}, min_on_hand={type=integer, minimum=0, default=0, description=现存数量下限}, category={type=[string, null], default=null, description=商品类别，null表示不限}}, required=[warehouse_id, start_date, end_date]}, evidencePolicy={}}, failureStage=prepare, errorType=IllegalArgumentException}}, limits={maxRowsRequested=500, configuredDatabaseMaxRows=500, rowsFetchedFromDatabase=0, fullFetchedRowsAvailable=true, analysisStrategy=RUNTIME_EXTERNALIZE_AND_CHUNK, truncationStrategy=DATABASE_MAX_ROWS_500}, data={resultSetMode=ONE_PER_TEMPLATE_EXECUTION, resultSetId=02819ffe-643a-4183-ae8b-3ce6b6728309, commandContext={schemaVersion=template_result_context.v1, templateId=db_query_mysql_248_test_db, templateName=db_query_mysql_248_test_db, description=null, executionMode=SINGLE_SQL, commands=[{commandId=sql_query, order=1, name=db_query_mysql_248_test_db, description=null, analysisHint=null, resultReference=$.data}], references=[]}, rowCount=0, returnedRowCount=0, complete=true, possiblyTruncated=false, truncationStrategy=DATABASE_MAX_ROWS_500, columns=[], columnMetadata=[], governance={schemaVersion=sql_output_governance.v1, readOnly=true, rowCount=0, returnedRowCount=0, possiblyTruncated=false, truncationStrategy=DATABASE_MAX_ROWS_500, maskedColumns=[], columnCommentsIncluded=false}, diagnostics={requestedCatalog=null, requestedSchema=null, schemaVersion=sql_query_diagnostics.v1, templateId=STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A, templateParameters={warehouse_id=2, start_date=1998-01-01, end_date=1998-01-29, min_on_hand=0, category=Books' OR 1=1 --, schemaName=tpcds, databaseName=tpcds, schema=tpcds, database=tpcds, today=20261101, natural_date=20261101, month=202611, month_start=20261101, month_end=20261130}, executionContext={database=tpcds, schema=tpcds, schemaName=tpcds, databaseName=tpcds}, tableResolution=null, routedTarget=null, routingDecisionLog=null, datasource={id=f0421bd7-1be8-4d5c-8f65-b216d4f997cb, name=248测试数据库, toolName=db_query_mysql_248_test_db, environment=DEV, databaseType=mysql, jdbcDatabase=tpcds}, templateMetadata={templateId=STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A, businessName=TPCDS 248 仓库期间库存快照, businessDescription=按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。, category=business_analysis, riskLevel=MEDIUM, inputSchema={type=object, additionalProperties=false, properties={warehouse_id={type=integer, minimum=1, description=仓库维表主键，无默认值}, start_date={type=string, format=date, description=含边界的库存快照开始日期}, end_date={type=string, format=date, description=含边界的库存快照结束日期}, min_on_hand={type=integer, minimum=0, default=0, description=现存数量下限}, category={type=[string, null], default=null, description=商品类别，null表示不限}}, required=[warehouse_id, start_date, end_date]}, evidencePolicy={}}, failureStage=prepare, errorType=IllegalArgumentException}, rows=[]}, execution={schemaVersion=execution_unit.v1, executionId=2c632e9a-48fb-4d2f-a776-e3782d8d4527, toolName=db_query_mysql_248_test_db, startedAt=2026-11-01T03:41:07.200591145Z, finishedAt=2026-11-01T03:41:07.203591145Z, durationMs=3, stepCount=1, steps=[{stepIndex=1, stepId=sql_1, stepType=sql, input={statement=null, timeoutSeconds=30, purpose=null, sourceTaskId=02819ffe-643a-4183-ae8b-3ce6b6728309}, output={resultSetReference=$.data, rowCount=0, returnedRowCount=0, possiblyTruncated=false, columnCount=0}, success=false, status=failed, durationMs=3, error={message=SQL template STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A parameter category contains SQL syntax. SQL templates are strict; select a registered template and pass typed values only.}, rowCount=0}]}, executionGraph={schemaVersion=execution_graph.v1, nodes=[{id=sql_query, type=sql.query, status=failed, durationMs=3, attributes={}}], edges=[]}, executionWorkflow={verified=false, steps=[VALIDATE_ARGUMENT_CONTRACT, ROUTE_LOGICAL_DATASOURCE, RESOLVE_TEMPLATE_PARAMETERS_IF_PRESENT, CLASSIFY_SQL_CARDINALITY, ENFORCE_READ_ONLY_POLICY, EXECUTE_QUERY_OR_SCRIPT, VERIFY_RESULT, ASSEMBLE_EVIDENCE], workflowId=execute.sql-query.v1, mode=SQL_QUERY, parameterWorkflow={parameterRepairs=[], parameterSources={warehouse_id=EXPLICIT_PARAMETERS, start_date=EXPLICIT_PARAMETERS, end_date=EXPLICIT_PARAMETERS, min_on_hand=EXPLICIT_PARAMETERS, category=EXPLICIT_PARAMETERS}, mode=DECLARED_SCHEMA, parameterCount=5, steps=[NORMALIZE_REQUEST, COLLECT_EXPLICIT_PARAMETERS, COLLECT_REQUEST_FIELDS, APPLY_DECLARED_DEFAULTS, COERCE_DECLARED_TYPES, VALIDATE_REQUIRED_PARAMETERS, ASSEMBLE_BINDING], verified=true, scopeStatus=EXPLICIT_PARAMETERS, workflowId=resolve.template-parameters.v1}}}",
+          "exceptionType" : null,
+          "errorDetails" : null,
+          "executionTimeMs" : 37,
+          "tokenUsage" : { },
+          "metadata" : {
+            "templatePublication" : {
+              "toolName" : "tpl_190c862b57813ca38fbe5a0edc614970",
+              "releaseId" : "37e1baef-1191-4475-a7b7-d344f2d16c42",
+              "templateRevision" : "a1382b452a921a73523c0e105971bbc1afaa9a8145c15f26d205e39580bc19ab",
+              "userId" : "2f219487-11a3-4a1d-9130-ac500b62f268",
+              "agentId" : "sql_template_e2e_20261101_r1"
+            },
+            "traceId" : "02819ffe-643a-4183-ae8b-3ce6b6728309"
+          }
+        }
+      }
+    },
+    "traceId" : "02819ffe-643a-4183-ae8b-3ce6b6728309",
+    "durationMs" : 4692,
+    "request" : {
+      "jsonrpc" : "2.0",
+      "params" : {
+        "name" : "tpl_190c862b57813ca38fbe5a0edc614970",
+        "arguments" : {
+          "warehouse_id" : 2,
+          "start_date" : "1998-01-01",
+          "end_date" : "1998-01-29",
+          "category" : "Books' OR 1=1 --"
+        }
+      },
+      "method" : "tools/call",
+      "id" : 11
+    },
+    "caseId" : "MCP-INJECTION-IS-LITERAL"
+  }, {
+    "httpStatus" : 200,
+    "response" : {
+      "jsonrpc" : "2.0",
+      "id" : 12,
+      "result" : {
+        "content" : [ {
+          "type" : "text",
+          "text" : "模板执行完成"
+        } ],
+        "isError" : false,
+        "structuredContent" : {
+          "success" : true,
+          "data" : {
+            "schemaVersion" : "tool_execution_result.v1",
+            "kind" : "sql_query",
+            "dataSchema" : "sql_result.v1",
+            "payloadType" : "structured",
+            "success" : true,
+            "status" : "success",
+            "durationMs" : 91,
+            "generatedAt" : "2026-11-01T03:41:12.252268626Z",
+            "dataCompleteness" : {
+              "contractVersion" : "mcp_complete_result.v1",
+              "complete" : true,
+              "gatewayTruncated" : false,
+              "projectionRequiredByConsumer" : true
+            },
+            "error" : null,
+            "target" : {
+              "type" : "database",
+              "id" : "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+              "name" : "248测试数据库",
+              "toolName" : "db_query_mysql_248_test_db",
+              "environment" : "DEV"
+            },
+            "sourceMetadata" : {
+              "schemaVersion" : "execution_source.v1",
+              "executionType" : "SQL_QUERY",
+              "sourceType" : "sql_statement",
+              "toolName" : "db_query_mysql_248_test_db",
+              "asset" : {
+                "type" : "database",
+                "id" : "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                "name" : "248测试数据库",
+                "environment" : "DEV"
+              },
+              "operation" : {
+                "statementHash" : "7f500c67018a61007e5347b65840ef5be0d18afd64c315dc11d614b3bc6c9b98",
+                "templateId" : "STUDIO_2B689C67D34336599B05C753F0473B60"
+              },
+              "business" : {
+                "name" : "TPCDS 248 单品期间月度销售分析验收",
+                "description" : "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+                "category" : "business_analysis"
+              }
+            },
+            "operation" : {
+              "type" : "sql.query",
+              "statement" : "SELECT\n    d.d_year                           AS sale_year,\n    d.d_moy                            AS sale_month,\n    i.i_category                       AS category,\n    COUNT(*)                           AS row_count,\n    SUM(ss.ss_quantity)                AS total_quantity,\n    SUM(ss.ss_net_paid)                AS total_net_paid,\n    SUM(ss.ss_net_profit)              AS total_net_profit\nFROM tpcds.store_sales ss\nINNER JOIN tpcds.date_dim d\n        ON ss.ss_sold_date_sk = d.d_date_sk\nINNER JOIN tpcds.item i\n        ON ss.ss_item_sk = i.i_item_sk\nWHERE ss.ss_item_sk = ?\n  AND d.d_date >= ?\n  AND d.d_date <= ?\n  AND ss.ss_quantity >= ?\n  AND (? IS NULL OR i.i_category = ?)\nGROUP BY d.d_year,\n         d.d_moy,\n         i.i_category\nORDER BY d.d_year ASC,\n         d.d_moy ASC,\n         i.i_category ASC\nLIMIT 24",
+              "timeoutSeconds" : 30,
+              "purpose" : null,
+              "sourceTaskId" : "b4eed155-b4a2-401a-b00f-2847ab93b514",
+              "diagnostics" : {
+                "requestedCatalog" : null,
+                "requestedSchema" : null,
+                "schemaVersion" : "sql_query_diagnostics.v1",
+                "templateId" : "STUDIO_2B689C67D34336599B05C753F0473B60",
+                "templateParameters" : {
+                  "product_id" : 2,
+                  "start_date" : "1999-01-01",
+                  "end_date" : "1999-12-31",
+                  "min_quantity" : 0,
+                  "category" : null
+                },
+                "executionContext" : { },
+                "tableResolution" : null,
+                "routedTarget" : null,
+                "routingDecisionLog" : null,
+                "datasource" : {
+                  "id" : "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                  "name" : "248测试数据库",
+                  "toolName" : "db_query_mysql_248_test_db",
+                  "environment" : "DEV",
+                  "databaseType" : "mysql",
+                  "jdbcDatabase" : "tpcds"
+                },
+                "templateMetadata" : {
+                  "templateId" : "STUDIO_2B689C67D34336599B05C753F0473B60",
+                  "businessName" : "TPCDS 248 单品期间月度销售分析验收",
+                  "businessDescription" : "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+                  "category" : "business_analysis",
+                  "riskLevel" : "MEDIUM",
+                  "inputSchema" : {
+                    "type" : "object",
+                    "properties" : {
+                      "product_id" : {
+                        "type" : "integer",
+                        "minimum" : 1,
+                        "default" : 1,
+                        "description" : "store_sales.ss_item_sk 商品主键"
+                      },
+                      "start_date" : {
+                        "type" : "string",
+                        "format" : "date",
+                        "description" : "date_dim.d_date 含边界起日"
+                      },
+                      "end_date" : {
+                        "type" : "string",
+                        "format" : "date",
+                        "description" : "date_dim.d_date 含边界止日"
+                      },
+                      "min_quantity" : {
+                        "type" : "integer",
+                        "minimum" : 0,
+                        "default" : 0,
+                        "description" : "每行最低ss_quantity"
+                      },
+                      "category" : {
+                        "type" : [ "string", "null" ],
+                        "default" : null,
+                        "description" : "item.i_category精确品类；NULL不过滤"
+                      }
+                    },
+                    "required" : [ "start_date", "end_date" ],
+                    "additionalProperties" : false
+                  },
+                  "evidencePolicy" : { }
+                },
+                "executionMode" : "PREPARED_STATEMENT",
+                "boundParameterCount" : 6,
+                "boundParameterNames" : [ "product_id", "start_date", "end_date", "min_quantity", "category", "category" ],
+                "appliedCatalog" : "tpcds",
+                "connection" : {
+                  "catalog" : "tpcds",
+                  "schema" : null,
+                  "jdbcDatabase" : "tpcds",
+                  "databaseType" : "mysql"
+                },
+                "columnCommentResolution" : "enabled",
+                "rowCount" : 12,
+                "possiblyTruncated" : false
+              }
+            },
+            "limits" : {
+              "maxRowsRequested" : 500,
+              "configuredDatabaseMaxRows" : 500,
+              "rowsFetchedFromDatabase" : 12,
+              "fullFetchedRowsAvailable" : true,
+              "analysisStrategy" : "RUNTIME_EXTERNALIZE_AND_CHUNK",
+              "truncationStrategy" : "DATABASE_MAX_ROWS_500"
+            },
+            "data" : {
+              "resultSetMode" : "ONE_PER_TEMPLATE_EXECUTION",
+              "resultSetId" : "7f500c67018a61007e5347b65840ef5be0d18afd64c315dc11d614b3bc6c9b98",
+              "commandContext" : {
+                "schemaVersion" : "template_result_context.v1",
+                "templateId" : "db_query_mysql_248_test_db",
+                "templateName" : "db_query_mysql_248_test_db",
+                "description" : null,
+                "executionMode" : "SINGLE_SQL",
+                "commands" : [ {
+                  "commandId" : "sql_query",
+                  "order" : 1,
+                  "name" : "db_query_mysql_248_test_db",
+                  "description" : null,
+                  "analysisHint" : null,
+                  "resultReference" : "$.data"
+                } ],
+                "references" : [ ]
+              },
+              "rowCount" : 12,
+              "returnedRowCount" : 12,
+              "complete" : true,
+              "possiblyTruncated" : false,
+              "truncationStrategy" : "DATABASE_MAX_ROWS_500",
+              "columns" : [ "sale_year", "sale_month", "category", "row_count", "total_quantity", "total_net_paid", "total_net_profit" ],
+              "columnMetadata" : [ {
+                "name" : "d_year",
+                "label" : "sale_year",
+                "comment" : null,
+                "tableName" : "date_dim",
+                "schemaName" : null,
+                "catalogName" : "tpcds",
+                "jdbcType" : 4,
+                "typeName" : "INT",
+                "displaySize" : 10,
+                "nullable" : true,
+                "masked" : false
+              }, {
+                "name" : "d_moy",
+                "label" : "sale_month",
+                "comment" : null,
+                "tableName" : "date_dim",
+                "schemaName" : null,
+                "catalogName" : "tpcds",
+                "jdbcType" : 4,
+                "typeName" : "INT",
+                "displaySize" : 10,
+                "nullable" : true,
+                "masked" : false
+              }, {
+                "name" : "i_category",
+                "label" : "category",
+                "comment" : null,
+                "tableName" : "item",
+                "schemaName" : null,
+                "catalogName" : "tpcds",
+                "jdbcType" : 1,
+                "typeName" : "CHAR",
+                "displaySize" : 50,
+                "nullable" : true,
+                "masked" : false
+              }, {
+                "name" : "row_count",
+                "label" : "row_count",
+                "comment" : null,
+                "tableName" : null,
+                "schemaName" : null,
+                "catalogName" : null,
+                "jdbcType" : -5,
+                "typeName" : "BIGINT",
+                "displaySize" : 19,
+                "nullable" : false,
+                "masked" : false
+              }, {
+                "name" : "total_quantity",
+                "label" : "total_quantity",
+                "comment" : null,
+                "tableName" : null,
+                "schemaName" : null,
+                "catalogName" : null,
+                "jdbcType" : 3,
+                "typeName" : "DECIMAL",
+                "displaySize" : 32,
+                "nullable" : true,
+                "masked" : false
+              }, {
+                "name" : "total_net_paid",
+                "label" : "total_net_paid",
+                "comment" : null,
+                "tableName" : null,
+                "schemaName" : null,
+                "catalogName" : null,
+                "jdbcType" : 3,
+                "typeName" : "DECIMAL",
+                "displaySize" : 29,
+                "nullable" : true,
+                "masked" : false
+              }, {
+                "name" : "total_net_profit",
+                "label" : "total_net_profit",
+                "comment" : null,
+                "tableName" : null,
+                "schemaName" : null,
+                "catalogName" : null,
+                "jdbcType" : 3,
+                "typeName" : "DECIMAL",
+                "displaySize" : 29,
+                "nullable" : true,
+                "masked" : false
+              } ],
+              "governance" : {
+                "schemaVersion" : "sql_output_governance.v1",
+                "readOnly" : true,
+                "rowCount" : 12,
+                "returnedRowCount" : 12,
+                "possiblyTruncated" : false,
+                "truncationStrategy" : "DATABASE_MAX_ROWS_500",
+                "maskedColumns" : [ ],
+                "columnCommentsIncluded" : false
+              },
+              "diagnostics" : {
+                "requestedCatalog" : null,
+                "requestedSchema" : null,
+                "schemaVersion" : "sql_query_diagnostics.v1",
+                "templateId" : "STUDIO_2B689C67D34336599B05C753F0473B60",
+                "templateParameters" : {
+                  "product_id" : 2,
+                  "start_date" : "1999-01-01",
+                  "end_date" : "1999-12-31",
+                  "min_quantity" : 0,
+                  "category" : null
+                },
+                "executionContext" : { },
+                "tableResolution" : null,
+                "routedTarget" : null,
+                "routingDecisionLog" : null,
+                "datasource" : {
+                  "id" : "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                  "name" : "248测试数据库",
+                  "toolName" : "db_query_mysql_248_test_db",
+                  "environment" : "DEV",
+                  "databaseType" : "mysql",
+                  "jdbcDatabase" : "tpcds"
+                },
+                "templateMetadata" : {
+                  "templateId" : "STUDIO_2B689C67D34336599B05C753F0473B60",
+                  "businessName" : "TPCDS 248 单品期间月度销售分析验收",
+                  "businessDescription" : "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+                  "category" : "business_analysis",
+                  "riskLevel" : "MEDIUM",
+                  "inputSchema" : {
+                    "type" : "object",
+                    "properties" : {
+                      "product_id" : {
+                        "type" : "integer",
+                        "minimum" : 1,
+                        "default" : 1,
+                        "description" : "store_sales.ss_item_sk 商品主键"
+                      },
+                      "start_date" : {
+                        "type" : "string",
+                        "format" : "date",
+                        "description" : "date_dim.d_date 含边界起日"
+                      },
+                      "end_date" : {
+                        "type" : "string",
+                        "format" : "date",
+                        "description" : "date_dim.d_date 含边界止日"
+                      },
+                      "min_quantity" : {
+                        "type" : "integer",
+                        "minimum" : 0,
+                        "default" : 0,
+                        "description" : "每行最低ss_quantity"
+                      },
+                      "category" : {
+                        "type" : [ "string", "null" ],
+                        "default" : null,
+                        "description" : "item.i_category精确品类；NULL不过滤"
+                      }
+                    },
+                    "required" : [ "start_date", "end_date" ],
+                    "additionalProperties" : false
+                  },
+                  "evidencePolicy" : { }
+                },
+                "executionMode" : "PREPARED_STATEMENT",
+                "boundParameterCount" : 6,
+                "boundParameterNames" : [ "product_id", "start_date", "end_date", "min_quantity", "category", "category" ],
+                "appliedCatalog" : "tpcds",
+                "connection" : {
+                  "catalog" : "tpcds",
+                  "schema" : null,
+                  "jdbcDatabase" : "tpcds",
+                  "databaseType" : "mysql"
+                },
+                "columnCommentResolution" : "enabled",
+                "rowCount" : 12,
+                "possiblyTruncated" : false
+              },
+              "rows" : [ {
+                "sale_year" : 1999,
+                "sale_month" : 1,
+                "category" : "Women",
+                "row_count" : 1,
+                "total_quantity" : 19,
+                "total_net_paid" : 2576.4,
+                "total_net_profit" : 690.46
+              }, {
+                "sale_year" : 1999,
+                "sale_month" : 2,
+                "category" : "Women",
+                "row_count" : 6,
+                "total_quantity" : 285,
+                "total_net_paid" : 12337.41,
+                "total_net_profit" : -316.95
+              }, {
+                "sale_year" : 1999,
+                "sale_month" : 3,
+                "category" : "Women",
+                "row_count" : 6,
+                "total_quantity" : 318,
+                "total_net_paid" : 13697.72,
+                "total_net_profit" : -5403.38
+              }, {
+                "sale_year" : 1999,
+                "sale_month" : 4,
+                "category" : "Women",
+                "row_count" : 1,
+                "total_quantity" : 77,
+                "total_net_paid" : 2473.21,
+                "total_net_profit" : -3518.16
+              }, {
+                "sale_year" : 1999,
+                "sale_month" : 5,
+                "category" : "Women",
+                "row_count" : 2,
+                "total_quantity" : 106,
+                "total_net_paid" : 1962.98,
+                "total_net_profit" : -2172.6
+              }, {
+                "sale_year" : 1999,
+                "sale_month" : 6,
+                "category" : "Women",
+                "row_count" : 6,
+                "total_quantity" : 335,
+                "total_net_paid" : 11294.37,
+                "total_net_profit" : -9399.39
+              }, {
+                "sale_year" : 1999,
+                "sale_month" : 7,
+                "category" : "Women",
+                "row_count" : 1,
+                "total_quantity" : 89,
+                "total_net_paid" : 602.53,
+                "total_net_profit" : -4470.47
+              }, {
+                "sale_year" : 1999,
+                "sale_month" : 8,
+                "category" : "Women",
+                "row_count" : 5,
+                "total_quantity" : 269,
+                "total_net_paid" : 4294.14,
+                "total_net_profit" : -8688.51
+              }, {
+                "sale_year" : 1999,
+                "sale_month" : 9,
+                "category" : "Women",
+                "row_count" : 6,
+                "total_quantity" : 365,
+                "total_net_paid" : 14815.52,
+                "total_net_profit" : -7887.61
+              }, {
+                "sale_year" : 1999,
+                "sale_month" : 10,
+                "category" : "Women",
+                "row_count" : 5,
+                "total_quantity" : 249,
+                "total_net_paid" : 1710.33,
+                "total_net_profit" : -2485.52
+              }, {
+                "sale_year" : 1999,
+                "sale_month" : 11,
+                "category" : "Women",
+                "row_count" : 9,
+                "total_quantity" : 326,
+                "total_net_paid" : 8509.65,
+                "total_net_profit" : -9961.6
+              }, {
+                "sale_year" : 1999,
+                "sale_month" : 12,
+                "category" : "Women",
+                "row_count" : 13,
+                "total_quantity" : 593,
+                "total_net_paid" : 15109.79,
+                "total_net_profit" : -17885.6
+              } ]
+            },
+            "execution" : {
+              "schemaVersion" : "execution_unit.v1",
+              "executionId" : "bad8dfa8-92ba-4cbc-bc07-538638611c89",
+              "toolName" : "db_query_mysql_248_test_db",
+              "startedAt" : "2026-11-01T03:41:12.161437277Z",
+              "finishedAt" : "2026-11-01T03:41:12.252437277Z",
+              "durationMs" : 91,
+              "stepCount" : 1,
+              "steps" : [ {
+                "stepIndex" : 1,
+                "stepId" : "sql_1",
+                "stepType" : "sql",
+                "input" : {
+                  "statement" : "SELECT\n    d.d_year                           AS sale_year,\n    d.d_moy                            AS sale_month,\n    i.i_category                       AS category,\n    COUNT(*)                           AS row_count,\n    SUM(ss.ss_quantity)                AS total_quantity,\n    SUM(ss.ss_net_paid)                AS total_net_paid,\n    SUM(ss.ss_net_profit)              AS total_net_profit\nFROM tpcds.store_sales ss\nINNER JOIN tpcds.date_dim d\n        ON ss.ss_sold_date_sk = d.d_date_sk\nINNER JOIN tpcds.item i\n        ON ss.ss_item_sk = i.i_item_sk\nWHERE ss.ss_item_sk = ?\n  AND d.d_date >= ?\n  AND d.d_date <= ?\n  AND ss.ss_quantity >= ?\n  AND (? IS NULL OR i.i_category = ?)\nGROUP BY d.d_year,\n         d.d_moy,\n         i.i_category\nORDER BY d.d_year ASC,\n         d.d_moy ASC,\n         i.i_category ASC\nLIMIT 24",
+                  "timeoutSeconds" : 30,
+                  "purpose" : null,
+                  "sourceTaskId" : "b4eed155-b4a2-401a-b00f-2847ab93b514"
+                },
+                "output" : {
+                  "resultSetReference" : "$.data",
+                  "rowCount" : 12,
+                  "returnedRowCount" : 12,
+                  "possiblyTruncated" : false,
+                  "columnCount" : 7
+                },
+                "success" : true,
+                "status" : "success",
+                "durationMs" : 91,
+                "error" : null,
+                "rowCount" : 12
+              } ]
+            },
+            "executionGraph" : {
+              "schemaVersion" : "execution_graph.v1",
+              "nodes" : [ {
+                "id" : "sql_query",
+                "type" : "sql.query",
+                "status" : "success",
+                "durationMs" : 91,
+                "attributes" : { }
+              } ],
+              "edges" : [ ]
+            },
+            "executionWorkflow" : {
+              "verified" : true,
+              "steps" : [ "VALIDATE_ARGUMENT_CONTRACT", "ROUTE_LOGICAL_DATASOURCE", "RESOLVE_TEMPLATE_PARAMETERS_IF_PRESENT", "CLASSIFY_SQL_CARDINALITY", "ENFORCE_READ_ONLY_POLICY", "EXECUTE_QUERY_OR_SCRIPT", "VERIFY_RESULT", "ASSEMBLE_EVIDENCE" ],
+              "workflowId" : "execute.sql-query.v1",
+              "mode" : "SQL_QUERY",
+              "parameterWorkflow" : {
+                "parameterRepairs" : [ {
+                  "field" : "category",
+                  "repairCode" : "DEFAULT_VALUE_APPLIED"
+                }, {
+                  "field" : "category",
+                  "repairCode" : "UNKNOWN_TEMPLATE_PARAMETER_DROPPED"
+                } ],
+                "parameterSources" : {
+                  "product_id" : "EXPLICIT_PARAMETERS",
+                  "start_date" : "EXPLICIT_PARAMETERS",
+                  "end_date" : "EXPLICIT_PARAMETERS",
+                  "min_quantity" : "EXPLICIT_PARAMETERS",
+                  "category" : "SCHEMA_DEFAULT"
+                },
+                "mode" : "DECLARED_SCHEMA",
+                "parameterCount" : 5,
+                "steps" : [ "NORMALIZE_REQUEST", "COLLECT_EXPLICIT_PARAMETERS", "COLLECT_REQUEST_FIELDS", "APPLY_DECLARED_DEFAULTS", "COERCE_DECLARED_TYPES", "VALIDATE_REQUIRED_PARAMETERS", "ASSEMBLE_BINDING" ],
+                "verified" : true,
+                "scopeStatus" : "REQUIRES_SCOPE_VERIFICATION",
+                "workflowId" : "resolve.template-parameters.v1"
+              }
+            }
+          },
+          "message" : null,
+          "errorMessage" : null,
+          "exceptionType" : null,
+          "errorDetails" : null,
+          "executionTimeMs" : 124,
+          "tokenUsage" : { },
+          "metadata" : {
+            "templatePublication" : {
+              "toolName" : "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+              "releaseId" : "922184b0-f4e4-4849-b570-368d0dbe5f85",
+              "templateRevision" : "278d79f07cc9ba5ef3bad1ab50f1070ec21e7c6084f0f8dfc34472efc540cd0c",
+              "userId" : "2f219487-11a3-4a1d-9130-ac500b62f268",
+              "agentId" : "sql_template_e2e_20261101_r1"
+            },
+            "traceId" : "b4eed155-b4a2-401a-b00f-2847ab93b514"
+          }
+        }
+      }
+    },
+    "traceId" : "b4eed155-b4a2-401a-b00f-2847ab93b514",
+    "durationMs" : 5048,
+    "request" : {
+      "jsonrpc" : "2.0",
+      "params" : {
+        "name" : "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+        "arguments" : {
+          "product_id" : 2,
+          "start_date" : "1999-01-01",
+          "end_date" : "1999-12-31",
+          "min_quantity" : 0,
+          "category" : null
+        }
+      },
+      "method" : "tools/call",
+      "id" : 12
+    },
+    "caseId" : "MCP-PRODUCT-NONDEFAULT"
+  } ]
+}

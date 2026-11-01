@@ -1,0 +1,69 @@
+{
+  "status": "RECORDED_TOOL_OBSERVATIONS",
+  "calls": [
+    {
+      "source": "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970",
+      "requested": {
+        "warehouse_id": 2,
+        "start_date": "1998-01-01",
+        "end_date": "1998-01-29",
+        "min_on_hand": 0
+      },
+      "definition": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "warehouse_id": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "仓库维表主键，无默认值"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "含边界的库存快照开始日期"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "description": "含边界的库存快照结束日期"
+          },
+          "min_on_hand": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "description": "现存数量下限"
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null,
+            "description": "商品类别，null表示不限"
+          }
+        },
+        "required": [
+          "warehouse_id",
+          "start_date",
+          "end_date"
+        ]
+      },
+      "effective": {
+        "warehouse_id": 2,
+        "start_date": "1998-01-01",
+        "end_date": "1998-01-29",
+        "min_on_hand": 0,
+        "category": null
+      },
+      "boundParameterNames": [
+        "warehouse_id",
+        "start_date",
+        "end_date",
+        "min_on_hand",
+        "category",
+        "category"
+      ]
+    }
+  ]
+}

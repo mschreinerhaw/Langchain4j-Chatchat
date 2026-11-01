@@ -1,0 +1,143 @@
+{
+  "capturedAt": "2026-11-01T01:23:30.737399+00:00",
+  "baselines": {
+    "geography": {
+      "sql": "SELECT w_country,w_state,COUNT(w_warehouse_sk) warehouse_count,COUNT(DISTINCT w_city) city_count,MIN(w_warehouse_sk) min_warehouse_sk,MAX(w_warehouse_sk) max_warehouse_sk FROM warehouse GROUP BY w_country,w_state ORDER BY w_country,w_state",
+      "source": "DIRECT_MYSQL_JDBC",
+      "readOnly": true,
+      "durationMs": 551,
+      "rows": [
+        {
+          "w_country": "United States",
+          "w_state": "TN",
+          "warehouse_count": "5",
+          "city_count": "1",
+          "min_warehouse_sk": "1",
+          "max_warehouse_sk": "5"
+        }
+      ]
+    },
+    "inventory_a02": {
+      "sql": "SELECT d.d_date snapshot_date,COUNT(*) sku_record_count,COUNT(CASE WHEN inv.inv_quantity_on_hand>0 THEN 1 END) nonzero_sku_count,COUNT(CASE WHEN inv.inv_quantity_on_hand=0 THEN 1 END) zero_sku_count,SUM(inv.inv_quantity_on_hand) total_on_hand FROM date_dim d JOIN inventory inv ON inv.inv_date_sk=d.d_date_sk JOIN item i ON i.i_item_sk=inv.inv_item_sk WHERE d.d_date BETWEEN '1998-01-01' AND '1998-01-29' AND inv.inv_warehouse_sk=2 AND inv.inv_quantity_on_hand>=0 GROUP BY d.d_date ORDER BY d.d_date",
+      "source": "DIRECT_MYSQL_JDBC",
+      "readOnly": true,
+      "durationMs": 840,
+      "rows": [
+        {
+          "snapshot_date": "1998-01-01",
+          "sku_record_count": "8546",
+          "nonzero_sku_count": "8539",
+          "zero_sku_count": "7",
+          "total_on_hand": "4301064"
+        },
+        {
+          "snapshot_date": "1998-01-08",
+          "sku_record_count": "8566",
+          "nonzero_sku_count": "8559",
+          "zero_sku_count": "7",
+          "total_on_hand": "4309382"
+        },
+        {
+          "snapshot_date": "1998-01-15",
+          "sku_record_count": "8542",
+          "nonzero_sku_count": "8529",
+          "zero_sku_count": "13",
+          "total_on_hand": "4309203"
+        },
+        {
+          "snapshot_date": "1998-01-22",
+          "sku_record_count": "8560",
+          "nonzero_sku_count": "8550",
+          "zero_sku_count": "10",
+          "total_on_hand": "4349344"
+        },
+        {
+          "snapshot_date": "1998-01-29",
+          "sku_record_count": "8538",
+          "nonzero_sku_count": "8529",
+          "zero_sku_count": "9",
+          "total_on_hand": "4297887"
+        }
+      ]
+    },
+    "inventory_a05": {
+      "sql": "SELECT d.d_date snapshot_date,COUNT(*) sku_record_count,COUNT(CASE WHEN inv.inv_quantity_on_hand>0 THEN 1 END) nonzero_sku_count,COUNT(CASE WHEN inv.inv_quantity_on_hand=0 THEN 1 END) zero_sku_count,SUM(inv.inv_quantity_on_hand) total_on_hand FROM date_dim d JOIN inventory inv ON inv.inv_date_sk=d.d_date_sk JOIN item i ON i.i_item_sk=inv.inv_item_sk WHERE d.d_date BETWEEN '1998-01-15' AND '1998-01-29' AND inv.inv_warehouse_sk=4 AND inv.inv_quantity_on_hand>=500 AND i.i_category='Books' GROUP BY d.d_date ORDER BY d.d_date",
+      "source": "DIRECT_MYSQL_JDBC",
+      "readOnly": true,
+      "durationMs": 739,
+      "rows": [
+        {
+          "snapshot_date": "1998-01-15",
+          "sku_record_count": "396",
+          "nonzero_sku_count": "396",
+          "zero_sku_count": "0",
+          "total_on_hand": "293287"
+        },
+        {
+          "snapshot_date": "1998-01-22",
+          "sku_record_count": "423",
+          "nonzero_sku_count": "423",
+          "zero_sku_count": "0",
+          "total_on_hand": "317127"
+        },
+        {
+          "snapshot_date": "1998-01-29",
+          "sku_record_count": "410",
+          "nonzero_sku_count": "410",
+          "zero_sku_count": "0",
+          "total_on_hand": "309009"
+        }
+      ]
+    },
+    "inventory_a06": {
+      "sql": "SELECT d.d_date snapshot_date,COUNT(*) sku_record_count,COUNT(CASE WHEN inv.inv_quantity_on_hand>0 THEN 1 END) nonzero_sku_count,COUNT(CASE WHEN inv.inv_quantity_on_hand=0 THEN 1 END) zero_sku_count,SUM(inv.inv_quantity_on_hand) total_on_hand FROM date_dim d JOIN inventory inv ON inv.inv_date_sk=d.d_date_sk JOIN item i ON i.i_item_sk=inv.inv_item_sk WHERE d.d_date BETWEEN '1998-01-01' AND '1998-01-29' AND inv.inv_warehouse_sk=1 AND inv.inv_quantity_on_hand>=0 GROUP BY d.d_date ORDER BY d.d_date",
+      "source": "DIRECT_MYSQL_JDBC",
+      "readOnly": true,
+      "durationMs": 820,
+      "rows": [
+        {
+          "snapshot_date": "1998-01-01",
+          "sku_record_count": "8574",
+          "nonzero_sku_count": "8570",
+          "zero_sku_count": "4",
+          "total_on_hand": "4308425"
+        },
+        {
+          "snapshot_date": "1998-01-08",
+          "sku_record_count": "8545",
+          "nonzero_sku_count": "8542",
+          "zero_sku_count": "3",
+          "total_on_hand": "4270484"
+        },
+        {
+          "snapshot_date": "1998-01-15",
+          "sku_record_count": "8569",
+          "nonzero_sku_count": "8562",
+          "zero_sku_count": "7",
+          "total_on_hand": "4287897"
+        },
+        {
+          "snapshot_date": "1998-01-22",
+          "sku_record_count": "8496",
+          "nonzero_sku_count": "8489",
+          "zero_sku_count": "7",
+          "total_on_hand": "4184412"
+        },
+        {
+          "snapshot_date": "1998-01-29",
+          "sku_record_count": "8545",
+          "nonzero_sku_count": "8535",
+          "zero_sku_count": "10",
+          "total_on_hand": "4288005"
+        }
+      ]
+    },
+    "inventory_empty": {
+      "sql": "SELECT d.d_date snapshot_date,COUNT(*) sku_record_count,COUNT(CASE WHEN inv.inv_quantity_on_hand>0 THEN 1 END) nonzero_sku_count,COUNT(CASE WHEN inv.inv_quantity_on_hand=0 THEN 1 END) zero_sku_count,SUM(inv.inv_quantity_on_hand) total_on_hand FROM date_dim d JOIN inventory inv ON inv.inv_date_sk=d.d_date_sk JOIN item i ON i.i_item_sk=inv.inv_item_sk WHERE d.d_date BETWEEN '1998-01-01' AND '1998-01-29' AND inv.inv_warehouse_sk=99999 AND inv.inv_quantity_on_hand>=0 GROUP BY d.d_date ORDER BY d.d_date",
+      "source": "DIRECT_MYSQL_JDBC",
+      "readOnly": true,
+      "durationMs": 518,
+      "rows": []
+    }
+  }
+}

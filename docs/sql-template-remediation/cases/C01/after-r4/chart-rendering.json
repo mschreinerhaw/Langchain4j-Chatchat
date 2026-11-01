@@ -1,0 +1,22 @@
+{
+  "status": "RENDERED_IN_SYSTEM_PAGE",
+  "charts": [
+    {
+      "id": "c_bar",
+      "kind": "static",
+      "image": {
+        "width": 1280,
+        "height": 919,
+        "title": "全部仓库的国家/省州分布（单位：个）"
+      }
+    }
+  ],
+  "events": [
+    {
+      "fileId": "a447f7fdd167c1420a9c4340241279d2250f5ade5bbbc53c8ac3a7c3b502ec5f",
+      "kind": "png",
+      "durationMs": 71
+    }
+  ],
+  "diagnostics": []
+}

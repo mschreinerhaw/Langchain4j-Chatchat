@@ -1,0 +1,6 @@
+{
+  "status": "PASS",
+  "comparedCells": 10,
+  "analysisStatus": "PARTIAL",
+  "scope": "Six displayed SQL fields, derived share/total and interactive chart values; final seventh SQL field is independently verified in sql-comparison.json."
+}

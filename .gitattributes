@@ -31,3 +31,8 @@ docs/sql-chain-revalidation/**/*.py -text
 docs/sql-chain-revalidation/*.json -text
 # Keep the remote JDBC receipt's original CRLF bytes without treating CR as trailing spaces.
 docs/sql-chain-revalidation/fresh-jdbc.json -text whitespace=cr-at-eol
+
+# Preserve real execution/artifact receipt bytes for reproducible hash checks.
+docs/sql-template-remediation/** -text whitespace=cr-at-eol
+docs/sql-template-remediation/**/*.sql -whitespace
+docs/sql-template-remediation/**/request.md -whitespace

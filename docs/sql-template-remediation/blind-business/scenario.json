@@ -1,0 +1,78 @@
+{
+  "projectName": "TPCDS warehouse real business verification",
+  "serviceId": "chatchat-mcp-server",
+  "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+  "database": "tpcds",
+  "dialect": "mysql",
+  "tables": [
+    "warehouse",
+    "inventory",
+    "date_dim",
+    "item"
+  ],
+  "templates": {
+    "geography": {
+      "path": "sql/warehouse_geography.sql",
+      "prompt": "请依据提供的实际MySQL元数据，生成 sql/warehouse_geography.sql。业务需求：按国家、省州统计仓库数量和覆盖城市数量，同时返回每组最小和最大仓库主键，以便后续选择仓库开展库存分析。保留空值分组，按国家、省州排序。这是一个无参数的全仓库维表查询，不固定任何商品或仓库，不添加人为业务过滤。只写只读SQL及简短口径注释，不执行、不编造查询结果。",
+      "title": "TPCDS 248 仓库地理分布",
+      "description": "按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围；全仓库维表，无参数。",
+      "parameterSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "trialParameters": {}
+    },
+    "inventory": {
+      "path": "sql/warehouse_inventory.sql",
+      "prompt": "请依据实际MySQL元数据，生成 sql/warehouse_inventory.sql。业务需求：分析指定仓库、指定含边界日期期间的逐日库存快照。按快照日期统计SKU记录数、现存数量大于零的SKU数、零库存SKU数以及现存数量合计。用户可以指定现存数量下限，默认0；可以按商品类别筛选，默认不过滤类别。参数使用 {{warehouse_id}} 整数、{{start_date}} 与 {{end_date}} 日期字符串、{{min_on_hand}} 整数、{{category}} 可空字符串，所有占位符外面不加引号。日期和仓库必填，不设猜测默认值。不固定任何商品、仓库和年份。先按日期及仓库约束 inventory，再关联日期和商品，尽量使用已声明键，结果日期升序，最多100行。注释准确区分SKU记录数和数量合计；不推测数量的计量单位。只生成MySQL只读SQL，不执行、不编造结果。",
+      "title": "TPCDS 248 仓库期间库存快照",
+      "description": "按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。",
+      "parameterSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "warehouse_id": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "仓库维表主键，无默认值"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "含边界的库存快照开始日期"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "description": "含边界的库存快照结束日期"
+          },
+          "min_on_hand": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "description": "现存数量下限"
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null,
+            "description": "商品类别，null表示不限"
+          }
+        },
+        "required": [
+          "warehouse_id",
+          "start_date",
+          "end_date"
+        ]
+      },
+      "trialParameters": {
+        "warehouse_id": 2,
+        "start_date": "1998-01-01",
+        "end_date": "1998-01-29"
+      }
+    }
+  }
+}

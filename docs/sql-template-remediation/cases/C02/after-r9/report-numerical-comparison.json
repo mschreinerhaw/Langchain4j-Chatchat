@@ -1,0 +1,6 @@
+{
+  "status": "PASS",
+  "comparedCells": 25,
+  "analysisStatus": "PARTIAL",
+  "scope": "All five displayed fields across five observed snapshots. Static chart provenance is the actual executed Python and hash-matched uploaded artifact, not OCR certification."
+}

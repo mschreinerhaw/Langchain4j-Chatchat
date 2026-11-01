@@ -1,0 +1,66 @@
+{
+  "capturedAt": "2026-11-01T01:48:05.563266071Z",
+  "clientKind": "INDEPENDENT_MCP_PROTOCOL_CLIENT_NOT_AGENT_EXECUTION",
+  "scope": {
+    "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+    "agentId": "sql_template_unbound_20261101",
+    "userId": "2f219487-11a3-4a1d-9130-ac500b62f268"
+  },
+  "initialization": {
+    "request": {
+      "method": "initialize",
+      "params": {
+        "clientInfo": {
+          "version": "1.0",
+          "name": "runtime-sql-independent-probe"
+        },
+        "capabilities": {},
+        "protocolVersion": "2025-11-25"
+      },
+      "jsonrpc": "2.0",
+      "id": 1
+    },
+    "durationMs": 82,
+    "traceId": "5b434f94-5f07-4218-a921-7b4473b5189d",
+    "response": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "result": {
+        "protocolVersion": "2025-11-25",
+        "capabilities": {
+          "logging": {},
+          "tools": {
+            "listChanged": true
+          }
+        },
+        "serverInfo": {
+          "name": "chatchat-langchain4j-mcp-server",
+          "version": "1.0.0-SNAPSHOT"
+        },
+        "instructions": "ChatChat standalone MCP server exposing LangChain4j-compatible tools."
+      }
+    },
+    "httpStatus": 200
+  },
+  "records": [
+    {
+      "request": {
+        "method": "tools/list",
+        "params": {},
+        "jsonrpc": "2.0",
+        "id": 2
+      },
+      "durationMs": 139,
+      "traceId": "bbf9bd96-58b4-45b9-b07c-91e703695c6c",
+      "response": {
+        "jsonrpc": "2.0",
+        "result": {
+          "tools": []
+        },
+        "id": 2
+      },
+      "httpStatus": 200,
+      "caseId": "MCP-LIST"
+    }
+  ]
+}

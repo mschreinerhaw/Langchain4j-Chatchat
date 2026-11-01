@@ -1,0 +1,489 @@
+{
+  "tables": [
+    {
+      "columns": [
+        "快照日期",
+        "记录数（条）",
+        "非零数量记录数（条）",
+        "零数量记录数（条）",
+        "现存数量合计（单位未在数据源声明）"
+      ],
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+      ],
+      "id": "t_daily_detail",
+      "rows": [
+        [
+          "1998-01-01",
+          "8546",
+          "8539",
+          "7",
+          "4,301,064"
+        ],
+        [
+          "1998-01-08",
+          "8566",
+          "8559",
+          "7",
+          "4,309,382"
+        ],
+        [
+          "1998-01-15",
+          "8542",
+          "8529",
+          "13",
+          "4,309,203"
+        ],
+        [
+          "1998-01-22",
+          "8560",
+          "8550",
+          "10",
+          "4,349,344"
+        ],
+        [
+          "1998-01-29",
+          "8538",
+          "8529",
+          "9",
+          "4,297,887"
+        ]
+      ],
+      "scope": "仓库2，日期区间 1998-01-01 至 1998-01-29（含边界），数量下限 0，类别不限；仅 5 个有返回记录的日期",
+      "title": "逐日库存快照明细（1998-01-01 至 1998-01-29 返回的日期）"
+    },
+    {
+      "columns": [
+        "校验项",
+        "方法",
+        "结果"
+      ],
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+      ],
+      "id": "t_quality_checks",
+      "rows": [
+        [
+          "交付文件完整性与行数",
+          "逐文件 SHA-256 与声明行数比对（1 个数据分片）",
+          "通过：5 行，与声明一致"
+        ],
+        [
+          "查询范围（仓库/日期/下限/类别）",
+          "按有序占位符解析参数：2 / 1998-01-01 / 1998-01-29 / 0 / NULL",
+          "通过：与目标一致，类别不限"
+        ],
+        [
+          "快照日期唯一性",
+          "日期重复计数",
+          "通过：重复 0 个"
+        ],
+        [
+          "日期落在目标区间",
+          "逐行区间校验",
+          "通过"
+        ],
+        [
+          "记录数分解自洽",
+          "非零记录数 + 零数量记录数 = 记录数",
+          "通过"
+        ],
+        [
+          "现存数量合计非负",
+          "逐日合计 >= 0",
+          "通过"
+        ],
+        [
+          "结果未被查询上限截断",
+          "返回行数 5 < 上限 100",
+          "通过"
+        ],
+        [
+          "区间日期覆盖完整性",
+          "29 个日历日 vs 5 个返回日期",
+          "待确认：24 个日期无返回记录"
+        ],
+        [
+          "相邻观测日间隔",
+          "相邻返回日期天数差（4 个间隔）",
+          "待确认：间隔均为 7 天，逐日粒度不可得"
+        ]
+      ],
+      "scope": "同一份分组查询结果及其交付文件",
+      "title": "完整性与口径校验"
+    },
+    {
+      "columns": [
+        "业务角色",
+        "来源字段",
+        "申报含义",
+        "声明来源",
+        "状态"
+      ],
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+      ],
+      "id": "t_field_provenance",
+      "rows": [
+        [
+          "快照日期",
+          "snapshot_date",
+          "库存快照日期（date_dim.d_date，按日期分组）",
+          "查询定义 SELECT dd.d_date AS snapshot_date；来源描述“逐日库存快照”",
+          "已确认"
+        ],
+        [
+          "记录数",
+          "sku_record_count",
+          "该仓库该快照日的库存记录行数（COUNT(*)）",
+          "查询定义 COUNT(*) AS sku_record_count",
+          "已确认"
+        ],
+        [
+          "非零数量记录数",
+          "nonzero_sku_count",
+          "该日 inv_quantity_on_hand > 0 的记录行数",
+          "查询定义 SUM(CASE WHEN inv.inv_quantity_on_hand > 0 THEN 1 ELSE 0 END)",
+          "已确认"
+        ],
+        [
+          "零数量记录数",
+          "zero_sku_count",
+          "该日 inv_quantity_on_hand = 0 的记录行数",
+          "查询定义 SUM(CASE WHEN inv.inv_quantity_on_hand = 0 THEN 1 ELSE 0 END)",
+          "已确认"
+        ],
+        [
+          "现存数量合计",
+          "total_on_hand",
+          "该日 inv_quantity_on_hand 的求和；计量单位未由来源声明",
+          "查询定义 SUM(inv.inv_quantity_on_hand)；来源描述声明数量单位未提供",
+          "已确认（单位未声明）"
+        ]
+      ],
+      "scope": "同一份分组查询结果；含义取自执行回执中的查询表达式与来源描述",
+      "title": "字段来源与口径对照"
+    }
+  ],
+  "limitations": [
+    "目标区间 1998-01-01 至 1998-01-29 共 29 个日历日，仅 5 个日期返回记录，其余 24 个日期无数据行；缺少快照登记证据，无法区分“当日无库存记录”与“快照未载入”，未将缺口补为零。",
+    "现存数量合计与记录数的计量单位、精度未由数据源声明（查询仅对 inv_quantity_on_hand 求和），因此不标注单位、不换算、不推断货币金额。",
+    "交付数据为按仓库与日期分组的日汇总，缺少条目（SKU）级明细与分类字段，无法核对单条记录、分类构成或库龄等结论。",
+    "范围依据有效参数（warehouse_id=2、1998-01-01 至 1998-01-29、min_on_hand=0、category=NULL）确认；其他仓库、负数量记录及其他类别口径不在本次证据范围内。",
+    "逐日记录数存在小幅波动，但仅有 5 个观测日期，不足以判断趋势、季节性或其他持久性特征。",
+    "记录数为库存记录行数（COUNT(*))，并非去重后的 SKU 个数；单个 SKU 的重复记录关系无法从日汇总结果验证。",
+    "返回日期呈等间隔排列（相邻间隔均为 7 天，共 4 个间隔），与“逐日”快照的预期粒度不一致；缺少快照生成频率或调度声明，无法确认其余 24 个日历日是“无数据”还是“本数据源不含逐日快照”。"
+  ],
+  "execution": {
+    "codeArtifact": {
+      "fileId": "70782dd3cfdd49f0c68485097fa407bfe10cbc1e571781f32287765a6795a916",
+      "fileName": "2-1998-01-01-1998-01-29_20261101T030334125Z_63b5050ffd4c_v3.py",
+      "mediaType": "text/x-python",
+      "sha256": "243908a0c7fb5c9b9035c969bc1515b6407e64feb35e206e5c318997938031d7",
+      "size": 31340
+    },
+    "codeSha256": "243908a0c7fb5c9b9035c969bc1515b6407e64feb35e206e5c318997938031d7",
+    "executorStopped": true,
+    "operationId": "cline-56fe7209d59d2c811a3cb9ac3b82ded6de784e64a4d328704d0b40d35676897d",
+    "receiptSha256": "d990eb2dc08f925254b7a887714f98d71e6936119c44ed70988a42762443f7e1",
+    "reportPresentation": {
+      "autoCharts": true,
+      "autoImages": true,
+      "density": "comfortable",
+      "strategy": "auto",
+      "template": "briefing"
+    },
+    "resultDatasetRef": "runtime-evidence:coding:49087df45fe5003ea3b418b3fa7e195adcf2d515e15e366a757befbaa5b07f11:result",
+    "resultSha256": "ea5c096e3354a0ff6a96d64934cd0c39cb91143d986b9d3015e0ec00bd786ec7",
+    "status": "SUCCEEDED",
+    "taskId": "analysis-coding-74c1c8d5fa716b844871d8f4d53f3645cf2b2b3f074d6912c0e60d4dc30d62ae"
+  },
+  "artifacts": [
+    {
+      "fileId": "dbe0bcd00e1cc6eea113bd16d70fd26023dd85e38c70fad26a88b3810a829c29",
+      "fileName": "warehouse2_inventory_record_counts.png",
+      "mediaType": "image/png",
+      "sha256": "07e13acfa999e86e44a25f1b07d0ba24912dfd8b4d6c0813a5429f6e9977c1f7",
+      "size": 76754
+    }
+  ],
+  "reportMode": "visual",
+  "metrics": [
+    {
+      "calculation": "对分组结果按 snapshot_date 去重计数",
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+      ],
+      "id": "m_obs_days",
+      "label": "返回记录的快照日期数",
+      "unit": "个",
+      "value": "5"
+    },
+    {
+      "calculation": "各组 sku_record_count（COUNT(*)）取最大值",
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+      ],
+      "id": "m_max_records",
+      "label": "单日最大记录数（1998-01-08）",
+      "unit": "条",
+      "value": "8566"
+    },
+    {
+      "calculation": "各组 sku_record_count（COUNT(*)）取最小值",
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+      ],
+      "id": "m_min_records",
+      "label": "单日最小记录数（1998-01-29）",
+      "unit": "条",
+      "value": "8538"
+    },
+    {
+      "calculation": "各组 total_on_hand（SUM(inv.inv_quantity_on_hand)）取最大值；单位未由数据源声明",
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+      ],
+      "id": "m_max_total_on_hand",
+      "label": "单日现存数量合计最高值（1998-01-22）",
+      "unit": "",
+      "value": "4349344"
+    },
+    {
+      "calculation": "29 个日历日减去 5 个返回日期",
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+      ],
+      "id": "m_missing_days",
+      "label": "区间内无返回记录的日历日数",
+      "unit": "个",
+      "value": "24"
+    }
+  ],
+  "timings": {
+    "analysisMs": 412.26,
+    "chartMs": 350.4
+  },
+  "sections": [
+    {
+      "chartIds": [],
+      "id": "s_conclusion",
+      "narrative": "仓库2 在 1998-01-01 至 1998-01-29（含边界）按“数量下限 0、类别不限”条件执行的逐日分组查询，实际返回 **5 个快照日期共 5 条日汇总记录**，日期分布为 1998-01-01、1998-01-08、1998-01-15、1998-01-22、1998-01-29。这 5 个快照日的库存记录数分别为 8,546、8,566、8,542、8,560、8,538 条；单日记录数最高为 8,566 条（1998-01-08），最低为 8,538 条（1998-01-29），有返回记录日期的平均记录数为 8,550.40 条。跨日期相加记录数没有业务意义，故不提供跨日合计数。现存数量合计（单位未声明）最高为 1998-01-22 的 4,349,344（按日期排序第 4 个观测日），最低为 1998-01-29 的 4,297,887（第 5 个观测日）；两者并非区间首尾日，不能读作区间净变化。各日期为独立快照，故不作跨日加总。24 个日历日无返回记录，保持为缺口而非 0；相邻返回日期间隔统一为 7 天，实际快照频率需由数据源方确认。",
+      "tableIds": [],
+      "title": "结论：目标区间返回 5 个快照日期，单日记录数 8,538–8,566 条"
+    },
+    {
+      "chartIds": [
+        "c_records_by_date"
+      ],
+      "id": "s_trend",
+      "narrative": "按快照日期展示记录数：8,546、8,566、8,542、8,560、8,538 条。最低 8,538 条（1998-01-29），最高 8,566 条（1998-01-08），有返回记录日期的平均记录数 8,550.40 条。折线只连接实际返回记录的日期，缺口不插值；纵轴自 0 起，故波动在视觉上被压缩。",
+      "tableIds": [],
+      "title": "逐日记录数走势"
+    },
+    {
+      "chartIds": [],
+      "id": "s_detail",
+      "narrative": "现存数量合计逐日为 4,301,064、4,309,382、4,309,203、4,349,344、4,297,887；对应记录数 8,546、8,566、8,542、8,560、8,538 条。数值直接来自各行 total_on_hand 汇总，未声明计量单位，未做单位换算或货币推断；单条记录明细不在交付范围内，故无法进一步拆解构成。",
+      "tableIds": [
+        "t_daily_detail"
+      ],
+      "title": "逐日现存数量合计明细"
+    },
+    {
+      "chartIds": [],
+      "id": "s_quality",
+      "narrative": "文件完整性、范围参数、日期唯一性、记录数分解与截断检查均通过；区间 29 个日历日中 24 个日期无返回记录，无法由交付数据区分“无库存记录”与“快照缺失”，该项保持待确认。",
+      "tableIds": [
+        "t_quality_checks"
+      ],
+      "title": "覆盖性与数据质量校验"
+    }
+  ],
+  "dataSources": [
+    "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+  ],
+  "schemaVersion": "python_visual_report.v1",
+  "status": "PARTIAL",
+  "validation": {
+    "checks": [
+      {
+        "detail": "清单、模式文件及 1 个数据分片哈希一致，合计 5 行，与声明 5 行一致",
+        "name": "交付文件 SHA-256 与行数校验",
+        "status": "PASSED"
+      },
+      {
+        "detail": "有序占位符解析为 warehouse_id=2、start_date=1998-01-01、end_date=1998-01-29、min_on_hand=0、category=NULL（类别不限），与用户目标一致",
+        "name": "查询范围与目标一致性",
+        "status": "PASSED"
+      },
+      {
+        "detail": "按 snapshot_date 检查重复键，重复数 0",
+        "name": "快照日期唯一性",
+        "status": "PASSED"
+      },
+      {
+        "detail": "返回日期 1998-01-01 至 1998-01-29，全部落在 1998-01-01 至 1998-01-29 内",
+        "name": "日期区间校验",
+        "status": "PASSED"
+      },
+      {
+        "detail": "逐行校验 nonzero_sku_count + zero_sku_count = sku_record_count，全部成立（5 个日期；42,706 与 46 的加总仅用于算术核对，不构成业务数量合计）",
+        "name": "记录数分解一致性",
+        "status": "PASSED"
+      },
+      {
+        "detail": "逐日合计最小值 4,297,887、最大值 4,349,344，均 >= 0，符合数量下限 0 的过滤条件",
+        "name": "现存数量合计非负",
+        "status": "PASSED"
+      },
+      {
+        "detail": "返回 5 行，小于查询声明的 LIMIT 100",
+        "name": "结果未被查询上限截断",
+        "status": "PASSED"
+      },
+      {
+        "detail": "29 个日历日中 5 个日期有返回记录、24 个无返回记录；无快照登记证据，无法区分无库存记录与快照缺失",
+        "name": "区间日期覆盖完整性",
+        "status": "UNRESOLVED"
+      },
+      {
+        "detail": "4 个相邻间隔均为 7 天（完全等间隔），与“逐日”快照预期不一致；无快照生成频率声明，无法确认逐日数据是否在原数据源中可获取",
+        "name": "相邻观测日间隔一致性",
+        "status": "UNRESOLVED"
+      },
+      {
+        "detail": "图表数据点、指标卡与明细表均由同一份计算结果生成",
+        "name": "图表与数值一致性",
+        "status": "PASSED"
+      }
+    ],
+    "scope": "STOPPED_EXECUTION_AND_ARTIFACT_INTEGRITY; COMPUTATION_CHECKS_ARE_PROGRAM_DECLARED; BUSINESS_SEMANTICS_NOT_CERTIFIED",
+    "status": "PARTIAL",
+    "warnings": [
+      "现存数量合计的计量单位未由数据源声明，表头与指标中单位为空白。",
+      "纵轴仅覆盖实际返回记录的日期，图线不表示连续日历序列。",
+      "折线图纵轴自 0 起，观测值区间狭窄，视觉波动被压缩；具体数值以数据点标注与明细表为准。",
+      "返回日期相邻间隔均为 7 天，逐日粒度不可得，图线仅代表实际返回的 5 个观察点。"
+    ]
+  },
+  "layoutValidationStatus": "PASSED",
+  "charts": [
+    {
+      "artifact": {
+        "fileId": "dbe0bcd00e1cc6eea113bd16d70fd26023dd85e38c70fad26a88b3810a829c29",
+        "fileName": "warehouse2_inventory_record_counts.png",
+        "mediaType": "image/png",
+        "sha256": "07e13acfa999e86e44a25f1b07d0ba24912dfd8b4d6c0813a5429f6e9977c1f7",
+        "size": 76754
+      },
+      "caption": "横轴为快照日期，纵轴为库存记录数（条），仅绘制实际返回记录的 5 个日期（1998-01-01、1998-01-08、1998-01-15、1998-01-22、1998-01-29），无记录日期不插值、不补零；纵轴自 0 起。范围：仓库2、数量下限 0、类别不限。",
+      "chartType": "line",
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+      ],
+      "id": "c_records_by_date",
+      "kind": "png",
+      "title": "仓库2 逐日库存快照记录数（1998-01-01 至 1998-01-29）"
+    }
+  ],
+  "title": "仓库2 逐日库存快照记录数与现存数量合计（1998-01-01 至 1998-01-29）",
+  "presentationDiagnostics": [],
+  "analysisStatus": "PARTIAL",
+  "layout": {
+    "blocks": [
+      {
+        "id": "b-summary",
+        "type": "summary"
+      },
+      {
+        "id": "b-m-obs",
+        "ref": "m_obs_days",
+        "span": "half",
+        "type": "metric"
+      },
+      {
+        "id": "b-m-maxrec",
+        "ref": "m_max_records",
+        "span": "half",
+        "type": "metric"
+      },
+      {
+        "id": "b-m-maxqty",
+        "ref": "m_max_total_on_hand",
+        "span": "half",
+        "type": "metric"
+      },
+      {
+        "id": "b-m-gap",
+        "ref": "m_missing_days",
+        "span": "half",
+        "type": "metric"
+      },
+      {
+        "id": "b-s-conclusion",
+        "ref": "s_conclusion",
+        "type": "section"
+      },
+      {
+        "id": "b-s-trend",
+        "ref": "s_trend",
+        "type": "section"
+      },
+      {
+        "emphasis": "important",
+        "id": "b-chart-counts",
+        "ref": "c_records_by_date",
+        "span": "full",
+        "type": "chart"
+      },
+      {
+        "id": "b-s-detail",
+        "ref": "s_detail",
+        "type": "section"
+      },
+      {
+        "id": "b-t-daily",
+        "ref": "t_daily_detail",
+        "span": "full",
+        "type": "table"
+      },
+      {
+        "id": "b-s-quality",
+        "ref": "s_quality",
+        "type": "section"
+      },
+      {
+        "id": "b-t-quality",
+        "ref": "t_quality_checks",
+        "span": "full",
+        "type": "table"
+      },
+      {
+        "id": "b-t-provenance",
+        "ref": "t_field_provenance",
+        "span": "full",
+        "type": "table"
+      },
+      {
+        "id": "b-limitations",
+        "type": "limitations"
+      },
+      {
+        "id": "b-sources",
+        "type": "sources"
+      }
+    ],
+    "schemaVersion": "report_layout.v1"
+  },
+  "artifactValidationStatus": "PASSED",
+  "summary": "仓库2 在 1998-01-01 至 1998-01-29（含边界）按“数量下限 0、类别不限”条件执行的逐日分组查询，实际返回 **5 个快照日期共 5 条日汇总记录**，日期分布为 1998-01-01、1998-01-08、1998-01-15、1998-01-22、1998-01-29。这 5 个快照日的库存记录数分别为 8,546、8,566、8,542、8,560、8,538 条；单日记录数最高为 8,566 条（1998-01-08），最低为 8,538 条（1998-01-29），有返回记录日期的平均记录数为 8,550.40 条。跨日期相加记录数没有业务意义，故不提供跨日合计数。现存数量合计（对 inv_quantity_on_hand 求和，数据源未声明计量单位，故不作单位推断）逐日为 4,301,064、4,309,382、4,309,203、4,349,344、4,297,887；最高值出现在 1998-01-22（4,349,344），最低值出现在 1998-01-29（4,297,887）。由于各日期是相互独立的库存快照，跨日期相加没有业务意义，故不提供跨日合计数。覆盖性方面：区间共 29 个日历日，仅有 5 个日期返回记录，其余 24 个日期在结果集中不存在。分组查询不返回任何行只能说明该仓库该日无符合条件的记录行，无法据此区分“当日无库存记录”与“当日快照未进入本数据集”，因此日期覆盖完整性标注为待确认。另，相邻返回日期之间的间隔为 7 天（共 4 个间隔，完全等间隔），与“逐日”快照的预期节奏并不一致；该仓库库存快照的实际生成频率需由数据源方确认，本报告仅描述实际返回的日期点。",
+  "markdown": "# 仓库2 逐日库存快照记录数与现存数量合计（1998-01-01 至 1998-01-29）\n\n## 结论摘要\n\n仓库2 在 1998-01-01 至 1998-01-29（含边界）按“数量下限 0、类别不限”条件执行的逐日分组查询，实际返回 **5 个快照日期共 5 条日汇总记录**，日期分布为 1998-01-01、1998-01-08、1998-01-15、1998-01-22、1998-01-29。这 5 个快照日的库存记录数分别为 8,546、8,566、8,542、8,560、8,538 条；单日记录数最高为 8,566 条（1998-01-08），最低为 8,538 条（1998-01-29），有返回记录日期的平均记录数为 8,550.40 条。跨日期相加记录数没有业务意义，故不提供跨日合计数。现存数量合计（对 inv_quantity_on_hand 求和，数据源未声明计量单位，故不作单位推断）逐日为 4,301,064、4,309,382、4,309,203、4,349,344、4,297,887；最高值出现在 1998-01-22（4,349,344），最低值出现在 1998-01-29（4,297,887）。由于各日期是相互独立的库存快照，跨日期相加没有业务意义，故不提供跨日合计数。覆盖性方面：区间共 29 个日历日，仅有 5 个日期返回记录，其余 24 个日期在结果集中不存在。分组查询不返回任何行只能说明该仓库该日无符合条件的记录行，无法据此区分“当日无库存记录”与“当日快照未进入本数据集”，因此日期覆盖完整性标注为待确认。另，相邻返回日期之间的间隔为 7 天（共 4 个间隔，完全等间隔），与“逐日”快照的预期节奏并不一致；该仓库库存快照的实际生成频率需由数据源方确认，本报告仅描述实际返回的日期点。\n\n## 逐日记录数走势\n\n按快照日期展示库存记录数（纵轴：记录数，条；横轴：快照日期）。图中只有实际返回记录的 5 个日期点，无记录日期保持为空白、未插值补零，因此曲线不构成连续日序列。单日记录数在 8,538 条（1998-01-29）至 8,566 条（1998-01-08）之间波动。纵轴自 0 起，观测值集中在 8,538–8,566 条区间，折线视觉上较平缓；具体数值以数据点标注与明细表为准。\n\n## 逐日明细：现存数量合计\n\n| 快照日期 | 记录数（条） | 非零数量记录数（条） | 零数量记录数（条） | 现存数量合计（单位未在数据源声明） |\n| --- | ---: | ---: | ---: | ---: |\n| 1998-01-01 | 8,546 | 8,539 | 7 | 4,301,064 |\n| 1998-01-08 | 8,566 | 8,559 | 7 | 4,309,382 |\n| 1998-01-15 | 8,542 | 8,529 | 13 | 4,309,203 |\n| 1998-01-22 | 8,560 | 8,550 | 10 | 4,349,344 |\n| 1998-01-29 | 8,538 | 8,529 | 9 | 4,297,887 |\n\n说明：记录数（sku_record_count）为该仓库该快照日的库存记录行数，并非去重后的 SKU 个数；现存数量合计（total_on_hand）为该日所有记录 inv_quantity_on_hand 的求和。数据源未声明数量计量单位（件/箱/单位等），本报告不推测单位，也不将合计值与任何货币口径对应。\n\n## 覆盖性与数据质量\n\n| 校验项 | 方法 | 结果 |\n| --- | --- | --- |\n| 交付文件完整性与行数 | 逐文件 SHA-256 与声明行数比对（1 个数据分片） | 通过：5 行，与声明一致 |\n| 查询范围（仓库/日期/下限/类别） | 按有序占位符解析：warehouse_id=2、start_date=1998-01-01、end_date=1998-01-29、min_on_hand=0、category=NULL | 通过：与目标一致，类别不限 |\n| 快照日期主键唯一 | 日期重复计数 | 通过：重复 0 个 |\n| 日期落在目标区间 | 逐行区间校验 | 通过 |\n| 记录数分解自洽 | 非零记录数 + 零数量记录数 = 记录数 | 通过 |\n| 现存数量合计非负 | 逐日合计 >= 0 | 通过 |\n| 结果未被查询上限截断 | 返回行数 5 < 上限 100 | 通过 |\n| 区间日期覆盖完整性 | 29 个日历日 vs 5 个返回日期 | 待确认：24 个日期无返回记录，无法区分无记录与快照缺失 |\n| 相邻观测日间隔 | 相邻返回日期的天数差（4 个间隔） | 待确认：间隔为 7 天（完全等间隔），逐日粒度不可得 |\n\n## 字段来源与口径\n\n| 业务角色 | 来源字段 | 申报含义 | 声明来源 | 状态 |\n| --- | --- | --- | --- | --- |\n| 快照日期 | snapshot_date | 库存快照日期（date_dim.d_date，按日期分组） | 查询定义 SELECT dd.d_date AS snapshot_date；来源描述“逐日库存快照” | 已确认 |\n| 记录数 | sku_record_count | 该仓库该快照日的库存记录行数（COUNT(*)） | 查询定义 COUNT(*) AS sku_record_count | 已确认 |\n| 非零数量记录数 | nonzero_sku_count | 该日 inv_quantity_on_hand > 0 的记录行数 | 查询定义 SUM(CASE WHEN inv.inv_quantity_on_hand > 0 THEN 1 ELSE 0 END) | 已确认 |\n| 零数量记录数 | zero_sku_count | 该日 inv_quantity_on_hand = 0 的记录行数 | 查询定义 SUM(CASE WHEN inv.inv_quantity_on_hand = 0 THEN 1 ELSE 0 END) | 已确认 |\n| 现存数量合计 | total_on_hand | 该日 inv_quantity_on_hand 的求和；计量单位未由来源声明 | 查询定义 SUM(inv.inv_quantity_on_hand)；来源描述声明数量单位未提供 | 已确认（单位未声明） |\n\n## 局限\n\n1. 目标区间 29 个日历日中仅 5 个日期返回记录，其余 24 个日期无数据行；缺少独立快照登记表，无法判定这些日期是真无库存记录还是快照未载入，故不将缺口视为 0。\n2. 现存数量合计的计量单位、精度与业务含义未由数据源声明，因此只给出原始汇总数值，不标注单位、不做单位换算。\n3. 结果集为按仓库与日期分组的日汇总，不含单个 SKU 明细，无法核对单条记录，也无法判断库存质量、库龄或分类构成。\n4. 交付结果为分组查询的返回值，仅代表该次执行范围；区域外仓库、负数量记录及其他类别口径均不在本次证据之内。\n",
+  "presentation": {
+    "autoCharts": true,
+    "autoImages": true,
+    "density": "comfortable",
+    "strategy": "auto",
+    "template": "briefing"
+  }
+}

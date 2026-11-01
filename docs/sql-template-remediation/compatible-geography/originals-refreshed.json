@@ -1,0 +1,2131 @@
+[
+  {
+    "name": "yearly",
+    "id": "18042d96-4c82-3181-832d-b6e79e771ffb",
+    "code": "STUDIO_18042D964C823181832DB6E79E771FFB",
+    "sqlTemplate": "-- ============================================================================\n-- 单品销售年度汇总（ss_item_sk = 1）\n-- 业务范围：仅统计商品主键 ss_item_sk = 1 的单品门店销售记录\n-- 说明：上一版全表年度汇总超出 10 秒执行预算，本版通过将 ss_item_sk 等值\n--       过滤（复合主键前缀）大幅缩小扫描范围，满足性能要求。\n-- 统计指标：销售行数、数量合计、净收款合计、净利润合计、最早/最晚销售日期\n-- 关联维度：date_dim（通过 ss_sold_date_sk = d_date_sk）\n-- 分组粒度：按自然年（d_year）升序，至多返回 10 行\n-- 无参数可复用 SQL；本文件仅供审查，不执行、不捏造结果。\n-- ============================================================================\n\nSELECT\n    d.d_year                                            AS sales_year,\n    COUNT(*)                                            AS sales_rows,\n    SUM(ss.ss_quantity)                                 AS total_quantity,\n    SUM(ss.ss_net_paid)                                 AS total_net_paid,\n    SUM(ss.ss_net_profit)                               AS total_net_profit,\n    MIN(d.d_date)                                       AS earliest_date,\n    MAX(d.d_date)                                       AS latest_date\nFROM store_sales  ss\nINNER JOIN date_dim d\n        ON d.d_date_sk = ss.ss_sold_date_sk\nWHERE ss.ss_item_sk = 1          -- 复合主键前缀等值过滤，缩小扫描范围\nGROUP BY d.d_year\nORDER BY sales_year ASC\nLIMIT 10;\n",
+    "parameterSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+    "databaseType": "mysql",
+    "title": "TPCDS 248 商品1年度销售汇总验收",
+    "description": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。",
+    "category": "business_analysis",
+    "source": {
+      "projectId": "b6f7520b-2a55-430a-9351-a601e32dcfa3",
+      "fileId": "86eb8b55-800f-4d2f-ba67-87b7ea7a3e7e",
+      "fileVersion": 2,
+      "sqlDigest": "5f4f3df594c630722d6d30eb4e46af4391d0eb2544bac3ae5d45cfc1b92774f1"
+    },
+    "groupId": "18042d96-4c82-3181-832d-b6e79e771ffb",
+    "version": 1,
+    "expectedVersion": 9,
+    "state": "PUBLISHED",
+    "active": true,
+    "testEvidence": {
+      "type": "SQL_DATABASE_EXECUTION",
+      "testId": "62ef0f58-c44f-4873-9060-95b60b105ffa",
+      "testedAt": "2026-11-01T03:34:35.172189824Z",
+      "traceId": "62ef0f58-c44f-4873-9060-95b60b105ffa",
+      "source": {
+        "projectId": "b6f7520b-2a55-430a-9351-a601e32dcfa3",
+        "fileId": "86eb8b55-800f-4d2f-ba67-87b7ea7a3e7e",
+        "fileVersion": 2,
+        "sqlDigest": "5f4f3df594c630722d6d30eb4e46af4391d0eb2544bac3ae5d45cfc1b92774f1"
+      },
+      "fingerprint": "4f6ef8c485c40f91cb516900801237855093a7fc777546e8398ec9fb5c3c4953",
+      "sqlDigest": "5f4f3df594c630722d6d30eb4e46af4391d0eb2544bac3ae5d45cfc1b92774f1",
+      "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+      "datasourceDigest": "3658210dd54eea7de135b7cbfd8f18e5775405cb5e87c6b45c767ee6f6b11b7c",
+      "parameters": {},
+      "parametersDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "timeoutSeconds": 10,
+      "maxRows": 50,
+      "success": true,
+      "resultDigest": "6b541589741ce322649c4525ce64de8d5fc85294d8e096f24e5b078b9b063778",
+      "rowCount": 6,
+      "errorCode": "",
+      "preview": {
+        "columns": [
+          "sales_year",
+          "sales_rows",
+          "total_quantity",
+          "total_net_paid",
+          "total_net_profit",
+          "earliest_date",
+          "latest_date"
+        ],
+        "rows": [
+          {
+            "sales_year": 1998,
+            "sales_rows": 69,
+            "total_quantity": 3271,
+            "total_net_paid": 95321.87,
+            "total_net_profit": -56881.4,
+            "earliest_date": "1998-01-11",
+            "latest_date": "1998-12-28"
+          },
+          {
+            "sales_year": 1999,
+            "sales_rows": 66,
+            "total_quantity": 3362,
+            "total_net_paid": 136947.06,
+            "total_net_profit": -65502.46,
+            "earliest_date": "1999-01-12",
+            "latest_date": "1999-12-31"
+          },
+          {
+            "sales_year": 2000,
+            "sales_rows": 64,
+            "total_quantity": 3276,
+            "total_net_paid": 133897.01,
+            "total_net_profit": -39360.37,
+            "earliest_date": "2000-01-02",
+            "latest_date": "2000-12-30"
+          },
+          {
+            "sales_year": 2001,
+            "sales_rows": 48,
+            "total_quantity": 2076,
+            "total_net_paid": 66291,
+            "total_net_profit": -42350.41,
+            "earliest_date": "2001-01-24",
+            "latest_date": "2001-12-29"
+          },
+          {
+            "sales_year": 2002,
+            "sales_rows": 60,
+            "total_quantity": 3115,
+            "total_net_paid": 138561.11,
+            "total_net_profit": -48800.13,
+            "earliest_date": "2002-01-01",
+            "latest_date": "2002-12-29"
+          },
+          {
+            "sales_year": 2003,
+            "sales_rows": 2,
+            "total_quantity": 157,
+            "total_net_paid": 2373.12,
+            "total_net_profit": -7540.34,
+            "earliest_date": "2003-01-02",
+            "latest_date": "2003-01-02"
+          }
+        ],
+        "returnedRowCount": 6,
+        "possiblyTruncated": false,
+        "complete": true,
+        "previewTruncated": false
+      },
+      "diagnostic": "SQL query executed successfully",
+      "durationMs": 80
+    },
+    "templateKey": "sql_datasource:STUDIO_18042D964C823181832DB6E79E771FFB",
+    "publication": {
+      "id": "c5dceb47-905c-4d26-8f88-cdc3bbf1032d",
+      "toolName": "tpl_212b88329a673657979943bbeaa7479b",
+      "revision": "8ab33b756ee719a307c165e1f4796416b0ae8194ed8396635b9e5c137d1f7011",
+      "assetName": "248测试数据库",
+      "title": "TPCDS 248 商品1年度销售汇总验收",
+      "category": "business_analysis",
+      "version": 6,
+      "publishedAt": "2026-11-01T03:34:43.212584149Z",
+      "logicalId": "212b8832-9a67-3657-9799-43bbeaa7479b",
+      "templateKey": "sql_datasource:STUDIO_18042D964C823181832DB6E79E771FFB",
+      "description": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。",
+      "state": "RUNNING"
+    },
+    "releaseHistory": [
+      {
+        "sqlTest": {
+          "type": "SQL_DATABASE_EXECUTION",
+          "testId": "62ef0f58-c44f-4873-9060-95b60b105ffa",
+          "testedAt": "2026-11-01T03:34:35.172189824Z",
+          "traceId": "62ef0f58-c44f-4873-9060-95b60b105ffa",
+          "source": {
+            "projectId": "b6f7520b-2a55-430a-9351-a601e32dcfa3",
+            "fileId": "86eb8b55-800f-4d2f-ba67-87b7ea7a3e7e",
+            "fileVersion": 2,
+            "sqlDigest": "5f4f3df594c630722d6d30eb4e46af4391d0eb2544bac3ae5d45cfc1b92774f1"
+          },
+          "fingerprint": "4f6ef8c485c40f91cb516900801237855093a7fc777546e8398ec9fb5c3c4953",
+          "sqlDigest": "5f4f3df594c630722d6d30eb4e46af4391d0eb2544bac3ae5d45cfc1b92774f1",
+          "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+          "datasourceDigest": "3658210dd54eea7de135b7cbfd8f18e5775405cb5e87c6b45c767ee6f6b11b7c",
+          "parameters": {},
+          "parametersDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "timeoutSeconds": 10,
+          "maxRows": 50,
+          "success": true,
+          "resultDigest": "6b541589741ce322649c4525ce64de8d5fc85294d8e096f24e5b078b9b063778",
+          "rowCount": 6,
+          "errorCode": "",
+          "preview": {
+            "columns": [
+              "sales_year",
+              "sales_rows",
+              "total_quantity",
+              "total_net_paid",
+              "total_net_profit",
+              "earliest_date",
+              "latest_date"
+            ],
+            "rows": [
+              {
+                "sales_year": 1998,
+                "sales_rows": 69,
+                "total_quantity": 3271,
+                "total_net_paid": 95321.87,
+                "total_net_profit": -56881.4,
+                "earliest_date": "1998-01-11",
+                "latest_date": "1998-12-28"
+              },
+              {
+                "sales_year": 1999,
+                "sales_rows": 66,
+                "total_quantity": 3362,
+                "total_net_paid": 136947.06,
+                "total_net_profit": -65502.46,
+                "earliest_date": "1999-01-12",
+                "latest_date": "1999-12-31"
+              },
+              {
+                "sales_year": 2000,
+                "sales_rows": 64,
+                "total_quantity": 3276,
+                "total_net_paid": 133897.01,
+                "total_net_profit": -39360.37,
+                "earliest_date": "2000-01-02",
+                "latest_date": "2000-12-30"
+              },
+              {
+                "sales_year": 2001,
+                "sales_rows": 48,
+                "total_quantity": 2076,
+                "total_net_paid": 66291,
+                "total_net_profit": -42350.41,
+                "earliest_date": "2001-01-24",
+                "latest_date": "2001-12-29"
+              },
+              {
+                "sales_year": 2002,
+                "sales_rows": 60,
+                "total_quantity": 3115,
+                "total_net_paid": 138561.11,
+                "total_net_profit": -48800.13,
+                "earliest_date": "2002-01-01",
+                "latest_date": "2002-12-29"
+              },
+              {
+                "sales_year": 2003,
+                "sales_rows": 2,
+                "total_quantity": 157,
+                "total_net_paid": 2373.12,
+                "total_net_profit": -7540.34,
+                "earliest_date": "2003-01-02",
+                "latest_date": "2003-01-02"
+              }
+            ],
+            "returnedRowCount": 6,
+            "possiblyTruncated": false,
+            "complete": true,
+            "previewTruncated": false
+          },
+          "diagnostic": "SQL query executed successfully",
+          "durationMs": 80
+        },
+        "sqlSnapshot": {
+          "id": "18042d96-4c82-3181-832d-b6e79e771ffb",
+          "code": "STUDIO_18042D964C823181832DB6E79E771FFB",
+          "sqlTemplate": "-- ============================================================================\n-- 单品销售年度汇总（ss_item_sk = 1）\n-- 业务范围：仅统计商品主键 ss_item_sk = 1 的单品门店销售记录\n-- 说明：上一版全表年度汇总超出 10 秒执行预算，本版通过将 ss_item_sk 等值\n--       过滤（复合主键前缀）大幅缩小扫描范围，满足性能要求。\n-- 统计指标：销售行数、数量合计、净收款合计、净利润合计、最早/最晚销售日期\n-- 关联维度：date_dim（通过 ss_sold_date_sk = d_date_sk）\n-- 分组粒度：按自然年（d_year）升序，至多返回 10 行\n-- 无参数可复用 SQL；本文件仅供审查，不执行、不捏造结果。\n-- ============================================================================\n\nSELECT\n    d.d_year                                            AS sales_year,\n    COUNT(*)                                            AS sales_rows,\n    SUM(ss.ss_quantity)                                 AS total_quantity,\n    SUM(ss.ss_net_paid)                                 AS total_net_paid,\n    SUM(ss.ss_net_profit)                               AS total_net_profit,\n    MIN(d.d_date)                                       AS earliest_date,\n    MAX(d.d_date)                                       AS latest_date\nFROM store_sales  ss\nINNER JOIN date_dim d\n        ON d.d_date_sk = ss.ss_sold_date_sk\nWHERE ss.ss_item_sk = 1          -- 复合主键前缀等值过滤，缩小扫描范围\nGROUP BY d.d_year\nORDER BY sales_year ASC\nLIMIT 10;\n",
+          "parameterSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          },
+          "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+          "databaseType": "mysql",
+          "title": "TPCDS 248 商品1年度销售汇总验收",
+          "description": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。",
+          "category": "business_analysis",
+          "source": {
+            "projectId": "b6f7520b-2a55-430a-9351-a601e32dcfa3",
+            "fileId": "86eb8b55-800f-4d2f-ba67-87b7ea7a3e7e",
+            "fileVersion": 2,
+            "sqlDigest": "5f4f3df594c630722d6d30eb4e46af4391d0eb2544bac3ae5d45cfc1b92774f1"
+          }
+        },
+        "publication": {
+          "id": "c5dceb47-905c-4d26-8f88-cdc3bbf1032d",
+          "toolName": "tpl_212b88329a673657979943bbeaa7479b",
+          "revision": "8ab33b756ee719a307c165e1f4796416b0ae8194ed8396635b9e5c137d1f7011",
+          "assetName": "248测试数据库",
+          "title": "TPCDS 248 商品1年度销售汇总验收",
+          "category": "business_analysis",
+          "version": 6,
+          "publishedAt": "2026-11-01T03:34:43.212584149Z",
+          "logicalId": "212b8832-9a67-3657-9799-43bbeaa7479b",
+          "templateKey": "sql_datasource:STUDIO_18042D964C823181832DB6E79E771FFB",
+          "description": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。",
+          "state": "RUNNING"
+        }
+      },
+      {
+        "sqlTest": {
+          "type": "SQL_DATABASE_EXECUTION",
+          "testId": "bcc27f03-5530-42da-adee-3899fb75be74",
+          "testedAt": "2026-11-01T02:48:43.205020324Z",
+          "traceId": "bcc27f03-5530-42da-adee-3899fb75be74",
+          "source": {
+            "projectId": "b6f7520b-2a55-430a-9351-a601e32dcfa3",
+            "fileId": "86eb8b55-800f-4d2f-ba67-87b7ea7a3e7e",
+            "fileVersion": 2,
+            "sqlDigest": "5f4f3df594c630722d6d30eb4e46af4391d0eb2544bac3ae5d45cfc1b92774f1"
+          },
+          "fingerprint": "4f6ef8c485c40f91cb516900801237855093a7fc777546e8398ec9fb5c3c4953",
+          "sqlDigest": "5f4f3df594c630722d6d30eb4e46af4391d0eb2544bac3ae5d45cfc1b92774f1",
+          "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+          "datasourceDigest": "2823b8e359d0b63812da29dac7af836247716913b67ccbe938e60a030dc93c4d",
+          "parameters": {},
+          "parametersDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "timeoutSeconds": 10,
+          "maxRows": 50,
+          "success": true,
+          "resultDigest": "80e1bc1ff647f9d16e5aa8686bb9cb608c0b7969a8ceafe53c7a2a865b6510c6",
+          "rowCount": 6,
+          "errorCode": "",
+          "preview": {
+            "columns": [
+              "sales_year",
+              "sales_rows",
+              "total_quantity",
+              "total_net_paid",
+              "total_net_profit",
+              "earliest_date",
+              "latest_date"
+            ],
+            "rows": [
+              {
+                "sales_year": 1998,
+                "sales_rows": 69,
+                "total_quantity": 3271,
+                "total_net_paid": 95321.87,
+                "total_net_profit": -56881.4,
+                "earliest_date": "1998-01-11",
+                "latest_date": "1998-12-28"
+              },
+              {
+                "sales_year": 1999,
+                "sales_rows": 66,
+                "total_quantity": 3362,
+                "total_net_paid": 136947.06,
+                "total_net_profit": -65502.46,
+                "earliest_date": "1999-01-12",
+                "latest_date": "1999-12-31"
+              },
+              {
+                "sales_year": 2000,
+                "sales_rows": 64,
+                "total_quantity": 3276,
+                "total_net_paid": 133897.01,
+                "total_net_profit": -39360.37,
+                "earliest_date": "2000-01-02",
+                "latest_date": "2000-12-30"
+              },
+              {
+                "sales_year": 2001,
+                "sales_rows": 48,
+                "total_quantity": 2076,
+                "total_net_paid": 66291,
+                "total_net_profit": -42350.41,
+                "earliest_date": "2001-01-24",
+                "latest_date": "2001-12-29"
+              },
+              {
+                "sales_year": 2002,
+                "sales_rows": 60,
+                "total_quantity": 3115,
+                "total_net_paid": 138561.11,
+                "total_net_profit": -48800.13,
+                "earliest_date": "2002-01-01",
+                "latest_date": "2002-12-29"
+              },
+              {
+                "sales_year": 2003,
+                "sales_rows": 2,
+                "total_quantity": 157,
+                "total_net_paid": 2373.12,
+                "total_net_profit": -7540.34,
+                "earliest_date": "2003-01-02",
+                "latest_date": "2003-01-02"
+              }
+            ],
+            "returnedRowCount": 6,
+            "possiblyTruncated": false,
+            "complete": true,
+            "previewTruncated": false
+          },
+          "diagnostic": "SQL query executed successfully",
+          "durationMs": 92
+        },
+        "sqlSnapshot": {
+          "id": "18042d96-4c82-3181-832d-b6e79e771ffb",
+          "code": "STUDIO_18042D964C823181832DB6E79E771FFB",
+          "sqlTemplate": "-- ============================================================================\n-- 单品销售年度汇总（ss_item_sk = 1）\n-- 业务范围：仅统计商品主键 ss_item_sk = 1 的单品门店销售记录\n-- 说明：上一版全表年度汇总超出 10 秒执行预算，本版通过将 ss_item_sk 等值\n--       过滤（复合主键前缀）大幅缩小扫描范围，满足性能要求。\n-- 统计指标：销售行数、数量合计、净收款合计、净利润合计、最早/最晚销售日期\n-- 关联维度：date_dim（通过 ss_sold_date_sk = d_date_sk）\n-- 分组粒度：按自然年（d_year）升序，至多返回 10 行\n-- 无参数可复用 SQL；本文件仅供审查，不执行、不捏造结果。\n-- ============================================================================\n\nSELECT\n    d.d_year                                            AS sales_year,\n    COUNT(*)                                            AS sales_rows,\n    SUM(ss.ss_quantity)                                 AS total_quantity,\n    SUM(ss.ss_net_paid)                                 AS total_net_paid,\n    SUM(ss.ss_net_profit)                               AS total_net_profit,\n    MIN(d.d_date)                                       AS earliest_date,\n    MAX(d.d_date)                                       AS latest_date\nFROM store_sales  ss\nINNER JOIN date_dim d\n        ON d.d_date_sk = ss.ss_sold_date_sk\nWHERE ss.ss_item_sk = 1          -- 复合主键前缀等值过滤，缩小扫描范围\nGROUP BY d.d_year\nORDER BY sales_year ASC\nLIMIT 10;\n",
+          "parameterSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          },
+          "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+          "databaseType": "mysql",
+          "title": "TPCDS 248 商品1年度销售汇总验收",
+          "description": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。",
+          "category": "business_analysis",
+          "source": {
+            "projectId": "b6f7520b-2a55-430a-9351-a601e32dcfa3",
+            "fileId": "86eb8b55-800f-4d2f-ba67-87b7ea7a3e7e",
+            "fileVersion": 2,
+            "sqlDigest": "5f4f3df594c630722d6d30eb4e46af4391d0eb2544bac3ae5d45cfc1b92774f1"
+          }
+        },
+        "publication": {
+          "id": "7109019b-2ab5-4d5c-9d0c-d0abf4ca3664",
+          "toolName": "tpl_212b88329a673657979943bbeaa7479b",
+          "revision": "6702f2ef4ce13211c0ee677e703e2a07f75bc26aaeb5bc6b572bd63de0206f28",
+          "assetName": "248测试数据库",
+          "title": "TPCDS 248 商品1年度销售汇总验收",
+          "category": "business_analysis",
+          "version": 5,
+          "publishedAt": "2026-11-01T02:48:51.836397Z",
+          "logicalId": "212b8832-9a67-3657-9799-43bbeaa7479b",
+          "templateKey": "sql_datasource:STUDIO_18042D964C823181832DB6E79E771FFB",
+          "description": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。",
+          "state": "OFFLINE"
+        }
+      },
+      {
+        "sqlTest": {
+          "type": "SQL_DATABASE_EXECUTION",
+          "testId": "bf39734c-d081-442e-aeed-df0ef0d3387b",
+          "testedAt": "2026-11-01T01:19:30.975984228Z",
+          "traceId": "bf39734c-d081-442e-aeed-df0ef0d3387b",
+          "source": {
+            "projectId": "b6f7520b-2a55-430a-9351-a601e32dcfa3",
+            "fileId": "86eb8b55-800f-4d2f-ba67-87b7ea7a3e7e",
+            "fileVersion": 2,
+            "sqlDigest": "5f4f3df594c630722d6d30eb4e46af4391d0eb2544bac3ae5d45cfc1b92774f1"
+          },
+          "fingerprint": "4f6ef8c485c40f91cb516900801237855093a7fc777546e8398ec9fb5c3c4953",
+          "sqlDigest": "5f4f3df594c630722d6d30eb4e46af4391d0eb2544bac3ae5d45cfc1b92774f1",
+          "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+          "datasourceDigest": "38fc10dfb01d89253fb377c8a6701d6bed65310c231217353c20e7ebf5625307",
+          "parameters": {},
+          "parametersDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "timeoutSeconds": 10,
+          "maxRows": 50,
+          "success": true,
+          "resultDigest": "6a6dd3fdcaa5a01f28f9f8e27f2d88c76d5eb07466f14694da23391dd58ceed1",
+          "rowCount": 6,
+          "errorCode": "",
+          "preview": {
+            "columns": [
+              "sales_year",
+              "sales_rows",
+              "total_quantity",
+              "total_net_paid",
+              "total_net_profit",
+              "earliest_date",
+              "latest_date"
+            ],
+            "rows": [
+              {
+                "sales_year": 1998,
+                "sales_rows": 69,
+                "total_quantity": 3271,
+                "total_net_paid": 95321.87,
+                "total_net_profit": -56881.4,
+                "earliest_date": "1998-01-11",
+                "latest_date": "1998-12-28"
+              },
+              {
+                "sales_year": 1999,
+                "sales_rows": 66,
+                "total_quantity": 3362,
+                "total_net_paid": 136947.06,
+                "total_net_profit": -65502.46,
+                "earliest_date": "1999-01-12",
+                "latest_date": "1999-12-31"
+              },
+              {
+                "sales_year": 2000,
+                "sales_rows": 64,
+                "total_quantity": 3276,
+                "total_net_paid": 133897.01,
+                "total_net_profit": -39360.37,
+                "earliest_date": "2000-01-02",
+                "latest_date": "2000-12-30"
+              },
+              {
+                "sales_year": 2001,
+                "sales_rows": 48,
+                "total_quantity": 2076,
+                "total_net_paid": 66291,
+                "total_net_profit": -42350.41,
+                "earliest_date": "2001-01-24",
+                "latest_date": "2001-12-29"
+              },
+              {
+                "sales_year": 2002,
+                "sales_rows": 60,
+                "total_quantity": 3115,
+                "total_net_paid": 138561.11,
+                "total_net_profit": -48800.13,
+                "earliest_date": "2002-01-01",
+                "latest_date": "2002-12-29"
+              },
+              {
+                "sales_year": 2003,
+                "sales_rows": 2,
+                "total_quantity": 157,
+                "total_net_paid": 2373.12,
+                "total_net_profit": -7540.34,
+                "earliest_date": "2003-01-02",
+                "latest_date": "2003-01-02"
+              }
+            ],
+            "returnedRowCount": 6,
+            "possiblyTruncated": false,
+            "complete": true,
+            "previewTruncated": false
+          },
+          "diagnostic": "SQL query executed successfully",
+          "durationMs": 94
+        },
+        "sqlSnapshot": {
+          "id": "18042d96-4c82-3181-832d-b6e79e771ffb",
+          "code": "STUDIO_18042D964C823181832DB6E79E771FFB",
+          "sqlTemplate": "-- ============================================================================\n-- 单品销售年度汇总（ss_item_sk = 1）\n-- 业务范围：仅统计商品主键 ss_item_sk = 1 的单品门店销售记录\n-- 说明：上一版全表年度汇总超出 10 秒执行预算，本版通过将 ss_item_sk 等值\n--       过滤（复合主键前缀）大幅缩小扫描范围，满足性能要求。\n-- 统计指标：销售行数、数量合计、净收款合计、净利润合计、最早/最晚销售日期\n-- 关联维度：date_dim（通过 ss_sold_date_sk = d_date_sk）\n-- 分组粒度：按自然年（d_year）升序，至多返回 10 行\n-- 无参数可复用 SQL；本文件仅供审查，不执行、不捏造结果。\n-- ============================================================================\n\nSELECT\n    d.d_year                                            AS sales_year,\n    COUNT(*)                                            AS sales_rows,\n    SUM(ss.ss_quantity)                                 AS total_quantity,\n    SUM(ss.ss_net_paid)                                 AS total_net_paid,\n    SUM(ss.ss_net_profit)                               AS total_net_profit,\n    MIN(d.d_date)                                       AS earliest_date,\n    MAX(d.d_date)                                       AS latest_date\nFROM store_sales  ss\nINNER JOIN date_dim d\n        ON d.d_date_sk = ss.ss_sold_date_sk\nWHERE ss.ss_item_sk = 1          -- 复合主键前缀等值过滤，缩小扫描范围\nGROUP BY d.d_year\nORDER BY sales_year ASC\nLIMIT 10;\n",
+          "parameterSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          },
+          "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+          "databaseType": "mysql",
+          "title": "TPCDS 248 商品1年度销售汇总验收",
+          "description": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。",
+          "category": "business_analysis",
+          "source": {
+            "projectId": "b6f7520b-2a55-430a-9351-a601e32dcfa3",
+            "fileId": "86eb8b55-800f-4d2f-ba67-87b7ea7a3e7e",
+            "fileVersion": 2,
+            "sqlDigest": "5f4f3df594c630722d6d30eb4e46af4391d0eb2544bac3ae5d45cfc1b92774f1"
+          }
+        },
+        "publication": {
+          "id": "5e775f98-0de9-4de0-be32-4137e97a3bec",
+          "toolName": "tpl_212b88329a673657979943bbeaa7479b",
+          "revision": "cf41ebf9009bf74755e33644da7908469c98c10b1b2707930f81487de57b0f80",
+          "assetName": "248测试数据库",
+          "title": "TPCDS 248 商品1年度销售汇总验收",
+          "category": "business_analysis",
+          "version": 4,
+          "publishedAt": "2026-11-01T01:19:39.397264Z",
+          "logicalId": "212b8832-9a67-3657-9799-43bbeaa7479b",
+          "templateKey": "sql_datasource:STUDIO_18042D964C823181832DB6E79E771FFB",
+          "description": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。",
+          "state": "OFFLINE"
+        }
+      },
+      {
+        "sqlTest": {
+          "type": "SQL_DATABASE_EXECUTION",
+          "testId": "47a9e386-73dc-4601-bff1-9c3ec68df263",
+          "testedAt": "2026-10-31T15:48:42.758303736Z",
+          "traceId": "47a9e386-73dc-4601-bff1-9c3ec68df263",
+          "source": {
+            "projectId": "b6f7520b-2a55-430a-9351-a601e32dcfa3",
+            "fileId": "86eb8b55-800f-4d2f-ba67-87b7ea7a3e7e",
+            "fileVersion": 2,
+            "sqlDigest": "5f4f3df594c630722d6d30eb4e46af4391d0eb2544bac3ae5d45cfc1b92774f1"
+          },
+          "fingerprint": "4f6ef8c485c40f91cb516900801237855093a7fc777546e8398ec9fb5c3c4953",
+          "sqlDigest": "5f4f3df594c630722d6d30eb4e46af4391d0eb2544bac3ae5d45cfc1b92774f1",
+          "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+          "datasourceDigest": "37f7346bcb46195510633f56214ad16eecbeee7f1769da905703921dc4912d3d",
+          "parameters": {},
+          "parametersDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "timeoutSeconds": 10,
+          "maxRows": 50,
+          "success": true,
+          "resultDigest": "a8939b898dcdd258dea2a23c27366c2619a6fd128529ca3e294ff6683a527d73",
+          "rowCount": 6,
+          "errorCode": "",
+          "preview": {
+            "columns": [
+              "sales_year",
+              "sales_rows",
+              "total_quantity",
+              "total_net_paid",
+              "total_net_profit",
+              "earliest_date",
+              "latest_date"
+            ],
+            "rows": [
+              {
+                "sales_year": 1998,
+                "sales_rows": 69,
+                "total_quantity": 3271,
+                "total_net_paid": 95321.87,
+                "total_net_profit": -56881.4,
+                "earliest_date": "1998-01-11",
+                "latest_date": "1998-12-28"
+              },
+              {
+                "sales_year": 1999,
+                "sales_rows": 66,
+                "total_quantity": 3362,
+                "total_net_paid": 136947.06,
+                "total_net_profit": -65502.46,
+                "earliest_date": "1999-01-12",
+                "latest_date": "1999-12-31"
+              },
+              {
+                "sales_year": 2000,
+                "sales_rows": 64,
+                "total_quantity": 3276,
+                "total_net_paid": 133897.01,
+                "total_net_profit": -39360.37,
+                "earliest_date": "2000-01-02",
+                "latest_date": "2000-12-30"
+              },
+              {
+                "sales_year": 2001,
+                "sales_rows": 48,
+                "total_quantity": 2076,
+                "total_net_paid": 66291,
+                "total_net_profit": -42350.41,
+                "earliest_date": "2001-01-24",
+                "latest_date": "2001-12-29"
+              },
+              {
+                "sales_year": 2002,
+                "sales_rows": 60,
+                "total_quantity": 3115,
+                "total_net_paid": 138561.11,
+                "total_net_profit": -48800.13,
+                "earliest_date": "2002-01-01",
+                "latest_date": "2002-12-29"
+              },
+              {
+                "sales_year": 2003,
+                "sales_rows": 2,
+                "total_quantity": 157,
+                "total_net_paid": 2373.12,
+                "total_net_profit": -7540.34,
+                "earliest_date": "2003-01-02",
+                "latest_date": "2003-01-02"
+              }
+            ],
+            "returnedRowCount": 6,
+            "possiblyTruncated": false,
+            "complete": true,
+            "previewTruncated": false
+          },
+          "diagnostic": "SQL query executed successfully",
+          "durationMs": 363
+        },
+        "sqlSnapshot": {
+          "id": "18042d96-4c82-3181-832d-b6e79e771ffb",
+          "code": "STUDIO_18042D964C823181832DB6E79E771FFB",
+          "sqlTemplate": "-- ============================================================================\n-- 单品销售年度汇总（ss_item_sk = 1）\n-- 业务范围：仅统计商品主键 ss_item_sk = 1 的单品门店销售记录\n-- 说明：上一版全表年度汇总超出 10 秒执行预算，本版通过将 ss_item_sk 等值\n--       过滤（复合主键前缀）大幅缩小扫描范围，满足性能要求。\n-- 统计指标：销售行数、数量合计、净收款合计、净利润合计、最早/最晚销售日期\n-- 关联维度：date_dim（通过 ss_sold_date_sk = d_date_sk）\n-- 分组粒度：按自然年（d_year）升序，至多返回 10 行\n-- 无参数可复用 SQL；本文件仅供审查，不执行、不捏造结果。\n-- ============================================================================\n\nSELECT\n    d.d_year                                            AS sales_year,\n    COUNT(*)                                            AS sales_rows,\n    SUM(ss.ss_quantity)                                 AS total_quantity,\n    SUM(ss.ss_net_paid)                                 AS total_net_paid,\n    SUM(ss.ss_net_profit)                               AS total_net_profit,\n    MIN(d.d_date)                                       AS earliest_date,\n    MAX(d.d_date)                                       AS latest_date\nFROM store_sales  ss\nINNER JOIN date_dim d\n        ON d.d_date_sk = ss.ss_sold_date_sk\nWHERE ss.ss_item_sk = 1          -- 复合主键前缀等值过滤，缩小扫描范围\nGROUP BY d.d_year\nORDER BY sales_year ASC\nLIMIT 10;\n",
+          "parameterSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          },
+          "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+          "databaseType": "mysql",
+          "title": "TPCDS 248 商品1年度销售汇总验收",
+          "description": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。",
+          "category": "business_analysis",
+          "source": {
+            "projectId": "b6f7520b-2a55-430a-9351-a601e32dcfa3",
+            "fileId": "86eb8b55-800f-4d2f-ba67-87b7ea7a3e7e",
+            "fileVersion": 2,
+            "sqlDigest": "5f4f3df594c630722d6d30eb4e46af4391d0eb2544bac3ae5d45cfc1b92774f1"
+          }
+        },
+        "publication": {
+          "id": "90d8efbe-ba6b-4314-921c-65841244b241",
+          "toolName": "tpl_212b88329a673657979943bbeaa7479b",
+          "revision": "9038f6b9782a56378039cada38ce873797e586ea980b3c9ab49a3cb7019627fd",
+          "assetName": "248测试数据库",
+          "title": "TPCDS 248 商品1年度销售汇总验收",
+          "category": "business_analysis",
+          "version": 3,
+          "publishedAt": "2026-10-31T15:48:54.297516Z",
+          "logicalId": "212b8832-9a67-3657-9799-43bbeaa7479b",
+          "templateKey": "sql_datasource:STUDIO_18042D964C823181832DB6E79E771FFB",
+          "description": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。",
+          "state": "OFFLINE"
+        }
+      },
+      {
+        "sqlTest": {
+          "type": "SQL_DATABASE_EXECUTION",
+          "testId": "12a10a1c-70cd-4e53-9b37-fd85e86699c8",
+          "testedAt": "2026-10-31T15:15:57.793357095Z",
+          "traceId": "12a10a1c-70cd-4e53-9b37-fd85e86699c8",
+          "source": {
+            "projectId": "b6f7520b-2a55-430a-9351-a601e32dcfa3",
+            "fileId": "86eb8b55-800f-4d2f-ba67-87b7ea7a3e7e",
+            "fileVersion": 2,
+            "sqlDigest": "5f4f3df594c630722d6d30eb4e46af4391d0eb2544bac3ae5d45cfc1b92774f1"
+          },
+          "fingerprint": "4f6ef8c485c40f91cb516900801237855093a7fc777546e8398ec9fb5c3c4953",
+          "sqlDigest": "5f4f3df594c630722d6d30eb4e46af4391d0eb2544bac3ae5d45cfc1b92774f1",
+          "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+          "datasourceDigest": "ca76f8fe26a0ee32f15384ee47e1f7155cc932a258764df4715a3fc3c47899d3",
+          "parameters": {},
+          "parametersDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "timeoutSeconds": 10,
+          "maxRows": 50,
+          "success": true,
+          "resultDigest": "722561cd8bac465116425790b9a4536dbeedc03343334d310416851c195bf2c2",
+          "rowCount": 6,
+          "errorCode": "",
+          "preview": {
+            "columns": [
+              "sales_year",
+              "sales_rows",
+              "total_quantity",
+              "total_net_paid",
+              "total_net_profit",
+              "earliest_date",
+              "latest_date"
+            ],
+            "rows": [
+              {
+                "sales_year": 1998,
+                "sales_rows": 69,
+                "total_quantity": 3271,
+                "total_net_paid": 95321.87,
+                "total_net_profit": -56881.4,
+                "earliest_date": "1998-01-11",
+                "latest_date": "1998-12-28"
+              },
+              {
+                "sales_year": 1999,
+                "sales_rows": 66,
+                "total_quantity": 3362,
+                "total_net_paid": 136947.06,
+                "total_net_profit": -65502.46,
+                "earliest_date": "1999-01-12",
+                "latest_date": "1999-12-31"
+              },
+              {
+                "sales_year": 2000,
+                "sales_rows": 64,
+                "total_quantity": 3276,
+                "total_net_paid": 133897.01,
+                "total_net_profit": -39360.37,
+                "earliest_date": "2000-01-02",
+                "latest_date": "2000-12-30"
+              },
+              {
+                "sales_year": 2001,
+                "sales_rows": 48,
+                "total_quantity": 2076,
+                "total_net_paid": 66291,
+                "total_net_profit": -42350.41,
+                "earliest_date": "2001-01-24",
+                "latest_date": "2001-12-29"
+              },
+              {
+                "sales_year": 2002,
+                "sales_rows": 60,
+                "total_quantity": 3115,
+                "total_net_paid": 138561.11,
+                "total_net_profit": -48800.13,
+                "earliest_date": "2002-01-01",
+                "latest_date": "2002-12-29"
+              },
+              {
+                "sales_year": 2003,
+                "sales_rows": 2,
+                "total_quantity": 157,
+                "total_net_paid": 2373.12,
+                "total_net_profit": -7540.34,
+                "earliest_date": "2003-01-02",
+                "latest_date": "2003-01-02"
+              }
+            ],
+            "returnedRowCount": 6,
+            "possiblyTruncated": false,
+            "complete": true,
+            "previewTruncated": false
+          },
+          "diagnostic": "SQL query executed successfully",
+          "durationMs": 128
+        },
+        "sqlSnapshot": {
+          "id": "18042d96-4c82-3181-832d-b6e79e771ffb",
+          "code": "STUDIO_18042D964C823181832DB6E79E771FFB",
+          "sqlTemplate": "-- ============================================================================\n-- 单品销售年度汇总（ss_item_sk = 1）\n-- 业务范围：仅统计商品主键 ss_item_sk = 1 的单品门店销售记录\n-- 说明：上一版全表年度汇总超出 10 秒执行预算，本版通过将 ss_item_sk 等值\n--       过滤（复合主键前缀）大幅缩小扫描范围，满足性能要求。\n-- 统计指标：销售行数、数量合计、净收款合计、净利润合计、最早/最晚销售日期\n-- 关联维度：date_dim（通过 ss_sold_date_sk = d_date_sk）\n-- 分组粒度：按自然年（d_year）升序，至多返回 10 行\n-- 无参数可复用 SQL；本文件仅供审查，不执行、不捏造结果。\n-- ============================================================================\n\nSELECT\n    d.d_year                                            AS sales_year,\n    COUNT(*)                                            AS sales_rows,\n    SUM(ss.ss_quantity)                                 AS total_quantity,\n    SUM(ss.ss_net_paid)                                 AS total_net_paid,\n    SUM(ss.ss_net_profit)                               AS total_net_profit,\n    MIN(d.d_date)                                       AS earliest_date,\n    MAX(d.d_date)                                       AS latest_date\nFROM store_sales  ss\nINNER JOIN date_dim d\n        ON d.d_date_sk = ss.ss_sold_date_sk\nWHERE ss.ss_item_sk = 1          -- 复合主键前缀等值过滤，缩小扫描范围\nGROUP BY d.d_year\nORDER BY sales_year ASC\nLIMIT 10;\n",
+          "parameterSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          },
+          "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+          "databaseType": "mysql",
+          "title": "TPCDS 248 商品1年度销售汇总验收",
+          "description": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。",
+          "category": "business_analysis",
+          "source": {
+            "projectId": "b6f7520b-2a55-430a-9351-a601e32dcfa3",
+            "fileId": "86eb8b55-800f-4d2f-ba67-87b7ea7a3e7e",
+            "fileVersion": 2,
+            "sqlDigest": "5f4f3df594c630722d6d30eb4e46af4391d0eb2544bac3ae5d45cfc1b92774f1"
+          }
+        },
+        "publication": {
+          "id": "4f24957d-65a2-463e-938b-930b320ae145",
+          "toolName": "tpl_212b88329a673657979943bbeaa7479b",
+          "revision": "fa1fb8d19ad0cd5e543a7b30a2ab6db00fa5d7e86df0ab5855b2bf1c573cf880",
+          "assetName": "248测试数据库",
+          "title": "TPCDS 248 商品1年度销售汇总验收",
+          "category": "business_analysis",
+          "version": 2,
+          "publishedAt": "2026-10-31T15:16:06.817989Z",
+          "logicalId": "212b8832-9a67-3657-9799-43bbeaa7479b",
+          "templateKey": "sql_datasource:STUDIO_18042D964C823181832DB6E79E771FFB",
+          "description": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。",
+          "state": "OFFLINE"
+        }
+      },
+      {
+        "sqlTest": {
+          "type": "SQL_DATABASE_EXECUTION",
+          "testId": "ca71d4db-5401-42d1-838a-ca5adc68848c",
+          "testedAt": "2026-10-31T14:46:35.284908554Z",
+          "fingerprint": "4f6ef8c485c40f91cb516900801237855093a7fc777546e8398ec9fb5c3c4953",
+          "sqlDigest": "5f4f3df594c630722d6d30eb4e46af4391d0eb2544bac3ae5d45cfc1b92774f1",
+          "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+          "datasourceDigest": "97181dbf1cb60d613aa845f326fb935e82a11ec95a47e097158322778c64d3f9",
+          "parameters": {},
+          "parametersDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "timeoutSeconds": 10,
+          "maxRows": 50,
+          "success": true,
+          "resultDigest": "1f478551dd0da8e541531656103fdc27384aba50d7c40331872cc91798aca93a",
+          "rowCount": 6,
+          "diagnostic": "SQL query executed successfully",
+          "durationMs": 168
+        },
+        "sqlSnapshot": {
+          "id": "18042d96-4c82-3181-832d-b6e79e771ffb",
+          "code": "STUDIO_18042D964C823181832DB6E79E771FFB",
+          "sqlTemplate": "-- ============================================================================\n-- 单品销售年度汇总（ss_item_sk = 1）\n-- 业务范围：仅统计商品主键 ss_item_sk = 1 的单品门店销售记录\n-- 说明：上一版全表年度汇总超出 10 秒执行预算，本版通过将 ss_item_sk 等值\n--       过滤（复合主键前缀）大幅缩小扫描范围，满足性能要求。\n-- 统计指标：销售行数、数量合计、净收款合计、净利润合计、最早/最晚销售日期\n-- 关联维度：date_dim（通过 ss_sold_date_sk = d_date_sk）\n-- 分组粒度：按自然年（d_year）升序，至多返回 10 行\n-- 无参数可复用 SQL；本文件仅供审查，不执行、不捏造结果。\n-- ============================================================================\n\nSELECT\n    d.d_year                                            AS sales_year,\n    COUNT(*)                                            AS sales_rows,\n    SUM(ss.ss_quantity)                                 AS total_quantity,\n    SUM(ss.ss_net_paid)                                 AS total_net_paid,\n    SUM(ss.ss_net_profit)                               AS total_net_profit,\n    MIN(d.d_date)                                       AS earliest_date,\n    MAX(d.d_date)                                       AS latest_date\nFROM store_sales  ss\nINNER JOIN date_dim d\n        ON d.d_date_sk = ss.ss_sold_date_sk\nWHERE ss.ss_item_sk = 1          -- 复合主键前缀等值过滤，缩小扫描范围\nGROUP BY d.d_year\nORDER BY sales_year ASC\nLIMIT 10;\n",
+          "parameterSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          },
+          "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+          "databaseType": "mysql",
+          "title": "TPCDS 248 商品1年度销售汇总验收",
+          "description": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。",
+          "category": "business_analysis",
+          "source": {
+            "projectId": "b6f7520b-2a55-430a-9351-a601e32dcfa3",
+            "fileId": "86eb8b55-800f-4d2f-ba67-87b7ea7a3e7e",
+            "fileVersion": 2,
+            "sqlDigest": "5f4f3df594c630722d6d30eb4e46af4391d0eb2544bac3ae5d45cfc1b92774f1"
+          }
+        },
+        "publication": {
+          "id": "7d3eae49-37e9-467f-9038-f176bbdc0fa7",
+          "toolName": "tpl_212b88329a673657979943bbeaa7479b",
+          "revision": "91cda1b9c5593324ca777c93612664f5b9966941f2a81ff36c33325ed9762bba",
+          "assetName": "248测试数据库",
+          "title": "TPCDS 248 商品1年度销售汇总验收",
+          "category": "business_analysis",
+          "version": 1,
+          "publishedAt": "2026-10-31T14:46:55.149540Z",
+          "logicalId": "212b8832-9a67-3657-9799-43bbeaa7479b",
+          "templateKey": "sql_datasource:STUDIO_18042D964C823181832DB6E79E771FFB",
+          "description": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。",
+          "state": "OFFLINE"
+        }
+      }
+    ]
+  },
+  {
+    "name": "monthly",
+    "id": "2b689c67-d343-3659-9b05-c753f0473b60",
+    "code": "STUDIO_2B689C67D34336599B05C753F0473B60",
+    "sqlTemplate": "-- tpcds monthly sales summary for a specific item\n-- Database: tpcds (test env 248)\n-- Placeholders (unquoted, substituted by template engine):\n--   {{product_id}}   – integer, ss_item_sk value (required)\n--   {{start_date}}   – date literal, inclusive start\n--   {{end_date}}     – date literal, inclusive end\n--   {{min_quantity}} – integer, minimum ss_quantity per row\n--   {{category}}     – string literal or NULL; NULL skips the category filter\n\nSELECT\n    d.d_year                           AS sale_year,\n    d.d_moy                            AS sale_month,\n    i.i_category                       AS category,\n    COUNT(*)                           AS row_count,\n    SUM(ss.ss_quantity)                AS total_quantity,\n    SUM(ss.ss_net_paid)                AS total_net_paid,\n    SUM(ss.ss_net_profit)              AS total_net_profit\nFROM tpcds.store_sales ss\nINNER JOIN tpcds.date_dim d\n        ON ss.ss_sold_date_sk = d.d_date_sk\nINNER JOIN tpcds.item i\n        ON ss.ss_item_sk = i.i_item_sk\nWHERE ss.ss_item_sk = {{product_id}}\n  AND d.d_date >= {{start_date}}\n  AND d.d_date <= {{end_date}}\n  AND ss.ss_quantity >= {{min_quantity}}\n  AND ({{category}} IS NULL OR i.i_category = {{category}})\nGROUP BY d.d_year,\n         d.d_moy,\n         i.i_category\nORDER BY d.d_year ASC,\n         d.d_moy ASC,\n         i.i_category ASC\nLIMIT 24;\n",
+    "parameterSchema": {
+      "type": "object",
+      "properties": {
+        "product_id": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1,
+          "description": "store_sales.ss_item_sk 商品主键"
+        },
+        "start_date": {
+          "type": "string",
+          "format": "date",
+          "description": "date_dim.d_date 含边界起日"
+        },
+        "end_date": {
+          "type": "string",
+          "format": "date",
+          "description": "date_dim.d_date 含边界止日"
+        },
+        "min_quantity": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "每行最低ss_quantity"
+        },
+        "category": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "item.i_category精确品类；NULL不过滤"
+        }
+      },
+      "required": [
+        "start_date",
+        "end_date"
+      ],
+      "additionalProperties": false
+    },
+    "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+    "databaseType": "mysql",
+    "title": "TPCDS 248 单品期间月度销售分析验收",
+    "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+    "category": "business_analysis",
+    "source": {
+      "projectId": "b6f7520b-2a55-430a-9351-a601e32dcfa3",
+      "fileId": "609b856c-72e0-4f99-b8e3-856ca905d2f4",
+      "fileVersion": 1,
+      "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8"
+    },
+    "groupId": "2b689c67-d343-3659-9b05-c753f0473b60",
+    "version": 1,
+    "expectedVersion": 6,
+    "state": "PUBLISHED",
+    "active": true,
+    "testEvidence": {
+      "type": "SQL_DATABASE_EXECUTION",
+      "testId": "27f4d083-3f85-4447-bebd-3b8bd5c24e70",
+      "testedAt": "2026-11-01T03:34:43.704462713Z",
+      "traceId": "27f4d083-3f85-4447-bebd-3b8bd5c24e70",
+      "source": {
+        "projectId": "b6f7520b-2a55-430a-9351-a601e32dcfa3",
+        "fileId": "609b856c-72e0-4f99-b8e3-856ca905d2f4",
+        "fileVersion": 1,
+        "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8"
+      },
+      "fingerprint": "d5ef123f164b341538f8f2e510221249115ac0484388f80758a8ebcaf7118ee6",
+      "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8",
+      "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+      "datasourceDigest": "3658210dd54eea7de135b7cbfd8f18e5775405cb5e87c6b45c767ee6f6b11b7c",
+      "parameters": {
+        "product_id": 1,
+        "start_date": "1999-01-01",
+        "end_date": "1999-12-31",
+        "min_quantity": 0
+      },
+      "parametersDigest": "f03d2346d3579e16ba41f803f4589e60d9bed6b7e173275dc0e1b3af2db1c577",
+      "timeoutSeconds": 10,
+      "maxRows": 50,
+      "success": true,
+      "resultDigest": "ba779a60fa8a26d9a7337bf6deba9d9b701b1456f0508fbd28b44941b14f55ba",
+      "rowCount": 11,
+      "errorCode": "",
+      "preview": {
+        "columns": [
+          "sale_year",
+          "sale_month",
+          "category",
+          "row_count",
+          "total_quantity",
+          "total_net_paid",
+          "total_net_profit"
+        ],
+        "rows": [
+          {
+            "sale_year": 1999,
+            "sale_month": 1,
+            "category": "Music",
+            "row_count": 3,
+            "total_quantity": 217,
+            "total_net_paid": 21884.51,
+            "total_net_profit": 7416.63
+          },
+          {
+            "sale_year": 1999,
+            "sale_month": 2,
+            "category": "Music",
+            "row_count": 3,
+            "total_quantity": 170,
+            "total_net_paid": 2138.52,
+            "total_net_profit": -2296.74
+          },
+          {
+            "sale_year": 1999,
+            "sale_month": 4,
+            "category": "Music",
+            "row_count": 2,
+            "total_quantity": 151,
+            "total_net_paid": 8459.79,
+            "total_net_profit": -3151.9
+          },
+          {
+            "sale_year": 1999,
+            "sale_month": 5,
+            "category": "Music",
+            "row_count": 1,
+            "total_quantity": 64,
+            "total_net_paid": 2899.84,
+            "total_net_profit": 636.8
+          },
+          {
+            "sale_year": 1999,
+            "sale_month": 6,
+            "category": "Music",
+            "row_count": 2,
+            "total_quantity": 122,
+            "total_net_paid": 6473.64,
+            "total_net_profit": -1004.15
+          },
+          {
+            "sale_year": 1999,
+            "sale_month": 7,
+            "category": "Music",
+            "row_count": 3,
+            "total_quantity": 177,
+            "total_net_paid": 6585.36,
+            "total_net_profit": -4990.27
+          },
+          {
+            "sale_year": 1999,
+            "sale_month": 8,
+            "category": "Music",
+            "row_count": 7,
+            "total_quantity": 336,
+            "total_net_paid": 13543.25,
+            "total_net_profit": -11742.7
+          },
+          {
+            "sale_year": 1999,
+            "sale_month": 9,
+            "category": "Music",
+            "row_count": 8,
+            "total_quantity": 349,
+            "total_net_paid": 19070.61,
+            "total_net_profit": 783
+          },
+          {
+            "sale_year": 1999,
+            "sale_month": 10,
+            "category": "Music",
+            "row_count": 10,
+            "total_quantity": 460,
+            "total_net_paid": 15368.53,
+            "total_net_profit": -12015.39
+          },
+          {
+            "sale_year": 1999,
+            "sale_month": 11,
+            "category": "Music",
+            "row_count": 11,
+            "total_quantity": 575,
+            "total_net_paid": 17273.35,
+            "total_net_profit": -20266.71
+          }
+        ],
+        "returnedRowCount": 11,
+        "possiblyTruncated": false,
+        "complete": true,
+        "previewTruncated": true
+      },
+      "diagnostic": "SQL query executed successfully",
+      "durationMs": 159
+    },
+    "templateKey": "sql_datasource:STUDIO_2B689C67D34336599B05C753F0473B60",
+    "publication": {
+      "id": "922184b0-f4e4-4849-b570-368d0dbe5f85",
+      "toolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+      "revision": "278d79f07cc9ba5ef3bad1ab50f1070ec21e7c6084f0f8dfc34472efc540cd0c",
+      "assetName": "248测试数据库",
+      "title": "TPCDS 248 单品期间月度销售分析验收",
+      "category": "business_analysis",
+      "version": 6,
+      "publishedAt": "2026-11-01T03:34:52.006389738Z",
+      "logicalId": "b1e518f3-811f-3fb1-8d55-dc959b24e3d7",
+      "templateKey": "sql_datasource:STUDIO_2B689C67D34336599B05C753F0473B60",
+      "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+      "state": "RUNNING"
+    },
+    "releaseHistory": [
+      {
+        "sqlTest": {
+          "type": "SQL_DATABASE_EXECUTION",
+          "testId": "27f4d083-3f85-4447-bebd-3b8bd5c24e70",
+          "testedAt": "2026-11-01T03:34:43.704462713Z",
+          "traceId": "27f4d083-3f85-4447-bebd-3b8bd5c24e70",
+          "source": {
+            "projectId": "b6f7520b-2a55-430a-9351-a601e32dcfa3",
+            "fileId": "609b856c-72e0-4f99-b8e3-856ca905d2f4",
+            "fileVersion": 1,
+            "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8"
+          },
+          "fingerprint": "d5ef123f164b341538f8f2e510221249115ac0484388f80758a8ebcaf7118ee6",
+          "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8",
+          "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+          "datasourceDigest": "3658210dd54eea7de135b7cbfd8f18e5775405cb5e87c6b45c767ee6f6b11b7c",
+          "parameters": {
+            "product_id": 1,
+            "start_date": "1999-01-01",
+            "end_date": "1999-12-31",
+            "min_quantity": 0
+          },
+          "parametersDigest": "f03d2346d3579e16ba41f803f4589e60d9bed6b7e173275dc0e1b3af2db1c577",
+          "timeoutSeconds": 10,
+          "maxRows": 50,
+          "success": true,
+          "resultDigest": "ba779a60fa8a26d9a7337bf6deba9d9b701b1456f0508fbd28b44941b14f55ba",
+          "rowCount": 11,
+          "errorCode": "",
+          "preview": {
+            "columns": [
+              "sale_year",
+              "sale_month",
+              "category",
+              "row_count",
+              "total_quantity",
+              "total_net_paid",
+              "total_net_profit"
+            ],
+            "rows": [
+              {
+                "sale_year": 1999,
+                "sale_month": 1,
+                "category": "Music",
+                "row_count": 3,
+                "total_quantity": 217,
+                "total_net_paid": 21884.51,
+                "total_net_profit": 7416.63
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 2,
+                "category": "Music",
+                "row_count": 3,
+                "total_quantity": 170,
+                "total_net_paid": 2138.52,
+                "total_net_profit": -2296.74
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 4,
+                "category": "Music",
+                "row_count": 2,
+                "total_quantity": 151,
+                "total_net_paid": 8459.79,
+                "total_net_profit": -3151.9
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 5,
+                "category": "Music",
+                "row_count": 1,
+                "total_quantity": 64,
+                "total_net_paid": 2899.84,
+                "total_net_profit": 636.8
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 6,
+                "category": "Music",
+                "row_count": 2,
+                "total_quantity": 122,
+                "total_net_paid": 6473.64,
+                "total_net_profit": -1004.15
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 7,
+                "category": "Music",
+                "row_count": 3,
+                "total_quantity": 177,
+                "total_net_paid": 6585.36,
+                "total_net_profit": -4990.27
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 8,
+                "category": "Music",
+                "row_count": 7,
+                "total_quantity": 336,
+                "total_net_paid": 13543.25,
+                "total_net_profit": -11742.7
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 9,
+                "category": "Music",
+                "row_count": 8,
+                "total_quantity": 349,
+                "total_net_paid": 19070.61,
+                "total_net_profit": 783
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 10,
+                "category": "Music",
+                "row_count": 10,
+                "total_quantity": 460,
+                "total_net_paid": 15368.53,
+                "total_net_profit": -12015.39
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 11,
+                "category": "Music",
+                "row_count": 11,
+                "total_quantity": 575,
+                "total_net_paid": 17273.35,
+                "total_net_profit": -20266.71
+              }
+            ],
+            "returnedRowCount": 11,
+            "possiblyTruncated": false,
+            "complete": true,
+            "previewTruncated": true
+          },
+          "diagnostic": "SQL query executed successfully",
+          "durationMs": 159
+        },
+        "sqlSnapshot": {
+          "id": "2b689c67-d343-3659-9b05-c753f0473b60",
+          "code": "STUDIO_2B689C67D34336599B05C753F0473B60",
+          "sqlTemplate": "-- tpcds monthly sales summary for a specific item\n-- Database: tpcds (test env 248)\n-- Placeholders (unquoted, substituted by template engine):\n--   {{product_id}}   – integer, ss_item_sk value (required)\n--   {{start_date}}   – date literal, inclusive start\n--   {{end_date}}     – date literal, inclusive end\n--   {{min_quantity}} – integer, minimum ss_quantity per row\n--   {{category}}     – string literal or NULL; NULL skips the category filter\n\nSELECT\n    d.d_year                           AS sale_year,\n    d.d_moy                            AS sale_month,\n    i.i_category                       AS category,\n    COUNT(*)                           AS row_count,\n    SUM(ss.ss_quantity)                AS total_quantity,\n    SUM(ss.ss_net_paid)                AS total_net_paid,\n    SUM(ss.ss_net_profit)              AS total_net_profit\nFROM tpcds.store_sales ss\nINNER JOIN tpcds.date_dim d\n        ON ss.ss_sold_date_sk = d.d_date_sk\nINNER JOIN tpcds.item i\n        ON ss.ss_item_sk = i.i_item_sk\nWHERE ss.ss_item_sk = {{product_id}}\n  AND d.d_date >= {{start_date}}\n  AND d.d_date <= {{end_date}}\n  AND ss.ss_quantity >= {{min_quantity}}\n  AND ({{category}} IS NULL OR i.i_category = {{category}})\nGROUP BY d.d_year,\n         d.d_moy,\n         i.i_category\nORDER BY d.d_year ASC,\n         d.d_moy ASC,\n         i.i_category ASC\nLIMIT 24;\n",
+          "parameterSchema": {
+            "type": "object",
+            "properties": {
+              "product_id": {
+                "type": "integer",
+                "minimum": 1,
+                "default": 1,
+                "description": "store_sales.ss_item_sk 商品主键"
+              },
+              "start_date": {
+                "type": "string",
+                "format": "date",
+                "description": "date_dim.d_date 含边界起日"
+              },
+              "end_date": {
+                "type": "string",
+                "format": "date",
+                "description": "date_dim.d_date 含边界止日"
+              },
+              "min_quantity": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 0,
+                "description": "每行最低ss_quantity"
+              },
+              "category": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "default": null,
+                "description": "item.i_category精确品类；NULL不过滤"
+              }
+            },
+            "required": [
+              "start_date",
+              "end_date"
+            ],
+            "additionalProperties": false
+          },
+          "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+          "databaseType": "mysql",
+          "title": "TPCDS 248 单品期间月度销售分析验收",
+          "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+          "category": "business_analysis",
+          "source": {
+            "projectId": "b6f7520b-2a55-430a-9351-a601e32dcfa3",
+            "fileId": "609b856c-72e0-4f99-b8e3-856ca905d2f4",
+            "fileVersion": 1,
+            "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8"
+          }
+        },
+        "publication": {
+          "id": "922184b0-f4e4-4849-b570-368d0dbe5f85",
+          "toolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+          "revision": "278d79f07cc9ba5ef3bad1ab50f1070ec21e7c6084f0f8dfc34472efc540cd0c",
+          "assetName": "248测试数据库",
+          "title": "TPCDS 248 单品期间月度销售分析验收",
+          "category": "business_analysis",
+          "version": 6,
+          "publishedAt": "2026-11-01T03:34:52.006389738Z",
+          "logicalId": "b1e518f3-811f-3fb1-8d55-dc959b24e3d7",
+          "templateKey": "sql_datasource:STUDIO_2B689C67D34336599B05C753F0473B60",
+          "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+          "state": "RUNNING"
+        }
+      },
+      {
+        "sqlTest": {
+          "type": "SQL_DATABASE_EXECUTION",
+          "testId": "988528c8-1c24-4240-94d7-05f6236cd2b7",
+          "testedAt": "2026-11-01T02:48:52.277004907Z",
+          "traceId": "988528c8-1c24-4240-94d7-05f6236cd2b7",
+          "source": {
+            "projectId": "b6f7520b-2a55-430a-9351-a601e32dcfa3",
+            "fileId": "609b856c-72e0-4f99-b8e3-856ca905d2f4",
+            "fileVersion": 1,
+            "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8"
+          },
+          "fingerprint": "d5ef123f164b341538f8f2e510221249115ac0484388f80758a8ebcaf7118ee6",
+          "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8",
+          "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+          "datasourceDigest": "2823b8e359d0b63812da29dac7af836247716913b67ccbe938e60a030dc93c4d",
+          "parameters": {
+            "product_id": 1,
+            "start_date": "1999-01-01",
+            "end_date": "1999-12-31",
+            "min_quantity": 0
+          },
+          "parametersDigest": "f03d2346d3579e16ba41f803f4589e60d9bed6b7e173275dc0e1b3af2db1c577",
+          "timeoutSeconds": 10,
+          "maxRows": 50,
+          "success": true,
+          "resultDigest": "2850bdbce79588e13c4d7525d358e24f91a6f6496f8dbfb8c4ad5646b7ce7712",
+          "rowCount": 11,
+          "errorCode": "",
+          "preview": {
+            "columns": [
+              "sale_year",
+              "sale_month",
+              "category",
+              "row_count",
+              "total_quantity",
+              "total_net_paid",
+              "total_net_profit"
+            ],
+            "rows": [
+              {
+                "sale_year": 1999,
+                "sale_month": 1,
+                "category": "Music",
+                "row_count": 3,
+                "total_quantity": 217,
+                "total_net_paid": 21884.51,
+                "total_net_profit": 7416.63
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 2,
+                "category": "Music",
+                "row_count": 3,
+                "total_quantity": 170,
+                "total_net_paid": 2138.52,
+                "total_net_profit": -2296.74
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 4,
+                "category": "Music",
+                "row_count": 2,
+                "total_quantity": 151,
+                "total_net_paid": 8459.79,
+                "total_net_profit": -3151.9
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 5,
+                "category": "Music",
+                "row_count": 1,
+                "total_quantity": 64,
+                "total_net_paid": 2899.84,
+                "total_net_profit": 636.8
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 6,
+                "category": "Music",
+                "row_count": 2,
+                "total_quantity": 122,
+                "total_net_paid": 6473.64,
+                "total_net_profit": -1004.15
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 7,
+                "category": "Music",
+                "row_count": 3,
+                "total_quantity": 177,
+                "total_net_paid": 6585.36,
+                "total_net_profit": -4990.27
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 8,
+                "category": "Music",
+                "row_count": 7,
+                "total_quantity": 336,
+                "total_net_paid": 13543.25,
+                "total_net_profit": -11742.7
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 9,
+                "category": "Music",
+                "row_count": 8,
+                "total_quantity": 349,
+                "total_net_paid": 19070.61,
+                "total_net_profit": 783
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 10,
+                "category": "Music",
+                "row_count": 10,
+                "total_quantity": 460,
+                "total_net_paid": 15368.53,
+                "total_net_profit": -12015.39
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 11,
+                "category": "Music",
+                "row_count": 11,
+                "total_quantity": 575,
+                "total_net_paid": 17273.35,
+                "total_net_profit": -20266.71
+              }
+            ],
+            "returnedRowCount": 11,
+            "possiblyTruncated": false,
+            "complete": true,
+            "previewTruncated": true
+          },
+          "diagnostic": "SQL query executed successfully",
+          "durationMs": 147
+        },
+        "sqlSnapshot": {
+          "id": "2b689c67-d343-3659-9b05-c753f0473b60",
+          "code": "STUDIO_2B689C67D34336599B05C753F0473B60",
+          "sqlTemplate": "-- tpcds monthly sales summary for a specific item\n-- Database: tpcds (test env 248)\n-- Placeholders (unquoted, substituted by template engine):\n--   {{product_id}}   – integer, ss_item_sk value (required)\n--   {{start_date}}   – date literal, inclusive start\n--   {{end_date}}     – date literal, inclusive end\n--   {{min_quantity}} – integer, minimum ss_quantity per row\n--   {{category}}     – string literal or NULL; NULL skips the category filter\n\nSELECT\n    d.d_year                           AS sale_year,\n    d.d_moy                            AS sale_month,\n    i.i_category                       AS category,\n    COUNT(*)                           AS row_count,\n    SUM(ss.ss_quantity)                AS total_quantity,\n    SUM(ss.ss_net_paid)                AS total_net_paid,\n    SUM(ss.ss_net_profit)              AS total_net_profit\nFROM tpcds.store_sales ss\nINNER JOIN tpcds.date_dim d\n        ON ss.ss_sold_date_sk = d.d_date_sk\nINNER JOIN tpcds.item i\n        ON ss.ss_item_sk = i.i_item_sk\nWHERE ss.ss_item_sk = {{product_id}}\n  AND d.d_date >= {{start_date}}\n  AND d.d_date <= {{end_date}}\n  AND ss.ss_quantity >= {{min_quantity}}\n  AND ({{category}} IS NULL OR i.i_category = {{category}})\nGROUP BY d.d_year,\n         d.d_moy,\n         i.i_category\nORDER BY d.d_year ASC,\n         d.d_moy ASC,\n         i.i_category ASC\nLIMIT 24;\n",
+          "parameterSchema": {
+            "type": "object",
+            "properties": {
+              "product_id": {
+                "type": "integer",
+                "minimum": 1,
+                "default": 1,
+                "description": "store_sales.ss_item_sk 商品主键"
+              },
+              "start_date": {
+                "type": "string",
+                "format": "date",
+                "description": "date_dim.d_date 含边界起日"
+              },
+              "end_date": {
+                "type": "string",
+                "format": "date",
+                "description": "date_dim.d_date 含边界止日"
+              },
+              "min_quantity": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 0,
+                "description": "每行最低ss_quantity"
+              },
+              "category": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "default": null,
+                "description": "item.i_category精确品类；NULL不过滤"
+              }
+            },
+            "required": [
+              "start_date",
+              "end_date"
+            ],
+            "additionalProperties": false
+          },
+          "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+          "databaseType": "mysql",
+          "title": "TPCDS 248 单品期间月度销售分析验收",
+          "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+          "category": "business_analysis",
+          "source": {
+            "projectId": "b6f7520b-2a55-430a-9351-a601e32dcfa3",
+            "fileId": "609b856c-72e0-4f99-b8e3-856ca905d2f4",
+            "fileVersion": 1,
+            "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8"
+          }
+        },
+        "publication": {
+          "id": "883b6344-af27-4f68-b22c-0d58cf7e5922",
+          "toolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+          "revision": "65ee20b4f6893b2ac4615a944dc6a818a482909b722b675dfb9c81100b3c5ee1",
+          "assetName": "248测试数据库",
+          "title": "TPCDS 248 单品期间月度销售分析验收",
+          "category": "business_analysis",
+          "version": 5,
+          "publishedAt": "2026-11-01T02:49:00.742070Z",
+          "logicalId": "b1e518f3-811f-3fb1-8d55-dc959b24e3d7",
+          "templateKey": "sql_datasource:STUDIO_2B689C67D34336599B05C753F0473B60",
+          "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+          "state": "OFFLINE"
+        }
+      },
+      {
+        "sqlTest": {
+          "type": "SQL_DATABASE_EXECUTION",
+          "testId": "1af86b5e-3451-4ae5-a82f-a01b88cb6de2",
+          "testedAt": "2026-11-01T01:19:41.781811957Z",
+          "traceId": "1af86b5e-3451-4ae5-a82f-a01b88cb6de2",
+          "source": {
+            "projectId": "b6f7520b-2a55-430a-9351-a601e32dcfa3",
+            "fileId": "609b856c-72e0-4f99-b8e3-856ca905d2f4",
+            "fileVersion": 1,
+            "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8"
+          },
+          "fingerprint": "d5ef123f164b341538f8f2e510221249115ac0484388f80758a8ebcaf7118ee6",
+          "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8",
+          "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+          "datasourceDigest": "38fc10dfb01d89253fb377c8a6701d6bed65310c231217353c20e7ebf5625307",
+          "parameters": {
+            "product_id": 1,
+            "start_date": "1999-01-01",
+            "end_date": "1999-12-31",
+            "min_quantity": 0
+          },
+          "parametersDigest": "f03d2346d3579e16ba41f803f4589e60d9bed6b7e173275dc0e1b3af2db1c577",
+          "timeoutSeconds": 10,
+          "maxRows": 50,
+          "success": true,
+          "resultDigest": "b02c3000b1244ae2207ac745a291dc09fd44697e296f58a29f57e9d6be317e7c",
+          "rowCount": 11,
+          "errorCode": "",
+          "preview": {
+            "columns": [
+              "sale_year",
+              "sale_month",
+              "category",
+              "row_count",
+              "total_quantity",
+              "total_net_paid",
+              "total_net_profit"
+            ],
+            "rows": [
+              {
+                "sale_year": 1999,
+                "sale_month": 1,
+                "category": "Music",
+                "row_count": 3,
+                "total_quantity": 217,
+                "total_net_paid": 21884.51,
+                "total_net_profit": 7416.63
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 2,
+                "category": "Music",
+                "row_count": 3,
+                "total_quantity": 170,
+                "total_net_paid": 2138.52,
+                "total_net_profit": -2296.74
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 4,
+                "category": "Music",
+                "row_count": 2,
+                "total_quantity": 151,
+                "total_net_paid": 8459.79,
+                "total_net_profit": -3151.9
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 5,
+                "category": "Music",
+                "row_count": 1,
+                "total_quantity": 64,
+                "total_net_paid": 2899.84,
+                "total_net_profit": 636.8
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 6,
+                "category": "Music",
+                "row_count": 2,
+                "total_quantity": 122,
+                "total_net_paid": 6473.64,
+                "total_net_profit": -1004.15
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 7,
+                "category": "Music",
+                "row_count": 3,
+                "total_quantity": 177,
+                "total_net_paid": 6585.36,
+                "total_net_profit": -4990.27
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 8,
+                "category": "Music",
+                "row_count": 7,
+                "total_quantity": 336,
+                "total_net_paid": 13543.25,
+                "total_net_profit": -11742.7
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 9,
+                "category": "Music",
+                "row_count": 8,
+                "total_quantity": 349,
+                "total_net_paid": 19070.61,
+                "total_net_profit": 783
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 10,
+                "category": "Music",
+                "row_count": 10,
+                "total_quantity": 460,
+                "total_net_paid": 15368.53,
+                "total_net_profit": -12015.39
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 11,
+                "category": "Music",
+                "row_count": 11,
+                "total_quantity": 575,
+                "total_net_paid": 17273.35,
+                "total_net_profit": -20266.71
+              }
+            ],
+            "returnedRowCount": 11,
+            "possiblyTruncated": false,
+            "complete": true,
+            "previewTruncated": true
+          },
+          "diagnostic": "SQL query executed successfully",
+          "durationMs": 139
+        },
+        "sqlSnapshot": {
+          "id": "2b689c67-d343-3659-9b05-c753f0473b60",
+          "code": "STUDIO_2B689C67D34336599B05C753F0473B60",
+          "sqlTemplate": "-- tpcds monthly sales summary for a specific item\n-- Database: tpcds (test env 248)\n-- Placeholders (unquoted, substituted by template engine):\n--   {{product_id}}   – integer, ss_item_sk value (required)\n--   {{start_date}}   – date literal, inclusive start\n--   {{end_date}}     – date literal, inclusive end\n--   {{min_quantity}} – integer, minimum ss_quantity per row\n--   {{category}}     – string literal or NULL; NULL skips the category filter\n\nSELECT\n    d.d_year                           AS sale_year,\n    d.d_moy                            AS sale_month,\n    i.i_category                       AS category,\n    COUNT(*)                           AS row_count,\n    SUM(ss.ss_quantity)                AS total_quantity,\n    SUM(ss.ss_net_paid)                AS total_net_paid,\n    SUM(ss.ss_net_profit)              AS total_net_profit\nFROM tpcds.store_sales ss\nINNER JOIN tpcds.date_dim d\n        ON ss.ss_sold_date_sk = d.d_date_sk\nINNER JOIN tpcds.item i\n        ON ss.ss_item_sk = i.i_item_sk\nWHERE ss.ss_item_sk = {{product_id}}\n  AND d.d_date >= {{start_date}}\n  AND d.d_date <= {{end_date}}\n  AND ss.ss_quantity >= {{min_quantity}}\n  AND ({{category}} IS NULL OR i.i_category = {{category}})\nGROUP BY d.d_year,\n         d.d_moy,\n         i.i_category\nORDER BY d.d_year ASC,\n         d.d_moy ASC,\n         i.i_category ASC\nLIMIT 24;\n",
+          "parameterSchema": {
+            "type": "object",
+            "properties": {
+              "product_id": {
+                "type": "integer",
+                "minimum": 1,
+                "default": 1,
+                "description": "store_sales.ss_item_sk 商品主键"
+              },
+              "start_date": {
+                "type": "string",
+                "format": "date",
+                "description": "date_dim.d_date 含边界起日"
+              },
+              "end_date": {
+                "type": "string",
+                "format": "date",
+                "description": "date_dim.d_date 含边界止日"
+              },
+              "min_quantity": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 0,
+                "description": "每行最低ss_quantity"
+              },
+              "category": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "default": null,
+                "description": "item.i_category精确品类；NULL不过滤"
+              }
+            },
+            "required": [
+              "start_date",
+              "end_date"
+            ],
+            "additionalProperties": false
+          },
+          "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+          "databaseType": "mysql",
+          "title": "TPCDS 248 单品期间月度销售分析验收",
+          "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+          "category": "business_analysis",
+          "source": {
+            "projectId": "b6f7520b-2a55-430a-9351-a601e32dcfa3",
+            "fileId": "609b856c-72e0-4f99-b8e3-856ca905d2f4",
+            "fileVersion": 1,
+            "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8"
+          }
+        },
+        "publication": {
+          "id": "bc8928a0-ad98-4704-b464-f4738b823d52",
+          "toolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+          "revision": "4995d80fe6000a71afa10344312bb6d1d955b85f3773a14e997f7c351b9e9843",
+          "assetName": "248测试数据库",
+          "title": "TPCDS 248 单品期间月度销售分析验收",
+          "category": "business_analysis",
+          "version": 4,
+          "publishedAt": "2026-11-01T01:19:49.630608Z",
+          "logicalId": "b1e518f3-811f-3fb1-8d55-dc959b24e3d7",
+          "templateKey": "sql_datasource:STUDIO_2B689C67D34336599B05C753F0473B60",
+          "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+          "state": "OFFLINE"
+        }
+      },
+      {
+        "sqlTest": {
+          "type": "SQL_DATABASE_EXECUTION",
+          "testId": "fbe992f2-4b7c-4070-8728-bf7ffd72a186",
+          "testedAt": "2026-10-31T16:08:26.204037166Z",
+          "traceId": "fbe992f2-4b7c-4070-8728-bf7ffd72a186",
+          "source": {
+            "projectId": "b6f7520b-2a55-430a-9351-a601e32dcfa3",
+            "fileId": "609b856c-72e0-4f99-b8e3-856ca905d2f4",
+            "fileVersion": 1,
+            "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8"
+          },
+          "fingerprint": "d5ef123f164b341538f8f2e510221249115ac0484388f80758a8ebcaf7118ee6",
+          "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8",
+          "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+          "datasourceDigest": "37f7346bcb46195510633f56214ad16eecbeee7f1769da905703921dc4912d3d",
+          "parameters": {
+            "start_date": "1999-01-01",
+            "end_date": "1999-12-31"
+          },
+          "parametersDigest": "1e00bf2ef1ffe6c73a41f08eb44a09bcf6f1bf863baee167d30c2f5c4f326bd4",
+          "timeoutSeconds": 10,
+          "maxRows": 50,
+          "success": true,
+          "resultDigest": "2852086ba47f291498bd4ddbc43e226bdbac1bf44f49ba11cda7e9a3dca9838f",
+          "rowCount": 11,
+          "errorCode": "",
+          "preview": {
+            "columns": [
+              "sale_year",
+              "sale_month",
+              "category",
+              "row_count",
+              "total_quantity",
+              "total_net_paid",
+              "total_net_profit"
+            ],
+            "rows": [
+              {
+                "sale_year": 1999,
+                "sale_month": 1,
+                "category": "Music",
+                "row_count": 3,
+                "total_quantity": 217,
+                "total_net_paid": 21884.51,
+                "total_net_profit": 7416.63
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 2,
+                "category": "Music",
+                "row_count": 3,
+                "total_quantity": 170,
+                "total_net_paid": 2138.52,
+                "total_net_profit": -2296.74
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 4,
+                "category": "Music",
+                "row_count": 2,
+                "total_quantity": 151,
+                "total_net_paid": 8459.79,
+                "total_net_profit": -3151.9
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 5,
+                "category": "Music",
+                "row_count": 1,
+                "total_quantity": 64,
+                "total_net_paid": 2899.84,
+                "total_net_profit": 636.8
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 6,
+                "category": "Music",
+                "row_count": 2,
+                "total_quantity": 122,
+                "total_net_paid": 6473.64,
+                "total_net_profit": -1004.15
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 7,
+                "category": "Music",
+                "row_count": 3,
+                "total_quantity": 177,
+                "total_net_paid": 6585.36,
+                "total_net_profit": -4990.27
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 8,
+                "category": "Music",
+                "row_count": 7,
+                "total_quantity": 336,
+                "total_net_paid": 13543.25,
+                "total_net_profit": -11742.7
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 9,
+                "category": "Music",
+                "row_count": 8,
+                "total_quantity": 349,
+                "total_net_paid": 19070.61,
+                "total_net_profit": 783
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 10,
+                "category": "Music",
+                "row_count": 10,
+                "total_quantity": 460,
+                "total_net_paid": 15368.53,
+                "total_net_profit": -12015.39
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 11,
+                "category": "Music",
+                "row_count": 11,
+                "total_quantity": 575,
+                "total_net_paid": 17273.35,
+                "total_net_profit": -20266.71
+              }
+            ],
+            "returnedRowCount": 11,
+            "possiblyTruncated": false,
+            "complete": true,
+            "previewTruncated": true
+          },
+          "diagnostic": "SQL query executed successfully",
+          "durationMs": 713
+        },
+        "sqlSnapshot": {
+          "id": "2b689c67-d343-3659-9b05-c753f0473b60",
+          "code": "STUDIO_2B689C67D34336599B05C753F0473B60",
+          "sqlTemplate": "-- tpcds monthly sales summary for a specific item\n-- Database: tpcds (test env 248)\n-- Placeholders (unquoted, substituted by template engine):\n--   {{product_id}}   – integer, ss_item_sk value (required)\n--   {{start_date}}   – date literal, inclusive start\n--   {{end_date}}     – date literal, inclusive end\n--   {{min_quantity}} – integer, minimum ss_quantity per row\n--   {{category}}     – string literal or NULL; NULL skips the category filter\n\nSELECT\n    d.d_year                           AS sale_year,\n    d.d_moy                            AS sale_month,\n    i.i_category                       AS category,\n    COUNT(*)                           AS row_count,\n    SUM(ss.ss_quantity)                AS total_quantity,\n    SUM(ss.ss_net_paid)                AS total_net_paid,\n    SUM(ss.ss_net_profit)              AS total_net_profit\nFROM tpcds.store_sales ss\nINNER JOIN tpcds.date_dim d\n        ON ss.ss_sold_date_sk = d.d_date_sk\nINNER JOIN tpcds.item i\n        ON ss.ss_item_sk = i.i_item_sk\nWHERE ss.ss_item_sk = {{product_id}}\n  AND d.d_date >= {{start_date}}\n  AND d.d_date <= {{end_date}}\n  AND ss.ss_quantity >= {{min_quantity}}\n  AND ({{category}} IS NULL OR i.i_category = {{category}})\nGROUP BY d.d_year,\n         d.d_moy,\n         i.i_category\nORDER BY d.d_year ASC,\n         d.d_moy ASC,\n         i.i_category ASC\nLIMIT 24;\n",
+          "parameterSchema": {
+            "type": "object",
+            "properties": {
+              "product_id": {
+                "type": "integer",
+                "minimum": 1,
+                "default": 1,
+                "description": "store_sales.ss_item_sk 商品主键"
+              },
+              "start_date": {
+                "type": "string",
+                "format": "date",
+                "description": "date_dim.d_date 含边界起日"
+              },
+              "end_date": {
+                "type": "string",
+                "format": "date",
+                "description": "date_dim.d_date 含边界止日"
+              },
+              "min_quantity": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 0,
+                "description": "每行最低ss_quantity"
+              },
+              "category": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "default": null,
+                "description": "item.i_category精确品类；NULL不过滤"
+              }
+            },
+            "required": [
+              "start_date",
+              "end_date"
+            ],
+            "additionalProperties": false
+          },
+          "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+          "databaseType": "mysql",
+          "title": "TPCDS 248 单品期间月度销售分析验收",
+          "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+          "category": "business_analysis",
+          "source": {
+            "projectId": "b6f7520b-2a55-430a-9351-a601e32dcfa3",
+            "fileId": "609b856c-72e0-4f99-b8e3-856ca905d2f4",
+            "fileVersion": 1,
+            "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8"
+          }
+        },
+        "publication": {
+          "id": "81cc9e0e-a2a6-4125-a6e0-1f82ecbe5caf",
+          "toolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+          "revision": "bdd725ea7e4b50ab2e0727cc00a33cc33f00b89095608ba89fe6fcaca0721fac",
+          "assetName": "248测试数据库",
+          "title": "TPCDS 248 单品期间月度销售分析验收",
+          "category": "business_analysis",
+          "version": 3,
+          "publishedAt": "2026-10-31T16:08:36.103914Z",
+          "logicalId": "b1e518f3-811f-3fb1-8d55-dc959b24e3d7",
+          "templateKey": "sql_datasource:STUDIO_2B689C67D34336599B05C753F0473B60",
+          "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+          "state": "OFFLINE"
+        }
+      },
+      {
+        "sqlTest": {
+          "type": "SQL_DATABASE_EXECUTION",
+          "testId": "783f8981-a677-4dec-9db7-43dce7b25049",
+          "testedAt": "2026-10-31T15:10:42.079367310Z",
+          "traceId": "783f8981-a677-4dec-9db7-43dce7b25049",
+          "source": {
+            "projectId": "b6f7520b-2a55-430a-9351-a601e32dcfa3",
+            "fileId": "609b856c-72e0-4f99-b8e3-856ca905d2f4",
+            "fileVersion": 1,
+            "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8"
+          },
+          "fingerprint": "d5ef123f164b341538f8f2e510221249115ac0484388f80758a8ebcaf7118ee6",
+          "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8",
+          "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+          "datasourceDigest": "ca76f8fe26a0ee32f15384ee47e1f7155cc932a258764df4715a3fc3c47899d3",
+          "parameters": {
+            "start_date": "1999-01-01",
+            "end_date": "1999-12-31"
+          },
+          "parametersDigest": "1e00bf2ef1ffe6c73a41f08eb44a09bcf6f1bf863baee167d30c2f5c4f326bd4",
+          "timeoutSeconds": 10,
+          "maxRows": 50,
+          "success": true,
+          "resultDigest": "80de7b259809c02e523ed9ae6e71f87dc0f41697a66c63fe93e7dd9d53f08ee5",
+          "rowCount": 11,
+          "errorCode": "",
+          "preview": {
+            "columns": [
+              "sale_year",
+              "sale_month",
+              "category",
+              "row_count",
+              "total_quantity",
+              "total_net_paid",
+              "total_net_profit"
+            ],
+            "rows": [
+              {
+                "sale_year": 1999,
+                "sale_month": 1,
+                "category": "Music",
+                "row_count": 3,
+                "total_quantity": 217,
+                "total_net_paid": 21884.51,
+                "total_net_profit": 7416.63
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 2,
+                "category": "Music",
+                "row_count": 3,
+                "total_quantity": 170,
+                "total_net_paid": 2138.52,
+                "total_net_profit": -2296.74
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 4,
+                "category": "Music",
+                "row_count": 2,
+                "total_quantity": 151,
+                "total_net_paid": 8459.79,
+                "total_net_profit": -3151.9
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 5,
+                "category": "Music",
+                "row_count": 1,
+                "total_quantity": 64,
+                "total_net_paid": 2899.84,
+                "total_net_profit": 636.8
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 6,
+                "category": "Music",
+                "row_count": 2,
+                "total_quantity": 122,
+                "total_net_paid": 6473.64,
+                "total_net_profit": -1004.15
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 7,
+                "category": "Music",
+                "row_count": 3,
+                "total_quantity": 177,
+                "total_net_paid": 6585.36,
+                "total_net_profit": -4990.27
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 8,
+                "category": "Music",
+                "row_count": 7,
+                "total_quantity": 336,
+                "total_net_paid": 13543.25,
+                "total_net_profit": -11742.7
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 9,
+                "category": "Music",
+                "row_count": 8,
+                "total_quantity": 349,
+                "total_net_paid": 19070.61,
+                "total_net_profit": 783
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 10,
+                "category": "Music",
+                "row_count": 10,
+                "total_quantity": 460,
+                "total_net_paid": 15368.53,
+                "total_net_profit": -12015.39
+              },
+              {
+                "sale_year": 1999,
+                "sale_month": 11,
+                "category": "Music",
+                "row_count": 11,
+                "total_quantity": 575,
+                "total_net_paid": 17273.35,
+                "total_net_profit": -20266.71
+              }
+            ],
+            "returnedRowCount": 11,
+            "possiblyTruncated": false,
+            "complete": true,
+            "previewTruncated": true
+          },
+          "diagnostic": "SQL query executed successfully",
+          "durationMs": 380
+        },
+        "sqlSnapshot": {
+          "id": "2b689c67-d343-3659-9b05-c753f0473b60",
+          "code": "STUDIO_2B689C67D34336599B05C753F0473B60",
+          "sqlTemplate": "-- tpcds monthly sales summary for a specific item\n-- Database: tpcds (test env 248)\n-- Placeholders (unquoted, substituted by template engine):\n--   {{product_id}}   – integer, ss_item_sk value (required)\n--   {{start_date}}   – date literal, inclusive start\n--   {{end_date}}     – date literal, inclusive end\n--   {{min_quantity}} – integer, minimum ss_quantity per row\n--   {{category}}     – string literal or NULL; NULL skips the category filter\n\nSELECT\n    d.d_year                           AS sale_year,\n    d.d_moy                            AS sale_month,\n    i.i_category                       AS category,\n    COUNT(*)                           AS row_count,\n    SUM(ss.ss_quantity)                AS total_quantity,\n    SUM(ss.ss_net_paid)                AS total_net_paid,\n    SUM(ss.ss_net_profit)              AS total_net_profit\nFROM tpcds.store_sales ss\nINNER JOIN tpcds.date_dim d\n        ON ss.ss_sold_date_sk = d.d_date_sk\nINNER JOIN tpcds.item i\n        ON ss.ss_item_sk = i.i_item_sk\nWHERE ss.ss_item_sk = {{product_id}}\n  AND d.d_date >= {{start_date}}\n  AND d.d_date <= {{end_date}}\n  AND ss.ss_quantity >= {{min_quantity}}\n  AND ({{category}} IS NULL OR i.i_category = {{category}})\nGROUP BY d.d_year,\n         d.d_moy,\n         i.i_category\nORDER BY d.d_year ASC,\n         d.d_moy ASC,\n         i.i_category ASC\nLIMIT 24;\n",
+          "parameterSchema": {
+            "type": "object",
+            "properties": {
+              "product_id": {
+                "type": "integer",
+                "minimum": 1,
+                "default": 1,
+                "description": "store_sales.ss_item_sk 商品主键"
+              },
+              "start_date": {
+                "type": "string",
+                "format": "date",
+                "description": "date_dim.d_date 含边界起日"
+              },
+              "end_date": {
+                "type": "string",
+                "format": "date",
+                "description": "date_dim.d_date 含边界止日"
+              },
+              "min_quantity": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 0,
+                "description": "每行最低ss_quantity"
+              },
+              "category": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "default": null,
+                "description": "item.i_category精确品类；NULL不过滤"
+              }
+            },
+            "required": [
+              "start_date",
+              "end_date"
+            ],
+            "additionalProperties": false
+          },
+          "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+          "databaseType": "mysql",
+          "title": "TPCDS 248 单品期间月度销售分析验收",
+          "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+          "category": "business_analysis",
+          "source": {
+            "projectId": "b6f7520b-2a55-430a-9351-a601e32dcfa3",
+            "fileId": "609b856c-72e0-4f99-b8e3-856ca905d2f4",
+            "fileVersion": 1,
+            "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8"
+          }
+        },
+        "publication": {
+          "id": "498689ea-e87f-4334-909d-ba2a01805ae3",
+          "toolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+          "revision": "ec8576e462ee80f78afd0e768fbdd8afeb59dc5daa21732620b5b097f68dbc7c",
+          "assetName": "248测试数据库",
+          "title": "TPCDS 248 单品期间月度销售分析验收",
+          "category": "business_analysis",
+          "version": 1,
+          "publishedAt": "2026-10-31T15:11:00.782607Z",
+          "logicalId": "b1e518f3-811f-3fb1-8d55-dc959b24e3d7",
+          "templateKey": "sql_datasource:STUDIO_2B689C67D34336599B05C753F0473B60",
+          "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+          "state": "OFFLINE"
+        }
+      }
+    ]
+  }
+]

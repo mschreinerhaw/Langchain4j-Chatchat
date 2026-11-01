@@ -1,0 +1,693 @@
+{
+  "contractVersion": "ui_response_v2",
+  "conversationId": "1793499189080-3de5ccdfb2e648",
+  "requestId": "181a7c4f-58d3-42ba-b9da-89b0e8e78e9f",
+  "mode": "agent_chat",
+  "status": "PARTIAL_SUCCESS",
+  "answer": "# 仓库国家/省州分布（交付快照）\n\n## 结论\n本次交付的仓库数据集中在 **1 个国家/省州分组：United States / TN**，合计 **5 个仓库**，覆盖 **1 个城市**。\n也就是说，在当前数据范围内不存在跨国家或跨省州的分布差异——柱状图只有一根柱子，无法给出“哪个国家/地区仓库更多”的排名结论。这是数据范围本身的结果，而不是计算失败。\n\n## 核心指标\n| 指标 | 数值 | 单位 | 计算方式 |\n| --- | --- | --- | --- |\n| 仓库总数 | 5 | 个 | 对查询返回的各国家/省州分组的 warehouse_count（COUNT(*)）求和 |\n| 国家/省州分组数 | 1 | 个 | 交付结果按 w_country、w_state 分组后的行数 |\n| 涉及国家数 | 1 | 个 | 分组 w_country 取值去重计数 |\n| 覆盖城市数 | 1 | 个 | 对分组 city_count（COUNT(DISTINCT w_city)）求和；当前仅 1 组，不存在跨组重复计数 |\n| 仓库主键范围 | 1–5 |  | 各分组 min_warehouse_sk 的最小值与 max_warehouse_sk 的最大值 |\n\n## 分布结果\n![仓库数量柱状图](warehouse_country_state_bar.png)\n\n数据明细（全部交付分组）：\n\n| 国家 | 省州 | 仓库数量（个） | 覆盖城市数（个） | 仓库主键最小值 | 仓库主键最大值 |\n| --- | --- | --- | --- | --- | --- |\n| United States | TN | 5 | 1 | 1 | 5 |\n\n## 城市覆盖与数据范围\n- **城市覆盖**：1 个城市。该数字来自源查询的“分组内不同城市数”指标（COUNT(DISTINCT w_city)）之和；当前只有 1 个分组，因此不存在跨分组重复计数问题。源查询未返回城市名称清单，**无法列出具体城市名称**。\n- **地理范围**：仅 United States / TN 一个分组，1 个国家。\n- **仓库范围**：共 5 条仓库记录，主键取值落在 1–5，跨度 5 个值，与仓库记录数一致。\n- **时间范围**：交付数据中**没有任何日期或时间字段**，因此无法界定“当前”对应的业务时点或统计期间；只能表述为一次交付的仓库维表快照。\n- **完整性**：交付声明该查询为 warehouse 维表按国家/省州全量分组结果（无过滤参数、结果完整），因此可以认为除上述分组外没有其它国家/省州分组被遗漏。\n\n## 口径与字段来源\n| 源字段 | 业务含义 | 声明来源 | 状态 |\n| --- | --- | --- | --- |\n| w_country | 仓库所在国家；源查询按该字段分组，作为分布横轴的第一层维度 | 数据集 sourceDefinition.description（按国家和省州统计仓库）与 queryDefinition 的 GROUP BY w_country | CONFIRMED |\n| w_state | 仓库所在省/州；源查询按该字段分组，作为分布横轴的第二层维度 | sourceDefinition.description 与 queryDefinition 的 GROUP BY w_state | CONFIRMED |\n| warehouse_count | 分组内仓库记录数（仓库数量）；公式 COUNT(*) | queryDefinition 显式别名 warehouse_count 与 description（统计仓库数量） | CONFIRMED |\n| city_count | 分组内不同城市数量；公式 COUNT(DISTINCT w_city) | queryDefinition 显式别名 city_count 与 description（覆盖城市数量） | CONFIRMED |\n| min_warehouse_sk | 分组内仓库主键（w_warehouse_sk）最小值；属于标识符，不作金额或数量求和 | queryDefinition 显式别名 min_warehouse_sk 与 description（仓库主键范围） | CONFIRMED |\n| max_warehouse_sk | 分组内仓库主键（w_warehouse_sk）最大值；属于标识符，不作金额或数量求和 | queryDefinition 显式别名 max_warehouse_sk 与 description（仓库主键范围） | CONFIRMED |\n\n## 局限\n- 分布只有一个分组，无法开展跨国家/省州的数量对比、排序或份额分析（也不存在可计算的“占比”——单一分组占比恒为 100%，不构成有效结论）。\n- 城市覆盖只有数量、没有名称与城市级明细，无法回答“具体哪些城市有仓库”。\n- 缺少日期字段，无法说明统计截止日或历史变化，也无法判断该分布是否长期稳定。\n- “仓库数量”是 warehouse 维表按 COUNT(*) 得到的记录数，其业务口径依赖源查询声明（每行代表一个仓库）；本次未获得独立的仓库台账可比总数，因此未做跨源对账。\n\n## 校验与审计附录\n- 已核对交付清单、数据分片哈希与行数（1 行），并逐字段映射存储列到声明字段，六个声明字段均无 null/缺失。\n- 分组键（国家+省州）唯一；明细表仓库数量合计与指标“仓库总数”一致。\n- 图表数值与明细表使用同一计算结果，未做四舍五入替换。\n\n*统计口径单位“个”为用户指定的计数单位；仓库主键为标识符，未参与任何求和。*\n\n## 查询结果明细\n\n已找到 1 行数据，下面展示前 1 行；完整结构化数据已随结果返回用于表格展示。\n\n| w_country | w_state | warehouse_count | city_count | min_warehouse_sk | max_warehouse_sk |\n| --- | --- | --- | --- | --- | --- |\n| United States | TN | 5 | 1 | 1 | 5 |",
+  "citations": [],
+  "evidencePremises": [],
+  "confidence": null,
+  "evidenceSummary": "",
+  "visualization": {
+    "type": "artifact"
+  },
+  "sources": [],
+  "toolTraces": [
+    {
+      "toolName": "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+      "displayName": "tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+      "serviceId": "chatchat-mcp-server",
+      "serviceName": "ChatChat MCP Server",
+      "success": true,
+      "input": {},
+      "output": null,
+      "errorMessage": null,
+      "durationMs": 2800,
+      "startedAt": 1793499284142,
+      "finishedAt": 1793499286942,
+      "runtimeMetadata": {}
+    }
+  ],
+  "metadata": {
+    "availableTools": [
+      "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+      "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970",
+      "mcp_chatchat_mcp_server_tpl_212b88329a673657979943bbeaa7479b"
+    ],
+    "requiredTools": [],
+    "toolIntents": [],
+    "handler": "AgentChatModeHandler",
+    "skillId": "sql_template_e2e_20261101_r1",
+    "modelName": "deepseek-v4-flash",
+    "historyUsed": 1,
+    "summaryUsed": false,
+    "workflowOutcome": {
+      "type": "PARTIAL_RESULT",
+      "reason": "CODING_ANALYSIS_PARTIAL",
+      "missingRequiredCapabilities": [
+        "analysis_evidence"
+      ],
+      "missingOptionalCapabilities": [],
+      "usableResult": true
+    },
+    "experienceHintsUsed": false,
+    "knowledgeRetrieval": "not_configured",
+    "domainKnowledgeUsed": false,
+    "domainKnowledgeSourceCount": 0,
+    "domainKnowledgeTokens": 0,
+    "domainKnowledgeTokenBudget": 1500,
+    "domainKnowledgeTruncated": false,
+    "domainKnowledgeSkillCount": 0,
+    "selectedDomainSkillCount": 0,
+    "activatedDomainSkillCount": 0,
+    "skillAnalysisContext": {
+      "schemaVersion": "skill_analysis_context.v1",
+      "status": "NO_CANDIDATES",
+      "fingerprint": "e45547bc6369bd24b3bee8fa56e5f3755d74d84d15f20f1982689b6c4f566dd8",
+      "skills": [],
+      "authority": "AUTHORIZED_SKILL_METHODOLOGY_NOT_EVIDENCE"
+    },
+    "domainKnowledgeContext": {
+      "schemaVersion": "knowledge_context.v1",
+      "status": "not_configured",
+      "used": false,
+      "estimatedTokens": 0,
+      "maxTokens": 1500,
+      "truncated": false,
+      "skillTypes": [],
+      "activatedSkills": [],
+      "sources": [],
+      "usageContract": {
+        "partialAnswerRequired": false,
+        "sourceCitationRequired": true,
+        "role": "AUTHORIZED_DOCUMENT_KNOWLEDGE_EVIDENCE",
+        "toolEvidenceRequiredForDynamicFacts": true,
+        "examplesAreCurrentFacts": false,
+        "directFinalAllowed": true,
+        "answersSupportedByKnowledge": true
+      }
+    }
+  },
+  "latencyMs": 186140,
+  "timestamp": 1793499375437,
+  "uiResponse": {
+    "contractVersion": "ui_response_v2",
+    "sourceContractVersion": "ui_response_v2",
+    "status": "PARTIAL_SUCCESS",
+    "answer": "# 仓库国家/省州分布（交付快照）\n\n## 结论\n本次交付的仓库数据集中在 **1 个国家/省州分组：United States / TN**，合计 **5 个仓库**，覆盖 **1 个城市**。\n也就是说，在当前数据范围内不存在跨国家或跨省州的分布差异——柱状图只有一根柱子，无法给出“哪个国家/地区仓库更多”的排名结论。这是数据范围本身的结果，而不是计算失败。\n\n## 核心指标\n| 指标 | 数值 | 单位 | 计算方式 |\n| --- | --- | --- | --- |\n| 仓库总数 | 5 | 个 | 对查询返回的各国家/省州分组的 warehouse_count（COUNT(*)）求和 |\n| 国家/省州分组数 | 1 | 个 | 交付结果按 w_country、w_state 分组后的行数 |\n| 涉及国家数 | 1 | 个 | 分组 w_country 取值去重计数 |\n| 覆盖城市数 | 1 | 个 | 对分组 city_count（COUNT(DISTINCT w_city)）求和；当前仅 1 组，不存在跨组重复计数 |\n| 仓库主键范围 | 1–5 |  | 各分组 min_warehouse_sk 的最小值与 max_warehouse_sk 的最大值 |\n\n## 分布结果\n![仓库数量柱状图](warehouse_country_state_bar.png)\n\n数据明细（全部交付分组）：\n\n| 国家 | 省州 | 仓库数量（个） | 覆盖城市数（个） | 仓库主键最小值 | 仓库主键最大值 |\n| --- | --- | --- | --- | --- | --- |\n| United States | TN | 5 | 1 | 1 | 5 |\n\n## 城市覆盖与数据范围\n- **城市覆盖**：1 个城市。该数字来自源查询的“分组内不同城市数”指标（COUNT(DISTINCT w_city)）之和；当前只有 1 个分组，因此不存在跨分组重复计数问题。源查询未返回城市名称清单，**无法列出具体城市名称**。\n- **地理范围**：仅 United States / TN 一个分组，1 个国家。\n- **仓库范围**：共 5 条仓库记录，主键取值落在 1–5，跨度 5 个值，与仓库记录数一致。\n- **时间范围**：交付数据中**没有任何日期或时间字段**，因此无法界定“当前”对应的业务时点或统计期间；只能表述为一次交付的仓库维表快照。\n- **完整性**：交付声明该查询为 warehouse 维表按国家/省州全量分组结果（无过滤参数、结果完整），因此可以认为除上述分组外没有其它国家/省州分组被遗漏。\n\n## 口径与字段来源\n| 源字段 | 业务含义 | 声明来源 | 状态 |\n| --- | --- | --- | --- |\n| w_country | 仓库所在国家；源查询按该字段分组，作为分布横轴的第一层维度 | 数据集 sourceDefinition.description（按国家和省州统计仓库）与 queryDefinition 的 GROUP BY w_country | CONFIRMED |\n| w_state | 仓库所在省/州；源查询按该字段分组，作为分布横轴的第二层维度 | sourceDefinition.description 与 queryDefinition 的 GROUP BY w_state | CONFIRMED |\n| warehouse_count | 分组内仓库记录数（仓库数量）；公式 COUNT(*) | queryDefinition 显式别名 warehouse_count 与 description（统计仓库数量） | CONFIRMED |\n| city_count | 分组内不同城市数量；公式 COUNT(DISTINCT w_city) | queryDefinition 显式别名 city_count 与 description（覆盖城市数量） | CONFIRMED |\n| min_warehouse_sk | 分组内仓库主键（w_warehouse_sk）最小值；属于标识符，不作金额或数量求和 | queryDefinition 显式别名 min_warehouse_sk 与 description（仓库主键范围） | CONFIRMED |\n| max_warehouse_sk | 分组内仓库主键（w_warehouse_sk）最大值；属于标识符，不作金额或数量求和 | queryDefinition 显式别名 max_warehouse_sk 与 description（仓库主键范围） | CONFIRMED |\n\n## 局限\n- 分布只有一个分组，无法开展跨国家/省州的数量对比、排序或份额分析（也不存在可计算的“占比”——单一分组占比恒为 100%，不构成有效结论）。\n- 城市覆盖只有数量、没有名称与城市级明细，无法回答“具体哪些城市有仓库”。\n- 缺少日期字段，无法说明统计截止日或历史变化，也无法判断该分布是否长期稳定。\n- “仓库数量”是 warehouse 维表按 COUNT(*) 得到的记录数，其业务口径依赖源查询声明（每行代表一个仓库）；本次未获得独立的仓库台账可比总数，因此未做跨源对账。\n\n## 校验与审计附录\n- 已核对交付清单、数据分片哈希与行数（1 行），并逐字段映射存储列到声明字段，六个声明字段均无 null/缺失。\n- 分组键（国家+省州）唯一；明细表仓库数量合计与指标“仓库总数”一致。\n- 图表数值与明细表使用同一计算结果，未做四舍五入替换。\n\n*统计口径单位“个”为用户指定的计数单位；仓库主键为标识符，未参与任何求和。*\n\n## 查询结果明细\n\n已找到 1 行数据，下面展示前 1 行；完整结构化数据已随结果返回用于表格展示。\n\n| w_country | w_state | warehouse_count | city_count | min_warehouse_sk | max_warehouse_sk |\n| --- | --- | --- | --- | --- | --- |\n| United States | TN | 5 | 1 | 1 | 5 |",
+    "citations": [],
+    "evidencePremises": [],
+    "confidence": null,
+    "evidenceSummary": "",
+    "visualization": {
+      "spec": {
+        "version": "v1",
+        "type": "table",
+        "chartType": "",
+        "title": "查询结果明细",
+        "analysisType": "tool_result_rows",
+        "dataset": {
+          "columns": [
+            "w_country",
+            "w_state",
+            "warehouse_count",
+            "city_count",
+            "min_warehouse_sk",
+            "max_warehouse_sk"
+          ],
+          "xKey": "w_country",
+          "series": [
+            {
+              "name": "warehouse_count",
+              "yKey": "warehouse_count"
+            },
+            {
+              "name": "city_count",
+              "yKey": "city_count"
+            },
+            {
+              "name": "min_warehouse_sk",
+              "yKey": "min_warehouse_sk"
+            },
+            {
+              "name": "max_warehouse_sk",
+              "yKey": "max_warehouse_sk"
+            }
+          ],
+          "rows": [
+            {
+              "w_country": "United States",
+              "w_state": "TN",
+              "warehouse_count": 5,
+              "city_count": 1,
+              "min_warehouse_sk": 1,
+              "max_warehouse_sk": 5
+            }
+          ]
+        },
+        "ui": {
+          "allowSwitch": true,
+          "allowChartTypeSelection": true,
+          "defaultView": "table"
+        },
+        "insight": {
+          "summary": "",
+          "anomaly": "",
+          "trend": "",
+          "drivers": []
+        },
+        "analysisResult": {
+          "type": "tool_result_rows",
+          "summary": "",
+          "drivers": []
+        },
+        "insightSpec": {
+          "summary": "",
+          "anomaly": "",
+          "trend": "",
+          "drivers": []
+        }
+      },
+      "type": "inline"
+    },
+    "visualizationSpec": {
+      "version": "v1",
+      "type": "table",
+      "chartType": "",
+      "title": "查询结果明细",
+      "analysisType": "tool_result_rows",
+      "dataset": {
+        "columns": [
+          "w_country",
+          "w_state",
+          "warehouse_count",
+          "city_count",
+          "min_warehouse_sk",
+          "max_warehouse_sk"
+        ],
+        "xKey": "w_country",
+        "series": [
+          {
+            "name": "warehouse_count",
+            "yKey": "warehouse_count"
+          },
+          {
+            "name": "city_count",
+            "yKey": "city_count"
+          },
+          {
+            "name": "min_warehouse_sk",
+            "yKey": "min_warehouse_sk"
+          },
+          {
+            "name": "max_warehouse_sk",
+            "yKey": "max_warehouse_sk"
+          }
+        ],
+        "rows": [
+          {
+            "w_country": "United States",
+            "w_state": "TN",
+            "warehouse_count": 5,
+            "city_count": 1,
+            "min_warehouse_sk": 1,
+            "max_warehouse_sk": 5
+          }
+        ]
+      },
+      "ui": {
+        "allowSwitch": true,
+        "allowChartTypeSelection": true,
+        "defaultView": "table"
+      },
+      "insight": {
+        "summary": "",
+        "anomaly": "",
+        "trend": "",
+        "drivers": []
+      },
+      "analysisResult": {
+        "type": "tool_result_rows",
+        "summary": "",
+        "drivers": []
+      },
+      "insightSpec": {
+        "summary": "",
+        "anomaly": "",
+        "trend": "",
+        "drivers": []
+      }
+    },
+    "uiArtifact": {
+      "contractVersion": "ui_artifact_ref_v1",
+      "artifactId": "ui_678d075fbebf4fb99d3cb6f98ba6b63e",
+      "revision": 1,
+      "catalogVersion": "enterprise_catalog_v1",
+      "manifestUrl": "/ui-artifacts/ui_678d075fbebf4fb99d3cb6f98ba6b63e",
+      "renderMode": "markdown"
+    },
+    "renderMode": "markdown"
+  },
+  "executionResult": {
+    "status": "PARTIAL_SUCCESS",
+    "uiResponse": {
+      "contractVersion": "ui_response_v2",
+      "sourceContractVersion": "ui_response_v2",
+      "status": "PARTIAL_SUCCESS",
+      "answer": "# 仓库国家/省州分布（交付快照）\n\n## 结论\n本次交付的仓库数据集中在 **1 个国家/省州分组：United States / TN**，合计 **5 个仓库**，覆盖 **1 个城市**。\n也就是说，在当前数据范围内不存在跨国家或跨省州的分布差异——柱状图只有一根柱子，无法给出“哪个国家/地区仓库更多”的排名结论。这是数据范围本身的结果，而不是计算失败。\n\n## 核心指标\n| 指标 | 数值 | 单位 | 计算方式 |\n| --- | --- | --- | --- |\n| 仓库总数 | 5 | 个 | 对查询返回的各国家/省州分组的 warehouse_count（COUNT(*)）求和 |\n| 国家/省州分组数 | 1 | 个 | 交付结果按 w_country、w_state 分组后的行数 |\n| 涉及国家数 | 1 | 个 | 分组 w_country 取值去重计数 |\n| 覆盖城市数 | 1 | 个 | 对分组 city_count（COUNT(DISTINCT w_city)）求和；当前仅 1 组，不存在跨组重复计数 |\n| 仓库主键范围 | 1–5 |  | 各分组 min_warehouse_sk 的最小值与 max_warehouse_sk 的最大值 |\n\n## 分布结果\n![仓库数量柱状图](warehouse_country_state_bar.png)\n\n数据明细（全部交付分组）：\n\n| 国家 | 省州 | 仓库数量（个） | 覆盖城市数（个） | 仓库主键最小值 | 仓库主键最大值 |\n| --- | --- | --- | --- | --- | --- |\n| United States | TN | 5 | 1 | 1 | 5 |\n\n## 城市覆盖与数据范围\n- **城市覆盖**：1 个城市。该数字来自源查询的“分组内不同城市数”指标（COUNT(DISTINCT w_city)）之和；当前只有 1 个分组，因此不存在跨分组重复计数问题。源查询未返回城市名称清单，**无法列出具体城市名称**。\n- **地理范围**：仅 United States / TN 一个分组，1 个国家。\n- **仓库范围**：共 5 条仓库记录，主键取值落在 1–5，跨度 5 个值，与仓库记录数一致。\n- **时间范围**：交付数据中**没有任何日期或时间字段**，因此无法界定“当前”对应的业务时点或统计期间；只能表述为一次交付的仓库维表快照。\n- **完整性**：交付声明该查询为 warehouse 维表按国家/省州全量分组结果（无过滤参数、结果完整），因此可以认为除上述分组外没有其它国家/省州分组被遗漏。\n\n## 口径与字段来源\n| 源字段 | 业务含义 | 声明来源 | 状态 |\n| --- | --- | --- | --- |\n| w_country | 仓库所在国家；源查询按该字段分组，作为分布横轴的第一层维度 | 数据集 sourceDefinition.description（按国家和省州统计仓库）与 queryDefinition 的 GROUP BY w_country | CONFIRMED |\n| w_state | 仓库所在省/州；源查询按该字段分组，作为分布横轴的第二层维度 | sourceDefinition.description 与 queryDefinition 的 GROUP BY w_state | CONFIRMED |\n| warehouse_count | 分组内仓库记录数（仓库数量）；公式 COUNT(*) | queryDefinition 显式别名 warehouse_count 与 description（统计仓库数量） | CONFIRMED |\n| city_count | 分组内不同城市数量；公式 COUNT(DISTINCT w_city) | queryDefinition 显式别名 city_count 与 description（覆盖城市数量） | CONFIRMED |\n| min_warehouse_sk | 分组内仓库主键（w_warehouse_sk）最小值；属于标识符，不作金额或数量求和 | queryDefinition 显式别名 min_warehouse_sk 与 description（仓库主键范围） | CONFIRMED |\n| max_warehouse_sk | 分组内仓库主键（w_warehouse_sk）最大值；属于标识符，不作金额或数量求和 | queryDefinition 显式别名 max_warehouse_sk 与 description（仓库主键范围） | CONFIRMED |\n\n## 局限\n- 分布只有一个分组，无法开展跨国家/省州的数量对比、排序或份额分析（也不存在可计算的“占比”——单一分组占比恒为 100%，不构成有效结论）。\n- 城市覆盖只有数量、没有名称与城市级明细，无法回答“具体哪些城市有仓库”。\n- 缺少日期字段，无法说明统计截止日或历史变化，也无法判断该分布是否长期稳定。\n- “仓库数量”是 warehouse 维表按 COUNT(*) 得到的记录数，其业务口径依赖源查询声明（每行代表一个仓库）；本次未获得独立的仓库台账可比总数，因此未做跨源对账。\n\n## 校验与审计附录\n- 已核对交付清单、数据分片哈希与行数（1 行），并逐字段映射存储列到声明字段，六个声明字段均无 null/缺失。\n- 分组键（国家+省州）唯一；明细表仓库数量合计与指标“仓库总数”一致。\n- 图表数值与明细表使用同一计算结果，未做四舍五入替换。\n\n*统计口径单位“个”为用户指定的计数单位；仓库主键为标识符，未参与任何求和。*\n\n## 查询结果明细\n\n已找到 1 行数据，下面展示前 1 行；完整结构化数据已随结果返回用于表格展示。\n\n| w_country | w_state | warehouse_count | city_count | min_warehouse_sk | max_warehouse_sk |\n| --- | --- | --- | --- | --- | --- |\n| United States | TN | 5 | 1 | 1 | 5 |",
+      "citations": [],
+      "evidencePremises": [],
+      "confidence": null,
+      "evidenceSummary": "",
+      "visualization": {
+        "spec": {
+          "version": "v1",
+          "type": "table",
+          "chartType": "",
+          "title": "查询结果明细",
+          "analysisType": "tool_result_rows",
+          "dataset": {
+            "columns": [
+              "w_country",
+              "w_state",
+              "warehouse_count",
+              "city_count",
+              "min_warehouse_sk",
+              "max_warehouse_sk"
+            ],
+            "xKey": "w_country",
+            "series": [
+              {
+                "name": "warehouse_count",
+                "yKey": "warehouse_count"
+              },
+              {
+                "name": "city_count",
+                "yKey": "city_count"
+              },
+              {
+                "name": "min_warehouse_sk",
+                "yKey": "min_warehouse_sk"
+              },
+              {
+                "name": "max_warehouse_sk",
+                "yKey": "max_warehouse_sk"
+              }
+            ],
+            "rows": [
+              {
+                "w_country": "United States",
+                "w_state": "TN",
+                "warehouse_count": 5,
+                "city_count": 1,
+                "min_warehouse_sk": 1,
+                "max_warehouse_sk": 5
+              }
+            ]
+          },
+          "ui": {
+            "allowSwitch": true,
+            "allowChartTypeSelection": true,
+            "defaultView": "table"
+          },
+          "insight": {
+            "summary": "",
+            "anomaly": "",
+            "trend": "",
+            "drivers": []
+          },
+          "analysisResult": {
+            "type": "tool_result_rows",
+            "summary": "",
+            "drivers": []
+          },
+          "insightSpec": {
+            "summary": "",
+            "anomaly": "",
+            "trend": "",
+            "drivers": []
+          }
+        },
+        "type": "inline"
+      },
+      "visualizationSpec": {
+        "version": "v1",
+        "type": "table",
+        "chartType": "",
+        "title": "查询结果明细",
+        "analysisType": "tool_result_rows",
+        "dataset": {
+          "columns": [
+            "w_country",
+            "w_state",
+            "warehouse_count",
+            "city_count",
+            "min_warehouse_sk",
+            "max_warehouse_sk"
+          ],
+          "xKey": "w_country",
+          "series": [
+            {
+              "name": "warehouse_count",
+              "yKey": "warehouse_count"
+            },
+            {
+              "name": "city_count",
+              "yKey": "city_count"
+            },
+            {
+              "name": "min_warehouse_sk",
+              "yKey": "min_warehouse_sk"
+            },
+            {
+              "name": "max_warehouse_sk",
+              "yKey": "max_warehouse_sk"
+            }
+          ],
+          "rows": [
+            {
+              "w_country": "United States",
+              "w_state": "TN",
+              "warehouse_count": 5,
+              "city_count": 1,
+              "min_warehouse_sk": 1,
+              "max_warehouse_sk": 5
+            }
+          ]
+        },
+        "ui": {
+          "allowSwitch": true,
+          "allowChartTypeSelection": true,
+          "defaultView": "table"
+        },
+        "insight": {
+          "summary": "",
+          "anomaly": "",
+          "trend": "",
+          "drivers": []
+        },
+        "analysisResult": {
+          "type": "tool_result_rows",
+          "summary": "",
+          "drivers": []
+        },
+        "insightSpec": {
+          "summary": "",
+          "anomaly": "",
+          "trend": "",
+          "drivers": []
+        }
+      },
+      "uiArtifact": {
+        "contractVersion": "ui_artifact_ref_v1",
+        "artifactId": "ui_678d075fbebf4fb99d3cb6f98ba6b63e",
+        "revision": 1,
+        "catalogVersion": "enterprise_catalog_v1",
+        "manifestUrl": "/ui-artifacts/ui_678d075fbebf4fb99d3cb6f98ba6b63e",
+        "renderMode": "markdown"
+      },
+      "renderMode": "markdown"
+    },
+    "semanticFlags": {
+      "hasAnswer": true,
+      "hasInsight": true,
+      "hasToolOutput": true,
+      "hasSources": false,
+      "hasArtifact": true
+    },
+    "message": "Agent task completed with partial result",
+    "traceSummary": {
+      "toolTraceCount": 1,
+      "sourceCount": 0
+    },
+    "debug": {
+      "agent": {
+        "plannerSteps": [
+          {
+            "step": 1,
+            "action": "tool",
+            "toolName": "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+            "resolvedToolName": "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+            "reason": "查询当前全部仓库按国家和省州分布，基于实际返回数据生成仓库数量柱状图和数据明细表，并说明城市覆盖数与数据范围。",
+            "executionPlan": {
+              "plannerProtocol": "interpretation_plan",
+              "interpretationPlanValid": true,
+              "interpretationPlanSchemaValid": true,
+              "interpretationPlanRuntimeRulesValid": true,
+              "interpretationPlanExecutable": true,
+              "interpretationPlanApprovalRequired": false,
+              "interpretationPlanIssues": [],
+              "interpretationPlanRuntimeIssues": [],
+              "orderedStepIds": [
+                1,
+                2,
+                3
+              ],
+              "planTransformation": {
+                "schemaVersion": "dag_repair_result.v1",
+                "status": "UNCHANGED",
+                "changeKind": "UNCHANGED",
+                "materialTopologyChanged": false,
+                "sourceFingerprint": "49079eb624101e5e9e27b65174c5f2d0163c22f0a2a808f8049b31a1ae0ebc2e",
+                "executableFingerprint": "7ee16caecaf62d5deffe933855119a10ad7697ba8343b6f746535035e66611b4",
+                "appliedPasses": [],
+                "passFailures": [],
+                "stepIdMappings": {
+                  "1": 1,
+                  "2": 2,
+                  "3": 3
+                },
+                "operations": []
+              },
+              "planTransformationValidationState": "ACCEPTED",
+              "plan_step_id": 1,
+              "action_type": "mcp_tool",
+              "intent": "查询当前全部仓库按国家和省州分布，基于实际返回数据生成仓库数量柱状图和数据明细表，并说明城市覆盖数与数据范围。",
+              "risk_level": "low",
+              "tool": "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+              "plannerAttributionSelection": true,
+              "plannerAttributionSource": "deterministic_java",
+              "plannerAttributionContractVersion": "plan_attribution_v1",
+              "plannerGenerationLimit": 3,
+              "plannerGenerationCount": 1,
+              "plannerAttributionCandidateCount": 1,
+              "plannerAttributionSelected": "A",
+              "plannerAttributionSelectedAttempt": 1,
+              "plannerAttributionReason": "Selected the first runtime-valid plan candidate.",
+              "plannerAttributionAnalysis": "Selected the first runtime-valid plan candidate.",
+              "plannerAttributionScores": {
+                "A": 100
+              },
+              "plannerAttributionCandidates": [
+                {
+                  "label": "A",
+                  "attempt": 1,
+                  "failurePattern": "UNKNOWN",
+                  "fingerprint": "510899ed",
+                  "deterministicScore": 100,
+                  "scoreDetails": {
+                    "toolAvailability": 30,
+                    "dagValidity": 25,
+                    "executionCost": 15,
+                    "runtimePolicyFit": 20,
+                    "coverageScore": 16,
+                    "coverage": {
+                      "coverageScore": 16,
+                      "mandatoryCoverage": 5,
+                      "evidenceDependency": 5,
+                      "workflowCoverage": 0,
+                      "stageCoverage": 5,
+                      "goalCoverage": 1,
+                      "matchedCapabilities": [
+                        "no_mandatory_tool_gap",
+                        "final_answer_depends_on_tool_evidence",
+                        "final_answer_stage",
+                        "tool_execution_stage",
+                        "multi_stage_plan",
+                        "goal_term:说明城市覆盖数和数据范围"
+                      ],
+                      "missingCapabilities": [
+                        "web_evidence_chain",
+                        "goal_term:查询当前全部仓库的国家和省州分布",
+                        "goal_term:使用python从实际返回的数据生成仓库数量柱状图和数据明细表",
+                        "goal_term:横轴国家",
+                        "goal_term:纵轴仓库数量"
+                      ]
+                    },
+                    "experienceFit": 0,
+                    "experience": {
+                      "experienceFit": 0,
+                      "applied": false,
+                      "reasons": []
+                    },
+                    "baseTotal": 100,
+                    "total": 100
+                  },
+                  "issues": [],
+                  "valid": true
+                }
+              ],
+              "plannerAttributionFailurePattern": "UNKNOWN",
+              "plannerAttributionCandidateFingerprints": [
+                {
+                  "failurePattern": "UNKNOWN",
+                  "fingerprint": "510899ed",
+                  "label": "A",
+                  "deterministicScore": 100
+                }
+              ],
+              "plannerAttributionRepairApplied": false,
+              "plannerAttributionRepairNotes": []
+            },
+            "answerPreview": null,
+            "plannedAt": 1793499199340,
+            "observationCount": 0
+          }
+        ],
+        "observations": [
+          "InterpretationPlan initial step 1 mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc succeeded.",
+          "InterpretationPlan initial step 2 cline_data_analysis failed: STEP_OUTPUT_CONTRACT_FAILED: EDGE_CONTRACT_FAILED: missing required field $.answer from step 2 for step 3"
+        ]
+      }
+    }
+  },
+  "debug": {
+    "agent": {
+      "plannerSteps": [
+        {
+          "step": 1,
+          "action": "tool",
+          "toolName": "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+          "resolvedToolName": "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+          "reason": "查询当前全部仓库按国家和省州分布，基于实际返回数据生成仓库数量柱状图和数据明细表，并说明城市覆盖数与数据范围。",
+          "executionPlan": {
+            "plannerProtocol": "interpretation_plan",
+            "interpretationPlanValid": true,
+            "interpretationPlanSchemaValid": true,
+            "interpretationPlanRuntimeRulesValid": true,
+            "interpretationPlanExecutable": true,
+            "interpretationPlanApprovalRequired": false,
+            "interpretationPlanIssues": [],
+            "interpretationPlanRuntimeIssues": [],
+            "orderedStepIds": [
+              1,
+              2,
+              3
+            ],
+            "planTransformation": {
+              "schemaVersion": "dag_repair_result.v1",
+              "status": "UNCHANGED",
+              "changeKind": "UNCHANGED",
+              "materialTopologyChanged": false,
+              "sourceFingerprint": "49079eb624101e5e9e27b65174c5f2d0163c22f0a2a808f8049b31a1ae0ebc2e",
+              "executableFingerprint": "7ee16caecaf62d5deffe933855119a10ad7697ba8343b6f746535035e66611b4",
+              "appliedPasses": [],
+              "passFailures": [],
+              "stepIdMappings": {
+                "1": 1,
+                "2": 2,
+                "3": 3
+              },
+              "operations": []
+            },
+            "planTransformationValidationState": "ACCEPTED",
+            "plan_step_id": 1,
+            "action_type": "mcp_tool",
+            "intent": "查询当前全部仓库按国家和省州分布，基于实际返回数据生成仓库数量柱状图和数据明细表，并说明城市覆盖数与数据范围。",
+            "risk_level": "low",
+            "tool": "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+            "plannerAttributionSelection": true,
+            "plannerAttributionSource": "deterministic_java",
+            "plannerAttributionContractVersion": "plan_attribution_v1",
+            "plannerGenerationLimit": 3,
+            "plannerGenerationCount": 1,
+            "plannerAttributionCandidateCount": 1,
+            "plannerAttributionSelected": "A",
+            "plannerAttributionSelectedAttempt": 1,
+            "plannerAttributionReason": "Selected the first runtime-valid plan candidate.",
+            "plannerAttributionAnalysis": "Selected the first runtime-valid plan candidate.",
+            "plannerAttributionScores": {
+              "A": 100
+            },
+            "plannerAttributionCandidates": [
+              {
+                "label": "A",
+                "attempt": 1,
+                "failurePattern": "UNKNOWN",
+                "fingerprint": "510899ed",
+                "deterministicScore": 100,
+                "scoreDetails": {
+                  "toolAvailability": 30,
+                  "dagValidity": 25,
+                  "executionCost": 15,
+                  "runtimePolicyFit": 20,
+                  "coverageScore": 16,
+                  "coverage": {
+                    "coverageScore": 16,
+                    "mandatoryCoverage": 5,
+                    "evidenceDependency": 5,
+                    "workflowCoverage": 0,
+                    "stageCoverage": 5,
+                    "goalCoverage": 1,
+                    "matchedCapabilities": [
+                      "no_mandatory_tool_gap",
+                      "final_answer_depends_on_tool_evidence",
+                      "final_answer_stage",
+                      "tool_execution_stage",
+                      "multi_stage_plan",
+                      "goal_term:说明城市覆盖数和数据范围"
+                    ],
+                    "missingCapabilities": [
+                      "web_evidence_chain",
+                      "goal_term:查询当前全部仓库的国家和省州分布",
+                      "goal_term:使用python从实际返回的数据生成仓库数量柱状图和数据明细表",
+                      "goal_term:横轴国家",
+                      "goal_term:纵轴仓库数量"
+                    ]
+                  },
+                  "experienceFit": 0,
+                  "experience": {
+                    "experienceFit": 0,
+                    "applied": false,
+                    "reasons": []
+                  },
+                  "baseTotal": 100,
+                  "total": 100
+                },
+                "issues": [],
+                "valid": true
+              }
+            ],
+            "plannerAttributionFailurePattern": "UNKNOWN",
+            "plannerAttributionCandidateFingerprints": [
+              {
+                "failurePattern": "UNKNOWN",
+                "fingerprint": "510899ed",
+                "label": "A",
+                "deterministicScore": 100
+              }
+            ],
+            "plannerAttributionRepairApplied": false,
+            "plannerAttributionRepairNotes": []
+          },
+          "answerPreview": null,
+          "plannedAt": 1793499199340,
+          "observationCount": 0
+        }
+      ],
+      "observations": [
+        "InterpretationPlan initial step 1 mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc succeeded.",
+        "InterpretationPlan initial step 2 cline_data_analysis failed: STEP_OUTPUT_CONTRACT_FAILED: EDGE_CONTRACT_FAILED: missing required field $.answer from step 2 for step 3"
+      ]
+    }
+  },
+  "uiArtifact": {
+    "contractVersion": "ui_artifact_ref_v1",
+    "artifactId": "ui_678d075fbebf4fb99d3cb6f98ba6b63e",
+    "revision": 1,
+    "catalogVersion": "enterprise_catalog_v1",
+    "manifestUrl": "/ui-artifacts/ui_678d075fbebf4fb99d3cb6f98ba6b63e",
+    "renderMode": "markdown"
+  }
+}

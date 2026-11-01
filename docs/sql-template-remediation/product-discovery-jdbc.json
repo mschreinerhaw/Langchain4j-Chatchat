@@ -1,0 +1,1 @@
+{"capturedAt": "2026-11-01T03:11:07.256868+00:00", "baselines": {"available_product": {"sql": "SELECT ss.ss_item_sk product_id FROM store_sales ss JOIN date_dim d ON d.d_date_sk=ss.ss_sold_date_sk WHERE ss.ss_item_sk<>1 AND d.d_year=1999 AND ss.ss_quantity>=0 LIMIT 1", "source": "DIRECT_MYSQL_JDBC", "readOnly": true, "durationMs": 811, "rows": [{"product_id": "2"}]}}}

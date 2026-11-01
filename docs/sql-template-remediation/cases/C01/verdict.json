@@ -1,0 +1,20 @@
+{
+  "caseId": "C01",
+  "attempt": "r3",
+  "verdict": "FAIL",
+  "reason": "FAIL：问题分析器将同一分析的取数与Python图表误判成多个工作流目标，未生成系统图表。",
+  "taskId": "f0821b09-8d46-4cbf-8efe-1f50e32927ae",
+  "sessionId": "1793497100814-bd43180124bc58",
+  "evidence": [
+    "request.md",
+    "agent-config.json",
+    "submission.json",
+    "agent-result.json",
+    "agent-trace.json",
+    "agent-answer.md",
+    "ui-receipt.json",
+    "conversation-result.png"
+  ],
+  "remediationSource": "3e3d398e5",
+  "retest": "PENDING_DO_NOT_OVERWRITE_THIS_ATTEMPT"
+}

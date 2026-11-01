@@ -1,0 +1,465 @@
+{
+  "tables": [
+    {
+      "columns": [
+        "国家",
+        "省州",
+        "仓库数量（个）",
+        "城市覆盖数（个）",
+        "平均每城市仓库数（个/城市）",
+        "仓库主键最小值",
+        "仓库主键最大值"
+      ],
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc"
+      ],
+      "id": "tbl_detail",
+      "rows": [
+        [
+          "United States",
+          "TN",
+          "5",
+          "1",
+          "5",
+          "1",
+          "5"
+        ]
+      ],
+      "scope": "全仓库维表快照，按国家/省州分组，单位：个；代理键列为标识区间",
+      "title": "仓库国家/省州明细表"
+    },
+    {
+      "columns": [
+        "项目",
+        "内容"
+      ],
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc"
+      ],
+      "id": "tbl_scope",
+      "rows": [
+        [
+          "统计对象",
+          "仓库维表记录（warehouse）"
+        ],
+        [
+          "分组维度",
+          "国家（w_country）× 省/州（w_state）"
+        ],
+        [
+          "分组数（个）",
+          "1"
+        ],
+        [
+          "仓库总数（个）",
+          "5"
+        ],
+        [
+          "城市覆盖数（个）",
+          "1"
+        ],
+        [
+          "涉及国家数 / 省州数（个）",
+          "1 / 1"
+        ],
+        [
+          "仓库代理键区间",
+          "1 – 5（标识范围，不是数量）"
+        ],
+        [
+          "过滤条件",
+          "无（来源声明为全仓库维表、无参数、结果标记完整）"
+        ],
+        [
+          "统计时点",
+          "源数据未提供日期/时点字段，只能理解为该次交付快照"
+        ]
+      ],
+      "scope": "来源执行声明与交付结构核对结果",
+      "title": "数据范围与口径说明"
+    },
+    {
+      "columns": [
+        "数据集引用",
+        "来源字段",
+        "声明含义",
+        "声明来源",
+        "状态"
+      ],
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc"
+      ],
+      "id": "tbl_provenance",
+      "rows": [
+        [
+          "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+          "w_country",
+          "仓库所在国家（分组维度）",
+          "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc（执行 SQL 声明：SELECT w_country, w_state, COUNT(*) AS warehouse_count, COUNT(DISTINCT w_city) AS city_count, MIN/MAX(w_warehouse_sk) … FROM warehouse GROUP BY w_country, w_state；来源描述：按国家和省州统计仓库及覆盖城市数量）",
+          "CONFIRMED"
+        ],
+        [
+          "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+          "w_state",
+          "仓库所在省/州取值，按源样保留代码（如 TN），无代码字典",
+          "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc（执行 SQL 声明：SELECT w_country, w_state, COUNT(*) AS warehouse_count, COUNT(DISTINCT w_city) AS city_count, MIN/MAX(w_warehouse_sk) … FROM warehouse GROUP BY w_country, w_state；来源描述：按国家和省州统计仓库及覆盖城市数量）",
+          "CONFIRMED"
+        ],
+        [
+          "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+          "warehouse_count",
+          "该国家/省州分组内的仓库记录数（COUNT(*)）",
+          "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc（执行 SQL 声明：SELECT w_country, w_state, COUNT(*) AS warehouse_count, COUNT(DISTINCT w_city) AS city_count, MIN/MAX(w_warehouse_sk) … FROM warehouse GROUP BY w_country, w_state；来源描述：按国家和省州统计仓库及覆盖城市数量）",
+          "CONFIRMED"
+        ],
+        [
+          "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+          "city_count",
+          "该分组内的去重城市数（COUNT(DISTINCT w_city)）",
+          "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc（执行 SQL 声明：SELECT w_country, w_state, COUNT(*) AS warehouse_count, COUNT(DISTINCT w_city) AS city_count, MIN/MAX(w_warehouse_sk) … FROM warehouse GROUP BY w_country, w_state；来源描述：按国家和省州统计仓库及覆盖城市数量）",
+          "CONFIRMED"
+        ],
+        [
+          "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+          "min_warehouse_sk",
+          "分组内仓库代理键最小值（标识，非数量）",
+          "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc（执行 SQL 声明：SELECT w_country, w_state, COUNT(*) AS warehouse_count, COUNT(DISTINCT w_city) AS city_count, MIN/MAX(w_warehouse_sk) … FROM warehouse GROUP BY w_country, w_state；来源描述：按国家和省州统计仓库及覆盖城市数量）",
+          "CONFIRMED"
+        ],
+        [
+          "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+          "max_warehouse_sk",
+          "分组内仓库代理键最大值（标识，非数量）",
+          "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc（执行 SQL 声明：SELECT w_country, w_state, COUNT(*) AS warehouse_count, COUNT(DISTINCT w_city) AS city_count, MIN/MAX(w_warehouse_sk) … FROM warehouse GROUP BY w_country, w_state；来源描述：按国家和省州统计仓库及覆盖城市数量）",
+          "CONFIRMED"
+        ]
+      ],
+      "scope": "来源模板实际执行 SQL 声明与来源描述",
+      "title": "字段来源与含义"
+    }
+  ],
+  "limitations": [
+    "交付结果仅含 1 个国家/省州分组（United States / TN），国家与省州分布只有单一类别，无法支持跨区域对比、排序或占比结论。",
+    "来源未提供日期、时点或数据版本字段，“当前全部仓库”只能理解为该次交付快照，无法对应具体统计日期，也不支持任何时间趋势分析。",
+    "w_state 以源代码形式给出（如 TN），未提供代码字典或地区名称映射，报告按源样保留，不推断州全称。",
+    "min_warehouse_sk / max_warehouse_sk 为仓库代理键区间，仅说明覆盖面，未作为数量或金额参与任何加总。",
+    "城市覆盖数为分组级 COUNT(DISTINCT w_city) 之和；本次仅 1 个分组，不涉及跨分组同名城市重复问题，但该加总口径在分组增多时需复核城市归属唯一性。",
+    "交付来源标注为 TPCDS 仓库维表分布模板，快照仅 5 个仓库，可能为示例数据，绝对量不宜外推为真实业务仓库总量。",
+    "未计算仓库面积、容量或经营类指标：源数据未提供相应字段，不做推测。"
+  ],
+  "execution": {
+    "codeArtifact": {
+      "fileId": "950483264a900ce9ccc2043b94e40fad6fb91d7a2156387dc1edb03470192e83",
+      "fileName": "python_20261101T030052163Z_0e29298c4128_v3.py",
+      "mediaType": "text/x-python",
+      "sha256": "05dcca33da40fb3fe98728e77db8a88a6e5df13f4cf0972c139dcc7dc31ee37a",
+      "size": 29418
+    },
+    "codeSha256": "05dcca33da40fb3fe98728e77db8a88a6e5df13f4cf0972c139dcc7dc31ee37a",
+    "executorStopped": true,
+    "operationId": "cline-3bbd07d0f7c50a7ff0024b6c98cb872078d714074da5992e0802cbac89b55140",
+    "receiptSha256": "6569686d5270812a0c6a401885c481964da85615727aa586561f1dd67acf3e09",
+    "reportPresentation": {
+      "autoCharts": true,
+      "autoImages": true,
+      "density": "comfortable",
+      "strategy": "auto",
+      "template": "briefing"
+    },
+    "resultDatasetRef": "runtime-evidence:coding:e72337f9838aeea265556c0000a7fc43bf0d212bc7bdfec00c334f06ed3e430e:result",
+    "resultSha256": "a1860766bf6ab1a06cce108e74e9beafa5e1016ef0e29ddab2823c982500767d",
+    "status": "SUCCEEDED",
+    "taskId": "analysis-coding-d4801670914452bf2225d5c2babb4bdec3d7b8645a6cbd2e9029da00baa00c9c"
+  },
+  "artifacts": [
+    {
+      "fileId": "466818f3d86c396b96586d91c104b08ca8ad76b2938fb2808cfb841290f1608c",
+      "fileName": "chart_warehouse_by_country_state.png",
+      "mediaType": "image/png",
+      "sha256": "0dc2edebe04d89c7202d1c6417c044544092a863254aa08818425b36469fef78",
+      "size": 56490
+    },
+    {
+      "fileId": "cd670235018156aeaafcdd79bb44f8b8d5f56f89fcac14b24f4c40df7fcd52ce",
+      "fileName": "chart_warehouse_vs_city_coverage.png",
+      "mediaType": "image/png",
+      "sha256": "77cd1dd394b6755ac5cb9e48a0040f830410cd21058cc4186b468cf20fa0969d",
+      "size": 66355
+    }
+  ],
+  "reportMode": "visual",
+  "metrics": [
+    {
+      "calculation": "对交付结果各分组 warehouse_count（COUNT(*)）求和",
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc"
+      ],
+      "id": "m_warehouse_total",
+      "label": "仓库总数",
+      "unit": "个",
+      "value": "5"
+    },
+    {
+      "calculation": "对交付结果各分组 city_count（COUNT(DISTINCT w_city)）求和，分组互不重叠",
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc"
+      ],
+      "id": "m_city_total",
+      "label": "城市覆盖数",
+      "unit": "个",
+      "value": "1"
+    },
+    {
+      "calculation": "交付结果行数，按 (w_country, w_state) 分组",
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc"
+      ],
+      "id": "m_group_total",
+      "label": "国家/省州分组数",
+      "unit": "个",
+      "value": "1"
+    },
+    {
+      "calculation": "仓库总数 ÷ 城市覆盖数 = 5 ÷ 1",
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc"
+      ],
+      "id": "m_density",
+      "label": "平均每城市仓库数",
+      "unit": "个/城市",
+      "value": "5"
+    }
+  ],
+  "timings": {
+    "analysisMs": 714.9,
+    "chartMs": 283.3
+  },
+  "sections": [
+    {
+      "chartIds": [
+        "chart_bar_distribution"
+      ],
+      "id": "sec_distribution",
+      "narrative": "全部 5 个仓库集中在唯一分组 United States / TN，柱状图因此只有一根从 0 起算的柱子（横轴国家/省州，纵轴仓库数量）；分布结论是“集中度 100% 于单一国家/省州”，而非区域规模排序。",
+      "tableIds": [
+        "tbl_detail"
+      ],
+      "title": "一、仓库数量按国家/省州分布"
+    },
+    {
+      "chartIds": [
+        "chart_city_coverage"
+      ],
+      "id": "sec_city",
+      "narrative": "覆盖去重城市 1 个，平均每城市 5 个仓库。数据范围为无参数、结果完整的全仓库维表快照，仓库代理键 1–5；源数据不含统计时点字段。",
+      "tableIds": [
+        "tbl_scope"
+      ],
+      "title": "二、城市覆盖数与数据范围"
+    },
+    {
+      "chartIds": [],
+      "id": "sec_provenance",
+      "narrative": "仓库数取自 COUNT(*) 别名，城市覆盖数取自 COUNT(DISTINCT w_city) 别名，代理键最小/最大值仅作标识区间；字段含义由来源执行 SQL 声明与来源描述确定，省/州代码按源样保留。",
+      "tableIds": [
+        "tbl_provenance"
+      ],
+      "title": "三、字段溯源与口径"
+    }
+  ],
+  "dataSources": [
+    "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc"
+  ],
+  "schemaVersion": "python_visual_report.v1",
+  "status": "PARTIAL",
+  "validation": {
+    "checks": [
+      {
+        "detail": "清单与结构描述校验和一致，Parquet 分片校验和一致；声明 1 行、实读 1 行。",
+        "name": "输入校验（清单/文件/行数）",
+        "status": "PASSED"
+      },
+      {
+        "detail": "1 个 (国家, 省州) 分组唯一且互不重叠，仓库总数 5、城市覆盖数 1 均由组内计数直接加总，并与明细表首行一致。",
+        "name": "分组汇总可加性",
+        "status": "PASSED"
+      },
+      {
+        "detail": "图1、图2、明细表、指标卡均由同一计算结果对象渲染；图1柱值等于明细表仓库数量列；图2两系列分别等于仓库数与城市数。",
+        "name": "图表与表格数值一致性",
+        "status": "PASSED"
+      },
+      {
+        "detail": "各组 max_sk-min_sk+1 等于组内仓库计数，属一致性观察，不构成唯一性证明。",
+        "name": "主键区间宽度校验",
+        "status": "PASSED"
+      },
+      {
+        "detail": "来源未提供日期/时点/版本字段，“当前”无法对应具体日期，趋势或时点比较不可支持。",
+        "name": "统计时点确认",
+        "status": "UNRESOLVED"
+      },
+      {
+        "detail": "交付结果仅 1 个分组，无法验证分布是否完整代表全部区域，跨区域排序与占比结论不可支持。",
+        "name": "跨国家/省州可比性",
+        "status": "UNRESOLVED"
+      },
+      {
+        "detail": "w_state 为源代码（如 TN），未提供代码字典，未转换为州全称。",
+        "name": "省州代码字典",
+        "status": "UNRESOLVED"
+      }
+    ],
+    "scope": "STOPPED_EXECUTION_AND_ARTIFACT_INTEGRITY; COMPUTATION_CHECKS_ARE_PROGRAM_DECLARED; BUSINESS_SEMANTICS_NOT_CERTIFIED",
+    "status": "PARTIAL",
+    "warnings": [
+      "交付结果只包含 1 个国家/省州分组，柱状图仅有单一类别，无法展示跨国家或跨省州的相对分布。",
+      "仓库维表规模仅 5 条记录，可能为示例数据，绝对量不宜外推为真实业务总量。"
+    ]
+  },
+  "layoutValidationStatus": "PASSED",
+  "charts": [
+    {
+      "artifact": {
+        "fileId": "466818f3d86c396b96586d91c104b08ca8ad76b2938fb2808cfb841290f1608c",
+        "fileName": "chart_warehouse_by_country_state.png",
+        "mediaType": "image/png",
+        "sha256": "0dc2edebe04d89c7202d1c6417c044544092a863254aa08818425b36469fef78",
+        "size": 56490
+      },
+      "caption": "柱状图，横轴国家/省州、纵轴仓库数量（个，COUNT(*)），数值轴从 0 起算。数据范围：全仓库维表快照，共 1 组、5 个仓库；统计时点未声明。",
+      "chartType": "bar",
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc"
+      ],
+      "id": "chart_bar_distribution",
+      "kind": "png",
+      "title": "仓库数量按国家/省州分布（个）"
+    },
+    {
+      "artifact": {
+        "fileId": "cd670235018156aeaafcdd79bb44f8b8d5f56f89fcac14b24f4c40df7fcd52ce",
+        "fileName": "chart_warehouse_vs_city_coverage.png",
+        "mediaType": "image/png",
+        "sha256": "77cd1dd394b6755ac5cb9e48a0040f830410cd21058cc4186b468cf20fa0969d",
+        "size": 66355
+      },
+      "caption": "并列柱状图，两系列均为计数（个）：仓库 5 个、去重城市 1 个，仅 1 个国家/省州分组。",
+      "chartType": "bar",
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc"
+      ],
+      "id": "chart_city_coverage",
+      "kind": "png",
+      "title": "同一分组的仓库数量与去重城市覆盖数（个）"
+    }
+  ],
+  "title": "仓库国家/省州分布：全部仓库集中于 United States / TN",
+  "presentationDiagnostics": [],
+  "analysisStatus": "PARTIAL",
+  "layout": {
+    "blocks": [
+      {
+        "emphasis": "important",
+        "id": "b_summary",
+        "span": "full",
+        "type": "summary"
+      },
+      {
+        "id": "b_m1",
+        "ref": "m_warehouse_total",
+        "span": "half",
+        "type": "metric"
+      },
+      {
+        "id": "b_m2",
+        "ref": "m_city_total",
+        "span": "half",
+        "type": "metric"
+      },
+      {
+        "id": "b_m3",
+        "ref": "m_group_total",
+        "span": "half",
+        "type": "metric"
+      },
+      {
+        "id": "b_m4",
+        "ref": "m_density",
+        "span": "half",
+        "type": "metric"
+      },
+      {
+        "emphasis": "important",
+        "id": "b_sec1",
+        "ref": "sec_distribution",
+        "span": "full",
+        "type": "section"
+      },
+      {
+        "emphasis": "important",
+        "id": "b_c1",
+        "ref": "chart_bar_distribution",
+        "span": "full",
+        "type": "chart"
+      },
+      {
+        "id": "b_t1",
+        "ref": "tbl_detail",
+        "span": "full",
+        "type": "table"
+      },
+      {
+        "id": "b_sec2",
+        "ref": "sec_city",
+        "span": "full",
+        "type": "section"
+      },
+      {
+        "id": "b_c2",
+        "ref": "chart_city_coverage",
+        "span": "full",
+        "type": "chart"
+      },
+      {
+        "id": "b_t2",
+        "ref": "tbl_scope",
+        "span": "full",
+        "type": "table"
+      },
+      {
+        "id": "b_sec3",
+        "ref": "sec_provenance",
+        "span": "full",
+        "type": "section"
+      },
+      {
+        "id": "b_t3",
+        "ref": "tbl_provenance",
+        "span": "full",
+        "type": "table"
+      },
+      {
+        "id": "b_lim",
+        "span": "full",
+        "type": "limitations"
+      },
+      {
+        "id": "b_src",
+        "span": "full",
+        "type": "sources"
+      }
+    ],
+    "schemaVersion": "report_layout.v1"
+  },
+  "artifactValidationStatus": "PASSED",
+  "summary": "交付的全仓库维表快照共 5 个仓库，全部落在同一个国家/省州分组 **United States / TN** 内（共 1 个分组、涉及 1 个国家、1 个省/州），因此国家与省州分布目前只有单一类别，谈不上跨国家或跨省州的相对占比。该分组覆盖的去重城市数为 **1 个**，平均每城市 5 个仓库。数据范围为交付即全量、无过滤参数的仓库维表，仓库代理键区间 1–5；源数据未提供日期或时点字段，“当前”只能理解为该次交付快照的时点。",
+  "markdown": "# 仓库的国家/省州分布（全仓库维表快照）\n\n## 核心结论\n\n- **国家/省州分布只有 1 个分组：United States / TN，包含 5 个仓库。** 也就是说，按交付数据，全部仓库集中在同一国家与同一省/州，任何\"国家间\"或\"省州间\"的差异都不存在——不是因为分布均匀，而是因为只有一个类别。\n- **城市覆盖数为 1 个**（分组级去重城市计数之和），平均每城市 5 个仓库；仓库与城市是两类不同实体，两个计数不可互相替代。\n- **分组结构**：1 个国家/省州分组，涉及 1 个国家、1 个省/州。分组键在交付结果中唯一，不存在同一 (国家, 省州) 重复行，因此分组计数可以直接加总。\n- **数据范围**：来源声明为\"全仓库维表、无参数、结果完整\"，即交付数据覆盖该仓库维表的全部记录；仓库代理键区间 1–5（代理键范围，只用于说明覆盖面，不是数量口径）。源数据没有日期、时点或版本字段，\"当前\"无法对应到具体日期。\n\n## 指标\n\n| 指标 | 数值 | 单位 | 计算口径 |\n| --- | --- | --- | --- |\n| 仓库总数 | 5 | 个 | 各分组 warehouse_count（COUNT(*)）加总 |\n| 城市覆盖数 | 1 | 个 | 各分组 city_count（COUNT(DISTINCT w_city)）加总 |\n| 国家/省州分组数 | 1 | 个 | 交付结果行数，按 (国家, 省州) 分组 |\n| 平均每城市仓库数 | 5 | 个/城市 | 5 ÷ 1 |\n\n## 一、仓库数量按国家/省州分布（柱状图）\n\n图 1（柱状图）以国家/省州为横轴类别、仓库数量（个）为纵轴数值轴，柱子从 0 起算；图中唯一柱子为 United States / TN = 5 个。由于只有 1 个类别，该图证明的是\"分布集中于单一区域\"这一事实，而不是区域间的规模排序。\n\n图 2 在同一分组内并列展示仓库数量（5 个）与去重城市覆盖数（1 个）：两个系列都是\"个\"计数，但分别统计仓库记录与城市，用于说明\"仓库数远多于城市数\"的集中度，不代表两者可以相除以外的任何等值关系。\n\n## 二、数据明细表\n\n| 国家 | 省州 | 仓库数量（个） | 城市覆盖数（个） | 平均每城市仓库数（个/城市） | 仓库主键最小值 | 仓库主键最大值 |\n| --- | --- | --- | --- | --- | --- | --- |\n| United States | TN | 5 | 1 | 5 | 1 | 5 |\n\n## 三、城市覆盖数与数据范围\n\n- **城市覆盖数 1 个**：按分组统计 COUNT(DISTINCT w_city) 后加总。分组互不重叠，本次仅 1 个分组，加总口径不存在跨州同名城市的重复问题。\n- **仓库总数 5 个**：按分组统计 COUNT(*) 后加总，与来源\"统计仓库数量\"的声明一致。\n- **各省州明细**：只有 United States / TN 的 1 行，仓库代理键最小 1、最大 5，即该区域的仓库标识范围；代理键连续性不构成仓库唯一性的独立证明。\n\n| 项目 | 内容 |\n| --- | --- |\n| 统计对象 | 仓库维表记录（warehouse） |\n| 分组维度 | 国家（w_country）× 省/州（w_state） |\n| 分组数（个） | 1 |\n| 仓库总数（个） | 5 |\n| 城市覆盖数（个） | 1 |\n| 涉及国家数 / 省州数（个） | 1 / 1 |\n| 仓库代理键区间 | 1 – 5（标识范围，不是数量） |\n| 过滤条件 | 无（来源声明为全仓库维表、无参数、结果标记完整） |\n| 统计时点 | 源数据未提供日期/时点字段，只能理解为该次交付快照 |\n\n## 四、字段来源与含义（字段溯源）\n\n| 数据集引用 | 来源字段 | 声明含义 | 声明来源 | 状态 |\n| --- | --- | --- | --- | --- |\n| mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc | w_country | 仓库所在国家（分组维度） | mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc（执行 SQL 声明：SELECT w_country, w_state, COUNT(*) AS warehouse_count, COUNT(DISTINCT w_city) AS city_count, MIN/MAX(w_warehouse_sk) … FROM warehouse GROUP BY w_country, w_state；来源描述：按国家和省州统计仓库及覆盖城市数量） | CONFIRMED |\n| mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc | w_state | 仓库所在省/州取值，按源样保留代码（如 TN），无代码字典 | mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc（执行 SQL 声明：SELECT w_country, w_state, COUNT(*) AS warehouse_count, COUNT(DISTINCT w_city) AS city_count, MIN/MAX(w_warehouse_sk) … FROM warehouse GROUP BY w_country, w_state；来源描述：按国家和省州统计仓库及覆盖城市数量） | CONFIRMED |\n| mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc | warehouse_count | 该国家/省州分组内的仓库记录数（COUNT(*)） | mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc（执行 SQL 声明：SELECT w_country, w_state, COUNT(*) AS warehouse_count, COUNT(DISTINCT w_city) AS city_count, MIN/MAX(w_warehouse_sk) … FROM warehouse GROUP BY w_country, w_state；来源描述：按国家和省州统计仓库及覆盖城市数量） | CONFIRMED |\n| mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc | city_count | 该分组内的去重城市数（COUNT(DISTINCT w_city)） | mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc（执行 SQL 声明：SELECT w_country, w_state, COUNT(*) AS warehouse_count, COUNT(DISTINCT w_city) AS city_count, MIN/MAX(w_warehouse_sk) … FROM warehouse GROUP BY w_country, w_state；来源描述：按国家和省州统计仓库及覆盖城市数量） | CONFIRMED |\n| mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc | min_warehouse_sk | 分组内仓库代理键最小值（标识，非数量） | mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc（执行 SQL 声明：SELECT w_country, w_state, COUNT(*) AS warehouse_count, COUNT(DISTINCT w_city) AS city_count, MIN/MAX(w_warehouse_sk) … FROM warehouse GROUP BY w_country, w_state；来源描述：按国家和省州统计仓库及覆盖城市数量） | CONFIRMED |\n| mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc | max_warehouse_sk | 分组内仓库代理键最大值（标识，非数量） | mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc（执行 SQL 声明：SELECT w_country, w_state, COUNT(*) AS warehouse_count, COUNT(DISTINCT w_city) AS city_count, MIN/MAX(w_warehouse_sk) … FROM warehouse GROUP BY w_country, w_state；来源描述：按国家和省州统计仓库及覆盖城市数量） | CONFIRMED |\n\n说明：交付数据的字段定义字典为空（未提供独立 fieldDefinitions），字段含义依据来源模板的**实际执行 SQL 表达式与别名**以及来源描述（\"按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围；全仓库维表，无参数\"）确认；COUNT(*) 别名即仓库记录数，COUNT(DISTINCT w_city) 别名即去重城市数，MIN/MAX 为代理键区间。\n\n## 五、局限与未解决问题\n\n1. **单一分组**：交付结果仅 1 组，国家/省州分布图只有一根柱子，无法支撑跨国家或跨省州的对比、排序或占比结论；如需区域分布，必须取得更多分组的实际结果。\n2. **统计时点未知**：来源未提供日期、时点或数据版本字段，无法确认\"当前\"对应的具体日期，也无法做任何时间趋势比较。\n3. **省州代码未翻译**：w_state 以源代码形式给出（如 \"TN\"），未提供代码字典或地区名称映射，报告按源样保留原文，不推断州全称。\n4. **代理键不是数量**：min/max_warehouse_sk 是仓库标识的取值区间，仅用于说明覆盖面，未作为金额或数量做任何加总。\n5. **示例数据可能性**：交付来源标注为 TPCDS 仓库维表分布模板，该仓库维表规模很小（本快照仅 5 个仓库），可能为示例数据，其绝对规模不宜直接外推为真实业务仓库总量。\n6. **未进行的计算**：未计算仓库面积、容量或任何经营指标；源数据未提供相应字段，不做推测。\n",
+  "presentation": {
+    "autoCharts": true,
+    "autoImages": true,
+    "density": "comfortable",
+    "strategy": "auto",
+    "template": "briefing"
+  }
+}

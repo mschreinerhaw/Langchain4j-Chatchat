@@ -1,0 +1,20 @@
+{
+  "status": "RECORDED_TOOL_OBSERVATIONS",
+  "calls": [
+    {
+      "source": "mcp_chatchat_mcp_server_tpl_212b88329a673657979943bbeaa7479b",
+      "requested": {},
+      "effective": {
+        "schemaName": "tpcds",
+        "databaseName": "tpcds",
+        "schema": "tpcds",
+        "database": "tpcds",
+        "today": "20261101",
+        "natural_date": "20261101",
+        "month": "202611",
+        "month_start": "20261101",
+        "month_end": "20261130"
+      }
+    }
+  ]
+}

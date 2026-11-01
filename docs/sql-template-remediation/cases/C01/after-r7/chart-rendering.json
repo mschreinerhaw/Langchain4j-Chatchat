@@ -1,0 +1,36 @@
+{
+  "status": "RENDERED_IN_SYSTEM_PAGE",
+  "charts": [
+    {
+      "id": "chart_bar_distribution",
+      "kind": "static",
+      "image": {
+        "width": 1380,
+        "height": 510,
+        "title": "仓库数量按国家/省州分布（个）"
+      }
+    },
+    {
+      "id": "chart_city_coverage",
+      "kind": "static",
+      "image": {
+        "width": 1380,
+        "height": 540,
+        "title": "同一分组的仓库数量与去重城市覆盖数（个）"
+      }
+    }
+  ],
+  "events": [
+    {
+      "fileId": "466818f3d86c396b96586d91c104b08ca8ad76b2938fb2808cfb841290f1608c",
+      "kind": "png",
+      "durationMs": 78
+    },
+    {
+      "fileId": "cd670235018156aeaafcdd79bb44f8b8d5f56f89fcac14b24f4c40df7fcd52ce",
+      "kind": "png",
+      "durationMs": 72
+    }
+  ],
+  "diagnostics": []
+}

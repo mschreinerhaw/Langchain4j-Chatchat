@@ -1,0 +1,119 @@
+{
+  "status": "REAL_PYTHON_AND_UPLOADED_BYTES_VERIFIED",
+  "execution": {
+    "codeArtifact": {
+      "fileId": "1e02d373669538632c6945991421abeabe99ec1d2e7ad387688f9469430a5d94",
+      "fileName": "2-1998-01-01-1998-01-29_20261101T023830911Z_195398f6ade4_v3.py",
+      "mediaType": "text/x-python",
+      "sha256": "ef901823cc7ae3e69e8141517cb622d7342c61fbd4f96224818f0874466ab37e",
+      "size": 31885
+    },
+    "codeSha256": "ef901823cc7ae3e69e8141517cb622d7342c61fbd4f96224818f0874466ab37e",
+    "executorStopped": true,
+    "operationId": "cline-637af6e00bc56eb76da0f19d07531783a9afdf720934ece5ce931a086a7973d1",
+    "receiptSha256": "5efd4fcd8534861a9e8226db501154b8f685ad60fc53f869ecfb30933cfc60f4",
+    "reportPresentation": {
+      "autoCharts": true,
+      "autoImages": true,
+      "density": "comfortable",
+      "strategy": "auto",
+      "template": "briefing"
+    },
+    "resultDatasetRef": "runtime-evidence:coding:90616b580b38d4b659fe480b852b4c71da8d8846aecc8b4d3684b0a539f63288:result",
+    "resultSha256": "ca9e90b0b6445a499bcae3e80fe93015107aa0442021609412448716ca5cc87c",
+    "status": "SUCCEEDED",
+    "taskId": "analysis-coding-881382ed7c1a715341d06d963600310dea626c2899ee37aaa847496e36da097f"
+  },
+  "artifacts": [
+    {
+      "kind": "code",
+      "fileId": "1e02d373669538632c6945991421abeabe99ec1d2e7ad387688f9469430a5d94",
+      "sha256": "ef901823cc7ae3e69e8141517cb622d7342c61fbd4f96224818f0874466ab37e",
+      "bytes": 31885
+    },
+    {
+      "kind": "png",
+      "fileId": "5ae411af2fa5cb9ffed284fbd72190f5343a6832ca2d5a22422cce413cf72df8",
+      "sha256": "bd153722836111b1b911a9bf96f89c9fd5f40f413b27fdccd387259867d56c89",
+      "bytes": 111797
+    },
+    {
+      "kind": "png",
+      "fileId": "a39578b8e3ff723d11300c15590f41846304d1fd0d7cb6af68c45232726ffbe4",
+      "sha256": "d1a01ce03d5c2077267a1d16afac30b435b51b6c25a504bc7385be166452fb98",
+      "bytes": 108123
+    }
+  ],
+  "businessValidation": {
+    "checks": [
+      {
+        "detail": "清单文件 SHA-256 与运行时声明的期望值一致。",
+        "name": "输入清单完整性校验",
+        "status": "PASSED"
+      },
+      {
+        "detail": "分片 SHA-256 与清单一致，行数 5 与声明行数 5 一致。",
+        "name": "数据分片哈希校验(part-00000.parquet)",
+        "status": "PASSED"
+      },
+      {
+        "detail": "实际读取 5 行，清单声明 5 行。",
+        "name": "记录行数校验",
+        "status": "PASSED"
+      },
+      {
+        "detail": "全部 5 行均属于授权数据集引用 mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970。",
+        "name": "数据集引用一致性",
+        "status": "PASSED"
+      },
+      {
+        "detail": "5 个逐日字段在返回行中均非空。",
+        "name": "关键字段缺失值检查",
+        "status": "PASSED"
+      },
+      {
+        "detail": "返回 5 行，快照日期去重后 5 个。",
+        "name": "快照日期唯一性",
+        "status": "PASSED"
+      },
+      {
+        "detail": "全部 5 行满足 nonzero_sku_count + zero_sku_count = sku_record_count。",
+        "name": "记录数内部一致性（数量>0 + 数量=0 = 记录数）",
+        "status": "PASSED"
+      },
+      {
+        "detail": "全部快照日期落在 1998-01-01 至 1998-01-29 之间并按日期升序。",
+        "name": "日期范围与排序",
+        "status": "PASSED"
+      },
+      {
+        "detail": "返回 5 行，未触及查询 LIMIT 100 上限。",
+        "name": "结果截断检查（LIMIT 100）",
+        "status": "PASSED"
+      },
+      {
+        "detail": "请求区间 29 个日历日中仅 5 日返回观测，24 日无记录；无业务日历或源库核对证据，无法判定是当日无库存记录还是数据缺失。",
+        "name": "日历覆盖完整性",
+        "status": "UNRESOLVED"
+      },
+      {
+        "detail": "5 个观测日期构成 4 个相邻间隔，间隔天数均为 7；实际数据并非逐日连续返回。",
+        "name": "观测间隔检查",
+        "status": "PASSED"
+      },
+      {
+        "detail": "全部观测日现存数量合计均 >= 0，与查询的数量下限 0 条件相符。",
+        "name": "现存数量合计非负性",
+        "status": "PASSED"
+      }
+    ],
+    "scope": "STOPPED_EXECUTION_AND_ARTIFACT_INTEGRITY; COMPUTATION_CHECKS_ARE_PROGRAM_DECLARED; BUSINESS_SEMANTICS_NOT_CERTIFIED",
+    "status": "PARTIAL",
+    "warnings": [
+      "现存数量合计的计量单位未由数据源声明，未标注单位。",
+      "区间内 24 天未返回观测，图表中按空缺显示，未补零或插值。",
+      "记录数合计为观测日记录条数之和，不代表库存业务量。"
+    ]
+  },
+  "analysisStatus": "PARTIAL"
+}

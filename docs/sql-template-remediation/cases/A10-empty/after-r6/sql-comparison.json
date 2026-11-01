@@ -1,0 +1,14 @@
+{
+  "status": "VERIFIED_EXPECTED_EMPTY",
+  "actualRows": [],
+  "expectedRows": [],
+  "source": "DIRECT_MYSQL_JDBC",
+  "parameters": {
+    "warehouse_id": 99999,
+    "start_date": "1998-01-01",
+    "end_date": "1998-01-29",
+    "min_on_hand": 0,
+    "category": null
+  },
+  "executionMode": "PREPARED_STATEMENT"
+}

@@ -1,0 +1,2224 @@
+{
+  "scope": "ACTUAL_AGENT_TOOL_OBSERVATIONS; independent protocol calls are archived separately",
+  "status": "OBSERVED",
+  "calls": [
+    {
+      "source": "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+      "resolvedInput": {
+        "product_id": 2,
+        "start_date": "1999-01-01",
+        "end_date": "1999-12-31",
+        "min_quantity": 0
+      },
+      "success": true,
+      "receipt": {
+        "schemaVersion": "tool_execution_result.v1",
+        "kind": "sql_query",
+        "dataSchema": "sql_result.v1",
+        "payloadType": "structured",
+        "success": true,
+        "status": "success",
+        "durationMs": 99,
+        "generatedAt": "2026-11-01T03:39:42.022832377Z",
+        "dataCompleteness": {
+          "contractVersion": "mcp_complete_result.v1",
+          "complete": true,
+          "gatewayTruncated": false,
+          "projectionRequiredByConsumer": true
+        },
+        "error": null,
+        "target": {
+          "type": "database",
+          "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+          "name": "248测试数据库",
+          "toolName": "db_query_mysql_248_test_db",
+          "environment": "DEV"
+        },
+        "sourceMetadata": {
+          "schemaVersion": "execution_source.v1",
+          "executionType": "SQL_QUERY",
+          "sourceType": "sql_statement",
+          "toolName": "db_query_mysql_248_test_db",
+          "asset": {
+            "type": "database",
+            "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+            "name": "248测试数据库",
+            "environment": "DEV"
+          },
+          "operation": {
+            "statementHash": "7f500c67018a61007e5347b65840ef5be0d18afd64c315dc11d614b3bc6c9b98",
+            "templateId": "STUDIO_2B689C67D34336599B05C753F0473B60"
+          },
+          "business": {
+            "name": "TPCDS 248 单品期间月度销售分析验收",
+            "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+            "category": "business_analysis"
+          }
+        },
+        "operation": {
+          "type": "sql.query",
+          "statement": "SELECT\n    d.d_year                           AS sale_year,\n    d.d_moy                            AS sale_month,\n    i.i_category                       AS category,\n    COUNT(*)                           AS row_count,\n    SUM(ss.ss_quantity)                AS total_quantity,\n    SUM(ss.ss_net_paid)                AS total_net_paid,\n    SUM(ss.ss_net_profit)              AS total_net_profit\nFROM tpcds.store_sales ss\nINNER JOIN tpcds.date_dim d\n        ON ss.ss_sold_date_sk = d.d_date_sk\nINNER JOIN tpcds.item i\n        ON ss.ss_item_sk = i.i_item_sk\nWHERE ss.ss_item_sk = ?\n  AND d.d_date >= ?\n  AND d.d_date <= ?\n  AND ss.ss_quantity >= ?\n  AND (? IS NULL OR i.i_category = ?)\nGROUP BY d.d_year,\n         d.d_moy,\n         i.i_category\nORDER BY d.d_year ASC,\n         d.d_moy ASC,\n         i.i_category ASC\nLIMIT 24",
+          "timeoutSeconds": 30,
+          "purpose": null,
+          "sourceTaskId": "2e08b7c4-5710-45ef-9300-6ef81598cae8",
+          "diagnostics": {
+            "requestedCatalog": null,
+            "requestedSchema": null,
+            "schemaVersion": "sql_query_diagnostics.v1",
+            "templateId": "STUDIO_2B689C67D34336599B05C753F0473B60",
+            "templateParameters": {
+              "product_id": 2,
+              "start_date": "1999-01-01",
+              "end_date": "1999-12-31",
+              "min_quantity": 0,
+              "category": null
+            },
+            "executionContext": {},
+            "tableResolution": null,
+            "routedTarget": null,
+            "routingDecisionLog": null,
+            "datasource": {
+              "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+              "name": "248测试数据库",
+              "toolName": "db_query_mysql_248_test_db",
+              "environment": "DEV",
+              "databaseType": "mysql",
+              "jdbcDatabase": "tpcds"
+            },
+            "templateMetadata": {
+              "templateId": "STUDIO_2B689C67D34336599B05C753F0473B60",
+              "businessName": "TPCDS 248 单品期间月度销售分析验收",
+              "businessDescription": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+              "category": "business_analysis",
+              "riskLevel": "MEDIUM",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "product_id": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1,
+                    "description": "store_sales.ss_item_sk 商品主键"
+                  },
+                  "start_date": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "date_dim.d_date 含边界起日"
+                  },
+                  "end_date": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "date_dim.d_date 含边界止日"
+                  },
+                  "min_quantity": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 0,
+                    "description": "每行最低ss_quantity"
+                  },
+                  "category": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "default": null,
+                    "description": "item.i_category精确品类；NULL不过滤"
+                  }
+                },
+                "required": [
+                  "start_date",
+                  "end_date"
+                ],
+                "additionalProperties": false
+              },
+              "evidencePolicy": {}
+            },
+            "executionMode": "PREPARED_STATEMENT",
+            "boundParameterCount": 6,
+            "boundParameterNames": [
+              "product_id",
+              "start_date",
+              "end_date",
+              "min_quantity",
+              "category",
+              "category"
+            ],
+            "appliedCatalog": "tpcds",
+            "connection": {
+              "catalog": "tpcds",
+              "schema": null,
+              "jdbcDatabase": "tpcds",
+              "databaseType": "mysql"
+            },
+            "columnCommentResolution": "enabled",
+            "rowCount": 12,
+            "possiblyTruncated": false
+          }
+        },
+        "limits": {
+          "maxRowsRequested": 500,
+          "configuredDatabaseMaxRows": 500,
+          "rowsFetchedFromDatabase": 12,
+          "fullFetchedRowsAvailable": true,
+          "analysisStrategy": "RUNTIME_EXTERNALIZE_AND_CHUNK",
+          "truncationStrategy": "DATABASE_MAX_ROWS_500"
+        },
+        "data": {
+          "resultSetMode": "ONE_PER_TEMPLATE_EXECUTION",
+          "resultSetId": "7f500c67018a61007e5347b65840ef5be0d18afd64c315dc11d614b3bc6c9b98",
+          "commandContext": {
+            "schemaVersion": "template_result_context.v1",
+            "templateId": "db_query_mysql_248_test_db",
+            "templateName": "db_query_mysql_248_test_db",
+            "description": null,
+            "executionMode": "SINGLE_SQL",
+            "commands": [
+              {
+                "commandId": "sql_query",
+                "order": 1,
+                "name": "db_query_mysql_248_test_db",
+                "description": null,
+                "analysisHint": null,
+                "resultReference": "$.data"
+              }
+            ],
+            "references": []
+          },
+          "rowCount": 12,
+          "returnedRowCount": 12,
+          "complete": true,
+          "possiblyTruncated": false,
+          "truncationStrategy": "DATABASE_MAX_ROWS_500",
+          "columns": [
+            "sale_year",
+            "sale_month",
+            "category",
+            "row_count",
+            "total_quantity",
+            "total_net_paid",
+            "total_net_profit"
+          ],
+          "columnMetadata": [
+            {
+              "name": "d_year",
+              "label": "sale_year",
+              "comment": null,
+              "tableName": "date_dim",
+              "schemaName": null,
+              "catalogName": "tpcds",
+              "jdbcType": 4,
+              "typeName": "INT",
+              "displaySize": 10,
+              "nullable": true,
+              "masked": false
+            },
+            {
+              "name": "d_moy",
+              "label": "sale_month",
+              "comment": null,
+              "tableName": "date_dim",
+              "schemaName": null,
+              "catalogName": "tpcds",
+              "jdbcType": 4,
+              "typeName": "INT",
+              "displaySize": 10,
+              "nullable": true,
+              "masked": false
+            },
+            {
+              "name": "i_category",
+              "label": "category",
+              "comment": null,
+              "tableName": "item",
+              "schemaName": null,
+              "catalogName": "tpcds",
+              "jdbcType": 1,
+              "typeName": "CHAR",
+              "displaySize": 50,
+              "nullable": true,
+              "masked": false
+            },
+            {
+              "name": "row_count",
+              "label": "row_count",
+              "comment": null,
+              "tableName": null,
+              "schemaName": null,
+              "catalogName": null,
+              "jdbcType": -5,
+              "typeName": "BIGINT",
+              "displaySize": 19,
+              "nullable": false,
+              "masked": false
+            },
+            {
+              "name": "total_quantity",
+              "label": "total_quantity",
+              "comment": null,
+              "tableName": null,
+              "schemaName": null,
+              "catalogName": null,
+              "jdbcType": 3,
+              "typeName": "DECIMAL",
+              "displaySize": 32,
+              "nullable": true,
+              "masked": false
+            },
+            {
+              "name": "total_net_paid",
+              "label": "total_net_paid",
+              "comment": null,
+              "tableName": null,
+              "schemaName": null,
+              "catalogName": null,
+              "jdbcType": 3,
+              "typeName": "DECIMAL",
+              "displaySize": 29,
+              "nullable": true,
+              "masked": false
+            },
+            {
+              "name": "total_net_profit",
+              "label": "total_net_profit",
+              "comment": null,
+              "tableName": null,
+              "schemaName": null,
+              "catalogName": null,
+              "jdbcType": 3,
+              "typeName": "DECIMAL",
+              "displaySize": 29,
+              "nullable": true,
+              "masked": false
+            }
+          ],
+          "governance": {
+            "schemaVersion": "sql_output_governance.v1",
+            "readOnly": true,
+            "rowCount": 12,
+            "returnedRowCount": 12,
+            "possiblyTruncated": false,
+            "truncationStrategy": "DATABASE_MAX_ROWS_500",
+            "maskedColumns": [],
+            "columnCommentsIncluded": false
+          },
+          "diagnostics": {
+            "requestedCatalog": null,
+            "requestedSchema": null,
+            "schemaVersion": "sql_query_diagnostics.v1",
+            "templateId": "STUDIO_2B689C67D34336599B05C753F0473B60",
+            "templateParameters": {
+              "product_id": 2,
+              "start_date": "1999-01-01",
+              "end_date": "1999-12-31",
+              "min_quantity": 0,
+              "category": null
+            },
+            "executionContext": {},
+            "tableResolution": null,
+            "routedTarget": null,
+            "routingDecisionLog": null,
+            "datasource": {
+              "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+              "name": "248测试数据库",
+              "toolName": "db_query_mysql_248_test_db",
+              "environment": "DEV",
+              "databaseType": "mysql",
+              "jdbcDatabase": "tpcds"
+            },
+            "templateMetadata": {
+              "templateId": "STUDIO_2B689C67D34336599B05C753F0473B60",
+              "businessName": "TPCDS 248 单品期间月度销售分析验收",
+              "businessDescription": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+              "category": "business_analysis",
+              "riskLevel": "MEDIUM",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "product_id": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1,
+                    "description": "store_sales.ss_item_sk 商品主键"
+                  },
+                  "start_date": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "date_dim.d_date 含边界起日"
+                  },
+                  "end_date": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "date_dim.d_date 含边界止日"
+                  },
+                  "min_quantity": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 0,
+                    "description": "每行最低ss_quantity"
+                  },
+                  "category": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "default": null,
+                    "description": "item.i_category精确品类；NULL不过滤"
+                  }
+                },
+                "required": [
+                  "start_date",
+                  "end_date"
+                ],
+                "additionalProperties": false
+              },
+              "evidencePolicy": {}
+            },
+            "executionMode": "PREPARED_STATEMENT",
+            "boundParameterCount": 6,
+            "boundParameterNames": [
+              "product_id",
+              "start_date",
+              "end_date",
+              "min_quantity",
+              "category",
+              "category"
+            ],
+            "appliedCatalog": "tpcds",
+            "connection": {
+              "catalog": "tpcds",
+              "schema": null,
+              "jdbcDatabase": "tpcds",
+              "databaseType": "mysql"
+            },
+            "columnCommentResolution": "enabled",
+            "rowCount": 12,
+            "possiblyTruncated": false
+          },
+          "rows": [
+            {
+              "sale_year": 1999,
+              "sale_month": 1,
+              "category": "Women",
+              "row_count": 1,
+              "total_quantity": 19,
+              "total_net_paid": 2576.4,
+              "total_net_profit": 690.46
+            },
+            {
+              "sale_year": 1999,
+              "sale_month": 2,
+              "category": "Women",
+              "row_count": 6,
+              "total_quantity": 285,
+              "total_net_paid": 12337.41,
+              "total_net_profit": -316.95
+            },
+            {
+              "sale_year": 1999,
+              "sale_month": 3,
+              "category": "Women",
+              "row_count": 6,
+              "total_quantity": 318,
+              "total_net_paid": 13697.72,
+              "total_net_profit": -5403.38
+            },
+            {
+              "sale_year": 1999,
+              "sale_month": 4,
+              "category": "Women",
+              "row_count": 1,
+              "total_quantity": 77,
+              "total_net_paid": 2473.21,
+              "total_net_profit": -3518.16
+            },
+            {
+              "sale_year": 1999,
+              "sale_month": 5,
+              "category": "Women",
+              "row_count": 2,
+              "total_quantity": 106,
+              "total_net_paid": 1962.98,
+              "total_net_profit": -2172.6
+            },
+            {
+              "sale_year": 1999,
+              "sale_month": 6,
+              "category": "Women",
+              "row_count": 6,
+              "total_quantity": 335,
+              "total_net_paid": 11294.37,
+              "total_net_profit": -9399.39
+            },
+            {
+              "sale_year": 1999,
+              "sale_month": 7,
+              "category": "Women",
+              "row_count": 1,
+              "total_quantity": 89,
+              "total_net_paid": 602.53,
+              "total_net_profit": -4470.47
+            },
+            {
+              "sale_year": 1999,
+              "sale_month": 8,
+              "category": "Women",
+              "row_count": 5,
+              "total_quantity": 269,
+              "total_net_paid": 4294.14,
+              "total_net_profit": -8688.51
+            },
+            {
+              "sale_year": 1999,
+              "sale_month": 9,
+              "category": "Women",
+              "row_count": 6,
+              "total_quantity": 365,
+              "total_net_paid": 14815.52,
+              "total_net_profit": -7887.61
+            },
+            {
+              "sale_year": 1999,
+              "sale_month": 10,
+              "category": "Women",
+              "row_count": 5,
+              "total_quantity": 249,
+              "total_net_paid": 1710.33,
+              "total_net_profit": -2485.52
+            },
+            {
+              "sale_year": 1999,
+              "sale_month": 11,
+              "category": "Women",
+              "row_count": 9,
+              "total_quantity": 326,
+              "total_net_paid": 8509.65,
+              "total_net_profit": -9961.6
+            },
+            {
+              "sale_year": 1999,
+              "sale_month": 12,
+              "category": "Women",
+              "row_count": 13,
+              "total_quantity": 593,
+              "total_net_paid": 15109.79,
+              "total_net_profit": -17885.6
+            }
+          ]
+        },
+        "execution": {
+          "schemaVersion": "execution_unit.v1",
+          "executionId": "5005e7e8-764e-4649-84f6-26aa7d7c99c4",
+          "toolName": "db_query_mysql_248_test_db",
+          "startedAt": "2026-11-01T03:39:41.924038975Z",
+          "finishedAt": "2026-11-01T03:39:42.023038975Z",
+          "durationMs": 99,
+          "stepCount": 1,
+          "steps": [
+            {
+              "stepIndex": 1,
+              "stepId": "sql_1",
+              "stepType": "sql",
+              "input": {
+                "statement": "SELECT\n    d.d_year                           AS sale_year,\n    d.d_moy                            AS sale_month,\n    i.i_category                       AS category,\n    COUNT(*)                           AS row_count,\n    SUM(ss.ss_quantity)                AS total_quantity,\n    SUM(ss.ss_net_paid)                AS total_net_paid,\n    SUM(ss.ss_net_profit)              AS total_net_profit\nFROM tpcds.store_sales ss\nINNER JOIN tpcds.date_dim d\n        ON ss.ss_sold_date_sk = d.d_date_sk\nINNER JOIN tpcds.item i\n        ON ss.ss_item_sk = i.i_item_sk\nWHERE ss.ss_item_sk = ?\n  AND d.d_date >= ?\n  AND d.d_date <= ?\n  AND ss.ss_quantity >= ?\n  AND (? IS NULL OR i.i_category = ?)\nGROUP BY d.d_year,\n         d.d_moy,\n         i.i_category\nORDER BY d.d_year ASC,\n         d.d_moy ASC,\n         i.i_category ASC\nLIMIT 24",
+                "timeoutSeconds": 30,
+                "purpose": null,
+                "sourceTaskId": "2e08b7c4-5710-45ef-9300-6ef81598cae8"
+              },
+              "output": {
+                "resultSetReference": "$.data",
+                "rowCount": 12,
+                "returnedRowCount": 12,
+                "possiblyTruncated": false,
+                "columnCount": 7
+              },
+              "success": true,
+              "status": "success",
+              "durationMs": 99,
+              "error": null,
+              "rowCount": 12
+            }
+          ]
+        },
+        "executionGraph": {
+          "schemaVersion": "execution_graph.v1",
+          "nodes": [
+            {
+              "id": "sql_query",
+              "type": "sql.query",
+              "status": "success",
+              "durationMs": 99,
+              "attributes": {}
+            }
+          ],
+          "edges": []
+        },
+        "executionWorkflow": {
+          "verified": true,
+          "steps": [
+            "VALIDATE_ARGUMENT_CONTRACT",
+            "ROUTE_LOGICAL_DATASOURCE",
+            "RESOLVE_TEMPLATE_PARAMETERS_IF_PRESENT",
+            "CLASSIFY_SQL_CARDINALITY",
+            "ENFORCE_READ_ONLY_POLICY",
+            "EXECUTE_QUERY_OR_SCRIPT",
+            "VERIFY_RESULT",
+            "ASSEMBLE_EVIDENCE"
+          ],
+          "workflowId": "execute.sql-query.v1",
+          "mode": "SQL_QUERY",
+          "parameterWorkflow": {
+            "parameterRepairs": [
+              {
+                "field": "category",
+                "repairCode": "DEFAULT_VALUE_APPLIED"
+              },
+              {
+                "field": "category",
+                "repairCode": "UNKNOWN_TEMPLATE_PARAMETER_DROPPED"
+              }
+            ],
+            "parameterSources": {
+              "product_id": "EXPLICIT_PARAMETERS",
+              "start_date": "EXPLICIT_PARAMETERS",
+              "end_date": "EXPLICIT_PARAMETERS",
+              "min_quantity": "EXPLICIT_PARAMETERS",
+              "category": "SCHEMA_DEFAULT"
+            },
+            "mode": "DECLARED_SCHEMA",
+            "parameterCount": 5,
+            "steps": [
+              "NORMALIZE_REQUEST",
+              "COLLECT_EXPLICIT_PARAMETERS",
+              "COLLECT_REQUEST_FIELDS",
+              "APPLY_DECLARED_DEFAULTS",
+              "COERCE_DECLARED_TYPES",
+              "VALIDATE_REQUIRED_PARAMETERS",
+              "ASSEMBLE_BINDING"
+            ],
+            "verified": true,
+            "scopeStatus": "REQUIRES_SCOPE_VERIFICATION",
+            "workflowId": "resolve.template-parameters.v1"
+          }
+        }
+      },
+      "stepOutput": {
+        "schemaVersion": "mcp_analysis_payload.v1",
+        "requestId": "2e08b7c4-5710-45ef-9300-6ef81598cae8",
+        "serviceId": "chatchat-mcp-server",
+        "toolName": "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+        "status": "SUCCESS",
+        "resultKind": "RAW_RECORDS",
+        "resultSchemaRef": "sql_result.v1",
+        "provenance": {
+          "sourceRef": null,
+          "dataVersion": null,
+          "asOf": null,
+          "inputFingerprint": "56e2ac8fe1d78aedb83b31295f66bec523ec9f50620e264df02b237c10030205",
+          "rowRange": {},
+          "filterSummary": {}
+        },
+        "completeness": {
+          "repairApplied": false,
+          "complete": true,
+          "status": "SUCCESS"
+        },
+        "data": {
+          "success": true,
+          "data": {
+            "schemaVersion": "tool_execution_result.v1",
+            "kind": "sql_query",
+            "dataSchema": "sql_result.v1",
+            "payloadType": "structured",
+            "success": true,
+            "status": "success",
+            "durationMs": 99,
+            "generatedAt": "2026-11-01T03:39:42.022832377Z",
+            "dataCompleteness": {
+              "contractVersion": "mcp_complete_result.v1",
+              "complete": true,
+              "gatewayTruncated": false,
+              "projectionRequiredByConsumer": true
+            },
+            "error": null,
+            "target": {
+              "type": "database",
+              "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+              "name": "248测试数据库",
+              "toolName": "db_query_mysql_248_test_db",
+              "environment": "DEV"
+            },
+            "sourceMetadata": {
+              "schemaVersion": "execution_source.v1",
+              "executionType": "SQL_QUERY",
+              "sourceType": "sql_statement",
+              "toolName": "db_query_mysql_248_test_db",
+              "asset": {
+                "type": "database",
+                "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                "name": "248测试数据库",
+                "environment": "DEV"
+              },
+              "operation": {
+                "statementHash": "7f500c67018a61007e5347b65840ef5be0d18afd64c315dc11d614b3bc6c9b98",
+                "templateId": "STUDIO_2B689C67D34336599B05C753F0473B60"
+              },
+              "business": {
+                "name": "TPCDS 248 单品期间月度销售分析验收",
+                "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+                "category": "business_analysis"
+              }
+            },
+            "operation": {
+              "type": "sql.query",
+              "statement": "SELECT\n    d.d_year                           AS sale_year,\n    d.d_moy                            AS sale_month,\n    i.i_category                       AS category,\n    COUNT(*)                           AS row_count,\n    SUM(ss.ss_quantity)                AS total_quantity,\n    SUM(ss.ss_net_paid)                AS total_net_paid,\n    SUM(ss.ss_net_profit)              AS total_net_profit\nFROM tpcds.store_sales ss\nINNER JOIN tpcds.date_dim d\n        ON ss.ss_sold_date_sk = d.d_date_sk\nINNER JOIN tpcds.item i\n        ON ss.ss_item_sk = i.i_item_sk\nWHERE ss.ss_item_sk = ?\n  AND d.d_date >= ?\n  AND d.d_date <= ?\n  AND ss.ss_quantity >= ?\n  AND (? IS NULL OR i.i_category = ?)\nGROUP BY d.d_year,\n         d.d_moy,\n         i.i_category\nORDER BY d.d_year ASC,\n         d.d_moy ASC,\n         i.i_category ASC\nLIMIT 24",
+              "timeoutSeconds": 30,
+              "purpose": null,
+              "sourceTaskId": "2e08b7c4-5710-45ef-9300-6ef81598cae8",
+              "diagnostics": {
+                "requestedCatalog": null,
+                "requestedSchema": null,
+                "schemaVersion": "sql_query_diagnostics.v1",
+                "templateId": "STUDIO_2B689C67D34336599B05C753F0473B60",
+                "templateParameters": {
+                  "product_id": 2,
+                  "start_date": "1999-01-01",
+                  "end_date": "1999-12-31",
+                  "min_quantity": 0,
+                  "category": null
+                },
+                "executionContext": {},
+                "tableResolution": null,
+                "routedTarget": null,
+                "routingDecisionLog": null,
+                "datasource": {
+                  "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                  "name": "248测试数据库",
+                  "toolName": "db_query_mysql_248_test_db",
+                  "environment": "DEV",
+                  "databaseType": "mysql",
+                  "jdbcDatabase": "tpcds"
+                },
+                "templateMetadata": {
+                  "templateId": "STUDIO_2B689C67D34336599B05C753F0473B60",
+                  "businessName": "TPCDS 248 单品期间月度销售分析验收",
+                  "businessDescription": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+                  "category": "business_analysis",
+                  "riskLevel": "MEDIUM",
+                  "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                      "product_id": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "default": 1,
+                        "description": "store_sales.ss_item_sk 商品主键"
+                      },
+                      "start_date": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "date_dim.d_date 含边界起日"
+                      },
+                      "end_date": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "date_dim.d_date 含边界止日"
+                      },
+                      "min_quantity": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "default": 0,
+                        "description": "每行最低ss_quantity"
+                      },
+                      "category": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "default": null,
+                        "description": "item.i_category精确品类；NULL不过滤"
+                      }
+                    },
+                    "required": [
+                      "start_date",
+                      "end_date"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "evidencePolicy": {}
+                },
+                "executionMode": "PREPARED_STATEMENT",
+                "boundParameterCount": 6,
+                "boundParameterNames": [
+                  "product_id",
+                  "start_date",
+                  "end_date",
+                  "min_quantity",
+                  "category",
+                  "category"
+                ],
+                "appliedCatalog": "tpcds",
+                "connection": {
+                  "catalog": "tpcds",
+                  "schema": null,
+                  "jdbcDatabase": "tpcds",
+                  "databaseType": "mysql"
+                },
+                "columnCommentResolution": "enabled",
+                "rowCount": 12,
+                "possiblyTruncated": false
+              }
+            },
+            "limits": {
+              "maxRowsRequested": 500,
+              "configuredDatabaseMaxRows": 500,
+              "rowsFetchedFromDatabase": 12,
+              "fullFetchedRowsAvailable": true,
+              "analysisStrategy": "RUNTIME_EXTERNALIZE_AND_CHUNK",
+              "truncationStrategy": "DATABASE_MAX_ROWS_500"
+            },
+            "data": {
+              "resultSetMode": "ONE_PER_TEMPLATE_EXECUTION",
+              "resultSetId": "7f500c67018a61007e5347b65840ef5be0d18afd64c315dc11d614b3bc6c9b98",
+              "commandContext": {
+                "schemaVersion": "template_result_context.v1",
+                "templateId": "db_query_mysql_248_test_db",
+                "templateName": "db_query_mysql_248_test_db",
+                "description": null,
+                "executionMode": "SINGLE_SQL",
+                "commands": [
+                  {
+                    "commandId": "sql_query",
+                    "order": 1,
+                    "name": "db_query_mysql_248_test_db",
+                    "description": null,
+                    "analysisHint": null,
+                    "resultReference": "$.data"
+                  }
+                ],
+                "references": []
+              },
+              "rowCount": 12,
+              "returnedRowCount": 12,
+              "complete": true,
+              "possiblyTruncated": false,
+              "truncationStrategy": "DATABASE_MAX_ROWS_500",
+              "columns": [
+                "sale_year",
+                "sale_month",
+                "category",
+                "row_count",
+                "total_quantity",
+                "total_net_paid",
+                "total_net_profit"
+              ],
+              "columnMetadata": [
+                {
+                  "name": "d_year",
+                  "label": "sale_year",
+                  "comment": null,
+                  "tableName": "date_dim",
+                  "schemaName": null,
+                  "catalogName": "tpcds",
+                  "jdbcType": 4,
+                  "typeName": "INT",
+                  "displaySize": 10,
+                  "nullable": true,
+                  "masked": false
+                },
+                {
+                  "name": "d_moy",
+                  "label": "sale_month",
+                  "comment": null,
+                  "tableName": "date_dim",
+                  "schemaName": null,
+                  "catalogName": "tpcds",
+                  "jdbcType": 4,
+                  "typeName": "INT",
+                  "displaySize": 10,
+                  "nullable": true,
+                  "masked": false
+                },
+                {
+                  "name": "i_category",
+                  "label": "category",
+                  "comment": null,
+                  "tableName": "item",
+                  "schemaName": null,
+                  "catalogName": "tpcds",
+                  "jdbcType": 1,
+                  "typeName": "CHAR",
+                  "displaySize": 50,
+                  "nullable": true,
+                  "masked": false
+                },
+                {
+                  "name": "row_count",
+                  "label": "row_count",
+                  "comment": null,
+                  "tableName": null,
+                  "schemaName": null,
+                  "catalogName": null,
+                  "jdbcType": -5,
+                  "typeName": "BIGINT",
+                  "displaySize": 19,
+                  "nullable": false,
+                  "masked": false
+                },
+                {
+                  "name": "total_quantity",
+                  "label": "total_quantity",
+                  "comment": null,
+                  "tableName": null,
+                  "schemaName": null,
+                  "catalogName": null,
+                  "jdbcType": 3,
+                  "typeName": "DECIMAL",
+                  "displaySize": 32,
+                  "nullable": true,
+                  "masked": false
+                },
+                {
+                  "name": "total_net_paid",
+                  "label": "total_net_paid",
+                  "comment": null,
+                  "tableName": null,
+                  "schemaName": null,
+                  "catalogName": null,
+                  "jdbcType": 3,
+                  "typeName": "DECIMAL",
+                  "displaySize": 29,
+                  "nullable": true,
+                  "masked": false
+                },
+                {
+                  "name": "total_net_profit",
+                  "label": "total_net_profit",
+                  "comment": null,
+                  "tableName": null,
+                  "schemaName": null,
+                  "catalogName": null,
+                  "jdbcType": 3,
+                  "typeName": "DECIMAL",
+                  "displaySize": 29,
+                  "nullable": true,
+                  "masked": false
+                }
+              ],
+              "governance": {
+                "schemaVersion": "sql_output_governance.v1",
+                "readOnly": true,
+                "rowCount": 12,
+                "returnedRowCount": 12,
+                "possiblyTruncated": false,
+                "truncationStrategy": "DATABASE_MAX_ROWS_500",
+                "maskedColumns": [],
+                "columnCommentsIncluded": false
+              },
+              "diagnostics": {
+                "requestedCatalog": null,
+                "requestedSchema": null,
+                "schemaVersion": "sql_query_diagnostics.v1",
+                "templateId": "STUDIO_2B689C67D34336599B05C753F0473B60",
+                "templateParameters": {
+                  "product_id": 2,
+                  "start_date": "1999-01-01",
+                  "end_date": "1999-12-31",
+                  "min_quantity": 0,
+                  "category": null
+                },
+                "executionContext": {},
+                "tableResolution": null,
+                "routedTarget": null,
+                "routingDecisionLog": null,
+                "datasource": {
+                  "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                  "name": "248测试数据库",
+                  "toolName": "db_query_mysql_248_test_db",
+                  "environment": "DEV",
+                  "databaseType": "mysql",
+                  "jdbcDatabase": "tpcds"
+                },
+                "templateMetadata": {
+                  "templateId": "STUDIO_2B689C67D34336599B05C753F0473B60",
+                  "businessName": "TPCDS 248 单品期间月度销售分析验收",
+                  "businessDescription": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+                  "category": "business_analysis",
+                  "riskLevel": "MEDIUM",
+                  "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                      "product_id": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "default": 1,
+                        "description": "store_sales.ss_item_sk 商品主键"
+                      },
+                      "start_date": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "date_dim.d_date 含边界起日"
+                      },
+                      "end_date": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "date_dim.d_date 含边界止日"
+                      },
+                      "min_quantity": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "default": 0,
+                        "description": "每行最低ss_quantity"
+                      },
+                      "category": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "default": null,
+                        "description": "item.i_category精确品类；NULL不过滤"
+                      }
+                    },
+                    "required": [
+                      "start_date",
+                      "end_date"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "evidencePolicy": {}
+                },
+                "executionMode": "PREPARED_STATEMENT",
+                "boundParameterCount": 6,
+                "boundParameterNames": [
+                  "product_id",
+                  "start_date",
+                  "end_date",
+                  "min_quantity",
+                  "category",
+                  "category"
+                ],
+                "appliedCatalog": "tpcds",
+                "connection": {
+                  "catalog": "tpcds",
+                  "schema": null,
+                  "jdbcDatabase": "tpcds",
+                  "databaseType": "mysql"
+                },
+                "columnCommentResolution": "enabled",
+                "rowCount": 12,
+                "possiblyTruncated": false
+              },
+              "rows": [
+                {
+                  "sale_year": 1999,
+                  "sale_month": 1,
+                  "category": "Women",
+                  "row_count": 1,
+                  "total_quantity": 19,
+                  "total_net_paid": 2576.4,
+                  "total_net_profit": 690.46
+                },
+                {
+                  "sale_year": 1999,
+                  "sale_month": 2,
+                  "category": "Women",
+                  "row_count": 6,
+                  "total_quantity": 285,
+                  "total_net_paid": 12337.41,
+                  "total_net_profit": -316.95
+                },
+                {
+                  "sale_year": 1999,
+                  "sale_month": 3,
+                  "category": "Women",
+                  "row_count": 6,
+                  "total_quantity": 318,
+                  "total_net_paid": 13697.72,
+                  "total_net_profit": -5403.38
+                },
+                {
+                  "sale_year": 1999,
+                  "sale_month": 4,
+                  "category": "Women",
+                  "row_count": 1,
+                  "total_quantity": 77,
+                  "total_net_paid": 2473.21,
+                  "total_net_profit": -3518.16
+                },
+                {
+                  "sale_year": 1999,
+                  "sale_month": 5,
+                  "category": "Women",
+                  "row_count": 2,
+                  "total_quantity": 106,
+                  "total_net_paid": 1962.98,
+                  "total_net_profit": -2172.6
+                },
+                {
+                  "sale_year": 1999,
+                  "sale_month": 6,
+                  "category": "Women",
+                  "row_count": 6,
+                  "total_quantity": 335,
+                  "total_net_paid": 11294.37,
+                  "total_net_profit": -9399.39
+                },
+                {
+                  "sale_year": 1999,
+                  "sale_month": 7,
+                  "category": "Women",
+                  "row_count": 1,
+                  "total_quantity": 89,
+                  "total_net_paid": 602.53,
+                  "total_net_profit": -4470.47
+                },
+                {
+                  "sale_year": 1999,
+                  "sale_month": 8,
+                  "category": "Women",
+                  "row_count": 5,
+                  "total_quantity": 269,
+                  "total_net_paid": 4294.14,
+                  "total_net_profit": -8688.51
+                },
+                {
+                  "sale_year": 1999,
+                  "sale_month": 9,
+                  "category": "Women",
+                  "row_count": 6,
+                  "total_quantity": 365,
+                  "total_net_paid": 14815.52,
+                  "total_net_profit": -7887.61
+                },
+                {
+                  "sale_year": 1999,
+                  "sale_month": 10,
+                  "category": "Women",
+                  "row_count": 5,
+                  "total_quantity": 249,
+                  "total_net_paid": 1710.33,
+                  "total_net_profit": -2485.52
+                },
+                {
+                  "sale_year": 1999,
+                  "sale_month": 11,
+                  "category": "Women",
+                  "row_count": 9,
+                  "total_quantity": 326,
+                  "total_net_paid": 8509.65,
+                  "total_net_profit": -9961.6
+                },
+                {
+                  "sale_year": 1999,
+                  "sale_month": 12,
+                  "category": "Women",
+                  "row_count": 13,
+                  "total_quantity": 593,
+                  "total_net_paid": 15109.79,
+                  "total_net_profit": -17885.6
+                }
+              ]
+            },
+            "execution": {
+              "schemaVersion": "execution_unit.v1",
+              "executionId": "5005e7e8-764e-4649-84f6-26aa7d7c99c4",
+              "toolName": "db_query_mysql_248_test_db",
+              "startedAt": "2026-11-01T03:39:41.924038975Z",
+              "finishedAt": "2026-11-01T03:39:42.023038975Z",
+              "durationMs": 99,
+              "stepCount": 1,
+              "steps": [
+                {
+                  "stepIndex": 1,
+                  "stepId": "sql_1",
+                  "stepType": "sql",
+                  "input": {
+                    "statement": "SELECT\n    d.d_year                           AS sale_year,\n    d.d_moy                            AS sale_month,\n    i.i_category                       AS category,\n    COUNT(*)                           AS row_count,\n    SUM(ss.ss_quantity)                AS total_quantity,\n    SUM(ss.ss_net_paid)                AS total_net_paid,\n    SUM(ss.ss_net_profit)              AS total_net_profit\nFROM tpcds.store_sales ss\nINNER JOIN tpcds.date_dim d\n        ON ss.ss_sold_date_sk = d.d_date_sk\nINNER JOIN tpcds.item i\n        ON ss.ss_item_sk = i.i_item_sk\nWHERE ss.ss_item_sk = ?\n  AND d.d_date >= ?\n  AND d.d_date <= ?\n  AND ss.ss_quantity >= ?\n  AND (? IS NULL OR i.i_category = ?)\nGROUP BY d.d_year,\n         d.d_moy,\n         i.i_category\nORDER BY d.d_year ASC,\n         d.d_moy ASC,\n         i.i_category ASC\nLIMIT 24",
+                    "timeoutSeconds": 30,
+                    "purpose": null,
+                    "sourceTaskId": "2e08b7c4-5710-45ef-9300-6ef81598cae8"
+                  },
+                  "output": {
+                    "resultSetReference": "$.data",
+                    "rowCount": 12,
+                    "returnedRowCount": 12,
+                    "possiblyTruncated": false,
+                    "columnCount": 7
+                  },
+                  "success": true,
+                  "status": "success",
+                  "durationMs": 99,
+                  "error": null,
+                  "rowCount": 12
+                }
+              ]
+            },
+            "executionGraph": {
+              "schemaVersion": "execution_graph.v1",
+              "nodes": [
+                {
+                  "id": "sql_query",
+                  "type": "sql.query",
+                  "status": "success",
+                  "durationMs": 99,
+                  "attributes": {}
+                }
+              ],
+              "edges": []
+            },
+            "executionWorkflow": {
+              "verified": true,
+              "steps": [
+                "VALIDATE_ARGUMENT_CONTRACT",
+                "ROUTE_LOGICAL_DATASOURCE",
+                "RESOLVE_TEMPLATE_PARAMETERS_IF_PRESENT",
+                "CLASSIFY_SQL_CARDINALITY",
+                "ENFORCE_READ_ONLY_POLICY",
+                "EXECUTE_QUERY_OR_SCRIPT",
+                "VERIFY_RESULT",
+                "ASSEMBLE_EVIDENCE"
+              ],
+              "workflowId": "execute.sql-query.v1",
+              "mode": "SQL_QUERY",
+              "parameterWorkflow": {
+                "parameterRepairs": [
+                  {
+                    "field": "category",
+                    "repairCode": "DEFAULT_VALUE_APPLIED"
+                  },
+                  {
+                    "field": "category",
+                    "repairCode": "UNKNOWN_TEMPLATE_PARAMETER_DROPPED"
+                  }
+                ],
+                "parameterSources": {
+                  "product_id": "EXPLICIT_PARAMETERS",
+                  "start_date": "EXPLICIT_PARAMETERS",
+                  "end_date": "EXPLICIT_PARAMETERS",
+                  "min_quantity": "EXPLICIT_PARAMETERS",
+                  "category": "SCHEMA_DEFAULT"
+                },
+                "mode": "DECLARED_SCHEMA",
+                "parameterCount": 5,
+                "steps": [
+                  "NORMALIZE_REQUEST",
+                  "COLLECT_EXPLICIT_PARAMETERS",
+                  "COLLECT_REQUEST_FIELDS",
+                  "APPLY_DECLARED_DEFAULTS",
+                  "COERCE_DECLARED_TYPES",
+                  "VALIDATE_REQUIRED_PARAMETERS",
+                  "ASSEMBLE_BINDING"
+                ],
+                "verified": true,
+                "scopeStatus": "REQUIRES_SCOPE_VERIFICATION",
+                "workflowId": "resolve.template-parameters.v1"
+              }
+            }
+          },
+          "message": null,
+          "errorMessage": null,
+          "exceptionType": null,
+          "errorDetails": null,
+          "executionTimeMs": 141,
+          "tokenUsage": {},
+          "metadata": {
+            "templatePublication": {
+              "toolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+              "releaseId": "922184b0-f4e4-4849-b570-368d0dbe5f85",
+              "templateRevision": "278d79f07cc9ba5ef3bad1ab50f1070ec21e7c6084f0f8dfc34472efc540cd0c",
+              "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+              "agentId": "sql_template_e2e_20261101_r1"
+            },
+            "requestId": "2e08b7c4-5710-45ef-9300-6ef81598cae8"
+          }
+        },
+        "rawData": {
+          "success": true,
+          "data": {
+            "schemaVersion": "tool_execution_result.v1",
+            "kind": "sql_query",
+            "dataSchema": "sql_result.v1",
+            "payloadType": "structured",
+            "success": true,
+            "status": "success",
+            "durationMs": 99,
+            "generatedAt": "2026-11-01T03:39:42.022832377Z",
+            "dataCompleteness": {
+              "contractVersion": "mcp_complete_result.v1",
+              "complete": true,
+              "gatewayTruncated": false,
+              "projectionRequiredByConsumer": true
+            },
+            "error": null,
+            "target": {
+              "type": "database",
+              "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+              "name": "248测试数据库",
+              "toolName": "db_query_mysql_248_test_db",
+              "environment": "DEV"
+            },
+            "sourceMetadata": {
+              "schemaVersion": "execution_source.v1",
+              "executionType": "SQL_QUERY",
+              "sourceType": "sql_statement",
+              "toolName": "db_query_mysql_248_test_db",
+              "asset": {
+                "type": "database",
+                "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                "name": "248测试数据库",
+                "environment": "DEV"
+              },
+              "operation": {
+                "statementHash": "7f500c67018a61007e5347b65840ef5be0d18afd64c315dc11d614b3bc6c9b98",
+                "templateId": "STUDIO_2B689C67D34336599B05C753F0473B60"
+              },
+              "business": {
+                "name": "TPCDS 248 单品期间月度销售分析验收",
+                "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+                "category": "business_analysis"
+              }
+            },
+            "operation": {
+              "type": "sql.query",
+              "statement": "SELECT\n    d.d_year                           AS sale_year,\n    d.d_moy                            AS sale_month,\n    i.i_category                       AS category,\n    COUNT(*)                           AS row_count,\n    SUM(ss.ss_quantity)                AS total_quantity,\n    SUM(ss.ss_net_paid)                AS total_net_paid,\n    SUM(ss.ss_net_profit)              AS total_net_profit\nFROM tpcds.store_sales ss\nINNER JOIN tpcds.date_dim d\n        ON ss.ss_sold_date_sk = d.d_date_sk\nINNER JOIN tpcds.item i\n        ON ss.ss_item_sk = i.i_item_sk\nWHERE ss.ss_item_sk = ?\n  AND d.d_date >= ?\n  AND d.d_date <= ?\n  AND ss.ss_quantity >= ?\n  AND (? IS NULL OR i.i_category = ?)\nGROUP BY d.d_year,\n         d.d_moy,\n         i.i_category\nORDER BY d.d_year ASC,\n         d.d_moy ASC,\n         i.i_category ASC\nLIMIT 24",
+              "timeoutSeconds": 30,
+              "purpose": null,
+              "sourceTaskId": "2e08b7c4-5710-45ef-9300-6ef81598cae8",
+              "diagnostics": {
+                "requestedCatalog": null,
+                "requestedSchema": null,
+                "schemaVersion": "sql_query_diagnostics.v1",
+                "templateId": "STUDIO_2B689C67D34336599B05C753F0473B60",
+                "templateParameters": {
+                  "product_id": 2,
+                  "start_date": "1999-01-01",
+                  "end_date": "1999-12-31",
+                  "min_quantity": 0,
+                  "category": null
+                },
+                "executionContext": {},
+                "tableResolution": null,
+                "routedTarget": null,
+                "routingDecisionLog": null,
+                "datasource": {
+                  "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                  "name": "248测试数据库",
+                  "toolName": "db_query_mysql_248_test_db",
+                  "environment": "DEV",
+                  "databaseType": "mysql",
+                  "jdbcDatabase": "tpcds"
+                },
+                "templateMetadata": {
+                  "templateId": "STUDIO_2B689C67D34336599B05C753F0473B60",
+                  "businessName": "TPCDS 248 单品期间月度销售分析验收",
+                  "businessDescription": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+                  "category": "business_analysis",
+                  "riskLevel": "MEDIUM",
+                  "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                      "product_id": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "default": 1,
+                        "description": "store_sales.ss_item_sk 商品主键"
+                      },
+                      "start_date": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "date_dim.d_date 含边界起日"
+                      },
+                      "end_date": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "date_dim.d_date 含边界止日"
+                      },
+                      "min_quantity": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "default": 0,
+                        "description": "每行最低ss_quantity"
+                      },
+                      "category": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "default": null,
+                        "description": "item.i_category精确品类；NULL不过滤"
+                      }
+                    },
+                    "required": [
+                      "start_date",
+                      "end_date"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "evidencePolicy": {}
+                },
+                "executionMode": "PREPARED_STATEMENT",
+                "boundParameterCount": 6,
+                "boundParameterNames": [
+                  "product_id",
+                  "start_date",
+                  "end_date",
+                  "min_quantity",
+                  "category",
+                  "category"
+                ],
+                "appliedCatalog": "tpcds",
+                "connection": {
+                  "catalog": "tpcds",
+                  "schema": null,
+                  "jdbcDatabase": "tpcds",
+                  "databaseType": "mysql"
+                },
+                "columnCommentResolution": "enabled",
+                "rowCount": 12,
+                "possiblyTruncated": false
+              }
+            },
+            "limits": {
+              "maxRowsRequested": 500,
+              "configuredDatabaseMaxRows": 500,
+              "rowsFetchedFromDatabase": 12,
+              "fullFetchedRowsAvailable": true,
+              "analysisStrategy": "RUNTIME_EXTERNALIZE_AND_CHUNK",
+              "truncationStrategy": "DATABASE_MAX_ROWS_500"
+            },
+            "data": {
+              "resultSetMode": "ONE_PER_TEMPLATE_EXECUTION",
+              "resultSetId": "7f500c67018a61007e5347b65840ef5be0d18afd64c315dc11d614b3bc6c9b98",
+              "commandContext": {
+                "schemaVersion": "template_result_context.v1",
+                "templateId": "db_query_mysql_248_test_db",
+                "templateName": "db_query_mysql_248_test_db",
+                "description": null,
+                "executionMode": "SINGLE_SQL",
+                "commands": [
+                  {
+                    "commandId": "sql_query",
+                    "order": 1,
+                    "name": "db_query_mysql_248_test_db",
+                    "description": null,
+                    "analysisHint": null,
+                    "resultReference": "$.data"
+                  }
+                ],
+                "references": []
+              },
+              "rowCount": 12,
+              "returnedRowCount": 12,
+              "complete": true,
+              "possiblyTruncated": false,
+              "truncationStrategy": "DATABASE_MAX_ROWS_500",
+              "columns": [
+                "sale_year",
+                "sale_month",
+                "category",
+                "row_count",
+                "total_quantity",
+                "total_net_paid",
+                "total_net_profit"
+              ],
+              "columnMetadata": [
+                {
+                  "name": "d_year",
+                  "label": "sale_year",
+                  "comment": null,
+                  "tableName": "date_dim",
+                  "schemaName": null,
+                  "catalogName": "tpcds",
+                  "jdbcType": 4,
+                  "typeName": "INT",
+                  "displaySize": 10,
+                  "nullable": true,
+                  "masked": false
+                },
+                {
+                  "name": "d_moy",
+                  "label": "sale_month",
+                  "comment": null,
+                  "tableName": "date_dim",
+                  "schemaName": null,
+                  "catalogName": "tpcds",
+                  "jdbcType": 4,
+                  "typeName": "INT",
+                  "displaySize": 10,
+                  "nullable": true,
+                  "masked": false
+                },
+                {
+                  "name": "i_category",
+                  "label": "category",
+                  "comment": null,
+                  "tableName": "item",
+                  "schemaName": null,
+                  "catalogName": "tpcds",
+                  "jdbcType": 1,
+                  "typeName": "CHAR",
+                  "displaySize": 50,
+                  "nullable": true,
+                  "masked": false
+                },
+                {
+                  "name": "row_count",
+                  "label": "row_count",
+                  "comment": null,
+                  "tableName": null,
+                  "schemaName": null,
+                  "catalogName": null,
+                  "jdbcType": -5,
+                  "typeName": "BIGINT",
+                  "displaySize": 19,
+                  "nullable": false,
+                  "masked": false
+                },
+                {
+                  "name": "total_quantity",
+                  "label": "total_quantity",
+                  "comment": null,
+                  "tableName": null,
+                  "schemaName": null,
+                  "catalogName": null,
+                  "jdbcType": 3,
+                  "typeName": "DECIMAL",
+                  "displaySize": 32,
+                  "nullable": true,
+                  "masked": false
+                },
+                {
+                  "name": "total_net_paid",
+                  "label": "total_net_paid",
+                  "comment": null,
+                  "tableName": null,
+                  "schemaName": null,
+                  "catalogName": null,
+                  "jdbcType": 3,
+                  "typeName": "DECIMAL",
+                  "displaySize": 29,
+                  "nullable": true,
+                  "masked": false
+                },
+                {
+                  "name": "total_net_profit",
+                  "label": "total_net_profit",
+                  "comment": null,
+                  "tableName": null,
+                  "schemaName": null,
+                  "catalogName": null,
+                  "jdbcType": 3,
+                  "typeName": "DECIMAL",
+                  "displaySize": 29,
+                  "nullable": true,
+                  "masked": false
+                }
+              ],
+              "governance": {
+                "schemaVersion": "sql_output_governance.v1",
+                "readOnly": true,
+                "rowCount": 12,
+                "returnedRowCount": 12,
+                "possiblyTruncated": false,
+                "truncationStrategy": "DATABASE_MAX_ROWS_500",
+                "maskedColumns": [],
+                "columnCommentsIncluded": false
+              },
+              "diagnostics": {
+                "requestedCatalog": null,
+                "requestedSchema": null,
+                "schemaVersion": "sql_query_diagnostics.v1",
+                "templateId": "STUDIO_2B689C67D34336599B05C753F0473B60",
+                "templateParameters": {
+                  "product_id": 2,
+                  "start_date": "1999-01-01",
+                  "end_date": "1999-12-31",
+                  "min_quantity": 0,
+                  "category": null
+                },
+                "executionContext": {},
+                "tableResolution": null,
+                "routedTarget": null,
+                "routingDecisionLog": null,
+                "datasource": {
+                  "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                  "name": "248测试数据库",
+                  "toolName": "db_query_mysql_248_test_db",
+                  "environment": "DEV",
+                  "databaseType": "mysql",
+                  "jdbcDatabase": "tpcds"
+                },
+                "templateMetadata": {
+                  "templateId": "STUDIO_2B689C67D34336599B05C753F0473B60",
+                  "businessName": "TPCDS 248 单品期间月度销售分析验收",
+                  "businessDescription": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+                  "category": "business_analysis",
+                  "riskLevel": "MEDIUM",
+                  "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                      "product_id": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "default": 1,
+                        "description": "store_sales.ss_item_sk 商品主键"
+                      },
+                      "start_date": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "date_dim.d_date 含边界起日"
+                      },
+                      "end_date": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "date_dim.d_date 含边界止日"
+                      },
+                      "min_quantity": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "default": 0,
+                        "description": "每行最低ss_quantity"
+                      },
+                      "category": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "default": null,
+                        "description": "item.i_category精确品类；NULL不过滤"
+                      }
+                    },
+                    "required": [
+                      "start_date",
+                      "end_date"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "evidencePolicy": {}
+                },
+                "executionMode": "PREPARED_STATEMENT",
+                "boundParameterCount": 6,
+                "boundParameterNames": [
+                  "product_id",
+                  "start_date",
+                  "end_date",
+                  "min_quantity",
+                  "category",
+                  "category"
+                ],
+                "appliedCatalog": "tpcds",
+                "connection": {
+                  "catalog": "tpcds",
+                  "schema": null,
+                  "jdbcDatabase": "tpcds",
+                  "databaseType": "mysql"
+                },
+                "columnCommentResolution": "enabled",
+                "rowCount": 12,
+                "possiblyTruncated": false
+              },
+              "rows": [
+                {
+                  "sale_year": 1999,
+                  "sale_month": 1,
+                  "category": "Women",
+                  "row_count": 1,
+                  "total_quantity": 19,
+                  "total_net_paid": 2576.4,
+                  "total_net_profit": 690.46
+                },
+                {
+                  "sale_year": 1999,
+                  "sale_month": 2,
+                  "category": "Women",
+                  "row_count": 6,
+                  "total_quantity": 285,
+                  "total_net_paid": 12337.41,
+                  "total_net_profit": -316.95
+                },
+                {
+                  "sale_year": 1999,
+                  "sale_month": 3,
+                  "category": "Women",
+                  "row_count": 6,
+                  "total_quantity": 318,
+                  "total_net_paid": 13697.72,
+                  "total_net_profit": -5403.38
+                },
+                {
+                  "sale_year": 1999,
+                  "sale_month": 4,
+                  "category": "Women",
+                  "row_count": 1,
+                  "total_quantity": 77,
+                  "total_net_paid": 2473.21,
+                  "total_net_profit": -3518.16
+                },
+                {
+                  "sale_year": 1999,
+                  "sale_month": 5,
+                  "category": "Women",
+                  "row_count": 2,
+                  "total_quantity": 106,
+                  "total_net_paid": 1962.98,
+                  "total_net_profit": -2172.6
+                },
+                {
+                  "sale_year": 1999,
+                  "sale_month": 6,
+                  "category": "Women",
+                  "row_count": 6,
+                  "total_quantity": 335,
+                  "total_net_paid": 11294.37,
+                  "total_net_profit": -9399.39
+                },
+                {
+                  "sale_year": 1999,
+                  "sale_month": 7,
+                  "category": "Women",
+                  "row_count": 1,
+                  "total_quantity": 89,
+                  "total_net_paid": 602.53,
+                  "total_net_profit": -4470.47
+                },
+                {
+                  "sale_year": 1999,
+                  "sale_month": 8,
+                  "category": "Women",
+                  "row_count": 5,
+                  "total_quantity": 269,
+                  "total_net_paid": 4294.14,
+                  "total_net_profit": -8688.51
+                },
+                {
+                  "sale_year": 1999,
+                  "sale_month": 9,
+                  "category": "Women",
+                  "row_count": 6,
+                  "total_quantity": 365,
+                  "total_net_paid": 14815.52,
+                  "total_net_profit": -7887.61
+                },
+                {
+                  "sale_year": 1999,
+                  "sale_month": 10,
+                  "category": "Women",
+                  "row_count": 5,
+                  "total_quantity": 249,
+                  "total_net_paid": 1710.33,
+                  "total_net_profit": -2485.52
+                },
+                {
+                  "sale_year": 1999,
+                  "sale_month": 11,
+                  "category": "Women",
+                  "row_count": 9,
+                  "total_quantity": 326,
+                  "total_net_paid": 8509.65,
+                  "total_net_profit": -9961.6
+                },
+                {
+                  "sale_year": 1999,
+                  "sale_month": 12,
+                  "category": "Women",
+                  "row_count": 13,
+                  "total_quantity": 593,
+                  "total_net_paid": 15109.79,
+                  "total_net_profit": -17885.6
+                }
+              ]
+            },
+            "execution": {
+              "schemaVersion": "execution_unit.v1",
+              "executionId": "5005e7e8-764e-4649-84f6-26aa7d7c99c4",
+              "toolName": "db_query_mysql_248_test_db",
+              "startedAt": "2026-11-01T03:39:41.924038975Z",
+              "finishedAt": "2026-11-01T03:39:42.023038975Z",
+              "durationMs": 99,
+              "stepCount": 1,
+              "steps": [
+                {
+                  "stepIndex": 1,
+                  "stepId": "sql_1",
+                  "stepType": "sql",
+                  "input": {
+                    "statement": "SELECT\n    d.d_year                           AS sale_year,\n    d.d_moy                            AS sale_month,\n    i.i_category                       AS category,\n    COUNT(*)                           AS row_count,\n    SUM(ss.ss_quantity)                AS total_quantity,\n    SUM(ss.ss_net_paid)                AS total_net_paid,\n    SUM(ss.ss_net_profit)              AS total_net_profit\nFROM tpcds.store_sales ss\nINNER JOIN tpcds.date_dim d\n        ON ss.ss_sold_date_sk = d.d_date_sk\nINNER JOIN tpcds.item i\n        ON ss.ss_item_sk = i.i_item_sk\nWHERE ss.ss_item_sk = ?\n  AND d.d_date >= ?\n  AND d.d_date <= ?\n  AND ss.ss_quantity >= ?\n  AND (? IS NULL OR i.i_category = ?)\nGROUP BY d.d_year,\n         d.d_moy,\n         i.i_category\nORDER BY d.d_year ASC,\n         d.d_moy ASC,\n         i.i_category ASC\nLIMIT 24",
+                    "timeoutSeconds": 30,
+                    "purpose": null,
+                    "sourceTaskId": "2e08b7c4-5710-45ef-9300-6ef81598cae8"
+                  },
+                  "output": {
+                    "resultSetReference": "$.data",
+                    "rowCount": 12,
+                    "returnedRowCount": 12,
+                    "possiblyTruncated": false,
+                    "columnCount": 7
+                  },
+                  "success": true,
+                  "status": "success",
+                  "durationMs": 99,
+                  "error": null,
+                  "rowCount": 12
+                }
+              ]
+            },
+            "executionGraph": {
+              "schemaVersion": "execution_graph.v1",
+              "nodes": [
+                {
+                  "id": "sql_query",
+                  "type": "sql.query",
+                  "status": "success",
+                  "durationMs": 99,
+                  "attributes": {}
+                }
+              ],
+              "edges": []
+            },
+            "executionWorkflow": {
+              "verified": true,
+              "steps": [
+                "VALIDATE_ARGUMENT_CONTRACT",
+                "ROUTE_LOGICAL_DATASOURCE",
+                "RESOLVE_TEMPLATE_PARAMETERS_IF_PRESENT",
+                "CLASSIFY_SQL_CARDINALITY",
+                "ENFORCE_READ_ONLY_POLICY",
+                "EXECUTE_QUERY_OR_SCRIPT",
+                "VERIFY_RESULT",
+                "ASSEMBLE_EVIDENCE"
+              ],
+              "workflowId": "execute.sql-query.v1",
+              "mode": "SQL_QUERY",
+              "parameterWorkflow": {
+                "parameterRepairs": [
+                  {
+                    "field": "category",
+                    "repairCode": "DEFAULT_VALUE_APPLIED"
+                  },
+                  {
+                    "field": "category",
+                    "repairCode": "UNKNOWN_TEMPLATE_PARAMETER_DROPPED"
+                  }
+                ],
+                "parameterSources": {
+                  "product_id": "EXPLICIT_PARAMETERS",
+                  "start_date": "EXPLICIT_PARAMETERS",
+                  "end_date": "EXPLICIT_PARAMETERS",
+                  "min_quantity": "EXPLICIT_PARAMETERS",
+                  "category": "SCHEMA_DEFAULT"
+                },
+                "mode": "DECLARED_SCHEMA",
+                "parameterCount": 5,
+                "steps": [
+                  "NORMALIZE_REQUEST",
+                  "COLLECT_EXPLICIT_PARAMETERS",
+                  "COLLECT_REQUEST_FIELDS",
+                  "APPLY_DECLARED_DEFAULTS",
+                  "COERCE_DECLARED_TYPES",
+                  "VALIDATE_REQUIRED_PARAMETERS",
+                  "ASSEMBLE_BINDING"
+                ],
+                "verified": true,
+                "scopeStatus": "REQUIRES_SCOPE_VERIFICATION",
+                "workflowId": "resolve.template-parameters.v1"
+              }
+            }
+          },
+          "message": null,
+          "errorMessage": null,
+          "exceptionType": null,
+          "errorDetails": null,
+          "executionTimeMs": 141,
+          "tokenUsage": {},
+          "metadata": {
+            "templatePublication": {
+              "toolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+              "releaseId": "922184b0-f4e4-4849-b570-368d0dbe5f85",
+              "templateRevision": "278d79f07cc9ba5ef3bad1ab50f1070ec21e7c6084f0f8dfc34472efc540cd0c",
+              "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+              "agentId": "sql_template_e2e_20261101_r1"
+            },
+            "requestId": "2e08b7c4-5710-45ef-9300-6ef81598cae8"
+          }
+        },
+        "runtimeMetadata": {
+          "resultKind": "RAW_RECORDS",
+          "resultSchemaRef": "sql_result.v1",
+          "preflightAudit": {
+            "schemaVersion": "mcp_contract_audit.v1",
+            "compliant": true,
+            "evidence": [
+              {
+                "serviceId": "chatchat-mcp-server",
+                "toolName": "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+                "domainCode": "generic",
+                "domainContractId": "runtime-os/generic-mcp-service",
+                "domainContractVersion": "mcp_domain_contract.v1",
+                "observedContract": {
+                  "serviceId": "chatchat-mcp-server",
+                  "localToolName": "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+                  "remoteToolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+                  "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。\nReturns the existing ToolOutput envelope: SQL rows are at $.data.data.rows and rowCount at $.data.data.rowCount. SQL column names are NOT top-level result fields. Preserve this actual envelope in downstream contracts.\nVerified trial declares SQL row column identifiers at $.data.data.rows[*]: [\"sale_year\",\"sale_month\",\"category\",\"row_count\",\"total_quantity\",\"total_net_paid\",\"total_net_profit\"]. Identifiers only, never sample values or proof of current rows. Bind the exact scalar leaf using field selectors and numeric array indexes. jq pipes, map, min and alternative field guesses are not executable output paths.",
+                  "capabilityCode": "mcp_tool",
+                  "inputSchema": {
+                    "required": [
+                      "start_date",
+                      "end_date"
+                    ],
+                    "type": "object",
+                    "properties": {
+                      "product_id": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "default": 1,
+                        "description": "store_sales.ss_item_sk 商品主键"
+                      },
+                      "start_date": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "date_dim.d_date 含边界起日"
+                      },
+                      "end_date": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "date_dim.d_date 含边界止日"
+                      },
+                      "min_quantity": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "default": 0,
+                        "description": "每行最低ss_quantity"
+                      },
+                      "category": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "default": null,
+                        "description": "item.i_category精确品类；NULL不过滤"
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "outputSchema": {
+                    "description": "ToolOutput envelope. SQL rows are at $.data.data.rows, not top-level SQL column fields. Preserve the envelope when passing results to later steps.",
+                    "additionalProperties": true,
+                    "type": "object",
+                    "properties": {
+                      "errorMessage": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "success": {
+                        "type": "boolean"
+                      },
+                      "data": {
+                        "type": [
+                          "object",
+                          "null"
+                        ],
+                        "properties": {
+                          "data": {
+                            "type": "object",
+                            "properties": {
+                              "columns": {
+                                "items": {
+                                  "type": "string"
+                                },
+                                "type": "array"
+                              },
+                              "rows": {
+                                "items": {
+                                  "type": "object"
+                                },
+                                "type": "array"
+                              },
+                              "rowCount": {
+                                "type": "integer"
+                              }
+                            }
+                          },
+                          "success": {
+                            "type": "boolean"
+                          }
+                        }
+                      }
+                    },
+                    "required": [
+                      "success"
+                    ]
+                  },
+                  "governance": {
+                    "riskLevel": "low",
+                    "operationType": "execute",
+                    "runtimeLevel": "controlled",
+                    "confirmation": null,
+                    "permissions": null
+                  },
+                  "metadata": {
+                    "runtimeLevel": "controlled",
+                    "toolVersion": "6.0.0",
+                    "operationType": "execute",
+                    "templateCapability": true,
+                    "riskLevel": "low",
+                    "schemaVersion": "template-capability.v1",
+                    "breakingChangeApproved": true,
+                    "visibleTenantIds": [
+                      "9001fee4-482b-4851-9eb9-df269765291f"
+                    ],
+                    "resultKind": "RAW_RECORDS",
+                    "resultSchemaRef": "sql_result.v1",
+                    "sqlResultColumns": [
+                      "sale_year",
+                      "sale_month",
+                      "category",
+                      "row_count",
+                      "total_quantity",
+                      "total_net_paid",
+                      "total_net_profit"
+                    ],
+                    "data_type": "UNKNOWN",
+                    "chineseAlias": "TPCDS 248 单品期间月度销售分析验收",
+                    "publicationStatus": "active",
+                    "rolloutLabels": [],
+                    "rolloutPercentage": 100,
+                    "contractVersion": "mcp_tool_contract.v1"
+                  },
+                  "resultKind": "RAW_RECORDS",
+                  "resultSchemaRef": "sql_result.v1",
+                  "paginationSupported": false
+                },
+                "satisfiedPaths": [
+                  "INPUT_SCHEMA:type",
+                  "OUTPUT_SCHEMA:type",
+                  "GOVERNANCE:riskLevel",
+                  "METADATA:contractVersion"
+                ],
+                "missingPaths": [],
+                "normalizedResultAvailable": false,
+                "rawResultAvailable": false
+              }
+            ],
+            "findings": [],
+            "findingCounts": {},
+            "auditedAt": 1793504379196
+          },
+          "postflightAudit": {
+            "schemaVersion": "mcp_contract_audit.v1",
+            "compliant": true,
+            "evidence": [
+              {
+                "serviceId": "chatchat-mcp-server",
+                "toolName": "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+                "domainCode": "generic",
+                "domainContractId": "runtime-os/generic-mcp-service",
+                "domainContractVersion": "mcp_domain_contract.v1",
+                "observedContract": {
+                  "serviceId": "chatchat-mcp-server",
+                  "localToolName": "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+                  "remoteToolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+                  "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。\nReturns the existing ToolOutput envelope: SQL rows are at $.data.data.rows and rowCount at $.data.data.rowCount. SQL column names are NOT top-level result fields. Preserve this actual envelope in downstream contracts.\nVerified trial declares SQL row column identifiers at $.data.data.rows[*]: [\"sale_year\",\"sale_month\",\"category\",\"row_count\",\"total_quantity\",\"total_net_paid\",\"total_net_profit\"]. Identifiers only, never sample values or proof of current rows. Bind the exact scalar leaf using field selectors and numeric array indexes. jq pipes, map, min and alternative field guesses are not executable output paths.",
+                  "capabilityCode": "mcp_tool",
+                  "inputSchema": {
+                    "required": [
+                      "start_date",
+                      "end_date"
+                    ],
+                    "type": "object",
+                    "properties": {
+                      "product_id": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "default": 1,
+                        "description": "store_sales.ss_item_sk 商品主键"
+                      },
+                      "start_date": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "date_dim.d_date 含边界起日"
+                      },
+                      "end_date": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "date_dim.d_date 含边界止日"
+                      },
+                      "min_quantity": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "default": 0,
+                        "description": "每行最低ss_quantity"
+                      },
+                      "category": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "default": null,
+                        "description": "item.i_category精确品类；NULL不过滤"
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "outputSchema": {
+                    "description": "ToolOutput envelope. SQL rows are at $.data.data.rows, not top-level SQL column fields. Preserve the envelope when passing results to later steps.",
+                    "additionalProperties": true,
+                    "type": "object",
+                    "properties": {
+                      "errorMessage": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "success": {
+                        "type": "boolean"
+                      },
+                      "data": {
+                        "type": [
+                          "object",
+                          "null"
+                        ],
+                        "properties": {
+                          "data": {
+                            "type": "object",
+                            "properties": {
+                              "columns": {
+                                "items": {
+                                  "type": "string"
+                                },
+                                "type": "array"
+                              },
+                              "rows": {
+                                "items": {
+                                  "type": "object"
+                                },
+                                "type": "array"
+                              },
+                              "rowCount": {
+                                "type": "integer"
+                              }
+                            }
+                          },
+                          "success": {
+                            "type": "boolean"
+                          }
+                        }
+                      }
+                    },
+                    "required": [
+                      "success"
+                    ]
+                  },
+                  "governance": {
+                    "riskLevel": "low",
+                    "operationType": "execute",
+                    "runtimeLevel": "controlled",
+                    "confirmation": null,
+                    "permissions": null
+                  },
+                  "metadata": {
+                    "runtimeLevel": "controlled",
+                    "toolVersion": "6.0.0",
+                    "operationType": "execute",
+                    "templateCapability": true,
+                    "riskLevel": "low",
+                    "schemaVersion": "template-capability.v1",
+                    "breakingChangeApproved": true,
+                    "visibleTenantIds": [
+                      "9001fee4-482b-4851-9eb9-df269765291f"
+                    ],
+                    "resultKind": "RAW_RECORDS",
+                    "resultSchemaRef": "sql_result.v1",
+                    "sqlResultColumns": [
+                      "sale_year",
+                      "sale_month",
+                      "category",
+                      "row_count",
+                      "total_quantity",
+                      "total_net_paid",
+                      "total_net_profit"
+                    ],
+                    "data_type": "UNKNOWN",
+                    "chineseAlias": "TPCDS 248 单品期间月度销售分析验收",
+                    "publicationStatus": "active",
+                    "rolloutLabels": [],
+                    "rolloutPercentage": 100,
+                    "contractVersion": "mcp_tool_contract.v1"
+                  },
+                  "resultKind": "RAW_RECORDS",
+                  "resultSchemaRef": "sql_result.v1",
+                  "paginationSupported": false
+                },
+                "satisfiedPaths": [
+                  "INPUT_SCHEMA:type",
+                  "OUTPUT_SCHEMA:type",
+                  "GOVERNANCE:riskLevel",
+                  "METADATA:contractVersion",
+                  "RAW_RESULT:$",
+                  "RESULT_CONTRACT:resultKind"
+                ],
+                "missingPaths": [
+                  "RESULT_CONTRACT:provenance"
+                ],
+                "normalizedResultAvailable": true,
+                "rawResultAvailable": true
+              }
+            ],
+            "findings": [
+              {
+                "severity": "WARNING",
+                "code": "MCP_RESULT_PROVENANCE_UNDECLARED",
+                "serviceId": "chatchat-mcp-server",
+                "toolName": "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+                "domainCode": "generic",
+                "source": "NORMALIZED_RESULT",
+                "path": "provenance",
+                "message": "MCP result does not identify the observed source/version/scope",
+                "observed": "absent",
+                "recoveryAction": "DECLARE_RESULT_PROVENANCE"
+              }
+            ],
+            "findingCounts": {
+              "WARNING": 1
+            },
+            "auditedAt": 1793504382033
+          },
+          "kernelProtocolVersion": "runtime_os_mcp_kernel.v1",
+          "discoveryRefreshAttempted": false,
+          "templateBindingValidation": {
+            "schemaVersion": "runtime_template_binding.v3",
+            "runtimeEvidenceValidated": false,
+            "executorTool": "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+            "templateIdPresent": false
+          },
+          "mcpExecutionWorkflow": {
+            "steps": [
+              "DISCOVER_SERVICE",
+              "DISCOVER_TOOL_TEMPLATE",
+              "VALIDATE_TEMPLATE_BINDING",
+              "VALIDATE_TOOL_CONTRACT_SNAPSHOT",
+              "CONTRACT_PREFLIGHT",
+              "REFRESH_CATALOG_IF_STALE",
+              "APPLY_EXECUTION_EXTENSIONS",
+              "INVOKE_PROVIDER",
+              "REPAIR_RESULT_IF_REQUIRED",
+              "CONTRACT_POSTFLIGHT",
+              "ASSEMBLE_RESULT"
+            ],
+            "route": "INTERNAL",
+            "toolDiscovered": true,
+            "providerId": "local-mcp-tool-registry",
+            "remoteToolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+            "repairApplied": false,
+            "discoveryRefreshAttempted": false,
+            "workflowId": "execute.mcp-tool.v1",
+            "transport": "in-process",
+            "extensions": [],
+            "localToolName": "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7"
+          }
+        }
+      }
+    }
+  ]
+}

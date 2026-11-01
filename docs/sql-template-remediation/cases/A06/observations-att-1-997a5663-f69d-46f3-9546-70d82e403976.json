@@ -1,0 +1,4198 @@
+[
+  {
+    "type": "tool",
+    "source": "skill_analysis_context",
+    "content": "Skill methodology snapshot inherited by analysis workflow",
+    "metadata": {
+      "status": "NO_CANDIDATES",
+      "fingerprint": "e45547bc6369bd24b3bee8fa56e5f3755d74d84d15f20f1982689b6c4f566dd8",
+      "skills": [],
+      "stages": [
+        "PLAN",
+        "ACQUISITION",
+        "ANALYSIS",
+        "VALIDATION",
+        "REPORT"
+      ],
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "knowledge_skill_lifecycle",
+    "source": "knowledge_skills",
+    "content": "Knowledge Skill routing completed: activated 0 Knowledge Skill(s), selected 0 domain skill(s) []",
+    "metadata": {
+      "type": "knowledge_skill_lifecycle",
+      "eventKind": "KNOWLEDGE_SKILLS",
+      "eventState": "COMPLETED",
+      "stage": "SKILLS_EXTRACTED",
+      "schemaVersion": "knowledge_context.v1",
+      "status": "NO_CANDIDATES",
+      "skillCount": 0,
+      "activatedSkills": [],
+      "domainSkillCount": 0,
+      "activatedDomainSkillCount": 0,
+      "methodologyFingerprint": "e45547bc6369bd24b3bee8fa56e5f3755d74d84d15f20f1982689b6c4f566dd8",
+      "methodologyStatus": "NO_CANDIDATES",
+      "skillTypes": [],
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "knowledge_skill_lifecycle",
+    "source": "knowledge_skills",
+    "content": "领域知识未应用到分析流程，共使用 0 个文档来源、0 个 Knowledge Skill、0 个领域技能。",
+    "metadata": {
+      "type": "knowledge_skill_lifecycle",
+      "eventKind": "KNOWLEDGE_SKILLS",
+      "eventState": "NOT_APPLIED",
+      "stage": "CONTEXT_APPLIED",
+      "schemaVersion": "knowledge_context.v1",
+      "status": "NO_CANDIDATES",
+      "applied": false,
+      "skillCount": 0,
+      "activatedSkills": [],
+      "domainSkillCount": 0,
+      "activatedDomainSkillCount": 0,
+      "methodologyFingerprint": "e45547bc6369bd24b3bee8fa56e5f3755d74d84d15f20f1982689b6c4f566dd8",
+      "methodologyStatus": "NO_CANDIDATES",
+      "sourceCount": 0,
+      "sources": [],
+      "skillTypes": [],
+      "estimatedTokens": 0,
+      "maxTokens": 1500,
+      "truncated": false,
+      "currentFactAuthority": false,
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "lifecycle",
+    "source": "agent_lifecycle",
+    "content": "Problem identified from user input.",
+    "metadata": {
+      "type": "lifecycle",
+      "workflow": "agent_problem_solving",
+      "lifecyclePhase": "problem_identification",
+      "createdAt": 1793497189388,
+      "queryPreview": "先概览各国家、省州的仓库分布，再选择实际存在的最小仓库主键，分析该仓库1998-01-01至1998-01-29的逐日库存情况，数量下限0、类别不限。用实际结果说明查询之间如何关联。",
+      "skillId": "sql_template_e2e_20261101_r1",
+      "documentWebVerificationRequired": false,
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "lifecycle",
+    "source": "agent_lifecycle",
+    "content": "Tool discovery completed and capability space was constructed.",
+    "metadata": {
+      "type": "lifecycle",
+      "workflow": "agent_problem_solving",
+      "lifecyclePhase": "tool_discovery",
+      "createdAt": 1793497189391,
+      "availableTools": [
+        "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970",
+        "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+        "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7"
+      ],
+      "plannerVisibleTools": [
+        "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970",
+        "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+        "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7"
+      ],
+      "internalToolDelegations": {},
+      "mandatoryTools": [],
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "lifecycle",
+    "source": "agent_lifecycle",
+    "content": "Planner generated an executable InterpretationPlan DAG.",
+    "metadata": {
+      "type": "lifecycle",
+      "workflow": "agent_problem_solving",
+      "lifecyclePhase": "plan_generation",
+      "createdAt": 1793497232668,
+      "step": 1,
+      "action": "tool",
+      "toolName": "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+      "resolvedToolName": "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+      "plannerProtocol": "interpretation_plan",
+      "eventKind": "DAG_VALIDATION",
+      "eventState": "PASSED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "lifecycle",
+    "source": "agent_lifecycle",
+    "content": "InterpretationPlan passed evaluation and may proceed to execution.",
+    "metadata": {
+      "type": "lifecycle",
+      "workflow": "agent_problem_solving",
+      "lifecyclePhase": "plan_evaluation",
+      "createdAt": 1793497233150,
+      "stage": "initial",
+      "valid": true,
+      "executable": true,
+      "approvalRequired": false,
+      "eventKind": "DAG_VALIDATION",
+      "eventState": "PASSED",
+      "errors": [],
+      "warnings": [],
+      "approvalRequests": [],
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "lifecycle",
+    "source": "agent_lifecycle",
+    "content": "InterpretationPlan DAG execution started.",
+    "metadata": {
+      "type": "lifecycle",
+      "workflow": "agent_problem_solving",
+      "lifecyclePhase": "step_execution",
+      "createdAt": 1793497233155,
+      "stage": "initial",
+      "planVersion": "1.0",
+      "stepCount": 5,
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "controller_decision",
+    "source": "interpretation_plan_controller",
+    "content": "LLM DAG controller decision 1 was accepted by runtime guard.",
+    "metadata": {
+      "decisionCount": 1,
+      "lifecyclePhase": "controller_decision",
+      "executionTraceId": "att-1-997a5663-f69d-46f3-9546-70d82e403976::interpretation_plan",
+      "protocolVersion": "interpretation_execution_protocol_v1",
+      "workflow": "interpretation_plan",
+      "structuredRuntimeObservation": true,
+      "type": "controller_decision",
+      "workflowExecutionAttempt": 0,
+      "planExecutionScope": "att-1-997a5663-f69d-46f3-9546-70d82e403976::attempt:0",
+      "decision": {
+        "runtimeDeterministicScheduling": true,
+        "readyStepIds": [
+          1
+        ],
+        "decisionCount": 1,
+        "executionTraceId": "att-1-997a5663-f69d-46f3-9546-70d82e403976::interpretation_plan",
+        "protocolVersion": "interpretation_execution_protocol_v1",
+        "action": "execute_step",
+        "stepIds": [
+          1
+        ],
+        "reason": "Java Runtime selected Ready node(s) deterministically."
+      },
+      "guardResult": {
+        "protocolVersion": "interpretation_execution_protocol_v1",
+        "allowed": true,
+        "status": "accepted",
+        "reason": "Runtime guard accepted DAG decision.",
+        "validatedAction": "execute_step",
+        "validatedStepIds": [
+          1
+        ]
+      },
+      "remainingStepIds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "completedStepIds": []
+    }
+  },
+  {
+    "type": "tool",
+    "source": "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+    "content": "InterpretationPlan step 1 mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc completed.",
+    "metadata": {
+      "structuredRuntimeObservation": true,
+      "workflow": "interpretation_plan",
+      "protocolVersion": "interpretation_execution_protocol_v1",
+      "executionTraceId": "att-1-997a5663-f69d-46f3-9546-70d82e403976::interpretation_plan",
+      "workflowExecutionAttempt": 0,
+      "planExecutionScope": "att-1-997a5663-f69d-46f3-9546-70d82e403976::attempt:0",
+      "evidenceIteration": 1,
+      "lifecyclePhase": "observation",
+      "interpretationPlanStepId": 1,
+      "evidenceId": "iteration:1:step:1:tool:mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+      "interpretationPlanActionType": "mcp_tool",
+      "toolName": "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+      "planStepDefinitionFingerprint": "Qg_jR5jgV9wGUfmz_nmJefOWy0C9IcyYWuLynTb3Ng4",
+      "success": true,
+      "durationMs": 2658,
+      "type": "tool",
+      "resolvedInput": {},
+      "toolResultReviewEnabled": true,
+      "localDecisionPhase": "fact_check",
+      "toolResultReviewMaxAttempts": 1,
+      "toolResultReviewSatisfied": true,
+      "toolResultReviewReason": "Admit governed tool evidence; Cline owns exploration, execution feedback and business interpretation.",
+      "toolResultReviewAttempts": 1,
+      "toolResultReviewSkipped": true,
+      "analysisDecisionOwner": "CLINE",
+      "toolResultReviewModelCalls": 0,
+      "toolResultReviewMode": "CODING_DETERMINISTIC_ADMISSION",
+      "stepOutput": {
+        "schemaVersion": "mcp_analysis_payload.v1",
+        "requestId": "0d6db8a8-7761-4db4-ab10-d632d06375b4",
+        "serviceId": "chatchat-mcp-server",
+        "toolName": "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+        "status": "SUCCESS",
+        "resultKind": "RAW_RECORDS",
+        "resultSchemaRef": "sql_result.v1",
+        "provenance": {
+          "sourceRef": null,
+          "dataVersion": null,
+          "asOf": null,
+          "inputFingerprint": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "rowRange": {},
+          "filterSummary": {}
+        },
+        "completeness": {
+          "repairApplied": false,
+          "complete": true,
+          "status": "SUCCESS"
+        },
+        "data": {
+          "success": true,
+          "data": {
+            "schemaVersion": "tool_execution_result.v1",
+            "kind": "sql_query",
+            "dataSchema": "sql_result.v1",
+            "payloadType": "structured",
+            "success": true,
+            "status": "success",
+            "durationMs": 88,
+            "generatedAt": "2026-11-01T01:40:36.255064536Z",
+            "dataCompleteness": {
+              "contractVersion": "mcp_complete_result.v1",
+              "complete": true,
+              "gatewayTruncated": false,
+              "projectionRequiredByConsumer": true
+            },
+            "error": null,
+            "target": {
+              "type": "database",
+              "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+              "name": "248测试数据库",
+              "toolName": "db_query_mysql_248_test_db",
+              "environment": "DEV"
+            },
+            "sourceMetadata": {
+              "schemaVersion": "execution_source.v1",
+              "executionType": "SQL_QUERY",
+              "sourceType": "sql_statement",
+              "toolName": "db_query_mysql_248_test_db",
+              "asset": {
+                "type": "database",
+                "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                "name": "248测试数据库",
+                "environment": "DEV"
+              },
+              "operation": {
+                "statementHash": "34890f7852638610b65c8d1ac52a30fe74d763c81bd000d71cbaa662df953e78",
+                "templateId": "STUDIO_59383865BC1A350C8E1FB5B198D8E7A2"
+              },
+              "business": {
+                "name": "TPCDS 248 仓库地理分布",
+                "description": "按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围；全仓库维表，无参数。",
+                "category": "business_analysis"
+              }
+            },
+            "operation": {
+              "type": "sql.query",
+              "statement": "SELECT\n    w_country,                                              \n    w_state,                                                \n    COUNT(*)                AS warehouse_count,             \n    COUNT(DISTINCT w_city)  AS city_count,                  \n    MIN(w_warehouse_sk)     AS min_warehouse_sk,            \n    MAX(w_warehouse_sk)     AS max_warehouse_sk             \nFROM warehouse\nGROUP BY\n    w_country,\n    w_state\nORDER BY\n    w_country,\n    w_state",
+              "timeoutSeconds": 30,
+              "purpose": null,
+              "sourceTaskId": "0d6db8a8-7761-4db4-ab10-d632d06375b4",
+              "diagnostics": {
+                "requestedCatalog": null,
+                "requestedSchema": null,
+                "schemaVersion": "sql_query_diagnostics.v1",
+                "templateId": "STUDIO_59383865BC1A350C8E1FB5B198D8E7A2",
+                "templateParameters": {},
+                "executionContext": {},
+                "tableResolution": null,
+                "routedTarget": null,
+                "routingDecisionLog": null,
+                "datasource": {
+                  "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                  "name": "248测试数据库",
+                  "toolName": "db_query_mysql_248_test_db",
+                  "environment": "DEV",
+                  "databaseType": "mysql",
+                  "jdbcDatabase": "tpcds"
+                },
+                "templateMetadata": {
+                  "templateId": "STUDIO_59383865BC1A350C8E1FB5B198D8E7A2",
+                  "businessName": "TPCDS 248 仓库地理分布",
+                  "businessDescription": "按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围；全仓库维表，无参数。",
+                  "category": "business_analysis",
+                  "riskLevel": "MEDIUM",
+                  "inputSchema": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": false
+                  },
+                  "evidencePolicy": {}
+                },
+                "executionMode": "PREPARED_STATEMENT",
+                "boundParameterCount": 0,
+                "boundParameterNames": [],
+                "appliedCatalog": "tpcds",
+                "connection": {
+                  "catalog": "tpcds",
+                  "schema": null,
+                  "jdbcDatabase": "tpcds",
+                  "databaseType": "mysql"
+                },
+                "columnCommentResolution": "enabled",
+                "rowCount": 1,
+                "possiblyTruncated": false
+              }
+            },
+            "limits": {
+              "maxRowsRequested": 500,
+              "configuredDatabaseMaxRows": 500,
+              "rowsFetchedFromDatabase": 1,
+              "fullFetchedRowsAvailable": true,
+              "analysisStrategy": "RUNTIME_EXTERNALIZE_AND_CHUNK",
+              "truncationStrategy": "DATABASE_MAX_ROWS_500"
+            },
+            "data": {
+              "resultSetMode": "ONE_PER_TEMPLATE_EXECUTION",
+              "resultSetId": "34890f7852638610b65c8d1ac52a30fe74d763c81bd000d71cbaa662df953e78",
+              "commandContext": {
+                "schemaVersion": "template_result_context.v1",
+                "templateId": "db_query_mysql_248_test_db",
+                "templateName": "db_query_mysql_248_test_db",
+                "description": null,
+                "executionMode": "SINGLE_SQL",
+                "commands": [
+                  {
+                    "commandId": "sql_query",
+                    "order": 1,
+                    "name": "db_query_mysql_248_test_db",
+                    "description": null,
+                    "analysisHint": null,
+                    "resultReference": "$.data"
+                  }
+                ],
+                "references": []
+              },
+              "rowCount": 1,
+              "returnedRowCount": 1,
+              "complete": true,
+              "possiblyTruncated": false,
+              "truncationStrategy": "DATABASE_MAX_ROWS_500",
+              "columns": [
+                "w_country",
+                "w_state",
+                "warehouse_count",
+                "city_count",
+                "min_warehouse_sk",
+                "max_warehouse_sk"
+              ],
+              "columnMetadata": [
+                {
+                  "name": "w_country",
+                  "label": "w_country",
+                  "comment": null,
+                  "tableName": "warehouse",
+                  "schemaName": null,
+                  "catalogName": "tpcds",
+                  "jdbcType": 12,
+                  "typeName": "VARCHAR",
+                  "displaySize": 20,
+                  "nullable": true,
+                  "masked": false
+                },
+                {
+                  "name": "w_state",
+                  "label": "w_state",
+                  "comment": null,
+                  "tableName": "warehouse",
+                  "schemaName": null,
+                  "catalogName": "tpcds",
+                  "jdbcType": 1,
+                  "typeName": "CHAR",
+                  "displaySize": 2,
+                  "nullable": true,
+                  "masked": false
+                },
+                {
+                  "name": "warehouse_count",
+                  "label": "warehouse_count",
+                  "comment": null,
+                  "tableName": null,
+                  "schemaName": null,
+                  "catalogName": null,
+                  "jdbcType": -5,
+                  "typeName": "BIGINT",
+                  "displaySize": 19,
+                  "nullable": false,
+                  "masked": false
+                },
+                {
+                  "name": "city_count",
+                  "label": "city_count",
+                  "comment": null,
+                  "tableName": null,
+                  "schemaName": null,
+                  "catalogName": null,
+                  "jdbcType": -5,
+                  "typeName": "BIGINT",
+                  "displaySize": 19,
+                  "nullable": false,
+                  "masked": false
+                },
+                {
+                  "name": "min_warehouse_sk",
+                  "label": "min_warehouse_sk",
+                  "comment": null,
+                  "tableName": null,
+                  "schemaName": null,
+                  "catalogName": null,
+                  "jdbcType": 4,
+                  "typeName": "INT",
+                  "displaySize": 10,
+                  "nullable": true,
+                  "masked": false
+                },
+                {
+                  "name": "max_warehouse_sk",
+                  "label": "max_warehouse_sk",
+                  "comment": null,
+                  "tableName": null,
+                  "schemaName": null,
+                  "catalogName": null,
+                  "jdbcType": 4,
+                  "typeName": "INT",
+                  "displaySize": 10,
+                  "nullable": true,
+                  "masked": false
+                }
+              ],
+              "governance": {
+                "schemaVersion": "sql_output_governance.v1",
+                "readOnly": true,
+                "rowCount": 1,
+                "returnedRowCount": 1,
+                "possiblyTruncated": false,
+                "truncationStrategy": "DATABASE_MAX_ROWS_500",
+                "maskedColumns": [],
+                "columnCommentsIncluded": false
+              },
+              "diagnostics": {
+                "requestedCatalog": null,
+                "requestedSchema": null,
+                "schemaVersion": "sql_query_diagnostics.v1",
+                "templateId": "STUDIO_59383865BC1A350C8E1FB5B198D8E7A2",
+                "templateParameters": {},
+                "executionContext": {},
+                "tableResolution": null,
+                "routedTarget": null,
+                "routingDecisionLog": null,
+                "datasource": {
+                  "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                  "name": "248测试数据库",
+                  "toolName": "db_query_mysql_248_test_db",
+                  "environment": "DEV",
+                  "databaseType": "mysql",
+                  "jdbcDatabase": "tpcds"
+                },
+                "templateMetadata": {
+                  "templateId": "STUDIO_59383865BC1A350C8E1FB5B198D8E7A2",
+                  "businessName": "TPCDS 248 仓库地理分布",
+                  "businessDescription": "按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围；全仓库维表，无参数。",
+                  "category": "business_analysis",
+                  "riskLevel": "MEDIUM",
+                  "inputSchema": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": false
+                  },
+                  "evidencePolicy": {}
+                },
+                "executionMode": "PREPARED_STATEMENT",
+                "boundParameterCount": 0,
+                "boundParameterNames": [],
+                "appliedCatalog": "tpcds",
+                "connection": {
+                  "catalog": "tpcds",
+                  "schema": null,
+                  "jdbcDatabase": "tpcds",
+                  "databaseType": "mysql"
+                },
+                "columnCommentResolution": "enabled",
+                "rowCount": 1,
+                "possiblyTruncated": false
+              },
+              "rows": [
+                {
+                  "w_country": "United States",
+                  "w_state": "TN",
+                  "warehouse_count": 5,
+                  "city_count": 1,
+                  "min_warehouse_sk": 1,
+                  "max_warehouse_sk": 5
+                }
+              ]
+            },
+            "execution": {
+              "schemaVersion": "execution_unit.v1",
+              "executionId": "74d83102-39f3-4d78-80bc-d887e6924032",
+              "toolName": "db_query_mysql_248_test_db",
+              "startedAt": "2026-11-01T01:40:36.167188527Z",
+              "finishedAt": "2026-11-01T01:40:36.255188527Z",
+              "durationMs": 88,
+              "stepCount": 1,
+              "steps": [
+                {
+                  "stepIndex": 1,
+                  "stepId": "sql_1",
+                  "stepType": "sql",
+                  "input": {
+                    "statement": "SELECT\n    w_country,                                              \n    w_state,                                                \n    COUNT(*)                AS warehouse_count,             \n    COUNT(DISTINCT w_city)  AS city_count,                  \n    MIN(w_warehouse_sk)     AS min_warehouse_sk,            \n    MAX(w_warehouse_sk)     AS max_warehouse_sk             \nFROM warehouse\nGROUP BY\n    w_country,\n    w_state\nORDER BY\n    w_country,\n    w_state",
+                    "timeoutSeconds": 30,
+                    "purpose": null,
+                    "sourceTaskId": "0d6db8a8-7761-4db4-ab10-d632d06375b4"
+                  },
+                  "output": {
+                    "resultSetReference": "$.data",
+                    "rowCount": 1,
+                    "returnedRowCount": 1,
+                    "possiblyTruncated": false,
+                    "columnCount": 6
+                  },
+                  "success": true,
+                  "status": "success",
+                  "durationMs": 88,
+                  "error": null,
+                  "rowCount": 1
+                }
+              ]
+            },
+            "executionGraph": {
+              "schemaVersion": "execution_graph.v1",
+              "nodes": [
+                {
+                  "id": "sql_query",
+                  "type": "sql.query",
+                  "status": "success",
+                  "durationMs": 88,
+                  "attributes": {}
+                }
+              ],
+              "edges": []
+            },
+            "executionWorkflow": {
+              "verified": true,
+              "parameterWorkflow": {
+                "parameterRepairs": [],
+                "workflowId": "resolve.template-parameters.v1",
+                "scopeStatus": "EXPLICIT_PARAMETERS",
+                "verified": true,
+                "steps": [
+                  "NORMALIZE_REQUEST",
+                  "COLLECT_EXPLICIT_PARAMETERS",
+                  "COLLECT_REQUEST_FIELDS",
+                  "APPLY_DECLARED_DEFAULTS",
+                  "COERCE_DECLARED_TYPES",
+                  "VALIDATE_REQUIRED_PARAMETERS",
+                  "ASSEMBLE_BINDING"
+                ],
+                "parameterCount": 0,
+                "mode": "DECLARED_SCHEMA",
+                "parameterSources": {}
+              },
+              "mode": "SQL_QUERY",
+              "workflowId": "execute.sql-query.v1",
+              "steps": [
+                "VALIDATE_ARGUMENT_CONTRACT",
+                "ROUTE_LOGICAL_DATASOURCE",
+                "RESOLVE_TEMPLATE_PARAMETERS_IF_PRESENT",
+                "CLASSIFY_SQL_CARDINALITY",
+                "ENFORCE_READ_ONLY_POLICY",
+                "EXECUTE_QUERY_OR_SCRIPT",
+                "VERIFY_RESULT",
+                "ASSEMBLE_EVIDENCE"
+              ]
+            }
+          },
+          "message": null,
+          "errorMessage": null,
+          "exceptionType": null,
+          "errorDetails": null,
+          "executionTimeMs": 124,
+          "tokenUsage": {},
+          "metadata": {
+            "templatePublication": {
+              "agentId": "sql_template_e2e_20261101_r1",
+              "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+              "templateRevision": "347e7d44fe8bbe7402507d7181c8c07003adb351dfb9e373ea5c319b4783e578",
+              "releaseId": "70d0b7c4-f7f2-4af3-8c9a-58d53ba3db0e",
+              "toolName": "tpl_f61ea326b46f30aca4ecc717c2d2f9bc"
+            },
+            "requestId": "0d6db8a8-7761-4db4-ab10-d632d06375b4"
+          }
+        },
+        "rawData": {
+          "success": true,
+          "data": {
+            "schemaVersion": "tool_execution_result.v1",
+            "kind": "sql_query",
+            "dataSchema": "sql_result.v1",
+            "payloadType": "structured",
+            "success": true,
+            "status": "success",
+            "durationMs": 88,
+            "generatedAt": "2026-11-01T01:40:36.255064536Z",
+            "dataCompleteness": {
+              "contractVersion": "mcp_complete_result.v1",
+              "complete": true,
+              "gatewayTruncated": false,
+              "projectionRequiredByConsumer": true
+            },
+            "error": null,
+            "target": {
+              "type": "database",
+              "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+              "name": "248测试数据库",
+              "toolName": "db_query_mysql_248_test_db",
+              "environment": "DEV"
+            },
+            "sourceMetadata": {
+              "schemaVersion": "execution_source.v1",
+              "executionType": "SQL_QUERY",
+              "sourceType": "sql_statement",
+              "toolName": "db_query_mysql_248_test_db",
+              "asset": {
+                "type": "database",
+                "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                "name": "248测试数据库",
+                "environment": "DEV"
+              },
+              "operation": {
+                "statementHash": "34890f7852638610b65c8d1ac52a30fe74d763c81bd000d71cbaa662df953e78",
+                "templateId": "STUDIO_59383865BC1A350C8E1FB5B198D8E7A2"
+              },
+              "business": {
+                "name": "TPCDS 248 仓库地理分布",
+                "description": "按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围；全仓库维表，无参数。",
+                "category": "business_analysis"
+              }
+            },
+            "operation": {
+              "type": "sql.query",
+              "statement": "SELECT\n    w_country,                                              \n    w_state,                                                \n    COUNT(*)                AS warehouse_count,             \n    COUNT(DISTINCT w_city)  AS city_count,                  \n    MIN(w_warehouse_sk)     AS min_warehouse_sk,            \n    MAX(w_warehouse_sk)     AS max_warehouse_sk             \nFROM warehouse\nGROUP BY\n    w_country,\n    w_state\nORDER BY\n    w_country,\n    w_state",
+              "timeoutSeconds": 30,
+              "purpose": null,
+              "sourceTaskId": "0d6db8a8-7761-4db4-ab10-d632d06375b4",
+              "diagnostics": {
+                "requestedCatalog": null,
+                "requestedSchema": null,
+                "schemaVersion": "sql_query_diagnostics.v1",
+                "templateId": "STUDIO_59383865BC1A350C8E1FB5B198D8E7A2",
+                "templateParameters": {},
+                "executionContext": {},
+                "tableResolution": null,
+                "routedTarget": null,
+                "routingDecisionLog": null,
+                "datasource": {
+                  "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                  "name": "248测试数据库",
+                  "toolName": "db_query_mysql_248_test_db",
+                  "environment": "DEV",
+                  "databaseType": "mysql",
+                  "jdbcDatabase": "tpcds"
+                },
+                "templateMetadata": {
+                  "templateId": "STUDIO_59383865BC1A350C8E1FB5B198D8E7A2",
+                  "businessName": "TPCDS 248 仓库地理分布",
+                  "businessDescription": "按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围；全仓库维表，无参数。",
+                  "category": "business_analysis",
+                  "riskLevel": "MEDIUM",
+                  "inputSchema": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": false
+                  },
+                  "evidencePolicy": {}
+                },
+                "executionMode": "PREPARED_STATEMENT",
+                "boundParameterCount": 0,
+                "boundParameterNames": [],
+                "appliedCatalog": "tpcds",
+                "connection": {
+                  "catalog": "tpcds",
+                  "schema": null,
+                  "jdbcDatabase": "tpcds",
+                  "databaseType": "mysql"
+                },
+                "columnCommentResolution": "enabled",
+                "rowCount": 1,
+                "possiblyTruncated": false
+              }
+            },
+            "limits": {
+              "maxRowsRequested": 500,
+              "configuredDatabaseMaxRows": 500,
+              "rowsFetchedFromDatabase": 1,
+              "fullFetchedRowsAvailable": true,
+              "analysisStrategy": "RUNTIME_EXTERNALIZE_AND_CHUNK",
+              "truncationStrategy": "DATABASE_MAX_ROWS_500"
+            },
+            "data": {
+              "resultSetMode": "ONE_PER_TEMPLATE_EXECUTION",
+              "resultSetId": "34890f7852638610b65c8d1ac52a30fe74d763c81bd000d71cbaa662df953e78",
+              "commandContext": {
+                "schemaVersion": "template_result_context.v1",
+                "templateId": "db_query_mysql_248_test_db",
+                "templateName": "db_query_mysql_248_test_db",
+                "description": null,
+                "executionMode": "SINGLE_SQL",
+                "commands": [
+                  {
+                    "commandId": "sql_query",
+                    "order": 1,
+                    "name": "db_query_mysql_248_test_db",
+                    "description": null,
+                    "analysisHint": null,
+                    "resultReference": "$.data"
+                  }
+                ],
+                "references": []
+              },
+              "rowCount": 1,
+              "returnedRowCount": 1,
+              "complete": true,
+              "possiblyTruncated": false,
+              "truncationStrategy": "DATABASE_MAX_ROWS_500",
+              "columns": [
+                "w_country",
+                "w_state",
+                "warehouse_count",
+                "city_count",
+                "min_warehouse_sk",
+                "max_warehouse_sk"
+              ],
+              "columnMetadata": [
+                {
+                  "name": "w_country",
+                  "label": "w_country",
+                  "comment": null,
+                  "tableName": "warehouse",
+                  "schemaName": null,
+                  "catalogName": "tpcds",
+                  "jdbcType": 12,
+                  "typeName": "VARCHAR",
+                  "displaySize": 20,
+                  "nullable": true,
+                  "masked": false
+                },
+                {
+                  "name": "w_state",
+                  "label": "w_state",
+                  "comment": null,
+                  "tableName": "warehouse",
+                  "schemaName": null,
+                  "catalogName": "tpcds",
+                  "jdbcType": 1,
+                  "typeName": "CHAR",
+                  "displaySize": 2,
+                  "nullable": true,
+                  "masked": false
+                },
+                {
+                  "name": "warehouse_count",
+                  "label": "warehouse_count",
+                  "comment": null,
+                  "tableName": null,
+                  "schemaName": null,
+                  "catalogName": null,
+                  "jdbcType": -5,
+                  "typeName": "BIGINT",
+                  "displaySize": 19,
+                  "nullable": false,
+                  "masked": false
+                },
+                {
+                  "name": "city_count",
+                  "label": "city_count",
+                  "comment": null,
+                  "tableName": null,
+                  "schemaName": null,
+                  "catalogName": null,
+                  "jdbcType": -5,
+                  "typeName": "BIGINT",
+                  "displaySize": 19,
+                  "nullable": false,
+                  "masked": false
+                },
+                {
+                  "name": "min_warehouse_sk",
+                  "label": "min_warehouse_sk",
+                  "comment": null,
+                  "tableName": null,
+                  "schemaName": null,
+                  "catalogName": null,
+                  "jdbcType": 4,
+                  "typeName": "INT",
+                  "displaySize": 10,
+                  "nullable": true,
+                  "masked": false
+                },
+                {
+                  "name": "max_warehouse_sk",
+                  "label": "max_warehouse_sk",
+                  "comment": null,
+                  "tableName": null,
+                  "schemaName": null,
+                  "catalogName": null,
+                  "jdbcType": 4,
+                  "typeName": "INT",
+                  "displaySize": 10,
+                  "nullable": true,
+                  "masked": false
+                }
+              ],
+              "governance": {
+                "schemaVersion": "sql_output_governance.v1",
+                "readOnly": true,
+                "rowCount": 1,
+                "returnedRowCount": 1,
+                "possiblyTruncated": false,
+                "truncationStrategy": "DATABASE_MAX_ROWS_500",
+                "maskedColumns": [],
+                "columnCommentsIncluded": false
+              },
+              "diagnostics": {
+                "requestedCatalog": null,
+                "requestedSchema": null,
+                "schemaVersion": "sql_query_diagnostics.v1",
+                "templateId": "STUDIO_59383865BC1A350C8E1FB5B198D8E7A2",
+                "templateParameters": {},
+                "executionContext": {},
+                "tableResolution": null,
+                "routedTarget": null,
+                "routingDecisionLog": null,
+                "datasource": {
+                  "id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                  "name": "248测试数据库",
+                  "toolName": "db_query_mysql_248_test_db",
+                  "environment": "DEV",
+                  "databaseType": "mysql",
+                  "jdbcDatabase": "tpcds"
+                },
+                "templateMetadata": {
+                  "templateId": "STUDIO_59383865BC1A350C8E1FB5B198D8E7A2",
+                  "businessName": "TPCDS 248 仓库地理分布",
+                  "businessDescription": "按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围；全仓库维表，无参数。",
+                  "category": "business_analysis",
+                  "riskLevel": "MEDIUM",
+                  "inputSchema": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": false
+                  },
+                  "evidencePolicy": {}
+                },
+                "executionMode": "PREPARED_STATEMENT",
+                "boundParameterCount": 0,
+                "boundParameterNames": [],
+                "appliedCatalog": "tpcds",
+                "connection": {
+                  "catalog": "tpcds",
+                  "schema": null,
+                  "jdbcDatabase": "tpcds",
+                  "databaseType": "mysql"
+                },
+                "columnCommentResolution": "enabled",
+                "rowCount": 1,
+                "possiblyTruncated": false
+              },
+              "rows": [
+                {
+                  "w_country": "United States",
+                  "w_state": "TN",
+                  "warehouse_count": 5,
+                  "city_count": 1,
+                  "min_warehouse_sk": 1,
+                  "max_warehouse_sk": 5
+                }
+              ]
+            },
+            "execution": {
+              "schemaVersion": "execution_unit.v1",
+              "executionId": "74d83102-39f3-4d78-80bc-d887e6924032",
+              "toolName": "db_query_mysql_248_test_db",
+              "startedAt": "2026-11-01T01:40:36.167188527Z",
+              "finishedAt": "2026-11-01T01:40:36.255188527Z",
+              "durationMs": 88,
+              "stepCount": 1,
+              "steps": [
+                {
+                  "stepIndex": 1,
+                  "stepId": "sql_1",
+                  "stepType": "sql",
+                  "input": {
+                    "statement": "SELECT\n    w_country,                                              \n    w_state,                                                \n    COUNT(*)                AS warehouse_count,             \n    COUNT(DISTINCT w_city)  AS city_count,                  \n    MIN(w_warehouse_sk)     AS min_warehouse_sk,            \n    MAX(w_warehouse_sk)     AS max_warehouse_sk             \nFROM warehouse\nGROUP BY\n    w_country,\n    w_state\nORDER BY\n    w_country,\n    w_state",
+                    "timeoutSeconds": 30,
+                    "purpose": null,
+                    "sourceTaskId": "0d6db8a8-7761-4db4-ab10-d632d06375b4"
+                  },
+                  "output": {
+                    "resultSetReference": "$.data",
+                    "rowCount": 1,
+                    "returnedRowCount": 1,
+                    "possiblyTruncated": false,
+                    "columnCount": 6
+                  },
+                  "success": true,
+                  "status": "success",
+                  "durationMs": 88,
+                  "error": null,
+                  "rowCount": 1
+                }
+              ]
+            },
+            "executionGraph": {
+              "schemaVersion": "execution_graph.v1",
+              "nodes": [
+                {
+                  "id": "sql_query",
+                  "type": "sql.query",
+                  "status": "success",
+                  "durationMs": 88,
+                  "attributes": {}
+                }
+              ],
+              "edges": []
+            },
+            "executionWorkflow": {
+              "verified": true,
+              "parameterWorkflow": {
+                "parameterRepairs": [],
+                "workflowId": "resolve.template-parameters.v1",
+                "scopeStatus": "EXPLICIT_PARAMETERS",
+                "verified": true,
+                "steps": [
+                  "NORMALIZE_REQUEST",
+                  "COLLECT_EXPLICIT_PARAMETERS",
+                  "COLLECT_REQUEST_FIELDS",
+                  "APPLY_DECLARED_DEFAULTS",
+                  "COERCE_DECLARED_TYPES",
+                  "VALIDATE_REQUIRED_PARAMETERS",
+                  "ASSEMBLE_BINDING"
+                ],
+                "parameterCount": 0,
+                "mode": "DECLARED_SCHEMA",
+                "parameterSources": {}
+              },
+              "mode": "SQL_QUERY",
+              "workflowId": "execute.sql-query.v1",
+              "steps": [
+                "VALIDATE_ARGUMENT_CONTRACT",
+                "ROUTE_LOGICAL_DATASOURCE",
+                "RESOLVE_TEMPLATE_PARAMETERS_IF_PRESENT",
+                "CLASSIFY_SQL_CARDINALITY",
+                "ENFORCE_READ_ONLY_POLICY",
+                "EXECUTE_QUERY_OR_SCRIPT",
+                "VERIFY_RESULT",
+                "ASSEMBLE_EVIDENCE"
+              ]
+            }
+          },
+          "message": null,
+          "errorMessage": null,
+          "exceptionType": null,
+          "errorDetails": null,
+          "executionTimeMs": 124,
+          "tokenUsage": {},
+          "metadata": {
+            "templatePublication": {
+              "agentId": "sql_template_e2e_20261101_r1",
+              "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+              "templateRevision": "347e7d44fe8bbe7402507d7181c8c07003adb351dfb9e373ea5c319b4783e578",
+              "releaseId": "70d0b7c4-f7f2-4af3-8c9a-58d53ba3db0e",
+              "toolName": "tpl_f61ea326b46f30aca4ecc717c2d2f9bc"
+            },
+            "requestId": "0d6db8a8-7761-4db4-ab10-d632d06375b4"
+          }
+        },
+        "runtimeMetadata": {
+          "resultKind": "RAW_RECORDS",
+          "resultSchemaRef": "sql_result.v1",
+          "preflightAudit": {
+            "schemaVersion": "mcp_contract_audit.v1",
+            "compliant": true,
+            "evidence": [
+              {
+                "serviceId": "chatchat-mcp-server",
+                "toolName": "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+                "domainCode": "generic",
+                "domainContractId": "runtime-os/generic-mcp-service",
+                "domainContractVersion": "mcp_domain_contract.v1",
+                "observedContract": {
+                  "serviceId": "chatchat-mcp-server",
+                  "localToolName": "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+                  "remoteToolName": "tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+                  "description": "按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围；全仓库维表，无参数。\nReturns the existing ToolOutput envelope: SQL rows are at $.data.data.rows and rowCount at $.data.data.rowCount. SQL column names are NOT top-level result fields. Preserve this actual envelope in downstream contracts.",
+                  "capabilityCode": "mcp_tool",
+                  "inputSchema": {
+                    "additionalProperties": false,
+                    "type": "object",
+                    "properties": {}
+                  },
+                  "outputSchema": {
+                    "description": "ToolOutput envelope. SQL rows are at $.data.data.rows, not top-level SQL column fields. Preserve the envelope when passing results to later steps.",
+                    "required": [
+                      "success"
+                    ],
+                    "properties": {
+                      "data": {
+                        "type": [
+                          "object",
+                          "null"
+                        ],
+                        "properties": {
+                          "data": {
+                            "type": "object",
+                            "properties": {
+                              "rowCount": {
+                                "type": "integer"
+                              },
+                              "rows": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object"
+                                }
+                              },
+                              "columns": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          },
+                          "success": {
+                            "type": "boolean"
+                          }
+                        }
+                      },
+                      "success": {
+                        "type": "boolean"
+                      },
+                      "errorMessage": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "governance": {
+                    "riskLevel": "low",
+                    "operationType": "execute",
+                    "runtimeLevel": "controlled",
+                    "confirmation": null,
+                    "permissions": null
+                  },
+                  "metadata": {
+                    "runtimeLevel": "controlled",
+                    "visibleTenantIds": [
+                      "9001fee4-482b-4851-9eb9-df269765291f"
+                    ],
+                    "breakingChangeApproved": true,
+                    "schemaVersion": "template-capability.v1",
+                    "riskLevel": "low",
+                    "templateCapability": true,
+                    "operationType": "execute",
+                    "toolVersion": "1.0.0",
+                    "resultKind": "RAW_RECORDS",
+                    "resultSchemaRef": "sql_result.v1",
+                    "data_type": "UNKNOWN",
+                    "chineseAlias": "TPCDS 248 仓库地理分布",
+                    "publicationStatus": "active",
+                    "rolloutLabels": [],
+                    "rolloutPercentage": 100,
+                    "contractVersion": "mcp_tool_contract.v1"
+                  },
+                  "resultKind": "RAW_RECORDS",
+                  "resultSchemaRef": "sql_result.v1",
+                  "paginationSupported": false
+                },
+                "satisfiedPaths": [
+                  "INPUT_SCHEMA:type",
+                  "OUTPUT_SCHEMA:type",
+                  "GOVERNANCE:riskLevel",
+                  "METADATA:contractVersion"
+                ],
+                "missingPaths": [],
+                "normalizedResultAvailable": false,
+                "rawResultAvailable": false
+              }
+            ],
+            "findings": [],
+            "findingCounts": {},
+            "auditedAt": 1793497233728
+          },
+          "postflightAudit": {
+            "schemaVersion": "mcp_contract_audit.v1",
+            "compliant": true,
+            "evidence": [
+              {
+                "serviceId": "chatchat-mcp-server",
+                "toolName": "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+                "domainCode": "generic",
+                "domainContractId": "runtime-os/generic-mcp-service",
+                "domainContractVersion": "mcp_domain_contract.v1",
+                "observedContract": {
+                  "serviceId": "chatchat-mcp-server",
+                  "localToolName": "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+                  "remoteToolName": "tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+                  "description": "按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围；全仓库维表，无参数。\nReturns the existing ToolOutput envelope: SQL rows are at $.data.data.rows and rowCount at $.data.data.rowCount. SQL column names are NOT top-level result fields. Preserve this actual envelope in downstream contracts.",
+                  "capabilityCode": "mcp_tool",
+                  "inputSchema": {
+                    "additionalProperties": false,
+                    "type": "object",
+                    "properties": {}
+                  },
+                  "outputSchema": {
+                    "description": "ToolOutput envelope. SQL rows are at $.data.data.rows, not top-level SQL column fields. Preserve the envelope when passing results to later steps.",
+                    "required": [
+                      "success"
+                    ],
+                    "properties": {
+                      "data": {
+                        "type": [
+                          "object",
+                          "null"
+                        ],
+                        "properties": {
+                          "data": {
+                            "type": "object",
+                            "properties": {
+                              "rowCount": {
+                                "type": "integer"
+                              },
+                              "rows": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object"
+                                }
+                              },
+                              "columns": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          },
+                          "success": {
+                            "type": "boolean"
+                          }
+                        }
+                      },
+                      "success": {
+                        "type": "boolean"
+                      },
+                      "errorMessage": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "governance": {
+                    "riskLevel": "low",
+                    "operationType": "execute",
+                    "runtimeLevel": "controlled",
+                    "confirmation": null,
+                    "permissions": null
+                  },
+                  "metadata": {
+                    "runtimeLevel": "controlled",
+                    "visibleTenantIds": [
+                      "9001fee4-482b-4851-9eb9-df269765291f"
+                    ],
+                    "breakingChangeApproved": true,
+                    "schemaVersion": "template-capability.v1",
+                    "riskLevel": "low",
+                    "templateCapability": true,
+                    "operationType": "execute",
+                    "toolVersion": "1.0.0",
+                    "resultKind": "RAW_RECORDS",
+                    "resultSchemaRef": "sql_result.v1",
+                    "data_type": "UNKNOWN",
+                    "chineseAlias": "TPCDS 248 仓库地理分布",
+                    "publicationStatus": "active",
+                    "rolloutLabels": [],
+                    "rolloutPercentage": 100,
+                    "contractVersion": "mcp_tool_contract.v1"
+                  },
+                  "resultKind": "RAW_RECORDS",
+                  "resultSchemaRef": "sql_result.v1",
+                  "paginationSupported": false
+                },
+                "satisfiedPaths": [
+                  "INPUT_SCHEMA:type",
+                  "OUTPUT_SCHEMA:type",
+                  "GOVERNANCE:riskLevel",
+                  "METADATA:contractVersion",
+                  "RAW_RESULT:$",
+                  "RESULT_CONTRACT:resultKind"
+                ],
+                "missingPaths": [
+                  "RESULT_CONTRACT:provenance"
+                ],
+                "normalizedResultAvailable": true,
+                "rawResultAvailable": true
+              }
+            ],
+            "findings": [
+              {
+                "severity": "WARNING",
+                "code": "MCP_RESULT_PROVENANCE_UNDECLARED",
+                "serviceId": "chatchat-mcp-server",
+                "toolName": "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+                "domainCode": "generic",
+                "source": "NORMALIZED_RESULT",
+                "path": "provenance",
+                "message": "MCP result does not identify the observed source/version/scope",
+                "observed": "absent",
+                "recoveryAction": "DECLARE_RESULT_PROVENANCE"
+              }
+            ],
+            "findingCounts": {
+              "WARNING": 1
+            },
+            "auditedAt": 1793497236265
+          },
+          "kernelProtocolVersion": "runtime_os_mcp_kernel.v1",
+          "discoveryRefreshAttempted": false,
+          "templateBindingValidation": {
+            "templateIdPresent": false,
+            "executorTool": "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+            "runtimeEvidenceValidated": false,
+            "schemaVersion": "runtime_template_binding.v3"
+          },
+          "mcpExecutionWorkflow": {
+            "steps": [
+              "DISCOVER_SERVICE",
+              "DISCOVER_TOOL_TEMPLATE",
+              "VALIDATE_TEMPLATE_BINDING",
+              "VALIDATE_TOOL_CONTRACT_SNAPSHOT",
+              "CONTRACT_PREFLIGHT",
+              "REFRESH_CATALOG_IF_STALE",
+              "APPLY_EXECUTION_EXTENSIONS",
+              "INVOKE_PROVIDER",
+              "REPAIR_RESULT_IF_REQUIRED",
+              "CONTRACT_POSTFLIGHT",
+              "ASSEMBLE_RESULT"
+            ],
+            "localToolName": "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+            "extensions": [],
+            "transport": "in-process",
+            "workflowId": "execute.mcp-tool.v1",
+            "discoveryRefreshAttempted": false,
+            "repairApplied": false,
+            "remoteToolName": "tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+            "providerId": "local-mcp-tool-registry",
+            "toolDiscovered": true,
+            "route": "INTERNAL"
+          }
+        }
+      },
+      "toolExecutionTimeMs": 2614
+    }
+  },
+  {
+    "type": "state_update",
+    "source": "interpretation_plan_state",
+    "content": "InterpretationPlan state updated after completed wave.",
+    "metadata": {
+      "structuredRuntimeObservation": true,
+      "workflow": "interpretation_plan",
+      "protocolVersion": "interpretation_execution_protocol_v1",
+      "executionTraceId": "att-1-997a5663-f69d-46f3-9546-70d82e403976::interpretation_plan",
+      "workflowExecutionAttempt": 0,
+      "planExecutionScope": "att-1-997a5663-f69d-46f3-9546-70d82e403976::attempt:0",
+      "lifecyclePhase": "state_update",
+      "completedPlanStepIds": [
+        1
+      ],
+      "remainingPlanStepIds": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "waveStepIds": [
+        1
+      ],
+      "failedStepId": null
+    }
+  },
+  {
+    "type": "controller_decision",
+    "source": "interpretation_plan_controller",
+    "content": "LLM DAG controller decision 2 was accepted by runtime guard.",
+    "metadata": {
+      "decisionCount": 2,
+      "lifecyclePhase": "controller_decision",
+      "executionTraceId": "att-1-997a5663-f69d-46f3-9546-70d82e403976::interpretation_plan",
+      "protocolVersion": "interpretation_execution_protocol_v1",
+      "workflow": "interpretation_plan",
+      "structuredRuntimeObservation": true,
+      "type": "controller_decision",
+      "workflowExecutionAttempt": 0,
+      "planExecutionScope": "att-1-997a5663-f69d-46f3-9546-70d82e403976::attempt:0",
+      "decision": {
+        "runtimeDeterministicScheduling": true,
+        "readyStepIds": [
+          2
+        ],
+        "decisionCount": 2,
+        "executionTraceId": "att-1-997a5663-f69d-46f3-9546-70d82e403976::interpretation_plan",
+        "protocolVersion": "interpretation_execution_protocol_v1",
+        "action": "execute_step",
+        "stepIds": [
+          2
+        ],
+        "reason": "Java Runtime selected Ready node(s) deterministically."
+      },
+      "guardResult": {
+        "protocolVersion": "interpretation_execution_protocol_v1",
+        "allowed": true,
+        "status": "accepted",
+        "reason": "Runtime guard accepted DAG decision.",
+        "validatedAction": "execute_step",
+        "validatedStepIds": [
+          2
+        ]
+      },
+      "remainingStepIds": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "completedStepIds": [
+        1
+      ]
+    }
+  },
+  {
+    "type": "tool_failure",
+    "source": "internal_aggregation",
+    "content": "InterpretationPlan step 2 internal_aggregation failed: STEP_OUTPUT_CONTRACT_FAILED: EDGE_CONTRACT_FAILED: missing required field warehouse_id from step 2 for step 3",
+    "metadata": {
+      "structuredRuntimeObservation": true,
+      "workflow": "interpretation_plan",
+      "protocolVersion": "interpretation_execution_protocol_v1",
+      "executionTraceId": "att-1-997a5663-f69d-46f3-9546-70d82e403976::interpretation_plan",
+      "workflowExecutionAttempt": 0,
+      "planExecutionScope": "att-1-997a5663-f69d-46f3-9546-70d82e403976::attempt:0",
+      "evidenceIteration": 1,
+      "lifecyclePhase": "observation",
+      "interpretationPlanStepId": 2,
+      "evidenceId": "iteration:1:step:2:tool:internal_aggregation",
+      "interpretationPlanActionType": "aggregation",
+      "toolName": "internal_aggregation",
+      "planStepDefinitionFingerprint": "QrVWHYbCI5r5fAWuyo0o7-ASv2W7CHa0c1hxyZH752o",
+      "success": false,
+      "durationMs": 6,
+      "type": "tool_failure",
+      "errorMessage": "STEP_OUTPUT_CONTRACT_FAILED: EDGE_CONTRACT_FAILED: missing required field warehouse_id from step 2 for step 3",
+      "repairable": true,
+      "outputContractValidated": true,
+      "outputContractViolations": [
+        "EDGE_CONTRACT_FAILED: missing required field warehouse_id from step 2 for step 3"
+      ],
+      "outputContractSatisfied": false,
+      "repairAction": "rewrite_plan",
+      "stepOutput": {
+        "operation": "select_global_min_warehouse",
+        "source_step": 1,
+        "selection_rule": "仅从步骤1实际返回的仓库主键范围中选取全局最小且实际存在的 warehouse primary key，并保留其国家、省州及范围证据。"
+      }
+    }
+  },
+  {
+    "type": "state_update_failed",
+    "source": "interpretation_plan_state",
+    "content": "InterpretationPlan state updated after failed wave.",
+    "metadata": {
+      "structuredRuntimeObservation": true,
+      "workflow": "interpretation_plan",
+      "protocolVersion": "interpretation_execution_protocol_v1",
+      "executionTraceId": "att-1-997a5663-f69d-46f3-9546-70d82e403976::interpretation_plan",
+      "workflowExecutionAttempt": 0,
+      "planExecutionScope": "att-1-997a5663-f69d-46f3-9546-70d82e403976::attempt:0",
+      "lifecyclePhase": "state_update",
+      "completedPlanStepIds": [
+        1,
+        2
+      ],
+      "remainingPlanStepIds": [
+        3,
+        4,
+        5
+      ],
+      "waveStepIds": [
+        2
+      ],
+      "failedStepId": 2
+    }
+  },
+  {
+    "type": "text",
+    "source": "agent",
+    "content": "InterpretationPlan initial step 1 mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc succeeded.",
+    "metadata": {
+      "legacyTextObservation": true,
+      "length": 105
+    }
+  },
+  {
+    "type": "text",
+    "source": "agent",
+    "content": "InterpretationPlan initial step 2 internal_aggregation failed: STEP_OUTPUT_CONTRACT_FAILED: EDGE_CONTRACT_FAILED: missing required field warehouse_id from step 2 for step 3",
+    "metadata": {
+      "legacyTextObservation": true,
+      "length": 172
+    }
+  },
+  {
+    "type": "analysis_dataset_excluded",
+    "source": "analysis_summary_governance",
+    "content": "证据入口记录：internal_aggregation（reason=SOURCE_EXECUTION_FAILED, executionStatus=FAILED, error=STEP_OUTPUT_CONTRACT_FAILED: EDGE_CONTRACT_FAILED: missing required field warehouse_id from step 2 for step 3）。",
+    "metadata": {
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "exclusion": {
+        "datasetReference": "internal_aggregation",
+        "toolName": "internal_aggregation",
+        "reason": "SOURCE_EXECUTION_FAILED",
+        "accountingStatus": "FAILED",
+        "executionStatus": "FAILED",
+        "error": "STEP_OUTPUT_CONTRACT_FAILED: EDGE_CONTRACT_FAILED: missing required field warehouse_id from step 2 for step 3"
+      },
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "type": "analysis_dataset_excluded",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent primary analysis started",
+    "metadata": {
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "stage": "PRIMARY_CODING_ANALYSIS",
+      "datasetCount": 1,
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "eventState": "STARTED",
+      "snapshotFingerprint": "c399defdd82d03a92aed4ddbb8dd39d041045e55c540129a2128ed28122f90f0",
+      "inputRecordCount": 1,
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: CODING_REQUEST_VALIDATED",
+    "metadata": {
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "eventKind": "CODING_REQUEST_VALIDATED",
+      "instructionCharacters": 1902,
+      "requestId": "primary-data-analysis-v1",
+      "inputReferenceCount": 1,
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: CODING_INPUT_PREPARING",
+    "metadata": {
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "eventKind": "CODING_INPUT_PREPARING",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "source": "JAVA_RUNTIME",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: CODING_INPUT_READY",
+    "metadata": {
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "rowCount": 1,
+      "durationMs": 902,
+      "snapshotRef": "runtime-evidence:coding:input:a97ed2ecdbf563b343fbf4cfe08160bf8b43898aaa4fc20ba87fb19369beff4",
+      "format": "PARQUET",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "fileId": "ca97ed2ecdbf563b343fbf4cfe08160bf8b43898aaa4fc20ba87fb19369beff4",
+      "eventKind": "CODING_INPUT_READY",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "sha256": "5305a353bfaf493e6b63213e94ad315cd0f1c2d07c3df42e14fe0b0f12cf6492",
+      "source": "JAVA_RUNTIME",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: CODING_BUDGET_ISOLATED",
+    "metadata": {
+      "budgetScope": "TOOL_INVOCATION",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "budgetId": "analysis-coding-tool-budget:analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "deadlineAt": "2026-11-01T02:00:36.538Z",
+      "eventKind": "CODING_BUDGET_ISOLATED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: TASK_CREATED",
+    "metadata": {
+      "evidenceRefs": [],
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "eventId": "coding:335705c1-6ca5-4075-b92f-88993cadf9c7",
+      "occurredAt": "2026-11-01T01:40:40.120Z",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "QUEUED",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-0"
+      },
+      "eventState": "CREATED",
+      "sequence": 1,
+      "summary": "Coding task accepted durably",
+      "codingEventType": "TASK_CREATED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: TASK_STARTED",
+    "metadata": {
+      "evidenceRefs": [],
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "eventId": "coding:66f6a033-1984-4367-b036-af4d9036be91",
+      "occurredAt": "2026-11-01T01:40:40.209Z",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CONTEXT_READY",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "eventState": "RUNNING",
+      "sequence": 2,
+      "summary": "Execution ownership acquired; no operation was started",
+      "codingEventType": "TASK_STARTED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "evidenceRefs": [],
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "eventId": "coding:34e24ce6-e694-440f-951d-ea80c269c4fd",
+      "occurredAt": "2026-11-01T01:40:40.409Z",
+      "payload": {
+        "timestamp": "2026-11-01T01:40:40.380Z",
+        "type": "CONTEXT_READY",
+        "stage": "CONTEXT_READY",
+        "source": "NODE_CLINE",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "eventState": "RUNNING",
+      "sequence": 3,
+      "summary": "Worker observation: CONTEXT_READY",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "evidenceRefs": [],
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "eventId": "coding:001bd367-219c-41b7-aaf1-10e343661126",
+      "occurredAt": "2026-11-01T01:40:40.525Z",
+      "payload": {
+        "source": "NODE_CLINE",
+        "stage": "CONTEXT_READY",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "type": "SKILLS_AVAILABLE",
+        "skillFingerprint": "e1aa9b51a40a4b490c015b605a7273398baf042fac042cbe72c0de20c130b812",
+        "timestamp": "2026-11-01T01:40:40.501Z"
+      },
+      "eventState": "RUNNING",
+      "sequence": 4,
+      "summary": "Worker observation: SKILLS_AVAILABLE",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "evidenceRefs": [],
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "eventId": "coding:2de57615-63ba-4146-8fdd-31e7951589c5",
+      "occurredAt": "2026-11-01T01:40:40.650Z",
+      "payload": {
+        "modelCall": 1,
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "type": "MODEL_STARTED",
+        "timestamp": "2026-11-01T01:40:40.621Z",
+        "source": "NODE_CLINE"
+      },
+      "eventState": "RUNNING",
+      "sequence": 5,
+      "summary": "Worker observation: MODEL_STARTED",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: BUDGET_UPDATED",
+    "metadata": {
+      "summary": "Operation budget reserved",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:40:40.898Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "BUDGET_UPDATED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 6,
+      "eventId": "coding:c532640a-500b-4ec0-bb4f-c000f1a6ff41",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "operationId": "model-1",
+      "stepId": "model-1",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "summary": "Start intent committed; execution result is not yet known",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:40:40.920Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 7,
+      "eventId": "coding:8a2e5433-dd7c-4ad6-ac8d-e3d312973108",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "operationId": "model-1",
+      "stepId": "model-1",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "evidenceRefs": [],
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "eventId": "coding:b57311f6-229c-44a2-b34d-fb1258617424",
+      "occurredAt": "2026-11-01T01:40:40.950Z",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "eventState": "RUNNING",
+      "sequence": 8,
+      "summary": "Lease renewed",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "sequence": 9,
+      "reasonCode": "EXECUTION_OUTCOME_UNKNOWN",
+      "eventId": "coding:84aab442-df2a-45d7-af08-0446eb05be07",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "evidenceRefs": [],
+      "summary": "Existing execution must be reconciled before new work",
+      "eventState": "RUNNING",
+      "eventKind": "CODING_TRACE",
+      "occurredAt": "2026-11-01T01:40:41.401Z",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: CODING_RECONCILIATION_REQUIRED",
+    "metadata": {
+      "eventKind": "CODING_RECONCILIATION_REQUIRED",
+      "deadlineAt": "2026-11-01T02:00:36.538Z",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "reconciliationRequired": true,
+      "retryable": false,
+      "status": "RUNNING",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "summary": "Verified stop evidence recorded",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:40:43.129Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [
+        "runtime-evidence:coding:model:8574a7c0ef19accda9274225058922fe15557095eb1c6d8665e529aa2db2393b"
+      ],
+      "sequence": 10,
+      "eventId": "coding:fd1d79ee-cc9c-4242-9dde-fe822fbad826",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "operationId": "model-1",
+      "stepId": "model-1",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: BUDGET_UPDATED",
+    "metadata": {
+      "summary": "Unknown usage retains unspent reservation",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:40:43.154Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "BUDGET_UPDATED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 11,
+      "eventId": "coding:9be9b2e8-838c-4b8b-92a3-62f317156cdf",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "operationId": "model-1",
+      "stepId": "model-1",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "summary": "Worker observation: MODEL_RESOLVED",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:40:43.190Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 12,
+      "eventId": "coding:3da31821-d0de-4107-88a4-ff024182026e",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "modelCall": 1,
+        "timestamp": "2026-11-01T01:40:43.166Z",
+        "responseMode": "NON_STREAMING",
+        "queueTimeMs": 16,
+        "providerModel": "deepseek-flash",
+        "stage": "CODING",
+        "type": "MODEL_RESOLVED",
+        "protocol": "openai",
+        "maxOutputTokens": 32768,
+        "selectedModel": "deepseek-v4-flash",
+        "durationMs": 2082,
+        "messageCount": 1,
+        "source": "NODE_CLINE",
+        "finishedAt": "2026-11-01T01:40:43.065708551Z",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "startedAt": "2026-11-01T01:40:40.982785107Z",
+        "retryTimeMs": 0,
+        "requestBytes": 41108
+      },
+      "operationId": "model-1",
+      "stepId": "model-1",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "summary": "Worker observation: MODEL_USAGE",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:40:43.231Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 13,
+      "eventId": "coding:520289d3-8789-48fc-a2ee-6b4a658e28ac",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "stage": "CODING",
+        "source": "NODE_CLINE",
+        "type": "MODEL_USAGE",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "modelCall": 1,
+        "timestamp": "2026-11-01T01:40:43.201Z",
+        "status": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 9722,
+          "outputTokens": 293
+        }
+      },
+      "operationId": "model-1",
+      "stepId": "model-1",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "summary": "Worker observation: MODEL_TIMING",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:40:43.278Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 14,
+      "eventId": "coding:0a94954d-ea5a-4b79-83f5-afd67f19afac",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "toolCount": 5,
+        "requestBytes": 41039,
+        "callbackFirstEventMs": 2545,
+        "stage": "CODING",
+        "requestHash": "d9ef90191ad30ee8bd0d2f878d956c70afe846c160aa747d878538e0bf2fae73",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "messageCount": 1,
+        "responseMode": "RUNTIME_MODEL_CALLBACK",
+        "responseBytes": 1160,
+        "source": "NODE_CLINE",
+        "modelCall": 1,
+        "timestamp": "2026-11-01T01:40:43.254Z",
+        "durationMs": 2632,
+        "type": "MODEL_TIMING",
+        "status": "SUCCEEDED"
+      },
+      "operationId": "model-1",
+      "stepId": "model-1",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "evidenceRefs": [],
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "eventId": "coding:1d5c19c9-5019-451f-aaef-1e0151957a13",
+      "occurredAt": "2026-11-01T01:40:43.320Z",
+      "payload": {
+        "type": "TOOL_STARTED",
+        "toolCallId": "call_00_f18jipcXpeIl2jt8Puts4911",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "tool": "input_read",
+        "timestamp": "2026-11-01T01:40:43.290Z",
+        "source": "NODE_CLINE"
+      },
+      "eventState": "RUNNING",
+      "sequence": 15,
+      "summary": "Worker observation: TOOL_STARTED",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "evidenceRefs": [],
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "eventId": "coding:8584af12-cee8-40db-9c74-3d035c4ebcda",
+      "occurredAt": "2026-11-01T01:40:43.517Z",
+      "payload": {
+        "toolCallId": "call_00_f18jipcXpeIl2jt8Puts4911",
+        "timestamp": "2026-11-01T01:40:43.483Z",
+        "tool": "input_read",
+        "toolDurationMs": 193,
+        "status": "THREW",
+        "source": "NODE_CLINE",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "stage": "CODING",
+        "type": "TOOL_TIMING"
+      },
+      "eventState": "RUNNING",
+      "sequence": 16,
+      "summary": "Worker observation: TOOL_TIMING",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "evidenceRefs": [],
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "eventId": "coding:32dd5d15-d4bd-4554-9984-93b4b6dfcc82",
+      "occurredAt": "2026-11-01T01:40:43.555Z",
+      "payload": {
+        "type": "TOOL_STARTED",
+        "toolCallId": "call_01_7ErVepsT5rQyPOYbGakM4704",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "tool": "input_read",
+        "timestamp": "2026-11-01T01:40:43.531Z",
+        "source": "NODE_CLINE"
+      },
+      "eventState": "RUNNING",
+      "sequence": 17,
+      "summary": "Worker observation: TOOL_STARTED",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "evidenceRefs": [],
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "eventId": "coding:7424ae8f-f468-47df-b7be-12dc92e10fb3",
+      "occurredAt": "2026-11-01T01:40:43.643Z",
+      "payload": {
+        "toolCallId": "call_01_7ErVepsT5rQyPOYbGakM4704",
+        "timestamp": "2026-11-01T01:40:43.600Z",
+        "tool": "input_read",
+        "toolDurationMs": 69,
+        "status": "THREW",
+        "source": "NODE_CLINE",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "stage": "CODING",
+        "type": "TOOL_TIMING"
+      },
+      "eventState": "RUNNING",
+      "sequence": 18,
+      "summary": "Worker observation: TOOL_TIMING",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "evidenceRefs": [],
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "eventId": "coding:a1cad288-51b9-4125-90c8-887706b722be",
+      "occurredAt": "2026-11-01T01:40:43.848Z",
+      "payload": {
+        "modelCall": 2,
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "type": "MODEL_STARTED",
+        "timestamp": "2026-11-01T01:40:43.815Z",
+        "source": "NODE_CLINE"
+      },
+      "eventState": "RUNNING",
+      "sequence": 19,
+      "summary": "Worker observation: MODEL_STARTED",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: BUDGET_UPDATED",
+    "metadata": {
+      "summary": "Operation budget reserved",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:40:43.956Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "BUDGET_UPDATED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 20,
+      "eventId": "coding:b3e58f25-9722-4ca6-8248-546a0a0bce89",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "operationId": "model-2",
+      "stepId": "model-2",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "summary": "Start intent committed; execution result is not yet known",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:40:43.978Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 21,
+      "eventId": "coding:c50362a1-c5c0-4245-8f03-0982323ff7c9",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "operationId": "model-2",
+      "stepId": "model-2",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "evidenceRefs": [],
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "eventId": "coding:071ce669-6fa8-404b-9245-55d59a6b95b0",
+      "occurredAt": "2026-11-01T01:40:44.005Z",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "eventState": "RUNNING",
+      "sequence": 22,
+      "summary": "Lease renewed",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "sequence": 23,
+      "reasonCode": "EXECUTION_OUTCOME_UNKNOWN",
+      "eventId": "coding:f5dd1090-7a13-4718-b155-ed70576e4da2",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "evidenceRefs": [],
+      "summary": "Existing execution must be reconciled before new work",
+      "eventState": "RUNNING",
+      "eventKind": "CODING_TRACE",
+      "occurredAt": "2026-11-01T01:40:44.895Z",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "summary": "Verified stop evidence recorded",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:40:45.421Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [
+        "runtime-evidence:coding:model:84ecea347481ebfb4dc067e821bb4dd3086d32389f31743eee0c4b4578d5f4ee"
+      ],
+      "sequence": 24,
+      "eventId": "coding:65c9f01b-2a40-49af-ae11-d84fcd69d215",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "operationId": "model-2",
+      "stepId": "model-2",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: BUDGET_UPDATED",
+    "metadata": {
+      "summary": "Unknown usage retains unspent reservation",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:40:45.443Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "BUDGET_UPDATED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 25,
+      "eventId": "coding:8b56b6c5-8c3e-4a29-a97b-b4c431c7f404",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "operationId": "model-2",
+      "stepId": "model-2",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "summary": "Worker observation: MODEL_RESOLVED",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:40:45.493Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 26,
+      "eventId": "coding:4a856239-1dd8-4e10-b80c-445021f72498",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "modelCall": 2,
+        "timestamp": "2026-11-01T01:40:45.458Z",
+        "responseMode": "NON_STREAMING",
+        "queueTimeMs": 19,
+        "providerModel": "deepseek-flash",
+        "stage": "CODING",
+        "type": "MODEL_RESOLVED",
+        "protocol": "openai",
+        "maxOutputTokens": 32768,
+        "selectedModel": "deepseek-v4-flash",
+        "durationMs": 1339,
+        "messageCount": 4,
+        "source": "NODE_CLINE",
+        "finishedAt": "2026-11-01T01:40:45.358682910Z",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "startedAt": "2026-11-01T01:40:44.019330666Z",
+        "retryTimeMs": 0,
+        "requestBytes": 41999
+      },
+      "operationId": "model-2",
+      "stepId": "model-2",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "summary": "Worker observation: MODEL_USAGE",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:40:45.558Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 27,
+      "eventId": "coding:3651a123-dc8a-4f1e-8e09-fdd6c6baf79a",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "stage": "CODING",
+        "source": "NODE_CLINE",
+        "type": "MODEL_USAGE",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "modelCall": 2,
+        "timestamp": "2026-11-01T01:40:45.508Z",
+        "status": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 10051,
+          "outputTokens": 154
+        }
+      },
+      "operationId": "model-2",
+      "stepId": "model-2",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "summary": "Worker observation: MODEL_TIMING",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:40:45.618Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 28,
+      "eventId": "coding:1e8a79de-e92e-4a2e-90fb-7e80f4bb1965",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "toolCount": 5,
+        "requestBytes": 42162,
+        "callbackFirstEventMs": 1643,
+        "stage": "CODING",
+        "requestHash": "befd614ee250f765a7eac0615be77272609c000d55aaf12acc810243473ab0b6",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "messageCount": 4,
+        "responseMode": "RUNTIME_MODEL_CALLBACK",
+        "responseBytes": 889,
+        "source": "NODE_CLINE",
+        "modelCall": 2,
+        "timestamp": "2026-11-01T01:40:45.574Z",
+        "durationMs": 1758,
+        "type": "MODEL_TIMING",
+        "status": "SUCCEEDED"
+      },
+      "operationId": "model-2",
+      "stepId": "model-2",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "evidenceRefs": [],
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "eventId": "coding:658771c1-6e22-4d9b-adef-f3629845e447",
+      "occurredAt": "2026-11-01T01:40:45.751Z",
+      "payload": {
+        "type": "TOOL_STARTED",
+        "toolCallId": "call_00_CFrK4FjSprN5qfWH7TcJ6776",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "tool": "input_read",
+        "timestamp": "2026-11-01T01:40:45.719Z",
+        "source": "NODE_CLINE"
+      },
+      "eventState": "RUNNING",
+      "sequence": 29,
+      "summary": "Worker observation: TOOL_STARTED",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: BUDGET_UPDATED",
+    "metadata": {
+      "summary": "Operation budget reserved",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:40:45.820Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "BUDGET_UPDATED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 30,
+      "eventId": "coding:03379e28-dd46-48a7-80fc-6595963a0ad2",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "operationId": "workspace-bff9f4f939f109dde1cf6bd7bdc67e757124d6089ebe05382b1ff85d44841abd",
+      "stepId": "workspace-bff9f4f939f109dde1cf6bd7bdc67e757124d6089ebe05382b1ff85d44841abd",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "summary": "Start intent committed; execution result is not yet known",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:40:45.847Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 31,
+      "eventId": "coding:f7d7f626-bb70-4144-b960-9dd8eecb9dc3",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "operationId": "workspace-bff9f4f939f109dde1cf6bd7bdc67e757124d6089ebe05382b1ff85d44841abd",
+      "stepId": "workspace-bff9f4f939f109dde1cf6bd7bdc67e757124d6089ebe05382b1ff85d44841abd",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "summary": "Verified stop evidence recorded",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:40:45.947Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [
+        "runtime-evidence:coding:input-read:workspace-bff9f4f939f109dde1cf6bd7bdc67e757124d6089ebe05382b1ff85d44841abd:receipt"
+      ],
+      "sequence": 32,
+      "eventId": "coding:6d250e15-ac3d-4f29-9482-e968042b35e5",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "operationId": "workspace-bff9f4f939f109dde1cf6bd7bdc67e757124d6089ebe05382b1ff85d44841abd",
+      "stepId": "workspace-bff9f4f939f109dde1cf6bd7bdc67e757124d6089ebe05382b1ff85d44841abd",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: BUDGET_UPDATED",
+    "metadata": {
+      "summary": "Actual usage settled",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:40:45.979Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "BUDGET_UPDATED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 33,
+      "eventId": "coding:7212a6d2-4359-4c58-aa11-22fda7b87b0c",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "operationId": "workspace-bff9f4f939f109dde1cf6bd7bdc67e757124d6089ebe05382b1ff85d44841abd",
+      "stepId": "workspace-bff9f4f939f109dde1cf6bd7bdc67e757124d6089ebe05382b1ff85d44841abd",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "evidenceRefs": [],
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "eventId": "coding:6a787141-2b75-45ea-92ac-d24b2a569d95",
+      "occurredAt": "2026-11-01T01:40:46.087Z",
+      "payload": {
+        "stage": "CODING",
+        "source": "NODE_CLINE",
+        "type": "TOOL_FINISHED",
+        "tool": "input_read",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "timestamp": "2026-11-01T01:40:46.050Z",
+        "status": "SUCCEEDED",
+        "toolCallId": "call_00_CFrK4FjSprN5qfWH7TcJ6776"
+      },
+      "eventState": "RUNNING",
+      "sequence": 34,
+      "summary": "Worker observation: TOOL_FINISHED",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "evidenceRefs": [],
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "eventId": "coding:fe54f90d-729c-4d10-94ec-5cb65ffee210",
+      "occurredAt": "2026-11-01T01:40:46.137Z",
+      "payload": {
+        "toolCallId": "call_00_CFrK4FjSprN5qfWH7TcJ6776",
+        "timestamp": "2026-11-01T01:40:46.103Z",
+        "tool": "input_read",
+        "toolDurationMs": 384,
+        "status": "RETURNED",
+        "source": "NODE_CLINE",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "stage": "CODING",
+        "type": "TOOL_TIMING"
+      },
+      "eventState": "RUNNING",
+      "sequence": 35,
+      "summary": "Worker observation: TOOL_TIMING",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "evidenceRefs": [],
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "eventId": "coding:026c39ef-e439-4cc0-9b84-90ad1cc8b81f",
+      "occurredAt": "2026-11-01T01:40:46.359Z",
+      "payload": {
+        "modelCall": 3,
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "type": "MODEL_STARTED",
+        "timestamp": "2026-11-01T01:40:46.315Z",
+        "source": "NODE_CLINE"
+      },
+      "eventState": "RUNNING",
+      "sequence": 36,
+      "summary": "Worker observation: MODEL_STARTED",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: BUDGET_UPDATED",
+    "metadata": {
+      "summary": "Operation budget reserved",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:40:46.483Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "BUDGET_UPDATED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 37,
+      "eventId": "coding:713193b5-538d-44e1-a1b9-58b3e8270682",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "operationId": "model-3",
+      "stepId": "model-3",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "summary": "Start intent committed; execution result is not yet known",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:40:46.526Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 38,
+      "eventId": "coding:09b7e878-becc-41e6-b584-059375ff93da",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "operationId": "model-3",
+      "stepId": "model-3",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "evidenceRefs": [],
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "eventId": "coding:c4459083-2ccb-49eb-a615-59fcd3c43487",
+      "occurredAt": "2026-11-01T01:40:46.583Z",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "eventState": "RUNNING",
+      "sequence": 39,
+      "summary": "Lease renewed",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "sequence": 40,
+      "reasonCode": "EXECUTION_OUTCOME_UNKNOWN",
+      "eventId": "coding:34a7646f-3c06-4138-a82e-940e2d9859ed",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "evidenceRefs": [],
+      "summary": "Existing execution must be reconciled before new work",
+      "eventState": "RUNNING",
+      "eventKind": "CODING_TRACE",
+      "occurredAt": "2026-11-01T01:40:47.270Z",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "sequence": 41,
+      "reasonCode": "EXECUTION_OUTCOME_UNKNOWN",
+      "eventId": "coding:1e3a67bd-7748-43fe-adae-4ebd4e4791e6",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "evidenceRefs": [],
+      "summary": "Lease renewed",
+      "eventState": "RUNNING",
+      "eventKind": "CODING_TRACE",
+      "occurredAt": "2026-11-01T01:41:46.622Z",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "summary": "Verified stop evidence recorded",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:41:51.263Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [
+        "runtime-evidence:coding:model:c7f364ae8c6931d839d2c897cc743e136ba5f07d8013cada5d57314b1596e875"
+      ],
+      "sequence": 42,
+      "eventId": "coding:1ecf30d2-d5ab-4738-8143-46644ee58582",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "operationId": "model-3",
+      "stepId": "model-3",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: BUDGET_UPDATED",
+    "metadata": {
+      "summary": "Unknown usage retains unspent reservation",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:41:51.290Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "BUDGET_UPDATED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 43,
+      "eventId": "coding:b7733267-8273-47aa-b54c-da77f2e4498c",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "operationId": "model-3",
+      "stepId": "model-3",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "summary": "Worker observation: MODEL_RESOLVED",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:41:51.356Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 44,
+      "eventId": "coding:4a7cd363-7648-4a7d-86bb-dcbf619d9658",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "modelCall": 3,
+        "timestamp": "2026-11-01T01:41:51.312Z",
+        "responseMode": "NON_STREAMING",
+        "queueTimeMs": 27,
+        "providerModel": "deepseek-flash",
+        "stage": "CODING",
+        "type": "MODEL_RESOLVED",
+        "protocol": "openai",
+        "maxOutputTokens": 32768,
+        "selectedModel": "deepseek-v4-flash",
+        "durationMs": 64570,
+        "messageCount": 6,
+        "source": "NODE_CLINE",
+        "finishedAt": "2026-11-01T01:41:51.171146075Z",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "startedAt": "2026-11-01T01:40:46.600805792Z",
+        "retryTimeMs": 0,
+        "requestBytes": 42823
+      },
+      "operationId": "model-3",
+      "stepId": "model-3",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "summary": "Worker observation: MODEL_USAGE",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:41:51.413Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 45,
+      "eventId": "coding:d9153e94-ec6e-43cb-9d99-ebd615e921d3",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "stage": "CODING",
+        "source": "NODE_CLINE",
+        "type": "MODEL_USAGE",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "modelCall": 3,
+        "timestamp": "2026-11-01T01:41:51.376Z",
+        "status": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 10392,
+          "outputTokens": 12532
+        }
+      },
+      "operationId": "model-3",
+      "stepId": "model-3",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "summary": "Worker observation: MODEL_TIMING",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:41:51.468Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 46,
+      "eventId": "coding:dd9cef3e-bd27-4917-b96e-877dacf7d42d",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "toolCount": 5,
+        "requestBytes": 43173,
+        "callbackFirstEventMs": 64998,
+        "stage": "CODING",
+        "requestHash": "ee9586afa32cdd5261a820e5af2b0703d9e8886e7730a6fcd4e3b145eb8d8c0c",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "messageCount": 6,
+        "responseMode": "RUNTIME_MODEL_CALLBACK",
+        "responseBytes": 21851,
+        "source": "NODE_CLINE",
+        "modelCall": 3,
+        "timestamp": "2026-11-01T01:41:51.433Z",
+        "durationMs": 65118,
+        "type": "MODEL_TIMING",
+        "status": "SUCCEEDED"
+      },
+      "operationId": "model-3",
+      "stepId": "model-3",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "evidenceRefs": [],
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "eventId": "coding:ab88573f-7aca-439c-adab-823aa653b6ae",
+      "occurredAt": "2026-11-01T01:41:51.691Z",
+      "payload": {
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "modelCall": 3,
+        "source": "NODE_CLINE",
+        "sourceBytes": 20644,
+        "proposedOperationId": "cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50",
+        "codeSha256": "68f50fdaa411ac956de6ebfe5537b499044c07e937ea58d50f20c49352ecf10b",
+        "changeKind": "INITIAL",
+        "type": "CODE_READY",
+        "stage": "CODE_READY",
+        "scriptVersion": 1,
+        "fileName": "1998-01-01-1998-01-29-0_20261101T014151609Z_f4094728711f_v1.py",
+        "codeVersion": 1,
+        "timestamp": "2026-11-01T01:41:51.656Z",
+        "scriptPath": "/workspace/scripts/1998-01-01-1998-01-29-0_20261101T014151609Z_f4094728711f_v1.py"
+      },
+      "eventState": "RUNNING",
+      "sequence": 47,
+      "summary": "Worker observation: CODE_READY",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "evidenceRefs": [],
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "eventId": "coding:e2a8c5ed-94be-4078-bd84-b9386105ab0f",
+      "occurredAt": "2026-11-01T01:41:51.747Z",
+      "payload": {
+        "type": "TOOL_STARTED",
+        "stage": "VALIDATING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "tool": "python_execute",
+        "timestamp": "2026-11-01T01:41:51.712Z",
+        "source": "NODE_CLINE",
+        "operationId": "cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50"
+      },
+      "eventState": "RUNNING",
+      "sequence": 48,
+      "summary": "Worker observation: TOOL_STARTED",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: BUDGET_UPDATED",
+    "metadata": {
+      "summary": "Operation budget reserved",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:41:52.045Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "BUDGET_UPDATED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 49,
+      "eventId": "coding:5ee2d9fb-86a0-4a5e-a955-19cd10d97b4c",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "VALIDATING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "operationId": "cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50",
+      "stepId": "cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "summary": "Start intent committed; execution result is not yet known",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:41:52.078Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 50,
+      "eventId": "coding:02af24ff-60a0-4e2b-b3e0-6caa2bdd9005",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "EXECUTING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "operationId": "cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50",
+      "stepId": "cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "executorStopped": false,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorConfirmed": false,
+      "operationId": "cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50",
+      "timeBasis": "OBSERVED_STATE",
+      "observedAt": "2026-11-01T01:41:52.215138930Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventState": "ACCEPTED",
+      "operationKind": "EXECUTION"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "executorStopped": false,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorConfirmed": false,
+      "operationId": "cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50",
+      "timeBasis": "OBSERVED_STATE",
+      "observedAt": "2026-11-01T01:41:52.885056029Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventState": "STARTING",
+      "operationKind": "EXECUTION"
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "sequence": 51,
+      "reasonCode": "EXECUTION_OUTCOME_UNKNOWN",
+      "eventId": "coding:48a855af-873a-4dd6-a2c6-4fc24f64eb84",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "EXECUTING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "evidenceRefs": [],
+      "summary": "Existing execution must be reconciled before new work",
+      "eventState": "RUNNING",
+      "eventKind": "CODING_TRACE",
+      "occurredAt": "2026-11-01T01:41:52.939Z",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "executorStopped": false,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorConfirmed": true,
+      "operationId": "cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50",
+      "timeBasis": "OBSERVED_STATE",
+      "observedAt": "2026-11-01T01:41:53.320408777Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventState": "RUNNING",
+      "operationKind": "EXECUTION"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "executorStopped": false,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorConfirmed": true,
+      "operationId": "cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50",
+      "timeBasis": "OBSERVED_STATE",
+      "observedAt": "2026-11-01T01:41:53.701871673Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventState": "RUNNING",
+      "operationKind": "EXECUTION"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "executorStopped": false,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorConfirmed": true,
+      "operationId": "cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50",
+      "timeBasis": "OBSERVED_STATE",
+      "observedAt": "2026-11-01T01:41:54.078250765Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventState": "RUNNING",
+      "operationKind": "EXECUTION"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "executorStopped": false,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorConfirmed": true,
+      "operationId": "cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50",
+      "timeBasis": "OBSERVED_STATE",
+      "observedAt": "2026-11-01T01:41:54.579664778Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventState": "RUNNING",
+      "operationKind": "EXECUTION"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "executorStopped": false,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorConfirmed": true,
+      "operationId": "cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50",
+      "timeBasis": "OBSERVED_STATE",
+      "observedAt": "2026-11-01T01:41:54.964769955Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventState": "RUNNING",
+      "operationKind": "EXECUTION"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "executorStopped": false,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorConfirmed": true,
+      "operationId": "cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50",
+      "timeBasis": "OBSERVED_STATE",
+      "observedAt": "2026-11-01T01:41:55.339507611Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventState": "RUNNING",
+      "operationKind": "EXECUTION"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "executorStopped": false,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorConfirmed": true,
+      "operationId": "cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50",
+      "timeBasis": "OBSERVED_STATE",
+      "observedAt": "2026-11-01T01:41:55.705658442Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventState": "RUNNING",
+      "operationKind": "EXECUTION"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "executorStopped": false,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorConfirmed": true,
+      "operationId": "cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50",
+      "timeBasis": "OBSERVED_STATE",
+      "observedAt": "2026-11-01T01:41:56.068691089Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventState": "RUNNING",
+      "operationKind": "EXECUTION"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "executorStopped": true,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorConfirmed": false,
+      "operationId": "cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50",
+      "timeBasis": "OBSERVED_STATE",
+      "observedAt": "2026-11-01T01:41:56.403541831Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventState": "SUCCEEDED",
+      "operationKind": "EXECUTION"
+    }
+  },
+  {
+    "type": "analysis_operation",
+    "source": "runtime",
+    "content": "Execution node status observed",
+    "metadata": {
+      "executorStopped": true,
+      "eventKind": "ANALYSIS_OPERATION",
+      "executorConfirmed": false,
+      "operationId": "cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50",
+      "timeBasis": "OBSERVED_STATE",
+      "observedAt": "2026-11-01T01:41:56.910220093Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventState": "SUCCEEDED",
+      "operationKind": "EXECUTION"
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "summary": "Verified stop evidence recorded",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:41:57.048Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [
+        "mcp-python-receipt:ebf8a3b10686fff2507d84eacd56b49155810fa1ad4608bbc8845e48f16ba32d"
+      ],
+      "sequence": 52,
+      "eventId": "coding:bef9f5f9-0009-4a3c-b6b3-592be9964141",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "RESULT_VALIDATING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "operationId": "cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50",
+      "stepId": "cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: BUDGET_UPDATED",
+    "metadata": {
+      "summary": "Unknown usage retains unspent reservation",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:41:57.097Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "BUDGET_UPDATED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 53,
+      "eventId": "coding:6adc1975-d0c9-4b77-80b2-cd229eced088",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "RESULT_VALIDATING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "operationId": "cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50",
+      "stepId": "cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "summary": "Python feedback: VALIDATED",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:41:57.649Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [
+        "mcp-python-receipt:ebf8a3b10686fff2507d84eacd56b49155810fa1ad4608bbc8845e48f16ba32d"
+      ],
+      "sequence": 54,
+      "eventId": "coding:a1b483c1-d1ce-4ef8-855e-4d34a62594dd",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "stage": "VALIDATED",
+        "feedback": {
+          "artifactRefs": {
+            "codeArtifactRef": "runtime-evidence:coding:249050aa33dc9503e96ad39e4f7a8d8cf400038218c686d03c21781655e33482:code",
+            "diagnosticRef": "execution:cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50:logs:runtime-diagnostic.json",
+            "evidenceBundleRef": "runtime-evidence:coding:249050aa33dc9503e96ad39e4f7a8d8cf400038218c686d03c21781655e33482:bundle",
+            "executionReceiptRef": "runtime-evidence:coding:249050aa33dc9503e96ad39e4f7a8d8cf400038218c686d03c21781655e33482:receipt",
+            "inputSnapshotRef": "runtime-evidence:coding:input:a97ed2ecdbf563b343fbf4cfe08160bf8b43898aaa4fc20ba87fb19369beff4",
+            "resultDatasetRef": "runtime-evidence:coding:249050aa33dc9503e96ad39e4f7a8d8cf400038218c686d03c21781655e33482:result",
+            "stderrRef": "execution:cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50:logs:stderr.txt",
+            "validationRecordRef": "runtime-evidence:coding:249050aa33dc9503e96ad39e4f7a8d8cf400038218c686d03c21781655e33482:validation"
+          },
+          "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:execution-1",
+          "businessValidationPassed": false,
+          "codeHash": "68f50fdaa411ac956de6ebfe5537b499044c07e937ea58d50f20c49352ecf10b",
+          "cpuTimeMs": 1879,
+          "diagnosticPolicy": "METADATA_ONLY_V1",
+          "durationMs": 2832,
+          "error": null,
+          "executionId": "cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50",
+          "exitCode": 0,
+          "inputDataRefs": [
+            "runtime-evidence:coding:input:a97ed2ecdbf563b343fbf4cfe08160bf8b43898aaa4fc20ba87fb19369beff4"
+          ],
+          "inputFiles": [
+            {
+              "fileId": "ca97ed2ecdbf563b343fbf4cfe08160bf8b43898aaa4fc20ba87fb19369beff4",
+              "fileName": "manifest.json",
+              "sha256": "5305a353bfaf493e6b63213e94ad315cd0f1c2d07c3df42e14fe0b0f12cf6492"
+            }
+          ],
+          "inputSchemaSummary": {
+            "format": "PARQUET",
+            "manifestFileId": "ca97ed2ecdbf563b343fbf4cfe08160bf8b43898aaa4fc20ba87fb19369beff4",
+            "manifestSha256": "5305a353bfaf493e6b63213e94ad315cd0f1c2d07c3df42e14fe0b0f12cf6492"
+          },
+          "manifestHash": "295c6abc580c4c46fdb127a37eeb9fc92f449981a718716ba6ec07b0a5bd4c69",
+          "maxRssBytes": 129929216,
+          "outputStatus": null,
+          "repair": {
+            "action": "COMPLETE",
+            "allowed": false,
+            "attemptsUsed": 0,
+            "baseCodeHash": "68f50fdaa411ac956de6ebfe5537b499044c07e937ea58d50f20c49352ecf10b",
+            "guidance": "Result archived; business correctness remains governed by validationStatus.",
+            "maxAttempts": 3,
+            "reason": "RESULT_VERIFIED"
+          },
+          "resultAvailable": true,
+          "schemaRef": "runtime-coding-schema:d05173c3179bea6d4650839407f4268a4a6194257f77ead1adc3252dc1d1f270",
+          "schemaVersion": "runtime_os.execution_feedback.v1",
+          "script": {
+            "fileName": "1998-01-01-1998-01-29-0_20261101T014151609Z_f4094728711f_v1.py",
+            "scriptPath": "/workspace/scripts/1998-01-01-1998-01-29-0_20261101T014151609Z_f4094728711f_v1.py",
+            "scriptVersion": 1,
+            "workingDirectory": "tasks/2abd2c828f4ebf3c/6432cc690bc93efe/afea6336cea51583/f4094728711fa3306346ce2a"
+          },
+          "stage": "VALIDATED",
+          "status": "SUCCEEDED",
+          "stderr": "[raw stderr omitted]",
+          "stderrBytes": 0,
+          "stdout": "[raw stdout omitted]",
+          "stdoutBytes": 436,
+          "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+          "traceId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+          "validationStatus": "INCONCLUSIVE"
+        },
+        "type": "EXECUTION_FEEDBACK"
+      },
+      "operationId": "cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50",
+      "stepId": "cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "summary": "Worker observation: TOOL_FINISHED",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:41:57.720Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 55,
+      "eventId": "coding:b611a5f8-6c61-4472-a404-41c0adc19319",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "cpuTimeMs": 1879,
+        "timestamp": "2026-11-01T01:41:57.680Z",
+        "stage": "RESULT_VALIDATING",
+        "resultDatasetRef": "runtime-evidence:coding:249050aa33dc9503e96ad39e4f7a8d8cf400038218c686d03c21781655e33482:result",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "resultAvailable": true,
+        "maxRssBytes": 129929216,
+        "repairAllowed": false,
+        "evidenceBundleRef": "runtime-evidence:coding:249050aa33dc9503e96ad39e4f7a8d8cf400038218c686d03c21781655e33482:bundle",
+        "tool": "python_execute",
+        "status": "SUCCEEDED",
+        "operationId": "cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50",
+        "validationRecordRef": "runtime-evidence:coding:249050aa33dc9503e96ad39e4f7a8d8cf400038218c686d03c21781655e33482:validation",
+        "source": "NODE_CLINE",
+        "codeSha256": "68f50fdaa411ac956de6ebfe5537b499044c07e937ea58d50f20c49352ecf10b",
+        "repairAttempts": 0,
+        "validationStatus": "INCONCLUSIVE",
+        "type": "TOOL_FINISHED",
+        "durationMs": 2832
+      },
+      "operationId": "cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50",
+      "stepId": "cline-82b20a9d0da24963a4eca842e3780348a5b04b196601674391f9a6512087db50",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "evidenceRefs": [],
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "eventId": "coding:89745b06-d730-43b8-89fc-fa981bab3ac7",
+      "occurredAt": "2026-11-01T01:41:57.785Z",
+      "payload": {
+        "source": "NODE_CLINE",
+        "stage": "CODING",
+        "tool": "artifact_read",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "type": "TOOL_STARTED",
+        "timestamp": "2026-11-01T01:41:57.743Z"
+      },
+      "eventState": "RUNNING",
+      "sequence": 56,
+      "summary": "Worker observation: TOOL_STARTED",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "evidenceRefs": [],
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "eventId": "coding:3ef3a7ec-b442-49a2-adb7-9ebe8f68c209",
+      "occurredAt": "2026-11-01T01:41:57.983Z",
+      "payload": {
+        "type": "TOOL_FINISHED",
+        "status": "SUCCEEDED",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "tool": "artifact_read",
+        "timestamp": "2026-11-01T01:41:57.934Z",
+        "source": "NODE_CLINE"
+      },
+      "eventState": "RUNNING",
+      "sequence": 57,
+      "summary": "Worker observation: TOOL_FINISHED",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "evidenceRefs": [],
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "eventId": "coding:514f9746-0e02-4b20-a112-60f8542c5d7e",
+      "occurredAt": "2026-11-01T01:41:58.043Z",
+      "payload": {
+        "toolCallId": "call_00_oLvHm192KbF0FShjljZk4163",
+        "timestamp": "2026-11-01T01:41:58.000Z",
+        "tool": "python_execute",
+        "toolDurationMs": 6437,
+        "status": "RETURNED",
+        "source": "NODE_CLINE",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "stage": "CODING",
+        "type": "TOOL_TIMING"
+      },
+      "eventState": "RUNNING",
+      "sequence": 58,
+      "summary": "Worker observation: TOOL_TIMING",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "evidenceRefs": [],
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "eventId": "coding:39a72762-9bf0-4568-bef1-b89fbfff8348",
+      "occurredAt": "2026-11-01T01:41:58.366Z",
+      "payload": {
+        "modelCall": 4,
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "type": "MODEL_STARTED",
+        "timestamp": "2026-11-01T01:41:58.312Z",
+        "source": "NODE_CLINE"
+      },
+      "eventState": "RUNNING",
+      "sequence": 59,
+      "summary": "Worker observation: MODEL_STARTED",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: BUDGET_UPDATED",
+    "metadata": {
+      "summary": "Operation budget reserved",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:41:58.502Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "BUDGET_UPDATED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 60,
+      "eventId": "coding:cebf6a55-8821-4b71-896d-96db813abb12",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "operationId": "model-4",
+      "stepId": "model-4",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "summary": "Start intent committed; execution result is not yet known",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:41:58.542Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 61,
+      "eventId": "coding:ff68e9c4-b765-43bc-95f7-64ebde1fb745",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "operationId": "model-4",
+      "stepId": "model-4",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "evidenceRefs": [],
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "eventId": "coding:60b9d473-9825-4ab4-b92c-620fcdc63bea",
+      "occurredAt": "2026-11-01T01:41:58.604Z",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "eventState": "RUNNING",
+      "sequence": 62,
+      "summary": "Lease renewed",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "sequence": 63,
+      "reasonCode": "EXECUTION_OUTCOME_UNKNOWN",
+      "eventId": "coding:e5e27534-09ee-45c2-b64c-caa19fed708d",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "evidenceRefs": [],
+      "summary": "Existing execution must be reconciled before new work",
+      "eventState": "RUNNING",
+      "eventKind": "CODING_TRACE",
+      "occurredAt": "2026-11-01T01:41:58.672Z",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "summary": "Verified stop evidence recorded",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:42:03.158Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [
+        "runtime-evidence:coding:model:38f48a9a36f463d9f4016777f974c4af8e42554ce60d0bc8df14cd85eb063835"
+      ],
+      "sequence": 64,
+      "eventId": "coding:bf7416f4-c686-4e63-a3c5-8232152c0dfc",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "operationId": "model-4",
+      "stepId": "model-4",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: BUDGET_UPDATED",
+    "metadata": {
+      "summary": "Unknown usage retains unspent reservation",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:42:03.204Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "BUDGET_UPDATED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 65,
+      "eventId": "coding:c9b6705c-498b-44eb-900f-49d4675d4dee",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "operationId": "model-4",
+      "stepId": "model-4",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "summary": "Worker observation: MODEL_RESOLVED",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:42:03.275Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 66,
+      "eventId": "coding:40a28162-1fff-409c-8b82-48b003c61528",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "modelCall": 4,
+        "timestamp": "2026-11-01T01:42:03.224Z",
+        "responseMode": "NON_STREAMING",
+        "queueTimeMs": 32,
+        "providerModel": "deepseek-flash",
+        "stage": "CODING",
+        "type": "MODEL_RESOLVED",
+        "protocol": "openai",
+        "maxOutputTokens": 32768,
+        "selectedModel": "deepseek-v4-flash",
+        "durationMs": 4416,
+        "messageCount": 9,
+        "source": "NODE_CLINE",
+        "finishedAt": "2026-11-01T01:42:03.049328403Z",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "startedAt": "2026-11-01T01:41:58.632428800Z",
+        "retryTimeMs": 0,
+        "requestBytes": 108731
+      },
+      "operationId": "model-4",
+      "stepId": "model-4",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "summary": "Worker observation: MODEL_USAGE",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:42:03.363Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 67,
+      "eventId": "coding:9b117d0b-e51d-4be8-a4dc-6c4f1343da24",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "stage": "CODING",
+        "source": "NODE_CLINE",
+        "type": "MODEL_USAGE",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "modelCall": 4,
+        "timestamp": "2026-11-01T01:42:03.300Z",
+        "status": "SUCCEEDED",
+        "usage": {
+          "inputTokens": 29469,
+          "outputTokens": 584
+        }
+      },
+      "operationId": "model-4",
+      "stepId": "model-4",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "summary": "Worker observation: MODEL_TIMING",
+      "eventState": "RUNNING",
+      "occurredAt": "2026-11-01T01:42:03.534Z",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "evidenceRefs": [],
+      "sequence": 68,
+      "eventId": "coding:2c40ddb9-4429-4d07-9b9e-df977447b1d6",
+      "operationAttempt": 1,
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "payload": {
+        "toolCount": 5,
+        "requestBytes": 109271,
+        "callbackFirstEventMs": 4912,
+        "stage": "CODING",
+        "requestHash": "b921ce83c2b384ae28be59c424598c4179bb034639a3443bfa3697da50767cb0",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "messageCount": 9,
+        "responseMode": "RUNTIME_MODEL_CALLBACK",
+        "responseBytes": 898,
+        "source": "NODE_CLINE",
+        "modelCall": 4,
+        "timestamp": "2026-11-01T01:42:03.491Z",
+        "durationMs": 5178,
+        "type": "MODEL_TIMING",
+        "status": "SUCCEEDED"
+      },
+      "operationId": "model-4",
+      "stepId": "model-4",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "evidenceRefs": [],
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "eventId": "coding:6faedb78-7a5e-4d11-9ddd-93ad7576ca72",
+      "occurredAt": "2026-11-01T01:42:03.670Z",
+      "payload": {
+        "source": "NODE_CLINE",
+        "stage": "CODING",
+        "tool": "artifact_read",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "type": "TOOL_STARTED",
+        "timestamp": "2026-11-01T01:42:03.621Z"
+      },
+      "eventState": "RUNNING",
+      "sequence": 69,
+      "summary": "Worker observation: TOOL_STARTED",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "evidenceRefs": [],
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "eventId": "coding:e0b4d7fc-c999-4600-ad3d-57d0529611c1",
+      "occurredAt": "2026-11-01T01:42:03.794Z",
+      "payload": {
+        "type": "TOOL_FINISHED",
+        "status": "SUCCEEDED",
+        "stage": "CODING",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "tool": "artifact_read",
+        "timestamp": "2026-11-01T01:42:03.748Z",
+        "source": "NODE_CLINE"
+      },
+      "eventState": "RUNNING",
+      "sequence": 70,
+      "summary": "Worker observation: TOOL_FINISHED",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+    "metadata": {
+      "evidenceRefs": [],
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "eventId": "coding:fb961b96-9f49-4e80-84d5-83d352662b61",
+      "occurredAt": "2026-11-01T01:42:03.872Z",
+      "payload": {
+        "toolCallId": "call_00_MFTDhlyuYyAVqsN8oYp65258",
+        "timestamp": "2026-11-01T01:42:03.815Z",
+        "tool": "artifact_read",
+        "toolDurationMs": 194,
+        "status": "RETURNED",
+        "source": "NODE_CLINE",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1",
+        "stage": "CODING",
+        "type": "TOOL_TIMING"
+      },
+      "eventState": "RUNNING",
+      "sequence": 71,
+      "summary": "Worker observation: TOOL_TIMING",
+      "codingEventType": "RECOVERY_RECONCILED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent analysis: TASK_FINISHED",
+    "metadata": {
+      "evidenceRefs": [
+        "runtime-evidence:coding:249050aa33dc9503e96ad39e4f7a8d8cf400038218c686d03c21781655e33482:bundle",
+        "runtime-evidence:coding:249050aa33dc9503e96ad39e4f7a8d8cf400038218c686d03c21781655e33482:code",
+        "runtime-evidence:coding:249050aa33dc9503e96ad39e4f7a8d8cf400038218c686d03c21781655e33482:receipt",
+        "runtime-evidence:coding:249050aa33dc9503e96ad39e4f7a8d8cf400038218c686d03c21781655e33482:result",
+        "runtime-evidence:coding:249050aa33dc9503e96ad39e4f7a8d8cf400038218c686d03c21781655e33482:validation",
+        "runtime-evidence:coding:input:a97ed2ecdbf563b343fbf4cfe08160bf8b43898aaa4fc20ba87fb19369beff4"
+      ],
+      "stepId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "taskId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+      "eventKind": "CODING_TRACE",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "eventId": "coding:fdd7fac1-6338-4730-9928-5bce8dfc7531",
+      "occurredAt": "2026-11-01T01:42:04.538Z",
+      "payload": {
+        "source": "JAVA_RUNTIME",
+        "stage": "COMPLETED",
+        "attemptId": "analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5:fence-1"
+      },
+      "eventState": "COMPLETED",
+      "sequence": 72,
+      "summary": "Coding execution archived; validation INCONCLUSIVE",
+      "codingEventType": "TASK_FINISHED",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "coding_agent",
+    "content": "Coding Agent primary analysis completed",
+    "metadata": {
+      "stage": "PRIMARY_CODING_ANALYSIS",
+      "resultAvailable": true,
+      "durationMs": 88215,
+      "eventState": "COMPLETED",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "status": "COMPLETED",
+      "usage": {
+        "budgetId": "analysis-coding-tool-budget:analysis-coding-c641a82b9b6d0c4c2b945359b9910bed4d34a3448ac1dca988dd56c9392a27b5",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 4,
+          "modelTokens": 73197,
+          "toolCalls": 2,
+          "codeExecutions": 1,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 19708,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 188947,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 25000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 330266,
+          "costAmount": "3.333333333332"
+        },
+        "meteringComplete": false
+      },
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "lifecycle",
+    "source": "agent_lifecycle",
+    "content": "Returned data is available; incomplete claim trace is advisory and final synthesis will continue with limitations.",
+    "metadata": {
+      "type": "lifecycle",
+      "workflow": "agent_problem_solving",
+      "lifecyclePhase": "analysis_completion_review",
+      "createdAt": 1793497324790,
+      "reuseExistingDataset": true,
+      "dataAcquisitionAllowed": false,
+      "returnedRecordCount": 1,
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "lifecycle",
+    "source": "agent_lifecycle",
+    "content": "Final synthesis started from executed steps and stored observations.",
+    "metadata": {
+      "type": "lifecycle",
+      "workflow": "agent_problem_solving",
+      "lifecyclePhase": "final_synthesis",
+      "createdAt": 1793497324815,
+      "stage": "initial",
+      "stepCount": 2,
+      "attemptCount": 1,
+      "storedObservationCount": 6,
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "analysis_summary_result",
+    "source": "analysis_summary_governance",
+    "content": "Governed final analysis summary recorded for 9001fee4-482b-4851-9eb9-df269765291f:att-1-997a5663-f69d-46f3-9546-70d82e403976:final-summary#initial.",
+    "metadata": {
+      "type": "analysis_summary_result",
+      "analysisSummaryResult": {
+        "schemaVersion": "analysis_summary_result.v1",
+        "resultId": "9001fee4-482b-4851-9eb9-df269765291f:att-1-997a5663-f69d-46f3-9546-70d82e403976:final-summary#initial",
+        "scope": "FINAL_SYNTHESIS",
+        "content": "# 仓库分布概览 → 最小仓库主键 → 指定仓库逐日库存（1998-01-01 至 1998-01-29）\n\n## 结论摘要\n\n1. **仓库分布概览（交付范围内）**：授权快照只包含 **1 个“国家+省州”分组**，即 w_country=`United States`、w_state=`TN`（w_state 按源字段原值呈现，交付未提供代码表，不做全称展开）。该分组 **warehouse_count=5** 个仓库、**city_count=1** 个覆盖城市，仓库主键取值区间 **1–5**。整个交付内仓库合计 5 个、覆盖城市合计 1 个。\n2. **最小实际存在的仓库主键 = 1**（对交付分组取 min_warehouse_sk 的最小值所得最小键）。一致性自检通过：1–5 连续区间长度 5 等于该组 warehouse_count=5，说明该组声明的键区间内无空洞，键 1 在该组内确实存在。\n3. **第二步（仓库主键 1 在 1998-01-01 至 1998-01-29 的逐日库存，数量下限 0、类别不限）无法计算**：授权输入只交付了 1 行仓库分布汇总（6 个字段），**没有任何库存事实数据**——既无事实表侧仓库键、也无业务日期、库存数量、类别字段，因此不能生成任何逐日库存数值、趋势或图表。这不是“空结果”，而是**所需数据集未交付**。\n4. **分析状态：INPUT_REQUIRED**（缺库存事实数据集的字段含义与总体范围）。\n\n## 1. 仓库分布概览（交付范围内全部行）\n\n| 国家 (w_country) | 省州 (w_state) | 仓库数 (warehouse_count) | 覆盖城市数 (city_count) | 仓库主键最小值 (min_warehouse_sk) | 仓库主键最大值 (max_warehouse_sk) | 派生：每城市平均仓库数 |\n|---|---|---:|---:|---:|---:|---:|\n| United States | TN | 5 | 1 | 1 | 5 | 5 |\n\n- 交付分组数：1；不同国家取值数：1；不同省州取值数：1；“国家+省州”重复键行数：0（0 表示无重复分组）。\n- 合计：warehouse_count 合计 **5**；city_count 合计 **1**。仅当分组互不重叠时合计才有意义，本交付只有 1 个分组，故不存在重叠小计问题。\n- 派生指标（明确标注为派生，非源字段）：“每城市平均仓库数” = warehouse_count / city_count = 5 / 1 = 5（精确除法，未做四舍五入）。\n- 说明：模板自身的生产者描述声明该查询是“全仓库维表、无参数”，即应返回全部“国家+省州”分组。实际交付快照仅 1 行，因此无法判定是源表只有 1 个分组，还是交付被裁剪/限定范围。本报告**只把这 1 行当作交付范围内的事实**，不把它当作全国/全球分布全貌。\n\n## 2. 最小实际存在的仓库主键\n\n| 选择步骤 | 依据字段（源字段） | 观察值 | 说明 |\n|---|---|---:|---|\n| 1. 取每个分组的最小仓库键 | min_warehouse_sk | 1 | 生产者描述声明该字段为“该组实际仓库主键范围”的下界 |\n| 2. 在交付分组上取最小值 | min(min_warehouse_sk) | 1 | 仅 1 个分组，故结果等于该组下界 |\n| 3. 存在性交叉校验 | max_warehouse_sk / warehouse_count | 5 / 5 | 1–5 长度 = 5 = warehouse_count，区间无缺口 |\n\n**结论：在交付范围内实际存在的最小仓库主键为 `1`。** 该值仅作为后续查询的过滤键使用；它是标识符，未参与任何求和/平均。\n\n## 3. 请求的逐日库存分析：缺失输入\n\n| 分析所需角色 | 需要的具体内容 | 交付中是否存在 |\n|---|---|---|\n| 事实表仓库主键 | 用于与仓库维表的 min_warehouse_sk=1 关联的事实表键字段 | ABSENT (未交付该数据集) |\n| 业务日期 | 覆盖 1998-01-01 至 1998-01-29 的日期字段及其已确认业务含义 | ABSENT (未交付该数据集) |\n| 库存数量 | 含义/单位已确认的库存数量字段（用于数量下限 0 过滤与逐日展示） | ABSENT (未交付该数据集) |\n| 类别 | 类别字段（本次不限，但需存在以确认“不限”口径） | ABSENT (未交付该数据集) |\n\n- 交付实际字段（共 6 个，全部属于仓库分布汇总）：`w_country`、`w_state`、`warehouse_count`、`city_count`、`min_warehouse_sk`、`max_warehouse_sk`；递归记录中无额外字段（额外字段数 0），声明字段缺失 0 个。\n- 因此：1998-01-01 至 1998-01-29 的**逐日序列长度、每日库存量、数量下限 0 的过滤影响、类别口径**全部无法给出。任何数值都会是编造，故不予给出。\n\n## 4. 两个查询之间如何关联（基于实际结果）\n\n- **设计上的关联键**是仓库代理键：第一段查询输出每个“国家+省州”分组内的 min_warehouse_sk / max_warehouse_sk，用于挑出实际存在的最小键；第二段查询以该键（本交付结果 = 1）作为库存事实表的等值过滤条件，再叠加日期区间与“数量下限 0”过滤。\n- **本交付能证实的部分**：min_warehouse_sk=1、max_warehouse_sk=5、warehouse_count=5 三者自洽（1–5 连续且长度等于仓库数），因此在交付范围内“仓库键 1 存在”这一前提成立，可作为关联键使用。\n- **不能证实的部分**：库存事实表侧的仓库键字段、业务日期字段、数量字段、类别字段均未交付；因此无法验证两段查询的键域是否一致（维表键与事实表外键是否同一口径）、仓库键 1 在 1998-01-01 至 1998-01-29 是否有任何观测、以及事实表与维表是否 1:N。**不能用 warehouse_sk 的数值大小推出事实表行数或库存量**（min/max 键 1–5 不代表 5 条库存记录）。\n\n## 5. 字段来源（field provenance，逐字段）\n\n| 数据集 | 源字段 | 声明含义 | 声明来源 | 状态 |\n|---|---|---|---|---|\n| mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc | w_country | 分组维度：仓库所在国家（模板声明“按国家和省州统计仓库”，此为两个分组维度之一，值 `United States`） | 模板生产者描述 sourceDefinition.description（“按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围”）；inputVersions.fieldDefinitions 为空，无逐字段字典 | CONFIRMED |\n| mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc | w_state | 分组维度：仓库所在省州（模板声明“按国家和省州统计仓库”，值 `TN` 按原值呈现，无代码表可展开） | 模板生产者描述 sourceDefinition.description（“按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围”）；inputVersions.fieldDefinitions 为空，无逐字段字典 | CONFIRMED |\n| mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc | warehouse_count | 该“国家+省州”分组内的仓库数量（计数） | 模板生产者描述 sourceDefinition.description（“按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围”）；inputVersions.fieldDefinitions 为空，无逐字段字典 | CONFIRMED |\n| mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc | city_count | 该“国家+省州”分组内仓库覆盖的城市数量（计数） | 模板生产者描述 sourceDefinition.description（“按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围”）；inputVersions.fieldDefinitions 为空，无逐字段字典 | CONFIRMED |\n| mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc | min_warehouse_sk | 该分组内实际仓库主键（warehouse_sk）取值的最小值（标识符，不求和） | 模板生产者描述 sourceDefinition.description（“按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围”）；inputVersions.fieldDefinitions 为空，无逐字段字典 | CONFIRMED |\n| mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc | max_warehouse_sk | 该分组内实际仓库主键（warehouse_sk）取值的最大值（标识符，不求和） | 模板生产者描述 sourceDefinition.description（“按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围”）；inputVersions.fieldDefinitions 为空，无逐字段字典 | CONFIRMED |\n\n## 6. 数据质量与技术校验\n\n- 交付逻辑行数 1（manifest 声明 rowCount=1），数据集引用 1 个：`mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc`。\n- manifest 与分片 sha256 校验：manifest 通过；分片校验 1/1 通过，行数一致性 1/1。\n- 字段缺失/空值：本次记录中 city_count 空值 0 行、max_warehouse_sk 空值 0 行、min_warehouse_sk 空值 0 行、w_country 空值 0 行、w_state 空值 0 行、warehouse_count 空值 0 行；JSON 解码错误 0 个。\n- 数值字段观测到的 Python 类型：warehouse_count=['int']、city_count=['int']、min_warehouse_sk=['int']、max_warehouse_sk=['int']（均为整数计数/标识值，无小数精度问题）。\n\n## 7. 限制\n- **范围限制**：模板声明“全仓库维表、无参数”，但授权快照仅交付 1 个分组行（United States/TN），无法区分“源只有 1 组”与“交付被裁剪”，故上文分布概览只代表交付范围，不代表完整的国家/省州分布全貌。\n- **语义限制**：inputVersions.fieldDefinitions 为空，字段含义取自模板生产者描述（分组级声明），没有逐字段字典/单位声明；w_state 值 `TN` 未展开为行政区全称。\n- **阻塞限制**：库存事实数据集（仓库键、业务日期、库存数量、类别）完全未交付，第二步逐日库存分析不可计算；这不是“0 库存”或“空结果”，而是缺少输入总体。\n- **时间语义限制**：交付中不存在任何日期字段，1998-01-01 至 1998-01-29 的日历/交易日语义、以及该区间是否有观测，均无法从交付数据建立。\n- **关联限制**：两段查询的键域一致性、事实表与维表的对应关系未获验证，关联只能表述为设计意图 + 维表侧的存在性证据。",
+        "outcome": "MODEL_NATIVE_REPORT",
+        "isolationScope": {
+          "conversationId": "1793497177898-c10e74b06cf388",
+          "requestId": "0d6db8a8-7761-4db4-ab10-d632d06375b4",
+          "partitionKey": "9001fee4-482b-4851-9eb9-df269765291f:att-1-997a5663-f69d-46f3-9546-70d82e403976",
+          "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+          "schemaVersion": "governance_isolation_scope.v1",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "authority": "RUNTIME_REQUEST_CONTEXT"
+        },
+        "position": {
+          "stage": "initial"
+        },
+        "analysisContext": {},
+        "coverage": {
+          "returnedRecordCount": 1,
+          "summaryResultCount": 1,
+          "sourceContentComplete": true,
+          "evidenceTraceComplete": false,
+          "rawReplayChunkCount": 0,
+          "iterationCount": 1,
+          "coverageComplete": false,
+          "processedRecordCount": 1
+        },
+        "inputSummaryResultIds": [
+          "9001fee4-482b-4851-9eb9-df269765291f:att-1-997a5663-f69d-46f3-9546-70d82e403976:runtime-evidence:coding:249050aa33dc9503e96ad39e4f7a8d8cf400038218c686d03c21781655e33482:result#chunk-1"
+        ],
+        "evidence": {
+          "inputSummaryCount": 1,
+          "traceableInputCount": 0,
+          "traceComplete": false,
+          "inputEvidenceIds": [],
+          "schemaVersion": "final_evidence_lineage.v1"
+        },
+        "governance": {
+          "semanticInferenceAllowed": false,
+          "evidenceProtocol": "traceable_chunk_evidence.v1",
+          "rawReplayAuthority": "RUNTIME_EXECUTION_RESULT",
+          "factBoundary": "RETURNED_STRUCTURED_EVIDENCE",
+          "protocolVersion": "summary_governance.v1",
+          "contentRole": "GOVERNED_ANALYSIS_SUMMARY",
+          "presentationPolicy": "CONTENT_IS_PRESENTATION_EXACT_FIELDS_REMAIN_AUTHORITATIVE"
+        }
+      },
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "final_summary",
+    "source": "interpretation_plan_summary",
+    "content": "Model-authored report published without a semantic quality gate or another summary model call.",
+    "metadata": {
+      "analysisSummaryResult": {
+        "schemaVersion": "analysis_summary_result.v1",
+        "resultId": "9001fee4-482b-4851-9eb9-df269765291f:att-1-997a5663-f69d-46f3-9546-70d82e403976:final-summary#initial",
+        "scope": "FINAL_SYNTHESIS",
+        "content": "# 仓库分布概览 → 最小仓库主键 → 指定仓库逐日库存（1998-01-01 至 1998-01-29）\n\n## 结论摘要\n\n1. **仓库分布概览（交付范围内）**：授权快照只包含 **1 个“国家+省州”分组**，即 w_country=`United States`、w_state=`TN`（w_state 按源字段原值呈现，交付未提供代码表，不做全称展开）。该分组 **warehouse_count=5** 个仓库、**city_count=1** 个覆盖城市，仓库主键取值区间 **1–5**。整个交付内仓库合计 5 个、覆盖城市合计 1 个。\n2. **最小实际存在的仓库主键 = 1**（对交付分组取 min_warehouse_sk 的最小值所得最小键）。一致性自检通过：1–5 连续区间长度 5 等于该组 warehouse_count=5，说明该组声明的键区间内无空洞，键 1 在该组内确实存在。\n3. **第二步（仓库主键 1 在 1998-01-01 至 1998-01-29 的逐日库存，数量下限 0、类别不限）无法计算**：授权输入只交付了 1 行仓库分布汇总（6 个字段），**没有任何库存事实数据**——既无事实表侧仓库键、也无业务日期、库存数量、类别字段，因此不能生成任何逐日库存数值、趋势或图表。这不是“空结果”，而是**所需数据集未交付**。\n4. **分析状态：INPUT_REQUIRED**（缺库存事实数据集的字段含义与总体范围）。\n\n## 1. 仓库分布概览（交付范围内全部行）\n\n| 国家 (w_country) | 省州 (w_state) | 仓库数 (warehouse_count) | 覆盖城市数 (city_count) | 仓库主键最小值 (min_warehouse_sk) | 仓库主键最大值 (max_warehouse_sk) | 派生：每城市平均仓库数 |\n|---|---|---:|---:|---:|---:|---:|\n| United States | TN | 5 | 1 | 1 | 5 | 5 |\n\n- 交付分组数：1；不同国家取值数：1；不同省州取值数：1；“国家+省州”重复键行数：0（0 表示无重复分组）。\n- 合计：warehouse_count 合计 **5**；city_count 合计 **1**。仅当分组互不重叠时合计才有意义，本交付只有 1 个分组，故不存在重叠小计问题。\n- 派生指标（明确标注为派生，非源字段）：“每城市平均仓库数” = warehouse_count / city_count = 5 / 1 = 5（精确除法，未做四舍五入）。\n- 说明：模板自身的生产者描述声明该查询是“全仓库维表、无参数”，即应返回全部“国家+省州”分组。实际交付快照仅 1 行，因此无法判定是源表只有 1 个分组，还是交付被裁剪/限定范围。本报告**只把这 1 行当作交付范围内的事实**，不把它当作全国/全球分布全貌。\n\n## 2. 最小实际存在的仓库主键\n\n| 选择步骤 | 依据字段（源字段） | 观察值 | 说明 |\n|---|---|---:|---|\n| 1. 取每个分组的最小仓库键 | min_warehouse_sk | 1 | 生产者描述声明该字段为“该组实际仓库主键范围”的下界 |\n| 2. 在交付分组上取最小值 | min(min_warehouse_sk) | 1 | 仅 1 个分组，故结果等于该组下界 |\n| 3. 存在性交叉校验 | max_warehouse_sk / warehouse_count | 5 / 5 | 1–5 长度 = 5 = warehouse_count，区间无缺口 |\n\n**结论：在交付范围内实际存在的最小仓库主键为 `1`。** 该值仅作为后续查询的过滤键使用；它是标识符，未参与任何求和/平均。\n\n## 3. 请求的逐日库存分析：缺失输入\n\n| 分析所需角色 | 需要的具体内容 | 交付中是否存在 |\n|---|---|---|\n| 事实表仓库主键 | 用于与仓库维表的 min_warehouse_sk=1 关联的事实表键字段 | ABSENT (未交付该数据集) |\n| 业务日期 | 覆盖 1998-01-01 至 1998-01-29 的日期字段及其已确认业务含义 | ABSENT (未交付该数据集) |\n| 库存数量 | 含义/单位已确认的库存数量字段（用于数量下限 0 过滤与逐日展示） | ABSENT (未交付该数据集) |\n| 类别 | 类别字段（本次不限，但需存在以确认“不限”口径） | ABSENT (未交付该数据集) |\n\n- 交付实际字段（共 6 个，全部属于仓库分布汇总）：`w_country`、`w_state`、`warehouse_count`、`city_count`、`min_warehouse_sk`、`max_warehouse_sk`；递归记录中无额外字段（额外字段数 0），声明字段缺失 0 个。\n- 因此：1998-01-01 至 1998-01-29 的**逐日序列长度、每日库存量、数量下限 0 的过滤影响、类别口径**全部无法给出。任何数值都会是编造，故不予给出。\n\n## 4. 两个查询之间如何关联（基于实际结果）\n\n- **设计上的关联键**是仓库代理键：第一段查询输出每个“国家+省州”分组内的 min_warehouse_sk / max_warehouse_sk，用于挑出实际存在的最小键；第二段查询以该键（本交付结果 = 1）作为库存事实表的等值过滤条件，再叠加日期区间与“数量下限 0”过滤。\n- **本交付能证实的部分**：min_warehouse_sk=1、max_warehouse_sk=5、warehouse_count=5 三者自洽（1–5 连续且长度等于仓库数），因此在交付范围内“仓库键 1 存在”这一前提成立，可作为关联键使用。\n- **不能证实的部分**：库存事实表侧的仓库键字段、业务日期字段、数量字段、类别字段均未交付；因此无法验证两段查询的键域是否一致（维表键与事实表外键是否同一口径）、仓库键 1 在 1998-01-01 至 1998-01-29 是否有任何观测、以及事实表与维表是否 1:N。**不能用 warehouse_sk 的数值大小推出事实表行数或库存量**（min/max 键 1–5 不代表 5 条库存记录）。\n\n## 5. 字段来源（field provenance，逐字段）\n\n| 数据集 | 源字段 | 声明含义 | 声明来源 | 状态 |\n|---|---|---|---|---|\n| mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc | w_country | 分组维度：仓库所在国家（模板声明“按国家和省州统计仓库”，此为两个分组维度之一，值 `United States`） | 模板生产者描述 sourceDefinition.description（“按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围”）；inputVersions.fieldDefinitions 为空，无逐字段字典 | CONFIRMED |\n| mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc | w_state | 分组维度：仓库所在省州（模板声明“按国家和省州统计仓库”，值 `TN` 按原值呈现，无代码表可展开） | 模板生产者描述 sourceDefinition.description（“按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围”）；inputVersions.fieldDefinitions 为空，无逐字段字典 | CONFIRMED |\n| mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc | warehouse_count | 该“国家+省州”分组内的仓库数量（计数） | 模板生产者描述 sourceDefinition.description（“按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围”）；inputVersions.fieldDefinitions 为空，无逐字段字典 | CONFIRMED |\n| mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc | city_count | 该“国家+省州”分组内仓库覆盖的城市数量（计数） | 模板生产者描述 sourceDefinition.description（“按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围”）；inputVersions.fieldDefinitions 为空，无逐字段字典 | CONFIRMED |\n| mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc | min_warehouse_sk | 该分组内实际仓库主键（warehouse_sk）取值的最小值（标识符，不求和） | 模板生产者描述 sourceDefinition.description（“按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围”）；inputVersions.fieldDefinitions 为空，无逐字段字典 | CONFIRMED |\n| mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc | max_warehouse_sk | 该分组内实际仓库主键（warehouse_sk）取值的最大值（标识符，不求和） | 模板生产者描述 sourceDefinition.description（“按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围”）；inputVersions.fieldDefinitions 为空，无逐字段字典 | CONFIRMED |\n\n## 6. 数据质量与技术校验\n\n- 交付逻辑行数 1（manifest 声明 rowCount=1），数据集引用 1 个：`mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc`。\n- manifest 与分片 sha256 校验：manifest 通过；分片校验 1/1 通过，行数一致性 1/1。\n- 字段缺失/空值：本次记录中 city_count 空值 0 行、max_warehouse_sk 空值 0 行、min_warehouse_sk 空值 0 行、w_country 空值 0 行、w_state 空值 0 行、warehouse_count 空值 0 行；JSON 解码错误 0 个。\n- 数值字段观测到的 Python 类型：warehouse_count=['int']、city_count=['int']、min_warehouse_sk=['int']、max_warehouse_sk=['int']（均为整数计数/标识值，无小数精度问题）。\n\n## 7. 限制\n- **范围限制**：模板声明“全仓库维表、无参数”，但授权快照仅交付 1 个分组行（United States/TN），无法区分“源只有 1 组”与“交付被裁剪”，故上文分布概览只代表交付范围，不代表完整的国家/省州分布全貌。\n- **语义限制**：inputVersions.fieldDefinitions 为空，字段含义取自模板生产者描述（分组级声明），没有逐字段字典/单位声明；w_state 值 `TN` 未展开为行政区全称。\n- **阻塞限制**：库存事实数据集（仓库键、业务日期、库存数量、类别）完全未交付，第二步逐日库存分析不可计算；这不是“0 库存”或“空结果”，而是缺少输入总体。\n- **时间语义限制**：交付中不存在任何日期字段，1998-01-01 至 1998-01-29 的日历/交易日语义、以及该区间是否有观测，均无法从交付数据建立。\n- **关联限制**：两段查询的键域一致性、事实表与维表的对应关系未获验证，关联只能表述为设计意图 + 维表侧的存在性证据。",
+        "outcome": "MODEL_NATIVE_REPORT",
+        "isolationScope": {
+          "conversationId": "1793497177898-c10e74b06cf388",
+          "requestId": "0d6db8a8-7761-4db4-ab10-d632d06375b4",
+          "partitionKey": "9001fee4-482b-4851-9eb9-df269765291f:att-1-997a5663-f69d-46f3-9546-70d82e403976",
+          "runId": "att-1-997a5663-f69d-46f3-9546-70d82e403976",
+          "schemaVersion": "governance_isolation_scope.v1",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "authority": "RUNTIME_REQUEST_CONTEXT"
+        },
+        "position": {
+          "stage": "initial"
+        },
+        "analysisContext": {},
+        "coverage": {
+          "returnedRecordCount": 1,
+          "summaryResultCount": 1,
+          "sourceContentComplete": true,
+          "evidenceTraceComplete": false,
+          "rawReplayChunkCount": 0,
+          "iterationCount": 1,
+          "coverageComplete": false,
+          "processedRecordCount": 1
+        },
+        "inputSummaryResultIds": [
+          "9001fee4-482b-4851-9eb9-df269765291f:att-1-997a5663-f69d-46f3-9546-70d82e403976:runtime-evidence:coding:249050aa33dc9503e96ad39e4f7a8d8cf400038218c686d03c21781655e33482:result#chunk-1"
+        ],
+        "evidence": {
+          "inputSummaryCount": 1,
+          "traceableInputCount": 0,
+          "traceComplete": false,
+          "inputEvidenceIds": [],
+          "schemaVersion": "final_evidence_lineage.v1"
+        },
+        "governance": {
+          "semanticInferenceAllowed": false,
+          "evidenceProtocol": "traceable_chunk_evidence.v1",
+          "rawReplayAuthority": "RUNTIME_EXECUTION_RESULT",
+          "factBoundary": "RETURNED_STRUCTURED_EVIDENCE",
+          "protocolVersion": "summary_governance.v1",
+          "contentRole": "GOVERNED_ANALYSIS_SUMMARY",
+          "presentationPolicy": "CONTENT_IS_PRESENTATION_EXACT_FIELDS_REMAIN_AUTHORITATIVE"
+        }
+      },
+      "stage": "initial",
+      "reportQualityAuthority": "USER",
+      "type": "final_summary",
+      "workflow": "coding_owned_analysis",
+      "modelCalls": 0,
+      "structuredRuntimeObservation": true
+    }
+  }
+]

@@ -1,0 +1,19 @@
+{
+  "status": "EXACT_MATCH",
+  "toolName": "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+  "rows": 1,
+  "comparedFields": 7,
+  "baselineSha256": "ad7dc99423bba2d21e5b87c1943ab47dddc86aadf71d0792af6f2072e390917a",
+  "observationsSha256": "ecca45f6326dbc2c13611184b784bf1a5f0dac15e0932de86184899ff9b252c6",
+  "actualRows": [
+    {
+      "w_country": "United States",
+      "w_state": "TN",
+      "warehouse_count": 5,
+      "city_count": 1,
+      "min_warehouse_sk": 1,
+      "max_warehouse_sk": 5,
+      "global_min_warehouse_sk": 1
+    }
+  ]
+}

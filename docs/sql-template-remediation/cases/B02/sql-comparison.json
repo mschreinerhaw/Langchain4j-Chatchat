@@ -1,0 +1,45 @@
+{
+  "status": "EXACT_MATCH",
+  "toolName": "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970",
+  "rows": 5,
+  "comparedFields": 25,
+  "baselineSha256": "b677268da584956e0bab98486876ee79b64a30a3da999678f2934b9bd2a71539",
+  "observationsSha256": "fde4a6f86f041d8909704806be3424750daf0864656d03ebe6344247a07d7fc8",
+  "actualRows": [
+    {
+      "snapshot_date": "1998-01-01",
+      "sku_record_count": 8546,
+      "nonzero_sku_count": 8539,
+      "zero_sku_count": 7,
+      "total_on_hand": 4301064
+    },
+    {
+      "snapshot_date": "1998-01-08",
+      "sku_record_count": 8566,
+      "nonzero_sku_count": 8559,
+      "zero_sku_count": 7,
+      "total_on_hand": 4309382
+    },
+    {
+      "snapshot_date": "1998-01-15",
+      "sku_record_count": 8542,
+      "nonzero_sku_count": 8529,
+      "zero_sku_count": 13,
+      "total_on_hand": 4309203
+    },
+    {
+      "snapshot_date": "1998-01-22",
+      "sku_record_count": 8560,
+      "nonzero_sku_count": 8550,
+      "zero_sku_count": 10,
+      "total_on_hand": 4349344
+    },
+    {
+      "snapshot_date": "1998-01-29",
+      "sku_record_count": 8538,
+      "nonzero_sku_count": 8529,
+      "zero_sku_count": 9,
+      "total_on_hand": 4297887
+    }
+  ]
+}

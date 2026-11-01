@@ -1,0 +1,47 @@
+{
+  "status": "MCP_PROTOCOL_AND_JDBC_EXACT_MATCH",
+  "clientKind": "INDEPENDENT_MCP_PROTOCOL_CLIENT_NOT_AGENT_EXECUTION",
+  "scope": {
+    "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+    "agentId": "tpcds_sql_studio_acceptance_20261031",
+    "tenantId": "9001fee4-482b-4851-9eb9-df269765291f"
+  },
+  "cases": [
+    {
+      "caseId": "MCP-NO-PARAM",
+      "status": "EXACT_MATCH",
+      "toolName": "tpl_212b88329a673657979943bbeaa7479b",
+      "releaseId": "90d8efbe-ba6b-4314-921c-65841244b241",
+      "version": 3,
+      "traceId": "ae93ea31-8067-4637-adf9-4fc890bc643a",
+      "parameters": {},
+      "rows": 6,
+      "comparedFields": 42,
+      "durationMs": 6032,
+      "statementHash": "eb14c540a2e743bc4bbc03b9d65e357ed586ed490ce318afe768fddb4c972ce1"
+    },
+    {
+      "caseId": "MCP-PARAM",
+      "status": "EXACT_MATCH",
+      "toolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+      "releaseId": "81cc9e0e-a2a6-4125-a6e0-1f82ecbe5caf",
+      "version": 3,
+      "traceId": "9b8e5d44-7cea-438f-9d51-f3379388c22f",
+      "parameters": {
+        "product_id": 1,
+        "start_date": "1999-01-01",
+        "end_date": "1999-12-31",
+        "min_quantity": 0
+      },
+      "rows": 11,
+      "comparedFields": 77,
+      "durationMs": 5276,
+      "statementHash": "3d93c3ea75ffa2197977921ca692a2f769622ff87ca66f8394003da4c39e3dfd"
+    }
+  ],
+  "evidenceSha256": {
+    "protocol": "cc585126c91fdec697a0a90d1f47810946d1fa77df0abbdbbd535514eb92565a",
+    "jdbc": "8e0496d5faa0b63ac2f9f1e34f0c597d3f025bd63d3d89d868c20dcdcaffeb05",
+    "catalog": "455fdcd9b1e45f5451ca1f12eb837255241b34dc3160e0abd5dfdc824b23d600"
+  }
+}

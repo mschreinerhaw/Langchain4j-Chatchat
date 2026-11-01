@@ -1,0 +1,19 @@
+{
+  "caseId": "A01",
+  "verdict": "PASS",
+  "reason": "真实 Agent 管理页进入对话，通用 Agent 自主选中无参数年度模板；真实返回6行，42个字段与独立 JDBC 完全一致。只覆盖历史模板查询，不代表图表或新业务已通过。",
+  "taskId": "50f61ab1-55a1-4c74-8f5a-7cec49f68b53",
+  "sessionId": "1793494321497-11ccd3918696b8",
+  "agentId": "sql_template_e2e_20261101_r1",
+  "uiState": "SUCCEEDED",
+  "evidence": [
+    "request.md",
+    "submission.json",
+    "agent-config.json",
+    "agent-result.json",
+    "agent-trace.json",
+    "ui-receipt.json",
+    "conversation-result.png"
+  ],
+  "reviewedAt": "2026-11-01T01:18:34.724Z"
+}

@@ -1,0 +1,69 @@
+## 结论：当前授权范围内无法查询该逐日库存数据
+
+**未能获取仓库2在 1998-01-01 至 1998-01-29 的任何库存数值。** 不是"查出来是 0"，而是**根本没有被授权的库存数据源**，因此不做任何数值推测或替代。
+
+### 1. 当前 Agent 实际已授权的数据能力
+本次任务只交付了 **1 个**上下文数据集 `runtime-context:att-1-2580a0e9-fa71-4302-88e4-fca514dfa4cf`（Parquet，1 行），其内容经 `input_read` 完整读取（390 个字符，`eof=true`），是一个 `analysis-materials.v1` 信封，包含：
+
+| 交付字段 | 实际内容 |
+|---|---|
+| `record.schemaVersion` | `analysis-materials.v1` |
+| `record.objective` | 与用户问题相同的查询要求文字 |
+| `record.materials` | 1 条 `originalUserMessage`，正文即用户提问原文 |
+| `record.constraints` | 回答须有实际数据依据、信息不足需说明 |
+
+**该数据集不含任何仓库、日期或库存字段**（无 `warehouse_id`、无日期列、无库存数量列），也没有行级业务记录可聚合。
+
+### 2. 明确缺失的能力（未代用、未编造）
+- 无任何库存/仓储业务表或数据文件的读取授权（仅有上述 1 个上下文文件）。
+- 无 SQL 执行权限、无数据库/数据仓库连接授权；运行环境本身不允许联网或连接数据库。
+- 因此**不存在**"仓库2"的编码映射、日历表、库存快照表等可访问对象；也未借用其他 Agent 的任何权限。
+
+### 3. 要回答该问题至少需要什么
+1. **一份按日记录的库存数据源**，其行粒度需明确为「仓库 × 库存日期」（若实际是「仓库 × 物料 × 日期」或「仓库 × 库位 × 日期」，必须先声明再汇总）。
+2. 该数据源的读取或只读 SQL 权限。
+3. 「仓库2」到源系统 `warehouse_id`/`warehouse_code` 的**已验证**映射。
+4. 计量口径：`qty_on_hand` 的**单位**（件/箱/吨/立方米等）、是否为日末快照、时区与日期截断规则。
+
+### 4. 查询模板（**仅为提案，从未执行，非查询结果**）
+以下 SQL 仅用于说明上述口径应如何落到查询中。表名/列名均为**假定的占位命名**，`"仓库2" → warehouse_id = 2` 也是**示例值**，均未经任何授权 schema 验证。
+
+```sql
+-- TEMPLATE ONLY (proposal, never executed). Table/column names and the
+-- "warehouse 2" -> warehouse_id mapping are ASSUMED, not verified.
+SELECT
+    c.calendar_date                     AS inventory_date,
+    CAST(:warehouse_id AS INTEGER)      AS warehouse_id,
+    SUM(i.qty_on_hand)                  AS total_qty_on_hand,
+    COUNT(i.qty_on_hand)                AS qty_row_count
+FROM calendar_days AS c
+LEFT JOIN warehouse_daily_inventory AS i
+       ON i.inventory_date = c.calendar_date
+      AND i.warehouse_id  = CAST(:warehouse_id AS INTEGER)
+WHERE c.calendar_date >= DATE '1998-01-01'
+  AND c.calendar_date <= DATE '1998-01-29'
+GROUP BY c.calendar_date
+ORDER BY c.calendar_date
+```
+
+**声明的行粒度、维度与单位**
+- 输出粒度：**1 行 = 1 个库存日期（仓库内汇总）**；目标区间含首尾共 **29 天**（1998-01-01 … 1998-01-29），故预期 29 行。
+- 筛选维度：`warehouse_id = 2`（示例映射）。
+- 度量：`total_qty_on_hand = SUM(qty_on_hand)`，**单位未声明**（源系统未授权，无法确认）。
+- 唯一键校验：候选键 `(warehouse_id, inventory_date)` 是否唯一**必须先在源端验证**。若同一日期存在多行（按物料/批次/库位），`SUM` 是"多行汇总"而非单一快照值；若源表已按日预聚合而日历表关联产生一对多，则存在**扇出重复计数**风险，需先预聚合再关联。日期列与仓库列的 NULL 值也必须先排除，否则键不成立。
+
+**零分母与未知值规则**
+- 某日**无任何记录**时，`SUM` 返回 `NULL`（由上表的 LEFT JOIN 保留该日行）。**不得以 0 替代**：必须区分「已记录且库存为 0」与「当日无记录/未采集」。
+- `COUNT(qty_on_hand)`（忽略 NULL）用于显式暴露"当日有记录条数"，若为 0 即该日为缺失而非零库存。
+- 本查询不含任何比率，故无零分母情形；若后续计算周转率/覆盖率，必须在分母为 0 或 NULL 时返回 `NULL`（不可用），而不是 0 或无穷大。
+
+**完整性警告（部分总体）**：`SUM` 只覆盖源表实际存在的记录。若该 29 天窗口内存在缺日、缺仓库或部分物料未上报，则上述聚合**不是**该区间库存的完整口径，只能作为已观测部分的合计。
+
+### 5. 已取得的静态校验回执（不构成业务验证）
+使用受信解析器 SQLGlot **30.23.0**（`sql_validate`，`ansi` 方言）对上述模板做了**仅解析**校验：`valid = true`，`diagnostics[0].status = PARSED`；同时：
+- `fieldValidation = "NOT_EVALUATED"`，`businessValidation = "NOT_EVALUATED"`，`sqlExecuted = false` → 该 SQL **未执行**，表与列是否存在未知；
+- 结构告警：`JOIN_RELATION_UNCONFIRMED`（`calendar_days` ↔ `warehouse_daily_inventory` 仅凭等值条件推断关系）、`JOIN_FANOUT_AGGREGATION_RISK`（关联侧在关联键上未被证明唯一，聚合可能重复计数源金额/数量），两表 `grains[].businessGrain = "UNCONFIRMED"`。
+- 解析器 `references` 中出现的 `calendar_days`、`warehouse_daily_inventory` 只是模板里的字符串，**不代表**当前有权限或实际存在。
+
+### 6. 建议的下一步
+请为该 Agent 授予具体的库存数据源（数据集文件或只读表），并确认「仓库2」的编码映射与 `qty_on_hand` 的单位/快照时点；收到后即可按上述粒度与缺失值规则产出 29 天的逐日库存表。在此之前，唯一诚实的回答是：**无权限、无数据、无结果**。

@@ -1,0 +1,430 @@
+{
+  "artifacts": [
+    {
+      "fileId": "f90bdc4d381d8fc12fc75fc97c2af98b97c28c36cfdc008ba713d0dffacbdb7d",
+      "fileName": "warehouse2_inventory_record_trend.png",
+      "mediaType": "image/png",
+      "sha256": "49f3838b00744600f2c43afb7e3cc0d2ad5d7661eb780faae556149761bd8f51",
+      "size": 140386
+    }
+  ],
+  "reportMode": "visual",
+  "metrics": [
+    {
+      "calculation": "COUNT(DISTINCT snapshot_date)，区间 1998-01-01 至 1998-01-29",
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+      ],
+      "id": "m_snapshot_days",
+      "label": "有快照的日期数",
+      "unit": "天",
+      "value": "5"
+    },
+    {
+      "calculation": "29（区间自然日数）− 5（有快照日期数）",
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+      ],
+      "id": "m_missing_days",
+      "label": "区间内未返回快照的日期数",
+      "unit": "天",
+      "value": "24"
+    },
+    {
+      "calculation": "MIN(sku_record_count)，observed snapshots only",
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+      ],
+      "id": "m_records_min",
+      "label": "单日库存记录数最低值",
+      "unit": "条",
+      "value": "8538"
+    },
+    {
+      "calculation": "MAX(sku_record_count)，observed snapshots only",
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+      ],
+      "id": "m_records_max",
+      "label": "单日库存记录数最高值",
+      "unit": "条",
+      "value": "8566"
+    },
+    {
+      "calculation": "MAX(total_on_hand)；计量单位数据源未声明",
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+      ],
+      "id": "m_onhand_max",
+      "label": "单日现存数量合计最高值",
+      "unit": "",
+      "value": "4349344"
+    },
+    {
+      "calculation": "sku_record_count(1998-01-29) − sku_record_count(1998-01-01)",
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+      ],
+      "id": "m_records_change",
+      "label": "首末观测快照库存记录数变动",
+      "unit": "条",
+      "value": "-8"
+    }
+  ],
+  "timings": {
+    "analysisMs": 16.997,
+    "chartMs": 454.283
+  },
+  "sections": [
+    {
+      "chartIds": [
+        "c_trend"
+      ],
+      "id": "s_trend",
+      "narrative": "5 个观测快照日上，库存记录数在 8,538 条至 8,566 条之间。首末观测点（1998-01-01 → 1998-01-29）下降 8 条记录；相邻观测点间隔为 7、7、7、7 天，折线只连接实测点，未观测日期不插值。",
+      "tableIds": [],
+      "title": "逐日库存记录数趋势"
+    },
+    {
+      "chartIds": [],
+      "id": "s_detail",
+      "narrative": "每个快照日给出库存记录数、按数量是否大于 0 拆分的记录数，以及现存数量合计。现存数量合计最低 4297887、最高 4349344（1998-01-01 起算至 1998-01-29，合计差 -3177）；三个数量列均按数据源汇总表达式释义，现存数量的计量单位数据源未声明，故不作单位推断。",
+      "tableIds": [
+        "t_daily"
+      ],
+      "title": "现存数量合计与记录结构明细"
+    },
+    {
+      "chartIds": [],
+      "id": "s_coverage",
+      "narrative": "要求的 29 个自然日中只有 5 天返回快照，缺口 24 天；缺口既可能反映数据源仅按非逐日节奏生成快照，也可能反映该仓库当日期无符合条件的记录，来源未声明快照生成频率，因此无法判定原因。查询结果内部一致性（零数量 + 非零数量 = 库存记录数）全部通过，日期无重复，返回值未触及行数上限。",
+      "tableIds": [
+        "t_coverage"
+      ],
+      "title": "日期覆盖、口径与一致性核对"
+    }
+  ],
+  "dataSources": [
+    "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+  ],
+  "schemaVersion": "python_visual_report.v1",
+  "status": "PARTIAL",
+  "validation": {
+    "checks": [
+      {
+        "detail": "清单与数据文件校验值一致；解码后 5 行，与声明行数一致。",
+        "name": "输入文件与行数校验",
+        "status": "PASSED"
+      },
+      {
+        "detail": "全部记录指向同一授权查询结果引用，与模板参数绑定一致。",
+        "name": "来源引用一致性",
+        "status": "PASSED"
+      },
+      {
+        "detail": "日期重复数 0；全部落在 1998-01-01 至 1998-01-29 内（共 5 个日期）。",
+        "name": "快照日期唯一性与区间校验",
+        "status": "PASSED"
+      },
+      {
+        "detail": "全部日期一致。",
+        "name": "结果内部一致性（零数量 + 非零数量 = 库存记录数）",
+        "status": "PASSED"
+      },
+      {
+        "detail": "在数量下限 0 的筛选下，各日现存数量合计均非负。",
+        "name": "现存数量合计非负校验",
+        "status": "PASSED"
+      },
+      {
+        "detail": "29 个自然日中 24 天无快照记录，来源未声明快照频率，缺口成因无法由现有证据判定。",
+        "name": "日期覆盖完整性",
+        "status": "UNRESOLVED"
+      },
+      {
+        "detail": "数据源明确未声明现存数量的计量单位，报告保留为单位未声明，不作推断。",
+        "name": "计量单位声明",
+        "status": "UNRESOLVED"
+      },
+      {
+        "detail": "折线图已生成（140386 字节），中文标签使用运行时默认字体。",
+        "name": "图表渲染",
+        "status": "PASSED"
+      }
+    ],
+    "scope": "STOPPED_EXECUTION_AND_ARTIFACT_INTEGRITY; COMPUTATION_CHECKS_ARE_PROGRAM_DECLARED; BUSINESS_SEMANTICS_NOT_CERTIFIED",
+    "status": "PARTIAL",
+    "warnings": [
+      "24 个自然日没有快照记录，折线图仅连接实测点。",
+      "现存数量合计的计量单位数据源未声明。"
+    ]
+  },
+  "layoutValidationStatus": "PASSED",
+  "charts": [
+    {
+      "artifact": {
+        "fileId": "f90bdc4d381d8fc12fc75fc97c2af98b97c28c36cfdc008ba713d0dffacbdb7d",
+        "fileName": "warehouse2_inventory_record_trend.png",
+        "mediaType": "image/png",
+        "sha256": "49f3838b00744600f2c43afb7e3cc0d2ad5d7661eb780faae556149761bd8f51",
+        "size": 140386
+      },
+      "caption": "横轴=快照日期，纵轴=库存记录数（条）；数据来源 TPCDS 248 仓库期间库存快照，仓库2、数量下限 0、类别不限。仅 5 个观测日有数据，未观测日期为缺口（不按 0 处理），纵轴为局部区间（起点非零，范围 8525 至 8579 条）。",
+      "chartType": "line",
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+      ],
+      "id": "c_trend",
+      "kind": "png",
+      "title": "仓库2 库存记录数（仅观测快照日，1998-01-01 至 1998-01-29）"
+    }
+  ],
+  "title": "仓库2 逐日库存快照（1998-01-01 至 1998-01-29）",
+  "presentationDiagnostics": [],
+  "analysisStatus": "PARTIAL",
+  "layout": {
+    "blocks": [
+      {
+        "emphasis": "important",
+        "id": "b_summary",
+        "span": "full",
+        "type": "summary"
+      },
+      {
+        "id": "b_m1",
+        "ref": "m_snapshot_days",
+        "span": "half",
+        "type": "metric"
+      },
+      {
+        "emphasis": "important",
+        "id": "b_m2",
+        "ref": "m_missing_days",
+        "span": "half",
+        "type": "metric"
+      },
+      {
+        "id": "b_m3",
+        "ref": "m_records_min",
+        "span": "half",
+        "type": "metric"
+      },
+      {
+        "id": "b_m4",
+        "ref": "m_records_max",
+        "span": "half",
+        "type": "metric"
+      },
+      {
+        "id": "b_m5",
+        "ref": "m_onhand_max",
+        "span": "half",
+        "type": "metric"
+      },
+      {
+        "id": "b_m6",
+        "ref": "m_records_change",
+        "span": "half",
+        "type": "metric"
+      },
+      {
+        "id": "b_sec_trend",
+        "ref": "s_trend",
+        "span": "full",
+        "type": "section"
+      },
+      {
+        "emphasis": "important",
+        "id": "b_chart_trend",
+        "ref": "c_trend",
+        "span": "full",
+        "type": "chart"
+      },
+      {
+        "id": "b_sec_detail",
+        "ref": "s_detail",
+        "span": "full",
+        "type": "section"
+      },
+      {
+        "id": "b_tbl_daily",
+        "ref": "t_daily",
+        "span": "full",
+        "type": "table"
+      },
+      {
+        "id": "b_sec_cov",
+        "ref": "s_coverage",
+        "span": "full",
+        "type": "section"
+      },
+      {
+        "id": "b_tbl_cov",
+        "ref": "t_coverage",
+        "span": "full",
+        "type": "table"
+      },
+      {
+        "id": "b_limits",
+        "span": "full",
+        "type": "limitations"
+      },
+      {
+        "id": "b_sources",
+        "span": "full",
+        "type": "sources"
+      }
+    ],
+    "schemaVersion": "report_layout.v1"
+  },
+  "artifactValidationStatus": "PASSED",
+  "summary": "仓库2 在 1998-01-01 至 1998-01-29（数量下限 0、类别不限）内共有 5 个库存快照日（1998-01-01、1998-01-08、1998-01-15、1998-01-22、1998-01-29），库存记录数在 8,538 条至 8,566 条之间；现存数量合计（计量单位数据源未声明）在 4297887 至 4349344 之间，首末快照之差 -3177（1998-01-01 起算，1998-01-29 止）。但该区间共 29 个自然日，仅 5 天返回快照，24 天没有观测，因此这是一条不连续的逐日序列，缺失日期不作 0 处理。",
+  "markdown": "# 仓库2 逐日库存快照（1998-01-01 至 1998-01-29｜数量下限 0｜类别不限）\n\n**结论**：仓库2 在 1998-01-01 至 1998-01-29（数量下限 0、类别不限）内共有 5 个库存快照日（1998-01-01、1998-01-08、1998-01-15、1998-01-22、1998-01-29），库存记录数在 8,538 条至 8,566 条之间；现存数量合计（计量单位数据源未声明）在 4297887 至 4349344 之间，首末快照之差 -3177（1998-01-01 起算，1998-01-29 止）。但该区间共 29 个自然日，仅 5 天返回快照，24 天没有观测，因此这是一条不连续的逐日序列，缺失日期不作 0 处理。\n\n## 一、关键发现\n\n- 区间内共 5 个快照日（1998-01-01、1998-01-08、1998-01-15、1998-01-22、1998-01-29），相邻观测点间隔 7、7、7、7 天；29 个自然日中有 24 天没有快照数据。\n- 库存记录数在 8,538 条至 8,566 条之间；最低值出现在 1998-01-29，最高值出现在 1998-01-08。\n- 现存数量合计（计量单位数据源未声明）位于 4297887 至 4349344 之间，首末快照（1998-01-01 → 1998-01-29）之差为 -3177。\n- 首末观测快照的库存记录数下降 8 条；该变动只覆盖 5 个观测点，不足以推断趋势方向或业务原因。\n\n## 二、逐日库存记录数（折线图）\n\n![仓库2 库存记录数（观测快照日）](warehouse2_inventory_record_trend.png)\n\n- 横轴：快照日期（1998-01-01 至 1998-01-29）；纵轴：库存记录数（条）。\n- 仅绘制 5 个实测快照日；未观测日期留为缺口、不按 0 处理，虚线仅连接相邻实测点。\n- 纵轴为局部区间（起点非零），用于比较各观测点差异；条数读数据以本页明细表为准。\n\n## 三、逐日快照明细表\n\n| 快照日期 | 库存记录数（条） | 非零数量记录数 | 零数量记录数 | 现存数量合计（单位未声明） |\n|---|---|---|---|---|\n| 1998-01-01 | 8,546 | 8,539 | 7 | 4301064 |\n| 1998-01-08 | 8,566 | 8,559 | 7 | 4309382 |\n| 1998-01-15 | 8,542 | 8,529 | 13 | 4309203 |\n| 1998-01-22 | 8,560 | 8,550 | 10 | 4349344 |\n| 1998-01-29 | 8,538 | 8,529 | 9 | 4297887 |\n\n说明：现存数量合计的计量单位未由数据源声明，故表头标注“单位未声明”，不作推断；“非零/零数量记录数”为按现有数量是否大于 0、等于 0 拆分的记录条数。\n\n## 四、日期覆盖与口径核对\n\n| 核对项 | 结果 | 说明 |\n|---|---|---|\n| 查询日期范围 | 1998-01-01 至 1998-01-29 | 含端点共 29 个自然日，与要求一致 |\n| 返回快照日期数 | 5 | 按快照日期升序 |\n| 未返回快照的日期数 | 24 | 未观测日期保留为缺口，不补 0、不插值 |\n| 相邻快照间隔（天） | 7、7、7、7 | 观测到的快照节奏，数据源未声明快照频率 |\n| 快照日期重复数 | 0 | 按快照日期分组，日期唯一 |\n| 零数量记录数 + 非零数量记录数 = 库存记录数 | 全部一致 | 查询结果内部一致性核对 |\n| 现存数量合计最小值 / 最大值 | 4297887 / 4349344 | 计量单位未由数据源声明 |\n| 结果行数是否受返回上限影响 | 返回 5 行，上限 100 行 | 返回行数低于上限，未发生截断 |\n\n## 五、口径、限制与说明\n\n1. 查询实际生效参数：仓库 2、1998-01-01 至 1998-01-29（含端点）、数量下限 0、类别不限，与需求一致。\n2. 逐日序列不完整：29 个自然日仅 5 天有快照，缺口 24 天；来源未声明快照生成频率，缺口原因无法判定，报告中不将缺口视为 0，也不插值。\n3. 计量单位限制：现存数量合计的单位未由数据源声明，因此未推测为“件”“个”或其他单位，也不与任何金额口径混用。\n4. 记录数口径：库存记录数按数据源逐日明细计数（COUNT(*)），不是去重商品/SKU 数量；来源未提供去重商品口径。\n5. 类别口径：类别筛选为“不限”，结果未按类别拆分，不能据此给出类别结构结论。\n6. 汇总合计的解读：现存数量合计为各快照日的时点存量，跨日期相加没有业务意义，故未提供区间“总合计”，仅给出每日数值及首末时点差。\n7. 样本限制：仅 5 个时点，无法据此判断长期库存水平、波动规律或因果。\n\n## 六、字段来源与口径对应（简明）\n\n| 源字段 | 采用含义 | 声明来源 | 状态 |\n|---|---|---|---|\n| snapshot_date | 库存快照日期（按日分组的日期维度日期） | 执行查询定义（TPCDS 248 仓库期间库存快照模板） | 已确认 |\n| sku_record_count | 该快照日的库存记录数（明细计数） | 执行查询定义 | 已确认 |\n| nonzero_sku_count | 该日现存数量大于 0 的记录数 | 执行查询定义 | 已确认 |\n| zero_sku_count | 该日现存数量等于 0 的记录数 | 执行查询定义 | 已确认 |\n| total_on_hand | 该日现存数量合计（单位未声明） | 执行查询定义 | 已确认（含义）/ 单位未声明 |\n",
+  "presentation": {
+    "autoCharts": true,
+    "autoImages": true,
+    "density": "comfortable",
+    "strategy": "auto",
+    "template": "briefing"
+  },
+  "tables": [
+    {
+      "columns": [
+        "快照日期",
+        "库存记录数（条）",
+        "非零数量记录数",
+        "零数量记录数",
+        "现存数量合计（单位未声明）"
+      ],
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+      ],
+      "id": "t_daily",
+      "rows": [
+        [
+          "1998-01-01",
+          "8546",
+          "8539",
+          "7",
+          "4301064"
+        ],
+        [
+          "1998-01-08",
+          "8566",
+          "8559",
+          "7",
+          "4309382"
+        ],
+        [
+          "1998-01-15",
+          "8542",
+          "8529",
+          "13",
+          "4309203"
+        ],
+        [
+          "1998-01-22",
+          "8560",
+          "8550",
+          "10",
+          "4349344"
+        ],
+        [
+          "1998-01-29",
+          "8538",
+          "8529",
+          "9",
+          "4297887"
+        ]
+      ],
+      "scope": "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970：按快照日期分组的库存记录；现存数量合计的计量单位未由数据源声明",
+      "title": "仓库2 逐日库存快照明细（1998-01-01 至 1998-01-29，数量下限 0、类别不限）"
+    },
+    {
+      "columns": [
+        "核对项",
+        "结果",
+        "说明"
+      ],
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+      ],
+      "id": "t_coverage",
+      "rows": [
+        [
+          "查询日期范围",
+          "1998-01-01 至 1998-01-29",
+          "含端点共 29 个自然日，与要求一致"
+        ],
+        [
+          "返回快照日期数",
+          "5",
+          "按快照日期升序"
+        ],
+        [
+          "未返回快照的日期数",
+          "24",
+          "未观测日期保留为缺口，不补 0、不插值"
+        ],
+        [
+          "相邻快照间隔（天）",
+          "7、7、7、7",
+          "观测到的快照节奏，数据源未声明快照频率"
+        ],
+        [
+          "快照日期重复数",
+          "0",
+          "按快照日期分组，日期唯一"
+        ],
+        [
+          "零数量记录数 + 非零数量记录数 = 库存记录数",
+          "全部一致",
+          "查询结果内部一致性核对"
+        ],
+        [
+          "现存数量合计最小值 / 最大值",
+          "4297887 / 4349344",
+          "计量单位未由数据源声明"
+        ],
+        [
+          "结果行数是否受返回上限影响",
+          "返回 5 行，上限 100 行",
+          "返回行数低于上限，未发生截断"
+        ]
+      ],
+      "scope": "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970：仓库2、1998-01-01 至 1998-01-29、数量下限 0、类别不限",
+      "title": "日期覆盖与口径核对"
+    }
+  ],
+  "limitations": [
+    "要求的 29 个自然日中只有 5 天返回快照（缺口 24 天），逐日序列不完整；数据源未声明快照生成频率，无法判定缺口属于来源节奏还是当日期无符合条件记录。",
+    "现存数量合计的计量单位未由数据源声明，报告不作单位推断，也不与任何货币或计量口径互换。",
+    "库存记录数为明细记录计数（COUNT(*)），不等于去重商品/SKU 数量；来源未提供去重口径指标。",
+    "仅为单仓库、单一时段的 5 个时点快照，不能据此推断长期库存趋势、季节性、类别结构或因果。",
+    "未提供记录级明细，只能核对聚合结果内部一致性（零数量 + 非零数量 = 库存记录数），无法逐步审计原始记录。"
+  ],
+  "execution": {
+    "codeArtifact": {
+      "fileId": "87975e69c7ba9e93aabfe029b2c881db45accdc1c5d904c6b32d758fcf0fe835",
+      "fileName": "2-1998-01-01-1998-01-29_20261101T034441817Z_92bdc87fe18c_v2.py",
+      "mediaType": "text/x-python",
+      "sha256": "7fe28c0930742782d4b9d8dc0347569801b0e372b221ccadf35fd6ce122c04c9",
+      "size": 26667
+    },
+    "codeSha256": "7fe28c0930742782d4b9d8dc0347569801b0e372b221ccadf35fd6ce122c04c9",
+    "executorStopped": true,
+    "operationId": "cline-f243033149adcb8fd77974efe30a241efd5a858356836b17b0a08505daccdefa",
+    "receiptSha256": "19dc4a0efd779432bc09404cc09a86b89d468935900c68f6493fa5967bbdfa53",
+    "reportPresentation": {
+      "autoCharts": true,
+      "autoImages": true,
+      "density": "comfortable",
+      "strategy": "auto",
+      "template": "briefing"
+    },
+    "resultDatasetRef": "runtime-evidence:coding:5686ec6bb71115e77c1de8b27d2b722cdf924fdd6cd854042227bd7bc69c88f1:result",
+    "resultSha256": "49317415edc532647795c3fc53a06e1e470c2f29bcf0053ee75b8fdda8d76406",
+    "status": "SUCCEEDED",
+    "taskId": "analysis-coding-d4505af324572c82e2546d0b055400f060014e21430143a3106765acb6986d8d"
+  }
+}

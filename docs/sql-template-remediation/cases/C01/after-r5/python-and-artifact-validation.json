@@ -1,0 +1,103 @@
+{
+  "status": "REAL_PYTHON_AND_UPLOADED_BYTES_VERIFIED",
+  "execution": {
+    "codeArtifact": {
+      "fileId": "0916cc2fcc6ce448794ea7e14c3958e20bcea6d4b4bc132e71ff9dc46090ef9f",
+      "fileName": "python_20261101T021559078Z_356bfedde276_v1.py",
+      "mediaType": "text/x-python",
+      "sha256": "62799f0bfa7699e5632f00d1ec412141164811ce6cbc605255a1a46069c684d2",
+      "size": 24178
+    },
+    "codeSha256": "62799f0bfa7699e5632f00d1ec412141164811ce6cbc605255a1a46069c684d2",
+    "executorStopped": true,
+    "operationId": "cline-33e0d9d8906273a1faf91edbdb89d2f4c073f18874dc5b5e512e7771d8957dfc",
+    "receiptSha256": "813dc2b368325308b246cf37b3ac2622d37093f15eb10eba8df11527f647ddc4",
+    "reportPresentation": {
+      "autoCharts": true,
+      "autoImages": true,
+      "density": "comfortable",
+      "strategy": "auto",
+      "template": "briefing"
+    },
+    "resultDatasetRef": "runtime-evidence:coding:56b892ef3e1a72eb209e7333ee3c4060531543419fe0b354155b43c1f01736ac:result",
+    "resultSha256": "d9b1ac0c358f3a27c7cd988e2f85d0f15379b09c344f49fa7d7b46d5e2a47563",
+    "status": "SUCCEEDED",
+    "taskId": "analysis-coding-0ba275750614ea9f54f98473f9486adeefe4f99748083bf329b88207203e2bf2"
+  },
+  "artifacts": [
+    {
+      "kind": "code",
+      "fileId": "0916cc2fcc6ce448794ea7e14c3958e20bcea6d4b4bc132e71ff9dc46090ef9f",
+      "sha256": "62799f0bfa7699e5632f00d1ec412141164811ce6cbc605255a1a46069c684d2",
+      "bytes": 24178
+    },
+    {
+      "kind": "png",
+      "fileId": "cf19fc2b19bc1e0cfb59dc6cd3c94ac8696b4a2fdb8525d129141d465cad4286",
+      "sha256": "9d4579af044185a794b6a9ef8a2584f9b0fa8f5d6508ebebbfde88aad7998d52",
+      "bytes": 61437
+    }
+  ],
+  "businessValidation": {
+    "checks": [
+      {
+        "detail": "清单文件哈希与交付声明一致",
+        "name": "输入清单完整性",
+        "status": "PASSED"
+      },
+      {
+        "detail": "数据分片哈希校验通过，实际行数 1 与清单声明 1 一致",
+        "name": "数据分片完整性与行数",
+        "status": "PASSED"
+      },
+      {
+        "detail": "记录内数据集引用与授权引用一致",
+        "name": "数据集引用一致性",
+        "status": "PASSED"
+      },
+      {
+        "detail": "全部 6 个声明字段均已交付、无 null、无缺失",
+        "name": "声明字段完整性与空值",
+        "status": "PASSED"
+      },
+      {
+        "detail": "国家/省州分组键唯一，共 1 组",
+        "name": "分组键唯一性",
+        "status": "PASSED"
+      },
+      {
+        "detail": "单一分组内仓库记录数 5 与主键跨度 1–5（5 个不同键值）一致",
+        "name": "仓库总数与主键跨度一致性",
+        "status": "PASSED"
+      },
+      {
+        "detail": "交付声明该查询为 warehouse 维表全量分组结果（result complete，无过滤参数），返回 1 组",
+        "name": "查询结果完整性声明",
+        "status": "PASSED"
+      },
+      {
+        "detail": "源查询仅返回分组内不同城市数，未返回城市名称清单，无法列出具体城市",
+        "name": "城市名称明细可得性",
+        "status": "UNRESOLVED"
+      },
+      {
+        "detail": "交付字段中不含任何日期或时间字段，无法界定快照的业务时点或统计期间",
+        "name": "业务时点/统计期间",
+        "status": "UNRESOLVED"
+      },
+      {
+        "detail": "仓库数量柱状图已生成，横轴为国家/省州、纵轴为仓库数量（个）",
+        "name": "柱状图渲染",
+        "status": "PASSED"
+      }
+    ],
+    "scope": "STOPPED_EXECUTION_AND_ARTIFACT_INTEGRITY; COMPUTATION_CHECKS_ARE_PROGRAM_DECLARED; BUSINESS_SEMANTICS_NOT_CERTIFIED",
+    "status": "PARTIAL",
+    "warnings": [
+      "分布仅 1 个国家/省州分组，无法形成跨地区比较。",
+      "数据不含日期字段，无法界定快照业务时点。",
+      "城市名称明细未随查询返回，仅有覆盖城市数量。"
+    ]
+  },
+  "analysisStatus": "PARTIAL"
+}

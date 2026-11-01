@@ -1,0 +1,104 @@
+{
+  "status": "REAL_PYTHON_AND_UPLOADED_BYTES_VERIFIED",
+  "execution": {
+    "codeArtifact": {
+      "fileId": "05ca1d85a1624049026b3a73c19bfb8f1d39e1abe49eb35c11cfd72eb5578f6e",
+      "fileName": "python_20261101T034412798Z_26f2009064a7_v1.py",
+      "mediaType": "text/x-python",
+      "sha256": "6e752c97c8629b71852e55967a9a66517e9e29e2a40d4c2e5e62ec16063117d6",
+      "size": 36594
+    },
+    "codeSha256": "6e752c97c8629b71852e55967a9a66517e9e29e2a40d4c2e5e62ec16063117d6",
+    "executorStopped": true,
+    "operationId": "cline-fb01a3928d52836ee157142d97676608e85661cf5c796ca69e787f90dfdf5b38",
+    "receiptSha256": "f44b1e6606c7c41826aa71d1d7a1fe1783d09d5b2209e39d7c00475fe5ccc205",
+    "reportPresentation": {
+      "autoCharts": true,
+      "autoImages": true,
+      "density": "comfortable",
+      "strategy": "auto",
+      "template": "briefing"
+    },
+    "resultDatasetRef": "runtime-evidence:coding:6c5b8a1fde6cd5635b1c99adc2de4cf5b5232487937878a623361422fd7d9472:result",
+    "resultSha256": "9904d0508652ce9de47dd8d8e32fb5d5d6d644d39ab520d4ff1dca6f81337a7e",
+    "status": "SUCCEEDED",
+    "taskId": "analysis-coding-b84453e07698f26080711a3609b85d4a3d38568e7d35ab8d34adeb573c769fbd"
+  },
+  "artifacts": [
+    {
+      "kind": "code",
+      "fileId": "05ca1d85a1624049026b3a73c19bfb8f1d39e1abe49eb35c11cfd72eb5578f6e",
+      "sha256": "6e752c97c8629b71852e55967a9a66517e9e29e2a40d4c2e5e62ec16063117d6",
+      "bytes": 36594
+    },
+    {
+      "kind": "png",
+      "fileId": "3a78298667bca5b7b9da8669ea1611d657b3d0aedfa23ceba061f65fdb62e77b",
+      "sha256": "7a3f2b699a17227f0067ff4bbd28d31ef9d755e1be9c597fb189e944b7fc8e2c",
+      "bytes": 73406
+    },
+    {
+      "kind": "plotly",
+      "fileId": "75baf814839e6af610315f721145ed774461b4f81b0c4c2a05a8aa9a05efc641",
+      "sha256": "e26e943a4e4515fdb2f8045f05c54896815d5cee4f39d100b9c49dcd94fe99d1",
+      "bytes": 1111
+    }
+  ],
+  "businessValidation": {
+    "checks": [
+      {
+        "detail": "manifest/schema/part 三层 sha256 均与交付声明一致；part 行数 1 与声明 1 一致；存储列 c0/c1 映射为 datasetReference/record（非按位置猜测）。",
+        "name": "输入完整性与哈希校验",
+        "status": "PASSED"
+      },
+      {
+        "detail": "交付 1 条分组记录，7 个声明字段全部存在且非空（缺失合计 0）；计数字段均为非负整数，主键字段为整数且 min<=max。",
+        "name": "字段可用性与类型",
+        "status": "PASSED"
+      },
+      {
+        "detail": "按（国家, 省州）去重后 1 个分组，与记录数 1 相同，无重复分组行。",
+        "name": "分组唯一性",
+        "status": "PASSED"
+      },
+      {
+        "detail": "各分组 warehouse_count 求和 = 5；最大分组 5 个 = 总和，占比 100.0%；min_warehouse_sk 均 <= max_warehouse_sk。",
+        "name": "聚合一致性",
+        "status": "PASSED"
+      },
+      {
+        "detail": "仅有 1 个（国家, 省州）分组覆盖全部 5 条仓库记录，因此各分组去重城市数之和 1 即为整体去重城市数。",
+        "name": "城市覆盖口径",
+        "status": "PASSED"
+      },
+      {
+        "detail": "分组内主键区间 1–5，宽度 5，仓库数 5；两者相等说明可能完整覆盖连续键值，但交付的是聚合结果、不含逐行主键，无法验证是否存在间隔。",
+        "name": "仓库主键连续性",
+        "status": "UNRESOLVED"
+      },
+      {
+        "detail": "交付结果只含 1 个（国家, 省州）分组（United States）。执行回执声明结果完整（无参数、全仓库），但单行聚合结果无法独立复核源仓库维表是否还存在其它国家或省州，因此跨地区排名、集中度与地区差异结论不予给出。",
+        "name": "分布可比性（跨地区）",
+        "status": "UNRESOLVED"
+      },
+      {
+        "detail": "交付字段中不含日期或时间列，无法确定业务截止日期或统计区间；本次结果只能按一次当前快照解读，不能当作时间序列或同比/环比依据。",
+        "name": "业务时间范围",
+        "status": "UNRESOLVED"
+      },
+      {
+        "detail": "静态 PNG 与交互 Plotly JSON 均按同一计算结果生成，坐标轴为分类/计数，柱形自 0 起。",
+        "name": "图表产出",
+        "status": "PASSED"
+      }
+    ],
+    "scope": "STOPPED_EXECUTION_AND_ARTIFACT_INTEGRITY; COMPUTATION_CHECKS_ARE_PROGRAM_DECLARED; BUSINESS_SEMANTICS_NOT_CERTIFIED",
+    "status": "PARTIAL",
+    "warnings": [
+      "交付结果为单行分组结果，柱状图只有单一类别，不具备分布对比的可视效果。",
+      "城市名称（w_city）未在结果中交付，城市覆盖仅以数量呈现。",
+      "global_min_warehouse_sk 为全表重复值，仅作区间参照，未参与任何加总。"
+    ]
+  },
+  "analysisStatus": "PARTIAL"
+}

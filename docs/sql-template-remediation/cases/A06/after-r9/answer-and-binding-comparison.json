@@ -1,0 +1,18 @@
+{
+  "status": "PASS",
+  "comparedSourceCells": 32,
+  "binding": {
+    "from": 1,
+    "output_path": "$.data.data.rows[0].global_min_warehouse_sk",
+    "to": 2,
+    "input_field": "warehouse_id",
+    "type": "jsonpath",
+    "required": true
+  },
+  "actualResolvedWarehouse": 1,
+  "queryOrder": [
+    "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+    "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+  ],
+  "scope": "Actual model plan binding, ordered successful tool observations and displayed source table cells; arbitrary reasoning-node computations are not certified."
+}

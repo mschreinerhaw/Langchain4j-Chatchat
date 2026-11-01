@@ -1,0 +1,20 @@
+{
+  "caseId": "C02",
+  "attempt": "r3",
+  "verdict": "FAIL",
+  "reason": "FAIL：混合类型Schema校验失败，没有可用查询数据或系统图表。",
+  "taskId": "fd04adf5-3c29-4700-9c18-6cdfb173c0f4",
+  "sessionId": "1793497177394-c04ac816bc4908",
+  "evidence": [
+    "request.md",
+    "agent-config.json",
+    "submission.json",
+    "agent-result.json",
+    "agent-trace.json",
+    "agent-answer.md",
+    "ui-receipt.json",
+    "conversation-result.png"
+  ],
+  "remediationSource": "3e3d398e5",
+  "retest": "PENDING_DO_NOT_OVERWRITE_THIS_ATTEMPT"
+}

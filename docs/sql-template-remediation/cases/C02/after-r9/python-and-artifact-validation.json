@@ -1,0 +1,92 @@
+{
+  "status": "REAL_PYTHON_AND_UPLOADED_BYTES_VERIFIED",
+  "execution": {
+    "codeArtifact": {
+      "fileId": "87975e69c7ba9e93aabfe029b2c881db45accdc1c5d904c6b32d758fcf0fe835",
+      "fileName": "2-1998-01-01-1998-01-29_20261101T034441817Z_92bdc87fe18c_v2.py",
+      "mediaType": "text/x-python",
+      "sha256": "7fe28c0930742782d4b9d8dc0347569801b0e372b221ccadf35fd6ce122c04c9",
+      "size": 26667
+    },
+    "codeSha256": "7fe28c0930742782d4b9d8dc0347569801b0e372b221ccadf35fd6ce122c04c9",
+    "executorStopped": true,
+    "operationId": "cline-f243033149adcb8fd77974efe30a241efd5a858356836b17b0a08505daccdefa",
+    "receiptSha256": "19dc4a0efd779432bc09404cc09a86b89d468935900c68f6493fa5967bbdfa53",
+    "reportPresentation": {
+      "autoCharts": true,
+      "autoImages": true,
+      "density": "comfortable",
+      "strategy": "auto",
+      "template": "briefing"
+    },
+    "resultDatasetRef": "runtime-evidence:coding:5686ec6bb71115e77c1de8b27d2b722cdf924fdd6cd854042227bd7bc69c88f1:result",
+    "resultSha256": "49317415edc532647795c3fc53a06e1e470c2f29bcf0053ee75b8fdda8d76406",
+    "status": "SUCCEEDED",
+    "taskId": "analysis-coding-d4505af324572c82e2546d0b055400f060014e21430143a3106765acb6986d8d"
+  },
+  "artifacts": [
+    {
+      "kind": "code",
+      "fileId": "87975e69c7ba9e93aabfe029b2c881db45accdc1c5d904c6b32d758fcf0fe835",
+      "sha256": "7fe28c0930742782d4b9d8dc0347569801b0e372b221ccadf35fd6ce122c04c9",
+      "bytes": 26667
+    },
+    {
+      "kind": "png",
+      "fileId": "f90bdc4d381d8fc12fc75fc97c2af98b97c28c36cfdc008ba713d0dffacbdb7d",
+      "sha256": "49f3838b00744600f2c43afb7e3cc0d2ad5d7661eb780faae556149761bd8f51",
+      "bytes": 140386
+    }
+  ],
+  "businessValidation": {
+    "checks": [
+      {
+        "detail": "清单与数据文件校验值一致；解码后 5 行，与声明行数一致。",
+        "name": "输入文件与行数校验",
+        "status": "PASSED"
+      },
+      {
+        "detail": "全部记录指向同一授权查询结果引用，与模板参数绑定一致。",
+        "name": "来源引用一致性",
+        "status": "PASSED"
+      },
+      {
+        "detail": "日期重复数 0；全部落在 1998-01-01 至 1998-01-29 内（共 5 个日期）。",
+        "name": "快照日期唯一性与区间校验",
+        "status": "PASSED"
+      },
+      {
+        "detail": "全部日期一致。",
+        "name": "结果内部一致性（零数量 + 非零数量 = 库存记录数）",
+        "status": "PASSED"
+      },
+      {
+        "detail": "在数量下限 0 的筛选下，各日现存数量合计均非负。",
+        "name": "现存数量合计非负校验",
+        "status": "PASSED"
+      },
+      {
+        "detail": "29 个自然日中 24 天无快照记录，来源未声明快照频率，缺口成因无法由现有证据判定。",
+        "name": "日期覆盖完整性",
+        "status": "UNRESOLVED"
+      },
+      {
+        "detail": "数据源明确未声明现存数量的计量单位，报告保留为单位未声明，不作推断。",
+        "name": "计量单位声明",
+        "status": "UNRESOLVED"
+      },
+      {
+        "detail": "折线图已生成（140386 字节），中文标签使用运行时默认字体。",
+        "name": "图表渲染",
+        "status": "PASSED"
+      }
+    ],
+    "scope": "STOPPED_EXECUTION_AND_ARTIFACT_INTEGRITY; COMPUTATION_CHECKS_ARE_PROGRAM_DECLARED; BUSINESS_SEMANTICS_NOT_CERTIFIED",
+    "status": "PARTIAL",
+    "warnings": [
+      "24 个自然日没有快照记录，折线图仅连接实测点。",
+      "现存数量合计的计量单位数据源未声明。"
+    ]
+  },
+  "analysisStatus": "PARTIAL"
+}

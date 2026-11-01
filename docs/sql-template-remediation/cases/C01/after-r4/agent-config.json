@@ -1,0 +1,136 @@
+{
+  "id": "sql_template_e2e_20261101_r1",
+  "shortName": "S",
+  "name": "SQL Template E2E Acceptance Agent",
+  "description": null,
+  "status": "已绑定工具",
+  "defaultMode": "agent_chat",
+  "modelName": "deepseek-v4-flash",
+  "usageScenarios": [],
+  "skillTags": [],
+  "systemPrompt": "根据用户问题和已授权能力回答，结论须有实际数据依据；信息不足时明确说明并追问。",
+  "firstUseGreeting": null,
+  "preferredToolPrefixes": [],
+  "boundMcpServiceIds": [],
+  "boundMcpToolNames": [
+    "mcp_chatchat_mcp_server_tpl_212b88329a673657979943bbeaa7479b",
+    "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+    "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+    "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+  ],
+  "boundDocumentIds": [],
+  "boundDomainSkillIds": [],
+  "boundDocumentTags": [],
+  "toolConfigs": [
+    {
+      "toolName": "mcp_chatchat_mcp_server_tpl_212b88329a673657979943bbeaa7479b",
+      "displayName": null,
+      "serviceId": "chatchat-mcp-server",
+      "description": null,
+      "tags": [],
+      "permissionScope": "read",
+      "callWeight": 1,
+      "enabled": true
+    },
+    {
+      "toolName": "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+      "displayName": null,
+      "serviceId": "chatchat-mcp-server",
+      "description": null,
+      "tags": [],
+      "permissionScope": "read",
+      "callWeight": 1,
+      "enabled": true
+    },
+    {
+      "toolName": "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+      "displayName": null,
+      "serviceId": "chatchat-mcp-server",
+      "description": null,
+      "tags": [],
+      "permissionScope": "read",
+      "callWeight": 1,
+      "enabled": true
+    },
+    {
+      "toolName": "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970",
+      "displayName": null,
+      "serviceId": "chatchat-mcp-server",
+      "description": null,
+      "tags": [],
+      "permissionScope": "read",
+      "callWeight": 1,
+      "enabled": true
+    }
+  ],
+  "routingSettings": {
+    "smartSelectionEnabled": true,
+    "limitParallelCalls": true,
+    "maxParallelCalls": 3,
+    "maxRelevantMcpTools": 3
+  },
+  "workflowConfig": {
+    "boundDomainSkillIds": [],
+    "disabledBuiltinSkillIds": [],
+    "enabled": true,
+    "resultHandlingPolicy": {
+      "continueOnPartialSuccess": true,
+      "failRunWhenAnyChildFails": false,
+      "includeFailedResultReasons": true,
+      "mode": "SUMMARIZE_AVAILABLE",
+      "overrideAllowed": false,
+      "recordAnalysisPolicy": {
+        "allowExecutionMetadataOnlyAnswer": false,
+        "completionCondition": "PROCESSED_RECORD_COUNT_EQUALS_RETURNED_RECORD_COUNT",
+        "contractVersion": "record_grounded_analysis.v1",
+        "immutable": true,
+        "iterativeSummarizationWhenOversized": true,
+        "requireCompleteRecordCoverage": true,
+        "requireRecordGroundedAnalysis": true
+      },
+      "summarizeSuccessfulResults": true
+    },
+    "runtimeEnvironment": "DEV",
+    "steps": [],
+    "workflow": "agent_workflow"
+  },
+  "defaultDataAsset": null,
+  "assetSelectionPolicy": {
+    "strategy": "BOUND_ASSET_ONLY",
+    "minRelevanceScore": 1,
+    "fallbackWhenEmpty": false,
+    "fallbackWhenInvalid": false
+  },
+  "quickQuestions": [],
+  "marketStatus": "published",
+  "marketStatusLabel": "已发布",
+  "defaultAgent": false,
+  "resolvedToolNames": [
+    "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970",
+    "mcp_chatchat_mcp_server_tpl_212b88329a673657979943bbeaa7479b",
+    "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+    "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc"
+  ],
+  "resolvedToolCount": 4,
+  "boundServiceCount": 0,
+  "boundDocumentCount": 0,
+  "builtin": false,
+  "editableFields": [
+    "label",
+    "description",
+    "usageScenarios",
+    "skillTags",
+    "defaultMode",
+    "systemPrompt",
+    "firstUseGreeting",
+    "preferredToolPrefixes",
+    "boundMcpServiceIds",
+    "boundMcpToolNames",
+    "toolConfigs",
+    "routingSettings",
+    "workflowConfig",
+    "defaultDataAsset",
+    "assetSelectionPolicy",
+    "quickQuestions"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "status": "RENDERED_IN_SYSTEM_PAGE",
+  "charts": [
+    {
+      "id": "c_trend",
+      "kind": "static",
+      "image": {
+        "width": 1720,
+        "height": 919,
+        "title": "仓库2 库存记录数（仅观测快照日，1998-01-01 至 1998-01-29）"
+      }
+    }
+  ],
+  "events": [
+    {
+      "fileId": "f90bdc4d381d8fc12fc75fc97c2af98b97c28c36cfdc008ba713d0dffacbdb7d",
+      "kind": "png",
+      "durationMs": 121
+    }
+  ],
+  "diagnostics": []
+}

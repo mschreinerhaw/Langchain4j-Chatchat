@@ -1,0 +1,521 @@
+{
+  "tasks": [
+    {
+      "taskId": "analysis-coding-881382ed7c1a715341d06d963600310dea626c2899ee37aaa847496e36da097f",
+      "outcome": {
+        "schemaVersion": "runtime_os.coding.v3",
+        "taskId": "analysis-coding-881382ed7c1a715341d06d963600310dea626c2899ee37aaa847496e36da097f",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "7b24e981-07e4-4bcf-8411-682abc0e6f61",
+          "conversationId": "1793500459000-dc3ab6d90f0d08",
+          "runId": "att-1-044898ff-3368-49e1-85ec-98613b4f1ab4",
+          "environment": null,
+          "attributes": {}
+        },
+        "contractSha256": "d1e9aab3e66e34e487644725b9454fa06dfdcfeed0809d369c18b5f229e3adc2",
+        "status": "COMPLETED",
+        "revision": 119,
+        "lastEventSequence": 120,
+        "createdAt": "2026-11-01T02:35:45.268Z",
+        "updatedAt": "2026-11-01T02:38:45.128Z",
+        "startedAt": "2026-11-01T02:35:45.356Z",
+        "endedAt": "2026-11-01T02:38:45.128Z",
+        "cancellationRequested": false,
+        "reasonCode": null,
+        "summary": "Coding execution archived; validation INCONCLUSIVE",
+        "limitations": [
+          "A2 enforces cumulative admission reservations only; model/process hard limits, instantaneous memory and disk enforcement require execution-node adapters."
+        ],
+        "inputSnapshotRef": "runtime-evidence:coding:input:cc50a46b9b3fe07b530181991fd5f8a200aa8567763af40ffa34fdb578483ea",
+        "codeArtifactRef": "runtime-evidence:coding:90616b580b38d4b659fe480b852b4c71da8d8846aecc8b4d3684b0a539f63288:code",
+        "executionReceiptRef": "runtime-evidence:coding:90616b580b38d4b659fe480b852b4c71da8d8846aecc8b4d3684b0a539f63288:receipt",
+        "resultDatasetRef": "runtime-evidence:coding:90616b580b38d4b659fe480b852b4c71da8d8846aecc8b4d3684b0a539f63288:result",
+        "validationRecordRef": "runtime-evidence:coding:90616b580b38d4b659fe480b852b4c71da8d8846aecc8b4d3684b0a539f63288:validation",
+        "evidenceBundleRef": "runtime-evidence:coding:90616b580b38d4b659fe480b852b4c71da8d8846aecc8b4d3684b0a539f63288:bundle",
+        "validationStatus": "INCONCLUSIVE",
+        "reproducibility": {
+          "level": "CONDITIONAL",
+          "limitations": [
+            "Execution and reproducibility have not been verified"
+          ],
+          "dependencyRefs": [
+            "b1068ad2-7b8d-4fb0-9230-316c86c596a4"
+          ]
+        },
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-881382ed7c1a715341d06d963600310dea626c2899ee37aaa847496e36da097f",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 7,
+            "modelTokens": 314467,
+            "toolCalls": 3,
+            "codeExecutions": 3,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 713318,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 0,
+            "modelTokens": 144285,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 75000,
+            "peakMemoryBytes": 0,
+            "outputBytes": 335257,
+            "costAmount": "5.833333333331"
+          },
+          "meteringComplete": false
+        },
+        "executionControl": {
+          "stopReason": null,
+          "stopRequestedAt": null,
+          "executorStopped": true,
+          "reconciliationRequired": false
+        },
+        "parentTaskId": null,
+        "supersedesTaskId": null,
+        "perArtifactCompleteness": {}
+      },
+      "objective": "Answer the user's data-analysis objective using only the authorized immutable datasets. Inspect delivered schemas and quality. Choose your own analysis methods and verify computed output. You own business interpretation within the delivered data scope. Produce exactly one result row. Use delivered Skills, template declarations, field metadata and source context as the authority for metric meaning. Template execution with defaults is not proof that data matches the user's entity or time constraints. Inspect templateParameterBinding effectiveParameters, parameterSources, droppedOverrideFields and unmappedConstraints. Never present a default entity's rows as another requested entity's results; if scope cannot be established, disclose that limitation. Before submission, recalculate every reported total from program output and verify that every table header aligns with its values. Distinguish an arithmetic difference from a data error: only call it an error when the compared values have the same declared metric, scope, period and unit; otherwise state the unresolved reconciliation components and evidence limits. reportMarkdown must be the complete user-facing Markdown report with computed findings and explicit limitations. Lead with the business answer, relevant numbers and readable tables. Do not lead with transport formats, file hashes, storage paths, runtime manifests or internal operation IDs. Keep technical integrity and execution details in evidence references or a short audit appendix when useful, without weakening verification or hiding failures. evidenceReferences must list the exact delivered dataset references actually used; do not invent or shorten them. limitations must record material data or method limits. Do not delegate calculations back to Runtime OS.",
+      "configuration": {
+        "builtinSkillPolicy": {
+          "agentId": "sql_template_e2e_20261101_r1",
+          "disabledSkillIds": []
+        },
+        "capturedAt": "2026-11-01T02:35:45.176526225Z",
+        "codingLifecycle": {
+          "patchOnlyAfterFirst": true,
+          "schemaVersion": "runtime_os.code_lifecycle.v1"
+        },
+        "configuredSkillIds": [],
+        "consistency": "TASK_SNAPSHOT",
+        "executionProfile": {
+          "complexity": "SIMPLE",
+          "inputRows": 5,
+          "schemaVersion": "runtime_os.coding.execution_profile.v1",
+          "sourceCount": 1
+        },
+        "inputFiles": {
+          "delivery": "SHARED_DIRECTORY",
+          "format": "PARQUET",
+          "manifestFileId": "ccc50a46b9b3fe07b530181991fd5f8a200aa8567763af40ffa34fdb578483ea",
+          "manifestSha256": "cb45d0ad3ee49e94d826876f32093832f12b524f474f974b62cfc2b6fb3aa85c",
+          "schemaVersion": "runtime_os.coding.input.v1"
+        },
+        "model": {
+          "binding": "AUTHORIZED_PARENT_MODEL",
+          "implementation": "dev.langchain4j.model.openai.OpenAiChatModel",
+          "maxRetries": 3,
+          "maxTokens": -1,
+          "protocol": "openai",
+          "providerModel": "deepseek-v4-flash",
+          "selectedModel": "deepseek-v4-flash"
+        },
+        "pythonEnvironment": {
+          "assetId": "ee158b37-c7dc-43ab-87cf-c887fa60ec71",
+          "dockerImage": "chatchat-python-runtime:3.11-v1.2-fonts-r2-20261022",
+          "environmentId": "b1068ad2-7b8d-4fb0-9230-316c86c596a4",
+          "environmentVersion": 7,
+          "imageDigest": "sha256:7c665132dd360b4f84a669a16b53de93c0ff142e1ecf8f56bef1a07d6346fdc8",
+          "packages": {
+            "Pillow": "13.0.0",
+            "duckdb": "1.5.6",
+            "matplotlib": "3.10.0",
+            "numpy": "2.3.5",
+            "openpyxl": "3.1.5",
+            "pandas": "2.3.3",
+            "plotly": "7.1.0",
+            "polars": "2.0.0",
+            "pyarrow": "26.0.0",
+            "ruff": "0.17.1",
+            "scikit-learn": "1.9.1",
+            "scipy": "1.16.3",
+            "seaborn": "0.13.2",
+            "statsmodels": "0.15.0"
+          },
+          "pythonVersion": "3.11.16",
+          "source": "WORKSHOP_DEFAULT"
+        },
+        "reportMode": "visual",
+        "reportPresentation": {
+          "autoCharts": true,
+          "autoImages": true,
+          "density": "comfortable",
+          "strategy": "auto",
+          "template": "briefing"
+        },
+        "schemaVersion": "runtime_os.coding.context.v1",
+        "scriptPurpose": "查询仓库2在1998-01-01到1998-01-29的逐日库存快照，数量下限0、类别不限。使用Python从真实查询结果绘制按日期展示库存记录数的折线图，横轴快照日期，纵轴记录数（条），另附",
+        "skills": {
+          "authority": "AUTHORIZED_SKILL_METHODOLOGY_NOT_EVIDENCE",
+          "builtinSkillPolicy": {
+            "agentId": "sql_template_e2e_20261101_r1",
+            "disabledSkillIds": []
+          },
+          "fingerprint": "e1aa9b51a40a4b490c015b605a7273398baf042fac042cbe72c0de20c130b812",
+          "schemaVersion": "skill_analysis_context.v1",
+          "skills": [],
+          "stages": {},
+          "status": "AVAILABLE"
+        }
+      },
+      "executions": [
+        {
+          "schemaVersion": "runtime_os.execution_feedback.v1",
+          "taskId": "analysis-coding-881382ed7c1a715341d06d963600310dea626c2899ee37aaa847496e36da097f",
+          "executionId": "cline-1a3115ea6ba241318e6a879bebf55793f13e6124a3dc5798fd64a1101c0ef8e1",
+          "attemptId": "analysis-coding-881382ed7c1a715341d06d963600310dea626c2899ee37aaa847496e36da097f:execution-1",
+          "traceId": "att-1-044898ff-3368-49e1-85ec-98613b4f1ab4",
+          "status": "SUCCEEDED",
+          "stage": "VALIDATED",
+          "exitCode": 0,
+          "durationMs": 6325,
+          "cpuTimeMs": 3444,
+          "maxRssBytes": 168865792,
+          "codeHash": "90292f6a311177faac858bb200ce6f57a4756ce6a6a4313697c57a2b389519e0",
+          "stdout": "[raw stdout omitted]",
+          "stderr": "[raw stderr omitted]",
+          "stdoutBytes": 0,
+          "stderrBytes": 0,
+          "error": null,
+          "inputDataRefs": [
+            "runtime-evidence:coding:input:cc50a46b9b3fe07b530181991fd5f8a200aa8567763af40ffa34fdb578483ea"
+          ],
+          "schemaRef": "runtime-coding-schema:a0e8ae094a70a0b96aa43db24fc839596818b67920f99467c94c83c88591434e",
+          "inputFiles": [
+            {
+              "fileId": "ccc50a46b9b3fe07b530181991fd5f8a200aa8567763af40ffa34fdb578483ea",
+              "fileName": "manifest.json",
+              "sha256": "cb45d0ad3ee49e94d826876f32093832f12b524f474f974b62cfc2b6fb3aa85c"
+            }
+          ],
+          "inputSchemaSummary": {
+            "manifestFileId": "ccc50a46b9b3fe07b530181991fd5f8a200aa8567763af40ffa34fdb578483ea",
+            "format": "PARQUET",
+            "manifestSha256": "cb45d0ad3ee49e94d826876f32093832f12b524f474f974b62cfc2b6fb3aa85c"
+          },
+          "artifactRefs": {
+            "executionReceiptRef": "runtime-evidence:coding:1fff12c084f25bac8cfc75d94aca4a3587660d802ebf909ae7b6e5ee5ad15952:receipt",
+            "codeArtifactRef": "runtime-evidence:coding:1fff12c084f25bac8cfc75d94aca4a3587660d802ebf909ae7b6e5ee5ad15952:code",
+            "inputSnapshotRef": "runtime-evidence:coding:input:cc50a46b9b3fe07b530181991fd5f8a200aa8567763af40ffa34fdb578483ea",
+            "resultDatasetRef": "runtime-evidence:coding:1fff12c084f25bac8cfc75d94aca4a3587660d802ebf909ae7b6e5ee5ad15952:result",
+            "validationRecordRef": "runtime-evidence:coding:1fff12c084f25bac8cfc75d94aca4a3587660d802ebf909ae7b6e5ee5ad15952:validation",
+            "evidenceBundleRef": "runtime-evidence:coding:1fff12c084f25bac8cfc75d94aca4a3587660d802ebf909ae7b6e5ee5ad15952:bundle",
+            "diagnosticRef": "execution:cline-1a3115ea6ba241318e6a879bebf55793f13e6124a3dc5798fd64a1101c0ef8e1:logs:runtime-diagnostic.json",
+            "stderrRef": "execution:cline-1a3115ea6ba241318e6a879bebf55793f13e6124a3dc5798fd64a1101c0ef8e1:logs:stderr.txt"
+          },
+          "validationStatus": "INCONCLUSIVE",
+          "resultAvailable": true,
+          "manifestHash": "f6627228f52ad2cd70ef6288f2128931d267dd9dcccf5ff3ff8fb108f40af746",
+          "outputStatus": null,
+          "businessValidationPassed": false,
+          "repair": {
+            "allowed": false,
+            "action": "COMPLETE",
+            "reason": "RESULT_VERIFIED",
+            "attemptsUsed": 0,
+            "maxAttempts": 3,
+            "baseCodeHash": "90292f6a311177faac858bb200ce6f57a4756ce6a6a4313697c57a2b389519e0",
+            "guidance": "Result archived; business correctness remains governed by validationStatus."
+          },
+          "diagnosticPolicy": "METADATA_ONLY_V1",
+          "script": {
+            "fileName": "2-1998-01-01-1998-01-29_20261101T023714168Z_195398f6ade4_v1.py",
+            "scriptPath": "/workspace/scripts/2-1998-01-01-1998-01-29_20261101T023714168Z_195398f6ade4_v1.py",
+            "workingDirectory": "tasks/2abd2c828f4ebf3c/6432cc690bc93efe/9a29d9a66afc19b4/195398f6ade4a97aefd7bc58",
+            "scriptVersion": 1
+          }
+        },
+        {
+          "schemaVersion": "runtime_os.execution_feedback.v1",
+          "taskId": "analysis-coding-881382ed7c1a715341d06d963600310dea626c2899ee37aaa847496e36da097f",
+          "executionId": "cline-aae2c241a3fe45e76fd15fff78ecdf033e14877478d5fc7ad423053969102efa",
+          "attemptId": "analysis-coding-881382ed7c1a715341d06d963600310dea626c2899ee37aaa847496e36da097f:execution-2",
+          "traceId": "att-1-044898ff-3368-49e1-85ec-98613b4f1ab4",
+          "status": "FAILED",
+          "stage": "EXECUTION_FAILED",
+          "exitCode": 1,
+          "durationMs": 3069,
+          "cpuTimeMs": 3080,
+          "maxRssBytes": 169009152,
+          "codeHash": "41186e490bd08ac36e4321061cda5ecc745676d01ffab5069f3b820cf0485e7e",
+          "stdout": "[raw stdout omitted]",
+          "stderr": "Inspect the reported line and existing code; make the smallest justified technical correction without changing source data.",
+          "stdoutBytes": 0,
+          "stderrBytes": 319,
+          "error": {
+            "category": "PROGRAM",
+            "exceptionType": "NameError",
+            "diagnosticCode": "PROGRAM_ERROR",
+            "message": "Inspect the reported line and existing code; make the smallest justified technical correction without changing source data.",
+            "stack": [
+              {
+                "file": "2-1998-01-01-1998-01-29_20261101T023806264Z_195398f6ade4_v2.py",
+                "line": 338,
+                "column": null
+              }
+            ],
+            "detailRef": "execution:cline-aae2c241a3fe45e76fd15fff78ecdf033e14877478d5fc7ad423053969102efa:logs:runtime-diagnostic.json"
+          },
+          "inputDataRefs": [
+            "runtime-evidence:coding:input:cc50a46b9b3fe07b530181991fd5f8a200aa8567763af40ffa34fdb578483ea"
+          ],
+          "schemaRef": "runtime-coding-schema:a0e8ae094a70a0b96aa43db24fc839596818b67920f99467c94c83c88591434e",
+          "inputFiles": [
+            {
+              "fileId": "ccc50a46b9b3fe07b530181991fd5f8a200aa8567763af40ffa34fdb578483ea",
+              "fileName": "manifest.json",
+              "sha256": "cb45d0ad3ee49e94d826876f32093832f12b524f474f974b62cfc2b6fb3aa85c"
+            }
+          ],
+          "inputSchemaSummary": {
+            "manifestFileId": "ccc50a46b9b3fe07b530181991fd5f8a200aa8567763af40ffa34fdb578483ea",
+            "format": "PARQUET",
+            "manifestSha256": "cb45d0ad3ee49e94d826876f32093832f12b524f474f974b62cfc2b6fb3aa85c"
+          },
+          "artifactRefs": {
+            "stderrRef": "execution:cline-aae2c241a3fe45e76fd15fff78ecdf033e14877478d5fc7ad423053969102efa:logs:stderr.txt",
+            "diagnosticRef": "execution:cline-aae2c241a3fe45e76fd15fff78ecdf033e14877478d5fc7ad423053969102efa:logs:runtime-diagnostic.json"
+          },
+          "validationStatus": "NOT_RUN",
+          "resultAvailable": false,
+          "manifestHash": "98e701908bb9d48b9ea89662d8e88cb39ed1970648855ffe555ab6f6a267da14",
+          "outputStatus": null,
+          "businessValidationPassed": false,
+          "repair": {
+            "allowed": true,
+            "action": "REPAIR_IN_CURRENT_CONTEXT",
+            "reason": "TECHNICAL_REPAIR",
+            "attemptsUsed": 0,
+            "maxAttempts": 3,
+            "baseCodeHash": "41186e490bd08ac36e4321061cda5ecc745676d01ffab5069f3b820cf0485e7e",
+            "guidance": "Inspect the reported line and existing code; make the smallest justified technical correction without changing source data."
+          },
+          "diagnosticPolicy": "METADATA_ONLY_V1",
+          "script": {
+            "fileName": "2-1998-01-01-1998-01-29_20261101T023806264Z_195398f6ade4_v2.py",
+            "scriptPath": "/workspace/scripts/2-1998-01-01-1998-01-29_20261101T023806264Z_195398f6ade4_v2.py",
+            "workingDirectory": "tasks/2abd2c828f4ebf3c/6432cc690bc93efe/9a29d9a66afc19b4/195398f6ade4a97aefd7bc58",
+            "scriptVersion": 2
+          }
+        },
+        {
+          "schemaVersion": "runtime_os.execution_feedback.v1",
+          "taskId": "analysis-coding-881382ed7c1a715341d06d963600310dea626c2899ee37aaa847496e36da097f",
+          "executionId": "cline-637af6e00bc56eb76da0f19d07531783a9afdf720934ece5ce931a086a7973d1",
+          "attemptId": "analysis-coding-881382ed7c1a715341d06d963600310dea626c2899ee37aaa847496e36da097f:execution-3",
+          "traceId": "att-1-044898ff-3368-49e1-85ec-98613b4f1ab4",
+          "status": "SUCCEEDED",
+          "stage": "VALIDATED",
+          "exitCode": 0,
+          "durationMs": 3320,
+          "cpuTimeMs": 3128,
+          "maxRssBytes": 168493056,
+          "codeHash": "ef901823cc7ae3e69e8141517cb622d7342c61fbd4f96224818f0874466ab37e",
+          "stdout": "[raw stdout omitted]",
+          "stderr": "[raw stderr omitted]",
+          "stdoutBytes": 0,
+          "stderrBytes": 0,
+          "error": null,
+          "inputDataRefs": [
+            "runtime-evidence:coding:input:cc50a46b9b3fe07b530181991fd5f8a200aa8567763af40ffa34fdb578483ea"
+          ],
+          "schemaRef": "runtime-coding-schema:a0e8ae094a70a0b96aa43db24fc839596818b67920f99467c94c83c88591434e",
+          "inputFiles": [
+            {
+              "fileId": "ccc50a46b9b3fe07b530181991fd5f8a200aa8567763af40ffa34fdb578483ea",
+              "fileName": "manifest.json",
+              "sha256": "cb45d0ad3ee49e94d826876f32093832f12b524f474f974b62cfc2b6fb3aa85c"
+            }
+          ],
+          "inputSchemaSummary": {
+            "manifestFileId": "ccc50a46b9b3fe07b530181991fd5f8a200aa8567763af40ffa34fdb578483ea",
+            "format": "PARQUET",
+            "manifestSha256": "cb45d0ad3ee49e94d826876f32093832f12b524f474f974b62cfc2b6fb3aa85c"
+          },
+          "artifactRefs": {
+            "executionReceiptRef": "runtime-evidence:coding:90616b580b38d4b659fe480b852b4c71da8d8846aecc8b4d3684b0a539f63288:receipt",
+            "codeArtifactRef": "runtime-evidence:coding:90616b580b38d4b659fe480b852b4c71da8d8846aecc8b4d3684b0a539f63288:code",
+            "inputSnapshotRef": "runtime-evidence:coding:input:cc50a46b9b3fe07b530181991fd5f8a200aa8567763af40ffa34fdb578483ea",
+            "resultDatasetRef": "runtime-evidence:coding:90616b580b38d4b659fe480b852b4c71da8d8846aecc8b4d3684b0a539f63288:result",
+            "validationRecordRef": "runtime-evidence:coding:90616b580b38d4b659fe480b852b4c71da8d8846aecc8b4d3684b0a539f63288:validation",
+            "evidenceBundleRef": "runtime-evidence:coding:90616b580b38d4b659fe480b852b4c71da8d8846aecc8b4d3684b0a539f63288:bundle",
+            "diagnosticRef": "execution:cline-637af6e00bc56eb76da0f19d07531783a9afdf720934ece5ce931a086a7973d1:logs:runtime-diagnostic.json",
+            "stderrRef": "execution:cline-637af6e00bc56eb76da0f19d07531783a9afdf720934ece5ce931a086a7973d1:logs:stderr.txt"
+          },
+          "validationStatus": "INCONCLUSIVE",
+          "resultAvailable": true,
+          "manifestHash": "c8f6e2217f064c5812012c0ea6b983482235f389b15b7e9305924f744f8b4f68",
+          "outputStatus": null,
+          "businessValidationPassed": false,
+          "repair": {
+            "allowed": false,
+            "action": "COMPLETE",
+            "reason": "RESULT_VERIFIED",
+            "attemptsUsed": 1,
+            "maxAttempts": 3,
+            "baseCodeHash": "ef901823cc7ae3e69e8141517cb622d7342c61fbd4f96224818f0874466ab37e",
+            "guidance": "Result archived; business correctness remains governed by validationStatus."
+          },
+          "diagnosticPolicy": "METADATA_ONLY_V1",
+          "script": {
+            "fileName": "2-1998-01-01-1998-01-29_20261101T023830911Z_195398f6ade4_v3.py",
+            "scriptPath": "/workspace/scripts/2-1998-01-01-1998-01-29_20261101T023830911Z_195398f6ade4_v3.py",
+            "workingDirectory": "tasks/2abd2c828f4ebf3c/6432cc690bc93efe/9a29d9a66afc19b4/195398f6ade4a97aefd7bc58",
+            "scriptVersion": 3
+          }
+        }
+      ],
+      "modelReceipts": [
+        {
+          "operationId": "model-1",
+          "attemptId": "analysis-coding-881382ed7c1a715341d06d963600310dea626c2899ee37aaa847496e36da097f:fence-1",
+          "modelCall": 1,
+          "state": "SUCCEEDED",
+          "selectedModel": "deepseek-v4-flash",
+          "providerModel": "deepseek-flash",
+          "protocol": "openai",
+          "startedAt": "2026-11-01T02:35:46.252224659Z",
+          "finishedAt": "2026-11-01T02:36:36.450110146Z",
+          "durationMs": 50197,
+          "usage": {
+            "cacheReadTokens": 5120,
+            "outputTokens": 8459,
+            "inputTokens": 12856,
+            "reasoningTokens": 8311
+          },
+          "source": "JAVA_MODEL_RECEIPT"
+        },
+        {
+          "operationId": "model-2",
+          "attemptId": "analysis-coding-881382ed7c1a715341d06d963600310dea626c2899ee37aaa847496e36da097f:fence-1",
+          "modelCall": 2,
+          "state": "SUCCEEDED",
+          "selectedModel": "deepseek-v4-flash",
+          "providerModel": "deepseek-flash",
+          "protocol": "openai",
+          "startedAt": "2026-11-01T02:36:37.797690135Z",
+          "finishedAt": "2026-11-01T02:37:13.688738367Z",
+          "durationMs": 35891,
+          "usage": {
+            "cacheReadTokens": 21248,
+            "outputTokens": 9138,
+            "inputTokens": 22469,
+            "reasoningTokens": 33
+          },
+          "source": "JAVA_MODEL_RECEIPT"
+        },
+        {
+          "operationId": "model-3",
+          "attemptId": "analysis-coding-881382ed7c1a715341d06d963600310dea626c2899ee37aaa847496e36da097f:fence-1",
+          "modelCall": 3,
+          "state": "SUCCEEDED",
+          "selectedModel": "deepseek-v4-flash",
+          "providerModel": "deepseek-flash",
+          "protocol": "openai",
+          "startedAt": "2026-11-01T02:37:25.493660221Z",
+          "finishedAt": "2026-11-01T02:38:05.577274291Z",
+          "durationMs": 40083,
+          "usage": {
+            "cacheReadTokens": 12800,
+            "outputTokens": 9301,
+            "inputTokens": 43031,
+            "reasoningTokens": 6458
+          },
+          "source": "JAVA_MODEL_RECEIPT"
+        },
+        {
+          "operationId": "model-4",
+          "attemptId": "analysis-coding-881382ed7c1a715341d06d963600310dea626c2899ee37aaa847496e36da097f:fence-1",
+          "modelCall": 4,
+          "state": "SUCCEEDED",
+          "selectedModel": "deepseek-v4-flash",
+          "providerModel": "deepseek-flash",
+          "protocol": "openai",
+          "startedAt": "2026-11-01T02:38:12.501161490Z",
+          "finishedAt": "2026-11-01T02:38:16.151135421Z",
+          "durationMs": 3649,
+          "usage": {
+            "cacheReadTokens": 32512,
+            "outputTokens": 482,
+            "inputTokens": 48653,
+            "reasoningTokens": 304
+          },
+          "source": "JAVA_MODEL_RECEIPT"
+        },
+        {
+          "operationId": "model-5",
+          "attemptId": "analysis-coding-881382ed7c1a715341d06d963600310dea626c2899ee37aaa847496e36da097f:fence-1",
+          "modelCall": 5,
+          "state": "SUCCEEDED",
+          "selectedModel": "deepseek-v4-flash",
+          "providerModel": "deepseek-flash",
+          "protocol": "openai",
+          "startedAt": "2026-11-01T02:38:18.056941858Z",
+          "finishedAt": "2026-11-01T02:38:20.613834638Z",
+          "durationMs": 2556,
+          "usage": {
+            "cacheReadTokens": 37632,
+            "outputTokens": 323,
+            "inputTokens": 49099,
+            "reasoningTokens": 103
+          },
+          "source": "JAVA_MODEL_RECEIPT"
+        },
+        {
+          "operationId": "model-6",
+          "attemptId": "analysis-coding-881382ed7c1a715341d06d963600310dea626c2899ee37aaa847496e36da097f:fence-1",
+          "modelCall": 6,
+          "state": "SUCCEEDED",
+          "selectedModel": "deepseek-v4-flash",
+          "providerModel": "deepseek-flash",
+          "protocol": "openai",
+          "startedAt": "2026-11-01T02:38:22.455594866Z",
+          "finishedAt": "2026-11-01T02:38:29.628014759Z",
+          "durationMs": 7172,
+          "usage": {
+            "cacheReadTokens": 38016,
+            "outputTokens": 964,
+            "inputTokens": 49587,
+            "reasoningTokens": 631
+          },
+          "source": "JAVA_MODEL_RECEIPT"
+        },
+        {
+          "operationId": "model-7",
+          "attemptId": "analysis-coding-881382ed7c1a715341d06d963600310dea626c2899ee37aaa847496e36da097f:fence-1",
+          "modelCall": 7,
+          "state": "SUCCEEDED",
+          "selectedModel": "deepseek-v4-flash",
+          "providerModel": "deepseek-flash",
+          "protocol": "openai",
+          "startedAt": "2026-11-01T02:38:39.290655643Z",
+          "finishedAt": "2026-11-01T02:38:42.661333520Z",
+          "durationMs": 3370,
+          "usage": {
+            "cacheReadTokens": 38528,
+            "outputTokens": 400,
+            "inputTokens": 59705,
+            "reasoningTokens": 317
+          },
+          "source": "JAVA_MODEL_RECEIPT"
+        }
+      ],
+      "allowedTools": [
+        "artifact_read",
+        "input_read",
+        "python_execute",
+        "skill_read",
+        "sql_validate"
+      ],
+      "canCancel": false,
+      "canRetry": false,
+      "canResume": false,
+      "attemptId": "analysis-coding-881382ed7c1a715341d06d963600310dea626c2899ee37aaa847496e36da097f:fence-1"
+    }
+  ],
+  "source": "DURABLE_CODING_JOURNAL"
+}

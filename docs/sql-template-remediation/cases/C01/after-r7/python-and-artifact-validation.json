@@ -1,0 +1,93 @@
+{
+  "status": "REAL_PYTHON_AND_UPLOADED_BYTES_VERIFIED",
+  "execution": {
+    "codeArtifact": {
+      "fileId": "950483264a900ce9ccc2043b94e40fad6fb91d7a2156387dc1edb03470192e83",
+      "fileName": "python_20261101T030052163Z_0e29298c4128_v3.py",
+      "mediaType": "text/x-python",
+      "sha256": "05dcca33da40fb3fe98728e77db8a88a6e5df13f4cf0972c139dcc7dc31ee37a",
+      "size": 29418
+    },
+    "codeSha256": "05dcca33da40fb3fe98728e77db8a88a6e5df13f4cf0972c139dcc7dc31ee37a",
+    "executorStopped": true,
+    "operationId": "cline-3bbd07d0f7c50a7ff0024b6c98cb872078d714074da5992e0802cbac89b55140",
+    "receiptSha256": "6569686d5270812a0c6a401885c481964da85615727aa586561f1dd67acf3e09",
+    "reportPresentation": {
+      "autoCharts": true,
+      "autoImages": true,
+      "density": "comfortable",
+      "strategy": "auto",
+      "template": "briefing"
+    },
+    "resultDatasetRef": "runtime-evidence:coding:e72337f9838aeea265556c0000a7fc43bf0d212bc7bdfec00c334f06ed3e430e:result",
+    "resultSha256": "a1860766bf6ab1a06cce108e74e9beafa5e1016ef0e29ddab2823c982500767d",
+    "status": "SUCCEEDED",
+    "taskId": "analysis-coding-d4801670914452bf2225d5c2babb4bdec3d7b8645a6cbd2e9029da00baa00c9c"
+  },
+  "artifacts": [
+    {
+      "kind": "code",
+      "fileId": "950483264a900ce9ccc2043b94e40fad6fb91d7a2156387dc1edb03470192e83",
+      "sha256": "05dcca33da40fb3fe98728e77db8a88a6e5df13f4cf0972c139dcc7dc31ee37a",
+      "bytes": 29418
+    },
+    {
+      "kind": "png",
+      "fileId": "466818f3d86c396b96586d91c104b08ca8ad76b2938fb2808cfb841290f1608c",
+      "sha256": "0dc2edebe04d89c7202d1c6417c044544092a863254aa08818425b36469fef78",
+      "bytes": 56490
+    },
+    {
+      "kind": "png",
+      "fileId": "cd670235018156aeaafcdd79bb44f8b8d5f56f89fcac14b24f4c40df7fcd52ce",
+      "sha256": "77cd1dd394b6755ac5cb9e48a0040f830410cd21058cc4186b468cf20fa0969d",
+      "bytes": 66355
+    }
+  ],
+  "businessValidation": {
+    "checks": [
+      {
+        "detail": "清单与结构描述校验和一致，Parquet 分片校验和一致；声明 1 行、实读 1 行。",
+        "name": "输入校验（清单/文件/行数）",
+        "status": "PASSED"
+      },
+      {
+        "detail": "1 个 (国家, 省州) 分组唯一且互不重叠，仓库总数 5、城市覆盖数 1 均由组内计数直接加总，并与明细表首行一致。",
+        "name": "分组汇总可加性",
+        "status": "PASSED"
+      },
+      {
+        "detail": "图1、图2、明细表、指标卡均由同一计算结果对象渲染；图1柱值等于明细表仓库数量列；图2两系列分别等于仓库数与城市数。",
+        "name": "图表与表格数值一致性",
+        "status": "PASSED"
+      },
+      {
+        "detail": "各组 max_sk-min_sk+1 等于组内仓库计数，属一致性观察，不构成唯一性证明。",
+        "name": "主键区间宽度校验",
+        "status": "PASSED"
+      },
+      {
+        "detail": "来源未提供日期/时点/版本字段，“当前”无法对应具体日期，趋势或时点比较不可支持。",
+        "name": "统计时点确认",
+        "status": "UNRESOLVED"
+      },
+      {
+        "detail": "交付结果仅 1 个分组，无法验证分布是否完整代表全部区域，跨区域排序与占比结论不可支持。",
+        "name": "跨国家/省州可比性",
+        "status": "UNRESOLVED"
+      },
+      {
+        "detail": "w_state 为源代码（如 TN），未提供代码字典，未转换为州全称。",
+        "name": "省州代码字典",
+        "status": "UNRESOLVED"
+      }
+    ],
+    "scope": "STOPPED_EXECUTION_AND_ARTIFACT_INTEGRITY; COMPUTATION_CHECKS_ARE_PROGRAM_DECLARED; BUSINESS_SEMANTICS_NOT_CERTIFIED",
+    "status": "PARTIAL",
+    "warnings": [
+      "交付结果只包含 1 个国家/省州分组，柱状图仅有单一类别，无法展示跨国家或跨省州的相对分布。",
+      "仓库维表规模仅 5 条记录，可能为示例数据，绝对量不宜外推为真实业务总量。"
+    ]
+  },
+  "analysisStatus": "PARTIAL"
+}

@@ -1,0 +1,267 @@
+{
+  "id": "59383865-bc1a-350c-8e1f-b5b198d8e7a2",
+  "code": "STUDIO_59383865BC1A350C8E1FB5B198D8E7A2",
+  "sqlTemplate": "-- ============================================================\n-- warehouse_geography.sql\n-- 仓库地理分布维表查询（无参数、只读、全量）\n-- 口径：按国家(w_country)、省州(w_state)分组，\n--       统计每组仓库数量、覆盖城市数量，\n--       并返回该组最小/最大仓库主键(w_warehouse_sk)，\n--       便于后续选择仓库开展库存分析。\n-- 保留空值分组（不对 NULL 做过滤），按国家、省州升序排列。\n-- 不固定任何商品或仓库，不添加人为业务过滤条件。\n-- 数据来源：tpcds.warehouse（基于已注册元数据）\n-- ============================================================\n\nSELECT\n    w_country,                                              -- 国家\n    w_state,                                                -- 省州\n    COUNT(*)                AS warehouse_count,             -- 该分组仓库数量\n    COUNT(DISTINCT w_city)  AS city_count,                  -- 该分组覆盖城市数量\n    MIN(w_warehouse_sk)     AS min_warehouse_sk,            -- 最小仓库主键\n    MAX(w_warehouse_sk)     AS max_warehouse_sk             -- 最大仓库主键\nFROM warehouse\nGROUP BY\n    w_country,\n    w_state\nORDER BY\n    w_country,\n    w_state;\n",
+  "parameterSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+  "databaseType": "mysql",
+  "title": "TPCDS 248 仓库地理分布",
+  "description": "按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围；全仓库维表，无参数。",
+  "category": "business_analysis",
+  "source": {
+    "projectId": "0fec15ec-f8aa-4950-a84c-07f220fd5a6b",
+    "fileId": "0f56fe58-fc66-4835-aceb-cff31d496f0d",
+    "fileVersion": 1,
+    "sqlDigest": "40ef37d9d60926249db66b76d8f2fe599da7cc570daca695a129203c1bb61b5d"
+  },
+  "groupId": "59383865-bc1a-350c-8e1f-b5b198d8e7a2",
+  "version": 1,
+  "expectedVersion": 5,
+  "state": "PUBLISHED",
+  "active": true,
+  "testEvidence": {
+    "type": "SQL_DATABASE_EXECUTION",
+    "testId": "4a2d26ae-c6c5-4a16-bb89-def56081a501",
+    "testedAt": "2026-11-01T02:57:07.408123077Z",
+    "traceId": "4a2d26ae-c6c5-4a16-bb89-def56081a501",
+    "source": {
+      "projectId": "0fec15ec-f8aa-4950-a84c-07f220fd5a6b",
+      "fileId": "0f56fe58-fc66-4835-aceb-cff31d496f0d",
+      "fileVersion": 1,
+      "sqlDigest": "40ef37d9d60926249db66b76d8f2fe599da7cc570daca695a129203c1bb61b5d"
+    },
+    "fingerprint": "8233083b7d5cd0967bc7f429b5122058f575636e16e407ea4021ffd594417a84",
+    "sqlDigest": "40ef37d9d60926249db66b76d8f2fe599da7cc570daca695a129203c1bb61b5d",
+    "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+    "datasourceDigest": "2823b8e359d0b63812da29dac7af836247716913b67ccbe938e60a030dc93c4d",
+    "parameters": {},
+    "parametersDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "timeoutSeconds": 10,
+    "maxRows": 50,
+    "success": true,
+    "resultDigest": "6ea7f159a1fe696acc5f1b9250a5530d5f989baed6d21241b6a281bf6e25f2e1",
+    "rowCount": 1,
+    "errorCode": "",
+    "preview": {
+      "columns": [
+        "w_country",
+        "w_state",
+        "warehouse_count",
+        "city_count",
+        "min_warehouse_sk",
+        "max_warehouse_sk"
+      ],
+      "rows": [
+        {
+          "w_country": "United States",
+          "w_state": "TN",
+          "warehouse_count": 5,
+          "city_count": 1,
+          "min_warehouse_sk": 1,
+          "max_warehouse_sk": 5
+        }
+      ],
+      "returnedRowCount": 1,
+      "possiblyTruncated": false,
+      "complete": true,
+      "previewTruncated": false
+    },
+    "diagnostic": "SQL query executed successfully",
+    "durationMs": 145
+  },
+  "templateKey": "sql_datasource:STUDIO_59383865BC1A350C8E1FB5B198D8E7A2",
+  "publication": {
+    "revision": "b52de727709b5b8cdad01c2238dd44c9a9de591510d9c2b0f19d8aa752511f2f",
+    "toolName": "tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+    "id": "86526e21-536b-4d4a-b654-fd6aadf0d30b",
+    "state": "RUNNING",
+    "description": "按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围；全仓库维表，无参数。",
+    "templateKey": "sql_datasource:STUDIO_59383865BC1A350C8E1FB5B198D8E7A2",
+    "logicalId": "f61ea326-b46f-30ac-a4ec-c717c2d2f9bc",
+    "publishedAt": "2026-11-01T02:57:16.446692438Z",
+    "version": 3,
+    "category": "business_analysis",
+    "title": "TPCDS 248 仓库地理分布",
+    "assetName": "248测试数据库"
+  },
+  "releaseHistory": [
+    {
+      "publication": {
+        "revision": "b52de727709b5b8cdad01c2238dd44c9a9de591510d9c2b0f19d8aa752511f2f",
+        "toolName": "tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+        "id": "86526e21-536b-4d4a-b654-fd6aadf0d30b",
+        "state": "RUNNING",
+        "description": "按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围；全仓库维表，无参数。",
+        "templateKey": "sql_datasource:STUDIO_59383865BC1A350C8E1FB5B198D8E7A2",
+        "logicalId": "f61ea326-b46f-30ac-a4ec-c717c2d2f9bc",
+        "publishedAt": "2026-11-01T02:57:16.446692438Z",
+        "version": 3,
+        "category": "business_analysis",
+        "title": "TPCDS 248 仓库地理分布",
+        "assetName": "248测试数据库"
+      },
+      "sqlSnapshot": {
+        "id": "59383865-bc1a-350c-8e1f-b5b198d8e7a2",
+        "code": "STUDIO_59383865BC1A350C8E1FB5B198D8E7A2",
+        "sqlTemplate": "-- ============================================================\n-- warehouse_geography.sql\n-- 仓库地理分布维表查询（无参数、只读、全量）\n-- 口径：按国家(w_country)、省州(w_state)分组，\n--       统计每组仓库数量、覆盖城市数量，\n--       并返回该组最小/最大仓库主键(w_warehouse_sk)，\n--       便于后续选择仓库开展库存分析。\n-- 保留空值分组（不对 NULL 做过滤），按国家、省州升序排列。\n-- 不固定任何商品或仓库，不添加人为业务过滤条件。\n-- 数据来源：tpcds.warehouse（基于已注册元数据）\n-- ============================================================\n\nSELECT\n    w_country,                                              -- 国家\n    w_state,                                                -- 省州\n    COUNT(*)                AS warehouse_count,             -- 该分组仓库数量\n    COUNT(DISTINCT w_city)  AS city_count,                  -- 该分组覆盖城市数量\n    MIN(w_warehouse_sk)     AS min_warehouse_sk,            -- 最小仓库主键\n    MAX(w_warehouse_sk)     AS max_warehouse_sk             -- 最大仓库主键\nFROM warehouse\nGROUP BY\n    w_country,\n    w_state\nORDER BY\n    w_country,\n    w_state;\n",
+        "parameterSchema": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+        "databaseType": "mysql",
+        "title": "TPCDS 248 仓库地理分布",
+        "description": "按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围；全仓库维表，无参数。",
+        "category": "business_analysis",
+        "source": {
+          "projectId": "0fec15ec-f8aa-4950-a84c-07f220fd5a6b",
+          "fileId": "0f56fe58-fc66-4835-aceb-cff31d496f0d",
+          "fileVersion": 1,
+          "sqlDigest": "40ef37d9d60926249db66b76d8f2fe599da7cc570daca695a129203c1bb61b5d"
+        }
+      },
+      "sqlTest": {
+        "type": "SQL_DATABASE_EXECUTION",
+        "testId": "4a2d26ae-c6c5-4a16-bb89-def56081a501",
+        "testedAt": "2026-11-01T02:57:07.408123077Z",
+        "traceId": "4a2d26ae-c6c5-4a16-bb89-def56081a501",
+        "source": {
+          "projectId": "0fec15ec-f8aa-4950-a84c-07f220fd5a6b",
+          "fileId": "0f56fe58-fc66-4835-aceb-cff31d496f0d",
+          "fileVersion": 1,
+          "sqlDigest": "40ef37d9d60926249db66b76d8f2fe599da7cc570daca695a129203c1bb61b5d"
+        },
+        "fingerprint": "8233083b7d5cd0967bc7f429b5122058f575636e16e407ea4021ffd594417a84",
+        "sqlDigest": "40ef37d9d60926249db66b76d8f2fe599da7cc570daca695a129203c1bb61b5d",
+        "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+        "datasourceDigest": "2823b8e359d0b63812da29dac7af836247716913b67ccbe938e60a030dc93c4d",
+        "parameters": {},
+        "parametersDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+        "timeoutSeconds": 10,
+        "maxRows": 50,
+        "success": true,
+        "resultDigest": "6ea7f159a1fe696acc5f1b9250a5530d5f989baed6d21241b6a281bf6e25f2e1",
+        "rowCount": 1,
+        "errorCode": "",
+        "preview": {
+          "columns": [
+            "w_country",
+            "w_state",
+            "warehouse_count",
+            "city_count",
+            "min_warehouse_sk",
+            "max_warehouse_sk"
+          ],
+          "rows": [
+            {
+              "w_country": "United States",
+              "w_state": "TN",
+              "warehouse_count": 5,
+              "city_count": 1,
+              "min_warehouse_sk": 1,
+              "max_warehouse_sk": 5
+            }
+          ],
+          "returnedRowCount": 1,
+          "possiblyTruncated": false,
+          "complete": true,
+          "previewTruncated": false
+        },
+        "diagnostic": "SQL query executed successfully",
+        "durationMs": 145
+      }
+    },
+    {
+      "publication": {
+        "revision": "347e7d44fe8bbe7402507d7181c8c07003adb351dfb9e373ea5c319b4783e578",
+        "toolName": "tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+        "id": "70d0b7c4-f7f2-4af3-8c9a-58d53ba3db0e",
+        "state": "OFFLINE",
+        "description": "按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围；全仓库维表，无参数。",
+        "templateKey": "sql_datasource:STUDIO_59383865BC1A350C8E1FB5B198D8E7A2",
+        "logicalId": "f61ea326-b46f-30ac-a4ec-c717c2d2f9bc",
+        "publishedAt": "2026-11-01T01:37:29.299116Z",
+        "version": 1,
+        "category": "business_analysis",
+        "title": "TPCDS 248 仓库地理分布",
+        "assetName": "248测试数据库"
+      },
+      "sqlSnapshot": {
+        "id": "59383865-bc1a-350c-8e1f-b5b198d8e7a2",
+        "code": "STUDIO_59383865BC1A350C8E1FB5B198D8E7A2",
+        "sqlTemplate": "-- ============================================================\n-- warehouse_geography.sql\n-- 仓库地理分布维表查询（无参数、只读、全量）\n-- 口径：按国家(w_country)、省州(w_state)分组，\n--       统计每组仓库数量、覆盖城市数量，\n--       并返回该组最小/最大仓库主键(w_warehouse_sk)，\n--       便于后续选择仓库开展库存分析。\n-- 保留空值分组（不对 NULL 做过滤），按国家、省州升序排列。\n-- 不固定任何商品或仓库，不添加人为业务过滤条件。\n-- 数据来源：tpcds.warehouse（基于已注册元数据）\n-- ============================================================\n\nSELECT\n    w_country,                                              -- 国家\n    w_state,                                                -- 省州\n    COUNT(*)                AS warehouse_count,             -- 该分组仓库数量\n    COUNT(DISTINCT w_city)  AS city_count,                  -- 该分组覆盖城市数量\n    MIN(w_warehouse_sk)     AS min_warehouse_sk,            -- 最小仓库主键\n    MAX(w_warehouse_sk)     AS max_warehouse_sk             -- 最大仓库主键\nFROM warehouse\nGROUP BY\n    w_country,\n    w_state\nORDER BY\n    w_country,\n    w_state;\n",
+        "parameterSchema": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+        "databaseType": "mysql",
+        "title": "TPCDS 248 仓库地理分布",
+        "description": "按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围；全仓库维表，无参数。",
+        "category": "business_analysis",
+        "source": {
+          "projectId": "0fec15ec-f8aa-4950-a84c-07f220fd5a6b",
+          "fileId": "0f56fe58-fc66-4835-aceb-cff31d496f0d",
+          "fileVersion": 1,
+          "sqlDigest": "40ef37d9d60926249db66b76d8f2fe599da7cc570daca695a129203c1bb61b5d"
+        }
+      },
+      "sqlTest": {
+        "type": "SQL_DATABASE_EXECUTION",
+        "testId": "d89dfd30-eb2c-4ec0-8334-b157da2e97a0",
+        "testedAt": "2026-11-01T01:37:16.031512874Z",
+        "traceId": "d89dfd30-eb2c-4ec0-8334-b157da2e97a0",
+        "source": {
+          "projectId": "0fec15ec-f8aa-4950-a84c-07f220fd5a6b",
+          "fileId": "0f56fe58-fc66-4835-aceb-cff31d496f0d",
+          "fileVersion": 1,
+          "sqlDigest": "40ef37d9d60926249db66b76d8f2fe599da7cc570daca695a129203c1bb61b5d"
+        },
+        "fingerprint": "8233083b7d5cd0967bc7f429b5122058f575636e16e407ea4021ffd594417a84",
+        "sqlDigest": "40ef37d9d60926249db66b76d8f2fe599da7cc570daca695a129203c1bb61b5d",
+        "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+        "datasourceDigest": "38fc10dfb01d89253fb377c8a6701d6bed65310c231217353c20e7ebf5625307",
+        "parameters": {},
+        "parametersDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+        "timeoutSeconds": 10,
+        "maxRows": 50,
+        "success": true,
+        "resultDigest": "867a72aa5c63548184dc1b50155d61ebfd158cd4c289c298a903b70e0498a42b",
+        "rowCount": 1,
+        "errorCode": "",
+        "preview": {
+          "columns": [
+            "w_country",
+            "w_state",
+            "warehouse_count",
+            "city_count",
+            "min_warehouse_sk",
+            "max_warehouse_sk"
+          ],
+          "rows": [
+            {
+              "w_country": "United States",
+              "w_state": "TN",
+              "warehouse_count": 5,
+              "city_count": 1,
+              "min_warehouse_sk": 1,
+              "max_warehouse_sk": 5
+            }
+          ],
+          "returnedRowCount": 1,
+          "possiblyTruncated": false,
+          "complete": true,
+          "previewTruncated": false
+        },
+        "diagnostic": "SQL query executed successfully",
+        "durationMs": 361
+      }
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "status": "RECORDED_TOOL_OBSERVATIONS",
+  "calls": [
+    {
+      "source": "mcp_chatchat_mcp_server_tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+      "requested": {
+        "product_id": 2,
+        "start_date": "1999-01-01",
+        "end_date": "1999-12-31",
+        "min_quantity": 0
+      },
+      "definition": {
+        "type": "object",
+        "properties": {
+          "product_id": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1,
+            "description": "store_sales.ss_item_sk 商品主键"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "date_dim.d_date 含边界起日"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "description": "date_dim.d_date 含边界止日"
+          },
+          "min_quantity": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "description": "每行最低ss_quantity"
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null,
+            "description": "item.i_category精确品类；NULL不过滤"
+          }
+        },
+        "required": [
+          "start_date",
+          "end_date"
+        ],
+        "additionalProperties": false
+      },
+      "effective": {
+        "product_id": 2,
+        "start_date": "1999-01-01",
+        "end_date": "1999-12-31",
+        "min_quantity": 0,
+        "category": null
+      },
+      "boundParameterNames": [
+        "product_id",
+        "start_date",
+        "end_date",
+        "min_quantity",
+        "category",
+        "category"
+      ]
+    }
+  ]
+}

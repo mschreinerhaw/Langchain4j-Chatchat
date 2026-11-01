@@ -1,0 +1,20 @@
+{
+  "caseId": "A09",
+  "attempt": "r3",
+  "verdict": "FAIL",
+  "reason": "FAIL：普通Agent虽真实调用地理模板并取得数据，但后续未拿到查询定义，报告停留在INPUT_REQUIRED；需修复来源声明传递后复验。",
+  "taskId": "6e22c269-02ea-4522-acc7-fa3bf7ecb9e6",
+  "sessionId": "1793497177978-c0ec758c69dca",
+  "evidence": [
+    "request.md",
+    "agent-config.json",
+    "submission.json",
+    "agent-result.json",
+    "agent-trace.json",
+    "agent-answer.md",
+    "ui-receipt.json",
+    "conversation-result.png"
+  ],
+  "remediationSource": "3e3d398e5",
+  "retest": "PENDING_DO_NOT_OVERWRITE_THIS_ATTEMPT"
+}

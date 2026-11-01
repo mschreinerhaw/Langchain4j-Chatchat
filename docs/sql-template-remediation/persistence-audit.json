@@ -1,0 +1,44 @@
+{
+  "capturedAt": "2026-11-01T00:25:41.994971+00:00",
+  "studioRows": [
+    {
+      "id": "2b689c67-d343-3659-9b05-c753f0473b60",
+      "code": "STUDIO_2B689C67D34336599B05C753F0473B60",
+      "title": "TPCDS 248 单品期间月度销售分析验收",
+      "publication_group_id": "2b689c67-d343-3659-9b05-c753f0473b60",
+      "publication_version": 1,
+      "author_tenant_id": "9001fee4-482b-4851-9eb9-df269765291f",
+      "author_id": "2f219487-11a3-4a1d-9130-ac500b62f268",
+      "publication_state": "PUBLISHED",
+      "enabled": true,
+      "datasource_id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+      "released_capability_id": "81cc9e0e-a2a6-4125-a6e0-1f82ecbe5caf",
+      "source": {
+        "fileId": "609b856c-72e0-4f99-b8e3-856ca905d2f4",
+        "projectId": "b6f7520b-2a55-430a-9351-a601e32dcfa3",
+        "sqlDigest": "b01429d5ffd902d04316e9154811fdb85b89bd7668a2c92ca26febb642a10bb8",
+        "fileVersion": 1
+      }
+    },
+    {
+      "id": "18042d96-4c82-3181-832d-b6e79e771ffb",
+      "code": "STUDIO_18042D964C823181832DB6E79E771FFB",
+      "title": "TPCDS 248 商品1年度销售汇总验收",
+      "publication_group_id": "18042d96-4c82-3181-832d-b6e79e771ffb",
+      "publication_version": 1,
+      "author_tenant_id": "9001fee4-482b-4851-9eb9-df269765291f",
+      "author_id": "2f219487-11a3-4a1d-9130-ac500b62f268",
+      "publication_state": "PUBLISHED",
+      "enabled": true,
+      "datasource_id": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+      "released_capability_id": "90d8efbe-ba6b-4314-921c-65841244b241",
+      "source": {
+        "fileId": "86eb8b55-800f-4d2f-ba67-87b7ea7a3e7e",
+        "projectId": "b6f7520b-2a55-430a-9351-a601e32dcfa3",
+        "sqlDigest": "5f4f3df594c630722d6d30eb4e46af4391d0eb2544bac3ae5d45cfc1b92774f1",
+        "fileVersion": 2
+      }
+    }
+  ],
+  "manualQueryMatches": []
+}

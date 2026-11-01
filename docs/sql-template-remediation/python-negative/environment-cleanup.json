@@ -1,0 +1,11 @@
+{
+  "environmentId": "e598de29-0592-42b2-afa5-d033b5e9c8d4",
+  "published": false,
+  "limits": {
+    "timeoutSeconds": 5,
+    "memory": "128m",
+    "cpu": "0.5",
+    "network": "NONE"
+  },
+  "capturedAt": "2026-11-01T02:34:39.116Z"
+}

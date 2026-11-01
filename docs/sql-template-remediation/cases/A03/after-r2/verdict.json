@@ -1,0 +1,20 @@
+{
+  "caseId": "A03",
+  "attempt": "after-r2",
+  "verdict": "PASS",
+  "requirement": "缺少必填期间时追问并在实际SQL执行前停止",
+  "taskId": "ab9df32b-b545-4a46-8494-72feacd00861",
+  "evidence": [
+    "request.md",
+    "agent-config.json",
+    "submission.json",
+    "agent-result.json",
+    "agent-trace.json",
+    "agent-answer.md",
+    "ui-receipt.json",
+    "conversation-result.png"
+  ],
+  "observedToolNames": [],
+  "priorAttempt": "../verdict.json",
+  "note": "原失败保留为FAIL；本次PARTIAL为缺参时未执行的预期结果。"
+}

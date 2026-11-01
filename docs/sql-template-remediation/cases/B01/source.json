@@ -1,0 +1,22 @@
+{
+  "project": {
+    "id": "0fec15ec-f8aa-4950-a84c-07f220fd5a6b",
+    "name": "TPCDS warehouse blind business 20261101",
+    "dialect": "mysql",
+    "sessionId": "a8f03287-2fd8-4d4c-9fce-20da90ccb349",
+    "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+    "ownerId": "2f219487-11a3-4a1d-9130-ac500b62f268"
+  },
+  "file": {
+    "id": "0f56fe58-fc66-4835-aceb-cff31d496f0d",
+    "projectId": "0fec15ec-f8aa-4950-a84c-07f220fd5a6b",
+    "path": "sql/warehouse_geography.sql",
+    "kind": "SQL",
+    "content": "-- ============================================================\n-- warehouse_geography.sql\n-- 仓库地理分布维表查询（无参数、只读、全量）\n-- 口径：按国家(w_country)、省州(w_state)分组，\n--       统计每组仓库数量、覆盖城市数量，\n--       并返回该组最小/最大仓库主键(w_warehouse_sk)，\n--       便于后续选择仓库开展库存分析。\n-- 保留空值分组（不对 NULL 做过滤），按国家、省州升序排列。\n-- 不固定任何商品或仓库，不添加人为业务过滤条件。\n-- 数据来源：tpcds.warehouse（基于已注册元数据）\n-- ============================================================\n\nSELECT\n    w_country,                                              -- 国家\n    w_state,                                                -- 省州\n    COUNT(*)                AS warehouse_count,             -- 该分组仓库数量\n    COUNT(DISTINCT w_city)  AS city_count,                  -- 该分组覆盖城市数量\n    MIN(w_warehouse_sk)     AS min_warehouse_sk,            -- 最小仓库主键\n    MAX(w_warehouse_sk)     AS max_warehouse_sk             -- 最大仓库主键\nFROM warehouse\nGROUP BY\n    w_country,\n    w_state\nORDER BY\n    w_country,\n    w_state;\n",
+    "version": 1,
+    "editable": true,
+    "sourceTaskId": "sql-coding-8150a9ac-dd9e-41c6-9fb7-d5bba4d2c59a"
+  },
+  "generationId": "8150a9ac-dd9e-41c6-9fb7-d5bba4d2c59a",
+  "parameters": {}
+}

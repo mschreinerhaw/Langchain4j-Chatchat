@@ -1,0 +1,36 @@
+{
+  "status": "RENDERED_IN_SYSTEM_PAGE",
+  "charts": [
+    {
+      "id": "chart_record_count_line",
+      "kind": "static",
+      "image": {
+        "width": 1380,
+        "height": 720,
+        "title": "仓库2 逐日库存快照记录数（条）"
+      }
+    },
+    {
+      "id": "chart_onhand_line",
+      "kind": "static",
+      "image": {
+        "width": 1380,
+        "height": 720,
+        "title": "仓库2 逐日现存数量合计（单位未由数据源声明）"
+      }
+    }
+  ],
+  "events": [
+    {
+      "fileId": "5ae411af2fa5cb9ffed284fbd72190f5343a6832ca2d5a22422cce413cf72df8",
+      "kind": "png",
+      "durationMs": 147
+    },
+    {
+      "fileId": "a39578b8e3ff723d11300c15590f41846304d1fd0d7cb6af68c45232726ffbe4",
+      "kind": "png",
+      "durationMs": 85
+    }
+  ],
+  "diagnostics": []
+}

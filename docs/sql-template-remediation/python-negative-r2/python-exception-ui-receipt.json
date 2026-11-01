@@ -1,0 +1,23 @@
+{
+  "execution": {
+    "id": "8452a652-5433-46fe-8a7c-f337dea0b0fa",
+    "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+    "ownerId": "admin",
+    "assetId": "e68c6c9b-2510-40f4-a5e7-b74b71927d5d",
+    "scriptId": "61dc654a-1202-4e76-af98-13175a1c3af5",
+    "templateId": null,
+    "containerId": "chatchat-py-e68c6c9b-2510-40f4-a5e7-b74b71927d5d-d4d74017",
+    "status": "FAILED",
+    "parametersJson": "{}",
+    "stdout": "",
+    "stderr": "Traceback (most recent call last):\n  File \"/workspace/scripts/python-exception.py\", line 1, in <module>\n    raise RuntimeError(\"isolated acceptance exception\")\nRuntimeError: isolated acceptance exception\n",
+    "resultJson": "",
+    "exitCode": 1,
+    "startedAt": "2026-11-01T02:37:59.926724694Z",
+    "finishedAt": "2026-11-01T02:37:59.926433941Z",
+    "durationMs": 1540
+  },
+  "statusVisible": true,
+  "consoleText": "执行失败",
+  "capturedAt": "2026-11-01T02:38:30.271Z"
+}

@@ -1,0 +1,19 @@
+{
+  "snapshotSource": "docs/sql-template-remediation/lifecycle/v2-offline.json",
+  "snapshot": {
+    "revision": "40e6cdd671f9c78aa3e7515bab07353e4de6457932d20cf1e5433286fc66bf64",
+    "toolName": "tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+    "id": "5f8cce6c-9fdd-4c77-97f9-7d5a45c45ed2",
+    "state": "OFFLINE",
+    "description": "按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围；全仓库维表，无参数。 增加仓库面积合计，单位仅以源端声明为准。",
+    "templateKey": "sql_datasource:STUDIO_2F4F796BEBE5376FB63B196D3A71C9BE",
+    "logicalId": "f61ea326-b46f-30ac-a4ec-c717c2d2f9bc",
+    "publishedAt": "2026-11-01T02:49:09.922551Z",
+    "version": 2,
+    "category": "business_analysis",
+    "title": "TPCDS 248 仓库地理分布",
+    "assetName": "248测试数据库"
+  },
+  "observedTemplateCodes": [],
+  "warning": "Snapshot time and executed release must be assessed together; this is not a new live publication query."
+}

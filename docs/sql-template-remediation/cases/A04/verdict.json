@@ -1,0 +1,19 @@
+{
+  "caseId": "A04",
+  "verdict": "PASS",
+  "reason": "非法商品表达式及非法日期在执行前被拒绝并向用户追问；PARTIAL为预期的未执行状态，不能记为真实查询成功。",
+  "taskId": "6ac0103d-4ae9-4e32-acf9-5fb595a21137",
+  "sessionId": "1793494633500-684eb8200544b8",
+  "agentId": "sql_template_e2e_20261101_r1",
+  "uiState": "PARTIAL",
+  "evidence": [
+    "request.md",
+    "submission.json",
+    "agent-config.json",
+    "agent-result.json",
+    "agent-trace.json",
+    "ui-receipt.json",
+    "conversation-result.png"
+  ],
+  "reviewedAt": "2026-11-01T01:18:34.727Z"
+}

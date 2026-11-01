@@ -1,0 +1,63 @@
+{
+  "scope": "REAL_SQL_DATA_ANALYSIS_METHOD_LOADING_NOT_BUSINESS_ACCEPTANCE",
+  "observations": [
+    {
+      "type": "tool",
+      "source": "coding_agent",
+      "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+      "metadata": {
+        "evidenceRefs": [],
+        "stepId": "analysis-coding-3063ee50a33b62d636cd8e50baa5840dbee00f769f107aec090fa6e3efdcb903",
+        "taskId": "analysis-coding-3063ee50a33b62d636cd8e50baa5840dbee00f769f107aec090fa6e3efdcb903",
+        "eventKind": "CODING_TRACE",
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "runId": "att-1-67992eca-77ef-4a86-9adc-e0ffbf891400",
+        "eventId": "coding:e55c2d7e-9dc4-4ac0-a389-e37f87b3593a",
+        "occurredAt": "2026-11-01T01:41:43.695Z",
+        "payload": {
+          "type": "SKILLS_LOADED",
+          "stage": "CODING",
+          "attemptId": "analysis-coding-3063ee50a33b62d636cd8e50baa5840dbee00f769f107aec090fa6e3efdcb903:fence-1",
+          "skillId": "builtin:python-data-analysis",
+          "skillVersion": "1.3.0",
+          "timestamp": "2026-11-01T01:41:43.652Z",
+          "source": "NODE_CLINE"
+        },
+        "eventState": "RUNNING",
+        "sequence": 15,
+        "summary": "Worker observation: SKILLS_LOADED",
+        "codingEventType": "RECOVERY_RECONCILED",
+        "structuredRuntimeObservation": true
+      }
+    },
+    {
+      "type": "tool",
+      "source": "coding_agent",
+      "content": "Coding Agent analysis: RECOVERY_RECONCILED",
+      "metadata": {
+        "evidenceRefs": [],
+        "stepId": "analysis-coding-3063ee50a33b62d636cd8e50baa5840dbee00f769f107aec090fa6e3efdcb903",
+        "taskId": "analysis-coding-3063ee50a33b62d636cd8e50baa5840dbee00f769f107aec090fa6e3efdcb903",
+        "eventKind": "CODING_TRACE",
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "runId": "att-1-67992eca-77ef-4a86-9adc-e0ffbf891400",
+        "eventId": "coding:d5fa17af-f1a9-4012-8fdc-6ed334cfd620",
+        "occurredAt": "2026-11-01T01:41:46.629Z",
+        "payload": {
+          "type": "SKILLS_LOADED",
+          "stage": "CODING",
+          "attemptId": "analysis-coding-3063ee50a33b62d636cd8e50baa5840dbee00f769f107aec090fa6e3efdcb903:fence-1",
+          "skillId": "builtin:python-data-analysis",
+          "skillVersion": "1.3.0",
+          "timestamp": "2026-11-01T01:41:46.578Z",
+          "source": "NODE_CLINE"
+        },
+        "eventState": "RUNNING",
+        "sequence": 34,
+        "summary": "Worker observation: SKILLS_LOADED",
+        "codingEventType": "RECOVERY_RECONCILED",
+        "structuredRuntimeObservation": true
+      }
+    }
+  ]
+}

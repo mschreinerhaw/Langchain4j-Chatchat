@@ -1,0 +1,88 @@
+# 仓库地理分布概览 + 指定仓库 1998-01-01~1998-01-29 逐日库存：数据缺失导致库存部分无法计算
+
+## 1. 结论先行
+
+- **仓库地理分布（交付全量）**：交付的分布查询只返回 **1** 个（国家, 州）分组，即 `United States` / `TN`；该分组的 `COUNT(*)` = **5** 行仓库维表记录，覆盖 `COUNT(DISTINCT w_city)` = **1** 个城市，`w_warehouse_sk` 最小值 **1**、最大值 **5**。已交付分组行数合计 = **5** 行。
+- **实际存在的最小仓库主键**：在交付证据内为 **warehouse_sk = 1**（唯一分组的 `MIN(w_warehouse_sk)`）。该结论只描述被聚合声明的分组内最小键值，不是对库存所属仓库的独立核验。
+- **逐日库存（1998-01-01 至 1998-01-29、数量下限 0、类别不限）无法计算**：交付范围内**没有任何库存事实/快照数据**（无仓库键、无日期、无库存数量字段），也没有把日期映射到日期维键的维表。因此本报告**不给出**任何逐日库存数值、29 天清单、趋势或补零序列，分析状态为 `INPUT_REQUIRED`。
+
+## 2. 各国家、省州仓库分布概览
+
+下表为交付聚合结果的全部内容（1 行，无省略、无过滤）；指标口径直接来自执行声明中的 SELECT 别名：
+
+| 国家 `w_country` | 省/州 `w_state` | 分组行数 `warehouse_count` = COUNT(*) | 覆盖城市数 `city_count` = COUNT(DISTINCT w_city) | 最小主键 `min_warehouse_sk` | 最大主键 `max_warehouse_sk` |
+|---|---|---|---|---|---|
+| United States | TN | 5 | 1 | 1 | 5 |
+| **合计（1 个分组，派生）** | — | **5** | — | — | — |
+
+- 交付范围只有 1 个分组，因此"各国家/省州的分布"在本次数据中没有横向对比对象；该分组占总行数的 100% 属于结构性结果（唯一分组必然 100%），不构成业务发现，故不作为分布结论陈述。
+- `warehouse_count` 是仓库维表的**行数**（COUNT(*)），不是去重仓库数；去重主键数未在交付结果中提供（未 SELECT COUNT(DISTINCT w_warehouse_sk)）。
+- 一致性观察：`max_warehouse_sk - min_warehouse_sk + 1` = 5，与分组行数 5 相等，**与"键值 1..5 连续且互不重复"相容**，但在未提供去重计数的情况下**不能据此断定**是 5 个不同仓库。`city_count` = 1 ≤ 行数 5，无内部矛盾。
+
+## 3. 选定的最小仓库主键及其证据强度
+
+| 项目 | 值 | 证据 |
+|---|---|---|
+| 候选最小主键 | **1** | `MIN(w_warehouse_sk)` 在唯一分组 = 1 |
+| 同组最大主键 | 5 | `MAX(w_warehouse_sk)` |
+| 同组行数（COUNT(*)） | 5 | `COUNT(*) AS warehouse_count` |
+| 去重仓库数 | 未交付 | 未 SELECT `COUNT(DISTINCT w_warehouse_sk)` |
+
+结论强度：键值 1 的"存在性"由聚合声明支撑（若该分组为空则不会返回本行，且 `MIN` 返回 1）；但**无法**用交付数据核对键值 1 对应仓库的明细属性（所在城市、国家、州），也无法验证该键在库存事实表中是否有记录。
+
+## 4. 指定仓库 1998-01-01–1998-01-29 逐日库存（未交付，无法计算）
+
+交付输入仅含上述**仓库地理分布聚合结果**（1 行 × 6 列），不含库存数据。因此以下要素全部缺失，逐日库存无法形成：
+
+| 需要的输入 | 用途 | 交付状态 |
+|---|---|---|
+| 库存记录中的仓库键（如 `inv_warehouse_sk`） | 与 warehouse_sk = 1 关联 | **未交付** |
+| 库存业务日期（库存日期键或实际日期） | 定位 1998-01-01 至 1998-01-29 | **未交付** |
+| 日期维表（日期 ↔ 日期键映射） | 若库存侧只给日期键，则必须靠维表还原业务日期 | **未交付** |
+| 库存数量（如 `inv_quantity_on_hand`） | 计算逐日库存量 | **未交付** |
+| 数量下限 0 的确认口径 | 判断是"过滤 quantity ≥ 0"还是其他口径 | **未确认**（本次按"库存数量 ≥ 0 作为过滤条件"理解，属未经验证的解读） |
+| 商品/类别维表 | 本次类别不限，非必需 | 未交付（不影响本目标） |
+
+方法上的保留：即使后续补齐库存数据，也不能假设 29 天每天都必有观测行（缺失日不等于 0）、不能假设日期键与自然日一一对应、不能自行制定四舍五入或补零策略；这些都需要数据或口径声明支持。
+
+## 5. 查询之间如何关联（哪些部分被实际结果证实）
+
+- **设计上的关联键**：地理分布查询输出的 `min_warehouse_sk`/`max_warehouse_sk` 提供"实际存在的仓库主键"取值域，库存查询应以同一仓库主键过滤（warehouse 侧键 = 1 ↔ 库存侧仓库键 = 1）；时间侧需要把 1998-01-01..1998-01-29 通过日期维映射成库存日期键。
+- **交付数据实际证实到什么程度**：只有前半段成立 —— 由 `MIN/MAX` 得到的最小实际键 = 1，且该键来自唯一分组（该分组包含全部 5 行，故它是全局最小，而不仅是某一州内的最小）。后半段的**实际 key 匹配未被证实**：没有交付任何库存行，无法说明 warehouse_sk = 1 在库存侧存在多少条记录、覆盖哪些日期、库存量是多少。
+- **参数/范围溯源**：执行回执显示该模板 `effectiveParameters` = {}、`orderedParameterNames` = []，与数据源声明"全仓库维表，无参数"一致；但回执的 `userConstraintAlignment` = NOT_EVALUATED，且该模板只覆盖仓库维表分布，不含库存与日期约束。因此**不能**把这份交付视为已覆盖用户"指定仓库 29 天逐日库存"的全部诉求。
+
+## 6. 字段溯源（业务角色）
+
+| 数据源 (datasetReference) | 源字段 | 声明的含义 | 声明来源 | 状态 |
+|---|---|---|---|---|
+|  | `w_country` | 仓库维表列 `w_country` 的取值，作为国家分组键 | `sourceDefinition.queryDefinition`（，SELECT 别名 / GROUP BY） | CONFIRMED |
+|  | `w_state` | 仓库维表列 `w_state` 的取值，作为省/州分组键 | `sourceDefinition.queryDefinition`（，SELECT 别名 / GROUP BY） | CONFIRMED |
+|  | `warehouse_count` | `COUNT(*)`：该（国家, 州）分组内的仓库维表行数，不是去重仓库数 | `sourceDefinition.queryDefinition`（，SELECT 别名 / GROUP BY） | CONFIRMED |
+|  | `city_count` | `COUNT(DISTINCT w_city)`：该分组内去重城市数 | `sourceDefinition.queryDefinition`（，SELECT 别名 / GROUP BY） | CONFIRMED |
+|  | `min_warehouse_sk` | `MIN(w_warehouse_sk)`：该分组内实际存在的最小仓库主键 | `sourceDefinition.queryDefinition`（，SELECT 别名 / GROUP BY） | CONFIRMED |
+|  | `max_warehouse_sk` | `MAX(w_warehouse_sk)`：该分组内实际存在的最大仓库主键 | `sourceDefinition.queryDefinition`（，SELECT 别名 / GROUP BY） | CONFIRMED |
+
+说明：`inputVersions.fieldDefinitions` 为空（{}），字段含义仅来自执行声明中的 SELECT 表达式与 GROUP BY；仓库"所在地 vs 注册地"等更细的地理语义未声明，本报告只使用"分组键"这一层含义。
+
+## 7. 数据质量与证据限制
+
+- 结构：交付表信封为 1 个逻辑行 × 2 个逻辑列（`datasetReference`、`record` JSON）；`record` 解码后为 1 个（国家, 州）业务分组 × 6 个字段。两个信封列 missingCount = 0、nullCount = 0（manifest 声明），读取后无空值；`record` 内 6 个字段亦无 null。
+- 唯一性：(w_country, w_state) 在本交付中唯一（仅 1 行），无重复分组。
+- 交付行数为 1，且 `resultComplete` = true；但这只说明该聚合查询返回了 1 个分组。全国仓库维表只有一个（国家, 州）分组属于单薄结果，**无交付数据可用于交叉验证**（无按仓库主键的明细、无去重计数）；若需独立确认，应取得明细或去重计数。
+- 无法确认的度量单位：`warehouse_count` 的单位是"行"，`city_count` 的单位是"个城市"，`min/max_warehouse_sk` 是标识符取值，**不得**当作金额或数量求和；本报告未对任何主键做加总。
+- 未执行、也无法执行的部分：库存数据获取、日期映射、逐日库存计算；未做任何默认值填充、未假设交易日历、未虚构缺失观测。
+
+## 8. 审计附录
+
+- manifest sha256 校验通过：`76a729cf81d4c13843f308c26fa5e584cb171c336e907aca859442d44b6d9ab3`；schema sha256 校验通过：`7eff0d4c281e0956294e4ee6552a570ae088c23062eb79ec65c2a37ddb99802e`。
+- 数据分片 `part-00000.parquet` sha256 校验通过：`fe8fecfd2ffed1cbcdc3a8d112c5f67a2d8edfe587ce490c2f08e8400db107db`，读取行数 1，存储列 ['p0', 'c0', 'p1', 'c1']。
+- 逻辑列（storageName → name）：c0→datasetReference(STRING)、c1→record(JSON)。
+- 计算方法：用 Python/pyarrow 读取 Parquet 分片并以 `json.loads(..., parse_float=Decimal)` 解码 `record` JSON 单元；报告的每个数值均取自该解码结果（`warehouse_count`/`city_count`/`min_warehouse_sk`/`max_warehouse_sk`），合计与跨度由程序重新计算。
+
+## 查询结果明细
+
+已找到 1 行数据，下面展示前 1 行；完整结构化数据已随结果返回用于表格展示。
+
+| w_country | w_state | warehouse_count | city_count | min_warehouse_sk | max_warehouse_sk |
+| --- | --- | --- | --- | --- | --- |
+| United States | TN | 5 | 1 | 1 | 5 |

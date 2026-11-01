@@ -1,0 +1,58 @@
+{
+  "status": "RENDERED_IN_SYSTEM_PAGE",
+  "charts": [
+    {
+      "id": "chart_bar",
+      "kind": "static",
+      "image": {
+        "width": 1350,
+        "height": 720,
+        "title": "仓库数量按国家/省州分布（仓库数量，个；单分组快照）"
+      }
+    }
+  ],
+  "events": [
+    {
+      "fileId": "cf19fc2b19bc1e0cfb59dc6cd3c94ac8696b4a2fdb8525d129141d465cad4286",
+      "kind": "png",
+      "durationMs": 78
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "SINGLE_SOURCE_INHERITED",
+      "message": "Inherited the sole authorized report source; computation semantics remain program-declared.",
+      "path": "metrics.total_warehouses",
+      "recovered": true,
+      "stage": "DATA_BINDING"
+    },
+    {
+      "code": "SINGLE_SOURCE_INHERITED",
+      "message": "Inherited the sole authorized report source; computation semantics remain program-declared.",
+      "path": "metrics.group_count",
+      "recovered": true,
+      "stage": "DATA_BINDING"
+    },
+    {
+      "code": "SINGLE_SOURCE_INHERITED",
+      "message": "Inherited the sole authorized report source; computation semantics remain program-declared.",
+      "path": "metrics.country_count",
+      "recovered": true,
+      "stage": "DATA_BINDING"
+    },
+    {
+      "code": "SINGLE_SOURCE_INHERITED",
+      "message": "Inherited the sole authorized report source; computation semantics remain program-declared.",
+      "path": "metrics.city_count",
+      "recovered": true,
+      "stage": "DATA_BINDING"
+    },
+    {
+      "code": "SINGLE_SOURCE_INHERITED",
+      "message": "Inherited the sole authorized report source; computation semantics remain program-declared.",
+      "path": "metrics.sk_range",
+      "recovered": true,
+      "stage": "DATA_BINDING"
+    }
+  ]
+}

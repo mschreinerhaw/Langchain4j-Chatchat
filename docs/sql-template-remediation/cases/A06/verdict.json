@@ -1,0 +1,20 @@
+{
+  "caseId": "A06",
+  "attempt": "r3",
+  "verdict": "FAIL",
+  "reason": "FAIL：只完成仓库地理查询，库存数据未交付；Coding声明INPUT_REQUIRED，任务却显示SUCCEEDED，不能视为多工具闭环。",
+  "taskId": "1075e495-c10b-483f-b60e-d2148007a8f2",
+  "sessionId": "1793497177898-c10e74b06cf388",
+  "evidence": [
+    "request.md",
+    "agent-config.json",
+    "submission.json",
+    "agent-result.json",
+    "agent-trace.json",
+    "agent-answer.md",
+    "ui-receipt.json",
+    "conversation-result.png"
+  ],
+  "remediationSource": "3e3d398e5",
+  "retest": "PENDING_DO_NOT_OVERWRITE_THIS_ATTEMPT"
+}

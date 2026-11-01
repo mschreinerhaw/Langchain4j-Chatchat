@@ -1,0 +1,27 @@
+{
+  "scope": "AgentPlannerTest only; unchanged HEAD 22f4e8913 compared with declarative-node guard",
+  "baselineFailures": [
+    "acceptsDatabaseAssetSearchAsTypedAssetDiscovery",
+    "acceptsDomainPrefixedAssetQueryAsTypedAssetDiscovery",
+    "admitsPublisherDeclaredTemplateDiscoveryMaterializedOutsidePlannerVisibleTools",
+    "authoritativeDagKeepsConcreteTemplateDiscoveryDependenciesDistinct",
+    "mcpControlPlanePromptDoesNotTeachInventedDockerServiceLabels",
+    "normalizesCompoundContextStringAsExactAssetName",
+    "normalizesRecoverableInterpretationPlanBeforeValidation",
+    "normalizesTemplateQueryContextStringAsExactAssetName",
+    "plannerPromptIncludesAgentRuntimeOsWorkflowGraph"
+  ],
+  "modifiedFailures": [
+    "acceptsDatabaseAssetSearchAsTypedAssetDiscovery",
+    "acceptsDomainPrefixedAssetQueryAsTypedAssetDiscovery",
+    "admitsPublisherDeclaredTemplateDiscoveryMaterializedOutsidePlannerVisibleTools",
+    "authoritativeDagKeepsConcreteTemplateDiscoveryDependenciesDistinct",
+    "mcpControlPlanePromptDoesNotTeachInventedDockerServiceLabels",
+    "normalizesCompoundContextStringAsExactAssetName",
+    "normalizesRecoverableInterpretationPlanBeforeValidation",
+    "normalizesTemplateQueryContextStringAsExactAssetName",
+    "plannerPromptIncludesAgentRuntimeOsWorkflowGraph"
+  ],
+  "newFailures": [],
+  "note": "Existing nine failures remain unresolved outside this task; do not claim the full planner suite is green."
+}

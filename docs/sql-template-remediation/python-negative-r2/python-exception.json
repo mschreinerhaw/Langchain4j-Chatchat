@@ -1,0 +1,39 @@
+{
+  "name": "python-exception",
+  "sourceCode": "raise RuntimeError(\"isolated acceptance exception\")\n",
+  "script": {
+    "id": "61dc654a-1202-4e76-af98-13175a1c3af5",
+    "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+    "ownerId": "admin",
+    "assetId": "e68c6c9b-2510-40f4-a5e7-b74b71927d5d",
+    "folderId": null,
+    "fileName": "python-exception.py",
+    "title": "python-exception",
+    "sourceCode": "raise RuntimeError(\"isolated acceptance exception\")\n",
+    "status": "DRAFT",
+    "currentVersion": 1,
+    "lastTestedAt": null,
+    "lastTestSucceeded": false,
+    "lastTestEvidenceJson": null,
+    "createdAt": "2026-11-01T02:35:08.421531112Z",
+    "updatedAt": "2026-11-01T02:35:08.421531112Z"
+  },
+  "result": {
+    "id": "b2e60ecf-4acb-4562-acfb-26f77ebe350d",
+    "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+    "ownerId": "admin",
+    "assetId": "e68c6c9b-2510-40f4-a5e7-b74b71927d5d",
+    "scriptId": "61dc654a-1202-4e76-af98-13175a1c3af5",
+    "templateId": null,
+    "containerId": "chatchat-py-e68c6c9b-2510-40f4-a5e7-b74b71927d5d-fd9f082a",
+    "status": "FAILED",
+    "parametersJson": "{}",
+    "stdout": "",
+    "stderr": "Traceback (most recent call last):\n  File \"/workspace/scripts/python-exception.py\", line 1, in <module>\n    raise RuntimeError(\"isolated acceptance exception\")\nRuntimeError: isolated acceptance exception\n",
+    "resultJson": "",
+    "exitCode": 1,
+    "startedAt": "2026-11-01T02:35:09.380994807Z",
+    "finishedAt": "2026-11-01T02:35:09.380594039Z",
+    "durationMs": 723
+  }
+}

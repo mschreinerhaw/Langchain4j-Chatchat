@@ -1,0 +1,12 @@
+{
+  "caseId": "A02-productdata",
+  "taskId": "c80c56a3-7668-4826-b84b-eb0944a22ad2",
+  "sessionId": "1793502678416-88b54af549bc98",
+  "agentId": "sql_template_e2e_20261101_r1",
+  "state": "FAILED",
+  "answerVisible": true,
+  "runs": [
+    "att-1-0a81f7b5-e40e-4477-a03c-19a6c82ef29b"
+  ],
+  "capturedAt": "2026-11-01T03:18:34.651Z"
+}

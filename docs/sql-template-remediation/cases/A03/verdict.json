@@ -1,0 +1,19 @@
+{
+  "caseId": "A03",
+  "verdict": "FAIL",
+  "reason": "最终报告虽提示缺少输入，实际 SQL 已执行；未给定期间时模型自行填入1900-01-01和2100-12-31，缺参拦截失败。保留本轮证据，后续修复复验另存子目录。",
+  "taskId": "9ed0a772-fe84-4c7e-8329-1b11a02d9aa1",
+  "sessionId": "1793494632984-97fb798ab87df",
+  "agentId": "sql_template_e2e_20261101_r1",
+  "uiState": "SUCCEEDED",
+  "evidence": [
+    "request.md",
+    "submission.json",
+    "agent-config.json",
+    "agent-result.json",
+    "agent-trace.json",
+    "ui-receipt.json",
+    "conversation-result.png"
+  ],
+  "reviewedAt": "2026-11-01T01:18:34.726Z"
+}

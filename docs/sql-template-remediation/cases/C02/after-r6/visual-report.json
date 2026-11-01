@@ -1,0 +1,447 @@
+{
+  "analysisStatus": "PARTIAL",
+  "presentationDiagnostics": [],
+  "title": "仓库2 库存快照记录数与现存数量合计（1998-01-01 至 1998-01-29，返回 5 个快照日期）",
+  "charts": [
+    {
+      "artifact": {
+        "fileId": "5ae411af2fa5cb9ffed284fbd72190f5343a6832ca2d5a22422cce413cf72df8",
+        "fileName": "inventory_record_count_line.png",
+        "mediaType": "image/png",
+        "sha256": "bd153722836111b1b911a9bf96f89c9fd5f40f413b27fdccd387259867d56c89",
+        "size": 111797
+      },
+      "caption": "横轴为快照日期（1998-01-01 至 1998-01-29），纵轴为库存记录数（条，按日 COUNT(*)）。仅绘制查询返回的 5 个快照日期（相邻间隔 7 天），折线只连接观测点，未观测日期不取值、未插值；纵轴未从零开始（数据范围约 8,538–8,566 条）。",
+      "chartType": "line",
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+      ],
+      "id": "chart_record_count_line",
+      "kind": "png",
+      "title": "仓库2 逐日库存快照记录数（条）"
+    },
+    {
+      "artifact": {
+        "fileId": "a39578b8e3ff723d11300c15590f41846304d1fd0d7cb6af68c45232726ffbe4",
+        "fileName": "inventory_onhand_total_line.png",
+        "mediaType": "image/png",
+        "sha256": "d1a01ce03d5c2077267a1d16afac30b435b51b6c25a504bc7385be166452fb98",
+        "size": 108123
+      },
+      "caption": "横轴为快照日期，纵轴为查询中 SUM(inv_quantity_on_hand) 的逐日合计；数据源未声明计量单位，未作推断。纵轴未从零开始（范围约 4,297,887–4,349,344）。",
+      "chartType": "line",
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+      ],
+      "id": "chart_onhand_line",
+      "kind": "png",
+      "title": "仓库2 逐日现存数量合计（单位未由数据源声明）"
+    }
+  ],
+  "layoutValidationStatus": "PASSED",
+  "validation": {
+    "checks": [
+      {
+        "detail": "清单文件 SHA-256 与运行时声明的期望值一致。",
+        "name": "输入清单完整性校验",
+        "status": "PASSED"
+      },
+      {
+        "detail": "分片 SHA-256 与清单一致，行数 5 与声明行数 5 一致。",
+        "name": "数据分片哈希校验(part-00000.parquet)",
+        "status": "PASSED"
+      },
+      {
+        "detail": "实际读取 5 行，清单声明 5 行。",
+        "name": "记录行数校验",
+        "status": "PASSED"
+      },
+      {
+        "detail": "全部 5 行均属于授权数据集引用 mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970。",
+        "name": "数据集引用一致性",
+        "status": "PASSED"
+      },
+      {
+        "detail": "5 个逐日字段在返回行中均非空。",
+        "name": "关键字段缺失值检查",
+        "status": "PASSED"
+      },
+      {
+        "detail": "返回 5 行，快照日期去重后 5 个。",
+        "name": "快照日期唯一性",
+        "status": "PASSED"
+      },
+      {
+        "detail": "全部 5 行满足 nonzero_sku_count + zero_sku_count = sku_record_count。",
+        "name": "记录数内部一致性（数量>0 + 数量=0 = 记录数）",
+        "status": "PASSED"
+      },
+      {
+        "detail": "全部快照日期落在 1998-01-01 至 1998-01-29 之间并按日期升序。",
+        "name": "日期范围与排序",
+        "status": "PASSED"
+      },
+      {
+        "detail": "返回 5 行，未触及查询 LIMIT 100 上限。",
+        "name": "结果截断检查（LIMIT 100）",
+        "status": "PASSED"
+      },
+      {
+        "detail": "请求区间 29 个日历日中仅 5 日返回观测，24 日无记录；无业务日历或源库核对证据，无法判定是当日无库存记录还是数据缺失。",
+        "name": "日历覆盖完整性",
+        "status": "UNRESOLVED"
+      },
+      {
+        "detail": "5 个观测日期构成 4 个相邻间隔，间隔天数均为 7；实际数据并非逐日连续返回。",
+        "name": "观测间隔检查",
+        "status": "PASSED"
+      },
+      {
+        "detail": "全部观测日现存数量合计均 >= 0，与查询的数量下限 0 条件相符。",
+        "name": "现存数量合计非负性",
+        "status": "PASSED"
+      }
+    ],
+    "scope": "STOPPED_EXECUTION_AND_ARTIFACT_INTEGRITY; COMPUTATION_CHECKS_ARE_PROGRAM_DECLARED; BUSINESS_SEMANTICS_NOT_CERTIFIED",
+    "status": "PARTIAL",
+    "warnings": [
+      "现存数量合计的计量单位未由数据源声明，未标注单位。",
+      "区间内 24 天未返回观测，图表中按空缺显示，未补零或插值。",
+      "记录数合计为观测日记录条数之和，不代表库存业务量。"
+    ]
+  },
+  "status": "PARTIAL",
+  "schemaVersion": "python_visual_report.v1",
+  "dataSources": [
+    "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+  ],
+  "sections": [
+    {
+      "chartIds": [
+        "chart_record_count_line"
+      ],
+      "id": "sec_overview",
+      "narrative": "查询条件为仓库 2、快照日期 1998-01-01 至 1998-01-29（含边界）、现存数量下限 0、类别不限，返回结果按快照日期升序排列并已聚合成逐日汇总。观测到的 5 个日期为 1998-01-01、1998-01-08、1998-01-15、1998-01-22、1998-01-29，相邻观测间隔 7 天，并非每个日历日都有观测；因此记录数折线只连接这些观测点，跨越的未观测区间不代表逐日取值。库存记录数在观测日之间最大相差 28 条，首末观测日下降 8 条，属描述性对比。其中数量为 0 的记录每日 7 至 13 条，占当日记录数的 0.08% 至 0.15%（最高为 1998-01-15 的 13 条／8,542 条）。",
+      "tableIds": [],
+      "title": "结论与期间概况"
+    },
+    {
+      "chartIds": [
+        "chart_onhand_line"
+      ],
+      "id": "sec_detail",
+      "narrative": "下表按快照日期列示库存记录数与现存数量合计。现存数量合计为查询中 SUM(inv_quantity_on_hand) 的逐日结果，只能在同一日期内加总；不同日期之间相加没有库存业务含义，因此未提供跨日合计。记录数合计（42,752 条）是同一条查询在 5 个观测日返回的记录条数之和，仅用于核对返回规模。",
+      "tableIds": [
+        "tbl_daily_detail"
+      ],
+      "title": "逐日明细与现存数量合计"
+    },
+    {
+      "chartIds": [],
+      "id": "sec_gaps",
+      "narrative": "请求区间共 29 个日历日，查询只返回 5 天。缺失的 24 天为：1998-01-02、1998-01-03、1998-01-04、1998-01-05、1998-01-06、1998-01-07、1998-01-09、1998-01-10、1998-01-11、1998-01-12、1998-01-13、1998-01-14、1998-01-16、1998-01-17、1998-01-18、1998-01-19、1998-01-20、1998-01-21、1998-01-23、1998-01-24、1998-01-25、1998-01-26、1998-01-27、1998-01-28。查询为按日期分组的聚合结果，某日没有匹配的库存记录时不会产生输出行，因此这些空缺既可能表示当日无符合条件的库存记录，也可能表示数据未覆盖，交付数据中没有任何证据可以区分两者。图上这些日期显示为空缺，未按 0 处理，也未做插值。",
+      "tableIds": [
+        "tbl_coverage"
+      ],
+      "title": "日期覆盖与空缺处理"
+    },
+    {
+      "chartIds": [],
+      "id": "sec_basis",
+      "narrative": "字段含义以查询声明为准：snapshot_date 为日期维度的 d_date 分组键；sku_record_count 为 COUNT(*)，即该日库存记录条数；nonzero_sku_count / zero_sku_count 为 inv_quantity_on_hand 分别 > 0 与 = 0 的条件计数；total_on_hand 为 SUM(inv_quantity_on_hand)。筛选条件 inv_warehouse_sk = 2、日期区间含边界、inv_quantity_on_hand >= 0、类别条件为空，与用户请求一致。数量与现存数量的计量单位未由数据源声明，报告中的数量类数值均不标注单位。",
+      "tableIds": [],
+      "title": "口径与字段来源"
+    }
+  ],
+  "timings": {
+    "analysisMs": 462.637,
+    "chartMs": 702.032
+  },
+  "metrics": [
+    {
+      "calculation": "对返回结果按 snapshot_date 去重计数（1998-01-01 至 1998-01-29）",
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+      ],
+      "id": "m_observed_days",
+      "label": "观测到的快照日期数",
+      "unit": "天",
+      "value": "5"
+    },
+    {
+      "calculation": "sum(sku_record_count)，sku_record_count 为查询中按日 COUNT(*)",
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+      ],
+      "id": "m_records_total",
+      "label": "库存记录数合计（观测日累计）",
+      "unit": "条",
+      "value": "42,752"
+    },
+    {
+      "calculation": "min/max(sku_record_count)，最低 8,538（1998-01-29），最高 8,566（1998-01-08）",
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+      ],
+      "id": "m_daily_range",
+      "label": "单日库存记录数区间",
+      "unit": "条",
+      "value": "8,538–8,566"
+    },
+    {
+      "calculation": "区间日历天数 29 减去观测快照日期数 5",
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+      ],
+      "id": "m_gap_days",
+      "label": "区间内未返回观测的日期数",
+      "unit": "天",
+      "value": "24"
+    }
+  ],
+  "reportMode": "visual",
+  "artifacts": [
+    {
+      "fileId": "5ae411af2fa5cb9ffed284fbd72190f5343a6832ca2d5a22422cce413cf72df8",
+      "fileName": "inventory_record_count_line.png",
+      "mediaType": "image/png",
+      "sha256": "bd153722836111b1b911a9bf96f89c9fd5f40f413b27fdccd387259867d56c89",
+      "size": 111797
+    },
+    {
+      "fileId": "a39578b8e3ff723d11300c15590f41846304d1fd0d7cb6af68c45232726ffbe4",
+      "fileName": "inventory_onhand_total_line.png",
+      "mediaType": "image/png",
+      "sha256": "d1a01ce03d5c2077267a1d16afac30b435b51b6c25a504bc7385be166452fb98",
+      "size": 108123
+    }
+  ],
+  "execution": {
+    "codeArtifact": {
+      "fileId": "1e02d373669538632c6945991421abeabe99ec1d2e7ad387688f9469430a5d94",
+      "fileName": "2-1998-01-01-1998-01-29_20261101T023830911Z_195398f6ade4_v3.py",
+      "mediaType": "text/x-python",
+      "sha256": "ef901823cc7ae3e69e8141517cb622d7342c61fbd4f96224818f0874466ab37e",
+      "size": 31885
+    },
+    "codeSha256": "ef901823cc7ae3e69e8141517cb622d7342c61fbd4f96224818f0874466ab37e",
+    "executorStopped": true,
+    "operationId": "cline-637af6e00bc56eb76da0f19d07531783a9afdf720934ece5ce931a086a7973d1",
+    "receiptSha256": "5efd4fcd8534861a9e8226db501154b8f685ad60fc53f869ecfb30933cfc60f4",
+    "reportPresentation": {
+      "autoCharts": true,
+      "autoImages": true,
+      "density": "comfortable",
+      "strategy": "auto",
+      "template": "briefing"
+    },
+    "resultDatasetRef": "runtime-evidence:coding:90616b580b38d4b659fe480b852b4c71da8d8846aecc8b4d3684b0a539f63288:result",
+    "resultSha256": "ca9e90b0b6445a499bcae3e80fe93015107aa0442021609412448716ca5cc87c",
+    "status": "SUCCEEDED",
+    "taskId": "analysis-coding-881382ed7c1a715341d06d963600310dea626c2899ee37aaa847496e36da097f"
+  },
+  "limitations": [
+    "请求区间 1998-01-01 至 1998-01-29 共 29 个日历日，查询仅返回 5 个快照日期，其余 24 天无任何记录；按日期分组的聚合在无匹配行时不产生输出，无法判定是当日无记录还是数据缺失，未补零、未插值，因此不构成连续逐日快照。",
+    "现存数量（inv_quantity_on_hand）及库存数量的计量单位未由数据源声明，未作推断，相关数值与图表不标注单位，也不做单位换算。",
+    "现存数量合计为逐日 SUM，跨日期相加无库存业务含义，报告未提供跨日合计；记录数合计仅为观测日记录条数之和。",
+    "结果来自单次模板查询（仓库 2、含边界日期、数量下限 0、类别不限、LIMIT 100），返回 5 行低于上限未被截断；筛选参数取自执行回执，未与源系统独立复核。",
+    "仅覆盖单一仓库、单一时段与 5 个观测日，不能推断长期库存趋势或库存管理偏好；首末观测日差异仅为 5 个观测点之间的描述性对比。",
+    "未提供业务日历或该仓库应有快照节奏的说明；观测到的 5 个日期相邻间隔 7 天，无法确认该仓库本应逐日提供快照还是仅按此节奏提供，也无法确认 1998-01 期间应有多少个快照日期。"
+  ],
+  "tables": [
+    {
+      "columns": [
+        "快照日期",
+        "库存记录数（条）",
+        "其中数量>0记录数（条）",
+        "其中数量=0记录数（条）",
+        "现存数量合计（单位未由数据源声明）"
+      ],
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+      ],
+      "id": "tbl_daily_detail",
+      "rows": [
+        [
+          "1998-01-01",
+          "8,546",
+          "8,539",
+          "7",
+          "4,301,064"
+        ],
+        [
+          "1998-01-08",
+          "8,566",
+          "8,559",
+          "7",
+          "4,309,382"
+        ],
+        [
+          "1998-01-15",
+          "8,542",
+          "8,529",
+          "13",
+          "4,309,203"
+        ],
+        [
+          "1998-01-22",
+          "8,560",
+          "8,550",
+          "10",
+          "4,349,344"
+        ],
+        [
+          "1998-01-29",
+          "8,538",
+          "8,529",
+          "9",
+          "4,297,887"
+        ]
+      ],
+      "scope": "仓库2，1998-01-01 至 1998-01-29（含边界），现存数量下限 0，类别不限；仅返回观测的 5 个快照日期。",
+      "title": "逐日库存快照明细（现存数量合计，单位未由数据源声明）"
+    },
+    {
+      "columns": [
+        "核对项",
+        "值"
+      ],
+      "dataRefs": [
+        "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+      ],
+      "id": "tbl_coverage",
+      "rows": [
+        [
+          "请求区间起点（含）",
+          "1998-01-01"
+        ],
+        [
+          "请求区间终点（含）",
+          "1998-01-29"
+        ],
+        [
+          "区间日历天数",
+          "29"
+        ],
+        [
+          "返回观测的快照日期数",
+          "5"
+        ],
+        [
+          "未返回观测的日期数",
+          "24"
+        ],
+        [
+          "返回库存记录数合计（观测日累计）",
+          "42,752"
+        ]
+      ],
+      "scope": "同一查询结果的时间覆盖与规模核对；日期为含边界自然日口径。",
+      "title": "期间覆盖与行数核对"
+    }
+  ],
+  "presentation": {
+    "autoCharts": true,
+    "autoImages": true,
+    "density": "comfortable",
+    "strategy": "auto",
+    "template": "briefing"
+  },
+  "markdown": "# 仓库2 库存快照记录数（1998-01-01 至 1998-01-29，返回 5 个快照日期）\n\n## 结论\n\n仓库2 在 1998-01-01 至 1998-01-29 的查询共返回 5 个快照日期、合计 42,752 条库存记录；这 5 个观测日相邻间隔 7 天，29 个日历日中另有 24 天没有任何返回记录。单日记录数在 8,538 条至 8,566 条之间，首末观测日（1998-01-01 → 1998-01-29）下降 8 条。现存数量合计在观测日为 4,297,887（1998-01-29，最低）至 4,349,344（1998-01-22，最高），计量单位数据源未声明，未作推断。空缺日期未补零、未插值，因此本结果不是连续 29 天的逐日完整快照。\n\n## 期间概况\n\n查询条件为仓库 2、快照日期 1998-01-01 至 1998-01-29（含边界）、现存数量下限 0、类别不限，返回结果按快照日期升序排列并已聚合成逐日汇总。观测到的 5 个日期为 1998-01-01、1998-01-08、1998-01-15、1998-01-22、1998-01-29，相邻观测间隔 7 天，并非每个日历日都有观测；因此记录数折线只连接这些观测点，跨越的未观测区间不代表逐日取值。库存记录数在观测日之间最大相差 28 条，首末观测日下降 8 条，属描述性对比。其中数量为 0 的记录每日 7 至 13 条，占当日记录数的 0.08% 至 0.15%（最高为 1998-01-15 的 13 条／8,542 条）。\n\n### 逐日库存快照记录数（横轴：快照日期；纵轴：记录数，条）\n\n![仓库2 逐日库存快照记录数](inventory_record_count_line.png)\n\n图示口径：仅绘出查询返回的 5 个快照日期（相邻间隔 7 天），折线只连接这些观测点，未观测日期不作为逐日取值、未插值；纵轴未从零开始（约 8,538–8,566 条）。\n\n## 现存数量合计明细\n\n下表按快照日期列示库存记录数与现存数量合计。现存数量合计为查询中 SUM(inv_quantity_on_hand) 的逐日结果，只能在同一日期内加总；不同日期之间相加没有库存业务含义，因此未提供跨日合计。记录数合计（42,752 条）是同一条查询在 5 个观测日返回的记录条数之和，仅用于核对返回规模。\n\n| 快照日期 | 库存记录数（条） | 其中数量>0记录数（条） | 其中数量=0记录数（条） | 现存数量合计（单位未由数据源声明） |\n| --- | ---: | ---: | ---: | ---: |\n| 1998-01-01 | 8,546 | 8,539 | 7 | 4,301,064 |\n| 1998-01-08 | 8,566 | 8,559 | 7 | 4,309,382 |\n| 1998-01-15 | 8,542 | 8,529 | 13 | 4,309,203 |\n| 1998-01-22 | 8,560 | 8,550 | 10 | 4,349,344 |\n| 1998-01-29 | 8,538 | 8,529 | 9 | 4,297,887 |\n\n![仓库2 逐日现存数量合计](inventory_onhand_total_line.png)\n\n## 日期覆盖与空缺\n\n请求区间共 29 个日历日，查询只返回 5 天。缺失的 24 天为：1998-01-02、1998-01-03、1998-01-04、1998-01-05、1998-01-06、1998-01-07、1998-01-09、1998-01-10、1998-01-11、1998-01-12、1998-01-13、1998-01-14、1998-01-16、1998-01-17、1998-01-18、1998-01-19、1998-01-20、1998-01-21、1998-01-23、1998-01-24、1998-01-25、1998-01-26、1998-01-27、1998-01-28。查询为按日期分组的聚合结果，某日没有匹配的库存记录时不会产生输出行，因此这些空缺既可能表示当日无符合条件的库存记录，也可能表示数据未覆盖，交付数据中没有任何证据可以区分两者。图上这些日期显示为空缺，未按 0 处理，也未做插值。\n\n| 核对项 | 值 |\n| --- | ---: |\n| 请求区间起点（含） | 1998-01-01 |\n| 请求区间终点（含） | 1998-01-29 |\n| 区间日历天数 | 29 |\n| 返回观测的快照日期数 | 5 |\n| 未返回观测的日期数 | 24 |\n| 返回库存记录数合计（观测日累计） | 42,752 |\n\n## 口径与字段来源\n\n字段含义以查询声明为准：snapshot_date 为日期维度的 d_date 分组键；sku_record_count 为 COUNT(*)，即该日库存记录条数；nonzero_sku_count / zero_sku_count 为 inv_quantity_on_hand 分别 > 0 与 = 0 的条件计数；total_on_hand 为 SUM(inv_quantity_on_hand)。筛选条件 inv_warehouse_sk = 2、日期区间含边界、inv_quantity_on_hand >= 0、类别条件为空，与用户请求一致。数量与现存数量的计量单位未由数据源声明，报告中的数量类数值均不标注单位。\n\n| 逻辑字段 | 声明含义 | 声明来源 | 状态 |\n| --- | --- | --- | --- |\n| snapshot_date | 快照日期（date_dim.d_date，按日分组键） | 查询声明（执行回执 SQL） | 已确认 |\n| sku_record_count | 该日库存记录条数（COUNT(*)） | 查询声明（执行回执 SQL） | 已确认 |\n| nonzero_sku_count | inv_quantity_on_hand > 0 的记录条数 | 查询声明（执行回执 SQL） | 已确认 |\n| zero_sku_count | inv_quantity_on_hand = 0 的记录条数 | 查询声明（执行回执 SQL） | 已确认 |\n| total_on_hand | SUM(inv_quantity_on_hand)，逐日现存数量合计；单位未声明 | 查询声明（执行回执 SQL） | 已确认（单位未声明） |\n\n## 局限\n\n1. 请求区间 29 个日历日中仅 5 天返回观测，其余 24 天无记录；无法判定是当日本身无记录还是数据缺失，因此不能把本结果当作连续 29 天的完整逐日快照，也不对空缺日期补零或插值。\n2. 现存数量与库存数量的计量单位未由数据源声明，报告未标注单位、未做单位换算，相关数值只能做同期同口径比较。\n3. 现存数量合计为逐日 SUM，跨日期相加不构成业务指标，报告不提供跨日合计；记录数合计仅为观测日记录条数之和，用于核对返回规模。\n4. 结果来自单次模板查询（仓库 2、含边界日期、数量下限 0、类别不限、LIMIT 100），返回 5 行未触及上限；仓库标识与日期参数来自执行回执，未与源库独立复核。\n5. 样本仅覆盖单一仓库、单一时段与 5 个观测日，不能据此推断长期库存趋势或库存管理偏好。\n6. 首末观测日之间的变化（-8 条）只描述 5 个观测点的首末差异，不是连续 28 个区间的完整时间序列变化。\n",
+  "summary": "仓库2 在 1998-01-01 至 1998-01-29 的查询共返回 5 个快照日期、合计 42,752 条库存记录；这 5 个观测日相邻间隔 7 天，29 个日历日中另有 24 天没有任何返回记录。单日记录数在 8,538 条至 8,566 条之间，首末观测日（1998-01-01 → 1998-01-29）下降 8 条。现存数量合计在观测日为 4,297,887（1998-01-29，最低）至 4,349,344（1998-01-22，最高），计量单位数据源未声明，未作推断。空缺日期未补零、未插值，因此本结果不是连续 29 天的逐日完整快照。",
+  "artifactValidationStatus": "PASSED",
+  "layout": {
+    "blocks": [
+      {
+        "emphasis": "important",
+        "id": "blk_summary",
+        "span": "full",
+        "type": "summary"
+      },
+      {
+        "id": "blk_m1",
+        "ref": "m_observed_days",
+        "span": "half",
+        "type": "metric"
+      },
+      {
+        "id": "blk_m2",
+        "ref": "m_records_total",
+        "span": "half",
+        "type": "metric"
+      },
+      {
+        "id": "blk_m3",
+        "ref": "m_daily_range",
+        "span": "half",
+        "type": "metric"
+      },
+      {
+        "id": "blk_m4",
+        "ref": "m_gap_days",
+        "span": "half",
+        "type": "metric"
+      },
+      {
+        "emphasis": "important",
+        "id": "blk_sec1",
+        "ref": "sec_overview",
+        "span": "full",
+        "type": "section"
+      },
+      {
+        "id": "blk_c1",
+        "ref": "chart_record_count_line",
+        "span": "full",
+        "type": "chart"
+      },
+      {
+        "id": "blk_sec2",
+        "ref": "sec_detail",
+        "span": "full",
+        "type": "section"
+      },
+      {
+        "id": "blk_t1",
+        "ref": "tbl_daily_detail",
+        "span": "full",
+        "type": "table"
+      },
+      {
+        "id": "blk_c2",
+        "ref": "chart_onhand_line",
+        "span": "full",
+        "type": "chart"
+      },
+      {
+        "id": "blk_sec3",
+        "ref": "sec_gaps",
+        "span": "full",
+        "type": "section"
+      },
+      {
+        "id": "blk_t2",
+        "ref": "tbl_coverage",
+        "span": "full",
+        "type": "table"
+      },
+      {
+        "id": "blk_sec4",
+        "ref": "sec_basis",
+        "span": "full",
+        "type": "section"
+      },
+      {
+        "id": "blk_lim",
+        "span": "full",
+        "type": "limitations"
+      },
+      {
+        "id": "blk_src",
+        "span": "full",
+        "type": "sources"
+      }
+    ],
+    "schemaVersion": "report_layout.v1"
+  }
+}

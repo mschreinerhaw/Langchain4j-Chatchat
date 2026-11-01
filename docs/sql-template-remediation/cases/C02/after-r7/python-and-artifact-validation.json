@@ -1,0 +1,104 @@
+{
+  "status": "REAL_PYTHON_AND_UPLOADED_BYTES_VERIFIED",
+  "execution": {
+    "codeArtifact": {
+      "fileId": "70782dd3cfdd49f0c68485097fa407bfe10cbc1e571781f32287765a6795a916",
+      "fileName": "2-1998-01-01-1998-01-29_20261101T030334125Z_63b5050ffd4c_v3.py",
+      "mediaType": "text/x-python",
+      "sha256": "243908a0c7fb5c9b9035c969bc1515b6407e64feb35e206e5c318997938031d7",
+      "size": 31340
+    },
+    "codeSha256": "243908a0c7fb5c9b9035c969bc1515b6407e64feb35e206e5c318997938031d7",
+    "executorStopped": true,
+    "operationId": "cline-56fe7209d59d2c811a3cb9ac3b82ded6de784e64a4d328704d0b40d35676897d",
+    "receiptSha256": "d990eb2dc08f925254b7a887714f98d71e6936119c44ed70988a42762443f7e1",
+    "reportPresentation": {
+      "autoCharts": true,
+      "autoImages": true,
+      "density": "comfortable",
+      "strategy": "auto",
+      "template": "briefing"
+    },
+    "resultDatasetRef": "runtime-evidence:coding:49087df45fe5003ea3b418b3fa7e195adcf2d515e15e366a757befbaa5b07f11:result",
+    "resultSha256": "ea5c096e3354a0ff6a96d64934cd0c39cb91143d986b9d3015e0ec00bd786ec7",
+    "status": "SUCCEEDED",
+    "taskId": "analysis-coding-74c1c8d5fa716b844871d8f4d53f3645cf2b2b3f074d6912c0e60d4dc30d62ae"
+  },
+  "artifacts": [
+    {
+      "kind": "code",
+      "fileId": "70782dd3cfdd49f0c68485097fa407bfe10cbc1e571781f32287765a6795a916",
+      "sha256": "243908a0c7fb5c9b9035c969bc1515b6407e64feb35e206e5c318997938031d7",
+      "bytes": 31340
+    },
+    {
+      "kind": "png",
+      "fileId": "dbe0bcd00e1cc6eea113bd16d70fd26023dd85e38c70fad26a88b3810a829c29",
+      "sha256": "07e13acfa999e86e44a25f1b07d0ba24912dfd8b4d6c0813a5429f6e9977c1f7",
+      "bytes": 76754
+    }
+  ],
+  "businessValidation": {
+    "checks": [
+      {
+        "detail": "清单、模式文件及 1 个数据分片哈希一致，合计 5 行，与声明 5 行一致",
+        "name": "交付文件 SHA-256 与行数校验",
+        "status": "PASSED"
+      },
+      {
+        "detail": "有序占位符解析为 warehouse_id=2、start_date=1998-01-01、end_date=1998-01-29、min_on_hand=0、category=NULL（类别不限），与用户目标一致",
+        "name": "查询范围与目标一致性",
+        "status": "PASSED"
+      },
+      {
+        "detail": "按 snapshot_date 检查重复键，重复数 0",
+        "name": "快照日期唯一性",
+        "status": "PASSED"
+      },
+      {
+        "detail": "返回日期 1998-01-01 至 1998-01-29，全部落在 1998-01-01 至 1998-01-29 内",
+        "name": "日期区间校验",
+        "status": "PASSED"
+      },
+      {
+        "detail": "逐行校验 nonzero_sku_count + zero_sku_count = sku_record_count，全部成立（5 个日期；42,706 与 46 的加总仅用于算术核对，不构成业务数量合计）",
+        "name": "记录数分解一致性",
+        "status": "PASSED"
+      },
+      {
+        "detail": "逐日合计最小值 4,297,887、最大值 4,349,344，均 >= 0，符合数量下限 0 的过滤条件",
+        "name": "现存数量合计非负",
+        "status": "PASSED"
+      },
+      {
+        "detail": "返回 5 行，小于查询声明的 LIMIT 100",
+        "name": "结果未被查询上限截断",
+        "status": "PASSED"
+      },
+      {
+        "detail": "29 个日历日中 5 个日期有返回记录、24 个无返回记录；无快照登记证据，无法区分无库存记录与快照缺失",
+        "name": "区间日期覆盖完整性",
+        "status": "UNRESOLVED"
+      },
+      {
+        "detail": "4 个相邻间隔均为 7 天（完全等间隔），与“逐日”快照预期不一致；无快照生成频率声明，无法确认逐日数据是否在原数据源中可获取",
+        "name": "相邻观测日间隔一致性",
+        "status": "UNRESOLVED"
+      },
+      {
+        "detail": "图表数据点、指标卡与明细表均由同一份计算结果生成",
+        "name": "图表与数值一致性",
+        "status": "PASSED"
+      }
+    ],
+    "scope": "STOPPED_EXECUTION_AND_ARTIFACT_INTEGRITY; COMPUTATION_CHECKS_ARE_PROGRAM_DECLARED; BUSINESS_SEMANTICS_NOT_CERTIFIED",
+    "status": "PARTIAL",
+    "warnings": [
+      "现存数量合计的计量单位未由数据源声明，表头与指标中单位为空白。",
+      "纵轴仅覆盖实际返回记录的日期，图线不表示连续日历序列。",
+      "折线图纵轴自 0 起，观测值区间狭窄，视觉波动被压缩；具体数值以数据点标注与明细表为准。",
+      "返回日期相邻间隔均为 7 天，逐日粒度不可得，图线仅代表实际返回的 5 个观察点。"
+    ]
+  },
+  "analysisStatus": "PARTIAL"
+}

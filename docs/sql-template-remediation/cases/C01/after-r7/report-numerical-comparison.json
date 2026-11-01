@@ -1,0 +1,21 @@
+{
+  "status": "EXACT_REPORT_TABLE_MATCH",
+  "analysisStatus": "PARTIAL",
+  "tableId": "tbl_detail",
+  "fields": [
+    "w_country",
+    "w_state",
+    "warehouse_count",
+    "city_count",
+    "-",
+    "min_warehouse_sk",
+    "max_warehouse_sk"
+  ],
+  "comparedCells": 6,
+  "skippedDerivedColumnIndexes": [
+    4
+  ],
+  "reportSha256": "83e0629ece7260ceba6d017b7304c02ab9f1e62082958a59676a2d3a64e999ad",
+  "baselineSha256": "ea5f0719779310891fe74068e3270218d9f6ccccd10baa66f574c489b6fd0706",
+  "scope": "Actual uploaded report table; PNG pixel/axis provenance is verified separately via its executed code and artifact hashes"
+}

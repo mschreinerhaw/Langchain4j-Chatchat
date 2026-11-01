@@ -1,0 +1,16 @@
+{
+  "capturedAt": "2026-11-01T03:15:35.140Z",
+  "deploymentReceipt": "deployment-r8.json",
+  "scope": "API-side MCP registry automatic recovery; a socket/auth response alone did not establish readiness",
+  "registry": {
+    "enabled": true,
+    "state": "HEALTHY",
+    "attempts": 0,
+    "maxAttempts": 5,
+    "retryExhausted": false,
+    "lastFailure": "",
+    "lastHeartbeatAt": 1793502924155,
+    "lastSuccessAt": 1793502924155,
+    "lastAutoSyncAt": 1793502681647
+  }
+}

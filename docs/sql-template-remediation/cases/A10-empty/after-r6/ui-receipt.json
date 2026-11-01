@@ -1,0 +1,12 @@
+{
+  "caseId": "A10-empty",
+  "taskId": "add52bd9-856c-4edd-9d52-b9e27ac692d1",
+  "sessionId": "1793500990435-679e8d582fedf8",
+  "agentId": "sql_template_e2e_20261101_r1",
+  "state": "SUCCEEDED",
+  "answerVisible": true,
+  "runs": [
+    "att-1-d8f31eb9-7b97-4d14-b7f3-0b1007c94ac1"
+  ],
+  "capturedAt": "2026-11-01T02:45:47.865Z"
+}

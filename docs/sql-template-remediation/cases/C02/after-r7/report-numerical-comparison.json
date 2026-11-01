@@ -1,0 +1,17 @@
+{
+  "status": "EXACT_REPORT_TABLE_MATCH",
+  "analysisStatus": "PARTIAL",
+  "tableId": "t_daily_detail",
+  "fields": [
+    "snapshot_date",
+    "sku_record_count",
+    "nonzero_sku_count",
+    "zero_sku_count",
+    "total_on_hand"
+  ],
+  "comparedCells": 25,
+  "skippedDerivedColumnIndexes": [],
+  "reportSha256": "89d476327cadd0e042b439550180c4016851dc7dfd13dc2cc862473d8db91368",
+  "baselineSha256": "b677268da584956e0bab98486876ee79b64a30a3da999678f2934b9bd2a71539",
+  "scope": "Actual uploaded report table; PNG pixel/axis provenance is verified separately via its executed code and artifact hashes"
+}

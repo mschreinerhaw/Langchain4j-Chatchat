@@ -1,0 +1,114 @@
+{
+  "capturedAt" : "2026-11-01T01:48:05.563266071Z",
+  "clientKind" : "INDEPENDENT_MCP_PROTOCOL_CLIENT_NOT_AGENT_EXECUTION",
+  "identitySource" : "Authenticated Runtime OS /enterprise/auth/me and accessible Agent configuration",
+  "scope" : {
+    "tenantId" : "9001fee4-482b-4851-9eb9-df269765291f",
+    "agentId" : "sql_template_unbound_20261101",
+    "userId" : "2f219487-11a3-4a1d-9130-ac500b62f268"
+  },
+  "initialization" : {
+    "request" : {
+      "method" : "initialize",
+      "params" : {
+        "clientInfo" : {
+          "version" : "1.0",
+          "name" : "runtime-sql-independent-probe"
+        },
+        "capabilities" : { },
+        "protocolVersion" : "2025-11-25"
+      },
+      "jsonrpc" : "2.0",
+      "id" : 1
+    },
+    "durationMs" : 82,
+    "traceId" : "5b434f94-5f07-4218-a921-7b4473b5189d",
+    "response" : {
+      "jsonrpc" : "2.0",
+      "id" : 1,
+      "result" : {
+        "protocolVersion" : "2025-11-25",
+        "capabilities" : {
+          "logging" : { },
+          "tools" : {
+            "listChanged" : true
+          }
+        },
+        "serverInfo" : {
+          "name" : "chatchat-langchain4j-mcp-server",
+          "version" : "1.0.0-SNAPSHOT"
+        },
+        "instructions" : "ChatChat standalone MCP server exposing LangChain4j-compatible tools."
+      }
+    },
+    "httpStatus" : 200
+  },
+  "protocolVersion" : "2025-11-25",
+  "records" : [ {
+    "request" : {
+      "method" : "tools/list",
+      "params" : { },
+      "jsonrpc" : "2.0",
+      "id" : 2
+    },
+    "durationMs" : 139,
+    "traceId" : "bbf9bd96-58b4-45b9-b07c-91e703695c6c",
+    "response" : {
+      "jsonrpc" : "2.0",
+      "result" : {
+        "tools" : [ ]
+      },
+      "id" : 2
+    },
+    "httpStatus" : 200,
+    "caseId" : "MCP-LIST"
+  }, {
+    "request" : {
+      "method" : "tools/call",
+      "params" : {
+        "name" : "tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+        "arguments" : { }
+      },
+      "jsonrpc" : "2.0",
+      "id" : 3
+    },
+    "durationMs" : 37,
+    "traceId" : "abeb22b0-445f-4fd1-80ab-358fd62e93fb",
+    "response" : {
+      "retryable" : false,
+      "message" : "Template or Agent permission denied",
+      "error" : "MCP_ASSET_ACCESS_DENIED",
+      "success" : false,
+      "action" : "STOP",
+      "licenseStatus" : ""
+    },
+    "httpStatus" : 403,
+    "caseId" : "MCP-GEOGRAPHY"
+  }, {
+    "request" : {
+      "method" : "tools/call",
+      "params" : {
+        "name" : "tpl_190c862b57813ca38fbe5a0edc614970",
+        "arguments" : {
+          "warehouse_id" : 2,
+          "start_date" : "1998-01-01",
+          "end_date" : "1998-01-29"
+        }
+      },
+      "jsonrpc" : "2.0",
+      "id" : 4
+    },
+    "durationMs" : 40,
+    "traceId" : "4a9f88f6-7fc4-4e9e-b9bd-7b583f54711c",
+    "response" : {
+      "retryable" : false,
+      "message" : "Template or Agent permission denied",
+      "error" : "MCP_ASSET_ACCESS_DENIED",
+      "success" : false,
+      "action" : "STOP",
+      "licenseStatus" : ""
+    },
+    "httpStatus" : 403,
+    "caseId" : "MCP-INVENTORY-DEFAULTS"
+  } ]
+}

@@ -1,0 +1,310 @@
+{
+  "id": "fb8d154e-3fe0-39e5-9a58-fddbbae1cb1a",
+  "code": "STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A",
+  "sqlTemplate": "-- =============================================================================\n-- 逐日库存快照分析\n-- 功能：按快照日期统计指定仓库在含边界日期期间内的库存概况\n-- 统计指标：\n--   sku_record_count  - SKU记录数（满足条件的库存记录条数）\n--   nonzero_sku_count - 现存数量大于零的SKU数\n--   zero_sku_count    - 零库存SKU数（现存数量等于零的记录条数）\n--   total_on_hand     - 现存数量合计（所有满足条件的记录的数量之和，不推测计量单位）\n-- 参数（占位符外不加引号，由模板引擎处理）：\n--   {{warehouse_id}}  - 仓库 surrogate key（整数，必填）\n--   {{start_date}}    - 起始日期（日期字符串，必填，含边界）\n--   {{end_date}}      - 结束日期（日期字符串，必填，含边界）\n--   {{min_on_hand}}   - 现存数量下限（整数，默认 0）\n--   {{category}}      - 商品类别（可空字符串，NULL 表示不过滤类别）\n-- =============================================================================\n\nSELECT\n    dd.d_date                                                       AS snapshot_date,\n    /* SKU记录数：该日期下满足筛选条件的库存记录条数 */\n    COUNT(*)                                                        AS sku_record_count,\n    /* 现存数量大于零的SKU数 */\n    SUM(CASE WHEN inv.inv_quantity_on_hand > 0 THEN 1 ELSE 0 END)  AS nonzero_sku_count,\n    /* 零库存SKU数：现存数量等于零的记录条数 */\n    SUM(CASE WHEN inv.inv_quantity_on_hand = 0 THEN 1 ELSE 0 END)  AS zero_sku_count,\n    /* 现存数量合计：所有满足条件的库存记录的 inv_quantity_on_hand 之和（不推测计量单位） */\n    SUM(inv.inv_quantity_on_hand)                                   AS total_on_hand\nFROM inventory inv\nINNER JOIN date_dim dd\n    ON inv.inv_date_sk = dd.d_date_sk\nINNER JOIN item i\n    ON inv.inv_item_sk = i.i_item_sk\nWHERE inv.inv_warehouse_sk = {{warehouse_id}}\n  AND dd.d_date >= {{start_date}}\n  AND dd.d_date <= {{end_date}}\n  AND inv.inv_quantity_on_hand >= {{min_on_hand}}\n  AND ({{category}} IS NULL OR i.i_category = {{category}})\nGROUP BY dd.d_date\nORDER BY dd.d_date ASC\nLIMIT 100;\n",
+  "parameterSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "warehouse_id": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "仓库维表主键，无默认值"
+      },
+      "start_date": {
+        "type": "string",
+        "format": "date",
+        "description": "含边界的库存快照开始日期"
+      },
+      "end_date": {
+        "type": "string",
+        "format": "date",
+        "description": "含边界的库存快照结束日期"
+      },
+      "min_on_hand": {
+        "type": "integer",
+        "minimum": 0,
+        "default": 0,
+        "description": "现存数量下限"
+      },
+      "category": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "default": null,
+        "description": "商品类别，null表示不限"
+      }
+    },
+    "required": [
+      "warehouse_id",
+      "start_date",
+      "end_date"
+    ]
+  },
+  "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+  "databaseType": "mysql",
+  "title": "TPCDS 248 仓库期间库存快照",
+  "description": "按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。",
+  "category": "business_analysis",
+  "source": {
+    "projectId": "0fec15ec-f8aa-4950-a84c-07f220fd5a6b",
+    "fileId": "20adf18b-50ad-4684-ac12-6a4a16240029",
+    "fileVersion": 1,
+    "sqlDigest": "2df1647d48b21e817f80e4384aabeced6f116615063988542622588258d64444"
+  },
+  "groupId": "fb8d154e-3fe0-39e5-9a58-fddbbae1cb1a",
+  "version": 1,
+  "expectedVersion": 4,
+  "state": "PUBLISHED",
+  "active": true,
+  "testEvidence": {
+    "type": "SQL_DATABASE_EXECUTION",
+    "testId": "3288f786-ff35-4406-a1c3-582f5874640e",
+    "testedAt": "2026-11-01T01:37:16.920149957Z",
+    "traceId": "3288f786-ff35-4406-a1c3-582f5874640e",
+    "source": {
+      "projectId": "0fec15ec-f8aa-4950-a84c-07f220fd5a6b",
+      "fileId": "20adf18b-50ad-4684-ac12-6a4a16240029",
+      "fileVersion": 1,
+      "sqlDigest": "2df1647d48b21e817f80e4384aabeced6f116615063988542622588258d64444"
+    },
+    "fingerprint": "0ab952d0847d02b0cf533f359130794794f624aac66dc6faa486b6dc82360a19",
+    "sqlDigest": "2df1647d48b21e817f80e4384aabeced6f116615063988542622588258d64444",
+    "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+    "datasourceDigest": "38fc10dfb01d89253fb377c8a6701d6bed65310c231217353c20e7ebf5625307",
+    "parameters": {
+      "warehouse_id": 2,
+      "start_date": "1998-01-01",
+      "end_date": "1998-01-29"
+    },
+    "parametersDigest": "0433cb8db8f370e50cbf3ceed3cfc26723ecd9625a453884a31bd0f80752d7aa",
+    "timeoutSeconds": 10,
+    "maxRows": 50,
+    "success": true,
+    "resultDigest": "9c6205ebbdf40cbeb51a9d78c0e3dc4cb1bf6794635dee58b4246d996ea17708",
+    "rowCount": 5,
+    "errorCode": "",
+    "preview": {
+      "columns": [
+        "snapshot_date",
+        "sku_record_count",
+        "nonzero_sku_count",
+        "zero_sku_count",
+        "total_on_hand"
+      ],
+      "rows": [
+        {
+          "snapshot_date": "1998-01-01",
+          "sku_record_count": 8546,
+          "nonzero_sku_count": 8539,
+          "zero_sku_count": 7,
+          "total_on_hand": 4301064
+        },
+        {
+          "snapshot_date": "1998-01-08",
+          "sku_record_count": 8566,
+          "nonzero_sku_count": 8559,
+          "zero_sku_count": 7,
+          "total_on_hand": 4309382
+        },
+        {
+          "snapshot_date": "1998-01-15",
+          "sku_record_count": 8542,
+          "nonzero_sku_count": 8529,
+          "zero_sku_count": 13,
+          "total_on_hand": 4309203
+        },
+        {
+          "snapshot_date": "1998-01-22",
+          "sku_record_count": 8560,
+          "nonzero_sku_count": 8550,
+          "zero_sku_count": 10,
+          "total_on_hand": 4349344
+        },
+        {
+          "snapshot_date": "1998-01-29",
+          "sku_record_count": 8538,
+          "nonzero_sku_count": 8529,
+          "zero_sku_count": 9,
+          "total_on_hand": 4297887
+        }
+      ],
+      "returnedRowCount": 5,
+      "possiblyTruncated": false,
+      "complete": true,
+      "previewTruncated": false
+    },
+    "diagnostic": "SQL query executed successfully",
+    "durationMs": 407
+  },
+  "templateKey": "sql_datasource:STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A",
+  "publication": {
+    "revision": "c62a18ed4f5aa3b01b766afdd0a9bc99c0cfae6e252ed719bb93315876957cbd",
+    "toolName": "tpl_190c862b57813ca38fbe5a0edc614970",
+    "id": "450b9617-d0b2-49dd-b015-09928930307b",
+    "state": "RUNNING",
+    "description": "按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。",
+    "templateKey": "sql_datasource:STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A",
+    "logicalId": "190c862b-5781-3ca3-8fbe-5a0edc614970",
+    "publishedAt": "2026-11-01T01:37:43.020223055Z",
+    "version": 1,
+    "category": "business_analysis",
+    "title": "TPCDS 248 仓库期间库存快照",
+    "assetName": "248测试数据库"
+  },
+  "releaseHistory": [
+    {
+      "publication": {
+        "revision": "c62a18ed4f5aa3b01b766afdd0a9bc99c0cfae6e252ed719bb93315876957cbd",
+        "toolName": "tpl_190c862b57813ca38fbe5a0edc614970",
+        "id": "450b9617-d0b2-49dd-b015-09928930307b",
+        "state": "RUNNING",
+        "description": "按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。",
+        "templateKey": "sql_datasource:STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A",
+        "logicalId": "190c862b-5781-3ca3-8fbe-5a0edc614970",
+        "publishedAt": "2026-11-01T01:37:43.020223055Z",
+        "version": 1,
+        "category": "business_analysis",
+        "title": "TPCDS 248 仓库期间库存快照",
+        "assetName": "248测试数据库"
+      },
+      "sqlSnapshot": {
+        "id": "fb8d154e-3fe0-39e5-9a58-fddbbae1cb1a",
+        "code": "STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A",
+        "sqlTemplate": "-- =============================================================================\n-- 逐日库存快照分析\n-- 功能：按快照日期统计指定仓库在含边界日期期间内的库存概况\n-- 统计指标：\n--   sku_record_count  - SKU记录数（满足条件的库存记录条数）\n--   nonzero_sku_count - 现存数量大于零的SKU数\n--   zero_sku_count    - 零库存SKU数（现存数量等于零的记录条数）\n--   total_on_hand     - 现存数量合计（所有满足条件的记录的数量之和，不推测计量单位）\n-- 参数（占位符外不加引号，由模板引擎处理）：\n--   {{warehouse_id}}  - 仓库 surrogate key（整数，必填）\n--   {{start_date}}    - 起始日期（日期字符串，必填，含边界）\n--   {{end_date}}      - 结束日期（日期字符串，必填，含边界）\n--   {{min_on_hand}}   - 现存数量下限（整数，默认 0）\n--   {{category}}      - 商品类别（可空字符串，NULL 表示不过滤类别）\n-- =============================================================================\n\nSELECT\n    dd.d_date                                                       AS snapshot_date,\n    /* SKU记录数：该日期下满足筛选条件的库存记录条数 */\n    COUNT(*)                                                        AS sku_record_count,\n    /* 现存数量大于零的SKU数 */\n    SUM(CASE WHEN inv.inv_quantity_on_hand > 0 THEN 1 ELSE 0 END)  AS nonzero_sku_count,\n    /* 零库存SKU数：现存数量等于零的记录条数 */\n    SUM(CASE WHEN inv.inv_quantity_on_hand = 0 THEN 1 ELSE 0 END)  AS zero_sku_count,\n    /* 现存数量合计：所有满足条件的库存记录的 inv_quantity_on_hand 之和（不推测计量单位） */\n    SUM(inv.inv_quantity_on_hand)                                   AS total_on_hand\nFROM inventory inv\nINNER JOIN date_dim dd\n    ON inv.inv_date_sk = dd.d_date_sk\nINNER JOIN item i\n    ON inv.inv_item_sk = i.i_item_sk\nWHERE inv.inv_warehouse_sk = {{warehouse_id}}\n  AND dd.d_date >= {{start_date}}\n  AND dd.d_date <= {{end_date}}\n  AND inv.inv_quantity_on_hand >= {{min_on_hand}}\n  AND ({{category}} IS NULL OR i.i_category = {{category}})\nGROUP BY dd.d_date\nORDER BY dd.d_date ASC\nLIMIT 100;\n",
+        "parameterSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "warehouse_id": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "仓库维表主键，无默认值"
+            },
+            "start_date": {
+              "type": "string",
+              "format": "date",
+              "description": "含边界的库存快照开始日期"
+            },
+            "end_date": {
+              "type": "string",
+              "format": "date",
+              "description": "含边界的库存快照结束日期"
+            },
+            "min_on_hand": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "description": "现存数量下限"
+            },
+            "category": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null,
+              "description": "商品类别，null表示不限"
+            }
+          },
+          "required": [
+            "warehouse_id",
+            "start_date",
+            "end_date"
+          ]
+        },
+        "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+        "databaseType": "mysql",
+        "title": "TPCDS 248 仓库期间库存快照",
+        "description": "按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。",
+        "category": "business_analysis",
+        "source": {
+          "projectId": "0fec15ec-f8aa-4950-a84c-07f220fd5a6b",
+          "fileId": "20adf18b-50ad-4684-ac12-6a4a16240029",
+          "fileVersion": 1,
+          "sqlDigest": "2df1647d48b21e817f80e4384aabeced6f116615063988542622588258d64444"
+        }
+      },
+      "sqlTest": {
+        "type": "SQL_DATABASE_EXECUTION",
+        "testId": "3288f786-ff35-4406-a1c3-582f5874640e",
+        "testedAt": "2026-11-01T01:37:16.920149957Z",
+        "traceId": "3288f786-ff35-4406-a1c3-582f5874640e",
+        "source": {
+          "projectId": "0fec15ec-f8aa-4950-a84c-07f220fd5a6b",
+          "fileId": "20adf18b-50ad-4684-ac12-6a4a16240029",
+          "fileVersion": 1,
+          "sqlDigest": "2df1647d48b21e817f80e4384aabeced6f116615063988542622588258d64444"
+        },
+        "fingerprint": "0ab952d0847d02b0cf533f359130794794f624aac66dc6faa486b6dc82360a19",
+        "sqlDigest": "2df1647d48b21e817f80e4384aabeced6f116615063988542622588258d64444",
+        "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+        "datasourceDigest": "38fc10dfb01d89253fb377c8a6701d6bed65310c231217353c20e7ebf5625307",
+        "parameters": {
+          "warehouse_id": 2,
+          "start_date": "1998-01-01",
+          "end_date": "1998-01-29"
+        },
+        "parametersDigest": "0433cb8db8f370e50cbf3ceed3cfc26723ecd9625a453884a31bd0f80752d7aa",
+        "timeoutSeconds": 10,
+        "maxRows": 50,
+        "success": true,
+        "resultDigest": "9c6205ebbdf40cbeb51a9d78c0e3dc4cb1bf6794635dee58b4246d996ea17708",
+        "rowCount": 5,
+        "errorCode": "",
+        "preview": {
+          "columns": [
+            "snapshot_date",
+            "sku_record_count",
+            "nonzero_sku_count",
+            "zero_sku_count",
+            "total_on_hand"
+          ],
+          "rows": [
+            {
+              "snapshot_date": "1998-01-01",
+              "sku_record_count": 8546,
+              "nonzero_sku_count": 8539,
+              "zero_sku_count": 7,
+              "total_on_hand": 4301064
+            },
+            {
+              "snapshot_date": "1998-01-08",
+              "sku_record_count": 8566,
+              "nonzero_sku_count": 8559,
+              "zero_sku_count": 7,
+              "total_on_hand": 4309382
+            },
+            {
+              "snapshot_date": "1998-01-15",
+              "sku_record_count": 8542,
+              "nonzero_sku_count": 8529,
+              "zero_sku_count": 13,
+              "total_on_hand": 4309203
+            },
+            {
+              "snapshot_date": "1998-01-22",
+              "sku_record_count": 8560,
+              "nonzero_sku_count": 8550,
+              "zero_sku_count": 10,
+              "total_on_hand": 4349344
+            },
+            {
+              "snapshot_date": "1998-01-29",
+              "sku_record_count": 8538,
+              "nonzero_sku_count": 8529,
+              "zero_sku_count": 9,
+              "total_on_hand": 4297887
+            }
+          ],
+          "returnedRowCount": 5,
+          "possiblyTruncated": false,
+          "complete": true,
+          "previewTruncated": false
+        },
+        "diagnostic": "SQL query executed successfully",
+        "durationMs": 407
+      }
+    }
+  ]
+}

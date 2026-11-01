@@ -1,0 +1,513 @@
+{
+  "source": "DURABLE_CODING_JOURNAL",
+  "tasks": [
+    {
+      "taskId": "analysis-coding-e9d7c533d5846068c00b1e4f02f44a512c26c3f7a6f3fac34519315884ada4d0",
+      "outcome": {
+        "schemaVersion": "runtime_os.coding.v3",
+        "taskId": "analysis-coding-e9d7c533d5846068c00b1e4f02f44a512c26c3f7a6f3fac34519315884ada4d0",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": "ab799b81-a4c1-494e-adc1-3f7d8d9dc6b7",
+          "conversationId": "1793494321497-11ccd3918696b8",
+          "runId": "att-1-89ab33dd-5357-4cd8-965c-88a5a7a4dcbc",
+          "environment": null,
+          "attributes": {}
+        },
+        "contractSha256": "0fbe84d6a752a3dbaed29cd7d3d1a001f99c566782a32b1d6d6358906db18e8c",
+        "status": "COMPLETED",
+        "revision": 124,
+        "lastEventSequence": 125,
+        "createdAt": "2026-11-01T00:52:50.458Z",
+        "updatedAt": "2026-11-01T00:55:15.839Z",
+        "startedAt": "2026-11-01T00:52:50.533Z",
+        "endedAt": "2026-11-01T00:55:15.839Z",
+        "cancellationRequested": false,
+        "reasonCode": null,
+        "summary": "Coding execution archived; validation INCONCLUSIVE",
+        "limitations": [
+          "A2 enforces cumulative admission reservations only; model/process hard limits, instantaneous memory and disk enforcement require execution-node adapters."
+        ],
+        "inputSnapshotRef": "runtime-evidence:coding:input:e0113e214cfd3ea9d7daa95b63ced7dffefcaa816775969f868a30d242f80a2",
+        "codeArtifactRef": "runtime-evidence:coding:bb03841421e13a9094caaf1a8dbc989e6b6f9fc5448027b7fa5eb0963b31decc:code",
+        "executionReceiptRef": "runtime-evidence:coding:bb03841421e13a9094caaf1a8dbc989e6b6f9fc5448027b7fa5eb0963b31decc:receipt",
+        "resultDatasetRef": "runtime-evidence:coding:bb03841421e13a9094caaf1a8dbc989e6b6f9fc5448027b7fa5eb0963b31decc:result",
+        "validationRecordRef": "runtime-evidence:coding:bb03841421e13a9094caaf1a8dbc989e6b6f9fc5448027b7fa5eb0963b31decc:validation",
+        "evidenceBundleRef": "runtime-evidence:coding:bb03841421e13a9094caaf1a8dbc989e6b6f9fc5448027b7fa5eb0963b31decc:bundle",
+        "validationStatus": "INCONCLUSIVE",
+        "reproducibility": {
+          "level": "CONDITIONAL",
+          "limitations": [
+            "Execution and reproducibility have not been verified"
+          ],
+          "dependencyRefs": [
+            "b1068ad2-7b8d-4fb0-9230-316c86c596a4"
+          ]
+        },
+        "usage": {
+          "budgetId": "analysis-coding-tool-budget:analysis-coding-e9d7c533d5846068c00b1e4f02f44a512c26c3f7a6f3fac34519315884ada4d0",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 7,
+            "modelTokens": 228652,
+            "toolCalls": 4,
+            "codeExecutions": 3,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 54003,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 0,
+            "modelTokens": 230100,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 75000,
+            "peakMemoryBytes": 0,
+            "outputBytes": 996007,
+            "costAmount": "5.833333333331"
+          },
+          "meteringComplete": false
+        },
+        "executionControl": {
+          "stopReason": null,
+          "stopRequestedAt": null,
+          "executorStopped": true,
+          "reconciliationRequired": false
+        },
+        "parentTaskId": null,
+        "supersedesTaskId": null,
+        "perArtifactCompleteness": {}
+      },
+      "objective": "Answer the user's data-analysis objective using only the authorized immutable datasets. Inspect delivered schemas and quality. Choose your own analysis methods and verify computed output. You own business interpretation within the delivered data scope. Produce exactly one result row. Use delivered Skills, template declarations, field metadata and source context as the authority for metric meaning. Template execution with defaults is not proof that data matches the user's entity or time constraints. Inspect templateParameterBinding effectiveParameters, parameterSources, droppedOverrideFields and unmappedConstraints. Never present a default entity's rows as another requested entity's results; if scope cannot be established, disclose that limitation. Before submission, recalculate every reported total from program output and verify that every table header aligns with its values. Distinguish an arithmetic difference from a data error: only call it an error when the compared values have the same declared metric, scope, period and unit; otherwise state the unresolved reconciliation components and evidence limits. reportMarkdown must be the complete user-facing Markdown report with computed findings and explicit limitations. evidenceReferences must list the exact delivered dataset references actually used; do not invent or shorten them. limitations must record material data or method limits. Do not delegate calculations back to Runtime OS.",
+      "configuration": {
+        "builtinSkillPolicy": {
+          "agentId": "sql_template_e2e_20261101_r1",
+          "disabledSkillIds": []
+        },
+        "capturedAt": "2026-11-01T00:52:50.361108946Z",
+        "codingLifecycle": {
+          "patchOnlyAfterFirst": true,
+          "schemaVersion": "runtime_os.code_lifecycle.v1"
+        },
+        "configuredSkillIds": [],
+        "consistency": "TASK_SNAPSHOT",
+        "executionProfile": {
+          "complexity": "SIMPLE",
+          "inputRows": 6,
+          "schemaVersion": "runtime_os.coding.execution_profile.v1",
+          "sourceCount": 1
+        },
+        "inputFiles": {
+          "delivery": "SHARED_DIRECTORY",
+          "format": "PARQUET",
+          "manifestFileId": "ce0113e214cfd3ea9d7daa95b63ced7dffefcaa816775969f868a30d242f80a2",
+          "manifestSha256": "7d9df97c4ea27e1902edfea2652134f1021c1053071edfbfa508f8527690a166",
+          "schemaVersion": "runtime_os.coding.input.v1"
+        },
+        "model": {
+          "binding": "AUTHORIZED_PARENT_MODEL",
+          "implementation": "dev.langchain4j.model.openai.OpenAiChatModel",
+          "maxRetries": 3,
+          "maxTokens": -1,
+          "protocol": "openai",
+          "providerModel": "deepseek-v4-flash",
+          "selectedModel": "deepseek-v4-flash"
+        },
+        "pythonEnvironment": {
+          "assetId": "ee158b37-c7dc-43ab-87cf-c887fa60ec71",
+          "dockerImage": "chatchat-python-runtime:3.11-v1.2-fonts-r2-20261022",
+          "environmentId": "b1068ad2-7b8d-4fb0-9230-316c86c596a4",
+          "environmentVersion": 7,
+          "imageDigest": "sha256:7c665132dd360b4f84a669a16b53de93c0ff142e1ecf8f56bef1a07d6346fdc8",
+          "packages": {
+            "Pillow": "13.0.0",
+            "duckdb": "1.5.6",
+            "matplotlib": "3.10.0",
+            "numpy": "2.3.5",
+            "openpyxl": "3.1.5",
+            "pandas": "2.3.3",
+            "plotly": "7.1.0",
+            "polars": "2.0.0",
+            "pyarrow": "26.0.0",
+            "ruff": "0.17.1",
+            "scikit-learn": "1.9.1",
+            "scipy": "1.16.3",
+            "seaborn": "0.13.2",
+            "statsmodels": "0.15.0"
+          },
+          "pythonVersion": "3.11.16",
+          "source": "WORKSHOP_DEFAULT"
+        },
+        "schemaVersion": "runtime_os.coding.context.v1",
+        "scriptPurpose": "看一下目前已有的年度销售汇总。",
+        "skills": {
+          "authority": "AUTHORIZED_SKILL_METHODOLOGY_NOT_EVIDENCE",
+          "builtinSkillPolicy": {
+            "agentId": "sql_template_e2e_20261101_r1",
+            "disabledSkillIds": []
+          },
+          "fingerprint": "e1aa9b51a40a4b490c015b605a7273398baf042fac042cbe72c0de20c130b812",
+          "schemaVersion": "skill_analysis_context.v1",
+          "skills": [],
+          "stages": {},
+          "status": "AVAILABLE"
+        }
+      },
+      "executions": [
+        {
+          "schemaVersion": "runtime_os.execution_feedback.v1",
+          "taskId": "analysis-coding-e9d7c533d5846068c00b1e4f02f44a512c26c3f7a6f3fac34519315884ada4d0",
+          "executionId": "cline-5fe2bc94239834048f306fd24b568a418c3191f146c66434471f93df94fe4087",
+          "attemptId": "analysis-coding-e9d7c533d5846068c00b1e4f02f44a512c26c3f7a6f3fac34519315884ada4d0:execution-1",
+          "traceId": "att-1-89ab33dd-5357-4cd8-965c-88a5a7a4dcbc",
+          "status": "FAILED",
+          "stage": "EXECUTION_FAILED",
+          "exitCode": 1,
+          "durationMs": 2531,
+          "cpuTimeMs": 1828,
+          "maxRssBytes": 143699968,
+          "codeHash": "0ff8b826a53b66e1eac67b8412bb20b3e53bf3bad9e80c3d407b30017fa76313",
+          "stdout": "[raw stdout omitted]",
+          "stderr": "Inspect the reported line and existing code; make the smallest justified technical correction without changing source data.",
+          "stdoutBytes": 0,
+          "stderrBytes": 259,
+          "error": {
+            "category": "PROGRAM",
+            "exceptionType": "AssertionError",
+            "diagnosticCode": "PROGRAM_ERROR",
+            "message": "Inspect the reported line and existing code; make the smallest justified technical correction without changing source data.",
+            "stack": [
+              {
+                "file": "analysis_20261101T005343581Z_25350c26d640_v1.py",
+                "line": 144,
+                "column": null
+              }
+            ],
+            "detailRef": "execution:cline-5fe2bc94239834048f306fd24b568a418c3191f146c66434471f93df94fe4087:logs:runtime-diagnostic.json"
+          },
+          "inputDataRefs": [
+            "runtime-evidence:coding:input:e0113e214cfd3ea9d7daa95b63ced7dffefcaa816775969f868a30d242f80a2"
+          ],
+          "schemaRef": "runtime-coding-schema:d05173c3179bea6d4650839407f4268a4a6194257f77ead1adc3252dc1d1f270",
+          "inputFiles": [
+            {
+              "fileId": "ce0113e214cfd3ea9d7daa95b63ced7dffefcaa816775969f868a30d242f80a2",
+              "fileName": "manifest.json",
+              "sha256": "7d9df97c4ea27e1902edfea2652134f1021c1053071edfbfa508f8527690a166"
+            }
+          ],
+          "inputSchemaSummary": {
+            "manifestSha256": "7d9df97c4ea27e1902edfea2652134f1021c1053071edfbfa508f8527690a166",
+            "format": "PARQUET",
+            "manifestFileId": "ce0113e214cfd3ea9d7daa95b63ced7dffefcaa816775969f868a30d242f80a2"
+          },
+          "artifactRefs": {
+            "stderrRef": "execution:cline-5fe2bc94239834048f306fd24b568a418c3191f146c66434471f93df94fe4087:logs:stderr.txt",
+            "diagnosticRef": "execution:cline-5fe2bc94239834048f306fd24b568a418c3191f146c66434471f93df94fe4087:logs:runtime-diagnostic.json"
+          },
+          "validationStatus": "NOT_RUN",
+          "resultAvailable": false,
+          "manifestHash": "34072041f2f428a0619b7758d180cf29587391a5e74ae654b824be52d3979b93",
+          "outputStatus": null,
+          "businessValidationPassed": false,
+          "repair": {
+            "allowed": true,
+            "action": "REPAIR_IN_CURRENT_CONTEXT",
+            "reason": "TECHNICAL_REPAIR",
+            "attemptsUsed": 0,
+            "maxAttempts": 3,
+            "baseCodeHash": "0ff8b826a53b66e1eac67b8412bb20b3e53bf3bad9e80c3d407b30017fa76313",
+            "guidance": "Inspect the reported line and existing code; make the smallest justified technical correction without changing source data."
+          },
+          "diagnosticPolicy": "METADATA_ONLY_V1",
+          "script": {
+            "fileName": "analysis_20261101T005343581Z_25350c26d640_v1.py",
+            "scriptPath": "/workspace/scripts/analysis_20261101T005343581Z_25350c26d640_v1.py",
+            "workingDirectory": "tasks/2abd2c828f4ebf3c/6432cc690bc93efe/56de2a3403cbfc9a/25350c26d6401048d1ca30da",
+            "scriptVersion": 1
+          }
+        },
+        {
+          "schemaVersion": "runtime_os.execution_feedback.v1",
+          "taskId": "analysis-coding-e9d7c533d5846068c00b1e4f02f44a512c26c3f7a6f3fac34519315884ada4d0",
+          "executionId": "cline-49f1733239d3ef2f6d8c4a9b429166a1f69fc647b101bf49234aea36d6c95218",
+          "attemptId": "analysis-coding-e9d7c533d5846068c00b1e4f02f44a512c26c3f7a6f3fac34519315884ada4d0:execution-2",
+          "traceId": "att-1-89ab33dd-5357-4cd8-965c-88a5a7a4dcbc",
+          "status": "SUCCEEDED",
+          "stage": "VALIDATED",
+          "exitCode": 0,
+          "durationMs": 1616,
+          "cpuTimeMs": 1684,
+          "maxRssBytes": 143863808,
+          "codeHash": "180a98acc7edcd58733ae8c2927ecfd7331e4b5ec80a1f80f287116ce4efed5d",
+          "stdout": "[raw stdout omitted]",
+          "stderr": "[raw stderr omitted]",
+          "stdoutBytes": 0,
+          "stderrBytes": 0,
+          "error": null,
+          "inputDataRefs": [
+            "runtime-evidence:coding:input:e0113e214cfd3ea9d7daa95b63ced7dffefcaa816775969f868a30d242f80a2"
+          ],
+          "schemaRef": "runtime-coding-schema:d05173c3179bea6d4650839407f4268a4a6194257f77ead1adc3252dc1d1f270",
+          "inputFiles": [
+            {
+              "fileId": "ce0113e214cfd3ea9d7daa95b63ced7dffefcaa816775969f868a30d242f80a2",
+              "fileName": "manifest.json",
+              "sha256": "7d9df97c4ea27e1902edfea2652134f1021c1053071edfbfa508f8527690a166"
+            }
+          ],
+          "inputSchemaSummary": {
+            "manifestSha256": "7d9df97c4ea27e1902edfea2652134f1021c1053071edfbfa508f8527690a166",
+            "format": "PARQUET",
+            "manifestFileId": "ce0113e214cfd3ea9d7daa95b63ced7dffefcaa816775969f868a30d242f80a2"
+          },
+          "artifactRefs": {
+            "stderrRef": "execution:cline-49f1733239d3ef2f6d8c4a9b429166a1f69fc647b101bf49234aea36d6c95218:logs:stderr.txt",
+            "diagnosticRef": "execution:cline-49f1733239d3ef2f6d8c4a9b429166a1f69fc647b101bf49234aea36d6c95218:logs:runtime-diagnostic.json",
+            "evidenceBundleRef": "runtime-evidence:coding:0de92b98c5a5fccff39ae16478452ab907fe5caa88ae9aa7cbd4ce1139fd5611:bundle",
+            "validationRecordRef": "runtime-evidence:coding:0de92b98c5a5fccff39ae16478452ab907fe5caa88ae9aa7cbd4ce1139fd5611:validation",
+            "resultDatasetRef": "runtime-evidence:coding:0de92b98c5a5fccff39ae16478452ab907fe5caa88ae9aa7cbd4ce1139fd5611:result",
+            "inputSnapshotRef": "runtime-evidence:coding:input:e0113e214cfd3ea9d7daa95b63ced7dffefcaa816775969f868a30d242f80a2",
+            "codeArtifactRef": "runtime-evidence:coding:0de92b98c5a5fccff39ae16478452ab907fe5caa88ae9aa7cbd4ce1139fd5611:code",
+            "executionReceiptRef": "runtime-evidence:coding:0de92b98c5a5fccff39ae16478452ab907fe5caa88ae9aa7cbd4ce1139fd5611:receipt"
+          },
+          "validationStatus": "INCONCLUSIVE",
+          "resultAvailable": true,
+          "manifestHash": "4ca7b33452e5a04cd14028df46ee9a9f24456f5bdaaaa5acc94f5805eebf8a15",
+          "outputStatus": null,
+          "businessValidationPassed": false,
+          "repair": {
+            "allowed": false,
+            "action": "COMPLETE",
+            "reason": "RESULT_VERIFIED",
+            "attemptsUsed": 1,
+            "maxAttempts": 3,
+            "baseCodeHash": "180a98acc7edcd58733ae8c2927ecfd7331e4b5ec80a1f80f287116ce4efed5d",
+            "guidance": "Result archived; business correctness remains governed by validationStatus."
+          },
+          "diagnosticPolicy": "METADATA_ONLY_V1",
+          "script": {
+            "fileName": "analysis_20261101T005406630Z_25350c26d640_v2.py",
+            "scriptPath": "/workspace/scripts/analysis_20261101T005406630Z_25350c26d640_v2.py",
+            "workingDirectory": "tasks/2abd2c828f4ebf3c/6432cc690bc93efe/56de2a3403cbfc9a/25350c26d6401048d1ca30da",
+            "scriptVersion": 2
+          }
+        },
+        {
+          "schemaVersion": "runtime_os.execution_feedback.v1",
+          "taskId": "analysis-coding-e9d7c533d5846068c00b1e4f02f44a512c26c3f7a6f3fac34519315884ada4d0",
+          "executionId": "cline-c4dfb425356f7b3dc111f027cadc1573d507d6298d59c8816090b94232c51aa0",
+          "attemptId": "analysis-coding-e9d7c533d5846068c00b1e4f02f44a512c26c3f7a6f3fac34519315884ada4d0:execution-3",
+          "traceId": "att-1-89ab33dd-5357-4cd8-965c-88a5a7a4dcbc",
+          "status": "SUCCEEDED",
+          "stage": "VALIDATED",
+          "exitCode": 0,
+          "durationMs": 1765,
+          "cpuTimeMs": 1820,
+          "maxRssBytes": 139644928,
+          "codeHash": "7d701715479517bd609bf78253796de098c4918cada090fec2be06d8e53174cd",
+          "stdout": "[raw stdout omitted]",
+          "stderr": "[raw stderr omitted]",
+          "stdoutBytes": 0,
+          "stderrBytes": 0,
+          "error": null,
+          "inputDataRefs": [
+            "runtime-evidence:coding:input:e0113e214cfd3ea9d7daa95b63ced7dffefcaa816775969f868a30d242f80a2"
+          ],
+          "schemaRef": "runtime-coding-schema:d05173c3179bea6d4650839407f4268a4a6194257f77ead1adc3252dc1d1f270",
+          "inputFiles": [
+            {
+              "fileId": "ce0113e214cfd3ea9d7daa95b63ced7dffefcaa816775969f868a30d242f80a2",
+              "fileName": "manifest.json",
+              "sha256": "7d9df97c4ea27e1902edfea2652134f1021c1053071edfbfa508f8527690a166"
+            }
+          ],
+          "inputSchemaSummary": {
+            "manifestSha256": "7d9df97c4ea27e1902edfea2652134f1021c1053071edfbfa508f8527690a166",
+            "format": "PARQUET",
+            "manifestFileId": "ce0113e214cfd3ea9d7daa95b63ced7dffefcaa816775969f868a30d242f80a2"
+          },
+          "artifactRefs": {
+            "stderrRef": "execution:cline-c4dfb425356f7b3dc111f027cadc1573d507d6298d59c8816090b94232c51aa0:logs:stderr.txt",
+            "diagnosticRef": "execution:cline-c4dfb425356f7b3dc111f027cadc1573d507d6298d59c8816090b94232c51aa0:logs:runtime-diagnostic.json",
+            "evidenceBundleRef": "runtime-evidence:coding:bb03841421e13a9094caaf1a8dbc989e6b6f9fc5448027b7fa5eb0963b31decc:bundle",
+            "validationRecordRef": "runtime-evidence:coding:bb03841421e13a9094caaf1a8dbc989e6b6f9fc5448027b7fa5eb0963b31decc:validation",
+            "resultDatasetRef": "runtime-evidence:coding:bb03841421e13a9094caaf1a8dbc989e6b6f9fc5448027b7fa5eb0963b31decc:result",
+            "inputSnapshotRef": "runtime-evidence:coding:input:e0113e214cfd3ea9d7daa95b63ced7dffefcaa816775969f868a30d242f80a2",
+            "codeArtifactRef": "runtime-evidence:coding:bb03841421e13a9094caaf1a8dbc989e6b6f9fc5448027b7fa5eb0963b31decc:code",
+            "executionReceiptRef": "runtime-evidence:coding:bb03841421e13a9094caaf1a8dbc989e6b6f9fc5448027b7fa5eb0963b31decc:receipt"
+          },
+          "validationStatus": "INCONCLUSIVE",
+          "resultAvailable": true,
+          "manifestHash": "019064b3e04b2df32ab0f08df780f02181155d55328867f8fe3a4fe0c6c46c6d",
+          "outputStatus": null,
+          "businessValidationPassed": false,
+          "repair": {
+            "allowed": false,
+            "action": "COMPLETE",
+            "reason": "RESULT_VERIFIED",
+            "attemptsUsed": 1,
+            "maxAttempts": 3,
+            "baseCodeHash": "7d701715479517bd609bf78253796de098c4918cada090fec2be06d8e53174cd",
+            "guidance": "Result archived; business correctness remains governed by validationStatus."
+          },
+          "diagnosticPolicy": "METADATA_ONLY_V1",
+          "script": {
+            "fileName": "analysis_20261101T005451953Z_25350c26d640_v3.py",
+            "scriptPath": "/workspace/scripts/analysis_20261101T005451953Z_25350c26d640_v3.py",
+            "workingDirectory": "tasks/2abd2c828f4ebf3c/6432cc690bc93efe/56de2a3403cbfc9a/25350c26d6401048d1ca30da",
+            "scriptVersion": 3
+          }
+        }
+      ],
+      "modelReceipts": [
+        {
+          "operationId": "model-1",
+          "attemptId": "analysis-coding-e9d7c533d5846068c00b1e4f02f44a512c26c3f7a6f3fac34519315884ada4d0:fence-1",
+          "modelCall": 1,
+          "state": "SUCCEEDED",
+          "selectedModel": "deepseek-v4-flash",
+          "providerModel": "deepseek-flash",
+          "protocol": "openai",
+          "startedAt": "2026-11-01T00:52:51.331189614Z",
+          "finishedAt": "2026-11-01T00:53:01.055255278Z",
+          "durationMs": 9724,
+          "usage": {
+            "reasoningTokens": 1303,
+            "inputTokens": 9584,
+            "outputTokens": 1433,
+            "cacheReadTokens": 2688
+          },
+          "source": "JAVA_MODEL_RECEIPT"
+        },
+        {
+          "operationId": "model-2",
+          "attemptId": "analysis-coding-e9d7c533d5846068c00b1e4f02f44a512c26c3f7a6f3fac34519315884ada4d0:fence-1",
+          "modelCall": 2,
+          "state": "SUCCEEDED",
+          "selectedModel": "deepseek-v4-flash",
+          "providerModel": "deepseek-flash",
+          "protocol": "openai",
+          "startedAt": "2026-11-01T00:53:02.375621700Z",
+          "finishedAt": "2026-11-01T00:53:43.127209879Z",
+          "durationMs": 40751,
+          "usage": {
+            "reasoningTokens": 3071,
+            "inputTokens": 12715,
+            "outputTokens": 8835,
+            "cacheReadTokens": 11008
+          },
+          "source": "JAVA_MODEL_RECEIPT"
+        },
+        {
+          "operationId": "model-3",
+          "attemptId": "analysis-coding-e9d7c533d5846068c00b1e4f02f44a512c26c3f7a6f3fac34519315884ada4d0:fence-1",
+          "modelCall": 3,
+          "state": "SUCCEEDED",
+          "selectedModel": "deepseek-v4-flash",
+          "providerModel": "deepseek-flash",
+          "protocol": "openai",
+          "startedAt": "2026-11-01T00:53:50.716242268Z",
+          "finishedAt": "2026-11-01T00:54:06.065381234Z",
+          "durationMs": 15349,
+          "usage": {
+            "reasoningTokens": 2395,
+            "inputTokens": 25932,
+            "outputTokens": 3878,
+            "cacheReadTokens": 9472
+          },
+          "source": "JAVA_MODEL_RECEIPT"
+        },
+        {
+          "operationId": "model-4",
+          "attemptId": "analysis-coding-e9d7c533d5846068c00b1e4f02f44a512c26c3f7a6f3fac34519315884ada4d0:fence-1",
+          "modelCall": 4,
+          "state": "SUCCEEDED",
+          "selectedModel": "deepseek-v4-flash",
+          "providerModel": "deepseek-flash",
+          "protocol": "openai",
+          "startedAt": "2026-11-01T00:54:14.086017208Z",
+          "finishedAt": "2026-11-01T00:54:36.456593501Z",
+          "durationMs": 22370,
+          "usage": {
+            "reasoningTokens": 3845,
+            "inputTokens": 34121,
+            "outputTokens": 4898,
+            "cacheReadTokens": 19072
+          },
+          "source": "JAVA_MODEL_RECEIPT"
+        },
+        {
+          "operationId": "model-5",
+          "attemptId": "analysis-coding-e9d7c533d5846068c00b1e4f02f44a512c26c3f7a6f3fac34519315884ada4d0:fence-1",
+          "modelCall": 5,
+          "state": "SUCCEEDED",
+          "selectedModel": "deepseek-v4-flash",
+          "providerModel": "deepseek-flash",
+          "protocol": "openai",
+          "startedAt": "2026-11-01T00:54:37.935781679Z",
+          "finishedAt": "2026-11-01T00:54:51.276244003Z",
+          "durationMs": 13340,
+          "usage": {
+            "reasoningTokens": 1958,
+            "inputTokens": 35446,
+            "outputTokens": 3106,
+            "cacheReadTokens": 27008
+          },
+          "source": "JAVA_MODEL_RECEIPT"
+        },
+        {
+          "operationId": "model-6",
+          "attemptId": "analysis-coding-e9d7c533d5846068c00b1e4f02f44a512c26c3f7a6f3fac34519315884ada4d0:fence-1",
+          "modelCall": 6,
+          "state": "SUCCEEDED",
+          "selectedModel": "deepseek-v4-flash",
+          "providerModel": "deepseek-flash",
+          "protocol": "openai",
+          "startedAt": "2026-11-01T00:54:59.679109825Z",
+          "finishedAt": "2026-11-01T00:55:09.499265024Z",
+          "durationMs": 9820,
+          "usage": {
+            "reasoningTokens": 1417,
+            "inputTokens": 43313,
+            "outputTokens": 1826,
+            "cacheReadTokens": 28288
+          },
+          "source": "JAVA_MODEL_RECEIPT"
+        },
+        {
+          "operationId": "model-7",
+          "attemptId": "analysis-coding-e9d7c533d5846068c00b1e4f02f44a512c26c3f7a6f3fac34519315884ada4d0:fence-1",
+          "modelCall": 7,
+          "state": "SUCCEEDED",
+          "selectedModel": "deepseek-v4-flash",
+          "providerModel": "deepseek-flash",
+          "protocol": "openai",
+          "startedAt": "2026-11-01T00:55:11.660144376Z",
+          "finishedAt": "2026-11-01T00:55:13.216504159Z",
+          "durationMs": 1556,
+          "usage": {
+            "reasoningTokens": 94,
+            "inputTokens": 43389,
+            "outputTokens": 176,
+            "cacheReadTokens": 35712
+          },
+          "source": "JAVA_MODEL_RECEIPT"
+        }
+      ],
+      "allowedTools": [
+        "artifact_read",
+        "input_read",
+        "python_execute",
+        "skill_read",
+        "sql_validate"
+      ],
+      "canCancel": false,
+      "canRetry": false,
+      "canResume": false,
+      "attemptId": "analysis-coding-e9d7c533d5846068c00b1e4f02f44a512c26c3f7a6f3fac34519315884ada4d0:fence-1"
+    }
+  ]
+}

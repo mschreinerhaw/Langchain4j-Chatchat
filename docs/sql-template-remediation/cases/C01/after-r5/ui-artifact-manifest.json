@@ -1,0 +1,82 @@
+{
+  "schemaVersion": "enterprise_ui_artifact_v1",
+  "artifactId": "ui_678d075fbebf4fb99d3cb6f98ba6b63e",
+  "revision": 1,
+  "catalogVersion": "enterprise_catalog_v1",
+  "createdAt": "2026-11-01T02:16:15.469049110Z",
+  "spec": {
+    "root": "report",
+    "elements": {
+      "visual-report": {
+        "type": "VisualReport",
+        "props": {
+          "resourceId": "visual-report"
+        },
+        "children": []
+      },
+      "answer": {
+        "type": "Markdown",
+        "props": {
+          "resourceId": "answer"
+        },
+        "children": []
+      },
+      "citations": {
+        "type": "EvidenceList",
+        "props": {
+          "resourceId": "citations",
+          "title": "引用与证据"
+        },
+        "children": []
+      },
+      "evidence-premises": {
+        "type": "EvidenceList",
+        "props": {
+          "resourceId": "evidence-premises",
+          "title": "证据前提"
+        },
+        "children": []
+      },
+      "report": {
+        "type": "Report",
+        "props": {
+          "status": "PARTIAL_SUCCESS",
+          "taskId": "bc7ccb59-1867-469c-a0db-1c8bee0fe948"
+        },
+        "children": [
+          "visual-report"
+        ]
+      }
+    }
+  },
+  "resources": {
+    "visual-report": {
+      "href": "/ui-artifacts/ui_678d075fbebf4fb99d3cb6f98ba6b63e/resources/visual-report",
+      "mediaType": "application/json",
+      "objectKey": "resources/visual-report.json",
+      "byteLength": 14885,
+      "sha256": "944be14e87f14b3ee6fac61b9e49c5769889c35504aa1f8c008349b46eb9a7db"
+    },
+    "answer": {
+      "href": "/ui-artifacts/ui_678d075fbebf4fb99d3cb6f98ba6b63e/resources/answer",
+      "mediaType": "text/markdown",
+      "objectKey": "resources/answer.json",
+      "byteLength": 5102,
+      "sha256": "3a9ee7581fdda850915ff7378f48a9a7b7b13faed80fcac6d899523ba54ba5c3"
+    },
+    "citations": {
+      "href": "/ui-artifacts/ui_678d075fbebf4fb99d3cb6f98ba6b63e/resources/citations",
+      "mediaType": "application/json",
+      "objectKey": "resources/citations.json",
+      "byteLength": 534,
+      "sha256": "4fcfb9a2bf68f6a0e9418ea1a09f9336dd1b3799d41e49317bd3646cd057fcf3"
+    },
+    "evidence-premises": {
+      "href": "/ui-artifacts/ui_678d075fbebf4fb99d3cb6f98ba6b63e/resources/evidence-premises",
+      "mediaType": "application/json",
+      "objectKey": "resources/evidence-premises.json",
+      "byteLength": 378,
+      "sha256": "26c586ee54b71b4f88f93ce145fe5a1e79e250c8735cab7513dae79f7ed7674d"
+    }
+  }
+}

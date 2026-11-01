@@ -1,0 +1,20 @@
+{
+  "caseId": "A02",
+  "attempt": "r3",
+  "verdict": "FAIL",
+  "reason": "FAIL：执行前日期校验对不带format的普通必填字段调用不可空集合contains，引发空指针，未取得查询结果。",
+  "taskId": "0f77fe36-ed9c-430e-894a-f7145be5605b",
+  "sessionId": "1793497100562-ab12037f7f838",
+  "evidence": [
+    "request.md",
+    "agent-config.json",
+    "submission.json",
+    "agent-result.json",
+    "agent-trace.json",
+    "agent-answer.md",
+    "ui-receipt.json",
+    "conversation-result.png"
+  ],
+  "remediationSource": "3e3d398e5",
+  "retest": "PENDING_DO_NOT_OVERWRITE_THIS_ATTEMPT"
+}

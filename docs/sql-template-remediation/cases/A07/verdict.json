@@ -1,0 +1,16 @@
+{
+  "caseId": "A07",
+  "verdict": "PASS",
+  "requirement": "未绑定模板的Agent不可见、不可调用对应能力，用户界面诚实说明无授权数据而非零结果。",
+  "taskId": "eae9e5a5-40ec-4e06-b0c3-3a28cf5a7616",
+  "evidence": [
+    "agent-config.json",
+    "submission.json",
+    "agent-result.json",
+    "agent-trace.json",
+    "agent-answer.md",
+    "conversation-result.png",
+    "../../mcp-unbound-protocol-r3.json",
+    "../../mcp-unbound-comparison-r3.json"
+  ]
+}

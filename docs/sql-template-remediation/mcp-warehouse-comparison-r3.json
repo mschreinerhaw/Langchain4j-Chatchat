@@ -1,0 +1,152 @@
+{
+  "status": "NEW_SQL_MCP_AND_JDBC_PASS",
+  "scope": "PROTOCOL_ONLY_NOT_AGENT_OR_CHART_ACCEPTANCE",
+  "checks": [
+    {
+      "caseId": "MCP-GEOGRAPHY",
+      "status": "EXACT_MATCH",
+      "toolName": "tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+      "releaseId": "70d0b7c4-f7f2-4af3-8c9a-58d53ba3db0e",
+      "version": 1,
+      "traceId": "afe6d98a-f262-4056-80f0-ef5bb70788f9",
+      "parameters": {},
+      "effectiveParameters": {},
+      "executionMode": "PREPARED_STATEMENT",
+      "boundParameterCount": 0,
+      "rows": 1,
+      "comparedFields": 6
+    },
+    {
+      "caseId": "MCP-INVENTORY-DEFAULTS",
+      "status": "EXACT_MATCH",
+      "toolName": "tpl_190c862b57813ca38fbe5a0edc614970",
+      "releaseId": "450b9617-d0b2-49dd-b015-09928930307b",
+      "version": 1,
+      "traceId": "b253df0b-7fe9-4edf-a5b3-3fc2966a8a20",
+      "parameters": {
+        "warehouse_id": 2,
+        "start_date": "1998-01-01",
+        "end_date": "1998-01-29"
+      },
+      "effectiveParameters": {
+        "warehouse_id": 2,
+        "start_date": "1998-01-01",
+        "end_date": "1998-01-29",
+        "min_on_hand": 0,
+        "category": null
+      },
+      "executionMode": "PREPARED_STATEMENT",
+      "boundParameterCount": 6,
+      "rows": 5,
+      "comparedFields": 25
+    },
+    {
+      "caseId": "MCP-INVENTORY-EXPLICIT-NULL",
+      "status": "EXACT_MATCH",
+      "toolName": "tpl_190c862b57813ca38fbe5a0edc614970",
+      "releaseId": "450b9617-d0b2-49dd-b015-09928930307b",
+      "version": 1,
+      "traceId": "7ce74b18-e56f-4d02-abcf-0e21e21e39b8",
+      "parameters": {
+        "warehouse_id": 2,
+        "start_date": "1998-01-01",
+        "end_date": "1998-01-29",
+        "min_on_hand": 0,
+        "category": null
+      },
+      "effectiveParameters": {
+        "warehouse_id": 2,
+        "start_date": "1998-01-01",
+        "end_date": "1998-01-29",
+        "min_on_hand": 0,
+        "category": null
+      },
+      "executionMode": "PREPARED_STATEMENT",
+      "boundParameterCount": 6,
+      "rows": 5,
+      "comparedFields": 25
+    },
+    {
+      "caseId": "MCP-INVENTORY-VARIANT",
+      "status": "EXACT_MATCH",
+      "toolName": "tpl_190c862b57813ca38fbe5a0edc614970",
+      "releaseId": "450b9617-d0b2-49dd-b015-09928930307b",
+      "version": 1,
+      "traceId": "27fb4259-d4ee-443f-9f75-851b741c1b93",
+      "parameters": {
+        "warehouse_id": 4,
+        "start_date": "1998-01-15",
+        "end_date": "1998-01-29",
+        "min_on_hand": 500,
+        "category": "Books"
+      },
+      "effectiveParameters": {
+        "warehouse_id": 4,
+        "start_date": "1998-01-15",
+        "end_date": "1998-01-29",
+        "min_on_hand": 500,
+        "category": "Books"
+      },
+      "executionMode": "PREPARED_STATEMENT",
+      "boundParameterCount": 6,
+      "rows": 3,
+      "comparedFields": 15
+    },
+    {
+      "caseId": "MCP-MISSING-DATES",
+      "status": "REJECTED_AS_EXPECTED",
+      "traceId": "72cba1ae-bc53-4daa-8b92-1f01274cf609",
+      "parameters": {
+        "warehouse_id": 2
+      }
+    },
+    {
+      "caseId": "MCP-INVALID-DATE",
+      "status": "REJECTED_AS_EXPECTED",
+      "traceId": "aa217570-f98f-4feb-a8d4-0d5b2b305bf5",
+      "parameters": {
+        "warehouse_id": 2,
+        "start_date": "1998-99-99",
+        "end_date": "1998-01-29"
+      }
+    },
+    {
+      "caseId": "MCP-INVALID-RANGE",
+      "status": "REJECTED_AS_EXPECTED",
+      "traceId": "4c2329a8-d9b2-4d3b-9de3-93bf84a644e3",
+      "parameters": {
+        "warehouse_id": 2,
+        "start_date": "1998-01-01",
+        "end_date": "1998-01-29",
+        "min_on_hand": -1
+      }
+    },
+    {
+      "caseId": "MCP-INVALID-TYPE",
+      "status": "REJECTED_AS_EXPECTED",
+      "traceId": "5c91673f-8859-4cd5-82e4-39ffb4529aa0",
+      "parameters": {
+        "warehouse_id": "1 OR 1=1",
+        "start_date": "1998-01-01",
+        "end_date": "1998-01-29"
+      }
+    },
+    {
+      "caseId": "MCP-INJECTION-IS-LITERAL",
+      "status": "REJECTED_AS_EXPECTED",
+      "traceId": "b640e813-8826-42f9-95d5-9a91f564f748",
+      "parameters": {
+        "warehouse_id": 2,
+        "start_date": "1998-01-01",
+        "end_date": "1998-01-29",
+        "category": "Books' OR 1=1 --"
+      },
+      "note": "The original probe label was an expectation; actual behavior is rejection by the retained strict template validator, before SQL execution."
+    }
+  ],
+  "evidenceSha256": {
+    "protocol": "78a685f67fc5601ca5e89570b519c47bff9a11008599cc96520fe48f8a59bfed",
+    "jdbc": "6f2760c9ad2ec757e1dec5ec6d5ff16c92f887a6e1fc8c6dcfdc33fc1663f12c",
+    "catalog": "0829df5e794f47256b3742391d05593c8cea9505c3af5b840eaddb41a1f41265"
+  }
+}

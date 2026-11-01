@@ -1,0 +1,356 @@
+{
+  "capturedAt": "2026-11-01T02:52:58.381206630Z",
+  "clientKind": "INDEPENDENT_MCP_PROTOCOL_CLIENT_NOT_AGENT_EXECUTION",
+  "scope": {
+    "agentId": "sql_template_e2e_20261101_r1",
+    "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+    "userId": "2f219487-11a3-4a1d-9130-ac500b62f268"
+  },
+  "initialization": {
+    "traceId": "38ee237f-a295-4485-8f5e-7b2bf4967fc6",
+    "durationMs": 96,
+    "request": {
+      "method": "initialize",
+      "id": 1,
+      "jsonrpc": "2.0",
+      "params": {
+        "clientInfo": {
+          "version": "1.0",
+          "name": "runtime-sql-independent-probe"
+        },
+        "protocolVersion": "2025-11-25",
+        "capabilities": {}
+      }
+    },
+    "httpStatus": 200,
+    "response": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "result": {
+        "protocolVersion": "2025-11-25",
+        "capabilities": {
+          "logging": {},
+          "tools": {
+            "listChanged": true
+          }
+        },
+        "serverInfo": {
+          "name": "chatchat-langchain4j-mcp-server",
+          "version": "1.0.0-SNAPSHOT"
+        },
+        "instructions": "ChatChat standalone MCP server exposing LangChain4j-compatible tools."
+      }
+    }
+  },
+  "records": [
+    {
+      "traceId": "aff02354-0a29-48bd-84de-8274cbff4ba2",
+      "durationMs": 7650,
+      "request": {
+        "method": "tools/list",
+        "id": 2,
+        "jsonrpc": "2.0",
+        "params": {}
+      },
+      "httpStatus": 200,
+      "response": {
+        "jsonrpc": "2.0",
+        "result": {
+          "tools": [
+            {
+              "name": "tpl_190c862b57813ca38fbe5a0edc614970",
+              "title": "TPCDS 248 仓库期间库存快照",
+              "description": "按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。\nReturns the existing ToolOutput envelope: SQL rows are at $.data.data.rows and rowCount at $.data.data.rowCount. SQL column names are NOT top-level result fields. Preserve this actual envelope in downstream contracts.",
+              "inputSchema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "warehouse_id": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "仓库维表主键，无默认值"
+                  },
+                  "start_date": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "含边界的库存快照开始日期"
+                  },
+                  "end_date": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "含边界的库存快照结束日期"
+                  },
+                  "min_on_hand": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 0,
+                    "description": "现存数量下限"
+                  },
+                  "category": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "default": null,
+                    "description": "商品类别，null表示不限"
+                  }
+                },
+                "required": [
+                  "warehouse_id",
+                  "start_date",
+                  "end_date"
+                ]
+              },
+              "outputSchema": {
+                "description": "ToolOutput envelope. SQL rows are at $.data.data.rows, not top-level SQL column fields. Preserve the envelope when passing results to later steps.",
+                "properties": {
+                  "data": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "properties": {
+                      "data": {
+                        "type": "object",
+                        "properties": {
+                          "rowCount": {
+                            "type": "integer"
+                          },
+                          "rows": {
+                            "type": "array",
+                            "items": {
+                              "type": "object"
+                            }
+                          },
+                          "columns": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      },
+                      "success": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "success": {
+                    "type": "boolean"
+                  },
+                  "errorMessage": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "type": "object",
+                "required": [
+                  "success"
+                ]
+              },
+              "_meta": {
+                "runtimeLevel": "controlled",
+                "visibleTenantIds": [
+                  "9001fee4-482b-4851-9eb9-df269765291f"
+                ],
+                "breakingChangeApproved": true,
+                "schemaVersion": "template-capability.v1",
+                "riskLevel": "low",
+                "templateCapability": true,
+                "operationType": "execute",
+                "toolVersion": "2.0.0",
+                "resultKind": "RAW_RECORDS",
+                "resultSchemaRef": "sql_result.v1"
+              }
+            },
+            {
+              "name": "tpl_212b88329a673657979943bbeaa7479b",
+              "title": "TPCDS 248 商品1年度销售汇总验收",
+              "description": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。\nReturns the existing ToolOutput envelope: SQL rows are at $.data.data.rows and rowCount at $.data.data.rowCount. SQL column names are NOT top-level result fields. Preserve this actual envelope in downstream contracts.",
+              "inputSchema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              },
+              "outputSchema": {
+                "description": "ToolOutput envelope. SQL rows are at $.data.data.rows, not top-level SQL column fields. Preserve the envelope when passing results to later steps.",
+                "properties": {
+                  "data": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "properties": {
+                      "data": {
+                        "type": "object",
+                        "properties": {
+                          "rowCount": {
+                            "type": "integer"
+                          },
+                          "rows": {
+                            "type": "array",
+                            "items": {
+                              "type": "object"
+                            }
+                          },
+                          "columns": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      },
+                      "success": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "success": {
+                    "type": "boolean"
+                  },
+                  "errorMessage": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "type": "object",
+                "required": [
+                  "success"
+                ]
+              },
+              "_meta": {
+                "runtimeLevel": "controlled",
+                "visibleTenantIds": [
+                  "9001fee4-482b-4851-9eb9-df269765291f"
+                ],
+                "breakingChangeApproved": true,
+                "schemaVersion": "template-capability.v1",
+                "riskLevel": "low",
+                "templateCapability": true,
+                "operationType": "execute",
+                "toolVersion": "5.0.0",
+                "resultKind": "RAW_RECORDS",
+                "resultSchemaRef": "sql_result.v1"
+              }
+            },
+            {
+              "name": "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+              "title": "TPCDS 248 单品期间月度销售分析验收",
+              "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。\nReturns the existing ToolOutput envelope: SQL rows are at $.data.data.rows and rowCount at $.data.data.rowCount. SQL column names are NOT top-level result fields. Preserve this actual envelope in downstream contracts.",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "product_id": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1,
+                    "description": "store_sales.ss_item_sk 商品主键"
+                  },
+                  "start_date": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "date_dim.d_date 含边界起日"
+                  },
+                  "end_date": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "date_dim.d_date 含边界止日"
+                  },
+                  "min_quantity": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 0,
+                    "description": "每行最低ss_quantity"
+                  },
+                  "category": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "default": null,
+                    "description": "item.i_category精确品类；NULL不过滤"
+                  }
+                },
+                "required": [
+                  "start_date",
+                  "end_date"
+                ],
+                "additionalProperties": false
+              },
+              "outputSchema": {
+                "description": "ToolOutput envelope. SQL rows are at $.data.data.rows, not top-level SQL column fields. Preserve the envelope when passing results to later steps.",
+                "properties": {
+                  "data": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "properties": {
+                      "data": {
+                        "type": "object",
+                        "properties": {
+                          "rowCount": {
+                            "type": "integer"
+                          },
+                          "rows": {
+                            "type": "array",
+                            "items": {
+                              "type": "object"
+                            }
+                          },
+                          "columns": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      },
+                      "success": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "success": {
+                    "type": "boolean"
+                  },
+                  "errorMessage": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "type": "object",
+                "required": [
+                  "success"
+                ]
+              },
+              "_meta": {
+                "runtimeLevel": "controlled",
+                "visibleTenantIds": [
+                  "9001fee4-482b-4851-9eb9-df269765291f"
+                ],
+                "breakingChangeApproved": true,
+                "schemaVersion": "template-capability.v1",
+                "riskLevel": "low",
+                "templateCapability": true,
+                "operationType": "execute",
+                "toolVersion": "5.0.0",
+                "resultKind": "RAW_RECORDS",
+                "resultSchemaRef": "sql_result.v1"
+              }
+            }
+          ]
+        },
+        "id": 2
+      },
+      "caseId": "MCP-LIST"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "name": "python-timeout",
+  "sourceCode": "import time\ntime.sleep(60)\n",
+  "script": {
+    "id": "e02d51fe-c0ef-47ef-a8fa-4141dbbdd74c",
+    "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+    "ownerId": "admin",
+    "assetId": "e68c6c9b-2510-40f4-a5e7-b74b71927d5d",
+    "folderId": null,
+    "fileName": "python-timeout.py",
+    "title": "python-timeout",
+    "sourceCode": "import time\ntime.sleep(60)\n",
+    "status": "DRAFT",
+    "currentVersion": 1,
+    "lastTestedAt": null,
+    "lastTestSucceeded": false,
+    "lastTestEvidenceJson": null,
+    "createdAt": "2026-11-01T02:35:09.503688638Z",
+    "updatedAt": "2026-11-01T02:35:09.503688638Z"
+  },
+  "result": {
+    "id": "b1b8d0b2-5e41-4859-9aca-8ad4225faeb7",
+    "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+    "ownerId": "admin",
+    "assetId": "e68c6c9b-2510-40f4-a5e7-b74b71927d5d",
+    "scriptId": "e02d51fe-c0ef-47ef-a8fa-4141dbbdd74c",
+    "templateId": null,
+    "containerId": "chatchat-py-e68c6c9b-2510-40f4-a5e7-b74b71927d5d-c4fca80e",
+    "status": "TIMED_OUT",
+    "parametersJson": "{}",
+    "stdout": "",
+    "stderr": "",
+    "resultJson": "",
+    "exitCode": 124,
+    "startedAt": "2026-11-01T02:35:43.248356335Z",
+    "finishedAt": "2026-11-01T02:35:43.248062434Z",
+    "durationMs": 30005
+  }
+}

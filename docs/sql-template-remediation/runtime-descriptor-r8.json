@@ -1,0 +1,102 @@
+[
+  {
+    "serviceId": "chatchat-mcp-server",
+    "localToolName": "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+    "remoteToolName": "tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+    "description": "按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围；全仓库维表，无参数。\nReturns the existing ToolOutput envelope: SQL rows are at $.data.data.rows and rowCount at $.data.data.rowCount. SQL column names are NOT top-level result fields. Preserve this actual envelope in downstream contracts.\nVerified trial declares SQL row column identifiers at $.data.data.rows[*]: [\"w_country\",\"w_state\",\"warehouse_count\",\"city_count\",\"min_warehouse_sk\",\"max_warehouse_sk\"]. Identifiers only, never sample values or proof of current rows. Bind the exact scalar leaf using field selectors and numeric array indexes. jq pipes, map, min and alternative field guesses are not executable output paths.",
+    "capabilityCode": "mcp_tool",
+    "inputSchema": {
+      "properties": {},
+      "type": "object",
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "description": "ToolOutput envelope. SQL rows are at $.data.data.rows, not top-level SQL column fields. Preserve the envelope when passing results to later steps.",
+      "additionalProperties": true,
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "data": {
+              "type": "object",
+              "properties": {
+                "rowCount": {
+                  "type": "integer"
+                },
+                "rows": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                },
+                "columns": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "success": {
+              "type": "boolean"
+            }
+          }
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "errorMessage": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "success"
+      ]
+    },
+    "governance": {
+      "riskLevel": "low",
+      "operationType": "execute",
+      "runtimeLevel": "controlled",
+      "confirmation": null,
+      "permissions": null
+    },
+    "metadata": {
+      "runtimeLevel": "controlled",
+      "toolVersion": "3.0.0",
+      "operationType": "execute",
+      "templateCapability": true,
+      "riskLevel": "low",
+      "schemaVersion": "template-capability.v1",
+      "breakingChangeApproved": true,
+      "visibleTenantIds": [
+        "9001fee4-482b-4851-9eb9-df269765291f"
+      ],
+      "resultKind": "RAW_RECORDS",
+      "resultSchemaRef": "sql_result.v1",
+      "sqlResultColumns": [
+        "w_country",
+        "w_state",
+        "warehouse_count",
+        "city_count",
+        "min_warehouse_sk",
+        "max_warehouse_sk"
+      ],
+      "data_type": "UNKNOWN",
+      "chineseAlias": "TPCDS 248 仓库地理分布",
+      "publicationStatus": "active",
+      "rolloutLabels": [],
+      "rolloutPercentage": 100,
+      "contractVersion": "mcp_tool_contract.v1"
+    },
+    "resultKind": "RAW_RECORDS",
+    "resultSchemaRef": "sql_result.v1",
+    "paginationSupported": false
+  }
+]

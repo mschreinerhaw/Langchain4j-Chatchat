@@ -1,0 +1,1155 @@
+{
+  "capturedAt": "2026-11-01T01:39:50.906Z",
+  "snapshots": [
+    {
+      "path": "/api/v1/database-query/studio-publications",
+      "response": {
+        "code": 200,
+        "message": "Success",
+        "data": [
+          {
+            "id": "studio:fb8d154e-3fe0-39e5-9a58-fddbbae1cb1a",
+            "templateId": "fb8d154e-3fe0-39e5-9a58-fddbbae1cb1a",
+            "sourceKind": "SQL_STUDIO",
+            "sourceLabel": "SQL Studio",
+            "readOnly": true,
+            "title": "TPCDS 248 仓库期间库存快照",
+            "description": "按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。",
+            "code": "STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A",
+            "toolName": "tpl_190c862b57813ca38fbe5a0edc614970",
+            "version": 1,
+            "publicationId": "450b9617-d0b2-49dd-b015-09928930307b",
+            "publicationState": "RUNNING",
+            "publishedAt": "2026-11-01T01:37:43.020223Z",
+            "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+            "createdBy": "2f219487-11a3-4a1d-9130-ac500b62f268",
+            "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+            "datasourceName": "248测试数据库",
+            "databaseType": "mysql",
+            "capabilityCategory": "business_analysis",
+            "enabled": true,
+            "parameterSummary": "warehouse_id（必填）、start_date（必填）、end_date（必填）、min_on_hand（默认 0）、category（默认 null）",
+            "dataAvailabilityStatus": "NOT_APPLICABLE"
+          },
+          {
+            "id": "studio:59383865-bc1a-350c-8e1f-b5b198d8e7a2",
+            "templateId": "59383865-bc1a-350c-8e1f-b5b198d8e7a2",
+            "sourceKind": "SQL_STUDIO",
+            "sourceLabel": "SQL Studio",
+            "readOnly": true,
+            "title": "TPCDS 248 仓库地理分布",
+            "description": "按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围；全仓库维表，无参数。",
+            "code": "STUDIO_59383865BC1A350C8E1FB5B198D8E7A2",
+            "toolName": "tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+            "version": 1,
+            "publicationId": "70d0b7c4-f7f2-4af3-8c9a-58d53ba3db0e",
+            "publicationState": "RUNNING",
+            "publishedAt": "2026-11-01T01:37:29.299116Z",
+            "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+            "createdBy": "2f219487-11a3-4a1d-9130-ac500b62f268",
+            "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+            "datasourceName": "248测试数据库",
+            "databaseType": "mysql",
+            "capabilityCategory": "business_analysis",
+            "enabled": true,
+            "parameterSummary": "无参数",
+            "dataAvailabilityStatus": "NOT_APPLICABLE"
+          },
+          {
+            "id": "studio:2b689c67-d343-3659-9b05-c753f0473b60",
+            "templateId": "2b689c67-d343-3659-9b05-c753f0473b60",
+            "sourceKind": "SQL_STUDIO",
+            "sourceLabel": "SQL Studio",
+            "readOnly": true,
+            "title": "TPCDS 248 单品期间月度销售分析验收",
+            "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+            "code": "STUDIO_2B689C67D34336599B05C753F0473B60",
+            "toolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+            "version": 4,
+            "publicationId": "bc8928a0-ad98-4704-b464-f4738b823d52",
+            "publicationState": "RUNNING",
+            "publishedAt": "2026-11-01T01:19:49.630608Z",
+            "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+            "createdBy": "2f219487-11a3-4a1d-9130-ac500b62f268",
+            "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+            "datasourceName": "248测试数据库",
+            "databaseType": "mysql",
+            "capabilityCategory": "business_analysis",
+            "enabled": true,
+            "parameterSummary": "product_id（默认 1）、start_date（必填）、end_date（必填）、min_quantity（默认 0）、category（默认 null）",
+            "dataAvailabilityStatus": "NOT_APPLICABLE"
+          },
+          {
+            "id": "studio:18042d96-4c82-3181-832d-b6e79e771ffb",
+            "templateId": "18042d96-4c82-3181-832d-b6e79e771ffb",
+            "sourceKind": "SQL_STUDIO",
+            "sourceLabel": "SQL Studio",
+            "readOnly": true,
+            "title": "TPCDS 248 商品1年度销售汇总验收",
+            "description": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。",
+            "code": "STUDIO_18042D964C823181832DB6E79E771FFB",
+            "toolName": "tpl_212b88329a673657979943bbeaa7479b",
+            "version": 4,
+            "publicationId": "5e775f98-0de9-4de0-be32-4137e97a3bec",
+            "publicationState": "RUNNING",
+            "publishedAt": "2026-11-01T01:19:39.397264Z",
+            "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+            "createdBy": "2f219487-11a3-4a1d-9130-ac500b62f268",
+            "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+            "datasourceName": "248测试数据库",
+            "databaseType": "mysql",
+            "capabilityCategory": "business_analysis",
+            "enabled": true,
+            "parameterSummary": "无参数",
+            "dataAvailabilityStatus": "NOT_APPLICABLE"
+          }
+        ],
+        "timestamp": 1793497185711,
+        "requestId": null
+      }
+    },
+    {
+      "path": "/api/v1/database-query/studio-publications",
+      "response": {
+        "code": 200,
+        "message": "Success",
+        "data": [
+          {
+            "id": "studio:fb8d154e-3fe0-39e5-9a58-fddbbae1cb1a",
+            "templateId": "fb8d154e-3fe0-39e5-9a58-fddbbae1cb1a",
+            "sourceKind": "SQL_STUDIO",
+            "sourceLabel": "SQL Studio",
+            "readOnly": true,
+            "title": "TPCDS 248 仓库期间库存快照",
+            "description": "按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。",
+            "code": "STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A",
+            "toolName": "tpl_190c862b57813ca38fbe5a0edc614970",
+            "version": 1,
+            "publicationId": "450b9617-d0b2-49dd-b015-09928930307b",
+            "publicationState": "RUNNING",
+            "publishedAt": "2026-11-01T01:37:43.020223Z",
+            "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+            "createdBy": "2f219487-11a3-4a1d-9130-ac500b62f268",
+            "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+            "datasourceName": "248测试数据库",
+            "databaseType": "mysql",
+            "capabilityCategory": "business_analysis",
+            "enabled": true,
+            "parameterSummary": "warehouse_id（必填）、start_date（必填）、end_date（必填）、min_on_hand（默认 0）、category（默认 null）",
+            "dataAvailabilityStatus": "NOT_APPLICABLE"
+          },
+          {
+            "id": "studio:59383865-bc1a-350c-8e1f-b5b198d8e7a2",
+            "templateId": "59383865-bc1a-350c-8e1f-b5b198d8e7a2",
+            "sourceKind": "SQL_STUDIO",
+            "sourceLabel": "SQL Studio",
+            "readOnly": true,
+            "title": "TPCDS 248 仓库地理分布",
+            "description": "按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围；全仓库维表，无参数。",
+            "code": "STUDIO_59383865BC1A350C8E1FB5B198D8E7A2",
+            "toolName": "tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+            "version": 1,
+            "publicationId": "70d0b7c4-f7f2-4af3-8c9a-58d53ba3db0e",
+            "publicationState": "RUNNING",
+            "publishedAt": "2026-11-01T01:37:29.299116Z",
+            "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+            "createdBy": "2f219487-11a3-4a1d-9130-ac500b62f268",
+            "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+            "datasourceName": "248测试数据库",
+            "databaseType": "mysql",
+            "capabilityCategory": "business_analysis",
+            "enabled": true,
+            "parameterSummary": "无参数",
+            "dataAvailabilityStatus": "NOT_APPLICABLE"
+          },
+          {
+            "id": "studio:2b689c67-d343-3659-9b05-c753f0473b60",
+            "templateId": "2b689c67-d343-3659-9b05-c753f0473b60",
+            "sourceKind": "SQL_STUDIO",
+            "sourceLabel": "SQL Studio",
+            "readOnly": true,
+            "title": "TPCDS 248 单品期间月度销售分析验收",
+            "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+            "code": "STUDIO_2B689C67D34336599B05C753F0473B60",
+            "toolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+            "version": 4,
+            "publicationId": "bc8928a0-ad98-4704-b464-f4738b823d52",
+            "publicationState": "RUNNING",
+            "publishedAt": "2026-11-01T01:19:49.630608Z",
+            "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+            "createdBy": "2f219487-11a3-4a1d-9130-ac500b62f268",
+            "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+            "datasourceName": "248测试数据库",
+            "databaseType": "mysql",
+            "capabilityCategory": "business_analysis",
+            "enabled": true,
+            "parameterSummary": "product_id（默认 1）、start_date（必填）、end_date（必填）、min_quantity（默认 0）、category（默认 null）",
+            "dataAvailabilityStatus": "NOT_APPLICABLE"
+          },
+          {
+            "id": "studio:18042d96-4c82-3181-832d-b6e79e771ffb",
+            "templateId": "18042d96-4c82-3181-832d-b6e79e771ffb",
+            "sourceKind": "SQL_STUDIO",
+            "sourceLabel": "SQL Studio",
+            "readOnly": true,
+            "title": "TPCDS 248 商品1年度销售汇总验收",
+            "description": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。",
+            "code": "STUDIO_18042D964C823181832DB6E79E771FFB",
+            "toolName": "tpl_212b88329a673657979943bbeaa7479b",
+            "version": 4,
+            "publicationId": "5e775f98-0de9-4de0-be32-4137e97a3bec",
+            "publicationState": "RUNNING",
+            "publishedAt": "2026-11-01T01:19:39.397264Z",
+            "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+            "createdBy": "2f219487-11a3-4a1d-9130-ac500b62f268",
+            "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+            "datasourceName": "248测试数据库",
+            "databaseType": "mysql",
+            "capabilityCategory": "business_analysis",
+            "enabled": true,
+            "parameterSummary": "无参数",
+            "dataAvailabilityStatus": "NOT_APPLICABLE"
+          }
+        ],
+        "timestamp": 1793497185759,
+        "requestId": null
+      }
+    },
+    {
+      "path": "/api/v1/database-query/studio-publications",
+      "response": {
+        "code": 200,
+        "message": "Success",
+        "data": [
+          {
+            "id": "studio:fb8d154e-3fe0-39e5-9a58-fddbbae1cb1a",
+            "templateId": "fb8d154e-3fe0-39e5-9a58-fddbbae1cb1a",
+            "sourceKind": "SQL_STUDIO",
+            "sourceLabel": "SQL Studio",
+            "readOnly": true,
+            "title": "TPCDS 248 仓库期间库存快照",
+            "description": "按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。",
+            "code": "STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A",
+            "toolName": "tpl_190c862b57813ca38fbe5a0edc614970",
+            "version": 1,
+            "publicationId": "450b9617-d0b2-49dd-b015-09928930307b",
+            "publicationState": "RUNNING",
+            "publishedAt": "2026-11-01T01:37:43.020223Z",
+            "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+            "createdBy": "2f219487-11a3-4a1d-9130-ac500b62f268",
+            "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+            "datasourceName": "248测试数据库",
+            "databaseType": "mysql",
+            "capabilityCategory": "business_analysis",
+            "enabled": true,
+            "parameterSummary": "warehouse_id（必填）、start_date（必填）、end_date（必填）、min_on_hand（默认 0）、category（默认 null）",
+            "dataAvailabilityStatus": "NOT_APPLICABLE"
+          },
+          {
+            "id": "studio:59383865-bc1a-350c-8e1f-b5b198d8e7a2",
+            "templateId": "59383865-bc1a-350c-8e1f-b5b198d8e7a2",
+            "sourceKind": "SQL_STUDIO",
+            "sourceLabel": "SQL Studio",
+            "readOnly": true,
+            "title": "TPCDS 248 仓库地理分布",
+            "description": "按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围；全仓库维表，无参数。",
+            "code": "STUDIO_59383865BC1A350C8E1FB5B198D8E7A2",
+            "toolName": "tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+            "version": 1,
+            "publicationId": "70d0b7c4-f7f2-4af3-8c9a-58d53ba3db0e",
+            "publicationState": "RUNNING",
+            "publishedAt": "2026-11-01T01:37:29.299116Z",
+            "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+            "createdBy": "2f219487-11a3-4a1d-9130-ac500b62f268",
+            "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+            "datasourceName": "248测试数据库",
+            "databaseType": "mysql",
+            "capabilityCategory": "business_analysis",
+            "enabled": true,
+            "parameterSummary": "无参数",
+            "dataAvailabilityStatus": "NOT_APPLICABLE"
+          },
+          {
+            "id": "studio:2b689c67-d343-3659-9b05-c753f0473b60",
+            "templateId": "2b689c67-d343-3659-9b05-c753f0473b60",
+            "sourceKind": "SQL_STUDIO",
+            "sourceLabel": "SQL Studio",
+            "readOnly": true,
+            "title": "TPCDS 248 单品期间月度销售分析验收",
+            "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+            "code": "STUDIO_2B689C67D34336599B05C753F0473B60",
+            "toolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+            "version": 4,
+            "publicationId": "bc8928a0-ad98-4704-b464-f4738b823d52",
+            "publicationState": "RUNNING",
+            "publishedAt": "2026-11-01T01:19:49.630608Z",
+            "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+            "createdBy": "2f219487-11a3-4a1d-9130-ac500b62f268",
+            "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+            "datasourceName": "248测试数据库",
+            "databaseType": "mysql",
+            "capabilityCategory": "business_analysis",
+            "enabled": true,
+            "parameterSummary": "product_id（默认 1）、start_date（必填）、end_date（必填）、min_quantity（默认 0）、category（默认 null）",
+            "dataAvailabilityStatus": "NOT_APPLICABLE"
+          },
+          {
+            "id": "studio:18042d96-4c82-3181-832d-b6e79e771ffb",
+            "templateId": "18042d96-4c82-3181-832d-b6e79e771ffb",
+            "sourceKind": "SQL_STUDIO",
+            "sourceLabel": "SQL Studio",
+            "readOnly": true,
+            "title": "TPCDS 248 商品1年度销售汇总验收",
+            "description": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。",
+            "code": "STUDIO_18042D964C823181832DB6E79E771FFB",
+            "toolName": "tpl_212b88329a673657979943bbeaa7479b",
+            "version": 4,
+            "publicationId": "5e775f98-0de9-4de0-be32-4137e97a3bec",
+            "publicationState": "RUNNING",
+            "publishedAt": "2026-11-01T01:19:39.397264Z",
+            "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+            "createdBy": "2f219487-11a3-4a1d-9130-ac500b62f268",
+            "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+            "datasourceName": "248测试数据库",
+            "databaseType": "mysql",
+            "capabilityCategory": "business_analysis",
+            "enabled": true,
+            "parameterSummary": "无参数",
+            "dataAvailabilityStatus": "NOT_APPLICABLE"
+          }
+        ],
+        "timestamp": 1793497185779,
+        "requestId": null
+      }
+    },
+    {
+      "path": "/api/v1/database-query/studio-publications",
+      "response": {
+        "code": 200,
+        "message": "Success",
+        "data": [
+          {
+            "id": "studio:fb8d154e-3fe0-39e5-9a58-fddbbae1cb1a",
+            "templateId": "fb8d154e-3fe0-39e5-9a58-fddbbae1cb1a",
+            "sourceKind": "SQL_STUDIO",
+            "sourceLabel": "SQL Studio",
+            "readOnly": true,
+            "title": "TPCDS 248 仓库期间库存快照",
+            "description": "按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。",
+            "code": "STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A",
+            "toolName": "tpl_190c862b57813ca38fbe5a0edc614970",
+            "version": 1,
+            "publicationId": "450b9617-d0b2-49dd-b015-09928930307b",
+            "publicationState": "RUNNING",
+            "publishedAt": "2026-11-01T01:37:43.020223Z",
+            "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+            "createdBy": "2f219487-11a3-4a1d-9130-ac500b62f268",
+            "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+            "datasourceName": "248测试数据库",
+            "databaseType": "mysql",
+            "capabilityCategory": "business_analysis",
+            "enabled": true,
+            "parameterSummary": "warehouse_id（必填）、start_date（必填）、end_date（必填）、min_on_hand（默认 0）、category（默认 null）",
+            "dataAvailabilityStatus": "NOT_APPLICABLE"
+          },
+          {
+            "id": "studio:59383865-bc1a-350c-8e1f-b5b198d8e7a2",
+            "templateId": "59383865-bc1a-350c-8e1f-b5b198d8e7a2",
+            "sourceKind": "SQL_STUDIO",
+            "sourceLabel": "SQL Studio",
+            "readOnly": true,
+            "title": "TPCDS 248 仓库地理分布",
+            "description": "按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围；全仓库维表，无参数。",
+            "code": "STUDIO_59383865BC1A350C8E1FB5B198D8E7A2",
+            "toolName": "tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+            "version": 1,
+            "publicationId": "70d0b7c4-f7f2-4af3-8c9a-58d53ba3db0e",
+            "publicationState": "RUNNING",
+            "publishedAt": "2026-11-01T01:37:29.299116Z",
+            "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+            "createdBy": "2f219487-11a3-4a1d-9130-ac500b62f268",
+            "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+            "datasourceName": "248测试数据库",
+            "databaseType": "mysql",
+            "capabilityCategory": "business_analysis",
+            "enabled": true,
+            "parameterSummary": "无参数",
+            "dataAvailabilityStatus": "NOT_APPLICABLE"
+          },
+          {
+            "id": "studio:2b689c67-d343-3659-9b05-c753f0473b60",
+            "templateId": "2b689c67-d343-3659-9b05-c753f0473b60",
+            "sourceKind": "SQL_STUDIO",
+            "sourceLabel": "SQL Studio",
+            "readOnly": true,
+            "title": "TPCDS 248 单品期间月度销售分析验收",
+            "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+            "code": "STUDIO_2B689C67D34336599B05C753F0473B60",
+            "toolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+            "version": 4,
+            "publicationId": "bc8928a0-ad98-4704-b464-f4738b823d52",
+            "publicationState": "RUNNING",
+            "publishedAt": "2026-11-01T01:19:49.630608Z",
+            "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+            "createdBy": "2f219487-11a3-4a1d-9130-ac500b62f268",
+            "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+            "datasourceName": "248测试数据库",
+            "databaseType": "mysql",
+            "capabilityCategory": "business_analysis",
+            "enabled": true,
+            "parameterSummary": "product_id（默认 1）、start_date（必填）、end_date（必填）、min_quantity（默认 0）、category（默认 null）",
+            "dataAvailabilityStatus": "NOT_APPLICABLE"
+          },
+          {
+            "id": "studio:18042d96-4c82-3181-832d-b6e79e771ffb",
+            "templateId": "18042d96-4c82-3181-832d-b6e79e771ffb",
+            "sourceKind": "SQL_STUDIO",
+            "sourceLabel": "SQL Studio",
+            "readOnly": true,
+            "title": "TPCDS 248 商品1年度销售汇总验收",
+            "description": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。",
+            "code": "STUDIO_18042D964C823181832DB6E79E771FFB",
+            "toolName": "tpl_212b88329a673657979943bbeaa7479b",
+            "version": 4,
+            "publicationId": "5e775f98-0de9-4de0-be32-4137e97a3bec",
+            "publicationState": "RUNNING",
+            "publishedAt": "2026-11-01T01:19:39.397264Z",
+            "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+            "createdBy": "2f219487-11a3-4a1d-9130-ac500b62f268",
+            "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+            "datasourceName": "248测试数据库",
+            "databaseType": "mysql",
+            "capabilityCategory": "business_analysis",
+            "enabled": true,
+            "parameterSummary": "无参数",
+            "dataAvailabilityStatus": "NOT_APPLICABLE"
+          }
+        ],
+        "timestamp": 1793497185869,
+        "requestId": null
+      }
+    },
+    {
+      "path": "/api/v1/database-query/studio-publications/59383865-bc1a-350c-8e1f-b5b198d8e7a2",
+      "response": {
+        "code": 200,
+        "message": "Success",
+        "data": {
+          "id": "studio:59383865-bc1a-350c-8e1f-b5b198d8e7a2",
+          "templateId": "59383865-bc1a-350c-8e1f-b5b198d8e7a2",
+          "sourceKind": "SQL_STUDIO",
+          "sourceLabel": "SQL Studio",
+          "readOnly": true,
+          "title": "TPCDS 248 仓库地理分布",
+          "description": "按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围；全仓库维表，无参数。",
+          "code": "STUDIO_59383865BC1A350C8E1FB5B198D8E7A2",
+          "toolName": "tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+          "version": 1,
+          "publicationId": "70d0b7c4-f7f2-4af3-8c9a-58d53ba3db0e",
+          "publicationState": "RUNNING",
+          "publishedAt": "2026-11-01T01:37:29.299116Z",
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "createdBy": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+          "datasourceName": "248测试数据库",
+          "databaseType": "mysql",
+          "capabilityCategory": "business_analysis",
+          "enabled": true,
+          "parameterSummary": "无参数",
+          "dataAvailabilityStatus": "NOT_APPLICABLE",
+          "sqlVisible": true,
+          "sqlTemplate": "-- ============================================================\n-- warehouse_geography.sql\n-- 仓库地理分布维表查询（无参数、只读、全量）\n-- 口径：按国家(w_country)、省州(w_state)分组，\n--       统计每组仓库数量、覆盖城市数量，\n--       并返回该组最小/最大仓库主键(w_warehouse_sk)，\n--       便于后续选择仓库开展库存分析。\n-- 保留空值分组（不对 NULL 做过滤），按国家、省州升序排列。\n-- 不固定任何商品或仓库，不添加人为业务过滤条件。\n-- 数据来源：tpcds.warehouse（基于已注册元数据）\n-- ============================================================\n\nSELECT\n    w_country,                                              -- 国家\n    w_state,                                                -- 省州\n    COUNT(*)                AS warehouse_count,             -- 该分组仓库数量\n    COUNT(DISTINCT w_city)  AS city_count,                  -- 该分组覆盖城市数量\n    MIN(w_warehouse_sk)     AS min_warehouse_sk,            -- 最小仓库主键\n    MAX(w_warehouse_sk)     AS max_warehouse_sk             -- 最大仓库主键\nFROM warehouse\nGROUP BY\n    w_country,\n    w_state\nORDER BY\n    w_country,\n    w_state;\n",
+          "parameterSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          },
+          "source": {
+            "projectId": "0fec15ec-f8aa-4950-a84c-07f220fd5a6b",
+            "fileId": "0f56fe58-fc66-4835-aceb-cff31d496f0d",
+            "fileVersion": 1,
+            "sqlDigest": "40ef37d9d60926249db66b76d8f2fe599da7cc570daca695a129203c1bb61b5d"
+          },
+          "testEvidence": {
+            "type": "SQL_DATABASE_EXECUTION",
+            "testId": "d89dfd30-eb2c-4ec0-8334-b157da2e97a0",
+            "testedAt": "2026-11-01T01:37:16.031512874Z",
+            "traceId": "d89dfd30-eb2c-4ec0-8334-b157da2e97a0",
+            "source": {
+              "projectId": "0fec15ec-f8aa-4950-a84c-07f220fd5a6b",
+              "fileId": "0f56fe58-fc66-4835-aceb-cff31d496f0d",
+              "fileVersion": 1,
+              "sqlDigest": "40ef37d9d60926249db66b76d8f2fe599da7cc570daca695a129203c1bb61b5d"
+            },
+            "fingerprint": "8233083b7d5cd0967bc7f429b5122058f575636e16e407ea4021ffd594417a84",
+            "sqlDigest": "40ef37d9d60926249db66b76d8f2fe599da7cc570daca695a129203c1bb61b5d",
+            "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+            "datasourceDigest": "38fc10dfb01d89253fb377c8a6701d6bed65310c231217353c20e7ebf5625307",
+            "parameters": {},
+            "parametersDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "timeoutSeconds": 10,
+            "maxRows": 50,
+            "success": true,
+            "resultDigest": "867a72aa5c63548184dc1b50155d61ebfd158cd4c289c298a903b70e0498a42b",
+            "rowCount": 1,
+            "errorCode": "",
+            "preview": {
+              "columns": [
+                "w_country",
+                "w_state",
+                "warehouse_count",
+                "city_count",
+                "min_warehouse_sk",
+                "max_warehouse_sk"
+              ],
+              "rows": [
+                {
+                  "w_country": "United States",
+                  "w_state": "TN",
+                  "warehouse_count": 5,
+                  "city_count": 1,
+                  "min_warehouse_sk": 1,
+                  "max_warehouse_sk": 5
+                }
+              ],
+              "returnedRowCount": 1,
+              "possiblyTruncated": false,
+              "complete": true,
+              "previewTruncated": false
+            },
+            "diagnostic": "SQL query executed successfully",
+            "durationMs": 361
+          },
+          "history": [
+            {
+              "id": "70d0b7c4-f7f2-4af3-8c9a-58d53ba3db0e",
+              "version": 1,
+              "state": "RUNNING",
+              "publishedAt": "2026-11-01T01:37:29.299116Z",
+              "sqlSnapshot": {
+                "id": "59383865-bc1a-350c-8e1f-b5b198d8e7a2",
+                "code": "STUDIO_59383865BC1A350C8E1FB5B198D8E7A2",
+                "sqlTemplate": "-- ============================================================\n-- warehouse_geography.sql\n-- 仓库地理分布维表查询（无参数、只读、全量）\n-- 口径：按国家(w_country)、省州(w_state)分组，\n--       统计每组仓库数量、覆盖城市数量，\n--       并返回该组最小/最大仓库主键(w_warehouse_sk)，\n--       便于后续选择仓库开展库存分析。\n-- 保留空值分组（不对 NULL 做过滤），按国家、省州升序排列。\n-- 不固定任何商品或仓库，不添加人为业务过滤条件。\n-- 数据来源：tpcds.warehouse（基于已注册元数据）\n-- ============================================================\n\nSELECT\n    w_country,                                              -- 国家\n    w_state,                                                -- 省州\n    COUNT(*)                AS warehouse_count,             -- 该分组仓库数量\n    COUNT(DISTINCT w_city)  AS city_count,                  -- 该分组覆盖城市数量\n    MIN(w_warehouse_sk)     AS min_warehouse_sk,            -- 最小仓库主键\n    MAX(w_warehouse_sk)     AS max_warehouse_sk             -- 最大仓库主键\nFROM warehouse\nGROUP BY\n    w_country,\n    w_state\nORDER BY\n    w_country,\n    w_state;\n",
+                "parameterSchema": {
+                  "type": "object",
+                  "properties": {},
+                  "additionalProperties": false
+                },
+                "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                "databaseType": "mysql",
+                "title": "TPCDS 248 仓库地理分布",
+                "description": "按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围；全仓库维表，无参数。",
+                "category": "business_analysis",
+                "source": {
+                  "projectId": "0fec15ec-f8aa-4950-a84c-07f220fd5a6b",
+                  "fileId": "0f56fe58-fc66-4835-aceb-cff31d496f0d",
+                  "fileVersion": 1,
+                  "sqlDigest": "40ef37d9d60926249db66b76d8f2fe599da7cc570daca695a129203c1bb61b5d"
+                }
+              },
+              "sqlTest": {
+                "type": "SQL_DATABASE_EXECUTION",
+                "testId": "d89dfd30-eb2c-4ec0-8334-b157da2e97a0",
+                "testedAt": "2026-11-01T01:37:16.031512874Z",
+                "traceId": "d89dfd30-eb2c-4ec0-8334-b157da2e97a0",
+                "source": {
+                  "projectId": "0fec15ec-f8aa-4950-a84c-07f220fd5a6b",
+                  "fileId": "0f56fe58-fc66-4835-aceb-cff31d496f0d",
+                  "fileVersion": 1,
+                  "sqlDigest": "40ef37d9d60926249db66b76d8f2fe599da7cc570daca695a129203c1bb61b5d"
+                },
+                "fingerprint": "8233083b7d5cd0967bc7f429b5122058f575636e16e407ea4021ffd594417a84",
+                "sqlDigest": "40ef37d9d60926249db66b76d8f2fe599da7cc570daca695a129203c1bb61b5d",
+                "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                "datasourceDigest": "38fc10dfb01d89253fb377c8a6701d6bed65310c231217353c20e7ebf5625307",
+                "parameters": {},
+                "parametersDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+                "timeoutSeconds": 10,
+                "maxRows": 50,
+                "success": true,
+                "resultDigest": "867a72aa5c63548184dc1b50155d61ebfd158cd4c289c298a903b70e0498a42b",
+                "rowCount": 1,
+                "errorCode": "",
+                "preview": {
+                  "columns": [
+                    "w_country",
+                    "w_state",
+                    "warehouse_count",
+                    "city_count",
+                    "min_warehouse_sk",
+                    "max_warehouse_sk"
+                  ],
+                  "rows": [
+                    {
+                      "w_country": "United States",
+                      "w_state": "TN",
+                      "warehouse_count": 5,
+                      "city_count": 1,
+                      "min_warehouse_sk": 1,
+                      "max_warehouse_sk": 5
+                    }
+                  ],
+                  "returnedRowCount": 1,
+                  "possiblyTruncated": false,
+                  "complete": true,
+                  "previewTruncated": false
+                },
+                "diagnostic": "SQL query executed successfully",
+                "durationMs": 361
+              }
+            }
+          ],
+          "authorizationRules": [],
+          "accessibleAgents": [
+            {
+              "agentId": "sql_template_e2e_20261101_r1",
+              "name": "SQL Template E2E Acceptance Agent",
+              "marketStatus": "published",
+              "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+              "evaluatedUserId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+              "toolName": "tpl_f61ea326b46f30aca4ecc717c2d2f9bc"
+            }
+          ],
+          "agentScopeStatus": "CURRENT_PUBLICATION_AUTHOR_POLICY",
+          "agentScopeNotice": "按发布者当前租户、用户权限、已发布 Agent 的实际工具绑定实时核验；其他用户须另行满足角色及资源授权。范围读取失败时不代表没有绑定。",
+          "accessNotice": "此处为 SQL Studio 原始发布记录的只读视图。修改、试执行和版本恢复请在源工程操作；调用仍须同时满足租户、数据源、模板、用户/角色和 Agent 工具授权。发布状态不等于当前账号具备执行权限。"
+        },
+        "timestamp": 1793497186952,
+        "requestId": null
+      }
+    },
+    {
+      "path": "/api/v1/database-query/studio-publications",
+      "response": {
+        "code": 200,
+        "message": "Success",
+        "data": [
+          {
+            "id": "studio:fb8d154e-3fe0-39e5-9a58-fddbbae1cb1a",
+            "templateId": "fb8d154e-3fe0-39e5-9a58-fddbbae1cb1a",
+            "sourceKind": "SQL_STUDIO",
+            "sourceLabel": "SQL Studio",
+            "readOnly": true,
+            "title": "TPCDS 248 仓库期间库存快照",
+            "description": "按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。",
+            "code": "STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A",
+            "toolName": "tpl_190c862b57813ca38fbe5a0edc614970",
+            "version": 1,
+            "publicationId": "450b9617-d0b2-49dd-b015-09928930307b",
+            "publicationState": "RUNNING",
+            "publishedAt": "2026-11-01T01:37:43.020223Z",
+            "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+            "createdBy": "2f219487-11a3-4a1d-9130-ac500b62f268",
+            "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+            "datasourceName": "248测试数据库",
+            "databaseType": "mysql",
+            "capabilityCategory": "business_analysis",
+            "enabled": true,
+            "parameterSummary": "warehouse_id（必填）、start_date（必填）、end_date（必填）、min_on_hand（默认 0）、category（默认 null）",
+            "dataAvailabilityStatus": "NOT_APPLICABLE"
+          },
+          {
+            "id": "studio:59383865-bc1a-350c-8e1f-b5b198d8e7a2",
+            "templateId": "59383865-bc1a-350c-8e1f-b5b198d8e7a2",
+            "sourceKind": "SQL_STUDIO",
+            "sourceLabel": "SQL Studio",
+            "readOnly": true,
+            "title": "TPCDS 248 仓库地理分布",
+            "description": "按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围；全仓库维表，无参数。",
+            "code": "STUDIO_59383865BC1A350C8E1FB5B198D8E7A2",
+            "toolName": "tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+            "version": 1,
+            "publicationId": "70d0b7c4-f7f2-4af3-8c9a-58d53ba3db0e",
+            "publicationState": "RUNNING",
+            "publishedAt": "2026-11-01T01:37:29.299116Z",
+            "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+            "createdBy": "2f219487-11a3-4a1d-9130-ac500b62f268",
+            "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+            "datasourceName": "248测试数据库",
+            "databaseType": "mysql",
+            "capabilityCategory": "business_analysis",
+            "enabled": true,
+            "parameterSummary": "无参数",
+            "dataAvailabilityStatus": "NOT_APPLICABLE"
+          },
+          {
+            "id": "studio:2b689c67-d343-3659-9b05-c753f0473b60",
+            "templateId": "2b689c67-d343-3659-9b05-c753f0473b60",
+            "sourceKind": "SQL_STUDIO",
+            "sourceLabel": "SQL Studio",
+            "readOnly": true,
+            "title": "TPCDS 248 单品期间月度销售分析验收",
+            "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+            "code": "STUDIO_2B689C67D34336599B05C753F0473B60",
+            "toolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+            "version": 4,
+            "publicationId": "bc8928a0-ad98-4704-b464-f4738b823d52",
+            "publicationState": "RUNNING",
+            "publishedAt": "2026-11-01T01:19:49.630608Z",
+            "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+            "createdBy": "2f219487-11a3-4a1d-9130-ac500b62f268",
+            "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+            "datasourceName": "248测试数据库",
+            "databaseType": "mysql",
+            "capabilityCategory": "business_analysis",
+            "enabled": true,
+            "parameterSummary": "product_id（默认 1）、start_date（必填）、end_date（必填）、min_quantity（默认 0）、category（默认 null）",
+            "dataAvailabilityStatus": "NOT_APPLICABLE"
+          },
+          {
+            "id": "studio:18042d96-4c82-3181-832d-b6e79e771ffb",
+            "templateId": "18042d96-4c82-3181-832d-b6e79e771ffb",
+            "sourceKind": "SQL_STUDIO",
+            "sourceLabel": "SQL Studio",
+            "readOnly": true,
+            "title": "TPCDS 248 商品1年度销售汇总验收",
+            "description": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。",
+            "code": "STUDIO_18042D964C823181832DB6E79E771FFB",
+            "toolName": "tpl_212b88329a673657979943bbeaa7479b",
+            "version": 4,
+            "publicationId": "5e775f98-0de9-4de0-be32-4137e97a3bec",
+            "publicationState": "RUNNING",
+            "publishedAt": "2026-11-01T01:19:39.397264Z",
+            "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+            "createdBy": "2f219487-11a3-4a1d-9130-ac500b62f268",
+            "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+            "datasourceName": "248测试数据库",
+            "databaseType": "mysql",
+            "capabilityCategory": "business_analysis",
+            "enabled": true,
+            "parameterSummary": "无参数",
+            "dataAvailabilityStatus": "NOT_APPLICABLE"
+          }
+        ],
+        "timestamp": 1793497187177,
+        "requestId": null
+      }
+    },
+    {
+      "path": "/api/v1/database-query/studio-publications/fb8d154e-3fe0-39e5-9a58-fddbbae1cb1a",
+      "response": {
+        "code": 200,
+        "message": "Success",
+        "data": {
+          "id": "studio:fb8d154e-3fe0-39e5-9a58-fddbbae1cb1a",
+          "templateId": "fb8d154e-3fe0-39e5-9a58-fddbbae1cb1a",
+          "sourceKind": "SQL_STUDIO",
+          "sourceLabel": "SQL Studio",
+          "readOnly": true,
+          "title": "TPCDS 248 仓库期间库存快照",
+          "description": "按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。",
+          "code": "STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A",
+          "toolName": "tpl_190c862b57813ca38fbe5a0edc614970",
+          "version": 1,
+          "publicationId": "450b9617-d0b2-49dd-b015-09928930307b",
+          "publicationState": "RUNNING",
+          "publishedAt": "2026-11-01T01:37:43.020223Z",
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "createdBy": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+          "datasourceName": "248测试数据库",
+          "databaseType": "mysql",
+          "capabilityCategory": "business_analysis",
+          "enabled": true,
+          "parameterSummary": "warehouse_id（必填）、start_date（必填）、end_date（必填）、min_on_hand（默认 0）、category（默认 null）",
+          "dataAvailabilityStatus": "NOT_APPLICABLE",
+          "sqlVisible": true,
+          "sqlTemplate": "-- =============================================================================\n-- 逐日库存快照分析\n-- 功能：按快照日期统计指定仓库在含边界日期期间内的库存概况\n-- 统计指标：\n--   sku_record_count  - SKU记录数（满足条件的库存记录条数）\n--   nonzero_sku_count - 现存数量大于零的SKU数\n--   zero_sku_count    - 零库存SKU数（现存数量等于零的记录条数）\n--   total_on_hand     - 现存数量合计（所有满足条件的记录的数量之和，不推测计量单位）\n-- 参数（占位符外不加引号，由模板引擎处理）：\n--   {{warehouse_id}}  - 仓库 surrogate key（整数，必填）\n--   {{start_date}}    - 起始日期（日期字符串，必填，含边界）\n--   {{end_date}}      - 结束日期（日期字符串，必填，含边界）\n--   {{min_on_hand}}   - 现存数量下限（整数，默认 0）\n--   {{category}}      - 商品类别（可空字符串，NULL 表示不过滤类别）\n-- =============================================================================\n\nSELECT\n    dd.d_date                                                       AS snapshot_date,\n    /* SKU记录数：该日期下满足筛选条件的库存记录条数 */\n    COUNT(*)                                                        AS sku_record_count,\n    /* 现存数量大于零的SKU数 */\n    SUM(CASE WHEN inv.inv_quantity_on_hand > 0 THEN 1 ELSE 0 END)  AS nonzero_sku_count,\n    /* 零库存SKU数：现存数量等于零的记录条数 */\n    SUM(CASE WHEN inv.inv_quantity_on_hand = 0 THEN 1 ELSE 0 END)  AS zero_sku_count,\n    /* 现存数量合计：所有满足条件的库存记录的 inv_quantity_on_hand 之和（不推测计量单位） */\n    SUM(inv.inv_quantity_on_hand)                                   AS total_on_hand\nFROM inventory inv\nINNER JOIN date_dim dd\n    ON inv.inv_date_sk = dd.d_date_sk\nINNER JOIN item i\n    ON inv.inv_item_sk = i.i_item_sk\nWHERE inv.inv_warehouse_sk = {{warehouse_id}}\n  AND dd.d_date >= {{start_date}}\n  AND dd.d_date <= {{end_date}}\n  AND inv.inv_quantity_on_hand >= {{min_on_hand}}\n  AND ({{category}} IS NULL OR i.i_category = {{category}})\nGROUP BY dd.d_date\nORDER BY dd.d_date ASC\nLIMIT 100;\n",
+          "parameterSchema": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "warehouse_id": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "仓库维表主键，无默认值"
+              },
+              "start_date": {
+                "type": "string",
+                "format": "date",
+                "description": "含边界的库存快照开始日期"
+              },
+              "end_date": {
+                "type": "string",
+                "format": "date",
+                "description": "含边界的库存快照结束日期"
+              },
+              "min_on_hand": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 0,
+                "description": "现存数量下限"
+              },
+              "category": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "default": null,
+                "description": "商品类别，null表示不限"
+              }
+            },
+            "required": [
+              "warehouse_id",
+              "start_date",
+              "end_date"
+            ]
+          },
+          "source": {
+            "projectId": "0fec15ec-f8aa-4950-a84c-07f220fd5a6b",
+            "fileId": "20adf18b-50ad-4684-ac12-6a4a16240029",
+            "fileVersion": 1,
+            "sqlDigest": "2df1647d48b21e817f80e4384aabeced6f116615063988542622588258d64444"
+          },
+          "testEvidence": {
+            "type": "SQL_DATABASE_EXECUTION",
+            "testId": "3288f786-ff35-4406-a1c3-582f5874640e",
+            "testedAt": "2026-11-01T01:37:16.920149957Z",
+            "traceId": "3288f786-ff35-4406-a1c3-582f5874640e",
+            "source": {
+              "projectId": "0fec15ec-f8aa-4950-a84c-07f220fd5a6b",
+              "fileId": "20adf18b-50ad-4684-ac12-6a4a16240029",
+              "fileVersion": 1,
+              "sqlDigest": "2df1647d48b21e817f80e4384aabeced6f116615063988542622588258d64444"
+            },
+            "fingerprint": "0ab952d0847d02b0cf533f359130794794f624aac66dc6faa486b6dc82360a19",
+            "sqlDigest": "2df1647d48b21e817f80e4384aabeced6f116615063988542622588258d64444",
+            "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+            "datasourceDigest": "38fc10dfb01d89253fb377c8a6701d6bed65310c231217353c20e7ebf5625307",
+            "parameters": {
+              "warehouse_id": 2,
+              "start_date": "1998-01-01",
+              "end_date": "1998-01-29"
+            },
+            "parametersDigest": "0433cb8db8f370e50cbf3ceed3cfc26723ecd9625a453884a31bd0f80752d7aa",
+            "timeoutSeconds": 10,
+            "maxRows": 50,
+            "success": true,
+            "resultDigest": "9c6205ebbdf40cbeb51a9d78c0e3dc4cb1bf6794635dee58b4246d996ea17708",
+            "rowCount": 5,
+            "errorCode": "",
+            "preview": {
+              "columns": [
+                "snapshot_date",
+                "sku_record_count",
+                "nonzero_sku_count",
+                "zero_sku_count",
+                "total_on_hand"
+              ],
+              "rows": [
+                {
+                  "snapshot_date": "1998-01-01",
+                  "sku_record_count": 8546,
+                  "nonzero_sku_count": 8539,
+                  "zero_sku_count": 7,
+                  "total_on_hand": 4301064
+                },
+                {
+                  "snapshot_date": "1998-01-08",
+                  "sku_record_count": 8566,
+                  "nonzero_sku_count": 8559,
+                  "zero_sku_count": 7,
+                  "total_on_hand": 4309382
+                },
+                {
+                  "snapshot_date": "1998-01-15",
+                  "sku_record_count": 8542,
+                  "nonzero_sku_count": 8529,
+                  "zero_sku_count": 13,
+                  "total_on_hand": 4309203
+                },
+                {
+                  "snapshot_date": "1998-01-22",
+                  "sku_record_count": 8560,
+                  "nonzero_sku_count": 8550,
+                  "zero_sku_count": 10,
+                  "total_on_hand": 4349344
+                },
+                {
+                  "snapshot_date": "1998-01-29",
+                  "sku_record_count": 8538,
+                  "nonzero_sku_count": 8529,
+                  "zero_sku_count": 9,
+                  "total_on_hand": 4297887
+                }
+              ],
+              "returnedRowCount": 5,
+              "possiblyTruncated": false,
+              "complete": true,
+              "previewTruncated": false
+            },
+            "diagnostic": "SQL query executed successfully",
+            "durationMs": 407
+          },
+          "history": [
+            {
+              "id": "450b9617-d0b2-49dd-b015-09928930307b",
+              "version": 1,
+              "state": "RUNNING",
+              "publishedAt": "2026-11-01T01:37:43.020223Z",
+              "sqlSnapshot": {
+                "id": "fb8d154e-3fe0-39e5-9a58-fddbbae1cb1a",
+                "code": "STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A",
+                "sqlTemplate": "-- =============================================================================\n-- 逐日库存快照分析\n-- 功能：按快照日期统计指定仓库在含边界日期期间内的库存概况\n-- 统计指标：\n--   sku_record_count  - SKU记录数（满足条件的库存记录条数）\n--   nonzero_sku_count - 现存数量大于零的SKU数\n--   zero_sku_count    - 零库存SKU数（现存数量等于零的记录条数）\n--   total_on_hand     - 现存数量合计（所有满足条件的记录的数量之和，不推测计量单位）\n-- 参数（占位符外不加引号，由模板引擎处理）：\n--   {{warehouse_id}}  - 仓库 surrogate key（整数，必填）\n--   {{start_date}}    - 起始日期（日期字符串，必填，含边界）\n--   {{end_date}}      - 结束日期（日期字符串，必填，含边界）\n--   {{min_on_hand}}   - 现存数量下限（整数，默认 0）\n--   {{category}}      - 商品类别（可空字符串，NULL 表示不过滤类别）\n-- =============================================================================\n\nSELECT\n    dd.d_date                                                       AS snapshot_date,\n    /* SKU记录数：该日期下满足筛选条件的库存记录条数 */\n    COUNT(*)                                                        AS sku_record_count,\n    /* 现存数量大于零的SKU数 */\n    SUM(CASE WHEN inv.inv_quantity_on_hand > 0 THEN 1 ELSE 0 END)  AS nonzero_sku_count,\n    /* 零库存SKU数：现存数量等于零的记录条数 */\n    SUM(CASE WHEN inv.inv_quantity_on_hand = 0 THEN 1 ELSE 0 END)  AS zero_sku_count,\n    /* 现存数量合计：所有满足条件的库存记录的 inv_quantity_on_hand 之和（不推测计量单位） */\n    SUM(inv.inv_quantity_on_hand)                                   AS total_on_hand\nFROM inventory inv\nINNER JOIN date_dim dd\n    ON inv.inv_date_sk = dd.d_date_sk\nINNER JOIN item i\n    ON inv.inv_item_sk = i.i_item_sk\nWHERE inv.inv_warehouse_sk = {{warehouse_id}}\n  AND dd.d_date >= {{start_date}}\n  AND dd.d_date <= {{end_date}}\n  AND inv.inv_quantity_on_hand >= {{min_on_hand}}\n  AND ({{category}} IS NULL OR i.i_category = {{category}})\nGROUP BY dd.d_date\nORDER BY dd.d_date ASC\nLIMIT 100;\n",
+                "parameterSchema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "warehouse_id": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "仓库维表主键，无默认值"
+                    },
+                    "start_date": {
+                      "type": "string",
+                      "format": "date",
+                      "description": "含边界的库存快照开始日期"
+                    },
+                    "end_date": {
+                      "type": "string",
+                      "format": "date",
+                      "description": "含边界的库存快照结束日期"
+                    },
+                    "min_on_hand": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "default": 0,
+                      "description": "现存数量下限"
+                    },
+                    "category": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "default": null,
+                      "description": "商品类别，null表示不限"
+                    }
+                  },
+                  "required": [
+                    "warehouse_id",
+                    "start_date",
+                    "end_date"
+                  ]
+                },
+                "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                "databaseType": "mysql",
+                "title": "TPCDS 248 仓库期间库存快照",
+                "description": "按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。",
+                "category": "business_analysis",
+                "source": {
+                  "projectId": "0fec15ec-f8aa-4950-a84c-07f220fd5a6b",
+                  "fileId": "20adf18b-50ad-4684-ac12-6a4a16240029",
+                  "fileVersion": 1,
+                  "sqlDigest": "2df1647d48b21e817f80e4384aabeced6f116615063988542622588258d64444"
+                }
+              },
+              "sqlTest": {
+                "type": "SQL_DATABASE_EXECUTION",
+                "testId": "3288f786-ff35-4406-a1c3-582f5874640e",
+                "testedAt": "2026-11-01T01:37:16.920149957Z",
+                "traceId": "3288f786-ff35-4406-a1c3-582f5874640e",
+                "source": {
+                  "projectId": "0fec15ec-f8aa-4950-a84c-07f220fd5a6b",
+                  "fileId": "20adf18b-50ad-4684-ac12-6a4a16240029",
+                  "fileVersion": 1,
+                  "sqlDigest": "2df1647d48b21e817f80e4384aabeced6f116615063988542622588258d64444"
+                },
+                "fingerprint": "0ab952d0847d02b0cf533f359130794794f624aac66dc6faa486b6dc82360a19",
+                "sqlDigest": "2df1647d48b21e817f80e4384aabeced6f116615063988542622588258d64444",
+                "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+                "datasourceDigest": "38fc10dfb01d89253fb377c8a6701d6bed65310c231217353c20e7ebf5625307",
+                "parameters": {
+                  "warehouse_id": 2,
+                  "start_date": "1998-01-01",
+                  "end_date": "1998-01-29"
+                },
+                "parametersDigest": "0433cb8db8f370e50cbf3ceed3cfc26723ecd9625a453884a31bd0f80752d7aa",
+                "timeoutSeconds": 10,
+                "maxRows": 50,
+                "success": true,
+                "resultDigest": "9c6205ebbdf40cbeb51a9d78c0e3dc4cb1bf6794635dee58b4246d996ea17708",
+                "rowCount": 5,
+                "errorCode": "",
+                "preview": {
+                  "columns": [
+                    "snapshot_date",
+                    "sku_record_count",
+                    "nonzero_sku_count",
+                    "zero_sku_count",
+                    "total_on_hand"
+                  ],
+                  "rows": [
+                    {
+                      "snapshot_date": "1998-01-01",
+                      "sku_record_count": 8546,
+                      "nonzero_sku_count": 8539,
+                      "zero_sku_count": 7,
+                      "total_on_hand": 4301064
+                    },
+                    {
+                      "snapshot_date": "1998-01-08",
+                      "sku_record_count": 8566,
+                      "nonzero_sku_count": 8559,
+                      "zero_sku_count": 7,
+                      "total_on_hand": 4309382
+                    },
+                    {
+                      "snapshot_date": "1998-01-15",
+                      "sku_record_count": 8542,
+                      "nonzero_sku_count": 8529,
+                      "zero_sku_count": 13,
+                      "total_on_hand": 4309203
+                    },
+                    {
+                      "snapshot_date": "1998-01-22",
+                      "sku_record_count": 8560,
+                      "nonzero_sku_count": 8550,
+                      "zero_sku_count": 10,
+                      "total_on_hand": 4349344
+                    },
+                    {
+                      "snapshot_date": "1998-01-29",
+                      "sku_record_count": 8538,
+                      "nonzero_sku_count": 8529,
+                      "zero_sku_count": 9,
+                      "total_on_hand": 4297887
+                    }
+                  ],
+                  "returnedRowCount": 5,
+                  "possiblyTruncated": false,
+                  "complete": true,
+                  "previewTruncated": false
+                },
+                "diagnostic": "SQL query executed successfully",
+                "durationMs": 407
+              }
+            }
+          ],
+          "authorizationRules": [],
+          "accessibleAgents": [
+            {
+              "agentId": "sql_template_e2e_20261101_r1",
+              "name": "SQL Template E2E Acceptance Agent",
+              "marketStatus": "published",
+              "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+              "evaluatedUserId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+              "toolName": "tpl_190c862b57813ca38fbe5a0edc614970"
+            }
+          ],
+          "agentScopeStatus": "CURRENT_PUBLICATION_AUTHOR_POLICY",
+          "agentScopeNotice": "按发布者当前租户、用户权限、已发布 Agent 的实际工具绑定实时核验；其他用户须另行满足角色及资源授权。范围读取失败时不代表没有绑定。",
+          "accessNotice": "此处为 SQL Studio 原始发布记录的只读视图。修改、试执行和版本恢复请在源工程操作；调用仍须同时满足租户、数据源、模板、用户/角色和 Agent 工具授权。发布状态不等于当前账号具备执行权限。"
+        },
+        "timestamp": 1793497188975,
+        "requestId": null
+      }
+    },
+    {
+      "path": "/api/v1/database-query/studio-publications",
+      "response": {
+        "code": 200,
+        "message": "Success",
+        "data": [
+          {
+            "id": "studio:fb8d154e-3fe0-39e5-9a58-fddbbae1cb1a",
+            "templateId": "fb8d154e-3fe0-39e5-9a58-fddbbae1cb1a",
+            "sourceKind": "SQL_STUDIO",
+            "sourceLabel": "SQL Studio",
+            "readOnly": true,
+            "title": "TPCDS 248 仓库期间库存快照",
+            "description": "按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。",
+            "code": "STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A",
+            "toolName": "tpl_190c862b57813ca38fbe5a0edc614970",
+            "version": 1,
+            "publicationId": "450b9617-d0b2-49dd-b015-09928930307b",
+            "publicationState": "RUNNING",
+            "publishedAt": "2026-11-01T01:37:43.020223Z",
+            "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+            "createdBy": "2f219487-11a3-4a1d-9130-ac500b62f268",
+            "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+            "datasourceName": "248测试数据库",
+            "databaseType": "mysql",
+            "capabilityCategory": "business_analysis",
+            "enabled": true,
+            "parameterSummary": "warehouse_id（必填）、start_date（必填）、end_date（必填）、min_on_hand（默认 0）、category（默认 null）",
+            "dataAvailabilityStatus": "NOT_APPLICABLE"
+          },
+          {
+            "id": "studio:59383865-bc1a-350c-8e1f-b5b198d8e7a2",
+            "templateId": "59383865-bc1a-350c-8e1f-b5b198d8e7a2",
+            "sourceKind": "SQL_STUDIO",
+            "sourceLabel": "SQL Studio",
+            "readOnly": true,
+            "title": "TPCDS 248 仓库地理分布",
+            "description": "按国家和省州统计仓库及覆盖城市数量，返回每组实际仓库主键范围；全仓库维表，无参数。",
+            "code": "STUDIO_59383865BC1A350C8E1FB5B198D8E7A2",
+            "toolName": "tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+            "version": 1,
+            "publicationId": "70d0b7c4-f7f2-4af3-8c9a-58d53ba3db0e",
+            "publicationState": "RUNNING",
+            "publishedAt": "2026-11-01T01:37:29.299116Z",
+            "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+            "createdBy": "2f219487-11a3-4a1d-9130-ac500b62f268",
+            "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+            "datasourceName": "248测试数据库",
+            "databaseType": "mysql",
+            "capabilityCategory": "business_analysis",
+            "enabled": true,
+            "parameterSummary": "无参数",
+            "dataAvailabilityStatus": "NOT_APPLICABLE"
+          },
+          {
+            "id": "studio:2b689c67-d343-3659-9b05-c753f0473b60",
+            "templateId": "2b689c67-d343-3659-9b05-c753f0473b60",
+            "sourceKind": "SQL_STUDIO",
+            "sourceLabel": "SQL Studio",
+            "readOnly": true,
+            "title": "TPCDS 248 单品期间月度销售分析验收",
+            "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+            "code": "STUDIO_2B689C67D34336599B05C753F0473B60",
+            "toolName": "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+            "version": 4,
+            "publicationId": "bc8928a0-ad98-4704-b464-f4738b823d52",
+            "publicationState": "RUNNING",
+            "publishedAt": "2026-11-01T01:19:49.630608Z",
+            "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+            "createdBy": "2f219487-11a3-4a1d-9130-ac500b62f268",
+            "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+            "datasourceName": "248测试数据库",
+            "databaseType": "mysql",
+            "capabilityCategory": "business_analysis",
+            "enabled": true,
+            "parameterSummary": "product_id（默认 1）、start_date（必填）、end_date（必填）、min_quantity（默认 0）、category（默认 null）",
+            "dataAvailabilityStatus": "NOT_APPLICABLE"
+          },
+          {
+            "id": "studio:18042d96-4c82-3181-832d-b6e79e771ffb",
+            "templateId": "18042d96-4c82-3181-832d-b6e79e771ffb",
+            "sourceKind": "SQL_STUDIO",
+            "sourceLabel": "SQL Studio",
+            "readOnly": true,
+            "title": "TPCDS 248 商品1年度销售汇总验收",
+            "description": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。",
+            "code": "STUDIO_18042D964C823181832DB6E79E771FFB",
+            "toolName": "tpl_212b88329a673657979943bbeaa7479b",
+            "version": 4,
+            "publicationId": "5e775f98-0de9-4de0-be32-4137e97a3bec",
+            "publicationState": "RUNNING",
+            "publishedAt": "2026-11-01T01:19:39.397264Z",
+            "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+            "createdBy": "2f219487-11a3-4a1d-9130-ac500b62f268",
+            "datasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+            "datasourceName": "248测试数据库",
+            "databaseType": "mysql",
+            "capabilityCategory": "business_analysis",
+            "enabled": true,
+            "parameterSummary": "无参数",
+            "dataAvailabilityStatus": "NOT_APPLICABLE"
+          }
+        ],
+        "timestamp": 1793497189265,
+        "requestId": null
+      }
+    }
+  ]
+}

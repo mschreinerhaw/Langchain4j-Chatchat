@@ -1,0 +1,41 @@
+{
+  "scope": "REAL_ORDINARY_AGENT_RUNTIME_NOT_MOCKED",
+  "status": "REQUIRED_EDGE_REJECTED_DOWNSTREAM_NOT_EXECUTED",
+  "failures": [
+    {
+      "type": "tool_failure",
+      "source": "reasoning",
+      "content": "InterpretationPlan step 2 reasoning failed: STEP_OUTPUT_CONTRACT_FAILED: EDGE_CONTRACT_FAILED: missing required field selected_warehouse_id from step 2 for step 3; EDGE_CONTRACT_FAILED: missing required field selected_warehouse_id from step 2 for step 5",
+      "metadata": {
+        "structuredRuntimeObservation": true,
+        "workflow": "interpretation_plan",
+        "protocolVersion": "interpretation_execution_protocol_v1",
+        "executionTraceId": "att-1-9920ff09-05d2-4708-afc9-67e59ba4e5af::interpretation_plan",
+        "workflowExecutionAttempt": 0,
+        "planExecutionScope": "att-1-9920ff09-05d2-4708-afc9-67e59ba4e5af::attempt:0",
+        "evidenceIteration": 1,
+        "lifecyclePhase": "observation",
+        "interpretationPlanStepId": 2,
+        "evidenceId": "iteration:1:step:2:tool:",
+        "interpretationPlanActionType": "reasoning",
+        "toolName": "",
+        "planStepDefinitionFingerprint": "kd8mme1Nz-f66j7RuFnrlAOuMm_X28tjVD53fHgUd7w",
+        "success": false,
+        "durationMs": 6,
+        "type": "tool_failure",
+        "errorMessage": "STEP_OUTPUT_CONTRACT_FAILED: EDGE_CONTRACT_FAILED: missing required field selected_warehouse_id from step 2 for step 3; EDGE_CONTRACT_FAILED: missing required field selected_warehouse_id from step 2 for step 5",
+        "outputContractSatisfied": false,
+        "outputContractViolations": [
+          "EDGE_CONTRACT_FAILED: missing required field selected_warehouse_id from step 2 for step 3",
+          "EDGE_CONTRACT_FAILED: missing required field selected_warehouse_id from step 2 for step 5"
+        ],
+        "outputContractValidated": true,
+        "repairable": true,
+        "repairAction": "rewrite_plan",
+        "stepOutput": {
+          "instruction": "从步骤1返回的每个国家/省州分组的实际仓库主键范围中，计算所有实际存在仓库主键的全局最小值，并输出 selected_warehouse_id 整数字段。若返回完整主键集合则取集合最小值；若返回主键范围则取所有下界的最小值。只依据实际返回行计算，不猜测缺失主键，不按返回顺序或排名代替最小值。"
+        }
+      }
+    }
+  ]
+}

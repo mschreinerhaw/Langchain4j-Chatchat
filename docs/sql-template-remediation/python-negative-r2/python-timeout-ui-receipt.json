@@ -1,0 +1,23 @@
+{
+  "execution": {
+    "id": "e1f6635f-f910-498b-980b-66cb3cab6de7",
+    "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+    "ownerId": "admin",
+    "assetId": "e68c6c9b-2510-40f4-a5e7-b74b71927d5d",
+    "scriptId": "e02d51fe-c0ef-47ef-a8fa-4141dbbdd74c",
+    "templateId": null,
+    "containerId": "chatchat-py-e68c6c9b-2510-40f4-a5e7-b74b71927d5d-46c43790",
+    "status": "TIMED_OUT",
+    "parametersJson": "{}",
+    "stdout": "",
+    "stderr": "",
+    "resultJson": "",
+    "exitCode": 124,
+    "startedAt": "2026-11-01T02:39:00.609768548Z",
+    "finishedAt": "2026-11-01T02:39:00.609528693Z",
+    "durationMs": 30006
+  },
+  "statusVisible": true,
+  "consoleText": "执行失败",
+  "capturedAt": "2026-11-01T02:39:30.949Z"
+}

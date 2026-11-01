@@ -328,7 +328,7 @@ final class InterpretationAnalysisSession {
                 firstResult);
         host.checkCancelledUnlessBatchEvidence(cancellationCheck, firstResult, metadata);
 
-        if (firstResult.approvalRequired()) {
+        if (awaitsConfirmation(firstResult)) {
             metadata.put("stopReason", "confirmation_required");
             metadata.put("confirmationRequired", true);
             completion = host.answerFinalizer.finishExecution("", traces, metadata, observations);
@@ -760,7 +760,7 @@ final class InterpretationAnalysisSession {
                 metadata,
                 currentResult);
         host.checkCancelledUnlessBatchEvidence(cancellationCheck, currentResult, metadata);
-        if (currentResult.approvalRequired()) {
+        if (awaitsConfirmation(currentResult)) {
             metadata.put("stopReason", "confirmation_required");
             metadata.put("confirmationRequired", true);
             completion = host.answerFinalizer.finishExecution("", traces, metadata, observations);
@@ -1162,6 +1162,12 @@ final class InterpretationAnalysisSession {
     private boolean codingOwnedDataAnalysis() {
         return com.chatchat.agents.orchestration.analysis.contract.RuntimeAnalysisOwnership
                 .codingOwnsAnalysis(runtimeAttributes);
+    }
+
+    private boolean awaitsConfirmation(InterpretationPlanRuntime.ExecutionResult result) {
+        return result.approvalRequired() || result.steps().stream().anyMatch(step ->
+            step.toolExecution() != null
+                && "confirmation_required".equals(step.toolExecution().outcome()));
     }
 
     Phase execute(Phase phase) {

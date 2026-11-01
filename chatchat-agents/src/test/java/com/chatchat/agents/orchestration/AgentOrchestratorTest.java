@@ -80,6 +80,35 @@ import static org.mockito.Mockito.when;
 class AgentOrchestratorTest {
 
     @Test
+    void codingAnalysisWaitsForToolConfirmationBeforeDataSupplyProjection() throws Exception {
+        String tool = "document_search";
+        var registry = mock(ToolRegistry.class);
+        when(registry.hasTool(tool)).thenReturn(true);
+        when(registry.getToolMetadata(tool)).thenReturn(ToolMetadata.builder().id(tool)
+            .title("Approved source").categories(List.of("mcp")).riskLevel("low")
+            .operationType("read").confirmation(Map.of("default", "ask_before_execute")).build());
+        var json = new ObjectMapper();
+        var service = new ToolRuntimeService(registry, json, toolRuntimeProperties(), List.of(), List.of());
+        try {
+            var model = mock(ChatModel.class);
+            var host = new AgentOrchestrator(model, registry, service, json, new ModelsConfig());
+            var plan = json.readValue(interpretationPlan("No report before approval", tool), InterpretationPlan.class);
+            var metadata = new LinkedHashMap<String,Object>();
+            var session = new InterpretationAnalysisSession(host, plan, model, "Analyze authorized records", "",
+                "tenant-1", "request-approval", "conversation-approval", "user-1", List.of(tool),
+                Map.of("taskType", "DATA_ANALYSIS"), new ArrayList<>(), new ArrayList<>(), metadata,
+                List.of(), List.of(), 10, 10, () -> false);
+            new com.chatchat.agents.orchestration.analysis.graph.InterpretationAnalysisGraph()
+                .execute(session::execute, metadata);
+            assertThat(session.completion.metadata()).containsEntry("confirmationRequired", true);
+            assertThat(session.completion.toolTraces()).singleElement().satisfies(trace ->
+                assertThat(trace.getRuntimeMetadata()).containsEntry("outcome", "confirmation_required"));
+            assertThat(String.valueOf(metadata.get("analysisPipelineNodes"))).doesNotContain("INITIAL_ANALYSIS");
+            verify(registry, never()).executeEnhancedTool(any(), any());
+        } finally { service.shutdown(); }
+    }
+
+    @Test
     void stagedDiscoveryKeepsOriginalPlanningAndAssetSelectionFlow() {
         String discovery = "mcp_chatchat_mcp_server_server_capability_query";
         String executor = "mcp_chatchat_mcp_server_linux_command_execute";

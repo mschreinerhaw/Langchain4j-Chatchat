@@ -208,12 +208,7 @@
               :gutter="12"
             >
               <template v-for="field in renderedSectionFields(section)" :key="field.key">
-                <el-col
-                  :xs="24"
-                  :md="fieldColSpan(field)"
-                  :inert="isFieldReadonly(field)"
-                  :aria-disabled="isFieldReadonly(field)"
-                >
+                <el-col :xs="24" :md="fieldColSpan(field)">
                   <el-form-item
                     :label="fieldText(field, 'label')"
                     :required="isFieldRequired(field)"
@@ -221,6 +216,7 @@
                     <el-select
                       v-if="field.type === 'select'"
                       v-model="form[field.key]"
+                      :disabled="isFieldReadonly(field)"
                       class="w-100"
                       filterable
                       clearable
@@ -242,6 +238,7 @@
                       <el-input
                         v-model="form[field.key]"
                         type="textarea"
+                        :readonly="isFieldReadonly(field)"
                         :rows="field.rows || 3"
                         :placeholder="field.placeholder"
                         :required="isFieldRequired(field)"
@@ -261,6 +258,7 @@
                     <el-input
                       v-else-if="field.type === 'json'"
                       v-model="jsonDraft[field.key]"
+                      :readonly="isFieldReadonly(field)"
                       class="codebox"
                       type="textarea"
                       :rows="field.rows || 7"
@@ -1313,6 +1311,7 @@
                     <el-input
                       v-else
                       v-model="form[field.key]"
+                      :readonly="isFieldReadonly(field)"
                       :type="field.type || 'text'"
                       :placeholder="field.placeholder"
                       :required="isFieldRequired(field)"

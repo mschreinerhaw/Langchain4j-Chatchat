@@ -630,7 +630,7 @@ export default {
         sql: payload.sqlTemplate,
         sqlSteps: payload.sqlSteps || [],
         inputSchema: payload.inputSchema || {},
-        params: payload.parameters || {},
+        params: args || payload.parameters || {},
         maxRows: payload.maxRows,
         timeoutSeconds: payload.timeoutSeconds,
         datasourceId: payload.datasourceId,

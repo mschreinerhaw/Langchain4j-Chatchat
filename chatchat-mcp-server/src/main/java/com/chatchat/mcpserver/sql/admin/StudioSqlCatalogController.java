@@ -33,7 +33,7 @@ public class StudioSqlCatalogController {
             if(row.getReleasedCapabilityId()!=null) groups.computeIfAbsent(row.getPublicationGroupId(),k->new ArrayList<>()).add(row);
         return ApiResponse.success(groups.values().stream().map(rows->rows.stream().max(Comparator
             .comparing(SqlTemplateConfig::isEnabled).thenComparingInt(r->releases.findById(r.getReleasedCapabilityId()).map(ToolRelease::getReleaseNumber).orElse(0))).orElseThrow())
-            .map(row->{var item=summary(row);item.put("editable",access.superAdmin(request));item.put("testable",access.superAdmin(request));return item;}).toList());
+            .map(row->{var item=summary(row);item.put("editable",access.superAdmin(request)&&Boolean.TRUE.equals(item.get("enabled")));item.put("testable",access.superAdmin(request));return item;}).toList());
     }
 
     @GetMapping("/{id}") @Transactional(readOnly=true)
@@ -47,7 +47,7 @@ public class StudioSqlCatalogController {
         view.put("sqlTemplate",sqlVisible?row.getSqlTemplate():"SQL 正文仅限 MCP 管理员查看；请使用 Runtime OS 对应租户账号访问源工程。");
         view.put("parameterSchema",tree(row.getParameterSchemaJson()));
         view.put("expectedVersion",row.getPublicationLock());
-        view.put("editable",sqlVisible);view.put("testable",sqlVisible);
+        view.put("editable",sqlVisible&&Boolean.TRUE.equals(view.get("enabled")));view.put("testable",sqlVisible);
         view.put("source",tree(row.getAuthoringSourceJson()));
         view.put("testEvidence",sqlVisible?tree(row.getSqlTestEvidenceJson()):Map.of("success",tree(row.getSqlTestEvidenceJson()).path("success").asBoolean()));
         var history=templates.findAllByPublicationGroupIdOrderByPublicationVersionAsc(row.getPublicationGroupId());
@@ -85,6 +85,8 @@ public class StudioSqlCatalogController {
     @PostMapping("/{id}/metadata")
     public ApiResponse<?> update(@PathVariable("id")String id,@RequestBody ManagedAction input,HttpServletRequest request) {
         var row=managedRow(id,request);
+        if(!row.isEnabled()||!releases.findById(row.getReleasedCapabilityId()).map(r->"RUNNING".equals(r.getState())).orElse(false))
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,"已下线的修订不可直接保存上线，请在来源工程审核后重新发布");
         log.info("MCP administrator synchronizing Studio publication: administrator={}, template={}, tenant={}",access.username(request),id,row.getAuthorTenantId());
         return ApiResponse.success(authoring.updateMetadata(row.getAuthorTenantId(),row.getAuthorId(),id,
             new SqlTemplateAuthoringService.MetadataEdit(input.expectedVersion(),input.title(),input.description(),input.category(),

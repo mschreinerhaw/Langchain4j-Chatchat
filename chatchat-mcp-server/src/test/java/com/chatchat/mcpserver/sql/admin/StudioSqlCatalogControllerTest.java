@@ -72,6 +72,14 @@ class StudioSqlCatalogControllerTest {
         assertThrows(SecurityException.class,()->controller.update("revision",body,request));
         verifyNoInteractions(authoring,templates);
     }
+    @Test void editingAnOfflineRevisionCannotImplicitlyPublishIt(){
+        when(access.superAdmin(request)).thenReturn(true);release.setState("OFFLINE");row.setEnabled(false);
+        assertEquals(false,controller.list(request).getData().get(0).get("editable"));
+        assertEquals(true,controller.list(request).getData().get(0).get("testable"));
+        var body=new StudioSqlCatalogController.ManagedAction(1L,"name","description","finance","test",Map.of(),"release");
+        assertThrows(org.springframework.web.server.ResponseStatusException.class,()->controller.update("revision",body,request));
+        verifyNoInteractions(authoring);
+    }
     @Test void administratorOperationsDeriveOwnerAndSourceFromStoredRevision(){
         when(access.superAdmin(request)).thenReturn(true);
         var body=new StudioSqlCatalogController.ManagedAction(1L,"new name","new description","finance","test",Map.of("value",3),"release");

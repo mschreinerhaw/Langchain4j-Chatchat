@@ -41,6 +41,19 @@ const studio = () => ({
   sqlTemplate: "select {{minimum}}",
 });
 beforeEach(() => vi.resetAllMocks());
+it('opens the same parameter dialog for a manual form test instead of requiring inline test values', async () => {
+  const testAction = vi.fn().mockResolvedValue({success:false,message:'query failed'});
+  const catalog = vm(Catalog,{formFields:[],formPreviewType:'databaseQuery',formTestAction:testAction});
+  catalog.form={sourceKind:'MANUAL'};
+  catalog.validateFormBeforeSubmit=()=>true;
+  catalog.validateDatabaseParameterCompleteness=vi.fn().mockReturnValue(true);
+  catalog.formPayload=()=>({sourceKind:'MANUAL',inputSchema:{type:'object',properties:{minimum:{type:'integer'}}}});
+  catalog.$refs.apiTestParameterDialog={open:vi.fn().mockResolvedValue({minimum:3})};
+  await catalog.testFormDraft();
+  expect(catalog.validateDatabaseParameterCompleteness).toHaveBeenCalledWith(false);
+  expect(catalog.$refs.apiTestParameterDialog.open).toHaveBeenCalledOnce();
+  expect(testAction).toHaveBeenCalledWith(expect.objectContaining({sourceKind:'MANUAL'}),{minimum:3});
+});
 it("uses the same form with common business fields and source-specific immutable SQL", () => {
   const view = vm(View, { queryFamily: "relational", section: "queries" });
   const catalog = vm(Catalog, { defaults: {}, formFields: view.sharedFormFields });

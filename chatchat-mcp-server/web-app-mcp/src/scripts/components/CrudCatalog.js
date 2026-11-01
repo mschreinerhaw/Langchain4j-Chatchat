@@ -503,10 +503,10 @@ export default {
     async testFormDraft() {
       if (!this.formTestAction) return;
       if (!this.validateFormBeforeSubmit()) return;
-      if (!this.validateDatabaseParameterCompleteness(true)) return;
+      if (!this.validateDatabaseParameterCompleteness(this.formPreviewType !== 'databaseQuery')) return;
       try {
         const payload = this.formPayload();
-        const parameterSchema = payload.inputSchemaJson || (payload.sourceKind === 'SQL_STUDIO' ? payload.inputSchema : null);
+        const parameterSchema = payload.inputSchemaJson || payload.inputSchema;
         const args = parameterSchema
           ? await this.$refs.apiTestParameterDialog.open({
             title: `${payload.title || payload.toolName || payload.name || 'API'} 请求测试`,

@@ -27,7 +27,7 @@ class AnalysisEvidenceCoordinatorTest {
     @Test void successfulSqlReceiptCarriesOnlyDeclaredParametersWithoutClaimingUserAlignment() {
         var values = new java.util.LinkedHashMap<String,Object>();
         values.put("region",null);values.put("threshold",4);values.put("ambientDate","not-a-query-parameter");
-        var diagnostics=Map.of("templateParameters",values,"templateMetadata",Map.of("inputSchema",Map.of(
+        var diagnostics=Map.of("executionMode","PREPARED_STATEMENT","boundParameterNames",List.of("region","region","threshold"),"templateParameters",values,"templateMetadata",Map.of("inputSchema",Map.of(
             "properties",Map.of("region",Map.of("type",List.of("string","null")),"threshold",Map.of("type","integer")))));
         var envelope=Map.of("dataSchema","sql_result.v1","success",true,
             "sourceMetadata",Map.of("executionType","SQL_QUERY","operation",Map.of("templateId","opaque-definition","statementHash","hash"),"asset",Map.of("id","source-id"),"business",Map.of("description","Count records by declared region")),
@@ -43,7 +43,8 @@ class AnalysisEvidenceCoordinatorTest {
             .project(result(step("published-query",carrier))).datasets()).singleElement().satisfies(dataset->{
                 var audit=(Map<String,Object>)dataset.analysisContext().get("templateParameterBinding");
                 assertThat(audit).containsEntry("scopeStatus","EXECUTION_VALUES_RECORDED")
-                    .containsEntry("userConstraintAlignment","NOT_EVALUATED");
+                    .containsEntry("userConstraintAlignment","NOT_EVALUATED")
+                    .containsEntry("orderedParameterNames",List.of("region","region","threshold"));
                 assertThat((Map<String,Object>)audit.get("effectiveParameters")).containsEntry("region",null)
                     .containsEntry("threshold",4).doesNotContainKey("ambientDate");
                 assertThat((Map<String,Object>)dataset.analysisContext().get("source"))

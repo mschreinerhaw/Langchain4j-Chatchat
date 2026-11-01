@@ -373,6 +373,12 @@ public final class AnalysisEvidenceCoordinator {
         var provenance=new LinkedHashMap<String,Object>();effective.keySet().forEach(key->provenance.put(key,"EXECUTION_RECEIPT"));
         var audit=new LinkedHashMap<String,Object>();audit.put("templateId",templateId);audit.put("effectiveParameters",effective);
         audit.put("parameterSources",provenance);audit.put("scopeStatus","EXECUTION_VALUES_RECORDED");
+        if("PREPARED_STATEMENT".equals(diagnostics.get("executionMode"))
+            && diagnostics.get("boundParameterNames") instanceof List<?> names
+            && names.stream().allMatch(String.class::isInstance)) {
+            audit.put("executionMode","PREPARED_STATEMENT");
+            audit.put("orderedParameterNames",List.copyOf(names));
+        }
         audit.put("userConstraintAlignment","NOT_EVALUATED");audit.put("provenanceSource","MCP_SQL_EXECUTION_RECEIPT");
         audit.put("statementHash",operation.get("statementHash"));audit.put("datasourceId",map(source.get("asset")).get("id"));
         result.put("templateParameterBinding",audit);return result;

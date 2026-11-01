@@ -160,17 +160,21 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
     public Map<String,Object> preview(TemplateQueryBindingService.UpsertRequest draft,Map<String,Object> arguments) {
         bindingService.validateDraft(draft);
         var parent = new TemplateQueryParentCatalog().require(draft.parentToolName());
-        Set<String> ids = draft.templateKeys().stream().map(key -> key.substring(key.indexOf(':')+1))
-            .collect(java.util.stream.Collectors.toUnmodifiableSet());
-        var policy = new TemplateQueryBindingService.PolicyResolution(Map.of(parent.assetType(),ids),
-            Set.of(parent.toolName()),"draft-contract-test",false,ids.size(),java.time.Instant.now());
+        Map<String, Set<String>> ids = draft.templateKeys().stream().collect(java.util.stream.Collectors.groupingBy(
+            key -> key.substring(0, key.indexOf(':')), java.util.stream.Collectors.mapping(
+                key -> key.substring(key.indexOf(':') + 1), java.util.stream.Collectors.toSet())));
+        var policy = new TemplateQueryBindingService.PolicyResolution(ids,
+            Set.of(parent.toolName()),"draft-contract-test",false,draft.templateKeys().size(),java.time.Instant.now());
         String name=TemplateQueryToolNamePolicy.toolName(draft.domainCode());
         return queryBound(name,new TemplateQueryRouteResolver.Route(name,parent.toolName(),parent.assetType()),policy,arguments,false);
     }
 
     private Map<String,Object> queryBound(String reviewedName, TemplateQueryRouteResolver.Route route,
         TemplateQueryBindingService.PolicyResolution policy,Map<String,Object> arguments,boolean enforceReleaseSchema) {
-        Set<String> templateIds = policy.allowedTemplates().getOrDefault(route.assetType(), Set.of());
+        var parent = new TemplateQueryParentCatalog().require(route.parentToolName());
+        Set<String> templateIds = parent.assetTypes().stream()
+            .flatMap(type -> policy.allowedTemplates().getOrDefault(type, Set.of()).stream())
+            .collect(java.util.stream.Collectors.toUnmodifiableSet());
         Map<String, TemplateAssetCatalogService.TemplateAsset> enabledAssets = new LinkedHashMap<>();
         List<TemplateAssetCatalogService.TemplateAsset> scopedAssets =
             TemplateAssetCatalogService.API.equals(route.assetType())
@@ -182,12 +186,9 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             scopedAssets = assetCatalogService.listEnabled();
         }
         scopedAssets.stream()
-            .filter(asset -> route.assetType().equals(asset.assetType()))
-            .filter(asset -> {
-                String family = com.chatchat.mcpserver.database.definition.DatabaseQueryFamily.forParent(route.parentToolName());
-                return family == null || family.equals(asset.queryFamily());
-            })
-            .forEach(asset -> enabledAssets.put(asset.templateId(), asset));
+            .filter(parent::accepts)
+            .filter(asset -> policy.allowedTemplates().getOrDefault(asset.assetType(), Set.of()).contains(asset.templateId()))
+            .forEach(asset -> enabledAssets.put(asset.key(), asset));
         int limit = recallLimit(arguments);
         BoundTemplateCandidateRetriever.Recall recall = candidateRetriever.recall(
             List.copyOf(enabledAssets.values()), templateIds, arguments, limit, policy.policyVersion());

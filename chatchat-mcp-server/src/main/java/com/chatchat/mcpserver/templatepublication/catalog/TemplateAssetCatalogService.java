@@ -319,11 +319,17 @@ public class TemplateAssetCatalogService {
             category(categoriesById, categoriesByCode, null, item.getCategory(), item.getCategory()),
             item.getParameterSchemaJson()),
             refsForCommand(item.getCode(), hosts))));
-        sqlTemplateService.listEnabled().forEach(item -> result.add(entry(asset(
-            SQL, item.getCode(), item.getTitle(), item.getDescription(), item.getCategory(),
-            category(categoriesById, categoriesByCode, null, item.getCategory(), item.getCategory()),
-            item.getParameterSchemaJson()),
-            refsForSqlTemplate(item.getCode(), datasources),item.getAuthorTenantId())));
+        sqlTemplateService.listEnabled().forEach(item -> {
+            var template = asset(SQL, item.getCode(), item.getTitle(), item.getDescription(), item.getCategory(),
+                category(categoriesById, categoriesByCode, null, item.getCategory(), item.getCategory()), item.getParameterSchemaJson());
+            if (item.getPublicationGroupId() != null) {
+                var source = datasources.stream().filter(ds -> ds.getId().equals(item.getDatasourceId()))
+                    .filter(ds -> sqlTemplateService.isCompatible(item, ds)).findFirst().orElse(null);
+                if (source == null || !"PUBLISHED".equals(item.getPublicationState())) return;
+                template = template.withQueryFamily(com.chatchat.mcpserver.database.definition.DatabaseQueryFamily.fromDatabaseType(source.getDatabaseType()));
+            }
+            result.add(entry(template, refsForSqlTemplate(item.getCode(), datasources), item.getAuthorTenantId()));
+        });
         httpEndpointConfigService.listEnabled().forEach(item -> {
             String templateId = firstText(item.getToolName(), firstText(item.getName(), item.getId()));
             result.add(entry(asset(HTTP, templateId, firstText(item.getTitle(), item.getName()),

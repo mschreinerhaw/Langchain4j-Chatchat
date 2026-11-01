@@ -1,4 +1,4 @@
-/** Real Studio API workflow. SQL comes from the model, never from this harness. */
+﻿/** Real Studio API workflow. SQL comes from the model, never from this harness. */
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -45,7 +45,7 @@ if(command==='setup'){
    assert.ok(item.file,'Run apply first');const route=base+'/files/'+item.file.id+'/template-publications';
    if(command==='draft'){
     assert.ok(!item.row,'Draft already exists');item.operationId??=crypto.randomUUID();persist();
-    item.row=await api(route,'POST',{operationId:item.operationId,expectedSourceVersion:item.file.version,title:definition.title,description:definition.description,category:'business_analysis',datasourceId:scenario.datasourceId,databaseType:scenario.dialect,parameterSchema:definition.parameterSchema});persist();save(name+'-draft',item.row);
+    item.row=await api(route,'POST',{operationId:item.operationId,expectedSourceVersion:item.file.version,title:definition.title,description:definition.description,category:definition.category||'business_analysis',datasourceId:scenario.datasourceId,databaseType:scenario.dialect,parameterSchema:definition.parameterSchema});persist();save(name+'-draft',item.row);
     console.log('Approve this exact template code through the existing datasource authorization UI/API: '+item.row.code);
    }else if(command==='test'||command==='publish'){
     assert.ok(item.row,'Run draft and approve its code first');if(command==='publish')assert.equal(item.row.testEvidence?.success,true,'Real successful trial required');
@@ -59,3 +59,4 @@ if(command==='setup'){
   }
  }
 }
+

@@ -201,12 +201,12 @@ public class TemplateQueryBindingService implements TemplateQueryRouteResolver {
             parentToolNames.add(parent.toolName());
             String authorizationKey = role.getId() + "|" + parent.toolName();
             Set<String> authorizedKeys = authorizedKeysByRole.computeIfAbsent(authorizationKey, ignored ->
-                catalogService.listAuthorizedForRoleAndType(role.getId(), parent.assetType()).stream()
+                parent.assetTypes().stream().flatMap(type -> catalogService.listAuthorizedForRoleAndType(role.getId(), type).stream())
                     .filter(parent::accepts)
                     .map(TemplateAssetCatalogService.TemplateAsset::key)
                     .collect(java.util.stream.Collectors.toUnmodifiableSet()));
             for (String key : readKeys(binding.getTemplateKeysJson())) {
-                if (!key.startsWith(parent.assetType() + ":")) {
+                if (parent.assetTypes().stream().noneMatch(type -> key.startsWith(type + ":"))) {
                     continue;
                 }
                 configuredKeys.add(key);
@@ -340,7 +340,8 @@ public class TemplateQueryBindingService implements TemplateQueryRouteResolver {
     }
 
     private List<String> normalizeKeys(List<String> keys, String roleId, TemplateQueryParentCatalog.ParentTool parent) {
-        Set<String> enabledKeys = catalogService.listAuthorizedForRoleAndType(roleId, parent.assetType()).stream()
+        Set<String> enabledKeys = parent.assetTypes().stream()
+            .flatMap(type -> catalogService.listAuthorizedForRoleAndType(roleId, type).stream())
             .filter(parent::accepts)
             .map(TemplateAssetCatalogService.TemplateAsset::key)
             .collect(java.util.stream.Collectors.toUnmodifiableSet());

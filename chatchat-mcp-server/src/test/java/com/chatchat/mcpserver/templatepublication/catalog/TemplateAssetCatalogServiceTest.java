@@ -29,6 +29,36 @@ import static org.mockito.Mockito.when;
 
 class TemplateAssetCatalogServiceTest {
     @Test
+    void studioQueryFamilyPreservesIdentityAndRequiresPublishedCompatibleEnabledSource() {
+        var sql = mock(SqlTemplateService.class);
+        var sources = mock(SqlDatasourceConfigService.class);
+        var template = new com.chatchat.mcpserver.sql.template.SqlTemplateConfig();
+        template.setCode("STUDIO_A"); template.setTitle("Studio query");
+        template.setPublicationGroupId("group-a"); template.setPublicationState("PUBLISHED");
+        template.setDatasourceId("source-a"); template.setAuthorTenantId("tenant-a");
+        var source = new com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig();
+        source.setId("source-a"); source.setDatabaseType("mysql");
+        when(sql.listEnabled()).thenReturn(List.of(template));
+        when(sources.listEnabled()).thenReturn(List.of(source));
+        when(sql.isCompatible(template, source)).thenReturn(true);
+        var service = new TemplateAssetCatalogService(mock(CommandTemplateService.class), sql,
+            mock(HttpEndpointConfigService.class), mock(DatabaseQueryConfigService.class), mock(ApiServiceConfigService.class),
+            mock(PythonTemplateCatalog.class), mock(BusinessCategoryService.class), mock(SshHostConfigService.class),
+            sources, mock(McpAuthorizationService.class), new ObjectMapper());
+        assertThat(service.listEnabled()).singleElement().satisfies(asset -> {
+            assertThat(asset.key()).isEqualTo("sql_datasource:STUDIO_A");
+            assertThat(asset.queryFamily()).isEqualTo("relational");
+        });
+        when(sql.isCompatible(template, source)).thenReturn(false);
+        assertThat(service.listEnabled()).isEmpty();
+        when(sql.isCompatible(template, source)).thenReturn(true);
+        template.setPublicationState("DRAFT");
+        assertThat(service.listEnabled()).isEmpty();
+        template.setPublicationState("PUBLISHED");
+        when(sources.listEnabled()).thenReturn(List.of());
+        assertThat(service.listEnabled()).isEmpty();
+    }
+    @Test
     void newNullableAuthorColumnsDoNotChangeLegacySqlRevision() {
         var mapper=new ObjectMapper();var sql=mock(SqlTemplateService.class);var row=new com.chatchat.mcpserver.sql.template.SqlTemplateConfig();row.setId("legacy");row.setCode("LEGACY");row.setTitle("Legacy SQL");row.setSqlTemplate("SELECT 1");row.setEnabled(true);row.setParameterSchemaJson("{\"type\":\"object\",\"properties\":{}}");
         when(sql.listEnabled()).thenReturn(List.of(row));
@@ -47,7 +77,7 @@ class TemplateAssetCatalogServiceTest {
         var row=new com.chatchat.mcpserver.sql.template.SqlTemplateConfig();row.setId("revision");row.setCode("STUDIO_REVISION");row.setTitle("Controlled SQL");row.setSqlTemplate("SELECT 1");row.setEnabled(true);row.setPublicationGroupId("group");row.setPublicationVersion(1);row.setAuthorTenantId("tenant");row.setAuthorId("author");row.setPublicationState("PUBLISHED");row.setParameterSchemaJson("{\"type\":\"object\",\"properties\":{}}");
         when(sql.listEnabled()).thenReturn(List.of(row));
         var service=new TemplateAssetCatalogService(mock(CommandTemplateService.class),sql,mock(HttpEndpointConfigService.class),mock(DatabaseQueryConfigService.class),mock(ApiServiceConfigService.class),mock(PythonTemplateCatalog.class),mock(BusinessCategoryService.class),mock(SshHostConfigService.class),mock(SqlDatasourceConfigService.class),mock(McpAuthorizationService.class),new ObjectMapper());
-        var asset=service.listEnabled().get(0);var datasource=new com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig();datasource.setId("db");datasource.setName("Db");datasource.setJdbcUrl("jdbc:h2:mem:revision");
+        var asset=new TemplateAssetCatalogService.TemplateAsset("sql_datasource:STUDIO_REVISION","sql_datasource","STUDIO_REVISION","Controlled SQL","","","","",java.util.Map.of()).withQueryFamily("relational");var datasource=new com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig();datasource.setId("db");datasource.setName("Db");datasource.setJdbcUrl("jdbc:h2:mem:revision");
         var firstBinding=new java.util.LinkedHashMap<String,Object>();firstBinding.put("datasourceId","db");firstBinding.put("template",row.getCode());firstBinding.put("permissionLevel","read");firstBinding.put("sqlRevisionId",row.getId());
         var secondBinding=new java.util.LinkedHashMap<String,Object>();secondBinding.put("sqlRevisionId",row.getId());secondBinding.put("permissionLevel","read");secondBinding.put("template",row.getCode());secondBinding.put("datasourceId","db");
         TemplateAssetCatalogService.BoundTemplate first=org.springframework.test.util.ReflectionTestUtils.invokeMethod(service,"bound",asset,"db","Db","sql_query_execute",firstBinding,new Object[]{row,datasource});

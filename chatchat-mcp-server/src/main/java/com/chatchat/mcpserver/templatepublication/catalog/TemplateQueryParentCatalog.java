@@ -60,8 +60,13 @@ public class TemplateQueryParentCatalog {
         public String queryFamily() { return com.chatchat.mcpserver.database.definition.DatabaseQueryFamily.forParent(toolName); }
         @com.fasterxml.jackson.annotation.JsonProperty
         public boolean defaultPublished() { return queryFamily() == null; }
+        public List<String> assetTypes() {
+            return queryFamily() == null ? List.of(assetType)
+                : List.of(assetType, TemplateAssetCatalogService.SQL);
+        }
         public boolean accepts(TemplateAssetCatalogService.TemplateAsset asset) {
-            return assetType.equals(asset.assetType()) && (queryFamily() == null || queryFamily().equals(asset.queryFamily()));
+            return assetTypes().contains(asset.assetType())
+                && (queryFamily() == null || queryFamily().equals(asset.queryFamily()));
         }
     }
 }

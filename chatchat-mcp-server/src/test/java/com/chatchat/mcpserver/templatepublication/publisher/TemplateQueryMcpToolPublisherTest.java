@@ -28,6 +28,29 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class TemplateQueryMcpToolPublisherTest {
+    @Test
+    void relationalCollectionRecallsMixedBoundAssetsWithoutCrossTypeIdentifierLeak() {
+        var bindings = mock(TemplateQueryBindingService.class);
+        var catalog = mock(TemplateAssetCatalogService.class);
+        var publisher = publisher(bindings, catalog);
+        String parent = "database_query_template_query", child = "customer_template_query";
+        var arguments = Map.<String, Object>of("limit", 20);
+        when(bindings.requireRoute(child)).thenReturn(route(child, parent, "database_query"));
+        when(bindings.resolvePolicy(null, child, arguments)).thenReturn(new TemplateQueryBindingService.PolicyResolution(
+            Map.of("database_query", Set.of("manual"), "sql_datasource", Set.of("STUDIO_A")),
+            Set.of(parent), "v1", false, 2, Instant.now()));
+        when(catalog.listEnabled()).thenReturn(List.of(
+            asset("database_query", "manual", Map.of()),
+            asset("sql_datasource", "STUDIO_A", Map.of()).withQueryFamily("relational"),
+            asset("sql_datasource", "manual", Map.of()).withQueryFamily("relational"),
+            asset("sql_datasource", "unselected", Map.of()).withQueryFamily("relational")));
+        var result = publisher.queryFromParent(child, parent, arguments);
+        assertThat(result.get("returnedCount")).isEqualTo(2);
+        assertThat(result.get("bindingComplete")).isEqualTo(true);
+        assertThat(result.get("templates").toString()).contains("STUDIO_A", "database_query").doesNotContain("unselected");
+        when(catalog.listEnabled()).thenReturn(List.of(asset("database_query", "manual", Map.of())));
+        assertThat(publisher.queryFromParent(child, parent, arguments).get("bindingComplete")).isEqualTo(false);
+    }
 
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(strings = {"relational", "trino", "neo4j", "opensearch", "elasticsearch"})

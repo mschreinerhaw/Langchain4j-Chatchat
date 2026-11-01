@@ -103,7 +103,7 @@
             }}</el-tag></el-descriptions-item
           >
           <el-descriptions-item label="数据源">{{
-            studioDetail.datasourceName || datasourceLabel(studioDetail.datasourceId)
+            queryDatasource(studioDetail)
           }}</el-descriptions-item>
           <el-descriptions-item label="来源">{{
             studioDetail.sourceKind === "SQL_STUDIO" ? "SQL Studio" : "手工模板"
@@ -122,6 +122,7 @@
           v-model="detailSections"
           class="database-query-technical"
           aria-label="模板技术详情"
+          @change="loadDetailMetadata"
         >
           <el-collapse-item title="查询与参数" name="query">
             <template v-if="studioDetail.sourceKind === 'SQL_STUDIO'">
@@ -152,8 +153,15 @@
               <h4>试执行记录</h4><pre>{{ prettyJson(studioDetail.testEvidence) }}</pre>
               <h4>发布历史</h4><pre>{{ prettyJson(studioDetail.history) }}</pre>
             </template>
-            <template v-else
-              ><h4>元数据</h4><pre>{{ prettyJson(studioDetail.technicalMetadata) }}</pre>
+            <template v-else>
+              <h4>元数据</h4>
+              <p v-if="detailMetadataLoading">正在读取元数据…</p>
+              <p v-else-if="detailMetadataError"
+                >元数据暂不可用。<el-button link type="primary" @click="loadDetailMetadata"
+                  >重试</el-button
+                ></p
+              >
+              <pre v-else>{{ prettyJson(studioDetail.technicalMetadata) }}</pre>
             </template>
           </el-collapse-item>
           <el-collapse-item

@@ -28,14 +28,18 @@ export default {
       studioDetail: null,
       studioDetailOpen: false,
       detailSections: [],
+      detailMetadataLoading: false,
+      detailMetadataError: false,
       metadataActions: [{
         key: 'query-metadata', label: '详情', disabled: row => !row?.id,
         run: async row => {
           const detail = row.sourceKind === 'SQL_STUDIO'
             ? await api.studioPublication(row.templateId)
-            : { ...row, technicalMetadata: await api.metadata(row.id) };
+            : { ...row };
           this.studioDetail = detail;
           this.detailSections = [];
+          this.detailMetadataError = false;
+          this.detailMetadataLoading = false;
           this.studioDetailOpen = true;
         }
       }],
@@ -77,7 +81,7 @@ export default {
         { key: 'title', label: '模板名称', formatter: (value, row) => value || row.toolName },
         { key: 'businessGroupName', label: '业务分类', formatter: (value, row) => this.queryCategory(row) },
         { key: 'sourceLabel', label: '来源', formatter: value => value || '手工模板' },
-        { key: 'datasourceId', label: '数据源', formatter: (value, row) => row.datasourceName || this.datasourceLabel(value) },
+        { key: 'datasourceId', label: '数据源', formatter: (value, row) => this.queryDatasource(row) },
         { key: 'enabled', label: '状态', type: 'badge', formatter: (value, row) => this.queryStatus(row) }
       ],
       formFields: [
@@ -297,6 +301,27 @@ export default {
   },
   methods: {
     prettyJson,
+    async loadDetailMetadata() {
+      const detail = this.studioDetail;
+      if (!detail || detail.sourceKind === 'SQL_STUDIO' || !this.detailSections.includes('records')
+        || detail.technicalMetadata !== undefined || this.detailMetadataLoading) return;
+      this.detailMetadataLoading = true;
+      this.detailMetadataError = false;
+      try {
+        const metadata = await api.metadata(detail.id);
+        if (this.studioDetail === detail) detail.technicalMetadata = metadata;
+      } catch {
+        if (this.studioDetail === detail) this.detailMetadataError = true;
+      } finally {
+        if (this.studioDetail === detail) this.detailMetadataLoading = false;
+      }
+    },
+    queryDatasource(row) {
+      if (row.datasourceName) return row.datasourceName;
+      if (row.datasourceId === internalFinancialDatasource.value) return '内置金融采集库';
+      return this.querySources.find(source => source.id === row.datasourceId)?.name
+        || this.sqlAssets.find(source => source.id === row.datasourceId)?.name || '数据源不可用';
+    },
     queryCategory(row) {
       return this.categories.find(category => category.code === row.capabilityCategory || category.id === row.categoryId)?.name
         || row.businessGroupName || '未分类';

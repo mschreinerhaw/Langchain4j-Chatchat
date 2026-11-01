@@ -18,8 +18,7 @@
           <div>
             <h2>{{ pageTitle }}</h2>
             <p v-if="section === 'queries'"
-              >展示手工查询模板及 SQL Studio 已发布的查询能力。SQL Studio
-              模板可查看详情，编辑、试执行及版本恢复请进入来源工程。</p
+              >统一管理查询模板，支持 SQL Studio 和手工配置两种来源。</p
             >
             <p v-else>沿用原有交易日历和批量导入配置流程。</p>
           </div>
@@ -34,7 +33,8 @@
       subtitle="统一管理查询模板，按业务分类查找和使用。"
       search-placeholder="搜索模板名称、描述或数据源"
       :columns="columns"
-      :form-fields="formFields"
+      :form-fields="sharedFormFields"
+      :load-item="loadQueryItem"
       :query-sources="querySources"
       :query-family="queryFamily"
       :defaults="defaults"
@@ -66,7 +66,7 @@
         'parameterSummary',
       ]"
       :list-action="listQueries"
-      :save-action="api.save"
+      :save-action="saveQuery"
       :remove-action="api.remove"
       :batch-remove="api.batchRemove"
       :toggle-action="api.setEnabled"
@@ -116,7 +116,7 @@
           >
         </el-descriptions>
         <p v-if="studioDetail.sourceKind === 'SQL_STUDIO'" class="database-query-help"
-          >如需修改或重新测试，请在 SQL Studio 对应工程中操作。</p
+          >名称、描述和分类可在当前列表编辑，测试使用同一参数窗口；查询内容由来源工程维护。</p
         >
         <el-collapse
           v-model="detailSections"

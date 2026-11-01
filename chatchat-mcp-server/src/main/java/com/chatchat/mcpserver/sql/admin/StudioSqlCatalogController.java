@@ -13,8 +13,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 
-/** Read projection of existing Studio definitions/releases, never a second writable template store. */
-@RestController @RequiredArgsConstructor @Transactional(readOnly=true)
+/** Shared management projection; authoring/revalidation remain in the original Studio lifecycle. */
+@RestController @RequiredArgsConstructor @lombok.extern.slf4j.Slf4j
 @RequestMapping("/api/v1/database-query/studio-publications")
 public class StudioSqlCatalogController {
     private final SqlTemplateConfigRepository templates;
@@ -23,8 +23,9 @@ public class StudioSqlCatalogController {
     private final AdminMenuAccessService access;
     private final McpAuthorizationService authorization;
     private final ObjectMapper json;
+    private final SqlTemplateAuthoringService authoring;
 
-    @GetMapping
+    @GetMapping @Transactional(readOnly=true)
     public ApiResponse<List<Map<String,Object>>> list(HttpServletRequest request) {
         access.require(request,"databaseMcp");
         var groups=new LinkedHashMap<String,List<SqlTemplateConfig>>();
@@ -32,10 +33,10 @@ public class StudioSqlCatalogController {
             if(row.getReleasedCapabilityId()!=null) groups.computeIfAbsent(row.getPublicationGroupId(),k->new ArrayList<>()).add(row);
         return ApiResponse.success(groups.values().stream().map(rows->rows.stream().max(Comparator
             .comparing(SqlTemplateConfig::isEnabled).thenComparingInt(r->releases.findById(r.getReleasedCapabilityId()).map(ToolRelease::getReleaseNumber).orElse(0))).orElseThrow())
-            .map(row->summary(row)).toList());
+            .map(row->{var item=summary(row);item.put("editable",access.superAdmin(request));item.put("testable",access.superAdmin(request));return item;}).toList());
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/{id}") @Transactional(readOnly=true)
     public ApiResponse<Map<String,Object>> detail(@PathVariable("id")String id,HttpServletRequest request) {
         access.require(request,"databaseMcp");
         var row=templates.findById(id).filter(r->r.getPublicationGroupId()!=null && r.getReleasedCapabilityId()!=null)
@@ -45,6 +46,8 @@ public class StudioSqlCatalogController {
         view.put("sqlVisible",sqlVisible);
         view.put("sqlTemplate",sqlVisible?row.getSqlTemplate():"SQL 正文仅限 MCP 管理员查看；请使用 Runtime OS 对应租户账号访问源工程。");
         view.put("parameterSchema",tree(row.getParameterSchemaJson()));
+        view.put("expectedVersion",row.getPublicationLock());
+        view.put("editable",sqlVisible);view.put("testable",sqlVisible);
         view.put("source",tree(row.getAuthoringSourceJson()));
         view.put("testEvidence",sqlVisible?tree(row.getSqlTestEvidenceJson()):Map.of("success",tree(row.getSqlTestEvidenceJson()).path("success").asBoolean()));
         var history=templates.findAllByPublicationGroupIdOrderByPublicationVersionAsc(row.getPublicationGroupId());
@@ -66,8 +69,37 @@ public class StudioSqlCatalogController {
           }
           view.put("agentScopeNotice","按发布者当前租户、用户权限、已发布 Agent 的实际工具绑定实时核验；其他用户须另行满足角色及资源授权。范围读取失败时不代表没有绑定。");
         }
-        view.put("accessNotice","此处为 SQL Studio 原始发布记录的只读视图。修改、试执行和版本恢复请在源工程操作；调用仍须同时满足租户、数据源、模板、用户/角色和 Agent 工具授权。发布状态不等于当前账号具备执行权限。");
+        view.put("accessNotice","模板信息修改与测试复用原发布流程，仍校验发布者当前的数据源及模板授权；SQL 正文与参数定义由来源工程维护。发布不扩大 Agent 访问权限。");
         return ApiResponse.success(view);
+    }
+    public record ManagedAction(Long expectedVersion,String title,String description,String category,
+        String testId,Map<String,Object> parameters,String expectedActiveReleaseId) { }
+
+    @PostMapping("/{id}/test")
+    public ApiResponse<?> test(@PathVariable("id")String id,@RequestBody ManagedAction input,HttpServletRequest request) {
+        var row=managedRow(id,request);
+        log.info("MCP administrator testing Studio publication: administrator={}, template={}, tenant={}",access.username(request),id,row.getAuthorTenantId());
+        return ApiResponse.success(authoring.test(row.getAuthorTenantId(),row.getAuthorId(),id,
+            new SqlTemplateAuthoringService.Action(input.expectedVersion(),input.testId(),input.parameters(),source(row),input.expectedActiveReleaseId())));
+    }
+    @PostMapping("/{id}/metadata")
+    public ApiResponse<?> update(@PathVariable("id")String id,@RequestBody ManagedAction input,HttpServletRequest request) {
+        var row=managedRow(id,request);
+        log.info("MCP administrator synchronizing Studio publication: administrator={}, template={}, tenant={}",access.username(request),id,row.getAuthorTenantId());
+        return ApiResponse.success(authoring.updateMetadata(row.getAuthorTenantId(),row.getAuthorId(),id,
+            new SqlTemplateAuthoringService.MetadataEdit(input.expectedVersion(),input.title(),input.description(),input.category(),
+                input.testId(),input.parameters(),source(row),input.expectedActiveReleaseId())));
+    }
+    private SqlTemplateConfig managedRow(String id,HttpServletRequest request) {
+        access.require(request,"databaseMcp");
+        // Explicit platform-administrator control plane: ordinary menu access grants no author delegation.
+        // Identity/source come only from the persisted revision; the original author policy is revalidated.
+        if(!access.superAdmin(request))throw new SecurityException("只有平台管理员可以管理 SQL Studio 发布模板");
+        return templates.findById(id).filter(r->r.getPublicationGroupId()!=null&&r.getReleasedCapabilityId()!=null)
+            .orElseThrow(()->new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND,"SQL Studio publication not found"));
+    }
+    private Map<String,Object> source(SqlTemplateConfig row) {
+        return json.convertValue(tree(row.getAuthoringSourceJson()),new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){});
     }
     private Map<String,Object> summary(SqlTemplateConfig row) {
         var m=new LinkedHashMap<String,Object>();var release=releases.findById(row.getReleasedCapabilityId()).orElseThrow();

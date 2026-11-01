@@ -92,7 +92,7 @@
       empty-text="暂无数据"
       @selection-change="handleSelectionChange"
     >
-      <el-table-column type="selection" width="48" :selectable="row => !row.readOnly" />
+      <el-table-column type="selection" width="48" :selectable="(row) => !row.readOnly" />
       <el-table-column
         v-for="column in columns"
         :key="column.key"
@@ -111,7 +111,7 @@
       <el-table-column fixed="right" label="操作" width="230">
         <template #default="{ row }">
           <el-button
-            v-if="!row.readOnly"
+            v-if="!row.readOnly || row.editable"
             link
             type="primary"
             :disabled="busy || Boolean(rowOperation)"
@@ -119,7 +119,7 @@
             >编辑</el-button
           >
           <el-button
-            v-if="testAction && !row.readOnly"
+            v-if="testAction && (!row.readOnly || row.testable)"
             link
             type="primary"
             :loading="isRowOperation('test', row)"
@@ -208,7 +208,12 @@
               :gutter="12"
             >
               <template v-for="field in renderedSectionFields(section)" :key="field.key">
-                <el-col :xs="24" :md="fieldColSpan(field)">
+                <el-col
+                  :xs="24"
+                  :md="fieldColSpan(field)"
+                  :inert="isFieldReadonly(field)"
+                  :aria-disabled="isFieldReadonly(field)"
+                >
                   <el-form-item
                     :label="fieldText(field, 'label')"
                     :required="isFieldRequired(field)"

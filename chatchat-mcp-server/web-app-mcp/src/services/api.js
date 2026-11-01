@@ -313,6 +313,7 @@ export const assetsApi = {
 export const databaseApi = {
   studioPublications: () => apiFetch(`${API_BASE}/database-query/studio-publications`),
   studioPublication: id => apiFetch(`${API_BASE}/database-query/studio-publications/${encodeURIComponent(id)}`),
+  actStudioPublication: (id, action, body) => apiFetch(`${API_BASE}/database-query/studio-publications/${encodeURIComponent(id)}/${action}`, { method: 'POST', body: JSON.stringify(body) }),
   metadata: id => apiFetch(`${API_BASE}/database-query/${encodeURIComponent(id)}/metadata`),
   listSources: () => apiFetch(`${API_BASE}/database-query/datasources`),
   list: () => apiFetch(`${API_BASE}/database-query`),

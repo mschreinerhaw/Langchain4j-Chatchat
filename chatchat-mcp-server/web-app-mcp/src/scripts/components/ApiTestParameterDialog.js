@@ -8,6 +8,7 @@ export default {
       title: "API 请求测试",
       fields: [],
       values: {},
+      nullValues: {},
       resolver: null,
       rejecter: null,
     };
@@ -20,6 +21,9 @@ export default {
       this.values = Object.fromEntries(
         this.fields.map((field) => [field.name, initialValue(field)])
       );
+      this.nullValues = Object.fromEntries(
+        this.fields.map((field) => [field.name, field.hasDefault && field.defaultValue === null])
+      );
       this.visible = true;
       return new Promise((resolve, reject) => {
         this.resolver = resolve;
@@ -29,6 +33,10 @@ export default {
     submit() {
       const payload = {};
       for (const field of this.fields) {
+        if (field.nullable && this.nullValues[field.name]) {
+          payload[field.name] = null;
+          continue;
+        }
         const value = this.values[field.name];
         if (isEmpty(value)) {
           if (field.required) {
@@ -73,12 +81,15 @@ function schemaFields(rawSchema) {
   const properties =
     schema.properties && typeof schema.properties === "object" ? schema.properties : {};
   return Object.entries(properties).map(([name, rawDefinition]) => {
-    const definition = rawDefinition && typeof rawDefinition === "object" ? rawDefinition : {};
+    const definition = resolveDefinition(schema, rawDefinition);
     return {
       name,
       label: definition.title || name,
       description: definition.description || "",
-      type: definition.type || inferType(definition.default),
+      type: Array.isArray(definition.type)
+        ? definition.type.find((type) => type !== "null") || "string"
+        : definition.type || inferType(definition.default),
+      nullable: Array.isArray(definition.type) && definition.type.includes("null"),
       required: required.has(name),
       enumValues: Array.isArray(definition.enum) ? definition.enum : null,
       hasDefault: Object.prototype.hasOwnProperty.call(definition, "default"),
@@ -90,6 +101,25 @@ function schemaFields(rawSchema) {
           : "选填",
     };
   });
+}
+
+function resolveDefinition(schema, raw) {
+  let definition = raw && typeof raw === "object" ? raw : {};
+  const seen = new Set();
+  while (definition.$ref) {
+    const ref = definition.$ref;
+    if (!ref.startsWith("#/") || seen.has(ref))
+      throw new Error("参数定义引用无效，请检查模板参数定义");
+    seen.add(ref);
+    const target = ref
+      .slice(2)
+      .split("/")
+      .reduce((node, key) => node?.[key.replaceAll("~1", "/").replaceAll("~0", "~")], schema);
+    if (!target) throw new Error("参数定义引用不存在");
+    const { $ref, ...overrides } = definition;
+    definition = { ...target, ...overrides };
+  }
+  return definition;
 }
 
 function parseSchema(rawSchema) {

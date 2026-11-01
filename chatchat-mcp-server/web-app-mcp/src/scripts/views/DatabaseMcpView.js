@@ -1,26 +1,26 @@
-﻿import CrudCatalog from '../../components/CrudCatalog.vue';
-import { assetsApi, databaseApi as api } from '../../services/api';
-import CategoryCardPager from '../../components/CategoryCardPager.vue';
-import ModalPanel from '../../components/ModalPanel.vue';
-import { prettyJson } from '../../utils/json';
-import { buildTestNotification } from '../../utils/test-result';
-import { databaseQueryProfile } from '../../utils/database-query-profile';
-import '../../styles/views/database-mcp.css';
+﻿import CrudCatalog from "../../components/CrudCatalog.vue";
+import { assetsApi, databaseApi as api } from "../../services/api";
+import CategoryCardPager from "../../components/CategoryCardPager.vue";
+import ModalPanel from "../../components/ModalPanel.vue";
+import { prettyJson } from "../../utils/json";
+import { buildTestNotification } from "../../utils/test-result";
+import { databaseQueryProfile } from "../../utils/database-query-profile";
+import "../../styles/views/database-mcp.css";
 
-const inputSchema = { type: 'object', properties: {}, required: [], additionalProperties: false };
+const inputSchema = { type: "object", properties: {}, required: [], additionalProperties: false };
 const internalFinancialDatasource = {
-  value: 'builtin_financial_market',
-  label: 'builtin_financial_market / 内置金融采集库 / DEV / financial_market'
+  value: "builtin_financial_market",
+  label: "builtin_financial_market / 内置金融采集库 / DEV / financial_market",
 };
 
 export default {
-  name: 'DatabaseMcpView',
+  name: "DatabaseMcpView",
   components: { CrudCatalog, CategoryCardPager, ModalPanel },
   props: {
-    queryFamily: { type: String, default: 'relational' },
-    section: { type: String, default: 'queries' }
+    queryFamily: { type: String, default: "relational" },
+    section: { type: String, default: "queries" },
   },
-  emits: ['notify', 'error', 'result'],
+  emits: ["notify", "error", "result"],
   data() {
     const queryProfile = databaseQueryProfile(null, this.queryFamily);
     return {
@@ -30,44 +30,51 @@ export default {
       detailSections: [],
       detailMetadataLoading: false,
       detailMetadataError: false,
-      metadataActions: [{
-        key: 'query-metadata', label: '详情', disabled: row => !row?.id,
-        run: async row => {
-          const detail = row.sourceKind === 'SQL_STUDIO'
-            ? await api.studioPublication(row.templateId)
-            : { ...row };
-          this.studioDetail = detail;
-          this.detailSections = [];
-          this.detailMetadataError = false;
-          this.detailMetadataLoading = false;
-          this.studioDetailOpen = true;
-        }
-      }],
+      metadataActions: [
+        {
+          key: "query-metadata",
+          label: "详情",
+          disabled: (row) => !row?.id,
+          run: async (row) => {
+            const detail =
+              row.sourceKind === "SQL_STUDIO"
+                ? await api.studioPublication(row.templateId)
+                : { ...row };
+            this.studioDetail = detail;
+            this.detailSections = [];
+            this.detailMetadataError = false;
+            this.detailMetadataLoading = false;
+            this.studioDetailOpen = true;
+          },
+        },
+      ],
       activeTab: this.section,
       busy: false,
       sqlAssets: [],
       querySources: [],
       categories: [],
       allQueries: [],
-      selectedCategory: '',
-      calendarFunctionName: 'trade_date',
+      selectedCategory: "",
+      calendarFunctionName: "trade_date",
       calendarQueryTestPassed: false,
       calendar: {
         enabled: true,
-        datasourceId: '',
-        sqlTemplate: 'select ZRR,JYR from dsc_cfg.t_xtjyr order by ZRR'
+        datasourceId: "",
+        sqlTemplate: "select ZRR,JYR from dsc_cfg.t_xtjyr order by ZRR",
       },
-      dslBody: '',
-      dslDatasourceId: '',
-      dslTargetRegistry: '',
-      dslResult: '',
+      dslBody: "",
+      dslDatasourceId: "",
+      dslTargetRegistry: "",
+      dslResult: "",
       defaults: {
+        sourceKind: "MANUAL",
+        sourceLabel: "手工模板",
         enabled: true,
-        datasourceId: '',
-        categoryId: '',
-        capabilityCategory: '',
-        domain: 'finance',
-        businessScope: '面向金融业务分析的只读数据查询能力。',
+        datasourceId: "",
+        categoryId: "",
+        capabilityCategory: "",
+        domain: "finance",
+        businessScope: "面向金融业务分析的只读数据查询能力。",
         tags: [],
         indexTags: [],
         maxRows: 50,
@@ -75,184 +82,260 @@ export default {
         inputSchema,
         parameters: {},
         governance: {},
-        sqlSteps: []
+        sqlSteps: [],
       },
       columns: [
-        { key: 'title', label: '模板名称', formatter: (value, row) => value || row.toolName },
-        { key: 'businessGroupName', label: '业务分类', formatter: (value, row) => this.queryCategory(row) },
-        { key: 'sourceLabel', label: '来源', formatter: value => value || '手工模板' },
-        { key: 'datasourceId', label: '数据源', formatter: (value, row) => this.queryDatasource(row) },
-        { key: 'enabled', label: '状态', type: 'badge', formatter: (value, row) => this.queryStatus(row) }
+        { key: "title", label: "模板名称", formatter: (value, row) => value || row.toolName },
+        {
+          key: "businessGroupName",
+          label: "业务分类",
+          formatter: (value, row) => this.queryCategory(row),
+        },
+        { key: "sourceLabel", label: "来源", formatter: (value) => value || "手工模板" },
+        {
+          key: "datasourceId",
+          label: "数据源",
+          formatter: (value, row) => this.queryDatasource(row),
+        },
+        {
+          key: "enabled",
+          label: "状态",
+          type: "badge",
+          formatter: (value, row) => this.queryStatus(row),
+        },
       ],
       formFields: [
         {
-          key: 'toolName',
-          label: '工具名称',
+          key: "toolName",
+          label: "工具名称",
           required: true,
-          placeholder: '如 query_customer_orders',
-          help: '用于 MCP Tool 注册，建议使用小写字母、数字和下划线，保存后需保持稳定。',
-          section: 'basic',
-          sectionTitle: '基础信息',
-          sectionSubtitle: '定义 MCP 工具标识、展示名称、所属数据源和业务分类。'
+          placeholder: "如 query_customer_orders",
+          help: "用于 MCP Tool 注册，建议使用小写字母、数字和下划线，保存后需保持稳定。",
+          section: "basic",
+          sectionTitle: "基础信息",
+          sectionSubtitle: "定义 MCP 工具标识、展示名称、所属数据源和业务分类。",
         },
         {
-          key: 'title',
-          label: '显示名称',
+          key: "title",
+          label: "显示名称",
           required: true,
-          placeholder: '如 查询客户订单',
-          help: '面向业务用户展示的名称，尽量说明这个查询能解决什么问题。',
-          section: 'basic'
+          placeholder: "如 查询客户订单",
+          help: "面向业务用户展示的名称，尽量说明这个查询能解决什么问题。",
+          section: "basic",
         },
         {
-          key: 'datasourceId',
-          label: '数据源资产',
-          type: 'select',
+          key: "datasourceId",
+          label: "数据源资产",
+          type: "select",
           required: true,
-          options: () => [...(this.queryFamily === 'relational' ? [internalFinancialDatasource] : []), ...this.querySourceOptions.filter(option => option.enabled)],
-          placeholder: '选择资产配置中已启用的数据源',
-          help: '复用资产配置中的关系库、Trino、图库和检索资产；查询语法随数据源自动适配。',
-          section: 'basic'
+          options: () => [
+            ...(this.queryFamily === "relational" ? [internalFinancialDatasource] : []),
+            ...this.querySourceOptions.filter((option) => option.enabled),
+          ],
+          placeholder: "选择资产配置中已启用的数据源",
+          help: "复用资产配置中的关系库、Trino、图库和检索资产；查询语法随数据源自动适配。",
+          section: "basic",
         },
         {
-          key: 'categoryId',
-          label: '能力分类',
-          type: 'select',
+          key: "categoryId",
+          label: "能力分类",
+          type: "select",
           required: true,
           options: () => this.categoryOptions,
-          placeholder: '选择金融数据能力分类',
-          help: '分类参与能力隔离、MCP 元数据发布、索引过滤和 Agent Tool Discovery。',
-          section: 'basic'
+          placeholder: "选择金融数据能力分类",
+          help: "分类参与能力隔离、MCP 元数据发布、索引过滤和 Agent Tool Discovery。",
+          section: "basic",
         },
         {
-          key: 'domain',
-          label: '业务领域',
+          key: "domain",
+          label: "业务领域",
           required: true,
-          placeholder: '如 finance',
-          help: '用于领域隔离和索引过滤，金融数据能力默认填写 finance。',
-          section: 'basic'
+          placeholder: "如 finance",
+          help: "用于领域隔离和索引过滤，金融数据能力默认填写 finance。",
+          section: "basic",
         },
         {
-          key: 'businessScope',
-          label: '业务范围',
-          type: 'textarea',
+          key: "businessScope",
+          label: "业务范围",
+          type: "textarea",
           required: true,
-          span: 'col-12',
-          placeholder: '说明能力适用的业务边界、数据范围和不适用场景。',
-          help: '业务范围参与 BM25 与 kNN 混合检索。',
-          section: 'basic'
+          span: "col-12",
+          placeholder: "说明能力适用的业务边界、数据范围和不适用场景。",
+          help: "业务范围参与 BM25 与 kNN 混合检索。",
+          section: "basic",
         },
         {
-          key: 'description',
-          label: '工具描述',
-          type: 'textarea',
+          key: "description",
+          label: "工具描述",
+          type: "textarea",
           required: true,
-          span: 'col-12',
-          placeholder: '说明查询用途、适用场景、返回字段含义和数据口径。',
-          help: '描述会参与工具检索，建议包含业务对象、指标口径和使用限制。',
-          section: 'basic'
+          span: "col-12",
+          placeholder: "说明查询用途、适用场景、返回字段含义和数据口径。",
+          help: "描述会参与工具检索，建议包含业务对象、指标口径和使用限制。",
+          section: "basic",
         },
         {
-          key: 'implementationSteps',
-          label: '功能实现步骤',
-          type: 'textarea',
+          key: "implementationSteps",
+          label: "功能实现步骤",
+          type: "textarea",
           required: true,
           rows: 4,
-          span: 'col-12',
-          placeholder: '1. 查询客户基础信息。\n2. 查询客户资产汇总。\n3. 汇总多个结果集进行分析。',
-          help: '集合层业务步骤说明会与依赖执行计划、查询语句和结果数据一起返回给模型。',
-          section: 'basic'
+          span: "col-12",
+          placeholder: "1. 查询客户基础信息。\n2. 查询客户资产汇总。\n3. 汇总多个结果集进行分析。",
+          help: "集合层业务步骤说明会与依赖执行计划、查询语句和结果数据一起返回给模型。",
+          section: "basic",
         },
         {
-          key: 'sqlSteps',
-          label: '查询步骤',
-          type: 'databaseSqlSteps',
+          key: "sqlSteps",
+          label: "查询步骤",
+          type: "databaseSqlSteps",
           required: true,
-          span: 'col-12',
-          help: '不同数据源共用步骤编排、输入参数、结果语义和运行策略。',
-          section: 'query',
-          sectionTitle: '查询流程编排',
-          sectionSubtitle: '维护查询节点、执行依赖、独立参数映射和结果集业务语义。'
+          span: "col-12",
+          help: "不同数据源共用步骤编排、输入参数、结果语义和运行策略。",
+          section: "query",
+          sectionTitle: "查询流程编排",
+          sectionSubtitle: "维护查询节点、执行依赖、独立参数映射和结果集业务语义。",
         },
         {
-          key: 'tags',
-          label: '业务标签',
-          type: 'jsonStringList',
+          key: "tags",
+          label: "业务标签",
+          type: "jsonStringList",
           payloadAsArray: true,
-          span: 'col-md-6',
-          placeholder: '输入债券、收益率、客户、核验等标签',
-          help: '作为 MCP metadata 标签参与工具发现。',
-          section: 'query'
+          span: "col-md-6",
+          placeholder: "输入债券、收益率、客户、核验等标签",
+          help: "作为 MCP metadata 标签参与工具发现。",
+          section: "query",
         },
         {
-          key: 'indexTags',
-          label: '索引标签',
-          type: 'jsonStringList',
+          key: "indexTags",
+          label: "索引标签",
+          type: "jsonStringList",
           payloadAsArray: true,
-          span: 'col-md-6',
-          placeholder: '输入检索同义词、业务对象和指标口径',
-          help: '专用于 BM25 与 kNN 能力索引，可补充工具名称中没有出现的业务表达。',
-          section: 'query'
+          span: "col-md-6",
+          placeholder: "输入检索同义词、业务对象和指标口径",
+          help: "专用于 BM25 与 kNN 能力索引，可补充工具名称中没有出现的业务表达。",
+          section: "query",
         },
         {
-          key: 'queryParameters',
-          label: '查询参数配置',
-          type: 'databaseParamConfig',
-          schemaKey: 'inputSchema',
-          paramsKey: 'parameters',
-          sqlKey: 'sqlTemplate',
-          sqlStepsKey: 'sqlSteps',
+          key: "queryParameters",
+          label: "查询参数配置",
+          type: "databaseParamConfig",
+          schemaKey: "inputSchema",
+          paramsKey: "parameters",
+          sqlKey: "sqlTemplate",
+          sqlStepsKey: "sqlSteps",
           defaultSchema: inputSchema,
-          span: 'col-12',
-          tableTitle: '查询参数配置',
-          tableSubtitle: '维护模型入参和页面测试值。日期参数可在“默认来源”中直接选择。',
+          span: "col-12",
+          tableTitle: "查询参数配置",
+          tableSubtitle: "维护模型入参和页面测试值。日期参数可在“默认来源”中直接选择。",
           help: queryProfile.parameterHint,
-          section: 'query'
+          section: "query",
         },
         {
-          key: 'enabled',
-          label: '启用状态',
-          type: 'select',
-          options: [{ value: true, label: '启用' }, { value: false, label: '停用' }],
-          help: '停用后不会作为 MCP 工具发布。',
-          section: 'runtime',
-          sectionTitle: '运行策略',
-          sectionSubtitle: '控制查询发布状态、返回规模和执行超时。'
+          key: "enabled",
+          label: "启用状态",
+          type: "select",
+          options: [
+            { value: true, label: "启用" },
+            { value: false, label: "停用" },
+          ],
+          help: "停用后不会作为 MCP 工具发布。",
+          section: "runtime",
+          sectionTitle: "运行策略",
+          sectionSubtitle: "控制查询发布状态、返回规模和执行超时。",
         },
         {
-          key: 'maxRows',
-          label: '最大行数',
-          type: 'number',
+          key: "maxRows",
+          label: "最大行数",
+          type: "number",
           min: 1,
           step: 1,
-          placeholder: '50',
-          help: '用户可为当前模板自定义返回行数；执行时服务端会强制限制在 chatchat.tools.database-query.min-rows 与 max-rows 之间。',
-          section: 'runtime'
+          placeholder: "50",
+          help: "用户可为当前模板自定义返回行数；执行时服务端会强制限制在 chatchat.tools.database-query.min-rows 与 max-rows 之间。",
+          section: "runtime",
         },
         {
-          key: 'timeoutSeconds',
-          label: '执行超时（秒）',
-          type: 'number',
+          key: "timeoutSeconds",
+          label: "执行超时（秒）",
+          type: "number",
           min: 1,
           step: 1,
-          placeholder: '30',
-          help: '查询执行超时时间，建议按业务复杂度控制在 5-60 秒内。',
-          section: 'runtime'
-        }
-      ]
+          placeholder: "30",
+          help: "查询执行超时时间，建议按业务复杂度控制在 5-60 秒内。",
+          section: "runtime",
+        },
+      ],
     };
   },
   computed: {
+    sharedFormFields() {
+      const common = new Set(["title", "description", "categoryId", "datasourceId", "toolName"]);
+      return [
+        {
+          key: "sourceLabel",
+          label: "模板来源",
+          readonly: true,
+          section: "basic",
+          sectionTitle: "基础信息",
+        },
+        ...this.formFields.map((field) => ({
+          ...field,
+          visible: (form) => common.has(field.key) || form.sourceKind !== "SQL_STUDIO",
+          readonly: (form) =>
+            form.sourceKind === "SQL_STUDIO" && ["datasourceId", "toolName"].includes(field.key),
+        })),
+        {
+          key: "sqlTemplate",
+          label: "查询内容",
+          type: "textarea",
+          rows: 8,
+          readonly: true,
+          visible: (form) => form.sourceKind === "SQL_STUDIO",
+          section: "query",
+          sectionTitle: "查询内容与参数",
+          help: "来自 SQL Studio 源文件；修改查询内容或参数定义请在源工程创建修订。",
+        },
+        {
+          key: "inputSchema",
+          label: "参数定义",
+          type: "json",
+          readonly: true,
+          visible: (form) => form.sourceKind === "SQL_STUDIO",
+          section: "query",
+        },
+      ];
+    },
     pageTitle() {
-      return this.section === 'calendar' ? '交易日历' : this.section === 'dsl' ? '批量导入'
-        : ({ relational: '关系库查询', trino: 'Trino 查询', neo4j: 'Neo4j 查询', opensearch: 'OpenSearch 查询', elasticsearch: 'Elasticsearch 查询' })[this.queryFamily];
+      return this.section === "calendar"
+        ? "交易日历"
+        : this.section === "dsl"
+          ? "批量导入"
+          : {
+              relational: "关系库查询",
+              trino: "Trino 查询",
+              neo4j: "Neo4j 查询",
+              opensearch: "OpenSearch 查询",
+              elasticsearch: "Elasticsearch 查询",
+            }[this.queryFamily];
     },
     parentTemplateName() {
-      return this.queryFamily === 'relational' ? 'database_query_template_query' : this.queryFamily + '_query_template_query';
+      return this.queryFamily === "relational"
+        ? "database_query_template_query"
+        : this.queryFamily + "_query_template_query";
     },
-    familyQueries() { return this.allQueries.filter(query => this.queryMatchesFamily(query)); },
+    familyQueries() {
+      return this.allQueries.filter((query) => this.queryMatchesFamily(query));
+    },
     querySourceOptions() {
-      return this.querySources.filter(source => this.section !== 'queries' || this.sourceFamily(source) === this.queryFamily).map(source => ({ value: source.id,
-        label: `${source.name} / ${source.databaseType} / ${source.queryLanguage}`, enabled: source.enabled }));
+      return this.querySources
+        .filter(
+          (source) => this.section !== "queries" || this.sourceFamily(source) === this.queryFamily
+        )
+        .map((source) => ({
+          value: source.id,
+          label: `${source.name} / ${source.databaseType} / ${source.queryLanguage}`,
+          enabled: source.enabled,
+        }));
     },
     enabledDatasourceOptions() {
       return [internalFinancialDatasource, ...this.datasourceOptions(true)];
@@ -262,30 +345,39 @@ export default {
     },
     categoryOptions() {
       return this.categories
-        .filter(item => item.enabled !== false)
-        .map(item => ({ value: item.id, label: `${item.name} / ${item.code}` }));
+        .filter((item) => item.enabled !== false)
+        .map((item) => ({ value: item.id, label: `${item.name} / ${item.code}` }));
     },
     categoryCards() {
       return [
-        { id: '', code: '', name: '全部能力', description: '查看本类型的查询能力', count: this.familyQueries.length },
-        ...this.categories.filter(item => item.enabled !== false).map(item => ({
-          ...item,
-          count: this.familyQueries.filter(query =>
-            query.categoryId === item.id || query.capabilityCategory === item.code).length
-        }))
+        {
+          id: "",
+          code: "",
+          name: "全部能力",
+          description: "查看本类型的查询能力",
+          count: this.familyQueries.length,
+        },
+        ...this.categories
+          .filter((item) => item.enabled !== false)
+          .map((item) => ({
+            ...item,
+            count: this.familyQueries.filter(
+              (query) => query.categoryId === item.id || query.capabilityCategory === item.code
+            ).length,
+          })),
       ];
     },
     tradingCalendarFunctionOptions() {
       return [
-        { value: 'trade_date', label: '当前交易日 trade_date' },
-        { value: 'trade_date-1', label: '上一交易日 trade_date-1' },
-        { value: 'trade_date+1', label: '下一交易日 trade_date+1' },
-        { value: 'today', label: '当天自然日 today' },
-        { value: 'month', label: '当前月份 month' },
-        { value: 'month_start', label: '当月第一天 month_start' },
-        { value: 'month_end', label: '当月最后一天 month_end' }
+        { value: "trade_date", label: "当前交易日 trade_date" },
+        { value: "trade_date-1", label: "上一交易日 trade_date-1" },
+        { value: "trade_date+1", label: "下一交易日 trade_date+1" },
+        { value: "today", label: "当天自然日 today" },
+        { value: "month", label: "当前月份 month" },
+        { value: "month_start", label: "当月第一天 month_start" },
+        { value: "month_end", label: "当月最后一天 month_end" },
       ];
-    }
+    },
   },
   mounted() {
     this.loadSqlAssets();
@@ -300,11 +392,69 @@ export default {
     this.$refs.catalog?.load();
   },
   methods: {
+    async loadQueryItem(row) {
+      if (row.sourceKind !== "SQL_STUDIO") return { ...row, sourceLabel: "手工模板" };
+      const detail = await api.studioPublication(row.templateId);
+      return {
+        ...detail,
+        id: row.id,
+        inputSchema: detail.parameterSchema,
+        parameters: detail.testEvidence?.parameters || {},
+        categoryId: this.categories.find((c) => c.code === detail.capabilityCategory)?.id || "",
+        expectedVersion: detail.expectedVersion,
+      };
+    },
+    studioActionBody(row, parameters) {
+      return {
+        expectedVersion: row.expectedVersion,
+        title: row.title,
+        description: row.description,
+        category:
+          this.categories.find((c) => c.id === row.categoryId)?.code || row.capabilityCategory,
+        parameters,
+        testId:
+          globalThis.crypto.randomUUID?.() ||
+          "test-" + Date.now() + "-" + Math.random().toString(16).slice(2),
+        expectedActiveReleaseId: row.publicationId,
+      };
+    },
+    async saveQuery(payload) {
+      if (payload.sourceKind !== "SQL_STUDIO") return api.save(payload);
+      const parameters = await this.$refs.catalog.$refs.apiTestParameterDialog.open({
+        title: "保存前验证查询",
+        schema: payload.inputSchema,
+      });
+      return api.actStudioPublication(
+        payload.templateId,
+        "metadata",
+        this.studioActionBody(payload, parameters)
+      );
+    },
+    async testStudio(row, parameters) {
+      const result = await api.actStudioPublication(
+        row.templateId,
+        "test",
+        this.studioActionBody(row, parameters || {})
+      );
+      const evidence = result.testEvidence || {};
+      return {
+        success: evidence.success === true,
+        message: evidence.diagnostic,
+        data: { ...evidence.preview, rowCount: evidence.rowCount, durationMs: evidence.durationMs },
+        testEvidence: evidence,
+      };
+    },
     prettyJson,
     async loadDetailMetadata() {
       const detail = this.studioDetail;
-      if (!detail || detail.sourceKind === 'SQL_STUDIO' || !this.detailSections.includes('records')
-        || detail.technicalMetadata !== undefined || this.detailMetadataLoading) return;
+      if (
+        !detail ||
+        detail.sourceKind === "SQL_STUDIO" ||
+        !this.detailSections.includes("records") ||
+        detail.technicalMetadata !== undefined ||
+        this.detailMetadataLoading
+      )
+        return;
       this.detailMetadataLoading = true;
       this.detailMetadataError = false;
       try {
@@ -318,57 +468,88 @@ export default {
     },
     queryDatasource(row) {
       if (row.datasourceName) return row.datasourceName;
-      if (row.datasourceId === internalFinancialDatasource.value) return '内置金融采集库';
-      return this.querySources.find(source => source.id === row.datasourceId)?.name
-        || this.sqlAssets.find(source => source.id === row.datasourceId)?.name || '数据源不可用';
+      if (row.datasourceId === internalFinancialDatasource.value) return "内置金融采集库";
+      return (
+        this.querySources.find((source) => source.id === row.datasourceId)?.name ||
+        this.sqlAssets.find((source) => source.id === row.datasourceId)?.name ||
+        "数据源不可用"
+      );
     },
     queryCategory(row) {
-      return this.categories.find(category => category.code === row.capabilityCategory || category.id === row.categoryId)?.name
-        || row.businessGroupName || '未分类';
+      return (
+        this.categories.find(
+          (category) => category.code === row.capabilityCategory || category.id === row.categoryId
+        )?.name ||
+        row.businessGroupName ||
+        "未分类"
+      );
     },
     queryStatus(row) {
-      if (row.sourceKind !== 'SQL_STUDIO') return row.enabled === false ? '已停用' : '已启用';
-      return { RUNNING: '已发布', OFFLINE: '已下线', FAILED: '发布失败', STARTING: '发布中', DRAFT: '草稿' }[row.publicationState]
-        || (row.enabled === false ? '暂不可用' : '已发布');
+      if (row.sourceKind !== "SQL_STUDIO") return row.enabled === false ? "已停用" : "已启用";
+      return (
+        {
+          RUNNING: "已发布",
+          OFFLINE: "已下线",
+          FAILED: "发布失败",
+          STARTING: "发布中",
+          DRAFT: "草稿",
+        }[row.publicationState] || (row.enabled === false ? "暂不可用" : "已发布")
+      );
     },
     queryDate(value) {
-      if (!value) return '—';
+      if (!value) return "—";
       const date = new Date(value);
-      return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('zh-CN', { hour12: false });
+      return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("zh-CN", { hour12: false });
     },
     async loadCatalogQueries() {
-      const manual = await api.list() || [];
-      const studio = this.queryFamily === 'relational' ? await api.studioPublications() || [] : [];
-      return [...studio, ...manual.map(row => ({ ...row, sourceKind: 'MANUAL', sourceLabel: '手工模板' }))];
+      const manual = (await api.list()) || [];
+      const studio =
+        this.queryFamily === "relational" ? (await api.studioPublications()) || [] : [];
+      return [
+        ...studio,
+        ...manual.map((row) => ({ ...row, sourceKind: "MANUAL", sourceLabel: "手工模板" })),
+      ];
     },
     sourceFamily(source) {
-      if (source?.type === 'TRINO') return 'trino';
-      if (source?.type === 'GRAPH') return 'neo4j';
-      if (source?.type === 'UNSTRUCTURED') return source.databaseType === 'elasticsearch' ? 'elasticsearch' : 'opensearch';
-      return 'relational';
+      if (source?.type === "TRINO") return "trino";
+      if (source?.type === "GRAPH") return "neo4j";
+      if (source?.type === "UNSTRUCTURED")
+        return source.databaseType === "elasticsearch" ? "elasticsearch" : "opensearch";
+      return "relational";
     },
     queryMatchesFamily(query) {
-      const source = this.querySources.find(item => item.id === query.datasourceId);
+      const source = this.querySources.find((item) => item.id === query.datasourceId);
       const type = query.databaseType;
-      return (source ? this.sourceFamily(source) : ['trino', 'neo4j', 'opensearch', 'elasticsearch'].includes(type) ? type : 'relational') === this.queryFamily;
+      return (
+        (source
+          ? this.sourceFamily(source)
+          : ["trino", "neo4j", "opensearch", "elasticsearch"].includes(type)
+            ? type
+            : "relational") === this.queryFamily
+      );
     },
     dataAvailabilityLabel(value, row) {
-      if (value === 'NOT_APPLICABLE') return '外部数据源';
-      if (value === 'READY') return '已采集';
-      if (value === 'DATASET_NOT_COLLECTED') {
-        const missing = Array.isArray(row?.missingDatasetTables) ? row.missingDatasetTables.join('、') : '';
-        return missing ? `未采集：${missing}` : '未采集';
+      if (value === "NOT_APPLICABLE") return "外部数据源";
+      if (value === "READY") return "已采集";
+      if (value === "DATASET_NOT_COLLECTED") {
+        const missing = Array.isArray(row?.missingDatasetTables)
+          ? row.missingDatasetTables.join("、")
+          : "";
+        return missing ? `未采集：${missing}` : "未采集";
       }
-      if (value === 'FINANCIAL_STORAGE_UNAVAILABLE') return '存储未就绪';
-      return value || '未知';
+      if (value === "FINANCIAL_STORAGE_UNAVAILABLE") return "存储未就绪";
+      return value || "未知";
     },
     async loadCategories() {
       try {
-        const [categories, queries] = await Promise.all([api.listCategories(), this.loadCatalogQueries()]);
+        const [categories, queries] = await Promise.all([
+          api.listCategories(),
+          this.loadCatalogQueries(),
+        ]);
         this.categories = categories || [];
         this.allQueries = queries || [];
       } catch (error) {
-        this.$emit('error', error);
+        this.$emit("error", error);
       }
     },
     async listQueries() {
@@ -376,50 +557,75 @@ export default {
       const queries = await this.loadCatalogQueries();
       this.allQueries = queries;
       if (!this.selectedCategory) return this.familyQueries;
-      return this.familyQueries.filter(query => query.categoryId === this.selectedCategory
-        || query.capabilityCategory === this.selectedCategory);
+      return this.familyQueries.filter(
+        (query) =>
+          query.categoryId === this.selectedCategory ||
+          query.capabilityCategory === this.selectedCategory
+      );
     },
     async selectCategory(category) {
-      this.selectedCategory = category.id || category.code || '';
-      this.activeTab = 'queries';
+      this.selectedCategory = category.id || category.code || "";
+      this.activeTab = "queries";
       await this.$nextTick();
       await this.$refs.catalog?.load?.();
     },
     datasourceOptions(enabledOnly) {
       return this.sqlAssets
-        .filter(asset => !['neo4j', 'opensearch', 'elasticsearch'].some(type => asset.driverClass === type + '-http')
-          && !(['neo4j', 'opensearch', 'elasticsearch'].includes(asset.databaseType) && /^https?:\/\//.test(asset.jdbcUrl || '')))
-        .filter(asset => !enabledOnly || asset.enabled !== false)
-        .map(asset => ({
+        .filter(
+          (asset) =>
+            !["neo4j", "opensearch", "elasticsearch"].some(
+              (type) => asset.driverClass === type + "-http"
+            ) &&
+            !(
+              ["neo4j", "opensearch", "elasticsearch"].includes(asset.databaseType) &&
+              /^https?:\/\//.test(asset.jdbcUrl || "")
+            )
+        )
+        .filter((asset) => !enabledOnly || asset.enabled !== false)
+        .map((asset) => ({
           value: asset.id,
-          label: [asset.toolName || asset.name || asset.id, asset.environment || 'DEV', asset.databaseType].filter(Boolean).join(' / ')
+          label: [
+            asset.toolName || asset.name || asset.id,
+            asset.environment || "DEV",
+            asset.databaseType,
+          ]
+            .filter(Boolean)
+            .join(" / "),
         }))
         .sort((a, b) => a.label.localeCompare(b.label));
     },
     datasourceLabel(value) {
-      if (!value) return '-';
+      if (!value) return "-";
       if (value === internalFinancialDatasource.value) return internalFinancialDatasource.label;
-      return this.querySourceOptions.find(option => option.value === value)?.label
-        || this.datasourceSelectOptions.find(option => option.value === value)?.label || value;
+      return (
+        this.querySourceOptions.find((option) => option.value === value)?.label ||
+        this.datasourceSelectOptions.find((option) => option.value === value)?.label ||
+        value
+      );
     },
     async loadQuerySources() {
-      try { this.querySources = await api.listSources() || []; }
-      catch (error) { this.$emit('error', error); }
+      try {
+        this.querySources = (await api.listSources()) || [];
+      } catch (error) {
+        this.$emit("error", error);
+      }
     },
     async loadSqlAssets() {
       try {
-        this.sqlAssets = await assetsApi.listSql() || [];
+        this.sqlAssets = (await assetsApi.listSql()) || [];
       } catch (error) {
-        this.$emit('error', error);
+        this.$emit("error", error);
       }
     },
     async refreshTradingCalendar() {
       await Promise.all([this.loadSqlAssets(), this.loadTradingCalendar()]);
     },
     testSaved(item, args) {
+      if (item.sourceKind === "SQL_STUDIO") return this.testStudio(item, args);
       return api.testSaved(item.id, args);
     },
-    testDraft(payload) {
+    testDraft(payload, args) {
+      if (payload.sourceKind === "SQL_STUDIO") return this.testStudio(payload, args);
       return api.testDraft({
         sql: payload.sqlTemplate,
         sqlSteps: payload.sqlSteps || [],
@@ -427,51 +633,55 @@ export default {
         params: payload.parameters || {},
         maxRows: payload.maxRows,
         timeoutSeconds: payload.timeoutSeconds,
-        datasourceId: payload.datasourceId
+        datasourceId: payload.datasourceId,
       });
     },
     async loadTradingCalendar() {
       this.busy = true;
       try {
         await this.loadSqlAssets();
-        this.calendar = { ...this.calendar, ...(await api.getTradingCalendar() || {}) };
+        this.calendar = { ...this.calendar, ...((await api.getTradingCalendar()) || {}) };
         this.resetCalendarFunctionTestState();
       } catch (error) {
-        this.$emit('error', error);
+        this.$emit("error", error);
       } finally {
         this.busy = false;
       }
     },
     async saveCalendar() {
-      await this.run(() => api.saveTradingCalendar(this.calendar), '交易日历配置已保存');
+      await this.run(() => api.saveTradingCalendar(this.calendar), "交易日历配置已保存");
       this.resetCalendarFunctionTestState();
     },
     async testCalendar() {
       const result = await this.runTest(() => api.testTradingCalendar(this.calendar), {
-        successTitle: '交易日历查询通过',
-        failureTitle: '交易日历查询失败'
+        successTitle: "交易日历查询通过",
+        failureTitle: "交易日历查询失败",
       });
       this.calendarQueryTestPassed = !!result?.success;
-      if (result) this.$emit('result', { title: '交易日历测试结果', value: result });
+      if (result) this.$emit("result", { title: "交易日历测试结果", value: result });
     },
     async testCalendarFunction() {
       const result = await this.runTest(
-        () => api.testTradingCalendarFunction({ ...this.calendar, functionName: this.calendarFunctionName }),
+        () =>
+          api.testTradingCalendarFunction({
+            ...this.calendar,
+            functionName: this.calendarFunctionName,
+          }),
         {
-          successTitle: '交易日函数测试通过',
-          failureTitle: '交易日函数测试失败'
+          successTitle: "交易日函数测试通过",
+          failureTitle: "交易日函数测试失败",
         }
       );
-      if (result) this.$emit('result', { title: '交易日函数测试结果', value: result });
+      if (result) this.$emit("result", { title: "交易日函数测试结果", value: result });
     },
     resetCalendarFunctionTestState() {
       this.calendarQueryTestPassed = false;
     },
     async validateDsl() {
-      await this.runDsl(api.validateDsl, '批量导入内容校验完成');
+      await this.runDsl(api.validateDsl, "批量导入内容校验完成");
     },
     async importDsl() {
-      await this.runDsl(api.importDsl, '批量导入完成');
+      await this.runDsl(api.importDsl, "批量导入完成");
       await this.$refs.catalog?.load?.();
     },
     async runDsl(action, message) {
@@ -479,22 +689,22 @@ export default {
         const result = await action({
           dsl: this.dslBody,
           datasourceId: this.dslDatasourceId || undefined,
-          targetRegistry: this.dslTargetRegistry || undefined
+          targetRegistry: this.dslTargetRegistry || undefined,
         });
         this.dslResult = prettyJson(result, {});
-        this.$emit('notify', { title: message });
+        this.$emit("notify", { title: message });
       } catch (error) {
-        this.$emit('error', error);
+        this.$emit("error", error);
       }
     },
     async run(action, message) {
       this.busy = true;
       try {
         const result = await action();
-        this.$emit('notify', { title: message });
+        this.$emit("notify", { title: message });
         return result;
       } catch (error) {
-        this.$emit('error', error);
+        this.$emit("error", error);
         return null;
       } finally {
         this.busy = false;
@@ -504,16 +714,14 @@ export default {
       this.busy = true;
       try {
         const result = await action();
-        this.$emit('notify', buildTestNotification(result, notificationOptions));
+        this.$emit("notify", buildTestNotification(result, notificationOptions));
         return result;
       } catch (error) {
-        this.$emit('error', error);
+        this.$emit("error", error);
         return null;
       } finally {
         this.busy = false;
       }
-    }
-  }
+    },
+  },
 };
-
-

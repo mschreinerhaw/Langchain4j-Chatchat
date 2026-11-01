@@ -17,6 +17,7 @@ export default {
     formFields: { type: Array, required: true },
     listAction: { type: Function, required: true },
     saveAction: { type: Function, required: true },
+    loadItem: { type: Function, default: null },
     removeAction: { type: Function, default: null },
     batchRemove: { type: Function, default: null },
     toggleAction: { type: Function, default: null },
@@ -370,7 +371,13 @@ export default {
       this.prepareFormSections();
       this.formOpen = true;
     },
-    openEdit(item) {
+    async openEdit(item) {
+      if (this.loadItem) {
+        this.busy = true;
+        try { item = await this.loadItem(item); }
+        catch (error) { this.$emit('error', error); return; }
+        finally { this.busy = false; }
+      }
       this.editingId = item.id || '';
       this.form = JSON.parse(JSON.stringify({ ...this.defaults, ...item }));
       this.formTestResult = null;
@@ -380,46 +387,46 @@ export default {
       this.formOpen = true;
     },
     prepareJsonDraft() {
-      this.formFields.forEach(field => {
+      this.visibleFormFields.forEach(field => {
         if (typeof field.initialize === 'function') field.initialize(this.form);
       });
       this.databaseParameterValidationAttempted = false;
       this.jsonDraft = {};
-      this.formFields.filter(field => field.type === 'json').forEach(field => {
+      this.visibleFormFields.filter(field => field.type === 'json').forEach(field => {
         this.jsonDraft[field.key] = prettyJson(this.form[field.key], field.defaultValue ?? {});
       });
       this.listDraft = {};
       this.listInput = {};
-      this.formFields.filter(field => field.type === 'jsonStringList' || field.type === 'templatePicker').forEach(field => {
+      this.visibleFormFields.filter(field => field.type === 'jsonStringList' || field.type === 'templatePicker').forEach(field => {
         this.listDraft[field.key] = parseStringList(this.form[field.key], field.defaultValue ?? []);
         this.listInput[field.key] = '';
       });
       this.objectDraft = {};
       this.objectPresetSelection = {};
-      this.formFields.filter(field => field.type === 'jsonObjectString' || field.type === 'jsonObject').forEach(field => {
+      this.visibleFormFields.filter(field => field.type === 'jsonObjectString' || field.type === 'jsonObject').forEach(field => {
         this.objectDraft[field.key] = objectToRows(parseObjectValue(this.form[field.key], field.defaultValue ?? {}));
         this.objectPresetSelection[field.key] = '';
       });
       this.schemaDraft = {};
-      this.formFields.filter(field => field.type === 'jsonSchemaString' || field.type === 'jsonSchema').forEach(field => {
+      this.visibleFormFields.filter(field => field.type === 'jsonSchemaString' || field.type === 'jsonSchema').forEach(field => {
         this.schemaDraft[field.key] = schemaToRows(parseObjectValue(this.form[field.key], field.defaultValue ?? objectSchema()));
       });
-      this.formFields.filter(field => field.type === 'databaseParamConfig').forEach(field => {
+      this.visibleFormFields.filter(field => field.type === 'databaseParamConfig').forEach(field => {
         const schema = parseObjectValue(this.form[field.schemaKey], field.defaultSchema ?? objectSchema());
         const params = parseObjectValue(this.form[field.paramsKey], {});
         this.schemaDraft[field.key] = databaseSchemaToRows(schema, params);
       });
-      this.formFields.filter(field => field.type === 'databaseSqlSteps').forEach(field => {
+      this.visibleFormFields.filter(field => field.type === 'databaseSqlSteps').forEach(field => {
         this.form[field.key] = normalizeDatabaseSqlSteps(this.form[field.key], this.form.sqlTemplate);
         this.databaseSqlSelectedIndexes[field.key] = 0;
         this.databaseSqlActiveTabs[field.key] = 'sql';
         this.databaseSqlSideTabs[field.key] = 'inputs';
       });
-      this.formFields.filter(field => field.type === 'databaseParamConfig').forEach(field => {
+      this.visibleFormFields.filter(field => field.type === 'databaseParamConfig').forEach(field => {
         this.migrateLegacyAutoDatabaseFlowInputs(field);
         this.syncDatabaseParamsFromSql(field, false);
       });
-      this.formFields.filter(field => field.unitScale).forEach(field => {
+      this.visibleFormFields.filter(field => field.unitScale).forEach(field => {
         const value = Number(this.form[field.key]);
         if (Number.isFinite(value)) {
           this.form[field.key] = value / field.unitScale;
@@ -445,40 +452,40 @@ export default {
         this.$emit('notify', { title: '保存成功', message: saved?.title || saved?.toolName || saved?.name || '' });
         await this.load();
       } catch (error) {
-        this.$emit('error', error);
+        if (error !== 'cancel' && error !== 'close') this.$emit('error', error);
       } finally {
         this.busy = false;
       }
     },
     formPayload() {
       const payload = { ...this.form };
-      this.formFields.filter(field => field.type === 'json').forEach(field => {
+      this.visibleFormFields.filter(field => field.type === 'json').forEach(field => {
         payload[field.key] = parseJsonObject(this.jsonDraft[field.key], field.defaultValue ?? {});
       });
-      this.formFields.filter(field => field.type === 'jsonStringList' || field.type === 'templatePicker').forEach(field => {
+      this.visibleFormFields.filter(field => field.type === 'jsonStringList' || field.type === 'templatePicker').forEach(field => {
         payload[field.key] = field.payloadAsArray
           ? [...(this.listDraft[field.key] || [])]
           : JSON.stringify(this.listDraft[field.key] || []);
       });
-      this.formFields.filter(field => field.type === 'jsonObjectString').forEach(field => {
+      this.visibleFormFields.filter(field => field.type === 'jsonObjectString').forEach(field => {
         payload[field.key] = JSON.stringify(rowsToObject(this.objectDraft[field.key] || []));
       });
-      this.formFields.filter(field => field.type === 'jsonObject').forEach(field => {
+      this.visibleFormFields.filter(field => field.type === 'jsonObject').forEach(field => {
         payload[field.key] = rowsToObject(this.objectDraft[field.key] || []);
       });
-      this.formFields.filter(field => field.type === 'jsonSchemaString').forEach(field => {
+      this.visibleFormFields.filter(field => field.type === 'jsonSchemaString').forEach(field => {
         payload[field.key] = JSON.stringify(rowsToSchema(this.schemaDraft[field.key] || []));
       });
-      this.formFields.filter(field => field.type === 'jsonSchema').forEach(field => {
+      this.visibleFormFields.filter(field => field.type === 'jsonSchema').forEach(field => {
         payload[field.key] = rowsToSchema(this.schemaDraft[field.key] || []);
       });
-      this.formFields.filter(field => field.type === 'databaseParamConfig').forEach(field => {
+      this.visibleFormFields.filter(field => field.type === 'databaseParamConfig').forEach(field => {
         const rows = this.schemaDraft[field.key] || [];
         payload[field.schemaKey] = rowsToDatabaseSchema(rows);
         payload[field.paramsKey] = rowsToDatabaseParams(rows);
         delete payload[field.key];
       });
-      this.formFields.filter(field => field.type === 'databaseSqlSteps').forEach(field => {
+      this.visibleFormFields.filter(field => field.type === 'databaseSqlSteps').forEach(field => {
         payload[field.key] = normalizeDatabaseSqlSteps(this.form[field.key], this.form.sqlTemplate)
           .map((step, index) => ({
             ...step,
@@ -487,7 +494,7 @@ export default {
           }));
         payload.sqlTemplate = payload[field.key][0]?.sqlContent || payload.sqlTemplate || '';
       });
-      this.formFields.filter(field => field.unitScale).forEach(field => {
+      this.visibleFormFields.filter(field => field.unitScale).forEach(field => {
         const value = Number(payload[field.key]);
         payload[field.key] = Number.isFinite(value) ? Math.round(value * field.unitScale) : payload[field.key];
       });
@@ -499,14 +506,16 @@ export default {
       if (!this.validateDatabaseParameterCompleteness(true)) return;
       try {
         const payload = this.formPayload();
-        const args = payload.inputSchemaJson
+        const parameterSchema = payload.inputSchemaJson || (payload.sourceKind === 'SQL_STUDIO' ? payload.inputSchema : null);
+        const args = parameterSchema
           ? await this.$refs.apiTestParameterDialog.open({
             title: `${payload.title || payload.toolName || payload.name || 'API'} 请求测试`,
-            schema: payload.inputSchemaJson
+            schema: parameterSchema
           })
           : undefined;
         this.busy = true;
         const result = await this.formTestAction(payload, args);
+        if (args !== undefined) this.form.parameters = args;
         this.formTestResult = result;
         this.databasePreviewActiveTab = this.databasePreviewResultSets[0]?.previewKey || '';
         this.formFields.filter(field => field.type === 'databaseSqlSteps').forEach(field => {
@@ -544,6 +553,10 @@ export default {
       await this.run(() => this.toggleAction(item.id, item.enabled === false), item.enabled === false ? '已启用' : '已停用');
     },
     async testItem(item) {
+      if (this.loadItem) {
+        try { item = await this.loadItem(item); }
+        catch (error) { this.$emit('error', error); return; }
+      }
       if (!this.validateFieldsBeforeSubmit(item, false)) return;
       try {
         const schema = item.inputSchema || item.inputSchemaJson;
@@ -651,10 +664,13 @@ export default {
     fieldText(field, key) {
       return typeof field[key] === 'function' ? field[key](this.form) : field[key];
     },
-    isFieldVisible(field) {
-      if (typeof field.visible === 'function') return field.visible(this.form);
-      if (typeof field.hidden === 'function') return !field.hidden(this.form);
+    isFieldVisible(field, form = this.form) {
+      if (typeof field.visible === 'function') return field.visible(form);
+      if (typeof field.hidden === 'function') return !field.hidden(form);
       return field.visible !== false && field.hidden !== true;
+    },
+    isFieldReadonly(field) {
+      return typeof field.readonly === 'function' ? field.readonly(this.form) : field.readonly === true;
     },
     onFieldChange(field, value) {
       if (typeof field.onChange !== 'function') return;
@@ -688,7 +704,7 @@ export default {
     },
     validateDatabaseParameterCompleteness(requireTestValues) {
       this.databaseParameterValidationAttempted = Boolean(requireTestValues);
-      const paramField = this.formFields.find(field => field.type === 'databaseParamConfig');
+      const paramField = this.visibleFormFields.find(field => field.type === 'databaseParamConfig');
       if (!paramField) return true;
       const rows = this.schemaDraft[paramField.key] || [];
       const errors = [];
@@ -759,7 +775,7 @@ export default {
     validateFieldsBeforeSubmit(form, useDraft) {
       const errors = [];
       const invalidSections = new Set();
-      this.visibleFormFields.forEach(field => {
+      this.formFields.filter(field => this.isFieldVisible(field, form)).forEach(field => {
         const value = this.fieldValidationValue(field, form, useDraft);
         if (this.isFieldRequired(field, form) && this.isEmptyFieldValue(value)) {
           errors.push(`${field.label}不能为空`);

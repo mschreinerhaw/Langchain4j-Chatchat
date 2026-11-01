@@ -20,7 +20,8 @@ class StudioSqlCatalogControllerTest {
     final AdminMenuAccessService access=mock(AdminMenuAccessService.class);
     final McpAuthorizationService auth=mock(McpAuthorizationService.class);
     final MockHttpServletRequest request=new MockHttpServletRequest();
-    final StudioSqlCatalogController controller=new StudioSqlCatalogController(templates,sources,releases,access,auth,new ObjectMapper());
+    final SqlTemplateAuthoringService authoring=mock(SqlTemplateAuthoringService.class);
+    final StudioSqlCatalogController controller=new StudioSqlCatalogController(templates,sources,releases,access,auth,new ObjectMapper(),authoring);
     SqlTemplateConfig row;ToolRelease release;
     @BeforeEach void setup(){
         row=new SqlTemplateConfig();row.setId("revision");row.setCode("STUDIO_REVISION");row.setTitle("Published query");row.setPublicationGroupId("group");row.setPublicationVersion(1);
@@ -64,5 +65,21 @@ class StudioSqlCatalogControllerTest {
     }
     @Test void missingMenuPermissionFailsBeforeReadingOtherTenants(){
         doThrow(new SecurityException("denied")).when(access).require(request,"databaseMcp");assertThrows(SecurityException.class,()->controller.list(request));verifyNoInteractions(templates,releases,sources);
+    }
+    @Test void ordinaryMenuAccessDoesNotGrantAuthorDelegation(){
+        var body=new StudioSqlCatalogController.ManagedAction(1L,"name","description","finance","test",Map.of(),"release");
+        assertThrows(SecurityException.class,()->controller.test("revision",body,request));
+        assertThrows(SecurityException.class,()->controller.update("revision",body,request));
+        verifyNoInteractions(authoring,templates);
+    }
+    @Test void administratorOperationsDeriveOwnerAndSourceFromStoredRevision(){
+        when(access.superAdmin(request)).thenReturn(true);
+        var body=new StudioSqlCatalogController.ManagedAction(1L,"new name","new description","finance","test",Map.of("value",3),"release");
+        when(authoring.test(anyString(),anyString(),anyString(),any())).thenReturn(Map.of("testEvidence",Map.of("success",true)));
+        controller.test("revision",body,request);
+        verify(authoring).test(eq(row.getAuthorTenantId()),eq(row.getAuthorId()),eq("revision"),argThat(input->input.parameters().equals(Map.of("value",3))&&input.expectedVersion()==1L));
+        controller.update("revision",body,request);
+        verify(authoring).updateMetadata(eq(row.getAuthorTenantId()),eq(row.getAuthorId()),eq("revision"),argThat(input->input.title().equals("new name")&&input.expectedActiveReleaseId().equals("release")));
+        verify(templates,never()).save(any());
     }
 }

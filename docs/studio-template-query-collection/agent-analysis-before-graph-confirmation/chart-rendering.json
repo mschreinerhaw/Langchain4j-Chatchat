@@ -1,0 +1,6 @@
+{
+  "status": "FAILED",
+  "reason": "No VisualReport resource in the actual UI artifact",
+  "events": [],
+  "diagnostics": []
+}

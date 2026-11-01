@@ -1,0 +1,36 @@
+{
+  "id": "271b4d6f-a928-3dbe-9aa5-26d49f0bfff7",
+  "code": "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+  "sqlTemplate": "-- 仓库面积筛选：w_warehouse_sq_ft 取原值（平方英尺），不做单位换算；{{min_area}} 为数值参数，代表最低面积阈值\nSELECT\n    w_warehouse_sk,\n    w_warehouse_name,\n    w_country,\n    w_state,\n    w_warehouse_sq_ft\nFROM tpcds.warehouse\nWHERE w_warehouse_sq_ft >= {{min_area}}\nORDER BY w_warehouse_sk;\n",
+  "parameterSchema": {
+    "type": "object",
+    "properties": {
+      "min_area": {
+        "type": "number",
+        "minimum": 0,
+        "default": 0,
+        "description": "最低面积字段原值，不换算单位"
+      }
+    },
+    "additionalProperties": false
+  },
+  "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+  "databaseType": "mysql",
+  "title": "仓库面积明细查询",
+  "description": "按最低面积原值阈值筛选仓库，返回主键、名称、地区及面积；参数 min_area 默认0，不推断单位。",
+  "category": "data_asset_exploration",
+  "source": {
+    "projectId": "c4f87abd-8d26-4b2d-a4fd-bb09212b9987",
+    "fileId": "1d124dc8-ded5-41dd-ba36-57c7f5ae2020",
+    "fileVersion": 1,
+    "sqlDigest": "e1cf1407bc6ff9ed39a3469caefc0b4552404abb992ba066a93ae8314694b023"
+  },
+  "groupId": "271b4d6f-a928-3dbe-9aa5-26d49f0bfff7",
+  "version": 1,
+  "expectedVersion": 0,
+  "state": "DRAFT",
+  "active": false,
+  "testEvidence": null,
+  "templateKey": "sql_datasource:STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+  "releaseHistory": []
+}

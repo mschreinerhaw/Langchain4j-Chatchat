@@ -1,0 +1,669 @@
+{
+  "validation": {
+    "checks": [
+      {
+        "detail": "清单及 1 个 Parquet 分片 SHA-256 校验通过，逻辑行 5 条与清单声明一致；数据集 STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC#template-binding-1-binding-1 返回 1 条、STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7#template-binding-2-binding-2 返回 4 条。",
+        "name": "输入完整性（清单/分片哈希与行数）",
+        "status": "PASSED"
+      },
+      {
+        "detail": "参数 min_area=0 来自用户请求；明细 4 条记录面积原值均 ≥ 0（最小 138,504），负值记录 0 条。",
+        "name": "明细筛选口径（面积原值 ≥ 0）",
+        "status": "PASSED"
+      },
+      {
+        "detail": "明细地区键 [('United States', 'TN')]，汇总地区键 [('United States', 'TN')]；明细全部落在汇总分组内。",
+        "name": "地区键一致性",
+        "status": "PASSED"
+      },
+      {
+        "detail": "4 条明细主键 w_warehouse_sk 去重后 4 个，重复主键 []。",
+        "name": "仓库主键唯一性",
+        "status": "PASSED"
+      },
+      {
+        "detail": "汇总仓库数量 5 条，明细记录数 4 条，差 1 条。",
+        "name": "数量严格相等核对",
+        "status": "FAILED"
+      },
+      {
+        "detail": "数量相差 1 条，但合计、最小值、最大值三项完全一致；明细筛选条件为面积原值 ≥ 0，而汇总最小值 138,504 本身不小于 0，说明所有非空面积原值都满足该筛选条件。因此被排除的 1 条记录面积原值为空（NULL，不参与 SUM/MIN/MAX 计算），数量差异属明细筛选口径差异，不是合计口径错误。",
+        "name": "数量差异归因",
+        "status": "PASSED"
+      },
+      {
+        "detail": "汇总合计 2,031,767，明细合计 2,031,767，差 0。",
+        "name": "面积原值合计对账",
+        "status": "PASSED"
+      },
+      {
+        "detail": "最小值：汇总 138,504 / 明细 138,504；最大值：汇总 977,787 / 明细 977,787。",
+        "name": "面积原值极值对账",
+        "status": "PASSED"
+      },
+      {
+        "detail": "面积原值为空或未通过筛选的 1 条记录不在 STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7#template-binding-2-binding-2 返回范围内，授权数据中无法取得其主键、名称与面积原值。",
+        "name": "被排除记录的身份与面积原值",
+        "status": "UNRESOLVED"
+      },
+      {
+        "detail": "源查询定义与模板说明均未声明面积字段的单位或刻度，本次仅汇总原值，未做任何单位换算或容量推断。",
+        "name": "面积字段单位/刻度",
+        "status": "UNRESOLVED"
+      },
+      {
+        "detail": "返回数据仅 1 个国家/省州分组，无法进行地区间横向比较。",
+        "name": "跨国家/省州可比性",
+        "status": "UNRESOLVED"
+      },
+      {
+        "detail": "仓库主数据为快照式记录，源查询未返回任何日期字段，因此本报告不含期间、趋势或同比结论。",
+        "name": "时间维度适用性",
+        "status": "UNRESOLVED"
+      }
+    ],
+    "scope": "STOPPED_EXECUTION_AND_ARTIFACT_INTEGRITY; COMPUTATION_CHECKS_ARE_PROGRAM_DECLARED; BUSINESS_SEMANTICS_NOT_CERTIFIED",
+    "status": "FAILED",
+    "warnings": [
+      "面积字段单位未声明，所有面积数值仅表示源端原值。",
+      "授权数据仅含 1 个国家/省州分组，不支持跨地区比较。"
+    ]
+  },
+  "layoutValidationStatus": "PASSED",
+  "charts": [
+    {
+      "artifact": {
+        "fileId": "63dd8461ccbd5e70234537e91a3987cb41df6ed4a1700557bf1d4fc83652d806",
+        "fileName": "warehouse_area_detail.png",
+        "mediaType": "image/png",
+        "sha256": "2cbd35aa15836e054d7eccc5fdb1485f284127b0027fd6c837a078e56f4c95d4",
+        "size": 69709
+      },
+      "caption": "United States / TN 分组内 4 条面积原值 ≥ 0 的仓库明细，按面积原值降序；纵轴为 仓库主键 + 名称，横轴为面积字段原值（单位未声明，未做换算）。无期间维度。",
+      "chartType": "bar",
+      "dataRefs": [
+        "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC#template-binding-1-binding-1",
+        "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7#template-binding-2-binding-2"
+      ],
+      "id": "chart-area-bar",
+      "kind": "png",
+      "title": "明细仓库面积字段原值（面积原值 ≥ 0）"
+    },
+    {
+      "artifact": {
+        "fileId": "ca783e7296080969ad7cca283b4f9fe0c34388a97afb44a905a9b438a0ffbb0d",
+        "fileName": "reconciliation_count_sum.png",
+        "mediaType": "image/png",
+        "sha256": "3c803f8e61ebe396afa4101a71bf2945ea5abf795b4a6cc9709b7475a0c66370",
+        "size": 72553
+      },
+      "caption": "左：汇总记录数与明细记录数；右：面积字段原值合计。两面板各自独立刻度，不构成同轴比较；数值均来自本次授权快照，单位未声明。",
+      "chartType": "bar",
+      "dataRefs": [
+        "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC#template-binding-1-binding-1",
+        "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7#template-binding-2-binding-2"
+      ],
+      "id": "chart-recon",
+      "kind": "png",
+      "title": "汇总口径与明细口径的记录数、面积原值合计对账"
+    },
+    {
+      "artifact": {
+        "fileId": "4299019ca203b70581533aa66b9a2e8653dcffaf14837ca7ad8295a873bf4d4c",
+        "fileName": "warehouse_area_composition.json",
+        "mediaType": "application/json",
+        "sha256": "475428b6d91dcc9bc17abbe26d27329601622ad534c87908942c9826cc5fcc3e",
+        "size": 728
+      },
+      "caption": "4 条明细面积原值合计 2,031,767 的构成（占合计比重，单位未声明）；分母为同一分组同一快照的合计，明细合计与汇总合计差 0。",
+      "chartType": "pie",
+      "dataRefs": [
+        "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC#template-binding-1-binding-1",
+        "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7#template-binding-2-binding-2"
+      ],
+      "id": "chart-composition",
+      "kind": "plotly",
+      "title": "明细仓库面积原值构成（占合计比重）"
+    }
+  ],
+  "title": "授权仓库国家/省州分布、面积字段原值汇总与汇总—明细核对",
+  "presentationDiagnostics": [],
+  "analysisStatus": "FAILED",
+  "layout": {
+    "blocks": [
+      {
+        "emphasis": "important",
+        "id": "b-summary",
+        "type": "summary"
+      },
+      {
+        "id": "b-m-groups",
+        "ref": "m-groups",
+        "span": "half",
+        "type": "metric"
+      },
+      {
+        "id": "b-m-count-agg",
+        "ref": "m-count-agg",
+        "span": "half",
+        "type": "metric"
+      },
+      {
+        "id": "b-m-total",
+        "ref": "m-total",
+        "span": "half",
+        "type": "metric"
+      },
+      {
+        "id": "b-m-count-gap",
+        "ref": "m-count-gap",
+        "span": "half",
+        "type": "metric"
+      },
+      {
+        "id": "b-sec-dist",
+        "ref": "sec-distribution",
+        "type": "section"
+      },
+      {
+        "id": "b-tbl-region",
+        "ref": "tbl-region",
+        "type": "table"
+      },
+      {
+        "id": "b-sec-detail",
+        "ref": "sec-detail",
+        "type": "section"
+      },
+      {
+        "id": "b-tbl-detail",
+        "ref": "tbl-detail",
+        "type": "table"
+      },
+      {
+        "id": "b-chart-area",
+        "ref": "chart-area-bar",
+        "type": "chart"
+      },
+      {
+        "emphasis": "important",
+        "id": "b-sec-recon",
+        "ref": "sec-recon",
+        "type": "section"
+      },
+      {
+        "id": "b-tbl-recon",
+        "ref": "tbl-recon",
+        "type": "table"
+      },
+      {
+        "id": "b-chart-recon",
+        "ref": "chart-recon",
+        "type": "chart"
+      },
+      {
+        "id": "b-sec-diff",
+        "ref": "sec-difference",
+        "type": "section"
+      },
+      {
+        "id": "b-chart-comp",
+        "ref": "chart-composition",
+        "type": "chart"
+      },
+      {
+        "id": "b-sec-scope",
+        "ref": "sec-scope",
+        "type": "section"
+      },
+      {
+        "id": "b-tbl-prov",
+        "ref": "tbl-provenance",
+        "type": "table"
+      },
+      {
+        "id": "b-limits",
+        "type": "limitations"
+      },
+      {
+        "id": "b-sources",
+        "type": "sources"
+      }
+    ],
+    "schemaVersion": "report_layout.v1"
+  },
+  "artifactValidationStatus": "PASSED",
+  "summary": "United States / TN 是授权数据中唯一的国家/省州分组：汇总 5 条仓库记录，面积字段原值合计 2,031,767、最小 138,504、最大 977,787；面积原值 ≥ 0 的明细 4 条，合计与极值同汇总完全一致，记录数差 1 条由“面积原值为空被筛选排除”解释。面积单位未声明，仅汇总原值，未做换算。",
+  "markdown": "# 授权仓库的国家/省州分布、面积字段原值汇总与汇总—明细核对\n\n**核心结论**：授权快照中仓库只落在 United States / TN 这 1 个国家/省州分组，汇总口径 5 条记录，面积字段原值合计 **2,031,767**，最小 **138,504**、最大 **977,787**。面积原值 ≥ 0 的明细共 **4** 条，面积原值合计与汇总完全一致（差 0），最小值、最大值也完全一致；两条口径的记录数相差 **1** 条，可由“该记录面积原值为空、被 ≥ 0 的明细筛选排除”解释，属筛选口径差异，不构成合计口径错误。面积单位未在源端声明，全部数值均为原值，未做换算。\n\n## 一、国家/省州分布与面积字段原值汇总\n\n覆盖范围：返回数据中的全部 1 个分组、5 条仓库记录（无时间过滤）。\n\n| 国家（w_country） | 省州（w_state） | 仓库数量（COUNT(*)） | 面积原值合计（单位未声明） | 面积原值最小（单位未声明） | 面积原值最大（单位未声明） |\n| --- | --- | ---: | ---: | ---: | ---: |\n| United States | TN | 5 | 2,031,767 | 138,504 | 977,787 |\n\n授权返回的地区汇总结果共 1 个国家/省州分组：United States / TN，覆盖仓库记录 5 条，面积字段原值合计 2,031,767，最小 138,504、最大 977,787。由于返回数据中只有一个分组，本次“分布”实质上只呈现该单分组事实，无法给出跨国家或跨省州的分布结构或横向对比；分组字段值按源端字面保留（国家为英文名称、省州为缩写代码），未做任何标准化改写。\n\n## 二、面积原值 ≥ 0 的仓库明细\n\n| 仓库主键 | 仓库名称 | 国家 | 省州 | 面积字段原值（单位未声明） |\n| ---: | --- | --- | --- | ---: |\n| 1 | Conventional childr | United States | TN | 977,787 |\n| 2 | Important issues liv | United States | TN | 138,504 |\n| 3 | Doors canno | United States | TN | 294,242 |\n| 4 | Bad cards must make. | United States | TN | 621,234 |\n\n明细查询在 min_area=0（用户请求）条件下返回 4 条仓库记录，面积字段原值最小 138,504、最大 977,787、合计 2,031,767，均满足 ≥ 0 的筛选。明细 4 条记录的面积原值全部落在 138,504 至 977,787 之间（均为非负），明细列表按仓库主键升序展示，面积单位为源端未声明信息，全部数值为原值，不作换算。\n\n## 三、汇总与明细的数量、合计与极值核对\n\n| 核对项 | 汇总口径 | 明细口径 | 差异（汇总−明细） | 结论 |\n| --- | ---: | ---: | ---: | --- |\n| 仓库记录数（条） | 5 | 4 | 1 | 数量相差 1 条，但合计、最小值、最大值三项完全一致；明细筛选条件为面积原值 ≥ 0，而汇总最小值 138,504 本身不小于 0，说明所有非空面积原值都满足该筛选条件。因此被排除的 1 条记录面积原值为空（NULL，不参与 SUM/MIN/MAX 计算），数量差异属明细筛选口径差异，不是合计口径错误。 |\n| 面积原值合计 | 2,031,767 | 2,031,767 | 0 | 一致：差额为 0 |\n| 面积原值最小值 | 138,504 | 138,504 | 0 | 一致 |\n| 面积原值最大值 | 977,787 | 977,787 | 0 | 一致 |\n\n两个口径的记录数不一致：汇总 5 条，明细 4 条，差 1 条；但面积原值合计（2,031,767 vs 2,031,767，差 0）、最小值（138,504 vs 138,504）、最大值（977,787 vs 977,787）三项完全一致。由于明细筛选条件是面积原值 ≥ 0，而汇总最小值 138,504 本身不小于 0，全部非空面积原值都应满足该筛选；在此基础上合计与极值又完全吻合，因此差额的 1 条记录最可能的解释是面积原值为空值（NULL，不参与 SUM/MIN/MAX），数量差异属明细筛选口径差异，而非合计口径错误或重复计数。该记录的主键、名称与面积原值均不在明细数据返回范围内，身份无法确认。\n\n**核对要点**\n\n- 数量：5 条 vs 4 条，差 1 条 —— 已由筛选口径解释。\n- 合计：2,031,767 vs 2,031,767，差 0 —— 一致。\n- 极值：最小 138,504 / 138,504，最大 977,787 / 977,787 —— 一致。\n- 未决项：差额 1 条记录的身份与面积原值不在授权数据内，无法直接核对。\n\n## 四、面积差异分析\n\n同一分组内仓库规模差异显著：面积原值最大 977,787 与最小 138,504 相差 839,283，最大约为最小的 7.06 倍，平均 507,941.75。最大仓库占本组面积原值合计的 48.12%，最小仓库占 6.82%，4 条明细的面积原值合计 2,031,767 与汇总合计 2,031,767 完全相等，说明构成图的分母与汇总口径一致。该离散程度仅描述本快照内的原值差别，不涉及仓储容量、利用率或成本等未经声明含义。\n\n| 仓库主键 | 仓库名称 | 面积字段原值（单位未声明） | 占本组合计比重 |\n| ---: | --- | ---: | ---: |\n| 1 | Conventional childr | 977,787 | 48.12% |\n| 4 | Bad cards must make. | 621,234 | 30.58% |\n| 3 | Doors canno | 294,242 | 14.48% |\n| 2 | Important issues liv | 138,504 | 6.82% |\n\n## 五、口径、范围与限制\n\n- 面积字段的单位、刻度与业务口径在源查询定义与模板说明中均未声明，本报告只汇总原值并呈现原值明细，未做任何单位换算、容量或利用率推断。\n- 明细数据集按用户请求的 min_area=0 过滤，仅返回 4 条记录；汇总口径的 1 条差额记录（面积原值为空）未在授权数据中返回，其主键、名称与面积原值无法核实。\n- 返回数据只包含 1 个国家/省州分组（United States / TN），无法得出跨国家或跨省州的分布结构与地区间比较结论。\n- 数据集不含任何日期字段，仓库记录为快照式主数据，因此不存在期间、趋势、同比/环比等时间维度结论。\n- 数量差异的归因（差额记录面积原值为空）由合计与极值完全一致、并结合 ≥ 0 的筛选条件推导得出，属于证据充分但非直接观测的推断，差额记录本身未被观测到。\n- 字段含义依据执行回执中的源查询定义（分组列、COUNT/SUM/MIN/MAX 别名表达式）与模板说明确认；两个数据集均未提供额外的字段字典，未对名称、地区等业务含义做超出字面值的解释。\n\n## 附：字段口径与来源\n\n| 数据集 | 源字段 | 字段含义 | 声明来源 | 状态 |\n| --- | --- | --- | --- | --- |\n| STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC#template-binding-1-binding-1 | w_country | 仓库所属国家的分组值（原样保留） | 源查询定义（GROUP BY 列）+ 模板说明“按国家及省州汇总” | CONFIRMED |\n| STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC#template-binding-1-binding-1 | w_state | 仓库所属省州的标签值（原样保留） | 源查询定义（GROUP BY 列）+ 模板说明“按国家及省州汇总” | CONFIRMED |\n| STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC#template-binding-1-binding-1 | warehouse_count | 组内仓库记录数 COUNT(*) | 源查询定义别名表达式 | CONFIRMED |\n| STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC#template-binding-1-binding-1 | total_warehouse_sq_ft | 组内面积字段原值合计 SUM(w_warehouse_sq_ft) | 源查询定义别名表达式 | CONFIRMED |\n| STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC#template-binding-1-binding-1 | min_warehouse_sq_ft | 组内面积字段原值最小值 MIN | 源查询定义别名表达式 | CONFIRMED |\n| STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC#template-binding-1-binding-1 | max_warehouse_sq_ft | 组内面积字段原值最大值 MAX | 源查询定义别名表达式 | CONFIRMED |\n| STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7#template-binding-2-binding-2 | w_warehouse_sk | 仓库主键（模板说明“返回主键”） | 源查询定义选择列 + 模板说明 | CONFIRMED |\n| STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7#template-binding-2-binding-2 | w_warehouse_name | 仓库名称字面值 | 源查询定义选择列 + 模板说明“名称” | CONFIRMED |\n| STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7#template-binding-2-binding-2 | w_country | 仓库所属国家（字面值） | 源查询定义选择列 + 模板说明“地区” | CONFIRMED |\n| STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7#template-binding-2-binding-2 | w_state | 仓库所属省州（字面值） | 源查询定义选择列 + 模板说明“地区” | CONFIRMED |\n| STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7#template-binding-2-binding-2 | w_warehouse_sq_ft | 仓库面积字段原值（单位未声明；筛选 w_warehouse_sq_ft >= 0） | 源查询定义选择列与 WHERE 谓词 + 模板说明“面积字段原值” | CONFIRMED |\n\n*补充说明：明细中面积原值最大的记录为 SK 1（977,787），占本组合计 48.12%；由于单位未声明，占比只在本组合计内成立，不可与其他分组或外部口径比较。*",
+  "presentation": {
+    "autoCharts": true,
+    "autoImages": true,
+    "density": "comfortable",
+    "strategy": "auto",
+    "template": "briefing"
+  },
+  "tables": [
+    {
+      "columns": [
+        "国家（w_country）",
+        "省州（w_state）",
+        "仓库数量（COUNT(*)）",
+        "面积原值合计（单位未声明）",
+        "面积原值最小（单位未声明）",
+        "面积原值最大（单位未声明）"
+      ],
+      "dataRefs": [
+        "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC#template-binding-1-binding-1"
+      ],
+      "id": "tbl-region",
+      "rows": [
+        [
+          "United States",
+          "TN",
+          "5",
+          "2,031,767",
+          "138,504",
+          "977,787"
+        ]
+      ],
+      "scope": "地区汇总数据集全部返回记录（1 个分组，仓库记录 5 条），未做任何时间过滤。",
+      "title": "国家/省州分布与面积字段原值汇总"
+    },
+    {
+      "columns": [
+        "仓库主键 w_warehouse_sk",
+        "仓库名称 w_warehouse_name",
+        "国家（w_country）",
+        "省州（w_state）",
+        "面积字段原值（单位未声明）"
+      ],
+      "dataRefs": [
+        "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7#template-binding-2-binding-2"
+      ],
+      "id": "tbl-detail",
+      "rows": [
+        [
+          "1",
+          "Conventional childr",
+          "United States",
+          "TN",
+          "977,787"
+        ],
+        [
+          "2",
+          "Important issues liv",
+          "United States",
+          "TN",
+          "138,504"
+        ],
+        [
+          "3",
+          "Doors canno",
+          "United States",
+          "TN",
+          "294,242"
+        ],
+        [
+          "4",
+          "Bad cards must make.",
+          "United States",
+          "TN",
+          "621,234"
+        ]
+      ],
+      "scope": "明细数据集全部 4 条记录（min_area=0 按用户请求生效，按 w_warehouse_sk 升序）。",
+      "title": "面积原值 ≥ 0 的仓库明细"
+    },
+    {
+      "columns": [
+        "核对项",
+        "汇总口径",
+        "明细口径",
+        "差异（汇总−明细）",
+        "结论"
+      ],
+      "dataRefs": [
+        "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC#template-binding-1-binding-1",
+        "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7#template-binding-2-binding-2"
+      ],
+      "id": "tbl-recon",
+      "rows": [
+        [
+          "仓库记录数（条）",
+          "5",
+          "4",
+          "1",
+          "数量相差 1 条，但合计、最小值、最大值三项完全一致；明细筛选条件为面积原值 ≥ 0，而汇总最小值 138,504 本身不小于 0，说明所有非空面积原值都满足该筛选条件。因此被排除的 1 条记录面积原值为空（NULL，不参与 SUM/MIN/MAX 计算），数量差异属明细筛选口径差异，不是合计口径错误。"
+        ],
+        [
+          "面积原值合计",
+          "2,031,767",
+          "2,031,767",
+          "0",
+          "一致：差额为 0"
+        ],
+        [
+          "面积原值最小值",
+          "138,504",
+          "138,504",
+          "0",
+          "一致"
+        ],
+        [
+          "面积原值最大值",
+          "977,787",
+          "977,787",
+          "0",
+          "一致"
+        ]
+      ],
+      "scope": "同一授权快照内两个数据集：汇总口径为全部仓库分组统计，明细口径仅含面积原值 ≥ 0 的记录。",
+      "title": "地区汇总与明细的数量、合计、极值核对"
+    },
+    {
+      "columns": [
+        "数据集",
+        "源字段",
+        "字段含义",
+        "声明来源",
+        "状态"
+      ],
+      "dataRefs": [
+        "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC#template-binding-1-binding-1",
+        "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7#template-binding-2-binding-2"
+      ],
+      "id": "tbl-provenance",
+      "rows": [
+        [
+          "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC#template-binding-1-binding-1",
+          "w_country",
+          "仓库所属国家的分组值（原样保留）",
+          "源查询定义（GROUP BY 列）+ 模板说明“按国家及省州汇总”",
+          "CONFIRMED"
+        ],
+        [
+          "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC#template-binding-1-binding-1",
+          "w_state",
+          "仓库所属省州的标签值（原样保留）",
+          "源查询定义（GROUP BY 列）+ 模板说明“按国家及省州汇总”",
+          "CONFIRMED"
+        ],
+        [
+          "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC#template-binding-1-binding-1",
+          "warehouse_count",
+          "组内仓库记录数 COUNT(*)",
+          "源查询定义别名表达式",
+          "CONFIRMED"
+        ],
+        [
+          "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC#template-binding-1-binding-1",
+          "total_warehouse_sq_ft",
+          "组内面积字段原值合计 SUM(w_warehouse_sq_ft)",
+          "源查询定义别名表达式",
+          "CONFIRMED"
+        ],
+        [
+          "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC#template-binding-1-binding-1",
+          "min_warehouse_sq_ft",
+          "组内面积字段原值最小值 MIN",
+          "源查询定义别名表达式",
+          "CONFIRMED"
+        ],
+        [
+          "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC#template-binding-1-binding-1",
+          "max_warehouse_sq_ft",
+          "组内面积字段原值最大值 MAX",
+          "源查询定义别名表达式",
+          "CONFIRMED"
+        ],
+        [
+          "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7#template-binding-2-binding-2",
+          "w_warehouse_sk",
+          "仓库主键（模板说明“返回主键”）",
+          "源查询定义选择列 + 模板说明",
+          "CONFIRMED"
+        ],
+        [
+          "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7#template-binding-2-binding-2",
+          "w_warehouse_name",
+          "仓库名称字面值",
+          "源查询定义选择列 + 模板说明“名称”",
+          "CONFIRMED"
+        ],
+        [
+          "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7#template-binding-2-binding-2",
+          "w_country",
+          "仓库所属国家（字面值）",
+          "源查询定义选择列 + 模板说明“地区”",
+          "CONFIRMED"
+        ],
+        [
+          "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7#template-binding-2-binding-2",
+          "w_state",
+          "仓库所属省州（字面值）",
+          "源查询定义选择列 + 模板说明“地区”",
+          "CONFIRMED"
+        ],
+        [
+          "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7#template-binding-2-binding-2",
+          "w_warehouse_sq_ft",
+          "仓库面积字段原值（单位未声明；筛选 w_warehouse_sq_ft >= 0）",
+          "源查询定义选择列与 WHERE 谓词 + 模板说明“面积字段原值”",
+          "CONFIRMED"
+        ]
+      ],
+      "scope": "仅列出本报告实际用于计算或展示的字段；面积字段单位、刻度在源端未声明。",
+      "title": "字段口径与来源（业务角色使用清单）"
+    }
+  ],
+  "limitations": [
+    "面积字段的单位、刻度与业务口径在源查询定义与模板说明中均未声明，本报告只汇总原值并呈现原值明细，未做任何单位换算、容量或利用率推断。",
+    "明细数据集按用户请求的 min_area=0 过滤，仅返回 4 条记录；汇总口径的 1 条差额记录（面积原值为空）未在授权数据中返回，其主键、名称与面积原值无法核实。",
+    "返回数据只包含 1 个国家/省州分组（United States / TN），无法得出跨国家或跨省州的分布结构与地区间比较结论。",
+    "数据集不含任何日期字段，仓库记录为快照式主数据，因此不存在期间、趋势、同比/环比等时间维度结论。",
+    "数量差异的归因（差额记录面积原值为空）由合计与极值完全一致、并结合 ≥ 0 的筛选条件推导得出，属于证据充分但非直接观测的推断，差额记录本身未被观测到。",
+    "字段含义依据执行回执中的源查询定义（分组列、COUNT/SUM/MIN/MAX 别名表达式）与模板说明确认；两个数据集均未提供额外的字段字典，未对名称、地区等业务含义做超出字面值的解释。"
+  ],
+  "execution": {
+    "codeArtifact": {
+      "fileId": "908454b137834775d0a13db40da4729b9b4244747fd478adda188c7c5c3cbe23",
+      "fileName": "0_20261101T074124021Z_b04585ac95cb_v2.py",
+      "mediaType": "text/x-python",
+      "sha256": "a9a8fa307d29d156817860144b2d0e52addffb32cb4a076a16aba6840427e3cd",
+      "size": 43035
+    },
+    "codeSha256": "a9a8fa307d29d156817860144b2d0e52addffb32cb4a076a16aba6840427e3cd",
+    "executorStopped": true,
+    "operationId": "cline-babff57b24f490a30a4377c825c263fd46ceebf118e056745610a1592ad2d6fb",
+    "receiptSha256": "8389406cc99515d6d6c6897f19322f120b23dc54dcb58a002451e06235b88485",
+    "reportPresentation": {
+      "autoCharts": true,
+      "autoImages": true,
+      "density": "comfortable",
+      "strategy": "auto",
+      "template": "briefing"
+    },
+    "resultDatasetRef": "runtime-evidence:coding:a49827bf6f62b5cfac76ef3f9da40a7f3e605b96996248ecbfae7c6030ee01ea:result",
+    "resultSha256": "d68ba7943c187df3a248e83a2c60987bad63e7e666a1e8c9ae348b5d8aeaaf6c",
+    "status": "SUCCEEDED",
+    "taskId": "analysis-coding-8615d1df375d6c6ee0d102b3a074186f0fdfa57127ff3bc49646fd336e993c7f"
+  },
+  "artifacts": [
+    {
+      "fileId": "63dd8461ccbd5e70234537e91a3987cb41df6ed4a1700557bf1d4fc83652d806",
+      "fileName": "warehouse_area_detail.png",
+      "mediaType": "image/png",
+      "sha256": "2cbd35aa15836e054d7eccc5fdb1485f284127b0027fd6c837a078e56f4c95d4",
+      "size": 69709
+    },
+    {
+      "fileId": "ca783e7296080969ad7cca283b4f9fe0c34388a97afb44a905a9b438a0ffbb0d",
+      "fileName": "reconciliation_count_sum.png",
+      "mediaType": "image/png",
+      "sha256": "3c803f8e61ebe396afa4101a71bf2945ea5abf795b4a6cc9709b7475a0c66370",
+      "size": 72553
+    },
+    {
+      "fileId": "4299019ca203b70581533aa66b9a2e8653dcffaf14837ca7ad8295a873bf4d4c",
+      "fileName": "warehouse_area_composition.json",
+      "mediaType": "application/json",
+      "sha256": "475428b6d91dcc9bc17abbe26d27329601622ad534c87908942c9826cc5fcc3e",
+      "size": 728
+    }
+  ],
+  "reportMode": "visual",
+  "metrics": [
+    {
+      "calculation": "对地区汇总结果按 (w_country, w_state) 去重计数",
+      "dataRefs": [
+        "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC#template-binding-1-binding-1"
+      ],
+      "id": "m-groups",
+      "label": "返回的国家/省州分组数",
+      "unit": "组",
+      "value": "1"
+    },
+    {
+      "calculation": "地区汇总数据集 warehouse_count（COUNT(*)）",
+      "dataRefs": [
+        "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC#template-binding-1-binding-1"
+      ],
+      "id": "m-count-agg",
+      "label": "汇总口径仓库记录数",
+      "unit": "条",
+      "value": "5"
+    },
+    {
+      "calculation": "明细数据集记录数（筛选 w_warehouse_sq_ft >= 0）",
+      "dataRefs": [
+        "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7#template-binding-2-binding-2"
+      ],
+      "id": "m-count-det",
+      "label": "面积原值 ≥ 0 的明细仓库数",
+      "unit": "条",
+      "value": "4"
+    },
+    {
+      "calculation": "汇总 warehouse_count − 明细记录数",
+      "dataRefs": [
+        "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC#template-binding-1-binding-1",
+        "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7#template-binding-2-binding-2"
+      ],
+      "id": "m-count-gap",
+      "label": "汇总与明细记录数差",
+      "unit": "条",
+      "value": "1"
+    },
+    {
+      "calculation": "地区汇总数据集 total_warehouse_sq_ft（SUM(w_warehouse_sq_ft)）",
+      "dataRefs": [
+        "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC#template-binding-1-binding-1"
+      ],
+      "id": "m-total",
+      "label": "面积字段原值合计",
+      "unit": "",
+      "value": "2031767"
+    },
+    {
+      "calculation": "地区汇总数据集 min_warehouse_sq_ft（MIN(w_warehouse_sq_ft)）",
+      "dataRefs": [
+        "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC#template-binding-1-binding-1"
+      ],
+      "id": "m-min",
+      "label": "面积原值最小值",
+      "unit": "",
+      "value": "138504"
+    },
+    {
+      "calculation": "地区汇总数据集 max_warehouse_sq_ft（MAX(w_warehouse_sq_ft)）",
+      "dataRefs": [
+        "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC#template-binding-1-binding-1"
+      ],
+      "id": "m-max",
+      "label": "面积原值最大值",
+      "unit": "",
+      "value": "977787"
+    },
+    {
+      "calculation": "明细面积原值合计 2031767 ÷ 明细条数 4",
+      "dataRefs": [
+        "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7#template-binding-2-binding-2"
+      ],
+      "id": "m-mean",
+      "label": "明细仓库平均面积原值",
+      "unit": "",
+      "value": "507941.75"
+    },
+    {
+      "calculation": "977787 − 138504",
+      "dataRefs": [
+        "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7#template-binding-2-binding-2"
+      ],
+      "id": "m-range",
+      "label": "面积原值极差（最大−最小）",
+      "unit": "",
+      "value": "839283"
+    }
+  ],
+  "timings": {
+    "analysisMs": 17.5,
+    "chartMs": 1329.7
+  },
+  "sections": [
+    {
+      "chartIds": [],
+      "id": "sec-distribution",
+      "narrative": "授权返回的地区汇总结果共 1 个国家/省州分组：United States / TN，覆盖仓库记录 5 条，面积字段原值合计 2,031,767，最小 138,504、最大 977,787。由于返回数据中只有一个分组，本次“分布”实质上只呈现该单分组事实，无法给出跨国家或跨省州的分布结构或横向对比；分组字段值按源端字面保留（国家为英文名称、省州为缩写代码），未做任何标准化改写。",
+      "tableIds": [
+        "tbl-region"
+      ],
+      "title": "国家/省州分布与面积原值汇总"
+    },
+    {
+      "chartIds": [
+        "chart-area-bar"
+      ],
+      "id": "sec-detail",
+      "narrative": "明细查询在 min_area=0（用户请求）条件下返回 4 条仓库记录，面积字段原值最小 138,504、最大 977,787、合计 2,031,767，均满足 ≥ 0 的筛选。明细 4 条记录的面积原值全部落在 138,504 至 977,787 之间（均为非负），明细列表按仓库主键升序展示，面积单位为源端未声明信息，全部数值为原值，不作换算。",
+      "tableIds": [
+        "tbl-detail"
+      ],
+      "title": "面积原值 ≥ 0 的仓库明细"
+    },
+    {
+      "chartIds": [
+        "chart-recon"
+      ],
+      "id": "sec-recon",
+      "narrative": "两个口径的记录数不一致：汇总 5 条，明细 4 条，差 1 条；但面积原值合计（2,031,767 vs 2,031,767，差 0）、最小值（138,504 vs 138,504）、最大值（977,787 vs 977,787）三项完全一致。由于明细筛选条件是面积原值 ≥ 0，而汇总最小值 138,504 本身不小于 0，全部非空面积原值都应满足该筛选；在此基础上合计与极值又完全吻合，因此差额的 1 条记录最可能的解释是面积原值为空值（NULL，不参与 SUM/MIN/MAX），数量差异属明细筛选口径差异，而非合计口径错误或重复计数。该记录的主键、名称与面积原值均不在明细数据返回范围内，身份无法确认。",
+      "tableIds": [
+        "tbl-recon"
+      ],
+      "title": "汇总与明细的数量、合计与极值核对"
+    },
+    {
+      "chartIds": [
+        "chart-composition"
+      ],
+      "id": "sec-difference",
+      "narrative": "同一分组内仓库规模差异显著：面积原值最大 977,787 与最小 138,504 相差 839,283，最大约为最小的 7.06 倍，平均 507,941.75。最大仓库占本组面积原值合计的 48.12%，最小仓库占 6.82%，4 条明细的面积原值合计 2,031,767 与汇总合计 2,031,767 完全相等，说明构成图的分母与汇总口径一致。该离散程度仅描述本快照内的原值差别，不涉及仓储容量、利用率或成本等未经声明含义。",
+      "tableIds": [],
+      "title": "面积差异分析"
+    },
+    {
+      "chartIds": [],
+      "id": "sec-scope",
+      "narrative": "本报告只使用授权快照实际返回的记录：地区汇总数据返回 1 条分组统计，明细数据返回 4 条面积原值 ≥ 0 的仓库记录。面积字段的单位、刻度与含义细化均未在源端声明，因此所有面积数值仅作为“原值”呈现，未换算、未推断容量；同时数据不含任何日期字段，报告不包含期间比较或趋势结论。",
+      "tableIds": [
+        "tbl-provenance"
+      ],
+      "title": "口径、范围与证据说明"
+    }
+  ],
+  "dataSources": [
+    "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC#template-binding-1-binding-1",
+    "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7#template-binding-2-binding-2"
+  ],
+  "schemaVersion": "python_visual_report.v1",
+  "status": "FAILED"
+}

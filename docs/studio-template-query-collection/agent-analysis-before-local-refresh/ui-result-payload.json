@@ -1,0 +1,392 @@
+{
+  "contractVersion": "ui_response_v2",
+  "conversationId": "1793513734125-b604439283fea",
+  "requestId": "5c2cc99d-1d65-42a9-a877-bda2b4147219",
+  "mode": "agent_chat",
+  "status": "PARTIAL_SUCCESS",
+  "answer": "## 结论\n当前无法完成仓库分布与面积统计：本工作流仅有只读的模板发现工具，没有可用的模板执行/查询网关工具，因此无法从绑定资产读取实际记录，也不能生成结果表或图表。\n\n## 已确认的约束\n- 绑定资产：`SQL Studio 查询集合验收（248 TPCDS）`\n- 环境：`DEV`\n- 面积单位未确认，不做单位换算或容量推断。\n- 仅使用实际返回数据；模板发现元数据不能替代业务数据。\n\n## 未执行项\n- 未执行任何仓库数据查询。\n- 未生成国家/省州分布、面积原值汇总、面积原值不小于 0 的仓库明细。\n- 未进行地区汇总与明细的数量、合计、极值一致性核对。\n\n## 需要补充的授权能力\n请授权并绑定模板执行/查询网关工具，使系统能够执行已发布模板并返回实际记录；同时需要执行器返回国家、省州、面积字段的物理字段名与记录值。完成授权后，可再按原要求生成结果表、核对一致性并输出可查看图表。",
+  "citations": [],
+  "evidencePremises": [],
+  "confidence": null,
+  "evidenceSummary": "",
+  "visualization": {
+    "type": "artifact"
+  },
+  "sources": [],
+  "toolTraces": [],
+  "metadata": {
+    "availableTools": [
+      "mcp_chatchat_mcp_server_studio_warehouse_20261101_template_query"
+    ],
+    "requiredTools": [],
+    "toolIntents": [],
+    "handler": "AgentChatModeHandler",
+    "skillId": "studio_collection_e2e_20261101",
+    "modelName": "deepseek-v4-flash",
+    "historyUsed": 1,
+    "summaryUsed": false,
+    "workflowOutcome": {
+      "type": "PARTIAL_RESULT",
+      "reason": "DATA_ANALYSIS_NOT_EXECUTED",
+      "missingRequiredCapabilities": [
+        "analysis_evidence"
+      ],
+      "missingOptionalCapabilities": [],
+      "usableResult": true
+    },
+    "experienceHintsUsed": false,
+    "knowledgeRetrieval": "not_configured",
+    "domainKnowledgeUsed": false,
+    "domainKnowledgeSourceCount": 0,
+    "domainKnowledgeTokens": 0,
+    "domainKnowledgeTokenBudget": 1500,
+    "domainKnowledgeTruncated": false,
+    "domainKnowledgeSkillCount": 0,
+    "selectedDomainSkillCount": 0,
+    "activatedDomainSkillCount": 0,
+    "skillAnalysisContext": {
+      "schemaVersion": "skill_analysis_context.v1",
+      "status": "NO_CANDIDATES",
+      "fingerprint": "2ea386d37eb00b31c3679e83c827597ee2aff9f3a19eec5eec7220bd769077b5",
+      "skills": [],
+      "authority": "AUTHORIZED_SKILL_METHODOLOGY_NOT_EVIDENCE"
+    },
+    "domainKnowledgeContext": {
+      "schemaVersion": "knowledge_context.v1",
+      "status": "not_configured",
+      "used": false,
+      "estimatedTokens": 0,
+      "maxTokens": 1500,
+      "truncated": false,
+      "skillTypes": [],
+      "activatedSkills": [],
+      "sources": [],
+      "usageContract": {
+        "sourceCitationRequired": true,
+        "partialAnswerRequired": false,
+        "answersSupportedByKnowledge": true,
+        "directFinalAllowed": true,
+        "examplesAreCurrentFacts": false,
+        "toolEvidenceRequiredForDynamicFacts": true,
+        "role": "AUTHORIZED_DOCUMENT_KNOWLEDGE_EVIDENCE"
+      }
+    }
+  },
+  "latencyMs": 63829,
+  "timestamp": 1793513798262,
+  "uiResponse": {
+    "contractVersion": "ui_response_v2",
+    "sourceContractVersion": "ui_response_v2",
+    "status": "PARTIAL_SUCCESS",
+    "answer": "## 结论\n当前无法完成仓库分布与面积统计：本工作流仅有只读的模板发现工具，没有可用的模板执行/查询网关工具，因此无法从绑定资产读取实际记录，也不能生成结果表或图表。\n\n## 已确认的约束\n- 绑定资产：`SQL Studio 查询集合验收（248 TPCDS）`\n- 环境：`DEV`\n- 面积单位未确认，不做单位换算或容量推断。\n- 仅使用实际返回数据；模板发现元数据不能替代业务数据。\n\n## 未执行项\n- 未执行任何仓库数据查询。\n- 未生成国家/省州分布、面积原值汇总、面积原值不小于 0 的仓库明细。\n- 未进行地区汇总与明细的数量、合计、极值一致性核对。\n\n## 需要补充的授权能力\n请授权并绑定模板执行/查询网关工具，使系统能够执行已发布模板并返回实际记录；同时需要执行器返回国家、省州、面积字段的物理字段名与记录值。完成授权后，可再按原要求生成结果表、核对一致性并输出可查看图表。",
+    "citations": [],
+    "evidencePremises": [],
+    "confidence": null,
+    "evidenceSummary": "",
+    "visualization": {
+      "type": "artifact"
+    },
+    "uiArtifact": {
+      "contractVersion": "ui_artifact_ref_v1",
+      "artifactId": "ui_e4e4dda58e4340429edc81f52a1e1245",
+      "revision": 1,
+      "catalogVersion": "enterprise_catalog_v1",
+      "manifestUrl": "/ui-artifacts/ui_e4e4dda58e4340429edc81f52a1e1245",
+      "renderMode": "markdown"
+    },
+    "renderMode": "markdown"
+  },
+  "executionResult": {
+    "status": "PARTIAL_SUCCESS",
+    "uiResponse": {
+      "contractVersion": "ui_response_v2",
+      "sourceContractVersion": "ui_response_v2",
+      "status": "PARTIAL_SUCCESS",
+      "answer": "## 结论\n当前无法完成仓库分布与面积统计：本工作流仅有只读的模板发现工具，没有可用的模板执行/查询网关工具，因此无法从绑定资产读取实际记录，也不能生成结果表或图表。\n\n## 已确认的约束\n- 绑定资产：`SQL Studio 查询集合验收（248 TPCDS）`\n- 环境：`DEV`\n- 面积单位未确认，不做单位换算或容量推断。\n- 仅使用实际返回数据；模板发现元数据不能替代业务数据。\n\n## 未执行项\n- 未执行任何仓库数据查询。\n- 未生成国家/省州分布、面积原值汇总、面积原值不小于 0 的仓库明细。\n- 未进行地区汇总与明细的数量、合计、极值一致性核对。\n\n## 需要补充的授权能力\n请授权并绑定模板执行/查询网关工具，使系统能够执行已发布模板并返回实际记录；同时需要执行器返回国家、省州、面积字段的物理字段名与记录值。完成授权后，可再按原要求生成结果表、核对一致性并输出可查看图表。",
+      "citations": [],
+      "evidencePremises": [],
+      "confidence": null,
+      "evidenceSummary": "",
+      "visualization": {
+        "type": "artifact"
+      },
+      "uiArtifact": {
+        "contractVersion": "ui_artifact_ref_v1",
+        "artifactId": "ui_e4e4dda58e4340429edc81f52a1e1245",
+        "revision": 1,
+        "catalogVersion": "enterprise_catalog_v1",
+        "manifestUrl": "/ui-artifacts/ui_e4e4dda58e4340429edc81f52a1e1245",
+        "renderMode": "markdown"
+      },
+      "renderMode": "markdown"
+    },
+    "semanticFlags": {
+      "hasAnswer": true,
+      "hasInsight": true,
+      "hasToolOutput": false,
+      "hasSources": false,
+      "hasArtifact": true
+    },
+    "message": "Agent task completed with partial result",
+    "traceSummary": {
+      "sourceCount": 0,
+      "toolTraceCount": 0
+    },
+    "debug": {
+      "agent": {
+        "plannerSteps": [
+          {
+            "step": 1,
+            "action": "final",
+            "toolName": null,
+            "resolvedToolName": null,
+            "reason": "interpretation_plan_final_answer",
+            "executionPlan": {
+              "plannerProtocol": "interpretation_plan",
+              "interpretationPlanValid": true,
+              "interpretationPlanSchemaValid": true,
+              "interpretationPlanRuntimeRulesValid": true,
+              "interpretationPlanExecutable": true,
+              "interpretationPlanApprovalRequired": false,
+              "interpretationPlanIssues": [],
+              "interpretationPlanRuntimeIssues": [],
+              "orderedStepIds": [
+                1
+              ],
+              "planTransformation": {
+                "schemaVersion": "dag_repair_result.v1",
+                "status": "UNCHANGED",
+                "changeKind": "UNCHANGED",
+                "materialTopologyChanged": false,
+                "sourceFingerprint": "c6ad248b1aaee8af430967a4feef7531b4ae8031748bdfcd62d3454d5c81c43f",
+                "executableFingerprint": "0e56e6428283d03f504239aa0102d441ee52a55e64ec957b53995a5a7600e625",
+                "appliedPasses": [],
+                "passFailures": [],
+                "stepIdMappings": {
+                  "1": 1
+                },
+                "operations": []
+              },
+              "planTransformationValidationState": "ACCEPTED",
+              "plan_step_id": 1,
+              "action_type": "final_answer",
+              "intent": "统计授权仓库按国家、省州的分布及面积字段原值汇总，列出面积原值不小于 0 的仓库明细，并核对地区汇总与明细的数量、合计及极值一致性；面积单位未确认，不做单位换算或容量推断。",
+              "risk_level": "low",
+              "tool": "final_answer",
+              "plannerAttributionSelection": true,
+              "plannerAttributionSource": "deterministic_java",
+              "plannerAttributionContractVersion": "plan_attribution_v1",
+              "plannerGenerationLimit": 3,
+              "plannerGenerationCount": 1,
+              "plannerAttributionCandidateCount": 1,
+              "plannerAttributionSelected": "A",
+              "plannerAttributionSelectedAttempt": 1,
+              "plannerAttributionReason": "Selected the first runtime-valid plan candidate.",
+              "plannerAttributionAnalysis": "Selected the first runtime-valid plan candidate.",
+              "plannerAttributionScores": {
+                "A": 53
+              },
+              "plannerAttributionCandidates": [
+                {
+                  "label": "A",
+                  "attempt": 1,
+                  "failurePattern": "UNKNOWN",
+                  "fingerprint": "caed46e",
+                  "deterministicScore": 53,
+                  "scoreDetails": {
+                    "toolAvailability": 0,
+                    "dagValidity": 25,
+                    "executionCost": 0,
+                    "runtimePolicyFit": 20,
+                    "coverageScore": 8,
+                    "coverage": {
+                      "coverageScore": 8,
+                      "mandatoryCoverage": 5,
+                      "evidenceDependency": 0,
+                      "workflowCoverage": 0,
+                      "stageCoverage": 2,
+                      "goalCoverage": 1,
+                      "matchedCapabilities": [
+                        "no_mandatory_tool_gap",
+                        "final_answer_stage",
+                        "goal_term:省州的分布及面积字段原值汇总",
+                        "goal_term:核对地区汇总与明细的数量"
+                      ],
+                      "missingCapabilities": [
+                        "tool_evidence_step",
+                        "web_evidence_chain",
+                        "goal_term:请统计当前授权仓库在各国家",
+                        "goal_term:并列出面积原值不小于0的仓库明细",
+                        "goal_term:合计及极值是否一致",
+                        "goal_term:分析面积差异"
+                      ]
+                    },
+                    "experienceFit": 0,
+                    "experience": {
+                      "experienceFit": 0,
+                      "reasons": [],
+                      "applied": false
+                    },
+                    "baseTotal": 53,
+                    "total": 53
+                  },
+                  "issues": [],
+                  "valid": true
+                }
+              ],
+              "plannerAttributionFailurePattern": "UNKNOWN",
+              "plannerAttributionCandidateFingerprints": [
+                {
+                  "failurePattern": "UNKNOWN",
+                  "deterministicScore": 53,
+                  "label": "A",
+                  "fingerprint": "caed46e"
+                }
+              ],
+              "plannerAttributionRepairApplied": false,
+              "plannerAttributionRepairNotes": []
+            },
+            "answerPreview": "## 结论\n当前无法完成仓库分布与面积统计：本工作流仅有只读的模板发现工具 `mcp_chatchat_mcp_server_studio_warehouse_20261101_template_query`，没有可用的模板执行/查询网关工具，因此无法从绑定资产读取实际记录，也不能生成结果表或图表。\n\n## 已确认的约束\n- 绑定资产：`SQL Studio",
+            "plannedAt": 1793513735825,
+            "observationCount": 0
+          }
+        ],
+        "observations": [
+          "InterpretationPlan initial final answer step 1 completed."
+        ]
+      }
+    }
+  },
+  "debug": {
+    "agent": {
+      "plannerSteps": [
+        {
+          "step": 1,
+          "action": "final",
+          "toolName": null,
+          "resolvedToolName": null,
+          "reason": "interpretation_plan_final_answer",
+          "executionPlan": {
+            "plannerProtocol": "interpretation_plan",
+            "interpretationPlanValid": true,
+            "interpretationPlanSchemaValid": true,
+            "interpretationPlanRuntimeRulesValid": true,
+            "interpretationPlanExecutable": true,
+            "interpretationPlanApprovalRequired": false,
+            "interpretationPlanIssues": [],
+            "interpretationPlanRuntimeIssues": [],
+            "orderedStepIds": [
+              1
+            ],
+            "planTransformation": {
+              "schemaVersion": "dag_repair_result.v1",
+              "status": "UNCHANGED",
+              "changeKind": "UNCHANGED",
+              "materialTopologyChanged": false,
+              "sourceFingerprint": "c6ad248b1aaee8af430967a4feef7531b4ae8031748bdfcd62d3454d5c81c43f",
+              "executableFingerprint": "0e56e6428283d03f504239aa0102d441ee52a55e64ec957b53995a5a7600e625",
+              "appliedPasses": [],
+              "passFailures": [],
+              "stepIdMappings": {
+                "1": 1
+              },
+              "operations": []
+            },
+            "planTransformationValidationState": "ACCEPTED",
+            "plan_step_id": 1,
+            "action_type": "final_answer",
+            "intent": "统计授权仓库按国家、省州的分布及面积字段原值汇总，列出面积原值不小于 0 的仓库明细，并核对地区汇总与明细的数量、合计及极值一致性；面积单位未确认，不做单位换算或容量推断。",
+            "risk_level": "low",
+            "tool": "final_answer",
+            "plannerAttributionSelection": true,
+            "plannerAttributionSource": "deterministic_java",
+            "plannerAttributionContractVersion": "plan_attribution_v1",
+            "plannerGenerationLimit": 3,
+            "plannerGenerationCount": 1,
+            "plannerAttributionCandidateCount": 1,
+            "plannerAttributionSelected": "A",
+            "plannerAttributionSelectedAttempt": 1,
+            "plannerAttributionReason": "Selected the first runtime-valid plan candidate.",
+            "plannerAttributionAnalysis": "Selected the first runtime-valid plan candidate.",
+            "plannerAttributionScores": {
+              "A": 53
+            },
+            "plannerAttributionCandidates": [
+              {
+                "label": "A",
+                "attempt": 1,
+                "failurePattern": "UNKNOWN",
+                "fingerprint": "caed46e",
+                "deterministicScore": 53,
+                "scoreDetails": {
+                  "toolAvailability": 0,
+                  "dagValidity": 25,
+                  "executionCost": 0,
+                  "runtimePolicyFit": 20,
+                  "coverageScore": 8,
+                  "coverage": {
+                    "coverageScore": 8,
+                    "mandatoryCoverage": 5,
+                    "evidenceDependency": 0,
+                    "workflowCoverage": 0,
+                    "stageCoverage": 2,
+                    "goalCoverage": 1,
+                    "matchedCapabilities": [
+                      "no_mandatory_tool_gap",
+                      "final_answer_stage",
+                      "goal_term:省州的分布及面积字段原值汇总",
+                      "goal_term:核对地区汇总与明细的数量"
+                    ],
+                    "missingCapabilities": [
+                      "tool_evidence_step",
+                      "web_evidence_chain",
+                      "goal_term:请统计当前授权仓库在各国家",
+                      "goal_term:并列出面积原值不小于0的仓库明细",
+                      "goal_term:合计及极值是否一致",
+                      "goal_term:分析面积差异"
+                    ]
+                  },
+                  "experienceFit": 0,
+                  "experience": {
+                    "experienceFit": 0,
+                    "reasons": [],
+                    "applied": false
+                  },
+                  "baseTotal": 53,
+                  "total": 53
+                },
+                "issues": [],
+                "valid": true
+              }
+            ],
+            "plannerAttributionFailurePattern": "UNKNOWN",
+            "plannerAttributionCandidateFingerprints": [
+              {
+                "failurePattern": "UNKNOWN",
+                "deterministicScore": 53,
+                "label": "A",
+                "fingerprint": "caed46e"
+              }
+            ],
+            "plannerAttributionRepairApplied": false,
+            "plannerAttributionRepairNotes": []
+          },
+          "answerPreview": "## 结论\n当前无法完成仓库分布与面积统计：本工作流仅有只读的模板发现工具 `mcp_chatchat_mcp_server_studio_warehouse_20261101_template_query`，没有可用的模板执行/查询网关工具，因此无法从绑定资产读取实际记录，也不能生成结果表或图表。\n\n## 已确认的约束\n- 绑定资产：`SQL Studio",
+          "plannedAt": 1793513735825,
+          "observationCount": 0
+        }
+      ],
+      "observations": [
+        "InterpretationPlan initial final answer step 1 completed."
+      ]
+    }
+  },
+  "uiArtifact": {
+    "contractVersion": "ui_artifact_ref_v1",
+    "artifactId": "ui_e4e4dda58e4340429edc81f52a1e1245",
+    "revision": 1,
+    "catalogVersion": "enterprise_catalog_v1",
+    "manifestUrl": "/ui-artifacts/ui_e4e4dda58e4340429edc81f52a1e1245",
+    "renderMode": "markdown"
+  }
+}

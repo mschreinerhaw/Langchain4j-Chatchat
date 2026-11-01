@@ -1,0 +1,108 @@
+{
+  "status": "VERIFIED_HISTORICAL_BACKUPS_ARCHIVED",
+  "beforeOptFreeBytes": 9623367680,
+  "afterOptFreeBytes": 13128695808,
+  "archivedBytes": 3364453685,
+  "originalPathsPreservedAsSymlinks": true,
+  "containerBindSourcesExcluded": true,
+  "businessObjectsDeleted": false,
+  "minimumStorageThresholdChanged": false,
+  "files": [
+    {
+      "original": "/opt/chatchat-releases/sql-publishing-usability-20261101-r2/backup/api.dump",
+      "archive": "/root/chatchat-release-upload-archive/sql-publishing-usability-20261101-r2/backup/api.dump",
+      "bytes": 214418154,
+      "sha256": "13b1f6a9bf8512e1191288fa2f558b388639e96acefb17e43bc13a1a32221159"
+    },
+    {
+      "original": "/opt/chatchat-releases/sql-publishing-usability-20261101-r1/backup/api.dump",
+      "archive": "/root/chatchat-release-upload-archive/sql-publishing-usability-20261101-r1/backup/api.dump",
+      "bytes": 214416773,
+      "sha256": "d153a002b0e5708b781b6a5c05e610c2b9c305ecb75eadc0b117e8f392ace8f4"
+    },
+    {
+      "original": "/opt/chatchat-releases/builtin-skills-business-ui-20261101-r2/backup/api.dump",
+      "archive": "/root/chatchat-release-upload-archive/builtin-skills-business-ui-20261101-r2/backup/api.dump",
+      "bytes": 214415114,
+      "sha256": "ea3a01746088ce4add8aa05b654e976267efac83022ec5722ecb98342ad79164"
+    },
+    {
+      "original": "/opt/chatchat-releases/builtin-skills-business-ui-20261101-r1/backup/api.dump",
+      "archive": "/root/chatchat-release-upload-archive/builtin-skills-business-ui-20261101-r1/backup/api.dump",
+      "bytes": 214066628,
+      "sha256": "81396ab54590bd62ec9f440e301644ab5259d775d907bd0587364ab9b24b757b"
+    },
+    {
+      "original": "/opt/chatchat-releases/sql-template-remediation-20261101-r9/backup/api.dump",
+      "archive": "/root/chatchat-release-upload-archive/sql-template-remediation-20261101-r9/backup/api.dump",
+      "bytes": 212866907,
+      "sha256": "e69b0d7f04286c8e585ad7b3b11fe798463089ca878e11d6ed20462b0285c723"
+    },
+    {
+      "original": "/opt/chatchat-releases/sql-template-remediation-20261101-r8/backup/api.dump",
+      "archive": "/root/chatchat-release-upload-archive/sql-template-remediation-20261101-r8/backup/api.dump",
+      "bytes": 212484489,
+      "sha256": "fb6c8f67b48276fd46fdb6a2565c925a3d36657ce2a897fcb9ed7d90ee3b97b9"
+    },
+    {
+      "original": "/opt/chatchat-releases/sql-template-remediation-20261101-r7/backup/api.dump",
+      "archive": "/root/chatchat-release-upload-archive/sql-template-remediation-20261101-r7/backup/api.dump",
+      "bytes": 211439851,
+      "sha256": "acc2377bbd1d474e3b1314db4d42fcf4ae616f10f901731679af6ce4f7c048e7"
+    },
+    {
+      "original": "/opt/chatchat-releases/sql-template-remediation-20261101-r6/backup/api.dump",
+      "archive": "/root/chatchat-release-upload-archive/sql-template-remediation-20261101-r6/backup/api.dump",
+      "bytes": 209802472,
+      "sha256": "a3e106d985db5d8a61a0615f048268ffaf8cc5998079f765223e258b4ade557f"
+    },
+    {
+      "original": "/opt/chatchat-releases/sql-template-remediation-20261101-r5/backup/api.dump",
+      "archive": "/root/chatchat-release-upload-archive/sql-template-remediation-20261101-r5/backup/api.dump",
+      "bytes": 209545513,
+      "sha256": "1bd45e0a924a9d2b78f7c1ab1fec23dabbc4362e23a0a3b0dc150e301618b798"
+    },
+    {
+      "original": "/opt/chatchat-releases/sql-template-remediation-20261101-r4/backup/api.dump",
+      "archive": "/root/chatchat-release-upload-archive/sql-template-remediation-20261101-r4/backup/api.dump",
+      "bytes": 208420815,
+      "sha256": "bd5bd67f22870ed5ff21b7c7065565d4d7bc1c68ab221bb992a105f8b89d0f69"
+    },
+    {
+      "original": "/opt/chatchat-releases/sql-template-remediation-20261101-r3/backup/api.dump",
+      "archive": "/root/chatchat-release-upload-archive/sql-template-remediation-20261101-r3/backup/api.dump",
+      "bytes": 207771925,
+      "sha256": "8b739d09e30c93ee5c923820dc21561b304f7363b80cd2adf6221e8dba523ca8"
+    },
+    {
+      "original": "/opt/chatchat-releases/sql-template-remediation-20261101-r2/backup/api.dump",
+      "archive": "/root/chatchat-release-upload-archive/sql-template-remediation-20261101-r2/backup/api.dump",
+      "bytes": 207767661,
+      "sha256": "3e01ff90f80af83393bc42a6ef440715b75786daeffa44ce0fb637599822dd55"
+    },
+    {
+      "original": "/opt/chatchat-releases/sql-template-remediation-20261101-r1/backup/api.dump",
+      "archive": "/root/chatchat-release-upload-archive/sql-template-remediation-20261101-r1/backup/api.dump",
+      "bytes": 207148984,
+      "sha256": "4d6329487da42936e64504003709b2828e7418eb4cf0823e0044f3c0c4deae58"
+    },
+    {
+      "original": "/opt/chatchat-releases/agent-settings-layout-20261101-r1/backup/api.dump",
+      "archive": "/root/chatchat-release-upload-archive/agent-settings-layout-20261101-r1/backup/api.dump",
+      "bytes": 207148373,
+      "sha256": "b4e6ea15f3ec915e01d9f8dbfcc29fa6ae133305e97546213edc79a63d2afde5"
+    },
+    {
+      "original": "/opt/chatchat-releases/studio-python-services-20261101-r6/backup/api.dump",
+      "archive": "/root/chatchat-release-upload-archive/studio-python-services-20261101-r6/backup/api.dump",
+      "bytes": 206470073,
+      "sha256": "b7fa9c447fc9293f775c4121966184220769c9e5d7722878cfb5eee94eb96e57"
+    },
+    {
+      "original": "/opt/chatchat-releases/studio-python-services-20261101-r5/backup/api.dump",
+      "archive": "/root/chatchat-release-upload-archive/studio-python-services-20261101-r5/backup/api.dump",
+      "bytes": 206269953,
+      "sha256": "4ca4745e79f0b3359cd379ac127edaa0b4cf5c962755b3e17c337b27b7565a2f"
+    }
+  ]
+}

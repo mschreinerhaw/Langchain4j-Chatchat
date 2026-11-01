@@ -1,0 +1,16 @@
+{
+  "title": "仓库分布与面积分析查询集合",
+  "description": "使用已经验证的仓库地区汇总与参数化仓库面积明细，供 Agent 基于真实记录进行比较分析。",
+  "domainCode": "studio_warehouse_20261101",
+  "roleId": "40a041d7-a0f0-45b8-a552-bffe56d07f77",
+  "templates": [
+    {
+      "key": "sql_datasource:STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+      "title": "仓库地区分布与面积汇总"
+    },
+    {
+      "key": "sql_datasource:STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+      "title": "仓库面积明细查询"
+    }
+  ]
+}

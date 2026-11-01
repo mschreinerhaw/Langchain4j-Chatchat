@@ -1,0 +1,124 @@
+{
+  "status": "REAL_PYTHON_AND_UPLOADED_BYTES_VERIFIED",
+  "execution": {
+    "codeArtifact": {
+      "fileId": "908454b137834775d0a13db40da4729b9b4244747fd478adda188c7c5c3cbe23",
+      "fileName": "0_20261101T074124021Z_b04585ac95cb_v2.py",
+      "mediaType": "text/x-python",
+      "sha256": "a9a8fa307d29d156817860144b2d0e52addffb32cb4a076a16aba6840427e3cd",
+      "size": 43035
+    },
+    "codeSha256": "a9a8fa307d29d156817860144b2d0e52addffb32cb4a076a16aba6840427e3cd",
+    "executorStopped": true,
+    "operationId": "cline-babff57b24f490a30a4377c825c263fd46ceebf118e056745610a1592ad2d6fb",
+    "receiptSha256": "8389406cc99515d6d6c6897f19322f120b23dc54dcb58a002451e06235b88485",
+    "reportPresentation": {
+      "autoCharts": true,
+      "autoImages": true,
+      "density": "comfortable",
+      "strategy": "auto",
+      "template": "briefing"
+    },
+    "resultDatasetRef": "runtime-evidence:coding:a49827bf6f62b5cfac76ef3f9da40a7f3e605b96996248ecbfae7c6030ee01ea:result",
+    "resultSha256": "d68ba7943c187df3a248e83a2c60987bad63e7e666a1e8c9ae348b5d8aeaaf6c",
+    "status": "SUCCEEDED",
+    "taskId": "analysis-coding-8615d1df375d6c6ee0d102b3a074186f0fdfa57127ff3bc49646fd336e993c7f"
+  },
+  "artifacts": [
+    {
+      "kind": "code",
+      "fileId": "908454b137834775d0a13db40da4729b9b4244747fd478adda188c7c5c3cbe23",
+      "sha256": "a9a8fa307d29d156817860144b2d0e52addffb32cb4a076a16aba6840427e3cd",
+      "bytes": 43035
+    },
+    {
+      "kind": "png",
+      "fileId": "63dd8461ccbd5e70234537e91a3987cb41df6ed4a1700557bf1d4fc83652d806",
+      "sha256": "2cbd35aa15836e054d7eccc5fdb1485f284127b0027fd6c837a078e56f4c95d4",
+      "bytes": 69709
+    },
+    {
+      "kind": "png",
+      "fileId": "ca783e7296080969ad7cca283b4f9fe0c34388a97afb44a905a9b438a0ffbb0d",
+      "sha256": "3c803f8e61ebe396afa4101a71bf2945ea5abf795b4a6cc9709b7475a0c66370",
+      "bytes": 72553
+    },
+    {
+      "kind": "plotly",
+      "fileId": "4299019ca203b70581533aa66b9a2e8653dcffaf14837ca7ad8295a873bf4d4c",
+      "sha256": "475428b6d91dcc9bc17abbe26d27329601622ad534c87908942c9826cc5fcc3e",
+      "bytes": 728
+    }
+  ],
+  "businessValidation": {
+    "checks": [
+      {
+        "detail": "清单及 1 个 Parquet 分片 SHA-256 校验通过，逻辑行 5 条与清单声明一致；数据集 STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC#template-binding-1-binding-1 返回 1 条、STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7#template-binding-2-binding-2 返回 4 条。",
+        "name": "输入完整性（清单/分片哈希与行数）",
+        "status": "PASSED"
+      },
+      {
+        "detail": "参数 min_area=0 来自用户请求；明细 4 条记录面积原值均 ≥ 0（最小 138,504），负值记录 0 条。",
+        "name": "明细筛选口径（面积原值 ≥ 0）",
+        "status": "PASSED"
+      },
+      {
+        "detail": "明细地区键 [('United States', 'TN')]，汇总地区键 [('United States', 'TN')]；明细全部落在汇总分组内。",
+        "name": "地区键一致性",
+        "status": "PASSED"
+      },
+      {
+        "detail": "4 条明细主键 w_warehouse_sk 去重后 4 个，重复主键 []。",
+        "name": "仓库主键唯一性",
+        "status": "PASSED"
+      },
+      {
+        "detail": "汇总仓库数量 5 条，明细记录数 4 条，差 1 条。",
+        "name": "数量严格相等核对",
+        "status": "FAILED"
+      },
+      {
+        "detail": "数量相差 1 条，但合计、最小值、最大值三项完全一致；明细筛选条件为面积原值 ≥ 0，而汇总最小值 138,504 本身不小于 0，说明所有非空面积原值都满足该筛选条件。因此被排除的 1 条记录面积原值为空（NULL，不参与 SUM/MIN/MAX 计算），数量差异属明细筛选口径差异，不是合计口径错误。",
+        "name": "数量差异归因",
+        "status": "PASSED"
+      },
+      {
+        "detail": "汇总合计 2,031,767，明细合计 2,031,767，差 0。",
+        "name": "面积原值合计对账",
+        "status": "PASSED"
+      },
+      {
+        "detail": "最小值：汇总 138,504 / 明细 138,504；最大值：汇总 977,787 / 明细 977,787。",
+        "name": "面积原值极值对账",
+        "status": "PASSED"
+      },
+      {
+        "detail": "面积原值为空或未通过筛选的 1 条记录不在 STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7#template-binding-2-binding-2 返回范围内，授权数据中无法取得其主键、名称与面积原值。",
+        "name": "被排除记录的身份与面积原值",
+        "status": "UNRESOLVED"
+      },
+      {
+        "detail": "源查询定义与模板说明均未声明面积字段的单位或刻度，本次仅汇总原值，未做任何单位换算或容量推断。",
+        "name": "面积字段单位/刻度",
+        "status": "UNRESOLVED"
+      },
+      {
+        "detail": "返回数据仅 1 个国家/省州分组，无法进行地区间横向比较。",
+        "name": "跨国家/省州可比性",
+        "status": "UNRESOLVED"
+      },
+      {
+        "detail": "仓库主数据为快照式记录，源查询未返回任何日期字段，因此本报告不含期间、趋势或同比结论。",
+        "name": "时间维度适用性",
+        "status": "UNRESOLVED"
+      }
+    ],
+    "scope": "STOPPED_EXECUTION_AND_ARTIFACT_INTEGRITY; COMPUTATION_CHECKS_ARE_PROGRAM_DECLARED; BUSINESS_SEMANTICS_NOT_CERTIFIED",
+    "status": "FAILED",
+    "warnings": [
+      "面积字段单位未声明，所有面积数值仅表示源端原值。",
+      "授权数据仅含 1 个国家/省州分组，不支持跨地区比较。"
+    ]
+  },
+  "analysisStatus": "FAILED"
+}

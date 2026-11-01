@@ -1,0 +1,262 @@
+[
+  {
+    "key": "database_query:sample_security_quote_history",
+    "assetType": "database_query",
+    "templateId": "sample_security_quote_history",
+    "title": "单一证券近期行情序列",
+    "description": "按证券或指数代码查询热数据层中的近期日行情，返回开高低收、涨跌幅和成交信息。适用于趋势观察、波动复核和事件前后价格表现分析；热明细默认仅保留最近7天。",
+    "category": "market_data",
+    "businessCategoryCode": "market_data",
+    "businessCategoryName": "市场行情",
+    "parameterSchema": {
+      "type": "object",
+      "properties": {
+        "security_code": {
+          "description": "证券或指数代码，例如 000001、000001.SH。必须与采集数据中的 quote_code 完全一致。",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "security_code"
+      ]
+    },
+    "queryFamily": "relational"
+  },
+  {
+    "key": "database_query:sample_etf_latest_scale",
+    "assetType": "database_query",
+    "templateId": "sample_etf_latest_scale",
+    "title": "最新ETF规模与份额观察",
+    "description": "查询最近一个已采集日期的ETF规模数据，返回基金代码、规模或总份额以及原始结构化载荷。适用于ETF规模横向比较和资金关注度初筛；规模变化不能单独等同于净申购资金。",
+    "category": "market_data",
+    "businessCategoryCode": "market_data",
+    "businessCategoryName": "市场行情",
+    "parameterSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false,
+      "required": []
+    },
+    "queryFamily": "relational"
+  },
+  {
+    "key": "database_query:sample_bond_yield_curve_latest",
+    "assetType": "database_query",
+    "templateId": "sample_bond_yield_curve_latest",
+    "title": "最新中债国债收益率曲线",
+    "description": "查询中债收益率曲线最近业务日的全部期限点，返回期限和到期收益率。适用于观察利率水平、期限结构、长短端变化和期限利差。",
+    "category": "market_data",
+    "businessCategoryCode": "market_data",
+    "businessCategoryName": "市场行情",
+    "parameterSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false,
+      "required": []
+    },
+    "queryFamily": "relational"
+  },
+  {
+    "key": "database_query:sample_bond_settlement_latest",
+    "assetType": "database_query",
+    "templateId": "sample_bond_settlement_latest",
+    "title": "最新中债市场结算统计",
+    "description": "查询最近结算日的现券、回购、质押式回购、买断式回购、远期交易等结算规模和笔数，用于判断银行间债券市场活跃度与资金交易结构。",
+    "category": "market_data",
+    "businessCategoryCode": "market_data",
+    "businessCategoryName": "市场行情",
+    "parameterSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false,
+      "required": []
+    },
+    "queryFamily": "relational"
+  },
+  {
+    "key": "database_query:sample_exchange_market_statistics",
+    "assetType": "database_query",
+    "templateId": "sample_exchange_market_statistics",
+    "title": "最新交易所市场统计概览",
+    "description": "查询最近一个业务日的交易所市场统计记录，包括各板块上市公司数、市值、平均市盈率、成交股数和成交金额等来源载荷。适用于A股收盘报告中的市场规模与成交活跃度分析。",
+    "category": "market_data",
+    "businessCategoryCode": "market_data",
+    "businessCategoryName": "市场行情",
+    "parameterSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false,
+      "required": []
+    },
+    "queryFamily": "relational"
+  },
+  {
+    "key": "database_query:sample_market_latest_movers",
+    "assetType": "database_query",
+    "templateId": "sample_market_latest_movers",
+    "title": "最新交易日证券与指数涨跌榜",
+    "description": "查询最近一个已采集交易日的证券和指数收盘行情，返回代码、名称、品类、前收、开高低收、涨跌幅、成交量和成交额，并按涨跌幅从高到低排序。适用于收盘复盘、领涨领跌观察和异常波动初筛。",
+    "category": "market_data",
+    "businessCategoryCode": "market_data",
+    "businessCategoryName": "市场行情",
+    "parameterSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false,
+      "required": []
+    },
+    "queryFamily": "relational"
+  },
+  {
+    "key": "database_query:sample_margin_trade_latest",
+    "assetType": "database_query",
+    "templateId": "sample_margin_trade_latest",
+    "title": "最新融资融券数据观察",
+    "description": "查询融资融券数据集最近一个业务日的结构化记录。返回标准审计字段和原始载荷，用于识别融资余额、融资买入、融券卖出及个券杠杆变化。不同交易所字段口径应通过 payload_json 核对。",
+    "category": "market_data",
+    "businessCategoryCode": "market_data",
+    "businessCategoryName": "市场行情",
+    "parameterSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false,
+      "required": []
+    },
+    "queryFamily": "relational"
+  },
+  {
+    "key": "sql_datasource:STUDIO_E717A2E9639E37C58D59FB184E92C781",
+    "assetType": "sql_datasource",
+    "templateId": "STUDIO_E717A2E9639E37C58D59FB184E92C781",
+    "title": "TPCDS 248 仓库地理分布",
+    "description": "按国家和省州统计仓库数量、覆盖城市数及分组主键范围，保留空分组。global_min_warehouse_sk 为整个 warehouse 维表实际最小主键，每行重复同一全局值，允许后续库存查询直接绑定该值，不按返回行排名选择仓库。无参数、全仓库。",
+    "category": "business_analysis",
+    "businessCategoryCode": "business_analysis",
+    "businessCategoryName": "business_analysis",
+    "parameterSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "queryFamily": "relational"
+  },
+  {
+    "key": "sql_datasource:STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A",
+    "assetType": "sql_datasource",
+    "templateId": "STUDIO_FB8D154E3FE039E59A58FDDBBAE1CB1A",
+    "title": "TPCDS 248 仓库期间库存快照",
+    "description": "按仓库及含边界日期范围返回逐日库存快照。支持数量下限和可空类别筛选。数量单位未由来源声明，不作推断。",
+    "category": "business_analysis",
+    "businessCategoryCode": "business_analysis",
+    "businessCategoryName": "business_analysis",
+    "parameterSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "warehouse_id": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "仓库维表主键，无默认值"
+        },
+        "start_date": {
+          "type": "string",
+          "format": "date",
+          "description": "含边界的库存快照开始日期"
+        },
+        "end_date": {
+          "type": "string",
+          "format": "date",
+          "description": "含边界的库存快照结束日期"
+        },
+        "min_on_hand": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "现存数量下限"
+        },
+        "category": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "商品类别，null表示不限"
+        }
+      },
+      "required": [
+        "warehouse_id",
+        "start_date",
+        "end_date"
+      ]
+    },
+    "queryFamily": "relational"
+  },
+  {
+    "key": "sql_datasource:STUDIO_2B689C67D34336599B05C753F0473B60",
+    "assetType": "sql_datasource",
+    "templateId": "STUDIO_2B689C67D34336599B05C753F0473B60",
+    "title": "TPCDS 248 单品期间月度销售分析验收",
+    "description": "指定商品、起止日期、最低购买数量及可选品类的真实门店逐月销售、数量、净收款及利润，默认商品1，NULL品类不过滤。",
+    "category": "business_analysis",
+    "businessCategoryCode": "business_analysis",
+    "businessCategoryName": "business_analysis",
+    "parameterSchema": {
+      "type": "object",
+      "properties": {
+        "product_id": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1,
+          "description": "store_sales.ss_item_sk 商品主键"
+        },
+        "start_date": {
+          "type": "string",
+          "format": "date",
+          "description": "date_dim.d_date 含边界起日"
+        },
+        "end_date": {
+          "type": "string",
+          "format": "date",
+          "description": "date_dim.d_date 含边界止日"
+        },
+        "min_quantity": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "每行最低ss_quantity"
+        },
+        "category": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "item.i_category精确品类；NULL不过滤"
+        }
+      },
+      "required": [
+        "start_date",
+        "end_date"
+      ],
+      "additionalProperties": false
+    },
+    "queryFamily": "relational"
+  },
+  {
+    "key": "sql_datasource:STUDIO_18042D964C823181832DB6E79E771FFB",
+    "assetType": "sql_datasource",
+    "templateId": "STUDIO_18042D964C823181832DB6E79E771FFB",
+    "title": "TPCDS 248 商品1年度销售汇总验收",
+    "description": "限定商品ss_item_sk=1，按实际销售日期年度汇总销售行数、数量、净收款和利润，排除无日期维度关联记录；无参数。",
+    "category": "business_analysis",
+    "businessCategoryCode": "business_analysis",
+    "businessCategoryName": "business_analysis",
+    "parameterSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "queryFamily": "relational"
+  }
+]

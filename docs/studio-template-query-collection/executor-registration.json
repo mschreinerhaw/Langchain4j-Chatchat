@@ -1,0 +1,7 @@
+{
+  "status": "PASS",
+  "localToolName": "mcp_chatchat_mcp_server_sql_query_execute",
+  "templateDiscoveryTool": "database_query_template_query",
+  "source": "Actual API runtime catalog after normal MCP refresh",
+  "capturedAt": "2026-11-01T06:15:29.486Z"
+}

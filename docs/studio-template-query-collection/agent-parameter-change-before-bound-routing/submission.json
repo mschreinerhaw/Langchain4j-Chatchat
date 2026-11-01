@@ -1,0 +1,64 @@
+{
+  "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+  "resumeTaskId": "",
+  "userId": "admin",
+  "agentId": "studio_collection_e2e_20261101",
+  "sessionId": "1793517731318-203e669337314",
+  "query": "将最低面积原值设为294242。请查询符合条件的仓库明细，并仅基于返回明细统计仓库数量和面积原值合计。不要用全仓库汇总代替筛选后的统计，也不要推断面积单位。",
+  "mode": "agent_chat",
+  "skillId": "studio_collection_e2e_20261101",
+  "modelName": "deepseek-v4-flash",
+  "maxResults": 10,
+  "historyWindow": 8,
+  "stream": false,
+  "availableTools": [],
+  "imageAnalysisIds": [],
+  "toolInput": {
+    "agentName": "SQL Studio 查询集合分析验收",
+    "documentWorkflow": false,
+    "webSearch": false,
+    "reportMode": "off",
+    "imageAnalysisIds": [],
+    "responseContract": {
+      "version": "response-contract-v2",
+      "prompt": "RESPONSE FORMAT RULE:\n- Use explicit language tags for code blocks only; write explanations as normal Markdown.\n- Never wrap the entire answer in a ```markdown or ```md code block.\n- Do not display executed SQL statement text in user-facing analysis answers unless the user explicitly asks to write or review SQL.\n- Always wrap JSON/configuration examples in ```json fenced code blocks.\n- Use markdown headings for explanation sections.\n- Separate mixed output sections clearly.\n- Never output plain code without a language tag.\n\nSTRUCTURED DATA DISPLAY RULE:\n- Prefer markdown tables for structured query rows.\n- Preserve and display any rows/fields that were actually returned, even when they are partial, incomplete, unexpected, or fail the user's ideal metric requirements.\n- Never replace returned structured data with only a data-gap explanation; show the available data first, then label quality issues, missing fields, and uncertainty separately.\n- For metadata/table discovery answers, always show the exact physical table identifier returned by the tool (database/schema/tableName when available); a Chinese business description must be a separate description and must never replace the physical identifier.\n- When the metadata tool returns columns for a table, display those exact physical column names together with that table, including type/key/comment when available. Never rename, translate, or invent physical table or column identifiers.\n- If a matched table has no returned column metadata, explicitly state that its fields were not returned by the tool; do not provide illustrative or guessed fields as facts.\n- For every meaningful result table, assess whether a chart improves interpretation. When it does, emit visualizationSpec/dataVisualization with chartType, xKey/xLabel, series[{name,yKey,unit?}], insight.summary, and recommendation{source:'MODEL',reason,alternativeChartTypes}.\n- Recommend only fields and values present in the returned rows. Do not guess chart axes or metrics from column order; if semantics are uncertain, keep the table and explain that no automatic chart is recommended.",
+      "blocks": {
+        "sql": "```sql",
+        "config": "```json",
+        "explanation": "markdown headings"
+      }
+    },
+    "visualizationSupportedTypes": [
+      "line",
+      "bar",
+      "pie",
+      "scatter",
+      "metric",
+      "table"
+    ],
+    "analysisTree": {
+      "version": "analysis-tree-v1",
+      "rootNodeIds": [
+        "1793517731318-d123c3ca165c8"
+      ],
+      "activeNodeId": "1793517731318-d123c3ca165c8",
+      "nodes": [
+        {
+          "id": "1793517731318-d123c3ca165c8",
+          "parentId": "",
+          "query": "将最低面积原值设为294242。请查询符合条件的仓库明细，并仅基于返回明细统计仓库数量和面积原值合计。不要用全仓库汇总代替筛选后的统计，也不要推断面积单位。",
+          "sourceMessageId": "",
+          "responseMessageId": "",
+          "title": "将最低面积原值设为294242。请查询符合条件的仓库明细，并仅基于返回明细统计仓库数量和面积原值合计。不要用全仓库汇总代替筛选…",
+          "status": "running",
+          "createdAt": 1793517731318,
+          "updatedAt": 1793517731320,
+          "selection": null
+        }
+      ]
+    },
+    "analysisNodeId": "1793517731318-d123c3ca165c8",
+    "analysisParentNodeId": "",
+    "drillDown": null
+  }
+}

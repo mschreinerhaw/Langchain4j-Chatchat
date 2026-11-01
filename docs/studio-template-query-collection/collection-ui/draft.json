@@ -1,0 +1,57 @@
+{
+  "httpStatus": 200,
+  "request": {
+    "logicalId": null,
+    "title": "仓库分布与面积分析查询集合",
+    "description": "使用已经验证的仓库地区汇总与参数化仓库面积明细，供 Agent 基于真实记录进行比较分析。",
+    "kind": "CONTROLLED_TEMPLATE",
+    "definition": {
+      "domainCode": "studio_warehouse_20261101",
+      "businessCategory": "",
+      "parentToolName": "database_query_template_query",
+      "roleId": "40a041d7-a0f0-45b8-a552-bffe56d07f77",
+      "subjectType": "ROLE",
+      "userId": null,
+      "templateKeys": [
+        "sql_datasource:STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+        "sql_datasource:STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7"
+      ],
+      "enabled": false
+    },
+    "inputSchema": {
+      "type": "object",
+      "properties": {}
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  "response": {
+    "code": 200,
+    "message": "Success",
+    "data": {
+      "id": "abbb896a-5d1d-40fe-9997-ef58cc3cdae7",
+      "logicalId": "704c03e0-8e1b-48e8-9cc8-94d315b8ccf8",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "releaseNumber": 1,
+      "state": "DRAFT",
+      "kind": "CONTROLLED_TEMPLATE",
+      "title": "仓库分布与面积分析查询集合",
+      "description": "使用已经验证的仓库地区汇总与参数化仓库面积明细，供 Agent 基于真实记录进行比较分析。",
+      "definitionJson": "{\"domainCode\":\"studio_warehouse_20261101\",\"businessCategory\":\"\",\"parentToolName\":\"database_query_template_query\",\"roleId\":\"40a041d7-a0f0-45b8-a552-bffe56d07f77\",\"subjectType\":\"ROLE\",\"userId\":null,\"templateKeys\":[\"sql_datasource:STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC\",\"sql_datasource:STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7\"],\"enabled\":false}",
+      "inputSchemaJson": "{\"type\":\"object\",\"properties\":{}}",
+      "outputSchemaJson": "{\"type\":\"object\",\"properties\":{}}",
+      "testEvidenceJson": null,
+      "bindingId": null,
+      "actorId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+      "createdAt": "2026-11-01T05:59:37.422768968Z",
+      "publishedAt": null,
+      "version": 0,
+      "businessCategory": null,
+      "businessCategoryId": null
+    },
+    "timestamp": 1793512777441,
+    "requestId": "15552325-31e5-4bea-9c90-ef49e3479ddf"
+  }
+}

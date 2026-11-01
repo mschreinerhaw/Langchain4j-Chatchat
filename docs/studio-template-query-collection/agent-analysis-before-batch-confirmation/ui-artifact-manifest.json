@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "enterprise_ui_artifact_v1",
+  "artifactId": "ui_b0985452d4624171965223d4ea29cf80",
+  "revision": 1,
+  "catalogVersion": "enterprise_catalog_v1",
+  "createdAt": "2026-11-01T06:28:12.688905082Z",
+  "spec": {
+    "root": "report",
+    "elements": {
+      "answer": {
+        "type": "Markdown",
+        "props": {
+          "resourceId": "answer"
+        },
+        "children": []
+      },
+      "report": {
+        "type": "Report",
+        "props": {
+          "taskId": "4874d905-557e-4f3a-8529-c89251679904",
+          "status": "FAILED"
+        },
+        "children": [
+          "answer"
+        ]
+      }
+    }
+  },
+  "resources": {
+    "answer": {
+      "href": "/ui-artifacts/ui_b0985452d4624171965223d4ea29cf80/resources/answer",
+      "mediaType": "text/markdown",
+      "objectKey": "resources/answer.json",
+      "byteLength": 2823,
+      "sha256": "1cd3c928540f4ba08145257ed4e4d322ce4f1858f109d0cd7057e446886ddf79"
+    }
+  }
+}

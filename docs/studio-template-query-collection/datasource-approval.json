@@ -1,0 +1,13 @@
+{
+  "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+  "allowedTables": [
+    "warehouse",
+    "tpcds.warehouse"
+  ],
+  "allowedTemplates": [
+    "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+    "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7"
+  ],
+  "reason": "Approve the qualified identifier tpcds.warehouse for the same physical warehouse table; no wildcard and no production whitelist logic change.",
+  "scope": "Isolated datasource only; original asset 248 datasource unchanged."
+}

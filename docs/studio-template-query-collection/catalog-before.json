@@ -1,0 +1,128 @@
+[
+  {
+    "key": "database_query:sample_security_quote_history",
+    "assetType": "database_query",
+    "templateId": "sample_security_quote_history",
+    "title": "单一证券近期行情序列",
+    "description": "按证券或指数代码查询热数据层中的近期日行情，返回开高低收、涨跌幅和成交信息。适用于趋势观察、波动复核和事件前后价格表现分析；热明细默认仅保留最近7天。",
+    "category": "market_data",
+    "businessCategoryCode": "market_data",
+    "businessCategoryName": "市场行情",
+    "parameterSchema": {
+      "type": "object",
+      "properties": {
+        "security_code": {
+          "description": "证券或指数代码，例如 000001、000001.SH。必须与采集数据中的 quote_code 完全一致。",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "security_code"
+      ]
+    },
+    "queryFamily": "relational"
+  },
+  {
+    "key": "database_query:sample_etf_latest_scale",
+    "assetType": "database_query",
+    "templateId": "sample_etf_latest_scale",
+    "title": "最新ETF规模与份额观察",
+    "description": "查询最近一个已采集日期的ETF规模数据，返回基金代码、规模或总份额以及原始结构化载荷。适用于ETF规模横向比较和资金关注度初筛；规模变化不能单独等同于净申购资金。",
+    "category": "market_data",
+    "businessCategoryCode": "market_data",
+    "businessCategoryName": "市场行情",
+    "parameterSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false,
+      "required": []
+    },
+    "queryFamily": "relational"
+  },
+  {
+    "key": "database_query:sample_bond_yield_curve_latest",
+    "assetType": "database_query",
+    "templateId": "sample_bond_yield_curve_latest",
+    "title": "最新中债国债收益率曲线",
+    "description": "查询中债收益率曲线最近业务日的全部期限点，返回期限和到期收益率。适用于观察利率水平、期限结构、长短端变化和期限利差。",
+    "category": "market_data",
+    "businessCategoryCode": "market_data",
+    "businessCategoryName": "市场行情",
+    "parameterSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false,
+      "required": []
+    },
+    "queryFamily": "relational"
+  },
+  {
+    "key": "database_query:sample_bond_settlement_latest",
+    "assetType": "database_query",
+    "templateId": "sample_bond_settlement_latest",
+    "title": "最新中债市场结算统计",
+    "description": "查询最近结算日的现券、回购、质押式回购、买断式回购、远期交易等结算规模和笔数，用于判断银行间债券市场活跃度与资金交易结构。",
+    "category": "market_data",
+    "businessCategoryCode": "market_data",
+    "businessCategoryName": "市场行情",
+    "parameterSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false,
+      "required": []
+    },
+    "queryFamily": "relational"
+  },
+  {
+    "key": "database_query:sample_exchange_market_statistics",
+    "assetType": "database_query",
+    "templateId": "sample_exchange_market_statistics",
+    "title": "最新交易所市场统计概览",
+    "description": "查询最近一个业务日的交易所市场统计记录，包括各板块上市公司数、市值、平均市盈率、成交股数和成交金额等来源载荷。适用于A股收盘报告中的市场规模与成交活跃度分析。",
+    "category": "market_data",
+    "businessCategoryCode": "market_data",
+    "businessCategoryName": "市场行情",
+    "parameterSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false,
+      "required": []
+    },
+    "queryFamily": "relational"
+  },
+  {
+    "key": "database_query:sample_market_latest_movers",
+    "assetType": "database_query",
+    "templateId": "sample_market_latest_movers",
+    "title": "最新交易日证券与指数涨跌榜",
+    "description": "查询最近一个已采集交易日的证券和指数收盘行情，返回代码、名称、品类、前收、开高低收、涨跌幅、成交量和成交额，并按涨跌幅从高到低排序。适用于收盘复盘、领涨领跌观察和异常波动初筛。",
+    "category": "market_data",
+    "businessCategoryCode": "market_data",
+    "businessCategoryName": "市场行情",
+    "parameterSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false,
+      "required": []
+    },
+    "queryFamily": "relational"
+  },
+  {
+    "key": "database_query:sample_margin_trade_latest",
+    "assetType": "database_query",
+    "templateId": "sample_margin_trade_latest",
+    "title": "最新融资融券数据观察",
+    "description": "查询融资融券数据集最近一个业务日的结构化记录。返回标准审计字段和原始载荷，用于识别融资余额、融资买入、融券卖出及个券杠杆变化。不同交易所字段口径应通过 payload_json 核对。",
+    "category": "market_data",
+    "businessCategoryCode": "market_data",
+    "businessCategoryName": "市场行情",
+    "parameterSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false,
+      "required": []
+    },
+    "queryFamily": "relational"
+  }
+]

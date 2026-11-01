@@ -1,0 +1,106 @@
+{
+  "request": {
+    "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+    "resumeTaskId": "8d812fab-2c04-4479-b615-e79bae2d7ff1",
+    "userId": "admin",
+    "agentId": "studio_collection_e2e_20261101",
+    "sessionId": "1793519027732-a6b161da74a42",
+    "query": "将最低面积原值设为294242。请查询符合条件的仓库明细，并仅基于返回明细统计仓库数量和面积原值合计。不要用全仓库汇总代替筛选后的统计，也不要推断面积单位。",
+    "mode": "agent_chat",
+    "skillId": "studio_collection_e2e_20261101",
+    "modelName": "deepseek-v4-flash",
+    "maxResults": 10,
+    "historyWindow": 8,
+    "stream": false,
+    "availableTools": [],
+    "imageAnalysisIds": [],
+    "toolInput": {
+      "agentName": "通用对话",
+      "documentWorkflow": false,
+      "webSearch": false,
+      "reportMode": "off",
+      "imageAnalysisIds": [],
+      "responseContract": {
+        "version": "response-contract-v2",
+        "prompt": "RESPONSE FORMAT RULE:\n- Use explicit language tags for code blocks only; write explanations as normal Markdown.\n- Never wrap the entire answer in a ```markdown or ```md code block.\n- Do not display executed SQL statement text in user-facing analysis answers unless the user explicitly asks to write or review SQL.\n- Always wrap JSON/configuration examples in ```json fenced code blocks.\n- Use markdown headings for explanation sections.\n- Separate mixed output sections clearly.\n- Never output plain code without a language tag.\n\nSTRUCTURED DATA DISPLAY RULE:\n- Prefer markdown tables for structured query rows.\n- Preserve and display any rows/fields that were actually returned, even when they are partial, incomplete, unexpected, or fail the user's ideal metric requirements.\n- Never replace returned structured data with only a data-gap explanation; show the available data first, then label quality issues, missing fields, and uncertainty separately.\n- For metadata/table discovery answers, always show the exact physical table identifier returned by the tool (database/schema/tableName when available); a Chinese business description must be a separate description and must never replace the physical identifier.\n- When the metadata tool returns columns for a table, display those exact physical column names together with that table, including type/key/comment when available. Never rename, translate, or invent physical table or column identifiers.\n- If a matched table has no returned column metadata, explicitly state that its fields were not returned by the tool; do not provide illustrative or guessed fields as facts.\n- For every meaningful result table, assess whether a chart improves interpretation. When it does, emit visualizationSpec/dataVisualization with chartType, xKey/xLabel, series[{name,yKey,unit?}], insight.summary, and recommendation{source:'MODEL',reason,alternativeChartTypes}.\n- Recommend only fields and values present in the returned rows. Do not guess chart axes or metrics from column order; if semantics are uncertain, keep the table and explain that no automatic chart is recommended.",
+        "blocks": {
+          "sql": "```sql",
+          "config": "```json",
+          "explanation": "markdown headings"
+        }
+      },
+      "visualizationSupportedTypes": [
+        "line",
+        "bar",
+        "pie",
+        "scatter",
+        "metric",
+        "table"
+      ],
+      "analysisTree": {
+        "version": "analysis-tree-v1",
+        "rootNodeIds": [
+          "1793519027733-a5c789f4a11e68"
+        ],
+        "activeNodeId": "1793519027733-a5c789f4a11e68",
+        "nodes": [
+          {
+            "id": "1793519027733-a5c789f4a11e68",
+            "parentId": "",
+            "query": "将最低面积原值设为294242。请查询符合条件的仓库明细，并仅基于返回明细统计仓库数量和面积原值合计。不要用全仓库汇总代替筛选后的统计，也不要推断面积单位。",
+            "sourceMessageId": "",
+            "responseMessageId": "",
+            "title": "将最低面积原值设为294242。请查询符合条件的仓库明细，并仅基于返回明细统计仓库数量和面积原值合计。不要用全仓库汇总代替筛选…",
+            "status": "running",
+            "createdAt": 1793519027733,
+            "updatedAt": 1793519027736,
+            "selection": null
+          }
+        ]
+      },
+      "analysisNodeId": "1793519027733-a5c789f4a11e68",
+      "analysisParentNodeId": "",
+      "drillDown": null,
+      "mcpConfirmation": {
+        "token": "8834314499abb5838de7fb88f30a94a8",
+        "approved": true,
+        "decision": "allow_once"
+      }
+    }
+  },
+  "response": {
+    "code": 200,
+    "message": "Agent task submitted",
+    "data": {
+      "taskId": "8d812fab-2c04-4479-b615-e79bae2d7ff1",
+      "executionId": "8d812fab-2c04-4479-b615-e79bae2d7ff1",
+      "rootExecutionId": "8d812fab-2c04-4479-b615-e79bae2d7ff1",
+      "attemptId": "att-1-0aa74bdf-64e4-48e7-a7ce-3633199ce31a",
+      "parentAttemptId": null,
+      "attemptNumber": 1,
+      "canonicalState": "WAITING_APPROVAL",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+      "agentId": "studio_collection_e2e_20261101",
+      "sessionId": "1793519027732-a6b161da74a42",
+      "status": "WAIT_CONFIRMATION",
+      "question": "将最低面积原值设为294242。请查询符合条件的仓库明细，并仅基于返回明细统计仓库数量和面积原值合计。不要用全仓库汇总代替筛选后的统计，也不要推断面积单位。",
+      "answerSummary": null,
+      "errorMessage": "Agent task is waiting for MCP confirmation",
+      "feedbackUseful": null,
+      "feedbackAdopted": null,
+      "feedbackResolved": null,
+      "feedbackComment": null,
+      "feedbackReasonCategory": null,
+      "feedbackTime": null,
+      "createTime": "2026-11-01T07:43:47.887856Z",
+      "updateTime": "2026-11-01T07:43:53.126693Z",
+      "finishedAt": null,
+      "lastEventSequence": 0,
+      "datasets": []
+    },
+    "timestamp": 1793519034840,
+    "requestId": "d867a9c2-e32c-4b60-a8e8-f1920113c40d"
+  },
+  "remember": "Allow once"
+}

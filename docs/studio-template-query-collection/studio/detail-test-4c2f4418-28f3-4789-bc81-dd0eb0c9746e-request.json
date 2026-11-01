@@ -1,0 +1,9 @@
+{
+  "expectedSourceVersion": 1,
+  "expectedVersion": 0,
+  "testId": "4c2f4418-28f3-4789-bc81-dd0eb0c9746e",
+  "parameters": {
+    "min_area": 0
+  },
+  "expectedActiveReleaseId": ""
+}

@@ -1,0 +1,6 @@
+{
+  "status": "FAIL",
+  "reason": "Bound database routing was absent from SQL execution context; actual execution failed as ambiguous. Stale confirmation metadata caused repeated prompts. Own waiting acceptance task rejected through normal control API after harness failure.",
+  "taskId": "1a9b685f-de89-45ab-b745-c3d0e6c8e105",
+  "canonicalState": "REJECTED"
+}

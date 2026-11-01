@@ -1,0 +1,8 @@
+{
+  "id": "40a041d7-a0f0-45b8-a552-bffe56d07f77",
+  "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+  "roleCode": "SUPER_ADMIN",
+  "roleName": "超级管理员",
+  "roleType": "platform",
+  "status": "enabled"
+}

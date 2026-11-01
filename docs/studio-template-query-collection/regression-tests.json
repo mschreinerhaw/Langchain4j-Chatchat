@@ -1,0 +1,151 @@
+{
+  "status": "PASS",
+  "totalTests": 183,
+  "suites": [
+    {
+      "class": "com.chatchat.chat.interaction.service.AgentToolPolicyResolverTest",
+      "tests": 16,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "log": "target/studio-batch-confirmation-tests-final.log",
+      "logSha256": "fd915b081d8e839cbda096de7c5580f90075090601f72f9dc52e02284c62a90e"
+    },
+    {
+      "class": "com.chatchat.mcpserver.sql.tool.SqlMcpToolPublisherTest",
+      "tests": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "log": "target/studio-collection-executor-tests.log",
+      "logSha256": "86d63afb1dd41f0754def32f4bd9766183e0c91e7cad37d9f05d647c2d4cdf53"
+    },
+    {
+      "class": "com.chatchat.mcpserver.templatepublication.admin.TemplateCapabilityServiceTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "log": "target/studio-collection-executor-tests.log",
+      "logSha256": "86d63afb1dd41f0754def32f4bd9766183e0c91e7cad37d9f05d647c2d4cdf53"
+    },
+    {
+      "class": "com.chatchat.mcpserver.templatepublication.admin.TemplateQueryAdminControllerTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "log": "target/studio-collection-executor-tests.log",
+      "logSha256": "86d63afb1dd41f0754def32f4bd9766183e0c91e7cad37d9f05d647c2d4cdf53"
+    },
+    {
+      "class": "com.chatchat.mcpserver.templatepublication.binding.TemplateQueryBindingServiceTest",
+      "tests": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "log": "target/studio-collection-executor-tests.log",
+      "logSha256": "86d63afb1dd41f0754def32f4bd9766183e0c91e7cad37d9f05d647c2d4cdf53"
+    },
+    {
+      "class": "com.chatchat.mcpserver.templatepublication.catalog.TemplateAssetCatalogServiceTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "log": "target/studio-collection-executor-tests.log",
+      "logSha256": "86d63afb1dd41f0754def32f4bd9766183e0c91e7cad37d9f05d647c2d4cdf53"
+    },
+    {
+      "class": "com.chatchat.mcpserver.templatepublication.catalog.TemplateQueryParentCatalogTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "log": "target/studio-collection-executor-tests.log",
+      "logSha256": "86d63afb1dd41f0754def32f4bd9766183e0c91e7cad37d9f05d647c2d4cdf53"
+    },
+    {
+      "class": "com.chatchat.mcpserver.templatepublication.publisher.TemplateQueryMcpToolPublisherTest",
+      "tests": 14,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "log": "target/studio-collection-executor-tests.log",
+      "logSha256": "86d63afb1dd41f0754def32f4bd9766183e0c91e7cad37d9f05d647c2d4cdf53"
+    },
+    {
+      "class": "com.chatchat.agents.runtime.batch.ToolCallBatchSchemaTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "log": "target/studio-bound-routing-tests-r6.log",
+      "logSha256": "147bcb4795cb3aae3e2fd8a2f3a37345d805fbbf7544d5a5f2f344d948069ff4"
+    },
+    {
+      "class": "com.chatchat.agents.runtime.tool.ToolRuntimeServiceTest",
+      "tests": 73,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "log": "target/studio-bound-routing-tests-r6.log",
+      "logSha256": "147bcb4795cb3aae3e2fd8a2f3a37345d805fbbf7544d5a5f2f344d948069ff4"
+    },
+    {
+      "class": "com.chatchat.chat.task.core.AgentTaskServiceTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "log": "target/studio-batch-confirmation-tests-final.log",
+      "logSha256": "fd915b081d8e839cbda096de7c5580f90075090601f72f9dc52e02284c62a90e"
+    },
+    {
+      "class": "com.chatchat.integration.mcp.admin.DefaultMcpAdministrationAdapterTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "log": "target/studio-batch-confirmation-tests-final.log",
+      "logSha256": "fd915b081d8e839cbda096de7c5580f90075090601f72f9dc52e02284c62a90e"
+    },
+    {
+      "class": "com.chatchat.api.service.McpRuntimeAccessServiceTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "log": "target/studio-batch-confirmation-tests-final.log",
+      "logSha256": "fd915b081d8e839cbda096de7c5580f90075090601f72f9dc52e02284c62a90e"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "log": "target/studio-bound-routing-tests-r6.log",
+      "logSha256": "147bcb4795cb3aae3e2fd8a2f3a37345d805fbbf7544d5a5f2f344d948069ff4"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.analysis.graph.InterpretationAnalysisGraphTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "log": "target/studio-confirmation-resume-tests.log",
+      "logSha256": "2ca6dea5ff17c28787c470693e32d6d2ac71d36dbbaf0adc09cf07fa1e601471"
+    },
+    {
+      "class": "com.chatchat.agents.orchestration.lifecycle.AgentRunLifecycleCoordinatorTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "log": "target/studio-bound-routing-tests-r6.log",
+      "logSha256": "147bcb4795cb3aae3e2fd8a2f3a37345d805fbbf7544d5a5f2f344d948069ff4"
+    }
+  ],
+  "scope": "Targeted regression suites. These results do not replace actual SQL, Agent, Python and UI evidence."
+}

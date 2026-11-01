@@ -1,0 +1,110 @@
+[
+  {
+    "template": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+    "target": "14f91784-38db-4e20-9795-d0caac64b1c8",
+    "rows": [
+      {
+        "w_country": "United States",
+        "w_state": "TN",
+        "warehouse_count": 5,
+        "total_warehouse_sq_ft": 2031767,
+        "min_warehouse_sq_ft": 138504,
+        "max_warehouse_sq_ft": 977787
+      }
+    ],
+    "mode": "PREPARED_STATEMENT",
+    "parameters": {}
+  },
+  {
+    "template": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+    "target": "14f91784-38db-4e20-9795-d0caac64b1c8",
+    "rows": [
+      {
+        "w_country": "United States",
+        "w_state": "TN",
+        "warehouse_count": 5,
+        "total_warehouse_sq_ft": 2031767,
+        "min_warehouse_sq_ft": 138504,
+        "max_warehouse_sq_ft": 977787
+      }
+    ],
+    "mode": "PREPARED_STATEMENT",
+    "parameters": {}
+  },
+  {
+    "template": "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+    "target": "14f91784-38db-4e20-9795-d0caac64b1c8",
+    "rows": [
+      {
+        "w_warehouse_sk": 1,
+        "w_warehouse_name": "Conventional childr",
+        "w_country": "United States",
+        "w_state": "TN",
+        "w_warehouse_sq_ft": 977787
+      },
+      {
+        "w_warehouse_sk": 2,
+        "w_warehouse_name": "Important issues liv",
+        "w_country": "United States",
+        "w_state": "TN",
+        "w_warehouse_sq_ft": 138504
+      },
+      {
+        "w_warehouse_sk": 3,
+        "w_warehouse_name": "Doors canno",
+        "w_country": "United States",
+        "w_state": "TN",
+        "w_warehouse_sq_ft": 294242
+      },
+      {
+        "w_warehouse_sk": 4,
+        "w_warehouse_name": "Bad cards must make.",
+        "w_country": "United States",
+        "w_state": "TN",
+        "w_warehouse_sq_ft": 621234
+      }
+    ],
+    "mode": "PREPARED_STATEMENT",
+    "parameters": {
+      "min_area": 0
+    }
+  },
+  {
+    "template": "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+    "target": "14f91784-38db-4e20-9795-d0caac64b1c8",
+    "rows": [
+      {
+        "w_warehouse_sk": 1,
+        "w_warehouse_name": "Conventional childr",
+        "w_country": "United States",
+        "w_state": "TN",
+        "w_warehouse_sq_ft": 977787
+      },
+      {
+        "w_warehouse_sk": 2,
+        "w_warehouse_name": "Important issues liv",
+        "w_country": "United States",
+        "w_state": "TN",
+        "w_warehouse_sq_ft": 138504
+      },
+      {
+        "w_warehouse_sk": 3,
+        "w_warehouse_name": "Doors canno",
+        "w_country": "United States",
+        "w_state": "TN",
+        "w_warehouse_sq_ft": 294242
+      },
+      {
+        "w_warehouse_sk": 4,
+        "w_warehouse_name": "Bad cards must make.",
+        "w_country": "United States",
+        "w_state": "TN",
+        "w_warehouse_sq_ft": 621234
+      }
+    ],
+    "mode": "PREPARED_STATEMENT",
+    "parameters": {
+      "min_area": 0
+    }
+  }
+]

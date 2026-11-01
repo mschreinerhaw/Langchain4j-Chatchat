@@ -1,0 +1,253 @@
+{
+  "serviceId": "chatchat-mcp-server",
+  "metadata": {
+    "contractVersion": "sql-studio.metadata.v2",
+    "operation": "LIST_TABLES",
+    "status": "SUCCEEDED",
+    "snapshotId": "sha256:6b1d002650cffe5cab33578dce7c90346e6d6fbf6e0543f8328896e71cc8b873",
+    "provenance": [
+      {
+        "assetRef": "14f91784-38db-4e20-9795-d0caac64b1c8",
+        "snapshotId": "sha256:6b1d002650cffe5cab33578dce7c90346e6d6fbf6e0543f8328896e71cc8b873",
+        "source": "registered_metadata_index",
+        "sourceDialect": "mysql",
+        "collectedAt": "2026-11-01T05:34:44.207Z",
+        "sourceUpdatedAt": null
+      }
+    ],
+    "page": 1,
+    "pageSize": 100,
+    "totalMatched": 1,
+    "hasMore": false,
+    "items": [
+      {
+        "tableRef": "sha256:555da79915d4a96c31abe727c1b9e4941220ba285ce1c3a5665891af7daca289",
+        "database": "tpcds",
+        "schema": "tpcds",
+        "tableName": "warehouse",
+        "tableType": "BASE TABLE",
+        "comment": null,
+        "columns": [
+          {
+            "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+            "database": "tpcds",
+            "schema": "tpcds",
+            "table": "warehouse",
+            "name": "w_city",
+            "dataType": "varchar",
+            "columnType": "varchar(60)",
+            "columnKey": "",
+            "comment": null,
+            "nullable": true,
+            "ordinalPosition": 9
+          },
+          {
+            "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+            "database": "tpcds",
+            "schema": "tpcds",
+            "table": "warehouse",
+            "name": "w_country",
+            "dataType": "varchar",
+            "columnType": "varchar(20)",
+            "columnKey": "",
+            "comment": null,
+            "nullable": true,
+            "ordinalPosition": 13
+          },
+          {
+            "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+            "database": "tpcds",
+            "schema": "tpcds",
+            "table": "warehouse",
+            "name": "w_county",
+            "dataType": "varchar",
+            "columnType": "varchar(30)",
+            "columnKey": "",
+            "comment": null,
+            "nullable": true,
+            "ordinalPosition": 10
+          },
+          {
+            "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+            "database": "tpcds",
+            "schema": "tpcds",
+            "table": "warehouse",
+            "name": "w_gmt_offset",
+            "dataType": "decimal",
+            "columnType": "decimal(5,2)",
+            "columnKey": "",
+            "comment": null,
+            "nullable": true,
+            "ordinalPosition": 14
+          },
+          {
+            "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+            "database": "tpcds",
+            "schema": "tpcds",
+            "table": "warehouse",
+            "name": "w_state",
+            "dataType": "char",
+            "columnType": "char(2)",
+            "columnKey": "",
+            "comment": null,
+            "nullable": true,
+            "ordinalPosition": 11
+          },
+          {
+            "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+            "database": "tpcds",
+            "schema": "tpcds",
+            "table": "warehouse",
+            "name": "w_street_name",
+            "dataType": "varchar",
+            "columnType": "varchar(60)",
+            "columnKey": "",
+            "comment": null,
+            "nullable": true,
+            "ordinalPosition": 6
+          },
+          {
+            "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+            "database": "tpcds",
+            "schema": "tpcds",
+            "table": "warehouse",
+            "name": "w_street_number",
+            "dataType": "char",
+            "columnType": "char(10)",
+            "columnKey": "",
+            "comment": null,
+            "nullable": true,
+            "ordinalPosition": 5
+          },
+          {
+            "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+            "database": "tpcds",
+            "schema": "tpcds",
+            "table": "warehouse",
+            "name": "w_street_type",
+            "dataType": "char",
+            "columnType": "char(15)",
+            "columnKey": "",
+            "comment": null,
+            "nullable": true,
+            "ordinalPosition": 7
+          },
+          {
+            "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+            "database": "tpcds",
+            "schema": "tpcds",
+            "table": "warehouse",
+            "name": "w_suite_number",
+            "dataType": "char",
+            "columnType": "char(10)",
+            "columnKey": "",
+            "comment": null,
+            "nullable": true,
+            "ordinalPosition": 8
+          },
+          {
+            "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+            "database": "tpcds",
+            "schema": "tpcds",
+            "table": "warehouse",
+            "name": "w_warehouse_id",
+            "dataType": "char",
+            "columnType": "char(16)",
+            "columnKey": "",
+            "comment": null,
+            "nullable": false,
+            "ordinalPosition": 2
+          },
+          {
+            "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+            "database": "tpcds",
+            "schema": "tpcds",
+            "table": "warehouse",
+            "name": "w_warehouse_name",
+            "dataType": "varchar",
+            "columnType": "varchar(20)",
+            "columnKey": "",
+            "comment": null,
+            "nullable": true,
+            "ordinalPosition": 3
+          },
+          {
+            "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+            "database": "tpcds",
+            "schema": "tpcds",
+            "table": "warehouse",
+            "name": "w_warehouse_sk",
+            "dataType": "int",
+            "columnType": "int",
+            "columnKey": "PRI",
+            "comment": null,
+            "nullable": false,
+            "ordinalPosition": 1
+          },
+          {
+            "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+            "database": "tpcds",
+            "schema": "tpcds",
+            "table": "warehouse",
+            "name": "w_warehouse_sq_ft",
+            "dataType": "int",
+            "columnType": "int",
+            "columnKey": "",
+            "comment": null,
+            "nullable": true,
+            "ordinalPosition": 4
+          },
+          {
+            "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+            "database": "tpcds",
+            "schema": "tpcds",
+            "table": "warehouse",
+            "name": "w_zip",
+            "dataType": "char",
+            "columnType": "char(10)",
+            "columnKey": "",
+            "comment": null,
+            "nullable": true,
+            "ordinalPosition": 12
+          }
+        ],
+        "columnCount": 14,
+        "primaryKeys": [
+          "w_warehouse_sk"
+        ],
+        "primaryKeyStatus": "COLLECTED_VISIBLE",
+        "partitionKeys": [],
+        "partitionKeyStatus": "NOT_COLLECTED",
+        "businessGrainStatus": "UNCONFIRMED",
+        "relationsStatus": "COLLECTED_VISIBLE",
+        "foreignKeys": [],
+        "evidenceClass": "REGISTERED_METADATA",
+        "verificationStatus": "NOT_VERIFIED_LIVE"
+      }
+    ],
+    "doesNotExecuteSql": true,
+    "supportedOperations": [
+      "DESCRIBE",
+      "DESCRIBE_TABLE",
+      "GET_TABLE_DDL",
+      "GET_TABLE_RELATIONSHIPS",
+      "LIST_ASSETS",
+      "LIST_CATALOGS",
+      "LIST_NAMESPACES",
+      "LIST_SCHEMAS",
+      "LIST_TABLES",
+      "REFRESH",
+      "SEARCH",
+      "SEARCH_COLUMNS",
+      "SEARCH_TABLES"
+    ],
+    "evidenceClass": "REGISTERED_METADATA",
+    "verificationStatus": "NOT_VERIFIED_LIVE",
+    "workflow": {
+      "requestId": "087b5697-3b87-4d40-9607-6db1626ec949",
+      "workflowId": "SQL_METADATA_DISCOVERY",
+      "strategyOwner": "MODEL",
+      "operation": "LIST_TABLES"
+    }
+  }
+}

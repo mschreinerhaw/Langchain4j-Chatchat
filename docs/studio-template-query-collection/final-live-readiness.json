@@ -1,0 +1,26 @@
+{
+  "status": "RUNNING_AND_REGISTERED",
+  "capturedAt": "2026-11-01T07:47:12.428Z",
+  "releaseId": "abbb896a-5d1d-40fe-9997-ef58cc3cdae7",
+  "releaseState": "RUNNING",
+  "catalogCount": 13,
+  "visibleTemplateKeys": [
+    "sql_datasource:STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+    "sql_datasource:STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7"
+  ],
+  "registered": [
+    {
+      "name": "mcp_chatchat_mcp_server_studio_warehouse_20261101_template_query"
+    },
+    {
+      "name": "mcp_chatchat_mcp_server_tpl_ad24b8c03c8832a9adcbf41a5aee2f3c"
+    },
+    {
+      "name": "mcp_chatchat_mcp_server_tpl_7ce4de8a311331629bd8494bc73c2cc0"
+    }
+  ],
+  "agentId": "studio_collection_e2e_20261101",
+  "boundMcpToolNames": [
+    "mcp_chatchat_mcp_server_studio_warehouse_20261101_template_query"
+  ]
+}

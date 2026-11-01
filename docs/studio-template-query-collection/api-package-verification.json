@@ -1,0 +1,30 @@
+{
+  "status": "PASS",
+  "comparedJavaClasses": 2161,
+  "changedClasses": [
+    "BOOT-INF/classes/com/chatchat/api/service/McpRuntimeAccessService.class",
+    "chatchat-agents/com/chatchat/agents/runtime/tool/ToolRuntimeService$BatchValidation.class",
+    "chatchat-agents/com/chatchat/agents/runtime/tool/ToolRuntimeService$CircuitState.class",
+    "chatchat-agents/com/chatchat/agents/runtime/tool/ToolRuntimeService$InMemoryToolRuntimeUserPolicyStore.class",
+    "chatchat-agents/com/chatchat/agents/runtime/tool/ToolRuntimeService$ParameterDecision.class",
+    "chatchat-agents/com/chatchat/agents/runtime/tool/ToolRuntimeService$ToolCounters.class",
+    "chatchat-agents/com/chatchat/agents/runtime/tool/ToolRuntimeService$ToolPolicyDecision.class",
+    "chatchat-agents/com/chatchat/agents/runtime/tool/ToolRuntimeService$ToolRuntimeThreadFactory.class",
+    "chatchat-agents/com/chatchat/agents/runtime/tool/ToolRuntimeService$WorkflowDecision.class",
+    "chatchat-agents/com/chatchat/agents/runtime/tool/ToolRuntimeService$WorkflowState.class",
+    "chatchat-agents/com/chatchat/agents/runtime/tool/ToolRuntimeService.class",
+    "chatchat-integration/com/chatchat/integration/mcp/admin/DefaultMcpAdministrationAdapter.class"
+  ],
+  "exactFrontendFiles": 105,
+  "image": "runtime-os-api:studio-query-collection-20261101-r3",
+  "baselineSha256": "ba0bf9b0909d6546f5c8ca51c8d06fc453fcd21768d0075522065146518e703f",
+  "sha256": "9b7b9578bfbfa04b19c8343fec5efbe4fcdeabc1dddcfade60aef6c1e774d8c0",
+  "sourceCommit": "141661ec5717ab3b8ef1c4ec825f96e56479ebbb",
+  "expiredReadOnlyTaskIds": [],
+  "catalogReadinessAuthFile": "catalog-readiness-private.json",
+  "catalogReadinessExpectedTools": [
+    "mcp_chatchat_mcp_server_studio_warehouse_20261101_template_query",
+    "mcp_chatchat_mcp_server_tpl_7ce4de8a311331629bd8494bc73c2cc0",
+    "mcp_chatchat_mcp_server_tpl_ad24b8c03c8832a9adcbf41a5aee2f3c"
+  ]
+}

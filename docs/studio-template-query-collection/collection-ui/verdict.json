@@ -1,0 +1,10 @@
+{
+  "status": "PASS",
+  "scope": "REAL_UI_CREATE_VALIDATE_DISCOVERY_TEST_PUBLISH; SQL_EXECUTION_REQUIRES_AGENT_EVIDENCE",
+  "releaseId": "abbb896a-5d1d-40fe-9997-ef58cc3cdae7",
+  "toolName": "studio_warehouse_20261101_template_query",
+  "selectedTemplates": [
+    "sql_datasource:STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+    "sql_datasource:STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7"
+  ]
+}

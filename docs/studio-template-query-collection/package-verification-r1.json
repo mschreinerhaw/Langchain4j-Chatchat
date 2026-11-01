@@ -1,0 +1,30 @@
+{
+  "status": "PASS",
+  "comparedJavaClasses": 976,
+  "changedClasses": [
+    "com/chatchat/mcpserver/templatepublication/admin/TemplateQueryAdminController$MemberOption.class",
+    "com/chatchat/mcpserver/templatepublication/admin/TemplateQueryAdminController.class",
+    "com/chatchat/mcpserver/templatepublication/binding/TemplateQueryBindingService$1.class",
+    "com/chatchat/mcpserver/templatepublication/binding/TemplateQueryBindingService$BindingView.class",
+    "com/chatchat/mcpserver/templatepublication/binding/TemplateQueryBindingService$CachedPolicy.class",
+    "com/chatchat/mcpserver/templatepublication/binding/TemplateQueryBindingService$PolicyCacheKey.class",
+    "com/chatchat/mcpserver/templatepublication/binding/TemplateQueryBindingService$PolicyResolution.class",
+    "com/chatchat/mcpserver/templatepublication/binding/TemplateQueryBindingService$Subject.class",
+    "com/chatchat/mcpserver/templatepublication/binding/TemplateQueryBindingService$UpsertRequest.class",
+    "com/chatchat/mcpserver/templatepublication/binding/TemplateQueryBindingService.class",
+    "com/chatchat/mcpserver/templatepublication/catalog/TemplateAssetCatalogService$1.class",
+    "com/chatchat/mcpserver/templatepublication/catalog/TemplateAssetCatalogService$2.class",
+    "com/chatchat/mcpserver/templatepublication/catalog/TemplateAssetCatalogService$AuthorizationRef.class",
+    "com/chatchat/mcpserver/templatepublication/catalog/TemplateAssetCatalogService$BoundTemplate.class",
+    "com/chatchat/mcpserver/templatepublication/catalog/TemplateAssetCatalogService$CatalogEntry.class",
+    "com/chatchat/mcpserver/templatepublication/catalog/TemplateAssetCatalogService$CategoryRef.class",
+    "com/chatchat/mcpserver/templatepublication/catalog/TemplateAssetCatalogService$TemplateAsset.class",
+    "com/chatchat/mcpserver/templatepublication/catalog/TemplateAssetCatalogService.class",
+    "com/chatchat/mcpserver/templatepublication/catalog/TemplateQueryParentCatalog$ParentTool.class",
+    "com/chatchat/mcpserver/templatepublication/publisher/TemplateQueryMcpToolPublisher.class"
+  ],
+  "exactPackagedFrontendFiles": 6,
+  "sha256": "c7d4f932618137b4b301b49d523477704676bb96cc357d418e948243bc7a54f5",
+  "baselineSha256": "09ac18669952fdcf0b15f1a7d5a1ea9fa82a61820c70c443922e3d342530f08b",
+  "sourceCommit": "80c2e1f5ff1f072ea0563df4702885e74cdb4ff4"
+}

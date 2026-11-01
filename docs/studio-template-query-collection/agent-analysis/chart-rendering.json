@@ -1,0 +1,104 @@
+{
+  "status": "RENDERED_IN_SYSTEM_PAGE",
+  "charts": [
+    {
+      "id": "chart-area-bar",
+      "kind": "static",
+      "image": {
+        "width": 1380,
+        "height": 600,
+        "title": "明细仓库面积字段原值（面积原值 ≥ 0）"
+      }
+    },
+    {
+      "id": "chart-recon",
+      "kind": "static",
+      "image": {
+        "width": 1380,
+        "height": 540,
+        "title": "汇总口径与明细口径的记录数、面积原值合计对账"
+      }
+    },
+    {
+      "id": "chart-composition",
+      "kind": "plotly",
+      "figure": {
+        "data": [
+          {
+            "hole": 0.45,
+            "hovertemplate": "%{label}<br>面积原值 %{value:,.0f}<br>占合计 %{percent}<extra></extra>",
+            "labels": [
+              "SK 1（48.1%）",
+              "SK 4（30.6%）",
+              "SK 3（14.5%）",
+              "SK 2（6.8%）"
+            ],
+            "marker": {
+              "colors": [
+                "#33587A",
+                "#5B82A8",
+                "#8FA9C4",
+                "#C2CFDC"
+              ],
+              "line": {
+                "color": "white",
+                "width": 1
+              }
+            },
+            "sort": false,
+            "textinfo": "percent",
+            "values": [
+              977787,
+              621234,
+              294242,
+              138504
+            ],
+            "type": "pie"
+          }
+        ],
+        "layout": {
+          "template": {},
+          "title": {
+            "font": {
+              "size": 14
+            },
+            "text": "面积字段原值构成 · United States / TN · 合计 2,031,767（单位未声明）",
+            "x": 0.01
+          },
+          "legend": {
+            "orientation": "h",
+            "y": -0.12,
+            "x": 0
+          },
+          "margin": {
+            "l": 20,
+            "r": 20,
+            "t": 60,
+            "b": 40
+          },
+          "paper_bgcolor": "white",
+          "plot_bgcolor": "white",
+          "autosize": true
+        }
+      }
+    }
+  ],
+  "events": [
+    {
+      "fileId": "63dd8461ccbd5e70234537e91a3987cb41df6ed4a1700557bf1d4fc83652d806",
+      "kind": "png",
+      "durationMs": 87
+    },
+    {
+      "fileId": "ca783e7296080969ad7cca283b4f9fe0c34388a97afb44a905a9b438a0ffbb0d",
+      "kind": "png",
+      "durationMs": 80
+    },
+    {
+      "fileId": "4299019ca203b70581533aa66b9a2e8653dcffaf14837ca7ad8295a873bf4d4c",
+      "kind": "plotly",
+      "durationMs": 2005
+    }
+  ],
+  "diagnostics": []
+}

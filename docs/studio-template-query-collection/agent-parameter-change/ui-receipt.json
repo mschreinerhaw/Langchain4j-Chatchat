@@ -1,0 +1,11 @@
+{
+  "taskId": "8d812fab-2c04-4479-b615-e79bae2d7ff1",
+  "sessionId": "1793519027732-a6b161da74a42",
+  "agentId": "studio_collection_e2e_20261101",
+  "state": "SUCCEEDED",
+  "answerVisible": true,
+  "runs": [
+    "att-1-0aa74bdf-64e4-48e7-a7ce-3633199ce31a"
+  ],
+  "capturedAt": "2026-11-01T07:44:51.639Z"
+}

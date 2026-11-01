@@ -1,0 +1,29 @@
+{
+  "id": "47b17c5b-51bf-39ac-a93b-4d2f1a8914cc",
+  "code": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+  "sqlTemplate": "-- ============================================================================\n-- warehouse_summary.sql\n-- TPC-D S warehouse summary by country and state\n-- Dialect : MySQL\n-- Purpose : Group warehouses by country (w_country) and state (w_state),\n--           compute count and square-footage aggregates (SUM / MIN / MAX).\n-- Notes   : - NULL groups are preserved (MySQL GROUP BY keeps NULLs).\n--           - w_warehouse_sq_ft is kept as raw integer values; no unit\n--             conversion or guessing is applied.\n--           - Read-only; no parameters, no warehouse-id filters.\n-- Source  : tpcds.warehouse (REGISTERED_METADATA)\n-- ============================================================================\n\nSELECT\n    w_country,\n    w_state,\n    COUNT(*)                 AS warehouse_count,\n    SUM(w_warehouse_sq_ft)   AS total_warehouse_sq_ft,\n    MIN(w_warehouse_sq_ft)   AS min_warehouse_sq_ft,\n    MAX(w_warehouse_sq_ft)   AS max_warehouse_sq_ft\nFROM tpcds.warehouse\nGROUP BY\n    w_country,\n    w_state\nORDER BY\n    w_country,\n    w_state;\n",
+  "parameterSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+  "databaseType": "mysql",
+  "title": "仓库地区分布与面积汇总",
+  "description": "按国家及省州汇总仓库数量与面积字段原值，保留空分组；不推断面积单位。",
+  "category": "data_asset_exploration",
+  "source": {
+    "projectId": "c4f87abd-8d26-4b2d-a4fd-bb09212b9987",
+    "fileId": "2f837875-7d21-4f8f-8a1e-e10d21953d34",
+    "fileVersion": 1,
+    "sqlDigest": "eafe514c132cfda65745422a25fd8d72a537466dd753eaeae57982bc8bc231b1"
+  },
+  "groupId": "47b17c5b-51bf-39ac-a93b-4d2f1a8914cc",
+  "version": 1,
+  "expectedVersion": 0,
+  "state": "DRAFT",
+  "active": false,
+  "testEvidence": null,
+  "templateKey": "sql_datasource:STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+  "releaseHistory": []
+}

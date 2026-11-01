@@ -1,0 +1,47 @@
+{
+  "projectName": "SQL Studio 查询集合全链路验收 20261101",
+  "serviceId": "chatchat-mcp-server",
+  "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+  "database": "tpcds",
+  "dialect": "mysql",
+  "tables": [
+    "warehouse"
+  ],
+  "templates": {
+    "summary": {
+      "path": "sql/warehouse_summary.sql",
+      "prompt": "基于实际 MySQL TPCDS warehouse 元数据，生成 sql/warehouse_summary.sql：按国家和省州分组统计仓库数量、w_warehouse_sq_ft 的合计、最小值、最大值；保留 NULL 分组，按国家和省州排序。不指定任何仓库编号，无参数；输出只读 SQL，字段别名清晰稳定。w_warehouse_sq_ft 保留原始数值，不猜测单位、不换算，不执行或编造结果。",
+      "title": "仓库地区分布与面积汇总",
+      "description": "按国家及省州汇总仓库数量与面积字段原值，保留空分组；不推断面积单位。",
+      "category": "data_asset_exploration",
+      "parameterSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "trialParameters": {}
+    },
+    "detail": {
+      "path": "sql/warehouse_details.sql",
+      "prompt": "基于实际 MySQL TPCDS warehouse 元数据，生成 sql/warehouse_details.sql：查询仓库主键、仓库名称、国家、省州及 w_warehouse_sq_ft 面积字段原值，使用 {{min_area}} 数值参数过滤 w_warehouse_sq_ft >= 最低面积阈值，按仓库主键排序。不得固定仓库编号，不做单位换算；仅单条只读 SQL 和简短口径注释，不执行或编造结果。",
+      "title": "仓库面积明细查询",
+      "description": "按最低面积原值阈值筛选仓库，返回主键、名称、地区及面积；参数 min_area 默认0，不推断单位。",
+      "category": "data_asset_exploration",
+      "parameterSchema": {
+        "type": "object",
+        "properties": {
+          "min_area": {
+            "type": "number",
+            "minimum": 0,
+            "default": 0,
+            "description": "最低面积字段原值，不换算单位"
+          }
+        },
+        "additionalProperties": false
+      },
+      "trialParameters": {
+        "min_area": 0
+      }
+    }
+  }
+}

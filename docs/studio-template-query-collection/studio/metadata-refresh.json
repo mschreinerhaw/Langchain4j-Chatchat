@@ -1,0 +1,18 @@
+{
+  "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+  "databaseType": "mysql",
+  "schemaCount": 19,
+  "tableCount": 1399,
+  "columnCount": 16358,
+  "refreshedAtMs": 1793511284207,
+  "durationMs": 26079,
+  "persistedToRocksDb": true,
+  "persistState": {
+    "enabled": true,
+    "status": "PERSISTED",
+    "message": null
+  },
+  "error": null,
+  "objectCount": 1399,
+  "fieldCount": 16358
+}

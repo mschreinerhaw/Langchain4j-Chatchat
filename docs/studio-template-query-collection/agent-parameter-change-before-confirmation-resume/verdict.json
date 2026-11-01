@@ -1,0 +1,6 @@
+{
+  "status": "FAIL",
+  "reason": "Repeated confirmation after argument mutation; direct replay lost Runtime-owned template binding. Own waiting acceptance task rejected through normal control API after harness failure.",
+  "taskId": "b916e355-3bb6-4c1f-be22-a52ea13886c4",
+  "canonicalState": "REJECTED"
+}

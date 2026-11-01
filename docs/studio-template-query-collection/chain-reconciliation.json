@@ -1,0 +1,152 @@
+{
+  "status": "REAL_QUERY_ANALYSIS_ARTIFACT_AND_PARAMETER_CHANGE_VERIFIED",
+  "scope": "248 TPCDS warehouse; superadministrator role; independent JDBC comparison. Data discrepancies and semantic limits are retained, not rewritten as a full business-validation pass.",
+  "capturedAt": "2026-11-01T07:47:28.440Z",
+  "sourceChecks": [
+    {
+      "template": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+      "savedTestedPublishedDigest": "eafe514c132cfda65745422a25fd8d72a537466dd753eaeae57982bc8bc231b1",
+      "tool": "tpl_ad24b8c03c8832a9adcbf41a5aee2f3c"
+    },
+    {
+      "template": "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+      "savedTestedPublishedDigest": "e1cf1407bc6ff9ed39a3469caefc0b4552404abb992ba066a93ae8314694b023",
+      "tool": "tpl_7ce4de8a311331629bd8494bc73c2cc0"
+    }
+  ],
+  "actualQueryReceipts": [
+    {
+      "template": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+      "target": "14f91784-38db-4e20-9795-d0caac64b1c8",
+      "generatedAt": "2026-11-01T07:38:28.309213417Z",
+      "mode": "PREPARED_STATEMENT",
+      "parameters": {},
+      "rows": [
+        {
+          "w_country": "United States",
+          "w_state": "TN",
+          "warehouse_count": 5,
+          "total_warehouse_sq_ft": 2031767,
+          "min_warehouse_sq_ft": 138504,
+          "max_warehouse_sq_ft": 977787
+        }
+      ]
+    },
+    {
+      "template": "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+      "target": "14f91784-38db-4e20-9795-d0caac64b1c8",
+      "generatedAt": "2026-11-01T07:38:28.720807038Z",
+      "mode": "PREPARED_STATEMENT",
+      "parameters": {
+        "min_area": 0
+      },
+      "rows": [
+        {
+          "w_warehouse_sk": 1,
+          "w_warehouse_name": "Conventional childr",
+          "w_country": "United States",
+          "w_state": "TN",
+          "w_warehouse_sq_ft": 977787
+        },
+        {
+          "w_warehouse_sk": 2,
+          "w_warehouse_name": "Important issues liv",
+          "w_country": "United States",
+          "w_state": "TN",
+          "w_warehouse_sq_ft": 138504
+        },
+        {
+          "w_warehouse_sk": 3,
+          "w_warehouse_name": "Doors canno",
+          "w_country": "United States",
+          "w_state": "TN",
+          "w_warehouse_sq_ft": 294242
+        },
+        {
+          "w_warehouse_sk": 4,
+          "w_warehouse_name": "Bad cards must make.",
+          "w_country": "United States",
+          "w_state": "TN",
+          "w_warehouse_sq_ft": 621234
+        }
+      ]
+    },
+    {
+      "template": "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+      "target": "14f91784-38db-4e20-9795-d0caac64b1c8",
+      "generatedAt": "2026-11-01T07:43:57.638471184Z",
+      "mode": "PREPARED_STATEMENT",
+      "parameters": {
+        "min_area": 294242
+      },
+      "rows": [
+        {
+          "w_warehouse_sk": 1,
+          "w_warehouse_name": "Conventional childr",
+          "w_country": "United States",
+          "w_state": "TN",
+          "w_warehouse_sq_ft": 977787
+        },
+        {
+          "w_warehouse_sk": 3,
+          "w_warehouse_name": "Doors canno",
+          "w_country": "United States",
+          "w_state": "TN",
+          "w_warehouse_sq_ft": 294242
+        },
+        {
+          "w_warehouse_sk": 4,
+          "w_warehouse_name": "Bad cards must make.",
+          "w_country": "United States",
+          "w_state": "TN",
+          "w_warehouse_sq_ft": 621234
+        }
+      ]
+    }
+  ],
+  "reportTableCellsCompared": 26,
+  "python": {
+    "successfulExecutions": 1,
+    "validationStatuses": [
+      "INCONCLUSIVE"
+    ],
+    "repairedExecutions": 1,
+    "codeSha256": "a9a8fa307d29d156817860144b2d0e52addffb32cb4a076a16aba6840427e3cd"
+  },
+  "renderedCharts": [
+    {
+      "id": "chart-area-bar",
+      "kind": "static"
+    },
+    {
+      "id": "chart-recon",
+      "kind": "static"
+    },
+    {
+      "id": "chart-composition",
+      "kind": "plotly"
+    }
+  ],
+  "analysisTaskState": "PARTIAL",
+  "analysisStatus": "FAILED",
+  "businessValidationStatus": "FAILED",
+  "parameterTaskState": "SUCCEEDED",
+  "changedParameter": {
+    "min_area": 294242,
+    "warehouseIds": [
+      1,
+      3,
+      4
+    ],
+    "count": 3,
+    "total": 1893263
+  },
+  "limitations": [
+    "面积字段的单位、刻度与业务口径在源查询定义与模板说明中均未声明，本报告只汇总原值并呈现原值明细，未做任何单位换算、容量或利用率推断。",
+    "明细数据集按用户请求的 min_area=0 过滤，仅返回 4 条记录；汇总口径的 1 条差额记录（面积原值为空）未在授权数据中返回，其主键、名称与面积原值无法核实。",
+    "返回数据只包含 1 个国家/省州分组（United States / TN），无法得出跨国家或跨省州的分布结构与地区间比较结论。",
+    "数据集不含任何日期字段，仓库记录为快照式主数据，因此不存在期间、趋势、同比/环比等时间维度结论。",
+    "数量差异的归因（差额记录面积原值为空）由合计与极值完全一致、并结合 ≥ 0 的筛选条件推导得出，属于证据充分但非直接观测的推断，差额记录本身未被观测到。",
+    "字段含义依据执行回执中的源查询定义（分组列、COUNT/SUM/MIN/MAX 别名表达式）与模板说明确认；两个数据集均未提供额外的字段字典，未对名称、地区等业务含义做超出字面值的解释。"
+  ]
+}

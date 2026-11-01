@@ -1,0 +1,106 @@
+{
+  "id": "271b4d6f-a928-3dbe-9aa5-26d49f0bfff7",
+  "code": "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+  "sqlTemplate": "-- 仓库面积筛选：w_warehouse_sq_ft 取原值（平方英尺），不做单位换算；{{min_area}} 为数值参数，代表最低面积阈值\nSELECT\n    w_warehouse_sk,\n    w_warehouse_name,\n    w_country,\n    w_state,\n    w_warehouse_sq_ft\nFROM tpcds.warehouse\nWHERE w_warehouse_sq_ft >= {{min_area}}\nORDER BY w_warehouse_sk;\n",
+  "parameterSchema": {
+    "type": "object",
+    "properties": {
+      "min_area": {
+        "type": "number",
+        "minimum": 0,
+        "default": 0,
+        "description": "最低面积字段原值，不换算单位"
+      }
+    },
+    "additionalProperties": false
+  },
+  "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+  "databaseType": "mysql",
+  "title": "仓库面积明细查询",
+  "description": "按最低面积原值阈值筛选仓库，返回主键、名称、地区及面积；参数 min_area 默认0，不推断单位。",
+  "category": "data_asset_exploration",
+  "source": {
+    "projectId": "c4f87abd-8d26-4b2d-a4fd-bb09212b9987",
+    "fileId": "1d124dc8-ded5-41dd-ba36-57c7f5ae2020",
+    "fileVersion": 1,
+    "sqlDigest": "e1cf1407bc6ff9ed39a3469caefc0b4552404abb992ba066a93ae8314694b023"
+  },
+  "groupId": "271b4d6f-a928-3dbe-9aa5-26d49f0bfff7",
+  "version": 1,
+  "expectedVersion": 2,
+  "state": "TESTED",
+  "active": false,
+  "testEvidence": {
+    "type": "SQL_DATABASE_EXECUTION",
+    "testId": "5e09925c-40c1-4ea2-92e1-9e9b48bc2f49",
+    "testedAt": "2026-11-01T05:57:50.302281682Z",
+    "traceId": "5e09925c-40c1-4ea2-92e1-9e9b48bc2f49",
+    "source": {
+      "projectId": "c4f87abd-8d26-4b2d-a4fd-bb09212b9987",
+      "fileId": "1d124dc8-ded5-41dd-ba36-57c7f5ae2020",
+      "fileVersion": 1,
+      "sqlDigest": "e1cf1407bc6ff9ed39a3469caefc0b4552404abb992ba066a93ae8314694b023"
+    },
+    "fingerprint": "823c3240cdae9b15cf26ef0d747e7d091cf86c0ffdb556f31b29dbf7085b4bec",
+    "sqlDigest": "e1cf1407bc6ff9ed39a3469caefc0b4552404abb992ba066a93ae8314694b023",
+    "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+    "datasourceDigest": "b27ffa4e8417483716307f5616dd281a627fe54e669e1216687643f4dca1b0c4",
+    "parameters": {
+      "min_area": 0
+    },
+    "parametersDigest": "3916e262891b96a9bb19ee52a17bfa71d526176f51883572b576eea079efb6fa",
+    "timeoutSeconds": 10,
+    "maxRows": 50,
+    "success": true,
+    "resultDigest": "18e4fcb62240b7f7b39e5b100f30fcf7daf4bc19e1a313241131601ffb90ea54",
+    "rowCount": 4,
+    "errorCode": "",
+    "preview": {
+      "columns": [
+        "w_warehouse_sk",
+        "w_warehouse_name",
+        "w_country",
+        "w_state",
+        "w_warehouse_sq_ft"
+      ],
+      "rows": [
+        {
+          "w_warehouse_sk": 1,
+          "w_warehouse_name": "Conventional childr",
+          "w_country": "United States",
+          "w_state": "TN",
+          "w_warehouse_sq_ft": 977787
+        },
+        {
+          "w_warehouse_sk": 2,
+          "w_warehouse_name": "Important issues liv",
+          "w_country": "United States",
+          "w_state": "TN",
+          "w_warehouse_sq_ft": 138504
+        },
+        {
+          "w_warehouse_sk": 3,
+          "w_warehouse_name": "Doors canno",
+          "w_country": "United States",
+          "w_state": "TN",
+          "w_warehouse_sq_ft": 294242
+        },
+        {
+          "w_warehouse_sk": 4,
+          "w_warehouse_name": "Bad cards must make.",
+          "w_country": "United States",
+          "w_state": "TN",
+          "w_warehouse_sq_ft": 621234
+        }
+      ],
+      "returnedRowCount": 4,
+      "possiblyTruncated": false,
+      "complete": true,
+      "previewTruncated": false
+    },
+    "diagnostic": "SQL query executed successfully",
+    "durationMs": 219
+  },
+  "templateKey": "sql_datasource:STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+  "releaseHistory": []
+}

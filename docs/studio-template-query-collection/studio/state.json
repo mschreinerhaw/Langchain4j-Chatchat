@@ -1,0 +1,474 @@
+{
+  "project": {
+    "id": "c4f87abd-8d26-4b2d-a4fd-bb09212b9987",
+    "name": "SQL Studio 查询集合全链路验收 20261101",
+    "dialect": "mysql",
+    "sessionId": "02452dd0-21f2-474a-840f-2147b5b3da24",
+    "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+    "ownerId": "2f219487-11a3-4a1d-9130-ac500b62f268"
+  },
+  "mapping": {
+    "id": "98e5d220-070b-47c7-a3fe-32fa47500197",
+    "projectId": "c4f87abd-8d26-4b2d-a4fd-bb09212b9987",
+    "path": "mapping/source.json",
+    "kind": "MAPPING",
+    "content": "{\"source\":\"REGISTERED_METADATA\",\"database\":\"tpcds\",\"tables\":[{\"tableRef\":\"sha256:555da79915d4a96c31abe727c1b9e4941220ba285ce1c3a5665891af7daca289\",\"database\":\"tpcds\",\"schema\":\"tpcds\",\"tableName\":\"warehouse\",\"tableType\":\"BASE TABLE\",\"comment\":null,\"columns\":[{\"datasourceId\":\"14f91784-38db-4e20-9795-d0caac64b1c8\",\"database\":\"tpcds\",\"schema\":\"tpcds\",\"table\":\"warehouse\",\"name\":\"w_city\",\"dataType\":\"varchar\",\"columnType\":\"varchar(60)\",\"columnKey\":\"\",\"comment\":null,\"nullable\":true,\"ordinalPosition\":9},{\"datasourceId\":\"14f91784-38db-4e20-9795-d0caac64b1c8\",\"database\":\"tpcds\",\"schema\":\"tpcds\",\"table\":\"warehouse\",\"name\":\"w_country\",\"dataType\":\"varchar\",\"columnType\":\"varchar(20)\",\"columnKey\":\"\",\"comment\":null,\"nullable\":true,\"ordinalPosition\":13},{\"datasourceId\":\"14f91784-38db-4e20-9795-d0caac64b1c8\",\"database\":\"tpcds\",\"schema\":\"tpcds\",\"table\":\"warehouse\",\"name\":\"w_county\",\"dataType\":\"varchar\",\"columnType\":\"varchar(30)\",\"columnKey\":\"\",\"comment\":null,\"nullable\":true,\"ordinalPosition\":10},{\"datasourceId\":\"14f91784-38db-4e20-9795-d0caac64b1c8\",\"database\":\"tpcds\",\"schema\":\"tpcds\",\"table\":\"warehouse\",\"name\":\"w_gmt_offset\",\"dataType\":\"decimal\",\"columnType\":\"decimal(5,2)\",\"columnKey\":\"\",\"comment\":null,\"nullable\":true,\"ordinalPosition\":14},{\"datasourceId\":\"14f91784-38db-4e20-9795-d0caac64b1c8\",\"database\":\"tpcds\",\"schema\":\"tpcds\",\"table\":\"warehouse\",\"name\":\"w_state\",\"dataType\":\"char\",\"columnType\":\"char(2)\",\"columnKey\":\"\",\"comment\":null,\"nullable\":true,\"ordinalPosition\":11},{\"datasourceId\":\"14f91784-38db-4e20-9795-d0caac64b1c8\",\"database\":\"tpcds\",\"schema\":\"tpcds\",\"table\":\"warehouse\",\"name\":\"w_street_name\",\"dataType\":\"varchar\",\"columnType\":\"varchar(60)\",\"columnKey\":\"\",\"comment\":null,\"nullable\":true,\"ordinalPosition\":6},{\"datasourceId\":\"14f91784-38db-4e20-9795-d0caac64b1c8\",\"database\":\"tpcds\",\"schema\":\"tpcds\",\"table\":\"warehouse\",\"name\":\"w_street_number\",\"dataType\":\"char\",\"columnType\":\"char(10)\",\"columnKey\":\"\",\"comment\":null,\"nullable\":true,\"ordinalPosition\":5},{\"datasourceId\":\"14f91784-38db-4e20-9795-d0caac64b1c8\",\"database\":\"tpcds\",\"schema\":\"tpcds\",\"table\":\"warehouse\",\"name\":\"w_street_type\",\"dataType\":\"char\",\"columnType\":\"char(15)\",\"columnKey\":\"\",\"comment\":null,\"nullable\":true,\"ordinalPosition\":7},{\"datasourceId\":\"14f91784-38db-4e20-9795-d0caac64b1c8\",\"database\":\"tpcds\",\"schema\":\"tpcds\",\"table\":\"warehouse\",\"name\":\"w_suite_number\",\"dataType\":\"char\",\"columnType\":\"char(10)\",\"columnKey\":\"\",\"comment\":null,\"nullable\":true,\"ordinalPosition\":8},{\"datasourceId\":\"14f91784-38db-4e20-9795-d0caac64b1c8\",\"database\":\"tpcds\",\"schema\":\"tpcds\",\"table\":\"warehouse\",\"name\":\"w_warehouse_id\",\"dataType\":\"char\",\"columnType\":\"char(16)\",\"columnKey\":\"\",\"comment\":null,\"nullable\":false,\"ordinalPosition\":2},{\"datasourceId\":\"14f91784-38db-4e20-9795-d0caac64b1c8\",\"database\":\"tpcds\",\"schema\":\"tpcds\",\"table\":\"warehouse\",\"name\":\"w_warehouse_name\",\"dataType\":\"varchar\",\"columnType\":\"varchar(20)\",\"columnKey\":\"\",\"comment\":null,\"nullable\":true,\"ordinalPosition\":3},{\"datasourceId\":\"14f91784-38db-4e20-9795-d0caac64b1c8\",\"database\":\"tpcds\",\"schema\":\"tpcds\",\"table\":\"warehouse\",\"name\":\"w_warehouse_sk\",\"dataType\":\"int\",\"columnType\":\"int\",\"columnKey\":\"PRI\",\"comment\":null,\"nullable\":false,\"ordinalPosition\":1},{\"datasourceId\":\"14f91784-38db-4e20-9795-d0caac64b1c8\",\"database\":\"tpcds\",\"schema\":\"tpcds\",\"table\":\"warehouse\",\"name\":\"w_warehouse_sq_ft\",\"dataType\":\"int\",\"columnType\":\"int\",\"columnKey\":\"\",\"comment\":null,\"nullable\":true,\"ordinalPosition\":4},{\"datasourceId\":\"14f91784-38db-4e20-9795-d0caac64b1c8\",\"database\":\"tpcds\",\"schema\":\"tpcds\",\"table\":\"warehouse\",\"name\":\"w_zip\",\"dataType\":\"char\",\"columnType\":\"char(10)\",\"columnKey\":\"\",\"comment\":null,\"nullable\":true,\"ordinalPosition\":12}],\"columnCount\":14,\"primaryKeys\":[\"w_warehouse_sk\"],\"primaryKeyStatus\":\"COLLECTED_VISIBLE\",\"partitionKeys\":[],\"partitionKeyStatus\":\"NOT_COLLECTED\",\"businessGrainStatus\":\"UNCONFIRMED\",\"relationsStatus\":\"COLLECTED_VISIBLE\",\"foreignKeys\":[],\"evidenceClass\":\"REGISTERED_METADATA\",\"verificationStatus\":\"NOT_VERIFIED_LIVE\"}]}",
+    "version": 1,
+    "editable": true,
+    "sourceTaskId": null
+  },
+  "summaryInitialFailed": {
+    "generationId": "22100593-b61a-4f7d-92d8-2f2882a0a5a6",
+    "prompt": "基于实际 MySQL TPCDS warehouse 元数据，生成 sql/warehouse_summary.sql：按国家和省州分组统计仓库数量、w_sq_ft 的合计、最小值、最大值；保留 NULL 分组，按国家和省州排序。不指定任何仓库编号，无参数；输出只读 SQL，字段别名清晰稳定。w_sq_ft 保留原始数值，不猜测单位、不换算，不执行或编造结果。"
+  },
+  "summarySecondFailed": {
+    "generationId": "113bb05a-84b8-4086-9982-ad16444e09ab",
+    "prompt": "基于实际 MySQL TPCDS warehouse 元数据，生成 sql/warehouse_summary.sql：按国家和省州分组统计仓库数量、w_warehouse_sq_ft 的合计、最小值、最大值；保留 NULL 分组，按国家和省州排序。不指定任何仓库编号，无参数；输出只读 SQL，字段别名清晰稳定。w_warehouse_sq_ft 保留原始数值，不猜测单位、不换算，不执行或编造结果。"
+  },
+  "summary": {
+    "generationId": "18af9b70-ba4a-46a8-9a22-b7ee222ab9f4",
+    "prompt": "基于实际 MySQL TPCDS warehouse 元数据，生成 sql/warehouse_summary.sql：按国家和省州分组统计仓库数量、w_warehouse_sq_ft 的合计、最小值、最大值；保留 NULL 分组，按国家和省州排序。不指定任何仓库编号，无参数；输出只读 SQL，字段别名清晰稳定。w_warehouse_sq_ft 保留原始数值，不猜测单位、不换算，不执行或编造结果。",
+    "file": {
+      "id": "2f837875-7d21-4f8f-8a1e-e10d21953d34",
+      "projectId": "c4f87abd-8d26-4b2d-a4fd-bb09212b9987",
+      "path": "sql/warehouse_summary.sql",
+      "kind": "SQL",
+      "content": "-- ============================================================================\n-- warehouse_summary.sql\n-- TPC-D S warehouse summary by country and state\n-- Dialect : MySQL\n-- Purpose : Group warehouses by country (w_country) and state (w_state),\n--           compute count and square-footage aggregates (SUM / MIN / MAX).\n-- Notes   : - NULL groups are preserved (MySQL GROUP BY keeps NULLs).\n--           - w_warehouse_sq_ft is kept as raw integer values; no unit\n--             conversion or guessing is applied.\n--           - Read-only; no parameters, no warehouse-id filters.\n-- Source  : tpcds.warehouse (REGISTERED_METADATA)\n-- ============================================================================\n\nSELECT\n    w_country,\n    w_state,\n    COUNT(*)                 AS warehouse_count,\n    SUM(w_warehouse_sq_ft)   AS total_warehouse_sq_ft,\n    MIN(w_warehouse_sq_ft)   AS min_warehouse_sq_ft,\n    MAX(w_warehouse_sq_ft)   AS max_warehouse_sq_ft\nFROM tpcds.warehouse\nGROUP BY\n    w_country,\n    w_state\nORDER BY\n    w_country,\n    w_state;\n",
+      "version": 1,
+      "editable": true,
+      "sourceTaskId": "sql-coding-18af9b70-ba4a-46a8-9a22-b7ee222ab9f4"
+    },
+    "operationId": "8da26d67-0761-4078-8672-c635c70a3583",
+    "row": {
+      "id": "47b17c5b-51bf-39ac-a93b-4d2f1a8914cc",
+      "code": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+      "sqlTemplate": "-- ============================================================================\n-- warehouse_summary.sql\n-- TPC-D S warehouse summary by country and state\n-- Dialect : MySQL\n-- Purpose : Group warehouses by country (w_country) and state (w_state),\n--           compute count and square-footage aggregates (SUM / MIN / MAX).\n-- Notes   : - NULL groups are preserved (MySQL GROUP BY keeps NULLs).\n--           - w_warehouse_sq_ft is kept as raw integer values; no unit\n--             conversion or guessing is applied.\n--           - Read-only; no parameters, no warehouse-id filters.\n-- Source  : tpcds.warehouse (REGISTERED_METADATA)\n-- ============================================================================\n\nSELECT\n    w_country,\n    w_state,\n    COUNT(*)                 AS warehouse_count,\n    SUM(w_warehouse_sq_ft)   AS total_warehouse_sq_ft,\n    MIN(w_warehouse_sq_ft)   AS min_warehouse_sq_ft,\n    MAX(w_warehouse_sq_ft)   AS max_warehouse_sq_ft\nFROM tpcds.warehouse\nGROUP BY\n    w_country,\n    w_state\nORDER BY\n    w_country,\n    w_state;\n",
+      "parameterSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+      "databaseType": "mysql",
+      "title": "仓库地区分布与面积汇总",
+      "description": "按国家及省州汇总仓库数量与面积字段原值，保留空分组；不推断面积单位。",
+      "category": "data_asset_exploration",
+      "source": {
+        "projectId": "c4f87abd-8d26-4b2d-a4fd-bb09212b9987",
+        "fileId": "2f837875-7d21-4f8f-8a1e-e10d21953d34",
+        "fileVersion": 1,
+        "sqlDigest": "eafe514c132cfda65745422a25fd8d72a537466dd753eaeae57982bc8bc231b1"
+      },
+      "groupId": "47b17c5b-51bf-39ac-a93b-4d2f1a8914cc",
+      "version": 1,
+      "expectedVersion": 3,
+      "state": "PUBLISHED",
+      "active": true,
+      "testEvidence": {
+        "type": "SQL_DATABASE_EXECUTION",
+        "testId": "4d0e2ee1-61c0-4c18-b11d-b845123e5fd4",
+        "testedAt": "2026-11-01T05:57:38.510944015Z",
+        "traceId": "4d0e2ee1-61c0-4c18-b11d-b845123e5fd4",
+        "source": {
+          "projectId": "c4f87abd-8d26-4b2d-a4fd-bb09212b9987",
+          "fileId": "2f837875-7d21-4f8f-8a1e-e10d21953d34",
+          "fileVersion": 1,
+          "sqlDigest": "eafe514c132cfda65745422a25fd8d72a537466dd753eaeae57982bc8bc231b1"
+        },
+        "fingerprint": "9dfa5a4d447f4b553b3c56420d222624e98e12742631b691cba174374fc14298",
+        "sqlDigest": "eafe514c132cfda65745422a25fd8d72a537466dd753eaeae57982bc8bc231b1",
+        "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+        "datasourceDigest": "b27ffa4e8417483716307f5616dd281a627fe54e669e1216687643f4dca1b0c4",
+        "parameters": {},
+        "parametersDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+        "timeoutSeconds": 10,
+        "maxRows": 50,
+        "success": true,
+        "resultDigest": "c9026cb0d3e028a0255523ab9076d4294df7ff68b76bec9978bac167b44ca3a2",
+        "rowCount": 1,
+        "errorCode": "",
+        "preview": {
+          "columns": [
+            "w_country",
+            "w_state",
+            "warehouse_count",
+            "total_warehouse_sq_ft",
+            "min_warehouse_sq_ft",
+            "max_warehouse_sq_ft"
+          ],
+          "rows": [
+            {
+              "w_country": "United States",
+              "w_state": "TN",
+              "warehouse_count": 5,
+              "total_warehouse_sq_ft": 2031767,
+              "min_warehouse_sq_ft": 138504,
+              "max_warehouse_sq_ft": 977787
+            }
+          ],
+          "returnedRowCount": 1,
+          "possiblyTruncated": false,
+          "complete": true,
+          "previewTruncated": false
+        },
+        "diagnostic": "SQL query executed successfully",
+        "durationMs": 342
+      },
+      "templateKey": "sql_datasource:STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+      "publication": {
+        "logicalId": "ad24b8c0-3c88-32a9-adcb-f41a5aee2f3c",
+        "templateKey": "sql_datasource:STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+        "description": "按国家及省州汇总仓库数量与面积字段原值，保留空分组；不推断面积单位。",
+        "state": "RUNNING",
+        "id": "f5d94031-bf67-4a9d-ba45-4c3b9778b0c6",
+        "toolName": "tpl_ad24b8c03c8832a9adcbf41a5aee2f3c",
+        "revision": "c82ee250e5269ade6638b473491b29a8115c49bb890fbf90ab7c92afbfb2e0d4",
+        "assetName": "SQL Studio 查询集合验收（248 TPCDS）",
+        "title": "仓库地区分布与面积汇总",
+        "category": "数据资产探索",
+        "version": 1,
+        "publishedAt": "2026-11-01T05:57:49.793673455Z"
+      },
+      "releaseHistory": [
+        {
+          "publication": {
+            "logicalId": "ad24b8c0-3c88-32a9-adcb-f41a5aee2f3c",
+            "templateKey": "sql_datasource:STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+            "description": "按国家及省州汇总仓库数量与面积字段原值，保留空分组；不推断面积单位。",
+            "state": "RUNNING",
+            "id": "f5d94031-bf67-4a9d-ba45-4c3b9778b0c6",
+            "toolName": "tpl_ad24b8c03c8832a9adcbf41a5aee2f3c",
+            "revision": "c82ee250e5269ade6638b473491b29a8115c49bb890fbf90ab7c92afbfb2e0d4",
+            "assetName": "SQL Studio 查询集合验收（248 TPCDS）",
+            "title": "仓库地区分布与面积汇总",
+            "category": "数据资产探索",
+            "version": 1,
+            "publishedAt": "2026-11-01T05:57:49.793673455Z"
+          },
+          "sqlTest": {
+            "type": "SQL_DATABASE_EXECUTION",
+            "testId": "4d0e2ee1-61c0-4c18-b11d-b845123e5fd4",
+            "testedAt": "2026-11-01T05:57:38.510944015Z",
+            "traceId": "4d0e2ee1-61c0-4c18-b11d-b845123e5fd4",
+            "source": {
+              "projectId": "c4f87abd-8d26-4b2d-a4fd-bb09212b9987",
+              "fileId": "2f837875-7d21-4f8f-8a1e-e10d21953d34",
+              "fileVersion": 1,
+              "sqlDigest": "eafe514c132cfda65745422a25fd8d72a537466dd753eaeae57982bc8bc231b1"
+            },
+            "fingerprint": "9dfa5a4d447f4b553b3c56420d222624e98e12742631b691cba174374fc14298",
+            "sqlDigest": "eafe514c132cfda65745422a25fd8d72a537466dd753eaeae57982bc8bc231b1",
+            "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+            "datasourceDigest": "b27ffa4e8417483716307f5616dd281a627fe54e669e1216687643f4dca1b0c4",
+            "parameters": {},
+            "parametersDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "timeoutSeconds": 10,
+            "maxRows": 50,
+            "success": true,
+            "resultDigest": "c9026cb0d3e028a0255523ab9076d4294df7ff68b76bec9978bac167b44ca3a2",
+            "rowCount": 1,
+            "errorCode": "",
+            "preview": {
+              "columns": [
+                "w_country",
+                "w_state",
+                "warehouse_count",
+                "total_warehouse_sq_ft",
+                "min_warehouse_sq_ft",
+                "max_warehouse_sq_ft"
+              ],
+              "rows": [
+                {
+                  "w_country": "United States",
+                  "w_state": "TN",
+                  "warehouse_count": 5,
+                  "total_warehouse_sq_ft": 2031767,
+                  "min_warehouse_sq_ft": 138504,
+                  "max_warehouse_sq_ft": 977787
+                }
+              ],
+              "returnedRowCount": 1,
+              "possiblyTruncated": false,
+              "complete": true,
+              "previewTruncated": false
+            },
+            "diagnostic": "SQL query executed successfully",
+            "durationMs": 342
+          },
+          "sqlSnapshot": {
+            "id": "47b17c5b-51bf-39ac-a93b-4d2f1a8914cc",
+            "code": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+            "sqlTemplate": "-- ============================================================================\n-- warehouse_summary.sql\n-- TPC-D S warehouse summary by country and state\n-- Dialect : MySQL\n-- Purpose : Group warehouses by country (w_country) and state (w_state),\n--           compute count and square-footage aggregates (SUM / MIN / MAX).\n-- Notes   : - NULL groups are preserved (MySQL GROUP BY keeps NULLs).\n--           - w_warehouse_sq_ft is kept as raw integer values; no unit\n--             conversion or guessing is applied.\n--           - Read-only; no parameters, no warehouse-id filters.\n-- Source  : tpcds.warehouse (REGISTERED_METADATA)\n-- ============================================================================\n\nSELECT\n    w_country,\n    w_state,\n    COUNT(*)                 AS warehouse_count,\n    SUM(w_warehouse_sq_ft)   AS total_warehouse_sq_ft,\n    MIN(w_warehouse_sq_ft)   AS min_warehouse_sq_ft,\n    MAX(w_warehouse_sq_ft)   AS max_warehouse_sq_ft\nFROM tpcds.warehouse\nGROUP BY\n    w_country,\n    w_state\nORDER BY\n    w_country,\n    w_state;\n",
+            "parameterSchema": {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": false
+            },
+            "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+            "databaseType": "mysql",
+            "title": "仓库地区分布与面积汇总",
+            "description": "按国家及省州汇总仓库数量与面积字段原值，保留空分组；不推断面积单位。",
+            "category": "data_asset_exploration",
+            "source": {
+              "projectId": "c4f87abd-8d26-4b2d-a4fd-bb09212b9987",
+              "fileId": "2f837875-7d21-4f8f-8a1e-e10d21953d34",
+              "fileVersion": 1,
+              "sqlDigest": "eafe514c132cfda65745422a25fd8d72a537466dd753eaeae57982bc8bc231b1"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "detail": {
+    "generationId": "f604c30f-f34d-4b77-ab1b-16cc94f31af9",
+    "prompt": "基于实际 MySQL TPCDS warehouse 元数据，生成 sql/warehouse_details.sql：查询仓库主键、仓库名称、国家、省州及 w_warehouse_sq_ft 面积字段原值，使用 {{min_area}} 数值参数过滤 w_warehouse_sq_ft >= 最低面积阈值，按仓库主键排序。不得固定仓库编号，不做单位换算；仅单条只读 SQL 和简短口径注释，不执行或编造结果。",
+    "file": {
+      "id": "1d124dc8-ded5-41dd-ba36-57c7f5ae2020",
+      "projectId": "c4f87abd-8d26-4b2d-a4fd-bb09212b9987",
+      "path": "sql/warehouse_details.sql",
+      "kind": "SQL",
+      "content": "-- 仓库面积筛选：w_warehouse_sq_ft 取原值（平方英尺），不做单位换算；{{min_area}} 为数值参数，代表最低面积阈值\nSELECT\n    w_warehouse_sk,\n    w_warehouse_name,\n    w_country,\n    w_state,\n    w_warehouse_sq_ft\nFROM tpcds.warehouse\nWHERE w_warehouse_sq_ft >= {{min_area}}\nORDER BY w_warehouse_sk;\n",
+      "version": 1,
+      "editable": true,
+      "sourceTaskId": "sql-coding-f604c30f-f34d-4b77-ab1b-16cc94f31af9"
+    },
+    "operationId": "f87838e5-e825-48ed-a0f2-f3b14c1f3e17",
+    "row": {
+      "id": "271b4d6f-a928-3dbe-9aa5-26d49f0bfff7",
+      "code": "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+      "sqlTemplate": "-- 仓库面积筛选：w_warehouse_sq_ft 取原值（平方英尺），不做单位换算；{{min_area}} 为数值参数，代表最低面积阈值\nSELECT\n    w_warehouse_sk,\n    w_warehouse_name,\n    w_country,\n    w_state,\n    w_warehouse_sq_ft\nFROM tpcds.warehouse\nWHERE w_warehouse_sq_ft >= {{min_area}}\nORDER BY w_warehouse_sk;\n",
+      "parameterSchema": {
+        "type": "object",
+        "properties": {
+          "min_area": {
+            "type": "number",
+            "minimum": 0,
+            "default": 0,
+            "description": "最低面积字段原值，不换算单位"
+          }
+        },
+        "additionalProperties": false
+      },
+      "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+      "databaseType": "mysql",
+      "title": "仓库面积明细查询",
+      "description": "按最低面积原值阈值筛选仓库，返回主键、名称、地区及面积；参数 min_area 默认0，不推断单位。",
+      "category": "data_asset_exploration",
+      "source": {
+        "projectId": "c4f87abd-8d26-4b2d-a4fd-bb09212b9987",
+        "fileId": "1d124dc8-ded5-41dd-ba36-57c7f5ae2020",
+        "fileVersion": 1,
+        "sqlDigest": "e1cf1407bc6ff9ed39a3469caefc0b4552404abb992ba066a93ae8314694b023"
+      },
+      "groupId": "271b4d6f-a928-3dbe-9aa5-26d49f0bfff7",
+      "version": 1,
+      "expectedVersion": 3,
+      "state": "PUBLISHED",
+      "active": true,
+      "testEvidence": {
+        "type": "SQL_DATABASE_EXECUTION",
+        "testId": "5e09925c-40c1-4ea2-92e1-9e9b48bc2f49",
+        "testedAt": "2026-11-01T05:57:50.302281682Z",
+        "traceId": "5e09925c-40c1-4ea2-92e1-9e9b48bc2f49",
+        "source": {
+          "projectId": "c4f87abd-8d26-4b2d-a4fd-bb09212b9987",
+          "fileId": "1d124dc8-ded5-41dd-ba36-57c7f5ae2020",
+          "fileVersion": 1,
+          "sqlDigest": "e1cf1407bc6ff9ed39a3469caefc0b4552404abb992ba066a93ae8314694b023"
+        },
+        "fingerprint": "823c3240cdae9b15cf26ef0d747e7d091cf86c0ffdb556f31b29dbf7085b4bec",
+        "sqlDigest": "e1cf1407bc6ff9ed39a3469caefc0b4552404abb992ba066a93ae8314694b023",
+        "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+        "datasourceDigest": "b27ffa4e8417483716307f5616dd281a627fe54e669e1216687643f4dca1b0c4",
+        "parameters": {
+          "min_area": 0
+        },
+        "parametersDigest": "3916e262891b96a9bb19ee52a17bfa71d526176f51883572b576eea079efb6fa",
+        "timeoutSeconds": 10,
+        "maxRows": 50,
+        "success": true,
+        "resultDigest": "18e4fcb62240b7f7b39e5b100f30fcf7daf4bc19e1a313241131601ffb90ea54",
+        "rowCount": 4,
+        "errorCode": "",
+        "preview": {
+          "columns": [
+            "w_warehouse_sk",
+            "w_warehouse_name",
+            "w_country",
+            "w_state",
+            "w_warehouse_sq_ft"
+          ],
+          "rows": [
+            {
+              "w_warehouse_sk": 1,
+              "w_warehouse_name": "Conventional childr",
+              "w_country": "United States",
+              "w_state": "TN",
+              "w_warehouse_sq_ft": 977787
+            },
+            {
+              "w_warehouse_sk": 2,
+              "w_warehouse_name": "Important issues liv",
+              "w_country": "United States",
+              "w_state": "TN",
+              "w_warehouse_sq_ft": 138504
+            },
+            {
+              "w_warehouse_sk": 3,
+              "w_warehouse_name": "Doors canno",
+              "w_country": "United States",
+              "w_state": "TN",
+              "w_warehouse_sq_ft": 294242
+            },
+            {
+              "w_warehouse_sk": 4,
+              "w_warehouse_name": "Bad cards must make.",
+              "w_country": "United States",
+              "w_state": "TN",
+              "w_warehouse_sq_ft": 621234
+            }
+          ],
+          "returnedRowCount": 4,
+          "possiblyTruncated": false,
+          "complete": true,
+          "previewTruncated": false
+        },
+        "diagnostic": "SQL query executed successfully",
+        "durationMs": 219
+      },
+      "templateKey": "sql_datasource:STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+      "publication": {
+        "logicalId": "7ce4de8a-3113-3162-9bd8-494bc73c2cc0",
+        "templateKey": "sql_datasource:STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+        "description": "按最低面积原值阈值筛选仓库，返回主键、名称、地区及面积；参数 min_area 默认0，不推断单位。",
+        "state": "RUNNING",
+        "id": "10a7f829-1b4e-4344-ad20-cefa6fd23f73",
+        "toolName": "tpl_7ce4de8a311331629bd8494bc73c2cc0",
+        "revision": "5a7962e9bc133bdd77f7c4d9fe3b8294e9170bc7c9887e09fac32d03c5071b0e",
+        "assetName": "SQL Studio 查询集合验收（248 TPCDS）",
+        "title": "仓库面积明细查询",
+        "category": "数据资产探索",
+        "version": 1,
+        "publishedAt": "2026-11-01T05:57:59.429099872Z"
+      },
+      "releaseHistory": [
+        {
+          "publication": {
+            "logicalId": "7ce4de8a-3113-3162-9bd8-494bc73c2cc0",
+            "templateKey": "sql_datasource:STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+            "description": "按最低面积原值阈值筛选仓库，返回主键、名称、地区及面积；参数 min_area 默认0，不推断单位。",
+            "state": "RUNNING",
+            "id": "10a7f829-1b4e-4344-ad20-cefa6fd23f73",
+            "toolName": "tpl_7ce4de8a311331629bd8494bc73c2cc0",
+            "revision": "5a7962e9bc133bdd77f7c4d9fe3b8294e9170bc7c9887e09fac32d03c5071b0e",
+            "assetName": "SQL Studio 查询集合验收（248 TPCDS）",
+            "title": "仓库面积明细查询",
+            "category": "数据资产探索",
+            "version": 1,
+            "publishedAt": "2026-11-01T05:57:59.429099872Z"
+          },
+          "sqlTest": {
+            "type": "SQL_DATABASE_EXECUTION",
+            "testId": "5e09925c-40c1-4ea2-92e1-9e9b48bc2f49",
+            "testedAt": "2026-11-01T05:57:50.302281682Z",
+            "traceId": "5e09925c-40c1-4ea2-92e1-9e9b48bc2f49",
+            "source": {
+              "projectId": "c4f87abd-8d26-4b2d-a4fd-bb09212b9987",
+              "fileId": "1d124dc8-ded5-41dd-ba36-57c7f5ae2020",
+              "fileVersion": 1,
+              "sqlDigest": "e1cf1407bc6ff9ed39a3469caefc0b4552404abb992ba066a93ae8314694b023"
+            },
+            "fingerprint": "823c3240cdae9b15cf26ef0d747e7d091cf86c0ffdb556f31b29dbf7085b4bec",
+            "sqlDigest": "e1cf1407bc6ff9ed39a3469caefc0b4552404abb992ba066a93ae8314694b023",
+            "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+            "datasourceDigest": "b27ffa4e8417483716307f5616dd281a627fe54e669e1216687643f4dca1b0c4",
+            "parameters": {
+              "min_area": 0
+            },
+            "parametersDigest": "3916e262891b96a9bb19ee52a17bfa71d526176f51883572b576eea079efb6fa",
+            "timeoutSeconds": 10,
+            "maxRows": 50,
+            "success": true,
+            "resultDigest": "18e4fcb62240b7f7b39e5b100f30fcf7daf4bc19e1a313241131601ffb90ea54",
+            "rowCount": 4,
+            "errorCode": "",
+            "preview": {
+              "columns": [
+                "w_warehouse_sk",
+                "w_warehouse_name",
+                "w_country",
+                "w_state",
+                "w_warehouse_sq_ft"
+              ],
+              "rows": [
+                {
+                  "w_warehouse_sk": 1,
+                  "w_warehouse_name": "Conventional childr",
+                  "w_country": "United States",
+                  "w_state": "TN",
+                  "w_warehouse_sq_ft": 977787
+                },
+                {
+                  "w_warehouse_sk": 2,
+                  "w_warehouse_name": "Important issues liv",
+                  "w_country": "United States",
+                  "w_state": "TN",
+                  "w_warehouse_sq_ft": 138504
+                },
+                {
+                  "w_warehouse_sk": 3,
+                  "w_warehouse_name": "Doors canno",
+                  "w_country": "United States",
+                  "w_state": "TN",
+                  "w_warehouse_sq_ft": 294242
+                },
+                {
+                  "w_warehouse_sk": 4,
+                  "w_warehouse_name": "Bad cards must make.",
+                  "w_country": "United States",
+                  "w_state": "TN",
+                  "w_warehouse_sq_ft": 621234
+                }
+              ],
+              "returnedRowCount": 4,
+              "possiblyTruncated": false,
+              "complete": true,
+              "previewTruncated": false
+            },
+            "diagnostic": "SQL query executed successfully",
+            "durationMs": 219
+          },
+          "sqlSnapshot": {
+            "id": "271b4d6f-a928-3dbe-9aa5-26d49f0bfff7",
+            "code": "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+            "sqlTemplate": "-- 仓库面积筛选：w_warehouse_sq_ft 取原值（平方英尺），不做单位换算；{{min_area}} 为数值参数，代表最低面积阈值\nSELECT\n    w_warehouse_sk,\n    w_warehouse_name,\n    w_country,\n    w_state,\n    w_warehouse_sq_ft\nFROM tpcds.warehouse\nWHERE w_warehouse_sq_ft >= {{min_area}}\nORDER BY w_warehouse_sk;\n",
+            "parameterSchema": {
+              "type": "object",
+              "properties": {
+                "min_area": {
+                  "type": "number",
+                  "minimum": 0,
+                  "default": 0,
+                  "description": "最低面积字段原值，不换算单位"
+                }
+              },
+              "additionalProperties": false
+            },
+            "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+            "databaseType": "mysql",
+            "title": "仓库面积明细查询",
+            "description": "按最低面积原值阈值筛选仓库，返回主键、名称、地区及面积；参数 min_area 默认0，不推断单位。",
+            "category": "data_asset_exploration",
+            "source": {
+              "projectId": "c4f87abd-8d26-4b2d-a4fd-bb09212b9987",
+              "fileId": "1d124dc8-ded5-41dd-ba36-57c7f5ae2020",
+              "fileVersion": 1,
+              "sqlDigest": "e1cf1407bc6ff9ed39a3469caefc0b4552404abb992ba066a93ae8314694b023"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

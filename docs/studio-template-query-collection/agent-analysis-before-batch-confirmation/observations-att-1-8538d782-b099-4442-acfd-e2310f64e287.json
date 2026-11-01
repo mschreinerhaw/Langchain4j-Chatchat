@@ -1,0 +1,1821 @@
+[
+  {
+    "type": "tool",
+    "source": "skill_analysis_context",
+    "content": "Skill methodology snapshot inherited by analysis workflow",
+    "metadata": {
+      "status": "NO_CANDIDATES",
+      "fingerprint": "2ea386d37eb00b31c3679e83c827597ee2aff9f3a19eec5eec7220bd769077b5",
+      "skills": [],
+      "stages": [
+        "PLAN",
+        "ACQUISITION",
+        "ANALYSIS",
+        "VALIDATION",
+        "REPORT"
+      ],
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "knowledge_skill_lifecycle",
+    "source": "knowledge_skills",
+    "content": "Knowledge Skill routing completed: activated 0 Knowledge Skill(s), selected 0 domain skill(s) []",
+    "metadata": {
+      "type": "knowledge_skill_lifecycle",
+      "eventKind": "KNOWLEDGE_SKILLS",
+      "eventState": "COMPLETED",
+      "stage": "SKILLS_EXTRACTED",
+      "schemaVersion": "knowledge_context.v1",
+      "status": "NO_CANDIDATES",
+      "skillCount": 0,
+      "activatedSkills": [],
+      "domainSkillCount": 0,
+      "activatedDomainSkillCount": 0,
+      "methodologyFingerprint": "2ea386d37eb00b31c3679e83c827597ee2aff9f3a19eec5eec7220bd769077b5",
+      "methodologyStatus": "NO_CANDIDATES",
+      "skillTypes": [],
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "knowledge_skill_lifecycle",
+    "source": "knowledge_skills",
+    "content": "领域知识未应用到分析流程，共使用 0 个文档来源、0 个 Knowledge Skill、0 个领域技能。",
+    "metadata": {
+      "type": "knowledge_skill_lifecycle",
+      "eventKind": "KNOWLEDGE_SKILLS",
+      "eventState": "NOT_APPLIED",
+      "stage": "CONTEXT_APPLIED",
+      "schemaVersion": "knowledge_context.v1",
+      "status": "NO_CANDIDATES",
+      "applied": false,
+      "skillCount": 0,
+      "activatedSkills": [],
+      "domainSkillCount": 0,
+      "activatedDomainSkillCount": 0,
+      "methodologyFingerprint": "2ea386d37eb00b31c3679e83c827597ee2aff9f3a19eec5eec7220bd769077b5",
+      "methodologyStatus": "NO_CANDIDATES",
+      "sourceCount": 0,
+      "sources": [],
+      "skillTypes": [],
+      "estimatedTokens": 0,
+      "maxTokens": 1500,
+      "truncated": false,
+      "currentFactAuthority": false,
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "lifecycle",
+    "source": "agent_lifecycle",
+    "content": "Problem identified from user input.",
+    "metadata": {
+      "type": "lifecycle",
+      "workflow": "agent_problem_solving",
+      "lifecyclePhase": "problem_identification",
+      "createdAt": 1793514485710,
+      "queryPreview": "请统计当前授权仓库在各国家、省州的分布及面积字段原值汇总，并列出面积原值不小于0的仓库明细。核对地区汇总与明细的数量、合计及极值是否一致，分析面积差异，输出结果表和可查看的图表。只使用实际返回数据；面积单位未经确认，不做单位换算或容量推断。",
+      "skillId": "studio_collection_e2e_20261101",
+      "documentWebVerificationRequired": false,
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "lifecycle",
+    "source": "agent_lifecycle",
+    "content": "Tool discovery completed and capability space was constructed.",
+    "metadata": {
+      "type": "lifecycle",
+      "workflow": "agent_problem_solving",
+      "lifecyclePhase": "tool_discovery",
+      "createdAt": 1793514485713,
+      "availableTools": [
+        "mcp_chatchat_mcp_server_studio_warehouse_20261101_template_query",
+        "mcp_chatchat_mcp_server_sql_query_execute"
+      ],
+      "plannerVisibleTools": [
+        "mcp_chatchat_mcp_server_studio_warehouse_20261101_template_query",
+        "mcp_chatchat_mcp_server_sql_query_execute"
+      ],
+      "internalToolDelegations": {},
+      "mandatoryTools": [],
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "lifecycle",
+    "source": "agent_lifecycle",
+    "content": "Runtime generated the fixed bound template discovery and execution plan.",
+    "metadata": {
+      "type": "lifecycle",
+      "workflow": "agent_problem_solving",
+      "lifecyclePhase": "plan_generation",
+      "createdAt": 1793514485722,
+      "step": 1,
+      "action": "tool",
+      "toolName": "mcp_chatchat_mcp_server_studio_warehouse_20261101_template_query",
+      "eventKind": "DAG_VALIDATION",
+      "eventState": "PASSED",
+      "generationMode": "RUNTIME_DETERMINISTIC_BOUND_TEMPLATE_PLAN",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "lifecycle",
+    "source": "agent_lifecycle",
+    "content": "InterpretationPlan passed evaluation and may proceed to execution.",
+    "metadata": {
+      "type": "lifecycle",
+      "workflow": "agent_problem_solving",
+      "lifecyclePhase": "plan_evaluation",
+      "createdAt": 1793514486100,
+      "stage": "initial",
+      "valid": true,
+      "executable": true,
+      "approvalRequired": false,
+      "eventKind": "DAG_VALIDATION",
+      "eventState": "PASSED",
+      "errors": [],
+      "warnings": [],
+      "approvalRequests": [],
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "lifecycle",
+    "source": "agent_lifecycle",
+    "content": "InterpretationPlan DAG execution started.",
+    "metadata": {
+      "type": "lifecycle",
+      "workflow": "agent_problem_solving",
+      "lifecyclePhase": "step_execution",
+      "createdAt": 1793514486106,
+      "stage": "initial",
+      "planVersion": "1.0",
+      "stepCount": 3,
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "controller_decision",
+    "source": "interpretation_plan_controller",
+    "content": "LLM DAG controller decision 1 was accepted by runtime guard.",
+    "metadata": {
+      "protocolVersion": "interpretation_execution_protocol_v1",
+      "executionTraceId": "att-1-8538d782-b099-4442-acfd-e2310f64e287::interpretation_plan",
+      "lifecyclePhase": "controller_decision",
+      "decisionCount": 1,
+      "workflow": "interpretation_plan",
+      "structuredRuntimeObservation": true,
+      "type": "controller_decision",
+      "workflowExecutionAttempt": 0,
+      "planExecutionScope": "att-1-8538d782-b099-4442-acfd-e2310f64e287::attempt:0",
+      "decision": {
+        "runtimeDeterministicScheduling": true,
+        "readyStepIds": [
+          1
+        ],
+        "decisionCount": 1,
+        "executionTraceId": "att-1-8538d782-b099-4442-acfd-e2310f64e287::interpretation_plan",
+        "protocolVersion": "interpretation_execution_protocol_v1",
+        "action": "execute_step",
+        "stepIds": [
+          1
+        ],
+        "reason": "Java Runtime selected Ready node(s) deterministically."
+      },
+      "guardResult": {
+        "protocolVersion": "interpretation_execution_protocol_v1",
+        "allowed": true,
+        "status": "accepted",
+        "reason": "Runtime guard accepted DAG decision.",
+        "validatedAction": "execute_step",
+        "validatedStepIds": [
+          1
+        ]
+      },
+      "remainingStepIds": [
+        1,
+        2,
+        3
+      ],
+      "completedStepIds": []
+    }
+  },
+  {
+    "type": "lifecycle",
+    "source": "agent_lifecycle",
+    "content": "Model selects templates and binds parameters.",
+    "metadata": {
+      "type": "lifecycle",
+      "workflow": "agent_problem_solving",
+      "lifecyclePhase": "model_inference",
+      "createdAt": 1793514486964,
+      "eventKind": "MODEL_INFERENCE",
+      "eventState": "STARTED",
+      "modelPhase": "template_selection_and_binding",
+      "stepId": 1,
+      "toolName": "mcp_chatchat_mcp_server_studio_warehouse_20261101_template_query",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "lifecycle",
+    "source": "agent_lifecycle",
+    "content": "Template selection decision returned.",
+    "metadata": {
+      "type": "lifecycle",
+      "workflow": "agent_problem_solving",
+      "lifecyclePhase": "model_inference",
+      "createdAt": 1793514490676,
+      "eventKind": "MODEL_INFERENCE",
+      "eventState": "COMPLETED",
+      "modelPhase": "template_selection_and_binding",
+      "stepId": 1,
+      "toolName": "mcp_chatchat_mcp_server_studio_warehouse_20261101_template_query",
+      "selectionStatus": "SELECTED",
+      "modelMetrics": {
+        "selectionUsageAvailable": true,
+        "selectionModelDurationMs": 3703,
+        "selectionModelCalls": 1,
+        "selectionUsageKnownCalls": 1,
+        "selectionInputTokens": 1558,
+        "selectionOutputTokens": 550,
+        "selectionDurationMs": 3707
+      },
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "tool",
+    "source": "mcp_chatchat_mcp_server_studio_warehouse_20261101_template_query",
+    "content": "InterpretationPlan step 1 mcp_chatchat_mcp_server_studio_warehouse_20261101_template_query completed.",
+    "metadata": {
+      "structuredRuntimeObservation": true,
+      "workflow": "interpretation_plan",
+      "protocolVersion": "interpretation_execution_protocol_v1",
+      "executionTraceId": "att-1-8538d782-b099-4442-acfd-e2310f64e287::interpretation_plan",
+      "workflowExecutionAttempt": 0,
+      "planExecutionScope": "att-1-8538d782-b099-4442-acfd-e2310f64e287::attempt:0",
+      "evidenceIteration": 1,
+      "lifecyclePhase": "observation",
+      "interpretationPlanStepId": 1,
+      "evidenceId": "iteration:1:step:1:tool:mcp_chatchat_mcp_server_studio_warehouse_20261101_template_query",
+      "interpretationPlanActionType": "mcp_tool",
+      "toolName": "mcp_chatchat_mcp_server_studio_warehouse_20261101_template_query",
+      "planStepDefinitionFingerprint": "Tv21SlFoZoAkmVAB5__vGc31FEtrQbdZv767WdSeh7w",
+      "success": true,
+      "durationMs": 5561,
+      "type": "tool",
+      "resolvedInput": {
+        "limit": 10,
+        "query": "请统计当前授权仓库在各国家、省州的分布及面积字段原值汇总，并列出面积原值不小于0的仓库明细。核对地区汇总与明细的数量、合计及极值是否一致，分析面积差异，输出结果表和可查看的图表。只使用实际返回数据；面积单位未经确认，不做单位换算或容量推断。",
+        "filters": {
+          "intent": "请统计当前授权仓库在各国家、省州的分布及面积字段原值汇总，并列出面积原值不小于0的仓库明细。核对地区汇总与明细的数量、合计及极值是否一致，分析面积差异，输出结果表和可查看的图表。只使用实际返回数据；面积单位未经确认，不做单位换算或容量推断。",
+          "goal": "请统计当前授权仓库在各国家、省州的分布及面积字段原值汇总，并列出面积原值不小于0的仓库明细。核对地区汇总与明细的数量、合计及极值是否一致，分析面积差异，输出结果表和可查看的图表。只使用实际返回数据；面积单位未经确认，不做单位换算或容量推断。",
+          "env": "DEV"
+        },
+        "filtersSchemaVersion": "target_filters.v1",
+        "trace": {
+          "schemaVersion": "routing_trace.v1",
+          "plannerVersion": "1.0",
+          "model": "runtime",
+          "source": "interpretation_plan_runtime",
+          "executionTraceId": "att-1-8538d782-b099-4442-acfd-e2310f64e287::interpretation_plan",
+          "stepId": 1,
+          "toolName": "mcp_chatchat_mcp_server_studio_warehouse_20261101_template_query"
+        }
+      },
+      "toolResultReviewEnabled": true,
+      "localDecisionPhase": "fact_check",
+      "localFactCheckSatisfied": true,
+      "localFactCheckReason": "typed template discovery returned non-empty template metadata",
+      "templateDiscoveryStepId": 1,
+      "templateDiscoveryReturnedCount": 2,
+      "localFactCheckHasEvidence": true,
+      "localFactCheckEvidenceType": "template_discovery",
+      "toolResultReviewMaxAttempts": 1,
+      "toolResultReviewSatisfied": true,
+      "toolResultReviewReason": "Model selection status: SELECTED",
+      "toolResultReviewAttempts": 1,
+      "selectionInputTokens": 1558,
+      "candidateSelectionStatus": "SELECTED",
+      "selectionOutputTokens": 550,
+      "selectedTemplateIds": [
+        "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+        "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7"
+      ],
+      "modelSelectedTemplateIds": [
+        "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+        "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7"
+      ],
+      "candidateDecisionOwner": "MODEL",
+      "toolResultReviewMode": "MODEL_SELECTION_AND_BINDING",
+      "selectionDurationMs": 3707,
+      "selectionModelDurationMs": 3703,
+      "selectionUsageKnownCalls": 1,
+      "mcpDiscoverySucceeded": true,
+      "parameterProtocols": [
+        {
+          "generation_mode": "native_function_calling",
+          "rejected_parameter_overrides": [],
+          "protocol_version": "template_parameter_protocol_v2",
+          "unresolved_parameters": [],
+          "binding_id": "binding-1",
+          "arguments": {},
+          "dropped_parameter_overrides": [],
+          "unmapped_constraints": [
+            "核对地区汇总与明细的数量、合计及极值是否一致",
+            "分析面积差异",
+            "输出结果表和可查看的图表"
+          ],
+          "template_id": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+          "binding_status": "READY"
+        },
+        {
+          "generation_mode": "native_function_calling",
+          "rejected_parameter_overrides": [],
+          "protocol_version": "template_parameter_protocol_v2",
+          "unresolved_parameters": [],
+          "binding_id": "binding-2",
+          "arguments": {
+            "min_area": {
+              "source": "user_query",
+              "value": 0,
+              "evidence": {
+                "generated_by": "native_function_calling",
+                "quote": "州的分布及面积字段原值汇总，并列出面积原值不小于0的仓库明细。核对地区汇总与明细的数量、合计及极值"
+              }
+            }
+          },
+          "dropped_parameter_overrides": [],
+          "unmapped_constraints": [
+            "核对地区汇总与明细的数量、合计及极值是否一致",
+            "输出结果表和可查看的图表"
+          ],
+          "template_id": "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+          "binding_status": "READY"
+        }
+      ],
+      "parameterBindingMode": "model_selection_and_binding",
+      "modelCandidateDecision": {
+        "selections": [
+          {
+            "templateId": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+            "parameters": {},
+            "unmappedConstraints": [
+              "核对地区汇总与明细的数量、合计及极值是否一致",
+              "分析面积差异",
+              "输出结果表和可查看的图表"
+            ]
+          },
+          {
+            "templateId": "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+            "parameters": {
+              "min_area": 0
+            },
+            "parameterEvidence": {
+              "min_area": "面积原值不小于0"
+            },
+            "unmappedConstraints": [
+              "核对地区汇总与明细的数量、合计及极值是否一致",
+              "输出结果表和可查看的图表"
+            ]
+          }
+        ],
+        "status": "SELECTED",
+        "reason": "请求包含两部分：(1) 按国家/省州汇总当前授权仓库数量与面积字段原值（保留空分组、不推断单位），对应「仓库地区分布与面积汇总」模板；(2) 列出面积原值不小于0的仓库明细，对应「仓库面积明细查询」模板，min_area 取请求字面值 0。两模板互补，汇总与明细可交叉核对数量、合计与极值。图表输出与差异分析由结果后处理完成，两个候选模板均未提供图表或一致性核对的独立契约参数。",
+        "missingAspects": [
+          "可查看图表的生成资产（候选模板均未提供）",
+          "汇总与明细的一致性核对规则及面积差异分析方法未在模板契约中定义"
+        ]
+      },
+      "toolResultReviewModelCalls": 1,
+      "selectionUsageAvailable": true,
+      "selectionModelCalls": 1,
+      "runtimeTemplateSelectionApplied": true,
+      "runtimeTemplateCandidateCount": 2,
+      "runtimeTemplateSelectedCount": 2,
+      "runtimeSelectedTemplateIds": [
+        "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+        "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7"
+      ],
+      "runtimeTemplateCandidateEvaluations": [],
+      "runtimeTemplateSelectionReason": "Runtime validated model selection identities and parameter contracts.",
+      "templateMatchAnalysis": {
+        "objectType": "TEMPLATE_MATCH_ANALYSIS",
+        "retrievalOutcome": "SELECTED",
+        "globalAnalysisContext": {
+          "candidateDiscovery": {
+            "stepId": 1,
+            "toolName": "mcp_chatchat_mcp_server_studio_warehouse_20261101_template_query",
+            "returnedCandidateCount": 2
+          },
+          "contextRole": "TEMPLATE_REQUIREMENT_ADMISSION_INPUT",
+          "completedEvidence": [],
+          "planIntent": {
+            "type": "mixed",
+            "goal": "请统计当前授权仓库在各国家、省州的分布及面积字段原值汇总，并列出面积原值不小于0的仓库明细。核对地区汇总与明细的数量、合计及极值是否一致，分析面积差异，输出结果表和可查看的图表。只使用实际返回数据；面积单位未经确认，不做单位换算或容量推断。",
+            "risk_level": "low"
+          }
+        },
+        "selectionAuthority": "MODEL",
+        "excludedTemplateIds": [],
+        "userQuestion": "请统计当前授权仓库在各国家、省州的分布及面积字段原值汇总，并列出面积原值不小于0的仓库明细。核对地区汇总与明细的数量、合计及极值是否一致，分析面积差异，输出结果表和可查看的图表。只使用实际返回数据；面积单位未经确认，不做单位换算或容量推断。",
+        "event": "BUSINESS_TEMPLATE_REQUIREMENT_MATCHING",
+        "excludedTemplates": [],
+        "candidateEvaluations": [],
+        "businessGroups": [],
+        "schemaVersion": "template_match_analysis.v2",
+        "selectedTemplateIds": [
+          "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+          "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7"
+        ],
+        "templateMatches": [
+          {
+            "decision": "ACCEPT",
+            "templateId": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC"
+          },
+          {
+            "decision": "ACCEPT",
+            "templateId": "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7"
+          }
+        ],
+        "pageRef": {
+          "hasMore": false
+        }
+      },
+      "templateCoverageDecision": null,
+      "templateRetrievalOutcome": "SELECTED",
+      "templateDiscoveryContinuationRequired": false,
+      "templateDiscoveryTerminal": false,
+      "semanticCandidateReviewSatisfied": true,
+      "stepOutput": {
+        "schemaVersion": "mcp_analysis_payload.v1",
+        "requestId": "d57bff7e-5b99-4d7c-8fea-9f7f360faec9",
+        "serviceId": "chatchat-mcp-server",
+        "toolName": "mcp_chatchat_mcp_server_studio_warehouse_20261101_template_query",
+        "status": "SUCCESS",
+        "resultKind": "RAW_RECORDS",
+        "resultSchemaRef": "template_query_result.v1",
+        "provenance": {
+          "sourceRef": "mcp://chatchat-mcp-server/studio_warehouse_20261101_template_query",
+          "dataVersion": "4132e5049809b6b35c76f243",
+          "asOf": "2026-11-01T06:28:06.797446253Z",
+          "inputFingerprint": "9c9a29c42d1275025ada52ce9ab4381170b6017a613959eea6d5f9ea9eecdfa9",
+          "rowRange": {
+            "count": 2,
+            "offset": 0
+          },
+          "filterSummary": {
+            "candidateUniverseCount": 2,
+            "scopeMode": "FIXED_BINDING"
+          }
+        },
+        "pagination": {
+          "nextPageToken": null,
+          "hasMore": false,
+          "pageSize": 10,
+          "returnedCount": 2
+        },
+        "completeness": {
+          "status": "SUCCESS",
+          "complete": true,
+          "repairApplied": false
+        },
+        "data": {
+          "success": true,
+          "semanticReviewRequired": true,
+          "resultKind": "RAW_RECORDS",
+          "schemaVersion": "template_query_result.v1",
+          "publicationScope": {
+            "parentToolNames": [
+              "database_query_template_query"
+            ],
+            "configuredTemplateCount": 2,
+            "configuredAssetTypes": [
+              "sql_datasource"
+            ],
+            "policyVersion": "4132e5049809b6b35c76f243",
+            "roleBound": true,
+            "serviceId": "chatchat-mcp-server"
+          },
+          "resultSchemaRef": "template_query_result.v1",
+          "pagination": {
+            "offset": 0,
+            "limit": 10,
+            "hasMore": false,
+            "nextPageToken": null,
+            "pageSize": 10,
+            "returnedCount": 2,
+            "nextCursor": null
+          },
+          "selectionMode": "BOUND_SCOPE_RECALL",
+          "templates": [
+            {
+              "templateId": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+              "description": "按国家及省州汇总仓库数量与面积字段原值，保留空分组；不推断面积单位。",
+              "parameterSchema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              },
+              "category": "data_asset_exploration",
+              "businessCategoryName": "数据资产探索",
+              "selectionSource": "template_query_binding",
+              "exists": true,
+              "title": "仓库地区分布与面积汇总",
+              "businessCategoryCode": "data_asset_exploration",
+              "assetType": "sql_datasource"
+            },
+            {
+              "templateId": "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+              "description": "按最低面积原值阈值筛选仓库，返回主键、名称、地区及面积；参数 min_area 默认0，不推断单位。",
+              "parameterSchema": {
+                "type": "object",
+                "properties": {
+                  "min_area": {
+                    "type": "number",
+                    "minimum": 0,
+                    "default": 0,
+                    "description": "最低面积字段原值，不换算单位"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "category": "data_asset_exploration",
+              "businessCategoryName": "数据资产探索",
+              "selectionSource": "template_query_binding",
+              "exists": true,
+              "title": "仓库面积明细查询",
+              "businessCategoryCode": "data_asset_exploration",
+              "assetType": "sql_datasource"
+            }
+          ],
+          "toolName": "studio_warehouse_20261101_template_query",
+          "returnedCount": 2,
+          "scopeMode": "FIXED_BINDING",
+          "globalSearchPerformed": false,
+          "hasMore": false,
+          "resultEntityKind": "template",
+          "provenance": {
+            "rowRange": {
+              "count": 2,
+              "offset": 0
+            },
+            "sourceRef": "mcp://chatchat-mcp-server/studio_warehouse_20261101_template_query",
+            "asOf": "2026-11-01T06:28:06.797446253Z",
+            "filterSummary": {
+              "candidateUniverseCount": 2,
+              "scopeMode": "FIXED_BINDING"
+            },
+            "dataVersion": "4132e5049809b6b35c76f243"
+          },
+          "boundScopeRecallPerformed": true,
+          "candidateUniverseCount": 2,
+          "rawExecutionSpecReturned": false,
+          "bindingComplete": true,
+          "filterAudit": {
+            "policyCacheHit": false,
+            "retrievalSignalCount": 1,
+            "returnedCount": 2,
+            "candidateCount": 2,
+            "policyResolvedAt": "2026-11-01T06:28:06.797446253Z",
+            "unavailableOrUnauthorizedCount": 0
+          },
+          "runtimeTemplateSelection": {
+            "candidateCount": 2,
+            "schemaVersion": "runtime_template_selection.v2",
+            "rejectedTemplateIds": [],
+            "candidateEvaluations": [],
+            "mcpScoresAreWeakPriors": true,
+            "selectedTemplateIds": [
+              "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+              "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7"
+            ],
+            "deferredTemplateIds": [],
+            "selectedCount": 2,
+            "selectionAuthority": "model_selection_validated",
+            "reviewedInvocations": [
+              {
+                "bindingId": "binding-1",
+                "arguments": {
+                  "templateId": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+                  "parameterProtocol": {
+                    "generation_mode": "native_function_calling",
+                    "rejected_parameter_overrides": [],
+                    "protocol_version": "template_parameter_protocol_v2",
+                    "unresolved_parameters": [],
+                    "binding_id": "binding-1",
+                    "arguments": {},
+                    "dropped_parameter_overrides": [],
+                    "unmapped_constraints": [
+                      "核对地区汇总与明细的数量、合计及极值是否一致",
+                      "分析面积差异",
+                      "输出结果表和可查看的图表"
+                    ],
+                    "template_id": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+                    "binding_status": "READY"
+                  }
+                },
+                "templateId": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC"
+              },
+              {
+                "bindingId": "binding-2",
+                "arguments": {
+                  "templateId": "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+                  "parameterProtocol": {
+                    "generation_mode": "native_function_calling",
+                    "rejected_parameter_overrides": [],
+                    "protocol_version": "template_parameter_protocol_v2",
+                    "unresolved_parameters": [],
+                    "binding_id": "binding-2",
+                    "arguments": {
+                      "min_area": {
+                        "source": "user_query",
+                        "value": 0,
+                        "evidence": {
+                          "generated_by": "native_function_calling",
+                          "quote": "州的分布及面积字段原值汇总，并列出面积原值不小于0的仓库明细。核对地区汇总与明细的数量、合计及极值"
+                        }
+                      }
+                    },
+                    "dropped_parameter_overrides": [],
+                    "unmapped_constraints": [
+                      "核对地区汇总与明细的数量、合计及极值是否一致",
+                      "输出结果表和可查看的图表"
+                    ],
+                    "template_id": "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+                    "binding_status": "READY"
+                  }
+                },
+                "templateId": "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7"
+              }
+            ],
+            "templateMatchAnalysis": {
+              "objectType": "TEMPLATE_MATCH_ANALYSIS",
+              "retrievalOutcome": "SELECTED",
+              "globalAnalysisContext": {
+                "candidateDiscovery": {
+                  "stepId": 1,
+                  "toolName": "mcp_chatchat_mcp_server_studio_warehouse_20261101_template_query",
+                  "returnedCandidateCount": 2
+                },
+                "contextRole": "TEMPLATE_REQUIREMENT_ADMISSION_INPUT",
+                "completedEvidence": [],
+                "planIntent": {
+                  "type": "mixed",
+                  "goal": "请统计当前授权仓库在各国家、省州的分布及面积字段原值汇总，并列出面积原值不小于0的仓库明细。核对地区汇总与明细的数量、合计及极值是否一致，分析面积差异，输出结果表和可查看的图表。只使用实际返回数据；面积单位未经确认，不做单位换算或容量推断。",
+                  "risk_level": "low"
+                }
+              },
+              "selectionAuthority": "MODEL",
+              "excludedTemplateIds": [],
+              "userQuestion": "请统计当前授权仓库在各国家、省州的分布及面积字段原值汇总，并列出面积原值不小于0的仓库明细。核对地区汇总与明细的数量、合计及极值是否一致，分析面积差异，输出结果表和可查看的图表。只使用实际返回数据；面积单位未经确认，不做单位换算或容量推断。",
+              "event": "BUSINESS_TEMPLATE_REQUIREMENT_MATCHING",
+              "excludedTemplates": [],
+              "candidateEvaluations": [],
+              "businessGroups": [],
+              "schemaVersion": "template_match_analysis.v2",
+              "selectedTemplateIds": [
+                "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+                "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7"
+              ],
+              "templateMatches": [
+                {
+                  "decision": "ACCEPT",
+                  "templateId": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC"
+                },
+                {
+                  "decision": "ACCEPT",
+                  "templateId": "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7"
+                }
+              ],
+              "pageRef": {
+                "hasMore": false
+              }
+            }
+          }
+        },
+        "rawData": {
+          "success": true,
+          "semanticReviewRequired": true,
+          "resultKind": "RAW_RECORDS",
+          "schemaVersion": "template_query_result.v1",
+          "publicationScope": {
+            "parentToolNames": [
+              "database_query_template_query"
+            ],
+            "configuredTemplateCount": 2,
+            "configuredAssetTypes": [
+              "sql_datasource"
+            ],
+            "policyVersion": "4132e5049809b6b35c76f243",
+            "roleBound": true,
+            "serviceId": "chatchat-mcp-server"
+          },
+          "resultSchemaRef": "template_query_result.v1",
+          "pagination": {
+            "offset": 0,
+            "limit": 10,
+            "hasMore": false,
+            "nextPageToken": null,
+            "pageSize": 10,
+            "returnedCount": 2,
+            "nextCursor": null
+          },
+          "selectionMode": "BOUND_SCOPE_RECALL",
+          "templates": [
+            {
+              "templateId": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+              "description": "按国家及省州汇总仓库数量与面积字段原值，保留空分组；不推断面积单位。",
+              "parameterSchema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              },
+              "category": "data_asset_exploration",
+              "businessCategoryName": "数据资产探索",
+              "selectionSource": "template_query_binding",
+              "exists": true,
+              "title": "仓库地区分布与面积汇总",
+              "businessCategoryCode": "data_asset_exploration",
+              "assetType": "sql_datasource"
+            },
+            {
+              "templateId": "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+              "description": "按最低面积原值阈值筛选仓库，返回主键、名称、地区及面积；参数 min_area 默认0，不推断单位。",
+              "parameterSchema": {
+                "type": "object",
+                "properties": {
+                  "min_area": {
+                    "type": "number",
+                    "minimum": 0,
+                    "default": 0,
+                    "description": "最低面积字段原值，不换算单位"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "category": "data_asset_exploration",
+              "businessCategoryName": "数据资产探索",
+              "selectionSource": "template_query_binding",
+              "exists": true,
+              "title": "仓库面积明细查询",
+              "businessCategoryCode": "data_asset_exploration",
+              "assetType": "sql_datasource"
+            }
+          ],
+          "toolName": "studio_warehouse_20261101_template_query",
+          "returnedCount": 2,
+          "scopeMode": "FIXED_BINDING",
+          "globalSearchPerformed": false,
+          "hasMore": false,
+          "resultEntityKind": "template",
+          "provenance": {
+            "rowRange": {
+              "count": 2,
+              "offset": 0
+            },
+            "sourceRef": "mcp://chatchat-mcp-server/studio_warehouse_20261101_template_query",
+            "asOf": "2026-11-01T06:28:06.797446253Z",
+            "filterSummary": {
+              "candidateUniverseCount": 2,
+              "scopeMode": "FIXED_BINDING"
+            },
+            "dataVersion": "4132e5049809b6b35c76f243"
+          },
+          "boundScopeRecallPerformed": true,
+          "candidateUniverseCount": 2,
+          "rawExecutionSpecReturned": false,
+          "bindingComplete": true,
+          "filterAudit": {
+            "policyCacheHit": false,
+            "retrievalSignalCount": 1,
+            "returnedCount": 2,
+            "candidateCount": 2,
+            "policyResolvedAt": "2026-11-01T06:28:06.797446253Z",
+            "unavailableOrUnauthorizedCount": 0
+          }
+        },
+        "runtimeMetadata": {
+          "resultKind": "RAW_RECORDS",
+          "resultSchemaRef": "template_query_result.v1",
+          "provenance": {
+            "rowRange": {
+              "count": 2,
+              "offset": 0
+            },
+            "sourceRef": "mcp://chatchat-mcp-server/studio_warehouse_20261101_template_query",
+            "asOf": "2026-11-01T06:28:06.797446253Z",
+            "filterSummary": {
+              "candidateUniverseCount": 2,
+              "scopeMode": "FIXED_BINDING"
+            },
+            "dataVersion": "4132e5049809b6b35c76f243"
+          },
+          "pagination": {
+            "offset": 0,
+            "limit": 10,
+            "hasMore": false,
+            "nextPageToken": null,
+            "pageSize": 10,
+            "returnedCount": 2,
+            "nextCursor": null
+          },
+          "preflightAudit": {
+            "schemaVersion": "mcp_contract_audit.v1",
+            "compliant": true,
+            "evidence": [
+              {
+                "serviceId": "chatchat-mcp-server",
+                "toolName": "mcp_chatchat_mcp_server_studio_warehouse_20261101_template_query",
+                "domainCode": "generic",
+                "domainContractId": "runtime-os/generic-mcp-service",
+                "domainContractVersion": "mcp_domain_contract.v1",
+                "observedContract": {
+                  "serviceId": "chatchat-mcp-server",
+                  "localToolName": "mcp_chatchat_mcp_server_studio_warehouse_20261101_template_query",
+                  "remoteToolName": "studio_warehouse_20261101_template_query",
+                  "description": "使用已经验证的仓库地区汇总与参数化仓库面积明细，供 Agent 基于真实记录进行比较分析。\n\nAgent-selectable child capability representing a fixed, system-maintained template set. It is never executed directly: Runtime delegates it to the declared parent toolbox, which returns this child's bound template information and parameter contracts without another search. The result scope is fixed by the authenticated MCP service and caller roles. It only returns templates selected in Template Query Publication administration and never returns raw commands, SQL, URLs, headers, request bodies, credentials, or other execution specifications. An explicitly published dataSupplyPolicy admits parameter-free bound templates as a Runtime-managed baseline; parameterized templates retain controlled schema binding. Discovery metadata is not business evidence, and analytical relevance and coverage remain with the analysis graph.",
+                  "capabilityCode": "template_discovery",
+                  "inputSchema": {
+                    "properties": {},
+                    "type": "object",
+                    "additionalProperties": true,
+                    "required": []
+                  },
+                  "outputSchema": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": true
+                  },
+                  "governance": {
+                    "riskLevel": "low",
+                    "operationType": "read",
+                    "runtimeLevel": "discovery",
+                    "confirmation": null,
+                    "permissions": null
+                  },
+                  "metadata": {
+                    "resultSchemaRef": "template_query_result.v1",
+                    "controlPlane": "server_managed",
+                    "schemaVersion": "template_query.v1",
+                    "readOnly": true,
+                    "resultEntityKind": "template",
+                    "breakingChangeApproved": true,
+                    "category": "template_discovery",
+                    "user_visible": true,
+                    "sourceId": "system-managed",
+                    "applicability": {
+                      "scopeId": "template_query:authorized_discovery",
+                      "descriptiveOnly": true,
+                      "maySelectOrReplaceTool": false,
+                      "notFor": [
+                        "Executing templates",
+                        "Changing governance",
+                        "Expanding publication scope"
+                      ],
+                      "backendServiceTypes": [
+                        "template_discovery",
+                        "service_role_scope"
+                      ],
+                      "scopeLabel": "Authorized template discovery",
+                      "useWhen": [
+                        "Resolve a bounded page of bound templates and their current parameter contracts for Runtime review."
+                      ],
+                      "summary": "Recall relevant candidates only inside the fixed templates bound to the authenticated service and caller role.",
+                      "schemaVersion": "tool_applicability.v1"
+                    },
+                    "input_policy": {
+                      "allow_raw_command": false,
+                      "allow_raw_sql": false,
+                      "allow_raw_http_spec": false,
+                      "allow_template_scope_override": false
+                    },
+                    "permission": {
+                      "mode": "service_and_role_binding",
+                      "deny_unbound": true,
+                      "scope_source": "server_managed_template_query_binding"
+                    },
+                    "riskLevel": "low",
+                    "assetType": "database_query",
+                    "dataScope": "service_role_template_binding",
+                    "rawExecutionSpecReturned": false,
+                    "toolVersion": "1.0.0",
+                    "inputPolicy": {
+                      "allow_raw_command": false,
+                      "allow_raw_sql": false,
+                      "allow_raw_http_spec": false,
+                      "allow_template_scope_override": false
+                    },
+                    "data_scope": "service_role_template_binding",
+                    "output_policy": {
+                      "raw_execution_spec": false,
+                      "only_selected_templates": true,
+                      "maximum_templates": 20
+                    },
+                    "scopeMode": "FIXED_BINDING",
+                    "operationType": "read",
+                    "workflowContract": {
+                      "workflowRole": "TEMPLATE_DISCOVERY",
+                      "resultEntityKind": "template",
+                      "schemaVersion": "tool_workflow_contract.v1",
+                      "inputEnvelope": "filters",
+                      "protocolFamily": "mcp.authorized-template-query.v1"
+                    },
+                    "outputPolicy": {
+                      "raw_execution_spec": false,
+                      "only_selected_templates": true,
+                      "maximum_templates": 20
+                    },
+                    "runtimeLevel": "discovery",
+                    "runtimeAction": "read_only",
+                    "source": "template_query_publication",
+                    "governanceEditable": false,
+                    "risk_level": "low",
+                    "selectionMode": "BOUND_SCOPE_RECALL",
+                    "confirmation": {
+                      "default": "auto_execute",
+                      "allow_user_override": false
+                    },
+                    "publicationStatus": "active",
+                    "logicalToolId": "704c03e0-8e1b-48e8-9cc8-94d315b8ccf8",
+                    "routingMode": "parent_delegation",
+                    "governance": {
+                      "category": "template_discovery",
+                      "operation_type": "read",
+                      "runtime_level": "discovery",
+                      "risk_level": "low",
+                      "data_scope": "service_role_template_binding",
+                      "user_visible": true,
+                      "confirmation": {
+                        "default": "auto_execute",
+                        "allow_user_override": false
+                      },
+                      "permission": {
+                        "mode": "service_and_role_binding",
+                        "deny_unbound": true,
+                        "scope_source": "server_managed_template_query_binding"
+                      },
+                      "input_policy": {
+                        "allow_raw_command": false,
+                        "allow_raw_sql": false,
+                        "allow_raw_http_spec": false,
+                        "allow_template_scope_override": false
+                      },
+                      "output_policy": {
+                        "raw_execution_spec": false,
+                        "only_selected_templates": true,
+                        "maximum_templates": 20
+                      },
+                      "audit": {
+                        "enabled": true
+                      }
+                    },
+                    "audit": {
+                      "enabled": true
+                    },
+                    "userVisible": true,
+                    "operation_type": "read",
+                    "mcp_tool_limit": {
+                      "tool_name": "studio_warehouse_20261101_template_query",
+                      "max_concurrency": 8,
+                      "timeout_seconds": 90,
+                      "queue_size": 128,
+                      "queue_timeout_seconds": 10,
+                      "runtime_level": "discovery",
+                      "max_output_chars": -1,
+                      "output_control": "template_or_remote_command",
+                      "retry_attempts": 0,
+                      "failure_threshold": 5,
+                      "circuit_open_seconds": 30
+                    },
+                    "releaseId": "abbb896a-5d1d-40fe-9997-ef58cc3cdae7",
+                    "runtime_level": "discovery",
+                    "mcpDynamicCapabilityRoute": {
+                      "contractVersion": "mcp.dynamic-capability-route.v1",
+                      "parentToolName": "database_query_template_query",
+                      "implementationIdentityArgument": "_templateQueryChildToolName",
+                      "routingMode": "parent_delegation"
+                    },
+                    "resultKind": "RAW_RECORDS",
+                    "permissions": {
+                      "mode": "service_and_role_binding",
+                      "deny_unbound": true,
+                      "scope_source": "server_managed_template_query_binding"
+                    },
+                    "templateSelectionScope": {
+                      "contractVersion": "mcp.template-selection-scope.v1",
+                      "assetType": "database_query",
+                      "selectionMode": "FIXED_BINDING",
+                      "authoritative": true
+                    },
+                    "data_type": "TEMPLATE_QUERY",
+                    "chineseAlias": "仓库分布与面积分析查询集合",
+                    "visibleTenantIds": [],
+                    "rolloutLabels": [],
+                    "rolloutPercentage": 100,
+                    "contractVersion": "mcp_tool_contract.v1"
+                  },
+                  "resultKind": "RAW_RECORDS",
+                  "resultSchemaRef": "template_query_result.v1",
+                  "paginationSupported": false
+                },
+                "satisfiedPaths": [
+                  "INPUT_SCHEMA:type",
+                  "OUTPUT_SCHEMA:type",
+                  "GOVERNANCE:riskLevel",
+                  "METADATA:contractVersion"
+                ],
+                "missingPaths": [],
+                "normalizedResultAvailable": false,
+                "rawResultAvailable": false
+              }
+            ],
+            "findings": [],
+            "findingCounts": {},
+            "auditedAt": 1793514486527
+          },
+          "postflightAudit": {
+            "schemaVersion": "mcp_contract_audit.v1",
+            "compliant": true,
+            "evidence": [
+              {
+                "serviceId": "chatchat-mcp-server",
+                "toolName": "mcp_chatchat_mcp_server_studio_warehouse_20261101_template_query",
+                "domainCode": "generic",
+                "domainContractId": "runtime-os/generic-mcp-service",
+                "domainContractVersion": "mcp_domain_contract.v1",
+                "observedContract": {
+                  "serviceId": "chatchat-mcp-server",
+                  "localToolName": "mcp_chatchat_mcp_server_studio_warehouse_20261101_template_query",
+                  "remoteToolName": "studio_warehouse_20261101_template_query",
+                  "description": "使用已经验证的仓库地区汇总与参数化仓库面积明细，供 Agent 基于真实记录进行比较分析。\n\nAgent-selectable child capability representing a fixed, system-maintained template set. It is never executed directly: Runtime delegates it to the declared parent toolbox, which returns this child's bound template information and parameter contracts without another search. The result scope is fixed by the authenticated MCP service and caller roles. It only returns templates selected in Template Query Publication administration and never returns raw commands, SQL, URLs, headers, request bodies, credentials, or other execution specifications. An explicitly published dataSupplyPolicy admits parameter-free bound templates as a Runtime-managed baseline; parameterized templates retain controlled schema binding. Discovery metadata is not business evidence, and analytical relevance and coverage remain with the analysis graph.",
+                  "capabilityCode": "template_discovery",
+                  "inputSchema": {
+                    "properties": {},
+                    "type": "object",
+                    "additionalProperties": true,
+                    "required": []
+                  },
+                  "outputSchema": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": true
+                  },
+                  "governance": {
+                    "riskLevel": "low",
+                    "operationType": "read",
+                    "runtimeLevel": "discovery",
+                    "confirmation": null,
+                    "permissions": null
+                  },
+                  "metadata": {
+                    "resultSchemaRef": "template_query_result.v1",
+                    "controlPlane": "server_managed",
+                    "schemaVersion": "template_query.v1",
+                    "readOnly": true,
+                    "resultEntityKind": "template",
+                    "breakingChangeApproved": true,
+                    "category": "template_discovery",
+                    "user_visible": true,
+                    "sourceId": "system-managed",
+                    "applicability": {
+                      "scopeId": "template_query:authorized_discovery",
+                      "descriptiveOnly": true,
+                      "maySelectOrReplaceTool": false,
+                      "notFor": [
+                        "Executing templates",
+                        "Changing governance",
+                        "Expanding publication scope"
+                      ],
+                      "backendServiceTypes": [
+                        "template_discovery",
+                        "service_role_scope"
+                      ],
+                      "scopeLabel": "Authorized template discovery",
+                      "useWhen": [
+                        "Resolve a bounded page of bound templates and their current parameter contracts for Runtime review."
+                      ],
+                      "summary": "Recall relevant candidates only inside the fixed templates bound to the authenticated service and caller role.",
+                      "schemaVersion": "tool_applicability.v1"
+                    },
+                    "input_policy": {
+                      "allow_raw_command": false,
+                      "allow_raw_sql": false,
+                      "allow_raw_http_spec": false,
+                      "allow_template_scope_override": false
+                    },
+                    "permission": {
+                      "mode": "service_and_role_binding",
+                      "deny_unbound": true,
+                      "scope_source": "server_managed_template_query_binding"
+                    },
+                    "riskLevel": "low",
+                    "assetType": "database_query",
+                    "dataScope": "service_role_template_binding",
+                    "rawExecutionSpecReturned": false,
+                    "toolVersion": "1.0.0",
+                    "inputPolicy": {
+                      "allow_raw_command": false,
+                      "allow_raw_sql": false,
+                      "allow_raw_http_spec": false,
+                      "allow_template_scope_override": false
+                    },
+                    "data_scope": "service_role_template_binding",
+                    "output_policy": {
+                      "raw_execution_spec": false,
+                      "only_selected_templates": true,
+                      "maximum_templates": 20
+                    },
+                    "scopeMode": "FIXED_BINDING",
+                    "operationType": "read",
+                    "workflowContract": {
+                      "workflowRole": "TEMPLATE_DISCOVERY",
+                      "resultEntityKind": "template",
+                      "schemaVersion": "tool_workflow_contract.v1",
+                      "inputEnvelope": "filters",
+                      "protocolFamily": "mcp.authorized-template-query.v1"
+                    },
+                    "outputPolicy": {
+                      "raw_execution_spec": false,
+                      "only_selected_templates": true,
+                      "maximum_templates": 20
+                    },
+                    "runtimeLevel": "discovery",
+                    "runtimeAction": "read_only",
+                    "source": "template_query_publication",
+                    "governanceEditable": false,
+                    "risk_level": "low",
+                    "selectionMode": "BOUND_SCOPE_RECALL",
+                    "confirmation": {
+                      "default": "auto_execute",
+                      "allow_user_override": false
+                    },
+                    "publicationStatus": "active",
+                    "logicalToolId": "704c03e0-8e1b-48e8-9cc8-94d315b8ccf8",
+                    "routingMode": "parent_delegation",
+                    "governance": {
+                      "category": "template_discovery",
+                      "operation_type": "read",
+                      "runtime_level": "discovery",
+                      "risk_level": "low",
+                      "data_scope": "service_role_template_binding",
+                      "user_visible": true,
+                      "confirmation": {
+                        "default": "auto_execute",
+                        "allow_user_override": false
+                      },
+                      "permission": {
+                        "mode": "service_and_role_binding",
+                        "deny_unbound": true,
+                        "scope_source": "server_managed_template_query_binding"
+                      },
+                      "input_policy": {
+                        "allow_raw_command": false,
+                        "allow_raw_sql": false,
+                        "allow_raw_http_spec": false,
+                        "allow_template_scope_override": false
+                      },
+                      "output_policy": {
+                        "raw_execution_spec": false,
+                        "only_selected_templates": true,
+                        "maximum_templates": 20
+                      },
+                      "audit": {
+                        "enabled": true
+                      }
+                    },
+                    "audit": {
+                      "enabled": true
+                    },
+                    "userVisible": true,
+                    "operation_type": "read",
+                    "mcp_tool_limit": {
+                      "tool_name": "studio_warehouse_20261101_template_query",
+                      "max_concurrency": 8,
+                      "timeout_seconds": 90,
+                      "queue_size": 128,
+                      "queue_timeout_seconds": 10,
+                      "runtime_level": "discovery",
+                      "max_output_chars": -1,
+                      "output_control": "template_or_remote_command",
+                      "retry_attempts": 0,
+                      "failure_threshold": 5,
+                      "circuit_open_seconds": 30
+                    },
+                    "releaseId": "abbb896a-5d1d-40fe-9997-ef58cc3cdae7",
+                    "runtime_level": "discovery",
+                    "mcpDynamicCapabilityRoute": {
+                      "contractVersion": "mcp.dynamic-capability-route.v1",
+                      "parentToolName": "database_query_template_query",
+                      "implementationIdentityArgument": "_templateQueryChildToolName",
+                      "routingMode": "parent_delegation"
+                    },
+                    "resultKind": "RAW_RECORDS",
+                    "permissions": {
+                      "mode": "service_and_role_binding",
+                      "deny_unbound": true,
+                      "scope_source": "server_managed_template_query_binding"
+                    },
+                    "templateSelectionScope": {
+                      "contractVersion": "mcp.template-selection-scope.v1",
+                      "assetType": "database_query",
+                      "selectionMode": "FIXED_BINDING",
+                      "authoritative": true
+                    },
+                    "data_type": "TEMPLATE_QUERY",
+                    "chineseAlias": "仓库分布与面积分析查询集合",
+                    "visibleTenantIds": [],
+                    "rolloutLabels": [],
+                    "rolloutPercentage": 100,
+                    "contractVersion": "mcp_tool_contract.v1"
+                  },
+                  "resultKind": "RAW_RECORDS",
+                  "resultSchemaRef": "template_query_result.v1",
+                  "paginationSupported": false
+                },
+                "satisfiedPaths": [
+                  "INPUT_SCHEMA:type",
+                  "OUTPUT_SCHEMA:type",
+                  "GOVERNANCE:riskLevel",
+                  "METADATA:contractVersion",
+                  "RAW_RESULT:$",
+                  "RESULT_CONTRACT:resultKind",
+                  "RESULT_CONTRACT:provenance"
+                ],
+                "missingPaths": [],
+                "normalizedResultAvailable": true,
+                "rawResultAvailable": true
+              }
+            ],
+            "findings": [],
+            "findingCounts": {},
+            "auditedAt": 1793514486950
+          },
+          "kernelProtocolVersion": "runtime_os_mcp_kernel.v1",
+          "discoveryRefreshAttempted": false,
+          "templateBindingValidation": {
+            "executorTool": "mcp_chatchat_mcp_server_studio_warehouse_20261101_template_query",
+            "runtimeEvidenceValidated": false,
+            "schemaVersion": "runtime_template_binding.v3",
+            "templateIdPresent": false
+          },
+          "mcpExecutionWorkflow": {
+            "transport": "in-process",
+            "workflowId": "execute.mcp-tool.v1",
+            "discoveryRefreshAttempted": false,
+            "repairApplied": false,
+            "remoteToolName": "studio_warehouse_20261101_template_query",
+            "providerId": "local-mcp-tool-registry",
+            "toolDiscovered": true,
+            "route": "INTERNAL",
+            "steps": [
+              "DISCOVER_SERVICE",
+              "DISCOVER_TOOL_TEMPLATE",
+              "VALIDATE_TEMPLATE_BINDING",
+              "VALIDATE_TOOL_CONTRACT_SNAPSHOT",
+              "CONTRACT_PREFLIGHT",
+              "REFRESH_CATALOG_IF_STALE",
+              "APPLY_EXECUTION_EXTENSIONS",
+              "INVOKE_PROVIDER",
+              "REPAIR_RESULT_IF_REQUIRED",
+              "CONTRACT_POSTFLIGHT",
+              "ASSEMBLE_RESULT"
+            ],
+            "localToolName": "mcp_chatchat_mcp_server_studio_warehouse_20261101_template_query",
+            "extensions": []
+          }
+        }
+      },
+      "toolExecutionTimeMs": 466
+    }
+  },
+  {
+    "type": "state_update",
+    "source": "interpretation_plan_state",
+    "content": "InterpretationPlan state updated after completed wave.",
+    "metadata": {
+      "structuredRuntimeObservation": true,
+      "workflow": "interpretation_plan",
+      "protocolVersion": "interpretation_execution_protocol_v1",
+      "executionTraceId": "att-1-8538d782-b099-4442-acfd-e2310f64e287::interpretation_plan",
+      "workflowExecutionAttempt": 0,
+      "planExecutionScope": "att-1-8538d782-b099-4442-acfd-e2310f64e287::attempt:0",
+      "lifecyclePhase": "state_update",
+      "completedPlanStepIds": [
+        1
+      ],
+      "remainingPlanStepIds": [
+        2,
+        3
+      ],
+      "waveStepIds": [
+        1
+      ],
+      "failedStepId": null
+    }
+  },
+  {
+    "type": "controller_decision",
+    "source": "interpretation_plan_controller",
+    "content": "LLM DAG controller decision 2 was accepted by runtime guard.",
+    "metadata": {
+      "protocolVersion": "interpretation_execution_protocol_v1",
+      "executionTraceId": "att-1-8538d782-b099-4442-acfd-e2310f64e287::interpretation_plan",
+      "lifecyclePhase": "controller_decision",
+      "decisionCount": 2,
+      "workflow": "interpretation_plan",
+      "structuredRuntimeObservation": true,
+      "type": "controller_decision",
+      "workflowExecutionAttempt": 0,
+      "planExecutionScope": "att-1-8538d782-b099-4442-acfd-e2310f64e287::attempt:0",
+      "decision": {
+        "runtimeDeterministicScheduling": true,
+        "readyStepIds": [
+          2
+        ],
+        "decisionCount": 2,
+        "executionTraceId": "att-1-8538d782-b099-4442-acfd-e2310f64e287::interpretation_plan",
+        "protocolVersion": "interpretation_execution_protocol_v1",
+        "action": "execute_step",
+        "stepIds": [
+          2
+        ],
+        "reason": "Java Runtime selected Ready node(s) deterministically."
+      },
+      "guardResult": {
+        "protocolVersion": "interpretation_execution_protocol_v1",
+        "allowed": true,
+        "status": "accepted",
+        "reason": "Runtime guard accepted DAG decision.",
+        "validatedAction": "execute_step",
+        "validatedStepIds": [
+          2
+        ]
+      },
+      "remainingStepIds": [
+        2,
+        3
+      ],
+      "completedStepIds": [
+        1
+      ]
+    }
+  },
+  {
+    "type": "tool_failure",
+    "source": "mcp_chatchat_mcp_server_sql_query_execute",
+    "content": "InterpretationPlan step 2 mcp_chatchat_mcp_server_sql_query_execute failed: Tool call batch completed with status FAILED; child failures: template-binding-1-binding-1[MCP_CONFIRMATION_REQUIRED]: MCP tool execution requires user confirmation: mcp_chatchat_mcp_server_sql_query_execute; template-binding-2-binding-2[MCP_CONFIRMATION_REQUIRED]: MCP tool execution requires user confirmation: mcp_chatchat_mcp_server_sql_query_execute",
+    "metadata": {
+      "structuredRuntimeObservation": true,
+      "workflow": "interpretation_plan",
+      "protocolVersion": "interpretation_execution_protocol_v1",
+      "executionTraceId": "att-1-8538d782-b099-4442-acfd-e2310f64e287::interpretation_plan",
+      "workflowExecutionAttempt": 0,
+      "planExecutionScope": "att-1-8538d782-b099-4442-acfd-e2310f64e287::attempt:0",
+      "evidenceIteration": 1,
+      "lifecyclePhase": "observation",
+      "interpretationPlanStepId": 2,
+      "evidenceId": "iteration:1:step:2:tool:mcp_chatchat_mcp_server_sql_query_execute",
+      "interpretationPlanActionType": "mcp_tool",
+      "toolName": "mcp_chatchat_mcp_server_sql_query_execute",
+      "planStepDefinitionFingerprint": "wz4f2PKGtzs6w3L76eNgyZA2sWWpEiwiyuauAUPzHIk",
+      "success": false,
+      "durationMs": 107,
+      "type": "tool_failure",
+      "errorMessage": "Tool call batch completed with status FAILED; child failures: template-binding-1-binding-1[MCP_CONFIRMATION_REQUIRED]: MCP tool execution requires user confirmation: mcp_chatchat_mcp_server_sql_query_execute; template-binding-2-binding-2[MCP_CONFIRMATION_REQUIRED]: MCP tool execution requires user confirmation: mcp_chatchat_mcp_server_sql_query_execute",
+      "repairEvent": {
+        "eventKind": "DAG_REPAIR",
+        "admittedTemplateIds": [
+          "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+          "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7"
+        ],
+        "compiledCallCount": 2,
+        "contractVersion": "runtime_dag_governance.v1",
+        "eventState": "APPLIED",
+        "stepId": 2,
+        "stopOnFailure": false,
+        "repairCode": "TEMPLATE_SET_COMPLETENESS_RESTORED"
+      },
+      "eventKind": "DAG_REPAIR",
+      "rawOutputType": "ToolCallBatchResult",
+      "eventState": "APPLIED",
+      "diagnosticEvidenceContractVersion": "diagnostic_evidence_v1",
+      "runtimeTemplateCompletenessRepair": {
+        "eventKind": "DAG_REPAIR",
+        "admittedTemplateIds": [
+          "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+          "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7"
+        ],
+        "compiledCallCount": 2,
+        "contractVersion": "runtime_dag_governance.v1",
+        "eventState": "APPLIED",
+        "stepId": 2,
+        "stopOnFailure": false,
+        "repairCode": "TEMPLATE_SET_COMPLETENESS_RESTORED"
+      },
+      "repairAttempt": 1,
+      "diagnosticEvidenceNormalized": true,
+      "resolvedInput": {
+        "batchId": "reviewed-template-step-2",
+        "executionMode": "SEQUENTIAL",
+        "stopOnFailure": false,
+        "calls": [
+          {
+            "callId": "template-binding-1-binding-1",
+            "toolName": "mcp_chatchat_mcp_server_sql_query_execute",
+            "arguments": {
+              "executionContext": {
+                "env": "DEV"
+              },
+              "templateId": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+              "template": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+              "runtimeTemplateBinding": {
+                "templateId": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+                "source": "reviewed_template_discovery_batch",
+                "toolContractHash": "f67a872b7ab3b2ee0729e21a7fc830606bee6a15b12a5bb7605560fb79ca2a25",
+                "schemaVersion": "runtime_template_binding.v3",
+                "toolContractVersion": "3",
+                "executorTool": "mcp_chatchat_mcp_server_sql_query_execute"
+              },
+              "parameters": {},
+              "runtimeParameterBindingAudit": {
+                "schemaVersion": "runtime_os.template_parameter_binding.v1",
+                "templateId": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+                "effectiveParameters": {},
+                "parameterSources": {},
+                "droppedOverrideFields": [],
+                "rejectedOverrides": [],
+                "defaultFields": [],
+                "unmappedConstraints": [
+                  "核对地区汇总与明细的数量、合计及极值是否一致",
+                  "分析面积差异",
+                  "输出结果表和可查看的图表"
+                ],
+                "scopeStatus": "REQUIRES_SCOPE_VERIFICATION",
+                "scopeRule": "Technical execution success does not prove the requested business scope. Compare effective parameters with the original request; never attribute default-scope rows to an unmatched requested entity or time range."
+              }
+            }
+          },
+          {
+            "callId": "template-binding-2-binding-2",
+            "toolName": "mcp_chatchat_mcp_server_sql_query_execute",
+            "arguments": {
+              "executionContext": {
+                "env": "DEV"
+              },
+              "templateId": "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+              "template": "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+              "runtimeTemplateBinding": {
+                "templateId": "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+                "source": "reviewed_template_discovery_batch",
+                "toolContractHash": "f67a872b7ab3b2ee0729e21a7fc830606bee6a15b12a5bb7605560fb79ca2a25",
+                "schemaVersion": "runtime_template_binding.v3",
+                "toolContractVersion": "3",
+                "executorTool": "mcp_chatchat_mcp_server_sql_query_execute"
+              },
+              "parameters": {
+                "min_area": 0
+              },
+              "runtimeParameterBindingAudit": {
+                "schemaVersion": "runtime_os.template_parameter_binding.v1",
+                "templateId": "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+                "effectiveParameters": {
+                  "min_area": 0
+                },
+                "parameterSources": {
+                  "min_area": "user_query"
+                },
+                "droppedOverrideFields": [],
+                "rejectedOverrides": [],
+                "defaultFields": [],
+                "unmappedConstraints": [
+                  "核对地区汇总与明细的数量、合计及极值是否一致",
+                  "输出结果表和可查看的图表"
+                ],
+                "scopeStatus": "REQUIRES_SCOPE_VERIFICATION",
+                "scopeRule": "Technical execution success does not prove the requested business scope. Compare effective parameters with the original request; never attribute default-scope rows to an unmatched requested entity or time range."
+              }
+            }
+          }
+        ]
+      },
+      "stepOutput": {
+        "completedAt": "2026-11-01T06:28:12.501Z",
+        "executionMode": "SEQUENTIAL",
+        "cardinality": {
+          "declaredCheckCount": 2,
+          "compiledCallCount": 2,
+          "executedCallCount": 0,
+          "resultCount": 2
+        },
+        "summary": {
+          "total": 2,
+          "success": 0,
+          "failed": 2,
+          "blocked": 0,
+          "skipped": 0,
+          "remoteToolInvocations": 0
+        },
+        "contractVersion": "diagnostic_evidence_v1",
+        "executionStatus": "INSUFFICIENT_EVIDENCE",
+        "results": [
+          {
+            "templateId": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+            "callId": "template-binding-1-binding-1",
+            "normalizedToolName": "mcp_chatchat_mcp_server_sql_query_execute",
+            "durationMs": 0,
+            "sequence": 1,
+            "checkId": "template-binding-1-binding-1",
+            "toolName": "mcp_chatchat_mcp_server_sql_query_execute",
+            "templateCode": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+            "evidenceQuality": {
+              "contractVersion": "diagnostic_evidence_quality_v1",
+              "coverage": 0,
+              "quality": {
+                "value": null,
+                "status": "UNKNOWN",
+                "type": "NOT_ASSESSED",
+                "reason": "No successful diagnostic result is available."
+              },
+              "freshness": {
+                "value": null,
+                "status": "UNKNOWN",
+                "type": "NOT_ASSESSED",
+                "reason": "Freshness cannot be assessed without successful evidence."
+              },
+              "assessmentCapability": "UNAVAILABLE",
+              "missingMetrics": [],
+              "missingContext": [],
+              "purpose": null,
+              "healthCapability": null,
+              "timeSemantics": null,
+              "reasons": [
+                "Execution produced no accepted evidence."
+              ]
+            },
+            "finding": {
+              "confirmationRequired": {
+                "purpose": "InterpretationPlan step 2",
+                "toolName": "mcp_chatchat_mcp_server_sql_query_execute",
+                "displayName": "sql_query_execute",
+                "runtimeLevel": "confirm_required",
+                "riskLevel": "high",
+                "parameters": {
+                  "executionContext": {
+                    "env": "DEV"
+                  },
+                  "templateId": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+                  "template": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+                  "parameters": {},
+                  "runtimeParameterBindingAudit": {
+                    "schemaVersion": "runtime_os.template_parameter_binding.v1",
+                    "templateId": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+                    "effectiveParameters": {},
+                    "parameterSources": {},
+                    "droppedOverrideFields": [],
+                    "rejectedOverrides": [],
+                    "defaultFields": [],
+                    "unmappedConstraints": [
+                      "核对地区汇总与明细的数量、合计及极值是否一致",
+                      "分析面积差异",
+                      "输出结果表和可查看的图表"
+                    ],
+                    "scopeStatus": "REQUIRES_SCOPE_VERIFICATION",
+                    "scopeRule": "Technical execution success does not prove the requested business scope. Compare effective parameters with the original request; never attribute default-scope rows to an unmatched requested entity or time range."
+                  }
+                },
+                "dataScope": "unknown",
+                "operationType": "read_sql",
+                "token": "78a552a9e42e7615cde82f221c27dd1f",
+                "choices": [
+                  "allow_once",
+                  "similar_auto_execute",
+                  "tool_auto_execute",
+                  "tool_always_confirm",
+                  "tool_deny"
+                ]
+              }
+            },
+            "error": {
+              "code": "MCP_CONFIRMATION_REQUIRED",
+              "message": "MCP tool execution requires user confirmation: mcp_chatchat_mcp_server_sql_query_execute"
+            },
+            "invoked": false,
+            "evidenceUsable": false,
+            "status": "FAILED",
+            "evidenceId": "dfb26931-15e9-4e67-81da-6914ab667257",
+            "batchId": "reviewed-template-step-2"
+          },
+          {
+            "templateId": "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+            "callId": "template-binding-2-binding-2",
+            "normalizedToolName": "mcp_chatchat_mcp_server_sql_query_execute",
+            "durationMs": 0,
+            "sequence": 2,
+            "checkId": "template-binding-2-binding-2",
+            "toolName": "mcp_chatchat_mcp_server_sql_query_execute",
+            "templateCode": "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+            "evidenceQuality": {
+              "contractVersion": "diagnostic_evidence_quality_v1",
+              "coverage": 0,
+              "quality": {
+                "value": null,
+                "status": "UNKNOWN",
+                "type": "NOT_ASSESSED",
+                "reason": "No successful diagnostic result is available."
+              },
+              "freshness": {
+                "value": null,
+                "status": "UNKNOWN",
+                "type": "NOT_ASSESSED",
+                "reason": "Freshness cannot be assessed without successful evidence."
+              },
+              "assessmentCapability": "UNAVAILABLE",
+              "missingMetrics": [],
+              "missingContext": [],
+              "purpose": null,
+              "healthCapability": null,
+              "timeSemantics": null,
+              "reasons": [
+                "Execution produced no accepted evidence."
+              ]
+            },
+            "finding": {
+              "confirmationRequired": {
+                "purpose": "InterpretationPlan step 2",
+                "toolName": "mcp_chatchat_mcp_server_sql_query_execute",
+                "displayName": "sql_query_execute",
+                "runtimeLevel": "confirm_required",
+                "riskLevel": "high",
+                "parameters": {
+                  "executionContext": {
+                    "env": "DEV"
+                  },
+                  "templateId": "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+                  "template": "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+                  "parameters": {
+                    "min_area": 0
+                  },
+                  "runtimeParameterBindingAudit": {
+                    "schemaVersion": "runtime_os.template_parameter_binding.v1",
+                    "templateId": "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7",
+                    "effectiveParameters": {
+                      "min_area": 0
+                    },
+                    "parameterSources": {
+                      "min_area": "user_query"
+                    },
+                    "droppedOverrideFields": [],
+                    "rejectedOverrides": [],
+                    "defaultFields": [],
+                    "unmappedConstraints": [
+                      "核对地区汇总与明细的数量、合计及极值是否一致",
+                      "输出结果表和可查看的图表"
+                    ],
+                    "scopeStatus": "REQUIRES_SCOPE_VERIFICATION",
+                    "scopeRule": "Technical execution success does not prove the requested business scope. Compare effective parameters with the original request; never attribute default-scope rows to an unmatched requested entity or time range."
+                  }
+                },
+                "dataScope": "unknown",
+                "operationType": "read_sql",
+                "token": "d13fc1c20498a1179498d9147e57edb3",
+                "choices": [
+                  "allow_once",
+                  "similar_auto_execute",
+                  "tool_auto_execute",
+                  "tool_always_confirm",
+                  "tool_deny"
+                ]
+              }
+            },
+            "error": {
+              "code": "MCP_CONFIRMATION_REQUIRED",
+              "message": "MCP tool execution requires user confirmation: mcp_chatchat_mcp_server_sql_query_execute"
+            },
+            "invoked": false,
+            "evidenceUsable": false,
+            "status": "FAILED",
+            "evidenceId": "003fd2f6-8282-44bd-8ed8-6f62cc9ef35c",
+            "batchId": "reviewed-template-step-2"
+          }
+        ],
+        "evidenceQuality": {
+          "contractVersion": "diagnostic_evidence_quality_summary_v1",
+          "assessedChecks": 0,
+          "declaredChecks": 2,
+          "qualityAssessmentCoverage": 0,
+          "qualityScore": null,
+          "freshnessScore": null
+        },
+        "startedAt": "2026-11-01T06:28:12.464Z",
+        "batchId": "reviewed-template-step-2",
+        "batchStatus": "FAILED",
+        "assessmentStatus": "NOT_AVAILABLE",
+        "evidenceCoverage": 0
+      },
+      "toolExecutionTimeMs": 38
+    }
+  },
+  {
+    "type": "state_update_failed",
+    "source": "interpretation_plan_state",
+    "content": "InterpretationPlan state updated after failed wave.",
+    "metadata": {
+      "structuredRuntimeObservation": true,
+      "workflow": "interpretation_plan",
+      "protocolVersion": "interpretation_execution_protocol_v1",
+      "executionTraceId": "att-1-8538d782-b099-4442-acfd-e2310f64e287::interpretation_plan",
+      "workflowExecutionAttempt": 0,
+      "planExecutionScope": "att-1-8538d782-b099-4442-acfd-e2310f64e287::attempt:0",
+      "lifecyclePhase": "state_update",
+      "completedPlanStepIds": [
+        1,
+        2
+      ],
+      "remainingPlanStepIds": [
+        3
+      ],
+      "waveStepIds": [
+        2
+      ],
+      "failedStepId": 2
+    }
+  },
+  {
+    "type": "text",
+    "source": "agent",
+    "content": "InterpretationPlan initial step 1 mcp_chatchat_mcp_server_studio_warehouse_20261101_template_query succeeded.",
+    "metadata": {
+      "legacyTextObservation": true,
+      "length": 109
+    }
+  },
+  {
+    "type": "text",
+    "source": "agent",
+    "content": "InterpretationPlan template selection feedback: {\"selectedTemplateIds\":[\"STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC\",\"STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7\"],\"runtimeSelectedTemplateIds\":[\"STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC\",\"STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7\"],\"runtimeTemplateSelectionReason\":\"Runtime validated model selection identities and parameter contracts.\",\"schemaVersion\":\"template_selection_feedback.v1\",\"stage\":\"initial\",\"stepId\":1,\"toolName\":\"mcp_chatchat_mcp_server_studio_warehouse_20261101_template_query\"}",
+    "metadata": {
+      "legacyTextObservation": true,
+      "length": 533
+    }
+  },
+  {
+    "type": "text",
+    "source": "agent",
+    "content": "InterpretationPlan initial step 2 mcp_chatchat_mcp_server_sql_query_execute failed: Tool call batch completed with status FAILED; child failures: template-binding-1-binding-1[MCP_CONFIRMATION_REQUIRED]: MCP tool execution requires user confirmation: mcp_chatchat_mcp_server_sql_query_execute; template-binding-2-binding-2[MCP_CONFIRMATION_REQUIRED]: MCP tool execution requires user confirmation: mcp_chatchat_mcp_server_sql_query_execute",
+    "metadata": {
+      "legacyTextObservation": true,
+      "length": 438
+    }
+  },
+  {
+    "type": "analysis_dataset_excluded",
+    "source": "analysis_summary_governance",
+    "content": "证据入口记录：STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC#template-binding-1-binding-1（reason=SOURCE_EXECUTION_FAILED, executionStatus=FAILED, error={code=MCP_CONFIRMATION_REQUIRED, message=MCP tool execution requires user confirmation: mcp_chatchat_mcp_server_sql_query_execute}）。",
+    "metadata": {
+      "exclusion": {
+        "datasetReference": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC#template-binding-1-binding-1",
+        "toolName": "mcp_chatchat_mcp_server_sql_query_execute",
+        "reason": "SOURCE_EXECUTION_FAILED",
+        "accountingStatus": "FAILED",
+        "executionStatus": "FAILED",
+        "invoked": false,
+        "error": {
+          "code": "MCP_CONFIRMATION_REQUIRED",
+          "message": "MCP tool execution requires user confirmation: mcp_chatchat_mcp_server_sql_query_execute"
+        }
+      },
+      "runId": "att-1-8538d782-b099-4442-acfd-e2310f64e287",
+      "type": "analysis_dataset_excluded",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "structuredRuntimeObservation": true
+    }
+  },
+  {
+    "type": "analysis_dataset_excluded",
+    "source": "analysis_summary_governance",
+    "content": "证据入口记录：STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7#template-binding-2-binding-2（reason=SOURCE_EXECUTION_FAILED, executionStatus=FAILED, error={code=MCP_CONFIRMATION_REQUIRED, message=MCP tool execution requires user confirmation: mcp_chatchat_mcp_server_sql_query_execute}）。",
+    "metadata": {
+      "exclusion": {
+        "datasetReference": "STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7#template-binding-2-binding-2",
+        "toolName": "mcp_chatchat_mcp_server_sql_query_execute",
+        "reason": "SOURCE_EXECUTION_FAILED",
+        "accountingStatus": "FAILED",
+        "executionStatus": "FAILED",
+        "invoked": false,
+        "error": {
+          "code": "MCP_CONFIRMATION_REQUIRED",
+          "message": "MCP tool execution requires user confirmation: mcp_chatchat_mcp_server_sql_query_execute"
+        }
+      },
+      "runId": "att-1-8538d782-b099-4442-acfd-e2310f64e287",
+      "type": "analysis_dataset_excluded",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "structuredRuntimeObservation": true
+    }
+  }
+]

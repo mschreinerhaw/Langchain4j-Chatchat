@@ -1,0 +1,36 @@
+{
+  "httpStatus": 200,
+  "request": {
+    "input": {
+      "query": "仓库分布与面积",
+      "limit": 20
+    }
+  },
+  "response": {
+    "code": 200,
+    "message": "Success",
+    "data": {
+      "id": "abbb896a-5d1d-40fe-9997-ef58cc3cdae7",
+      "logicalId": "704c03e0-8e1b-48e8-9cc8-94d315b8ccf8",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "releaseNumber": 1,
+      "state": "TESTED",
+      "kind": "CONTROLLED_TEMPLATE",
+      "title": "仓库分布与面积分析查询集合",
+      "description": "使用已经验证的仓库地区汇总与参数化仓库面积明细，供 Agent 基于真实记录进行比较分析。",
+      "definitionJson": "{\"domainCode\":\"studio_warehouse_20261101\",\"businessCategory\":\"\",\"parentToolName\":\"database_query_template_query\",\"roleId\":\"40a041d7-a0f0-45b8-a552-bffe56d07f77\",\"subjectType\":\"ROLE\",\"userId\":null,\"templateKeys\":[\"sql_datasource:STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC\",\"sql_datasource:STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7\"],\"enabled\":false}",
+      "inputSchemaJson": "{\"type\":\"object\",\"properties\":{}}",
+      "outputSchemaJson": "{\"type\":\"object\",\"properties\":{}}",
+      "testEvidenceJson": "{\"actorId\":\"2f219487-11a3-4a1d-9130-ac500b62f268\",\"type\":\"CONTROLLED_EXECUTOR_CONTRACT_TEST\",\"testedAt\":\"2026-11-01T05:59:39.164450725Z\",\"input\":{\"query\":\"仓库分布与面积\",\"limit\":20},\"output\":{\"semanticReviewRequired\":true,\"success\":true,\"filterAudit\":{\"unavailableOrUnauthorizedCount\":0,\"policyResolvedAt\":\"2026-11-01T05:59:39.075917246Z\",\"candidateCount\":2,\"returnedCount\":2,\"retrievalSignalCount\":1,\"policyCacheHit\":false},\"bindingComplete\":true,\"rawExecutionSpecReturned\":false,\"candidateUniverseCount\":2,\"boundScopeRecallPerformed\":true,\"provenance\":{\"sourceRef\":\"mcp://chatchat-mcp-server/studio_warehouse_20261101_template_query\",\"rowRange\":{\"offset\":0,\"count\":2},\"dataVersion\":\"draft-contract-test\",\"filterSummary\":{\"scopeMode\":\"FIXED_BINDING\",\"candidateUniverseCount\":2},\"asOf\":\"2026-11-01T05:59:39.075917246Z\"},\"resultEntityKind\":\"template\",\"hasMore\":false,\"globalSearchPerformed\":false,\"scopeMode\":\"FIXED_BINDING\",\"returnedCount\":2,\"toolName\":\"studio_warehouse_20261101_template_query\",\"templates\":[{\"description\":\"按国家及省州汇总仓库数量与面积字段原值，保留空分组；不推断面积单位。\",\"templateId\":\"STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC\",\"assetType\":\"sql_datasource\",\"businessCategoryCode\":\"data_asset_exploration\",\"title\":\"仓库地区分布与面积汇总\",\"exists\":true,\"selectionSource\":\"template_query_binding\",\"businessCategoryName\":\"数据资产探索\",\"category\":\"data_asset_exploration\",\"parameterSchema\":{\"type\":\"object\",\"properties\":{},\"additionalProperties\":false}},{\"description\":\"按最低面积原值阈值筛选仓库，返回主键、名称、地区及面积；参数 min_area 默认0，不推断单位。\",\"templateId\":\"STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7\",\"assetType\":\"sql_datasource\",\"businessCategoryCode\":\"data_asset_exploration\",\"title\":\"仓库面积明细查询\",\"exists\":true,\"selectionSource\":\"template_query_binding\",\"businessCategoryName\":\"数据资产探索\",\"category\":\"data_asset_exploration\",\"parameterSchema\":{\"type\":\"object\",\"properties\":{\"min_area\":{\"type\":\"number\",\"minimum\":0,\"default\":0,\"description\":\"最低面积字段原值，不换算单位\"}},\"additionalProperties\":false}}],\"selectionMode\":\"BOUND_SCOPE_RECALL\",\"pagination\":{\"offset\":0,\"limit\":20,\"hasMore\":false,\"nextPageToken\":null,\"pageSize\":20,\"returnedCount\":2,\"nextCursor\":null},\"resultSchemaRef\":\"template_query_result.v1\",\"publicationScope\":{\"parentToolNames\":[\"database_query_template_query\"],\"serviceId\":\"chatchat-mcp-server\",\"roleBound\":false,\"policyVersion\":\"draft-contract-test\",\"configuredAssetTypes\":[\"sql_datasource\"],\"configuredTemplateCount\":2},\"schemaVersion\":\"template_query_result.v1\",\"resultKind\":\"RAW_RECORDS\"}}",
+      "bindingId": null,
+      "actorId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+      "createdAt": "2026-11-01T05:59:37.422769Z",
+      "publishedAt": null,
+      "version": 2,
+      "businessCategory": null,
+      "businessCategoryId": null
+    },
+    "timestamp": 1793512779183,
+    "requestId": "9110bc35-d5f2-498a-ac4e-9cd770ca0ec7"
+  }
+}

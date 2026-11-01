@@ -1,0 +1,78 @@
+{
+  "id": "47b17c5b-51bf-39ac-a93b-4d2f1a8914cc",
+  "code": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+  "sqlTemplate": "-- ============================================================================\n-- warehouse_summary.sql\n-- TPC-D S warehouse summary by country and state\n-- Dialect : MySQL\n-- Purpose : Group warehouses by country (w_country) and state (w_state),\n--           compute count and square-footage aggregates (SUM / MIN / MAX).\n-- Notes   : - NULL groups are preserved (MySQL GROUP BY keeps NULLs).\n--           - w_warehouse_sq_ft is kept as raw integer values; no unit\n--             conversion or guessing is applied.\n--           - Read-only; no parameters, no warehouse-id filters.\n-- Source  : tpcds.warehouse (REGISTERED_METADATA)\n-- ============================================================================\n\nSELECT\n    w_country,\n    w_state,\n    COUNT(*)                 AS warehouse_count,\n    SUM(w_warehouse_sq_ft)   AS total_warehouse_sq_ft,\n    MIN(w_warehouse_sq_ft)   AS min_warehouse_sq_ft,\n    MAX(w_warehouse_sq_ft)   AS max_warehouse_sq_ft\nFROM tpcds.warehouse\nGROUP BY\n    w_country,\n    w_state\nORDER BY\n    w_country,\n    w_state;\n",
+  "parameterSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+  "databaseType": "mysql",
+  "title": "仓库地区分布与面积汇总",
+  "description": "按国家及省州汇总仓库数量与面积字段原值，保留空分组；不推断面积单位。",
+  "category": "data_asset_exploration",
+  "source": {
+    "projectId": "c4f87abd-8d26-4b2d-a4fd-bb09212b9987",
+    "fileId": "2f837875-7d21-4f8f-8a1e-e10d21953d34",
+    "fileVersion": 1,
+    "sqlDigest": "eafe514c132cfda65745422a25fd8d72a537466dd753eaeae57982bc8bc231b1"
+  },
+  "groupId": "47b17c5b-51bf-39ac-a93b-4d2f1a8914cc",
+  "version": 1,
+  "expectedVersion": 2,
+  "state": "TESTED",
+  "active": false,
+  "testEvidence": {
+    "type": "SQL_DATABASE_EXECUTION",
+    "testId": "4d0e2ee1-61c0-4c18-b11d-b845123e5fd4",
+    "testedAt": "2026-11-01T05:57:38.510944015Z",
+    "traceId": "4d0e2ee1-61c0-4c18-b11d-b845123e5fd4",
+    "source": {
+      "projectId": "c4f87abd-8d26-4b2d-a4fd-bb09212b9987",
+      "fileId": "2f837875-7d21-4f8f-8a1e-e10d21953d34",
+      "fileVersion": 1,
+      "sqlDigest": "eafe514c132cfda65745422a25fd8d72a537466dd753eaeae57982bc8bc231b1"
+    },
+    "fingerprint": "9dfa5a4d447f4b553b3c56420d222624e98e12742631b691cba174374fc14298",
+    "sqlDigest": "eafe514c132cfda65745422a25fd8d72a537466dd753eaeae57982bc8bc231b1",
+    "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+    "datasourceDigest": "b27ffa4e8417483716307f5616dd281a627fe54e669e1216687643f4dca1b0c4",
+    "parameters": {},
+    "parametersDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "timeoutSeconds": 10,
+    "maxRows": 50,
+    "success": true,
+    "resultDigest": "c9026cb0d3e028a0255523ab9076d4294df7ff68b76bec9978bac167b44ca3a2",
+    "rowCount": 1,
+    "errorCode": "",
+    "preview": {
+      "columns": [
+        "w_country",
+        "w_state",
+        "warehouse_count",
+        "total_warehouse_sq_ft",
+        "min_warehouse_sq_ft",
+        "max_warehouse_sq_ft"
+      ],
+      "rows": [
+        {
+          "w_country": "United States",
+          "w_state": "TN",
+          "warehouse_count": 5,
+          "total_warehouse_sq_ft": 2031767,
+          "min_warehouse_sq_ft": 138504,
+          "max_warehouse_sq_ft": 977787
+        }
+      ],
+      "returnedRowCount": 1,
+      "possiblyTruncated": false,
+      "complete": true,
+      "previewTruncated": false
+    },
+    "diagnostic": "SQL query executed successfully",
+    "durationMs": 342
+  },
+  "templateKey": "sql_datasource:STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+  "releaseHistory": []
+}

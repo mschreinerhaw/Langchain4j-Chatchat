@@ -1,0 +1,44 @@
+{
+  "capturedAt": "2026-11-01T05:59:03.088028+00:00",
+  "source": "DIRECT_MYSQL_JDBC",
+  "readOnly": true,
+  "durationMs": 1097,
+  "rows": [
+    {
+      "w_warehouse_sk": "1",
+      "w_warehouse_name": "Conventional childr",
+      "w_country": "United States",
+      "w_state": "TN",
+      "w_warehouse_sq_ft": "977787"
+    },
+    {
+      "w_warehouse_sk": "2",
+      "w_warehouse_name": "Important issues liv",
+      "w_country": "United States",
+      "w_state": "TN",
+      "w_warehouse_sq_ft": "138504"
+    },
+    {
+      "w_warehouse_sk": "3",
+      "w_warehouse_name": "Doors canno",
+      "w_country": "United States",
+      "w_state": "TN",
+      "w_warehouse_sq_ft": "294242"
+    },
+    {
+      "w_warehouse_sk": "4",
+      "w_warehouse_name": "Bad cards must make.",
+      "w_country": "United States",
+      "w_state": "TN",
+      "w_warehouse_sq_ft": "621234"
+    },
+    {
+      "w_warehouse_sk": "5",
+      "w_warehouse_name": null,
+      "w_country": "United States",
+      "w_state": "TN",
+      "w_warehouse_sq_ft": null
+    }
+  ],
+  "sql": "SELECT w_warehouse_sk,w_warehouse_name,w_country,w_state,w_warehouse_sq_ft FROM warehouse ORDER BY w_warehouse_sk"
+}

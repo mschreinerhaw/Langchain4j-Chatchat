@@ -1,0 +1,13 @@
+{
+  "status": "PASS",
+  "comparedJavaClasses": 976,
+  "changedClasses": [
+    "com/chatchat/mcpserver/sql/tool/SqlMcpToolPublisher$1.class",
+    "com/chatchat/mcpserver/sql/tool/SqlMcpToolPublisher$2.class",
+    "com/chatchat/mcpserver/sql/tool/SqlMcpToolPublisher.class"
+  ],
+  "exactPackagedFrontendFiles": 6,
+  "sha256": "03fd5d8e38e89b143398ce490a8e84933d3bcc6611a91ae1af53100b3a0b3b29",
+  "baselineSha256": "c7d4f932618137b4b301b49d523477704676bb96cc357d418e948243bc7a54f5",
+  "sourceCommit": "f49eb3c838d3849cf71c624a83c8f39d52531f40"
+}

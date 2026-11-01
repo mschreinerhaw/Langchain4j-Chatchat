@@ -1,0 +1,42 @@
+{
+  "serviceId": "chatchat-mcp-server",
+  "metadata": {
+    "contractVersion": "sql-studio.metadata.v2",
+    "operation": "LIST_TABLES",
+    "status": "NEEDS_REFRESH",
+    "snapshotId": null,
+    "provenance": [],
+    "page": 1,
+    "pageSize": 100,
+    "totalMatched": 0,
+    "hasMore": false,
+    "items": [],
+    "doesNotExecuteSql": true,
+    "supportedOperations": [
+      "DESCRIBE",
+      "DESCRIBE_TABLE",
+      "GET_TABLE_DDL",
+      "GET_TABLE_RELATIONSHIPS",
+      "LIST_ASSETS",
+      "LIST_CATALOGS",
+      "LIST_NAMESPACES",
+      "LIST_SCHEMAS",
+      "LIST_TABLES",
+      "REFRESH",
+      "SEARCH",
+      "SEARCH_COLUMNS",
+      "SEARCH_TABLES"
+    ],
+    "evidenceClass": "REGISTERED_METADATA",
+    "verificationStatus": "NOT_VERIFIED_LIVE",
+    "limitations": [
+      "Metadata snapshot is unavailable; collect it through the existing metadata administration service."
+    ],
+    "workflow": {
+      "requestId": "61323dd7-8e57-46d7-ad4e-775348617f9c",
+      "workflowId": "SQL_METADATA_DISCOVERY",
+      "strategyOwner": "MODEL",
+      "operation": "LIST_TABLES"
+    }
+  }
+}

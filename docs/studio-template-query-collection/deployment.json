@@ -1,0 +1,31 @@
+{
+  "status": "DEPLOYED",
+  "image": "runtime-os-mcp:studio-query-collection-20261101-r2",
+  "sha256": "03fd5d8e38e89b143398ce490a8e84933d3bcc6611a91ae1af53100b3a0b3b29",
+  "sourceCommit": "f49eb3c838d3849cf71c624a83c8f39d52531f40",
+  "baselineSha256": "c7d4f932618137b4b301b49d523477704676bb96cc357d418e948243bc7a54f5",
+  "catalogBefore": {
+    "/database-query": {
+      "count": 8,
+      "sha256": "3e0201c9ef2a94f698db470691e63469fd52babe9fa72cf70e644f1a08e9ac47"
+    },
+    "/database-query/studio-publications": {
+      "count": 7,
+      "sha256": "31605dc8b3bcb16d0e4eedee26c0f09d3509b84e508e8200d5349535456ec1af"
+    }
+  },
+  "catalogAfter": {
+    "/database-query": {
+      "count": 8,
+      "sha256": "3e0201c9ef2a94f698db470691e63469fd52babe9fa72cf70e644f1a08e9ac47"
+    },
+    "/database-query/studio-publications": {
+      "count": 7,
+      "sha256": "31605dc8b3bcb16d0e4eedee26c0f09d3509b84e508e8200d5349535456ec1af"
+    }
+  },
+  "allOtherRunningContainersUnchanged": true,
+  "databaseMigration": null,
+  "backup": "/root/chatchat-releases/studio-query-collection-20261101-r2/backup",
+  "retiredContainer": "runtime-os-app-stage-mcp-1-before-query-ui-1793513612"
+}

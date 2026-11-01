@@ -1,0 +1,19 @@
+{
+  "source": "Calculated independently from DIRECT_MYSQL_JDBC warehouse rows",
+  "allWarehouseCount": 5,
+  "nonNullAreaCount": 4,
+  "nullAreaCount": 1,
+  "totalRawArea": 2031767,
+  "minRawArea": 138504,
+  "maxRawArea": 977787,
+  "changedParameter": {
+    "min_area": 294242,
+    "expectedWarehouseIds": [
+      1,
+      3,
+      4
+    ],
+    "expectedCount": 3,
+    "expectedRawAreaTotal": 1893263
+  }
+}

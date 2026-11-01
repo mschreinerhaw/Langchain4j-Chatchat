@@ -1,0 +1,17 @@
+{
+  "before": {
+    "status": "REPRODUCED",
+    "failure": "Tool confirmation was incorrectly projected as DATA_SUPPLY_EXECUTION_FAILED",
+    "logSha256": "aa281d82ddc5b2ebc3968f2c8f0f9c00565d2389b1bb7001fd372e15854dcc69"
+  },
+  "after": {
+    "status": "PASS",
+    "test": "AgentOrchestratorTest.codingAnalysisWaitsForToolConfirmationBeforeDataSupplyProjection",
+    "assertions": [
+      "Wait before record analysis",
+      "Preserve confirmation trace",
+      "No remote tool invocation"
+    ],
+    "logSha256": "3d58a3102ee9e67d94696b8b3bb8f00868fcadaf382524c7db796ec1654afe6a"
+  }
+}

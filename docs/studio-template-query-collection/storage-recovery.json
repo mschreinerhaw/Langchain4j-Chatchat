@@ -1,0 +1,191 @@
+{
+  "status": "VERIFIED_HISTORICAL_UPLOADS_ARCHIVED",
+  "afterOptFreeBytes": 11102265344,
+  "archivedBytes": 10777755807,
+  "originalPathsPreservedAsSymlinks": true,
+  "containerBindSourcesExcluded": true,
+  "businessObjectsDeleted": false,
+  "minimumStorageThresholdChanged": false,
+  "files": [
+    {
+      "original": "/opt/chatchat-releases/builtin-skills-business-ui-20261101-r2/app.jar",
+      "archive": "/root/chatchat-release-upload-archive/builtin-skills-business-ui-20261101-r2/app.jar",
+      "bytes": 428650354,
+      "sha256": "6e62063bf4d05f1f10c5f6fad81c3e245f44639c112ebba4e2a56cf2a1ef94e3"
+    },
+    {
+      "original": "/opt/chatchat-releases/builtin-skills-business-ui-20261101-r1/app.jar",
+      "archive": "/root/chatchat-release-upload-archive/builtin-skills-business-ui-20261101-r1/app.jar",
+      "bytes": 428650266,
+      "sha256": "0068223eb7cb1519b275cfbbc31a85a9bcfea0414fbe8b017842443daa9eeb58"
+    },
+    {
+      "original": "/opt/chatchat-releases/sql-template-remediation-20261101-r9/app.jar",
+      "archive": "/root/chatchat-release-upload-archive/sql-template-remediation-20261101-r9/app.jar",
+      "bytes": 428649798,
+      "sha256": "59713b76cf180a2c125976cac5c5c7e317c422b6c6031b9ed73c0baf041663d9"
+    },
+    {
+      "original": "/opt/chatchat-releases/sql-template-remediation-20261101-r7/app.jar",
+      "archive": "/root/chatchat-release-upload-archive/sql-template-remediation-20261101-r7/app.jar",
+      "bytes": 428649587,
+      "sha256": "bb30d89e1acc1138446e9bd19db9b4fab64b128052d22050576ba510d13e5d71"
+    },
+    {
+      "original": "/opt/chatchat-releases/sql-template-remediation-20261101-r8/app.jar",
+      "archive": "/root/chatchat-release-upload-archive/sql-template-remediation-20261101-r8/app.jar",
+      "bytes": 428649587,
+      "sha256": "bb30d89e1acc1138446e9bd19db9b4fab64b128052d22050576ba510d13e5d71"
+    },
+    {
+      "original": "/opt/chatchat-releases/sql-template-remediation-20261101-r8/mcp.jar",
+      "archive": "/root/chatchat-release-upload-archive/sql-template-remediation-20261101-r8/mcp.jar",
+      "bytes": 255198180,
+      "sha256": "634a3e9541103aeef3c1f5b2a39f4506e5818aaf139a174e71b9eb409c2bc7cd"
+    },
+    {
+      "original": "/opt/chatchat-releases/sql-template-remediation-20261101-r8/mcp-build/app.jar",
+      "archive": "/root/chatchat-release-upload-archive/sql-template-remediation-20261101-r8/mcp-build/app.jar",
+      "bytes": 255198180,
+      "sha256": "634a3e9541103aeef3c1f5b2a39f4506e5818aaf139a174e71b9eb409c2bc7cd"
+    },
+    {
+      "original": "/opt/chatchat-releases/sql-template-remediation-20261101-r6/app.jar",
+      "archive": "/root/chatchat-release-upload-archive/sql-template-remediation-20261101-r6/app.jar",
+      "bytes": 428646553,
+      "sha256": "d251e260c8f653b601528bedce8a53d0fc8e7a8d510c6635647dfbe219ec4474"
+    },
+    {
+      "original": "/opt/chatchat-releases/sql-template-remediation-20261101-r5/app.jar",
+      "archive": "/root/chatchat-release-upload-archive/sql-template-remediation-20261101-r5/app.jar",
+      "bytes": 428646057,
+      "sha256": "0205e395e9460861462aa39e64e50c70007eb2398cba88125d3de797fa66397b"
+    },
+    {
+      "original": "/opt/chatchat-releases/sql-template-remediation-20261101-r4/app.jar",
+      "archive": "/root/chatchat-release-upload-archive/sql-template-remediation-20261101-r4/app.jar",
+      "bytes": 428645893,
+      "sha256": "7e20963eba35325035cd023c8cfb3b75d6562be078c34991a6c6f47f007ed709"
+    },
+    {
+      "original": "/opt/chatchat-releases/sql-template-remediation-20261101-r2/app.jar",
+      "archive": "/root/chatchat-release-upload-archive/sql-template-remediation-20261101-r2/app.jar",
+      "bytes": 428644474,
+      "sha256": "9cc71a99f91bf3853176d50ab79798a03e5103a144666d57f1aa32f5a43842e1"
+    },
+    {
+      "original": "/opt/chatchat-releases/sql-template-remediation-20261101-r2/mcp.jar",
+      "archive": "/root/chatchat-release-upload-archive/sql-template-remediation-20261101-r2/mcp.jar",
+      "bytes": 255193589,
+      "sha256": "9fb9ccb2cf0e5b9cad7b3fc54263827fffec8ca83869475f7ebe27058cd3e2e1"
+    },
+    {
+      "original": "/opt/chatchat-releases/sql-template-remediation-20261101-r2/mcp-build/app.jar",
+      "archive": "/root/chatchat-release-upload-archive/sql-template-remediation-20261101-r2/mcp-build/app.jar",
+      "bytes": 255193589,
+      "sha256": "9fb9ccb2cf0e5b9cad7b3fc54263827fffec8ca83869475f7ebe27058cd3e2e1"
+    },
+    {
+      "original": "/opt/chatchat-releases/sql-template-remediation-20261101-r3/app.jar",
+      "archive": "/root/chatchat-release-upload-archive/sql-template-remediation-20261101-r3/app.jar",
+      "bytes": 428644474,
+      "sha256": "9cc71a99f91bf3853176d50ab79798a03e5103a144666d57f1aa32f5a43842e1"
+    },
+    {
+      "original": "/opt/chatchat-releases/sql-template-remediation-20261101-r3/mcp.jar",
+      "archive": "/root/chatchat-release-upload-archive/sql-template-remediation-20261101-r3/mcp.jar",
+      "bytes": 255193598,
+      "sha256": "a7b89a8771d51f89e5cbe0a319f6b4c8f373a0e5bdbad27f4d845a2da466d776"
+    },
+    {
+      "original": "/opt/chatchat-releases/sql-template-remediation-20261101-r3/mcp-build/app.jar",
+      "archive": "/root/chatchat-release-upload-archive/sql-template-remediation-20261101-r3/mcp-build/app.jar",
+      "bytes": 255193598,
+      "sha256": "a7b89a8771d51f89e5cbe0a319f6b4c8f373a0e5bdbad27f4d845a2da466d776"
+    },
+    {
+      "original": "/opt/chatchat-releases/agent-settings-layout-20261101-r1/app.jar",
+      "archive": "/root/chatchat-release-upload-archive/agent-settings-layout-20261101-r1/app.jar",
+      "bytes": 428637290,
+      "sha256": "8ff56cdbb57e1cc068f04570b5a69ed94cd095d623f904fb05b4278d90e59b3c"
+    },
+    {
+      "original": "/opt/chatchat-releases/sql-template-remediation-20261101-r1/app.jar",
+      "archive": "/root/chatchat-release-upload-archive/sql-template-remediation-20261101-r1/app.jar",
+      "bytes": 428637290,
+      "sha256": "8ff56cdbb57e1cc068f04570b5a69ed94cd095d623f904fb05b4278d90e59b3c"
+    },
+    {
+      "original": "/opt/chatchat-releases/sql-template-remediation-20261101-r1/mcp.jar",
+      "archive": "/root/chatchat-release-upload-archive/sql-template-remediation-20261101-r1/mcp.jar",
+      "bytes": 255181573,
+      "sha256": "73bdf3a42ba6cd429a732479b2b0a24ffdafaeecd3b436c23687098255b5af49"
+    },
+    {
+      "original": "/opt/chatchat-releases/sql-template-remediation-20261101-r1/mcp-build/app.jar",
+      "archive": "/root/chatchat-release-upload-archive/sql-template-remediation-20261101-r1/mcp-build/app.jar",
+      "bytes": 255181573,
+      "sha256": "73bdf3a42ba6cd429a732479b2b0a24ffdafaeecd3b436c23687098255b5af49"
+    },
+    {
+      "original": "/opt/chatchat-releases/studio-python-services-20261101-r5/app.jar",
+      "archive": "/root/chatchat-release-upload-archive/studio-python-services-20261101-r5/app.jar",
+      "bytes": 428637109,
+      "sha256": "457734bc6b018ca9763983ec8dd1bd4845b74aa1e4afa8dd9eb934e2c0c08f6e"
+    },
+    {
+      "original": "/opt/chatchat-releases/studio-python-services-20261101-r6/app.jar",
+      "archive": "/root/chatchat-release-upload-archive/studio-python-services-20261101-r6/app.jar",
+      "bytes": 428637109,
+      "sha256": "39584afffe3c324a8e7fbf287069108b8fb9db3dd93e8efe589d6fc1684ab537"
+    },
+    {
+      "original": "/opt/chatchat-releases/studio-python-services-20261101-r6/mcp.jar",
+      "archive": "/root/chatchat-release-upload-archive/studio-python-services-20261101-r6/mcp.jar",
+      "bytes": 255173096,
+      "sha256": "adafe6fb0d43900db936a37417bd4678fb33ece7531e4b76097cd7e90ca9981a"
+    },
+    {
+      "original": "/opt/chatchat-releases/studio-python-services-20261101-r6/mcp-build/app.jar",
+      "archive": "/root/chatchat-release-upload-archive/studio-python-services-20261101-r6/mcp-build/app.jar",
+      "bytes": 255173096,
+      "sha256": "adafe6fb0d43900db936a37417bd4678fb33ece7531e4b76097cd7e90ca9981a"
+    },
+    {
+      "original": "/opt/chatchat-releases/studio-python-services-20261101-r4/app.jar",
+      "archive": "/root/chatchat-release-upload-archive/studio-python-services-20261101-r4/app.jar",
+      "bytes": 428634990,
+      "sha256": "65f3adf9b1e1951f00eab8c71242114f7616bce990bdb947ebd3e2b5308d28cb"
+    },
+    {
+      "original": "/opt/chatchat-releases/studio-python-services-20261101-r3/app.jar",
+      "archive": "/root/chatchat-release-upload-archive/studio-python-services-20261101-r3/app.jar",
+      "bytes": 428629524,
+      "sha256": "58d174f035ada2800094b60a62ad69897a6fd4ba39d47bab4c21694f452f5118"
+    },
+    {
+      "original": "/opt/chatchat-releases/studio-python-services-20261101-r2/app.jar",
+      "archive": "/root/chatchat-release-upload-archive/studio-python-services-20261101-r2/app.jar",
+      "bytes": 428628782,
+      "sha256": "846546b820f3dbcb0393d2aabb82462e17e8d9f5cf275ce90d6816dd4481ab9b"
+    },
+    {
+      "original": "/opt/chatchat-releases/studio-python-services-20261101-r2/mcp.jar",
+      "archive": "/root/chatchat-release-upload-archive/studio-python-services-20261101-r2/mcp.jar",
+      "bytes": 255164748,
+      "sha256": "bc7f422a3137f0c04cc4d14b3a0e4bf83c561c54d5338af7b17dcf3b08fbc9d5"
+    },
+    {
+      "original": "/opt/chatchat-releases/studio-python-services-20261101-r2/mcp-build/app.jar",
+      "archive": "/root/chatchat-release-upload-archive/studio-python-services-20261101-r2/mcp-build/app.jar",
+      "bytes": 255164748,
+      "sha256": "bc7f422a3137f0c04cc4d14b3a0e4bf83c561c54d5338af7b17dcf3b08fbc9d5"
+    },
+    {
+      "original": "/opt/chatchat-releases/studio-python-services-20261101-r1/app.jar",
+      "archive": "/root/chatchat-release-upload-archive/studio-python-services-20261101-r1/app.jar",
+      "bytes": 428627102,
+      "sha256": "ba22182c028d5706843ba1a003d3c3bc18071944d3b52b37b5745f6ae5246890"
+    }
+  ]
+}

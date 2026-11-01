@@ -1,0 +1,18 @@
+{
+  "discoveryId": "7641125e-5ce2-4bbe-8221-78f24d5e7c2a",
+  "projectId": "c4f87abd-8d26-4b2d-a4fd-bb09212b9987",
+  "purpose": "QUERY",
+  "targetDialect": "mysql",
+  "bindings": [
+    {
+      "bindingId": "6b5c99ad-7148-4e31-9163-166e15e75e23",
+      "serviceId": "chatchat-mcp-server",
+      "assetRef": "14f91784-38db-4e20-9795-d0caac64b1c8",
+      "role": "SOURCE",
+      "database": "tpcds",
+      "schema": null,
+      "sourceDialect": "mysql"
+    }
+  ],
+  "state": "READY"
+}

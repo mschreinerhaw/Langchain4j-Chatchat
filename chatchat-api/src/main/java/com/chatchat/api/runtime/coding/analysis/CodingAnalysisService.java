@@ -128,6 +128,10 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             throw new IllegalArgumentException("Primary Coding analysis dataset limit exceeded");
         String objective = "Answer the user's data-analysis objective using only the authorized immutable datasets. "
             + "Inspect delivered schemas and quality. Choose your own analysis methods and verify computed output. "
+            + "For Runtime transport Parquet, consult the applicable delivered Skill's transport mapping reference before writing a reader. "
+            + "Access each logical column by manifest.columns[].storageName; schema.presenceColumns are separate Boolean flags, not business values. "
+            + "Never select columns by physical position or treat a presence flag as the adjacent JSON record. Decode declared JSON cells as JSON, preserving Decimal precision. "
+            + "Read nativeFiles according to their declared original format; original user-message TEXT is raw text, not a JSON envelope. "
             + "You own business interpretation within the delivered data scope. Produce exactly one result row. "
             + "Use delivered Skills, template declarations, field metadata and source context as the authority for metric meaning. "
             + "Template execution with defaults is not proof that data matches the user's entity or time constraints. "

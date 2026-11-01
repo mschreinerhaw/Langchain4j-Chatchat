@@ -1,0 +1,90 @@
+{
+  "algorithm": "SHA-256",
+  "artifacts": [
+    {
+      "path": "acceptance.md",
+      "bytes": 3397,
+      "sha256": "73affece308697721cfee9d1ceb52f9d3087d9da5130368d7e4eeb818f0332f1"
+    },
+    {
+      "path": "deployment.json",
+      "bytes": 1180,
+      "sha256": "a9338320fdc0ae603d95e9fbe71c00181ee64d2ddfba835cd775da932e3c5374"
+    },
+    {
+      "path": "initial-check/query-list.png",
+      "bytes": 136323,
+      "sha256": "9736f854cc1b3c78d4d77ab9f2d14bc85940c329e95496eb1ee749f517966c00"
+    },
+    {
+      "path": "initial-check/studio-compact.png",
+      "bytes": 51633,
+      "sha256": "d88fff6aa9eef8241b8e61a5366305fbd6e73e3227a4d20c6b5b09d9f5da2ccb"
+    },
+    {
+      "path": "initial-check/studio-detail.png",
+      "bytes": 98464,
+      "sha256": "e0f199bd9c5874ba6a9b4c258e925665bc334a0a243e79dff3e36e93ef01d426"
+    },
+    {
+      "path": "initial-check/studio-technical.png",
+      "bytes": 116795,
+      "sha256": "8f6195aa07c6960046441f7deeb0ef20fc2a91a3690980723fe13525565668c5"
+    },
+    {
+      "path": "live/manual-compact.png",
+      "bytes": 43481,
+      "sha256": "b9eb290b5268e8900f36b257c224767248d973b66386443b5ee22dcd728d30ca"
+    },
+    {
+      "path": "live/manual-detail.png",
+      "bytes": 97128,
+      "sha256": "99cc841657edd2b39522f15ddaeb361d4b5ccb9e4e522c601b77870adf541f18"
+    },
+    {
+      "path": "live/manual-technical.png",
+      "bytes": 93365,
+      "sha256": "fe9da98d10a4ff1f31a51a558ce52967ca8b9c9f3b537cc63e8f68d98c111fe0"
+    },
+    {
+      "path": "live/query-list.png",
+      "bytes": 171632,
+      "sha256": "527633b6dd93199f73aa6f1d836ef68cd975f488620ad75f50a9b7fb24c91f3e"
+    },
+    {
+      "path": "live/studio-compact.png",
+      "bytes": 51633,
+      "sha256": "d88fff6aa9eef8241b8e61a5366305fbd6e73e3227a4d20c6b5b09d9f5da2ccb"
+    },
+    {
+      "path": "live/studio-detail.png",
+      "bytes": 98464,
+      "sha256": "e0f199bd9c5874ba6a9b4c258e925665bc334a0a243e79dff3e36e93ef01d426"
+    },
+    {
+      "path": "live/studio-technical.png",
+      "bytes": 120662,
+      "sha256": "9567d189efd3ecd52211fb63daebadd0f2912a8f20dc5c4915931b3f20a61ba2"
+    },
+    {
+      "path": "live/verdict.json",
+      "bytes": 1065,
+      "sha256": "f5c79b7ba313c5b52d762fe396468afb4b7a2806454facdcb6e900f552cf5fac"
+    },
+    {
+      "path": "package-verification.json",
+      "bytes": 318,
+      "sha256": "1c6f5c02d6ad8239f22ce3b5ee1109d9577aabeac05da4a9d19f179ab0f73346"
+    },
+    {
+      "path": "runtime-registry.json",
+      "bytes": 286,
+      "sha256": "9003c4d98e9acf43f5aae15288b8b403019c6eecef80e9975980c42f8e26c4d3"
+    },
+    {
+      "path": "test-results.json",
+      "bytes": 414,
+      "sha256": "f3b08cf67e023aaac0aa107d4c03d97c0e90d9eb5e5cfeacea8732ab8adb33c7"
+    }
+  ]
+}

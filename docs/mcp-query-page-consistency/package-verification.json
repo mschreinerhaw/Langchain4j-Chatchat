@@ -1,0 +1,8 @@
+{
+  "status": "PASS",
+  "unchangedJavaClasses": 976,
+  "exactPackagedFrontendFiles": 6,
+  "sha256": "09ac18669952fdcf0b15f1a7d5a1ea9fa82a61820c70c443922e3d342530f08b",
+  "baselineSha256": "8b335912be03980dc729762de55689295ccfcef2bbb99f80eca67de7c75d5323",
+  "sourceCommit": "3e952a44b24047c555e448e19e4ad6d3eefa6a49"
+}

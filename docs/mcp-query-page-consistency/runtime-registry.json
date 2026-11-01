@@ -1,0 +1,10 @@
+{
+  "status": "PASS",
+  "registryState": "HEALTHY",
+  "registeredToolCount": 36,
+  "requiredTools": [
+    "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+    "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970"
+  ],
+  "capturedAt": "2026-11-01T05:26:46.464Z"
+}

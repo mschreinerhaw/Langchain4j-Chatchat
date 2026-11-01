@@ -1,0 +1,16 @@
+{
+  "status": "PASS",
+  "vueStructureComponents": 23,
+  "javascriptSyntax": "PASS",
+  "frontendViteBuild": "PASS",
+  "mavenPackage": "PASS",
+  "javaClassesUnchanged": 976,
+  "packagedAssetsMatch": 6,
+  "actualBrowserTemplateSources": [
+    "studio",
+    "manual"
+  ],
+  "browserErrors": [],
+  "unitTestsAdded": false,
+  "scope": "Frontend display and real read-only UI; no SQL execution or Agent analysis claim."
+}

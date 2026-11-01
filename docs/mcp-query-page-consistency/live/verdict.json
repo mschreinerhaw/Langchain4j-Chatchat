@@ -1,0 +1,42 @@
+{
+  "status": "PASS",
+  "capturedAt": "2026-11-01T05:26:29.869Z",
+  "scope": "READ_ONLY_REAL_BROWSER_NO_MOCKS",
+  "businessColumns": [
+    "模板名称",
+    "业务分类",
+    "来源",
+    "数据源",
+    "状态",
+    "操作"
+  ],
+  "templates": [
+    {
+      "source": "studio",
+      "title": "TPCDS 248 仓库地理分布",
+      "templateId": "e717a2e9-639e-37c5-8d59-fb184e92c781",
+      "collapsedByDefault": true,
+      "resetAfterReopen": true,
+      "metadataDeferredUntilExpanded": false,
+      "technicalTypography": {
+        "fontSize": "12px",
+        "color": "rgb(101, 115, 138)"
+      },
+      "compactLayout": "PASS"
+    },
+    {
+      "source": "manual",
+      "title": "最新中债市场结算统计",
+      "templateId": "builtin-market-bond-settlement",
+      "collapsedByDefault": true,
+      "resetAfterReopen": true,
+      "metadataDeferredUntilExpanded": true,
+      "technicalTypography": {
+        "fontSize": "12px",
+        "color": "rgb(101, 115, 138)"
+      },
+      "compactLayout": "PASS"
+    }
+  ],
+  "browserErrors": []
+}

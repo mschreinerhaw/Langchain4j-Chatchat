@@ -17,7 +17,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AgentToolPolicyResolverTest {
-    @Test void addsOnlyTheAuthorizedExecutorDeclaredByASameServiceFixedPublication(){
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"python_runtime","database_query"})
+    void addsOnlyTheAuthorizedExecutorDeclaredByASameServiceFixedPublication(String assetType){
+        String parent="database_query".equals(assetType)?"database_query_template_query":"analysis_gateway";
+        String protocol="database_query".equals(assetType)?"mcp.sql-template.v1":"mcp.python-template.v1";
         var registry=mock(ToolRegistry.class);var catalog=mock(McpToolCatalogQueryPort.class);var skills=mock(SkillCatalogService.class);
         var retriever=mock(McpToolCandidateRetriever.class);String child="mcp_bound_analysis",executor="mcp_calculate";
         when(catalog.registeredTools()).thenReturn(List.of(registered(child,"bound_analysis"),registered(executor,"calculate"),
@@ -25,11 +29,11 @@ class AgentToolPolicyResolverTest {
         when(registry.hasTool(executor)).thenReturn(true);
         when(registry.getToolMetadata(child)).thenReturn(ToolMetadata.builder().id(child).metadata(Map.of(
             "workflowContract",com.chatchat.common.tool.ToolWorkflowContract.declaration(com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_DISCOVERY,"mcp.authorized-template-query.v1","filters","template"),
-            "assetType","python_runtime","templateSelectionScope",com.chatchat.common.mcp.capability.McpTemplateSelectionScope.fixedBinding("python_runtime").toMetadata(),
-            "mcpDynamicCapabilityRoute",com.chatchat.common.mcp.capability.McpDynamicCapabilityRoute.parentDelegation("analysis_gateway","_child").toMetadata())).build());
+            "assetType",assetType,"templateSelectionScope",com.chatchat.common.mcp.capability.McpTemplateSelectionScope.fixedBinding(assetType).toMetadata(),
+            "mcpDynamicCapabilityRoute",com.chatchat.common.mcp.capability.McpDynamicCapabilityRoute.parentDelegation(parent,"_child").toMetadata())).build());
         when(registry.getToolMetadata(executor)).thenReturn(ToolMetadata.builder().id(executor).metadata(Map.of(
-            "workflowContract",com.chatchat.common.tool.ToolWorkflowContract.declaration(com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_EXECUTION,"mcp.python-template.v1","templateId+parameters"),
-            "assetType","python_runtime","templateDiscoveryTool","analysis_gateway")).build());
+            "workflowContract",com.chatchat.common.tool.ToolWorkflowContract.declaration(com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_EXECUTION,protocol,"templateId+parameters"),
+            "assetType",assetType,"templateDiscoveryTool",parent)).build());
         when(registry.hasTool("mcp_other_server")).thenReturn(true);
         var sameProtocol=registry.getToolMetadata(executor);
         when(registry.getToolMetadata("mcp_other_server")).thenReturn(sameProtocol);

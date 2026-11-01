@@ -134,6 +134,8 @@ class SqlMcpToolPublisherTest {
                 "sql_query_execute")
             .doesNotContain(SqlMcpToolPublisher.DATA_QUERY_BRIDGE_TOOL, SqlMcpToolPublisher.SQL_METADATA_SEARCH_TOOL, "sql_script_execute");
         verify(mcpSyncServer).removeTool("sql_script_execute");
+        assertThat(tools.getAllValues().stream().filter(tool -> tool.tool().name().equals("sql_query_execute"))
+            .findFirst().orElseThrow().tool().meta()).containsEntry("templateDiscoveryTool", "database_query_template_query");
         verify(mcpSyncServer).notifyToolsListChanged();
         verify(sqlTemplateService).listEnabled();
     }

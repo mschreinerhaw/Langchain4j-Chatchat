@@ -845,6 +845,7 @@ public class SqlMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
         meta.put(ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
             ToolWorkflowRole.TEMPLATE_EXECUTION, "mcp.sql-template.v1", "executionContext"));
         meta.put(ToolProtocolDriverContract.METADATA_KEY, sqlProtocolDriver());
+        meta.put("templateDiscoveryTool", com.chatchat.mcpserver.database.definition.DatabaseQueryFamily.RELATIONAL_PARENT);
         return meta;
     }
 

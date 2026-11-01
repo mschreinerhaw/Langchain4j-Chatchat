@@ -1,0 +1,27 @@
+{
+  "status": "PASS",
+  "authoritativeCategories": true,
+  "technicalDetailsInitiallyCollapsed": true,
+  "technicalTypography": {
+    "fontSize": "12px",
+    "color": "rgb(102, 112, 133)"
+  },
+  "publishActionAlwaysInFooter": true,
+  "firstPublishActions": [
+    "test",
+    "publish",
+    "metadata",
+    "rollback"
+  ],
+  "publishedMetadataEditable": true,
+  "sameToolAndSqlContract": true,
+  "mcpCategoryName": "数据核验",
+  "offlineRepublish": true,
+  "stableToolName": "tpl_da9bc2ee307a3a278da280d49b66fd7d",
+  "releaseVersions": [
+    1,
+    2,
+    3
+  ],
+  "scope": "REAL_BROWSER_UI, REAL_READ_ONLY_SQL, MCP_CATALOG_AND_RUNTIME_TOOL_METADATA; NOT_AN_AGENT_DATA_ANALYSIS_CASE"
+}

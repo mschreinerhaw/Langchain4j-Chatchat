@@ -1,0 +1,12 @@
+{
+  "status": "PASS",
+  "capturedAt": "2026-11-01T05:10:03.042Z",
+  "projectId": "28dcef29-43b2-4aad-a56c-5eed1dcc4b6b",
+  "templateId": "5e9de57d-8072-36d1-a492-c5b5d8ff727d",
+  "releaseId": "1b036d28-7688-4a7b-aeaf-e012ad325005",
+  "releaseOffline": true,
+  "isolatedDatasourceId": "41f290c5-5034-47ce-b24e-0cce293e88e4",
+  "isolatedDatasourceEnabled": false,
+  "originalDatasourceId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+  "scope": "Only this test release and isolated datasource modified; original datasource and original business templates not modified by these requests. Project and immutable histories preserved."
+}

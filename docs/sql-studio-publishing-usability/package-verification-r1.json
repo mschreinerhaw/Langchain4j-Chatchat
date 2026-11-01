@@ -1,0 +1,11 @@
+{
+  "status": "EXACT_PACKAGED_ASSETS_MATCH",
+  "checks": {
+    "app.jar": 105,
+    "mcp.jar": 6
+  },
+  "sourceCommit": "699d7d1bac90bbc99d334bc0b7ffc6eba7e9350f",
+  "apiSourceCommit": "a4f970166",
+  "apiSha256": "0b33c461026b56d9fb1297fec1c22fb43e2b94f1480a46ee8333bd896ff51bf2",
+  "mcpSha256": "8b335912be03980dc729762de55689295ccfcef2bbb99f80eca67de7c75d5323"
+}

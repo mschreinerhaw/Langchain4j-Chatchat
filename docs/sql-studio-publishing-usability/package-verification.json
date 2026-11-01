@@ -1,0 +1,7 @@
+{
+  "status": "EXACT_PACKAGED_ASSETS_MATCH",
+  "apiFiles": 105,
+  "apiSha256": "ba0bf9b0909d6546f5c8ca51c8d06fc453fcd21768d0075522065146518e703f",
+  "mcpUnchangedSha256": "8b335912be03980dc729762de55689295ccfcef2bbb99f80eca67de7c75d5323",
+  "sourceCommit": "6153b16f63f10a0a7c26511f2bb15fc3f5fb875d"
+}

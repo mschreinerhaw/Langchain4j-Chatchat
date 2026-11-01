@@ -1,0 +1,160 @@
+{
+  "id": "5e9de57d-8072-36d1-a492-c5b5d8ff727d",
+  "code": "STUDIO_5E9DE57D807236D1A492C5B5D8FF727D",
+  "sqlTemplate": "SELECT COUNT(*) AS warehouse_count FROM warehouse",
+  "parameterSchema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "datasourceId": "41f290c5-5034-47ce-b24e-0cce293e88e4",
+  "databaseType": "mysql",
+  "title": "仓库数量查询（发布体验验收）",
+  "description": "只读统计仓库数量，用于验证分类、发布与信息同步。",
+  "category": "data_asset_exploration",
+  "source": {
+    "projectId": "28dcef29-43b2-4aad-a56c-5eed1dcc4b6b",
+    "fileId": "490492cb-7329-47ec-b236-9ec30c0adf5a",
+    "fileVersion": 1,
+    "sqlDigest": "ed1af28c021d60bead7371af8c795fe7b106df3c218a3571e3d527de8f84740c"
+  },
+  "groupId": "5e9de57d-8072-36d1-a492-c5b5d8ff727d",
+  "version": 1,
+  "expectedVersion": 2,
+  "state": "PUBLISHED",
+  "active": true,
+  "testEvidence": {
+    "type": "SQL_DATABASE_EXECUTION",
+    "testId": "c02915fe812bb9b7341c0db826ae57db",
+    "testedAt": "2026-11-01T04:58:21.505756486Z",
+    "traceId": "c02915fe812bb9b7341c0db826ae57db",
+    "source": {
+      "projectId": "28dcef29-43b2-4aad-a56c-5eed1dcc4b6b",
+      "fileId": "490492cb-7329-47ec-b236-9ec30c0adf5a",
+      "fileVersion": 1,
+      "sqlDigest": "ed1af28c021d60bead7371af8c795fe7b106df3c218a3571e3d527de8f84740c"
+    },
+    "fingerprint": "f6e9d56ab9b47d9797a40d28eaef95079f434ddc36a8b0d13c0fed04f0624226",
+    "sqlDigest": "ed1af28c021d60bead7371af8c795fe7b106df3c218a3571e3d527de8f84740c",
+    "datasourceId": "41f290c5-5034-47ce-b24e-0cce293e88e4",
+    "datasourceDigest": "d9bdcb0c7c7af35d3bac14048f7bb53c028df538c6e93ed330854cbf331bdd31",
+    "parameters": {},
+    "parametersDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "timeoutSeconds": 10,
+    "maxRows": 50,
+    "success": true,
+    "resultDigest": "d6d8f7f97ddb758bb6efcecdddc76fa49fafab2e5fa22faef4da3118934a0a9e",
+    "rowCount": 1,
+    "errorCode": "",
+    "preview": {
+      "columns": [
+        "warehouse_count"
+      ],
+      "rows": [
+        {
+          "warehouse_count": 5
+        }
+      ],
+      "returnedRowCount": 1,
+      "possiblyTruncated": false,
+      "complete": true,
+      "previewTruncated": false
+    },
+    "diagnostic": "SQL query executed successfully",
+    "durationMs": 205
+  },
+  "templateKey": "sql_datasource:STUDIO_5E9DE57D807236D1A492C5B5D8FF727D",
+  "publication": {
+    "category": "数据资产探索",
+    "version": 1,
+    "publishedAt": "2026-11-01T04:58:32.353520577Z",
+    "logicalId": "da9bc2ee-307a-3a27-8da2-80d49b66fd7d",
+    "templateKey": "sql_datasource:STUDIO_5E9DE57D807236D1A492C5B5D8FF727D",
+    "description": "只读统计仓库数量，用于验证分类、发布与信息同步。",
+    "state": "RUNNING",
+    "id": "dd1a9c18-4577-49ec-be39-4fc1826c8ace",
+    "toolName": "tpl_da9bc2ee307a3a278da280d49b66fd7d",
+    "revision": "8bc53d6676c33e38ef6f5ee59bf88c0e449d6977e4168d4f1043c8160da093e8",
+    "assetName": "SQL Studio 发布体验验收（248测试库）",
+    "title": "仓库数量查询（发布体验验收）"
+  },
+  "releaseHistory": [
+    {
+      "publication": {
+        "category": "数据资产探索",
+        "version": 1,
+        "publishedAt": "2026-11-01T04:58:32.353520577Z",
+        "logicalId": "da9bc2ee-307a-3a27-8da2-80d49b66fd7d",
+        "templateKey": "sql_datasource:STUDIO_5E9DE57D807236D1A492C5B5D8FF727D",
+        "description": "只读统计仓库数量，用于验证分类、发布与信息同步。",
+        "state": "RUNNING",
+        "id": "dd1a9c18-4577-49ec-be39-4fc1826c8ace",
+        "toolName": "tpl_da9bc2ee307a3a278da280d49b66fd7d",
+        "revision": "8bc53d6676c33e38ef6f5ee59bf88c0e449d6977e4168d4f1043c8160da093e8",
+        "assetName": "SQL Studio 发布体验验收（248测试库）",
+        "title": "仓库数量查询（发布体验验收）"
+      },
+      "sqlTest": {
+        "type": "SQL_DATABASE_EXECUTION",
+        "testId": "c02915fe812bb9b7341c0db826ae57db",
+        "testedAt": "2026-11-01T04:58:21.505756486Z",
+        "traceId": "c02915fe812bb9b7341c0db826ae57db",
+        "source": {
+          "projectId": "28dcef29-43b2-4aad-a56c-5eed1dcc4b6b",
+          "fileId": "490492cb-7329-47ec-b236-9ec30c0adf5a",
+          "fileVersion": 1,
+          "sqlDigest": "ed1af28c021d60bead7371af8c795fe7b106df3c218a3571e3d527de8f84740c"
+        },
+        "fingerprint": "f6e9d56ab9b47d9797a40d28eaef95079f434ddc36a8b0d13c0fed04f0624226",
+        "sqlDigest": "ed1af28c021d60bead7371af8c795fe7b106df3c218a3571e3d527de8f84740c",
+        "datasourceId": "41f290c5-5034-47ce-b24e-0cce293e88e4",
+        "datasourceDigest": "d9bdcb0c7c7af35d3bac14048f7bb53c028df538c6e93ed330854cbf331bdd31",
+        "parameters": {},
+        "parametersDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+        "timeoutSeconds": 10,
+        "maxRows": 50,
+        "success": true,
+        "resultDigest": "d6d8f7f97ddb758bb6efcecdddc76fa49fafab2e5fa22faef4da3118934a0a9e",
+        "rowCount": 1,
+        "errorCode": "",
+        "preview": {
+          "columns": [
+            "warehouse_count"
+          ],
+          "rows": [
+            {
+              "warehouse_count": 5
+            }
+          ],
+          "returnedRowCount": 1,
+          "possiblyTruncated": false,
+          "complete": true,
+          "previewTruncated": false
+        },
+        "diagnostic": "SQL query executed successfully",
+        "durationMs": 205
+      },
+      "sqlSnapshot": {
+        "id": "5e9de57d-8072-36d1-a492-c5b5d8ff727d",
+        "code": "STUDIO_5E9DE57D807236D1A492C5B5D8FF727D",
+        "sqlTemplate": "SELECT COUNT(*) AS warehouse_count FROM warehouse",
+        "parameterSchema": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "datasourceId": "41f290c5-5034-47ce-b24e-0cce293e88e4",
+        "databaseType": "mysql",
+        "title": "仓库数量查询（发布体验验收）",
+        "description": "只读统计仓库数量，用于验证分类、发布与信息同步。",
+        "category": "data_asset_exploration",
+        "source": {
+          "projectId": "28dcef29-43b2-4aad-a56c-5eed1dcc4b6b",
+          "fileId": "490492cb-7329-47ec-b236-9ec30c0adf5a",
+          "fileVersion": 1,
+          "sqlDigest": "ed1af28c021d60bead7371af8c795fe7b106df3c218a3571e3d527de8f84740c"
+        }
+      }
+    }
+  ]
+}

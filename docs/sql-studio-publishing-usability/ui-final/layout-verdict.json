@@ -1,0 +1,14 @@
+{
+  "status": "PASS",
+  "technicalDetailsInitiallyCollapsed": true,
+  "technicalTypography": {
+    "fontSize": "12px",
+    "color": "rgb(102, 112, 133)"
+  },
+  "footerInViewport": true,
+  "descriptionWidth": {
+    "input": 834,
+    "fieldset": 864,
+    "font": "\"Microsoft YaHei\", \"PingFang SC\", \"Segoe UI\", Arial, sans-serif"
+  }
+}

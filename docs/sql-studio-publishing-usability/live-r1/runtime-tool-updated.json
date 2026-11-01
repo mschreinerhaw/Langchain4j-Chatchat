@@ -1,0 +1,4 @@
+{
+  "localToolName": "mcp_chatchat_mcp_server_tpl_da9bc2ee307a3a278da280d49b66fd7d",
+  "description": "在 SQL Studio 修改名称、说明和业务分类后同步到 MCP Server，查询逻辑保持不变。\nReturns the existing ToolOutput envelope: SQL rows are at $.data.data.rows and rowCount at $.data.data.rowCount. SQL column names are NOT top-level result fields. Preserve this actual envelope in downstream contracts.\nVerified trial declares SQL row column identifiers at $.data.data.rows[*]: [\"warehouse_count\"]. Identifiers only, never sample values or proof of current rows. Bind the exact scalar leaf using field selectors and numeric array indexes. jq pipes, map, min and alternative field guesses are not executable output paths."
+}

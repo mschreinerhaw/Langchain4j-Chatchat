@@ -1,0 +1,31 @@
+{
+  "status": "DEPLOYED",
+  "image": "runtime-os-api:sql-publishing-usability-20261101-r1",
+  "sha256": "0b33c461026b56d9fb1297fec1c22fb43e2b94f1480a46ee8333bd896ff51bf2",
+  "backup": "/opt/chatchat-releases/sql-publishing-usability-20261101-r1/backup",
+  "retired": {
+    "runtime-os-app-stage-mcp-1": "runtime-os-app-stage-mcp-1-before-studio-1793508859",
+    "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-studio-1793508859",
+    "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-studio-1793508859"
+  },
+  "databaseMigrationSha256": null,
+  "catalogReadiness": {
+    "status": "API_MCP_CATALOG_READY",
+    "registryState": "HEALTHY",
+    "registeredToolCount": 36,
+    "requiredTools": [
+      "mcp_chatchat_mcp_server_tpl_190c862b57813ca38fbe5a0edc614970",
+      "mcp_chatchat_mcp_server_tpl_f61ea326b46f30aca4ecc717c2d2f9bc"
+    ],
+    "capturedAt": "2026-11-01T04:56:38.598106+00:00"
+  },
+  "preservedExpiredReadOnlyTaskIds": [],
+  "unrelatedContainersUnchanged": true,
+  "conversationContentUnchanged": true,
+  "messageIndexCountUnchanged": true,
+  "images": {
+    "runtime-os-app-stage-api-1": "runtime-os-api:sql-publishing-usability-20261101-r1",
+    "runtime-os-app-stage-mcp-1": "runtime-os-mcp:sql-publishing-usability-20261101-r1"
+  },
+  "channelCounts": "SQL_STUDIO|46\nPYTHON_STUDIO|10\nPLATFORM_UI|897\nAGENT_API|196"
+}

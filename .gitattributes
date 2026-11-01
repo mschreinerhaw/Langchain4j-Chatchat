@@ -39,3 +39,6 @@ docs/sql-template-remediation/**/request.md -whitespace
 
 # Preserve real Cline task source, receipt and uploaded-artifact hashes.
 docs/builtin-skills-business-ui/** -text whitespace=cr-at-eol
+
+# Keep actual SQL Studio publication receipts and screenshots hash-verifiable.
+docs/sql-studio-publishing-usability/** -text whitespace=cr-at-eol

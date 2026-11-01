@@ -1,0 +1,188 @@
+[
+  {
+    "id": "db558f1a-2018-451f-98bb-27c25b48ebc7",
+    "code": "market_data",
+    "name": "市场行情",
+    "description": "股票、债券、基金、指数、ETF及宏观市场行情查询。",
+    "domain": "finance",
+    "keywords": [
+      "行情",
+      "债券",
+      "收益率",
+      "结算统计",
+      "股票",
+      "基金",
+      "指数",
+      "etf",
+      "宏观",
+      "market",
+      "bond"
+    ],
+    "sortOrder": 10,
+    "enabled": true
+  },
+  {
+    "id": "4bb7340c-7b9f-4981-8b84-cd3633e6f6c3",
+    "code": "product_analysis",
+    "name": "产品分析",
+    "description": "金融产品要素、表现、估值、组合及收益分析。",
+    "domain": "finance",
+    "keywords": [
+      "产品",
+      "估值",
+      "净值",
+      "组合",
+      "基金产品",
+      "理财",
+      "收益分析"
+    ],
+    "sortOrder": 20,
+    "enabled": true
+  },
+  {
+    "id": "cfc6cd79-2b6e-4678-9d42-77baae751129",
+    "code": "customer_analysis",
+    "name": "客户分析",
+    "description": "客户画像、客户资产、行为、风险等级和生命周期分析。",
+    "domain": "finance",
+    "keywords": [
+      "客户",
+      "画像",
+      "客户资产",
+      "生命周期",
+      "适当性",
+      "customer"
+    ],
+    "sortOrder": 30,
+    "enabled": true
+  },
+  {
+    "id": "809fbaff-8d16-41e2-8b4c-a88016e4c795",
+    "code": "trading_analysis",
+    "name": "交易分析",
+    "description": "委托、成交、交易流水、买卖行为和交易结构分析。",
+    "domain": "finance",
+    "keywords": [
+      "交易",
+      "委托",
+      "成交",
+      "买入",
+      "卖出",
+      "流水",
+      "trade",
+      "buy",
+      "sell"
+    ],
+    "sortOrder": 40,
+    "enabled": true
+  },
+  {
+    "id": "3e00fdf6-4247-41f7-beee-e05c64c44a6a",
+    "code": "risk_management",
+    "name": "风险管理",
+    "description": "风险指标、集中度、敞口、预警和异常交易分析。",
+    "domain": "finance",
+    "keywords": [
+      "风险",
+      "集中度",
+      "敞口",
+      "预警",
+      "异常交易",
+      "限额",
+      "risk"
+    ],
+    "sortOrder": 50,
+    "enabled": true
+  },
+  {
+    "id": "4fca1069-b843-47fd-bfd4-fd29313ab5b9",
+    "code": "data_validation",
+    "name": "数据核验",
+    "description": "一致性、完整性、准确性、同步延迟和指标异常专项核验。",
+    "domain": "finance",
+    "keywords": [
+      "核验",
+      "校验",
+      "一致性",
+      "完整性",
+      "准确性",
+      "差异",
+      "数据质量",
+      "同步延迟",
+      "新鲜度",
+      "覆盖",
+      "validation",
+      "check"
+    ],
+    "sortOrder": 60,
+    "enabled": true
+  },
+  {
+    "id": "2724a696-b087-4966-b985-a54a7bd12004",
+    "code": "regulatory_reporting",
+    "name": "监管报送",
+    "description": "监管指标、报表口径、报送数据和合规统计查询。",
+    "domain": "finance",
+    "keywords": [
+      "监管",
+      "报送",
+      "报表",
+      "合规",
+      "监管指标",
+      "report"
+    ],
+    "sortOrder": 70,
+    "enabled": true
+  },
+  {
+    "id": "8689fd99-959d-4a72-b086-273972cf52d5",
+    "code": "data_asset_exploration",
+    "name": "数据资产探索",
+    "description": "元数据、字段分布、数据概览和资产探索查询。",
+    "domain": "finance",
+    "keywords": [
+      "数据资产",
+      "元数据",
+      "字段",
+      "表结构",
+      "概览",
+      "探索",
+      "metadata",
+      "schema"
+    ],
+    "sortOrder": 80,
+    "enabled": true
+  },
+  {
+    "id": "34a56c70-5b58-4220-b69a-043fa52be9e0",
+    "code": "default",
+    "name": "default",
+    "description": "",
+    "domain": "finance",
+    "keywords": [
+      "default"
+    ],
+    "sortOrder": 310,
+    "enabled": true
+  },
+  {
+    "id": "2899de35-a384-4850-93aa-e924a618148e",
+    "code": "operations_monitoring",
+    "name": "运维监控",
+    "description": "面向基础设施、中间件和分布式计算平台的运行状态、资源使用、任务调度、节点健康与故障诊断能力。",
+    "domain": "infrastructure",
+    "keywords": [
+      "运维",
+      "监控",
+      "YARN",
+      "Hadoop",
+      "集群",
+      "任务调度",
+      "资源使用",
+      "节点健康",
+      "故障诊断"
+    ],
+    "sortOrder": 600,
+    "enabled": true
+  }
+]

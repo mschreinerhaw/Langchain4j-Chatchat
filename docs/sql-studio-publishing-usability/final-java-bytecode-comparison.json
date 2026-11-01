@@ -1,0 +1,6 @@
+{
+  "status": "ALL_API_CHAT_AGENT_CLASS_BYTES_IDENTICAL_BETWEEN_FINAL_UI_REFINEMENT",
+  "comparedClasses": 2070,
+  "workerImageUnchanged": "sha256:b8c1848725e563b4d5f04c835f0b03257f48be89b858b7e2c67b703529410afd",
+  "scope": "r2 changes only description field styling. Real SQL publication UI requests from r1 exercise the same Java class bytes; MCP image remains unchanged."
+}

@@ -1,0 +1,52 @@
+[
+  {
+    "id": "db558f1a-2018-451f-98bb-27c25b48ebc7",
+    "code": "market_data",
+    "name": "市场行情"
+  },
+  {
+    "id": "4bb7340c-7b9f-4981-8b84-cd3633e6f6c3",
+    "code": "product_analysis",
+    "name": "产品分析"
+  },
+  {
+    "id": "cfc6cd79-2b6e-4678-9d42-77baae751129",
+    "code": "customer_analysis",
+    "name": "客户分析"
+  },
+  {
+    "id": "809fbaff-8d16-41e2-8b4c-a88016e4c795",
+    "code": "trading_analysis",
+    "name": "交易分析"
+  },
+  {
+    "id": "3e00fdf6-4247-41f7-beee-e05c64c44a6a",
+    "code": "risk_management",
+    "name": "风险管理"
+  },
+  {
+    "id": "4fca1069-b843-47fd-bfd4-fd29313ab5b9",
+    "code": "data_validation",
+    "name": "数据核验"
+  },
+  {
+    "id": "2724a696-b087-4966-b985-a54a7bd12004",
+    "code": "regulatory_reporting",
+    "name": "监管报送"
+  },
+  {
+    "id": "8689fd99-959d-4a72-b086-273972cf52d5",
+    "code": "data_asset_exploration",
+    "name": "数据资产探索"
+  },
+  {
+    "id": "34a56c70-5b58-4220-b69a-043fa52be9e0",
+    "code": "default",
+    "name": "default"
+  },
+  {
+    "id": "2899de35-a384-4850-93aa-e924a618148e",
+    "code": "operations_monitoring",
+    "name": "运维监控"
+  }
+]

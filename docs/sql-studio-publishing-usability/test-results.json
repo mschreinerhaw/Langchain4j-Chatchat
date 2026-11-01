@@ -1,0 +1,45 @@
+{
+  "status": "PASS",
+  "java": {
+    "total": 33,
+    "suites": [
+      {
+        "name": "com.chatchat.api.datascience.sql.SqlStudioPublicationControllerTest",
+        "tests": "6",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "com.chatchat.mcpserver.sql.template.SqlTemplateAuthoringServiceTest",
+        "tests": "19",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "com.chatchat.mcpserver.templatepublication.admin.TemplateCapabilityServiceTest",
+        "tests": "8",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0"
+      }
+    ]
+  },
+  "frontend": {
+    "total": 25,
+    "publicationPanel": 16,
+    "sqlStudioView": 9
+  },
+  "vueStructure": {
+    "components": 72,
+    "status": "PASS"
+  },
+  "builds": [
+    "API frontend Vite",
+    "MCP frontend Vite",
+    "API package",
+    "MCP package"
+  ],
+  "scope": "Targeted regression; not a claim that every repository test was run."
+}

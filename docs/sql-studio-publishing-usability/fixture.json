@@ -1,0 +1,71 @@
+{
+  "project": {
+    "id": "28dcef29-43b2-4aad-a56c-5eed1dcc4b6b",
+    "name": "SQL Studio 发布体验验收 20261101",
+    "dialect": "mysql",
+    "sessionId": "f731c813-2641-46c6-86eb-8910388ff647",
+    "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+    "ownerId": "2f219487-11a3-4a1d-9130-ac500b62f268"
+  },
+  "file": {
+    "id": "490492cb-7329-47ec-b236-9ec30c0adf5a",
+    "projectId": "28dcef29-43b2-4aad-a56c-5eed1dcc4b6b",
+    "path": "sql/warehouse_count.sql",
+    "kind": "SQL",
+    "content": "SELECT COUNT(*) AS warehouse_count FROM warehouse",
+    "version": 1,
+    "editable": true,
+    "sourceTaskId": null
+  },
+  "draft": {
+    "id": "5e9de57d-8072-36d1-a492-c5b5d8ff727d",
+    "code": "STUDIO_5E9DE57D807236D1A492C5B5D8FF727D",
+    "sqlTemplate": "SELECT COUNT(*) AS warehouse_count FROM warehouse",
+    "parameterSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "datasourceId": "41f290c5-5034-47ce-b24e-0cce293e88e4",
+    "databaseType": "mysql",
+    "title": "仓库数量查询（发布体验验收）",
+    "description": "只读统计仓库数量，用于验证分类、发布与信息同步。",
+    "category": "data_asset_exploration",
+    "source": {
+      "projectId": "28dcef29-43b2-4aad-a56c-5eed1dcc4b6b",
+      "fileId": "490492cb-7329-47ec-b236-9ec30c0adf5a",
+      "fileVersion": 1,
+      "sqlDigest": "ed1af28c021d60bead7371af8c795fe7b106df3c218a3571e3d527de8f84740c"
+    },
+    "groupId": "5e9de57d-8072-36d1-a492-c5b5d8ff727d",
+    "version": 1,
+    "expectedVersion": 0,
+    "state": "DRAFT",
+    "active": false,
+    "testEvidence": null,
+    "templateKey": "sql_datasource:STUDIO_5E9DE57D807236D1A492C5B5D8FF727D",
+    "releaseHistory": []
+  },
+  "datasourceId": "41f290c5-5034-47ce-b24e-0cce293e88e4",
+  "parentId": "f0421bd7-1be8-4d5c-8f65-b216d4f997cb",
+  "category": {
+    "id": "8689fd99-959d-4a72-b086-273972cf52d5",
+    "code": "data_asset_exploration",
+    "name": "数据资产探索",
+    "description": "元数据、字段分布、数据概览和资产探索查询。",
+    "domain": "finance",
+    "keywords": [
+      "数据资产",
+      "元数据",
+      "字段",
+      "表结构",
+      "概览",
+      "探索",
+      "metadata",
+      "schema"
+    ],
+    "sortOrder": 80,
+    "enabled": true
+  },
+  "scope": "Isolated datasource uses asset 248 connection; only warehouse and this exact template code are authorized. Existing datasource/configuration unchanged."
+}

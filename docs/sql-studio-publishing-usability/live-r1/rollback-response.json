@@ -1,0 +1,320 @@
+{
+  "code": 200,
+  "message": "Success",
+  "data": {
+    "id": "5e9de57d-8072-36d1-a492-c5b5d8ff727d",
+    "code": "STUDIO_5E9DE57D807236D1A492C5B5D8FF727D",
+    "sqlTemplate": "SELECT COUNT(*) AS warehouse_count FROM warehouse",
+    "parameterSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "datasourceId": "41f290c5-5034-47ce-b24e-0cce293e88e4",
+    "databaseType": "mysql",
+    "title": "仓库数量查询（发布体验验收） · 信息同步",
+    "description": "在 SQL Studio 修改名称、说明和业务分类后同步到 MCP Server，查询逻辑保持不变。",
+    "category": "data_validation",
+    "source": {
+      "projectId": "28dcef29-43b2-4aad-a56c-5eed1dcc4b6b",
+      "fileId": "490492cb-7329-47ec-b236-9ec30c0adf5a",
+      "fileVersion": 1,
+      "sqlDigest": "ed1af28c021d60bead7371af8c795fe7b106df3c218a3571e3d527de8f84740c"
+    },
+    "groupId": "5e9de57d-8072-36d1-a492-c5b5d8ff727d",
+    "version": 1,
+    "expectedVersion": 5,
+    "state": "PUBLISHED",
+    "active": true,
+    "testEvidence": {
+      "type": "SQL_DATABASE_EXECUTION",
+      "testId": "210ea611f5d6739cc314a39c0c2f5721",
+      "testedAt": "2026-11-01T04:58:46.592569972Z",
+      "traceId": "210ea611f5d6739cc314a39c0c2f5721",
+      "source": {
+        "projectId": "28dcef29-43b2-4aad-a56c-5eed1dcc4b6b",
+        "fileId": "490492cb-7329-47ec-b236-9ec30c0adf5a",
+        "fileVersion": 1,
+        "sqlDigest": "ed1af28c021d60bead7371af8c795fe7b106df3c218a3571e3d527de8f84740c"
+      },
+      "fingerprint": "24985cebadc64bf8f3eac092d9590f03c264496df835bf5dd43baae52a27020b",
+      "sqlDigest": "ed1af28c021d60bead7371af8c795fe7b106df3c218a3571e3d527de8f84740c",
+      "datasourceId": "41f290c5-5034-47ce-b24e-0cce293e88e4",
+      "datasourceDigest": "d9bdcb0c7c7af35d3bac14048f7bb53c028df538c6e93ed330854cbf331bdd31",
+      "parameters": {},
+      "parametersDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "timeoutSeconds": 10,
+      "maxRows": 50,
+      "success": true,
+      "resultDigest": "32bcfc2832ea0aaddaf1d37a22b964a73855653711eccf11f14e72f0c1b38b78",
+      "rowCount": 1,
+      "errorCode": "",
+      "preview": {
+        "columns": [
+          "warehouse_count"
+        ],
+        "rows": [
+          {
+            "warehouse_count": 5
+          }
+        ],
+        "returnedRowCount": 1,
+        "possiblyTruncated": false,
+        "complete": true,
+        "previewTruncated": false
+      },
+      "diagnostic": "SQL query executed successfully",
+      "durationMs": 73
+    },
+    "templateKey": "sql_datasource:STUDIO_5E9DE57D807236D1A492C5B5D8FF727D",
+    "publication": {
+      "category": "数据核验",
+      "version": 3,
+      "publishedAt": "2026-11-01T04:58:54.155187207Z",
+      "logicalId": "da9bc2ee-307a-3a27-8da2-80d49b66fd7d",
+      "templateKey": "sql_datasource:STUDIO_5E9DE57D807236D1A492C5B5D8FF727D",
+      "description": "在 SQL Studio 修改名称、说明和业务分类后同步到 MCP Server，查询逻辑保持不变。",
+      "state": "RUNNING",
+      "id": "1b036d28-7688-4a7b-aeaf-e012ad325005",
+      "toolName": "tpl_da9bc2ee307a3a278da280d49b66fd7d",
+      "revision": "e6170613e42b74d0d5e345444aa4171fcfa3e3de2715dfbe34d11f6ace10e973",
+      "assetName": "SQL Studio 发布体验验收（248测试库）",
+      "title": "仓库数量查询（发布体验验收） · 信息同步"
+    },
+    "releaseHistory": [
+      {
+        "publication": {
+          "category": "数据核验",
+          "version": 3,
+          "publishedAt": "2026-11-01T04:58:54.155187207Z",
+          "logicalId": "da9bc2ee-307a-3a27-8da2-80d49b66fd7d",
+          "templateKey": "sql_datasource:STUDIO_5E9DE57D807236D1A492C5B5D8FF727D",
+          "description": "在 SQL Studio 修改名称、说明和业务分类后同步到 MCP Server，查询逻辑保持不变。",
+          "state": "RUNNING",
+          "id": "1b036d28-7688-4a7b-aeaf-e012ad325005",
+          "toolName": "tpl_da9bc2ee307a3a278da280d49b66fd7d",
+          "revision": "e6170613e42b74d0d5e345444aa4171fcfa3e3de2715dfbe34d11f6ace10e973",
+          "assetName": "SQL Studio 发布体验验收（248测试库）",
+          "title": "仓库数量查询（发布体验验收） · 信息同步"
+        },
+        "sqlTest": {
+          "type": "SQL_DATABASE_EXECUTION",
+          "testId": "210ea611f5d6739cc314a39c0c2f5721",
+          "testedAt": "2026-11-01T04:58:46.592569972Z",
+          "traceId": "210ea611f5d6739cc314a39c0c2f5721",
+          "source": {
+            "projectId": "28dcef29-43b2-4aad-a56c-5eed1dcc4b6b",
+            "fileId": "490492cb-7329-47ec-b236-9ec30c0adf5a",
+            "fileVersion": 1,
+            "sqlDigest": "ed1af28c021d60bead7371af8c795fe7b106df3c218a3571e3d527de8f84740c"
+          },
+          "fingerprint": "24985cebadc64bf8f3eac092d9590f03c264496df835bf5dd43baae52a27020b",
+          "sqlDigest": "ed1af28c021d60bead7371af8c795fe7b106df3c218a3571e3d527de8f84740c",
+          "datasourceId": "41f290c5-5034-47ce-b24e-0cce293e88e4",
+          "datasourceDigest": "d9bdcb0c7c7af35d3bac14048f7bb53c028df538c6e93ed330854cbf331bdd31",
+          "parameters": {},
+          "parametersDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "timeoutSeconds": 10,
+          "maxRows": 50,
+          "success": true,
+          "resultDigest": "32bcfc2832ea0aaddaf1d37a22b964a73855653711eccf11f14e72f0c1b38b78",
+          "rowCount": 1,
+          "errorCode": "",
+          "preview": {
+            "columns": [
+              "warehouse_count"
+            ],
+            "rows": [
+              {
+                "warehouse_count": 5
+              }
+            ],
+            "returnedRowCount": 1,
+            "possiblyTruncated": false,
+            "complete": true,
+            "previewTruncated": false
+          },
+          "diagnostic": "SQL query executed successfully",
+          "durationMs": 73
+        },
+        "sqlSnapshot": {
+          "id": "5e9de57d-8072-36d1-a492-c5b5d8ff727d",
+          "code": "STUDIO_5E9DE57D807236D1A492C5B5D8FF727D",
+          "sqlTemplate": "SELECT COUNT(*) AS warehouse_count FROM warehouse",
+          "parameterSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          },
+          "datasourceId": "41f290c5-5034-47ce-b24e-0cce293e88e4",
+          "databaseType": "mysql",
+          "title": "仓库数量查询（发布体验验收） · 信息同步",
+          "description": "在 SQL Studio 修改名称、说明和业务分类后同步到 MCP Server，查询逻辑保持不变。",
+          "category": "data_validation",
+          "source": {
+            "projectId": "28dcef29-43b2-4aad-a56c-5eed1dcc4b6b",
+            "fileId": "490492cb-7329-47ec-b236-9ec30c0adf5a",
+            "fileVersion": 1,
+            "sqlDigest": "ed1af28c021d60bead7371af8c795fe7b106df3c218a3571e3d527de8f84740c"
+          }
+        }
+      },
+      {
+        "publication": {
+          "category": "数据核验",
+          "version": 2,
+          "publishedAt": "2026-11-01T04:58:42.706165Z",
+          "logicalId": "da9bc2ee-307a-3a27-8da2-80d49b66fd7d",
+          "templateKey": "sql_datasource:STUDIO_5E9DE57D807236D1A492C5B5D8FF727D",
+          "description": "在 SQL Studio 修改名称、说明和业务分类后同步到 MCP Server，查询逻辑保持不变。",
+          "state": "OFFLINE",
+          "id": "405222b7-e607-4603-8858-6440b9138422",
+          "toolName": "tpl_da9bc2ee307a3a278da280d49b66fd7d",
+          "revision": "e6170613e42b74d0d5e345444aa4171fcfa3e3de2715dfbe34d11f6ace10e973",
+          "assetName": "SQL Studio 发布体验验收（248测试库）",
+          "title": "仓库数量查询（发布体验验收） · 信息同步"
+        },
+        "sqlTest": {
+          "type": "SQL_DATABASE_EXECUTION",
+          "testId": "215efcf07f5d6a0200d42e357d24b4aa",
+          "testedAt": "2026-11-01T04:58:33.728588767Z",
+          "traceId": "215efcf07f5d6a0200d42e357d24b4aa",
+          "source": {
+            "projectId": "28dcef29-43b2-4aad-a56c-5eed1dcc4b6b",
+            "fileId": "490492cb-7329-47ec-b236-9ec30c0adf5a",
+            "fileVersion": 1,
+            "sqlDigest": "ed1af28c021d60bead7371af8c795fe7b106df3c218a3571e3d527de8f84740c"
+          },
+          "fingerprint": "24985cebadc64bf8f3eac092d9590f03c264496df835bf5dd43baae52a27020b",
+          "sqlDigest": "ed1af28c021d60bead7371af8c795fe7b106df3c218a3571e3d527de8f84740c",
+          "datasourceId": "41f290c5-5034-47ce-b24e-0cce293e88e4",
+          "datasourceDigest": "d9bdcb0c7c7af35d3bac14048f7bb53c028df538c6e93ed330854cbf331bdd31",
+          "parameters": {},
+          "parametersDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "timeoutSeconds": 10,
+          "maxRows": 50,
+          "success": true,
+          "resultDigest": "ba7680c3db61dd4ba4bfb1c221ac13f9e180ccc772d7aa4d234da69c6000fcff",
+          "rowCount": 1,
+          "errorCode": "",
+          "preview": {
+            "columns": [
+              "warehouse_count"
+            ],
+            "rows": [
+              {
+                "warehouse_count": 5
+              }
+            ],
+            "returnedRowCount": 1,
+            "possiblyTruncated": false,
+            "complete": true,
+            "previewTruncated": false
+          },
+          "diagnostic": "SQL query executed successfully",
+          "durationMs": 70
+        },
+        "sqlSnapshot": {
+          "id": "5e9de57d-8072-36d1-a492-c5b5d8ff727d",
+          "code": "STUDIO_5E9DE57D807236D1A492C5B5D8FF727D",
+          "sqlTemplate": "SELECT COUNT(*) AS warehouse_count FROM warehouse",
+          "parameterSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          },
+          "datasourceId": "41f290c5-5034-47ce-b24e-0cce293e88e4",
+          "databaseType": "mysql",
+          "title": "仓库数量查询（发布体验验收） · 信息同步",
+          "description": "在 SQL Studio 修改名称、说明和业务分类后同步到 MCP Server，查询逻辑保持不变。",
+          "category": "data_validation",
+          "source": {
+            "projectId": "28dcef29-43b2-4aad-a56c-5eed1dcc4b6b",
+            "fileId": "490492cb-7329-47ec-b236-9ec30c0adf5a",
+            "fileVersion": 1,
+            "sqlDigest": "ed1af28c021d60bead7371af8c795fe7b106df3c218a3571e3d527de8f84740c"
+          }
+        }
+      },
+      {
+        "publication": {
+          "category": "数据资产探索",
+          "version": 1,
+          "publishedAt": "2026-11-01T04:58:32.353521Z",
+          "logicalId": "da9bc2ee-307a-3a27-8da2-80d49b66fd7d",
+          "templateKey": "sql_datasource:STUDIO_5E9DE57D807236D1A492C5B5D8FF727D",
+          "description": "只读统计仓库数量，用于验证分类、发布与信息同步。",
+          "state": "OFFLINE",
+          "id": "dd1a9c18-4577-49ec-be39-4fc1826c8ace",
+          "toolName": "tpl_da9bc2ee307a3a278da280d49b66fd7d",
+          "revision": "8bc53d6676c33e38ef6f5ee59bf88c0e449d6977e4168d4f1043c8160da093e8",
+          "assetName": "SQL Studio 发布体验验收（248测试库）",
+          "title": "仓库数量查询（发布体验验收）"
+        },
+        "sqlTest": {
+          "type": "SQL_DATABASE_EXECUTION",
+          "testId": "c02915fe812bb9b7341c0db826ae57db",
+          "testedAt": "2026-11-01T04:58:21.505756486Z",
+          "traceId": "c02915fe812bb9b7341c0db826ae57db",
+          "source": {
+            "projectId": "28dcef29-43b2-4aad-a56c-5eed1dcc4b6b",
+            "fileId": "490492cb-7329-47ec-b236-9ec30c0adf5a",
+            "fileVersion": 1,
+            "sqlDigest": "ed1af28c021d60bead7371af8c795fe7b106df3c218a3571e3d527de8f84740c"
+          },
+          "fingerprint": "f6e9d56ab9b47d9797a40d28eaef95079f434ddc36a8b0d13c0fed04f0624226",
+          "sqlDigest": "ed1af28c021d60bead7371af8c795fe7b106df3c218a3571e3d527de8f84740c",
+          "datasourceId": "41f290c5-5034-47ce-b24e-0cce293e88e4",
+          "datasourceDigest": "d9bdcb0c7c7af35d3bac14048f7bb53c028df538c6e93ed330854cbf331bdd31",
+          "parameters": {},
+          "parametersDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "timeoutSeconds": 10,
+          "maxRows": 50,
+          "success": true,
+          "resultDigest": "d6d8f7f97ddb758bb6efcecdddc76fa49fafab2e5fa22faef4da3118934a0a9e",
+          "rowCount": 1,
+          "errorCode": "",
+          "preview": {
+            "columns": [
+              "warehouse_count"
+            ],
+            "rows": [
+              {
+                "warehouse_count": 5
+              }
+            ],
+            "returnedRowCount": 1,
+            "possiblyTruncated": false,
+            "complete": true,
+            "previewTruncated": false
+          },
+          "diagnostic": "SQL query executed successfully",
+          "durationMs": 205
+        },
+        "sqlSnapshot": {
+          "id": "5e9de57d-8072-36d1-a492-c5b5d8ff727d",
+          "code": "STUDIO_5E9DE57D807236D1A492C5B5D8FF727D",
+          "sqlTemplate": "SELECT COUNT(*) AS warehouse_count FROM warehouse",
+          "parameterSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          },
+          "datasourceId": "41f290c5-5034-47ce-b24e-0cce293e88e4",
+          "databaseType": "mysql",
+          "title": "仓库数量查询（发布体验验收）",
+          "description": "只读统计仓库数量，用于验证分类、发布与信息同步。",
+          "category": "data_asset_exploration",
+          "source": {
+            "projectId": "28dcef29-43b2-4aad-a56c-5eed1dcc4b6b",
+            "fileId": "490492cb-7329-47ec-b236-9ec30c0adf5a",
+            "fileVersion": 1,
+            "sqlDigest": "ed1af28c021d60bead7371af8c795fe7b106df3c218a3571e3d527de8f84740c"
+          }
+        }
+      }
+    ]
+  },
+  "timestamp": 1793509134216,
+  "requestId": "49b3b564-5a0e-4528-bce9-54c9768b8541"
+}

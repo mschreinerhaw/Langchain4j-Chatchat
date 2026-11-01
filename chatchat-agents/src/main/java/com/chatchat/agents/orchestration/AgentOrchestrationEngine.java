@@ -4968,10 +4968,19 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             return null;
         }
         Map<String, Object> arguments = asMap(pending.get("input"));
+        // Runtime-owned template batches must be compiled again from current
+        // authorized discovery. A persisted UI command cannot restore ownership
+        // flags or manufacture the binding context that the MCP kernel requires.
+        Object pendingCalls = arguments.get("calls");
+        if (pendingCalls instanceof List<?> calls && calls.stream().anyMatch(call ->
+                call instanceof Map<?,?> item && item.get("arguments") instanceof Map<?,?> input
+                    && input.containsKey(com.chatchat.common.mcp.contract.McpTemplateBindingEvidence.CONTEXT_KEY))) {
+            return null;
+        }
         Map<String, Object> executionPlan = asMap(pending.get("executionPlan"));
         return executeToolCall(
             pendingToolName,
-            toolArguments.applyToolDefaults(pendingToolName, arguments, List.of(), List.of(), query, WEB_SEARCH_REFERENCE_LIMIT),
+            new LinkedHashMap<>(arguments),
             conversationId,
             requestId,
             userId,

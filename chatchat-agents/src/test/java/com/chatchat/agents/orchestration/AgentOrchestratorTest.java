@@ -80,6 +80,41 @@ import static org.mockito.Mockito.when;
 class AgentOrchestratorTest {
 
     @Test
+    void pendingRuntimeTemplateBatchRequiresFreshGovernedCompilation() throws Exception {
+        var registry = mock(ToolRegistry.class);
+        var host = newOrchestrator(mock(ChatModel.class), registry);
+        String tool = "mcp_executor";
+        Map<String,Object> input = Map.of("calls", List.of(Map.of("arguments", Map.of(
+            com.chatchat.common.mcp.contract.McpTemplateBindingEvidence.CONTEXT_KEY, Map.of("templateId", "one")))));
+        var method = AgentOrchestrationEngine.class.getDeclaredMethod("executePendingConfirmedTool",
+            String.class, String.class, String.class, String.class, String.class, List.class, Map.class);
+        method.setAccessible(true);
+        var result = method.invoke(host, "Original question", "conversation", "request", "user", "tenant",
+            List.of(tool), Map.of("mcpConfirmation", Map.of("approved", true),
+                "mcpPendingToolExecution", Map.of("toolName", tool, "input", input)));
+        assertThat(result).isNull();
+        verify(registry, never()).executeEnhancedTool(any(), any());
+    }
+
+    @Test
+    void confirmedPendingInputIsReplayedWithoutAddingOrRewritingArguments() throws Exception {
+        var registry = mock(ToolRegistry.class);
+        when(registry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder()
+            .id("document_search").title("Document source").build());
+        when(registry.executeEnhancedTool(any(), any())).thenReturn(documentSearchOutput());
+        var host = newOrchestrator(mock(ChatModel.class), registry);
+        Map<String,Object> input = Map.of("query", "The exact approved query");
+        var method = AgentOrchestrationEngine.class.getDeclaredMethod("executePendingConfirmedTool",
+            String.class, String.class, String.class, String.class, String.class, List.class, Map.class);
+        method.setAccessible(true);
+        var result = (AgentOrchestrator.ToolCallExecution) method.invoke(host, "A different original user question",
+            "conversation", "request", "user", "tenant", List.of("document_search"),
+            Map.of("mcpConfirmation", Map.of("approved", true), "mcpPendingToolExecution",
+                Map.of("toolName", "document_search", "input", input)));
+        assertThat(result.trace().getInput()).isEqualTo(input);
+    }
+
+    @Test
     void codingAnalysisWaitsForToolConfirmationBeforeDataSupplyProjection() throws Exception {
         String tool = "document_search";
         var registry = mock(ToolRegistry.class);

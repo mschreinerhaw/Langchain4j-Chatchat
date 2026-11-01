@@ -30,10 +30,40 @@ public class SqlTemplateAuthoringService {
     private final ToolReleaseRepository releases;
     private final McpTemplateLuceneIndexService index;
     private final ObjectMapper json;
+    private final com.chatchat.mcpserver.category.BusinessCategoryService businessCategories;
 
     public record Write(String operationId,String groupId,Long expectedVersion,String title,String description,String category,
         String datasourceId,String databaseType,String sqlTemplate,JsonNode parameterSchema,Map<String,Object> source) { }
     public record Action(Long expectedVersion,String testId,Map<String,Object> parameters,Map<String,Object> source,String expectedActiveReleaseId) { }
+    public record MetadataEdit(Long expectedVersion,String title,String description,String category,String testId,
+        Map<String,Object> parameters,Map<String,Object> source,String expectedActiveReleaseId) {
+        Action action() { return new Action(expectedVersion,testId,parameters,source,expectedActiveReleaseId); }
+    }
+
+    public List<Map<String,Object>> categories() {
+        return businessCategories.listEnabled().stream().map(c -> Map.<String,Object>of(
+            "id",c.getId(),"code",c.getCode(),"name",c.getName())).toList();
+    }
+
+    /** Metadata changes use the existing authorized SQL code and publication group.
+     * Retest a detached candidate before touching the live definition; immutable releases
+     * retain their original metadata and SQL. No datasource allowlist is broadened. */
+    @Transactional
+    public Map<String,Object> updateMetadata(String tenant,String actor,String id,MetadataEdit edit) {
+        try(var ignored=callers.open(tenant,actor)) {
+            var row=locked(id,tenant,actor);var input=edit.action();
+            expected(row,input.expectedVersion());source(row,input.source());requireHead(row,input);
+            if(!"PUBLISHED".equals(row.getPublicationState()))throw new IllegalArgumentException("Only published template information can be synchronized");
+            String title=required(edit.title(),200),description=optional(edit.description(),1000),category=category(edit.category());
+            if(row.isEnabled()&&Objects.equals(title,row.getTitle())&&Objects.equals(description,row.getDescription())&&Objects.equals(category,row.getCategory()))return view(row);
+            var candidate=new SqlTemplateConfig();org.springframework.beans.BeanUtils.copyProperties(row,candidate);
+            candidate.setTitle(title);candidate.setDescription(description);candidate.setCategory(category);
+            var evidence=json.valueToTree(execute(candidate,input));
+            if(!evidence.path("success").asBoolean())throw new IllegalArgumentException("模板测试未通过，线上信息未修改："+evidence.path("diagnostic").asText());
+            row.setTitle(title);row.setDescription(description);row.setCategory(category);
+            return activate(row,evidence);
+        }
+    }
 
     @Transactional
     public Map<String,Object> create(String tenant,String actor,Write input) {
@@ -203,7 +233,7 @@ public class SqlTemplateAuthoringService {
         ToolReleaseSchemas.compile(schema);
         var tokens=java.util.regex.Pattern.compile("\\{\\{\\s*([A-Za-z0-9_.-]+)\\s*}}").matcher(sql);
         while(tokens.find())if(!schema.path("properties").has(tokens.group(1)))throw new IllegalArgumentException("Every SQL placeholder must be declared in parameter Schema");
-        row.setTitle(required(input.title(),200));row.setDescription(optional(input.description(),1000));row.setCategory(required(input.category(),100));
+        row.setTitle(required(input.title(),200));row.setDescription(optional(input.description(),1000));row.setCategory(category(input.category()));
         if(schema.toString().length()>100_000)throw new IllegalArgumentException("Parameter Schema is too large");
         row.setSqlTemplate(sql);row.setParameterSchemaJson(schema.toString());row.setDatasourceId(required(input.datasourceId(),64));row.setDatabaseType(input.databaseType());
         var origin=json.valueToTree(input.source());
@@ -280,5 +310,6 @@ public class SqlTemplateAuthoringService {
     private String digest(Object value){try{return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest((value instanceof String s?s:write(value)).getBytes(StandardCharsets.UTF_8)));}catch(Exception e){throw new IllegalArgumentException("Cannot hash SQL revision");}}
     private String required(String value,int max){if(value==null||value.isBlank()||value.length()>max)throw new IllegalArgumentException("Missing or oversized authoring value");return value;}
     private String optional(String value,int max){if(value!=null&&value.length()>max)throw new IllegalArgumentException("Oversized authoring value");return value;}
+    private String category(String value){var category=businessCategories.require(required(value,100));if(!category.isEnabled())throw new IllegalArgumentException("业务分类已停用，请重新选择");return category.getCode();}
     private void conflict(){throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,"SQL revision or source changed; reload and retest");}
 }

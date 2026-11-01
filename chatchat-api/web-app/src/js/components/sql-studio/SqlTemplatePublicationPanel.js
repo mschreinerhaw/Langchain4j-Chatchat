@@ -1,7 +1,8 @@
 import { ref, computed, watch } from "vue";
-import { X } from '@lucide/vue';
+import { X } from "@lucide/vue";
 import {
   sqlTemplateSources,
+  sqlTemplateCategories,
   sqlTemplateHistory,
   writeSqlTemplate,
   actSqlTemplate,
@@ -14,11 +15,12 @@ function operationKey() {
   ).join("");
 }
 export default {
-  components:{X},
+  components: { X },
   props: { projectId: { type: String, required: true }, file: { type: Object, required: true } },
   emits: ["close"],
   setup(props) {
     const sources = ref([]),
+      categories = ref([]),
       history = ref([]),
       selectedId = ref(""),
       busy = ref(false),
@@ -29,7 +31,7 @@ export default {
     const form = ref({
       title: "",
       description: "",
-      category: "sql_diagnostic",
+      category: "",
       datasourceId: "",
       schema: '{"type":"object","properties":{},"additionalProperties":false}',
     });
@@ -61,14 +63,38 @@ export default {
         return false;
       }
     });
-    const canPublish = computed(
-      () =>
-        !!selected.value?.testEvidence?.success &&
-        sourceCurrent.value &&
-        !changed.value &&
-        sampleCurrent.value &&
-        reviewed.value &&
-        !dirty.value
+    const legacyCategory = computed(
+      () => !!form.value.category && !categories.value.some((c) => c.code === form.value.category)
+    );
+    const canPublish = computed(() => {
+      if (
+        dirty.value ||
+        !reviewed.value ||
+        !form.value.title.trim() ||
+        !form.value.datasourceId ||
+        !categories.value.some((c) => c.code === form.value.category)
+      )
+        return false;
+      if (published.value && (!sourceCurrent.value || (selected.value.active && !changed.value)))
+        return false;
+      try {
+        JSON.parse(form.value.schema);
+        const values = JSON.parse(sample.value);
+        return !!values && !Array.isArray(values) && typeof values === "object";
+      } catch {
+        return false;
+      }
+    });
+    const publicationHint = computed(() =>
+      dirty.value
+        ? "请先保存 SQL 文件。"
+        : legacyCategory.value
+          ? "请选择当前有效的业务分类。"
+          : published.value && !sourceCurrent.value
+            ? "SQL 已修改，请先创建新修订。"
+            : published.value && selected.value.active && !changed.value
+              ? "当前信息已发布；修改名称、描述或分类后可发布更新。"
+              : "发布会先验证查询，成功后同步更新。"
     );
     function choose() {
       reviewed.value = false;
@@ -87,14 +113,17 @@ export default {
         const values = await Promise.all([
           sqlTemplateSources(),
           sqlTemplateHistory(props.projectId, props.file.id),
+          sqlTemplateCategories(),
         ]);
         if (current !== epoch) return;
         sources.value = values[0];
         history.value = values[1];
+        categories.value = values[2];
         selectedId.value = history.value[0]?.id || "";
         if (selected.value) choose();
         else {
           form.value.title = props.file.path.split("/").at(-1);
+          form.value.category = categories.value[0]?.code || "";
           form.value.datasourceId = sources.value[0]?.id || "";
           const names = [
             ...new Set(
@@ -150,25 +179,47 @@ export default {
       selectedId.value = row.id;
       choose();
     }
-    async function createDraft() {
-      await run(async () => {
-        const input=body();
-        if(published.value) {
-          const names=[...new Set([...props.file.content.matchAll(/\{\{\s*([A-Za-z0-9_.-]+)\s*}}/g)].map(match=>match[1]))];
-          const previous=new Set([...selected.value.sqlTemplate.matchAll(/\{\{\s*([A-Za-z0-9_.-]+)\s*}}/g)].map(match=>match[1]));
-          if(names.length!==previous.size || names.some(name=>!previous.has(name)))
-            input.parameterSchema={...input.parameterSchema,type:'object',properties:Object.fromEntries(names.map(name=>[name,input.parameterSchema.properties?.[name]||{type:'string'}])),required:names,additionalProperties:false};
-        }
-        accept(
-          await writeSqlTemplate(props.projectId, props.file.id, null, {
-            ...input,
-            operationId,
-            groupId: selected.value?.groupId,
-          })
+    async function createDraftRow() {
+      const input = body();
+      if (published.value) {
+        const names = [
+          ...new Set(
+            [...props.file.content.matchAll(/\{\{\s*([A-Za-z0-9_.-]+)\s*}}/g)].map(
+              (match) => match[1]
+            )
+          ),
+        ];
+        const previous = new Set(
+          [...selected.value.sqlTemplate.matchAll(/\{\{\s*([A-Za-z0-9_.-]+)\s*}}/g)].map(
+            (match) => match[1]
+          )
         );
-        operationId = operationKey();
-        status.value = "草稿已保存，尚未执行 SQL。";
-      });
+        if (names.length !== previous.size || names.some((name) => !previous.has(name)))
+          input.parameterSchema = {
+            ...input.parameterSchema,
+            type: "object",
+            properties: Object.fromEntries(
+              names.map((name) => [
+                name,
+                input.parameterSchema.properties?.[name] || { type: "string" },
+              ])
+            ),
+            required: names,
+            additionalProperties: false,
+          };
+      }
+      accept(
+        await writeSqlTemplate(props.projectId, props.file.id, null, {
+          ...input,
+          operationId,
+          groupId: selected.value?.groupId,
+        })
+      );
+      operationId = operationKey();
+      status.value = "草稿已保存，尚未执行 SQL。";
+    }
+    async function createDraft() {
+      await run(createDraftRow);
     }
     async function saveDraft() {
       await run(async () => {
@@ -203,6 +254,50 @@ export default {
               : "发布状态已由服务端确认。";
       });
     }
+    async function publishTemplate() {
+      if (!canPublish.value) return;
+      await run(async () => {
+        status.value = "正在校验并同步发布…";
+        if (!selected.value) await createDraftRow();
+        if (published.value) {
+          const action = changed.value ? "metadata" : "rollback";
+          accept(
+            await actSqlTemplate(props.projectId, props.file.id, selectedId.value, action, {
+              ...body(),
+              testId: operationKey(),
+            })
+          );
+        } else {
+          if (changed.value || !sourceCurrent.value)
+            accept(
+              await writeSqlTemplate(props.projectId, props.file.id, selectedId.value, body())
+            );
+          if (!selected.value.testEvidence?.success || !sampleCurrent.value) {
+            accept(
+              await actSqlTemplate(props.projectId, props.file.id, selectedId.value, "test", {
+                ...body(),
+                testId: operationKey(),
+              })
+            );
+            if (!selected.value.testEvidence?.success) {
+              status.value = "真实 SQL 测试失败，尚未发布。";
+              return;
+            }
+          }
+          accept(
+            await actSqlTemplate(props.projectId, props.file.id, selectedId.value, "publish", {
+              ...body(),
+              testId: operationKey(),
+            })
+          );
+        }
+        history.value = await sqlTemplateHistory(props.projectId, props.file.id);
+        choose();
+        status.value = selected.value?.active
+          ? "模板已发布，MCP Server 信息已同步。"
+          : "查询验证未通过，线上版本未变更。";
+      });
+    }
     watch(
       () => [props.projectId, props.file.id],
       () => {
@@ -215,6 +310,10 @@ export default {
 
     return {
       sources,
+      categories,
+      legacyCategory,
+      publicationHint,
+      publishTemplate,
       history,
       selectedId,
       busy,

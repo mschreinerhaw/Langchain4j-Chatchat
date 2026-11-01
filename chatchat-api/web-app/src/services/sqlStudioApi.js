@@ -5,6 +5,7 @@ const project = id => `${root}/projects/${encodeURIComponent(id)}`;
 const body = value => JSON.stringify(value);
 const publications=(id,file)=>`${project(id)}/files/${encodeURIComponent(file)}/template-publications`;
 export const sqlTemplateSources=()=>apiRequest(`${root}/template-publications/datasources`);
+export const sqlTemplateCategories=()=>apiRequest(`${root}/template-publications/categories`);
 export const sqlTemplateHistory=(id,file)=>apiRequest(publications(id,file));
 export const writeSqlTemplate=(id,file,draft,value)=>apiRequest(publications(id,file)+(draft?'/'+encodeURIComponent(draft):''),{method:draft?'PUT':'POST',body:body(value)});
 export const actSqlTemplate=(id,file,draft,action,value)=>apiRequest(`${publications(id,file)}/${encodeURIComponent(draft)}/${action}`,{method:'POST',body:body(value)});

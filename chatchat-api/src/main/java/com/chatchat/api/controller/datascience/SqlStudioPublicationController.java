@@ -17,6 +17,9 @@ public class SqlStudioPublicationController {
     private final TemplateCapabilityController capabilities;
     private final WorkspaceService workspaces;
     private final ObjectMapper json;
+    @GetMapping("/template-publications/categories") public ApiResponse<?> categories(HttpServletRequest request) {
+        workspaces.requireAvailable(request,"data-science");return ApiResponse.success(capabilities.sqlAuthoring(request,"GET","/categories",null,"mcp:publication:read"));
+    }
     @GetMapping("/template-publications/datasources") public ApiResponse<?> sources(HttpServletRequest request) {
         workspaces.requireAvailable(request,"data-science");return ApiResponse.success(capabilities.sqlAuthoring(request,"GET","/datasources",null,"mcp:publication:read"));
     }
@@ -30,7 +33,7 @@ public class SqlStudioPublicationController {
         return write(request,project,file,id,"",input);
     }
     @PostMapping("/projects/{projectId}/files/{fileId}/template-publications/{id}/{action}") public ApiResponse<?> action(@PathVariable("projectId")String project,@PathVariable("fileId")String file,@PathVariable("id")String id,@PathVariable("action")String action,@RequestBody JsonNode input,HttpServletRequest request) {
-        if(!Set.of("test","publish","rollback").contains(action))throw new IllegalArgumentException("Unknown publication action");
+        if(!Set.of("test","publish","rollback","metadata").contains(action))throw new IllegalArgumentException("Unknown publication action");
         return write(request,project,file,id,action,input);
     }
     private ApiResponse<?> write(HttpServletRequest request,String project,String file,String id,String action,JsonNode input) {
@@ -45,7 +48,7 @@ public class SqlStudioPublicationController {
         body.set("source",origin);
         if(action.isBlank())body.put("sqlTemplate",saved.content());
         String suffix=id==null?"":"/"+id; if(!action.isBlank())suffix+="/"+action;
-        String permission=Set.of("publish","rollback").contains(action)?"mcp:publication:publish":"mcp:publication:edit";
+        String permission=Set.of("publish","rollback","metadata").contains(action)?"mcp:publication:publish":"mcp:publication:edit";
         return ApiResponse.success(capabilities.sqlAuthoring(request,id==null||!action.isBlank()?"POST":"PUT",suffix,body,permission));
     }
     private SqlStudioService.File gate(HttpServletRequest request,String project,String file) {

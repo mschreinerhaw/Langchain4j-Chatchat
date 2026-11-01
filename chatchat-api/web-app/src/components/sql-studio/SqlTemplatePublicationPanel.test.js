@@ -3,6 +3,7 @@ import { createApp, h, nextTick } from "vue";
 import { afterEach, beforeEach, it, expect, vi } from "vitest";
 const api = vi.hoisted(() => ({
   sqlTemplateSources: vi.fn(),
+  sqlTemplateCategories: vi.fn(),
   sqlTemplateHistory: vi.fn(),
   writeSqlTemplate: vi.fn(),
   actSqlTemplate: vi.fn(),
@@ -42,6 +43,10 @@ const row = () => ({
 const settle = async () => {
   for (let n = 0; n < 8; n++) await nextTick();
 };
+const approve = async () => {
+  const review=document.querySelector('.sql-publication-review input');
+  review.checked=true;review.dispatchEvent(new Event('change',{bubbles:true}));await settle();
+};
 const button = (text) =>
   [...document.querySelectorAll("button")].find((b) => b.textContent.includes(text));
 async function mount(value = file, extra = {}) {
@@ -56,6 +61,7 @@ beforeEach(() => {
     { id: "db", name: "Controlled DB", databaseType: "h2" },
   ]);
   api.sqlTemplateHistory.mockResolvedValue([]);
+  api.sqlTemplateCategories.mockResolvedValue([{id:"category",code:"sql_diagnostic",name:"查询诊断"},{id:"finance",code:"finance",name:"金融业务"}]);
 });
 afterEach(() => {
   app?.unmount();
@@ -68,7 +74,7 @@ it("supports the existing HTTP intranet origin without crypto.randomUUID", async
   vi.stubGlobal("crypto", { getRandomValues: crypto.getRandomValues.bind(crypto) });
   api.writeSqlTemplate.mockResolvedValue(row());
   await mount();
-  button("从当前保存文件创建").click();
+  button("保存草稿").click();
   await settle();
   expect(api.writeSqlTemplate).toHaveBeenCalledWith(
     "project",
@@ -87,7 +93,7 @@ it('a new revision uses current SQL placeholders while leaving the published con
   const published={...row(),state:'PUBLISHED',active:true};
   api.sqlTemplateHistory.mockResolvedValue([published]);api.writeSqlTemplate.mockResolvedValue(row());
   await mount({...file,content:'select {{amount}}',draft:'select {{amount}}',version:4});
-  button('从当前保存文件创建').click();await settle();
+  button('修改 SQL 或参数').click();await settle();
   const submitted=api.writeSqlTemplate.mock.calls[0][3];
   expect(submitted.parameterSchema.properties).toEqual({amount:{type:'string'}});
   expect(submitted.parameterSchema.required).toEqual(['amount']);
@@ -97,13 +103,13 @@ it('a new revision uses current SQL placeholders while leaving the published con
 it('forking unchanged placeholders preserves defaults, optionality and local Schema definitions',async()=>{
   const schema={type:'object',properties:{value:{$ref:'#/$defs/value'}},$defs:{value:{type:'integer',default:7}},required:[],additionalProperties:true};
   api.sqlTemplateHistory.mockResolvedValue([{...row(),state:'PUBLISHED',parameterSchema:schema}]);api.writeSqlTemplate.mockResolvedValue(row());
-  await mount();button('从当前保存文件创建').click();await settle();
+  await mount();button('修改 SQL 或参数').click();await settle();
   expect(api.writeSqlTemplate.mock.calls[0][3].parameterSchema).toEqual(schema);
 });
 it("creating a draft binds the saved source version and inferred parameter Schema", async () => {
   api.writeSqlTemplate.mockResolvedValue(row());
   await mount();
-  button("从当前保存文件创建").click();
+  button("保存草稿").click();
   await settle();
   expect(api.writeSqlTemplate).toHaveBeenCalledWith(
     "project",
@@ -119,7 +125,7 @@ it("creating a draft binds the saved source version and inferred parameter Schem
 it("unsaved file changes prevent creating or testing a template", async () => {
   api.sqlTemplateHistory.mockResolvedValue([row()]);
   await mount({ ...file, draft: "select 2" });
-  expect(button("从当前保存文件创建").disabled).toBe(true);
+  expect(button("保存草稿").disabled).toBe(true);
   expect(button("执行真实 SQL 测试").disabled).toBe(true);
 });
 it("a returned failed SQL receipt is displayed as failure and cannot be published", async () => {
@@ -139,23 +145,23 @@ it("a returned failed SQL receipt is displayed as failure and cannot be publishe
   button("执行真实 SQL 测试").click();
   await settle();
   expect(document.body.textContent).toContain("真实 SQL 测试失败");
-  expect(button("确认发布 MCP 模板").disabled).toBe(true);
+  expect(button("发布模板").disabled).toBe(true);
 });
 it("publication requires a passed test, matching sample and explicit review", async () => {
   const draft = { ...row(), testEvidence: { success: true, parameters: { value: 1 } } };
   api.sqlTemplateHistory.mockResolvedValue([draft]);
   await mount();
-  expect(button("确认发布 MCP 模板").disabled).toBe(true);
+  expect(button("发布模板").disabled).toBe(true);
   const review = document.querySelector("input[type=checkbox]");
   review.checked = true;
   review.dispatchEvent(new Event("change", { bubbles: true }));
   await settle();
-  expect(button("确认发布 MCP 模板").disabled).toBe(false);
+  expect(button("发布模板").disabled).toBe(false);
   const sample = document.querySelector('[aria-label="模板测试参数"]');
   sample.value = '{"value":2}';
   sample.dispatchEvent(new Event("input", { bubbles: true }));
   await settle();
-  expect(button("确认发布 MCP 模板").disabled).toBe(true);
+  expect(button("发布模板").disabled).toBe(true);
 });
 it("historical rollback calls the existing action and reports a failed retest without success", async () => {
   const snapshot = { ...row(), state: "PUBLISHED" };
@@ -184,4 +190,40 @@ it('shows actual bounded query rows and truncation evidence while escaping untru
  expect(preview.textContent).toContain('1234.50');expect(preview.textContent).toContain('NULL');
  expect(preview.textContent).toContain('结果可能不完整');expect(preview.textContent).toContain('不能据此认定完整业务对账通过');
  expect(preview.querySelector('script')).toBeNull();expect(preview.textContent).toContain('<script>');
+});
+it('uses authoritative business category options and folds technical details by default',async()=>{
+  api.sqlTemplateHistory.mockResolvedValue([row()]);await mount();
+  const categories=document.querySelector('[aria-label="模板业务分类"]');
+  expect([...categories.options].map(o=>o.textContent)).toContain('金融业务');
+  expect(categories.tagName).toBe('SELECT');
+  expect(document.querySelector('[aria-label="发布技术详情"]').open).toBe(false);
+  expect(document.querySelector('.sql-publication-footer .sql-publication-primary')).not.toBeNull();
+});
+it('keeps the publish action available for an offline published revision',async()=>{
+  const offline={...row(),state:'PUBLISHED',active:false};
+  api.sqlTemplateHistory.mockResolvedValueOnce([offline]).mockResolvedValue([{...offline,active:true}]);
+  api.actSqlTemplate.mockResolvedValue({...offline,active:true});await mount();await approve();
+  expect(button('发布模板').disabled).toBe(false);button('发布模板').click();await settle();
+  expect(api.actSqlTemplate).toHaveBeenCalledWith('project','file','draft','rollback',expect.any(Object));
+  expect(api.writeSqlTemplate).not.toHaveBeenCalled();
+});
+it('edits published business information and synchronizes through the existing approved code',async()=>{
+  const published={...row(),state:'PUBLISHED',active:true};
+  api.sqlTemplateHistory.mockResolvedValueOnce([published]).mockResolvedValue([{...published,title:'新业务名称'}]);
+  api.actSqlTemplate.mockResolvedValue({...published,title:'新业务名称'});await mount();
+  const title=document.querySelector('fieldset input');expect(title.disabled).toBe(false);title.value='新业务名称';title.dispatchEvent(new Event('input',{bubbles:true}));await settle();await approve();
+  expect(button('发布更新').disabled).toBe(false);button('发布更新').click();await settle();
+  expect(api.actSqlTemplate).toHaveBeenCalledWith('project','file','draft','metadata',expect.objectContaining({title:'新业务名称',expectedSourceVersion:3}));
+  expect(api.writeSqlTemplate).not.toHaveBeenCalled();expect(published.title).toBe('Sample');
+});
+it('one publish action tests an untested draft before publishing and does not bypass server validation',async()=>{
+  const draft=row(),tested={...draft,testEvidence:{success:true,parameters:{}}};api.sqlTemplateHistory.mockResolvedValue([draft]);
+  api.actSqlTemplate.mockImplementation((_p,_f,_id,action)=>Promise.resolve(action==='test'?tested:{...tested,state:'PUBLISHED',active:true}));
+  await mount();await approve();button('发布模板').click();await settle();
+  expect(api.actSqlTemplate.mock.calls.map(c=>c[3])).toEqual(['test','publish']);
+});
+it('one-action publication stops after a failed real test',async()=>{
+  const draft=row();api.sqlTemplateHistory.mockResolvedValue([draft]);api.actSqlTemplate.mockResolvedValue({...draft,testEvidence:{success:false,parameters:{}}});
+  await mount();await approve();button('发布模板').click();await settle();
+  expect(api.actSqlTemplate.mock.calls.map(c=>c[3])).toEqual(['test']);expect(document.body.textContent).toContain('尚未发布');
 });

@@ -11,6 +11,14 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
 class SqlStudioPublicationControllerTest {
+    @Test void businessCategoriesUseTheExistingReadControlPlane() {
+        controller.categories(request);verify(capabilities).sqlAuthoring(request,"GET","/categories",null,"mcp:publication:read");
+    }
+    @Test void metadataSynchronizationRequiresPublishingAndServerSavedSource() throws Exception {
+        saved("SQL");controller.action("project","file","revision","metadata",json.readTree("{\"expectedSourceVersion\":2,\"title\":\"新名称\",\"sqlTemplate\":\"delete from data\"}"),request);
+        var body=org.mockito.ArgumentCaptor.forClass(JsonNode.class);verify(capabilities).sqlAuthoring(eq(request),eq("POST"),eq("/revision/metadata"),body.capture(),eq("mcp:publication:publish"));
+        assertThat(body.getValue().has("sqlTemplate")).isFalse();assertThat(body.getValue().path("source").path("fileVersion").asInt()).isEqualTo(2);
+    }
     final SqlStudioService studio=mock(SqlStudioService.class);
     final TemplateCapabilityController capabilities=mock(TemplateCapabilityController.class);
     final ObjectMapper json=new ObjectMapper();

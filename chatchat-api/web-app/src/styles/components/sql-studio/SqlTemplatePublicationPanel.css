@@ -1,45 +1,76 @@
-.sql-publication-panel {
+﻿.sql-publication-panel {
   width: min(920px, 94vw);
   max-height: 90vh;
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   padding: 22px;
+}
+.sql-publication-panel header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 16px;
+  justify-content: space-between;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+.sql-publication-panel header h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.sql-publication-body {
+  min-height: 0;
+  overflow: auto;
+  padding-right: 8px;
+}
+.sql-publication-panel h3 {
+  font-size: 14px;
+  margin: 16px 0 8px;
 }
 .sql-publication-panel button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
-.sql-publication-panel header {
-  display: flex;
-  align-items:center;
-  gap:16px;
-  justify-content: space-between;
-  margin-bottom:16px;
-  position:sticky;
-  top:0;
-  z-index:1;
-  padding-bottom:12px;
-  background:var(--surface);
+.sql-publication-panel button.sql-dialog-close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  margin: 0;
+  padding: 5px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
 }
-.sql-publication-panel header h2 { margin:0; }
-.sql-publication-panel button.sql-dialog-close { display:grid; place-items:center; flex:none; width:30px; height:30px; margin:0; padding:5px; border:1px solid transparent; border-radius:7px; background:transparent; color:var(--muted); }
-.sql-publication-panel button.sql-dialog-close:hover:not(:disabled) { background:var(--surface-soft); border-color:transparent; color:var(--text); }
-.sql-publication-panel button.sql-dialog-close:focus-visible { outline:2px solid var(--primary); outline-offset:2px; }
+.sql-publication-panel button.sql-dialog-close:hover:not(:disabled) {
+  background: var(--surface-soft);
+  color: var(--text);
+}
+.sql-publication-panel button.sql-dialog-close:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
 .sql-publication-panel label {
   display: block;
   margin: 12px 0;
+  font-size: 13px;
 }
 .sql-publication-panel input:not([type="checkbox"]),
-.sql-publication-panel textarea,
+.sql-publication-panel textarea[spellcheck="false"],
 .sql-publication-panel select {
   display: block;
   width: 100%;
   box-sizing: border-box;
-  padding: 8px;
+  padding: 8px 10px;
   margin-top: 5px;
-  border:1px solid var(--line);
-  border-radius:7px;
-  background:var(--surface);
-  color:var(--text);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
 }
 .sql-publication-panel textarea,
 .sql-publication-panel pre {
@@ -48,25 +79,127 @@
 .sql-publication-panel pre {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  background: #f4f7fb;
+  background: var(--surface-soft);
   padding: 12px;
 }
 .sql-publication-panel p {
-  font-size: 12px;
+  font-size: 13px;
   overflow-wrap: anywhere;
   line-height: 1.7;
 }
 .sql-publication-panel [role="alert"] {
-  color: #ad3225;
+  color: var(--danger, #ad3225);
 }
 .sql-publication-panel button {
   padding: 8px 12px;
-  margin: 5px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
 }
 .sql-publication-panel fieldset {
-  border: 1px solid #dce5ef;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-top: 12px;
 }
-.sql-test-result-preview { max-height: 260px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
-.sql-test-result-preview table { border-collapse: collapse; width: 100%; font-size: 12px; }
-.sql-test-result-preview th, .sql-test-result-preview td { padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; text-align: right; }
-.sql-test-result-preview th { position: sticky; top: 0; background: var(--surface-soft); }
+.sql-publication-panel .sql-publication-hint,
+.sql-publication-technical,
+.sql-publication-technical p,
+.sql-publication-technical li,
+.sql-publication-technical h3 {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.65;
+}
+.sql-publication-technical {
+  margin: 14px 0;
+}
+.sql-publication-technical summary {
+  cursor: pointer;
+  padding: 6px 0;
+}
+.sql-publication-technical h3 {
+  font-weight: 500;
+}
+.sql-publication-technical ul {
+  padding-left: 20px;
+}
+.sql-publication-draft-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+.sql-publication-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-shrink: 0;
+  padding-top: 14px;
+  margin-top: 10px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+.sql-publication-footer .sql-publication-review {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.sql-publication-review input {
+  flex: none;
+  margin: 0;
+  accent-color: var(--primary);
+}
+.sql-publication-footer .sql-publication-hint {
+  margin: 6px 0 0;
+}
+.sql-publication-footer-actions {
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+.sql-publication-panel .sql-publication-primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+  min-width: 106px;
+}
+.sql-test-result-preview {
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.sql-test-result-preview table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12px;
+}
+.sql-test-result-preview th,
+.sql-test-result-preview td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+  text-align: right;
+}
+.sql-test-result-preview th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-soft);
+}
+@media (max-width: 640px) {
+  .sql-publication-panel {
+    padding: 16px;
+  }
+  .sql-publication-footer {
+    flex-wrap: wrap;
+  }
+  .sql-publication-footer-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

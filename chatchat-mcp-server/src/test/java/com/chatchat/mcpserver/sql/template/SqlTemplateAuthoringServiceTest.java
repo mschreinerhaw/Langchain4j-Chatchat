@@ -41,6 +41,7 @@ class SqlTemplateAuthoringServiceTest {
     final ToolReleaseRepository releases = mock(ToolReleaseRepository.class);
     final ExecutionTargetRouter router = mock(ExecutionTargetRouter.class);
     final SqlDatasourceConfig datasource = new SqlDatasourceConfig();
+    final com.chatchat.mcpserver.category.BusinessCategoryService categories=mock(com.chatchat.mcpserver.category.BusinessCategoryService.class);
     SqlTemplateService templates;
     SqlTemplateAuthoringService service;
 
@@ -67,7 +68,8 @@ class SqlTemplateAuthoringServiceTest {
         var executor=new SqlQueryExecuteService(datasources,new SqlSafetyService(),templates,mock(MetadataResolverService.class),audit,json,loader,dates,properties);
         when(router.routeSqlQuery(anyMap())).thenAnswer(i->i.getArgument(0));
         var workflow=new SqlQueryExecutionWorkflow(templates,executor,mock(SqlScriptExecuteService.class),mock(DatabaseQueryConfigService.class),mock(DatabaseQueryInvokeService.class),router,new StandardToolExecutionResultFactory(properties),new TemplateParameterWorkflow(new TemplateParameterValidator(json),json));
-        service=new SqlTemplateAuthoringService(repository,templates,callers,authorization,datasources,workflow,catalog,capabilities,releases,mock(McpTemplateLuceneIndexService.class),json);
+        when(categories.require(anyString())).thenAnswer(i->{var c=new com.chatchat.mcpserver.category.BusinessCategory();c.setId("category");c.setCode(i.getArgument(0));c.setName("业务分类");c.setEnabled(true);return c;});
+        service=new SqlTemplateAuthoringService(repository,templates,callers,authorization,datasources,workflow,catalog,capabilities,releases,mock(McpTemplateLuceneIndexService.class),json,categories);
     }
     SqlTemplateAuthoringService.Write write(String operation,String group,Long version,String sql) throws Exception {
         var schema=json.readTree("{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"integer\"}},\"required\":[\"value\"],\"additionalProperties\":false}");
@@ -82,6 +84,33 @@ class SqlTemplateAuthoringServiceTest {
         var row=create("select * from publication_rows where id > {{value}}");
         assertThat(row.isEnabled()).isFalse();assertThat(row.getPublicationState()).isEqualTo("DRAFT");
         verifyNoInteractions(audit,capabilities);
+    }
+    @Test void categoriesComeFromExistingBusinessMaintenanceAndDisabledSelectionIsRejected() throws Exception {
+        var c=categories.require("finance");when(categories.listEnabled()).thenReturn(List.of(c));
+        assertThat(service.categories()).containsExactly(Map.of("id","category","code","finance","name","业务分类"));
+        c.setEnabled(false);when(categories.require("sql_diagnostic")).thenReturn(c);
+        assertThatThrownBy(()->create("select {{value}}")).hasMessageContaining("分类已停用");verifyNoInteractions(audit);
+    }
+    @Test void metadataSynchronizationRetestsExistingApprovedCodeAndKeepsSqlContract() throws Exception {
+        var row=create("select {{value}} as metric");row.setPublicationState("PUBLISHED");row.setEnabled(true);row.setReleasedCapabilityId("old-release");
+        String sql=row.getSqlTemplate(),schema=row.getParameterSchemaJson(),source=row.getAuthoringSourceJson(),code=row.getCode();
+        datasource.setAllowedTemplatesJson(json.writeValueAsString(List.of(code)));
+        var bound=mock(TemplateAssetCatalogService.BoundTemplate.class);when(bound.binding()).thenReturn(Map.of("template",code,"datasourceId","db"));when(bound.key()).thenReturn("key");when(bound.revision()).thenReturn("revision");
+        when(catalog.businessTemplates(false)).thenReturn(List.of(bound));when(capabilities.publish("tenant","owner","key","revision")).thenReturn(Map.of("id","new-release"));
+        var release=new ToolRelease();release.setId("new-release");when(releases.findById("new-release")).thenReturn(Optional.of(release));when(capabilities.view(release)).thenReturn(Map.of("id","new-release"));
+        var a=action(row,Map.of("value",9));
+        org.springframework.transaction.support.TransactionSynchronizationManager.initSynchronization();
+        try {service.updateMetadata("tenant","owner",row.getId(),new SqlTemplateAuthoringService.MetadataEdit(row.getPublicationLock(),"新名称","新说明","finance",a.testId(),a.parameters(),a.source(),"old-release"));}
+        finally {org.springframework.transaction.support.TransactionSynchronizationManager.clearSynchronization();}
+        assertThat(row.getTitle()).isEqualTo("新名称");assertThat(row.getCategory()).isEqualTo("finance");assertThat(row.getReleasedCapabilityId()).isEqualTo("new-release");
+        assertThat(row.getSqlTemplate()).isEqualTo(sql);assertThat(row.getParameterSchemaJson()).isEqualTo(schema);assertThat(row.getAuthoringSourceJson()).isEqualTo(source);assertThat(row.getCode()).isEqualTo(code);assertThat(rows).hasSize(1);
+        verify(audit).recordSqlQueryCall(any(),anyMap(),argThat(r->r.success()));
+    }
+    @Test void failedMetadataRetestDoesNotTouchTheLiveDefinitionOrPublish() throws Exception {
+        var row=create("select * from missing_table where id={{value}}");row.setPublicationState("PUBLISHED");row.setEnabled(true);row.setReleasedCapabilityId("active");
+        var a=action(row,Map.of("value",1));
+        assertThatThrownBy(()->service.updateMetadata("tenant","owner",row.getId(),new SqlTemplateAuthoringService.MetadataEdit(a.expectedVersion(),"改名","说明","finance",a.testId(),a.parameters(),a.source(),"active"))).hasMessageContaining("线上信息未修改");
+        assertThat(row.getTitle()).isEqualTo("Sample");assertThat(row.getCategory()).isEqualTo("sql_diagnostic");assertThat(row.getReleasedCapabilityId()).isEqualTo("active");assertThat(row.isEnabled()).isTrue();verifyNoInteractions(capabilities);
     }
     @Test void realJdbcQueryProducesBoundedVersionEvidence() throws Exception {
         var row=create("\n-- Parameter description: {{value}} is a lower bound, not another SQL binding.\nselect * from publication_rows where id > {{value}}\n");

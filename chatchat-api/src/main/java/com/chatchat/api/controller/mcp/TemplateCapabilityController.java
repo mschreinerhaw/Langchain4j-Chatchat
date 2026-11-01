@@ -38,6 +38,7 @@ public class TemplateCapabilityController {
     /** Studio uses this same capability control plane; it never creates CONTROLLED_TEMPLATE releases. */
     public JsonNode sqlAuthoring(HttpServletRequest request,String method,String suffix,JsonNode body,String permission) {
         authorize(request,permission);
+        if(suffix.endsWith("/metadata"))authorize(request,"mcp:publication:edit");
         if(!suffix.matches("(?:/[a-zA-Z0-9-]+){0,2}(?:\\?projectId=[a-zA-Z0-9-]+&fileId=[a-zA-Z0-9-]+)?"))
             throw new IllegalArgumentException("Invalid authoring route");
         String separator=suffix.contains("?")?"&":"?";

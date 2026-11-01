@@ -1,0 +1,12 @@
+{
+  "status": "PASS",
+  "scope": "REAL_UI_SHARED_MANUAL_STUDIO_FORM_AND_PARAMETER_DIALOG; real parameterized 248 TPCDS query; metadata changed through UI and synchronized to Studio then restored",
+  "sharedTitle": "编辑关系库查询",
+  "sharedWidth": 1440,
+  "queryRows": 3,
+  "metadataSynchronized": true,
+  "originalBusinessInformationRestored": true,
+  "manualRecordUnmodified": true,
+  "browserErrors": [],
+  "capturedAt": "2026-11-01T08:28:15.264Z"
+}

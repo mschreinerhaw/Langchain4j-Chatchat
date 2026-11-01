@@ -1,0 +1,24 @@
+{
+  "status": "PASS",
+  "frontendTests": 6,
+  "backendTests": 31,
+  "backendSuites": [
+    "StudioSqlCatalogControllerTest",
+    "SqlTemplateAuthoringServiceTest"
+  ],
+  "scope": "Shared source-aware form contract, common test dialogs, original author lifecycle with real H2 JDBC, administrator boundary and offline publication guard",
+  "logs": [
+    {
+      "path": "target/unified-query-frontend-tests.log",
+      "sha256": "59272e35ec3fbcc16bfff57b151d79816f6d96e7808e1e69baa8a931228ceb4f"
+    },
+    {
+      "path": "target/unified-query-backend-tests.log",
+      "sha256": "eb162210c21b93fd079bf232dbf89ccda9ad242f66e15cacb805ec8afc887b35"
+    },
+    {
+      "path": "target/unified-query-web-build.log",
+      "sha256": "bbbe40d0874531f61bf662b617e4b26a0e46b9b9d0faa0eb489ee9ae41e9e187"
+    }
+  ]
+}

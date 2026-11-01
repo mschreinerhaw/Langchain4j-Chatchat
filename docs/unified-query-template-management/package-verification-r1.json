@@ -1,0 +1,14 @@
+{
+  "status": "PASS",
+  "comparedJavaClasses": 976,
+  "changedClasses": [
+    "com/chatchat/mcpserver/sql/admin/StudioSqlCatalogController$1.class",
+    "com/chatchat/mcpserver/sql/admin/StudioSqlCatalogController$ManagedAction.class",
+    "com/chatchat/mcpserver/sql/admin/StudioSqlCatalogController.class"
+  ],
+  "exactPackagedFrontendFiles": 6,
+  "image": "runtime-os-mcp:unified-query-management-20261101-r1",
+  "baselineSha256": "9aacb2ba4db3d4d76fff90eb68908dd429c7741718d57a91f7c327fa11a52815",
+  "sha256": "2393df58adacdc20fb52e040b699d2e56b4ae1989b4373c25dcebe7051488d00",
+  "sourceCommit": "ebccc25981bbb2a28ad4542ecdc6a0e65363aff4"
+}

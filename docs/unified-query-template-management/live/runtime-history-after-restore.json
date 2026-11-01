@@ -1,0 +1,356 @@
+[
+  {
+    "id": "47b17c5b-51bf-39ac-a93b-4d2f1a8914cc",
+    "code": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+    "sqlTemplate": "-- ============================================================================\n-- warehouse_summary.sql\n-- TPC-D S warehouse summary by country and state\n-- Dialect : MySQL\n-- Purpose : Group warehouses by country (w_country) and state (w_state),\n--           compute count and square-footage aggregates (SUM / MIN / MAX).\n-- Notes   : - NULL groups are preserved (MySQL GROUP BY keeps NULLs).\n--           - w_warehouse_sq_ft is kept as raw integer values; no unit\n--             conversion or guessing is applied.\n--           - Read-only; no parameters, no warehouse-id filters.\n-- Source  : tpcds.warehouse (REGISTERED_METADATA)\n-- ============================================================================\n\nSELECT\n    w_country,\n    w_state,\n    COUNT(*)                 AS warehouse_count,\n    SUM(w_warehouse_sq_ft)   AS total_warehouse_sq_ft,\n    MIN(w_warehouse_sq_ft)   AS min_warehouse_sq_ft,\n    MAX(w_warehouse_sq_ft)   AS max_warehouse_sq_ft\nFROM tpcds.warehouse\nGROUP BY\n    w_country,\n    w_state\nORDER BY\n    w_country,\n    w_state;\n",
+    "parameterSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+    "databaseType": "mysql",
+    "title": "仓库地区分布与面积汇总",
+    "description": "按国家及省州汇总仓库数量与面积字段原值，保留空分组；不推断面积单位。",
+    "category": "data_asset_exploration",
+    "source": {
+      "projectId": "c4f87abd-8d26-4b2d-a4fd-bb09212b9987",
+      "fileId": "2f837875-7d21-4f8f-8a1e-e10d21953d34",
+      "fileVersion": 1,
+      "sqlDigest": "eafe514c132cfda65745422a25fd8d72a537466dd753eaeae57982bc8bc231b1"
+    },
+    "groupId": "47b17c5b-51bf-39ac-a93b-4d2f1a8914cc",
+    "version": 1,
+    "expectedVersion": 5,
+    "state": "PUBLISHED",
+    "active": true,
+    "testEvidence": {
+      "type": "SQL_DATABASE_EXECUTION",
+      "testId": "test-1793521682461-3a54834bea03e8",
+      "testedAt": "2026-11-01T08:28:02.553484015Z",
+      "traceId": "test-1793521682461-3a54834bea03e8",
+      "source": {
+        "projectId": "c4f87abd-8d26-4b2d-a4fd-bb09212b9987",
+        "fileId": "2f837875-7d21-4f8f-8a1e-e10d21953d34",
+        "fileVersion": 1,
+        "sqlDigest": "eafe514c132cfda65745422a25fd8d72a537466dd753eaeae57982bc8bc231b1"
+      },
+      "fingerprint": "9dfa5a4d447f4b553b3c56420d222624e98e12742631b691cba174374fc14298",
+      "sqlDigest": "eafe514c132cfda65745422a25fd8d72a537466dd753eaeae57982bc8bc231b1",
+      "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+      "datasourceDigest": "b27ffa4e8417483716307f5616dd281a627fe54e669e1216687643f4dca1b0c4",
+      "parameters": {},
+      "parametersDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "timeoutSeconds": 10,
+      "maxRows": 50,
+      "success": true,
+      "resultDigest": "019ddb1ad615c4607850652faf38f0796b3cae729fc50aef8da31549bf955e7c",
+      "rowCount": 1,
+      "errorCode": "",
+      "preview": {
+        "columns": [
+          "w_country",
+          "w_state",
+          "warehouse_count",
+          "total_warehouse_sq_ft",
+          "min_warehouse_sq_ft",
+          "max_warehouse_sq_ft"
+        ],
+        "rows": [
+          {
+            "w_country": "United States",
+            "w_state": "TN",
+            "warehouse_count": 5,
+            "total_warehouse_sq_ft": 2031767,
+            "min_warehouse_sq_ft": 138504,
+            "max_warehouse_sq_ft": 977787
+          }
+        ],
+        "returnedRowCount": 1,
+        "possiblyTruncated": false,
+        "complete": true,
+        "previewTruncated": false
+      },
+      "diagnostic": "SQL query executed successfully",
+      "durationMs": 193
+    },
+    "templateKey": "sql_datasource:STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+    "publication": {
+      "title": "仓库地区分布与面积汇总",
+      "category": "数据资产探索",
+      "version": 3,
+      "publishedAt": "2026-11-01T08:28:10.541465Z",
+      "logicalId": "ad24b8c0-3c88-32a9-adcb-f41a5aee2f3c",
+      "templateKey": "sql_datasource:STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+      "description": "按国家及省州汇总仓库数量与面积字段原值，保留空分组；不推断面积单位。",
+      "state": "RUNNING",
+      "id": "e365d326-cc9c-43c5-8535-019ce2eb6d88",
+      "toolName": "tpl_ad24b8c03c8832a9adcbf41a5aee2f3c",
+      "revision": "c82ee250e5269ade6638b473491b29a8115c49bb890fbf90ab7c92afbfb2e0d4",
+      "assetName": "SQL Studio 查询集合验收（248 TPCDS）"
+    },
+    "releaseHistory": [
+      {
+        "sqlSnapshot": {
+          "id": "47b17c5b-51bf-39ac-a93b-4d2f1a8914cc",
+          "code": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+          "sqlTemplate": "-- ============================================================================\n-- warehouse_summary.sql\n-- TPC-D S warehouse summary by country and state\n-- Dialect : MySQL\n-- Purpose : Group warehouses by country (w_country) and state (w_state),\n--           compute count and square-footage aggregates (SUM / MIN / MAX).\n-- Notes   : - NULL groups are preserved (MySQL GROUP BY keeps NULLs).\n--           - w_warehouse_sq_ft is kept as raw integer values; no unit\n--             conversion or guessing is applied.\n--           - Read-only; no parameters, no warehouse-id filters.\n-- Source  : tpcds.warehouse (REGISTERED_METADATA)\n-- ============================================================================\n\nSELECT\n    w_country,\n    w_state,\n    COUNT(*)                 AS warehouse_count,\n    SUM(w_warehouse_sq_ft)   AS total_warehouse_sq_ft,\n    MIN(w_warehouse_sq_ft)   AS min_warehouse_sq_ft,\n    MAX(w_warehouse_sq_ft)   AS max_warehouse_sq_ft\nFROM tpcds.warehouse\nGROUP BY\n    w_country,\n    w_state\nORDER BY\n    w_country,\n    w_state;\n",
+          "parameterSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          },
+          "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+          "databaseType": "mysql",
+          "title": "仓库地区分布与面积汇总",
+          "description": "按国家及省州汇总仓库数量与面积字段原值，保留空分组；不推断面积单位。",
+          "category": "data_asset_exploration",
+          "source": {
+            "projectId": "c4f87abd-8d26-4b2d-a4fd-bb09212b9987",
+            "fileId": "2f837875-7d21-4f8f-8a1e-e10d21953d34",
+            "fileVersion": 1,
+            "sqlDigest": "eafe514c132cfda65745422a25fd8d72a537466dd753eaeae57982bc8bc231b1"
+          }
+        },
+        "publication": {
+          "title": "仓库地区分布与面积汇总",
+          "category": "数据资产探索",
+          "version": 3,
+          "publishedAt": "2026-11-01T08:28:10.541465Z",
+          "logicalId": "ad24b8c0-3c88-32a9-adcb-f41a5aee2f3c",
+          "templateKey": "sql_datasource:STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+          "description": "按国家及省州汇总仓库数量与面积字段原值，保留空分组；不推断面积单位。",
+          "state": "RUNNING",
+          "id": "e365d326-cc9c-43c5-8535-019ce2eb6d88",
+          "toolName": "tpl_ad24b8c03c8832a9adcbf41a5aee2f3c",
+          "revision": "c82ee250e5269ade6638b473491b29a8115c49bb890fbf90ab7c92afbfb2e0d4",
+          "assetName": "SQL Studio 查询集合验收（248 TPCDS）"
+        },
+        "sqlTest": {
+          "type": "SQL_DATABASE_EXECUTION",
+          "testId": "test-1793521682461-3a54834bea03e8",
+          "testedAt": "2026-11-01T08:28:02.553484015Z",
+          "traceId": "test-1793521682461-3a54834bea03e8",
+          "source": {
+            "projectId": "c4f87abd-8d26-4b2d-a4fd-bb09212b9987",
+            "fileId": "2f837875-7d21-4f8f-8a1e-e10d21953d34",
+            "fileVersion": 1,
+            "sqlDigest": "eafe514c132cfda65745422a25fd8d72a537466dd753eaeae57982bc8bc231b1"
+          },
+          "fingerprint": "9dfa5a4d447f4b553b3c56420d222624e98e12742631b691cba174374fc14298",
+          "sqlDigest": "eafe514c132cfda65745422a25fd8d72a537466dd753eaeae57982bc8bc231b1",
+          "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+          "datasourceDigest": "b27ffa4e8417483716307f5616dd281a627fe54e669e1216687643f4dca1b0c4",
+          "parameters": {},
+          "parametersDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "timeoutSeconds": 10,
+          "maxRows": 50,
+          "success": true,
+          "resultDigest": "019ddb1ad615c4607850652faf38f0796b3cae729fc50aef8da31549bf955e7c",
+          "rowCount": 1,
+          "errorCode": "",
+          "preview": {
+            "columns": [
+              "w_country",
+              "w_state",
+              "warehouse_count",
+              "total_warehouse_sq_ft",
+              "min_warehouse_sq_ft",
+              "max_warehouse_sq_ft"
+            ],
+            "rows": [
+              {
+                "w_country": "United States",
+                "w_state": "TN",
+                "warehouse_count": 5,
+                "total_warehouse_sq_ft": 2031767,
+                "min_warehouse_sq_ft": 138504,
+                "max_warehouse_sq_ft": 977787
+              }
+            ],
+            "returnedRowCount": 1,
+            "possiblyTruncated": false,
+            "complete": true,
+            "previewTruncated": false
+          },
+          "diagnostic": "SQL query executed successfully",
+          "durationMs": 193
+        }
+      },
+      {
+        "sqlSnapshot": {
+          "id": "47b17c5b-51bf-39ac-a93b-4d2f1a8914cc",
+          "code": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+          "sqlTemplate": "-- ============================================================================\n-- warehouse_summary.sql\n-- TPC-D S warehouse summary by country and state\n-- Dialect : MySQL\n-- Purpose : Group warehouses by country (w_country) and state (w_state),\n--           compute count and square-footage aggregates (SUM / MIN / MAX).\n-- Notes   : - NULL groups are preserved (MySQL GROUP BY keeps NULLs).\n--           - w_warehouse_sq_ft is kept as raw integer values; no unit\n--             conversion or guessing is applied.\n--           - Read-only; no parameters, no warehouse-id filters.\n-- Source  : tpcds.warehouse (REGISTERED_METADATA)\n-- ============================================================================\n\nSELECT\n    w_country,\n    w_state,\n    COUNT(*)                 AS warehouse_count,\n    SUM(w_warehouse_sq_ft)   AS total_warehouse_sq_ft,\n    MIN(w_warehouse_sq_ft)   AS min_warehouse_sq_ft,\n    MAX(w_warehouse_sq_ft)   AS max_warehouse_sq_ft\nFROM tpcds.warehouse\nGROUP BY\n    w_country,\n    w_state\nORDER BY\n    w_country,\n    w_state;\n",
+          "parameterSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          },
+          "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+          "databaseType": "mysql",
+          "title": "仓库地区分布与面积汇总",
+          "description": "按国家及省州汇总仓库数量与面积字段原值，保留空分组；不推断面积单位。（统一页面同步验收，随后恢复）",
+          "category": "data_asset_exploration",
+          "source": {
+            "projectId": "c4f87abd-8d26-4b2d-a4fd-bb09212b9987",
+            "fileId": "2f837875-7d21-4f8f-8a1e-e10d21953d34",
+            "fileVersion": 1,
+            "sqlDigest": "eafe514c132cfda65745422a25fd8d72a537466dd753eaeae57982bc8bc231b1"
+          }
+        },
+        "publication": {
+          "title": "仓库地区分布与面积汇总",
+          "category": "数据资产探索",
+          "version": 2,
+          "publishedAt": "2026-11-01T08:27:57.829972Z",
+          "logicalId": "ad24b8c0-3c88-32a9-adcb-f41a5aee2f3c",
+          "templateKey": "sql_datasource:STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+          "description": "按国家及省州汇总仓库数量与面积字段原值，保留空分组；不推断面积单位。（统一页面同步验收，随后恢复）",
+          "state": "OFFLINE",
+          "id": "51da1383-647a-40a7-8d2c-cdc51fa503ce",
+          "toolName": "tpl_ad24b8c03c8832a9adcbf41a5aee2f3c",
+          "revision": "902641fd8f0070f76315c5a8898f9c39da5b14955dd5254b2cfe094b5a76fd86",
+          "assetName": "SQL Studio 查询集合验收（248 TPCDS）"
+        },
+        "sqlTest": {
+          "type": "SQL_DATABASE_EXECUTION",
+          "testId": "test-1793521667557-7dce21eae4b668",
+          "testedAt": "2026-11-01T08:27:47.692183918Z",
+          "traceId": "test-1793521667557-7dce21eae4b668",
+          "source": {
+            "projectId": "c4f87abd-8d26-4b2d-a4fd-bb09212b9987",
+            "fileId": "2f837875-7d21-4f8f-8a1e-e10d21953d34",
+            "fileVersion": 1,
+            "sqlDigest": "eafe514c132cfda65745422a25fd8d72a537466dd753eaeae57982bc8bc231b1"
+          },
+          "fingerprint": "17aafdaa13228c99e6deeee9a468a065184f92a665c7c57f7683118467dce17c",
+          "sqlDigest": "eafe514c132cfda65745422a25fd8d72a537466dd753eaeae57982bc8bc231b1",
+          "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+          "datasourceDigest": "b27ffa4e8417483716307f5616dd281a627fe54e669e1216687643f4dca1b0c4",
+          "parameters": {},
+          "parametersDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "timeoutSeconds": 10,
+          "maxRows": 50,
+          "success": true,
+          "resultDigest": "73a38cd573132877e0935fa32fb54184c74a23c34dd444d73a6fe9a672a15c9b",
+          "rowCount": 1,
+          "errorCode": "",
+          "preview": {
+            "columns": [
+              "w_country",
+              "w_state",
+              "warehouse_count",
+              "total_warehouse_sq_ft",
+              "min_warehouse_sq_ft",
+              "max_warehouse_sq_ft"
+            ],
+            "rows": [
+              {
+                "w_country": "United States",
+                "w_state": "TN",
+                "warehouse_count": 5,
+                "total_warehouse_sq_ft": 2031767,
+                "min_warehouse_sq_ft": 138504,
+                "max_warehouse_sq_ft": 977787
+              }
+            ],
+            "returnedRowCount": 1,
+            "possiblyTruncated": false,
+            "complete": true,
+            "previewTruncated": false
+          },
+          "diagnostic": "SQL query executed successfully",
+          "durationMs": 140
+        }
+      },
+      {
+        "sqlSnapshot": {
+          "id": "47b17c5b-51bf-39ac-a93b-4d2f1a8914cc",
+          "code": "STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+          "sqlTemplate": "-- ============================================================================\n-- warehouse_summary.sql\n-- TPC-D S warehouse summary by country and state\n-- Dialect : MySQL\n-- Purpose : Group warehouses by country (w_country) and state (w_state),\n--           compute count and square-footage aggregates (SUM / MIN / MAX).\n-- Notes   : - NULL groups are preserved (MySQL GROUP BY keeps NULLs).\n--           - w_warehouse_sq_ft is kept as raw integer values; no unit\n--             conversion or guessing is applied.\n--           - Read-only; no parameters, no warehouse-id filters.\n-- Source  : tpcds.warehouse (REGISTERED_METADATA)\n-- ============================================================================\n\nSELECT\n    w_country,\n    w_state,\n    COUNT(*)                 AS warehouse_count,\n    SUM(w_warehouse_sq_ft)   AS total_warehouse_sq_ft,\n    MIN(w_warehouse_sq_ft)   AS min_warehouse_sq_ft,\n    MAX(w_warehouse_sq_ft)   AS max_warehouse_sq_ft\nFROM tpcds.warehouse\nGROUP BY\n    w_country,\n    w_state\nORDER BY\n    w_country,\n    w_state;\n",
+          "parameterSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          },
+          "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+          "databaseType": "mysql",
+          "title": "仓库地区分布与面积汇总",
+          "description": "按国家及省州汇总仓库数量与面积字段原值，保留空分组；不推断面积单位。",
+          "category": "data_asset_exploration",
+          "source": {
+            "projectId": "c4f87abd-8d26-4b2d-a4fd-bb09212b9987",
+            "fileId": "2f837875-7d21-4f8f-8a1e-e10d21953d34",
+            "fileVersion": 1,
+            "sqlDigest": "eafe514c132cfda65745422a25fd8d72a537466dd753eaeae57982bc8bc231b1"
+          }
+        },
+        "publication": {
+          "title": "仓库地区分布与面积汇总",
+          "category": "数据资产探索",
+          "version": 1,
+          "publishedAt": "2026-11-01T05:57:49.793673Z",
+          "logicalId": "ad24b8c0-3c88-32a9-adcb-f41a5aee2f3c",
+          "templateKey": "sql_datasource:STUDIO_47B17C5B51BF39ACA93B4D2F1A8914CC",
+          "description": "按国家及省州汇总仓库数量与面积字段原值，保留空分组；不推断面积单位。",
+          "state": "OFFLINE",
+          "id": "f5d94031-bf67-4a9d-ba45-4c3b9778b0c6",
+          "toolName": "tpl_ad24b8c03c8832a9adcbf41a5aee2f3c",
+          "revision": "c82ee250e5269ade6638b473491b29a8115c49bb890fbf90ab7c92afbfb2e0d4",
+          "assetName": "SQL Studio 查询集合验收（248 TPCDS）"
+        },
+        "sqlTest": {
+          "type": "SQL_DATABASE_EXECUTION",
+          "testId": "4d0e2ee1-61c0-4c18-b11d-b845123e5fd4",
+          "testedAt": "2026-11-01T05:57:38.510944015Z",
+          "traceId": "4d0e2ee1-61c0-4c18-b11d-b845123e5fd4",
+          "source": {
+            "projectId": "c4f87abd-8d26-4b2d-a4fd-bb09212b9987",
+            "fileId": "2f837875-7d21-4f8f-8a1e-e10d21953d34",
+            "fileVersion": 1,
+            "sqlDigest": "eafe514c132cfda65745422a25fd8d72a537466dd753eaeae57982bc8bc231b1"
+          },
+          "fingerprint": "9dfa5a4d447f4b553b3c56420d222624e98e12742631b691cba174374fc14298",
+          "sqlDigest": "eafe514c132cfda65745422a25fd8d72a537466dd753eaeae57982bc8bc231b1",
+          "datasourceId": "14f91784-38db-4e20-9795-d0caac64b1c8",
+          "datasourceDigest": "b27ffa4e8417483716307f5616dd281a627fe54e669e1216687643f4dca1b0c4",
+          "parameters": {},
+          "parametersDigest": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "timeoutSeconds": 10,
+          "maxRows": 50,
+          "success": true,
+          "resultDigest": "c9026cb0d3e028a0255523ab9076d4294df7ff68b76bec9978bac167b44ca3a2",
+          "rowCount": 1,
+          "errorCode": "",
+          "preview": {
+            "columns": [
+              "w_country",
+              "w_state",
+              "warehouse_count",
+              "total_warehouse_sq_ft",
+              "min_warehouse_sq_ft",
+              "max_warehouse_sq_ft"
+            ],
+            "rows": [
+              {
+                "w_country": "United States",
+                "w_state": "TN",
+                "warehouse_count": 5,
+                "total_warehouse_sq_ft": 2031767,
+                "min_warehouse_sq_ft": 138504,
+                "max_warehouse_sq_ft": 977787
+              }
+            ],
+            "returnedRowCount": 1,
+            "possiblyTruncated": false,
+            "complete": true,
+            "previewTruncated": false
+          },
+          "diagnostic": "SQL query executed successfully",
+          "durationMs": 342
+        }
+      }
+    ]
+  }
+]

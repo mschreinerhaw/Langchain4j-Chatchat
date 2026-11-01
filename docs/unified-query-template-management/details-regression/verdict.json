@@ -1,0 +1,42 @@
+{
+  "status": "PASS",
+  "capturedAt": "2026-11-01T08:29:13.092Z",
+  "scope": "READ_ONLY_REAL_BROWSER_NO_MOCKS",
+  "businessColumns": [
+    "模板名称",
+    "业务分类",
+    "来源",
+    "数据源",
+    "状态",
+    "操作"
+  ],
+  "templates": [
+    {
+      "source": "studio",
+      "title": "仓库面积明细查询",
+      "templateId": "271b4d6f-a928-3dbe-9aa5-26d49f0bfff7",
+      "collapsedByDefault": true,
+      "resetAfterReopen": true,
+      "metadataDeferredUntilExpanded": false,
+      "technicalTypography": {
+        "fontSize": "12px",
+        "color": "rgb(101, 115, 138)"
+      },
+      "compactLayout": "PASS"
+    },
+    {
+      "source": "manual",
+      "title": "最新中债市场结算统计",
+      "templateId": "builtin-market-bond-settlement",
+      "collapsedByDefault": true,
+      "resetAfterReopen": true,
+      "metadataDeferredUntilExpanded": true,
+      "technicalTypography": {
+        "fontSize": "12px",
+        "color": "rgb(101, 115, 138)"
+      },
+      "compactLayout": "PASS"
+    }
+  ],
+  "browserErrors": []
+}

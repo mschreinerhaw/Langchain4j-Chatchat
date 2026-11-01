@@ -45,3 +45,4 @@ docs/sql-studio-publishing-usability/** -text whitespace=cr-at-eol
 docs/mcp-query-page-consistency/** -text whitespace=cr-at-eol
 docs/studio-template-query-collection/** -text whitespace=cr-at-eol
 docs/sql-template-test-parameters/** -text whitespace=cr-at-eol
+docs/unified-query-template-management/** -text whitespace=cr-at-eol

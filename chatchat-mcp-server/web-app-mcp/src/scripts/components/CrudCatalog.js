@@ -627,11 +627,11 @@ export default {
       }
     },
     handleSelectionChange(rows) {
-      this.selectedIds = new Set(rows.map(row => row.id).filter(Boolean));
+      this.selectedIds = new Set(rows.filter(row => !row.readOnly).map(row => row.id).filter(Boolean));
     },
     selectVisible() {
       const next = new Set(this.selectedIds);
-      this.visibleItems.forEach(item => item.id && next.add(item.id));
+      this.visibleItems.forEach(item => item.id && !item.readOnly && next.add(item.id));
       this.selectedIds = next;
     },
     clearSelection() {

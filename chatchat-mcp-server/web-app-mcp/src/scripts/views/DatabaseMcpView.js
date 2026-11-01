@@ -1,6 +1,7 @@
 ﻿import CrudCatalog from '../../components/CrudCatalog.vue';
 import { assetsApi, databaseApi as api } from '../../services/api';
 import CategoryCardPager from '../../components/CategoryCardPager.vue';
+import ModalPanel from '../../components/ModalPanel.vue';
 import { prettyJson } from '../../utils/json';
 import { buildTestNotification } from '../../utils/test-result';
 import { databaseQueryProfile } from '../../utils/database-query-profile';
@@ -14,7 +15,7 @@ const internalFinancialDatasource = {
 
 export default {
   name: 'DatabaseMcpView',
-  components: { CrudCatalog, CategoryCardPager },
+  components: { CrudCatalog, CategoryCardPager, ModalPanel },
   props: {
     queryFamily: { type: String, default: 'relational' },
     section: { type: String, default: 'queries' }
@@ -24,9 +25,16 @@ export default {
     const queryProfile = databaseQueryProfile(null, this.queryFamily);
     return {
       api,
+      studioDetail: null,
+      studioDetailOpen: false,
       metadataActions: [{
-        key: 'query-metadata', label: '元数据', disabled: row => !row?.id,
+        key: 'query-metadata', label: row => row.sourceKind === 'SQL_STUDIO' ? '详情' : '元数据', disabled: row => !row?.id,
         run: async row => {
+          if (row.sourceKind === 'SQL_STUDIO') {
+            this.studioDetail = await api.studioPublication(row.templateId);
+            this.studioDetailOpen = true;
+            return;
+          }
           const value = await api.metadata(row.id);
           this.$emit('result', { title: `${row.title || row.toolName} 元数据与结构复核状态`, value });
         }
@@ -68,7 +76,12 @@ export default {
       columns: [
         { key: 'toolName', label: '工具名称', type: 'code' },
         { key: 'title', label: '显示名称' },
-        { key: 'datasourceId', label: '数据源', formatter: value => this.datasourceLabel(value) },
+        { key: 'sourceLabel', label: '来源', formatter: value => value || '手工模板' },
+        { key: 'datasourceId', label: '数据源', formatter: (value, row) => row.datasourceName || this.datasourceLabel(value) },
+        { key: 'version', label: '发布版本', formatter: value => value == null ? '—' : `v${value}` },
+        { key: 'publicationState', label: '发布状态', formatter: value => value || '由子模板发布管理' },
+        { key: 'parameterSummary', label: '参数摘要', formatter: value => value || '见详情' },
+        { key: 'publishedAt', label: '发布时间', formatter: value => value || '—' },
         { key: 'businessGroupName', label: '能力分类' },
         { key: 'domain', label: '业务领域' },
         { key: 'maxRows', label: '最大行数' },
@@ -287,8 +300,16 @@ export default {
   activated() {
     this.loadSqlAssets();
     this.loadQuerySources();
+    this.loadCategories();
+    this.$refs.catalog?.load();
   },
   methods: {
+    prettyJson,
+    async loadCatalogQueries() {
+      const manual = await api.list() || [];
+      const studio = this.queryFamily === 'relational' ? await api.studioPublications() || [] : [];
+      return [...studio, ...manual.map(row => ({ ...row, sourceKind: 'MANUAL', sourceLabel: '手工模板' }))];
+    },
     sourceFamily(source) {
       if (source?.type === 'TRINO') return 'trino';
       if (source?.type === 'GRAPH') return 'neo4j';
@@ -312,7 +333,7 @@ export default {
     },
     async loadCategories() {
       try {
-        const [categories, queries] = await Promise.all([api.listCategories(), api.list()]);
+        const [categories, queries] = await Promise.all([api.listCategories(), this.loadCatalogQueries()]);
         this.categories = categories || [];
         this.allQueries = queries || [];
       } catch (error) {
@@ -321,7 +342,7 @@ export default {
     },
     async listQueries() {
       await this.loadQuerySources();
-      const queries = await api.list() || [];
+      const queries = await this.loadCatalogQueries();
       this.allQueries = queries;
       if (!this.selectedCategory) return this.familyQueries;
       return this.familyQueries.filter(query => query.categoryId === this.selectedCategory

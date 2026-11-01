@@ -20,4 +20,6 @@ public interface SqlTemplateConfigRepository extends JpaRepository<SqlTemplateCo
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     List<SqlTemplateConfig> findByPublicationGroupIdOrderByPublicationVersionAsc(String group);
     List<SqlTemplateConfig> findByAuthorTenantIdAndAuthorIdOrderByCreatedAtDesc(String tenant, String actor);
+    List<SqlTemplateConfig> findByPublicationGroupIdIsNotNullOrderByCreatedAtDesc();
+    List<SqlTemplateConfig> findAllByPublicationGroupIdOrderByPublicationVersionAsc(String group);
 }

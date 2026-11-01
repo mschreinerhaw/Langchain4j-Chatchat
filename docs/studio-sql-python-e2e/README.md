@@ -2,7 +2,9 @@
 
 本次使用资产 **248测试数据库**（`f0421bd7-1be8-4d5c-8f65-b216d4f997cb`）的真实 MySQL `tpcds` 数据。范围为商品主键 1、1999 年门店销售；无参数年度服务同时返回 1998–2003 六年汇总。金额单位和币种未声明，不能当作人民币或客户投资数据。
 
-## 本轮最终验收：真实链路通过
+## 状态纠正：仅部分场景历史验证，端到端待验收
+
+以下保留特定 TPC-DS 场景的历史原始证据，不代表当前统一模板入口、普通 Agent、自主编排或系统内图表已通过。本专项总体状态为未完成验收；以 `docs/sql-template-remediation/08-final-acceptance.md` 的逐项整改复验为准。
 
 Agent 任务 `487d57af-b11a-385c-8274-b1fc3d7f4d9d` 最终状态 **SUCCEEDED**；运行 `att-1-7980ab3e-a927-4b7f-9911-e7b11328a2ab`。见 [任务与最终状态](agent-result.json)、[原始实际工具观测](agent-tool-observations.json)、[Agent 最终回答](agent-final-answer.md)。回答的 Markdown 文件仅展开了模型输出中的转义换行；原始回答完整保存在任务 JSON。
 

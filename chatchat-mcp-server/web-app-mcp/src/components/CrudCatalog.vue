@@ -92,7 +92,7 @@
       empty-text="暂无数据"
       @selection-change="handleSelectionChange"
     >
-      <el-table-column type="selection" width="48" />
+      <el-table-column type="selection" width="48" :selectable="row => !row.readOnly" />
       <el-table-column
         v-for="column in columns"
         :key="column.key"
@@ -111,6 +111,7 @@
       <el-table-column fixed="right" label="操作" width="230">
         <template #default="{ row }">
           <el-button
+            v-if="!row.readOnly"
             link
             type="primary"
             :disabled="busy || Boolean(rowOperation)"
@@ -118,7 +119,7 @@
             >编辑</el-button
           >
           <el-button
-            v-if="testAction"
+            v-if="testAction && !row.readOnly"
             link
             type="primary"
             :loading="isRowOperation('test', row)"
@@ -138,7 +139,7 @@
             {{ extraActionLabel(action, row) }}
           </el-button>
           <el-button
-            v-if="toggleAction && row.id"
+            v-if="toggleAction && row.id && !row.readOnly"
             link
             type="warning"
             :disabled="busy || Boolean(rowOperation)"
@@ -147,7 +148,7 @@
             {{ row.enabled === false ? "启用" : "停用" }}
           </el-button>
           <el-button
-            v-if="removeAction && row.id"
+            v-if="removeAction && row.id && !row.readOnly"
             link
             type="danger"
             :disabled="busy || Boolean(rowOperation)"

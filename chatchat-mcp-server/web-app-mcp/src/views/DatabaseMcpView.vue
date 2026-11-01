@@ -14,7 +14,7 @@
           <div>
             <h2>{{ pageTitle }}</h2>
             <p v-if="section === 'queries'"
-              >父模板
+              >本页展示手工查询模板与 SQL Studio 发布记录；SQL Studio 记录通过详情查看，修改及版本恢复沿用源工程。手工查询父模板
               {{ parentTemplateName }}
               默认不发布。通过“子模板发布”继承，限定角色、用户及可用查询模板。</p
             >
@@ -35,6 +35,7 @@
       :query-sources="querySources"
       :query-family="queryFamily"
       :defaults="defaults"
+      :list-filters="[{ key: 'sourceKind', label: '模板来源', options: [{ value: 'SQL_STUDIO', label: 'SQL Studio' }, { value: 'MANUAL', label: '手工模板' }] }]"
       :searchable-fields="[
         'toolName',
         'title',
@@ -48,6 +49,9 @@
         'indexTags',
         'sqlSteps',
         'datasourceId',
+        'sourceLabel',
+        'code',
+        'parameterSummary',
       ]"
       :list-action="listQueries"
       :save-action="api.save"
@@ -66,6 +70,37 @@
       @error="$emit('error', $event)"
       @result="$emit('result', $event)"
     />
+
+    <ModalPanel v-if="studioDetail" :open="studioDetailOpen" :title="studioDetail.title" wide @close="studioDetailOpen = false">
+      <el-alert :title="studioDetail.accessNotice" type="info" :closable="false" show-icon />
+      <el-descriptions :column="2" border class="mt-3">
+        <el-descriptions-item label="来源">SQL Studio</el-descriptions-item>
+        <el-descriptions-item label="MCP 工具"><code>{{ studioDetail.toolName }}</code></el-descriptions-item>
+        <el-descriptions-item label="发布版本">v{{ studioDetail.version }}</el-descriptions-item>
+        <el-descriptions-item label="发布状态">{{ studioDetail.publicationState }}</el-descriptions-item>
+        <el-descriptions-item label="数据源">{{ studioDetail.datasourceName }}</el-descriptions-item>
+        <el-descriptions-item label="发布时间">{{ studioDetail.publishedAt }}</el-descriptions-item>
+        <el-descriptions-item label="所属租户">{{ studioDetail.tenantId }}</el-descriptions-item>
+        <el-descriptions-item label="发布者">{{ studioDetail.createdBy }}</el-descriptions-item>
+        <el-descriptions-item label="模板编号">{{ studioDetail.code }}</el-descriptions-item>
+        <el-descriptions-item label="发布编号">{{ studioDetail.publicationId }}</el-descriptions-item>
+        <el-descriptions-item label="源工程">{{ studioDetail.source?.projectId }}</el-descriptions-item>
+        <el-descriptions-item label="源文件">{{ studioDetail.source?.fileId }} / v{{ studioDetail.source?.fileVersion }}</el-descriptions-item>
+      </el-descriptions>
+      <h3 class="mt-3">SQL</h3>
+      <pre class="json-block"><code>{{ studioDetail.sqlTemplate }}</code></pre>
+      <h3>参数 Schema</h3>
+      <pre class="json-block"><code>{{ prettyJson(studioDetail.parameterSchema) }}</code></pre>
+      <h3>真实试执行记录</h3>
+      <pre class="json-block"><code>{{ prettyJson(studioDetail.testEvidence) }}</code></pre>
+      <h3>发布版本记录</h3>
+      <pre class="json-block"><code>{{ prettyJson(studioDetail.history) }}</code></pre>
+      <h3>同步授权规则</h3>
+      <p>调用还需满足 Runtime OS 的 Agent 工具绑定及当前用户、角色授权；以下规则不替代运行时权限判定。</p>
+      <pre v-if="studioDetail.authorizationRules" class="json-block"><code>{{ prettyJson(studioDetail.authorizationRules) }}</code></pre>
+      <p v-else>当前管理账号无权读取授权详情，请使用 Runtime OS 对应租户账号查看。</p>
+      <template #footer><el-button @click="studioDetailOpen = false">关闭</el-button></template>
+    </ModalPanel>
 
     <section v-if="activeTab === 'calendar'" class="workspace-panel database-calendar-panel">
       <header class="panel-heading">

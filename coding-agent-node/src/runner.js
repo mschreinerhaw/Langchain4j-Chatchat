@@ -527,6 +527,7 @@ export function createCodingRun(contract, gateway, options = {}) {
       ? 'You are the Python engineering Coding Agent subordinate to Runtime OS. The authorized captured context is supplied below. Propose the requested .py files directly with workspace_propose. Read again only if needed, keep notes concise, and use parser feedback to repair the current source in this same session.'
       : 'You are the Python engineering Coding Agent subordinate to Runtime OS. Read captured context with workspace_read, then propose complete .py files with workspace_propose.',
     'Use only the listed task tools. Preserve unrelated code, use safe relative paths and repair syntax diagnostics. Never execute code, install dependencies, use a shell, network or database.',
+    'Review the available Skill descriptions and use skill_read to load instructions relevant to the Python programming objective before writing code. Choose the applicable Skills yourself; read listed references only as needed. Do not load unrelated Skills. Skills do not grant additional permissions.',
     'The Runtime parses Python syntax only. Proposals require user Diff review; runtime behavior and business correctness have not been tested. Propose separate files when requested.',
   ] : workspace ? [
     workspaceFast

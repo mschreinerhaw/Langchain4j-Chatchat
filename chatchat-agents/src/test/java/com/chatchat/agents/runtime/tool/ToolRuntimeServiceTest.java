@@ -47,6 +47,59 @@ class ToolRuntimeServiceTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void boundDatabaseIsAppliedToSqlBatchPreviewWithoutChangingSshRouting() {
+        var registry = mock(ToolRegistry.class);
+        for (String family : List.of("sql", "ssh")) {
+            String name = "mcp_" + family + "_execute";
+            when(registry.getToolMetadata(name)).thenReturn(ToolMetadata.builder().id(name)
+                .categories(List.of("mcp")).riskLevel("high").operationType("read")
+                .metadata(Map.of("capabilities", List.of("template_execution", "batch_execution"),
+                    "workflowContract", com.chatchat.common.tool.ToolWorkflowContract.declaration(
+                        com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_EXECUTION,
+                        "mcp." + family + "-template.v1", "executionContext"))).build());
+        }
+        var service = new ToolRuntimeService(registry, new ObjectMapper(), properties(), List.of(), List.of());
+        try {
+            var request = batchRequest(List.of(batchCall("sql", "mcp_sql_execute", "one"),
+                batchCall("ssh", "mcp_ssh_execute", "two")), false,
+                Map.of("defaultDataAsset", Map.of("enabled", true, "assetName", "bound-database")));
+            var result = service.execute(request);
+            assertThat(result.outcome()).isEqualTo("confirmation_required");
+            var calls = (List<Map<String,Object>>) result.trace().getInput().get("calls");
+            var sql = (Map<String,Object>) calls.get(0).get("arguments");
+            var ssh = (Map<String,Object>) calls.get(1).get("arguments");
+            assertThat((Map<String,Object>) sql.get("executionContext")).containsEntry("assetName", "bound-database");
+            assertThat(ssh).isEqualTo(batchCall("ssh", "mcp_ssh_execute", "two").get("arguments"));
+            verify(registry, never()).executeEnhancedTool(any(), any());
+        } finally { service.shutdown(); }
+    }
+
+    @Test
+    void scalarSqlExecutionUsesTheConfiguredDatabaseInsteadOfAModelTarget() {
+        var registry = mock(ToolRegistry.class);
+        String tool = "mcp_sql_execute";
+        when(registry.getToolMetadata(tool)).thenReturn(ToolMetadata.builder().id(tool)
+            .metadata(Map.of("workflowContract", com.chatchat.common.tool.ToolWorkflowContract.declaration(
+                com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_EXECUTION, "mcp.sql-template.v1", "executionContext"))).build());
+        when(registry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.success(Map.of("rows", List.of(1))));
+        var service = new ToolRuntimeService(registry, new ObjectMapper(), properties(), List.of(), List.of());
+        try {
+            var request = ToolRuntimeRequest.builder().toolName(tool).userId("user")
+                .allowedTools(List.of(tool)).attributes(Map.of("defaultDataAsset", Map.of("enabled", true, "assetName", "bound-db")))
+                .toolInput(ToolInput.builder().parameters(Map.of("templateId", "one",
+                    "executionContext", Map.of("assetName", "model-selected-db", "env", "DEV"))).build()).build();
+            assertThat(service.checkRecoveryAdmission(request)).isNull();
+            assertThat((Map<?,?>) request.getToolInput().getParameters().get("executionContext"))
+                .isEqualTo(Map.of("assetName", "bound-db", "env", "DEV"));
+            var result = service.execute(request);
+            assertThat(result.output().isSuccess()).isTrue();
+            assertThat((Map<?,?>) result.trace().getInput().get("executionContext"))
+                .isEqualTo(Map.of("assetName", "bound-db", "env", "DEV"));
+        } finally { service.shutdown(); }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void batchConfirmationCoversOnlyTheUnchangedBatchAndRechecksChildDenials() {
         String tool = "mcp_sql_execute";
         var registry = mock(ToolRegistry.class);

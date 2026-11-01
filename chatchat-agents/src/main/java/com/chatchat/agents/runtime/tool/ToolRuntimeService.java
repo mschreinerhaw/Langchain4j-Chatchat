@@ -341,6 +341,7 @@ public class ToolRuntimeService {
      * @return the operation result
      */
     public ToolRuntimeExecution execute(ToolRuntimeRequest request) {
+        enforceBoundSqlRouting(request);
         ToolRuntimeExecution revisionConflict = registryRevisionConflict(request);
         if (revisionConflict != null) return revisionConflict;
         BatchValidation batchValidation = validateBatchEnvelope(request);
@@ -410,6 +411,42 @@ public class ToolRuntimeService {
                     : lastExecution.output().getErrorMessage());
         }
         return lastExecution;
+    }
+
+    /** Apply the maintained Agent database boundary before confirmation and schema checks. */
+    private void enforceBoundSqlRouting(ToolRuntimeRequest request) {
+        if (request == null || request.getToolInput() == null || request.getAttributes() == null) return;
+        var bound = asMap(request.getAttributes().get("defaultDataAsset"));
+        if (!Boolean.TRUE.equals(bound.get("enabled"))) return;
+        String assetName = normalizeText(stringValue(bound.get("assetName")));
+        if (assetName == null) return;
+        var input = new LinkedHashMap<>(asMap(request.getToolInput().getParameters()));
+        if (input.get("calls") instanceof List<?> calls) {
+            var scoped = new ArrayList<Map<String,Object>>();
+            for (Object item : calls) {
+                if (!(item instanceof Map<?,?>)) return; // The normal batch validator reports malformed input.
+                var call = new LinkedHashMap<>(asMap(item));
+                String tool = resolveBatchChildToolName(request, firstText(stringValue(call.get("toolName")), request.getToolName()));
+                if (call.get("arguments") instanceof Map<?,?> arguments)
+                    call.put("arguments", boundSqlArguments(tool, asMap(arguments), assetName));
+                scoped.add(call);
+            }
+            input.put("calls", scoped);
+        } else input = new LinkedHashMap<>(boundSqlArguments(request.getToolName(), input, assetName));
+        request.getToolInput().setParameters(input);
+    }
+
+    private Map<String,Object> boundSqlArguments(String tool, Map<String,Object> arguments, String assetName) {
+        var metadata = toolRegistry.getToolMetadata(tool);
+        if (com.chatchat.common.tool.ToolWorkflowContract.resolveRole(tool, metadata)
+                != com.chatchat.common.tool.ToolWorkflowRole.TEMPLATE_EXECUTION
+                || !"mcp.sql-template.v1".equals(com.chatchat.common.tool.ToolWorkflowContract
+                    .declaredProtocolFamily(metadata).orElse(null))) return arguments;
+        var scoped = new LinkedHashMap<>(arguments);
+        var context = new LinkedHashMap<>(asMap(arguments.get("executionContext")));
+        context.remove("asset_name"); context.put("assetName", assetName);
+        scoped.put("executionContext", context);
+        return scoped;
     }
 
     private ToolRuntimeExecution registryRevisionConflict(ToolRuntimeRequest request) {
@@ -901,6 +938,7 @@ public class ToolRuntimeService {
 
     /** Rechecks the same schema, tenant policy, workflow, confirmation and identity gates without remote invocation. */
     public ToolRuntimeExecution checkRecoveryAdmission(ToolRuntimeRequest request) {
+        enforceBoundSqlRouting(request);
         var conflict = registryRevisionConflict(request);
         if (conflict != null) return conflict;
         var envelope = validateBatchEnvelope(request);

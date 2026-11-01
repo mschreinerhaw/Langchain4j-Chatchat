@@ -1,5 +1,7 @@
 package com.chatchat.agents.orchestration.lifecycle;
 
+import java.util.Map;
+
 import com.chatchat.agents.orchestration.AgentRunResultAdapter;
 import com.chatchat.agents.orchestration.AgentOrchestrator;
 import com.chatchat.agents.runtime.AgentRunRequest;
@@ -18,6 +20,24 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentRunLifecycleCoordinatorTest {
+
+    @Test
+    void executionFailureClearsAStaleConfirmationFromAnEarlierAttempt() {
+        var store = mock(AgentRunStore.class);
+        var run = mock(AgentRun.class);
+        var request = AgentRunRequest.builder().runId("failed-after-confirmation").build();
+        var error = new IllegalStateException("Execution failed after approval");
+        when(store.start(request)).thenReturn(run);
+        when(run.runId()).thenReturn(request.getRunId());
+        when(run.status()).thenReturn(com.chatchat.agents.runtime.run.AgentRunStatus.FAILED);
+        when(run.metadata()).thenReturn(Map.of("confirmationRequired", true));
+        when(store.find(request.getRunId())).thenReturn(java.util.Optional.of(run));
+        when(store.fail(request.getRunId(), error)).thenReturn(run);
+        var result = new AgentRunLifecycleCoordinator(store, mock(AgentRunResultAdapter.class))
+            .execute(request, ignored -> { throw error; });
+        org.assertj.core.api.Assertions.assertThat(result.metadata())
+            .containsEntry("confirmationRequired", false).containsEntry("publicStatus", "FAILED");
+    }
 
     @Test
     void wrappedModelInterruptionAfterUserCancellationRemainsCancelled() {

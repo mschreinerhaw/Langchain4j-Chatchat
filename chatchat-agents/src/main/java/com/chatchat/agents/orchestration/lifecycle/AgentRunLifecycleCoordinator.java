@@ -142,6 +142,7 @@ public final class AgentRunLifecycleCoordinator {
         if (run.status() == AgentRunStatus.CANCELLED) return cancelled(run);
         Map<String, Object> metadata = new LinkedHashMap<>(run.metadata());
         metadata.put("runtimeExecutionFailed", true);
+        metadata.put("confirmationRequired", false);
         metadata.put("stopReason", "failed");
         if (run.errorMessage() != null) metadata.put("errorMessage", run.errorMessage());
         return AgentRunResult.builder()

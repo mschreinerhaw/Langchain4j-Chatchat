@@ -3520,7 +3520,12 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 "toolResultReviewSkipped", true
             ));
         }
-        if (workflowRole == ToolWorkflowRole.TEMPLATE_EXECUTION && request.execution().success()) {
+        // Unified published template capabilities are DIRECT tools, but their successful
+        // execution has already passed the same supplier-side contract and authorization.
+        boolean publishedTemplateExecution = workflowRole == ToolWorkflowRole.DIRECT
+            && isPublishedTemplateCapability(request.execution().toolName());
+        if ((workflowRole == ToolWorkflowRole.TEMPLATE_EXECUTION || publishedTemplateExecution)
+            && request.execution().success()) {
             log.info("Tool result admitted without model review runId={} stepId={} tool={} mode={}",
                 firstNonBlank(request.runId(), ""),
                 request.step() == null ? null : request.step().id(),
@@ -3531,6 +3536,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 Map.of(
                     "toolResultReviewSkipped", true,
                     "toolResultReviewMode", "RUNTIME_DETERMINISTIC_EXECUTION_ADMISSION",
+                    "toolResultReviewModelCalls", 0,
                     "templateExecutionSatisfied", true
                 )
             );
@@ -3568,6 +3574,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         }
         long reviewLifecycleStartedAt = System.currentTimeMillis();
         String runId = request.runId();
+        String reviewPurpose = toolResultReviewPurpose(workflowRole, request);
         recordLifecyclePhase(
             runtimeAttributes,
             null,
@@ -3577,6 +3584,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 "eventKind", "MODEL_INFERENCE",
                 "eventState", "STARTED",
                 "modelPhase", "tool_result_review",
+                "toolResultReviewPurpose", reviewPurpose,
                 "stepId", request.step() == null ? null : request.step().id(),
                 "toolName", request.execution().toolName(),
                 "attempt", request.attempt(),
@@ -3585,16 +3593,19 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         );
         Throwable reviewFailure = null;
         Map<String, Object> reviewMetrics = new LinkedHashMap<>();
+        reviewMetrics.put("toolResultReviewMode", "MODEL_TOOL_RESULT_REVIEW");
+        reviewMetrics.put("toolResultReviewPurpose", reviewPurpose);
+        reviewMetrics.put("toolResultReviewModelCalls", 0);
         // Model requests use the selected model's timeout, bounded by the parent task deadline.
         try {
         long startedAt = System.currentTimeMillis();
-        log.info("agentModelRequest phase=tool_result_review runId={} stepId={} tool={} attempt={}/{} modelClass={}",
+        log.info("agentModelRequest phase=tool_result_review runId={} stepId={} tool={} attempt={}/{} modelClass={} reviewPurpose={}",
             firstNonBlank(runId, ""),
             request.step() == null ? null : request.step().id(),
             request.execution().toolName(),
             request.attempt(),
             request.maxAttempts(),
-            activeChatModel.getClass().getName());
+            activeChatModel.getClass().getName(), reviewPurpose);
         String reviewPrompt = buildToolResultReviewPrompt(query, systemPrompt, request, runtimeAttributes);
         ContextTokenEstimator.Size reviewSize = contextTokenEstimator.estimate(reviewPrompt);
         log.info("agentModelPrompt phase=tool_result_review runId={} stepId={} tool={} promptChars={} estimatedTokens={}",
@@ -3604,6 +3615,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         // An optional-review cutoff must not prevent the first executable template selection.
         long inferenceStartedAt = System.currentTimeMillis();
         reviewMetrics.put("toolResultReviewPreparationDurationMs", inferenceStartedAt - startedAt);
+        reviewMetrics.put("toolResultReviewModelCalls", 1);
         String raw = activeChatModel.chat(reviewPrompt);
         reviewMetrics.put("toolResultReviewPromptChars", reviewSize.chars());
         reviewMetrics.put("toolResultReviewEstimatedTokens", reviewSize.tokens());
@@ -3624,24 +3636,25 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             request.maxAttempts(),
             ModelProtocolJson.prettyJsonForLog(raw));
         Map<String, Object> payload = parseJsonObject(raw);
+        reviewMetrics.put("toolResultReviewTotalDurationMs", System.currentTimeMillis() - reviewLifecycleStartedAt);
         if (payload.isEmpty()) {
+            Map<String, Object> unavailable = new LinkedHashMap<>(reviewMetrics);
+            unavailable.put("toolResultReviewRaw", Objects.toString(preview(raw), ""));
+            unavailable.put("toolResultReviewUnavailable", true);
             return InterpretationPlanRuntime.StepReview.accepted(
                 "Tool result reviewer was unavailable; preserving successful tool evidence.",
-                Map.of(
-                    "toolResultReviewRaw", Objects.toString(preview(raw), ""),
-                    "toolResultReviewUnavailable", true
-                )
+                unavailable
             );
         }
         if (payload.containsKey("error")
             && firstObject(payload, "satisfied", "accepted", "sufficient") == null) {
+            Map<String, Object> unavailable = new LinkedHashMap<>(reviewMetrics);
+            unavailable.put("toolResultReviewRaw", Objects.toString(preview(raw), ""));
+            unavailable.put("toolResultReviewUnavailable", true);
+            unavailable.put("toolResultReviewError", preview(stringify(payload.get("error"))));
             return InterpretationPlanRuntime.StepReview.accepted(
                 "Tool result reviewer was unavailable; preserving successful tool evidence.",
-                Map.of(
-                    "toolResultReviewRaw", Objects.toString(preview(raw), ""),
-                    "toolResultReviewUnavailable", true,
-                    "toolResultReviewError", preview(stringify(payload.get("error")))
-                )
+                unavailable
             );
         }
         boolean satisfied = booleanValue(firstObject(payload, "satisfied", "accepted", "sufficient"));
@@ -3836,6 +3849,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                     "eventKind", "MODEL_INFERENCE",
                     "eventState", reviewFailure == null ? "COMPLETED" : "FAILED",
                     "modelPhase", "tool_result_review",
+                    "toolResultReviewPurpose", reviewPurpose,
+                    "toolResultReviewModelCalls", reviewMetrics.get("toolResultReviewModelCalls"),
                     "stepId", request.step() == null ? null : request.step().id(),
                     "toolName", request.execution().toolName(),
                     "attempt", request.attempt(),
@@ -4335,6 +4350,29 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     private ToolMetadata toolMetadataOrNull(String toolName) {
         return toolName == null || toolName.isBlank()
             ? null : toolRegistry.getToolMetadata(toolName);
+    }
+
+    private boolean isPublishedTemplateCapability(String toolName) {
+        ToolMetadata metadata = toolMetadataOrNull(toolName);
+        Map<String, Object> published = metadata == null ? null : metadata.getMetadata();
+        if (published == null) return false;
+        if (published.get("mcpToolMeta") instanceof Map<?, ?> nested) {
+            return Boolean.TRUE.equals(nested.get("templateCapability"))
+                && "template-capability.v1".equals(nested.get("schemaVersion"));
+        }
+        return Boolean.TRUE.equals(published.get("templateCapability"))
+            && "template-capability.v1".equals(published.get("schemaVersion"));
+    }
+
+    /** Describes the consumer of a remaining model review; never grants execution rights. */
+    private String toolResultReviewPurpose(ToolWorkflowRole role,
+                                          InterpretationPlanRuntime.StepReviewRequest request) {
+        if (role == ToolWorkflowRole.ASSET_DISCOVERY) return "ASSET_SELECTION";
+        if (!request.execution().success()) return "EXECUTION_RECOVERY";
+        String toolName = request.execution().toolName();
+        if (isWebDiscoveryTool(toolName)) return "DOWNSTREAM_URL_SELECTION";
+        if (isDocumentSearchTool(toolName)) return "DOCUMENT_EVIDENCE_SELECTION";
+        return "EVIDENCE_ASSESSMENT";
     }
 
     @SuppressWarnings("unchecked")

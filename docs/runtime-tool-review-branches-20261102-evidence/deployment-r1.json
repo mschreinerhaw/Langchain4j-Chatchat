@@ -1,0 +1,28 @@
+{
+  "sourceCommit": "851c7b08430c90b3696843b3912a5261ac014324",
+  "sourceDiffSha256": "2fbef5b4fc91a247dcbe4cb72aba8e4095054c29a87ddf9bac9af7ddc6cec07b",
+  "image": "runtime-os-api:tool-review-branches-20261102-r1",
+  "baselineJarSha256": "55c8fc5eaa01ddcfc1470c361b6323abe68f00f29ede6c69cde59d7f2523f7b8",
+  "jarSha256": "35b73ed32288d960323e3efdbccd797367af096009c0ac123dfa4003037dd263",
+  "engineSha256": "86945086cc9ae7dc2a3b57e398bdacfd7c4188872b080e90f26cadf11ff2adc2",
+  "changedJarEntries": [
+    "BOOT-INF/lib/chatchat-agents-1.0.0-SNAPSHOT.jar"
+  ],
+  "changedAgentEntries": [
+    "com/chatchat/agents/orchestration/AgentOrchestrationEngine.class"
+  ],
+  "baselineBytecodeMatchesCurrentSource": true,
+  "backupContainer": "runtime-os-app-stage-api-1-before-tool-review-20261102-r1",
+  "unrelatedJarEntriesBytePreserved": true,
+  "status": "DEPLOYED",
+  "ready": true,
+  "configurationPreserved": true,
+  "otherContainersPreserved": true,
+  "nodeProxy": {
+    "status": "REBOUND",
+    "networkMode": "container:a7a5f7b370d8851ff9391c32ccb1c05e4aa39bdd7a2f1cdb5121b5cf4c31ac15",
+    "previousNetworkMode": "container:9b905ea2544815e43d301e4ff95b0aa791e6a19bbd2a95f1848e5437a34f82e5",
+    "backupContainer": "runtime-os-app-stage-node-proxy-1-before-template-supply-a7a5f7b370d8",
+    "configurationPreserved": true
+  }
+}

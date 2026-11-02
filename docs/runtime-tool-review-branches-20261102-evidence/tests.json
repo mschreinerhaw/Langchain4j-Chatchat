@@ -1,0 +1,28 @@
+{
+    "schemaVersion":  "runtime_review_test_runs.v1",
+    "date":  "2026-11-02",
+    "agents":  {
+                   "tests":  87,
+                   "failures":  0,
+                   "errors":  0,
+                   "skipped":  0,
+                   "logSha256":  "1672a7890f5b2d2790ba67d13992df9657461ebb5f4d0037274ba5e5a414cefc"
+               },
+    "supplementalJava":  {
+                             "apiTests":  44,
+                             "repeatedAgentSubset":  27,
+                             "failures":  0,
+                             "errors":  0,
+                             "skipped":  0,
+                             "logSha256":  "182b14a55d80fb0bab1c65abba6fb8cd1d2d9442f61ac7896c9e8198b2e01dce"
+                         },
+    "pythonProtocol":  {
+                           "tests":  3,
+                           "failures":  0,
+                           "image":  "chatchat-python-runtime:3.11-v1.2-fonts-r2-20261022",
+                           "network":  "none",
+                           "source":  "chatchat-mcp-server/src/test/python/test_runtime_input.py"
+                       },
+    "uniqueJavaTests":  131,
+    "note":  "The 27 repeated Agent tests are included in the original 87; no full repository test run is claimed."
+}

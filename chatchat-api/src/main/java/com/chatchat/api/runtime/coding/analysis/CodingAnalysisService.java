@@ -348,7 +348,11 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 +"Every file ID is a sibling directory directly under /data/input. The manifest directory contains only manifest.json; "
                 +"never append schemaFileId or a part fileId to the manifest directory. Read each part at /data/input/{part.fileId}/{part.fileName}. "
                 +"Read ordered parts with pyarrow or pandas.read_parquet(dtype_backend='pyarrow') for PARQUET; CSV uses dtype=str, keep_default_na=False. "
-                +"Map cN storage columns to columns[].name. Parquet pN=false means a missing field, otherwise a null cN is explicit null. "
+                +"The manifest columns[] is the authoritative physical-to-logical mapping: read each column.storageName and store its value under column.name. "
+                +"Parquet contains BOTH cN data columns and pN Boolean presence columns; never rename the whole dataframe to logical names or select data columns by position. "
+                +"For each physical row from to_pylist(), iterate manifest['columns']: let key=column['storageName']; if row['p'+key[1:]] is false, omit that logical field; otherwise read row[key]. "
+                +"A null cN with pN=true is explicit null. Decode a non-null cell with json.loads(parse_float=Decimal) ONLY when that column.type is JSON; STRING is already text and pN is never record content. "
+                +"Build the complete logical dictionary before accessing datasetReference or record. Never assume c0/c1 correspond to those fields; even a two-field logical row has additional presence columns. "
                 +"CSV tokens \\M and \\N mean missing and null; a literal leading backslash is prefixed with another backslash. "
                 +"Decode JSON-typed cells with json.loads(parse_float=Decimal); DECIMAL uses exact precision/scale. Verify schema and part hashes and row counts. "
                 +"Only authorized /data/input/{fileId}/{fileName} paths exist. Never parse the manifest or schema as data rows.";

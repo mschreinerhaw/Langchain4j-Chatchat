@@ -1,0 +1,36 @@
+{
+  "CHECK_DOCKER_IMAGES": {
+    "status": "SUCCESS",
+    "exitCode": 0,
+    "complete": true,
+    "stdoutBytes": 2230,
+    "stdoutSha256": "485cafaa693c21ad1d9c26a51a2367e744d1803b202df0066f3a5f2806a17404",
+    "rowCount": 19,
+    "uniqueImageIds": 18
+  },
+  "CHECK_DOCKER_PS_ALL": {
+    "status": "SUCCESS",
+    "exitCode": 0,
+    "complete": true,
+    "stdoutBytes": 2877,
+    "stdoutSha256": "903b42c57c981a0400ba0edf6a042ced6e6d9c895577867be72a0eea1cdf26f5",
+    "rowCount": 11,
+    "running": 4,
+    "exited": 7
+  },
+  "CHECK_DOCKER_STATS": {
+    "status": "SUCCESS",
+    "exitCode": 0,
+    "complete": true,
+    "stdoutBytes": 607,
+    "stdoutSha256": "ee9bf058dfafcb381a88af50e7aed0bb0a775ebceea00274ddf33eb77775e851",
+    "rowCount": 4
+  },
+  "CHECK_DOCKER_OVERVIEW": {
+    "status": "SUCCESS",
+    "exitCode": 0,
+    "complete": true,
+    "stdoutBytes": 4409,
+    "stdoutSha256": "a6df21e0f486ea6fc7e779bd7f160704306d6775203029c05b0cb0b7144df60d"
+  }
+}

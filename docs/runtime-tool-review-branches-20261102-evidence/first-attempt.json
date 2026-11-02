@@ -1,0 +1,96 @@
+{
+  "runId": "att-1-d718f788-2507-483c-8aca-ac21aa8b8d57",
+  "state": "FAILED",
+  "taskId": "51fdccc4-58b7-341b-9ae3-16cb7025a93a",
+  "runStatus": "FAILED",
+  "facts": {
+    "eventState": [
+      "COMPLETED",
+      "NOT_APPLIED",
+      "PASSED",
+      "STARTED",
+      "APPLIED",
+      "CREATED",
+      "RUNNING",
+      "ACCEPTED",
+      "FAILED",
+      "STARTING"
+    ],
+    "eventKind": [
+      "KNOWLEDGE_SKILLS",
+      "DAG_VALIDATION",
+      "MODEL_INFERENCE",
+      "DAG_REPAIR",
+      "CODING_REQUEST_VALIDATED",
+      "CODING_INPUT_PREPARING",
+      "CODING_INPUT_READY",
+      "CODING_BUDGET_ISOLATED",
+      "CODING_TRACE",
+      "CODING_RECONCILIATION_REQUIRED",
+      "ANALYSIS_OPERATION"
+    ],
+    "stage": [
+      "SKILLS_EXTRACTED",
+      "CONTEXT_APPLIED",
+      "initial",
+      "PRIMARY_CODING_ANALYSIS",
+      "QUEUED",
+      "CONTEXT_READY",
+      "CODING",
+      "CODE_READY",
+      "VALIDATING",
+      "EXECUTING",
+      "RESULT_VALIDATING",
+      "EXECUTION_FAILED",
+      "FAILED"
+    ],
+    "modelPhase": [
+      "template_selection_and_binding"
+    ],
+    "selectionModelDurationMs": [
+      13673
+    ],
+    "selectionDurationMs": [
+      13710
+    ],
+    "selectionModelCalls": [
+      1
+    ],
+    "runtimeSelectedTemplateIds": [
+      [
+        "CHECK_DOCKER_IMAGES",
+        "CHECK_DOCKER_PS_ALL",
+        "CHECK_DOCKER_OVERVIEW",
+        "CHECK_DOCKER_STATS"
+      ]
+    ],
+    "candidateSelectionStatus": [
+      "SELECTED"
+    ],
+    "toolResultReviewMode": [
+      "MODEL_SELECTION_AND_BINDING"
+    ],
+    "toolResultReviewModelCalls": [
+      1
+    ]
+  },
+  "reviewBranches": [
+    {
+      "toolName": "mcp_chatchat_mcp_server_container_runtime_supply_template_query",
+      "interpretationPlanStepId": 1,
+      "toolResultReviewMode": "MODEL_SELECTION_AND_BINDING",
+      "toolResultReviewModelCalls": 1,
+      "runtimeSelectedTemplateIds": [
+        "CHECK_DOCKER_IMAGES",
+        "CHECK_DOCKER_PS_ALL",
+        "CHECK_DOCKER_OVERVIEW",
+        "CHECK_DOCKER_STATS"
+      ]
+    }
+  ],
+  "answerCharacters": 70,
+  "answerSha256": "73c4e0e3d9c207073265ef71964f9c8c24de63ecef30261804e842dd86ff479e",
+  "toolTraces": [],
+  "credentialExported": false,
+  "rawBusinessRowsExported": false
+}

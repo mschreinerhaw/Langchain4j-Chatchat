@@ -1,0 +1,157 @@
+{
+  "schemaVersion": "runtime_review_live_acceptance.v1",
+  "date": "2026-11-02",
+  "timezone": "Asia/Shanghai",
+  "question": "分析 Docker 数据库模拟服务器 管理的镜像和容器运行情况",
+  "agentId": "server_ops_assistant",
+  "agentName": "服务器主机运维助手",
+  "taskId": "7318dbbd-59ff-38b7-9f0b-d0fbb84fff59",
+  "runId": "att-1-db32d011-7280-40e2-a754-710e8199a75d",
+  "businessTest": "PASSED_WITH_RECORDED_AGENT_REPAIRS",
+  "parentState": "SUCCEEDED",
+  "image": "runtime-os-api:tool-review-branches-20261102-r2",
+  "localTests": {
+    "agents": 87,
+    "api": 44,
+    "repeatedAgentSubset": 27,
+    "pythonInputProtocol": 3
+  },
+  "sourceCounts": {
+    "imageRows": 19,
+    "uniqueImageIds": 18,
+    "containers": 11,
+    "runningContainers": 4,
+    "exitedContainers": 7
+  },
+  "sourceReceipts": {
+    "CHECK_DOCKER_IMAGES": {
+      "status": "SUCCESS",
+      "exitCode": 0,
+      "complete": true,
+      "stdoutBytes": 2230,
+      "stdoutSha256": "485cafaa693c21ad1d9c26a51a2367e744d1803b202df0066f3a5f2806a17404",
+      "rowCount": 19,
+      "uniqueImageIds": 18
+    },
+    "CHECK_DOCKER_PS_ALL": {
+      "status": "SUCCESS",
+      "exitCode": 0,
+      "complete": true,
+      "stdoutBytes": 2877,
+      "stdoutSha256": "903b42c57c981a0400ba0edf6a042ced6e6d9c895577867be72a0eea1cdf26f5",
+      "rowCount": 11,
+      "running": 4,
+      "exited": 7
+    },
+    "CHECK_DOCKER_STATS": {
+      "status": "SUCCESS",
+      "exitCode": 0,
+      "complete": true,
+      "stdoutBytes": 607,
+      "stdoutSha256": "ee9bf058dfafcb381a88af50e7aed0bb0a775ebceea00274ddf33eb77775e851",
+      "rowCount": 4
+    },
+    "CHECK_DOCKER_OVERVIEW": {
+      "status": "SUCCESS",
+      "exitCode": 0,
+      "complete": true,
+      "stdoutBytes": 4409,
+      "stdoutSha256": "a6df21e0f486ea6fc7e779bd7f160704306d6775203029c05b0cb0b7144df60d"
+    }
+  },
+  "report": {
+    "ready": true,
+    "characters": 6193,
+    "sha256": "6c6dc3b16202edcbe5e4a6892d90d605875aeeb572567716e962d5702d29ac2f",
+    "referenceCount": 2,
+    "sourceCountsManuallyCrossChecked": true
+  },
+  "coding": {
+    "taskId": "analysis-coding-db3c0a3d1879a9a7709081260611877898899c1f0bdf1b382e6c50d1e24d331d",
+    "status": "COMPLETED",
+    "validationStatus": "INCONCLUSIVE",
+    "executionControl": {
+      "stopReason": null,
+      "stopRequestedAt": null,
+      "executorStopped": true,
+      "reconciliationRequired": false
+    },
+    "executions": [
+      {
+        "executionId": "cline-9f5f57478baaae50d589980c0c53fff941221ed859427c5b838406c604fb7674",
+        "version": 1,
+        "status": "FAILED",
+        "exitCode": 1,
+        "errorType": "KeyError",
+        "resultAvailable": false
+      },
+      {
+        "executionId": "cline-462de75e2b667625db90c8093e05bee6910633f8b52e16521cf25ec6e44a6758",
+        "version": 2,
+        "status": "SUCCEEDED",
+        "exitCode": 0,
+        "errorType": null,
+        "resultAvailable": true
+      },
+      {
+        "executionId": "cline-156588d79ae66b2317ceeed2dfabf541fd628e1b8e067c9243a8a1af186793db",
+        "version": 3,
+        "status": "SUCCEEDED",
+        "exitCode": 0,
+        "errorType": null,
+        "resultAvailable": true
+      },
+      {
+        "executionId": "cline-16547fb6abdb6029065e1d4090ff14932c06a6ae460f4400294812611f91a6d0",
+        "version": 4,
+        "status": "SUCCEEDED",
+        "exitCode": 0,
+        "errorType": null,
+        "resultAvailable": true
+      },
+      {
+        "executionId": "cline-8377584f5f26be6795ff78d68fbb454c78f030dd249036fd23027de8c41337ce",
+        "version": 5,
+        "status": "SUCCEEDED",
+        "exitCode": 0,
+        "errorType": null,
+        "resultAvailable": true
+      }
+    ],
+    "usage": {
+      "modelCalls": 7,
+      "modelTokens": 279735,
+      "toolCalls": 9,
+      "codeExecutions": 5,
+      "cpuMillis": 0,
+      "peakMemoryBytes": 0,
+      "outputBytes": 62702,
+      "costAmount": "0"
+    }
+  },
+  "review": {
+    "selectionMode": "MODEL_SELECTION_AND_BINDING",
+    "selectionModelCalls": 1,
+    "selectedTemplateIds": [
+      "CHECK_DOCKER_IMAGES",
+      "CHECK_DOCKER_PS_ALL",
+      "CHECK_DOCKER_STATS",
+      "CHECK_DOCKER_OVERVIEW"
+    ],
+    "batchReviewSkipped": true,
+    "note": "This DATA_ANALYSIS regression uses merged selection and ordered batch admission. The newly optimized DIRECT publication branch is covered by targeted tests, not claimed as exercised by this case."
+  },
+  "firstAttempt": {
+    "taskId": "51fdccc4-58b7-341b-9ae3-16cb7025a93a",
+    "state": "FAILED",
+    "failure": "Generated Python decoded physical Parquet columns by position rather than the declared mapping",
+    "resolution": "Clarified the generic manifest storageName/name/type and presence-column reading contract; did not alter source data or disable validation"
+  },
+  "limitations": [
+    "Not a full repository regression",
+    "No controlled before/after production latency comparison",
+    "Structural result admission does not independently certify business advice; report recommendations were not executed"
+  ],
+  "credentialExported": false,
+  "rawBusinessRowsExported": false
+}

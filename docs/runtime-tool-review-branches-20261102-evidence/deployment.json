@@ -1,0 +1,27 @@
+{
+  "sourceCommit": "851c7b08430c90b3696843b3912a5261ac014324",
+  "sourceDiffSha256": "650506fab01ea88c23b41fbb88f60ba048d08ada7c3b3b5298c7899e4fdd4c55",
+  "image": "runtime-os-api:tool-review-branches-20261102-r2",
+  "baselineJarSha256": "35b73ed32288d960323e3efdbccd797367af096009c0ac123dfa4003037dd263",
+  "jarSha256": "aa5fe8505bf106319eefaadbefa05a6548c5e647f7e4010c63470937b252d12c",
+  "engineSha256": "86945086cc9ae7dc2a3b57e398bdacfd7c4188872b080e90f26cadf11ff2adc2",
+  "codingAnalysisSha256": "664bb40494d7b89c1172b2aee37514eed08b20ebd4b3e562049c636e1ac06ddf",
+  "changedJarEntries": [
+    "BOOT-INF/classes/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.class"
+  ],
+  "changedAgentEntries": [],
+  "baselineBytecodeMatchesCurrentSource": true,
+  "backupContainer": "runtime-os-app-stage-api-1-before-tool-review-20261102-r2",
+  "unrelatedJarEntriesBytePreserved": true,
+  "status": "DEPLOYED",
+  "ready": true,
+  "configurationPreserved": true,
+  "otherContainersPreserved": true,
+  "nodeProxy": {
+    "status": "REBOUND",
+    "networkMode": "container:040ddd340cb5405d339845277d358e918c6c8baab6333ed0105ffcae86612d9e",
+    "previousNetworkMode": "container:a7a5f7b370d8851ff9391c32ccb1c05e4aa39bdd7a2f1cdb5121b5cf4c31ac15",
+    "backupContainer": "runtime-os-app-stage-node-proxy-1-before-template-supply-040ddd340cb5",
+    "configurationPreserved": true
+  }
+}

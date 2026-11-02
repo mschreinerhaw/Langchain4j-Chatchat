@@ -1,0 +1,54 @@
+{
+  "containers": [
+    {
+      "name": "/runtime-os-app-stage-api-1",
+      "image": "runtime-os-api:tool-review-branches-20261102-r2",
+      "id": "040ddd340cb5405d339845277d358e918c6c8baab6333ed0105ffcae86612d9e",
+      "running": true,
+      "health": null,
+      "networkMode": "3361532634b80c369ca3d0d2706ab45a9009884df2ba0c7b9b80ac47c6eb7ed4"
+    },
+    {
+      "name": "/runtime-os-app-stage-node-proxy-1",
+      "image": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "id": "f9fc0d2b2c77ae26db2f03523855909b0618b47cb272e499d5ce6d55be862f2e",
+      "running": true,
+      "health": "healthy",
+      "networkMode": "container:040ddd340cb5405d339845277d358e918c6c8baab6333ed0105ffcae86612d9e"
+    },
+    {
+      "name": "/runtime-os-app-stage-gateway-1",
+      "image": "runtime-os-gateway:main-9b18e67f9-20261028",
+      "id": "14f6ca9db68e65eada303f02986d43f67c735844b17bd6b8cacd9d109111bea5",
+      "running": true,
+      "health": "healthy",
+      "networkMode": "2aaaa591919b2c59fff5dd6d67e0c3993e9c3c379d3f65dae09dd7e918e87ae0"
+    },
+    {
+      "name": "/runtime-os-app-stage-coding-agent-1",
+      "image": "runtime-os-coding-agent:agent-skills-business-ui-20261101-r2",
+      "id": "8b73e2208005123b6910b1ebba6c0ff8c5de270af75a619c2eeb795762773aa9",
+      "running": true,
+      "health": "healthy",
+      "networkMode": "3361532634b80c369ca3d0d2706ab45a9009884df2ba0c7b9b80ac47c6eb7ed4"
+    },
+    {
+      "name": "/runtime-os-app-stage-mcp-1",
+      "image": "runtime-os-mcp:opensearch-drivers-20261102-r1",
+      "id": "90329f1e292273f6ffb3d43c6dfc7f1e577bd563c78350e4e2e518b5e7c84e06",
+      "running": true,
+      "health": null,
+      "networkMode": "2aaaa591919b2c59fff5dd6d67e0c3993e9c3c379d3f65dae09dd7e918e87ae0"
+    }
+  ],
+  "nodeProxyBoundToActiveApi": true,
+  "endpoints": {
+    "18100/": 200,
+    "18100/api/v1/enterprise/auth/me": 401,
+    "18180/api/v1/enterprise/auth/me": 401
+  },
+  "apiJarSha256": "aa5fe8505bf106319eefaadbefa05a6548c5e647f7e4010c63470937b252d12c",
+  "engineSha256": "86945086cc9ae7dc2a3b57e398bdacfd7c4188872b080e90f26cadf11ff2adc2",
+  "hasFix": true,
+  "credentialExported": false
+}

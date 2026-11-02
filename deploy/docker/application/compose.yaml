@@ -133,6 +133,7 @@ services:
       CHATCHAT_UI_ARTIFACT_STORAGE_PATH: /srv/app/data/ui-artifacts
       CHATCHAT_MCP_CENTER_BASE_URL: http://mcp:8090
       CHATCHAT_TOOLS_DOCUMENT_SEARCH_API_BASE_URL: http://api:8080
+      CHATCHAT_TOOLS_DATABASEQUERY_DRIVERLIBPATH: /srv/app/lib/drivers
     extra_hosts:
       - host.docker.internal:host-gateway
     ports:
@@ -147,6 +148,12 @@ services:
       - ${MODEL_CONFIG_FILE:?Set MODEL_CONFIG_FILE}:/srv/app/config/application.yml:ro
       - ./service-healthcheck.sh:/opt/runtime/service-healthcheck.sh:ro
       - ${OPENSEARCH_TRUSTSTORE_FILE:?Set OPENSEARCH_TRUSTSTORE_FILE}:/srv/app/config/opensearch-truststore.p12:ro
+      - type: bind
+        source: ${JDBC_DRIVERS_DIR:?Set JDBC_DRIVERS_DIR to the host external driver directory}
+        target: /srv/app/lib/drivers
+        read_only: true
+        bind:
+          create_host_path: false
     secrets:
       - source: api_internal_key
         target: /srv/app/config/internal-credential.key
@@ -189,6 +196,7 @@ services:
       start_period: 60s
     environment:
       SERVER_PORT: "8090"
+      SPRING_CONFIG_ADDITIONAL_LOCATION: optional:file:/srv/app/config/,optional:file:/srv/app/config/native-search-tls/application.yml
       SPRING_PROFILES_ACTIVE: prod
       JAVA_TOOL_OPTIONS: -Xms128m -Xmx1024m -Dfile.encoding=UTF-8 -Djavax.net.ssl.trustStore=/run/runtime-truststore.p12 -Djavax.net.ssl.trustStorePassword=changeit
       CHATCHAT_DATASOURCE_CONFIG: datasource-postgresql.yml
@@ -199,6 +207,7 @@ services:
       CHATCHAT_MCP_LUCENE_OPENSEARCH_USERNAME: admin
       CHATCHAT_MCP_LUCENE_OPENSEARCH_INSECURESSL: 'false'
       CHATCHAT_MCP_GRPC_PORT: "9091"
+      CHATCHAT_TOOLS_DATABASEQUERY_DRIVERLIBPATH: /srv/app/lib/drivers
       CHATCHAT_MCP_AUTHORIZATION_API_BASE_URL: http://api:8080
       CHATCHAT_MCP_NEWS_RUNTIME_BASE_URL: http://news:8091
       CHATCHAT_LICENSE_HOST_MAC_FILE: /run/license/host-mac
@@ -220,6 +229,18 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./service-healthcheck.sh:/opt/runtime/service-healthcheck.sh:ro
       - ${OPENSEARCH_TRUSTSTORE_FILE}:/run/runtime-truststore.p12:ro
+      - type: bind
+        source: ${JDBC_DRIVERS_DIR:?Set JDBC_DRIVERS_DIR to the host external driver directory}
+        target: /srv/app/lib/drivers
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${NATIVE_SEARCH_TLS_DIR:?Set NATIVE_SEARCH_TLS_DIR to the host search CA/config directory}
+        target: /srv/app/config/native-search-tls
+        read_only: true
+        bind:
+          create_host_path: false
       - type: bind
         source: ${MCP_HOST_MAC_FILE:?Set the host physical NIC address file}
         target: /run/license/host-mac

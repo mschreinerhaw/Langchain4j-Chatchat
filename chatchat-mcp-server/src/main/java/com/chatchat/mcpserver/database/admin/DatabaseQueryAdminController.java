@@ -3,6 +3,7 @@ package com.chatchat.mcpserver.database.admin;
 import com.chatchat.mcpserver.database.definition.DatabaseQueryConfig;
 import com.chatchat.mcpserver.database.definition.DatabaseQueryConfigService;
 import com.chatchat.mcpserver.database.execution.DatabaseQueryInvokeService;
+import com.chatchat.mcpserver.database.execution.DatabaseQueryParameterSyntax;
 import com.chatchat.mcpserver.database.publication.DatabaseQueryPublicationService;
 import com.chatchat.mcpserver.database.definition.DatabaseQuerySqlStep;
 
@@ -13,6 +14,7 @@ import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.mcpserver.sql.calendar.DynamicDateParamService;
 import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigService;
+import com.chatchat.runtime.market.analysis.FinancialAnalysisQuerySamples;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -172,6 +174,11 @@ public class DatabaseQueryAdminController {
      */
     @PostMapping("/test")
     public ApiResponse<ToolOutput> test(@RequestBody DatabaseQueryTestRequest request) {
+        // The application-owned read store is not a configurable JDBC asset.
+        // Use the same governed executor as saved internal-financial templates.
+        if (FinancialAnalysisQuerySamples.INTERNAL_DATASOURCE_ID.equals(request.datasourceId())) {
+            return ApiResponse.success(invokeService.invokePreview(testDraft(request), request.params()));
+        }
         boolean nativeQuery = sourceAdapters != null ? sourceAdapters.usesAdapter(request.datasourceId())
             : com.chatchat.mcpserver.database.execution.DatabaseQuerySourceAdapterService.isHttp(request.datasourceId());
         if (!nativeQuery
@@ -180,21 +187,25 @@ public class DatabaseQueryAdminController {
         }
         if (request.sqlSteps() != null && !request.sqlSteps().isEmpty()) {
             if (sourceAdapters != null) sourceAdapters.validate(request.datasourceId(), request.sqlSteps(), request.sql());
-            DatabaseQueryConfig draft = new DatabaseQueryConfig();
-            draft.setId("draft");
-            draft.setToolName("draft_database_query");
-            draft.setTitle("Draft database query");
-            draft.setDatasourceId(request.datasourceId());
-            draft.setSqlTemplate(request.sql());
-            draft.setSqlStepsJson(writeSqlSteps(request.sqlSteps()));
-            draft.setInputSchemaJson(writeJson(request.inputSchema()));
-            draft.setMaxRows(request.maxRows() == null ? 50 : request.maxRows());
-            draft.setTimeoutSeconds(request.timeoutSeconds() == null ? 30 : request.timeoutSeconds());
-            draft.setCapabilitiesJson(ModelProtocolJson.compact(List.of(
-                "database_query", "sql_query_execute", "jdbc")));
-            return ApiResponse.success(invokeService.invokePreview(draft, request.params()));
+            return ApiResponse.success(invokeService.invokePreview(testDraft(request), request.params()));
         }
         return ApiResponse.success(invokeService.invoke(toParameters(request)));
+    }
+
+    private DatabaseQueryConfig testDraft(DatabaseQueryTestRequest request) {
+        DatabaseQueryConfig draft = new DatabaseQueryConfig();
+        draft.setId("draft");
+        draft.setToolName("draft_database_query");
+        draft.setTitle("Draft database query");
+        draft.setDatasourceId(request.datasourceId());
+        draft.setSqlTemplate(request.sql());
+        draft.setSqlStepsJson(writeSqlSteps(request.sqlSteps()));
+        draft.setInputSchemaJson(writeJson(request.inputSchema()));
+        draft.setMaxRows(request.maxRows() == null ? 50 : request.maxRows());
+        draft.setTimeoutSeconds(request.timeoutSeconds() == null ? 30 : request.timeoutSeconds());
+        draft.setCapabilitiesJson(ModelProtocolJson.compact(List.of(
+            "database_query", "sql_query_execute", "jdbc")));
+        return draft;
     }
 
     /**
@@ -322,7 +333,8 @@ public class DatabaseQueryAdminController {
             throw new IllegalArgumentException("datasourceId is required");
         }
         SqlDatasourceConfig datasource = datasourceConfigService.getEnabled(request.datasourceId());
-        parameters.put("sql", dynamicDateParamService.resolveSqlPlaceholders(request.sql(), datasource));
+        parameters.put("sql", dynamicDateParamService.resolveSqlPlaceholders(
+            DatabaseQueryParameterSyntax.toNamedParameters(request.sql()), datasource));
         parameters.put("params", dynamicDateParamService.enrichParameters(
             request.params() == null ? Map.of() : request.params(),
             datasource,

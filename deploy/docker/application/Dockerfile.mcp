@@ -3,8 +3,8 @@ FROM ${JAVA_RUNTIME_IMAGE}
 
 # The build context supplies a Linux/amd64 Docker CLI binary compatible with the
 # target daemon. Only this image receives the host socket at deploy time.
-COPY docker /usr/local/bin/docker
-RUN chmod 0755 /usr/local/bin/docker && docker --version
+COPY --chmod=0755 docker /usr/local/bin/docker
+RUN docker --version
 
 WORKDIR /srv/app
 RUN mkdir -p /srv/app/config /srv/app/data /srv/app/logs

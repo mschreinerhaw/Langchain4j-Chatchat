@@ -75,7 +75,7 @@ export default {
   },
 };
 
-function schemaFields(rawSchema) {
+export function schemaFields(rawSchema) {
   const schema = parseSchema(rawSchema);
   const required = new Set(Array.isArray(schema.required) ? schema.required : []);
   const properties =

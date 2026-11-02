@@ -270,40 +270,49 @@ export default {
   computed: {
     sharedFormFields() {
       const common = new Set(["title", "description", "categoryId", "datasourceId", "toolName"]);
-      return [
-        {
-          key: "sourceLabel",
-          label: "模板来源",
-          readonly: true,
-          section: "basic",
-          sectionTitle: "基础信息",
-        },
-        ...this.formFields.map((field) => ({
+      const simple = this.queryFamily === "relational";
+      const fields = this.formFields
+        .filter((field) => !simple || !["implementationSteps", "sqlSteps"].includes(field.key))
+        .map((field) => ({
           ...field,
-          visible: (form) => common.has(field.key) || form.sourceKind !== "SQL_STUDIO",
+          section: simple && ["tags", "indexTags"].includes(field.key) ? "basic" : field.section,
+          visible: (form) =>
+            common.has(field.key) ||
+            (simple && field.type === "databaseParamConfig") ||
+            form.sourceKind !== "SQL_STUDIO",
           readonly: (form) =>
             form.sourceKind === "SQL_STUDIO" && ["datasourceId", "toolName"].includes(field.key),
-        })),
-        {
+        }));
+      fields.unshift({
+        key: "sourceLabel",
+        label: "模板来源",
+        readonly: true,
+        section: "basic",
+        sectionTitle: "基础信息",
+      });
+      if (simple)
+        fields.unshift({
           key: "sqlTemplate",
-          label: "查询内容",
-          type: "textarea",
-          rows: 8,
-          readonly: true,
-          visible: (form) => form.sourceKind === "SQL_STUDIO",
+          label: "SQL 语句",
+          type: "databaseSqlEditor",
+          required: true,
+          span: "col-12",
           section: "query",
-          sectionTitle: "查询内容与参数",
-          help: "来自 SQL Studio 源文件；修改查询内容或参数定义请在源工程创建修订。",
-        },
-        {
-          key: "inputSchema",
-          label: "参数定义",
-          type: "json",
-          readonly: true,
-          visible: (form) => form.sourceKind === "SQL_STUDIO",
-          section: "query",
-        },
-      ];
+          sectionTitle: "SQL 查询",
+          sectionSubtitle: "输入 SQL，选择参数后执行查询。",
+          readonly: (form) => form.sourceKind === "SQL_STUDIO",
+          help: (form) =>
+            form.sourceKind === "SQL_STUDIO"
+              ? "来自 SQL Studio 源文件；修改 SQL 或参数定义请在源工程创建修订。"
+              : "支持只读 SQL，统一使用 {{参数名}} 引用参数，参数外无需加引号。",
+        });
+      return simple
+        ? [
+            ...fields.filter((field) => field.section === "basic"),
+            ...fields.filter((field) => field.section === "runtime"),
+            ...fields.filter((field) => field.section === "query"),
+          ]
+        : fields;
     },
     pageTitle() {
       return this.section === "calendar"
@@ -420,10 +429,7 @@ export default {
     },
     async saveQuery(payload) {
       if (payload.sourceKind !== "SQL_STUDIO") return api.save(payload);
-      const parameters = await this.$refs.catalog.$refs.apiTestParameterDialog.open({
-        title: "保存前验证查询",
-        schema: payload.inputSchema,
-      });
+      const parameters = payload.parameters || {};
       return api.actStudioPublication(
         payload.templateId,
         "metadata",

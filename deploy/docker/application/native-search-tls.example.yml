@@ -1,0 +1,12 @@
+# Copy as $NATIVE_SEARCH_TLS_DIR/application.yml; place your CA PEM in that directory.
+# Only exact configured asset URLs use this trust policy. Other endpoints keep JVM trust.
+chatchat:
+  mcp:
+    native-search:
+      tls:
+        endpoints:
+          - url: https://search.example.com:9200
+            ca-certificate-file: /srv/app/config/native-search-tls/root-ca.pem
+            # Set only if the certificate DNS identity differs from the connection address.
+            # Hostname verification remains enabled against this name.
+            # server-name: search.internal.example.com

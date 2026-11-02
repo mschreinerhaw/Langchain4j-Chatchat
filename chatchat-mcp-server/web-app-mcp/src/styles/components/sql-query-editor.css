@@ -1,0 +1,15 @@
+.database-sql-editor {
+  height: clamp(280px, 40vh, 460px);
+  min-width: 0;
+  width: 100%;
+}
+
+.database-sql-editor .monaco-editor {
+  --vscode-editor-background: var(--el-fill-color-blank);
+  --vscode-editorLineNumber-foreground: var(--el-text-color-placeholder);
+}
+
+.monaco-editor .suggest-widget,
+.monaco-editor .monaco-hover {
+  z-index: 4000;
+}

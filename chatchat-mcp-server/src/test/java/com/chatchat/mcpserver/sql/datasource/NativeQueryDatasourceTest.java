@@ -16,6 +16,23 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class NativeQueryDatasourceTest {
+    @Test void discoversUserIndexesAliasesAndDataStreamsWithoutMakingMetadataPermissionMandatory() throws Exception {
+        var client = mock(NativeDatabaseClient.class);
+        var json = new ObjectMapper();
+        when(client.get(any(), eq("/"), anyInt())).thenReturn(json.readTree("{\"cluster_name\":\"local\"}"));
+        when(client.get(any(), contains("/_resolve/index/"), anyInt())).thenReturn(json.readTree("""
+            {"indices":[{"name":"news","attributes":["open"]},{"name":".security"},{"name":"hidden","attributes":["hidden"]}],
+             "aliases":[{"name":"news-current"}],"data_streams":[{"name":"events"}]}
+            """));
+        var probe = new NativeQueryDatasourceProbe(client);
+        var result = probe.test(asset("opensearch", "https://localhost:9200"));
+        assertThat(result.success()).isTrue();
+        assertThat(result.diagnostics().get("metadataScopeOptions")).isEqualTo(List.of("events", "news", "news-current"));
+        when(client.get(any(), contains("/_resolve/index/"), anyInt())).thenThrow(new IllegalStateException("403 Forbidden"));
+        result = probe.test(asset("opensearch", "https://localhost:9200"));
+        assertThat(result.success()).isTrue();
+        assertThat(result.diagnostics().get("metadataDiscoveryWarning").toString()).contains("403 Forbidden");
+    }
     private SqlDatasourceConfig asset(String type, String address) {
         var asset = new SqlDatasourceConfig();
         asset.setName(type); asset.setToolName("db_query_" + type);

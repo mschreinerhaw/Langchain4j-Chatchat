@@ -172,6 +172,7 @@ public class DatabaseQueryInvokeService {
         if (usesSourceAdapter(text(parameters, "datasource_id"))) {
             return sourceAdapters.execute(parameters);
         }
+        parameters = namedSqlParameters(parameters);
         if (!toolRegistry.hasTool(TOOL_NAME)) {
             long durationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
             log.warn("Database query invoke failed tool={} durationMs={} error={}",
@@ -296,7 +297,8 @@ public class DatabaseQueryInvokeService {
             throw new IllegalStateException("内置金融数据查询能力不可用");
         }
         FinancialMarketQueryExecutor.QueryResult result = financialMarketQueryExecutor.execute(
-            config.getSqlTemplate(), arguments, config.getMaxRows(), config.getTimeoutSeconds());
+            DatabaseQueryParameterSyntax.toNamedParameters(config.getSqlTemplate()),
+            arguments, config.getMaxRows(), config.getTimeoutSeconds());
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("sql", result.sql());
         data.put("dataSource", FinancialAnalysisQuerySamples.INTERNAL_DATASOURCE_ID);
@@ -327,6 +329,7 @@ public class DatabaseQueryInvokeService {
         if (usesSourceAdapter(text(parameters, "datasource_id"))) {
             return sourceAdapters.execute(parameters);
         }
+        parameters = namedSqlParameters(parameters);
         ToolInput input = ToolInput.builder()
             .requestId(UUID.randomUUID().toString())
             .userId(invocationUserId(parameters))
@@ -340,6 +343,15 @@ public class DatabaseQueryInvokeService {
             output.setErrorMessage(databaseFailureMessage(output));
         }
         return output;
+    }
+
+    private Map<String, Object> namedSqlParameters(Map<String, Object> parameters) {
+        String sql = text(parameters, "sql");
+        String named = DatabaseQueryParameterSyntax.toNamedParameters(sql);
+        if (java.util.Objects.equals(sql, named)) return parameters;
+        Map<String, Object> normalized = new LinkedHashMap<>(parameters);
+        normalized.put("sql", named);
+        return normalized;
     }
 
     private ToolOutput invokeConfiguredSqlSteps(DatabaseQueryConfig config,
@@ -536,7 +548,8 @@ public class DatabaseQueryInvokeService {
             stepConfig.getSqlContent()
         );
         String sql = httpSource ? stepConfig.getSqlContent()
-            : dynamicDateParamService.resolveSqlPlaceholders(stepConfig.getSqlContent(), datasource);
+            : dynamicDateParamService.resolveSqlPlaceholders(
+                DatabaseQueryParameterSyntax.toNamedParameters(stepConfig.getSqlContent()), datasource);
         parameters.put("sql", sql);
         parameters.put("params", resolvedParams);
         parameters.put("query_options", stepConfig.getQueryOptions());
@@ -662,7 +675,8 @@ public class DatabaseQueryInvokeService {
         Map<String, Object> parameters = new LinkedHashMap<>();
         if (!hasSqlSteps(config)) {
             parameters.put("sql", httpSource ? config.getSqlTemplate()
-                : dynamicDateParamService.resolveSqlPlaceholders(config.getSqlTemplate(), datasource));
+                : dynamicDateParamService.resolveSqlPlaceholders(
+                    DatabaseQueryParameterSyntax.toNamedParameters(config.getSqlTemplate()), datasource));
         }
         parameters.put("params", resolvedArguments);
         parameters.put("max_rows", config.getMaxRows());

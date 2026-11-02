@@ -769,3 +769,16 @@
     flex-direction: column;
   }
 }
+
+.database-simple-query { width: 100%; min-width: 0; }
+.database-simple-editor { overflow: hidden; border: 1px solid var(--el-border-color); border-radius: var(--el-border-radius-base); background: var(--el-fill-color-blank); }
+.database-simple-editor:focus-within { border-color: var(--el-color-primary); }
+.database-simple-editor .el-textarea__inner { padding: 16px; border-radius: 0; box-shadow: none; line-height: 1.8; }
+.database-simple-toolbar { display: flex; align-items: center; gap: 4px; padding: 6px 8px; border-top: 1px solid var(--el-border-color-lighter); }
+.database-simple-params { max-height: 360px; overflow: auto; }
+.database-simple-param { display: grid; grid-template-columns: minmax(100px, 1fr) 100px minmax(150px, 1fr); align-items: center; gap: 8px; padding: 12px 0; border-top: 1px solid var(--el-border-color-lighter); }
+.database-simple-param code { overflow-wrap: anywhere; }
+@media (max-width: 680px) {
+  .el-popover.el-popper:has(.database-simple-params) { max-width: calc(100vw - 32px); }
+  .database-simple-param { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}

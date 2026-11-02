@@ -24,9 +24,12 @@ public class NativeDatabaseClient implements AutoCloseable {
     private final ObjectMapper json;
     private final NativeClientPool<AutoCloseable> clients = new NativeClientPool<>(64);
     private LuceneSearchProperties searchProperties;
+    private NativeSearchTlsProperties tlsProperties = new NativeSearchTlsProperties();
     public NativeDatabaseClient(ObjectMapper json) { this.json = json; }
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     public void configureOpenSearch(LuceneSearchProperties properties) { this.searchProperties = properties; }
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void configureSearchTls(NativeSearchTlsProperties properties) { this.tlsProperties = properties; }
 
     public JsonNode get(HttpEndpointConfig asset, String path, int timeoutSeconds) throws Exception {
         return search(asset, "GET", path, null, timeoutSeconds, Map.of());
@@ -47,8 +50,8 @@ public class NativeDatabaseClient implements AutoCloseable {
         int timeout = timeoutMillis(asset, timeoutSeconds);
         var config = RequestConfig.custom().setConnectTimeout(Math.min(10000, timeout))
             .setConnectionRequestTimeout(timeout).setSocketTimeout(timeout).setRedirectsEnabled(false).build();
-        boolean insecure = usesConfiguredOpenSearchTlsPolicy(asset, kind);
-        try (var lease = acquire(asset, kind + ":tls=" + insecure, () -> searchClient(asset, kind, insecure))) {
+        var tls = tlsPolicy(asset, kind);
+        try (var lease = acquire(asset, kind + ":tls=" + tls.fingerprint(), () -> searchClient(asset, kind, tls))) {
             CompletableFuture<String> response = new CompletableFuture<>();
             Runnable cancel;
             // Pass query parameters through the official request API, not as part of its endpoint.
@@ -108,9 +111,24 @@ public class NativeDatabaseClient implements AutoCloseable {
             .equals(URI.create(asset.getUrlTemplate().replaceAll("/+$", "")));
     }
     private org.apache.http.impl.nio.client.HttpAsyncClientBuilder configureTransport(
-        org.apache.http.impl.nio.client.HttpAsyncClientBuilder client, boolean insecure) {
+        org.apache.http.impl.nio.client.HttpAsyncClientBuilder client, SearchTlsPolicy tls) {
         client.setMaxConnTotal(16).setMaxConnPerRoute(16);
-        if (insecure) {
+        if (tls.certificate() != null) {
+            try {
+                var certificates = java.security.cert.CertificateFactory.getInstance("X.509")
+                    .generateCertificates(new java.io.ByteArrayInputStream(tls.certificate()));
+                if (certificates.isEmpty()) throw new IllegalArgumentException("Search CA certificate file is empty");
+                var store = java.security.KeyStore.getInstance(java.security.KeyStore.getDefaultType());
+                store.load(null, null);
+                int index = 0;
+                for (var certificate : certificates) store.setCertificateEntry("search-ca-" + index++, certificate);
+                client.setSSLContext(org.apache.http.ssl.SSLContexts.custom().loadTrustMaterial(store, null).build());
+                if (tls.serverName() != null && !tls.serverName().isBlank()) {
+                    var verifier = new org.apache.http.conn.ssl.DefaultHostnameVerifier();
+                    client.setSSLHostnameVerifier((host, session) -> verifier.verify(tls.serverName(), session));
+                }
+            } catch (Exception ex) { throw new IllegalStateException("Invalid search CA certificate configuration", ex); }
+        } else if (tls.insecure()) {
             try {
                 client.setSSLContext(org.apache.http.ssl.SSLContexts.custom().loadTrustMaterial(null, (chain, authType) -> true).build());
                 client.setSSLHostnameVerifier(org.apache.http.conn.ssl.NoopHostnameVerifier.INSTANCE);
@@ -118,7 +136,24 @@ public class NativeDatabaseClient implements AutoCloseable {
         }
         return client;
     }
-    private AutoCloseable searchClient(HttpEndpointConfig asset, String kind, boolean insecure) {
+    private SearchTlsPolicy tlsPolicy(HttpEndpointConfig asset, String kind) throws Exception {
+        URI address = URI.create(asset.getUrlTemplate().replaceAll("/+$", ""));
+        for (var endpoint : tlsProperties.getEndpoints()) {
+            if (endpoint.getUrl() == null || !address.equals(URI.create(endpoint.getUrl().replaceAll("/+$", "")))) continue;
+            if (!"https".equalsIgnoreCase(address.getScheme()))
+                throw new IllegalArgumentException("Custom search TLS trust requires an HTTPS endpoint");
+            if (endpoint.getCaCertificateFile() == null || endpoint.getCaCertificateFile().isBlank())
+                throw new IllegalArgumentException("Search TLS endpoint requires ca-certificate-file");
+            byte[] certificate = java.nio.file.Files.readAllBytes(java.nio.file.Path.of(endpoint.getCaCertificateFile()));
+            String fingerprint = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(certificate));
+            return new SearchTlsPolicy(certificate, endpoint.getServerName(), false, fingerprint + ":" + endpoint.getServerName());
+        }
+        boolean insecure = usesConfiguredOpenSearchTlsPolicy(asset, kind);
+        return new SearchTlsPolicy(null, null, insecure, "insecure=" + insecure);
+    }
+    private record SearchTlsPolicy(byte[] certificate, String serverName, boolean insecure, String fingerprint) {}
+
+    private AutoCloseable searchClient(HttpEndpointConfig asset, String kind, SearchTlsPolicy tls) {
         URI uri = URI.create(asset.getUrlTemplate());
         HttpHost host = new HttpHost(uri.getHost(), uri.getPort(), uri.getScheme());
         var headers = headers(asset);
@@ -127,12 +162,12 @@ public class NativeDatabaseClient implements AutoCloseable {
         String prefix = URI.create(asset.getUrlTemplate()).getPath().replaceAll("/+$", "");
         if (kind.equals("elasticsearch")) {
             var builder = org.elasticsearch.client.RestClient.builder(host).setDefaultHeaders(defaults)
-                .setHttpClientConfigCallback(client -> configureTransport(client, insecure));
+                .setHttpClientConfigCallback(client -> configureTransport(client, tls));
             if (!prefix.isBlank()) builder.setPathPrefix(prefix);
             return builder.build();
         }
         var builder = org.opensearch.client.RestClient.builder(host).setDefaultHeaders(defaults)
-            .setHttpClientConfigCallback(client -> configureTransport(client, insecure));
+            .setHttpClientConfigCallback(client -> configureTransport(client, tls));
         if (!prefix.isBlank()) builder.setPathPrefix(prefix);
         return builder.build();
     }

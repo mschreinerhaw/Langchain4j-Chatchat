@@ -1,0 +1,45 @@
+import {chromium} from '../chatchat-api/web-app/node_modules/playwright-core/index.mjs';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const origin='http://192.168.195.221:18101';
+const out='target/opensearch-drivers';
+const browser=await chromium.launch({executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true,args:['--no-proxy-server']});
+try {
+ const context=await browser.newContext({viewport:{width:1500,height:1050}});
+ const login=await context.request.post(origin+'/api/v1/admin/auth/login',{data:{username:'admin',password:process.env.E2E_MCP_PASSWORD}});
+ const auth=(await login.json()).data;assert.ok(auth.token);
+ await context.addInitScript(a=>{sessionStorage.setItem('chatchat.mcp.admin.token',a.token);sessionStorage.setItem('chatchat.mcp.admin.user',a.username);sessionStorage.setItem('chatchat.mcp.admin.expiresAt',String(a.expiresAt));sessionStorage.setItem('chatchat.mcp.admin.lastActivityAt',String(Date.now()));},auth);
+ const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto(origin+'/admin/index.html');
+ await page.getByText('资产与执行模板',{exact:true}).click();
+ await page.getByRole('tab',{name:'数据库资产',exact:true}).click();
+ await page.getByPlaceholder('搜索名称、工具、JDBC、账号、数据库类型或环境').fill('db_query_opensearch_dev');
+ const row=page.locator('.el-table__row').filter({hasText:'db_query_opensearch_dev'});await row.getByText('编辑',{exact:true}).click();
+ const editor=page.getByRole('dialog').filter({hasText:'编辑数据库资产'});
+ const response=page.waitForResponse(r=>r.url().endsWith('/api/v1/sql/datasources/test')&&r.request().method()==='POST');
+ await editor.getByRole('button',{name:'测试连接',exact:true}).click();
+ const result=(await (await response).json()).data;assert.equal(result.success,true,result.errorMessage);
+ const newsIndex=result.diagnostics.metadataScopeOptions.filter(name=>name.startsWith('runtime-news-')).sort().at(-1);
+ assert.ok(newsIndex);
+ const metadataResponse=await context.request.get(origin+'/api/v1/sql/datasources/'+result.datasourceId+'/metadata',{headers:{Authorization:'Bearer '+auth.token}});
+ const snapshot=(await metadataResponse.json()).data.snapshot;
+ assert.ok(snapshot.objects.length);
+ assert.ok(snapshot.objects.every(object=>object.kind==='INDEX'&&object.name.startsWith('runtime-news-')));
+ const fieldCount=snapshot.objects.reduce((sum,object)=>sum+object.fields.length,0);assert.ok(fieldCount>0);
+ await page.screenshot({path:out+'/connection-success.png',fullPage:true});
+ // Inspect the editor's real selected-range candidates after dismissing the result dialog.
+ const resultDialog=page.getByRole('dialog').filter({hasText:'db_query_opensearch_dev 测试结果'});
+ if(await resultDialog.count())await resultDialog.getByRole('button',{name:/关闭|close/i}).first().click();
+ const choose=editor.getByRole('button',{name:'选择索引范围',exact:true});
+ if(!await choose.isVisible())await editor.getByText('元数据范围',{exact:true}).click();
+ await choose.scrollIntoViewIfNeeded();
+ const index=editor.locator('.metadata-scope-options').getByText(newsIndex,{exact:true});
+ if(!await index.isVisible())await choose.click();
+ await index.waitFor({state:'visible'});
+ await index.click();
+ await editor.locator('.metadata-scope-editor').scrollIntoViewIfNeeded();
+ await page.screenshot({path:out+'/index-options.png',fullPage:true});
+ assert.equal(errors.length,0,errors.join('\n'));
+ fs.writeFileSync(out+'/ui-verification.json',JSON.stringify({connectionSuccess:true,indexOptions:result.diagnostics.metadataScopeOptions.length,metadataIndexes:snapshot.objects.length,metadataFields:fieldCount,pageErrors:errors},null,2));
+ console.log('OpenSearch UI connection and index discovery verified',result.diagnostics.metadataScopeOptions.length);
+} finally {await browser.close();}

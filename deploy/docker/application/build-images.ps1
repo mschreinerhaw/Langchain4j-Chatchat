@@ -70,7 +70,8 @@ foreach ($app in $apps) {
     & docker build --platform linux/amd64 --label "org.opencontainers.image.revision=$buildRevision" --build-arg "APP_PORT=$appPort" -t "runtime-os-$($app.Name):$Tag" $context
     if ($LASTEXITCODE -ne 0) { throw "Docker build failed for $($app.Name)." }
     $imageSize = & docker image inspect --format '{{.Size}}' "runtime-os-$($app.Name):$Tag"
-    if ($LASTEXITCODE -ne 0 -or [long]$imageSize -gt 1200MB) { throw "Image size exceeds the 1200 MiB release budget: $($app.Name)." }
+    $imageSizeBudget = if ($app.Name -eq 'mcp') { 700MB } else { 1200MB }
+    if ($LASTEXITCODE -ne 0 -or [long]$imageSize -gt $imageSizeBudget) { throw "Image size exceeds the $($imageSizeBudget / 1MB) MiB release budget: $($app.Name)." }
     $history = & docker history --no-trunc --format '{{.CreatedBy}}' "runtime-os-$($app.Name):$Tag"
     if (@($history | Where-Object { $_ -match 'COPY .*app.jar' }).Count -ne 1) { throw 'Application image must contain exactly one JAR copy layer.' }
 }

@@ -1,0 +1,91 @@
+import { chromium } from '../chatchat-api/web-app/node_modules/playwright-core/index.mjs';
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const base = 'http://192.168.195.221:18100';
+const output = 'target/sql-publication-button-fix';
+const project = 'c4f87abd-8d26-4b2d-a4fd-bb09212b9987';
+const file = '1d124dc8-ded5-41dd-ba36-57c7f5ae2020';
+fs.mkdirSync(output, { recursive: true });
+const browser = await chromium.launch({ executablePath: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless: true, args: ['--no-proxy-server'] });
+let continueTest;
+try {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  const session = (await (await context.request.post(base + '/api/v1/enterprise/auth/login', {
+    data: { username: 'admin', password: process.env.E2E_ADMIN_PASSWORD },
+  })).json()).data;
+  assert.ok(session?.token);
+  await context.addInitScript(a => localStorage.setItem('chatchat.auth.session', JSON.stringify(a)), session);
+  const headers = { Authorization: 'Bearer ' + session.token, 'X-Workspace-Id': 'data-science' };
+  const historyUrl = base + '/api/v1/data-science/sql/projects/' + project + '/files/' + file + '/template-publications';
+  const history = (await (await context.request.get(historyUrl, { headers })).json()).data;
+  const selected = history.find(row => row.active && row.title === '仓库面积明细查询');
+  assert.ok(selected, 'Existing published acceptance query');
+  const page = await context.newPage();
+  const errors = [], mutations = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('request', request => {
+    if (request.method() === 'POST' && request.url().includes('/template-publications/')) mutations.push(new URL(request.url()).pathname);
+  });
+  await page.goto(base + '/index.html#/w/data-science/sqlStudio');
+  await page.getByLabel('SQL 工程', { exact: true }).selectOption(project);
+  await page.locator('.sql-tree-file').getByTitle('sql/warehouse_details.sql', { exact: true }).click();
+  await page.getByRole('button', { name: '模板管理与发布', exact: true }).click();
+  const panel = page.getByRole('dialog', { name: '发布 MCP SQL 模板', exact: true });
+  await panel.getByLabel('模板版本').selectOption(selected.id);
+  await panel.getByRole('button', { name: '测试查询', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: '填写测试参数', exact: true });
+  await dialog.getByRole('spinbutton', { name: 'min_area', exact: true }).fill('0');
+  const button = dialog.locator('button.sql-publication-primary');
+  const style = () => button.evaluate(e => {
+    const s = getComputedStyle(e);
+    return { color: s.color, background: s.backgroundColor, opacity: s.opacity, outline: s.outlineStyle };
+  });
+  await button.hover();
+  const hover = await style();
+  assert.equal(hover.background, 'rgb(25, 93, 216)');
+  assert.equal(hover.color, 'rgb(255, 255, 255)');
+  await page.mouse.move(0, 0);
+  await button.focus();
+  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.press('Tab');
+  const focus = await style();
+  assert.equal(focus.outline, 'solid');
+  let observed;
+  const requestStarted = new Promise(resolve => { observed = resolve; });
+  const gate = new Promise(resolve => { continueTest = resolve; });
+  // Hold this real request briefly so the loading state can be inspected; its response is never mocked.
+  await page.route('**/template-publications/' + selected.id + '/test', async route => {
+    observed();
+    await gate;
+    await route.continue();
+  });
+  const resultPromise = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/template-publications/' + selected.id + '/test'));
+  resultPromise.catch(() => {});
+  await button.hover();
+  await page.mouse.down();
+  const active = await style();
+  assert.equal(active.background, hover.background);
+  await page.mouse.up();
+  await requestStarted;
+  await dialog.getByRole('button', { name: '查询中…', exact: true }).waitFor();
+  assert.equal(await button.isDisabled(), true);
+  const loading = await style();
+  assert.equal(loading.background, 'rgb(47, 124, 246)');
+  assert.equal(loading.color, 'rgb(255, 255, 255)');
+  assert.equal(loading.opacity, '0.65');
+  await page.screenshot({ path: output + '/live-query-loading.png' });
+  continueTest();
+  const result = await (await resultPromise).json();
+  assert.equal(result.code, 200, result.message);
+  assert.equal(result.data.testEvidence.success, true);
+  assert.equal(result.data.testEvidence.rowCount, 4);
+  await dialog.waitFor({ state: 'hidden' });
+  await panel.locator('.sql-test-result-preview').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: output + '/live-query-success.png' });
+  assert.deepEqual(errors, []);
+  assert.equal(mutations.length, 1);
+  assert.ok(mutations[0].endsWith('/test'));
+  const report = { hover, focus, active, loading, realQuerySuccess: true, returnedRows: 4, publicationChanged: false, delayedRequestForBusyInspection: true, browserErrors: errors };
+  fs.writeFileSync(output + '/live-verification.json', JSON.stringify(report, null, 2));
+  console.log('PASS: deployed publication test button hover/active/focus/loading colors, real SQL returns 4 rows, no publish operation');
+} finally { continueTest?.(); await browser.close(); }

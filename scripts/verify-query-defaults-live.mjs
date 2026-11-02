@@ -1,0 +1,93 @@
+import { chromium } from '../chatchat-api/web-app/node_modules/playwright-core/index.mjs';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const origin = process.env.E2E_MCP_ORIGIN || 'http://192.168.195.221:18101';
+const output = 'target/query-defaults-fix';
+fs.mkdirSync(output, { recursive: true });
+const browser = await chromium.launch({ executablePath: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless: true, args: ['--no-proxy-server'] });
+try {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  const auth = (await (await context.request.post(origin + '/api/v1/admin/auth/login', { data: { username: 'admin', password: process.env.E2E_MCP_PASSWORD } })).json()).data;
+  assert.ok(auth?.token);
+  const headers = { Authorization: 'Bearer ' + auth.token };
+  const rows = (await (await context.request.get(origin + '/api/v1/database-query/studio-publications', { headers })).json()).data;
+  const row = rows.find(item => item.title === 'TPCDS 248 仓库期间库存快照' && item.enabled);
+  assert.ok(row);
+  await context.addInitScript(a => {
+    sessionStorage.setItem('chatchat.mcp.admin.token', a.token);
+    sessionStorage.setItem('chatchat.mcp.admin.user', a.username);
+    sessionStorage.setItem('chatchat.mcp.admin.expiresAt', String(a.expiresAt));
+    sessionStorage.setItem('chatchat.mcp.admin.lastActivityAt', String(Date.now()));
+  }, auth);
+  const page = await context.newPage(), requests = [], errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  page.on('request', r => { if (r.method() === 'POST' && r.url().includes('/studio-publications/')) requests.push(r); });
+  await page.goto(origin + '/admin/index.html');
+  await page.getByText('查询能力模板', { exact: true }).click();
+  await page.getByRole('menuitem', { name: '关系库查询', exact: true }).click();
+  await page.getByPlaceholder('搜索模板名称、描述或数据源').fill(row.title);
+  const tableRow = page.locator('.catalog-table .el-table__row').filter({ hasText: row.title }).first();
+  await tableRow.getByRole('button', { name: '编辑', exact: true }).click();
+  const form = page.getByRole('dialog').filter({ has: page.locator('.entity-form') });
+  await form.locator('.database-sql-editor .monaco-editor').waitFor();
+  const basic = form.locator('.form-section').filter({ has: page.locator('.el-form-item__label').filter({ hasText: /^能力分类$/ }) });
+  const basicHeader = basic.locator('.form-section-header');
+  if (await basicHeader.getAttribute('aria-expanded') === 'false') await basicHeader.click();
+  const classification = basic.locator('.el-form-item').filter({ has: page.locator('.el-form-item__label').filter({ hasText: /^能力分类$/ }) });
+  await classification.locator('.el-select').hover();
+  const clearCategory = classification.locator('.el-select__clear');
+  if (await clearCategory.isVisible()) await clearCategory.click();
+  await basicHeader.click();
+  const toggle = form.getByRole('button', { name: /SQL 参数/ });
+  const parameters = page.locator('.el-popover:visible').filter({ has: page.locator('.database-simple-params') });
+  await toggle.click();
+  await parameters.getByRole('textbox', { name: 'warehouse_id 测试值', exact: true }).fill('2');
+  await parameters.getByRole('textbox', { name: 'start_date 测试值', exact: true }).fill('1998-01-01');
+  await parameters.getByRole('textbox', { name: 'end_date 测试值', exact: true }).fill('1998-01-29');
+  assert.equal(await parameters.getByRole('textbox', { name: 'min_on_hand 测试值', exact: true }).inputValue(), '0');
+  assert.equal(await parameters.getByRole('checkbox', { name: '使用 null', exact: true }).isChecked(), true);
+  await toggle.click();
+  if (process.env.E2E_EXPECT_BLOCKED === '1') {
+    await form.getByRole('button', { name: '执行查询', exact: true }).click();
+    await page.getByText(/能力分类不能为空/).first().waitFor();
+    assert.equal(requests.length, 0);
+    await page.screenshot({ path: output + '/before.png' });
+    console.log('REPRODUCED: supplied SQL inputs blocked by unrelated capability category validation');
+  } else {
+    // Required SQL inputs still block execution; publishing metadata does not.
+    await toggle.click();
+    await parameters.getByRole('textbox', { name: 'warehouse_id 测试值', exact: true }).fill('');
+    await toggle.click();
+    await form.getByRole('button', { name: '执行查询', exact: true }).click();
+    await page.getByText(/请填写必填参数的测试值：warehouse_id/).first().waitFor();
+    assert.equal(requests.length, 0);
+    await toggle.click();
+    await parameters.getByRole('textbox', { name: 'warehouse_id 测试值', exact: true }).fill('2');
+    await toggle.click();
+    const pending = page.waitForResponse(r => r.request().method() === 'POST' && r.url().endsWith('/studio-publications/' + row.templateId + '/test'));
+    pending.catch(() => {});
+    await form.getByRole('button', { name: '执行查询', exact: true }).click();
+    const response = await pending;
+    const sent = response.request().postDataJSON().parameters;
+    assert.deepEqual(sent, { warehouse_id: 2, start_date: '1998-01-01', end_date: '1998-01-29', min_on_hand: 0, category: null });
+    const result = await response.json();
+    assert.equal(result.code, 200, result.message);
+    assert.equal(result.data.testEvidence.success, true, result.data.testEvidence.diagnostic);
+    await form.locator('.database-preview-result').waitFor();
+    await form.locator('.database-preview-summary').first().scrollIntoViewIfNeeded();
+    await page.screenshot({ path: output + '/after.png' });
+    await form.getByRole('button', { name: '保存', exact: true }).click();
+    await page.getByText(/能力分类不能为空/).first().waitFor();
+    assert.equal(requests.length, 1, 'Save metadata remains required; only the test request was sent');
+    await form.getByRole('button', { name: '取消', exact: true }).click();
+    await tableRow.getByRole('button', { name: '测试', exact: true }).click();
+    const test = page.getByRole('dialog').filter({ has: page.getByRole('button', { name: '发送请求', exact: true }) });
+    await test.waitFor();
+    await test.getByRole('button', { name: '取消', exact: true }).click();
+    assert.deepEqual(errors, []);
+    const report = { origin, queryExecutionSuccess: true, parameters: sent, returnedRows: result.data.testEvidence.rowCount,
+      missingRequiredParameterRejected: true, saveStillRequiresCategory: true, listTestOpens: true, browserErrors: errors };
+    fs.writeFileSync(output + '/verification.json', JSON.stringify(report, null, 2));
+    console.log(JSON.stringify(report));
+  }
+} finally { await browser.close(); }

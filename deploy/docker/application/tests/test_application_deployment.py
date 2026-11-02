@@ -45,7 +45,9 @@ class ApplicationDeploymentTest(unittest.TestCase):
                       'API_INTERNAL_KEY_FILE': '/keys/api', 'MCP_INTERNAL_KEY_FILE': '/keys/mcp',
                       'CODING_AGENT_SHARED_SECRET_FILE': '/keys/shared', 'CODING_AGENT_NODE_SECRET_FILE': '/keys/node',
                       'CODING_MONITOR_TOKEN_FILE': '/keys/monitor',
-                      'NEWS_DATA_DIR': '/existing/news/data', 'NEWS_CONFIG_DIR': '/existing/news/config'}
+                      'NEWS_DATA_DIR': '/existing/news/data', 'NEWS_CONFIG_DIR': '/existing/news/config',
+                      'JDBC_DRIVERS_DIR': '/existing/lib/drivers',
+                      'NATIVE_SEARCH_TLS_DIR': '/existing/config/native-search-tls'}
             for key in ['POSTGRESQL_ADMIN_PASSWORD_FILE', 'POSTGRESQL_API_PASSWORD_FILE',
                         'POSTGRESQL_MCP_PASSWORD_FILE', 'REDIS_PASSWORD_FILE',
                         'OPENSEARCH_ADMIN_PASSWORD_FILE', 'BOOTSTRAP_ADMIN_PASSWORD_FILE', 'NEWS_DATABASE_PASSWORD_FILE', 'NEWS_INTERNAL_KEY_FILE', 'INTERNAL_CREDENTIAL_ENCRYPTED_FILE', 'WSA_SECRET_ID_FILE', 'WSA_SECRET_KEY_FILE']:
@@ -86,6 +88,14 @@ class ApplicationDeploymentTest(unittest.TestCase):
         for service in ['api','mcp']:
             mount=next(v for v in doc['services'][service]['volumes'] if v['target']=='/srv/app/data')
             self.assertEqual(mount['source'],stage+'/'+service+'/data')
+            drivers=next(v for v in doc['services'][service]['volumes'] if v['target']=='/srv/app/lib/drivers')
+            self.assertEqual(drivers['source'],'/existing/lib/drivers')
+            self.assertTrue(drivers['read_only'])
+            self.assertFalse(drivers['bind'].get('create_host_path',False))
+        mcp=doc['services']['mcp']
+        tls=next(v for v in mcp['volumes'] if v['target']=='/srv/app/config/native-search-tls')
+        self.assertTrue(tls['read_only'])
+        self.assertIn('native-search-tls/application.yml',mcp['environment']['SPRING_CONFIG_ADDITIONAL_LOCATION'])
         api=doc['services']['api']
         self.assertEqual(api['environment']['CHATCHAT_CHAT_DETAIL_STORE_PATH'],'/srv/app/data/chat-rocksdb')
         self.assertEqual(api['environment']['CHATCHAT_CHAT_DETAIL_STORE_EXTERNAL_TEXT_ENABLED'],'true')

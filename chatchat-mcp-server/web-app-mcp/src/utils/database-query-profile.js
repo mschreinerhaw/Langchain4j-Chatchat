@@ -20,8 +20,8 @@ export function databaseQueryProfile(source, family = 'relational') {
   return {
     type, language: type === 'TRINO' ? 'Trino SQL' : 'SQL', title: type === 'TRINO' ? '只读 Trino SQL' : '只读 SQL',
     queryLabel: 'SQL 查询语句', stepPrefix: 'SQL', hint: '支持 SELECT、SHOW、DESCRIBE、EXPLAIN',
-    placeholder: 'SELECT ... WHERE customer_id = :customerId',
-    parameterHint: '可识别 :name、${trade_date}、{{name}}；扫描只补充缺失参数，不覆盖已有配置。',
+    placeholder: 'SELECT ... WHERE customer_id = {{customerId}}',
+    parameterHint: '统一使用 {{参数名}}，参数外无需加引号；在此选择来源并填写测试值。',
     previewLabel: '参数代入后 SQL', jsonBody: false
   };
 }

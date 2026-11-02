@@ -456,17 +456,16 @@
             }}</p
             ><button v-if="canEditDraft" type="button" :disabled="busy" @click="editDraft"
               >修改当前草稿</button
-            ><details class="permission-advanced" open
-              ><summary>模板与执行定义</summary
-              ><pre>{{ pretty(selected.definitionJson) }}</pre></details
-            ><details class="permission-advanced"
-              ><summary>输入结构（Schema）</summary
-              ><pre>{{ pretty(selected.inputSchemaJson) }}</pre></details
-            ><details class="permission-advanced"
-              ><summary>输出结构（Schema）</summary
-              ><pre>{{ pretty(selected.outputSchemaJson) }}</pre>
-            </details></template
-          >
+            ><PublicationDefinition
+              :definition="selectedDefinition"
+              :catalog="definitionTemplates"
+              :catalog-state="definitionCatalogState"
+              :execution-label="parentName(selectedDefinition.parentToolName)"
+              :role-label="roleName(selectedDefinition.roleId)"
+              :input-schema="selected.inputSchemaJson"
+              :output-schema="selected.outputSchemaJson"
+              @retry="loadDefinitionTemplates(true)"
+          /></template>
           <template v-else
             ><div v-if="testable" class="publication-test-form"
               ><label

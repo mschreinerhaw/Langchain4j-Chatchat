@@ -59,6 +59,64 @@ async function mount() {
   await flush();
   return vm;
 }
+it('renders names, scope and parameter fields instead of definition JSON, preserving the version snapshot', async () => {
+  const original = apiRequest.getMockImplementation();
+  const live = { ...release('live', 1, 'RUNNING'),
+    definitionJson: JSON.stringify({ ...definition, templateKeys: ['authorized', 'retired'] }),
+    inputSchemaJson: JSON.stringify({ type: 'object', properties: { limit: { type: 'integer', default: 0 }, nullable: { type: ['string', 'null'], default: null } } }) };
+  apiRequest.mockImplementation((path, options) => path === '/tool-publications' ? Promise.resolve([live])
+    : path.includes('/templates?') ? Promise.resolve([{ key: 'authorized', title: '已授权模板' }, { key: 'unbound', title: '范围外模板' }]) : original(path, options));
+  const vm = await mount();
+  vm.activeTab = 'definition';
+  await flush();
+  const panel = root.querySelector('.publication-definition');
+  expect(panel.textContent).toContain('业务角色');
+  expect(panel.textContent).toContain('已授权模板');
+  expect(panel.textContent).toContain('当前目录未找到');
+  expect(panel.textContent).not.toContain('范围外模板');
+  expect(panel.textContent).toContain('默认值：0');
+  expect(panel.textContent).toContain('默认值：空值');
+  expect(root.querySelector('#publication-panel-definition pre')).toBeNull();
+  expect(vm.selected.definitionJson).toBe(live.definitionJson);
+  expect(apiRequest.mock.calls.some(([, options]) => options?.method)).toBe(false);
+});
+
+it('retains binding cards when catalog lookup fails and supports a read-only retry', async () => {
+  const original = apiRequest.getMockImplementation();
+  let attempts = 0;
+  apiRequest.mockImplementation((path, options) => path.includes('/templates?')
+    ? ++attempts === 1 ? Promise.reject(new Error('unavailable')) : Promise.resolve([{ key: 'authorized', title: '恢复的模板名称' }]) : original(path, options));
+  const vm = await mount();
+  vm.activeTab = 'definition';
+  await flush();
+  expect(vm.definitionCatalogState).toBe('error');
+  expect(root.querySelectorAll('.publication-definition-template')).toHaveLength(1);
+  expect(root.textContent).toContain('当前版本的绑定范围已保留');
+  [...root.querySelectorAll('button')].find(button => button.textContent === '重新加载').click();
+  await flush();
+  expect(root.textContent).toContain('恢复的模板名称');
+  expect(vm.definitionCatalogState).toBe('ready');
+});
+
+it('does not apply a late catalog response to a different selected tool', async () => {
+  const original = apiRequest.getMockImplementation();
+  let finishFirst;
+  const first = release('first', 1, 'RUNNING');
+  const second = { ...release('second', 1, 'RUNNING'), logicalId: 'another-tool', title: '另一工具',
+    definitionJson: JSON.stringify({ ...definition, roleId: 'other-role', templateKeys: ['next'] }) };
+  apiRequest.mockImplementation((path, options) => path === '/tool-publications' ? Promise.resolve([first, second])
+    : path.includes('/templates?') ? path.includes('other-role') ? Promise.resolve([{ key: 'next', title: '新工具模板' }])
+      : new Promise(resolve => { finishFirst = resolve; }) : original(path, options));
+  const vm = await mount();
+  vm.choose(first); vm.activeTab = 'definition';
+  await flush();
+  vm.choose(second); vm.activeTab = 'definition';
+  await flush();
+  finishFirst([{ key: 'authorized', title: '旧请求结果' }]);
+  await flush();
+  expect(root.textContent).toContain('新工具模板');
+  expect(root.textContent).not.toContain('旧请求结果');
+});
 it("groups versions into one business tool while preserving version selection and state filters", async () => {
   const vm = await mount();
   expect(vm.stateFilter).toBe("RUNNING");

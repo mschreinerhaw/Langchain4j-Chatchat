@@ -1,14 +1,19 @@
+import { schemaFields } from './ApiTestParameterDialog.js';
+import { defineAsyncComponent } from 'vue';
 import { ElMessageBox } from 'element-plus';
 import ModalPanel from '../../components/ModalPanel.vue';
 import ApiTestParameterDialog from '../../components/ApiTestParameterDialog.vue';
 import { parseJsonObject, prettyJson } from '../../utils/json';
 import { buildTestNotification, isTestFailure } from '../../utils/test-result';
 import { databaseQueryProfile } from '../../utils/database-query-profile';
+import { normalizeSqlParameters, sqlParameterTokens } from '../../utils/sql-parameter-syntax';
 import '../../styles/components/crud-catalog.css';
+
+const SqlQueryEditor = defineAsyncComponent(() => import('../../components/SqlQueryEditor.vue'));
 
 export default {
   name: 'CrudCatalog',
-  components: { ModalPanel, ApiTestParameterDialog },
+  components: { ModalPanel, ApiTestParameterDialog, SqlQueryEditor },
   props: {
     title: { type: String, required: true },
     createLabel: { type: String, default: '新增' },
@@ -157,6 +162,9 @@ export default {
         section.fields.push(field);
       });
       return sections;
+    },
+    hasSimpleSqlEditor() {
+      return this.visibleFormFields.some(field => field.type === 'databaseSqlEditor');
     },
     hasDatabaseWorkflowField() {
       return this.formFields.some(field => field.type === 'databaseSqlSteps');
@@ -423,6 +431,10 @@ export default {
         this.databaseSqlSideTabs[field.key] = 'inputs';
       });
       this.visibleFormFields.filter(field => field.type === 'databaseParamConfig').forEach(field => {
+        if (this.hasSimpleSqlEditor) {
+          this.prepareSimpleSqlEditor(field);
+          return;
+        }
         this.migrateLegacyAutoDatabaseFlowInputs(field);
         this.syncDatabaseParamsFromSql(field, false);
       });
@@ -438,10 +450,11 @@ export default {
     },
     prepareFormSections() {
       this.collapsedFormSections = this.formSections
-        .filter(section => defaultSectionCollapsed(section.key))
+        .filter(section => defaultSectionCollapsed(section.key) || (this.hasSimpleSqlEditor && section.key !== 'query'))
         .map(section => section.key);
     },
     async saveForm() {
+      if (this.hasSimpleSqlEditor) this.syncSimpleSqlParams();
       if (!this.validateFormBeforeSubmit()) return;
       if (!this.validateDatabaseParameterCompleteness(false)) return;
       this.busy = true;
@@ -481,7 +494,7 @@ export default {
       });
       this.visibleFormFields.filter(field => field.type === 'databaseParamConfig').forEach(field => {
         const rows = this.schemaDraft[field.key] || [];
-        payload[field.schemaKey] = rowsToDatabaseSchema(rows);
+        if (this.form.sourceKind !== 'SQL_STUDIO') payload[field.schemaKey] = rowsToDatabaseSchema(rows);
         payload[field.paramsKey] = rowsToDatabaseParams(rows);
         delete payload[field.key];
       });
@@ -498,16 +511,26 @@ export default {
         const value = Number(payload[field.key]);
         payload[field.key] = Number.isFinite(value) ? Math.round(value * field.unitScale) : payload[field.key];
       });
+      if (this.hasSimpleSqlEditor && this.form.sourceKind !== 'SQL_STUDIO') {
+        payload.sqlTemplate = normalizeSqlParameters(payload.sqlTemplate);
+        payload.sqlSteps = [];
+        payload.sqlStepsJson = null;
+        payload.implementationSteps = payload.implementationSteps || '执行 SQL 查询并返回结果。';
+      }
       return payload;
     },
     async testFormDraft() {
       if (!this.formTestAction) return;
-      if (!this.validateFormBeforeSubmit()) return;
-      if (!this.validateDatabaseParameterCompleteness(this.formPreviewType !== 'databaseQuery')) return;
+      if (this.hasSimpleSqlEditor) {
+        this.normalizeSimpleSql();
+        this.syncSimpleSqlParams();
+      }
+      if (!this.validateFormBeforeSubmit(true)) return;
+      if (!this.validateDatabaseParameterCompleteness(this.hasSimpleSqlEditor || this.formPreviewType !== 'databaseQuery')) return;
       try {
         const payload = this.formPayload();
         const parameterSchema = payload.inputSchemaJson || payload.inputSchema;
-        const args = parameterSchema
+        const args = this.hasSimpleSqlEditor ? payload.parameters : parameterSchema
           ? await this.$refs.apiTestParameterDialog.open({
             title: `${payload.title || payload.toolName || payload.name || 'API'} 请求测试`,
             schema: parameterSchema
@@ -557,7 +580,7 @@ export default {
         try { item = await this.loadItem(item); }
         catch (error) { this.$emit('error', error); return; }
       }
-      if (!this.validateFieldsBeforeSubmit(item, false)) return;
+      if (!this.validateFieldsBeforeSubmit(item, false, true)) return;
       try {
         const schema = item.inputSchema || item.inputSchemaJson;
         let args;
@@ -681,7 +704,7 @@ export default {
     },
     renderedSectionFields(section) {
       const fields = Array.isArray(section?.fields) ? section.fields : [];
-      if (!this.hasDatabaseWorkflowField) return fields;
+      if (!this.hasDatabaseWorkflowField && !this.hasSimpleSqlEditor) return fields;
       return fields.filter(field => field.type !== 'databaseParamConfig');
     },
     isFieldRequired(field, form = this.form) {
@@ -699,8 +722,8 @@ export default {
       if (Array.isArray(value)) return value.length === 0;
       return false;
     },
-    validateFormBeforeSubmit() {
-      return this.validateFieldsBeforeSubmit(this.form, true);
+    validateFormBeforeSubmit(executionOnly = false) {
+      return this.validateFieldsBeforeSubmit(this.form, true, executionOnly);
     },
     validateDatabaseParameterCompleteness(requireTestValues) {
       this.databaseParameterValidationAttempted = Boolean(requireTestValues);
@@ -726,7 +749,7 @@ export default {
       const missingTestValues = rows
         .filter(row => row?.required
           && (!row.defaultSource || row.defaultSource === 'user_input')
-          && this.isEmptyFieldValue(row.testValue))
+          && !row.useNull && this.isEmptyFieldValue(row.testValue))
         .map(row => String(row.name || '').trim())
         .filter(Boolean);
 
@@ -763,7 +786,7 @@ export default {
       });
 
       if (requireTestValues && missingTestValues.length) {
-        errors.push(`请填写必填参数的流程测试值：${missingTestValues.join('、')}`);
+        errors.push(`请填写必填参数的测试值：${missingTestValues.join('、')}`);
       }
       if (!errors.length) return true;
       if (workflowField) {
@@ -772,10 +795,13 @@ export default {
       this.$emit('error', new Error(`参数配置不完整：${[...new Set(errors)].join('；')}`));
       return false;
     },
-    validateFieldsBeforeSubmit(form, useDraft) {
+    validateFieldsBeforeSubmit(form, useDraft, executionOnly = false) {
       const errors = [];
       const invalidSections = new Set();
-      this.formFields.filter(field => this.isFieldVisible(field, form)).forEach(field => {
+      const queryExecution = executionOnly && this.formPreviewType === 'databaseQuery';
+      this.formFields.filter(field => this.isFieldVisible(field, form)
+        && (!queryExecution || ['datasourceId', 'sqlTemplate', 'maxRows', 'timeoutSeconds'].includes(field.key)
+          || ['databaseSqlSteps', 'databaseSqlEditor'].includes(field.type))).forEach(field => {
         const value = this.fieldValidationValue(field, form, useDraft);
         if (this.isFieldRequired(field, form) && this.isEmptyFieldValue(value)) {
           errors.push(`${field.label}不能为空`);
@@ -1296,6 +1322,50 @@ export default {
         });
       }
       param._previousName = name;
+    },
+    prepareSimpleSqlEditor(field) {
+      if (this.form.sourceKind === 'SQL_STUDIO') {
+        this.schemaDraft[field.key] = schemaFields(this.form.inputSchema).map(definition => {
+          const value = Object.hasOwn(this.form.parameters || {}, definition.name)
+            ? this.form.parameters[definition.name] : definition.defaultValue;
+          return { ...databaseParamRow({ ...definition, testValue: value }),
+            nullable: definition.nullable, useNull: value === null,
+            enumValues: definition.enumValues };
+        });
+        return;
+      }
+      const steps = normalizeDatabaseSqlSteps(this.form.sqlSteps, this.form.sqlTemplate);
+      const step = steps.find(item => item.enabled !== false);
+      if (step) this.form.sqlTemplate = step.sqlContent;
+      this.normalizeSimpleSql();
+      const rows = this.schemaDraft[field.key] || [];
+      this.extractQueryParameters(this.form.sqlTemplate).forEach(param => {
+        if (rows.some(row => row.name === param.name)) return;
+        const mapping = step?.parameterMappings?.find(item => item.parameter === param.name);
+        const input = mapping?.sourceType === 'USER_INPUT'
+          ? rows.find(row => row.name === mapping.sourceKey) : null;
+        const source = mapping?.sourceType === 'SYSTEM_CONTEXT' ? mapping.sourceKey : input?.defaultSource || param.defaultSource;
+        const value = step?.parameters?.[param.name] ?? mapping?.defaultValue;
+        rows.push(databaseParamRow({ ...param, ...input, name: param.name, required: input?.required ?? !param.dynamic,
+          defaultSource: source || 'user_input', testValue: input?.testValue ?? value ?? '',
+          description: input?.description || param.description || '' }));
+      });
+      this.schemaDraft[field.key] = rows;
+      this.syncSimpleSqlParams();
+    },
+    syncSimpleSqlParams() {
+      const field = this.databaseParamConfigField();
+      if (!field) return;
+      if (this.form.sourceKind === 'SQL_STUDIO') return;
+      const rows = this.schemaDraft[field.key] || [];
+      this.schemaDraft[field.key] = this.extractQueryParameters(this.form.sqlTemplate).map(param =>
+        rows.find(row => row.name === param.name) || databaseParamRow({
+          ...param, required: !param.dynamic, defaultSource: param.defaultSource || 'user_input'
+        }));
+      this.formTestResult = null;
+    },
+    normalizeSimpleSql() {
+      if (this.form.sourceKind !== 'SQL_STUDIO') this.form.sqlTemplate = normalizeSqlParameters(this.form.sqlTemplate);
     },
     syncDatabaseParamsFromSql(field, notifyUser = false, targetSqlCode = '') {
       const rows = [...(this.schemaDraft[field.key] || [])];
@@ -1919,6 +1989,10 @@ function rowsToDatabaseParams(rows) {
   return rows.reduce((result, row) => {
     const name = String(row.name || '').trim();
     const defaultSource = row.defaultSource || 'user_input';
+    if (name && defaultSource === 'user_input' && row.useNull) {
+      result[name] = null;
+      return result;
+    }
     if (!name || defaultSource !== 'user_input' || row.testValue === '') {
       return result;
     }
@@ -2145,7 +2219,11 @@ function extractDatabaseQueryParameters(sql, sourceType = 'RELATIONAL') {
   const namedPattern = sourceType === 'GRAPH' ? /(^|[^$])\$([A-Za-z_][A-Za-z0-9_]*)\b/g
     : sourceType === 'UNSTRUCTURED' ? /$^/g : /(^|[^:]):([A-Za-z_][A-Za-z0-9_]*)\b/g;
   let match;
-  while ((match = namedPattern.exec(text)) !== null) {
+  if (sourceType !== 'GRAPH' && sourceType !== 'UNSTRUCTURED') {
+    sqlParameterTokens(text).forEach(token => params.set(token.name,
+      databaseQueryParamDescriptor(token.name, DATABASE_DYNAMIC_PARAMS.has(token.name), token.name)));
+  }
+  while ((sourceType === 'GRAPH' || sourceType === 'UNSTRUCTURED') && (match = namedPattern.exec(text)) !== null) {
     const name = match[2];
     params.set(name, databaseQueryParamDescriptor(name, DATABASE_DYNAMIC_PARAMS.has(name), name));
   }
@@ -2161,7 +2239,7 @@ function extractDatabaseQueryParameters(sql, sourceType = 'RELATIONAL') {
   }
 
   const mustachePattern = /\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*}}/g;
-  while ((match = mustachePattern.exec(text)) !== null) {
+  while ((sourceType === 'GRAPH' || sourceType === 'UNSTRUCTURED') && (match = mustachePattern.exec(text)) !== null) {
     const name = match[1];
     if (!params.has(name)) {
       params.set(name, databaseQueryParamDescriptor(name, DATABASE_DYNAMIC_PARAMS.has(name), name));

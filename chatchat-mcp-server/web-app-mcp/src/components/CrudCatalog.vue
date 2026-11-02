@@ -486,6 +486,128 @@
                       </div>
                     </div>
                     <div
+                      v-else-if="field.type === 'databaseSqlEditor'"
+                      class="database-simple-query"
+                    >
+                      <p v-if="form.sqlSteps?.length > 1" class="field-help"
+                        >原配置包含 {{ form.sqlSteps.length }} 个步骤，当前展示首个启用步骤的
+                        SQL；保存后将替换为单条 SQL 查询。</p
+                      >
+                      <div class="database-simple-editor">
+                        <SqlQueryEditor
+                          v-model="form[field.key]"
+                          :readonly="isFieldReadonly(field)"
+                          :parameters="schemaDraft.queryParameters || []"
+                          @update:model-value="syncSimpleSqlParams"
+                          @blur="normalizeSimpleSql"
+                          @execute="!busy && testFormDraft()"
+                          @error="$emit('error', $event)"
+                        />
+                        <div class="database-simple-toolbar">
+                          <el-popover placement="bottom-start" :width="640" trigger="click">
+                            <template #reference>
+                              <el-button text type="primary"
+                                >SQL 参数 ·
+                                {{ schemaDraft.queryParameters?.length || 0 }}</el-button
+                              >
+                            </template>
+                            <div class="database-simple-params">
+                              <strong>SQL 参数</strong>
+                              <p class="field-help">{{
+                                isFieldReadonly(field)
+                                  ? "沿用 SQL Studio 参数定义，填写测试值后执行查询。"
+                                  : databaseQueryProfile.parameterHint
+                              }}</p>
+                              <div v-if="!schemaDraft.queryParameters?.length" class="field-help"
+                                ><span v-pre
+                                  >暂无参数，在 SQL 中输入 {{ 参数名 }} 即可添加。</span
+                                ></div
+                              >
+                              <div
+                                v-for="entry in schemaDraft.queryParameters"
+                                :key="entry.name"
+                                class="database-simple-param"
+                              >
+                                <code>{{ entry.name }}</code>
+                                <el-select
+                                  :disabled="isFieldReadonly(field)"
+                                  v-model="entry.type"
+                                  aria-label="参数类型"
+                                >
+                                  <el-option
+                                    v-for="option in schemaTypeOptions"
+                                    :key="option.value"
+                                    :label="option.label"
+                                    :value="option.value"
+                                  />
+                                </el-select>
+                                <el-select
+                                  :disabled="isFieldReadonly(field)"
+                                  v-model="entry.defaultSource"
+                                  filterable
+                                  aria-label="参数来源"
+                                  @change="handleDatabaseParamSourceChange(entry)"
+                                >
+                                  <el-option
+                                    v-for="option in databaseParamSourceOptions"
+                                    :key="option.value"
+                                    :label="option.label"
+                                    :value="option.value"
+                                  />
+                                </el-select>
+                                <el-select
+                                  v-if="entry.enumValues"
+                                  v-model="entry.testValue"
+                                  clearable
+                                  :disabled="entry.useNull"
+                                  :aria-label="entry.name + ' 测试值'"
+                                >
+                                  <el-option
+                                    v-for="value in entry.enumValues"
+                                    :key="String(value)"
+                                    :label="String(value)"
+                                    :value="String(value)"
+                                  />
+                                </el-select>
+                                <el-input
+                                  v-else
+                                  v-model="entry.testValue"
+                                  :disabled="entry.useNull || entry.defaultSource !== 'user_input'"
+                                  placeholder="测试值"
+                                  :aria-label="entry.name + ' 测试值'"
+                                  @input="formTestResult = null"
+                                />
+                                <el-checkbox v-if="entry.nullable" v-model="entry.useNull"
+                                  >使用 null</el-checkbox
+                                >
+                                <el-checkbox
+                                  v-model="entry.required"
+                                  :disabled="
+                                    isFieldReadonly(field) || entry.defaultSource !== 'user_input'
+                                  "
+                                  >必填</el-checkbox
+                                >
+                                <el-input
+                                  :readonly="isFieldReadonly(field)"
+                                  v-model="entry.description"
+                                  placeholder="参数说明（选填）"
+                                  :aria-label="entry.name + ' 参数说明'"
+                                />
+                              </div>
+                            </div>
+                          </el-popover>
+                          <el-button
+                            v-if="formTestAction"
+                            text
+                            type="primary"
+                            :loading="busy"
+                            @click="testFormDraft"
+                            >执行查询</el-button
+                          >
+                        </div>
+                      </div>
+                    </div>
+                    <div
                       v-else-if="field.type === 'databaseSqlSteps'"
                       class="database-flow-workspace"
                     >
@@ -1329,13 +1451,13 @@
         <div class="database-preview-title">
           <div>
             <h3>预览结果</h3>
-            <p>集中查看查询语句、返回数据表、完整错误和 JSON 结果。</p>
+            <p>查看查询语句、返回数据表和错误信息。</p>
           </div>
           <el-text v-if="busy" type="info">正在执行...</el-text>
         </div>
 
         <div v-if="!formTestResult" class="database-preview-empty">
-          完成配置后点击“测试流程”，详细结果将在这里展示。
+          完成配置后点击“执行查询”，详细结果将在这里展示。
         </div>
         <div v-else class="database-preview-result">
           <div class="database-preview-summary">
@@ -1492,18 +1614,17 @@
               </div>
             </el-tab-pane>
           </el-tabs>
-
-          <details class="database-preview-json">
-            <summary>完整 JSON</summary>
-            <pre class="json-block"><code>{{ prettyPreviewJson(formTestResult) }}</code></pre>
-          </details>
         </div>
       </section>
 
       <template #footer>
-        <el-button v-if="formTestAction" plain :loading="busy" @click="testFormDraft">{{
-          formTestLabel
-        }}</el-button>
+        <el-button
+          v-if="formTestAction && !hasSimpleSqlEditor"
+          plain
+          :loading="busy"
+          @click="testFormDraft"
+          >{{ formTestLabel }}</el-button
+        >
         <el-button @click="formOpen = false">取消</el-button>
         <el-button type="primary" :loading="busy" @click="saveForm">保存</el-button>
       </template>

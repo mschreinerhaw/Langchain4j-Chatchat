@@ -90,6 +90,44 @@ class DatabaseQueryInvokeServiceTest {
     }
 
     @Test
+    void executesTemplateSyntaxThroughNamedJdbcBindingsWithoutInterpolatingValues() {
+        when(toolRegistry.hasTool("database_query")).thenReturn(true);
+        when(toolRegistry.executeEnhancedTool(eq("database_query"), any(ToolInput.class)))
+            .thenReturn(ToolOutput.success(Map.of("rowCount", 1)));
+        Map<String, Object> args = new java.util.LinkedHashMap<>();
+        args.put("warehouse_id", 2);
+        args.put("category", null);
+        args.put("name", "x' OR 1=1 --");
+        Map<String, Object> request = Map.of("sql", "SELECT {{warehouse_id}}, {{category}}, {{name}}", "params", args);
+
+        assertThat(service.invoke(request).isSuccess()).isTrue();
+
+        ArgumentCaptor<ToolInput> input = ArgumentCaptor.forClass(ToolInput.class);
+        verify(toolRegistry).executeEnhancedTool(eq("database_query"), input.capture());
+        assertThat(input.getValue().getParameters()).containsEntry("sql", "SELECT :warehouse_id, :category, :name")
+            .containsEntry("params", args);
+        assertThat(request.get("sql")).isEqualTo("SELECT {{warehouse_id}}, {{category}}, {{name}}");
+    }
+
+    @Test
+    void builtinFinancialQueriesAcceptTheSameTemplateSyntax() {
+        FinancialMarketQueryExecutor executor = mock(FinancialMarketQueryExecutor.class);
+        service.setFinancialMarketQueryExecutor(executor);
+        Map<String, Object> args = Map.of("curve_name", "curve");
+        when(executor.execute(any(), eq(args), eq(3), eq(30)))
+            .thenReturn(new FinancialMarketQueryExecutor.QueryResult("SELECT :curve_name", List.of(), List.of(), 0, 3, false));
+        DatabaseQueryConfig config = new DatabaseQueryConfig();
+        config.setDatasourceId(FinancialAnalysisQuerySamples.INTERNAL_DATASOURCE_ID);
+        config.setSqlTemplate("SELECT curve_name FROM bond_yield_curve_daily WHERE curve_name = {{curve_name}}");
+        config.setMaxRows(3);
+        config.setTimeoutSeconds(30);
+
+        assertThat(service.invokePreview(config, args).isSuccess()).isTrue();
+
+        verify(executor).execute("SELECT curve_name FROM bond_yield_curve_daily WHERE curve_name = :curve_name", args, 3, 30);
+    }
+
+    @Test
     void executesBuiltInFinancialSampleWithoutExternalDatasourceCredentials() {
         FinancialMarketQueryExecutor executor = mock(FinancialMarketQueryExecutor.class);
         service.setFinancialMarketQueryExecutor(executor);

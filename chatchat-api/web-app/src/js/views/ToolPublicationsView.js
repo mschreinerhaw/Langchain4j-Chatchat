@@ -1,14 +1,15 @@
-import { ref, computed, onMounted, onActivated, watch } from "vue";
+import { ref, computed, onMounted, onActivated, onBeforeUnmount, watch } from "vue";
 import { apiRequest, getStoredAuthSession } from "../../services/api.js";
 import { useTransientNotice } from "../utils/useTransientNotice.js";
 import AppConfirmDialog from "../../components/AppConfirmDialog.vue";
+import PublicationDefinition from "../../components/publications/PublicationDefinition.vue";
 import "../../styles/pages/permission-workspace.css";
 import "../../styles/pages/tool-publications.css";
 import "../../styles/pages/tool-categories.css";
 
 export default {
   name: "ToolPublicationsView",
-  components: { AppConfirmDialog },
+  components: { AppConfirmDialog, PublicationDefinition },
   emits: ["navigate"],
   setup() {
     const rows = ref([]),
@@ -94,6 +95,44 @@ export default {
       selectedCategoryId.value = row?.businessCategoryId || "";
     });
     const selectedDefinition = computed(() => parse(selected.value?.definitionJson, {}));
+    const definitionTemplates = ref([]), definitionCatalogState = ref('idle');
+    const definitionCatalogCache = new Map();
+    let definitionCatalogSerial = 0;
+    async function loadDefinitionTemplates(force = false) {
+      const serial = ++definitionCatalogSerial;
+      definitionTemplates.value = [];
+      const current = selectedDefinition.value;
+      if (!selected.value || !current.parentToolName || !current.roleId) {
+        definitionCatalogState.value = 'ready';
+        return;
+      }
+      const key = JSON.stringify([current.parentToolName, current.roleId]);
+      if (force) definitionCatalogCache.delete(key);
+      if (definitionCatalogCache.has(key)) {
+        definitionTemplates.value = definitionCatalogCache.get(key);
+        definitionCatalogState.value = 'ready';
+        return;
+      }
+      definitionCatalogState.value = 'loading';
+      try {
+        const result = await apiRequest(`/tool-publications/catalog/templates?roleId=${encodeURIComponent(current.roleId)}&parentToolName=${encodeURIComponent(current.parentToolName)}`);
+        if (serial !== definitionCatalogSerial) return;
+        definitionTemplates.value = Array.isArray(result) ? result : [];
+        definitionCatalogCache.set(key, definitionTemplates.value);
+        definitionCatalogState.value = 'ready';
+      } catch {
+        if (serial === definitionCatalogSerial) definitionCatalogState.value = 'error';
+      }
+    }
+    watch([selected, activeTab, editing], () => {
+      if (selected.value && activeTab.value === 'definition' && !editing.value) loadDefinitionTemplates();
+      else {
+        ++definitionCatalogSerial;
+        definitionTemplates.value = [];
+        definitionCatalogState.value = 'idle';
+      }
+    });
+    onBeforeUnmount(() => { ++definitionCatalogSerial; });
     const versions = computed(() =>
       rows.value
         .filter((r) => r.logicalId === selected.value?.logicalId)
@@ -244,6 +283,7 @@ export default {
         : tools.value[0]?.id || "";
     }
     async function refresh() {
+      definitionCatalogCache.clear();
       await perform(async () => {
         await loadRows();
         const registry = await apiRequest("/tool-categories");
@@ -556,6 +596,9 @@ export default {
       versionCount,
       hasRunningVersion,
       selectedDefinition,
+      definitionTemplates,
+      definitionCatalogState,
+      loadDefinitionTemplates,
       versions,
       editing,
       activeTab,

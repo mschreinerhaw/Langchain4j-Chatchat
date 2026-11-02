@@ -202,11 +202,27 @@
   gap: 8px;
   flex: none;
 }
-.sql-publication-panel .sql-publication-primary {
+.sql-dialog.sql-publication-panel button.sql-publication-primary {
   background: var(--primary);
   border-color: var(--primary);
   color: white;
   min-width: 106px;
+}
+.sql-dialog.sql-publication-panel button.sql-publication-primary:hover:not(:disabled),
+.sql-dialog.sql-publication-panel button.sql-publication-primary:active:not(:disabled) {
+  background: var(--primary-strong, var(--primary));
+  border-color: var(--primary-strong, var(--primary));
+  color: white;
+}
+.sql-dialog.sql-publication-panel button.sql-publication-primary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.sql-dialog.sql-publication-panel button.sql-publication-primary:disabled {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+  opacity: 0.65;
 }
 .sql-test-result-preview {
   max-height: 260px;

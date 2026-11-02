@@ -122,13 +122,20 @@ public final class VisualReportArtifacts {
                 var check=map(item);String state=text(check.get("status"),16);require(Set.of("PASSED","FAILED","UNRESOLVED").contains(state),"Invalid computation check");failed|="FAILED".equals(state);unresolved|="UNRESOLVED".equals(state);
                 checks.add(Map.of("name",text(check.get("name"),240),"status",state,"detail",text(check.get("detail"),4000)));
             }
+            // Missing/invalid chart artifacts affect presentation. Program-declared
+            // data limitations remain visible without becoming incomplete delivery.
+            boolean presentationIncomplete=!warnings.isEmpty();
             for(var warning:list(validation.get("warnings"),64))warnings.add(text(warning,4000));
+            Object requirementStatus=rows.get(0).get("analysisStatus");
+            if(requirementStatus instanceof String declared && Set.of("COMPLETE","PARTIAL","INPUT_REQUIRED").contains(declared))
+                result.put("requirementStatus",declared);
             String analysisStatus=status;
             if(failed)analysisStatus="FAILED";
             else if((unresolved||checks.isEmpty())&&"SUCCESS".equals(analysisStatus))analysisStatus="PARTIAL";
             result.put("analysisStatus",analysisStatus);
             if(failed)status="FAILED";
-            else if(unresolved||!warnings.isEmpty()||checks.isEmpty()) {if("SUCCESS".equals(status))status="PARTIAL";}
+            else if(unresolved||presentationIncomplete||checks.isEmpty()
+                    || "PARTIAL".equals(requirementStatus)||"INPUT_REQUIRED".equals(requirementStatus)) {if("SUCCESS".equals(status))status="PARTIAL";}
             if(checks.isEmpty())warnings.add("The analysis program supplied no computation checks; business correctness is not certified.");
             if("NO_DATA".equals(status))require(metrics.isEmpty()&&charts.isEmpty()&&tables.stream().allMatch(t->((List<?>)t.get("rows")).isEmpty()),"NO_DATA report contains calculated data");
             result.put("status",status);result.put("metrics",metrics);result.put("tables",tables);result.put("charts",charts);result.put("sections",sections);

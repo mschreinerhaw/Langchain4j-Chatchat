@@ -1,0 +1,46 @@
+{
+  "apiImage": "runtime-os-api:cline-context-completion-20261102-r3",
+  "workerImage": "runtime-os-coding-agent:cline-context-completion-20261102-r2",
+  "apiJarSha256": "2161eee0b1c310f2753286473903a66b61a12dc03138f99e785c3c70a76fd2b8",
+  "nodeProxyBoundToActiveApi": true,
+  "containers": [
+    {
+      "name": "/runtime-os-app-stage-api-1",
+      "running": true,
+      "health": null
+    },
+    {
+      "name": "/runtime-os-app-stage-coding-agent-1",
+      "running": true,
+      "health": "healthy"
+    },
+    {
+      "name": "/runtime-os-app-stage-node-proxy-1",
+      "running": true,
+      "health": "healthy"
+    },
+    {
+      "name": "/runtime-os-app-stage-gateway-1",
+      "running": true,
+      "health": "healthy"
+    }
+  ],
+  "addresses": {
+    "apiCoding": "172.30.93.2",
+    "workerCoding": "172.30.93.3"
+  },
+  "activeWorkerSessions": 0,
+  "activeParentTasks": 0,
+  "activeSandboxes": 0,
+  "workerModules": {
+    "runner.js": "8d05e729b377654f5c007322384ae9aabc81ccea3461a973fdd11021558c14a0",
+    "sdk-adapter.js": "c14abd29e05ced5271b25a8dbc083c923136cec1a1f3f28da068b7210439a611",
+    "server.js": "c90a26fd442bb55dd99e1ad444b0a9775da1249093aca48a60952f8b310de2b6",
+    "monitor.js": "cf0f7eec64300d0e9dd187878c82202eaf6fd9514e58c75e1e022449a2156354",
+    "request-context.js": "8b1648829037cc1d283f6ac0769348c6b17ec8f115c09101805714f421698b16"
+  },
+  "http": {
+    "/": 200,
+    "/api/v1/enterprise/auth/me": 401
+  }
+}

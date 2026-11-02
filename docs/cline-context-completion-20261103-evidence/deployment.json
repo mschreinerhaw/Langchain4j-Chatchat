@@ -1,0 +1,81 @@
+{
+  "baselineSourceCommit": "dc77af88b6455545733439668d540250a71c4d0f",
+  "productionSourceDiffSha256": "d239df9fe6d568b279ac26811ed4a42ebc9ccfe6ada4811bd39f6f79185167b3",
+  "finalApi": {
+    "status": "DEPLOYED",
+    "apiImage": "runtime-os-api:cline-context-completion-20261102-r3",
+    "workerImage": "runtime-os-coding-agent:cline-context-completion-20261102-r2",
+    "jarSha256": "2161eee0b1c310f2753286473903a66b61a12dc03138f99e785c3c70a76fd2b8",
+    "visualClassSha256": "ac335cc28895e7a873f1ce90bf58c3ee6eddfb95de434a1d5ca74abb1b9c14cf",
+    "baselineVisualClassSha256": "88269ebb3d1f1e576395d293a5c64c30f51d135ef39ba61e6fa9b1d20baa8b69",
+    "changedEntries": [
+      "BOOT-INF/classes/com/chatchat/api/runtime/coding/evidence/VisualReportArtifacts.class"
+    ],
+    "unrelatedJarEntriesPreserved": true,
+    "originalNetworkAddressesPreserved": true,
+    "configurationPreserved": true,
+    "backup": "runtime-os-app-stage-api-1-before-cline-context-20261102-r3",
+    "nodeProxy": {
+      "status": "REBOUND",
+      "networkMode": "container:bba74c3ba0eaffedf3612abcddba9dd0acaf4f21cdc922d3da4aa4d86a36bcd6",
+      "previousNetworkMode": "container:7b4c2c50dc62a811c3dce4ab401f415d478e3facbd5431115eb810268e5e57d6",
+      "backupContainer": "runtime-os-app-stage-node-proxy-1-before-template-supply-bba74c3ba0ea",
+      "configurationPreserved": true
+    }
+  },
+  "finalWorker": {
+    "status": "DEPLOYED",
+    "apiImage": "runtime-os-api:cline-context-completion-20261102-r1",
+    "workerImage": "runtime-os-coding-agent:cline-context-completion-20261102-r2",
+    "build": "dc77af88b-skills-package-r2",
+    "backup": "runtime-os-app-stage-coding-agent-1-before-cline-context-20261102-r2",
+    "originalNetworkAddressesPreserved": true,
+    "configurationPreservedExceptBuildMetadata": true,
+    "dockerfileSha256": "c0e3cfa80ec3b624e2980dfa73a3882b69f5e9923f225633ffe7e37f18c868e3",
+    "linuxTestsPassed": true
+  },
+  "baselineApiClasses": [
+    {
+      "name": "CodingAnalysisService",
+      "entry": "BOOT-INF/classes/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.class",
+      "baseline": "664bb40494d7b89c1172b2aee37514eed08b20ebd4b3e562049c636e1ac06ddf",
+      "file": "CodingAnalysisService.class",
+      "candidate": "ba4ac8bd57df9a3fe07193ee54133e791782af621e0a040a393591aa7e8a5ede"
+    },
+    {
+      "name": "ClineCodingAdapter",
+      "entry": "BOOT-INF/classes/com/chatchat/api/runtime/coding/cline/ClineCodingAdapter.class",
+      "baseline": "4ed76c1f6176aa085dc082d7f36884e2527c4c3120df35675ef52e732016d1ca",
+      "file": "ClineCodingAdapter.class",
+      "candidate": "a38c9f1304737a35aeb5bd07a8c30ab373edb14c8159ff8f8cb5ec1f1e87f0df"
+    },
+    {
+      "name": "ClineModelCallbackController",
+      "entry": "BOOT-INF/classes/com/chatchat/api/runtime/coding/cline/ClineModelCallbackController.class",
+      "baseline": "e51c5acd604dbe59e33fc299bad24651ecaceabbe59fc5ae9a7269947b0b0922",
+      "file": "ClineModelCallbackController.class",
+      "candidate": "ff468c879c30c60191b7884afdeb2d33c74b137d192797d84a25fc72cc3aaf7f"
+    },
+    {
+      "name": "ClineToolProfiles",
+      "entry": "BOOT-INF/classes/com/chatchat/api/runtime/coding/cline/ClineToolProfiles.class",
+      "baseline": "5a7df8a1e054cb669b1b15c5e3bffbd931dbd5e064c86130114cc4876b58d8b8",
+      "file": "ClineToolProfiles.class",
+      "candidate": "7dacccb2edb88bbc2d85b3523280586f457569c2cbe94580c6d6e0146bd0efcd"
+    }
+  ],
+  "workerModules": {
+    "runner.js": "8d05e729b377654f5c007322384ae9aabc81ccea3461a973fdd11021558c14a0",
+    "sdk-adapter.js": "c14abd29e05ced5271b25a8dbc083c923136cec1a1f3f28da068b7210439a611",
+    "server.js": "c90a26fd442bb55dd99e1ad444b0a9775da1249093aca48a60952f8b310de2b6",
+    "monitor.js": "cf0f7eec64300d0e9dd187878c82202eaf6fd9514e58c75e1e022449a2156354",
+    "request-context.js": "8b1648829037cc1d283f6ac0769348c6b17ec8f115c09101805714f421698b16"
+  },
+  "baselineBytecodeComparedClasses": 5,
+  "baselineBytecodeMatchesRepository": true,
+  "sourceFingerprints": {
+    "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/evidence/VisualReportArtifacts.java": "f9336b59681b5fc19c8118e1fd460432cc3c0bb72a7b793a311f364432927901",
+    "deploy/docker/application/Dockerfile.coding-agent": "c0e3cfa80ec3b624e2980dfa73a3882b69f5e9923f225633ffe7e37f18c868e3"
+  },
+  "credentialsExported": false
+}

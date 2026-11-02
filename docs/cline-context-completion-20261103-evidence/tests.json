@@ -1,0 +1,51 @@
+{
+  "date": "2026-11-03",
+  "nodeLocal": {
+    "tests": 163,
+    "failures": 0,
+    "logSha256": "eda670de438261adae8e23b4f106ec91e8ee229ed69b4a1b2b2314a97a28c330"
+  },
+  "nodeDeployedImage": {
+    "image": "runtime-os-coding-agent:cline-context-completion-20261102-r2",
+    "tests": 163,
+    "failures": 0,
+    "network": "none",
+    "readonly": true,
+    "nativeSkillsLinkVerified": true,
+    "logSha256": "3ad4b8b41391b90b6496da1fa49395f5f9496d5672df39538fe015832d7ba32a"
+  },
+  "javaSupplemental": {
+    "tests": 55,
+    "failures": 0,
+    "classes": [
+      {
+        "name": "evidence.VisualReportArtifactsTest",
+        "tests": 28,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "sha256": "edc5b47c6d8580d8bb9fe0e828d2eec2721502eb819d8ac9a236991eda1ac163"
+      },
+      {
+        "name": "evidence.CodingSchemaResultVerifierTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "sha256": "bba5caea144cd16930a747a25be7f3a0a88e875ccbb4a03d6759d355d292af68"
+      },
+      {
+        "name": "analysis.ClineContextAnswerServiceTest",
+        "tests": 21,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "sha256": "45a454b3c0a3f73c7146b0794b126a20c7b47e20c3f96c54639bf8dc47dfa3bd"
+      }
+    ],
+    "logSha256": "b83f50927ee88eb662943d1ac2eb0e83a11cd88737ad2eda806ad0012dae4d5c",
+    "overlapWithPrior124": 27
+  },
+  "priorTests": "../cline-context-completion-20261102-tests.json",
+  "fullRepositoryRegression": false
+}

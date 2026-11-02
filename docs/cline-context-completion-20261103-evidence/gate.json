@@ -1,0 +1,25 @@
+{
+  "scope": "NORMALIZED_OBSERVATION_GATE_NOT_A_LIVE_MODEL_RUN",
+  "results": [
+    {
+      "caseId": "simple-sales-csv",
+      "passed": true,
+      "failures": []
+    },
+    {
+      "caseId": "multi-file-explicit-join",
+      "passed": true,
+      "failures": []
+    },
+    {
+      "caseId": "exact-repair-preserves-results",
+      "passed": true,
+      "failures": []
+    },
+    {
+      "caseId": "account-missing-semantic-definition",
+      "passed": true,
+      "failures": []
+    }
+  ]
+}

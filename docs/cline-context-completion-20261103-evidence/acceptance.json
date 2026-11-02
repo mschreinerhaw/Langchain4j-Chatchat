@@ -1,0 +1,39 @@
+{
+  "status": "PASSED",
+  "date": "2026-11-03",
+  "cases": [
+    {
+      "caseId": "simple-sales-csv",
+      "taskStatus": "SUCCEEDED",
+      "analysisStatus": "COMPLETE",
+      "passed": true
+    },
+    {
+      "caseId": "multi-file-explicit-join",
+      "taskStatus": "SUCCEEDED",
+      "analysisStatus": "COMPLETE",
+      "passed": true
+    },
+    {
+      "caseId": "account-missing-semantic-definition",
+      "taskStatus": "PARTIAL",
+      "analysisStatus": "INPUT_REQUIRED",
+      "passed": true
+    },
+    {
+      "caseId": "exact-repair-preserves-results",
+      "taskStatus": "COMPLETED",
+      "analysisStatus": "COMPLETE",
+      "passed": true
+    }
+  ],
+  "chartFilesVisuallyInspected": true,
+  "independentNumericalChecks": true,
+  "outputHashesVerified": true,
+  "actualProviderUsageRecorded": true,
+  "controlledPerformanceComparison": false,
+  "codeReadLiveInvocation": false,
+  "codeReadCoveredByUnitTests": true,
+  "allExecutorsStopped": true,
+  "scopeNote": "Published CSV and Studio repair executed on final API r3; non-visual cases executed on API r1 with the same worker r2 and were re-read and hash-verified on r3. Only visual normalization changed between r1 and r3."
+}

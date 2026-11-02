@@ -1,0 +1,16 @@
+{
+  "status": "SUCCESS",
+  "requirementStatus": "COMPLETE",
+  "artifactValidationStatus": "PASSED",
+  "validationStatus": "ARTIFACTS_VERIFIED",
+  "chart": {
+    "sha256": "502b8b501cda751a4b1b6af695a0fa300898465757a11af703eea2547386e216",
+    "bytes": 44566,
+    "width": 1200,
+    "height": 750
+  },
+  "warningsPreserved": [],
+  "limitations": [
+    "数据仅来自附件 sales.csv，未包含其他来源；未进行趋势、期间或税费分析（按用户要求）。"
+  ]
+}

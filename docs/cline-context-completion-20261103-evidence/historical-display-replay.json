@@ -1,0 +1,17 @@
+{
+  "taskId": "54a1bf4b-d99d-3424-9473-07beb119098b",
+  "runId": "att-1-f8a73026-255d-46ae-a1e2-6deeff380162",
+  "codingTaskId": "analysis-coding-30e69488d685d641c83e1ad92ecec00f6e406dfee5037fb17fdddf4a1f166312",
+  "originalDisplayStatus": "PARTIAL",
+  "originalWarning": "One missing region was reported as a data limitation; all requested checks completed",
+  "revalidatedDisplayStatus": "SUCCESS",
+  "requirementStatus": "COMPLETE",
+  "validationStatus": "PARTIAL",
+  "preservedWarnings": [
+    "region 字段有 1 条缺失，该笔交易无法归入区域分类。"
+  ],
+  "taskStatus": "SUCCEEDED",
+  "executionCountBefore": 1,
+  "executionCountAfter": 1,
+  "method": "GET archived visual-report; existing immutable result and stopped execution revalidated; no new Python execution requested"
+}

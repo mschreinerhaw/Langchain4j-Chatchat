@@ -11,6 +11,23 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
 class VisualReportArtifactsTest {
+    @Test void aReportedDataLimitationDoesNotUndoCompletedRequestedChecks() {
+        var value=raw();value.put("validation",Map.of("checks",List.of(Map.of("name","missingness","status","PASSED")),
+            "warnings",List.of("One region is missing; it is counted separately as requested.")));
+        var result=service.collect(scope,"task","op",List.of(Map.of("visualReport",value,"analysisStatus","COMPLETE",
+            "reportMarkdown","All requested checks and totals completed","evidenceReferences",List.of("source:authorized"))),Map.of(),execution);
+        assertThat(result).containsEntry("status","SUCCESS").containsEntry("requirementStatus","COMPLETE")
+            .containsEntry("artifactValidationStatus","PASSED");
+        assertThat(((Map<?,?>)result.get("validation")).get("status")).isEqualTo("PARTIAL");
+        assertThat(result.get("validation").toString()).contains("One region is missing");
+    }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"PARTIAL","INPUT_REQUIRED"})
+    void anExplicitlyIncompleteRequirementIsNotPromotedByValidArtifacts(String state) {
+        var result=service.collect(scope,"task","op",List.of(Map.of("visualReport",raw(),"analysisStatus",state,
+            "reportMarkdown","Requested evidence remains unavailable","evidenceReferences",List.of("source:authorized"))),Map.of(),execution);
+        assertThat(result).containsEntry("status","PARTIAL").containsEntry("requirementStatus",state);
+    }
     @Test void serializesValidatedLineBarPieAndLocalFallbackCasesForTheActualBrowser()throws Exception{
         var value=raw();var numbers=List.of(1.25,2.50,3.75);var labels=List.of("A","B","C");
         value.put("summary","受控样本 1.25 + 2.50 + 3.75 = 7.50；仅用于渲染验证。");

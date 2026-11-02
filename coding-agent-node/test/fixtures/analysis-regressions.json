@@ -19,6 +19,9 @@
     },
     {
       "id": "exact-repair-preserves-results",
+      "executionChannel": "PYTHON_STUDIO_CODE_REUSE",
+      "expectedTaskStatus": "COMPLETED",
+      "sourceFixture": "repair-analysis.py.txt",
       "objective": "保留已验证的金额汇总，仅修复当前程序的图表标题语法错误，并重新生成原先要求的汇总和区域图。只修改当前版本的精确锚点，不重新探索数据。",
       "files": {"sales.csv": "region,units,amount\n华东,2,10.50\n华南,3,20.00\n"},
       "initialBrokenSource": "total = '30.50'\ntitle = '区域金额\n",
@@ -29,6 +32,7 @@
     },
     {
       "id": "account-missing-semantic-definition",
+      "expectedTaskStatus": "PARTIAL",
       "objective": "根据 account.csv 分析客户账户净资金流入及风险。仅提供原始字段 account_id、value、stamp，尚无 value 的业务含义、符号及币种，也没有 stamp 的事件语义或风险规则。只能用附件；不能把账户标识或未定义数值当金额。",
       "files": {"account.csv": "account_id,value,stamp\n0001,100,2026-01-01\n0001,-20,2026-01-02\n"},
       "expectedStatus": "INPUT_REQUIRED",

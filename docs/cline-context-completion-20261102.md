@@ -8,6 +8,8 @@ Java 分析目标与 Node 系统提示明确要求：只按用户请求的交付
 
 这属于未来任务的提示规则纠偏，不追溯改写历史报告；模型能否持续正确遵守仍需实模回归。执行成功、产物有效、业务已核验、需求完成保持独立事实：SUCCEEDED / VALIDATED 的执行或存档回执不证明业务正确，INCONCLUSIVE 不单独证明需求没完成。既有状态字段及前端兼容协议没有迁移。
 
+2026-11-03 联机复测又确认 `VisualReportArtifacts.collect` 会把任意程序警告混入展示降级条件。现已区分图表缺失等真实展示问题与程序声明的数据限制：后者保留在 validation/warnings 中，不单独将 SUCCESS 改为 PARTIAL。新增可选 requirementStatus 原样记录报告行的 COMPLETE / PARTIAL / INPUT_REQUIRED；明确不完整的需求不会因产物有效而升级，计算失败、未决验算、缺少检查及无效图表的既有处理保留。此修复没有新增业务语义模型调用。
+
 ## 源码按需读取
 
 `sdk-adapter.js` 原来在 SDK 压缩后每轮追加最新完整代码。现在仅在明确授权 `code_read`、单程序代码生命周期已启用、当前完整报告及引用有效、当前版本已 VALIDATED 且视觉验收未失败时，省去这份额外源码注入，保留版本、codeHash 和 lastValidatedHash。原始历史消息可能仍含源码；本次没有删除规范会话历史，也不声称从整个请求消除了全部旧代码。
@@ -43,7 +45,7 @@ Node 监控与 Java 持久化只白名单保留有界数值、估算器标识和
 | exact-repair-preserves-results | 精确修复标题语法；保留已验证汇总 30.50 与父版本绑定 | COMPLETE |
 | account-missing-semantic-definition | 2 行账户结构；金额、币种、时间语义和风险规则缺失，不得编造净流入或风险图 | INPUT_REQUIRED |
 
-修复样本的 initialBrokenSource 是精确锚点单测片段，不是完整报告程序；联机时须使用同一输入生成的真实报告代码，记录其失败、父版本及哈希，再核验精确修复和全部原交付项，不能拿该片段充当联机产物。
+initialBrokenSource 保留为小型锚点单测；sourceFixture 指向完整的 `repair-analysis.py.txt`，通过正式 Python Studio 代码复用接口冻结版本、授权执行。联机记录包括真实 SyntaxError、父版本哈希、单行引号修复、实际读入 CSV 的 Decimal 汇总和已归档图表，没有拿片段充当已执行程序。
 
 `scripts/check-analysis-regression.mjs` 检查实际观察的规范化摘要。输入是四个对象组成的 JSON 数组，每项需包含：caseId、taskId、reportSha256、taskStatus、codingStatus、analysisStatus；deliveryChecks 为 `{id,passed,evidenceRef}`；numericalChecks 为 `{id,actual,evidenceRef}`，actual 使用样本声明的小数字符串；measurements 包含 durationMs、modelCalls、inputTokens、outputTokens、pythonExecutions。交付项与数值检查的 ID 使用样本定义。缺任务、缺证据、错误完成状态、错误数值或未知用量均不通过；未知数值不能伪装成 0。
 
@@ -52,10 +54,10 @@ cd coding-agent-node
 node scripts/check-analysis-regression.mjs observations.json
 ```
 
-观察摘要必须来自实际报告、独立计算及原始运行事件；脚本只校验摘要的一致性，不证明引用真实存在，也不替代语义审查。门禁单测中的 fixture 记录不是实际模型验收。本轮没有把四个新样本送入部署环境，没有形成这四类实模任务的质量、时间或 Token 基线。
+观察摘要必须来自实际报告、独立计算及原始运行事件；脚本只校验摘要的一致性，不证明引用真实存在，也不替代语义审查。门禁单测中的 fixture 记录不是实际模型验收。现已完成四类实模业务验收，结果见[联机验收记录](cline-context-completion-20261103-evidence/acceptance.md)。expectedTaskStatus 明确区分普通任务 SUCCEEDED、缺少请求所需语义的 PARTIAL，以及 Python Studio 任务 COMPLETED；不能把这些不同通道和完成范围强行统一成 SUCCEEDED。
 
 ## 验证与交付边界
 
 Node 构建及 **162 项**适配层测试通过；Java **124 项**不同的定向测试覆盖分析契约、模型工具授权、worker 能力协商、恢复、报告结构、回答状态及遥测白名单。最终计量/准入改动后又复验其中 **17 项**回调测试，不重复计入总数。CLI 负向检查确认缺少四项实测观察时全部拒绝。各类结果、日志摘要及源文件指纹见[测试记录](cline-context-completion-20261102-tests.json)。
 
-本轮不改写此前 r2 部署验收结论。新 Java 与 worker 尚未联机部署；此前 Docker 任务成功不能证明本次上下文优化或新四样本已在线通过。没有测得本次生产耗时或 Token 的改善比例，也没有宣称全仓回归通过。
+后续联机修复后，Node 在本地及部署镜像内各 **163 项**通过，Java 新增 **55 项**专项回归通过（与首轮 124 项中的 27 项重叠）。离线 worker 镜像模板补齐 Skills 目录、原生发现链接和构建期完整性检查。最终部署为 API `cline-context-completion-20261102-r3`、worker `cline-context-completion-20261102-r2`。四类业务观察已通过门禁，原始报告和图表哈希、实际 Token、历史报告只读重验及健康检查均已记录。没有测得受控前后性能改善比例，也没有宣称全仓回归通过。

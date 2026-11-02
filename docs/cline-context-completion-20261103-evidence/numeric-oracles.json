@@ -1,0 +1,25 @@
+{
+  "method": "Independent decimal integer-cents calculations over frozen CSV fixtures, whose digests match uploaded assets. Multi-file combined total is the sum of displayed regional subtotals and unmatched amount, not an extra requested report field.",
+  "oracles": {
+    "simple-sales-csv": {
+      "rows": "5",
+      "missingRegion": "1",
+      "totalUnits": "10",
+      "totalAmount": "43.75",
+      "eastAmount": "10.50"
+    },
+    "multi-file-explicit-join": {
+      "orders": "4",
+      "unmatchedOrders": "1",
+      "totalAmount": "20.00",
+      "eastAmount": "12.30",
+      "unmatchedAmount": "4.40"
+    },
+    "account-missing-semantic-definition": {
+      "rows": "2"
+    },
+    "exact-repair-preserves-results": {
+      "totalAmount": "30.50"
+    }
+  }
+}

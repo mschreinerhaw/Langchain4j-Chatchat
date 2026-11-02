@@ -1,0 +1,44 @@
+{
+  "firstDispatch": {
+    "taskId": "184f0887-808b-37b4-a97b-ed4e808e5330",
+    "state": "FAILED",
+    "error": "Cline dispatch outcome unknown; reconcile before retry",
+    "codingExecutions": 0,
+    "accepted": false,
+    "resolution": "Restored original API/worker network addresses without widening network rules"
+  },
+  "firstVisualCase": {
+    "taskId": "54a1bf4b-d99d-3424-9473-07beb119098b",
+    "parentState": "SUCCEEDED",
+    "codingState": "COMPLETED",
+    "displayAccepted": false,
+    "reason": "Data-quality warning incorrectly downgraded the complete visual report; followed by a fresh final CSV run and historical read-only display revalidation",
+    "usage": {
+      "modelCalls": 3,
+      "modelTokens": 64186,
+      "toolCalls": 2,
+      "codeExecutions": 1,
+      "cpuMillis": 0,
+      "peakMemoryBytes": 0,
+      "outputBytes": 40884,
+      "costAmount": "0"
+    }
+  },
+  "additionalRepairRepeat": {
+    "requestId": "cline-repair-3d1ea948-6329-485c-8768-47c8ca186d8d",
+    "status": "COMPLETED",
+    "acceptedAsPrimarySample": false,
+    "note": "Additional repetition of the same complete repair source; actual Markdown newlines and unchanged source identity verified. Final observations use the later recorded request.",
+    "sourceSha256": "63c6c70c4d83b9c3cc64385b4e1188b9642976ea07749cda7424de14b0538efa",
+    "usage": {
+      "modelCalls": 3,
+      "modelTokens": 54773,
+      "toolCalls": 2,
+      "codeExecutions": 2,
+      "cpuMillis": 0,
+      "peakMemoryBytes": 0,
+      "outputBytes": 20496,
+      "costAmount": "0"
+    }
+  }
+}

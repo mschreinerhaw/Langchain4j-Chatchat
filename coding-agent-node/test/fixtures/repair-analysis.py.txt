@@ -1,0 +1,52 @@
+# Deliberately broken full program for an authorized SyntaxError repair test.
+# Meanings are supplied by the regression request, not inferred from headers.
+import csv
+import hashlib
+import io
+import json
+from decimal import Decimal
+from pathlib import Path
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+plt.rcParams['font.sans-serif'] = ['Noto Sans CJK SC', 'Noto Sans SC', 'DejaVu Sans']
+
+title = '区域金额
+
+def summarize(records):
+    total = sum((Decimal(row['amount']) for row in records), Decimal('0'))
+    regions = {}
+    for row in records:
+        key = row['region'] or '(missing)'
+        regions[key] = regions.get(key, Decimal('0')) + Decimal(row['amount'])
+    return total, regions
+
+input_root = Path('/data/input')
+manifests = list(input_root.glob('*/manifest.json'))
+assert len(manifests) == 1, 'Expected one immutable input manifest'
+manifest = json.loads(manifests[0].read_text(encoding='utf-8'))
+native = next(item for item in manifest['nativeFiles'] if item['format'] == 'CSV')
+source_bytes = (input_root / native['fileId'] / native['fileName']).read_bytes()
+assert hashlib.sha256(source_bytes).hexdigest() == native['sha256']
+records = list(csv.DictReader(io.StringIO(source_bytes.decode('utf-8-sig'))))
+total, regions = summarize(records)
+reference = native['sourceDatasetRef']
+output = Path('/workspace/output/results')
+output.mkdir(parents=True, exist_ok=True)
+fig, ax = plt.subplots()
+ax.bar(list(regions), [float(value) for value in regions.values()])
+ax.set_title(title)
+ax.set_ylabel('CNY')
+fig.savefig(output / 'region_amount.png', dpi=120, bbox_inches='tight')
+plt.close(fig)
+table = '\n'.join('| ' + key + ' | ' + format(value, '.2f') + ' |' for key, value in regions.items())
+report = '# Sales analysis\n\nTotal amount (CNY): ' + format(total, '.2f')
+report += '\n\n| Region | Amount (CNY) |\n|---|---|\n' + table
+report += '\n\n![Region amount](region_amount.png)\n'
+meanings = {'region': 'Region declared by the user', 'units': 'Units sold, count of items, declared by the user',
+            'amount': 'Amount in CNY declared by the user'}
+row = {'reportMarkdown': report, 'analysisStatus': 'COMPLETE', 'limitations': [], 'evidenceReferences': [reference],
+       'fieldProvenance': [{'datasetReference': reference, 'sourceField': field, 'meaning': meaning,
+                            'declarationSource': 'regression user request', 'status': 'CONFIRMED'}
+                           for field, meaning in meanings.items()]}
+(output / 'rows.jsonl').write_text(json.dumps(row, ensure_ascii=False) + '\n', encoding='utf-8')

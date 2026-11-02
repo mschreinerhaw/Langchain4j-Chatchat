@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url';
 export function checkObservation(sample, observation) {
   const failures = [];
   if (observation.caseId !== sample.id) failures.push('case identity');
-  if (observation.taskStatus !== 'SUCCEEDED' || observation.codingStatus !== 'COMPLETED') failures.push('execution completion');
+  if (observation.taskStatus !== (sample.expectedTaskStatus ?? 'SUCCEEDED') || observation.codingStatus !== 'COMPLETED') failures.push('execution completion');
   if (observation.analysisStatus !== sample.expectedStatus) failures.push('requirement completion status');
   if (!observation.taskId || !observation.reportSha256?.match(/^[a-f0-9]{64}$/)) failures.push('artifact identity');
   for (const id of sample.deliverables) {

@@ -369,6 +369,8 @@ chatchat-api :8080
 
 ## 快速开始
 
+源码构建完整 Docker 离线部署包：在仓库根目录运行 `./build-docker.ps1 -Tag RELEASE_TAG`；Linux 可运行 `python3 scripts/build-docker-release.py --tag RELEASE_TAG`。两个前端、全部应用与 Python 沙箱、基础设施镜像及部署入口一并打包，详见[本地构建与容器化部署](deploy/docker/LOCAL-BUILD.zh-CN.md)。
+
 ### 环境要求
 
 - JDK 17+

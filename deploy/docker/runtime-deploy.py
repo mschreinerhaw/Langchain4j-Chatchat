@@ -233,6 +233,11 @@ def prepare_new_installation(spec):
         if key.endswith('DATA_DIR') and path.exists():
             require(not any(path.iterdir()), 'Nonempty application data found; select existing mode instead')
         path.mkdir(parents=True, exist_ok=True);created.append(str(path))
+    for key in ('JDBC_DRIVERS_DIR', 'NATIVE_SEARCH_TLS_DIR'):
+        if key in env:
+            path = Path(env[key]).resolve()
+            require(path.is_relative_to(stage), 'New-install external directories must stay under STAGE_ROOT')
+            path.mkdir(parents=True, exist_ok=True);created.append(str(path))
     config = stage / 'config';config.mkdir(exist_ok=True)
     for service in ('api', 'mcp', 'news'):
         (stage / service / 'logs').mkdir(parents=True, exist_ok=True)
@@ -420,11 +425,11 @@ def main():
             checks['databases'] = {k: database_probe(v, spec['control_network'], output) for k, v in spec['databases'].items()}
             checks['opensearch'] = search_probe(spec, output, args.write_probe)
         if args.action == 'up':
-            require(spec.get('backup_receipt') and Path(spec['backup_receipt']).is_file(), 'A completed backup receipt is required before container changes')
-            backup = json.loads(Path(spec['backup_receipt']).read_text())
-            require(backup.get('status') == 'VERIFIED' and backup.get('restoreVerified') is True,
-                    'Backup receipt must document a verified restore, not just an existing filename')
             if spec['mode'] == 'existing':
+                require(spec.get('backup_receipt') and Path(spec['backup_receipt']).is_file(), 'A completed backup receipt is required before container changes')
+                backup = json.loads(Path(spec['backup_receipt']).read_text())
+                require(backup.get('status') == 'VERIFIED' and backup.get('restoreVerified') is True,
+                        'Backup receipt must document a verified restore, not just an existing filename')
                 probe = spec.get('quiescence_probe')
                 require(probe and probe.get('argv'), 'Existing installation needs an active-task/collection quiescence probe')
                 state = json.loads(command(probe['argv'], output))

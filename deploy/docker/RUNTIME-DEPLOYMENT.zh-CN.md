@@ -81,7 +81,7 @@ python3 deploy/docker/runtime-deploy.py prepare --manifest /secure/site.json --o
 python3 deploy/docker/runtime-deploy.py plan --manifest /secure/site.json --output /secure/rendered
 python3 deploy/docker/runtime-deploy.py check --manifest /secure/site.json --output /secure/rendered
 python3 deploy/docker/runtime-deploy.py snapshot --manifest /secure/site.json --output /secure/before
-# 填写真实备份回执；existing 另填 quiescence_probe.argv，输出 activeTasks:0,activeCollections:0。
+# existing 填写真实备份回执和 quiescence_probe.argv，输出 activeTasks:0,activeCollections:0；空目录新装不要求备份不存在的数据。
 python3 deploy/docker/runtime-deploy.py up --manifest /secure/site.json --output /secure/rendered
 python3 deploy/docker/runtime-deploy.py verify --manifest /secure/site.json --output /secure/after --write-probe
 ```

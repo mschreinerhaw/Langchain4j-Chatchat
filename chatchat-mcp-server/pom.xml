@@ -19,6 +19,7 @@
         <chatchat.main-class>com.chatchat.mcpserver.ChatChatMcpServerApplication</chatchat.main-class>
         <frontend-maven-plugin.version>1.15.1</frontend-maven-plugin.version>
         <frontend.skip>false</frontend.skip>
+        <mcp.web.static.directory>${project.basedir}/web-app-mcp/dist</mcp.web.static.directory>
         <maven-antrun-plugin.version>3.1.0</maven-antrun-plugin.version>
         <maven-resources-plugin.version>3.3.1</maven-resources-plugin.version>
         <node.version>v20.19.0</node.version>
@@ -314,7 +315,7 @@
                             <outputDirectory>${project.build.outputDirectory}/static/admin</outputDirectory>
                             <resources>
                                 <resource>
-                                    <directory>${project.basedir}/web-app-mcp/dist</directory>
+                                    <directory>${mcp.web.static.directory}</directory>
                                     <filtering>false</filtering>
                                 </resource>
                             </resources>

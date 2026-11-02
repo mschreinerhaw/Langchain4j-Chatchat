@@ -16,7 +16,7 @@ services:
       retries: 30
 
   temporal:
-    image: ${TEMPORAL_IMAGE:-temporalio/auto-setup:1.31.2}
+    image: ${TEMPORAL_IMAGE:-temporalio/auto-setup:1.29.7}
     pull_policy: never
     entrypoint: [bash, /opt/runtime/temporal-entrypoint.sh]
     volumes:

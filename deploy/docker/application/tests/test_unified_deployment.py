@@ -1,6 +1,7 @@
 import copy
 import importlib.util
 import json
+import sys
 from pathlib import Path
 import tempfile
 import unittest
@@ -12,6 +13,46 @@ deploy = importlib.util.module_from_spec(module);module.loader.exec_module(deplo
 
 
 class UnifiedDeploymentTest(unittest.TestCase):
+    def test_prepare_preserves_host_driver_layout_and_creates_external_config_directories(self):
+        with tempfile.TemporaryDirectory() as folder:
+            stage = Path(folder)
+            env = {'STAGE_ROOT': folder, 'API_DATA_DIR': str(stage / 'api/data'),
+                   'MCP_DATA_DIR': str(stage / 'mcp/data'), 'NEWS_DATA_DIR': str(stage / 'news/data'),
+                   'NEWS_CONFIG_DIR': str(stage / 'news/config'), 'MODEL_CONFIG_FILE': str(stage / 'config/application.yml'),
+                   'JDBC_DRIVERS_DIR': str(stage / 'lib/drivers'), 'NATIVE_SEARCH_TLS_DIR': str(stage / 'config/native-search-tls')}
+            driver = stage / 'lib/drivers/oracle/driver.jar';driver.parent.mkdir(parents=True)
+            driver.write_bytes(b'original driver')
+            with patch.object(deploy, 'read_env', return_value=env):
+                deploy.prepare_new_installation({'mode': 'full', 'new_installation': True, 'compose_env_file': 'unused'})
+            self.assertEqual(driver.read_bytes(), b'original driver')
+            self.assertTrue((stage / 'config/native-search-tls').is_dir())
+
+    def test_empty_full_install_reaches_startup_without_a_backup_of_nonexistent_data(self):
+        spec = json.loads((ROOT / 'runtime-deployment.full.example.json').read_text())
+        with tempfile.TemporaryDirectory() as folder:
+            output = Path(folder)
+            manifest = output / 'site.json';manifest.write_text(json.dumps(spec))
+            (output / 'infrastructure.compose.json').write_text('{"services":{},"volumes":{}}')
+            with patch.object(sys, 'argv', ['runtime-deploy', 'up', '--manifest', str(manifest), '--output', folder]), \
+                    patch.object(deploy, 'normalize', return_value={'services': {}}), \
+                    patch.object(deploy, 'local_checks', return_value=[]), \
+                    patch.object(deploy, 'command', side_effect=RuntimeError('reached-full-up')) as command:
+                with self.assertRaisesRegex(RuntimeError, 'reached-full-up'): deploy.main()
+                self.assertIn('up', command.call_args.args[0])
+
+    def test_existing_upgrade_still_requires_a_verified_backup_before_startup(self):
+        spec = self.spec();spec['backup_receipt'] = '/missing/backup.json'
+        with tempfile.TemporaryDirectory() as folder:
+            manifest = Path(folder) / 'site.json';manifest.write_text(json.dumps(spec))
+            with patch.object(sys, 'argv', ['runtime-deploy', 'up', '--manifest', str(manifest), '--output', folder]), \
+                    patch.object(deploy, 'normalize', return_value={'services': {}}), \
+                    patch.object(deploy, 'local_checks', return_value=[]), \
+                    patch.object(deploy, 'database_probe', return_value={}), \
+                    patch.object(deploy, 'search_probe', return_value={}), \
+                    patch.object(deploy, 'command') as command:
+                with self.assertRaisesRegex(ValueError, 'backup receipt'): deploy.main()
+                command.assert_not_called()
+
     def spec(self):
         value = json.loads((ROOT / 'runtime-deployment.example.json').read_text())
         value['compose_env_file'] = 'unused'

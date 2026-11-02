@@ -43,6 +43,38 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class ClineCodingAdapterDispatchTest {
+    @Test void codeReadRequiresWorkerNegotiationWhileLegacyTasksRemainUnchanged() throws Exception {
+        var json = new ObjectMapper().findAndRegisterModules();
+        var base = contract(new KernelDataScope("tenant", "owner", null, null, "run", null, Map.of()));
+        var frozen = (com.fasterxml.jackson.databind.node.ObjectNode) json.valueToTree(base);
+        frozen.put("schemaVersion", CodingProtocol.ANALYSIS_VERSION);
+        ((com.fasterxml.jackson.databind.node.ObjectNode) frozen.get("authorization"))
+            .set("allowedTools", json.valueToTree(List.of("code_read")));
+        frozen.putObject("runtimeContext").put("schemaVersion", "runtime_os.coding.context.v1")
+            .put("consistency", "TASK_SNAPSHOT").putObject("codingLifecycle")
+            .put("schemaVersion", "runtime_os.code_lifecycle.v1").put("patchOnlyAfterFirst", true);
+        var current = json.treeToValue(frozen, CodingTaskContract.class);
+        var supported = new java.util.concurrent.atomic.AtomicBoolean(false);
+        var http = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        http.createContext("/v1/input-capabilities", exchange -> {
+            exchange.getRequestBody().readAllBytes();
+            var reply = ("{\"codeLifecycleVersions\":[\"runtime_os.code_lifecycle.v1\"],\"analysisTools\":"
+                + (supported.get() ? "[\"code_read\"]" : "[]") + "}").getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, reply.length);
+            try (var out = exchange.getResponseBody()) { out.write(reply); }
+            exchange.close();
+        });
+        http.start();
+        try {
+            var adapter = new ClineCodingAdapter(null, null, null, null, null, null,
+                URI.create("http://127.0.0.1:" + http.getAddress().getPort()), "0".repeat(32), json);
+            org.springframework.test.util.ReflectionTestUtils.invokeMethod(adapter, "requireInputCapabilities", base);
+            assertThatThrownBy(() -> org.springframework.test.util.ReflectionTestUtils.invokeMethod(adapter, "requireInputCapabilities", current))
+                .hasMessageContaining("code_read").hasMessageContaining("negotiated");
+            supported.set(true);
+            org.springframework.test.util.ReflectionTestUtils.invokeMethod(adapter, "requireInputCapabilities", current);
+        } finally { http.stop(0); }
+    }
     @Test void missingNodeSessionCanRestartOnlyBeforeAnExternalOperationWasStarted() throws Exception {
         runScenario(false,false);
     }

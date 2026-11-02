@@ -276,6 +276,7 @@ class CodingAnalysisServiceTest {
         prepare(outcome(CodingTaskOutcome.Status.COMPLETED, CodingTaskOutcome.ValidationStatus.INCONCLUSIVE));
         var reviewed = new LinkedHashMap<String,Object>(request());
         reviewed.put("reviewResult", true);
+        reviewed.put("outputSchema", CodingAnalysisService.primaryReportSchema());
 
         service().execute(context("tenant"), reviewed, sources());
 
@@ -290,6 +291,11 @@ class CodingAnalysisServiceTest {
             "field-provenance section", "exact source column", "generic code/name/id/date/amount substring",
             "a customer/counterparty name is not an instrument name", "request the missing dictionary",
             "actual column-selection code", "report unknown semantics rather than passing a business-role check");
+        assertThat(contract.getValue().objective().instruction()).contains(
+            "Judge completion only against the user's requested deliverables", "must not downgrade an otherwise COMPLETE report",
+            "identify the unmet requested deliverable", "INCONCLUSIVE business verification alone");
+        if (policy.isCodeLifecycleEnabled())
+            assertThat(contract.getValue().authorization().allowedTools()).contains("code_read");
     }
     @Test void combinedSourcesKeepTheirOwnDeclaredRepresentationInTheAcceptedObjective() {
         prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));

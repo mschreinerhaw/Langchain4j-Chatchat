@@ -31,7 +31,7 @@ class ClineRuntimeModelBridgeTest {
         var registry=new CodingParentModels();var bridge=new ClineRuntimeModelBridge(resources,factory,json);bridge.setParentModels(registry);
         json.findAndRegisterModules();var frozen=(com.fasterxml.jackson.databind.node.ObjectNode)json.valueToTree(contract());
         frozen.put("schemaVersion",CodingProtocol.ANALYSIS_VERSION);
-        var names=List.of("python_execute","input_read","report_submit","artifact_read","sql_validate");
+        var names=List.of("python_execute","input_read","report_submit","artifact_read","sql_validate","code_read");
         ((com.fasterxml.jackson.databind.node.ObjectNode)frozen.get("authorization")).set("allowedTools",json.valueToTree(names));
         var contract=json.treeToValue(frozen,CodingTaskContract.class);
         var request=(com.fasterxml.jackson.databind.node.ObjectNode)json.readTree("{\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"explain\"}]}],\"tools\":[]}");
@@ -39,7 +39,7 @@ class ClineRuntimeModelBridgeTest {
         for(var name:names)tools.add(json.valueToTree(Map.of("name",name,"inputSchema",Map.of("type","object","properties",Map.of()))));
         try(var ignored=registry.bind(contract.scope(),contract.taskId(),parent)) {
             bridge.complete(contract,request);
-            verify(parent).chat(argThat((ChatRequest r)->r.toolSpecifications().size()==5));
+            verify(parent).chat(argThat((ChatRequest r)->r.toolSpecifications().size()==names.size()));
             tools.remove(4);tools.add(tools.get(0).deepCopy());
             assertThatThrownBy(()->bridge.complete(contract,request)).isInstanceOf(ClineRuntimeModelBridge.InvalidModelResponseException.class)
                 .hasCauseInstanceOf(IllegalArgumentException.class);

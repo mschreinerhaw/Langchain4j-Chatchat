@@ -1,0 +1,96 @@
+{
+  "schemaVersion": "cline.context-completion.tests.v1",
+  "date": "2026-11-02",
+  "baseline": "bf23fdda2",
+  "node": {
+    "build": "PASSED",
+    "tests": 162,
+    "failures": 0,
+    "logSha256": "5b57a1b2d4f62c1ccbc3f9077d303254e3dea05beaccbdf3b8d270f04d929dcf"
+  },
+  "java": {
+    "uniqueTests": 124,
+    "classes": [
+      {
+        "name": "analysis.ClineContextAnswerServiceTest",
+        "tests": 21,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "reportSha256": "0474b746e5655797cb3e0d66a33259aced5278a4d0ac404da3d975ef4eeacaa9"
+      },
+      {
+        "name": "analysis.CodingAnalysisServiceTest",
+        "tests": 39,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "reportSha256": "faef2a0459e02614c9e5775848586934f6c61863bebc314f9fcddd5be360a915"
+      },
+      {
+        "name": "cline.ClineCodingAdapterDispatchTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "reportSha256": "7b6aa521d55789179411adc740b91176570fae17d2ed79a64954fe44ffb42172"
+      },
+      {
+        "name": "cline.ClineCodingAdapterRecoveryTest",
+        "tests": 16,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "reportSha256": "6939a8511e32555af391573eeb7724e92b5f3d80196025735fed65e5241ae63c"
+      },
+      {
+        "name": "cline.ClineModelCallbackControllerTest",
+        "tests": 17,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "reportSha256": "b23d20bc173da5ba8401f25731d77591236fe45b3a31c314594cae46cc7692fa"
+      },
+      {
+        "name": "cline.ClineRuntimeModelBridgeTest",
+        "tests": 21,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "reportSha256": "b1a2e9c11c6b1a464f763a39339596295b3d8ea3fea1283e69f5df8199db6d55"
+      },
+      {
+        "name": "evidence.CodingSchemaResultVerifierTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "reportSha256": "b3b4582dc19744d3d831fe5a5262667fcb92c491d068f22c62408d4ca0ff3a1b"
+      }
+    ],
+    "fullRunLogSha256": "3dba98b88514ddc81941689881228b21ba9e43ee1ea86302d082b0a7067b49d9",
+    "finalCallbackSubsetTests": 17,
+    "finalCallbackSubsetLogSha256": "523fbe274049f05e940d5a10fe269ac9d4806c51e2a1121c9912a6beb71dac89",
+    "note": "The 17 callback tests were repeated after the final timing/admission changes; not additional unique tests."
+  },
+  "regressionGate": {
+    "fixedCases": 4,
+    "missingObservationsRejected": 4,
+    "cliExitCode": 1,
+    "liveModelRuns": 0
+  },
+  "sources": {
+    "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.java": "0b983f7842ec7df183eea60a88985eb4531411ce9e494ea99af6c89cca77af56",
+    "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineCodingAdapter.java": "7971305aa1c62e965f58bced78ca92dfb4a6d602a0d985240fdc363943a19af2",
+    "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineModelCallbackController.java": "0c8c47fd62c9bed8de5435557af9c367fd7a3a49eacd3802db94c28ece11c7e8",
+    "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineToolProfiles.java": "d3c6a90b14c73f90e6c5380492756d3d50e0efef827a3a483217053d4e549f1f",
+    "coding-agent-node/src/runner.js": "7200efadaf2eccf52565bed69ff1ec3e05502e45924f0ff53fc4e5c1e66af937",
+    "coding-agent-node/src/sdk-adapter.js": "a9cdc7e261a5b806722b4ec2acc5b7c3ad37bb73836b94e98a2d26ec3a182b9f",
+    "coding-agent-node/src/request-context.js": "9edd0238894d73a3d9e574c0f91e66c57ae77c7d1a0b8ffdcc53ee8c34898651",
+    "coding-agent-node/src/server.js": "b307c1487028fcc607dc6287fd9b56bd376147091ebc046201c539d35d516049",
+    "coding-agent-node/src/monitor.ts": "269640caa74126c46bb620ad8badbbac90bd017c0e29fdf95ec88f1946d4e8a5"
+  },
+  "deployment": "NOT_DEPLOYED_THIS_ROUND",
+  "fullRepositoryRegression": false,
+  "productionPerformanceComparison": false
+}

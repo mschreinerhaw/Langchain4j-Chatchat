@@ -87,6 +87,10 @@ export function sdkPrepareTurn(sessionId, currentCode = () => null, options = {}
   const compact = createContextCompactionPrepareTurn({ sessionId,
     providerId: 'runtime', modelId: 'runtime-authorized', compaction: { enabled: true, strategy: 'basic' } });
   return async context => {
+    const code = currentCode();
+    const reviewOnly = Boolean(code && options.reviewOnly?.());
+    const reference = options.reviewReference?.();
+    let review = options.reviewArtifact?.();
     const canonical = context.messages.filter(message => !(message.role === 'user'
       && message.content?.length === 1 && message.content[0].type === 'text'
       && injectedBindings.has(message.content[0].text)));
@@ -103,14 +107,18 @@ export function sdkPrepareTurn(sessionId, currentCode = () => null, options = {}
     const info = context.model?.info ?? {};
     const knownLimit = info.maxInputTokens > 0 ? info.maxInputTokens
       : info.contextWindow > 0 ? Math.floor(info.contextWindow * 0.9) : 128000;
+    // Reserve space for protected material that may be reattached AFTER SDK
+    // compaction. This is a soft byte-based estimate, never provider accounting.
+    const binding = reviewOnly ? { version: code.version, lastValidatedHash: code.lastValidatedHash } : code;
+    const protectedTokens = Math.ceil(Buffer.byteLength(JSON.stringify({ binding, review }) ?? '') / 4);
+    const allowance = Number.isSafeInteger(options.inputTokenBudget) && options.inputTokenBudget > 0
+      ? Math.min(knownLimit, options.inputTokenBudget) : knownLimit;
     const model = { id: 'runtime-authorized', provider: 'runtime', ...context.model,
-      ...(Number.isSafeInteger(options.inputTokenBudget) && options.inputTokenBudget > 0
-        ? { info: { ...info, maxInputTokens: Math.min(knownLimit, options.inputTokenBudget) } } : {}) };
+      info: { ...info, maxInputTokens: Math.max(1, allowance - protectedTokens) } };
     const result = await compact({ ...context, conversationId: context.conversationId ?? sessionId,
       parentAgentId: context.parentAgentId ?? null, messages, apiMessages: messages,
       abortSignal: context.signal, systemPrompt: context.systemPrompt ?? '',
       model });
-    const code = currentCode();
     if (!result && !code) return;
     const projected = result ? result.messages.map(message => ({ ...message,
       role: message.role === 'user' && message.content.every(part => part.type === 'tool_result') ? 'tool' : message.role,
@@ -122,8 +130,6 @@ export function sdkPrepareTurn(sessionId, currentCode = () => null, options = {}
     })) : [...canonical];
     // Basic compaction may abbreviate tool results. Semantic review still needs
     // the complete latest immutable report, never a truncated earlier version.
-    const reference = options.reviewReference?.();
-    let review = options.reviewArtifact?.();
     const decode = value => {
       if (typeof value !== 'string') return value;
       try { return JSON.parse(value); } catch { return null; }
@@ -146,7 +152,13 @@ export function sdkPrepareTurn(sessionId, currentCode = () => null, options = {}
       injectedBindings.add(text);
       projected.push({ role: 'user', content: [{ type: 'text', text }] });
     }
-    if (code) {
+    if (reviewOnly) {
+      const { source, sourceProject, ...binding } = code;
+      const text = 'Latest program binding (source omitted for result review): ' + JSON.stringify(binding)
+        + '. When review or repair needs source, call code_read with the exact codeHash. Do not guess patch anchors or skip required source checks.';
+      injectedBindings.add(text);
+      projected.push({ role: 'user', content: [{ type: 'text', text }] });
+    } else if (code) {
       const text =
       (code.state==='AUTHORIZED_INPUT_NOT_EXECUTED'
         ? 'Authorized immutable source input, not yet executed. Copy exact anchors from these files when making the minimal requested change: '

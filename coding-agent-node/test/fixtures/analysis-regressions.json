@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "cline.analysis-regressions.v1",
+  "cases": [
+    {
+      "id": "simple-sales-csv",
+      "objective": "检查 sales.csv 缺失值，汇总金额与销量，计算区域金额并画区域柱状图。region=区域，units=销量/件，amount=金额/人民币元，每行一笔合成交易，零是真实零；不要求趋势、期间或税费分析。仅用附件，不联网。",
+      "files": {"sales.csv": "region,units,amount\n华东,2,10.50\n华南,3,20.00\n华东,0,0.00\n华北,1,5.25\n,4,8.00\n"},
+      "expectedStatus": "COMPLETE",
+      "deliverables": ["missingness", "totals", "region-totals", "region-chart"],
+      "metrics": {"rows": "5", "missingRegion": "1", "totalUnits": "10", "totalAmount": "43.75", "eastAmount": "10.50"}
+    },
+    {
+      "id": "multi-file-explicit-join",
+      "objective": "按显式 customer_id 关联 customers.csv 与 orders.csv，汇总各区域订单金额并单独列出未匹配订单。customer_id 是客户标识，region 是区域，amount 为人民币元；每行一笔互不重叠的订单。未匹配记录必须保留，不要求推断缺失区域。仅用附件。",
+      "files": {"customers.csv": "customer_id,region\n001,华东\n002,华南\n", "orders.csv": "customer_id,amount\n001,10.10\n001,2.20\n002,3.30\n999,4.40\n"},
+      "expectedStatus": "COMPLETE",
+      "deliverables": ["explicit-join", "region-totals", "unmatched-orders"],
+      "metrics": {"orders": "4", "unmatchedOrders": "1", "totalAmount": "20.00", "eastAmount": "12.30", "unmatchedAmount": "4.40"}
+    },
+    {
+      "id": "exact-repair-preserves-results",
+      "objective": "保留已验证的金额汇总，仅修复当前程序的图表标题语法错误，并重新生成原先要求的汇总和区域图。只修改当前版本的精确锚点，不重新探索数据。",
+      "files": {"sales.csv": "region,units,amount\n华东,2,10.50\n华南,3,20.00\n"},
+      "initialBrokenSource": "total = '30.50'\ntitle = '区域金额\n",
+      "repair": {"oldText": "title = '区域金额\n", "newText": "title = '区域金额'\n"},
+      "expectedStatus": "COMPLETE",
+      "deliverables": ["preserved-total", "repaired-chart", "exact-parent-binding"],
+      "metrics": {"totalAmount": "30.50"}
+    },
+    {
+      "id": "account-missing-semantic-definition",
+      "objective": "根据 account.csv 分析客户账户净资金流入及风险。仅提供原始字段 account_id、value、stamp，尚无 value 的业务含义、符号及币种，也没有 stamp 的事件语义或风险规则。只能用附件；不能把账户标识或未定义数值当金额。",
+      "files": {"account.csv": "account_id,value,stamp\n0001,100,2026-01-01\n0001,-20,2026-01-02\n"},
+      "expectedStatus": "INPUT_REQUIRED",
+      "deliverables": ["structural-profile", "blocked-requested-objectives", "missing-definitions", "no-unsupported-financial-chart"],
+      "metrics": {"rows": "2"}
+    }
+  ]
+}

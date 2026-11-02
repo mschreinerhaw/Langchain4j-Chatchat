@@ -460,7 +460,7 @@ public final class ClineModelCallbackController {
             String type = event.path("type").asText("");
             // TOOL_STARTED precedes Runtime admission, so its proposed operation is advisory only.
             boolean admissionPending = event.path("admissionPending").asBoolean(false)
-                && Set.of("MODEL_STARTED", "MODEL_FAILED").contains(type);
+                && Set.of("MODEL_STARTED", "MODEL_FAILED", "MODEL_TIMING").contains(type);
             String operation = admissionPending ? null : "TOOL_FINISHED".equals(type)
                 ? event.path("operationId").asText(null)
                 : type.startsWith("MODEL_") ? operationId("model-" + event.path("modelCall").asLong(-1)) : null;
@@ -476,17 +476,19 @@ public final class ClineModelCallbackController {
         var payload = new java.util.LinkedHashMap<String,Object>();
         for (String key : List.of("type", "timestamp", "stage", "source", "attemptId", "operationId", "tool", "status",
                 "scriptPath", "codeSha256", "fileName", "proposedOperationId", "skillFingerprint", "skillId", "skillVersion", "selectedModel", "providerModel", "protocol", "startedAt", "finishedAt", "validationStatus", "outputStatus",
-                "resultDatasetRef", "validationRecordRef", "evidenceBundleRef", "errorCategory", "diagnosticCode", "parentCodeHash", "changeKind", "proposalHash", "toolCallId", "responseMode", "strategy", "reason", "requestHash")) {
+                "resultDatasetRef", "validationRecordRef", "evidenceBundleRef", "errorCategory", "diagnosticCode", "parentCodeHash", "changeKind", "proposalHash", "toolCallId", "responseMode", "strategy", "reason", "requestHash", "estimator")) {
             JsonNode value = event.path(key);
             if (value.isTextual() && value.asText().length() <= 512) payload.put(key, value.asText());
         }
-        for (String key : List.of("scriptVersion", "modelCall", "sourceBytes", "durationMs", "maxOutputTokens", "repairAttempts", "repairAttempt", "maxRepairAttempts", "queueTimeMs", "firstTokenMs", "generationTimeMs", "retryTimeMs", "parentCodeVersion", "codeVersion", "toolDurationMs", "messageCount", "requestBytes", "cpuTimeMs", "maxRssBytes", "callbackFirstEventMs", "responseBytes", "toolCount", "validationDurationMs")) {
+        for (String key : List.of("scriptVersion", "modelCall", "sourceBytes", "durationMs", "maxOutputTokens", "repairAttempts", "repairAttempt", "maxRepairAttempts", "queueTimeMs", "firstTokenMs", "generationTimeMs", "retryTimeMs", "parentCodeVersion", "codeVersion", "toolDurationMs", "messageCount", "requestBytes", "cpuTimeMs", "maxRssBytes", "callbackFirstEventMs", "responseBytes", "toolCount", "validationDurationMs",
+                "contextSystemBytes", "contextToolsBytes", "contextTaskBytes", "contextSkillsBytes", "contextCodeBytes", "contextReportBytes", "contextHistoryBytes", "contextEnvelopeBytes", "estimatedInputTokens", "softInputTokenBudget")) {
             if (event.path(key).isIntegralNumber() && event.path(key).asLong() >= 0)
                 payload.put(key, event.path(key).asLong());
         }
         if (event.path("resultAvailable").isBoolean())
             payload.put("resultAvailable", event.path("resultAvailable").asBoolean());
         if (event.path("repairAllowed").isBoolean())payload.put("repairAllowed",event.path("repairAllowed").asBoolean());
+        if (event.path("exceedsSoftBudget").isBoolean())payload.put("exceedsSoftBudget",event.path("exceedsSoftBudget").asBoolean());
         if (event.path("usage").isObject()) {
             var usage = new java.util.LinkedHashMap<String,Object>();
             for (String key : List.of("inputTokens", "outputTokens"))

@@ -171,7 +171,7 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
         return response(reply, 200, { schemaVersion: 'runtime_os.coding.input.v1', formats: ['PARQUET', 'CSV'],
           codeLifecycleVersions: ['runtime_os.code_lifecycle.v1'],
           analysisProfiles: ['runtime-coding:analysis-fast-path:v1'],
-          analysisTools: ['input_read','report_submit'],
+          analysisTools: ['input_read','report_submit','code_read'],
           workspaceProfiles: ['runtime-coding:workspace-fast-path:v1','runtime-coding:sql-metadata-tools:v1'] });
       }
       if (request.method === 'GET' && url.pathname === '/healthz')

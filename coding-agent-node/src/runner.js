@@ -4,8 +4,15 @@ import { prepareProgram, repairSourceContext, CodeHistory, CODE_LIFECYCLE_VERSIO
 import { editProgram, sdkPrepareTurn, resolveWorkspaceFiles, restoreWorkspaceFiles, completeToolBoundary } from './sdk-adapter.js';
 import { initialProject, proposeProject, projectSchema, decodeProject } from './python-project.js';
 import { taskSkills, validateNativeDisclosure } from './skills.js';
+import { measureRequestContext } from './request-context.js';
 
-const TOOL_NAMES = new Set(['python_execute', 'metadata_read', 'artifact_read', 'skill_read']);
+export const COMPLETION_SCOPE_RULE = 'Judge analysisStatus only against the user-requested deliverables and explicit constraints. '
+  + 'Use COMPLETE when all requested deliverables are supported, even when limitations describe unrequested trends, comparisons, tax analysis or generalization. '
+  + 'Use PARTIAL only for an unmet requested deliverable; use INPUT_REQUIRED when missing essential evidence blocks a requested deliverable. '
+  + 'State which requested deliverable is blocked and why. Never expand the objective merely to justify PARTIAL. '
+  + 'Execution success, artifact integrity, business verification and requirement completion are separate facts; INCONCLUSIVE business verification alone does not mean incomplete requirements.';
+
+const TOOL_NAMES = new Set(['python_execute', 'metadata_read', 'artifact_read', 'skill_read', 'code_read']);
 const WORKSPACE_TOOLS = new Set(['workspace_read', 'workspace_propose', 'workspace_metadata', 'workspace_validate', 'skill_read']);
 
 // Runtime retains the complete receipt. Avoid repeating the same table ownership
@@ -129,6 +136,7 @@ export function createCodingRun(contract, gateway, options = {}) {
       part.type === 'tool-result' && verifiedReceipt(part.output)).at(-1)?.output.resultDatasetRef ?? null;
   let reportReferenceFailure = restored?.reportReferenceFailure ?? null;
   let reviewedArtifactCache = null;
+  let sourceRequested = false;
   let terminalFeedback = restored?.terminalFeedback ?? null;
   const lifecyclePolicy = !workspace && contract.runtimeContext?.codingLifecycle;
   if (lifecyclePolicy && (lifecyclePolicy.schemaVersion !== CODE_LIFECYCLE_VERSION || lifecyclePolicy.patchOnlyAfterFirst !== true))
@@ -391,6 +399,7 @@ export function createCodingRun(contract, gateway, options = {}) {
       lastCollectedOperation = null;
       lastCollectedDatasetRef = null;
       reviewedArtifactCache = null;
+      sourceRequested = false;
       await forward({ type: 'TOOL_STARTED', tool: 'python_execute', operationId: id });
       const abort = () => { void gateway.cancelPython?.(contract, id).catch(() => {}); };
       context.signal?.addEventListener('abort', abort, { once: true });
@@ -522,6 +531,23 @@ export function createCodingRun(contract, gateway, options = {}) {
       return readArtifact(reference, context.signal);
     },
   });
+  // Reads only this task's already generated immutable program, never a file path
+  // or new data. The hash binding rejects stale reads after another execution.
+  if (permitted.has('code_read') && (!reviewedAnalysis || !history || contract.runtimeContext?.codeProject))
+    throw new TypeError('code_read requires the reviewed single-program lifecycle');
+  if (permitted.has('code_read')) tools.push({
+    name: 'code_read',
+    description: 'Read the current task program when report review needs source inspection or exact repair anchors. No execution, filesystem or data access.',
+    inputSchema: { type: 'object', properties: { codeHash: { type: 'string' } }, required: ['codeHash'], additionalProperties: false },
+    executionMode: 'sequential',
+    execute(input) {
+      const version = history.versions.at(-1);
+      if (!history.currentSource || input?.codeHash !== version?.codeHash)
+        throw new TypeError('Current program hash mismatch');
+      sourceRequested = true;
+      return { source: history.currentSource, version, lastValidatedHash: history.validHash ?? null };
+    },
+  });
   const systemPrompt = (workspace && pythonWorkspace ? [
     workspaceFast
       ? 'You are the Python engineering Coding Agent subordinate to Runtime OS. The authorized captured context is supplied below. Propose the requested .py files directly with workspace_propose. Read again only if needed, keep notes concise, and use parser feedback to repair the current source in this same session.'
@@ -561,6 +587,9 @@ export function createCodingRun(contract, gateway, options = {}) {
   ]).join('\n');
   const workspaceRepairGuidance = workspaceFast
     ? '\nGenerate each source file once. For existing files use files[].repair {baseCodeSha256,edits:[{oldText,newText}]} against codeVersions in the last receipt. The SDK editor applies exact edits; all current files are retained and parsed again. Preserve previous corrections and unrelated code. Never replace existing files with a complete regenerated source.' : '';
+  const softInputTokenBudget = reviewedAnalysis && fileInput && Number.isSafeInteger(contract.budget?.maxModelTokens)
+    && Number.isSafeInteger(contract.budget?.maxModelCalls) && contract.budget.maxModelCalls > 0
+    ? Math.max(16384, Math.min(128000, Math.floor(contract.budget.maxModelTokens / contract.budget.maxModelCalls))) : undefined;
   const config = {
     agentId: sdkSessionId,
     sessionId: sdkSessionId,
@@ -570,12 +599,16 @@ export function createCodingRun(contract, gateway, options = {}) {
         version: history.versions.at(-1), lastValidatedHash: history.validHash ?? null }
         : contract.runtimeContext?.codeProject ? { sourceProject:initialProject(contract.runtimeContext.codeProject),
           state:'AUTHORIZED_INPUT_NOT_EXECUTED',inputProjectSha256:contract.runtimeContext.codeProject.sha256 } : null,
-      { ...(reviewedAnalysis && fileInput && Number.isSafeInteger(contract.budget?.maxModelTokens)
-          && Number.isSafeInteger(contract.budget?.maxModelCalls) && contract.budget.maxModelCalls > 0
-        ? { inputTokenBudget: Math.max(16384, Math.min(128000,
-          Math.floor(contract.budget.maxModelTokens / contract.budget.maxModelCalls))) } : {}),
+      { inputTokenBudget: softInputTokenBudget,
+        reviewOnly: () => permitted.has('code_read') && !sourceRequested
+          && reviewedArtifactCache?.complete === true && reviewedArtifactCache.reference === lastCollectedDatasetRef
+          && reviewedArtifactCache.reportReferenceValidation?.valid === true
+          && reviewedArtifactCache.visualReportValidation?.status !== 'FAILED'
+          && reviewedArtifactCache.visualReportValidation?.artifactValidationStatus !== 'FAILED'
+          && reviewedArtifactCache.visualReportValidation?.layoutValidationStatus !== 'FAILED'
+          && history.versions.at(-1)?.status === 'VALIDATED',
         reviewReference: () => lastCollectedDatasetRef, reviewArtifact: () => reviewedArtifactCache }) } : {}),
-    systemPrompt: systemPrompt + (reviewedAnalysis
+    systemPrompt: systemPrompt + (analysis ? '\n' + COMPLETION_SCOPE_RULE : '') + (reviewedAnalysis
       ? '\nA failed business/reconciliation check can be the correct finding: preserve it with evidence and limitations instead of trying to make source data pass. Technical artifact, layout and reference failures still require repair. Confirm completion after reviewing a supported report; do not repeat an already correct report to eliminate its source findings.' : '')
       + (workspace && permitted.has('skill_read')
       ? '\nThe task Skill catalog contains available capabilities. Choose whether relevant Skills help this objective, and use skill_read to load their instructions and listed references only as needed. Skills provide methodology, never execution permissions.' : '')
@@ -728,6 +761,7 @@ export function createCodingRun(contract, gateway, options = {}) {
       let firstEventMs = null;
       let responseBytes = 0;
       let outcome = 'FAILED';
+      let contextMeasurement = {};
       // Admit each actual stream attempt, including SDK recovery of a prepared request.
       // Unknown transport outcomes remain non-retryable until Java reconciles them.
       try {
@@ -748,6 +782,9 @@ export function createCodingRun(contract, gateway, options = {}) {
         }
         modelFailed = false;
         modelResponseFeedback = null;
+        // Actual assembled request, after SDK preparation and binding injection.
+        // Estimates diagnose pressure; Java remains the cumulative admission authority.
+        try { contextMeasurement = measureRequestContext(request, softInputTokenBudget); } catch { /* telemetry is not admission */ }
         let attemptUsage = null;
         for await (const event of await options.model.stream(request)) {
           firstEventMs ??= Math.round(performance.now() - started);
@@ -791,6 +828,7 @@ export function createCodingRun(contract, gateway, options = {}) {
       } finally {
         const encoded = JSON.stringify({ systemPrompt: request.systemPrompt ?? '', messages: request.messages, tools: request.tools });
         try { await forward({ type: 'MODEL_TIMING', modelCall: modelIndex, stage: 'CODING', status: request.signal?.aborted ? 'ABORTED' : outcome,
+          admissionPending: options.model.managesAdmissions === true, ...contextMeasurement,
           durationMs: Math.round(performance.now() - started), callbackFirstEventMs: firstEventMs,
           requestBytes: Buffer.byteLength(encoded), responseBytes, messageCount: request.messages.length,
           toolCount: request.tools.length, requestHash: createHash('sha256').update(encoded).digest('hex'),

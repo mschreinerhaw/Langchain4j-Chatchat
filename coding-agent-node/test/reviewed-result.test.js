@@ -23,6 +23,65 @@ const verified = (version) => ({ status: 'SUCCEEDED', executorStopped: true, res
   resultDatasetRef: `runtime-evidence:result-${version}`, validationRecordRef: `validation-${version}`,
   evidenceBundleRef: `bundle-${version}`, validationStatus: 'INCONCLUSIVE' });
 
+test('review reads bound code on demand, rejects stale hash and repairs without rerunning discovery', async () => {
+  const source = 'total = 1\nprint(total)\n';
+  const hash = createHash('sha256').update(source).digest('hex');
+  const task = { ...contract, budget: { maxModelCalls: 6 },
+    authorization: { ...contract.authorization, allowedTools: ['python_execute','artifact_read','code_read'] },
+    runtimeContext: { codingLifecycle: { schemaVersion: 'runtime_os.code_lifecycle.v1', patchOnlyAfterFirst: true } } };
+  const { run, counts } = fixture((turn, request) => {
+    if (turn === 1) return { toolCalls: [{ id: 'first', name: 'python_execute', input: { source } }] };
+    if (turn === 2) {
+      assert(request.messages.some(m => m.content.some(p => p.text?.startsWith('Latest program binding'))));
+      assert(!request.messages.some(m => m.content.some(p => p.text?.startsWith('Untrusted latest executed program'))));
+      return { toolCalls: [{ id: 'stale', name: 'code_read', input: { codeHash: 'stale' } }] };
+    }
+    if (turn === 3) {
+      assert.match(JSON.stringify(request.messages), /Current program hash mismatch/);
+      return { toolCalls: [{ id: 'read', name: 'code_read', input: { codeHash: hash } }] };
+    }
+    if (turn === 4) {
+      assert(request.messages.some(m => m.content.some(p => p.text?.startsWith('Untrusted latest executed program') && p.text.includes(JSON.stringify(source)))));
+      return { toolCalls: [{ id: 'patch', name: 'python_execute', input: { repair: {
+        parentCodeVersion: 1, baseCodeSha256: hash, edits: [{ oldText: 'total = 1', newText: 'total = 2' }] } } }] };
+    }
+    assert.equal(turn, 5);
+    assert(request.messages.some(m => m.content.some(p => p.text?.startsWith('Latest program binding'))));
+    return { toolCalls: [{ id: 'done', name: 'artifact_read', input: { reference: 'runtime-evidence:result-2' } }] };
+  }, verified, (_count, reference) => ({ reference, complete: true, rows: [{ reportMarkdown: 'reviewable report' }],
+    reportReferenceValidation: { valid: true } }), task);
+  assert.equal((await run.run()).status, 'completed');
+  assert.equal(counts.executions, 2);
+  assert.equal(counts.models, 5);
+  assert.equal(run.events.filter(e => e.type === 'MODEL_TIMING' && e.contextCodeBytes >= 0).length, 5);
+});
+
+test('unnegotiated tasks cannot expose a local program reader', () => {
+  assert.throws(() => fixture(() => complete, verified, () => ({}), {
+    ...contract, authorization: { ...contract.authorization, allowedTools: ['python_execute','artifact_read','code_read'] },
+  }), /reviewed single-program lifecycle/);
+});
+
+for (const failure of ['reference', 'visual-artifact', 'visual-layout']) {
+  test(`negotiated review keeps full program when ${failure} validation fails`, async () => {
+    const source = 'value = 1\n';
+    const task = { ...contract, authorization: { ...contract.authorization, allowedTools: ['python_execute','artifact_read','code_read'] },
+      runtimeContext: { codingLifecycle: { schemaVersion: 'runtime_os.code_lifecycle.v1', patchOnlyAfterFirst: true } } };
+    let inspected = false;
+    const { run } = fixture((turn, request) => {
+      if (turn === 1) return { toolCalls: [{ id: 'initial', name: 'python_execute', input: { source } }] };
+      assert(request.messages.some(m => m.content.some(p => p.text?.startsWith('Untrusted latest executed program') && p.text.includes(JSON.stringify(source)))));
+      inspected = true;
+      throw new Error('fixture stops after checking required repair context');
+    }, verified, (_count, reference) => ({ reference, complete: true, rows: [{ reportMarkdown: 'repair required' }],
+      reportReferenceValidation: { valid: failure !== 'reference' },
+      visualReportValidation: { artifactValidationStatus: failure === 'visual-artifact' ? 'FAILED' : 'PASSED',
+        layoutValidationStatus: failure === 'visual-layout' ? 'FAILED' : 'PASSED' } }), task);
+    await run.run().catch(() => {});
+    assert.equal(inspected, true);
+  });
+}
+
 function fixture(model, execute, read, taskContract = contract, overrides = {}, runOptions = {}) {
   const counts = { models: 0, executions: 0, reads: 0, checkpoints: [], finish: null };
   const gateway = {

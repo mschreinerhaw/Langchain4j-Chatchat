@@ -106,8 +106,9 @@ test('native finish reasons reach the SDK without collapsing filter, cutoff or u
 });
 
 test('managed Java model attempts remove separate admission and settlement RPCs', async () => {
-  const contract = task(); let requests = 0;
+  const contract = task(); let requests = 0; const events = [];
   const gateway = { atomicModelAttempts: true,
+    async event(event) { events.push(event); },
     async reserveModel() { throw new Error('redundant admission RPC'); },
     async settleModel() { throw new Error('redundant settlement RPC'); },
     async finish() {}, async executePython() {},
@@ -119,6 +120,7 @@ test('managed Java model attempts remove separate admission and settlement RPCs'
   const result = await createCodingRun(contract, gateway, { nativeSdk: true,
     model: createRuntimeModel(gateway, contract, 0, { nativeSdk: true }) }).run();
   assert.equal(result.status, 'completed', result.error); assert.equal(requests, 1);
+  assert.equal(events.find(event => event.type === 'MODEL_TIMING').admissionPending, true);
   // Java's real finish endpoint still independently rejects a run without Python evidence.
 });
 

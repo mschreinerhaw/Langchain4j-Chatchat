@@ -15,7 +15,9 @@ const EVENT_KEYS = ['stage', 'status', 'operationId', 'proposedOperationId', 'mo
   'selectedModel', 'providerModel', 'protocol', 'startedAt', 'finishedAt', 'durationMs', 'message',
   'queueTimeMs', 'firstTokenMs', 'generationTimeMs', 'retryTimeMs', 'responseMode', 'parentCodeHash', 'codeVersion', 'parentCodeVersion', 'changeKind',
   'errorCategory', 'diagnosticCode', 'repairAttempts', 'repairAllowed', 'resultAvailable', 'requestBytes', 'messageCount', 'toolDurationMs', 'proposalHash', 'cpuTimeMs', 'maxRssBytes',
-  'callbackFirstEventMs', 'responseBytes', 'toolCount', 'requestHash', 'strategy', 'reason', 'validationDurationMs'];
+  'callbackFirstEventMs', 'responseBytes', 'toolCount', 'requestHash', 'strategy', 'reason', 'validationDurationMs',
+  'contextSystemBytes', 'contextToolsBytes', 'contextTaskBytes', 'contextSkillsBytes', 'contextCodeBytes',
+  'contextReportBytes', 'contextHistoryBytes', 'contextEnvelopeBytes', 'estimatedInputTokens', 'softInputTokenBudget', 'exceedsSoftBudget', 'estimator'];
 type Contract = Record<string, any>;
 interface Options {
   directory?: string; maxTasks?: number; maxEvents?: number; maxSourceBytes?: number;

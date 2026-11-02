@@ -56,6 +56,20 @@ class ClineModelCallbackControllerTest {
             .doesNotContainKeys("prompt","sql","code");
     }
 
+    @Test void retainsOnlyBoundedContextMeasurementsWithoutPromptOrComponentContents() {
+        var controller = new ClineModelCallbackController(null,null,null,null,null,null,null,new ObjectMapper());
+        var event = new ObjectMapper().createObjectNode().put("type","MODEL_TIMING")
+            .put("contextCodeBytes",400).put("contextReportBytes",200).put("estimatedInputTokens",300)
+            .put("softInputTokenBudget",256).put("exceedsSoftBudget",true)
+            .put("estimator","UTF8_BYTES_DIV_4_NOT_PROVIDER_USAGE").put("prompt","private prompt")
+            .put("contextTaskBytes",-1);
+        event.putObject("components").put("code","private source");
+        Map<String,Object> payload = org.springframework.test.util.ReflectionTestUtils.invokeMethod(controller,"workerPayload",event);
+        assertThat(payload).containsEntry("contextCodeBytes",400L).containsEntry("contextReportBytes",200L)
+            .containsEntry("estimatedInputTokens",300L).containsEntry("exceedsSoftBudget",true)
+            .doesNotContainKeys("components","prompt","contextTaskBytes");
+    }
+
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
     void longModelCallRenewsOnlyItsOwnLiveLeaseAndArchivesLateReceipt(boolean cancel) {
@@ -385,6 +399,12 @@ class ClineModelCallbackControllerTest {
             base.put("contractHash", CodingCanonicalHash.sha256(contract));
             base.put("fencingToken", lease.fencingToken());
             base.set("contract", json.valueToTree(contract));
+            var contextEvent = base.deepCopy();
+            contextEvent.set("event", json.valueToTree(Map.of("type", "MODEL_TIMING", "sequence", 1,
+                "modelCall", 1, "admissionPending", true, "contextCodeBytes", 400)));
+            controller.event(contextEvent); // No model operation exists before atomic Java admission.
+            assertThat(access.as(scope, EnumSet.of(CodingTaskAccess.Action.READ),
+                () -> tasks.unresolvedOperations(scope, "task"))).isEmpty();
             var admission = base.deepCopy();
             admission.set("model", json.valueToTree(Map.of("operationId", "model-1", "modelCalls", 1,
                 "maxTokens", 2048)));

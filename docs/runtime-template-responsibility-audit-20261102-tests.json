@@ -1,0 +1,95 @@
+﻿{
+    "schemaVersion":  "runtime_template_source_audit.v1",
+    "date":  "2026-11-02",
+    "timezone":  "Asia/Shanghai",
+    "baseline":  "0d2f5f8cc2cf8534781687ca4b9f55d1779950cd",
+    "branch":  "main",
+    "implementationChanged":  false,
+    "verification":  "Existing targeted tests with mocked models; no live model or production replay",
+    "total":  91,
+    "passed":  90,
+    "failures":  1,
+    "errors":  0,
+    "skipped":  0,
+    "testClasses":  [
+                        {
+                            "class":  "com.chatchat.agents.orchestration.analysis.contract.RuntimeAnalysisOwnershipTest",
+                            "tests":  1,
+                            "failures":  0,
+                            "errors":  0,
+                            "skipped":  0
+                        },
+                        {
+                            "class":  "com.chatchat.agents.orchestration.SchemaDrivenTemplateParameterBinderTest",
+                            "tests":  17,
+                            "failures":  0,
+                            "errors":  0,
+                            "skipped":  0
+                        },
+                        {
+                            "class":  "com.chatchat.agents.orchestration.ToolReviewerOptimizationTest",
+                            "tests":  14,
+                            "failures":  0,
+                            "errors":  0,
+                            "skipped":  0
+                        },
+                        {
+                            "class":  "com.chatchat.agents.runtime.plan.InterpretationPlanRuntimeTest",
+                            "tests":  2,
+                            "failures":  1,
+                            "errors":  0,
+                            "skipped":  0
+                        },
+                        {
+                            "class":  "com.chatchat.agents.runtime.plan.review.CanonicalAssetReferenceReviewerTest",
+                            "tests":  9,
+                            "failures":  0,
+                            "errors":  0,
+                            "skipped":  0
+                        },
+                        {
+                            "class":  "com.chatchat.agents.runtime.plan.selection.EvidenceBasedAssetCandidateEvaluatorTest",
+                            "tests":  7,
+                            "failures":  0,
+                            "errors":  0,
+                            "skipped":  0
+                        },
+                        {
+                            "class":  "com.chatchat.agents.runtime.plan.selection.EvidenceBasedTemplateCandidateEvaluatorTest",
+                            "tests":  26,
+                            "failures":  0,
+                            "errors":  0,
+                            "skipped":  0
+                        },
+                        {
+                            "class":  "com.chatchat.agents.runtime.plan.template.TemplateWorkflowPluginRegistryTest",
+                            "tests":  15,
+                            "failures":  0,
+                            "errors":  0,
+                            "skipped":  0
+                        }
+                    ],
+    "failure":  {
+                    "test":  "InterpretationPlanRuntimeTest.rejectsTableScopedGlobalTemplateWhenDialectCannotBeInferred",
+                    "assertion":  "Expected a throwable; no throwable was raised",
+                    "sourceLine":  4752,
+                    "isolatedReproduction":  true,
+                    "rootCause":  "Not established by this audit",
+                    "fixed":  false
+                },
+    "logs":  [
+                 {
+                     "path":  "target/runtime-template-audit-tests-20261102.log",
+                     "sha256":  "7c23941fe72348233bbed51e806216b62ca2cf57f01fe6aadee573379ed16220"
+                 },
+                 {
+                     "path":  "target/runtime-template-audit-isolated-20261102.log",
+                     "sha256":  "4b01825f471182cdafe35d61fd82c77226eecbc5ed88dfe9f7b24712112c4e6a"
+                 }
+             ],
+    "notRun":  [
+                   "Full API/MCP/frontend regressions",
+                   "Live LLM performance comparison",
+                   "Production business acceptance"
+               ]
+}

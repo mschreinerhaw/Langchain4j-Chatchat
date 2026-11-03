@@ -180,10 +180,10 @@ public class SqlStudioMetadataService {
         require(input != null && input.arguments() != null, "Metadata operation arguments are required");
         Binding binding = context.bindings().stream().filter(value -> value.bindingId().equals(input.bindingId())).findFirst()
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Metadata binding not found"));
-        Set<String> allowed = Set.of("operation", "query", "tableName", "database", "schema", "page", "pageSize", "expectedSnapshotId", "includeColumns");
+        Set<String> allowed = Set.of("operation", "query", "tableName", "database", "schema", "page", "pageSize", "expectedSnapshotId", "includeColumns", "reason");
         require(allowed.containsAll(input.arguments().keySet()), "Unsupported metadata operation argument");
         require(Set.of("LIST_NAMESPACES", "SEARCH", "DESCRIBE", "LIST_CATALOGS", "LIST_SCHEMAS", "LIST_TABLES",
-            "SEARCH_TABLES", "SEARCH_COLUMNS", "DESCRIBE_TABLE", "GET_TABLE_DDL", "GET_TABLE_RELATIONSHIPS", "REFRESH")
+            "SEARCH_TABLES", "SEARCH_COLUMNS", "DESCRIBE_TABLE", "GET_TABLE_DDL", "GET_TABLE_RELATIONSHIPS", "GET_METADATA_FRESHNESS", "FIND_RELATED_TABLES", "VERIFY_LIVE_SCHEMA", "SEARCH_SQL_EXAMPLES", "REFRESH")
             .contains(Objects.toString(input.arguments().get("operation"), "")), "Unsupported metadata operation");
         Map<String, Object> args = new LinkedHashMap<>(input.arguments());
         args.put("contractVersion", SqlStudioMetadataGateway.CONTRACT); args.put("assetId", binding.assetRef());

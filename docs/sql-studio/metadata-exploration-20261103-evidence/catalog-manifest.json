@@ -1,0 +1,18 @@
+{
+  "image": "runtime-os-api:sql-metadata-exploration-20261103-r2",
+  "sourceBaseline": "b764ab22ecd89a16ed9d9f9c52b506be00113b02",
+  "sourceDiffSha256": "a61f5e5e1d059d799d646cf79fa8856cda0bff32642cceff9232f97f85ba6bb4",
+  "sourceCommit": "b764ab22e-sql-metadata-catalog",
+  "baselineSha256": "3a97ca0377ad419fb2969d75b3c3081734a53da95ac5c1253e3a01f1163cef9d",
+  "sha256": "d194ed9c871090efc5d73021b4322ec4f334e1ee8394c127cc10747e2ce26430",
+  "mcp": {
+    "image": "runtime-os-mcp:sql-metadata-exploration-20261103-r2",
+    "baselineSha256": "c0b1acc7ffb75453046a8b20542955d170ced8d030225ca4dbc120cb2e3cd81f",
+    "sha256": "b9aecb1b3ea38bc31df67255015f72c320351f4602161646f92a3c38b196cae0"
+  },
+  "catalogReadinessAuthFile": "catalog-readiness-private.json",
+  "catalogReadinessExpectedTools": [
+    "sql_schema_context_query",
+    "enterprise_metadata_search"
+  ]
+}

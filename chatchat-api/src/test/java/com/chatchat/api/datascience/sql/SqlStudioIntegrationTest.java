@@ -523,6 +523,33 @@ class SqlStudioIntegrationTest {
         assertThat(enterprise).isGreaterThanOrEqualTo(0);assertThat(boundary).isGreaterThan(enterprise);
         migration.migrate();assertThat(generationScopes.find(prepared.path("taskRequest").path("sessionId").asText())).hasSize(1);
     }
+    @Test void sqlExampleSearchReadsOwnedHistoricalRevisionsWithoutExecutingOrGrantingTheirReferences() throws Exception {
+        String p=project();
+        mvc.perform(put(ROOT+"/"+p+"/files").header("Authorization","Bearer "+token).contentType("application/json")
+            .content(json(Map.of("path","history.sql","kind","SQL","content","SELECT project_id FROM ld_dataservice_api","expectedVersion",0)))).andExpect(status().isOk());
+        mvc.perform(put(ROOT+"/"+p+"/files").header("Authorization","Bearer "+token).contentType("application/json")
+            .content(json(Map.of("path","history.sql","kind","SQL","content","SELECT group_id FROM ld_dataservice_api","expectedVersion",1)))).andExpect(status().isOk());
+        String owner=jdbc.queryForObject("select owner_id from ds_sql_project where id=?",String.class,p);
+        var examples=studio.sqlExamplesScoped(new com.chatchat.common.kernel.KernelDataScope(tenant,owner,null,null,"test",null,Map.of()),"ld_dataservice_api");
+        assertThat(examples.toString()).contains("SELECT project_id","SELECT group_id","REFERENCE_ONLY_NOT_EXECUTION_OR_PHYSICAL_AUTHORITY");
+        assertThat(studio.sqlExamplesScoped(new com.chatchat.common.kernel.KernelDataScope(tenant,"another-owner",null,null,"test",null,Map.of()),"ld_dataservice_api")).isEmpty();
+    }
+    @Test void databaseAssistantRoutesToExistingClineWorkspaceWithoutPreselectedTablesOrExtraPlanModel() throws Exception {
+        String p=project();
+        when(metadataGateway.invoke(any(),any(),anyMap())).thenReturn(new SqlStudioMetadataGateway.Result("registered",Map.of(
+            "items",List.of(Map.of("assetRef","authorized-asset","sourceDialect","mysql")))));
+        var context=data(mvc.perform(post(ROOT+"/"+p+"/metadata/contexts").header("Authorization","Bearer "+token)
+            .contentType("application/json").content(json(Map.of("purpose","QUERY","targetDialect","mysql","bindings",List.of(Map.of("assetRef","authorized-asset","role","SOURCE","database","db")))))).andExpect(status().isOk()).andReturn());
+        clearInvocations(codePlans,model);
+        var prepared=data(mvc.perform(post(ROOT+"/"+p+"/generations").header("Authorization","Bearer "+token).contentType("application/json")
+            .content(json(Map.of("action","explore","prompt","Find stored service SQL by project and group","dialect","mysql","metadataBindingContextId",context.path("discoveryId").asText()))))
+            .andExpect(status().isOk()).andReturn());
+        var tool=prepared.path("taskRequest").path("toolInput");
+        assertThat(tool.path("codingWorkspaceProfile").asText()).isEqualTo("SQL_WORKSPACE_V2");
+        assertThat(tool.path("sqlCodingDiscoveryId").asText()).isEqualTo(tool.path("sqlMetadataDiscoveryId").asText());
+        assertThat(tool.has("sqlCodingMetadataSelection")).isFalse();
+        verifyNoInteractions(codePlans,model);
+    }
     @Test void metadataContextHttpPersistsAndEnforcesRealProjectOwnership() throws Exception {
         String p=project();
         when(metadataGateway.invoke(any(),any(),anyMap())).thenReturn(new SqlStudioMetadataGateway.Result("registered", Map.of(

@@ -456,6 +456,13 @@ public class LuceneMcpSearchService {
         }
     }
 
+    /** Existing configured index, strictly restricted to the current authorized physical objects. */
+    public java.util.Optional<List<Map<String,Object>>> indexedMetadata(String asset, List<String> tableRefs,
+            String query, String exactTable) {
+        if (!enabled() || !openSearchSelected()) return java.util.Optional.empty();
+        return java.util.Optional.of(openSearchSearchService.searchMetadataEvidence(asset,tableRefs,query,exactTable));
+    }
+
     private void indexNamedTemplateIndex(String indexName, List<TemplateDoc> docs, String label) {
         if (!enabled()) {
             return;
@@ -948,7 +955,15 @@ public class LuceneMcpSearchService {
                            String extraText,
                            String tableComment,
                            String databaseComment,
-                           String semanticProfileText) {
+                           String semanticProfileText,
+                           Map<String,Object> metadataEvidence) {
+
+        public AssetDoc(String id,String assetType,String name,String displayName,String toolName,String env,String dbType,
+                List<String> labels,String source,String resultId,String databaseName,String tableName,String fullPath,
+                String extraText,String tableComment,String databaseComment,String semanticProfileText) {
+            this(id,assetType,name,displayName,toolName,env,dbType,labels,source,resultId,databaseName,tableName,fullPath,
+                extraText,tableComment,databaseComment,semanticProfileText,Map.of());
+        }
 
         public AssetDoc(String id,
                         String assetType,
@@ -1002,6 +1017,7 @@ public class LuceneMcpSearchService {
 
         public AssetDoc {
             labels = labels == null ? List.of() : labels;
+            metadataEvidence = metadataEvidence == null ? Map.of() : java.util.Collections.unmodifiableMap(new LinkedHashMap<>(metadataEvidence));
         }
     }
 

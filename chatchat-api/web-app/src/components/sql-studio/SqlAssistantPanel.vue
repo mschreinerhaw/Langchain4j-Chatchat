@@ -104,7 +104,8 @@
         </section>
         <section v-if="isCurrentTurn(turn) && progress.metadataGroups?.length" class="sql-metadata-operations" aria-label="元数据实际执行进展">
           <details v-for="group in progress.metadataGroups" :key="group.id" :data-state="group.state">
-            <summary><LoaderCircle v-if="group.state==='RUNNING'" class="sql-progress-spinner" :size="13" />{{ group.title }} · {{ group.count }} 次 · {{ (group.elapsedMs/1000).toFixed(1) }} 秒 · {{ {RUNNING:'进行中',FAILED:'含失败记录',CANCELLED:'已取消',STOPPED:'未取得完成记录',COMPLETED:'已完成'}[group.state] }}</summary>
+            <summary><LoaderCircle v-if="group.state==='RUNNING'" class="sql-progress-spinner" :size="13" />{{ group.title }}<span v-if="group.detail"> · {{ group.detail }}</span> · {{ {PENDING:'待开始',SKIPPED:'未生成 SQL',RUNNING:'进行中',FAILED:'含失败记录',CANCELLED:'已取消',STOPPED:'未取得完成记录',COMPLETED:'已完成'}[group.state] }}</summary>
+            <small>{{ group.count }} 次调用 · {{ (group.elapsedMs/1000).toFixed(1) }} 秒<span v-if="progress.diagnostics"> · 缓存命中 {{ progress.diagnostics.cacheHits }} 次 · 按需回源 {{ progress.diagnostics.sourceReadCount }} 次</span></small>
             <ol><li v-for="operation in group.operations" :key="operation.id">{{ operation.id }} · {{ operation.state }} · {{ operation.elapsedMs }}ms<span v-if="operation.reused"> · 复用已验证证据</span><span v-if="operation.reason"> · {{ operation.reason }}</span></li></ol>
           </details>
         </section>

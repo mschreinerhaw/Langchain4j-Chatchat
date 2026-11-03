@@ -81,7 +81,7 @@ public class SqlAdminController {
     @PostMapping("/datasources/{id}/metadata/refresh")
     public ApiResponse<MetadataIndexService.MetadataRefreshResult> refreshDatasourceMetadata(@PathVariable("id") String id) {
         SqlDatasourceConfig datasource = datasourceConfigService.getEnabled(id);
-        MetadataIndexService.MetadataRefreshResult result = metadataIndexService.refreshDatasource(datasource);
+        MetadataIndexService.MetadataRefreshResult result = metadataIndexService.refreshDatasource(datasource,"ADMIN_MANUAL_COLLECTION");
         assetLuceneIndexService.upsertSqlDatasource(datasource);
         String message = result.error() == null || result.error().isBlank()
             ? "SQL datasource metadata refreshed"
@@ -167,7 +167,7 @@ public class SqlAdminController {
             return;
         }
         try {
-            metadataIndexService.refreshDatasource(datasource);
+            metadataIndexService.refreshDatasource(datasource,"DATASOURCE_CONFIGURATION_CHANGE");
         } catch (Exception ex) {
             log.warn("SQL datasource metadata auto refresh after save failed: datasourceId={}, error={}",
                 datasource.getId(), ex.getMessage());

@@ -1,0 +1,26 @@
+{
+  "image": "runtime-os-api:sql-metadata-exploration-20261103-r1",
+  "sourceCommit": "40b0f121b-sql-metadata-858fc1633dae",
+  "sourceBaseline": "40b0f121b1a68c45ac362937e88336dc38c565c2",
+  "sourceDiffSha256": "858fc1633daee59e5b5672a17be60c34834cdb7dcefc56ce55bfc08d91a44391",
+  "baselineSha256": "549d8d7bc463287562f773955f4587820179d108e1bc671214a68dc49d45db56",
+  "sha256": "3a97ca0377ad419fb2969d75b3c3081734a53da95ac5c1253e3a01f1163cef9d",
+  "mcp": {
+    "image": "runtime-os-mcp:sql-metadata-exploration-20261103-r1",
+    "baselineSha256": "3213d79ad42463cb9ee759616715b7f510e32a2b1e23b84c3a27cd5f32c784ed",
+    "sha256": "c0b1acc7ffb75453046a8b20542955d170ced8d030225ca4dbc120cb2e3cd81f"
+  },
+  "worker": {
+    "image": "runtime-os-coding-agent:sql-metadata-exploration-20261103-r1",
+    "baselineImageId": "sha256:e54ea88b7763ab69169dcdc5f5e491be415a84ea04d1d62451f30dc21d1fabed",
+    "preparedImageId": "sha256:f562563909a8574fadc246bc6bf678eac734424790655c8e71ea6ba48efe312f",
+    "modules": {
+      "runner.js": "f749a84372d195fc110f996d4273898956a6d97b7a93f7989b68cea37633c0d3"
+    }
+  },
+  "catalogReadinessAuthFile": "catalog-readiness-private.json",
+  "catalogReadinessExpectedTools": [
+    "sql_schema_context_query",
+    "enterprise_metadata_search"
+  ]
+}

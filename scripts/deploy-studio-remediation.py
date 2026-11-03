@@ -74,15 +74,24 @@ def verify_catalog_readiness(root, manifest):
             if value.get('code') != 200: raise RuntimeError('Catalog readiness API rejected request')
             return value['data']
     token = request('/enterprise/auth/login', credentials)['token']
-    deadline = time.monotonic() + 240
+    deadline = time.monotonic() + 300
+    last_refresh = 0
     while time.monotonic() < deadline:
         status = request('/mcp/center/recovery/status', token=token)
         tools = request('/mcp/tools', token=token)
-        present = {tool.get('localToolName') for tool in tools if tool.get('description')}
+        present = {tool.get('remoteToolName') for tool in tools if tool.get('description')
+            and tool.get('serviceId') == 'chatchat-mcp-server'}
         if status.get('state') == 'HEALTHY' and expected <= present:
             return {'status': 'API_MCP_CATALOG_READY', 'registryState': status['state'],
                 'registeredToolCount': len(tools), 'requiredTools': sorted(expected),
                 'capturedAt': datetime.now(timezone.utc).isoformat()}
+        if time.monotonic() - last_refresh > 30:
+            try:
+                request('/mcp/refresh', {}, token)
+            except (urllib.error.HTTPError, TimeoutError):
+                # Startup license/catalog checks remain mandatory; retry within the deadline.
+                pass
+            last_refresh = time.monotonic()
         time.sleep(2)
     raise RuntimeError('API-side MCP catalog did not become ready; publication/listening alone is insufficient')
 
@@ -92,6 +101,10 @@ def main():
     root = Path(__file__).resolve().parent
     assert (root / 'restrict-coding-worker.sh').is_file(), 'Missing network restriction deployment dependency'
     manifest = json.loads((root / 'manifest.json').read_text())
+    if manifest.get('worker'):
+        assert manifest['worker'].get('modules'), 'Worker module hashes are required before stopping services'
+        assert all(module.endswith('.js') and '/' not in module and len(digest)==64
+            for module,digest in manifest['worker']['modules'].items()), 'Invalid worker module manifest'
     stage = Path('/opt/runtime-os-docker-stage')
     api, proxy = 'runtime-os-app-stage-api-1', 'runtime-os-app-stage-node-proxy-1'
     node, mcp = 'runtime-os-app-stage-coding-agent-1', 'runtime-os-app-stage-mcp-1'

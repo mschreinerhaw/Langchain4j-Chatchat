@@ -46,6 +46,20 @@ class SqlWorkspaceMetadataToolsTest {
         tools=new SqlWorkspaceMetadataTools(provider,gateway,parser,evidence,new ObjectMapper());
     }
     Map<String,Object> describe(){return Map.of("operation","DESCRIBE","bindingId","binding","tableName","trades");}
+    @Test void sqlExamplesUseTheExistingAuthorizedCatalogAndOwnedHistory(){
+        var studio=mock(SqlStudioService.class);
+        ObjectProvider<SqlStudioService> studios=mock(ObjectProvider.class);
+        when(studios.getObject()).thenReturn(studio);tools.setStudio(studios);
+        when(studio.sqlExamplesScoped(any(),eq("service"))).thenReturn(List.of(Map.of("sql","select 1")));
+        var input=Map.<String,Object>of("operation","search_sql_examples","bindingId","binding","query","service");
+        var result=tools.query(task,schema,input);
+        assertThat((Map<String,Object>)result.get("data")).containsEntry("templateCatalogStatus","AVAILABLE")
+            .containsEntry("ownedSqlExamples",List.of(Map.of("sql","select 1")));
+        verify(metadata).operateScoped(any(),eq(context),argThat(op->"SEARCH_SQL_EXAMPLES".equals(op.arguments().get("operation"))));
+        verifyNoInteractions(gateway);
+        when(metadata.operateScoped(any(),eq(context),any())).thenThrow(new SecurityException("revoked"));
+        assertThatThrownBy(()->tools.query(task,schema,input)).isInstanceOf(SecurityException.class);
+    }
     @Test void keywordArraysReachPhysicalSearchAndDifferentConceptsDoNotReuseTheSameQuery(){
         tools.query(task,schema,Map.of("operation","SEARCH","bindingId","binding","queryTerms",List.of("customer","trade")));
         assertThat(tools.query(task,schema,Map.of("operation","SEARCH","bindingId","binding","queryTerms",List.of("asset"))))
@@ -64,13 +78,40 @@ class SqlWorkspaceMetadataToolsTest {
         snapshot="v2";assertThatThrownBy(()->tools.query(task,schema,describe())).isInstanceOf(ResponseStatusException.class);
         assertThat(tools.query(task,schema,describe())).containsEntry("snapshotId","v2");
     }
+    @Test void logicalSchemaNamesReuseExistingOperationsAndCachedReadsRecheckAuthorization(){
+        tools.query(task,schema,Map.of("operation","get_table_schema","bindingId","binding","tableName","trades"));
+        assertThat(tools.query(task,schema,describe())).containsEntry("reusedEvidence",true).containsEntry("sourceReadCount",0);
+        verify(metadata,times(1)).operateScoped(any(),eq(context),argThat(op->"DESCRIBE".equals(op.arguments().get("operation"))));
+        when(metadata.getScoped(any(),eq("project"),eq("discovery"))).thenThrow(new SecurityException("revoked"));
+        assertThatThrownBy(()->tools.query(task,schema,describe())).isInstanceOf(SecurityException.class);
+    }
+    @Test void sameTaskLiveEvidenceCacheDoesNotRepeatTheSourceRead(){
+        when(metadata.operateScoped(any(),eq(context),argThat(op->op!=null&&"VERIFY_LIVE_SCHEMA".equals(op.arguments().get("operation")))))
+            .thenReturn(new SqlStudioMetadataGateway.Result("service",Map.of("status","SUCCEEDED","snapshotId","v1","sourceReadCount",1,"items",List.of(
+                Map.of("tableRef","ref","tableName","trades","columns",List.of(Map.of("name","client_no")),"schemaVersion","live-v1")))));
+        var input=Map.<String,Object>of("operation","VERIFY_LIVE_SCHEMA","bindingId","binding","tableName","trades","reason","INDEX_STALE");
+        assertThat(tools.query(task,schema,input)).containsEntry("sourceReadCount",1);
+        assertThat(tools.query(task,schema,input)).containsEntry("reusedEvidence",true).containsEntry("sourceReadCount",0);
+        verify(metadata,times(1)).operateScoped(any(),eq(context),argThat(op->"VERIFY_LIVE_SCHEMA".equals(op.arguments().get("operation"))));
+    }
+    @Test void previousConversationStructureIsRevalidatedAndAvailableWithoutAnotherDescribe(){
+        var prior=new LinkedHashMap<>(schema);prior.put("tables",List.of(Map.of("bindingId","binding","tableRef","ref","tableName","trades","snapshotId","v1","columns",List.of(Map.of("name","client_no")))));
+        when(parser.validate(anyString(),anyList(),argThat(value->value!=null&&!value.isEmpty())))
+            .thenReturn(Map.of("valid",true,"fieldValidation","CHECKED"));
+        assertThat(tools.validate(task,prior,List.of(new SqlOutputBundle.Candidate("q.sql","select client_no from trades")),"mysql"))
+            .containsEntry("valid",true).containsEntry("fieldValidation","CHECKED");
+        verify(metadata,never()).operateScoped(any(),any(),argThat(op->"DESCRIBE".equals(op.arguments().get("operation"))));
+        snapshot="v2";
+        assertThatThrownBy(()->tools.validate(task,prior,List.of(new SqlOutputBundle.Candidate("q.sql","select client_no from trades")),"mysql"))
+            .isInstanceOf(ResponseStatusException.class);
+    }
     @Test void lineageAndDescribeShareEvidenceButRetainTheRequestedOperation(){
         tools.query(task,schema,describe());
         assertThat(tools.query(task,schema,Map.of("operation","LINEAGE","bindingId","binding","tableName","trades")))
             .containsEntry("operation","LINEAGE").containsEntry("lineageStatus","NOT_COLLECTED").containsEntry("reusedEvidence",true);
         assertThat(tools.query(task,schema,describe())).containsEntry("operation","DESCRIBE").doesNotContainKey("lineageStatus");
         verify(metadata,times(1)).operateScoped(any(),eq(context),argThat(op->"DESCRIBE".equals(op.arguments().get("operation"))));
-        verify(metadata,times(2)).operateScoped(any(),eq(context),argThat(op->"SEARCH".equals(op.arguments().get("operation"))));
+        verify(metadata,times(2)).operateScoped(any(),eq(context),argThat(op->"GET_METADATA_FRESHNESS".equals(op.arguments().get("operation"))));
     }
     @Test void rejectsAnotherBindingAndExecutionArguments(){
         assertThatThrownBy(()->tools.query(task,schema,Map.of("operation","DESCRIBE","bindingId","other","tableName","secret"))).isInstanceOf(SecurityException.class);

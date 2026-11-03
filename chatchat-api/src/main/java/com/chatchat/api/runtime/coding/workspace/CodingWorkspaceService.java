@@ -158,6 +158,13 @@ public final class CodingWorkspaceService {
             return current;
         });
     }
+    /** Completed conversation evidence only; reading history never resumes an old task. */
+    public Map<String,Object> completedContext(KernelDataScope scope,String task){
+        return identity.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->{
+            var outcome=agents.getObject().get(scope,task);
+            return outcome.status()==CodingTaskOutcome.Status.COMPLETED?output(scope,task,outcome):Map.of();
+        });
+    }
     public CodingTaskOutcome cancel(KernelDataScope scope,String task){
         return identity.as(scope,EnumSet.allOf(CodingTaskAccess.Action.class),()->{
             var result=agents.getObject().cancel(scope,task,"Studio user cancelled");projectHistory(scope,task,result);return result;});
@@ -237,7 +244,7 @@ public final class CodingWorkspaceService {
         var reserved=reserve(contract,lease,operation,hash);
         var intent=tasks.startIntent(contract.scope(),contract.taskId(),lease,reserved.revision(),operation,"runtime-workspace:"+operation);
         if(!intent.dispatchIntentCreated())throw new IllegalStateException("Reconcile metadata read before retry");
-        String phase=tool.equals("workspace_validate")?"VALIDATING_SQL":Set.of("DESCRIBE","LINEAGE").contains(Objects.toString(arguments.get("operation"),""))?"CONFIRMING_FIELDS":"FINDING_TABLES";
+        String phase=tool.equals("workspace_validate")?"VALIDATING_SQL":Set.of("DESCRIBE","GET_TABLE_SCHEMA","LINEAGE","FIND_RELATED_TABLES","GET_TABLE_RELATIONSHIPS","VERIFY_LIVE_SCHEMA").contains(Objects.toString(arguments.get("operation"),""))?"CONFIRMING_FIELDS":"FINDING_TABLES";
         evidence.mutateExecutionCheckpoint(contract.scope(),"coding:workspace-progress:"+operation,ignored->encode(Map.of("sqlProgressPhase",phase,"tool",tool,"state","RUNNING")));
         long started=System.nanoTime();Map<String,Object> result;
         try{
@@ -271,7 +278,16 @@ public final class CodingWorkspaceService {
             row.put("status",result.getOrDefault("status",Boolean.TRUE.equals(result.get("valid"))?"VALID":"FAILED"));
             row.put("valid",Boolean.TRUE.equals(result.get("valid")));row.put("receiptRef","runtime-evidence:coding:workspace:"+operation+":receipt");
             if(result.get("category")!=null)row.put("category",result.get("category"));
-            for(String key:List.of("operation","reusedEvidence"))if(result.containsKey(key))row.put(key,result.get(key));
+            for(String key:List.of("operation","reusedEvidence","sourceReadCount","provenance","snapshotId"))if(result.containsKey(key))row.put(key,result.get(key));
+            if(result.get("items") instanceof List<?> items){
+                row.put("candidateCount",items.size());
+                row.put("candidateRefs",items.stream().filter(Map.class::isInstance).map(Map.class::cast).map(t->t.get("tableRef")).filter(Objects::nonNull).toList());
+                row.put("confirmedPathCount",items.stream().filter(Map.class::isInstance).map(Map.class::cast)
+                    .mapToLong(t->t.get("foreignKeys") instanceof List<?> keys?keys.size():0).sum());
+                row.put("confirmedPathRefs",items.stream().filter(Map.class::isInstance).map(Map.class::cast)
+                    .flatMap(t->t.get("foreignKeys") instanceof List<?> keys?keys.stream():java.util.stream.Stream.empty())
+                    .filter(Map.class::isInstance).map(Map.class::cast).map(k->k.get("constraintRef")).filter(Objects::nonNull).distinct().toList());
+            }
             var validation=result.get("validation") instanceof Map<?,?> nested?nested:result;
             var review=new LinkedHashMap<String,Object>();
             for(String key:List.of("structuralDiagnostics","relationships","grains","structureReviewRequired","businessValidation"))
@@ -377,11 +393,16 @@ public final class CodingWorkspaceService {
                     if(failures>sqlRepairLimit(input))throw new IllegalStateException("SQL_REPAIR_LIMIT_REACHED: SQL proposal repair budget exhausted");
                 }
             }
-            files="python".equals(input.get("dialect"))?SqlOutputBundle.parsePython(encode(proposal),json):SqlOutputBundle.parse(encode(proposal),json);
+            boolean evidenceOnly=SqlWorkspaceMetadataTools.enabled(contract)&&proposal.get("files") instanceof List<?> list&&list.isEmpty();
+            files="python".equals(input.get("dialect"))?SqlOutputBundle.parsePython(encode(proposal),json):SqlOutputBundle.parse(encode(proposal),json,evidenceOnly);
             if(encode(files).getBytes(StandardCharsets.UTF_8).length>contract.outputContract().maxResultBytes())
                 throw new IllegalArgumentException("SQL proposal exceeds task output limit");
             Map<String,Object> schema=json.convertValue(input.get("schema"),new TypeReference<Map<String,Object>>(){});
-            if(SqlWorkspaceMetadataTools.enabled(contract)){
+            if(evidenceOnly){
+                exploration.context(contract,schema); // Recheck current ownership and datasource grants even for notes-only delivery.
+                validation=Map.of("valid",true,"status","EVIDENCE_ONLY","fieldValidation","NOT_APPLICABLE","sqlExecuted",false,
+                    "diagnostics",List.of(),"references",List.of());
+            }else if(SqlWorkspaceMetadataTools.enabled(contract)){
                 validation=exploration.validate(contract,schema,files,(String)input.get("dialect"));
             }else{
             if(!"python".equals(input.get("dialect")) && schema.get("discoveryId") instanceof String discovery && references!=null){
@@ -464,7 +485,7 @@ public final class CodingWorkspaceService {
             var validation=new LinkedHashMap<>((Map<String,Object>)result.get("validation"));
             validation.put("normalizedFiles",normalization==null?List.of():normalization);
             var index=new LinkedHashMap<String,Object>(Map.of("files",files,"notes",notes,"validation",validation));
-            if(SqlWorkspaceMetadataTools.enabled(contract)){
+            if(SqlWorkspaceMetadataTools.enabled(contract)&&!files.isEmpty()){
                 var input=requireAuthorized(contract);
                 var delivery=new LinkedHashMap<>(com.chatchat.api.datascience.sql.SqlStudioDelivery.manifest(
                     (String)input.get("dialect"),files,validation,exploration.deliveryEvidence(contract)));

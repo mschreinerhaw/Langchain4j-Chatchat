@@ -26,6 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
@@ -37,6 +38,56 @@ import java.util.stream.Collectors;
 public class MetadataIndexService {
 
     private static final Duration CACHE_TTL = Duration.ofMinutes(5);
+
+    /** Exactly one authorized physical object. Never collects every table or executes business SQL. */
+    public MetadataIndex verifyTable(SqlDatasourceConfig source,String database,String schema,String table,String reason) throws Exception {
+        if(table==null||table.isBlank()||table.length()>256||reason==null||reason.isBlank()||reason.length()>512)
+            throw new IllegalArgumentException("Exact table and bounded verification reason are required");
+        MetadataIndex previous=indexFor(source);
+        String namespace=firstText(schema,database,defaultSchemaName(source));
+        if(namespace==null)throw new IllegalArgumentException("Specify the authorized database/schema");
+        var allowed=MetadataScopes.split(source.getMetadataScopeValue());
+        if(!allowed.isEmpty()&&!allowed.contains(namespace)&&!allowed.contains(database))throw new SecurityException("Metadata namespace is outside the datasource scope");
+        var requested=new TableLocation(source.getId(),firstText(database,namespace),namespace,table,"TABLE",null,null,null,0);
+        if(!MetadataVisibility.tableVisible(source,requested))throw new SecurityException("Table is outside current metadata visibility");
+        long started=System.nanoTime();
+        log.info("metadata_live_verification started assetId={} database={} schema={} table={} reason={}",source.getId(),database,schema,table,reason.replaceAll("[\\r\\n]"," "));
+        try(Connection connection=openConnection(source)){
+            try{connection.setNetworkTimeout(Runnable::run,15000);}catch(java.sql.SQLFeatureNotSupportedException ignored){}
+            var jdbc=connection.getMetaData();var scope=jdbcMetadataScope(jdbc,namespace);
+            String escape=Objects.toString(jdbc.getSearchStringEscape(),"");
+            if(escape.isEmpty()&&(table.contains("%")||table.contains("_")))throw new IllegalArgumentException("Driver cannot safely escape exact table patterns");
+            String pattern=escape.isEmpty()?table:table.replace(escape,escape+escape).replace("%",escape+"%").replace("_",escape+"_");
+            TableLocation physical=null;
+            try(var rows=jdbc.getTables(scope.catalog(),scope.schemaPattern(),pattern,new String[]{"TABLE","VIEW"})){
+                while(rows.next())if(table.equals(rows.getString("TABLE_NAME"))){
+                    String found=firstText(readOptionalString(rows,"TABLE_SCHEM"),readOptionalString(rows,"TABLE_CAT"),namespace);
+                    if(!namespace.equals(found))continue;
+                    physical=new TableLocation(source.getId(),firstText(database,found),found,table,rows.getString("TABLE_TYPE"),null,readOptionalString(rows,"REMARKS"),null,0);break;
+                }
+            }
+            if(physical==null)throw new IllegalArgumentException("Requested table was not found in the authorized live namespace");
+            var primary=new java.util.LinkedHashSet<String>();
+            try(var keys=jdbc.getPrimaryKeys(scope.catalog(),scope.schemaPattern(),table)){while(keys.next())primary.add(keys.getString("COLUMN_NAME"));}
+            var fields=new ArrayList<MetadataColumn>();
+            try(var rows=jdbc.getColumns(scope.catalog(),scope.schemaPattern(),pattern,"%")){
+                while(rows.next())if(table.equals(rows.getString("TABLE_NAME"))){
+                    String found=firstText(readOptionalString(rows,"TABLE_SCHEM"),readOptionalString(rows,"TABLE_CAT"),namespace);
+                    if(!namespace.equals(found))continue;
+                    String name=rows.getString("COLUMN_NAME"),type=rows.getString("TYPE_NAME");
+                    fields.add(new MetadataColumn(source.getId(),physical.database(),physical.schema(),table,name,type,type,primary.contains(name)?"PRI":null,
+                        readOptionalString(rows,"REMARKS"),!Integer.valueOf(DatabaseMetaData.columnNoNulls).equals(readOptionalInteger(rows,"NULLABLE")),readOptionalInteger(rows,"ORDINAL_POSITION")));
+                    if(fields.size()>5000)throw new IllegalStateException("Live schema exceeds bounded field budget");
+                }
+            }
+            var tables=new ArrayList<>(previous.tables());var confirmed=physical;
+            tables.removeIf(t->Objects.equals(t.database(),confirmed.database())&&Objects.equals(t.schema(),confirmed.schema())&&t.table().equals(table));tables.add(physical);
+            var columns=new LinkedHashMap<>(previous.tableColumns());columns.put(tableKey(physical.database(),table),List.copyOf(fields));
+            var relations=new LinkedHashMap<>(previous.foreignKeys());relations.putAll(importedKeys(jdbc,List.of(physical)));
+            return new MetadataIndex(source.getId(),resolvedDatabaseType(source),tables,previous.tableIndex(),previous.schemaTables(),columns,
+                previous.datasourceSchemas(),previous.refreshedAtMs(),false,null,previous.objects(),previous.configurationFingerprint(),previous.changes(),relations);
+        }finally{log.info("metadata_live_verification finished assetId={} table={} durationMs={} sourceConnections=1 reason={}",source.getId(),table,(System.nanoTime()-started)/1_000_000,reason.replaceAll("[\\r\\n]"," "));}
+    }
     private static final int MAX_CACHED_ENTRIES = 512;
     private static final String ROCKS_INDEX_PREFIX = "metadata:index:";
 
@@ -167,7 +218,7 @@ public class MetadataIndexService {
         if (current == null || !"metadata_index_not_refreshed".equals(current.error())) {
             return current;
         }
-        MetadataRefreshResult refreshResult = refreshDatasource(datasource);
+        MetadataRefreshResult refreshResult = refreshDatasource(datasource,"EXACT_LOOKUP_INITIAL_COLLECTION");
         MetadataIndex refreshed = indexFor(datasource);
         if (refreshed != null && (refreshed.error() == null || refreshed.error().isBlank())) {
             return refreshed;
@@ -192,7 +243,7 @@ public class MetadataIndexService {
                 continue;
             }
             try {
-                refreshDatasource(datasource);
+                refreshDatasource(datasource,"SCHEDULED_COLLECTION");
             } catch (Exception ex) {
                 log.warn("Metadata index refresh failed: datasourceId={}, error={}", datasource.getId(), ex.getMessage());
             }
@@ -200,6 +251,12 @@ public class MetadataIndexService {
         trimCache(indexCache);
     }
 
+    public MetadataRefreshResult refreshDatasource(SqlDatasourceConfig datasource,String reason){
+        if(reason==null||reason.isBlank()||reason.length()>512)throw new IllegalArgumentException("Metadata collection reason is required");
+        long started=System.nanoTime();
+        try{return refreshDatasource(datasource);}
+        finally{log.info("metadata_collection assetId={} reason={} durationMs={}",datasource==null?null:datasource.getId(),reason.replaceAll("[\\r\\n]"," "),(System.nanoTime()-started)/1_000_000);}
+    }
     public synchronized MetadataRefreshResult refreshDatasource(SqlDatasourceConfig datasource) {
         long startedAt = System.currentTimeMillis();
         if (datasource == null) {

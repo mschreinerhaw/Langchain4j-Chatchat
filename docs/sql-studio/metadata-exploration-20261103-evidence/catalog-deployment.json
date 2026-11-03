@@ -1,0 +1,31 @@
+{
+  "status": "DEPLOYED",
+  "image": "runtime-os-api:sql-metadata-exploration-20261103-r2",
+  "sha256": "d194ed9c871090efc5d73021b4322ec4f334e1ee8394c127cc10747e2ce26430",
+  "backup": "/opt/chatchat-releases/sql-metadata-exploration-20261103-r2/backup",
+  "retired": {
+    "runtime-os-app-stage-mcp-1": "runtime-os-app-stage-mcp-1-before-studio-1793682002",
+    "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-studio-1793682002",
+    "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-studio-1793682002"
+  },
+  "databaseMigrationSha256": null,
+  "catalogReadiness": {
+    "status": "API_MCP_CATALOG_READY",
+    "registryState": "HEALTHY",
+    "registeredToolCount": 39,
+    "requiredTools": [
+      "enterprise_metadata_search",
+      "sql_schema_context_query"
+    ],
+    "capturedAt": "2026-11-03T05:02:26.935594+00:00"
+  },
+  "preservedExpiredReadOnlyTaskIds": [],
+  "unrelatedContainersUnchanged": true,
+  "conversationContentUnchanged": true,
+  "messageIndexCountUnchanged": true,
+  "images": {
+    "runtime-os-app-stage-api-1": "runtime-os-api:sql-metadata-exploration-20261103-r2",
+    "runtime-os-app-stage-mcp-1": "runtime-os-mcp:sql-metadata-exploration-20261103-r2"
+  },
+  "channelCounts": "SQL_STUDIO|57\nPYTHON_STUDIO|10\nPLATFORM_UI|911\nAGENT_API|203"
+}

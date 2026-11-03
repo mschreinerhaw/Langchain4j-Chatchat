@@ -1,0 +1,58 @@
+[
+  {
+    "name": "com.chatchat.api.datascience.sql.SqlStudioIntegrationTest",
+    "tests": "42",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "time": "52.261"
+  },
+  {
+    "name": "com.chatchat.api.datascience.sql.SqlWorkspaceMetadataToolsTest",
+    "tests": "16",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "time": "0.805"
+  },
+  {
+    "name": "com.chatchat.api.runtime.coding.workspace.CodingWorkspaceServiceTest",
+    "tests": "13",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "time": "6.229"
+  },
+  {
+    "name": "com.chatchat.mcpserver.search.engine.OpenSearchMetadataEvidenceTest",
+    "tests": "1",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "time": "1.136"
+  },
+  {
+    "name": "com.chatchat.mcpserver.sql.metadata.MetadataTargetedVerificationTest",
+    "tests": "1",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "time": "1.739"
+  },
+  {
+    "name": "com.chatchat.mcpserver.sql.metadata.SqlMetadataOpenSearchDiscoveryTest",
+    "tests": "7",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "time": "3.141"
+  },
+  {
+    "name": "com.chatchat.mcpserver.templatepublication.catalog.TemplateAssetCatalogServiceTest",
+    "tests": "6",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "time": "0.891"
+  }
+]

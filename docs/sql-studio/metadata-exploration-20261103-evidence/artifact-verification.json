@@ -1,0 +1,26 @@
+{
+  "api": {
+    "sha256": "3a97ca0377ad419fb2969d75b3c3081734a53da95ac5c1253e3a01f1163cef9d",
+    "replacedOuterClasses": [
+      "BOOT-INF/classes/com/chatchat/api/datascience/sql/SqlStudioMetadataAssistant",
+      "BOOT-INF/classes/com/chatchat/api/datascience/sql/SqlStudioMetadataService",
+      "BOOT-INF/classes/com/chatchat/api/datascience/sql/SqlStudioService",
+      "BOOT-INF/classes/com/chatchat/api/datascience/sql/SqlWorkspaceMetadataTools",
+      "BOOT-INF/classes/com/chatchat/api/runtime/coding/workspace/CodingWorkspaceService"
+    ],
+    "allUnrelatedEntriesPreserved": true
+  },
+  "mcp": {
+    "sha256": "c0b1acc7ffb75453046a8b20542955d170ced8d030225ca4dbc120cb2e3cd81f",
+    "replacedOuterClasses": [
+      "BOOT-INF/classes/com/chatchat/mcpserver/search/engine/LuceneMcpSearchService",
+      "BOOT-INF/classes/com/chatchat/mcpserver/search/engine/OpenSearchMcpSearchService",
+      "BOOT-INF/classes/com/chatchat/mcpserver/search/index/McpAssetLuceneIndexService",
+      "BOOT-INF/classes/com/chatchat/mcpserver/sql/admin/SqlAdminController",
+      "BOOT-INF/classes/com/chatchat/mcpserver/sql/metadata/MetadataIndexService",
+      "BOOT-INF/classes/com/chatchat/mcpserver/sql/metadata/SqlMetadataDiscoveryService",
+      "BOOT-INF/classes/com/chatchat/mcpserver/sql/tool/SqlMcpToolPublisher"
+    ],
+    "allUnrelatedEntriesPreserved": true
+  }
+}

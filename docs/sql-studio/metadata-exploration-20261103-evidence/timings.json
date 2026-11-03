@@ -1,0 +1,654 @@
+{
+  "tasks": [
+    {
+      "taskId": "sql-coding-3f523508-62ae-40b7-b949-d3692fa0fd47",
+      "generationId": "3f523508-62ae-40b7-b949-d3692fa0fd47",
+      "status": "SUCCESS",
+      "serverElapsedMs": 80873.0,
+      "modelCalls": 6,
+      "modelDurations": {
+        "n": 6,
+        "samplesMs": [
+          4427,
+          7656,
+          11297,
+          14181,
+          9976,
+          19112
+        ],
+        "p50Ms": 9976,
+        "p95Ms": 19112,
+        "method": "NEAREST_RANK_SMALL_SAMPLE_NOT_SLA"
+      },
+      "openSearchQueries": {
+        "n": 5,
+        "samplesMs": [
+          8,
+          188,
+          172,
+          7,
+          6
+        ],
+        "p50Ms": 8,
+        "p95Ms": 188,
+        "method": "NEAREST_RANK_SMALL_SAMPLE_NOT_SLA"
+      },
+      "tools": [
+        {
+          "operationId": "workspace-626588190a2bdc25b9d8b8ceea91f997f35fb593ef921eeb130f27e3368868b4",
+          "tool": "workspace_metadata",
+          "durationMs": 211,
+          "status": "SUCCEEDED",
+          "valid": false,
+          "receiptRef": "runtime-evidence:coding:workspace:workspace-626588190a2bdc25b9d8b8ceea91f997f35fb593ef921eeb130f27e3368868b4:receipt"
+        },
+        {
+          "operationId": "workspace-e83242ea1770448a65c3c36f708ef0322da6b740cc70829628e8c90c21b70768",
+          "tool": "workspace_metadata",
+          "durationMs": 464,
+          "status": "SUCCEEDED",
+          "valid": false,
+          "receiptRef": "runtime-evidence:coding:workspace:workspace-e83242ea1770448a65c3c36f708ef0322da6b740cc70829628e8c90c21b70768:receipt",
+          "operation": "DESCRIBE_TABLE",
+          "sourceReadCount": 0,
+          "provenance": [
+            {
+              "assetRef": "c5c085c4-067b-4a0f-876c-e1c4f808232f",
+              "snapshotId": "sha256:7e7a2c1c68f46cc00ef103ae7e9dddb62d5c9bd1f9d169bae98114e10870639e",
+              "source": "OPENSEARCH",
+              "sourceDialect": "mysql",
+              "collectedAt": "2026-07-30T02:23:20.584Z",
+              "sourceUpdatedAt": null,
+              "indexQueryMs": 8,
+              "indexQueryCount": 1
+            }
+          ],
+          "snapshotId": "sha256:7e7a2c1c68f46cc00ef103ae7e9dddb62d5c9bd1f9d169bae98114e10870639e",
+          "candidateCount": 1,
+          "candidateRefs": [
+            "sha256:9bc39a9866fcb0d6ef67cd0f1785f4888b018bb6db5399d61f18846fc7a238d8"
+          ],
+          "confirmedPathCount": 0,
+          "confirmedPathRefs": []
+        },
+        {
+          "operationId": "workspace-0ff41e80c25a24141e1ea2bad42072756d01ec4980c04d7fdacda7e6b6d034bc",
+          "tool": "workspace_metadata",
+          "durationMs": 572,
+          "status": "SUCCEEDED",
+          "valid": false,
+          "receiptRef": "runtime-evidence:coding:workspace:workspace-0ff41e80c25a24141e1ea2bad42072756d01ec4980c04d7fdacda7e6b6d034bc:receipt",
+          "operation": "SEARCH_TABLES",
+          "sourceReadCount": 0,
+          "provenance": [
+            {
+              "assetRef": "c5c085c4-067b-4a0f-876c-e1c4f808232f",
+              "snapshotId": "sha256:7e7a2c1c68f46cc00ef103ae7e9dddb62d5c9bd1f9d169bae98114e10870639e",
+              "source": "OPENSEARCH",
+              "sourceDialect": "mysql",
+              "collectedAt": "2026-07-30T02:23:20.584Z",
+              "sourceUpdatedAt": null,
+              "indexQueryMs": 188,
+              "indexQueryCount": 1
+            }
+          ],
+          "snapshotId": "sha256:7e7a2c1c68f46cc00ef103ae7e9dddb62d5c9bd1f9d169bae98114e10870639e",
+          "candidateCount": 10,
+          "candidateRefs": [
+            "sha256:f5bbd287b7efd2f52c05751df249e2081001a5713914721b2d3c3b54614cb6ab",
+            "sha256:e530ffecb5091994aacd08e2aee8fe600befe6ab3f8475eeb4c6eddefece7291",
+            "sha256:1f4d0cd3e75365388a446d7c5eebc290bab84305f3a370aae5986ba809bc6344",
+            "sha256:05142a3764eac12eaa716da8436151a8bd11d044055e7aca3ee8b00c05f4ce88",
+            "sha256:acc6ec01b6831764adb5a346b30a21043ea3063c6be88191feffa222cb225a2d",
+            "sha256:9bc39a9866fcb0d6ef67cd0f1785f4888b018bb6db5399d61f18846fc7a238d8",
+            "sha256:807df6f0dce0114e6f02868d27a6a8075fc908382122341ed12105465c432574",
+            "sha256:597edc74014104944f3330aef6f919f005508fed877b8c5e172cd3dd24315078",
+            "sha256:3d95684d653cd91a8b275ebefb3ac198bb438c092438cfa200139d702114ae55",
+            "sha256:9a55f1a7f939c4012fd377706b2b52cf5545f408ded747c850ea06ff8d43d9b5"
+          ],
+          "confirmedPathCount": 0,
+          "confirmedPathRefs": []
+        },
+        {
+          "operationId": "workspace-1c85336104b0db681551c4184078b621ea09ce6e8328f3f0a5fd2e0bada844c2",
+          "tool": "workspace_metadata",
+          "durationMs": 620,
+          "status": "SUCCEEDED",
+          "valid": false,
+          "receiptRef": "runtime-evidence:coding:workspace:workspace-1c85336104b0db681551c4184078b621ea09ce6e8328f3f0a5fd2e0bada844c2:receipt",
+          "operation": "SEARCH_TABLES",
+          "sourceReadCount": 0,
+          "provenance": [
+            {
+              "assetRef": "c5c085c4-067b-4a0f-876c-e1c4f808232f",
+              "snapshotId": "sha256:7e7a2c1c68f46cc00ef103ae7e9dddb62d5c9bd1f9d169bae98114e10870639e",
+              "source": "OPENSEARCH",
+              "sourceDialect": "mysql",
+              "collectedAt": "2026-07-30T02:23:20.584Z",
+              "sourceUpdatedAt": null,
+              "indexQueryMs": 172,
+              "indexQueryCount": 1
+            }
+          ],
+          "snapshotId": "sha256:7e7a2c1c68f46cc00ef103ae7e9dddb62d5c9bd1f9d169bae98114e10870639e",
+          "candidateCount": 10,
+          "candidateRefs": [
+            "sha256:55f71e107748f0c32a2bab264689ed7ada14b6ba1a897f65c5851c2f852adbda",
+            "sha256:c47912c07de2857837747394d614507c783b2298032d60c55f789837a83fcedd",
+            "sha256:8b4189e3849668a67cd06f5f3210def993e58c1854e26958e9ca7b908e75c14c",
+            "sha256:0ea8e4a6932426e9b86376da1a213d092c436705328c203931abcf882b0e0128",
+            "sha256:f44ddc910c0fb9aef8a06c4c035d18ce5bac59da36784cc1fa52cc612f22aa9f",
+            "sha256:47f3d30ee555a57937b9cdb8b66791303bf8c569a7a88dd6940433f10b163021",
+            "sha256:078941d69655f33b871cc6b485846b31cd55e5b3239dda154744852f48b112e2",
+            "sha256:3d2a234c4a4376d4dd7b76ae6c98b79e4e450e86a9234a642e38a1d96b52a533",
+            "sha256:74125b26a5318b61a020204cecfa91f002422a353ca18ee8ebae5e224eda8ca3",
+            "sha256:e1c3858d5d7d8ed9e6c8081260ecef7c4dbf8241107c19c06d2c0a7c689a9111"
+          ],
+          "confirmedPathCount": 0,
+          "confirmedPathRefs": []
+        },
+        {
+          "operationId": "workspace-ee1968f568ff154d7134cd37db9e868cd49c0ef7f0f660d4b8806fcaa623e55e",
+          "tool": "workspace_metadata",
+          "durationMs": 397,
+          "status": "SUCCEEDED",
+          "valid": false,
+          "receiptRef": "runtime-evidence:coding:workspace:workspace-ee1968f568ff154d7134cd37db9e868cd49c0ef7f0f660d4b8806fcaa623e55e:receipt",
+          "operation": "DESCRIBE_TABLE",
+          "sourceReadCount": 0,
+          "provenance": [
+            {
+              "assetRef": "c5c085c4-067b-4a0f-876c-e1c4f808232f",
+              "snapshotId": "sha256:7e7a2c1c68f46cc00ef103ae7e9dddb62d5c9bd1f9d169bae98114e10870639e",
+              "source": "OPENSEARCH",
+              "sourceDialect": "mysql",
+              "collectedAt": "2026-07-30T02:23:20.584Z",
+              "sourceUpdatedAt": null,
+              "indexQueryMs": 7,
+              "indexQueryCount": 1
+            }
+          ],
+          "snapshotId": "sha256:7e7a2c1c68f46cc00ef103ae7e9dddb62d5c9bd1f9d169bae98114e10870639e",
+          "candidateCount": 1,
+          "candidateRefs": [
+            "sha256:e530ffecb5091994aacd08e2aee8fe600befe6ab3f8475eeb4c6eddefece7291"
+          ],
+          "confirmedPathCount": 0,
+          "confirmedPathRefs": []
+        },
+        {
+          "operationId": "workspace-adf7d74477607c33d5572c3e90a3cb63f0debb967da25ba8d6746c41edda14ec",
+          "tool": "workspace_metadata",
+          "durationMs": 428,
+          "status": "SUCCEEDED",
+          "valid": false,
+          "receiptRef": "runtime-evidence:coding:workspace:workspace-adf7d74477607c33d5572c3e90a3cb63f0debb967da25ba8d6746c41edda14ec:receipt",
+          "operation": "DESCRIBE_TABLE",
+          "sourceReadCount": 0,
+          "provenance": [
+            {
+              "assetRef": "c5c085c4-067b-4a0f-876c-e1c4f808232f",
+              "snapshotId": "sha256:7e7a2c1c68f46cc00ef103ae7e9dddb62d5c9bd1f9d169bae98114e10870639e",
+              "source": "OPENSEARCH",
+              "sourceDialect": "mysql",
+              "collectedAt": "2026-07-30T02:23:20.584Z",
+              "sourceUpdatedAt": null,
+              "indexQueryMs": 6,
+              "indexQueryCount": 1
+            }
+          ],
+          "snapshotId": "sha256:7e7a2c1c68f46cc00ef103ae7e9dddb62d5c9bd1f9d169bae98114e10870639e",
+          "candidateCount": 1,
+          "candidateRefs": [
+            "sha256:47f3d30ee555a57937b9cdb8b66791303bf8c569a7a88dd6940433f10b163021"
+          ],
+          "confirmedPathCount": 0,
+          "confirmedPathRefs": []
+        },
+        {
+          "operationId": "workspace-9922a230d3dc9a740e9a3887c48eec41dc4d1154acc0c461d943463a54a07cc5",
+          "tool": "workspace_validate",
+          "durationMs": 667,
+          "status": "FAILED",
+          "valid": false,
+          "receiptRef": "runtime-evidence:coding:workspace:workspace-9922a230d3dc9a740e9a3887c48eec41dc4d1154acc0c461d943463a54a07cc5:receipt",
+          "structureReview": {
+            "structuralDiagnostics": [],
+            "relationships": [],
+            "grains": [],
+            "structureReviewRequired": false,
+            "businessValidation": "NOT_EVALUATED"
+          }
+        },
+        {
+          "operationId": "workspace-8f5dabb822b34d1b52beb539172edf345ca9a0bbe2929e0041ad817ed5f7477e",
+          "tool": "workspace_validate",
+          "durationMs": 1128,
+          "status": "VALID",
+          "valid": true,
+          "receiptRef": "runtime-evidence:coding:workspace:workspace-8f5dabb822b34d1b52beb539172edf345ca9a0bbe2929e0041ad817ed5f7477e:receipt",
+          "structureReview": {
+            "structuralDiagnostics": [
+              {
+                "path": "queries/dataservice_api_by_group.sql",
+                "category": "STRUCTURE",
+                "severity": "WARNING",
+                "code": "JOIN_RELATION_UNCONFIRMED",
+                "message": "Equality columns alone do not establish a business relationship; no complete visible foreign-key evidence matches.",
+                "sqlExecuted": false,
+                "left": "a",
+                "right": "g"
+              },
+              {
+                "path": "queries/dataservice_api_by_group.sql",
+                "category": "STRUCTURE",
+                "severity": "WARNING",
+                "code": "JOIN_RELATION_UNCONFIRMED",
+                "message": "Equality columns alone do not establish a business relationship; no complete visible foreign-key evidence matches.",
+                "sqlExecuted": false,
+                "left": "a",
+                "right": "p"
+              }
+            ],
+            "relationships": [
+              {
+                "left": "a",
+                "right": "g",
+                "status": "INFERRED",
+                "evidenceSource": "SQL_EQUALITY_ONLY"
+              },
+              {
+                "left": "a",
+                "right": "p",
+                "status": "INFERRED",
+                "evidenceSource": "SQL_EQUALITY_ONLY"
+              }
+            ],
+            "grains": [
+              {
+                "alias": "a",
+                "tableName": "ld_dataservice_api",
+                "primaryKeys": [
+                  "dedup_row_id"
+                ],
+                "status": "DECLARED_KEY",
+                "businessGrain": "UNCONFIRMED"
+              },
+              {
+                "alias": "g",
+                "tableName": "ld_dataservice_group",
+                "primaryKeys": [
+                  "id"
+                ],
+                "status": "DECLARED_KEY",
+                "businessGrain": "UNCONFIRMED"
+              },
+              {
+                "alias": "p",
+                "tableName": "ld_project",
+                "primaryKeys": [
+                  "id"
+                ],
+                "status": "DECLARED_KEY",
+                "businessGrain": "UNCONFIRMED"
+              }
+            ],
+            "structureReviewRequired": true,
+            "businessValidation": "NOT_EVALUATED"
+          }
+        },
+        {
+          "operationId": "workspace-a87365667c76eaa396b3ef050c9ac14406915ab0c257fb3e03d68afbd6cfa8f1",
+          "tool": "workspace_propose",
+          "durationMs": 1003,
+          "status": "VALID",
+          "valid": true,
+          "receiptRef": "runtime-evidence:coding:workspace:workspace-a87365667c76eaa396b3ef050c9ac14406915ab0c257fb3e03d68afbd6cfa8f1:receipt",
+          "structureReview": {
+            "structuralDiagnostics": [
+              {
+                "path": "queries/dataservice_api_by_group.sql",
+                "category": "STRUCTURE",
+                "severity": "WARNING",
+                "code": "JOIN_RELATION_UNCONFIRMED",
+                "message": "Equality columns alone do not establish a business relationship; no complete visible foreign-key evidence matches.",
+                "sqlExecuted": false,
+                "left": "a",
+                "right": "g"
+              },
+              {
+                "path": "queries/dataservice_api_by_group.sql",
+                "category": "STRUCTURE",
+                "severity": "WARNING",
+                "code": "JOIN_RELATION_UNCONFIRMED",
+                "message": "Equality columns alone do not establish a business relationship; no complete visible foreign-key evidence matches.",
+                "sqlExecuted": false,
+                "left": "a",
+                "right": "p"
+              }
+            ],
+            "relationships": [
+              {
+                "left": "a",
+                "right": "g",
+                "status": "INFERRED",
+                "evidenceSource": "SQL_EQUALITY_ONLY"
+              },
+              {
+                "left": "a",
+                "right": "p",
+                "status": "INFERRED",
+                "evidenceSource": "SQL_EQUALITY_ONLY"
+              }
+            ],
+            "grains": [
+              {
+                "alias": "a",
+                "tableName": "ld_dataservice_api",
+                "primaryKeys": [
+                  "dedup_row_id"
+                ],
+                "status": "DECLARED_KEY",
+                "businessGrain": "UNCONFIRMED"
+              },
+              {
+                "alias": "g",
+                "tableName": "ld_dataservice_group",
+                "primaryKeys": [
+                  "id"
+                ],
+                "status": "DECLARED_KEY",
+                "businessGrain": "UNCONFIRMED"
+              },
+              {
+                "alias": "p",
+                "tableName": "ld_project",
+                "primaryKeys": [
+                  "id"
+                ],
+                "status": "DECLARED_KEY",
+                "businessGrain": "UNCONFIRMED"
+              }
+            ],
+            "structureReviewRequired": true,
+            "businessValidation": "NOT_EVALUATED"
+          }
+        }
+      ],
+      "metadataToolMs": 2692,
+      "sourceReads": 0,
+      "cacheHits": 0,
+      "schemaEvidence": [
+        {
+          "tableName": "ld_dataservice_api",
+          "columnCount": 33,
+          "schemaVersion": "sha256:fca92737c6dc45d7daaad95063405054ea983525bc6648afe6a5e5396b517ac2",
+          "snapshotId": "sha256:7e7a2c1c68f46cc00ef103ae7e9dddb62d5c9bd1f9d169bae98114e10870639e",
+          "evidenceSource": "OPENSEARCH"
+        },
+        {
+          "tableName": "ld_dataservice_group",
+          "columnCount": 12,
+          "schemaVersion": "sha256:a934c1bb943f1716f8077789da97c860df0a3d07d494a743c12595ad9477acb5",
+          "snapshotId": "sha256:7e7a2c1c68f46cc00ef103ae7e9dddb62d5c9bd1f9d169bae98114e10870639e",
+          "evidenceSource": "OPENSEARCH"
+        },
+        {
+          "tableName": "ld_project",
+          "columnCount": 13,
+          "schemaVersion": "sha256:268333242c76de2a6db040e21b4ea065f1a3360609ea1d35d3024ef280b9fb5a",
+          "snapshotId": "sha256:7e7a2c1c68f46cc00ef103ae7e9dddb62d5c9bd1f9d169bae98114e10870639e",
+          "evidenceSource": "OPENSEARCH"
+        }
+      ],
+      "extraSemanticReviewCalls": 0,
+      "sqlExecuted": false
+    },
+    {
+      "taskId": "sql-coding-ed7cff89-d9f0-47b8-9da9-59005bdbb012",
+      "generationId": "ed7cff89-d9f0-47b8-9da9-59005bdbb012",
+      "status": "SUCCESS",
+      "serverElapsedMs": 83059.0,
+      "modelCalls": 5,
+      "modelDurations": {
+        "n": 5,
+        "samplesMs": [
+          6928,
+          31521,
+          6271,
+          9421,
+          19986
+        ],
+        "p50Ms": 9421,
+        "p95Ms": 31521,
+        "method": "NEAREST_RANK_SMALL_SAMPLE_NOT_SLA"
+      },
+      "openSearchQueries": {
+        "n": 2,
+        "samplesMs": [
+          10,
+          10
+        ],
+        "p50Ms": 10,
+        "p95Ms": 10,
+        "method": "NEAREST_RANK_SMALL_SAMPLE_NOT_SLA"
+      },
+      "tools": [
+        {
+          "operationId": "workspace-53bfc85e020a17b06e3ac9c77b6e9692e38a9f9a8715a5df52150669faee5abb",
+          "tool": "workspace_metadata",
+          "durationMs": 355,
+          "status": "FAILED",
+          "valid": false,
+          "receiptRef": "runtime-evidence:coding:workspace:workspace-53bfc85e020a17b06e3ac9c77b6e9692e38a9f9a8715a5df52150669faee5abb:receipt",
+          "category": "AUTHORIZATION"
+        },
+        {
+          "operationId": "workspace-792b7786113e4aa7919ee33467fe90a222232e99bec01ebd7ee0119f816e8285",
+          "tool": "workspace_metadata",
+          "durationMs": 171,
+          "status": "FAILED",
+          "valid": false,
+          "receiptRef": "runtime-evidence:coding:workspace:workspace-792b7786113e4aa7919ee33467fe90a222232e99bec01ebd7ee0119f816e8285:receipt",
+          "category": "AUTHORIZATION"
+        },
+        {
+          "operationId": "workspace-b6ac8e6c96656ced0ed3f6f3721ce873d324b4a3f8f5607f921acf6c0f0a581f",
+          "tool": "workspace_metadata",
+          "durationMs": 372,
+          "status": "SUCCEEDED",
+          "valid": false,
+          "receiptRef": "runtime-evidence:coding:workspace:workspace-b6ac8e6c96656ced0ed3f6f3721ce873d324b4a3f8f5607f921acf6c0f0a581f:receipt",
+          "operation": "DESCRIBE",
+          "sourceReadCount": 0,
+          "provenance": [
+            {
+              "assetRef": "c5c085c4-067b-4a0f-876c-e1c4f808232f",
+              "snapshotId": "sha256:7e7a2c1c68f46cc00ef103ae7e9dddb62d5c9bd1f9d169bae98114e10870639e",
+              "source": "OPENSEARCH",
+              "sourceDialect": "mysql",
+              "collectedAt": "2026-07-30T02:23:20.584Z",
+              "sourceUpdatedAt": null,
+              "indexQueryMs": 10,
+              "indexQueryCount": 1
+            }
+          ],
+          "snapshotId": "sha256:7e7a2c1c68f46cc00ef103ae7e9dddb62d5c9bd1f9d169bae98114e10870639e",
+          "candidateCount": 1,
+          "candidateRefs": [
+            "sha256:9bc39a9866fcb0d6ef67cd0f1785f4888b018bb6db5399d61f18846fc7a238d8"
+          ],
+          "confirmedPathCount": 0,
+          "confirmedPathRefs": []
+        },
+        {
+          "operationId": "workspace-f1e297fc082c2a20c81846236f59d3c148f338cf42ff1c9fe46f22355978ea69",
+          "tool": "workspace_metadata",
+          "durationMs": 298,
+          "status": "SUCCEEDED",
+          "valid": false,
+          "receiptRef": "runtime-evidence:coding:workspace:workspace-f1e297fc082c2a20c81846236f59d3c148f338cf42ff1c9fe46f22355978ea69:receipt",
+          "operation": "DESCRIBE",
+          "reusedEvidence": true,
+          "sourceReadCount": 0,
+          "provenance": [
+            {
+              "assetRef": "c5c085c4-067b-4a0f-876c-e1c4f808232f",
+              "snapshotId": "sha256:7e7a2c1c68f46cc00ef103ae7e9dddb62d5c9bd1f9d169bae98114e10870639e",
+              "source": "OPENSEARCH",
+              "sourceDialect": "mysql",
+              "collectedAt": "2026-07-30T02:23:20.584Z",
+              "sourceUpdatedAt": null,
+              "indexQueryMs": 10,
+              "indexQueryCount": 1
+            }
+          ],
+          "snapshotId": "sha256:7e7a2c1c68f46cc00ef103ae7e9dddb62d5c9bd1f9d169bae98114e10870639e",
+          "candidateCount": 1,
+          "candidateRefs": [
+            "sha256:9bc39a9866fcb0d6ef67cd0f1785f4888b018bb6db5399d61f18846fc7a238d8"
+          ],
+          "confirmedPathCount": 0,
+          "confirmedPathRefs": []
+        },
+        {
+          "operationId": "workspace-645c928dcba8b4cda4122e4c7341e4e25a06ee5b69eb39ef7a3a07be2d24de2c",
+          "tool": "workspace_validate",
+          "durationMs": 879,
+          "status": "VALID",
+          "valid": true,
+          "receiptRef": "runtime-evidence:coding:workspace:workspace-645c928dcba8b4cda4122e4c7341e4e25a06ee5b69eb39ef7a3a07be2d24de2c:receipt",
+          "structureReview": {
+            "structuralDiagnostics": [],
+            "relationships": [],
+            "grains": [
+              {
+                "alias": "ld_dataservice_api",
+                "tableName": "ld_dataservice_api",
+                "primaryKeys": [
+                  "dedup_row_id"
+                ],
+                "status": "DECLARED_KEY",
+                "businessGrain": "UNCONFIRMED"
+              }
+            ],
+            "structureReviewRequired": false,
+            "businessValidation": "NOT_EVALUATED"
+          }
+        },
+        {
+          "operationId": "workspace-f66ceffb31c306d9109e42b7e54cfd704be52fbeaa04ff3abd676b3eb5e8bd8b",
+          "tool": "workspace_propose",
+          "durationMs": 831,
+          "status": "VALID",
+          "valid": true,
+          "receiptRef": "runtime-evidence:coding:workspace:workspace-f66ceffb31c306d9109e42b7e54cfd704be52fbeaa04ff3abd676b3eb5e8bd8b:receipt",
+          "structureReview": {
+            "structuralDiagnostics": [],
+            "relationships": [],
+            "grains": [
+              {
+                "alias": "ld_dataservice_api",
+                "tableName": "ld_dataservice_api",
+                "primaryKeys": [
+                  "dedup_row_id"
+                ],
+                "status": "DECLARED_KEY",
+                "businessGrain": "UNCONFIRMED"
+              }
+            ],
+            "structureReviewRequired": false,
+            "businessValidation": "NOT_EVALUATED"
+          }
+        }
+      ],
+      "metadataToolMs": 1196,
+      "sourceReads": 0,
+      "cacheHits": 1,
+      "schemaEvidence": [
+        {
+          "tableName": "ld_dataservice_group",
+          "columnCount": 12,
+          "schemaVersion": "sha256:a934c1bb943f1716f8077789da97c860df0a3d07d494a743c12595ad9477acb5",
+          "snapshotId": "sha256:7e7a2c1c68f46cc00ef103ae7e9dddb62d5c9bd1f9d169bae98114e10870639e",
+          "evidenceSource": "OPENSEARCH"
+        },
+        {
+          "tableName": "ld_project",
+          "columnCount": 13,
+          "schemaVersion": "sha256:268333242c76de2a6db040e21b4ea065f1a3360609ea1d35d3024ef280b9fb5a",
+          "snapshotId": "sha256:7e7a2c1c68f46cc00ef103ae7e9dddb62d5c9bd1f9d169bae98114e10870639e",
+          "evidenceSource": "OPENSEARCH"
+        },
+        {
+          "tableName": "ld_dataservice_api",
+          "columnCount": 33,
+          "schemaVersion": "sha256:fca92737c6dc45d7daaad95063405054ea983525bc6648afe6a5e5396b517ac2",
+          "snapshotId": "sha256:7e7a2c1c68f46cc00ef103ae7e9dddb62d5c9bd1f9d169bae98114e10870639e",
+          "evidenceSource": "OPENSEARCH"
+        }
+      ],
+      "extraSemanticReviewCalls": 0,
+      "sqlExecuted": false
+    }
+  ],
+  "taskServerLatency": {
+    "n": 2,
+    "samplesMs": [
+      80873.0,
+      83059.0
+    ],
+    "p50Ms": 80873.0,
+    "p95Ms": 83059.0,
+    "method": "NEAREST_RANK_SMALL_SAMPLE_NOT_SLA"
+  },
+  "sourceVerification": {
+    "apiMs": 311.46,
+    "sourceQuery": {
+      "n": 1,
+      "samplesMs": [
+        94
+      ],
+      "p50Ms": 94,
+      "p95Ms": 94,
+      "method": "NEAREST_RANK_SMALL_SAMPLE_NOT_SLA"
+    },
+    "reason": "ACCEPTANCE_OLD_COLLECTION_TIMESTAMP: confirm exact target fields without full datasource refresh"
+  },
+  "preflightApiLatency": {
+    "SEARCH": {
+      "n": 3,
+      "samplesMs": [
+        781.72,
+        561.43,
+        435.98
+      ],
+      "p50Ms": 561.43,
+      "p95Ms": 781.72,
+      "method": "NEAREST_RANK_SMALL_SAMPLE_NOT_SLA"
+    },
+    "DESCRIBE": {
+      "n": 3,
+      "samplesMs": [
+        373.09,
+        259.87,
+        322.18
+      ],
+      "p50Ms": 322.18,
+      "p95Ms": 373.09,
+      "method": "NEAREST_RANK_SMALL_SAMPLE_NOT_SLA"
+    },
+    "GET_METADATA_FRESHNESS": {
+      "n": 3,
+      "samplesMs": [
+        689.18,
+        290.75,
+        246.16
+      ],
+      "p50Ms": 290.75,
+      "p95Ms": 689.18,
+      "method": "NEAREST_RANK_SMALL_SAMPLE_NOT_SLA"
+    }
+  },
+  "scope": "Two authorized real tasks; source verification is a separate deliberate exact-table check. Not a representative P95 benchmark."
+}

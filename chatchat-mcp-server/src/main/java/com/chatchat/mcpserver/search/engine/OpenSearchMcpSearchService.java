@@ -356,6 +356,10 @@ public class OpenSearchMcpSearchService {
         if (docs == null || docs.isEmpty()) {
             return 0;
         }
+        if(docs.stream().anyMatch(doc->doc.containsKey("metadataEvidence")))
+            request("PUT","/"+index+"/_mapping",Map.of("properties",Map.of(
+                "metadataEvidence",Map.of("type","object","enabled",false),
+                "metadataTableRef",Map.of("type","keyword"),"metadataVersion",Map.of("type","keyword"))),false);
         BulkBuffer bulkBuffer = new BulkBuffer(index);
         boolean vectorEnabled = embeddingClient.configured();
         boolean vectorWritable = vectorEnabled && vectorSearchAvailable(index);
@@ -931,10 +935,41 @@ public class OpenSearchMcpSearchService {
             doc.name(), doc.displayName(), doc.toolName(), doc.databaseName(), doc.tableName());
         if (!keywordAliases.isEmpty()) source.put(FIELD_KEYWORD_ALIASES, keywordAliases);
         put(source, "source", doc.source());
+        if (!doc.metadataEvidence().isEmpty()) {
+            source.put("metadataEvidence",doc.metadataEvidence());
+            source.put("metadataTableRef",doc.metadataEvidence().get("tableRef"));
+            source.put("metadataVersion",doc.metadataEvidence().get("snapshotId"));
+            source.put(FIELD_TEXT,source.get(FIELD_TEXT)+" "+json(doc.metadataEvidence().get("columns")));
+        }
         for (String label : doc.labels()) {
             append(source, FIELD_LABEL, normalizeExact(label));
         }
         return source;
+    }
+
+    /** No datasource discovery, JDBC access, or new embedding is performed by this read. */
+    public List<Map<String,Object>> searchMetadataEvidence(String asset,List<String> tableRefs,String query,String exactTable) {
+        if(tableRefs.isEmpty())return List.of();
+        String index=openSearchIndexName(assetIndexName("sql_datasource"));
+        var filters=new ArrayList<Object>();
+        filters.add(Map.of("term",Map.of(FIELD_RESULT_ID,asset)));
+        filters.add(Map.of("term",Map.of("source","metadata_table")));
+        filters.add(Map.of("terms",Map.of("metadataTableRef",tableRefs)));
+        if(exactTable!=null)filters.add(Map.of("term",Map.of(FIELD_TABLE,exactTable)));
+        var request=new LuceneMcpSearchService.AssetSearchRequest("sql_datasource",query,null,null,List.of(),100);
+        var body=new LinkedHashMap<String,Object>();
+        body.put("query",Map.of("bool",Map.of("filter",filters,"must",List.of(assetQueryBody(request)))));
+        body.put("size",Math.min(10000,tableRefs.size()));body.put("track_total_hits",true);
+        body.put("_source",List.of("metadataEvidence","metadataTableRef","metadataVersion"));
+        var response=request("POST","/"+index+"/_search",body,false);
+        var result=new ArrayList<Map<String,Object>>();
+        for(var hit:response.path("hits").path("hits")){
+            var payload=hit.path("_source").path("metadataEvidence");
+            if(!payload.isObject())continue;
+            Map<String,Object> row=objectMapper.convertValue(payload,new com.fasterxml.jackson.core.type.TypeReference<LinkedHashMap<String,Object>>(){});
+            row.put("searchScore",hit.path("_score").asDouble());row.put("searchIndex",index);row.put("evidenceSource","OPENSEARCH");result.add(row);
+        }
+        return result;
     }
 
     private Map<String, Object> templateSource(LuceneMcpSearchService.TemplateDoc doc) {

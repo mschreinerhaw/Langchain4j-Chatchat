@@ -7,6 +7,32 @@ export function sqlTaskStatus(task={}){
   return ({SUCCEEDED:'SUCCESS',PARTIAL:'PARTIAL',CANCELLED:'CANCELLED',FAILED:'FAILED',REJECTED:'REJECTED',REPAIRING:'RETRYING',RETRY_WAIT:'RETRYING'})[state]
     || (['CREATED','QUEUED','PLANNING','EXECUTING','VERIFYING','REPAIRING','RETRY_WAIT','CANCEL_REQUESTED','WAIT_MODEL','WAIT_TOOL','RUNNING'].includes(state)&&['FAILED','SUCCESS','PARTIAL'].includes(task.status)?'RUNNING':task.status);
 }
+export function sqlCodingMetadataProgress(result,pending='',started=0,now=Date.now()){
+  const base=sqlMetadataProgress([],result?.task,pending,started,now);
+  const audit=result?.metadataExploration?.codingExploration || {},operations=audit.operations || [];
+  const phases=[['FINDING_TABLES','发现相关表与字段'],['CONFIRMING_FIELDS','推导表关联关系'],['GENERATING_SQL','生成 SQL'],['VALIDATING_SQL','验证 SQL 结构']];
+  const related=new Set(['DESCRIBE','GET_TABLE_SCHEMA','LINEAGE','FIND_RELATED_TABLES','GET_TABLE_RELATIONSHIPS','VERIFY_LIVE_SCHEMA']);
+  const tables=new Set(operations.flatMap(op=>op.candidateRefs || [])),paths=new Set(operations.flatMap(op=>op.confirmedPathRefs || []));
+  let current=0;
+  for(const event of [...(result?.events || [])].sort((a,b)=>Number(a.sequence||0)-Number(b.sequence||0))){
+    let value=event.payload;try{if(typeof value==='string')value=JSON.parse(value);}catch{continue;}
+    const index=phases.findIndex(([id])=>id===value?.sqlProgressPhase);if(index>=0)current=index;
+  }
+  const successful=base.terminal&&['SUCCESS','PARTIAL','PARTIAL_SUCCESS'].includes(base.status);
+  const evidenceOnly=result?.metadataExploration?.fieldValidation==='NOT_APPLICABLE';
+  const groups=phases.map(([id,title],index)=>{
+    const rows=operations.filter(op=>id==='VALIDATING_SQL'?['workspace_validate','workspace_propose'].includes(op.tool)
+      :id==='CONFIRMING_FIELDS'?related.has(op.operation):id==='FINDING_TABLES'?op.tool==='workspace_metadata'&&!related.has(op.operation):false);
+    return {id,title,detail:index===0?`已发现 ${tables.size} 个候选对象`:index===1?`已确认 ${paths.size} 条约束路径；候选关系在证据中说明`:'',
+      state:successful?(evidenceOnly&&index>=2?'SKIPPED':'COMPLETED'):base.running?(index===current?'RUNNING':index<current?'COMPLETED':'PENDING')
+        :base.terminal&&index===current?(base.status==='CANCELLED'?'CANCELLED':'FAILED'):rows.length?'COMPLETED':'PENDING',
+      count:rows.length,elapsedMs:rows.reduce((n,op)=>n+Number(op.durationMs||0),0),
+      operations:rows.map(op=>({id:op.operationId,state:op.status,elapsedMs:Number(op.durationMs||0),reused:op.reusedEvidence===true,
+        reason:op.sourceReadCount?`按需回源 ${op.sourceReadCount} 次`:op.category || ''}))};
+  });
+  return {...base,title:base.running?groups[current].title:base.title,metadataGroups:groups,
+    diagnostics:{sourceReadCount:operations.reduce((n,op)=>n+Number(op.sourceReadCount||0),0),cacheHits:audit.reusedMetadataCalls||0}};
+}
 export function sqlMetadataProgress(events=[],task={},pending='',started=0,now=Date.now()){
   task ||= {};events ||= [];
   const operations=new Map();

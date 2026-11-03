@@ -1,0 +1,6 @@
+{
+  "route": "http://192.168.195.221:18100/#/w/data-science/sqlStudio",
+  "progress": "发现相关表与字段 · 已发现 20 个候选对象 · 已完成\n推导表关联关系 · 已确认 0 条约束路径；候选关系在证据中说明 · 已完成\n生成 SQL · 已完成\n验证 SQL 结构 · 已完成",
+  "pageErrors": [],
+  "sqlExecuted": false
+}

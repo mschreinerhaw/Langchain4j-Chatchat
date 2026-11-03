@@ -1,6 +1,6 @@
 import { terminalSqlTask } from './sqlStudioState';
 import { businessTaskProgress } from './runtimeObservationPresentation';
-import {sqlMetadataProgress,sqlTaskStatus} from './sqlMetadataProgress';
+import {sqlMetadataProgress,sqlCodingMetadataProgress,sqlTaskStatus} from './sqlMetadataProgress';
 
 const labels = {
   IDLE: '准备就绪', PREPARING: '正在制定代码协作计划', SUBMITTING: '正在提交分析任务', PREPARED: '任务尚未提交',
@@ -28,6 +28,9 @@ export function sqlExplorationPhase(events=[]){
   return '';
 }
 export function sqlTaskPresentation(result, pendingPhase = '', pendingStartedAt = 0, now = Date.now()) {
+  if(result?.generation?.prepared?.taskRequest?.toolInput?.sqlStudioAction==='explore'
+      && result.generation.prepared.taskRequest.toolInput.codingWorkspaceProfile==='SQL_WORKSPACE_V2')
+    return sqlCodingMetadataProgress(result,pendingPhase,pendingStartedAt,now);
   if(result?.generation?.prepared?.taskRequest?.toolInput?.sqlStudioAction==='explore')return sqlMetadataProgress(result?.events,result?.task,pendingPhase,pendingStartedAt,now);
   const task = result?.task ? {...result.task,status:sqlTaskStatus(result.task)} : null;
   const status = pendingPhase || task?.status || (result?.generation ? 'PREPARED' : 'IDLE');

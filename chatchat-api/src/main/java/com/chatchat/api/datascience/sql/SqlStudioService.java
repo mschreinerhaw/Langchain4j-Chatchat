@@ -524,18 +524,52 @@ public class SqlStudioService {
         return new Prepared(id, taskRequest);
     }
     private Prepared prepareExploration(HttpServletRequest request,Project project,Generate body,String id){
+        require(coding!=null,"Cline SQL workspace is unavailable");
         require(body.agentId()==null||body.agentId().isBlank()||body.modelName()==null||body.modelName().isBlank(),"Choose either Agent or model");
         String selected=body.agentId()==null||body.agentId().isBlank()?body.modelName():requireUsableAgent(project.ownerId(),body.agentId()).modelName();
         var context=metadataAssistant.getObject().prepare(request,project.id(),body.metadataDiscoveryId(),body.metadataBindingContextId(),dialect(body.dialect()));
+        var previous=previousExplorationContext(request,project,context);
         var session=origins.createForStudio(request,"SQL_STUDIO","SQL metadata: "+project.name());
         var task=new AgentTaskSubmitRequest();task.setTenantId(project.tenantId());task.setUserId(project.ownerId());
         task.setSessionId(session.getId());task.setHistoryWindow(0);task.setMode("llm_chat");task.setModelName(selected);
-        task.setQuery(body.prompt());task.setIdempotencyKey("sql-generation:"+id);
-        task.setToolInput(Map.of("sqlStudioAction","explore","sqlMetadataGenerationId",id,"sqlMetadataDiscoveryId",context.discoveryId(),"sqlStudioDialect",body.dialect(),"studioUserRequest",body.prompt()));
+        task.setQuery(body.prompt()+"\nExplore the authorized database using workspace_metadata. No business tables are preselected. "
+            +"Search the metadata index, describe objects and expand related fields as needed. Reading stored SQL is a detail lookup, not a definition of a new business metric. "
+            +"Missing foreign keys require evidence-labelled candidate joins, not automatic termination. Do not invent identifiers or claim an inferred join is a declared constraint. "
+            +"Use workspace_validate and repair actual field/dialect errors. Deliver SQL source and evidence/unknown conditions in proposal notes, without executing SQL. "
+            +"If essential objects truly cannot be found, submit an evidence-only proposal with empty files and explanatory notes.");
+        task.setIdempotencyKey("sql-generation:"+id);
+        var input=new LinkedHashMap<String,Object>(Map.of("sqlStudioAction","explore","sqlMetadataGenerationId",id,"sqlMetadataDiscoveryId",context.discoveryId(),
+            "sqlStudioDialect",dialect(body.dialect()),"studioUserRequest",body.prompt(),"codingWorkspaceProfile","SQL_WORKSPACE_V2",
+            "sqlCodingDiscoveryId",context.discoveryId(),"sqlCodingProjectId",project.id()));
+        if(!previous.isEmpty())input.put("sqlCodingMetadata",previous);
+        task.setToolInput(input);
+        if(!previous.isEmpty())task.setQuery(task.getQuery()+"\nPrevious conversation evidence (revalidated authorization and structure version; incomplete cache, not a table allowlist): "+json(previous));
         var base=new LinkedHashMap<String,Integer>();files(request,project.id()).forEach(file->base.put(file.path().toLowerCase(Locale.ROOT),file.version()));
         jdbc.update("insert into ds_sql_generation(id,project_id,context_json,base_versions_json,applied,created_at) values(?,?,?,?,false,CURRENT_TIMESTAMP)",id,project.id(),json(task),json(base));
         generationScopes.register(new SqlStudioGenerationScopeStore.Scope(session.getId(),project.id(),project.tenantId(),project.ownerId()));
         return new Prepared(id,task);
+    }
+    private Map<String,Object> previousExplorationContext(HttpServletRequest request,Project project,SqlStudioMetadataService.Context context){
+        var recent=jdbc.query("select * from ds_sql_generation where project_id=? order by created_at desc limit 8",this::generationRow,project.id());
+        for(var previous:recent){
+            if(previous.taskId()==null||!isCoding(previous)||!context.discoveryId().equals(previous.prepared().taskRequest().getToolInput().get("sqlCodingDiscoveryId")))continue;
+            var output=coding.completedContext(codingScope(project,previous.id()),previous.taskId());
+            if(output==null||!(output.get("delivery") instanceof Map<?,?> delivery)||!(delivery.get("metadata") instanceof Map<?,?> stored)
+                    ||!(stored.get("tables") instanceof List<?> rawTables))continue;
+            var tables=new ArrayList<Map<String,Object>>();var versions=new HashMap<String,String>();
+            for(Object raw:rawTables){
+                var table=mapper.convertValue(raw,new TypeReference<LinkedHashMap<String,Object>>(){});
+                if(!(table.get("bindingId") instanceof String binding)||context.bindings().stream().noneMatch(b->b.bindingId().equals(binding)))continue;
+                String current=versions.computeIfAbsent(binding,b->Objects.toString(codingMetadata.getObject().operate(request,project.id(),context.discoveryId(),
+                    new SqlStudioMetadataService.Operation(b,Map.of("operation","GET_METADATA_FRESHNESS"))).metadata().get("snapshotId"),""));
+                if(current.equals(table.get("snapshotId")))tables.add(table);
+            }
+            if(tables.isEmpty())continue;
+            var reused=Map.<String,Object>of("tables",tables,"previousQuestion",Objects.toString(previous.prepared().taskRequest().getToolInput().get("studioUserRequest"),""),
+                "previousNotes",Objects.toString(output.get("notes"),""),"evidenceScope","SAME_OWNED_DISCOVERY_REVALIDATED");
+            if(json(reused).length()<=48000)return reused;
+        }
+        return Map.of();
     }
     private List<File> selected(HttpServletRequest request, String projectId, List<String> ids, String expectedKind) {
         List<String> selected = ids == null ? List.of() : ids.stream().distinct().toList();
@@ -549,6 +583,21 @@ public class SqlStudioService {
     public List<Generation> generations(HttpServletRequest request, String projectId) {
         project(request, projectId);
         return jdbc.query("select * from ds_sql_generation where project_id=? order by created_at desc", this::generationRow, projectId);
+    }
+    /** Existing owned SQL files and revisions are references, never datasource/execution authority. */
+    public List<Map<String,Object>> sqlExamplesScoped(com.chatchat.common.kernel.KernelDataScope scope,String query){
+        if(scope.tenantId()==null||scope.userId()==null)throw new SecurityException("Authenticated SQL example reader required");
+        var terms=Arrays.stream(query.toLowerCase(Locale.ROOT).split("[\\s,，;；]+"))
+            .filter(t->!t.isBlank()).distinct().limit(6).toList();
+        if(terms.isEmpty())return List.of();
+        var conditions=new ArrayList<String>();var parameters=new ArrayList<Object>(List.of(scope.tenantId(),scope.userId()));
+        for(String term:terms){conditions.add("(lower(f.path) like ? escape '!' or lower(f.content) like ? escape '!')");
+            String pattern="%"+term.replace("!","!!").replace("%","!%").replace("_","!_")+"%";parameters.add(pattern);parameters.add(pattern);}
+        return jdbc.query("select f.id,f.path,f.content,f.version from (select id,project_id,path,kind,content,version from ds_sql_file union select f.id,f.project_id,f.path,f.kind,v.content,v.version from ds_sql_file f join ds_sql_file_version v on v.file_id=f.id) f join ds_sql_project p on p.id=f.project_id where p.tenant_id=? and p.owner_id=? and f.kind='SQL' and ("
+            +String.join(" or ",conditions)+") order by f.id limit 5",(row,index)->Map.<String,Object>of(
+                "fileId",row.getString("id"),"path",row.getString("path"),"version",row.getInt("version"),
+                "sql",row.getString("content").substring(0,Math.min(row.getString("content").length(),4000)),
+                "truncated",row.getString("content").length()>4000,"source","OWNED_SQL_STUDIO_FILE_REVISION","evidenceScope","REFERENCE_ONLY_NOT_EXECUTION_OR_PHYSICAL_AUTHORITY"),parameters.toArray());
     }
     private Generation generation(HttpServletRequest request, String projectId, String id) {
         project(request, projectId);
@@ -657,23 +706,35 @@ public class SqlStudioService {
     private GenerationView codingResult(Project project,Generation generation){
         if(coding==null)throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"Coding workspace profile is unavailable");
         var scope=codingScope(project,generation.id());var outcome=coding.get(scope,generation.taskId());
-        List<SqlOutputBundle.Candidate> files=List.of();String answer="",validation="NOT_RUN",error="";
+        List<SqlOutputBundle.Candidate> files=List.of();String answer="",validation="NOT_RUN",error="",fieldsChecked="NOT_RUN";
         Map<String,Object> delivery=Map.of();
         if(outcome.status()==com.chatchat.common.runtime.coding.CodingTaskOutcome.Status.COMPLETED){
             var output=coding.output(scope,generation.taskId(),outcome);
             if(output.get("delivery") instanceof Map<?,?> saved)delivery=mapper.convertValue(saved,new TypeReference<Map<String,Object>>(){});
             answer=json(Map.of("schemaVersion","sql-studio.output.v1","files",output.get("files"),"notes",output.get("notes")));
-            try{files=SqlOutputBundle.parse(answer,mapper);}
+            try{files=SqlOutputBundle.parse(answer,mapper,output.get("files") instanceof List<?> rows&&rows.isEmpty());}
             catch(ResponseStatusException invalid){error=invalid.getReason();}
             var checked=(Map<?,?>)output.get("validation");
-            validation="PARSED; FIELDS_"+checked.get("fieldValidation")+"; SQL_NOT_EXECUTED";
+            fieldsChecked=Objects.toString(checked.get("fieldValidation"),"NOT_RUN");
+            validation=files.isEmpty()?"EVIDENCE_ONLY; SQL_NOT_GENERATED":"PARSED; FIELDS_"+checked.get("fieldValidation")+"; SQL_NOT_EXECUTED";
         }
         var trace=coding.events(scope,generation.taskId()).stream().map(event->AgentEvent.builder()
             .eventId(event.eventId()).taskId(event.taskId()).runId(scope.runId()).tenantId(scope.tenantId()).userId(scope.userId())
             .sequence(event.sequence()).type(event.type().name()).status(event.status().name()).payload(json(codingProgress(event)))
             .createTime(event.occurredAt().toEpochMilli()).build()).toList();
-        return new GenerationView(generation,codingTask(project,generation,outcome,answer),trace,files,answer,error,
-            validation,Map.of("codingExploration",coding.diagnostics(scope,generation.taskId()),"delivery",delivery));
+        var metadataView=new LinkedHashMap<String,Object>();metadataView.put("codingExploration",coding.diagnostics(scope,generation.taskId()));
+        metadataView.put("delivery",delivery);metadataView.put("fieldValidation",fieldsChecked);metadataView.put("sqlExecuted",false);
+        if(delivery.get("metadata") instanceof Map<?,?> discovered&&discovered.get("tables") instanceof List<?> tables){
+            var candidates=new ArrayList<Map<String,Object>>();
+            for(Object row:tables)if(row instanceof Map<?,?> raw){
+                var table=mapper.convertValue(raw,new TypeReference<LinkedHashMap<String,Object>>(){});
+                table.put("expectedSnapshotId",table.get("snapshotId"));
+                table.put("keyColumns",table.get("columns") instanceof List<?> cols?cols.stream().filter(Map.class::isInstance).map(Map.class::cast).map(c->c.get("name")).toList():List.of());
+                table.put("reason",Objects.toString(table.get("evidenceSource"),"当前授权结构索引"));candidates.add(table);
+            }
+            metadataView.put("candidates",candidates);
+        }
+        return new GenerationView(generation,codingTask(project,generation,outcome,answer),trace,files,answer,error,validation,metadataView);
     }
     private Map<String,Object> codingProgress(com.chatchat.common.runtime.coding.CodingExecutionEvent event){
         var result=new LinkedHashMap<String,Object>(event.payload());result.put("summary",event.summary());return result;
@@ -686,6 +747,8 @@ public class SqlStudioService {
         return result;
     }
     private void requireCodingMetadata(HttpServletRequest request,String project,Generation generation){
+        Object discovery=generation.prepared().taskRequest().getToolInput().get("sqlCodingDiscoveryId");
+        if(discovery instanceof String id)codingMetadata.getObject().get(request,project,id);
         Object saved=generation.prepared().taskRequest().getToolInput().get("sqlCodingMetadataSelection");
         if(saved!=null){
             var selection=mapper.convertValue(saved,SqlStudioMetadataService.CodingSelection.class);

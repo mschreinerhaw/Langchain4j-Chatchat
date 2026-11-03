@@ -608,3 +608,20 @@ test('SQL repair budget STOP terminates without claiming delivery or requesting 
   assert.equal(calls,1);assert.equal(result.status,'failed');assert.equal(finished.status,'failed');
   assert.equal(finished.operationId,null);assert.equal(finished.summary,'SQL_REPAIR_LIMIT_REACHED');
 });
+test('SQL exploration can deliver missing-evidence notes without fabricated SQL or an extra review call',async()=>{
+  const contract={...task,schemaVersion:'runtime_os.coding.v2',metadataRefs:['runtime-coding:sql-metadata-tools:v1'],
+    authorization:{allowedTools:['workspace_read','workspace_propose','workspace_metadata','workspace_validate'],allowedSideEffects:['WORKSPACE_WRITE'],allowedDataRefs:[],networkPolicy:'NONE'},
+    outputContract:{resultFormat:'WORKSPACE_FILES',resultSchemaRef:'sql-studio.output.v1',requiredFiles:['proposal.jsonl']}};
+  let calls=0,proposal;
+  const model={async *stream(request){
+    calls++;assert.equal(request.tools.find(t=>t.name==='workspace_propose').inputSchema.properties.files.minItems,0);
+    assert.ok(request.tools.find(t=>t.name==='workspace_metadata').inputSchema.properties.operation.enum.includes('VERIFY_LIVE_SCHEMA'));
+    yield {type:'tool-call-delta',toolCallId:'evidence-only',toolName:'workspace_propose',input:{files:[],notes:'Essential table was not found in the authorized source. No SQL generated.'}};
+    yield {type:'finish',reason:'tool-calls'};
+  }};
+  const gateway={reserveModel(){},settleModel(){},readWorkspace:async()=>({context:'Inspect authorized metadata only'}),
+    queryWorkspaceMetadata:async()=>({status:'NOT_FOUND'}),validateWorkspace:async()=>({valid:false}),
+    proposeWorkspace:async(_task,_id,input)=>{proposal=input;return {valid:true,resultAvailable:true,codeArtifactRef:'evidence:code',executionReceiptRef:'evidence:receipt',resultDatasetRef:'evidence:files',validationRecordRef:'evidence:validation',evidenceBundleRef:'evidence:bundle',sqlExecuted:false};},finish(){}};
+  const result=await createCodingRun(contract,gateway,{model}).run();
+  assert.equal(result.status,'completed');assert.equal(calls,1);assert.deepEqual(proposal.files,[]);
+});

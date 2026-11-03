@@ -746,6 +746,7 @@ public class SqlMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
         properties.put("expectedSnapshotId", Map.of("type", "string", "description", "Required after page 1; copy snapshotId from page 1. Restart pagination if the authorized schema changes."));
         properties.put("query", Map.of("type", "string", "description",
             "Natural-language or physical-name search for existing database/table/column metadata."));
+        properties.put("reason",Map.of("type","string","maxLength",512,"description","Required reason for targeted VERIFY_LIVE_SCHEMA. Does not authorize business SQL execution."));
         properties.put("intent", Map.of("type", "string", "description", "Alias of query."));
         properties.put("useCase", Map.of(
             "type", "string",

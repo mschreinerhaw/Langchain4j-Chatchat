@@ -28,6 +28,17 @@ import static org.mockito.Mockito.*;
 /** Real H2/A2/Evidence and SQLGlot; no SDK/provider or database SQL execution. */
 @EnabledIfSystemProperty(named="coding.sqlglotPython",matches=".+")
 class CodingWorkspaceServiceTest {
+    @Test void essentialEvidenceCanBeReportedWithoutInventingSqlFiles(){
+        configureAutonomousMetadata();
+        service.submit(scope,"evidence-only","Explain missing essential source evidence","mysql","",Map.of("discoveryId","discovery","projectId","project"));
+        var task=actor(()->tasks.contract(scope,"evidence-only"));
+        var owner=actor(()->tasks.claim(scope,"evidence-only","cline-adapter:evidence",Duration.ofMinutes(2),tasks.get(scope,"evidence-only").revision()));
+        var proposal=Map.<String,Object>of("schemaVersion","sql-studio.output.v1","files",List.of(),"notes","The authorized search found no essential table. No SQL was generated or executed; please confirm the requested source.");
+        var result=actor(()->service.propose(task,owner,operation('a'),proposal));
+        assertThat(result).containsEntry("valid",true).containsEntry("sqlExecuted",false);
+        assertThat(result.get("validation").toString()).contains("NOT_APPLICABLE","EVIDENCE_ONLY");
+        assertThat(actor(()->service.complete(task,owner,operation('a'))).status()).isEqualTo(CodingTaskOutcome.Status.COMPLETED);
+    }
     @Test void clineCanDiscoverThenRepairCustomerSqlWithoutAnyPreselectedTable(){
         configureAutonomousMetadata();
         service.setFastPathEnabled(true);
@@ -207,7 +218,7 @@ class CodingWorkspaceServiceTest {
         service.submit(scope,"metadata-task","Use only supplied schema; propose SQL, never execute it.","mysql","",schema);
         var bound=actor(()->tasks.contract(scope,"metadata-task"));
         var worker=actor(()->tasks.claim(scope,"metadata-task","cline-adapter:test",Duration.ofMinutes(2),tasks.get(scope,"metadata-task").revision()));
-        assertThat(bound.authorization().allowedTools()).containsExactlyInAnyOrder("workspace_read","workspace_propose");
+        assertThat(bound.authorization().allowedTools()).containsExactlyInAnyOrder("workspace_read","workspace_propose","skill_read");
         var input=actor(()->service.read(bound,worker,operation('a')));
         assertThat(input.get("schema")).isEqualTo(schema);
         var failed=actor(()->service.propose(bound,worker,operation('b'),proposal("SELECT missing_field FROM db.orders;")));

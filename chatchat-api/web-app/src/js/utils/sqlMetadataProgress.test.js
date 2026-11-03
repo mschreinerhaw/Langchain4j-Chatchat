@@ -1,6 +1,15 @@
 import {describe,it,expect} from 'vitest';
-import {sqlMetadataProgress,sqlTaskStatus} from './sqlMetadataProgress';
+import {sqlMetadataProgress,sqlCodingMetadataProgress,sqlTaskStatus} from './sqlMetadataProgress';
 const event=(id,operation,eventState,elapsedMs=0,extra={})=>({payload:JSON.stringify({payload:{metadata:{eventKind:'SQL_METADATA_EXPLORATION',operationId:id,operation,eventState,elapsedMs,...extra}}})});
+it('merges repeated Coding operations into four phases with actual cache/source evidence',()=>{
+ const result=sqlCodingMetadataProgress({task:{taskId:'t',status:'RUNNING'},events:[{sequence:1,payload:{sqlProgressPhase:'CONFIRMING_FIELDS'}}],metadataExploration:{codingExploration:{reusedMetadataCalls:1,operations:[
+  {operationId:'one',tool:'workspace_metadata',operation:'SEARCH',durationMs:10,candidateRefs:['table-a'],confirmedPathRefs:[],sourceReadCount:0},
+  {operationId:'two',tool:'workspace_metadata',operation:'VERIFY_LIVE_SCHEMA',durationMs:30,candidateRefs:['table-a'],confirmedPathRefs:['fk-one'],sourceReadCount:1}
+ ]}}});
+ expect(result.metadataGroups).toHaveLength(4);expect(result.title).toBe('推导表关联关系');
+ expect(result.metadataGroups[0].detail).toContain('1 个');expect(result.metadataGroups[1].detail).toContain('1 条');
+ expect(result.diagnostics).toEqual({sourceReadCount:1,cacheHits:1});
+});
 describe('SQL metadata progress from backend facts',()=>{
   it('explains damaged output and unsupported evidence without showing a generic JSON failure code',()=>{
     const format=sqlMetadataProgress([event('a','ASSEMBLE','FAILED',1,{reasonCode:'OUTPUT_JSON_TRUNCATED'})],{taskId:'t',status:'FAILED'});

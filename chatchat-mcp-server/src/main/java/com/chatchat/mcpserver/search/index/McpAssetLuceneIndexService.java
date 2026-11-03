@@ -34,6 +34,8 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class McpAssetLuceneIndexService {
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private com.chatchat.mcpserver.sql.metadata.SqlMetadataDiscoveryService discovery;
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.chatchat.mcpserver.sql.metadata.DatasourceMetadataSearchService metadataSearch;
     @org.springframework.context.event.EventListener
@@ -451,8 +453,15 @@ public class McpAssetLuceneIndexService {
             var objects = metadataSearch == null ? index.objects() : metadataSearch.visibleObjects(datasource, index);
             return objects.stream().map(object -> com.chatchat.mcpserver.sql.metadata.DatasourceMetadataSearchService.assetDoc(datasource, object)).toList();
         }
+        var evidence=discovery==null?List.<Map<String,Object>>of():discovery.indexEvidence(datasource,index);
         return index.tables().stream()
-            .map(table -> tableAssetDoc(datasource, table, index))
+            .map(table -> {
+                var doc=tableAssetDoc(datasource,table,index);
+                var payload=evidence.stream().filter(row->java.util.Objects.equals(row.get("database"),table.database())
+                    &&java.util.Objects.equals(row.get("schema"),table.schema())&&java.util.Objects.equals(row.get("tableName"),table.table())).findFirst().orElse(Map.of());
+                return new LuceneMcpSearchService.AssetDoc(doc.id(),doc.assetType(),doc.name(),doc.displayName(),doc.toolName(),doc.env(),doc.dbType(),doc.labels(),
+                    doc.source(),doc.resultId(),doc.databaseName(),doc.tableName(),doc.fullPath(),doc.extraText(),doc.tableComment(),doc.databaseComment(),doc.semanticProfileText(),payload);
+            }).filter(doc->discovery==null||!doc.metadataEvidence().isEmpty())
             .toList();
     }
 

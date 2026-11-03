@@ -70,6 +70,8 @@ public final class SqlStudioMetadataAssistant implements SqlMetadataAnswerPort {
         if(rows.size()!=1)throw new SecurityException("SQL metadata generation is not owned by this caller");
         try{
             var original=json.readValue(rows.get(0).get("context_json").toString(),AgentTaskSubmitRequest.class);
+            if("SQL_WORKSPACE_V2".equals(original.getToolInput().get("codingWorkspaceProfile")))
+                throw new SecurityException("Submit this SQL exploration through its Studio Coding endpoint");
             if(!"explore".equals(original.getToolInput().get("sqlStudioAction"))
                 ||!Objects.equals(original.getSessionId(),request.getConversationId())
                 ||!Objects.equals(original.getQuery(),request.getQuery())||!Objects.equals(original.getModelName(),request.getModelName()))

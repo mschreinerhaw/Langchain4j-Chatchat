@@ -17,14 +17,17 @@ import org.springframework.web.server.ResponseStatusException;
 @Service @RequiredArgsConstructor
 public class SqlWorkspaceMetadataTools {
     private static final Set<String> PHYSICAL_OPERATIONS=Set.of("LIST_NAMESPACES","SEARCH","DESCRIBE","LINEAGE",
-        "LIST_CATALOGS","LIST_SCHEMAS","LIST_TABLES","SEARCH_TABLES","SEARCH_COLUMNS","DESCRIBE_TABLE","GET_TABLE_DDL","GET_TABLE_RELATIONSHIPS","REFRESH");
+        "LIST_CATALOGS","LIST_SCHEMAS","LIST_TABLES","SEARCH_TABLES","SEARCH_COLUMNS","DESCRIBE_TABLE","GET_TABLE_DDL","GET_TABLE_RELATIONSHIPS","GET_METADATA_FRESHNESS","FIND_RELATED_TABLES","VERIFY_LIVE_SCHEMA","REFRESH");
     public static final String PROFILE="runtime-coding:sql-metadata-tools:v1";
     private final ObjectProvider<SqlStudioMetadataService> metadata;
     private final SqlStudioMetadataGateway gateway;
     private final SqlGlotToolchain parser;
     private final JdbcRuntimeEvidenceStore evidence;
     private final ObjectMapper json;
-    private static final Set<String> INPUTS=Set.of("operation","bindingId","query","queryTerms","tableName","database","schema","page","pageSize","expectedSnapshotId","includeColumns");
+    private ObjectProvider<SqlStudioService> studio;
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setStudio(ObjectProvider<SqlStudioService> value){studio=value;}
+    private static final Set<String> INPUTS=Set.of("operation","bindingId","query","queryTerms","tableName","database","schema","page","pageSize","expectedSnapshotId","includeColumns","reason");
 
     public static boolean enabled(CodingTaskContract contract){return contract.metadataRefs().contains(PROFILE);}
     public static Set<String> tools(boolean enabled){return enabled?Set.of("workspace_read","workspace_propose","workspace_metadata","workspace_validate","skill_read"):Set.of("workspace_read","workspace_propose","skill_read");}
@@ -46,45 +49,56 @@ public class SqlWorkspaceMetadataTools {
     private SqlStudioMetadataService.Context context(CodingTaskContract contract,Map<String,Object> schema,KernelDataScope scope){
         if(!enabled(contract)||!(schema.get("discoveryId") instanceof String discovery)||!(schema.get("projectId") instanceof String project))
             throw new SecurityException("SQL metadata exploration requires its server-owned database binding");
-        return metadata.getObject().getScoped(scope,project,discovery);
+        var context=metadata.getObject().getScoped(scope,project,discovery);
+        if(Boolean.TRUE.equals(state(contract).get("seeded"))||maps(schema.get("tables")).isEmpty())return context;
+        var confirmed=new ArrayList<Map<String,Object>>();var versions=new LinkedHashMap<String,Object>();
+        for(var binding:context.bindings()){
+            var prior=maps(schema.get("tables")).stream().filter(t->binding.bindingId().equals(t.get("bindingId"))).toList();
+            if(prior.isEmpty())continue;
+            var fresh=metadata.getObject().operateScoped(scope,context,new SqlStudioMetadataService.Operation(binding.bindingId(),Map.of("operation","GET_METADATA_FRESHNESS"))).metadata();
+            if(!"SUCCEEDED".equals(fresh.get("status")))continue;
+            for(var table:prior)if(Objects.equals(fresh.get("snapshotId"),table.get("snapshotId"))){confirmed.add(table);versions.put(binding.bindingId(),fresh.get("snapshotId"));}
+        }
+        if(confirmed.size()>64)throw new IllegalArgumentException("Previous evidence exceeds the task table budget");
+        evidence.mutateExecutionCheckpoint(contract.scope(),key(contract),previous->{var value=decode(previous);
+            if(!Boolean.TRUE.equals(value.get("seeded"))){var tables=maps(value.get("tables"));var snapshots=map(value.get("snapshots"));
+                for(var table:confirmed)if(tables.stream().noneMatch(t->Objects.equals(t.get("tableRef"),table.get("tableRef"))))tables.add(table);
+                versions.forEach(snapshots::putIfAbsent);value.put("tables",tables);value.put("snapshots",snapshots);value.put("seeded",true);}
+            return encode(value);
+        });
+        return context;
     }
     @SuppressWarnings("unchecked")
     public Map<String,Object> query(CodingTaskContract contract,Map<String,Object> schema,Map<String,Object> input){
         if(!INPUTS.containsAll(input.keySet())||encode(input).length()>16000)throw new IllegalArgumentException("Invalid bounded metadata query");
         var scope=bounded(contract);var context=context(contract,schema,scope);
-        String operation=Objects.toString(input.get("operation"),"");
+        String operation=Objects.toString(input.get("operation"),"").toUpperCase(Locale.ROOT);
+        operation=switch(operation){case "SEARCH_METADATA"->"SEARCH";case "GET_TABLE_SCHEMA"->"DESCRIBE";case "SEARCH_SQL_EXAMPLES"->"TEMPLATE_SEARCH";default->operation;};
         if(operation.equals("LIST_BINDINGS"))return Map.of("status","SUCCEEDED","bindings",context.bindings(),
             "dialect",context.targetDialect(),"operations",java.util.stream.Stream.concat(PHYSICAL_OPERATIONS.stream(),java.util.stream.Stream.of("BUSINESS_SEARCH","TEMPLATE_SEARCH")).sorted().toList(),
             "limitations",List.of("Metric definitions require returned enterprise evidence; do not invent formulas.","Foreign keys are known relationships; uncollected data lineage is explicitly unknown."),"sqlExecuted",false);
         var binding=context.bindings().stream().filter(b->b.bindingId().equals(input.get("bindingId"))).findFirst()
             .orElseThrow(()->new SecurityException("Choose a binding returned by LIST_BINDINGS"));
-        if(Set.of("BUSINESS_SEARCH","TEMPLATE_SEARCH").contains(operation)){
+        if(operation.equals("TEMPLATE_SEARCH")){
+            String query=searchQuery(input);
+            if(query.isBlank())throw new IllegalArgumentException("Supply a SQL example query");
+            var examples=metadata.getObject().operateScoped(scope,context,new SqlStudioMetadataService.Operation(binding.bindingId(),
+                Map.of("operation","SEARCH_SQL_EXAMPLES","query",query,"pageSize",5))).metadata();
+            if(!"SUCCEEDED".equals(examples.get("status")))throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"SQL_EXAMPLE_CATALOG_UNAVAILABLE");
+            return boundedResult(Map.of("status","SUCCEEDED","operation",operation,"bindingId",binding.bindingId(),"sqlExecuted",false,
+                "data",Map.of("candidates",maps(examples.get("items")),"templateCatalogStatus","AVAILABLE","scopeVerified",true,
+                    "ownedSqlExamples",studio==null?List.of():studio.getObject().sqlExamplesScoped(scope,query),
+                    "limitation","Authorized references only; namespace, physical columns and execution still require separate checks."),
+                "evidenceScope","AUTHORIZED_TEMPLATE_AND_OWNED_SQL_REFERENCES"));
+        }
+        if(operation.equals("BUSINESS_SEARCH")){
             String query=searchQuery(input);
             if(query.isBlank()||query.length()>512)throw new IllegalArgumentException("Supply a short business search query (max 512)");
-            Map<String,Object> args=new LinkedHashMap<>();args.put("query",query);
-            if(operation.equals("BUSINESS_SEARCH")){
-                if(input.get("queryTerms") instanceof List<?> terms && terms.size()>1)
-                    throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,"METADATA_QUERY_BUDGET: Search one focused business concept per call; choose further concepts in subsequent calls");
-                // The existing workflow re-splits a singleton equal to raw query.
-                // Send the model's focused concept as its explicit independent unit.
-                args.remove("query");args.put("queryTerms",List.of(query));
-            }else{
-                if(binding.schema()!=null)return Map.of("status","UNAVAILABLE_IN_SELECTED_SCOPE","reason","Existing template discovery has no schema boundary; use physical metadata within this schema","sqlExecuted",false);
-                args.put("assetId",binding.assetRef());if(binding.database()!=null)args.put("database",binding.database());
-                args.put("stage","templates");args.put("catalogLimit",10);args.put("detailLimit",3);
-            }
-            var data=gateway.referenceScoped(scope,binding.serviceId(),operation.equals("BUSINESS_SEARCH")?"enterprise_metadata_search":"data_query_query",args);
-            if(operation.equals("TEMPLATE_SEARCH")){
-                // Legacy template discovery may ignore namespace filters. Publish only candidates
-                // carrying independently checkable routing identities for this selected binding.
-                var scoped=maps(data.getOrDefault("candidates",data.get("templates"))).stream().filter(row->
-                    binding.assetRef().equals(Objects.toString(row.getOrDefault("assetRef",row.getOrDefault("assetId",row.get("datasourceId"))),""))
-                    &&(binding.database()==null||binding.database().equals(row.get("database")))).toList();
-                data=Map.of("candidates",scoped,"scopeVerified",true,"unverifiedCandidatesOmitted",true,
-                    "limitation","Templates without explicit datasource/database provenance are not delivered. Retrieval does not authorize execution.");
-            }
+            if(input.get("queryTerms") instanceof List<?> terms && terms.size()>1)
+                throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,"METADATA_QUERY_BUDGET: Search one focused business concept per call");
+            var data=gateway.referenceScoped(scope,binding.serviceId(),"enterprise_metadata_search",Map.of("queryTerms",List.of(query)));
             return boundedResult(Map.of("status","SUCCEEDED","operation",operation,"bindingId",binding.bindingId(),"data",data,"sqlExecuted",false,
-                "evidenceScope",operation.equals("BUSINESS_SEARCH")?"ENTERPRISE_STANDARD_REFERENCES_NOT_PHYSICAL_TABLE_AUTHORITY":"AUTHORIZED_TEMPLATE_REFERENCES"));
+                "evidenceScope","ENTERPRISE_STANDARD_REFERENCES_NOT_PHYSICAL_TABLE_AUTHORITY"));
         }
         if(!PHYSICAL_OPERATIONS.contains(operation))throw new IllegalArgumentException("Unsupported metadata operation");
         var args=new LinkedHashMap<>(input);args.remove("bindingId");args.remove("queryTerms");
@@ -100,15 +114,15 @@ public class SqlWorkspaceMetadataTools {
             var cached=map(prior);
             try{checkSnapshot(scope,context,binding.bindingId(),cached.get("snapshotId"));}
             catch(ResponseStatusException changed){if(changed.getStatusCode().value()==409)invalidate(contract,binding.bindingId());throw changed;}
-            var reused=new LinkedHashMap<>(cached);reused.put("reusedEvidence",true);return operationView(reused,operation);
+            var reused=new LinkedHashMap<>(cached);reused.put("reusedEvidence",true);reused.put("sourceReadCount",0);return operationView(reused,operation);
         }
         var raw=metadata.getObject().operateScoped(scope,context,new SqlStudioMetadataService.Operation(binding.bindingId(),args)).metadata();
         if(!"SUCCEEDED".equals(raw.get("status")))throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-            Objects.toString(raw.get("category"),"METADATA_SERVICE_UNAVAILABLE")+": "+raw.get("status"));
+            Objects.toString(raw.get("category"),"METADATA_SERVICE_UNAVAILABLE")+": "+raw.get("status")+". Inspect freshness, then VERIFY_LIVE_SCHEMA for the exact object with a reason; no SQL was executed.");
         if(!(raw.get("snapshotId") instanceof String version)||version.isBlank()||!(raw.get("items") instanceof List<?> rows)
                 || rows.stream().anyMatch(row->!(row instanceof Map<?,?>)))
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,"METADATA_RESPONSE_INVALID: Missing version or structured items");
-        if(Set.of("DESCRIBE","DESCRIBE_TABLE","GET_TABLE_DDL","GET_TABLE_RELATIONSHIPS").contains(args.get("operation")))
+        if(Set.of("DESCRIBE","DESCRIBE_TABLE","GET_TABLE_DDL","GET_TABLE_RELATIONSHIPS","VERIFY_LIVE_SCHEMA").contains(args.get("operation")))
             for(Object value:rows){
                 var table=(Map<?,?>)value;
                 if(!(table.get("tableName") instanceof String)||!(table.get("columns") instanceof List<?> fields)||fields.isEmpty()
@@ -177,7 +191,7 @@ public class SqlWorkspaceMetadataTools {
     private void checkSnapshot(KernelDataScope scope,SqlStudioMetadataService.Context context,String binding,Object snapshot){
         if(snapshot==null)throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"METADATA_SNAPSHOT_UNAVAILABLE");
         var fresh=metadata.getObject().operateScoped(scope,context,new SqlStudioMetadataService.Operation(binding,
-            Map.of("operation","SEARCH","page",1,"pageSize",1,"includeColumns",false,"expectedSnapshotId",snapshot))).metadata();
+            Map.of("operation","GET_METADATA_FRESHNESS","page",1,"pageSize",1,"includeColumns",false,"expectedSnapshotId",snapshot))).metadata();
         if(!"SUCCEEDED".equals(fresh.get("status")))throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"METADATA_SERVICE_UNAVAILABLE");
         if(!snapshot.equals(fresh.get("snapshotId")))throw new ResponseStatusException(HttpStatus.CONFLICT,"METADATA_STALE: query metadata again without the previous snapshot");
     }

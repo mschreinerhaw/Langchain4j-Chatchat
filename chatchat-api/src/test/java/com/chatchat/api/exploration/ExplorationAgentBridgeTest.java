@@ -14,6 +14,22 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 /** Execution boundaries are mocked; these tests are not live Agent evidence. */
 class ExplorationAgentBridgeTest {
+ @Test void runningTaskPublishesOnlyArchivedStageArtifactsAndRetainsThemAfterFailure(){
+   var collector=mock(com.chatchat.api.runtime.coding.evidence.CodingEvidenceCollector.class);bridge.setCollector(collector);
+   var event=AgentEvent.builder().sequence(7L).runId("run").type("OBSERVATION").payload("{\"payload\":{\"metadata\":{\"eventKind\":\"CODING_TRACE\",\"taskId\":\"coding\",\"workerActivity\":{\"type\":\"TOOL_FINISHED\",\"tool\":\"python_execute\",\"operationId\":\"operation\",\"resultAvailable\":true,\"resultDatasetRef\":\"runtime-evidence:result\"}}}}").build();
+   when(tasks.listEvents("tenant","task",1000)).thenReturn(List.of(event));
+   var visual=Map.<String,Object>of("schemaVersion","python_visual_report.v1","charts",List.of(Map.of("id","chart")),"execution",Map.of("taskId","coding","operationId","operation","resultDatasetRef","runtime-evidence:result"));
+   when(collector.visualReport(any(),eq("coding"),eq("runtime-evidence:result"))).thenReturn(Optional.of(visual));
+   var preview=bridge.snapshot(owner,"task");assertThat(preview.path("resultAvailable").asBoolean()).isTrue();assertThat(preview.path("terminal").asBoolean()).isFalse();assertThat(preview.path("provisional").asBoolean()).isTrue();assertThat(preview.path("eventCursor").asLong()).isEqualTo(7);
+   when(task.canonicalState()).thenReturn("FAILED");when(tasks.listEventsAfter("tenant","task",7L,128)).thenReturn(List.of());
+   var failed=bridge.snapshot(owner,"task",preview);assertThat(failed.path("visualReport")).isEqualTo(preview.path("visualReport"));assertThat(failed.path("deliveryStatus").asText()).isEqualTo("PRESERVED_AFTER_FAILURE");
+   verify(collector,times(1)).visualReport(any(),any(),any());verify(tasks,never()).submit(any());
+ }
+ @Test void workerClaimWithoutAnArchivedReportDoesNotBecomeAResult(){
+   var collector=mock(com.chatchat.api.runtime.coding.evidence.CodingEvidenceCollector.class);bridge.setCollector(collector);
+   when(tasks.listEvents("tenant","task",1000)).thenReturn(List.of(AgentEvent.builder().runId("run").sequence(1L).type("OBSERVATION").payload("{\"payload\":{\"metadata\":{\"eventKind\":\"CODING_TRACE\",\"taskId\":\"coding\",\"payload\":{\"type\":\"TOOL_FINISHED\",\"tool\":\"python_execute\",\"resultAvailable\":true,\"resultDatasetRef\":\"runtime-evidence:missing\"}}}}").build()));
+   assertThat(bridge.snapshot(owner,"task").path("resultAvailable").asBoolean()).isFalse();verifyNoInteractions(artifacts);
+ }
  @Test void forwardsPreparedAttachmentsThroughTheExistingUserAssetWorkflow(){
    when(tasks.submit(any())).thenReturn(task);
    var node=json.createObjectNode().put("id","supplemented-node").put("agentId","authorized").put("question","核对补充资料");

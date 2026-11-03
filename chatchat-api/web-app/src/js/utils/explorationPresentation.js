@@ -10,11 +10,11 @@ export function explorationChartTypes(original){
   if(traces.every(xy)){
     const types=['bar','line','scatter'];
     if(traces.length===1&&traces[0].x.length&&traces[0].y.every(positive)&&traces[0].y.some(v=>v>0)
-      &&new Set(traces[0].x.map(String)).size===traces[0].x.length)types.push('pie');
+      &&new Set(traces[0].x.map(String)).size===traces[0].x.length)types.push('pie','donut');
     return types;
   }
   if(traces.length===1&&traces[0].type==='pie'&&Array.isArray(traces[0].labels)&&Array.isArray(traces[0].values)
-    &&traces[0].labels.length===traces[0].values.length&&traces[0].labels.every(scalar)&&traces[0].values.every(positive))return ['bar','pie'];
+    &&traces[0].labels.length===traces[0].values.length&&traces[0].labels.every(scalar)&&traces[0].values.every(positive))return ['bar','pie','donut'];
   return [];
 }
 
@@ -22,12 +22,12 @@ export function explorationChartTypes(original){
 export function explorationFigure(original,type){
   const figure=checkedPlotlyFigure(original);
   if(!type)return figure;
-  if(!['bar','line','scatter','pie'].includes(type))throw new Error('不支持的图表类型');
-  if(!explorationChartTypes(figure).includes(type))throw new Error(type==='pie'
+  if(!['bar','line','scatter','pie','donut'].includes(type))throw new Error('不支持的图表类型');
+  if(!explorationChartTypes(figure).includes(type))throw new Error(['pie','donut'].includes(type)
     ?'饼图需要一条非负的类别数列，当前图表不能直接转换。'
     :'此图表没有可切换的纵向 X/Y 数列，请保留原图。');
   figure.data=figure.data.map(trace=>{
-    if(type==='pie')return {type:'pie',name:trace.name||'',labels:trace.x||trace.labels,values:trace.y||trace.values,sort:false};
+    if(type==='pie'||type==='donut')return {type:'pie',hole:type==='donut'?.55:0,name:trace.name||'',labels:trace.x||trace.labels,values:trace.y||trace.values,sort:false};
     const result={...trace,x:trace.x||trace.labels,y:trace.y||trace.values,type:type==='bar'?'bar':'scatter'};
     for(const key of ['orientation','labels','values','hole','pull','sort','textinfo','direction','hovertemplate'])delete result[key];
     if(type==='line'||type==='scatter'){

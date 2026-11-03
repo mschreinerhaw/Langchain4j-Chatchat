@@ -1,0 +1,25 @@
+{
+  "status": "PASSED",
+  "workspaceId": "0537ce20-0435-4a84-b3cb-efc950c84ab7",
+  "cancelledNodeRetainsHistoricalResult": true,
+  "refreshPreservesIframeAndScroll": true,
+  "chartTypePersisted": true,
+  "pointSelectionDraftOnly": true,
+  "selectionAndCollapsedBranchRestored": true,
+  "compactTextareaMinHeight": "34px",
+  "chartData": {
+    "labels": [
+      "资金余额",
+      "场内流通证券市值",
+      "在途资产"
+    ],
+    "values": [
+      770.39,
+      637688,
+      590000
+    ],
+    "hole": 0.55
+  },
+  "analysisExecutions": [],
+  "pageErrors": []
+}

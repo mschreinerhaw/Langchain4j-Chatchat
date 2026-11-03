@@ -309,6 +309,7 @@ public class CodingEvidenceCollector {
             if(visualReports==null)throw new IllegalStateException("Visual report admission unavailable");
             var execution=new LinkedHashMap<String,Object>(Map.of("taskId",contract.taskId(),"operationId",operationId,"codeSha256",sha(code),"receiptSha256",sha(receipt),
                     "resultSha256",sha(resultBytes),"resultDatasetRef","runtime-evidence:"+resultId,"executorStopped",true,"status",operation.status()));
+            execution.put("inputSnapshotRef",contract.inputSnapshotRef());
             if(codeAsset!=null)execution.put("codeArtifact",Map.of("fileId",codeAsset.id(),"fileName",codeAsset.fileName(),"sha256",codeAsset.sha256(),"size",codeAsset.size(),"mediaType","text/x-python"));
             execution.put("reportPresentation",com.chatchat.common.runtime.coding.ReportPresentation.read(contract.runtimeContext()));
             var report=visualReports.collect(scope,contract.taskId(),operationId,resultRows,reportFiles,execution);

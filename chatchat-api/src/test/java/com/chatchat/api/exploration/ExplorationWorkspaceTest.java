@@ -41,6 +41,22 @@ class ExplorationWorkspaceTest {
         controller.prepare(http,space.path("id").asText(),new ExplorationWorkspaceController.Question(0,null,List.of("file"),"分析资产结构",null));
         return store.get(alice,space.path("id").asText());
     }
+    @Test void stageResultsRemainPollableAndCannotBeDeletedOrBranchedUntilCompletion(){
+        var state=store.create(alice,"Incremental analysis");String id=state.path("id").asText();
+        controller.prepare(http,id,new ExplorationWorkspaceController.Question(0,null,List.of(),"Analyze",null,"authorized"));
+        state=store.get(alice,id);String node=nodeId(state);
+        var preview=json.createObjectNode().put("agentTaskId","task").put("status","EXECUTING").put("terminal",false).put("resultAvailable",true).put("eventCursor",2);
+        preview.putObject("visualReport").put("schemaVersion","python_visual_report.v1").put("title","Stage result").putArray("charts").addObject().put("id","chart").putObject("artifact").put("fileId","real-file");
+        when(bridge.submit(eq(alice),any(),isNull())).thenReturn(preview);controller.execute(http,id,node);
+        var saved=store.get(alice,id);assertThat(saved.path("nodes").get(0).path("artifactRefs").get(0).path("artifact").path("fileId").asText()).isEqualTo("real-file");
+        assertThatThrownBy(()->controller.delete(http,id,new ExplorationWorkspaceController.Delete(saved.path("version").asLong()))).hasMessageContaining("仍有分析任务运行");
+        controller.presentation(http,id,node,new ExplorationWorkspaceController.Presentation(saved.path("version").asLong(),true,Map.of()));
+        var revision=store.get(alice,id).path("version").asLong();
+        assertThatThrownBy(()->controller.prepare(http,id,new ExplorationWorkspaceController.Question(revision,node,List.of(),"Continue",null,"authorized"))).hasMessageContaining("已完成");
+        var failed=json.createObjectNode().put("agentTaskId","task").put("terminal",true).put("status","FAILED").put("resultAvailable",false).put("eventCursor",3);
+        when(bridge.snapshot(eq(alice),eq("task"),any())).thenReturn(failed);controller.status(http,id,node);
+        var result=store.get(alice,id).path("nodes").get(0);assertThat(result.path("receipt").path("resultAvailable").asBoolean()).isTrue();assertThat(result.path("status").asText()).isEqualTo("FAILED");assertThat(result.path("receipt").path("visualReport")).isEqualTo(preview.path("visualReport"));
+    }
     @Test void renameAndDeleteAreOwnerScopedAndVersionedWithoutChangingAnalysisHistory(){
         var state=prepared();String id=state.path("id").asText();String nodes=state.path("nodes").toString();
         var renamed=(ObjectNode)controller.rename(http,id,new ExplorationWorkspaceController.Rename(1,"  新项目名称  ")).getData();
@@ -166,9 +182,9 @@ class ExplorationWorkspaceTest {
         assertThat(prepared.path("nodes").get(0).path("fileIds").size()).isZero();verifyNoInteractions(assets,analysis);
         when(bridge.submit(eq(alice),any(),isNull())).thenReturn(json.createObjectNode().put("agentTaskId","task").put("status","EXECUTING").put("resultAvailable",false));
         controller.execute(http,id,node);clearInvocations(bridge);
-        when(bridge.snapshot(alice,"task")).thenReturn(json.createObjectNode().put("agentTaskId","task").put("terminal",true).put("resultAvailable",true).put("answer","Real boundary result"));
+        when(bridge.snapshot(eq(alice),eq("task"),any())).thenReturn(json.createObjectNode().put("agentTaskId","task").put("terminal",true).put("resultAvailable",true).put("answer","Real boundary result"));
         controller.status(http,id,node);controller.status(http,id,node);
-        verify(bridge,times(1)).snapshot(alice,"task");verify(bridge,never()).submit(any(),any(),any());verifyNoInteractions(analysis);
+        verify(bridge,times(1)).snapshot(eq(alice),eq("task"),any());verify(bridge,never()).submit(any(),any(),any());verifyNoInteractions(analysis);
         var complete=store.get(alice,id);controller.presentation(http,id,node,new ExplorationWorkspaceController.Presentation(complete.path("version").asLong(),true,Map.of()));
         complete=store.get(alice,id);controller.prepare(http,id,new ExplorationWorkspaceController.Question(complete.path("version").asLong(),node,List.of(),"Continue analysis",null,null));
         assertThat(store.get(alice,id).path("nodes").get(1).path("agentId").asText()).isEqualTo("authorized");

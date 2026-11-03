@@ -2,6 +2,9 @@ import {describe,it,expect} from 'vitest';
 import {explorationFigure} from './explorationPresentation';
 describe('Exploration chart presentation preserves real series',()=>{
   const original={data:[{type:'bar',name:'股票',x:['2024-01','2024-02'],y:[3214120.25,3402880.5]}],layout:{yaxis:{title:{text:'元'}},barmode:'stack'}};
+  it('converts authentic category values to a donut without recalculation or changing the original',()=>{
+    const copy=JSON.stringify(original),donut=explorationFigure(original,'donut');expect(donut.data[0].type).toBe('pie');expect(donut.data[0].hole).toBe(.55);expect(donut.data[0].values).toEqual(original.data[0].y);expect(JSON.stringify(original)).toBe(copy);
+  });
   it('switches bar to line and back without changing measured values, units or original',()=>{
     const snapshot=JSON.stringify(original),line=explorationFigure(original,'line');
     expect(line.data[0].type).toBe('scatter');expect(line.data[0].mode).toBe('lines+markers');

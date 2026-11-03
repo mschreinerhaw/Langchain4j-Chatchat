@@ -55,7 +55,7 @@ public class ExplorationWorkspaceStore {
         if(state.path("version").asLong()!=expected)throw new ResponseStatusException(HttpStatus.CONFLICT,"分析项目已更新，请刷新后重试");
         for(var node:state.path("nodes")){
             var receipt=node.path("receipt");
-            if(!receipt.path("agentTaskId").asText().isBlank()&&!receipt.path("terminal").asBoolean()&&!receipt.path("resultAvailable").asBoolean())
+            if(!receipt.path("agentTaskId").asText().isBlank()&&!receipt.path("terminal").asBoolean())
                 throw new ResponseStatusException(HttpStatus.CONFLICT,"项目中仍有分析任务运行，请等待任务结束后再删除");
         }
         // Remove only this owner's project. Runtime evidence and user assets have

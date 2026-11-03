@@ -12,7 +12,7 @@ import {
 export default defineComponent({
   name: "PythonReportChart",
   props: { chart: { type: Object, required: true }, presentation: { type: String, default: '' }, compact:{type:Boolean,default:false} },
-  emits: ["status","ready"],
+  emits: ["status","ready","point-select"],
   setup(componentProps, { expose: exposeComponent, emit: emitEvent }) {
     exposeComponent();
     const props = componentProps;
@@ -124,6 +124,12 @@ export default defineComponent({
     }
     function rendered(event) {
       if (event.source !== frame.value?.contentWindow) return;
+      if(event.data?.type==='runtime-plotly-point'){
+        const point=event.data.point;
+        if(point && ['x','y','label'].every(key=>point[key]==null||typeof point[key]==='string'&&point[key].length<=512||typeof point[key]==='number'&&Number.isFinite(point[key])))
+          emit('point-select',{chartId:props.chart.id,x:point.x,y:point.y,label:point.label});
+        return;
+      }
       if (event.data?.type === "runtime-plotly-rendered") {
         clearTimeout(renderTimeout);
         loading.value = false;

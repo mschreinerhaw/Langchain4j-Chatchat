@@ -1,0 +1,11 @@
+{
+  "image": "runtime-os-api:exploration-workspace-v2-20261103-r3",
+  "sourceCommit": "5d7371ab6-exploration-v2-workspace-followup",
+  "baselineSha256": "a506cfebb48058ef336f0a117259a1166aea5007a8b216f2643dabbb8e937aca",
+  "sha256": "6f2e7b31f83b5f3c39720a0b3f73ad4f7ac3a00cbf8aff15b5160950d3b364bd",
+  "catalogReadinessAuthFile": "catalog-readiness-private.json",
+  "catalogReadinessExpectedTools": [
+    "sql_schema_context_query",
+    "enterprise_metadata_search"
+  ]
+}

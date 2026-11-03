@@ -437,7 +437,7 @@ class AgentRuntimeTaskEventPublisherTest {
         metadata.put("attemptId", "attempt-2");
         metadata.put("toolCallId", "tool-3");
         metadata.put("payload", Map.of("type", "MODEL_RESOLVED", "modelCall", 2,
-            "durationMs", 1200, "prompt", "sensitive-prompt-".repeat(10000)));
+            "durationMs", 1200, "resultAvailable",true,"resultDatasetRef","runtime-evidence:verified-result", "prompt", "sensitive-prompt-".repeat(10000)));
         metadata.put("oversized", "x".repeat(300000));
         publisher.publish(AgentRunEvent.of(task.getTaskId(), AgentRunEventType.OBSERVATION_RECORDED,
             "receipt", Map.of("metadata", metadata)));
@@ -451,6 +451,8 @@ class AgentRuntimeTaskEventPublisherTest {
         assertThat(worker.path("modelCall").asInt()).isEqualTo(2);
         assertThat(worker.path("durationMs").asInt()).isEqualTo(1200);
         assertThat(worker.has("prompt")).isFalse();
+        assertThat(worker.path("resultAvailable").asBoolean()).isTrue();
+        assertThat(worker.path("resultDatasetRef").asText()).isEqualTo("runtime-evidence:verified-result");
     }
 
     private AgentTaskLatestEntity task(String taskId) {

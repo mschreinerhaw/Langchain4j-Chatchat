@@ -10,6 +10,7 @@ import static org.assertj.core.api.Assertions.*;
 class ExplorationWorkspaceMigrationTest {
     @Test void additiveMigrationIsIdempotentAndPreservesCustomizedManifestAndPermissions()throws Exception{
         var jdbc=new JdbcTemplate(new DriverManagerDataSource("jdbc:h2:mem:explore-migration-"+UUID.randomUUID()+";DB_CLOSE_DELAY=-1","sa",""));
+        jdbc.execute("create table sys_permission(id varchar primary key,permission_code varchar)");
         jdbc.execute("create table sys_menu(id varchar primary key,menu_code varchar,menu_name varchar,menu_type varchar,route_path varchar,icon varchar,sort_order int,status varchar,created_at timestamp,updated_at timestamp)");
         jdbc.execute("create table sys_menu_permission(id varchar primary key,menu_id varchar,permission_id varchar,created_at timestamp,updated_at timestamp)");
         jdbc.execute("create table workspace_registry(id varchar primary key,manifest_json clob,version bigint,updated_at timestamp)");

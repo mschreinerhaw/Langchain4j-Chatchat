@@ -1,0 +1,50 @@
+{
+  "id": "d0c27936-10f9-4771-be9b-68895319a036",
+  "title": "客户资产工作空间 V2 验收 20261103",
+  "version": 423,
+  "nodes": [
+    {
+      "id": "6419983a-4038-40e8-b410-74b7d57ff55d",
+      "parentId": "",
+      "question": "仅使用已提供附件，查询客户 1500007073 近5个交易日资金余额变化并生成图形分析。说明实际字段与数据时间范围；如单位未由生产者声明，沿用原始数值并明确单位未知。不要请求外部数据库数据，也不要推断新的业务指标。",
+      "modelName": "",
+      "status": "CANCELLED",
+      "createdAt": 1793686715298,
+      "updatedAt": 1793687829440,
+      "agentId": "ids_data_audit",
+      "fileIds": [
+        "15d7bb4f8264f90c3a599fb70e47c34a6f32e5302b930b5148bcb1d62456cb9c"
+      ],
+      "contextIds": [],
+      "saved": false,
+      "chartTypes": {},
+      "receipt": {
+        "agentTaskId": "0a821c30-3ee7-3971-92e0-0a30c1ed22e5",
+        "agentSessionId": "exploration-6419983a-4038-40e8-b410-74b7d57ff55d",
+        "agentId": "ids_data_audit",
+        "taskId": "0a821c30-3ee7-3971-92e0-0a30c1ed22e5",
+        "status": "CANCELLED",
+        "datasets": [],
+        "eventCursor": 80,
+        "hasMoreEvents": false,
+        "terminal": true,
+        "answer": "",
+        "results": [
+          {
+            "reportMarkdown": ""
+          }
+        ],
+        "resultAvailable": false,
+        "provisional": false,
+        "deliveryStatus": "UNAVAILABLE",
+        "error": "Task cancelled by tenant request"
+      },
+      "contextRef": "0a821c30-3ee7-3971-92e0-0a30c1ed22e5",
+      "dataSnapshotRef": "UNKNOWN",
+      "artifactRefs": []
+    }
+  ],
+  "fileIds": [
+    "15d7bb4f8264f90c3a599fb70e47c34a6f32e5302b930b5148bcb1d62456cb9c"
+  ]
+}

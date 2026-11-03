@@ -54,7 +54,7 @@ public class ExplorationWorkspaceController {
         }
         return ApiResponse.success(store.create(owner,body.title(),files));
     }
-    @GetMapping("/{id}") public ApiResponse<?> get(HttpServletRequest http,@PathVariable("id") String id){return ApiResponse.success(store.get(owner(http),id));}
+    @GetMapping("/{id}") public ApiResponse<?> get(HttpServletRequest http,@PathVariable("id") String id){var state=store.get(owner(http),id);state.withArray("nodes").forEach(n->linkResult((ObjectNode)n));return ApiResponse.success(state);}
     @PutMapping("/{id}") public ApiResponse<?> rename(HttpServletRequest http,@PathVariable("id") String id,@RequestBody Rename body){
         return ApiResponse.success(store.rename(owner(http),id,body.version(),body.title()));
     }
@@ -70,7 +70,7 @@ public class ExplorationWorkspaceController {
         if(!agentId.isBlank())agents.authorize(owner,agentId);
         if(!parentId.isBlank()){
             var parent=node(state,parentId);
-            if(!parent.path("saved").asBoolean()||!parent.path("receipt").path("resultAvailable").asBoolean())throw new IllegalArgumentException("请先保存有真实结果的父节点");
+            if(!parent.path("saved").asBoolean()||!parent.path("receipt").path("resultAvailable").asBoolean()||parent.path("receipt").has("terminal")&&!parent.path("receipt").path("terminal").asBoolean())throw new IllegalArgumentException("请先保存已完成且有真实结果的父节点");
             files=json.convertValue(parent.path("fileIds"),json.getTypeFactory().constructCollectionType(List.class,String.class));
             String inheritedAgent=parent.path("agentId").asText();
             if(!inheritedAgent.isBlank()){
@@ -97,6 +97,7 @@ public class ExplorationWorkspaceController {
         validateFiles(owner,files);
         var node=state.withArray("nodes").addObject();node.put("id",UUID.randomUUID().toString());node.put("parentId",parentId);
         node.put("question",body.question().strip());node.put("modelName",Objects.toString(model,""));node.put("status","PREPARED");
+        long now=System.currentTimeMillis();node.put("createdAt",now);node.put("updatedAt",now);
         if(!agentId.isBlank())node.put("agentId",agentId);
         node.set("fileIds",json.valueToTree(files));node.set("contextIds",json.valueToTree(contexts));node.put("saved",false);node.putObject("chartTypes");
         return ApiResponse.success(store.save(owner,state,body.version()));
@@ -128,29 +129,51 @@ public class ExplorationWorkspaceController {
     }
     @GetMapping("/{id}/nodes/{nodeId}/status") public ApiResponse<?> status(HttpServletRequest http,@PathVariable("id") String id,@PathVariable("nodeId") String nodeId){
         var owner=owner(http);var state=store.get(owner,id);var node=node(state,nodeId);
-        if(node.path("receipt").path("resultAvailable").asBoolean()||node.path("receipt").path("terminal").asBoolean())return ApiResponse.success(state);
+        if(node.path("receipt").path("terminal").asBoolean())return ApiResponse.success(state);
         String task=node.path("receipt").path("agentTaskId").asText();
         if(task.isBlank()||node.path("agentId").asText().isBlank())return ApiResponse.success(state);
-        var receipt=agents.snapshot(owner,task);
+        var receipt=agents.snapshot(owner,task,node.path("receipt"));
         if(receipt.equals(node.path("receipt")))return ApiResponse.success(state);
         return ApiResponse.success(finish(owner,id,nodeId,receipt,null));
     }
     private ObjectNode finish(UserAssetService.Owner owner,String id,String nodeId,ObjectNode receipt,String error){
         for(int attempt=0;attempt<8;attempt++){
             var state=store.get(owner,id);long expected=state.path("version").asLong();var node=node(state,nodeId);
-            if(node.path("receipt").path("resultAvailable").asBoolean())return state;
-            if(receipt!=null){node.set("receipt",receipt);node.put("status",receipt.path("resultAvailable").asBoolean()?"RESULT_AVAILABLE":receipt.path("status").asText("PENDING"));node.remove("error");}
+            if(node.path("receipt").path("terminal").asBoolean()||node.path("receipt").path("resultAvailable").asBoolean()&&node.path("agentId").asText().isBlank())return state;
+            if(receipt!=null){
+                var prior=node.path("receipt");
+                if(receipt.path("eventCursor").asLong()<prior.path("eventCursor").asLong())return state;
+                // Final failures do not erase a previously verified stage artifact.
+                if(prior.path("resultAvailable").asBoolean()&&!receipt.path("resultAvailable").asBoolean()){
+                    receipt=receipt.deepCopy();receipt.set("visualReport",prior.path("visualReport"));receipt.put("resultAvailable",true);receipt.put("deliveryStatus","PRESERVED_AFTER_FAILURE");
+                }
+                node.set("receipt",receipt);node.put("status",receipt.path("agentTaskId").asText().isBlank()&&receipt.path("resultAvailable").asBoolean()?"RESULT_AVAILABLE":receipt.path("status").asText("PENDING"));node.remove("error");linkResult(node);
+            }
             else{node.put("status","RECOVERABLE");node.put("error",error);}
+            node.put("updatedAt",System.currentTimeMillis());
             try{return store.save(owner,state,expected);}catch(ResponseStatusException conflict){if(conflict.getStatusCode()!=HttpStatus.CONFLICT||attempt==7)throw conflict;}
         }throw new IllegalStateException("Workspace update failed");
+    }
+    /** Deterministic links to existing persisted receipts and artifacts, no new storage/execution subsystem. */
+    private static void linkResult(ObjectNode node){
+        var receipt=node.path("receipt");var report=receipt.path("visualReport");var execution=report.path("execution");
+        if(!report.path("title").asText().isBlank())node.put("title",report.path("title").asText());
+        if(!report.path("summary").asText().isBlank())node.put("summary",report.path("summary").asText());
+        String context=receipt.path("agentTaskId").asText(receipt.path("taskId").asText());if(!context.isBlank())node.put("contextRef",context);
+        node.put("dataSnapshotRef",execution.path("inputSnapshotRef").asText("UNKNOWN"));
+        var refs=node.putArray("artifactRefs");
+        for(var chart:report.path("charts"))if(!chart.path("artifact").path("fileId").asText().isBlank()){
+            var ref=refs.addObject();ref.put("kind","CHART");ref.put("id",chart.path("id").asText());ref.set("artifact",chart.path("artifact"));
+        }
+        for(var table:report.path("tables")){var ref=refs.addObject();ref.put("kind","TABLE");ref.put("id",table.path("id").asText());ref.put("resultDatasetRef",execution.path("resultDatasetRef").asText());}
     }
     @PutMapping("/{id}/nodes/{nodeId}") public ApiResponse<?> presentation(HttpServletRequest http,@PathVariable("id") String id,@PathVariable("nodeId") String nodeId,@RequestBody Presentation body){
         var owner=owner(http);var state=store.get(owner,id);version(state,body.version());var node=node(state,nodeId);
         if(!node.path("receipt").path("resultAvailable").asBoolean())throw new IllegalArgumentException("尚无可保存的分析结果");
         var types=body.chartTypes()==null?Map.<String,String>of():body.chartTypes();
         Set<String> charts=new HashSet<>();node.path("receipt").path("visualReport").path("charts").forEach(chart->{if("plotly".equals(chart.path("kind").asText()))charts.add(chart.path("id").asText());});
-        if(types.size()>32||!charts.containsAll(types.keySet())||!types.values().stream().allMatch(Set.of("bar","line","scatter","pie")::contains))throw new IllegalArgumentException("无效图表配置");
-        node.set("chartTypes",json.valueToTree(types));node.put("saved",body.saved());return ApiResponse.success(store.save(owner,state,body.version()));
+        if(types.size()>32||!charts.containsAll(types.keySet())||!types.values().stream().allMatch(Set.of("bar","line","scatter","pie","donut")::contains))throw new IllegalArgumentException("无效图表配置");
+        node.set("chartTypes",json.valueToTree(types));node.put("saved",body.saved());node.put("updatedAt",System.currentTimeMillis());return ApiResponse.success(store.save(owner,state,body.version()));
     }
     private List<String> strings(ObjectNode node,String key){return node.path(key).isArray()?json.convertValue(node.path(key),json.getTypeFactory().constructCollectionType(List.class,String.class)):List.of();}
     private static ObjectNode node(ObjectNode state,String id){for(var node:state.withArray("nodes"))if(id.equals(node.path("id").asText()))return (ObjectNode)node;throw new ResponseStatusException(HttpStatus.NOT_FOUND,"分析节点不存在");}

@@ -1,0 +1,15 @@
+{
+  "allUnrelatedEntriesPreserved": true,
+  "nestedChatUnrelatedEntriesPreserved": true,
+  "replacedOuterClasses": {
+    "api": [
+      "com/chatchat/api/exploration/ExplorationAgentBridge",
+      "com/chatchat/api/exploration/ExplorationWorkspaceController",
+      "com/chatchat/api/exploration/ExplorationWorkspaceStore",
+      "com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollector"
+    ],
+    "chat": [
+      "com/chatchat/chat/task/event/AgentRuntimeTaskEventPublisher"
+    ]
+  }
+}

@@ -1,0 +1,42 @@
+[
+  {
+    "name": "com.chatchat.api.exploration.ExplorationAgentBridgeTest",
+    "tests": "6",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "3.868"
+  },
+  {
+    "name": "com.chatchat.api.exploration.ExplorationWorkspaceMigrationTest",
+    "tests": "1",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "1.129"
+  },
+  {
+    "name": "com.chatchat.api.exploration.ExplorationWorkspaceTest",
+    "tests": "14",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "3.313"
+  },
+  {
+    "name": "com.chatchat.api.runtime.coding.evidence.CodingEvidenceCollectorTest",
+    "tests": "12",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "2.387"
+  },
+  {
+    "name": "com.chatchat.chat.task.event.AgentRuntimeTaskEventPublisherTest",
+    "tests": "13",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "3.29"
+  }
+]

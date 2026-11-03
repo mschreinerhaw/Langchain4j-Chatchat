@@ -6,6 +6,42 @@ vi.mock('../../services/explorationApi',()=>api);
 vi.mock('../../components/PythonReportChart.vue',()=>({default:{props:['chart','presentation'],render(){return h('div',{'data-chart-type':this.presentation},this.chart.title);}}}));
 import View from '../../views/DataExplorationView.vue';
 let app,host;const settle=async()=>{for(let i=0;i<15;i++)await nextTick();};
+it('continues an owned archived file-analysis branch through its original backend without rebinding it to an Agent',async()=>{
+ const state=structuredClone(space);delete state.nodes[0].agentId;
+ const vm=await mount(state);expect(vm.canContinueLegacy).toBe(true);expect(host.querySelector('.composer-agent-footer')).toBeNull();
+ const next=structuredClone(state);const child={...node('legacy-child','root'),agentId:undefined};next.nodes.push(child);api.prepareExploration.mockResolvedValue(next);api.executeExploration.mockResolvedValue(next);
+ await vm.ask({query:'沿用已保存数据继续探索'});
+ expect(api.prepareExploration).toHaveBeenCalledWith('space',expect.objectContaining({parentId:'root',fileIds:['file'],agentId:''}));expect(vm.space.nodes[0].agentId).toBeUndefined();
+});
+it('does not show an indefinite waiting state for a cancelled first analysis with no artifact',async()=>{
+ const pending={...node('root'),receipt:{agentTaskId:'task',terminal:true,resultAvailable:false,status:'CANCELLED'}};
+ const vm=await mount({...space,nodes:[pending]});expect(host.querySelector('.exploration-empty-result h2').textContent).toContain('未交付');expect(vm.taskRunning).toBe(false);
+});
+it('retains the parent chart when a child starts and historical navigation remains available',async()=>{
+ const vm=await mount(),chart=host.querySelector('[data-chart-type]');
+ const pending={...node('pending','root'),saved:false,receipt:{agentTaskId:'task',terminal:false,resultAvailable:false,status:'EXECUTING'}};
+ const updated={...structuredClone(space),version:4,nodes:[...structuredClone(space.nodes),pending]};
+ api.prepareExploration.mockResolvedValue(updated);api.executeExploration.mockResolvedValue(updated);
+ await vm.ask({query:'继续探索'});await settle();expect(vm.active.id).toBe('pending');expect(vm.canvasNode.id).toBe('root');
+ expect(host.querySelector('[data-chart-type]')).toBe(chart);expect(host.querySelector('.exploration-node-state').textContent).toContain('画布保留');
+ vm.selectNode(vm.space.nodes[1]);await settle();expect(vm.canvasNode.id).toBe('child');expect(api.executeExploration).toHaveBeenCalledTimes(1);
+});
+it('continues polling after a stage result and never remounts an unrelated historical chart',async()=>{
+ vi.useFakeTimers();try{
+ const pending={...node('pending','root'),receipt:{...node('pending').receipt,agentTaskId:'task',terminal:false,status:'EXECUTING'}};
+ const state={...structuredClone(space),nodes:[...structuredClone(space.nodes),pending]};
+ const changed=structuredClone(state);changed.version=4;changed.nodes.at(-1).receipt.terminal=true;changed.nodes.at(-1).receipt.status='SUCCEEDED';
+ api.explorationNodeStatus.mockResolvedValue(changed);const vm=await mount(state);const chart=host.querySelector('[data-chart-type]');
+ const region=host.querySelector('.exploration-scroll-region');region.scrollTop=125;
+ await vi.advanceTimersByTimeAsync(1501);await settle();expect(api.explorationNodeStatus).toHaveBeenCalledWith('space','pending');
+ expect(host.querySelector('[data-chart-type]')).toBe(chart);expect(region.scrollTop).toBe(125);expect(vm.taskRunning).toBe(false);
+ }finally{vi.useRealTimers();}
+});
+it('renders table-only results directly and chart selection only drafts a followup',async()=>{
+ const state=structuredClone(space);state.nodes[0].receipt.visualReport={title:'明细',summary:'真实明细',tables:[{id:'data',columns:['金额'],rows:[[42]]}],charts:[]};
+ const vm=await mount(state);expect(host.querySelector('.exploration-table-canvas').textContent).toContain('42');expect(host.querySelector('.exploration-empty-result')).toBeNull();
+ vm.chartSelection({label:'股票'});await settle();expect(vm.question).toContain('股票');expect(api.executeExploration).not.toHaveBeenCalled();expect(api.prepareExploration).not.toHaveBeenCalled();
+});
 it('offers per-project actions and renames without altering nodes or submitting analysis',async()=>{
  const vm=await mount();const original=JSON.stringify(vm.space.nodes);document.querySelector('.exploration-project-more').click();await settle();
  expect(document.querySelector('.exploration-project-actions').textContent).toContain('修改名称');
@@ -62,7 +98,7 @@ it('allows supplemental data after a failed analysis and creates a new root with
 async function mount(state=space){api.generateExplorationIdeas.mockResolvedValue({ideas:[{title:'核对当前数据',prompt:'基于当前客户资产分析，核对比较基准和新增资料'}]});api.explorationAgents.mockResolvedValue([{id:'agent',name:'Authorized agent',marketStatus:'published'}]);location.hash='#/w/data-science/dataExploration?exploration=space&node=root';api.listExplorations.mockResolvedValue([{id:'space'}]);api.getExploration.mockResolvedValue(structuredClone(state));host=document.createElement('div');document.body.append(host);app=createApp(View);const vm=app.mount(host);await settle();return vm;}
 afterEach(()=>{app?.unmount();host?.remove();vi.resetAllMocks();});
 it('restores and navigates without analysis or file enumeration, hides configuration and private reasoning',async()=>{
- const vm=await mount();expect(vm.active.id).toBe('root');expect(api.explorationDatasets).not.toHaveBeenCalled();expect(host.querySelector('.exploration-config,input[type=checkbox]')).toBeNull();expect(host.textContent).toContain('思维链');expect(host.querySelector('textarea').placeholder).toBe('继续提问，粘贴文件或补充文本资料…');vm.selectNode(space.nodes[1]);await vm.reload();expect(vm.active.id).toBe('child');expect(location.hash).toContain('node=child');expect(api.executeExploration).not.toHaveBeenCalled();expect(vm.authoredReport).toBe('业务结论');
+ const vm=await mount();expect(vm.active.id).toBe('root');expect(api.explorationDatasets).not.toHaveBeenCalled();expect(host.querySelector('.exploration-config,input[type=checkbox]')).toBeNull();expect(host.textContent).toContain('思维链');expect(host.querySelector('textarea').placeholder).toBe('基于当前分析继续提问…');vm.selectNode(space.nodes[1]);await vm.reload();expect(vm.active.id).toBe('child');expect(location.hash).toContain('node=child');expect(api.executeExploration).not.toHaveBeenCalled();expect(vm.authoredReport).toBe('业务结论');
 });
 it('changes presentation in place and rejects incompatible pie without execution',async()=>{
  const vm=await mount(),element=host.querySelector('[data-chart-type]');vm.chartReady({id:'chart',fileId:'artifact-root',figure:{data:[{type:'bar',x:['A'],y:[2]},{type:'bar',x:['A'],y:[3]}],layout:{}},compatibleTypes:['bar','line','scatter']});api.saveExplorationNode.mockResolvedValue({...space,nodes:[{...node('root'),chartTypes:{chart:'line'}},...space.nodes.slice(1)]});await vm.chartType(vm.currentChart,{target:{value:'line'}});await settle();expect(host.querySelector('[data-chart-type]')).toBe(element);expect(element.dataset.chartType).toBe('line');await vm.chartType(vm.currentChart,{target:{value:'pie'}});expect(vm.error).toContain('非负');expect(api.saveExplorationNode).toHaveBeenCalledTimes(1);expect(api.executeExploration).not.toHaveBeenCalled();

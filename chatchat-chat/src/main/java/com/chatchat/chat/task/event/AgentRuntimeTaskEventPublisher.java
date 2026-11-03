@@ -394,7 +394,8 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
                 Map<String,Object> receipt = new LinkedHashMap<>();
                 copyExecutionFacts(receipt, worker, List.of("type", "timestamp", "stage", "tool", "modelCall",
                     "startedAt", "finishedAt", "durationMs", "repairAttempt", "repairAttempts", "scriptVersion",
-                    "admissionPending", "operationId", "toolCallId", "codeSha256", "status", "validationStatus", "reasonCode"));
+                    "admissionPending", "operationId", "toolCallId", "codeSha256", "status", "validationStatus", "reasonCode",
+                    "resultAvailable", "resultDatasetRef", "validationRecordRef", "evidenceBundleRef"));
                 if (!receipt.isEmpty()) facts.put("workerActivity", receipt);
             }
             compacted.put("metadata", facts);

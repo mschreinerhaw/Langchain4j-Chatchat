@@ -1,0 +1,29 @@
+{
+  "status": "DEPLOYED",
+  "image": "runtime-os-api:exploration-workspace-v2-20261103-r2",
+  "sha256": "a506cfebb48058ef336f0a117259a1166aea5007a8b216f2643dabbb8e937aca",
+  "backup": "/opt/chatchat-releases/exploration-workspace-v2-20261103-r2/backup",
+  "retired": {
+    "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-studio-1793688193",
+    "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-studio-1793688193"
+  },
+  "databaseMigrationSha256": null,
+  "catalogReadiness": {
+    "status": "API_MCP_CATALOG_READY",
+    "registryState": "HEALTHY",
+    "registeredToolCount": 39,
+    "requiredTools": [
+      "enterprise_metadata_search",
+      "sql_schema_context_query"
+    ],
+    "capturedAt": "2026-11-03T06:43:58.497936+00:00"
+  },
+  "preservedExpiredReadOnlyTaskIds": [],
+  "unrelatedContainersUnchanged": true,
+  "conversationContentUnchanged": true,
+  "messageIndexCountUnchanged": true,
+  "images": {
+    "runtime-os-app-stage-api-1": "runtime-os-api:exploration-workspace-v2-20261103-r2"
+  },
+  "channelCounts": "SQL_STUDIO|59\nPYTHON_STUDIO|10\nPLATFORM_UI|912\nAGENT_API|203"
+}

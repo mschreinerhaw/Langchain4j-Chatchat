@@ -1,0 +1,53 @@
+{
+  "newAnalysisCompleted": false,
+  "stageArtifactObserved": false,
+  "reason": "Model calls failed during the real acceptance run; own verification task cancelled through Runtime after 15 minutes without an artifact. Existing archived results were verified independently.",
+  "observations": [
+    {
+      "eventSequence": 36,
+      "runId": "att-1-bcd5b0cf-22fc-4bec-929e-e03f565b09fb",
+      "codingTaskId": "analysis-coding-190c724b36d00e7ac6af099ea703d496c43dc353db9e1248186f3a6b81438130",
+      "reasonCode": null,
+      "worker": {
+        "type": "MODEL_TIMING",
+        "modelCall": 1,
+        "durationMs": 8190,
+        "status": "SUCCEEDED"
+      }
+    },
+    {
+      "eventSequence": 61,
+      "runId": "att-1-bcd5b0cf-22fc-4bec-929e-e03f565b09fb",
+      "codingTaskId": "analysis-coding-190c724b36d00e7ac6af099ea703d496c43dc353db9e1248186f3a6b81438130",
+      "reasonCode": null,
+      "worker": {
+        "type": "MODEL_TIMING",
+        "modelCall": 2,
+        "durationMs": 83772,
+        "status": "SUCCEEDED"
+      }
+    },
+    {
+      "eventSequence": 75,
+      "runId": "att-1-bcd5b0cf-22fc-4bec-929e-e03f565b09fb",
+      "codingTaskId": "analysis-coding-190c724b36d00e7ac6af099ea703d496c43dc353db9e1248186f3a6b81438130",
+      "reasonCode": "EXECUTION_OUTCOME_UNKNOWN",
+      "worker": {
+        "type": "MODEL_FAILED",
+        "modelCall": 3,
+        "status": "FAILED"
+      }
+    },
+    {
+      "eventSequence": 76,
+      "runId": "att-1-bcd5b0cf-22fc-4bec-929e-e03f565b09fb",
+      "codingTaskId": "analysis-coding-190c724b36d00e7ac6af099ea703d496c43dc353db9e1248186f3a6b81438130",
+      "reasonCode": "EXECUTION_OUTCOME_UNKNOWN",
+      "worker": {
+        "type": "MODEL_TIMING",
+        "modelCall": 3,
+        "durationMs": 300632
+      }
+    }
+  ]
+}

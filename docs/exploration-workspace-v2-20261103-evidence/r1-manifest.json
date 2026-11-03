@@ -1,0 +1,13 @@
+{
+  "image": "runtime-os-api:exploration-workspace-v2-20261103-r1",
+  "sourceCommit": "5d7371ab6-exploration-v2-1ebc3c4ab22f",
+  "sourceBaseline": "5d7371ab684b6ff610836c24e28f1b9e087690a6",
+  "sourceDiffSha256": "1ebc3c4ab22fe35dbb70fc2337bdf6ea8f130f369c165825aa77970350a0935f",
+  "baselineSha256": "c3924b11d1a2d77fa3a3cf2c85f242867f5e8b50658bf8f4b9338f4734e013ca",
+  "sha256": "4be2c87ba348c607e371590dc062c0eab2462239e7ce0ee652994aab3f693a3c",
+  "catalogReadinessAuthFile": "catalog-readiness-private.json",
+  "catalogReadinessExpectedTools": [
+    "sql_schema_context_query",
+    "enterprise_metadata_search"
+  ]
+}

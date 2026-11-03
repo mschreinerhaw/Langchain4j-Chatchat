@@ -1,5 +1,20 @@
 import {it,expect} from 'vitest';
-import {explorationTreeRows,sortedTableRows,workspaceBusinessName,businessNodeTitle} from './explorationWorkspace';
+import {explorationTreeRows,sortedTableRows,workspaceBusinessName,businessNodeTitle,explorationCanvasNode,reconcileExploration,explorationNodeState,explorationMetricDisplay} from './explorationWorkspace';
+it('formats metric presentation without reinterpreting identifiers, unsafe integers or tiny nonzero values',()=>{
+ expect(explorationMetricDisplay('1228458.3900')).toBe('1,228,458.39');expect(explorationMetricDisplay('001234')).toBe('001234');expect(explorationMetricDisplay('90071992547409930000')).toBe('90071992547409930000');expect(explorationMetricDisplay('1e-10')).not.toBe('0');expect(explorationMetricDisplay('未知')).toBe('未知');
+});
+it('keeps a completed ancestor visible for pending and failed branches, with explicit independent statuses',()=>{
+ const root={id:'root',receipt:{resultAvailable:true}},pending={id:'new',parentId:'root',receipt:{agentTaskId:'task',terminal:false,resultAvailable:false,status:'EXECUTING'}};
+ expect(explorationCanvasNode([root,pending],'new')).toBe(root);expect(explorationNodeState(pending).code).toBe('RUNNING');
+ const failed={...pending,receipt:{...pending.receipt,terminal:true,status:'FAILED',resultAvailable:true}};
+ expect(explorationNodeState(failed).code).toBe('FAILED');expect(explorationCanvasNode([root,failed],'new')).toBe(failed);
+ expect(explorationCanvasNode([root,pending],'')).toBeNull();
+});
+it('preserves stable chart evidence across unrelated status updates and drops late workspace revisions',()=>{
+ const node={id:'root',receipt:{visualReport:{charts:[{id:'real',artifact:{fileId:'file'}}]}}},old={id:'space',version:3,nodes:[node,{id:'pending',status:'QUEUED'}]};
+ const next=reconcileExploration(old,{id:'space',version:4,nodes:[structuredClone(node),{id:'pending',status:'RUNNING'}]});
+ expect(next.nodes[0]).toBe(node);expect(next.nodes[0].receipt).toBe(node.receipt);expect(reconcileExploration(next,old)).toBe(next);
+});
 it('preserves branches, collapse, orphans and cycles',()=>{
  const nodes=[{id:'a'},{id:'b',parentId:'a'},{id:'c',parentId:'a'},{id:'d',parentId:'b'},{id:'orphan',parentId:'absent'}];expect(explorationTreeRows(nodes).map(n=>[n.id,n.depth])).toEqual([['a',0],['b',1],['d',2],['c',1],['orphan',0]]);expect(explorationTreeRows(nodes,['b']).map(n=>n.id)).toEqual(['a','b','c','orphan']);expect(explorationTreeRows([{id:'a',parentId:'b'},{id:'b',parentId:'a'}])).toHaveLength(2);
 });

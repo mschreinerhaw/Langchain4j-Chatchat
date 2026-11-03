@@ -2,12 +2,21 @@
 import {createApp,h,nextTick,reactive} from 'vue';
 import {it,expect,vi,afterEach,beforeEach} from 'vitest';
 const read=vi.hoisted(()=>vi.fn());
-vi.mock('../js/utils/pythonVisualReport',()=>({readReportArtifact:read,checkedPlotlyFigure:v=>v,plotlyFrameDocument:()=>'',plotlyDataTable:()=>null}));
+vi.mock('../js/utils/pythonVisualReport',()=>({readReportArtifact:read,checkedPlotlyFigure:v=>v,plotlyFrameDocument:()=>'<!doctype html><html><body></body></html>',plotlyDataTable:()=>null}));
 import Chart from './PythonReportChart.vue';
 let app,host;
 beforeEach(()=>{vi.stubGlobal('IntersectionObserver',undefined);vi.stubGlobal('URL',{createObjectURL:vi.fn(()=> 'blob:verified-new-chart'),revokeObjectURL:vi.fn()});read.mockReset();});
 afterEach(()=>{app?.unmount();host?.remove();vi.unstubAllGlobals();});
 const settle=async()=>{for(let i=0;i<8;i++)await nextTick();};
+it('accepts bounded point selections only from its own verified chart frame',async()=>{
+ read.mockResolvedValue(new TextEncoder().encode(JSON.stringify({data:[{type:'bar',x:['股票'],y:[42]}],layout:{}})).buffer);
+ const selected=vi.fn();host=document.createElement('div');document.body.append(host);app=createApp({render:()=>h(Chart,{chart:{id:'real',title:'真实图表',kind:'plotly',artifact:{fileId:'real'}},onPointSelect:selected})});app.mount(host);await settle();
+ const source=host.querySelector('iframe').contentWindow;
+ window.dispatchEvent(new MessageEvent('message',{source:window,data:{type:'runtime-plotly-point',point:{label:'伪造来源'}}}));
+ window.dispatchEvent(new MessageEvent('message',{source,data:{type:'runtime-plotly-point',point:{label:'x'.repeat(513)}}}));expect(selected).not.toHaveBeenCalled();
+ window.dispatchEvent(new MessageEvent('message',{source,data:{type:'runtime-plotly-point',point:{x:'股票',y:42}}}));
+ expect(selected).toHaveBeenCalledWith({chartId:'real',x:'股票',y:42,label:undefined});expect(read).toHaveBeenCalledTimes(1);
+});
 it('cancels stale bytes and reloads a completed streaming artifact descriptor even when its file ID stays the same',async()=>{
  let first;read.mockReturnValueOnce(new Promise(done=>first=done)).mockResolvedValueOnce(new Uint8Array([1,2,3]).buffer);
  const chart=reactive({id:'trend',title:'Trend',kind:'png',artifact:{fileId:'asset',size:1,mediaType:'image/png'}});

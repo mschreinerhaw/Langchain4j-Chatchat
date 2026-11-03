@@ -15,6 +15,41 @@ export function businessNodeDescription(node){
   const summary=node?.receipt?.visualReport?.summary||'';
   return summary.length>48?summary.slice(0,47)+'…':summary;
 }
+/** Display only. Original precision and units remain available in the report and tooltip. */
+export function explorationMetricDisplay(value){
+  const text=String(value??'');
+  if(!/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:e[+-]?\d+)?$/i.test(text))return text;
+  const number=Number(text),magnitude=Math.abs(number);
+  if(!Number.isFinite(number)||magnitude>Number.MAX_SAFE_INTEGER)return text;
+  if(magnitude>0&&magnitude<1e-8)return number.toExponential(2);
+  return new Intl.NumberFormat('zh-CN',{maximumFractionDigits:magnitude>0&&magnitude<.01?8:2}).format(number);
+}
+export function explorationNodeState(node,runningId=''){
+  const receipt=node?.receipt||{},status=String(receipt.status||node?.status||'PREPARED').toUpperCase();
+  if(['CANCELLED','CANCELED','TIMEOUT_CANCELLED'].includes(status))return {code:'CANCELLED',label:'已取消'};
+  if(['FAILED','REJECTED','INPUT_REQUIRED','RECOVERABLE','TIME_BUDGET_EXHAUSTED','MODEL_BUDGET_EXHAUSTED'].includes(status))return {code:'FAILED',label:status==='RECOVERABLE'?'可恢复':'分析未完成'};
+  if(node?.id===runningId || receipt.agentTaskId && receipt.terminal!==true)return {code:'RUNNING',label:receipt.resultAvailable?'已有阶段成果 · 分析中':'正在分析'};
+  if(receipt.resultAvailable)return {code:'COMPLETED',label:'已完成'};
+  return {code:'QUEUED',label:'等待分析'};
+}
+export function explorationCanvasNode(nodes,selectedId){
+  const selected=nodes.find(node=>node.id===selectedId);if(!selected)return null;
+  if(selected.receipt?.resultAvailable)return selected;
+  const seen=new Set([selected.id]);let parent=selected.parentId;
+  while(parent&&!seen.has(parent)){seen.add(parent);const node=nodes.find(n=>n.id===parent);if(!node)break;if(node.receipt?.resultAvailable)return node;parent=node.parentId;}
+  return [...nodes].reverse().find(node=>node.receipt?.resultAvailable)||null;
+}
+/** Status polls preserve immutable artifact/component identities and ignore late workspace revisions. */
+export function reconcileExploration(previous,next){
+  if(!previous||previous.id!==next.id)return next;
+  if(Number(next.version)<Number(previous.version))return previous;
+  const existing=new Map(previous.nodes.map(node=>[node.id,node]));
+  return {...next,nodes:next.nodes.map(node=>{
+    const old=existing.get(node.id);if(!old)return node;
+    if(JSON.stringify(old)===JSON.stringify(node))return old;
+    return JSON.stringify(old.receipt)===JSON.stringify(node.receipt)?{...node,receipt:old.receipt}:node;
+  })};
+}
 export function explorationTreeRows(nodes,collapsed=[]){
   const byId=new Map(nodes.map(n=>[n.id,n])),children=new Map(),hidden=new Set(collapsed),rows=[],visited=new Set();
   for(const node of nodes){const parent=byId.has(node.parentId)&&node.parentId!==node.id?node.parentId:'';

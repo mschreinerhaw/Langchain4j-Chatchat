@@ -10,7 +10,7 @@ import AppConfirmDialog from '../../components/AppConfirmDialog.vue';
 import {createExploration,listExplorations,getExploration,renameExploration,deleteExploration,prepareExploration,executeExploration,saveExplorationNode,explorationAgents,explorationNodeStatus,generateExplorationIdeas,uploadExplorationAttachment} from '../../services/explorationApi';
 import {validateChatFiles,chatTextFile,exceedsChatTextLimit,CHAT_FILE_ANALYSIS_OBJECTIVE} from '../utils/chatUserAssets';
 import {workspaceStorageKey} from '../utils/workspaceContext';
-import {workspaceBusinessName,businessNodeTitle} from '../utils/explorationWorkspace';
+import {workspaceBusinessName,businessNodeTitle,explorationNodeState,explorationCanvasNode,reconcileExploration,explorationMetricDisplay} from '../utils/explorationWorkspace';
 import {explorationFigure} from '../utils/explorationPresentation';
 import {splitThinkBlocks} from '../utils/thinkBlocks';
 import {chartDisplayTitle} from '../utils/chartDisplayTitle';
@@ -44,31 +44,39 @@ export default {
     const workspaceElement=ref(null),workspaceDialog=ref(null),chartDialog=ref(null),tableDialog=ref(null),detailsDialog=ref(null);
     const sidebarWidth=ref(260),sidebarCollapsed=ref(false),collapsedBranches=ref([]),resizing=ref(false);
     const chartSelections=ref({}),chartCache=ref({}),tableOpen=ref(false),expandedChart=ref(false);
-    let noticeTimer,resizeOrigin,resizeStartWidth,pollTimer,polling=false,disposed=false,narrowViewport=false;
+    let noticeTimer,resizeOrigin,resizeStartWidth,pollTimer,polling=false,disposed=false,narrowViewport=false,lastPolledNode='';
     function syncViewport(){const narrow=window.innerWidth<=980;if(narrow&&!narrowViewport)sidebarCollapsed.value=true;narrowViewport=narrow;}
     const preferenceKey=computed(()=>workspaceStorageKey('chatchat.exploration.ui.v1',props.workspaceContext));
     const busy=computed(()=>loading.value||mutationBusy.value||refreshing.value);
     const active=computed(()=>space.value?.nodes.find(n=>n.id===activeId.value));
-    const report=computed(()=>active.value?.receipt?.visualReport);
-    const authoredReport=computed(()=>splitThinkBlocks(active.value?.receipt?.results?.[0]?.reportMarkdown).filter(b=>b.type==='text').map(b=>b.content).join('\n'));
+    const canvasNode=computed(()=>explorationCanvasNode(space.value?.nodes||[],activeId.value));
+    const selectedState=computed(()=>explorationNodeState(active.value,runningSpaceId.value===space.value?.id?runningId.value:''));
+    const canContinueLegacy=computed(()=>!!active.value && !active.value.agentId && !!active.value.fileIds?.length && selectedState.value.code==='COMPLETED');
+    const canvasState=computed(()=>explorationNodeState(canvasNode.value));
+    const showingPrevious=computed(()=>!!canvasNode.value&&canvasNode.value.id!==activeId.value);
+    const report=computed(()=>canvasNode.value?.receipt?.visualReport);
+    const metrics=computed(()=>report.value?.metrics||[]);
+    function applySpace(value){space.value=reconcileExploration(space.value,value);}
+
+    const authoredReport=computed(()=>splitThinkBlocks(canvasNode.value?.receipt?.results?.[0]?.reportMarkdown).filter(b=>b.type==='text').map(b=>b.content).join('\n'));
     const charts=computed(()=>report.value?.charts||[]);
-    const currentChart=computed(()=>charts.value.find(c=>c.id===chartSelections.value[activeId.value])||charts.value[0]);
-    const chartKey=computed(()=>`${activeId.value}:${currentChart.value?.id||''}`);
+    const currentChart=computed(()=>charts.value.find(c=>c.id===chartSelections.value[canvasNode.value?.id])||charts.value[0]);
+    const chartKey=computed(()=>`${canvasNode.value?.id}:${currentChart.value?.id||''}`);
     const chartMeta=computed(()=>chartCache.value[chartKey.value]);
     const chartData=computed(()=>{
       if(chartMeta.value?.table)return chartMeta.value.table;
       const section=report.value?.sections?.find(s=>s.chartIds?.includes(currentChart.value?.id));
       return report.value?.tables?.find(t=>section?.tableIds?.includes(t.id))||report.value?.tables?.[0]||null;
     });
-    const chartTypes=[{value:'bar',label:'柱状图'},{value:'line',label:'折线图'},{value:'pie',label:'饼图'},{value:'scatter',label:'散点图'}];
+    const chartTypes=[{value:'bar',label:'柱状图'},{value:'line',label:'折线图'},{value:'pie',label:'饼图'},{value:'donut',label:'环形图'},{value:'scatter',label:'散点图'}];
     const compatibleTypes=computed(()=>chartMeta.value?.compatibleTypes||[]);
     const effectiveChartType=computed(()=>{
-      const saved=active.value?.chartTypes?.[currentChart.value?.id];if(saved)return saved;
+      const saved=canvasNode.value?.chartTypes?.[currentChart.value?.id];if(saved)return saved;
       const traces=chartMeta.value?.figure?.data;if(!traces?.length)return '';
-      const types=traces.map(t=>t.type==='scatter'||!t.type?(t.mode?.includes('lines')?'line':'scatter'):t.type);
+      const types=traces.map(t=>t.type==='pie'&&t.hole>0?'donut':t.type==='scatter'||!t.type?(t.mode?.includes('lines')?'line':'scatter'):t.type);
       return new Set(types).size===1&&chartTypes.some(t=>t.value===types[0])?types[0]:'';
     });
-    const heading=computed(()=>active.value?businessNodeTitle(active.value):'新的分析');
+    const heading=computed(()=>canvasNode.value?businessNodeTitle(canvasNode.value):active.value?businessNodeTitle(active.value):'新的分析');
     const ideaContext=computed(()=>({hasResult:!!active.value?.receipt?.resultAvailable,title:heading.value}));
     const summary=computed(()=>{const text=report.value?.summary||authoredReport.value.replace(/^#{1,6}[^\n]*\n/gm,'').replace(/[*#`]/g,'').trim().split('\n').filter(Boolean).slice(0,2).join(' ');return text.length>190?text.slice(0,189)+'…':text;});
     const hasData=computed(()=>!!(active.value?.fileIds?.length||selected.value.length||space.value?.fileIds?.length));
@@ -122,7 +130,7 @@ export default {
       try{
         if(kind==='rename'){
           const updated=await renameExploration(state.id,{version:state.version,title:name});
-          if(space.value?.id===state.id)space.value=updated;
+          if(space.value?.id===state.id)applySpace(updated);
           spaces.value=spaces.value.map(item=>item.id===state.id?{...item,title:updated.title,version:updated.version}:item);
           message('分析项目名称已修改');
         }else{
@@ -143,18 +151,18 @@ export default {
     async function save(types=active.value?.chartTypes||{},saved=true,nodeId=activeId.value){
       if(!space.value||!nodeId)return;const id=space.value.id;
       const updated=await saveExplorationNode(id,nodeId,{version:space.value.version,saved,chartTypes:types});
-      if(space.value?.id===id)space.value=updated;return updated;
+      if(space.value?.id===id)applySpace(updated);return updated;
     }
     async function execute(id,node){
-      try{const updated=await executeExploration(id,node.id);if(space.value?.id===id)space.value=updated;
+      try{const updated=await executeExploration(id,node.id);if(space.value?.id===id)applySpace(updated);
         const receipt=updated.nodes.find(n=>n.id===node.id)?.receipt;message(receipt?.resultAvailable?(receipt.visualReport?.charts?.length?'图形分析已完成':'分析结果已返回，暂未生成图表'):receipt?.agentTaskId?'Agent 正在获取数据并分析':'分析尚未完成，可以继续恢复');scheduleStatus();
-      }catch(e){error.value=e.message||'分析暂未完成';try{const updated=await getExploration(id);if(space.value?.id===id)space.value=updated;}catch{}}
+      }catch(e){error.value=e.message||'分析暂未完成';try{const updated=await getExploration(id);if(space.value?.id===id)applySpace(updated);}catch{}}
     }
     async function ask(payload){
-      if(taskRunning.value||busy.value)return;
+      if(analyzing.value||busy.value||selectedState.value.code==='RUNNING')return;
       const original=payload?.query??question.value,originSpace=space.value?.id,originNode=activeId.value,originAgent=selectedAgentId.value;
       let text=original.trim();if(!text&&!attachments.value.length)return;
-      if(!agentAvailable.value){error.value='请选择已发布且获授权的 Agent';return;}
+      if(!agentAvailable.value&&!canContinueLegacy.value){error.value='请选择已发布且获授权的 Agent';return;}
       if(exceedsChatTextLimit(original)||original.length>8000){
         let item=attachments.value.find(f=>f.originalText===original);
         if(!item){const added=await addFiles([chatTextFile(original)]);if(!added)return;item=added[0];item.originalText=original;}
@@ -166,30 +174,37 @@ export default {
       const fileIds=[...new Set([...(active.value?.fileIds||selected.value||space.value?.fileIds||[]),...attachments.value.map(f=>f.asset.id)])];
       if(fileIds.length>8){error.value='当前节点与补充资料合计最多 8 个附件，请开始新的分析以更换数据';return;}
       if(!space.value){try{space.value=await createExploration(agents.value.find(a=>a.id===selectedAgentId.value).name+'分析');await refreshList();remember();}catch(e){error.value=e.message;return;}}
-      const id=space.value.id,parent=active.value?.receipt?.resultAvailable?active.value:null,selectionAtSend=activeId.value;
-      if(parent&&parent.agentId!==selectedAgentId.value){error.value='切换 Agent 请开始新的分析';return;}
+      const id=space.value.id,parent=active.value?.receipt?.resultAvailable && selectedState.value.code==='COMPLETED'?active.value:null,selectionAtSend=activeId.value;
+      if(parent&&(parent.agentId||'')!==selectedAgentId.value){error.value='切换 Agent 请开始新的分析';return;}
       analyzing.value=true;runningSpaceId.value=id;error.value='';mutationBusy.value=true;
       try{
         if(parent&&!parent.saved)await save(parent.chartTypes||{},true,parent.id);
         const prepared=await prepareExploration(id,{version:space.value.version,parentId:parent?.id||null,agentId:selectedAgentId.value,fileIds,question:text,modelName:parent?.modelName||null});
         const node=prepared.nodes.at(-1);runningId.value=node.id;
-        if(space.value?.id===id){space.value=prepared;if(activeId.value===selectionAtSend){activeId.value=node.id;tableOpen.value=false;remember();}}
+        if(space.value?.id===id){applySpace(prepared);if(activeId.value===selectionAtSend){activeId.value=node.id;tableOpen.value=false;remember();}}
         question.value='';attachments.value=[];mutationBusy.value=false;await execute(id,node);
       }catch(e){error.value=e.message||'暂时无法开始分析';}
       finally{mutationBusy.value=false;analyzing.value=false;runningId.value='';runningSpaceId.value='';}
     }
     async function recover(){if(analyzing.value||!active.value)return;const id=space.value.id,node=active.value;analyzing.value=true;runningId.value=node.id;runningSpaceId.value=id;error.value='';try{await execute(id,node);}finally{analyzing.value=false;runningId.value='';runningSpaceId.value='';}}
-    async function reload(){if(refreshing.value||!space.value)return;refreshing.value=true;error.value='';const id=space.value.id,selectedId=activeId.value;try{const updated=await getExploration(id);if(space.value?.id===id){space.value=updated;if(updated.nodes.some(n=>n.id===selectedId))activeId.value=selectedId;remember();}message('已更新');}catch(e){error.value=e.message;}finally{refreshing.value=false;}}
-    async function saveNode(){saving.value=true;await run(async()=>{await save();message('已保存');});saving.value=false;}
+    async function reload(){if(refreshing.value||!space.value)return;refreshing.value=true;error.value='';const id=space.value.id,selectedId=activeId.value;try{const updated=await getExploration(id);if(space.value?.id===id){applySpace(updated);if(updated.nodes.some(n=>n.id===selectedId))activeId.value=selectedId;remember();}message('已更新');}catch(e){error.value=e.message;}finally{refreshing.value=false;}}
+    async function saveNode(){if(!canvasNode.value)return;const node=canvasNode.value;saving.value=true;await run(async()=>{await save(node.chartTypes||{},true,node.id);message('已保存');});saving.value=false;}
     function chartReady(payload){for(const node of space.value?.nodes||[])if(node.receipt?.visualReport?.charts?.some(c=>c.id===payload.id&&c.artifact?.fileId===payload.fileId))chartCache.value[`${node.id}:${payload.id}`]=payload;}
     async function chartType(chart,event){
-      const type=event.target.value,meta=chartCache.value[`${activeId.value}:${chart.id}`];
+      const node=canvasNode.value;if(!node)return;const type=event.target.value,meta=chartCache.value[`${node.id}:${chart.id}`];
       await run(async()=>{if(type){if(!meta)throw new Error('图表正在加载，请稍后再试');explorationFigure(meta.figure,type);}
-        const types={...active.value.chartTypes};if(type)types[chart.id]=type;else delete types[chart.id];await save(types,active.value.saved);message('图表已更新');});
+        const types={...node.chartTypes};if(type)types[chart.id]=type;else delete types[chart.id];await save(types,node.saved,node.id);message('图表已更新');});
       event.target.value=effectiveChartType.value;
     }
     function toggleBranch(id){collapsedBranches.value=collapsedBranches.value.includes(id)?collapsedBranches.value.filter(x=>x!==id):[...collapsedBranches.value,id];}
-    function selectChart(id){chartSelections.value={...chartSelections.value,[activeId.value]:id};tableOpen.value=false;}
+    function selectChart(id){chartSelections.value={...chartSelections.value,[canvasNode.value?.id]:id};tableOpen.value=false;}
+    function chartSelection(point){
+      if(!canvasNode.value)return;
+      const label=point.label??point.x;if(label==null||!['string','number'].includes(typeof label))return;
+      const title=chartDisplayTitle(currentChart.value?.title);selectNode(canvasNode.value);
+      question.value=`基于“${title}”，进一步分析当前选中项“${String(label).slice(0,160)}”。请沿用已授权数据，说明口径与数据范围。`;
+      workspaceElement.value?.querySelector('textarea')?.focus();
+    }
     function selectAgent(id){if(analyzing.value)return;const draft=question.value;if(active.value&&active.value.agentId!==id){startRoot();question.value=draft;}selectedAgentId.value=id;error.value='';}
     function startRoot(){selected.value=[...(active.value?.fileIds||space.value?.fileIds||selected.value)];activeId.value='';tableOpen.value=false;question.value='';remember();}
     function moveResize(event){const available=workspaceElement.value?.clientWidth||1200;sidebarWidth.value=Math.round(Math.max(200,Math.min(420,available*.38,resizeStartWidth+event.clientX-resizeOrigin)));}
@@ -198,17 +213,21 @@ export default {
     function scheduleStatus(){clearTimeout(pollTimer);if(!disposed)pollTimer=setTimeout(pollStatus,1500);}
     async function pollStatus(){
       if(disposed||polling)return;const id=space.value?.id;
-      const pending=space.value?.nodes.find(n=>n.agentId&&n.receipt?.agentTaskId&&!n.receipt.resultAvailable&&!n.receipt.terminal);
+      const candidates=space.value?.nodes.filter(n=>n.agentId&&n.receipt?.agentTaskId&&!n.receipt.terminal)||[];
+      const pending=candidates[(candidates.findIndex(n=>n.id===lastPolledNode)+1)%candidates.length];
       if(!pending)return;polling=true;
-      try{const updated=await explorationNodeStatus(id,pending.id);if(!disposed&&space.value?.id===id)space.value=updated;}catch(e){if(!disposed)error.value=e.message;}finally{polling=false;scheduleStatus();}
+      lastPolledNode=pending.id;
+      try{const updated=await explorationNodeStatus(id,pending.id);if(!disposed&&space.value?.id===id)applySpace(updated);}catch(e){if(!disposed)error.value=e.message;}finally{polling=false;scheduleStatus();}
     }
-    const taskRunning=computed(()=>analyzing.value||!!space.value?.nodes.some(n=>n.agentId&&n.receipt?.agentTaskId&&!n.receipt.resultAvailable&&!n.receipt.terminal));
+    const taskRunning=computed(()=>analyzing.value||!!space.value?.nodes.some(n=>n.agentId&&n.receipt?.agentTaskId&&!n.receipt.terminal));
     onMounted(async()=>{loading.value=true;agentsLoading.value=true;
       try{agents.value=await explorationAgents();}catch(e){error.value=e.message;}finally{agentsLoading.value=false;}const restored=readPreferences(),width=workspaceElement.value?.clientWidth;if(!restored&&width>0&&width<850)sidebarCollapsed.value=true;
       syncViewport();window.addEventListener('resize',syncViewport);
       try{await refreshList();if(spaces.value.length)await open(spaces.value.find(s=>s.id===selection().get('exploration'))?.id||spaces.value[0].id);}catch(e){error.value=e.message;}finally{loading.value=false;}});
     onBeforeUnmount(()=>{disposed=true;stopResize();clearTimeout(noticeTimer);clearTimeout(pollTimer);window.removeEventListener('resize',syncViewport);});
-    return {projectMenu,projectAction,projectName,projectActionBusy,projectActionError,manageProject,cancelProjectAction,submitProjectAction,attachments,addFiles,retryFile,removeFile,suggestIdeas,agents,agentsLoading,selectedAgentId,agentAvailable,selectAgent,taskRunning,spaces,space,selected,activeId,title,question,active,report,authoredReport,charts,currentChart,chartKey,chartData,chartTypes,compatibleTypes,effectiveChartType,heading,summary,
+    return {canvasNode,canvasState,selectedState,showingPrevious,metrics,explorationNodeState,explorationMetricDisplay,chartSelection,canContinueLegacy,
+      continueFromCanvas:()=>{if(canvasNode.value){selectNode(canvasNode.value);question.value='';workspaceElement.value?.querySelector('textarea')?.focus();}},
+      projectMenu,projectAction,projectName,projectActionBusy,projectActionError,manageProject,cancelProjectAction,submitProjectAction,attachments,addFiles,retryFile,removeFile,suggestIdeas,agents,agentsLoading,selectedAgentId,agentAvailable,selectAgent,taskRunning,spaces,space,selected,activeId,title,question,active,report,authoredReport,charts,currentChart,chartKey,chartData,chartTypes,compatibleTypes,effectiveChartType,heading,summary,
       loading,busy,refreshing,analyzing,saving,runningId,runningSpaceId,error,notice,hasData,sidebarWidth,sidebarCollapsed,collapsedBranches,resizing,contentStyle,
       workspaceElement,workspaceDialog,chartDialog,tableDialog,detailsDialog,tableOpen,expandedChart,workspaceBusinessName,businessNodeTitle,
       open,run,create,ask,recover,reload,saveNode,save,selectNode,chartType,chartReady,selectChart,startRoot,toggleBranch,startResize,

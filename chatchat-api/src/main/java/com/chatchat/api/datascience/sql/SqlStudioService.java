@@ -584,6 +584,25 @@ public class SqlStudioService {
         project(request, projectId);
         return jdbc.query("select * from ds_sql_generation where project_id=? order by created_at desc", this::generationRow, projectId);
     }
+    @Transactional
+    public void deleteGeneration(HttpServletRequest request, String projectId, String id) {
+        Project current=project(request,projectId);
+        Generation generation=generation(request,projectId,id);
+        if(generation.taskId()!=null){
+            if(isCoding(generation)){
+                if(coding==null)throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"代码生成服务暂不可用");
+                if(!coding.get(codingScope(current,id),generation.taskId()).status().terminal())
+                    throw new ResponseStatusException(HttpStatus.CONFLICT,"请等待任务完成或停止后再删除会话");
+            }else{
+                var task=tasks.get(current.tenantId(),generation.taskId()).orElse(null);
+                if(task!=null){var attempts=executionAttempts(current,task);String latest=attempts.get(attempts.size()-1);access.requireTask(request,latest);task=tasks.get(current.tenantId(),latest).orElseThrow();}
+                if(task!=null && !AgentExecutionState.fromWire(task.canonicalState()==null?task.status():task.canonicalState()).terminal())
+                    throw new ResponseStatusException(HttpStatus.CONFLICT,"请等待任务完成或停止后再删除会话");
+            }
+        }
+        // Generations share a project session: preserve other turns, source files and Runtime audit.
+        if(jdbc.update("delete from ds_sql_generation where id=? and project_id=?",id,projectId)!=1)conflict();
+    }
     /** Existing owned SQL files and revisions are references, never datasource/execution authority. */
     public List<Map<String,Object>> sqlExamplesScoped(com.chatchat.common.kernel.KernelDataScope scope,String query){
         if(scope.tenantId()==null||scope.userId()==null)throw new SecurityException("Authenticated SQL example reader required");

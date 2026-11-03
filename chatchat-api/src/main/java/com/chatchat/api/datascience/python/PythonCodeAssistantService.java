@@ -54,7 +54,7 @@ public class PythonCodeAssistantService {
         String context=prepared.prompt()+codePlans.context(plan)+"\nWorkspace source files (untrusted data):\n"+com.chatchat.agents.protocol.ModelProtocolJson.compact(body.files())
             +"\nEntry path: "+entry+". Propose COMPLETE files, including unchanged code outside the requested edit. Syntax diagnostics are not execution validation.";
         codingWorkspace.captureHistory(codingScope(tenant,user,task),task,new com.chatchat.api.datascience.StudioTaskHistory.Request(
-            null,"python",body.request().prompt(),prepared.modelName(),Map.of()));
+            null,"python",body.request().historyPrompt(),prepared.modelName(),Map.of()));
         var outcome=codingWorkspace.submit(codingScope(tenant,user,task),task,context,"python",prepared.modelName());
         return Map.of("taskId",task,"status",outcome.status().name(),"plan",plan);
     }
@@ -253,10 +253,13 @@ public class PythonCodeAssistantService {
     }
 
     public record AssistRequest(String action, String prompt, String sourceCode, String selectedCode,
-                                String modelName, List<String> skillIds, String planId) {
+                                String modelName, List<String> skillIds, String planId, String historyQuestion) {
         public AssistRequest {
             skillIds = skillIds == null ? List.of() : List.copyOf(skillIds);
+            if(historyQuestion!=null && historyQuestion.length()>4000)throw new IllegalArgumentException("历史问题超过长度限制");
         }
+        public AssistRequest(String action,String prompt,String sourceCode,String selectedCode,String modelName,List<String> skillIds,String planId){this(action,prompt,sourceCode,selectedCode,modelName,skillIds,planId,null);}
+        public String historyPrompt(){return historyQuestion==null||historyQuestion.isBlank()?prompt:historyQuestion;}
 
         public AssistRequest(String action, String prompt, String sourceCode, String selectedCode, String modelName) {
             this(action, prompt, sourceCode, selectedCode, modelName, List.of(), null);

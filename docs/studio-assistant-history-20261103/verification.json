@@ -1,0 +1,20 @@
+{
+  "status": "PASSED",
+  "deletions": [
+    {
+      "path": "/api/v1/data-science/sql/projects/c7c906d0-cf12-4287-9f28-02576c3bf021/generations/51289bd9-17f5-443d-9c26-6c730499381e",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/data-science/python/assist/history/cd680a20-8f94-448a-bc6b-5e372a1e64f8",
+      "status": 200
+    }
+  ],
+  "pageErrors": [],
+  "sqlRemaining": 1,
+  "pythonDeletedStatus": 404,
+  "cancelDoesNotDelete": true,
+  "reloadVerified": true,
+  "restoredPythonAnswer": true,
+  "fixturesOnly": true
+}

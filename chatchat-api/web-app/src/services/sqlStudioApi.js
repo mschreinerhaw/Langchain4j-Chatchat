@@ -32,6 +32,7 @@ export const saveSqlFile = (id, value) => apiRequest(`${project(id)}/files`, { m
 export const deleteSqlFile = (id, fileId, expectedVersion) => apiRequest(`${project(id)}/files/${encodeURIComponent(fileId)}?expectedVersion=${encodeURIComponent(expectedVersion)}`, { method: 'DELETE' });
 export const renameSqlFile = (id, fileId, path, expectedVersion) => apiRequest(`${project(id)}/files/${encodeURIComponent(fileId)}/path`, { method: 'PUT', body: body({ path, expectedVersion }) });
 export const sqlVersions = (id, fileId) => apiRequest(`${project(id)}/files/${encodeURIComponent(fileId)}/versions`);
+export const deleteSqlGeneration = (id,generation) => apiRequest(`${project(id)}/generations/${encodeURIComponent(generation)}`,{method:'DELETE'});
 export const sqlGenerations = id => apiRequest(`${project(id)}/generations`);
 export const prepareSqlGeneration = (id, value) => apiRequest(`${project(id)}/generations`, { method: 'POST', body: body(value) });
 export const bindSqlTask = (id, generationId, taskId) => apiRequest(`${project(id)}/generations/${encodeURIComponent(generationId)}/task`, { method: 'PUT', body: body({ taskId }) });

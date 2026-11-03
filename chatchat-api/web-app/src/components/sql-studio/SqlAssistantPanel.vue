@@ -4,7 +4,7 @@
       <div class="sql-assistant-heading">
         <strong><Sparkles :size="18" />AI 数据库助手</strong>
         <div class="sql-assistant-header-actions">
-          <button type="button" aria-label="历史会话" title="历史会话" :disabled="!generations.length" @click="showDialog(historyDialog)"><History :size="16" /></button>
+          <button type="button" aria-label="历史会话" title="历史会话" :disabled="!generations.length" @click="historyOpen = true"><History :size="16" /></button>
           <button
           class="sql-new-conversation"
           type="button"
@@ -222,12 +222,7 @@
         </section>
       </div></div>
     </dialog>
-    <dialog ref="historyDialog" class="sql-assistant-dialog" aria-label="SQL 历史会话" @click.self="closeDialog(historyDialog)">
-      <header><h3>历史会话</h3><button type="button" aria-label="关闭历史会话" @click="closeDialog(historyDialog)"><X :size="17" /></button></header>
-      <div class="sql-assistant-history"><button v-for="(generation,index) in generations" :key="generation.id" type="button"
-        :aria-current="generation.id === generationId ? 'true' : undefined" :disabled="busy || taskRunning || !!pendingPhase"
-        @click="chooseHistory(generation.id)"><strong>{{ historyTitle(generation,index) }}</strong><small>{{ generation.applied ? '已应用到工程' : '查看会话与结果' }}</small></button></div>
-    </dialog></Teleport>
+    <StudioConversationHistory :open="historyOpen" label="SQL 历史会话" :entries="generations.map((item,index) => ({id:item.id,title:historyTitle(item,index),subtitle:item.applied ? '已应用到工程' : '查看会话与结果'}))" :current-id="generationId" :busy="busy || taskRunning || !!pendingPhase" :remove="removeHistory" @select="chooseHistory" @close="historyOpen = false" /></Teleport>
     <footer class="sql-assistant-input">
     <form class="sql-chat-composer" @submit.prevent="send">
       <div v-if="selectedCode || includeCurrentFile" class="sql-composer-context">

@@ -33,6 +33,8 @@ import PythonCodeDiff from "../../components/PythonCodeDiff.vue";
 import AppConfirmDialog from "../../components/AppConfirmDialog.vue";
 import UserSpaceBrowser from "../../components/UserSpaceBrowser.vue";
 import CodeChangeReview from "../../components/editor/CodeChangeReview.vue";
+import StudioConversationHistory from "../../components/editor/StudioConversationHistory.vue";
+import { pythonAssistantHistory, pythonAssistantConversation, deletePythonAssistantConversation } from '../../services/pythonCoding';
 import StudioCodePlan from "../../components/editor/StudioCodePlan.vue";
 import { requestPlannedPythonAssist } from '../../services/studioCodePlanning';
 import { runPythonCoding, cancelPythonCoding, resumePythonCoding } from '../../services/pythonCoding';
@@ -41,7 +43,7 @@ import { beginStudioExchange, studioAssistantTurn, updateStudioTurn } from '../u
 import EditorPreferences from "../../components/editor/EditorPreferences.vue";
 import { Search, ChevronRight, ChevronDown, Folder, FileCode2, Plus, X, Play, Save, Settings2, PanelLeft,
   PanelRight, PanelBottom, Maximize2, Minimize2, Sparkles, Send, RefreshCw, ListTree, Box, Terminal,
-  CircleCheck, CircleAlert, LoaderCircle, Trash2, Code2, BookOpen, FlaskConical, WandSparkles } from '@lucide/vue';
+  History, CircleCheck, CircleAlert, LoaderCircle, Trash2, Code2, BookOpen, FlaskConical, WandSparkles } from '@lucide/vue';
 import { pythonOutline, searchPythonWorkspace, pythonSuggestionIsCurrent } from '../utils/pythonStudio';
 
 globalThis.MonacoEnvironment = { getWorker: () => new EditorWorker() };
@@ -85,7 +87,7 @@ const workspaceLayoutStorageKey = "chatchat.python-studio.layout.v1";
 
 export default {
   name: "DataScienceView",
-  components: { AppConfirmDialog, UserSpaceBrowser, StudioCodePlan, CodeChangeReview, PythonCodeDiff, EditorPreferences, Search, ChevronRight, ChevronDown, Folder, FileCode2, Plus, X,
+  components: { StudioConversationHistory, History, AppConfirmDialog, UserSpaceBrowser, StudioCodePlan, CodeChangeReview, PythonCodeDiff, EditorPreferences, Search, ChevronRight, ChevronDown, Folder, FileCode2, Plus, X,
     Play, Save, Settings2, PanelLeft, PanelRight, PanelBottom, Maximize2, Minimize2, Sparkles, Send,
     RefreshCw, ListTree, Box, Terminal, CircleCheck, CircleAlert, LoaderCircle, Trash2, Code2, BookOpen, FlaskConical, WandSparkles },
   props: {
@@ -153,6 +155,13 @@ export default {
     editorMinimap: true,
     pythonProblems: [],
     lintState: 'idle',
+    aiHistoryOpen: false,
+    aiHistory: [],
+    aiHistoryPage: 0,
+    aiHistoryMore: false,
+    aiHistoryLoading: false,
+    aiHistoryError: '',
+    aiHistoryId: '',
     aiMessages: [],
     aiCurrentTurn: null,
     aiFollowOutput: true,
@@ -1011,7 +1020,7 @@ export default {
       this.activeEditorTabKey = editorTab.key;
       this.form = { ...editorTab.form };
       this.activateStudioModel(editorTab);
-      this.aiMessages = editorTab.aiMessages || [];
+      this.aiMessages = editorTab.aiMessages || [];this.aiHistoryId=editorTab.aiHistoryId || '';
       this.savedSource = editorTab.savedSource || "";
       this.savedFileName = editorTab.savedFileName || editorTab.form.fileName || "";
       this.savedFolderId = editorTab.savedFolderId || "";
@@ -1031,7 +1040,7 @@ export default {
       const activeTab = this.editorTabs.find((item) => item.key === this.activeEditorTabKey);
       if (!activeTab) return;
       activeTab.viewState = this.editor?.saveViewState();
-      activeTab.aiMessages = this.aiMessages;
+      activeTab.aiMessages = this.aiMessages;activeTab.aiHistoryId=this.aiHistoryId;
       activeTab.form = { ...this.form };
       activeTab.savedSource = this.savedSource;
       activeTab.savedFileName = this.savedFileName;
@@ -1444,6 +1453,7 @@ export default {
         const assistRequest = {
           action: this.aiRequestAction,
           prompt: requestPrompt,
+          historyQuestion: userText.slice(0,4000),
           sourceCode: sourceContext.source,
           selectedCode,
           modelName: this.aiModel,
@@ -1607,11 +1617,52 @@ export default {
       const box=this.$refs.aiMessagesScroll;
       if(box)this.aiFollowOutput=box.scrollHeight-box.scrollTop-box.clientHeight<64;
     },
+    async openPythonHistory() {
+      if(this.aiBusy)return;
+      this.aiHistoryOpen=true;
+      await this.loadPythonHistory(false);
+    },
+    async loadPythonHistory(more=false) {
+      if(this.aiHistoryLoading)return;
+      this.aiHistoryLoading=true;this.aiHistoryError='';
+      try{
+        const page=more?this.aiHistoryPage+1:1;
+        const result=await pythonAssistantHistory(page);
+        const entries=(result.items || []).map(item=>({id:item.id,title:(item.title || 'Python 会话').replace(/^PythonStudio:\s*/,'').slice(0,100),
+          subtitle:({running:'正在处理',completed:'查看会话与结果',failed:'处理失败',cancelled:'已停止'})[item.status] || '查看会话与结果'}));
+        this.aiHistory=more?[...this.aiHistory,...entries]:entries;
+        this.aiHistoryPage=page;this.aiHistoryMore=page<result.totalPages;
+      }catch(error){this.aiHistoryError=errorMessage(error,'加载历史会话失败');}
+      finally{this.aiHistoryLoading=false;}
+    },
+    async selectPythonHistory(id) {
+      if(this.aiBusy || this.aiHistoryLoading)return;
+      this.aiHistoryLoading=true;this.aiHistoryError='';
+      try{
+        const conversation=await pythonAssistantConversation(id);
+        this.resetAiSuggestion();this.aiCurrentTurn=null;this.aiPrompt='';this.aiHistoryId=id;
+        this.aiMessages=(conversation.messages || []).filter(item=>['user','assistant'].includes(item.role)).map(item=>({
+          id:item.id,role:item.role,text:item.content || '',status:item.status==='failed'?'failed':'ready'}));
+        this.aiFollowOutput=true;
+        const tab=this.editorTabs.find(item=>item.key===this.activeEditorTabKey);
+        if(tab){tab.aiMessages=this.aiMessages;tab.aiHistoryId=id;}
+        this.aiHistoryOpen=false;this.scrollAiMessages();
+      }catch(error){this.aiHistoryError=errorMessage(error,'读取会话失败');}
+      finally{this.aiHistoryLoading=false;}
+    },
+    async deletePythonHistory(id) {
+      if(this.aiBusy)throw new Error('请等待当前任务完成或停止后再删除会话');
+      await deletePythonAssistantConversation(id);
+      this.aiHistory=this.aiHistory.filter(item=>item.id!==id);
+      for(const tab of this.editorTabs)if(tab.aiHistoryId===id){tab.aiMessages=[];tab.aiHistoryId='';}
+      if(this.aiHistoryId===id)this.newPythonConversation();
+      this.showTransientMessage('会话已删除');
+    },
     newPythonConversation() {
       if(this.aiBusy)return;
-      this.resetAiSuggestion();this.aiCurrentTurn=null;this.aiMessages=[];this.aiPrompt='';this.aiFollowOutput=true;
+      this.resetAiSuggestion();this.aiHistoryId='';this.aiCurrentTurn=null;this.aiMessages=[];this.aiPrompt='';this.aiFollowOutput=true;
       const tab=this.editorTabs.find(item=>item.key===this.activeEditorTabKey);
-      if(tab)tab.aiMessages=[];
+      if(tab){tab.aiMessages=[];tab.aiHistoryId='';}
     },
     stopAiProgress() {
       if (this.aiProgressTimer) clearInterval(this.aiProgressTimer);

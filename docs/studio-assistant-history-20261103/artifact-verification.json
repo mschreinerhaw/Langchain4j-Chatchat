@@ -1,0 +1,12 @@
+{
+  "allUnrelatedEntriesPreserved": true,
+  "replacedClasses": [
+    "BOOT-INF/classes/com/chatchat/api/controller/datascience/PythonDataScienceController",
+    "BOOT-INF/classes/com/chatchat/api/controller/datascience/SqlStudioController",
+    "BOOT-INF/classes/com/chatchat/api/datascience/python/PythonCodeAssistantService",
+    "BOOT-INF/classes/com/chatchat/api/datascience/sql/SqlStudioService",
+    "BOOT-INF/classes/com/chatchat/api/controller/datascience/PythonAssistantHistoryController",
+    "BOOT-INF/classes/com/chatchat/api/datascience/python/PythonAssistantHistory"
+  ],
+  "sha256": "fb198abdde9c6ad1c45d667f298b7ad680e85595f7e5f429fb0b868554d3eae9"
+}

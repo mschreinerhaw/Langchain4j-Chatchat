@@ -1,0 +1,29 @@
+{
+  "status": "DEPLOYED",
+  "image": "runtime-os-api:studio-history-20261103-r1",
+  "sha256": "fb198abdde9c6ad1c45d667f298b7ad680e85595f7e5f429fb0b868554d3eae9",
+  "backup": "/opt/chatchat-releases/studio-history-20261103-r1/backup",
+  "retired": {
+    "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-studio-1793698532",
+    "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-studio-1793698532"
+  },
+  "databaseMigrationSha256": null,
+  "catalogReadiness": {
+    "status": "API_MCP_CATALOG_READY",
+    "registryState": "HEALTHY",
+    "registeredToolCount": 39,
+    "requiredTools": [
+      "enterprise_metadata_search",
+      "sql_schema_context_query"
+    ],
+    "capturedAt": "2026-11-03T09:36:19.853244+00:00"
+  },
+  "preservedExpiredReadOnlyTaskIds": [],
+  "unrelatedContainersUnchanged": true,
+  "conversationContentUnchanged": true,
+  "messageIndexCountUnchanged": true,
+  "images": {
+    "runtime-os-app-stage-api-1": "runtime-os-api:studio-history-20261103-r1"
+  },
+  "channelCounts": "SQL_STUDIO|60\nPYTHON_STUDIO|10\nPLATFORM_UI|912\nAGENT_API|203"
+}

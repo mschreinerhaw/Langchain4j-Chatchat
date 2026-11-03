@@ -1,6 +1,10 @@
 import {apiRequest,requestPythonCodeAssist} from './api';
 
 const base='/data-science/python/assist/coding';
+const history='/data-science/python/assist/history';
+export const pythonAssistantHistory=(page=1)=>apiRequest(`${history}?page=${page}`);
+export const pythonAssistantConversation=id=>apiRequest(`${history}/${encodeURIComponent(id)}`);
+export const deletePythonAssistantConversation=id=>apiRequest(`${history}/${encodeURIComponent(id)}`,{method:'DELETE'});
 export const cancelPythonCoding=task=>apiRequest(`${base}/${encodeURIComponent(task)}/cancel`,{method:'POST',body:'{}'});
 export async function resumePythonCoding(task,request,context) {
   await apiRequest(`${base}/${encodeURIComponent(task)}/resume`,{method:'POST',body:'{}'});

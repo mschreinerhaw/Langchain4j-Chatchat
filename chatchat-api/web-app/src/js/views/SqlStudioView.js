@@ -336,6 +336,16 @@ function newConversation() {
   if (preview.value && !preview.value.reference) preview.value = null;
   error.value = ''; message.value = ''; persist();
 }
+async function deleteGeneration(id) {
+  if(busy.value || taskRunning.value || pendingPhase.value)throw new Error('请等待当前任务完成或停止后再删除会话');
+  const project=projectId.value;
+  await sql.deleteSqlGeneration(project,id);
+  if(project!==projectId.value)return;
+  generations.value=generations.value.filter(item=>item.id!==id);
+  chatTurns.value=chatTurns.value.filter(item=>item.generationId!==id && !item.id?.endsWith(`:${id}`));
+  if(generationId.value===id)newConversation();
+  persist();message.value='会话已删除';
+}
 async function selectGeneration(id) { generationId.value = id; pendingStartedAt.value = 0; preview.value = null; await refreshGeneration(); }
 async function refreshGeneration() {
   clearTimeout(pollTimer);
@@ -407,7 +417,7 @@ onMounted(async () => {
 onActivated(() => { active = true; if (initialized) refreshGeneration(); });
 onDeactivated(() => { active = false; clearTimeout(pollTimer); persist(); });
 onBeforeUnmount(() => { resolveConfirm(false); active = false; resizeCleanup?.(); clearTimeout(pollTimer); clearTimeout(draftTimer); persist(); window.removeEventListener('beforeunload', beforeUnload); });
-  return { exploreDatabase, referenceMetadata, attachCurrentFile, includeCurrentFile, insertAssistantSql, retryQuestion, publicationOpen, metadataTableCount, folderOriginal, editFolder, deleteFolder, userDocuments, documentsUploading, schemaExplorer, databaseContextTarget, completeSchema, useSourceDialect, reviewTitle, reviewBlockedReason, reviewOpen, reviewPath, reviewFiles, reviewGeneration, chooseAiAction, aiAction, newConversation, taskStatusLabel, pendingPhase, pendingStartedAt, pollError, confirmation, resolveConfirm, folders, folderOpen, folderPath, newFileFolder, createFolder, openNewFolder, mappingDocuments, removeMappingDocument, dialects, projects, projectId, files, references, models, agents, dialect, agentId, modelName, executionMode, chooseExecutionMode, prompt, mappingIds, schemaColumns, selectedMappings, referenceIds, openIds, activeId, preview, generations, generationId, result, busy, error, message, newProjectOpen, projectName, versions, versionFile, activeFile, action, toggle, openFile, openReference, closeFile, editFile, selectProject, refreshFiles, createProject, deleteProject, createFile, deleteFile, saveActive, upload, generate, resume, selectGeneration, refreshGeneration, apply, cancel, showVersions, download, chatTurns, selectedCode, problemCount, cursor, layout, ideStyle, togglePanel, resetSize, startResize, useSelection, useMappingReference, addFileMention, renameFile, libraryOpen, libraryKind, libraryItems, librarySelected, chooseLibrary, importLibrary, editorPane, newFileOpen, newFilePath, openNewFile, formatActive, taskRunning, dirtyCount };
+  return { deleteGeneration, exploreDatabase, referenceMetadata, attachCurrentFile, includeCurrentFile, insertAssistantSql, retryQuestion, publicationOpen, metadataTableCount, folderOriginal, editFolder, deleteFolder, userDocuments, documentsUploading, schemaExplorer, databaseContextTarget, completeSchema, useSourceDialect, reviewTitle, reviewBlockedReason, reviewOpen, reviewPath, reviewFiles, reviewGeneration, chooseAiAction, aiAction, newConversation, taskStatusLabel, pendingPhase, pendingStartedAt, pollError, confirmation, resolveConfirm, folders, folderOpen, folderPath, newFileFolder, createFolder, openNewFolder, mappingDocuments, removeMappingDocument, dialects, projects, projectId, files, references, models, agents, dialect, agentId, modelName, executionMode, chooseExecutionMode, prompt, mappingIds, schemaColumns, selectedMappings, referenceIds, openIds, activeId, preview, generations, generationId, result, busy, error, message, newProjectOpen, projectName, versions, versionFile, activeFile, action, toggle, openFile, openReference, closeFile, editFile, selectProject, refreshFiles, createProject, deleteProject, createFile, deleteFile, saveActive, upload, generate, resume, selectGeneration, refreshGeneration, apply, cancel, showVersions, download, chatTurns, selectedCode, problemCount, cursor, layout, ideStyle, togglePanel, resetSize, startResize, useSelection, useMappingReference, addFileMention, renameFile, libraryOpen, libraryKind, libraryItems, librarySelected, chooseLibrary, importLibrary, editorPane, newFileOpen, newFilePath, openNewFile, formatActive, taskRunning, dirtyCount };
 
   }
 };

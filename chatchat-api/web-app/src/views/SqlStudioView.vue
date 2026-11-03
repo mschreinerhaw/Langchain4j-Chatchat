@@ -197,7 +197,7 @@
           :generations="generations"
           @tab="layout.bottomTab = $event"
           @close="layout.bottom = false"
-          @generation="selectGeneration"
+          :remove-history="deleteGeneration" @generation="selectGeneration"
         />
       </main>
       <div
@@ -260,7 +260,7 @@
         @prompt="prompt = $event"
         @new-conversation="newConversation"
         @send="generate"
-        @generation="selectGeneration"
+        :remove-history="deleteGeneration" @generation="selectGeneration"
         @resume="resume"
         @cancel="cancel"
         @preview="reviewGeneration"

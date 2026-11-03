@@ -5,7 +5,7 @@ import SqlAssistantPanel from './SqlAssistantPanel.vue';
 let app, host;
 afterEach(()=>{app?.unmount();host?.remove();});
 async function mount(values={},slots={}) {
-  const props=reactive({models:[],agents:[],projectFiles:[],references:[],referenceIds:[],generations:[],messages:[],prompt:'',aiAction:'generate',pendingPhase:'',busy:false,...values});
+  const props=reactive({removeHistory:vi.fn(),models:[],agents:[],projectFiles:[],references:[],referenceIds:[],generations:[],messages:[],prompt:'',aiAction:'generate',pendingPhase:'',busy:false,...values});
   host=document.createElement('div');document.body.append(host);
   app=createApp({render:()=>h(SqlAssistantPanel,props,slots)});app.mount(host);await nextTick();return props;
 }
@@ -39,7 +39,7 @@ describe('SQL assistant conversation',()=>{
     const generation=vi.fn();await mount({generations:[{id:'actual-history',prepared:{taskRequest:{toolInput:{studioUserRequest:'Saved question'}}}}],onGeneration:generation});
     host.querySelector('[aria-label="高级设置"]').click();expect(document.querySelector('[aria-label="AI 助手高级设置"]').open).toBe(true);
     document.querySelector('[aria-label="关闭高级设置"]').click();expect(document.querySelector('[aria-label="AI 助手高级设置"]').open).toBe(false);
-    host.querySelector('[aria-label="历史会话"]').click();document.querySelector('.sql-assistant-history button').click();await nextTick();
+    host.querySelector('[aria-label="历史会话"]').click();await nextTick();document.querySelector('.sql-assistant-history button').click();await nextTick();await nextTick();
     expect(generation).toHaveBeenCalledWith('actual-history');expect(document.querySelector('[aria-label="SQL 历史会话"]').open).toBe(false);
   });
   it('uses multiline Enter, Ctrl/Cmd Enter send, composition protection and source-ready button state',async()=>{

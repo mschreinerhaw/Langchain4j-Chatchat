@@ -530,7 +530,7 @@
           <header
             ><div><Sparkles :size="17" /><strong>AI 工程助手</strong></div
             ><div class="studio-ai-header-actions"
-              ><button
+              ><button type="button" aria-label="Python 历史会话" title="历史会话" :disabled="aiBusy" @click="openPythonHistory"><History :size="17" /></button><button
                 type="button"
                 aria-label="新建 Python 会话"
                 title="新建会话"
@@ -938,6 +938,7 @@
       </section>
     </div>
 
+    <StudioConversationHistory :open="aiHistoryOpen" label="Python 历史会话" :entries="aiHistory" :current-id="aiHistoryId" :busy="aiBusy" :loading="aiHistoryLoading" :error="aiHistoryError" :has-more="aiHistoryMore" :remove="deletePythonHistory" @select="selectPythonHistory" @more="loadPythonHistory(true)" @close="aiHistoryOpen = false" />
     <AppConfirmDialog
       v-if="ideDialog.open && ideDialog.mode === 'confirm' && ideDialog.confirmText === '删除'"
       :title="ideDialog.title"

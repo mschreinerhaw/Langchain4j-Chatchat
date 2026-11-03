@@ -1,0 +1,11 @@
+{
+  "image": "runtime-os-api:studio-history-20261103-r1",
+  "sourceCommit": "743a01304-studio-assistant-history",
+  "baselineSha256": "baf768de0da751a0b30c374193c6ef2bc1861a75d40563807952ca15b7a3dabf",
+  "sha256": "fb198abdde9c6ad1c45d667f298b7ad680e85595f7e5f429fb0b868554d3eae9",
+  "catalogReadinessAuthFile": "catalog-readiness-private.json",
+  "catalogReadinessExpectedTools": [
+    "sql_schema_context_query",
+    "enterprise_metadata_search"
+  ]
+}

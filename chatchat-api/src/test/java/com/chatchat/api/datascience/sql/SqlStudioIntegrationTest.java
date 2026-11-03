@@ -144,6 +144,32 @@ class SqlStudioIntegrationTest {
                 && scope.runId().equals("sql-generation-" + generation)), eq(task));
         }
     }
+    @Test void deletesOnlyTheChosenGenerationAndRejectsActiveCodingHistory() throws Exception {
+        String p=project();var file=save(p,"sql/keep.sql","SQL","SELECT 1",0);
+        var first=prepare(p,List.of(),List.of());var second=prepare(p,List.of(),List.of());String id=first.path("generationId").asText();
+        String task="sql-coding-"+id;jdbc.update("update ds_sql_generation set task_id=? where id=?",task,id);
+        var running=mock(com.chatchat.common.runtime.coding.CodingTaskOutcome.class);
+        when(running.status()).thenReturn(com.chatchat.common.runtime.coding.CodingTaskOutcome.Status.RUNNING);when(codingFixture.get(any(),eq(task))).thenReturn(running);
+        mvc.perform(delete(ROOT+"/"+p+"/generations/"+id).header("Authorization","Bearer "+token)).andExpect(status().isConflict());
+        when(running.status()).thenReturn(com.chatchat.common.runtime.coding.CodingTaskOutcome.Status.COMPLETED);
+        mvc.perform(delete(ROOT+"/"+p+"/generations/"+id).header("Authorization","Bearer "+token)).andExpect(status().isOk());
+        assertThat(jdbc.queryForObject("select count(*) from ds_sql_generation where project_id=?",Integer.class,p)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select id from ds_sql_generation where project_id=?",String.class,p)).isEqualTo(second.path("generationId").asText());
+        assertThat(jdbc.queryForObject("select count(*) from ds_sql_file where id=?",Integer.class,file.path("id").asText())).isEqualTo(1);
+        String wrong=project();mvc.perform(delete(ROOT+"/"+wrong+"/generations/"+second.path("generationId").asText()).header("Authorization","Bearer "+token)).andExpect(status().isNotFound());
+    }
+    @Test void pythonHistoryIsDurableAndChannelScopedAndDeletionPreservesOtherSessions() throws Exception {
+        String owner=identities.login("admin","SqlStudioTest#2026").user().id();
+        var python=conversations.createConversation(tenant,owner,"Python history fixture");conversations.classifyStudioConversation(tenant,python.getId(),owner,"PYTHON_STUDIO");
+        var sql=conversations.createConversation(tenant,owner,"SQL history fixture");conversations.classifyStudioConversation(tenant,sql.getId(),owner,"SQL_STUDIO");
+        conversations.mergeMessages(tenant,python.getId(),owner,List.of(com.chatchat.chat.conversation.model.Conversation.Message.builder().id("python-history-answer").role("assistant").content("print(42)").build()));
+        String root="/api/v1/data-science/python/assist/history";
+        var detail=data(mvc.perform(get(root+"/"+python.getId()).header("Authorization","Bearer "+token)).andExpect(status().isOk()).andReturn());
+        assertThat(detail.path("messages").get(0).path("content").asText()).isEqualTo("print(42)");
+        mvc.perform(get(root+"/"+sql.getId()).header("Authorization","Bearer "+token)).andExpect(status().isNotFound());
+        mvc.perform(delete(root+"/"+python.getId()).header("Authorization","Bearer "+token)).andExpect(status().isOk());
+        assertThat(conversations.getConversation(tenant,python.getId())).isEmpty();assertThat(conversations.getConversation(tenant,sql.getId())).isPresent();
+    }
     String json(Object value) throws Exception { return mapper.writeValueAsString(value); }
     String project() throws Exception { return data(mvc.perform(post(ROOT).header("Authorization","Bearer "+token).header("X-Workspace-Id","data-science").contentType("application/json").content("{\"name\":\"ETL test\",\"dialect\":\"spark\"}")).andExpect(status().isOk()).andReturn()).path("id").asText(); }
     JsonNode save(String id,String path,String kind,String content,int version) throws Exception {

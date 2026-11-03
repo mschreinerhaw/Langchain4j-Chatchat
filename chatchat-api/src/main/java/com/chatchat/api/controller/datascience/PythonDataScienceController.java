@@ -19,6 +19,7 @@ import java.util.*;
 public class PythonDataScienceController {
     private final PythonDataScienceService service;
     private final PythonCodeAssistantService codeAssistant;
+    private final PythonAssistantHistory assistantHistory;
     private final DomainSkillService domainSkillService;
     private final PythonDefaultEnvironmentService defaultEnvironments;
 
@@ -161,7 +162,9 @@ public class PythonDataScienceController {
     public ApiResponse<?> assist(@RequestBody PythonCodeAssistantService.AssistRequest body, HttpServletRequest request) {
         return call(() -> {
             Scope s = scope(request);
-            return codeAssistant.assist(s.tenant(), s.user(), body);
+            var answer=codeAssistant.assist(s.tenant(), s.user(), body);
+            assistantHistory.record(request,body,answer);
+            return answer;
         });
     }
     @GetMapping("/assist/coding/capabilities")

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import {createApp,h,nextTick,reactive} from 'vue';
 import {afterEach,beforeEach,expect,it,vi} from 'vitest';
-const sql=vi.hoisted(()=>Object.fromEntries(['sqlProjects','sqlFiles','sqlGenerations','sqlReferences','sqlFolders','sqlAgentOptions','deleteSqlProject','sqlGeneration','prepareSqlGeneration'].map(name=>[name,vi.fn()])));
+const sql=vi.hoisted(()=>Object.fromEntries(['sqlProjects','sqlFiles','sqlGenerations','sqlReferences','sqlFolders','sqlAgentOptions','deleteSqlProject','deleteSqlGeneration','sqlGeneration','prepareSqlGeneration'].map(name=>[name,vi.fn()])));
 vi.mock('../../services/sqlStudioApi',()=>sql);
 vi.mock('../../components/sql-studio/SqlEditorPane.vue',()=>({default:{render:()=>null}}));
 vi.mock('../../components/editor/CodeChangeReview.vue',()=>({default:{render:()=>null}}));
@@ -24,6 +24,16 @@ beforeEach(()=>{
 });
 afterEach(()=>{app?.unmount();document.body.innerHTML='';});
 function seedAssistant(){view.generationId='old-generation';view.result={task:{taskId:'sql-coding-old',status:'SUCCESS'}};view.chatTurns=[{id:'old-answer'}];view.prompt='old prompt';view.reviewOpen=true;view.pollError='old error';}
+it('deletes the selected history only after acknowledgement and clears a deleted current conversation',async()=>{
+  await mount([{id:'p1',name:'Project'}]);seedAssistant();view.generations=[{id:'old-generation'},{id:'kept'}];
+  sql.deleteSqlGeneration.mockResolvedValue(true);await view.deleteGeneration('old-generation');
+  expect(sql.deleteSqlGeneration).toHaveBeenCalledWith('p1','old-generation');expect(view.generations.map(item=>item.id)).toEqual(['kept']);expect(view.result).toBeNull();expect(view.chatTurns).toEqual([]);
+});
+it('keeps the current conversation and list when history deletion is rejected',async()=>{
+  await mount([{id:'p1',name:'Project'}]);seedAssistant();view.generations=[{id:'old-generation'}];
+  sql.deleteSqlGeneration.mockRejectedValue(new Error('Task still running'));
+  await expect(view.deleteGeneration('old-generation')).rejects.toThrow('Task still running');expect(view.result).not.toBeNull();expect(view.generations).toHaveLength(1);expect(view.chatTurns).toHaveLength(1);
+});
 it('opens source-level exploration without submitting, replacing drafts or recreating the editor',async()=>{
   await mount([{id:'p1',name:'Project'}]);view.schemaExplorer={assistantContext:()=> 'authorized'};
   view.layout.assistant=false;view.aiAction='generate';view.prompt='';view.exploreDatabase();

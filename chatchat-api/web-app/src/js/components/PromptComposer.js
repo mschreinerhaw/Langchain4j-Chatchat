@@ -80,7 +80,7 @@ export default {
       reportMode: "off",
       reportPresentation: reportPresentation(readWorkspaceDraft('report-presentation',this.workspaceContext || getWorkspaceContext()) || {}),
       draft: this.modelValue,
-      ideasOpen: false, ideaError: '', ideas: [], ideasLoading: false, ideaSerial: 0,
+      ideasOpen: false, ideaError: '', ideas: [], ideasLoading: false, ideaSerial: 0, ideaController: null,
     };
   },
   computed: {
@@ -154,19 +154,29 @@ export default {
   },
   beforeUnmount(){this.invalidateIdeas();},
   methods: {
-    invalidateIdeas(){this.ideaSerial++;this.ideasOpen=false;this.ideasLoading=false;this.ideas=[];this.ideaError='';},
+    invalidateIdeas(){this.ideaSerial++;this.ideaController?.abort();this.ideaController=null;this.ideasOpen=false;this.ideasLoading=false;this.ideas=[];this.ideaError='';},
     toggleIdeas(){if(this.ideasOpen){this.invalidateIdeas();return;}return this.generateIdeas();},
     async generateIdeas(){
+      this.ideaController?.abort();
+      const controller=new AbortController();this.ideaController=controller;
       const serial=++this.ideaSerial;this.ideasOpen=true;this.ideasLoading=true;this.ideaError='';this.ideas=[];
+      let timer,onAbort;
       try{
         if(!this.ideaProvider)throw new Error('提问建议服务暂不可用，请稍后重试。');
-        const result=await this.ideaProvider({draft:this.draft,agentId:this.selectedAgentId});
+        const result=await Promise.race([
+          this.ideaProvider({draft:this.draft,agentId:this.selectedAgentId,signal:controller.signal}),
+          new Promise((_,reject)=>{
+            onAbort=()=>reject(new Error('已取消建议生成'));
+            controller.signal.addEventListener('abort',onAbort,{once:true});
+            timer=setTimeout(()=>{reject(new Error('模型生成建议超时，请点击“重新生成”重试。'));controller.abort();},50000);
+          })
+        ]);
         if(serial!==this.ideaSerial)return;
         const ideas=Array.isArray(result?.ideas)?result.ideas:[];
         if(!ideas.length)throw new Error('暂未生成提问建议，请重试。');
         this.ideas=ideas;
       }catch(error){if(serial===this.ideaSerial)this.ideaError=error.message||'提问建议生成失败，请重试。';}
-      finally{if(serial===this.ideaSerial)this.ideasLoading=false;}
+      finally{clearTimeout(timer);if(onAbort)controller.signal.removeEventListener('abort',onAbort);if(serial===this.ideaSerial){this.ideasLoading=false;this.ideaController=null;}}
     },
     pickFiles(event){const files=Array.from(event.target.files||[]);event.target.value='';if(files.length&&!this.loading&&!this.inputDisabled)this.$emit('files',files);},
     applyIdea(idea) {

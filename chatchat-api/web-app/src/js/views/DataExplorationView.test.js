@@ -34,7 +34,8 @@ it('uploads supplemental data and includes it with inherited files when continui
  const vm=await mount(structuredClone(space)),file=new File(['date,pnl\n2026-07-31,47'],'补充.csv',{type:'text/csv'});
  api.uploadExplorationAttachment.mockResolvedValue({id:'supplement',fileName:file.name});
  await vm.addFiles([file]);await settle();expect(vm.attachments[0].state).toBe('ready');expect(host.querySelector('.composer-attachments').textContent).toContain('补充.csv');
- await vm.suggestIdeas({draft:'核对新数据',agentId:'agent'});expect(api.generateExplorationIdeas).toHaveBeenCalledWith({draft:'核对新数据',agentId:'agent',workspaceId:'space',nodeId:'root',fileIds:['supplement']});
+ const signal=new AbortController().signal;
+ await vm.suggestIdeas({draft:'核对新数据',agentId:'agent',signal});expect(api.generateExplorationIdeas).toHaveBeenCalledWith({draft:'核对新数据',agentId:'agent',workspaceId:'space',nodeId:'root',fileIds:['supplement']},{signal,workspaceContext:null});
  const next=structuredClone(space);next.nodes.push({...node('new','root'),fileIds:['file','supplement']});api.prepareExploration.mockResolvedValue(next);api.executeExploration.mockResolvedValue(next);
  await vm.ask({query:'使用补充数据核对'});expect(api.prepareExploration).toHaveBeenCalledWith('space',expect.objectContaining({parentId:'root',fileIds:['file','supplement'],question:'使用补充数据核对'}));expect(vm.attachments).toHaveLength(0);
 });

@@ -1,0 +1,20 @@
+{
+  "status": "DEPLOYED",
+  "image": "runtime-os-api:question-ideas-20261103-r1",
+  "sha256": "549d8d7bc463287562f773955f4587820179d108e1bc671214a68dc49d45db56",
+  "backup": "/opt/chatchat-releases/question-ideas-20261103-r1/backup",
+  "retired": {
+    "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-studio-1793669850",
+    "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-studio-1793669850"
+  },
+  "databaseMigrationSha256": null,
+  "catalogReadiness": null,
+  "preservedExpiredReadOnlyTaskIds": [],
+  "unrelatedContainersUnchanged": true,
+  "conversationContentUnchanged": true,
+  "messageIndexCountUnchanged": true,
+  "images": {
+    "runtime-os-app-stage-api-1": "runtime-os-api:question-ideas-20261103-r1"
+  },
+  "channelCounts": "SQL_STUDIO|52\nPYTHON_STUDIO|10\nPLATFORM_UI|910\nAGENT_API|203"
+}

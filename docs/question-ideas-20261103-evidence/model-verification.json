@@ -1,0 +1,25 @@
+{
+  "image": "runtime-os-api:question-ideas-20261103-r1",
+  "running": true,
+  "health": {
+    "/": 200,
+    "/api/v1/enterprise/auth/me": 401
+  },
+  "modelSelections": [
+    "2026-11-03T09:44:08.164+08:00  INFO 1 --- [chatchat] [nio-8080-exec-2] c.c.a.o.model.AgentChatModelResolver     : Agent chat model selected modelName=qwen3.7-plus configKey=qwen3.7-plus providerModel=qwen3.7-plus matchType=CONFIG_KEY",
+    "2026-11-03T09:44:29.729+08:00  INFO 1 --- [chatchat] [nio-8080-exec-4] c.c.a.o.model.AgentChatModelResolver     : Agent chat model selected modelName=qwen3.7-plus configKey=qwen3.7-plus providerModel=qwen3.7-plus matchType=CONFIG_KEY",
+    "2026-11-03T09:44:53.502+08:00  INFO 1 --- [chatchat] [nio-8080-exec-2] c.c.a.o.model.AgentChatModelResolver     : Agent chat model selected modelName=qwen3.7-plus configKey=qwen3.7-plus providerModel=qwen3.7-plus matchType=CONFIG_KEY",
+    "2026-11-03T09:45:35.221+08:00  INFO 1 --- [chatchat] [nio-8080-exec-1] c.c.a.o.model.AgentChatModelResolver     : Agent chat model selected modelName=qwen3.7-plus configKey=qwen3.7-plus providerModel=qwen3.7-plus matchType=CONFIG_KEY"
+  ],
+  "generationLogs": [
+    "2026-11-03T09:44:08.158+08:00  INFO 1 --- [chatchat] [nio-8080-exec-2] c.c.api.assistance.QuestionIdeaService   : question_ideas started generationId=9a819cfa-e6c8-4d6e-9c07-4ada78da7f62 workspace=灵动智策 model=default attachments=0",
+    "2026-11-03T09:44:29.629+08:00  INFO 1 --- [chatchat] [nio-8080-exec-2] c.c.api.assistance.QuestionIdeaService   : question_ideas completed generationId=9a819cfa-e6c8-4d6e-9c07-4ada78da7f62 elapsedMs=21470 generated=3 inputTokens=338 outputTokens=1286",
+    "2026-11-03T09:44:29.722+08:00  INFO 1 --- [chatchat] [nio-8080-exec-4] c.c.api.assistance.QuestionIdeaService   : question_ideas started generationId=9ec97fa1-0749-43b1-b683-7b1762c36085 workspace=灵动智策 model=default attachments=0",
+    "2026-11-03T09:44:52.066+08:00  INFO 1 --- [chatchat] [nio-8080-exec-4] c.c.api.assistance.QuestionIdeaService   : question_ideas completed generationId=9ec97fa1-0749-43b1-b683-7b1762c36085 elapsedMs=22344 generated=3 inputTokens=338 outputTokens=1343",
+    "2026-11-03T09:44:53.497+08:00  INFO 1 --- [chatchat] [nio-8080-exec-2] c.c.api.assistance.QuestionIdeaService   : question_ideas started generationId=b5ccb09e-1250-4871-8df4-52ff5cef0371 workspace=data-exploration model=default attachments=1",
+    "2026-11-03T09:45:35.108+08:00  INFO 1 --- [chatchat] [nio-8080-exec-2] c.c.api.assistance.QuestionIdeaService   : question_ideas completed generationId=b5ccb09e-1250-4871-8df4-52ff5cef0371 elapsedMs=41611 generated=3 inputTokens=2734 outputTokens=2533",
+    "2026-11-03T09:45:35.212+08:00  INFO 1 --- [chatchat] [nio-8080-exec-1] c.c.api.assistance.QuestionIdeaService   : question_ideas started generationId=2b1bcce1-8424-467c-a6fc-afe9e782c97a workspace=data-exploration model=default attachments=1",
+    "2026-11-03T09:46:06.544+08:00  INFO 1 --- [chatchat] [nio-8080-exec-1] c.c.api.assistance.QuestionIdeaService   : question_ideas completed generationId=2b1bcce1-8424-467c-a6fc-afe9e782c97a elapsedMs=31331 generated=3 inputTokens=2734 outputTokens=1907"
+  ],
+  "allFourRequestsCompletedWithThreeIdeas": true
+}

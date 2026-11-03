@@ -34,9 +34,9 @@ export default {
     }
     async function retryFile(id){const item=attachments.value.find(f=>f.clientId===id);if(item&&!analyzing.value&&!busy.value)await uploadAttachment(item);}
     function removeFile(id){if(!analyzing.value&&!busy.value)attachments.value=attachments.value.filter(f=>f.clientId!==id);}
-    async function suggestIdeas({draft,agentId}){
+    async function suggestIdeas({draft,agentId,signal}){
       if(attachments.value.some(f=>f.state!=='ready'))throw new Error('请先完成附件上传，或移除失败的附件。');
-      return generateExplorationIdeas({draft,agentId,workspaceId:space.value?.id,nodeId:activeId.value||undefined,fileIds:attachments.value.map(f=>f.asset.id)});
+      return generateExplorationIdeas({draft,agentId,workspaceId:space.value?.id,nodeId:activeId.value||undefined,fileIds:attachments.value.map(f=>f.asset.id)},{signal,workspaceContext:props.workspaceContext});
     }
     const agentAvailable=computed(()=>agents.value.some(a=>a.id===selectedAgentId.value));
     const loading=ref(false),mutationBusy=ref(false),refreshing=ref(false),analyzing=ref(false),saving=ref(false);

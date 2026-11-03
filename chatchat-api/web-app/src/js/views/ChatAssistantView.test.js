@@ -10,8 +10,9 @@ describe('Zhice contextual question suggestions',()=>{
  it('uses the chat endpoint with the current owned conversation and ready attachment ids',async()=>{
   apiRequest.mockResolvedValue({ideas:[{title:'确认范围',prompt:'请确认影响范围'}]});
   const context={workspaceContext:{workspaceId:'zhice'},conversationId:'owned',composerAttachments:[{state:'ready',asset:{id:'file'}}]};
-  await ChatAssistantView.methods.suggestChatIdeas.call(context,{draft:'登录超时',agentId:'ops'});
-  expect(apiRequest).toHaveBeenCalledWith('/interactions/ideas',expect.objectContaining({method:'POST',workspaceContext:context.workspaceContext}));
+  const signal=new AbortController().signal;
+  await ChatAssistantView.methods.suggestChatIdeas.call(context,{draft:'登录超时',agentId:'ops',signal});
+  expect(apiRequest).toHaveBeenCalledWith('/interactions/ideas',expect.objectContaining({method:'POST',workspaceContext:context.workspaceContext,signal}));
   expect(JSON.parse(apiRequest.mock.calls[0][1].body)).toEqual({draft:'登录超时',agentId:'ops',conversationId:'owned',fileIds:['file']});
  });
  it('blocks suggestion generation while an attachment is incomplete',async()=>{

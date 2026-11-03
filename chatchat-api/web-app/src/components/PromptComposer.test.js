@@ -28,9 +28,25 @@ it('generates suggestions asynchronously and ignores results after the draft cha
  const props=reactive({compact:true,showIdea:true,modelValue:'当前盈亏差异',selectedAgentId:'authorized',ideaProvider:provider});
  host=document.createElement('div');app=createApp({render:()=>h(PromptComposer,props)});app.mount(host);
  host.querySelector('[aria-label="提问灵感"]').click();await settleIdeas();
- expect(host.querySelector('[role=status]').textContent).toContain('正在');expect(host.querySelector('.composer-idea-option')).toBeNull();expect(provider).toHaveBeenCalledWith({draft:'当前盈亏差异',agentId:'authorized'});
+ expect(host.querySelector('[role=status]').textContent).toContain('正在');expect(host.querySelector('.composer-idea-option')).toBeNull();expect(provider).toHaveBeenCalledWith(expect.objectContaining({draft:'当前盈亏差异',agentId:'authorized',signal:expect.any(AbortSignal)}));
+ const signal=provider.mock.calls[0][0].signal;expect(signal.aborted).toBe(false);
  props.modelValue='补充新的期间';await settleIdeas();finish({ideas:[{title:'过期建议',prompt:'不应显示'}]});await settleIdeas();
+ expect(signal.aborted).toBe(true);
  expect(host.querySelector('[aria-label="提问建议"]')).toBeNull();expect(host.querySelector('textarea').value).toBe('补充新的期间');
+});
+it('ends a stalled model request with a retry action and starts a fresh request on retry',async()=>{
+ vi.useFakeTimers();
+ try{
+  const provider=vi.fn().mockImplementationOnce(()=>new Promise(()=>{})).mockResolvedValueOnce({ideas:[{title:'确认范围',prompt:'确认本期业务范围'}]});
+  host=document.createElement('div');app=createApp({render:()=>h(PromptComposer,{showIdea:true,ideaProvider:provider})});app.mount(host);
+  host.querySelector('[aria-label="提问灵感"]').click();await settleIdeas();
+  expect(provider).toHaveBeenCalledTimes(1);expect(host.querySelector('[role=status]').textContent).toContain('已请求模型');
+  await vi.advanceTimersByTimeAsync(50000);await settleIdeas();
+  expect(provider.mock.calls[0][0].signal.aborted).toBe(true);expect(host.querySelector('[role=status]')).toBeNull();
+  expect(host.querySelector('[role=alert]').textContent).toContain('超时');
+  host.querySelector('.composer-idea-refresh').click();await settleIdeas();
+  expect(provider).toHaveBeenCalledTimes(2);expect(provider.mock.calls[1][0].signal.aborted).toBe(false);expect(host.querySelector('.composer-idea-option').textContent).toContain('确认范围');
+ }finally{vi.useRealTimers();}
 });
 it('shows generation failures without fabricated fallback suggestions and can retry',async()=>{
  const provider=vi.fn().mockRejectedValueOnce(new Error('模型暂不可用')).mockResolvedValueOnce({ideas:[{title:'核对资金变动',prompt:'结合补充资料核对期末资产与净流入的差异'}]});

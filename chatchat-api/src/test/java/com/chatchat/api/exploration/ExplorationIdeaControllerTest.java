@@ -54,4 +54,15 @@ class ExplorationIdeaControllerTest {
         assertThatThrownBy(()->controller.ideas(http,new ExplorationIdeaController.Request(null,null,"核对资金",null,List.of()))).hasMessageContaining("有效提问建议");
         verify(model,times(1)).chat(any(ChatRequest.class));
     }
+    @Test void timedOutModelReturnsActionableErrorAndReleasesTheSlotForRetry() throws Exception {
+        when(model.chat(any(ChatRequest.class)))
+            .thenThrow(new com.chatchat.agents.orchestration.model.AgentDeadlineExceededException("deadline"))
+            .thenReturn(ChatResponse.builder().aiMessage(AiMessage.from("{\"ideas\":[{\"title\":\"核对范围\",\"prompt\":\"核对本期客户资产范围\"}]} ")).build());
+        var request=new ExplorationIdeaController.Request(null,null,"核对资金",null,List.of());
+        assertThatThrownBy(()->controller.ideas(http,request))
+            .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+            .hasMessageContaining("504").hasMessageContaining("重新生成");
+        assertThat(controller.ideas(http,request).getData().toString()).contains("核对范围");
+        verify(model,times(2)).chat(any(ChatRequest.class));
+    }
 }

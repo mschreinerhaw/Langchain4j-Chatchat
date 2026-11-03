@@ -1905,9 +1905,9 @@ export default {
     }
   },
   methods: {
-    async suggestChatIdeas({draft,agentId}){
+    async suggestChatIdeas({draft,agentId,signal}){
       if(this.composerAttachments.some(file=>file.state!=='ready'))throw new Error('请先完成附件上传，或移除失败的附件。');
-      return apiRequest('/interactions/ideas',{method:'POST',workspaceContext:this.workspaceContext,
+      return apiRequest('/interactions/ideas',{method:'POST',workspaceContext:this.workspaceContext,signal,
         body:JSON.stringify({draft,agentId:agentId||undefined,conversationId:this.conversationId||undefined,fileIds:this.composerAttachments.map(file=>file.asset.id)})});
     },
     async uploadComposerAttachment(item) {

@@ -175,7 +175,7 @@
     </div>
     <section v-if="showIdea && ideasOpen" class="composer-ideas" aria-label="提问建议">
       <header><div><strong><Lightbulb :size="17" />提问灵感</strong><p>结合当前上下文、输入与补充资料生成，选择后可继续修改。</p></div><button type="button" aria-label="关闭提问建议" @click="invalidateIdeas"><X :size="17" /></button></header>
-      <p v-if="ideasLoading" role="status" class="composer-idea-status">正在结合当前情况生成提问建议…</p>
+      <p v-if="ideasLoading" role="status" class="composer-idea-status">已请求模型，正在结合当前情况生成建议，通常需要 10–30 秒…</p>
       <p v-if="ideaError" class="composer-idea-error" role="alert">{{ ideaError }}</p>
       <button v-for="idea in ideas" :key="idea.title" type="button" class="composer-idea-option" @click="applyIdea(idea)"><strong>{{ idea.title }}</strong><span>{{ idea.prompt }}</span></button>
       <button v-if="!ideasLoading" type="button" class="composer-idea-refresh" @click="generateIdeas">{{ ideaError ? '重新生成' : '换一组建议' }}</button>

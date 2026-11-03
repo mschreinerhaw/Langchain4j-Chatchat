@@ -1,7 +1,13 @@
 import {it,expect,vi,afterEach} from 'vitest';
 const request=vi.hoisted(()=>vi.fn());vi.mock('./api',()=>({apiRequest:request}));
-import {explorationDatasets} from './explorationApi';
+import {explorationDatasets,generateExplorationIdeas} from './explorationApi';
 afterEach(()=>request.mockReset());
+it('sends ideas to the backend with the originating workspace and cancellation signal',async()=>{
+ const controller=new AbortController(),workspaceContext={workspaceId:'data-exploration'};
+ const body={draft:'核对资产',agentId:'authorized',fileIds:['owned-file']};
+ await generateExplorationIdeas(body,{signal:controller.signal,workspaceContext});
+ expect(request).toHaveBeenCalledWith('/data-science/explorations/ideas',{method:'POST',body:JSON.stringify(body),signal:controller.signal,workspaceContext});
+});
 it('shows business data files while excluding chart JSON and internal transport snapshots',async()=>{
   const file=(id,kind,fileName)=>({id,kind,fileName,state:'AVAILABLE'});
   request.mockResolvedValue([file('customer','DOCUMENT','customer-assets.json'),file('export','ARTIFACT','statistics.csv'),file('published','DATASET','account-data.parquet'),

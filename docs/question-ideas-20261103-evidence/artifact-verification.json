@@ -1,0 +1,8 @@
+{
+  "changedBackendEntries": [
+    "BOOT-INF/classes/com/chatchat/api/assistance/QuestionIdeaService.class"
+  ],
+  "allOtherBackendEntriesPreserved": true,
+  "jarSha256": "549d8d7bc463287562f773955f4587820179d108e1bc671214a68dc49d45db56",
+  "sourceDiffSha256": "c7c6bfcc816619466a692cd772e67bba3d873727d021250c55a1e0fe7bb9d9f1"
+}

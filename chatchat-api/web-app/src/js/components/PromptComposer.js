@@ -1,4 +1,4 @@
-import { Bot, FileText, Send, XCircle, Lightbulb, ChevronDown, X, Paperclip } from "@lucide/vue";
+import { Bot, FileText, Send, XCircle, Lightbulb, LoaderCircle, ChevronDown, X, Paperclip } from "@lucide/vue";
 import { exceedsChatTextLimit, pastedFiles } from "../utils/chatUserAssets";
 import { reportPresentation } from '../utils/reportLayout';
 import { readWorkspaceDraft, saveWorkspaceDraft } from '../utils/workspaceDrafts';
@@ -11,7 +11,7 @@ export default {
     FileText,
     Send,
     XCircle,
-    Lightbulb, ChevronDown, X, Paperclip,
+    Lightbulb, LoaderCircle, ChevronDown, X, Paperclip,
   },
   props: {
     compact: {type:Boolean,default:false},

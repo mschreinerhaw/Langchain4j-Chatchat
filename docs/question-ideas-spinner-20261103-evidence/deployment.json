@@ -1,0 +1,29 @@
+{
+  "status": "DEPLOYED",
+  "image": "runtime-os-api:question-ideas-spinner-20261103-r1",
+  "sha256": "c3924b11d1a2d77fa3a3cf2c85f242867f5e8b50658bf8f4b9338f4734e013ca",
+  "backup": "/opt/chatchat-releases/question-ideas-spinner-20261103-r1/backup",
+  "retired": {
+    "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-studio-1793682964",
+    "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-studio-1793682964"
+  },
+  "databaseMigrationSha256": null,
+  "catalogReadiness": {
+    "status": "API_MCP_CATALOG_READY",
+    "registryState": "HEALTHY",
+    "registeredToolCount": 39,
+    "requiredTools": [
+      "enterprise_metadata_search",
+      "sql_schema_context_query"
+    ],
+    "capturedAt": "2026-11-03T05:16:51.678186+00:00"
+  },
+  "preservedExpiredReadOnlyTaskIds": [],
+  "unrelatedContainersUnchanged": true,
+  "conversationContentUnchanged": true,
+  "messageIndexCountUnchanged": true,
+  "images": {
+    "runtime-os-app-stage-api-1": "runtime-os-api:question-ideas-spinner-20261103-r1"
+  },
+  "channelCounts": "SQL_STUDIO|57\nPYTHON_STUDIO|10\nPLATFORM_UI|911\nAGENT_API|203"
+}

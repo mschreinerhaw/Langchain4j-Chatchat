@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 
 const base=process.env.CHATCHAT_STAGE_URL || 'http://192.168.195.221:18100';
 const output=process.env.CHATCHAT_BROWSER_OUTPUT || 'target/question-ideas-verification';
+const roundCount=Number(process.env.CHATCHAT_IDEA_ROUNDS || 2);
+assert.ok(Number.isInteger(roundCount) && roundCount>0 && roundCount<=2);
 assert.ok(process.env.CHATCHAT_LOGIN_PASSWORD,'Set CHATCHAT_LOGIN_PASSWORD');
 mkdirSync(output,{recursive:true});
 const browser=await chromium.launch({executablePath:process.env.CHATCHAT_BROWSER || 'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true,args:['--no-proxy-server']});
@@ -20,6 +22,7 @@ try{
   ['zhice','/#/w/zhice/chat','/api/v1/interactions/ideas'],
   ['exploration','/#/w/data-science/dataExploration','/api/v1/data-science/explorations/ideas']
  ]){
+  if(process.env.CHATCHAT_IDEA_WORKSPACE && process.env.CHATCHAT_IDEA_WORKSPACE!==name)continue;
   await page.goto(base+route,{waitUntil:'networkidle'});
   if(name==='exploration')await page.locator('.exploration-workspace').waitFor();
   const textarea=page.locator('.prompt-card textarea');
@@ -30,24 +33,37 @@ try{
   const listener=r=>{if(new URL(r.url()).pathname===endpoint)requests.push(r);};
   page.on('request',listener);
   const rounds=[];
-  for(let i=0;i<2;i++){
+  for(let i=0;i<roundCount;i++){
    const returned=page.waitForResponse(r=>new URL(r.url()).pathname===endpoint && r.request().method()==='POST');
+   returned.catch(()=>{});
    const started=Date.now();
    await (i===0?page.getByRole('button',{name:'提问灵感',exact:true}):page.getByRole('button',{name:'换一组建议',exact:true})).click();
    if(i===0)assert.match(await page.locator('.composer-idea-status').innerText(),/已请求模型/);
+   assert.equal(await page.locator('.composer-ideas').getAttribute('aria-busy'),'true');
+   assert.equal(await page.locator('.composer-idea-spinner').count(),2);
+   assert.match(await page.locator('.composer-idea-status .composer-idea-spinner').evaluate(el=>getComputedStyle(el).animationName),/^composer-idea-spin(?:-|$)/);
+   await page.screenshot({path:output+'/'+name+'-pending.png',fullPage:true});
    const result=await returned;const payload=await result.json();
+   if(result.status()!==200){
+    await page.locator('.composer-idea-error').waitFor();
+    assert.equal(await page.locator('.composer-idea-spinner').count(),0);
+    assert.equal(await page.locator('.composer-ideas').getAttribute('data-request-state'),'failed');
+    await page.screenshot({path:output+'/'+name+'-failed.png',fullPage:true});
+   }
    assert.equal(result.status(),200);assert.equal(payload.code,200);assert.equal(payload.data.ideas.length,3);
    await page.locator('.composer-idea-option').first().waitFor();
+   assert.equal(await page.locator('.composer-idea-spinner').count(),0);
+   assert.equal(await page.locator('.composer-ideas').getAttribute('data-request-state'),'succeeded');
    assert.equal(await page.locator('.composer-idea-option').count(),3);
    assert.equal(await textarea.inputValue(),draft);
    rounds.push({status:result.status(),elapsedMs:Date.now()-started,ideas:payload.data.ideas});
    console.log(name+' round '+(i+1)+' passed in '+rounds.at(-1).elapsedMs+'ms');
   }
-  assert.equal(requests.length,2,'Each click must send exactly one backend request');
+  assert.equal(requests.length,roundCount,'Each click must send exactly one backend request');
   await page.screenshot({path:output+'/'+name+'.png',fullPage:true});
   await page.locator('.composer-idea-option').first().click();
   assert.ok((await textarea.inputValue()).includes(draft));
-  assert.ok((await textarea.inputValue()).includes(rounds[1].ideas[0].prompt));
+  assert.ok((await textarea.inputValue()).includes(rounds.at(-1).ideas[0].prompt));
   await page.getByRole('button',{name:'提问灵感',exact:true}).waitFor();
   assert.equal(mutations.length,0,'Selecting an idea must not submit analysis');
   page.off('request',listener);

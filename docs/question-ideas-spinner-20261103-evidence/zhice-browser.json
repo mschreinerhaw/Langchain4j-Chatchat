@@ -1,0 +1,35 @@
+{
+  "status": "PASSED",
+  "base": "http://192.168.195.221:18100",
+  "checks": [
+    {
+      "workspace": "zhice",
+      "backendRequests": 1,
+      "rounds": [
+        {
+          "status": 200,
+          "elapsedMs": 16972,
+          "ideas": [
+            {
+              "title": "高净值客户AUM变动拆解",
+              "prompt": "请分析2023年第三季度高净值客户的AUM变动情况，需将变动拆解为市场估值波动和资金净流入两部分，并核实资金净流入中申购与赎回的明细数据是否完整。"
+            },
+            {
+              "title": "新增资金流入渠道与客群结构",
+              "prompt": "请统计2023年10月至12月期间全量客户的资金流入总额，并按新老客群及资金来源渠道进行分类，核实各渠道流入金额加总是否与总流入额一致。"
+            },
+            {
+              "title": "资产规模与资金流入勾稽核对",
+              "prompt": "请核对2023年度全量客户期末总资产与期初资产、年度累计资金净流入及投资收益之间的勾稽关系，并列出目前缺失的期间费用或资产划转等待补充数据项。"
+            }
+          ]
+        }
+      ],
+      "draftPreserved": true,
+      "selectedSuggestionEditable": true,
+      "noAutomaticAnalysis": true
+    }
+  ],
+  "errors": [],
+  "mutations": []
+}

@@ -5,6 +5,20 @@ import PromptComposer from "./PromptComposer.vue";
 import {setWorkspaceContext} from '../js/utils/workspaceContext';
 let app, host;
 const settleIdeas=async()=>{for(let i=0;i<6;i++)await nextTick();};
+it.each([false,true])('shows pending and completed request states with a spinner (compact=%s)',async compact=>{
+ let finish;const provider=vi.fn(()=>new Promise(resolve=>{finish=resolve;}));
+ host=document.createElement('div');app=createApp({render:()=>h(PromptComposer,{compact,showIdea:true,ideaProvider:provider})});app.mount(host);
+ host.querySelector('[aria-label="提问灵感"]').click();await settleIdeas();
+ expect(provider).toHaveBeenCalledTimes(1);expect(host.querySelector('.composer-ideas').getAttribute('aria-busy')).toBe('true');
+ expect(host.querySelector('.composer-ideas').dataset.requestState).toBe('pending');
+ expect(host.querySelectorAll('.composer-idea-spinner')).toHaveLength(2);
+ expect(host.querySelector('[aria-label="提问灵感"]').textContent).toContain('思考中');
+ finish({ideas:[{title:'核对范围',prompt:'请核对范围'}]});await settleIdeas();
+ expect(host.querySelectorAll('.composer-idea-spinner')).toHaveLength(0);
+ expect(host.querySelector('.composer-ideas').dataset.requestState).toBe('succeeded');
+ expect(host.querySelector('[role=status]').textContent).toContain('已生成 1 条建议');
+ expect(host.querySelector('[aria-label="提问灵感"]').textContent).toContain('灵感');
+});
 it('can append a model question to long pasted chat material without discarding the original',async()=>{
  const original='补充日志\n'+('09:30 华东区登录超时\n'.repeat(700));
  host=document.createElement('div');app=createApp({render:()=>h(PromptComposer,{showIdea:true,modelValue:original,maxLength:200000,ideaProvider:async()=>({ideas:[{title:'确认范围',prompt:'请确认华东区故障的影响范围。'}]})})});app.mount(host);

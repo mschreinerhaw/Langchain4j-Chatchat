@@ -1,0 +1,11 @@
+{
+  "image": "runtime-os-api:question-ideas-spinner-20261103-r1",
+  "sourceCommit": "b764ab22e-metadata-and-idea-spinner",
+  "baselineSha256": "d194ed9c871090efc5d73021b4322ec4f334e1ee8394c127cc10747e2ce26430",
+  "sha256": "c3924b11d1a2d77fa3a3cf2c85f242867f5e8b50658bf8f4b9338f4734e013ca",
+  "catalogReadinessAuthFile": "catalog-readiness-private.json",
+  "catalogReadinessExpectedTools": [
+    "sql_schema_context_query",
+    "enterprise_metadata_search"
+  ]
+}

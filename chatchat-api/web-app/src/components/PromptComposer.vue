@@ -137,7 +137,7 @@
             <small>根据真实分析选择内容与顺序；没有数据时不生成图表。设置用于后续报告。</small>
           </div>
         </details>
-        <button v-if="showIdea" type="button" class="composer-idea-button" aria-label="提问灵感" :aria-expanded="ideasOpen" :disabled="loading || inputDisabled || attachments.some(f=>f.state!=='ready')" title="结合当前对话生成提问建议" @click="toggleIdeas"><Lightbulb :size="17" stroke-width="1.9" /><span>灵感</span></button>
+        <button v-if="showIdea" type="button" class="composer-idea-button" aria-label="提问灵感" :aria-expanded="ideasOpen" :disabled="loading || inputDisabled || attachments.some(f=>f.state!=='ready')" title="结合当前对话生成提问建议" @click="toggleIdeas"><LoaderCircle v-if="ideasLoading" :size="17" class="composer-idea-spinner" aria-hidden="true" /><Lightbulb v-else :size="17" stroke-width="1.9" /><span>{{ ideasLoading ? '思考中' : '灵感' }}</span></button>
         <div v-if="!compact && documentWorkflowActive" class="composer-toolbar-group tool-group">
           <span v-if="documentWorkflowActive" class="workflow-badge">
             <FileText :size="14" stroke-width="2" />
@@ -149,7 +149,7 @@
       <div v-if="(compact && showIdea) || allowFilePicker" class="composer-idea-control">
         <template v-if="allowFilePicker"><input ref="attachmentInput" type="file" multiple class="composer-file-input" accept=".pdf,.docx,.xlsx,.csv,.parquet,.txt,.md,.json,.jsonl,.png,.jpg,.jpeg,.webp,.gif" aria-label="选择补充资料" :disabled="loading || inputDisabled" @change="pickFiles" /><button type="button" class="composer-attach-button" aria-label="添加补充资料" :disabled="loading || inputDisabled" @click="$refs.attachmentInput.click()"><Paperclip :size="17" />补充资料</button></template>
         <button v-if="showIdea && compact" type="button" class="composer-idea-button" aria-label="提问灵感" :aria-expanded="ideasOpen" :disabled="loading || inputDisabled || attachments.some(f=>f.state!=='ready')" title="结合当前分析生成提问建议" @click="toggleIdeas">
-          <Lightbulb :size="19" stroke-width="1.9" /><span>灵感</span>
+          <LoaderCircle v-if="ideasLoading" :size="19" class="composer-idea-spinner" aria-hidden="true" /><Lightbulb v-else :size="19" stroke-width="1.9" /><span>{{ ideasLoading ? '思考中' : '灵感' }}</span>
         </button>
       </div>
       <button
@@ -173,9 +173,10 @@
       </label>
       <span class="composer-keyboard-hint">Shift + Enter 换行</span>
     </div>
-    <section v-if="showIdea && ideasOpen" class="composer-ideas" aria-label="提问建议">
+    <section v-if="showIdea && ideasOpen" class="composer-ideas" aria-label="提问建议" :aria-busy="ideasLoading" :data-request-state="ideasLoading ? 'pending' : ideaError ? 'failed' : 'succeeded'">
       <header><div><strong><Lightbulb :size="17" />提问灵感</strong><p>结合当前上下文、输入与补充资料生成，选择后可继续修改。</p></div><button type="button" aria-label="关闭提问建议" @click="invalidateIdeas"><X :size="17" /></button></header>
-      <p v-if="ideasLoading" role="status" class="composer-idea-status">已请求模型，正在结合当前情况生成建议，通常需要 10–30 秒…</p>
+      <p v-if="ideasLoading" role="status" aria-live="polite" class="composer-idea-status"><LoaderCircle :size="18" class="composer-idea-spinner" aria-hidden="true" /><span><strong>模型思考中</strong><br />已请求模型，正在结合当前情况生成建议，请稍候…</span></p>
+      <p v-else-if="!ideaError && ideas.length" role="status" class="composer-idea-status">已生成 {{ ideas.length }} 条建议</p>
       <p v-if="ideaError" class="composer-idea-error" role="alert">{{ ideaError }}</p>
       <button v-for="idea in ideas" :key="idea.title" type="button" class="composer-idea-option" @click="applyIdea(idea)"><strong>{{ idea.title }}</strong><span>{{ idea.prompt }}</span></button>
       <button v-if="!ideasLoading" type="button" class="composer-idea-refresh" @click="generateIdeas">{{ ideaError ? '重新生成' : '换一组建议' }}</button>

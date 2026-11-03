@@ -27,6 +27,30 @@ async function select(index,value,scope=host){
   expect(option,`authorized option ${value}`).toBeDefined();option.click();await tick();
 }
 describe('Schema Explorer API integration',()=>{
+  it('recovers source binding creation interrupted before its context was published',async()=>{
+    let release,first=true;const original=api.createSqlMetadataContext.getMockImplementation();
+    api.createSqlMetadataContext.mockImplementation((p,input)=>{if(first){first=false;return new Promise(resolve=>release=resolve);}return original(p,input);});
+    await mount({},false);await select(1,'a');expect(explorer.assistantContext()).toBeNull();
+    window.dispatchEvent(new Event('blur'));await tick();window.dispatchEvent(new Event('focus'));await tick();
+    expect(explorer.assistantContext()).toBe('d-a');expect(host.querySelector('.sql-database-status').dataset.ready).toBe('true');
+    release({discoveryId:'late-context',bindings:[{assetRef:'a',bindingId:'old'}]});await tick();expect(explorer.assistantContext()).toBe('d-a');
+  });
+  it('reloads a namespace directory interrupted by window blur instead of reporting a green empty directory',async()=>{
+    let release,first=true;const original=api.sqlMetadataOperation.getMockImplementation();
+    api.sqlMetadataOperation.mockImplementation((p,d,b,args)=>{
+      if(args.operation==='LIST_NAMESPACES'&&first){first=false;return new Promise(resolve=>release=resolve);}
+      return original(p,d,b,args);
+    });
+    await mount({},false);await select(1,'a');
+    expect(host.querySelector('.sql-database-status').dataset.ready).toBe('false');
+    window.dispatchEvent(new Event('blur'));await tick();window.dispatchEvent(new Event('focus'));await tick();
+    expect(host.querySelector('.sql-database-status').dataset.ready).toBe('true');
+    const input=host.querySelector('[aria-label="选择数据库或 Schema"]');input.click();await tick();
+    expect([...host.querySelectorAll('[role=option]')].map(item=>item.textContent)).toEqual(['全部授权库','catalog / public','catalog / private']);
+    release(result([{database:'late-wrong-source',schema:'wrong'}]));await tick();
+    expect(host.textContent).not.toContain('late-wrong-source');
+    expect(api.sqlMetadataOperation.mock.calls.filter(([, , ,a])=>a.operation==='LIST_NAMESPACES')).toHaveLength(2);
+  });
   it('defaults to collapsed and fetches tables only on demand while preserving the shared AI context',async()=>{
     await mount({},false);await select(1,'a');
     expect(host.querySelector('.sql-schema-explorer>header button').getAttribute('aria-expanded')).toBe('false');

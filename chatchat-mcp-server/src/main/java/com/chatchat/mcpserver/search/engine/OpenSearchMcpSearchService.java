@@ -46,6 +46,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -939,12 +940,36 @@ public class OpenSearchMcpSearchService {
             source.put("metadataEvidence",doc.metadataEvidence());
             source.put("metadataTableRef",doc.metadataEvidence().get("tableRef"));
             source.put("metadataVersion",doc.metadataEvidence().get("snapshotId"));
-            source.put(FIELD_TEXT,source.get(FIELD_TEXT)+" "+json(doc.metadataEvidence().get("columns")));
+            source.put(FIELD_TEXT, metadataSearchText(Objects.toString(source.get(FIELD_TEXT), ""), doc.metadataEvidence()));
         }
         for (String label : doc.labels()) {
             append(source, FIELD_LABEL, normalizeExact(label));
         }
         return source;
+    }
+
+    // text.pinyin can emit a single term for one input value. Bound each value,
+    // rather than serializing the full schema into one potentially immense term.
+    // Arrays are indexed as multiple values of the existing text field; the full
+    // versioned structure remains untouched in metadataEvidence (_source only).
+    static List<String> metadataSearchText(String base, Map<String, Object> evidence) {
+        var values = new ArrayList<String>();
+        values.add(base);
+        if (evidence.get("columns") instanceof List<?> columns) {
+            for (Object column : columns) if (column instanceof Map<?, ?> fields) {
+                for (String key : List.of("name", "comment", "dataType", "columnType")) {
+                    if (fields.get(key) instanceof String text && !text.isBlank()) values.add(text);
+                }
+            }
+        }
+        var chunks = new ArrayList<String>();
+        for (String value : values) {
+            for (int start = 0; start < value.length();) {
+                int end = value.offsetByCodePoints(start, Math.min(1024, value.codePointCount(start, value.length())));
+                chunks.add(value.substring(start, end)); start = end;
+            }
+        }
+        return chunks;
     }
 
     /** No datasource discovery, JDBC access, or new embedding is performed by this read. */

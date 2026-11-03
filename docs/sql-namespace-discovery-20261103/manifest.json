@@ -1,0 +1,16 @@
+{
+  "image": "runtime-os-api:sql-namespaces-20261103-r1",
+  "sourceCommit": "9d4d1db95-namespace-and-metadata-index-fix",
+  "baselineSha256": "6f2e7b31f83b5f3c39720a0b3f73ad4f7ac3a00cbf8aff15b5160950d3b364bd",
+  "sha256": "baf768de0da751a0b30c374193c6ef2bc1861a75d40563807952ca15b7a3dabf",
+  "mcp": {
+    "image": "runtime-os-mcp:sql-namespaces-20261103-r1",
+    "baselineSha256": "b9aecb1b3ea38bc31df67255015f72c320351f4602161646f92a3c38b196cae0",
+    "sha256": "b40e2b7af9f7139624a64c52d545b87ba8cd883761a6e75e88c0d5b220217970"
+  },
+  "catalogReadinessAuthFile": "catalog-readiness-private.json",
+  "catalogReadinessExpectedTools": [
+    "sql_schema_context_query",
+    "enterprise_metadata_search"
+  ]
+}

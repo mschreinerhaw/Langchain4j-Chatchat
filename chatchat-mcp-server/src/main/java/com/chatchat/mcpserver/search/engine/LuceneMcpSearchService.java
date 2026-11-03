@@ -372,6 +372,7 @@ public class LuceneMcpSearchService {
         } catch (Exception ex) {
             if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
             log.warn("MCP Lucene SQL datasource asset replacement failed datasourceId={}: {}", datasourceId, ex.getMessage());
+            throw new IllegalStateException("SQL datasource metadata indexing failed: " + datasourceId, ex);
         }
     }
 

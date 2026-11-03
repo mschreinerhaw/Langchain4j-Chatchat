@@ -31,7 +31,7 @@ export default defineComponent({
       serviceId = ref(""),
       assets = ref([]),
       assetRef = ref(""),
-      namespaces = ref([]),
+      namespaces = ref([]), namespacesLoaded = ref(false),
       selectedNamespace = ref("");
     const context = ref(null),
       sourceDialect = ref(""),
@@ -91,6 +91,7 @@ export default defineComponent({
       () => {
         clearRows();
         namespaces.value = [];
+        namespacesLoaded.value = false;
         namespacesMore.value = false;
       }
     );
@@ -99,6 +100,7 @@ export default defineComponent({
         api.sqlMetadataOperation(scope.projectId, scope.discoveryId, scope.bindingId, args),
       () => {
         namespaces.value = [];
+        namespacesLoaded.value = false;
         namespacesMore.value = false;
         clearRows();
       }
@@ -153,6 +155,7 @@ export default defineComponent({
       assets.value = [];
       assetRef.value = "";
       namespaces.value = [];
+        namespacesLoaded.value = false;
       selectedNamespace.value = "";
       query.value = "";
       submittedQuery.value = "";
@@ -213,6 +216,7 @@ export default defineComponent({
       assetRef.value = "";
       assets.value = [];
       namespaces.value = [];
+        namespacesLoaded.value = false;
       selectedNamespace.value = "";
       if (serviceId.value) await run((turn) => fetchAssets(turn, false));
     }
@@ -237,6 +241,7 @@ export default defineComponent({
       bind(null);
       namespaceSession.bind(null);
       namespaces.value = [];
+        namespacesLoaded.value = false;
       selectedNamespace.value = "";
       query.value = "";
       submittedQuery.value = "";
@@ -260,6 +265,7 @@ export default defineComponent({
       });
       if (turn !== serial) return;
       namespaces.value = more ? [...namespaces.value, ...result.items] : result.items;
+      namespacesLoaded.value = true;
       namespacePage = page;
       namespacesMore.value = result.hasMore;
     }
@@ -270,8 +276,7 @@ export default defineComponent({
       const namespace =
         namespaces.value.find((item) => namespaceKey(item) === selectedNamespace.value) || {};
       serial++;
-      session.bind(null);
-      clearRows();
+      bind(null);
       await run(async (turn) => {
         if (await createContext(turn, namespace)) { if(navigationOpen.value)await fetchTables(turn, 1); if (turn === serial) rememberSelection(); }
       });
@@ -381,10 +386,29 @@ export default defineComponent({
     function resume() {
       if (active) return;
       active = true;
+      if(!context.value && serviceId.value && assetRef.value){
+        void run(async(turn)=>{
+          // Rebuild the all-authorized directory before restoring an interrupted namespace selection.
+          const selected=selectedNamespace.value;
+          if(!await createContext(turn,{}))return;
+          namespaceSession.bind(scopeOf(context.value));
+          await fetchNamespaces(turn,false);
+          while(turn===serial && selected && namespacesMore.value && !namespaces.value.some(n=>namespaceKey(n)===selected))await fetchNamespaces(turn,true);
+          if(turn!==serial || !active)return;
+          const namespace=namespaces.value.find(n=>namespaceKey(n)===selected);
+          if(selected&&!namespace){bind(null);throw new Error('所选数据库或 Schema 已不可用，请重新选择数据源。');}
+          if(namespace && !await createContext(turn,namespace))return;
+          if(navigationOpen.value)await fetchTables(turn,1);
+          if(turn===serial)rememberSelection();
+        });return;
+      }
       if (context.value)
-        void run(async () => {
+        void run(async (turn) => {
           await session.authorize();
           await namespaceSession.authorize();
+          if(turn!==serial || !active)return;
+          if(!namespacesLoaded.value)await fetchNamespaces(turn,false);
+          if(turn===serial && navigationOpen.value && !tablesLoaded)await fetchTables(turn,1);
         });
     }
     function visibility() {
@@ -540,7 +564,7 @@ export default defineComponent({
       serviceId,
       assets,
       assetRef,
-      namespaces,
+      namespaces, namespacesLoaded,
       selectedNamespace,
       context,
       sourceDialect,

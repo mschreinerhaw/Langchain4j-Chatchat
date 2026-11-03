@@ -26,7 +26,7 @@ export class SqlMetadataSession {
   async authorize() {
     const epoch=this.epoch;
     try {
-      const probe=await this.dedup('authority',()=>this.raw({operation:'SEARCH',page:1,pageSize:1,includeColumns:false},epoch));
+      const probe=await this.dedup('authority',()=>this.raw({operation:'GET_METADATA_FRESHNESS',page:1,pageSize:1,includeColumns:false},epoch));
       this.assert(epoch);
       if(this.snapshot && this.snapshot!==probe.snapshotId)throw new Error('元数据结构或授权范围已变化，请刷新目录');
       if(this.snapshot!==probe.snapshotId){this.cache.clear();this.snapshot=probe.snapshotId;}

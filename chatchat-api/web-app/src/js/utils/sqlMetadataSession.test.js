@@ -7,7 +7,7 @@ function setup(invoke=vi.fn(async()=>response())){const invalidated=vi.fn();cons
 describe('metadata authorization and request isolation',()=>{
   it('requires a fresh authorization probe before each cache hit',async()=>{
     const {session,invoke}=setup();await session.read(args);await session.read(args);
-    expect(invoke.mock.calls.filter(([,a])=>a.operation==='SEARCH')).toHaveLength(2);
+    expect(invoke.mock.calls.filter(([,a])=>a.operation==='GET_METADATA_FRESHNESS')).toHaveLength(2);
     expect(invoke.mock.calls.filter(([,a])=>a.operation==='DESCRIBE')).toHaveLength(1);
   });
   it('deduplicates simultaneous authority and identical description requests',async()=>{

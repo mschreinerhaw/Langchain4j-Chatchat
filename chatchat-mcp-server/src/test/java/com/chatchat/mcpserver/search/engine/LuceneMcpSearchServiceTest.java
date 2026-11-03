@@ -253,6 +253,20 @@ class LuceneMcpSearchServiceTest {
     }
 
     @Test
+    void explicitSqlMetadataRebuildReportsFailureInsteadOfClaimingSuccess() {
+        LuceneSearchProperties properties = new LuceneSearchProperties();
+        properties.setEngine("opensearch");
+        OpenSearchMcpSearchService openSearch = mock(OpenSearchMcpSearchService.class);
+        doThrow(new IllegalStateException("bulk rejected"))
+            .when(openSearch).replaceSqlDatasourceAssets(eq("tdh"), anyList());
+        LuceneMcpSearchService service = new LuceneMcpSearchService(
+            properties, new McpEmbeddingClient(properties, new ObjectMapper()), openSearch);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.replaceSqlDatasourceAssets("tdh", List.of()))
+            .isInstanceOf(IllegalStateException.class).hasMessageContaining("metadata indexing failed")
+            .hasRootCauseMessage("bulk rejected");
+    }
+
+    @Test
     void searchesAssetsByChinesePinyinInitialsWithoutMatchingUnrelatedNames() {
         LuceneMcpSearchService service = service();
 

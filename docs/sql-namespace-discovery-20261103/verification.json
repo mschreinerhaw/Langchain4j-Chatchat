@@ -1,0 +1,433 @@
+{
+  "baseline": [
+    {
+      "arguments": {
+        "operation": "GET_METADATA_FRESHNESS"
+      },
+      "elapsedMs": 538.91,
+      "status": "SUCCEEDED",
+      "totalMatched": 1,
+      "snapshotId": "sha256:0649ff0c13a570aa242615b1d4232d891691a9e5d08272be810c3bcdddb29bdf",
+      "provenance": [
+        {
+          "assetRef": "a7dd9e95-18af-40f5-8138-b1cf6e488fbf",
+          "snapshotId": "sha256:0649ff0c13a570aa242615b1d4232d891691a9e5d08272be810c3bcdddb29bdf",
+          "source": "registered_metadata_index",
+          "sourceDialect": "inceptor",
+          "collectedAt": "2026-11-03T06:16:52.856Z",
+          "sourceUpdatedAt": null
+        }
+      ],
+      "sourceReadCount": 0
+    },
+    {
+      "arguments": {
+        "operation": "LIST_NAMESPACES",
+        "pageSize": 50,
+        "includeColumns": false
+      },
+      "elapsedMs": 285.08,
+      "status": "SUCCEEDED",
+      "totalMatched": 13,
+      "snapshotId": "sha256:0649ff0c13a570aa242615b1d4232d891691a9e5d08272be810c3bcdddb29bdf",
+      "provenance": [
+        {
+          "assetRef": "a7dd9e95-18af-40f5-8138-b1cf6e488fbf",
+          "snapshotId": "sha256:0649ff0c13a570aa242615b1d4232d891691a9e5d08272be810c3bcdddb29bdf",
+          "source": "registered_metadata_index",
+          "sourceDialect": "inceptor",
+          "collectedAt": "2026-11-03T06:16:52.856Z",
+          "sourceUpdatedAt": null
+        }
+      ],
+      "sourceReadCount": 0
+    },
+    {
+      "arguments": {
+        "operation": "SEARCH",
+        "pageSize": 1,
+        "includeColumns": false
+      },
+      "elapsedMs": 252.71,
+      "status": "SUCCEEDED",
+      "totalMatched": 38,
+      "snapshotId": "sha256:0649ff0c13a570aa242615b1d4232d891691a9e5d08272be810c3bcdddb29bdf",
+      "provenance": [
+        {
+          "assetRef": "a7dd9e95-18af-40f5-8138-b1cf6e488fbf",
+          "snapshotId": "sha256:0649ff0c13a570aa242615b1d4232d891691a9e5d08272be810c3bcdddb29bdf",
+          "source": "OPENSEARCH",
+          "sourceDialect": "inceptor",
+          "collectedAt": "2026-11-03T06:16:52.856Z",
+          "sourceUpdatedAt": null,
+          "indexQueryMs": 41,
+          "indexQueryCount": 1
+        }
+      ],
+      "sourceReadCount": 0
+    },
+    {
+      "arguments": {
+        "operation": "LIST_TABLES",
+        "pageSize": 2,
+        "includeColumns": false
+      },
+      "elapsedMs": 231.29,
+      "status": "SUCCEEDED",
+      "totalMatched": 442,
+      "snapshotId": "sha256:0649ff0c13a570aa242615b1d4232d891691a9e5d08272be810c3bcdddb29bdf",
+      "provenance": [
+        {
+          "assetRef": "a7dd9e95-18af-40f5-8138-b1cf6e488fbf",
+          "snapshotId": "sha256:0649ff0c13a570aa242615b1d4232d891691a9e5d08272be810c3bcdddb29bdf",
+          "source": "registered_metadata_index",
+          "sourceDialect": "inceptor",
+          "collectedAt": "2026-11-03T06:16:52.856Z",
+          "sourceUpdatedAt": null
+        }
+      ],
+      "sourceReadCount": 0
+    }
+  ],
+  "after-sync": [
+    {
+      "arguments": {
+        "operation": "SEARCH"
+      },
+      "elapsedMs": null,
+      "status": "SUCCEEDED",
+      "totalMatched": 38,
+      "snapshotId": "sha256:0649ff0c13a570aa242615b1d4232d891691a9e5d08272be810c3bcdddb29bdf",
+      "provenance": [
+        {
+          "assetRef": "a7dd9e95-18af-40f5-8138-b1cf6e488fbf",
+          "snapshotId": "sha256:0649ff0c13a570aa242615b1d4232d891691a9e5d08272be810c3bcdddb29bdf",
+          "source": "OPENSEARCH",
+          "sourceDialect": "inceptor",
+          "collectedAt": "2026-11-03T06:16:52.856Z",
+          "sourceUpdatedAt": null,
+          "indexQueryMs": 38,
+          "indexQueryCount": 1
+        }
+      ],
+      "sourceReadCount": 0
+    }
+  ],
+  "final-api": [
+    {
+      "arguments": {
+        "operation": "GET_METADATA_FRESHNESS"
+      },
+      "elapsedMs": 283.02,
+      "status": "SUCCEEDED",
+      "totalMatched": 1,
+      "snapshotId": "sha256:0649ff0c13a570aa242615b1d4232d891691a9e5d08272be810c3bcdddb29bdf",
+      "provenance": [
+        {
+          "assetRef": "a7dd9e95-18af-40f5-8138-b1cf6e488fbf",
+          "snapshotId": "sha256:0649ff0c13a570aa242615b1d4232d891691a9e5d08272be810c3bcdddb29bdf",
+          "source": "registered_metadata_index",
+          "sourceDialect": "inceptor",
+          "collectedAt": "2026-11-03T06:16:52.856Z",
+          "sourceUpdatedAt": null
+        }
+      ],
+      "sourceReadCount": 0
+    },
+    {
+      "arguments": {
+        "operation": "LIST_NAMESPACES",
+        "pageSize": 50,
+        "includeColumns": false
+      },
+      "elapsedMs": 294.05,
+      "status": "SUCCEEDED",
+      "totalMatched": 13,
+      "snapshotId": "sha256:0649ff0c13a570aa242615b1d4232d891691a9e5d08272be810c3bcdddb29bdf",
+      "provenance": [
+        {
+          "assetRef": "a7dd9e95-18af-40f5-8138-b1cf6e488fbf",
+          "snapshotId": "sha256:0649ff0c13a570aa242615b1d4232d891691a9e5d08272be810c3bcdddb29bdf",
+          "source": "registered_metadata_index",
+          "sourceDialect": "inceptor",
+          "collectedAt": "2026-11-03T06:16:52.856Z",
+          "sourceUpdatedAt": null
+        }
+      ],
+      "sourceReadCount": 0
+    },
+    {
+      "arguments": {
+        "operation": "LIST_TABLES",
+        "pageSize": 2,
+        "includeColumns": false
+      },
+      "elapsedMs": 252.5,
+      "status": "SUCCEEDED",
+      "totalMatched": 442,
+      "snapshotId": "sha256:0649ff0c13a570aa242615b1d4232d891691a9e5d08272be810c3bcdddb29bdf",
+      "provenance": [
+        {
+          "assetRef": "a7dd9e95-18af-40f5-8138-b1cf6e488fbf",
+          "snapshotId": "sha256:0649ff0c13a570aa242615b1d4232d891691a9e5d08272be810c3bcdddb29bdf",
+          "source": "registered_metadata_index",
+          "sourceDialect": "inceptor",
+          "collectedAt": "2026-11-03T06:16:52.856Z",
+          "sourceUpdatedAt": null
+        }
+      ],
+      "sourceReadCount": 0
+    },
+    {
+      "arguments": {
+        "operation": "SEARCH",
+        "pageSize": 2,
+        "includeColumns": false
+      },
+      "elapsedMs": 720.68,
+      "status": "SUCCEEDED",
+      "totalMatched": 442,
+      "snapshotId": "sha256:0649ff0c13a570aa242615b1d4232d891691a9e5d08272be810c3bcdddb29bdf",
+      "provenance": [
+        {
+          "assetRef": "a7dd9e95-18af-40f5-8138-b1cf6e488fbf",
+          "snapshotId": "sha256:0649ff0c13a570aa242615b1d4232d891691a9e5d08272be810c3bcdddb29bdf",
+          "source": "OPENSEARCH",
+          "sourceDialect": "inceptor",
+          "collectedAt": "2026-11-03T06:16:52.856Z",
+          "sourceUpdatedAt": null,
+          "indexQueryMs": 405,
+          "indexQueryCount": 1
+        }
+      ],
+      "sourceReadCount": 0
+    },
+    {
+      "arguments": {
+        "operation": "DESCRIBE",
+        "database": "ods_a5_jzjy",
+        "schema": "ods_a5_jzjy",
+        "tableName": "a5_fund_tfc_yzzzdy",
+        "pageSize": 1
+      },
+      "elapsedMs": 303.02,
+      "status": "SUCCEEDED",
+      "totalMatched": 1,
+      "snapshotId": "sha256:0649ff0c13a570aa242615b1d4232d891691a9e5d08272be810c3bcdddb29bdf",
+      "provenance": [
+        {
+          "assetRef": "a7dd9e95-18af-40f5-8138-b1cf6e488fbf",
+          "snapshotId": "sha256:0649ff0c13a570aa242615b1d4232d891691a9e5d08272be810c3bcdddb29bdf",
+          "source": "OPENSEARCH",
+          "sourceDialect": "inceptor",
+          "collectedAt": "2026-11-03T06:16:52.856Z",
+          "sourceUpdatedAt": null,
+          "indexQueryMs": 7,
+          "indexQueryCount": 1
+        }
+      ],
+      "sourceReadCount": 0
+    }
+  ],
+  "browser": {
+    "options": [
+      "全部授权库",
+      "ods_a5_jzjy",
+      "ods_apex_a5",
+      "ods_apex_cif",
+      "ods_apex_otc",
+      "ods_apex_ggqq",
+      "ods_apex_jzjy",
+      "ods_apex_rzrq",
+      "ods_apex_jzjy_rzrq",
+      "ods",
+      "gdp_ads",
+      "gdp_dwd",
+      "gdp_dws",
+      "gdp_usr"
+    ],
+    "errors": [],
+    "tableName": null,
+    "operations": [
+      {
+        "operation": "SEARCH",
+        "status": "SUCCEEDED",
+        "totalMatched": 38,
+        "columnCount": 0
+      },
+      {
+        "operation": "LIST_NAMESPACES",
+        "status": "SUCCEEDED",
+        "totalMatched": 13,
+        "columnCount": 0
+      }
+    ]
+  },
+  "browser-interrupted": {
+    "options": [
+      "全部授权库"
+    ],
+    "errors": [],
+    "tableName": null,
+    "operations": [
+      {
+        "operation": "SEARCH",
+        "status": "SUCCEEDED",
+        "totalMatched": 38,
+        "columnCount": 0
+      },
+      {
+        "operation": "SEARCH",
+        "status": "SUCCEEDED",
+        "totalMatched": 38,
+        "columnCount": 0
+      },
+      {
+        "operation": "SEARCH",
+        "status": "SUCCEEDED",
+        "totalMatched": 38,
+        "columnCount": 0
+      }
+    ]
+  },
+  "browser-fixed": {
+    "options": [
+      "全部授权库",
+      "ods_a5_jzjy",
+      "ods_apex_a5",
+      "ods_apex_cif",
+      "ods_apex_otc",
+      "ods_apex_ggqq",
+      "ods_apex_jzjy",
+      "ods_apex_rzrq",
+      "ods_apex_jzjy_rzrq",
+      "ods",
+      "gdp_ads",
+      "gdp_dwd",
+      "gdp_dws",
+      "gdp_usr"
+    ],
+    "errors": [],
+    "tableName": "▸ a5_datacenter_tsc_wtls",
+    "operations": [
+      {
+        "operation": "GET_METADATA_FRESHNESS",
+        "status": "SUCCEEDED",
+        "totalMatched": 1,
+        "columnCount": 0
+      },
+      {
+        "operation": "LIST_NAMESPACES",
+        "status": "SUCCEEDED",
+        "totalMatched": 13,
+        "columnCount": 0
+      },
+      {
+        "operation": "GET_METADATA_FRESHNESS",
+        "status": "SUCCEEDED",
+        "totalMatched": 1,
+        "columnCount": 0
+      },
+      {
+        "operation": "SEARCH",
+        "status": "SUCCEEDED",
+        "totalMatched": 24,
+        "columnCount": 0
+      },
+      {
+        "operation": "GET_METADATA_FRESHNESS",
+        "status": "SUCCEEDED",
+        "totalMatched": 1,
+        "columnCount": 0
+      },
+      {
+        "operation": "DESCRIBE",
+        "status": "SUCCEEDED",
+        "totalMatched": 1,
+        "columnCount": 66
+      }
+    ]
+  },
+  "browser-interrupted-fixed": {
+    "options": [
+      "全部授权库",
+      "ods_a5_jzjy",
+      "ods_apex_a5",
+      "ods_apex_cif",
+      "ods_apex_otc",
+      "ods_apex_ggqq",
+      "ods_apex_jzjy",
+      "ods_apex_rzrq",
+      "ods_apex_jzjy_rzrq",
+      "ods",
+      "gdp_ads",
+      "gdp_dwd",
+      "gdp_dws",
+      "gdp_usr"
+    ],
+    "errors": [],
+    "tableName": "▸ a5_datacenter_tsc_wtls",
+    "operations": [
+      {
+        "operation": "GET_METADATA_FRESHNESS",
+        "status": "SUCCEEDED",
+        "totalMatched": 1,
+        "columnCount": 0
+      },
+      {
+        "operation": "GET_METADATA_FRESHNESS",
+        "status": "SUCCEEDED",
+        "totalMatched": 1,
+        "columnCount": 0
+      },
+      {
+        "operation": "GET_METADATA_FRESHNESS",
+        "status": "SUCCEEDED",
+        "totalMatched": 1,
+        "columnCount": 0
+      },
+      {
+        "operation": "LIST_NAMESPACES",
+        "status": "SUCCEEDED",
+        "totalMatched": 13,
+        "columnCount": 0
+      },
+      {
+        "operation": "GET_METADATA_FRESHNESS",
+        "status": "SUCCEEDED",
+        "totalMatched": 1,
+        "columnCount": 0
+      },
+      {
+        "operation": "LIST_NAMESPACES",
+        "status": "SUCCEEDED",
+        "totalMatched": 13,
+        "columnCount": 0
+      },
+      {
+        "operation": "GET_METADATA_FRESHNESS",
+        "status": "SUCCEEDED",
+        "totalMatched": 1,
+        "columnCount": 0
+      },
+      {
+        "operation": "SEARCH",
+        "status": "SUCCEEDED",
+        "totalMatched": 24,
+        "columnCount": 0
+      },
+      {
+        "operation": "GET_METADATA_FRESHNESS",
+        "status": "SUCCEEDED",
+        "totalMatched": 1,
+        "columnCount": 0
+      },
+      {
+        "operation": "DESCRIBE",
+        "status": "SUCCEEDED",
+        "totalMatched": 1,
+        "columnCount": 66
+      }
+    ]
+  }
+}

@@ -16,13 +16,13 @@
           :options="assetOptions" :disabled="locked || !serviceId" :loading="busy" :has-more="assetsMore"
           @change="chooseAsset" @more="loadAssets(true)" />
         <SqlSearchSelect v-model="selectedNamespace" class="sql-namespace-choice" label="选择数据库或 Schema" :placeholder="namespaceLabel"
-          :options="namespaceOptions" :disabled="locked || busy || !context" :loading="busy" :has-more="namespacesMore"
+          :options="namespaceOptions" :disabled="locked || busy || !context || !namespacesLoaded" :loading="busy" :has-more="namespacesMore"
           @change="chooseNamespace" @more="loadNamespaces(true)" />
         <button type="button" class="sql-database-refresh" :disabled="locked || busy || !serviceId" aria-label="刷新数据库上下文" title="刷新授权数据库与表目录" @click="refresh"><RefreshCw :size="15" :class="{ 'sql-progress-spinner': busy }" /></button>
       </div>
-      <div class="sql-database-status" :data-ready="!!context && !busy && !error">
+      <div class="sql-database-status" :data-ready="!!context && namespacesLoaded && !busy && !error">
         <span v-if="busy" role="status"><LoaderCircle :size="12" class="sql-progress-spinner" />正在加载数据库上下文</span>
-        <span v-else-if="context && !error"><CircleCheck :size="12" />源：{{ sourceDialect || '未知' }} · 目标：{{ dialect }}</span>
+        <span v-else-if="context && namespacesLoaded && !error"><CircleCheck :size="12" />源：{{ sourceDialect || '未知' }} · 目标：{{ dialect }}</span>
         <span v-else>请选择授权数据源</span>
         <small v-if="filePath" class="sql-database-current-file" :title="filePath"><span aria-hidden="true">⌁</span>{{ filePath.split('/').at(-1) }}</small>
         <small v-else>仅访问授权范围</small>

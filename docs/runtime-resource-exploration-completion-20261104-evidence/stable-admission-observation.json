@@ -1,0 +1,10 @@
+{
+  "sourceCommit": "47e7a72b2415b5f935b19323f87ec25e2fb14cda",
+  "capturedAt": "2026-11-04T09:07:49.946374+00:00",
+  "httpThreadsObserved": 10,
+  "blockedIngestionThreads": 0,
+  "admittedIngestionThreadsObserved": 0,
+  "previousBlockedIngestionThreads": 199,
+  "producerRunning": true,
+  "assertion": "At most one HTTP ingestion can wait for the writer; no unbounded waiting ingestion backlog"
+}

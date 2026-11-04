@@ -1,0 +1,42 @@
+{
+  "capturedAt": "2026-11-04T09:02:37.477381+00:00",
+  "deployedSourceCommit": "47e7a72b2415b5f935b19323f87ec25e2fb14cda",
+  "adminLogin": true,
+  "registryState": "HEALTHY",
+  "registeredTools": 39,
+  "workerActiveSessions": 2,
+  "freeDiskBytes": 23269253120,
+  "containers": [
+    {
+      "service": "mcp",
+      "image": "runtime-os-mcp:resource-completion-47e7a72b2415",
+      "state": "running",
+      "health": null
+    },
+    {
+      "service": "api",
+      "image": "runtime-os-api:resource-completion-47e7a72b2415",
+      "state": "running",
+      "health": null
+    },
+    {
+      "service": "coding-agent",
+      "image": "runtime-os-coding-agent:resource-completion-47e7a72b2415",
+      "state": "running",
+      "health": "healthy"
+    },
+    {
+      "service": "node-proxy",
+      "image": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "state": "running",
+      "health": "healthy"
+    },
+    {
+      "service": "news",
+      "image": "runtime-os-news:integrated-48dc1029b23c-20261104",
+      "state": "running",
+      "health": null
+    }
+  ],
+  "initialFailuresNotErased": true
+}

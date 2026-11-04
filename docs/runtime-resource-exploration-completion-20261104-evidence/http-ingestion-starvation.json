@@ -1,0 +1,30 @@
+{
+  "observedAt": "2026-11-04T08:43:12Z",
+  "affectedMcpImageSource": "f9825e01ba42c66d446b75f1d41a4421b77d8cdb",
+  "workerSourceDuringInterruptedVerification": "d52fb8798cd81b41d7a572880a0db5275157d801",
+  "httpWorkers": 200,
+  "blockedWriterWaiters": 199,
+  "writerStack": [
+    "FinancialDataStore.storeAll",
+    "SnapshotFinancialReadOperations.publish",
+    "H2 BackupCommand",
+    "ZipOutputStream/Deflater"
+  ],
+  "apiControlCallWaitingOn": "McpLicenseEntitlementClient.workspaceEntitlement",
+  "collectorPausedForRecovery": true,
+  "mcpRestartedForRecovery": true,
+  "submittedVerificationTasks": 3,
+  "verifiedTasks": 1,
+  "cancelledTasks": 2,
+  "notSubmittedCases": [
+    "LN03",
+    "LA01",
+    "LA02"
+  ],
+  "cancelledTaskStatesConfirmedAfterRecovery": true,
+  "fixCommit": "47e7a72b2415b5f935b19323f87ec25e2fb14cda",
+  "fix": "One admitted HTTP ingestion; busy calls immediately receive 503 before the synchronized writer",
+  "admissionTests": 3,
+  "combinedJavaTests": 10,
+  "noUnacceptedDataAcknowledged": true
+}

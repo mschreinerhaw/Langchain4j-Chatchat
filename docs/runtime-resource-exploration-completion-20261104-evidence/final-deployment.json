@@ -1,0 +1,32 @@
+{
+  "status": "DEPLOYED",
+  "sourceCommit": "d52fb8798cd81b41d7a572880a0db5275157d801",
+  "image": "runtime-os-api:resource-completion-d52fb8798cd8",
+  "sha256": "97a2bd14e23f2b3e91b71223af00acccf71dd50036d7a03d1a40670e9a825f7c",
+  "backup": "/opt/chatchat-releases/resource-exploration-completion-20261104-final/backup",
+  "retired": {
+    "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-studio-1793777394",
+    "runtime-os-app-stage-coding-agent-1": "runtime-os-app-stage-coding-agent-1-before-studio-1793777394",
+    "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-studio-1793777394"
+  },
+  "databaseMigrationSha256": null,
+  "catalogReadiness": {
+    "status": "API_MCP_CATALOG_READY",
+    "registryState": "HEALTHY",
+    "registeredToolCount": 39,
+    "requiredTools": [
+      "enterprise_metadata_search",
+      "sql_schema_context_query"
+    ],
+    "capturedAt": "2026-11-04T07:30:38.696396+00:00"
+  },
+  "preservedExpiredReadOnlyTaskIds": [],
+  "unrelatedContainersUnchanged": true,
+  "conversationContentUnchanged": true,
+  "messageIndexCountUnchanged": true,
+  "images": {
+    "runtime-os-app-stage-api-1": "runtime-os-api:resource-completion-d52fb8798cd8",
+    "runtime-os-app-stage-coding-agent-1": "runtime-os-coding-agent:resource-completion-d52fb8798cd8"
+  },
+  "channelCounts": "SQL_STUDIO|63\nPYTHON_STUDIO|10\nAGENT_API|203\nPLATFORM_UI|1108"
+}

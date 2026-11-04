@@ -1,0 +1,183 @@
+{
+  "cases": [
+    {
+      "id": "V01",
+      "category": "time_provenance",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": null,
+      "verificationDeadlineSeconds": 1200,
+      "taskId": "4b9085cc-5ef5-3fcd-89ac-5c0c08d0109f",
+      "cancellationAttempted": true,
+      "cancellationRequestAcknowledged": false,
+      "cancellationStopConfirmed": false,
+      "status": "VERIFICATION_ERROR",
+      "errorCategory": "TimeoutError",
+      "error": "timed out",
+      "durationMs": 387701,
+      "verificationDurationMs": 387708
+    },
+    {
+      "id": "LN01",
+      "category": "unanswerable",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": null,
+      "verificationDeadlineSeconds": 1200,
+      "taskId": "9644d10d-f8fc-3302-9389-9cecacbea372",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 97761,
+      "resultQueueRetained": true,
+      "disclosedReferenceCount": 1,
+      "disclosureCountScope": "REFERENCES_VISIBLE_IN_CAPTURED_TASK_EVENTS_NOT_PRIVATE_MANIFEST",
+      "citationExtraction": "PUBLISHED_ANSWER_SOURCES_AND_RESULT",
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:06d37f81def3911f240c0d0d3d14e2f01ba2b4c6806fd0e37dc49631f3670338",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 11,
+          "hasOriginalText": true,
+          "resourceId": "knowledge_documents",
+          "publishedAt": null,
+          "collectedAt": null,
+          "dataAsOf": null
+        }
+      ],
+      "resolvedCitationCount": 1,
+      "citationResolutionMs": 776,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_list_sections",
+        "knowledge_search"
+      ],
+      "knowledgeToolCalls": 6,
+      "resourceToolAttemptCount": 6,
+      "resourceToolAttempts": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_list_sections",
+        "knowledge_search"
+      ],
+      "knowledgeToolCallsMeaning": "FINISHED_RESOURCE_CALLS; attempts also include repaired errors",
+      "allTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_list_sections",
+        "knowledge_search",
+        "report_submit",
+        "report_submit"
+      ],
+      "toolsByResource": {
+        "knowledge": [
+          "knowledge_search",
+          "knowledge_search",
+          "knowledge_search",
+          "knowledge_search",
+          "knowledge_list_sections",
+          "knowledge_search"
+        ],
+        "news": [],
+        "market": []
+      },
+      "javaToolResultReviewEvents": 0,
+      "coding": [
+        {
+          "taskId": "analysis-coding-e6879813dcc8e69df4e66060f169a65d09801d87b5f70a8a0badccb173aace76",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 6,
+            "modelTokens": 129483,
+            "toolCalls": 7,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 43610,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW",
+      "verificationDurationMs": 98877
+    },
+    {
+      "id": "LN02",
+      "category": "unanswerable",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": null,
+      "verificationDeadlineSeconds": 1200,
+      "taskId": "fe0998fa-cfdd-392a-a16c-26be6eb57fb9",
+      "cancellationAttempted": true,
+      "cancellationRequestAcknowledged": true,
+      "cancellationStopConfirmed": true,
+      "status": "VERIFICATION_ERROR",
+      "errorCategory": "RuntimeError",
+      "error": "Verifier deadline; cancellation requested",
+      "durationMs": 1203081,
+      "verificationDurationMs": 1203092
+    },
+    {
+      "id": "LN03",
+      "category": "unanswerable",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": null,
+      "verificationDeadlineSeconds": 1200,
+      "status": "VERIFICATION_ERROR",
+      "errorCategory": "RuntimeError",
+      "error": "Earlier cancelled task has no terminal stop confirmation; no new task submitted",
+      "durationMs": 0,
+      "verificationDurationMs": 0
+    },
+    {
+      "id": "LA01",
+      "category": "denied_or_absent",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": null,
+      "verificationDeadlineSeconds": 1200,
+      "status": "VERIFICATION_ERROR",
+      "errorCategory": "RuntimeError",
+      "error": "Earlier cancelled task has no terminal stop confirmation; no new task submitted",
+      "durationMs": 0,
+      "verificationDurationMs": 0
+    },
+    {
+      "id": "LA02",
+      "category": "denied_or_absent",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": null,
+      "verificationDeadlineSeconds": 1200,
+      "status": "VERIFICATION_ERROR",
+      "errorCategory": "RuntimeError",
+      "error": "Earlier cancelled task has no terminal stop confirmation; no new task submitted",
+      "durationMs": 0,
+      "verificationDurationMs": 0
+    }
+  ],
+  "executed": 6,
+  "completedOrPartialTaskCount": 1,
+  "questionSetSha256": "8cbf1a76f5d100d0f5df1484e2f1dcd8b88580a3da9e8d3f375a2cc12938bc99",
+  "statusCounts": {
+    "SUCCEEDED": 1,
+    "VERIFICATION_ERROR": 5
+  },
+  "measurementKind": "EXECUTION_AND_REFERENCE_RESOLUTION_ONLY",
+  "p95Ms": 1203081,
+  "p95IncludesFailedAttempts": true,
+  "completedOrPartialP95Ms": 97761,
+  "directQuestionP95Ms": null,
+  "timingScope": "PARENT_TASK_SUBMISSION_THROUGH_TERMINAL_POLL_INCLUDES_QUEUE_AND_POLL_OVERHEAD",
+  "citationCorrectness": "NOT_AUTOMATICALLY_CERTIFIED",
+  "factualCitationCoverage": "NOT_AUTOMATICALLY_CERTIFIED"
+}

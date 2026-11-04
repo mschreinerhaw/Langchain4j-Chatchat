@@ -1,0 +1,37 @@
+{
+  "deployedSourceCommit": "47e7a72b2415b5f935b19323f87ec25e2fb14cda",
+  "full50SourceCommit": "f9825e01ba42c66d446b75f1d41a4421b77d8cdb",
+  "full50StatusCounts": {
+    "FAILED": 2,
+    "PARTIAL": 6,
+    "SUCCEEDED": 42
+  },
+  "full50ResolvedCitations": 262,
+  "full50P95Ms": 389479,
+  "directP95Ms": 294102,
+  "finalTargetedStatusCounts": {
+    "PARTIAL": 2,
+    "SUCCEEDED": 4
+  },
+  "finalTargetedCases": [
+    "V01",
+    "LN01",
+    "LN02",
+    "LN03",
+    "LA01",
+    "LA02"
+  ],
+  "finalTargetedResolvedCitations": 17,
+  "originalResultsPreserved": true,
+  "finalVersionFull50Rerun": false,
+  "nodeTests": 178,
+  "javaTests": 10,
+  "frontendTests": 20,
+  "adminBrowserPages": 5,
+  "revocationChecks": 13,
+  "workerActiveSessions": 0,
+  "tenSecondP95TargetMet": false,
+  "semanticCitationAccuracy95Percent": "NOT_CERTIFIED",
+  "nonemptyResultQueueProtectionCertified": false,
+  "syntheticSources": false
+}

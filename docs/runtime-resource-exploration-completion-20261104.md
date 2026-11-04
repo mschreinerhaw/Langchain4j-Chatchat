@@ -1,8 +1,51 @@
 # 资讯、行情与 Cline 自主探索收尾
 
-## 主分支与部署
+## 最终部署与验收结果
 
-状态：已部署，最终 50 问回归执行中；最终统计尚未出具。
+运行代码已合并并推送 `origin/main`，最终部署提交为 `47e7a72b2415b5f935b19323f87ec25e2fb14cda`。
+访问地址：<http://192.168.195.221:18100>；发布目录：`/opt/chatchat-releases/resource-exploration-completion-20261104-stable`。
+后续提交仅归档验收文档，不改变该运行代码。
+
+| 阶段 | 范围 | 实际结果 |
+| --- | --- | --- |
+| 首次主分支 `f9825e01b` | 原始 50 问 | {'FAILED': 2, 'PARTIAL': 6, 'SUCCEEDED': 42}；262 个报告引用解析完成 |
+| 同版失败复测 | V01、LA01 | 1 成功、1 部分完成；首次失败保留 |
+| `d52fb8798` 复测 | 选定 6 问 | 仅提交 3 条：1 成功、2 超时取消；其余 3 条未提交 |
+| 最终 `47e7a72b2` | V01、LN01、LN02、LN03、LA01、LA02 | {'PARTIAL': 2, 'SUCCEEDED': 4}；17 个引用解析完成 |
+
+最终补丁执行针对性回归，**没有在该版本上重跑完整 50 问**。`PARTIAL` 保留数据/证据缺口，不代表全部业务问题已得到证明。
+原始 50 问 SHA-256 保持 `8cbf1a76f5d100d0f5df1484e2f1dcd8b88580a3da9e8d3f375a2cc12938bc99`；真实模型为 `qwen3.7-plus`，未预置来源 ID 或答案，未替换实际数据。
+完整记录：[50 问](runtime-resource-exploration-completion-20261104-evidence/main-acceptance-summary.json)、[首次失败复测](runtime-resource-exploration-completion-20261104-evidence/main-initial-retry-summary.json)、
+[中断复测](runtime-resource-exploration-completion-20261104-evidence/interrupted-d52-verification-summary.json)、[最终针对性回归](runtime-resource-exploration-completion-20261104-evidence/stable-acceptance-summary.json)。
+
+最终 Worker 178 项测试、Java 10 项测试、前端 20 项测试通过；服务器现有依赖镜像也离线通过同样 178 项 Worker 测试。
+admin 实际登录及五个主要页面检查通过，工具目录健康且注册 39 个工具，五个容器运行，最终 Worker 活动会话为 0。
+[13 项撤权检查](runtime-resource-exploration-completion-20261104-evidence/stable-resource-security-summary.json)通过，Agent 设置已恢复、临时 DENY 已删除。
+队列非空状态未被独立观测，不将 200/null 或 403 冒充非空结果拦截认证。
+
+最终修复还包括：草稿复核保留实际 `input_read` 上下文引用，空引用在 Worker 给出明确修订提示；
+采集 HTTP 入口只有一个在途写请求，忙时返回 503 要求调用端重试，不确认未接收的数据。
+此前实际发生 199 个采集请求等待写锁、占满 200 个 HTTP 线程并阻断许可/读取接口，见
+[故障记录](runtime-resource-exploration-completion-20261104-evidence/http-ingestion-starvation.json)。暂停采集并恢复服务后部署背压修复；
+[现场观察](runtime-resource-exploration-completion-20261104-evidence/stable-admission-observation.json)与真实业务复测记录恢复情况。未增加运行预算或放宽来源授权。
+
+[最终部署](runtime-resource-exploration-completion-20261104-evidence/stable-deployment.json)、[健康](runtime-resource-exploration-completion-20261104-evidence/stable-health.json)、[浏览器](runtime-resource-exploration-completion-20261104-evidence/stable-browser-verification.json)、
+[网络边界](runtime-resource-exploration-completion-20261104-evidence/stable-network-boundary.log)、[构建](runtime-resource-exploration-completion-20261104-evidence/stable-worker-build.json)、[Java 产物证明](runtime-resource-exploration-completion-20261104-evidence/stable-mcp-recovery-artifact.json)
+均已归档。MCP JAR 仅替换采集控制器类，其余 1505 项一致；API JAR 字节不变，无数据库迁移，保留配置、原容器及金融文件备份。
+业务验收使用早上已有明确资源授权的专用账户；本轮未扩大 admin 的持久数据权限。
+
+**仍未达到的验收指标：**首轮父任务 P95 为 389.479 秒，直接问题 P95 为 294.102 秒，
+10 秒目标未达到；不认证 95% 语义引用正确率。人工抽查仍记录了未声明价格单位的惯例解释和跨期措辞问题。
+接口成功、引用可解析和语义正确是不同指标。汇总见[完成记录](runtime-resource-exploration-completion-20261104-evidence/completion-summary.json)。
+
+## 历史过程记录
+
+以下记录保留首次发布与候选阶段的状态和限制，不作为最终运行版本的通过声明。
+
+
+## 首次主分支发布（历史）
+
+该阶段 50 问已经完成，结果见上表。
 
 实现合并提交：`f9825e01ba42c66d446b75f1d41a4421b77d8cdb`，已推送 `origin/main`。
 主分支版本部署目录：`/opt/chatchat-releases/resource-exploration-completion-20261104-main`。
@@ -24,7 +67,7 @@
 不能把它误写成 300 秒任务截止时间。修复引用 ID 复核提示后停止候选回归，两个仍在执行的测试任务
 按升级需要取消并确认终态。候选记录属于不完整回归，不能计作完整 50 条通过。
 
-最终主分支回归使用独立目录和原始 50 问，不复用候选答案；验收观察时限显式设为 1200 秒，
+首次主分支回归使用独立目录和原始 50 问，不复用候选答案；验收观察时限显式设为 1200 秒，
 不修改 Runtime 合同预算。最多同时执行 2 个模型任务，来源引用解析单独占用验收线程。
 来源解析时间和父任务完成时间分开记录，不把等待引用解析的耗时记入父任务终态耗时。
 

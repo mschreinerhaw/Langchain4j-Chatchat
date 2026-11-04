@@ -1,0 +1,11 @@
+{
+  "sourceCommit": "47e7a72b2415b5f935b19323f87ec25e2fb14cda",
+  "nodeTests": 178,
+  "nodeFailures": 0,
+  "javaTests": 10,
+  "javaFailures": 0,
+  "frontendTests": 20,
+  "frontendCodeUnchangedSinceTests": true,
+  "admissionTests": 3,
+  "admissionBehavior": "Single accepted writer; busy calls immediately return 503; release after null or exception; no false acknowledgement"
+}

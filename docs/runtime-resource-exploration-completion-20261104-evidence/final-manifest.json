@@ -1,0 +1,33 @@
+{
+  "sourceCommit": "d52fb8798cd81b41d7a572880a0db5275157d801",
+  "image": "runtime-os-api:resource-completion-d52fb8798cd8",
+  "sha256": "97a2bd14e23f2b3e91b71223af00acccf71dd50036d7a03d1a40670e9a825f7c",
+  "baselineSha256": "97a2bd14e23f2b3e91b71223af00acccf71dd50036d7a03d1a40670e9a825f7c",
+  "catalogReadinessAuthFile": "catalog-readiness-private.json",
+  "catalogReadinessExpectedTools": [
+    "sql_schema_context_query",
+    "enterprise_metadata_search"
+  ],
+  "worker": {
+    "image": "runtime-os-coding-agent:resource-completion-d52fb8798cd8",
+    "baselineImageId": "sha256:946c8b4cdfbd68968f93b681f1be0acaf7d9a7f5bb9f8e57c811f88a8b144fc2",
+    "preparedImageId": "sha256:ace0a770fb395961c73e27a30f4dfc1e38df2e6c9a352c9577097881757a2f8a",
+    "modules": {
+      "code-repair.js": "cf2009842df28e1e222888ff995121a3fc9883824b1dccd5d782bace1b3cb354",
+      "execution-feedback.js": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+      "healthcheck.js": "772c652af1dcd582f8b44e9761f76cdd8fffc9723d8282383800a2c0d880c8cc",
+      "knowledge-tools.js": "e1f3e311917a8e39b0e869c69d7c311711a4516304ed9c6427f98261af74909a",
+      "monitor-client.js": "fa1846783474f0990a62a1f7bbff7a4b055451b2dd99d27e14f0a436a024b079",
+      "monitor-types.js": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+      "monitor.js": "cf0f7eec64300d0e9dd187878c82202eaf6fd9514e58c75e1e022449a2156354",
+      "python-project.js": "79e3eb8e04bd0fd2a7762db82eb75c6fed94ba1d7d969d82b34da6340b05ed83",
+      "request-context.js": "8b1648829037cc1d283f6ac0769348c6b17ec8f115c09101805714f421698b16",
+      "runner.js": "9eb3022f9564cb3a51f1f5c4cf1f4278d57403a4f58fdcaa74ec1ec92039a17e",
+      "runtime-model.js": "07b0c9553722d8be183df275e1f6ca4b1ee30e62334e1d071153b8ec52a10008",
+      "sdk-adapter.js": "c14abd29e05ced5271b25a8dbc083c923136cec1a1f3f28da068b7210439a611",
+      "sdk-packages.js": "e6898b39f5d51044e13d133b7bdaf40b95940b89dfec4837ea50c07d3436d097",
+      "server.js": "67d9ad9e9d7a6118684be53f320e0f3157c24dcc5e92b0f595d95db504bcb7da",
+      "skills.js": "390dd98fb521d4de789bc15552a728c6264ba41b6622ef3147320fe74aa04cb7"
+    }
+  }
+}

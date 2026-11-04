@@ -1,0 +1,10 @@
+{
+  "imageId": "sha256:ace0a770fb395961c73e27a30f4dfc1e38df2e6c9a352c9577097881757a2f8a",
+  "offlineBuildAndTests": true,
+  "sourceCommit": "d52fb8798cd81b41d7a572880a0db5275157d801",
+  "tests": 178,
+  "changedModules": [
+    "runner.js"
+  ],
+  "apiJarUnchanged": true
+}

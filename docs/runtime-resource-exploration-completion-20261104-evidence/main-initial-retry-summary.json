@@ -1,0 +1,220 @@
+{
+  "cases": [
+    {
+      "id": "V01",
+      "category": "time_provenance",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": null,
+      "verificationDeadlineSeconds": 1200,
+      "taskId": "228e281c-2eac-3e4e-af1b-4507a050efb5",
+      "status": "PARTIAL",
+      "runtimeStatus": "PARTIAL",
+      "durationMs": 339395,
+      "resultQueueRetained": true,
+      "disclosedReferenceCount": 4,
+      "disclosureCountScope": "REFERENCES_VISIBLE_IN_CAPTURED_TASK_EVENTS_NOT_PRIVATE_MANIFEST",
+      "citationExtraction": "PUBLISHED_ANSWER_SOURCES_AND_RESULT",
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:3e6d680ce7b91b90b62a6f459eb1d8e4de4fb82a4a55316f13d3c7e2cdcc9841",
+          "documentId": "market:market_quote_daily",
+          "versionId": "439051acfe430cdbeab912e778da74ba87bf7b1c47c0b712931bcd00ed6b7c65",
+          "chunk": 0,
+          "hasOriginalText": true,
+          "resourceId": "financial_market",
+          "publishedAt": null,
+          "collectedAt": "2026-11-03T12:28:00.160+00:00",
+          "dataAsOf": "2026-11-03"
+        },
+        {
+          "ref": "runtime-evidence:knowledge:4d30d262621b8b2db18f65f59c80511d5c73093225177a602cc0039e19a09655",
+          "documentId": "news:news_c1674863f07a2bd41dc6d18ddc787c00a1bb3c4a0c4f3742c5b2f74ee52e8b88",
+          "versionId": "f8f23c65fc2fa171578055865719d8135250b9120a80edf16f81ef396dba9943",
+          "chunk": 0,
+          "hasOriginalText": true,
+          "resourceId": "financial_news",
+          "publishedAt": "2026-11-04T04:04:44Z",
+          "collectedAt": "2026-11-04T04:19:09.220998427Z",
+          "dataAsOf": "2026-11-04T04:04:44Z"
+        },
+        {
+          "ref": "runtime-evidence:knowledge:c18ff98d66dbf34451485a81b186e14eab9724f33d309f7e135d61053c55ff3d",
+          "documentId": "market:index_valuation_daily",
+          "versionId": "6d6f19673370283e08497b11a622c454863d2f6d7cd9a2049d3eef36d4066328",
+          "chunk": 0,
+          "hasOriginalText": true,
+          "resourceId": "financial_market",
+          "publishedAt": null,
+          "collectedAt": "2026-11-04T07:08:59.527+00:00",
+          "dataAsOf": "2026-11-03"
+        },
+        {
+          "ref": "runtime-evidence:knowledge:ffeb2677c311f65a78b92c1aed89def09a0ad28703535ff235eacf9e5cdf9804",
+          "documentId": "market:market_quote_daily",
+          "versionId": "d3e959820dedebba0c09847edddca89b0f623b97297848739ed8727c1398d887",
+          "chunk": 0,
+          "hasOriginalText": true,
+          "resourceId": "financial_market",
+          "publishedAt": null,
+          "collectedAt": "2026-11-04T07:14:51.848+00:00",
+          "dataAsOf": "2026-11-04"
+        }
+      ],
+      "resolvedCitationCount": 4,
+      "citationResolutionMs": 27451,
+      "knowledgeTools": [
+        "news_search",
+        "market_search",
+        "market_get_snapshot",
+        "market_get_snapshot",
+        "market_get_snapshot",
+        "market_get_snapshot",
+        "market_get_history",
+        "market_get_history",
+        "market_get_history",
+        "market_get_history",
+        "market_get_history",
+        "market_get_history"
+      ],
+      "knowledgeToolCalls": 12,
+      "resourceToolAttemptCount": 12,
+      "resourceToolAttempts": [
+        "news_search",
+        "market_search",
+        "market_get_snapshot",
+        "market_get_snapshot",
+        "market_get_snapshot",
+        "market_get_snapshot",
+        "market_get_history",
+        "market_get_history",
+        "market_get_history",
+        "market_get_history",
+        "market_get_history",
+        "market_get_history"
+      ],
+      "knowledgeToolCallsMeaning": "FINISHED_RESOURCE_CALLS; attempts also include repaired errors",
+      "allTools": [
+        "news_search",
+        "market_search",
+        "market_get_snapshot",
+        "market_get_snapshot",
+        "market_get_snapshot",
+        "market_get_snapshot",
+        "market_get_history",
+        "market_get_history",
+        "market_get_history",
+        "market_get_history",
+        "market_get_history",
+        "market_get_history",
+        "report_submit",
+        "report_submit"
+      ],
+      "toolsByResource": {
+        "knowledge": [],
+        "news": [
+          "news_search"
+        ],
+        "market": [
+          "market_search",
+          "market_get_snapshot",
+          "market_get_snapshot",
+          "market_get_snapshot",
+          "market_get_snapshot",
+          "market_get_history",
+          "market_get_history",
+          "market_get_history",
+          "market_get_history",
+          "market_get_history",
+          "market_get_history"
+        ]
+      },
+      "javaToolResultReviewEvents": 0,
+      "coding": [
+        {
+          "taskId": "analysis-coding-6bb2faea75f99f35232d712820457802e10ced1f087811eb0068205d842ae917",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 10,
+            "modelTokens": 293812,
+            "toolCalls": 14,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 96792,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW",
+      "verificationDurationMs": 369376
+    },
+    {
+      "id": "LA01",
+      "category": "denied_or_absent",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": null,
+      "verificationDeadlineSeconds": 1200,
+      "taskId": "2d3d02e8-df4d-327d-8330-6e745340af20",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 57405,
+      "resultQueueRetained": true,
+      "disclosedReferenceCount": 0,
+      "disclosureCountScope": "REFERENCES_VISIBLE_IN_CAPTURED_TASK_EVENTS_NOT_PRIVATE_MANIFEST",
+      "citationExtraction": "PUBLISHED_ANSWER_SOURCES_AND_RESULT",
+      "citations": [],
+      "resolvedCitationCount": 0,
+      "citationResolutionMs": 3,
+      "knowledgeTools": [],
+      "knowledgeToolCalls": 0,
+      "resourceToolAttemptCount": 0,
+      "resourceToolAttempts": [],
+      "knowledgeToolCallsMeaning": "FINISHED_RESOURCE_CALLS; attempts also include repaired errors",
+      "allTools": [
+        "report_submit",
+        "report_submit"
+      ],
+      "toolsByResource": {
+        "knowledge": [],
+        "news": [],
+        "market": []
+      },
+      "javaToolResultReviewEvents": 0,
+      "coding": [
+        {
+          "taskId": "analysis-coding-ddf5268956d64cfc2fd2ce8d162a356b24ec826248f2b99ff2f69fb6d74e83bc",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 3,
+            "modelTokens": 40338,
+            "toolCalls": 2,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 2123,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW",
+      "verificationDurationMs": 57497
+    }
+  ],
+  "executed": 2,
+  "completedOrPartialTaskCount": 2,
+  "questionSetSha256": "8cbf1a76f5d100d0f5df1484e2f1dcd8b88580a3da9e8d3f375a2cc12938bc99",
+  "statusCounts": {
+    "PARTIAL": 1,
+    "SUCCEEDED": 1
+  },
+  "measurementKind": "EXECUTION_AND_REFERENCE_RESOLUTION_ONLY",
+  "p95Ms": 339395,
+  "p95IncludesFailedAttempts": true,
+  "completedOrPartialP95Ms": 339395,
+  "directQuestionP95Ms": null,
+  "timingScope": "PARENT_TASK_SUBMISSION_THROUGH_TERMINAL_POLL_INCLUDES_QUEUE_AND_POLL_OVERHEAD",
+  "citationCorrectness": "NOT_AUTOMATICALLY_CERTIFIED",
+  "factualCitationCoverage": "NOT_AUTOMATICALLY_CERTIFIED"
+}

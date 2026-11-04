@@ -13,6 +13,8 @@ import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.sql.SQLException;
+import java.util.function.Function;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /** Builds physical H2 read replicas and atomically swaps the online query pool. */
@@ -74,22 +76,53 @@ public final class SnapshotFinancialReadOperations
 
     @Override
     public List<Map<String, Object>> queryForList(String sql, Object... arguments) {
-        switchLock.readLock().lock();
-        try {
-            return active().queryForList(sql, arguments);
-        } finally {
-            switchLock.readLock().unlock();
-        }
+        return read(reader -> reader.queryForList(sql, arguments));
     }
 
     @Override
     public List<Map<String, Object>> queryForList(String sql, Map<String, Object> parameters,
                                                   int maxRows, int timeoutSeconds) {
-        switchLock.readLock().lock();
+        return read(reader -> reader.queryForList(sql, parameters, maxRows, timeoutSeconds));
+    }
+
+    private List<Map<String,Object>> read(Function<FinancialQueryPoolConfiguration.IsolatedFinancialReadOperations,
+            List<Map<String,Object>>> query) {
+        for (int attempt = 0; ; attempt++) {
+            FinancialQueryPoolConfiguration.IsolatedFinancialReadOperations reader;
+            switchLock.readLock().lock();
+            try {
+                reader = active();
+                try {
+                    return query.apply(reader);
+                } catch (RuntimeException failure) {
+                    if (attempt != 0 || !closedDatabase(failure)) throw failure;
+                }
+            } finally {
+                switchLock.readLock().unlock();
+            }
+            recoverClosedReader(reader);
+        }
+    }
+
+    private static boolean closedDatabase(Throwable failure) {
+        for (int depth = 0; failure != null && depth < 16; depth++, failure = failure.getCause()) {
+            if (failure instanceof SQLException sql
+                    && sql.getErrorCode() == org.h2.api.ErrorCode.DATABASE_IS_CLOSED) return true;
+        }
+        return false;
+    }
+
+    private void recoverClosedReader(FinancialQueryPoolConfiguration.IsolatedFinancialReadOperations failed) {
+        switchLock.writeLock().lock();
         try {
-            return active().queryForList(sql, parameters, maxRows, timeoutSeconds);
+            // Another reader or publisher may already have replaced this exact pool.
+            // A service close sets active=null and must never reopen it here.
+            if (active != failed) return;
+            failed.close();
+            active = openCandidate(activeSlot);
+            log.warn("Financial H2 closed read pool reopened generation={} slot={}", generation, activeSlot);
         } finally {
-            switchLock.readLock().unlock();
+            switchLock.writeLock().unlock();
         }
     }
 

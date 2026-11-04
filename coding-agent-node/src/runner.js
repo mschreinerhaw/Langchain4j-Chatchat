@@ -105,6 +105,8 @@ export function createCodingRun(contract, gateway, options = {}) {
   const deadline = contract.budget?.deadlineAt == null ? null : Date.parse(contract.budget.deadlineAt);
   if (deadline !== null && !Number.isFinite(deadline)) throw new TypeError('Invalid Coding deadline');
   const permitted = new Set(contract.authorization?.allowedTools ?? []);
+  const resourceText = textResults && Boolean(contract.runtimeContext?.knowledgeExploration)
+    && [...KNOWLEDGE_TOOLS,...RESOURCE_TOOLS].some(name=>permitted.has(name));
   const sqlExploration=workspace && !pythonWorkspace && contract.metadataRefs?.includes('runtime-coding:sql-metadata-tools:v1');
   if((permitted.has('workspace_metadata')||permitted.has('workspace_validate'))&&!sqlExploration)
     throw new TypeError('SQL metadata tools require the negotiated SQL exploration profile');
@@ -128,6 +130,17 @@ export function createCodingRun(contract, gateway, options = {}) {
     throw new TypeError('Python execution requires authorized bound input files and one JSONL result');
   let activeOperation = null;
   const restored = options.checkpoint;
+  const deliveredResourceReferences = new Set();
+  const rememberResourceReferences = value => {
+    if (Array.isArray(value)) { value.forEach(rememberResourceReferences); return; }
+    if (!value || typeof value !== 'object') return;
+    if (/^runtime-evidence:knowledge:[0-9a-f]{64}$/.test(value.evidence_id ?? ''))
+      deliveredResourceReferences.add(value.evidence_id);
+    Object.values(value).forEach(rememberResourceReferences);
+  };
+  for (const message of restored?.messages ?? []) for (const part of Array.isArray(message.content) ? message.content : [])
+    if (part.type === 'tool-result' && [...KNOWLEDGE_TOOLS,...RESOURCE_TOOLS].includes(part.toolName))
+      rememberResourceReferences(part.output);
   let workspaceSources = null;
   const nativeSdk = restored?.nativeSdk ?? options.nativeSdk ?? true;
   let lastCollectedOperation = restored?.lastCollectedOperation ?? null;
@@ -136,6 +149,10 @@ export function createCodingRun(contract, gateway, options = {}) {
     ?? restored?.messages?.flatMap(message => message.content ?? []).filter(part =>
       part.type === 'tool-result' && verifiedReceipt(part.output)).at(-1)?.output.resultDatasetRef ?? null;
   let reportReferenceFailure = restored?.reportReferenceFailure ?? null;
+  let textReportReviewRequested = restored?.textReportReviewRequested ?? restored?.messages?.some(message =>
+    message.role === 'tool' && message.content?.some(part => part.type === 'tool-result'
+      && part.output?.resourceReportReviewRequired === true)) ?? false;
+  let textReportReviewModel = restored?.textReportReviewModel ?? (textReportReviewRequested ? restored?.modelOrdinal ?? 0 : -1);
   let reviewedArtifactCache = null;
   let sourceRequested = false;
   let terminalFeedback = restored?.terminalFeedback ?? null;
@@ -194,7 +211,15 @@ export function createCodingRun(contract, gateway, options = {}) {
       status: reportReferenceFailure ? 'FAILED' : 'SUCCEEDED' });
     return result;
   };
-  const tools = knowledgeTools(contract, gateway, forward);
+  const tools = knowledgeTools(contract, gateway, forward).map(tool=>({...tool,
+    async execute(args,context){
+      if(textResults && modelIndex>Math.min(Number(contract.budget?.maxModelCalls ?? 1),32)-3)
+        throw new TypeError('Resource exploration phase has ended. Use report_submit to review and publish supported findings with explicit evidence gaps.');
+      const result = await tool.execute(args,context);
+      rememberResourceReferences(result);
+      return result;
+    },
+  }));
   if(textResults && permitted.has('report_submit'))tools.push({
     name:'report_submit',...(nativeSdk?{lifecycle:{completesRun:true}}:{}),
     description:'Submit your reviewed text-only report using exact delivered evidence references. No Python runs and no calculation or chart execution is claimed. Do not use after executing Python; in that case finish through the real Python output contract.',
@@ -209,6 +234,16 @@ export function createCodingRun(contract, gateway, options = {}) {
     async execute(report,context){
       if(typeof gateway.submitReport!=='function')throw new TypeError('Runtime text result submission is unavailable');
       await forward({type:'TOOL_STARTED',tool:'report_submit',toolCallId:context.toolCallId});
+      if(resourceText && (!textReportReviewRequested || modelIndex<=textReportReviewModel)) {
+        if(Buffer.byteLength(JSON.stringify(report),'utf8')>160000)throw new TypeError('Shorten the report draft to the bounded review size');
+        if(!textReportReviewRequested){textReportReviewRequested=true;textReportReviewModel=modelIndex;}
+        await forward({type:'TOOL_FINISHED',tool:'report_submit',toolCallId:context.toolCallId,status:'REVIEW_REQUIRED',stage:'RESULT_REVIEW'});
+        return {resourceReportReviewRequired:true,committed:false,draft:report,
+          deliveredEvidenceReferences:[...deliveredResourceReferences],
+          unrecognizedEvidenceReferences:(Array.isArray(report.evidenceReferences)?report.evidenceReferences:[])
+            .filter(ref=>typeof ref==='string' && ref.startsWith('runtime-evidence:knowledge:') && !deliveredResourceReferences.has(ref)),
+          instruction:'Review this draft against the actual source results in this same Cline run, then call report_submit again with the corrected final report. Repair every unrecognizedEvidenceReferences entry by copying the exact matching deliveredEvidenceReferences value from its source, or remove the reference AND any unsupported claim. These lists are copying aids, not authorization; Java still validates every reference. Never abbreviate or reconstruct opaque evidence IDs. No report has been published. Check every conclusion and table for these errors: a filtered catalog search or one dataset cannot establish platform-wide absence; use an unfiltered market_search query if broader catalog discovery is necessary, or restrict the claim to the searched scope. A null publication time stays unknown and cannot become the collection date later. Catalog latest observation dates apply across the dataset, not every selected security. Missing price units/currency/adjustment remain unknown. Summaries are not original article reads. Cite both sources in comparisons and preserve evidence gaps. Repair unsupported statements; do not merely repeat this draft.'};
+      }
       const result=await gateway.submitReport(contract,{toolCallId:required(context.toolCallId,'toolCallId'),report},context.signal);
       if(!verifiedReceipt(result)||result.pythonExecuted!==false||result.executionMode!=='TEXT_ONLY'
           ||!/^workspace-[0-9a-f]{64}$/.test(result.operationId))throw new TypeError('No verified text result was committed');
@@ -612,6 +647,8 @@ export function createCodingRun(contract, gateway, options = {}) {
         reviewReference: () => lastCollectedDatasetRef, reviewArtifact: () => reviewedArtifactCache }) } : {}),
     systemPrompt: systemPrompt + (analysis ? '\n' + COMPLETION_SCOPE_RULE : '') + (permitted.has('knowledge_search')
       ? '\nFor knowledge answers, start focused searches with top_k=3 and expand only when evidence is insufficient. Read relevant sections and neighboring chunks rather than repeating identical excerpts or scanning every chapter. Stop exploring when the requested conclusions have sufficient evidence. Write a concise answer with adjacent citations; do not repeat a full document or every search step. In report_submit, limitations and evidenceReferences MUST be actual JSON arrays, never JSON encoded strings. Use limitations: [] when there are none. The existing report contract requires analysisStatus INPUT_REQUIRED whenever any fieldProvenance entry is UNCONFIRMED, even if other claims are supported; preserve those supported claims and disclose the missing evidence. If submission validation fails, repair the named field and shorten the report instead of repeating the same invalid payload.' : '')
+      + (resourceText
+      ? '\nBefore report_submit, review the entire draft against the exact sources, including its final conclusions and tables. A missing published_at MUST remain unknown throughout the answer: collected_at never establishes publication or event time, even in a later sentence. asset.last_collected_at is a catalog ingestion heartbeat; asset.last_observation_date is the latest observation date across that dataset, not a heartbeat and not proof of coverage for a selected security. data_as_of and each observation date describe the returned slice. A query returning no rows or reading one selected dataset does NOT establish that the platform has no individual-security data, no other datasets, no later records, or no test reports. Scope every absence claim to the actual searches and filters in this task; distinguish unsearched resources from searched empty results. Do not turn partial exploration into a platform-wide capability assessment. Missing currency, units or adjustment basis remain unknown; an exchange name or amount_unit does not declare the unit of a price field. Identify securities by exchange/provider and instrument type as well as code; the same code may identify an index or a different stock. An indexed summary is not an original article read. When comparing two sources, cite both operands beside the comparison. Repair contradictions between the evidence, limitations and conclusions before submitting; preserve uncertainty instead of guessing.' : '')
       + (reviewedAnalysis
       ? '\nA failed business/reconciliation check can be the correct finding: preserve it with evidence and limitations instead of trying to make source data pass. Technical artifact, layout and reference failures still require repair. Confirm completion after reviewing a supported report; do not repeat an already correct report to eliminate its source findings.' : '')
       + (workspace && permitted.has('skill_read')
@@ -622,12 +659,14 @@ export function createCodingRun(contract, gateway, options = {}) {
     maxIterations: Math.max(1, Math.min(Number(contract.budget?.maxModelCalls ?? 1), 32)),
     toolExecution: 'sequential',
     completionPolicy: {
-      ...(fastAnalysis || workspaceFast || sqlExploration ? { requireCompletionTool: true } : {}),
+      ...(fastAnalysis || workspaceFast || sqlExploration || resourceText && permitted.has('report_submit') ? { requireCompletionTool: true } : {}),
       completionGuard: () => modelResponseFeedback
         ? `Runtime rejected the previous provider response (${modelResponseFeedback.diagnosticCode}). No tool was executed. `
           + 'Generate a concise, complete JSON object for an already authorized tool. Keep the program focused, avoid repeating context or embedding input datasets, and preserve all requested calculations and evidence limits. '
           + 'Do not infer execution success from the rejected response or change authorization. Continue in this task using the same immutable inputs.'
-        : undefined,
+        : resourceText && permitted.has('report_submit') && !lastCollectedOperation
+          ? 'The answer has not been submitted or validated. Use report_submit with the reviewed report, exact evidenceReferences and limitations. Plain assistant text does not publish a result. If evidence is insufficient, submit the supported findings and explicitly state the gaps; never invent evidence.'
+          : undefined,
     },
     hooks: {
       async beforeTool() {
@@ -638,6 +677,8 @@ export function createCodingRun(contract, gateway, options = {}) {
           status: result.isError ? 'THREW' : 'RETURNED', toolDurationMs: durationMs,
           ...(Number.isSafeInteger(result.output?.validationDurationMs) ? { validationDurationMs: result.output.validationDurationMs } : {}) }); }
         catch { /* SDK result and Java evidence remain authoritative if telemetry is unavailable. */ }
+        if(toolCall.toolName==='report_submit' && result.output?.resourceReportReviewRequired)
+          return {result:{...result,isError:true}};
         if ((workspaceFast || sqlExploration) && toolCall.toolName === 'workspace_propose') {
           const receipt = result.output;
           if (receipt?.repair?.action === 'STOP') {
@@ -689,7 +730,7 @@ export function createCodingRun(contract, gateway, options = {}) {
             && completeToolBoundary(event.snapshot.messages)) {
           await gateway.checkpoint(contract, { sdkSessionId, checkpointOrdinal: ++checkpointOrdinal,
             nativeSdk, modelOrdinal: modelIndex, eventOrdinal, messages: event.snapshot.messages,
-            codeLifecycle: history?.snapshot(), lastCollectedOperation, lastCollectedDatasetRef, reportReferenceFailure, terminalFeedback,
+            codeLifecycle: history?.snapshot(), lastCollectedOperation, lastCollectedDatasetRef, reportReferenceFailure, terminalFeedback, textReportReviewRequested, textReportReviewModel,
             modelResponseFeedback, modelResponseRepairs,
             contractHash: options.contractHash, inputSnapshotRef: contract.inputSnapshotRef,
             workspaceRef: contract.workspaceRef });
@@ -700,6 +741,14 @@ export function createCodingRun(contract, gateway, options = {}) {
         // Reuse it for review; keep Python available for justified corrections.
         if (Array.isArray(request?.tools)) request.tools = request.tools.filter(tool =>
           !(textResults && (codeFiles.length || /^cline-/.test(lastCollectedOperation ?? '')) && tool.name === 'report_submit'));
+        if (resourceText && permitted.has('report_submit') && !lastCollectedOperation) {
+          const remaining = Math.max(0, Math.min(Number(contract.budget?.maxModelCalls ?? 1), 32) - modelIndex);
+          request.systemPrompt += `\nResource task budget: ${remaining} model turns remain, including report submission and any repair. Finish with report_submit before this budget ends. Use actual JSON arrays for evidenceReferences and limitations.`;
+          if (remaining <= 3) {
+            request.tools = request.tools.filter(tool => tool.name === 'report_submit');
+            request.systemPrompt += '\nThe exploration phase has ended to reserve the remaining turns for draft review, submission and validation repair. Submit a concise report from already delivered evidence. Preserve supported findings, identify missing sources as limitations, and never turn missing evidence into a factual conclusion.';
+          }
+        }
         if (terminalFeedback) throw new Error('Runtime execution policy denied automatic repair');
         const repairingModelResponse = Boolean(modelResponseFeedback);
         if (repairingModelResponse) {
@@ -711,7 +760,7 @@ export function createCodingRun(contract, gateway, options = {}) {
         if (typeof gateway.checkpoint === 'function') await gateway.checkpoint(contract, {
           sdkSessionId, checkpointOrdinal: ++checkpointOrdinal, modelOrdinal: modelIndex,
           nativeSdk, eventOrdinal, messages: snapshot.messages,
-          codeLifecycle: history?.snapshot(), lastCollectedOperation, lastCollectedDatasetRef, reportReferenceFailure, terminalFeedback,
+          codeLifecycle: history?.snapshot(), lastCollectedOperation, lastCollectedDatasetRef, reportReferenceFailure, terminalFeedback, textReportReviewRequested, textReportReviewModel,
           modelResponseFeedback, modelResponseRepairs,
           contractHash: options.contractHash, inputSnapshotRef: contract.inputSnapshotRef,
           workspaceRef: contract.workspaceRef,

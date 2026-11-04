@@ -3,17 +3,22 @@
 Reads private login material in --release-dir. Public measurements contain no tokens,
 source text or answers. Citation resolution verifies authorization/provenance, not semantic truth.
 """
-import argparse,concurrent.futures,hashlib,json,math,os,re,time,urllib.request,urllib.error,urllib.parse,uuid
+import argparse,concurrent.futures,hashlib,json,math,os,re,threading,time,urllib.request,urllib.error,urllib.parse,uuid
 from pathlib import Path
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--release-dir',type=Path,required=True);p.add_argument('--limit',type=int,default=50)
     p.add_argument('--concurrency',type=int,default=2)
+    p.add_argument('--runtime-concurrency',type=int,default=2,help='Maximum active parent tasks; citation reads do not consume a model slot')
+    p.add_argument('--deadline-seconds',type=int,default=420,help='Verifier observation deadline, independent of the unchanged Runtime contract deadline')
     p.add_argument('--answer-max-chars',type=int,default=0,help='Optional explicit answer-length constraint; recorded in measurements')
     p.add_argument('--case-ids',help='Optional comma-separated case IDs for a focused smoke run')
     p.add_argument('--questions-file',type=Path,help='Optional actual business questions, never expected source IDs or oracle answers')
-    a=p.parse_args();os.umask(0o077)
+    p.add_argument('--retain-result-queue',action='store_true',help='Leave published results queued for a subsequent live revocation probe')
+    a=p.parse_args();assert 30<=a.deadline_seconds<=1260 and 1<=a.runtime_concurrency<=4;os.umask(0o077)
+    runtime_slots=threading.BoundedSemaphore(a.runtime_concurrency)
+    admission_blocked=threading.Event()
     root=a.release_dir;f=json.loads((root/'fixture.private.json').read_text());model=f.get('model','hy3')
     client=urllib.request.build_opener(urllib.request.ProxyHandler({}))
     def request(path,body=None,token=None):
@@ -99,9 +104,11 @@ def main():
     def run(case):
         output=folder/(case['id']+'.private.json');safe=folder/(case['id']+'.json')
         if safe.exists():return json.loads(safe.read_text())
-        start=time.monotonic();events=[];cursor=0;task=None
-        summary={'id':case['id'],'category':case['category'],'model':model,'syntheticSources':False,'answerMaxChars':a.answer_max_chars or None}
+        start=time.monotonic();events=[];cursor=0;task=None;admitted=False
+        summary={'id':case['id'],'category':case['category'],'model':model,'syntheticSources':False,'answerMaxChars':a.answer_max_chars or None,'verificationDeadlineSeconds':a.deadline_seconds}
         try:
+            runtime_slots.acquire();admitted=True;start=time.monotonic()
+            if admission_blocked.is_set():raise RuntimeError('Earlier cancelled task has no terminal stop confirmation; no new task submitted')
             task=request('/agent/tasks',{'mode':'role_chat','skillId':f['agent'],'modelName':model,'sessionId':str(uuid.uuid4()),
                 'requestSource':'knowledge-exploration-acceptance','idempotencyKey':str(uuid.uuid4()),'query':case['query'],
                 'toolInput':{'resourceExplorationApproved':case.get('resourceExplorationApproved',False)}},token)
@@ -112,17 +119,19 @@ def main():
                 page=request('/agent/tasks/'+task_id+'/events'+query+'&limit=200&afterSequence='+str(cursor),token=token) or []
                 if page:cursor=max(int(e.get('sequence',0)) for e in page);events.extend(page)
                 if task.get('canonicalState') in {'SUCCEEDED','PARTIAL','FAILED','CANCELLED','REJECTED'} and len(page)<200:break
-                if time.monotonic()-start>420:
+                if time.monotonic()-start>a.deadline_seconds:
                     request('/agent/tasks/'+task_id+'/cancel'+query,{},token);raise RuntimeError('Verifier deadline; cancellation requested')
                 time.sleep(1)
             summary['status']=task.get('canonicalState');summary['runtimeStatus']=summary['status'];summary['durationMs']=round((time.monotonic()-start)*1000)
+            runtime_slots.release();admitted=False
             citation_start=time.monotonic();published=[]
             for event in events:
                 body=event.get('payload') or {};body=json.loads(body) if isinstance(body,str) else body
                 if body.get('answer') or body.get('uiArtifact'):
                     published.append({key:body.get(key) for key in ['answer','sources','citations']})
-            if summary['status'] in {'SUCCEEDED','PARTIAL'}:
+            if summary['status'] in {'SUCCEEDED','PARTIAL'} and not a.retain_result_queue:
                 published.append(request('/agent/tasks/'+task_id+'/result'+query,token=token))
+            summary['resultQueueRetained']=a.retain_result_queue
             text=json.dumps(events,ensure_ascii=False)
             summary['disclosedReferenceCount']=len(set(re.findall(r'runtime-evidence:knowledge:[0-9a-f]{64}',text)))
             summary['disclosureCountScope']='REFERENCES_VISIBLE_IN_CAPTURED_TASK_EVENTS_NOT_PRIVATE_MANIFEST'
@@ -167,6 +176,17 @@ def main():
                     # A disclosure guard may reject the response after the cancellation was accepted.
                     # Preserve uncertainty; never claim remote execution has stopped from a failed HTTP read.
                     summary['cancellationRequestAcknowledged']=False
+                stop_deadline=time.monotonic()+60
+                summary['cancellationStopConfirmed']=False
+                while time.monotonic()<stop_deadline:
+                    try:
+                        stopped=request('/agent/tasks/'+task['taskId']+'?tenantId='+urllib.parse.quote(f['tenant']),token=token)
+                        if stopped.get('canonicalState') in {'SUCCEEDED','PARTIAL','FAILED','CANCELLED','REJECTED'}:
+                            summary['cancellationStopConfirmed']=True;break
+                    except Exception:pass
+                    time.sleep(2)
+                if not summary['cancellationStopConfirmed']:admission_blocked.set()
+            if admitted:runtime_slots.release();admitted=False
             summary.update(status='VERIFICATION_ERROR',errorCategory=type(error).__name__,error=str(error)[:180],durationMs=round((time.monotonic()-start)*1000))
             output.write_text(json.dumps({'task':task,'events':events},ensure_ascii=False))
         summary['verificationDurationMs']=round((time.monotonic()-start)*1000)

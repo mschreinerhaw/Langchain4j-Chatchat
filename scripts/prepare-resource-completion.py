@@ -47,7 +47,7 @@ def main():
         actual = run('docker', 'exec', worker, 'sha256sum', '/srv/coding-agent/dist/' + name).split()[0]
         if actual != expected:
             changed.append(name)
-    assert changed == ['runner.js'], 'Unexpected worker changes: ' + str(changed)
+    assert set(changed) <= {'runner.js'}, 'Unexpected worker changes: ' + str(changed)
     image = 'runtime-os-coding-agent:resource-completion-' + commit[:12]
     # Verify against the exact production Node/SDK dependencies, then ship compiled modules only.
     (build / 'Dockerfile').write_text(

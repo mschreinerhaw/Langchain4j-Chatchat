@@ -35,10 +35,10 @@ test('real Cline loop autonomously searches, reads chapters, cross-checks and re
   },{nativeSdk:true,model:{async *stream(request){
     assert.ok(!request.tools.some(tool=>tool.name==='python_execute'));
     assert.match(request.systemPrompt,/MUST be actual JSON arrays/);
-    const [toolName,input]=plan[turn++];yield {type:'tool-call-delta',toolCallId:`call-${turn}`,toolName,input};yield {type:'finish',reason:'tool-calls'};
+    const [toolName,input]=plan[Math.min(turn++,plan.length-1)];yield {type:'tool-call-delta',toolCallId:`call-${turn}`,toolName,input};yield {type:'finish',reason:'tool-calls'};
   }}});
   const result=await run.run();assert.equal(result.status,'completed');assert.equal(finished.status,'completed');
-  assert.deepEqual(calls.map(call=>call.name),plan.slice(0,-1).map(step=>step[0]));assert.equal(turn,6);
+  assert.deepEqual(calls.map(call=>call.name),plan.slice(0,-1).map(step=>step[0]));assert.equal(turn,7);
 });
 test('Runtime authorization failure returns no knowledge source text',async()=>{
   const events=[],tools=knowledgeTools(contract,{async knowledge(){throw Error('Authorization revoked');}},e=>events.push(e));
@@ -48,7 +48,7 @@ test('Runtime authorization failure returns no knowledge source text',async()=>{
 
 test('resource exploration reserves submission and repair turns without enlarging the task budget',async()=>{
   let turn=0,searches=0,submissions=0;
-  const bounded={...contract,budget:{maxModelCalls:4}};
+  const bounded={...contract,budget:{maxModelCalls:5}};
   const run=createCodingRun(bounded,{reserveModel(){},settleModel(){},finish(){},executePython(){throw Error('No code authority');},
     knowledge(){searches++;return {hits:[]};},
     submitReport(){
@@ -58,7 +58,7 @@ test('resource exploration reserves submission and repair turns without enlargin
     },
   },{nativeSdk:true,model:{async *stream(request){
     turn++;
-    assert.match(request.systemPrompt,new RegExp(`Resource task budget: ${5-turn} model turns remain`));
+    assert.match(request.systemPrompt,new RegExp(`Resource task budget: ${6-turn} model turns remain`));
     if(turn<=2){
       assert.ok(request.tools.some(tool=>tool.name==='knowledge_search'));
       yield {type:'tool-call-delta',toolCallId:`budget-${turn}`,toolName:'knowledge_search',input:{query:'recovery test'}};
@@ -69,7 +69,7 @@ test('resource exploration reserves submission and repair turns without enlargin
     }
     yield {type:'finish',reason:'tool-calls'};
   }}});
-  const result=await run.run();assert.equal(result.status,'completed');assert.equal(turn,4);assert.equal(searches,2);assert.equal(submissions,2);
+  const result=await run.run();assert.equal(result.status,'completed');assert.equal(turn,5);assert.equal(searches,2);assert.equal(submissions,2);
 });
 
 test('a plain resource answer cannot complete before a verified report is submitted',async()=>{
@@ -82,7 +82,58 @@ test('a plain resource answer cannot complete before a verified report is submit
     else{yield {type:'tool-call-delta',toolCallId:'publish',toolName:'report_submit',input:{reportMarkdown:'Recovery test evidence is unavailable.',
       evidenceReferences:[],limitations:['No test evidence.']}};yield {type:'finish',reason:'tool-calls'};}
   }}});
-  const result=await run.run();assert.equal(result.status,'completed');assert.equal(turn,2);assert.equal(submissions,1);
+  const result=await run.run();assert.equal(result.status,'completed');assert.equal(turn,3);assert.equal(submissions,1);
+});
+
+test('resource draft is reviewed in the same SDK loop before any report can be published',async()=>{
+  let turn=0,published=0;const checkpoints=[];
+  const run=createCodingRun({...contract,budget:{maxModelCalls:3}},
+    {reserveModel(){},settleModel(){},finish(){},executePython(){throw Error('No code authority');},knowledge(){return {hits:[]};},
+      checkpoint(c,value){checkpoints.push(value);},
+      submitReport(c,{report}){published++;assert.equal(turn,2);assert.equal(report.reportMarkdown,'Only one filtered dataset was searched; publication time is unknown.');
+        return {operationId:'workspace-'+'1'.repeat(64),status:'SUCCEEDED',executorStopped:true,pythonExecuted:false,
+          executionMode:'TEXT_ONLY',resultDatasetRef:'report',validationRecordRef:'validation',evidenceBundleRef:'bundle'};},
+    },{nativeSdk:true,model:{async *stream(request){
+      turn++;assert.equal(published,0);
+      if(turn===2){const encoded=JSON.stringify(request.messages);assert.match(encoded,/resourceReportReviewRequired/);assert.match(encoded,/No report has been published/);}
+      yield {type:'tool-call-delta',toolCallId:`review-${turn}`,toolName:'report_submit',input:{
+        reportMarkdown:turn===1?'The platform has no equities and the article was published on its collection day.':'Only one filtered dataset was searched; publication time is unknown.',
+        evidenceReferences:[],limitations:['Filtered scope; publication time not declared.']}};
+      yield {type:'finish',reason:'tool-calls'};
+    }}});
+  const result=await run.run();assert.equal(result.status,'completed');assert.equal(published,1);assert.equal(turn,2);
+  assert.ok(checkpoints.some(value=>value.textReportReviewRequested===true));
+});
+
+test('two submissions in the same assistant turn cannot bypass the resource review round',async()=>{
+  let turn=0,published=0;
+  const report={reportMarkdown:'The searched scope has no matching record.',evidenceReferences:[],limitations:['Scope is limited.']};
+  const run=createCodingRun({...contract,budget:{maxModelCalls:3}},
+    {reserveModel(){},settleModel(){},finish(){},executePython(){throw Error('No code authority');},knowledge(){return {hits:[]};},
+      submitReport(){published++;assert.equal(turn,2);return {operationId:'workspace-'+'2'.repeat(64),status:'SUCCEEDED',executorStopped:true,
+        pythonExecuted:false,executionMode:'TEXT_ONLY',resultDatasetRef:'report',validationRecordRef:'validation',evidenceBundleRef:'bundle'};},
+    },{nativeSdk:true,model:{async *stream(){
+      turn++;assert.equal(published,0);
+      for(let i=0;i<(turn===1?2:1);i++)yield {type:'tool-call-delta',toolCallId:`batch-${turn}-${i}`,toolName:'report_submit',input:report};
+      yield {type:'finish',reason:'tool-calls'};
+    }}});
+  const result=await run.run();assert.equal(result.status,'completed');assert.equal(turn,2);assert.equal(published,1);
+});
+
+test('unadvertised late exploration is rejected without a resource callback and the report can still finish',async()=>{
+  let turn=0;
+  const run=createCodingRun({...contract,budget:{maxModelCalls:3}},
+    {reserveModel(){},settleModel(){},finish(){},executePython(){throw Error('No code authority');},
+      knowledge(){throw Error('A late resource read must never reach Java');},
+      submitReport(){return {operationId:'workspace-'+'3'.repeat(64),status:'SUCCEEDED',executorStopped:true,pythonExecuted:false,
+        executionMode:'TEXT_ONLY',resultDatasetRef:'report',validationRecordRef:'validation',evidenceBundleRef:'bundle'};},
+    },{nativeSdk:true,model:{async *stream(request){
+      turn++;assert.deepEqual(request.tools.map(tool=>tool.name),['report_submit']);
+      yield {type:'tool-call-delta',toolCallId:`late-${turn}`,toolName:turn===1?'knowledge_search':'report_submit',input:turn===1?{query:'late search'}:
+        {reportMarkdown:'The available evidence is insufficient.',evidenceReferences:[],limitations:['Exploration budget ended.']}};
+      yield {type:'finish',reason:'tool-calls'};
+    }}});
+  const result=await run.run();assert.equal(result.status,'completed');assert.equal(turn,3);
 });
 
 test('actual SDK loop autonomously joins permitted market history and news without document or Python authority',async()=>{
@@ -96,7 +147,7 @@ test('actual SDK loop autonomously joins permitted market history and news witho
     submitReport(c,submission){assert.deepEqual(submission.report.evidenceReferences,[ref]);return {operationId:'workspace-'+'d'.repeat(64),status:'SUCCEEDED',executorStopped:true,pythonExecuted:false,executionMode:'TEXT_ONLY',resultDatasetRef:'report',validationRecordRef:'validation',evidenceBundleRef:'bundle'};},
   },{nativeSdk:true,model:{async *stream(request){
     assert.ok(request.tools.some(t=>t.name==='market_get_history'));assert.ok(!request.tools.some(t=>t.name==='knowledge_search'||t.name==='python_execute'));
-    const [toolName,input]=plan[turn++];yield {type:'tool-call-delta',toolCallId:`resource-${turn}`,toolName,input};yield {type:'finish',reason:'tool-calls'};
+    const [toolName,input]=plan[Math.min(turn++,plan.length-1)];yield {type:'tool-call-delta',toolCallId:`resource-${turn}`,toolName,input};yield {type:'finish',reason:'tool-calls'};
   }}});
   const result=await run.run();assert.equal(result.status,'completed');assert.deepEqual(calls.map(c=>c.name),plan.slice(1,-1).map(step=>step[0]));
 });

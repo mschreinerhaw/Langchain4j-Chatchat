@@ -136,6 +136,10 @@ export function createCodingRun(contract, gateway, options = {}) {
     ?? restored?.messages?.flatMap(message => message.content ?? []).filter(part =>
       part.type === 'tool-result' && verifiedReceipt(part.output)).at(-1)?.output.resultDatasetRef ?? null;
   let reportReferenceFailure = restored?.reportReferenceFailure ?? null;
+  let textReportReviewRequested = restored?.textReportReviewRequested ?? restored?.messages?.some(message =>
+    message.role === 'tool' && message.content?.some(part => part.type === 'tool-result'
+      && part.output?.resourceReportReviewRequired === true)) ?? false;
+  let textReportReviewModel = restored?.textReportReviewModel ?? (textReportReviewRequested ? restored?.modelOrdinal ?? 0 : -1);
   let reviewedArtifactCache = null;
   let sourceRequested = false;
   let terminalFeedback = restored?.terminalFeedback ?? null;
@@ -194,7 +198,13 @@ export function createCodingRun(contract, gateway, options = {}) {
       status: reportReferenceFailure ? 'FAILED' : 'SUCCEEDED' });
     return result;
   };
-  const tools = knowledgeTools(contract, gateway, forward);
+  const tools = knowledgeTools(contract, gateway, forward).map(tool=>({...tool,
+    async execute(args,context){
+      if(textResults && modelIndex>Math.min(Number(contract.budget?.maxModelCalls ?? 1),32)-3)
+        throw new TypeError('Resource exploration phase has ended. Use report_submit to review and publish supported findings with explicit evidence gaps.');
+      return tool.execute(args,context);
+    },
+  }));
   if(textResults && permitted.has('report_submit'))tools.push({
     name:'report_submit',...(nativeSdk?{lifecycle:{completesRun:true}}:{}),
     description:'Submit your reviewed text-only report using exact delivered evidence references. No Python runs and no calculation or chart execution is claimed. Do not use after executing Python; in that case finish through the real Python output contract.',
@@ -209,6 +219,13 @@ export function createCodingRun(contract, gateway, options = {}) {
     async execute(report,context){
       if(typeof gateway.submitReport!=='function')throw new TypeError('Runtime text result submission is unavailable');
       await forward({type:'TOOL_STARTED',tool:'report_submit',toolCallId:context.toolCallId});
+      if(contract.runtimeContext?.knowledgeExploration && (!textReportReviewRequested || modelIndex<=textReportReviewModel)) {
+        if(Buffer.byteLength(JSON.stringify(report),'utf8')>160000)throw new TypeError('Shorten the report draft to the bounded review size');
+        if(!textReportReviewRequested){textReportReviewRequested=true;textReportReviewModel=modelIndex;}
+        await forward({type:'TOOL_FINISHED',tool:'report_submit',toolCallId:context.toolCallId,status:'REVIEW_REQUIRED',stage:'RESULT_REVIEW'});
+        return {resourceReportReviewRequired:true,committed:false,draft:report,
+          instruction:'Review this draft against the actual source results in this same Cline run, then call report_submit again with the corrected final report. No report has been published. Check every conclusion and table for these errors: a filtered catalog search or one dataset cannot establish platform-wide absence; use an unfiltered market_search query if broader catalog discovery is necessary, or restrict the claim to the searched scope. A null publication time stays unknown and cannot become the collection date later. Catalog latest observation dates apply across the dataset, not every selected security. Missing price units/currency/adjustment remain unknown. Summaries are not original article reads. Cite both sources in comparisons and preserve evidence gaps. Repair unsupported statements; do not merely repeat this draft.'};
+      }
       const result=await gateway.submitReport(contract,{toolCallId:required(context.toolCallId,'toolCallId'),report},context.signal);
       if(!verifiedReceipt(result)||result.pythonExecuted!==false||result.executionMode!=='TEXT_ONLY'
           ||!/^workspace-[0-9a-f]{64}$/.test(result.operationId))throw new TypeError('No verified text result was committed');
@@ -642,6 +659,8 @@ export function createCodingRun(contract, gateway, options = {}) {
           status: result.isError ? 'THREW' : 'RETURNED', toolDurationMs: durationMs,
           ...(Number.isSafeInteger(result.output?.validationDurationMs) ? { validationDurationMs: result.output.validationDurationMs } : {}) }); }
         catch { /* SDK result and Java evidence remain authoritative if telemetry is unavailable. */ }
+        if(toolCall.toolName==='report_submit' && result.output?.resourceReportReviewRequired)
+          return {result:{...result,isError:true}};
         if ((workspaceFast || sqlExploration) && toolCall.toolName === 'workspace_propose') {
           const receipt = result.output;
           if (receipt?.repair?.action === 'STOP') {
@@ -693,7 +712,7 @@ export function createCodingRun(contract, gateway, options = {}) {
             && completeToolBoundary(event.snapshot.messages)) {
           await gateway.checkpoint(contract, { sdkSessionId, checkpointOrdinal: ++checkpointOrdinal,
             nativeSdk, modelOrdinal: modelIndex, eventOrdinal, messages: event.snapshot.messages,
-            codeLifecycle: history?.snapshot(), lastCollectedOperation, lastCollectedDatasetRef, reportReferenceFailure, terminalFeedback,
+            codeLifecycle: history?.snapshot(), lastCollectedOperation, lastCollectedDatasetRef, reportReferenceFailure, terminalFeedback, textReportReviewRequested, textReportReviewModel,
             modelResponseFeedback, modelResponseRepairs,
             contractHash: options.contractHash, inputSnapshotRef: contract.inputSnapshotRef,
             workspaceRef: contract.workspaceRef });
@@ -707,9 +726,9 @@ export function createCodingRun(contract, gateway, options = {}) {
         if (textResults && contract.runtimeContext?.knowledgeExploration && permitted.has('report_submit') && !lastCollectedOperation) {
           const remaining = Math.max(0, Math.min(Number(contract.budget?.maxModelCalls ?? 1), 32) - modelIndex);
           request.systemPrompt += `\nResource task budget: ${remaining} model turns remain, including report submission and any repair. Finish with report_submit before this budget ends. Use actual JSON arrays for evidenceReferences and limitations.`;
-          if (remaining <= 2) {
+          if (remaining <= 3) {
             request.tools = request.tools.filter(tool => tool.name === 'report_submit');
-            request.systemPrompt += '\nThe exploration phase has ended to reserve the remaining turns for submission and validation repair. Submit a concise report from already delivered evidence. Preserve supported findings, identify missing sources as limitations, and never turn missing evidence into a factual conclusion.';
+            request.systemPrompt += '\nThe exploration phase has ended to reserve the remaining turns for draft review, submission and validation repair. Submit a concise report from already delivered evidence. Preserve supported findings, identify missing sources as limitations, and never turn missing evidence into a factual conclusion.';
           }
         }
         if (terminalFeedback) throw new Error('Runtime execution policy denied automatic repair');
@@ -723,7 +742,7 @@ export function createCodingRun(contract, gateway, options = {}) {
         if (typeof gateway.checkpoint === 'function') await gateway.checkpoint(contract, {
           sdkSessionId, checkpointOrdinal: ++checkpointOrdinal, modelOrdinal: modelIndex,
           nativeSdk, eventOrdinal, messages: snapshot.messages,
-          codeLifecycle: history?.snapshot(), lastCollectedOperation, lastCollectedDatasetRef, reportReferenceFailure, terminalFeedback,
+          codeLifecycle: history?.snapshot(), lastCollectedOperation, lastCollectedDatasetRef, reportReferenceFailure, terminalFeedback, textReportReviewRequested, textReportReviewModel,
           modelResponseFeedback, modelResponseRepairs,
           contractHash: options.contractHash, inputSnapshotRef: contract.inputSnapshotRef,
           workspaceRef: contract.workspaceRef,

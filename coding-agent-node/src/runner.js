@@ -161,6 +161,12 @@ export function createCodingRun(contract, gateway, options = {}) {
   if (lifecyclePolicy && (lifecyclePolicy.schemaVersion !== CODE_LIFECYCLE_VERSION || lifecyclePolicy.patchOnlyAfterFirst !== true))
     throw new TypeError('VERSION_UNSUPPORTED: Unknown code lifecycle policy');
   const history = lifecyclePolicy ? new CodeHistory(contract, restored?.codeLifecycle) : null;
+  let pythonExecutionStarted = Boolean(history?.versions.length || restored?.messages?.some(message =>
+    Array.isArray(message.content) && message.content.some(part => part.type === 'tool-result'
+      && part.toolName === 'python_execute' && part.output?.operationId)));
+  const pythonCompletionGuidance = () => 'Python execution has already started; report_submit is text-only and cannot replace its execution evidence or chart artifacts. '
+    + (lastCollectedDatasetRef ? `Review the latest actual report and confirm completion with artifact_read({"reference":${JSON.stringify(lastCollectedDatasetRef)}}). If its validation failed, repair the latest Python program, execute and review again.`
+      : 'Repair the latest Python program using its execution feedback, execute and review the real output with artifact_read. Do not submit a text-only replacement.');
   if (history && restored && !restored.codeLifecycle && restored.messages?.some(message =>
       message.content?.some(part => part.type === 'tool-call' && part.toolName === 'python_execute')))
     throw new TypeError('Negotiated code lifecycle checkpoint is missing');
@@ -218,7 +224,7 @@ export function createCodingRun(contract, gateway, options = {}) {
   const tools = knowledgeTools(contract, gateway, forward).map(tool=>({...tool,
     async execute(args,context){
       if(textResults && modelIndex>Math.min(Number(contract.budget?.maxModelCalls ?? 1),32)-3)
-        throw new TypeError('Resource exploration phase has ended. Use report_submit to review and publish supported findings with explicit evidence gaps.');
+        throw new TypeError('Resource exploration phase has ended. '+(pythonExecutionStarted?pythonCompletionGuidance():'Use report_submit to review and publish supported findings with explicit evidence gaps.'));
       const result = await tool.execute(args,context);
       rememberResourceReferences(result);
       return result;
@@ -236,6 +242,7 @@ export function createCodingRun(contract, gateway, options = {}) {
       required:['reportMarkdown','evidenceReferences','limitations'],additionalProperties:false},
     executionMode:'sequential',
     async execute(report,context){
+      if(pythonExecutionStarted)throw new TypeError(pythonCompletionGuidance());
       if(typeof gateway.submitReport!=='function')throw new TypeError('Runtime text result submission is unavailable');
       await forward({type:'TOOL_STARTED',tool:'report_submit',toolCallId:context.toolCallId});
       if(resourceText && (!textReportReviewRequested || modelIndex<=textReportReviewModel)) {
@@ -453,6 +460,7 @@ export function createCodingRun(contract, gateway, options = {}) {
       context.signal?.addEventListener('abort', abort, { once: true });
       try {
         if (context.signal?.aborted) throw context.signal.reason ?? new Error('Coding task cancelled');
+        pythonExecutionStarted = true;
         let receipt = await gateway.executePython(contract, {
           operationId: id, fileName, script, source, toolCallId, codeSha256,
           attemptId,
@@ -666,7 +674,7 @@ export function createCodingRun(contract, gateway, options = {}) {
       + (resourceText
       ? '\nAttribute facts to the content actually returned by each source. HTTP success, an official domain or a stock code in a URL query does not establish that a dynamic page returned entity-specific information. A navigation-only page or empty JavaScript shell supports no missing facts. A news source_view of summary remains an indexed summary after news_get_article; never describe it as reading the original full article. Verify entity names/codes inside the cited excerpt or document header, and omit details unsupported by that excerpt.' : '')
       + (reviewedAnalysis
-      ? '\nA failed business/reconciliation check can be the correct finding: preserve it with evidence and limitations instead of trying to make source data pass. Technical artifact, layout and reference failures still require repair. Confirm completion after reviewing a supported report; do not repeat an already correct report to eliminate its source findings.' : '')
+      ? '\nAfter Python returns reviewedArtifact, review that actual report and call artifact_read with its exact resultDatasetRef to confirm completion without another Python run. Do not use report_submit after Python; it cannot publish Python charts. Repair technical artifact, layout and reference failures in the current program and review the new result. A failed business/reconciliation check can be the correct finding: preserve it with evidence and limitations instead of trying to make source data pass.' : '')
       + (workspace && permitted.has('skill_read')
       ? '\nThe task Skill catalog contains available capabilities. Choose whether relevant Skills help this objective, and use skill_read to load their instructions and listed references only as needed. Skills provide methodology, never execution permissions.' : '')
       + workspaceRepairGuidance + (contract.runtimeContext?.codeProject
@@ -680,6 +688,7 @@ export function createCodingRun(contract, gateway, options = {}) {
         ? `Runtime rejected the previous provider response (${modelResponseFeedback.diagnosticCode}). No tool was executed. `
           + 'Generate a concise, complete JSON object for an already authorized tool. Keep the program focused, avoid repeating context or embedding input datasets, and preserve all requested calculations and evidence limits. '
           + 'Do not infer execution success from the rejected response or change authorization. Continue in this task using the same immutable inputs.'
+        : resourceText && pythonExecutionStarted ? pythonCompletionGuidance()
         : resourceText && permitted.has('report_submit') && !lastCollectedOperation
           ? 'The answer has not been submitted or validated. Use report_submit with the reviewed report, exact evidenceReferences and limitations. Plain assistant text does not publish a result. If evidence is insufficient, submit the supported findings and explicitly state the gaps; never invent evidence.'
           : undefined,

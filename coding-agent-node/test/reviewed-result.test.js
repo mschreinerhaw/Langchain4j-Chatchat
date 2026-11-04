@@ -127,6 +127,24 @@ function fixture(model, execute, read, taskContract = contract, overrides = {}, 
     model: createRuntimeModel(gateway, taskContract, 0, { nativeSdk: true }), ...runOptions }) };
 }
 
+for (const failed of [false,true]) test(`Python ${failed?'failure':'report'} cannot be replaced by text-only submission`,async()=>{
+  const task={...contract,authorization:{...contract.authorization,allowedTools:['python_execute','artifact_read','report_submit']},
+    runtimeContext:{analysisResultMode:'TEXT_OR_CODE'}};
+  let submissions=0;
+  const {run,counts}=fixture((turn,request)=>{
+    if(turn===1)return python(turn);
+    if(turn===2)return {toolCalls:[{id:'wrong-completion',name:'report_submit',input:{reportMarkdown:'A text replacement',evidenceReferences:['source'],limitations:[]}}]};
+    assert.match(JSON.stringify(request.messages),/report_submit is text-only/);
+    if(failed)throw Error('Failed Python needs a real repair, not a text replacement');
+    assert.match(JSON.stringify(request.messages),/runtime-evidence:result-1/);
+    return {toolCalls:[{id:'confirm-real-result',name:'artifact_read',input:{reference:'runtime-evidence:result-1'}}]};
+  },version=>failed?{status:'FAILED',executorStopped:true,resultAvailable:false}:verified(version),
+  (_count,reference)=>({reference,complete:true,rows:[{reportMarkdown:'Real report'}],reportReferenceValidation:{valid:true}}),task,
+  {submitReport(){submissions++;throw Error('Must not replace Python artifacts');}});
+  assert.equal((await run.run()).status,failed?'failed':'completed');
+  assert.equal(counts.executions,1);assert.equal(submissions,0);
+});
+
 const truncated = { error: 'Provider output truncated', finishReason: 'LENGTH', toolCalls: [],
   usage: { inputTokens: 10, outputTokens: 32 }, modelResponseFeedback: {
     schemaVersion: 'runtime_os.coding.model_feedback.v1', diagnosticCode: 'MODEL_OUTPUT_TRUNCATED',

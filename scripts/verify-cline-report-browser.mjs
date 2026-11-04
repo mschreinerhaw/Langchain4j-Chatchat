@@ -53,6 +53,11 @@ try{
  const reportCount=await report.count();
  if(reportCount)await report.screenshot({path:output+'/runtime-report-artifact.png'});
  const images=await page.locator('.report-renderer img').evaluateAll(images=>images.map(i=>({src:i.getAttribute('src'),loaded:i.complete&&i.naturalWidth>0,width:i.naturalWidth,height:i.naturalHeight})));
+ if(await chart.count()){
+  await chart.scrollIntoViewIfNeeded();
+  await chart.screenshot({path:output+'/runtime-report-chart.png'});
+  await page.screenshot({path:output+'/runtime-chart-visible.png',fullPage:true});
+ }
  await page.reload({waitUntil:'domcontentloaded'});
  await page.waitForFunction(()=>document.querySelector('#app')?._vnode?.component?.proxy?.$refs?.activeViewComponent,null,{timeout:60000});
  // Select the saved conversation through the application's normal history loader.

@@ -145,8 +145,10 @@ public final class ClineModelCallbackController {
                     || !request.path("offset").canConvertToInt() || !request.path("limit").canConvertToInt()
                     || !request.path("offset").isIntegralNumber() || !request.path("limit").isIntegralNumber())
                 throw new IllegalArgumentException("Exact bounded input reference, offset and limit are required");
-            var result=inputs.readForCoding(contract(body,call),call.lease(),request.path("toolCallId").asText(),request.path("datasetReference").asText(),
-                request.path("offset").asInt(),request.path("limit").asInt());
+            var c=contract(body,call);
+            var result=dataSupply==null
+                ? inputs.readForCoding(c,call.lease(),request.path("toolCallId").asText(),request.path("datasetReference").asText(),request.path("offset").asInt(),request.path("limit").asInt())
+                : dataSupply.readInput(c,call.lease(),request.path("toolCallId").asText(),request.path("datasetReference").asText(),request.path("offset").asInt(),request.path("limit").asInt());
             assertStillOwned(call);
             return result;
         });

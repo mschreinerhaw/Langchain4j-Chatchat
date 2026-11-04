@@ -158,6 +158,13 @@ public final class CodingInputSnapshotService {
     /** Explicit bounded file disclosure; no paths, source lookup or new data acquisition. */
     public Map<String,Object> readForCoding(CodingTaskContract contract, com.chatchat.agents.runtime.coding.CodingJournal.Lease lease,
             String toolCallId, String reference, int offset, int limit) {
+        return readDeliveredForCoding(contract,lease,toolCallId,reference,offset,limit,requireAuthorized(contract));
+    }
+
+    // Package-private: the data-supply service selects this snapshot from the current
+    // task's durable input revisions; callers cannot supply arbitrary snapshots.
+    Map<String,Object> readDeliveredForCoding(CodingTaskContract contract, com.chatchat.agents.runtime.coding.CodingJournal.Lease lease,
+            String toolCallId, String reference, int offset, int limit, Snapshot snapshot) {
         access.require(contract.scope(), CodingTaskAccess.Action.WORKER);
         access.require(contract.scope(), CodingTaskAccess.Action.READ);
         if (!com.chatchat.common.runtime.coding.CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion())
@@ -166,7 +173,7 @@ public final class CodingInputSnapshotService {
         if (reference == null || reference.isBlank() || reference.length() > 2048 || offset < 0
                 || limit < 1 || limit > 16000 || toolCallId==null || toolCallId.isBlank() || toolCallId.length()>512)
             throw new IllegalArgumentException("Invalid bounded input read");
-        var snapshot = requireAuthorized(contract);
+        requireAuthorized(contract);
         var description = describe(contract.scope(), contract.taskId(), snapshot);
         boolean batched = snapshot.sourceDatasetRef().startsWith("coding-input-set:");
         var allowed = new java.util.HashSet<String>();

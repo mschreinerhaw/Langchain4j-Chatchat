@@ -73,7 +73,18 @@ class CodingDataSupplyServiceTest {
         var body=Map.<String,Object>of("items",List.of(Map.of("date","2026-11-03","close","12.50")),"unit","CNY");
         var first=actor(()->service.captureResource(contract,lease,ref,body));
         assertThat(actor(()->service.captureResource(contract,lease,ref,body))).isEqualTo(first);
+        assertThat(first).containsKey("fileLayout");
         assertThat(actor(()->service.snapshots(contract,null))).hasSize(2);
+        var delivered=actor(()->service.snapshots(contract,null)).get(1);
+        var reader=spy(inputs);
+        doReturn(Map.of("content","immutable delivered text")).when(reader).readDeliveredForCoding(
+            eq(contract),eq(lease),eq("read-delivered"),eq(delivered.sourceDatasetRef()),eq(0),eq(500),eq(delivered));
+        var readService=new CodingDataSupplyService(policy,tasks,new PreauthorizedStructuredDataOperator(tool,json),reader,evidence,json,scopes);
+        assertThat(actor(()->readService.readInput(contract,lease,"read-delivered",delivered.sourceDatasetRef(),0,500)))
+            .containsEntry("content","immutable delivered text");
+        verify(reader).readDeliveredForCoding(contract,lease,"read-delivered",delivered.sourceDatasetRef(),0,500,delivered);
+        assertThatThrownBy(()->actor(()->readService.readInput(contract,lease,"read-forged","coding-data:forged",0,500)))
+            .isInstanceOf(SecurityException.class);
         String operation="cline-"+"c".repeat(64);
         var frozen=actor(()->service.bindInputs(contract,lease,operation));
         var files=new TreeMap<String,String>();

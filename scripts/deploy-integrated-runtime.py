@@ -259,6 +259,7 @@ def main():
 
     def backup_news_storage():
         if not manifest.get('backupNewsStorage'): return
+        assert news in images, 'News backup requires stopping its writer in this deployment'
         # The H2 writer is stopped before copying; additive Internet tables must
         # never make an existing collection database impossible to restore.
         source = Path('/opt/chatchat-runtime-news-1.0.0-SNAPSHOT/data').resolve()

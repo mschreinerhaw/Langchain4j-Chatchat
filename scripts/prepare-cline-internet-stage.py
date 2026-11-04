@@ -22,7 +22,7 @@ def main():
     assert re.fullmatch('[0-9a-f]{40}', commit)
     assert release['workerTestsPassed'] >= 183
     manifest = {'sourceCommit': commit, 'preserveRuntimeConfiguration': True,
-                'backupNewsStorage': True, 'catalogReadinessAuthFile': 'catalog-readiness-private.json',
+                'backupNewsStorage': False, 'catalogReadinessAuthFile': 'catalog-readiness-private.json',
                 'catalogReadinessExpectedTools': ['sql_schema_context_query', 'enterprise_metadata_search']}
     for service, filename in [('api', 'app.jar'), ('mcp', 'mcp.jar'), ('news', 'news.jar')]:
         artifact = root / filename
@@ -47,6 +47,7 @@ def main():
         manifest[service] = {'image': image, 'baselineImageId': current['Image'], 'baselineSha256': baseline,
                              'sha256': sha(artifact), 'preparedImageId': run('docker', 'image', 'inspect', '-f', '{{.Id}}', image),
                              'baselineApplicationReadiness': True}
+    manifest['backupNewsStorage'] = 'news' in manifest
     proof_file = root / 'worker-build.json'
     if proof_file.exists():
         previous = json.loads(proof_file.read_text())

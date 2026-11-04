@@ -146,8 +146,9 @@ for (const failed of [false,true]) test(`Python ${failed?'failure':'report'} can
 });
 
 test('late resource-report budget retains Python repair after a failed execution instead of forcing text submission',async()=>{
-  const task={...contract,budget:{maxModelCalls:4},authorization:{...contract.authorization,allowedTools:['python_execute','artifact_read','report_submit']},
-    runtimeContext:{analysisResultMode:'TEXT_OR_CODE',knowledgeExploration:{schemaVersion:'runtime_os.knowledge.v1',resourceIds:['internet_search']}}};
+  const task={...contract,budget:{maxModelCalls:4},metadataRefs:[...contract.metadataRefs,'runtime-coding:resource-calculation-inputs:v1'],
+    authorization:{...contract.authorization,allowedTools:['python_execute','artifact_read','report_submit','news_search']},
+    runtimeContext:{analysisResultMode:'TEXT_OR_CODE',knowledgeExploration:{schemaVersion:'runtime_os.knowledge.v1',resourceIds:['financial_news']}}};
   const {run,counts}=fixture((turn,request)=>{
     if(turn===1)return python(turn);
     assert(request.tools.some(t=>t.name==='artifact_read'));
@@ -155,7 +156,8 @@ test('late resource-report budget retains Python repair after a failed execution
     if(turn===2){assert(request.tools.some(t=>t.name==='python_execute'));return python(turn);}
     return {toolCalls:[{id:'confirm',name:'artifact_read',input:{reference:'runtime-evidence:result-2'}}]};
   },version=>version===1?{status:'SUCCEEDED',executorStopped:true,resultAvailable:false,validationStatus:'FAILED',outputStatus:'REQUIRED_OUTPUT_MISSING'}:verified(version),
-  (_count,reference)=>({reference,complete:true,rows:[{reportMarkdown:'Repaired report'}],reportReferenceValidation:{valid:true}}),task);
+  (_count,reference)=>({reference,complete:true,rows:[{reportMarkdown:'Repaired report'}],reportReferenceValidation:{valid:true}}),task,
+  {knowledge(){throw Error('No new resource read during repair');}});
   assert.equal((await run.run()).status,'completed');assert.equal(counts.executions,2);
 });
 

@@ -42,13 +42,18 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
                             boolean hasApiKey, String source, long updatedAt,
                             boolean published, boolean pendingChanges,
                             boolean activeEnabled, boolean activeDefault, Integer requestTimeoutSeconds,
-                            boolean internetSearchEnabled,String searchProviderId) { }
+                            boolean internetSearchEnabled,String searchProviderId,List<String> searchProviderIds) { }
     public record ModelDraft(String name, String alias, String description, String type, String providerModel, String baseUrl,
                              String protocol, Integer dimension, Integer timeout, Integer maxTokens,
                              Integer maxRetries, String apiKey, Boolean enabled,
                              Boolean defaultModel,
                              @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = RequestTimeoutDeserializer.class)
-                             Integer requestTimeoutSeconds,Boolean internetSearchEnabled,String searchProviderId) {
+                             Integer requestTimeoutSeconds,Boolean internetSearchEnabled,String searchProviderId,List<String> searchProviderIds) {
+        public ModelDraft(String name,String alias,String description,String type,String providerModel,String baseUrl,
+                String protocol,Integer dimension,Integer timeout,Integer maxTokens,Integer maxRetries,String apiKey,
+                Boolean enabled,Boolean defaultModel,Integer requestTimeoutSeconds,Boolean internetSearchEnabled,String searchProviderId){
+            this(name,alias,description,type,providerModel,baseUrl,protocol,dimension,timeout,maxTokens,maxRetries,apiKey,enabled,defaultModel,requestTimeoutSeconds,internetSearchEnabled,searchProviderId,null);
+        }
         public ModelDraft {
             requestTimeoutSeconds = ModelsConfig.ModelConnectionConfig.effectiveRequestTimeoutSeconds(requestTimeoutSeconds);
         }
@@ -101,7 +106,8 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
                 rs.getObject("published_at") != null && rs.getLong("updated_at") > rs.getLong("published_at"),
                 rs.getBoolean("active_enabled"), rs.getBoolean("active_default"),
                 rs.getInt("request_timeout_seconds"),internetPolicy!=null&&"chat".equals(rs.getString("model_type"))&&internetPolicy.read(rs.getString("name")).enabled(),
-                internetPolicy==null||!"chat".equals(rs.getString("model_type"))?null:internetPolicy.read(rs.getString("name")).providerId()));
+                internetPolicy==null||!"chat".equals(rs.getString("model_type"))?null:internetPolicy.read(rs.getString("name")).providerId(),
+                internetPolicy==null||!"chat".equals(rs.getString("model_type"))?List.of():internetPolicy.read(rs.getString("name")).providerIds()));
     }
 
     @Transactional
@@ -111,7 +117,7 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
         String type = normalizeType(draft.type());
         if(internetPolicy!=null){
             if(!"chat".equals(type)&&Boolean.TRUE.equals(draft.internetSearchEnabled()))throw new IllegalArgumentException("Internet search requires a chat model");
-            if("chat".equals(type))internetPolicy.save(name,draft.internetSearchEnabled(),draft.searchProviderId());
+            if("chat".equals(type))internetPolicy.save(name,draft.internetSearchEnabled(),draft.searchProviderId(),draft.searchProviderIds());
         }
         int requestTimeoutSeconds = ModelsConfig.ModelConnectionConfig.effectiveRequestTimeoutSeconds(draft.requestTimeoutSeconds());
         String url = required(draft.baseUrl(), "baseUrl");

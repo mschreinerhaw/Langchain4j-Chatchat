@@ -39,7 +39,10 @@ const emptyForm = () => ({
   defaultModel: false,
   internetSearchEnabled: false,
   searchProviderId: "",
+  searchProviderIds: [],
 });
+const emptyProvider = () => ({id:"",name:"",kind:"TAVILY",endpoint:"",apiKey:"",secretId:"",enabled:true,
+  timeoutMillis:10000,requestsPerMinute:30,maxTaskCalls:12,maxDailyCalls:1000});
 
 export default {
   name: "ModelManagementView",
@@ -60,6 +63,12 @@ export default {
   data: () => ({
     models: [],
     searchProviders: [],
+    providerManagerOpen: false,
+    providerForm: emptyProvider(),
+    providerSaving: false,
+    providerError: "",
+    providerMessage: "",
+    pendingProviderDelete: null,
     loading: false,
     saving: false,
     editing: false,
@@ -75,6 +84,11 @@ export default {
     pageSize: 9,
   }),
   computed: {
+    readySearchProviders() { return this.searchProviders.filter(p=>p.enabled&&p.configured); },
+    unavailableSearchProviders() {
+      return this.form.searchProviderIds.filter(id=>!this.readySearchProviders.some(p=>p.id===id))
+        .map(id=>({id,name:this.searchProviders.find(p=>p.id===id)?.name||id}));
+    },
     filteredModels() {
       const query = this.searchQuery.toLocaleLowerCase();
       return this.models.filter((model) => {
@@ -129,7 +143,7 @@ export default {
       try {
         this.models = await fetchPlatformModels();
         try { this.searchProviders = await apiRequest('/platform/models/search-providers'); }
-        catch { this.searchProviders = []; }
+        catch { this.searchProviders = []; this.providerError="检索引擎列表加载失败，请重试"; }
         this.error = false;
       } catch (error) {
         this.message = error.message;
@@ -145,10 +159,14 @@ export default {
     },
     openEdit(model) {
       this.form = { ...emptyForm(), ...model, requestTimeoutSeconds: model.requestTimeoutSeconds ?? 300, apiKey: "" };
+      this.form.searchProviderIds = [...(model.searchProviderIds ?? (model.searchProviderId ? [model.searchProviderId] : []))];
       this.isNew = false;
       this.editing = true;
     },
     async save() {
+      if(this.form.type==='chat'&&this.form.internetSearchEnabled&&(!this.form.searchProviderIds.length||this.unavailableSearchProviders.length)){
+        this.message="请选择至少一个已配置并启用的检索引擎";this.error=true;return;
+      }
       if (!Number.isInteger(this.form.requestTimeoutSeconds) || this.form.requestTimeoutSeconds < 1 || this.form.requestTimeoutSeconds > 1200) {
         this.message = "模型请求超时时间必须为 1 至 1200 秒的整数";
         this.error = true;
@@ -156,7 +174,7 @@ export default {
       }
       this.saving = true;
       try {
-        await savePlatformModel(this.form);
+        await savePlatformModel({...this.form,searchProviderId:this.form.searchProviderIds[0]||""});
         this.form.apiKey = "";
         this.editing = false;
         this.message = "模型草稿已保存，请点击发布后使用";
@@ -168,6 +186,38 @@ export default {
       } finally {
         this.saving = false;
       }
+    },
+    async openProviderManager() {
+      this.providerManagerOpen=true;this.providerError="";this.providerMessage="";this.providerForm=emptyProvider();
+      try {this.searchProviders=await apiRequest('/platform/models/search-providers');}
+      catch(error){this.providerError=error.message;}
+    },
+    editProvider(provider) {
+      this.providerForm={...emptyProvider(),...provider,apiKey:"",secretId:""};
+      this.providerError="";this.providerMessage="";
+    },
+    newProvider() {this.providerForm=emptyProvider();this.providerError="";this.providerMessage="";},
+    closeProviderManager() {this.providerManagerOpen=false;this.providerForm=emptyProvider();this.providerError="";this.providerMessage="";},
+    async saveProvider() {
+      this.providerSaving=true;this.providerError="";this.providerMessage="";
+      const keys=['id','name','kind','endpoint','apiKey','secretId','enabled','timeoutMillis','requestsPerMinute','maxTaskCalls','maxDailyCalls'];
+      try {
+        const saved=await apiRequest('/platform/models/search-providers',{method:'POST',body:JSON.stringify(Object.fromEntries(keys.map(k=>[k,this.providerForm[k]])))});
+        this.providerForm.apiKey="";this.providerForm.secretId="";
+        this.searchProviders=await apiRequest('/platform/models/search-providers');
+        this.providerForm={...emptyProvider(),...saved,apiKey:"",secretId:""};this.providerMessage="检索引擎已保存";
+      }catch(error){this.providerError=error.message;}
+      finally{this.providerSaving=false;}
+    },
+    async confirmProviderDelete() {
+      const provider=this.pendingProviderDelete;if(!provider)return;
+      this.pendingProviderDelete=null;this.providerError="";this.providerMessage="";this.providerSaving=true;
+      try{
+        await apiRequest('/platform/models/search-providers/'+encodeURIComponent(provider.id),{method:'DELETE'});
+        this.searchProviders=await apiRequest('/platform/models/search-providers');
+        if(this.providerForm.id===provider.id)this.providerForm=emptyProvider();
+        this.providerMessage="检索引擎已删除";
+      }catch(error){this.providerError=error.message;}finally{this.providerSaving=false;}
     },
     async makeDefault(model) {
       try {

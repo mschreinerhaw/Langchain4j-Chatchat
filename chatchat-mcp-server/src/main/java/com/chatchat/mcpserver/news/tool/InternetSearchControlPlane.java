@@ -11,5 +11,9 @@ public class InternetSearchControlPlane {
     public InternetSearchControlPlane(NewsRuntimeClient news,InternetSearchMcpToolProvider tools){this.news=news;this.tools=tools;}
     @GetMapping("/providers") public ApiResponse<?> providers(){return ApiResponse.success(news.get("/internet-search/providers"));}
     @PostMapping("/providers") public ApiResponse<?> save(@RequestBody JsonNode request){return ApiResponse.success(news.post("/internet-search/providers",request));}
+    @DeleteMapping("/providers/{id}") public ApiResponse<?> delete(@PathVariable("id") String id){
+        if(!id.matches("[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}"))throw new IllegalArgumentException("Invalid Provider ID");
+        news.delete("/internet-search/providers/"+id);return ApiResponse.success(null);
+    }
     @PostMapping("/read") public ApiResponse<?> read(@RequestBody JsonNode request){return ApiResponse.success(tools.read(request));}
 }

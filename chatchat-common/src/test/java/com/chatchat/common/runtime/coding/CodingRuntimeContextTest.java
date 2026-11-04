@@ -6,6 +6,18 @@ import static com.chatchat.common.runtime.coding.CodingContractTestSupport.*;
 import static org.assertj.core.api.Assertions.*;
 
 class CodingRuntimeContextTest {
+    @Test void multipleSearchEnginesAreFrozenWithoutCredentialsAndLegacySingleEngineStillLoads(){
+        var internet=new HashMap<String,Object>(Map.of("schemaVersion","runtime_os.internet.v1","modelName","model","modelRevision",2,
+            "providerId","one","providerRevision",3,"agentId","agent","explicitlyRequested",false));
+        var context=new HashMap<String,Object>(Map.of("schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT","internetSearch",internet));
+        assertThat(CodingRuntimeContext.validate(context)).containsKey("internetSearch");
+        var one=Map.of("id","one","name","First","revision",3);var two=Map.of("id","two","name","Second","revision",5);
+        internet.put("providers",List.of(one,two));assertThat(CodingRuntimeContext.validate(context)).containsKey("internetSearch");
+        internet.put("providers",List.of(one,one));assertThatThrownBy(()->CodingRuntimeContext.validate(context)).isInstanceOf(CodingContractException.class);
+        internet.put("providers",List.of(two,one));assertThatThrownBy(()->CodingRuntimeContext.validate(context)).isInstanceOf(CodingContractException.class);
+        internet.put("providers",List.of(Map.of("id","one","name","First","revision",3,"apiKey","secret")));
+        assertThatThrownBy(()->CodingRuntimeContext.validate(context)).isInstanceOf(CodingContractException.class);
+    }
     @Test void resourceProfileSurvivesTheActualCanonicalContractAndRejectsPhysicalOrIdentityFields() throws Exception {
         var node=fixture("task");node.put("schemaVersion",CodingProtocol.ANALYSIS_VERSION);
         var profile=Map.of("schemaVersion","runtime_os.knowledge.v1","agentId","agent","resourceIds",List.of("financial_news","financial_market"),"explicitlyRequested",true);

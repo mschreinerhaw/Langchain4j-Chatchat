@@ -2,11 +2,33 @@
 import {createApp, h, nextTick} from 'vue';
 import {describe, it, expect, vi} from 'vitest';
 import View from '../../views/ModelManagementView.vue';
-import {fetchPlatformModels,savePlatformModel} from '../../services/api';
+import {fetchPlatformModels,savePlatformModel,apiRequest} from '../../services/api';
 vi.mock('../../services/api',()=>({fetchPlatformModels:vi.fn(async()=>[]),savePlatformModel:vi.fn(async()=>({})),
   apiRequest:vi.fn(async()=>[{id:'tavily',name:'Tavily',enabled:true,configured:true,status:'NOT_TESTED'}]),
   deletePlatformModel:vi.fn(),publishPlatformModel:vi.fn(),setDefaultPlatformModel:vi.fn()}));
 describe('model request timeout form',()=>{
+  it('maintains named engine endpoints with write-only keys and saves model choices independently',async()=>{
+    const host=document.createElement('div'),app=createApp({render:()=>h(View)});
+    try{
+      const root=app.mount(host);await nextTick();const view=root.$.subTree.component.proxy;
+      view.openEdit({name:'A',type:'chat',searchProviderIds:['first','second']});
+      expect(view.form.searchProviderIds).toEqual(['first','second']);
+      view.openEdit({name:'B',type:'chat',searchProviderIds:['second']});expect(view.form.searchProviderIds).toEqual(['second']);
+      const provider={id:'custom',name:'Custom engine',endpoint:'https://search.example.com/search',kind:'TAVILY',enabled:true,configured:true};
+      apiRequest.mockImplementation(async(path,options)=>options?.method==='POST'?provider:[provider]);
+      await view.openProviderManager();view.editProvider(provider);
+      expect(view.providerForm.apiKey).toBe('');expect(view.providerForm.endpoint).toBe(provider.endpoint);
+      view.providerForm.apiKey='new-secret';await view.saveProvider();
+      const write=apiRequest.mock.calls.findLast(([,options])=>options?.method==='POST');
+      expect(JSON.parse(write[1].body)).toMatchObject({name:'Custom engine',endpoint:provider.endpoint,apiKey:'new-secret'});
+      expect(view.providerForm.apiKey).toBe('');
+      view.closeProviderManager();expect(view.providerForm.id).toBe('');
+      view.openEdit({name:'A',type:'chat',internetSearchEnabled:true,searchProviderIds:['custom']});
+      await view.save();expect(savePlatformModel.mock.calls.at(-1)[0]).toMatchObject({searchProviderIds:['custom'],internetSearchEnabled:true});
+      view.openEdit({name:'A',type:'chat',internetSearchEnabled:true,searchProviderIds:[]});
+      savePlatformModel.mockClear();await view.save();expect(savePlatformModel).not.toHaveBeenCalled();
+    }finally{app.unmount();apiRequest.mockReset();apiRequest.mockResolvedValue([{id:'tavily',name:'Tavily',enabled:true,configured:true}]);savePlatformModel.mockClear();}
+  });
   it('keeps Internet choices model-specific and saves the live off switch without Provider credentials',async()=>{
     const host=document.createElement('div');const app=createApp({render:()=>h(View)});
     try{const root=app.mount(host);await nextTick();const view=root.$.subTree.component.proxy;

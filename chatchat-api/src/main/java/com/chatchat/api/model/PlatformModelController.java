@@ -22,6 +22,10 @@ public class PlatformModelController {
     private PlatformInternetPolicy internetPolicy;
     @GetMapping("/search-providers")
     public ApiResponse<?> searchProviders(){return ApiResponse.success(internetPolicy.providers());}
+    @PostMapping("/search-providers")
+    public ApiResponse<?> saveSearchProvider(@RequestBody com.fasterxml.jackson.databind.JsonNode draft){return ApiResponse.success(internetPolicy.saveProvider(draft));}
+    @DeleteMapping("/search-providers/{id}")
+    public ApiResponse<?> deleteSearchProvider(@org.springframework.web.bind.annotation.PathVariable("id") String id){internetPolicy.deleteProvider(id);return ApiResponse.success(null);}
 
     @GetMapping
     public ApiResponse<List<PlatformModelCatalogService.ModelView>> list() {

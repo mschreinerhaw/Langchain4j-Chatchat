@@ -5,6 +5,16 @@ import { KNOWLEDGE_TOOLS, RESOURCE_TOOLS, knowledgeTools } from '../src/knowledg
 import { taskSkills } from '../src/skills.js';
 const contextRef='runtime-context:run';
 const profile={schemaVersion:'runtime_os.knowledge.v1',agentId:'agent'};
+test('search tools advertise only dynamically selected engine IDs without credentials or URLs',()=>{
+  const contract={schemaVersion:'runtime_os.coding.v3',metadataRefs:['runtime-coding:internet-search:v1'],
+    runtimeContext:{knowledgeExploration:profile,internetSearch:{schemaVersion:'runtime_os.internet.v1',providers:[{id:'one',name:'Research',revision:3},{id:'two',name:'News',revision:5}]}},
+    authorization:{allowedTools:['web_search','web_fetch'],allowedSideEffects:[],networkPolicy:'NONE'}};
+  for(const tool of knowledgeTools(contract,{knowledge(){}},()=>{})){
+    assert.deepEqual(tool.inputSchema.properties.provider_id.enum,['one','two']);
+    assert.match(tool.description,/one \(Research\).*two \(News\)/);
+    assert.doesNotMatch(JSON.stringify(tool.inputSchema),/apiKey|endpoint/);
+  }
+});
 
 test('public Internet capability never expands execution network and requires the frozen server profile',()=>{
   const base={schemaVersion:'runtime_os.coding.v3',metadataRefs:['runtime-coding:internet-search:v1'],

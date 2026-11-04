@@ -7,6 +7,7 @@
         <p>统一管理大语言模型和向量模型。页面维护的配置发布后才会供系统使用。</p>
       </div>
       <div class="feature-page-actions">
+        <button type="button" class="feature-button" @click="openProviderManager"><Search :size="16" />检索引擎</button>
         <button type="button" class="feature-button primary" @click="openCreate"
           ><Plus :size="16" />新增模型</button
         >
@@ -255,15 +256,21 @@
         </div>
         <div v-if="form.type === 'chat'" class="model-form-section">
           <h3>联网搜索</h3>
-          <label><input v-model="form.internetSearchEnabled" type="checkbox" /> 允许 Cline 联网搜索</label>
-          <label class="feature-form-field"><span>搜索服务</span>
-            <select v-model="form.searchProviderId" :required="form.internetSearchEnabled">
-              <option value="">请选择搜索服务</option>
-              <option v-for="provider in searchProviders" :key="provider.id" :value="provider.id"
-                :disabled="!provider.enabled || !provider.configured">{{ provider.name }}{{ !provider.enabled ? ' · 已停用' : !provider.configured ? ' · 未配置' : '' }}</option>
-            </select>
-          </label>
-          <p class="model-form-hint">保存后立即生效。Cline 可在 Agent 和用户授权范围内搜索、读取公开网页；分析代码仍在隔离环境中运行。</p>
+          <label class="model-checkbox"><input v-model="form.internetSearchEnabled" type="checkbox" />联网搜索</label>
+          <div class="search-engine-heading"><span>检索引擎（可多选）</span><button type="button" class="feature-button" @click="openProviderManager">维护检索引擎</button></div>
+          <p v-if="providerError && !providerManagerOpen" class="feature-alert error">{{ providerError }}</p>
+          <div class="search-engine-options">
+            <label v-for="provider in readySearchProviders" :key="provider.id" class="search-engine-option">
+              <input v-model="form.searchProviderIds" type="checkbox" :value="provider.id" />
+              <span><strong>{{ provider.name }}</strong><small>{{ provider.endpoint }}</small></span>
+            </label>
+            <label v-for="provider in unavailableSearchProviders" :key="provider.id" class="search-engine-option unavailable">
+              <input v-model="form.searchProviderIds" type="checkbox" :value="provider.id" />
+              <span>{{ provider.name }}<small>当前不可用，请取消勾选或在维护中启用</small></span>
+            </label>
+          </div>
+          <p v-if="!readySearchProviders.length" class="model-form-hint">尚无可用检索引擎，请先维护名称、URL 和 API Key 并启用。</p>
+          <p class="model-form-hint">保存后立即生效。可勾选多个引擎，Cline 在授权范围内自主选择；分析代码仍在隔离环境中运行。</p>
         </div>
         <div class="model-form-section">
           <h3>访问与状态</h3>
@@ -293,6 +300,45 @@
         >
       </form>
     </div>
+    <div v-if="providerManagerOpen" class="feature-modal-backdrop search-engine-backdrop" @click.self="closeProviderManager">
+      <div class="feature-modal search-engine-dialog" role="dialog" aria-modal="true" aria-label="维护检索引擎">
+        <header class="feature-modal-header"><div><h2>检索引擎</h2><p class="model-form-hint">统一维护连接信息，供模型按需勾选。</p></div>
+          <button type="button" class="feature-icon-button" aria-label="关闭检索引擎维护" @click="closeProviderManager"><X :size="18" /></button>
+        </header>
+        <div class="search-engine-manager">
+          <aside class="search-engine-list">
+            <button type="button" class="feature-button" :disabled="providerSaving" @click="newProvider"><Plus :size="16" />新增引擎</button>
+            <p v-if="!searchProviders.length" class="model-form-hint">还没有维护检索引擎。</p>
+            <article v-for="provider in searchProviders" :key="provider.id" :class="['search-engine-card',{selected:providerForm.id===provider.id}]">
+              <strong>{{ provider.name }}</strong><small>{{ provider.endpoint }}</small>
+              <span class="model-form-hint">{{ !provider.enabled ? '已停用' : provider.configured ? '已配置 · 已启用' : '待配置 API Key' }}</span>
+              <div class="search-engine-card-actions"><button type="button" class="feature-button" :disabled="providerSaving" @click="editProvider(provider)">编辑</button>
+                <button type="button" class="feature-button danger" :disabled="providerSaving" @click="pendingProviderDelete=provider">删除</button></div>
+            </article>
+          </aside>
+          <form class="search-engine-form" @submit.prevent="saveProvider">
+            <h3>{{ providerForm.id ? '编辑检索引擎' : '新增检索引擎' }}</h3>
+            <p v-if="providerError" role="alert" class="feature-alert error">{{ providerError }}</p>
+            <p v-if="providerMessage" role="status" class="feature-alert success">{{ providerMessage }}</p>
+            <label class="feature-form-field"><span>名称</span><input v-model.trim="providerForm.name" required maxlength="128" placeholder="例如：团队资讯搜索" /></label>
+            <label class="feature-form-field"><span>接口协议</span><select v-model="providerForm.kind" :disabled="!!providerForm.id"><option value="TAVILY">Tavily</option><option value="BRAVE">Brave Search</option><option value="TENCENT">腾讯 WSA</option></select></label>
+            <label class="feature-form-field"><span>URL</span><input v-model.trim="providerForm.endpoint" required type="url" placeholder="https://检索服务地址" /></label>
+            <label v-if="providerForm.kind==='TENCENT'" class="feature-form-field"><span>Secret ID</span><input v-model.trim="providerForm.secretId" type="password" autocomplete="new-password" :placeholder="providerForm.configured ? '留空保留原有 Secret ID' : '输入腾讯 Secret ID'" /></label>
+            <label class="feature-form-field"><span>{{ providerForm.kind==='TENCENT' ? 'API Key（Secret Key）' : 'API Key' }}</span><input v-model="providerForm.apiKey" type="password" autocomplete="new-password" :placeholder="providerForm.configured ? '留空保留原有密钥' : '输入 API Key'" /></label>
+            <p class="model-form-hint">密钥加密保存，不会回显。相同接口协议可维护多个不同名称和 URL 的引擎。</p>
+            <label class="model-checkbox"><input v-model="providerForm.enabled" type="checkbox" />启用此检索引擎</label>
+            <details class="search-engine-limits"><summary>调用限制</summary><div class="model-form-grid">
+              <label class="feature-form-field"><span>超时（毫秒）</span><input v-model.number="providerForm.timeoutMillis" type="number" min="1000" max="30000" required /></label>
+              <label class="feature-form-field"><span>每分钟调用上限</span><input v-model.number="providerForm.requestsPerMinute" type="number" min="1" max="600" required /></label>
+              <label class="feature-form-field"><span>单任务调用上限</span><input v-model.number="providerForm.maxTaskCalls" type="number" min="1" max="50" required /></label>
+              <label class="feature-form-field"><span>每日调用上限</span><input v-model.number="providerForm.maxDailyCalls" type="number" min="1" max="100000" required /></label>
+            </div></details>
+            <div class="search-engine-card-actions"><button type="button" class="feature-button" :disabled="providerSaving" @click="closeProviderManager">关闭</button><button type="submit" class="feature-button primary" :disabled="providerSaving">{{ providerSaving ? '保存中…' : '保存引擎' }}</button></div>
+          </form>
+        </div>
+      </div>
+    </div>
+    <AppConfirmDialog v-if="pendingProviderDelete" title="删除检索引擎" :message="`确定删除「${pendingProviderDelete.name}」？引用此引擎的模型需要重新选择。`" @cancel="pendingProviderDelete=null" @confirm="confirmProviderDelete" />
     <AppConfirmDialog
       v-if="pendingDelete"
       title="删除模型"

@@ -11,10 +11,25 @@ public final class CodingRuntimeContext {
             "consistency", "model", "skills", "builtinSkillPolicy", "configuredSkillIds", "inputFiles", "executionProfile", "reportMode", "reportPresentation", "pythonEnvironment", "scriptPurpose", "codingLifecycle", "analysisResultMode", "analysisInstructions", "codeProject", "knowledgeExploration", "internetSearch")::contains), "Unknown Coding context field");
         if(value.containsKey("internetSearch")){
             CodingProtocol.require(value.get("internetSearch") instanceof Map<?,?>,"Internet capability required");var p=(Map<?,?>)value.get("internetSearch");
-            CodingProtocol.require(p.keySet().equals(Set.of("schemaVersion","modelName","modelRevision","providerId","providerRevision","agentId","explicitlyRequested"))
+            var required=Set.of("schemaVersion","modelName","modelRevision","providerId","providerRevision","agentId","explicitlyRequested");
+            var allowed=new HashSet<>(required);allowed.add("providers");
+            CodingProtocol.require(p.keySet().containsAll(required)&&allowed.containsAll(p.keySet())
                 &&"runtime_os.internet.v1".equals(p.get("schemaVersion"))&&p.get("modelRevision") instanceof Number m&&m.longValue()>0
                 &&p.get("providerRevision") instanceof Number r&&r.longValue()>0&&p.get("explicitlyRequested") instanceof Boolean,"Invalid Internet capability");
             for(String k:List.of("modelName","agentId","providerId"))CodingProtocol.require(p.get(k) instanceof String s&&!s.isBlank()&&s.length()<=256,"Invalid Internet identity");
+            if(p.containsKey("providers")){
+                CodingProtocol.require(p.get("providers") instanceof List<?> list&&!list.isEmpty()&&list.size()<=16,"Invalid Internet providers");
+                var ids=new HashSet<String>();var list=(List<?>)p.get("providers");
+                for(Object item:list){
+                    CodingProtocol.require(item instanceof Map<?,?>,"Invalid Internet provider");var provider=(Map<?,?>)item;
+                    CodingProtocol.require(provider.keySet().equals(Set.of("id","name","revision"))
+                        &&provider.get("id") instanceof String id&&id.matches("[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}")&&ids.add(id)
+                        &&provider.get("name") instanceof String name&&!name.isBlank()&&name.length()<=128
+                        &&provider.get("revision") instanceof Number revision&&revision.longValue()>0,"Invalid Internet provider binding");
+                }
+                var first=(Map<?,?>)list.get(0);
+                CodingProtocol.require(Objects.equals(first.get("id"),p.get("providerId"))&&((Number)first.get("revision")).longValue()==((Number)p.get("providerRevision")).longValue(),"Invalid primary Internet provider");
+            }
         }
         if(value.containsKey("knowledgeExploration")) {
             CodingProtocol.require(value.get("knowledgeExploration") instanceof Map<?,?>, "Knowledge profile required");

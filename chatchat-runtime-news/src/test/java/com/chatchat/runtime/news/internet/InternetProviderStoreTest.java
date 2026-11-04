@@ -22,10 +22,21 @@ class InternetProviderStoreTest {
     @Test void encryptsAtRestAndNeverExposesSecretsInViewsOrToString(){
         var p=configured();assertThat(p.credentialCipher()).startsWith("ENC(").doesNotContain("test-secret");
         assertThat(store.credentials(p)).containsEntry("apiKey","test-secret");
-        assertThat(store.views().toString()).doesNotContain("test-secret","credentialCipher","endpoint");assertThat(p.toString()).doesNotContain(p.credentialCipher());
+        assertThat(store.views().toString()).doesNotContain("test-secret","credentialCipher").contains("endpoint=https://api.tavily.com/search");assertThat(p.toString()).doesNotContain(p.credentialCipher());
         assertThat(new InternetProviderStore.Draft("x","TAVILY","X","https://example.com","secret",null,true,null,null,null,null).toString()).doesNotContain("secret,");
         jdbc.update("UPDATE internet_search_provider SET credential_cipher=? WHERE id='test'","{\"apiKey\":\"plaintext\"}");
         assertThatThrownBy(()->store.credentials(store.find("test"))).hasMessage("PROVIDER_CREDENTIAL_UNAVAILABLE");
+    }
+    @Test void dynamicEntriesRetainCredentialsAndDeletionNeverResetsRevision(){
+        assertThat(store.views()).isEmpty();
+        var saved=store.save(new InternetProviderStore.Draft(null,"TAVILY","Custom search","https://api.tavily.com/search","test-secret",null,true,null,null,null,null));
+        String id=(String)saved.get("id");assertThat(id).startsWith("search-");
+        store.save(new InternetProviderStore.Draft(id,"TAVILY","Renamed search","https://api.tavily.com/search","",null,false,null,null,null,null));
+        assertThat(store.credentials(store.find(id))).containsEntry("apiKey","test-secret");
+        long revision=store.find(id).revision();store.delete(id);store.initialize();
+        assertThat(store.views()).isEmpty();assertThat(store.find(id).credentialCipher()).isNull();
+        store.save(new InternetProviderStore.Draft(id,"TAVILY","Recreated","https://api.tavily.com/search","new-secret",null,true,null,null,null,null));
+        assertThat(store.find(id).revision()).isGreaterThan(revision+1);
     }
     @Test void taskQuotaFailureRollsBackOtherBuckets(){
         var p=configured();store.reserve(p,"task-a");

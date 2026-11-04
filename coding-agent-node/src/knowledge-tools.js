@@ -45,6 +45,13 @@ export function knowledgeTools(contract, gateway, forward) {
     ['market_get_indicators','Read collected indicator fields of a discovered dataset. No arbitrary derived indicator is calculated; undeclared units and calculation basis are unknown.',market,['dataset']],
     ['market_get_snapshot','Read latest available collected observations of a discovered dataset. Never present the snapshot as live quotes; show actual observation and collection times.',market,['dataset']],
   );
+  const providers=contract.runtimeContext?.internetSearch?.providers;
+  if(internet&&providers?.length){
+    for(const definition of definitions.filter(([name])=>['web_search','web_fetch'].includes(name))){
+      definition[1]+=' Choose provider_id from the model-authorized engines: '+providers.map(p=>`${p.id} (${p.name})`).join(', ')+'. Omit it to use the first engine.';
+      definition[2].provider_id={type:'string',enum:providers.map(p=>p.id),description:'Use only a model-authorized search engine ID.'};
+    }
+  }
   return definitions.filter(([name]) => selected.includes(name)).map(([name, description, properties, required]) => ({
     name, description, inputSchema: { type: 'object', properties, required, additionalProperties: false }, executionMode: 'sequential',
     async execute(args, context) {

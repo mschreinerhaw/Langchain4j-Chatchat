@@ -37,6 +37,8 @@ def main():
         if service == 'api':
             manifest.update(image=image, sha256=sha(artifact), baselineSha256=baseline, apiUnchanged=sha(artifact)==baseline)
             continue
+        if sha(artifact) == baseline and (service != 'news' or 'mcp' not in manifest):
+            continue
         build = root / (service + '-build')
         build.mkdir(exist_ok=True)
         shutil.copy2(artifact, build / 'app.jar')

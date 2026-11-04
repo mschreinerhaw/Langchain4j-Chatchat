@@ -21,6 +21,8 @@
 7. 前端已有 `ReportRenderer`、`ReportMarkdown`、`PythonVisualReport`、`PythonReportChart`；沿现有报告资源授权下载和历史恢复路径展示。是否需修改前端应由实际浏览器验收决定。
 
 ## 已定位缺口
+图文交付进一步实测：`e8abe700-85db-4a8d-99c9-f8c2a906119c` 的最终 Runtime 元数据与 `primaryCodingReceipt.visualReport` 都保留图文对象，浏览器实际请求了 `resources/visual-report`，不能将此例称为 Java 丢失图表。PNG 中文已可读，但多来源元素没有 `dataRefs`，现有校验记录 `ELEMENT_SOURCE_AMBIGUOUS`，展示层拒绝无绑定的图表。保留该校验，不用修改 UI 把未绑定图表硬显示。另在源码交付边界发现，读取已验证的 visual receipt 仍额外要求 DATA_ANALYSIS 分类；将其改为本次明确的 visual 偏好，普通 off 模式不接收或恢复旧 visual。两种偏好以及非 DATA_ANALYSIS 分类的传播回归验证，均不增加执行权限。
+
 真实浏览器提交任务的 QUESTION 事件还有前端 `responseContract.prompt`：`ChatAssistantView.js::RESPONSE_RENDER_CONTRACT` 无条件要求展示所有返回行，包括不符合目标的记录。这与 Cline 的报告筛选/去重提示冲突，也是报告出现逐条清单的上游诱因。将明细保留要求限定为用户明确请求明细/列表；分析报告使用相关证据与计算摘要，源明细仍由现有证据与产物保存。元数据物理字段展示规则不变。该修复不指定业务结论，需用部署后的真实 UI 请求验证新合同。
 
 

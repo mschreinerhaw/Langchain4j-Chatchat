@@ -273,7 +273,7 @@ public final class AnalysisCoverageCoordinator {
             "usage", receipt.getOrDefault("usage", Map.of())));
         request.metadata().put("primaryCodingReceipt", Map.copyOf(receipt));
         request.metadata().remove("visualReport");
-        if(com.chatchat.common.runtime.coding.VisualReportMode.analysisRequested(request.runtimeAttributes())
+        if(com.chatchat.common.runtime.coding.VisualReportMode.active(request.runtimeAttributes())
             && receipt.get("visualReport") instanceof Map<?,?> report)request.metadata().put("visualReport",report);
         if (reconciling)
             throw new IllegalStateException("CODING_RECONCILIATION_REQUIRED: taskId=" + receipt.get("taskId")

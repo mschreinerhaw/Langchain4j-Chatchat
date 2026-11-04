@@ -24,6 +24,32 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AnalysisCoverageCoordinatorTest {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"visual","off"})
+    void forwardsArchivedVisualReceiptForEnabledPreferenceWithoutRequiringDataAnalysisClassification(String mode) {
+        var evidence=mock(AnalysisEvidenceCoordinator.class);
+        when(evidence.project(any(),any())).thenReturn(new AnalysisEvidenceCoordinator.Projection(List.of(
+            new AnalysisEvidenceCoordinator.Dataset("source",Map.of(),List.of(Map.of("value",1)))),List.of()));
+        var coding=mock(AnalysisCodingPort.class);
+        var report=Map.of("schemaVersion","python_visual_report.v1","status","PARTIAL","artifactValidationStatus","PASSED");
+        when(coding.executePrimaryAnalysis(any(),any(),any())).thenAnswer(call->{
+            Map<String,AnalysisEvidenceCoordinator.Dataset> sources=call.getArgument(1);
+            sources.put("result",new AnalysisEvidenceCoordinator.Dataset("result",Map.of(),List.of(Map.of(
+                "reportMarkdown","# Market report\nSupported partial findings.","analysisStatus","PARTIAL",
+                "evidenceReferences",List.of("source"),"limitations",List.of("Target security unavailable")))));
+            return Map.of("resultAvailable",true,"datasetReference","result","visualReport",report);
+        });
+        var coordinator=coordinator(evidence);coordinator.setCodingPort(coding);
+        var metadata=new LinkedHashMap<String,Object>();metadata.put("visualReport",Map.of("stale",true));
+        var base=request(metadata);
+        coordinator.analyze(new AnalysisCoverageCoordinator.Request(mock(dev.langchain4j.model.chat.ChatModel.class),
+            "Market analysis",base.result(),Map.of("workflowFamily","DOCUMENT","reportMode",mode),metadata,
+            ()->false,()->{},base.isolationScope(),base.summaryProtocol()));
+        if("visual".equals(mode))assertThat(metadata.get("visualReport")).isEqualTo(report);
+        else assertThat(metadata).doesNotContainKey("visualReport");
+        assertThat(metadata).containsEntry("codingOwnedAnalysisStatus","PARTIAL");
+    }
+
     @Test void unresolvedPythonIsReportedAsReconciliationWithoutReplacementDispatch() {
         var evidence=mock(AnalysisEvidenceCoordinator.class);
         when(evidence.project(any(),any())).thenReturn(new AnalysisEvidenceCoordinator.Projection(List.of(

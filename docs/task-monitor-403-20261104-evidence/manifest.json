@@ -1,0 +1,11 @@
+{
+  "sourceCommit": "6ef1db93d3209c7b6466619d0f628319efce7e5d",
+  "image": "runtime-os-api:monitor-403-6ef1db93d320",
+  "sha256": "a5802114a97784a9ea597c98cec9bfd387459035e97c3fb363b7d998b61e9c85",
+  "baselineSha256": "97a2bd14e23f2b3e91b71223af00acccf71dd50036d7a03d1a40670e9a825f7c",
+  "catalogReadinessAuthFile": "catalog-readiness-private.json",
+  "catalogReadinessExpectedTools": [
+    "sql_schema_context_query",
+    "enterprise_metadata_search"
+  ]
+}

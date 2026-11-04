@@ -1,0 +1,25 @@
+{
+  "taskId": "a3087ed0-4596-30de-afa7-866ee700169f",
+  "runId": "att-1-a49e450f-1272-44c3-8b3f-fdb0de88b877",
+  "parentStatus": "PARTIAL",
+  "delegates": 1,
+  "delegateStates": [
+    "COMPLETED"
+  ],
+  "adminOperationalHttpStatus": 200,
+  "ownerOperationalHttpStatus": 200,
+  "detailsStillDenied": [
+    {
+      "path": "/agent/runtime/runs/att-1-a49e450f-1272-44c3-8b3f-fdb0de88b877/coding",
+      "httpStatus": 403
+    },
+    {
+      "path": "/agent/runtime/runs/att-1-a49e450f-1272-44c3-8b3f-fdb0de88b877/coding/analysis-coding-178549ecec7d0528e9c0be19852eeda040556dc99baf6ae420dd1017cd5ab1e4/inputs",
+      "httpStatus": 403
+    }
+  ],
+  "sourceContentOmitted": true,
+  "journalDigestBefore": "bdb4ce3202b538dc6f51f56aae36b49c",
+  "journalDigestAfter": "bdb4ce3202b538dc6f51f56aae36b49c",
+  "journalUnchanged": true
+}

@@ -1,0 +1,36 @@
+{
+  "sourceCommit": "6ef1db93d3209c7b6466619d0f628319efce7e5d",
+  "taskId": "a3087ed0-4596-30de-afa7-866ee700169f",
+  "runId": "att-1-a49e450f-1272-44c3-8b3f-fdb0de88b877",
+  "status": "PASSED",
+  "pageErrors": [],
+  "failedRequests": [],
+  "codingRequests": [
+    {
+      "path": "/api/v1/agent/runtime/runs/att-1-a49e450f-1272-44c3-8b3f-fdb0de88b877/coding/status",
+      "status": 200,
+      "cacheControl": "no-store"
+    }
+  ],
+  "assets": [
+    {
+      "path": "/index.html",
+      "sha256": "af6f6bf07b8c84e5be0ace046ad7ff8108c332453b7951af14bf0537ee64ed0c"
+    },
+    {
+      "path": "/assets/TasksView-D2nav8WC.js",
+      "sha256": "626501ef9ccd8b6c088b1d2fcdc90a0dfdacb39ae90281f48088149fa3d5c0af"
+    },
+    {
+      "path": "/assets/CodingTaskMonitor-4kVu2773.js",
+      "sha256": "429ea23193845577af1a20a0216ff549c147e27e6c10a3c38196afa22eddd156"
+    }
+  ],
+  "injectedTaskData": false,
+  "realDelegateCount": 1,
+  "realDelegateState": "COMPLETED",
+  "parentStateUnchanged": "PARTIAL",
+  "observationMs": 8000,
+  "repeatedForbiddenRequests": 0,
+  "privateDetailsRequested": false
+}

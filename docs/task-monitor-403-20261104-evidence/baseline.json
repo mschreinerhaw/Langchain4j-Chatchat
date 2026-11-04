@@ -1,0 +1,12 @@
+{
+  "taskId": "a3087ed0-4596-30de-afa7-866ee700169f",
+  "runId": "att-1-a49e450f-1272-44c3-8b3f-fdb0de88b877",
+  "parentStatus": "PARTIAL",
+  "ownerUserId": "a2f9cdda-8fe3-4f5f-8085-579c6c8f3a0c",
+  "adminUserId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+  "ownerDelegateCount": 1,
+  "ownerDelegateStates": [
+    "COMPLETED"
+  ],
+  "adminRichMonitorHttpStatus": 403
+}

@@ -1,0 +1,30 @@
+{
+  "status": "DEPLOYED",
+  "sourceCommit": "6ef1db93d3209c7b6466619d0f628319efce7e5d",
+  "image": "runtime-os-api:monitor-403-6ef1db93d320",
+  "sha256": "a5802114a97784a9ea597c98cec9bfd387459035e97c3fb363b7d998b61e9c85",
+  "backup": "/opt/chatchat-releases/task-monitor-403-20261104/backup",
+  "retired": {
+    "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-studio-1793785245",
+    "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-studio-1793785245"
+  },
+  "databaseMigrationSha256": null,
+  "catalogReadiness": {
+    "status": "API_MCP_CATALOG_READY",
+    "registryState": "HEALTHY",
+    "registeredToolCount": 39,
+    "requiredTools": [
+      "enterprise_metadata_search",
+      "sql_schema_context_query"
+    ],
+    "capturedAt": "2026-11-04T09:41:33.992888+00:00"
+  },
+  "preservedExpiredReadOnlyTaskIds": [],
+  "unrelatedContainersUnchanged": true,
+  "conversationContentUnchanged": true,
+  "messageIndexCountUnchanged": true,
+  "images": {
+    "runtime-os-app-stage-api-1": "runtime-os-api:monitor-403-6ef1db93d320"
+  },
+  "channelCounts": "SQL_STUDIO|63\nPYTHON_STUDIO|10\nAGENT_API|203\nPLATFORM_UI|1117"
+}

@@ -1,0 +1,10 @@
+{
+  "sourceCommit": "6ef1db93d3209c7b6466619d0f628319efce7e5d",
+  "javaTests": 21,
+  "javaFailures": 0,
+  "frontendTests": 22,
+  "frontendFailures": 0,
+  "fullMavenAndFrontendBuild": "SUCCESS",
+  "realBrowser": "PASSED",
+  "syntheticTaskData": false
+}

@@ -35,18 +35,25 @@ def prepare_mcp_recovery(root, source, commit):
     baseline_sha = sha(baseline)
     assert run('docker', 'exec', container, 'sha256sum', '/srv/app/app.jar').split()[0] == baseline_sha
     entry = 'BOOT-INF/classes/com/chatchat/mcpserver/market/SnapshotFinancialReadOperations.class'
+    patches = {entry: content}
+    if source.get('mcpAdmissionClassSha256'):
+        admission = root / 'MarketInternalController.class'
+        assert sha(admission) == source['mcpAdmissionClassSha256'] and source['javaAdmissionTests'] == 3
+        admission_bytes = admission.read_bytes()
+        assert admission_bytes[:4] == bytes.fromhex('cafebabe') and int.from_bytes(admission_bytes[6:8], 'big') <= 61
+        patches['BOOT-INF/classes/com/chatchat/mcpserver/market/MarketInternalController.class'] = admission_bytes
     artifact = root / 'mcp.jar'
     with zipfile.ZipFile(baseline) as old, zipfile.ZipFile(artifact, 'w') as new:
-        assert entry in old.namelist()
-        class_changed = old.read(entry) != content
+        assert set(patches) <= set(old.namelist())
+        changed_entries = [name for name, value in patches.items() if old.read(name) != value]
         new.comment = old.comment
         for item in old.infolist():
-            new.writestr(item, content if item.filename == entry else old.read(item))
+            new.writestr(item, patches.get(item.filename, old.read(item)))
     with zipfile.ZipFile(baseline) as old, zipfile.ZipFile(artifact) as new:
         assert new.testzip() is None and new.namelist() == old.namelist()
-        assert new.read(entry) == content
-        assert all(old.read(name) == new.read(name) for name in old.namelist() if name != entry)
-        unchanged = len(old.namelist()) - (1 if class_changed else 0)
+        assert all(new.read(name) == value for name, value in patches.items())
+        assert all(old.read(name) == new.read(name) for name in old.namelist() if name not in patches)
+        unchanged = len(old.namelist()) - len(changed_entries)
     build = root / 'mcp-build'
     build.mkdir(exist_ok=True)
     import shutil
@@ -66,9 +73,10 @@ def prepare_mcp_recovery(root, source, commit):
     assert run('docker', 'exec', news_container, 'sha256sum', '/srv/app/app.jar').split()[0] == news_sha
     news = {'image': news_before['Config']['Image'], 'baselineImageId': news_before['Image'],
             'preparedImageId': news_before['Image'], 'baselineSha256': news_sha, 'sha256': news_sha}
-    (root / 'mcp-recovery-artifact.json').write_text(json.dumps({'changedEntries': [entry] if class_changed else [],
+    (root / 'mcp-recovery-artifact.json').write_text(json.dumps({'changedEntries': changed_entries,
         'unchangedEntries': unchanged, 'classSha256': sha(patch), 'baselineSha256': baseline_sha,
-        'sha256': mcp['sha256'], 'javaRecoveryTests': 7, 'sourceCommit': commit}, indent=2))
+        'sha256': mcp['sha256'], 'javaRecoveryTests': 7, 'javaAdmissionTests': source.get('javaAdmissionTests', 0),
+        'sourceCommit': commit}, indent=2))
     return {'mcp': mcp, 'news': news, 'backupFinancialStorage': True}
 
 

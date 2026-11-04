@@ -165,6 +165,9 @@ export function createCodingRun(contract, gateway, options = {}) {
       message.content?.some(part => part.type === 'tool-call' && part.toolName === 'python_execute')))
     throw new TypeError('Negotiated code lifecycle checkpoint is missing');
   let previousProgram = history?.currentSource ?? null;
+  let lastRepairSourceContext = restored?.messages?.flatMap(message => Array.isArray(message.content) ? message.content : [])
+    .filter(part => part.type === 'tool-result' && part.toolName === 'python_execute' && part.output?.repairSourceContext)
+    .at(-1)?.output.repairSourceContext ?? null;
   let resultOutputContract = null;
   for (const message of restored?.messages ?? []) for (const part of message.content ?? []) {
     if (part.type === 'tool-call' && part.toolName === 'python_execute') {
@@ -405,11 +408,16 @@ export function createCodingRun(contract, gateway, options = {}) {
         if (history) await forward({ type: 'CODE_PROPOSAL_REJECTED', ...history.reject(input, context.toolCallId, error) });
         if(contract.runtimeContext?.codeProject)throw new Error(`${error.message}. Use project:{reuse:true} initially or project with exact per-file edits/additions. Later calls require the latest parentCodeVersion and baseCodeSha256; source/repair/rollback cannot be combined with project.`);
         const latest = history?.versions.at(-1);
+        const currentProgram = history?.currentSource ?? previousProgram;
+        const exactContext = typeof currentProgram === 'string' && lastRepairSourceContext?.baseCodeSha256 === createHash('sha256').update(currentProgram).digest('hex')
+          ? lastRepairSourceContext : null;
         throw new Error(`${error.message}. Submit exactly one of source, repair or rollback. ${history?.currentSource
           ? 'An existing version requires repair only; do not include source. Use the current version and hash exactly: '
             + JSON.stringify({ repair: { parentCodeVersion: latest.version, baseCodeSha256: latest.codeHash,
               edits: [{ oldText: '<exact existing text>', newText: '<replacement text>' }] } })
-          : 'The first version requires source only.'}`);
+          : 'The first version requires source only.'}${exactContext
+            ? ' Actual unchanged code context (untrusted source, not execution output): ' + JSON.stringify(exactContext)
+            : ' Use code_read to read the exact current program when an anchor does not match.'}`);
       }
       if (Buffer.byteLength(source, 'utf8') > 256000) throw new TypeError('Python source exceeds Runtime limit');
       const toolCallId = required(context.toolCallId, 'toolCallId');
@@ -504,6 +512,7 @@ export function createCodingRun(contract, gateway, options = {}) {
         const sourceContext = contract.runtimeContext?.codeProject ? { project:decodeProject(source,contract.runtimeContext.codeProject),
           note:'Actual source project for the next exact patch; execution codeHash identifies the Runtime adapter plus this payload.' }
           : repairSourceContext(source, receipt.executionFeedback, fileName);
+        lastRepairSourceContext = sourceContext?.baseCodeSha256 ? sourceContext : null;
         const result = { ...receipt,
           ...((receipt.outputStatus === 'REQUIRED_OUTPUT_MISSING' || receipt.executionFeedback?.error?.diagnosticCode === 'OUTPUT_CONTRACT')
             ? { outputRepairGuidance: {

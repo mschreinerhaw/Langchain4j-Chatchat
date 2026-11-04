@@ -219,10 +219,16 @@ test('Java repair feedback reaches the same SDK context and an exact edit create
       assert.match(JSON.stringify(request.messages),/repairSourceContext/);
       assert.match(JSON.stringify(request.messages),/2: print\(value\[0\]\)/);
       const {createHash}=await import('node:crypto');
+      yield {type:'tool-call-delta',toolCallId:'wrong-anchor',toolName:'python_execute',input:{fileName:'main.py',repair:{
+        baseCodeSha256:createHash('sha256').update(original).digest('hex'),edits:[{oldText:'print(value)',newText:'print(value + 1)'}]}}};
+    }else if(models===3){
+      assert.match(JSON.stringify(request.messages),/Actual unchanged code context/);
+      assert.match(JSON.stringify(request.messages),/exactOldText/);
+      const {createHash}=await import('node:crypto');
       yield {type:'tool-call-delta',toolCallId:'repair',toolName:'python_execute',input:{fileName:'main.py',repair:{
         baseCodeSha256:createHash('sha256').update(original).digest('hex'),edits:[{oldText:'value[0]',newText:'value'}]}}};
     }else yield {type:'text-delta',text:'Verified.'};
-    yield {type:'usage',usage:{inputTokens:2,outputTokens:2}};yield {type:'finish',reason:models<3?'tool-calls':'stop'};
+    yield {type:'usage',usage:{inputTokens:2,outputTokens:2}};yield {type:'finish',reason:models<4?'tool-calls':'stop'};
   }};
   const gateway={async reserveModel(){},async settleModel(){},async executePython(_task,input){
     sources.push(input.source);

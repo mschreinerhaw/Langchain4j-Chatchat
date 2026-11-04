@@ -15,6 +15,7 @@ test('repair context binds safe source locations to the exact latest execution',
   assert.equal(context.baseCodeSha256, codeHash);
   assert.equal(context.excerpts.length, 1);
   assert.match(context.excerpts[0].source, /2: all_refs = list\(texts.keys\(\)\)/);
+  assert.equal(context.excerpts[0].exactOldText, 'all_refs = list(texts.keys())');
   assert.doesNotMatch(JSON.stringify(context), /private|other.py/);
   assert.equal(repairSourceContext(program + '# stale', feedback, 'task_v2.py'), null);
   assert.equal(repairSourceContext(program, { ...feedback, repair: { ...feedback.repair, allowed: false } }, 'task_v2.py'), null);
@@ -29,6 +30,26 @@ test('repair excerpts reject invalid frames and bound long source lines', () => 
   const context = repairSourceContext(program, feedback, 'task.py');
   assert.equal(context.excerpts.length, 1);
   assert.ok(context.excerpts[0].source.length < 520);
+  assert.equal(context.excerpts[0].exactOldText, undefined);
+});
+
+test('syntax feedback supplies unchanged invalid quotes as an exact patch anchor', () => {
+  const program = 'row = {\n    "scope": "no baseline, display "—""\n}\n';
+  const codeHash = createHash('sha256').update(program).digest('hex');
+  const feedback = { codeHash, repair: { allowed: true, baseCodeHash: codeHash }, error: { stack: [{ file: 'task.py', line: 2 }] } };
+  const context = repairSourceContext(program, feedback, 'task.py');
+  const oldText = context.excerpts[0].exactOldText;
+  assert.equal(oldText, '    "scope": "no baseline, display "—""');
+  assert.throws(() => prepareProgram({ repair: { baseCodeSha256: codeHash, edits: [{ oldText: oldText.replace('"—"', '“—”'), newText: 'changed' }] } }, program), /exactly once/);
+  assert.equal(prepareProgram({ repair: { baseCodeSha256: codeHash, edits: [{ oldText, newText: '    "scope": \'no baseline, display "—"\'' }] } }, program), 'row = {\n    "scope": \'no baseline, display "—"\'\n}\n');
+});
+
+test('repair anchors never advertise normalized text missing from the actual CRLF program', () => {
+  const program = 'before = 1\r\nrepeat = 0\r\nrepeat = 0\r\nafter = 2\r\n';
+  const codeHash = createHash('sha256').update(program).digest('hex');
+  const feedback = { codeHash, repair: { allowed: true, baseCodeHash: codeHash }, error: { stack: [{ file: 'task.py', line: 2 }] } };
+  const context = repairSourceContext(program, feedback, 'task.py');
+  assert.equal(context.excerpts[0].exactOldText, undefined);
 });
 test('exact code repair preserves unrelated bytes and rejects stale or ambiguous anchors', () => {
   assert.equal(prepareProgram({ repair: { baseCodeSha256: hash,

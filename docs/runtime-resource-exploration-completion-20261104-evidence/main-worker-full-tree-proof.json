@@ -1,0 +1,11 @@
+{
+  "sourceCommit": "f9825e01ba42c66d446b75f1d41a4421b77d8cdb",
+  "baselineContainer": "runtime-os-app-stage-coding-agent-1-before-studio-1793767227",
+  "filesCompared": 37,
+  "fileNamesUnchanged": true,
+  "changedPaths": [
+    "./knowledge-tools.js",
+    "./runner.js"
+  ],
+  "unchangedFiles": 35
+}

@@ -1,0 +1,83 @@
+{
+  "sourceCommit": "f9825e01ba42c66d446b75f1d41a4421b77d8cdb",
+  "rebuildCommand": "npm.cmd run build",
+  "compiler": "typescript 5.9.3",
+  "gitCodeUnchangedSinceDeployment": true,
+  "modules": [
+    {
+      "module": "code-repair.js",
+      "sha256": "cf2009842df28e1e222888ff995121a3fc9883824b1dccd5d782bace1b3cb354",
+      "matchesDeployedManifest": true
+    },
+    {
+      "module": "execution-feedback.js",
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+      "matchesDeployedManifest": true
+    },
+    {
+      "module": "healthcheck.js",
+      "sha256": "772c652af1dcd582f8b44e9761f76cdd8fffc9723d8282383800a2c0d880c8cc",
+      "matchesDeployedManifest": true
+    },
+    {
+      "module": "knowledge-tools.js",
+      "sha256": "e1f3e311917a8e39b0e869c69d7c311711a4516304ed9c6427f98261af74909a",
+      "matchesDeployedManifest": true
+    },
+    {
+      "module": "monitor-client.js",
+      "sha256": "fa1846783474f0990a62a1f7bbff7a4b055451b2dd99d27e14f0a436a024b079",
+      "matchesDeployedManifest": true
+    },
+    {
+      "module": "monitor-types.js",
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+      "matchesDeployedManifest": true
+    },
+    {
+      "module": "monitor.js",
+      "sha256": "cf0f7eec64300d0e9dd187878c82202eaf6fd9514e58c75e1e022449a2156354",
+      "matchesDeployedManifest": true
+    },
+    {
+      "module": "python-project.js",
+      "sha256": "79e3eb8e04bd0fd2a7762db82eb75c6fed94ba1d7d969d82b34da6340b05ed83",
+      "matchesDeployedManifest": true
+    },
+    {
+      "module": "request-context.js",
+      "sha256": "8b1648829037cc1d283f6ac0769348c6b17ec8f115c09101805714f421698b16",
+      "matchesDeployedManifest": true
+    },
+    {
+      "module": "runner.js",
+      "sha256": "0f132c3fdfb6a5d945c7f7215de7c7da24a2cd6ed7c529c06410f1b677189bc5",
+      "matchesDeployedManifest": true
+    },
+    {
+      "module": "runtime-model.js",
+      "sha256": "07b0c9553722d8be183df275e1f6ca4b1ee30e62334e1d071153b8ec52a10008",
+      "matchesDeployedManifest": true
+    },
+    {
+      "module": "sdk-adapter.js",
+      "sha256": "c14abd29e05ced5271b25a8dbc083c923136cec1a1f3f28da068b7210439a611",
+      "matchesDeployedManifest": true
+    },
+    {
+      "module": "sdk-packages.js",
+      "sha256": "e6898b39f5d51044e13d133b7bdaf40b95940b89dfec4837ea50c07d3436d097",
+      "matchesDeployedManifest": true
+    },
+    {
+      "module": "server.js",
+      "sha256": "67d9ad9e9d7a6118684be53f320e0f3157c24dcc5e92b0f595d95db504bcb7da",
+      "matchesDeployedManifest": true
+    },
+    {
+      "module": "skills.js",
+      "sha256": "390dd98fb521d4de789bc15552a728c6264ba41b6622ef3147320fe74aa04cb7",
+      "matchesDeployedManifest": true
+    }
+  ]
+}

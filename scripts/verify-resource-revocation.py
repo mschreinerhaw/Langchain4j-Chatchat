@@ -60,16 +60,16 @@ def main():
     original = {key: value for key, value in card.items() if key in fields}
     (root / 'revocation-agent-original.private.json').write_text(json.dumps(original))
     checks = []
-    retained_result_observed = False
+    revoked_result_request_rejected = False
 
     def check(name, path, actor, expected):
-        nonlocal retained_result_observed
+        nonlocal revoked_result_request_rejected
         status, value = request(path, token=actor)
         if name == 'agent-revoked-retained-result':
             if status == 200 and value and value.get('code') == 200 and value.get('data') is None:
                 checks.append({'name': 'agent-revoked-result-empty', 'httpStatus': 200, 'passed': True})
                 return
-            retained_result_observed = status == 403
+            revoked_result_request_rejected = status == 403
         if status != expected:
             (root / 'revocation-unexpected-response.private.json').write_text(json.dumps(value))
         assert status == expected, (name, status, expected, value.get('code') if value else None,
@@ -88,8 +88,8 @@ def main():
         check('agent-revoked-task', task_path + tenant, token, 403)
         check('agent-revoked-events', task_path + '/events' + tenant, token, 403)
         check('agent-revoked-coding-monitor', coding, token, 403)
-        # The verifier deliberately did not consume /result. This checks a published result,
-        # rather than inferring protection from an already empty queue returning 200/null.
+        # Skipping /result does not prove another consumer left the queue nonempty.
+        # Neither 200/null nor 403 independently certifies retained-payload protection.
         check('agent-revoked-retained-result', task_path + '/result' + tenant + '&timeoutMs=0', token, 403)
     finally:
         data(agent_path, original, 'PUT', token)
@@ -111,8 +111,8 @@ def main():
     assert data(agent_path, token=token)['workflowConfig'] == original['workflowConfig']
     remaining = data('/enterprise/resource-grants?tenantId=' + fixture['tenant'] + '&resourceType=DATA_RESOURCE', token=admin)
     assert all(row['id'] != grant['id'] for row in remaining)
-    report = {'checks': checks, 'retainedPublishedResultTested': retained_result_observed,
-              'resultQueueRevocationCoverage': 'NONEMPTY_RESULT_REJECTED' if retained_result_observed else 'EMPTY_QUEUE_ONLY_DESPITE_RETAIN_OPTION',
+    report = {'checks': checks, 'retainedPublishedResultTested': False,
+              'resultQueueRevocationCoverage': 'REQUEST_REJECTED_NONEMPTY_QUEUE_NOT_ESTABLISHED' if revoked_result_request_rejected else 'EMPTY_QUEUE_ONLY_DESPITE_RETAIN_OPTION',
               'agentSettingsRestored': True,
               'temporaryDenyDeleted': True, 'syntheticSources': False}
     (root / 'resource-security-summary.json').write_text(json.dumps(report, indent=2))

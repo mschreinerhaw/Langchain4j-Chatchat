@@ -49,6 +49,9 @@ def main():
         path.chmod(0o755 if path.is_dir() else 0o644)
     if not (context / 'node_modules').is_symlink():
         (context / 'node_modules').symlink_to('/srv/coding-agent/node_modules')
+    adapter = root / 'python-project-adapter.py'
+    assert adapter.is_file() and not adapter.is_symlink()
+    adapter.chmod(0o644)  # Public source fixture mounted read-only for the unprivileged test process.
     with (root / 'worker-tests.log').open('w') as log:
         subprocess.run(['docker', 'run', '--rm', '--network', 'none', '--read-only',
             '--tmpfs', '/tmp:rw,nosuid,nodev', '--entrypoint', 'node',

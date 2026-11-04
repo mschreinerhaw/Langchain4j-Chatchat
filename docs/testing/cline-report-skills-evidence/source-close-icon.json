@@ -1,0 +1,20 @@
+{
+  "at": "2026-11-04T14:27:00.833Z",
+  "origin": "http://192.168.195.221:18100",
+  "conversationId": "1793798652777-fb1e0c00abca5",
+  "sourceCount": 2,
+  "citationOpened": true,
+  "closeIcon": {
+    "width": 32,
+    "height": 32,
+    "border": "0px",
+    "background": "rgba(0, 0, 0, 0)",
+    "label": "关闭原文",
+    "hoverBackground": "rgb(241, 245, 249)",
+    "focusOutline": "2px"
+  },
+  "footerUnified": true,
+  "duplicateBottomReferences": false,
+  "desktopAndMobileOverflow": false,
+  "pageErrors": []
+}

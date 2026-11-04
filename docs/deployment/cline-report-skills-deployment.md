@@ -55,6 +55,8 @@
 
 ## 升级与回滚
 
+原文弹窗关闭图标的后续样式发布于同日 22:26：源码 `3bd17fe99922b34b5981cf5ef4de60e11401d41b`，目录 `/opt/chatchat-releases/cline-report-skills-close-icon-r7`，API 镜像 `runtime-os-api:report-skills-3bd17fe99922`，完整 JAR SHA-256 `f957119c7c4478fcf217afef99407c9e85bdb71588cd8618ea11846a8fe794ed`。旧 API/proxy 保留后缀 `-before-studio-1793802344`，Worker 保持原镜像。前端构建、完整 Maven package 及 3 项原文弹窗回归通过；发布检查确认历史内容/索引与无关容器不变、MCP 39 工具 HEALTHY。22:27 的真实历史页面验证确认关闭按钮为 32×32、透明无边框的 X 图标，悬停浅灰底、键盘焦点 2px，点击能关闭且无脚本错误，见 [实测记录](../testing/cline-report-skills-evidence/source-close-icon.json)及[截图](../testing/cline-report-skills-evidence/source-close-icon.png)。
+
 升级先固定上游 Skill 提交与所有文件哈希，复核许可证和完整目录，再通过既有 parser、冲突及按需读取测试。完整源码构建、离线 Worker 测试及真实验收通过后才能发布；不得运行未固定版本的远程安装脚本。
 
 第一轮原容器均保留，后缀为 `-before-studio-1793795399`，涉及 API、coding-agent、node-proxy 三个名称。私有备份位于发布目录的 `backup/`，包括 `containers.json`、`compose.yaml`、`deployment.env`、`node-proxy.conf`、`channels.json` 和 `api.dump`。发生启动或就绪检查失败时，部署脚本自动恢复原配置与原容器。

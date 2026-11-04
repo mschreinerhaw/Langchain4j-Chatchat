@@ -4,6 +4,34 @@ import { createCodingRun } from '../src/runner.js';
 import { KNOWLEDGE_TOOLS, RESOURCE_TOOLS, knowledgeTools } from '../src/knowledge-tools.js';
 import { taskSkills } from '../src/skills.js';
 const profile={schemaVersion:'runtime_os.knowledge.v1',agentId:'agent'};
+test('draft review identifies an invented evidence ID and supplies exact delivered IDs for repair',async()=>{
+  const delivered='runtime-evidence:knowledge:'+'3'.repeat(64),invented='runtime-evidence:knowledge:'+'4'.repeat(64);
+  let turn=0,published=0;
+  const run=createCodingRun({...contract,budget:{maxModelCalls:5}}, {
+    reserveModel(){},settleModel(){},finish(){},executePython(){throw Error('No code authority');},
+    knowledge(){return {hits:[{evidence_id:delivered,text:'Source design; no executed test record.'}]};},
+    submitReport(c,{report}){published++;assert.deepEqual(report.evidenceReferences,[delivered]);
+      return {operationId:'workspace-'+'5'.repeat(64),status:'SUCCEEDED',executorStopped:true,pythonExecuted:false,
+        executionMode:'TEXT_ONLY',resultDatasetRef:'report',validationRecordRef:'validation',evidenceBundleRef:'bundle'};},
+  }, {nativeSdk:true,model:{async *stream(request){
+    turn++;
+    if(turn===1)yield {type:'tool-call-delta',toolCallId:'search',toolName:'knowledge_search',input:{query:'recovery'}};
+    else {
+      if(turn===3){
+        const review=request.messages.flatMap(m=>Array.isArray(m.content)?m.content:[])
+          .find(p=>p.type==='tool-result' && p.output?.resourceReportReviewRequired)?.output;
+        assert.deepEqual(review.deliveredEvidenceReferences,[delivered]);
+        assert.deepEqual(review.unrecognizedEvidenceReferences,[invented]);
+        assert.equal(published,0);
+      }
+      const ref=turn===2?invented:delivered;
+      yield {type:'tool-call-delta',toolCallId:`report-${turn}`,toolName:'report_submit',input:{
+        reportMarkdown:`Only a design was found. [Source](${ref})`,evidenceReferences:[ref],limitations:['No test record.']}};
+    }
+    yield {type:'finish',reason:'tool-calls'};
+  }}});
+  const result=await run.run();assert.equal(result.status,'completed');assert.equal(turn,3);assert.equal(published,1);
+});
 const contract={schemaVersion:'runtime_os.coding.v3',taskId:'knowledge',scope:{tenantId:'tenant',userId:'owner',runId:'run'},
   objective:{instruction:'Read backup design and actual recovery test evidence'},
   authorization:{allowedTools:[...KNOWLEDGE_TOOLS,'report_submit','skill_read'],allowedSideEffects:[],allowedDataRefs:[],networkPolicy:'NONE'},

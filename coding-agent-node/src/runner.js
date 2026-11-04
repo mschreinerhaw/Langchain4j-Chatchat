@@ -130,6 +130,17 @@ export function createCodingRun(contract, gateway, options = {}) {
     throw new TypeError('Python execution requires authorized bound input files and one JSONL result');
   let activeOperation = null;
   const restored = options.checkpoint;
+  const deliveredResourceReferences = new Set();
+  const rememberResourceReferences = value => {
+    if (Array.isArray(value)) { value.forEach(rememberResourceReferences); return; }
+    if (!value || typeof value !== 'object') return;
+    if (/^runtime-evidence:knowledge:[0-9a-f]{64}$/.test(value.evidence_id ?? ''))
+      deliveredResourceReferences.add(value.evidence_id);
+    Object.values(value).forEach(rememberResourceReferences);
+  };
+  for (const message of restored?.messages ?? []) for (const part of Array.isArray(message.content) ? message.content : [])
+    if (part.type === 'tool-result' && [...KNOWLEDGE_TOOLS,...RESOURCE_TOOLS].includes(part.toolName))
+      rememberResourceReferences(part.output);
   let workspaceSources = null;
   const nativeSdk = restored?.nativeSdk ?? options.nativeSdk ?? true;
   let lastCollectedOperation = restored?.lastCollectedOperation ?? null;
@@ -204,7 +215,9 @@ export function createCodingRun(contract, gateway, options = {}) {
     async execute(args,context){
       if(textResults && modelIndex>Math.min(Number(contract.budget?.maxModelCalls ?? 1),32)-3)
         throw new TypeError('Resource exploration phase has ended. Use report_submit to review and publish supported findings with explicit evidence gaps.');
-      return tool.execute(args,context);
+      const result = await tool.execute(args,context);
+      rememberResourceReferences(result);
+      return result;
     },
   }));
   if(textResults && permitted.has('report_submit'))tools.push({
@@ -226,7 +239,10 @@ export function createCodingRun(contract, gateway, options = {}) {
         if(!textReportReviewRequested){textReportReviewRequested=true;textReportReviewModel=modelIndex;}
         await forward({type:'TOOL_FINISHED',tool:'report_submit',toolCallId:context.toolCallId,status:'REVIEW_REQUIRED',stage:'RESULT_REVIEW'});
         return {resourceReportReviewRequired:true,committed:false,draft:report,
-          instruction:'Review this draft against the actual source results in this same Cline run, then call report_submit again with the corrected final report. No report has been published. Check every conclusion and table for these errors: a filtered catalog search or one dataset cannot establish platform-wide absence; use an unfiltered market_search query if broader catalog discovery is necessary, or restrict the claim to the searched scope. A null publication time stays unknown and cannot become the collection date later. Catalog latest observation dates apply across the dataset, not every selected security. Missing price units/currency/adjustment remain unknown. Summaries are not original article reads. Cite both sources in comparisons and preserve evidence gaps. Repair unsupported statements; do not merely repeat this draft.'};
+          deliveredEvidenceReferences:[...deliveredResourceReferences],
+          unrecognizedEvidenceReferences:(Array.isArray(report.evidenceReferences)?report.evidenceReferences:[])
+            .filter(ref=>typeof ref==='string' && ref.startsWith('runtime-evidence:knowledge:') && !deliveredResourceReferences.has(ref)),
+          instruction:'Review this draft against the actual source results in this same Cline run, then call report_submit again with the corrected final report. Repair every unrecognizedEvidenceReferences entry by copying the exact matching deliveredEvidenceReferences value from its source, or remove the reference AND any unsupported claim. These lists are copying aids, not authorization; Java still validates every reference. Never abbreviate or reconstruct opaque evidence IDs. No report has been published. Check every conclusion and table for these errors: a filtered catalog search or one dataset cannot establish platform-wide absence; use an unfiltered market_search query if broader catalog discovery is necessary, or restrict the claim to the searched scope. A null publication time stays unknown and cannot become the collection date later. Catalog latest observation dates apply across the dataset, not every selected security. Missing price units/currency/adjustment remain unknown. Summaries are not original article reads. Cite both sources in comparisons and preserve evidence gaps. Repair unsupported statements; do not merely repeat this draft.'};
       }
       const result=await gateway.submitReport(contract,{toolCallId:required(context.toolCallId,'toolCallId'),report},context.signal);
       if(!verifiedReceipt(result)||result.pythonExecuted!==false||result.executionMode!=='TEXT_ONLY'

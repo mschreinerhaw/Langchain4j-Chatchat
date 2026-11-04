@@ -40,7 +40,7 @@ def main():
         'RUN mkdir -p /srv/coding-agent/.cline && ln -sfnT ../skills /srv/coding-agent/.cline/skills && chmod -R a+rX /srv/coding-agent/skills\n'
         'USER node\n'
         'RUN node --input-type=module -e "import {taskSkills,bundledSkillFiles} from \'./dist/skills.js\'; '
-        'if (taskSkills().catalog.skills.length !== bundledSkillFiles().filter(s => s.enabled !== false).length) '
+        "if (taskSkills({knowledgeExploration:{schemaVersion:'runtime_os.knowledge.v1',resourceIds:['knowledge_documents','financial_news','financial_market']}}).catalog.skills.length !== bundledSkillFiles().filter(s => s.enabled !== false).length) "
         'throw new Error(\'Bundled Skills discovery failed\');"\n')
     run('docker', 'build', '--network', 'none', '-t', image, str(context))
     context.chmod(0o755)

@@ -47,17 +47,17 @@ def main():
             manifest['baselineSha256'] = baseline
             continue
         build = root / (service + '-build')
-        build.mkdir()
+        build.mkdir(exist_ok=True)
         shutil.copy2(artifact, build / 'app.jar')
         image = 'runtime-os-' + service + ':' + tag
-        (build / 'Dockerfile').write_text('FROM ' + original['Image'] + '\nCOPY app.jar /srv/app/app.jar\n')
+        (build / 'Dockerfile').write_text('FROM ' + original['Config']['Image'] + '\nCOPY app.jar /srv/app/app.jar\n')
         run('docker', 'build', '--network', 'none', '--label', 'org.opencontainers.image.revision=' + commit, '-t', image, str(build))
         manifest[service] = {'image': image, 'baselineImageId': original['Image'], 'baselineSha256': baseline,
             'sha256': sha(artifact), 'preparedImageId': run('docker', 'image', 'inspect', '-f', '{{.Id}}', image),
             'baselineApplicationReadiness': True}
     worker = json.loads(run('docker', 'inspect', 'runtime-os-app-stage-coding-agent-1'))[0]
     build = root / 'worker-build'
-    build.mkdir()
+    build.mkdir(exist_ok=True)
     with zipfile.ZipFile(root / 'worker.zip') as archive:
         assert all('..' not in Path(name).parts and not name.startswith('/') for name in archive.namelist())
         archive.extractall(build)
@@ -65,7 +65,7 @@ def main():
     for name, expected in release['workerModules'].items():
         assert sha(build / 'dist' / name) == expected
     image = 'runtime-os-coding-agent:' + tag
-    (build / 'Dockerfile').write_text('FROM ' + worker['Image'] + '\nUSER root\n'
+    (build / 'Dockerfile').write_text('FROM ' + worker['Config']['Image'] + '\nUSER root\n'
         'RUN rm -rf /srv/coding-agent/dist /srv/coding-agent/skills\n'
         'COPY --chown=node:node dist/ /srv/coding-agent/dist/\n'
         'COPY --chown=root:root skills/ /srv/coding-agent/skills/\n'

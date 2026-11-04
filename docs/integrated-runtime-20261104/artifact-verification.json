@@ -1,0 +1,36 @@
+{
+  "sourceCommit": "48dc1029b23c22fd8ac9716af87ec98a03545340",
+  "services": {
+    "api": {
+      "image": "runtime-os-api:integrated-48dc1029b23c-20261104",
+      "revision": "48dc1029b23c22fd8ac9716af87ec98a03545340",
+      "running": true,
+      "jarSha256": "97a2bd14e23f2b3e91b71223af00acccf71dd50036d7a03d1a40670e9a825f7c"
+    },
+    "mcp": {
+      "image": "runtime-os-mcp:integrated-48dc1029b23c-20261104",
+      "revision": "48dc1029b23c22fd8ac9716af87ec98a03545340",
+      "running": true,
+      "jarSha256": "c8d545c6d789b0b91cbb0d86751825ad4ae5bfc201b32b92c813625f2159602e"
+    },
+    "news": {
+      "image": "runtime-os-news:integrated-48dc1029b23c-20261104",
+      "revision": "48dc1029b23c22fd8ac9716af87ec98a03545340",
+      "running": true,
+      "jarSha256": "e2e0de7161805136f25429bcd4721cc82f4e9d152cd2901a3fb85ad44bb48d23"
+    },
+    "coding-agent": {
+      "image": "runtime-os-coding-agent:integrated-48dc1029b23c-20261104",
+      "revision": "48dc1029b23c22fd8ac9716af87ec98a03545340",
+      "running": true
+    }
+  },
+  "classes": {
+    "BOOT-INF/classes/com/chatchat/api/controller/datascience/PythonAssistantHistoryController.class": "65f75d00248da45af72079491f6d5f4e9ec9d9b75280994a72e0a1dec4e0c4c9",
+    "BOOT-INF/classes/com/chatchat/api/datascience/sql/SqlStudioService.class": "aa2f9a8801af8e00de8aed814230df1d77e2ba90478e67331db9116ff7626e42",
+    "BOOT-INF/classes/com/chatchat/api/exploration/ExplorationWorkspaceController.class": "1bd8cf989b86e531e1da77a046d1ad6e894e31fae6491ec76e524227241210c2",
+    "BOOT-INF/classes/com/chatchat/api/runtime/coding/knowledge/KnowledgeResponseAdvice.class": "a9b740cc579cb4411bfb70aff4caad052a73848036bae8a3e722d245823207e7",
+    "BOOT-INF/classes/com/chatchat/api/runtime/coding/knowledge/TaskCollectionDisclosure.class": "1c549a406a3c91ccef8459d82bee23fdf6bb92faf4f20b1a0720c40c12ad77e6"
+  },
+  "status": "PASSED"
+}

@@ -21,6 +21,8 @@
 7. 前端已有 `ReportRenderer`、`ReportMarkdown`、`PythonVisualReport`、`PythonReportChart`；沿现有报告资源授权下载和历史恢复路径展示。是否需修改前端应由实际浏览器验收决定。
 
 ## 已定位缺口
+真实浏览器提交任务的 QUESTION 事件还有前端 `responseContract.prompt`：`ChatAssistantView.js::RESPONSE_RENDER_CONTRACT` 无条件要求展示所有返回行，包括不符合目标的记录。这与 Cline 的报告筛选/去重提示冲突，也是报告出现逐条清单的上游诱因。将明细保留要求限定为用户明确请求明细/列表；分析报告使用相关证据与计算摘要，源明细仍由现有证据与产物保存。元数据物理字段展示规则不变。该修复不指定业务结论，需用部署后的真实 UI 请求验证新合同。
+
 
 第一轮候选真实任务 `fbdf04fc-1633-3944-800e-da1bb34039ff` 另暴露了修复反馈缺口：三次已归档验证均为 `rowSchemaMatched=true`、`declaredReportScopeConsistent=false`，并非文件字段/类型错误。Cline 以 UNCONFIRMED 字段声明提交 COMPLETE，现有结构一致性规则正确拒绝，但 callback 仅返回笼统格式诊断，导致重复修复。补充读取同一任务验证记录中的固定布尔白名单，并返回既有 REPORT_SCOPE_RULE；不返回被拒绝的源值、不降低校验规则、不由 Java 修改报告结论。首轮失败必须保留为验收问题，不能用后续修复覆盖。
 

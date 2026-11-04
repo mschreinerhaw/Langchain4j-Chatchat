@@ -15,6 +15,10 @@ try{
  const context=await browser.newContext({viewport:{width:1440,height:1100},locale:'zh-CN',timezoneId:'Asia/Shanghai'});
  await context.addInitScript(auth=>localStorage.setItem('chatchat.auth.session',JSON.stringify(auth)),auth);
  const page=await context.newPage();
+ const waitForRenderedReport=async()=>page.waitForFunction(()=>{
+  const bodies=[...document.querySelectorAll('.chat-message.assistant .enterprise-ui-artifact,.chat-message.assistant .message-markdown,.chat-message.assistant .python-visual-report')];
+  return bodies.some(root=>root.textContent.length>100&&!root.querySelector('.artifact-resource-state,.artifact-shell-state'));
+ },null,{timeout:60000});
  page.on('pageerror',error=>errors.push(error.name+': '+error.message));
  page.on('response',r=>{const url=new URL(r.url());if(url.pathname.includes('/api/'))responses.push({path:url.pathname,status:r.status()});});
  await page.goto(origin+'/#/w/zhice/chat',{waitUntil:'domcontentloaded',timeout:60000});
@@ -38,7 +42,7 @@ try{
  await page.evaluate(()=>window.__reportAcceptance);
  const state=await page.evaluate(()=>{const v=document.querySelector('#app')._vnode.component.proxy.$refs.activeViewComponent;return{error:v.errorMessage,status:v.conversationStatus,messages:v.messages.map(m=>({role:m.role,status:m.status,taskId:m.taskId,contentCharacters:m.content?.length,uiArtifact:m.uiArtifact,pythonVisualReport:m.pythonVisualReport}))};});
  fs.writeFileSync(output+'/browser-state.json',JSON.stringify(state,null,2));
- await page.waitForFunction(()=>{const root=document.querySelector('.enterprise-ui-artifact');return !root||(!root.querySelector('.artifact-resource-state,.artifact-shell-state')&&root.textContent.length>100);},null,{timeout:60000});
+ if(state.messages.some(m=>m.role==='assistant'&&m.contentCharacters>100))await waitForRenderedReport();
  let chartWaitError=null;
  if(request.toolInput?.reportMode==='visual'&&process.env.REPORT_REQUIRE_CHART==='1')try{await page.waitForFunction(()=>[...document.querySelectorAll('.report-renderer img')].some(i=>i.complete&&i.naturalWidth>0),null,{timeout:60000});}catch(error){chartWaitError=error.name;}
  await page.screenshot({path:output+'/runtime-report-full.png',fullPage:true});
@@ -53,7 +57,7 @@ try{
  await page.evaluate(async id=>{const app=document.querySelector('#app')._vnode.component.proxy;await app.loadConversationHistory();const item=app.conversationHistory?.find(c=>c.id===id||c.conversationId===id);if(!item)throw Error('Persisted conversation missing');await app.selectConversation(item);},submitted.conversationId);
  await page.waitForFunction(id=>document.querySelector('#app')._vnode.component.proxy.$refs.activeViewComponent.messages?.some(m=>m.taskId===id),submitted.taskId,{timeout:60000});
  if(reportCount)await page.locator('.report-renderer').first().waitFor({timeout:60000});
- await page.waitForFunction(()=>{const root=document.querySelector('.enterprise-ui-artifact');return !root||(!root.querySelector('.artifact-resource-state,.artifact-shell-state')&&root.textContent.length>100);},null,{timeout:60000});
+ if(state.messages.some(m=>m.role==='assistant'&&m.contentCharacters>100))await waitForRenderedReport();
  await page.screenshot({path:output+'/runtime-history-reopened.png',fullPage:true});
  const proof={...submitted,status:state.status,error:state.error,reportCount,images,chartWaitError,historyReopened:true,pageErrors:errors,responses};
  fs.writeFileSync(output+'/browser-proof.json',JSON.stringify(proof,null,2));console.log(JSON.stringify(proof));

@@ -1,0 +1,26 @@
+{
+  "at": "2026-11-04T13:48:28.813Z",
+  "realRequests": true,
+  "checks": [
+    {
+      "case": "artifact-without-auth",
+      "route": "/interactions/user-assets/5f89d91249ab918da0b40c95153663f5950d81b018dad4f36e689153be07373a/content",
+      "http": 401
+    },
+    {
+      "case": "artifact-without-auth",
+      "route": "/data-science/user-assets/5f89d91249ab918da0b40c95153663f5950d81b018dad4f36e689153be07373a/content",
+      "http": 401
+    },
+    {
+      "case": "missing-artifact",
+      "http": 404
+    },
+    {
+      "case": "cancelled-task-after-api-restart",
+      "taskId": "1d1e43ca-85ec-4444-9f0a-82d9b5fd1fda",
+      "state": "CANCELLED",
+      "http": 200
+    }
+  ]
+}

@@ -1,0 +1,483 @@
+{
+  "case": "A3",
+  "taskId": "f2b558dd-e823-42d7-a9e3-6efcbc6c4c27",
+  "attemptId": "att-1-402e8d44-891d-46e8-82a8-1aa88083f314",
+  "state": "PARTIAL",
+  "agentId": "financial-news-agent",
+  "createdAt": "2026-11-04T13:02:32.885953Z",
+  "finishedAt": "2026-11-04T13:16:11.566Z",
+  "wallMs": null,
+  "realExecution": true,
+  "syntheticSources": false,
+  "receipts": [
+    {
+      "operationId": "model-1",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:08:18.205985813Z",
+      "durationMs": 7584,
+      "usage": {
+        "outputTokens": 391,
+        "cacheReadTokens": 2304,
+        "reasoningTokens": 209,
+        "inputTokens": 12769
+      }
+    },
+    {
+      "operationId": "model-2",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:08:26.851328345Z",
+      "durationMs": 14252,
+      "usage": {
+        "outputTokens": 834,
+        "cacheReadTokens": 12672,
+        "reasoningTokens": 136,
+        "inputTokens": 14740
+      }
+    },
+    {
+      "operationId": "model-3",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:08:46.131306935Z",
+      "durationMs": 22375,
+      "usage": {
+        "outputTokens": 1324,
+        "cacheReadTokens": 12672,
+        "reasoningTokens": 248,
+        "inputTokens": 19384
+      }
+    },
+    {
+      "operationId": "model-4",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:09:09.623956823Z",
+      "durationMs": 60532,
+      "usage": {
+        "outputTokens": 3685,
+        "cacheReadTokens": 12672,
+        "reasoningTokens": 181,
+        "inputTokens": 20751
+      }
+    },
+    {
+      "operationId": "model-5",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:10:11.265020661Z",
+      "durationMs": 73818,
+      "usage": {
+        "outputTokens": 4522,
+        "cacheReadTokens": 17792,
+        "reasoningTokens": 335,
+        "inputTokens": 24546
+      }
+    },
+    {
+      "operationId": "model-6",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:11:26.645438762Z",
+      "durationMs": 79637,
+      "usage": {
+        "outputTokens": 4878,
+        "cacheReadTokens": 19584,
+        "reasoningTokens": 418,
+        "inputTokens": 24615
+      }
+    },
+    {
+      "operationId": "model-7",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:12:51.255280858Z",
+      "durationMs": 28506,
+      "usage": {
+        "outputTokens": 1679,
+        "cacheReadTokens": 0,
+        "reasoningTokens": 542,
+        "inputTokens": 34716
+      }
+    },
+    {
+      "operationId": "model-8",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:13:25.327382206Z",
+      "durationMs": 13477,
+      "usage": {
+        "outputTokens": 769,
+        "cacheReadTokens": 30464,
+        "reasoningTokens": 301,
+        "inputTokens": 38625
+      }
+    },
+    {
+      "operationId": "model-9",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:13:48.956964860Z",
+      "durationMs": 15128,
+      "usage": {
+        "outputTokens": 827,
+        "cacheReadTokens": 0,
+        "reasoningTokens": 743,
+        "inputTokens": 45484
+      }
+    },
+    {
+      "operationId": "model-10",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:14:06.383368199Z",
+      "durationMs": 72146,
+      "usage": {
+        "outputTokens": 4389,
+        "cacheReadTokens": 0,
+        "reasoningTokens": 1700,
+        "inputTokens": 36113
+      }
+    },
+    {
+      "operationId": "model-11",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:15:28.120664715Z",
+      "durationMs": 16906,
+      "usage": {
+        "outputTokens": 949,
+        "cacheReadTokens": 0,
+        "reasoningTokens": 384,
+        "inputTokens": 33577
+      }
+    },
+    {
+      "operationId": "model-12",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:15:56.014596860Z",
+      "durationMs": 10207,
+      "usage": {
+        "outputTokens": 534,
+        "cacheReadTokens": 0,
+        "reasoningTokens": 367,
+        "inputTokens": 26196
+      }
+    }
+  ],
+  "totals": {
+    "modelCalls": 12,
+    "modelMs": 414568,
+    "inputTokens": 331516,
+    "outputTokens": 24781
+  },
+  "executionMetadata": {},
+  "python": [
+    {
+      "executionId": "cline-748800f09c21a678800a547730bf6cb4b380c9d8281e121817fe08ccb9c7d51f",
+      "status": "SUCCEEDED",
+      "stage": "RESULT_VALIDATION_FAILED",
+      "exitCode": 0,
+      "durationMs": 1935,
+      "codeHash": "94e6cc4b41be2fb67e65950b087d519c3b59549bc2088a629bbb719b2d1cc6bf",
+      "manifestHash": "d4f946c2b3f8a3f98d54935aa6925a673a4f20be1395da2687bc2d14d7c6ab8c",
+      "validationStatus": "FAILED",
+      "artifacts": {
+        "stderrRef": "execution:cline-748800f09c21a678800a547730bf6cb4b380c9d8281e121817fe08ccb9c7d51f:logs:stderr.txt",
+        "diagnosticRef": "execution:cline-748800f09c21a678800a547730bf6cb4b380c9d8281e121817fe08ccb9c7d51f:logs:runtime-diagnostic.json"
+      }
+    },
+    {
+      "executionId": "cline-998a4939c71376d65f87bb964b497c85fd9ad1affa8eb5ffa4351fd63883c5e0",
+      "status": "FAILED",
+      "stage": "EXECUTION_FAILED",
+      "exitCode": 1,
+      "durationMs": 658,
+      "codeHash": "72fa510b2cae8553ce8aa94dcd1fbcfc7fa4e27957dff398cbc1992caf892770",
+      "manifestHash": "e7486fbdf6ff6cadf9e08706c51a487f2542c9de345abe6513c5d916e3eab1a6",
+      "validationStatus": "NOT_RUN",
+      "artifacts": {
+        "stderrRef": "execution:cline-998a4939c71376d65f87bb964b497c85fd9ad1affa8eb5ffa4351fd63883c5e0:logs:stderr.txt",
+        "diagnosticRef": "execution:cline-998a4939c71376d65f87bb964b497c85fd9ad1affa8eb5ffa4351fd63883c5e0:logs:runtime-diagnostic.json"
+      }
+    },
+    {
+      "executionId": "cline-b6c1e1b76614a7fe6990e58b5a33c867633bed774b57a40f82d2d35a6bacd7ac",
+      "status": "FAILED",
+      "stage": "EXECUTION_FAILED",
+      "exitCode": 1,
+      "durationMs": 481,
+      "codeHash": "dd4895ccf261c753d878278b2db93b9812db4ad0c7e18c90c6d53fc281e22dac",
+      "manifestHash": "46bd9cf5a23d807e89b6ea60c5c72734c03172f15cb7d82ac4854cbb0f1ae67a",
+      "validationStatus": "NOT_RUN",
+      "artifacts": {
+        "stderrRef": "execution:cline-b6c1e1b76614a7fe6990e58b5a33c867633bed774b57a40f82d2d35a6bacd7ac:logs:stderr.txt",
+        "diagnosticRef": "execution:cline-b6c1e1b76614a7fe6990e58b5a33c867633bed774b57a40f82d2d35a6bacd7ac:logs:runtime-diagnostic.json"
+      }
+    },
+    {
+      "executionId": "cline-2e21776fb86850ad4912468f5f2e17e6060d5271283ca75a499c0558c3733c36",
+      "status": "SUCCEEDED",
+      "stage": "VALIDATED",
+      "exitCode": 0,
+      "durationMs": 1762,
+      "codeHash": "dcc468a207bff5f9e5a7bc6276c1c14e4992c717e36fca86f44466ccded9481d",
+      "manifestHash": "43c98ba40d5e2d33d0882e0b3a1d807a56c2d2549198cd251da0a23afde95576",
+      "validationStatus": "INCONCLUSIVE",
+      "artifacts": {
+        "resultDatasetRef": "runtime-evidence:coding:071a7e42c100e636bcd84cd5e726f8cd964073579c3c55c2015be39a81b45afc:result",
+        "inputSnapshotRef": "runtime-evidence:coding:input:0c7ca4ab24443c60a4955aa752f2424f01a60e19d1670c7c6ecf37dfb2c28cf",
+        "codeArtifactRef": "runtime-evidence:coding:071a7e42c100e636bcd84cd5e726f8cd964073579c3c55c2015be39a81b45afc:code",
+        "executionReceiptRef": "runtime-evidence:coding:071a7e42c100e636bcd84cd5e726f8cd964073579c3c55c2015be39a81b45afc:receipt",
+        "stderrRef": "execution:cline-2e21776fb86850ad4912468f5f2e17e6060d5271283ca75a499c0558c3733c36:logs:stderr.txt",
+        "diagnosticRef": "execution:cline-2e21776fb86850ad4912468f5f2e17e6060d5271283ca75a499c0558c3733c36:logs:runtime-diagnostic.json",
+        "evidenceBundleRef": "runtime-evidence:coding:071a7e42c100e636bcd84cd5e726f8cd964073579c3c55c2015be39a81b45afc:bundle",
+        "validationRecordRef": "runtime-evidence:coding:071a7e42c100e636bcd84cd5e726f8cd964073579c3c55c2015be39a81b45afc:validation"
+      }
+    },
+    {
+      "executionId": "cline-2f320c0f4edb62cec73311f9d6da41120978582123e3db9b9e54acba38524b8a",
+      "status": "SUCCEEDED",
+      "stage": "VALIDATED",
+      "exitCode": 0,
+      "durationMs": 2029,
+      "codeHash": "a31127d5e3d97616cc16b23a08e89525dad0c077b40c5eb85911d224c4835e7a",
+      "manifestHash": "2492514fbfb89da6c6cb9b082c1c5c5694284527886f3f38f8735c607c95af52",
+      "validationStatus": "INCONCLUSIVE",
+      "artifacts": {
+        "resultDatasetRef": "runtime-evidence:coding:cc2d51d7d9db43219c256781bac4c2a97c867b6da38e6c891625281912b8b050:result",
+        "inputSnapshotRef": "runtime-evidence:coding:input:0c7ca4ab24443c60a4955aa752f2424f01a60e19d1670c7c6ecf37dfb2c28cf",
+        "codeArtifactRef": "runtime-evidence:coding:cc2d51d7d9db43219c256781bac4c2a97c867b6da38e6c891625281912b8b050:code",
+        "executionReceiptRef": "runtime-evidence:coding:cc2d51d7d9db43219c256781bac4c2a97c867b6da38e6c891625281912b8b050:receipt",
+        "stderrRef": "execution:cline-2f320c0f4edb62cec73311f9d6da41120978582123e3db9b9e54acba38524b8a:logs:stderr.txt",
+        "diagnosticRef": "execution:cline-2f320c0f4edb62cec73311f9d6da41120978582123e3db9b9e54acba38524b8a:logs:runtime-diagnostic.json",
+        "evidenceBundleRef": "runtime-evidence:coding:cc2d51d7d9db43219c256781bac4c2a97c867b6da38e6c891625281912b8b050:bundle",
+        "validationRecordRef": "runtime-evidence:coding:cc2d51d7d9db43219c256781bac4c2a97c867b6da38e6c891625281912b8b050:validation"
+      }
+    },
+    {
+      "executionId": "cline-9e4bb9c43ff4a60b34e3dcc6075399addabcff535337ea0102573266512ca9e7",
+      "status": "SUCCEEDED",
+      "stage": "VALIDATED",
+      "exitCode": 0,
+      "durationMs": 2084,
+      "codeHash": "7d8fcf1f3efd105f72cc31fd1760663926e22588330295d1a7e746fae8630bbf",
+      "manifestHash": "cd71daa746f9b8cc5fdefa4bbc2a9f6beb66e0bdbbf8954cf4b630610c58f2f7",
+      "validationStatus": "INCONCLUSIVE",
+      "artifacts": {
+        "resultDatasetRef": "runtime-evidence:coding:f7c30040fed823d3f42467426722b2e84efc31b2b65297f45e6760d265b60f4b:result",
+        "inputSnapshotRef": "runtime-evidence:coding:input:0c7ca4ab24443c60a4955aa752f2424f01a60e19d1670c7c6ecf37dfb2c28cf",
+        "codeArtifactRef": "runtime-evidence:coding:f7c30040fed823d3f42467426722b2e84efc31b2b65297f45e6760d265b60f4b:code",
+        "executionReceiptRef": "runtime-evidence:coding:f7c30040fed823d3f42467426722b2e84efc31b2b65297f45e6760d265b60f4b:receipt",
+        "stderrRef": "execution:cline-9e4bb9c43ff4a60b34e3dcc6075399addabcff535337ea0102573266512ca9e7:logs:stderr.txt",
+        "diagnosticRef": "execution:cline-9e4bb9c43ff4a60b34e3dcc6075399addabcff535337ea0102573266512ca9e7:logs:runtime-diagnostic.json",
+        "evidenceBundleRef": "runtime-evidence:coding:f7c30040fed823d3f42467426722b2e84efc31b2b65297f45e6760d265b60f4b:bundle",
+        "validationRecordRef": "runtime-evidence:coding:f7c30040fed823d3f42467426722b2e84efc31b2b65297f45e6760d265b60f4b:validation"
+      }
+    }
+  ],
+  "codingOutcomes": [
+    {
+      "taskId": "analysis-coding-ba0f36a7438ffd01bd0cf3abb7cd920296ff08fde21a5fc8bdecbffb771bb722",
+      "status": "COMPLETED",
+      "reasonCode": null,
+      "meteringComplete": false,
+      "reservedModelCalls": 0
+    }
+  ],
+  "skills": [
+    {
+      "type": "SKILLS_AVAILABLE",
+      "at": "2026-11-04T13:08:17.780Z",
+      "fingerprint": "07cf365d82ebce235d83b2f2db0c60ea0626667a6c88ea18769465266f4cb69a"
+    },
+    {
+      "type": "SKILLS_LOADED",
+      "at": "2026-11-04T13:08:26.191Z",
+      "skillId": "7704e35b-f526-48d4-819d-8b465ac4731e",
+      "version": "95a9af4e-d510-42d7-b155-7b3cd4423830:dcf79cdb-9f04-32a0-a11e-87454fd18378:GOOGLE_ADK_NATIVE"
+    }
+  ],
+  "tools": [
+    {
+      "sequence": 294,
+      "type": "TOOL_CALL",
+      "tool": "mcp_chatchat_mcp_server_web_search",
+      "at": 1793797694683,
+      "latencyMs": null,
+      "outcome": "success",
+      "remoteToolInvoked": true,
+      "errorCode": null
+    },
+    {
+      "sequence": 295,
+      "type": "TOOL_RESULT",
+      "tool": "mcp_chatchat_mcp_server_web_search",
+      "at": 1793797696380,
+      "latencyMs": 1697,
+      "outcome": "success",
+      "remoteToolInvoked": true,
+      "errorCode": null
+    }
+  ],
+  "workerTools": [
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:08:26.297Z",
+      "tool": "input_read"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:08:41.672Z",
+      "tool": "python_execute"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:08:45.578Z",
+      "tool": "python_execute",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:12:47.305Z",
+      "tool": "python_execute"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:12:50.356Z",
+      "tool": "python_execute",
+      "status": "FAILED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:13:20.885Z",
+      "tool": "python_execute"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:13:24.301Z",
+      "tool": "python_execute",
+      "status": "FAILED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:13:40.467Z",
+      "tool": "python_execute"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:13:47.063Z",
+      "tool": "python_execute",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:13:47.267Z",
+      "tool": "artifact_read"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:13:47.555Z",
+      "tool": "artifact_read",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:15:20.178Z",
+      "tool": "python_execute"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:15:25.817Z",
+      "tool": "python_execute",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:15:26.030Z",
+      "tool": "artifact_read"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:15:26.415Z",
+      "tool": "artifact_read",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:15:46.886Z",
+      "tool": "python_execute"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:15:53.402Z",
+      "tool": "python_execute",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:15:53.648Z",
+      "tool": "artifact_read"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:15:54.158Z",
+      "tool": "artifact_read",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:16:07.712Z",
+      "tool": "artifact_read"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:16:08.009Z",
+      "tool": "artifact_read",
+      "status": "SUCCEEDED"
+    }
+  ],
+  "modelFailures": [],
+  "responseContract": {
+    "synthesisRequested": false,
+    "preserveUnexpectedRows": true
+  },
+  "browser": {
+    "taskId": "f2b558dd-e823-42d7-a9e3-6efcbc6c4c27",
+    "conversationId": "1793797353127-79d7c5ff763bd",
+    "status": "partial",
+    "historyReopened": true,
+    "reportCount": 0,
+    "chartWaitError": null,
+    "images": [],
+    "pageErrors": [],
+    "httpStatusCounts": {
+      "200": 76
+    }
+  },
+  "textCoverage": {
+    "headingCount": 8,
+    "renderedHeadingCount": 7,
+    "allHeadingsRendered": false
+  },
+  "files": {
+    "report.md": {
+      "bytes": 37123,
+      "sha256": "e20dc090506a616272861284665bcb2c24659649d2904856af15de4a4f228707"
+    },
+    "runtime-report-full.png": {
+      "bytes": 189880,
+      "sha256": "f11585e85eb8373974bdb67180fbaaa29a6cf9a1b7f803fb8b1e915903bc0540"
+    },
+    "runtime-history-reopened.png": {
+      "bytes": 186400,
+      "sha256": "4578e16d38386844ca08c99900465821a26366bf2e62e8d6eefdaffb7e9058dd"
+    },
+    "rendered-report.txt": {
+      "bytes": 27488,
+      "sha256": "fa7c6c5683032677ebd4172456b26e2d378fa2a5b0d0bfcf1ad9dad8933c0ff4"
+    }
+  }
+}

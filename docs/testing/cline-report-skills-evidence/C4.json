@@ -1,0 +1,39 @@
+{
+  "case": "C4",
+  "taskId": "ca825929-0dea-3b26-9a34-d649a24c789f",
+  "attemptId": "att-1-8f1d4d74-4b2b-44c8-b9da-061faf78d698",
+  "state": "FAILED",
+  "agentId": "financial_indicator",
+  "boundModel": "qwen3.7-flash-2026-07-15",
+  "createdAt": "2026-11-04T13:40:53.027204Z",
+  "finishedAt": "2026-11-04T13:42:28.877Z",
+  "wallMs": null,
+  "realExecution": true,
+  "syntheticSources": false,
+  "receipts": [],
+  "totals": {
+    "modelCalls": 0,
+    "modelMs": 0,
+    "inputTokens": 0,
+    "outputTokens": 0
+  },
+  "executionMetadata": {},
+  "python": [],
+  "codingOutcomes": [],
+  "skills": [],
+  "tools": [],
+  "workerTools": [],
+  "modelFailures": [],
+  "responseContract": {
+    "synthesisRequested": false,
+    "preserveUnexpectedRows": false
+  },
+  "browser": null,
+  "textCoverage": null,
+  "files": {
+    "report.md": {
+      "bytes": 1227,
+      "sha256": "95185da086102a208bbb2afbd1ddb65e06d5b4fd2cc391e8732bbdf7b6b9e8db"
+    }
+  }
+}

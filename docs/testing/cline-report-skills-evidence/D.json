@@ -1,0 +1,154 @@
+{
+  "case": "D",
+  "taskId": "82b2eb2a-ee30-47a1-8c03-e631e08d2eac",
+  "attemptId": "att-1-63f3051a-c38e-4024-ab41-ce6f8ba023d0",
+  "state": "SUCCEEDED",
+  "agentId": "resource_exploration_acceptance_20261104",
+  "createdAt": "2026-11-04T12:34:53.217006Z",
+  "finishedAt": "2026-11-04T12:38:58.986Z",
+  "wallMs": null,
+  "realExecution": true,
+  "syntheticSources": false,
+  "receipts": [
+    {
+      "operationId": "model-1",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T12:37:38.839301330Z",
+      "durationMs": 7276,
+      "usage": {
+        "reasoningTokens": 275,
+        "cacheReadTokens": 0,
+        "outputTokens": 367,
+        "inputTokens": 13727
+      }
+    },
+    {
+      "operationId": "model-2",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T12:37:47.278671970Z",
+      "durationMs": 40705,
+      "usage": {
+        "reasoningTokens": 586,
+        "cacheReadTokens": 2816,
+        "outputTokens": 2153,
+        "inputTokens": 14759
+      }
+    },
+    {
+      "operationId": "model-3",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T12:38:29.040351058Z",
+      "durationMs": 27856,
+      "usage": {
+        "reasoningTokens": 105,
+        "cacheReadTokens": 2816,
+        "outputTokens": 1641,
+        "inputTokens": 18157
+      }
+    }
+  ],
+  "totals": {
+    "modelCalls": 3,
+    "modelMs": 75837,
+    "inputTokens": 46643,
+    "outputTokens": 4161
+  },
+  "executionMetadata": {},
+  "python": [],
+  "codingOutcomes": [
+    {
+      "taskId": "analysis-coding-4b301a3ccc04889a9a2c1d529d73e5723b14504815437c01690cf2774c2b069d",
+      "status": "COMPLETED",
+      "reasonCode": null,
+      "meteringComplete": false,
+      "reservedModelCalls": 0
+    }
+  ],
+  "skills": [
+    {
+      "type": "SKILLS_AVAILABLE",
+      "at": "2026-11-04T12:37:38.458Z",
+      "fingerprint": "d79bcd8f2321dbc3e9ae1bd4b8e9791f331edf4db9916b4519f3a51fbdb19b99"
+    }
+  ],
+  "tools": [],
+  "workerTools": [
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T12:37:46.397Z",
+      "tool": "input_read"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T12:37:46.720Z",
+      "tool": "input_read",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T12:38:28.356Z",
+      "tool": "report_submit"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T12:38:28.421Z",
+      "tool": "report_submit",
+      "status": "REVIEW_REQUIRED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T12:38:57.267Z",
+      "tool": "report_submit"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T12:38:58.082Z",
+      "tool": "report_submit",
+      "status": "SUCCEEDED"
+    }
+  ],
+  "modelFailures": [],
+  "responseContract": {
+    "synthesisRequested": false,
+    "preserveUnexpectedRows": true
+  },
+  "browser": {
+    "taskId": "82b2eb2a-ee30-47a1-8c03-e631e08d2eac",
+    "conversationId": "1793795693629-b2670cd24d3438",
+    "status": "completed",
+    "historyReopened": true,
+    "reportCount": 0,
+    "chartWaitError": null,
+    "images": [],
+    "pageErrors": [],
+    "httpStatusCounts": {
+      "200": 36
+    }
+  },
+  "textCoverage": {
+    "headingCount": 20,
+    "renderedHeadingCount": 20,
+    "allHeadingsRendered": true
+  },
+  "files": {
+    "report.md": {
+      "bytes": 5381,
+      "sha256": "cf93d73a55b672e6d5f8fd516c2bcad2a3928de02c10e77a706b17df223c9e14"
+    },
+    "runtime-report-full.png": {
+      "bytes": 221570,
+      "sha256": "3de9420e7d5df208cf0a7107fc7129d8572c18d2b02a1759d88c33d01c5b7a1a"
+    },
+    "runtime-history-reopened.png": {
+      "bytes": 221531,
+      "sha256": "df58126d111c72883931aab91dd5c055e01400b2474461a0ca82db6524a96ccf"
+    },
+    "rendered-report.txt": {
+      "bytes": 6823,
+      "sha256": "67230e3c169aa05f0c27f0d0e6936e98153162f968ddaf8a788a5e6032dfcc44"
+    }
+  }
+}

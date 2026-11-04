@@ -1,0 +1,148 @@
+{
+  "case": "B6",
+  "taskId": "c884075b-bcbe-46c7-b517-8e83614b2bbb",
+  "attemptId": "att-1-890760a0-9012-4951-a371-a22a6b6331af",
+  "state": "CANCELLED",
+  "agentId": "financial_data_analysis",
+  "boundModel": "qwen3.7-plus",
+  "createdAt": "2026-11-04T13:46:33.158263Z",
+  "finishedAt": "2026-11-04T13:59:33.696Z",
+  "wallMs": null,
+  "realExecution": true,
+  "syntheticSources": false,
+  "receipts": [
+    {
+      "operationId": "model-1",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:48:07.738017648Z",
+      "durationMs": 9072,
+      "usage": {
+        "reasoningTokens": 459,
+        "inputTokens": 16597,
+        "outputTokens": 493,
+        "cacheReadTokens": 0
+      }
+    },
+    {
+      "operationId": "model-2",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:48:17.671571002Z",
+      "durationMs": 15281,
+      "usage": {
+        "reasoningTokens": 122,
+        "inputTokens": 17836,
+        "outputTokens": 879,
+        "cacheReadTokens": 16128
+      }
+    }
+  ],
+  "totals": {
+    "modelCalls": 2,
+    "modelMs": 24353,
+    "inputTokens": 34433,
+    "outputTokens": 1372
+  },
+  "executionMetadata": {},
+  "python": [
+    {
+      "executionId": "cline-b40dc4d23b7d9a08eb8c5f05d0595906781c162ef00df9ae0c2debab069a9abf",
+      "status": "FAILED",
+      "stage": "EXECUTION_FAILED",
+      "exitCode": 1,
+      "durationMs": 3078,
+      "codeHash": "7b3c0f3f6fedd2e705af31af73e1b7bb3048b2d39e421293f86acac87901c8aa",
+      "manifestHash": "8c71c9b7884f22bceb52b73dd3021064eed2f855d49e8d25f6a3a9d6a33d07a3",
+      "validationStatus": "NOT_RUN",
+      "artifacts": {
+        "diagnosticRef": "execution:cline-b40dc4d23b7d9a08eb8c5f05d0595906781c162ef00df9ae0c2debab069a9abf:logs:runtime-diagnostic.json",
+        "stderrRef": "execution:cline-b40dc4d23b7d9a08eb8c5f05d0595906781c162ef00df9ae0c2debab069a9abf:logs:stderr.txt"
+      }
+    }
+  ],
+  "codingOutcomes": [
+    {
+      "taskId": "analysis-coding-c085e9a0d6c1c20a724cc660de33af764de9481c616940b4a33ec34eeef60c9f",
+      "status": "RUNNING",
+      "reasonCode": "CANCEL_REQUESTED",
+      "meteringComplete": false,
+      "reservedModelCalls": 1
+    }
+  ],
+  "skills": [
+    {
+      "type": "SKILLS_AVAILABLE",
+      "at": "2026-11-04T13:48:07.326Z",
+      "fingerprint": "d79bcd8f2321dbc3e9ae1bd4b8e9791f331edf4db9916b4519f3a51fbdb19b99"
+    },
+    {
+      "type": "SKILLS_LOADED",
+      "at": "2026-11-04T13:48:17.196Z",
+      "skillId": "builtin:python-data-analysis",
+      "version": "1.3.0"
+    }
+  ],
+  "tools": [],
+  "workerTools": [
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:48:33.499Z",
+      "tool": "python_execute"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:48:40.210Z",
+      "tool": "python_execute",
+      "status": "FAILED"
+    }
+  ],
+  "modelFailures": [
+    {
+      "at": 1793800421147,
+      "modelCall": 3,
+      "status": "FAILED"
+    }
+  ],
+  "responseContract": {
+    "synthesisRequested": true,
+    "preserveUnexpectedRows": false
+  },
+  "browser": {
+    "taskId": "c884075b-bcbe-46c7-b517-8e83614b2bbb",
+    "conversationId": "1793799993605-67f6bdefd173f",
+    "status": "cancelled",
+    "historyReopened": true,
+    "reportCount": 0,
+    "chartWaitError": "TimeoutError",
+    "images": [],
+    "historyImages": [],
+    "pageErrors": [],
+    "httpStatusCounts": {
+      "200": 68
+    }
+  },
+  "textCoverage": {
+    "headingCount": 0,
+    "renderedHeadingCount": 0,
+    "allHeadingsRendered": false
+  },
+  "files": {
+    "report.md": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runtime-report-full.png": {
+      "bytes": 210399,
+      "sha256": "a2215116f0f84a693285fd44fa2c67885e0c45789d20de348914440804b13254"
+    },
+    "runtime-history-reopened.png": {
+      "bytes": 189933,
+      "sha256": "fe4a05795328a148e22fe716eb25d5aceb8d470b7bc77814598238edacff945b"
+    },
+    "rendered-report.txt": {
+      "bytes": 2900,
+      "sha256": "eea2eeaf3d51ac508aa5efaac2cd71d521552e9858d78040dff1a8480d58deb9"
+    }
+  }
+}

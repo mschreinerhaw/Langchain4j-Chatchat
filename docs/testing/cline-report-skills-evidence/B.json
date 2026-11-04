@@ -1,0 +1,255 @@
+{
+  "case": "B",
+  "taskId": "15d18607-f7f6-4bb8-b42f-c81ee931eeae",
+  "attemptId": "att-1-fc46cfc9-edea-4c86-b508-40be6a467f80",
+  "state": "PARTIAL",
+  "agentId": "resource_exploration_acceptance_20261104",
+  "createdAt": "2026-11-04T12:31:18.935677Z",
+  "finishedAt": "2026-11-04T12:33:20.907Z",
+  "wallMs": null,
+  "realExecution": true,
+  "syntheticSources": false,
+  "receipts": [
+    {
+      "operationId": "model-1",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T12:31:23.572632169Z",
+      "durationMs": 7295,
+      "usage": {
+        "reasoningTokens": 288,
+        "cacheReadTokens": 0,
+        "outputTokens": 379,
+        "inputTokens": 13729
+      }
+    },
+    {
+      "operationId": "model-2",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T12:31:32.288670519Z",
+      "durationMs": 5151,
+      "usage": {
+        "reasoningTokens": 129,
+        "cacheReadTokens": 0,
+        "outputTokens": 223,
+        "inputTokens": 14221
+      }
+    },
+    {
+      "operationId": "model-3",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T12:31:39.019664119Z",
+      "durationMs": 3559,
+      "usage": {
+        "reasoningTokens": 81,
+        "cacheReadTokens": 2816,
+        "outputTokens": 145,
+        "inputTokens": 15057
+      }
+    },
+    {
+      "operationId": "model-4",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T12:31:45.886964977Z",
+      "durationMs": 6664,
+      "usage": {
+        "reasoningTokens": 199,
+        "cacheReadTokens": 2816,
+        "outputTokens": 320,
+        "inputTokens": 18575
+      }
+    },
+    {
+      "operationId": "model-5",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T12:31:59.326963111Z",
+      "durationMs": 24784,
+      "usage": {
+        "reasoningTokens": 508,
+        "cacheReadTokens": 2816,
+        "outputTokens": 1428,
+        "inputTokens": 25508
+      }
+    },
+    {
+      "operationId": "model-6",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T12:32:25.972997321Z",
+      "durationMs": 17155,
+      "usage": {
+        "reasoningTokens": 84,
+        "cacheReadTokens": 2816,
+        "outputTokens": 965,
+        "inputTokens": 28251
+      }
+    },
+    {
+      "operationId": "model-7",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T12:32:48.076819514Z",
+      "durationMs": 26399,
+      "usage": {
+        "reasoningTokens": 52,
+        "cacheReadTokens": 2816,
+        "outputTokens": 1544,
+        "inputTokens": 29176
+      }
+    }
+  ],
+  "totals": {
+    "modelCalls": 7,
+    "modelMs": 91007,
+    "inputTokens": 144517,
+    "outputTokens": 5004
+  },
+  "executionMetadata": {},
+  "python": [],
+  "codingOutcomes": [
+    {
+      "taskId": "analysis-coding-54eb970ecb4dee289dc641eb1d9df790cf33945a4b7ca48a6afe1ff263faa2b1",
+      "status": "COMPLETED",
+      "reasonCode": null,
+      "meteringComplete": false,
+      "reservedModelCalls": 0
+    }
+  ],
+  "skills": [
+    {
+      "type": "SKILLS_AVAILABLE",
+      "at": "2026-11-04T12:31:22.859Z",
+      "fingerprint": "d79bcd8f2321dbc3e9ae1bd4b8e9791f331edf4db9916b4519f3a51fbdb19b99"
+    }
+  ],
+  "tools": [],
+  "workerTools": [
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T12:31:31.271Z",
+      "tool": "input_read"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T12:31:31.617Z",
+      "tool": "input_read",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T12:31:37.856Z",
+      "tool": "input_read"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T12:31:38.291Z",
+      "tool": "input_read",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T12:31:43.103Z",
+      "tool": "knowledge_search"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T12:31:44.863Z",
+      "tool": "knowledge_search",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T12:31:53.099Z",
+      "tool": "knowledge_search"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T12:31:54.734Z",
+      "tool": "knowledge_search",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T12:31:54.958Z",
+      "tool": "knowledge_search"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T12:31:57.396Z",
+      "tool": "knowledge_search",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T12:32:24.688Z",
+      "tool": "report_submit"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T12:32:24.796Z",
+      "tool": "report_submit",
+      "status": "REVIEW_REQUIRED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T12:32:43.838Z",
+      "tool": "report_submit"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T12:33:15.336Z",
+      "tool": "report_submit"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T12:33:18.393Z",
+      "tool": "report_submit",
+      "status": "SUCCEEDED"
+    }
+  ],
+  "modelFailures": [],
+  "responseContract": {
+    "synthesisRequested": false,
+    "preserveUnexpectedRows": true
+  },
+  "browser": {
+    "taskId": "15d18607-f7f6-4bb8-b42f-c81ee931eeae",
+    "conversationId": "1793795479070-781f402aaa4178",
+    "status": "partial",
+    "historyReopened": true,
+    "reportCount": 0,
+    "chartWaitError": null,
+    "images": [],
+    "pageErrors": [],
+    "httpStatusCounts": {
+      "200": 32
+    }
+  },
+  "textCoverage": {
+    "headingCount": 8,
+    "renderedHeadingCount": 2,
+    "allHeadingsRendered": false
+  },
+  "files": {
+    "report.md": {
+      "bytes": 2546,
+      "sha256": "571350cd288e9a301ca2f1e285017dd471ef5c5ac8debddbd54f5475f85d109a"
+    },
+    "runtime-report-full.png": {
+      "bytes": 166159,
+      "sha256": "29a59e90dcc35ddc471f2f425c81cc11cd1d7149c5159d72d719c7eaf6ca5cbf"
+    },
+    "runtime-history-reopened.png": {
+      "bytes": 204826,
+      "sha256": "4eb9b49f4223c140d8c8246f59a84973db544613d87d400a9115893befaef39a"
+    },
+    "rendered-report.txt": {
+      "bytes": 1684,
+      "sha256": "b0eedfc5711a10300398c1ccbc381a12b3198da3c819d92d65e32849a9411528"
+    }
+  }
+}

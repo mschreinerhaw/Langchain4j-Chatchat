@@ -1,0 +1,208 @@
+{
+  "case": "C5",
+  "taskId": "fc1b02ed-f93a-4bb2-ba0e-8cce212feaf2",
+  "attemptId": "att-1-42a3b9a0-1dfa-42e1-85f0-2fc2201076be",
+  "state": "CANCELLED",
+  "agentId": "ids_data_audit",
+  "boundModel": "qwen3.8-flash",
+  "createdAt": "2026-11-04T13:44:13.579990Z",
+  "finishedAt": "2026-11-04T13:59:33.265Z",
+  "wallMs": null,
+  "realExecution": true,
+  "syntheticSources": false,
+  "receipts": [
+    {
+      "operationId": "model-1",
+      "model": "qwen3.8-flash",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:48:13.467460576Z",
+      "durationMs": 179282,
+      "usage": {
+        "reasoningTokens": 10595,
+        "inputTokens": 16371,
+        "outputTokens": 10877,
+        "cacheReadTokens": 0
+      }
+    },
+    {
+      "operationId": "model-2",
+      "model": "qwen3.8-flash",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:51:14.625922388Z",
+      "durationMs": 124925,
+      "usage": {
+        "reasoningTokens": 6389,
+        "inputTokens": 25939,
+        "outputTokens": 6486,
+        "cacheReadTokens": 16128
+      }
+    },
+    {
+      "operationId": "model-3",
+      "model": "qwen3.8-flash",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:53:21.044098928Z",
+      "durationMs": 7227,
+      "usage": {
+        "reasoningTokens": 60,
+        "inputTokens": 31169,
+        "outputTokens": 516,
+        "cacheReadTokens": 25600
+      }
+    }
+  ],
+  "totals": {
+    "modelCalls": 3,
+    "modelMs": 311434,
+    "inputTokens": 73479,
+    "outputTokens": 17879
+  },
+  "executionMetadata": {},
+  "python": [
+    {
+      "executionId": "cline-9e102226f202fb2e786009e5ac1c61fc9415f160d7f8f1d8b8647aaa53b8b6cc",
+      "status": "SUCCEEDED",
+      "stage": "RESULT_VALIDATION_FAILED",
+      "exitCode": 0,
+      "durationMs": 1271,
+      "codeHash": "2943db395c011df3cd256acc05af4f693a56824244de233f9996d0d662c40e36",
+      "manifestHash": "16dd787b1b4b92b4f924c2eb51c8431c8a141992899494e7976716dd54d23580",
+      "validationStatus": "FAILED",
+      "artifacts": {
+        "diagnosticRef": "execution:cline-9e102226f202fb2e786009e5ac1c61fc9415f160d7f8f1d8b8647aaa53b8b6cc:logs:runtime-diagnostic.json",
+        "stderrRef": "execution:cline-9e102226f202fb2e786009e5ac1c61fc9415f160d7f8f1d8b8647aaa53b8b6cc:logs:stderr.txt"
+      }
+    }
+  ],
+  "codingOutcomes": [
+    {
+      "taskId": "analysis-coding-2b6e97338c135034097c3a9347592d2fc3f97c04513e4c93cdd3b88e01c91f9e",
+      "status": "RUNNING",
+      "reasonCode": "CANCEL_REQUESTED",
+      "meteringComplete": false,
+      "reservedModelCalls": 1
+    }
+  ],
+  "skills": [
+    {
+      "type": "SKILLS_AVAILABLE",
+      "at": "2026-11-04T13:48:12.826Z",
+      "fingerprint": "fba75cb422b03c7515b6e6ac536957500cdd54d745897ad789b526e9fc481d59"
+    },
+    {
+      "type": "SKILLS_LOADED",
+      "at": "2026-11-04T13:51:13.136Z",
+      "skillId": "builtin:runtime-report-delivery",
+      "version": "1.0.0"
+    },
+    {
+      "type": "SKILLS_LOADED",
+      "at": "2026-11-04T13:51:13.241Z",
+      "skillId": "builtin:python-data-analysis",
+      "version": "1.3.0"
+    },
+    {
+      "type": "SKILLS_LOADED",
+      "at": "2026-11-04T13:51:13.448Z",
+      "skillId": "builtin:cline:plotting",
+      "version": "upstream-26378461e978"
+    },
+    {
+      "type": "SKILLS_LOADED",
+      "at": "2026-11-04T13:51:13.658Z",
+      "skillId": "a78201a6-1fd4-4867-a93f-933065b148fa",
+      "version": "56691f5e-c952-4933-a950-da9fa05f56ff:8c5dac66-1c1e-31b5-8207-44d24980821a:GOOGLE_ADK_NATIVE"
+    },
+    {
+      "type": "SKILLS_LOADED",
+      "at": "2026-11-04T13:51:13.865Z",
+      "skillId": "c5fc7f5f-2251-4999-9e03-77a935f48273",
+      "version": "63242fe8-ea6c-4482-9c29-f7a6052278d3:c44e1080-7ed7-3eb7-b051-88f0a8f117c6:GOOGLE_ADK_NATIVE"
+    },
+    {
+      "type": "SKILLS_LOADED",
+      "at": "2026-11-04T13:51:14.102Z",
+      "skillId": "f2b50a65-8768-46e4-bdbf-6d82880633de",
+      "version": "a4be4282-ed34-4461-8bfa-e66f2ccb8c7e:7bd1e258-d39c-3274-b530-6d223abfcf5d:GOOGLE_ADK_NATIVE"
+    },
+    {
+      "type": "SKILLS_LOADED",
+      "at": "2026-11-04T13:53:20.097Z",
+      "skillId": "builtin:python-data-analysis",
+      "version": "1.3.0"
+    },
+    {
+      "type": "SKILLS_LOADED",
+      "at": "2026-11-04T13:53:20.285Z",
+      "skillId": "builtin:python-data-analysis",
+      "version": "1.3.0"
+    }
+  ],
+  "tools": [],
+  "workerTools": [
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:53:28.856Z",
+      "tool": "input_read"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:53:29.326Z",
+      "tool": "python_execute"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:53:33.011Z",
+      "tool": "python_execute",
+      "status": "SUCCEEDED"
+    }
+  ],
+  "modelFailures": [
+    {
+      "at": 1793800714087,
+      "modelCall": 4,
+      "status": "FAILED"
+    }
+  ],
+  "responseContract": {
+    "synthesisRequested": true,
+    "preserveUnexpectedRows": false
+  },
+  "browser": {
+    "taskId": "fc1b02ed-f93a-4bb2-ba0e-8cce212feaf2",
+    "conversationId": "1793799853990-f9775e4a439718",
+    "status": "cancelled",
+    "historyReopened": true,
+    "reportCount": 0,
+    "chartWaitError": "TimeoutError",
+    "images": [],
+    "historyImages": [],
+    "pageErrors": [],
+    "httpStatusCounts": {
+      "200": 74
+    }
+  },
+  "textCoverage": {
+    "headingCount": 0,
+    "renderedHeadingCount": 0,
+    "allHeadingsRendered": false
+  },
+  "files": {
+    "report.md": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "runtime-report-full.png": {
+      "bytes": 212087,
+      "sha256": "282095f4e231b6bdd736dd8b745e0ecfe40896a0dd784991bea2d3b1bb1e9bde"
+    },
+    "runtime-history-reopened.png": {
+      "bytes": 196757,
+      "sha256": "174d971b01bcf9ad638d01feabeecbf6fd998499d18c3186fd3dad7ba34d4885"
+    },
+    "rendered-report.txt": {
+      "bytes": 2901,
+      "sha256": "f73170a62c2adc335f2c45d770bcf77bae808b87428547bb7d08459e49b6c099"
+    }
+  }
+}

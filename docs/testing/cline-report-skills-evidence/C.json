@@ -1,0 +1,393 @@
+{
+  "case": "C",
+  "taskId": "ee474911-b1d7-3c7b-9f72-a76f533ce955",
+  "attemptId": "att-1-d3e8a1e6-f4ed-45eb-93ed-af03629af45b",
+  "state": "FAILED",
+  "agentId": "financial_indicator",
+  "createdAt": "2026-11-04T12:31:43.463098Z",
+  "finishedAt": "2026-11-04T12:44:29.975Z",
+  "wallMs": null,
+  "realExecution": true,
+  "syntheticSources": false,
+  "receipts": [
+    {
+      "operationId": "model-1",
+      "model": "qwen3.7-flash-2026-07-15",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T12:35:04.047565576Z",
+      "durationMs": 116654,
+      "usage": {
+        "reasoningTokens": 9339,
+        "cacheReadTokens": 0,
+        "outputTokens": 14040,
+        "inputTokens": 17572
+      }
+    },
+    {
+      "operationId": "model-2",
+      "model": "qwen3.7-flash-2026-07-15",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T12:37:09.247254722Z",
+      "durationMs": 106009,
+      "usage": {
+        "reasoningTokens": 8354,
+        "cacheReadTokens": 17280,
+        "outputTokens": 12930,
+        "inputTokens": 30154
+      }
+    },
+    {
+      "operationId": "model-3",
+      "model": "qwen3.7-flash-2026-07-15",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T12:38:56.541475753Z",
+      "durationMs": 77568,
+      "usage": {
+        "reasoningTokens": 6774,
+        "cacheReadTokens": 0,
+        "outputTokens": 8241,
+        "inputTokens": 35031
+      }
+    },
+    {
+      "operationId": "model-4",
+      "model": "qwen3.7-flash-2026-07-15",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T12:40:15.654984095Z",
+      "durationMs": 26335,
+      "usage": {
+        "reasoningTokens": 2382,
+        "cacheReadTokens": 24192,
+        "outputTokens": 2690,
+        "inputTokens": 36654
+      }
+    },
+    {
+      "operationId": "model-5",
+      "model": "qwen3.7-flash-2026-07-15",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T12:40:51.425234378Z",
+      "durationMs": 39792,
+      "usage": {
+        "reasoningTokens": 754,
+        "cacheReadTokens": 24192,
+        "outputTokens": 5276,
+        "inputTokens": 40662
+      }
+    },
+    {
+      "operationId": "model-6",
+      "model": "qwen3.7-flash-2026-07-15",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T12:41:33.217726810Z",
+      "durationMs": 9939,
+      "usage": {
+        "reasoningTokens": 532,
+        "cacheReadTokens": 24192,
+        "outputTokens": 968,
+        "inputTokens": 45475
+      }
+    },
+    {
+      "operationId": "model-7",
+      "model": "qwen3.7-flash-2026-07-15",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T12:41:51.783788946Z",
+      "durationMs": 17405,
+      "usage": {
+        "reasoningTokens": 970,
+        "cacheReadTokens": 32256,
+        "outputTokens": 1224,
+        "inputTokens": 49492
+      }
+    },
+    {
+      "operationId": "model-8",
+      "model": "qwen3.7-flash-2026-07-15",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T12:42:11.311327443Z",
+      "durationMs": 6567,
+      "usage": {
+        "reasoningTokens": 191,
+        "cacheReadTokens": 24192,
+        "outputTokens": 421,
+        "inputTokens": 49895
+      }
+    },
+    {
+      "operationId": "model-9",
+      "model": "qwen3.7-flash-2026-07-15",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T12:42:28.653624590Z",
+      "durationMs": 10967,
+      "usage": {
+        "reasoningTokens": 743,
+        "cacheReadTokens": 16128,
+        "outputTokens": 832,
+        "inputTokens": 36627
+      }
+    },
+    {
+      "operationId": "model-10",
+      "model": "qwen3.7-flash-2026-07-15",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T12:42:42.572579748Z",
+      "durationMs": 19302,
+      "usage": {
+        "reasoningTokens": 1504,
+        "cacheReadTokens": 0,
+        "outputTokens": 2188,
+        "inputTokens": 28949
+      }
+    },
+    {
+      "operationId": "model-11",
+      "model": "qwen3.7-flash-2026-07-15",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T12:43:05.022955218Z",
+      "durationMs": 51478,
+      "usage": {
+        "reasoningTokens": 2126,
+        "cacheReadTokens": 22016,
+        "outputTokens": 7013,
+        "inputTokens": 29806
+      }
+    },
+    {
+      "operationId": "model-12",
+      "model": "qwen3.7-flash-2026-07-15",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T12:43:59.640435919Z",
+      "durationMs": 18865,
+      "usage": {
+        "reasoningTokens": 1837,
+        "cacheReadTokens": 0,
+        "outputTokens": 2739,
+        "inputTokens": 35026
+      }
+    }
+  ],
+  "totals": {
+    "modelCalls": 12,
+    "modelMs": 500881,
+    "inputTokens": 435343,
+    "outputTokens": 58562
+  },
+  "executionMetadata": {},
+  "python": [
+    {
+      "executionId": "cline-4cd29aac6cfb3532f9d5bd022d72fc9a45e33fb37c538d902d1f37abb5b8405c",
+      "status": "FAILED",
+      "stage": "EXECUTION_FAILED",
+      "exitCode": 1,
+      "durationMs": 4766,
+      "codeHash": "67af997444f53b4ffbd00d5d68f1c0a4861a403f72732693e66a22f1a921d152",
+      "manifestHash": "f7a9500c5a5475118e5c6e45c317e117f91aeceeddc376abe6a946e50faadae7",
+      "validationStatus": "NOT_RUN",
+      "artifacts": {
+        "diagnosticRef": "execution:cline-4cd29aac6cfb3532f9d5bd022d72fc9a45e33fb37c538d902d1f37abb5b8405c:logs:runtime-diagnostic.json",
+        "stderrRef": "execution:cline-4cd29aac6cfb3532f9d5bd022d72fc9a45e33fb37c538d902d1f37abb5b8405c:logs:stderr.txt"
+      }
+    },
+    {
+      "executionId": "cline-3a5dda779a37394c7d749bd58821ae285f7f9a3689d4b702f2772f7bdb19a6fb",
+      "status": "SUCCEEDED",
+      "stage": "RESULT_VALIDATION_FAILED",
+      "exitCode": 0,
+      "durationMs": 4040,
+      "codeHash": "c976e03a0f5ded2ec16543e71ecaa21fe7a2f769e0d00edaa048c4c1d7c21d08",
+      "manifestHash": "c8deb61eb457cb091fb1a67b091ae411c3d90cc38f2d920ba73ebdb43aaa8d2a",
+      "validationStatus": "FAILED",
+      "artifacts": {
+        "evidenceBundleRef": "runtime-evidence:coding:d3bc89c3295eb5640a6fd42cb13f80a47b7bb702b3ae5b632c7e1878530cb02d:bundle",
+        "diagnosticRef": "execution:cline-3a5dda779a37394c7d749bd58821ae285f7f9a3689d4b702f2772f7bdb19a6fb:logs:runtime-diagnostic.json",
+        "stderrRef": "execution:cline-3a5dda779a37394c7d749bd58821ae285f7f9a3689d4b702f2772f7bdb19a6fb:logs:stderr.txt",
+        "executionReceiptRef": "runtime-evidence:coding:d3bc89c3295eb5640a6fd42cb13f80a47b7bb702b3ae5b632c7e1878530cb02d:receipt",
+        "codeArtifactRef": "runtime-evidence:coding:d3bc89c3295eb5640a6fd42cb13f80a47b7bb702b3ae5b632c7e1878530cb02d:code",
+        "inputSnapshotRef": "runtime-evidence:coding:input:6db2ecdb1fa5ab428f14e3b4f4f4e80f521b458e341933cd93d656181beefa4",
+        "resultDatasetRef": "runtime-evidence:coding:d3bc89c3295eb5640a6fd42cb13f80a47b7bb702b3ae5b632c7e1878530cb02d:result",
+        "validationRecordRef": "runtime-evidence:coding:d3bc89c3295eb5640a6fd42cb13f80a47b7bb702b3ae5b632c7e1878530cb02d:validation"
+      }
+    },
+    {
+      "executionId": "cline-cefc5da9a73d0a18eaf835ee578efa5d462a1beb713639870e6cd8130cd72be1",
+      "status": "SUCCEEDED",
+      "stage": "RESULT_VALIDATION_FAILED",
+      "exitCode": 0,
+      "durationMs": 3445,
+      "codeHash": "e744bab22de6492ae2dfa16ae25d7116f9cc1a961eb4433783a092717ca7f9c6",
+      "manifestHash": "9bd7cd6a9350148ea8a2439f342f4857a9b72f4bc8413603e4f6623c5c8f0481",
+      "validationStatus": "FAILED",
+      "artifacts": {
+        "evidenceBundleRef": "runtime-evidence:coding:ddf6dd27bb9bd1de936ce766fc9861be84308b243248ba01601ea3cc58de5b8e:bundle",
+        "diagnosticRef": "execution:cline-cefc5da9a73d0a18eaf835ee578efa5d462a1beb713639870e6cd8130cd72be1:logs:runtime-diagnostic.json",
+        "stderrRef": "execution:cline-cefc5da9a73d0a18eaf835ee578efa5d462a1beb713639870e6cd8130cd72be1:logs:stderr.txt",
+        "executionReceiptRef": "runtime-evidence:coding:ddf6dd27bb9bd1de936ce766fc9861be84308b243248ba01601ea3cc58de5b8e:receipt",
+        "codeArtifactRef": "runtime-evidence:coding:ddf6dd27bb9bd1de936ce766fc9861be84308b243248ba01601ea3cc58de5b8e:code",
+        "inputSnapshotRef": "runtime-evidence:coding:input:6db2ecdb1fa5ab428f14e3b4f4f4e80f521b458e341933cd93d656181beefa4",
+        "resultDatasetRef": "runtime-evidence:coding:ddf6dd27bb9bd1de936ce766fc9861be84308b243248ba01601ea3cc58de5b8e:result",
+        "validationRecordRef": "runtime-evidence:coding:ddf6dd27bb9bd1de936ce766fc9861be84308b243248ba01601ea3cc58de5b8e:validation"
+      }
+    },
+    {
+      "executionId": "cline-edce9addc08af488265acdf17e3e3c943429a712783eb8eee6e14fdf046fdbec",
+      "status": "SUCCEEDED",
+      "stage": "VALIDATED",
+      "exitCode": 0,
+      "durationMs": 3303,
+      "codeHash": "fdf6a5e0076684fa3abe28575fdc27d5ba2a4334918ab5bd115fa82523c41bcd",
+      "manifestHash": "c57fea03543088ff92515cd9b6d33651b09393efee7da36d1f56f5443d3d8c78",
+      "validationStatus": "INCONCLUSIVE",
+      "artifacts": {
+        "evidenceBundleRef": "runtime-evidence:coding:cce56b68c3243b1eab81298ad6898f85cd9dc673993d4d4aaa42338094ace52a:bundle",
+        "diagnosticRef": "execution:cline-edce9addc08af488265acdf17e3e3c943429a712783eb8eee6e14fdf046fdbec:logs:runtime-diagnostic.json",
+        "stderrRef": "execution:cline-edce9addc08af488265acdf17e3e3c943429a712783eb8eee6e14fdf046fdbec:logs:stderr.txt",
+        "executionReceiptRef": "runtime-evidence:coding:cce56b68c3243b1eab81298ad6898f85cd9dc673993d4d4aaa42338094ace52a:receipt",
+        "codeArtifactRef": "runtime-evidence:coding:cce56b68c3243b1eab81298ad6898f85cd9dc673993d4d4aaa42338094ace52a:code",
+        "inputSnapshotRef": "runtime-evidence:coding:input:6db2ecdb1fa5ab428f14e3b4f4f4e80f521b458e341933cd93d656181beefa4",
+        "resultDatasetRef": "runtime-evidence:coding:cce56b68c3243b1eab81298ad6898f85cd9dc673993d4d4aaa42338094ace52a:result",
+        "validationRecordRef": "runtime-evidence:coding:cce56b68c3243b1eab81298ad6898f85cd9dc673993d4d4aaa42338094ace52a:validation"
+      }
+    },
+    {
+      "executionId": "cline-f7d293d735162918c60901ea7f6edb5ad2d988c47be48f876dcdbcdf9d6ed31d",
+      "status": "SUCCEEDED",
+      "stage": "VALIDATED",
+      "exitCode": 0,
+      "durationMs": 3755,
+      "codeHash": "3a75ee6234d92c1641fb4cc0870ccd884179f8f11454416a03d0c7c2ddc4db54",
+      "manifestHash": "de22bf268a308d8924453e322e205c378d5728acf891c4e3168b6f73831dbaa5",
+      "validationStatus": "INCONCLUSIVE",
+      "artifacts": {
+        "evidenceBundleRef": "runtime-evidence:coding:8ee58541a8c21035e2e3e03285e7f4bef27dab34b76c8c5e8af85e7ddaa8a012:bundle",
+        "diagnosticRef": "execution:cline-f7d293d735162918c60901ea7f6edb5ad2d988c47be48f876dcdbcdf9d6ed31d:logs:runtime-diagnostic.json",
+        "stderrRef": "execution:cline-f7d293d735162918c60901ea7f6edb5ad2d988c47be48f876dcdbcdf9d6ed31d:logs:stderr.txt",
+        "executionReceiptRef": "runtime-evidence:coding:8ee58541a8c21035e2e3e03285e7f4bef27dab34b76c8c5e8af85e7ddaa8a012:receipt",
+        "codeArtifactRef": "runtime-evidence:coding:8ee58541a8c21035e2e3e03285e7f4bef27dab34b76c8c5e8af85e7ddaa8a012:code",
+        "inputSnapshotRef": "runtime-evidence:coding:input:6db2ecdb1fa5ab428f14e3b4f4f4e80f521b458e341933cd93d656181beefa4",
+        "resultDatasetRef": "runtime-evidence:coding:8ee58541a8c21035e2e3e03285e7f4bef27dab34b76c8c5e8af85e7ddaa8a012:result",
+        "validationRecordRef": "runtime-evidence:coding:8ee58541a8c21035e2e3e03285e7f4bef27dab34b76c8c5e8af85e7ddaa8a012:validation"
+      }
+    }
+  ],
+  "codingOutcomes": [
+    {
+      "taskId": "analysis-coding-a1163414bc2636efdf24fdaa225196f33d64275293bb1142545d5933522aee98",
+      "status": "FAILED",
+      "reasonCode": "EXECUTION_FAILED",
+      "meteringComplete": false,
+      "reservedModelCalls": 0
+    }
+  ],
+  "skills": [
+    {
+      "type": "SKILLS_AVAILABLE",
+      "at": "2026-11-04T12:35:03.234Z",
+      "fingerprint": "679115ec00a80191cbb44f2eb0e96437366d5161d90c44a59d84fc056e5f8059"
+    }
+  ],
+  "tools": [],
+  "workerTools": [
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T12:37:01.415Z",
+      "tool": "python_execute"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T12:37:08.637Z",
+      "tool": "python_execute",
+      "status": "FAILED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T12:40:43.074Z",
+      "tool": "python_execute"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T12:40:50.361Z",
+      "tool": "python_execute",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T12:41:44.114Z",
+      "tool": "python_execute"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T12:41:50.703Z",
+      "tool": "python_execute",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T12:42:19.328Z",
+      "tool": "python_execute"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T12:42:26.417Z",
+      "tool": "python_execute",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T12:42:26.631Z",
+      "tool": "artifact_read"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T12:42:27.009Z",
+      "tool": "artifact_read",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T12:42:40.778Z",
+      "tool": "artifact_read"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T12:42:40.924Z",
+      "tool": "artifact_read",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T12:44:20.194Z",
+      "tool": "python_execute"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T12:44:27.924Z",
+      "tool": "python_execute",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T12:44:28.185Z",
+      "tool": "artifact_read"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T12:44:28.599Z",
+      "tool": "artifact_read",
+      "status": "SUCCEEDED"
+    }
+  ],
+  "modelFailures": [],
+  "responseContract": {
+    "synthesisRequested": false,
+    "preserveUnexpectedRows": false
+  },
+  "browser": null,
+  "textCoverage": null,
+  "files": {
+    "report.md": {
+      "bytes": 70,
+      "sha256": "73c4e0e3d9c207073265ef71964f9c8c24de63ecef30261804e842dd86ff479e"
+    }
+  }
+}

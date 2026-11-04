@@ -30,6 +30,10 @@
 
 每次 Python 执行继续冻结输入版本并验证完整 fileId/SHA-256 集合，调度前再次核验资源访问和源版本。结果沿现有 collector、visualReport、校验/来源证据和 Silo 归档，无直接数据库、任意 MCP、主机 shell 或网络权限。文字报告不能替代已经开始的 Python 执行。无可靠数值时可省略 visualReport，以文字和数据限制交付。
 
+前端发送的 `responseContract` 对明细/列表请求保留逐行呈现要求，对分析请求则要求筛选、去重和综合解释，避免上游强制展示所有原始记录。`AgentAnswerFinalizer` 识别已有 `codingOwnedAnalysisActive` 所有权标志：仍挂接结构化证据附件，不再把工具原始表格追加到 Cline 报告正文。两处均不由 Java 选择业务结论。
+
+`AnalysisCoverageCoordinator` 根据本次明确 visual 偏好传播已校验、已归档的 visual receipt，避免再次依赖 DATA_ANALYSIS 分类；off 模式清除旧 visual。该变化只影响交付，不授予执行权限。Worker 在预算末轮提示复核已有有效产物，保留显式审阅、失败判定与预算上限，不把程序退出 0 当作报告完成。
+
 ## 兼容与验收
 
 既有业务 MCP 模板与权限不调整；普通资源 QA 保持文字提交路径；无授权资源的任务不获得 Python 兜底。旧任务合同与输入版本保持原样，不重解释历史文件。新报告复用同一 UI 组件、图表资源和历史记录。

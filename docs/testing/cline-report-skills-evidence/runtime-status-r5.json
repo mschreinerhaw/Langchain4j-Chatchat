@@ -1,0 +1,43 @@
+{
+  "at": "2026-11-04T14:03:24.379703+00:00",
+  "deployment": {
+    "sourceCommit": "2d4020d91f85887618a4e4885fcd6107814216c7",
+    "image": "runtime-os-api:report-skills-2d4020d91f85",
+    "sha256": "6aed45a2fdccfafdfb5c72c23847b5244dbbb89a1b48075874f64a5023aacabf",
+    "catalogReadiness": {
+      "status": "API_MCP_CATALOG_READY",
+      "registryState": "HEALTHY",
+      "registeredToolCount": 39,
+      "requiredTools": [
+        "enterprise_metadata_search",
+        "sql_schema_context_query"
+      ],
+      "capturedAt": "2026-11-04T13:40:36.174626+00:00"
+    },
+    "unrelatedContainersUnchanged": true,
+    "conversationContentUnchanged": true,
+    "messageIndexCountUnchanged": true,
+    "databaseMigrationSha256": null
+  },
+  "containers": [
+    {
+      "name": "/runtime-os-app-stage-api-1",
+      "image": "runtime-os-api:report-skills-2d4020d91f85",
+      "imageId": "sha256:17f143e929eb70c7a8f8e0f35a21b26717b04c0ff980b5e5a3b1e9c71d8b402c",
+      "running": true
+    },
+    {
+      "name": "/runtime-os-app-stage-coding-agent-1",
+      "image": "runtime-os-coding-agent:agent-skills-report-8db173b30932",
+      "imageId": "sha256:c1fe9be9c3d5add60b6571a29438aeb1c3d272aec2f3b0207e08431d9f9e9da4",
+      "running": true
+    },
+    {
+      "name": "/runtime-os-app-stage-node-proxy-1",
+      "image": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "running": true
+    }
+  ],
+  "runningPythonSandboxCount": 0
+}

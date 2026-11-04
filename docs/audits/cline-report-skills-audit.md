@@ -40,6 +40,12 @@
 - 图文 schema、文件清单、SHA-256、Silo 与前端组件已存在，不应另起 Manifest、报告模型或渲染产品。
 - 资源 report_submit 自复核在同一 Cline 会话完成。Java `tool_result_review` 属于原工具编排路径，应依据本次真实调用记录检查是否存在重复；不能全局删除安全/参数治理来减少调用。
 
+## 后续真实复验的局限
+
+第五轮真实资源任务 `d3c1eb42-bd6c-4f2f-869e-b527015e0e23` 已执行 market_get_snapshot/history，并把授权冻结输入交给 Python，但代码直接用 `row['items']` 访问 Parquet 物理列而失败。`CodingInputFilePublisher` 的 columns/storageName 与 presenceColumns 映射、`runner.js` 输入说明及既有 python-data-analysis/references/data-methods.md 的解码示例均已存在；此次不能认定为缺少字段映射实现。后续未完成有效修复，最终 FAILED，保留为模型遵循及自主修复能力缺口。不能通过更改数据文件或手工执行替代 Cline 的真实分析来制造通过证据。
+
+同轮华是资源报告 `5e0ddd8b-cbc7-46ee-bf30-b39ec1e82e92` 已筛选事件、关联同一公告的分块并综合解释，但人工发现市盈率公式将股价直接除以净利润，以及把指标日期当作精确利润期间截止日期的问题。结构/引用校验不能证明所有业务推理正确，该例仅证明交付及部分质量改善，不宣称财务分析质量验收完成。
+
 ## 改造约束
 
 保持 Java 权限、停止证明、预算、租户用户隔离和历史数据。Java 只做交付校验与授权快照，不选择企业结论或固定报告章节，不增加额外 LLM 报告流程。复用已有 Python 环境与报告 schema。远端部署必须留存精确回滚，不改既有生产参数、不执行破坏性或不可逆变更。真实 MCP、Python 图表、页面展示、历史恢复及失败场景需分别记录，未验证项不能标通过。

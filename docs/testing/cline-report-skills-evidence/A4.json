@@ -1,0 +1,241 @@
+{
+  "case": "A4",
+  "taskId": "871543ea-d3fe-4d84-a501-b8ee8c4385f4",
+  "attemptId": "att-1-337a1d10-e3fc-41d5-a7c9-d46ce05e6c54",
+  "state": "PARTIAL",
+  "agentId": "resource_exploration_acceptance_20261104",
+  "createdAt": "2026-11-04T13:24:12.350458Z",
+  "finishedAt": "2026-11-04T13:31:03.372Z",
+  "wallMs": null,
+  "realExecution": true,
+  "syntheticSources": false,
+  "receipts": [
+    {
+      "operationId": "model-1",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:28:47.080115691Z",
+      "durationMs": 5044,
+      "usage": {
+        "cacheReadTokens": 0,
+        "reasoningTokens": 152,
+        "inputTokens": 12483,
+        "outputTokens": 226
+      }
+    },
+    {
+      "operationId": "model-2",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:28:54.099702361Z",
+      "durationMs": 5694,
+      "usage": {
+        "cacheReadTokens": 2304,
+        "reasoningTokens": 145,
+        "inputTokens": 14132,
+        "outputTokens": 271
+      }
+    },
+    {
+      "operationId": "model-3",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:29:04.488460716Z",
+      "durationMs": 5705,
+      "usage": {
+        "cacheReadTokens": 3968,
+        "reasoningTokens": 170,
+        "inputTokens": 21058,
+        "outputTokens": 255
+      }
+    },
+    {
+      "operationId": "model-4",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:29:14.362811170Z",
+      "durationMs": 47963,
+      "usage": {
+        "cacheReadTokens": 3968,
+        "reasoningTokens": 451,
+        "inputTokens": 23359,
+        "outputTokens": 2895
+      }
+    },
+    {
+      "operationId": "model-5",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:30:03.909532870Z",
+      "durationMs": 56088,
+      "usage": {
+        "cacheReadTokens": 3968,
+        "reasoningTokens": 993,
+        "inputTokens": 28948,
+        "outputTokens": 3390
+      }
+    }
+  ],
+  "totals": {
+    "modelCalls": 5,
+    "modelMs": 120494,
+    "inputTokens": 99980,
+    "outputTokens": 7037
+  },
+  "executionMetadata": {},
+  "python": [],
+  "codingOutcomes": [
+    {
+      "taskId": "analysis-coding-4c2e4b5f7c20518b2795e3a59fb270fd95279ddc8c0832f2c8f2d321fe03b449",
+      "status": "COMPLETED",
+      "reasonCode": null,
+      "meteringComplete": false,
+      "reservedModelCalls": 0
+    }
+  ],
+  "skills": [
+    {
+      "type": "SKILLS_AVAILABLE",
+      "at": "2026-11-04T13:28:46.727Z",
+      "fingerprint": "d79bcd8f2321dbc3e9ae1bd4b8e9791f331edf4db9916b4519f3a51fbdb19b99"
+    },
+    {
+      "type": "SKILLS_LOADED",
+      "at": "2026-11-04T13:28:52.443Z",
+      "skillId": "builtin:financial-news-analysis",
+      "version": "1.0.0"
+    }
+  ],
+  "tools": [],
+  "workerTools": [
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:28:52.565Z",
+      "tool": "news_search"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:28:53.470Z",
+      "tool": "news_search",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:29:00.144Z",
+      "tool": "news_search"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:29:01.363Z",
+      "tool": "news_search",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:29:01.449Z",
+      "tool": "news_search"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:29:02.887Z",
+      "tool": "news_search",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:29:03.019Z",
+      "tool": "knowledge_search"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:29:03.771Z",
+      "tool": "knowledge_search",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:29:10.772Z",
+      "tool": "news_search"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:29:12.015Z",
+      "tool": "news_search",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:29:12.151Z",
+      "tool": "news_related_events"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:29:13.513Z",
+      "tool": "news_related_events",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:30:02.879Z",
+      "tool": "report_submit"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:30:02.999Z",
+      "tool": "report_submit",
+      "status": "REVIEW_REQUIRED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:31:00.597Z",
+      "tool": "report_submit"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:31:02.037Z",
+      "tool": "report_submit",
+      "status": "SUCCEEDED"
+    }
+  ],
+  "modelFailures": [],
+  "responseContract": {
+    "synthesisRequested": true,
+    "preserveUnexpectedRows": false
+  },
+  "browser": {
+    "taskId": "871543ea-d3fe-4d84-a501-b8ee8c4385f4",
+    "conversationId": "1793798652777-fb1e0c00abca5",
+    "status": "partial",
+    "historyReopened": true,
+    "reportCount": 0,
+    "chartWaitError": null,
+    "images": [],
+    "pageErrors": [],
+    "httpStatusCounts": {
+      "200": 58
+    }
+  },
+  "textCoverage": {
+    "headingCount": 16,
+    "renderedHeadingCount": 16,
+    "allHeadingsRendered": true
+  },
+  "files": {
+    "report.md": {
+      "bytes": 5702,
+      "sha256": "7c788420595b39b1973de617f04f2b13221281ecf8e046b7936149d00ecdf5a1"
+    },
+    "runtime-report-full.png": {
+      "bytes": 183383,
+      "sha256": "37c69d8594c9ba288ccb2aaeb1125b0c737a2b0474a88f9efd356adbf65b70e3"
+    },
+    "runtime-history-reopened.png": {
+      "bytes": 202204,
+      "sha256": "893090828efabbe0be6acb8eb9a841c5d401dce7b8f42d25b15be325457c9064"
+    },
+    "rendered-report.txt": {
+      "bytes": 6916,
+      "sha256": "aaa4dcd09360f2f435bfc517e38e4c0c71697accb6be8c9e125a20745f02ff86"
+    }
+  }
+}

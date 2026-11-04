@@ -1,0 +1,59 @@
+{
+  "case": "B2",
+  "taskId": "1d1e43ca-85ec-4444-9f0a-82d9b5fd1fda",
+  "attemptId": "att-1-a77542e1-5107-4897-890c-a949692c3f1d",
+  "state": "CANCELLED",
+  "agentId": "financial_data_analysis",
+  "createdAt": "2026-11-04T12:46:17.047566Z",
+  "finishedAt": "2026-11-04T12:49:16.998Z",
+  "wallMs": null,
+  "realExecution": true,
+  "syntheticSources": false,
+  "receipts": [],
+  "totals": {
+    "modelCalls": 0,
+    "modelMs": 0,
+    "inputTokens": 0,
+    "outputTokens": 0
+  },
+  "executionMetadata": {},
+  "python": [],
+  "codingOutcomes": [],
+  "skills": [],
+  "tools": [],
+  "workerTools": [],
+  "modelFailures": [],
+  "responseContract": null,
+  "browser": {
+    "taskId": "1d1e43ca-85ec-4444-9f0a-82d9b5fd1fda",
+    "conversationId": "1793796377496-8debdcb7844",
+    "status": "cancelled",
+    "historyReopened": true,
+    "reportCount": 0,
+    "chartWaitError": "TimeoutError",
+    "images": [],
+    "pageErrors": [],
+    "httpStatusCounts": {
+      "200": 49
+    }
+  },
+  "textCoverage": {
+    "headingCount": 0,
+    "renderedHeadingCount": 0,
+    "allHeadingsRendered": false
+  },
+  "files": {
+    "runtime-report-full.png": {
+      "bytes": 209095,
+      "sha256": "61eb7cee74eed370c527d0849e11f3e1bb4edb9e4513613c616bb0dae5258793"
+    },
+    "runtime-history-reopened.png": {
+      "bytes": 193346,
+      "sha256": "97fa330f7d0a4aca65e8988f1f0b39159d6273e3d7659ae7413bffc5258e1c25"
+    },
+    "rendered-report.txt": {
+      "bytes": 2707,
+      "sha256": "0cdd2c553ad2cbbc745150858f0abcb314a13523f1c71b7923dff5b1b0d60658"
+    }
+  }
+}

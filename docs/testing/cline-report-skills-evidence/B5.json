@@ -1,0 +1,334 @@
+{
+  "case": "B5",
+  "taskId": "d3c1eb42-bd6c-4f2f-869e-b527015e0e23",
+  "attemptId": "att-1-06784a23-3d6c-441e-898a-80cd9a906bf4",
+  "state": "FAILED",
+  "agentId": "resource_exploration_acceptance_20261104",
+  "boundModel": "qwen3.7-plus",
+  "createdAt": "2026-11-04T13:40:58.827833Z",
+  "finishedAt": "2026-11-04T13:45:07.499Z",
+  "wallMs": null,
+  "realExecution": true,
+  "syntheticSources": false,
+  "receipts": [
+    {
+      "operationId": "model-1",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:41:03.488941833Z",
+      "durationMs": 3904,
+      "usage": {
+        "reasoningTokens": 105,
+        "inputTokens": 15649,
+        "outputTokens": 148,
+        "cacheReadTokens": 0
+      }
+    },
+    {
+      "operationId": "model-2",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:41:09.642161385Z",
+      "durationMs": 3485,
+      "usage": {
+        "reasoningTokens": 76,
+        "inputTokens": 16494,
+        "outputTokens": 121,
+        "cacheReadTokens": 4608
+      }
+    },
+    {
+      "operationId": "model-3",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:41:15.821418712Z",
+      "durationMs": 5828,
+      "usage": {
+        "reasoningTokens": 151,
+        "inputTokens": 31824,
+        "outputTokens": 238,
+        "cacheReadTokens": 4608
+      }
+    },
+    {
+      "operationId": "model-4",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:41:24.657109989Z",
+      "durationMs": 116032,
+      "usage": {
+        "reasoningTokens": 1,
+        "inputTokens": 51534,
+        "outputTokens": 7087,
+        "cacheReadTokens": 0
+      }
+    },
+    {
+      "operationId": "model-5",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:43:30.287156412Z",
+      "durationMs": 16185,
+      "usage": {
+        "reasoningTokens": 805,
+        "inputTokens": 33074,
+        "outputTokens": 902,
+        "cacheReadTokens": 0
+      }
+    },
+    {
+      "operationId": "model-6",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:43:49.132211148Z",
+      "durationMs": 16172,
+      "usage": {
+        "reasoningTokens": 496,
+        "inputTokens": 34290,
+        "outputTokens": 817,
+        "cacheReadTokens": 0
+      }
+    },
+    {
+      "operationId": "model-7",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:44:10.140406610Z",
+      "durationMs": 12402,
+      "usage": {
+        "reasoningTokens": 484,
+        "inputTokens": 35788,
+        "outputTokens": 609,
+        "cacheReadTokens": 0
+      }
+    },
+    {
+      "operationId": "model-8",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:44:26.693256461Z",
+      "durationMs": 4346,
+      "usage": {
+        "reasoningTokens": 111,
+        "inputTokens": 23081,
+        "outputTokens": 154,
+        "cacheReadTokens": 0
+      }
+    },
+    {
+      "operationId": "model-9",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:44:35.609959126Z",
+      "durationMs": 7964,
+      "usage": {
+        "reasoningTokens": 255,
+        "inputTokens": 23972,
+        "outputTokens": 380,
+        "cacheReadTokens": 3968
+      }
+    },
+    {
+      "operationId": "model-10",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:44:47.658166423Z",
+      "durationMs": 17341,
+      "usage": {
+        "reasoningTokens": 887,
+        "inputTokens": 21837,
+        "outputTokens": 970,
+        "cacheReadTokens": 0
+      }
+    }
+  ],
+  "totals": {
+    "modelCalls": 10,
+    "modelMs": 203659,
+    "inputTokens": 287543,
+    "outputTokens": 11426
+  },
+  "executionMetadata": {},
+  "python": [
+    {
+      "executionId": "cline-ec16275c345fea620e53571551ce437ca9413a0d2662f47402e02da7a73b9a38",
+      "status": "FAILED",
+      "stage": "EXECUTION_FAILED",
+      "exitCode": 1,
+      "durationMs": 3777,
+      "codeHash": "05bd0066db7c2f2d824fa263f94a84768edcec7cfc015e8e40d0962cf0484111",
+      "manifestHash": "45c1f3aab6c16b79aeabbb4bdd384d81084118b13171e8a4252811eab10e35b6",
+      "validationStatus": "NOT_RUN",
+      "artifacts": {
+        "diagnosticRef": "execution:cline-ec16275c345fea620e53571551ce437ca9413a0d2662f47402e02da7a73b9a38:logs:runtime-diagnostic.json",
+        "stderrRef": "execution:cline-ec16275c345fea620e53571551ce437ca9413a0d2662f47402e02da7a73b9a38:logs:stderr.txt"
+      }
+    }
+  ],
+  "codingOutcomes": [
+    {
+      "taskId": "analysis-coding-d3744bd14236634163807abc59b9ce667432ad530bb58e2433b56912ded90ed1",
+      "status": "FAILED",
+      "reasonCode": "EXECUTION_FAILED",
+      "meteringComplete": false,
+      "reservedModelCalls": 0
+    }
+  ],
+  "skills": [
+    {
+      "type": "SKILLS_AVAILABLE",
+      "at": "2026-11-04T13:41:02.774Z",
+      "fingerprint": "d79bcd8f2321dbc3e9ae1bd4b8e9791f331edf4db9916b4519f3a51fbdb19b99"
+    }
+  ],
+  "tools": [],
+  "workerTools": [
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:41:07.814Z",
+      "tool": "market_search"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:41:08.906Z",
+      "tool": "market_search",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:41:13.569Z",
+      "tool": "market_get_snapshot"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:41:14.988Z",
+      "tool": "market_get_snapshot",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:41:22.257Z",
+      "tool": "market_get_history"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:41:23.654Z",
+      "tool": "market_get_history",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:43:21.694Z",
+      "tool": "python_execute"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:43:29.258Z",
+      "tool": "python_execute",
+      "status": "FAILED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:43:47.209Z",
+      "tool": "input_read"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:43:47.938Z",
+      "tool": "input_read",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:44:06.118Z",
+      "tool": "market_search"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:44:08.406Z",
+      "tool": "market_search",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:44:23.513Z",
+      "tool": "market_get_history"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:44:25.288Z",
+      "tool": "market_get_history",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:44:32.237Z",
+      "tool": "market_search"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:44:34.001Z",
+      "tool": "market_search",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:44:44.743Z",
+      "tool": "input_read"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:44:46.025Z",
+      "tool": "input_read",
+      "status": "SUCCEEDED"
+    }
+  ],
+  "modelFailures": [
+    {
+      "at": 1793799905236,
+      "modelCall": 10,
+      "status": "FAILED"
+    }
+  ],
+  "responseContract": {
+    "synthesisRequested": true,
+    "preserveUnexpectedRows": false
+  },
+  "browser": {
+    "taskId": "d3c1eb42-bd6c-4f2f-869e-b527015e0e23",
+    "conversationId": "1793799659053-bce91ec7081f3",
+    "status": "failed",
+    "historyReopened": true,
+    "reportCount": 0,
+    "chartWaitError": "TimeoutError",
+    "images": [],
+    "historyImages": [],
+    "pageErrors": [],
+    "httpStatusCounts": {
+      "200": 50
+    }
+  },
+  "textCoverage": {
+    "headingCount": 0,
+    "renderedHeadingCount": 0,
+    "allHeadingsRendered": false
+  },
+  "files": {
+    "report.md": {
+      "bytes": 335,
+      "sha256": "98eadf2bb84dfb8aaa8b5a24523bc946ca58a08135dce04492620091582953ef"
+    },
+    "runtime-report-full.png": {
+      "bytes": 185510,
+      "sha256": "b175cc518568086a6aa63864079e1f622522c50a8747f817989175680845bf56"
+    },
+    "runtime-history-reopened.png": {
+      "bytes": 187699,
+      "sha256": "0a90e00408dd29a69ce31d0d81caf4c6f775cc25dd518ce465da1c0ce0c39f2f"
+    },
+    "rendered-report.txt": {
+      "bytes": 4548,
+      "sha256": "8eb3a76b54b17664e6c5b561087d241b98d664afac29cd63c04433815760e7c5"
+    }
+  }
+}

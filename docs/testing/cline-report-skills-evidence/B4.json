@@ -1,0 +1,384 @@
+{
+  "case": "B4",
+  "taskId": "e765faa2-f478-461c-830a-73f731259304",
+  "attemptId": "att-1-9d10dac8-96f0-42f8-abf9-11bbe4b60d0e",
+  "state": "PARTIAL",
+  "agentId": "resource_exploration_acceptance_20261104",
+  "createdAt": "2026-11-04T13:23:51.498237Z",
+  "finishedAt": "2026-11-04T13:28:44.479Z",
+  "wallMs": null,
+  "realExecution": true,
+  "syntheticSources": false,
+  "receipts": [
+    {
+      "operationId": "model-1",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:23:56.240088264Z",
+      "durationMs": 4179,
+      "usage": {
+        "cacheReadTokens": 0,
+        "reasoningTokens": 116,
+        "inputTokens": 15547,
+        "outputTokens": 155
+      }
+    },
+    {
+      "operationId": "model-2",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:24:03.048211419Z",
+      "durationMs": 5871,
+      "usage": {
+        "cacheReadTokens": 512,
+        "reasoningTokens": 162,
+        "inputTokens": 28634,
+        "outputTokens": 250
+      }
+    },
+    {
+      "operationId": "model-3",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:24:12.013613024Z",
+      "durationMs": 2823,
+      "usage": {
+        "cacheReadTokens": 0,
+        "reasoningTokens": 27,
+        "inputTokens": 32747,
+        "outputTokens": 73
+      }
+    },
+    {
+      "operationId": "model-4",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:24:17.888016244Z",
+      "durationMs": 4169,
+      "usage": {
+        "cacheReadTokens": 0,
+        "reasoningTokens": 28,
+        "inputTokens": 36834,
+        "outputTokens": 133
+      }
+    },
+    {
+      "operationId": "model-5",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:24:26.004853852Z",
+      "durationMs": 6604,
+      "usage": {
+        "cacheReadTokens": 0,
+        "reasoningTokens": 28,
+        "inputTokens": 41515,
+        "outputTokens": 286
+      }
+    },
+    {
+      "operationId": "model-6",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:24:42.939527138Z",
+      "durationMs": 4597,
+      "usage": {
+        "cacheReadTokens": 4608,
+        "reasoningTokens": 141,
+        "inputTokens": 15499,
+        "outputTokens": 180
+      }
+    },
+    {
+      "operationId": "model-7",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:24:53.436112751Z",
+      "durationMs": 7379,
+      "usage": {
+        "cacheReadTokens": 4608,
+        "reasoningTokens": 245,
+        "inputTokens": 29212,
+        "outputTokens": 352
+      }
+    },
+    {
+      "operationId": "model-8",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:25:19.433110142Z",
+      "durationMs": 6304,
+      "usage": {
+        "cacheReadTokens": 4608,
+        "reasoningTokens": 139,
+        "inputTokens": 25880,
+        "outputTokens": 288
+      }
+    },
+    {
+      "operationId": "model-9",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:25:50.577893065Z",
+      "durationMs": 38165,
+      "usage": {
+        "cacheReadTokens": 0,
+        "reasoningTokens": 173,
+        "inputTokens": 36299,
+        "outputTokens": 2277
+      }
+    },
+    {
+      "operationId": "model-10",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:26:34.393333274Z",
+      "durationMs": 43335,
+      "usage": {
+        "cacheReadTokens": 0,
+        "reasoningTokens": 393,
+        "inputTokens": 28564,
+        "outputTokens": 2592
+      }
+    },
+    {
+      "operationId": "model-11",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:27:36.310476036Z",
+      "durationMs": 43762,
+      "usage": {
+        "cacheReadTokens": 0,
+        "reasoningTokens": 415,
+        "inputTokens": 30948,
+        "outputTokens": 2612
+      }
+    }
+  ],
+  "totals": {
+    "modelCalls": 11,
+    "modelMs": 167188,
+    "inputTokens": 321679,
+    "outputTokens": 9198
+  },
+  "executionMetadata": {},
+  "python": [],
+  "codingOutcomes": [
+    {
+      "taskId": "analysis-coding-7abea77357199ffd92a0868d5ab5be5e7bb41ce15fa1de31b848390f44068ac2",
+      "status": "COMPLETED",
+      "reasonCode": null,
+      "meteringComplete": false,
+      "reservedModelCalls": 0
+    }
+  ],
+  "skills": [
+    {
+      "type": "SKILLS_AVAILABLE",
+      "at": "2026-11-04T13:23:55.571Z",
+      "fingerprint": "d79bcd8f2321dbc3e9ae1bd4b8e9791f331edf4db9916b4519f3a51fbdb19b99"
+    }
+  ],
+  "tools": [],
+  "workerTools": [
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:24:00.835Z",
+      "tool": "market_search"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:24:02.333Z",
+      "tool": "market_search",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:24:09.464Z",
+      "tool": "market_get_history"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:24:11.197Z",
+      "tool": "market_get_history",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:24:15.362Z",
+      "tool": "market_get_snapshot"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:24:16.979Z",
+      "tool": "market_get_snapshot",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:24:22.788Z",
+      "tool": "market_get_history"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:24:24.958Z",
+      "tool": "market_get_history",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:24:33.349Z",
+      "tool": "market_get_history"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:24:35.751Z",
+      "tool": "market_get_history",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:24:36.025Z",
+      "tool": "market_get_history"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:24:38.634Z",
+      "tool": "market_get_history",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:24:38.897Z",
+      "tool": "market_get_history"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:24:41.694Z",
+      "tool": "market_get_history",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:24:48.531Z",
+      "tool": "market_search"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:24:51.703Z",
+      "tool": "market_search",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:25:02.024Z",
+      "tool": "market_get_snapshot"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:25:05.295Z",
+      "tool": "market_get_snapshot",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:25:05.771Z",
+      "tool": "market_get_snapshot"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:25:14.558Z",
+      "tool": "market_get_snapshot",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:25:26.938Z",
+      "tool": "market_get_history"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:25:35.656Z",
+      "tool": "market_get_history",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:25:36.112Z",
+      "tool": "market_get_history"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:25:46.252Z",
+      "tool": "market_get_history",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:26:29.940Z",
+      "tool": "report_submit"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:26:30.175Z",
+      "tool": "report_submit",
+      "status": "REVIEW_REQUIRED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:27:19.164Z",
+      "tool": "report_submit"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:28:21.465Z",
+      "tool": "report_submit"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:28:36.804Z",
+      "tool": "report_submit",
+      "status": "SUCCEEDED"
+    }
+  ],
+  "modelFailures": [],
+  "responseContract": {
+    "synthesisRequested": true,
+    "preserveUnexpectedRows": false
+  },
+  "browser": {
+    "taskId": "e765faa2-f478-461c-830a-73f731259304",
+    "conversationId": "1793798631663-a9723ed9604878",
+    "status": "partial",
+    "historyReopened": true,
+    "reportCount": 0,
+    "chartWaitError": "TimeoutError",
+    "images": [],
+    "pageErrors": [],
+    "httpStatusCounts": {
+      "200": 59
+    }
+  },
+  "textCoverage": {
+    "headingCount": 8,
+    "renderedHeadingCount": 8,
+    "allHeadingsRendered": true
+  },
+  "files": {
+    "report.md": {
+      "bytes": 3961,
+      "sha256": "5c3d5d15e436c4f5abc58c4a7ba36361a1a9de790aac0de72affcbb9b7b239b5"
+    },
+    "runtime-report-full.png": {
+      "bytes": 178425,
+      "sha256": "21e987fdbccdeac1a9664986ecffdfbb7aad34fe107b6a2cfe0a5172dea3da2e"
+    },
+    "runtime-history-reopened.png": {
+      "bytes": 222631,
+      "sha256": "cc80cab7756cc0ceb0b5bf5af7454f15dd35020bbf686bb64737a5bb34e69031"
+    },
+    "rendered-report.txt": {
+      "bytes": 5661,
+      "sha256": "b022d6fee7ea7ebbafcf31f5825b4d7ca56d96a4729c3ab00e3bf9a071ff4406"
+    }
+  }
+}

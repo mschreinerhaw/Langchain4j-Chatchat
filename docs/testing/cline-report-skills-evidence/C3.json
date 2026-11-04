@@ -1,0 +1,285 @@
+{
+  "case": "C3",
+  "taskId": "03fdc3ce-2be4-46dd-b784-edbac7463d70",
+  "attemptId": "att-1-ea06d758-e634-4107-bbcc-d2c6c014272c",
+  "state": "PARTIAL",
+  "agentId": "financial_data_analysis",
+  "createdAt": "2026-11-04T13:24:01.519534Z",
+  "finishedAt": "2026-11-04T13:28:56.693Z",
+  "wallMs": null,
+  "realExecution": true,
+  "syntheticSources": false,
+  "receipts": [
+    {
+      "operationId": "model-1",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:25:29.872015731Z",
+      "durationMs": 10307,
+      "usage": {
+        "cacheReadTokens": 0,
+        "reasoningTokens": 430,
+        "inputTokens": 15177,
+        "outputTokens": 549
+      }
+    },
+    {
+      "operationId": "model-2",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:25:41.126027353Z",
+      "durationMs": 7913,
+      "usage": {
+        "cacheReadTokens": 14976,
+        "reasoningTokens": 14,
+        "inputTokens": 15319,
+        "outputTokens": 431
+      }
+    },
+    {
+      "operationId": "model-3",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:25:53.648898161Z",
+      "durationMs": 23800,
+      "usage": {
+        "cacheReadTokens": 14976,
+        "reasoningTokens": 328,
+        "inputTokens": 19418,
+        "outputTokens": 1400
+      }
+    },
+    {
+      "operationId": "model-4",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:26:18.834811682Z",
+      "durationMs": 71173,
+      "usage": {
+        "cacheReadTokens": 14976,
+        "reasoningTokens": 344,
+        "inputTokens": 20787,
+        "outputTokens": 4358
+      }
+    },
+    {
+      "operationId": "model-5",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:27:31.298933116Z",
+      "durationMs": 66392,
+      "usage": {
+        "cacheReadTokens": 18432,
+        "reasoningTokens": 152,
+        "inputTokens": 25098,
+        "outputTokens": 4024
+      }
+    },
+    {
+      "operationId": "model-6",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:28:45.199261687Z",
+      "durationMs": 5728,
+      "usage": {
+        "cacheReadTokens": 0,
+        "reasoningTokens": 161,
+        "inputTokens": 38470,
+        "outputTokens": 252
+      }
+    }
+  ],
+  "totals": {
+    "modelCalls": 6,
+    "modelMs": 185313,
+    "inputTokens": 134269,
+    "outputTokens": 11014
+  },
+  "executionMetadata": {},
+  "python": [
+    {
+      "executionId": "cline-3d3bcc27fb66db2a5261757f5c754ed821837cd423b22fe351d0c4bf4001b8c1",
+      "status": "SUCCEEDED",
+      "stage": "RESULT_VALIDATION_FAILED",
+      "exitCode": 0,
+      "durationMs": 654,
+      "codeHash": "ab2226d7718c48b8a9499c69e99cf6007ae1e8b61a1b64863aa7e54b610e99bb",
+      "manifestHash": "c5212e5ddcfefad835d2f3ffcf7d598ea48393997f7c46e0f780c5652f2a6920",
+      "validationStatus": "FAILED",
+      "artifacts": {
+        "diagnosticRef": "execution:cline-3d3bcc27fb66db2a5261757f5c754ed821837cd423b22fe351d0c4bf4001b8c1:logs:runtime-diagnostic.json",
+        "stderrRef": "execution:cline-3d3bcc27fb66db2a5261757f5c754ed821837cd423b22fe351d0c4bf4001b8c1:logs:stderr.txt"
+      }
+    },
+    {
+      "executionId": "cline-36ffe657a31751bc375098f681d3cc8ed5e36c626d059f05765daeb412986c24",
+      "status": "SUCCEEDED",
+      "stage": "VALIDATED",
+      "exitCode": 0,
+      "durationMs": 2422,
+      "codeHash": "d4079d749208af804b9885cfe3314aabac426e7ddf6cb7ee94aaead7b26def83",
+      "manifestHash": "e87e4bd985cd79c7e0e71fb62f78f36a5ae854df3d013786b32ab3499d92e582",
+      "validationStatus": "INCONCLUSIVE",
+      "artifacts": {
+        "inputSnapshotRef": "runtime-evidence:coding:input:81ca13f8867a95d469618ba473869790a11ec46de3189d3f56fd7cafd5c4a93",
+        "codeArtifactRef": "runtime-evidence:coding:1eefd8134fcc0491688395fe296c0caa905e3d8f4c80f07a07944ae145c4f325:code",
+        "executionReceiptRef": "runtime-evidence:coding:1eefd8134fcc0491688395fe296c0caa905e3d8f4c80f07a07944ae145c4f325:receipt",
+        "stderrRef": "execution:cline-36ffe657a31751bc375098f681d3cc8ed5e36c626d059f05765daeb412986c24:logs:stderr.txt",
+        "diagnosticRef": "execution:cline-36ffe657a31751bc375098f681d3cc8ed5e36c626d059f05765daeb412986c24:logs:runtime-diagnostic.json",
+        "evidenceBundleRef": "runtime-evidence:coding:1eefd8134fcc0491688395fe296c0caa905e3d8f4c80f07a07944ae145c4f325:bundle",
+        "validationRecordRef": "runtime-evidence:coding:1eefd8134fcc0491688395fe296c0caa905e3d8f4c80f07a07944ae145c4f325:validation",
+        "resultDatasetRef": "runtime-evidence:coding:1eefd8134fcc0491688395fe296c0caa905e3d8f4c80f07a07944ae145c4f325:result"
+      }
+    }
+  ],
+  "codingOutcomes": [
+    {
+      "taskId": "analysis-coding-11e8b04c628f88e1dec04b6352de1f2ea68bcddf996a52aab041015f33c54db8",
+      "status": "COMPLETED",
+      "reasonCode": null,
+      "meteringComplete": false,
+      "reservedModelCalls": 0
+    }
+  ],
+  "skills": [
+    {
+      "type": "SKILLS_AVAILABLE",
+      "at": "2026-11-04T13:25:29.465Z",
+      "fingerprint": "d79bcd8f2321dbc3e9ae1bd4b8e9791f331edf4db9916b4519f3a51fbdb19b99"
+    }
+  ],
+  "tools": [
+    {
+      "sequence": 156,
+      "type": "TOOL_CALL",
+      "tool": "mcp_chatchat_mcp_server_finance_local_service_template_query",
+      "at": 1793798712930,
+      "latencyMs": null,
+      "outcome": "success",
+      "remoteToolInvoked": true,
+      "errorCode": null
+    },
+    {
+      "sequence": 157,
+      "type": "TOOL_RESULT",
+      "tool": "mcp_chatchat_mcp_server_finance_local_service_template_query",
+      "at": 1793798713818,
+      "latencyMs": 888,
+      "outcome": "success",
+      "remoteToolInvoked": true,
+      "errorCode": null
+    },
+    {
+      "sequence": 159,
+      "type": "TOOL_CALL",
+      "tool": "mcp_chatchat_mcp_server_web_search",
+      "at": 1793798712930,
+      "latencyMs": null,
+      "outcome": "success",
+      "remoteToolInvoked": true,
+      "errorCode": null
+    },
+    {
+      "sequence": 160,
+      "type": "TOOL_RESULT",
+      "tool": "mcp_chatchat_mcp_server_web_search",
+      "at": 1793798715233,
+      "latencyMs": 2303,
+      "outcome": "success",
+      "remoteToolInvoked": true,
+      "errorCode": null
+    }
+  ],
+  "workerTools": [
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:25:40.526Z",
+      "tool": "input_read"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:25:49.572Z",
+      "tool": "python_execute"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:25:52.853Z",
+      "tool": "python_execute",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:28:38.544Z",
+      "tool": "python_execute"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:28:43.887Z",
+      "tool": "python_execute",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:28:43.989Z",
+      "tool": "artifact_read"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:28:44.222Z",
+      "tool": "artifact_read",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:28:51.793Z",
+      "tool": "artifact_read"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:28:51.907Z",
+      "tool": "artifact_read",
+      "status": "SUCCEEDED"
+    }
+  ],
+  "modelFailures": [],
+  "responseContract": {
+    "synthesisRequested": true,
+    "preserveUnexpectedRows": false
+  },
+  "browser": {
+    "taskId": "03fdc3ce-2be4-46dd-b784-edbac7463d70",
+    "conversationId": "1793798641922-5b9f71ede1df78",
+    "status": "partial",
+    "historyReopened": true,
+    "reportCount": 1,
+    "chartWaitError": "TimeoutError",
+    "images": [],
+    "pageErrors": [],
+    "httpStatusCounts": {
+      "200": 60
+    }
+  },
+  "textCoverage": {
+    "headingCount": 9,
+    "renderedHeadingCount": 1,
+    "allHeadingsRendered": false
+  },
+  "files": {
+    "report.md": {
+      "bytes": 17776,
+      "sha256": "20f0094ded8e920e2e638df59f94a0812f2e928ec13db8dba16b71903052a784"
+    },
+    "runtime-report-full.png": {
+      "bytes": 156406,
+      "sha256": "fb06e20d02d1271a0dd583b927b77407b79196237f02c18d2f067d9722b0a45e"
+    },
+    "runtime-history-reopened.png": {
+      "bytes": 209245,
+      "sha256": "13ac180cf79a7f8b4b8d871239a99207a05a266a4b3159f7afdf0de50007384c"
+    },
+    "rendered-report.txt": {
+      "bytes": 4030,
+      "sha256": "796967c7d7d4d41a2afe67ad09b99c050b13cc67f3c704b6ab37a88cea82d857"
+    }
+  }
+}

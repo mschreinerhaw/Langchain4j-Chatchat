@@ -44,6 +44,8 @@ try{
  fs.writeFileSync(output+'/browser-state.json',JSON.stringify(state,null,2));
  if(state.messages.some(m=>m.role==='assistant'&&m.contentCharacters>100))await waitForRenderedReport();
  let chartWaitError=null;
+ const chart=page.locator('.python-report-chart').first();
+ if(await chart.count())await chart.scrollIntoViewIfNeeded();
  if(request.toolInput?.reportMode==='visual'&&process.env.REPORT_REQUIRE_CHART==='1')try{await page.waitForFunction(()=>[...document.querySelectorAll('.report-renderer img')].some(i=>i.complete&&i.naturalWidth>0),null,{timeout:60000});}catch(error){chartWaitError=error.name;}
  await page.screenshot({path:output+'/runtime-report-full.png',fullPage:true});
  fs.writeFileSync(output+'/rendered-report.txt',await page.locator('.chat-view').innerText());
@@ -58,8 +60,12 @@ try{
  await page.waitForFunction(id=>document.querySelector('#app')._vnode.component.proxy.$refs.activeViewComponent.messages?.some(m=>m.taskId===id),submitted.taskId,{timeout:60000});
  if(reportCount)await page.locator('.report-renderer').first().waitFor({timeout:60000});
  if(state.messages.some(m=>m.role==='assistant'&&m.contentCharacters>100))await waitForRenderedReport();
+ const historyChart=page.locator('.python-report-chart').first();
+ if(await historyChart.count())await historyChart.scrollIntoViewIfNeeded();
+ if(images.some(i=>i.loaded))await page.waitForFunction(()=>[...document.querySelectorAll('.report-renderer img')].some(i=>i.complete&&i.naturalWidth>0),null,{timeout:60000});
+ const historyImages=await page.locator('.report-renderer img').evaluateAll(images=>images.map(i=>({loaded:i.complete&&i.naturalWidth>0,width:i.naturalWidth,height:i.naturalHeight})));
  await page.screenshot({path:output+'/runtime-history-reopened.png',fullPage:true});
- const proof={...submitted,status:state.status,error:state.error,reportCount,images,chartWaitError,historyReopened:true,pageErrors:errors,responses};
+ const proof={...submitted,status:state.status,error:state.error,reportCount,images,historyImages,chartWaitError,historyReopened:true,pageErrors:errors,responses};
  fs.writeFileSync(output+'/browser-proof.json',JSON.stringify(proof,null,2));console.log(JSON.stringify(proof));
  assert.ok(!state.error,'UI reported an error');assert.ok(state.messages.some(m=>m.role==='assistant'&&m.contentCharacters>100),'No final report in actual conversation');
  if(request.toolInput?.reportMode==='visual'&&process.env.REPORT_REQUIRE_CHART==='1'){assert.ok(reportCount,'Report renderer missing');assert.ok(images.some(i=>i.loaded),'Real chart image failed to load');}

@@ -14,7 +14,7 @@ const cases={
 const id=process.argv[2];assert.ok(cases[id],'Choose A, A2, B, C or D');
 const spec=cases[id],out=process.env.REPORT_OUTPUT||`target/cline-report-live/${id}`;
 fs.mkdirSync(out,{recursive:true});
-const save=(name,data)=>fs.writeFileSync(path.join(out,name+'.json'),JSON.stringify(data,null,2));
+const save=(name,data)=>fs.writeFileSync(path.join(out,name+'.json'),JSON.stringify(data??null,null,2));
 const login=await fetch(origin+'/api/v1/enterprise/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({username:process.env.REPORT_USER||'admin',password:process.env.REPORT_PASSWORD})});
 const auth=(await login.json()).data;assert.ok(auth?.token,'Login failed');
 fs.writeFileSync(path.join(out,'auth.private.json'),JSON.stringify(auth));

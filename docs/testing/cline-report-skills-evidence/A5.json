@@ -1,0 +1,277 @@
+{
+  "case": "A5",
+  "taskId": "5e0ddd8b-cbc7-46ee-bf30-b39ec1e82e92",
+  "attemptId": "att-1-347c90ee-8f08-4ed4-bdd8-cba7f4d4c9f8",
+  "state": "PARTIAL",
+  "agentId": "resource_exploration_acceptance_20261104",
+  "boundModel": "qwen3.7-plus",
+  "createdAt": "2026-11-04T13:40:59.330966Z",
+  "finishedAt": "2026-11-04T13:46:24.744Z",
+  "wallMs": null,
+  "realExecution": true,
+  "syntheticSources": false,
+  "receipts": [
+    {
+      "operationId": "model-1",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:42:31.504206734Z",
+      "durationMs": 6890,
+      "usage": {
+        "reasoningTokens": 162,
+        "inputTokens": 12581,
+        "outputTokens": 345,
+        "cacheReadTokens": 0
+      }
+    },
+    {
+      "operationId": "model-2",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:42:42.104985244Z",
+      "durationMs": 10392,
+      "usage": {
+        "reasoningTokens": 416,
+        "inputTokens": 19488,
+        "outputTokens": 562,
+        "cacheReadTokens": 3968
+      }
+    },
+    {
+      "operationId": "model-3",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:42:58.702860477Z",
+      "durationMs": 16829,
+      "usage": {
+        "reasoningTokens": 847,
+        "inputTokens": 27486,
+        "outputTokens": 944,
+        "cacheReadTokens": 3968
+      }
+    },
+    {
+      "operationId": "model-4",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:43:21.394783460Z",
+      "durationMs": 58826,
+      "usage": {
+        "reasoningTokens": 645,
+        "inputTokens": 30248,
+        "outputTokens": 3565,
+        "cacheReadTokens": 3968
+      }
+    },
+    {
+      "operationId": "model-5",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:44:22.075595709Z",
+      "durationMs": 61249,
+      "usage": {
+        "reasoningTokens": 743,
+        "inputTokens": 36920,
+        "outputTokens": 3549,
+        "cacheReadTokens": 0
+      }
+    },
+    {
+      "operationId": "model-6",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:45:26.667134287Z",
+      "durationMs": 53432,
+      "usage": {
+        "reasoningTokens": 228,
+        "inputTokens": 39908,
+        "outputTokens": 3222,
+        "cacheReadTokens": 0
+      }
+    }
+  ],
+  "totals": {
+    "modelCalls": 6,
+    "modelMs": 207618,
+    "inputTokens": 166631,
+    "outputTokens": 12187
+  },
+  "executionMetadata": {},
+  "python": [],
+  "codingOutcomes": [
+    {
+      "taskId": "analysis-coding-f0adde5f93f7f68a93a2afedb1beaacebb86d16c3c91eb03d1da22b6a66c5af0",
+      "status": "COMPLETED",
+      "reasonCode": null,
+      "meteringComplete": false,
+      "reservedModelCalls": 0
+    }
+  ],
+  "skills": [
+    {
+      "type": "SKILLS_AVAILABLE",
+      "at": "2026-11-04T13:42:31.128Z",
+      "fingerprint": "d79bcd8f2321dbc3e9ae1bd4b8e9791f331edf4db9916b4519f3a51fbdb19b99"
+    }
+  ],
+  "tools": [],
+  "workerTools": [
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:42:38.603Z",
+      "tool": "input_read"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:42:38.939Z",
+      "tool": "input_read",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:42:39.029Z",
+      "tool": "news_search"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:42:40.103Z",
+      "tool": "news_search",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:42:40.225Z",
+      "tool": "knowledge_search"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:42:41.370Z",
+      "tool": "knowledge_search",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:42:52.865Z",
+      "tool": "news_search"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:42:54.477Z",
+      "tool": "news_search",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:42:54.611Z",
+      "tool": "news_search"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:42:56.165Z",
+      "tool": "news_search",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:42:56.303Z",
+      "tool": "news_related_events"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:42:57.798Z",
+      "tool": "news_related_events",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:43:16.076Z",
+      "tool": "market_search"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:43:18.137Z",
+      "tool": "market_search",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:43:18.360Z",
+      "tool": "news_search"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:43:20.308Z",
+      "tool": "news_search",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:44:20.839Z",
+      "tool": "report_submit"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:44:20.969Z",
+      "tool": "report_submit",
+      "status": "REVIEW_REQUIRED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:45:23.899Z",
+      "tool": "report_submit"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:46:20.873Z",
+      "tool": "report_submit"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:46:23.166Z",
+      "tool": "report_submit",
+      "status": "SUCCEEDED"
+    }
+  ],
+  "modelFailures": [],
+  "responseContract": {
+    "synthesisRequested": true,
+    "preserveUnexpectedRows": false
+  },
+  "browser": {
+    "taskId": "5e0ddd8b-cbc7-46ee-bf30-b39ec1e82e92",
+    "conversationId": "1793799659687-d743c7f92e9be8",
+    "status": "partial",
+    "historyReopened": true,
+    "reportCount": 0,
+    "chartWaitError": null,
+    "images": [],
+    "historyImages": [],
+    "pageErrors": [],
+    "httpStatusCounts": {
+      "200": 56
+    }
+  },
+  "textCoverage": {
+    "headingCount": 8,
+    "renderedHeadingCount": 8,
+    "allHeadingsRendered": true
+  },
+  "files": {
+    "report.md": {
+      "bytes": 5773,
+      "sha256": "9dc39d37d040c710f4aac57e195db6364ca79c4a2bb4bf01c1577605a45b6c2d"
+    },
+    "runtime-report-full.png": {
+      "bytes": 240242,
+      "sha256": "85dbe2842c14a286eafa28d5af378120dbe49620f54e33adbd81a893379b06b4"
+    },
+    "runtime-history-reopened.png": {
+      "bytes": 221549,
+      "sha256": "8575bd3c93eb4c3308d09f71fb98ee705bb054c36ddf0d1b4afdb0bdead49338"
+    },
+    "rendered-report.txt": {
+      "bytes": 7065,
+      "sha256": "d0d78aaa0b5cb66f0a20ed4d3c62c02cebb9b8e143cfd52fd4f4fa84364664b8"
+    }
+  }
+}

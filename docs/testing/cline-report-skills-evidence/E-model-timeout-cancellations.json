@@ -1,0 +1,21 @@
+{
+  "realRequests": true,
+  "checks": [
+    {
+      "case": "C5",
+      "taskId": "fc1b02ed-f93a-4bb2-ba0e-8cce212feaf2",
+      "at": "2026-11-04T13:59:33.895Z",
+      "http": 200,
+      "state": "CANCELLED",
+      "reason": "Controlled acceptance cancellation after actual provider timeout / MODEL_FAILED; no validated report available"
+    },
+    {
+      "case": "B6",
+      "taskId": "c884075b-bcbe-46c7-b517-8e83614b2bbb",
+      "at": "2026-11-04T13:59:34.300Z",
+      "http": 200,
+      "state": "CANCELLED",
+      "reason": "Controlled acceptance cancellation after actual provider timeout / MODEL_FAILED; no validated report available"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "approvedByUser": true,
+  "at": "2026-11-04T13:14:24.750Z",
+  "interface": "/enterprise/resource-grants",
+  "readOnlyResources": true,
+  "changes": [
+    {
+      "id": "280459f5-d971-437c-806e-0e5fe3551207",
+      "resourceId": "financial_market",
+      "created": true,
+      "principalType": "USER",
+      "effect": "ALLOW",
+      "enabled": true
+    },
+    {
+      "id": "8a22d369-5640-448b-b3d9-09660bf7c10b",
+      "resourceId": "financial_news",
+      "created": true,
+      "principalType": "USER",
+      "effect": "ALLOW",
+      "enabled": true
+    }
+  ]
+}

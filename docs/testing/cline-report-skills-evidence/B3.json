@@ -1,0 +1,402 @@
+{
+  "case": "B3",
+  "taskId": "e8abe700-85db-4a8d-99c9-f8c2a906119c",
+  "attemptId": "att-1-f26e9a52-8abe-46b5-907a-384848abc3e0",
+  "state": "PARTIAL",
+  "agentId": "financial_data_analysis",
+  "boundModel": "qwen3.7-plus",
+  "createdAt": "2026-11-04T13:01:53.980250Z",
+  "finishedAt": "2026-11-04T13:07:27.867Z",
+  "wallMs": null,
+  "realExecution": true,
+  "syntheticSources": false,
+  "receipts": [
+    {
+      "operationId": "model-1",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:03:50.554255386Z",
+      "durationMs": 8873,
+      "usage": {
+        "outputTokens": 424,
+        "cacheReadTokens": 0,
+        "reasoningTokens": 274,
+        "inputTokens": 16681
+      }
+    },
+    {
+      "operationId": "model-2",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:04:00.855365662Z",
+      "durationMs": 11782,
+      "usage": {
+        "outputTokens": 589,
+        "cacheReadTokens": 16128,
+        "reasoningTokens": 503,
+        "inputTokens": 21536
+      }
+    },
+    {
+      "operationId": "model-3",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:04:14.391801005Z",
+      "durationMs": 94457,
+      "usage": {
+        "outputTokens": 5822,
+        "cacheReadTokens": 21248,
+        "reasoningTokens": 478,
+        "inputTokens": 27801
+      }
+    },
+    {
+      "operationId": "model-4",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:05:56.384015803Z",
+      "durationMs": 9951,
+      "usage": {
+        "outputTokens": 504,
+        "cacheReadTokens": 0,
+        "reasoningTokens": 70,
+        "inputTokens": 41609
+      }
+    },
+    {
+      "operationId": "model-5",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:06:16.454298939Z",
+      "durationMs": 27198,
+      "usage": {
+        "outputTokens": 1607,
+        "cacheReadTokens": 0,
+        "reasoningTokens": 1513,
+        "inputTokens": 32374
+      }
+    },
+    {
+      "operationId": "model-6",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:06:45.617123751Z",
+      "durationMs": 14766,
+      "usage": {
+        "outputTokens": 791,
+        "cacheReadTokens": 0,
+        "reasoningTokens": 697,
+        "inputTokens": 28875
+      }
+    },
+    {
+      "operationId": "model-7",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:07:02.441892501Z",
+      "durationMs": 10374,
+      "usage": {
+        "outputTokens": 543,
+        "cacheReadTokens": 0,
+        "reasoningTokens": 352,
+        "inputTokens": 34923
+      }
+    },
+    {
+      "operationId": "model-8",
+      "model": "qwen3.7-plus",
+      "state": "SUCCEEDED",
+      "startedAt": "2026-11-04T13:07:15.371883654Z",
+      "durationMs": 7513,
+      "usage": {
+        "outputTokens": 355,
+        "cacheReadTokens": 0,
+        "reasoningTokens": 129,
+        "inputTokens": 34967
+      }
+    }
+  ],
+  "totals": {
+    "modelCalls": 8,
+    "modelMs": 184914,
+    "inputTokens": 238766,
+    "outputTokens": 10635
+  },
+  "executionMetadata": {
+    "agentPhaseDurationsMs": {
+      "problem_identification": 6,
+      "tool_discovery": 85967,
+      "plan_generation": 2486,
+      "plan_evaluation": 10,
+      "step_execution": 233609
+    },
+    "primaryCodingDurationMs": 215780,
+    "javaAnalysisRefinementSkipped": true,
+    "javaPostCodingExplorationSkipped": true,
+    "javaContentAnalysisModelCallCount": 0
+  },
+  "python": [
+    {
+      "executionId": "cline-3153edfe53a884d92567d63c95b3bc4f4d7bdbd94a5eb249200b4ea74866f3c7",
+      "status": "FAILED",
+      "stage": "EXECUTION_FAILED",
+      "exitCode": 1,
+      "durationMs": 3094,
+      "codeHash": "8e48db92a1b517e129124075d322cf87e38de1827b1d15efa8b3f8b75ebd2367",
+      "manifestHash": "3367ced62d5f72220000af88a6b5dc0ed7487be03996880c8ed1999fd9289c90",
+      "validationStatus": "NOT_RUN",
+      "artifacts": {
+        "stderrRef": "execution:cline-3153edfe53a884d92567d63c95b3bc4f4d7bdbd94a5eb249200b4ea74866f3c7:logs:stderr.txt",
+        "diagnosticRef": "execution:cline-3153edfe53a884d92567d63c95b3bc4f4d7bdbd94a5eb249200b4ea74866f3c7:logs:runtime-diagnostic.json"
+      }
+    },
+    {
+      "executionId": "cline-89fc0452249ce1f455fda29b0ae202c7259fa43584df5102a54ba06de34bfff4",
+      "status": "SUCCEEDED",
+      "stage": "VALIDATED",
+      "exitCode": 0,
+      "durationMs": 3098,
+      "codeHash": "aaa6d7d4d11e899dc3690f1906c86ef557512c0c21f7651329cc225eac951217",
+      "manifestHash": "f605e67596d4305d73b73c372f5978e185d67a8b3a38afaaf18cf3ea394183d1",
+      "validationStatus": "INCONCLUSIVE",
+      "artifacts": {
+        "resultDatasetRef": "runtime-evidence:coding:b1058d4cdca0e57acc0e0c92257e1b035353a722b834057b53109a1581f5b44e:result",
+        "inputSnapshotRef": "runtime-evidence:coding:input:7c99b51b7121a31c207a409107ba2d9d7fba8efadad3b07f535d3b39ac909d6",
+        "codeArtifactRef": "runtime-evidence:coding:b1058d4cdca0e57acc0e0c92257e1b035353a722b834057b53109a1581f5b44e:code",
+        "executionReceiptRef": "runtime-evidence:coding:b1058d4cdca0e57acc0e0c92257e1b035353a722b834057b53109a1581f5b44e:receipt",
+        "stderrRef": "execution:cline-89fc0452249ce1f455fda29b0ae202c7259fa43584df5102a54ba06de34bfff4:logs:stderr.txt",
+        "diagnosticRef": "execution:cline-89fc0452249ce1f455fda29b0ae202c7259fa43584df5102a54ba06de34bfff4:logs:runtime-diagnostic.json",
+        "evidenceBundleRef": "runtime-evidence:coding:b1058d4cdca0e57acc0e0c92257e1b035353a722b834057b53109a1581f5b44e:bundle",
+        "validationRecordRef": "runtime-evidence:coding:b1058d4cdca0e57acc0e0c92257e1b035353a722b834057b53109a1581f5b44e:validation"
+      }
+    }
+  ],
+  "codingOutcomes": [
+    {
+      "taskId": "analysis-coding-35122216813e7328e3bf8a574df999f3edf3dd52b4556761356c5f14b1150395",
+      "status": "COMPLETED",
+      "reasonCode": null,
+      "meteringComplete": false,
+      "reservedModelCalls": 0
+    }
+  ],
+  "skills": [
+    {
+      "type": "SKILLS_AVAILABLE",
+      "at": "2026-11-04T13:03:50.103Z",
+      "fingerprint": "d79bcd8f2321dbc3e9ae1bd4b8e9791f331edf4db9916b4519f3a51fbdb19b99"
+    },
+    {
+      "type": "SKILLS_LOADED",
+      "at": "2026-11-04T13:03:59.869Z",
+      "skillId": "builtin:python-data-analysis",
+      "version": "1.3.0"
+    }
+  ],
+  "tools": [
+    {
+      "sequence": 208,
+      "type": "TOOL_CALL",
+      "tool": "mcp_chatchat_mcp_server_finance_local_service_template_query",
+      "at": 1793797414110,
+      "latencyMs": null,
+      "outcome": "success",
+      "remoteToolInvoked": true,
+      "errorCode": null
+    },
+    {
+      "sequence": 209,
+      "type": "TOOL_RESULT",
+      "tool": "mcp_chatchat_mcp_server_finance_local_service_template_query",
+      "at": 1793797414513,
+      "latencyMs": 403,
+      "outcome": "success",
+      "remoteToolInvoked": true,
+      "errorCode": null
+    },
+    {
+      "sequence": 211,
+      "type": "TOOL_CALL",
+      "tool": "mcp_chatchat_mcp_server_web_search",
+      "at": 1793797414126,
+      "latencyMs": null,
+      "outcome": "success",
+      "remoteToolInvoked": true,
+      "errorCode": null
+    },
+    {
+      "sequence": 212,
+      "type": "TOOL_RESULT",
+      "tool": "mcp_chatchat_mcp_server_web_search",
+      "at": 1793797414473,
+      "latencyMs": 347,
+      "outcome": "success",
+      "remoteToolInvoked": true,
+      "errorCode": null
+    },
+    {
+      "sequence": 214,
+      "type": "TOOL_CALL",
+      "tool": "mcp_chatchat_mcp_server_sql_query_execute",
+      "at": 1793797426783,
+      "latencyMs": null,
+      "outcome": "success",
+      "remoteToolInvoked": false,
+      "errorCode": null
+    },
+    {
+      "sequence": 215,
+      "type": "TOOL_RESULT",
+      "tool": "mcp_chatchat_mcp_server_sql_query_execute",
+      "at": 1793797427565,
+      "latencyMs": 782,
+      "outcome": "success",
+      "remoteToolInvoked": false,
+      "errorCode": null
+    }
+  ],
+  "workerTools": [
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:03:59.987Z",
+      "tool": "input_read"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:04:00.333Z",
+      "tool": "input_read",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:04:13.214Z",
+      "tool": "input_read"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:04:13.664Z",
+      "tool": "input_read",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:05:49.708Z",
+      "tool": "python_execute"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:05:55.549Z",
+      "tool": "python_execute",
+      "status": "FAILED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:06:07.481Z",
+      "tool": "python_execute"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:06:14.920Z",
+      "tool": "python_execute",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:06:15.046Z",
+      "tool": "artifact_read"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:06:15.308Z",
+      "tool": "artifact_read",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:06:44.398Z",
+      "tool": "artifact_read"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:06:44.540Z",
+      "tool": "artifact_read",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:07:01.192Z",
+      "tool": "artifact_read"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:07:01.342Z",
+      "tool": "artifact_read",
+      "status": "SUCCEEDED"
+    },
+    {
+      "type": "TOOL_STARTED",
+      "at": "2026-11-04T13:07:13.868Z",
+      "tool": "artifact_read"
+    },
+    {
+      "type": "TOOL_FINISHED",
+      "at": "2026-11-04T13:07:14.032Z",
+      "tool": "artifact_read",
+      "status": "SUCCEEDED"
+    }
+  ],
+  "modelFailures": [],
+  "responseContract": {
+    "synthesisRequested": false,
+    "preserveUnexpectedRows": true
+  },
+  "browser": {
+    "taskId": "e8abe700-85db-4a8d-99c9-f8c2a906119c",
+    "conversationId": "1793797314128-6436e91588afb",
+    "status": "partial",
+    "historyReopened": true,
+    "reportCount": 1,
+    "chartWaitError": null,
+    "images": [
+      {
+        "loaded": true,
+        "width": 1200,
+        "height": 600
+      }
+    ],
+    "historyImages": [
+      {
+        "loaded": true,
+        "width": 1200,
+        "height": 600
+      }
+    ],
+    "pageErrors": [],
+    "httpStatusCounts": {
+      "200": 45
+    }
+  },
+  "textCoverage": {
+    "headingCount": 7,
+    "renderedHeadingCount": 3,
+    "allHeadingsRendered": false
+  },
+  "files": {
+    "report.md": {
+      "bytes": 3567,
+      "sha256": "746ed01d69fc91ce84ab5f5dd4406ddb97d8319f66c5ca700eb1feb186e5ab0f"
+    },
+    "runtime-report-full.png": {
+      "bytes": 157741,
+      "sha256": "d9bdba1cff85f7deafbdd4e0635f353c61cb3869100760b7bcc61c059fb5a248"
+    },
+    "runtime-history-reopened.png": {
+      "bytes": 157764,
+      "sha256": "4fb6ea224f64434e22fee4b7e01619a67dfb1360838b17384eee626c78e09cd2"
+    },
+    "rendered-report.txt": {
+      "bytes": 5309,
+      "sha256": "519e29f519e01ef0a334aa88b358bfb481c10c1dc73178d3e87f4e221aa45239"
+    }
+  }
+}

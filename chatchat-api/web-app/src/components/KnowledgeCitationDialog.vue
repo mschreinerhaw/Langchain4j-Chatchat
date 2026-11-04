@@ -1,7 +1,12 @@
 <template>
   <div class="knowledge-source-overlay" @click.self="$emit('close')">
     <section class="knowledge-source-dialog" role="dialog" aria-modal="true" aria-labelledby="knowledge-source-title">
-      <header><h3 id="knowledge-source-title">{{ source?.title || '引用原文' }}</h3><button type="button" @click="$emit('close')">关闭</button></header>
+      <header>
+        <h3 id="knowledge-source-title">{{ source?.title || '引用原文' }}</h3>
+        <button type="button" class="knowledge-source-close" aria-label="关闭原文" title="关闭" @click="$emit('close')">
+          <X :size="18" :stroke-width="1.8" aria-hidden="true" />
+        </button>
+      </header>
       <p v-if="loading">正在核验来源权限与版本…</p>
       <p v-else-if="error" role="alert">{{ error }}</p>
       <template v-else-if="source">

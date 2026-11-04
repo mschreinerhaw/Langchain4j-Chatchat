@@ -1,6 +1,8 @@
 import { ref, watch, computed } from 'vue';
+import { X } from '@lucide/vue';
 import { apiRequest } from '../../services/api.js';
 export default {
+  components: { X },
   props: { citationId: { type: String, required: true } }, emits: ['close'],
   setup(props) {
     const source = ref(null), loading = ref(false), error = ref('');

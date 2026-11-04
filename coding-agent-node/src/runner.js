@@ -767,7 +767,7 @@ export function createCodingRun(contract, gateway, options = {}) {
         // The complete derived report is already in the preceding tool receipt.
         // Reuse it for review; keep Python available for justified corrections.
         if (Array.isArray(request?.tools)) request.tools = request.tools.filter(tool =>
-          !(textResults && (codeFiles.length || /^cline-/.test(lastCollectedOperation ?? '')) && tool.name === 'report_submit'));
+          !(textResults && pythonExecutionStarted && tool.name === 'report_submit'));
         if(reviewedAnalysis && lastCollectedOperation && lastCollectedDatasetRef && !modelResponseFeedback) {
           const remaining=Math.max(0,Math.min(Number(contract.budget?.maxModelCalls??1),32)-modelIndex);
           request.systemPrompt+=`\nReviewed analysis budget: ${remaining} model turns remain, including your review and artifact_read confirmation. The complete archived report is already in reviewedArtifact. Preserve supported results and limitations; avoid another execution merely to reword them.`;
@@ -780,7 +780,7 @@ export function createCodingRun(contract, gateway, options = {}) {
             request.systemPrompt+='\nThis final turn is reserved for reviewing and confirming the existing validated artifact. Confirm it only if supported; if review finds a defect, explain it and leave the task incomplete. There is no remaining execution-and-review round. Do not claim success for an unsupported report.';
           }
         }
-        if (resourceText && permitted.has('report_submit') && !lastCollectedOperation) {
+        if (resourceText && !pythonExecutionStarted && permitted.has('report_submit') && !lastCollectedOperation) {
           const remaining = Math.max(0, Math.min(Number(contract.budget?.maxModelCalls ?? 1), 32) - modelIndex);
           request.systemPrompt += `\nResource task budget: ${remaining} model turns remain, including report submission and any repair. Finish with report_submit before this budget ends. Use actual JSON arrays for evidenceReferences and limitations.`;
           if (remaining <= 3) {

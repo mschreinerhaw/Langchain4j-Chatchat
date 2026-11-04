@@ -145,6 +145,20 @@ for (const failed of [false,true]) test(`Python ${failed?'failure':'report'} can
   assert.equal(counts.executions,1);assert.equal(submissions,0);
 });
 
+test('late resource-report budget retains Python repair after a failed execution instead of forcing text submission',async()=>{
+  const task={...contract,budget:{maxModelCalls:4},authorization:{...contract.authorization,allowedTools:['python_execute','artifact_read','report_submit']},
+    runtimeContext:{analysisResultMode:'TEXT_OR_CODE',knowledgeExploration:{schemaVersion:'runtime_os.knowledge.v1',resourceIds:['internet_search']}}};
+  const {run,counts}=fixture((turn,request)=>{
+    if(turn===1)return python(turn);
+    assert(request.tools.some(t=>t.name==='artifact_read'));
+    assert(!request.tools.some(t=>t.name==='report_submit'));
+    if(turn===2){assert(request.tools.some(t=>t.name==='python_execute'));return python(turn);}
+    return {toolCalls:[{id:'confirm',name:'artifact_read',input:{reference:'runtime-evidence:result-2'}}]};
+  },version=>version===1?{status:'SUCCEEDED',executorStopped:true,resultAvailable:false,validationStatus:'FAILED',outputStatus:'REQUIRED_OUTPUT_MISSING'}:verified(version),
+  (_count,reference)=>({reference,complete:true,rows:[{reportMarkdown:'Repaired report'}],reportReferenceValidation:{valid:true}}),task);
+  assert.equal((await run.run()).status,'completed');assert.equal(counts.executions,2);
+});
+
 const truncated = { error: 'Provider output truncated', finishReason: 'LENGTH', toolCalls: [],
   usage: { inputTokens: 10, outputTokens: 32 }, modelResponseFeedback: {
     schemaVersion: 'runtime_os.coding.model_feedback.v1', diagnosticCode: 'MODEL_OUTPUT_TRUNCATED',

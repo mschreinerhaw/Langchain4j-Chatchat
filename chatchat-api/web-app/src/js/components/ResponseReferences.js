@@ -12,6 +12,8 @@ const INTERNAL_DOCUMENT_REF_RE = /[\uFF08(]?\s*doc:\/\/[^\s\uFF09)\]}\>\uFF0C\u3
 
 function cleanReferenceText(value) {
   return String(value || "")
+    .replace(/\[[^\]]*\]\(runtime-evidence:[^)]+\)/g, "")
+    .replace(/runtime-evidence:[^\s)\]]+/g, "")
     .replace(INTERNAL_DOCUMENT_REF_RE, "")
     .replace(/\s+/g, " ")
     .trim();
@@ -20,6 +22,7 @@ function cleanReferenceText(value) {
 export default {
   name: "ResponseReferences",
   props: {
+    actionsAvailable: { type: Boolean, default: false },
     sources: {
       type: Array,
       default: () => []
@@ -86,6 +89,22 @@ export default {
         ...this.webPageRows.map((item) => ({ ...item, kind: "web" })),
         ...this.documentReferenceRows.map((item) => ({ ...item, kind: "document" }))
       ];
+    },
+    presentationSources() {
+      return this.allSourceRows.map((source, index) => {
+        const rawTitle = String(source.title || "");
+        const title = cleanReferenceText(rawTitle.split(/\s*\/\s*(?:发布|采集)\s*/)[0]);
+        const evidence = [source.url, source.docId, source.snippet].map(String).join(" ")
+          .match(/runtime-evidence:knowledge:([0-9a-f]{64})/);
+        const url = /^https?:\/\//i.test(source.url || "") ? source.url
+          : evidence ? `#knowledge-evidence-${evidence[1]}`
+          : /^(?:\/(?!\/)|#)/.test(source.url || "") ? source.url : "";
+        const published = source.publishDate || /\/\s*发布\s+([^/]+)/.exec(rawTitle)?.[1]?.trim();
+        return { ...source, title: title || "查看来源", url,
+          label: source.publisher || (url.startsWith('http') ? displayUrl(url) : source.kind === 'web' ? '网页' : '文档'),
+          date: published ? String(published).replace('T', ' ').replace(/(\d{2}:\d{2}):\d{2}(?:\.\d+)?Z$/, '$1 UTC') : '',
+          snippet: cleanReferenceText(source.snippet), index: index + 1 };
+      });
     },
     conflictRows() {
       return this.conflicts.map((item, index) => ({
@@ -185,9 +204,11 @@ export default {
         rank: source.rank || index + 1,
         docId,
         title: documentReferenceTitle(source, docId),
+        publisher: source.publisher || source.siteName || "",
+        publishDate: source.publishDate || source.publishedAt || source.published_at || "",
         url: this.preciseSourceUrl(source),
         location: source.section || source.heading || source.page || source.pageNumber || source.chunkIndex || "",
-        snippet: cleanReferenceText(source.snippet || source.content || source.summary || "")
+        snippet: String(source.snippet || source.content || source.summary || "")
       };
     },
     uniqueDocumentRows(rows = []) {

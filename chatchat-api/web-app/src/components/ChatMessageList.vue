@@ -290,41 +290,46 @@
             []
           "
           :knowledge-context="message.knowledgeContext || {}"
+          :actions-available="canShowEvaluation(message) || canExportMessagePdf(message)"
           compact
-        />
-        <div
-          v-if="canShowEvaluation(message) || canExportMessagePdf(message)"
-          class="message-feedback"
-          aria-label="回答操作"
+          @click="handleMarkdownClick($event, message)"
         >
-          <template v-if="canShowEvaluation(message)">
-            <button
-              v-for="option in feedbackOptions"
-              :key="option.value"
-              type="button"
-              class="message-feedback-button"
-              :class="{ unresolved: option.value === 'unresolved' }"
-              :disabled="message.feedbackSubmitting"
-              :title="`评价为${option.label}`"
-              @click="$emit('feedback', { message, action: option.value })"
+          <template #actions>
+            <div
+              v-if="canShowEvaluation(message) || canExportMessagePdf(message)"
+              class="message-feedback"
+              aria-label="回答操作"
             >
-              <CircleX v-if="option.value === 'unresolved'" :size="16" stroke-width="2.2" />
-              <CircleCheck v-else :size="16" stroke-width="2.2" />
-              <span>{{ option.label }}</span>
-            </button>
+              <template v-if="canShowEvaluation(message)">
+                <button
+                  v-for="option in feedbackOptions"
+                  :key="option.value"
+                  type="button"
+                  class="message-feedback-button"
+                  :class="{ unresolved: option.value === 'unresolved' }"
+                  :disabled="message.feedbackSubmitting"
+                  :title="`评价为${option.label}`"
+                  @click="$emit('feedback', { message, action: option.value })"
+                >
+                  <CircleX v-if="option.value === 'unresolved'" :size="16" stroke-width="2.2" />
+                  <CircleCheck v-else :size="16" stroke-width="2.2" />
+                  <span>{{ option.label }}</span>
+                </button>
+              </template>
+              <button
+                v-if="canExportMessagePdf(message)"
+                type="button"
+                class="message-feedback-button"
+                :disabled="exportingPdfMessageId === message.id"
+                :title="exportingPdfMessageId === message.id ? '正在生成PDF' : '导出当前回答为PDF'"
+                @click="exportMessagePdf(message, $event)"
+              >
+                <FileDown :size="16" stroke-width="2.2" />
+                <span>{{ exportingPdfMessageId === message.id ? "导出中" : "导出PDF" }}</span>
+              </button>
+            </div>
           </template>
-          <button
-            v-if="canExportMessagePdf(message)"
-            type="button"
-            class="message-feedback-button"
-            :disabled="exportingPdfMessageId === message.id"
-            :title="exportingPdfMessageId === message.id ? '正在生成PDF' : '导出当前回答为PDF'"
-            @click="exportMessagePdf(message, $event)"
-          >
-            <FileDown :size="16" stroke-width="2.2" />
-            <span>{{ exportingPdfMessageId === message.id ? "导出中" : "导出PDF" }}</span>
-          </button>
-        </div>
+        </ResponseReferences>
         <p v-if="message.feedbackTime" class="message-feedback-done">感谢评价</p>
         <p v-if="message.feedbackError" class="message-feedback-error">{{
           message.feedbackError

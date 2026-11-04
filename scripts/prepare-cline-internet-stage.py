@@ -45,8 +45,14 @@ def main():
         manifest[service] = {'image': image, 'baselineImageId': current['Image'], 'baselineSha256': baseline,
                              'sha256': sha(artifact), 'preparedImageId': run('docker', 'image', 'inspect', '-f', '{{.Id}}', image),
                              'baselineApplicationReadiness': True}
-    subprocess.run([sys.executable, str(root / 'build-cline-skills-stage.py'), str(root), release['workerArchiveSha256'],
-                    'runtime-os-coding-agent:agent-skills-internet-' + commit[:12]], check=True)
+    proof_file = root / 'worker-build.json'
+    if proof_file.exists():
+        previous = json.loads(proof_file.read_text())
+        assert previous['archiveSha256'] == release['workerArchiveSha256'] == sha(root / 'worker.tar.gz')
+        assert run('docker', 'image', 'inspect', '-f', '{{.Id}}', previous['image']) == previous['imageId']
+    else:
+        subprocess.run([sys.executable, str(root / 'build-cline-skills-stage.py'), str(root), release['workerArchiveSha256'],
+                        'runtime-os-coding-agent:agent-skills-internet-' + commit[:12]], check=True)
     proof = json.loads((root / 'worker-build.json').read_text())
     assert proof['offlineBuildAndTests'] and proof['archiveSha256'] == release['workerArchiveSha256']
     for module, digest in release['workerModules'].items():

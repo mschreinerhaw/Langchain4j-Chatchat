@@ -48,4 +48,9 @@ class CodingInternetAccessTest {
         when(contract.authorization().networkPolicy()).thenReturn(CodingTaskContract.NetworkPolicy.ALLOWLIST);
         assertThatThrownBy(()->internet.require(contract,"web_search")).isInstanceOf(SecurityException.class);
     }
+    @Test void providerOutageDoesNotPreventIndependentInternalAnalysis(){
+        var scope=mock(KernelDataScope.class);when(scope.tenantId()).thenReturn("tenant");when(scope.userId()).thenReturn("user");
+        when(models.providers()).thenThrow(new IllegalStateException("Provider control plane offline"));
+        assertThat(internet.snapshot(scope,"agent","model-a",false)).isEmpty();
+    }
 }

@@ -17,7 +17,12 @@ public class CodingInternetAccess {
     public CodingInternetAccess(PlatformInternetPolicy models,AgentResourceScopePort agents,McpControlPlaneClient mcp,ObjectMapper json){this.models=models;this.agents=agents;this.mcp=mcp;this.json=json;}
     public Map<String,Object> snapshot(KernelDataScope scope,String agent,String model,boolean requested){
         var policy=models.read(model);if(!policy.enabled()||!models.active(model)||agent==null||agent.isBlank()||!agents.resolve(scope.tenantId(),scope.userId(),agent,requested).contains(AgentResourcePolicy.INTERNET))return Map.of();
-        JsonNode provider=provider(policy.providerId());
+        JsonNode provider;
+        try{provider=provider(policy.providerId());}
+        catch(RuntimeException unavailable){
+            org.slf4j.LoggerFactory.getLogger(CodingInternetAccess.class).warn("Internet Provider control plane unavailable; no Internet capability admitted");
+            return Map.of();
+        }
         if(provider==null||!provider.path("enabled").asBoolean()||!provider.path("configured").asBoolean())return Map.of();
         return Map.of("schemaVersion","runtime_os.internet.v1","modelName",model,"modelRevision",policy.revision(),"providerId",policy.providerId(),"providerRevision",provider.path("revision").asLong(),"agentId",agent,"explicitlyRequested",requested);
     }

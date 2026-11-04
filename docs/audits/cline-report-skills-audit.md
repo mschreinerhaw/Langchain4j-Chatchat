@@ -26,6 +26,8 @@
 
 同轮任务 `15d18607-f7f6-4bb8-b42f-c81ee931eeae` 证明 Agent 配置和用户授权是两层交集：配置启用了行情/新闻，但 admin 未获得 DATA_RESOURCE 显式授权，实际合同只有 knowledge_documents。数据库中的两项 ALLOW 属于另一用户，当前 admin 的 system:api:all 不应绕过资源边界。该任务诚实交付缺少行情的部分报告，没有 Python/虚构图表；已通过正常会话历史加载并实际请求归档 answer 资源。补充资源授权需用户明确同意。
 
+客户任务 `ee474911-b1d7-3c7b-9f72-a76f533ce955` 真实执行 5 次 Python，最后两次 VALIDATED，但 12 轮模型预算耗尽前又改写报告，未完成显式 artifact_read 复核，最终正确标记 FAILED。追加已有复核路径的剩余轮次提示：有完整、引用和图表技术校验未失败的既存报告时，最终模型轮次只用于自主审阅和确认；若认为报告不受支持，仍保持不完成。没有增加预算或跳过复核。该客户任务的 PNG 已通过真实用户资产 API 下载并校验 SHA-256，人工检查发现中文方框；归档代码先设置 CJK 字体，随后调用 `rcParams.update(rcParamsDefault)` 又将其重置。追加技术指导禁止此类重置，后续真实输出仍需重新检查，不能以这次图表作为可读性通过证据。
+
 - `ComputedResultBoundary` 只保留超过 2,048 字符的单段源文本，并比较完整容器/记录。将多个较短源字段改排成 Markdown 后，既不等于完整 JSON，也不包含足够长的单段原文；实际原始记录列表因此通过校验。需对大篇幅重复引用多个源片段补充结构性检查，允许简短证据引用，不由 Java 判断业务结论。
 - `CodingAnalysisService.run` 对 `knowledgeTask` 删除 python_execute，并授予空 sideEffects；资源任务目标同时声明“no code-execution permission”。图文偏好即使抵达这一分支，也不能凭技能获得真实图表能力。应复用当前输入快照与执行冻结，交付已授权资源读取结果后才允许 Sandbox 分析，不能直接开放数据库、网络或任意 MCP。
 - 默认包有 Python 分析及微软技能，缺少专用的报告交付方法；安装技能不能修复上述合同与校验缺口。

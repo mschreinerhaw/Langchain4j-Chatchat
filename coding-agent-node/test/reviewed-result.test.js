@@ -23,6 +23,31 @@ const verified = (version) => ({ status: 'SUCCEEDED', executorStopped: true, res
   resultDatasetRef: `runtime-evidence:result-${version}`, validationRecordRef: `validation-${version}`,
   evidenceBundleRef: `bundle-${version}`, validationStatus: 'INCONCLUSIVE' });
 
+test('a validated report retains the final model turn for actual review and confirmation',async()=>{
+  const task={...contract,budget:{maxModelCalls:3}};
+  const {run,counts}=fixture((turn,request)=>{
+    if(turn<=2)return python(turn);
+    assert.equal(turn,3);
+    assert.deepEqual(request.tools.map(tool=>tool.name),['artifact_read']);
+    assert.match(request.systemPrompt,/final turn is reserved/);
+    return {toolCalls:[{id:'confirm',name:'artifact_read',input:{reference:'runtime-evidence:result-2'}}]};
+  },verified,(_count,reference)=>({reference,complete:true,rows:[{reportMarkdown:'Supported report with explicit limitations'}],reportReferenceValidation:{valid:true}}),task);
+  assert.equal((await run.run()).status,'completed');
+  assert.equal(counts.executions,2);assert.equal(counts.models,3);
+});
+
+for(const failure of ['reference','artifact'])test(`final-turn reservation cannot certify failed ${failure} validation`,async()=>{
+  let inspected=false;
+  const {run}=fixture((turn,request)=>{
+    if(turn===1)return python(turn);
+    assert(request.tools.some(tool=>tool.name==='python_execute'));
+    inspected=true;throw new Error('Unsupported report must remain incomplete');
+  },verified,(_count,reference)=>({reference,complete:true,rows:[{reportMarkdown:'Unverified report'}],
+    reportReferenceValidation:{valid:failure!=='reference'},visualReportValidation:{artifactValidationStatus:failure==='artifact'?'FAILED':'PASSED'}}),
+    {...contract,budget:{maxModelCalls:2}});
+  assert.notEqual((await run.run()).status,'completed');assert.equal(inspected,true);
+});
+
 test('review reads bound code on demand, rejects stale hash and repairs without rerunning discovery', async () => {
   const source = 'total = 1\nprint(total)\n';
   const hash = createHash('sha256').update(source).digest('hex');

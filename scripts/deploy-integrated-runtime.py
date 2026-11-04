@@ -109,15 +109,17 @@ def main():
     api, proxy = 'runtime-os-app-stage-api-1', 'runtime-os-app-stage-node-proxy-1'
     node, mcp = 'runtime-os-app-stage-coding-agent-1', 'runtime-os-app-stage-mcp-1'
     news='runtime-os-app-stage-news-1'
-    images = {api: manifest['image']}
+    images = {} if manifest.get('apiUnchanged') is True else {api: manifest['image']}
     if manifest.get('worker'): images[node] = manifest['worker']['image']
     if manifest.get('mcp'): images[mcp] = manifest['mcp']['image']
     if manifest.get('news'): images[news]=manifest['news']['image']
-    order = ([mcp] if mcp in images else []) + [api] + ([node] if node in images else []) + [proxy] + ([news] if news in images else [])
+    order = ([mcp] if mcp in images else []) + ([api] if api in images else []) + ([node] if node in images else []) + ([proxy] if api in images else []) + ([news] if news in images else [])
     inspect = lambda name: json.loads(run('docker', 'inspect', name))[0]
     before = {name: inspect(name) for name in run('docker', 'ps', '--format', '{{.Names}}').splitlines()}
     assert run('docker', 'exec', api, 'sha256sum', '/srv/app/app.jar').split()[0] == manifest['baselineSha256']
     assert hashlib.sha256((root / 'app.jar').read_bytes()).hexdigest() == manifest['sha256']
+    if api not in images:
+        assert manifest['sha256']==manifest['baselineSha256'], 'An API-only byte change cannot skip API deployment'
     active=run('docker', 'exec', '-u', 'postgres', 'postgres', 'psql', '-At', '-d', 'runtime_os_acceptance_api', '-c',
         "select task_id from agent_task_latest where canonical_state is null or canonical_state not in ('SUCCEEDED','PARTIAL','FAILED','CANCELLED','REJECTED')").splitlines()
     # A timed-out metadata-only acceptance fixture can retain unknown provider
@@ -146,8 +148,9 @@ def main():
     assert 'app.jar' not in run('docker', 'history', '--no-trunc', '--format', '{{.CreatedBy}}', base)
     (root / 'Dockerfile').write_text('FROM ' + before[api]['Config']['Image'] + '\nWORKDIR /srv/app\nCOPY app.jar /srv/app/app.jar\nENTRYPOINT ["java","-jar","/srv/app/app.jar"]\n')
     (root / '.dockerignore').write_text('*\n!app.jar\n!Dockerfile\n')
-    run('docker', 'build', '--network', 'none', '--label',
-        'org.opencontainers.image.revision=' + manifest['sourceCommit'], '-t', manifest['image'], str(root))
+    if api in images:
+        run('docker', 'build', '--network', 'none', '--label',
+            'org.opencontainers.image.revision=' + manifest['sourceCommit'], '-t', manifest['image'], str(root))
     for service,key in [(mcp,'mcp'),(news,'news')]:
         if service not in images:continue
         entry=manifest[key]
@@ -301,7 +304,7 @@ def main():
         networking()
         catalog_readiness = verify_catalog_readiness(root, manifest)
         config = json.loads(configs['compose.yaml'])
-        config['services']['api']['image'] = manifest['image']
+        if api in images: config['services']['api']['image'] = manifest['image']
         if not manifest.get('preserveRuntimeConfiguration'):
             config['services']['api'].setdefault('environment',{}).pop('CHATCHAT_SEARCH_OPENSEARCH_KNOWLEDGE_INDEX_NAMES',None)
             config['services']['api']['environment']['CHATCHAT_SEARCH_OPENSEARCH_KNOWLEDGEINDEXNAMES']='runtime_os_stage_documents,chatchat_documents_dev'
@@ -312,7 +315,7 @@ def main():
         if not manifest.get('preserveRuntimeConfiguration'):
             config['services']['api']['command']=[v for v in (before[api]['Config'].get('Cmd') or []) if not v.startswith('--chatchat.search.open-search.knowledge-index-names=')]+['--chatchat.search.open-search.knowledge-index-names=runtime_os_stage_documents,chatchat_documents_dev']
         (stage / 'compose.yaml').write_text(json.dumps(config, indent=2))
-        replacements={'API_IMAGE':manifest['image']}
+        replacements={'API_IMAGE':manifest['image']} if api in images else {}
         if mcp in images: replacements['MCP_IMAGE']=images[mcp]
         if news in images:replacements['NEWS_IMAGE']=images[news]
         lines = [line for line in configs['config/deployment.env'].decode().splitlines() if line.split('=',1)[0] not in replacements]
@@ -325,7 +328,7 @@ def main():
             for module,expected in manifest['worker']['modules'].items(): assert run('docker','exec',node,'sha256sum','/srv/coding-agent/dist/'+module).split()[0]==expected
         assert fingerprint == sql("select md5(coalesce(jsonb_agg(to_jsonb(t)-'source_channel' order by session_id)::text,'[]')) from chat_session t"), 'Conversation content changed during migration'
         assert messages == sql('select count(*) from chat_message_index'), 'Message index count changed during migration'
-        report = {'status': 'DEPLOYED', 'sourceCommit': manifest['sourceCommit'], 'image': manifest['image'], 'sha256': manifest['sha256'], 'backup': str(backup), 'retired': retired,
+        report = {'status': 'DEPLOYED', 'sourceCommit': manifest['sourceCommit'], 'image': manifest['image'] if api in images else before[api]['Config']['Image'], 'sha256': manifest['sha256'], 'backup': str(backup), 'retired': retired,
             'databaseMigrationSha256': applied_migration, 'catalogReadiness': catalog_readiness,
             'preservedExpiredReadOnlyTaskIds':active,
             'unrelatedContainersUnchanged': True, 'conversationContentUnchanged': True, 'messageIndexCountUnchanged': True,

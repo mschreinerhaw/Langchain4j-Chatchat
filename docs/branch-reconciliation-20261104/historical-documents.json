@@ -1,0 +1,32 @@
+[
+  {
+    "originalPath": "docs/market-analysis-method-evaluation-20261012.md",
+    "archive": "docs/branch-reconciliation-20261104/archive/runtime-workspaces-20261013/docs/market-analysis-method-evaluation-20261012.md",
+    "sha256": "e7a1e7c56031705ce22e54c0d5e3b96b3128180bd940783ff3beaf08d3d881d7"
+  },
+  {
+    "originalPath": "docs/workspace/01-current-architecture.md",
+    "archive": "docs/branch-reconciliation-20261104/archive/runtime-workspaces-20261013/docs/workspace/01-current-architecture.md",
+    "sha256": "c84f5719b6e592c39caab56cfeefa4ef575252dc62b4f9c58bddc3848ab52e20"
+  },
+  {
+    "originalPath": "docs/workspace/02-workspace-architecture.md",
+    "archive": "docs/branch-reconciliation-20261104/archive/runtime-workspaces-20261013/docs/workspace/02-workspace-architecture.md",
+    "sha256": "51d550551648a6ce6528054d04c5600c9755f2fbcc3dc06f4f672972ddb13a44"
+  },
+  {
+    "originalPath": "docs/workspace/04-sql-generation-design.md",
+    "archive": "docs/branch-reconciliation-20261104/archive/runtime-workspaces-20261013/docs/workspace/04-sql-generation-design.md",
+    "sha256": "505b06caa0913382e75866f401fd2d37de9f2b015cc106e1e7b032de266a64b9"
+  },
+  {
+    "originalPath": "docs/workspace/05-migration-and-operations.md",
+    "archive": "docs/branch-reconciliation-20261104/archive/runtime-workspaces-20261013/docs/workspace/05-migration-and-operations.md",
+    "sha256": "cba6768653947df1cf64de12b2b20685829cd2022855a45d37b294861fcb4aa2"
+  },
+  {
+    "originalPath": "scripts/evaluation/README.md",
+    "archive": "docs/branch-reconciliation-20261104/archive/runtime-workspaces-20261013/scripts/evaluation/README.md",
+    "sha256": "146f6eb3b3e0bac53c2bebed7225bfa9288876f463e8c869235f743204aa57b8"
+  }
+]

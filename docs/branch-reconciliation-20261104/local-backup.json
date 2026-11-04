@@ -1,0 +1,12 @@
+{
+  "branch": "backup/pre-sync-20260729-1152",
+  "commits": [
+    "463ddbf68",
+    "cff6c50ab"
+  ],
+  "prerequisite": "a446b6bf69e844cd8df954027ff14e902790418c",
+  "archive": "D:\\IdeaProjects\\LangChain4j-AIChat\\branch-archives\\pre-sync-20260729-1152.bundle",
+  "sha256": "2ebb57e77cbbac527a62cf4f72f0ed0ea067299e5cccc8dfedc51490cecad604",
+  "disposition": "ARCHIVED_LOCALLY_SUPERSEDED; runtime databases and old environment configuration not published",
+  "archivedLocalRef": "archive/local-pre-sync-20260729-1152"
+}

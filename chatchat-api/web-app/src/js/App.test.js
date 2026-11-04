@@ -7,6 +7,39 @@ import SystemManagementView from "./views/SystemManagementView.js";
 import * as api from "../services/api.js";
 import { setWorkspaceContext } from "./utils/workspaceContext";
 
+it('retains the archived favorite-toggle behavior and prevents duplicate pending writes', async () => {
+  let complete;
+  const add = vi.spyOn(api, 'addUserFavorite').mockImplementation(() => new Promise(resolve => { complete = resolve; }));
+  const remove = vi.spyOn(api, 'removeUserFavorite').mockResolvedValue(true);
+  const context = { tenantId: 'tenant', userId: 'owner', favoriteSavingIds: {}, favoriteConversationIds: [], favoriteConversationRecordIds: {}, historyError: '' };
+  try {
+    const pending = App.methods.favoriteConversation.call(context, { id: 'conversation', question: 'Question' });
+    await App.methods.favoriteConversation.call(context, { id: 'conversation' });
+    expect(add).toHaveBeenCalledTimes(1);
+    expect(context.favoriteSavingIds.conversation).toBe(true);
+    complete({ id: 'favorite' });
+    await pending;
+    expect(context.favoriteConversationIds).toEqual(['conversation']);
+    expect(context.favoriteSavingIds).toEqual({});
+    await App.methods.favoriteConversation.call(context, { id: 'conversation' });
+    expect(remove).toHaveBeenCalledWith('favorite', { tenantId: 'tenant', userId: 'owner' });
+    expect(context.favoriteConversationIds).toEqual([]);
+    expect(context.favoriteConversationRecordIds).toEqual({});
+  } finally { add.mockRestore(); remove.mockRestore(); }
+});
+
+it('preserves a favorite when the server rejects its removal', async () => {
+  const remove = vi.spyOn(api, 'removeUserFavorite').mockRejectedValue(new Error('Rejected'));
+  const context = { tenantId: 'tenant', userId: 'owner', favoriteSavingIds: {}, favoriteConversationIds: ['conversation'], favoriteConversationRecordIds: { conversation: 'favorite' }, historyError: '' };
+  try {
+    await App.methods.favoriteConversation.call(context, { id: 'conversation' });
+    expect(context.favoriteConversationIds).toEqual(['conversation']);
+    expect(context.favoriteConversationRecordIds).toEqual({ conversation: 'favorite' });
+    expect(context.favoriteSavingIds).toEqual({});
+    expect(context.historyError).toBe('Rejected');
+  } finally { remove.mockRestore(); }
+});
+
 it("does not request chat history, shortcuts or task monitoring for an exploration-only role", async () => {
   const history = vi.spyOn(api, "fetchConversationHistory");
   const shortcuts = vi.spyOn(api, "fetchWorkbenchShortcuts");

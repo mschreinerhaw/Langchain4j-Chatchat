@@ -31,6 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /** Real authentication, API policy, JPA registry, ownership and existing task scheduler. */
 @SpringBootTest(properties = {"chatchat.api.auth.enabled=true",
+    "chatchat.enterprise.bootstrap.admin-password=workspace-admin-test-password",
     "spring.datasource.url=jdbc:h2:mem:workspace_integration;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1"})
 @AutoConfigureMockMvc @ActiveProfiles("test")
 class WorkspaceIntegrationTest {
@@ -51,7 +52,7 @@ class WorkspaceIntegrationTest {
     @BeforeEach void setup() {
         when(workspaceLicense.workspaceEntitlement()).thenReturn(new com.chatchat.common.mcp.license.McpLicenseEntitlementPort.WorkspaceEntitlement(
             true, Set.of("zhice", "data-science"), "VALID"));
-        var auth = identities.login("admin", "123456"); adminToken = auth.token(); tenant = auth.user().tenantId();
+        var auth = identities.login("admin", "workspace-admin-test-password"); adminToken = auth.token(); tenant = auth.user().tenantId();
     }
     private String userToken(boolean science) {
         var role = new SysRole(); role.setTenantId(tenant); role.setRoleCode("WS_"+UUID.randomUUID());
@@ -73,13 +74,14 @@ class WorkspaceIntegrationTest {
     private JsonNode data(MvcResult result) throws Exception { return mapper.readTree(result.getResponse().getContentAsString()).path("data"); }
     @Test void loginAndDefaultLegacyMenusRemainAvailable() throws Exception {
         mvc.perform(get("/api/v1/workspaces/catalog")).andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.length()").value(2));
+            .andExpect(jsonPath("$.data[*].workspaceId").value(org.hamcrest.Matchers.containsInAnyOrder(
+                "zhice", "data-science", "data-exploration")));
         mvc.perform(post("/api/v1/enterprise/auth/login").contentType("application/json")
-            .content("{\"username\":\"admin\",\"password\":\"123456\"}"))
+            .content("{\"username\":\"admin\",\"password\":\"workspace-admin-test-password\"}"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.token").exists());
         var items = data(mvc.perform(get("/api/v1/workspaces").header("Authorization", "Bearer "+adminToken))
             .andExpect(status().isOk()).andReturn());
-        assertThat(items.size()).isEqualTo(2);
+        assertThat(items.size()).isEqualTo(3);
         assertThat(registry.findById("zhice").orElseThrow().isDefaultWorkspace()).isTrue();
         mvc.perform(get("/api/v1/workspaces/zhice/manifest").header("Authorization", "Bearer "+adminToken))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.manifest.entryPage").value("chat"))
@@ -209,7 +211,7 @@ class WorkspaceIntegrationTest {
         mvc.perform(get("/api/v1/conversations/"+legacy.getId()).header("Authorization", "Bearer "+adminToken)).andExpect(status().isOk());
         assertThat(origins.findByTenantIdAndResourceTypeAndResourceId(tenant, "CONVERSATION", legacy.getId())).isEmpty();
         var request = new org.springframework.mock.web.MockHttpServletRequest();
-        request.setAttribute(ApiAuthenticationFilter.CURRENT_USER_ID, identities.login("admin", "123456").user().id());
+        request.setAttribute(ApiAuthenticationFilter.CURRENT_USER_ID, identities.login("admin", "workspace-admin-test-password").user().id());
         request.setAttribute(ApiAuthenticationFilter.CURRENT_USERNAME, "admin");
         request.setAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID, tenant);
         request.addHeader("X-Workspace-Id", "stale-or-forged-space");

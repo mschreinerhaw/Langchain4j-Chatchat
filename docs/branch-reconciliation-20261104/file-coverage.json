@@ -1,0 +1,1422 @@
+[
+  {
+    "branch": "origin/feature/runtime-workspaces",
+    "files": [
+      {
+        "path": "chatchat-api/src/main/java/com/chatchat/api/controller/chat/ConversationController.java",
+        "branchBlob": "78cbfdd4a71248f18088a654ed016855f9b821d5",
+        "mainBlob": "4af8c47595325148f4c6a95dfb76d1303c790901",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/src/main/java/com/chatchat/api/controller/chat/InteractionController.java",
+        "branchBlob": "5e7ea769bd0636039803616bd05b852b6e30b0fa",
+        "mainBlob": "e4ddd23f40c3558d62684bf629055ab99d2b9867",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/src/main/java/com/chatchat/api/exception/GlobalExceptionHandler.java",
+        "branchBlob": "872dbfeff8c9b88711533b18638f19b5ed81ef25",
+        "mainBlob": "d509edef6f2567baecaa6d2864f17b40e935415c",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/src/main/java/com/chatchat/api/workspace/WorkspaceController.java",
+        "branchBlob": "8dc32f10f4da07a982cb691c255f8be3b0935067",
+        "mainBlob": "e614463cb7b5805c512ef2efe88c10a8a4b4abbb",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/src/main/java/com/chatchat/api/workspace/WorkspacePolicyFilter.java",
+        "branchBlob": "1b69dd8e552ab8279588d42ba58b00db80cdb7a2",
+        "mainBlob": null,
+        "resolution": "REPLACED_WORKSPACE_ARCHITECTURE"
+      },
+      {
+        "path": "chatchat-api/src/test/java/com/chatchat/api/AgentAuthorizationIsolationTest.java",
+        "branchBlob": "cf97507ba4529d5e9ec9d64f604abb2233b2cd85",
+        "mainBlob": "c0473041d6f7e06870accc2f24187060ec77649c",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/src/test/java/com/chatchat/api/workspace/WorkspacePaginationTest.java",
+        "branchBlob": "2dcb6f9db010f836b55991787892b45ab86e7de9",
+        "mainBlob": null,
+        "resolution": "REPLACED_WORKSPACE_ARCHITECTURE"
+      },
+      {
+        "path": "chatchat-api/src/test/java/com/chatchat/api/workspace/WorkspacePolicyFilterTest.java",
+        "branchBlob": "2f3029cb9566f9ceb50662fc8659f75b096dc27e",
+        "mainBlob": null,
+        "resolution": "REPLACED_WORKSPACE_ARCHITECTURE"
+      },
+      {
+        "path": "chatchat-api/web-app/package.json",
+        "branchBlob": "9e6ccdd7aa78e99bc10768194d092df36a0dc910",
+        "mainBlob": "fd735b4ec6441bfc88a3eea74aa1dae2fb37c5af",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/web-app/scripts/test-workspace-browser.mjs",
+        "branchBlob": "4cfe1255589c2d81ec91abfeaa5d2a6dcb49f9dd",
+        "mainBlob": null,
+        "resolution": "REPLACED_WORKSPACE_ARCHITECTURE"
+      },
+      {
+        "path": "chatchat-api/web-app/src/App.vue",
+        "branchBlob": "a3d761648acfe8882a19bbb4230100e323abe730",
+        "mainBlob": "e80b1a05dbf1bb38e1ff76aa1ba3d2788f8fbf98",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/web-app/src/components/AssistantLayout.vue",
+        "branchBlob": "90c51840221fbb9dbeacfe71e46733feaff44e78",
+        "mainBlob": "707542475389fccf777157a7570c650bd41f8117",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/web-app/src/components/AssistantSidebar.vue",
+        "branchBlob": "6a1e10a187b378dd14ae99ac231dd1a2a97bd23b",
+        "mainBlob": "d4e543e16adbc15092f96ad28dbf1947fbb30503",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/web-app/src/components/WorkspaceSelection.vue",
+        "branchBlob": "18edbe6c1317fe0d76fd10b0db9a97d7d5bd56a7",
+        "mainBlob": null,
+        "resolution": "REPLACED_WORKSPACE_ARCHITECTURE"
+      },
+      {
+        "path": "chatchat-api/web-app/src/components/WorkspaceSwitcher.vue",
+        "branchBlob": "cc90af959bc229e8876bf52133640a79e4cece05",
+        "mainBlob": null,
+        "resolution": "REPLACED_WORKSPACE_ARCHITECTURE"
+      },
+      {
+        "path": "chatchat-api/web-app/src/js/App.js",
+        "branchBlob": "0bffec197f5f789eaba7324ed12ccbe84d9182d2",
+        "mainBlob": "aaba6cb025725a4b9e25994c92bd49fffe8f849e",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/web-app/src/js/App.test.js",
+        "branchBlob": "d0a7ff15a88aefb2555feeeab2881d82cbe30889",
+        "mainBlob": "79c621bacf682aabdaafcf587b13e36f331c9797",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/web-app/src/js/utils/chatRuntimeState.js",
+        "branchBlob": "95fa5e3d134ee0f5908f3058ed673f7c42bc5f52",
+        "mainBlob": "ee7e93df55f1de7a4acf492633b3b21dbaa3081d",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/web-app/src/js/views/ChatAssistantView.js",
+        "branchBlob": "b509dd477d2253694cf5f00a5eddeef20676ae13",
+        "mainBlob": "6e58831d6edf8a15b6c7cea5d27f1367dd50fb0b",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/web-app/src/js/views/DataScienceView.js",
+        "branchBlob": "7d88625977f562ab00a462ef1ba6e8d925dac672",
+        "mainBlob": "3f257e7632a493dbc4f622fc609ba4da6b90770b",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/web-app/src/js/workspace/workspace.test.js",
+        "branchBlob": "7cfe1fc2ca9ba0c671a86c8a9a1ec6fa273eeaf6",
+        "mainBlob": null,
+        "resolution": "REPLACED_WORKSPACE_ARCHITECTURE"
+      },
+      {
+        "path": "chatchat-api/web-app/src/js/workspace/workspaceContext.js",
+        "branchBlob": "f96003d69cfb1d462fb943f179873d8b67263615",
+        "mainBlob": null,
+        "resolution": "REPLACED_WORKSPACE_ARCHITECTURE"
+      },
+      {
+        "path": "chatchat-api/web-app/src/services/api.js",
+        "branchBlob": "7284f8b3717d609ef11f2909264d85e4eaee9df5",
+        "mainBlob": "194a8b298ceb24e76cbf3959536d5bdb85e2eca7",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-chat/src/main/java/com/chatchat/chat/conversation/persistence/ChatSessionRepository.java",
+        "branchBlob": "63fefa240978596fc15be987d4ea51eb01e23a60",
+        "mainBlob": "b6ffb99a98237b3e647aada0666ba296f9da9f34",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-chat/src/main/java/com/chatchat/chat/conversation/service/ConversationService.java",
+        "branchBlob": "8ee8a15914baade1d17e7760efbd56c3f2832c42",
+        "mainBlob": "79b27f6744b2148e5df1ff8d2a5ef4dcef51cc43",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-chat/src/main/java/com/chatchat/chat/task/core/AgentTaskLatestRepository.java",
+        "branchBlob": "0949c86c55c399e9877faaaa76f090485b78be4e",
+        "mainBlob": "3222ff11f719fe4a3fcd64d90e8516f7db882c41",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-chat/src/main/java/com/chatchat/chat/task/core/AgentTaskService.java",
+        "branchBlob": "5ab72a318907ae320c14f3ef9103fe7230473ab1",
+        "mainBlob": "4de293a8dcaabfe3b52ec5adbf0b04d305528d89",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-chat/src/main/java/com/chatchat/chat/uiartifact/UiArtifactService.java",
+        "branchBlob": "21ef02b523dc50adf549a7d3ace8a8853d80d13c",
+        "mainBlob": "76b1eb8e30192bed4ba24b2405ffc28afba5fda9",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-chat/src/main/java/com/chatchat/chat/workspace/WorkspaceVisibility.java",
+        "branchBlob": "6eeb105db919163d86f7564d62515390264a04b5",
+        "mainBlob": null,
+        "resolution": "REPLACED_WORKSPACE_ARCHITECTURE"
+      },
+      {
+        "path": "chatchat-chat/src/test/java/com/chatchat/chat/task/core/AgentTaskServiceTest.java",
+        "branchBlob": "bd18b9d73137ffd66533ca7bd7425addf458b6a7",
+        "mainBlob": "c3e28ce5a9570647eac8129a81a30d3a76ef4ecc",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-chat/src/test/java/com/chatchat/chat/uiartifact/UiArtifactServiceTest.java",
+        "branchBlob": "fa40377aca1f57d775caae87b74c51f0ea48ad6b",
+        "mainBlob": "c48605b36830ad009974fb6551ee9929fbe7291b",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-enterprise/src/main/java/com/chatchat/enterprise/repository/identity/SysTenantRepository.java",
+        "branchBlob": "b10f6e107c230b44f54c9eff34bc5dddeff74d80",
+        "mainBlob": "1e9d952a1c44be74a12d6b2bab2ee34ec74ebd58",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-enterprise/src/main/java/com/chatchat/enterprise/service/EnterpriseAdminService.java",
+        "branchBlob": "083a11a277cb293edb4e943d3724cef3f8fb2b3c",
+        "mainBlob": "f911393ec2764cbbd88d850c3c65f09399370e63",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-enterprise/src/main/java/com/chatchat/enterprise/workspace/WorkspaceEntity.java",
+        "branchBlob": "ebd4227f5d45ffc28fb0394d1647f7928763357b",
+        "mainBlob": null,
+        "resolution": "REPLACED_WORKSPACE_ARCHITECTURE"
+      },
+      {
+        "path": "chatchat-enterprise/src/main/java/com/chatchat/enterprise/workspace/WorkspaceManifest.java",
+        "branchBlob": "1db8b600680253aeb73ea4901414af8c05f94828",
+        "mainBlob": null,
+        "resolution": "REPLACED_WORKSPACE_ARCHITECTURE"
+      },
+      {
+        "path": "chatchat-enterprise/src/main/java/com/chatchat/enterprise/workspace/WorkspacePreference.java",
+        "branchBlob": "0b4e2c61e02cfe086c1c3d393e60003ebe152b10",
+        "mainBlob": null,
+        "resolution": "REPLACED_WORKSPACE_ARCHITECTURE"
+      },
+      {
+        "path": "chatchat-enterprise/src/main/java/com/chatchat/enterprise/workspace/WorkspacePreferenceRepository.java",
+        "branchBlob": "f90d8e47b0874d95d5c5d72d4f29e1aec1ee6335",
+        "mainBlob": null,
+        "resolution": "REPLACED_WORKSPACE_ARCHITECTURE"
+      },
+      {
+        "path": "chatchat-enterprise/src/main/java/com/chatchat/enterprise/workspace/WorkspaceRepository.java",
+        "branchBlob": "860d6adfe06b4bf28aeb82dbdb765ab554023e94",
+        "mainBlob": null,
+        "resolution": "REPLACED_WORKSPACE_ARCHITECTURE"
+      },
+      {
+        "path": "chatchat-enterprise/src/main/java/com/chatchat/enterprise/workspace/WorkspaceRequestContext.java",
+        "branchBlob": "ce3db2cf09fea9135081c457e9877cd0ec3b28f6",
+        "mainBlob": null,
+        "resolution": "REPLACED_WORKSPACE_ARCHITECTURE"
+      },
+      {
+        "path": "chatchat-enterprise/src/main/java/com/chatchat/enterprise/workspace/WorkspaceResourceBinding.java",
+        "branchBlob": "ce4a3b1f4c6e32c56e70171c467cdb4060383c06",
+        "mainBlob": null,
+        "resolution": "REPLACED_WORKSPACE_ARCHITECTURE"
+      },
+      {
+        "path": "chatchat-enterprise/src/main/java/com/chatchat/enterprise/workspace/WorkspaceResourceRepository.java",
+        "branchBlob": "b6e0b98ea79887df12b624e7a5de1b287e931659",
+        "mainBlob": null,
+        "resolution": "REPLACED_WORKSPACE_ARCHITECTURE"
+      },
+      {
+        "path": "chatchat-enterprise/src/main/java/com/chatchat/enterprise/workspace/WorkspaceResourceService.java",
+        "branchBlob": "7a843d9d3732f43af28ba8e9a1449dc8205f223c",
+        "mainBlob": null,
+        "resolution": "REPLACED_WORKSPACE_ARCHITECTURE"
+      },
+      {
+        "path": "chatchat-enterprise/src/main/java/com/chatchat/enterprise/workspace/WorkspaceService.java",
+        "branchBlob": "67606e67ea9a59a27ad8a08b3c6b74f4bf1a6204",
+        "mainBlob": null,
+        "resolution": "REPLACED_WORKSPACE_ARCHITECTURE"
+      },
+      {
+        "path": "chatchat-enterprise/src/test/java/com/chatchat/enterprise/workspace/WorkspaceMigrationTest.java",
+        "branchBlob": "4b09859318534c51dea1b26d8aaa4d4036868a3a",
+        "mainBlob": null,
+        "resolution": "REPLACED_WORKSPACE_ARCHITECTURE"
+      },
+      {
+        "path": "chatchat-enterprise/src/test/java/com/chatchat/enterprise/workspace/WorkspaceResourceServiceTest.java",
+        "branchBlob": "981da267032ff244afe93b36b95a195c93492b89",
+        "mainBlob": null,
+        "resolution": "REPLACED_WORKSPACE_ARCHITECTURE"
+      },
+      {
+        "path": "chatchat-enterprise/src/test/java/com/chatchat/enterprise/workspace/WorkspaceServiceTest.java",
+        "branchBlob": "0e673a767ac98f2a2c8939fd7ed8ae1e35d0bbd6",
+        "mainBlob": null,
+        "resolution": "REPLACED_WORKSPACE_ARCHITECTURE"
+      },
+      {
+        "path": "database/init/h2/chatchat-api.sql",
+        "branchBlob": "a6b6d6591a206608a7f0922e8f98e3078147dad1",
+        "mainBlob": "2a4ec77d8c4e8fe7fdf240a9bfed1197ee6df4ce",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "database/init/mysql/chatchat-api.sql",
+        "branchBlob": "61a3378274b269351d3049c0eb0332cc426de94f",
+        "mainBlob": "5a3110d5e7084b7e309e74f4d3ad47cc15ce133c",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "database/init/postgresql/chatchat-api.sql",
+        "branchBlob": "3bf67287192720dfab3d8962dc6bcd484daee42a",
+        "mainBlob": "768a616602f7746026a8afea1136c01e59467dba",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "database/migration/h2/V20261013_01__workspace_registry.sql",
+        "branchBlob": "cd107226ea6834c83256e1deddee1bc6e48e6749",
+        "mainBlob": null,
+        "resolution": "REPLACED_WORKSPACE_ARCHITECTURE"
+      },
+      {
+        "path": "database/migration/h2/V20261013_02__workspace_resource_binding.sql",
+        "branchBlob": "2c8b183a335c7264c4a20937166496a05f0bd74a",
+        "mainBlob": null,
+        "resolution": "REPLACED_WORKSPACE_ARCHITECTURE"
+      },
+      {
+        "path": "database/migration/mysql/V20261013_01__workspace_registry.sql",
+        "branchBlob": "2684790b1d299270ceee4f41b996677615ce54bb",
+        "mainBlob": null,
+        "resolution": "REPLACED_WORKSPACE_ARCHITECTURE"
+      },
+      {
+        "path": "database/migration/mysql/V20261013_02__workspace_resource_binding.sql",
+        "branchBlob": "2c8b183a335c7264c4a20937166496a05f0bd74a",
+        "mainBlob": null,
+        "resolution": "REPLACED_WORKSPACE_ARCHITECTURE"
+      },
+      {
+        "path": "database/migration/postgresql/V20261013_01__workspace_registry.sql",
+        "branchBlob": "4d1d3fc77d35706f4ac446d44d1263104a6283a9",
+        "mainBlob": null,
+        "resolution": "REPLACED_WORKSPACE_ARCHITECTURE"
+      },
+      {
+        "path": "database/migration/postgresql/V20261013_02__workspace_resource_binding.sql",
+        "branchBlob": "2c8b183a335c7264c4a20937166496a05f0bd74a",
+        "mainBlob": null,
+        "resolution": "REPLACED_WORKSPACE_ARCHITECTURE"
+      },
+      {
+        "path": "docs/market-analysis-method-evaluation-20261012.md",
+        "branchBlob": "96ef87aa8ce612f42af89222f38e9b1ef501b599",
+        "mainBlob": null,
+        "resolution": "HISTORICAL_DOCUMENT_ARCHIVED"
+      },
+      {
+        "path": "docs/workspace/01-current-architecture.md",
+        "branchBlob": "866a01ef6f55c433a05718be9efdc3553b74c8c3",
+        "mainBlob": "02e3dc15e779c53d8a04d225440cad82fa050128",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "docs/workspace/02-workspace-architecture.md",
+        "branchBlob": "4e705ac88f3f664d4fa70cb6196e0eb7adbd98df",
+        "mainBlob": "3c3a8a75e6b07f676cfbf7dc91e5dfe83e6ab48e",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "docs/workspace/04-sql-generation-design.md",
+        "branchBlob": "3ce92f0ae9aeb68e79a7629047c09e563d3d6318",
+        "mainBlob": null,
+        "resolution": "HISTORICAL_DOCUMENT_ARCHIVED"
+      },
+      {
+        "path": "docs/workspace/05-migration-and-operations.md",
+        "branchBlob": "7146dda0e7adf0fb626aac4f9f6c7e42420e8c31",
+        "mainBlob": null,
+        "resolution": "HISTORICAL_DOCUMENT_ARCHIVED"
+      },
+      {
+        "path": "scripts/evaluation/README.md",
+        "branchBlob": "1286dc9d59bccd39552840a2dec7c637039745c3",
+        "mainBlob": null,
+        "resolution": "HISTORICAL_DOCUMENT_ARCHIVED"
+      }
+    ]
+  },
+  {
+    "branch": "origin/release/1.2-20261022",
+    "files": [
+      {
+        "path": "RELEASE_VERSION",
+        "branchBlob": "12e08eafb7d1f3814484f20bd6b0594b0822d149",
+        "mainBlob": null,
+        "resolution": "OBSOLETE_RELEASE_MARKER"
+      },
+      {
+        "path": "chatchat-agents/pom.xml",
+        "branchBlob": "231181365c2e1eb49a7900239b66c3a17d5251be",
+        "mainBlob": "0813018a47766e72150313f27853d83bfe880d7e",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-agents/src/main/java/com/chatchat/agents/runtime/coding/DurableCodingTaskService.java",
+        "branchBlob": "6eeee6a92091bda1fd7e2d7bbf75564d3cc96cf6",
+        "mainBlob": "a614c08205ff8871102ebec6ef66dbf6da251468",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-agents/src/test/java/com/chatchat/agents/orchestration/workflow/AgentWorkflowStateTrackerTest.java",
+        "branchBlob": "58b53ed60c31f3ba29fb6d62bcf1b4e6514dc994",
+        "mainBlob": "58b53ed60c31f3ba29fb6d62bcf1b4e6514dc994",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-agents/src/test/java/com/chatchat/agents/runtime/analysis/workflow/ModelDirectedWorkflowIntegrationTest.java",
+        "branchBlob": "3352f33e5a5502fa01475faceeb42feea8701faa",
+        "mainBlob": "3352f33e5a5502fa01475faceeb42feea8701faa",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-api/pom.xml",
+        "branchBlob": "b54a67884f5cb37cf0fd5915674975ddf9870117",
+        "mainBlob": "ae57c3e5ec1899f9360b84cb9f11cfee668e1678",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/src/main/java/com/chatchat/api/assets/RuntimeAssetArchive.java",
+        "branchBlob": "022d046aebfbf5273fe860774340ec89f39b3409",
+        "mainBlob": "022d046aebfbf5273fe860774340ec89f39b3409",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-api/src/main/java/com/chatchat/api/assets/RuntimePythonAssetArchiver.java",
+        "branchBlob": "3b194d0958fca693c616b837e7c66a9f44ab99e9",
+        "mainBlob": "3b194d0958fca693c616b837e7c66a9f44ab99e9",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-api/src/main/java/com/chatchat/api/controller/agent/CodingTaskMonitorController.java",
+        "branchBlob": "25691c85a13df6d60aedc1229599d3e1f7238333",
+        "mainBlob": "25691c85a13df6d60aedc1229599d3e1f7238333",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-api/src/main/java/com/chatchat/api/controller/agent/CodingTraceArtifactController.java",
+        "branchBlob": "d4e09e4451e2f1f1b794c0536fc654be028ab07c",
+        "mainBlob": "a6b71cc117110eeaefe4a8cce152c2292cedbc33",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/src/main/java/com/chatchat/api/controller/datascience/PythonDataScienceController.java",
+        "branchBlob": "115b73e2f565d04774be847fed42d8bdc2a54d86",
+        "mainBlob": "8f4e08993498f2700447c0d8d1c63ca664fd342d",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/src/main/java/com/chatchat/api/datascience/python/PythonDataScienceService.java",
+        "branchBlob": "13bc4798bcdc52d52c06bd713e5dd74a8e745098",
+        "mainBlob": "0d38c78efcb483f9791a0b2d6b734d7dfbba6324",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/src/main/java/com/chatchat/api/datascience/python/PythonDefaultEnvironmentService.java",
+        "branchBlob": "d49ead33a11b31c5cc780fd34ef175bb037c098a",
+        "mainBlob": "d49ead33a11b31c5cc780fd34ef175bb037c098a",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-api/src/main/java/com/chatchat/api/datascience/python/PythonEnvironmentPreference.java",
+        "branchBlob": "72a074e09715e99243389ebfd8f1724dc69be8b9",
+        "mainBlob": "72a074e09715e99243389ebfd8f1724dc69be8b9",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-api/src/main/java/com/chatchat/api/datascience/python/PythonEnvironmentPreferenceRepository.java",
+        "branchBlob": "086a3c8a6b3c07791b20a197248dff8fde3786ed",
+        "mainBlob": "086a3c8a6b3c07791b20a197248dff8fde3786ed",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.java",
+        "branchBlob": "95e1b76f1d164cb9427f63194f98c0b49aeecc32",
+        "mainBlob": "0d184ca9979c7d076038ad437de0868a09588fd3",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineCodingAdapter.java",
+        "branchBlob": "2ec039e9c738a59c35b78e2d52566847624a6636",
+        "mainBlob": "8f610fa22aa946c451a2810444a935f908be92ff",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineCodingConfiguration.java",
+        "branchBlob": "0d16ea7a1e8a2a79e66358647213fb15faf49350",
+        "mainBlob": "0d16ea7a1e8a2a79e66358647213fb15faf49350",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineModelCallbackController.java",
+        "branchBlob": "2443e1aba44755ee8a6f8650bf9ff98d011966db",
+        "mainBlob": "f054c2b3be808018f145aa0b665b5dcde9ec2bbc",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClinePythonCallbackController.java",
+        "branchBlob": "39f18cda147a5f1e6582a5dbf12dab8d13f6909c",
+        "mainBlob": "086c3c12a2208e7ab8652bd463fcaef4dbb43c8d",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/CodingCodeArtifactStore.java",
+        "branchBlob": "63ff411aecd45550ffce276afb0c3ac387d4e09e",
+        "mainBlob": "63ff411aecd45550ffce276afb0c3ac387d4e09e",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollector.java",
+        "branchBlob": "4d4c75ff9df5c4249ffda4aaae18dd7fe0b6e90d",
+        "mainBlob": "94fbbbbfb8d649aa97fbca62ae6de40bfb6d740d",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/evidence/VisualReportArtifacts.java",
+        "branchBlob": "59a3daf8872cd7b8b2ab4ef6aba6121616dc5cec",
+        "mainBlob": "37c1603984a17474f152d1947db662c5065035fd",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/execution/CodingExecutionFeedbackService.java",
+        "branchBlob": "8b7dd29a14cec4012b65689f184365b6e8ad81cb",
+        "mainBlob": "d539ddc9d71a28fbc22278589fdc4114b804ae83",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/execution/CodingPythonExecutionBridge.java",
+        "branchBlob": "688d4d183252511099543d10e6bd4b0df2496369",
+        "mainBlob": "9475c9e22ce00e0b53e8dbbd29ccae31353f23bf",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/src/test/java/com/chatchat/api/controller/agent/CodingTaskMonitorControllerTest.java",
+        "branchBlob": "7755245b00a4d39582bccfeb3fed67a138d2e307",
+        "mainBlob": "7755245b00a4d39582bccfeb3fed67a138d2e307",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-api/src/test/java/com/chatchat/api/datascience/python/PythonDefaultEnvironmentServiceTest.java",
+        "branchBlob": "d183cb03480aea39793aa63b93cfd4d1bb747b44",
+        "mainBlob": "d183cb03480aea39793aa63b93cfd4d1bb747b44",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/CodingTaskPersistenceTest.java",
+        "branchBlob": "c56a3a5dcc262ea12494d64e3a29e3f821ebbaea",
+        "mainBlob": "fed570e3d46b026e3a3a8eb17ffc01907395da80",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/acceptance/D1StagingSmokeDriver.java",
+        "branchBlob": "22391e82b8f1c808d95616bbb272c575bb14c1fe",
+        "mainBlob": "22391e82b8f1c808d95616bbb272c575bb14c1fe",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisServiceTest.java",
+        "branchBlob": "09bd2745b400fd8545a1583a7eb4fae8eabfb6ed",
+        "mainBlob": "f1c02f2e9b6b8b163bad94412e1f4fb13eb50798",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/ClineCodingAdapterDispatchTest.java",
+        "branchBlob": "7207a23dc83c8d37762701384accccc3608dfa2a",
+        "mainBlob": "a62c0d269b82fb45c1e74bdb9b3a6b507e8cbaa3",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/ClineCodingAdapterRecoveryTest.java",
+        "branchBlob": "e4d4aab1b3129c20a3fad01904afdcb92d243883",
+        "mainBlob": "e4d4aab1b3129c20a3fad01904afdcb92d243883",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/ClineCodingLicenseTest.java",
+        "branchBlob": "b3ba168065ff227cece950ab0a2fbc38aab32bdf",
+        "mainBlob": "b3ba168065ff227cece950ab0a2fbc38aab32bdf",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/ClineModelCallbackControllerTest.java",
+        "branchBlob": "aecb36ab97bceac023a7321b44d6a79eed28b92c",
+        "mainBlob": "5af864b8e24865ef1b9d7f99e6f2f9ba4bdfac33",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/ClinePythonCallbackControllerTest.java",
+        "branchBlob": "49557fdd845b5561e656d4cd8d3749dd47c4f021",
+        "mainBlob": "408e88a62f7bea95119802cadf56389d3f4b5f3c",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/CodingAnalysisDockerGateTest.java",
+        "branchBlob": "6d725a0de934f0401151f4f4c024b9e80cc4c8a4",
+        "mainBlob": "a3d7c4867e533341f99d0ffa62269c98aeaecfea",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/CodingWorkspaceNodeIntegrationTest.java",
+        "branchBlob": "24a75909fcfd2d95de6247d277311960337c2b27",
+        "mainBlob": "55aecec54f67ceb8d9e6e273f7aac57320b32dff",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollectorTest.java",
+        "branchBlob": "27aafb200e084dea7285db52ba2dfc9dbfed4f1e",
+        "mainBlob": "d95746baaa4248ac9ccac0ecdc0a2fb34bfd8719",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/evidence/VisualReportArtifactsTest.java",
+        "branchBlob": "6343cc85e36d9595b09a8d6014babf416b9d1e5c",
+        "mainBlob": "217bd869e5525a593d9ba987a53a1d4933e9070a",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/execution/CodingExecutionFeedbackServiceTest.java",
+        "branchBlob": "8ad58a7795a49b5790e7501bd0ea69b8522ba66e",
+        "mainBlob": "1c511ac2f4ec22e0a689217992df961e57101253",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/web-app/package.json",
+        "branchBlob": "37ee1e9f5a8d0302f54490fd9bb347849413025d",
+        "mainBlob": "fd735b4ec6441bfc88a3eea74aa1dae2fb37c5af",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/web-app/src/components/CodingTaskMonitor.vue",
+        "branchBlob": "c9c968f6261a3e66c7dd53a494873eee66494f21",
+        "mainBlob": "332765a610bbc856f7eece0288ac94bad57a3c64",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/web-app/src/components/EnterpriseUiArtifactRenderer.vue",
+        "branchBlob": "e41e7b5193059e7845d9dd69142a5d7b6b9e6b5e",
+        "mainBlob": "6df465cd7c96cb17fa91b541af87aa7dd5977605",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/web-app/src/components/PythonVisualReport.test.js",
+        "branchBlob": "a0b0984f609eb3b38a538e2c4ecd48d184b3a2a8",
+        "mainBlob": "de519b965759b6fe2e79e7881823af50b43d0dd0",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/web-app/src/components/PythonVisualReport.vue",
+        "branchBlob": "c4b84a5a6295620dd9c563b88b20fcb7a85364a9",
+        "mainBlob": "d65bf7cbd3a174efd77281aa5d441c38106fd757",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/web-app/src/js/ui-artifact/presentation.js",
+        "branchBlob": "6a576dff340b76bf44036258f65f0aace33e56e5",
+        "mainBlob": "6a576dff340b76bf44036258f65f0aace33e56e5",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-api/web-app/src/js/ui-artifact/presentation.test.js",
+        "branchBlob": "7bccabcbc77fc0191704161a018776a347d0c21f",
+        "mainBlob": "8891def7bc730b56e739fc147073a74a69ea5a7a",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/web-app/src/js/utils/pythonVisualReport.js",
+        "branchBlob": "b03dc120edd9c842fac72cf66d371fbad24f6c01",
+        "mainBlob": "cb99fedc493fa38732602f40aacabda078757597",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/web-app/src/js/utils/pythonVisualReport.test.js",
+        "branchBlob": "869a93bd393ec7b872e4f7ab3af32d9e82fd37d4",
+        "mainBlob": "f46234a75d6052618687c58cc754851060efb921",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/web-app/src/js/views/DataScienceView.js",
+        "branchBlob": "59ac08e42417ebb22a837a6c342a604539af07d3",
+        "mainBlob": "3f257e7632a493dbc4f622fc609ba4da6b90770b",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/web-app/src/services/api.js",
+        "branchBlob": "5d1f53b31af7b7e742490b1650eb36b342601223",
+        "mainBlob": "194a8b298ceb24e76cbf3959536d5bdb85e2eca7",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/web-app/src/services/codingMonitor.ts",
+        "branchBlob": "d9043aa94a210c112ea248f7f3efbe0bc007d9b3",
+        "mainBlob": "7f23f82b63f03f0ad5577d576c27cf96eb2e77f3",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-api/web-app/src/styles/pages/data-science.css",
+        "branchBlob": "f4b7d227ec0f00f28a8a8988b5dbba13305c9b9a",
+        "mainBlob": "f4b7d227ec0f00f28a8a8988b5dbba13305c9b9a",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-api/web-app/src/views/DataScienceView.vue",
+        "branchBlob": "57de54e5c3a623198125657d4f3adc0a0c8b96ba",
+        "mainBlob": "3793be638e87d88ac54b3ae4402ed940085e9320",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-chat/pom.xml",
+        "branchBlob": "268ff7cf7d1131e22cc15dc4e8e67a1ea87952da",
+        "mainBlob": "89e4ed84cb97202e6f1d5a0647cdbb8e239c11fb",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-chat/src/main/java/com/chatchat/chat/uiartifact/UiArtifactService.java",
+        "branchBlob": "76b1eb8e30192bed4ba24b2405ffc28afba5fda9",
+        "mainBlob": "76b1eb8e30192bed4ba24b2405ffc28afba5fda9",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-chat/src/test/java/com/chatchat/chat/uiartifact/UiArtifactServiceTest.java",
+        "branchBlob": "c48605b36830ad009974fb6551ee9929fbe7291b",
+        "mainBlob": "c48605b36830ad009974fb6551ee9929fbe7291b",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-common/pom.xml",
+        "branchBlob": "f3c3769adfd6fad49c059b5b52ab93cf0759b1f4",
+        "mainBlob": "3238dacf155933d692f1d0cc92d81808c8f59e1a",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-common/src/main/java/com/chatchat/common/mcp/license/McpLicenseEntitlementPort.java",
+        "branchBlob": "0e92c71cc0b6e9d285a68d46617de97c21ef1d54",
+        "mainBlob": "3b713501c82cc6ddb9b2b5970760437b3598db90",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-common/src/main/java/com/chatchat/common/mcp/python/McpPythonControlPlanePort.java",
+        "branchBlob": "6d540c26209253b7e157394b074cd04ac534964f",
+        "mainBlob": "6d540c26209253b7e157394b074cd04ac534964f",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-common/src/main/java/com/chatchat/common/runtime/coding/CodingRuntimeContext.java",
+        "branchBlob": "ea54a65c29a82d265bce94ec3068bba1ec68c120",
+        "mainBlob": "f789aa8b650e5c44af9bcc4418304aa43ba454a3",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-common/src/main/java/com/chatchat/common/runtime/coding/CodingScript.java",
+        "branchBlob": "5a8efb8f887af426ce7102846e71c96ea9623b65",
+        "mainBlob": "5a8efb8f887af426ce7102846e71c96ea9623b65",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-common/src/main/java/com/chatchat/common/runtime/coding/ExecutionFailureClassifier.java",
+        "branchBlob": "1c031f9e4970a5c0928bfdcd53452058206bfe37",
+        "mainBlob": "e5167b40e750933cfcd66d4b2952947051f9a203",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-common/src/main/java/com/chatchat/common/runtime/coding/ExecutionFeedback.java",
+        "branchBlob": "1e27b5c04a99a017bf7f6a96d7abeda5865e5769",
+        "mainBlob": "d08ae20d63e5a5cf5b9a7180351dcceaab1f66b2",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-common/src/main/java/com/chatchat/common/runtime/coding/VisualReportMode.java",
+        "branchBlob": "b4f62925b5d66a8a23b805e8f16c703102143639",
+        "mainBlob": "3d3b597ba081ae18e0121ece68a27b813730e68e",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-common/src/main/java/com/chatchat/common/runtime/event/RuntimeEventLog.java",
+        "branchBlob": "5d69e0602917e85c4b8307b7edc7928d2842bf84",
+        "mainBlob": "8b5015f77866130cb61932196cdb824401a20fd3",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-common/src/main/resources/runtime/coding/execution-feedback.schema.json",
+        "branchBlob": "149cdf20d6f30460bc396647faa781ad441b0780",
+        "mainBlob": "289333c7ce747027aa0e9807017d1aa77351450f",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-common/src/test/java/com/chatchat/common/runtime/coding/ExecutionFeedbackContractTest.java",
+        "branchBlob": "0a6365aa024bb4465a2c7b49b0c39089cbca3ebe",
+        "mainBlob": "3936472b5675ab971efe610ea14afa474af23e8e",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-data-migration/pom.xml",
+        "branchBlob": "09850c1aaa9003dbc6a7e51e9ab0e95d8659a72b",
+        "mainBlob": "cb1ed6b48440a675962659ed115c108e72938d89",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-e2e-tests/pom.xml",
+        "branchBlob": "84be8b6c4f5a3cdedc0c41829336962c49315fb2",
+        "mainBlob": "580f0da10ecc6e01cc132cf20ec7d3d537b7e236",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-enterprise/pom.xml",
+        "branchBlob": "914d0205ab36ac41f5131b0742e4161a2a55ec04",
+        "mainBlob": "fcd422dbf6415331b6a09e068014c0b86629482c",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-integration/pom.xml",
+        "branchBlob": "98f31aa28af0238173bf649f94c9531a84b9a7ff",
+        "mainBlob": "cf557fc17eb518f0395f67375db836ba7b3fad78",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-integration/src/main/java/com/chatchat/integration/mcp/service/client/McpLicenseEntitlementClient.java",
+        "branchBlob": "f1729ba5e74ae876eed1e692445160aaf7f39f6d",
+        "mainBlob": "f1729ba5e74ae876eed1e692445160aaf7f39f6d",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-integration/src/main/java/com/chatchat/integration/mcp/service/client/McpPythonControlPlaneClient.java",
+        "branchBlob": "a8766e273e91f1fde456fb0ac429cf35f55447f0",
+        "mainBlob": "a8766e273e91f1fde456fb0ac429cf35f55447f0",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-integration/src/test/java/com/chatchat/integration/mcp/service/client/McpCodingDispatchEntitlementClientTest.java",
+        "branchBlob": "2c32a98f76abe421a50c01ce523aabc6fecbf19d",
+        "mainBlob": "2c32a98f76abe421a50c01ce523aabc6fecbf19d",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-integration/src/test/java/com/chatchat/integration/mcp/service/client/McpPythonControlPlaneClientTimeoutTest.java",
+        "branchBlob": "56ca5b44d203f5ed3dce685857123b6c63c4dacb",
+        "mainBlob": "56ca5b44d203f5ed3dce685857123b6c63c4dacb",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-knowledge-base/pom.xml",
+        "branchBlob": "eeef9f3803ad7b81110fbaceb7a36b88cf439203",
+        "mainBlob": "cbd8b3e25d6532c2c7d6a9541e9d86f8ec69f94b",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-license/pom.xml",
+        "branchBlob": "4154788f66732452827fbcab803371ec846acfe9",
+        "mainBlob": "dc902b6e4a2b7ddd7c8f53ae5b76fece02332f52",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-mcp-grpc/pom.xml",
+        "branchBlob": "162059974e0d5616bdf5cdbf0589091c88031517",
+        "mainBlob": "e2ac5ce28b31b4b06ad32bb1b7ca527136395790",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-mcp-server/pom.xml",
+        "branchBlob": "85af07ef2c631ecbb9868ad1d1b733fe2a769f84",
+        "mainBlob": "a98cf76a5517c1951e5adedb200c344be71ed1a8",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/license/LicenseInternalController.java",
+        "branchBlob": "05bde3d854a68a6c00386ea6a55251a72d3cf122",
+        "mainBlob": "26a25e4193b194c5772bca2c6ddc843117d865f8",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/python/PythonAdminController.java",
+        "branchBlob": "43eb97bf2cce73eb6fcd9935944671b603cb4431",
+        "mainBlob": "43eb97bf2cce73eb6fcd9935944671b603cb4431",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/python/PythonCapabilityService.java",
+        "branchBlob": "ed68c4178b4f56d5ba576f4d6e5a64ccc74359c3",
+        "mainBlob": "ed68c4178b4f56d5ba576f4d6e5a64ccc74359c3",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/python/PythonDockerRuntime.java",
+        "branchBlob": "e4a6d22d553cfee3c7cdc86964990d053515aebe",
+        "mainBlob": "e4a6d22d553cfee3c7cdc86964990d053515aebe",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/python/PythonExecutionLogBoundary.java",
+        "branchBlob": "6346daa6d5809027828693fa405f0bb6238f71d0",
+        "mainBlob": "de8c637482b2548fc2de5cc448208d0445908f14",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/python/PythonManagedExecutionService.java",
+        "branchBlob": "e3c5db94c92edd69a3428a0ac67b623f94b1a86e",
+        "mainBlob": "011a7329d59606b74bbc0fb830528e00db27ddd5",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/python/PythonOperationWorkspace.java",
+        "branchBlob": "6660856df6f65b68956fb8cd1fc77daaf928d41b",
+        "mainBlob": "6660856df6f65b68956fb8cd1fc77daaf928d41b",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-mcp-server/src/main/resources/python/runtime_capture.py",
+        "branchBlob": "bbfefb32b173a374809c06cfd7e29bd59a42f20d",
+        "mainBlob": "776e4f3f95688bb35a7d179de0d77b0e614c9621",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/license/LicenseInternalControllerTest.java",
+        "branchBlob": "2ac078a5655b34d181c608ac1c37e5b3e7239b1f",
+        "mainBlob": "5866a147f5147baa70529515ad192572a6a8880d",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/python/PythonExecutionLogBoundaryTest.java",
+        "branchBlob": "90ecd56160395fc964fd5724a41d5833736a0b2f",
+        "mainBlob": "5b94f154618bbdab29b5258f05c00b2a7490d0e8",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/python/PythonManagedExecutionServiceTest.java",
+        "branchBlob": "81f38605abf565f0afccf9b1c59390d0c8bfd230",
+        "mainBlob": "6fd773a7979e6078ab66f055901b354647875ed4",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/python/PythonMcpToolPublisherTest.java",
+        "branchBlob": "18a0799d94ae68870bf6463ee6ef6bbf64870118",
+        "mainBlob": "18a0799d94ae68870bf6463ee6ef6bbf64870118",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/python/PythonScriptIsolationIntegrationTest.java",
+        "branchBlob": "b73e3324a8adc25e064d7fcb780bcf26f883e489",
+        "mainBlob": "b73e3324a8adc25e064d7fcb780bcf26f883e489",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "chatchat-platform-spring/pom.xml",
+        "branchBlob": "14cbe2bf86759f2d451e82bbf309d8ed86ac50aa",
+        "mainBlob": "b5a53f0396ca5c02a91871db6579032e0dc12894",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-runtime-market/pom.xml",
+        "branchBlob": "98c281e3c6e961787b79b8125fefcebaa01b857e",
+        "mainBlob": "44b7af76fdbbbffc39717a7431010648e2ed0bf0",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-runtime-mcp/pom.xml",
+        "branchBlob": "dc04d3fa972ae30bcf10644a3bc517632bb0f14e",
+        "mainBlob": "50cdc43af2505ca0c12c2de4f82fa42ce9f9762b",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-runtime-news/pom.xml",
+        "branchBlob": "229bf7741de3d90f5351a67e4626db64191e20d6",
+        "mainBlob": "8967ef56099c830822a43b90c603fd164141607a",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-runtime-skill/pom.xml",
+        "branchBlob": "701b386ddd0d8c5b9437c4815505c68955b928f9",
+        "mainBlob": "ba8c272b2b74f8f787a493833e4fb97f29bded67",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-runtime-temporal/pom.xml",
+        "branchBlob": "9cde39c657d26c6f0be11272dd59c1c383f39e1c",
+        "mainBlob": "5dfe3ee1662c68227337bfec3c6c8e992cf32df1",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "chatchat-tools/pom.xml",
+        "branchBlob": "120227f9ab71bfb47ca4bbfdd9a53cdd17d554cf",
+        "mainBlob": "859d2da5b067cf89192491ebaa1138077a420c0a",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "coding-agent-node/Dockerfile",
+        "branchBlob": "b593e6bffdbea08dc3dd2b87aff6031b514ba45b",
+        "mainBlob": "ba23a707299e43d565add783b14b1686e4b707fb",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "coding-agent-node/README.md",
+        "branchBlob": "90b5f2080f770b1b8a04d3a1b4144d081331bd1a",
+        "mainBlob": "d971f1200461e00b04e52d7a425be1e1fc39310d",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "coding-agent-node/fixtures/monitor-server.mjs",
+        "branchBlob": "bc8f61188f6f832672a2d784032779e131225c80",
+        "mainBlob": "bc8f61188f6f832672a2d784032779e131225c80",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "coding-agent-node/fixtures/recovery-worker.mjs",
+        "branchBlob": "3da6c2470f2749dcc0b2790603e58cd12d8c9446",
+        "mainBlob": "3da6c2470f2749dcc0b2790603e58cd12d8c9446",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "coding-agent-node/package-lock.json",
+        "branchBlob": "f57ae451feaa7dc1df15a08c19eada79a7c0fccb",
+        "mainBlob": "599e18205a2024249124c33b1a05afcbf2c917ed",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "coding-agent-node/package.json",
+        "branchBlob": "bf6190227aefeff449e55d0689a6e64ee54bfdb2",
+        "mainBlob": "657f2886ce8030575ca80347f3d5aa66ab7e081b",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "coding-agent-node/src/execution-feedback.ts",
+        "branchBlob": "ac332f58826f4130c2ec763015097dc8f07c69c9",
+        "mainBlob": "6a7d03bc26f4f25218b94d1b290493a218c06da9",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "coding-agent-node/src/monitor-types.ts",
+        "branchBlob": "ace9bbae9c3b272775f882ac066c34ab5287c685",
+        "mainBlob": "8ae30ecf948ec33c39439549deb3c173a81570b3",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "coding-agent-node/src/monitor.ts",
+        "branchBlob": "39400341d5a14171aa8e9ed3d9a2c0bdf00f00bd",
+        "mainBlob": "37b4664fea3856ee5db5d5033212745297b49c5e",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "coding-agent-node/src/runner.js",
+        "branchBlob": "7ce6585b06122d233e2876b53d7110fa5d7a4652",
+        "mainBlob": "9c5fc4c374a69bce2abb016ba75b7f5b07842ca0",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "coding-agent-node/src/sdk-packages.js",
+        "branchBlob": "9171650f0e4581f2fe6f5f862dcdcb4ef53e26c0",
+        "mainBlob": "9171650f0e4581f2fe6f5f862dcdcb4ef53e26c0",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "coding-agent-node/src/server.js",
+        "branchBlob": "419f6dfe2c4716684ffc92d75273509849a583b1",
+        "mainBlob": "fa851f7b42608496ac2e46598b5b5f658565a438",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "coding-agent-node/test/monitor.test.js",
+        "branchBlob": "9503645fc868507048aea5fcda8f9b0e6304ecf3",
+        "mainBlob": "836031cda794cae0fb1e834cffbf77814aba3c16",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "coding-agent-node/test/runner.test.js",
+        "branchBlob": "c1b0e7416a2f2780c7a95bd98275526d31591be5",
+        "mainBlob": "305f80409bb606b57e762e2bc07ae0f1ff4a7f84",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "coding-agent-node/test/sdk-packages.test.js",
+        "branchBlob": "d9dfca3c06e003cafa1d2fc517762535aeda5db5",
+        "mainBlob": "d9dfca3c06e003cafa1d2fc517762535aeda5db5",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "coding-agent-node/web/main.ts",
+        "branchBlob": "27c0d8de2532d3e68a54b32c1b77c8feca9dd0f5",
+        "mainBlob": "fada91108cf66c86820504adb7c96b08a6893075",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "database/migration/postgresql/V20261022_01__python_default_environment.sql",
+        "branchBlob": "136a6b61e5b6ad9abcf428a9f057b834f016314e",
+        "mainBlob": "136a6b61e5b6ad9abcf428a9f057b834f016314e",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "deploy/docker/application/.dockerignore",
+        "branchBlob": "9e565dd7da7bc300b12bd8241584f71f4a4101a9",
+        "mainBlob": "9e565dd7da7bc300b12bd8241584f71f4a4101a9",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "deploy/docker/application/Dockerfile",
+        "branchBlob": "ff3bc45501c82fa42851fe16d7f802e578bcd2bf",
+        "mainBlob": "ff3bc45501c82fa42851fe16d7f802e578bcd2bf",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "deploy/docker/application/Dockerfile.api",
+        "branchBlob": "2a630d5daf1f2dbb08eda082e4c2ad2de26b978c",
+        "mainBlob": "2a630d5daf1f2dbb08eda082e4c2ad2de26b978c",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "deploy/docker/application/Dockerfile.coding-agent",
+        "branchBlob": "341eb9b2b9d69e255531906491f4f74ca5f02f03",
+        "mainBlob": "5d6f914ac409d77509f2ea1da3277cc28a8a979e",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "deploy/docker/application/Dockerfile.mcp",
+        "branchBlob": "e46a97f288fa72921fc4dcb688553da06c43b506",
+        "mainBlob": "70ee1bf8e20bc9cfc052dd873228f61d58424a4d",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "deploy/docker/application/README.md",
+        "branchBlob": "0f3268dc61279c94a7e21f934c88a5b0e6a5db1a",
+        "mainBlob": "7a9f225c72823948c75f8f501d840e1b4b64773b",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "deploy/docker/application/build-images.ps1",
+        "branchBlob": "aef3b39e074d4ab2ea3382abeffb79c89d44a869",
+        "mainBlob": "b4dfce76df2ca1a7381280f9412fc6b170c6a293",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "deploy/docker/application/coding-agent-watchdog.py",
+        "branchBlob": "ee3866bc008d556a9175d28194c67379e9a7baf5",
+        "mainBlob": "ee3866bc008d556a9175d28194c67379e9a7baf5",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "deploy/docker/application/install-coding-agent-watchdog.sh",
+        "branchBlob": "a0e7dfecd5b039d0243fca42923fb1de38b2ffe9",
+        "mainBlob": "a0e7dfecd5b039d0243fca42923fb1de38b2ffe9",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "deploy/docker/application/recover-java-base.py",
+        "branchBlob": "11a58f17d1de003bffcb5c6719eaf7233d6346e1",
+        "mainBlob": "11a58f17d1de003bffcb5c6719eaf7233d6346e1",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "deploy/docker/application/runtime-os-coding-agent-watchdog.service",
+        "branchBlob": "31a970682baf6f741de039fa9287b3a0ea666a61",
+        "mainBlob": "31a970682baf6f741de039fa9287b3a0ea666a61",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "deploy/docker/application/runtime-os-coding-agent-watchdog.timer",
+        "branchBlob": "bff2ceba9ecacdf9b205993a2634a7b4366a267c",
+        "mainBlob": "bff2ceba9ecacdf9b205993a2634a7b4366a267c",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "deploy/docker/application/sql-toolchain-requirements.txt",
+        "branchBlob": "36b5a25e7ca6fe84a7519bf885833fcb941a7c95",
+        "mainBlob": "36b5a25e7ca6fe84a7519bf885833fcb941a7c95",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "deploy/docker/python-runtime/Dockerfile",
+        "branchBlob": "b66daa4634b8cc83faceebd50eb84029accd878d",
+        "mainBlob": "b66daa4634b8cc83faceebd50eb84029accd878d",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "deploy/docker/python-runtime/configure-fonts.py",
+        "branchBlob": "69c2a10c366bae599186a26e3f17cad2f342b969",
+        "mainBlob": "69c2a10c366bae599186a26e3f17cad2f342b969",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "deploy/docker/python-runtime/fonts.Dockerfile",
+        "branchBlob": "692ffebc24b84405692558fd7d1cd7cb0fb654c9",
+        "mainBlob": "692ffebc24b84405692558fd7d1cd7cb0fb654c9",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "deploy/docker/python-runtime/matplotlibrc",
+        "branchBlob": "38f5a705f8c027377733b3682cf520fa0699046e",
+        "mainBlob": "ac4b12b9bcf8cfe266fe7595b1c8fb71d01203fb",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "deploy/docker/python-runtime/verify-fonts.py",
+        "branchBlob": "01b5d7d7dbfd3a0ca7971caacc9ab02acd8aa0d0",
+        "mainBlob": "01b5d7d7dbfd3a0ca7971caacc9ab02acd8aa0d0",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "docs/evidence/runtime-ascii-recovery-20261022.json",
+        "branchBlob": "10eadbabc74ec35d930bceb144f8f11944ffee7c",
+        "mainBlob": "10eadbabc74ec35d930bceb144f8f11944ffee7c",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "docs/evidence/runtime-ascii-recovery-package-20261022.json",
+        "branchBlob": "1a0f80c33c52254734a6776ebd93f13b156366cb",
+        "mainBlob": "1a0f80c33c52254734a6776ebd93f13b156366cb",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "docs/evidence/runtime-chart-fonts-20261022.json",
+        "branchBlob": "0fd9d610094bf0acf77e1aa9aba62d570dc5208d",
+        "mainBlob": "0fd9d610094bf0acf77e1aa9aba62d570dc5208d",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "docs/evidence/runtime-chart-fonts-package-20261022.json",
+        "branchBlob": "0bc781c28e09d9e5c23757a470d3c00b0cc5170e",
+        "mainBlob": "0bc781c28e09d9e5c23757a470d3c00b0cc5170e",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "docs/evidence/runtime-cline-packages-20261022.json",
+        "branchBlob": "4d0d80275c4941ffab59ab6406ff4d77e31083d5",
+        "mainBlob": "4d0d80275c4941ffab59ab6406ff4d77e31083d5",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "docs/evidence/runtime-cline-packages-package-20261022.json",
+        "branchBlob": "a290d349f5c1d59a8ed905728df3437b2472314e",
+        "mainBlob": "a290d349f5c1d59a8ed905728df3437b2472314e",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "docs/evidence/runtime-execution-feedback-20261022.json",
+        "branchBlob": "cc8cb20a36ac865c305267bcfcae0f7df7e0dbf1",
+        "mainBlob": "cc8cb20a36ac865c305267bcfcae0f7df7e0dbf1",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "docs/evidence/runtime-execution-feedback-package-20261022.json",
+        "branchBlob": "3831f039a0617a63401738902715a5fad897e534",
+        "mainBlob": "3831f039a0617a63401738902715a5fad897e534",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "docs/evidence/runtime-script-naming-20261022.json",
+        "branchBlob": "4aa0836e30035462e553b3bfc52e758ff57f52bd",
+        "mainBlob": "4aa0836e30035462e553b3bfc52e758ff57f52bd",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "docs/evidence/runtime-script-naming-package-20261022.json",
+        "branchBlob": "4df082d88fecdfe4f3d0755a08673a2d106c9b57",
+        "mainBlob": "4df082d88fecdfe4f3d0755a08673a2d106c9b57",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "docs/evidence/runtime-single-report-20261022.json",
+        "branchBlob": "9dd4322a231ba621ac7762426814220d85ec5d2f",
+        "mainBlob": "9dd4322a231ba621ac7762426814220d85ec5d2f",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "docs/evidence/runtime-single-report-package-20261022.json",
+        "branchBlob": "b5a05ccfcebc13312d9f5906717aadadac9fd33e",
+        "mainBlob": "b5a05ccfcebc13312d9f5906717aadadac9fd33e",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "docs/evidence/runtime-visual-check-repair-20261022.json",
+        "branchBlob": "88563369f50d6e4044c19c269400f9661205ccb2",
+        "mainBlob": "88563369f50d6e4044c19c269400f9661205ccb2",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "docs/evidence/runtime-visual-check-repair-package-20261022.json",
+        "branchBlob": "67b1e3b48a080f614f95a3c6f44547b7ac87c5d9",
+        "mainBlob": "67b1e3b48a080f614f95a3c6f44547b7ac87c5d9",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "docs/product-deployment-1.2-20261022.md",
+        "branchBlob": "b1d2801ccde4e64746034b4e2a84ae71b4735417",
+        "mainBlob": "b1d2801ccde4e64746034b4e2a84ae71b4735417",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "docs/product-release-1.2-20261022-acceptance.md",
+        "branchBlob": "3273ec70c0e386dc87a7a91c1a4d1b3bd386a5c1",
+        "mainBlob": "3273ec70c0e386dc87a7a91c1a4d1b3bd386a5c1",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "docs/python-default-environment-20261022.md",
+        "branchBlob": "74476e9a8bf61d1db362d06a4a47641fb1ea5700",
+        "mainBlob": "74476e9a8bf61d1db362d06a4a47641fb1ea5700",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "docs/runtime-ascii-naming-and-recovery-20261022.md",
+        "branchBlob": "4a918482b061c69e42537d4d40b1227b587feb4c",
+        "mainBlob": "4a918482b061c69e42537d4d40b1227b587feb4c",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "docs/runtime-cline-packages-20261022.md",
+        "branchBlob": "a9a1401db4b4df143bdb832a48e64047d240169e",
+        "mainBlob": "a9a1401db4b4df143bdb832a48e64047d240169e",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "docs/runtime-execution-feedback-delivery-20261022.md",
+        "branchBlob": "3720eeb250722def6ded6d8c44323642b56d50a0",
+        "mainBlob": "3720eeb250722def6ded6d8c44323642b56d50a0",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "docs/runtime-execution-feedback-review-and-design-20261022.md",
+        "branchBlob": "b578548fcbbfb2bcdd38874893be6e0bb7469b36",
+        "mainBlob": "b578548fcbbfb2bcdd38874893be6e0bb7469b36",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "docs/runtime-script-naming-delivery-20261022.md",
+        "branchBlob": "da33e8c60dd91add1c074be655be891f2650be9d",
+        "mainBlob": "da33e8c60dd91add1c074be655be891f2650be9d",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "docs/runtime-script-naming-review-20261022.md",
+        "branchBlob": "daf0e89175c9d807f2c28ed218fe59563900f098",
+        "mainBlob": "daf0e89175c9d807f2c28ed218fe59563900f098",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "docs/runtime-visual-check-repair-20261022.md",
+        "branchBlob": "577138ad1bde8420486c771f4bb49a845897b120",
+        "mainBlob": "577138ad1bde8420486c771f4bb49a845897b120",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "docs/runtime-visual-report-20261021.md",
+        "branchBlob": "899b20359996b1cc64028ef4127a05e446acc44b",
+        "mainBlob": "899b20359996b1cc64028ef4127a05e446acc44b",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "pom.xml",
+        "branchBlob": "b43c31fa835ccd073e0ea22d9861b4de90a1e4f7",
+        "mainBlob": "5af99f8a81321b99303a50dc2a0e609330ba71e7",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "scripts/application_image_build.py",
+        "branchBlob": "9a84b59ea3fe6bc72269af3de97ec51f79c84ea9",
+        "mainBlob": "3f6e6c77d0e99095552ea34d0251e6c6067bcb36",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "scripts/apply-python-default-hotfix.sh",
+        "branchBlob": "41b947bf6181bdc561d636059779dd4be4523832",
+        "mainBlob": "41b947bf6181bdc561d636059779dd4be4523832",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "scripts/deploy-execution-feedback-stage.py",
+        "branchBlob": "2c95b2ddbddaa13d4b83d98b25aeebe122f7146f",
+        "mainBlob": "2c95b2ddbddaa13d4b83d98b25aeebe122f7146f",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "scripts/deploy-runtime-hang-stage.py",
+        "branchBlob": "9ed058c588483833bcb8de62322a5740e2654001",
+        "mainBlob": "9ed058c588483833bcb8de62322a5740e2654001",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "scripts/deploy-runtime-protocol-stage.py",
+        "branchBlob": "bc7fa2ab59cf7bc611db6e638e9dec500b990a83",
+        "mainBlob": "bc7fa2ab59cf7bc611db6e638e9dec500b990a83",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "scripts/deploy-user-assets-stage.py",
+        "branchBlob": "6d31f97be593fef7a1318e18c289f9daff836eeb",
+        "mainBlob": "6d31f97be593fef7a1318e18c289f9daff836eeb",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "scripts/jar-delta.py",
+        "branchBlob": "4c2fb35dd9f76b45172062b5663c31f9287337c3",
+        "mainBlob": "4c2fb35dd9f76b45172062b5663c31f9287337c3",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "scripts/package-product-release.py",
+        "branchBlob": "55c3943cb1c450117b8905c4a1bb53a05f9a09ef",
+        "mainBlob": "cebece7bb0d8c1722309f290884fcfe2c6925ea4",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "scripts/release-product.py",
+        "branchBlob": "cdee6e9b3c0526b72b191c334a5e91cb6dd7a816",
+        "mainBlob": "cdee6e9b3c0526b72b191c334a5e91cb6dd7a816",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "scripts/tests/test_coding_agent_watchdog.py",
+        "branchBlob": "380a15ae476494205bc576fc44c4be58e8b634d7",
+        "mainBlob": "380a15ae476494205bc576fc44c4be58e8b634d7",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "scripts/tests/test_jar_delta.py",
+        "branchBlob": "feec2994f76de189affb5b170d433066120b0388",
+        "mainBlob": "feec2994f76de189affb5b170d433066120b0388",
+        "resolution": "EXACT_BLOB_PRESENT"
+      },
+      {
+        "path": "scripts/tests/test_python_runtime_diagnostics.py",
+        "branchBlob": "309492893cec64666622f543173a20f7ba98bebc",
+        "mainBlob": "afc6832da6052631dc414efc074e581dbfc1e19b",
+        "resolution": "CURRENT_EVOLVED_IMPLEMENTATION"
+      },
+      {
+        "path": "scripts/verify-product-release.py",
+        "branchBlob": "3e9fd0caf3258f3b1477e1d23a1b60fed8fff860",
+        "mainBlob": "3e9fd0caf3258f3b1477e1d23a1b60fed8fff860",
+        "resolution": "EXACT_BLOB_PRESENT"
+      }
+    ]
+  }
+]

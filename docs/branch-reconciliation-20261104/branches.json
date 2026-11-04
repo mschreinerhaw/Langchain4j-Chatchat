@@ -1,0 +1,204 @@
+{
+  "auditedAgainst": "35e6264c45318a62464a7dd9bc7e2a5657db5f50",
+  "branches": [
+    {
+      "branch": "origin/feature/runtime-workspaces",
+      "tip": "8546a42bb728633004a9cdb95f71e55b6ea98005",
+      "commits": [
+        {
+          "commit": "8546a42bb728633004a9cdb95f71e55b6ea98005",
+          "subject": "完整前端测试已通过，共 278 项。新增测试覆盖空间与用户缓存隔离、后台任务事件来源、旧链接，以及不写入当前空间的异步结果。后端回归还在运行；之前缺少语义策略的测试环境已改为加载现有迁移种子，保留了启动安全校验。接下来用实际浏览器验证登录、切换和编辑状态恢复。"
+        }
+      ],
+      "resolution": "SUPERSEDED_BY_CURRENT_IMPLEMENTATION",
+      "ancestryIntegrated": true
+    },
+    {
+      "branch": "origin/release/1.2-20261022",
+      "tip": "2ea1969e5be40ad2b2328a00fe352910a12b6b57",
+      "commits": [
+        {
+          "commit": "2ea1969e5be40ad2b2328a00fe352910a12b6b57",
+          "subject": "docs(reports): record duplicate report recovery and deployment verification"
+        },
+        {
+          "commit": "2a343f88131c8da29f6a27310c31c1b98f48b7e8",
+          "subject": "fix(reports): render visual analysis once in current and archived layouts"
+        },
+        {
+          "commit": "a1fa768d16b404b6d034612a0cccb4240ac41dc5",
+          "subject": "docs(runtime): record font deployment and offline package verification"
+        },
+        {
+          "commit": "6b2fc7df661a3cbcb89ec53d860c01f88709ed04",
+          "subject": "fix(runtime): bundle CJK font defaults and simplify analysis reports"
+        },
+        {
+          "commit": "31580ca9c3baaca0708da76583a98b26f116f560",
+          "subject": "docs(cline): record complete SDK deployment and verified offline image package"
+        },
+        {
+          "commit": "3279ad95f21173a178a8b4047f92340ca83f4815",
+          "subject": "fix(deploy): verify worker identity and idle SDK sessions before replacement"
+        },
+        {
+          "commit": "086f8d3c8962a9ccbb965c91fbdad7d61c267eb0",
+          "subject": "build(cline): build locked Linux dependencies and support isolated worker releases"
+        },
+        {
+          "commit": "64ffc59b9c4fbccde57620f1f872e320a0e95fa6",
+          "subject": "fix(cline): deploy and verify the complete pinned SDK package set"
+        },
+        {
+          "commit": "90868ca26f0a526b381e85d5d97575c16fdc2dc3",
+          "subject": "docs(runtime): record original visual report recovery and scoped validation"
+        },
+        {
+          "commit": "64849e712165e793f762c2a03fc602aafadeab63",
+          "subject": "fix(runtime): gate visual report completion on artifact contract admission"
+        },
+        {
+          "commit": "a090519479e84a66212b08c395f3e1d2c84418f0",
+          "subject": "fix(runtime): retain unresolved visual reports and revalidate archived presentation"
+        },
+        {
+          "commit": "7e49a47846366afb65ab3195c04fd1b0cd900391",
+          "subject": "docs(runtime): record ASCII naming and automatic recovery acceptance"
+        },
+        {
+          "commit": "abc64338ba720d8feffe261502b7380dd1e40fed",
+          "subject": "fix(runtime): allocate ASCII script names and recover unhealthy coding agent"
+        },
+        {
+          "commit": "186dc577e7b7b500d95297a75cd390e6a0060433",
+          "subject": "docs(runtime): publish named-script isolation acceptance and verified offline release"
+        },
+        {
+          "commit": "363681e08d0c912c5dc1a1f847a7a76dd2fc3da3",
+          "subject": "fix(runtime): preserve Unicode script paths through artifact downloads and display allocated versions"
+        },
+        {
+          "commit": "3031c33afa9647caf8d5a6acca8de3140ff8d8c6",
+          "subject": "feat(runtime): allocate immutable business-named script versions within isolated task workspaces"
+        },
+        {
+          "commit": "86f2222456c624ec0571d039bf4f313c2663c2e4",
+          "subject": "docs(runtime): record real execution repair acceptance and publish verified offline package"
+        },
+        {
+          "commit": "3ae06d448b642734a58019378d07a4183b51b87f",
+          "subject": "fix(runtime): count failed-execution repairs independently of successful code revisions"
+        },
+        {
+          "commit": "9a1f67b86cb497db771f324d20be23f8e2c3a1e0",
+          "subject": "fix(runtime): retain legacy diagnostics and measured stream sizes in cached feedback"
+        },
+        {
+          "commit": "d53ec36d41b77e257af89b17df427cfd0999abaf",
+          "subject": "feat(runtime): persist execution feedback and enforce bounded Cline repair in existing task journal"
+        },
+        {
+          "commit": "122d9046023b1f37c80fdea99deca82d52062269",
+          "subject": "docs(release): publish verified Python default environment hotfix package"
+        },
+        {
+          "commit": "a6e4c51371e306f01ddc996bea7cf4869072cc7e",
+          "subject": "fix(deploy): align Python preference grants and wait for MCP gRPC readiness"
+        },
+        {
+          "commit": "fa94182760197464d9c2ea3c844a95e2c2a0bc95",
+          "subject": "fix(python): bind task user identity to workshop environment owner"
+        },
+        {
+          "commit": "fe7842af679d34989f3e3af6b8ea0b1a231bf58e",
+          "subject": "fix(python): select workshop default and pin actual Cline runtime capabilities"
+        },
+        {
+          "commit": "58ed4dff79e34065969ca25e14e3928dda80a65c",
+          "subject": "docs: finalize 1.2 offline package checksum and deployment evidence"
+        },
+        {
+          "commit": "0b3b462bda88affb7aa3296d1fff6c2529b6d9d2",
+          "subject": "release: record live acceptance and reclaim obsolete BuildKit layers"
+        },
+        {
+          "commit": "49285338310d3eaa4ce5916b80fbd2f592749b72",
+          "subject": "release: add exact JAR delta transfer, offline packaging and live acceptance tooling"
+        },
+        {
+          "commit": "f0d8effedfbd3bf6c6b5ffc40fa97975150fe8fc",
+          "subject": "release: prepare 1.2.0-20261022 with license-gated dispatch and clean images"
+        }
+      ],
+      "resolution": "SUPERSEDED_BY_CURRENT_IMPLEMENTATION",
+      "ancestryIntegrated": true
+    },
+    {
+      "branch": "origin/copilot/review-existing-architecture",
+      "tip": "9f167c96922e9c40978f6f0dd3d184424b0e5cdf",
+      "commits": [
+        {
+          "commit": "9f167c96922e9c40978f6f0dd3d184424b0e5cdf",
+          "subject": "Add Data Analysis Workspace contracts and implementation plan"
+        },
+        {
+          "commit": "bb025d27c86feec39e95fd8e8f67cea9a1778606",
+          "subject": "Add Data Analysis Workspace current-state review and architecture design"
+        }
+      ],
+      "resolution": "MERGED_DOCUMENTATION",
+      "ancestryIntegrated": true
+    },
+    {
+      "branch": "origin/copilot/runtime-os-architecture-evaluation",
+      "tip": "189354d1fc866b7a9e77ef41c35322f8d5e8dc6f",
+      "commits": [
+        {
+          "commit": "189354d1fc866b7a9e77ef41c35322f8d5e8dc6f",
+          "subject": "docs: add Runtime OS multi-language architecture audit, target architecture, feasibility and roadmap"
+        }
+      ],
+      "resolution": "MERGED_DOCUMENTATION",
+      "ancestryIntegrated": true
+    },
+    {
+      "branch": "origin/copilot/web-search-multi-source-review",
+      "tip": "36d9c7c375ed65c969d2294323641bc2817d3e97",
+      "commits": [
+        {
+          "commit": "36d9c7c375ed65c969d2294323641bc2817d3e97",
+          "subject": "docs: add round-2 web_search authorization boundary review"
+        },
+        {
+          "commit": "7f0560bf93cf053a3a596e878939ad254cc375d0",
+          "subject": "docs: add web_search multi-source retrieval architecture review (read-only)"
+        }
+      ],
+      "resolution": "MERGED_DOCUMENTATION",
+      "ancestryIntegrated": true
+    },
+    {
+      "branch": "origin/fix/report-rendering-studio-dialogs-20261030",
+      "tip": "8220cebce60714828e423aeb09effa9e4c4e8c08",
+      "commits": [
+        {
+          "commit": "8220cebce60714828e423aeb09effa9e4c4e8c08",
+          "subject": "docs(reports): verify original owner history and chart on deployed environment"
+        },
+        {
+          "commit": "f29e2e7ef80734910066f75b2061a78c0564e716",
+          "subject": "docs(reports): archive remediation tests screenshots and deployment evidence"
+        }
+      ],
+      "resolution": "MERGED_DOCUMENTATION",
+      "ancestryIntegrated": true
+    },
+    {
+      "branch": "origin/agents/log-analysis-fix-runtime-errors",
+      "tip": "74e2bde1b507e66b7349b38a3badae75e50a00c1",
+      "commits": [],
+      "resolution": "PATCH_EQUIVALENT_ALREADY_PRESENT",
+      "ancestryIntegrated": true
+    }
+  ]
+}

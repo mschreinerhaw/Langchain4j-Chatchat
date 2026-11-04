@@ -1,0 +1,93 @@
+{
+  "baseline": "35e6264c45318a62464a7dd9bc7e2a5657db5f50",
+  "backend": {
+    "status": "PASS",
+    "tests": 72,
+    "suites": [
+      {
+        "name": "com.chatchat.agents.orchestration.analysis.context.SynthesisContextBudgetTest",
+        "tests": "1",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "com.chatchat.agents.orchestration.evidence.ContextEvidenceAggregatorTest",
+        "tests": "4",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "com.chatchat.api.runtime.coding.evidence.VisualReportArtifactsTest",
+        "tests": "28",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "com.chatchat.api.runtime.coding.execution.CodingExecutionFeedbackServiceTest",
+        "tests": "8",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "com.chatchat.api.workspace.WorkspaceIntegrationTest",
+        "tests": "10",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "com.chatchat.api.workspace.WorkspaceMigrationTest",
+        "tests": "3",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "com.chatchat.common.runtime.coding.ExecutionFeedbackContractTest",
+        "tests": "6",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "com.chatchat.mcpserver.python.PythonExecutionLogBoundaryTest",
+        "tests": "6",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "com.chatchat.mcpserver.python.PythonOperationWorkspaceTest",
+        "tests": "4",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "com.chatchat.mcpserver.python.PythonScriptIsolationIntegrationTest",
+        "tests": "2",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0"
+      }
+    ]
+  },
+  "frontend": {
+    "status": "PASS",
+    "tests": 67,
+    "files": 5,
+    "suites": [
+      "App.test.js",
+      "workspace.test.js",
+      "pythonVisualReport.test.js",
+      "PythonVisualReport.test.js",
+      "FavoritesView.test.js"
+    ]
+  },
+  "runtimeChangesComparedWithBaseline": [],
+  "unmergedRemoteBranches": []
+}

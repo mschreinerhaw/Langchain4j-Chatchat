@@ -1,0 +1,8 @@
+{
+  "imageId": "sha256:ef6f00394a1d102d41481f7edd7e7ad7afb17e4f780a6f3c61b300f300825dba",
+  "offlineBuildAndTests": true,
+  "sourceCommit": "1fa6bd105066ceb023c6ee6f5c3d57694059c255",
+  "tests": 175,
+  "changedModules": [],
+  "apiJarUnchanged": true
+}

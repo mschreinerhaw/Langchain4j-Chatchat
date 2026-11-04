@@ -1,0 +1,11 @@
+{
+  "imageId": "sha256:946c8b4cdfbd68968f93b681f1be0acaf7d9a7f5bb9f8e57c811f88a8b144fc2",
+  "offlineBuildAndTests": true,
+  "sourceCommit": "f9825e01ba42c66d446b75f1d41a4421b77d8cdb",
+  "tests": 177,
+  "changedModules": [
+    "knowledge-tools.js",
+    "runner.js"
+  ],
+  "apiJarUnchanged": true
+}

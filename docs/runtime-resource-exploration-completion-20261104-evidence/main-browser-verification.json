@@ -1,0 +1,87 @@
+{
+  "sourceCommit": "48dc1029b23c22fd8ac9716af87ec98a03545340",
+  "status": "PASSED",
+  "apis": [
+    {
+      "path": "/data-science/sql/projects",
+      "status": 200,
+      "code": 200
+    },
+    {
+      "path": "/data-science/python/assist/history",
+      "status": 200,
+      "code": 200
+    },
+    {
+      "path": "/data-science/explorations",
+      "status": 200,
+      "code": 200
+    },
+    {
+      "path": "/agent/tasks/page",
+      "status": 200,
+      "code": 200
+    }
+  ],
+  "assets": [
+    {
+      "path": "/index.html",
+      "sha256": "7409cb8466c6505d76565ffa6c8543a5d9553b0b5e84838285cee406e2e65ce2"
+    },
+    {
+      "path": "/assets/AgentWorkshopView-BRPUpYD9.js",
+      "sha256": "ffb6eb46e1d10983ed8b9edaf2c333c4be8c758cc727c1a44d184ffeecdace83"
+    },
+    {
+      "path": "/assets/DataExplorationView-CSu8w8PJ.js",
+      "sha256": "1c7962af2dbc4ee90aae03476988a28a28ba059c1c00809bec8fc7e58298c99a"
+    },
+    {
+      "path": "/assets/SqlStudioView-Dr6c66HL.js",
+      "sha256": "01a9bf93338e1919da0ad720ec6e13e27aed4b932cc70a37e2f28d461027719e"
+    },
+    {
+      "path": "/assets/DataScienceView-BRUP7TDD.js",
+      "sha256": "23736adc50891f239525f0b6290aca0f26679031089412bd9f7d19ae72289450"
+    }
+  ],
+  "pages": [
+    {
+      "page": "Agent settings",
+      "conditionalResourceFlow": true,
+      "appearance": {
+        "fontSize": "12px",
+        "fontWeight": "400",
+        "width": 14
+      }
+    },
+    {
+      "page": "SQL Studio",
+      "historyControlPresent": true
+    },
+    {
+      "page": "Python Studio",
+      "persistedHistoryDialogOpened": true
+    },
+    {
+      "page": "Data exploration",
+      "workspaceAndCanvasPresent": true,
+      "restorationFinished": true,
+      "restoredNodes": 2
+    },
+    {
+      "page": "Task runtime",
+      "populatedAndPolling": true
+    }
+  ],
+  "pageErrors": [],
+  "failedRequests": [],
+  "counts": {
+    "sqlProjects": 8,
+    "pythonHistory": 10,
+    "explorations": 14,
+    "tasks": 1862
+  },
+  "testedDeploymentSourceCommit": "f9825e01ba42c66d446b75f1d41a4421b77d8cdb",
+  "artifactReuse": "UNCHANGED_API_JAR"
+}

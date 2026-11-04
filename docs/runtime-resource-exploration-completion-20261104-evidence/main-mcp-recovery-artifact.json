@@ -1,0 +1,9 @@
+{
+  "changedEntries": [],
+  "unchangedEntries": 1506,
+  "classSha256": "a44a521af11c6baac111c6efc92d97819db86369c8022417b7ad2489796dbfa3",
+  "baselineSha256": "4659336856dd3bd7017f55ab2a9b706455d95c79c538507ec2b5d000aeeb0bb1",
+  "sha256": "4659336856dd3bd7017f55ab2a9b706455d95c79c538507ec2b5d000aeeb0bb1",
+  "javaRecoveryTests": 7,
+  "sourceCommit": "f9825e01ba42c66d446b75f1d41a4421b77d8cdb"
+}

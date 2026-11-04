@@ -1,0 +1,80 @@
+{
+  "scope": "SELECTED_REPORT_REVIEW_NOT_FULL_SEMANTIC_CERTIFICATION",
+  "cases": [
+    {
+      "id": "N01",
+      "findings": [
+        "Unfiltered catalog discovery covers all 12 catalog datasets",
+        "Separates design documentation from executed recovery evidence"
+      ],
+      "limits": [
+        "Catalog discovery does not prove all dataset observation coverage"
+      ]
+    },
+    {
+      "id": "V01",
+      "findings": [
+        "Separates publication, collection and observation times",
+        "Does not infer causal or same-time support from mismatched news and market dates"
+      ]
+    },
+    {
+      "id": "TV01",
+      "findings": [
+        "Missing published_at stays unknown in conclusion",
+        "Distinguishes EQUITY sample from INDEX coverage",
+        "Limits absent observations to requested dataset/date slice"
+      ]
+    },
+    {
+      "id": "RQ01",
+      "findings": [
+        "Reads original article body",
+        "Preserves null publication time"
+      ]
+    },
+    {
+      "id": "K01",
+      "findings": [
+        "Separates backup design and operating instructions from executed test records"
+      ]
+    },
+    {
+      "id": "LD09B",
+      "findings": [
+        "Quotes bidirectional peer setup instruction",
+        "Discloses unavailable screenshot and version context"
+      ]
+    }
+  ],
+  "semanticCitationAccuracy95Percent": "NOT_CERTIFIED",
+  "externalNewsTruth": "NOT_INDEPENDENTLY_VERIFIED; reports summarize ingested sources",
+  "candidateSourceCommit": "1fa6bd105066ceb023c6ee6f5c3d57694059c255",
+  "mainSourceCommit": "f9825e01ba42c66d446b75f1d41a4421b77d8cdb",
+  "mainReports": [
+    {
+      "id": "K01",
+      "status": "PARTIAL",
+      "findings": [
+        "Preserves design and operating instructions",
+        "Limits absent LiveBOS backup details to searched chapters",
+        "Does not claim actual recovery drills passed"
+      ]
+    },
+    {
+      "id": "F01",
+      "status": "SUCCEEDED",
+      "findings": [
+        "Reads historical records for three distinct indices",
+        "Separates per-index observation cutoffs from catalog heartbeat",
+        "Reads two original news bodies; publication remains unknown",
+        "Uses separate citations for compared operands and disclaims causality"
+      ],
+      "concerns": [
+        "Applies index-point convention although the source does not explicitly declare the price unit",
+        "Uses parallel-period wording despite material differences between observed market dates and news collection dates"
+      ],
+      "semanticAcceptance": "NOT_CERTIFIED"
+    }
+  ]
+}

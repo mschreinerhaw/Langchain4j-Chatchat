@@ -1,0 +1,37 @@
+{
+  "sourceCommit": "f9825e01ba42c66d446b75f1d41a4421b77d8cdb",
+  "failedCases": [
+    "V01"
+  ],
+  "firstCitationBrowserAttemptHttpStatus": 403,
+  "withholdingReason": "SOURCE_UNAVAILABLE",
+  "upstreamHttpStatus": 500,
+  "closedReadPoolRecoveryObserved": {
+    "generation": 11,
+    "slot": "A"
+  },
+  "originalUpstreamExceptionCode": "NOT_CAPTURED; correlation is not proof of the original HTTP500 cause",
+  "subsequentInternalDiagnostic": [
+    {
+      "case": "V01",
+      "sourceReads": 12,
+      "batchReads": 12,
+      "batchHttpStatus": 200,
+      "batchDurationMs": 6505,
+      "individualReadFailures": 0
+    },
+    {
+      "case": "F01",
+      "sourceReads": 26,
+      "batchReads": 16,
+      "batchHttpStatus": 200,
+      "batchDurationMs": 9292,
+      "individualReadFailures": 0
+    }
+  ],
+  "internalDiagnosticIsNotAnAclTest": true,
+  "subsequentBrowserRetry": "PASSED",
+  "firstFailurePreserved": true,
+  "runtimeBudgetChanged": false,
+  "authorizationRelaxed": false
+}

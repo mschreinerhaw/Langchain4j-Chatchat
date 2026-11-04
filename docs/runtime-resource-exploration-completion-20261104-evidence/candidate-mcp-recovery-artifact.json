@@ -1,0 +1,11 @@
+{
+  "changedEntries": [
+    "BOOT-INF/classes/com/chatchat/mcpserver/market/SnapshotFinancialReadOperations.class"
+  ],
+  "unchangedEntries": 1505,
+  "classSha256": "a44a521af11c6baac111c6efc92d97819db86369c8022417b7ad2489796dbfa3",
+  "baselineSha256": "c8d545c6d789b0b91cbb0d86751825ad4ae5bfc201b32b92c813625f2159602e",
+  "sha256": "4659336856dd3bd7017f55ab2a9b706455d95c79c538507ec2b5d000aeeb0bb1",
+  "javaRecoveryTests": 7,
+  "sourceCommit": "1fa6bd105066ceb023c6ee6f5c3d57694059c255"
+}

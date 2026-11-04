@@ -1,0 +1,12 @@
+{
+  "sourceCommit": "f9825e01ba42c66d446b75f1d41a4421b77d8cdb",
+  "status": "FAILED",
+  "phase": "CITATION_RESOLUTION",
+  "httpStatus": 403,
+  "apiReason": "SOURCE_UNAVAILABLE",
+  "upstreamStatus": 500,
+  "readPoolRecoveryObserved": true,
+  "readPoolRecoveryGeneration": 11,
+  "retryMustNotOverwriteInitialResult": true,
+  "authorizationRelaxed": false
+}

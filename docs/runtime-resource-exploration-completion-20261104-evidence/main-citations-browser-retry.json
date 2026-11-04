@@ -1,0 +1,18 @@
+{
+  "productionBundle": true,
+  "injectedUiFixture": true,
+  "liveResolver": true,
+  "resourceTypes": [
+    "financial_news",
+    "financial_market"
+  ],
+  "authorizedViews": 2,
+  "publishedArtifactCitationOpens": true,
+  "noStoreVerified": true,
+  "invalidReferenceClearsPriorSource": true,
+  "pageErrors": [],
+  "sourceCommit": "f9825e01ba42c66d446b75f1d41a4421b77d8cdb",
+  "retry": true,
+  "firstAttemptEvidence": "main-citation-first-attempt.json",
+  "verifiedMarketRowCount": 9
+}

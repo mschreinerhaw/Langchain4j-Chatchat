@@ -1,0 +1,21 @@
+{
+  "sourceCommit": "f9825e01ba42c66d446b75f1d41a4421b77d8cdb",
+  "worker": {
+    "command": "npm.cmd test",
+    "tests": 177,
+    "passed": 177,
+    "failed": 0
+  },
+  "java": {
+    "command": "mvn.cmd -pl chatchat-mcp-server -am -Dfrontend.skip=true -Dtest=FinancialQueryPoolConfigurationTest,SnapshotFinancialReadOperationsRecoveryTest -Dsurefire.failIfNoSpecifiedTests=false test",
+    "tests": 7,
+    "passed": 7,
+    "build": "SUCCESS"
+  },
+  "frontend": {
+    "command": "npm.cmd exec -- vitest run src/components/KnowledgeCitationDialog.test.js src/js/utils/knowledgeCitations.test.js src/js/views/AgentWorkshopView.test.js src/views/AgentWorkshopResourceFlow.test.js",
+    "tests": 20,
+    "passed": 20
+  },
+  "fullHistoricalSuites": "See prior resource implementation evidence; counts here concern this completion change only."
+}

@@ -1,0 +1,24 @@
+{
+  "sourceCommit": "f9825e01ba42c66d446b75f1d41a4421b77d8cdb",
+  "workerZipSha256": "147fc627b20666e3ba325ba231ea5504ec9da2af47cad32c9913485ff1a674ac",
+  "modules": {
+    "code-repair.js": "cf2009842df28e1e222888ff995121a3fc9883824b1dccd5d782bace1b3cb354",
+    "execution-feedback.js": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+    "healthcheck.js": "772c652af1dcd582f8b44e9761f76cdd8fffc9723d8282383800a2c0d880c8cc",
+    "knowledge-tools.js": "e1f3e311917a8e39b0e869c69d7c311711a4516304ed9c6427f98261af74909a",
+    "monitor-client.js": "fa1846783474f0990a62a1f7bbff7a4b055451b2dd99d27e14f0a436a024b079",
+    "monitor-types.js": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+    "monitor.js": "cf0f7eec64300d0e9dd187878c82202eaf6fd9514e58c75e1e022449a2156354",
+    "python-project.js": "79e3eb8e04bd0fd2a7762db82eb75c6fed94ba1d7d969d82b34da6340b05ed83",
+    "request-context.js": "8b1648829037cc1d283f6ac0769348c6b17ec8f115c09101805714f421698b16",
+    "runner.js": "0f132c3fdfb6a5d945c7f7215de7c7da24a2cd6ed7c529c06410f1b677189bc5",
+    "runtime-model.js": "07b0c9553722d8be183df275e1f6ca4b1ee30e62334e1d071153b8ec52a10008",
+    "sdk-adapter.js": "c14abd29e05ced5271b25a8dbc083c923136cec1a1f3f28da068b7210439a611",
+    "sdk-packages.js": "e6898b39f5d51044e13d133b7bdaf40b95940b89dfec4837ea50c07d3436d097",
+    "server.js": "67d9ad9e9d7a6118684be53f320e0f3157c24dcc5e92b0f595d95db504bcb7da",
+    "skills.js": "390dd98fb521d4de789bc15552a728c6264ba41b6622ef3147320fe74aa04cb7"
+  },
+  "tests": 177,
+  "mcpRecoveryClassSha256": "a44a521af11c6baac111c6efc92d97819db86369c8022417b7ad2489796dbfa3",
+  "javaRecoveryTests": 7
+}

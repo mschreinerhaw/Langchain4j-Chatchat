@@ -1,0 +1,74 @@
+{
+  "checks": [
+    {
+      "name": "owner-current-source",
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "name": "other-user-source",
+      "httpStatus": 403,
+      "passed": true
+    },
+    {
+      "name": "other-user-coding-monitor",
+      "httpStatus": 403,
+      "passed": true
+    },
+    {
+      "name": "agent-revoked-source",
+      "httpStatus": 403,
+      "passed": true
+    },
+    {
+      "name": "agent-revoked-task",
+      "httpStatus": 403,
+      "passed": true
+    },
+    {
+      "name": "agent-revoked-events",
+      "httpStatus": 403,
+      "passed": true
+    },
+    {
+      "name": "agent-revoked-coding-monitor",
+      "httpStatus": 403,
+      "passed": true
+    },
+    {
+      "name": "agent-revoked-result-empty",
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "name": "agent-restored-source",
+      "httpStatus": 200,
+      "passed": true
+    },
+    {
+      "name": "user-denied-source",
+      "httpStatus": 403,
+      "passed": true
+    },
+    {
+      "name": "user-denied-events",
+      "httpStatus": 403,
+      "passed": true
+    },
+    {
+      "name": "user-denied-coding-monitor",
+      "httpStatus": 403,
+      "passed": true
+    },
+    {
+      "name": "user-restored-source",
+      "httpStatus": 200,
+      "passed": true
+    }
+  ],
+  "retainedPublishedResultTested": false,
+  "resultQueueRevocationCoverage": "EMPTY_QUEUE_ONLY_DESPITE_RETAIN_OPTION",
+  "agentSettingsRestored": true,
+  "temporaryDenyDeleted": true,
+  "syntheticSources": false
+}

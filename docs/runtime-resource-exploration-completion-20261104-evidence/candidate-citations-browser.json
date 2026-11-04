@@ -1,0 +1,14 @@
+{
+  "productionBundle": true,
+  "injectedUiFixture": true,
+  "liveResolver": true,
+  "resourceTypes": [
+    "financial_news",
+    "financial_market"
+  ],
+  "authorizedViews": 2,
+  "publishedArtifactCitationOpens": true,
+  "noStoreVerified": true,
+  "invalidReferenceClearsPriorSource": true,
+  "pageErrors": []
+}

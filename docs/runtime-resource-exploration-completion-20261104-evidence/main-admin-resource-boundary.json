@@ -1,0 +1,45 @@
+{
+  "adminLogin": true,
+  "adminAssignableResourceIds": [
+    "knowledge_documents"
+  ],
+  "ownDocumentCitationHttpStatus": 200,
+  "otherOwnerCitations": [
+    {
+      "resourceId": "financial_market",
+      "httpStatus": 403,
+      "passed": true
+    },
+    {
+      "resourceId": "financial_news",
+      "httpStatus": 403,
+      "passed": true
+    },
+    {
+      "resourceId": "financial_news",
+      "httpStatus": 403,
+      "passed": true
+    },
+    {
+      "resourceId": "financial_market",
+      "httpStatus": 403,
+      "passed": true
+    },
+    {
+      "resourceId": "financial_news",
+      "httpStatus": 403,
+      "passed": true
+    },
+    {
+      "resourceId": "financial_news",
+      "httpStatus": 403,
+      "passed": true
+    },
+    {
+      "resourceId": "financial_news",
+      "httpStatus": 403,
+      "passed": true
+    }
+  ],
+  "grantsChanged": false
+}

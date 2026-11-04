@@ -1,0 +1,32 @@
+{
+  "tool": "web_search",
+  "arguments": {
+    "query": "Python 3.13.0 release date site:python.org",
+    "count": 3
+  },
+  "status": "OK",
+  "retrievedAt": "2026-11-04T16:11:36.707879578Z",
+  "results": [
+    {
+      "title": "[RELEASE] Python 3.13.0 (final) released",
+      "url": "https://mail.python.org/archives/list/python-list@python.org/thread/H6XNON547KWKIC3R2FHWIIBG6VJFANB7",
+      "source": "Python邮件列表",
+      "publishedAt": "2024/10/07 18:57:00",
+      "retrievedAt": "2026-11-04T16:11:36.706839466Z"
+    },
+    {
+      "title": "[Python-announce] [RELEASE] Python 3.13.0 (final) released",
+      "url": "https://mail.python.org/archives/list/python-announce-list@python.org/message/H6XNON547KWKIC3R2FHWIIBG6VJFANB7/",
+      "source": "Python邮件列表",
+      "publishedAt": "2024/10/07 18:57:00",
+      "retrievedAt": "2026-11-04T16:11:36.707060995Z"
+    },
+    {
+      "title": "[RELEASE] Python 3.13.0 (final) released",
+      "url": "https://mail.python.org/pipermail/python-list/2024-October/912840.html",
+      "source": "Python邮件列表",
+      "publishedAt": "2024/10/07 14:57:24",
+      "retrievedAt": "2026-11-04T16:11:36.707327447Z"
+    }
+  ]
+}

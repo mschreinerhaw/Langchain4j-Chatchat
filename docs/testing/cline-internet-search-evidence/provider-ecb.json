@@ -1,0 +1,8 @@
+{
+  "status": "OK",
+  "url": "https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A?lastNObservations=23&format=csvdata",
+  "retrievedAt": "2026-11-04T17:54:31.071902218Z",
+  "contentType": "text/csv",
+  "contentLength": 5108,
+  "sourceSha256": "4ca0737c6d1d1fa6bef17f2df46d216b72a2483ff241000eccb2c3fbff5b3526"
+}

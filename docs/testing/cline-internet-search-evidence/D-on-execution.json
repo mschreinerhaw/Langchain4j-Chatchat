@@ -1,0 +1,40 @@
+{
+  "case": "INTERNET-D-ON",
+  "taskId": "bad28086-101f-3217-95fd-bbfe24737452",
+  "attemptId": "att-1-78604582-4419-4248-8029-618dd1ac693d",
+  "canonicalState": "SUCCEEDED",
+  "status": "SUCCESS",
+  "requestedVisual": true,
+  "answerCharacters": 505,
+  "reportSha256": "a784b9988a447b559a9bf3adacab78f73df2ab98568c1553654466b18e764bc0",
+  "latencyMs": 40842,
+  "codeExecutions": [
+    {
+      "executionId": "cline-c4aabe40a9f31c7b79d813330944f7c0dfe4a16a78a1a379f20cabbe488969e9",
+      "status": "SUCCEEDED",
+      "stage": "VALIDATED",
+      "exitCode": 0,
+      "durationMs": 1232,
+      "codeHash": "7c9a8d040225b47ee31173f16896c05db41af1134020d0d68c0b52d5ee3f829c",
+      "artifactRefs": {
+        "stderrRef": "execution:cline-c4aabe40a9f31c7b79d813330944f7c0dfe4a16a78a1a379f20cabbe488969e9:logs:stderr.txt",
+        "diagnosticRef": "execution:cline-c4aabe40a9f31c7b79d813330944f7c0dfe4a16a78a1a379f20cabbe488969e9:logs:runtime-diagnostic.json",
+        "evidenceBundleRef": "runtime-evidence:coding:51d371a5fb71bf1bb8f346103b3788c6dd54d80e3f511bd3f0c4ea0d692286f8:bundle",
+        "validationRecordRef": "runtime-evidence:coding:51d371a5fb71bf1bb8f346103b3788c6dd54d80e3f511bd3f0c4ea0d692286f8:validation",
+        "resultDatasetRef": "runtime-evidence:coding:51d371a5fb71bf1bb8f346103b3788c6dd54d80e3f511bd3f0c4ea0d692286f8:result",
+        "inputSnapshotRef": "runtime-evidence:coding:input:bd459ede21aae3a541c03253a2cb703d1e8925aceb42f6e1c41f22d5fe8ba71",
+        "codeArtifactRef": "runtime-evidence:coding:51d371a5fb71bf1bb8f346103b3788c6dd54d80e3f511bd3f0c4ea0d692286f8:code",
+        "executionReceiptRef": "runtime-evidence:coding:51d371a5fb71bf1bb8f346103b3788c6dd54d80e3f511bd3f0c4ea0d692286f8:receipt"
+      },
+      "manifestHash": "8bf0108dc51fcf0a5e43711c742bf3e4b408b3a86660a2bcf0c0a184dc7e2054",
+      "validationStatus": "INCONCLUSIVE",
+      "inputFiles": [
+        {
+          "fileId": "cbd459ede21aae3a541c03253a2cb703d1e8925aceb42f6e1c41f22d5fe8ba71",
+          "fileName": "manifest.json",
+          "sha256": "223d38751df75bf607ca7536d4044578154fc6af37816790f0c560a610b567c0"
+        }
+      ]
+    }
+  ]
+}

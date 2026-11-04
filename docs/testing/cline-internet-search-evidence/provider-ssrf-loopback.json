@@ -1,0 +1,9 @@
+{
+  "tool": "web_fetch",
+  "arguments": {
+    "url": "http://127.0.0.1/"
+  },
+  "status": "ERROR",
+  "errorCode": "SSRF_TARGET_DENIED",
+  "retrievedAt": "2026-11-04T16:11:41.074329442Z"
+}

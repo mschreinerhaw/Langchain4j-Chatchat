@@ -1,0 +1,19 @@
+{
+  "capturedAt": "2026-11-04T18:56:28.994086+00:00",
+  "database": "runtime_os_acceptance_api",
+  "table": "platform_model_internet_policy",
+  "policies": [
+    {
+      "model": "qwen3.7-plus",
+      "enabled": false,
+      "providerId": "tencent-wsa",
+      "revision": 4
+    },
+    {
+      "model": "qwen3.8-max",
+      "enabled": false,
+      "providerId": "tencent-wsa",
+      "revision": 2
+    }
+  ]
+}

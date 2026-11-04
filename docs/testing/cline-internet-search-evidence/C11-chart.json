@@ -1,0 +1,10 @@
+{
+  "source": "Actual authenticated Runtime user-asset response",
+  "resourcePath": "/api/v1/interactions/user-assets/28d3e37871de5a682e6c05b1188e15ea879468a9c661f343161ced62370c5949/content",
+  "fileName": "ecb_eur_usd_1m.png",
+  "bytes": 96113,
+  "sha256": "503f5c0ba7c6cc843e63da1ed843af24ae9bee7565d990d8d264707973c47611",
+  "width": 1335,
+  "height": 700,
+  "browserNaturalSizeMatched": true
+}

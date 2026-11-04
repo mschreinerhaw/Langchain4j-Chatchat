@@ -1,0 +1,35 @@
+{
+  "realHttp": true,
+  "intentionallyInvalidCredentials": true,
+  "testProvidersDisabled": true,
+  "records": [
+    {
+      "case": "invalid-key",
+      "status": "ERROR",
+      "errorCode": "HTTP_TIMEOUT",
+      "elapsedMs": 10138,
+      "retrievedAt": "2026-11-04T16:45:46.293215399Z"
+    },
+    {
+      "case": "task-quota",
+      "status": "ERROR",
+      "errorCode": "TASK_SEARCH_QUOTA",
+      "elapsedMs": 143,
+      "retrievedAt": "2026-11-04T16:45:46.388316339Z"
+    },
+    {
+      "case": "redirect-to-loopback",
+      "status": "ERROR",
+      "errorCode": "PAGE_ACCESS_DENIED",
+      "elapsedMs": 1548,
+      "retrievedAt": "2026-11-04T16:45:48.339325794Z"
+    },
+    {
+      "case": "real-delayed-http-timeout",
+      "status": "ERROR",
+      "errorCode": "HTTP_TIMEOUT",
+      "elapsedMs": 1137,
+      "retrievedAt": "2026-11-04T16:45:49.650282893Z"
+    }
+  ]
+}

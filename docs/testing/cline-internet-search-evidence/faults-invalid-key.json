@@ -1,0 +1,21 @@
+{
+  "realHttp": true,
+  "intentionallyInvalidCredentials": true,
+  "testProvidersDisabled": true,
+  "records": [
+    {
+      "case": "invalid-key",
+      "status": "ERROR",
+      "errorCode": "PROVIDER_REJECTED_REQUEST",
+      "elapsedMs": 215,
+      "retrievedAt": "2026-11-04T16:48:02.542466670Z"
+    },
+    {
+      "case": "task-quota",
+      "status": "ERROR",
+      "errorCode": "TASK_SEARCH_QUOTA",
+      "elapsedMs": 131,
+      "retrievedAt": "2026-11-04T16:48:02.626665243Z"
+    }
+  ]
+}

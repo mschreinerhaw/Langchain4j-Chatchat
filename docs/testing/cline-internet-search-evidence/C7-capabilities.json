@@ -1,0 +1,37 @@
+[
+  {
+    "taskId": "analysis-coding-8d5d13648680e05e28923c4f0cafad2cd4a9b81bbde8a202991e216c2b04536f",
+    "allowedTools": [
+      "artifact_read",
+      "code_read",
+      "input_read",
+      "market_get_history",
+      "market_get_indicators",
+      "market_get_snapshot",
+      "market_search",
+      "news_get_article",
+      "news_related_events",
+      "news_search",
+      "python_execute",
+      "report_submit",
+      "skill_read",
+      "sql_validate",
+      "web_fetch",
+      "web_search"
+    ],
+    "resourceIds": [
+      "financial_market",
+      "financial_news",
+      "internet_search"
+    ],
+    "internetSearch": {
+      "agentId": "internet_research_acceptance_20261105",
+      "explicitlyRequested": true,
+      "modelName": "qwen3.7-plus",
+      "modelRevision": 1,
+      "providerId": "tencent-wsa",
+      "providerRevision": 6,
+      "schemaVersion": "runtime_os.internet.v1"
+    }
+  }
+]

@@ -1,0 +1,134 @@
+[
+  {
+    "sequence": 29,
+    "kind": "TOOL_STARTED",
+    "tool": "web_search"
+  },
+  {
+    "sequence": 35,
+    "kind": "TOOL_FINISHED",
+    "tool": "web_search",
+    "status": "SUCCEEDED"
+  },
+  {
+    "sequence": 37,
+    "kind": "TOOL_STARTED",
+    "tool": "web_search"
+  },
+  {
+    "sequence": 43,
+    "kind": "TOOL_FINISHED",
+    "tool": "web_search",
+    "status": "SUCCEEDED"
+  },
+  {
+    "sequence": 45,
+    "kind": "TOOL_STARTED",
+    "tool": "news_search"
+  },
+  {
+    "sequence": 51,
+    "kind": "TOOL_FINISHED",
+    "tool": "news_search",
+    "status": "SUCCEEDED"
+  },
+  {
+    "sequence": 53,
+    "kind": "TOOL_STARTED",
+    "tool": "market_search"
+  },
+  {
+    "sequence": 59,
+    "kind": "TOOL_FINISHED",
+    "tool": "market_search",
+    "status": "SUCCEEDED"
+  },
+  {
+    "sequence": 71,
+    "kind": "TOOL_STARTED",
+    "tool": "web_fetch"
+  },
+  {
+    "sequence": 77,
+    "kind": "TOOL_FINISHED",
+    "tool": "web_fetch",
+    "status": "SUCCEEDED"
+  },
+  {
+    "sequence": 79,
+    "kind": "TOOL_STARTED",
+    "tool": "news_get_article"
+  },
+  {
+    "sequence": 85,
+    "kind": "TOOL_FINISHED",
+    "tool": "news_get_article",
+    "status": "SUCCEEDED"
+  },
+  {
+    "sequence": 87,
+    "kind": "TOOL_STARTED",
+    "tool": "market_search"
+  },
+  {
+    "sequence": 93,
+    "kind": "TOOL_FINISHED",
+    "tool": "market_search",
+    "status": "SUCCEEDED"
+  },
+  {
+    "sequence": 115,
+    "kind": "TOOL_STARTED",
+    "tool": "market_get_snapshot"
+  },
+  {
+    "sequence": 121,
+    "kind": "TOOL_FINISHED",
+    "tool": "market_get_snapshot",
+    "status": "SUCCEEDED"
+  },
+  {
+    "sequence": 123,
+    "kind": "TOOL_STARTED",
+    "tool": "news_get_article"
+  },
+  {
+    "sequence": 129,
+    "kind": "TOOL_FINISHED",
+    "tool": "news_get_article",
+    "status": "SUCCEEDED"
+  },
+  {
+    "sequence": 142,
+    "kind": "TOOL_STARTED",
+    "tool": "report_submit"
+  },
+  {
+    "sequence": 143,
+    "kind": "TOOL_FINISHED",
+    "tool": "report_submit",
+    "status": "REVIEW_REQUIRED"
+  },
+  {
+    "sequence": 156,
+    "kind": "TOOL_STARTED",
+    "tool": "report_submit"
+  },
+  {
+    "sequence": 162,
+    "kind": "TOOL_TIMING",
+    "tool": "report_submit",
+    "status": "THREW"
+  },
+  {
+    "sequence": 174,
+    "kind": "TOOL_STARTED",
+    "tool": "report_submit"
+  },
+  {
+    "sequence": 179,
+    "kind": "TOOL_TIMING",
+    "tool": "report_submit",
+    "status": "THREW"
+  }
+]

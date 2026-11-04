@@ -1,0 +1,12 @@
+{
+  "case": "INTERNET-A3",
+  "taskId": "06805e38-42a5-33c2-b092-9dc64bedcba3",
+  "attemptId": "att-1-7e2551fe-db03-4674-af05-92d804df5e13",
+  "canonicalState": "SUCCEEDED",
+  "status": "SUCCESS",
+  "requestedVisual": false,
+  "answerCharacters": 3179,
+  "reportSha256": "4574c73f108ceb60cddbaa4f9bfee0ee7bfe848cf04fbda70952dafe26b07d83",
+  "latencyMs": 163863,
+  "codeExecutions": []
+}

@@ -1,0 +1,26 @@
+{
+  "executionId": "996d59a7-bb9b-4325-8c0c-f58511107f7d",
+  "sourceId": 24,
+  "trigger": "MANUAL",
+  "status": "COMPLETED",
+  "result": {
+    "executionId": "996d59a7-bb9b-4325-8c0c-f58511107f7d",
+    "sourceId": 24,
+    "discoveredCount": 160,
+    "acceptedCount": 0,
+    "duplicateCount": 160,
+    "rejectedCount": 0,
+    "failedCount": 0,
+    "errorMessage": null,
+    "robotsAllowed": true,
+    "robotsStatus": "ALLOWED",
+    "robotsUrl": "https://www.hkex.com.hk/robots.txt",
+    "robotsOverrideReason": null,
+    "robotsOverrideUntil": null,
+    "nextCursor": null
+  },
+  "errorMessage": null,
+  "createdAt": "2026-11-04T17:54:31.856816322Z",
+  "startedAt": "2026-11-04T17:54:31.857965053Z",
+  "completedAt": "2026-11-04T17:54:41.639288016Z"
+}

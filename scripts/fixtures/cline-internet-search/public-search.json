@@ -1,0 +1,9 @@
+{
+    "mode":  "role_chat",
+    "skillId":  "internet_research_acceptance_20261105",
+    "query":  "请实际联网检索并核对 Python 3.13 正式版的发布日期和主要变化，形成简短研究报告。由你自主选择查询词和阅读页面，优先 Python 官方一手资料。至少完成一次真实互联网搜索和一次原始网页读取，区分搜索摘要与实际读到的正文，标注来源引用和获取时间。不要仅依赖记忆，不需要执行 Python 或绘图。工具失败或正文截断请如实说明。",
+    "toolInput":  {
+                      "resourceExplorationApproved":  true,
+                      "reportMode":  "off"
+                  }
+}

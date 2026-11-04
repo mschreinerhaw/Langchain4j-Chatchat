@@ -1,0 +1,13 @@
+{
+  "tool": "web_fetch",
+  "arguments": {
+    "url": "https://api.worldbank.org/v2/country/CHN/indicator/SP.POP.TOTL?date=2019:2024&format=json",
+    "max_content_length": 18000
+  },
+  "status": "OK",
+  "retrievedAt": "2026-11-04T16:11:40.031965388Z",
+  "url": "https://api.worldbank.org/v2/country/CHN/indicator/SP.POP.TOTL?date=2019:2024&format=json",
+  "contentType": "application/json;charset=utf-8",
+  "contentLength": 1266,
+  "sourceSha256": "bf91b83a66638e6e7c2e19794e89e1482414eef2ce0d6f628897779da428c79e"
+}

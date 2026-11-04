@@ -1,0 +1,61 @@
+{
+  "case": "INTERNET-D-OFF",
+  "taskId": "8096c7eb-b2ec-33ea-95e1-d3d97f1bfab2",
+  "attemptId": "att-1-c7e823ca-ea28-4f13-abe5-e6a380a8b186",
+  "canonicalState": "SUCCEEDED",
+  "status": "SUCCESS",
+  "requestedVisual": true,
+  "answerCharacters": 1620,
+  "reportSha256": "3cdeeb8587d95882eca380813ca9ea2976644b0e58e4489d06f25ba856cb1b65",
+  "latencyMs": 101340,
+  "codeExecutions": [
+    {
+      "executionId": "cline-2d041272a71933f2ab53879f87c6007f95423e0673abc8d5c658f04cc7c9a45b",
+      "status": "SUCCEEDED",
+      "stage": "RESULT_VALIDATION_FAILED",
+      "exitCode": 0,
+      "durationMs": 1076,
+      "codeHash": "1a8200462a1436c86ff68c9b9dda3d572c900e392be662b3f3d6748f8357e0b9",
+      "artifactRefs": {
+        "stderrRef": "execution:cline-2d041272a71933f2ab53879f87c6007f95423e0673abc8d5c658f04cc7c9a45b:logs:stderr.txt",
+        "diagnosticRef": "execution:cline-2d041272a71933f2ab53879f87c6007f95423e0673abc8d5c658f04cc7c9a45b:logs:runtime-diagnostic.json"
+      },
+      "manifestHash": "a8a42081242d3c9ac2f7962f574ee1564ae9fa600c8e5908dc2d8bf43494edd7",
+      "validationStatus": "FAILED",
+      "inputFiles": [
+        {
+          "fileId": "ce65da5bf959850a880eeee01d8971d3e143cec5bf663b2b1b8d924150225d1a",
+          "fileName": "manifest.json",
+          "sha256": "b22f1b0dba731df93047a6b4e7ff58d9ef544df2821330c95f2e1dce0f8ee0ee"
+        }
+      ]
+    },
+    {
+      "executionId": "cline-299e741451362cc1d26b3c317c7ffcce809729607124cc6ffced5ba88b26e280",
+      "status": "SUCCEEDED",
+      "stage": "VALIDATED",
+      "exitCode": 0,
+      "durationMs": 942,
+      "codeHash": "a05ce758ca4618b9ed228346797a5e63d7b698c1264c71635dedba88701d88cd",
+      "artifactRefs": {
+        "executionReceiptRef": "runtime-evidence:coding:540d52bac962744b0d2a72b89985f677278ac0b66388f10c360a63f98329eeca:receipt",
+        "codeArtifactRef": "runtime-evidence:coding:540d52bac962744b0d2a72b89985f677278ac0b66388f10c360a63f98329eeca:code",
+        "inputSnapshotRef": "runtime-evidence:coding:input:e65da5bf959850a880eeee01d8971d3e143cec5bf663b2b1b8d924150225d1a",
+        "resultDatasetRef": "runtime-evidence:coding:540d52bac962744b0d2a72b89985f677278ac0b66388f10c360a63f98329eeca:result",
+        "validationRecordRef": "runtime-evidence:coding:540d52bac962744b0d2a72b89985f677278ac0b66388f10c360a63f98329eeca:validation",
+        "evidenceBundleRef": "runtime-evidence:coding:540d52bac962744b0d2a72b89985f677278ac0b66388f10c360a63f98329eeca:bundle",
+        "diagnosticRef": "execution:cline-299e741451362cc1d26b3c317c7ffcce809729607124cc6ffced5ba88b26e280:logs:runtime-diagnostic.json",
+        "stderrRef": "execution:cline-299e741451362cc1d26b3c317c7ffcce809729607124cc6ffced5ba88b26e280:logs:stderr.txt"
+      },
+      "manifestHash": "34eaa344f41d2e5f409b8f577d863e6f5fa13518031721abbe01bfa7c0008979",
+      "validationStatus": "INCONCLUSIVE",
+      "inputFiles": [
+        {
+          "fileId": "ce65da5bf959850a880eeee01d8971d3e143cec5bf663b2b1b8d924150225d1a",
+          "fileName": "manifest.json",
+          "sha256": "b22f1b0dba731df93047a6b4e7ff58d9ef544df2821330c95f2e1dce0f8ee0ee"
+        }
+      ]
+    }
+  ]
+}

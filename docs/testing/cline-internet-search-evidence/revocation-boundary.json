@@ -1,0 +1,27 @@
+{
+  "taskId": "3968c9ae-e9fc-3db5-9fd9-2f56bebaa2c1",
+  "model": "qwen3.7-plus",
+  "internetSearchEnabledBefore": true,
+  "internetSearchEnabledAfter": false,
+  "triggerSequence": 34,
+  "trigger": "Actual Cline web_search completed",
+  "at": "2026-11-04T18:50:45.612Z",
+  "frozenModelRevision": 3,
+  "currentPolicyRevision": 4,
+  "frozenTaskToolsIncludeFetch": true,
+  "actualToolBoundary": [
+    {
+      "kind": "actual-tool-call",
+      "tool": "web_fetch",
+      "arguments": {
+        "url": "https://www.python.org/downloads/release/python-3130/",
+        "max_content_length": 8000
+      }
+    },
+    {
+      "kind": "actual-tool-result",
+      "tool": "web_fetch",
+      "error": "Invalid Coding callback binding"
+    }
+  ]
+}

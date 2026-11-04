@@ -18,6 +18,10 @@ Worker 仍仅能访问 API 专用回调监听器，Docker 网络 internal=true�
 
 社区 Skill 来源为 [Tavily Skills](https://github.com/tavily-ai/skills)，固定提交 `b282c623b12b3c58fd279ed072f7e67b693e4654`，MIT。保留原文件与许可证，适配包 `runtime-internet-research` 只在有联网资源的任务中出现，保留精确查询、原始页面和独立来源核验方法；删除 CLI、OAuth 和外部研究 Agent 的执行建议。Skill 无权增加工具或网络权限。
 
-部署使用完整 Maven JAR 和离线测试的 Worker 包；`prepare-cline-internet-stage.py` 验证哈希并预建镜像，`deploy-integrated-runtime.py` 备份 API/MCP PostgreSQL、停写后的 News H2、配置与原容器，保留会话、资源和模型配置。新表为增量创建，默认模型联网关闭。失败自动恢复原镜像和容器；正常回滚只回退代码，保留新增表和业务数据，不用旧数据库备份覆盖新会话。只有确认数据库损坏且获维护授权后才恢复数据库备份。
+部署使用完整 Maven JAR 和离线测试的 Worker 包；`prepare-cline-internet-stage.py` 验证哈希并预建镜像，`deploy-integrated-runtime.py` 备份 API/MCP PostgreSQL、停写后的 News H2、配置与原容器，保留会话、资源和模型配置。新表为增量创建，默认模型联网关闭。部署失败自动恢复本次替换的原镜像和容器；正常回退必须选择兼容当前资源配置与任务合同的版本，保留新增表和业务数据，不用旧数据库备份覆盖新会话。首次上线前的版本不认识 `internet_search` 资源和 `internetSearch` 合同字段，不能直接降级后宣称新任务历史仍可读取；需要先补齐兼容读取能力或制定迁移方案。紧急停止新联网调用优先关闭数据库中的模型联网开关。只有确认数据库损坏且获维护授权后才恢复数据库备份。
+
+动态 `calculationInput` 与初始任务输入使用同一不可变快照和计费机制。`input_read` 接受初始输入或本任务已登记的数据版本；模型无法传入任意快照、路径或其他任务的引用。工具额外返回实际挂载文件路径，避免推测分片名称。所有 Python 执行仍绑定该次执行的完整输入版本与文件哈希。
+
+最终发布层同时校验初始来源、当前可读知识引用，以及 Coding 服务端回执中已登记的 `authorizedDatasetReferences`。该清单由本任务数据版本生成，不能从模型报告自行补充。Python 执行后只能沿实际产物与 `artifact_read` 审阅路径完成；文字提交不能替换失败执行或丢弃图表。
 
 验收必须另外提供真实 Provider、网页、Python 与生产页面证据；单元测试和故障注入不替代完整验收，具体结果另记。

@@ -1,0 +1,117 @@
+{
+  "sourceCount": 37,
+  "recordTotal": 25206,
+  "searchSuccess": true,
+  "collections": [
+    {
+      "sourceId": 32,
+      "status": "COMPLETED",
+      "trigger": "SCHEDULED",
+      "createdAt": "2026-11-04T17:56:09.773804380Z",
+      "completedAt": "2026-11-04T17:56:10.182321950Z",
+      "discovered": 0,
+      "accepted": 0,
+      "duplicate": 0,
+      "failed": 0
+    },
+    {
+      "sourceId": 24,
+      "status": "COMPLETED",
+      "trigger": "SCHEDULED",
+      "createdAt": "2026-11-04T17:55:42.289751038Z",
+      "completedAt": "2026-11-04T17:55:50.074242160Z",
+      "discovered": 160,
+      "accepted": 0,
+      "duplicate": 160,
+      "failed": 0
+    },
+    {
+      "sourceId": 7,
+      "status": "COMPLETED",
+      "trigger": "SCHEDULED",
+      "createdAt": "2026-11-04T17:55:41.162418079Z",
+      "completedAt": "2026-11-04T17:55:42.287305133Z",
+      "discovered": 75,
+      "accepted": 30,
+      "duplicate": 45,
+      "failed": 0
+    },
+    {
+      "sourceId": 2,
+      "status": "FAILED",
+      "trigger": "SCHEDULED",
+      "createdAt": "2026-11-04T17:55:09.724378176Z",
+      "completedAt": "2026-11-04T17:56:13.439971846Z",
+      "discovered": 54,
+      "accepted": 0,
+      "duplicate": 53,
+      "failed": 1
+    },
+    {
+      "sourceId": 1,
+      "status": "FAILED",
+      "trigger": "SCHEDULED",
+      "createdAt": "2026-11-04T17:55:09.722726955Z",
+      "completedAt": "2026-11-04T17:56:09.164760771Z",
+      "discovered": 89,
+      "accepted": 0,
+      "duplicate": 87,
+      "failed": 2
+    },
+    {
+      "sourceId": 24,
+      "status": "COMPLETED",
+      "trigger": "MANUAL",
+      "createdAt": "2026-11-04T17:54:31.856816322Z",
+      "completedAt": "2026-11-04T17:54:41.639288016Z",
+      "discovered": 160,
+      "accepted": 0,
+      "duplicate": 160,
+      "failed": 0
+    },
+    {
+      "sourceId": 32,
+      "status": "COMPLETED",
+      "trigger": "SCHEDULED",
+      "createdAt": "2026-11-04T17:54:09.717628120Z",
+      "completedAt": "2026-11-04T17:54:10.133566599Z",
+      "discovered": 0,
+      "accepted": 0,
+      "duplicate": 0,
+      "failed": 0
+    },
+    {
+      "sourceId": 7,
+      "status": "COMPLETED",
+      "trigger": "SCHEDULED",
+      "createdAt": "2026-11-04T17:53:15.615473439Z",
+      "completedAt": "2026-11-04T17:53:16.966498946Z",
+      "discovered": 75,
+      "accepted": 50,
+      "duplicate": 25,
+      "failed": 0
+    },
+    {
+      "sourceId": 5,
+      "status": "COMPLETED",
+      "trigger": "SCHEDULED",
+      "createdAt": "2026-11-04T17:53:15.396937148Z",
+      "completedAt": "2026-11-04T17:53:15.613169652Z",
+      "discovered": 100,
+      "accepted": 3,
+      "duplicate": 97,
+      "failed": 0
+    },
+    {
+      "sourceId": 8,
+      "status": "COMPLETED",
+      "trigger": "SCHEDULED",
+      "createdAt": "2026-11-04T17:53:15.374976883Z",
+      "completedAt": "2026-11-04T17:53:15.701948025Z",
+      "discovered": 30,
+      "accepted": 30,
+      "duplicate": 0,
+      "failed": 0
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "model": "qwen3.7-plus",
+  "enabled": true,
+  "providerId": "tencent-wsa",
+  "controlCount": 2,
+  "sectionText": "联网搜索\n 允许 Cline 联网搜索\n搜索服务\n请选择搜索服务\nBrave Search · 已停用\nTavily Search · 已停用\n腾讯 WSA\n验收：无效密钥（停用后保留审计） · 已停用\n验收：超时端点（停用后保留审计） · 已停用\n\n保存后立即生效。Cline 可在 Agent 和用户授权范围内搜索、读取公开网页；分析代码仍在隔离环境中运行。"
+}

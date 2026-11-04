@@ -1,0 +1,13 @@
+{
+  "tool": "web_fetch",
+  "arguments": {
+    "url": "https://www.python.org/downloads/release/python-3130/",
+    "max_content_length": 12000
+  },
+  "status": "OK",
+  "retrievedAt": "2026-11-04T16:11:40.794460209Z",
+  "url": "https://www.python.org/downloads/release/python-3130/",
+  "contentType": "text/html; charset=utf-8",
+  "contentLength": 4328,
+  "sourceSha256": "5a135f4c70390856991c803de8ce60fc2e6b008de398e5fdff1f2bcb6944c653"
+}

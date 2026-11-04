@@ -15,6 +15,12 @@ try{
  const context=await browser.newContext({viewport:{width:1440,height:1100},locale:'zh-CN',timezoneId:'Asia/Shanghai'});
  await context.addInitScript(auth=>localStorage.setItem('chatchat.auth.session',JSON.stringify(auth)),auth);
  const page=await context.newPage();
+ const screenshotChat=async path=>{
+  const box=await page.locator('.chat-view').boundingBox(),viewport=page.viewportSize();
+  assert.ok(box&&viewport,'Visible chat viewport is required');
+  const x=Math.max(0,box.x),y=Math.max(0,box.y);
+  await page.screenshot({path,clip:{x,y,width:Math.min(box.width,viewport.width-x),height:Math.min(box.height,viewport.height-y)}});
+ };
  const waitForRenderedReport=async()=>page.waitForFunction(()=>{
   const bodies=[...document.querySelectorAll('.chat-message.assistant .enterprise-ui-artifact,.chat-message.assistant .message-markdown,.chat-message.assistant .python-visual-report')];
   return bodies.some(root=>root.textContent.length>100&&!root.querySelector('.artifact-resource-state,.artifact-shell-state'));
@@ -47,7 +53,7 @@ try{
  const chart=page.locator('.python-report-chart').first();
  if(await chart.count())await chart.scrollIntoViewIfNeeded();
  if(request.toolInput?.reportMode==='visual'&&process.env.REPORT_REQUIRE_CHART==='1')try{await page.waitForFunction(()=>[...document.querySelectorAll('.report-renderer img')].some(i=>i.complete&&i.naturalWidth>0),null,{timeout:60000});}catch(error){chartWaitError=error.name;}
- await page.screenshot({path:output+'/runtime-report-full.png',fullPage:true});
+ await screenshotChat(output+'/runtime-report-full.png');
  fs.writeFileSync(output+'/rendered-report.txt',await page.locator('.chat-view').innerText());
  const report=page.locator('.report-renderer').first();
  const reportCount=await report.count();
@@ -56,7 +62,7 @@ try{
  if(await chart.count()){
   await chart.scrollIntoViewIfNeeded();
   await chart.screenshot({path:output+'/runtime-report-chart.png'});
-  await page.screenshot({path:output+'/runtime-chart-visible.png',fullPage:true});
+  await screenshotChat(output+'/runtime-chart-visible.png');
  }
  await page.reload({waitUntil:'domcontentloaded'});
  await page.waitForFunction(()=>document.querySelector('#app')?._vnode?.component?.proxy?.$refs?.activeViewComponent,null,{timeout:60000});
@@ -69,7 +75,7 @@ try{
  if(await historyChart.count())await historyChart.scrollIntoViewIfNeeded();
  if(images.some(i=>i.loaded))await page.waitForFunction(()=>[...document.querySelectorAll('.report-renderer img')].some(i=>i.complete&&i.naturalWidth>0),null,{timeout:60000});
  const historyImages=await page.locator('.report-renderer img').evaluateAll(images=>images.map(i=>({loaded:i.complete&&i.naturalWidth>0,width:i.naturalWidth,height:i.naturalHeight})));
- await page.screenshot({path:output+'/runtime-history-reopened.png',fullPage:true});
+ await screenshotChat(output+'/runtime-history-reopened.png');
  const proof={...submitted,status:state.status,error:state.error,reportCount,images,historyImages,chartWaitError,historyReopened:true,pageErrors:errors,responses};
  fs.writeFileSync(output+'/browser-proof.json',JSON.stringify(proof,null,2));console.log(JSON.stringify(proof));
  assert.ok(!state.error,'UI reported an error');assert.ok(state.messages.some(m=>m.role==='assistant'&&m.contentCharacters>100),'No final report in actual conversation');

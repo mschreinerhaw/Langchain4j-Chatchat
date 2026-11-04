@@ -1,0 +1,23 @@
+{
+  "taskId": "be4ad177-b81d-4e2b-8f8b-95ad50521170",
+  "conversationId": "1793814915795-a84c0c7da34aa8",
+  "error": "",
+  "reportCount": 1,
+  "images": [
+    {
+      "src": "blob:http://192.168.195.221:18100/6ffac797-e67c-4242-bfd4-950daf496562",
+      "loaded": true,
+      "width": 1774,
+      "height": 883
+    }
+  ],
+  "historyImages": [
+    {
+      "loaded": true,
+      "width": 1774,
+      "height": 883
+    }
+  ],
+  "historyReopened": true,
+  "pageErrors": []
+}

@@ -1,0 +1,25 @@
+[
+  {
+    "taskId": "analysis-coding-14ac5c1b37fa39386fa532e79b61515ebb5f0911c923caa2685a05b751cd80d6",
+    "allowedTools": [
+      "artifact_read",
+      "code_read",
+      "input_read",
+      "market_get_history",
+      "market_get_indicators",
+      "market_get_snapshot",
+      "market_search",
+      "news_get_article",
+      "news_related_events",
+      "news_search",
+      "python_execute",
+      "report_submit",
+      "skill_read",
+      "sql_validate"
+    ],
+    "resourceIds": [
+      "financial_market",
+      "financial_news"
+    ]
+  }
+]

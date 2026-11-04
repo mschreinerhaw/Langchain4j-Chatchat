@@ -1,0 +1,47 @@
+[
+  {
+    "sequence": 30,
+    "kind": "TOOL_STARTED",
+    "tool": "python_execute"
+  },
+  {
+    "sequence": 44,
+    "kind": "TOOL_FINISHED",
+    "tool": "python_execute",
+    "status": "SUCCEEDED",
+    "diagnosticCode": "OUTPUT_CONTRACT"
+  },
+  {
+    "sequence": 57,
+    "kind": "TOOL_STARTED",
+    "tool": "python_execute"
+  },
+  {
+    "sequence": 70,
+    "kind": "TOOL_FINISHED",
+    "tool": "python_execute",
+    "status": "SUCCEEDED"
+  },
+  {
+    "sequence": 71,
+    "kind": "TOOL_STARTED",
+    "tool": "artifact_read"
+  },
+  {
+    "sequence": 72,
+    "kind": "TOOL_FINISHED",
+    "tool": "artifact_read",
+    "status": "SUCCEEDED"
+  },
+  {
+    "sequence": 84,
+    "kind": "TOOL_STARTED",
+    "tool": "artifact_read"
+  },
+  {
+    "sequence": 85,
+    "kind": "TOOL_FINISHED",
+    "tool": "artifact_read",
+    "status": "SUCCEEDED"
+  }
+]

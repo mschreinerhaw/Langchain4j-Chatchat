@@ -1,0 +1,79 @@
+[
+  {
+    "sequence": 29,
+    "kind": "TOOL_STARTED",
+    "tool": "web_search"
+  },
+  {
+    "sequence": 35,
+    "kind": "TOOL_FINISHED",
+    "tool": "web_search",
+    "status": "SUCCEEDED"
+  },
+  {
+    "sequence": 37,
+    "kind": "TOOL_STARTED",
+    "tool": "web_search"
+  },
+  {
+    "sequence": 43,
+    "kind": "TOOL_FINISHED",
+    "tool": "web_search",
+    "status": "SUCCEEDED"
+  },
+  {
+    "sequence": 55,
+    "kind": "TOOL_STARTED",
+    "tool": "web_fetch"
+  },
+  {
+    "sequence": 61,
+    "kind": "TOOL_FINISHED",
+    "tool": "web_fetch",
+    "status": "SUCCEEDED"
+  },
+  {
+    "sequence": 73,
+    "kind": "TOOL_STARTED",
+    "tool": "web_fetch"
+  },
+  {
+    "sequence": 79,
+    "kind": "TOOL_FINISHED",
+    "tool": "web_fetch",
+    "status": "SUCCEEDED"
+  },
+  {
+    "sequence": 101,
+    "kind": "TOOL_STARTED",
+    "tool": "report_submit"
+  },
+  {
+    "sequence": 102,
+    "kind": "TOOL_FINISHED",
+    "tool": "report_submit",
+    "status": "REVIEW_REQUIRED"
+  },
+  {
+    "sequence": 114,
+    "kind": "TOOL_STARTED",
+    "tool": "report_submit"
+  },
+  {
+    "sequence": 120,
+    "kind": "TOOL_TIMING",
+    "tool": "report_submit",
+    "status": "THREW"
+  },
+  {
+    "sequence": 131,
+    "kind": "TOOL_STARTED",
+    "tool": "report_submit"
+  },
+  {
+    "sequence": 136,
+    "kind": "TOOL_FINISHED",
+    "tool": "report_submit",
+    "status": "SUCCEEDED"
+  }
+]

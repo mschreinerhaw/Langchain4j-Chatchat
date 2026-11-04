@@ -1,0 +1,12 @@
+{
+  "case": "INTERNET-C10",
+  "taskId": "ff07342e-163f-3404-b918-13193050b89f",
+  "attemptId": "att-1-337bb36c-1fa7-4c0d-8cd5-9a2071f2cfca",
+  "canonicalState": "CANCELLED",
+  "status": "CANCELLED",
+  "requestedVisual": true,
+  "answerCharacters": 0,
+  "reportSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "latencyMs": null,
+  "codeExecutions": []
+}

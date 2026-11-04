@@ -1,0 +1,12 @@
+{
+  "case": "INTERNET-D-REVOKE",
+  "taskId": "3968c9ae-e9fc-3db5-9fd9-2f56bebaa2c1",
+  "attemptId": "att-1-5d2cf95f-ab48-4249-84f4-9887aef916f2",
+  "canonicalState": "PARTIAL",
+  "status": "PARTIAL_SUCCESS",
+  "requestedVisual": false,
+  "answerCharacters": 2105,
+  "reportSha256": "c73151cd9ba3a6f0fc3bc976392f31660888d0d1fb0a0a3040db61e1b189958e",
+  "latencyMs": 120318,
+  "codeExecutions": []
+}

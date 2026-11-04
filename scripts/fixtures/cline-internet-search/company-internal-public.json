@@ -1,0 +1,9 @@
+{
+  "mode": "role_chat",
+  "skillId": "internet_research_acceptance_20261105",
+  "query": "请为华是科技（301218.SZ）生成约 500 字的简洁近况报告。自主选择适用的研究 Skills（用 skill_read 加载）并实际联网 web_search，读取一个有用网页，同时实际查询授权新闻索引和该证券已采集行情快照。只选少数与你结论直接相关的证据，证券身份以源文中的名称、代码为准；如网页只是导航或动态页面骨架，必须说正文未获得，不能将查询参数视为已读到公司资料。保留 news_get_article 返回的 source_view：summary 只能称索引摘要，不能称读取原文。报告只需两条有证据的资讯观察、一条行情观察及局限，日期和未知单位如实标注，尤其不能把 10K-units 擅自翻译为“万手”，也不要把目录最近日期当成该证券日期。不需要 Python、图表、公司基础资料表或全量新闻清单，不作投资建议。只列实际使用的完整 evidence_id，并在支持的事实旁使用 [来源](完整 evidence_id) 引用，提交前自主核对事实与源文一致。",
+  "toolInput": {
+    "resourceExplorationApproved": true,
+    "reportMode": "off"
+  }
+}

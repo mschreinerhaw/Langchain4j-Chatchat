@@ -1,0 +1,5 @@
+# Preserve captured bytes so evidence hashes also match after checkout.
+* -text
+*-executed.py -whitespace
+*-source.csv -whitespace
+*-report.md -whitespace

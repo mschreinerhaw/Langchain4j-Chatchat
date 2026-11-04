@@ -1,0 +1,84 @@
+[
+  {
+    "sequence": 29,
+    "kind": "SKILLS_LOADED",
+    "skillId": "builtin:runtime-internet-research"
+  },
+  {
+    "sequence": 31,
+    "kind": "SKILLS_LOADED",
+    "skillId": "builtin:python-data-analysis"
+  },
+  {
+    "sequence": 33,
+    "kind": "SKILLS_LOADED",
+    "skillId": "builtin:runtime-report-delivery"
+  },
+  {
+    "sequence": 35,
+    "kind": "TOOL_STARTED",
+    "tool": "web_search"
+  },
+  {
+    "sequence": 40,
+    "kind": "TOOL_FINISHED",
+    "tool": "web_search",
+    "status": "SUCCEEDED"
+  },
+  {
+    "sequence": 52,
+    "kind": "TOOL_STARTED",
+    "tool": "web_fetch"
+  },
+  {
+    "sequence": 58,
+    "kind": "TOOL_FINISHED",
+    "tool": "web_fetch",
+    "status": "SUCCEEDED"
+  },
+  {
+    "sequence": 72,
+    "kind": "TOOL_STARTED",
+    "tool": "python_execute"
+  },
+  {
+    "sequence": 95,
+    "kind": "TOOL_FINISHED",
+    "tool": "python_execute",
+    "status": "FAILED",
+    "diagnosticCode": "FIELD_ACCESS_ERROR"
+  },
+  {
+    "sequence": 108,
+    "kind": "TOOL_STARTED",
+    "tool": "python_execute"
+  },
+  {
+    "sequence": 126,
+    "kind": "TOOL_FINISHED",
+    "tool": "python_execute",
+    "status": "SUCCEEDED"
+  },
+  {
+    "sequence": 127,
+    "kind": "TOOL_STARTED",
+    "tool": "artifact_read"
+  },
+  {
+    "sequence": 128,
+    "kind": "TOOL_FINISHED",
+    "tool": "artifact_read",
+    "status": "SUCCEEDED"
+  },
+  {
+    "sequence": 140,
+    "kind": "TOOL_STARTED",
+    "tool": "artifact_read"
+  },
+  {
+    "sequence": 141,
+    "kind": "TOOL_FINISHED",
+    "tool": "artifact_read",
+    "status": "SUCCEEDED"
+  }
+]

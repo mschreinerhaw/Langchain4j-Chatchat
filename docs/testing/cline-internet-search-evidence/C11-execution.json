@@ -1,0 +1,71 @@
+{
+  "case": "INTERNET-C11",
+  "taskId": "4fdcc197-c1d6-4d9b-9e82-96a28df4f8c9",
+  "attemptId": "att-1-e49bc328-427d-40ad-90e8-8279c3184d25",
+  "canonicalState": "SUCCEEDED",
+  "status": "SUCCESS",
+  "requestedVisual": true,
+  "answerCharacters": 1849,
+  "reportSha256": "64fc7aa3116c63baefc78a250412ebcd661c4ff72e081910cf8cf709aabd032b",
+  "latencyMs": 181724,
+  "codeExecutions": [
+    {
+      "executionId": "cline-b6f393faa1b541f6d403bffe216361fbc38ee988fe896272b43965b2cb5c650d",
+      "status": "FAILED",
+      "stage": "EXECUTION_FAILED",
+      "exitCode": 1,
+      "durationMs": 4666,
+      "codeHash": "8db88267ca565aa5124cc8b071a6b9ae28e3269913ed8b704c124c86b85ffc9e",
+      "artifactRefs": {
+        "stderrRef": "execution:cline-b6f393faa1b541f6d403bffe216361fbc38ee988fe896272b43965b2cb5c650d:logs:stderr.txt",
+        "diagnosticRef": "execution:cline-b6f393faa1b541f6d403bffe216361fbc38ee988fe896272b43965b2cb5c650d:logs:runtime-diagnostic.json"
+      },
+      "manifestHash": "ecb81778c168750f812c2479d526730ac23722b814714a55bf88d22f9a22b1de",
+      "validationStatus": "NOT_RUN",
+      "inputFiles": [
+        {
+          "fileId": "c3bc19f36db8423b9d6bd4110be81ce3f978f47aff297ecf956527b2ca4d2842",
+          "fileName": "manifest.json",
+          "sha256": "ef015c3e264da93e6080c99dac0a9093171be26feba8d12f6eb9d5c9f1a7fe2d"
+        },
+        {
+          "fileId": "c8bb9f62357cc559695fc18afb7dd86b2aa7d6dc822ca546fc2401cd36590147",
+          "fileName": "manifest.json",
+          "sha256": "a924050314414421207dc29519d4230f68e78f1279199c9f751fc76da63bc5d0"
+        }
+      ]
+    },
+    {
+      "executionId": "cline-a188150184a5e02865bdab6ce453344844eae887a90e90e3596de66fb5537892",
+      "status": "SUCCEEDED",
+      "stage": "VALIDATED",
+      "exitCode": 0,
+      "durationMs": 3129,
+      "codeHash": "8bf8f0b3a730456668514d0e49074fc02888922c9bd462061ac6b3fe84492d44",
+      "artifactRefs": {
+        "stderrRef": "execution:cline-a188150184a5e02865bdab6ce453344844eae887a90e90e3596de66fb5537892:logs:stderr.txt",
+        "diagnosticRef": "execution:cline-a188150184a5e02865bdab6ce453344844eae887a90e90e3596de66fb5537892:logs:runtime-diagnostic.json",
+        "evidenceBundleRef": "runtime-evidence:coding:57db56ad516c72f2b1e7e12d6da6f2a8ccbbc509f529df9e272098ca0c92272f:bundle",
+        "validationRecordRef": "runtime-evidence:coding:57db56ad516c72f2b1e7e12d6da6f2a8ccbbc509f529df9e272098ca0c92272f:validation",
+        "resultDatasetRef": "runtime-evidence:coding:57db56ad516c72f2b1e7e12d6da6f2a8ccbbc509f529df9e272098ca0c92272f:result",
+        "inputSnapshotRef": "runtime-evidence:coding:input:3bc19f36db8423b9d6bd4110be81ce3f978f47aff297ecf956527b2ca4d2842",
+        "codeArtifactRef": "runtime-evidence:coding:57db56ad516c72f2b1e7e12d6da6f2a8ccbbc509f529df9e272098ca0c92272f:code",
+        "executionReceiptRef": "runtime-evidence:coding:57db56ad516c72f2b1e7e12d6da6f2a8ccbbc509f529df9e272098ca0c92272f:receipt"
+      },
+      "manifestHash": "84a66527470f7468dbf325a68efd96aaa0d3f9657c277feee70f8c2df8fffcf6",
+      "validationStatus": "INCONCLUSIVE",
+      "inputFiles": [
+        {
+          "fileId": "c3bc19f36db8423b9d6bd4110be81ce3f978f47aff297ecf956527b2ca4d2842",
+          "fileName": "manifest.json",
+          "sha256": "ef015c3e264da93e6080c99dac0a9093171be26feba8d12f6eb9d5c9f1a7fe2d"
+        },
+        {
+          "fileId": "c8bb9f62357cc559695fc18afb7dd86b2aa7d6dc822ca546fc2401cd36590147",
+          "fileName": "manifest.json",
+          "sha256": "a924050314414421207dc29519d4230f68e78f1279199c9f751fc76da63bc5d0"
+        }
+      ]
+    }
+  ]
+}

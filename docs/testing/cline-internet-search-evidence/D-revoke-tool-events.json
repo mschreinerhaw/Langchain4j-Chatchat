@@ -1,0 +1,57 @@
+[
+  {
+    "sequence": 29,
+    "kind": "TOOL_STARTED",
+    "tool": "web_search"
+  },
+  {
+    "sequence": 34,
+    "kind": "TOOL_FINISHED",
+    "tool": "web_search",
+    "status": "SUCCEEDED"
+  },
+  {
+    "sequence": 46,
+    "kind": "TOOL_STARTED",
+    "tool": "web_fetch"
+  },
+  {
+    "sequence": 47,
+    "kind": "TOOL_TIMING",
+    "tool": "web_fetch",
+    "status": "THREW"
+  },
+  {
+    "sequence": 58,
+    "kind": "TOOL_STARTED",
+    "tool": "report_submit"
+  },
+  {
+    "sequence": 59,
+    "kind": "TOOL_FINISHED",
+    "tool": "report_submit",
+    "status": "REVIEW_REQUIRED"
+  },
+  {
+    "sequence": 71,
+    "kind": "TOOL_STARTED",
+    "tool": "report_submit"
+  },
+  {
+    "sequence": 77,
+    "kind": "TOOL_TIMING",
+    "tool": "report_submit",
+    "status": "THREW"
+  },
+  {
+    "sequence": 88,
+    "kind": "TOOL_STARTED",
+    "tool": "report_submit"
+  },
+  {
+    "sequence": 94,
+    "kind": "TOOL_FINISHED",
+    "tool": "report_submit",
+    "status": "SUCCEEDED"
+  }
+]

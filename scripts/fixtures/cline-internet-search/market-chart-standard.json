@@ -1,0 +1,9 @@
+{
+  "mode": "role_chat",
+  "skillId": "internet_research_acceptance_20261105",
+  "query": "请交付一份简洁的欧洲央行近期约一个月 EUR/USD 参考汇率图文报告。自主选择并 skill_read 阅读适用的搜索、Python 和报告 Skill，实际 web_search 核验来源，再 web_fetch 读取官方 CSV：https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A?lastNObservations=23&format=csvdata 。核对实际日期、币种和计价币种，再自主选择分析方法和图表样式。Python 必须从返回的 calculationInput 实际文件解析 CSV，不能硬编码工具预览的观测值，也不能联网。生成一张真实 PNG；约400字正文只描述该CSV直接支持的趋势、首末变化、覆盖区间和局限，不添加未从来源取得的发布时点等知识。使用 Runtime 标准图文结构，不自建可选 layout 或 presentation。搜索结果只用于发现来源，不把未用的检索结果列入报告引用。报告中实际使用的CSV来源 evidence_id 必须逐字复制到 evidenceReferences，并在顶层 reportMarkdown 的数据事实旁写 [数据来源](完整evidence_id)；visualReport.dataSources 使用同一引用清单，不能只修改图表引用而遗漏顶层 reportMarkdown。结果遵守 rows.jsonl 与图文合同，确认实际图表、引用及产物校验通过后用 artifact_read 完成审阅，不用 report_submit 替代 Python 的结果。",
+  "toolInput": {
+    "resourceExplorationApproved": true,
+    "reportMode": "visual"
+  }
+}

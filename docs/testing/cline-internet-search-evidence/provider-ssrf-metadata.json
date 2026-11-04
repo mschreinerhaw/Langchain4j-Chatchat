@@ -1,0 +1,9 @@
+{
+  "tool": "web_fetch",
+  "arguments": {
+    "url": "http://169.254.169.254/latest/meta-data/"
+  },
+  "status": "ERROR",
+  "errorCode": "SSRF_TARGET_DENIED",
+  "retrievedAt": "2026-11-04T16:11:40.915955093Z"
+}

@@ -1,0 +1,24 @@
+{
+  "sourceUrl": "https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A?lastNObservations=23&format=csvdata",
+  "sourceReference": "runtime-evidence:knowledge:3330b1d354f03c8b85ef6065420eb2b1ff6f92425b0a8d2e68627ad8a95b0a32",
+  "sourceCsvSha256": "4ca0737c6d1d1fa6bef17f2df46d216b72a2483ff241000eccb2c3fbff5b3526",
+  "codeSha256": "9ae0a6272cb73a1d8aaeb4fcfadea981cf3e28129d51adc906f3805af276dd26",
+  "rows": 23,
+  "first": {
+    "currency": "USD",
+    "denominator": "EUR",
+    "date": "2026-10-05",
+    "value": 1.1204
+  },
+  "last": {
+    "currency": "USD",
+    "denominator": "EUR",
+    "date": "2026-11-04",
+    "value": 1.1267
+  },
+  "delta": 0.006299999999999972,
+  "percentChange": 0.5622991788646886,
+  "minimum": 1.113,
+  "maximum": 1.1269,
+  "reportEndpointsAndPercentMatched": true
+}

@@ -1,0 +1,103 @@
+{
+  "case": "INTERNET-C9",
+  "taskId": "1084c6af-3b0b-48ee-be52-39e05d907ec2",
+  "attemptId": "att-1-af1eac86-834a-47eb-a37b-a497cd740610",
+  "canonicalState": "FAILED",
+  "status": "FAILED",
+  "requestedVisual": true,
+  "answerCharacters": 143,
+  "reportSha256": "a7ce9fbad0d41f7849352467f584924d1d538daa57f4324fd3701b0f1ea6f881",
+  "latencyMs": null,
+  "codeExecutions": [
+    {
+      "executionId": "cline-4e3bffdffff4e9dde2ae2270c78172a3071ebf504ace1cc66394468df229932b",
+      "status": "FAILED",
+      "stage": "EXECUTION_FAILED",
+      "exitCode": 1,
+      "durationMs": 3092,
+      "codeHash": "8dc0553b88a13fec486880b805873cb5476b3730dc5d7a25db9c476b4e4418e0",
+      "artifactRefs": {
+        "stderrRef": "execution:cline-4e3bffdffff4e9dde2ae2270c78172a3071ebf504ace1cc66394468df229932b:logs:stderr.txt",
+        "diagnosticRef": "execution:cline-4e3bffdffff4e9dde2ae2270c78172a3071ebf504ace1cc66394468df229932b:logs:runtime-diagnostic.json"
+      },
+      "manifestHash": "9a1be65b7d5eb66ed328674ffd72ad9c2f424cabaf36b25470db715e81287348",
+      "validationStatus": "NOT_RUN",
+      "inputFiles": [
+        {
+          "fileId": "c63d80dd7d9810b975d8ac355802cc4048ba56c9a122a716b631be42b826f7a1",
+          "fileName": "manifest.json",
+          "sha256": "0399eda4767ecb232f796fe2e1e9420153ec6922253e937058cacfd434b10deb"
+        },
+        {
+          "fileId": "c20a106da5afd983d5f23b200c6d848f8a2399e808be49a3ba84083f03a72715",
+          "fileName": "manifest.json",
+          "sha256": "453c6022a6363f9f95b38269e693fe3f9e1f624481c2c18d0e460988a38c0492"
+        }
+      ]
+    },
+    {
+      "executionId": "cline-1f1dc03b26b3930a59bb480ddafbd44638fe4d48002d3f7f98928c35c3ac30f1",
+      "status": "SUCCEEDED",
+      "stage": "RESULT_VALIDATION_FAILED",
+      "exitCode": 0,
+      "durationMs": 3148,
+      "codeHash": "bdf35471a1e2700c10f898bcf161e1b7ba927923d670c9539797fc1251211351",
+      "artifactRefs": {
+        "stderrRef": "execution:cline-1f1dc03b26b3930a59bb480ddafbd44638fe4d48002d3f7f98928c35c3ac30f1:logs:stderr.txt",
+        "diagnosticRef": "execution:cline-1f1dc03b26b3930a59bb480ddafbd44638fe4d48002d3f7f98928c35c3ac30f1:logs:runtime-diagnostic.json",
+        "evidenceBundleRef": "runtime-evidence:coding:cb98b7e21e89e277851e405fd139b82945b074029cd7a7fed113d7ad0360ab0f:bundle",
+        "validationRecordRef": "runtime-evidence:coding:cb98b7e21e89e277851e405fd139b82945b074029cd7a7fed113d7ad0360ab0f:validation",
+        "resultDatasetRef": "runtime-evidence:coding:cb98b7e21e89e277851e405fd139b82945b074029cd7a7fed113d7ad0360ab0f:result",
+        "inputSnapshotRef": "runtime-evidence:coding:input:63d80dd7d9810b975d8ac355802cc4048ba56c9a122a716b631be42b826f7a1",
+        "codeArtifactRef": "runtime-evidence:coding:cb98b7e21e89e277851e405fd139b82945b074029cd7a7fed113d7ad0360ab0f:code",
+        "executionReceiptRef": "runtime-evidence:coding:cb98b7e21e89e277851e405fd139b82945b074029cd7a7fed113d7ad0360ab0f:receipt"
+      },
+      "manifestHash": "918ae97f89dbde147af09595406bd6d054de9671d58c8276256ec100f7696ac4",
+      "validationStatus": "FAILED",
+      "inputFiles": [
+        {
+          "fileId": "c63d80dd7d9810b975d8ac355802cc4048ba56c9a122a716b631be42b826f7a1",
+          "fileName": "manifest.json",
+          "sha256": "0399eda4767ecb232f796fe2e1e9420153ec6922253e937058cacfd434b10deb"
+        },
+        {
+          "fileId": "c20a106da5afd983d5f23b200c6d848f8a2399e808be49a3ba84083f03a72715",
+          "fileName": "manifest.json",
+          "sha256": "453c6022a6363f9f95b38269e693fe3f9e1f624481c2c18d0e460988a38c0492"
+        }
+      ]
+    },
+    {
+      "executionId": "cline-05ca5a8b302df2cf9ea15f13d703588e8dba28115e43ac46b69c038cd6e64c78",
+      "status": "SUCCEEDED",
+      "stage": "VALIDATED",
+      "exitCode": 0,
+      "durationMs": 3177,
+      "codeHash": "5cfedd61fe16ac3e7ddf9dd864a749d0cef4d6d0bb6137e578a686ee9cf0ce3a",
+      "artifactRefs": {
+        "stderrRef": "execution:cline-05ca5a8b302df2cf9ea15f13d703588e8dba28115e43ac46b69c038cd6e64c78:logs:stderr.txt",
+        "diagnosticRef": "execution:cline-05ca5a8b302df2cf9ea15f13d703588e8dba28115e43ac46b69c038cd6e64c78:logs:runtime-diagnostic.json",
+        "evidenceBundleRef": "runtime-evidence:coding:b02c6dfc9721bb6d986172c42df248a6e9ab0be207963299d2359d439e361ada:bundle",
+        "validationRecordRef": "runtime-evidence:coding:b02c6dfc9721bb6d986172c42df248a6e9ab0be207963299d2359d439e361ada:validation",
+        "resultDatasetRef": "runtime-evidence:coding:b02c6dfc9721bb6d986172c42df248a6e9ab0be207963299d2359d439e361ada:result",
+        "inputSnapshotRef": "runtime-evidence:coding:input:63d80dd7d9810b975d8ac355802cc4048ba56c9a122a716b631be42b826f7a1",
+        "codeArtifactRef": "runtime-evidence:coding:b02c6dfc9721bb6d986172c42df248a6e9ab0be207963299d2359d439e361ada:code",
+        "executionReceiptRef": "runtime-evidence:coding:b02c6dfc9721bb6d986172c42df248a6e9ab0be207963299d2359d439e361ada:receipt"
+      },
+      "manifestHash": "a41aaae15092d89fd28b0a840cdd9a270d563690c0a80356fdc77896020a15cd",
+      "validationStatus": "INCONCLUSIVE",
+      "inputFiles": [
+        {
+          "fileId": "c63d80dd7d9810b975d8ac355802cc4048ba56c9a122a716b631be42b826f7a1",
+          "fileName": "manifest.json",
+          "sha256": "0399eda4767ecb232f796fe2e1e9420153ec6922253e937058cacfd434b10deb"
+        },
+        {
+          "fileId": "c20a106da5afd983d5f23b200c6d848f8a2399e808be49a3ba84083f03a72715",
+          "fileName": "manifest.json",
+          "sha256": "453c6022a6363f9f95b38269e693fe3f9e1f624481c2c18d0e460988a38c0492"
+        }
+      ]
+    }
+  ]
+}

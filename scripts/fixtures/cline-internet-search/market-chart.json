@@ -1,0 +1,9 @@
+{
+  "mode": "role_chat",
+  "skillId": "internet_research_acceptance_20261105",
+  "query": "请自主联网查询欧洲央行近期约一个月的欧元兑美元每日参考汇率，生成简短图文报告。先按需 skill_read 阅读你选择的搜索、Python 和报告 Skill，再 web_search 查找并核验 ECB 原始来源，实际 web_fetch 读取公开 CSV，例如 https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A?lastNObservations=23&format=csvdata 。以实际返回日期界定覆盖区间，核对 CURRENCY、CURRENCY_DENOM、UNIT、TIME_PERIOD 和 OBS_VALUE 的含义，若不是当前月份或存在缺口必须说明。Python 从 calculationInput.fileLayout 的实际挂载文件读取正文，先读 manifest.json 确认 parts 与 columns 的 storageName 和编码，再解析原始 CSV；禁止从工具预览复制数值硬编码，禁止 Python 联网。自主计算该区间首末变化并真实生成一张 PNG 趋势图。正文约 600 字即可，包含趋势、覆盖日期、单位、局限及相邻来源引用，不必重复所有原始行，不检索内部资料。遵守 Runtime 的 results/rows.jsonl 和 visualReport 合同，visualReport.dataSources 必须为 evidenceReferences 的子集，未使用的来源不列入引用清单。发生技术或产物校验错误时读取 artifact_read 回执，在当前程序内用精确 repair 修复，不能重新生成整份程序。交付后在 Runtime OS 同时展示完整报告与真实图表。",
+  "toolInput": {
+    "resourceExplorationApproved": true,
+    "reportMode": "visual"
+  }
+}

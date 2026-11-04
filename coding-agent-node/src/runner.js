@@ -622,12 +622,14 @@ export function createCodingRun(contract, gateway, options = {}) {
     maxIterations: Math.max(1, Math.min(Number(contract.budget?.maxModelCalls ?? 1), 32)),
     toolExecution: 'sequential',
     completionPolicy: {
-      ...(fastAnalysis || workspaceFast || sqlExploration ? { requireCompletionTool: true } : {}),
+      ...(fastAnalysis || workspaceFast || sqlExploration || textResults && contract.runtimeContext?.knowledgeExploration && permitted.has('report_submit') ? { requireCompletionTool: true } : {}),
       completionGuard: () => modelResponseFeedback
         ? `Runtime rejected the previous provider response (${modelResponseFeedback.diagnosticCode}). No tool was executed. `
           + 'Generate a concise, complete JSON object for an already authorized tool. Keep the program focused, avoid repeating context or embedding input datasets, and preserve all requested calculations and evidence limits. '
           + 'Do not infer execution success from the rejected response or change authorization. Continue in this task using the same immutable inputs.'
-        : undefined,
+        : textResults && contract.runtimeContext?.knowledgeExploration && permitted.has('report_submit') && !lastCollectedOperation
+          ? 'The answer has not been submitted or validated. Use report_submit with the reviewed report, exact evidenceReferences and limitations. Plain assistant text does not publish a result. If evidence is insufficient, submit the supported findings and explicitly state the gaps; never invent evidence.'
+          : undefined,
     },
     hooks: {
       async beforeTool() {
@@ -700,6 +702,14 @@ export function createCodingRun(contract, gateway, options = {}) {
         // Reuse it for review; keep Python available for justified corrections.
         if (Array.isArray(request?.tools)) request.tools = request.tools.filter(tool =>
           !(textResults && (codeFiles.length || /^cline-/.test(lastCollectedOperation ?? '')) && tool.name === 'report_submit'));
+        if (textResults && contract.runtimeContext?.knowledgeExploration && permitted.has('report_submit') && !lastCollectedOperation) {
+          const remaining = Math.max(0, Math.min(Number(contract.budget?.maxModelCalls ?? 1), 32) - modelIndex);
+          request.systemPrompt += `\nResource task budget: ${remaining} model turns remain, including report submission and any repair. Finish with report_submit before this budget ends. Use actual JSON arrays for evidenceReferences and limitations.`;
+          if (remaining <= 2) {
+            request.tools = request.tools.filter(tool => tool.name === 'report_submit');
+            request.systemPrompt += '\nThe exploration phase has ended to reserve the remaining turns for submission and validation repair. Submit a concise report from already delivered evidence. Preserve supported findings, identify missing sources as limitations, and never turn missing evidence into a factual conclusion.';
+          }
+        }
         if (terminalFeedback) throw new Error('Runtime execution policy denied automatic repair');
         const repairingModelResponse = Boolean(modelResponseFeedback);
         if (repairingModelResponse) {

@@ -46,6 +46,45 @@ test('Runtime authorization failure returns no knowledge source text',async()=>{
   assert.equal(events.some(event=>event.status==='SUCCEEDED'),false);
 });
 
+test('resource exploration reserves submission and repair turns without enlarging the task budget',async()=>{
+  let turn=0,searches=0,submissions=0;
+  const bounded={...contract,budget:{maxModelCalls:4}};
+  const run=createCodingRun(bounded,{reserveModel(){},settleModel(){},finish(){},executePython(){throw Error('No code authority');},
+    knowledge(){searches++;return {hits:[]};},
+    submitReport(){
+      if(++submissions===1)throw new Error('Repair: limitations must describe missing evidence');
+      return {operationId:'workspace-'+'e'.repeat(64),status:'SUCCEEDED',executorStopped:true,pythonExecuted:false,
+        executionMode:'TEXT_ONLY',resultDatasetRef:'report',validationRecordRef:'validation',evidenceBundleRef:'bundle'};
+    },
+  },{nativeSdk:true,model:{async *stream(request){
+    turn++;
+    assert.match(request.systemPrompt,new RegExp(`Resource task budget: ${5-turn} model turns remain`));
+    if(turn<=2){
+      assert.ok(request.tools.some(tool=>tool.name==='knowledge_search'));
+      yield {type:'tool-call-delta',toolCallId:`budget-${turn}`,toolName:'knowledge_search',input:{query:'recovery test'}};
+    }else{
+      assert.deepEqual(request.tools.map(tool=>tool.name),['report_submit']);
+      yield {type:'tool-call-delta',toolCallId:`budget-${turn}`,toolName:'report_submit',input:{
+        reportMarkdown:'No recovery test evidence was found in the searched scope.',evidenceReferences:[],limitations:['Evidence is insufficient.']}};
+    }
+    yield {type:'finish',reason:'tool-calls'};
+  }}});
+  const result=await run.run();assert.equal(result.status,'completed');assert.equal(turn,4);assert.equal(searches,2);assert.equal(submissions,2);
+});
+
+test('a plain resource answer cannot complete before a verified report is submitted',async()=>{
+  let turn=0,submissions=0;
+  const run=createCodingRun(contract,{reserveModel(){},settleModel(){},finish(){},executePython(){throw Error('No code authority');},knowledge(){return {hits:[]};},
+    submitReport(){submissions++;return {operationId:'workspace-'+'f'.repeat(64),status:'SUCCEEDED',executorStopped:true,
+      pythonExecuted:false,executionMode:'TEXT_ONLY',resultDatasetRef:'report',validationRecordRef:'validation',evidenceBundleRef:'bundle'};},
+  },{nativeSdk:true,model:{async *stream(){
+    if(++turn===1){yield {type:'text-delta',text:'I could not establish a recovery test.'};yield {type:'finish',reason:'end-turn'};}
+    else{yield {type:'tool-call-delta',toolCallId:'publish',toolName:'report_submit',input:{reportMarkdown:'Recovery test evidence is unavailable.',
+      evidenceReferences:[],limitations:['No test evidence.']}};yield {type:'finish',reason:'tool-calls'};}
+  }}});
+  const result=await run.run();assert.equal(result.status,'completed');assert.equal(turn,2);assert.equal(submissions,1);
+});
+
 test('actual SDK loop autonomously joins permitted market history and news without document or Python authority',async()=>{
   const ref='runtime-evidence:knowledge:'+'c'.repeat(64),calls=[];let turn=0;
   const resourceContract={...contract,runtimeContext:{...contract.runtimeContext,knowledgeExploration:{...profile,resourceIds:['financial_news','financial_market']}},objective:{instruction:'Compare observed prices with policy news; do not infer causation'},authorization:{...contract.authorization,allowedTools:[...RESOURCE_TOOLS,'report_submit','skill_read']}};

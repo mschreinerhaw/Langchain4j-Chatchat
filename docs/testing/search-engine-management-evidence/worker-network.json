@@ -1,0 +1,34 @@
+[
+  {
+    "probe": "public-ip",
+    "result": "BLOCKED_ENETUNREACH"
+  },
+  {
+    "probe": "metadata",
+    "result": "BLOCKED_ENETUNREACH"
+  },
+  {
+    "probe": "host-private",
+    "result": "BLOCKED_ENETUNREACH"
+  },
+  {
+    "probe": "general-api",
+    "result": "BLOCKED_TIMEOUT"
+  },
+  {
+    "probe": "control-api",
+    "result": "BLOCKED_ENETUNREACH"
+  },
+  {
+    "probe": "callback",
+    "result": "CONNECTED"
+  },
+  {
+    "probe": "public-dns",
+    "result": "EAI_AGAIN"
+  },
+  {
+    "internal": true,
+    "ipv6": false
+  }
+]

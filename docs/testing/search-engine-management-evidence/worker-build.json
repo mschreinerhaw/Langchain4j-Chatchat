@@ -1,0 +1,18 @@
+{
+  "image": "runtime-os-coding-agent:agent-skills-internet-c7823a191b60",
+  "imageId": "sha256:eaf1836a640d0c64ba13d06e5d97d120d853f13b589644828ee61509492e483a",
+  "baselineImageId": "sha256:533242dc003497c2e387e2a50a23daad0eb96a6ec00f8a0bd46a7bfb5e8ed56e",
+  "archiveSha256": "2b98f7b8d90354a7a4c5b3e5600e9a64104698a7bdd5ac63ed7799939444cf78",
+  "offlineBuildAndTests": true,
+  "tests": [
+    "\u2714 task deadline aborts prefetch without extending the model budget (41.144882ms)",
+    "\u2139 tests 189",
+    "\u2139 suites 0",
+    "\u2139 pass 189",
+    "\u2139 fail 0",
+    "\u2139 cancelled 0",
+    "\u2139 skipped 0",
+    "\u2139 todo 0",
+    "\u2139 duration_ms 35090.956284"
+  ]
+}

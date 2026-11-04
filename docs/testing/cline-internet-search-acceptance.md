@@ -6,6 +6,8 @@
 
 后续历史会话来源失效回归见[逐消息隔离实测](conversation-source-disclosure.md)：保留原始审计，受限回答显示中文占位，正常历史图表继续可读。此补充不改写以下原始任务结果。
 
+后续[检索引擎维护与多选实测](search-engine-management.md)包含动态实例维护、真实 Cline 双配置检索及清理后的报告重开；操作方法见[维护说明](../operations/search-engine-management.md)。
+
 ## 真实执行
 
 | 场景 | 实测结果 | 证据与边界 |

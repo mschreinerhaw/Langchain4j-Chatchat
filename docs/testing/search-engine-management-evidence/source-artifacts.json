@@ -1,0 +1,36 @@
+{
+  "sourceCommit": "ad46a71aaa86bda02d6cdec929a0759886b8b04a",
+  "artifacts": {
+    "api": {
+      "sha256": "59b7450bee95744fdf1f4a80ac0ed90db804edae3f5e3a955c3e1ba2a9cbeb4b",
+      "bytes": 428810989
+    },
+    "mcp": {
+      "sha256": "3958cbcddb58937a27809d7cbf1d9c1c1ad3b0a264e02b4747ee38ea3060c991",
+      "bytes": 256308960
+    },
+    "news": {
+      "sha256": "b5b4b65efb2ee7f94716b8acf567f6946f5df04549cd2a5a5ca4fe31f82d4553",
+      "bytes": 156516352
+    }
+  },
+  "workerArchiveSha256": "2b98f7b8d90354a7a4c5b3e5600e9a64104698a7bdd5ac63ed7799939444cf78",
+  "workerModules": {
+    "code-repair.js": "fedbf9661a5c790f920b634a43f6a9d028e775579c22455632becb53e4578847",
+    "execution-feedback.js": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+    "healthcheck.js": "772c652af1dcd582f8b44e9761f76cdd8fffc9723d8282383800a2c0d880c8cc",
+    "knowledge-tools.js": "85affb0f59292141cfe44c1c363781581d3f088285de4eb6d0e18adbe120e80a",
+    "monitor-client.js": "fa1846783474f0990a62a1f7bbff7a4b055451b2dd99d27e14f0a436a024b079",
+    "monitor-types.js": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+    "monitor.js": "cf0f7eec64300d0e9dd187878c82202eaf6fd9514e58c75e1e022449a2156354",
+    "python-project.js": "79e3eb8e04bd0fd2a7762db82eb75c6fed94ba1d7d969d82b34da6340b05ed83",
+    "request-context.js": "8b1648829037cc1d283f6ac0769348c6b17ec8f115c09101805714f421698b16",
+    "runner.js": "620f03507e31b49652eaccadeef5703368943cc4013c87e1dc23c1a5e65d6bbd",
+    "runtime-model.js": "07b0c9553722d8be183df275e1f6ca4b1ee30e62334e1d071153b8ec52a10008",
+    "sdk-adapter.js": "c14abd29e05ced5271b25a8dbc083c923136cec1a1f3f28da068b7210439a611",
+    "sdk-packages.js": "e6898b39f5d51044e13d133b7bdaf40b95940b89dfec4837ea50c07d3436d097",
+    "server.js": "bc5dab1099ffde8d30ddfabdd94541b765d0f6d71436ddbdd5fdf1d109c0150d",
+    "skills.js": "390dd98fb521d4de789bc15552a728c6264ba41b6622ef3147320fe74aa04cb7"
+  },
+  "workerTestsPassed": 189
+}

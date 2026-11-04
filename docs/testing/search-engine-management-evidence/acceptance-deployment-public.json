@@ -1,0 +1,67 @@
+{
+  "capturedAt": "2026-11-04T23:30:30.373149+00:00",
+  "deployment": {
+    "status": "DEPLOYED",
+    "sourceCommit": "ad46a71aaa86bda02d6cdec929a0759886b8b04a",
+    "image": "runtime-os-api:cline-internet-ad46a71aaa86",
+    "sha256": "59b7450bee95744fdf1f4a80ac0ed90db804edae3f5e3a955c3e1ba2a9cbeb4b",
+    "backup": "/opt/chatchat-releases/cline-report-skills-search-providers-r2/backup",
+    "retired": {
+      "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-studio-1793834765",
+      "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-studio-1793834765"
+    },
+    "catalogReadiness": {
+      "status": "API_MCP_CATALOG_READY",
+      "registryState": "HEALTHY",
+      "registeredToolCount": 39,
+      "requiredTools": [
+        "enterprise_metadata_search",
+        "sql_schema_context_query"
+      ],
+      "capturedAt": "2026-11-04T23:26:53.566325+00:00"
+    },
+    "unrelatedContainersUnchanged": true,
+    "conversationContentUnchanged": true,
+    "messageIndexCountUnchanged": true
+  },
+  "containers": [
+    {
+      "service": "api",
+      "image": "runtime-os-api:cline-internet-ad46a71aaa86",
+      "imageId": "sha256:10609f6ad59dd627306f668778dcc6a5534146f92c69a9b223ae6f15a903d7d3",
+      "running": true,
+      "jarSha256": "59b7450bee95744fdf1f4a80ac0ed90db804edae3f5e3a955c3e1ba2a9cbeb4b"
+    },
+    {
+      "service": "mcp",
+      "image": "runtime-os-mcp:cline-internet-c7823a191b60",
+      "imageId": "sha256:0210f34eb4348f7ad2b6beb843d53eb1c055a070f992608157e9e8a81d08ee74",
+      "running": true,
+      "jarSha256": "3958cbcddb58937a27809d7cbf1d9c1c1ad3b0a264e02b4747ee38ea3060c991"
+    },
+    {
+      "service": "news",
+      "image": "runtime-os-news:cline-internet-c7823a191b60",
+      "imageId": "sha256:374d83a2837e026bbff7fa73ef20a751b708185b87c7126c5e19ffd3ce42a122",
+      "running": true,
+      "jarSha256": "b5b4b65efb2ee7f94716b8acf567f6946f5df04549cd2a5a5ca4fe31f82d4553"
+    },
+    {
+      "service": "coding-agent",
+      "image": "runtime-os-coding-agent:agent-skills-internet-c7823a191b60",
+      "imageId": "sha256:eaf1836a640d0c64ba13d06e5d97d120d853f13b589644828ee61509492e483a",
+      "running": true,
+      "privileged": false,
+      "capDrop": [
+        "ALL"
+      ],
+      "user": "1000:32101",
+      "networks": [
+        {
+          "internal": true,
+          "ipv6": false
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,119 @@
+{
+  "taskId": "0dfa15d4-e9a8-4dd1-be1d-a3ad948cf7ef",
+  "attemptId": "att-1-c55e8aea-8ae8-4c4d-ab7d-7b762af4c08a",
+  "canonicalState": "SUCCEEDED",
+  "conversationId": "1793834856762-9535f23efe1658",
+  "reportSha256": "9ff6c52b3454065dc52030b627488534221ea3d2c480cba591ceaa1155ab25b8",
+  "sourceEvidenceCount": 11,
+  "searchEngines": [
+    "tencent-wsa",
+    "search-0b7305a6-39bd-4af6-8ac3-6a22ba501da1"
+  ],
+  "coding": [
+    {
+      "taskId": "analysis-coding-1c15e8282f1153c6ef791f2c05d8ff5ec4d62a82f21e09b483a26ab13d491e67",
+      "internetSearch": {
+        "agentId": "internet_research_acceptance_20261105",
+        "explicitlyRequested": true,
+        "modelName": "qwen3.7-plus",
+        "modelRevision": 5,
+        "providerId": "tencent-wsa",
+        "providerRevision": 6,
+        "providers": [
+          {
+            "id": "tencent-wsa",
+            "name": "腾讯 WSA",
+            "revision": 6
+          },
+          {
+            "id": "search-0b7305a6-39bd-4af6-8ac3-6a22ba501da1",
+            "name": "自定义检索验收（已编辑）",
+            "revision": 2
+          }
+        ],
+        "schemaVersion": "runtime_os.internet.v1"
+      },
+      "allowedTools": [
+        "artifact_read",
+        "code_read",
+        "input_read",
+        "market_get_history",
+        "market_get_indicators",
+        "market_get_snapshot",
+        "market_search",
+        "news_get_article",
+        "news_related_events",
+        "news_search",
+        "report_submit",
+        "skill_read",
+        "sql_validate",
+        "web_fetch",
+        "web_search"
+      ],
+      "outcome": "COMPLETED",
+      "codeExecutions": 0,
+      "modelReceipts": [
+        {
+          "modelCall": 1,
+          "state": "SUCCEEDED",
+          "selectedModel": "qwen3.7-plus",
+          "durationMs": 6280,
+          "usage": {
+            "outputTokens": 287,
+            "cacheReadTokens": 0,
+            "reasoningTokens": 128,
+            "inputTokens": 12673
+          }
+        },
+        {
+          "modelCall": 2,
+          "state": "SUCCEEDED",
+          "selectedModel": "qwen3.7-plus",
+          "durationMs": 3189,
+          "usage": {
+            "outputTokens": 113,
+            "cacheReadTokens": 0,
+            "reasoningTokens": 40,
+            "inputTokens": 17274
+          }
+        },
+        {
+          "modelCall": 3,
+          "state": "SUCCEEDED",
+          "selectedModel": "qwen3.7-plus",
+          "durationMs": 39707,
+          "usage": {
+            "outputTokens": 2399,
+            "cacheReadTokens": 3456,
+            "reasoningTokens": 287,
+            "inputTokens": 18940
+          }
+        },
+        {
+          "modelCall": 4,
+          "state": "SUCCEEDED",
+          "selectedModel": "qwen3.7-plus",
+          "durationMs": 50130,
+          "usage": {
+            "outputTokens": 3045,
+            "cacheReadTokens": 3456,
+            "reasoningTokens": 959,
+            "inputTokens": 24067
+          }
+        },
+        {
+          "modelCall": 5,
+          "state": "SUCCEEDED",
+          "selectedModel": "qwen3.7-plus",
+          "durationMs": 41358,
+          "usage": {
+            "outputTokens": 2451,
+            "cacheReadTokens": 3456,
+            "reasoningTokens": 36,
+            "inputTokens": 26528
+          }
+        }
+      ]
+    }
+  ]
+}

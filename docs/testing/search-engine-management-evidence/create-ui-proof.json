@@ -1,0 +1,30 @@
+{
+  "at": "2026-11-04T23:24:25.038Z",
+  "provider": {
+    "requestsPerMinute": 30,
+    "kind": "TENCENT",
+    "timeoutMillis": 10000,
+    "endpoint": "https://wsa.tencentcloudapi.com/",
+    "supportsNews": false,
+    "revision": 2,
+    "id": "search-0b7305a6-39bd-4af6-8ac3-6a22ba501da1",
+    "name": "自定义检索验收（已编辑）",
+    "maxDailyCalls": 1000,
+    "enabled": true,
+    "maxTaskCalls": 12,
+    "status": "NOT_TESTED",
+    "configured": true
+  },
+  "keyFieldsCleared": true,
+  "blankKeyEditRetainedCredential": true,
+  "model": {
+    "name": "qwen3.7-plus",
+    "enabled": true,
+    "providers": [
+      "tencent-wsa",
+      "search-0b7305a6-39bd-4af6-8ac3-6a22ba501da1"
+    ]
+  },
+  "persistedAfterReload": true,
+  "pageErrors": []
+}

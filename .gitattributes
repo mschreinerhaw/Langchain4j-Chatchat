@@ -1,5 +1,7 @@
 *.sh text eol=lf
 docs/testing/conversation-source-disclosure-evidence/** -text whitespace=cr-at-eol
+docs/testing/search-engine-management-evidence/** -text whitespace=cr-at-eol
+docs/testing/search-engine-management-evidence/report.md -whitespace
 chatchat-api/web-app/**/*.vue text eol=lf
 chatchat-api/web-app/**/*.js text eol=lf
 chatchat-api/web-app/**/*.ts text eol=lf

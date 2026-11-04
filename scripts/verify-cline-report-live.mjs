@@ -11,8 +11,10 @@ const cases={
  C:{agent:'financial_indicator',mode:'agent_chat',visual:true,query:'查询客户号 070200046604 的交易和资产、盈亏情况；总结交易偏好。请形成分析报告，需要的图表必须来自实际授权数据；没有的历史趋势或指标口径请明确说明，保留数据访问权限边界。'},
  D:{agent:'resource_exploration_acceptance_20261104',mode:'role_chat',visual:true,query:'仅基于本题提供的定性文字形成研究报告：某研究团队认为长期决策需要核对证据、记录不确定性并定期复盘。说明这种方法的适用条件和局限。此题没有数值观察，不检索或编造数值，不需要为图文偏好强行绘图。'},
 };
-const id=process.argv[2];assert.ok(cases[id],'Choose A, A2, B, C or D');
-const spec=cases[id],out=process.env.REPORT_OUTPUT||`target/cline-report-live/${id}`;
+const id=process.argv[2];
+const custom=process.env.REPORT_REQUEST_FILE?JSON.parse(fs.readFileSync(process.env.REPORT_REQUEST_FILE,'utf8')):null;
+assert.ok(custom||cases[id],'Choose A, A2, B, C or D, or supply REPORT_REQUEST_FILE');
+const spec=custom?{agent:custom.skillId,mode:custom.mode,visual:custom.toolInput?.reportMode==='visual',query:custom.query}:cases[id],out=process.env.REPORT_OUTPUT||`target/cline-report-live/${id}`;
 fs.mkdirSync(out,{recursive:true});
 const save=(name,data)=>fs.writeFileSync(path.join(out,name+'.json'),JSON.stringify(data??null,null,2));
 const login=await fetch(origin+'/api/v1/enterprise/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({username:process.env.REPORT_USER||'admin',password:process.env.REPORT_PASSWORD})});
@@ -23,7 +25,7 @@ let submitted;
 const prior=path.join(out,'submission.json');
 if(fs.existsSync(prior))submitted=JSON.parse(fs.readFileSync(prior));
 else {
- const request={mode:spec.mode,skillId:spec.agent,sessionId:randomUUID(),requestSource:'cline-report-skills-live-acceptance',idempotencyKey:randomUUID(),query:spec.query,toolInput:{resourceExplorationApproved:true,reportMode:spec.visual?'visual':'off'}};
+ const request={mode:spec.mode,skillId:spec.agent,sessionId:randomUUID(),requestSource:'cline-report-skills-live-acceptance',idempotencyKey:randomUUID(),query:spec.query,toolInput:{resourceExplorationApproved:true,reportMode:spec.visual?'visual':'off'},...(custom||{})};
  if(process.env.REPORT_MODEL)request.modelName=process.env.REPORT_MODEL;
  save('request',request);submitted=await api('/agent/tasks',request);save('submission',submitted);
 }

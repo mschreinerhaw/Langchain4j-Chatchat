@@ -18,6 +18,10 @@ import java.util.List;
 @RequestMapping("/api/v1/platform/models")
 public class PlatformModelController {
     private final PlatformModelCatalogService catalog;
+    @org.springframework.beans.factory.annotation.Autowired
+    private PlatformInternetPolicy internetPolicy;
+    @GetMapping("/search-providers")
+    public ApiResponse<?> searchProviders(){return ApiResponse.success(internetPolicy.providers());}
 
     @GetMapping
     public ApiResponse<List<PlatformModelCatalogService.ModelView>> list() {

@@ -111,6 +111,7 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
         attrs.put(SkillAnalysisContext.ATTRIBUTE, SkillAnalysisContext.validate(context.skillAnalysisContext()));
         attrs.put("codingOwnedAnalysisActive", true);
         attrs.put("contextOnlyAnswer", true); // This route cannot delegate external business queries.
+        if(agent!=null&&agent.id()!=null&&!agent.id().isBlank())attrs.put("authorizationAgentId",agent.id());
         if(!withAttachments && sqlSource==null && agent!=null && agent.id()!=null && !agent.id().isBlank())
             attrs.put("knowledgeAgentId",agent.id());
         if(attrs.containsKey("knowledgeAgentId")) {

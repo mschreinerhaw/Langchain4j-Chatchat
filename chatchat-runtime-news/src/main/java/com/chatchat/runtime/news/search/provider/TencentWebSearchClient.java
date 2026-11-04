@@ -181,7 +181,7 @@ public class TencentWebSearchClient {
         return new SearchResponse(List.copyOf(pages), requestId, responseVersion);
     }
 
-    private String authorization(String host, String body, Instant now,
+    public String authorization(String host, String body, Instant now,
                                  NewsRuntimeProperties.WebSearch config) throws Exception {
         String canonicalHeaders = "content-type:application/json; charset=utf-8\n"
             + "host:" + host.toLowerCase(Locale.ROOT) + "\n"

@@ -30,6 +30,9 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
     private final Environment environment;
     private final McpModelSyncClient mcpSync;
     private volatile boolean initialized;
+    private PlatformInternetPolicy internetPolicy;
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setInternetPolicy(PlatformInternetPolicy value){internetPolicy=value;}
 
     @Override public synchronized void run(ApplicationArguments args) { initialize(); }
 
@@ -38,15 +41,22 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
                             Integer maxRetries, boolean enabled, boolean defaultModel,
                             boolean hasApiKey, String source, long updatedAt,
                             boolean published, boolean pendingChanges,
-                            boolean activeEnabled, boolean activeDefault, Integer requestTimeoutSeconds) { }
+                            boolean activeEnabled, boolean activeDefault, Integer requestTimeoutSeconds,
+                            boolean internetSearchEnabled,String searchProviderId) { }
     public record ModelDraft(String name, String alias, String description, String type, String providerModel, String baseUrl,
                              String protocol, Integer dimension, Integer timeout, Integer maxTokens,
                              Integer maxRetries, String apiKey, Boolean enabled,
                              Boolean defaultModel,
                              @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = RequestTimeoutDeserializer.class)
-                             Integer requestTimeoutSeconds) {
+                             Integer requestTimeoutSeconds,Boolean internetSearchEnabled,String searchProviderId) {
         public ModelDraft {
             requestTimeoutSeconds = ModelsConfig.ModelConnectionConfig.effectiveRequestTimeoutSeconds(requestTimeoutSeconds);
+        }
+        public ModelDraft(String name,String alias,String description,String type,String providerModel,String baseUrl,
+                String protocol,Integer dimension,Integer timeout,Integer maxTokens,Integer maxRetries,String apiKey,
+                Boolean enabled,Boolean defaultModel,Integer requestTimeoutSeconds){
+            this(name,alias,description,type,providerModel,baseUrl,protocol,dimension,timeout,maxTokens,maxRetries,apiKey,
+                enabled,defaultModel,requestTimeoutSeconds,null,null);
         }
         public ModelDraft(String name, String alias, String description, String type, String providerModel, String baseUrl,
                 String protocol, Integer dimension, Integer timeout, Integer maxTokens, Integer maxRetries,
@@ -90,7 +100,8 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
                 rs.getInt("publication_count") > 0,
                 rs.getObject("published_at") != null && rs.getLong("updated_at") > rs.getLong("published_at"),
                 rs.getBoolean("active_enabled"), rs.getBoolean("active_default"),
-                rs.getInt("request_timeout_seconds")));
+                rs.getInt("request_timeout_seconds"),internetPolicy!=null&&"chat".equals(rs.getString("model_type"))&&internetPolicy.read(rs.getString("name")).enabled(),
+                internetPolicy==null||!"chat".equals(rs.getString("model_type"))?null:internetPolicy.read(rs.getString("name")).providerId()));
     }
 
     @Transactional
@@ -98,6 +109,10 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
         initialize();
         String name = required(draft == null ? null : draft.name(), "name");
         String type = normalizeType(draft.type());
+        if(internetPolicy!=null){
+            if(!"chat".equals(type)&&Boolean.TRUE.equals(draft.internetSearchEnabled()))throw new IllegalArgumentException("Internet search requires a chat model");
+            if("chat".equals(type))internetPolicy.save(name,draft.internetSearchEnabled(),draft.searchProviderId());
+        }
         int requestTimeoutSeconds = ModelsConfig.ModelConnectionConfig.effectiveRequestTimeoutSeconds(draft.requestTimeoutSeconds());
         String url = required(draft.baseUrl(), "baseUrl");
         validateUrl(url);
@@ -226,6 +241,7 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
         }
         jdbc.update("DELETE FROM platform_model_config WHERE model_type=? AND name=?", type, name);
         jdbc.update("DELETE FROM platform_model_publication WHERE model_type=? AND name=?", type, name);
+        if("chat".equals(type)&&internetPolicy!=null)internetPolicy.save(name,false,null);
         ensureDefault(type);
         applyEmbedding();
     }

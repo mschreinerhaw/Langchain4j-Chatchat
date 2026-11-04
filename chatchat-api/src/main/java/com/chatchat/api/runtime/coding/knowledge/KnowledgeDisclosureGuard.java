@@ -80,7 +80,7 @@ public class KnowledgeDisclosureGuard {
         if(tenant==null||viewer==null||runId==null||runId.isBlank()||runId.length()>256)return false;
         var rows=jdbc.queryForList("select e.record_json from runtime_evidence_entry e join runtime_evidence_partition p on p.id=e.partition_id "
             +"where p.tenant_id=? and p.run_id=? and e.entry_kind='EVIDENCE' "
-            +"and e.evidence_type in ('KNOWLEDGE_DOCUMENT_REFERENCE','KNOWLEDGE_CHUNK_REFERENCE','RESOURCE_NEWS_REFERENCE','RESOURCE_MARKET_REFERENCE') limit 513",tenant,runId);
+            +"and e.evidence_type in ('KNOWLEDGE_DOCUMENT_REFERENCE','KNOWLEDGE_CHUNK_REFERENCE','RESOURCE_NEWS_REFERENCE','RESOURCE_MARKET_REFERENCE','RESOURCE_INTERNET_REFERENCE') limit 513",tenant,runId);
         if(rows.size()>512)throw new SecurityException("Knowledge disclosure manifest exceeds budget");
         if(!rows.isEmpty())requireLiveValidation();
         var checked=new HashSet<String>();
@@ -108,7 +108,7 @@ public class KnowledgeDisclosureGuard {
             String quoted=json.writeValueAsString(conversation).replace("!","!!").replace("%","!%").replace("_","!_");
             var rows=jdbc.queryForList("select e.record_json from runtime_evidence_entry e join runtime_evidence_partition p on p.id=e.partition_id "
                 +"where p.tenant_id=? and p.user_id=? and e.entry_kind='EVIDENCE' and e.evidence_type in "
-                +"('KNOWLEDGE_DOCUMENT_REFERENCE','KNOWLEDGE_CHUNK_REFERENCE','RESOURCE_NEWS_REFERENCE','RESOURCE_MARKET_REFERENCE') "
+                +"('KNOWLEDGE_DOCUMENT_REFERENCE','KNOWLEDGE_CHUNK_REFERENCE','RESOURCE_NEWS_REFERENCE','RESOURCE_MARKET_REFERENCE','RESOURCE_INTERNET_REFERENCE') "
                 +"and e.record_json like ? escape '!' limit 513",tenant,user,"%"+quoted+"%");
             if(rows.size()>512)return true;
             for(var row:rows) {

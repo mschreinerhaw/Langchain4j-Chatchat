@@ -9,7 +9,7 @@ import java.util.*;
 /** Fixed-origin delegation to existing MCP data engines. No semantic review or model call. */
 @Service
 public class CodingResourceReader {
-    public static final Set<String> TOOLS=Set.of("news_search","news_get_article","news_related_events","market_search","market_get_history","market_get_indicators","market_get_snapshot");
+    public static final Set<String> TOOLS=Set.of("news_search","news_get_article","news_related_events","market_search","market_get_history","market_get_indicators","market_get_snapshot","web_search","web_fetch");
     private final McpControlPlaneClient mcp;
     private final ObjectMapper json;
     public CodingResourceReader(McpControlPlaneClient mcp,ObjectMapper json){this.mcp=mcp;this.json=json;}
@@ -33,6 +33,7 @@ public class CodingResourceReader {
         if(tool.startsWith("knowledge_"))return AgentResourcePolicy.KNOWLEDGE;
         if(tool.startsWith("news_"))return AgentResourcePolicy.NEWS;
         if(tool.startsWith("market_"))return AgentResourcePolicy.MARKET;
+        if(CodingInternetAccess.TOOLS.contains(tool))return AgentResourcePolicy.INTERNET;
         throw new SecurityException("Unknown resource tool");
     }
     public Map<String,Object> read(String tool,JsonNode args) {

@@ -1170,7 +1170,7 @@ export default {
         : this.normalizeWorkflowConfig(this.form.workflowConfig, selectedToolNames);
       const defaultDataAsset = this.defaultDataAssetFromForm();
       workflowConfig.resourceExploration = {
-        resourcePermissions: ["knowledge_documents", "financial_news", "financial_market"].map(resourceId => ({
+        resourcePermissions: ["knowledge_documents", "financial_news", "financial_market", "internet_search"].map(resourceId => ({
           resourceId, enabled: (this.form.resourceIds || []).includes(resourceId)
             && this.resourceOptions.some(option => option.id === resourceId), access: "read"
         })),

@@ -41,6 +41,9 @@ public class CodingKnowledgeService {
     private final ObjectMapper json;
     private com.chatchat.common.retrieval.AgentResourceScopePort resourceScopes;
     private CodingResourceReader resourceReader;
+    private CodingInternetAccess internet;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setInternet(CodingInternetAccess value){internet=value;}
     private com.chatchat.api.runtime.coding.data.CodingDataSupplyService dataSupply;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setDataSupply(com.chatchat.api.runtime.coding.data.CodingDataSupplyService value){dataSupply=value;}
@@ -130,12 +133,13 @@ public class CodingKnowledgeService {
             d.getUpdatedAt(),d.getTitle(),d.getContent(),properties.getChunkSize(),properties.getChunkOverlap())));
     }
     public Map<String,Object> call(CodingTaskContract c,CodingJournal.Lease lease,String tool,String callId,JsonNode args) {
-        if((!TOOLS.contains(tool)&&!CodingResourceReader.TOOLS.contains(tool))||!enabled(c)||!c.permitsTextResult())throw new SecurityException("Knowledge tool denied");
+        if((!TOOLS.contains(tool)&&!CodingResourceReader.TOOLS.contains(tool))||!enabled(c)||!c.permitsTextResult()&&!CodingInternetAccess.TOOLS.contains(tool))throw new SecurityException("Knowledge tool denied");
+        if(CodingInternetAccess.TOOLS.contains(tool)){if(internet==null)throw new SecurityException("Internet service unavailable");internet.require(c,tool);}
         try{requireResource(c,tool);}catch(SecurityException denied){auditAccess(c,tool,"DENIED");throw denied;}
         auditAccess(c,tool,"ALLOWED");
         if(callId==null||callId.isBlank()||callId.length()>512||args==null||!args.isObject())
             throw new IllegalArgumentException("Bounded knowledge call required");
-        Set<String> fields=CodingResourceReader.TOOLS.contains(tool)?Set.of("query","security_code","start_time","end_time","industry","limit","offset","article_id","version_id","dataset","filters","start_date","end_date","history_mode"):switch(tool) {
+        Set<String> fields=CodingInternetAccess.TOOLS.contains(tool)?(tool.equals("web_search")?Set.of("query","search_type","count","language","time_range"):Set.of("url","max_content_length")):CodingResourceReader.TOOLS.contains(tool)?Set.of("query","security_code","start_time","end_time","industry","limit","offset","article_id","version_id","dataset","filters","start_date","end_date","history_mode"):switch(tool) {
             case "knowledge_search" -> Set.of("query","top_k","mode","filters");
             case "knowledge_related" -> Set.of("document_id","version_id","top_k");
             case "knowledge_read" -> Set.of("document_id","version_id","chunk_index","limit");
@@ -302,6 +306,7 @@ public class CodingKnowledgeService {
             var record=evidence.find(c.scope(),ref.asText().substring("runtime-evidence:".length())).orElseThrow(()->new SecurityException("Unknown source"));
             if(!record.payload().containsKey("resource_id"))continue;
             String tool=validateResourceLocator(c,record.payload(),authorized);var args=json.valueToTree(record.payload().get("read_arguments"));
+            if(CodingInternetAccess.TOOLS.contains(tool))continue; // Public web citations retain the acquired immutable view, never trigger fresh Internet IO.
             String key=resourceReadKey(tool,args);reads.putIfAbsent(key,new CodingResourceReader.Read(tool,args));locators.putIfAbsent(key,record.payload());
         }
         var current=new LinkedHashMap<String,Map<String,Object>>();var keys=new ArrayList<>(reads.keySet());
@@ -387,7 +392,14 @@ public class CodingKnowledgeService {
     private Map<String,Object> resourceCall(CodingTaskContract c,CodingJournal.Lease lease,String tool,JsonNode args,String callId) {
         requireExecutionOpen(c);
         if(resourceReader==null||args.toString().length()>10000)throw new SecurityException("Bounded resource reader unavailable");
-        var result=resourceReader.read(tool,args);
+        var result=CodingInternetAccess.TOOLS.contains(tool)?internet.read(c,tool,callId,args):resourceReader.read(tool,args);
+        if(CodingInternetAccess.TOOLS.contains(tool)&&"ERROR".equals(result.get("status")))return result;
+        if(tool.equals("web_search")){
+            if(!(result.get("items") instanceof List<?> items)||items.size()>10)throw new IllegalStateException("Invalid Internet search response");
+            var delivered=new ArrayList<Map<String,Object>>();
+            for(var item:items){var body=json.convertValue(item,new com.fasterxml.jackson.core.type.TypeReference<LinkedHashMap<String,Object>>(){});String ref=rememberResource(c,lease,tool,args,body,callId);body.put("evidence_id",ref);delivered.add(body);}
+            result.put("items",delivered);return result;
+        }
         if(tool.equals("news_search")||tool.equals("news_related_events")||tool.equals("market_search")) {
             if(!(result.get("items") instanceof List<?> items)||items.size()>20)throw new IllegalStateException("Invalid resource search response");
             var delivered=new ArrayList<Map<String,Object>>();
@@ -411,7 +423,7 @@ public class CodingKnowledgeService {
             String ref=rememberResource(c,lease,tool,args,result,callId);
             // Freeze observations already read through MCP; never let a worker
             // inject its own rows or turn a catalog search into measured data.
-            if(tool.startsWith("market_get_") && c.authorization().allowedTools().contains("python_execute")) {
+            if((tool.startsWith("market_get_")||tool.equals("web_fetch")) && c.authorization().allowedTools().contains("python_execute")) {
                 if(dataSupply==null)throw new IllegalStateException("Resource input snapshots unavailable");
                 result.put("calculationInput",dataSupply.captureResource(c,lease,ref,new LinkedHashMap<>(result)));
             }
@@ -422,6 +434,7 @@ public class CodingKnowledgeService {
     private String rememberResource(CodingTaskContract c,CodingJournal.Lease lease,String tool,JsonNode args,Map<String,Object> body,String callId) {
         var locator=new LinkedHashMap<String,Object>();locator.put("taskId",c.taskId());locator.put("agentId",agent(c));
         locator.put("resource_id",CodingResourceReader.resource(tool));locator.put("read_tool",tool);locator.put("read_arguments",args);
+        if(CodingInternetAccess.TOOLS.contains(tool))locator.put("source_body",new LinkedHashMap<>(body));
         if(tool.startsWith("market_")) {
             locator.put("resource_hash_schema","market_catalog_heartbeat_v1");
             var catalog=body.get("asset") instanceof Map<?,?> a?a:body;
@@ -430,7 +443,7 @@ public class CodingKnowledgeService {
         } else locator.put("response_hash",evidence.contentHash(body));
         String id="knowledge:"+ModelProtocolJson.sha256Hex(ModelProtocolJson.compact(locator));
         if(evidence.find(c.scope(),id).isEmpty())evidence.register(new EvidenceRecord(null,id,c.scope(),
-            tool.startsWith("news_")?"RESOURCE_NEWS_REFERENCE":"RESOURCE_MARKET_REFERENCE","CodingKnowledgeService",evidence.contentHash(locator),locator,null,0,Map.of()),
+            CodingInternetAccess.TOOLS.contains(tool)?"RESOURCE_INTERNET_REFERENCE":tool.startsWith("news_")?"RESOURCE_NEWS_REFERENCE":"RESOURCE_MARKET_REFERENCE","CodingKnowledgeService",evidence.contentHash(locator),locator,null,0,Map.of()),
             new EvidenceLineage(null,id,c.scope(),List.of(c.inputSnapshotRef().replace("runtime-evidence:","")),c.taskId(),"CodingKnowledgeService",callId,Map.of()));
         String reference="runtime-evidence:"+id;var old=tasks.privateState(c.scope(),c.taskId(),"knowledge-disclosures");var refs=new TreeSet<String>();
         if(old!=null)old.forEach(n->refs.add(n.asText()));
@@ -466,6 +479,16 @@ public class CodingKnowledgeService {
     }
     private Map<String,Object> validateResourceReference(CodingTaskContract c,String ref,Map<String,Object> locator,boolean sourceText,Map<String,Map<String,Object>> batch,Set<String> authorized) {
         String tool=validateResourceLocator(c,locator,authorized);var args=json.valueToTree(locator.get("read_arguments"));
+        if(CodingInternetAccess.TOOLS.contains(tool)){
+            if(!(locator.get("source_body") instanceof Map<?,?> body)||!evidence.contentHash(json.convertValue(body,new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){})).equals(locator.get("response_hash")))throw new SecurityException("Invalid archived public source");
+            var view=new LinkedHashMap<String,Object>();view.put("document_id","web:"+locator.get("response_hash"));view.put("resource_id","internet_search");
+            view.put("title",body.getOrDefault("title",null));view.put("document_title",body.get("title"));view.put("source_url",body.get("url"));
+            view.put("version_id",locator.get("response_hash"));view.put("version",Objects.toString(body.get("retrieved_at"),locator.get("response_hash").toString().substring(0,12)));
+            view.put("section_path",tool.equals("web_search")?"互联网 / 搜索结果摘要":"互联网 / 公开网页正文");view.put("chunk_index",0);view.put("page",null);view.put("evidence_id",ref);
+            view.put("published_at",body.get("published_at"));view.put("retrieved_at",body.get("retrieved_at"));view.put("collected_at",body.get("retrieved_at"));view.put("authority","UNTRUSTED_SOURCE_DATA");
+            if(sourceText){view.put("text",body.containsKey("content")?body.get("content"):body.get("snippet"));view.put("source_metadata",body);}
+            return view;
+        }
         Map<String,Object> current;
         try{current=batch.get(resourceReadKey(tool,args));if(current==null)current=resourceReader.read(tool,args);}
         catch(RuntimeException unavailable){throw new SecurityException("Source cannot be revalidated; retained content is withheld",unavailable);}

@@ -1176,6 +1176,9 @@ public class McpToolRegistryBridge {
         if (internalPurpose != null) {
             mcpContext.putIfAbsent("internalPurpose", internalPurpose);
         }
+        // Runtime-owned calls use Cline's separately governed Internet tools.
+        // A model argument or inherited context must never revive the legacy paid fallback.
+        mcpContext.put("legacyExternalSearchAllowed", false);
         arguments.put("mcpContext", mcpContext);
     }
 

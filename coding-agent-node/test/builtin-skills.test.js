@@ -13,8 +13,8 @@ test('pinned Cline discovers all original packaged Skills without network access
   try {
     await watcher.start();
     const snapshot = [...watcher.getSnapshot('skill').values()];
-    assert.equal(snapshot.length, 14);
-    assert.deepEqual(snapshot.map(item => item.item.name).sort(), ['analyzer','artifact-management','azure-ai-ml-py','azure-kusto','evidence-based-answering','financial-market-analysis','financial-news-analysis','mcp-builder','opensearch-knowledge-exploration','plotting','python-code-development','python-data-analysis','runtime-report-delivery','skill-creator']);
+    assert.equal(snapshot.length, 15);
+    assert.deepEqual(snapshot.map(item => item.item.name).sort(), ['analyzer','artifact-management','azure-ai-ml-py','azure-kusto','evidence-based-answering','financial-market-analysis','financial-news-analysis','mcp-builder','opensearch-knowledge-exploration','plotting','python-code-development','python-data-analysis','runtime-internet-research','runtime-report-delivery','skill-creator']);
   } finally { watcher.stop(); }
 });
 

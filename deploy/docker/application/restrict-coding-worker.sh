@@ -20,7 +20,19 @@ def address(name):
     if value.is_unspecified or value.is_loopback or value.is_multicast:
         raise SystemExit('Invalid container identity')
     return str(value)
-worker = address(os.environ.get('CODING_WORKER_CONTAINER', 'runtime-os-app-stage-coding-agent-1'))
+worker_name = os.environ.get('CODING_WORKER_CONTAINER', 'runtime-os-app-stage-coding-agent-1')
+worker_config = inspect(worker_name)
+network_config = json.loads(subprocess.check_output(['docker', 'network', 'inspect', network]))[0]
+if set(worker_config['NetworkSettings']['Networks']) != {network} or not network_config.get('Internal') or network_config.get('EnableIPv6'):
+    raise SystemExit('Worker must use only the internal IPv4 coding network')
+host_config = worker_config['HostConfig']
+if host_config.get('Privileged') or host_config.get('CapAdd') or 'ALL' not in (host_config.get('CapDrop') or []):
+    raise SystemExit('Worker must drop all capabilities and cannot be privileged')
+if worker_config['Config'].get('User', '').split(':')[0] in ('', 'root', '0'):
+    raise SystemExit('Worker must run as an unprivileged user')
+if any(m['Destination'] == '/var/run/docker.sock' for m in worker_config.get('Mounts', [])):
+    raise SystemExit('Worker cannot access the container control plane')
+worker = address(worker_name)
 api = address(os.environ.get('CODING_API_CONTAINER', 'runtime-os-app-stage-api-1'))
 if worker == api:
     raise SystemExit('Worker and Runtime must have separate identities')

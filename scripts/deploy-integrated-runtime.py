@@ -257,6 +257,23 @@ def main():
             time.sleep(2)
         raise RuntimeError('MCP application readiness timed out before news producer startup')
 
+    def backup_news_storage():
+        if not manifest.get('backupNewsStorage'): return
+        # The H2 writer is stopped before copying; additive Internet tables must
+        # never make an existing collection database impossible to restore.
+        source = Path('/opt/chatchat-runtime-news-1.0.0-SNAPSHOT/data').resolve()
+        assert any(Path(m['Source']).resolve() == source and m['Destination'] == '/srv/app/data'
+                   for m in before[news]['Mounts']), 'News database mount changed'
+        destination = backup / 'news-h2'
+        destination.mkdir(mode=0o700)
+        files = list(source.glob('*.mv.db'))
+        assert files, 'Existing News database backup is required'
+        assert shutil.disk_usage(backup).free > sum(p.stat().st_size for p in files) + 1024**3
+        for path in files:
+            assert path.is_file() and not path.is_symlink()
+            shutil.copy2(path, destination / path.name)
+        shutil.copytree(stage / 'config/news', backup / 'news-config')
+
     def ready():
         client = urllib.request.build_opener(urllib.request.ProxyHandler({}))
         deadline = time.monotonic() + 240
@@ -289,6 +306,7 @@ def main():
     try:
         run('docker', 'stop', '-t', '60', *reversed(order))
         backup_financial_storage()
+        backup_news_storage()
         if manifest.get('sqlMetadataCallbacks') or manifest.get('knowledgeCallbacks'):
             config=configs['config/node-proxy.conf'].decode()
             if manifest.get('knowledgeCallbacks') and '|knowledge|' not in config: config=config.replace('|submit-report|','|submit-report|knowledge|',1)

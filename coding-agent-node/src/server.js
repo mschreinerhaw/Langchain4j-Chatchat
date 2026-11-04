@@ -172,7 +172,7 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
         return response(reply, 200, { schemaVersion: 'runtime_os.coding.input.v1', formats: ['PARQUET', 'CSV'],
           codeLifecycleVersions: ['runtime_os.code_lifecycle.v1'],
           analysisProfiles: ['runtime-coding:analysis-fast-path:v1'],
-          analysisTools: ['input_read','report_submit','code_read','knowledge_search','knowledge_get_document','knowledge_read','knowledge_list_sections','knowledge_related','news_search','news_get_article','news_related_events','market_search','market_get_history','market_get_indicators','market_get_snapshot'],
+          analysisTools: ['input_read','report_submit','code_read','knowledge_search','knowledge_get_document','knowledge_read','knowledge_list_sections','knowledge_related','news_search','news_get_article','news_related_events','market_search','market_get_history','market_get_indicators','market_get_snapshot','web_search','web_fetch'],
           workspaceProfiles: ['runtime-coding:workspace-fast-path:v1','runtime-coding:sql-metadata-tools:v1'] });
       }
       if (request.method === 'GET' && url.pathname === '/healthz')

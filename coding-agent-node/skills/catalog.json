@@ -441,5 +441,62 @@
     "descriptionZh": "将有来源依据的文字或图文报告交付到现有 Runtime OS 报告链路。",
     "source": "Runtime OS",
     "sourceVersion": "1.0.0"
+  },
+  {
+    "id": "builtin:runtime-internet-research",
+    "name": "runtime-internet-research",
+    "description": "Search public sources precisely, read original pages, distinguish snippets and independent evidence, and combine Internet findings with authorized internal data and reproducible reports using Runtime OS tools.",
+    "version": "1.0.0",
+    "origin": "SYSTEM_BUILTIN",
+    "category": "Research",
+    "publisher": "Runtime OS / Tavily methodology",
+    "builtin": true,
+    "enabled": true,
+    "requiresProfile": "runtime_os.knowledge.v1",
+    "requiresResourcesAny": [
+      "internet_search"
+    ],
+    "references": [
+      "LICENSE.tavily",
+      "references/upstream/references/crawl.md",
+      "references/upstream/references/map.md",
+      "references/upstream/references/setup.md",
+      "references/upstream/SKILL.original.md"
+    ],
+    "resources": [
+      {
+        "path": "LICENSE.tavily",
+        "sha256": "405f05572fcc275f02c2605516af0711895deafe57d56820e243504fb8599861",
+        "size": 1114
+      },
+      {
+        "path": "references/upstream/references/crawl.md",
+        "sha256": "2057b4077d7899cc7514152d79daf42cc476b9778d98163468232659b2106112",
+        "size": 1954
+      },
+      {
+        "path": "references/upstream/references/map.md",
+        "sha256": "c4efd4e0985862ba0b54a6682f18c550580d71f83baebc2ab3243dc9f2f02c86",
+        "size": 1232
+      },
+      {
+        "path": "references/upstream/references/setup.md",
+        "sha256": "c3c19de5dca030783782dc090de860c75790092af8911a2d46b61a0ab8d4785c",
+        "size": 3404
+      },
+      {
+        "path": "references/upstream/SKILL.original.md",
+        "sha256": "3676158f08de06227965d39d4bbfe222460dd390ee29485d29fdba92cf55a782",
+        "size": 5560
+      }
+    ],
+    "provenance": {
+      "repository": "https://github.com/tavily-ai/skills",
+      "commit": "b282c623b12b3c58fd279ed072f7e67b693e4654",
+      "directory": "skills/core/tavily-search",
+      "license": "MIT",
+      "adapted": true,
+      "importedAt": "2026-11-04"
+    }
   }
 ]

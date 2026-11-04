@@ -26,6 +26,18 @@ import static org.mockito.Mockito.when;
 
 class WebSearchToolExecutorTest {
     @Test
+    void runtimeDenialOverridesModelExternalRequestAndForcedFallback() throws Exception {
+        var properties=new NewsRuntimeProperties();properties.getOpenSearch().setEnabled(true);
+        properties.getWebSearch().getCache().setForceExternal(true);
+        var store=mock(NewsDocumentStore.class);when(store.search(any())).thenReturn(List.of());
+        var external=mock(TencentWebSearchClient.class);when(external.enabled()).thenReturn(true);
+        var output=new WebSearchToolExecutor(store,properties,external).execute(ToolInput.builder()
+            .parameters(Map.of("query","public question","queryTerms",List.of("precise term"),"external_search_required",true))
+            .context(Map.of("legacyExternalSearchAllowed",false)).build());
+        assertThat(output.isSuccess()).isTrue();
+        verify(external,never()).search(any(),any(Integer.class));
+    }
+    @Test
     @SuppressWarnings("unchecked")
     void modelMayRequestExternalEvidenceDespiteSufficientLocalRowCount() throws Exception {
         NewsRuntimeProperties properties = new NewsRuntimeProperties();

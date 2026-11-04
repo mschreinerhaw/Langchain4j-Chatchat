@@ -8,7 +8,14 @@ public final class CodingRuntimeContext {
     public static Map<String, Object> validate(Map<String, Object> value) {
         if (value == null || value.isEmpty()) return Map.of();
         CodingProtocol.require(value.keySet().stream().allMatch(Set.of("schemaVersion", "capturedAt",
-            "consistency", "model", "skills", "builtinSkillPolicy", "configuredSkillIds", "inputFiles", "executionProfile", "reportMode", "reportPresentation", "pythonEnvironment", "scriptPurpose", "codingLifecycle", "analysisResultMode", "analysisInstructions", "codeProject", "knowledgeExploration")::contains), "Unknown Coding context field");
+            "consistency", "model", "skills", "builtinSkillPolicy", "configuredSkillIds", "inputFiles", "executionProfile", "reportMode", "reportPresentation", "pythonEnvironment", "scriptPurpose", "codingLifecycle", "analysisResultMode", "analysisInstructions", "codeProject", "knowledgeExploration", "internetSearch")::contains), "Unknown Coding context field");
+        if(value.containsKey("internetSearch")){
+            CodingProtocol.require(value.get("internetSearch") instanceof Map<?,?>,"Internet capability required");var p=(Map<?,?>)value.get("internetSearch");
+            CodingProtocol.require(p.keySet().equals(Set.of("schemaVersion","modelName","modelRevision","providerId","providerRevision","agentId","explicitlyRequested"))
+                &&"runtime_os.internet.v1".equals(p.get("schemaVersion"))&&p.get("modelRevision") instanceof Number m&&m.longValue()>0
+                &&p.get("providerRevision") instanceof Number r&&r.longValue()>0&&p.get("explicitlyRequested") instanceof Boolean,"Invalid Internet capability");
+            for(String k:List.of("modelName","agentId","providerId"))CodingProtocol.require(p.get(k) instanceof String s&&!s.isBlank()&&s.length()<=256,"Invalid Internet identity");
+        }
         if(value.containsKey("knowledgeExploration")) {
             CodingProtocol.require(value.get("knowledgeExploration") instanceof Map<?,?>, "Knowledge profile required");
             var profile=(Map<?,?>)value.get("knowledgeExploration");
@@ -18,7 +25,7 @@ public final class CodingRuntimeContext {
                 && profile.get("agentId") instanceof String id && !id.isBlank() && id.length()<=256,
                 "Invalid knowledge exploration profile");
             if(profile.containsKey("explicitlyRequested"))CodingProtocol.require(profile.get("explicitlyRequested") instanceof Boolean,"Invalid explicit resource choice");
-            if(profile.containsKey("resourceIds"))CodingProtocol.require(profile.get("resourceIds") instanceof List<?> ids&&ids.size()<=3
+            if(profile.containsKey("resourceIds"))CodingProtocol.require(profile.get("resourceIds") instanceof List<?> ids&&ids.size()<=4
                 &&new HashSet<>(ids).size()==ids.size()&&ids.stream().allMatch(id->id instanceof String&&com.chatchat.common.retrieval.AgentResourcePolicy.IDS.contains(id)),"Invalid logical resource set");
         }
         if(value.containsKey("analysisInstructions"))CodingProtocol.require(

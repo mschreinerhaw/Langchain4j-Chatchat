@@ -15,6 +15,10 @@
           <p>发布时间：{{ source.published_at || '来源未提供' }}<br />采集时间：{{ source.collected_at || '来源未提供' }}</p>
           <p v-if="source.source_metadata?.source_view === 'summary'" class="knowledge-source-note">此引用为已索引摘要，不能替代阅读全文。</p>
         </template>
+        <template v-else-if="source.resource_id === 'internet_search'">
+          <p>发布时间：{{ source.published_at || '来源未提供' }}<br />获取时间：{{ source.retrieved_at || '来源未提供' }}</p>
+          <p class="knowledge-source-note">{{ source.source_metadata?.source_view === 'PUBLIC_PAGE_EXTRACTED_TEXT' ? '公开网页提取文本；未执行网页脚本。' : '搜索结果摘要，不能替代阅读完整网页。' }}{{ source.source_metadata?.content_truncated ? ' 内容已按读取上限截断。' : '' }}</p>
+        </template>
         <template v-else-if="source.resource_id === 'financial_market'">
           <p>数据截止：{{ source.data_as_of || '来源未提供' }}<br />采集时间：{{ source.collected_at || '来源未提供' }}</p>
           <p class="knowledge-source-note">已采集数据，不代表实时行情。单位、市场及复权口径以原记录为准，未声明时为未知。</p>

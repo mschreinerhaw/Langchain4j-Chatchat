@@ -253,6 +253,18 @@
             >修改已建索引的向量维度后，需要重建对应索引。</p
           >
         </div>
+        <div v-if="form.type === 'chat'" class="model-form-section">
+          <h3>联网搜索</h3>
+          <label><input v-model="form.internetSearchEnabled" type="checkbox" /> 允许 Cline 联网搜索</label>
+          <label class="feature-form-field"><span>搜索服务</span>
+            <select v-model="form.searchProviderId" :required="form.internetSearchEnabled">
+              <option value="">请选择搜索服务</option>
+              <option v-for="provider in searchProviders" :key="provider.id" :value="provider.id"
+                :disabled="!provider.enabled || !provider.configured">{{ provider.name }}{{ !provider.enabled ? ' · 已停用' : !provider.configured ? ' · 未配置' : '' }}</option>
+            </select>
+          </label>
+          <p class="model-form-hint">保存后立即生效。Cline 可在 Agent 和用户授权范围内搜索、读取公开网页；分析代码仍在隔离环境中运行。</p>
+        </div>
         <div class="model-form-section">
           <h3>访问与状态</h3>
           <label class="feature-form-field"

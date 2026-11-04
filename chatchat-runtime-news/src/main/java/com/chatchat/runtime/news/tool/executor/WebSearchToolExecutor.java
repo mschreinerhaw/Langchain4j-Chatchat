@@ -68,7 +68,8 @@ public class WebSearchToolExecutor implements NewsToolExecutor {
         String query = input.getParameterAsString("query", "").trim();
         if (query.isBlank()) return ToolOutput.failure("query parameter is required");
         boolean localEnabled = properties.getOpenSearch().isEnabled();
-        boolean externalAvailable = externalWebSearch.available();
+        boolean externalAvailable = !Boolean.FALSE.equals(input.getContext()==null?null:input.getContext().get("legacyExternalSearchAllowed"))
+            && externalWebSearch.available();
         if (!localEnabled && !externalAvailable) return NewsToolSupport.unavailable(NewsToolNames.WEB_SEARCH);
 
         int size = NewsToolSupport.boundedInt(input.getParameterAsNumber("num_results"), 10, 1, 50);

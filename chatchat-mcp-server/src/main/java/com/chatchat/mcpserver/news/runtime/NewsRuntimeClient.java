@@ -74,7 +74,7 @@ public class NewsRuntimeClient {
             String signature = InternalRequestSigner.sign(credentials.resolvedSecret(), method,
                 URI.create(requestPath).getPath(), timestamp, nonce);
             HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(baseUrl + requestPath))
-                .timeout(timeout).header("Accept", "application/json")
+                .timeout(path.equals("/internet-search/read") ? Duration.ofSeconds(35) : timeout).header("Accept", "application/json")
                 .header(InternalRequestSigner.USER_HEADER, credentials.resolvedUsername())
                 .header(InternalRequestSigner.TIMESTAMP_HEADER, timestamp)
                 .header(InternalRequestSigner.NONCE_HEADER, nonce)

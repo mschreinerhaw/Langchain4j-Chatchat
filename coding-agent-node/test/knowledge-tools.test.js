@@ -5,6 +5,17 @@ import { KNOWLEDGE_TOOLS, RESOURCE_TOOLS, knowledgeTools } from '../src/knowledg
 import { taskSkills } from '../src/skills.js';
 const contextRef='runtime-context:run';
 const profile={schemaVersion:'runtime_os.knowledge.v1',agentId:'agent'};
+
+test('public Internet capability never expands execution network and requires the frozen server profile',()=>{
+  const base={schemaVersion:'runtime_os.coding.v3',metadataRefs:['runtime-coding:internet-search:v1'],
+    runtimeContext:{knowledgeExploration:profile,internetSearch:{schemaVersion:'runtime_os.internet.v1'}},
+    authorization:{allowedTools:['web_search','web_fetch'],allowedSideEffects:[],networkPolicy:'NONE'}};
+  const gateway={knowledge(){}};
+  assert.deepEqual(knowledgeTools(base,gateway,()=>{}).map(t=>t.name),['web_search','web_fetch']);
+  assert.throws(()=>knowledgeTools({...base,metadataRefs:[]},gateway,()=>{}),/governed server-only/);
+  assert.throws(()=>knowledgeTools({...base,authorization:{...base.authorization,networkPolicy:'ALLOWLIST'}},gateway,()=>{}),/governed server-only/);
+  assert.throws(()=>knowledgeTools({...base,runtimeContext:{knowledgeExploration:profile}},gateway,()=>{}),/governed server-only/);
+});
 test('access-denied reports retain their delivered context and repair empty references before Java submission',async()=>{
   let turn=0,published=0;const checkpoints=[];
   const run=createCodingRun({...contract,budget:{maxModelCalls:5},authorization:{...contract.authorization,
@@ -212,7 +223,7 @@ test('an ordinary text task with no authorized resource tools keeps its single s
 
 test('actual SDK loop autonomously joins permitted market history and news without document or Python authority',async()=>{
   const ref='runtime-evidence:knowledge:'+'c'.repeat(64),calls=[];let turn=0;
-  const resourceContract={...contract,runtimeContext:{...contract.runtimeContext,knowledgeExploration:{...profile,resourceIds:['financial_news','financial_market']}},objective:{instruction:'Compare observed prices with policy news; do not infer causation'},authorization:{...contract.authorization,allowedTools:[...RESOURCE_TOOLS,'report_submit','skill_read']}};
+  const resourceContract={...contract,runtimeContext:{...contract.runtimeContext,knowledgeExploration:{...profile,resourceIds:['financial_news','financial_market']}},objective:{instruction:'Compare observed prices with policy news; do not infer causation'},authorization:{...contract.authorization,allowedTools:[...RESOURCE_TOOLS.filter(t=>!t.startsWith('web_')),'report_submit','skill_read']}};
   const plan=[['skill_read',{skillId:'builtin:financial-market-analysis'}],['market_search',{query:'prices'}],['market_get_history',{dataset:'discovered_quotes',start_date:'2026-11-01',end_date:'2026-11-03'}],
     ['news_search',{query:'policy',security_code:'600001'}],['news_get_article',{article_id:'n1',version_id:'v1'}],
     ['report_submit',{reportMarkdown:`Collected prices and published policy are time-associated; causation remains unproven. [Sources](${ref})`,evidenceReferences:[ref],limitations:['Snapshot is not live quotes.']}]];

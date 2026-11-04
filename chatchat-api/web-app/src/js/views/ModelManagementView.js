@@ -20,6 +20,7 @@ import {
   setDefaultPlatformModel,
 } from "../../services/api";
 import "../../styles/pages/model-management.css";
+import { apiRequest } from "../../services/api";
 
 const emptyForm = () => ({
   name: "",
@@ -36,6 +37,8 @@ const emptyForm = () => ({
   apiKey: "",
   enabled: true,
   defaultModel: false,
+  internetSearchEnabled: false,
+  searchProviderId: "",
 });
 
 export default {
@@ -56,6 +59,7 @@ export default {
   },
   data: () => ({
     models: [],
+    searchProviders: [],
     loading: false,
     saving: false,
     editing: false,
@@ -124,6 +128,8 @@ export default {
       this.loading = true;
       try {
         this.models = await fetchPlatformModels();
+        try { this.searchProviders = await apiRequest('/platform/models/search-providers'); }
+        catch { this.searchProviders = []; }
         this.error = false;
       } catch (error) {
         this.message = error.message;
@@ -138,7 +144,7 @@ export default {
       this.editing = true;
     },
     openEdit(model) {
-      this.form = { ...model, requestTimeoutSeconds: model.requestTimeoutSeconds ?? 300, apiKey: "" };
+      this.form = { ...emptyForm(), ...model, requestTimeoutSeconds: model.requestTimeoutSeconds ?? 300, apiKey: "" };
       this.isNew = false;
       this.editing = true;
     },

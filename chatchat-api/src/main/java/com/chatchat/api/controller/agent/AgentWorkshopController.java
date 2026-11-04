@@ -61,8 +61,8 @@ public class AgentWorkshopController {
     @GetMapping("/resource-options")
     public ApiResponse<List<Map<String,Object>>> resourceOptions(HttpServletRequest request) {
         var allowed=assignableResourceIds(request);var result=new ArrayList<Map<String,Object>>();
-        for(String id:List.of("knowledge_documents","financial_news","financial_market"))if(allowed.contains(id))
-            result.add(Map.of("id",id,"label",switch(id){case "knowledge_documents"->"企业知识文档";case "financial_news"->"新闻资讯";default->"金融市场数据";},"access","read"));
+        for(String id:List.of("knowledge_documents","financial_news","financial_market","internet_search"))if(allowed.contains(id))
+            result.add(Map.of("id",id,"label",switch(id){case "knowledge_documents"->"企业知识文档";case "financial_news"->"新闻资讯";case "internet_search"->"互联网搜索与网页读取";default->"金融市场数据";},"access","read"));
         return ApiResponse.success(result);
     }
 
@@ -70,7 +70,7 @@ public class AgentWorkshopController {
         if(currentUserId(request)==null)return Set.of();
         var result=new java.util.HashSet<>(resourceAuthorization.explicitlyAllowedIds(
             com.chatchat.common.retrieval.AgentResourcePolicy.GRANT_TYPE,tenantId(request),currentUserId(request),Set.of(),
-            Set.of("financial_news","financial_market")));
+            Set.of("financial_news","financial_market","internet_search")));
         if(!documentLibrary.list(documentPermissionContext(request)).isEmpty())result.add("knowledge_documents");
         return result;
     }

@@ -20,7 +20,7 @@ public final class AgentResourceScopeService implements AgentResourceScopePort {
         if(definition==null||!agent.equals(definition.id()))throw new SecurityException("Agent is unavailable");
         var policy=AgentResourcePolicy.read(definition.workflowConfig());
         var result=new HashSet<>(authorization.explicitlyAllowedIdsForAgent(AgentResourcePolicy.GRANT_TYPE,
-            tenant,user,Set.of(),Set.of(AgentResourcePolicy.NEWS,AgentResourcePolicy.MARKET),agent));
+            tenant,user,Set.of(),Set.of(AgentResourcePolicy.NEWS,AgentResourcePolicy.MARKET,AgentResourcePolicy.INTERNET),agent));
         if(scope.hasKnowledgeResources()&&!scope.documentScopeDenied())result.add(AgentResourcePolicy.KNOWLEDGE);
         result.removeIf(id->!policy.permits(id,approved));return Set.copyOf(result);
     }

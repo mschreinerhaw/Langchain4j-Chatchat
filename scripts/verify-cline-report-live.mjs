@@ -18,7 +18,7 @@ const save=(name,data)=>fs.writeFileSync(path.join(out,name+'.json'),JSON.string
 const login=await fetch(origin+'/api/v1/enterprise/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({username:process.env.REPORT_USER||'admin',password:process.env.REPORT_PASSWORD})});
 const auth=(await login.json()).data;assert.ok(auth?.token,'Login failed');
 fs.writeFileSync(path.join(out,'auth.private.json'),JSON.stringify(auth));
-async function api(route,body){const r=await fetch(origin+'/api/v1'+route,{method:body===undefined?'GET':'POST',headers:{authorization:'Bearer '+auth.token,'content-type':'application/json','X-Workspace-Id':'data-science'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(60000)});const j=await r.json();assert.equal(r.status,200,route+': '+j.message);assert.ok([200,201,202].includes(j.code),route+': '+j.message);return j.data;}
+async function api(route,body){for(let attempt=0;;attempt++){try{const r=await fetch(origin+'/api/v1'+route,{method:body===undefined?'GET':'POST',headers:{authorization:'Bearer '+auth.token,'content-type':'application/json','X-Workspace-Id':'data-science'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(60000)});const j=await r.json();assert.equal(r.status,200,route+': '+j.message);assert.ok([200,201,202].includes(j.code),route+': '+j.message);return j.data;}catch(error){if(attempt>=2||body!==undefined)throw error;await new Promise(resolve=>setTimeout(resolve,1000*(attempt+1)));}}}
 let submitted;
 const prior=path.join(out,'submission.json');
 if(fs.existsSync(prior))submitted=JSON.parse(fs.readFileSync(prior));

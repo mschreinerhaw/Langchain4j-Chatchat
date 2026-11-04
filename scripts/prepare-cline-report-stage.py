@@ -45,9 +45,11 @@ def main():
                               'sha256sum', '/srv/app/app.jar').split()[0],
         'preserveRuntimeConfiguration': True,
         'catalogReadinessAuthFile': 'catalog-readiness-private.json',
-        'catalogReadinessExpectedTools': ['sql_schema_context_query', 'enterprise_metadata_search'],
-        'worker': {'image': worker_image, 'baselineImageId': proof['baselineImageId'],
-                   'preparedImageId': proof['imageId'], 'modules': release['workerModules']}}
+        'catalogReadinessExpectedTools': ['sql_schema_context_query', 'enterprise_metadata_search']}
+    current_worker = json.loads(run('docker','inspect','runtime-os-app-stage-coding-agent-1'))[0]
+    if current_worker['Image'] != proof['imageId']:
+        manifest['worker'] = {'image': worker_image, 'baselineImageId': current_worker['Image'],
+                              'preparedImageId': proof['imageId'], 'modules': release['workerModules']}
     (root / 'manifest.json').write_text(json.dumps(manifest, indent=2))
     print(json.dumps({'status': 'PREPARED', 'sourceCommit': commit, 'worker': proof['imageId']}))
 

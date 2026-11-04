@@ -31,6 +31,8 @@ public class AgentTaskEventStreamService {
         "TIME_BUDGET_EXHAUSTED", "MODEL_BUDGET_EXHAUSTED", "NO_PRESENTABLE_RESULT");
 
     private final AgentTaskService taskService;
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.beans.factory.ObjectProvider<com.chatchat.api.runtime.coding.knowledge.KnowledgeDisclosureGuard> knowledgeGuards;
     private final ExecutorService executor = Executors.newCachedThreadPool(new StreamThreadFactory());
 
     public SseEmitter stream(String tenantId, String taskId, long afterSequence,
@@ -142,6 +144,17 @@ public class AgentTaskEventStreamService {
     }
 
     private void sendEvent(SseEmitter emitter, AgentEvent event) throws IOException {
+        if(event.getPayload()!=null && event.getPayload().contains("runtime-evidence:knowledge:")
+                ||Set.of("ANSWER","RESULT","COMPLETE","FINAL").contains(java.util.Objects.toString(event.getType(),""))) {
+            var guard=knowledgeGuards==null?null:knowledgeGuards.getIfAvailable();
+            if(guard==null) {
+                if(event.getPayload()!=null&&event.getPayload().contains("runtime-evidence:knowledge:"))throw new SecurityException("Knowledge disclosure validation unavailable");
+            } else {
+                var owner=taskService.get(event.getTenantId(),event.getTaskId()).orElseThrow();
+                guard.checkRun(owner.tenantId(),owner.userId(),owner.attemptId());
+                guard.check(owner.tenantId(),owner.userId(),event.getPayload());
+            }
+        }
         SseEmitter.SseEventBuilder builder = SseEmitter.event().name("event").data(event, MediaType.APPLICATION_JSON);
         if (event.getSequence() != null) builder.id(String.valueOf(event.getSequence()));
         emitter.send(builder);

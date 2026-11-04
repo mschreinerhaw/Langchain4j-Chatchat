@@ -6,6 +6,7 @@ import com.chatchat.chat.skills.model.SkillDefinition;
 /** Reasoning over supplied context; grants no business data access. Agent is null for plain model chat. */
 @FunctionalInterface
 public interface CodingAnswerPort {
+    default boolean knowledgeExplorationAvailable() { return false; }
     default java.util.List<com.chatchat.common.runtime.capability.ProblemAnalysisPlan.FileInput> describeFiles(InteractionRequest request) {
         throw new IllegalStateException("Authorized file resolution is unavailable");
     }

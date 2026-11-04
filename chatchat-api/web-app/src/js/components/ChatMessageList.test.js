@@ -10,6 +10,11 @@ import { renderArtifactHtml, renderArtifactMarkdownHtml } from "../ui-artifact/r
 
 const markdown = new MarkdownIt({ breaks: true });
 const methods = ChatMessageList.methods;
+it('keeps governed knowledge locators navigable in the dynamic artifact markdown path',()=>{
+  const id='a'.repeat(64),html=renderArtifactMarkdownHtml(`[Plan](runtime-evidence:knowledge:${id})`);
+  expect(html).toContain(`href="#knowledge-evidence-${id}"`);
+  expect(html).not.toContain('href="runtime-evidence:');
+});
 it('shows running indicators and stops them when the task ends', async () => {
   const workbench = reactive({status:'active', terminal:false, steps:[], alerts:[], timings:[],
     allActivities:[{id:'one', sequence:1, state:'active', title:'正在计算', timeLabel:'10:00:00'}]});

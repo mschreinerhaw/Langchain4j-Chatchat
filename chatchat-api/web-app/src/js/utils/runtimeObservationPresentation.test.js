@@ -7,6 +7,14 @@ import {
 } from "./runtimeObservationPresentation.js";
 
 describe('business task progress', () => {
+  it('groups repeated knowledge search and reads into one live exploration activity',()=>{
+    const event=(sequence,type,tool)=>({sequence,type:'RUNTIME_OBSERVATION',payload:{metadata:{eventKind:'CODING_TRACE',
+      taskId:'knowledge-task',workerActivity:{type,tool,toolCallId:`call-${sequence}`,status:'SUCCEEDED'}}}});
+    const first=[event(1,'TOOL_STARTED','knowledge_search'),event(2,'TOOL_FINISHED','knowledge_search')];
+    const reading=executionWorkbench([...first,event(3,'TOOL_STARTED','knowledge_read')],{status:'running'});
+    expect(reading.allActivities.filter(row=>row.kind==='KNOWLEDGE')).toHaveLength(1);
+    expect(reading.allActivities.find(row=>row.kind==='KNOWLEDGE').state).toBe('active');
+  });
   it('replays the 216 real task receipts: failed operations do not defeat the successful parent', () => {
     const {events,snapshot}=retriedStockTask;
     const task={status:'running',executionSnapshot:{...snapshot,canonicalState:'REPAIRING'}};
@@ -55,6 +63,15 @@ describe('business task progress', () => {
       expect(result.steps[3]).toMatchObject({ status: expected, detail: '输入文件不可读' });
       expect(result.status).toBe(expected); expect(result.label).toBe('4/5');
       expect(result.steps[4].status).not.toBe('done');
+    });
+    it('folds repeated news and market calls by resource while retaining their distinct progress',()=>{
+      const event=(sequence,type,tool)=>({sequence,type:'RUNTIME_OBSERVATION',payload:{metadata:{eventKind:'CODING_TRACE',taskId:'research',workerActivity:{type,tool,toolCallId:`r-${sequence}`,status:'SUCCEEDED'}}}});
+      const view=executionWorkbench([event(1,'TOOL_FINISHED','news_search'),event(2,'TOOL_FINISHED','news_get_article'),
+        event(3,'TOOL_FINISHED','market_search'),event(4,'TOOL_STARTED','market_get_history')],{status:'running'});
+      expect(view.allActivities.filter(row=>row.kind==='NEWS')).toHaveLength(1);
+      expect(view.allActivities.filter(row=>row.kind==='MARKET')).toHaveLength(1);
+      expect(view.allActivities.find(row=>row.kind==='NEWS').state).toBe('done');
+      expect(view.allActivities.find(row=>row.kind==='MARKET').state).toBe('active');
     });
   it('uses explicit deadlines and parent failure, never event counts, elapsed time or log wording', () => {
     const events = [coding('EXECUTION_STARTED'), { type: 'UNKNOWN', status: 'RUNNING', payload: { message: 'successful Python final result' } }];

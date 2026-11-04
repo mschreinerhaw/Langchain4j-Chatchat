@@ -1,0 +1,6 @@
+.knowledge-source-overlay{position:fixed;inset:0;z-index:1100;background:#0006;display:flex;align-items:center;justify-content:center;padding:24px}
+.knowledge-source-dialog{background:var(--panel-bg,#fff);color:var(--text-primary,#172033);border-radius:12px;padding:24px;width:min(860px,95vw);max-height:85vh;overflow:auto;box-shadow:0 12px 48px #0003}
+.knowledge-source-dialog header{display:flex;align-items:center;justify-content:space-between;gap:16px}.knowledge-source-dialog h3{margin:0}
+.knowledge-source-dialog pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.75;padding:16px;background:#94a3b814;border-radius:8px}
+.knowledge-source-note{color:#64748b;font-size:13px}.knowledge-source-dialog button{cursor:pointer;padding:6px 14px}
+.knowledge-source-table{overflow:auto;max-height:45vh}.knowledge-source-table table{border-collapse:collapse;font-size:13px;width:100%}.knowledge-source-table th,.knowledge-source-table td{padding:8px;border:1px solid #94a3b833;white-space:nowrap;text-align:left}.knowledge-source-dialog details{margin-top:12px}

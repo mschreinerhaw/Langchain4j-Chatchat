@@ -1,0 +1,4103 @@
+{
+  "observedAt": "2026-11-04 Asia/Shanghai",
+  "readOnlyAudit": true,
+  "indices": [
+    {
+      "index": "financial-data-asset",
+      "docs.count": "12",
+      "health": "yellow",
+      "status": "open"
+    },
+    {
+      "index": "runtime-news-2026.10.29",
+      "docs.count": "21764",
+      "health": "yellow",
+      "status": "open"
+    },
+    {
+      "index": "runtime-news-2026.11.01",
+      "docs.count": "3637",
+      "health": "yellow",
+      "status": "open"
+    },
+    {
+      "index": "runtime-news-2026.11.02",
+      "docs.count": "6240",
+      "health": "yellow",
+      "status": "open"
+    },
+    {
+      "index": "runtime-news-2026.11.03",
+      "docs.count": "20487",
+      "health": "yellow",
+      "status": "open"
+    },
+    {
+      "index": "runtime-news-2026.11.04",
+      "docs.count": "117",
+      "health": "yellow",
+      "status": "open"
+    },
+    {
+      "index": "runtime-news-2026.10.30",
+      "docs.count": "14141",
+      "health": "yellow",
+      "status": "open"
+    },
+    {
+      "index": "runtime-news-2026.10.31",
+      "docs.count": "12901",
+      "health": "yellow",
+      "status": "open"
+    },
+    {
+      "index": "runtime_os_stage_documents",
+      "docs.count": "453",
+      "health": "yellow",
+      "status": "open"
+    },
+    {
+      "index": "chatchat_documents_dev",
+      "docs.count": "3954",
+      "health": "yellow",
+      "status": "open"
+    }
+  ],
+  "aliases": {
+    "enterprise_metadata_catalog_taxonomy_1785130565": [
+      "enterprise_metadata_catalog"
+    ],
+    "chatchat_mcp_dev_database-query-templates_knn_1785129571": [
+      "chatchat_mcp_dev_database-query-templates"
+    ]
+  },
+  "resources": [
+    {
+      "index": "financial-data-asset",
+      "fields": {
+        "archive_retention_days": {
+          "type": "long"
+        },
+        "archive_storage_location": {
+          "type": "keyword"
+        },
+        "archive_table_name": {
+          "type": "keyword"
+        },
+        "asset_name": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "business_description": {
+          "type": "text"
+        },
+        "business_tags_json": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "created_at": {
+          "type": "date"
+        },
+        "database_name": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "dataset_code": {
+          "type": "keyword"
+        },
+        "description": {
+          "type": "text"
+        },
+        "fields": {
+          "properties": {
+            "business_description": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "field_name": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "field_type": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "schema_version": {
+              "type": "long"
+            },
+            "source_field": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "history_granularity": {
+          "type": "keyword"
+        },
+        "hot_retention_days": {
+          "type": "long"
+        },
+        "id": {
+          "type": "long"
+        },
+        "last_collected_at": {
+          "type": "date"
+        },
+        "last_observation_date": {
+          "type": "date"
+        },
+        "read_tool": {
+          "type": "keyword"
+        },
+        "search_text": {
+          "type": "text"
+        },
+        "source_names_json": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "storage_location": {
+          "type": "keyword"
+        },
+        "table_name": {
+          "type": "keyword"
+        },
+        "title": {
+          "type": "text"
+        },
+        "update_frequency": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "updated_at": {
+          "type": "date"
+        }
+      },
+      "sampleTopLevelFields": [
+        "id",
+        "dataset_code",
+        "asset_name",
+        "business_description",
+        "business_tags_json",
+        "database_name",
+        "table_name",
+        "update_frequency",
+        "source_names_json",
+        "last_observation_date",
+        "last_collected_at",
+        "archive_table_name",
+        "hot_retention_days",
+        "archive_retention_days",
+        "history_granularity",
+        "created_at",
+        "updated_at",
+        "fields",
+        "title",
+        "description",
+        "search_text",
+        "storage_location",
+        "archive_storage_location",
+        "read_tool"
+      ],
+      "sampleTemporalValues": {
+        "update_frequency": "按交易日/采集调度",
+        "last_observation_date": "2026-11-02",
+        "last_collected_at": "2026-11-03T08:24:23.431+00:00",
+        "updated_at": "2026-11-03T08:24:23.431+00:00"
+      },
+      "sampleNestedKeys": {}
+    },
+    {
+      "index": "runtime-news-2026.10.29",
+      "fields": {
+        "analysisStatus": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "author": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "categories": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "collectTime": {
+          "type": "date"
+        },
+        "content": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "contentHash": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "documentId": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "language": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "metadata": {
+          "properties": {
+            "announcementId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "announcementTypeName": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "attachmentAllowedDomains": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "attachmentFileName": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "attachmentUrl": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "attachmentUrls": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "bulletinType": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "channel": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "chunkCount": {
+              "type": "long"
+            },
+            "chunkIndex": {
+              "type": "long"
+            },
+            "collectionDate": {
+              "type": "date"
+            },
+            "column": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "disclosureId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "documentKind": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "documentType": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "evidenceTitle": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "evidenceUrl": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "feedTitle": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "firstPageOnly": {
+              "type": "boolean"
+            },
+            "headlineCount": {
+              "type": "long"
+            },
+            "important": {
+              "type": "boolean"
+            },
+            "isRed": {
+              "type": "long"
+            },
+            "isTop": {
+              "type": "long"
+            },
+            "itemCursor": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "itemId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "legalDisclaimer": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "legalRisk": {
+              "type": "boolean"
+            },
+            "level": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "market": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "meetingId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "newsCode": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "newsId": {
+              "type": "long"
+            },
+            "parentDocumentId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "parentTitle": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "parentUrl": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "projectId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "provider": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "providerSource": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "quickNewsId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "readingCount": {
+              "type": "long"
+            },
+            "realSort": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "section": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "sectionTypes": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "sections": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "securityAbbr": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "securityCode": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "securityName": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "stockList": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "stocks": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "telegraphId": {
+              "type": "long"
+            },
+            "transport": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "publishTime": {
+          "type": "date"
+        },
+        "sourceId": {
+          "type": "long"
+        },
+        "sourceName": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "sourceType": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "sourceUrl": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "summary": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "tags": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "title": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        }
+      },
+      "sampleTopLevelFields": [
+        "documentId",
+        "sourceId",
+        "sourceName",
+        "sourceType",
+        "title",
+        "content",
+        "summary",
+        "author",
+        "sourceUrl",
+        "publishTime",
+        "collectTime",
+        "language",
+        "categories",
+        "tags",
+        "contentHash",
+        "analysisStatus",
+        "metadata"
+      ],
+      "sampleTemporalValues": {
+        "publishTime": "2026-10-28T14:32:00Z",
+        "collectTime": "2026-10-28T16:03:37.706672993Z"
+      },
+      "sampleNestedKeys": {
+        "metadata": [
+          "transport",
+          "evidenceTitle",
+          "disclosureId",
+          "provider",
+          "collectionDate",
+          "securityName",
+          "legalDisclaimer",
+          "attachmentAllowedDomains",
+          "legalRisk",
+          "securityCode",
+          "evidenceUrl",
+          "firstPageOnly",
+          "sectionTypes",
+          "attachmentUrls",
+          "sections"
+        ]
+      }
+    },
+    {
+      "index": "runtime-news-2026.11.01",
+      "fields": {
+        "analysisStatus": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "author": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "categories": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "collectTime": {
+          "type": "date"
+        },
+        "content": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "contentHash": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "documentId": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "language": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "metadata": {
+          "properties": {
+            "announcementId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "announcementTypeName": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "attachmentAllowedDomains": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "attachmentFileName": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "attachmentUrl": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "attachmentUrls": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "channel": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "chunkCount": {
+              "type": "long"
+            },
+            "chunkIndex": {
+              "type": "long"
+            },
+            "collectionDate": {
+              "type": "date"
+            },
+            "column": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "disclosureId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "documentKind": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "evidenceTitle": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "evidenceUrl": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "firstPageOnly": {
+              "type": "boolean"
+            },
+            "important": {
+              "type": "boolean"
+            },
+            "isRed": {
+              "type": "long"
+            },
+            "isTop": {
+              "type": "long"
+            },
+            "itemCursor": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "itemId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "legalDisclaimer": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "legalRisk": {
+              "type": "boolean"
+            },
+            "level": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "newsCode": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "parentDocumentId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "parentTitle": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "parentUrl": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "provider": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "providerSource": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "quickNewsId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "readingCount": {
+              "type": "long"
+            },
+            "realSort": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "section": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "sectionTypes": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "sections": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "securityAbbr": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "securityCode": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "securityName": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "stockList": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "telegraphId": {
+              "type": "long"
+            },
+            "transport": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "publishTime": {
+          "type": "date"
+        },
+        "sourceId": {
+          "type": "long"
+        },
+        "sourceName": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "sourceType": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "sourceUrl": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "summary": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "tags": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "title": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        }
+      },
+      "sampleTopLevelFields": [
+        "documentId",
+        "sourceId",
+        "sourceName",
+        "sourceType",
+        "title",
+        "content",
+        "summary",
+        "author",
+        "sourceUrl",
+        "publishTime",
+        "collectTime",
+        "language",
+        "categories",
+        "tags",
+        "contentHash",
+        "analysisStatus",
+        "metadata"
+      ],
+      "sampleTemporalValues": {
+        "publishTime": "2026-10-31T15:32:08Z",
+        "collectTime": "2026-11-01T05:17:25.722030114Z"
+      },
+      "sampleNestedKeys": {
+        "metadata": [
+          "evidenceUrl",
+          "itemCursor",
+          "transport",
+          "legalRisk",
+          "itemId",
+          "newsCode",
+          "realSort",
+          "evidenceTitle",
+          "provider",
+          "stockList",
+          "legalDisclaimer"
+        ]
+      }
+    },
+    {
+      "index": "runtime-news-2026.11.02",
+      "fields": {
+        "analysisStatus": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "author": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "categories": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "collectTime": {
+          "type": "date"
+        },
+        "content": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "contentHash": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "documentId": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "language": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "metadata": {
+          "properties": {
+            "announcementId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "announcementTypeName": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "attachmentAllowedDomains": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "attachmentFileName": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "attachmentUrl": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "attachmentUrls": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "bulletinType": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "channel": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "chunkCount": {
+              "type": "long"
+            },
+            "chunkIndex": {
+              "type": "long"
+            },
+            "collectionDate": {
+              "type": "date"
+            },
+            "column": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "disclosureId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "documentKind": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "evidenceTitle": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "evidenceUrl": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "firstPageOnly": {
+              "type": "boolean"
+            },
+            "headlineCount": {
+              "type": "long"
+            },
+            "important": {
+              "type": "boolean"
+            },
+            "isRed": {
+              "type": "long"
+            },
+            "isTop": {
+              "type": "long"
+            },
+            "itemCursor": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "itemId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "legalDisclaimer": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "legalRisk": {
+              "type": "boolean"
+            },
+            "level": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "meetingId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "newsCode": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "parentDocumentId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "parentTitle": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "parentUrl": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "provider": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "providerSource": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "quickNewsId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "readingCount": {
+              "type": "long"
+            },
+            "realSort": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "section": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "sectionTypes": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "sections": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "securityAbbr": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "securityCode": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "securityName": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "stockList": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "telegraphId": {
+              "type": "long"
+            },
+            "transport": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "publishTime": {
+          "type": "date"
+        },
+        "sourceId": {
+          "type": "long"
+        },
+        "sourceName": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "sourceType": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "sourceUrl": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "summary": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "tags": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "title": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        }
+      },
+      "sampleTopLevelFields": [
+        "documentId",
+        "sourceId",
+        "sourceName",
+        "sourceType",
+        "title",
+        "content",
+        "summary",
+        "author",
+        "sourceUrl",
+        "publishTime",
+        "collectTime",
+        "language",
+        "categories",
+        "tags",
+        "contentHash",
+        "analysisStatus",
+        "metadata"
+      ],
+      "sampleTemporalValues": {
+        "publishTime": "2026-11-02T00:46:09Z",
+        "collectTime": "2026-11-02T00:47:17.839058693Z"
+      },
+      "sampleNestedKeys": {
+        "metadata": [
+          "legalDisclaimer",
+          "evidenceTitle",
+          "quickNewsId",
+          "isTop",
+          "transport",
+          "channel",
+          "legalRisk",
+          "isRed",
+          "itemId",
+          "itemCursor",
+          "provider",
+          "providerSource",
+          "evidenceUrl"
+        ]
+      }
+    },
+    {
+      "index": "runtime-news-2026.11.03",
+      "fields": {
+        "analysisStatus": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "author": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "categories": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "collectTime": {
+          "type": "date"
+        },
+        "content": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "contentHash": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "documentId": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "language": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "metadata": {
+          "properties": {
+            "announcementId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "announcementTypeName": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "attachmentAllowedDomains": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "attachmentFileName": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "attachmentUrl": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "attachmentUrls": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "bulletinType": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "channel": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "chunkCount": {
+              "type": "long"
+            },
+            "chunkIndex": {
+              "type": "long"
+            },
+            "collectionDate": {
+              "type": "date"
+            },
+            "column": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "disclosureId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "documentKind": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "evidenceTitle": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "evidenceUrl": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "firstPageOnly": {
+              "type": "boolean"
+            },
+            "headlineCount": {
+              "type": "long"
+            },
+            "important": {
+              "type": "boolean"
+            },
+            "isRed": {
+              "type": "long"
+            },
+            "isTop": {
+              "type": "long"
+            },
+            "itemCursor": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "itemId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "legalDisclaimer": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "legalRisk": {
+              "type": "boolean"
+            },
+            "level": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "meetingId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "newsCode": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "parentDocumentId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "parentTitle": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "parentUrl": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "projectId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "provider": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "providerSource": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "quickNewsId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "readingCount": {
+              "type": "long"
+            },
+            "realSort": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "section": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "sectionTypes": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "sections": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "securityAbbr": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "securityCode": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "securityName": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "stockList": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "telegraphId": {
+              "type": "long"
+            },
+            "transport": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "publishTime": {
+          "type": "date"
+        },
+        "sourceId": {
+          "type": "long"
+        },
+        "sourceName": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "sourceType": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "sourceUrl": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "summary": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "tags": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "title": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        }
+      },
+      "sampleTopLevelFields": [
+        "documentId",
+        "sourceId",
+        "sourceName",
+        "sourceType",
+        "title",
+        "content",
+        "summary",
+        "author",
+        "sourceUrl",
+        "publishTime",
+        "collectTime",
+        "language",
+        "categories",
+        "tags",
+        "contentHash",
+        "analysisStatus",
+        "metadata"
+      ],
+      "sampleTemporalValues": {
+        "publishTime": "2026-11-03T03:48:00Z",
+        "collectTime": "2026-11-03T04:00:30.081277075Z"
+      },
+      "sampleNestedKeys": {
+        "metadata": [
+          "parentTitle",
+          "attachmentUrl",
+          "evidenceTitle",
+          "evidenceUrl",
+          "documentKind",
+          "chunkIndex",
+          "parentUrl",
+          "chunkCount",
+          "attachmentFileName",
+          "parentDocumentId"
+        ]
+      }
+    },
+    {
+      "index": "runtime-news-2026.11.04",
+      "fields": {
+        "analysisStatus": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "author": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "categories": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "collectTime": {
+          "type": "date"
+        },
+        "content": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "contentHash": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "documentId": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "language": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "metadata": {
+          "properties": {
+            "attachmentAllowedDomains": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "attachmentFileName": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "attachmentUrl": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "attachmentUrls": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "chunkCount": {
+              "type": "long"
+            },
+            "chunkIndex": {
+              "type": "long"
+            },
+            "collectionDate": {
+              "type": "date"
+            },
+            "disclosureId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "documentKind": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "evidenceTitle": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "evidenceUrl": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "firstPageOnly": {
+              "type": "boolean"
+            },
+            "legalDisclaimer": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "legalRisk": {
+              "type": "boolean"
+            },
+            "parentDocumentId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "parentTitle": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "parentUrl": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "provider": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "sectionTypes": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "sections": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "securityCode": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "securityName": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "transport": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "publishTime": {
+          "type": "date"
+        },
+        "sourceId": {
+          "type": "long"
+        },
+        "sourceName": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "sourceType": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "sourceUrl": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "summary": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "tags": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "title": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        }
+      },
+      "sampleTopLevelFields": [
+        "documentId",
+        "sourceId",
+        "sourceName",
+        "sourceType",
+        "title",
+        "content",
+        "summary",
+        "author",
+        "sourceUrl",
+        "publishTime",
+        "collectTime",
+        "language",
+        "categories",
+        "tags",
+        "contentHash",
+        "analysisStatus",
+        "metadata"
+      ],
+      "sampleTemporalValues": {
+        "publishTime": "2026-11-03T16:00:00Z",
+        "collectTime": "2026-11-03T16:04:14.694284837Z"
+      },
+      "sampleNestedKeys": {
+        "metadata": [
+          "transport",
+          "evidenceTitle",
+          "disclosureId",
+          "provider",
+          "collectionDate",
+          "securityName",
+          "legalDisclaimer",
+          "attachmentAllowedDomains",
+          "legalRisk",
+          "securityCode",
+          "evidenceUrl",
+          "firstPageOnly",
+          "sectionTypes",
+          "attachmentUrls",
+          "sections"
+        ]
+      }
+    },
+    {
+      "index": "runtime-news-2026.10.30",
+      "fields": {
+        "analysisStatus": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "author": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "categories": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "collectTime": {
+          "type": "date"
+        },
+        "content": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "contentHash": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "documentId": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "language": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "metadata": {
+          "properties": {
+            "announcementId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "announcementTypeName": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "attachmentAllowedDomains": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "attachmentFileName": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "attachmentUrl": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "attachmentUrls": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "bulletinType": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "channel": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "chunkCount": {
+              "type": "long"
+            },
+            "chunkIndex": {
+              "type": "long"
+            },
+            "collectionDate": {
+              "type": "date"
+            },
+            "column": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "disclosureId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "documentKind": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "documentType": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "evidenceTitle": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "evidenceUrl": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "firstPageOnly": {
+              "type": "boolean"
+            },
+            "important": {
+              "type": "boolean"
+            },
+            "isRed": {
+              "type": "long"
+            },
+            "isTop": {
+              "type": "long"
+            },
+            "itemCursor": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "itemId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "legalDisclaimer": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "legalRisk": {
+              "type": "boolean"
+            },
+            "level": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "market": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "meetingId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "newsCode": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "newsId": {
+              "type": "long"
+            },
+            "parentDocumentId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "parentTitle": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "parentUrl": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "provider": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "providerSource": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "quickNewsId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "readingCount": {
+              "type": "long"
+            },
+            "realSort": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "section": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "sectionTypes": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "sections": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "securityAbbr": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "securityCode": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "securityName": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "stockList": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "stocks": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "telegraphId": {
+              "type": "long"
+            },
+            "transport": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "publishTime": {
+          "type": "date"
+        },
+        "sourceId": {
+          "type": "long"
+        },
+        "sourceName": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "sourceType": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "sourceUrl": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "summary": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "tags": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "title": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        }
+      },
+      "sampleTopLevelFields": [
+        "documentId",
+        "sourceId",
+        "sourceName",
+        "sourceType",
+        "title",
+        "content",
+        "summary",
+        "author",
+        "sourceUrl",
+        "publishTime",
+        "collectTime",
+        "language",
+        "categories",
+        "tags",
+        "contentHash",
+        "analysisStatus",
+        "metadata"
+      ],
+      "sampleTemporalValues": {
+        "publishTime": "2026-10-29T16:00:00Z",
+        "collectTime": "2026-10-29T16:58:45.141140272Z"
+      },
+      "sampleNestedKeys": {
+        "metadata": [
+          "parentTitle",
+          "attachmentUrl",
+          "evidenceTitle",
+          "evidenceUrl",
+          "documentKind",
+          "chunkIndex",
+          "parentUrl",
+          "chunkCount",
+          "attachmentFileName",
+          "parentDocumentId"
+        ]
+      }
+    },
+    {
+      "index": "runtime-news-2026.10.31",
+      "fields": {
+        "analysisStatus": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "author": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "categories": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "collectTime": {
+          "type": "date"
+        },
+        "content": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "contentHash": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "documentId": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "language": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "metadata": {
+          "properties": {
+            "announcementId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "announcementTypeName": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "attachmentAllowedDomains": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "attachmentFileName": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "attachmentUrl": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "attachmentUrls": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "bulletinType": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "channel": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "chunkCount": {
+              "type": "long"
+            },
+            "chunkIndex": {
+              "type": "long"
+            },
+            "collectionDate": {
+              "type": "date"
+            },
+            "column": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "disclosureId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "documentKind": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "evidenceTitle": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "evidenceUrl": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "firstPageOnly": {
+              "type": "boolean"
+            },
+            "headlineCount": {
+              "type": "long"
+            },
+            "important": {
+              "type": "boolean"
+            },
+            "isRed": {
+              "type": "long"
+            },
+            "isTop": {
+              "type": "long"
+            },
+            "itemCursor": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "itemId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "legalDisclaimer": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "legalRisk": {
+              "type": "boolean"
+            },
+            "meetingId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "parentDocumentId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "parentTitle": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "parentUrl": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "projectId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "provider": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "providerSource": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "quickNewsId": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "section": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "sectionTypes": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "sections": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "securityAbbr": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "securityCode": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "securityName": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            },
+            "transport": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                }
+              }
+            }
+          }
+        },
+        "publishTime": {
+          "type": "date"
+        },
+        "sourceId": {
+          "type": "long"
+        },
+        "sourceName": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "sourceType": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "sourceUrl": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "summary": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "tags": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "title": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        }
+      },
+      "sampleTopLevelFields": [
+        "documentId",
+        "sourceId",
+        "sourceName",
+        "sourceType",
+        "title",
+        "content",
+        "summary",
+        "author",
+        "sourceUrl",
+        "publishTime",
+        "collectTime",
+        "language",
+        "categories",
+        "tags",
+        "contentHash",
+        "analysisStatus",
+        "metadata"
+      ],
+      "sampleTemporalValues": {
+        "publishTime": "2026-10-30T16:00:00Z",
+        "collectTime": "2026-10-30T22:00:00.809243226Z"
+      },
+      "sampleNestedKeys": {
+        "metadata": [
+          "parentTitle",
+          "attachmentUrl",
+          "evidenceTitle",
+          "evidenceUrl",
+          "documentKind",
+          "chunkIndex",
+          "parentUrl",
+          "chunkCount",
+          "attachmentFileName",
+          "parentDocumentId"
+        ]
+      }
+    },
+    {
+      "index": "runtime_os_stage_documents",
+      "fields": {
+        "chunkId": {
+          "type": "keyword"
+        },
+        "chunkIndex": {
+          "type": "integer"
+        },
+        "chunkText": {
+          "type": "text",
+          "analyzer": "chatchat_ik_index",
+          "search_analyzer": "chatchat_ik_search"
+        },
+        "chunkType": {
+          "type": "keyword"
+        },
+        "companies": {
+          "type": "keyword"
+        },
+        "companyTokens": {
+          "type": "text",
+          "analyzer": "chatchat_whitespace"
+        },
+        "content": {
+          "type": "text",
+          "analyzer": "chatchat_ik_index",
+          "search_analyzer": "chatchat_ik_search"
+        },
+        "contentTokens": {
+          "type": "text",
+          "analyzer": "chatchat_whitespace"
+        },
+        "fileId": {
+          "type": "keyword"
+        },
+        "fileName": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            },
+            "pinyin": {
+              "type": "text",
+              "analyzer": "chatchat_pinyin"
+            }
+          },
+          "analyzer": "chatchat_ik_index",
+          "search_analyzer": "chatchat_ik_search"
+        },
+        "industries": {
+          "type": "keyword"
+        },
+        "industryTokens": {
+          "type": "text",
+          "analyzer": "chatchat_whitespace"
+        },
+        "keywordTokens": {
+          "type": "text",
+          "analyzer": "chatchat_whitespace"
+        },
+        "keywords": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            },
+            "pinyin": {
+              "type": "text",
+              "analyzer": "chatchat_pinyin"
+            }
+          },
+          "analyzer": "chatchat_ik_index",
+          "search_analyzer": "chatchat_ik_search"
+        },
+        "permissionRole": {
+          "type": "keyword"
+        },
+        "positionRatio": {
+          "type": "float"
+        },
+        "section": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            },
+            "pinyin": {
+              "type": "text",
+              "analyzer": "chatchat_pinyin"
+            }
+          },
+          "analyzer": "chatchat_ik_index",
+          "search_analyzer": "chatchat_ik_search"
+        },
+        "sectionId": {
+          "type": "keyword"
+        },
+        "source": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            },
+            "pinyin": {
+              "type": "text",
+              "analyzer": "chatchat_pinyin"
+            }
+          },
+          "analyzer": "chatchat_ik_index",
+          "search_analyzer": "chatchat_ik_search"
+        },
+        "sourceTokens": {
+          "type": "text",
+          "analyzer": "chatchat_whitespace"
+        },
+        "sourceVersion": {
+          "type": "integer"
+        },
+        "tagTokens": {
+          "type": "text",
+          "analyzer": "chatchat_whitespace"
+        },
+        "tags": {
+          "type": "keyword"
+        },
+        "tenantId": {
+          "type": "keyword"
+        },
+        "title": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            },
+            "pinyin": {
+              "type": "text",
+              "analyzer": "chatchat_pinyin"
+            }
+          },
+          "analyzer": "chatchat_ik_index",
+          "search_analyzer": "chatchat_ik_search"
+        },
+        "titleTokens": {
+          "type": "text",
+          "analyzer": "chatchat_whitespace"
+        },
+        "userId": {
+          "type": "keyword"
+        },
+        "visibility": {
+          "type": "keyword"
+        }
+      },
+      "sampleTopLevelFields": [
+        "fileId",
+        "fileName",
+        "chunkId",
+        "sectionId",
+        "sourceVersion",
+        "chunkIndex",
+        "chunkText",
+        "content",
+        "title",
+        "section",
+        "keywords",
+        "chunkType",
+        "positionRatio",
+        "source",
+        "tags",
+        "companies",
+        "industries",
+        "titleTokens",
+        "contentTokens",
+        "sourceTokens",
+        "keywordTokens",
+        "tagTokens",
+        "companyTokens",
+        "industryTokens",
+        "tenantId",
+        "userId",
+        "visibility",
+        "permissionRole"
+      ],
+      "sampleTemporalValues": {},
+      "sampleNestedKeys": {}
+    },
+    {
+      "index": "chatchat_documents_dev",
+      "fields": {
+        "chunkId": {
+          "type": "keyword"
+        },
+        "chunkIndex": {
+          "type": "integer"
+        },
+        "chunkText": {
+          "type": "text",
+          "analyzer": "chatchat_ik_index",
+          "search_analyzer": "chatchat_ik_search"
+        },
+        "chunkType": {
+          "type": "keyword"
+        },
+        "companies": {
+          "type": "keyword"
+        },
+        "companyTokens": {
+          "type": "text",
+          "analyzer": "chatchat_whitespace"
+        },
+        "content": {
+          "type": "text",
+          "analyzer": "chatchat_ik_index",
+          "search_analyzer": "chatchat_ik_search"
+        },
+        "contentTokens": {
+          "type": "text",
+          "analyzer": "chatchat_whitespace"
+        },
+        "contentVector": {
+          "type": "knn_vector",
+          "dimension": 1024
+        },
+        "contentVector2560": {
+          "type": "knn_vector",
+          "dimension": 2560
+        },
+        "fileId": {
+          "type": "keyword"
+        },
+        "fileName": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            },
+            "pinyin": {
+              "type": "text",
+              "analyzer": "chatchat_pinyin"
+            }
+          },
+          "analyzer": "chatchat_ik_index",
+          "search_analyzer": "chatchat_ik_search"
+        },
+        "industries": {
+          "type": "keyword"
+        },
+        "industryTokens": {
+          "type": "text",
+          "analyzer": "chatchat_whitespace"
+        },
+        "keywordTokens": {
+          "type": "text",
+          "analyzer": "chatchat_whitespace"
+        },
+        "keywords": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            },
+            "pinyin": {
+              "type": "text",
+              "analyzer": "chatchat_pinyin"
+            }
+          },
+          "analyzer": "chatchat_ik_index",
+          "search_analyzer": "chatchat_ik_search"
+        },
+        "permissionRole": {
+          "type": "keyword"
+        },
+        "positionRatio": {
+          "type": "float"
+        },
+        "section": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            },
+            "pinyin": {
+              "type": "text",
+              "analyzer": "chatchat_pinyin"
+            }
+          },
+          "analyzer": "chatchat_ik_index",
+          "search_analyzer": "chatchat_ik_search"
+        },
+        "sectionId": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "source": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            },
+            "pinyin": {
+              "type": "text",
+              "analyzer": "chatchat_pinyin"
+            }
+          },
+          "analyzer": "chatchat_ik_index",
+          "search_analyzer": "chatchat_ik_search"
+        },
+        "sourceTokens": {
+          "type": "text",
+          "analyzer": "chatchat_whitespace"
+        },
+        "sourceVersion": {
+          "type": "long"
+        },
+        "tagTokens": {
+          "type": "text",
+          "analyzer": "chatchat_whitespace"
+        },
+        "tags": {
+          "type": "keyword"
+        },
+        "tenantId": {
+          "type": "keyword"
+        },
+        "title": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            },
+            "pinyin": {
+              "type": "text",
+              "analyzer": "chatchat_pinyin"
+            }
+          },
+          "analyzer": "chatchat_ik_index",
+          "search_analyzer": "chatchat_ik_search"
+        },
+        "titleTokens": {
+          "type": "text",
+          "analyzer": "chatchat_whitespace"
+        },
+        "userId": {
+          "type": "keyword"
+        },
+        "visibility": {
+          "type": "keyword"
+        }
+      },
+      "sampleTopLevelFields": [
+        "fileId",
+        "fileName",
+        "chunkId",
+        "sectionId",
+        "sourceVersion",
+        "chunkIndex",
+        "chunkText",
+        "content",
+        "title",
+        "section",
+        "keywords",
+        "chunkType",
+        "positionRatio",
+        "source",
+        "tags",
+        "companies",
+        "industries",
+        "titleTokens",
+        "contentTokens",
+        "sourceTokens",
+        "keywordTokens",
+        "tagTokens",
+        "companyTokens",
+        "industryTokens",
+        "tenantId",
+        "userId",
+        "visibility",
+        "permissionRole"
+      ],
+      "sampleTemporalValues": {},
+      "sampleNestedKeys": {}
+    }
+  ]
+}

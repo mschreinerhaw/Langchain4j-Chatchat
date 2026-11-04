@@ -41,6 +41,15 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentChatModeHandlerTest {
+    @Test void explicitlyConfiguredResourcesOnlyToolAgentUsesTheExistingClineOwner() {
+        var catalog=mock(SkillCatalogService.class);var orchestrator=mock(AgentOrchestrator.class);
+        var role=mock(RoleChatModeHandler.class);var agent=mock(SkillDefinition.class);when(catalog.resolve("research")).thenReturn(agent);
+        when(agent.workflowConfig()).thenReturn(Map.of("enabled",true,"resourceExploration",Map.of("selectionStrategy","task_driven",
+            "resourcePermissions",List.of(Map.of("resourceId","financial_news","enabled",true,"access","read")))));
+        var handler=new AgentChatModeHandler(null,orchestrator,catalog,mock(AgentToolPolicyResolver.class),null,role,null);
+        var request=InteractionRequest.builder().skillId("research").query("Compare news and prices").build();var context=InteractionContext.builder().requestId("request").build();
+        handler.handle(request,context);verify(role).exploreResources(request,context);org.mockito.Mockito.verifyNoInteractions(orchestrator);
+    }
     @Test void explicitQuestionAttachmentsReachCodingWithoutUnrelatedToolAcquisition() {
         var catalog=mock(SkillCatalogService.class);var policies=mock(AgentToolPolicyResolver.class);
         var orchestrator=mock(AgentOrchestrator.class);var agent=skill(List.of("opaque_query"));

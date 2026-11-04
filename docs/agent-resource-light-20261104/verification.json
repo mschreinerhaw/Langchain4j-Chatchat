@@ -1,0 +1,36 @@
+{
+  "preview": false,
+  "checks": [
+    {
+      "width": 1440,
+      "disabledHidesDocumentsAndStrategy": true,
+      "enabledShowsDocumentsBeforeStrategy": true,
+      "selectionsPreservedWhenToggled": true
+    },
+    {
+      "width": 768,
+      "disabledHidesDocumentsAndStrategy": true,
+      "enabledShowsDocumentsBeforeStrategy": true,
+      "selectionsPreservedWhenToggled": true
+    },
+    {
+      "width": 390,
+      "disabledHidesDocumentsAndStrategy": true,
+      "enabledShowsDocumentsBeforeStrategy": true,
+      "selectionsPreservedWhenToggled": true
+    }
+  ],
+  "errors": [],
+  "configWrites": [],
+  "appearance": {
+    "fontSize": "12px",
+    "fontWeight": "400",
+    "color": "rgb(102, 112, 133)",
+    "mutedColor": "rgb(102, 112, 133)",
+    "checkboxWidth": 14,
+    "checkboxHeight": 14
+  },
+  "initialChecked": false,
+  "documentChoicesOnPage": 20,
+  "status": "PASSED"
+}

@@ -67,7 +67,10 @@ export function taskSkills(context = {}) {
   }
   // Image defaults win for every version; business bindings cannot replace them.
   // Report collisions explicitly; never let a dynamic package replace a default.
-  const cards = [...builtin.filter(item => item.card.enabled !== false).map(item => item.card),
+  const cards = [...builtin.filter(item => item.card.enabled !== false
+      && (!item.card.requiresProfile || context.knowledgeExploration?.schemaVersion === item.card.requiresProfile)
+      && (!item.card.requiresResourcesAny || item.card.requiresResourcesAny.some(id =>
+        (context.knowledgeExploration?.resourceIds ?? ['knowledge_documents']).includes(id)))).map(item => item.card),
     ...uniqueDynamic.map(card => ({ ...card, origin: 'AGENT_DYNAMIC' }))];
   const ids = new Set();
   for (const card of cards) {

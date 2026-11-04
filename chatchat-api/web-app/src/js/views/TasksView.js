@@ -460,6 +460,7 @@ export default {
       return `v${this.selectedPlanDag.version}`;
     },
     canRecordFeedback() {
+      if (this.selectedTask?.contentRestricted) return false;
       const normalized = String(this.selectedTask?.status || "").toUpperCase();
       return ["SUCCESS", "FAILED", "CANCELLED"].includes(normalized);
     }
@@ -633,7 +634,9 @@ export default {
           if (refreshedTask) {
             this.selectedTask = refreshedTask;
             this.syncFeedbackDraft(refreshedTask);
-            if (this.planLoadedTaskId !== refreshedTask.taskId) {
+            if (refreshedTask.contentRestricted) {
+              await this.selectTask(refreshedTask);
+            } else if (this.planLoadedTaskId !== refreshedTask.taskId) {
               await this.loadPlanDag({ silent: true });
             }
           }
@@ -693,8 +696,9 @@ export default {
       };
     },
     async reloadEvents(options = {}) {
-      if (!this.selectedTask?.taskId) {
+      if (!this.selectedTask?.taskId || this.selectedTask.contentRestricted) {
         this.selectedEvents = [];
+        this.selectedEventId = "";
         return;
       }
       const silent = !!options.silent;
@@ -727,7 +731,7 @@ export default {
       }
     },
     async loadPlanDag(options = {}) {
-      if (!this.selectedTask?.taskId) {
+      if (!this.selectedTask?.taskId || this.selectedTask.contentRestricted) {
         this.selectedPlanDag = null;
         this.selectedPlanVersions = [];
         this.planLoadedTaskId = "";
@@ -767,6 +771,13 @@ export default {
       }
     },
     async loadExplorationTimeline() {
+      if (this.selectedTask?.contentRestricted) {
+        this.explorationTimeline = { observations: [], steps: [] };
+        this.explorationRunId = "";
+        this.explorationWarning = "";
+        this.explorationHasMore = false;
+        return;
+      }
       const taskId = this.selectedTask?.taskId;
       const runId = this.selectedTask?.attemptId;
       if (!taskId || !runId || this.explorationLoading) return;

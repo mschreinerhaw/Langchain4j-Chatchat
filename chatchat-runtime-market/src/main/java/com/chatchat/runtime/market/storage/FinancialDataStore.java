@@ -156,6 +156,8 @@ public class FinancialDataStore {
             + "constraint uk_security_master_code unique(exchange_code, security_code))");
         ensureIndex("security_master", "idx_security_master_code", "security_code");
         ensureIndex("security_master", "idx_security_master_name", "security_name");
+        ensureQuoteLookupIndex("market_quote_daily");
+        ensureQuoteLookupIndex(archiveTable("market_quote_daily"));
         publishSnapshot("schema initialization");
     }
 
@@ -702,6 +704,7 @@ public class FinancialDataStore {
         existing.forEach((name, type) -> refreshed.add(name + ":" + type));
         refreshed.addAll(requestedColumnSignatures);
         ensuredTableColumns.put(table, Set.copyOf(refreshed));
+        if("market_quote_daily".equals(definition.code()))ensureQuoteLookupIndex(table);
     }
 
     private boolean requiresTextWidening(FieldType registered, FieldType incoming) {
@@ -833,7 +836,9 @@ public class FinancialDataStore {
     private List<Map<String, Object>> queryTable(String table, String code, Map<String, String> allowed,
                                                   Map<String, Object> filters, LocalDate startDate,
                                                   LocalDate endDate, int limit, String tier) {
-        StringBuilder sql = new StringBuilder("select * from `").append(table).append("` where 1=1");
+        // Rank lightweight identities first. Ranking payload_json and every collected field
+        // materializes the entire history in H2 even when the caller requests a small page.
+        StringBuilder sql = new StringBuilder("select id,observation_date,source_code,source_url,collected_at from `").append(table).append("` where 1=1");
         List<Object> args = new ArrayList<>();
         if (startDate != null) { sql.append(" and observation_date>=?"); args.add(Date.valueOf(startDate)); }
         if (endDate != null) { sql.append(" and observation_date<=?"); args.add(Date.valueOf(endDate)); }
@@ -879,7 +884,11 @@ public class FinancialDataStore {
                 .append(") latest_rows order by observation_date desc,collected_at desc,id desc limit ?");
         }
         args.add(limit);
-        List<Map<String, Object>> rows = financialReads.queryForList(sql.toString(), args.toArray());
+        String pageSql = "select observations.* from `" + table + "` observations join (" + sql
+            + ") selected on observations.id=selected.id order by selected.observation_date desc,"
+            + (filters == null || filters.isEmpty() ? "selected._group_rank asc," : "")
+            + "selected.collected_at desc,selected.id desc";
+        List<Map<String, Object>> rows = financialReads.queryForList(pageSql, args.toArray());
         return rows.stream().map(row -> {
             Map<String, Object> value = new LinkedHashMap<>(row);
             value.remove("_identity_rank");
@@ -913,6 +922,7 @@ public class FinancialDataStore {
         if (!columns.contains("snapshot_week")) jdbc.execute("alter table `" + archiveTable + "` add column snapshot_week date");
         if (!columns.contains("archived_at")) jdbc.execute("alter table `" + archiveTable + "` add column archived_at timestamp");
         ensureIndex(archiveTable, indexName("idx_" + archiveTable + "_week"), "snapshot_week,observation_date");
+        if("market_quote_daily".equals(sourceTable))ensureQuoteLookupIndex(archiveTable);
     }
 
     private void ensureCatalogColumn(String column, String type) {
@@ -1054,6 +1064,45 @@ public class FinancialDataStore {
     }
 
     private record StorageResources(JdbcTemplate jdbc, DataSource dataSource) { }
+
+    /** Existing H2 quote-code predicates otherwise scan CLOB rows before window ranking.
+     * Preserve string values and public schema; reuse an existing leading-code index under any name.
+     * MySQL schema/DDL ownership remains unchanged. No query, permission or retention semantics change. */
+    private void ensureQuoteLookupIndex(String table) {
+        if(mysql || !tableExists(table,jdbc))return;
+        boolean present=false,clob=false,indexed=false,nameUsed=false;
+        String lookupIndex=indexName("idx_"+table+"_quote_lookup");
+        try(var connection=dataSource.getConnection()) {
+            try(var columns=connection.getMetaData().getColumns(connection.getCatalog(),null,table,"quote_code")) {
+                while(columns.next())if(table.equalsIgnoreCase(columns.getString("TABLE_NAME")) && "quote_code".equalsIgnoreCase(columns.getString("COLUMN_NAME"))) {
+                    present=true;clob=columns.getInt("DATA_TYPE")==java.sql.Types.CLOB || columns.getInt("DATA_TYPE")==java.sql.Types.NCLOB;
+                }
+            }
+            if(!present)return;
+            try(var indexes=connection.getMetaData().getIndexInfo(connection.getCatalog(),null,table,false,false)) {
+                while(indexes.next()) {
+                    if(indexes.getInt("ORDINAL_POSITION")==1 && "quote_code".equalsIgnoreCase(indexes.getString("COLUMN_NAME")))indexed=true;
+                    if(lookupIndex.equalsIgnoreCase(indexes.getString("INDEX_NAME")))nameUsed=true;
+                }
+            }
+        }catch(java.sql.SQLException unavailable){throw new IllegalStateException("Cannot inspect financial quote lookup schema",unavailable);}
+        if(indexed)return;
+        if(nameUsed){log.warn("Financial quote lookup optimization skipped: existing index name has another definition table={}",table);return;}
+        // Offline, backed-up schema maintenance has a separate bounded deadline.
+        // Never raise the serving JdbcTemplate's query deadline for a large table rewrite.
+        var maintenance=new JdbcTemplate(dataSource);maintenance.setQueryTimeout(180);
+        if(clob) {
+            Long length=jdbc.queryForObject("select max(char_length(quote_code)) from `"+identifier(table)+"`",Long.class);
+            if(length!=null && length>1_000_000_000L) {
+                log.warn("Financial quote lookup index skipped: identifier exceeds H2 VARCHAR capacity table={}",table);return;
+            }
+            // H2's unconstrained VARCHAR supports existing long identifiers; never narrow to a stock-code length.
+            maintenance.execute("alter table `"+identifier(table)+"` alter column quote_code varchar");
+            log.info("Financial quote identifier SQL type made indexable table={} valuesPreserved=true",table);
+        }
+        maintenance.execute("create index "+lookupIndex+" on `"+identifier(table)+"`(quote_code,observation_date)");
+        log.info("Financial quote lookup index ready table={} columns=quote_code,observation_date",table);
+    }
 
     private void ensureIndex(String table, String index, String columns) {
         try (var connection = dataSource.getConnection(); var found = connection.getMetaData()

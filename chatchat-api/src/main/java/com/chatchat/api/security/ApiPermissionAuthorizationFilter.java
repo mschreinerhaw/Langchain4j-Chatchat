@@ -135,6 +135,7 @@ public class ApiPermissionAuthorizationFilter extends OncePerRequestFilter {
     }
 
     static boolean callerTaskRoute(String method, String path) {
+        if("GET".equals(method) && path.matches("/api/v1/agent/knowledge/citations/[0-9a-f]{64}"))return true;
         String root = "/api/v1/agent/tasks";
         String id = "[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}";
         if ("GET".equals(method) && (root + "/runtime/todos").equals(path)) return true;

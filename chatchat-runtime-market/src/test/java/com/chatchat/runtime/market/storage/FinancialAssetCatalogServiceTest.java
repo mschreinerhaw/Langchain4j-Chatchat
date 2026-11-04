@@ -13,6 +13,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class FinancialAssetCatalogServiceTest {
+    @Test @SuppressWarnings("unchecked") void autonomousQueryUsesTheCallerOwnedIndexPath() {
+        var store=mock(FinancialDataStore.class);var index=mock(MarketAssetCatalogIndex.class);
+        ObjectProvider<MarketAssetCatalogIndex> provider=mock(ObjectProvider.class);when(provider.getIfAvailable()).thenReturn(index);when(index.available()).thenReturn(true);
+        when(index.searchCallerQuery("financial-data-asset","ETF",50)).thenReturn(List.of(Map.of("dataset_code","etf_scale_daily","asset_name","ETF")));
+        assertThat(new FinancialAssetCatalogService(store,provider,new MarketModuleProperties()).searchCallerQuery("ETF",10)).hasSize(1);
+        verify(index).searchCallerQuery("financial-data-asset","ETF",50);org.mockito.Mockito.verify(index,org.mockito.Mockito.never()).search(org.mockito.ArgumentMatchers.anyString(),org.mockito.ArgumentMatchers.anyString(),org.mockito.ArgumentMatchers.anyInt());
+    }
     @Test
     @SuppressWarnings("unchecked")
     void fallsBackToMcpDatabaseWhenCentralOpenSearchIsDisabled() {

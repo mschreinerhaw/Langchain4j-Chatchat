@@ -6,6 +6,17 @@ import static com.chatchat.common.runtime.coding.CodingContractTestSupport.*;
 import static org.assertj.core.api.Assertions.*;
 
 class CodingRuntimeContextTest {
+    @Test void resourceProfileSurvivesTheActualCanonicalContractAndRejectsPhysicalOrIdentityFields() throws Exception {
+        var node=fixture("task");node.put("schemaVersion",CodingProtocol.ANALYSIS_VERSION);
+        var profile=Map.of("schemaVersion","runtime_os.knowledge.v1","agentId","agent","resourceIds",List.of("financial_news","financial_market"),"explicitlyRequested",true);
+        node.set("runtimeContext",JSON.valueToTree(Map.of("schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT","knowledgeExploration",profile)));
+        var contract=JSON.treeToValue(node,CodingTaskContract.class);
+        assertThat(contract.runtimeContext().get("knowledgeExploration")).isEqualTo(profile);
+        var invalid=new HashMap<String,Object>(profile);invalid.put("resourceIds",List.of("runtime-news-*"));
+        assertThatThrownBy(()->CodingRuntimeContext.validate(Map.of("knowledgeExploration",invalid))).isInstanceOf(CodingContractException.class);
+        invalid.put("resourceIds",List.of("financial_news"));invalid.put("userId","other-user");
+        assertThatThrownBy(()->CodingRuntimeContext.validate(Map.of("knowledgeExploration",invalid))).isInstanceOf(CodingContractException.class);
+    }
     @Test void fileInputCapabilitiesAreVersionedAndRestrictedToAnalysisProfile() throws Exception {
         var node=fixture("task");
         node.set("runtimeContext",JSON.valueToTree(Map.of("schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT",

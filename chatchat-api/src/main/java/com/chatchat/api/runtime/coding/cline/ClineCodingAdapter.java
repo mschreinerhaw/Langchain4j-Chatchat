@@ -401,7 +401,7 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
             for(var profile:capabilities.path("workspaceProfiles"))if(com.chatchat.api.datascience.sql.SqlWorkspaceMetadataTools.PROFILE.equals(profile.asText()))supported=true;
             if(!supported)throw new IllegalStateException("Cline worker has not negotiated SQL metadata tools; update worker before dispatch");
         }
-        for(String required:List.of("input_read","report_submit","code_read"))if(contract.authorization().allowedTools().contains(required)) {
+        for(String required:List.of("input_read","report_submit","code_read","knowledge_search","knowledge_get_document","knowledge_read","knowledge_list_sections","knowledge_related","news_search","news_get_article","news_related_events","market_search","market_get_history","market_get_indicators","market_get_snapshot"))if(contract.authorization().allowedTools().contains(required)) {
             boolean supported=false;
             for(var tool:capabilities.path("analysisTools"))if(required.equals(tool.asText()))supported=true;
             if(!supported)throw new IllegalStateException("Cline worker has not negotiated "+required+"; update the worker before dispatch");

@@ -10,6 +10,7 @@ chatchat-mcp-server/web-app-mcp/**/*.css text eol=lf
 chatchat-mcp-server/web-app-mcp/package*.json text eol=lf
 .prettierrc.json text eol=lf
 scripts/check-vue-structure.mjs text eol=lf
+coding-agent-node/test/fixtures/repair-analysis.py.txt text eol=lf
 
 # Vendor packages retain the exact upstream Git blob bytes, including assets.
 coding-agent-node/skills/azure-kusto/** -text -whitespace

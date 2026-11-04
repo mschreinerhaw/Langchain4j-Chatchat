@@ -2990,6 +2990,49 @@
   font-size: 14px;
 }
 
+.agent-workshop-view .agent-resource-settings {
+  display: grid;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 12px 14px;
+  border-left: 2px solid var(--line);
+  border-radius: 0 8px 8px 0;
+  background: #f8fafc;
+}
+
+.agent-workshop-view .agent-resource-settings .agent-resource-documents {
+  min-height: 0;
+  padding: 0 0 12px;
+}
+
+.agent-workshop-view .agent-resource-settings > small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.agent-workshop-view .agent-resource-selector-copy > label:has(> input[type="checkbox"]) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.agent-workshop-view .agent-resource-selector-copy input[type="checkbox"] {
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--primary);
+}
+
 .agent-workshop-view .agent-resource-selector-copy span,
 .agent-workshop-view .agent-resource-selector-action > span {
   color: var(--muted);
@@ -3459,6 +3502,78 @@
   border-radius: 8px;
   padding: 12px;
   background: #fbfcff;
+}
+
+.agent-workshop-view .agent-resource-selector-copy > small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.agent-workshop-view details.agent-workflow-builder {
+  display: block;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+}
+
+.agent-workshop-view details.agent-workflow-builder > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+  cursor: pointer;
+  list-style: none;
+}
+
+.agent-workshop-view details.agent-workflow-builder > summary::-webkit-details-marker {
+  display: none;
+}
+
+.agent-workshop-view details.agent-workflow-builder > summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.agent-workshop-view details.agent-workflow-builder > summary::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  margin: 0 3px 0 2px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+}
+
+.agent-workshop-view details.agent-workflow-builder[open] > summary::before {
+  transform: rotate(45deg);
+}
+
+.agent-workshop-view details.agent-workflow-builder > summary small {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #f1f4f8;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.agent-workshop-view details.agent-workflow-builder[open] > :not(summary) {
+  margin-top: 12px;
+}
+
+.agent-workshop-view details.agent-workflow-builder[open] {
+  padding-bottom: 12px;
 }
 
 .agent-workshop-view .workflow-enable,

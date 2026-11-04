@@ -1,0 +1,9 @@
+{
+  "allUnrelatedEntriesPreserved": true,
+  "changedDependencyJars": [
+    "BOOT-INF/lib/chatchat-common-1.0.0-SNAPSHOT.jar",
+    "BOOT-INF/lib/chatchat-knowledge-base-1.0.0-SNAPSHOT.jar",
+    "BOOT-INF/lib/chatchat-chat-1.0.0-SNAPSHOT.jar"
+  ],
+  "jarSha256": "209a1ccf5a4a6c36633b6950f69165b525c9b4ce1d461800434d3a7e30c7ce2a"
+}

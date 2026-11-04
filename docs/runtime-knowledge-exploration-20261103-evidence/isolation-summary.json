@@ -1,0 +1,11 @@
+{
+  "release": "knowledge-exploration-20261103-r8",
+  "sameTenantDifferentUser": true,
+  "sameAgentAccess": true,
+  "deniedUserDocumentGrants": 0,
+  "authorizedCitationHttpStatus": 200,
+  "otherUserCitationHttpStatus": 403,
+  "otherUserOriginalHttpStatus": 200,
+  "originalApiCode": 404,
+  "passed": true
+}

@@ -14,6 +14,22 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClineContextAnswerServiceTest {
+    @Test void ordinaryContextHandoffCannotReuseResourceTaintedMemoryOrSupplementalContext() {
+        var guard=mock(com.chatchat.api.runtime.coding.knowledge.KnowledgeDisclosureGuard.class);
+        when(guard.hasResourceHistory(anyString(),anyString(),eq("session"))).thenReturn(true);
+        org.springframework.test.util.ReflectionTestUtils.setField(service,"memoryProvenance",guard);
+        result("Need current source evidence",List.of("runtime-context:run"),1);
+        service.answer(request(),context.toBuilder().conversationSummary("Previously disclosed source text").build(),skill,"Old supplemental source text");
+        @SuppressWarnings("unchecked") var captured=org.mockito.ArgumentCaptor.forClass(Map.class);
+        verify(coding).executeObserved(any(),anyMap(),captured.capture(),any());
+        var dataset=(Dataset)captured.getValue().get("runtime-context:run");
+        assertThat(dataset.records()).singleElement().satisfies(row->{
+            assertThat(row).containsEntry("historySuppressedDueToResourceProvenance",true);
+            @SuppressWarnings("unchecked") var materials=(List<Map<String,Object>>)row.get("materials");
+            assertThat(materials).allSatisfy(material->assertThat(material.get("kind")).isNotIn("conversationMemory","referenceDocument"));
+            assertThat(materials).anySatisfy(material->assertThat(material).containsEntry("kind","originalUserMessage"));
+        });
+    }
     @Test void missingBusinessSemanticsPublishesUsablePartialReportInsteadOfFullSuccess() {
         var outcome = ClineContextAnswerService.reportOutcome(Map.of("analysisStatus", "INPUT_REQUIRED",
             "limitations", List.of("Producer field definitions and business time semantics are missing")));
@@ -97,6 +113,7 @@ class ClineContextAnswerServiceTest {
     final com.chatchat.agents.runtime.store.AgentRunStore runs = mock(com.chatchat.agents.runtime.store.AgentRunStore.class);
     final ClineContextAnswerService service = new ClineContextAnswerService(coding, models, new ObjectMapper(), runs);
     final InteractionContext context = InteractionContext.builder().requestId("req").conversationId("session").build();
+    List<Map<String,Object>> knowledgeCitationFixture=List.of();
     InteractionRequest request() { return InteractionRequest.builder().query("Design a generic table")
         .tenantId("tenant").userId("user").toolInput(Map.of("__agentRunId", "run")).build(); }
 
@@ -161,7 +178,8 @@ class ClineContextAnswerServiceTest {
             var rows = new ArrayList<Map<String,Object>>();
             for (int i = 0; i < count; i++) rows.add(Map.of("reportMarkdown", report, "evidenceReferences", refs, "limitations", List.of()));
             sources.put("result", new Dataset("result", Map.of(), rows));
-            return Map.of("resultAvailable", true, "datasetReference", "result", "status", "COMPLETED");
+            return Map.of("resultAvailable", true, "datasetReference", "result", "status", "COMPLETED",
+                "knowledgeCitations",knowledgeCitationFixture);
         });
     }
     @Test void codingOwnsDesignAndPublicationPreservesItsReportExactly() {
@@ -170,6 +188,16 @@ class ClineContextAnswerServiceTest {
         assertThat(response.getAnswer()).contains("CREATE TABLE example");
         assertThat(response.getMetadata()).containsEntry("javaAnalysisModelCalls", 0).containsEntry("currentBusinessDataAcquired", false);
         verifyNoInteractions(model);
+    }
+    @Test void liveKnowledgeReceiptSuppliesStructuredSourcesWithoutCopyingRawDocumentText() {
+        String ref="runtime-evidence:knowledge:"+"a".repeat(64);
+        knowledgeCitationFixture=List.of(Map.of("evidence_id",ref,"title","Backup plan","version",2,"section_path","Recovery"));
+        result("Design is documented; recovery verification remains unproven. [Plan]("+ref+")",List.of(ref),1);
+        var response=service.answer(request(),context,skill,"");
+        assertThat(response.getSources()).singleElement().satisfies(source->{
+            assertThat(source.getSource()).isEqualTo("Backup plan / v2 / Recovery");
+            assertThat(source.getSnippet()).isEqualTo("[原文]("+ref+")");
+        });
     }
     @Test void missingRuntimeIdentityCannotCreateAChild() {
         assertThatThrownBy(() -> service.answer(InteractionRequest.builder().query("Design").build(), context, skill, ""))

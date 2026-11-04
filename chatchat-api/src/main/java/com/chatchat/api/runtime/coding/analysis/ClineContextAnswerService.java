@@ -32,6 +32,11 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
     private org.springframework.beans.factory.ObjectProvider<com.chatchat.agents.runtime.event.AgentRunEventPublisher> publishers;
     @org.springframework.beans.factory.annotation.Autowired
     private org.springframework.beans.factory.ObjectProvider<ProblemAnalysisPlanner> problemPlanners;
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.beans.factory.ObjectProvider<com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeService> knowledgeTools;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private com.chatchat.api.runtime.coding.knowledge.KnowledgeDisclosureGuard memoryProvenance;
+    @Override public boolean knowledgeExplorationAvailable(){return knowledgeTools!=null && knowledgeTools.getIfAvailable()!=null && codingServices.get()!=null;}
 
     @Override public List<com.chatchat.common.runtime.capability.ProblemAnalysisPlan.FileInput> describeFiles(InteractionRequest request) {
         var resolver = attachmentInputs == null ? null : attachmentInputs.getIfAvailable();
@@ -106,6 +111,13 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
         attrs.put(SkillAnalysisContext.ATTRIBUTE, SkillAnalysisContext.validate(context.skillAnalysisContext()));
         attrs.put("codingOwnedAnalysisActive", true);
         attrs.put("contextOnlyAnswer", true); // This route cannot delegate external business queries.
+        if(!withAttachments && sqlSource==null && agent!=null && agent.id()!=null && !agent.id().isBlank())
+            attrs.put("knowledgeAgentId",agent.id());
+        if(attrs.containsKey("knowledgeAgentId")) {
+            var resourcePolicy=com.chatchat.common.retrieval.AgentResourcePolicy.read(agent.workflowConfig());
+            attrs.put("resourceExplorationConfigured",resourcePolicy.configured()&&!resourcePolicy.enabled().isEmpty());
+        }
+        attrs.put("resourceExplorationApproved",Boolean.TRUE.equals(internal.get("resourceExplorationApproved")));
         var taskType=context.taskType()!=null?context.taskType():context.problemAnalysisPlan()==null?null:
             context.problemAnalysisPlan().tasks().stream().anyMatch(task->task.taskType()==com.chatchat.common.runtime.capability.ProblemAnalysisPlan.TaskType.DATA_ANALYSIS)
                 ?com.chatchat.common.runtime.capability.ProblemAnalysisPlan.TaskType.DATA_ANALYSIS:com.chatchat.common.runtime.capability.ProblemAnalysisPlan.TaskType.QA;
@@ -136,10 +148,13 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
             "userInstructions", Objects.toString(request.getSystemPrompt(), "")));
         var materials = new ArrayList<Map<String,Object>>();
         materials.add(Map.of("kind", "originalUserMessage", "text", Objects.toString(request.getQuery(), "")));
-        if (suppliedContext != null && !suppliedContext.isBlank())
+        boolean sourceHistory=memoryProvenance!=null&&memoryProvenance.hasResourceHistory(request.getTenantId(),request.getUserId(),context.conversationId());
+        if(sourceHistory)input.put("historySuppressedDueToResourceProvenance",true);
+        if (!sourceHistory&&suppliedContext != null && !suppliedContext.isBlank())
             materials.add(Map.of("kind", "referenceDocument", "text", suppliedContext, "isCurrentBusinessEvidence", false));
         if (context.conversationSummary() != null && !context.conversationSummary().isBlank())
-            materials.add(Map.of("kind", "conversationMemory", "text", context.conversationSummary(), "isCurrentBusinessEvidence", false));
+            if(!sourceHistory&&!attrs.containsKey("knowledgeAgentId"))
+                materials.add(Map.of("kind", "conversationMemory", "text", context.conversationSummary(), "isCurrentBusinessEvidence", false));
         input.put("materials", List.copyOf(materials));
         if (sqlSource != null) input.put("materialFormat", "SQL_SOURCE");
         if (sqlIntent != null) input.put("sqlIntent", sqlIntent.name());
@@ -243,7 +258,10 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
             if (rows.size() != 1 || !(rows.get(0).get("reportMarkdown") instanceof String report) || report.isBlank())
                 throw new IllegalStateException("Context Coding report is empty");
             Object citations = rows.get(0).get("evidenceReferences");
-            if (!(citations instanceof List<?> refs) || refs.isEmpty() || !refs.stream().allMatch(authorizedReferences::contains)
+            var finalReferences=new HashSet<String>(authorizedReferences);
+            if(receipt.get("knowledgeCitations") instanceof List<?> entries)for(Object entry:entries)
+                if(entry instanceof Map<?,?> fields && fields.get("evidence_id") instanceof String ref)finalReferences.add(ref);
+            if (!(citations instanceof List<?> refs) || refs.isEmpty() || !refs.stream().allMatch(finalReferences::contains)
                     || withAttachments && refs.stream().noneMatch(ref->ref instanceof String text && text.startsWith("user-asset:")))
                 throw new SecurityException("Context report cites unauthorized inputs");
             phase(runId, "RESULT_VALIDATING", "COMPLETED", inputKind);
@@ -259,9 +277,23 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
                 ? Map.of("inputs", input.get("files"), "toolDataDependency", "NONE") : context.problemAnalysisPlan());
             if (sqlIntent != null) responseMetadata.put("sqlIntent", sqlIntent.name());
             responseMetadata.put("codingRequestId", codingRequestId);
+            if(receipt.containsKey("knowledgeCitations"))responseMetadata.put("knowledgeCitations",receipt.get("knowledgeCitations"));
             if(visual && receipt.get("visualReport") instanceof Map<?,?> reportView)responseMetadata.put("visualReport",reportView);
             runs.complete(runId, AgentRunResult.builder().runId(runId).answer(report).metadata(responseMetadata).build());
-            return InteractionResponse.builder().answer(report).toolTraces(List.of()).metadata(responseMetadata).build();
+            var knowledgeSources=new LinkedHashMap<String,InteractionSource>();
+            if(receipt.get("knowledgeCitations") instanceof List<?> entries)for(Object entry:entries)
+                if(entry instanceof Map<?,?> fields && fields.get("evidence_id") instanceof String ref) {
+                    String label=Objects.toString(fields.get("title"),"")+" / v"+Objects.toString(fields.get("version"),"")
+                        +" / "+Objects.toString(fields.get("section_path"),"文档信息");
+                    if("financial_news".equals(fields.get("resource_id")))label=Objects.toString(fields.get("title"),"")
+                        +" / 发布 "+Objects.toString(fields.get("published_at"),"未知")+" / 采集 "+Objects.toString(fields.get("collected_at"),"未知");
+                    if("financial_market".equals(fields.get("resource_id")))label=Objects.toString(fields.get("title"),"")
+                        +" / 截至 "+Objects.toString(fields.get("data_as_of"),"未知")+" / 已采集数据";
+                    knowledgeSources.putIfAbsent(ref,InteractionSource.builder().rank(knowledgeSources.size()+1)
+                        .source(label).snippet("[原文]("+ref+")").build());
+                }
+            return InteractionResponse.builder().answer(report).sources(List.copyOf(knowledgeSources.values()))
+                .toolTraces(List.of()).metadata(responseMetadata).build();
         } catch (java.util.concurrent.CancellationException cancelled) {
             runs.cancel(runId, "Context Coding cancelled"); throw cancelled;
         } catch (RuntimeException failure) {

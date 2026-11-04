@@ -1,0 +1,58 @@
+{
+  "documentId": "knowledge-p0-lifecycle-3e5879e0c99a484eb0d06723b6afb8f0",
+  "syntheticSource": true,
+  "taskId": "0876cdd9-7df0-3cb6-b052-5e109f11eb1f",
+  "initialStatus": "SUCCEEDED",
+  "hasActualSourceCitation": true,
+  "checks": [
+    {
+      "name": "revoked-citation",
+      "httpStatus": 403,
+      "apiCode": 403,
+      "passed": true
+    },
+    {
+      "name": "revoked-task-summary",
+      "httpStatus": 403,
+      "apiCode": 403,
+      "passed": true
+    },
+    {
+      "name": "revoked-events",
+      "httpStatus": 403,
+      "apiCode": 403,
+      "passed": true
+    },
+    {
+      "name": "revoked-result",
+      "httpStatus": 403,
+      "apiCode": 403,
+      "passed": true
+    },
+    {
+      "name": "grant-restored-current-source",
+      "httpStatus": 200,
+      "apiCode": 200,
+      "passed": true
+    },
+    {
+      "name": "same-version-update-old-citation",
+      "httpStatus": 403,
+      "apiCode": 403,
+      "passed": true
+    },
+    {
+      "name": "same-version-update-old-summary",
+      "httpStatus": 403,
+      "apiCode": 403,
+      "passed": true
+    },
+    {
+      "name": "deleted-source-old-citation",
+      "httpStatus": 403,
+      "apiCode": 403,
+      "passed": true
+    }
+  ],
+  "completed": true
+}

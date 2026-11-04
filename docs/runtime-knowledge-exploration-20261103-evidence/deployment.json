@@ -1,0 +1,22 @@
+{
+  "status": "DEPLOYED",
+  "image": "runtime-os-api:knowledge-exploration-20261103-r8",
+  "sha256": "209a1ccf5a4a6c36633b6950f69165b525c9b4ce1d461800434d3a7e30c7ce2a",
+  "backup": "/opt/chatchat-releases/knowledge-exploration-20261103-r8/backup",
+  "retired": {
+    "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-studio-1793723352",
+    "runtime-os-app-stage-coding-agent-1": "runtime-os-app-stage-coding-agent-1-before-studio-1793723352",
+    "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-studio-1793723352"
+  },
+  "databaseMigrationSha256": null,
+  "catalogReadiness": null,
+  "preservedExpiredReadOnlyTaskIds": [],
+  "unrelatedContainersUnchanged": true,
+  "conversationContentUnchanged": true,
+  "messageIndexCountUnchanged": true,
+  "images": {
+    "runtime-os-app-stage-api-1": "runtime-os-api:knowledge-exploration-20261103-r8",
+    "runtime-os-app-stage-coding-agent-1": "runtime-os-coding-agent:knowledge-exploration-20261103-r8"
+  },
+  "channelCounts": "SQL_STUDIO|63\nPYTHON_STUDIO|10\nPLATFORM_UI|1003\nAGENT_API|203"
+}

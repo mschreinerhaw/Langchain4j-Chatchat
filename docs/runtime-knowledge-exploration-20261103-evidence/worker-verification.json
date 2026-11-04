@@ -1,0 +1,8 @@
+{
+  "tests": 167,
+  "passed": 167,
+  "failed": 0,
+  "network": "none",
+  "logSha256": "07415c24ff4c0e526dded2180a6f7fe28c7f9c9e46b821f2ed13b3c146074adb",
+  "modulesIdenticalToR6": true
+}

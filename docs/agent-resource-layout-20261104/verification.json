@@ -1,0 +1,38 @@
+{
+  "preview": false,
+  "checks": [
+    {
+      "viewportWidth": 1440,
+      "width": 16,
+      "height": 16,
+      "inputX": 282,
+      "textX": 306,
+      "centerDelta": 0.5,
+      "overflow": false,
+      "toggleAndRestore": true
+    },
+    {
+      "viewportWidth": 768,
+      "width": 16,
+      "height": 16,
+      "inputX": 34,
+      "textX": 58,
+      "centerDelta": 0.5,
+      "overflow": false,
+      "toggleAndRestore": true
+    },
+    {
+      "viewportWidth": 390,
+      "width": 16,
+      "height": 16,
+      "inputX": 34,
+      "textX": 58,
+      "centerDelta": 0.5,
+      "overflow": false,
+      "toggleAndRestore": true
+    }
+  ],
+  "errors": [],
+  "writes": [],
+  "status": "PASSED"
+}

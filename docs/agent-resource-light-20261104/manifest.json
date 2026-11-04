@@ -1,0 +1,12 @@
+{
+  "imageTag": "runtime-os-api:agent-resource-light-20261104-r1",
+  "baselineSha256": "15057a04b546247f7a9b0a60426d83b21b91002c4ec1483b9e2fe11087cbc16b",
+  "classes": {},
+  "apiClasses": {},
+  "webAssets": {
+    "BOOT-INF/classes/static/assets/skill-hub-Xz_7eIPd.css": "d30fbe3084a8a7d702911796e8c21bba047ce52281e68539be0abb05a03f906f"
+  },
+  "sourceCommit": "9eb2a9041a827a137982185cfebf41f7d2d6d518",
+  "sourceDiffSha256": "fff8f4f78029309bb51081ffd40eb3cf3e1991eba5de9ffb4e3a0bfbe5241f4d",
+  "sourceFile": "chatchat-api/web-app/src/styles/pages/skill-hub.css"
+}

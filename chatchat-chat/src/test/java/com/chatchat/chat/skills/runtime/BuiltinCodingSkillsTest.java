@@ -6,7 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class BuiltinCodingSkillsTest {
     @Test void existingCatalogProvidesDisplayMetadataWithoutInstructionDelivery() {
-        assertThat(BuiltinCodingSkills.catalog()).hasSize(6).allSatisfy(card -> {
+        assertThat(BuiltinCodingSkills.catalog()).hasSize(10).allSatisfy(card -> {
             assertThat(card).containsEntry("builtin", true).containsEntry("enabled", true)
                 .doesNotContainKeys("instructions", "references", "resources");
             for (String key : List.of("displayName", "descriptionZh", "source", "sourceVersion"))

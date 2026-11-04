@@ -24,6 +24,19 @@ class AgentTaskEventStreamServiceTest {
     final AgentTaskEventStreamService streams=new AgentTaskEventStreamService(tasks);
     final MockMvc mvc=MockMvcBuilders.standaloneSetup(new Surface(streams)).build();
     @AfterEach void close(){streams.shutdown();}
+    @Test void revokedKnowledgeStopsHistoricalSseBeforeSendingItsAnswer() {
+        var provider=mock(org.springframework.beans.factory.ObjectProvider.class);
+        var guard=mock(com.chatchat.api.runtime.coding.knowledge.KnowledgeDisclosureGuard.class);
+        when(provider.getIfAvailable()).thenReturn(guard);
+        org.springframework.test.util.ReflectionTestUtils.setField(streams,"knowledgeGuards",provider);
+        var owner=mock(AgentTaskResponse.class);when(owner.tenantId()).thenReturn("tenant");when(owner.userId()).thenReturn("owner");
+        when(tasks.get("tenant","task")).thenReturn(Optional.of(owner));
+        var event=AgentEvent.builder().taskId("task").tenantId("tenant").payload("Expired answer runtime-evidence:knowledge:"+"a".repeat(64)).build();
+        doThrow(new SecurityException("revoked")).when(guard).check(eq("tenant"),eq("owner"),anyString());
+        var emitter=mock(SseEmitter.class);
+        assertThatThrownBy(()->org.springframework.test.util.ReflectionTestUtils.invokeMethod(streams,"sendEvent",emitter,event)).isInstanceOf(SecurityException.class);
+        verifyNoInteractions(emitter);
+    }
 
     @Test void successfulStepEventsCannotCompleteAnActiveTaskStream() throws Exception {
         var current=snapshot("WAIT_MODEL",2);

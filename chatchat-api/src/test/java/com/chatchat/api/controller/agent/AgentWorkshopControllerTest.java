@@ -26,6 +26,21 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentWorkshopControllerTest {
+    @Test void onlyGrantedLogicalResourcesAreAssignableAndForgedAgentPoliciesAreRejected() {
+        var grants=mock(ResourceAuthorizationPort.class);var library=mock(DocumentLibraryReadPort.class);
+        var controller=new AgentWorkshopController(mock(SkillCatalogService.class),mock(ToolRegistry.class),mock(McpToolCatalogQueryPort.class),mock(ModelResourceRegistry.class),library,
+            mock(EnterpriseAdminService.class),mock(AgentPublicationLicenseService.class),mock(AgentReleaseService.class),mock(DomainSkillService.class),grants,
+            mock(SkillResourceScopeSynchronizationService.class),mock(com.chatchat.api.service.PublishedMcpToolCatalog.class));
+        when(grants.explicitlyAllowedIds(org.mockito.ArgumentMatchers.eq("DATA_RESOURCE"),any(),any(),any(),any())).thenReturn(Set.of("financial_news"));
+        when(library.list(any())).thenReturn(List.of());
+        var servlet=new org.springframework.mock.web.MockHttpServletRequest();servlet.setAttribute(com.chatchat.api.security.ApiAuthenticationFilter.CURRENT_USER_ID,"u");
+        servlet.setAttribute(com.chatchat.api.security.ApiAuthenticationFilter.CURRENT_TENANT_ID,"t");
+        assertThat(controller.resourceOptions(servlet).getData()).extracting(row->row.get("id")).containsExactly("financial_news");
+        var input=new AgentWorkshopController.AgentUpsertRequest();input.setWorkflowConfig(java.util.Map.of("resourceExploration",java.util.Map.of("resourcePermissions",
+            List.of(java.util.Map.of("resourceId","financial_market","enabled",true,"access","read")),"selectionStrategy","task_driven")));
+        org.assertj.core.api.Assertions.assertThatThrownBy(()->org.springframework.test.util.ReflectionTestUtils.invokeMethod(controller,"validateResourceBindings",input,servlet))
+            .isInstanceOf(SecurityException.class);
+    }
     @Test void legacyImageTogglesAreIgnoredAndNeverBecomeUserSwitches() {
         var controller = new AgentWorkshopController(mock(SkillCatalogService.class),mock(ToolRegistry.class),mock(McpToolCatalogQueryPort.class),mock(ModelResourceRegistry.class),mock(DocumentLibraryReadPort.class),mock(EnterpriseAdminService.class),mock(AgentPublicationLicenseService.class),mock(AgentReleaseService.class),mock(DomainSkillService.class),mock(ResourceAuthorizationPort.class),mock(SkillResourceScopeSynchronizationService.class),mock(com.chatchat.api.service.PublishedMcpToolCatalog.class));
         var input=new AgentWorkshopController.AgentUpsertRequest();

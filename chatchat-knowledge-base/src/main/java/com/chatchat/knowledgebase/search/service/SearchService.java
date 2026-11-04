@@ -2991,6 +2991,15 @@ public class SearchService {
             .toList();
     }
 
+    /** Live authorized IDs for controlled retrieval; an empty result must never mean unrestricted. */
+    public List<String> authorizedKnowledgeIds(SearchPermissionContext context) {
+        if (context == null || context.agentId() == null || context.agentId().isBlank())
+            throw new SecurityException("Authenticated Agent knowledge scope required");
+        return loadLatestDocuments(context).stream()
+            .filter(new com.chatchat.knowledgebase.search.index.application.IndexVersionManager()::retrievable)
+            .map(SearchDocument::getDocId).distinct().toList();
+    }
+
     private List<SearchDocument> loadLatestDocuments(SearchPermissionContext permissionContext) {
         SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
         return loadLatestDocuments().stream()

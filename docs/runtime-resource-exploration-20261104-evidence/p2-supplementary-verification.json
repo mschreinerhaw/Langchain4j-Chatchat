@@ -1,0 +1,50 @@
+{
+  "measurementKind": "LOCAL_REGRESSION_ONLY_NOT_AGENT_ACCEPTANCE",
+  "runs": [
+    {
+      "name": "readiness-observability",
+      "tests": 35,
+      "failures": 0,
+      "errors": 0,
+      "commit": "826394f2d",
+      "localLog": "target/resource-r6-focused-tests.log",
+      "overlapsEarlierSuites": true
+    },
+    {
+      "name": "lazy-document-scope",
+      "tests": 94,
+      "failures": 0,
+      "errors": 0,
+      "commit": "28563300f",
+      "localLog": "target/resource-lazy-scope-tests.log",
+      "overlapsEarlierSuites": true
+    },
+    {
+      "name": "authorization-batch-boundary",
+      "tests": 95,
+      "failures": 0,
+      "errors": 0,
+      "commit": "806042158",
+      "localLog": "target/resource-batched-authorization-tests.log",
+      "overlapsEarlierSuites": true
+    },
+    {
+      "name": "private-accounting-and-source-admission",
+      "tests": 108,
+      "failures": 0,
+      "errors": 0,
+      "commit": "a63f1886a",
+      "localLog": "target/resource-callback-sealed-tests.log",
+      "overlapsEarlierSuites": true
+    }
+  ],
+  "securityChecks": [
+    "fresh authorization before and after batch IO",
+    "revocation during batch withholds output",
+    "no authorization cache across validation boundaries",
+    "only referenced or recalled document originals opened",
+    "MCP rejects traffic until ApplicationAvailability accepts"
+  ],
+  "readinessRollbackCases": 7,
+  "deploymentTemplateSyntax": "Audited template transformed and generated Python compiled without executing deployment"
+}

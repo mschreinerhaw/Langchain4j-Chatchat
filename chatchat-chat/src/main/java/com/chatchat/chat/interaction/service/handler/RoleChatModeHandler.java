@@ -78,13 +78,20 @@ public class RoleChatModeHandler implements InteractionModeHandler {
     @Override
     public InteractionResponse handle(InteractionRequest request, InteractionContext context) {
         var execution = new InteractionExecution(request);
-        var response = execution.call("ROLE_CONVERSATION", () -> converse(request, context));
+        var response = execution.call("ROLE_CONVERSATION", () -> converse(request, context,false));
         return execution.complete(response, WorkflowEntryPlan.of(WorkflowEntryPlan.Owner.ROLE_CONVERSATION, "CONFIGURED_ROLE_CONVERSATION"));
     }
 
-    private InteractionResponse converse(InteractionRequest request, InteractionContext context) {
+    /** Explicit resources-only Agent configuration shares the same Cline execution owner. */
+    public InteractionResponse exploreResources(InteractionRequest request,InteractionContext context) {
+        var execution=new InteractionExecution(request);
+        var response=execution.call("RESOURCE_EXPLORATION",()->converse(request,context,true));
+        return execution.complete(response,WorkflowEntryPlan.of(WorkflowEntryPlan.Owner.ROLE_CONVERSATION,"CONFIGURED_RESOURCE_EXPLORATION"));
+    }
+
+    private InteractionResponse converse(InteractionRequest request, InteractionContext context,boolean resourceConversation) {
         SkillDefinition skill = skillCatalogService.resolve(request.getSkillId());
-        if (!InteractionMode.fromAgentConfiguration(skill.defaultMode()).isRoleConversation()) {
+        if (!resourceConversation&&!InteractionMode.fromAgentConfiguration(skill.defaultMode()).isRoleConversation()) {
             throw new IllegalArgumentException(
                 "Agent " + skill.id() + " is configured for tool-agent execution, not role_chat");
         }
@@ -92,7 +99,9 @@ public class RoleChatModeHandler implements InteractionModeHandler {
         var skillContext = skillAnalysisContexts == null ? Map.<String, Object>of()
             : skillAnalysisContexts.prepare(request, skill, effectiveScope.roles(), context);
         // Role-chat applies domain skills as context; it never starts a competing analysis runtime.
-        com.chatchat.common.knowledge.runtime.KnowledgeContext knowledge = retrieveKnowledge(request, skill, effectiveScope);
+        com.chatchat.common.knowledge.runtime.KnowledgeContext knowledge = codingAnswers.knowledgeExplorationAvailable()
+            ? com.chatchat.common.knowledge.runtime.KnowledgeContext.empty("cline_exploration", 0)
+            : retrieveKnowledge(request, skill, effectiveScope);
         List<String> configuredDomainSkillIds = configuredDomainSkillIds(skill);
         List<DomainSkillRuntimePort.DomainSkillContent> domainSkills = skillAnalysisContexts != null ? List.of() : resolveDomainSkills(
             request, skill, effectiveScope.roles(), configuredDomainSkillIds);
@@ -145,7 +154,7 @@ public class RoleChatModeHandler implements InteractionModeHandler {
 
         return InteractionResponse.builder()
             .answer(answer)
-            .sources(toSources(knowledge.sources()))
+            .sources("cline_exploration".equals(knowledge.status()) ? codingResponse.getSources() : toSources(knowledge.sources()))
             .toolTraces(List.of())
             .metadata(metadata)
             .build();
@@ -165,6 +174,9 @@ public class RoleChatModeHandler implements InteractionModeHandler {
                                List<DomainSkillRuntimePort.DomainSkillContent> domainSkills,
                                DomainSkillPlanningRouter.RoutingResult domainSkillRouting) {
         StringBuilder prompt = new StringBuilder();
+        if("cline_exploration".equals(knowledge.status()))prompt.append(
+            "Runtime has authorized read-only knowledge tools. Search and deeply read the current authorized project documents when the question needs them. "
+                +"Choose your own queries and sections; no Java document selection was performed. Cite exact tool evidence and distinguish design from test records.\n");
         prompt.append("You are operating in ROLE_CHAT mode. Answer directly as the configured business role.\n")
             .append("Do not plan, select, request, simulate, or claim to have called MCP/API/SQL tools.\n")
             .append("Distinguish facts supplied by the user or knowledge context from assumptions. ")

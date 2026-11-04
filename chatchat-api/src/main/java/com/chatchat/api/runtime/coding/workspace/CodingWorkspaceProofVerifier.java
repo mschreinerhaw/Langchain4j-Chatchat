@@ -15,11 +15,12 @@ public final class CodingWorkspaceProofVerifier implements CodingExecutionProofV
     public boolean confirmsStopped(KernelDataScope scope,String task,String operation,String handle,String ref){
         if(ref==null || !ref.startsWith("runtime-evidence:") || !handle.equals("runtime-workspace:"+operation))return false;
         return evidence.find(scope,ref.substring("runtime-evidence:".length())).filter(record ->
-            "CODING_WORKSPACE_TOOL_RECEIPT".equals(record.evidenceType())
+            ("CODING_WORKSPACE_TOOL_RECEIPT".equals(record.evidenceType())&&Boolean.FALSE.equals(record.payload().get("sqlExecuted"))
+                ||"CODING_RESOURCE_READ_RECEIPT".equals(record.evidenceType())
+                    &&"RUNTIME_HTTP_CLIENT".equals(record.payload().get("executorScope"))&&Boolean.TRUE.equals(record.payload().get("remoteReadOnly")))
             && task.equals(record.payload().get("taskId")) && operation.equals(record.payload().get("operationId"))
             && handle.equals(record.payload().get("executionHandle"))
             && Boolean.TRUE.equals(record.payload().get("executorStopped"))
-            && Boolean.FALSE.equals(record.payload().get("sqlExecuted"))
             && evidence.contentHash(record.payload()).equals(record.contentSha256())).isPresent();
     }
 }

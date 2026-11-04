@@ -22,6 +22,7 @@ import java.util.UUID;
 
 @Service
 public class NewsRuntimeClient {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(NewsRuntimeClient.class);
     private final ObjectMapper mapper;
     private final InternalCredentialProperties credentials;
     private final HttpClient client;
@@ -93,6 +94,11 @@ public class NewsRuntimeClient {
             throw CancellationSupport.cancelled("News Runtime request", ex);
         } catch (Exception ex) {
             CancellationSupport.rethrowIfCancelled(ex, "News Runtime request");
+            // Report transport types only: source bodies and credentials must not enter logs.
+            Throwable root = ex;
+            for (int depth = 0; depth < 8 && root.getCause() != null && root.getCause() != root; depth++) root = root.getCause();
+            log.warn("News Runtime request failed method={} path={} cause={} rootCause={}",
+                method, path, ex.getClass().getSimpleName(), root.getClass().getSimpleName());
             if (ex instanceof IllegalStateException state) throw state;
             if (ex instanceof java.net.http.HttpTimeoutException) {
                 throw new IllegalStateException("News Runtime request timed out: " + method + " " + path

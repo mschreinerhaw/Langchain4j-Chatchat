@@ -4,6 +4,7 @@ import {createApp,h,nextTick} from 'vue';
 import {artifactPresentationSpec} from './presentation.js';
 import EnterpriseUiArtifactRenderer from '../../components/EnterpriseUiArtifactRenderer.vue';
 import {fetchUiArtifact,fetchUiArtifactResource} from '../../services/api.js';
+import {knowledgeCitationId} from '../utils/knowledgeCitations.js';
 vi.mock('../../services/api.js',()=>({fetchUiArtifact:vi.fn(),fetchUiArtifactResource:vi.fn()}));
 
 function legacySpec(bodyType='Markdown') {
@@ -28,6 +29,19 @@ it('retains normal text reports and independently scoped report bodies',()=>{
 });
 
 let app,host;afterEach(()=>{app?.unmount();host?.remove();vi.clearAllMocks();});
+it('renders published Markdown citations through the real JSON renderer and bubbles the source click',async()=>{
+ const id='a'.repeat(64);let clicked='';
+ const spec={root:'root',elements:{root:{type:'Report',props:{},children:['answer']},answer:{type:'Markdown',props:{resourceId:'answer'},children:[]}}};
+ fetchUiArtifact.mockResolvedValue({schemaVersion:'enterprise_ui_artifact_v1',spec,resources:{answer:{}}});
+ fetchUiArtifactResource.mockResolvedValue(`[Plan](runtime-evidence:knowledge:${id})`);
+ host=document.createElement('div');document.body.append(host);
+ app=createApp({render:()=>h(EnterpriseUiArtifactRenderer,{artifact:{artifactId:'knowledge'},onClick:event=>{
+  clicked=knowledgeCitationId(event.target.closest('a')?.getAttribute('href'));if(clicked)event.preventDefault();
+ }})});app.mount(host);
+ await vi.waitFor(()=>expect(host.querySelector('a')?.getAttribute('href')).toBe(`#knowledge-evidence-${id}`));
+ const event=new MouseEvent('click',{bubbles:true,cancelable:true});host.querySelector('a').dispatchEvent(event);
+ expect(clicked).toBe(id);expect(event.defaultPrevented).toBe(true);
+});
 it('renders a historical manifest through the real JSON renderer with a single report and no duplicate-answer fetch',async()=>{
  const spec=legacySpec(),original=JSON.stringify(spec);
  const report={schemaVersion:'python_visual_report.v1',artifactValidationStatus:'PASSED',status:'PARTIAL',title:'Single analysis',

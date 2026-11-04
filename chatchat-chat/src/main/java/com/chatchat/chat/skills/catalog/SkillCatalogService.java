@@ -1411,6 +1411,10 @@ public class SkillCatalogService {
 
     private void preserveSkillConfiguration(Map<String, Object> source, Map<String, Object> target) {
         if (source == null || target == null) return;
+        var resources=com.chatchat.common.retrieval.AgentResourcePolicy.read(source);
+        if(resources.configured())target.put(com.chatchat.common.retrieval.AgentResourcePolicy.KEY,Map.of(
+            "selectionStrategy",resources.selectionStrategy(),"resourcePermissions",List.of("knowledge_documents","financial_news","financial_market").stream()
+                .map(id->Map.of("resourceId",id,"enabled",resources.enabled().contains(id),"access","read")).toList()));
         boolean configured = source.containsKey("boundDomainSkillIds")
             || source.containsKey("bound_domain_skill_ids");
         if (!configured) return;

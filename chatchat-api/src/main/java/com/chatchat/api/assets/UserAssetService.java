@@ -17,6 +17,8 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 @ConditionalOnProperty(prefix="chatchat.assets", name="enabled", havingValue="true")
 public class UserAssetService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.beans.factory.ObjectProvider<com.chatchat.api.runtime.coding.knowledge.KnowledgeDisclosureGuard> knowledgeGuards;
     public enum Kind { DOCUMENT, DATASET, CODE, LOG, ARTIFACT, CONTEXT }
     public record Owner(String tenant, String user) {
         public Owner {
@@ -125,7 +127,13 @@ public class UserAssetService {
         var row=requireRow(owner,id);
         if(!"AVAILABLE".equals(row.get("state"))) throw new ResponseStatusException(HttpStatus.CONFLICT,"Asset is not available");
         byte[] data=blobs.get((String)row.get("object_key"),(String)row.get("object_version"),((Number)row.get("size_bytes")).longValue());
-        verify(data,(String)row.get("sha256"),((Number)row.get("size_bytes")).longValue());return data;
+        verify(data,(String)row.get("sha256"),((Number)row.get("size_bytes")).longValue());
+        var guard=knowledgeGuards==null?null:knowledgeGuards.getIfAvailable();
+        if(guard!=null && Set.of("ARTIFACT","CONTEXT").contains(row.get("kind"))) {
+            guard.checkRun(owner.tenant(),owner.user(),Objects.toString(row.get("run_id"),""));
+            guard.checkBytes(owner.tenant(),owner.user(),data);
+        }
+        return data;
     }
     /** The worker's trusted contract is the authority; user-wide listing cannot authorize a task input. */
     public byte[] readTask(KernelDataScope scope,String task,String id) {
@@ -138,6 +146,9 @@ public class UserAssetService {
         Owner owner=Owner.of(scope);File file=get(owner,id);
         if(task==null || task.isBlank() || !task.equals(file.taskId()) || !Objects.equals(scope.runId(),file.runId()))throw new SecurityException("Asset is outside the current task manifest");
         var row=requireRow(owner,id);if(!"AVAILABLE".equals(file.state()))throw new IllegalStateException("Task asset is not available");
+        if(Set.of("ARTIFACT","CONTEXT").contains(file.kind()) && file.fileName().matches("(?i).*\\.(md|json|jsonl|txt)$")) {
+            output.write(read(owner,id));return;
+        }
         try{
             var digest=MessageDigest.getInstance("SHA-256");
             var target=new java.security.DigestOutputStream(output,digest);

@@ -1,0 +1,30 @@
+{
+  "baselineSha256": "b7373b62c792b6fdc96a42f839d70f68ba638b0e974903e8f9dcc5d931146eaf",
+  "candidateSha256": "15057a04b546247f7a9b0a60426d83b21b91002c4ec1483b9e2fe11087cbc16b",
+  "image": "runtime-os-api:agent-settings-flow-20261104-r1",
+  "previousImage": "runtime-os-api:agent-settings-ux-20261104-r1",
+  "previousConfiguredImage": "runtime-os-api:agent-settings-ux-20261104-r1",
+  "changedClasses": [],
+  "changedApiClasses": [],
+  "changedModuleClasses": {},
+  "removedAgentClasses": [],
+  "removedAccidentalTestClasses": [],
+  "webAssets": {
+    "BOOT-INF/classes/static/assets/AgentWorkshopView-flow-4785c7bc68ee.js": "4785c7bc68eeec3c79193ffc215217041d1dfbce6baf32942239ebd6d1728359",
+    "BOOT-INF/classes/static/assets/index-KwmQfLwa.js": "667521da3216015d285cffff8213e2f747de3cdcd681cf5f48943e2dcffecf24",
+    "BOOT-INF/classes/static/assets/skill-hub-Xz_7eIPd.css": "dd67d07bf4d4a30f6b2dc6b9e9c15ff3c3fdf68b326039e7e89fb334ce1778fd"
+  },
+  "sourceCommit": "9eb2a9041a827a137982185cfebf41f7d2d6d518",
+  "sourceDiffSha256": "6cca254766a21ae4c7193d90d63b113e10ae36a252a4cdab96bedc4177bb09b6",
+  "deploymentScriptSha256": "b7570695b6a3fd1b51b32803c179a11ae990247cdd46c3b7e27116d8de73e527",
+  "status": "DEPLOYED",
+  "backupContainer": "runtime-os-app-stage-api-1-before-template-supply-b7373b62c792",
+  "runtimeConfigurationPreserved": true,
+  "nodeProxy": {
+    "status": "REBOUND",
+    "networkMode": "container:12a877ee03749a58dbba82c447d89f11998f7090730242cf2f3db25af2bf36f8",
+    "previousNetworkMode": "container:68e2e412d2c08b067ddd4b58520897ae2e2e32e31c8af21f4fb2c041fd091da3",
+    "backupContainer": "runtime-os-app-stage-node-proxy-1-before-template-supply-12a877ee0374",
+    "configurationPreserved": true
+  }
+}

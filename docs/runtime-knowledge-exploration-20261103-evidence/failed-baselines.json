@@ -1,0 +1,288 @@
+{
+  "retained": true,
+  "failuresExcludedFromFinalReleaseMetrics": true,
+  "attempts": [
+    {
+      "phase": "r1-index-binding",
+      "result": {
+        "cases": [
+          {
+            "id": "D01a",
+            "category": "direct",
+            "model": "hy3",
+            "syntheticSources": false,
+            "taskId": "23f94856-1feb-3e0d-a370-917a7cada737",
+            "status": "PARTIAL",
+            "durationMs": 72870,
+            "citations": [],
+            "resolvedCitationCount": 0,
+            "knowledgeTools": [
+              "knowledge_search",
+              "knowledge_search",
+              "knowledge_search",
+              "knowledge_search",
+              "knowledge_search",
+              "knowledge_search",
+              "knowledge_search",
+              "knowledge_search",
+              "knowledge_search"
+            ],
+            "knowledgeToolCalls": 9,
+            "coding": [
+              {
+                "taskId": "analysis-coding-b5f46007d47f28aee23a316ef939a3a515cb4a6b528c9519e391365e8ba5d70b",
+                "status": "COMPLETED",
+                "usage": {
+                  "modelCalls": 5,
+                  "modelTokens": 46100,
+                  "toolCalls": 11,
+                  "codeExecutions": 0,
+                  "cpuMillis": 0,
+                  "peakMemoryBytes": 0,
+                  "outputBytes": 8040,
+                  "costAmount": "0"
+                }
+              }
+            ],
+            "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+          },
+          {
+            "id": "D01b",
+            "category": "direct",
+            "model": "hy3",
+            "syntheticSources": false,
+            "taskId": "bafb1d78-c174-3a6b-bf61-3af142b33298",
+            "status": "FAILED",
+            "durationMs": 141632,
+            "citations": [],
+            "resolvedCitationCount": 0,
+            "knowledgeTools": [
+              "knowledge_search",
+              "knowledge_search",
+              "knowledge_search",
+              "knowledge_search",
+              "knowledge_search",
+              "knowledge_search",
+              "knowledge_search",
+              "knowledge_search",
+              "knowledge_search",
+              "knowledge_search",
+              "knowledge_search"
+            ],
+            "knowledgeToolCalls": 11,
+            "coding": [
+              {
+                "taskId": "analysis-coding-af76328adaa8f6ebb465b7e0c4c7bc86c6117ca40b4af5a2a929b34007911a8b",
+                "status": "FAILED",
+                "usage": {
+                  "modelCalls": 10,
+                  "modelTokens": 105228,
+                  "toolCalls": 16,
+                  "codeExecutions": 0,
+                  "cpuMillis": 0,
+                  "peakMemoryBytes": 0,
+                  "outputBytes": 3952,
+                  "costAmount": "0"
+                }
+              }
+            ],
+            "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+          }
+        ],
+        "executed": 2,
+        "successfulTaskCount": 1,
+        "p95Ms": 72870,
+        "timingScope": "PARENT_TASK_SUBMISSION_THROUGH_TERMINAL_POLL_INCLUDES_QUEUE_AND_POLL_OVERHEAD",
+        "citationCorrectness": "NOT_AUTOMATICALLY_CERTIFIED",
+        "factualCitationCoverage": "NOT_AUTOMATICALLY_CERTIFIED"
+      }
+    },
+    {
+      "phase": "r2-index-binding",
+      "result": {
+        "cases": [
+          {
+            "id": "D01a",
+            "category": "direct",
+            "model": "hy3",
+            "syntheticSources": false,
+            "taskId": "27f2ad45-cb0e-3296-ab03-c45532a452db",
+            "status": "PARTIAL",
+            "durationMs": 84316,
+            "citations": [],
+            "resolvedCitationCount": 0,
+            "knowledgeTools": [
+              "knowledge_search",
+              "knowledge_search",
+              "knowledge_search",
+              "knowledge_search",
+              "knowledge_search",
+              "knowledge_search",
+              "knowledge_search",
+              "knowledge_search",
+              "knowledge_search",
+              "knowledge_search",
+              "knowledge_search"
+            ],
+            "knowledgeToolCalls": 11,
+            "coding": [
+              {
+                "taskId": "analysis-coding-18753084502886815e7c29a2177842ab2c1beee231a927b9affbd30d46e18c14",
+                "status": "COMPLETED",
+                "usage": {
+                  "modelCalls": 5,
+                  "modelTokens": 46707,
+                  "toolCalls": 13,
+                  "codeExecutions": 0,
+                  "cpuMillis": 0,
+                  "peakMemoryBytes": 0,
+                  "outputBytes": 8318,
+                  "costAmount": "0"
+                }
+              }
+            ],
+            "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+          }
+        ],
+        "executed": 1,
+        "successfulTaskCount": 1,
+        "p95Ms": 84316,
+        "timingScope": "PARENT_TASK_SUBMISSION_THROUGH_TERMINAL_POLL_INCLUDES_QUEUE_AND_POLL_OVERHEAD",
+        "citationCorrectness": "NOT_AUTOMATICALLY_CERTIFIED",
+        "factualCitationCoverage": "NOT_AUTOMATICALLY_CERTIFIED"
+      }
+    },
+    {
+      "phase": "r3-report-shape",
+      "result": {
+        "cases": [
+          {
+            "id": "D01a",
+            "category": "direct",
+            "model": "hy3",
+            "syntheticSources": false,
+            "taskId": "128b2d46-d41c-3853-a2a4-e49ca3367427",
+            "status": "VERIFICATION_ERROR",
+            "errorCategory": "RuntimeError",
+            "error": "Verifier deadline; cancellation requested",
+            "durationMs": 421501
+          }
+        ],
+        "executed": 1,
+        "successfulTaskCount": 0,
+        "p95Ms": null,
+        "timingScope": "PARENT_TASK_SUBMISSION_THROUGH_TERMINAL_POLL_INCLUDES_QUEUE_AND_POLL_OVERHEAD",
+        "citationCorrectness": "NOT_AUTOMATICALLY_CERTIFIED",
+        "factualCitationCoverage": "NOT_AUTOMATICALLY_CERTIFIED"
+      }
+    },
+    {
+      "phase": "r5-inline-citation-feedback",
+      "result": {
+        "cases": [
+          {
+            "id": "D01a",
+            "category": "direct",
+            "model": "hy3",
+            "syntheticSources": false,
+            "answerMaxChars": 600,
+            "taskId": "4ec68256-37f2-39b3-97ea-1141feffb63e",
+            "status": "FAILED",
+            "durationMs": 229570,
+            "citations": [],
+            "resolvedCitationCount": 0,
+            "knowledgeTools": [
+              "knowledge_search",
+              "knowledge_search",
+              "knowledge_search",
+              "knowledge_get_document",
+              "knowledge_list_sections",
+              "knowledge_read",
+              "knowledge_read"
+            ],
+            "knowledgeToolCalls": 7,
+            "coding": [
+              {
+                "taskId": "analysis-coding-a558bb6a83b95528bacc440cd9c6188a5e0f3c0b7c19d4147458f8756eb3c0e4",
+                "status": "FAILED",
+                "usage": {
+                  "modelCalls": 8,
+                  "modelTokens": 239586,
+                  "toolCalls": 10,
+                  "codeExecutions": 0,
+                  "cpuMillis": 0,
+                  "peakMemoryBytes": 0,
+                  "outputBytes": 82367,
+                  "costAmount": "0"
+                }
+              }
+            ],
+            "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+          }
+        ],
+        "executed": 1,
+        "successfulTaskCount": 0,
+        "p95Ms": null,
+        "timingScope": "PARENT_TASK_SUBMISSION_THROUGH_TERMINAL_POLL_INCLUDES_QUEUE_AND_POLL_OVERHEAD",
+        "citationCorrectness": "NOT_AUTOMATICALLY_CERTIFIED",
+        "factualCitationCoverage": "NOT_AUTOMATICALLY_CERTIFIED"
+      }
+    },
+    {
+      "phase": "r4-interrupted-cases",
+      "cases": [
+        {
+          "id": "D01a",
+          "category": "direct",
+          "model": "hy3",
+          "syntheticSources": false,
+          "answerMaxChars": 600,
+          "taskId": "6262778c-92fe-32e0-9b76-2bdb45e27f99",
+          "status": "FAILED",
+          "durationMs": 216872,
+          "citations": [],
+          "resolvedCitationCount": 0,
+          "knowledgeTools": [
+            "knowledge_search",
+            "knowledge_search",
+            "knowledge_search",
+            "knowledge_list_sections",
+            "knowledge_read",
+            "knowledge_read",
+            "knowledge_read"
+          ],
+          "knowledgeToolCalls": 7,
+          "coding": [
+            {
+              "taskId": "analysis-coding-81456387080f18594722452b62ed60d330c7b5f234cc647fd398510101465ffc",
+              "status": "FAILED",
+              "usage": {
+                "modelCalls": 12,
+                "modelTokens": 361757,
+                "toolCalls": 14,
+                "codeExecutions": 0,
+                "cpuMillis": 0,
+                "peakMemoryBytes": 0,
+                "outputBytes": 74148,
+                "costAmount": "0"
+              }
+            }
+          ],
+          "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+        },
+        {
+          "id": "D01b",
+          "category": "direct",
+          "model": "hy3",
+          "syntheticSources": false,
+          "answerMaxChars": 600,
+          "taskId": "181cd304-814e-399a-9f63-2a82136440af",
+          "status": "VERIFICATION_ERROR",
+          "errorCategory": "RuntimeError",
+          "error": "Verifier deadline; cancellation requested",
+          "durationMs": 421749
+        }
+      ]
+    }
+  ]
+}

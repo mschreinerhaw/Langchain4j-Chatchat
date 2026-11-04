@@ -1,0 +1,12 @@
+{
+  "comparedFiles": 3162,
+  "differences": [],
+  "backendTests": 223,
+  "workerTests": 170,
+  "frontendTestExecutions": 844,
+  "frontendBuilds": [
+    "api",
+    "mcp"
+  ],
+  "mavenPackage": "SUCCESS"
+}

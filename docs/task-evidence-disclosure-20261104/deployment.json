@@ -1,0 +1,32 @@
+{
+  "baselineSha256": "e67a79e37c65146ad158d2ead7f0ca1d7a9765787ca39f3eac6ac9e6aa13880f",
+  "candidateSha256": "a06dd932dd67ea37ebbf32ce2b0bdd2436048bb3312512a39280cb896d0e172a",
+  "image": "runtime-os-api:task-evidence-disclosure-20261104-r1",
+  "previousImage": "runtime-os-api:knowledge-exploration-20261104-resources-r12",
+  "previousConfiguredImage": "runtime-os-api:knowledge-exploration-20261104-resources-r12",
+  "changedClasses": [],
+  "changedApiClasses": [
+    "BOOT-INF/classes/com/chatchat/api/runtime/coding/knowledge/KnowledgeResponseAdvice.class",
+    "BOOT-INF/classes/com/chatchat/api/runtime/coding/knowledge/TaskCollectionDisclosure.class"
+  ],
+  "changedModuleClasses": {},
+  "removedAgentClasses": [],
+  "removedAccidentalTestClasses": [],
+  "webAssets": {
+    "BOOT-INF/classes/static/assets/index-KwmQfLwa.js": "b28372b912f2ec853aa8f2cd39c10d4dbda42501ef060dd88d9df3228aea1881",
+    "BOOT-INF/classes/static/assets/TasksView-evidence-545e953a015e.js": "545e953a015e286f5c088a45823ae8b1d427d02259ac0e7de6a63c4a10f59594"
+  },
+  "sourceCommit": "9eb2a9041a827a137982185cfebf41f7d2d6d518",
+  "sourceDiffSha256": "98e106a5f023b38fbe850ca4083ba17891a8b50363ff534bdf59f8d56e51c89c",
+  "deploymentScriptSha256": "b7570695b6a3fd1b51b32803c179a11ae990247cdd46c3b7e27116d8de73e527",
+  "status": "DEPLOYED",
+  "backupContainer": "runtime-os-app-stage-api-1-before-template-supply-e67a79e37c65",
+  "runtimeConfigurationPreserved": true,
+  "nodeProxy": {
+    "status": "REBOUND",
+    "networkMode": "container:4f193d673c9d2806619cd34e36660f30945db134af7fbf6cb0695ef1db15dea2",
+    "previousNetworkMode": "container:693a1c9b98481915b2c41b2075256c49b68ab60a1d16164a2a5f527276595a6d",
+    "backupContainer": "runtime-os-app-stage-node-proxy-1-before-template-supply-4f193d673c9d",
+    "configurationPreserved": true
+  }
+}

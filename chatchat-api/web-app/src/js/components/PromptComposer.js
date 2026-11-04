@@ -78,6 +78,7 @@ export default {
   data() {
     return {
       reportMode: "off",
+      resourceExplorationApproved: false,
       reportPresentation: reportPresentation(readWorkspaceDraft('report-presentation',this.workspaceContext || getWorkspaceContext()) || {}),
       draft: this.modelValue,
       ideasOpen: false, ideaError: '', ideas: [], ideasLoading: false, ideaSerial: 0, ideaController: null,
@@ -212,8 +213,10 @@ export default {
         agentName: this.selectedAgent?.name || "",
         documentWorkflow: this.documentWorkflowActive,
         reportMode: this.reportMode,
+          resourceExplorationApproved: this.resourceExplorationApproved,
         reportPresentation: reportPresentation(this.reportPresentation),
       });
+        this.resourceExplorationApproved = false;
     },
     handlePaste(event) {
       const files = pastedFiles(event.clipboardData);

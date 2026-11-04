@@ -1,0 +1,13 @@
+{
+  "imageTag": "runtime-os-api:agent-resource-layout-20261104-r1",
+  "baselineSha256": "a06dd932dd67ea37ebbf32ce2b0bdd2436048bb3312512a39280cb896d0e172a",
+  "classes": {},
+  "apiClasses": {},
+  "webAssets": {
+    "BOOT-INF/classes/static/assets/skill-hub-Xz_7eIPd.css": "ff830d9c3ae78c512c9ac0dca2cb1f2870e9cfecf93c6c112ec6d089473547a4"
+  },
+  "sourceCommit": "9eb2a9041a827a137982185cfebf41f7d2d6d518",
+  "sourceDiffSha256": "743cdabec29732a1fa7afcb923c4e15fed9a665f5cb8424227539025d093365e",
+  "sourceFile": "chatchat-api/web-app/src/styles/pages/skill-hub.css",
+  "baselineCssSha256": "86ce105e8b862aa63a939ea52a2ed60f1b5a57274daaea93c5a83fedf687ed55"
+}

@@ -31,6 +31,24 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SkillCatalogServiceTest {
+    @Test void resourcePolicySurvivesRealCatalogNormalizationSaveReloadAndRevocationForBothModes() {
+        for(String mode:List.of("role_chat","agent_chat")) {
+            var stored=new java.util.concurrent.atomic.AtomicReference<SkillConfigEntity>();var repository=mock(SkillConfigRepository.class);
+            when(repository.findById("resource_agent")).thenAnswer(call->Optional.ofNullable(stored.get()));
+            when(repository.existsById("resource_agent")).thenAnswer(call->stored.get()!=null);
+            when(repository.save(any(SkillConfigEntity.class))).thenAnswer(call->{stored.set(call.getArgument(0));return stored.get();});
+            var versions=mock(SkillConfigVersionRepository.class);when(versions.save(any(SkillConfigVersionEntity.class))).thenAnswer(call->call.getArgument(0));
+            var service=new SkillCatalogService(repository,versions,new ObjectMapper(),mock(JdbcTemplate.class),summaryContractService());
+            for(boolean enabled:List.of(true,false,true)) {
+                var policy=Map.of("selectionStrategy","explicit_request","resourcePermissions",List.of(Map.of("resourceId","financial_news","enabled",enabled,"access","read")));
+                service.upsert(new SkillDefinition("resource_agent","Resource Agent",null,List.of(),List.of(),mode,null,null,null,List.of(),List.of(),List.of(),List.of(),List.of(),List.of(),null,
+                    Map.of("resourceExploration",policy),List.of(),SkillCatalogService.MARKET_STATUS_DRAFT,false));
+                assertThat(stored.get().getWorkflowConfigJson()).contains("resourceExploration","explicit_request");
+                var read=com.chatchat.common.retrieval.AgentResourcePolicy.read(service.resolve("resource_agent").workflowConfig());
+                assertThat(read.enabled().contains("financial_news")).isEqualTo(enabled);assertThat(read.selectionStrategy()).isEqualTo("explicit_request");
+            }
+        }
+    }
 
     @Test
     void resolvesCurrentPublishedConfigurationWhenLegacyReleaseIsStale() {

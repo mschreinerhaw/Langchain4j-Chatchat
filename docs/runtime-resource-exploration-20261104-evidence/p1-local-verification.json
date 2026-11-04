@@ -1,0 +1,36 @@
+{
+  "phase": "P1",
+  "javaTests": 67,
+  "suites": [
+    {
+      "suite": "com.chatchat.chat.skills.runtime.AgentResourceScopeServiceTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "suite": "com.chatchat.chat.skills.runtime.BuiltinCodingSkillsTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "suite": "com.chatchat.api.runtime.coding.analysis.ClineContextAnswerServiceTest",
+      "tests": 22,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "suite": "com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest",
+      "tests": 39,
+      "failures": 0,
+      "errors": 0
+    }
+  ],
+  "nodeSkillAndExplorationTests": 11,
+  "frontendTests": 118,
+  "defaultCodingCatalogUnchanged": 6,
+  "physicalNativeSkillPackages": 10,
+  "upstreamMicrosoftPackagesUnmodified": true,
+  "remoteAcceptance": "NOT_YET_RUN_FOR_RESOURCE_EXTENSION"
+}

@@ -67,6 +67,10 @@ public class FinancialAssetCatalogService {
     }
 
     public List<Map<String, Object>> search(String query, int limit) {
+        return search(query,limit,false);
+    }
+    public List<Map<String,Object>> searchCallerQuery(String query,int limit){return search(query,limit,true);}
+    private List<Map<String,Object>> search(String query,int limit,boolean callerOwned) {
         CancellationSupport.throwIfCancelled("financial asset catalog search");
         int bounded = Math.max(1, Math.min(limit, 50));
         int candidateLimit = Math.min(50, Math.max(24, bounded * 5));
@@ -76,7 +80,7 @@ public class FinancialAssetCatalogService {
             return FinancialCatalogRelevanceRanker.rank(query, candidates, bounded);
         }
         try {
-            candidates = index.search(indexName, query, candidateLimit);
+            candidates = callerOwned?index.searchCallerQuery(indexName,query,candidateLimit):index.search(indexName, query, candidateLimit);
             return FinancialCatalogRelevanceRanker.rank(query, candidates, bounded);
         } catch (Exception ex) {
             CancellationSupport.rethrowIfCancelled(ex, "financial asset catalog search");

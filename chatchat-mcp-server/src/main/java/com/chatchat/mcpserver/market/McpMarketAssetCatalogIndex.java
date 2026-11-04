@@ -30,4 +30,7 @@ public class McpMarketAssetCatalogIndex implements MarketAssetCatalogIndex {
     @Override public List<Map<String, Object>> search(String indexName, String query, int limit) {
         return search.searchMarketCatalog(indexName, query, limit);
     }
+    @Override public List<Map<String,Object>> searchCallerQuery(String indexName,String query,int limit) {
+        return search.searchMarketCatalog(indexName,query,limit,true);
+    }
 }

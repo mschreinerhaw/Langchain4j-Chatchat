@@ -117,8 +117,8 @@ describe("permission console", () => {
     );
     const wrapper = mount(PermissionConsoleView, { mode: "resources" });
     await flushPromises();
-    expect(wrapper.vm.masterItems).toHaveLength(1);
-    expect(wrapper.vm.selectedResource.id).toBe("p1");
+    expect(wrapper.vm.masterItems.map(item => item.id)).toEqual(["financial_news", "financial_market", "p1"]);
+    expect(wrapper.vm.selectedResource.id).toBe("financial_news");
     expect(wrapper.text()).not.toContain("SQL_客户分析_0");
     wrapper.vm.masterQuery = "SQL_客户分析";
     await flushPromises();
@@ -144,7 +144,7 @@ describe("permission console", () => {
     expect(wrapper.find(".permission-master-item strong").element.title).toBe("SQL_客户分析_0");
     wrapper.vm.resourceGroup = "all";
     await flushPromises();
-    expect(wrapper.vm.masterItems).toHaveLength(20);
+    expect(wrapper.vm.masterItems).toHaveLength(22);
     expect(
       api.apiRequest.mock.calls.every(([, options]) => !options?.method || options.method === "GET")
     ).toBe(true);

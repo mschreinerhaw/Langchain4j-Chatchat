@@ -13,7 +13,7 @@ RUN mkdir -p .cline && ln -s ../skills .cline/skills && chmod -R a+rX skills
 COPY --chown=node:node package.json ./
 COPY --chown=node:node src/healthcheck.js ./src/healthcheck.js
 RUN node --version && node dist/sdk-packages.js \
-    && node --input-type=module -e "import {bundledSkillFiles, taskSkills} from './dist/skills.js'; const files=bundledSkillFiles(); if (!files.length || taskSkills().catalog.skills.length !== files.filter(s => s.enabled !== false).length) throw new Error('Bundled Skills discovery failed');" \
+    && node --input-type=module -e "import {bundledSkillFiles, taskSkills} from './dist/skills.js'; const files=bundledSkillFiles(); if (!files.length || taskSkills().catalog.skills.length !== files.filter(s => s.enabled !== false && !s.requiresProfile).length) throw new Error('Bundled Skills discovery failed');" \
     && mkdir /srv/monitor-data && chown node:node /srv/monitor-data
 USER node
 EXPOSE 3100

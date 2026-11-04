@@ -65,6 +65,18 @@ public final class ClineModelCallbackController {
     private CodingWorkspaceService workspace;
     private CodingDataSupplyService dataSupply;
     private CodingAnalysisSqlService analysisSql;
+    private com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeService knowledge;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setKnowledge(com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeService value){knowledge=value;}
+    @PostMapping("/knowledge")
+    public Map<String,Object> knowledge(@RequestBody JsonNode body) {
+        return bound(body,call->{
+            if(knowledge==null)throw new SecurityException("Knowledge tools unavailable");
+            var result=knowledge.call(contract(body,call,false),call.lease(),body.path("tool").asText(),
+                body.path("toolCallId").asText(),body.path("arguments"));
+            assertStillOwned(call);return result;
+        });
+    }
     private com.chatchat.api.runtime.coding.CodingSkillReader skillReader;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setSkillReader(com.chatchat.api.runtime.coding.CodingSkillReader value) { this.skillReader=value; }
@@ -170,7 +182,14 @@ public final class ClineModelCallbackController {
                 if(version instanceof Map<?,?> fields && fields.get("datasetReference") instanceof String ref)allowed.add(ref);
             if(allowed.isEmpty())allowed.add(input.sourceDatasetRef());
             CodingEvidenceCollector.Collected collected;
-            try { collected=collector.collectText(c,operation,input,report,allowed,plans.validator(c)); }
+            try {
+                if(com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeService.enabled(c)) {
+                    if(knowledge==null)throw new SecurityException("Knowledge validation unavailable");
+                    allowed.addAll(knowledge.authorizedReferences(c));
+                    knowledge.validateReport(c,report);
+                }
+                collected=collector.collectText(c,operation,input,report,allowed,plans.validator(c));
+            }
             catch(RuntimeException invalid) {
                 // No external executor ran. Archive a truthful stopped local-tool receipt so
                 // schema/reference repairs consume budget without leaving an unknown operation.
@@ -179,6 +198,16 @@ public final class ClineModelCallbackController {
                     tasks.reconcileStopped(call.scope(),call.taskId(),call.lease(),revision,operation,record));
                 CodingTaskRevisions.mutate(tasks,call.scope(),call.taskId(),revision->
                     tasks.settle(call.scope(),call.taskId(),call.lease(),revision,operation,new CodingTaskOutcome.Counters(0,0,1,0,0,0,0,"0"),true));
+                if(invalid instanceof com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeService.ReportReferenceException)
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,invalid.getMessage(),invalid);
+                if(com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeService.enabled(c)
+                        && invalid instanceof IllegalArgumentException
+                        && "Text result does not match the existing row schema".equals(invalid.getMessage()))
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Report structural validation failed. "
+                            + com.chatchat.api.runtime.coding.evidence.CodingSchemaResultVerifier.REPORT_SCOPE_RULE
+                            + " Use real JSON arrays for limitations, evidenceReferences and fieldProvenance. Required row schema: "
+                            + mapper.valueToTree(plans.rowSchema(c)),invalid);
                 throw invalid;
             }
             CodingTaskRevisions.mutate(tasks,call.scope(),call.taskId(),revision->
@@ -227,6 +256,11 @@ public final class ClineModelCallbackController {
                 if(dataSupply!=null)dataSupply.snapshots(contract,null).stream()
                     .map(CodingInputSnapshotService.Snapshot::sourceDatasetRef)
                     .filter(ref->ref!=null&&!ref.equals(input.sourceDatasetRef())).forEach(authorized::add);
+                if(com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeService.enabled(contract)) {
+                    if(knowledge==null)throw new SecurityException("Knowledge validation unavailable");
+                    authorized.addAll(knowledge.authorizedReferences(contract));
+                    knowledge.validateReport(contract,row);
+                }
                 var cited=row.get("evidenceReferences");
                 boolean valid=cited instanceof List<?> refs && !refs.isEmpty()
                     && refs.stream().allMatch(ref->ref instanceof String && authorized.contains(ref));
@@ -250,7 +284,7 @@ public final class ClineModelCallbackController {
     @PostMapping("/checkpoint")
     public Map<String,Object> checkpoint(@RequestBody JsonNode body) {
         return bound(body, call -> {
-            contract(body, call);
+            contract(body, call,false);
             tasks.saveSdkCheckpoint(call.scope(), call.taskId(), call.lease(), body.path("checkpoint"));
             return Map.of("saved", true);
         });
@@ -335,16 +369,18 @@ public final class ClineModelCallbackController {
     @PostMapping("/model")
     public Map<String, Object> model(@RequestBody JsonNode body) {
         return bound(body, call -> {
-            CodingTaskContract contract = contract(body, call);
             JsonNode request = body.path("request");
+            boolean managedAttempt = request.path("managedAttempt").asBoolean(false);
+            // Managed admission validates sources in reserve below; legacy dispatch validates here.
+            CodingTaskContract contract = contract(body, call,!managedAttempt);
             String operationId = operationId(request.path("operationId").asText(null));
             boolean supportsModelFeedback = "runtime_os.coding.model_feedback.v1".equals(request.path("modelResponseFeedbackVersion").asText());
-            boolean managedAttempt = request.path("managedAttempt").asBoolean(false);
             var accounting = body.deepCopy();
             ((com.fasterxml.jackson.databind.node.ObjectNode) accounting).set("model", mapper.valueToTree(
                 Map.of("operationId", operationId, "modelCalls", 1, "maxTokens", 1)));
             var prior = receipts.response(call.scope(), call.taskId(), operationId);
             if (prior.isPresent()) {
+                if(managedAttempt)contract(body,call);
                 if (prior.get().containsKey("error") && !(supportsModelFeedback && repairableModelResponse(prior.get()))) throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "Archived model response contains invalid tool arguments");
                 if (managedAttempt) settle(accounting);
@@ -428,7 +464,7 @@ public final class ClineModelCallbackController {
     @PostMapping("/settle-model")
     public Map<String, Object> settle(@RequestBody JsonNode body) {
         return bound(body, call -> {
-            contract(body, call);
+            contract(body, call,false);
             String operationId = operationId(body.path("model").path("operationId").asText(null));
             Map<String, Object> response = receipts.response(call.scope(), call.taskId(), operationId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT,
@@ -658,9 +694,18 @@ public final class ClineModelCallbackController {
     }
 
     private CodingTaskContract contract(JsonNode body, Call call) {
+        return contract(body,call,true);
+    }
+    /** Private checkpoints and stop/usage accounting disclose no retained source content.
+     * Tool reads validate before/after IO; every model dispatch and replay still validates sources. */
+    private CodingTaskContract contract(JsonNode body, Call call,boolean sourceAdmission) {
         try {
             CodingTaskContract contract = mapper.treeToValue(body.path("contract"), CodingTaskContract.class);
             call.snapshot().validateAgainst(contract);
+            if(sourceAdmission && com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeService.enabled(contract)) {
+                if(knowledge==null)throw new SecurityException("Knowledge validation unavailable");
+                knowledge.validateContext(contract);
+            }
             if (contract.authorization().networkPolicy() != CodingTaskContract.NetworkPolicy.NONE)
                 throw new SecurityException("Coding model cannot access a networked Sandbox");
             return contract;

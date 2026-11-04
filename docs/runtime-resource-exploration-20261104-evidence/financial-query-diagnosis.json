@@ -1,0 +1,16 @@
+{
+  "sourceVersion": "a63f1886a3e24d2f70ad8beef7dcaea67d410d92",
+  "measurementKind": "ACTUAL_SERVICE_TIMING_AND_THREAD_SAMPLE_NOT_AGENT_SUCCESS",
+  "financialQuerySamplesMs": [1854, 2059],
+  "sourceValidationSamples": [
+    {"references": 3, "elapsedMs": 2995, "sourceIoMs": 2894},
+    {"references": 5, "elapsedMs": 8872, "sourceIoMs": 8809},
+    {"references": 24, "elapsedMs": 13174, "sourceIoMs": 12145}
+  ],
+  "sampledFrames": ["FinancialDataStore.queryTable", "org.h2.command.query.Select.queryWindow", "org.h2.mvstore.db.MVPrimaryIndex$MVStoreCursor.next"],
+  "existingSourceSchema": "Dynamic STRING fields use H2 CLOB; original quote-table indexes cover collection and observation dates, not leading quote-code lookup.",
+  "change": "Reuse an existing leading quote-code index under any name. Otherwise preserve values while making the H2 string column indexable and add quote-code/observation-date lookup in the existing store. MySQL remains unchanged.",
+  "securitySemantics": "No source/authorization cache, query rewriting, new data store, index corpus or retrieval service.",
+  "regression": {"tests": 28, "failures": 0, "errors": 0, "overlapsEarlierSuites": true},
+  "liveMigrationAndPerformance": "REQUIRES_DEPLOYMENT_AND_REAL_AGENT_VERIFICATION"
+}

@@ -2139,6 +2139,7 @@ export default {
           agentName: payload?.agentName || "",
           documentWorkflow: !!payload?.documentWorkflow,
           webSearch: false,
+          resourceExplorationApproved: payload?.resourceExplorationApproved === true,
           reportMode: payload?.reportMode === 'visual' ? 'visual' : 'off',
           ...(payload?.reportMode === 'visual' ? {reportPresentation:reportPresentation(payload?.reportPresentation)} : {}),
           imageAnalysisIds,

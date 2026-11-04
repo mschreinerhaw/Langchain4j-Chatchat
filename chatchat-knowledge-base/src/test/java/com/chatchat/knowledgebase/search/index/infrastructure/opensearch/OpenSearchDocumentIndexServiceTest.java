@@ -19,6 +19,31 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 class OpenSearchDocumentIndexServiceTest {
+    @Test void deployedKnowledgeIndexLaunchArgumentBindsToTheReadOnlySourceList() {
+        var environment=new org.springframework.core.env.StandardEnvironment();
+        environment.getPropertySources().addFirst(new org.springframework.core.env.SimpleCommandLinePropertySource(
+            "--chatchat.search.open-search.knowledge-index-names=runtime_os_stage_documents,chatchat_documents_dev"));
+        var bound=org.springframework.boot.context.properties.bind.Binder.get(environment).bind("chatchat.search",
+            org.springframework.boot.context.properties.bind.Bindable.of(SearchProperties.class)).get();
+        assertThat(bound.getOpenSearch().getKnowledgeIndexNames()).containsExactly("runtime_os_stage_documents","chatchat_documents_dev");
+    }
+    @Test void knowledgeAlwaysPrefiltersTenantAndDocumentIdsEvenWhenLegacyIsolationIsDisabled() {
+        var properties=new SearchProperties();properties.setTenantIsolationEnabled(false);var service=service(properties);
+        var body=service.knowledgeSearchBody("recovery",10,new SearchPermissionContext("tenant-a","owner",List.of(),"agent"),List.of("doc-a"));
+        assertThat(body.toString()).contains("tenantId=tenant-a","fileId=[doc-a]");
+        org.assertj.core.api.Assertions.assertThatThrownBy(()->service.knowledgeSearchBody("recovery",10,SearchPermissionContext.system(),List.of()))
+            .isInstanceOf(SecurityException.class);
+        assertThat(service.searchKnowledge("recovery",10,SearchPermissionContext.system(),List.of())).isEmpty();
+    }
+    @Test void knowledgeUsesEachExistingIndexSearchAnalyzerForChineseDocumentNames() {
+        var body=service(new SearchProperties()).knowledgeSearchBody("LiveData-数据编织部署文档",10,
+            new SearchPermissionContext("tenant","owner",List.of(),"agent"),List.of("weave-document"));
+        var json=new ObjectMapper().valueToTree(body);
+        var match=json.path("query").path("bool").path("must").get(0).path("multi_match");
+        assertThat(match.path("query").asText()).isEqualTo("LiveData-数据编织部署文档");
+        assertThat(match.has("analyzer")).isFalse();
+        assertThat(body.toString()).contains("tenantId=tenant","fileId=[weave-document]");
+    }
 
     @Test
     void compactBudgetFallbackPreservesFullIdentifierAndAuthorizationFilters() {

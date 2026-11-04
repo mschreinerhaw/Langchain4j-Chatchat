@@ -28,6 +28,22 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class RoleChatModeHandlerTest {
+    @Test void autonomousKnowledgeRouteDoesNotPreselectDocumentsInJava() {
+        var catalog=mock(SkillCatalogService.class);var role=mock(SkillDefinition.class);var knowledge=mock(KnowledgeRuntimePort.class);
+        when(role.id()).thenReturn("role");when(role.defaultMode()).thenReturn("role_chat");when(catalog.resolve("role")).thenReturn(role);
+        var handler=new RoleChatModeHandler(mock(ChatModel.class),mock(ConfigurableChatModelFactory.class),catalog,knowledge);
+        var coding=stubCoding(handler,"Evidence-based answer");when(coding.knowledgeExplorationAvailable()).thenReturn(true);
+        var source=com.chatchat.chat.interaction.model.InteractionSource.builder().source("Plan v2 / Recovery").snippet("[source](runtime-evidence:knowledge:"+"a".repeat(64)+")").build();
+        when(coding.answer(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.anyString()))
+            .thenReturn(InteractionResponse.builder().answer("Evidence-based answer").sources(List.of(source)).build());
+        var response=handler.handle(InteractionRequest.builder().skillId("role").query("Read backup documents").build(),InteractionContext.builder().build());
+        org.mockito.Mockito.verifyNoInteractions(knowledge);
+        assertThat(response.getMetadata()).containsEntry("knowledgeRetrieval","cline_exploration");
+        assertThat(response.getSources()).containsExactly(source);
+        var prompt=ArgumentCaptor.forClass(String.class);
+        verify(coding).answer(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any(),prompt.capture());
+        assertThat(prompt.getValue()).contains("no Java document selection");
+    }
     @Test void sourceRequiredOutcomeCannotBecomeSuccessBecauseItHasAnExplanation() {
         var catalog = mock(SkillCatalogService.class); var role = mock(SkillDefinition.class);
         when(role.defaultMode()).thenReturn("role_chat"); when(catalog.resolve("role")).thenReturn(role);

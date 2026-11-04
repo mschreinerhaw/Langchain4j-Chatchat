@@ -122,6 +122,8 @@ public class SearchProperties {
         private String username = "";
         private String password = "";
         private String indexName = "chatchat_documents";
+        /** Existing source indexes available to read-only Runtime knowledge tools; never model supplied. */
+        private java.util.List<String> knowledgeIndexNames = java.util.List.of();
         private boolean insecureSsl = false;
         private int connectTimeoutMs = 5000;
         private int requestTimeoutMs = 30000;

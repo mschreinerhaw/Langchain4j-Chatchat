@@ -1,0 +1,2246 @@
+{
+  "observedAt": "2026-11-04 Asia/Shanghai",
+  "datasets": [
+    {
+      "storage_location": "financial-market.index_valuation_daily",
+      "read_tool": "web_search",
+      "source_names_json": "[\"中证指数首页指数图\"]",
+      "last_collected_at": "2026-11-03T08:24:23.431+00:00",
+      "hot_retention_days": 7,
+      "last_observation_date": "2026-11-02",
+      "archive_retention_days": 1825,
+      "title": "指数行情与估值",
+      "fields": [
+        {
+          "schema_version": 17,
+          "source_field": "datasetCode",
+          "business_description": "来源字段 datasetCode",
+          "field_type": "STRING",
+          "field_name": "dataset_code"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "indexName",
+          "business_description": "来源字段 indexName",
+          "field_type": "STRING",
+          "field_name": "index_name"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "close",
+          "business_description": "收盘点位",
+          "field_type": "DECIMAL",
+          "field_name": "close"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "closeHistory",
+          "business_description": "来源字段 closeHistory",
+          "field_type": "JSON",
+          "field_name": "close_history"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "tradingValue100MCny",
+          "business_description": "来源字段 tradingValue100MCny",
+          "field_type": "DECIMAL",
+          "field_name": "trading_value100_m_cny"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "legalRisk",
+          "business_description": "来源字段 legalRisk",
+          "field_type": "BOOLEAN",
+          "field_name": "legal_risk"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "transport",
+          "business_description": "来源字段 transport",
+          "field_type": "STRING",
+          "field_name": "transport"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "changePct",
+          "business_description": "来源字段 changePct",
+          "field_type": "STRING",
+          "field_name": "change_pct"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "dataset",
+          "business_description": "来源字段 dataset",
+          "field_type": "STRING",
+          "field_name": "dataset"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "peTtmHistory",
+          "business_description": "滚动市盈率历史序列",
+          "field_type": "JSON",
+          "field_name": "pe_ttm_history"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "tradeDate",
+          "business_description": "来源字段 tradeDate",
+          "field_type": "STRING",
+          "field_name": "trade_date"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "indexCode",
+          "business_description": "指数代码",
+          "field_type": "STRING",
+          "field_name": "index_code"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "provider",
+          "business_description": "来源字段 provider",
+          "field_type": "STRING",
+          "field_name": "provider"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "title",
+          "business_description": "来源字段 title",
+          "field_type": "STRING",
+          "field_name": "title"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "summary",
+          "business_description": "来源字段 summary",
+          "field_type": "STRING",
+          "field_name": "summary"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "category",
+          "business_description": "来源字段 category",
+          "field_type": "STRING",
+          "field_name": "category"
+        }
+      ],
+      "dataset_code": "index_valuation_daily",
+      "history_granularity": "DAILY_7D_WEEKLY"
+    },
+    {
+      "storage_location": "financial-market.stock_dividend_event",
+      "read_tool": "web_search",
+      "source_names_json": "[\"上海证券交易所市场表现数据\",\"深圳证券交易所市场表现数据\"]",
+      "last_collected_at": "2026-11-03T11:49:49.745+00:00",
+      "hot_retention_days": 7,
+      "last_observation_date": "2026-10-30",
+      "archive_retention_days": 1825,
+      "title": "分红送配事件",
+      "fields": [
+        {
+          "schema_version": 42,
+          "source_field": "securityCode",
+          "business_description": "来源字段 securityCode",
+          "field_type": "STRING",
+          "field_name": "security_code"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "securityName",
+          "business_description": "来源字段 securityName",
+          "field_type": "STRING",
+          "field_name": "security_name"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "recordDate",
+          "business_description": "来源字段 recordDate",
+          "field_type": "STRING",
+          "field_name": "record_date"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "year",
+          "business_description": "来源字段 year",
+          "field_type": "DECIMAL",
+          "field_name": "data_year"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "legalRisk",
+          "business_description": "来源字段 legalRisk",
+          "field_type": "BOOLEAN",
+          "field_name": "legal_risk"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "A_BEFR_TAX_DIV",
+          "business_description": "来源字段 A_BEFR_TAX_DIV",
+          "field_type": "STRING",
+          "field_name": "a_befr_tax_div"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "dividendPerShareBeforeTax",
+          "business_description": "来源字段 dividendPerShareBeforeTax",
+          "field_type": "DECIMAL",
+          "field_name": "dividend_per_share_before_tax"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "datasetCode",
+          "business_description": "来源字段 datasetCode",
+          "field_type": "STRING",
+          "field_name": "dataset_code"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "A_REG_DATE",
+          "business_description": "来源字段 A_REG_DATE",
+          "field_type": "STRING",
+          "field_name": "a_reg_date"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "provider",
+          "business_description": "来源字段 provider",
+          "field_type": "STRING",
+          "field_name": "provider"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "A_AFTR_TAX_DIV",
+          "business_description": "来源字段 A_AFTR_TAX_DIV",
+          "field_type": "STRING",
+          "field_name": "a_aftr_tax_div"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "A_DIV_DATE",
+          "business_description": "来源字段 A_DIV_DATE",
+          "field_type": "STRING",
+          "field_name": "a_div_date"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "dataset",
+          "business_description": "来源字段 dataset",
+          "field_type": "STRING",
+          "field_name": "dataset"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "DIVIDEND_DATE",
+          "business_description": "来源字段 DIVIDEND_DATE",
+          "field_type": "STRING",
+          "field_name": "dividend_date"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "paymentDate",
+          "business_description": "来源字段 paymentDate",
+          "field_type": "STRING",
+          "field_name": "payment_date"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "exDividendDate",
+          "business_description": "来源字段 exDividendDate",
+          "field_type": "STRING",
+          "field_name": "ex_dividend_date"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "transport",
+          "business_description": "来源字段 transport",
+          "field_type": "STRING",
+          "field_name": "transport"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "dividendPerShareAfterTax",
+          "business_description": "来源字段 dividendPerShareAfterTax",
+          "field_type": "DECIMAL",
+          "field_name": "dividend_per_share_after_tax"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "title",
+          "business_description": "来源字段 title",
+          "field_type": "STRING",
+          "field_name": "title"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "category",
+          "business_description": "来源字段 category",
+          "field_type": "STRING",
+          "field_name": "category"
+        },
+        {
+          "schema_version": 22,
+          "source_field": "bonusSharesPerTenShares",
+          "business_description": "来源字段 bonusSharesPerTenShares",
+          "field_type": "DECIMAL",
+          "field_name": "bonus_shares_per_ten_shares"
+        },
+        {
+          "schema_version": 23,
+          "source_field": "A_DERIGHTS_DATE",
+          "business_description": "来源字段 A_DERIGHTS_DATE",
+          "field_type": "STRING",
+          "field_name": "a_derights_date"
+        },
+        {
+          "schema_version": 24,
+          "source_field": "convertedSharesPerTenShares",
+          "business_description": "来源字段 convertedSharesPerTenShares",
+          "field_type": "DECIMAL",
+          "field_name": "converted_shares_per_ten_shares"
+        },
+        {
+          "schema_version": 25,
+          "source_field": "exRightsDate",
+          "business_description": "来源字段 exRightsDate",
+          "field_type": "STRING",
+          "field_name": "ex_rights_date"
+        },
+        {
+          "schema_version": 26,
+          "source_field": "CONVERT_RATIO",
+          "business_description": "来源字段 CONVERT_RATIO",
+          "field_type": "DECIMAL",
+          "field_name": "convert_ratio"
+        },
+        {
+          "schema_version": 27,
+          "source_field": "BONUS_RATIO",
+          "business_description": "来源字段 BONUS_RATIO",
+          "field_type": "DECIMAL",
+          "field_name": "bonus_ratio"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "rightsShares",
+          "business_description": "来源字段 rightsShares",
+          "field_type": "STRING",
+          "field_name": "rights_shares"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "fundsRaised",
+          "business_description": "来源字段 fundsRaised",
+          "field_type": "STRING",
+          "field_name": "funds_raised"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "bonusShares",
+          "business_description": "来源字段 bonusShares",
+          "field_type": "STRING",
+          "field_name": "bonus_shares"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "rightsPrice",
+          "business_description": "来源字段 rightsPrice",
+          "field_type": "STRING",
+          "field_name": "rights_price"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "cashDividend",
+          "business_description": "来源字段 cashDividend",
+          "field_type": "STRING",
+          "field_name": "cash_dividend"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "monthlyReportUrl",
+          "business_description": "来源字段 monthlyReportUrl",
+          "field_type": "STRING",
+          "field_name": "monthly_report_url"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "previousClose",
+          "business_description": "来源字段 previousClose",
+          "field_type": "DECIMAL",
+          "field_name": "previous_close"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "rightsPerShare",
+          "business_description": "来源字段 rightsPerShare",
+          "field_type": "STRING",
+          "field_name": "rights_per_share"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "cashDividendPerShare",
+          "business_description": "来源字段 cashDividendPerShare",
+          "field_type": "STRING",
+          "field_name": "cash_dividend_per_share"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "bonusPerShare",
+          "business_description": "来源字段 bonusPerShare",
+          "field_type": "STRING",
+          "field_name": "bonus_per_share"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "exPrice",
+          "business_description": "来源字段 exPrice",
+          "field_type": "DECIMAL",
+          "field_name": "ex_price"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "exDate",
+          "business_description": "来源字段 exDate",
+          "field_type": "STRING",
+          "field_name": "ex_date"
+        }
+      ],
+      "dataset_code": "stock_dividend_event",
+      "history_granularity": "DAILY_7D_WEEKLY"
+    },
+    {
+      "storage_location": "financial-market.bond_market_daily",
+      "read_tool": "web_search",
+      "source_names_json": "[\"上海证券交易所每日市场快照\",\"深圳证券交易所每日市场快照\"]",
+      "last_collected_at": "2026-11-03T12:26:33.216+00:00",
+      "hot_retention_days": 7,
+      "last_observation_date": "2026-11-02",
+      "archive_retention_days": 1825,
+      "title": "交易所每日债券成交情况",
+      "fields": [
+        {
+          "schema_version": 16,
+          "source_field": "weightedAveragePrice",
+          "business_description": "加权平均价格",
+          "field_type": "DECIMAL",
+          "field_name": "weighted_average_price"
+        },
+        {
+          "schema_version": 16,
+          "source_field": "dataset",
+          "business_description": "来源字段 dataset",
+          "field_type": "STRING",
+          "field_name": "dataset"
+        },
+        {
+          "schema_version": 16,
+          "source_field": "transport",
+          "business_description": "来源字段 transport",
+          "field_type": "STRING",
+          "field_name": "transport"
+        },
+        {
+          "schema_version": 16,
+          "source_field": "legalRisk",
+          "business_description": "来源字段 legalRisk",
+          "field_type": "BOOLEAN",
+          "field_name": "legal_risk"
+        },
+        {
+          "schema_version": 16,
+          "source_field": "bondCategoryCode",
+          "business_description": "来源字段 bondCategoryCode",
+          "field_type": "STRING",
+          "field_name": "bond_category_code"
+        },
+        {
+          "schema_version": 16,
+          "source_field": "transactionCount",
+          "business_description": "成交笔数",
+          "field_type": "DECIMAL",
+          "field_name": "transaction_count"
+        },
+        {
+          "schema_version": 16,
+          "source_field": "tradeDate",
+          "business_description": "交易日期",
+          "field_type": "DATE",
+          "field_name": "trade_date"
+        },
+        {
+          "schema_version": 16,
+          "source_field": "datasetCode",
+          "business_description": "来源字段 datasetCode",
+          "field_type": "STRING",
+          "field_name": "dataset_code"
+        },
+        {
+          "schema_version": 16,
+          "source_field": "amountUnit",
+          "business_description": "来源字段 amountUnit",
+          "field_type": "STRING",
+          "field_name": "amount_unit"
+        },
+        {
+          "schema_version": 16,
+          "source_field": "provider",
+          "business_description": "来源字段 provider",
+          "field_type": "STRING",
+          "field_name": "provider"
+        },
+        {
+          "schema_version": 16,
+          "source_field": "bondCategory",
+          "business_description": "债券类别",
+          "field_type": "STRING",
+          "field_name": "bond_category"
+        },
+        {
+          "schema_version": 16,
+          "source_field": "turnoverAmount10KCny",
+          "business_description": "成交金额（万元）",
+          "field_type": "DECIMAL",
+          "field_name": "turnover_amount10_k_cny"
+        },
+        {
+          "schema_version": 16,
+          "source_field": "title",
+          "business_description": "来源字段 title",
+          "field_type": "STRING",
+          "field_name": "title"
+        },
+        {
+          "schema_version": 16,
+          "source_field": "category",
+          "business_description": "来源字段 category",
+          "field_type": "STRING",
+          "field_name": "category"
+        },
+        {
+          "schema_version": 16,
+          "source_field": "cjje",
+          "business_description": "来源字段 cjje",
+          "field_type": "STRING",
+          "field_name": "cjje"
+        }
+      ],
+      "dataset_code": "bond_market_daily",
+      "history_granularity": "DAILY_7D_WEEKLY"
+    },
+    {
+      "storage_location": "financial-market.market_quote_daily",
+      "read_tool": "web_search",
+      "source_names_json": "[\"深圳证券交易所首页\",\"上海证券交易所首页\",\"上海证券交易所每日市场快照\",\"深圳证券交易所每日市场快照\"]",
+      "last_collected_at": "2026-11-03T15:28:26.670+00:00",
+      "hot_retention_days": 7,
+      "last_observation_date": "2026-11-03",
+      "archive_retention_days": 1825,
+      "title": "证券、指数与A股收盘行情",
+      "fields": [
+        {
+          "schema_version": 33,
+          "source_field": "quoteCode",
+          "business_description": "证券或指数代码",
+          "field_type": "STRING",
+          "field_name": "quote_code"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "marketTime",
+          "business_description": "来源字段 marketTime",
+          "field_type": "STRING",
+          "field_name": "market_time"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "open",
+          "business_description": "开盘价",
+          "field_type": "DECIMAL",
+          "field_name": "open"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "change",
+          "business_description": "来源字段 change",
+          "field_type": "STRING",
+          "field_name": "change"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "provider",
+          "business_description": "来源字段 provider",
+          "field_type": "STRING",
+          "field_name": "provider"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "changePct",
+          "business_description": "涨跌幅",
+          "field_type": "DECIMAL",
+          "field_name": "change_pct"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "low",
+          "business_description": "最低价",
+          "field_type": "DECIMAL",
+          "field_name": "low"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "dataset",
+          "business_description": "来源字段 dataset",
+          "field_type": "STRING",
+          "field_name": "dataset"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "amount",
+          "business_description": "来源字段 amount",
+          "field_type": "STRING",
+          "field_name": "amount"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "volume",
+          "business_description": "来源字段 volume",
+          "field_type": "STRING",
+          "field_name": "volume"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "close",
+          "business_description": "收盘或最新价",
+          "field_type": "DECIMAL",
+          "field_name": "close"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "indexCount",
+          "business_description": "来源字段 indexCount",
+          "field_type": "DECIMAL",
+          "field_name": "index_count"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "high",
+          "business_description": "最高价",
+          "field_type": "DECIMAL",
+          "field_name": "high"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "datasetCode",
+          "business_description": "来源字段 datasetCode",
+          "field_type": "STRING",
+          "field_name": "dataset_code"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "quoteName",
+          "business_description": "证券或指数简称",
+          "field_type": "STRING",
+          "field_name": "quote_name"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "transport",
+          "business_description": "来源字段 transport",
+          "field_type": "STRING",
+          "field_name": "transport"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "title",
+          "business_description": "来源字段 title",
+          "field_type": "STRING",
+          "field_name": "title"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "summary",
+          "business_description": "来源字段 summary",
+          "field_type": "STRING",
+          "field_name": "summary"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "category",
+          "business_description": "来源字段 category",
+          "field_type": "STRING",
+          "field_name": "category"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "tradeDate",
+          "business_description": "交易日期",
+          "field_type": "STRING",
+          "field_name": "trade_date"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "previousClose",
+          "business_description": "前收盘价",
+          "field_type": "DECIMAL",
+          "field_name": "previous_close"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "legalRisk",
+          "business_description": "来源字段 legalRisk",
+          "field_type": "BOOLEAN",
+          "field_name": "legal_risk"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "snapshotMode",
+          "business_description": "来源字段 snapshotMode",
+          "field_type": "STRING",
+          "field_name": "snapshot_mode"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "tradingPhase",
+          "business_description": "来源字段 tradingPhase",
+          "field_type": "STRING",
+          "field_name": "trading_phase"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "amountUnit",
+          "business_description": "来源字段 amountUnit",
+          "field_type": "STRING",
+          "field_name": "amount_unit"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "instrumentType",
+          "business_description": "证券品类",
+          "field_type": "STRING",
+          "field_name": "instrument_type"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "amplitudePct",
+          "business_description": "来源字段 amplitudePct",
+          "field_type": "DECIMAL",
+          "field_name": "amplitude_pct"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "amount10KCny",
+          "business_description": "成交额（万元）",
+          "field_type": "DECIMAL",
+          "field_name": "amount10_k_cny"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "volume10KUnits",
+          "business_description": "成交量（万单位）",
+          "field_type": "DECIMAL",
+          "field_name": "volume10_k_units"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "peRatio",
+          "business_description": "来源字段 peRatio",
+          "field_type": "DECIMAL",
+          "field_name": "pe_ratio"
+        },
+        {
+          "schema_version": 33,
+          "source_field": "amount100MCny",
+          "business_description": "成交额（亿元）",
+          "field_type": "DECIMAL",
+          "field_name": "amount100_m_cny"
+        }
+      ],
+      "dataset_code": "market_quote_daily",
+      "history_granularity": "DAILY_7D_WEEKLY"
+    },
+    {
+      "storage_location": "financial-market.bond_counter_quote_daily",
+      "read_tool": "web_search",
+      "source_names_json": "[\"中国债券信息网数据分析\"]",
+      "last_collected_at": "2026-11-03T15:29:53.929+00:00",
+      "hot_retention_days": 7,
+      "last_observation_date": "2026-11-03",
+      "archive_retention_days": 1825,
+      "title": "中债柜台债券行情",
+      "fields": [
+        {
+          "schema_version": 23,
+          "source_field": "bondName",
+          "business_description": "债券简称",
+          "field_type": "STRING",
+          "field_name": "bond_name"
+        },
+        {
+          "schema_version": 23,
+          "source_field": "snapshotMode",
+          "business_description": "来源字段 snapshotMode",
+          "field_type": "STRING",
+          "field_name": "snapshot_mode"
+        },
+        {
+          "schema_version": 23,
+          "source_field": "bestBuyInstitutionCode",
+          "business_description": "来源字段 bestBuyInstitutionCode",
+          "field_type": "STRING",
+          "field_name": "best_buy_institution_code"
+        },
+        {
+          "schema_version": 23,
+          "source_field": "bestBuyInstitutionEn",
+          "business_description": "来源字段 bestBuyInstitutionEn",
+          "field_type": "STRING",
+          "field_name": "best_buy_institution_en"
+        },
+        {
+          "schema_version": 23,
+          "source_field": "transport",
+          "business_description": "来源字段 transport",
+          "field_type": "STRING",
+          "field_name": "transport"
+        },
+        {
+          "schema_version": 23,
+          "source_field": "bestSellInstitution",
+          "business_description": "最优卖报价方",
+          "field_type": "STRING",
+          "field_name": "best_sell_institution"
+        },
+        {
+          "schema_version": 23,
+          "source_field": "bestSellInstitutionEn",
+          "business_description": "来源字段 bestSellInstitutionEn",
+          "field_type": "STRING",
+          "field_name": "best_sell_institution_en"
+        },
+        {
+          "schema_version": 23,
+          "source_field": "bondTypeEn",
+          "business_description": "来源字段 bondTypeEn",
+          "field_type": "STRING",
+          "field_name": "bond_type_en"
+        },
+        {
+          "schema_version": 23,
+          "source_field": "displayPrice",
+          "business_description": "来源字段 displayPrice",
+          "field_type": "DECIMAL",
+          "field_name": "display_price"
+        },
+        {
+          "schema_version": 23,
+          "source_field": "dataset",
+          "business_description": "来源字段 dataset",
+          "field_type": "STRING",
+          "field_name": "dataset"
+        },
+        {
+          "schema_version": 23,
+          "source_field": "legalRisk",
+          "business_description": "来源字段 legalRisk",
+          "field_type": "BOOLEAN",
+          "field_name": "legal_risk"
+        },
+        {
+          "schema_version": 23,
+          "source_field": "bondType",
+          "business_description": "来源字段 bondType",
+          "field_type": "STRING",
+          "field_name": "bond_type"
+        },
+        {
+          "schema_version": 23,
+          "source_field": "datasetName",
+          "business_description": "来源字段 datasetName",
+          "field_type": "STRING",
+          "field_name": "dataset_name"
+        },
+        {
+          "schema_version": 23,
+          "source_field": "tradeDate",
+          "business_description": "报价日期",
+          "field_type": "DATE",
+          "field_name": "trade_date"
+        },
+        {
+          "schema_version": 23,
+          "source_field": "provider",
+          "business_description": "来源字段 provider",
+          "field_type": "STRING",
+          "field_name": "provider"
+        },
+        {
+          "schema_version": 23,
+          "source_field": "bondCode",
+          "business_description": "债券代码",
+          "field_type": "STRING",
+          "field_name": "bond_code"
+        },
+        {
+          "schema_version": 23,
+          "source_field": "remainingMaturityText",
+          "business_description": "剩余期限",
+          "field_type": "STRING",
+          "field_name": "remaining_maturity_text"
+        },
+        {
+          "schema_version": 23,
+          "source_field": "bestBuyInstitution",
+          "business_description": "最优买报价方",
+          "field_type": "STRING",
+          "field_name": "best_buy_institution"
+        },
+        {
+          "schema_version": 23,
+          "source_field": "datasetCode",
+          "business_description": "来源字段 datasetCode",
+          "field_type": "STRING",
+          "field_name": "dataset_code"
+        },
+        {
+          "schema_version": 23,
+          "source_field": "title",
+          "business_description": "来源字段 title",
+          "field_type": "STRING",
+          "field_name": "title"
+        },
+        {
+          "schema_version": 23,
+          "source_field": "summary",
+          "business_description": "来源字段 summary",
+          "field_type": "STRING",
+          "field_name": "summary"
+        },
+        {
+          "schema_version": 23,
+          "source_field": "category",
+          "business_description": "来源字段 category",
+          "field_type": "STRING",
+          "field_name": "category"
+        }
+      ],
+      "dataset_code": "bond_counter_quote_daily",
+      "history_granularity": "DAILY_7D_WEEKLY"
+    },
+    {
+      "storage_location": "financial-market.market_statistics_daily",
+      "read_tool": "web_search",
+      "source_names_json": "[\"上海证券交易所首页\",\"上海证券交易所每日市场快照\",\"沪深港市场汇总\",\"深圳证券交易所每日市场快照\"]",
+      "last_collected_at": "2026-11-03T16:02:46.259+00:00",
+      "hot_retention_days": 7,
+      "last_observation_date": "2026-11-03",
+      "archive_retention_days": 1825,
+      "title": "交易所市场概览与成交统计",
+      "fields": [
+        {
+          "schema_version": 48,
+          "source_field": "feedCount",
+          "business_description": "来源字段 feedCount",
+          "field_type": "DECIMAL",
+          "field_name": "feed_count"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "companyNumber",
+          "business_description": "来源字段 companyNumber",
+          "field_type": "DECIMAL",
+          "field_name": "company_number"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "provider",
+          "business_description": "来源字段 provider",
+          "field_type": "STRING",
+          "field_name": "provider"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "section",
+          "business_description": "来源字段 section",
+          "field_type": "STRING",
+          "field_name": "section"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "dataStatisticDate",
+          "business_description": "来源字段 dataStatisticDate",
+          "field_type": "DATE",
+          "field_name": "data_statistic_date"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "dataset",
+          "business_description": "来源字段 dataset",
+          "field_type": "STRING",
+          "field_name": "dataset"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "mkt_value",
+          "business_description": "来源字段 mkt_value",
+          "field_type": "DECIMAL",
+          "field_name": "mkt_value"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "transport",
+          "business_description": "来源字段 transport",
+          "field_type": "STRING",
+          "field_name": "transport"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "iss_vol",
+          "business_description": "来源字段 iss_vol",
+          "field_type": "DECIMAL",
+          "field_name": "iss_vol"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "datasetCode",
+          "business_description": "来源字段 datasetCode",
+          "field_type": "STRING",
+          "field_name": "dataset_code"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "ratioOfPe",
+          "business_description": "来源字段 ratioOfPe",
+          "field_type": "DECIMAL",
+          "field_name": "ratio_of_pe"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "negotiable_value",
+          "business_description": "来源字段 negotiable_value",
+          "field_type": "DECIMAL",
+          "field_name": "negotiable_value"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "ngt_vol",
+          "business_description": "来源字段 ngt_vol",
+          "field_type": "DECIMAL",
+          "field_name": "ngt_vol"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "stockNumber",
+          "business_description": "来源字段 stockNumber",
+          "field_type": "DECIMAL",
+          "field_name": "stock_number"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "statisticDate",
+          "business_description": "来源字段 statisticDate",
+          "field_type": "DATE",
+          "field_name": "statistic_date"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "title",
+          "business_description": "来源字段 title",
+          "field_type": "STRING",
+          "field_name": "title"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "summary",
+          "business_description": "来源字段 summary",
+          "field_type": "STRING",
+          "field_name": "summary"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "category",
+          "business_description": "来源字段 category",
+          "field_type": "STRING",
+          "field_name": "category"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "tradeDate",
+          "business_description": "来源字段 tradeDate",
+          "field_type": "DATE",
+          "field_name": "trade_date"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "circulatingMarketCapitalization100MCny",
+          "business_description": "来源字段 circulatingMarketCapitalization100MCny",
+          "field_type": "STRING",
+          "field_name": "circulating_market_capitalization100_m_cny"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "marketCapitalization100MCny",
+          "business_description": "来源字段 marketCapitalization100MCny",
+          "field_type": "STRING",
+          "field_name": "market_capitalization100_m_cny"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "turnover100MCny",
+          "business_description": "来源字段 turnover100MCny",
+          "field_type": "STRING",
+          "field_name": "turnover100_m_cny"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "securityCount",
+          "business_description": "来源字段 securityCount",
+          "field_type": "DECIMAL",
+          "field_name": "security_count"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "legalRisk",
+          "business_description": "来源字段 legalRisk",
+          "field_type": "BOOLEAN",
+          "field_name": "legal_risk"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "turnoverMillionCurrency",
+          "business_description": "来源字段 turnoverMillionCurrency",
+          "field_type": "STRING",
+          "field_name": "turnover_million_currency"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "marketTurnoverMillionCurrency",
+          "business_description": "来源字段 marketTurnoverMillionCurrency",
+          "field_type": "STRING",
+          "field_name": "market_turnover_million_currency"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "averagePeRatio",
+          "business_description": "来源字段 averagePeRatio",
+          "field_type": "DECIMAL",
+          "field_name": "average_pe_ratio"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "circulatingMarketCapitalization100MCurrency",
+          "business_description": "来源字段 circulatingMarketCapitalization100MCurrency",
+          "field_type": "STRING",
+          "field_name": "circulating_market_capitalization100_m_currency"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "marketCapitalization100MCurrency",
+          "business_description": "来源字段 marketCapitalization100MCurrency",
+          "field_type": "STRING",
+          "field_name": "market_capitalization100_m_currency"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "marketCode",
+          "business_description": "来源字段 marketCode",
+          "field_type": "STRING",
+          "field_name": "market_code"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "amountUnits",
+          "business_description": "来源字段 amountUnits",
+          "field_type": "STRING",
+          "field_name": "amount_units"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "listedCompanies",
+          "business_description": "来源字段 listedCompanies",
+          "field_type": "STRING",
+          "field_name": "listed_companies"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "rawMetrics",
+          "business_description": "来源字段 rawMetrics",
+          "field_type": "JSON",
+          "field_name": "raw_metrics"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "market",
+          "business_description": "来源字段 market",
+          "field_type": "STRING",
+          "field_name": "market"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "listedSecurities",
+          "business_description": "来源字段 listedSecurities",
+          "field_type": "STRING",
+          "field_name": "listed_securities"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "segment",
+          "business_description": "来源字段 segment",
+          "field_type": "STRING",
+          "field_name": "segment"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "turnoverVolumeMillionShares",
+          "business_description": "来源字段 turnoverVolumeMillionShares",
+          "field_type": "DECIMAL",
+          "field_name": "turnover_volume_million_shares"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "listedHShares",
+          "business_description": "来源字段 listedHShares",
+          "field_type": "STRING",
+          "field_name": "listed_h_shares"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "listedNonHShareMainlandEnterprises",
+          "business_description": "来源字段 listedNonHShareMainlandEnterprises",
+          "field_type": "STRING",
+          "field_name": "listed_non_h_share_mainland_enterprises"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "cy",
+          "business_description": "来源字段 cy",
+          "field_type": "STRING",
+          "field_name": "cy"
+        },
+        {
+          "schema_version": 45,
+          "source_field": "xz",
+          "business_description": "来源字段 xz",
+          "field_type": "STRING",
+          "field_name": "xz"
+        },
+        {
+          "schema_version": 46,
+          "source_field": "gp",
+          "business_description": "来源字段 gp",
+          "field_type": "STRING",
+          "field_name": "gp"
+        },
+        {
+          "schema_version": 47,
+          "source_field": "cjje",
+          "business_description": "来源字段 cjje",
+          "field_type": "STRING",
+          "field_name": "cjje"
+        },
+        {
+          "schema_version": 48,
+          "source_field": "cjl",
+          "business_description": "来源字段 cjl",
+          "field_type": "STRING",
+          "field_name": "cjl"
+        }
+      ],
+      "dataset_code": "market_statistics_daily",
+      "history_granularity": "DAILY_7D_WEEKLY"
+    },
+    {
+      "storage_location": "financial-market.bond_market_overview_monthly",
+      "read_tool": "web_search",
+      "source_names_json": "[\"中国债券信息网数据分析\"]",
+      "last_collected_at": "2026-11-03T16:12:59.914+00:00",
+      "hot_retention_days": 7,
+      "last_observation_date": "2026-09-30",
+      "archive_retention_days": 1825,
+      "title": "中债市场统计概览",
+      "fields": [
+        {
+          "schema_version": 20,
+          "source_field": "period",
+          "business_description": "统计月份",
+          "field_type": "DECIMAL",
+          "field_name": "period"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "unit",
+          "business_description": "单位",
+          "field_type": "STRING",
+          "field_name": "unit"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "datasetCode",
+          "business_description": "来源字段 datasetCode",
+          "field_type": "STRING",
+          "field_name": "dataset_code"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "metricName",
+          "business_description": "统计指标名称",
+          "field_type": "STRING",
+          "field_name": "metric_name"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "metricNameEn",
+          "business_description": "来源字段 metricNameEn",
+          "field_type": "STRING",
+          "field_name": "metric_name_en"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "datasetName",
+          "business_description": "来源字段 datasetName",
+          "field_type": "STRING",
+          "field_name": "dataset_name"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "legalRisk",
+          "business_description": "来源字段 legalRisk",
+          "field_type": "BOOLEAN",
+          "field_name": "legal_risk"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "provider",
+          "business_description": "来源字段 provider",
+          "field_type": "STRING",
+          "field_name": "provider"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "dataset",
+          "business_description": "来源字段 dataset",
+          "field_type": "STRING",
+          "field_name": "dataset"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "currentValue",
+          "business_description": "月末值",
+          "field_type": "DECIMAL",
+          "field_name": "current_value"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "snapshotMode",
+          "business_description": "来源字段 snapshotMode",
+          "field_type": "STRING",
+          "field_name": "snapshot_mode"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "transport",
+          "business_description": "来源字段 transport",
+          "field_type": "STRING",
+          "field_name": "transport"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "metricCode",
+          "business_description": "统计指标编码",
+          "field_type": "STRING",
+          "field_name": "metric_code"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "metricGroup",
+          "business_description": "来源字段 metricGroup",
+          "field_type": "STRING",
+          "field_name": "metric_group"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "title",
+          "business_description": "来源字段 title",
+          "field_type": "STRING",
+          "field_name": "title"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "summary",
+          "business_description": "来源字段 summary",
+          "field_type": "STRING",
+          "field_name": "summary"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "category",
+          "business_description": "来源字段 category",
+          "field_type": "STRING",
+          "field_name": "category"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "yearToDateValue100MCny",
+          "business_description": "本年累计金额（亿元）",
+          "field_type": "DECIMAL",
+          "field_name": "year_to_date_value100_m_cny"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "currentMonthValue100MCny",
+          "business_description": "本月金额（亿元）",
+          "field_type": "DECIMAL",
+          "field_name": "current_month_value100_m_cny"
+        }
+      ],
+      "dataset_code": "bond_market_overview_monthly",
+      "history_granularity": "DAILY_7D_WEEKLY"
+    },
+    {
+      "storage_location": "financial-market.bond_yield_curve_daily",
+      "read_tool": "web_search",
+      "source_names_json": "[\"中国债券信息网数据分析\"]",
+      "last_collected_at": "2026-11-03T16:13:29.554+00:00",
+      "hot_retention_days": 7,
+      "last_observation_date": "2026-11-03",
+      "archive_retention_days": 1825,
+      "title": "中债收益率曲线每日数据",
+      "fields": [
+        {
+          "schema_version": 17,
+          "source_field": "snapshotMode",
+          "business_description": "来源字段 snapshotMode",
+          "field_type": "STRING",
+          "field_name": "snapshot_mode"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "datasetCode",
+          "business_description": "来源字段 datasetCode",
+          "field_type": "STRING",
+          "field_name": "dataset_code"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "provider",
+          "business_description": "来源字段 provider",
+          "field_type": "STRING",
+          "field_name": "provider"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "datasetName",
+          "business_description": "来源字段 datasetName",
+          "field_type": "STRING",
+          "field_name": "dataset_name"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "legalRisk",
+          "business_description": "来源字段 legalRisk",
+          "field_type": "BOOLEAN",
+          "field_name": "legal_risk"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "curveType",
+          "business_description": "收益率曲线类型",
+          "field_type": "STRING",
+          "field_name": "curve_type"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "transport",
+          "business_description": "来源字段 transport",
+          "field_type": "STRING",
+          "field_name": "transport"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "curveName",
+          "business_description": "曲线名称",
+          "field_type": "STRING",
+          "field_name": "curve_name"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "curveId",
+          "business_description": "来源字段 curveId",
+          "field_type": "STRING",
+          "field_name": "curve_id"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "dataset",
+          "business_description": "来源字段 dataset",
+          "field_type": "STRING",
+          "field_name": "dataset"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "yieldPct",
+          "business_description": "到期收益率（%）",
+          "field_type": "DECIMAL",
+          "field_name": "yield_pct"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "maturityYears",
+          "business_description": "待偿期限（年）",
+          "field_type": "DECIMAL",
+          "field_name": "maturity_years"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "tradeDate",
+          "business_description": "曲线业务日期",
+          "field_type": "DATE",
+          "field_name": "trade_date"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "title",
+          "business_description": "来源字段 title",
+          "field_type": "STRING",
+          "field_name": "title"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "summary",
+          "business_description": "来源字段 summary",
+          "field_type": "STRING",
+          "field_name": "summary"
+        },
+        {
+          "schema_version": 17,
+          "source_field": "category",
+          "business_description": "来源字段 category",
+          "field_type": "STRING",
+          "field_name": "category"
+        }
+      ],
+      "dataset_code": "bond_yield_curve_daily",
+      "history_granularity": "DAILY_7D_WEEKLY"
+    },
+    {
+      "storage_location": "financial-market.bond_settlement_daily",
+      "read_tool": "web_search",
+      "source_names_json": "[\"中国债券信息网数据分析\"]",
+      "last_collected_at": "2026-11-03T16:13:58.276+00:00",
+      "hot_retention_days": 7,
+      "last_observation_date": "2026-11-03",
+      "archive_retention_days": 1825,
+      "title": "中债市场结算实时统计",
+      "fields": [
+        {
+          "schema_version": 20,
+          "source_field": "datasetCode",
+          "business_description": "来源字段 datasetCode",
+          "field_type": "STRING",
+          "field_name": "dataset_code"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "principalAmount100MCny",
+          "business_description": "本金金额（亿元）",
+          "field_type": "DECIMAL",
+          "field_name": "principal_amount100_m_cny"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "settlementCode",
+          "business_description": "来源字段 settlementCode",
+          "field_type": "STRING",
+          "field_name": "settlement_code"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "dataset",
+          "business_description": "来源字段 dataset",
+          "field_type": "STRING",
+          "field_name": "dataset"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "transactionCount",
+          "business_description": "结算笔数",
+          "field_type": "DECIMAL",
+          "field_name": "transaction_count"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "snapshotMode",
+          "business_description": "来源字段 snapshotMode",
+          "field_type": "STRING",
+          "field_name": "snapshot_mode"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "datasetName",
+          "business_description": "来源字段 datasetName",
+          "field_type": "STRING",
+          "field_name": "dataset_name"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "faceAmount100MCny",
+          "business_description": "面值金额（亿元）",
+          "field_type": "DECIMAL",
+          "field_name": "face_amount100_m_cny"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "amountUnit",
+          "business_description": "来源字段 amountUnit",
+          "field_type": "STRING",
+          "field_name": "amount_unit"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "provider",
+          "business_description": "来源字段 provider",
+          "field_type": "STRING",
+          "field_name": "provider"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "transport",
+          "business_description": "来源字段 transport",
+          "field_type": "STRING",
+          "field_name": "transport"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "fundsAmount100MCny",
+          "business_description": "资金金额（亿元）",
+          "field_type": "DECIMAL",
+          "field_name": "funds_amount100_m_cny"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "legalRisk",
+          "business_description": "来源字段 legalRisk",
+          "field_type": "BOOLEAN",
+          "field_name": "legal_risk"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "tradeDate",
+          "business_description": "结算日期",
+          "field_type": "DATE",
+          "field_name": "trade_date"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "settlementType",
+          "business_description": "结算业务类型",
+          "field_type": "STRING",
+          "field_name": "settlement_type"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "settlementTime",
+          "business_description": "页面更新时间",
+          "field_type": "STRING",
+          "field_name": "settlement_time"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "title",
+          "business_description": "来源字段 title",
+          "field_type": "STRING",
+          "field_name": "title"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "summary",
+          "business_description": "来源字段 summary",
+          "field_type": "STRING",
+          "field_name": "summary"
+        },
+        {
+          "schema_version": 20,
+          "source_field": "category",
+          "business_description": "来源字段 category",
+          "field_type": "STRING",
+          "field_name": "category"
+        }
+      ],
+      "dataset_code": "bond_settlement_daily",
+      "history_granularity": "DAILY_7D_WEEKLY"
+    },
+    {
+      "storage_location": "financial-market.bond_collateral_monthly",
+      "read_tool": "web_search",
+      "source_names_json": "[\"中国债券信息网数据分析\"]",
+      "last_collected_at": "2026-11-03T16:14:26.999+00:00",
+      "hot_retention_days": 7,
+      "last_observation_date": "2026-10-31",
+      "archive_retention_days": 1825,
+      "title": "中债担保品业务月度数据",
+      "fields": [
+        {
+          "schema_version": 21,
+          "source_field": "datasetCode",
+          "business_description": "来源字段 datasetCode",
+          "field_type": "STRING",
+          "field_name": "dataset_code"
+        },
+        {
+          "schema_version": 21,
+          "source_field": "provider",
+          "business_description": "来源字段 provider",
+          "field_type": "STRING",
+          "field_name": "provider"
+        },
+        {
+          "schema_version": 21,
+          "source_field": "snapshotMode",
+          "business_description": "来源字段 snapshotMode",
+          "field_type": "STRING",
+          "field_name": "snapshot_mode"
+        },
+        {
+          "schema_version": 21,
+          "source_field": "metricGroup",
+          "business_description": "来源字段 metricGroup",
+          "field_type": "STRING",
+          "field_name": "metric_group"
+        },
+        {
+          "schema_version": 21,
+          "source_field": "unit",
+          "business_description": "来源字段 unit",
+          "field_type": "STRING",
+          "field_name": "unit"
+        },
+        {
+          "schema_version": 21,
+          "source_field": "productName",
+          "business_description": "担保品业务名称",
+          "field_type": "STRING",
+          "field_name": "product_name"
+        },
+        {
+          "schema_version": 21,
+          "source_field": "productCode",
+          "business_description": "担保品业务编码",
+          "field_type": "STRING",
+          "field_name": "product_code"
+        },
+        {
+          "schema_version": 21,
+          "source_field": "dataset",
+          "business_description": "来源字段 dataset",
+          "field_type": "STRING",
+          "field_name": "dataset"
+        },
+        {
+          "schema_version": 21,
+          "source_field": "transport",
+          "business_description": "来源字段 transport",
+          "field_type": "STRING",
+          "field_name": "transport"
+        },
+        {
+          "schema_version": 21,
+          "source_field": "currentBalance100MCny",
+          "business_description": "来源字段 currentBalance100MCny",
+          "field_type": "DECIMAL",
+          "field_name": "current_balance100_m_cny"
+        },
+        {
+          "schema_version": 21,
+          "source_field": "period",
+          "business_description": "统计月份",
+          "field_type": "DECIMAL",
+          "field_name": "period"
+        },
+        {
+          "schema_version": 21,
+          "source_field": "legalRisk",
+          "business_description": "来源字段 legalRisk",
+          "field_type": "BOOLEAN",
+          "field_name": "legal_risk"
+        },
+        {
+          "schema_version": 21,
+          "source_field": "datasetName",
+          "business_description": "来源字段 datasetName",
+          "field_type": "STRING",
+          "field_name": "dataset_name"
+        },
+        {
+          "schema_version": 21,
+          "source_field": "title",
+          "business_description": "来源字段 title",
+          "field_type": "STRING",
+          "field_name": "title"
+        },
+        {
+          "schema_version": 21,
+          "source_field": "summary",
+          "business_description": "来源字段 summary",
+          "field_type": "STRING",
+          "field_name": "summary"
+        },
+        {
+          "schema_version": 21,
+          "source_field": "category",
+          "business_description": "来源字段 category",
+          "field_type": "STRING",
+          "field_name": "category"
+        },
+        {
+          "schema_version": 21,
+          "source_field": "customerCount",
+          "business_description": "服务客户数量",
+          "field_type": "DECIMAL",
+          "field_name": "customer_count"
+        },
+        {
+          "schema_version": 21,
+          "source_field": "previousMonthBalance100MCny",
+          "business_description": "上月余额（亿元）",
+          "field_type": "DECIMAL",
+          "field_name": "previous_month_balance100_m_cny"
+        },
+        {
+          "schema_version": 21,
+          "source_field": "currentMonthBalance100MCny",
+          "business_description": "本月余额（亿元）",
+          "field_type": "DECIMAL",
+          "field_name": "current_month_balance100_m_cny"
+        },
+        {
+          "schema_version": 21,
+          "source_field": "currentMonthOperation100MCny",
+          "business_description": "本月操作量（亿元）",
+          "field_type": "DECIMAL",
+          "field_name": "current_month_operation100_m_cny"
+        }
+      ],
+      "dataset_code": "bond_collateral_monthly",
+      "history_granularity": "DAILY_7D_WEEKLY"
+    },
+    {
+      "storage_location": "financial-market.margin_trade_daily",
+      "read_tool": "web_search",
+      "source_names_json": "[\"上海证券交易所市场表现数据\",\"深圳证券交易所市场表现数据\"]",
+      "last_collected_at": "2026-11-03T16:19:17.312+00:00",
+      "hot_retention_days": 7,
+      "last_observation_date": "2026-11-02",
+      "archive_retention_days": 1825,
+      "title": "融资融券每日数据",
+      "fields": [
+        {
+          "schema_version": 44,
+          "source_field": "financingBalanceCny",
+          "business_description": "来源字段 financingBalanceCny",
+          "field_type": "DECIMAL",
+          "field_name": "financing_balance_cny"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "financingBuyCny",
+          "business_description": "来源字段 financingBuyCny",
+          "field_type": "DECIMAL",
+          "field_name": "financing_buy_cny"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "legalRisk",
+          "business_description": "来源字段 legalRisk",
+          "field_type": "BOOLEAN",
+          "field_name": "legal_risk"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "dataset",
+          "business_description": "来源字段 dataset",
+          "field_type": "STRING",
+          "field_name": "dataset"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "rzrqjyzl",
+          "business_description": "来源字段 rzrqjyzl",
+          "field_type": "DECIMAL",
+          "field_name": "rzrqjyzl"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "rzye",
+          "business_description": "来源字段 rzye",
+          "field_type": "DECIMAL",
+          "field_name": "rzye"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "rzche",
+          "business_description": "来源字段 rzche",
+          "field_type": "DECIMAL",
+          "field_name": "rzche"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "rqmcl",
+          "business_description": "来源字段 rqmcl",
+          "field_type": "DECIMAL",
+          "field_name": "rqmcl"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "rqyl",
+          "business_description": "来源字段 rqyl",
+          "field_type": "DECIMAL",
+          "field_name": "rqyl"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "marginTradingBalanceCny",
+          "business_description": "来源字段 marginTradingBalanceCny",
+          "field_type": "DECIMAL",
+          "field_name": "margin_trading_balance_cny"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "tradeDate",
+          "business_description": "来源字段 tradeDate",
+          "field_type": "DATE",
+          "field_name": "trade_date"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "securitiesLendingSellQuantity",
+          "business_description": "来源字段 securitiesLendingSellQuantity",
+          "field_type": "DECIMAL",
+          "field_name": "securities_lending_sell_quantity"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "amountUnit",
+          "business_description": "来源字段 amountUnit",
+          "field_type": "STRING",
+          "field_name": "amount_unit"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "datasetCode",
+          "business_description": "来源字段 datasetCode",
+          "field_type": "STRING",
+          "field_name": "dataset_code"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "securitiesLendingBalanceCny",
+          "business_description": "来源字段 securitiesLendingBalanceCny",
+          "field_type": "DECIMAL",
+          "field_name": "securities_lending_balance_cny"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "transport",
+          "business_description": "来源字段 transport",
+          "field_type": "STRING",
+          "field_name": "transport"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "quantityUnit",
+          "business_description": "来源字段 quantityUnit",
+          "field_type": "STRING",
+          "field_name": "quantity_unit"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "securitiesLendingOutstandingQuantity",
+          "business_description": "来源字段 securitiesLendingOutstandingQuantity",
+          "field_type": "DECIMAL",
+          "field_name": "securities_lending_outstanding_quantity"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "financingRepaymentCny",
+          "business_description": "来源字段 financingRepaymentCny",
+          "field_type": "DECIMAL",
+          "field_name": "financing_repayment_cny"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "provider",
+          "business_description": "来源字段 provider",
+          "field_type": "STRING",
+          "field_name": "provider"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "rqylje",
+          "business_description": "来源字段 rqylje",
+          "field_type": "DECIMAL",
+          "field_name": "rqylje"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "rzmre",
+          "business_description": "来源字段 rzmre",
+          "field_type": "DECIMAL",
+          "field_name": "rzmre"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "title",
+          "business_description": "来源字段 title",
+          "field_type": "STRING",
+          "field_name": "title"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "category",
+          "business_description": "来源字段 category",
+          "field_type": "STRING",
+          "field_name": "category"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "securityName",
+          "business_description": "来源字段 securityName",
+          "field_type": "STRING",
+          "field_name": "security_name"
+        },
+        {
+          "schema_version": 27,
+          "source_field": "securitiesLendingRepaymentQuantity",
+          "business_description": "来源字段 securitiesLendingRepaymentQuantity",
+          "field_type": "DECIMAL",
+          "field_name": "securities_lending_repayment_quantity"
+        },
+        {
+          "schema_version": 41,
+          "source_field": "securityCode",
+          "business_description": "来源字段 securityCode",
+          "field_type": "STRING",
+          "field_name": "security_code"
+        },
+        {
+          "schema_version": 29,
+          "source_field": "rqchl",
+          "business_description": "来源字段 rqchl",
+          "field_type": "DECIMAL",
+          "field_name": "rqchl"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "jrrzmr",
+          "business_description": "来源字段 jrrzmr",
+          "field_type": "STRING",
+          "field_name": "jrrzmr"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "securitiesLendingSell100MQuantity",
+          "business_description": "来源字段 securitiesLendingSell100MQuantity",
+          "field_type": "STRING",
+          "field_name": "securities_lending_sell100_m_quantity"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "marginTradingBalance100MCny",
+          "business_description": "来源字段 marginTradingBalance100MCny",
+          "field_type": "DECIMAL",
+          "field_name": "margin_trading_balance100_m_cny"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "securitiesLendingOutstanding100MQuantity",
+          "business_description": "来源字段 securitiesLendingOutstanding100MQuantity",
+          "field_type": "STRING",
+          "field_name": "securities_lending_outstanding100_m_quantity"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "financingBalance100MCny",
+          "business_description": "来源字段 financingBalance100MCny",
+          "field_type": "DECIMAL",
+          "field_name": "financing_balance100_m_cny"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "jrrjye",
+          "business_description": "来源字段 jrrjye",
+          "field_type": "STRING",
+          "field_name": "jrrjye"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "financingBuy100MCny",
+          "business_description": "来源字段 financingBuy100MCny",
+          "field_type": "STRING",
+          "field_name": "financing_buy100_m_cny"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "jrrzye",
+          "business_description": "来源字段 jrrzye",
+          "field_type": "STRING",
+          "field_name": "jrrzye"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "jrrjmc",
+          "business_description": "来源字段 jrrjmc",
+          "field_type": "STRING",
+          "field_name": "jrrjmc"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "jrrjyl",
+          "business_description": "来源字段 jrrjyl",
+          "field_type": "STRING",
+          "field_name": "jrrjyl"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "securitiesLendingBalance100MCny",
+          "business_description": "来源字段 securitiesLendingBalance100MCny",
+          "field_type": "DECIMAL",
+          "field_name": "securities_lending_balance100_m_cny"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "jrrzrjye",
+          "business_description": "来源字段 jrrzrjye",
+          "field_type": "STRING",
+          "field_name": "jrrzrjye"
+        },
+        {
+          "schema_version": 42,
+          "source_field": "securitiesLendingSell10KQuantity",
+          "business_description": "来源字段 securitiesLendingSell10KQuantity",
+          "field_type": "STRING",
+          "field_name": "securities_lending_sell10_k_quantity"
+        },
+        {
+          "schema_version": 43,
+          "source_field": "securitiesLendingBalance10KCny",
+          "business_description": "来源字段 securitiesLendingBalance10KCny",
+          "field_type": "DECIMAL",
+          "field_name": "securities_lending_balance10_k_cny"
+        },
+        {
+          "schema_version": 44,
+          "source_field": "securitiesLendingOutstanding10KQuantity",
+          "business_description": "来源字段 securitiesLendingOutstanding10KQuantity",
+          "field_type": "STRING",
+          "field_name": "securities_lending_outstanding10_k_quantity"
+        }
+      ],
+      "dataset_code": "margin_trade_daily",
+      "history_granularity": "DAILY_7D_WEEKLY"
+    },
+    {
+      "storage_location": "financial-market.etf_scale_daily",
+      "read_tool": "web_search",
+      "source_names_json": "[\"上海证券交易所ETF规模\",\"深圳证券交易所ETF规模\"]",
+      "last_collected_at": "2026-11-03T16:33:58.613+00:00",
+      "hot_retention_days": 7,
+      "last_observation_date": "2026-11-03",
+      "archive_retention_days": 1825,
+      "title": "ETF规模每日数据",
+      "fields": [
+        {
+          "schema_version": 14,
+          "source_field": "fundCode",
+          "business_description": "ETF代码",
+          "field_type": "STRING",
+          "field_name": "fund_code"
+        },
+        {
+          "schema_version": 14,
+          "source_field": "fundType",
+          "business_description": "来源字段 fundType",
+          "field_type": "STRING",
+          "field_name": "fund_type"
+        },
+        {
+          "schema_version": 14,
+          "source_field": "datasetCode",
+          "business_description": "来源字段 datasetCode",
+          "field_type": "STRING",
+          "field_name": "dataset_code"
+        },
+        {
+          "schema_version": 14,
+          "source_field": "fundScale10KUnits",
+          "business_description": "基金规模或总份额（万份）",
+          "field_type": "STRING",
+          "field_name": "fund_scale10_k_units"
+        },
+        {
+          "schema_version": 14,
+          "source_field": "scaleDate",
+          "business_description": "来源字段 scaleDate",
+          "field_type": "DATE",
+          "field_name": "scale_date"
+        },
+        {
+          "schema_version": 14,
+          "source_field": "provider",
+          "business_description": "来源字段 provider",
+          "field_type": "STRING",
+          "field_name": "provider"
+        },
+        {
+          "schema_version": 14,
+          "source_field": "transport",
+          "business_description": "来源字段 transport",
+          "field_type": "STRING",
+          "field_name": "transport"
+        },
+        {
+          "schema_version": 14,
+          "source_field": "legalRisk",
+          "business_description": "来源字段 legalRisk",
+          "field_type": "BOOLEAN",
+          "field_name": "legal_risk"
+        },
+        {
+          "schema_version": 14,
+          "source_field": "scaleUnit",
+          "business_description": "来源字段 scaleUnit",
+          "field_type": "STRING",
+          "field_name": "scale_unit"
+        },
+        {
+          "schema_version": 14,
+          "source_field": "fundName",
+          "business_description": "来源字段 fundName",
+          "field_type": "STRING",
+          "field_name": "fund_name"
+        },
+        {
+          "schema_version": 14,
+          "source_field": "dataset",
+          "business_description": "来源字段 dataset",
+          "field_type": "STRING",
+          "field_name": "dataset"
+        },
+        {
+          "schema_version": 14,
+          "source_field": "title",
+          "business_description": "来源字段 title",
+          "field_type": "STRING",
+          "field_name": "title"
+        },
+        {
+          "schema_version": 14,
+          "source_field": "category",
+          "business_description": "来源字段 category",
+          "field_type": "STRING",
+          "field_name": "category"
+        }
+      ],
+      "dataset_code": "etf_scale_daily",
+      "history_granularity": "DAILY_7D_WEEKLY"
+    }
+  ],
+  "readOnlyAudit": true
+}

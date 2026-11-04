@@ -9,4 +9,8 @@ public interface MarketAssetCatalogIndex {
     void ensureIndex(String indexName);
     void index(String indexName, String datasetCode, Map<String, Object> catalog);
     List<Map<String, Object>> search(String indexName, String query, int limit);
+    /** Preserve an already Agent-planned query while retaining transport budgets. */
+    default List<Map<String,Object>> searchCallerQuery(String indexName,String query,int limit) {
+        throw new UnsupportedOperationException("Caller-owned catalog lookup is unavailable");
+    }
 }

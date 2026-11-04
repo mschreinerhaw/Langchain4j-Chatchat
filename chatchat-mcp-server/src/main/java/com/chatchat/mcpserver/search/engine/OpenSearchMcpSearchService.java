@@ -1358,6 +1358,10 @@ public class OpenSearchMcpSearchService {
 
     @SuppressWarnings("unchecked")
     public List<Map<String, Object>> searchMarketCatalog(String rawIndexName, String query, int limit) {
+        return searchMarketCatalog(rawIndexName,query,limit,false);
+    }
+    @SuppressWarnings("unchecked")
+    public List<Map<String,Object>> searchMarketCatalog(String rawIndexName,String query,int limit,boolean callerOwned) {
         try (var budgetScope = queryOptimizer.openScope()) {
             if (!enabled() || query == null || query.isBlank()) return List.of();
             String index = rawIndexName(rawIndexName);
@@ -1378,7 +1382,8 @@ public class OpenSearchMcpSearchService {
                         Map.of("match", Map.of("search_text", Map.of("query", query, "boost", 0.25D)))
                     ),
                     "minimum_should_match", 1)));
-            JsonNode response = searchRequest("POST", "/" + index + "/_search", body);
+            JsonNode response = searchRequest("POST", "/" + index + "/_search", body,
+                callerOwned?SearchQueryOptimizer.Mode.DSL:SearchQueryOptimizer.Mode.TEXT);
             List<Map<String, Object>> result = new ArrayList<>();
             for (JsonNode hit : response.path("hits").path("hits")) {
                 Map<String, Object> item = new LinkedHashMap<>(
@@ -1787,8 +1792,12 @@ public class OpenSearchMcpSearchService {
 
     @SuppressWarnings("unchecked")
     private JsonNode searchRequest(String method, String path, Object body) {
+        return searchRequest(method,path,body,SearchQueryOptimizer.Mode.TEXT);
+    }
+    @SuppressWarnings("unchecked")
+    private JsonNode searchRequest(String method,String path,Object body,SearchQueryOptimizer.Mode mode) {
         return objectMapper.valueToTree(queryOptimizer.search((Map<String,Object>) body,
-            SearchQueryOptimizer.Mode.TEXT, (prepared, timeout) -> {
+            mode, (prepared, timeout) -> {
                 JsonNode result = searchRequestWithinBudget(method, path, prepared, timeout);
                 return objectMapper.convertValue(result, Map.class);
             }));

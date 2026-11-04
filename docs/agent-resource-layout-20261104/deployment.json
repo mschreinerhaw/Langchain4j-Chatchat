@@ -1,0 +1,28 @@
+{
+  "baselineSha256": "a06dd932dd67ea37ebbf32ce2b0bdd2436048bb3312512a39280cb896d0e172a",
+  "candidateSha256": "e413d7d093c3fa96918f58b0a96372e309fa1e3b0772bd3d7c4649b603e6cbe3",
+  "image": "runtime-os-api:agent-resource-layout-20261104-r1",
+  "previousImage": "runtime-os-api:task-evidence-disclosure-20261104-r1",
+  "previousConfiguredImage": "runtime-os-api:task-evidence-disclosure-20261104-r1",
+  "changedClasses": [],
+  "changedApiClasses": [],
+  "changedModuleClasses": {},
+  "removedAgentClasses": [],
+  "removedAccidentalTestClasses": [],
+  "webAssets": {
+    "BOOT-INF/classes/static/assets/skill-hub-Xz_7eIPd.css": "ff830d9c3ae78c512c9ac0dca2cb1f2870e9cfecf93c6c112ec6d089473547a4"
+  },
+  "sourceCommit": "9eb2a9041a827a137982185cfebf41f7d2d6d518",
+  "sourceDiffSha256": "743cdabec29732a1fa7afcb923c4e15fed9a665f5cb8424227539025d093365e",
+  "deploymentScriptSha256": "b7570695b6a3fd1b51b32803c179a11ae990247cdd46c3b7e27116d8de73e527",
+  "status": "DEPLOYED",
+  "backupContainer": "runtime-os-app-stage-api-1-before-template-supply-a06dd932dd67",
+  "runtimeConfigurationPreserved": true,
+  "nodeProxy": {
+    "status": "REBOUND",
+    "networkMode": "container:c22063415628623549ed7c696f2a0661285730e506c27b5a3b073feb8d777063",
+    "previousNetworkMode": "container:4f193d673c9d2806619cd34e36660f30945db134af7fbf6cb0695ef1db15dea2",
+    "backupContainer": "runtime-os-app-stage-node-proxy-1-before-template-supply-c22063415628",
+    "configurationPreserved": true
+  }
+}

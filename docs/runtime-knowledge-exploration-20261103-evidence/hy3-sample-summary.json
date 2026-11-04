@@ -1,0 +1,325 @@
+{
+  "model": "hy3",
+  "completedSamples": [
+    {
+      "id": "D01b",
+      "category": "direct",
+      "model": "hy3",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "ee08665f-5af8-3897-b24e-35e2d3e6bb3a",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 191014,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:4a3ae74eae8c88bc653a9210792d58aec1803a34bfc48de21c10fdd74d19aba5",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 0,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:d6080cfa86bd06ddaac3e216f2e1fb84bbe6a86b40fc6a661ad5588a058e7143",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 2,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:ed776ee68850be9ffd74b053eef06923337f4e93a329ad3b3ee0fd9066a470f1",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 1,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 3,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_list_sections",
+        "knowledge_read",
+        "knowledge_read"
+      ],
+      "knowledgeToolCalls": 6,
+      "coding": [
+        {
+          "taskId": "analysis-coding-1f757c5872690c7e6b31acd6adeafa483b6b19bb96db4f04998be1f0b0f47b71",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 5,
+            "modelTokens": 97403,
+            "toolCalls": 8,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 52461,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "D01a",
+      "category": "direct",
+      "model": "hy3",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "88237835-bfaf-31ea-96a6-c5cbc3887ef3",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 335968,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:1cdbb95c331bcb7a60a1f43ebe6c0c19ad850c6ea355a5af1ccf7bec36ec5d15",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 11,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:20facd2e45ed8c6150f107e06a31a3cb2523a8cf084a46e989de5bff021c37e7",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 2,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:435a4cc0a4cc3599d54e5b1e9fcb930d10eff7a0fd1160ecceb6495d73fa0db5",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 12,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:537bec9e1f5b7d4c28240b356595d6786e7fc0a9f170edcfc32468bcf36905fc",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 1,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:a597716f959f95c1a825aba13e054ffe37d8544579c7f2d6af8cd9cb704c77c9",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 13,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:acbadd11e3437af2733a3fa3d40323652a6ffa9d3a19dcf05c202e220140462b",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 0,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:c7a2ed017cd7386ffdeaff91f43895cab03e56630c1acb8600624e2426d938e3",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 3,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 7,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_list_sections",
+        "knowledge_search",
+        "knowledge_read",
+        "knowledge_search",
+        "knowledge_read"
+      ],
+      "knowledgeToolCalls": 7,
+      "coding": [
+        {
+          "taskId": "analysis-coding-00737876a224744ac9bfc7a63e76c16e68966568fa1f816e1d827d87523a8362",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 7,
+            "modelTokens": 138819,
+            "toolCalls": 10,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 59769,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "D02a",
+      "category": "direct",
+      "model": "hy3",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "1f17086b-38cd-3786-a0c1-c33122d45e8b",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 213896,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:11538512172b4c34f37b7bb0bb96958fba065a3b7fff4c48bf5df696275beeae",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 1,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:30950a7a7de55171f220fad4110abf8eae2dd2ca23af378c6c03a59829e5851d",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 27,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:89d5cdbadecd2dea69256f960e99f471a282d6423dd8398871d03e69e362353f",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 3,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:c522963c98fe1f470d4354d774ed233c8da0857256464e13063c937523bf6b3c",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 4,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:d0fb8853e9c6b3ae79bf4cf65068d4e03c55d6411509d1fbc7785b671403bc82",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 0,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:f9e0250de16cae40ad853c07f6f933936b8fb7acf7b41f7d43f07049995c5501",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 2,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 6,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_list_sections",
+        "knowledge_read",
+        "knowledge_read",
+        "knowledge_read"
+      ],
+      "knowledgeToolCalls": 6,
+      "coding": [
+        {
+          "taskId": "analysis-coding-b035f7844260338118f115471d349cd8557d20b72ad8357c59cef2d696df26d4",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 5,
+            "modelTokens": 100502,
+            "toolCalls": 8,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 53783,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "D03a",
+      "category": "direct",
+      "model": "hy3",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "9221ede3-d67d-3533-ba1b-a6bc017beaa1",
+      "status": "PARTIAL",
+      "runtimeStatus": "PARTIAL",
+      "durationMs": 138185,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:17e52323b80f402892e9d5ff16c56429161d782a9cda5890ace74dc36274ffc6",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 58,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:197dde7933f247a27ac32f05b6e8361bb51ef31594acb641ac90e3a3741b1901",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 0,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:3677400f8182029becfacbcbf53bb156446b85436d5930ee0bf04f474d0fdeec",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 15,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:f3fb496891181863dd321ebec50a35a0287377b6044011bea1feef725eab83c6",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 1,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 4,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_list_sections",
+        "knowledge_read",
+        "knowledge_read"
+      ],
+      "knowledgeToolCalls": 11,
+      "coding": [
+        {
+          "taskId": "analysis-coding-187a09425b9e18419091345fdbc5e39ddfd6d905c036de9ccf2358e98722b585",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 7,
+            "modelTokens": 181291,
+            "toolCalls": 12,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 110251,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    }
+  ],
+  "interruptedForModelComparison": [
+    {
+      "id": "D02b",
+      "taskId": "fce2e8c5-ee05-3dff-879d-b58b99e21999",
+      "cancelApiCode": 200
+    },
+    {
+      "id": "D03b",
+      "taskId": "975e7a55-2f1d-36c1-92ed-ca965a43c098",
+      "cancelApiCode": 200
+    }
+  ],
+  "reason": "CONTINUE_50_CASE_PRIMARY_BENCHMARK_WITH_ENVIRONMENT_DEFAULT_MODEL",
+  "semanticCorrectness": "NOT_CERTIFIED"
+}

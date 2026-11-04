@@ -1,0 +1,380 @@
+{
+  "baseline": "e1b9987920dff75fabfc82739680b16337384a3c",
+  "sourceCommit": "a63f1886a3e24d2f70ad8beef7dcaea67d410d92",
+  "scope": "Expanded document/news/market resource task after the preceding knowledge P0; generated assets and private diagnostics excluded.",
+  "fileCount": 93,
+  "files": [
+    {
+      "status": "M",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/controller/agent/AgentWorkshopController.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/enterprise/controller/ResourceGrantAdminController.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/analysis/ClineContextAnswerService.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineCodingAdapter.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineModelCallbackController.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineToolProfiles.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/knowledge/CodingKnowledgeService.java"
+    },
+    {
+      "status": "A",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/knowledge/CodingResourceReader.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/knowledge/KnowledgeDisclosureGuard.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/knowledge/KnowledgeResponseAdvice.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/workspace/CodingWorkspaceProofVerifier.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/test/java/com/chatchat/api/controller/agent/AgentWorkshopControllerTest.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/analysis/ClineContextAnswerServiceTest.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisServiceTest.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/knowledge/CodingKnowledgeServiceTest.java"
+    },
+    {
+      "status": "A",
+      "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/knowledge/CodingResourceReaderTest.java"
+    },
+    {
+      "status": "A",
+      "path": "chatchat-api/web-app/src/components/KnowledgeCitationDialog.test.js"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/web-app/src/components/KnowledgeCitationDialog.vue"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/web-app/src/components/PromptComposer.test.js"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/web-app/src/components/PromptComposer.vue"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/web-app/src/js/components/KnowledgeCitationDialog.js"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/web-app/src/js/components/PromptComposer.js"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/web-app/src/js/utils/permissionWorkspace.js"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/web-app/src/js/utils/permissionWorkspace.test.js"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/web-app/src/js/utils/runtimeObservationPresentation.js"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/web-app/src/js/utils/runtimeObservationPresentation.test.js"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/web-app/src/js/views/AgentWorkshopView.js"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/web-app/src/js/views/AgentWorkshopView.test.js"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/web-app/src/js/views/ChatAssistantView.js"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/web-app/src/services/api.js"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/web-app/src/styles/components/knowledge-citation-dialog.css"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/web-app/src/views/AgentWorkshopView.vue"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-chat/src/main/java/com/chatchat/chat/interaction/service/handler/AgentChatModeHandler.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-chat/src/main/java/com/chatchat/chat/interaction/service/handler/RoleChatModeHandler.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-chat/src/main/java/com/chatchat/chat/skills/catalog/SkillCatalogService.java"
+    },
+    {
+      "status": "A",
+      "path": "chatchat-chat/src/main/java/com/chatchat/chat/skills/runtime/AgentResourceScopeService.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-chat/src/test/java/com/chatchat/chat/interaction/service/handler/AgentChatModeHandlerTest.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-chat/src/test/java/com/chatchat/chat/skills/catalog/SkillCatalogServiceTest.java"
+    },
+    {
+      "status": "A",
+      "path": "chatchat-chat/src/test/java/com/chatchat/chat/skills/runtime/AgentResourceScopeServiceTest.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-chat/src/test/java/com/chatchat/chat/skills/runtime/BuiltinCodingSkillsTest.java"
+    },
+    {
+      "status": "A",
+      "path": "chatchat-common/src/main/java/com/chatchat/common/retrieval/AgentResourcePolicy.java"
+    },
+    {
+      "status": "A",
+      "path": "chatchat-common/src/main/java/com/chatchat/common/retrieval/AgentResourceScopePort.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-common/src/main/java/com/chatchat/common/retrieval/ResourceAuthorizationPort.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-common/src/main/java/com/chatchat/common/runtime/coding/CodingRuntimeContext.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-common/src/test/java/com/chatchat/common/runtime/coding/CodingRuntimeContextTest.java"
+    },
+    {
+      "status": "A",
+      "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/health/McpReadinessController.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/market/McpMarketAssetCatalogIndex.java"
+    },
+    {
+      "status": "A",
+      "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/market/ResourceExplorationReadController.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/search/engine/OpenSearchMcpSearchService.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-mcp-server/src/main/resources/mcp-admin-menus.json"
+    },
+    {
+      "status": "A",
+      "path": "chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/health/McpReadinessControllerTest.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/license/McpMenuLicenseFilterTest.java"
+    },
+    {
+      "status": "A",
+      "path": "chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/market/ResourceExplorationReadControllerTest.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/search/engine/OpenSearchRequestDeadlineTest.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-runtime-market/src/main/java/com/chatchat/runtime/market/storage/FinancialAssetCatalogService.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-runtime-market/src/main/java/com/chatchat/runtime/market/storage/MarketAssetCatalogIndex.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-runtime-market/src/test/java/com/chatchat/runtime/market/storage/FinancialAssetCatalogServiceTest.java"
+    },
+    {
+      "status": "A",
+      "path": "chatchat-runtime-news/src/main/java/com/chatchat/runtime/news/api/tool/NewsResourceReadController.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-runtime-news/src/main/java/com/chatchat/runtime/news/model/NewsSearchQuery.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-runtime-news/src/main/java/com/chatchat/runtime/news/store/opensearch/NewsBudgetedOpenSearchRequests.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-runtime-news/src/main/java/com/chatchat/runtime/news/store/opensearch/OpenSearchNewsDocumentStore.java"
+    },
+    {
+      "status": "A",
+      "path": "chatchat-runtime-news/src/test/java/com/chatchat/runtime/news/api/tool/NewsResourceReadControllerTest.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-runtime-news/src/test/java/com/chatchat/runtime/news/store/opensearch/OpenSearchNewsDocumentStoreCompatibilityTest.java"
+    },
+    {
+      "status": "M",
+      "path": "coding-agent-node/skills/catalog.json"
+    },
+    {
+      "status": "A",
+      "path": "coding-agent-node/skills/evidence-based-answering/SKILL.md"
+    },
+    {
+      "status": "A",
+      "path": "coding-agent-node/skills/financial-market-analysis/SKILL.md"
+    },
+    {
+      "status": "A",
+      "path": "coding-agent-node/skills/financial-news-analysis/SKILL.md"
+    },
+    {
+      "status": "M",
+      "path": "coding-agent-node/src/knowledge-tools.js"
+    },
+    {
+      "status": "M",
+      "path": "coding-agent-node/src/runner.js"
+    },
+    {
+      "status": "M",
+      "path": "coding-agent-node/src/server.js"
+    },
+    {
+      "status": "M",
+      "path": "coding-agent-node/src/skills.js"
+    },
+    {
+      "status": "M",
+      "path": "coding-agent-node/test/builtin-skills.test.js"
+    },
+    {
+      "status": "M",
+      "path": "coding-agent-node/test/knowledge-tools.test.js"
+    },
+    {
+      "status": "M",
+      "path": "coding-agent-node/test/server.test.js"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-resource-exploration-20261104-audit.md"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-resource-exploration-20261104-evidence/business-questions.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-resource-exploration-20261104-evidence/catalog-heartbeat-diagnosis.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-resource-exploration-20261104-evidence/existing-code-changes.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-resource-exploration-20261104-evidence/financial-datasets.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-resource-exploration-20261104-evidence/index-audit.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-resource-exploration-20261104-evidence/microsoft-skills-review.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-resource-exploration-20261104-evidence/mixed-questions-50.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-resource-exploration-20261104-evidence/p0-local-verification.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-resource-exploration-20261104-evidence/p1-local-verification.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-resource-exploration-20261104-evidence/p2-local-verification.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-resource-exploration-20261104-implementation.md"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-resource-exploration-20261104-skills.md"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-resource-exploration-configuration.md"
+    },
+    {
+      "status": "M",
+      "path": "scripts/package-knowledge-exploration.mjs"
+    },
+    {
+      "status": "M",
+      "path": "scripts/prepare-knowledge-exploration-stage.py"
+    },
+    {
+      "status": "A",
+      "path": "scripts/prepare-resource-exploration-stage.py"
+    },
+    {
+      "status": "M",
+      "path": "scripts/verify-knowledge-exploration-stage.py"
+    }
+  ]
+}

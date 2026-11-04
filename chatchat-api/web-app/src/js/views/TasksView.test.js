@@ -2,6 +2,27 @@ import { describe, expect, it, vi } from "vitest";
 import TasksView from "./TasksView.js";
 
 describe("TasksView persisted plan restoration", () => {
+  it("clears retained details without requesting restricted task content", async () => {
+    const context = {
+      selectedTask: { taskId: "restricted", status: "SUCCESS", contentRestricted: true },
+      selectedEvents: [{ eventId: "previous" }], selectedEventId: "previous",
+      selectedPlanDag: { private: true }, selectedPlanVersions: [{}], planLoadedTaskId: "previous",
+      explorationTimeline: { observations: [{ private: true }], steps: [{}] },
+      explorationRunId: "previous", explorationWarning: "old", explorationHasMore: true
+    };
+    await TasksView.methods.reloadEvents.call(context);
+    await TasksView.methods.loadPlanDag.call(context);
+    await TasksView.methods.loadExplorationTimeline.call(context);
+    expect(context.selectedEvents).toEqual([]);
+    expect(context.selectedEventId).toBe("");
+    expect(context.selectedPlanDag).toBeNull();
+    expect(context.selectedPlanVersions).toEqual([]);
+    expect(context.planLoadedTaskId).toBe("");
+    expect(context.explorationTimeline).toEqual({ observations: [], steps: [] });
+    expect(context.explorationRunId).toBe("");
+    expect(context.explorationHasMore).toBe(false);
+    expect(TasksView.computed.canRecordFeedback.call(context)).toBe(false);
+  });
   it("loads final exploration observations when a poll changes the selected task to terminal", async () => {
     const context = {
       selectedTask: { taskId: "task", status: "RUNNING" }, activeTab: "plan", runtimeRefreshing: false, loading: false,

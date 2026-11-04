@@ -12,6 +12,7 @@ vi.mock("../../services/api.js", () => ({
   createWorkshopAgent: vi.fn(),
   deleteWorkshopAgent: vi.fn(),
   fetchAgentWorkshop: vi.fn(),
+  fetchAgentResourceOptions: vi.fn().mockResolvedValue([]),
   fetchSkills: vi.fn(),
   fetchPublishedAgentCurlExample,
   getStoredAuthSession: vi.fn(() => authSession.current),
@@ -24,6 +25,21 @@ vi.mock("../../services/api.js", () => ({
 import AgentWorkshopView from "./AgentWorkshopView.js";
 
 describe("AgentWorkshopView query service management", () => {
+  it('round-trips independent resource toggles and strategy for role-chat configurations',()=>{
+    const context=AgentWorkshopView.data();
+    for(const [key,method] of Object.entries(AgentWorkshopView.methods))context[key]=method.bind(context);
+    for(const [key,get] of Object.entries(AgentWorkshopView.computed))if(typeof get==='function')Object.defineProperty(context,key,{get:()=>get.call(context),configurable:true});
+    context.resourceOptions=[{id:'knowledge_documents'},{id:'financial_news'},{id:'financial_market'}];
+    context.form=context.agentToForm({id:'research',name:'Research',defaultMode:'role_chat',workflowConfig:{resourceExploration:{
+      resourcePermissions:[{resourceId:'financial_news',enabled:true,access:'read'},{resourceId:'financial_market',enabled:false,access:'read'}],selectionStrategy:'explicit_request'}}});
+    expect(context.form.resourceIds).toEqual(['financial_news']);
+    context.form.resourceIds.push('financial_market');let payload=context.formToPayload();
+    expect(payload.workflowConfig.resourceExploration.selectionStrategy).toBe('explicit_request');
+    expect(payload.workflowConfig.resourceExploration.resourcePermissions.filter(r=>r.enabled).map(r=>r.resourceId)).toEqual(['financial_news','financial_market']);
+    context.form=context.agentToForm(payload);context.form.resourceIds=['financial_market'];payload=context.formToPayload();
+    expect(payload.workflowConfig.resourceExploration.resourcePermissions.find(r=>r.resourceId==='financial_news').enabled).toBe(false);
+    expect(context.agentToForm(payload).resourceIds).toEqual(['financial_market']);
+  });
   it("retires legacy image toggles and excludes image assets from business selection", () => {
     const context = { form: { id: "agent-a" } };
     const a = AgentWorkshopView.methods.normalizeWorkflowConfig.call(context,

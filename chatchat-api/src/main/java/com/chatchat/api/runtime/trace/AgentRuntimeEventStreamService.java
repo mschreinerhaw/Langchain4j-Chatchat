@@ -25,6 +25,8 @@ public class AgentRuntimeEventStreamService {
     private static final long DEFAULT_POLL_INTERVAL_MS = 1_000L;
 
     private final AgentRuntime agentRuntime;
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.beans.factory.ObjectProvider<com.chatchat.api.runtime.coding.knowledge.KnowledgeDisclosureGuard> knowledgeGuards;
     private final ExecutorService executor = Executors.newCachedThreadPool(new StreamThreadFactory());
 
     public SseEmitter streamEvents(String runId,
@@ -165,6 +167,17 @@ public class AgentRuntimeEventStreamService {
     }
 
     private void sendEvent(SseEmitter emitter, AgentRunEvent event) throws IOException {
+        String content=event.message()+" "+event.payload();
+        if(content.contains("runtime-evidence:knowledge:") || event.type()==com.chatchat.agents.runtime.event.AgentRunEventType.RUN_COMPLETED) {
+            var guard=knowledgeGuards==null?null:knowledgeGuards.getIfAvailable();
+            if(guard==null) {
+                if(content.contains("runtime-evidence:knowledge:"))throw new SecurityException("Knowledge disclosure validation unavailable");
+            } else {
+                var owner=agentRuntime.find(event.runId()).orElseThrow().request();
+                guard.checkRun(owner.getTenantId(),owner.getUserId(),event.runId());
+                guard.check(owner.getTenantId(),owner.getUserId(),content);
+            }
+        }
         emitter.send(SseEmitter.event()
             .id(String.valueOf(event.sequence()))
             .name("event")

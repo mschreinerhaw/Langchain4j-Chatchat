@@ -246,5 +246,83 @@
     "sourceVersion": "3f5b461b2314e01c400564051e92469114c5b68f",
     "builtin": true,
     "enabled": true
+  },
+  {
+    "id": "builtin:opensearch-knowledge-exploration",
+    "name": "opensearch-knowledge-exploration",
+    "description": "Explore authorized project documents with Runtime knowledge tools, deepen section reading, cross-check versions and produce traceable document answers.",
+    "version": "1.0.0",
+    "origin": "SYSTEM_BUILTIN",
+    "category": "Knowledge",
+    "references": [],
+    "displayName": "知识自主探索",
+    "descriptionZh": "检索已授权文档、深入阅读章节、交叉验证版本并提供证据引用。",
+    "source": "Runtime OS",
+    "sourceVersion": "1.0.0",
+    "builtin": true,
+    "enabled": true,
+    "requiresProfile": "runtime_os.knowledge.v1",
+    "requiresResourcesAny": [
+      "knowledge_documents"
+    ]
+  },
+  {
+    "id": "builtin:financial-news-analysis",
+    "name": "financial-news-analysis",
+    "description": "Investigate authorized financial news, verify original articles and publication timelines, and distinguish reported events from unproven market explanations.",
+    "version": "1.0.0",
+    "origin": "SYSTEM_BUILTIN",
+    "category": "ResourceAnalysis",
+    "references": [],
+    "displayName": "财经新闻分析",
+    "descriptionZh": "核对财经新闻原文、发布时间和事件关联，区分事实与因果推断。",
+    "source": "Runtime OS",
+    "sourceVersion": "1.0.0",
+    "builtin": true,
+    "enabled": true,
+    "requiresProfile": "runtime_os.knowledge.v1",
+    "requiresResourcesAny": [
+      "financial_news"
+    ]
+  },
+  {
+    "id": "builtin:financial-market-analysis",
+    "name": "financial-market-analysis",
+    "description": "Discover authorized financial datasets, inspect collected prices and indicators, verify units and history coverage, and relate market observations to explicitly sourced evidence.",
+    "version": "1.0.0",
+    "origin": "SYSTEM_BUILTIN",
+    "category": "ResourceAnalysis",
+    "references": [],
+    "displayName": "金融市场分析",
+    "descriptionZh": "发现已授权金融数据集，核对行情历史、单位、时间和计算口径。",
+    "source": "Runtime OS",
+    "sourceVersion": "1.0.0",
+    "builtin": true,
+    "enabled": true,
+    "requiresProfile": "runtime_os.knowledge.v1",
+    "requiresResourcesAny": [
+      "financial_market"
+    ]
+  },
+  {
+    "id": "builtin:evidence-based-answering",
+    "name": "evidence-based-answering",
+    "description": "Form evidence-supported answers across authorized documents, news and market data while distinguishing facts, inference, source conflicts and missing verification.",
+    "version": "1.0.0",
+    "origin": "SYSTEM_BUILTIN",
+    "category": "ResourceAnalysis",
+    "references": [],
+    "displayName": "证据驱动问答",
+    "descriptionZh": "跨文档、新闻与行情核对证据，明确冲突、推断和验证缺口。",
+    "source": "Runtime OS",
+    "sourceVersion": "1.0.0",
+    "builtin": true,
+    "enabled": true,
+    "requiresProfile": "runtime_os.knowledge.v1",
+    "requiresResourcesAny": [
+      "knowledge_documents",
+      "financial_news",
+      "financial_market"
+    ]
   }
 ]

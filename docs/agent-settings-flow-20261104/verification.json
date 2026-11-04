@@ -1,0 +1,28 @@
+{
+  "preview": false,
+  "checks": [
+    {
+      "width": 1440,
+      "disabledHidesDocumentsAndStrategy": true,
+      "enabledShowsDocumentsBeforeStrategy": true,
+      "selectionsPreservedWhenToggled": true
+    },
+    {
+      "width": 768,
+      "disabledHidesDocumentsAndStrategy": true,
+      "enabledShowsDocumentsBeforeStrategy": true,
+      "selectionsPreservedWhenToggled": true
+    },
+    {
+      "width": 390,
+      "disabledHidesDocumentsAndStrategy": true,
+      "enabledShowsDocumentsBeforeStrategy": true,
+      "selectionsPreservedWhenToggled": true
+    }
+  ],
+  "errors": [],
+  "configWrites": [],
+  "initialChecked": false,
+  "documentChoicesOnPage": 20,
+  "status": "PASSED"
+}

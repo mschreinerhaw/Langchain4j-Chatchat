@@ -37,6 +37,9 @@ export function resourceCatalog(catalog, extras = {}) {
       result.push(item);
     }
   };
+  for (const [id,name] of [["financial_news","新闻资讯"],["financial_market","金融市场数据"]])
+    add({backend:"resource",type:"DATA_RESOURCE",id,name,group:"datasource",action:"读取",
+      description:"允许用户向 Agent 分配此类只读数据；执行仍与 Agent 及任务授权取交集"});
   for (const template of extras.templates || []) add({ backend: "resource", type: "TEMPLATE", id: template.templateKey,
     name: template.title, group: "template", action: "使用" });
   for (const p of catalog.permissions || []) {
@@ -138,7 +141,9 @@ export function resourceCatalog(catalog, extras = {}) {
     if (grant.resourceType === "MCP_TOOL" && hiddenTools.has(grant.resourceId)) continue;
     const group = ["KNOWLEDGE", "KNOWLEDGE_BASE"].includes(grant.resourceType)
       ? "knowledge"
-      : grant.resourceType === "MCP_TOOL"
+      : grant.resourceType === "DATA_RESOURCE"
+        ? "datasource"
+        : grant.resourceType === "MCP_TOOL"
         ? "tool"
         : grant.resourceType === "TEMPLATE"
           ? "template"

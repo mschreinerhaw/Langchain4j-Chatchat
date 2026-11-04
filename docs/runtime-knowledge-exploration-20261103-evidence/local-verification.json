@@ -1,0 +1,116 @@
+{
+  "java": {
+    "tests": 182,
+    "suites": [
+      {
+        "name": "com.chatchat.knowledgebase.search.index.infrastructure.opensearch.OpenSearchDocumentIndexServiceTest",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.chatchat.chat.interaction.service.handler.RoleChatModeHandlerTest",
+        "tests": 8,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.chatchat.api.agent.task.AgentTaskEventStreamServiceTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.chatchat.api.assets.UserAssetServiceTest",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.chatchat.api.runtime.coding.analysis.ClineContextAnswerServiceTest",
+        "tests": 22,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest",
+        "tests": 39,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.chatchat.api.runtime.coding.cline.ClineModelCallbackControllerTest",
+        "tests": 18,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.chatchat.api.runtime.coding.cline.ClineRuntimeModelBridgeTest",
+        "tests": 21,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.chatchat.api.runtime.coding.evidence.CodingEvidenceCollectorTest",
+        "tests": 12,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeServiceTest",
+        "tests": 22,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.chatchat.api.security.ApiPermissionAuthorizationFilterTest",
+        "tests": 15,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    ],
+    "logSha256": "c354f990a33ee0fc83c5f1df7c2c35b966b143377da5bd3d29b752aa0e59b361"
+  },
+  "checks": [
+    {
+      "kind": "node",
+      "passed": 167,
+      "logSha256": "0428a2abd0c3498bf2c9e5d4c0a45f71fe4978907bdf45642b6b80716ec30491"
+    },
+    {
+      "kind": "knowledgeUi",
+      "passed": 54,
+      "logSha256": "91c9a6e8748d3ca50ff77e8e8159dbb978794a3681a8f4f0bb24205d8fb5c26d"
+    },
+    {
+      "kind": "sqlStudioUi",
+      "passed": 180,
+      "logSha256": "1cdc21afa0bb21b0925671c3075d8da0893ef0a6919ca836681d4048731d5c0a"
+    },
+    {
+      "kind": "pythonReportUi",
+      "passed": 61,
+      "logSha256": "d8a7ca9ce576c5cdae285008490790276539f1d8111fbd2bc270a3301ff954e6"
+    }
+  ],
+  "productionFrontendBuild": {
+    "passed": true,
+    "logSha256": "60ffa39a3b1c7ff823d6db01cf4e250615432e7bf583460ebc12d5013f91a1a1"
+  },
+  "nodeFinalKnowledgeSuite": {
+    "passed": 3,
+    "note": "Final prompt refinement checked with actual installed SDK; full 167 tests rerun in deployed worker image."
+  },
+  "generatedStaticFiles": "Packaged in release; repository source follows existing generated-file ignore rules."
+}

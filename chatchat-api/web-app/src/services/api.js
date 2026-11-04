@@ -1159,6 +1159,10 @@ export function fetchAuthorizedAgents() {
   return apiRequest("/interactions/resources/agents");
 }
 
+export function fetchAgentResourceOptions() {
+  return apiRequest("/agents/workshop/resource-options");
+}
+
 export function fetchAgentWorkshop(filters = {}) {
   const params = new URLSearchParams();
   if (filters.keyword) {

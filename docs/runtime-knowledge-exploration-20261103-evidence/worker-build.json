@@ -1,0 +1,10 @@
+{
+  "imageId": "sha256:e3aec5f1221343d9e5c19bf1b24dd656f3198c0bbbd6c36832b4160cf185364a",
+  "offlineBuildAndTests": true,
+  "modules": {
+    "knowledge-tools.js": "dd881283705ad0a74cb813376b4bd0564f4699beb65b655ebe77ba7964991211",
+    "runner.js": "57ba5281569fa16c7e349292ced44d0f379ab8e009d8f48d581d1b5fdbaf5923",
+    "server.js": "9b52bd8594ef885b66de9cac7bcb980991c6059a72c87215f7e283a1a372f501",
+    "skills.js": "394ae7dc7656769e67222dfe6811232120be745a199cf49a5dafc061c4a1d1bb"
+  }
+}

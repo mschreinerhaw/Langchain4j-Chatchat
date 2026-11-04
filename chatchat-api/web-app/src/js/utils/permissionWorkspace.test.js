@@ -50,7 +50,8 @@ describe("unified permission workspace projections", () => {
     ];
     const catalog={tools,grants:[{localToolName:"old-grant",targetType:"ROLE",targetId:"role"}],resourceGrants:[{resourceType:"MCP_TOOL",resourceId:"internal"}]};
     const result=resourceCatalog(catalog,{toolsLoaded:true,tools:[{localToolName:"business",chineseAlias:"销售汇总"},{localToolName:"external",displayName:"外部受控查询"}]});
-    expect(result.map(r=>r.id)).toEqual(["business","external","old-grant"]);expect(result.some(r=>r.name==="ChatChat MCP Server")).toBe(false);expect(catalog.resourceGrants).toHaveLength(1);
+    expect(result.filter(r=>r.type!=="DATA_RESOURCE").map(r=>r.id)).toEqual(["business","external","old-grant"]);expect(result.some(r=>r.name==="ChatChat MCP Server")).toBe(false);expect(catalog.resourceGrants).toHaveLength(1);
+    expect(result.filter(r=>r.type==="DATA_RESOURCE").map(r=>r.id)).toEqual(["financial_news","financial_market"]);
   });
   it("normalizes obsolete routes without creating duplicate pages", () => {
     for (const id of ["permissionTools", "systemSkillRoles"])
@@ -164,7 +165,7 @@ describe("unified permission workspace projections", () => {
         },
       ],
     });
-    expect(resources).toHaveLength(2);
+    expect(resources.filter(r=>r.type!=="DATA_RESOURCE")).toHaveLength(2);
     expect(resources.find((r) => r.id === "sql").group).toBe("datasource");
     expect(resources.find((r) => r.id === "ws").group).toBe("workspace");
     expect(

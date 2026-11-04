@@ -1,0 +1,258 @@
+{
+    "phase":  "P2",
+    "scope":  "Targeted authorization, data adapters, Cline callbacks, report evidence and existing role/tool Agent regression",
+    "java":  {
+                 "tests":  259,
+                 "failures":  0,
+                 "errors":  0,
+                 "suites":  [
+                                {
+                                    "suite":  "com.chatchat.common.runtime.coding.CodingRuntimeContextTest",
+                                    "tests":  5,
+                                    "failures":  0,
+                                    "errors":  0,
+                                    "skipped":  0
+                                },
+                                {
+                                    "suite":  "com.chatchat.runtime.news.api.tool.NewsResourceReadControllerTest",
+                                    "tests":  3,
+                                    "failures":  0,
+                                    "errors":  0,
+                                    "skipped":  0
+                                },
+                                {
+                                    "suite":  "com.chatchat.runtime.news.store.opensearch.OpenSearchNewsDocumentStoreCompatibilityTest",
+                                    "tests":  3,
+                                    "failures":  0,
+                                    "errors":  0,
+                                    "skipped":  0
+                                },
+                                {
+                                    "suite":  "com.chatchat.runtime.market.analysis.FinancialMarketQueryExecutorTest",
+                                    "tests":  9,
+                                    "failures":  0,
+                                    "errors":  0,
+                                    "skipped":  0
+                                },
+                                {
+                                    "suite":  "com.chatchat.runtime.market.storage.FinancialAssetCatalogServiceTest",
+                                    "tests":  3,
+                                    "failures":  0,
+                                    "errors":  0,
+                                    "skipped":  0
+                                },
+                                {
+                                    "suite":  "com.chatchat.runtime.market.storage.FinancialDataStoreTest",
+                                    "tests":  16,
+                                    "failures":  0,
+                                    "errors":  0,
+                                    "skipped":  0
+                                },
+                                {
+                                    "suite":  "com.chatchat.chat.interaction.service.handler.AgentChatModeHandlerTest",
+                                    "tests":  29,
+                                    "failures":  0,
+                                    "errors":  0,
+                                    "skipped":  0
+                                },
+                                {
+                                    "suite":  "com.chatchat.chat.interaction.service.handler.RoleChatModeHandlerTest",
+                                    "tests":  8,
+                                    "failures":  0,
+                                    "errors":  0,
+                                    "skipped":  0
+                                },
+                                {
+                                    "suite":  "com.chatchat.chat.skills.catalog.SkillCatalogServiceTest",
+                                    "tests":  17,
+                                    "failures":  0,
+                                    "errors":  0,
+                                    "skipped":  0
+                                },
+                                {
+                                    "suite":  "com.chatchat.chat.skills.runtime.AgentResourceScopeServiceTest",
+                                    "tests":  4,
+                                    "failures":  0,
+                                    "errors":  0,
+                                    "skipped":  0
+                                },
+                                {
+                                    "suite":  "com.chatchat.chat.skills.runtime.BuiltinCodingSkillsTest",
+                                    "tests":  2,
+                                    "failures":  0,
+                                    "errors":  0,
+                                    "skipped":  0
+                                },
+                                {
+                                    "suite":  "com.chatchat.mcpserver.market.ResourceExplorationReadControllerTest",
+                                    "tests":  3,
+                                    "failures":  0,
+                                    "errors":  0,
+                                    "skipped":  0
+                                },
+                                {
+                                    "suite":  "com.chatchat.mcpserver.search.engine.OpenSearchRequestDeadlineTest",
+                                    "tests":  2,
+                                    "failures":  0,
+                                    "errors":  0,
+                                    "skipped":  0
+                                },
+                                {
+                                    "suite":  "com.chatchat.mcpserver.search.engine.OpenSearchSearchBulkheadTest",
+                                    "tests":  3,
+                                    "failures":  0,
+                                    "errors":  0,
+                                    "skipped":  0
+                                },
+                                {
+                                    "suite":  "com.chatchat.api.controller.agent.AgentWorkshopControllerTest",
+                                    "tests":  6,
+                                    "failures":  0,
+                                    "errors":  0,
+                                    "skipped":  0
+                                },
+                                {
+                                    "suite":  "com.chatchat.api.enterprise.controller.ResourceGrantAdminControllerTest",
+                                    "tests":  4,
+                                    "failures":  0,
+                                    "errors":  0,
+                                    "skipped":  0
+                                },
+                                {
+                                    "suite":  "com.chatchat.api.runtime.coding.analysis.ClineContextAnswerServiceTest",
+                                    "tests":  23,
+                                    "failures":  0,
+                                    "errors":  0,
+                                    "skipped":  0
+                                },
+                                {
+                                    "suite":  "com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest",
+                                    "tests":  40,
+                                    "failures":  0,
+                                    "errors":  0,
+                                    "skipped":  0
+                                },
+                                {
+                                    "suite":  "com.chatchat.api.runtime.coding.cline.ClineModelCallbackControllerTest",
+                                    "tests":  18,
+                                    "failures":  0,
+                                    "errors":  0,
+                                    "skipped":  0
+                                },
+                                {
+                                    "suite":  "com.chatchat.api.runtime.coding.cline.ClineRuntimeModelBridgeTest",
+                                    "tests":  21,
+                                    "failures":  0,
+                                    "errors":  0,
+                                    "skipped":  0
+                                },
+                                {
+                                    "suite":  "com.chatchat.api.runtime.coding.evidence.CodingEvidenceCollectorTest",
+                                    "tests":  12,
+                                    "failures":  0,
+                                    "errors":  0,
+                                    "skipped":  0
+                                },
+                                {
+                                    "suite":  "com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeServiceTest",
+                                    "tests":  28,
+                                    "failures":  0,
+                                    "errors":  0,
+                                    "skipped":  0
+                                }
+                            ]
+             },
+    "compiledRuntimeSourcesCurrent":  15,
+    "nodeFullSuiteTests":  170,
+    "frontendResourceTests":  118,
+    "pythonAndVisualRegressionTests":  62,
+    "sqlStudioRegression":  {
+                                "earlierParallelGrammarTimeout":  true,
+                                "tests":  180,
+                                "execution":  "isolated_serial",
+                                "failures":  0
+                            },
+    "productionUiBuild":  "PASSED",
+    "remoteAcceptance":  "NOT_YET_RUN_FOR_RESOURCE_EXTENSION",
+    "postDeploymentFixRegression":  {
+                                        "scope":  "Canonical source references, model callbacks, report evidence and existing MCP license gates",
+                                        "errors":  0,
+                                        "tests":  79,
+                                        "overlapsEarlierSuites":  true,
+                                        "failures":  0
+                                    },
+    "heartbeatAndNoAccessRegression":  {
+                                           "scope":  "Source heartbeat provenance, actual observation invalidation, no-source read-only analysis, model callbacks and report evidence",
+                                           "errors":  0,
+                                           "tests":  102,
+                                           "overlapsEarlierSuites":  true,
+                                           "failures":  0
+                                       },
+    "updatedSkillRegression":  {
+                                   "failures":  0,
+                                   "tests":  7
+                               },
+    "batchSourceValidationRegression":  {
+                                            "scope":  "Fresh per-pass source batches, post-IO revocation, identity injection rejection, source ordering, transport bounds and existing license gates",
+                                            "errors":  0,
+                                            "tests":  135,
+                                            "failures":  0,
+                                            "suites":  [
+                                                           {
+                                                               "suite":  "com.chatchat.runtime.news.api.tool.NewsResourceReadControllerTest",
+                                                               "errors":  0,
+                                                               "tests":  5,
+                                                               "failures":  0
+                                                           },
+                                                           {
+                                                               "suite":  "com.chatchat.mcpserver.license.McpLicenseCoverageContractTest",
+                                                               "errors":  0,
+                                                               "tests":  1,
+                                                               "failures":  0
+                                                           },
+                                                           {
+                                                               "suite":  "com.chatchat.mcpserver.license.McpMenuLicenseFilterTest",
+                                                               "errors":  0,
+                                                               "tests":  19,
+                                                               "failures":  0
+                                                           },
+                                                           {
+                                                               "suite":  "com.chatchat.mcpserver.market.ResourceExplorationReadControllerTest",
+                                                               "errors":  0,
+                                                               "tests":  5,
+                                                               "failures":  0
+                                                           },
+                                                           {
+                                                               "suite":  "com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest",
+                                                               "errors":  0,
+                                                               "tests":  41,
+                                                               "failures":  0
+                                                           },
+                                                           {
+                                                               "suite":  "com.chatchat.api.runtime.coding.cline.ClineModelCallbackControllerTest",
+                                                               "errors":  0,
+                                                               "tests":  18,
+                                                               "failures":  0
+                                                           },
+                                                           {
+                                                               "suite":  "com.chatchat.api.runtime.coding.evidence.CodingEvidenceCollectorTest",
+                                                               "errors":  0,
+                                                               "tests":  12,
+                                                               "failures":  0
+                                                           },
+                                                           {
+                                                               "suite":  "com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeServiceTest",
+                                                               "errors":  0,
+                                                               "tests":  32,
+                                                               "failures":  0
+                                                           },
+                                                           {
+                                                               "suite":  "com.chatchat.api.runtime.coding.knowledge.CodingResourceReaderTest",
+                                                               "errors":  0,
+                                                               "tests":  2,
+                                                               "failures":  0
+                                                           }
+                                                       ],
+                                            "overlapsEarlierSuites":  true
+                                        }
+}

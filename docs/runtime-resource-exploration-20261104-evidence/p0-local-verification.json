@@ -1,0 +1,113 @@
+{
+  "phase": "P0",
+  "scope": "Targeted authorization, data adapters, Cline callbacks, report evidence and existing role/tool Agent regression",
+  "java": {
+    "tests": 198,
+    "failures": 0,
+    "errors": 0,
+    "suites": [
+      {
+        "suite": "com.chatchat.runtime.news.api.tool.NewsResourceReadControllerTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "com.chatchat.runtime.news.store.opensearch.OpenSearchNewsDocumentStoreCompatibilityTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "com.chatchat.chat.interaction.service.handler.AgentChatModeHandlerTest",
+        "tests": 28,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "com.chatchat.chat.interaction.service.handler.RoleChatModeHandlerTest",
+        "tests": 8,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "com.chatchat.chat.skills.runtime.AgentResourceScopeServiceTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "com.chatchat.mcpserver.market.ResourceExplorationReadControllerTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "com.chatchat.api.controller.agent.AgentWorkshopControllerTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "com.chatchat.api.enterprise.controller.ResourceGrantAdminControllerTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "com.chatchat.api.runtime.coding.analysis.ClineContextAnswerServiceTest",
+        "tests": 22,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest",
+        "tests": 39,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "com.chatchat.api.runtime.coding.cline.ClineModelCallbackControllerTest",
+        "tests": 18,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "com.chatchat.api.runtime.coding.cline.ClineRuntimeModelBridgeTest",
+        "tests": 21,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "com.chatchat.api.runtime.coding.evidence.CodingEvidenceCollectorTest",
+        "tests": 12,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeServiceTest",
+        "tests": 27,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    ]
+  },
+  "compiledRuntimeSourcesCurrent": 20,
+  "nodeSdkExplorationTests": 5,
+  "frontendTests": 88,
+  "remoteAcceptance": "NOT_YET_RUN_FOR_RESOURCE_EXTENSION"
+}

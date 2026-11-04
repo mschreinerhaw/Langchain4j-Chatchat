@@ -1,0 +1,10 @@
+{
+  "benchmarkRelease": "knowledge-exploration-20261103-r7",
+  "finalRelease": "knowledge-exploration-20261103-r8",
+  "knowledgeWorkflowClassesByteIdentical": true,
+  "retrievalClassByteIdentical": true,
+  "roleHandoffByteIdentical": true,
+  "frontendByteIdentical": true,
+  "workerModulesIdentical": true,
+  "change": "Persistent disclosure guard remains active when execution services are disabled; literal locator syntax is not source evidence."
+}

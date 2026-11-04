@@ -34,7 +34,7 @@ public class ResourceGrantAdminController {
     private static final Set<String> RESOURCE_TYPES = Set.of(ResourceAuthorizationPort.KNOWLEDGE,
         ResourceAuthorizationPort.KNOWLEDGE_BASE, ResourceAuthorizationPort.MCP_TOOL,
         ResourceAuthorizationPort.SKILL, ResourceAuthorizationPort.AGENT_SKILL,
-        ResourceAuthorizationPort.WORKFLOW, ResourceAuthorizationPort.TEMPLATE);
+        ResourceAuthorizationPort.WORKFLOW, ResourceAuthorizationPort.TEMPLATE,ResourceAuthorizationPort.DATA_RESOURCE);
     private static final Set<String> PRINCIPAL_TYPES = Set.of("TENANT", "ROLE", "USER");
     private static final Set<String> EFFECTS = Set.of("ALLOW", "DENY");
     private final ResourceGrantRepository repository;
@@ -117,6 +117,9 @@ public class ResourceGrantAdminController {
         require(grant.getResourceId(), "resourceId");
         require(grant.getPrincipalId(), "principalId");
         grant.setResourceType(normalized(grant.getResourceType(), RESOURCE_TYPES, "resourceType"));
+        if(ResourceAuthorizationPort.DATA_RESOURCE.equals(grant.getResourceType())
+            &&!com.chatchat.common.retrieval.AgentResourcePolicy.IDS.contains(grant.getResourceId())&&!"*".equals(grant.getResourceId()))
+            throw new IllegalArgumentException("Unknown logical data resource");
         if (ResourceAuthorizationPort.KNOWLEDGE_BASE.equals(grant.getResourceType())
             && !"*".equals(grant.getResourceId())) {
             grant.setResourceId(grant.getResourceId().trim().toLowerCase(java.util.Locale.ROOT));

@@ -1,0 +1,10 @@
+{
+  "productionBundle": true,
+  "injectedUiFixture": true,
+  "liveResolver": true,
+  "invalidCitationDenied": true,
+  "authorizedSourceVisible": true,
+  "actualPublishedArtifactCitationOpens": true,
+  "unavailablePageExplained": true,
+  "pageErrors": []
+}

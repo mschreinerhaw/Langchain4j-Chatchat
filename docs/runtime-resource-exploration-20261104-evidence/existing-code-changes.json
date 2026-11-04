@@ -1,0 +1,319 @@
+{
+  "baseline": "743a01304",
+  "head": "e1b9987920dff75fabfc82739680b16337384a3c",
+  "purpose": "Actual changes already delivered by the preceding knowledge P0; not a claim that this expanded resource task is implemented.",
+  "files": [
+    {
+      "status": "M",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/agent/task/AgentTaskEventStreamService.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/assets/UserAssetService.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/analysis/ClineContextAnswerService.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineCodingAdapter.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineModelCallbackController.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineToolProfiles.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollector.java"
+    },
+    {
+      "status": "A",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/knowledge/CodingKnowledgeService.java"
+    },
+    {
+      "status": "A",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/knowledge/KnowledgeCitationController.java"
+    },
+    {
+      "status": "A",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/knowledge/KnowledgeDisclosureGuard.java"
+    },
+    {
+      "status": "A",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/knowledge/KnowledgeResponseAdvice.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/trace/AgentRuntimeEventStreamService.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/main/java/com/chatchat/api/security/ApiPermissionAuthorizationFilter.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/test/java/com/chatchat/api/agent/task/AgentTaskEventStreamServiceTest.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/analysis/ClineContextAnswerServiceTest.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/ClineModelCallbackControllerTest.java"
+    },
+    {
+      "status": "A",
+      "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/knowledge/CodingKnowledgeServiceTest.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/src/test/java/com/chatchat/api/security/ApiPermissionAuthorizationFilterTest.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/web-app/src/components/ChatMessageList.vue"
+    },
+    {
+      "status": "A",
+      "path": "chatchat-api/web-app/src/components/KnowledgeCitationDialog.vue"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/web-app/src/js/components/ChatMessageList.js"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/web-app/src/js/components/ChatMessageList.test.js"
+    },
+    {
+      "status": "A",
+      "path": "chatchat-api/web-app/src/js/components/KnowledgeCitationDialog.js"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/web-app/src/js/ui-artifact/presentation.test.js"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/web-app/src/js/ui-artifact/registry.js"
+    },
+    {
+      "status": "A",
+      "path": "chatchat-api/web-app/src/js/utils/knowledgeCitations.js"
+    },
+    {
+      "status": "A",
+      "path": "chatchat-api/web-app/src/js/utils/knowledgeCitations.test.js"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/web-app/src/js/utils/runtimeObservationPresentation.js"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-api/web-app/src/js/utils/runtimeObservationPresentation.test.js"
+    },
+    {
+      "status": "A",
+      "path": "chatchat-api/web-app/src/styles/components/knowledge-citation-dialog.css"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-chat/src/main/java/com/chatchat/chat/interaction/service/CodingAnswerPort.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-chat/src/main/java/com/chatchat/chat/interaction/service/handler/RoleChatModeHandler.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-chat/src/test/java/com/chatchat/chat/interaction/service/handler/RoleChatModeHandlerTest.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-common/src/main/java/com/chatchat/common/runtime/coding/CodingRuntimeContext.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-knowledge-base/src/main/java/com/chatchat/knowledgebase/search/config/SearchProperties.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-knowledge-base/src/main/java/com/chatchat/knowledgebase/search/index/infrastructure/opensearch/OpenSearchDocumentIndexService.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-knowledge-base/src/main/java/com/chatchat/knowledgebase/search/service/SearchService.java"
+    },
+    {
+      "status": "M",
+      "path": "chatchat-knowledge-base/src/test/java/com/chatchat/knowledgebase/search/index/infrastructure/opensearch/OpenSearchDocumentIndexServiceTest.java"
+    },
+    {
+      "status": "M",
+      "path": "coding-agent-node/skills/catalog.json"
+    },
+    {
+      "status": "A",
+      "path": "coding-agent-node/skills/opensearch-knowledge-exploration/SKILL.md"
+    },
+    {
+      "status": "A",
+      "path": "coding-agent-node/src/knowledge-tools.js"
+    },
+    {
+      "status": "M",
+      "path": "coding-agent-node/src/runner.js"
+    },
+    {
+      "status": "M",
+      "path": "coding-agent-node/src/server.js"
+    },
+    {
+      "status": "M",
+      "path": "coding-agent-node/src/skills.js"
+    },
+    {
+      "status": "M",
+      "path": "coding-agent-node/test/builtin-skills.test.js"
+    },
+    {
+      "status": "A",
+      "path": "coding-agent-node/test/knowledge-tools.test.js"
+    },
+    {
+      "status": "M",
+      "path": "coding-agent-node/test/server.test.js"
+    },
+    {
+      "status": "M",
+      "path": "deploy/docker/application/Dockerfile.coding-agent"
+    },
+    {
+      "status": "M",
+      "path": "deploy/docker/application/node-proxy.conf"
+    },
+    {
+      "status": "M",
+      "path": "deploy/docker/application/tests/test_coding_callback_gateway.py"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-knowledge-exploration-20261103-evidence/acceptance-metrics.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-knowledge-exploration-20261103-evidence/acceptance-summary.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-knowledge-exploration-20261103-evidence/analyzer-recall-audit.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-knowledge-exploration-20261103-evidence/artifact-verification.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-knowledge-exploration-20261103-evidence/benchmark-compatibility.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-knowledge-exploration-20261103-evidence/browser.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-knowledge-exploration-20261103-evidence/deployment.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-knowledge-exploration-20261103-evidence/expected-sources.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-knowledge-exploration-20261103-evidence/failed-baselines.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-knowledge-exploration-20261103-evidence/hy3-sample-summary.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-knowledge-exploration-20261103-evidence/isolation-summary.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-knowledge-exploration-20261103-evidence/lifecycle-r3-summary.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-knowledge-exploration-20261103-evidence/lifecycle-summary.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-knowledge-exploration-20261103-evidence/local-verification.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-knowledge-exploration-20261103-evidence/native-chunk-audit.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-knowledge-exploration-20261103-evidence/questions.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-knowledge-exploration-20261103-evidence/runtime-verification.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-knowledge-exploration-20261103-evidence/source-attestation.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-knowledge-exploration-20261103-evidence/worker-build.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-knowledge-exploration-20261103-evidence/worker-verification.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/runtime-knowledge-exploration-20261103.md"
+    },
+    {
+      "status": "A",
+      "path": "scripts/package-knowledge-exploration.mjs"
+    },
+    {
+      "status": "A",
+      "path": "scripts/prepare-knowledge-exploration-stage.py"
+    },
+    {
+      "status": "A",
+      "path": "scripts/summarize-knowledge-acceptance.mjs"
+    },
+    {
+      "status": "A",
+      "path": "scripts/verify-knowledge-citations-browser.mjs"
+    },
+    {
+      "status": "A",
+      "path": "scripts/verify-knowledge-exploration-stage.py"
+    },
+    {
+      "status": "A",
+      "path": "scripts/verify-knowledge-lifecycle-stage.py"
+    }
+  ]
+}

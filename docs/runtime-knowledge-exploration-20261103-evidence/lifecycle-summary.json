@@ -1,0 +1,81 @@
+{
+  "documentId": "knowledge-p0-lifecycle-8bafd2aae7384d8085d9427a2abaec90",
+  "syntheticSource": true,
+  "taskId": "132b7c90-76a8-39ad-9627-d155ceaab05a",
+  "initialStatus": "SUCCEEDED",
+  "hasActualSourceCitation": true,
+  "checks": [
+    {
+      "name": "revoked-citation",
+      "httpStatus": 403,
+      "apiCode": 403,
+      "passed": true
+    },
+    {
+      "name": "revoked-task-summary",
+      "httpStatus": 403,
+      "apiCode": 403,
+      "passed": true
+    },
+    {
+      "name": "revoked-events",
+      "httpStatus": 403,
+      "apiCode": 403,
+      "passed": true
+    },
+    {
+      "name": "revoked-result",
+      "httpStatus": 403,
+      "apiCode": 403,
+      "passed": true
+    },
+    {
+      "name": "grant-restored-current-source",
+      "httpStatus": 200,
+      "apiCode": 200,
+      "passed": true
+    },
+    {
+      "name": "same-version-update-old-citation",
+      "httpStatus": 403,
+      "apiCode": 403,
+      "passed": true
+    },
+    {
+      "name": "same-version-update-old-summary",
+      "httpStatus": 403,
+      "apiCode": 403,
+      "passed": true
+    },
+    {
+      "name": "same-session-update-reacquires-current-source",
+      "passed": true,
+      "taskId": "47c6a8f3-ced0-3c57-98d0-90bc9a3e448a",
+      "status": "SUCCEEDED",
+      "sameSession": true,
+      "oldCodeDisclosed": false,
+      "durationMs": 51260
+    },
+    {
+      "name": "deleted-source-old-citation",
+      "httpStatus": 403,
+      "apiCode": 403,
+      "passed": true
+    },
+    {
+      "name": "same-session-deleted-source-not-disclosed",
+      "passed": true,
+      "taskId": "8bd53042-d519-3e5a-916c-3bbc9476819d",
+      "status": "PARTIAL",
+      "sameSession": true,
+      "oldCodeDisclosed": false,
+      "durationMs": 194135
+    },
+    {
+      "name": "stale-index-record-cannot-regrant-deleted-original",
+      "passed": true,
+      "retainedSyntheticIndexRecord": true
+    }
+  ],
+  "completed": true
+}

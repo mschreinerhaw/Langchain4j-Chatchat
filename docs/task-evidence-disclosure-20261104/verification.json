@@ -1,0 +1,60 @@
+{
+  "origin": "http://192.168.195.221:18100",
+  "api": [
+    {
+      "path": "/agent/tasks/page",
+      "status": 401,
+      "code": 401
+    },
+    {
+      "path": "/agent/tasks/page",
+      "status": 200,
+      "code": 200
+    },
+    {
+      "path": "/agent/tasks/page",
+      "status": 200,
+      "code": 200
+    },
+    {
+      "path": "/agent/tasks/page",
+      "status": 200,
+      "code": 200
+    },
+    {
+      "path": "/agent/tasks/94275169-4705-3d21-89aa-059e02d7a540",
+      "status": 200,
+      "code": 200
+    },
+    {
+      "path": "/agent/tasks/page",
+      "status": 200,
+      "code": 200
+    },
+    {
+      "path": "/agent/tasks/63386656-104b-33e5-a827-81a207668532",
+      "status": 403,
+      "code": 403
+    },
+    {
+      "path": "/agent/tasks",
+      "status": 200,
+      "code": 200
+    },
+    {
+      "path": "/agent/tasks/runtime",
+      "status": 200,
+      "code": 200
+    }
+  ],
+  "browser": {
+    "totalTasks": 1831,
+    "restrictedRowsOnFirstPage": 6,
+    "pageErrors": [],
+    "failedApiRequests": [],
+    "polls": 3,
+    "restrictedDetailsNotRequested": true,
+    "url": "http://192.168.195.221:18100/index.html#/w/zhice/tasks"
+  },
+  "status": "PASSED"
+}

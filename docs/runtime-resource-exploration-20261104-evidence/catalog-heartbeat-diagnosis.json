@@ -1,0 +1,15 @@
+{
+  "environment": "192.168.195.221",
+  "release": "knowledge-exploration-20261104-resources-r3",
+  "kind": "ACTUAL_AGENT_CHECKPOINT_VS_CURRENT_GOVERNED_SOURCE_COMPARISON",
+  "referencesInspected": 16,
+  "newsReferencesUnchanged": 10,
+  "marketReferences": 6,
+  "marketReferencesChangedOnlyByCatalogHeartbeat": 6,
+  "changedPaths": ["last_collected_at", "asset.last_collected_at"],
+  "observationValuesChanged": false,
+  "observationTimestampsChanged": false,
+  "resolution": "Preserve the catalog heartbeat observed during exploration separately from observation content versioning. Revalidate all observation values, observation timestamps, catalog meaning, compliance and live authorization.",
+  "legacyReferencePolicy": "Existing references retain their previous strict hash validation; only newly issued market_catalog_heartbeat_v1 references use the explicit heartbeat semantics.",
+  "rawSourcesIncluded": false
+}

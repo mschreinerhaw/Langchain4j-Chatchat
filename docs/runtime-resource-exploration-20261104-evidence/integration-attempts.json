@@ -1,0 +1,134 @@
+{
+  "measurementKind": "HISTORICAL_INTEGRATION_FAILURES_NOT_CURRENT_ACCEPTANCE",
+  "crossResourceAttempts": [
+    {
+      "release": "knowledge-exploration-20261104-resources-r1",
+      "sourceCommit": "1320ef3c6b87c7de0e2c976b60e46e28457f75a8",
+      "caseId": "F01",
+      "taskId": "1b70110e-dee6-3723-a1fb-f58c14251977",
+      "status": "FAILED",
+      "runtimeStatus": "FAILED",
+      "durationMs": 130666,
+      "errorCategory": null,
+      "cancellationRequestAcknowledged": null
+    },
+    {
+      "release": "knowledge-exploration-20261104-resources-r2",
+      "sourceCommit": "691adc02773ea8b1f02315d98a46cd90f5fbf0ef",
+      "caseId": "F01",
+      "taskId": "63c8577f-0200-387b-b113-2ffeb427b108",
+      "status": "VERIFICATION_ERROR",
+      "runtimeStatus": null,
+      "durationMs": 30388,
+      "errorCategory": "HTTPError",
+      "cancellationRequestAcknowledged": null
+    },
+    {
+      "release": "knowledge-exploration-20261104-resources-r3",
+      "sourceCommit": "0fb0f396c29b4d2876b06e6898c6703054bf151c",
+      "caseId": "F01",
+      "taskId": "0387bf94-4cd6-3eff-a66e-0ad320fac394",
+      "status": "VERIFICATION_ERROR",
+      "runtimeStatus": null,
+      "durationMs": 161804,
+      "errorCategory": "HTTPError",
+      "cancellationRequestAcknowledged": false
+    },
+    {
+      "release": "knowledge-exploration-20261104-resources-r4",
+      "sourceCommit": "a19806abd986aefe98670e1acaeb592d16ff245c",
+      "caseId": "F01",
+      "taskId": "392c6c5d-886c-3d2f-bfa6-6f4037966ce5",
+      "status": "VERIFICATION_ERROR",
+      "runtimeStatus": null,
+      "durationMs": 47926,
+      "errorCategory": "HTTPError",
+      "cancellationRequestAcknowledged": false
+    },
+    {
+      "release": "knowledge-exploration-20261104-resources-r4-acceptance",
+      "sourceCommit": "a19806abd986aefe98670e1acaeb592d16ff245c",
+      "caseId": "F01",
+      "taskId": "6fe6fadf-cf2c-3a4d-a2b4-9880010c257f",
+      "status": "VERIFICATION_ERROR",
+      "runtimeStatus": null,
+      "durationMs": 467478,
+      "errorCategory": "RuntimeError",
+      "cancellationRequestAcknowledged": true
+    },
+    {
+      "release": "knowledge-exploration-20261104-resources-r5",
+      "sourceCommit": "1edee7c0337c9a7676cee9f476d49297b9dfeb65",
+      "caseId": "F01",
+      "taskId": "42591da0-be3f-305c-ba69-fc883d6ce821",
+      "status": "FAILED",
+      "runtimeStatus": "FAILED",
+      "durationMs": 2847,
+      "errorCategory": null,
+      "cancellationRequestAcknowledged": null
+    },
+    {
+      "release": "knowledge-exploration-20261104-resources-r5-acceptance",
+      "sourceCommit": "1edee7c0337c9a7676cee9f476d49297b9dfeb65",
+      "caseId": "F01",
+      "taskId": "2b396886-e9c0-3a70-8326-93aa7ccb6815",
+      "status": "VERIFICATION_ERROR",
+      "runtimeStatus": null,
+      "durationMs": 68771,
+      "errorCategory": "HTTPError",
+      "cancellationRequestAcknowledged": false
+    },
+    {
+      "release": "knowledge-exploration-20261104-resources-r6",
+      "sourceCommit": "826394f2d57b4cd3ceeb9d72b056a1d99a98ae6d",
+      "caseId": "F01",
+      "taskId": "ec354613-a357-3f37-9b88-ae34d80cb536",
+      "status": "VERIFICATION_ERROR",
+      "runtimeStatus": null,
+      "durationMs": 453131,
+      "errorCategory": "RuntimeError",
+      "cancellationRequestAcknowledged": true
+    },
+    {
+      "release": "knowledge-exploration-20261104-resources-r7",
+      "sourceCommit": "28563300f21152ca3b6dbeee141e9ccdcd4d7788",
+      "caseId": "F01",
+      "taskId": "2bf9449d-e021-3f3a-85ba-fe005609a2fb",
+      "status": "VERIFICATION_ERROR",
+      "runtimeStatus": null,
+      "durationMs": 460545,
+      "errorCategory": "RuntimeError",
+      "cancellationRequestAcknowledged": true
+    },
+    {
+      "release": "knowledge-exploration-20261104-resources-r8",
+      "sourceCommit": "806042158305470dff2a3cb000b92bf2ff133fb1",
+      "caseId": "F01",
+      "taskId": "b0e6d2d2-f770-3cfb-a798-b0bdacefb7ff",
+      "status": "VERIFICATION_ERROR",
+      "runtimeStatus": null,
+      "durationMs": 471794,
+      "errorCategory": "RuntimeError",
+      "cancellationRequestAcknowledged": true
+    },
+    {
+      "release": "knowledge-exploration-20261104-resources-r9",
+      "sourceCommit": "a63f1886a3e24d2f70ad8beef7dcaea67d410d92",
+      "caseId": "F01",
+      "taskId": "4ef2d613-f294-36ee-8481-a6416faad84c",
+      "status": "VERIFICATION_ERROR",
+      "runtimeStatus": null,
+      "durationMs": 458357,
+      "errorCategory": "RuntimeError",
+      "cancellationRequestAcknowledged": true
+    }
+  ],
+  "schemaDeploymentFailure": {
+    "release": "knowledge-exploration-20261104-resources-r10",
+    "sourceCommit": "15c2d23d06826a6997a90aa1b8dde3d8762c0777",
+    "status": "FAILED_AND_ROLLED_BACK_TO_R9",
+    "reason": "Offline H2 rewrite inherited the 20-second query deadline",
+    "financialStorageBackupPreserved": true
+  },
+  "answersOrSourceTextIncluded": false
+}

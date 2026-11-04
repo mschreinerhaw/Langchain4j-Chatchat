@@ -1,0 +1,35 @@
+{
+    "candidates":  [
+                       {
+                           "sha256":  "8dd305faf28f923b974d5ec1211ab66ed9c7ea8e52e0b970b488f4ca774ea850",
+                           "name":  "foundry-iq",
+                           "path":  ".github/plugins/foundry-iq-skills/skills/foundry-iq/SKILL.md",
+                           "enabledAsOpenSearchRuntimeSkill":  false,
+                           "executionDependency":  "Azure services and separately authorized credentials",
+                           "url":  "https://raw.githubusercontent.com/microsoft/skills/7a2367fc8a7d834c15b5ee8543a3d86c3003608f/.github/plugins/foundry-iq-skills/skills/foundry-iq/SKILL.md",
+                           "license":  "MIT"
+                       },
+                       {
+                           "sha256":  "b6a0a3f657d9b31b7eb59363f9bc10b688f99b1de035f581bfd765d3edc8d654",
+                           "name":  "azure-search-documents-ts",
+                           "path":  ".github/plugins/azure-sdk-typescript/skills/azure-search-documents-ts/SKILL.md",
+                           "enabledAsOpenSearchRuntimeSkill":  false,
+                           "executionDependency":  "Azure services and separately authorized credentials",
+                           "url":  "https://raw.githubusercontent.com/microsoft/skills/7a2367fc8a7d834c15b5ee8543a3d86c3003608f/.github/plugins/azure-sdk-typescript/skills/azure-search-documents-ts/SKILL.md",
+                           "license":  "MIT"
+                       },
+                       {
+                           "sha256":  "170b437bc1a60e84a9258f1f1a0d452ab4faf043c46cc97286bb5ca3939509e7",
+                           "name":  "azure-ai-document-intelligence-ts",
+                           "path":  ".github/plugins/azure-sdk-typescript/skills/azure-ai-document-intelligence-ts/SKILL.md",
+                           "enabledAsOpenSearchRuntimeSkill":  false,
+                           "executionDependency":  "Azure services and separately authorized credentials",
+                           "url":  "https://raw.githubusercontent.com/microsoft/skills/7a2367fc8a7d834c15b5ee8543a3d86c3003608f/.github/plugins/azure-sdk-typescript/skills/azure-ai-document-intelligence-ts/SKILL.md",
+                           "license":  "MIT"
+                       }
+                   ],
+    "preserveExistingOriginalPackages":  true,
+    "commit":  "7a2367fc8a7d834c15b5ee8543a3d86c3003608f",
+    "licenseUrl":  "https://github.com/microsoft/skills/blob/7a2367fc8a7d834c15b5ee8543a3d86c3003608f/LICENSE",
+    "repository":  "https://github.com/microsoft/skills"
+}

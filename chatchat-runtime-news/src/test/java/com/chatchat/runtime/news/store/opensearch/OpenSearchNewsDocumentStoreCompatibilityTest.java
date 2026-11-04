@@ -20,6 +20,23 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class OpenSearchNewsDocumentStoreCompatibilityTest {
+    @Test void governedRecallFiltersRestrictedSourcesAndIndexedSecurityBeforeReturningHits() throws Exception {
+        var captured=new AtomicReference<String>();server=HttpServer.create(new InetSocketAddress("localhost",0),0);
+        server.createContext("/",exchange->{captured.set(new String(exchange.getRequestBody().readAllBytes(),StandardCharsets.UTF_8));
+            byte[] data="{\"hits\":{\"hits\":[]}}".getBytes(StandardCharsets.UTF_8);exchange.getResponseHeaders().set("Content-Type","application/json");
+            exchange.sendResponseHeaders(200,data.length);exchange.getResponseBody().write(data);exchange.close();});server.start();
+        var properties=new NewsRuntimeProperties();properties.getOpenSearch().setEndpoint("http://localhost:"+server.getAddress().getPort());
+        var embeddings=mock(NewsEmbeddingClient.class);when(embeddings.enabled()).thenReturn(false);
+        var mapper=new ObjectMapper();store=new OpenSearchNewsDocumentStore(properties,mapper,new NewsIndexNamingStrategy(properties),embeddings);
+        var budget=new com.chatchat.common.retrieval.query.QueryOptimizationBudget();budget.setModelRefinementEnabled(true);budget.setLongTextThreshold(8);
+        var refiner=mock(com.chatchat.common.retrieval.query.QueryRefiner.class);
+        store.setQueryOptimizer(new com.chatchat.common.retrieval.query.SearchQueryOptimizer(budget,refiner));
+        store.search(new NewsSearchQuery("banking policy outlook",List.of(),null,null,List.of(),5,"600001",true,"banking"));
+        org.mockito.Mockito.verifyNoInteractions(refiner);
+        var filters=mapper.readTree(captured.get()).path("query").path("bool").path("filter").toString();
+        assertThat(filters).contains("must_not","metadata.legalRisk","metadata.securityCode.keyword","600001","metadata.stockList","banking");
+        assertThat(captured.get()).contains("banking policy outlook","timeout");
+    }
     private HttpServer server;
     private OpenSearchNewsDocumentStore store;
 

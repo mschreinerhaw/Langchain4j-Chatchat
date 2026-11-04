@@ -27,6 +27,49 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class FinancialDataStoreTest {
     @Test
+    void legacyH2QuoteCodeMigrationPreservesRowsAndMakesExactFiltersIndexable() throws Exception {
+        var ds=new DriverManagerDataSource("jdbc:h2:mem:quote_lookup_migration;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1","sa","");
+        var jdbc=new JdbcTemplate(ds);var store=new FinancialDataStore(jdbc,ds,new ObjectMapper(),new MarketModuleProperties());store.initialize();
+        var source=new MarketSource(6L,"sse_daily_snapshot","SSE snapshot","https://example.test");
+        var observations=new java.util.ArrayList<MarketObservation>();
+        for(int i=1;i<=100;i++)observations.add(quote(source,String.format("%06d",i),"Index "+i,"10.50"));
+        store.storeAll(observations);
+        jdbc.execute("drop index idx_market_quote_daily_quote_lookup");
+        jdbc.execute("alter table market_quote_daily alter column quote_code clob");
+        Object before=store.query("market_quote_daily",Map.of("quote_code","000001"),null,null,10).get("rows");
+        var unavailableReplica=org.mockito.Mockito.mock(FinancialReadOperations.class);
+        var upgraded=new FinancialDataStore(jdbc,ds,new ObjectMapper(),new MarketModuleProperties(),unavailableReplica);upgraded.initialize();
+        org.mockito.Mockito.verifyNoInteractions(unavailableReplica); // first snapshot has not been published yet
+        assertThat(jdbc.getQueryTimeout()).isEqualTo(new MarketModuleProperties().getQueryTimeoutSeconds());
+        assertThat(store.query("market_quote_daily",Map.of("quote_code","000001"),null,null,10).get("rows")).isEqualTo(before);
+        String plan=jdbc.queryForObject("explain select * from market_quote_daily where quote_code=?",String.class,"000001");
+        assertThat(plan).containsIgnoringCase("idx_market_quote_daily_quote_lookup");
+    }
+
+    @Test
+    void reusesAnExistingLeadingQuoteCodeIndexWithoutDependingOnItsName() throws Exception {
+        var ds=new DriverManagerDataSource("jdbc:h2:mem:quote_lookup_reuse;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1","sa","");
+        var jdbc=new JdbcTemplate(ds);var store=new FinancialDataStore(jdbc,ds,new ObjectMapper(),new MarketModuleProperties());store.initialize();
+        store.store(quote(new MarketSource(6L,"sse_daily_snapshot","SSE snapshot","https://example.test"),"000001","Index","10.50"));
+        jdbc.execute("drop index idx_market_quote_daily_quote_lookup");jdbc.execute("create index existing_quote_lookup on market_quote_daily(quote_code)");
+        store.initialize();
+        assertThat(jdbc.queryForObject("select count(*) from information_schema.indexes where table_name='market_quote_daily' and index_name='idx_market_quote_daily_quote_lookup'",Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("explain select * from market_quote_daily where quote_code=?",String.class,"000001")).containsIgnoringCase("existing_quote_lookup");
+    }
+
+    @Test
+    void quoteLookupKeepsLongIdentifiersAndWeeklyArchivalCompatible() throws Exception {
+        var ds=new DriverManagerDataSource("jdbc:h2:mem:quote_lookup_archive;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1","sa","");
+        var jdbc=new JdbcTemplate(ds);var store=new FinancialDataStore(jdbc,ds,new ObjectMapper(),new MarketModuleProperties());store.initialize();
+        String longCode="Q".repeat(1000);
+        store.store(quoteOnDate(new MarketSource(6L,"sse_daily_snapshot","SSE snapshot","https://example.test"),longCode,"Long identifier","10.50","2026-07-01"));
+        store.archiveAndCleanup(LocalDate.parse("2026-07-22"));
+        var result=store.query("market_quote_daily",Map.of("quote_code",longCode),LocalDate.parse("2026-07-01"),LocalDate.parse("2026-07-22"),10,"weekly");
+        assertThat(result).containsEntry("count",1);
+        assertThat(((List<Map<String,Object>>)result.get("rows")).get(0)).containsEntry("quote_code",longCode);
+        assertThat(jdbc.queryForObject("explain select * from market_quote_daily_weekly_snapshot where quote_code=?",String.class,longCode)).containsIgnoringCase("quote_lookup");
+    }
+    @Test
     void protectsSecurityNamesUsingExistingMasterWithoutInventingEntities() throws Exception {
         var dataSource = new DriverManagerDataSource(
             "jdbc:h2:mem:query_security_protection;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1", "sa", "");

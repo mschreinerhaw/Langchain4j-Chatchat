@@ -2,6 +2,7 @@
   createWorkshopAgent,
   deleteWorkshopAgent,
   fetchAgentWorkshop,
+  fetchAgentResourceOptions,
   fetchPublishedAgentCurlExample,
   getStoredAuthSession,
   publishWorkshopAgent,
@@ -175,6 +176,8 @@ function emptyForm() {
     toolConfigs: [],
     routingSettings: defaultRoutingSettings(),
     workflowConfig: defaultWorkflowConfig(),
+    resourceIds: [],
+    resourceSelectionStrategy: "task_driven",
     ...defaultDataAssetForm(),
     ...defaultAssetSelectionPolicy(),
     quickQuestions: "",
@@ -202,6 +205,7 @@ export default {
       models: [],
       backendDefaultModelName: "",
       documents: [],
+      resourceOptions: [],
       domainSkills: [],
       loading: false,
       saving: false,
@@ -748,6 +752,8 @@ export default {
         this.models = this.normalizeModelOptions(payload?.models);
         this.backendDefaultModelName = String(payload?.defaultModelName || "").trim();
         this.documents = Array.isArray(payload?.documents) ? payload.documents : [];
+        this.resourceOptions = await fetchAgentResourceOptions();
+        if (!Array.isArray(this.resourceOptions)) this.resourceOptions = [];
         this.domainSkills = Array.isArray(payload?.domainSkills) ? payload.domainSkills : [];
         this.normalizeAgentFilters();
       } catch (error) {
@@ -1136,6 +1142,10 @@ export default {
           parseList(agent?.boundMcpToolNames)
         ),
         boundDocumentIds: parseList(agent?.boundDocumentIds),
+        resourceIds: agent?.workflowConfig?.resourceExploration?.resourcePermissions
+          ? agent.workflowConfig.resourceExploration.resourcePermissions.filter(row => row.enabled === true).map(row => row.resourceId)
+          : (agent?.boundDocumentIds?.length || agent?.boundDocumentTags?.length ? ["knowledge_documents"] : []),
+        resourceSelectionStrategy: agent?.workflowConfig?.resourceExploration?.selectionStrategy || "task_driven",
         boundDomainSkillIds: businessSkillIds(agent?.boundDomainSkillIds),
         boundDocumentTags: parseList(agent?.boundDocumentTags),
         ...this.defaultDataAssetToForm(agent?.defaultDataAsset),
@@ -1159,6 +1169,13 @@ export default {
         ? defaultWorkflowConfig()
         : this.normalizeWorkflowConfig(this.form.workflowConfig, selectedToolNames);
       const defaultDataAsset = this.defaultDataAssetFromForm();
+      workflowConfig.resourceExploration = {
+        resourcePermissions: ["knowledge_documents", "financial_news", "financial_market"].map(resourceId => ({
+          resourceId, enabled: (this.form.resourceIds || []).includes(resourceId)
+            && this.resourceOptions.some(option => option.id === resourceId), access: "read"
+        })),
+        selectionStrategy: this.form.resourceSelectionStrategy || "task_driven"
+      };
       this.form.workflowConfig = workflowConfig;
       return {
         id: this.form.id,

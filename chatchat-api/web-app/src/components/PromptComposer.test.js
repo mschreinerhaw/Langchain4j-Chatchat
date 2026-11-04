@@ -5,6 +5,17 @@ import PromptComposer from "./PromptComposer.vue";
 import {setWorkspaceContext} from '../js/utils/workspaceContext';
 let app, host;
 const settleIdeas=async()=>{for(let i=0;i<6;i++)await nextTick();};
+it('passes explicit resource use only for this submission and resets the choice',async()=>{
+ const send=vi.fn();host=document.createElement('div');
+ app=createApp({render:()=>h(PromptComposer,{agentRequired:true,selectedAgentId:'a',agents:[{id:'a',name:'Research',marketStatus:'published'}],modelValue:'Compare prices and news',onSend:send})});
+ app.mount(host);await nextTick();
+ const label=[...host.querySelectorAll('label')].find(el=>el.textContent.includes('本次明确使用已授权资料'));
+ expect(label).toBeTruthy();const input=label.querySelector('input');input.checked=true;input.dispatchEvent(new Event('change',{bubbles:true}));await nextTick();
+ host.querySelector('form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));await nextTick();
+ expect(send).toHaveBeenLastCalledWith(expect.objectContaining({resourceExplorationApproved:true}));expect(input.checked).toBe(false);
+ host.querySelector('form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));await nextTick();
+ expect(send).toHaveBeenLastCalledWith(expect.objectContaining({resourceExplorationApproved:false}));
+});
 it.each([false,true])('shows pending and completed request states with a spinner (compact=%s)',async compact=>{
  let finish;const provider=vi.fn(()=>new Promise(resolve=>{finish=resolve;}));
  host=document.createElement('div');app=createApp({render:()=>h(PromptComposer,{compact,showIdea:true,ideaProvider:provider})});app.mount(host);

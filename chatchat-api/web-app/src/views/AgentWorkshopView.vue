@@ -553,7 +553,7 @@
           <label>
             <span>运行模式</span>
             <select v-model="form.defaultMode">
-              <option value="role_chat">角色问答（不调用 MCP 工具）</option>
+              <option value="role_chat">角色问答（自主探索已授权资源）</option>
               <option value="agent_chat">工具智能体（MCP / API / SQL）</option>
             </select>
           </label>
@@ -605,23 +605,42 @@
             <span>快捷问题</span>
             <textarea v-model="form.quickQuestions" rows="3" placeholder="每行一个问题"></textarea>
           </label>
-          <section class="agent-resource-selector wide-field">
+          <section class="agent-resource-selector wide-field" aria-label="可查阅的资料">
             <div class="agent-resource-selector-copy">
-              <strong>知识文档</strong>
-              <span>选择当前账号有权读取且已完成解析的文档。</span>
-            </div>
-            <div class="agent-resource-selector-action">
-              <span :class="{ 'is-selected': selectedDocumentIds.length }">
-                {{
-                  selectedDocumentIds.length
-                    ? `已选 ${selectedDocumentIds.length} 份`
-                    : "未选择文档"
-                }}
-              </span>
-              <button type="button" class="agent-picker-text-button" @click="openDocumentPicker">
-                {{ selectedDocumentIds.length ? "调整文档" : "选择文档" }}
-                <span aria-hidden="true">›</span>
-              </button>
+              <strong>可查阅的资料</strong>
+              <span>允许 Agent 查阅以下资料，查找依据、补充信息并引用来源。</span>
+              <label v-for="resource in resourceOptions" :key="resource.id">
+                <input v-model="form.resourceIds" type="checkbox" :value="resource.id" />
+                {{ resource.id === "knowledge_documents" ? "从知识文档中查找答案" : resource.label }}
+              </label>
+              <span v-if="!resourceOptions.length">当前账号没有可分配的数据资源。</span>
+              <div v-if="form.resourceIds.length" class="agent-resource-settings">
+                <section
+                  v-if="form.resourceIds.includes('knowledge_documents')"
+                  class="agent-resource-selector agent-resource-documents"
+                >
+                  <div class="agent-resource-selector-copy">
+                    <strong>可查阅的文档</strong>
+                    <span>选择此 Agent 要查阅的制度、业务规则、需求说明或数据字典。</span>
+                  </div>
+                  <div class="agent-resource-selector-action">
+                    <span :class="{ 'is-selected': selectedDocumentIds.length }">
+                      {{ selectedDocumentIds.length ? `已选 ${selectedDocumentIds.length} 份` : "未选择文档" }}
+                    </span>
+                    <button type="button" class="agent-picker-text-button" @click="openDocumentPicker">
+                      {{ selectedDocumentIds.length ? "调整文档" : "选择文档" }}
+                      <span aria-hidden="true">›</span>
+                    </button>
+                  </div>
+                </section>
+                <label><span>何时查阅资料</span>
+                  <select v-model="form.resourceSelectionStrategy">
+                    <option value="task_driven">按问题需要自动查阅</option>
+                    <option value="explicit_request">在对话中勾选使用资料后查阅</option>
+                  </select>
+                </label>
+                <small>Agent 只能查阅使用者有权访问的内容。</small>
+              </div>
             </div>
           </section>
           <section class="agent-resource-selector wide-field">
@@ -699,7 +718,7 @@
             v-if="form.defaultMode === 'agent_chat' && selectedToolNames.length"
             class="agent-workflow-builder wide-field"
           >
-            <summary>工具调用设置（高级）</summary>
+            <summary><span>工具调用规则</span><small>高级</small></summary>
             <div class="agent-tool-picker-head">
               <div>
                 <strong>MCP 工具编排</strong>

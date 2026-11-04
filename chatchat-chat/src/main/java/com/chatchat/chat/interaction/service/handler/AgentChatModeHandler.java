@@ -151,6 +151,18 @@ public class AgentChatModeHandler implements InteractionModeHandler {
     public InteractionResponse handle(InteractionRequest request, InteractionContext context) {
         SkillDefinition skill = skillCatalogService.resolve(request.getSkillId());
         boolean attached = request.getToolInput() != null && request.getToolInput().get("__userAssetIds") instanceof List<?> ids && !ids.isEmpty();
+        var resources=com.chatchat.common.retrieval.AgentResourcePolicy.read(skill.workflowConfig());
+        // Opt-in resources-only configurations have no competing MCP/template execution path.
+        // Existing bound business tools and workflows retain their execution owner.
+        if(!attached&&resources.configured()&&!resources.enabled().isEmpty()&&roleChatModeHandler!=null
+            &&(skill.boundMcpToolNames()==null||skill.boundMcpToolNames().isEmpty())
+            &&(skill.boundMcpServiceIds()==null||skill.boundMcpServiceIds().isEmpty())
+            &&(skill.preferredToolPrefixes()==null||skill.preferredToolPrefixes().isEmpty())
+            &&(skill.toolConfigs()==null||skill.toolConfigs().stream().noneMatch(t->!Boolean.FALSE.equals(t.enabled())))
+            &&(request.getToolName()==null||request.getToolName().isBlank())
+            &&!(Boolean.TRUE.equals(skill.workflowConfig().get("enabled"))&&skill.workflowConfig().get("steps") instanceof List<?> steps&&!steps.isEmpty())
+            &&(skill.defaultDataAsset()==null||!Boolean.TRUE.equals(skill.defaultDataAsset().enabled())))
+            return roleChatModeHandler.exploreResources(request,context);
         if (!attached && InteractionMode.fromAgentConfiguration(skill.defaultMode()).isRoleConversation()
             && roleChatModeHandler != null) {
             log.info("agentChatCompatibilityRoute skillId={} configuredMode={} resolvedMode=role_chat",

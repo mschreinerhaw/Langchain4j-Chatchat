@@ -55,6 +55,35 @@ import java.util.Set;
 @Tag(name = "Agent Workshop", description = "Manage reusable business agents")
 public class AgentWorkshopController {
 
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private com.chatchat.enterprise.repository.audit.SysAuditLogRepository resourceAudit;
+
+    @GetMapping("/resource-options")
+    public ApiResponse<List<Map<String,Object>>> resourceOptions(HttpServletRequest request) {
+        var allowed=assignableResourceIds(request);var result=new ArrayList<Map<String,Object>>();
+        for(String id:List.of("knowledge_documents","financial_news","financial_market"))if(allowed.contains(id))
+            result.add(Map.of("id",id,"label",switch(id){case "knowledge_documents"->"企业知识文档";case "financial_news"->"新闻资讯";default->"金融市场数据";},"access","read"));
+        return ApiResponse.success(result);
+    }
+
+    private Set<String> assignableResourceIds(HttpServletRequest request) {
+        if(currentUserId(request)==null)return Set.of();
+        var result=new java.util.HashSet<>(resourceAuthorization.explicitlyAllowedIds(
+            com.chatchat.common.retrieval.AgentResourcePolicy.GRANT_TYPE,tenantId(request),currentUserId(request),Set.of(),
+            Set.of("financial_news","financial_market")));
+        if(!documentLibrary.list(documentPermissionContext(request)).isEmpty())result.add("knowledge_documents");
+        return result;
+    }
+
+    private void auditResourcePolicy(SkillDefinition saved,HttpServletRequest request) {
+        if(resourceAudit==null)return;
+        var log=new com.chatchat.enterprise.entity.audit.SysAuditLog();
+        log.setTenantId(tenantId(request));log.setActorId(currentUserId(request));log.setModuleName("AGENT_RESOURCES");
+        log.setActionName("SAVE_RESOURCE_POLICY");log.setResourceType("AGENT_SKILL");log.setResourceId(saved.id());
+        log.setDetail(String.valueOf(saved.workflowConfig().get(com.chatchat.common.retrieval.AgentResourcePolicy.KEY)));
+        log.setResult("SUCCESS");resourceAudit.save(log);
+    }
+
     private final SkillCatalogService skillCatalogService;
     private final ToolRegistry toolRegistry;
     private final McpToolCatalogQueryPort mcpCatalog;
@@ -195,6 +224,7 @@ public class AgentWorkshopController {
         validateResourceBindings(request, servletRequest);
         SkillDefinition saved = skillCatalogService.upsert(toSkillDefinition(request, null));
         synchronizeKnowledgeBindings(saved, servletRequest);
+        auditResourcePolicy(saved,servletRequest);
         return ApiResponse.success(toAgentCard(saved, availableTools(), mcpToolsByServiceId()), "Agent created");
     }
 
@@ -217,6 +247,7 @@ public class AgentWorkshopController {
         validateResourceBindings(request, servletRequest);
         SkillDefinition saved = skillCatalogService.upsert(toSkillDefinition(request, agentId));
         synchronizeKnowledgeBindings(saved, servletRequest);
+        auditResourcePolicy(saved,servletRequest);
         return ApiResponse.success(toAgentCard(saved, availableTools(), mcpToolsByServiceId()), "Agent updated");
     }
 
@@ -658,9 +689,12 @@ public class AgentWorkshopController {
         }
     }
     private void validateResourceBindings(AgentUpsertRequest input, HttpServletRequest request) {
+        var resourcePolicy=com.chatchat.common.retrieval.AgentResourcePolicy.read(input==null?null:input.getWorkflowConfig());
         if (input == null || request == null || currentUserId(request) == null) {
             return;
         }
+        if(resourcePolicy.configured()&&!assignableResourceIds(request).containsAll(resourcePolicy.enabled()))
+            throw new SecurityException("Agent data resources exceed the current user's permissions");
         Set<String> allowedDocuments = documentLibrary.list(documentPermissionContext(request)).stream()
             .map(LibraryDocumentItem::docId)
             .filter(id -> id != null && !id.isBlank())

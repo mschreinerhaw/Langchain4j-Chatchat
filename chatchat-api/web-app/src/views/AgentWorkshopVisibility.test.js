@@ -3,7 +3,7 @@ import {createApp,nextTick} from 'vue';
 import {it,expect,vi,afterEach} from 'vitest';
 import AgentWorkshopView from './AgentWorkshopView.vue';
 import {fetchAgentWorkshop} from '../services/api.js';
-vi.mock('../services/api.js',()=>({fetchAgentWorkshop:vi.fn(),createWorkshopAgent:vi.fn(),deleteWorkshopAgent:vi.fn(),fetchPublishedAgentCurlExample:vi.fn(),getStoredAuthSession:()=>({user:{permissionCodes:['system:agent-registry:manage']}}),publishWorkshopAgent:vi.fn(),recallWorkshopAgent:vi.fn(),setDefaultWorkshopAgent:vi.fn(),updateWorkshopAgent:vi.fn()}));
+vi.mock('../services/api.js',()=>({fetchAgentWorkshop:vi.fn(),fetchAgentResourceOptions:vi.fn().mockResolvedValue([]),createWorkshopAgent:vi.fn(),deleteWorkshopAgent:vi.fn(),fetchPublishedAgentCurlExample:vi.fn(),getStoredAuthSession:()=>({user:{permissionCodes:['system:agent-registry:manage']}}),publishWorkshopAgent:vi.fn(),recallWorkshopAgent:vi.fn(),setDefaultWorkshopAgent:vi.fn(),updateWorkshopAgent:vi.fn()}));
 let app,root;
 afterEach(()=>{app?.unmount();root?.remove();vi.clearAllMocks();});
 async function mount(agentCount,agents,total=agentCount){

@@ -35,7 +35,10 @@ const OPERATION_LABELS = {
   MODEL: ['等待分析响应', '本轮分析响应已返回'], DATA: ['正在获取授权数据', '数据操作已完成'],
   PROGRAM: ['正在准备分析程序', '分析程序已准备'], EXECUTION: ['分析计算正在执行', '分析计算已结束'],
   CODE_CHECK: ['正在检查分析程序', '分析程序检查已结束'],
-  VALIDATION: ['正在校验结果产物', '结果校验操作已结束'], PLAN: ['正在识别任务目标', '任务方案已确定']
+  VALIDATION: ['正在校验结果产物', '结果校验操作已结束'], PLAN: ['正在识别任务目标', '任务方案已确定'],
+  KNOWLEDGE: ['正在检索与阅读授权文档', '文档探索已完成'],
+  NEWS: ['正在查询与阅读财经新闻', '新闻探索已完成'],
+  MARKET: ['正在获取金融行情与指标', '金融数据探索已完成']
 };
 function executionActivity(event, runtime, metadata) {
   const worker = objectValue(metadata.workerActivity || metadata.payload);
@@ -70,11 +73,11 @@ function executionActivity(event, runtime, metadata) {
       const tool = worker.tool;
       // A proposed calculation is not execution-node confirmation. Its actual running/stop receipts are separate.
       if (tool === 'python_execute') return null;
-      category = {data_request:'DATA',metadata_read:'DATA',workspace_read:'DATA',input_read:'DATA',skill_read:'PLAN',
+      category = String(tool || '').startsWith('knowledge_') ? 'KNOWLEDGE' : String(tool||'').startsWith('news_')?'NEWS':String(tool||'').startsWith('market_')?'MARKET':{data_request:'DATA',metadata_read:'DATA',workspace_read:'DATA',input_read:'DATA',skill_read:'PLAN',
         sql_validate:'CODE_CHECK',workspace_propose:'PROGRAM',artifact_read:'VALIDATION',report_submit:'VALIDATION'}[tool];
       if (!category) return null;
-      phase = {DATA:2,PLAN:1,CODE_CHECK:3,PROGRAM:3,VALIDATION:4}[category];
-      identity = worker.toolCallId || operation;
+      phase = {DATA:2,PLAN:1,CODE_CHECK:3,PROGRAM:3,VALIDATION:4,KNOWLEDGE:3,NEWS:3,MARKET:3}[category];
+      identity = ['KNOWLEDGE','NEWS','MARKET'].includes(category) ? `${category.toLowerCase()}-exploration` : worker.toolCallId || operation;
       state = workerType === 'TOOL_STARTED' ? 'active' : businessState(worker.status || status);
     } else return null;
   } else if (['PROBLEM_ANALYSIS_PLAN','TASK_CLASSIFICATION'].includes(stage)) {
@@ -193,12 +196,12 @@ export function executionWorkbench(events = [], task = {}, now = Date.now(), pol
     if (previous && next.sequence && previous.sequence && next.sequence <= previous.sequence) continue;
     const explicitRetry = previous && next.retryAttempt > previous.retryAttempt;
     const state = previous && !explicitRetry && (STOPPED.has(previous.state)
-      || previous.state === 'done' && ['active','waiting',null].includes(next.state))
+      || !['KNOWLEDGE','NEWS','MARKET'].includes(next.kind) && previous.state === 'done' && ['active','waiting',null].includes(next.state))
       ? previous.state : next.state || previous?.state || 'waiting';
     const changed = !previous || state!==previous.state;
     operations.set(next.id,{...previous,...next,state,
       startedAt: (explicitRetry ? 0 : previous?.startedAt) || next.startedAt || (['active','waiting'].includes(state)?next.observedAt:0),
-      finishedAt: next.finishedAt || (explicitRetry ? 0 : previous?.finishedAt) || (['done','partial',...STOPPED].includes(state)?next.observedAt:0),
+      finishedAt: ['KNOWLEDGE','NEWS','MARKET'].includes(next.kind) && state === 'active' ? 0 : next.finishedAt || (explicitRetry ? 0 : previous?.finishedAt) || (['done','partial',...STOPPED].includes(state)?next.observedAt:0),
       durationMs: next.durationMs ?? (explicitRetry ? null : previous?.durationMs) ?? null,
       changedAt: changed ? next.observedAt : previous.changedAt,
       lastSeenAt: Math.max(previous?.lastSeenAt||0,next.observedAt||0),

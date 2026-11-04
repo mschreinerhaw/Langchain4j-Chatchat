@@ -1,4 +1,5 @@
 import MarkdownIt from "markdown-it";
+import { linkKnowledgeCitations, knowledgeCitationId } from "../utils/knowledgeCitations.js";
 import { Check, ChevronDown, ChevronRight, CircleCheck, CircleX, Copy, FileDown, Trash2 } from "@lucide/vue";
 import ResponseReferences from "../../components/ResponseReferences.vue";
 import ReportMarkdown from "../../components/ReportMarkdown.vue";
@@ -27,6 +28,7 @@ const markdown = new MarkdownIt({
   breaks: true
 });
 const PythonVisualReport=defineAsyncComponent(()=>import("../../components/PythonVisualReport.vue"));
+const KnowledgeCitationDialog=defineAsyncComponent(()=>import("../../components/KnowledgeCitationDialog.vue"));
 const EnterpriseUiArtifactRenderer = defineAsyncComponent(() => import("../../components/EnterpriseUiArtifactRenderer.vue"));
 const FENCE_RE = /^(\s*)(`{3,}|~{3,})(\s*)([A-Za-z0-9_-]*)\s*$/;
 const SQL_START_RE = /^\s*(CREATE|WITH|SELECT|INSERT|UPDATE|DELETE|MERGE|ALTER|DROP|TRUNCATE|SET)\b/i;
@@ -124,6 +126,7 @@ export default {
     }
   },
   components: {
+    KnowledgeCitationDialog,
     PythonVisualReport,
     ReportMarkdown,
     Check,
@@ -172,6 +175,7 @@ export default {
       expandedExecutionMessageIds: new Set(),
       expandedMetadataCatalogMessageIds: new Set(),
       reasoningModal: null,
+      knowledgeCitation: '',
       runtimeClock: Date.now(),
       runtimeClockTimer: null,
       feedbackOptions: [
@@ -1625,7 +1629,7 @@ export default {
         this.stripExecutedSqlContent(this.normalizeRenderContractBlocks(displayContent)),
         pages
       );
-      const linked = inlineWebCitationLinks(normalizedContent, pages);
+      const linked = inlineWebCitationLinks(linkKnowledgeCitations(normalizedContent), pages);
       return { content: linked.content, citationUrls: linked.citationUrls, pages };
     },
     stripTrailingWebReferenceSection(content, pages = []) {
@@ -2640,6 +2644,10 @@ export default {
       return "medium";
     },
     async handleMarkdownClick(event, message = null) {
+      const knowledgeId = knowledgeCitationId(event.target?.closest?.('a[href]')?.getAttribute('href'));
+      if (knowledgeId) {
+        event.preventDefault(); event.stopPropagation(); this.knowledgeCitation = knowledgeId; return;
+      }
       const sourceToggle = event.target?.closest?.("[data-source-tags-toggle]");
       if (sourceToggle) {
         event.preventDefault();

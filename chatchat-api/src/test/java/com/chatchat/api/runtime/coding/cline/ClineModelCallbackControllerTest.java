@@ -176,8 +176,8 @@ class ClineModelCallbackControllerTest {
         }finally{timer.shutdownNow();}
     }
     @org.junit.jupiter.params.ParameterizedTest
-    @org.junit.jupiter.params.provider.ValueSource(booleans={false,true})
-    void inputMetadataRequiresFrozenContractAndCurrentLeaseAndExcludesRawFields(boolean previewDeclared) {
+    @org.junit.jupiter.params.provider.CsvSource({"false,false","true,false","false,true"})
+    void inputMetadataRequiresFrozenContractAndCurrentLeaseAndExcludesRawFields(boolean previewDeclared,boolean knowledgeProfile) {
         var source = new DriverManagerDataSource("jdbc:h2:mem:input-context-" + UUID.randomUUID()
             + ";DB_CLOSE_DELAY=-1", "sa", "");
         new ResourceDatabasePopulator(new ClassPathResource("runtime-evidence-schema.sql")).execute(source);
@@ -192,14 +192,18 @@ class ClineModelCallbackControllerTest {
                 (owner, ref) -> true, receipts, Runnable::run, new ConcurrentTaskScheduler(timer));
             var base = contract(scope);
             String fileId = "c" + "a".repeat(63);
+            var tools=new java.util.ArrayList<String>(List.of("artifact_read"));
+            if(knowledgeProfile)tools.addAll(com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeService.TOOLS);
+            var runtime=new java.util.LinkedHashMap<String,Object>(Map.of("schemaVersion", "runtime_os.coding.context.v1", "consistency", "TASK_SNAPSHOT", "reportMode", "visual", "inputFiles",
+                Map.of("schemaVersion", "runtime_os.coding.input.v1", "format", "PARQUET", "delivery", "SHARED_DIRECTORY",
+                    "manifestFileId", fileId, "manifestSha256", "a".repeat(64))));
+            if(knowledgeProfile)runtime.put("knowledgeExploration",Map.of("schemaVersion","runtime_os.knowledge.v1","agentId","agent"));
             var contract = new CodingTaskContract(CodingProtocol.ANALYSIS_VERSION, base.taskId(), scope,
                 base.objective(), base.inputSnapshotRef(), previewDeclared ? List.of(com.chatchat.api.runtime.coding.data.CodingInputObservation.POLICY_REF) : base.metadataRefs(), base.workspaceRef(),
-                new CodingTaskContract.Authorization("decision:1", List.of("artifact_read"), List.of(fileId), List.of(), List.of(),
+                new CodingTaskContract.Authorization("decision:1", tools, List.of(fileId), List.of(), List.of(),
                     CodingTaskContract.NetworkPolicy.NONE, List.of(), List.of()),
                 base.budget(), base.environmentRef(), base.validationPlanRef(), base.outputContract(),
-                Map.of("schemaVersion", "runtime_os.coding.context.v1", "consistency", "TASK_SNAPSHOT", "reportMode", "visual", "inputFiles",
-                    Map.of("schemaVersion", "runtime_os.coding.input.v1", "format", "PARQUET", "delivery", "SHARED_DIRECTORY",
-                        "manifestFileId", fileId, "manifestSha256", "a".repeat(64))));
+                runtime);
             var lease = access.as(scope, EnumSet.allOf(CodingTaskAccess.Action.class), () -> {
                 var accepted = tasks.submit(contract);
                 return tasks.claim(scope, "task", "cline-adapter:test", Duration.ofSeconds(90), accepted.revision());
@@ -214,6 +218,10 @@ class ClineModelCallbackControllerTest {
             var collector=mock(CodingEvidenceCollector.class);
             var controller = new ClineModelCallbackController(access, tasks, mock(ClineRuntimeModelBridge.class),
                 receipts, inputs, mock(CodingValidationPlanService.class), collector, json);
+            var knowledge=mock(com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeService.class);
+            String knowledgeRef="runtime-evidence:knowledge:"+"d".repeat(64);
+            when(knowledge.authorizedReferences(any())).thenReturn(java.util.Set.of(knowledgeRef));
+            controller.setKnowledge(knowledge);
             var body = json.createObjectNode();
             body.set("scope", json.valueToTree(scope)); body.put("taskId", "task");
             body.put("contractHash", CodingCanonicalHash.sha256(contract)); body.put("fencingToken", lease.fencingToken());
@@ -254,10 +262,17 @@ class ClineModelCallbackControllerTest {
             when(collector.readResultPage(scope,"task",resultRef,0,2)).thenReturn(
                 new DatasetHandle.Page(0,List.of(Map.of("reportMarkdown","report","evidenceReferences",List.of("source"))),false));
             assertThat(json.valueToTree(controller.readArtifact(body)).path("reportReferenceValidation").path("valid").asBoolean()).isTrue();
+            if(knowledgeProfile) {
+                when(collector.readResultPage(scope,"task",resultRef,0,2)).thenReturn(new DatasetHandle.Page(0,
+                    List.of(Map.of("reportMarkdown","[source]("+knowledgeRef+")","evidenceReferences",List.of(knowledgeRef))),false));
+                assertThat(json.valueToTree(controller.readArtifact(body)).path("reportReferenceValidation").path("valid").asBoolean()).isTrue();
+                doThrow(new SecurityException("revoked")).when(knowledge).authorizedReferences(any());
+                assertThatThrownBy(()->controller.readArtifact(body)).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+            }
             body.put("fencingToken", lease.fencingToken() + 1);
             assertThatThrownBy(() -> controller.inputContext(body))
                 .isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
-            verify(inputs, times(3)).requireAuthorized(any());
+            verify(inputs, times(knowledgeProfile?5:3)).requireAuthorized(any());
         } finally { timer.shutdownNow(); }
     }
 

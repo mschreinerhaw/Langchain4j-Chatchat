@@ -22,6 +22,12 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ApiPermissionAuthorizationFilterTest {
+    @Test void knowledgeCitationReadsReuseChatPermissionForExactOpaqueIdsOnly() {
+        String path="/api/v1/agent/knowledge/citations/"+"a".repeat(64);
+        assertThat(ApiPermissionAuthorizationFilter.callerTaskRoute("GET",path)).isTrue();
+        assertThat(ApiPermissionAuthorizationFilter.callerTaskRoute("POST",path)).isFalse();
+        assertThat(ApiPermissionAuthorizationFilter.callerTaskRoute("GET",path+"/extra")).isFalse();
+    }
     @Test void chatReaderMayLoadAnOwnedReportWhileArtifactMutationStillRequiresItsOwnPermission() throws Exception {
         var policy=new SysPermission(); policy.setPermissionCode("system:api:all"); policy.setResourcePath("/api/v1/**");
         policy.setHttpMethod("*"); policy.setStatus("enabled");

@@ -1,0 +1,3313 @@
+{
+  "cases": [
+    {
+      "id": "D01a",
+      "category": "direct",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "f03d7ec4-c8d4-3fc2-8537-ced5b69cb7d5",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 66659,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:48a901e50a2a90423e3e903b5ac9f2bb3940e233f646e98b4a738437ee2a7080",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 4,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:805bc63bbfacc66e3de2025ad083fde75e02028067ee26c92a287a5bf064d939",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 1,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:880bab865782a7fd6de4d26989fe78e41269570fd12323c34faf49382f357604",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 0,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:8bd13d6c415a0a7f55af8c493625e3470031558f965fb28c63271570f636f26c",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 3,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:8ffe2d6af54015b4872bbd3769549af0bf3436fca559badeeb917a96bd46eec4",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 2,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 5,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_list_sections"
+      ],
+      "knowledgeToolCalls": 3,
+      "coding": [
+        {
+          "taskId": "analysis-coding-e9af91af9de79a6a2144e01b0a0dbc14a44bc9dab59bade526181e6685b645a3",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 3,
+            "modelTokens": 42381,
+            "toolCalls": 4,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 29930,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "D01b",
+      "category": "direct",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "5e92ff1e-d8e0-34ea-9cc6-8c23fc4f94e8",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 69346,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:70dcd1fdefb13dcfefbac234a3936ffeec725c57a03c6a2c8dd22811dfbc3604",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 2,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:80734343fb5e81143af3278fa62c441359ab4014f08179a35f571ebf23873361",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 0,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 2,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_list_sections",
+        "knowledge_search",
+        "knowledge_search"
+      ],
+      "knowledgeToolCalls": 5,
+      "coding": [
+        {
+          "taskId": "analysis-coding-fd2c64bef5006226eb80c7159129db2ee0fec9981bb2b1a23f1d8e7b3a3eb390",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 4,
+            "modelTokens": 69870,
+            "toolCalls": 6,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 46485,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "D02a",
+      "category": "direct",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "95ab1a57-a4f0-30b8-83db-6e680948a478",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 79403,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:1aefd37dba43477e579df0b3e8ef57d724983805825934f51d44babe43271850",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 15,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:30c01a41d8d9da62640eb5ec6453ce910f902fc6d094cd3d9c516cee812894f2",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 2,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:7fc18db5ac805afa13eb40980e96365c4f303437cbf8114903bbcd7bd3ea7f84",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 1,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:99f566d0dc5eabbaf204f05ce5e69933c48ba648814946e3d186659fbe30a1c9",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 16,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:b3c08fe384523ff37152f5a836c59c77e45756c9be9130d63aed3f52b6c46c2a",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 0,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:e8801421267f7a60c20c4973a2cc3a6e8145aa88bf454aa1392380abafc812af",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 3,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:f32dbd4a7a42a66cf4286d2167d43f9a726174b67c68ccfb72ce41c182f43b20",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 14,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 7,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_list_sections",
+        "knowledge_read"
+      ],
+      "knowledgeToolCalls": 3,
+      "coding": [
+        {
+          "taskId": "analysis-coding-531d141ed8b9752488dc18da44b276b3f69cad6630bb3c62d484fa5775d4a776",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 4,
+            "modelTokens": 61642,
+            "toolCalls": 4,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 39419,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "D02b",
+      "category": "direct",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "549bc7ff-b324-3155-890a-97815b508489",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 37185,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:b8e4ec336d8b0a67b96fd70e5de9e0ee3020e9f0290706b2816dc6d943f7c859",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 8,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 1,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_read"
+      ],
+      "knowledgeToolCalls": 2,
+      "coding": [
+        {
+          "taskId": "analysis-coding-49121b630475ac6499701b4d824524b54549f27fafc47c0d4c2f875cf212b130",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 3,
+            "modelTokens": 34174,
+            "toolCalls": 3,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 13111,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "D03a",
+      "category": "direct",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "23fb473f-e388-3a32-a137-7050c2a89a32",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 98906,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:072488973f8f3d82fcc1bad89998352ebf6ad5d9f8c54616ddac00b7e4f29516",
+          "documentId": "20260804_ea426559",
+          "versionId": "0eeb6f35064842e89a786fe1d3e71f826add1652e6db5ab3fc2173822aa743a3",
+          "chunk": 3,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:2a948a4030bfc719609d188446ab9ba812681603d0d79867f82ea940e89763c2",
+          "documentId": "20260804_ea426559",
+          "versionId": "0eeb6f35064842e89a786fe1d3e71f826add1652e6db5ab3fc2173822aa743a3",
+          "chunk": 2,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:72f8a523e9dd4eed1b9fc292bc3dcea93634feb1f499a4380ffd12d3e17a72e2",
+          "documentId": "20260804_ea426559",
+          "versionId": "0eeb6f35064842e89a786fe1d3e71f826add1652e6db5ab3fc2173822aa743a3",
+          "chunk": 43,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:73eda9793be677f9c5cadcec63136f316801202ce6a68097d5c4e1ef990de7c9",
+          "documentId": "20260804_ea426559",
+          "versionId": "0eeb6f35064842e89a786fe1d3e71f826add1652e6db5ab3fc2173822aa743a3",
+          "chunk": 4,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:cbff0001b6d5180e063d075859d68cb7d0eaed9d3a3a68a228391ad9b5d6428d",
+          "documentId": "20260804_ea426559",
+          "versionId": "0eeb6f35064842e89a786fe1d3e71f826add1652e6db5ab3fc2173822aa743a3",
+          "chunk": 0,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 5,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_list_sections",
+        "knowledge_read"
+      ],
+      "knowledgeToolCalls": 4,
+      "coding": [
+        {
+          "taskId": "analysis-coding-3bdd9f2d99bff687db053c4dd62712fd49c3c9454c86ffc12a7dc76aaa906872",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 5,
+            "modelTokens": 94247,
+            "toolCalls": 6,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 41077,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "D03b",
+      "category": "direct",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "757a39cc-38b7-3851-aa66-5e5cc3639266",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 88227,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:0eeed3d28c5b4a784f5bf58e0e51cf7a9aec5f7f5f965ef7e08f4544bd694164",
+          "documentId": "20260804_ea426559",
+          "versionId": "0eeb6f35064842e89a786fe1d3e71f826add1652e6db5ab3fc2173822aa743a3",
+          "chunk": 4,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:35e14235cf616b3ba00d7cc05965952d7bff81f2130c67cc9c51d3c3ddc097e6",
+          "documentId": "20260804_ea426559",
+          "versionId": "0eeb6f35064842e89a786fe1d3e71f826add1652e6db5ab3fc2173822aa743a3",
+          "chunk": 43,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 2,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_list_sections",
+        "knowledge_read",
+        "knowledge_read"
+      ],
+      "knowledgeToolCalls": 5,
+      "coding": [
+        {
+          "taskId": "analysis-coding-f49d1f88f22b1d1f9284b82c8c046d46947b48819d6938e7e3a133492485fff5",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 6,
+            "modelTokens": 97300,
+            "toolCalls": 6,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 35981,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "D04a",
+      "category": "direct",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "4b1907f0-ae8f-3271-b9e3-a56d36dd63bf",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 168961,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:3591abab759e14410f4cc8673b1c58b620653342d7ae88b9a767d30a23c41ce3",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 9,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:550705253b89ad37d9bc48a578ca9cc4b7cf321b092ab28789c70fda2c685544",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 1,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:71f507d210b7b99953085fd5b2e06895e3c06d25438549605c7860dcd3664738",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 7,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:72f0c8a7009d4ea299914c8d0408b27d78e33c2e3b352e7d8fd36e3e08c7c745",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 4,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:8745db9f9c482d28b3782bc695515cb5ab276812967bc3fe7d08571cb474299b",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 18,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:a1e9ac04b2380c9c55d3d3cbfadb489f7b26f7b268093d6d5ddfdccf9aa986bd",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 0,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:a95192c380fa5edcbda72c11987adc786726d8532c2eb6856c207a7b1cac64d9",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 8,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:b4054362b149b9ea93accb0804563b30de119cc90cee71f1f801c35106af773b",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 17,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:c61d750cd6587d2bf38b718896b4adb370d50eec288c643a40a9e91b5a850ebd",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 14,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:c730a817d8f2093f2b32a41a5ac4a2d89ffb4012ce1637d4ebbb0e3deccb3d1a",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 16,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:d3e19c965475275ecca47c8332a4cc3c516932e5b5da1945a842b8e3c70b9b9f",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 2,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 11,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_read",
+        "knowledge_list_sections",
+        "knowledge_read",
+        "knowledge_read",
+        "knowledge_read"
+      ],
+      "knowledgeToolCalls": 6,
+      "coding": [
+        {
+          "taskId": "analysis-coding-8794d6a6cbec03e9a760ab4d9bd3b8fadb4fa08ed11c3970da2da9a61153839a",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 5,
+            "modelTokens": 94314,
+            "toolCalls": 8,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 43742,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "D04b",
+      "category": "direct",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "a57f7d40-65fa-3ebd-b5ca-d5cd3d7a8ddd",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 52944,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:b4820a873132b875652780407566240d66afa9172ee9edb7600e8a5f1e933a3d",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 0,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 1,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_read",
+        "knowledge_read"
+      ],
+      "knowledgeToolCalls": 3,
+      "coding": [
+        {
+          "taskId": "analysis-coding-2a70999bfccd8b97258c329fda62969b4421111218d656fdb3368c9115fa6433",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 4,
+            "modelTokens": 49110,
+            "toolCalls": 4,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 15024,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "D05a",
+      "category": "direct",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "724640c4-70b5-39f1-aea8-4aa81f003e54",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 65587,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:84cfd27bc908242454446fb7934c9573683c1a017a6cd149f862e8bea02b84a3",
+          "documentId": "20260814_ede498a8",
+          "versionId": "f4b69b2ba195819983ca581fc613a2bbf2e75f4b86572366451ad40d41b17b29",
+          "chunk": 8,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:b16ffb913aeab59af06c84d5b74ce6018ba74fd9de94abc50f6b923a206ab387",
+          "documentId": "20260814_ede498a8",
+          "versionId": "f4b69b2ba195819983ca581fc613a2bbf2e75f4b86572366451ad40d41b17b29",
+          "chunk": 9,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:c0807173e055e5e2e044f12eb81c40af2898424a6d8a55c9f8209a9b67b2b94d",
+          "documentId": "20260814_ede498a8",
+          "versionId": "f4b69b2ba195819983ca581fc613a2bbf2e75f4b86572366451ad40d41b17b29",
+          "chunk": 4,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:f795e348ef9aa99320790f06b4b1777657dd15427b0faee9d5d876380f9484f5",
+          "documentId": "20260814_ede498a8",
+          "versionId": "f4b69b2ba195819983ca581fc613a2bbf2e75f4b86572366451ad40d41b17b29",
+          "chunk": 7,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 4,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_read",
+        "knowledge_search",
+        "knowledge_read"
+      ],
+      "knowledgeToolCalls": 4,
+      "coding": [
+        {
+          "taskId": "analysis-coding-87af619aea009aeb85aab30121638f40a60d547f277c8403587580cba58a8b9d",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 4,
+            "modelTokens": 57419,
+            "toolCalls": 5,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 33626,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "D05b",
+      "category": "direct",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "25281026-25ee-3634-a66b-9ff7ea5642d1",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 45835,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:5e0faecd61827927269596083df7da01ffe1499bb46608e573053be5bb1588d1",
+          "documentId": "20260814_ede498a8",
+          "versionId": "f4b69b2ba195819983ca581fc613a2bbf2e75f4b86572366451ad40d41b17b29",
+          "chunk": 9,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:9c46bac3b0775c9fdd137623aee33e7509755795816fc0f1d27ae28bedb0732f",
+          "documentId": "20260814_ede498a8",
+          "versionId": "f4b69b2ba195819983ca581fc613a2bbf2e75f4b86572366451ad40d41b17b29",
+          "chunk": 4,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 2,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_read"
+      ],
+      "knowledgeToolCalls": 2,
+      "coding": [
+        {
+          "taskId": "analysis-coding-58ad96add747d37fcdddd2a2de05f31fab7450e6308367f22558b7cb5d29d588",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 3,
+            "modelTokens": 34136,
+            "toolCalls": 3,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 14099,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "D06a",
+      "category": "direct",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "e38bf81c-4ee9-3c5e-993e-dce130511b65",
+      "status": "VERIFICATION_ERROR",
+      "errorCategory": "RuntimeError",
+      "error": "Verifier deadline; cancellation requested",
+      "durationMs": 420660
+    },
+    {
+      "id": "D06b",
+      "category": "direct",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "704e409e-4f25-3b8b-95ff-02619d7f575f",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 40156,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:19e705c718df7e9d986822b5a1c7e323f18e61659255007882701a089be2778b",
+          "documentId": "20260828_6fd31b0f",
+          "versionId": "20a3caa74756e4bd326e96a542baf86197d6fb0712e15da7cbbf048b275e4f2c",
+          "chunk": 0,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 1,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_read"
+      ],
+      "knowledgeToolCalls": 2,
+      "coding": [
+        {
+          "taskId": "analysis-coding-17acd821370c3ddb757632251441f5478da852990abd12a47802538d6f3edb82",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 3,
+            "modelTokens": 35607,
+            "toolCalls": 3,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 17391,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "D07a",
+      "category": "direct",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "f9683be5-525c-3853-8233-adc78b217d46",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 80201,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:035553e633b217003cec0c57a7be9e38eb880e949a7c6edaea5a775c6f49f183",
+          "documentId": "20260724_e911cdb3",
+          "versionId": "036c1362fd3eb5f6164d77aa736568c7eaf2ec13bec9fb609545eaab4168c13f",
+          "chunk": 0,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 1,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_read"
+      ],
+      "knowledgeToolCalls": 2,
+      "coding": [
+        {
+          "taskId": "analysis-coding-e8bf68e7054592a93a1aa8e5c80066adbf8191831315c4608dd16ecd912e7997",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 4,
+            "modelTokens": 54576,
+            "toolCalls": 4,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 15593,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "D07b",
+      "category": "direct",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "fa4b7805-37d5-38c3-bd6b-d23ea43269f5",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 47150,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:048a792c43413df6640c18e349a1fdb80ae73d7ae7d95efff465213ad0d96cd7",
+          "documentId": "20260724_e911cdb3",
+          "versionId": "036c1362fd3eb5f6164d77aa736568c7eaf2ec13bec9fb609545eaab4168c13f",
+          "chunk": 0,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 1,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_list_sections",
+        "knowledge_read"
+      ],
+      "knowledgeToolCalls": 3,
+      "coding": [
+        {
+          "taskId": "analysis-coding-0472f2583a6a4e7739a70797d8d511868ba6dc972acd24e00ab77c2d8813a2de",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 3,
+            "modelTokens": 35163,
+            "toolCalls": 4,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 11243,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "D08a",
+      "category": "direct",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "2e1df0b2-4105-37c8-83ea-54ccc7cfb70e",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 42559,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:39092796073d94d472f0723d84816673a897932bc4a34037751f1ce6616a5fbe",
+          "documentId": "20260724_06b508d7",
+          "versionId": "87d0f7ff53de108ac68a10b375b859de8e309d1753f6b17d6e57bdba79c0c41a",
+          "chunk": 0,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 1,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_read",
+        "knowledge_list_sections"
+      ],
+      "knowledgeToolCalls": 3,
+      "coding": [
+        {
+          "taskId": "analysis-coding-d2b93738da407458c340838c62a633c47234f42c2f184cb50aeb3176c1185663",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 4,
+            "modelTokens": 50373,
+            "toolCalls": 4,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 13408,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "D08b",
+      "category": "direct",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "6e330e2e-4863-3e85-93cd-9c575889d389",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 36308,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:d46528f28636173036fc1ef19e870f21a95084ce11a75edf53b89fc54cc9798a",
+          "documentId": "20260724_06b508d7",
+          "versionId": "87d0f7ff53de108ac68a10b375b859de8e309d1753f6b17d6e57bdba79c0c41a",
+          "chunk": 0,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 1,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_read"
+      ],
+      "knowledgeToolCalls": 2,
+      "coding": [
+        {
+          "taskId": "analysis-coding-151071ca04f21a52e40ae3756d5b526eaf8c8cf24808498ee340fcec2dd95349",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 3,
+            "modelTokens": 33656,
+            "toolCalls": 3,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 9303,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "D09a",
+      "category": "direct",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "f2d1ea95-d356-3bb1-9dc1-788b1771f2a6",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 63554,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:536dacd0bd7fe7cac26dc1bb3e7ada2a173af559251ce1322f1ba2999aa9618b",
+          "documentId": "20260803_eb8692a5",
+          "versionId": "1622f7871cc373a2451bad6f1eae83c44898f401950474fe3d25cd8895cb6fbd",
+          "chunk": 1,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:72ee4c513c5e53997e9b22993b52f7cf23c20fc3fd5390a1e33844227ff512e4",
+          "documentId": "20260803_eb8692a5",
+          "versionId": "1622f7871cc373a2451bad6f1eae83c44898f401950474fe3d25cd8895cb6fbd",
+          "chunk": 0,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:7bf7f8bffff051bced9cad347dc876b6824636121e83cd1c53a15b3c8c771832",
+          "documentId": "20260803_eb8692a5",
+          "versionId": "1622f7871cc373a2451bad6f1eae83c44898f401950474fe3d25cd8895cb6fbd",
+          "chunk": 2,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:f3fcbbfe695b2081cb2946dc0101d1016da5aa3f4b9c9672433799f421d6aefd",
+          "documentId": "20260803_eb8692a5",
+          "versionId": "1622f7871cc373a2451bad6f1eae83c44898f401950474fe3d25cd8895cb6fbd",
+          "chunk": 3,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 4,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_list_sections"
+      ],
+      "knowledgeToolCalls": 2,
+      "coding": [
+        {
+          "taskId": "analysis-coding-0473b38a2910aa619fb33c841c5a95ae3ad6a19c4d3bbdee0246fd3f508b8fd9",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 3,
+            "modelTokens": 37690,
+            "toolCalls": 3,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 15962,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "D09b",
+      "category": "direct",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "da9c4897-ef60-3a1d-aa04-f3c24f8069f4",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 48877,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:f9fdb3f0e40e44c1b059d381f72165724cb3c678fbc7595b92bdaef85767c3d1",
+          "documentId": "20260803_eb8692a5",
+          "versionId": "1622f7871cc373a2451bad6f1eae83c44898f401950474fe3d25cd8895cb6fbd",
+          "chunk": 0,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 1,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_read"
+      ],
+      "knowledgeToolCalls": 2,
+      "coding": [
+        {
+          "taskId": "analysis-coding-1bc08d1fa5022c127adc3f2817f90ff7340a953c867048e3d2c6e801a79c3f3c",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 3,
+            "modelTokens": 35530,
+            "toolCalls": 3,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 12038,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "D10a",
+      "category": "direct",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "72714691-b347-3c7a-b045-da330e9c37c6",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 104743,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:19a4b8adbc5f307bb85aba0cea7dd001820bb042fc2ad6845eb97eabc0390a37",
+          "documentId": "20260814_4c58bea8",
+          "versionId": "7edf73508c2b556eaf0134c3208975251ca65f40bac518d3edc9d9cfe510912b",
+          "chunk": 36,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:52cfc90e99556d7ebb8165fc8285701c02ab105c6a0bbc7338c22eb2cc92db30",
+          "documentId": "20260814_4c58bea8",
+          "versionId": "7edf73508c2b556eaf0134c3208975251ca65f40bac518d3edc9d9cfe510912b",
+          "chunk": 30,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:8bf6fc3fec85dea7c16327752c688f506eb23d569ccda42d931536d4c36cdc14",
+          "documentId": "20260814_4c58bea8",
+          "versionId": "7edf73508c2b556eaf0134c3208975251ca65f40bac518d3edc9d9cfe510912b",
+          "chunk": 33,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:b5c277a5be0405c619fd45ddc6b02ae8f975d5717a35487e7ce1fe43090bd158",
+          "documentId": "20260814_4c58bea8",
+          "versionId": "7edf73508c2b556eaf0134c3208975251ca65f40bac518d3edc9d9cfe510912b",
+          "chunk": 31,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:c09be104ad23f98880c3c6a4fa028ff5db39d4961405a84f13e379b65e9fda62",
+          "documentId": "20260814_4c58bea8",
+          "versionId": "7edf73508c2b556eaf0134c3208975251ca65f40bac518d3edc9d9cfe510912b",
+          "chunk": 32,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:da9722e2f3d0d742f65daa5cc12ff815451379bc0abfc48c5dbf397494884d75",
+          "documentId": "20260814_4c58bea8",
+          "versionId": "7edf73508c2b556eaf0134c3208975251ca65f40bac518d3edc9d9cfe510912b",
+          "chunk": 34,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 6,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_list_sections",
+        "knowledge_read",
+        "knowledge_search",
+        "knowledge_read"
+      ],
+      "knowledgeToolCalls": 5,
+      "coding": [
+        {
+          "taskId": "analysis-coding-e23e851a3cae39407225bc2d4b427c18507f35ffbae84f696940464894620796",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 6,
+            "modelTokens": 90996,
+            "toolCalls": 6,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 40387,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "D10b",
+      "category": "direct",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "e0efe211-7a61-3e4e-9a60-5ee36b315b1f",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 59481,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:283adc5434c40edbcaac654f53797346c9e592c021ce39a7a57699d55746568d",
+          "documentId": "20260814_4c58bea8",
+          "versionId": "7edf73508c2b556eaf0134c3208975251ca65f40bac518d3edc9d9cfe510912b",
+          "chunk": 34,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:c8c1183ae090d5db24c8cf51ac5481835253fc51186ab74c1a0ebb504c74616d",
+          "documentId": "20260814_4c58bea8",
+          "versionId": "7edf73508c2b556eaf0134c3208975251ca65f40bac518d3edc9d9cfe510912b",
+          "chunk": 33,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 2,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_list_sections",
+        "knowledge_read"
+      ],
+      "knowledgeToolCalls": 4,
+      "coding": [
+        {
+          "taskId": "analysis-coding-8ff4555331dd266e0e3d88f7e01b70e877e778d8e32bf76f38266e48679d0b6a",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 4,
+            "modelTokens": 59457,
+            "toolCalls": 5,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 33504,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "M01",
+      "category": "multi_document",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "087aa394-bada-3e88-bff5-7a739a9d2810",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 97592,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:17ddcfa1f04bb92ba2a455b07c7ddecd6e7f9798a5b6bebea5d5f3f8a1d6b60b",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 14,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:1cc21f27a7ca609bbc3759528e7bda82068e0630f81987aa4595ff35a3acf147",
+          "documentId": "20260814_4c58bea8",
+          "versionId": "7edf73508c2b556eaf0134c3208975251ca65f40bac518d3edc9d9cfe510912b",
+          "chunk": 3,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:6dd5574b268e93a72100c47ba2792de0045364a940507e1968b27544c5803ba1",
+          "documentId": "20260814_4c58bea8",
+          "versionId": "7edf73508c2b556eaf0134c3208975251ca65f40bac518d3edc9d9cfe510912b",
+          "chunk": 322,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:b41aee1751bc8575e1cab181f0c1bf4ddba42c64c51fe1f11acf469dea6c59a5",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 13,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:d3e5f7bec66ef160da7a90e78d4ca1ee7718026cfe3ff3e6f6fdb6df95962d39",
+          "documentId": "20260814_4c58bea8",
+          "versionId": "7edf73508c2b556eaf0134c3208975251ca65f40bac518d3edc9d9cfe510912b",
+          "chunk": 313,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:ebf92a63fc5056d75df512636fe844a008c3090934e345236db1119f402ecb1b",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 11,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:fb3dee67a966293eb049866ff2f4f632a5fa396077240d8c2020ae20a6f19a21",
+          "documentId": "20260803_eb8692a5",
+          "versionId": "1622f7871cc373a2451bad6f1eae83c44898f401950474fe3d25cd8895cb6fbd",
+          "chunk": 0,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 7,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_read",
+        "knowledge_search"
+      ],
+      "knowledgeToolCalls": 8,
+      "coding": [
+        {
+          "taskId": "analysis-coding-5939e3a56615916cd028a3ec1aa3048bde47741f1d1ddf707fb43a3d5c8579f9",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 5,
+            "modelTokens": 115234,
+            "toolCalls": 9,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 76464,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "M02",
+      "category": "multi_document",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "f8acd996-0d22-392d-bf0f-877a9e8a0bb9",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 99793,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:032fa8cd80ff880c6ffdb63a620e766f09d0c7c00d7965c2dd56fcde603d8413",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 8,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:0a22ff867477b912c8f82fbedd9e3c36b380389845216d8a355fa559e9573fd1",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 11,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:129d9950dcec85f70498cf30c252e0b74a91a7136c1f3108d07fbfc40ccece4b",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 48,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:1d5ee45438a3e3672c3ca1e73c7e478ab3eaac43c0c4d0a41e903cbd6e98c1d8",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 10,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:1d62e5771e70cfb0580943a932d03e13c18fd817927ab1f280cb26dc10df6d6d",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 1,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:1d6385b11a63140ab7080d8178882196803a3686d70da81974e65abb3ef186f7",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 3,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:37297f2838965c0876e92e6e36d096c9ddaa87c4cf5c47fb4871271ac81ed240",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 0,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:50f2b49047ae77c7cfe4caf21791239b2986c3d9cc7a27a904fe5a446aeb3e38",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 40,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:5a37e697456c5124e6209e2a32cc996c79180c6297f96beca026b43b68418b25",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 23,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:6ebad3cf753f08bb4fe95ac2efbacc023db3dc066f58ae2b47b21a8afcf39f4e",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 9,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:7bbdf62157ffbf70dcd4834777bd89eb5a809930c83cb36a2976d53887a56c24",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 7,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:9e66a5f879dee42b32cf746d3c1823c00d2ce849c113bf4c6e42cf660a081fb7",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 51,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:abb4fc623aa8260d36fb83806accf0575271b96b48668f0f4d880ccd16e40178",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 4,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:ac65a5c122a9f6a85a3e871c065ea2ee5e23223414a5d2dc140cc3b466ac0eee",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 15,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:e3d7b26783bb06d22c16fc69395e454e565f55bed32fe7c0166ed5afd2185556",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 2,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:f4d33c1e7c6061cc47665e65ba8ec7f2935e6189d7a89a5d1a18074e0a953c4d",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 0,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 16,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_read",
+        "knowledge_read",
+        "knowledge_read",
+        "knowledge_read"
+      ],
+      "knowledgeToolCalls": 6,
+      "coding": [
+        {
+          "taskId": "analysis-coding-5edb80839efb92f2ad94083585e4a9034e13040f299bb26843554eca2bd1061e",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 4,
+            "modelTokens": 72472,
+            "toolCalls": 7,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 47881,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "M03",
+      "category": "multi_document",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "d5481af4-1dd3-3225-b08c-38a6ee3d9778",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 89656,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:4720691ed1a6a90f47d8adbd9985073e925bf833a2ad5640f734cdb91ed95b48",
+          "documentId": "20260804_ea426559",
+          "versionId": "0eeb6f35064842e89a786fe1d3e71f826add1652e6db5ab3fc2173822aa743a3",
+          "chunk": 16,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:57098e8194393321a0fa548314b94a7482016f84d7e9515c2713746dcec4ed63",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 14,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:695cb3ee8a735fa555088b5d9c469964e289f5e27d45574d1309430eebd68e3b",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 44,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:6d901d0b21a6c4a0a7fb49dbd7e9978f4635e99677b6c10383b9e96e9cccc287",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 21,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:750cb9b0b585f31a0ad36b45017660cfee7e1a46969e3cc2d6273ee27c3423f7",
+          "documentId": "20260804_ea426559",
+          "versionId": "0eeb6f35064842e89a786fe1d3e71f826add1652e6db5ab3fc2173822aa743a3",
+          "chunk": 43,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:7a9c61ff9fc8877d3f1c905870b4eea980e253e6baf04cbd32dc9db18c9eb897",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 26,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:b4a26d13076aa48ff1e3f65293ebe452281a0052f75dae1a2c0790e73e9e9a2b",
+          "documentId": "20260804_ea426559",
+          "versionId": "0eeb6f35064842e89a786fe1d3e71f826add1652e6db5ab3fc2173822aa743a3",
+          "chunk": 23,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:ce984e9304ff61a5daadfdcd62c942f6e2e8ad6a75811dbeaabdfae86099ddd2",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 58,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:e3d0f0cc534512ffdf30d71dd17ddae0dd57a9a7ce66ac9f5916a69063cf92e6",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 42,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 9,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search"
+      ],
+      "knowledgeToolCalls": 8,
+      "coding": [
+        {
+          "taskId": "analysis-coding-5c6cd79d1cbb98ba1c9be7ab12c0d6fe8422c24eea10df6d5307b63834695e8d",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 4,
+            "modelTokens": 88181,
+            "toolCalls": 10,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 72159,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "M04",
+      "category": "multi_document",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "dba28053-75b0-3261-9f4c-3afec24331ee",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 85405,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:47e3b35f62e8c2b04c1f79d69b94a6d13d4c545d70e207827ff7e5ca3eb5bc22",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 0,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:73b06a7e0509ed219f8c2744bd4410ef437aa06ed1102c5e1dc593126c4f554b",
+          "documentId": "20260828_6fd31b0f",
+          "versionId": "20a3caa74756e4bd326e96a542baf86197d6fb0712e15da7cbbf048b275e4f2c",
+          "chunk": 1,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:aec167140fa3979f05e9389aed50baf31a6a198a28ab0c6548f41fd6ae2ac1ef",
+          "documentId": "20260828_6fd31b0f",
+          "versionId": "20a3caa74756e4bd326e96a542baf86197d6fb0712e15da7cbbf048b275e4f2c",
+          "chunk": 4,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:cb7366b50123e976e5d288b0a3521953ce16300d984746b9c0764f70ccf9fc52",
+          "documentId": "20260828_6fd31b0f",
+          "versionId": "20a3caa74756e4bd326e96a542baf86197d6fb0712e15da7cbbf048b275e4f2c",
+          "chunk": 0,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:cf93eb5a5063ce9aba2412adf04d791f35277ca3ae25ee3770b2fd5e242c5050",
+          "documentId": "20260828_6fd31b0f",
+          "versionId": "20a3caa74756e4bd326e96a542baf86197d6fb0712e15da7cbbf048b275e4f2c",
+          "chunk": 6,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:fc80a06b285b8a416ce945ed802500ff7985cf4497fe0f26fb3d4f1257a7c747",
+          "documentId": "20260828_6fd31b0f",
+          "versionId": "20a3caa74756e4bd326e96a542baf86197d6fb0712e15da7cbbf048b275e4f2c",
+          "chunk": 7,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 6,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_read",
+        "knowledge_read",
+        "knowledge_read"
+      ],
+      "knowledgeToolCalls": 5,
+      "coding": [
+        {
+          "taskId": "analysis-coding-67b8278ac2d408b3445126b28d026407e5f788c6080f99dba2102d5b42bcf50d",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 4,
+            "modelTokens": 67633,
+            "toolCalls": 6,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 38941,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "M05",
+      "category": "multi_document",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "6d70dda9-df9f-382c-a04c-fa9023bedebd",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 67243,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:83a2d2372b5b05ccb9362ea5517d91eefe4d32ced93feae2be9d902254fc7874",
+          "documentId": "20260724_06b508d7",
+          "versionId": "87d0f7ff53de108ac68a10b375b859de8e309d1753f6b17d6e57bdba79c0c41a",
+          "chunk": 0,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:c990ec88f2ed25b00c132e6b89e3fd8a370b2adf1e331b8d961e85bc6d915b89",
+          "documentId": "20260724_e911cdb3",
+          "versionId": "036c1362fd3eb5f6164d77aa736568c7eaf2ec13bec9fb609545eaab4168c13f",
+          "chunk": 0,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 2,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_read",
+        "knowledge_read",
+        "knowledge_list_sections",
+        "knowledge_list_sections"
+      ],
+      "knowledgeToolCalls": 5,
+      "coding": [
+        {
+          "taskId": "analysis-coding-7ca804db5e6b0abe780c76508bc77a8c41b2c06c6124026452cf8bd4c6fe464d",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 4,
+            "modelTokens": 55766,
+            "toolCalls": 7,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 19137,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "M06",
+      "category": "multi_document",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "291c2627-62aa-394d-a939-1aa186a006e6",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 87846,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:6716363aefa0f12b6c34b975eea0e3da7dfefe0ee29263fd6ab64f629166497c",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 12,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:6b5c7198b01e9bc3eb9a6b39547c363fd8ff3e0e532be8168274f54591514228",
+          "documentId": "20260803_eb8692a5",
+          "versionId": "1622f7871cc373a2451bad6f1eae83c44898f401950474fe3d25cd8895cb6fbd",
+          "chunk": 2,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:6f136252573201edf54617ddcf7da952c2973b94927b0223c4f602e51a48a8c0",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 0,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:892b79a4e824edd85718eee6bc4d4b7555c0ddc9fddb7602c55adfba9b07b942",
+          "documentId": "20260803_eb8692a5",
+          "versionId": "1622f7871cc373a2451bad6f1eae83c44898f401950474fe3d25cd8895cb6fbd",
+          "chunk": 3,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:940598fc4ef103dc8cbbf31b64ca7ebe82875081cb9d3d9e6789fb7cb6fdde64",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 11,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:d977cbf2cfbae40e1e17469ea5ea56dace930f24448c2123f538723743eaec40",
+          "documentId": "20260803_eb8692a5",
+          "versionId": "1622f7871cc373a2451bad6f1eae83c44898f401950474fe3d25cd8895cb6fbd",
+          "chunk": 0,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 6,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_read",
+        "knowledge_read",
+        "knowledge_read",
+        "knowledge_list_sections"
+      ],
+      "knowledgeToolCalls": 6,
+      "coding": [
+        {
+          "taskId": "analysis-coding-2695de003182f90377e37603695dbe0a195f001f95ffce4e177f94a907a3edf5",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 4,
+            "modelTokens": 72111,
+            "toolCalls": 7,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 44361,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "M07",
+      "category": "multi_document",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "47d7177b-e557-31bf-89e6-e530e51b88dd",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 66150,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:2093a98c07090e3da32b3e0ebfe141c2b9e372c81c7e31b230085dd85d18fe62",
+          "documentId": "20260814_4c58bea8",
+          "versionId": "7edf73508c2b556eaf0134c3208975251ca65f40bac518d3edc9d9cfe510912b",
+          "chunk": 30,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:50308f207abd6d9a2c727d47205e762643f260b41f39fc59b9330b669bf08e89",
+          "documentId": "20260814_ede498a8",
+          "versionId": "f4b69b2ba195819983ca581fc613a2bbf2e75f4b86572366451ad40d41b17b29",
+          "chunk": 7,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:866db6f94c46b1968b948ad3ff1a0d31ee05e8293f10812114d1044f9973e37e",
+          "documentId": "20260814_ede498a8",
+          "versionId": "f4b69b2ba195819983ca581fc613a2bbf2e75f4b86572366451ad40d41b17b29",
+          "chunk": 8,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:c7c64196ddfc5cccd6d3c7a1ad2e19f1cdd4b693e4c2c812fa0d2c2961f17612",
+          "documentId": "20260814_4c58bea8",
+          "versionId": "7edf73508c2b556eaf0134c3208975251ca65f40bac518d3edc9d9cfe510912b",
+          "chunk": 31,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:cf49e06597b66a6f6a56c31147581746cdba5b13f747ce1fc0ccc5580c8e3a4e",
+          "documentId": "20260814_ede498a8",
+          "versionId": "f4b69b2ba195819983ca581fc613a2bbf2e75f4b86572366451ad40d41b17b29",
+          "chunk": 10,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:d1a6d2409140cdc5af2bf63d34d66d6a638f367cb6e3ff750d194961b50541d3",
+          "documentId": "20260814_4c58bea8",
+          "versionId": "7edf73508c2b556eaf0134c3208975251ca65f40bac518d3edc9d9cfe510912b",
+          "chunk": 24,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:ea4581cc17729ee1e2a58dee773864ed68c81d7f5e26f197890c7dac93150982",
+          "documentId": "20260814_ede498a8",
+          "versionId": "f4b69b2ba195819983ca581fc613a2bbf2e75f4b86572366451ad40d41b17b29",
+          "chunk": 2,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 7,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search"
+      ],
+      "knowledgeToolCalls": 4,
+      "coding": [
+        {
+          "taskId": "analysis-coding-1197502ff88a166444a4ca1445b179b52be21fd13b0eedcd9fe2272da773b318",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 3,
+            "modelTokens": 41686,
+            "toolCalls": 5,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 31797,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "M08",
+      "category": "multi_document",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "82337f15-bae9-3e2c-9cd7-d6a01310931f",
+      "status": "PARTIAL",
+      "runtimeStatus": "PARTIAL",
+      "durationMs": 153054,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:04fcccbba7e4c8f5b41827c3f0d97efb71f587d2d9ad352360a855e9f7fd1662",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 16,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:3c280134887d72a098e7dc8263f2090da3bc741eb00c6f6b9cc4b290233e768d",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 14,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:4cfc90826664a76a9da816c23852ee7fde7d1f004597b97b69613f68ea8bc73f",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 12,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:6b55deee6339120e4cd3191638ec5cd4a44d1acc09ea5cf23cccc11d9cc102e7",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 15,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:74343b2da48138e70f00912a6cffb1465acaad5d8998fcc0f2ba3658e7e4c758",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 17,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:a90ebf4fe7ec8cd047650fe89c0731a73fea626c455361238692f4da9ca7acd1",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 13,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:cabf30e5eddc361eb3744f8b08596c815fd08b9d21a2d68fec2051c306b06aca",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 11,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:cc6c868425854db55cd3c92f8c09d75f154575ab182152e99289ac9381f83a43",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 15,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 8,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_read",
+        "knowledge_read",
+        "knowledge_read",
+        "knowledge_search",
+        "knowledge_search"
+      ],
+      "knowledgeToolCalls": 10,
+      "coding": [
+        {
+          "taskId": "analysis-coding-84a8bfec9898fe6160b66882372a277d5177b0a110ec2eef2c53fded2784dff6",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 6,
+            "modelTokens": 136649,
+            "toolCalls": 12,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 66147,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "M09",
+      "category": "multi_document",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "1b81c6e3-3041-31cf-bdd2-a60832288e61",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 120945,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:0942cd49d46114d9a8cdaa4de4a87bff700505f2a04a35366292d28e066939c3",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 42,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:397a2172f3ef38467785e9b569ec9ab8f28fff47449efe41592f9a28bd9ae18d",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 19,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:3cc515960badc0bb050e80dfe9447b6beb4ed3aa43f6955bde21788ce66e87c3",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 39,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:57984669494b9a5bb971b325492e02f75cabd583c6b559d8ee1f708eb116b5a7",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 38,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:7531438aa12eded235ad3f4fc7208474ad00111e926e6fe77369d2501f38f55a",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 3,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:b431c4f4fa7934c474548f4cd76598ede968ef1f618bc56d47d4fe5859091c99",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 15,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 6,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_list_sections",
+        "knowledge_read",
+        "knowledge_read",
+        "knowledge_read",
+        "knowledge_read"
+      ],
+      "knowledgeToolCalls": 9,
+      "coding": [
+        {
+          "taskId": "analysis-coding-0a577fe4d154ebf0ddcdc229d1bfb316468a2891e27480844f9c7734ed79d8bd",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 6,
+            "modelTokens": 127879,
+            "toolCalls": 10,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 75217,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "M10",
+      "category": "multi_document",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "f29ca83c-5caf-32d9-afba-a491271be069",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 174739,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:4527ed9e91a0dcf5a06f1d7e7032120125cb3640ce0e19f10028910628f57956",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 11,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:e74bbb5d2b76c8bbc5cb5089e6f80cfd6f2363b3e1d7890c5b48456bd0593c65",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 13,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:f81d1f8d049c9c6ad1f5f66a69886a5c3f3bdaab51e368d905d43226e81e6ef1",
+          "documentId": "20260724_e911cdb3",
+          "versionId": "036c1362fd3eb5f6164d77aa736568c7eaf2ec13bec9fb609545eaab4168c13f",
+          "chunk": 1,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 3,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_read",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_list_sections",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_read"
+      ],
+      "knowledgeToolCalls": 14,
+      "coding": [
+        {
+          "taskId": "analysis-coding-109d48c39502566c7826ab8ff6f4b544c816ca5338820fc5aa5eb722e03391de",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 9,
+            "modelTokens": 287410,
+            "toolCalls": 16,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 111197,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "N01",
+      "category": "unanswerable",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "ede328d9-90a9-3e6e-9ac1-bf72de87b63c",
+      "status": "PARTIAL",
+      "runtimeStatus": "PARTIAL",
+      "durationMs": 45971,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:9bf8003f3b686666d443ea252f719f041fd4e0acd9162275d6de53c59dc4ac67",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 11,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 1,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search"
+      ],
+      "knowledgeToolCalls": 3,
+      "coding": [
+        {
+          "taskId": "analysis-coding-f13e7b305b656833b8b79628b59c9f86e85fce865cc8112f0f7136a2336a31c8",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 4,
+            "modelTokens": 53304,
+            "toolCalls": 5,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 33610,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "N02",
+      "category": "unanswerable",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "dde6f5de-7c73-3a47-800b-5eb83d11d3de",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 117781,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:60035218db22e89f60928be6394991baec498ea1c44ae33334f2cf99d7ab311f",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 13,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:b7c47cdb3af8b09e6d0ed71e73d2a34480b196bf87ef819a6e63c263a1b5c2d7",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 11,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:cde9daa4f9c83673cfe23550c043936234d5ba655e31c77fe207c3b31c26be5d",
+          "documentId": "20260803_eb8692a5",
+          "versionId": "1622f7871cc373a2451bad6f1eae83c44898f401950474fe3d25cd8895cb6fbd",
+          "chunk": 0,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:cf93278581d52fed9125c66bcb7c675693c858123830ce052c1d3f907bae7699",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 15,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 4,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_list_sections"
+      ],
+      "knowledgeToolCalls": 9,
+      "coding": [
+        {
+          "taskId": "analysis-coding-82efc9f1874b4d76c80d387a927e4b2224da4e645daaca78558783fdd8354492",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 6,
+            "modelTokens": 150348,
+            "toolCalls": 10,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 90781,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "N03",
+      "category": "unanswerable",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "6e8ec619-ba2a-3f38-bfef-127bc722e6bd",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 160779,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:621e778eb12c1e0099eb1a0a43aeb7aa9fa81bee4a3b7f037716128334130303",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 27,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:71514d59f4293315abb3ad2bd8cab4555f39162fbac1e3bb85067bb54540354f",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 8,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:a76bb06a8434cec9c88e1761d39888421ed2125172ac208d563806f26db7e3be",
+          "documentId": "20260804_ea426559",
+          "versionId": "0eeb6f35064842e89a786fe1d3e71f826add1652e6db5ab3fc2173822aa743a3",
+          "chunk": 25,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:d7c8ecb5a2fb386ee654341f77c8b517e54ad72a7055cf7bbf996ca571136f55",
+          "documentId": "20260828_6fd31b0f",
+          "versionId": "20a3caa74756e4bd326e96a542baf86197d6fb0712e15da7cbbf048b275e4f2c",
+          "chunk": 0,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:dfefb1b5517bbbbb17eefc480cdb216d54b4638e8f0919be57298479653c56e5",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 11,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 5,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search"
+      ],
+      "knowledgeToolCalls": 8,
+      "coding": [
+        {
+          "taskId": "analysis-coding-7bc230b2661870166822047931ddf16419f13f944a4e5e086059612e4db655cf",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 7,
+            "modelTokens": 156345,
+            "toolCalls": 11,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 57605,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "N04",
+      "category": "unanswerable",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "4558c88d-3e46-36ea-8850-eafb04cbc75f",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 78400,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:3f871e80c809d05fd09873ac9455406e82a889e98d0d0e1f7a988f99db85eefe",
+          "documentId": "20260814_4c58bea8",
+          "versionId": "7edf73508c2b556eaf0134c3208975251ca65f40bac518d3edc9d9cfe510912b",
+          "chunk": 93,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 1,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search"
+      ],
+      "knowledgeToolCalls": 2,
+      "coding": [
+        {
+          "taskId": "analysis-coding-e47d8882f0dfa2dbeffaf821c3fb3c33f798542731c0483541d6b5b7f31547ed",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 4,
+            "modelTokens": 49819,
+            "toolCalls": 5,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 8317,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "N05",
+      "category": "unanswerable",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "34122e22-8259-3c84-aec2-be0adaf946a5",
+      "status": "PARTIAL",
+      "runtimeStatus": "PARTIAL",
+      "durationMs": 117669,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:5ff68c2728feceb9c9fd21b9b247dab868c0ec38f68f357bc4c3efcbbe3264ad",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 11,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:7da0bc587dd6c03c5a1f980345facaee65e20c48f6a05af1b05de0f81a5fe34c",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 12,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 2,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_read"
+      ],
+      "knowledgeToolCalls": 8,
+      "coding": [
+        {
+          "taskId": "analysis-coding-419b66a09f0c6b5b9343e4f5bd5392d6eec9f84113a9ff61cb2ca3175aacfeb1",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 6,
+            "modelTokens": 155803,
+            "toolCalls": 10,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 73798,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "V01",
+      "category": "version_and_evidence",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "75e7cd2c-b9e9-3ba7-bd44-b8934740d6dc",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 160224,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:128f8aa4cc27984ae6be2c4db82994e9ed28d0a18c0da6292075fc6813306855",
+          "documentId": "20260804_ea426559",
+          "versionId": "0eeb6f35064842e89a786fe1d3e71f826add1652e6db5ab3fc2173822aa743a3",
+          "chunk": 4,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:193af086a9cf112c9f06d1b1f7a72305368d7ceef0824eb054a4c2a40408cd17",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 15,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:3e442f542453372e1b44e8cec64254ae02c7d0107637d4e87c7f793e1fd890a7",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 38,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:9a7a34dc984aa599a57cc6e4c1aa83f20b1a5ecc01bf694839d2a8dd0e9698e6",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 0,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:b188d4d2ad786fab5008303515370fce2ded63f497059a9beaf4a9f88170f339",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 19,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 5,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_get_document",
+        "knowledge_search",
+        "knowledge_read",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_list_sections",
+        "knowledge_search",
+        "knowledge_search"
+      ],
+      "knowledgeToolCalls": 10,
+      "coding": [
+        {
+          "taskId": "analysis-coding-2632f93ced6d9fb8de28f621e6a452a9768cf0a22744e5de168eb717c8c3371c",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 9,
+            "modelTokens": 178528,
+            "toolCalls": 13,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 71170,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "V02",
+      "category": "version_and_evidence",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "606a1d56-e6b6-3b42-919f-05a6485a226b",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 121582,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:21d95d3cbbf08cca74eb80958fc65b0001027b0da407429ce3a34570989c797d",
+          "documentId": "20260724_e911cdb3",
+          "versionId": "036c1362fd3eb5f6164d77aa736568c7eaf2ec13bec9fb609545eaab4168c13f",
+          "chunk": 0,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:2a89135f7bd8daa2ffff8f9199d1c93871a13dd9520727bf4f7a508fcc656405",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 0,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:75bd324fc4e8d84e4f8bba7d488687788c5ea4c88a5e8a41c64c73ebc32b2247",
+          "documentId": "20260804_ea426559",
+          "versionId": "0eeb6f35064842e89a786fe1d3e71f826add1652e6db5ab3fc2173822aa743a3",
+          "chunk": 0,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:8cea49762df9a29af98a314b1ead1f7e4cb003105273b4c36466b785f3f88567",
+          "documentId": "20260724_06b508d7",
+          "versionId": "87d0f7ff53de108ac68a10b375b859de8e309d1753f6b17d6e57bdba79c0c41a",
+          "chunk": 0,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:e936ff10fe9b697fd056565cd8424c797eef9a7dbf6499b2d8f6f1c4532ab856",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 0,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 5,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_list_sections",
+        "knowledge_read",
+        "knowledge_read",
+        "knowledge_search",
+        "knowledge_read",
+        "knowledge_read",
+        "knowledge_read"
+      ],
+      "knowledgeToolCalls": 10,
+      "coding": [
+        {
+          "taskId": "analysis-coding-962896afec95e39b361195d56393940fff78b6cf98250f40e947032c69f34ee9",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 7,
+            "modelTokens": 147796,
+            "toolCalls": 12,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 68198,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "V03",
+      "category": "version_and_evidence",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "68c13a57-1235-3ffe-804f-44bb4d317169",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 86465,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:03690bea5c09cc92eb8ad5ba845d0f1ed3dc21ef549f70fdd6516caf4d731a6c",
+          "documentId": "20260724_e911cdb3",
+          "versionId": "036c1362fd3eb5f6164d77aa736568c7eaf2ec13bec9fb609545eaab4168c13f",
+          "chunk": 0,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:53fd770230ae1030821b39026e13ab9aab56505ab89b74a757fda8f3474439dd",
+          "documentId": "20260724_06b508d7",
+          "versionId": "87d0f7ff53de108ac68a10b375b859de8e309d1753f6b17d6e57bdba79c0c41a",
+          "chunk": 0,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 2,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_read",
+        "knowledge_read",
+        "knowledge_search",
+        "knowledge_list_sections"
+      ],
+      "knowledgeToolCalls": 6,
+      "coding": [
+        {
+          "taskId": "analysis-coding-92f5f96c1ea4698eb488f1b6e52eaf1efb1227a61d485882fa1f5045d10b923b",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 5,
+            "modelTokens": 69440,
+            "toolCalls": 8,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 25705,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "V04",
+      "category": "version_and_evidence",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "b82d4c8b-c13e-392b-af5a-5645fab7e48f",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 111387,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:64044afc46d2483ef87b63ec534f65a5f3b0260340200cb44e07109757f6e0c9",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 11,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:99c6c8e2bb044f9c78f2c1a5d0388579012e0062e5bee2faa8fbe4dda1177868",
+          "documentId": "20260803_eb8692a5",
+          "versionId": "1622f7871cc373a2451bad6f1eae83c44898f401950474fe3d25cd8895cb6fbd",
+          "chunk": 0,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 2,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_get_document",
+        "knowledge_get_document",
+        "knowledge_search",
+        "knowledge_list_sections",
+        "knowledge_read"
+      ],
+      "knowledgeToolCalls": 8,
+      "coding": [
+        {
+          "taskId": "analysis-coding-ff9b3947daf34d5bb3839bdb12c9059039a4abfb5b9487492c5729f95d28bf3f",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 9,
+            "modelTokens": 176543,
+            "toolCalls": 11,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 53405,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "V05",
+      "category": "version_and_evidence",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "aae9f558-fa32-3e10-bb69-7e5415782bf7",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 87475,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:38212e3565aef056e6787b623046abec4c82c0e9faecd926dd44cc1476e3724e",
+          "documentId": "20260804_ea426559",
+          "versionId": "0eeb6f35064842e89a786fe1d3e71f826add1652e6db5ab3fc2173822aa743a3",
+          "chunk": 41,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:6033d0c9a16ad9fd9aa583332de42c0d483d9b6674be29a22ceb391249320eb8",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 18,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:9b67519b75a490cb469f960da97ada81284049f775d1370c7aeb2de6c7ef604a",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 14,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 3,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search"
+      ],
+      "knowledgeToolCalls": 5,
+      "coding": [
+        {
+          "taskId": "analysis-coding-bfa25728f9b95076c873ba0c955a49fa4cc51085d6f1a6373be9a1dbb17023a7",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 4,
+            "modelTokens": 61709,
+            "toolCalls": 6,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 34404,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "A01",
+      "category": "denied_or_absent",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "ba86b6e8-1b16-34c1-b4bf-99d8415cd4ce",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 103135,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:b29c676862b0b24769c5fc6b36dc39e42f6ec92e16cfebefbc2dcecd374a542c",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 0,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:e49fcc39bfdba99674fe7579b99ee989a14ba83f62e14e946a233b639a8670e7",
+          "documentId": "20260814_ede498a8",
+          "versionId": "f4b69b2ba195819983ca581fc613a2bbf2e75f4b86572366451ad40d41b17b29",
+          "chunk": 1,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 2,
+      "knowledgeTools": [
+        "knowledge_search"
+      ],
+      "knowledgeToolCalls": 1,
+      "coding": [
+        {
+          "taskId": "analysis-coding-99f08d7ab846ee7968e02e1f981439abff587504f047272bc2a3c5f833863ada",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 5,
+            "modelTokens": 61538,
+            "toolCalls": 5,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 10147,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "A02",
+      "category": "denied_or_absent",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "6bb9f44e-987a-3dc1-aee5-9fb9b683f971",
+      "status": "PARTIAL",
+      "runtimeStatus": "PARTIAL",
+      "durationMs": 58028,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:bb219bb41444d0f56af54e0141e5420fe5d7f464e0aef61d3f7b5ca2798876ea",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 11,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 1,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search"
+      ],
+      "knowledgeToolCalls": 5,
+      "coding": [
+        {
+          "taskId": "analysis-coding-0022e6db3a9e16dd1a9f7144ab90e462dc716f07267029f1b575146b798440dc",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 4,
+            "modelTokens": 59719,
+            "toolCalls": 7,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 37397,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "A03",
+      "category": "denied_or_absent",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "31cb3fb8-5420-3c84-b64c-daad8f5d05dd",
+      "status": "PARTIAL",
+      "runtimeStatus": "PARTIAL",
+      "durationMs": 18652,
+      "citations": [],
+      "resolvedCitationCount": 0,
+      "knowledgeTools": [],
+      "knowledgeToolCalls": 0,
+      "coding": [
+        {
+          "taskId": "analysis-coding-66ddd45130a529fc2588d2330a8a9d56b4eea59488daea6ff85eb06e50fd917a",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 1,
+            "modelTokens": 9876,
+            "toolCalls": 1,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 1579,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "A04",
+      "category": "denied_or_absent",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "f59af455-7a9e-3a95-b86f-4a00e4cf6138",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 88184,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:485311d43fafabe292251b0429af3ef3b3c4827ed89af7b27447209b2090cdf0",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 9,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:9ff5da4ad4ae6726172a674f6627448b7616e909e110aabac865f5ddca618138",
+          "documentId": "20260814_ede498a8",
+          "versionId": "f4b69b2ba195819983ca581fc613a2bbf2e75f4b86572366451ad40d41b17b29",
+          "chunk": 7,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:bbf82956027e704f5597cf339ab86bb8c19d403515331ec810aa7f7f437ce854",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 12,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:c04c20105d81a15e095185d5ad9ceffb6409f8b04f7acaf2f94492e696d29d66",
+          "documentId": "20260804_ea426559",
+          "versionId": "0eeb6f35064842e89a786fe1d3e71f826add1652e6db5ab3fc2173822aa743a3",
+          "chunk": 38,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:cf0b832813c0703035c3e2022164e6bd641b2829d760ce8f9261aac0cfa6d4a4",
+          "documentId": "20260804_ea426559",
+          "versionId": "0eeb6f35064842e89a786fe1d3e71f826add1652e6db5ab3fc2173822aa743a3",
+          "chunk": 45,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:f0c7a6dd07eaae2de4e5ae3dca07faed76918dd26315fca5f8405b5c74a0f6a9",
+          "documentId": "20260814_ede498a8",
+          "versionId": "f4b69b2ba195819983ca581fc613a2bbf2e75f4b86572366451ad40d41b17b29",
+          "chunk": 6,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 6,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search"
+      ],
+      "knowledgeToolCalls": 3,
+      "coding": [
+        {
+          "taskId": "analysis-coding-179bf0eaf90fd0e06c757182e5e229b5fc09f554f1b2bfed8543872feebdc552",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 4,
+            "modelTokens": 53540,
+            "toolCalls": 4,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 24059,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "A05",
+      "category": "denied_or_absent",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "2c6d4d23-b78a-3d45-9b9a-7c071893d321",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 145716,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:2cf954db1245fb72f3c6fcf1f691e6e4c46a3e7d5c41c82dec20c9acf529696f",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 38,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:52b421e9ecacd72b33cdf0b91b113e18466a67c1231c33ba09378fd9b2fc8037",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 21,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:72686651b554dbb86305f9db330a6e4dbadc0219a659dd8dfd331e7ad4b46bae",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 22,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:a43f956cf704ab66f64ee36155d0da19f3a7f5f572b6544e848b60c12547930f",
+          "documentId": "20260804_ea426559",
+          "versionId": "0eeb6f35064842e89a786fe1d3e71f826add1652e6db5ab3fc2173822aa743a3",
+          "chunk": 46,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:a441f57e9e546b273fd2f1422f6bae4909dfc9ac11b5326f0adacaf6d3a59dc3",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 11,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:b23ded894fc0bdc544d6474e2ccae71bad3edf4eeed45d8b24f0855833e932e2",
+          "documentId": "20260804_06b5fe1f",
+          "versionId": "e06d8a28b5f49e2a98e5be15ddecb37bf734ac542adebe2b80ff998ea637d43c",
+          "chunk": 9,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 6,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_search"
+      ],
+      "knowledgeToolCalls": 4,
+      "coding": [
+        {
+          "taskId": "analysis-coding-d04edfb9369baa69fff9bcd8f70fe725e278bb572137d048f2879d8f9670620c",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 5,
+            "modelTokens": 109044,
+            "toolCalls": 7,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 46235,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "E01",
+      "category": "exploration",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "881e51c3-4cbc-3777-a045-e0aaaacae866",
+      "status": "PARTIAL",
+      "runtimeStatus": "PARTIAL",
+      "durationMs": 81972,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:06ebaa374da4d584dc1073180ed5a6ec706458d2581c21cc8a62aa39d9b899bf",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 15,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:1b75c1b62f433fdc0125b23d311061a35fd3273af5f53201df48aeef18ef887b",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 11,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:25dc1745301fb822d1298d5eb971b94aeae832957cb71f1cdf5db1771bf6310c",
+          "documentId": "20260724_20316fba",
+          "versionId": "539fc9707fd9bab271290c94ec2dc440a25ec75cc59eb152ec4abc01877f54af",
+          "chunk": 13,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 3,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_list_sections"
+      ],
+      "knowledgeToolCalls": 3,
+      "coding": [
+        {
+          "taskId": "analysis-coding-239566bafb6e1127c9f7486251830cf4da95988056daa71d79b931a690b5e3b2",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 4,
+            "modelTokens": 64165,
+            "toolCalls": 5,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 31256,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "E02",
+      "category": "exploration",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "1014748a-ccad-364f-ac1c-db8cf36e321f",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 77552,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:3460dee8a52209d57b0c376f028287220a679fc30f3a6584f698320be82e1434",
+          "documentId": "20260814_ede498a8",
+          "versionId": "f4b69b2ba195819983ca581fc613a2bbf2e75f4b86572366451ad40d41b17b29",
+          "chunk": 5,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:48d9bcfbceefb48bf78d768c33827bd86152ba8ba34ca3eddb5fe41aa357308e",
+          "documentId": "20260814_ede498a8",
+          "versionId": "f4b69b2ba195819983ca581fc613a2bbf2e75f4b86572366451ad40d41b17b29",
+          "chunk": 4,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:6e44dd7f0c8b107ce390f7ad2340141b809077261f25b198647670367e6ef035",
+          "documentId": "20260814_ede498a8",
+          "versionId": "f4b69b2ba195819983ca581fc613a2bbf2e75f4b86572366451ad40d41b17b29",
+          "chunk": 7,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:71be45605b991d735cd8c4b68fed0d9f5ff9b292fc9fc933e535f554b905fdb6",
+          "documentId": "20260814_ede498a8",
+          "versionId": "f4b69b2ba195819983ca581fc613a2bbf2e75f4b86572366451ad40d41b17b29",
+          "chunk": 6,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:dc5628b81765db2b858c969434562214aff9fdc6e1734604e57a375bb2c26001",
+          "documentId": "20260814_ede498a8",
+          "versionId": "f4b69b2ba195819983ca581fc613a2bbf2e75f4b86572366451ad40d41b17b29",
+          "chunk": 9,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 5,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_related"
+      ],
+      "knowledgeToolCalls": 3,
+      "coding": [
+        {
+          "taskId": "analysis-coding-bf67a5b70c145f7533c92196e330dc9a4097f3d32d39518b754e22df73162e89",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 3,
+            "modelTokens": 45802,
+            "toolCalls": 4,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 30780,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "E03",
+      "category": "exploration",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "e9d5b6d2-d8ab-30db-81e2-f73bd2617dfe",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 57848,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:4596268861ae1112847194760e0472f23be86a75362b6ed672be44657f29bc4e",
+          "documentId": "20260803_eb8692a5",
+          "versionId": "1622f7871cc373a2451bad6f1eae83c44898f401950474fe3d25cd8895cb6fbd",
+          "chunk": 2,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:71b3e267809cb7db95fd76d0582234522149dde4553b1acc7c3ed09c2c3235b8",
+          "documentId": "20260803_eb8692a5",
+          "versionId": "1622f7871cc373a2451bad6f1eae83c44898f401950474fe3d25cd8895cb6fbd",
+          "chunk": 0,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 2,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_list_sections",
+        "knowledge_read"
+      ],
+      "knowledgeToolCalls": 3,
+      "coding": [
+        {
+          "taskId": "analysis-coding-1a665dedc0fe954907d3975a12f93b44ea3526ae980d7636843c0ed745fa3d9c",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 3,
+            "modelTokens": 35387,
+            "toolCalls": 4,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 10924,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "E04",
+      "category": "exploration",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "a2c44ae7-d67b-30e8-93ec-537729a8f1b7",
+      "status": "SUCCEEDED",
+      "runtimeStatus": "SUCCEEDED",
+      "durationMs": 168151,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:163a4f5b4c07d5b738b41e4428a54fac687da3a8851e351afbd38e383f13405d",
+          "documentId": "20260804_ea426559",
+          "versionId": "0eeb6f35064842e89a786fe1d3e71f826add1652e6db5ab3fc2173822aa743a3",
+          "chunk": 0,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:21d01f9f122158bb63f1a7223ea11039908ca3c0d58ff2cc4d6f090eaf533c87",
+          "documentId": "20260804_ea426559",
+          "versionId": "0eeb6f35064842e89a786fe1d3e71f826add1652e6db5ab3fc2173822aa743a3",
+          "chunk": 3,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:25400c1ffb32e137cf7743111244fee9be242d7ce57f49ea525480ce05fc5ff8",
+          "documentId": "20260804_ea426559",
+          "versionId": "0eeb6f35064842e89a786fe1d3e71f826add1652e6db5ab3fc2173822aa743a3",
+          "chunk": 2,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:3b838dc4243fb6a69ebb8b4aa89cf7fc7e928a6a9c69a13f4fcc30b52031fed6",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 9,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:510f2a92318efa72735aba0d7c223c886ac0dc4a76d70f52442f3eba3db601fa",
+          "documentId": "20260804_ea426559",
+          "versionId": "0eeb6f35064842e89a786fe1d3e71f826add1652e6db5ab3fc2173822aa743a3",
+          "chunk": 4,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:5f4ebe9f07e260fc2f05c2ca3349ebcd1b6758471ebc3c1ce899cdcf89cbd1ff",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 18,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:64da0d2dbc61199acb21ebc81604b42f4842e17bc9aba682c7ad222459b392d6",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 10,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:7727d59fc9034efd6c4141378bc4b39cb60cce4aed0c42f3b6a671608bf35178",
+          "documentId": "20260804_ea426559",
+          "versionId": "0eeb6f35064842e89a786fe1d3e71f826add1652e6db5ab3fc2173822aa743a3",
+          "chunk": 5,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:a2a0f597ec71152b03e3a775d4b16e70794c3cdfa0bf7599e922cb485e8441f2",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 2,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:a7d95c66c9f81a76d0e4f8c482b0a01bf52aedbcb919f900fc51d64fb91081aa",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 0,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:ac0db9bc311d256df40e916b0e8f25c428eb48a35fa2d1b52ce1c6c535a2dc44",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 8,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:ff1f1f98c7a84d71cdffdeb6b4614022ff8e1773a108880558f382048bce158b",
+          "documentId": "20260804_c4e64d5b",
+          "versionId": "78cf6a1d3fb133690d153f45719983b9e95b308d76b9a35dc8c23ba8a0560c8c",
+          "chunk": 17,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 12,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_search",
+        "knowledge_list_sections",
+        "knowledge_list_sections",
+        "knowledge_read",
+        "knowledge_read",
+        "knowledge_read",
+        "knowledge_read"
+      ],
+      "knowledgeToolCalls": 8,
+      "coding": [
+        {
+          "taskId": "analysis-coding-a782818df5c722cb3515aed095768f9303b6f32ec9df800a947611d1b87c3bf0",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 6,
+            "modelTokens": 139790,
+            "toolCalls": 10,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 58005,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    },
+    {
+      "id": "E05",
+      "category": "exploration",
+      "model": "qwen3.7-plus",
+      "syntheticSources": false,
+      "answerMaxChars": 600,
+      "taskId": "0f6cdd17-4c8e-32e9-ba6a-05cd7514227a",
+      "status": "PARTIAL",
+      "runtimeStatus": "PARTIAL",
+      "durationMs": 95336,
+      "citations": [
+        {
+          "ref": "runtime-evidence:knowledge:0106e53d276d599d30789647f08e40b0e6d0ff0350f36099ce513159bc8c27ec",
+          "documentId": "20260724_06b508d7",
+          "versionId": "87d0f7ff53de108ac68a10b375b859de8e309d1753f6b17d6e57bdba79c0c41a",
+          "chunk": 0,
+          "hasOriginalText": true
+        },
+        {
+          "ref": "runtime-evidence:knowledge:126a0ed022341cf17201d1c2d8698b75a3d2c3c197e665ea3f30546a6d4db277",
+          "documentId": "20260724_e911cdb3",
+          "versionId": "036c1362fd3eb5f6164d77aa736568c7eaf2ec13bec9fb609545eaab4168c13f",
+          "chunk": 0,
+          "hasOriginalText": true
+        }
+      ],
+      "resolvedCitationCount": 2,
+      "knowledgeTools": [
+        "knowledge_search",
+        "knowledge_list_sections",
+        "knowledge_list_sections",
+        "knowledge_read",
+        "knowledge_read"
+      ],
+      "knowledgeToolCalls": 5,
+      "coding": [
+        {
+          "taskId": "analysis-coding-98958e02f7ed4dcfd6d20c6eddaff1834e4f1d3f3c90b4a2c63033fce5cbcb4a",
+          "status": "COMPLETED",
+          "usage": {
+            "modelCalls": 5,
+            "modelTokens": 66371,
+            "toolCalls": 7,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 14513,
+            "costAmount": "0"
+          }
+        }
+      ],
+      "semanticCorrectness": "REQUIRES_SOURCE_REVIEW"
+    }
+  ],
+  "executed": 50,
+  "completedOrPartialTaskCount": 49,
+  "statusCounts": {
+    "PARTIAL": 7,
+    "SUCCEEDED": 42,
+    "VERIFICATION_ERROR": 1
+  },
+  "measurementKind": "EXECUTION_AND_REFERENCE_RESOLUTION_ONLY",
+  "p95Ms": 168151,
+  "directQuestionP95Ms": 168961,
+  "timingScope": "PARENT_TASK_SUBMISSION_THROUGH_TERMINAL_POLL_INCLUDES_QUEUE_AND_POLL_OVERHEAD",
+  "citationCorrectness": "NOT_AUTOMATICALLY_CERTIFIED",
+  "factualCitationCoverage": "NOT_AUTOMATICALLY_CERTIFIED"
+}

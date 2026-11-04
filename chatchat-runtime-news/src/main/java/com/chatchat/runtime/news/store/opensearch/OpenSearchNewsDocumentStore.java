@@ -148,7 +148,8 @@ public class OpenSearchNewsDocumentStore implements NewsDocumentStore {
     public List<NewsDocument> search(NewsSearchQuery query) throws Exception {
         try (var budgetScope = queryOptimizer.openScope()) {
             int requested = Math.max(1, Math.min(query.size(), 50));
-            String lexicalQuery = queryOptimizer.text(NewsQueryDateParser.lexicalText(query.query()), 7);
+            String originalQuery=NewsQueryDateParser.lexicalText(query.query());
+            String lexicalQuery = query.governedRead()?originalQuery:queryOptimizer.text(originalQuery, 7);
             boolean semantic = !lexicalQuery.isBlank() && embeddingClient.enabled();
             int lexicalCandidateLimit = Math.max(24, requested * 5);
             int candidateLimit = Math.min(200, semantic
@@ -177,7 +178,7 @@ public class OpenSearchNewsDocumentStore implements NewsDocumentStore {
             String targets = String.join(",", indexNaming.readableIndices());
             List<SearchHit> lexical;
             try {
-                lexical = hits(searchRequest(targets, root));
+                lexical = hits(searchRequest(targets, root,query.governedRead()));
             } catch (ResponseException ex) {
                 if (ex.getResponse() != null && ex.getResponse().getStatusLine().getStatusCode() == 404) return List.of();
                 throw ex;
@@ -199,7 +200,7 @@ public class OpenSearchNewsDocumentStore implements NewsDocumentStore {
                 ArrayNode vectorFilters = filter.putObject("bool").putArray("filter");
                 appendFilters(vectorFilters, query);
                 if (!vectorFilters.isEmpty()) field.set("filter", filter);
-                vector = hits(searchRequest(vectorTargets, vectorRoot));
+                vector = hits(searchRequest(vectorTargets, vectorRoot,query.governedRead()));
             } catch (Exception ex) {
             if (ex instanceof QueryOptimizationException diagnosed) throw diagnosed;
                 // Older daily indices may not have a vector mapping; lexical recall must remain available.
@@ -228,16 +229,33 @@ public class OpenSearchNewsDocumentStore implements NewsDocumentStore {
     }
 
     private JsonNode searchRequest(String targets, ObjectNode body) throws Exception {
+        return searchRequest(targets,body,false);
+    }
+    private JsonNode searchRequest(String targets,ObjectNode body,boolean callerOwned) throws Exception {
         Request request = new Request("POST", "/" + targets + "/_search");
         request.addParameter("ignore_unavailable", "true");
         request.addParameter("allow_no_indices", "true");
         request.setJsonEntity(objectMapper.writeValueAsString(body));
         @SuppressWarnings("unchecked") Map<String,Object> queryBody = objectMapper.convertValue(body, Map.class);
         return objectMapper.valueToTree(NewsBudgetedOpenSearchRequests.search(queryOptimizer, client, objectMapper,
-            "/" + targets + "/_search?ignore_unavailable=true&allow_no_indices=true", queryBody));
+            "/" + targets + "/_search?ignore_unavailable=true&allow_no_indices=true", queryBody,
+            callerOwned?SearchQueryOptimizer.Mode.DSL:SearchQueryOptimizer.Mode.TEXT));
     }
 
     private void appendFilters(ArrayNode filters, NewsSearchQuery query) {
+        if(query.industry()!=null&&!query.industry().isBlank()) {
+            var industry=filters.addObject().putObject("multi_match");industry.put("query",query.industry()).put("operator","and");
+            industry.putArray("fields").add("title").add("summary").add("content").add("tags").add("categories");
+        }
+        if(query.governedRead())
+            filters.addObject().putObject("bool").putArray("must_not").addObject().putObject("term").put("metadata.legalRisk",true);
+        if(query.securityCode()!=null&&!query.securityCode().isBlank()) {
+            if(!query.securityCode().matches("[A-Za-z0-9.:-]{1,24}"))throw new IllegalArgumentException("Invalid security code");
+            var security=filters.addObject().putObject("bool");security.put("minimum_should_match",1);
+            var matches=security.putArray("should");
+            matches.addObject().putObject("term").put("metadata.securityCode.keyword",query.securityCode());
+            matches.addObject().putObject("match_phrase").put("metadata.stockList",query.securityCode());
+        }
         if (query.sourceIds() != null && !query.sourceIds().isEmpty()) {
             filters.addObject().putObject("terms").set("sourceId", objectMapper.valueToTree(query.sourceIds()));
         }

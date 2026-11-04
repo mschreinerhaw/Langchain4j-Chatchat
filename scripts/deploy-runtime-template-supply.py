@@ -53,6 +53,9 @@ def replace_entries(body, replacements, removals=(), allowed_new_prefixes=()):
         assert set(removals).issubset(source.namelist())
         for entry in source.infolist():
             if entry.filename in removals: continue
+            if entry.filename in replacements:
+                entry = copy.copy(entry)
+                entry.date_time = time.localtime()[:6]
             target.writestr(entry, replacements.get(entry.filename, source.read(entry.filename)))
         for name in sorted(set(replacements)-set(source.namelist())):
             target.writestr(name,replacements[name])
@@ -181,7 +184,7 @@ def main():
                and name.endswith('.class') for name in removals)
     candidate = replace_entries(before, outer, removals, ('BOOT-INF/classes/static/',))
     (release / 'app.jar').write_bytes(candidate)
-    tag = 'runtime-os-api:template-supply-20261027-' + digest(candidate)[:12]
+    tag = manifest.get('imageTag') or 'runtime-os-api:template-supply-20261027-' + digest(candidate)[:12]
     baseline_tag = 'runtime-os-api:before-template-supply-' + original['Image'].split(':')[-1][:12]
     run('docker', 'tag', original['Image'], baseline_tag)
     assert run('docker', 'image', 'inspect', '--format', '{{.Id}}', baseline_tag) == original['Image']

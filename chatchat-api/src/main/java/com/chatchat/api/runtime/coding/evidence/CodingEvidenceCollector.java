@@ -100,10 +100,13 @@ public class CodingEvidenceCollector {
             Map.of("taskId",contract.taskId(),"operationId",operation,"executionHandle","runtime-workspace:"+operation,
                 "executorStopped",true,"sqlExecuted",false,"executionMode","TEXT_ONLY","pythonExecuted",false,
                 "inputSnapshotRef",contract.inputSnapshotRef(),"reportSha256",sha(encoded)),List.of(inputId),contract.taskId(),occurredAt);
+        var resultParents=new ArrayList<String>(List.of(inputId,receiptId));
+        for(Object ref:refs)if(ref instanceof String text && text.startsWith("runtime-evidence:knowledge:"))
+            resultParents.add(id(text));
         add(records,lineages,scope,resultId,"CODING_STRUCTURED_DATASET",
             Map.of("taskId",contract.taskId(),"operationId",operation,"delivery","INLINE_ANALYSIS_REPORT",
                 "rows",rows,"rowCount",1,"size",encoded.length,"artifactSha256",sha(encoded),"schemaJson","{}"),
-            List.of(inputId,receiptId),contract.taskId(),occurredAt);
+            List.copyOf(resultParents),contract.taskId(),occurredAt);
         var checks=new LinkedHashMap<String,Object>(validation.checks());checks.put("sourceIntegrityVerified",true);
         checks.put("authorizedReferencesVerified",true);checks.put("pythonExecuted",false);
         add(records,lineages,scope,validationId,"CODING_COMPUTATION_VALIDATION",

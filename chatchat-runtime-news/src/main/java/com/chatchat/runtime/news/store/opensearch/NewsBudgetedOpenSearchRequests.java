@@ -18,7 +18,11 @@ public final class NewsBudgetedOpenSearchRequests {
     private NewsBudgetedOpenSearchRequests() { }
     public static Map<String,Object> search(SearchQueryOptimizer optimizer, RestClient client, ObjectMapper mapper,
                                             String endpoint, Map<String,Object> body) throws Exception {
-        return optimizer.search(body, SearchQueryOptimizer.Mode.TEXT, (prepared, timeout) ->
+        return search(optimizer,client,mapper,endpoint,body,SearchQueryOptimizer.Mode.TEXT);
+    }
+    public static Map<String,Object> search(SearchQueryOptimizer optimizer,RestClient client,ObjectMapper mapper,
+        String endpoint,Map<String,Object> body,SearchQueryOptimizer.Mode mode) throws Exception {
+        return optimizer.search(body, mode, (prepared, timeout) ->
             request(optimizer, client, mapper, endpoint, mapper.writeValueAsString(prepared), "application/json", timeout));
     }
     public static Map<String,Object> request(SearchQueryOptimizer optimizer, RestClient client, ObjectMapper mapper,

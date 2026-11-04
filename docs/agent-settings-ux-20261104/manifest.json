@@ -1,0 +1,19 @@
+{
+  "imageTag": "runtime-os-api:agent-settings-ux-20261104-r1",
+  "baselineSha256": "e413d7d093c3fa96918f58b0a96372e309fa1e3b0772bd3d7c4649b603e6cbe3",
+  "classes": {},
+  "apiClasses": {},
+  "webAssets": {
+    "BOOT-INF/classes/static/assets/AgentWorkshopView-settings-6d8e1c622baa.js": "6d8e1c622baa76d0699dfdc77a3f1f37988855659516463e29138f3684ef290a",
+    "BOOT-INF/classes/static/assets/index-KwmQfLwa.js": "2a1f76c4b4271084d578122673f063afd62fe02f9004157b238d86f0bff0c635",
+    "BOOT-INF/classes/static/assets/skill-hub-Xz_7eIPd.css": "1f11f7a93f366292dd571fd26722ed0bc7a760b5f0d371459946b19bd59971c9"
+  },
+  "sourceCommit": "9eb2a9041a827a137982185cfebf41f7d2d6d518",
+  "sourceDiffSha256": "d09610bb1a3db640ab122c9c8d8cd96c88f673bd56694bd4c79556d30bc62695",
+  "sourceFiles": {
+    "chatchat-api/web-app/src/styles/pages/skill-hub.css": "29597e69169cb97ae89492a72126341c84fd7e589965c0bea60f76b711637d86",
+    "chatchat-api/web-app/src/views/AgentWorkshopView.vue": "2bbac6808471cd8415aaeee31d36380dad650734631e0c7dd510f884d3bcf2f2",
+    "scripts/prepare-agent-settings-ux.py": "81f829f4359b84bec95e9a3e435d3eab64b556d4f497bbefc281ac5986dc16a6"
+  },
+  "baselineWorkshopBundleSha256": "e579ec48e69a1ea354a0b3fe50942bab5d7ba76c0f8d4e63c393d4a33da56558"
+}

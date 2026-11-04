@@ -89,6 +89,9 @@
           @click="reportMode = reportMode === 'visual' ? 'off' : 'visual'"
           ><FileText :size="14" stroke-width="2" />图文报告</button
         >
+        <label v-if="!compact && agentRequired" class="knowledge-source-note" title="仅对本次提交启用 Agent 已获授权的数据资源，不增加权限">
+          <input v-model="resourceExplorationApproved" type="checkbox" /> 本次明确使用已授权资料
+        </label>
         <details v-if="!compact && reportMode === 'visual'" class="report-layout-settings">
           <summary>报告排版</summary>
           <div>

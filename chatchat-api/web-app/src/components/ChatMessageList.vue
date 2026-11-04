@@ -1,5 +1,6 @@
 <template>
   <section class="message-panel" aria-live="polite">
+    <KnowledgeCitationDialog v-if="knowledgeCitation" :citation-id="knowledgeCitation" @close="knowledgeCitation = ''" />
     <article
       v-for="message in messages"
       :key="message.id"
@@ -103,6 +104,7 @@
         <EnterpriseUiArtifactRenderer
           v-if="message.role === 'assistant' && !message.streaming && messageUiArtifact(message)"
           :artifact="messageUiArtifact(message)"
+          @click="handleMarkdownClick($event, message)"
           @drill-down="handleVisualizationDrillDown(message, $event)"
           :preferences="visualizationPreferences(message)"
           @preference-change="handleVisualizationPreference(message, $event)"

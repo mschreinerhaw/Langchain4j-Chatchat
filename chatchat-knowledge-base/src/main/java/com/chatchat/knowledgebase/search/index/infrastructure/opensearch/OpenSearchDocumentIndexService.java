@@ -248,6 +248,33 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
         }
     }
 
+    /** Reads configured existing corpora with mandatory pre-recall scope. Does not create or write any index. */
+    public synchronized List<LuceneSearchHit> searchKnowledge(String text,int limit,SearchPermissionContext permissions,List<String> allowedIds) {
+        if(allowedIds==null || allowedIds.isEmpty())return List.of();
+        if(permissions==null || permissions.agentId()==null || permissions.agentId().isBlank())throw new SecurityException("Knowledge identity required");
+        if(text==null||text.isBlank()||text.length()>2000||limit<1||limit>30||allowedIds.size()>4096)
+            throw new IllegalArgumentException("Bounded knowledge search required");
+        var names=new LinkedHashSet<String>();names.add(indexName());
+        if(config().getKnowledgeIndexNames()!=null)names.addAll(config().getKnowledgeIndexNames());
+        if(names.size()>8 || names.stream().anyMatch(name->name==null||!name.matches("[a-z0-9][a-z0-9_-]{0,199}")))
+            throw new IllegalStateException("Invalid administrator knowledge index configuration");
+        var hits=parseHits(request("POST","/"+String.join(",",names)+"/_search?ignore_unavailable=true",
+            knowledgeSearchBody(text,limit,permissions,allowedIds),false));
+        log.info("knowledge_index_recall indexes={} authorizedDocuments={} candidates={}",names,allowedIds.size(),hits.size());
+        return hits;
+    }
+    Map<String,Object> knowledgeSearchBody(String text,int limit,SearchPermissionContext permissions,List<String> allowedIds) {
+        if(permissions==null||permissions.tenantId()==null||permissions.tenantId().isBlank()||allowedIds==null||allowedIds.isEmpty())
+            throw new SecurityException("Explicit knowledge tenant and document scope required");
+        List<Object> filters=new ArrayList<>();
+        filters.add(Map.of("term",Map.of(TENANT_ID,permissions.tenantId())));
+        filters.add(Map.of("terms",Map.of(FILE_ID,List.copyOf(allowedIds))));
+        return Map.of("size",limit,"_source",resultSourceFilter(),"query",Map.of("bool",Map.of(
+            // Existing source indices may use IK while the active index uses another analyzer.
+            // Respect each mapped search_analyzer; forcing standard loses Chinese product names.
+            "must",List.of(Map.of("multi_match",Map.of("query",text,"fields",TEXT_SEARCH_FIELDS))),"filter",filters)));
+    }
+
     private List<LuceneSearchHit> compactLexicalSearch(String text, int limit,
         SearchPermissionContext permissions, List<String> allowedDocumentIds) {
         return parseHits(request("POST", "/" + indexName() + "/_search", compactSearchBody(text,limit,permissions,allowedDocumentIds), false));

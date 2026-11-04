@@ -1,0 +1,29 @@
+{
+  "preview": false,
+  "checks": [
+    {
+      "width": 1440,
+      "collapsedHeight": 35,
+      "fontSize": "13px",
+      "keyboardExpandAndCollapse": true,
+      "formValuesPreserved": true
+    },
+    {
+      "width": 768,
+      "collapsedHeight": 35,
+      "fontSize": "13px",
+      "keyboardExpandAndCollapse": true,
+      "formValuesPreserved": true
+    },
+    {
+      "width": 390,
+      "collapsedHeight": 35,
+      "fontSize": "13px",
+      "keyboardExpandAndCollapse": true,
+      "formValuesPreserved": true
+    }
+  ],
+  "errors": [],
+  "configWrites": [],
+  "status": "PASSED"
+}

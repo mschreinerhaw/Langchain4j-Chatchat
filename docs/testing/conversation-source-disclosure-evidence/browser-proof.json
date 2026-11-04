@@ -1,0 +1,37 @@
+{
+  "at": "2026-11-04T23:00:27.445Z",
+  "restricted": [
+    {
+      "id": "1793799659687-d743c7f92e9be8",
+      "sidebarError": "",
+      "detailError": "",
+      "restricted": 1
+    },
+    {
+      "id": "1793798652777-fb1e0c00abca5",
+      "sidebarError": "",
+      "detailError": "",
+      "restricted": 1
+    },
+    {
+      "id": "1793798631663-a9723ed9604878",
+      "sidebarError": "",
+      "detailError": "",
+      "restricted": 1
+    }
+  ],
+  "healthy": {
+    "sidebarError": "",
+    "detailError": "",
+    "restricted": 0
+  },
+  "images": [
+    {
+      "loaded": true,
+      "width": 1335,
+      "height": 700
+    }
+  ],
+  "englishErrorVisible": 0,
+  "pageErrors": []
+}

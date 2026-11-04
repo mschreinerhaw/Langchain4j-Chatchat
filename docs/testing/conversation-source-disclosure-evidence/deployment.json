@@ -1,0 +1,30 @@
+{
+  "status": "DEPLOYED",
+  "sourceCommit": "a59a93e883aca5408fe358d8c9484544e4ee9f8b",
+  "image": "runtime-os-api:cline-internet-a59a93e883ac",
+  "sha256": "8f9fe336799932a1b12600f406f5c36aac5dec5efdd1318d1149445d317a3750",
+  "backup": "/opt/chatchat-releases/cline-report-skills-history-r1/backup",
+  "retired": {
+    "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-studio-1793832995",
+    "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-studio-1793832995"
+  },
+  "databaseMigrationSha256": null,
+  "catalogReadiness": {
+    "status": "API_MCP_CATALOG_READY",
+    "registryState": "HEALTHY",
+    "registeredToolCount": 39,
+    "requiredTools": [
+      "enterprise_metadata_search",
+      "sql_schema_context_query"
+    ],
+    "capturedAt": "2026-11-04T22:57:22.955475+00:00"
+  },
+  "preservedExpiredReadOnlyTaskIds": [],
+  "unrelatedContainersUnchanged": true,
+  "conversationContentUnchanged": true,
+  "messageIndexCountUnchanged": true,
+  "images": {
+    "runtime-os-app-stage-api-1": "runtime-os-api:cline-internet-a59a93e883ac"
+  },
+  "channelCounts": "SQL_STUDIO|63\nPYTHON_STUDIO|10\nAGENT_API|203\nPLATFORM_UI|1152"
+}

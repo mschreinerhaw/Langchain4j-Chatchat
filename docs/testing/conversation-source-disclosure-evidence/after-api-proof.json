@@ -1,0 +1,70 @@
+{
+  "phase": "after",
+  "at": "2026-11-04T22:57:32.580Z",
+  "conversations": [
+    {
+      "id": "1793799659687-d743c7f92e9be8",
+      "status": 200,
+      "cache": "no-store",
+      "messages": 3,
+      "restricted": 1,
+      "reasons": [
+        "SOURCE_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "1793798652777-fb1e0c00abca5",
+      "status": 200,
+      "cache": "no-store",
+      "messages": 2,
+      "restricted": 1,
+      "reasons": [
+        "SOURCE_UNAVAILABLE"
+      ]
+    },
+    {
+      "id": "1793798631663-a9723ed9604878",
+      "status": 200,
+      "cache": "no-store",
+      "messages": 2,
+      "restricted": 1,
+      "reasons": [
+        "SOURCE_CHANGED"
+      ]
+    },
+    {
+      "id": "1793817968897-892ecda966d7a",
+      "status": 200,
+      "cache": "no-store",
+      "messages": 3,
+      "restricted": 0,
+      "reasons": []
+    }
+  ],
+  "citations": [
+    {
+      "id": "82b416a0087d3134d5a5a6f8ff99a1f92c5ea45372ccfe2c0e10771d51cbcd46",
+      "status": 403
+    },
+    {
+      "id": "db4ae251bc019b3db3c42179a41f93062833423ae764ca77288a92f344445e46",
+      "status": 403
+    },
+    {
+      "id": "36abd79c37aa941eaaf20100cf52081b66d5b5a86988d09f002f330529bbc6e7",
+      "status": 403
+    },
+    {
+      "id": "3e558c1317f66230a2b973c34ef4e0fddd5cc4eb6bf6f382201bc21f817801b9",
+      "status": 403
+    },
+    {
+      "id": "687d823190a2be85be4272bdc43b462c988e22be181e421dab3a92aaca5d53d7",
+      "status": 403
+    }
+  ],
+  "sidebar": {
+    "status": 200,
+    "count": 30
+  }
+}

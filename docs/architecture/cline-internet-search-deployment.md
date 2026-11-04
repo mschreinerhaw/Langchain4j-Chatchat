@@ -4,16 +4,16 @@
 
 ## 发布产物
 
-已部署 `/opt/chatchat-releases/cline-report-skills-internet-r12`，来源提交 `82f404b9e7ac7ce701041084cf63d68fed407f8e`。API/MCP/News 使用完整 Maven Spring Boot JAR；Worker 复用 R11 的完整源码、dist、Skills 与测试归档。没有对运行容器注入替换 class 或只上传散落静态文件。
+当前部署 `/opt/chatchat-releases/cline-report-skills-history-r1`，来源提交 `a59a93e883aca5408fe358d8c9484544e4ee9f8b`，增加历史回答逐条来源隔离。此前联网能力 R12 基线位于 `/opt/chatchat-releases/cline-report-skills-internet-r12`，来源提交 `82f404b9e7ac7ce701041084cf63d68fed407f8e`。API/MCP/News 使用完整 Maven Spring Boot JAR；Worker 复用 R11 的完整源码、dist、Skills 与测试归档。没有对运行容器注入替换 class 或只上传散落静态文件。
 
 | 服务 | 镜像 / 内容 |
 |---|---|
-| API | `runtime-os-api:cline-internet-82f404b9e7ac`，SHA256 `15792b722853f9625f33ad13ebd102fb89b79ce8e00b95a5a2a364b7a277a2fc` |
+| API | `runtime-os-api:cline-internet-a59a93e883ac`，SHA256 `8f9fe336799932a1b12600f406f5c36aac5dec5efdd1318d1149445d317a3750` |
 | MCP | `runtime-os-mcp:cline-internet-ef48a119f1d7`，SHA256 `99630cf5eb2bc0ab3ba2da441ba96473f4b94022fc0d216316206ab124710d2d` |
 | News | `runtime-os-news:cline-internet-ef48a119f1d7`，SHA256 `45c77705c098fb12386d566c224e34e6030d5d22b2c44bbec53eb53732c8fce7` |
 | Worker | `runtime-os-coding-agent:agent-skills-internet-1cda61e82e80`，镜像 ID `sha256:533242dc003497c2e387e2a50a23daad0eb96a6ec00f8a0bd46a7bfb5e8ed56e` |
 
-Worker 归档 SHA256：`9a5dd7fe8e4418b4c568d179f1627a09a004926f50607c053473466b186f90c7`。原生 SDK 版本保持 `0.0.93`。最终实际容器信息以[脱敏部署记录](../testing/cline-internet-search-evidence/deployment.json)为准。
+Worker 归档 SHA256：`9a5dd7fe8e4418b4c568d179f1627a09a004926f50607c053473466b186f90c7`。原生 SDK 版本保持 `0.0.93`。当前容器信息见[历史修复部署回执](../testing/conversation-source-disclosure-evidence/deployment.json)，联网基线记录见[R12 回执](../testing/cline-internet-search-evidence/deployment.json)。
 
 传输 JAR 时使用字节差量节省传输量；服务端重建的是与本地 SHA256 完全一致的完整 JAR，再构建镜像。差量传输不等于运行时热补丁。
 
@@ -39,12 +39,12 @@ R1/R2 在替换 News 前停写，再保存 H2 与配置，避免复制写入中�
 
 Worker 的兼容回退目标是 R9 Worker：`runtime-os-coding-agent:agent-skills-internet-8797cec5d60e`，镜像 ID `sha256:313d602f2e38473ab5f2a71fedca24cb95535f1264ae3726d2104d8d08b7e44f`。R11 的 `deployment.json.retired` 记录其保留容器 `runtime-os-app-stage-coding-agent-1-before-studio-1793816546`；回退前核对实际镜像。API/MCP/News 不随 Worker 回退。
 
-API 回退依据 R12 的 `deployment.json.retired`，对应 R11 所用 `runtime-os-api:cline-internet-7ca34b65a0aa` 及其节点代理。该版本能读取新的联网合同，但仍有本轮已修复的动态引用发布误判；回退后可能再次拒绝这类报告，不能视作功能等价回退。保留新数据与历史，优先关闭联网开关处理紧急停用。
+当前 API 回退依据 history-r1 的 `deployment.json.retired`，恢复 R12 的 `runtime-os-api:cline-internet-82f404b9e7ac` 及其节点代理；回退会恢复来源失效导致整个历史会话 403 的旧行为。若进一步回退 R12，则依据 R12 的退役记录恢复 R11 的 `runtime-os-api:cline-internet-7ca34b65a0aa`；该版本仍有动态引用发布误判。两种回退均不能视作功能等价修复。保留新数据与历史，优先关闭联网开关处理紧急停用。
 
 回退步骤：
 
 1. 关闭模型联网开关，停止接收本次维护范围内的新任务；使用原部署脚本同样的空闲检查，确认 Worker 无活动会话、Python 无活动容器，已开始操作已确认停止或按既有流程保留明确的未知状态。
-2. 保存当前 compose/容器配置与镜像身份。仅回退所选服务。Worker 回退使用 R11 的退役记录，API 回退使用 R12 的退役记录，不要混用。将当前容器保留到新的备份名，将对应旧容器恢复为标准服务名并启动；同步 compose 的 image 字段，防止下次 compose 自动切回。
+2. 保存当前 compose/容器配置与镜像身份。仅回退所选服务。Worker 回退使用 R11 的退役记录，当前 API 回退使用 history-r1 的退役记录，不要混用。将当前容器保留到新的备份名，将对应旧容器恢复为标准服务名并启动；同步 compose 的 image 字段，防止下次 compose 自动切回。
 3. 执行 `restrict-coding-worker.sh` 依据实际容器地址恢复出口隔离，校验 internal 网络、IPv6 关闭、非 root、capabilities 和专用回调连通性。
 4. 校验 Worker `/readyz`、API/MCP 工具目录、已有报告及历史图表。经明确重新授权后，才对新任务打开联网。
 

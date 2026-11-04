@@ -394,14 +394,20 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
         boolean sqlMetadata=contract.metadataRefs().contains(com.chatchat.api.datascience.sql.SqlWorkspaceMetadataTools.PROFILE);
         Object descriptor=contract.runtimeContext().get("inputFiles");
         Object lifecycle=contract.runtimeContext().get("codingLifecycle");
-        if(descriptor==null && !fast && !workspaceFast && !sqlMetadata && lifecycle==null)return;
+        boolean internet=contract.authorization().allowedTools().stream().anyMatch(com.chatchat.api.runtime.coding.knowledge.CodingInternetAccess.TOOLS::contains);
+        if(internet&&(!CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion())
+                ||!contract.metadataRefs().contains("runtime-coding:internet-search:v1")
+                ||!(contract.runtimeContext().get("internetSearch") instanceof Map<?,?> profile)
+                ||!"runtime_os.internet.v1".equals(profile.get("schemaVersion"))))
+            throw new SecurityException("Internet tools require a governed server-only capability");
+        if(descriptor==null && !fast && !workspaceFast && !sqlMetadata && lifecycle==null && !internet)return;
         JsonNode capabilities=request("/v1/input-capabilities",Map.of());
         if(sqlMetadata){
             boolean supported=false;
             for(var profile:capabilities.path("workspaceProfiles"))if(com.chatchat.api.datascience.sql.SqlWorkspaceMetadataTools.PROFILE.equals(profile.asText()))supported=true;
             if(!supported)throw new IllegalStateException("Cline worker has not negotiated SQL metadata tools; update worker before dispatch");
         }
-        for(String required:List.of("input_read","report_submit","code_read","knowledge_search","knowledge_get_document","knowledge_read","knowledge_list_sections","knowledge_related","news_search","news_get_article","news_related_events","market_search","market_get_history","market_get_indicators","market_get_snapshot"))if(contract.authorization().allowedTools().contains(required)) {
+        for(String required:List.of("input_read","report_submit","code_read","knowledge_search","knowledge_get_document","knowledge_read","knowledge_list_sections","knowledge_related","news_search","news_get_article","news_related_events","market_search","market_get_history","market_get_indicators","market_get_snapshot","web_search","web_fetch"))if(contract.authorization().allowedTools().contains(required)) {
             boolean supported=false;
             for(var tool:capabilities.path("analysisTools"))if(required.equals(tool.asText()))supported=true;
             if(!supported)throw new IllegalStateException("Cline worker has not negotiated "+required+"; update the worker before dispatch");

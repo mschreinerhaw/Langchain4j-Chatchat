@@ -43,6 +43,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class ClineCodingAdapterDispatchTest {
+    @Test void governedInternetPassesActualDispatchAndRecoveryWithoutExpandingExecutionAuthority() throws Exception {
+        runScenario(true,false,true);
+    }
     @Test void codeReadRequiresWorkerNegotiationWhileLegacyTasksRemainUnchanged() throws Exception {
         var json = new ObjectMapper().findAndRegisterModules();
         var base = contract(new KernelDataScope("tenant", "owner", null, null, "run", null, Map.of()));
@@ -85,6 +88,9 @@ class ClineCodingAdapterDispatchTest {
         runScenario(true,true);
     }
     private void runScenario(boolean fileInput,boolean skillReader) throws Exception {
+        runScenario(fileInput,skillReader,false);
+    }
+    private void runScenario(boolean fileInput,boolean skillReader,boolean internet) throws Exception {
         var source = new DriverManagerDataSource("jdbc:h2:mem:adapter-dispatch-" + UUID.randomUUID()
             + ";DB_CLOSE_DELAY=-1", "sa", "");
         new ResourceDatabasePopulator(new ClassPathResource("runtime-evidence-schema.sql")).execute(source);
@@ -101,7 +107,8 @@ class ClineCodingAdapterDispatchTest {
         http.createContext("/v1/input-capabilities",exchange->{
             exchange.getRequestBody().readAllBytes();
             byte[] reply=("{\"schemaVersion\":\"runtime_os.coding.input.v1\",\"formats\":"
-                +(fileSupport.get()?"[\"PARQUET\",\"CSV\"]":"[]")+"}").getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                +(fileSupport.get()?"[\"PARQUET\",\"CSV\"]":"[]")
+                +",\"analysisTools\":"+(internet&&fileSupport.get()?"[\"web_search\",\"web_fetch\"]":"[]")+"}").getBytes(java.nio.charset.StandardCharsets.UTF_8);
             exchange.sendResponseHeaders(200,reply.length);try(var out=exchange.getResponseBody()){out.write(reply);}exchange.close();
         });
         http.createContext("/v1/runs", exchange -> {
@@ -131,9 +138,14 @@ class ClineCodingAdapterDispatchTest {
             adapter.setLicenseEntitlements(license);
             var base=contract(scope);
             var contract=fileInput?new CodingTaskContract(CodingProtocol.ANALYSIS_VERSION,base.taskId(),scope,base.objective(),base.inputSnapshotRef(),
-                base.metadataRefs(),base.workspaceRef(),new CodingTaskContract.Authorization(base.authorization().decisionRef(),skillReader?List.of("skill_read"):List.of(),
+                internet?List.of("runtime-coding:internet-search:v1"):base.metadataRefs(),base.workspaceRef(),new CodingTaskContract.Authorization(base.authorization().decisionRef(),internet?List.of("web_search","web_fetch"):skillReader?List.of("skill_read"):List.of(),
                     List.of("c"+"a".repeat(63)),List.of(),List.of(),CodingTaskContract.NetworkPolicy.NONE,List.of(),List.of()),
                 base.budget(),base.environmentRef(),base.validationPlanRef(),base.outputContract(),
+                internet?Map.of("schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT","inputFiles",
+                    Map.of("schemaVersion","runtime_os.coding.input.v1","format","PARQUET","delivery","SHARED_DIRECTORY",
+                        "manifestFileId","c"+"a".repeat(63),"manifestSha256","a".repeat(64)),
+                    "knowledgeExploration",Map.of("schemaVersion","runtime_os.knowledge.v1","agentId","agent","resourceIds",List.of("internet_search"),"explicitlyRequested",true),
+                    "internetSearch",Map.of("schemaVersion","runtime_os.internet.v1","modelName","model","modelRevision",1L,"providerId","provider","providerRevision",1L,"agentId","agent","explicitlyRequested",true)):
                 Map.of("schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT","inputFiles",
                     Map.of("schemaVersion","runtime_os.coding.input.v1","format","PARQUET","delivery","SHARED_DIRECTORY",
                         "manifestFileId","c"+"a".repeat(63),"manifestSha256","a".repeat(64)))):base;

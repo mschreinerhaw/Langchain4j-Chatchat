@@ -258,16 +258,24 @@ public final class ClineModelCallbackController {
                 if(dataSupply!=null)dataSupply.snapshots(contract,null).stream()
                     .map(CodingInputSnapshotService.Snapshot::sourceDatasetRef)
                     .filter(ref->ref!=null&&!ref.equals(input.sourceDatasetRef())).forEach(authorized::add);
+                String referenceRepair=null;
                 if(com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeService.enabled(contract)) {
                     if(knowledge==null)throw new SecurityException("Knowledge validation unavailable");
                     authorized.addAll(knowledge.authorizedReferences(contract));
-                    knowledge.validateReport(contract,row);
+                    try {knowledge.validateReport(contract,row);}
+                    catch(com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeService.ReportReferenceException malformed) {
+                        // A repairable citation declaration must not hide the visual
+                        // validation receipt. Revoked/unavailable sources still throw.
+                        referenceRepair=malformed.getMessage();
+                    }
                 }
                 var cited=row.get("evidenceReferences");
-                boolean valid=cited instanceof List<?> refs && !refs.isEmpty()
+                boolean valid=referenceRepair==null && cited instanceof List<?> refs && !refs.isEmpty()
                     && refs.stream().allMatch(ref->ref instanceof String && authorized.contains(ref));
-                response.put("reportReferenceValidation",Map.of("valid",valid,
-                    "authorizedDatasetReferences",List.copyOf(authorized),"repairRequired",!valid));
+                var check=new java.util.LinkedHashMap<String,Object>();
+                check.put("valid",valid);check.put("authorizedDatasetReferences",List.copyOf(authorized));check.put("repairRequired",!valid);
+                if(referenceRepair!=null)check.put("repairGuidance",referenceRepair);
+                response.put("reportReferenceValidation",check);
             }
             return response;
         });

@@ -266,13 +266,19 @@ class ClineModelCallbackControllerTest {
                 when(collector.readResultPage(scope,"task",resultRef,0,2)).thenReturn(new DatasetHandle.Page(0,
                     List.of(Map.of("reportMarkdown","[source]("+knowledgeRef+")","evidenceReferences",List.of(knowledgeRef))),false));
                 assertThat(json.valueToTree(controller.readArtifact(body)).path("reportReferenceValidation").path("valid").asBoolean()).isTrue();
+                doThrow(new com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeService.ReportReferenceException("Missing inline citation"))
+                    .when(knowledge).validateReport(any(),any());
+                var repair=json.valueToTree(controller.readArtifact(body));
+                assertThat(repair.path("reportReferenceValidation").path("valid").asBoolean()).isFalse();
+                assertThat(repair.path("reportReferenceValidation").path("repairGuidance").asText()).isEqualTo("Missing inline citation");
+                assertThat(repair.path("visualReportValidation").path("layoutValidationStatus").asText()).isEqualTo("FAILED");
                 doThrow(new SecurityException("revoked")).when(knowledge).authorizedReferences(any());
                 assertThatThrownBy(()->controller.readArtifact(body)).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
             }
             body.put("fencingToken", lease.fencingToken() + 1);
             assertThatThrownBy(() -> controller.inputContext(body))
                 .isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
-            verify(inputs, times(knowledgeProfile?5:3)).requireAuthorized(any());
+            verify(inputs, times(knowledgeProfile?6:3)).requireAuthorized(any());
         } finally { timer.shutdownNow(); }
     }
 

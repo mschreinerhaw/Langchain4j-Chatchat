@@ -261,6 +261,14 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
                 throw new IllegalStateException("Context Coding report is empty");
             Object citations = rows.get(0).get("evidenceReferences");
             var finalReferences=new HashSet<String>(authorizedReferences);
+            // CodingAnalysisService supplies this list from the task's registered
+            // input revisions. A model-authored row cannot extend its own access.
+            if(receipt.get("authorizedDatasetReferences") instanceof List<?> delivered)
+                for(Object ref:delivered) {
+                    if(!(ref instanceof String text)||text.isBlank()||text.length()>2048)
+                        throw new SecurityException("Invalid Coding input authorization receipt");
+                    finalReferences.add(text);
+                }
             if(receipt.get("knowledgeCitations") instanceof List<?> entries)for(Object entry:entries)
                 if(entry instanceof Map<?,?> fields && fields.get("evidence_id") instanceof String ref)finalReferences.add(ref);
             if (!(citations instanceof List<?> refs) || refs.isEmpty() || !refs.stream().allMatch(finalReferences::contains)

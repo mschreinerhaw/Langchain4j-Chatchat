@@ -114,6 +114,7 @@ class ClineContextAnswerServiceTest {
     final ClineContextAnswerService service = new ClineContextAnswerService(coding, models, new ObjectMapper(), runs);
     final InteractionContext context = InteractionContext.builder().requestId("req").conversationId("session").build();
     List<Map<String,Object>> knowledgeCitationFixture=List.of();
+    List<String> calculationReferenceFixture=List.of();
     InteractionRequest request() { return InteractionRequest.builder().query("Design a generic table")
         .tenantId("tenant").userId("user").toolInput(Map.of("__agentRunId", "run")).build(); }
 
@@ -179,7 +180,7 @@ class ClineContextAnswerServiceTest {
             for (int i = 0; i < count; i++) rows.add(Map.of("reportMarkdown", report, "evidenceReferences", refs, "limitations", List.of()));
             sources.put("result", new Dataset("result", Map.of(), rows));
             return Map.of("resultAvailable", true, "datasetReference", "result", "status", "COMPLETED",
-                "knowledgeCitations",knowledgeCitationFixture);
+                "knowledgeCitations",knowledgeCitationFixture,"authorizedDatasetReferences",calculationReferenceFixture);
         });
     }
     @Test void codingOwnsDesignAndPublicationPreservesItsReportExactly() {
@@ -188,6 +189,20 @@ class ClineContextAnswerServiceTest {
         assertThat(response.getAnswer()).contains("CREATE TABLE example");
         assertThat(response.getMetadata()).containsEntry("javaAnalysisModelCalls", 0).containsEntry("currentBusinessDataAcquired", false);
         verifyNoInteractions(model);
+    }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans={true,false})
+    void publishesOnlyCalculationInputsRegisteredInTheTrustedCodingReceipt(boolean delivered) {
+        String allowed="coding-data:data-"+"a".repeat(64)+":"+"b".repeat(64);
+        String other="coding-data:data-"+"c".repeat(64)+":"+"d".repeat(64);
+        calculationReferenceFixture=List.of(allowed);
+        result("Computed from the delivered immutable file",List.of(delivered?allowed:other),1);
+        if(delivered)assertThat(service.answer(request(),context,skill,"").getAnswer()).contains("immutable file");
+        else {
+            assertThatThrownBy(()->service.answer(request(),context,skill,""))
+                .isInstanceOf(SecurityException.class).hasMessage("Context report cites unauthorized inputs");
+            verify(runs,never()).complete(anyString(),any());
+        }
     }
     @Test void liveKnowledgeReceiptSuppliesStructuredSourcesWithoutCopyingRawDocumentText() {
         String ref="runtime-evidence:knowledge:"+"a".repeat(64);

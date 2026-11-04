@@ -45,6 +45,14 @@
 
 22:03 最终容器读取确认 API、Worker、proxy 均运行，运行中的 Python Sandbox 数量为 0，见 [运行状态证据](../testing/cline-report-skills-evidence/runtime-status-r5.json)。其中 catalogReadiness 是部署时就绪记录，不是 22:03 重新检索的目录快照。超时复验的父任务已取消，子任务外部模型用量仍有未核对预留，详见验收记录；未改账本或强行标记执行结束。
 
+## 来源侧栏与底部操作优化（后续 UI 需求）
+
+2026-11-04 22:18 部署源码 `d29daf99842a2b8ff3bb3957d14892e33840a235` 至 `/opt/chatchat-releases/cline-report-skills-source-ui-r6`。API 镜像 `runtime-os-api:report-skills-d29daf99842a`，完整 JAR SHA-256 `d238eba7f6d82cd7ac158629a61ef0fca2c76dc17cce707748cc510608b0d739`，428,783,168 字节；前端生产构建及完整 Maven package 通过。29 项相关 UI/引用回归通过。
+
+来源侧栏采用灰色来源信息与文章链接，发布时间从标题分离，隐藏内部证据地址；引用通过既有授权弹窗打开。移除底部重复的网页/文档引用列表，来源入口与评价、导出 PDF 统一一行。22:18:44 生产浏览器从正常历史入口读取原有报告，确认来源链接打开原文、无底部重复引用、按钮同排、桌面和 390px 手机侧栏无横向溢出、无页面脚本错误，见 [浏览器证据](../testing/cline-report-skills-evidence/source-sidebar-ui.json)、[桌面截图](../testing/cline-report-skills-evidence/source-sidebar-desktop.png)及[底部操作](../testing/cline-report-skills-evidence/source-sidebar-footer.png)。
+
+发布保留 Worker，未迁移数据库；MCP HEALTHY、39 工具，历史内容/索引数量与无关容器保持一致。原 API/proxy 后缀 `-before-studio-1793801854`，私有备份位于该发布目录的 backup。回滚仅恢复对应 API/proxy 与配置，保持 Worker 和数据库数据；该 UI 验收不改变前述报告业务验收尚未全部通过的结论。
+
 ## 升级与回滚
 
 升级先固定上游 Skill 提交与所有文件哈希，复核许可证和完整目录，再通过既有 parser、冲突及按需读取测试。完整源码构建、离线 Worker 测试及真实验收通过后才能发布；不得运行未固定版本的远程安装脚本。

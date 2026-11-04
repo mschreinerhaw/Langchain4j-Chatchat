@@ -664,27 +664,29 @@
           </section>
           <section
             v-if="form.defaultMode === 'agent_chat'"
-            class="default-data-asset-settings wide-field"
+            class="agent-resource-selector wide-field"
+            aria-label="数据库资产绑定"
           >
-            <div class="default-data-asset-heading">
+            <div class="agent-resource-selector-copy">
               <strong>数据库资产绑定</strong>
               <span
                 >仅支持绑定数据库资产；启用后，Agent
                 的数据库检索与执行将固定使用该资产，不会切换到其他数据库。</span
               >
+              <label>
+                <input v-model="form.defaultDataAssetEnabled" type="checkbox" />
+                启用数据库资产绑定
+              </label>
+              <div v-if="form.defaultDataAssetEnabled" class="agent-resource-settings">
+                <label>
+                  <span>数据库资产名称</span>
+                  <input
+                    v-model.trim="form.defaultDataAssetName"
+                    placeholder="例如：客户经营分析数据库"
+                  />
+                </label>
+              </div>
             </div>
-            <label class="checkbox-row">
-              <input v-model="form.defaultDataAssetEnabled" type="checkbox" />
-              <span>启用数据库资产绑定</span>
-            </label>
-            <label>
-              <span>数据库资产名称</span>
-              <input
-                v-model.trim="form.defaultDataAssetName"
-                :disabled="!form.defaultDataAssetEnabled"
-                placeholder="例如：客户经营分析数据库"
-              />
-            </label>
           </section>
           <section
             v-if="form.defaultMode === 'agent_chat'"

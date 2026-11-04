@@ -38,6 +38,7 @@ def prepare_mcp_recovery(root, source, commit):
     artifact = root / 'mcp.jar'
     with zipfile.ZipFile(baseline) as old, zipfile.ZipFile(artifact, 'w') as new:
         assert entry in old.namelist()
+        class_changed = old.read(entry) != content
         new.comment = old.comment
         for item in old.infolist():
             new.writestr(item, content if item.filename == entry else old.read(item))
@@ -45,7 +46,7 @@ def prepare_mcp_recovery(root, source, commit):
         assert new.testzip() is None and new.namelist() == old.namelist()
         assert new.read(entry) == content
         assert all(old.read(name) == new.read(name) for name in old.namelist() if name != entry)
-        unchanged = len(old.namelist()) - 1
+        unchanged = len(old.namelist()) - (1 if class_changed else 0)
     build = root / 'mcp-build'
     build.mkdir(exist_ok=True)
     import shutil
@@ -65,7 +66,7 @@ def prepare_mcp_recovery(root, source, commit):
     assert run('docker', 'exec', news_container, 'sha256sum', '/srv/app/app.jar').split()[0] == news_sha
     news = {'image': news_before['Config']['Image'], 'baselineImageId': news_before['Image'],
             'preparedImageId': news_before['Image'], 'baselineSha256': news_sha, 'sha256': news_sha}
-    (root / 'mcp-recovery-artifact.json').write_text(json.dumps({'changedEntries': [entry],
+    (root / 'mcp-recovery-artifact.json').write_text(json.dumps({'changedEntries': [entry] if class_changed else [],
         'unchangedEntries': unchanged, 'classSha256': sha(patch), 'baselineSha256': baseline_sha,
         'sha256': mcp['sha256'], 'javaRecoveryTests': 7, 'sourceCommit': commit}, indent=2))
     return {'mcp': mcp, 'news': news, 'backupFinancialStorage': True}
@@ -81,7 +82,7 @@ def main():
     commit = source['sourceCommit']
     assert re.fullmatch(r'[0-9a-f]{40}', commit)
     assert sha(root / 'worker.zip') == source['workerZipSha256']
-    assert source['tests'] == 175
+    assert source['tests'] == 176
     api = 'runtime-os-app-stage-api-1'
     worker = 'runtime-os-app-stage-coding-agent-1'
     baseline = json.loads(run('docker', 'inspect', worker))[0]
@@ -130,7 +131,7 @@ def main():
     manifest.update(prepare_mcp_recovery(root, source, commit))
     (root / 'manifest.json').write_text(json.dumps(manifest, indent=2))
     (root / 'worker-build.json').write_text(json.dumps({'imageId': image_id, 'offlineBuildAndTests': True,
-        'sourceCommit': commit, 'tests': 175, 'changedModules': changed, 'apiJarUnchanged': True}, indent=2))
+        'sourceCommit': commit, 'tests': 176, 'changedModules': changed, 'apiJarUnchanged': True}, indent=2))
     credentials = json.loads((root / 'fixture.private.json').read_text())
     (root / 'catalog-readiness-private.json').write_text(json.dumps({key: credentials[key] for key in ['username', 'password']}))
     print(json.dumps({'status': 'PREPARED', 'sourceCommit': commit, 'changedModules': changed, 'apiJarUnchanged': True}))

@@ -136,6 +136,21 @@ test('unadvertised late exploration is rejected without a resource callback and 
   const result=await run.run();assert.equal(result.status,'completed');assert.equal(turn,3);
 });
 
+test('an ordinary text task with no authorized resource tools keeps its single submission path',async()=>{
+  let turns=0,published=0;
+  const ordinary={...contract,authorization:{...contract.authorization,allowedTools:['report_submit']},
+    runtimeContext:{...contract.runtimeContext,knowledgeExploration:{...profile,resourceIds:[]}},budget:{maxModelCalls:1}};
+  const run=createCodingRun(ordinary,{reserveModel(){},settleModel(){},finish(){},executePython(){throw Error('No code authority');},
+    submitReport(){published++;return {operationId:'workspace-'+'4'.repeat(64),status:'SUCCEEDED',executorStopped:true,pythonExecuted:false,
+      executionMode:'TEXT_ONLY',resultDatasetRef:'report',validationRecordRef:'validation',evidenceBundleRef:'bundle'};},
+  },{nativeSdk:true,model:{async *stream(request){
+    turns++;assert.doesNotMatch(request.systemPrompt,/Resource task budget/);
+    yield {type:'tool-call-delta',toolCallId:'ordinary',toolName:'report_submit',input:{reportMarkdown:'Hello.',evidenceReferences:[],limitations:[]}};
+    yield {type:'finish',reason:'tool-calls'};
+  }}});
+  const result=await run.run();assert.equal(result.status,'completed');assert.equal(turns,1);assert.equal(published,1);
+});
+
 test('actual SDK loop autonomously joins permitted market history and news without document or Python authority',async()=>{
   const ref='runtime-evidence:knowledge:'+'c'.repeat(64),calls=[];let turn=0;
   const resourceContract={...contract,runtimeContext:{...contract.runtimeContext,knowledgeExploration:{...profile,resourceIds:['financial_news','financial_market']}},objective:{instruction:'Compare observed prices with policy news; do not infer causation'},authorization:{...contract.authorization,allowedTools:[...RESOURCE_TOOLS,'report_submit','skill_read']}};

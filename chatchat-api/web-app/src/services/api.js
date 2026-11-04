@@ -58,9 +58,9 @@ export async function apiRequest(path, options = {}) {
   if (!response.ok) {
     const userMessage = userFacingApiErrorMessage(response, payload);
     if (userMessage) {
-      throw new Error(userMessage);
+      throw Object.assign(new Error(userMessage), { status: response.status });
     }
-    throw new Error(payload?.message || `请求失败：${response.status}`);
+    throw Object.assign(new Error(payload?.message || `请求失败：${response.status}`), { status: response.status });
   }
 
   return unwrapApiPayload(payload, path, session?.token);

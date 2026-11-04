@@ -213,6 +213,15 @@ export interface CodingInputVersion {
 export const fetchCodingInputs = (run: string, task: string, operation?: string): Promise<{ binding: string; snapshots: CodingInputVersion[] }> =>
   apiRequest(`${root(run)}/${encodeURIComponent(task)}/inputs${operation ? `?operationId=${encodeURIComponent(operation)}` : ''}`);
 export const fetchCodingTasks = (run: string): Promise<{ tasks: CodingTask[] }> => apiRequest(root(run));
+export interface CodingOperationalTask {
+  taskId: string; status: string; validationStatus?: string; reasonCode?: string;
+  createdAt: string; updatedAt: string; startedAt?: string; endedAt?: string;
+  cancellationRequested: boolean; lastEventSequence: number;
+  consumed?: { modelCalls: number; modelTokens: number; toolCalls: number; codeExecutions: number };
+  executionControl?: { executorStopped: boolean; reconciliationRequired: boolean };
+}
+export const fetchCodingStatus = (run: string): Promise<{ runId: string; detailOwner: boolean; tasks: CodingOperationalTask[] }> =>
+  apiRequest(`${root(run)}/status`);
 export const fetchCodingEvents = (run: string, task: string, cursor = 0): Promise<{ events: CodingEvent[]; nextSequence: number; hasMore: boolean }> =>
   apiRequest(`${root(run)}/${encodeURIComponent(task)}/events?afterSequence=${cursor}&limit=128`);
 export const fetchCodingCode = (run: string, task: string, operation: string): Promise<Record<string, any>> =>

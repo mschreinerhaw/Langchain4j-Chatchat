@@ -24,6 +24,14 @@ public class KnowledgeResponseAdvice implements ResponseBodyAdvice<Object> {
         if(body==null||!(request instanceof ServletServerHttpRequest servlet)
                 ||servlet.getServletRequest().getRequestURI().startsWith("/internal/")||body instanceof byte[])return body;
         HttpServletRequest actor=servlet.getServletRequest();
+        // This concrete, allowlisted DTO contains journal state/counters only. Its controller
+        // independently authorizes owner or tenant-wide task monitors. Rich responses still
+        // require current source authorization below; JSON markers cannot opt out.
+        if (body instanceof com.chatchat.common.response.ApiResponse<?> envelope
+                && envelope.getData() instanceof com.chatchat.api.controller.agent.CodingOperationalStatus) {
+            response.getHeaders().setCacheControl("no-store");
+            return body;
+        }
         try {
             // Run-scoped monitors can truncate a model summary before its first citation.
             // Bind provenance to the decoded route, not just markers remaining in the JSON body.

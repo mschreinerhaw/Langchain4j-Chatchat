@@ -1,7 +1,7 @@
 <template>
   <details class="coding-monitor" @toggle="toggle" data-testid="coding-monitor">
     <summary
-      >Python 编程任务 · Cline <span>{{ tasks.length }} 个委派任务</span></summary
+      >编程与分析任务 · Cline <span>{{ delegateCount }}</span></summary
     >
     <div v-if="expanded" class="monitor-body">
       <header>
@@ -30,8 +30,21 @@
           </svg>
         </button>
       </header>
-      <p v-if="error" role="alert">{{ error }} · 已保留加载的历史记录</p>
-      <p v-if="!loading && !tasks.length">该运行暂无 Coding 委派记录。</p>
+      <p v-if="error" role="alert">{{ error }}</p>
+      <p v-if="detailError" role="alert">{{ detailError }}</p>
+      <section v-if="operationalOnly && loaded" data-testid="coding-operational-status">
+        <p>当前仅展示持久化执行日志中的状态与用量；任务内容、源码和输入仍受原有授权限制。</p>
+        <p v-if="!operationalTasks.length">该运行暂无 Coding 委派记录。</p>
+        <article v-for="task in operationalTasks" :key="task.taskId">
+          <strong>{{ task.taskId }}</strong>
+          <p>真实委派状态：{{ task.status }} · 结果校验：{{ task.validationStatus || '未记录' }}</p>
+          <p v-if="task.reasonCode">记录的原因码：{{ task.reasonCode }}</p>
+          <p>开始：{{ time(task.startedAt) }} · 结束：{{ time(task.endedAt) }} · 最后更新：{{ time(task.updatedAt) }}</p>
+          <p>模型调用：{{ task.consumed?.modelCalls ?? '未记录' }} · 工具调用：{{ task.consumed?.toolCalls ?? '未记录' }} · Python 执行：{{ task.consumed?.codeExecutions ?? '未记录' }}</p>
+          <p>持久化事件序号：{{ task.lastEventSequence }} · 执行器停止：{{ task.executionControl?.executorStopped === true ? '已确认' : '尚未确认' }}</p>
+        </article>
+      </section>
+      <p v-if="loaded && !loading && !error && !operationalOnly && !tasks.length">该运行暂无 Coding 委派记录。</p>
       <label v-if="tasks.length"
         >任务
         <select v-model="selectedId"

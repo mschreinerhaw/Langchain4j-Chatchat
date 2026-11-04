@@ -812,6 +812,7 @@
         v-if="selectedTask?.attemptId"
         :key="selectedTask.attemptId"
         :run-id="selectedTask.attemptId"
+        :metadata-only="Boolean(selectedTask.contentRestricted || (selectedTask.userId && selectedTask.userId !== userId))"
       />
       <div class="event-timeline">
         <button

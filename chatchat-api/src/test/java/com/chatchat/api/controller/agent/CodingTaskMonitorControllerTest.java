@@ -14,6 +14,37 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class CodingTaskMonitorControllerTest {
+    @Test void tenantMonitorReadsOnlyDurableOperationalFactsWithReadOnlyOwnerScope() throws Exception {
+        var runtime=mock(AgentRuntime.class); var tasks=mock(DurableCodingTaskService.class); var coding=mock(CodingAgentSPI.class);
+        when(runtime.find("run")).thenReturn(Optional.of(AgentRun.builder().runId("run")
+            .request(AgentRunRequest.builder().tenantId("tenant").userId("owner").build()).build()));
+        var observation=mock(com.chatchat.agents.runtime.observation.AgentObservation.class);
+        when(observation.metadata()).thenReturn(Map.of("eventKind","CODING_TRACE","taskId","task"));
+        when(runtime.observations("run")).thenReturn(List.of(observation,observation));
+        var outcome=mock(com.chatchat.common.runtime.coding.CodingTaskOutcome.class);
+        when(outcome.taskId()).thenReturn("task");when(outcome.status()).thenReturn(com.chatchat.common.runtime.coding.CodingTaskOutcome.Status.FAILED);
+        when(outcome.summary()).thenReturn("PRIVATE_SOURCE_TEXT");
+        when(tasks.get(any(),eq("task"))).thenAnswer(call->{
+            assertThat(((com.chatchat.common.kernel.KernelDataScope)call.getArgument(0)).userId()).isEqualTo("owner");return outcome;
+        });
+        var admin=mock(com.chatchat.enterprise.service.EnterpriseAdminService.class);
+        when(admin.hasPermission("monitor","platform:tasks:all")).thenReturn(true);
+        var controller=new CodingTaskMonitorController(runtime,tasks,coding,new CodingInvocationContext());
+        org.springframework.test.util.ReflectionTestUtils.setField(controller,"enterpriseAdmin",admin);
+        var request=new MockHttpServletRequest();request.setAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID,"tenant");
+        request.setAttribute(ApiAuthenticationFilter.CURRENT_USER_ID,"monitor");
+        var result=controller.status("run",request).getData();
+        assertThat(result.detailOwner()).isFalse();assertThat(result.tasks()).hasSize(1);
+        assertThat(result.tasks().get(0).status()).isEqualTo(com.chatchat.common.runtime.coding.CodingTaskOutcome.Status.FAILED);
+        assertThat(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(result)).doesNotContain("PRIVATE_SOURCE_TEXT","objective","configuration","evidenceRefs","inputSnapshotRef");
+        verify(tasks,never()).contract(any(),anyString());verifyNoInteractions(coding);
+        assertThatThrownBy(()->controller.list("run",request)).isInstanceOf(ResponseStatusException.class);
+        request.setAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID,"other");
+        assertThatThrownBy(()->controller.status("run",request)).isInstanceOf(ResponseStatusException.class);
+        request.setAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID,"tenant");request.setAttribute(ApiAuthenticationFilter.CURRENT_USER_ID,"intruder");
+        assertThatThrownBy(()->controller.status("run",request)).isInstanceOf(ResponseStatusException.class);
+        verify(tasks,times(1)).get(any(),eq("task"));
+    }
     @Test void completedTaskProjectsDurableModelReceiptsWithoutRequiringNodeCompletionEvents() {
         var runtime=mock(AgentRuntime.class);var tasks=mock(DurableCodingTaskService.class);var coding=mock(CodingAgentSPI.class);
         when(runtime.find("run")).thenReturn(Optional.of(AgentRun.builder().runId("run")

@@ -23,6 +23,8 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/v1/agent/runtime/runs/{runId}/coding")
 public class CodingTaskMonitorController {
     @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private com.chatchat.enterprise.service.EnterpriseAdminService enterpriseAdmin;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
     private com.chatchat.api.runtime.coding.execution.CodingExecutionFeedbackService feedback;
     private final AgentRuntime runtime;
     private final DurableCodingTaskService tasks;
@@ -36,6 +38,31 @@ public class CodingTaskMonitorController {
     private com.chatchat.api.runtime.coding.cline.ClineModelReceiptStore modelReceipts;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     private com.chatchat.api.runtime.coding.evidence.CodingEvidenceCollector evidenceCollector;
+
+    @GetMapping("/status")
+    public ApiResponse<CodingOperationalStatus> status(@PathVariable("runId") String runId, HttpServletRequest request) {
+        var run = runtime.find(runId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        Object tenant = request.getAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID);
+        Object viewer = request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID);
+        if (tenant == null || viewer == null || run.request() == null
+                || !Objects.equals(tenant, run.request().getTenantId()))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        boolean owner = Objects.equals(viewer, run.request().getUserId());
+        if (!owner && (enterpriseAdmin == null || !enterpriseAdmin.hasPermission(viewer.toString(), "platform:tasks:all")))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        var scope = new KernelDataScope(tenant.toString(), run.request().getUserId(), null, null, runId, null, Map.of());
+        return identity.as(scope, EnumSet.of(CodingTaskAccess.Action.READ), () -> {
+            var ids = new LinkedHashSet<String>();
+            for (var observation : runtime.observations(runId)) {
+                var meta = observation.metadata();
+                if (String.valueOf(meta.get("eventKind")).startsWith("CODING_") && meta.get("taskId") instanceof String id)
+                    ids.add(id);
+            }
+            var result = new ArrayList<CodingOperationalStatus.Task>();
+            for (String id : ids) result.add(CodingOperationalStatus.Task.from(tasks.get(scope, id)));
+            return ApiResponse.success(new CodingOperationalStatus(runId, owner, result));
+        });
+    }
 
     @GetMapping("/{taskId}/visual-report")
     public ApiResponse<?> reviewVisualReport(@PathVariable("runId") String runId,@PathVariable("taskId") String taskId,

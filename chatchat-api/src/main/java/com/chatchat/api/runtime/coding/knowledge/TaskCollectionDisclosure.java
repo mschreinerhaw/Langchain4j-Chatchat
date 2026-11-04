@@ -42,7 +42,15 @@ public final class TaskCollectionDisclosure {
                 METADATA.forEach(key -> { if (task.has(key)) metadata.set(key, task.get(key)); });
                 metadata.put("contentRestricted", true);
                 metadata.put("question", "历史任务内容当前不可访问");
-                metadata.put("answerSummary", "证据授权或版本已失效，或该内容属于其他用户。任务状态仍可查看。");
+                String message = java.util.Objects.toString(denied.getMessage(), "");
+                boolean otherOwner = message.equals("Knowledge history belongs to another user");
+                metadata.put("contentRestrictionReason", otherOwner ? "OTHER_OWNER" :
+                    message.equals("Source cannot be revalidated; retained content is withheld") ? "SOURCE_UNAVAILABLE" : "CONTENT_VALIDATION_DENIED");
+                metadata.put("answerSummary", otherOwner
+                    ? "该任务属于其他用户；可查看执行状态，不能读取任务内容。"
+                    : message.equals("Source cannot be revalidated; retained content is withheld")
+                        ? "来源服务当前无法完成复核，任务内容暂不可读取；执行状态仍可查看。"
+                        : "任务内容未通过当前授权或来源校验；执行状态仍可查看。");
                 metadata.putArray("datasets");
                 tasks.set(index, metadata);
             }

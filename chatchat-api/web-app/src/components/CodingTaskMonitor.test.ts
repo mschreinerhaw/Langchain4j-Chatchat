@@ -2,10 +2,10 @@
 import { createApp, h, nextTick } from 'vue';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import CodingTaskMonitor from './CodingTaskMonitor.vue';
-import { fetchCodingTasks, fetchCodingEvents, fetchCodingCode, fetchCodingInputs, cancelCodingTask } from '../services/codingMonitor';
+import { fetchCodingTasks, fetchCodingStatus, fetchCodingEvents, fetchCodingCode, fetchCodingInputs, cancelCodingTask } from '../services/codingMonitor';
 vi.mock('../services/codingMonitor', async importOriginal => ({
   ...await importOriginal<typeof import('../services/codingMonitor')>(),
-  fetchCodingTasks: vi.fn(), fetchCodingEvents: vi.fn(), fetchCodingCode: vi.fn(), cancelCodingTask: vi.fn(),
+  fetchCodingTasks: vi.fn(), fetchCodingStatus: vi.fn(), fetchCodingEvents: vi.fn(), fetchCodingCode: vi.fn(), cancelCodingTask: vi.fn(),
   fetchCodingInputs: vi.fn(async () => ({ binding: 'TASK_LATEST', snapshots: [] })),
   fetchCodingTiming: vi.fn(async (_run: string, _task: string, operationId: string) => ({ operationId, codeHash: operationId==='cline-1'?'1'.repeat(64):'2'.repeat(64),
     source:'MCP_ARCHIVED_RECEIPT',startedAt:'2026-10-19T01:00:01Z',finishedAt:'2026-10-19T01:00:02Z' })),
@@ -19,13 +19,42 @@ const task = (status = 'RUNNING') => ({ taskId: 'coding-1', attemptId: 'coding-1
     skills: { status: 'APPLIED', skills: [{ skillId: 'skill-a' }] } },
   outcome: { status, createdAt: '2026-10-19T01:00:00Z', updatedAt: '2026-10-19T01:00:02Z',
     endedAt: status === 'RUNNING' ? undefined : '2026-10-19T01:00:02Z', cancellationRequested: false, lastEventSequence: 2 } });
-async function mount() {
+async function mount(expected = 'Calculate median') {
   host = document.createElement('div'); document.body.append(host);
   app = createApp({ render: () => h(CodingTaskMonitor, { runId: 'run' }) }); app.mount(host); await nextTick();
   const details = host.querySelector('details')!; details.open = true; details.dispatchEvent(new Event('toggle'));
-  await vi.waitFor(() => expect(host.textContent).toContain('Calculate median'));
+  await vi.waitFor(() => expect(host.textContent).toContain(expected));
 }
 describe('Coding task monitor page', () => {
+  it('shows real operational tasks for restricted content without requesting private details', async () => {
+    vi.mocked(fetchCodingStatus).mockResolvedValue({runId:'run',detailOwner:false,tasks:[{taskId:'actual-task',status:'PARTIAL',createdAt:'2026-10-19T01:00:00Z',updatedAt:'2026-10-19T01:00:01Z',cancellationRequested:false,lastEventSequence:43,consumed:{modelCalls:7,modelTokens:123,toolCalls:9,codeExecutions:0}}]});
+    host=document.createElement('div');document.body.appendChild(host);app=createApp(CodingTaskMonitor,{runId:'run',metadataOnly:true});app.mount(host);await nextTick();
+    const details=host.querySelector('details')!;details.open=true;details.dispatchEvent(new Event('toggle'));
+    await vi.waitFor(()=>expect(host.textContent).toContain('actual-task'));
+    expect(host.textContent).toContain('1 个委派任务');expect(host.textContent).toContain('PARTIAL');expect(host.textContent).toContain('模型调用：7');
+    expect(host.textContent).not.toContain('暂无 Coding 委派记录');expect(fetchCodingTasks).not.toHaveBeenCalled();expect(fetchCodingEvents).not.toHaveBeenCalled();expect(fetchCodingInputs).not.toHaveBeenCalled();
+  });
+  it('does not convert denied requests to zero tasks and clears previously loaded source content', async () => {
+    const privateTask=task('COMPLETED');privateTask.objective='PRIVATE_SOURCE_MUST_CLEAR';
+    vi.mocked(fetchCodingTasks).mockResolvedValue({tasks:[privateTask]});
+    vi.mocked(fetchCodingEvents).mockResolvedValue({events:[],nextSequence:0,hasMore:false});
+    vi.mocked(fetchCodingStatus).mockResolvedValue({runId:'run',detailOwner:true,tasks:[{taskId:'actual-task',status:'FAILED',createdAt:'2026-10-19T01:00:00Z',updatedAt:'2026-10-19T01:00:01Z',cancellationRequested:false,lastEventSequence:43}]});
+    await mount('PRIVATE_SOURCE_MUST_CLEAR');await vi.waitFor(()=>expect(host.textContent).toContain('PRIVATE_SOURCE_MUST_CLEAR'));
+    vi.mocked(fetchCodingTasks).mockRejectedValue(Object.assign(new Error('forbidden'),{status:403}));
+    const details=host.querySelector('details')!;details.open=false;details.dispatchEvent(new Event('toggle'));details.open=true;details.dispatchEvent(new Event('toggle'));
+    await vi.waitFor(()=>expect(host.textContent).toContain('actual-task'));
+    expect(host.textContent).not.toContain('PRIVATE_SOURCE_MUST_CLEAR');expect(host.textContent).not.toContain('已保留加载的历史记录');expect(host.textContent).not.toContain('暂无 Coding 委派记录');
+    expect(host.textContent).toContain('HTTP 403');expect(host.textContent).toContain('FAILED');
+    const deniedCalls=vi.mocked(fetchCodingTasks).mock.calls.length;const statusCalls=vi.mocked(fetchCodingStatus).mock.calls.length;
+    details.open=false;details.dispatchEvent(new Event('toggle'));details.open=true;details.dispatchEvent(new Event('toggle'));
+    await vi.waitFor(()=>expect(vi.mocked(fetchCodingStatus).mock.calls.length).toBeGreaterThan(statusCalls));expect(fetchCodingTasks).toHaveBeenCalledTimes(deniedCalls);
+  });
+  it('leaves task existence unknown when both detail and operational reads are denied', async () => {
+    vi.mocked(fetchCodingTasks).mockRejectedValue(Object.assign(new Error('denied'),{status:403}));vi.mocked(fetchCodingStatus).mockRejectedValue(Object.assign(new Error('monitor denied'),{status:403}));
+    await mount('monitor denied');await vi.waitFor(()=>expect(host.textContent).toContain('monitor denied'));
+    expect(host.textContent).not.toContain('0 个委派任务');expect(host.textContent).not.toContain('暂无 Coding 委派记录');expect(host.textContent).toContain('委派记录未能读取');
+  });
+
   it('restores per-execution diagnosis and repair Diff from archived feedback when Node events are absent', async () => {
     const feedback = (n: number, failed: boolean): any => ({ schemaVersion:'runtime_os.execution_feedback.v1',
       executionId:`cline-${n}`,attemptId:`coding-1:execution-${n}`,status:failed?'FAILED':'SUCCEEDED',

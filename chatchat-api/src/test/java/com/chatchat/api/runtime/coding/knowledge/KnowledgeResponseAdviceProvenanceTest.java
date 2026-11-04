@@ -15,6 +15,17 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class KnowledgeResponseAdviceProvenanceTest {
+    @org.junit.jupiter.api.Test void onlyTheTypedSourceFreeProjectionCanAvoidSourceRevalidation() {
+        var guard=mock(KnowledgeDisclosureGuard.class);
+        when(guard.checkRun("tenant","owner","run-1")).thenThrow(new SecurityException("Source cannot be revalidated; retained content is withheld"));
+        var advice=new KnowledgeResponseAdvice(guard,new ObjectMapper());
+        var response=new ServletServerHttpResponse(new MockHttpServletResponse());
+        var body=com.chatchat.common.response.ApiResponse.success(new com.chatchat.api.controller.agent.CodingOperationalStatus("run-1",false,java.util.List.of()));
+        assertThat(advice.beforeBodyWrite(body,null,MediaType.APPLICATION_JSON,null,new ServletServerHttpRequest(request("run-1/coding/status")),response)).isSameAs(body);
+        assertThat(response.getHeaders().getCacheControl()).isEqualTo("no-store");verifyNoInteractions(guard);
+        var forged=com.chatchat.common.response.ApiResponse.success(Map.of("runId","run-1","tasks",java.util.List.of(),"source","CODING_OPERATIONS"));
+        assertThatThrownBy(()->advice.beforeBodyWrite(forged,null,MediaType.APPLICATION_JSON,null,new ServletServerHttpRequest(request("run-1/coding/status")),response)).isInstanceOf(ResponseStatusException.class);
+    }
     @ParameterizedTest @ValueSource(strings={"run-1/coding","run%2D1/coding/task/events","run-1"})
     void truncatedRunSummariesCannotBypassRevocationByOmittingCitationText(String route) {
         var guard=mock(KnowledgeDisclosureGuard.class);

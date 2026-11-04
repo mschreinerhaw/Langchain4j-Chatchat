@@ -9,6 +9,8 @@ import {
   fetchCodingTiming,
   fetchCodingEvents,
   fetchCodingTasks,
+  fetchCodingStatus,
+  type CodingOperationalTask,
   fetchCodingInputs,
   mergeCodingEvents,
   modelCalls,
@@ -30,10 +32,16 @@ export default defineComponent({
   components: { PythonCodeDiff },
   props: {
     runId: { type: String, required: true },
+    metadataOnly: { type: Boolean, default: false },
   },
   setup(componentProps, { expose: exposeComponent }) {
     exposeComponent();
     const props = componentProps;
+    const operationalTasks = ref<CodingOperationalTask[]>([]), loaded = ref(false), fallbackToStatus = ref(false);
+    const detailError = ref('');
+    const operationalOnly = computed(() => props.metadataOnly || fallbackToStatus.value);
+    const delegateCount = computed(() => !loaded.value ? '委派记录未能读取' :
+      `${operationalOnly.value ? operationalTasks.value.length : tasks.value.length} 个委派任务`);
     const expanded = ref(false),
       loading = ref(false),
       cancelling = ref(false),
@@ -109,15 +117,29 @@ export default defineComponent({
     const visibleEvents = computed(() => selectedEvents.value.slice(-eventLimit.value));
     const diff = computed(() => buildPythonLineDiff(previousCode.value, code.value?.content ?? ""));
     const time = (value?: string) => (value ? new Date(value).toLocaleString() : "—");
+    function clearSourceContent() {
+      inputGeneration++; codeGeneration++; diffGeneration++; timingGeneration++;
+      tasks.value = []; events.value = {}; selectedId.value = ''; code.value = null; previousCode.value = '';
+      inputVersions.value = []; timings.value = {}; timingErrors.value = {}; timingRequested.clear();
+      codeError.value = ''; inputError.value = ''; selectedOperation.value = ''; showDiff.value = false;
+    }
+    async function loadOperational(run: string, epoch: number) {
+      const result = await fetchCodingStatus(run);
+      if (epoch !== generation) return;
+      operationalTasks.value = result.tasks; loaded.value = true; error.value = '';
+      if (result.tasks.length > 0 && result.tasks.every(task => !['CREATED', 'RUNNING'].includes(task.status))) clearInterval(timer);
+    }
     async function refresh() {
       if (loading.value || !expanded.value || !props.runId) return;
       const run = props.runId,
         epoch = generation;
       loading.value = true;
       try {
+        if (operationalOnly.value) { await loadOperational(run, epoch); return; }
         const result = await fetchCodingTasks(run);
         if (epoch !== generation) return;
         tasks.value = result.tasks;
+        loaded.value = true;
         if (!tasks.value.some((task) => task.taskId === selectedId.value))
           selectedId.value = tasks.value[0]?.taskId ?? "";
         for (const task of result.tasks) {
@@ -137,7 +159,14 @@ export default defineComponent({
         await nextTick(); void loadTimings();
         void loadInputs();
       } catch (failure: any) {
-        if (epoch === generation) error.value = failure.message || "读取任务失败";
+        if (epoch === generation) {
+          if (!operationalOnly.value && failure.status === 403) {
+            detailError.value = `任务内容读取被拒绝（HTTP 403）：${failure.message || '无内容访问权限'}`;
+            fallbackToStatus.value = true; loaded.value = false; clearSourceContent();
+            try { await loadOperational(run, epoch); }
+            catch (statusFailure: any) { error.value = statusFailure.message || '执行事实读取失败'; loaded.value = false; operationalTasks.value = []; clearInterval(timer); }
+          } else { error.value = failure.message || '读取任务失败'; if (failure.status === 403) { loaded.value = false; operationalTasks.value = []; clearSourceContent(); clearInterval(timer); } }
+        }
       } finally {
         if (epoch === generation) loading.value = false;
       }
@@ -271,12 +300,14 @@ export default defineComponent({
       }
     }
     watch(
-      () => props.runId,
+      () => [props.runId, props.metadataOnly],
       () => {
         generation++;
         timingGeneration++; timingRequested.clear(); timings.value = {}; timingErrors.value = {};
         codeGeneration++; diffGeneration++; pendingDiff = false;
         loading.value = false;
+        loaded.value = false; fallbackToStatus.value = false; operationalTasks.value = []; detailError.value = ''; error.value = '';
+        clearSourceContent();
         tasks.value = [];
         events.value = {};
         selectedId.value = "";
@@ -310,6 +341,7 @@ export default defineComponent({
     });
     return {
       stageLabels,
+      operationalTasks, operationalOnly, delegateCount, loaded, detailError,
       expanded,
       loading,
       cancelling,

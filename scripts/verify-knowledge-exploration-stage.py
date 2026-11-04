@@ -10,11 +10,12 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--release-dir',type=Path,required=True);p.add_argument('--limit',type=int,default=50)
     p.add_argument('--concurrency',type=int,default=2)
+    p.add_argument('--deadline-seconds',type=int,default=420,help='Verifier observation deadline, independent of the unchanged Runtime contract deadline')
     p.add_argument('--answer-max-chars',type=int,default=0,help='Optional explicit answer-length constraint; recorded in measurements')
     p.add_argument('--case-ids',help='Optional comma-separated case IDs for a focused smoke run')
     p.add_argument('--questions-file',type=Path,help='Optional actual business questions, never expected source IDs or oracle answers')
     p.add_argument('--retain-result-queue',action='store_true',help='Leave published results queued for a subsequent live revocation probe')
-    a=p.parse_args();os.umask(0o077)
+    a=p.parse_args();assert 30<=a.deadline_seconds<=1260;os.umask(0o077)
     root=a.release_dir;f=json.loads((root/'fixture.private.json').read_text());model=f.get('model','hy3')
     client=urllib.request.build_opener(urllib.request.ProxyHandler({}))
     def request(path,body=None,token=None):
@@ -101,7 +102,7 @@ def main():
         output=folder/(case['id']+'.private.json');safe=folder/(case['id']+'.json')
         if safe.exists():return json.loads(safe.read_text())
         start=time.monotonic();events=[];cursor=0;task=None
-        summary={'id':case['id'],'category':case['category'],'model':model,'syntheticSources':False,'answerMaxChars':a.answer_max_chars or None}
+        summary={'id':case['id'],'category':case['category'],'model':model,'syntheticSources':False,'answerMaxChars':a.answer_max_chars or None,'verificationDeadlineSeconds':a.deadline_seconds}
         try:
             task=request('/agent/tasks',{'mode':'role_chat','skillId':f['agent'],'modelName':model,'sessionId':str(uuid.uuid4()),
                 'requestSource':'knowledge-exploration-acceptance','idempotencyKey':str(uuid.uuid4()),'query':case['query'],
@@ -113,7 +114,7 @@ def main():
                 page=request('/agent/tasks/'+task_id+'/events'+query+'&limit=200&afterSequence='+str(cursor),token=token) or []
                 if page:cursor=max(int(e.get('sequence',0)) for e in page);events.extend(page)
                 if task.get('canonicalState') in {'SUCCEEDED','PARTIAL','FAILED','CANCELLED','REJECTED'} and len(page)<200:break
-                if time.monotonic()-start>420:
+                if time.monotonic()-start>a.deadline_seconds:
                     request('/agent/tasks/'+task_id+'/cancel'+query,{},token);raise RuntimeError('Verifier deadline; cancellation requested')
                 time.sleep(1)
             summary['status']=task.get('canonicalState');summary['runtimeStatus']=summary['status'];summary['durationMs']=round((time.monotonic()-start)*1000)

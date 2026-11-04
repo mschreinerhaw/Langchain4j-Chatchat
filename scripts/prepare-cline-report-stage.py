@@ -27,9 +27,14 @@ def main():
         assert archive.testzip() is None
         assert any(name.startswith('BOOT-INF/lib/') for name in archive.namelist())
     worker_image = 'runtime-os-coding-agent:agent-skills-report-' + commit[:12]
-    subprocess.run([sys.executable, str(root / 'build-cline-skills-stage.py'), str(root),
-                    release['workerArchiveSha256'], worker_image], check=True)
+    if not (root / 'worker-build.json').exists():
+        subprocess.run([sys.executable, str(root / 'build-cline-skills-stage.py'), str(root),
+                        release['workerArchiveSha256'], worker_image], check=True)
     proof = json.loads((root / 'worker-build.json').read_text())
+    assert proof['archiveSha256'] == release['workerArchiveSha256'] == sha(root / 'worker.tar.gz')
+    assert proof['offlineBuildAndTests'] is True
+    worker_image = proof['image']
+    assert run('docker', 'image', 'inspect', '-f', '{{.Id}}', worker_image) == proof['imageId']
     for name, expected in release['workerModules'].items():
         assert '/' not in name and name.endswith('.js')
         assert sha(root / 'worker-build' / 'dist' / name) == expected

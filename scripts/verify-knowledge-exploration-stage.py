@@ -13,6 +13,7 @@ def main():
     p.add_argument('--answer-max-chars',type=int,default=0,help='Optional explicit answer-length constraint; recorded in measurements')
     p.add_argument('--case-ids',help='Optional comma-separated case IDs for a focused smoke run')
     p.add_argument('--questions-file',type=Path,help='Optional actual business questions, never expected source IDs or oracle answers')
+    p.add_argument('--retain-result-queue',action='store_true',help='Leave published results queued for a subsequent live revocation probe')
     a=p.parse_args();os.umask(0o077)
     root=a.release_dir;f=json.loads((root/'fixture.private.json').read_text());model=f.get('model','hy3')
     client=urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -121,8 +122,9 @@ def main():
                 body=event.get('payload') or {};body=json.loads(body) if isinstance(body,str) else body
                 if body.get('answer') or body.get('uiArtifact'):
                     published.append({key:body.get(key) for key in ['answer','sources','citations']})
-            if summary['status'] in {'SUCCEEDED','PARTIAL'}:
+            if summary['status'] in {'SUCCEEDED','PARTIAL'} and not a.retain_result_queue:
                 published.append(request('/agent/tasks/'+task_id+'/result'+query,token=token))
+            summary['resultQueueRetained']=a.retain_result_queue
             text=json.dumps(events,ensure_ascii=False)
             summary['disclosedReferenceCount']=len(set(re.findall(r'runtime-evidence:knowledge:[0-9a-f]{64}',text)))
             summary['disclosureCountScope']='REFERENCES_VISIBLE_IN_CAPTURED_TASK_EVENTS_NOT_PRIVATE_MANIFEST'

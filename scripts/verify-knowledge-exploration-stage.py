@@ -18,6 +18,7 @@ def main():
     p.add_argument('--retain-result-queue',action='store_true',help='Leave published results queued for a subsequent live revocation probe')
     a=p.parse_args();assert 30<=a.deadline_seconds<=1260 and 1<=a.runtime_concurrency<=4;os.umask(0o077)
     runtime_slots=threading.BoundedSemaphore(a.runtime_concurrency)
+    admission_blocked=threading.Event()
     root=a.release_dir;f=json.loads((root/'fixture.private.json').read_text());model=f.get('model','hy3')
     client=urllib.request.build_opener(urllib.request.ProxyHandler({}))
     def request(path,body=None,token=None):
@@ -107,6 +108,7 @@ def main():
         summary={'id':case['id'],'category':case['category'],'model':model,'syntheticSources':False,'answerMaxChars':a.answer_max_chars or None,'verificationDeadlineSeconds':a.deadline_seconds}
         try:
             runtime_slots.acquire();admitted=True;start=time.monotonic()
+            if admission_blocked.is_set():raise RuntimeError('Earlier cancelled task has no terminal stop confirmation; no new task submitted')
             task=request('/agent/tasks',{'mode':'role_chat','skillId':f['agent'],'modelName':model,'sessionId':str(uuid.uuid4()),
                 'requestSource':'knowledge-exploration-acceptance','idempotencyKey':str(uuid.uuid4()),'query':case['query'],
                 'toolInput':{'resourceExplorationApproved':case.get('resourceExplorationApproved',False)}},token)
@@ -165,7 +167,6 @@ def main():
             summary['semanticCorrectness']='REQUIRES_SOURCE_REVIEW'
             output.write_text(json.dumps({'question':case,'task':task,'events':events},ensure_ascii=False))
         except Exception as error:
-            if admitted:runtime_slots.release();admitted=False
             if task and task.get('canonicalState') not in {'SUCCEEDED','PARTIAL','FAILED','CANCELLED','REJECTED'}:
                 summary['cancellationAttempted']=True
                 try:
@@ -175,6 +176,17 @@ def main():
                     # A disclosure guard may reject the response after the cancellation was accepted.
                     # Preserve uncertainty; never claim remote execution has stopped from a failed HTTP read.
                     summary['cancellationRequestAcknowledged']=False
+                stop_deadline=time.monotonic()+60
+                summary['cancellationStopConfirmed']=False
+                while time.monotonic()<stop_deadline:
+                    try:
+                        stopped=request('/agent/tasks/'+task['taskId']+'?tenantId='+urllib.parse.quote(f['tenant']),token=token)
+                        if stopped.get('canonicalState') in {'SUCCEEDED','PARTIAL','FAILED','CANCELLED','REJECTED'}:
+                            summary['cancellationStopConfirmed']=True;break
+                    except Exception:pass
+                    time.sleep(2)
+                if not summary['cancellationStopConfirmed']:admission_blocked.set()
+            if admitted:runtime_slots.release();admitted=False
             summary.update(status='VERIFICATION_ERROR',errorCategory=type(error).__name__,error=str(error)[:180],durationMs=round((time.monotonic()-start)*1000))
             output.write_text(json.dumps({'task':task,'events':events},ensure_ascii=False))
         summary['verificationDurationMs']=round((time.monotonic()-start)*1000)

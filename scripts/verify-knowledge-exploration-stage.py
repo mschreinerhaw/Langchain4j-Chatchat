@@ -3,19 +3,21 @@
 Reads private login material in --release-dir. Public measurements contain no tokens,
 source text or answers. Citation resolution verifies authorization/provenance, not semantic truth.
 """
-import argparse,concurrent.futures,hashlib,json,math,os,re,time,urllib.request,urllib.error,urllib.parse,uuid
+import argparse,concurrent.futures,hashlib,json,math,os,re,threading,time,urllib.request,urllib.error,urllib.parse,uuid
 from pathlib import Path
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--release-dir',type=Path,required=True);p.add_argument('--limit',type=int,default=50)
     p.add_argument('--concurrency',type=int,default=2)
+    p.add_argument('--runtime-concurrency',type=int,default=2,help='Maximum active parent tasks; citation reads do not consume a model slot')
     p.add_argument('--deadline-seconds',type=int,default=420,help='Verifier observation deadline, independent of the unchanged Runtime contract deadline')
     p.add_argument('--answer-max-chars',type=int,default=0,help='Optional explicit answer-length constraint; recorded in measurements')
     p.add_argument('--case-ids',help='Optional comma-separated case IDs for a focused smoke run')
     p.add_argument('--questions-file',type=Path,help='Optional actual business questions, never expected source IDs or oracle answers')
     p.add_argument('--retain-result-queue',action='store_true',help='Leave published results queued for a subsequent live revocation probe')
-    a=p.parse_args();assert 30<=a.deadline_seconds<=1260;os.umask(0o077)
+    a=p.parse_args();assert 30<=a.deadline_seconds<=1260 and 1<=a.runtime_concurrency<=4;os.umask(0o077)
+    runtime_slots=threading.BoundedSemaphore(a.runtime_concurrency)
     root=a.release_dir;f=json.loads((root/'fixture.private.json').read_text());model=f.get('model','hy3')
     client=urllib.request.build_opener(urllib.request.ProxyHandler({}))
     def request(path,body=None,token=None):
@@ -101,9 +103,10 @@ def main():
     def run(case):
         output=folder/(case['id']+'.private.json');safe=folder/(case['id']+'.json')
         if safe.exists():return json.loads(safe.read_text())
-        start=time.monotonic();events=[];cursor=0;task=None
+        start=time.monotonic();events=[];cursor=0;task=None;admitted=False
         summary={'id':case['id'],'category':case['category'],'model':model,'syntheticSources':False,'answerMaxChars':a.answer_max_chars or None,'verificationDeadlineSeconds':a.deadline_seconds}
         try:
+            runtime_slots.acquire();admitted=True;start=time.monotonic()
             task=request('/agent/tasks',{'mode':'role_chat','skillId':f['agent'],'modelName':model,'sessionId':str(uuid.uuid4()),
                 'requestSource':'knowledge-exploration-acceptance','idempotencyKey':str(uuid.uuid4()),'query':case['query'],
                 'toolInput':{'resourceExplorationApproved':case.get('resourceExplorationApproved',False)}},token)
@@ -118,6 +121,7 @@ def main():
                     request('/agent/tasks/'+task_id+'/cancel'+query,{},token);raise RuntimeError('Verifier deadline; cancellation requested')
                 time.sleep(1)
             summary['status']=task.get('canonicalState');summary['runtimeStatus']=summary['status'];summary['durationMs']=round((time.monotonic()-start)*1000)
+            runtime_slots.release();admitted=False
             citation_start=time.monotonic();published=[]
             for event in events:
                 body=event.get('payload') or {};body=json.loads(body) if isinstance(body,str) else body
@@ -161,6 +165,7 @@ def main():
             summary['semanticCorrectness']='REQUIRES_SOURCE_REVIEW'
             output.write_text(json.dumps({'question':case,'task':task,'events':events},ensure_ascii=False))
         except Exception as error:
+            if admitted:runtime_slots.release();admitted=False
             if task and task.get('canonicalState') not in {'SUCCEEDED','PARTIAL','FAILED','CANCELLED','REJECTED'}:
                 summary['cancellationAttempted']=True
                 try:

@@ -35,7 +35,7 @@ def main():
         baseline = run('docker', 'exec', name, 'sha256sum', '/srv/app/app.jar').split()[0]
         image = 'runtime-os-' + service + ':cline-internet-' + commit[:12]
         if service == 'api':
-            manifest.update(image=image, sha256=sha(artifact), baselineSha256=baseline)
+            manifest.update(image=image, sha256=sha(artifact), baselineSha256=baseline, apiUnchanged=sha(artifact)==baseline)
             continue
         build = root / (service + '-build')
         build.mkdir(exist_ok=True)
@@ -57,8 +57,11 @@ def main():
     assert proof['offlineBuildAndTests'] and proof['archiveSha256'] == release['workerArchiveSha256']
     for module, digest in release['workerModules'].items():
         assert sha(root / 'worker-build' / 'dist' / module) == digest
-    manifest['worker'] = {'image': proof['image'], 'baselineImageId': proof['baselineImageId'],
-                          'preparedImageId': proof['imageId'], 'modules': release['workerModules']}
+    current_worker = json.loads(run('docker', 'inspect', 'runtime-os-app-stage-coding-agent-1'))[0]
+    if current_worker['Image'] != proof['imageId']:
+        assert current_worker['Image'] == proof['baselineImageId']
+        manifest['worker'] = {'image': proof['image'], 'baselineImageId': proof['baselineImageId'],
+                              'preparedImageId': proof['imageId'], 'modules': release['workerModules']}
     (root / 'manifest.json').write_text(json.dumps(manifest, indent=2))
     print(json.dumps({'status': 'PREPARED', 'sourceCommit': commit, 'services': ['api', 'mcp', 'news', 'worker']}))
 

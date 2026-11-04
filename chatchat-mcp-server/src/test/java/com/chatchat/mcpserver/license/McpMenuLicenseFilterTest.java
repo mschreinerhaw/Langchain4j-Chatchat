@@ -21,6 +21,19 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class McpMenuLicenseFilterTest {
+    @Test void internetControlPlaneAndAtomicToolsRequireTheExistingNewsLicense() throws Exception {
+        for(String path:List.of("/api/v1/internet-search/providers","/api/v1/internet-search/read"))
+            assertThat(catalog.menuForPath(path)).get().extracting(McpAdminMenuCatalog.MenuDefinition::key).isEqualTo("newsCollection");
+        for(String tool:List.of("internet_web_search","internet_web_fetch"))
+            assertThat(catalog.moduleForTool(tool)).get().extracting(McpAdminMenuCatalog.MenuDefinition::key).isEqualTo("newsCollection");
+        var licenses=mock(McpLicenseService.class);var filter=new McpMenuLicenseFilter(licenses,catalog,objectMapper);var calls=new AtomicInteger();
+        when(licenses.status()).thenReturn(valid(List.of("newsCollection")));
+        var allowed=new MockHttpServletResponse();filter.doFilter(request("/api/v1/internet-search/read","tenant"),allowed,countingChain(calls));
+        assertThat(allowed.getStatus()).isEqualTo(200);assertThat(calls).hasValue(1);
+        when(licenses.status()).thenReturn(valid(List.of("mcpServices")));
+        var denied=new MockHttpServletResponse();filter.doFilter(request("/api/v1/internet-search/read","tenant"),denied,countingChain(calls));
+        assertThat(denied.getStatus()).isEqualTo(403);assertThat(calls).hasValue(1);
+    }
     @Test void governedResourceReadsRetainTheExistingNewsAndFinancialQueryLicense() throws Exception {
         assertThat(catalog.menuForPath("/api/v1/resource-exploration/read")).isPresent()
             .get().extracting(McpAdminMenuCatalog.MenuDefinition::key).isEqualTo("newsCollection");

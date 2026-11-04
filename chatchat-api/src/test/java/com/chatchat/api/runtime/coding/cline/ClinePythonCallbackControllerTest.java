@@ -174,10 +174,13 @@ class ClinePythonCallbackControllerTest {
         when(collector.collect(any(),any(),anyString(),anyString(),anyString(),anyList(),any()))
             .thenReturn(new CodingEvidenceCollector.Collected("input","code","receipt","rejected-result","validation","bundle",false,
                 CodingTaskOutcome.ValidationStatus.FAILED));
+        when(collector.structuralFeedback(scope,"task","validation"))
+            .thenReturn(Map.of("rowSchemaMatched",true,"declaredReportScopeConsistent",false));
         var result=controller.get(json.valueToTree(body()));
         assertThat(result).containsEntry("outputStatus","RESULT_VALIDATION_FAILED").containsEntry("resultAvailable",false)
             .doesNotContainKeys("resultDatasetRef","evidenceBundleRef");
-        assertThat(result.get("diagnostic").toString()).contains("calculated in Python","execute again");
+        assertThat(result.get("diagnostic").toString()).contains("calculated in Python","execute again","UNCONFIRMED","INPUT_REQUIRED");
+        assertThat(result).containsEntry("structuralChecks",Map.of("rowSchemaMatched",true,"declaredReportScopeConsistent",false));
         verify(tasks,never()).cancel(any(),anyString(),anyString());
     }
     @Test void committedResultKeepsTheExistingSixEvidenceResponse(){

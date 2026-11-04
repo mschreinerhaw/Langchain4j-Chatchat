@@ -459,11 +459,20 @@ public class CodingEvidenceCollector {
 
     /** Reads only the trusted, scoped validation flag; never returns rejected source values. */
     public boolean copiedSourceResult(KernelDataScope scope, String taskId, String validationRef) {
+        return Boolean.TRUE.equals(structuralFeedback(scope,taskId,validationRef).get("copiedSourceContentDetected"));
+    }
+
+    /** Allowlisted validator booleans, never source values or arbitrary diagnostic strings. */
+    public Map<String,Boolean> structuralFeedback(KernelDataScope scope,String taskId,String validationRef) {
         EvidenceRecord record = resolve(scope, taskId, validationRef);
         if (!"CODING_COMPUTATION_VALIDATION".equals(record.evidenceType()))
             throw new IllegalArgumentException("Not a computation validation record");
         Object checks = record.payload().get("checks");
-        return checks instanceof Map<?, ?> values && Boolean.TRUE.equals(values.get("copiedSourceContentDetected"));
+        var feedback=new LinkedHashMap<String,Boolean>();
+        if(checks instanceof Map<?,?> values)
+            for(String key:List.of("rowSchemaMatched","declaredReportScopeConsistent","copiedSourceContentDetected"))
+                if(values.get(key) instanceof Boolean value)feedback.put(key,value);
+        return Map.copyOf(feedback);
     }
 
     public Optional<Map<String,Object>> visualReport(KernelDataScope scope,String task,String resultReference) {

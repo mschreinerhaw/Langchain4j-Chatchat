@@ -140,6 +140,18 @@ class CodingEvidenceCollectorTest {
             "amount",Map.of("type","number"),"note",Map.of("type","string")),
             "required",List.of("note"),"additionalProperties",false));
     }
+    @Test void repairFeedbackReturnsOnlyTrustedBooleanChecks() throws Exception {
+        fixture("{\"note\":\"finding\"}\n","PRESENT",true,"{\"note\":\"STRING\"}",1);
+        var result=collector(store).collect(scope,contract,"op","main.py","rows.jsonl",
+            List.of(new CodingEvidenceCollector.InputFile("prices","prices.csv",sha("amount\n12.50\n"))),
+            rows->new CodingEvidenceCollector.Validation(false,"runtime-result-schema","v1",
+                Map.of("rowSchemaMatched",true,"declaredReportScopeConsistent",false,
+                    "copiedSourceContentDetected","PRIVATE_SOURCE_VALUE","detail","PRIVATE_SOURCE_VALUE"),false));
+        assertThat(collector(store).structuralFeedback(scope,"task",result.validationRecordRef()))
+            .containsExactlyInAnyOrderEntriesOf(Map.of("rowSchemaMatched",true,"declaredReportScopeConsistent",false));
+        assertThatThrownBy(()->collector(store).structuralFeedback(scope,"another-task",result.validationRecordRef()))
+            .isInstanceOf(com.chatchat.common.runtime.coding.CodingContractException.class);
+    }
     @Test void optionalColumnsAreAdmittedUnderTheirDeclaredOutputContract() throws Exception {
         fixture("{\"amount\":12.5,\"note\":\"observed\"}\n{\"note\":\"not applicable\"}\n","PRESENT",true,
             "{\"amount\":\"MISSING|NUMBER\",\"note\":\"STRING\"}",2);

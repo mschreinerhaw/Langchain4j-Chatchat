@@ -276,9 +276,11 @@ public final class ClinePythonCallbackController {
                     response.put("outputStatus", "RESULT_VALIDATION_FAILED");
                     response.put("resultAvailable", false);
                     response.put("validationStatus", "FAILED");
+                    response.put("structuralChecks",collector.structuralFeedback(call.scope(),call.taskId(),collected.validationRecordRef()));
                     response.put("diagnostic", "Result validation failed. Match the contracted field names and types, "
                         + "and replace bulk source text with metrics and concise findings calculated in Python. "
                         + "Unchanged source documents or record collections are not analytical results. Use short quotations or input row references alongside computed findings. Original long-form analysis is allowed; do not split raw documents across fields or rows. "
+                        + com.chatchat.api.runtime.coding.evidence.CodingSchemaResultVerifier.REPORT_SCOPE_RULE + " "
                         + "Repair using the code-version protocol returned by python_execute and execute again. Do not combine source with repair.");
                     return withFeedback(call,result,response);
                 }

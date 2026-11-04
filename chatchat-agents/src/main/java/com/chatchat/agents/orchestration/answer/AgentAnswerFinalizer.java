@@ -274,7 +274,8 @@ public class AgentAnswerFinalizer implements AgentAnswerFinalizationPort {
             values.put("toolResultDataDisplayed", true);
             values.put("toolResultDataDisplaySource", visualizationSpec.get("sourceTool"));
             boolean governedAnalysisResponse = Boolean.TRUE.equals(values.get("returnedDataAnalysisRequired"))
-                || Boolean.TRUE.equals(values.get("governedNarrativeAnalysisAppended"));
+                || Boolean.TRUE.equals(values.get("governedNarrativeAnalysisAppended"))
+                || Boolean.TRUE.equals(values.get("codingOwnedAnalysisActive"));
             if (userFacingPolicy.supportsStructuredResultPresentation(values) || governedAnalysisResponse) {
                 values.put("toolResultPresentationMode", "structured_visualization");
                 values.put("toolResultDataMarkdownSuppressed", true);

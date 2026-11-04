@@ -610,8 +610,9 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
         assertThat(visualization).containsEntry("type", "table");
     }
 
-    @Test
-    void governedBusinessAnalysisKeepsRawRowsOutOfMarkdownWithoutFrontendContract() {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"returnedDataAnalysisRequired","codingOwnedAnalysisActive"})
+    void governedBusinessAnalysisKeepsRawRowsOutOfMarkdownWithoutFrontendContract(String ownershipFlag) {
         AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
             (chatModel, query, systemPrompt, observations, answer) ->
                 new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok"),
@@ -624,8 +625,7 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
                 + "{\"customerId\":\"070200046604\",\"asset\":847174.25}]}")
             .build();
         Map<String, Object> metadata = new LinkedHashMap<>();
-        metadata.put("returnedDataAnalysisRequired", true);
-        metadata.put("governedNarrativeAnalysisAppended", true);
+        metadata.put(ownershipFlag, true);
 
         AgentOrchestrator.AgentExecutionResult result = finalizer.finishExecution(
             "## 客户分析\n\n客户资产及交易情况已完成综合分析。",

@@ -24,6 +24,7 @@ const prior=path.join(out,'submission.json');
 if(fs.existsSync(prior))submitted=JSON.parse(fs.readFileSync(prior));
 else {
  const request={mode:spec.mode,skillId:spec.agent,sessionId:randomUUID(),requestSource:'cline-report-skills-live-acceptance',idempotencyKey:randomUUID(),query:spec.query,toolInput:{resourceExplorationApproved:true,reportMode:spec.visual?'visual':'off'}};
+ if(process.env.REPORT_MODEL)request.modelName=process.env.REPORT_MODEL;
  save('request',request);submitted=await api('/agent/tasks',request);save('submission',submitted);
 }
 console.log(JSON.stringify({case:id,taskId:submitted.taskId,event:'SUBMITTED'}));

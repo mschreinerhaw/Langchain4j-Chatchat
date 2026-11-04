@@ -128,6 +128,21 @@ describe("history selected during workspace startup", () => {
 });
 
 describe("incomplete history restoration", () => {
+  it("keeps source failures inside the selected conversation and clears stale sidebar errors on the next selection", async () => {
+    const fetch=vi.spyOn(api,"fetchConversationDetail")
+      .mockRejectedValueOnce(new Error("Document evidence authorization or version is no longer valid"))
+      .mockResolvedValueOnce({id:"readable",messages:[{id:"answer",role:"assistant",content:"Visible answer"}]});
+    const context={tenantId:"tenant",navigateToView:vi.fn(),conversationHistory:[],historyError:"old failure"};
+    try {
+      await App.methods.selectConversation.call(context,{id:"restricted"});
+      expect(context.historyError).toBe("");
+      expect(context.selectedConversation.detailLoadError).toContain("来源权限或版本已失效");
+      await App.methods.selectConversation.call(context,{id:"readable"});
+      expect(context.historyError).toBe("");
+      expect(context.selectedConversation.detailLoadError).toBe("");
+      expect(context.selectedConversation.messages[0].content).toBe("Visible answer");
+    } finally {fetch.mockRestore();}
+  });
   it("reloads missing bodies when reopening a partially hydrated conversation", async () => {
     const fetch = vi.spyOn(api, "fetchConversationDetail").mockResolvedValue({
       id: "session", messages: [{ id: "restored", role: "assistant", content: "saved answer" }],

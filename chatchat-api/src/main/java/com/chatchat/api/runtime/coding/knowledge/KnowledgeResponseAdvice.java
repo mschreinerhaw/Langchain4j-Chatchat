@@ -43,6 +43,14 @@ public class KnowledgeResponseAdvice implements ResponseBodyAdvice<Object> {
                         (String)actor.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID),run))response.getHeaders().setCacheControl("no-store");
             }
             String value=body instanceof String text?text:json.writeValueAsString(body);
+            // Only the concrete owner-authorized conversation endpoint may return
+            // message placeholders. Other source/result endpoints remain fail-closed.
+            if("GET".equals(actor.getMethod())&&uri.matches("/api/v1/conversations/[^/]+")
+                    &&body instanceof com.chatchat.common.response.ApiResponse<?> envelope
+                    &&envelope.getData() instanceof com.chatchat.chat.conversation.model.Conversation) {
+                var projected=ConversationContentDisclosure.sanitize(json.readTree(value),node->validateContent(actor,node));
+                if(projected!=null){response.getHeaders().setCacheControl("no-store");return projected;}
+            }
             var collection=TaskCollectionDisclosure.sanitize(actor.getMethod(),uri,json.readTree(value),task->{
                 guard.check((String)actor.getAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID),
                     (String)actor.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID),task.toString());
@@ -87,5 +95,23 @@ public class KnowledgeResponseAdvice implements ResponseBodyAdvice<Object> {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Document evidence authorization or version is no longer valid");
         }
         catch(com.fasterxml.jackson.core.JsonProcessingException invalid){return body;}
+    }
+
+    private void validateContent(HttpServletRequest actor,com.fasterxml.jackson.databind.JsonNode node) {
+        String tenant=(String)actor.getAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID);
+        String user=(String)actor.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID);
+        String value=node.toString();
+        if(value.contains("runtime-evidence:knowledge:"))guard.check(tenant,user,value);
+        var pending=new java.util.ArrayDeque<com.fasterxml.jackson.databind.JsonNode>();pending.add(node);
+        var checked=new java.util.HashSet<String>();
+        while(!pending.isEmpty()) {
+            var current=pending.removeFirst();String run=null;
+            if(current.isObject()) {
+                if(current.has("canonicalState")&&current.has("taskId"))run=current.path("attemptId").asText(null);
+                else if(current.has("runId")&&(current.has("request")&&current.has("result")||current.has("eventId")&&current.has("payload")))run=current.path("runId").asText(null);
+                if(run!=null&&checked.add(run))guard.checkRun(tenant,user,run);
+            }
+            if(current.isContainerNode())current.elements().forEachRemaining(child->{if(child.isContainerNode())pending.add(child);});
+        }
     }
 }

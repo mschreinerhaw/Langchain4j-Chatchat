@@ -1213,6 +1213,7 @@ export default {
       if (!conversation) {
         return;
       }
+      this.historyError = "";
       this.navigateToView("chat");
       const conversationId = conversation.id || conversation.conversationId || "";
       const needsDetail =
@@ -1268,8 +1269,9 @@ export default {
         );
       } catch (error) {
         if (this.activeHistoryId === conversationId) {
-          const message = error.message || "会话详情加载失败";
-          this.historyError = message;
+          const message = error.message === "Document evidence authorization or version is no longer valid"
+            ? "此条历史内容的来源权限或版本已失效，请确认访问权限或重新检索。"
+            : error.message || "会话详情加载失败";
           this.selectedConversation = {
             ...conversation,
             detailsLoading: false,

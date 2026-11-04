@@ -1,7 +1,7 @@
 <template>
   <details class="coding-monitor" @toggle="toggle" data-testid="coding-monitor">
     <summary
-      >编程与分析任务 · Cline <span>{{ delegateCount }}</span></summary
+      >coding任务分析 <span>{{ delegateCount }}</span></summary
     >
     <div v-if="expanded" class="monitor-body">
       <header>

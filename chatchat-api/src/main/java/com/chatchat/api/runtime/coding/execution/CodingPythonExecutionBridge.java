@@ -26,6 +26,9 @@ public class CodingPythonExecutionBridge {
     private final McpPythonControlPlanePort python;
     private final ObjectMapper mapper;
     private CodingDataSupplyService dataSupply;
+    private com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeService knowledge;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setKnowledge(com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeService value){knowledge=value;}
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setDataSupply(CodingDataSupplyService value){this.dataSupply=value;}
 
@@ -47,6 +50,10 @@ public class CodingPythonExecutionBridge {
         if (!contract.authorization().allowedSideEffects().contains(CodingTaskContract.SideEffect.CODE_EXECUTION)
                 || !contract.environmentRef().equals(environmentId)) throw new SecurityException("Code execution is not authorized");
         Map<String,String> files = authorizedFiles == null ? Map.of() : Map.copyOf(authorizedFiles);
+        if(com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeService.enabled(contract)) {
+            if(knowledge==null)throw new SecurityException("Resource authorization validation unavailable");
+            knowledge.validateContext(contract);
+        }
         if(CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion())) {
             if(dataSupply==null)throw new SecurityException("Dynamic inputs unavailable");
             dataSupply.bindInputs(contract,lease,operationId);

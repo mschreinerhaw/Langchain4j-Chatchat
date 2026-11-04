@@ -198,9 +198,9 @@ def main():
         config, host = copy.deepcopy(old['Config']), copy.deepcopy(old['HostConfig'])
         if name in images:
             config['Image'] = images[name]
-        if name==api:
+        if name==api and not manifest.get('preserveRuntimeConfiguration'):
             config['Env']=[v for v in config['Env'] if not v.startswith('CHATCHAT_SEARCH_OPENSEARCH_KNOWLEDGE')]+['CHATCHAT_SEARCH_OPENSEARCH_KNOWLEDGEINDEXNAMES=runtime_os_stage_documents,chatchat_documents_dev']
-        if name==api:
+        if name==api and not manifest.get('preserveRuntimeConfiguration'):
             config['Cmd']=[v for v in (config.get('Cmd') or []) if not v.startswith('--chatchat.search.open-search.knowledge-index-names=')]+['--chatchat.search.open-search.knowledge-index-names=runtime_os_stage_documents,chatchat_documents_dev']
         if name==node:
             config['Env']=[v for v in config['Env'] if not v.startswith('RUNTIME_CODING_BUILD=')]+['RUNTIME_CODING_BUILD='+manifest['sourceCommit']]
@@ -302,13 +302,15 @@ def main():
         catalog_readiness = verify_catalog_readiness(root, manifest)
         config = json.loads(configs['compose.yaml'])
         config['services']['api']['image'] = manifest['image']
-        config['services']['api'].setdefault('environment',{}).pop('CHATCHAT_SEARCH_OPENSEARCH_KNOWLEDGE_INDEX_NAMES',None)
-        config['services']['api']['environment']['CHATCHAT_SEARCH_OPENSEARCH_KNOWLEDGEINDEXNAMES']='runtime_os_stage_documents,chatchat_documents_dev'
+        if not manifest.get('preserveRuntimeConfiguration'):
+            config['services']['api'].setdefault('environment',{}).pop('CHATCHAT_SEARCH_OPENSEARCH_KNOWLEDGE_INDEX_NAMES',None)
+            config['services']['api']['environment']['CHATCHAT_SEARCH_OPENSEARCH_KNOWLEDGEINDEXNAMES']='runtime_os_stage_documents,chatchat_documents_dev'
         if mcp in images: config['services']['mcp']['image']=images[mcp]
         if news in images:config['services']['news']['image']=images[news]
         if node in images: config['services']['coding-agent']['image']=images[node]
         (stage / 'compose.yaml').write_text(json.dumps(config, indent=2))
-        config['services']['api']['command']=[v for v in (before[api]['Config'].get('Cmd') or []) if not v.startswith('--chatchat.search.open-search.knowledge-index-names=')]+['--chatchat.search.open-search.knowledge-index-names=runtime_os_stage_documents,chatchat_documents_dev']
+        if not manifest.get('preserveRuntimeConfiguration'):
+            config['services']['api']['command']=[v for v in (before[api]['Config'].get('Cmd') or []) if not v.startswith('--chatchat.search.open-search.knowledge-index-names=')]+['--chatchat.search.open-search.knowledge-index-names=runtime_os_stage_documents,chatchat_documents_dev']
         (stage / 'compose.yaml').write_text(json.dumps(config, indent=2))
         replacements={'API_IMAGE':manifest['image']}
         if mcp in images: replacements['MCP_IMAGE']=images[mcp]

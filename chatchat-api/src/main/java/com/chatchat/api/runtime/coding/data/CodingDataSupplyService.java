@@ -57,6 +57,36 @@ public final class CodingDataSupplyService {
         }
         return List.of(json.convertValue(saved,CodingInputSnapshotService.Snapshot[].class));
     }
+    /** Called only after the existing resource governor has authorized and read this exact source. */
+    public Map<String,Object> captureResource(CodingTaskContract c,CodingJournal.Lease lease,String reference,Map<String,Object> body) {
+        if(!CodingProtocol.ANALYSIS_VERSION.equals(c.schemaVersion())
+                || !c.authorization().allowedTools().contains("python_execute")
+                || !c.authorization().allowedSideEffects().contains(CodingTaskContract.SideEffect.CODE_EXECUTION)
+                || !reference.startsWith("runtime-evidence:knowledge:"))
+            throw new SecurityException("Resource calculation input is not authorized");
+        var fact=evidence.find(c.scope(),reference.substring(17)).orElseThrow(()->new SecurityException("Missing resource evidence"));
+        if(!c.taskId().equals(fact.payload().get("taskId")) || !fact.payload().containsKey("resource_id"))
+            throw new SecurityException("Resource evidence belongs to a different task");
+        String operation="data-"+hash(Map.of("task",c.taskId(),"resource",reference));
+        String source="coding-data:"+operation+":"+hash(body);
+        var existing=snapshots(c,null).stream().filter(s->source.equals(s.sourceDatasetRef())).findFirst();
+        CodingInputSnapshotService.Snapshot snapshot;
+        if(existing.isPresent())snapshot=existing.get();
+        else {
+            if(snapshots(c,null).size()>=17)throw new IllegalStateException("Resource calculation input limit reached");
+            var dataset=new Dataset(source,Map.of("sourceEvidenceId",reference,"resourceId",fact.payload().get("resource_id")),List.of(body));
+            snapshot=inputs.captureForTask(c,List.of(dataset),source,1,1024*1024);
+            String receipt="coding:data:"+hash(Map.of("task",c.taskId(),"operation",operation));
+            var payload=Map.<String,Object>of("taskId",c.taskId(),"sourceEvidenceId",reference,"snapshot",snapshot,"sourceHash",hash(body));
+            if(evidence.find(c.scope(),receipt).isEmpty())evidence.register(new EvidenceRecord(null,receipt,c.scope(),
+                "CODING_DATA_RECEIPT","CodingDataSupplyService",evidence.contentHash(payload),payload,null,System.currentTimeMillis(),Map.of()),
+                new EvidenceLineage(null,receipt,c.scope(),List.of(reference.substring(17),snapshot.reference().substring(17)),c.taskId(),"CodingDataSupplyService",null,Map.of()));
+            var old=tasks.privateState(c.scope(),c.taskId(),"data-inputs");
+            var all=new ArrayList<>(snapshots(c,null));all.add(snapshot);
+            tasks.privateState(c.scope(),c.taskId(),lease,"data-inputs",old,json.valueToTree(all));
+        }
+        return Map.of("datasetReference",source,"evidence_id",reference,"descriptor",inputs.describe(c.scope(),c.taskId(),snapshot));
+    }
     public List<CodingInputSnapshotService.Snapshot> bindInputs(CodingTaskContract c,CodingJournal.Lease lease,String operation) {
         String key="inputs:"+operation;
         var saved=tasks.privateState(c.scope(),c.taskId(),key);

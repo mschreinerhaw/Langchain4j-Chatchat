@@ -55,7 +55,7 @@ def main():
             '-v', str(context) + ':/verify:ro',
             '-v', str(root / 'python-project-adapter.py') + ':/chatchat-common/src/main/resources/runtime/coding/python-project-adapter.py:ro',
             '-w', '/verify', image,
-            '--test', *['test/' + p.name for p in sorted((context / 'test').glob('*.test.js'))]],
+            '--test', '--test-concurrency=1', *['test/' + p.name for p in sorted((context / 'test').glob('*.test.js'))]],
             stdout=log, stderr=subprocess.STDOUT, check=True)
     report = {'image': image, 'imageId': run('docker', 'image', 'inspect', '-f', '{{.Id}}', image),
         'baselineImageId': worker['Image'], 'archiveSha256': expected,

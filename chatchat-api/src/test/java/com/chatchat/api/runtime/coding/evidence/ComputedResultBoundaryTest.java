@@ -40,4 +40,21 @@ class ComputedResultBoundaryTest {
         boundary.observeInput(json.writeValueAsBytes(Map.of("document",document)));
         assertThat(boundary.copiedSource(List.of(Map.of("analysis","Summary: "+document+" End of report.")))).isTrue();
     }
+    @Test void rejectsMarkdownDumpOfDistinctShortSourceFieldsWithAnAnalysisSuffix() throws Exception {
+        var report = new StringBuilder("# Findings\n");
+        for (int i=0;i<20;i++) {
+            String body="Article "+i+": "+("This source reports a company announcement with its original context. ").repeat(5);
+            boundary.observeInput(json.writeValueAsBytes(Map.of("title","Source "+i,"body",body)));
+            report.append("\n**Record ").append(i).append("**\n- Body: ").append(body).append('\n');
+        }
+        report.append("\nThe delivered evidence is insufficient to establish causation.");
+        assertThat(boundary.copiedSource(List.of(Map.of("reportMarkdown",report.toString())))).isTrue();
+    }
+    @Test void acceptsOriginalReportWithSeveralBriefCitationsAndDoesNotDoubleCountNestedExcerpts() throws Exception {
+        String excerpt="A relevant source sentence with declared scope and publication time. ".repeat(4);
+        for(int i=0;i<5;i++)boundary.observeInput(json.writeValueAsBytes(Map.of("body",excerpt+i)));
+        String report="Independent interpretation with qualifications and original findings. ".repeat(100)
+            +excerpt+"0\n"+excerpt+"1\n"+excerpt+"2";
+        assertThat(boundary.copiedSource(List.of(Map.of("reportMarkdown",report)))).isFalse();
+    }
 }

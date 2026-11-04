@@ -324,5 +324,122 @@
       "financial_news",
       "financial_market"
     ]
+  },
+  {
+    "id": "builtin:cline:analyzer",
+    "name": "analyzer",
+    "description": "Analyze queried data for trends, week-over-week comparisons, distributions, funnels, cohorts, top-N lists, anomalies, sanity checks, and report-ready findings. Use after or alongside ClickHouse queries when the user wants insight rather than raw rows.",
+    "version": "upstream-26378461e978",
+    "origin": "SYSTEM_BUILTIN",
+    "category": "Report",
+    "publisher": "Cline",
+    "nativeOriginal": true,
+    "builtin": true,
+    "enabled": true,
+    "compatibility": "Methodology only. Runtime task authorization and runtime-report-delivery govern tools, output paths and static artifacts. No ClickHouse, host shell, network or HTML execution is granted.",
+    "provenance": {
+      "repository": "https://github.com/cline/skills",
+      "directory": "skills/data-analyst/skills/analyzer",
+      "commit": "26378461e978f2b4e2e6d67b57121b86b2a79ba5",
+      "license": "Apache-2.0",
+      "importedAt": "2026-11-04",
+      "sha256": "3f51449902a54fe65714006593f8308b25058a39d1d074330bb6922ef83e9e1f"
+    },
+    "resources": [
+      {
+        "path": "LICENSE.cline",
+        "sha256": "a1c7eac5056d8844e1cad0fc5998d1aeb59b0ec73eb3d6b5b340f7a9453b1b2b",
+        "size": 10955
+      }
+    ],
+    "displayName": "数据分析与结论",
+    "descriptionZh": "分析真实数据中的趋势、差异、分布与异常，并说明证据限制。",
+    "source": "Cline",
+    "sourceVersion": "26378461e978f2b4e2e6d67b57121b86b2a79ba5"
+  },
+  {
+    "id": "builtin:cline:plotting",
+    "name": "plotting",
+    "description": "Create standardized charts and visual assets from analytics query results. Prefer dependency-free plain HTML/CSS/JavaScript/SVG for interactive exploratory charts; use local plotting tools such as matplotlib, seaborn, or Plotly when static/report-ready exports or specialized charting libraries are more appropriate. Use for trends, comparisons, distributions, report assets, CSV-to-chart work, and presentation-ready data visuals.",
+    "version": "upstream-26378461e978",
+    "origin": "SYSTEM_BUILTIN",
+    "category": "Report",
+    "publisher": "Cline",
+    "nativeOriginal": true,
+    "builtin": true,
+    "enabled": true,
+    "compatibility": "Methodology only. Runtime task authorization and runtime-report-delivery govern tools, output paths and static artifacts. No ClickHouse, host shell, network or HTML execution is granted.",
+    "provenance": {
+      "repository": "https://github.com/cline/skills",
+      "directory": "skills/data-analyst/skills/plotting",
+      "commit": "26378461e978f2b4e2e6d67b57121b86b2a79ba5",
+      "license": "Apache-2.0",
+      "importedAt": "2026-11-04",
+      "sha256": "67fae3410ffcd0fed6c8089aaff6aa0d1d338d30214d4b57a4986a71541d280d"
+    },
+    "resources": [
+      {
+        "path": "LICENSE.cline",
+        "sha256": "a1c7eac5056d8844e1cad0fc5998d1aeb59b0ec73eb3d6b5b340f7a9453b1b2b",
+        "size": 10955
+      },
+      {
+        "path": "styles/cline-chart-tokens.css",
+        "sha256": "f19736ed928799b8d1b17ddc0d263e2c10f5928686b1c1834d22199247ae284c",
+        "size": 2365
+      }
+    ],
+    "displayName": "报告图表",
+    "descriptionZh": "根据分析目标选择图表并生成清晰、可追溯的图形。",
+    "source": "Cline",
+    "sourceVersion": "26378461e978f2b4e2e6d67b57121b86b2a79ba5"
+  },
+  {
+    "id": "builtin:cline:artifact-management",
+    "name": "artifact-management",
+    "description": "Save, organize, and describe reusable analysis artifacts such as SQL, result snapshots, CSV exports, summaries, caveats, plots, and report-ready files. Use when users ask to save, export, share, cite, reproduce, or organize data-analysis outputs.",
+    "version": "upstream-26378461e978",
+    "origin": "SYSTEM_BUILTIN",
+    "category": "Report",
+    "publisher": "Cline",
+    "nativeOriginal": true,
+    "builtin": true,
+    "enabled": true,
+    "compatibility": "Methodology only. Runtime task authorization and runtime-report-delivery govern tools, output paths and static artifacts. No ClickHouse, host shell, network or HTML execution is granted.",
+    "provenance": {
+      "repository": "https://github.com/cline/skills",
+      "directory": "skills/data-analyst/skills/artifact-management",
+      "commit": "26378461e978f2b4e2e6d67b57121b86b2a79ba5",
+      "license": "Apache-2.0",
+      "importedAt": "2026-11-04",
+      "sha256": "0a4b2af4396e23f04599a5e786ce38f25fedee6ffe6c4b9247645181bfcadc1a"
+    },
+    "resources": [
+      {
+        "path": "LICENSE.cline",
+        "sha256": "a1c7eac5056d8844e1cad0fc5998d1aeb59b0ec73eb3d6b5b340f7a9453b1b2b",
+        "size": 10955
+      }
+    ],
+    "displayName": "分析产物管理",
+    "descriptionZh": "组织报告、图表、结果快照及复现信息。",
+    "source": "Cline",
+    "sourceVersion": "26378461e978f2b4e2e6d67b57121b86b2a79ba5"
+  },
+  {
+    "id": "builtin:runtime-report-delivery",
+    "name": "runtime-report-delivery",
+    "description": "Deliver autonomous evidence-based text and visual reports through Runtime OS; synthesize relevant sources rather than dumping retrieved records, preserve uncertainty, use actual Python chart artifacts and the existing report contract.",
+    "version": "1.0.0",
+    "origin": "SYSTEM_BUILTIN",
+    "category": "Report",
+    "publisher": "Runtime OS",
+    "builtin": true,
+    "enabled": true,
+    "references": [],
+    "displayName": "报告交付",
+    "descriptionZh": "将有来源依据的文字或图文报告交付到现有 Runtime OS 报告链路。",
+    "source": "Runtime OS",
+    "sourceVersion": "1.0.0"
   }
 ]

@@ -41,6 +41,9 @@ public class CodingKnowledgeService {
     private final ObjectMapper json;
     private com.chatchat.common.retrieval.AgentResourceScopePort resourceScopes;
     private CodingResourceReader resourceReader;
+    private com.chatchat.api.runtime.coding.data.CodingDataSupplyService dataSupply;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setDataSupply(com.chatchat.api.runtime.coding.data.CodingDataSupplyService value){dataSupply=value;}
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     private com.chatchat.enterprise.repository.audit.SysAuditLogRepository resourceAudit;
     private void auditAccess(CodingTaskContract c,String tool,String outcome) {
@@ -404,7 +407,16 @@ public class CodingKnowledgeService {
                 current.put("evidence_id",ref);delivered.add(current);
             }
             result.put("items",delivered);
-        } else result.put("evidence_id",rememberResource(c,lease,tool,args,result,callId));
+        } else {
+            String ref=rememberResource(c,lease,tool,args,result,callId);
+            // Freeze observations already read through MCP; never let a worker
+            // inject its own rows or turn a catalog search into measured data.
+            if(tool.startsWith("market_get_") && c.authorization().allowedTools().contains("python_execute")) {
+                if(dataSupply==null)throw new IllegalStateException("Resource input snapshots unavailable");
+                result.put("calculationInput",dataSupply.captureResource(c,lease,ref,new LinkedHashMap<>(result)));
+            }
+            result.put("evidence_id",ref);
+        }
         return result;
     }
     private String rememberResource(CodingTaskContract c,CodingJournal.Lease lease,String tool,JsonNode args,Map<String,Object> body,String callId) {

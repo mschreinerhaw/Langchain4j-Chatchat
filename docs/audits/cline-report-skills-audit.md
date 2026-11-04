@@ -1,0 +1,33 @@
+# Cline 报告链路源码与运行审查
+
+审查日期：2026-11-04。基线 `1dda875e0`，实施分支 `feature/cline-report-skills-integration`。先审查，后实施；本文件的运行事实不等于改造后验收通过。
+
+## 已取得的运行证据
+
+经用户指定环境的真实登录，读取既有任务 `d6e12490-d51c-494e-bc3a-dba8ba58162c`（财经资讯分析 Agent，问题为“华是科技亏损主要原因是什么”）。答案 25,248 字符，含 23 处“记录 N”，混入行情快照、逐条摘要与不相关资讯，末尾才出现业务结论。原任务为 PARTIAL，不能称完整成功。任务书举例为“华星科技”，实际历史任务为“华是科技”，两者不能混同。
+
+实际 Cline 任务 `analysis-coding-0a3b711603489af1256f03c83bf1db2a1ca492d9e0ac68ffe025f7ffd0babe62` 经三次真实 Python 执行，第一次退出 0 但结果合同失败，后两次结构校验通过。故此案例并非简单的工具结果直接透传，也并非根本没有 Python：Cline 生成了包含大量原始记录的报告，现有结构和来源复制校验未拦截这种格式化复制。其配置未带 `reportMode`；仅凭该历史记录无法断言用户当时勾选了图文模式。
+
+部署基线：API JAR SHA-256 `bd405a26c022147cb4701e26933a739f1366729ee81935d781173203230d6fb6`；Worker 镜像 `runtime-os-coding-agent:resource-completion-47e7a72b2415`，Node `v24.21.0`。受权读取的原始任务和调用记录暂存 `target/cline-report-baseline`，登录材料不进入版本库；交付证据需脱敏。
+
+## 调用链与现有组件
+
+1. `ClineContextAnswerService.answer` 绑定用户、Agent、材料与图文偏好；`CodingAnalysisService` 构造原有 report row schema、工具和任务合同。
+2. `ClineCodingAdapter` 连接 Node；`coding-agent-node/src/runner.js` 使用固定 `@cline/{agents,core,sdk}` 0.0.93，自主调用 `input_read`、`skill_read`、资源工具、`python_execute` 和报告复核工具。
+3. `skills.js::taskSkills/readBuiltin` 从镜像 `skills/catalog.json` 提供元数据，正文按需读取；原生内容经 Cline parser 和哈希核验；内置同名保护、动态技能优先级与引用边界已存在。Docker 以 node 用户运行，`.cline/skills` 指向镜像包。不能假定裸 Agent SDK 自行发现磁盘技能。
+4. `CodingKnowledgeService.call/resourceCall` 每次重验当前权限，经 `CodingResourceReader` 固定 MCP 控制面访问已有文档、新闻和行情；证据 ID 与源版本绑定。不能用索引命中替代真实源读取。
+5. `CodingPythonExecutionBridge.start` 使用已授权的不可变输入，通过 MCP Python Sandbox 执行。`CodingDataSupplyService.bindInputs` 已有逐次执行输入版本冻结机制。
+6. `CodingEvidenceCollector.collect/collectText` 核验执行停止、文件、结果 schema 和证据；`VisualReportArtifacts.collect` 校验并归档图表。`ClineModelCallbackController` 提供 artifact_read 和引用复核。`AnalysisCoverageCoordinator` 从注册结果取得报告，不由 Java 再撰写正文。
+7. 前端已有 `ReportRenderer`、`ReportMarkdown`、`PythonVisualReport`、`PythonReportChart`；沿现有报告资源授权下载和历史恢复路径展示。是否需修改前端应由实际浏览器验收决定。
+
+## 已定位缺口
+
+- `ComputedResultBoundary` 只保留超过 2,048 字符的单段源文本，并比较完整容器/记录。将多个较短源字段改排成 Markdown 后，既不等于完整 JSON，也不包含足够长的单段原文；实际原始记录列表因此通过校验。需对大篇幅重复引用多个源片段补充结构性检查，允许简短证据引用，不由 Java 判断业务结论。
+- `CodingAnalysisService.run` 对 `knowledgeTask` 删除 python_execute，并授予空 sideEffects；资源任务目标同时声明“no code-execution permission”。图文偏好即使抵达这一分支，也不能凭技能获得真实图表能力。应复用当前输入快照与执行冻结，交付已授权资源读取结果后才允许 Sandbox 分析，不能直接开放数据库、网络或任意 MCP。
+- 默认包有 Python 分析及微软技能，缺少专用的报告交付方法；安装技能不能修复上述合同与校验缺口。
+- 图文 schema、文件清单、SHA-256、Silo 与前端组件已存在，不应另起 Manifest、报告模型或渲染产品。
+- 资源 report_submit 自复核在同一 Cline 会话完成。Java `tool_result_review` 属于原工具编排路径，应依据本次真实调用记录检查是否存在重复；不能全局删除安全/参数治理来减少调用。
+
+## 改造约束
+
+保持 Java 权限、停止证明、预算、租户用户隔离和历史数据。Java 只做交付校验与授权快照，不选择企业结论或固定报告章节，不增加额外 LLM 报告流程。复用已有 Python 环境与报告 schema。远端部署必须留存精确回滚，不改既有生产参数、不执行破坏性或不可逆变更。真实 MCP、Python 图表、页面展示、历史恢复及失败场景需分别记录，未验证项不能标通过。

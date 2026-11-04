@@ -64,6 +64,38 @@ class CodingDataSupplyServiceTest {
         respond(List.of(Map.of("date","2026-10-14","price","101.00")));
     }
     @AfterEach void close(){timer.shutdownNow();}
+    @Test void resourceSnapshotsUseExistingFrozenExecutionInputsAndDoNotAcquireAnotherTemplate() {
+        String id="knowledge:"+"a".repeat(64),ref="runtime-evidence:"+id;
+        var payload=Map.<String,Object>of("taskId",contract.taskId(),"resource_id","financial_market");
+        actor(()->evidence.register(new com.chatchat.common.runtime.evidence.EvidenceRecord(null,id,scope,
+            "RESOURCE_MARKET_REFERENCE","CodingKnowledgeService",evidence.contentHash(payload),payload,null,0,Map.of()),
+            new com.chatchat.common.runtime.evidence.EvidenceLineage(null,id,scope,List.of(),contract.taskId(),"CodingKnowledgeService",null,Map.of())));
+        var body=Map.<String,Object>of("items",List.of(Map.of("date","2026-11-03","close","12.50")),"unit","CNY");
+        var first=actor(()->service.captureResource(contract,lease,ref,body));
+        assertThat(actor(()->service.captureResource(contract,lease,ref,body))).isEqualTo(first);
+        assertThat(actor(()->service.snapshots(contract,null))).hasSize(2);
+        String operation="cline-"+"c".repeat(64);
+        var frozen=actor(()->service.bindInputs(contract,lease,operation));
+        var files=new TreeMap<String,String>();
+        frozen.forEach(s->CodingInputSnapshotService.mountedFiles(s).forEach(f->files.put(f.fileId(),f.sha256())));
+        assertThat(actor(()->service.authorizes(contract,operation,files))).isTrue();
+        files.put("forged","hash");
+        assertThat(actor(()->service.authorizes(contract,operation,files))).isFalse();
+        assertThat(actor(()->service.provenanceIds(contract,operation))).hasSize(3);
+        verifyNoInteractions(tool);
+    }
+    @Test void missingAndCrossTaskResourceEvidenceCannotBeMounted() {
+        String id="knowledge:"+"d".repeat(64),ref="runtime-evidence:"+id;
+        assertThatThrownBy(()->actor(()->service.captureResource(contract,lease,ref,Map.of("price",42))))
+            .isInstanceOf(SecurityException.class);
+        var payload=Map.<String,Object>of("taskId","other-task","resource_id","financial_market");
+        actor(()->evidence.register(new com.chatchat.common.runtime.evidence.EvidenceRecord(null,id,scope,
+            "RESOURCE_MARKET_REFERENCE","CodingKnowledgeService",evidence.contentHash(payload),payload,null,0,Map.of()),
+            new com.chatchat.common.runtime.evidence.EvidenceLineage(null,id,scope,List.of(),"other-task","CodingKnowledgeService",null,Map.of())));
+        assertThatThrownBy(()->actor(()->service.captureResource(contract,lease,ref,Map.of("price",42))))
+            .isInstanceOf(SecurityException.class);
+        assertThat(actor(()->service.snapshots(contract,null))).hasSize(1);
+    }
     void respond(List<Map<String,Object>> rows) {
         try {var content=json.writeValueAsString(Map.of("success",true,"data",Map.of("rowCount",rows.size(),"rows",rows,"complete",true)));
             when(tool.execute(any(),any(),isNull())).thenReturn(new WorkflowExecutionResult(List.of(new ToolAnalysisEvidence("source-receipt","sql_template_analysis_execute","request",content,Map.of())),Map.of("status","SUCCESS"),List.of()));

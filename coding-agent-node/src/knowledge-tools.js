@@ -7,9 +7,13 @@ export function knowledgeTools(contract, gateway, forward) {
   const selected = [...KNOWLEDGE_TOOLS,...RESOURCE_TOOLS].filter(name => permitted.has(name));
   if (!selected.length) return [];
   const documents = KNOWLEDGE_TOOLS.filter(name => permitted.has(name));
+  const calculation = contract.metadataRefs?.includes('runtime-coding:resource-calculation-inputs:v1')
+    && contract.schemaVersion === 'runtime_os.coding.v3' && permitted.has('python_execute')
+    && contract.authorization?.allowedSideEffects?.length === 1
+    && contract.authorization.allowedSideEffects[0] === 'CODE_EXECUTION';
   if ((documents.length && documents.length !== KNOWLEDGE_TOOLS.length) || contract.runtimeContext?.knowledgeExploration?.schemaVersion !== KNOWLEDGE_PROFILE
       || contract.runtimeContext?.analysisResultMode !== 'TEXT_OR_CODE' || typeof gateway.knowledge !== 'function'
-      || contract.authorization?.allowedSideEffects?.length || permitted.has('python_execute'))
+      || !calculation && (contract.authorization?.allowedSideEffects?.length || permitted.has('python_execute')))
     throw new TypeError('Knowledge tools require an isolated read-only Runtime profile');
   const document = { document_id: { type: 'string' }, version_id: { type: 'string', description: 'Exact version_id from the current search result.' } };
   const definitions = [

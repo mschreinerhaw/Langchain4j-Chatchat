@@ -294,6 +294,17 @@ for(const [name,validation]of [
   assert.equal(confirmation.isError,true);
 });
 
+test('resource visual preference can confirm a real Python text report when no chart is justified',async()=>{
+  const task={...contract,runtimeContext:{reportMode:'visual',analysisResultMode:'TEXT_OR_CODE',
+      knowledgeExploration:{schemaVersion:'runtime_os.knowledge.v1',agentId:'resource-agent',resourceIds:['financial_market']}},
+    authorization:{...contract.authorization,allowedTools:[...contract.authorization.allowedTools,'market_get_history']},
+    metadataRefs:[...contract.metadataRefs,'runtime-coding:resource-calculation-inputs:v1'],budget:{maxModelCalls:5}};
+  const {run,counts}=fixture(turn=>turn===1?python(turn):{toolCalls:[{id:'confirm',name:'artifact_read',input:{reference:'runtime-evidence:result-1'}}]},
+    verified,(_count,reference)=>({reference,complete:true,rows:[{reportMarkdown:'Observed numerical history is unavailable; the report explains the evidence limit.'}],
+      reportReferenceValidation:{valid:true}}),task,{knowledge(){assert.fail('No data query is required for this result review');}});
+  assert.equal((await run.run()).status,'completed');assert.equal(counts.executions,1);assert.equal(counts.reads,1);
+});
+
 test('Runtime STOP takes precedence over a contradictory successful receipt and never reads an artifact', async () => {
   const { run, counts } = fixture(turn => python(turn), version => ({ ...verified(version),
     executionFeedback: { repair: { action: 'STOP', allowed: false, reason: 'POLICY_STOP' } } }),

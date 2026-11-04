@@ -50,9 +50,12 @@ class CodingAnalysisServiceTest {
         attrs.put("resourceExplorationConfigured",true);attrs.put("taskType","DATA_ANALYSIS");
         var context=new AnalysisCoverageCoordinator.Request(original.model(),original.query(),null,attrs,original.metadata(),()->false,()->{},original.isolationScope(),null);
         var request=new LinkedHashMap<>(request());request.remove("datasetReference");request.put("datasetReferences",List.of("runtime-context:question"));
+        request.put("reviewResult",true);
         service.execute(context,request,new LinkedHashMap<>(Map.of("runtime-context:question",new Dataset("runtime-context:question",Map.of(),List.of(Map.of("text","User objective"))))));
         var capture=org.mockito.ArgumentCaptor.forClass(CodingTaskContract.class);verify(agent).submit(capture.capture());var contract=capture.getValue();
-        assertThat(contract.authorization().allowedTools()).contains("news_search","market_get_history").doesNotContain("knowledge_search","python_execute","data_request");
+        assertThat(contract.authorization().allowedTools()).contains("news_search","market_get_history","python_execute","artifact_read").doesNotContain("knowledge_search","data_request");
+        assertThat(contract.authorization().networkPolicy()).isEqualTo(CodingTaskContract.NetworkPolicy.NONE);
+        assertThat(contract.authorization().allowedSideEffects()).containsExactly(CodingTaskContract.SideEffect.CODE_EXECUTION);
         @SuppressWarnings("unchecked") var profile=(Map<String,Object>)contract.runtimeContext().get("knowledgeExploration");
         assertThat(profile).containsEntry("explicitlyRequested",true).containsEntry("agentId","resource-agent")
             .containsEntry("resourceIds",List.of("financial_market","financial_news"));

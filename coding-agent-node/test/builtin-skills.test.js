@@ -13,8 +13,8 @@ test('pinned Cline discovers all original packaged Skills without network access
   try {
     await watcher.start();
     const snapshot = [...watcher.getSnapshot('skill').values()];
-    assert.equal(snapshot.length, 10);
-    assert.deepEqual(snapshot.map(item => item.item.name).sort(), ['azure-ai-ml-py','azure-kusto','evidence-based-answering','financial-market-analysis','financial-news-analysis','mcp-builder','opensearch-knowledge-exploration','python-code-development','python-data-analysis','skill-creator']);
+    assert.equal(snapshot.length, 14);
+    assert.deepEqual(snapshot.map(item => item.item.name).sort(), ['analyzer','artifact-management','azure-ai-ml-py','azure-kusto','evidence-based-answering','financial-market-analysis','financial-news-analysis','mcp-builder','opensearch-knowledge-exploration','plotting','python-code-development','python-data-analysis','runtime-report-delivery','skill-creator']);
   } finally { watcher.stop(); }
 });
 
@@ -27,12 +27,12 @@ test('legacy Agent disable policy cannot remove platform Skills; collisions and 
   dynamic.version = '2';
   assert.equal(a.catalog.skills.find(card => card.id === 'domain-a').version, '1');
   assert.equal(a.catalog.conflicts[0].reason, 'BUILTIN_NAME_RESERVED');
-  assert.equal(a.catalog.skills.length, 7);
-  assert.equal(b.catalog.skills.length, 6);
+  assert.equal(a.catalog.skills.length, 11);
+  assert.equal(b.catalog.skills.length, 10);
   assert.ok(b.readBuiltin('builtin:python-data-analysis'));
-  assert.equal(taskSkills({builtinSkillPolicy:{disabledSkillIds:'legacy-malformed'}}).catalog.skills.length,6);
+  assert.equal(taskSkills({builtinSkillPolicy:{disabledSkillIds:'legacy-malformed'}}).catalog.skills.length,10);
   for(const card of b.catalog.skills){assert.equal(card.builtin,true);assert.equal(card.enabled,true);assert.ok(card.displayName&&card.descriptionZh&&card.source&&card.sourceVersion);}
-  assert.equal(taskSkills().catalog.skills.length, 6);
+  assert.equal(taskSkills().catalog.skills.length, 10);
   const instructions = a.readBuiltin('builtin:python-data-analysis');
   assert.match(instructions.instructions, /Python Sandbox/);
   assert.match(a.readBuiltin('builtin:python-data-analysis', instructions.resources[0].path).content, /Parquet/);

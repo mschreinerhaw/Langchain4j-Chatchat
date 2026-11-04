@@ -226,6 +226,7 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
             + "Read the complete user objective from the immutable context input " + reference + ". "
             + "SQL over attached files may use in-memory SQLite with explicit table mappings. Never connect to an external source. ";
         boolean conditionalVisual=taskType==null&&com.chatchat.common.runtime.coding.VisualReportMode.active(attrs);
+        boolean resourceReport=Boolean.TRUE.equals(attrs.get("resourceExplorationConfigured"));
         boolean visual=conditionalVisual||com.chatchat.common.runtime.coding.VisualReportMode.analysisRequested(attrs);
         if(visual)instruction+="\n"+(conditionalVisual?"This context-only route has no preclassified analytical task. The report preference NEVER changes the user's task. "
             +"For ordinary knowledge questions, explanations, writing, translations or proposed code/schema designs, OMIT visualReport entirely and answer normally; do not create charts or invent data to satisfy the preference. "
@@ -242,7 +243,7 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
             phase(runId, "CLINE_SUBMITTING", "RUNNING", inputKind);
             var receipt = coding.executeObserved(invocation, Map.of("operation", "RUN_CODING",
                 "requestId", codingRequestId, "datasetReferences", List.copyOf(sources.keySet()), "instruction", instruction,
-                "outputSchema", CodingAnalysisService.primaryReportSchema(visual,!conditionalVisual), "reviewResult", true), sources,
+                "outputSchema", CodingAnalysisService.primaryReportSchema(visual,!conditionalVisual&&!resourceReport), "reviewResult", true), sources,
                 event -> {
                     if ("TASK_CREATED".equals(event.get("codingEventType"))) phase(runId, "CLINE_SUBMITTING", "COMPLETED", inputKind);
                     runs.recordObservation(runId, new AgentObservation("coding", "coding_agent", "Coding task progress", event));

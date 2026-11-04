@@ -3,7 +3,38 @@ import assert from 'node:assert/strict';
 import { createCodingRun } from '../src/runner.js';
 import { KNOWLEDGE_TOOLS, RESOURCE_TOOLS, knowledgeTools } from '../src/knowledge-tools.js';
 import { taskSkills } from '../src/skills.js';
+const contextRef='runtime-context:run';
 const profile={schemaVersion:'runtime_os.knowledge.v1',agentId:'agent'};
+test('access-denied reports retain their delivered context and repair empty references before Java submission',async()=>{
+  let turn=0,published=0;const checkpoints=[];
+  const run=createCodingRun({...contract,budget:{maxModelCalls:5},authorization:{...contract.authorization,
+    allowedTools:[...contract.authorization.allowedTools,'input_read']}}, {
+    reserveModel(){},settleModel(){},finish(){},executePython(){throw Error('No code authority');},knowledge(){throw Error('No unauthorized source read');},
+    readInput(c,input){assert.equal(input.datasetReference,contextRef);return {datasetReference:contextRef,text:'The user requests another user\'s private documents.'};},
+    checkpoint(c,value){checkpoints.push(value);},
+    submitReport(c,{report}){published++;assert.equal(turn,4);assert.deepEqual(report.evidenceReferences,[contextRef]);
+      return {operationId:'workspace-'+'6'.repeat(64),status:'SUCCEEDED',executorStopped:true,pythonExecuted:false,
+        executionMode:'TEXT_ONLY',resultDatasetRef:'report',validationRecordRef:'validation',evidenceBundleRef:'bundle'};},
+  }, {nativeSdk:true,model:{async *stream(request){
+    turn++;
+    if(turn===1)yield {type:'tool-call-delta',toolCallId:'input',toolName:'input_read',input:{datasetReference:contextRef,offset:0,limit:1000}};
+    else {
+      if(turn===3){
+        const review=request.messages.flatMap(m=>Array.isArray(m.content)?m.content:[])
+          .find(p=>p.type==='tool-result' && p.output?.resourceReportReviewRequired)?.output;
+        assert.deepEqual(review.deliveredEvidenceReferences,[contextRef]);
+        assert.match(review.instruction,/empty resource-reference inventory does not invalidate/);
+      }
+      if(turn===4){assert.equal(published,0);assert.match(JSON.stringify(request.messages),/evidenceReferences cannot be empty/);}
+      yield {type:'tool-call-delta',toolCallId:`denied-report-${turn}`,toolName:'report_submit',input:{
+        reportMarkdown:'The requested unauthorized document cannot be accessed. No unauthorized source was read.',
+        evidenceReferences:turn===3?[]:[contextRef],limitations:['No access to the requested resource.']}};
+    }
+    yield {type:'finish',reason:'tool-calls'};
+  }}});
+  const result=await run.run();assert.equal(result.status,'completed');assert.equal(turn,4);assert.equal(published,1);
+  assert.ok(checkpoints.some(value=>value.deliveredInputReferences?.includes(contextRef)));
+});
 test('draft review identifies an invented evidence ID and supplies exact delivered IDs for repair',async()=>{
   const delivered='runtime-evidence:knowledge:'+'3'.repeat(64),invented='runtime-evidence:knowledge:'+'4'.repeat(64);
   let turn=0,published=0;
@@ -33,7 +64,7 @@ test('draft review identifies an invented evidence ID and supplies exact deliver
   const result=await run.run();assert.equal(result.status,'completed');assert.equal(turn,3);assert.equal(published,1);
 });
 const contract={schemaVersion:'runtime_os.coding.v3',taskId:'knowledge',scope:{tenantId:'tenant',userId:'owner',runId:'run'},
-  objective:{instruction:'Read backup design and actual recovery test evidence'},
+  objective:{instruction:'Read backup design and actual recovery test evidence; supplied context reference runtime-context:run'},
   authorization:{allowedTools:[...KNOWLEDGE_TOOLS,'report_submit','skill_read'],allowedSideEffects:[],allowedDataRefs:[],networkPolicy:'NONE'},
   runtimeContext:{analysisResultMode:'TEXT_OR_CODE',knowledgeExploration:profile},
   outputContract:{requiredFiles:['rows.jsonl'],resultFormat:'JSON_LINES'},budget:{maxModelCalls:10}};
@@ -93,7 +124,7 @@ test('resource exploration reserves submission and repair turns without enlargin
     }else{
       assert.deepEqual(request.tools.map(tool=>tool.name),['report_submit']);
       yield {type:'tool-call-delta',toolCallId:`budget-${turn}`,toolName:'report_submit',input:{
-        reportMarkdown:'No recovery test evidence was found in the searched scope.',evidenceReferences:[],limitations:['Evidence is insufficient.']}};
+        reportMarkdown:'No recovery test evidence was found in the searched scope.',evidenceReferences:[contextRef],limitations:['Evidence is insufficient.']}};
     }
     yield {type:'finish',reason:'tool-calls'};
   }}});
@@ -108,7 +139,7 @@ test('a plain resource answer cannot complete before a verified report is submit
   },{nativeSdk:true,model:{async *stream(){
     if(++turn===1){yield {type:'text-delta',text:'I could not establish a recovery test.'};yield {type:'finish',reason:'end-turn'};}
     else{yield {type:'tool-call-delta',toolCallId:'publish',toolName:'report_submit',input:{reportMarkdown:'Recovery test evidence is unavailable.',
-      evidenceReferences:[],limitations:['No test evidence.']}};yield {type:'finish',reason:'tool-calls'};}
+      evidenceReferences:[contextRef],limitations:['No test evidence.']}};yield {type:'finish',reason:'tool-calls'};}
   }}});
   const result=await run.run();assert.equal(result.status,'completed');assert.equal(turn,3);assert.equal(submissions,1);
 });
@@ -126,7 +157,7 @@ test('resource draft is reviewed in the same SDK loop before any report can be p
       if(turn===2){const encoded=JSON.stringify(request.messages);assert.match(encoded,/resourceReportReviewRequired/);assert.match(encoded,/No report has been published/);}
       yield {type:'tool-call-delta',toolCallId:`review-${turn}`,toolName:'report_submit',input:{
         reportMarkdown:turn===1?'The platform has no equities and the article was published on its collection day.':'Only one filtered dataset was searched; publication time is unknown.',
-        evidenceReferences:[],limitations:['Filtered scope; publication time not declared.']}};
+        evidenceReferences:[contextRef],limitations:['Filtered scope; publication time not declared.']}};
       yield {type:'finish',reason:'tool-calls'};
     }}});
   const result=await run.run();assert.equal(result.status,'completed');assert.equal(published,1);assert.equal(turn,2);
@@ -135,7 +166,7 @@ test('resource draft is reviewed in the same SDK loop before any report can be p
 
 test('two submissions in the same assistant turn cannot bypass the resource review round',async()=>{
   let turn=0,published=0;
-  const report={reportMarkdown:'The searched scope has no matching record.',evidenceReferences:[],limitations:['Scope is limited.']};
+  const report={reportMarkdown:'The searched scope has no matching record.',evidenceReferences:[contextRef],limitations:['Scope is limited.']};
   const run=createCodingRun({...contract,budget:{maxModelCalls:3}},
     {reserveModel(){},settleModel(){},finish(){},executePython(){throw Error('No code authority');},knowledge(){return {hits:[]};},
       submitReport(){published++;assert.equal(turn,2);return {operationId:'workspace-'+'2'.repeat(64),status:'SUCCEEDED',executorStopped:true,
@@ -158,7 +189,7 @@ test('unadvertised late exploration is rejected without a resource callback and 
     },{nativeSdk:true,model:{async *stream(request){
       turn++;assert.deepEqual(request.tools.map(tool=>tool.name),['report_submit']);
       yield {type:'tool-call-delta',toolCallId:`late-${turn}`,toolName:turn===1?'knowledge_search':'report_submit',input:turn===1?{query:'late search'}:
-        {reportMarkdown:'The available evidence is insufficient.',evidenceReferences:[],limitations:['Exploration budget ended.']}};
+        {reportMarkdown:'The available evidence is insufficient.',evidenceReferences:[contextRef],limitations:['Exploration budget ended.']}};
       yield {type:'finish',reason:'tool-calls'};
     }}});
   const result=await run.run();assert.equal(result.status,'completed');assert.equal(turn,3);

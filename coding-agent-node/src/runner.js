@@ -130,6 +130,7 @@ export function createCodingRun(contract, gateway, options = {}) {
     throw new TypeError('Python execution requires authorized bound input files and one JSONL result');
   let activeOperation = null;
   const restored = options.checkpoint;
+  const deliveredInputReferences = new Set(restored?.deliveredInputReferences ?? []);
   const deliveredResourceReferences = new Set();
   const rememberResourceReferences = value => {
     if (Array.isArray(value)) { value.forEach(rememberResourceReferences); return; }
@@ -239,11 +240,13 @@ export function createCodingRun(contract, gateway, options = {}) {
         if(!textReportReviewRequested){textReportReviewRequested=true;textReportReviewModel=modelIndex;}
         await forward({type:'TOOL_FINISHED',tool:'report_submit',toolCallId:context.toolCallId,status:'REVIEW_REQUIRED',stage:'RESULT_REVIEW'});
         return {resourceReportReviewRequired:true,committed:false,draft:report,
-          deliveredEvidenceReferences:[...deliveredResourceReferences],
+          deliveredEvidenceReferences:[...deliveredInputReferences,...deliveredResourceReferences],
           unrecognizedEvidenceReferences:(Array.isArray(report.evidenceReferences)?report.evidenceReferences:[])
             .filter(ref=>typeof ref==='string' && ref.startsWith('runtime-evidence:knowledge:') && !deliveredResourceReferences.has(ref)),
-          instruction:'Review this draft against the actual source results in this same Cline run, then call report_submit again with the corrected final report. Repair every unrecognizedEvidenceReferences entry by copying the exact matching deliveredEvidenceReferences value from its source, or remove the reference AND any unsupported claim. These lists are copying aids, not authorization; Java still validates every reference. Never abbreviate or reconstruct opaque evidence IDs. No report has been published. Check every conclusion and table for these errors: a filtered catalog search or one dataset cannot establish platform-wide absence; use an unfiltered market_search query if broader catalog discovery is necessary, or restrict the claim to the searched scope. A null publication time stays unknown and cannot become the collection date later. Catalog latest observation dates apply across the dataset, not every selected security. Missing price units/currency/adjustment remain unknown. Summaries are not original article reads. Cite both sources in comparisons and preserve evidence gaps. Repair unsupported statements; do not merely repeat this draft.'};
+          instruction:'Review this draft against the actual source results in this same Cline run, then call report_submit again with the corrected final report. Repair every unrecognizedEvidenceReferences entry by copying the exact matching deliveredEvidenceReferences value from its source, or remove the reference AND any unsupported claim. Every report needs at least one exact delivered input or source reference, even when access to a requested resource is unavailable. Preserve the supplied runtime-context/input reference from input_read or the objective; an empty resource-reference inventory does not invalidate it. For an access-denied response, cite that supplied context and disclose that no unauthorized source was accessed. These lists are copying aids, not authorization; Java still validates every reference. Never abbreviate or reconstruct opaque evidence IDs. No report has been published. Check every conclusion and table for these errors: a filtered catalog search or one dataset cannot establish platform-wide absence; use an unfiltered market_search query if broader catalog discovery is necessary, or restrict the claim to the searched scope. A null publication time stays unknown and cannot become the collection date later. Catalog latest observation dates apply across the dataset, not every selected security. Missing price units/currency/adjustment remain unknown. Summaries are not original article reads. Cite both sources in comparisons and preserve evidence gaps. Repair unsupported statements; do not merely repeat this draft.'};
       }
+      if(resourceText && (!Array.isArray(report.evidenceReferences) || report.evidenceReferences.length===0))
+        throw new TypeError('evidenceReferences cannot be empty. Preserve at least one exact delivered input or resource reference. For an access-denied answer with no resource reads, retain the supplied runtime-context reference from input_read or the objective and state that no unauthorized source was accessed.');
       const result=await gateway.submitReport(contract,{toolCallId:required(context.toolCallId,'toolCallId'),report},context.signal);
       if(!verifiedReceipt(result)||result.pythonExecuted!==false||result.executionMode!=='TEXT_ONLY'
           ||!/^workspace-[0-9a-f]{64}$/.test(result.operationId))throw new TypeError('No verified text result was committed');
@@ -266,6 +269,7 @@ export function createCodingRun(contract, gateway, options = {}) {
       await forward({type:'TOOL_STARTED',tool:'input_read',toolCallId:context.toolCallId});
       const result=await gateway.readInput(contract,{datasetReference:reference,offset:input.offset,limit:input.limit,
         toolCallId:required(context.toolCallId,'toolCallId')},context.signal);
+      deliveredInputReferences.add(reference);
       await forward({type:'TOOL_FINISHED',tool:'input_read',toolCallId:context.toolCallId,status:'SUCCEEDED'});
       return result;
     },
@@ -730,7 +734,7 @@ export function createCodingRun(contract, gateway, options = {}) {
             && completeToolBoundary(event.snapshot.messages)) {
           await gateway.checkpoint(contract, { sdkSessionId, checkpointOrdinal: ++checkpointOrdinal,
             nativeSdk, modelOrdinal: modelIndex, eventOrdinal, messages: event.snapshot.messages,
-            codeLifecycle: history?.snapshot(), lastCollectedOperation, lastCollectedDatasetRef, reportReferenceFailure, terminalFeedback, textReportReviewRequested, textReportReviewModel,
+            codeLifecycle: history?.snapshot(), lastCollectedOperation, lastCollectedDatasetRef, reportReferenceFailure, terminalFeedback, textReportReviewRequested, textReportReviewModel, deliveredInputReferences:[...deliveredInputReferences],
             modelResponseFeedback, modelResponseRepairs,
             contractHash: options.contractHash, inputSnapshotRef: contract.inputSnapshotRef,
             workspaceRef: contract.workspaceRef });
@@ -760,7 +764,7 @@ export function createCodingRun(contract, gateway, options = {}) {
         if (typeof gateway.checkpoint === 'function') await gateway.checkpoint(contract, {
           sdkSessionId, checkpointOrdinal: ++checkpointOrdinal, modelOrdinal: modelIndex,
           nativeSdk, eventOrdinal, messages: snapshot.messages,
-          codeLifecycle: history?.snapshot(), lastCollectedOperation, lastCollectedDatasetRef, reportReferenceFailure, terminalFeedback, textReportReviewRequested, textReportReviewModel,
+          codeLifecycle: history?.snapshot(), lastCollectedOperation, lastCollectedDatasetRef, reportReferenceFailure, terminalFeedback, textReportReviewRequested, textReportReviewModel, deliveredInputReferences:[...deliveredInputReferences],
           modelResponseFeedback, modelResponseRepairs,
           contractHash: options.contractHash, inputSnapshotRef: contract.inputSnapshotRef,
           workspaceRef: contract.workspaceRef,

@@ -82,7 +82,7 @@ def main():
     commit = source['sourceCommit']
     assert re.fullmatch(r'[0-9a-f]{40}', commit)
     assert sha(root / 'worker.zip') == source['workerZipSha256']
-    assert source['tests'] == 177
+    assert source['tests'] == 178
     api = 'runtime-os-app-stage-api-1'
     worker = 'runtime-os-app-stage-coding-agent-1'
     baseline = json.loads(run('docker', 'inspect', worker))[0]
@@ -131,7 +131,7 @@ def main():
     manifest.update(prepare_mcp_recovery(root, source, commit))
     (root / 'manifest.json').write_text(json.dumps(manifest, indent=2))
     (root / 'worker-build.json').write_text(json.dumps({'imageId': image_id, 'offlineBuildAndTests': True,
-        'sourceCommit': commit, 'tests': 177, 'changedModules': changed, 'apiJarUnchanged': True}, indent=2))
+        'sourceCommit': commit, 'tests': 178, 'changedModules': changed, 'apiJarUnchanged': True}, indent=2))
     credentials = json.loads((root / 'fixture.private.json').read_text())
     (root / 'catalog-readiness-private.json').write_text(json.dumps({key: credentials[key] for key in ['username', 'password']}))
     print(json.dumps({'status': 'PREPARED', 'sourceCommit': commit, 'changedModules': changed, 'apiJarUnchanged': True}))

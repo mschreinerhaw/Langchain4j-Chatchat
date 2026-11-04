@@ -21,6 +21,56 @@ def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def prepare_mcp_recovery(root, source, commit):
+    if not source.get('mcpRecoveryClassSha256'):
+        return {}
+    patch = root / 'SnapshotFinancialReadOperations.class'
+    assert sha(patch) == source['mcpRecoveryClassSha256'] and source['javaRecoveryTests'] == 7
+    content = patch.read_bytes()
+    assert content[:4] == bytes.fromhex('cafebabe') and int.from_bytes(content[6:8], 'big') <= 61
+    container = 'runtime-os-app-stage-mcp-1'
+    before = json.loads(run('docker', 'inspect', container))[0]
+    baseline = root / 'mcp-before.jar'
+    run('docker', 'cp', container + ':/srv/app/app.jar', str(baseline))
+    baseline_sha = sha(baseline)
+    assert run('docker', 'exec', container, 'sha256sum', '/srv/app/app.jar').split()[0] == baseline_sha
+    entry = 'BOOT-INF/classes/com/chatchat/mcpserver/market/SnapshotFinancialReadOperations.class'
+    artifact = root / 'mcp.jar'
+    with zipfile.ZipFile(baseline) as old, zipfile.ZipFile(artifact, 'w') as new:
+        assert entry in old.namelist()
+        new.comment = old.comment
+        for item in old.infolist():
+            new.writestr(item, content if item.filename == entry else old.read(item))
+    with zipfile.ZipFile(baseline) as old, zipfile.ZipFile(artifact) as new:
+        assert new.testzip() is None and new.namelist() == old.namelist()
+        assert new.read(entry) == content
+        assert all(old.read(name) == new.read(name) for name in old.namelist() if name != entry)
+        unchanged = len(old.namelist()) - 1
+    build = root / 'mcp-build'
+    build.mkdir(exist_ok=True)
+    import shutil
+    shutil.copy2(artifact, build / 'app.jar')
+    image = 'runtime-os-mcp:resource-completion-' + commit[:12]
+    (build / 'Dockerfile').write_text('FROM ' + before['Config']['Image'] + '\nCOPY app.jar /srv/app/app.jar\n')
+    run('docker', 'build', '--network', 'none', '--label', 'org.opencontainers.image.revision=' + commit,
+        '-t', image, str(build))
+    mcp = {'image': image, 'baselineImageId': before['Image'], 'baselineSha256': baseline_sha,
+           'sha256': sha(artifact), 'preparedImageId': run('docker', 'image', 'inspect', '-f', '{{.Id}}', image),
+           'baselineApplicationReadiness': True}
+    # Stop the producer while MCP is replaced, retaining its exact existing image and JAR.
+    news_container = 'runtime-os-app-stage-news-1'
+    news_before = json.loads(run('docker', 'inspect', news_container))[0]
+    run('docker', 'cp', news_container + ':/srv/app/app.jar', str(root / 'news.jar'))
+    news_sha = sha(root / 'news.jar')
+    assert run('docker', 'exec', news_container, 'sha256sum', '/srv/app/app.jar').split()[0] == news_sha
+    news = {'image': news_before['Config']['Image'], 'baselineImageId': news_before['Image'],
+            'preparedImageId': news_before['Image'], 'baselineSha256': news_sha, 'sha256': news_sha}
+    (root / 'mcp-recovery-artifact.json').write_text(json.dumps({'changedEntries': [entry],
+        'unchangedEntries': unchanged, 'classSha256': sha(patch), 'baselineSha256': baseline_sha,
+        'sha256': mcp['sha256'], 'javaRecoveryTests': 7, 'sourceCommit': commit}, indent=2))
+    return {'mcp': mcp, 'news': news, 'backupFinancialStorage': True}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--release-dir', type=Path, required=True)
@@ -77,6 +127,7 @@ def main():
                 'catalogReadinessExpectedTools': ['sql_schema_context_query', 'enterprise_metadata_search'],
                 'worker': {'image': image, 'baselineImageId': baseline['Image'],
                            'preparedImageId': image_id, 'modules': source['modules']}}
+    manifest.update(prepare_mcp_recovery(root, source, commit))
     (root / 'manifest.json').write_text(json.dumps(manifest, indent=2))
     (root / 'worker-build.json').write_text(json.dumps({'imageId': image_id, 'offlineBuildAndTests': True,
         'sourceCommit': commit, 'tests': 175, 'changedModules': changed, 'apiJarUnchanged': True}, indent=2))

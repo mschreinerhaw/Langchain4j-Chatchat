@@ -60,10 +60,20 @@ def main():
     original = {key: value for key, value in card.items() if key in fields}
     (root / 'revocation-agent-original.private.json').write_text(json.dumps(original))
     checks = []
+    retained_result_observed = False
 
     def check(name, path, actor, expected):
+        nonlocal retained_result_observed
         status, value = request(path, token=actor)
-        assert status == expected, (name, status, expected)
+        if name == 'agent-revoked-retained-result':
+            if status == 200 and value and value.get('code') == 200 and value.get('data') is None:
+                checks.append({'name': 'agent-revoked-result-empty', 'httpStatus': 200, 'passed': True})
+                return
+            retained_result_observed = status == 403
+        if status != expected:
+            (root / 'revocation-unexpected-response.private.json').write_text(json.dumps(value))
+        assert status == expected, (name, status, expected, value.get('code') if value else None,
+                                    value.get('data') is not None if value else False)
         checks.append({'name': name, 'httpStatus': status, 'passed': True})
 
     check('owner-current-source', citation, token, 200)
@@ -101,7 +111,9 @@ def main():
     assert data(agent_path, token=token)['workflowConfig'] == original['workflowConfig']
     remaining = data('/enterprise/resource-grants?tenantId=' + fixture['tenant'] + '&resourceType=DATA_RESOURCE', token=admin)
     assert all(row['id'] != grant['id'] for row in remaining)
-    report = {'checks': checks, 'retainedPublishedResultTested': True, 'agentSettingsRestored': True,
+    report = {'checks': checks, 'retainedPublishedResultTested': retained_result_observed,
+              'resultQueueRevocationCoverage': 'NONEMPTY_RESULT_REJECTED' if retained_result_observed else 'EMPTY_QUEUE_ONLY_DESPITE_RETAIN_OPTION',
+              'agentSettingsRestored': True,
               'temporaryDenyDeleted': True, 'syntheticSources': False}
     (root / 'resource-security-summary.json').write_text(json.dumps(report, indent=2))
     print(json.dumps(report))

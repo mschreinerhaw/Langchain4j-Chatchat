@@ -232,7 +232,7 @@ def main():
         except (OSError,urllib.error.URLError,ValueError):return False
 
     def backup_financial_storage():
-        if not manifest.get('financialLookupSchemaOptimization'):return
+        if not (manifest.get('financialLookupSchemaOptimization') or manifest.get('backupFinancialStorage')):return
         database=Path('/srv/app/data/h2/financial-market.mv.db')
         candidates=[mount for mount in before[mcp]['Mounts'] if database==Path(mount['Destination']) or Path(mount['Destination']) in database.parents]
         assert candidates,'Financial writer mount must be identified before schema optimization'

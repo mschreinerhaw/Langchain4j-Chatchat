@@ -32,6 +32,18 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
 class CodingKnowledgeServiceTest {
+    @Test void actualKnowledgeEntryAcceptsEngineSelectionWithoutAcceptingIdentityArguments(){
+        resourceTask("web_search","web_fetch");resourceGrants.set(Set.of("internet_search"));
+        var internet=mock(CodingInternetAccess.class);knowledge.setInternet(internet);
+        when(internet.read(any(),eq("web_search"),anyString(),any())).thenAnswer(call->{
+            assertThat(call.getArgument(3,com.fasterxml.jackson.databind.JsonNode.class).path("provider_id").asText()).isEqualTo("selected-engine");
+            return new LinkedHashMap<String,Object>(Map.of("status","OK","items",List.of(),"count",0));
+        });
+        when(internet.read(any(),eq("web_fetch"),anyString(),any())).thenReturn(new LinkedHashMap<>(Map.of("status","ERROR","errorCode","PAGE_NOT_AVAILABLE","count",0)));
+        assertThat(call("web_search",Map.of("query","public","provider_id","selected-engine"))).containsEntry("status","OK");
+        assertThat(call("web_fetch",Map.of("url","https://example.com","provider_id","selected-engine"))).containsEntry("errorCode","PAGE_NOT_AVAILABLE");
+        assertThatThrownBy(()->call("web_search",Map.of("query","public","provider_id","selected-engine","user_id","other"))).isInstanceOf(IllegalArgumentException.class);
+    }
     @Test void privateCheckpointRetainsContractFencingWhileExpiredSourcesStillBlockModelAdmission() {
         var guard=mock(CodingKnowledgeService.class);
         doThrow(new SecurityException("Source changed")).when(guard).validateContext(any());

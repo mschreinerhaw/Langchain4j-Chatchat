@@ -139,7 +139,7 @@ public class CodingKnowledgeService {
         auditAccess(c,tool,"ALLOWED");
         if(callId==null||callId.isBlank()||callId.length()>512||args==null||!args.isObject())
             throw new IllegalArgumentException("Bounded knowledge call required");
-        Set<String> fields=CodingInternetAccess.TOOLS.contains(tool)?(tool.equals("web_search")?Set.of("query","search_type","count","language","time_range"):Set.of("url","max_content_length")):CodingResourceReader.TOOLS.contains(tool)?Set.of("query","security_code","start_time","end_time","industry","limit","offset","article_id","version_id","dataset","filters","start_date","end_date","history_mode"):switch(tool) {
+        Set<String> fields=CodingInternetAccess.TOOLS.contains(tool)?(tool.equals("web_search")?Set.of("query","search_type","count","language","time_range","provider_id"):Set.of("url","max_content_length","provider_id")):CodingResourceReader.TOOLS.contains(tool)?Set.of("query","security_code","start_time","end_time","industry","limit","offset","article_id","version_id","dataset","filters","start_date","end_date","history_mode"):switch(tool) {
             case "knowledge_search" -> Set.of("query","top_k","mode","filters");
             case "knowledge_related" -> Set.of("document_id","version_id","top_k");
             case "knowledge_read" -> Set.of("document_id","version_id","chunk_index","limit");

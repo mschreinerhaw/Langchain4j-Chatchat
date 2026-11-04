@@ -1,0 +1,8 @@
+{
+  "sourceCommit": "94992565b852e16b3ba835b31181ae53eb90e36c",
+  "image": "runtime-os-api:report-ui-94992565b-20261030",
+  "sha256": "d88fd77b394fe42b6752d106a90e3afb55ff63efa2349a65c8e60b2bef409003",
+  "baselineSha256": "c7f95662927ec40911f08517d2261cbe49135c199544dba9198d88a24a8a2801",
+  "sqlMetadataCallbacks": true,
+  "frontendIndexSha256": "679d42a1c0a8fd6e5b8ccb12454efbe02eabc362004fe59ea7053b7802bebef4"
+}

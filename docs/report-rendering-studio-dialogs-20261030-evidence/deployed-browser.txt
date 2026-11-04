@@ -1,0 +1,6 @@
+
+> chatchat-web-app@1.0.0 test:sql-studio:browser
+> node scripts/test-sql-studio.mjs
+
+PASS: authorized Schema Explorer, scrollable 125-table pagination, page sizes, focus/page/field/scroll retention, lazy fields, actual Monaco alias completion, revocation cache clearing, responsive toolbar, file search, current-file context, quick actions, Ctrl+Enter submission, Runtime running/cancelled states, Diff accept/reject, file creation/deletion, authorized library selection, Agent/model exclusivity, project deletion (HTTP fixtures only).
+{"deployedFrontend":"http://192.168.195.221:18100","mockedHttp":true,"businessSqlExecuted":false,"productionDataModified":false}

@@ -1,0 +1,24 @@
+{
+  "sourceCommit": "67769d07877241a8a8e56754afb8fabcd002a207",
+  "image": "runtime-os-api:report-ui-67769d078-20261030",
+  "sha256": "c7f95662927ec40911f08517d2261cbe49135c199544dba9198d88a24a8a2801",
+  "baselineSha256": "0306c1b22cc109c24d37cdc389fdff994917d1b33902ed659b17e0960bb8e1af",
+  "sqlMetadataCallbacks": true,
+  "frontendIndexSha256": "679d42a1c0a8fd6e5b8ccb12454efbe02eabc362004fe59ea7053b7802bebef4",
+  "mcp": {
+    "image": "runtime-os-mcp:report-ui-67769d078-20261030",
+    "baselineSha256": "e94f10fc2c3211ba234c8e65cdeb2a2ed72b2368a8059e21e59ebdf7cb3de147",
+    "sha256": "6133728dcdabed9b133de222a999e9d621afa51e673d5ad19648b0a0fdfb7dd9"
+  },
+  "worker": {
+    "image": "runtime-os-coding-agent:report-ui-67769d078-20261030",
+    "baselineModules": {
+      "runner.js": "e1a2ed1afea593f5429c4f04869f88cac488e6f9329c01f683d4aae0a3a23391",
+      "server.js": "7701c7253d9a736dc0eb1c019bf1fbe4b89acc8b84ac63436e541dea76ceff08"
+    },
+    "modules": {
+      "runner.js": "fcd50832f0c94bdd914f9134193122716f0a72815f120a285f53a0bb5ac128d2",
+      "server.js": "7701c7253d9a736dc0eb1c019bf1fbe4b89acc8b84ac63436e541dea76ceff08"
+    }
+  }
+}

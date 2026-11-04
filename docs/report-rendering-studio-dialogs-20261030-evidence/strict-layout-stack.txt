@@ -1,0 +1,11 @@
+java.lang.IllegalArgumentException: Unknown report element reference
+	at com.chatchat.common.runtime.coding.ReportLayout.require(ReportLayout.java:59)
+	at com.chatchat.common.runtime.coding.ReportLayout.validate(ReportLayout.java:50)
+	at ReportOriginalFailure.main(ReportOriginalFailure.java:6)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at jdk.compiler/com.sun.tools.javac.launcher.Main.execute(Main.java:419)
+	at jdk.compiler/com.sun.tools.javac.launcher.Main.run(Main.java:192)
+	at jdk.compiler/com.sun.tools.javac.launcher.Main.main(Main.java:132)

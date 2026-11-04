@@ -1,0 +1,93 @@
+{
+  "mode": "REAL_ARCHIVED_PNG_AND_JAVA_ADMISSION_WITH_HTTP_FIXTURES",
+  "mockedHttp": true,
+  "modelCalled": false,
+  "checks": {
+    "originalChartBytesWereAlreadyValid": true,
+    "realPngRenderedAndExactDataPreserved": true,
+    "recoveredLayoutHasNoUnresolvedLayoutBanner": true,
+    "scatterActualPlotlyData": true,
+    "barActualPlotlyData": true,
+    "pieActualPlotlyData": true,
+    "unsupportedChartUsesSameValidatedRows": true,
+    "singleFailureDoesNotDiscardValidCharts": true,
+    "emptyChartIsExplicit": true
+  },
+  "errors": [],
+  "external": [],
+  "beforeChartTop": 901.03125,
+  "afterChartTop": 589.859375,
+  "diagnostics": [
+    {
+      "message": "Unique section title resolved to its registered section ID.",
+      "path": "layout.blocks[3].ref",
+      "code": "SECTION_TITLE_RESOLVED",
+      "stage": "LAYOUT_VALIDATION",
+      "recovered": true
+    },
+    {
+      "message": "Unique section title resolved to its registered section ID.",
+      "path": "layout.blocks[6].ref",
+      "code": "SECTION_TITLE_RESOLVED",
+      "stage": "LAYOUT_VALIDATION",
+      "recovered": true
+    },
+    {
+      "message": "Inherited the sole authorized report source; computation semantics remain program-declared.",
+      "path": "metrics.total_days",
+      "code": "SINGLE_SOURCE_INHERITED",
+      "stage": "DATA_BINDING",
+      "recovered": true
+    },
+    {
+      "message": "Inherited the sole authorized report source; computation semantics remain program-declared.",
+      "path": "metrics.avg_duration",
+      "code": "SINGLE_SOURCE_INHERITED",
+      "stage": "DATA_BINDING",
+      "recovered": true
+    },
+    {
+      "message": "Inherited the sole authorized report source; computation semantics remain program-declared.",
+      "path": "metrics.min_duration",
+      "code": "SINGLE_SOURCE_INHERITED",
+      "stage": "DATA_BINDING",
+      "recovered": true
+    },
+    {
+      "message": "Inherited the sole authorized report source; computation semantics remain program-declared.",
+      "path": "metrics.max_duration",
+      "code": "SINGLE_SOURCE_INHERITED",
+      "stage": "DATA_BINDING",
+      "recovered": true
+    },
+    {
+      "message": "Inherited the sole authorized report source; computation semantics remain program-declared.",
+      "path": "metrics.duration_range",
+      "code": "SINGLE_SOURCE_INHERITED",
+      "stage": "DATA_BINDING",
+      "recovered": true
+    },
+    {
+      "message": "Inherited the sole authorized report source; computation semantics remain program-declared.",
+      "path": "tables.detail_table",
+      "code": "SINGLE_SOURCE_INHERITED",
+      "stage": "DATA_BINDING",
+      "recovered": true
+    },
+    {
+      "message": "Inherited the sole authorized report source; computation semantics remain program-declared.",
+      "path": "charts.duration_trend_chart",
+      "code": "SINGLE_SOURCE_INHERITED",
+      "stage": "DATA_BINDING",
+      "recovered": true
+    },
+    {
+      "stage": "CHART_RENDER",
+      "code": "CHART_RENDER_FAILED",
+      "chartId": "unsupported-test-type",
+      "recovered": false,
+      "message": "此图表类型暂不支持，已保留同一数据的表格。"
+    }
+  ],
+  "passed": true
+}

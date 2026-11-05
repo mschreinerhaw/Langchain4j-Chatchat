@@ -2,6 +2,12 @@
 
 Use the Runtime's visual-report contract and the delivered business definitions. These are presentation and verification methods, not permission to query financial systems or invent metric meanings.
 
+## Runtime recipe use
+
+The financial reference includes tested, stateless Python recipes for labelled component reconciliation, ambiguous flow ordering and grouped numerical hypotheses. Prefer the applicable recipes to rewriting these checks. Inline the chosen recipe functions unchanged in a single-script proposal (or include them in an explicitly authorized code project); they are examples, not an installed Sandbox module. Bind fields and source scopes from this task's metadata. Render their returned component labels and unavailable values consistently in tables, prose and figures; never add an arbitrary last-row balance when ordering is unresolved. These recipes grant no I/O, execution or additional data permissions.
+
+Use its `percentage_composition` for portfolio weights: show the exact total percentage separately from the sum of rounded display rows and disclose any display tail. For hypotheses linking an unconfirmed field to signed transaction amounts/costs, prefer `signed_amount_matrix` with actual dictionary field names. It binds the observed field to its label and evaluates all sign/cost candidates across each actual operation group; fee fields must be declared and distinct from the observed/amount fields. Preserve the returned reconciliation status rather than upgrading an arithmetic match into business certification.
+
 ## Scope and numerical integrity
 
 - Identify the customer/portfolio, currency, reporting window and actual as-of date. Keep valuation, order, fill and settlement dates distinct. Align comparable periods and market calendars before plotting; missing periods are gaps, not zero activity. Never use an empty result for one period to assert no activity in another.

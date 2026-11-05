@@ -20,11 +20,15 @@ const EVENT_KEYS = ['stage', 'status', 'operationId', 'proposedOperationId', 'mo
   'contextReportBytes', 'contextHistoryBytes', 'contextEnvelopeBytes', 'estimatedInputTokens', 'softInputTokenBudget', 'exceedsSoftBudget', 'estimator',
   'repeatedContextBytes', 'duplicateContextBytes', 'avoidableRepeatedContextBytes', 'newContextBytes', 'contextChangeReason', 'compactionCount', 'compactionStrategy',
   'contextSizeBefore', 'contextSizeAfter', 'callbackConnectMs', 'callbackHeadersMs', 'callbackBodyMs', 'callbackHttpDurationMs', 'queueTimeScope', 'providerTimingAvailability',
-  'constructionDurationMs', 'restoreDurationMs', 'preparationDurationMs', 'finishReason', 'providerFinishReason', 'purpose', 'progressFeedback', 'skillId', 'skillPath'];
+  'constructionDurationMs', 'restoreDurationMs', 'preparationDurationMs', 'finishReason', 'providerFinishReason', 'purpose', 'progressFeedback', 'skillId', 'skillPath',
+  'skillVersion','skillContentHash','skillSourceBytes','skillContentBytes','skillEstimatedTokens','duplicateRead','contentReused','skillReference','skillContextRatio',
+  'callbackRequestWriteMs','callbackResponseProcessingMs','runtimeAdmissionMs'];
 const PROGRESS_NUMBERS = ['modelCall', 'callsSinceProgress', 'newToolResults', 'newEvidenceReads', 'skillReads', 'discoveryCalls',
   'repeatedFailures', 'proposals', 'acceptedProposals', 'rejectedProposals', 'pythonDispatched', 'pythonExecutions',
   'modelResponseErrors', 'knownInputTokens', 'knownOutputTokens', 'firstProposalMs', 'firstValidCodeMs', 'firstPythonMs',
-  'firstResultMs', 'remainingTokens', 'remainingModelCalls', 'feedbackCount'];
+  'firstResultMs', 'remainingTokens', 'remainingModelCalls', 'feedbackCount',
+  'preCodeModelCalls','preCodeInputTokens','preCodeUsageKnownCalls','loadedSkillCount','loadedReferenceCount',
+  'loadedSkillBytes','skillDeliveredBytes','skillEstimatedTokens','duplicateSkillReads','skillReuses','inputReadCount','rejectedToolCallCount'];
 type Contract = Record<string, any>;
 interface Options {
   directory?: string; maxTasks?: number; maxEvents?: number; maxSourceBytes?: number;
@@ -179,7 +183,7 @@ export class MonitorStore {
     if (value.progress && typeof value.progress === 'object') {
       const progress: Record<string, number | string | null> = {};
       for (const key of PROGRESS_NUMBERS) progress[key] = integer(value.progress[key]);
-      for (const key of ['phase', 'waitingFor', 'lastTool']) progress[key] = this.text(value.progress[key], 128);
+      for (const key of ['phase', 'waitingFor', 'lastTool','lastProgressType']) progress[key] = this.text(value.progress[key], 128);
       task.progress = progress as CodingProgress;
       event.progress = { ...progress };
     }
@@ -206,7 +210,7 @@ export class MonitorStore {
           for (const key of ['callbackFirstEventMs', 'requestBytes', 'responseBytes', 'messageCount', 'toolCount'] as const)
             call[key] = integer(event[key]);
           for (const key of ['estimatedInputTokens', 'repeatedContextBytes', 'duplicateContextBytes', 'avoidableRepeatedContextBytes', 'newContextBytes',
-            'contextSizeBefore', 'contextSizeAfter', 'compactionCount'] as const) call[key] = integer(event[key]);
+            'contextSizeBefore', 'contextSizeAfter', 'compactionCount','contextSkillsBytes','skillContextRatio','runtimeAdmissionMs'] as const) call[key] = integer(event[key]);
           if (typeof event.contextChangeReason === 'string') call.contextChangeReason = event.contextChangeReason;
           if (typeof event.errorCategory === 'string') call.errorCategory = event.errorCategory;
           // A buffered Java callback first event is not the provider's first token.
@@ -220,7 +224,7 @@ export class MonitorStore {
           call.durationMs = integer(event.durationMs);
           for(const key of ['queueTimeMs','firstTokenMs','generationTimeMs','retryTimeMs'] as const)
             call[key]=integer(event[key]);
-          for (const key of ['callbackConnectMs', 'callbackHeadersMs', 'callbackBodyMs', 'callbackHttpDurationMs'] as const)
+          for (const key of ['callbackConnectMs', 'callbackHeadersMs', 'callbackBodyMs', 'callbackHttpDurationMs','callbackRequestWriteMs','callbackResponseProcessingMs'] as const)
             call[key] = integer(event[key]);
           call.responseMode=typeof event.responseMode==='string'?event.responseMode:null;
         }

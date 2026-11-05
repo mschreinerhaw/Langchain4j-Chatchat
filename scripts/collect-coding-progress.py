@@ -95,8 +95,21 @@ def main():
             first = lambda predicate: next((e['timestamp'] for e in events if predicate(e)), None)
             start = nodes[0]['createdAt']
             calls = [r['payload']['response'] for r in responses]
+            proposed_at = first(lambda e: e['type'] == 'CODE_PROPOSED')
+            pre_models = {c['ordinal']: c for n in nodes for c in n['models']
+                if proposed_at is None or c['startedAt'] <= proposed_at}
+            pre_events = [e for e in events if proposed_at is None or e['timestamp'] <= proposed_at]
+            pre_usage = [c.get('usage') or {} for c in pre_models.values()]
             row.update(taskId=nodes[0]['taskId'], nodeStatus=nodes[-1]['status'], nodeError=nodes[-1].get('error'), fences=len(nodes),
                 eventsTruncated=any(t.get('eventsTruncated') for t in nodes),
+                firstProposalMs=milliseconds(start, proposed_at),
+                preCodeModelCalls=len(pre_models),
+                preCodeInputTokensKnown=sum(u['inputTokens'] for u in pre_usage if u.get('inputTokens') is not None),
+                preCodeKnownUsageCalls=sum(u.get('inputTokens') is not None for u in pre_usage),
+                preCodeSkillReads=sum(e['type'] == 'SKILLS_LOADED' for e in pre_events),
+                preCodeInputReads=sum(e['type'] == 'TOOL_STARTED' and e.get('tool') == 'input_read' for e in pre_events),
+                preCodeMaxSkillContextBytes=max((e['contextSkillsBytes'] for e in pre_events if 'contextSkillsBytes' in e), default=None),
+                preCodeMaxRequestBytes=max((e['requestBytes'] for e in pre_events if 'requestBytes' in e), default=None),
                 firstCodeMs=milliseconds(start, first(lambda e: e['type'] == 'CODE_READY')),
                 firstNewCodeMs=milliseconds(start, first(lambda e: e['type'] == 'CODE_READY'
                     and (not case.startswith('repair') or (e.get('parentCodeVersion') or 0) >= 1))),
@@ -130,7 +143,8 @@ def main():
         if not group:
             continue
         metrics = {}
-        for key in ['firstCodeMs', 'firstNewCodeMs', 'firstPythonMs', 'firstResultMs', 'httpDurationMs', 'modelCalls', 'knownTokens']:
+        for key in ['firstProposalMs','firstCodeMs', 'firstNewCodeMs', 'firstPythonMs', 'firstResultMs', 'httpDurationMs', 'modelCalls', 'knownTokens',
+                    'preCodeModelCalls','preCodeInputTokensKnown','preCodeSkillReads','preCodeInputReads','preCodeMaxSkillContextBytes','preCodeMaxRequestBytes']:
             values = [r[key] for r in group if r.get(key) is not None]
             metrics[key] = {'observed': len(values), 'median': statistics.median(values) if values else None}
         aggregate[variant] = {'tasks': len(group), 'successfulExecutions': sum(bool(r.get('successfulExecution')) for r in group),

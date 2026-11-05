@@ -124,7 +124,8 @@ test('same SDK session receives advisory and continues legitimate exploration be
   const run = createCodingRun(noPython, { reserveModel() {}, settleModel() {}, finish() {}, executePython() {} },
     { nativeSdk: true, progressPreparationCalls: 2, progressStalledCalls: 2, model: { async *stream(request) {
       calls++;
-      if (calls === 2 || calls === 4) assert.match(request.systemPrompt, /Coding progress check/);
+      if (calls === 2) assert.doesNotMatch(request.systemPrompt, /Coding progress check/);
+      if (calls === 3 || calls === 4) assert.match(request.systemPrompt, /Coding progress check/);
       if (calls < 4) {
         yield { type: 'tool-call-delta', toolName: 'skill_read', toolCallId: 'skill-' + calls, input: { skillId: 'builtin:python-data-analysis' } };
         yield { type: 'finish', reason: 'tool-calls' };

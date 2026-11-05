@@ -11,6 +11,7 @@ const boundedThreshold = (value, fallback) => {
 export function createCodingProgress({ preparationCalls, stalledCalls, initialCodeAvailable = false, now = Date.now } = {}) {
   const preparation = boundedThreshold(preparationCalls, 4), stalled = boundedThreshold(stalledCalls, 3);
   const started = now(), seen = new Set(), failures = new Set(), executions = new Set();
+  const skills = new Set(), references = new Set();
   let newResults = false, rounds = 0, stalledRounds = 0;
   let codeAvailable = initialCodeAvailable;
   const state = { modelCall: 0, callsSinceProgress: 0, newToolResults: 0, newEvidenceReads: 0,
@@ -18,16 +19,32 @@ export function createCodingProgress({ preparationCalls, stalledCalls, initialCo
     rejectedProposals: 0, pythonDispatched: 0, pythonExecutions: 0, modelResponseErrors: 0,
     knownInputTokens: 0, knownOutputTokens: 0, firstProposalMs: null, firstValidCodeMs: null,
     firstPythonMs: null, firstResultMs: null, remainingTokens: null, remainingModelCalls: null,
+    preCodeModelCalls:0, preCodeInputTokens:0, preCodeUsageKnownCalls:0,
+    loadedSkillCount:0, loadedReferenceCount:0, loadedSkillBytes:0, skillDeliveredBytes:0,
+    skillEstimatedTokens:0, duplicateSkillReads:0, skillReuses:0, inputReadCount:0,
+    rejectedToolCallCount:0, lastProgressType:'NONE',
     waitingFor: 'MODEL', phase: 'PREPARING', lastTool: '', feedbackCount: 0 };
   const elapsed = () => Math.max(0, now() - started);
   const snapshot = () => ({ ...state });
   return {
     snapshot,
     observe(event) {
-      if (event.type === 'CODE_PROPOSED') { state.proposals++; state.firstProposalMs ??= elapsed(); state.phase = 'WRITING'; }
+      if (event.type === 'CODE_PROPOSED') { state.proposals++; state.firstProposalMs ??= elapsed(); state.phase = 'WRITING'; state.lastProgressType='CODE_PROPOSED'; }
       if (event.type === 'CODE_READY') { state.acceptedProposals++; state.firstValidCodeMs ??= elapsed(); codeAvailable = true; newResults = true; }
       if (event.type === 'CODE_PROPOSAL_REJECTED') { state.rejectedProposals++; state.phase = 'REPAIRING'; }
       if (event.type === 'MODEL_RESPONSE_REJECTED' || event.type === 'MODEL_FAILED') state.modelResponseErrors++;
+      if (event.type === 'SKILLS_LOADED') {
+        const key=hash([event.skillId,event.skillVersion,event.skillPath,event.skillContentHash]);
+        const inventory=event.skillReference?references:skills;
+        if(!inventory.has(key) && inventory.size<512){
+          inventory.add(key);state.loadedSkillBytes+=event.skillSourceBytes??0;
+          state.loadedSkillCount=skills.size;state.loadedReferenceCount=references.size;
+        }
+        state.skillDeliveredBytes+=event.skillContentBytes??0;
+        state.skillEstimatedTokens+=event.skillEstimatedTokens??0;
+        if(event.duplicateRead)state.duplicateSkillReads++;
+        if(event.contentReused)state.skillReuses++;
+      }
       if (event.type === 'SDK_TOOL_STARTED') {
         state.lastTool = event.tool;
         state.waitingFor = event.tool === 'python_execute' ? 'CODE' : event.tool === 'skill_read' ? 'SKILL' : 'TOOL';
@@ -49,17 +66,19 @@ export function createCodingProgress({ preparationCalls, stalledCalls, initialCo
       state.lastTool = name;
       if (name === 'skill_read') state.skillReads++;
       if (name === 'tool_describe') state.discoveryCalls++;
+      if (name === 'input_read') state.inputReadCount++;
       const failure = result.isError === true || output?.status === 'FAILED'
         || name === 'python_execute' && output?.resultAvailable === false
         || output?.reportReferenceValidation?.valid === false;
       const failureDetail = output?.executionFeedback?.error ?? output?.error ?? output;
+      if(result.isError || output?.error)state.rejectedToolCallCount++;
       const identity = hash([name, call.input, failure ? failureDetail : output]);
       const inventory = failure ? failures : seen;
       if (failure && inventory.has(identity)) state.repeatedFailures++;
       if (!inventory.has(identity) && inventory.size < 512) {
         inventory.add(identity);
-        if (!failure) {
-          state.newToolResults++; newResults = true;
+        if (!failure && !(name==='skill_read' && output?.contentAlreadyInContext===true)) {
+          state.newToolResults++; newResults = true; state.lastProgressType=name;
           if (name !== 'skill_read' && /(?:read|search|snapshot|history|indicators|metadata)/.test(name)) state.newEvidenceReads++;
         }
       }
@@ -70,13 +89,18 @@ export function createCodingProgress({ preparationCalls, stalledCalls, initialCo
     model(ordinal, budget) {
       rounds++; stalledRounds = newResults ? 1 : stalledRounds + 1; newResults = false;
       state.modelCall = ordinal; state.callsSinceProgress = stalledRounds; state.waitingFor = 'MODEL';
+      if(state.proposals===0)state.preCodeModelCalls++;
       state.remainingTokens = Number.isFinite(budget?.remainingTokens) ? budget.remainingTokens : null;
       state.remainingModelCalls = Number.isFinite(budget?.remainingModelCalls) ? budget.remainingModelCalls : null;
       const idle = stalled > 0 && stalledRounds >= stalled && stalledRounds % stalled === 0;
-      const preparing = preparation > 0 && !codeAvailable && rounds >= preparation && rounds % preparation === 0;
+      const preparing = preparation > 0 && !codeAvailable && stalledRounds > 1
+        && rounds >= preparation && rounds % preparation === 0;
       const feedback = idle || preparing ? (state.feedbackCount++,
         '\nCoding progress check (advisory, within this same authorized SDK session): '
-        + JSON.stringify({ reason: idle ? 'NO_NEW_TOOL_RESULT' : 'PREPARATION_WITHOUT_CODE', ...snapshot() })
+        + JSON.stringify({ reason: idle ? 'NO_NEW_TOOL_RESULT' : 'PREPARATION_WITHOUT_CODE',
+          callsSinceProgress:state.callsSinceProgress,repeatedFailures:state.repeatedFailures,
+          acceptedProposals:state.acceptedProposals,remainingTokens:state.remainingTokens,
+          remainingModelCalls:state.remainingModelCalls })
         + '\nChoose the next useful action. Reuse already read evidence and Skills; avoid repeating unchanged failures or planning. '
         + 'If the supplied evidence is sufficient, submit focused code: an initial program only when none exists, otherwise a minimal repair against the latest version. Otherwise continue necessary authorized discovery or state the exact missing input. '
         + 'Complex analysis may continue; this feedback grants no permissions, budget or evidence and does not require unsafe or unsupported code.') : '';
@@ -84,6 +108,9 @@ export function createCodingProgress({ preparationCalls, stalledCalls, initialCo
     },
     usage(usage) {
       if (Number.isFinite(usage?.inputTokens)) state.knownInputTokens += usage.inputTokens;
+      if(state.proposals===0 && Number.isFinite(usage?.inputTokens)) {
+        state.preCodeInputTokens+=usage.inputTokens;state.preCodeUsageKnownCalls++;
+      }
       if (Number.isFinite(usage?.outputTokens)) state.knownOutputTokens += usage.outputTokens;
     },
   };

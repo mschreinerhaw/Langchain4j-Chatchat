@@ -60,7 +60,8 @@ export function measureRequestContext(request, softInputTokenBudget) {
           const skills=JSON.parse(catalogText).skills;
           if(skills) { const size=bytes(JSON.stringify(skills))-2;components.task-=size;components.skills+=size; }
         } catch { /* no catalog in this part */ }
-        const indexText=section('Authorized tool index (metadata only). Load schemas with tool_describe, batching the next necessary tools. Skills remain discoverable through skill_read.\n');
+        const indexText=section('Authorized tool index. python_execute is already disclosed when authorized. Load other needed schemas with tool_describe in a batch.\n')
+          ??section('Authorized tool index (metadata only). Load schemas with tool_describe, batching the next necessary tools. Skills remain discoverable through skill_read.\n');
         if(indexText) { const size=bytes(indexText)-2;components.task-=size;components.toolIndex+=size; }
       }
     }
@@ -72,7 +73,8 @@ export function measureRequestContext(request, softInputTokenBudget) {
     Object.entries(components).map(([key, value]) => [key, { bytes: value, estimatedTokens: Math.ceil(value / 4) }])),
     ...Object.fromEntries(Object.entries(components).map(([key, value]) =>
       ['context' + key[0].toUpperCase() + key.slice(1) + 'Bytes', value])),
-    requestBytes, estimatedInputTokens: Math.ceil(requestBytes / 4), estimator: 'UTF8_BYTES_DIV_4_NOT_PROVIDER_USAGE',
+    requestBytes, skillContextRatio:requestBytes?components.skills/requestBytes:null,
+    estimatedInputTokens: Math.ceil(requestBytes / 4), estimator: 'UTF8_BYTES_DIV_4_NOT_PROVIDER_USAGE',
     ...(Number.isSafeInteger(softInputTokenBudget) && softInputTokenBudget > 0
       ? { softInputTokenBudget, exceedsSoftBudget: Math.ceil(requestBytes / 4) > softInputTokenBudget } : {}) };
 }

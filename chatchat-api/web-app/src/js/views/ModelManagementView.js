@@ -63,6 +63,8 @@ export default {
   data: () => ({
     models: [],
     searchProviders: [],
+    providerPage: 1,
+    providerPageSize: 3,
     providerManagerOpen: false,
     providerForm: emptyProvider(),
     providerSaving: false,
@@ -84,6 +86,13 @@ export default {
     pageSize: 9,
   }),
   computed: {
+    providerPageCount() {
+      return Math.max(1, Math.ceil(this.searchProviders.length / this.providerPageSize));
+    },
+    pagedSearchProviders() {
+      const start = (this.providerPage - 1) * this.providerPageSize;
+      return this.searchProviders.slice(start, start + this.providerPageSize);
+    },
     readySearchProviders() { return this.searchProviders.filter(p=>p.enabled&&p.configured); },
     unavailableSearchProviders() {
       return this.form.searchProviderIds.filter(id=>!this.readySearchProviders.some(p=>p.id===id))
@@ -116,6 +125,9 @@ export default {
     },
   },
   watch: {
+    providerPageCount() {
+      this.providerPage = Math.min(this.providerPage, this.providerPageCount);
+    },
     searchQuery() {
       this.page = 1;
     },
@@ -188,6 +200,7 @@ export default {
       }
     },
     async openProviderManager() {
+      this.providerPage = 1;
       this.providerManagerOpen=true;this.providerError="";this.providerMessage="";this.providerForm=emptyProvider();
       try {this.searchProviders=await apiRequest('/platform/models/search-providers');}
       catch(error){this.providerError=error.message;}
@@ -205,6 +218,8 @@ export default {
         const saved=await apiRequest('/platform/models/search-providers',{method:'POST',body:JSON.stringify(Object.fromEntries(keys.map(k=>[k,this.providerForm[k]])))});
         this.providerForm.apiKey="";this.providerForm.secretId="";
         this.searchProviders=await apiRequest('/platform/models/search-providers');
+        const savedIndex = this.searchProviders.findIndex(provider => provider.id === saved.id);
+        if (savedIndex >= 0) this.providerPage = Math.floor(savedIndex / this.providerPageSize) + 1;
         this.providerForm={...emptyProvider(),...saved,apiKey:"",secretId:""};this.providerMessage="检索引擎已保存";
       }catch(error){this.providerError=error.message;}
       finally{this.providerSaving=false;}

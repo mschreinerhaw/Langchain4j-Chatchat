@@ -82,10 +82,19 @@
         <button
           type="button"
           class="domain-skill-category-row"
-          :class="{ active: !filters.category }"
+          :class="{ active: !builtinCategorySelected && !filters.category }"
           @click="selectCategory('')"
         >
           <span>全部技能</span><strong>{{ skillCount }}</strong>
+        </button>
+        <button
+          type="button"
+          class="domain-skill-category-row"
+          :class="{ active: builtinCategorySelected }"
+          :aria-pressed="builtinCategorySelected"
+          @click="selectBuiltinCategory"
+        >
+          <span>内置基础能力</span><strong>{{ builtinSkills.length }}</strong>
         </button>
         <div
           v-if="categoryMenuId || skillMenuId"
@@ -100,7 +109,7 @@
           :key="category.name"
           class="domain-skill-category-entry"
           :class="{
-            active: filters.category === category.name,
+            active: !builtinCategorySelected && filters.category === category.name,
             'menu-open': categoryMenuId === (category.id || category.name),
           }"
         >
@@ -156,7 +165,13 @@
       </aside>
 
       <section class="domain-skills-content" :aria-busy="refreshing">
-        <section v-if="visibleBuiltinSkills.length" aria-label="系统内置技能">
+        <div class="domain-skills-summary">
+          <span>{{ loading ? "加载中" : `共 ${builtinCategorySelected ? visibleBuiltinSkills.length : total} 个技能` }}</span>
+          <strong v-if="builtinCategorySelected">内置基础能力</strong>
+          <strong v-else-if="filters.category">{{ filters.category }}</strong>
+        </div>
+        <div v-if="loading" class="domain-skills-empty" role="status">正在加载领域技能…</div>
+        <section v-else-if="builtinCategorySelected" aria-label="系统内置技能">
           <article v-for="skill in visibleBuiltinSkills" :key="skill.id" class="domain-skill-item">
             <div class="domain-skill-item-body">
               <div class="domain-skill-item-title">
@@ -170,12 +185,8 @@
               <button type="button" class="feature-button secondary" @click="builtinDetail = skill">查看详情</button>
             </div>
           </article>
+          <p v-if="!visibleBuiltinSkills.length" class="domain-skills-empty">暂无符合条件的内置基础能力</p>
         </section>
-        <div class="domain-skills-summary">
-          <span>{{ loading ? "加载中" : `共 ${total} 个技能` }}</span>
-          <strong v-if="filters.category">{{ filters.category }}</strong>
-        </div>
-        <div v-if="loading" class="domain-skills-empty" role="status">正在加载领域技能…</div>
         <template v-else>
           <article
             v-for="skill in skills"
@@ -288,7 +299,7 @@
           </article>
         </template>
 
-        <footer v-if="totalPages > 1" class="domain-skills-pagination">
+        <footer v-if="!builtinCategorySelected && totalPages > 1" class="domain-skills-pagination">
           <span>第 {{ filters.page + 1 }} / {{ totalPages }} 页</span>
           <div
             ><button type="button" :disabled="filters.page === 0" @click="go(filters.page - 1)"

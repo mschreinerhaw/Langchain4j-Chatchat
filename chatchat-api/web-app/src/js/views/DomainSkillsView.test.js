@@ -1,4 +1,6 @@
+// @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
+import { createApp, nextTick } from "vue";
 
 const api = vi.hoisted(() => ({
   fetchSkillPublicationOptions: vi.fn(),
@@ -12,15 +14,59 @@ const api = vi.hoisted(() => ({
 }));
 vi.mock("../../services/api.js", () => api);
 import DomainSkillsView from "./DomainSkillsView.js";
+import DomainSkillsPage from "../../views/DomainSkillsView.vue";
 
 describe("DomainSkillsView", () => {
+  it("only displays builtins after selecting the fixed category and restores user skills on return", async () => {
+    const payload = {
+      skills: [{id:'domain-a',name:'公司研究技能',category:'公司研究',status:'DRAFT'}],
+      builtinSkills: [{id:'builtin:python',displayName:'Python 数据分析',descriptionZh:'数据清洗',enabled:true}],
+      categories: [{id:'research',name:'公司研究',count:1,manageable:true}],
+      total:1,skillCount:1,totalPages:2,
+    };
+    api.fetchDomainSkills.mockResolvedValue(payload);
+    const host = document.createElement('div');
+    const app = createApp(DomainSkillsPage);
+    try {
+      const view = app.mount(host); await nextTick(); await nextTick();
+      const category = name => [...host.querySelectorAll('.domain-skill-category-row')]
+        .find(button => button.querySelector('span')?.textContent === name);
+      const content = () => host.querySelector('.domain-skills-content').textContent;
+      expect(content()).toContain('公司研究技能');
+      expect(content()).not.toContain('Python 数据分析');
+      expect(category('全部技能').querySelector('strong').textContent).toBe('1');
+      expect(category('内置基础能力').querySelector('strong').textContent).toBe('1');
+      expect(category('内置基础能力').querySelector('.domain-skill-category-actions-trigger')).toBeNull();
+      category('内置基础能力').click(); await nextTick();
+      expect(content()).toContain('Python 数据分析');
+      expect(content()).not.toContain('公司研究技能');
+      expect(category('全部技能').classList.contains('active')).toBe(false);
+      expect(category('内置基础能力').classList.contains('active')).toBe(true);
+      expect(host.querySelector('.domain-skills-pagination')).toBeNull();
+      view.openCreate(); expect(view.form.category).toBe('公司研究');
+      view.editorOpen = false;
+      view.filters.keyword = '无匹配内容'; await view.load(true); await nextTick();
+      expect(content()).toContain('暂无符合条件的内置基础能力');
+      expect(content()).not.toContain('公司研究技能');
+      view.filters.keyword = '';
+      category('公司研究').click(); await nextTick(); await nextTick();
+      expect(content()).toContain('公司研究技能');
+      expect(content()).not.toContain('Python 数据分析');
+      expect(host.querySelector('.domain-skills-pagination')).not.toBeNull();
+      category('全部技能').click(); await nextTick(); await nextTick();
+      expect(content()).not.toContain('Python 数据分析');
+    } finally { app.unmount(); api.fetchDomainSkills.mockReset(); }
+  });
   it("searches Chinese display metadata while retaining original identifiers in the detail model", () => {
     const skill={id:"builtin:python-data-analysis",name:"python-data-analysis",displayName:"Python 数据分析",descriptionZh:"数据清洗与统计分析",source:"Runtime OS",enabled:true};
     const context={builtinSkills:[skill],filters:{keyword:"数据清洗",category:"",status:""}};
+    expect(DomainSkillsView.computed.visibleBuiltinSkills.call(context)).toEqual([]);
+    context.builtinCategorySelected = true;
     expect(DomainSkillsView.computed.visibleBuiltinSkills.call(context)).toEqual([skill]);
     context.filters.keyword="python-data-analysis";
     expect(DomainSkillsView.computed.visibleBuiltinSkills.call(context)[0].id).toBe(skill.id);
     context.filters.category="公司研究";
+    context.builtinCategorySelected = false;
     expect(DomainSkillsView.computed.visibleBuiltinSkills.call(context)).toEqual([]);
   });
   it("defaults external Skills to original native mode with compilation off", () => {

@@ -12,20 +12,34 @@
 .search-engine-option small,.search-engine-card small { display:block; margin-top:5px; color:var(--muted); font-size:12px; overflow-wrap:anywhere; }
 .search-engine-option.unavailable { color:var(--muted); background:var(--background); }
 .search-engine-backdrop { z-index:1210; }
-.search-engine-dialog { width:min(960px,calc(100vw - 32px)); padding:0; overflow:auto; }
-.search-engine-dialog .feature-modal-header { position:sticky; top:0; z-index:1; background:var(--surface); padding:20px 24px; border-bottom:1px solid var(--line); }
-.search-engine-manager { display:grid; grid-template-columns:minmax(220px,1fr) minmax(0,1.6fr); }
-.search-engine-list { display:flex; flex-direction:column; align-items:stretch; gap:12px; padding:20px; border-right:1px solid var(--line); }
-.search-engine-card { display:flex; flex-direction:column; gap:6px; padding:14px; border:1px solid var(--line); border-radius:10px; }
+.feature-modal.search-engine-dialog { width:min(960px,calc(100vw - 32px)); gap:0; padding:0; overflow:hidden; font-size:13px; }
+.search-engine-dialog .feature-modal-header { flex:none; background:var(--surface); padding:18px 22px; border-bottom:1px solid var(--line); }
+.search-engine-dialog .feature-modal-header h2 { font-size:18px; }
+.search-engine-dialog .feature-modal-header p { font-size:12px; }
+.search-engine-manager { display:grid; grid-template-columns:minmax(280px,1fr) minmax(0,1.6fr); min-height:0; overflow:auto; }
+.search-engine-list { display:flex; flex-direction:column; align-items:stretch; gap:12px; min-width:0; padding:18px; border-right:1px solid var(--line); background:var(--surface-soft); }
+.search-engine-cards { display:grid; align-content:start; gap:10px; }
+.search-engine-card { display:flex; flex-direction:column; gap:5px; min-width:0; padding:12px; border:1px solid var(--line); border-radius:10px; background:var(--surface); }
+.search-engine-card > strong { font-size:13px; font-weight:600; line-height:1.5; overflow-wrap:anywhere; }
 .search-engine-card.selected { border-color:var(--primary); }
 .search-engine-card-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
-.search-engine-form { display:flex; flex-direction:column; gap:16px; padding:24px; min-width:0; }
-.search-engine-form h3 { margin:0; font-size:16px; }
+.search-engine-form { display:flex; flex-direction:column; gap:14px; padding:22px; min-width:0; }
+.search-engine-form h3 { margin:0; font-size:15px; }
+.search-engine-dialog .feature-form-field > span { font-size:12px; }
+.search-engine-dialog .feature-form-field input { min-height:38px; font:inherit; }
+.search-engine-dialog .feature-button,
+.model-dialog .search-engine-section-heading .feature-button { min-height:32px; padding:0 10px; font-size:12px; }
+.search-engine-list .app-pagination { flex-direction:column; align-items:stretch; gap:8px; margin-top:auto; padding-top:12px; border-top:1px solid var(--line); font-size:12px; }
+.search-engine-list .app-pagination__actions { justify-content:space-between; gap:6px; }
+.search-engine-list .app-pagination__actions button { min-width:0; height:30px; padding:0 9px; font:inherit; }
+.search-engine-list .app-pagination__actions strong { min-width:0; font-size:12px; font-weight:500; }
+.model-dialog .search-engine-section-heading { margin:0 0 12px; }
+.model-dialog .search-engine-section-heading h3 { margin:0; }
 .search-engine-limits summary { cursor:pointer; font-size:13px; color:var(--muted); }
 .search-engine-limits .model-form-grid { margin-top:16px; }
 @media(max-width:680px) {
   .search-engine-manager { grid-template-columns:1fr; }
-  .search-engine-list { border-right:0; border-bottom:1px solid var(--line); max-height:240px; overflow:auto; }
+  .search-engine-list { border-right:0; border-bottom:1px solid var(--line); }
   .search-engine-form { padding:18px; }
 }
 
@@ -213,7 +227,8 @@
   grid-column: 1 / -1;
 }
 
-.model-dialog .feature-form-field select {
+.model-dialog .feature-form-field select,
+.search-engine-dialog .feature-form-field select {
   width: 100%;
   min-height: 40px;
   padding: 0 11px;
@@ -226,13 +241,15 @@
   font-size: 13px;
 }
 
-.model-dialog .feature-form-field select:focus {
+.model-dialog .feature-form-field select:focus,
+.search-engine-dialog .feature-form-field select:focus {
   border-color: rgba(47, 124, 246, .55);
   box-shadow: 0 0 0 3px rgba(47, 124, 246, .1);
 }
 
 .model-dialog input:read-only,
-.model-dialog select:disabled {
+.model-dialog select:disabled,
+.search-engine-dialog select:disabled {
   background: var(--surface-soft);
   color: var(--muted);
 }

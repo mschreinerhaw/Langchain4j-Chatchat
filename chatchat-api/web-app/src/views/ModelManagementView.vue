@@ -255,9 +255,12 @@
           >
         </div>
         <div v-if="form.type === 'chat'" class="model-form-section">
-          <h3>联网搜索</h3>
-          <label class="model-checkbox"><input v-model="form.internetSearchEnabled" type="checkbox" />联网搜索</label>
-          <div class="search-engine-heading"><span>检索引擎（可多选）</span><button type="button" class="feature-button" @click="openProviderManager">维护检索引擎</button></div>
+          <div class="search-engine-heading search-engine-section-heading">
+            <h3>联网搜索</h3>
+            <button type="button" class="feature-button" @click="openProviderManager">维护检索引擎</button>
+          </div>
+          <label class="model-checkbox"><input v-model="form.internetSearchEnabled" type="checkbox" />启用联网搜索</label>
+          <p class="search-engine-heading">检索引擎（可多选）</p>
           <p v-if="providerError && !providerManagerOpen" class="feature-alert error">{{ providerError }}</p>
           <div class="search-engine-options">
             <label v-for="provider in readySearchProviders" :key="provider.id" class="search-engine-option">
@@ -309,12 +312,22 @@
           <aside class="search-engine-list">
             <button type="button" class="feature-button" :disabled="providerSaving" @click="newProvider"><Plus :size="16" />新增引擎</button>
             <p v-if="!searchProviders.length" class="model-form-hint">还没有维护检索引擎。</p>
-            <article v-for="provider in searchProviders" :key="provider.id" :class="['search-engine-card',{selected:providerForm.id===provider.id}]">
-              <strong>{{ provider.name }}</strong><small>{{ provider.endpoint }}</small>
-              <span class="model-form-hint">{{ !provider.enabled ? '已停用' : provider.configured ? '已配置 · 已启用' : '待配置 API Key' }}</span>
-              <div class="search-engine-card-actions"><button type="button" class="feature-button" :disabled="providerSaving" @click="editProvider(provider)">编辑</button>
-                <button type="button" class="feature-button danger" :disabled="providerSaving" @click="pendingProviderDelete=provider">删除</button></div>
-            </article>
+            <div class="search-engine-cards">
+              <article v-for="provider in pagedSearchProviders" :key="provider.id" :class="['search-engine-card',{selected:providerForm.id===provider.id}]">
+                <strong>{{ provider.name }}</strong><small>{{ provider.endpoint }}</small>
+                <span class="model-form-hint">{{ !provider.enabled ? '已停用' : provider.configured ? '已配置 · 已启用' : '待配置 API Key' }}</span>
+                <div class="search-engine-card-actions"><button type="button" class="feature-button" :disabled="providerSaving" @click="editProvider(provider)">编辑</button>
+                  <button type="button" class="feature-button danger" :disabled="providerSaving" @click="pendingProviderDelete=provider">删除</button></div>
+              </article>
+            </div>
+            <AppPagination
+              :page="providerPage"
+              :page-size="providerPageSize"
+              :total="searchProviders.length"
+              :disabled="providerSaving"
+              aria-label="检索引擎分页"
+              @change="providerPage = $event"
+            />
           </aside>
           <form class="search-engine-form" @submit.prevent="saveProvider">
             <h3>{{ providerForm.id ? '编辑检索引擎' : '新增检索引擎' }}</h3>

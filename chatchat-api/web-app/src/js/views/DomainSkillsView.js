@@ -58,6 +58,7 @@ export default {
   data: () => ({
     loading: true, refreshing: false, initialLoadComplete: false,
     busy: false, error: "", message: "", skills: [], builtinSkills: [], builtinDetail: null, categories: [],
+    builtinCategorySelected: false,
     publishOpen: false, publishLoading: false, publishError: "", publishTarget: null,
     publishEngines: [], publishBinding: { engine: "GOOGLE_ADK_NATIVE" },
     quota: { maximum: 5, published: 0, remaining: 5, source: "DEFAULT", limited: true, licenseValid: true },
@@ -78,10 +79,10 @@ export default {
   }),
   computed: {
     visibleBuiltinSkills() {
+      if (!this.builtinCategorySelected) return [];
       const keyword = String(this.filters.keyword || "").trim().toLowerCase();
       return this.builtinSkills.filter(skill =>
-        (!this.filters.category || this.filters.category === skill.category)
-        && (!this.filters.status || (this.filters.status === "PUBLISHED" && skill.enabled !== false))
+        (!this.filters.status || (this.filters.status === "PUBLISHED" && skill.enabled !== false))
         && (!keyword || [skill.displayName, skill.descriptionZh, skill.name, skill.id, skill.source]
           .join(" ").toLowerCase().includes(keyword)));
     },
@@ -256,8 +257,18 @@ export default {
       this.error = "";
     },
     async selectCategory(category) {
+      this.builtinCategorySelected = false;
+      this.categoryMenuId = "";
+      this.skillMenuId = "";
       this.filters.category = category;
       await this.load(true);
+    },
+    selectBuiltinCategory() {
+      this.builtinCategorySelected = true;
+      this.filters.category = "";
+      this.filters.page = 0;
+      this.categoryMenuId = "";
+      this.skillMenuId = "";
     },
     async openCategoryDialog() {
       this.categoryDialogMode = "create";
@@ -308,6 +319,7 @@ export default {
         this.newCategoryName = "";
         if (this.categoryDialogMode !== "rename" || this.filters.category === this.editingCategoryOriginalName) {
           this.filters.category = categoryName;
+          this.builtinCategorySelected = false;
         }
         this.message = this.categoryDialogMode === "rename"
           ? `分类已重命名为“${categoryName}”`

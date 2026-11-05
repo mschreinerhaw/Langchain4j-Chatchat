@@ -7,6 +7,43 @@ vi.mock('../../services/api',()=>({fetchPlatformModels:vi.fn(async()=>[]),savePl
   apiRequest:vi.fn(async()=>[{id:'tavily',name:'Tavily',enabled:true,configured:true,status:'NOT_TESTED'}]),
   deletePlatformModel:vi.fn(),publishPlatformModel:vi.fn(),setDefaultPlatformModel:vi.fn()}));
 describe('model request timeout form',()=>{
+  it('paginates engines, locates saved entries and clamps the page after deletion', async () => {
+    const host = document.createElement('div'), app = createApp({render: () => h(View)});
+    let providers = Array.from({length: 4}, (_, index) => ({
+      id: `engine-${index}`, name: `Engine ${index}`, kind: 'TAVILY',
+      endpoint: `https://search.example.com/${index}`, enabled: true, configured: true,
+    }));
+    apiRequest.mockImplementation(async (path, options) => {
+      if (options?.method === 'POST') return providers[3];
+      if (options?.method === 'DELETE') { providers = providers.slice(0, 3); return {}; }
+      return [...providers];
+    });
+    try {
+      const root = app.mount(host); await nextTick();
+      const view = root.$.subTree.component.proxy;
+      view.openCreate(); await view.openProviderManager(); await nextTick();
+      expect(host.querySelector('.search-engine-section-heading h3').textContent).toBe('联网搜索');
+      expect(host.querySelector('.search-engine-section-heading button').textContent).toBe('维护检索引擎');
+      expect(host.querySelectorAll('.search-engine-card')).toHaveLength(3);
+      const pagination = () => host.querySelector('[aria-label="检索引擎分页"]');
+      expect(pagination().textContent).toContain('1–3 / 4 条');
+      pagination().querySelectorAll('button')[1].click(); await nextTick();
+      expect(host.querySelectorAll('.search-engine-card')).toHaveLength(1);
+      expect(host.querySelector('.search-engine-card').textContent).toContain('Engine 3');
+      expect(pagination().querySelectorAll('button')[1].disabled).toBe(true);
+      view.providerPage = 1;
+      view.editProvider(providers[3]); await view.saveProvider(); await nextTick();
+      expect(view.providerPage).toBe(2);
+      view.pendingProviderDelete = providers[3]; await view.confirmProviderDelete(); await nextTick();
+      expect(view.providerPage).toBe(1);
+      expect(host.querySelectorAll('.search-engine-card')).toHaveLength(3);
+      view.closeProviderManager(); await view.openProviderManager();
+      expect(view.providerPage).toBe(1);
+    } finally {
+      app.unmount(); apiRequest.mockReset();
+      apiRequest.mockResolvedValue([{id:'tavily',name:'Tavily',enabled:true,configured:true}]);
+    }
+  });
   it('maintains named engine endpoints with write-only keys and saves model choices independently',async()=>{
     const host=document.createElement('div'),app=createApp({render:()=>h(View)});
     try{

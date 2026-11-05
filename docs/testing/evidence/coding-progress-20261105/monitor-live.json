@@ -1,0 +1,89 @@
+{
+  "url": "http://192.168.195.221:18100/monitor/",
+  "taskId": "analysis-coding-2061a3da9a8bdb18633777120d0ecefa362370f8c2e8d675ec24f8820802451e",
+  "build": "2813524e8a6c0a1cc1326f46d1e1cf406e1ca22b",
+  "checks": [
+    "real candidate task",
+    "progress counts",
+    "first code timing",
+    "Python confirmed execution",
+    "actual tools",
+    "provider and SDK finish reasons",
+    "read only",
+    "no browser errors"
+  ],
+  "status": "COMPLETED",
+  "progress": {
+    "modelCall": 5,
+    "callsSinceProgress": 1,
+    "newToolResults": 4,
+    "newEvidenceReads": 3,
+    "skillReads": 0,
+    "discoveryCalls": 0,
+    "repeatedFailures": 0,
+    "proposals": 2,
+    "acceptedProposals": 2,
+    "rejectedProposals": 0,
+    "pythonDispatched": 2,
+    "pythonExecutions": 2,
+    "modelResponseErrors": 0,
+    "knownInputTokens": 60160,
+    "knownOutputTokens": 6725,
+    "firstProposalMs": 51652,
+    "firstValidCodeMs": 51733,
+    "firstPythonMs": 51862,
+    "firstResultMs": 89570,
+    "remainingTokens": 524288,
+    "remainingModelCalls": 8,
+    "feedbackCount": 0,
+    "phase": "REVIEWING",
+    "waitingFor": "MODEL",
+    "lastTool": "artifact_read"
+  },
+  "modelTools": [
+    {
+      "ordinal": 1,
+      "actualTools": [
+        "input_read"
+      ],
+      "providerFinishReason": "TOOL_EXECUTION",
+      "finishReason": "tool-calls"
+    },
+    {
+      "ordinal": 2,
+      "actualTools": [
+        "python_execute"
+      ],
+      "providerFinishReason": "TOOL_EXECUTION",
+      "finishReason": "tool-calls"
+    },
+    {
+      "ordinal": 3,
+      "actualTools": [
+        "python_execute"
+      ],
+      "providerFinishReason": "TOOL_EXECUTION",
+      "finishReason": "tool-calls"
+    },
+    {
+      "ordinal": 4,
+      "actualTools": [
+        "input_read"
+      ],
+      "providerFinishReason": "TOOL_EXECUTION",
+      "finishReason": "tool-calls"
+    },
+    {
+      "ordinal": 5,
+      "actualTools": [
+        "artifact_read"
+      ],
+      "providerFinishReason": "TOOL_EXECUTION",
+      "finishReason": "tool-calls"
+    }
+  ],
+  "errors": [],
+  "mutations": [
+    "/monitor/session"
+  ]
+}

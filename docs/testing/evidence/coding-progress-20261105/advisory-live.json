@@ -1,0 +1,176 @@
+[
+  {
+    "taskId": "analysis-coding-e3777d7a5dbd4d2f20d95306939ee86275d70d540ce221b0b12bafbc238d7376",
+    "fencingToken": 1,
+    "capturedStatus": "RUNNING",
+    "progress": {
+      "modelCall": 6,
+      "callsSinceProgress": 1,
+      "newToolResults": 1,
+      "newEvidenceReads": 1,
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "repeatedFailures": 1,
+      "proposals": 2,
+      "acceptedProposals": 1,
+      "rejectedProposals": 1,
+      "pythonDispatched": 1,
+      "pythonExecutions": 1,
+      "modelResponseErrors": 2,
+      "knownInputTokens": 72830,
+      "knownOutputTokens": 28181,
+      "firstProposalMs": 43889,
+      "firstValidCodeMs": 43946,
+      "firstPythonMs": 43994,
+      "firstResultMs": null,
+      "remainingTokens": 458752,
+      "remainingModelCalls": 7,
+      "feedbackCount": 1,
+      "phase": "EXPLORING",
+      "waitingFor": "MODEL",
+      "lastTool": "code_read"
+    },
+    "feedbackEvents": [
+      {
+        "timestamp": "2026-11-05T15:09:44.800Z",
+        "type": "MODEL_STARTED",
+        "modelCall": 1,
+        "purpose": "PREPARING",
+        "progressFeedback": false
+      },
+      {
+        "timestamp": "2026-11-05T15:10:32.076Z",
+        "type": "MODEL_STARTED",
+        "modelCall": 2,
+        "purpose": "REPAIRING",
+        "progressFeedback": false
+      },
+      {
+        "timestamp": "2026-11-05T15:12:12.684Z",
+        "type": "MODEL_STARTED",
+        "modelCall": 3,
+        "purpose": "REPAIRING",
+        "progressFeedback": false
+      },
+      {
+        "timestamp": "2026-11-05T15:14:32.211Z",
+        "type": "MODEL_STARTED",
+        "modelCall": 4,
+        "purpose": "REPAIRING",
+        "progressFeedback": true
+      },
+      {
+        "timestamp": "2026-11-05T15:17:12.924Z",
+        "type": "MODEL_STARTED",
+        "modelCall": 5,
+        "purpose": "REPAIRING",
+        "progressFeedback": false
+      },
+      {
+        "timestamp": "2026-11-05T15:17:21.008Z",
+        "type": "MODEL_STARTED",
+        "modelCall": 6,
+        "purpose": "EXPLORING",
+        "progressFeedback": false
+      }
+    ],
+    "modelErrors": [
+      {
+        "timestamp": "2026-11-05T15:12:11.911Z",
+        "type": "MODEL_RESPONSE_REJECTED",
+        "modelCall": 2,
+        "diagnosticCode": "MODEL_TOOL_ARGUMENTS_INVALID"
+      },
+      {
+        "timestamp": "2026-11-05T15:14:31.372Z",
+        "type": "MODEL_RESPONSE_REJECTED",
+        "modelCall": 3,
+        "diagnosticCode": "MODEL_TOOL_ARGUMENTS_INVALID"
+      }
+    ]
+  },
+  {
+    "taskId": "analysis-coding-6c1155b69901156096499d8c89ee15c6ea51c897364eb283e5f092af76145d1f",
+    "fencingToken": 1,
+    "capturedStatus": "COMPLETED",
+    "progress": {
+      "modelCall": 6,
+      "callsSinceProgress": 1,
+      "newToolResults": 3,
+      "newEvidenceReads": 2,
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "repeatedFailures": 0,
+      "proposals": 3,
+      "acceptedProposals": 2,
+      "rejectedProposals": 1,
+      "pythonDispatched": 2,
+      "pythonExecutions": 2,
+      "modelResponseErrors": 1,
+      "knownInputTokens": 104623,
+      "knownOutputTokens": 21904,
+      "firstProposalMs": 56962,
+      "firstValidCodeMs": 57027,
+      "firstPythonMs": 57166,
+      "firstResultMs": 337296,
+      "remainingTokens": 458752,
+      "remainingModelCalls": 7,
+      "feedbackCount": 1,
+      "phase": "REVIEWING",
+      "waitingFor": "MODEL",
+      "lastTool": "artifact_read"
+    },
+    "feedbackEvents": [
+      {
+        "timestamp": "2026-11-05T15:11:38.411Z",
+        "type": "MODEL_STARTED",
+        "modelCall": 1,
+        "purpose": "PREPARING",
+        "progressFeedback": false
+      },
+      {
+        "timestamp": "2026-11-05T15:12:37.855Z",
+        "type": "MODEL_STARTED",
+        "modelCall": 2,
+        "purpose": "REPAIRING",
+        "progressFeedback": false
+      },
+      {
+        "timestamp": "2026-11-05T15:13:54.108Z",
+        "type": "MODEL_STARTED",
+        "modelCall": 3,
+        "purpose": "REPAIRING",
+        "progressFeedback": false
+      },
+      {
+        "timestamp": "2026-11-05T15:15:33.291Z",
+        "type": "MODEL_STARTED",
+        "modelCall": 4,
+        "purpose": "REPAIRING",
+        "progressFeedback": true
+      },
+      {
+        "timestamp": "2026-11-05T15:16:02.756Z",
+        "type": "MODEL_STARTED",
+        "modelCall": 5,
+        "purpose": "EXPLORING",
+        "progressFeedback": false
+      },
+      {
+        "timestamp": "2026-11-05T15:17:16.484Z",
+        "type": "MODEL_STARTED",
+        "modelCall": 6,
+        "purpose": "REVIEWING",
+        "progressFeedback": false
+      }
+    ],
+    "modelErrors": [
+      {
+        "timestamp": "2026-11-05T15:13:53.217Z",
+        "type": "MODEL_RESPONSE_REJECTED",
+        "modelCall": 2,
+        "diagnosticCode": "MODEL_TOOL_ARGUMENTS_INVALID"
+      }
+    ]
+  }
+]

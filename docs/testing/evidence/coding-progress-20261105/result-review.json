@@ -1,0 +1,266 @@
+{
+  "scope": "Manual review of target numeric results, key tables and principal narrative; not exhaustive verification of all audit appendices. Runtime completion does not certify business correctness.",
+  "targetNumericResults": {
+    "baseline": "10/10",
+    "verified": "10/10"
+  },
+  "knownQualityFailures": [
+    {
+      "variant": "baseline",
+      "case": "complex-0",
+      "issue": "Summary says West quantity share 0%, but table and independent expected share are 50%."
+    },
+    {
+      "variant": "baseline",
+      "case": "complex-1",
+      "issue": "2026-10-01 called Sunday instead of Thursday; report also claims 4.421053 differs from 4.421053."
+    },
+    {
+      "variant": "verified",
+      "case": "complex-0",
+      "issue": "Total days column reports 56 input rows instead of 28 distinct covered days."
+    }
+  ],
+  "receipts": [
+    {
+      "variant": "baseline",
+      "case": "complex-0",
+      "status": "COMPLETED",
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "COMPLETE",
+          "sha256": "3e809214d30a5e11452c9c624a3ee989d2395edd2edf4da1ce1ec249d7fe2e8b"
+        }
+      ]
+    },
+    {
+      "variant": "baseline",
+      "case": "complex-1",
+      "status": "COMPLETED",
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "COMPLETE",
+          "sha256": "812547f05548302a62f291900a612d3e0e0f305d27640b8ca9a22fe508260aad"
+        }
+      ]
+    },
+    {
+      "variant": "baseline",
+      "case": "csv-0",
+      "status": "COMPLETED",
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "COMPLETE",
+          "sha256": "8ed3c65e362cc7276a30db5009771f124ff13da5b03c35f03b5a566fd034a33a"
+        }
+      ]
+    },
+    {
+      "variant": "baseline",
+      "case": "csv-1",
+      "status": "COMPLETED",
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "COMPLETE",
+          "sha256": "ed97ef0bfe47cbf8113625095af85b67fbf21ba88f1b4d131cc35a0dd3e18f65"
+        }
+      ]
+    },
+    {
+      "variant": "baseline",
+      "case": "join-0",
+      "status": "COMPLETED",
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "COMPLETE",
+          "sha256": "7be5be5ae8448abd3442e1b530dfcc4c812b232c636ce861d99e72a72127ae14"
+        }
+      ]
+    },
+    {
+      "variant": "baseline",
+      "case": "join-1",
+      "status": "COMPLETED",
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "COMPLETE",
+          "sha256": "9e64e8a523264ad8487f41abab9bf917efbb6580ca41549853c3e2c0d740b7ee"
+        }
+      ]
+    },
+    {
+      "variant": "baseline",
+      "case": "parquet-0",
+      "status": "COMPLETED",
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "COMPLETE",
+          "sha256": "37faeca13e252def3a28eb1e4fdb5082742d4dc1667805e9313cc83875f27141"
+        }
+      ]
+    },
+    {
+      "variant": "baseline",
+      "case": "parquet-1",
+      "status": "COMPLETED",
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "COMPLETE",
+          "sha256": "dd7db0c6e01cde5f2f0b7fae68c198963eedc3fc9120213c33f9258ef8c9cfac"
+        }
+      ]
+    },
+    {
+      "variant": "baseline",
+      "case": "repair-0",
+      "status": "COMPLETED",
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "INPUT_REQUIRED",
+          "sha256": "7c195b81404e88afe83f7f9f7ee0b9bd8db2aaafb555710af752fe45593a344d"
+        }
+      ]
+    },
+    {
+      "variant": "baseline",
+      "case": "repair-1",
+      "status": "COMPLETED",
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "COMPLETE",
+          "sha256": "1bb4a0563f33c16cdc18dd3a0f48c5fd431bac6c7d454a04f10d8cc325cac730"
+        }
+      ]
+    },
+    {
+      "variant": "verified",
+      "case": "complex-0",
+      "status": "COMPLETED",
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "COMPLETE",
+          "sha256": "de4cb349aa1dd55ec0abd81e97f998a6277dfe768f304d8ed9c0009c459932f9"
+        }
+      ]
+    },
+    {
+      "variant": "verified",
+      "case": "complex-1",
+      "status": "COMPLETED",
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "COMPLETE",
+          "sha256": "d5a8a67ff374155774265515329d0d50d61e2f9871bae9ecfac76c0781d93079"
+        }
+      ]
+    },
+    {
+      "variant": "verified",
+      "case": "csv-0",
+      "status": "COMPLETED",
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "COMPLETE",
+          "sha256": "ac026cfb41aa669d11bcf3dd870dff4ca6b675ca08b0f8f79dc8a7af1c1167f2"
+        }
+      ]
+    },
+    {
+      "variant": "verified",
+      "case": "csv-1",
+      "status": "COMPLETED",
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "COMPLETE",
+          "sha256": "06e4c4586b95801e158d7c099aa0b783835ba625dc039b59b7b0568a7781c85b"
+        }
+      ]
+    },
+    {
+      "variant": "verified",
+      "case": "join-0",
+      "status": "COMPLETED",
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "COMPLETE",
+          "sha256": "4d468e93819976f6006f4fa802720f38332da89d5ddb919f6f7d91bf4f036bdf"
+        }
+      ]
+    },
+    {
+      "variant": "verified",
+      "case": "join-1",
+      "status": "COMPLETED",
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "COMPLETE",
+          "sha256": "74d70af163e7ac8aaaace2dddf270062730d38c84fea69ec5838d67228c3049b"
+        }
+      ]
+    },
+    {
+      "variant": "verified",
+      "case": "parquet-0",
+      "status": "COMPLETED",
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "COMPLETE",
+          "sha256": "5dd8e6c27b91f5c83261eabbd75b3b3c8c517580e68dd1dd2e95d91d4ea6ec4a"
+        }
+      ]
+    },
+    {
+      "variant": "verified",
+      "case": "parquet-1",
+      "status": "COMPLETED",
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "COMPLETE",
+          "sha256": "d85d187dbd9d3df043a8871a83e7e8b9fe6f821796a0a1fcfd4e22868f1c614e"
+        }
+      ]
+    },
+    {
+      "variant": "verified",
+      "case": "repair-0",
+      "status": "COMPLETED",
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "INPUT_REQUIRED",
+          "sha256": "27623cf78fc9d24f02f5d767a8c36514211783da6d14771acaab70170f34d294"
+        }
+      ]
+    },
+    {
+      "variant": "verified",
+      "case": "repair-1",
+      "status": "COMPLETED",
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "INPUT_REQUIRED",
+          "sha256": "702acacbd633aac0dd220466f5861ba1c8ebfca77b4114c78e27a765c598bd90"
+        }
+      ]
+    }
+  ]
+}

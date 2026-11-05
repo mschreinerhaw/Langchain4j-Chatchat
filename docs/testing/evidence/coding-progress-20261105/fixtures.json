@@ -1,0 +1,69 @@
+{
+  "model": "qwen3.8-flash",
+  "repeatsPerCase": 2,
+  "maxConcurrency": 2,
+  "syntheticOnly": true,
+  "fixtureSha256": {
+    "simple.csv": "7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399",
+    "customers.csv": "ba5569c242fa54c3499250d491d7eb79c88e1bb016dc079dc400ceb663d5cb0c",
+    "orders.csv": "b47f62ee75979106c3a5923f987f4724b8631cb901b5aa3e74848596ba2e5526",
+    "complex.csv": "91e1c931a615fa83ff58856bc752106e6570b88b73217075dd6ad2a48cce06bd",
+    "simple.parquet": "42086714c894d600f396f73728b0bfa2d3dbba708c6cc26978e0aae80e5a60bb"
+  },
+  "expected": {
+    "simple": {
+      "East": 32,
+      "West": 14,
+      "total": 46
+    },
+    "join": {
+      "East": 38,
+      "West": 14,
+      "total": 52,
+      "rows": 4,
+      "customerIds": [
+        "001",
+        "002",
+        "003"
+      ]
+    },
+    "complex": {
+      "totalAmount": 1218,
+      "totalQuantity": 140,
+      "weightedUnitValue": 8.7,
+      "weekIds": [
+        "2026-W40",
+        "2026-W41",
+        "2026-W42",
+        "2026-W43",
+        "2026-W44"
+      ],
+      "eastAmounts": [
+        10,
+        56,
+        105,
+        154,
+        81
+      ],
+      "westAmounts": [
+        20,
+        112,
+        210,
+        308,
+        162
+      ],
+      "weeklyQuantities": [
+        20,
+        38,
+        32,
+        34,
+        16
+      ]
+    },
+    "repair": {
+      "originalFailure": "SYNTAX_ERROR",
+      "preservedExpression": "sum([1, 2, 3])",
+      "computedValue": 6
+    }
+  }
+}

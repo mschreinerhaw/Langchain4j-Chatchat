@@ -16,6 +16,9 @@
 ## 五次调用到底做了什么
 
 以下为 UTC；界面北京时间为 UTC+8。初始 Worker 于 13:09:23.381 接受任务。
+父级财经 Agent 于13:07:04左右提交，先经历约126秒规划，随后授权 web_search 用时4.104秒、交付18个结构化数据集，才进入 Coding。
+这些属于父级规划和数据获取，不能计作 Coding 的五次模型调用或将其归因于 Editor。
+完整私有采集包含初始 fence 的42条 Node 事件、恢复 fence 的8条事件，以及91条 Java 执行事件。
 
 | 调用 | 供应商调用开始—结束 | 供应商耗时 | 输入/输出 Token | finish reason | 实际工具及结果 |
 |---|---|---:|---:|---|---|
@@ -133,3 +136,40 @@ Monitor 新增当前序号/状态、准备/探索/编写/执行/验证/修复阶
 
 恢复会话已有代码时，进展建议从已有 canonical code lineage 派生“已有代码”状态，
 避免当前 run 的零提案计数误导模型重新生成初始程序；没有增加 checkpoint 或恢复控制器。
+
+## 计划文本被误当作会话完成
+
+第二轮候选 `6f494d918` 的复杂样本 `analysis-coding-02a264d9cbb64684c8ec80cd1f868536f2d3b4f418befce8d7c4ef1d70450f9f`
+第一轮通过 input_read 读取完整56行 CSV；第二轮返回 `STOP`、一段 `<initial_plan>` 和零工具调用。
+原 SDK 会话将这个无工具响应视为 completed，外层 afterRun 随后因 `REVIEWED_RESULT_NOT_AVAILABLE` 拒绝完成。
+全过程约109.7秒，无代码提案、无 Python，亦非 Schema 缺失或模型截断。
+
+当前 `@cline/agents` 0.0.93 的公开 `completionPolicy.completionGuard` 正是处理该边界的能力：
+SDK 在无工具的结束响应后读取 guard；存在反馈时将提醒加入自己的 canonical messages，并在自己的循环内继续。
+最终修订只为 reviewed-analysis 且尚无真实已复核结果的会话提供该反馈，明确计划不能替代结果，
+允许模型继续自主选择必要工具、代码或任务授权的证据不足报告路径。
+没有调用 agent.continue、创建新会话、拼装第二份历史或建立外部重试循环。
+每次继续仍经过原 Java admission、deadline 和 maxModelCalls，Runtime STOP 保持优先。
+
+两项新增原生 SDK 回归分别复现“计划 STOP→真实 Python→结果复核”及“连续只给计划时仍受原2次预算限制且不能认证成功”。
+此前两轮候选全部样本保留，最终 SDK guard 版本另用独立 `verified` 批次验证。
+
+最终真实回归也保留了模型未遵循已有指令的情况：`verified/parquet-0` 首轮生成2,537字节程序，
+`verified/join-0` 首轮生成3,870字节程序，均仅打印检查信息，未写 rows.jsonl；实际进程退出码0，但结果合同正确拒绝为 REQUIRED_OUTPUT_MISSING。
+这两项分别在首轮约43.9秒与57.0秒提交了代码，不能把它们算作首次有效分析结果。
+检查实际请求确认，常驻提示已明确禁止 print-only 检查程序并要求同次执行写完整报告；工具说明也已写明输出路径。
+因此没有证据把这些样本再归因于 Schema 未披露，也不能通过继续堆叠同义提示证明已修复模型行为。
+按原 Runtime 回执进入同一 SDK 内修复，保留失败及成本，不放宽输出要求或返回原始 stdout 充当报告。
+
+其它中间失败也未排除：首轮 candidate/parquet-1 在第一轮返回 STOP 且无工具，同样被原外层结果完成校验拒绝；
+第二轮 final/parquet-0 则已经多次取得可用报告，仍继续代码读取、复核和修订，最终耗尽原有12次模型预算。
+其工具序列为 `input_read+python → code_read → python → code_read → python+artifact_read → code_read → input_read → python → python → code_read → python → python`。
+这个失败是后续复核/修订路径耗尽预算，不能归为“从未产出代码”，也不能通过删除结果复核或增加预算使基准看起来成功。
+
+## 最终验证边界
+
+最终源码 `2813524e8` 已部署，40项真实模型试验包含基线及三批候选，各有5类任务×2次。
+最终批执行完成10/10，但首次新代码中位数107.2→142.0秒，首次可用结果155.6→429.0秒，模型调用总数56→59。
+因此这次修改不能被称为已解决产出延迟；原供应商超时的内部原因也尚未查明。
+新的华是科技财经 Agent 验证在前置模型等待约300秒后失败，尚无 Coding task；不能作为 Coding 修复成功的证据。
+完整性能表、报告业务错误及财经事件见 [最终验证报告](../testing/coding-progress-regression.md)。

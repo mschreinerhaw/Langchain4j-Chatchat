@@ -1,0 +1,12 @@
+{
+  "url": "http://192.168.195.221:18100/#/w/data-exploration/dataExploration?exploration=85affabc-70b4-4543-b190-39578af5ffd2&node=47fda311-45dc-4ad7-9fd7-a3b4abed4ca4",
+  "errors": [],
+  "mutations": [
+    {
+      "method": "PUT",
+      "path": "/api/v1/workspaces/preferences"
+    }
+  ],
+  "charts": 0,
+  "selectedNodePresent": 1
+}

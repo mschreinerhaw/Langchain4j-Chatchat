@@ -1,0 +1,19 @@
+{
+  "status": "PASSED",
+  "source": "Local real Cline SDK loop with deterministic gateway fixture",
+  "checks": [
+    "login",
+    "read-only session",
+    "code source/hash",
+    "XSS text rendering",
+    "models",
+    "skills",
+    "events",
+    "offline recovery",
+    "search",
+    "mobile overflow",
+    "API discovery",
+    "logout"
+  ],
+  "errors": []
+}

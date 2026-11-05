@@ -1,0 +1,199 @@
+{
+  "explorationId": "85affabc-70b4-4543-b190-39578af5ffd2",
+  "nodeId": "47fda311-45dc-4ad7-9fd7-a3b4abed4ca4",
+  "taskId": "000a3c3b-9354-3a2e-bfc9-335806633141",
+  "attemptId": "att-1-a3b3486e-36fb-44af-98c7-5f2f8303d93e",
+  "agentId": "financial-news-agent",
+  "model": "qwen3.8-flash",
+  "status": "FAILED",
+  "createdAt": "2026-11-05T15:51:12.382572Z",
+  "finishedAt": "2026-11-05T15:56:14.737Z",
+  "durationMs": 302164,
+  "resultAvailable": false,
+  "codingTasks": 0,
+  "toolTraces": 0,
+  "failureMessage": "request timed out",
+  "events": [
+    {
+      "sequence": 1,
+      "type": "QUESTION",
+      "status": "PENDING",
+      "at": 1793893872388,
+      "stage": null,
+      "lifecyclePhase": null,
+      "errorCode": null,
+      "message": null
+    },
+    {
+      "sequence": 2,
+      "type": "STATUS",
+      "status": "RUNNING",
+      "at": 1793893872473,
+      "stage": null,
+      "lifecyclePhase": null,
+      "errorCode": null,
+      "message": null
+    },
+    {
+      "sequence": 3,
+      "type": "STATUS",
+      "status": "WAIT_MODEL",
+      "at": 1793893872485,
+      "stage": null,
+      "lifecyclePhase": null,
+      "errorCode": null,
+      "message": null
+    },
+    {
+      "sequence": 4,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "at": 1793893872571,
+      "stage": "SKILL_ANALYSIS_CONTEXT",
+      "lifecyclePhase": null,
+      "errorCode": null,
+      "message": null
+    },
+    {
+      "sequence": 5,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "at": 1793893872589,
+      "stage": "SKILL_ANALYSIS_CONTEXT",
+      "lifecyclePhase": null,
+      "errorCode": null,
+      "message": null
+    },
+    {
+      "sequence": 6,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "at": 1793893872670,
+      "stage": "TASK_CLASSIFICATION",
+      "lifecyclePhase": null,
+      "errorCode": null,
+      "message": null
+    },
+    {
+      "sequence": 7,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "at": 1793893874522,
+      "stage": "TASK_CLASSIFICATION",
+      "lifecyclePhase": null,
+      "errorCode": null,
+      "message": null
+    },
+    {
+      "sequence": 8,
+      "type": "RUNTIME_STARTED",
+      "status": "RUNNING",
+      "at": 1793893874566,
+      "stage": null,
+      "lifecyclePhase": null,
+      "errorCode": null,
+      "message": null
+    },
+    {
+      "sequence": 9,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "at": 1793893874582,
+      "stage": null,
+      "lifecyclePhase": null,
+      "errorCode": null,
+      "message": null
+    },
+    {
+      "sequence": 10,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "at": 1793893874589,
+      "stage": null,
+      "lifecyclePhase": null,
+      "errorCode": null,
+      "message": null
+    },
+    {
+      "sequence": 11,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "at": 1793893874594,
+      "stage": null,
+      "lifecyclePhase": null,
+      "errorCode": null,
+      "message": null
+    },
+    {
+      "sequence": 12,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "at": 1793893874601,
+      "stage": null,
+      "lifecyclePhase": "problem_identification",
+      "errorCode": null,
+      "message": null
+    },
+    {
+      "sequence": 13,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "at": 1793893874605,
+      "stage": null,
+      "lifecyclePhase": "tool_discovery",
+      "errorCode": null,
+      "message": null
+    },
+    {
+      "sequence": 14,
+      "type": "RUNTIME_FAILED",
+      "status": "FAILED",
+      "at": 1793894174635,
+      "stage": null,
+      "lifecyclePhase": null,
+      "errorCode": "AGENT_RUNTIME_FAILED",
+      "message": "request timed out"
+    },
+    {
+      "sequence": 15,
+      "type": "THINK",
+      "status": "RUNNING",
+      "at": 1793893872495,
+      "stage": null,
+      "lifecyclePhase": null,
+      "errorCode": null,
+      "message": null
+    },
+    {
+      "sequence": 16,
+      "type": "RESULT",
+      "status": "FAILED",
+      "at": 1793894174663,
+      "stage": null,
+      "lifecyclePhase": null,
+      "errorCode": null,
+      "message": null
+    },
+    {
+      "sequence": 17,
+      "type": "COMPLETE",
+      "status": "FAILED",
+      "at": 1793894174737,
+      "stage": null,
+      "lifecyclePhase": null,
+      "errorCode": null,
+      "message": null
+    }
+  ],
+  "privateEvidenceSha256": {
+    "events-private.json": "ae7912bd0e97ce356fbc29c09b9655018f9ac1041437f2f07a76444e6d05a499",
+    "task-private.json": "ba8fe2b54b4423562a9ada8668eeaab35bdccea747476622dac8afb36641aff8",
+    "coding-private.json": "bb6ffedd952cabf2cd6562b8ebce3f9b4c49ed5cb1ae8242bc2e0a79b3a6233b",
+    "result-private.json": "51db9304fae5af996c2b2b9517d89e9747634e16998693291442ae161930a786"
+  },
+  "deployment": {
+    "image": "sha256:02bca821bc7ab6b4b9061e7f4474c491c30def56bfec78127c30c02af4a2670e",
+    "status": "running",
+    "health": "healthy"
+  }
+}

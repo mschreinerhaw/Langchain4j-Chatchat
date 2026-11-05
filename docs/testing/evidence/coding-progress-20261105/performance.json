@@ -1,0 +1,2793 @@
+{
+  "capturedAt": "2026-11-05T15:51:48.040100+00:00",
+  "rows": [
+    {
+      "variant": "baseline",
+      "case": "complex-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 744257,
+      "taskId": "analysis-coding-0e46aec492e0ca33697dc7c80beb8fc00cadc25b524ebc003ec7cd1317423a58",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 149507,
+      "firstNewCodeMs": 149507,
+      "firstPythonMs": 149557,
+      "firstResultMs": 692586,
+      "modelCalls": 9,
+      "knownUsageCalls": 9,
+      "knownTokens": 286314,
+      "codeProposals": 4,
+      "rejectedProposals": 0,
+      "pythonExecutions": 4,
+      "pythonToolResults": 4,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "PROGRAM_ERROR",
+        "SYNTAX_ERROR",
+        "PROGRAM_ERROR",
+        null
+      ],
+      "skillReads": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [
+        {
+          "type": "MODEL_RESPONSE_REJECTED",
+          "diagnosticCode": "MODEL_TOOL_ARGUMENTS_INVALID",
+          "errorCategory": null
+        }
+      ],
+      "toolsByCall": [
+        [
+          "input_read",
+          "skill_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [],
+        [
+          "code_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "code_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read",
+          "code_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 8900,
+      "repairObserved": true,
+      "successfulExecution": true
+    },
+    {
+      "variant": "baseline",
+      "case": "complex-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 207606,
+      "taskId": "analysis-coding-e3a9b46c8de4c8d7e89fe4e15777ff5f1c45cc64378d76da9fa3668dafc20b66",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 108817,
+      "firstNewCodeMs": 108817,
+      "firstPythonMs": 108875,
+      "firstResultMs": 195982,
+      "modelCalls": 7,
+      "knownUsageCalls": 7,
+      "knownTokens": 177914,
+      "codeProposals": 3,
+      "rejectedProposals": 1,
+      "pythonExecutions": 3,
+      "pythonToolResults": 3,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "FIELD_ACCESS_ERROR",
+        "NUMERIC_TYPE_MISMATCH",
+        null
+      ],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "code_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read",
+          "input_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": true,
+      "successfulExecution": true
+    },
+    {
+      "variant": "baseline",
+      "case": "csv-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 102891,
+      "taskId": "analysis-coding-d0bddc774205ea2f2ac569c64fb0722ead479c46050ca4ec60528ee4dce8bcd6",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 85861,
+      "firstNewCodeMs": 85861,
+      "firstPythonMs": 85918,
+      "firstResultMs": 89750,
+      "modelCalls": 3,
+      "knownUsageCalls": 3,
+      "knownTokens": 38825,
+      "codeProposals": 1,
+      "rejectedProposals": 0,
+      "pythonExecutions": 1,
+      "pythonToolResults": 1,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        null
+      ],
+      "skillReads": 2,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read",
+          "skill_read"
+        ],
+        [
+          "skill_read",
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 8900,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "baseline",
+      "case": "csv-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 114321,
+      "taskId": "analysis-coding-def44f985072ee3643a67c4dd117aed0d0b70481e7ac330215f5e6d1bcca4a4d",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 51534,
+      "firstNewCodeMs": 51534,
+      "firstPythonMs": 51574,
+      "firstResultMs": 94091,
+      "modelCalls": 4,
+      "knownUsageCalls": 4,
+      "knownTokens": 55562,
+      "codeProposals": 2,
+      "rejectedProposals": 0,
+      "pythonExecutions": 2,
+      "pythonToolResults": 2,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "OUTPUT_CONTRACT",
+        null
+      ],
+      "skillReads": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read",
+          "skill_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 5284,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "baseline",
+      "case": "join-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 105118,
+      "taskId": "analysis-coding-9ddff940834db2ee682d895d9fa973b608401e57e2a8ad70186841b21b5aabe7",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 88651,
+      "firstNewCodeMs": 88651,
+      "firstPythonMs": 88712,
+      "firstResultMs": 91544,
+      "modelCalls": 4,
+      "knownUsageCalls": 4,
+      "knownTokens": 59376,
+      "codeProposals": 1,
+      "rejectedProposals": 0,
+      "pythonExecutions": 1,
+      "pythonToolResults": 1,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        null
+      ],
+      "skillReads": 2,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read",
+          "input_read"
+        ],
+        [
+          "skill_read",
+          "skill_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 14748,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "baseline",
+      "case": "join-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 194266,
+      "taskId": "analysis-coding-34b382701676cd0b0f2f41ba1954fbbd57bfd723aa912591a379e24019fcdb9b",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 102647,
+      "firstNewCodeMs": 102647,
+      "firstPythonMs": 102756,
+      "firstResultMs": 178351,
+      "modelCalls": 6,
+      "knownUsageCalls": 6,
+      "knownTokens": 115485,
+      "codeProposals": 2,
+      "rejectedProposals": 0,
+      "pythonExecutions": 2,
+      "pythonToolResults": 2,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "SYNTAX_ERROR",
+        null
+      ],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [
+        {
+          "type": "MODEL_RESPONSE_REJECTED",
+          "diagnosticCode": "MODEL_TOOL_ARGUMENTS_INVALID",
+          "errorCategory": null
+        }
+      ],
+      "toolsByCall": [
+        [
+          "input_read",
+          "input_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [],
+        [
+          "code_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read",
+          "input_read",
+          "input_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": true,
+      "successfulExecution": true
+    },
+    {
+      "variant": "baseline",
+      "case": "parquet-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 139264,
+      "taskId": "analysis-coding-5b9f51464ae3f20e92d4fdd51df60bef2ca71150ac478374c310c28027cc61c7",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 128707,
+      "firstNewCodeMs": 128707,
+      "firstPythonMs": 128742,
+      "firstResultMs": 132879,
+      "modelCalls": 2,
+      "knownUsageCalls": 2,
+      "knownTokens": 31048,
+      "codeProposals": 1,
+      "rejectedProposals": 0,
+      "pythonExecutions": 1,
+      "pythonToolResults": 1,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        null
+      ],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read",
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "baseline",
+      "case": "parquet-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 116280,
+      "taskId": "analysis-coding-8e16e186c3fc9cc525cf9e2717e67dc67daa73acf8ae39f1a31476be841ca079",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 105522,
+      "firstNewCodeMs": 105522,
+      "firstPythonMs": 105556,
+      "firstResultMs": 109481,
+      "modelCalls": 2,
+      "knownUsageCalls": 2,
+      "knownTokens": 29489,
+      "codeProposals": 1,
+      "rejectedProposals": 0,
+      "pythonExecutions": 1,
+      "pythonToolResults": 1,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        null
+      ],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "baseline",
+      "case": "repair-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 651261,
+      "taskId": "analysis-coding-693e0b967a7bff09f9b0b7373ed8935a438e02514aed9e022cde2fb26717be73",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 79235,
+      "firstNewCodeMs": 357545,
+      "firstPythonMs": 79357,
+      "firstResultMs": 547582,
+      "modelCalls": 8,
+      "knownUsageCalls": 8,
+      "knownTokens": 300710,
+      "codeProposals": 5,
+      "rejectedProposals": 2,
+      "pythonExecutions": 5,
+      "pythonToolResults": 5,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "SYNTAX_ERROR",
+        "NUMERIC_TYPE_MISMATCH",
+        null,
+        "PROGRAM_ERROR",
+        null
+      ],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "python_execute",
+          "input_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": true,
+      "successfulExecution": true
+    },
+    {
+      "variant": "baseline",
+      "case": "repair-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 916956,
+      "taskId": "analysis-coding-fee3c192e406e3c132132ca7a9240c21dd8c1625f2ce4c3c4dde9a2f9821889d",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 67403,
+      "firstNewCodeMs": 297324,
+      "firstPythonMs": 67445,
+      "firstResultMs": 665698,
+      "modelCalls": 11,
+      "knownUsageCalls": 11,
+      "knownTokens": 400790,
+      "codeProposals": 5,
+      "rejectedProposals": 1,
+      "pythonExecutions": 5,
+      "pythonToolResults": 5,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "SYNTAX_ERROR",
+        "PACKAGE_API_UNAVAILABLE",
+        "PROGRAM_ERROR",
+        null,
+        null
+      ],
+      "skillReads": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [
+        {
+          "type": "MODEL_RESPONSE_REJECTED",
+          "diagnosticCode": "MODEL_TOOL_ARGUMENTS_INVALID",
+          "errorCategory": null
+        }
+      ],
+      "toolsByCall": [
+        [
+          "python_execute",
+          "input_read"
+        ],
+        [
+          "skill_read",
+          "python_execute"
+        ],
+        [],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ],
+        [
+          "artifact_read"
+        ],
+        [
+          "artifact_read"
+        ],
+        []
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "STOP"
+      ],
+      "maxSkillContextBytes": 8900,
+      "repairObserved": true,
+      "successfulExecution": true
+    },
+    {
+      "variant": "candidate",
+      "case": "complex-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 779458,
+      "taskId": "analysis-coding-00960cd637cb84931d50a067539107a49821aef44aa9abc26133de04fddbc961",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 200101,
+      "firstNewCodeMs": 200101,
+      "firstPythonMs": 200229,
+      "firstResultMs": 580099,
+      "modelCalls": 11,
+      "knownUsageCalls": 11,
+      "knownTokens": 362600,
+      "codeProposals": 5,
+      "rejectedProposals": 1,
+      "pythonExecutions": 5,
+      "pythonToolResults": 5,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "SYNTAX_ERROR",
+        "SYNTAX_ERROR",
+        "PACKAGE_API_UNAVAILABLE",
+        null,
+        null
+      ],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [
+        {
+          "type": "MODEL_RESPONSE_REJECTED",
+          "diagnosticCode": "MODEL_TOOL_ARGUMENTS_INVALID",
+          "errorCategory": null
+        }
+      ],
+      "toolsByCall": [
+        [
+          "input_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "code_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "code_read"
+        ],
+        [],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": true,
+      "successfulExecution": true
+    },
+    {
+      "variant": "candidate",
+      "case": "complex-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 398176,
+      "taskId": "analysis-coding-16be1cc5280833465ce35e5d25bdc4063fa784dc40ede2e9467028c15978c03d",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 170081,
+      "firstNewCodeMs": 170081,
+      "firstPythonMs": 170184,
+      "firstResultMs": 323699,
+      "modelCalls": 7,
+      "knownUsageCalls": 7,
+      "knownTokens": 184498,
+      "codeProposals": 4,
+      "rejectedProposals": 1,
+      "pythonExecutions": 4,
+      "pythonToolResults": 4,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "PROGRAM_ERROR",
+        "PROGRAM_ERROR",
+        "PROGRAM_ERROR",
+        null
+      ],
+      "skillReads": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read",
+          "skill_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read",
+          "input_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 10977,
+      "repairObserved": true,
+      "successfulExecution": true
+    },
+    {
+      "variant": "candidate",
+      "case": "csv-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 510675,
+      "taskId": "analysis-coding-c2aaf021ee2275a7510b7e29bf70fbccfefe21e95786e5e9a16cf8c6f37bc5fa",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 2,
+      "eventsTruncated": false,
+      "firstCodeMs": 98825,
+      "firstNewCodeMs": 98825,
+      "firstPythonMs": 98873,
+      "firstResultMs": 489131,
+      "modelCalls": 8,
+      "knownUsageCalls": 7,
+      "knownTokens": 133020,
+      "codeProposals": 2,
+      "rejectedProposals": 1,
+      "pythonExecutions": 2,
+      "pythonToolResults": 2,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "FIELD_ACCESS_ERROR",
+        null
+      ],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [
+        {
+          "type": "MODEL_RESPONSE_REJECTED",
+          "diagnosticCode": "MODEL_TOOL_ARGUMENTS_INVALID",
+          "errorCategory": null
+        },
+        {
+          "type": "MODEL_FAILED",
+          "diagnosticCode": "CALLBACK_HTTP_REJECTED",
+          "errorCategory": "CALLBACK_HTTP_REJECTED"
+        }
+      ],
+      "toolsByCall": [
+        [
+          "input_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [],
+        [
+          "python_execute"
+        ],
+        [
+          "code_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read",
+          "input_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": true,
+      "successfulExecution": true
+    },
+    {
+      "variant": "candidate",
+      "case": "csv-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 114164,
+      "taskId": "analysis-coding-a46297dde4a384dcaddc036d5b959c7ae2d3ba16998345241c28e9cce61ed82f",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 103279,
+      "firstNewCodeMs": 103279,
+      "firstPythonMs": 103407,
+      "firstResultMs": 106259,
+      "modelCalls": 3,
+      "knownUsageCalls": 3,
+      "knownTokens": 39974,
+      "codeProposals": 1,
+      "rejectedProposals": 0,
+      "pythonExecutions": 1,
+      "pythonToolResults": 1,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        null
+      ],
+      "skillReads": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read",
+          "skill_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 8900,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "candidate",
+      "case": "join-0",
+      "status": "FAILED",
+      "httpDurationMs": 179750,
+      "taskId": "analysis-coding-a1c3220e0d35f8960610a66be3f6b073ce02437567a5ad07d04fb1498985b8eb",
+      "resultAvailable": false,
+      "nodeStatus": "FAILED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 174059,
+      "firstNewCodeMs": 174059,
+      "firstPythonMs": 174141,
+      "firstResultMs": null,
+      "modelCalls": 2,
+      "knownUsageCalls": 2,
+      "knownTokens": 33336,
+      "codeProposals": 1,
+      "rejectedProposals": 0,
+      "pythonExecutions": 1,
+      "pythonToolResults": 1,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "UNKNOWN"
+      ],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read",
+          "input_read"
+        ],
+        [
+          "python_execute"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": false,
+      "successfulExecution": false
+    },
+    {
+      "variant": "candidate",
+      "case": "join-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 301571,
+      "taskId": "analysis-coding-cb113f03aaa7e10a8ad315373d68a70aa161a07940e32f6ca22e2dadbcf43eb2",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 76128,
+      "firstNewCodeMs": 76128,
+      "firstPythonMs": 76251,
+      "firstResultMs": 293162,
+      "modelCalls": 6,
+      "knownUsageCalls": 6,
+      "knownTokens": 120387,
+      "codeProposals": 3,
+      "rejectedProposals": 0,
+      "pythonExecutions": 3,
+      "pythonToolResults": 3,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "OUTPUT_CONTRACT",
+        "PROGRAM_ERROR",
+        null
+      ],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [
+        {
+          "type": "MODEL_RESPONSE_REJECTED",
+          "diagnosticCode": "MODEL_TOOL_ARGUMENTS_INVALID",
+          "errorCategory": null
+        }
+      ],
+      "toolsByCall": [
+        [
+          "input_read",
+          "input_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": true,
+      "successfulExecution": true
+    },
+    {
+      "variant": "candidate",
+      "case": "parquet-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 139194,
+      "taskId": "analysis-coding-8ffd85cf0c74722123e3f584613356cb29c4108afbd032e63acfa20e6b61c967",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 95508,
+      "firstNewCodeMs": 95508,
+      "firstPythonMs": 95671,
+      "firstResultMs": 120899,
+      "modelCalls": 3,
+      "knownUsageCalls": 3,
+      "knownTokens": 47908,
+      "codeProposals": 2,
+      "rejectedProposals": 0,
+      "pythonExecutions": 2,
+      "pythonToolResults": 2,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "PACKAGE_API_UNAVAILABLE",
+        null
+      ],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read",
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "code_read",
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": true,
+      "successfulExecution": true
+    },
+    {
+      "variant": "candidate",
+      "case": "parquet-1",
+      "status": "FAILED",
+      "httpDurationMs": 40655,
+      "taskId": "analysis-coding-bfbe650520516cd77f502ac5448eaa3b0162e1f2425f3f2159a6254fb5842f7f",
+      "resultAvailable": false,
+      "nodeStatus": "FAILED",
+      "nodeError": "REVIEWED_RESULT_NOT_AVAILABLE: Runtime report read and validation must succeed before completion",
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": null,
+      "firstNewCodeMs": null,
+      "firstPythonMs": null,
+      "firstResultMs": null,
+      "modelCalls": 1,
+      "knownUsageCalls": 1,
+      "knownTokens": 11495,
+      "codeProposals": 0,
+      "rejectedProposals": 0,
+      "pythonExecutions": 0,
+      "pythonToolResults": 0,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        []
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "STOP"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": false,
+      "successfulExecution": false
+    },
+    {
+      "variant": "candidate",
+      "case": "repair-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 332918,
+      "taskId": "analysis-coding-ed09d4706c35f175f47f798e634ebdd9bd9f0d05ce5aed02d593235e696a5f01",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 52794,
+      "firstNewCodeMs": 214994,
+      "firstPythonMs": 52850,
+      "firstResultMs": 221088,
+      "modelCalls": 5,
+      "knownUsageCalls": 5,
+      "knownTokens": 135857,
+      "codeProposals": 4,
+      "rejectedProposals": 0,
+      "pythonExecutions": 4,
+      "pythonToolResults": 4,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "SYNTAX_ERROR",
+        null,
+        null,
+        null
+      ],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": true,
+      "successfulExecution": true
+    },
+    {
+      "variant": "candidate",
+      "case": "repair-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 380743,
+      "taskId": "analysis-coding-078357a85c792e33ee2fd38c3665448f0953b66113964f3d8b60fa30325ec9f7",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 84713,
+      "firstNewCodeMs": 239672,
+      "firstPythonMs": 84779,
+      "firstResultMs": 243921,
+      "modelCalls": 6,
+      "knownUsageCalls": 6,
+      "knownTokens": 156559,
+      "codeProposals": 3,
+      "rejectedProposals": 1,
+      "pythonExecutions": 3,
+      "pythonToolResults": 3,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "SYNTAX_ERROR",
+        null,
+        null
+      ],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "python_execute",
+          "input_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": true,
+      "successfulExecution": true
+    },
+    {
+      "variant": "final",
+      "case": "complex-0",
+      "status": "FAILED",
+      "httpDurationMs": 109692,
+      "taskId": "analysis-coding-02a264d9cbb64684c8ec80cd1f868536f2d3b4f418befce8d7c4ef1d70450f9f",
+      "resultAvailable": false,
+      "nodeStatus": "FAILED",
+      "nodeError": "REVIEWED_RESULT_NOT_AVAILABLE: Runtime report read and validation must succeed before completion",
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": null,
+      "firstNewCodeMs": null,
+      "firstPythonMs": null,
+      "firstResultMs": null,
+      "modelCalls": 2,
+      "knownUsageCalls": 2,
+      "knownTokens": 27923,
+      "codeProposals": 0,
+      "rejectedProposals": 0,
+      "pythonExecutions": 0,
+      "pythonToolResults": 0,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read"
+        ],
+        []
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "STOP"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": false,
+      "successfulExecution": false
+    },
+    {
+      "variant": "final",
+      "case": "complex-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 177074,
+      "taskId": "analysis-coding-280411ab2c941c1898b1583bab7200018fda400fa6c716b8bb9e69143ddf47e7",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 159384,
+      "firstNewCodeMs": 159384,
+      "firstPythonMs": 159446,
+      "firstResultMs": 162902,
+      "modelCalls": 3,
+      "knownUsageCalls": 3,
+      "knownTokens": 49439,
+      "codeProposals": 1,
+      "rejectedProposals": 0,
+      "pythonExecutions": 1,
+      "pythonToolResults": 1,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        null
+      ],
+      "skillReads": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read",
+          "skill_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 10977,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "final",
+      "case": "csv-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 116357,
+      "taskId": "analysis-coding-b84439c26f3c36e634475fa7bdbbefdc4d282128c988c4f9eea6195f407543d3",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 57345,
+      "firstNewCodeMs": 57345,
+      "firstPythonMs": 57398,
+      "firstResultMs": 109330,
+      "modelCalls": 4,
+      "knownUsageCalls": 4,
+      "knownTokens": 59174,
+      "codeProposals": 2,
+      "rejectedProposals": 0,
+      "pythonExecutions": 2,
+      "pythonToolResults": 2,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "SYNTAX_ERROR",
+        null
+      ],
+      "skillReads": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read",
+          "skill_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 10977,
+      "repairObserved": true,
+      "successfulExecution": true
+    },
+    {
+      "variant": "final",
+      "case": "csv-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 88562,
+      "taskId": "analysis-coding-c7ab6822f66b7c84310edcc8ef9564573bfd622909be951f53b10cde2b23bb6a",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 75359,
+      "firstNewCodeMs": 75359,
+      "firstPythonMs": 75396,
+      "firstResultMs": 79143,
+      "modelCalls": 3,
+      "knownUsageCalls": 3,
+      "knownTokens": 36788,
+      "codeProposals": 1,
+      "rejectedProposals": 0,
+      "pythonExecutions": 1,
+      "pythonToolResults": 1,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        null
+      ],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read",
+          "input_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "final",
+      "case": "join-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 126583,
+      "taskId": "analysis-coding-7554b7a9eec6236846e063ab0c4638e8f6af0f71c4d391b31beffd6bbf7c78c9",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 102472,
+      "firstNewCodeMs": 102472,
+      "firstPythonMs": 102586,
+      "firstResultMs": 107406,
+      "modelCalls": 3,
+      "knownUsageCalls": 3,
+      "knownTokens": 46469,
+      "codeProposals": 1,
+      "rejectedProposals": 0,
+      "pythonExecutions": 1,
+      "pythonToolResults": 1,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        null
+      ],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read",
+          "input_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "final",
+      "case": "join-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 200918,
+      "taskId": "analysis-coding-ee631a7fe8a44ac3410d2b77b6a1c7306736ffc2360bedabb9d9328220687f31",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 74137,
+      "firstNewCodeMs": 74137,
+      "firstPythonMs": 74271,
+      "firstResultMs": 177950,
+      "modelCalls": 9,
+      "knownUsageCalls": 9,
+      "knownTokens": 211456,
+      "codeProposals": 3,
+      "rejectedProposals": 1,
+      "pythonExecutions": 3,
+      "pythonToolResults": 3,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "PROGRAM_ERROR",
+        "OUTPUT_CONTRACT",
+        null
+      ],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [
+        {
+          "type": "MODEL_RESPONSE_REJECTED",
+          "diagnosticCode": "MODEL_TOOL_ARGUMENTS_INVALID",
+          "errorCategory": null
+        }
+      ],
+      "toolsByCall": [
+        [
+          "input_read",
+          "input_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "code_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "code_read"
+        ],
+        [],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read",
+          "input_read",
+          "input_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": true,
+      "successfulExecution": true
+    },
+    {
+      "variant": "final",
+      "case": "parquet-0",
+      "status": "FAILED",
+      "httpDurationMs": 613371,
+      "taskId": "analysis-coding-d438bad7921ff2c9db83827006fed93e00cb19ecc3fd65b11a31072b54a6460d",
+      "resultAvailable": false,
+      "nodeStatus": "FAILED",
+      "nodeError": "Agent runtime exceeded maxIterations (12)",
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 104858,
+      "firstNewCodeMs": 104858,
+      "firstPythonMs": 104952,
+      "firstResultMs": 108417,
+      "modelCalls": 12,
+      "knownUsageCalls": 12,
+      "knownTokens": 293304,
+      "codeProposals": 7,
+      "rejectedProposals": 0,
+      "pythonExecutions": 7,
+      "pythonToolResults": 7,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        null,
+        null,
+        null,
+        "PROGRAM_ERROR",
+        null,
+        null,
+        null
+      ],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read",
+          "python_execute"
+        ],
+        [
+          "code_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "code_read"
+        ],
+        [
+          "python_execute",
+          "artifact_read"
+        ],
+        [
+          "code_read"
+        ],
+        [
+          "input_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "code_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": false,
+      "successfulExecution": false
+    },
+    {
+      "variant": "final",
+      "case": "parquet-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 128661,
+      "taskId": "analysis-coding-3589be64b8f0c8ccc72c316bacb3a4c98a7d8b3f0de9f36126b97cde51b5c324",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 91539,
+      "firstNewCodeMs": 91539,
+      "firstPythonMs": 91640,
+      "firstResultMs": 95123,
+      "modelCalls": 4,
+      "knownUsageCalls": 4,
+      "knownTokens": 64127,
+      "codeProposals": 1,
+      "rejectedProposals": 0,
+      "pythonExecutions": 1,
+      "pythonToolResults": 1,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        null
+      ],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read",
+          "python_execute"
+        ],
+        [
+          "code_read"
+        ],
+        [
+          "artifact_read"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "final",
+      "case": "repair-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 1160223,
+      "taskId": "analysis-coding-4d06024eeaeacc2090c27381086079894d37dd9dc257419e2592c3855e620b13",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 2,
+      "eventsTruncated": false,
+      "firstCodeMs": 97457,
+      "firstNewCodeMs": 381706,
+      "firstPythonMs": 97509,
+      "firstResultMs": 1114283,
+      "modelCalls": 9,
+      "knownUsageCalls": 8,
+      "knownTokens": 264637,
+      "codeProposals": 5,
+      "rejectedProposals": 1,
+      "pythonExecutions": 5,
+      "pythonToolResults": 5,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "SYNTAX_ERROR",
+        "SYNTAX_ERROR",
+        "PROGRAM_ERROR",
+        null,
+        null
+      ],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [
+        {
+          "type": "MODEL_RESPONSE_REJECTED",
+          "diagnosticCode": "MODEL_TOOL_ARGUMENTS_INVALID",
+          "errorCategory": null
+        },
+        {
+          "type": "MODEL_FAILED",
+          "diagnosticCode": "CALLBACK_HTTP_REJECTED",
+          "errorCategory": "CALLBACK_HTTP_REJECTED"
+        }
+      ],
+      "toolsByCall": [
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": true,
+      "successfulExecution": true
+    },
+    {
+      "variant": "final",
+      "case": "repair-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 656231,
+      "taskId": "analysis-coding-4a8a18971855abf198ad261133a02884c707b20d50fdc673ff8591148aa9ca11",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 130473,
+      "firstNewCodeMs": 544219,
+      "firstPythonMs": 130567,
+      "firstResultMs": 549229,
+      "modelCalls": 5,
+      "knownUsageCalls": 5,
+      "knownTokens": 148314,
+      "codeProposals": 3,
+      "rejectedProposals": 0,
+      "pythonExecutions": 3,
+      "pythonToolResults": 3,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "SYNTAX_ERROR",
+        null,
+        null
+      ],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [
+        {
+          "type": "MODEL_RESPONSE_REJECTED",
+          "diagnosticCode": "MODEL_TOOL_ARGUMENTS_INVALID",
+          "errorCategory": null
+        }
+      ],
+      "toolsByCall": [
+        [
+          "python_execute"
+        ],
+        [],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": true,
+      "successfulExecution": true
+    },
+    {
+      "variant": "verified",
+      "case": "complex-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 685233,
+      "taskId": "analysis-coding-fd501235021b7fb3fd9d32f940c9dd59b4b7bc57a2bec1c1fada85d4055e6d8d",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 178001,
+      "firstNewCodeMs": 178001,
+      "firstPythonMs": 178055,
+      "firstResultMs": 652275,
+      "modelCalls": 9,
+      "knownUsageCalls": 9,
+      "knownTokens": 257132,
+      "codeProposals": 4,
+      "rejectedProposals": 1,
+      "pythonExecutions": 4,
+      "pythonToolResults": 4,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "SYNTAX_ERROR",
+        "SYNTAX_ERROR",
+        "PROGRAM_ERROR",
+        null
+      ],
+      "skillReads": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read",
+          "skill_read"
+        ],
+        [],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "code_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "STOP",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 10977,
+      "repairObserved": true,
+      "successfulExecution": true
+    },
+    {
+      "variant": "verified",
+      "case": "complex-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 927200,
+      "taskId": "analysis-coding-92e09c7f401ac5d6b8c5c882002bfbfdd01d513520873abff819cae45665eba8",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 40949,
+      "firstNewCodeMs": 40949,
+      "firstPythonMs": 40983,
+      "firstResultMs": 914565,
+      "modelCalls": 9,
+      "knownUsageCalls": 9,
+      "knownTokens": 321158,
+      "codeProposals": 3,
+      "rejectedProposals": 3,
+      "pythonExecutions": 3,
+      "pythonToolResults": 3,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "OUTPUT_CONTRACT",
+        "PROGRAM_ERROR",
+        null
+      ],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "code_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "input_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": true,
+      "successfulExecution": true
+    },
+    {
+      "variant": "verified",
+      "case": "csv-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 113749,
+      "taskId": "analysis-coding-2061a3da9a8bdb18633777120d0ecefa362370f8c2e8d675ec24f8820802451e",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 51728,
+      "firstNewCodeMs": 51728,
+      "firstPythonMs": 51857,
+      "firstResultMs": 89565,
+      "modelCalls": 5,
+      "knownUsageCalls": 5,
+      "knownTokens": 66885,
+      "codeProposals": 2,
+      "rejectedProposals": 0,
+      "pythonExecutions": 2,
+      "pythonToolResults": 2,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "JSON_VALUE_NOT_SERIALIZABLE",
+        null
+      ],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "input_read"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": true,
+      "successfulExecution": true
+    },
+    {
+      "variant": "verified",
+      "case": "csv-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 208882,
+      "taskId": "analysis-coding-b0096ecde23b4433d699ba79f4ef033f7eaf3042a1e9e69ee89ac223a56069f9",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 199851,
+      "firstNewCodeMs": 199851,
+      "firstPythonMs": 199897,
+      "firstResultMs": 202187,
+      "modelCalls": 2,
+      "knownUsageCalls": 2,
+      "knownTokens": 35622,
+      "codeProposals": 1,
+      "rejectedProposals": 0,
+      "pythonExecutions": 1,
+      "pythonToolResults": 1,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        null
+      ],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read",
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "verified",
+      "case": "join-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 345846,
+      "taskId": "analysis-coding-6c1155b69901156096499d8c89ee15c6ea51c897364eb283e5f092af76145d1f",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 57024,
+      "firstNewCodeMs": 57024,
+      "firstPythonMs": 57163,
+      "firstResultMs": 337293,
+      "modelCalls": 6,
+      "knownUsageCalls": 6,
+      "knownTokens": 126527,
+      "codeProposals": 2,
+      "rejectedProposals": 1,
+      "pythonExecutions": 2,
+      "pythonToolResults": 2,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "OUTPUT_CONTRACT",
+        null
+      ],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [
+        {
+          "type": "MODEL_RESPONSE_REJECTED",
+          "diagnosticCode": "MODEL_TOOL_ARGUMENTS_INVALID",
+          "errorCategory": null
+        }
+      ],
+      "toolsByCall": [
+        [
+          "python_execute"
+        ],
+        [],
+        [
+          "python_execute"
+        ],
+        [
+          "code_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "verified",
+      "case": "join-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 147073,
+      "taskId": "analysis-coding-4fd2e3a858bc93d81939144ab8702b6535344e4b119a3b578ac6421f21636449",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 135759,
+      "firstNewCodeMs": 135759,
+      "firstPythonMs": 135862,
+      "firstResultMs": 139002,
+      "modelCalls": 4,
+      "knownUsageCalls": 4,
+      "knownTokens": 59759,
+      "codeProposals": 1,
+      "rejectedProposals": 0,
+      "pythonExecutions": 1,
+      "pythonToolResults": 1,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        null
+      ],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read"
+        ],
+        [
+          "input_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "verified",
+      "case": "parquet-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 543026,
+      "taskId": "analysis-coding-e3777d7a5dbd4d2f20d95306939ee86275d70d540ce221b0b12bafbc238d7376",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 43946,
+      "firstNewCodeMs": 43946,
+      "firstPythonMs": 43994,
+      "firstResultMs": 525389,
+      "modelCalls": 7,
+      "knownUsageCalls": 7,
+      "knownTokens": 140525,
+      "codeProposals": 2,
+      "rejectedProposals": 1,
+      "pythonExecutions": 2,
+      "pythonToolResults": 2,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "OUTPUT_CONTRACT",
+        null
+      ],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [
+        {
+          "type": "MODEL_RESPONSE_REJECTED",
+          "diagnosticCode": "MODEL_TOOL_ARGUMENTS_INVALID",
+          "errorCategory": null
+        },
+        {
+          "type": "MODEL_RESPONSE_REJECTED",
+          "diagnosticCode": "MODEL_TOOL_ARGUMENTS_INVALID",
+          "errorCategory": null
+        }
+      ],
+      "toolsByCall": [
+        [
+          "python_execute"
+        ],
+        [],
+        [],
+        [
+          "python_execute"
+        ],
+        [
+          "code_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "verified",
+      "case": "parquet-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 290225,
+      "taskId": "analysis-coding-de6c7baae0fe2409fd6f77d5d92a51140e1d1b96d731bec034ef85e0b8e0ad32",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 148264,
+      "firstNewCodeMs": 148264,
+      "firstPythonMs": 148446,
+      "firstResultMs": 267585,
+      "modelCalls": 4,
+      "knownUsageCalls": 4,
+      "knownTokens": 73094,
+      "codeProposals": 2,
+      "rejectedProposals": 0,
+      "pythonExecutions": 2,
+      "pythonToolResults": 2,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "PACKAGE_API_UNAVAILABLE",
+        null
+      ],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read",
+          "code_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": true,
+      "successfulExecution": true
+    },
+    {
+      "variant": "verified",
+      "case": "repair-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 765185,
+      "taskId": "analysis-coding-f4966a0f1808af7208db4a7ea12c7793cda2b63bda72ee544fa250c37a8da30d",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstCodeMs": 118294,
+      "firstNewCodeMs": 516023,
+      "firstPythonMs": 118336,
+      "firstResultMs": 520658,
+      "modelCalls": 6,
+      "knownUsageCalls": 6,
+      "knownTokens": 168505,
+      "codeProposals": 4,
+      "rejectedProposals": 0,
+      "pythonExecutions": 4,
+      "pythonToolResults": 4,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "SYNTAX_ERROR",
+        null,
+        null,
+        null
+      ],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [
+        {
+          "type": "MODEL_RESPONSE_REJECTED",
+          "diagnosticCode": "MODEL_TOOL_ARGUMENTS_INVALID",
+          "errorCategory": null
+        }
+      ],
+      "toolsByCall": [
+        [
+          "python_execute"
+        ],
+        [],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": true,
+      "successfulExecution": true
+    },
+    {
+      "variant": "verified",
+      "case": "repair-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 887901,
+      "taskId": "analysis-coding-d73151a031867f5ad070230d0b57d15c9756caa70ef78bd45b7be5c183f62cf9",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 2,
+      "eventsTruncated": false,
+      "firstCodeMs": 100435,
+      "firstNewCodeMs": 677984,
+      "firstPythonMs": 100487,
+      "firstResultMs": 796729,
+      "modelCalls": 7,
+      "knownUsageCalls": 6,
+      "knownTokens": 185656,
+      "codeProposals": 4,
+      "rejectedProposals": 1,
+      "pythonExecutions": 4,
+      "pythonToolResults": 4,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "SYNTAX_ERROR",
+        "PACKAGE_API_UNAVAILABLE",
+        null,
+        null
+      ],
+      "skillReads": 0,
+      "discoveryCalls": 0,
+      "modelErrors": [
+        {
+          "type": "MODEL_FAILED",
+          "diagnosticCode": "CALLBACK_HTTP_REJECTED",
+          "errorCategory": "CALLBACK_HTTP_REJECTED"
+        }
+      ],
+      "toolsByCall": [
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 4931,
+      "repairObserved": true,
+      "successfulExecution": true
+    }
+  ],
+  "aggregate": {
+    "baseline": {
+      "tasks": 10,
+      "successfulExecutions": 10,
+      "totalModelCalls": 56,
+      "knownUsageCalls": 56,
+      "unknownUsageCalls": 0,
+      "knownTokensTotal": 1495513,
+      "repairTasks": 2,
+      "repairSuccesses": 2,
+      "metrics": {
+        "firstCodeMs": {
+          "observed": 10,
+          "median": 95649.0
+        },
+        "firstNewCodeMs": {
+          "observed": 10,
+          "median": 107169.5
+        },
+        "firstPythonMs": {
+          "observed": 10,
+          "median": 95734.0
+        },
+        "firstResultMs": {
+          "observed": 10,
+          "median": 155615.0
+        },
+        "httpDurationMs": {
+          "observed": 10,
+          "median": 166765.0
+        },
+        "modelCalls": {
+          "observed": 10,
+          "median": 5.0
+        },
+        "knownTokens": {
+          "observed": 10,
+          "median": 87430.5
+        }
+      }
+    },
+    "candidate": {
+      "tasks": 10,
+      "successfulExecutions": 8,
+      "totalModelCalls": 52,
+      "knownUsageCalls": 51,
+      "unknownUsageCalls": 1,
+      "knownTokensTotal": 1225634,
+      "repairTasks": 2,
+      "repairSuccesses": 2,
+      "metrics": {
+        "firstCodeMs": {
+          "observed": 9,
+          "median": 98825
+        },
+        "firstNewCodeMs": {
+          "observed": 9,
+          "median": 170081
+        },
+        "firstPythonMs": {
+          "observed": 9,
+          "median": 98873
+        },
+        "firstResultMs": {
+          "observed": 8,
+          "median": 268541.5
+        },
+        "httpDurationMs": {
+          "observed": 10,
+          "median": 317244.5
+        },
+        "modelCalls": {
+          "observed": 10,
+          "median": 5.5
+        },
+        "knownTokens": {
+          "observed": 10,
+          "median": 126703.5
+        }
+      }
+    },
+    "final": {
+      "tasks": 10,
+      "successfulExecutions": 8,
+      "totalModelCalls": 54,
+      "knownUsageCalls": 53,
+      "unknownUsageCalls": 1,
+      "knownTokensTotal": 1201631,
+      "repairTasks": 2,
+      "repairSuccesses": 2,
+      "metrics": {
+        "firstCodeMs": {
+          "observed": 9,
+          "median": 97457
+        },
+        "firstNewCodeMs": {
+          "observed": 9,
+          "median": 102472
+        },
+        "firstPythonMs": {
+          "observed": 9,
+          "median": 97509
+        },
+        "firstResultMs": {
+          "observed": 9,
+          "median": 109330
+        },
+        "httpDurationMs": {
+          "observed": 10,
+          "median": 152867.5
+        },
+        "modelCalls": {
+          "observed": 10,
+          "median": 4.0
+        },
+        "knownTokens": {
+          "observed": 10,
+          "median": 61650.5
+        }
+      }
+    },
+    "verified": {
+      "tasks": 10,
+      "successfulExecutions": 10,
+      "totalModelCalls": 59,
+      "knownUsageCalls": 58,
+      "unknownUsageCalls": 1,
+      "knownTokensTotal": 1434863,
+      "repairTasks": 2,
+      "repairSuccesses": 2,
+      "metrics": {
+        "firstCodeMs": {
+          "observed": 10,
+          "median": 109364.5
+        },
+        "firstNewCodeMs": {
+          "observed": 10,
+          "median": 142011.5
+        },
+        "firstPythonMs": {
+          "observed": 10,
+          "median": 109411.5
+        },
+        "firstResultMs": {
+          "observed": 10,
+          "median": 428975.5
+        },
+        "httpDurationMs": {
+          "observed": 10,
+          "median": 444436.0
+        },
+        "modelCalls": {
+          "observed": 10,
+          "median": 6.0
+        },
+        "knownTokens": {
+          "observed": 10,
+          "median": 133526.0
+        }
+      }
+    }
+  },
+  "method": "Five synthetic cases, two repeats each, real configured model and Java/Python. Same immutable assets. Node acceptance clocks; unknown usage excluded, failures retained. Sequential variants, max concurrency 2; descriptive small sample, no p95 claim."
+}

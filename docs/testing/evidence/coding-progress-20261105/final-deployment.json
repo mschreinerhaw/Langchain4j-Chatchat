@@ -1,0 +1,17 @@
+{
+  "status": "DEPLOYED",
+  "image": "runtime-os-coding-agent:coding-progress-20261105-r3",
+  "imageId": "sha256:02bca821bc7ab6b4b9061e7f4474c491c30def56bfec78127c30c02af4a2670e",
+  "sourceCommit": "2813524e8a6c0a1cc1326f46d1e1cf406e1ca22b",
+  "backupContainer": "runtime-os-app-stage-coding-agent-1-before-sdk-reuse-3ddcec4487dc",
+  "backupDirectory": "/opt/chatchat-releases/coding-progress-20261105-r3/backup",
+  "callback": {
+    "status": "PASSED",
+    "signedCallback": true,
+    "unsignedRejected": true,
+    "origin": "http://api:8081",
+    "codeLifecycleVersion": "runtime_os.code_lifecycle.v1"
+  },
+  "policyPreserved": true,
+  "unrelatedContainersUnchanged": true
+}

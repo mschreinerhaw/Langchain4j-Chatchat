@@ -1,0 +1,42 @@
+{
+  "sourceCommit": "2813524e8a6c0a1cc1326f46d1e1cf406e1ca22b",
+  "image": "runtime-os-coding-agent:coding-progress-20261105-r3",
+  "imageId": "sha256:02bca821bc7ab6b4b9061e7f4474c491c30def56bfec78127c30c02af4a2670e",
+  "baselineImageId": "sha256:0b2a780b5c244781db6b0c6a24c39064b2d1710210da6a05a47711e8b7e72d37",
+  "baselineContainerId": "3ddcec4487dc4f5d91367f02c90614890005323569e85a72e898ede735ad5112",
+  "modulesBefore": {
+    "runner.js": "b707ceba3b100701c79aa81850365e94ba3361bd5dc3aee87f277a396fa846ae",
+    "coding-progress.js": "35433e6c835fababf7b7d28d4eb0e43fed372beccd8caf59b8acb8804d24bbbe",
+    "tool-catalog.js": "52131f4a99a77ca378f66038b6b8e00238a3dc6cb6c69c90b1b8fd0775e277e3",
+    "runtime-model.js": "ca30069b9b811ac023efb370d50990238f8f21ba4ae2db26f98d3e5fdd0d6822",
+    "monitor.js": "6c80bccd12ec732c75cadf69dfbf4e96df66459d709335cb296fc266e3b263a8",
+    "monitor-types.js": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+    "public/app.js": "3afb7208c468aa880cb4e5cb81c7d3288cf72a59e70581ad5e283ab329023b88",
+    "../skills/catalog.json": "70be964c6bc1e057613dc8f7d8898cc29ca4a4c4812dbf23ac967b2ee70802ed",
+    "../skills/python-data-analysis/SKILL.md": "ae13cd4c1d5baa3dcf99a29935732a3da365da180db7acede6d25a070280461a"
+  },
+  "modulesAfter": {
+    "runner.js": "4469578d59bd4e195e73483d67ed7db17a92fa205f747db18525abcf0b2805c0",
+    "coding-progress.js": "35433e6c835fababf7b7d28d4eb0e43fed372beccd8caf59b8acb8804d24bbbe",
+    "tool-catalog.js": "52131f4a99a77ca378f66038b6b8e00238a3dc6cb6c69c90b1b8fd0775e277e3",
+    "runtime-model.js": "ca30069b9b811ac023efb370d50990238f8f21ba4ae2db26f98d3e5fdd0d6822",
+    "monitor.js": "6c80bccd12ec732c75cadf69dfbf4e96df66459d709335cb296fc266e3b263a8",
+    "monitor-types.js": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+    "public/app.js": "3afb7208c468aa880cb4e5cb81c7d3288cf72a59e70581ad5e283ab329023b88",
+    "../skills/catalog.json": "70be964c6bc1e057613dc8f7d8898cc29ca4a4c4812dbf23ac967b2ee70802ed",
+    "../skills/python-data-analysis/SKILL.md": "ae13cd4c1d5baa3dcf99a29935732a3da365da180db7acede6d25a070280461a"
+  },
+  "archiveSha256": "d6f33f9fd2abf36043e5f6cfedaa1605368781114d92ad9001d0e044bef73e9b",
+  "sdk": {
+    "status": "VERIFIED",
+    "packages": {
+      "@cline/sdk": "0.0.93",
+      "@cline/core": "0.0.93",
+      "@cline/agents": "0.0.93",
+      "@cline/llms": "0.0.93",
+      "@cline/shared": "0.0.93"
+    }
+  },
+  "isolatedGatesPassed": true,
+  "trafficSwitched": false
+}

@@ -95,9 +95,11 @@ def main():
             first = lambda predicate: next((e['timestamp'] for e in events if predicate(e)), None)
             start = nodes[0]['createdAt']
             calls = [r['payload']['response'] for r in responses]
-            row.update(taskId=nodes[0]['taskId'], nodeStatus=nodes[-1]['status'], fences=len(nodes),
+            row.update(taskId=nodes[0]['taskId'], nodeStatus=nodes[-1]['status'], nodeError=nodes[-1].get('error'), fences=len(nodes),
                 eventsTruncated=any(t.get('eventsTruncated') for t in nodes),
                 firstCodeMs=milliseconds(start, first(lambda e: e['type'] == 'CODE_READY')),
+                firstNewCodeMs=milliseconds(start, first(lambda e: e['type'] == 'CODE_READY'
+                    and (not case.startswith('repair') or (e.get('parentCodeVersion') or 0) >= 1))),
                 firstPythonMs=milliseconds(start, first(lambda e: e['type'] == 'TOOL_STARTED' and e.get('tool') == 'python_execute')),
                 firstResultMs=milliseconds(start, first(lambda e: e['type'] == 'TOOL_FINISHED' and e.get('tool') == 'python_execute' and e.get('resultAvailable'))),
                 modelCalls=len({c['ordinal'] for t in nodes for c in t['models']}),
@@ -105,7 +107,11 @@ def main():
                 knownTokens=sum(((c.get('usage') or {}).get('inputTokens') or 0) + ((c.get('usage') or {}).get('outputTokens') or 0) for c in calls),
                 codeProposals=sum(e['type'] == 'CODE_READY' for e in events),
                 rejectedProposals=sum(e['type'] == 'CODE_PROPOSAL_REJECTED' for e in events),
-                pythonExecutions=sum(e['type'] == 'TOOL_FINISHED' and e.get('tool') == 'python_execute' for e in events),
+                pythonExecutions=sum((o.get('actual') or {}).get('codeExecutions', 0)
+                    for o in task.get('operations', {}).values() if o.get('kind') == 'CODE' and o.get('stopProofRef')),
+                pythonToolResults=sum(e['type'] == 'TOOL_FINISHED' and e.get('tool') == 'python_execute' for e in events),
+                pythonStopUnconfirmed=sum(o.get('kind') == 'CODE' and not o.get('stopProofRef')
+                    for o in task.get('operations', {}).values()),
                 pythonDiagnostics=[e.get('diagnosticCode') for e in events if e['type'] == 'TOOL_FINISHED' and e.get('tool') == 'python_execute'],
                 skillReads=sum(e['type'] == 'TOOL_TIMING' and e.get('tool') == 'skill_read' for e in events),
                 discoveryCalls=sum(e['type'] == 'TOOL_TIMING' and e.get('tool') == 'tool_describe' for e in events),
@@ -124,7 +130,7 @@ def main():
         if not group:
             continue
         metrics = {}
-        for key in ['firstCodeMs', 'firstPythonMs', 'firstResultMs', 'httpDurationMs', 'modelCalls', 'knownTokens']:
+        for key in ['firstCodeMs', 'firstNewCodeMs', 'firstPythonMs', 'firstResultMs', 'httpDurationMs', 'modelCalls', 'knownTokens']:
             values = [r[key] for r in group if r.get(key) is not None]
             metrics[key] = {'observed': len(values), 'median': statistics.median(values) if values else None}
         aggregate[variant] = {'tasks': len(group), 'successfulExecutions': sum(bool(r.get('successfulExecution')) for r in group),

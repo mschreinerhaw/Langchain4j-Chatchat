@@ -105,3 +105,23 @@ flowchart TD
 当前实际版本0.0.93已具备原生 PrepareTurn、基本压缩、Abort、截断恢复、完成保护；现有回归直接验证这些公开接口。
 [官方 Issue #14314](https://github.com/cline/cline/issues/14314) 是 Desktop 压缩注册问题，本仓库显式接入 compactor，不能套用该问题作本任务根因。
 不盲目升级或启用隐藏重试：未知供应商执行仍保留待核对的预算，实际重试必须独立准入和结算。
+
+## 最终部署后的华是科技反例
+
+同一最终 Java c97962110 / Worker f09cb4b5d，经正常数据探索空间、financial-news-agent 提交最新行情任务，实际进入 analysis-coding-82435f72ca1fabd0603d7c9ab0734a0d1ae5e4f2a529651e8f6c8fe6ff70c294。原始合同授权 python_execute、input_read、skill_read，使用 JSON_LINES 分析模式；没有 tool_describe 前置要求。
+
+| 调用 | Node 观测总耗时 | 返回及实际工具 | Provider 已知输入/输出 Tokens |
+|---|---:|---|---:|
+| 1 | 38.276s | input_read | 15099 / 1912 |
+| 2 | 4.788s | input_read + skill_read | 22767 / 313 |
+| 3 | 161.811s | skill_read，新正文 | 29292 / 12514 |
+| 4 | 300.840s | CALLBACK_HTTP_REJECTED，无模型完成响应 | UNKNOWN |
+| 5 | 300.933s | CALLBACK_HTTP_REJECTED，无模型完成响应 | UNKNOWN |
+| 6 | 301.309s | CALLBACK_HTTP_REJECTED，无模型完成响应 | UNKNOWN |
+| 7 | 83.209s | 原截止时间到达，REQUEST_ABORTED；供应商状态未知 | UNKNOWN |
+
+前3次取得2份输入片段与2个不同 Skill，正文交付9710字节，无重复读取、提案拒绝或 Schema 发现调用。第3次输出中的12395 Tokens被供应商标为 reasoning；不发布推理正文。第4、5次之后均由既有 Runtime 检查点机制恢复，调用沿用原累计预算。两个300秒失败的供应商内部状态及用量无法确认；不能将 Node 的 HTTP 拒绝诊断擅自替换为已证实的供应商根因。第6次恢复开始前仍无代码，首次提案时间为未观测，不能填0。该案例说明按需加载与工具收敛尚未解决模型响应等待；不能再用新增 Prompt 规则宣称已解决。
+
+最终父任务 FAILED、Coding BUDGET_EXCEEDED，提案/Python/结果均为0。首次代码时间始终未观测；四个没有取得完整用量的请求不计为零消耗。原截止时间为2026-11-05 19:09:31.738 UTC，未延长。完整脱敏时序见[华是科技联机证据](../testing/evidence/cline-precode-20261106/stock-final.json)。
+
+另一个已观察到的边界：恢复后 modelCall 连续递增，但轻量进展状态以 Worker/fence 为范围，callsSinceProgress 重置为1、feedbackCount 为0。任务级收集器能合并真实时序，不等于已实现跨恢复的累计无进展反馈。该项仍需在现有检查点内解决和验证，不能把当前单次 SDK run 的测试当成跨恢复验收，也不能为此新增 Agent Loop 或 Prompt 规则。

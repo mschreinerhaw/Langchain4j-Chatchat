@@ -23,6 +23,30 @@ const verified = (version) => ({ status: 'SUCCEEDED', executorStopped: true, res
   resultDatasetRef: `runtime-evidence:result-${version}`, validationRecordRef: `validation-${version}`,
   evidenceBundleRef: `bundle-${version}`, validationStatus: 'INCONCLUSIVE' });
 
+for (const optimized of [false,true]) test(`context policy ${optimized} keeps explicit source reads, exact repairs and report confirmation in the same SDK run`, async () => {
+  const source = 'value = 1\nprint(value)\n', hash = createHash('sha256').update(source).digest('hex');
+  const task = { ...contract, authorization: { ...contract.authorization, allowedTools: ['python_execute','code_read','artifact_read'] },
+    runtimeContext: { codingLifecycle: { schemaVersion: 'runtime_os.code_lifecycle.v1', patchOnlyAfterFirst: true } } };
+  const {run,counts} = fixture((turn,request) => {
+    if (turn === 1) return { toolCalls: [{ id: 'initial', name: 'python_execute', input: { source } }] };
+    if (turn === 2) {
+      if (optimized) assert(!request.messages.some(m=>m.content.some(p=>p.text?.startsWith('Untrusted latest executed program'))));
+      return { toolCalls: [{ id: 'source', name: 'code_read', input: { codeHash: hash } }] };
+    }
+    if (turn === 3) {
+      const exact = request.messages.flatMap(m=>m.content).find(p=>p.type==='tool-result'&&p.toolName==='code_read');
+      assert.equal(exact.output.source,source);
+      return { toolCalls: [{ id: 'fix', name: 'python_execute', input: { repair: { parentCodeVersion: 1, baseCodeSha256: hash,
+        edits: [{ oldText: 'value = 1', newText: 'value = 2' }] } } }] };
+    }
+    return { toolCalls: [{ id: 'confirm', name: 'artifact_read', input: { reference: 'runtime-evidence:result-2' } }] };
+  }, version => version === 1 ? { status: 'FAILED', executorStopped: true, resultAvailable: false } : verified(version),
+  (_count,reference) => ({reference,complete:true,rows:[{reportMarkdown:'actual supported report'}],reportReferenceValidation:{valid:true}}),
+  task, {}, { contextOptimizationEnabled: optimized });
+  assert.equal((await run.run()).status,'completed');assert.equal(counts.models,4);assert.equal(counts.executions,2);
+  assert.equal(counts.reads,1);assert.equal(counts.checkpoints.at(-1).codeLifecycle.versions.at(-1).status,'VALIDATED');
+});
+
 test('a validated report retains the final model turn for actual review and confirmation',async()=>{
   const task={...contract,budget:{maxModelCalls:3}};
   const {run,counts}=fixture((turn,request)=>{

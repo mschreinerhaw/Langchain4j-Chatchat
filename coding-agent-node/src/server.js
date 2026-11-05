@@ -53,8 +53,11 @@ function boundRun(runs, value, allowNewerFence = false) {
 // deadline and abort signal own this request; redirects remain forbidden.
 function modelRequest(url, options) {
   return new Promise((resolve, reject) => {
+    const started = performance.now();
+    let callbackConnectMs = null, callbackHeadersMs = null;
     const target = new URL(url);
     const request = (target.protocol === 'https:' ? httpsRequest : httpRequest)(target, options, response => {
+      callbackHeadersMs = Math.round(performance.now() - started);
       const chunks = []; let size = 0;
       response.on('error', reject);
       response.on('data', chunk => {
@@ -68,10 +71,23 @@ function modelRequest(url, options) {
       response.on('end', () => resolve({
         ok: response.statusCode >= 200 && response.statusCode < 300,
         status: response.statusCode,
+        callbackTiming: { callbackConnectMs, callbackHeadersMs,
+          callbackBodyMs: Math.round(performance.now() - started) - callbackHeadersMs,
+          callbackHttpDurationMs: Math.round(performance.now() - started) },
         json: async () => JSON.parse(Buffer.concat(chunks).toString('utf8')),
       }));
     });
-    request.on('error', reject);
+    request.on('socket', socket => {
+      if (socket.connecting) socket.once(target.protocol === 'https:' ? 'secureConnect' : 'connect',
+        () => { callbackConnectMs = Math.round(performance.now() - started); });
+    });
+    request.on('error', error => {
+      error.errorCategory = options.signal?.aborted
+        ? options.signal.reason?.name === 'TimeoutError' ? 'CALLBACK_DEADLINE' : 'REQUEST_ABORTED'
+        : ['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN'].includes(error.code) ? 'CALLBACK_CONNECTION_ERROR'
+        : 'CALLBACK_TRANSPORT_ERROR';
+      reject(error);
+    });
     request.end(options.body);
   });
 }
@@ -100,8 +116,14 @@ export function httpGateway(callbackUrl, secret, binding, { timeoutMs = 90000 } 
         'x-chatchat-signature': signature, 'x-chatchat-signature-version': '2' },
       body: bytes, signal: signal ? AbortSignal.any([signal, timeout]) : timeout, redirect: 'error',
     });
-    const data = await answer.json().catch(() => ({}));
-    if (!answer.ok) throw new Error(data.message ?? `Runtime callback rejected ${action}: ${answer.status}`);
+    const data = await answer.json().catch(() => {
+      if (action === 'model') throw Object.assign(new Error('Runtime model callback returned invalid JSON'),
+        { errorCategory: 'CALLBACK_RESPONSE_INVALID' });
+      return {};
+    });
+    if (!answer.ok) throw Object.assign(new Error(data.message ?? `Runtime callback rejected ${action}: ${answer.status}`),
+      { errorCategory: 'CALLBACK_HTTP_REJECTED' });
+    if (action === 'model' && answer.callbackTiming) data.callbackTiming = answer.callbackTiming;
     return data;
   };
   return {
@@ -137,7 +159,8 @@ export function httpGateway(callbackUrl, secret, binding, { timeoutMs = 90000 } 
 /** Node owns only transient SDK state; Runtime's A2 snapshot remains authoritative. */
 export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayFactory = httpGateway,
   allowedCallbackHosts = ['127.0.0.1', 'localhost'], maxSessions = 256, sessionRetentionMs = 900000,
-  callbackTimeoutMs = 90000, monitorToken, monitorDirectory, monitorSecureCookie = false, sdkPackages }) {
+  callbackTimeoutMs = 90000, monitorToken, monitorDirectory, monitorSecureCookie = false, sdkPackages,
+  contextOptimizationEnabled = false }) {
   if (!Number.isSafeInteger(maxSessions) || maxSessions < 1 || maxSessions > 4096
       || !Number.isSafeInteger(sessionRetentionMs) || sessionRetentionMs < 0)
     throw new Error('Invalid Coding session resource limits');
@@ -222,6 +245,7 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
           nativeSdk: value.checkpoint?.nativeSdk ?? process.env.CLINE_NATIVE_SDK_ENABLED !== 'false',
           modelTokenReservation: value.modelTokenReservation, checkpoint: value.checkpoint,
           contractHash: value.contractHash,
+          contextOptimizationEnabled,
           attemptId: `${value.contract.taskId}:fence-${value.fencingToken}`,
           observe: event => monitor.event(monitorId, event),
           observeCode: code => monitor.code(monitorId, code),
@@ -299,6 +323,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     timestamp: new Date().toISOString(), component: 'NODE_CLINE', event,
     build: process.env.RUNTIME_CODING_BUILD ?? 'development', port }) + '\n'); };
   const server = createCodingServer({ secret, callbackUrl, allowedCallbackHosts, callbackTimeoutMs,
+    contextOptimizationEnabled: process.env.RUNTIME_CODING_CONTEXT_OPTIMIZATION_ENABLED === 'true',
     sdkPackages,
     monitorToken, monitorDirectory: process.env.RUNTIME_CODING_MONITOR_DIRECTORY,
     monitorSecureCookie: process.env.RUNTIME_CODING_MONITOR_SECURE_COOKIE === 'true' });

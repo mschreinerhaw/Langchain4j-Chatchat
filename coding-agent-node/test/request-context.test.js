@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { measureRequestContext } from '../src/request-context.js';
-import { sdkPrepareTurn } from '../src/sdk-adapter.js';
+import { measureRequestContext, createRequestContextTracker } from '../src/request-context.js';
+import { sdkPrepareTurn, boundCompactionCheckpoint } from '../src/sdk-adapter.js';
 
 test('final payload attribution includes tools, skills, report, code and multibyte text without leaking contents', () => {
   const request = { systemPrompt: 'instruction', tools: [{ name: 'python_execute', inputSchema: {} }], messages: [
@@ -16,6 +16,79 @@ test('final payload attribution includes tools, skills, report, code and multiby
   assert.equal(measured.exceedsSoftBudget, true);
   assert.equal(measured.estimatedInputTokens, Math.ceil(Buffer.byteLength(JSON.stringify(request)) / 4));
   assert.doesNotMatch(JSON.stringify(measured), /secret_|用户请求/);
+});
+
+test('request replay accounting retains only hashes and separates stable context from new parts', () => {
+  const track = createRequestContextTracker();
+  const request = { systemPrompt: 'PRIVATE_INSTRUCTION', tools: [], messages: [
+    { role: 'user', content: [{ type: 'text', text: 'PRIVATE_INPUT' }] }] };
+  const first = track(request);
+  assert.equal(first.repeatedContextBytes, 0);
+  const unchanged = track(request);
+  assert.equal(unchanged.contextChangeReason, 'UNCHANGED_CONTEXT');
+  assert.equal(unchanged.repeatedContextBytes, first.newContextBytes);
+  const next = track({ ...request, messages: [...request.messages,
+    { role: 'tool', content: [{ type: 'text', text: 'NEW_DIAGNOSIS' }] }] });
+  assert(next.newContextBytes > 0);assert(next.repeatedContextBytes > 0);
+  assert.doesNotMatch(JSON.stringify(next), /PRIVATE|NEW_DIAGNOSIS/);
+});
+
+test('native state-aware compaction is reused and restored against canonical prefix hashes', async () => {
+  const messages = [{ role: 'user', content: [{ type: 'text', text: 'AUTHORIZED_GOAL' }] },
+    ...Array.from({ length: 12 }, (_, i) => ({ role: 'assistant', content: [{ type: 'text', text: String(i) + 'x'.repeat(20000) }] }))];
+  const context = { messages, tools: [], model: { info: { maxInputTokens: 4000 } }, systemPrompt: '', signal: new AbortController().signal };
+  const prepare = sdkPrepareTurn('state', () => null, { statefulCompactionEnabled: true });
+  const first = await prepare(context);
+  assert(first.messages.length < messages.length);
+  const saved = structuredClone(prepare.snapshot());
+  assert.equal(saved.compactionState.source_message_count, messages.length);
+  assert(saved.compactionState.source_prefix_hash);
+  const added = { role: 'user', content: [{ type: 'text', text: 'LATEST_DIAGNOSIS' }] };
+  const resume = sdkPrepareTurn('state', () => null, { statefulCompactionEnabled: true, ...saved });
+  const projected = await resume({ ...context, messages: [...messages, added] });
+  assert.match(JSON.stringify(projected.messages), /LATEST_DIAGNOSIS/);
+  assert.equal(projected.messages.length, first.messages.length + 1);
+  assert.equal(resume.snapshot().compactionCount, saved.compactionCount);
+  assert.equal(resume.measurement().compactionStateReused, true);
+  const stale = await resume({ ...context, messages: [added] });
+  assert.equal(stale, undefined);
+});
+
+test('source binding becomes a reference only when current task advertises code_read', async () => {
+  const code = { source: 'FULL_PROGRAM'.repeat(1000), version: { version: 2, codeHash: 'exact-current' }, lastValidatedHash: null };
+  const context = { messages: [{ role: 'user', content: [{ type: 'text', text: 'objective' }] }],
+    tools: [{ name: 'code_read' }], model: {}, systemPrompt: '', signal: new AbortController().signal };
+  const prepare = sdkPrepareTurn('reference', () => code, { codeReferenceEnabled: true });
+  const result = await prepare(context);
+  assert.doesNotMatch(JSON.stringify(result), /FULL_PROGRAM/);
+  assert.match(JSON.stringify(result), /exact-current/);
+  assert.match(JSON.stringify(result), /code_read/);
+  const fallback = await prepare({ ...context, tools: [] });
+  assert.match(JSON.stringify(fallback), /FULL_PROGRAM/);
+});
+
+test('checkpoint size pressure discards only the optional projection, never canonical recovery evidence', () => {
+  const checkpoint = { messages: [{role:'user',content:[{type:'text',text:'canonical'}]}],
+    codeLifecycle: { codeHash: 'current', source: 'latest' }, compactionCount: 2,
+    compactionState: { messages: [{ content: 'x'.repeat(300000) }] } };
+  const bounded = boundCompactionCheckpoint(checkpoint,262144);
+  assert.equal(bounded.compactionState,undefined);
+  assert.deepEqual(bounded.messages,checkpoint.messages);assert.deepEqual(bounded.codeLifecycle,checkpoint.codeLifecycle);
+  assert.equal(bounded.compactionCount,2);assert(checkpoint.compactionState);
+  assert.equal(boundCompactionCheckpoint(checkpoint,750000),checkpoint);
+});
+
+test('compacted tool results round trip objects without a second JSON string envelope', async () => {
+  const messages = [{ role: 'user', content: [{ type: 'text', text: 'objective' }] },
+    ...Array.from({ length: 10 }, () => ({ role: 'assistant', content: [{ type: 'text', text: 'x'.repeat(20000) }] })),
+    { role: 'assistant', content: [{ type: 'tool-call', toolCallId: 'read', toolName: 'code_read', input: { codeHash: 'hash' } }] },
+    { role: 'tool', content: [{ type: 'tool-result', toolCallId: 'read', toolName: 'code_read', output: { version: 2 } }] }];
+  const prepare = sdkPrepareTurn('roundtrip');
+  const result = await prepare({ messages, tools: [], model: { info: { maxInputTokens: 4000 } }, systemPrompt: '', signal: new AbortController().signal });
+  const output = result.messages.flatMap(m => m.content).find(p => p.type === 'tool-result');
+  assert.equal(typeof output.output, 'object');assert.equal(output.output.version, 2);
+  const pending = await prepare({ messages: messages.slice(0,-1), tools: [], model: {}, systemPrompt: '' });
+  assert.equal(pending, undefined);
 });
 
 test('review projection preserves exact version/hash while omitting fresh full-source injection; repair restores it', async () => {

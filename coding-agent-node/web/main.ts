@@ -128,7 +128,20 @@ function renderModels(task: TaskDetail) {
       ['回调首事件', call.callbackFirstEventMs == null ? '未观测' : duration(call.callbackFirstEventMs)],
       ['请求 / 响应大小', `${call.requestBytes == null ? '未观测' : bytes(call.requestBytes)} / ${call.responseBytes == null ? '未观测' : bytes(call.responseBytes)}`],
       ['输入 / 输出', `${amount(call.usage.inputTokens)} / ${amount(call.usage.outputTokens)}`],
-      ['成本', call.usage.totalCost === null ? '未取得' : String(call.usage.totalCost)]])); node.append(card);
+      ['成本', call.usage.totalCost === null ? '未取得' : String(call.usage.totalCost)]]));
+    const diagnostics = el('details'), summary = el('summary', '', '上下文与请求阶段诊断');
+    diagnostics.append(summary, kv([
+      ['当前输入估算（非供应商用量）', amount(call.estimatedInputTokens ?? null)],
+      ['重传上下文 / 本轮重复', `${call.repeatedContextBytes == null ? '未观测' : bytes(call.repeatedContextBytes)} / ${call.duplicateContextBytes == null ? '未观测' : bytes(call.duplicateContextBytes)}`],
+      ['SDK 压缩次数', amount(call.compactionCount ?? null)],
+      ['SDK 投影前 / 后', `${call.contextSizeBefore == null ? '未观测' : bytes(call.contextSizeBefore)} / ${call.contextSizeAfter == null ? '未观测' : bytes(call.contextSizeAfter)}`],
+      ['连接 / 响应头 / 响应体', [call.callbackConnectMs,call.callbackHeadersMs,call.callbackBodyMs].map(v=>v == null ? '未观测' : duration(v)).join(' / ')],
+      ['Java 本地排队', call.queueTimeMs == null ? '未观测' : duration(call.queueTimeMs)],
+      ['供应商生成 / 重试', [call.generationTimeMs,call.retryTimeMs].map(v=>v == null ? '未观测' : duration(v)).join(' / ')],
+      ['缓存读取 / 写入 Tokens', `${amount(call.usage.cacheReadTokens ?? null)} / ${amount(call.usage.cacheWriteTokens ?? null)}`],
+      ['最近失败分类', call.errorCategory ?? '无记录'],
+    ]), el('p', 'notice', '响应头耗时包含 Java 和模型整体等待，不等于供应商排队或首 Token。重传字节包含必要的固定指令与历史，不能直接视为可节约 Token。'));
+    card.append(diagnostics); node.append(card);
   }
   return node;
 }

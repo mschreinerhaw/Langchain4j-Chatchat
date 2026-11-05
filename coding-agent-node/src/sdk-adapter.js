@@ -1,4 +1,4 @@
-import { createContextCompactionPrepareTurn, createEditorExecutor } from '@cline/sdk';
+import { createContextCompactionPrepareTurn, createCompactionStateAwarePrepareTurn, parseSessionCompactionState, createEditorExecutor } from '@cline/sdk';
 import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -82,11 +82,26 @@ export function completeToolBoundary(messages) {
   }
   return pending.size===0;
 }
+// Optional SDK projection must never crowd authoritative messages/code out of an
+// existing bounded checkpoint. A skipped sidecar is safely recomputed on resume.
+export function boundCompactionCheckpoint(checkpoint, maxChars) {
+  if (checkpoint.compactionState && JSON.stringify(checkpoint).length > maxChars) {
+    const { compactionState, ...canonical } = checkpoint;
+    return canonical;
+  }
+  return checkpoint;
+}
 export function sdkPrepareTurn(sessionId, currentCode = () => null, options = {}) {
   const injectedBindings = new Set();
-  const compact = createContextCompactionPrepareTurn({ sessionId,
+  let state = parseSessionCompactionState(options.compactionState);
+  let compactionCount = Number.isSafeInteger(options.compactionCount) && options.compactionCount >= 0 ? options.compactionCount : 0;
+  let lastMeasurement = {};
+  const basic = createContextCompactionPrepareTurn({ sessionId,
     providerId: 'runtime', modelId: 'runtime-authorized', compaction: { enabled: true, strategy: 'basic' } });
-  return async context => {
+  const compact = options.statefulCompactionEnabled ? createCompactionStateAwarePrepareTurn({
+    compact: basic, getState: () => state, saveState: value => { state = value; compactionCount++; },
+  }) : basic;
+  const prepare = async context => {
     const code = currentCode();
     const reviewOnly = Boolean(code && options.reviewOnly?.());
     const reference = options.reviewReference?.();
@@ -109,16 +124,25 @@ export function sdkPrepareTurn(sessionId, currentCode = () => null, options = {}
       : info.contextWindow > 0 ? Math.floor(info.contextWindow * 0.9) : 128000;
     // Reserve space for protected material that may be reattached AFTER SDK
     // compaction. This is a soft byte-based estimate, never provider accounting.
-    const binding = reviewOnly ? { version: code.version, lastValidatedHash: code.lastValidatedHash } : code;
+    const referenceOnly = Boolean(code?.source && options.codeReferenceEnabled
+      && typeof code.version?.codeHash === 'string' && code.version.codeHash.length > 0
+      && context.tools?.some(tool => tool.name === 'code_read'));
+    const binding = reviewOnly || referenceOnly ? { version: code.version, lastValidatedHash: code.lastValidatedHash } : code;
     const protectedTokens = Math.ceil(Buffer.byteLength(JSON.stringify({ binding, review }) ?? '') / 4);
     const allowance = Number.isSafeInteger(options.inputTokenBudget) && options.inputTokenBudget > 0
       ? Math.min(knownLimit, options.inputTokenBudget) : knownLimit;
     const model = { id: 'runtime-authorized', provider: 'runtime', ...context.model,
       info: { ...info, maxInputTokens: Math.max(1, allowance - protectedTokens) } };
-    const result = await compact({ ...context, conversationId: context.conversationId ?? sessionId,
+    const beforeBytes = Buffer.byteLength(JSON.stringify(messages));
+    const priorState = state;
+    const result = completeToolBoundary(canonical) ? await compact({ ...context, conversationId: context.conversationId ?? sessionId,
       parentAgentId: context.parentAgentId ?? null, messages, apiMessages: messages,
       abortSignal: context.signal, systemPrompt: context.systemPrompt ?? '',
-      model });
+      model }) : undefined;
+    if (result && !options.statefulCompactionEnabled) compactionCount++;
+    lastMeasurement = { compactionCount, contextSizeBefore: beforeBytes,
+      contextSizeAfter: Buffer.byteLength(JSON.stringify(result?.messages ?? messages)),
+      compactionStrategy: 'SDK_BASIC', compactionStateReused: Boolean(priorState && state === priorState && result) };
     if (!result && !code) return;
     const projected = result ? result.messages.map(message => ({ ...message,
       role: message.role === 'user' && message.content.every(part => part.type === 'tool_result') ? 'tool' : message.role,
@@ -126,7 +150,7 @@ export function sdkPrepareTurn(sessionId, currentCode = () => null, options = {}
         ? { type: 'tool-call', toolCallId: part.id, toolName: part.name, input: part.input }
         : part.type === 'tool_result'
           ? { type: 'tool-result', toolCallId: part.tool_use_id, toolName: part.name,
-            output: part.content, isError: part.is_error } : part),
+            output: (() => { try { return JSON.parse(part.content); } catch { return part.content; } })(), isError: part.is_error } : part),
     })) : [...canonical];
     // Basic compaction may abbreviate tool results. Semantic review still needs
     // the complete latest immutable report, never a truncated earlier version.
@@ -152,9 +176,9 @@ export function sdkPrepareTurn(sessionId, currentCode = () => null, options = {}
       injectedBindings.add(text);
       projected.push({ role: 'user', content: [{ type: 'text', text }] });
     }
-    if (reviewOnly) {
+    if (reviewOnly || referenceOnly) {
       const { source, sourceProject, ...binding } = code;
-      const text = 'Latest program binding (source omitted for result review): ' + JSON.stringify(binding)
+      const text = 'Latest program binding (source available by exact hash): ' + JSON.stringify(binding)
         + '. When review or repair needs source, call code_read with the exact codeHash. Do not guess patch anchors or skip required source checks.';
       injectedBindings.add(text);
       projected.push({ role: 'user', content: [{ type: 'text', text }] });
@@ -168,4 +192,7 @@ export function sdkPrepareTurn(sessionId, currentCode = () => null, options = {}
     }
     return { ...(result ?? {}), messages: projected };
   };
+  prepare.snapshot = () => ({ compactionState: state, compactionCount });
+  prepare.measurement = () => ({ ...lastMeasurement });
+  return prepare;
 }

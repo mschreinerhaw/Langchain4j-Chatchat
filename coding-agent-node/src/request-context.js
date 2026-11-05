@@ -1,3 +1,28 @@
+import { createHash } from 'node:crypto';
+
+// Stores only hashes and lengths for the preceding request, never another transcript.
+export function createRequestContextTracker() {
+  let previous = new Set();
+  return request => {
+    const current = new Set();
+    let repeatedContextBytes = 0, duplicateContextBytes = 0, newContextBytes = 0;
+    const parts = [request.systemPrompt ?? '', request.tools ?? [],
+      ...(request.messages ?? []).flatMap(message => message.content ?? [])];
+    for (const part of parts) {
+      const encoded = JSON.stringify(part), bytes = Buffer.byteLength(encoded ?? '');
+      const hash = createHash('sha256').update(encoded ?? '').digest('hex');
+      if (previous.has(hash)) repeatedContextBytes += bytes;
+      else newContextBytes += bytes;
+      if (current.has(hash)) duplicateContextBytes += bytes;
+      current.add(hash);
+    }
+    previous = new Set([...current].slice(-4096));
+    return { repeatedContextBytes, duplicateContextBytes, newContextBytes,
+      contextChangeReason: repeatedContextBytes === 0 ? 'INITIAL_OR_REPLACED_CONTEXT'
+        : newContextBytes === 0 ? 'UNCHANGED_CONTEXT' : 'HISTORY_REPLAY_WITH_NEW_PARTS' };
+  };
+}
+
 // Payload attribution, not provider token accounting. Never export prompt contents.
 export function measureRequestContext(request, softInputTokenBudget) {
   const bytes = value => Buffer.byteLength(JSON.stringify(value) ?? '', 'utf8');

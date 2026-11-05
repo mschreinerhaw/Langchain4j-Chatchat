@@ -5,6 +5,11 @@ export interface MonitorEvent {
   operationId?: string; modelCall?: number; tool?: string; [key: string]: unknown;
 }
 export interface ModelCall {
+  estimatedInputTokens?: number | null; repeatedContextBytes?: number | null;
+  duplicateContextBytes?: number | null; newContextBytes?: number | null;
+  contextSizeBefore?: number | null; contextSizeAfter?: number | null; compactionCount?: number | null;
+  callbackConnectMs?: number | null; callbackHeadersMs?: number | null; callbackBodyMs?: number | null;
+  callbackHttpDurationMs?: number | null; contextChangeReason?: string; errorCategory?: string;
   queueTimeMs?: number | null; firstTokenMs?: number | null; generationTimeMs?: number | null;
   retryTimeMs?: number | null; responseMode?: string | null;
   callbackDurationMs?: number | null; callbackFirstEventMs?: number | null;
@@ -12,7 +17,8 @@ export interface ModelCall {
   ordinal: number; status: 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'UNKNOWN';
   startedAt: string; finishedAt: string | null; durationMs: number | null;
   selectedModel?: string; providerModel?: string; protocol?: string;
-  usage: { inputTokens: number | null; outputTokens: number | null; totalCost: number | null };
+  usage: { inputTokens: number | null; outputTokens: number | null; totalCost: number | null;
+    cacheReadTokens?: number | null; cacheWriteTokens?: number | null; reasoningTokens?: number | null };
 }
 export interface CodeVersion {
   scriptPath?: string; scriptVersion?: number | null;

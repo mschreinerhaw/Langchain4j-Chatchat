@@ -62,12 +62,17 @@ class ClineModelCallbackControllerTest {
             .put("contextCodeBytes",400).put("contextReportBytes",200).put("estimatedInputTokens",300)
             .put("softInputTokenBudget",256).put("exceedsSoftBudget",true)
             .put("estimator","UTF8_BYTES_DIV_4_NOT_PROVIDER_USAGE").put("prompt","private prompt")
-            .put("contextTaskBytes",-1);
+            .put("contextTaskBytes",-1).put("repeatedContextBytes",321).put("contextSizeBefore",1000)
+            .put("contextSizeAfter",500).put("compactionCount",1).put("callbackHeadersMs",245)
+            .put("callbackConnectMs",-1).put("contextChangeReason","HISTORY_REPLAY_WITH_NEW_PARTS");
+        event.putObject("usage").put("inputTokens",100).put("cacheReadTokens",40).put("cacheWriteTokens",-1);
         event.putObject("components").put("code","private source");
         Map<String,Object> payload = org.springframework.test.util.ReflectionTestUtils.invokeMethod(controller,"workerPayload",event);
         assertThat(payload).containsEntry("contextCodeBytes",400L).containsEntry("contextReportBytes",200L)
             .containsEntry("estimatedInputTokens",300L).containsEntry("exceedsSoftBudget",true)
-            .doesNotContainKeys("components","prompt","contextTaskBytes");
+            .containsEntry("repeatedContextBytes",321L).containsEntry("compactionCount",1L).containsEntry("callbackHeadersMs",245L)
+            .doesNotContainKeys("components","prompt","contextTaskBytes","callbackConnectMs");
+        assertThat((Map<String,Object>)payload.get("usage")).containsEntry("cacheReadTokens",40L).doesNotContainKey("cacheWriteTokens");
     }
 
     @org.junit.jupiter.params.ParameterizedTest

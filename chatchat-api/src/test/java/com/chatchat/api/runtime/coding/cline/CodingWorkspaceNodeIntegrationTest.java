@@ -189,7 +189,8 @@ class CodingWorkspaceNodeIntegrationTest {
             callback.start();int port;try(var listener=new java.net.ServerSocket(0)){port=listener.getLocalPort();}
             String module=Path.of("..","coding-agent-node","src","server.js").toAbsolutePath().normalize().toUri().toString();
             String script="import {createCodingServer} from '"+module+"';createCodingServer({secret:'"+secret
-                +"',callbackUrl:'http://127.0.0.1:"+callback.getAddress().getPort()+"'}).listen("+port+",'127.0.0.1');";
+                +"',contextOptimizationEnabled:"+Boolean.getBoolean("coding.contextOptimizationEnabled")
+                +",callbackUrl:'http://127.0.0.1:"+callback.getAddress().getPort()+"'}).listen("+port+",'127.0.0.1');";
             node=new ProcessBuilder(System.getProperty("coding.node","node"),"--input-type=module","-e",script)
                 .redirectErrorStream(true).start();
             var http=HttpClient.newHttpClient();long startup=System.nanoTime()+TimeUnit.SECONDS.toNanos(15);boolean ready=false;
@@ -224,6 +225,7 @@ class CodingWorkspaceNodeIntegrationTest {
                 var report=new LinkedHashMap<String,Object>();
                 report.put("scope","REAL_PROVIDER_ISOLATED_JAVA_NODE_H2_PARSER");report.put("productionModified",false);
                 report.put("model",System.getProperty("coding.allowedModel"));report.put("language",dialect);report.put("fastPath",fast);
+                report.put("contextOptimizationEnabled",Boolean.getBoolean("coding.contextOptimizationEnabled"));
                 report.put("workloadSha256",java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(workload.getBytes(java.nio.charset.StandardCharsets.UTF_8))));
                 report.put("wallMs",TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-started));
                 report.put("status",outcome.status().name());report.put("usage",outcome.usage());report.put("modelCalls",telemetry);

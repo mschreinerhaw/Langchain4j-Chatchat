@@ -41,13 +41,19 @@ test('callback timings remain distinct from provider timings and persist only bo
   store.event(id, { type: 'MODEL_RESOLVED', modelCall: 1, durationMs: 120, firstTokenMs: 40 });
   store.event(id, { type: 'MODEL_TIMING', modelCall: 1, durationMs: 150, callbackFirstEventMs: 130,
     requestBytes: 2048, responseBytes: 512, requestHash: 'a'.repeat(64), prompt: 'PRIVATE_PROMPT', contextCodeBytes: 400, contextReportBytes: 200,
-    estimatedInputTokens: 512, softInputTokenBudget: 256, exceedsSoftBudget: true, source: 'PRIVATE_SOURCE' });
+    estimatedInputTokens: 512, softInputTokenBudget: 256, exceedsSoftBudget: true, source: 'PRIVATE_SOURCE',
+    repeatedContextBytes: 1000, compactionCount: 2, contextSizeBefore: 4000, contextSizeAfter: 1500 });
+  store.event(id, { type: 'MODEL_USAGE', modelCall: 1, usage: { inputTokens: 100, outputTokens: 20, cacheReadTokens: 40 } });
   const detail = store.detail(id);
   assert.equal(detail.models[0].durationMs, 120);
   assert.equal(detail.models[0].callbackDurationMs, 150);
   assert.equal(detail.models[0].firstTokenMs, 40);
   assert.equal(detail.models[0].callbackFirstEventMs, 130);
   assert.equal(detail.models[0].requestBytes, 2048);
+  assert.equal(detail.models[0].repeatedContextBytes, 1000);
+  assert.equal(detail.models[0].compactionCount, 2);
+  assert.equal(detail.models[0].usage.cacheReadTokens, 40);
+  assert.equal(detail.models[0].usage.cacheWriteTokens, null);
   assert.doesNotMatch(JSON.stringify(detail), /PRIVATE_PROMPT/);
   const context = detail.events.find(event => event.type === 'MODEL_TIMING');
   assert.equal(context.contextCodeBytes, 400);

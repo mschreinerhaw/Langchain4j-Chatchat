@@ -17,7 +17,9 @@ const EVENT_KEYS = ['stage', 'status', 'operationId', 'proposedOperationId', 'mo
   'errorCategory', 'diagnosticCode', 'repairAttempts', 'repairAllowed', 'resultAvailable', 'requestBytes', 'messageCount', 'toolDurationMs', 'proposalHash', 'cpuTimeMs', 'maxRssBytes',
   'callbackFirstEventMs', 'responseBytes', 'toolCount', 'requestHash', 'strategy', 'reason', 'validationDurationMs',
   'contextSystemBytes', 'contextToolsBytes', 'contextTaskBytes', 'contextSkillsBytes', 'contextCodeBytes',
-  'contextReportBytes', 'contextHistoryBytes', 'contextEnvelopeBytes', 'estimatedInputTokens', 'softInputTokenBudget', 'exceedsSoftBudget', 'estimator'];
+  'contextReportBytes', 'contextHistoryBytes', 'contextEnvelopeBytes', 'estimatedInputTokens', 'softInputTokenBudget', 'exceedsSoftBudget', 'estimator',
+  'repeatedContextBytes', 'duplicateContextBytes', 'newContextBytes', 'contextChangeReason', 'compactionCount', 'compactionStrategy',
+  'contextSizeBefore', 'contextSizeAfter', 'callbackConnectMs', 'callbackHeadersMs', 'callbackBodyMs', 'callbackHttpDurationMs', 'queueTimeScope', 'providerTimingAvailability'];
 type Contract = Record<string, any>;
 interface Options {
   directory?: string; maxTasks?: number; maxEvents?: number; maxSourceBytes?: number;
@@ -166,7 +168,9 @@ export class MonitorStore {
       else if (integer(value[key]) !== null) event[key] = value[key];
     }
     if (value.usage) event.usage = { inputTokens: integer(value.usage.inputTokens),
-      outputTokens: integer(value.usage.outputTokens), totalCost: integer(value.usage.totalCost) };
+      outputTokens: integer(value.usage.outputTokens), totalCost: integer(value.usage.totalCost),
+      cacheReadTokens: integer(value.usage.cacheReadTokens), cacheWriteTokens: integer(value.usage.cacheWriteTokens),
+      reasoningTokens: integer(value.usage.reasoningTokens) };
     task.events.push(event); task.eventCount++; task.updatedAt = now;
     if (task.events.length > this.maxEvents) { task.events.shift(); task.eventsTruncated = true; }
     task.retainedEvents = task.events.length; task.stage = this.text(value.stage) || event.type;
@@ -184,6 +188,10 @@ export class MonitorStore {
           call.callbackDurationMs = integer(event.durationMs);
           for (const key of ['callbackFirstEventMs', 'requestBytes', 'responseBytes', 'messageCount', 'toolCount'] as const)
             call[key] = integer(event[key]);
+          for (const key of ['estimatedInputTokens', 'repeatedContextBytes', 'duplicateContextBytes', 'newContextBytes',
+            'contextSizeBefore', 'contextSizeAfter', 'compactionCount'] as const) call[key] = integer(event[key]);
+          if (typeof event.contextChangeReason === 'string') call.contextChangeReason = event.contextChangeReason;
+          if (typeof event.errorCategory === 'string') call.errorCategory = event.errorCategory;
           // A buffered Java callback first event is not the provider's first token.
           call.durationMs ??= call.callbackDurationMs;
         }
@@ -195,6 +203,8 @@ export class MonitorStore {
           call.durationMs = integer(event.durationMs);
           for(const key of ['queueTimeMs','firstTokenMs','generationTimeMs','retryTimeMs'] as const)
             call[key]=integer(event[key]);
+          for (const key of ['callbackConnectMs', 'callbackHeadersMs', 'callbackBodyMs', 'callbackHttpDurationMs'] as const)
+            call[key] = integer(event[key]);
           call.responseMode=typeof event.responseMode==='string'?event.responseMode:null;
         }
         if (['MODEL_USAGE', 'MODEL_FAILED'].includes(event.type)) {

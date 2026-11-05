@@ -30,6 +30,35 @@ test('model inference follows task deadline beyond control timeout and remains c
   } finally { callback.closeAllConnections(); await new Promise(resolve => callback.close(resolve)); }
 });
 
+test('buffered callback separates headers and body time without inventing provider TTFT', async () => {
+  const callback = createServer((_request, response) => {
+    setTimeout(() => {
+      response.writeHead(200, { 'content-type': 'application/json' });response.flushHeaders();
+      setTimeout(() => response.end('{"text":"done"}'), 30);
+    }, 30);
+  });
+  await new Promise(resolve => callback.listen(0, '127.0.0.1', resolve));
+  try {
+    const gateway = httpGateway(`http://127.0.0.1:${callback.address().port}`, secret, {});
+    const answer = await gateway.model(contract, {});
+    assert(answer.callbackTiming.callbackHeadersMs >= 20);
+    assert(answer.callbackTiming.callbackBodyMs >= 20);
+    assert(answer.callbackTiming.callbackHttpDurationMs >= answer.callbackTiming.callbackHeadersMs);
+    assert.equal(answer.callbackTiming.firstTokenMs, undefined);
+    const expired = { ...contract, budget: { deadlineAt: new Date(Date.now() + 10).toISOString() } };
+    await assert.rejects(gateway.model(expired, {}), error => error.errorCategory === 'CALLBACK_DEADLINE');
+  } finally { callback.closeAllConnections(); await new Promise(resolve => callback.close(resolve)); }
+});
+
+test('invalid model callback JSON is a protocol failure, not an empty successful answer', async () => {
+  const callback = createServer((_request,response)=>{response.writeHead(200);response.end('{invalid');});
+  await new Promise(resolve=>callback.listen(0,'127.0.0.1',resolve));
+  try {
+    const gateway=httpGateway(`http://127.0.0.1:${callback.address().port}`,secret,{});
+    await assert.rejects(gateway.model(contract,{}),error=>error.errorCategory==='CALLBACK_RESPONSE_INVALID');
+  } finally {callback.closeAllConnections();await new Promise(resolve=>callback.close(resolve));}
+});
+
 test('Runtime callback timeout bounds stalled admission while expired tasks can still request cancellation', async () => {
   const admissions = []; let cancellations = 0;
   const callback = createServer(async (request, response) => {

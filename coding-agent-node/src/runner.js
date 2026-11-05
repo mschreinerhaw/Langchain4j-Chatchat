@@ -1,10 +1,10 @@
 import { Agent } from '@cline/agents';
 import { createHash, randomUUID } from 'node:crypto';
 import { prepareProgram, repairSourceContext, CodeHistory, CODE_LIFECYCLE_VERSION } from './code-repair.js';
-import { editProgram, sdkPrepareTurn, resolveWorkspaceFiles, restoreWorkspaceFiles, completeToolBoundary } from './sdk-adapter.js';
+import { editProgram, sdkPrepareTurn, resolveWorkspaceFiles, restoreWorkspaceFiles, completeToolBoundary, boundCompactionCheckpoint } from './sdk-adapter.js';
 import { initialProject, proposeProject, projectSchema, decodeProject } from './python-project.js';
 import { taskSkills, validateNativeDisclosure } from './skills.js';
-import { measureRequestContext } from './request-context.js';
+import { measureRequestContext, createRequestContextTracker } from './request-context.js';
 
 export const COMPLETION_SCOPE_RULE = 'Judge analysisStatus only against the user-requested deliverables and explicit constraints. '
   + 'Use COMPLETE when all requested deliverables are supported, even when limitations describe unrequested trends, comparisons, tax analysis or generalization. '
@@ -648,16 +648,21 @@ export function createCodingRun(contract, gateway, options = {}) {
   const softInputTokenBudget = reviewedAnalysis && fileInput && Number.isSafeInteger(contract.budget?.maxModelTokens)
     && Number.isSafeInteger(contract.budget?.maxModelCalls) && contract.budget.maxModelCalls > 0
     ? Math.max(16384, Math.min(128000, Math.floor(contract.budget.maxModelTokens / contract.budget.maxModelCalls))) : undefined;
+  const trackRequestContext = createRequestContextTracker();
+  let prepareTurn;
   const config = {
     agentId: sdkSessionId,
     sessionId: sdkSessionId,
     conversationId: sdkSessionId,
-    ...(nativeSdk ? { prepareTurn: sdkPrepareTurn(sdkSessionId, () => history?.currentSource
+    ...(nativeSdk ? { prepareTurn: prepareTurn = sdkPrepareTurn(sdkSessionId, () => history?.currentSource
       ? { ...(contract.runtimeContext?.codeProject?{sourceProject:decodeProject(history.currentSource,contract.runtimeContext.codeProject)}:{source:history.currentSource}),
         version: history.versions.at(-1), lastValidatedHash: history.validHash ?? null }
         : contract.runtimeContext?.codeProject ? { sourceProject:initialProject(contract.runtimeContext.codeProject),
           state:'AUTHORIZED_INPUT_NOT_EXECUTED',inputProjectSha256:contract.runtimeContext.codeProject.sha256 } : null,
       { inputTokenBudget: softInputTokenBudget,
+        statefulCompactionEnabled: options.contextOptimizationEnabled === true,
+        codeReferenceEnabled: options.contextOptimizationEnabled === true && permitted.has('code_read'),
+        compactionState: restored?.compactionState, compactionCount: restored?.compactionCount,
         reviewOnly: () => permitted.has('code_read') && !sourceRequested
           && reviewedArtifactCache?.complete === true && reviewedArtifactCache.reference === lastCollectedDatasetRef
           && reviewedArtifactCache.reportReferenceValidation?.valid === true
@@ -755,12 +760,13 @@ export function createCodingRun(contract, gateway, options = {}) {
             && (((fastAnalysis || workspaceFast || nativeSdk && reviewedAnalysis) && lastCollectedOperation && event.message?.role === 'tool')
               || nativeSdk && modelResponseFeedback && ['assistant','tool'].includes(event.message?.role))
             && completeToolBoundary(event.snapshot.messages)) {
-          await gateway.checkpoint(contract, { sdkSessionId, checkpointOrdinal: ++checkpointOrdinal,
+          await gateway.checkpoint(contract, boundCompactionCheckpoint({ sdkSessionId, checkpointOrdinal: ++checkpointOrdinal,
+            ...prepareTurn?.snapshot(),
             nativeSdk, modelOrdinal: modelIndex, eventOrdinal, messages: event.snapshot.messages,
             codeLifecycle: history?.snapshot(), lastCollectedOperation, lastCollectedDatasetRef, reportReferenceFailure, terminalFeedback, textReportReviewRequested, textReportReviewModel, deliveredInputReferences:[...deliveredInputReferences],
             modelResponseFeedback, modelResponseRepairs,
             contractHash: options.contractHash, inputSnapshotRef: contract.inputSnapshotRef,
-            workspaceRef: contract.workspaceRef });
+            workspaceRef: contract.workspaceRef }, fileInput || sqlExploration ? 750000 : 262144));
         }
       },
       async beforeModel({ snapshot, request }) {
@@ -854,6 +860,7 @@ export function createCodingRun(contract, gateway, options = {}) {
       let responseBytes = 0;
       let outcome = 'FAILED';
       let contextMeasurement = {};
+      let errorCategory = null;
       // Admit each actual stream attempt, including SDK recovery of a prepared request.
       // Unknown transport outcomes remain non-retryable until Java reconciles them.
       try {
@@ -876,7 +883,8 @@ export function createCodingRun(contract, gateway, options = {}) {
         modelResponseFeedback = null;
         // Actual assembled request, after SDK preparation and binding injection.
         // Estimates diagnose pressure; Java remains the cumulative admission authority.
-        try { contextMeasurement = measureRequestContext(request, softInputTokenBudget); } catch { /* telemetry is not admission */ }
+        try { contextMeasurement = { ...measureRequestContext(request, softInputTokenBudget),
+          ...trackRequestContext(request), ...prepareTurn?.measurement() }; } catch { /* telemetry is not admission */ }
         let attemptUsage = null;
         for await (const event of await options.model.stream(request)) {
           firstEventMs ??= Math.round(performance.now() - started);
@@ -910,6 +918,7 @@ export function createCodingRun(contract, gateway, options = {}) {
           yield event.type === 'finish' ? { ...event, errorRetryable: false } : event;
         }
       } catch (error) {
+        errorCategory = error?.errorCategory ?? (request.signal?.aborted ? 'REQUEST_ABORTED' : 'MODEL_CALLBACK_ERROR');
         if (request.signal?.aborted) throw error;
         modelFailed = true;
         firstRuntimeError ??= String(error?.message ?? error).slice(0, 512);
@@ -921,6 +930,7 @@ export function createCodingRun(contract, gateway, options = {}) {
         const encoded = JSON.stringify({ systemPrompt: request.systemPrompt ?? '', messages: request.messages, tools: request.tools });
         try { await forward({ type: 'MODEL_TIMING', modelCall: modelIndex, stage: 'CODING', status: request.signal?.aborted ? 'ABORTED' : outcome,
           admissionPending: options.model.managesAdmissions === true, ...contextMeasurement,
+          ...(errorCategory ? { errorCategory } : {}),
           durationMs: Math.round(performance.now() - started), callbackFirstEventMs: firstEventMs,
           requestBytes: Buffer.byteLength(encoded), responseBytes, messageCount: request.messages.length,
           toolCount: request.tools.length, requestHash: createHash('sha256').update(encoded).digest('hex'),

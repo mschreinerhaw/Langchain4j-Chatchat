@@ -246,6 +246,8 @@ public final class ClineRuntimeModelBridge {
         modelInfo.put("durationMs", Duration.between(started, Instant.now()).toMillis());
         modelInfo.put("maxOutputTokens", outputLimit);
         modelInfo.put("queueTimeMs",queueTime);
+        modelInfo.put("queueTimeScope","LOCAL_EXECUTOR");
+        modelInfo.put("providerTimingAvailability", "STREAMING".equals(responseMode) ? "OBSERVED_STREAM" : "NON_STREAMING_UNAVAILABLE");
         modelInfo.put("messageCount",turns.size());
         modelInfo.put("requestBytes",request.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8).length);
         modelInfo.put("firstTokenMs",firstToken);

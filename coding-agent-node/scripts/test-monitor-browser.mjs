@@ -34,6 +34,11 @@ try {
   await page.locator('[data-tab="models"]').click();
   await page.locator('.model-card').first().waitFor();
   assert.ok((await page.locator('#detail-content').innerText()).includes('actual-model'));
+  await page.locator('.model-card details summary').first().click();
+  const diagnostics = await page.locator('.model-card details').first().innerText();
+  assert.ok(diagnostics.includes('上下文与请求阶段诊断'));
+  assert.ok(diagnostics.includes('未观测'));
+  assert.ok(diagnostics.includes('不等于供应商排队或首 Token'));
   await page.locator('[data-tab="skills"]').click();
   assert.ok((await page.locator('#detail-content').innerText()).includes('指标汇总'));
   await page.locator('[data-tab="events"]').click(); await page.locator('.timeline li').first().waitFor();

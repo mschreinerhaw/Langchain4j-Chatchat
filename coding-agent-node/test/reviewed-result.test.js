@@ -23,6 +23,24 @@ const verified = (version) => ({ status: 'SUCCEEDED', executorStopped: true, res
   resultDatasetRef: `runtime-evidence:result-${version}`, validationRecordRef: `validation-${version}`,
   evidenceBundleRef: `bundle-${version}`, validationStatus: 'INCONCLUSIVE' });
 
+test('each actual model attempt gets a fresh authoritative budget and cannot bypass reconciliation',async()=>{
+  let budgetReads=0;
+  const {run,counts}=fixture((turn,request)=>{
+    assert.match(request.systemPrompt,/Authoritative Runtime task resources/);
+    return python(turn);
+  },verified,(_count,reference)=>({reference,complete:true,rows:[{reportMarkdown:'Retained result'}],reportReferenceValidation:{valid:true}}),
+  contract,{budget(_contract,estimate){
+    assert.ok(estimate>0);budgetReads++;
+    return {schemaVersion:'runtime_os.coding.budget.v1',remainingTokens:100000,remainingModelCalls:4,remainingMillis:60000,
+      pendingOperations:counts.models ? [{operationId:'original-unknown-operation'}] : [],
+      completionReservation:{phase:'COMPLETION'}};
+  }});
+  assert.equal((await run.run()).status,'failed');
+  assert.equal(counts.models,1);assert.equal(counts.executions,1);assert.ok(budgetReads>=2);
+  assert.ok(counts.checkpoints.at(-1).executionMemory.resultAvailable);
+  assert.equal(counts.checkpoints.at(-1).compactionCount,0);
+});
+
 for (const optimized of [false,true]) test(`context policy ${optimized} keeps explicit source reads, exact repairs and report confirmation in the same SDK run`, async () => {
   const source = 'value = 1\nprint(value)\n', hash = createHash('sha256').update(source).digest('hex');
   const task = { ...contract, authorization: { ...contract.authorization, allowedTools: ['python_execute','code_read','artifact_read'] },
@@ -52,8 +70,8 @@ test('a validated report retains the final model turn for actual review and conf
   const {run,counts}=fixture((turn,request)=>{
     if(turn<=2)return python(turn);
     assert.equal(turn,3);
-    assert.deepEqual(request.tools.map(tool=>tool.name),['artifact_read']);
-    assert.match(request.systemPrompt,/final turn is reserved/);
+    assert.ok(request.tools.some(tool=>tool.name==='artifact_read'));
+    assert.ok(request.tools.some(tool=>tool.name==='python_execute')); // Cline may repair defects even on a final turn.
     return {toolCalls:[{id:'confirm',name:'artifact_read',input:{reference:'runtime-evidence:result-2'}}]};
   },verified,(_count,reference)=>({reference,complete:true,rows:[{reportMarkdown:'Supported report with explicit limitations'}],reportReferenceValidation:{valid:true}}),task);
   assert.equal((await run.run()).status,'completed');

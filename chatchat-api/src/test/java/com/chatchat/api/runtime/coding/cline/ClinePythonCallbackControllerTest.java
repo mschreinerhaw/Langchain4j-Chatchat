@@ -191,6 +191,8 @@ class ClinePythonCallbackControllerTest {
             .containsEntry("evidenceBundleRef","bundle").containsEntry("validationStatus","INCONCLUSIVE")
             .containsEntry("resultAvailable",true)
             .doesNotContainKey("outputStatus");
+        verify(tasks).preserveDeliverable(eq(scope),eq("task"),any(),eq(operation),argThat(asset->
+            "result".equals(asset.get("resultDatasetRef"))&&"bundle".equals(asset.get("evidenceBundleRef"))));
     }
     @Test void visualArtifactContractFailureRequestsRepairButUnresolvedBusinessChecksDoNot(){
         var node=(com.fasterxml.jackson.databind.node.ObjectNode)json.valueToTree(contract);
@@ -201,6 +203,7 @@ class ClinePythonCallbackControllerTest {
             .thenReturn(new CodingEvidenceCollector.Collected("input","code","receipt","result","validation","bundle",false,CodingTaskOutcome.ValidationStatus.INCONCLUSIVE));
         when(collector.visualReport(scope,"task","result")).thenReturn(Optional.of(Map.of("status","FAILED","artifactValidationStatus","FAILED")));
         assertThat(controller.get(json.valueToTree(body()))).containsEntry("resultAvailable",false).containsEntry("outputStatus","VISUAL_REPORT_INVALID");
+        verify(tasks,never()).preserveDeliverable(any(),anyString(),any(),anyString(),anyMap());
         when(collector.visualReport(scope,"task","result")).thenReturn(Optional.of(Map.of("status","PARTIAL","artifactValidationStatus","PASSED")));
         assertThat(controller.get(json.valueToTree(body()))).containsEntry("resultAvailable",true).doesNotContainKey("outputStatus");
         when(collector.visualReport(scope,"task","result")).thenReturn(Optional.of(Map.of("status","FAILED","artifactValidationStatus","PASSED")));

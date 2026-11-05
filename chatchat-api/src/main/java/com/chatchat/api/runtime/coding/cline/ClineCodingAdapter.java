@@ -2,6 +2,7 @@ package com.chatchat.api.runtime.coding.cline;
 
 import com.chatchat.agents.runtime.coding.CodingJournal;
 import com.chatchat.agents.runtime.coding.DurableCodingTaskService;
+import com.chatchat.agents.runtime.coding.CodingTaskRevisions;
 import com.chatchat.api.runtime.coding.data.CodingDataSupplyService;
 import com.chatchat.api.runtime.coding.data.CodingInputSnapshotService;
 import com.chatchat.api.runtime.coding.evidence.CodingEvidenceCollector;
@@ -184,16 +185,28 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
         current = tasks.get(scope, taskId);
         // A live SDK is reused above. The SDK has no cross-process reconnect API;
         // only a Java-committed, fully settled boundary can seed a NEW instance.
-        if (sessionMissing && workerId.equals(lease.owner())
+        if ((sessionMissing || remote != null && "FAILED".equals(remote.path("status").asText())) && workerId.equals(lease.owner())
                 && current.executionControl().stopReason() == null
                 && tasks.unresolvedOperations(scope, taskId).isEmpty()) {
-            JsonNode checkpoint = tasks.sdkCheckpoint(scope, taskId);
+            JsonNode checkpoint = sessionMissing ? tasks.sdkCheckpoint(scope, taskId) : null;
+            if(checkpoint==null){
+                var closed=new java.util.HashSet<String>();
+                for(var operation:tasks.startedModelOperations(scope,taskId))
+                    if(receipts.localTerminationProof(scope,taskId,operation.operationId()).isPresent())closed.add(operation.operationId());
+                checkpoint=tasks.sdkCheckpointAfterLocalModelStops(scope,taskId,closed);
+            }
             if (checkpoint != null) {
+                var accepted=tasks.contract(scope,taskId);var charged=tasks.budgetUsage(scope,accepted.budget().budgetId());
+                boolean hasBudget=charged.modelCalls()<accepted.budget().maxModelCalls()
+                    && charged.modelTokens()<accepted.budget().maxModelTokens() && accepted.budget().deadlineAt().isAfter(clock.instant());
+                if(hasBudget) {
                 requireInputCapabilities(tasks.contract(scope,taskId));
+                if(!sessionMissing)lease=tasks.recoveryFence(scope,taskId,lease,tasks.get(scope,taskId).revision());
                 request("/v1/runs", Map.of("contract", tasks.contract(scope, taskId),
                     "contractHash", current.contractSha256(), "fencingToken", lease.fencingToken(),
                     "checkpoint", checkpoint));
                 return tasks.get(scope, taskId);
+                }
             }
         }
         // A durable stop rejects new model/tool admissions. Once every started operation has
@@ -318,7 +331,12 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
     private void reconcileModel(KernelDataScope scope, String taskId, CodingJournal.Lease lease,
             String operationId) {
         var response = receipts.response(scope, taskId, operationId);
-        if (response.isEmpty()) return; // Unknown provider outcome retains the reservation.
+        if (response.isEmpty()) {
+            var proof=receipts.localTerminationProof(scope,taskId,operationId);
+            if(proof.isPresent() && tasks.verifiedOperation(scope,taskId,operationId).isEmpty())
+                CodingTaskRevisions.mutate(tasks,scope,taskId,revision->tasks.reconcileStopped(scope,taskId,lease,revision,operationId,proof.get()));
+            return; // Unknown provider usage remains fully reserved, even after local stop.
+        }
         var current = tasks.get(scope, taskId);
         if (tasks.verifiedOperation(scope, taskId, operationId).isEmpty())
             current = tasks.reconcileStopped(scope, taskId, lease, current.revision(),

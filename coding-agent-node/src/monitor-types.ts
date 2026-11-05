@@ -6,7 +6,7 @@ export interface MonitorEvent {
 }
 export interface ModelCall {
   estimatedInputTokens?: number | null; repeatedContextBytes?: number | null;
-  duplicateContextBytes?: number | null; newContextBytes?: number | null;
+  duplicateContextBytes?: number | null; avoidableRepeatedContextBytes?: number | null; newContextBytes?: number | null;
   contextSizeBefore?: number | null; contextSizeAfter?: number | null; compactionCount?: number | null;
   callbackConnectMs?: number | null; callbackHeadersMs?: number | null; callbackBodyMs?: number | null;
   callbackHttpDurationMs?: number | null; contextChangeReason?: string; errorCategory?: string;

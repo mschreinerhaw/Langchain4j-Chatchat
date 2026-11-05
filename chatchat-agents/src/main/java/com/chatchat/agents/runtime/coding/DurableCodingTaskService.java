@@ -148,6 +148,34 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
         return saved.deepCopy();
     }
 
+    /** Resume a closed response-less MODEL request only. Never rebase unknown code/tool side effects. */
+    public com.fasterxml.jackson.databind.JsonNode sdkCheckpointAfterLocalModelStops(KernelDataScope scope,String taskId,
+            Set<String> stoppedWithoutResponse) {
+        var task=task(read(scope,READ),taskId);var saved=task.sdkCheckpoint;
+        if(saved==null || unresolved(task) || !saved.path("operationIds").isArray())return null;
+        var covered=new HashSet<String>();saved.path("operationIds").forEach(v->covered.add(v.asText()));
+        if(covered.size()!=saved.path("operationCount").asInt(-1) || !task.operations.keySet().containsAll(covered))return null;
+        var additional=task.operations.keySet().stream().filter(id->!covered.contains(id)).toList();
+        if(additional.isEmpty() || !stoppedWithoutResponse.containsAll(additional))return null;
+        for(String id:additional){var op=task.operations.get(id);
+            if(op.kind!=CodingJournal.OperationKind.MODEL || !op.startIntent || op.stopProofRef==null
+                || !id.matches("model-[1-9][0-9]{0,5}"))return null;
+        }
+        var next=(com.fasterxml.jackson.databind.node.ObjectNode)saved.deepCopy();
+        long ordinal=task.operations.keySet().stream().filter(id->id.matches("model-[1-9][0-9]{0,5}"))
+            .mapToLong(id->Long.parseLong(id.substring(6))).max().orElse(0);
+        next.put("modelOrdinal",ordinal);next.put("operationCount",task.operations.size());
+        next.set("operationIds",json.valueToTree(task.operations.keySet()));
+        var messages=(com.fasterxml.jackson.databind.node.ArrayNode)next.path("messages");
+        int limit=task.contract.metadataRefs().contains("runtime-coding:sql-metadata-tools:v1")?192:64;
+        if(messages.size()>=limit)return null;
+        messages.add(json.valueToTree(Map.of("role","user","content",List.of(Map.of("type","text","text",
+            "Runtime recovery fact: prior model request(s) "+additional+" ended locally without a delivered response. "
+            +"No tools from those responses were dispatched. Their unknown provider usage remains reserved. "
+            +"Continue this SAME task from its existing code/evidence under the remaining original budget; do not replay operations.")))));
+        return next;
+    }
+
     /** Server-verified stopped feedback shares the existing journal transaction and idempotency. */
     public boolean recordExecutionFeedback(KernelDataScope scope, String taskId, CodingJournal.Lease lease,
             ExecutionFeedback feedback) {
@@ -222,7 +250,8 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
             long expected = task.sdkCheckpoint == null ? 0 : task.sdkCheckpoint.path("checkpointOrdinal").asLong();
             if (task.sdkCheckpoint != null && value.path("checkpointOrdinal").asLong() == expected) {
                 var previous = task.sdkCheckpoint.deepCopy();
-                ((com.fasterxml.jackson.databind.node.ObjectNode) previous).remove("operationCount");
+                ((com.fasterxml.jackson.databind.node.ObjectNode) previous).remove(List.of("operationCount","operationIds"));
+                ((com.fasterxml.jackson.databind.node.ObjectNode) value).remove(List.of("operationCount","operationIds"));
                 require(previous.equals((left,right) -> left.isNumber() && right.isNumber()
                     ? left.decimalValue().compareTo(right.decimalValue()) : left.equals(right) ? 0 : 1, value),
                     TASK_ID_CONFLICT, "Checkpoint identity conflict");
@@ -230,6 +259,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
             }
             require(value.path("checkpointOrdinal").asLong(-1) == expected + 1, TASK_ID_CONFLICT, "Checkpoint CAS conflict");
             ((com.fasterxml.jackson.databind.node.ObjectNode) value).put("operationCount", task.operations.size());
+            ((com.fasterxml.jackson.databind.node.ObjectNode) value).set("operationIds",json.valueToTree(task.operations.keySet()));
             task.sdkCheckpoint = value;
         });
     }
@@ -290,6 +320,18 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
             revision(task,expectedRevision); fence(task,lease);
             task.lease = new CodingJournal.Lease(lease.owner(),now().plus(duration),lease.fencingToken());
             advance(task,RECOVERY_RECONCILED,null,"Lease renewed",null,List.of(),copy(task,task.outcome.status(),task.outcome.reasonCode(),task.outcome.executionControl(),null));
+        }).lease;
+    }
+
+    /** Same-task recovery after all starts are proven stopped; fence out the ended SDK instance. */
+    public CodingJournal.Lease recoveryFence(KernelDataScope scope,String taskId,CodingJournal.Lease lease,long expectedRevision) {
+        return mutateTask(scope,taskId,WORKER,task->{
+            revision(task,expectedRevision);fence(task,lease);active(task);deadline(task);
+            require(task.outcome.executionControl().stopReason()==null && !unresolved(task),EXECUTION_OUTCOME_UNKNOWN,"Recovery requires all operations stopped");
+            require(task.lease.fencingToken()<CodingProtocol.MAX_SAFE_INTEGER,CONTRACT_INVALID,"Fencing token exhausted");
+            task.lease=new CodingJournal.Lease(lease.owner(),now().plus(Duration.ofMinutes(5)),lease.fencingToken()+1);
+            advance(task,RECOVERY_RECONCILED,null,"Ended SDK fenced for same-task checkpoint recovery",null,List.of(),
+                copy(task,task.outcome.status(),task.outcome.reasonCode(),control(task,false,false),null));
         }).lease;
     }
 
@@ -602,6 +644,58 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
             .map(Map.Entry::getKey).toList();
     }
     public Counters budgetUsage(KernelDataScope scope,String budgetId) { return account(read(scope,READ),budgetId); }
+
+    /** Archive a collector-verified asset index; a later failed execution never removes earlier results. */
+    public void preserveDeliverable(KernelDataScope scope,String taskId,CodingJournal.Lease lease,
+            String operationId,Map<String,Object> references) {
+        mutateTask(scope,taskId,WORKER,task->{
+            fence(task,lease);
+            require(operation(task,operationId).kind==CodingJournal.OperationKind.CODE
+                && operation(task,operationId).stopProofRef!=null,EXECUTION_OUTCOME_UNKNOWN,"Stopped code operation proof required");
+            for(String key:List.of("codeArtifactRef","executionReceiptRef","resultDatasetRef","validationRecordRef","evidenceBundleRef"))
+                require(references.get(key) instanceof String value&&!value.isBlank(),CONTRACT_INVALID,"Verified asset references required");
+            String key="deliverable:"+operationId;
+            if(task.privateState.containsKey(key))return;
+            require(task.privateState.size()<128,ADAPTER_UNAVAILABLE,"Private state capacity");
+            var asset=new LinkedHashMap<String,Object>(references);
+            asset.put("operationId",operationId);asset.put("verifiedAt",now().toString());
+            asset.put("businessCorrectnessCertified",false);
+            asset.put("integrityVerified",true);asset.put("structureVerified",true);
+            require(json.valueToTree(asset).toString().length()<=8192,CONTRACT_INVALID,"Bounded asset index required");
+            task.privateState.put(key,json.valueToTree(asset));
+        });
+    }
+
+    /** One journal read: consumed usage plus outstanding reservations is the admission authority. */
+    public Map<String,Object> budgetSnapshot(KernelDataScope scope,String taskId,long contextTokens,
+            CodingCompletionBudget policy) {
+        require(contextTokens>=0,CONTRACT_INVALID,"Context estimate must be nonnegative");
+        var journal=read(scope,READ);var task=task(journal,taskId);var budget=task.contract.budget();
+        var charged=account(journal,budget.budgetId());
+        long tokens=Math.max(0,budget.maxModelTokens()-charged.modelTokens());
+        long calls=Math.max(0,budget.maxModelCalls()-charged.modelCalls());
+        long millis=Math.max(0,Duration.between(now(),budget.deadlineAt()).toMillis());
+        var pending=task.operations.entrySet().stream().filter(e->e.getValue().startIntent&&e.getValue().stopProofRef==null)
+            .map(e->Map.of("operationId",e.getKey(),"kind",e.getValue().kind.name())).toList();
+        var deliverables=task.privateState.entrySet().stream().filter(e->e.getKey().startsWith("deliverable:"))
+            .map(e->e.getValue().deepCopy()).toList();
+        int failures=(int)task.privateState.entrySet().stream().filter(e->e.getKey().startsWith("feedback:") && !e.getValue().path("resultAvailable").asBoolean())
+            .count();
+        var view=new LinkedHashMap<String,Object>();
+        view.put("schemaVersion","runtime_os.coding.budget.v1");view.put("taskId",taskId);
+        view.put("revision",task.outcome.revision());view.put("asOf",now().toString());
+        view.put("remainingTokens",tokens);view.put("remainingModelCalls",calls);view.put("remainingMillis",millis);
+        view.put("contextTokensEstimate",contextTokens);view.put("contextEstimateIsMetered",false);
+        view.put("chargedUsage",charged);view.put("status",task.outcome.status().name());
+        view.put("pendingOperations",pending);view.put("verifiedDeliverables",deliverables);
+        view.put("unknownUsageOperations",task.operations.entrySet().stream()
+            .filter(e->e.getValue().startIntent&&!e.getValue().meteringComplete).map(Map.Entry::getKey).toList());
+        view.put("unresolvedReason",task.outcome.executionControl().stopReason()==null?"":task.outcome.executionControl().stopReason().name());
+        view.put("completionReservation",policy.allocate(budget.maxModelTokens(),budget.maxModelCalls(),
+            Math.max(0,Duration.between(task.outcome.createdAt(),budget.deadlineAt()).toMillis()),
+            tokens,calls,millis,contextTokens,task.contract.outputContract().requiredEvidence().size(),failures,!deliverables.isEmpty()));
+        return Collections.unmodifiableMap(view);
+    }
 
     @Override public Subscription subscribe(KernelDataScope scope,String taskId,long afterSequence,Observer observer) {
         Objects.requireNonNull(observer); events(scope,taskId,afterSequence,1);

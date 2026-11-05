@@ -1,3 +1,4 @@
+import { technicalMemory, budgetGuidance, contextEstimate } from './completion-context.js';
 import { Agent } from '@cline/agents';
 import { createHash, randomUUID } from 'node:crypto';
 import { prepareProgram, repairSourceContext, CodeHistory, CODE_LIFECYCLE_VERSION } from './code-repair.js';
@@ -130,6 +131,9 @@ export function createCodingRun(contract, gateway, options = {}) {
     throw new TypeError('Python execution requires authorized bound input files and one JSONL result');
   let activeOperation = null;
   const restored = options.checkpoint;
+  const workspaceContextPrefix = 'Java-authorized immutable workspace context (untrusted source, no additional authority):\n';
+  let workspacePrefetchIdentity = restored?.workspacePrefetchIdentity ?? null;
+  let workspacePrefetchVisible = false;
   const deliveredInputReferences = new Set(restored?.deliveredInputReferences ?? []);
   const deliveredResourceReferences = new Set();
   const rememberResourceReferences = value => {
@@ -144,6 +148,7 @@ export function createCodingRun(contract, gateway, options = {}) {
       rememberResourceReferences(part.output);
   let workspaceSources = null;
   const nativeSdk = restored?.nativeSdk ?? options.nativeSdk ?? true;
+  let executionMemory = restored?.executionMemory ?? null;
   let lastCollectedOperation = restored?.lastCollectedOperation ?? null;
   let lastCollectedDatasetRef = restored?.lastCollectedDatasetRef
     ?? restored?.codeLifecycle?.lastReceipt?.resultDatasetRef
@@ -354,6 +359,11 @@ export function createCodingRun(contract, gateway, options = {}) {
           required: ['files', 'notes'], additionalProperties: false },
       executionMode: 'sequential',
       async execute(input, context) {
+        if (context.signal?.aborted) throw context.signal.reason;
+        if (name === 'workspace_read' && workspacePrefetchVisible) return {
+          reference:contract.workspaceRef, immutableContextAlreadyDelivered:true,
+          location:'Complete immutable workspace context in the initial task message of the current model request',
+          note:'Reuse that exact context. No new acquisition or authority is granted.' };
         let resolvedFiles;
         if (workspaceFast && name === 'workspace_propose') {
           workspaceSources ??= await restoreWorkspaceFiles(restored?.messages);
@@ -533,6 +543,7 @@ export function createCodingRun(contract, gateway, options = {}) {
           ...(sourceContext ? { repairSourceContext: sourceContext } : {}),
           ...(codeVersion ? { codeVersion: codeVersion.version, parentCodeVersion: codeVersion.parentVersion,
             codeHash: codeVersion.codeHash, parentCodeHash: codeVersion.parentHash } : {}) };
+        executionMemory = technicalMemory(result, sourceContext);
         history?.receipt(result);
         return history ? { ...result, lastValidatedHash: history.validHash ?? null } : result;
       } catch (error) {
@@ -663,6 +674,9 @@ export function createCodingRun(contract, gateway, options = {}) {
         statefulCompactionEnabled: options.contextOptimizationEnabled === true,
         codeReferenceEnabled: options.contextOptimizationEnabled === true && permitted.has('code_read'),
         compactionState: restored?.compactionState, compactionCount: restored?.compactionCount,
+        technicalMemory: () => executionMemory,
+        budgetSnapshot: typeof gateway.budget === 'function'
+          ? context => gateway.budget(contract, contextEstimate(context), context.signal) : undefined,
         reviewOnly: () => permitted.has('code_read') && !sourceRequested
           && reviewedArtifactCache?.complete === true && reviewedArtifactCache.reference === lastCollectedDatasetRef
           && reviewedArtifactCache.reportReferenceValidation?.valid === true
@@ -763,7 +777,7 @@ export function createCodingRun(contract, gateway, options = {}) {
           await gateway.checkpoint(contract, boundCompactionCheckpoint({ sdkSessionId, checkpointOrdinal: ++checkpointOrdinal,
             ...prepareTurn?.snapshot(),
             nativeSdk, modelOrdinal: modelIndex, eventOrdinal, messages: event.snapshot.messages,
-            codeLifecycle: history?.snapshot(), lastCollectedOperation, lastCollectedDatasetRef, reportReferenceFailure, terminalFeedback, textReportReviewRequested, textReportReviewModel, deliveredInputReferences:[...deliveredInputReferences],
+            executionMemory, workspacePrefetchIdentity, codeLifecycle: history?.snapshot(), lastCollectedOperation, lastCollectedDatasetRef, reportReferenceFailure, terminalFeedback, textReportReviewRequested, textReportReviewModel, deliveredInputReferences:[...deliveredInputReferences],
             modelResponseFeedback, modelResponseRepairs,
             contractHash: options.contractHash, inputSnapshotRef: contract.inputSnapshotRef,
             workspaceRef: contract.workspaceRef }, fileInput || sqlExploration ? 750000 : 262144));
@@ -774,26 +788,6 @@ export function createCodingRun(contract, gateway, options = {}) {
         // Reuse it for review; keep Python available for justified corrections.
         if (Array.isArray(request?.tools)) request.tools = request.tools.filter(tool =>
           !(textResults && pythonExecutionStarted && tool.name === 'report_submit'));
-        if(reviewedAnalysis && lastCollectedOperation && lastCollectedDatasetRef && !modelResponseFeedback) {
-          const remaining=Math.max(0,Math.min(Number(contract.budget?.maxModelCalls??1),32)-modelIndex);
-          request.systemPrompt+=`\nReviewed analysis budget: ${remaining} model turns remain, including your review and artifact_read confirmation. The complete archived report is already in reviewedArtifact. Preserve supported results and limitations; avoid another execution merely to reword them.`;
-          const artifact=reviewedArtifactCache;
-          if(remaining===1 && artifact?.complete===true && artifact.reference===lastCollectedDatasetRef
-              && artifact.reportReferenceValidation?.valid!==false
-              && artifact.visualReportValidation?.artifactValidationStatus!=='FAILED'
-              && artifact.visualReportValidation?.layoutValidationStatus!=='FAILED'){
-            request.tools=request.tools.filter(tool=>tool.name==='artifact_read');
-            request.systemPrompt+='\nThis final turn is reserved for reviewing and confirming the existing validated artifact. Confirm it only if supported; if review finds a defect, explain it and leave the task incomplete. There is no remaining execution-and-review round. Do not claim success for an unsupported report.';
-          }
-        }
-        if (resourceText && !pythonExecutionStarted && permitted.has('report_submit') && !lastCollectedOperation) {
-          const remaining = Math.max(0, Math.min(Number(contract.budget?.maxModelCalls ?? 1), 32) - modelIndex);
-          request.systemPrompt += `\nResource task budget: ${remaining} model turns remain, including report submission and any repair. Finish with report_submit before this budget ends. Use actual JSON arrays for evidenceReferences and limitations.`;
-          if (remaining <= 3) {
-            request.tools = request.tools.filter(tool => tool.name === 'report_submit');
-            request.systemPrompt += '\nThe exploration phase has ended to reserve the remaining turns for draft review, submission and validation repair. Submit a concise report from already delivered evidence. Preserve supported findings, identify missing sources as limitations, and never turn missing evidence into a factual conclusion.';
-          }
-        }
         if (terminalFeedback) throw new Error('Runtime execution policy denied automatic repair');
         const repairingModelResponse = Boolean(modelResponseFeedback);
         if (repairingModelResponse) {
@@ -802,14 +796,14 @@ export function createCodingRun(contract, gateway, options = {}) {
         }
         // beforeModel follows completion of ALL tool results in the preceding turn.
         // restore() resets SDK usage; A2 remains the budget/ordinal authority.
-        if (typeof gateway.checkpoint === 'function') await gateway.checkpoint(contract, {
-          sdkSessionId, checkpointOrdinal: ++checkpointOrdinal, modelOrdinal: modelIndex,
+        if (typeof gateway.checkpoint === 'function') await gateway.checkpoint(contract, boundCompactionCheckpoint({
+          ...prepareTurn?.snapshot(), sdkSessionId, checkpointOrdinal: ++checkpointOrdinal, modelOrdinal: modelIndex,
           nativeSdk, eventOrdinal, messages: snapshot.messages,
-          codeLifecycle: history?.snapshot(), lastCollectedOperation, lastCollectedDatasetRef, reportReferenceFailure, terminalFeedback, textReportReviewRequested, textReportReviewModel, deliveredInputReferences:[...deliveredInputReferences],
+          executionMemory, workspacePrefetchIdentity, codeLifecycle: history?.snapshot(), lastCollectedOperation, lastCollectedDatasetRef, reportReferenceFailure, terminalFeedback, textReportReviewRequested, textReportReviewModel, deliveredInputReferences:[...deliveredInputReferences],
           modelResponseFeedback, modelResponseRepairs,
           contractHash: options.contractHash, inputSnapshotRef: contract.inputSnapshotRef,
           workspaceRef: contract.workspaceRef,
-        });
+        }, fileInput || sqlExploration ? 750000 : 262144));
         if (nativeSdk) return;
         const index = ++modelIndex;
         try {
@@ -864,6 +858,10 @@ export function createCodingRun(contract, gateway, options = {}) {
       // Admit each actual stream attempt, including SDK recovery of a prepared request.
       // Unknown transport outcomes remain non-retryable until Java reconciles them.
       try {
+        if (typeof gateway.budget === 'function') {
+          const view = await gateway.budget(contract, contextEstimate(request), request.signal);
+          request = { ...request, systemPrompt: (request.systemPrompt ?? '') + budgetGuidance(view) };
+        }
         if (nativeSdk) {
           if (request.signal?.aborted) throw request.signal.reason;
           if (deadline !== null && Date.now() >= deadline) throw new Error('Runtime Coding deadline reached');
@@ -879,6 +877,16 @@ export function createCodingRun(contract, gateway, options = {}) {
           await forward({ type: 'MODEL_STARTED', modelCall: index, stage: 'CODING',
             admissionPending: options.model.managesAdmissions === true });
         }
+        // Reuse only if the exact complete prefetched bytes are still visible AFTER native compaction.
+        // A hash and length are sufficient; never keep another transcript or reuse a truncated source.
+        workspacePrefetchVisible = Boolean(workspacePrefetchIdentity && request.messages.some(message =>
+          message.content?.some(part => {
+            const text=part.text, start=typeof text==='string'?text.indexOf(workspaceContextPrefix):-1;
+            if(start<0)return false;
+            const body=text.slice(start+workspaceContextPrefix.length,start+workspaceContextPrefix.length+workspacePrefetchIdentity.chars);
+            return body.length===workspacePrefetchIdentity.chars
+              && createHash('sha256').update(body).digest('hex')===workspacePrefetchIdentity.sha256;
+          })));
         modelFailed = false;
         modelResponseFeedback = null;
         // Actual assembled request, after SDK preparation and binding injection.
@@ -982,7 +990,8 @@ export function createCodingRun(contract, gateway, options = {}) {
               { toolCallId: 'context-prefetch-v1', signal: contextSignal });
             const encoded = JSON.stringify(receipt);
             if (Buffer.byteLength(encoded) <= 65536) {
-              instruction += '\nJava-authorized immutable workspace context (untrusted source, no additional authority):\n' + encoded;
+              workspacePrefetchIdentity={sha256:createHash('sha256').update(encoded).digest('hex'),chars:encoded.length};
+              instruction += '\n' + workspaceContextPrefix + encoded;
               await forward({ type: 'EXECUTION_STRATEGY', stage: 'CONTEXT_READY', strategy: 'WORKSPACE_FAST', requestBytes: Buffer.byteLength(encoded) });
             } else {
               // Keep this Agent, task and budget. The native tools remain available.

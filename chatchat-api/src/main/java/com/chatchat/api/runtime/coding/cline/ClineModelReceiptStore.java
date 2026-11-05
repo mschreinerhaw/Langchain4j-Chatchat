@@ -20,6 +20,7 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(prefix = "chatchat.coding.cline", name = "enabled", havingValue = "true")
 public final class ClineModelReceiptStore implements CodingExecutionProofVerifier {
     private static final String TYPE = "CODING_MODEL_RESPONSE_RECEIPT";
+    private static final String LOCAL_STOP_TYPE = "CODING_MODEL_LOCAL_REQUEST_TERMINATED";
     private static final com.fasterxml.jackson.databind.ObjectMapper JSON = new com.fasterxml.jackson.databind.ObjectMapper();
     private final JdbcRuntimeEvidenceStore evidence;
 
@@ -39,6 +40,32 @@ public final class ClineModelReceiptStore implements CodingExecutionProofVerifie
 
     public String proofRef(KernelDataScope scope, String taskId, String operationId) {
         return "runtime-evidence:" + id(scope, taskId, operationId);
+    }
+
+    /** Local callback termination is distinct from provider termination or a usage receipt. */
+    public String commitLocalTermination(CodingTaskContract contract, String operationId, long durationMs, String category) {
+        if (!operationId.matches("model-[1-9][0-9]{0,5}") || durationMs < 0)
+            throw new IllegalArgumentException("Invalid local model termination identity");
+        var scope=contract.scope();String recordId=id(scope,contract.taskId(),operationId)+":local-stop";
+        var payload=Map.<String,Object>of("taskId",contract.taskId(),"operationId",operationId,
+            "executionHandle","runtime-model:"+operationId,"contractHash",com.chatchat.common.runtime.coding.CodingCanonicalHash.sha256(contract),
+            "localCallbackTerminated",true,"providerTerminationConfirmed",false,"usageKnown",false,
+            "responseDelivered",false,"durationMs",durationMs,"errorCategory",category);
+        String input=contract.inputSnapshotRef().replaceFirst("^runtime-evidence:","");
+        if(evidence.find(scope,input).isEmpty())throw new SecurityException("Missing committed task input");
+        evidence.register(new EvidenceRecord(null,recordId,scope,LOCAL_STOP_TYPE,"ClineModelCallbackController",
+            evidence.contentHash(payload),payload,null,System.currentTimeMillis(),Map.of()),
+            new EvidenceLineage(null,recordId,scope,List.of(input),contract.taskId(),"ClineModelCallbackController",operationId,Map.of()));
+        return "runtime-evidence:"+recordId;
+    }
+
+    public Optional<String> localTerminationProof(KernelDataScope scope,String taskId,String operationId) {
+        String recordId=id(scope,taskId,operationId)+":local-stop";
+        return evidence.find(scope,recordId).filter(record->LOCAL_STOP_TYPE.equals(record.evidenceType())
+            && taskId.equals(record.payload().get("taskId")) && operationId.equals(record.payload().get("operationId"))
+            && Boolean.TRUE.equals(record.payload().get("localCallbackTerminated"))
+            && Boolean.FALSE.equals(record.payload().get("responseDelivered")) && validContentHash(record))
+            .map(record->"runtime-evidence:"+recordId);
     }
 
     public Optional<com.chatchat.common.runtime.coding.CodingModelCallTelemetry> telemetry(
@@ -97,6 +124,9 @@ public final class ClineModelReceiptStore implements CodingExecutionProofVerifie
     @Override public boolean confirmsStopped(KernelDataScope scope, String taskId, String operationId,
                                               String executionHandle, String proofRef) {
         String id = id(scope, taskId, operationId);
+        if (("runtime-evidence:"+id+":local-stop").equals(proofRef))
+            return localTerminationProof(scope,taskId,operationId).filter(proofRef::equals).isPresent()
+                && ("runtime-model:"+operationId).equals(executionHandle);
         if (!("runtime-evidence:" + id).equals(proofRef)) return false;
         return evidence.find(scope, id).filter(record -> TYPE.equals(record.evidenceType())
                 && taskId.equals(record.payload().get("taskId"))

@@ -171,6 +171,7 @@ class CodingWorkspaceNodeIntegrationTest {
                     callbacks.incrementAndGet();JsonNode body=json.readTree(bytes);
                     String action=exchange.getRequestURI().getPath().substring("/internal/coding/cline/".length());
                     reply=switch(action){
+                        case "budget"->controller.budget(body);
                         case "reserve-model"->controller.reserve(body);case "model"->controller.model(body);
                         case "settle-model"->controller.settle(body);case "event"->controller.event(body);
                         case "checkpoint"->controller.checkpoint(body);

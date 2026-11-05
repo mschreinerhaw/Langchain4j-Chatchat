@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "runtime_os.coding.completion_evaluation.v1",
+  "admittedTasks": 1,
+  "budgetedTaskSuccessRate": 0,
+  "verifiedDeliverableRate": 0,
+  "successfulTasks": 0,
+  "knownTokens": 152878,
+  "unknownUsageCalls": 1,
+  "tokensPerSuccessfulTask": null,
+  "modelCallsPerSuccessfulTask": null,
+  "firstValidResultMillis": [],
+  "firstValidResultCensoredTasks": 1,
+  "reconciliationRecoveryRate": 0,
+  "reconciliationOperations": 1,
+  "wastedRepeatedContextRatio": null,
+  "contextMeasurementRequests": 0,
+  "contextRatioUnit": "EXACT_DUPLICATE_READ_OUTPUT_UTF8_BYTES_NOT_PROVIDER_TOKENS"
+}

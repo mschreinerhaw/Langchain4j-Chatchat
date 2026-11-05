@@ -303,6 +303,12 @@ public final class ClinePythonCallbackController {
                     }
                 }
             }
+            if(Boolean.TRUE.equals(response.get("resultAvailable"))) {
+                var asset=new java.util.LinkedHashMap<String,Object>();
+                for(String key:List.of("inputSnapshotRef","codeArtifactRef","executionReceiptRef","resultDatasetRef","validationRecordRef","evidenceBundleRef","validationStatus"))
+                    if(response.containsKey(key))asset.put(key,response.get(key));
+                tasks.preserveDeliverable(call.scope(),call.taskId(),call.lease(),operationId,asset);
+            }
             return withFeedback(call,result,response);
         });
     }

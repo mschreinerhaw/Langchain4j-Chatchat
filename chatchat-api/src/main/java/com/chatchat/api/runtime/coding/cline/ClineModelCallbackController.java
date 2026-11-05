@@ -62,6 +62,22 @@ public final class ClineModelCallbackController {
     private final CodingEvidenceCollector collector;
     private final ObjectMapper mapper;
     private final Map<String, Instant> freshDispatches = new ConcurrentHashMap<>();
+    @org.springframework.beans.factory.annotation.Value("${chatchat.coding.completion-reserve.minimum-ratio:0.15}")
+    private double completionMinimumRatio = 0.15;
+    @org.springframework.beans.factory.annotation.Value("${chatchat.coding.completion-reserve.maximum-ratio:0.35}")
+    private double completionMaximumRatio = 0.35;
+
+    @PostMapping("/budget")
+    public Map<String,Object> budget(@RequestBody JsonNode body) {
+        return bound(body,call->{
+            contract(body,call);
+            var estimate=body.path("contextTokensEstimate");
+            if(!estimate.isIntegralNumber()||!estimate.canConvertToLong()||estimate.asLong()<0)
+                throw new IllegalArgumentException("Nonnegative context token estimate required");
+            return tasks.budgetSnapshot(call.scope(),call.taskId(),estimate.asLong(),
+                new com.chatchat.agents.runtime.coding.CodingCompletionBudget(completionMinimumRatio,completionMaximumRatio));
+        });
+    }
     private CodingWorkspaceService workspace;
     private CodingDataSupplyService dataSupply;
     private CodingAnalysisSqlService analysisSql;
@@ -410,6 +426,7 @@ public final class ClineModelCallbackController {
             if (!freshDispatches.remove(key(call, operationId), permittedAt))
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Model dispatch permission was already consumed");
             Map<String, Object> response;
+            long localRequestStarted=System.nanoTime();
             var renewal = modelLeaseRenewals.scheduleWithFixedDelay(() -> identity.as(call.scope(), GRANTS, () -> {
                 var current = tasks.get(call.scope(), call.taskId());
                 if (current.status().terminal() || current.cancellationRequested()
@@ -435,6 +452,11 @@ public final class ClineModelCallbackController {
                         ? "Runtime model request rejected before provider dispatch; local stop receipt archived"
                         : "Model response rejected; provider stop and usage receipt archived", invalid);
             } catch (RuntimeException providerFailure) {
+                // No provider response can be delivered by this callback after it throws.
+                // Upstream inference/billing may remain unknown: do NOT release its reservation.
+                receipts.commitLocalTermination(contract,operationId,
+                    java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-localRequestStarted),
+                    isRequestTimeout(providerFailure)?"MODEL_REQUEST_TIMEOUT":"MODEL_REQUEST_FAILED");
                 LOG.warn("Bound Coding model operation {} failed after its durable start intent",
                     operationId, providerFailure);
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
@@ -528,7 +550,7 @@ public final class ClineModelCallbackController {
         }
         for (String key : List.of("scriptVersion", "modelCall", "sourceBytes", "durationMs", "maxOutputTokens", "repairAttempts", "repairAttempt", "maxRepairAttempts", "queueTimeMs", "firstTokenMs", "generationTimeMs", "retryTimeMs", "parentCodeVersion", "codeVersion", "toolDurationMs", "messageCount", "requestBytes", "cpuTimeMs", "maxRssBytes", "callbackFirstEventMs", "responseBytes", "toolCount", "validationDurationMs",
                 "contextSystemBytes", "contextToolsBytes", "contextTaskBytes", "contextSkillsBytes", "contextCodeBytes", "contextReportBytes", "contextHistoryBytes", "contextEnvelopeBytes", "estimatedInputTokens", "softInputTokenBudget",
-                "repeatedContextBytes", "duplicateContextBytes", "newContextBytes", "compactionCount", "contextSizeBefore", "contextSizeAfter", "callbackConnectMs", "callbackHeadersMs", "callbackBodyMs", "callbackHttpDurationMs")) {
+                "repeatedContextBytes", "duplicateContextBytes", "avoidableRepeatedContextBytes", "newContextBytes", "compactionCount", "contextSizeBefore", "contextSizeAfter", "callbackConnectMs", "callbackHeadersMs", "callbackBodyMs", "callbackHttpDurationMs")) {
             if (event.path(key).isIntegralNumber() && event.path(key).asLong() >= 0)
                 payload.put(key, event.path(key).asLong());
         }

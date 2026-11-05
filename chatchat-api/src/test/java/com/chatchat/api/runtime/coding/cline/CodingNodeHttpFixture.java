@@ -30,6 +30,7 @@ final class CodingNodeHttpFixture implements AutoCloseable {
                 var body=json.readTree(bytes);String action=exchange.getRequestURI().getPath().substring(23);
                 callbackCounts.computeIfAbsent(action,ignored->new java.util.concurrent.atomic.AtomicInteger()).incrementAndGet();
                 reply=switch(action) {
+                    case "budget"->model.budget(body);
                     case "reserve-model"->model.reserve(body);case "model"->model.model(body);case "settle-model"->model.settle(body);
                     case "event"->model.event(body);case "finish"->model.finish(body);case "data-request"->model.dataRequest(body);
                     case "validate-sql"->model.validateSql(body);

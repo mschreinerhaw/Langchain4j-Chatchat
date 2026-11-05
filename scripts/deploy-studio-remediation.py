@@ -251,10 +251,11 @@ def main():
 
     try:
         run('docker', 'stop', '-t', '60', *reversed(order))
-        if manifest.get('sqlMetadataCallbacks'):
+        if manifest.get('sqlMetadataCallbacks') or manifest.get('budgetCallbacks'):
             config=configs['config/node-proxy.conf'].decode()
             assert '|workspace-propose|' in config
-            if '|workspace-metadata|' not in config: config=config.replace('|workspace-propose|','|workspace-propose|workspace-metadata|workspace-validate|',1)
+            if manifest.get('sqlMetadataCallbacks') and '|workspace-metadata|' not in config: config=config.replace('|workspace-propose|','|workspace-propose|workspace-metadata|workspace-validate|',1)
+            if manifest.get('budgetCallbacks') and '|budget|' not in config: config=config.replace('|reserve-model|','|budget|reserve-model|',1)
             (stage/'config/node-proxy.conf').write_text(config)
         for name in order:
             retired[name] = name + '-before-studio-' + stamp

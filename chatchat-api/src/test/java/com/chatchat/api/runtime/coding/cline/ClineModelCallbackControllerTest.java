@@ -38,6 +38,42 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClineModelCallbackControllerTest {
+    @Test void failedCallbackArchivesLocalClosureAndBudgetReadKeepsUnknownUsageCharged() {
+        var source=new DriverManagerDataSource("jdbc:h2:mem:callback-local-stop-"+UUID.randomUUID()+";DB_CLOSE_DELAY=-1","sa","");
+        new ResourceDatabasePopulator(new ClassPathResource("runtime-evidence-schema.sql")).execute(source);
+        var json=new ObjectMapper().findAndRegisterModules();
+        var store=new JdbcRuntimeEvidenceStore(new JdbcTemplate(source),json,new DataSourceTransactionManager(source));
+        var scope=new KernelDataScope("tenant","owner",null,null,"run",null,Map.of());
+        var input=Map.<String,Object>of("fixture","authorized");
+        store.register(new EvidenceRecord(null,"input",scope,"CODING_INPUT_SNAPSHOT","test",store.contentHash(input),input,null,System.currentTimeMillis(),Map.of()),
+            new EvidenceLineage(null,"input",scope,List.of(),"task","test",null,Map.of()));
+        var access=new CodingInvocationContext();var timer=Executors.newSingleThreadScheduledExecutor();
+        try {
+            var receipts=new ClineModelReceiptStore(store);
+            var tasks=new DurableCodingTaskService(store,json,Clock.systemUTC(),access,(owner,ref)->true,receipts,Runnable::run,new ConcurrentTaskScheduler(timer));
+            var contract=contract(scope);var grants=EnumSet.allOf(CodingTaskAccess.Action.class);
+            var lease=access.as(scope,grants,()->{var accepted=tasks.submit(contract);return tasks.claim(scope,"task","cline-adapter:test",Duration.ofMinutes(5),accepted.revision());});
+            var model=mock(ClineRuntimeModelBridge.class);
+            when(model.complete(any(),any())).thenThrow(new IllegalStateException("provider",new java.net.http.HttpTimeoutException("request timed out")));
+            var controller=new ClineModelCallbackController(access,tasks,model,receipts,mock(CodingInputSnapshotService.class),mock(CodingValidationPlanService.class),mock(CodingEvidenceCollector.class),json);
+            var body=json.createObjectNode();body.set("scope",json.valueToTree(scope));body.put("taskId","task");
+            body.put("contractHash",CodingCanonicalHash.sha256(contract));body.put("fencingToken",lease.fencingToken());body.set("contract",json.valueToTree(contract));
+            body.set("model",json.valueToTree(Map.of("operationId","model-1","modelCalls",1,"maxTokens",2048)));
+            body.set("request",json.valueToTree(Map.of("operationId","model-1","messages",List.of(),"tools",List.of())));
+            body.put("contextTokensEstimate",500);controller.reserve(body);
+            assertThatThrownBy(()->controller.model(body)).hasMessageContaining("Model API request timed out");
+            assertThat(receipts.localTerminationProof(scope,"task","model-1")).isPresent();
+            assertThat(receipts.response(scope,"task","model-1")).isEmpty();
+            var view=controller.budget(body);
+            assertThat(view).containsEntry("remainingTokens",contract.budget().maxModelTokens()-2048);
+            assertThat((List<?>)view.get("unknownUsageOperations")).hasSize(1);
+            assertThatThrownBy(()->controller.model(body)).hasMessageContaining("not a fresh A2 start intent");
+            body.put("fencingToken",lease.fencingToken()+1);
+            assertThatThrownBy(()->controller.budget(body)).isInstanceOf(RuntimeException.class);
+            verify(model,times(1)).complete(any(),any());
+        } finally {timer.shutdownNow();}
+    }
+
     @Test void modelTimeoutCauseIsRetainedWithoutMislabelingTaskCancellation() {
         assertThat(ClineModelCallbackController.isRequestTimeout(new IllegalStateException("provider",
             new java.net.http.HttpTimeoutException("request timed out")))).isTrue();

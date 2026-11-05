@@ -1,0 +1,179 @@
+{
+  "schemaVersion": "coding.completion.diagnostic.v1",
+  "taskId": "analysis-coding-767792a242a56a9d574d92b827287042fd56e2a825b9fada6aa3781557deecb0",
+  "diagnosticMode": "READ_ONLY_NO_BUSINESS_REEXECUTION",
+  "runtimeStatus": "RUNNING",
+  "monitorStatus": "FAILED",
+  "startedAt": "2026-11-05T05:37:29.737Z",
+  "endedAt": null,
+  "budget": {
+    "budgetId": "analysis-coding-tool-budget:analysis-coding-767792a242a56a9d574d92b827287042fd56e2a825b9fada6aa3781557deecb0",
+    "deadlineAt": "2026-11-05T05:57:28.807Z",
+    "maxModelCalls": 12,
+    "maxModelTokens": 786432,
+    "maxToolCalls": 24,
+    "maxCodeExecutions": 12,
+    "maxCostAmount": "10",
+    "costCurrency": "USD",
+    "maxCpuMillis": 300000,
+    "maxMemoryBytes": 536870912,
+    "maxOutputBytes": 4194304
+  },
+  "modelCalls": [
+    {
+      "ordinal": 1,
+      "status": "SUCCEEDED",
+      "startedAt": "2026-11-05T05:37:30.694284230Z",
+      "finishedAt": "2026-11-05T05:37:58.896309479Z",
+      "durationMs": 28202,
+      "usage": {
+        "inputTokens": 17118,
+        "outputTokens": 1706,
+        "totalCost": null,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 1554
+      },
+      "requestBytes": 73210,
+      "repeatedContextBytes": 0,
+      "contextSizeBefore": 57902,
+      "contextSizeAfter": 57902,
+      "compactionCount": 0
+    },
+    {
+      "ordinal": 2,
+      "status": "SUCCEEDED",
+      "startedAt": "2026-11-05T05:38:00.552264906Z",
+      "finishedAt": "2026-11-05T05:38:15.678612423Z",
+      "durationMs": 15126,
+      "usage": {
+        "inputTokens": 21869,
+        "outputTokens": 795,
+        "totalCost": null,
+        "cacheReadTokens": 16128,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 626
+      },
+      "requestBytes": 89428,
+      "repeatedContextBytes": 73096,
+      "contextSizeBefore": 76229,
+      "contextSizeAfter": 76229,
+      "compactionCount": 0
+    },
+    {
+      "ordinal": 3,
+      "status": "SUCCEEDED",
+      "startedAt": "2026-11-05T05:38:18.427400771Z",
+      "finishedAt": "2026-11-05T05:39:04.906073951Z",
+      "durationMs": 46478,
+      "usage": {
+        "inputTokens": 30046,
+        "outputTokens": 2910,
+        "totalCost": null,
+        "cacheReadTokens": 21504,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 2823
+      },
+      "requestBytes": 113101,
+      "repeatedContextBytes": 88989,
+      "contextSizeBefore": 105652,
+      "contextSizeAfter": 105652,
+      "compactionCount": 0
+    },
+    {
+      "ordinal": 4,
+      "status": "SUCCEEDED",
+      "startedAt": "2026-11-05T05:39:06.964897234Z",
+      "finishedAt": "2026-11-05T05:43:54.210233550Z",
+      "durationMs": 287245,
+      "usage": {
+        "inputTokens": 33426,
+        "outputTokens": 27201,
+        "totalCost": null,
+        "cacheReadTokens": 28672,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 8033
+      },
+      "requestBytes": 123045,
+      "repeatedContextBytes": 112334,
+      "contextSizeBefore": 117956,
+      "contextSizeAfter": 117956,
+      "compactionCount": 0
+    },
+    {
+      "ordinal": 5,
+      "status": "SUCCEEDED",
+      "startedAt": "2026-11-05T05:44:04.958363954Z",
+      "finishedAt": "2026-11-05T05:44:10.479257337Z",
+      "durationMs": 5520,
+      "usage": {
+        "inputTokens": 17497,
+        "outputTokens": 310,
+        "totalCost": null,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 220
+      },
+      "requestBytes": 74657,
+      "repeatedContextBytes": 73096,
+      "contextSizeBefore": 190583,
+      "contextSizeAfter": 58686,
+      "compactionCount": 1
+    },
+    {
+      "ordinal": 6,
+      "status": "FAILED",
+      "startedAt": "2026-11-05T05:44:12.015Z",
+      "finishedAt": "2026-11-05T05:49:13.047Z",
+      "durationMs": 301032,
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalCost": null
+      },
+      "requestBytes": 140016,
+      "repeatedContextBytes": 74281,
+      "contextSizeBefore": 262186,
+      "contextSizeAfter": 130289,
+      "compactionCount": 1
+    }
+  ],
+  "deliverables": [],
+  "requirementsVerified": false,
+  "reconciliations": [
+    {
+      "originalOperationId": "model-6",
+      "recoveredOperationId": null,
+      "stopProofVerified": false,
+      "originalTaskContinued": false,
+      "duplicateDispatch": false
+    }
+  ],
+  "timingEvents": [
+    {},
+    {},
+    {},
+    {},
+    {},
+    {}
+  ],
+  "recoveryAllowed": false,
+  "recoveryBlockers": [
+    "Original deadline expired",
+    "No genuine historical model-6 local/provider stop evidence",
+    "Unknown provider usage must remain reserved"
+  ],
+  "python": {
+    "executions": 1,
+    "exitCode": 1,
+    "sourceLines": 707,
+    "sourceBytes": 60976,
+    "durationMs": 5283,
+    "error": "AssertionError",
+    "line": 541,
+    "resultAvailable": false,
+    "stopProofPresent": true
+  },
+  "taskEvidencePreserved": true,
+  "productionSourceCommit": "a5a5cf98b54de79fc0c9a569c4d0bcda1294db00"
+}

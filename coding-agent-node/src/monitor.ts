@@ -18,7 +18,7 @@ const EVENT_KEYS = ['stage', 'status', 'operationId', 'proposedOperationId', 'mo
   'callbackFirstEventMs', 'responseBytes', 'toolCount', 'requestHash', 'strategy', 'reason', 'validationDurationMs',
   'contextSystemBytes', 'contextToolsBytes', 'contextTaskBytes', 'contextSkillsBytes', 'contextCodeBytes',
   'contextReportBytes', 'contextHistoryBytes', 'contextEnvelopeBytes', 'estimatedInputTokens', 'softInputTokenBudget', 'exceedsSoftBudget', 'estimator',
-  'repeatedContextBytes', 'duplicateContextBytes', 'newContextBytes', 'contextChangeReason', 'compactionCount', 'compactionStrategy',
+  'repeatedContextBytes', 'duplicateContextBytes', 'avoidableRepeatedContextBytes', 'newContextBytes', 'contextChangeReason', 'compactionCount', 'compactionStrategy',
   'contextSizeBefore', 'contextSizeAfter', 'callbackConnectMs', 'callbackHeadersMs', 'callbackBodyMs', 'callbackHttpDurationMs', 'queueTimeScope', 'providerTimingAvailability'];
 type Contract = Record<string, any>;
 interface Options {
@@ -188,7 +188,7 @@ export class MonitorStore {
           call.callbackDurationMs = integer(event.durationMs);
           for (const key of ['callbackFirstEventMs', 'requestBytes', 'responseBytes', 'messageCount', 'toolCount'] as const)
             call[key] = integer(event[key]);
-          for (const key of ['estimatedInputTokens', 'repeatedContextBytes', 'duplicateContextBytes', 'newContextBytes',
+          for (const key of ['estimatedInputTokens', 'repeatedContextBytes', 'duplicateContextBytes', 'avoidableRepeatedContextBytes', 'newContextBytes',
             'contextSizeBefore', 'contextSizeAfter', 'compactionCount'] as const) call[key] = integer(event[key]);
           if (typeof event.contextChangeReason === 'string') call.contextChangeReason = event.contextChangeReason;
           if (typeof event.errorCategory === 'string') call.errorCategory = event.errorCategory;

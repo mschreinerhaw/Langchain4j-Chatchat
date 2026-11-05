@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createSkillDisclosure } from '../src/skill-disclosure.js';
 import { createCodingRun } from '../src/runner.js';
 import { createCodingProgress } from '../src/coding-progress.js';
+import { sdkPrepareTurn } from '../src/sdk-adapter.js';
 
 test('Skill reuse requires the exact versioned body in the SDK-prepared context',()=>{
   const d=createSkillDisclosure(),input={skillId:'s'},body={skillId:'s',version:'1',instructions:'PRIVATE_BODY',contentSha256:'hash'};
@@ -24,6 +25,25 @@ test('Reference paging preserves original integrity metadata and Unicode offsets
   assert.equal(body.content,'a😀中z');assert.equal(d.disclose(body,{path:'refs/a.md',offset:3,limit:2}).result.content,'z');
   assert.throws(()=>d.disclose(body,{path:'SKILL.md',offset:0}),/in full/);
   assert.throws(()=>d.disclose({...body,encoding:'base64'},{path:body.path,offset:0}),/UTF-8/);
+});
+
+test('Installed native SDK compaction evicts an early Skill and its next authorized disclosure restores full content',async()=>{
+  const disclosure=createSkillDisclosure(),body={skillId:'method',version:'1',instructions:'EARLY_METHOD_'+('methodology '.repeat(3000))};
+  const input={skillId:'method'};
+  const messages=[{role:'user',content:[{type:'text',text:'Analyze only authorized inputs'}]},
+    {role:'assistant',content:[{type:'tool-call',toolCallId:'early-skill',toolName:'skill_read',input}]},
+    {role:'tool',content:[{type:'tool-result',toolCallId:'early-skill',toolName:'skill_read',output:body}]}];
+  for(let i=0;i<12;i++)messages.push(
+    {role:'assistant',content:[{type:'tool-call',toolCallId:'later-'+i,toolName:'python_execute',input:{source:'x'.repeat(16000)}}]},
+    {role:'tool',content:[{type:'tool-result',toolCallId:'later-'+i,toolName:'python_execute',output:{status:'FAILED',diagnosis:'repair '+i},isError:true}]});
+  disclosure.prepare({messages});assert.equal(disclosure.disclose(body,input).result.reusedFromToolCallId,'early-skill');
+  const compacted=await sdkPrepareTurn('skill-compaction')({agentId:'skill-compaction',iteration:13,messages,tools:[],
+    model:{info:{maxInputTokens:16384,contextWindow:20000}},systemPrompt:'Authorized analysis',signal:new AbortController().signal});
+  assert.ok(compacted);assert.ok(!compacted.messages.flatMap(m=>m.content).some(p=>p.type==='tool-result'&&p.toolCallId==='early-skill'));
+  disclosure.prepare(compacted);
+  const reread=disclosure.disclose(structuredClone(body),input);
+  assert.equal(reread.result.instructions,body.instructions);assert.equal(reread.observation.contentReused,false);
+  assert.equal(messages[2].content[0].output.instructions,body.instructions);
 });
 
 test('Invalid snapshot reference is structured repair feedback and Cline corrects it in the original task',async()=>{

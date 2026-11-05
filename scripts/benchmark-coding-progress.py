@@ -25,7 +25,7 @@ def main():
     parser.add_argument('command', choices=['prepare', 'run'])
     parser.add_argument('--root', required=True, type=Path)
     parser.add_argument('--auth', required=True, type=Path)
-    parser.add_argument('--variant', choices=['baseline', 'candidate', 'final'])
+    parser.add_argument('--variant', choices=['baseline', 'candidate', 'final', 'verified'])
     parser.add_argument('--model', default='qwen3.8-flash')
     parser.add_argument('--repeats', type=int, default=2)
     args = parser.parse_args()

@@ -94,7 +94,10 @@ def main():
             assert current['Config'].get(key) == old['Config'].get(key), 'Changed worker configuration: ' + key
         for key in ['ReadonlyRootfs', 'CapAdd', 'CapDrop', 'SecurityOpt', 'Memory', 'NanoCpus', 'PidsLimit', 'Binds', 'Mounts', 'NetworkMode', 'RestartPolicy', 'Tmpfs']:
             assert current['HostConfig'].get(key) == old['HostConfig'].get(key), 'Changed worker boundary: ' + key
-        assert current['Mounts'] == old['Mounts'], 'Changed effective mounts'
+        # Docker does not preserve inspect Mounts ordering across recreation.
+        # Compare every effective mount field, including RW and propagation.
+        mount_order = lambda mounts: sorted(mounts, key=lambda mount: mount['Destination'])
+        assert mount_order(current['Mounts']) == mount_order(old['Mounts']), 'Changed effective mounts'
         for module, digest in candidate['modulesAfter'].items():
             assert run('docker', 'exec', name, 'sha256sum', '/srv/coding-agent/dist/' + module).split()[0] == digest
         run('bash', str(stage / 'restrict-coding-worker.sh'))

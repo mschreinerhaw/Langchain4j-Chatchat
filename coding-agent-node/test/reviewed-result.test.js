@@ -23,6 +23,31 @@ const verified = (version) => ({ status: 'SUCCEEDED', executorStopped: true, res
   resultDatasetRef: `runtime-evidence:result-${version}`, validationRecordRef: `validation-${version}`,
   evidenceBundleRef: `bundle-${version}`, validationStatus: 'INCONCLUSIVE' });
 
+test('native SDK completion guard continues a plan-only STOP to real execution and review', async () => {
+  const { run, counts } = fixture((turn, request) => {
+    if (turn === 1) return { text: '<initial_plan>Calculate and verify the aggregate.</initial_plan>',
+      finishReason: 'STOP', toolCalls: [], usage: { inputTokens: 10, outputTokens: 5 } };
+    if (turn === 2) {
+      assert.match(JSON.stringify(request.messages), /A plan alone does not complete this task/);
+      return python(turn);
+    }
+    return { toolCalls: [{ id: 'confirm', name: 'artifact_read', input: { reference: 'runtime-evidence:result-1' } }] };
+  }, verified, (_count, reference) => ({ reference, complete: true,
+    rows: [{ reportMarkdown: 'The real computed aggregate.' }], reportReferenceValidation: { valid: true } }));
+  assert.equal((await run.run()).status, 'completed');
+  assert.equal(counts.models, 3); assert.equal(counts.executions, 1); assert.equal(counts.reads, 1);
+  assert.equal(run.events.filter(e => e.type === 'MODEL_STARTED').length, 3);
+});
+
+test('plan-only continuation retains the original model budget and cannot certify a missing result', async () => {
+  const { run, counts } = fixture(() => ({ text: 'I will calculate next.', finishReason: 'STOP', toolCalls: [],
+    usage: { inputTokens: 10, outputTokens: 5 } }), () => assert.fail('No Python was requested'),
+    () => assert.fail('No artifact exists'), { ...contract, budget: { maxModelCalls: 2 } });
+  assert.equal((await run.run()).status, 'failed');
+  assert.equal(counts.models, 2); assert.equal(counts.executions, 0);
+  assert.notEqual(counts.finish?.status, 'completed');
+});
+
 test('each actual model attempt gets a fresh authoritative budget and cannot bypass reconciliation',async()=>{
   let budgetReads=0;
   const {run,counts}=fixture((turn,request)=>{

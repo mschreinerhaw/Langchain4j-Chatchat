@@ -52,7 +52,7 @@ def main():
     root = args.root
     monitor = json.loads(Path('/opt/runtime-os-docker-stage/coding-monitor/data/observations.json').read_text())
     rows = []
-    for variant in ['baseline', 'candidate', 'final']:
+    for variant in ['baseline', 'candidate', 'final', 'verified']:
         directory = root / variant
         if not directory.exists():
             continue
@@ -119,7 +119,7 @@ def main():
                     and e.get('status') == 'FAILED' for e in events) and row['resultAvailable'])
             row['successfulExecution'] = row['nodeStatus'] == 'COMPLETED' and row['resultAvailable'] and row['pythonExecutions'] > 0
     aggregate = {}
-    for variant in ['baseline', 'candidate', 'final']:
+    for variant in ['baseline', 'candidate', 'final', 'verified']:
         group = [r for r in rows if r['variant'] == variant]
         if not group:
             continue
@@ -128,6 +128,10 @@ def main():
             values = [r[key] for r in group if r.get(key) is not None]
             metrics[key] = {'observed': len(values), 'median': statistics.median(values) if values else None}
         aggregate[variant] = {'tasks': len(group), 'successfulExecutions': sum(bool(r.get('successfulExecution')) for r in group),
+            'totalModelCalls': sum(r.get('modelCalls', 0) for r in group),
+            'knownUsageCalls': sum(r.get('knownUsageCalls', 0) for r in group),
+            'unknownUsageCalls': sum(max(0, r.get('modelCalls', 0) - r.get('knownUsageCalls', 0)) for r in group),
+            'knownTokensTotal': sum(r.get('knownTokens', 0) for r in group),
             'repairTasks': sum(r['case'].startswith('repair') for r in group),
             'repairSuccesses': sum(r['case'].startswith('repair') and r.get('repairObserved', False) for r in group), 'metrics': metrics}
     report = {'capturedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'rows': rows, 'aggregate': aggregate,

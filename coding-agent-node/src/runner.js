@@ -747,7 +747,9 @@ export function createCodingRun(contract, gateway, options = {}) {
         : resourceText && pythonExecutionStarted ? pythonCompletionGuidance()
         : resourceText && permitted.has('report_submit') && !lastCollectedOperation
           ? 'The answer has not been submitted or validated. Use report_submit with the reviewed report, exact evidenceReferences and limitations. Plain assistant text does not publish a result. If evidence is insufficient, submit the supported findings and explicitly state the gaps; never invent evidence.'
-          : undefined,
+          : reviewedAnalysis && !lastCollectedOperation
+            ? 'No reviewed Runtime result has been produced. A plan alone does not complete this task. Continue the same authorized task: use the necessary tools and submit focused code when evidence is sufficient, then review the real result. If evidence is insufficient, use the permitted report path to state supported findings and exact gaps. Do not invent results or repeat a full plan. Existing permissions, execution policy and budgets still apply.'
+            : undefined,
     },
     hooks: {
       async beforeTool({toolCall}) {

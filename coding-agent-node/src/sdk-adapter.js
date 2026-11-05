@@ -113,6 +113,20 @@ export function sdkPrepareTurn(sessionId, currentCode = () => null, options = {}
     const canonical = context.messages.filter(message => !(message.role === 'user'
       && message.content?.length === 1 && message.content[0].type === 'text'
       && injectedBindings.has(message.content[0].text)));
+    const lastToolRound = canonical.findLastIndex(message => message.role === 'assistant'
+      && message.content?.some(part => part.type === 'tool-call'));
+    // Python and artifact reads have their own code identity, execution memory and report guards.
+    // Other latest call/result pairs must remain exact so compaction cannot erase the
+    // very input/error the next turn needs and make Cline repeat the same read.
+    let protectedRound = [];
+    if(lastToolRound>=0 && !canonical[lastToolRound].content.some(part => part.type==='tool-call'
+        && ['python_execute','artifact_read'].includes(part.toolName))) {
+      const pending=new Set(canonical[lastToolRound].content.filter(part=>part.type==='tool-call').map(part=>part.toolCallId));
+      let end=lastToolRound+1;
+      for(;end<canonical.length&&pending.size;end++)
+        for(const part of canonical[end].content)if(part.type==='tool-result')pending.delete(part.toolCallId);
+      if(!pending.size)protectedRound=canonical.slice(lastToolRound,end);
+    }
     const messages = canonical.map(message => ({ ...message,
       role: message.role === 'tool' ? 'user' : message.role,
       content: message.content.map(part => part.type === 'tool-call'
@@ -132,7 +146,7 @@ export function sdkPrepareTurn(sessionId, currentCode = () => null, options = {}
       && typeof code.version?.codeHash === 'string' && code.version.codeHash.length > 0
       && context.tools?.some(tool => tool.name === 'code_read'));
     const binding = reviewOnly || referenceOnly ? { version: code.version, lastValidatedHash: code.lastValidatedHash } : code;
-    const protectedTokens = Math.ceil(Buffer.byteLength(JSON.stringify({ binding, review, memory }) ?? '') / 4);
+    const protectedTokens = Math.ceil(Buffer.byteLength(JSON.stringify({ binding, review, memory, protectedRound }) ?? '') / 4);
     const allowance = Number.isSafeInteger(options.inputTokenBudget) && options.inputTokenBudget > 0
       ? Math.min(knownLimit, options.inputTokenBudget) : knownLimit;
     const beforeBytes = Buffer.byteLength(JSON.stringify(messages));
@@ -148,7 +162,7 @@ export function sdkPrepareTurn(sessionId, currentCode = () => null, options = {}
     const phaseAllowance = finishing
       ? Math.max(protectedTokens + 1, Math.floor(projectedTokens * (1 - ratio))) : allowance;
     const redundancyAllowance = options.statefulCompactionEnabled && duplicateBytes > 0
-      ? Math.max(protectedTokens + 1, Math.floor((beforeBytes - duplicateBytes) / 4)) : allowance;
+      ? Math.max(protectedTokens + 1, allowance - Math.floor(duplicateBytes / 4)) : allowance;
     // Remaining cumulative resources can require native compaction before the window is full.
     // No summarizing model request is introduced.
     const budgetAllowance = budget?.remainingTokens > 0 && budget.remainingModelCalls > 0
@@ -173,6 +187,15 @@ export function sdkPrepareTurn(sessionId, currentCode = () => null, options = {}
           ? { type: 'tool-result', toolCallId: part.tool_use_id, toolName: part.name,
             output: (() => { try { return JSON.parse(part.content); } catch { return part.content; } })(), isError: part.is_error } : part),
     })) : [...canonical];
+    const partKey = part => JSON.stringify({type:part.type,toolName:part.toolName,toolCallId:part.toolCallId,
+      input:part.input,output:part.output,isError:part.isError===true,text:part.text});
+    const present = new Set(projected.flatMap(message => message.content).map(partKey));
+    if(protectedRound.length && protectedRound.some(message=>message.content.some(part=>!present.has(partKey(part))))) {
+      const ids = new Set(protectedRound.flatMap(message=>message.content).filter(part=>part.toolCallId).map(part=>part.toolCallId));
+      const retained = projected.map(message=>({...message,content:message.content.filter(part=>!ids.has(part.toolCallId))}))
+        .filter(message=>message.content.length);
+      projected.splice(0,projected.length,...retained,...protectedRound);
+    }
     // Basic compaction may abbreviate tool results. Semantic review still needs
     // the complete latest immutable report, never a truncated earlier version.
     const decode = value => {

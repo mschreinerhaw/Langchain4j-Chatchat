@@ -12,6 +12,7 @@ export function createRequestContextTracker() {
       // Exact identical read-only outputs already present in THIS request. Different input pages,
       // necessary history, system instructions, cached tokens and previous requests are not waste.
       if (part.type !== 'tool-result' || !['input_read','code_read','metadata_read','skill_read'].includes(part.toolName)) continue;
+      if(part.isError===true || part.output?.error)continue; // Failed attempts are necessary repair feedback.
       const encoded = JSON.stringify({ tool:part.toolName, output:part.output });
       const hash = createHash('sha256').update(encoded).digest('hex');
       if (delivered.has(hash)) avoidableRepeatedContextBytes += Buffer.byteLength(JSON.stringify(part.output) ?? '');

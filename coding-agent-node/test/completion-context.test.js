@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { technicalMemory, budgetGuidance, contextEstimate } from '../src/completion-context.js';
-import { sdkPrepareTurn } from '../src/sdk-adapter.js';
+import { sdkPrepareTurn, completeToolBoundary } from '../src/sdk-adapter.js';
 
 test('unknown operations block inference instead of authorizing replacement execution', () => {
   const view = { schemaVersion:'runtime_os.coding.budget.v1', remainingTokens:1000, remainingModelCalls:2,
@@ -40,4 +40,24 @@ test('completion allocation compacts replay before either the provider window or
   assert.ok(prepare.measurement().compactionCount>0);
   assert.ok(Buffer.byteLength(JSON.stringify(result.messages))<Buffer.byteLength(JSON.stringify(messages)));
   assert.match(JSON.stringify(result.messages),/Immutable objective and authorized inputs/);
+});
+
+test('duplicate read errors never create early pressure and the latest input round survives completion compaction',async()=>{
+  const messages=[{role:'user',content:[{type:'text',text:'Authorized immutable input context. '.repeat(400)}]},
+    {role:'assistant',content:['bad-1','bad-2'].map(toolCallId=>({type:'tool-call',toolName:'input_read',toolCallId,input:{reference:'invalid'}}))},
+    ...['bad-1','bad-2'].map(toolCallId=>({role:'tool',content:[{type:'tool-result',toolName:'input_read',toolCallId,isError:true,output:{error:'Use the exact authorized reference'}}]}))];
+  const budget={remainingTokens:1000000,remainingModelCalls:2,completionReservation:{phase:'EXPLORATION',ratio:.25}};
+  const prepare=sdkPrepareTurn('preserve-read-feedback',()=>null,{statefulCompactionEnabled:true,budgetSnapshot:async()=>budget});
+  const context={messages,tools:[],systemPrompt:'Runtime authority',model:{info:{maxInputTokens:128000}}};
+  await prepare(context);assert.equal(prepare.measurement().compactionCount,0);
+  for(let i=0;i<12;i++)messages.push({role:i%2?'assistant':'user',content:[{type:'text',text:`old ${i}: `+'Historical completed work. '.repeat(300)}]});
+  const round=[{role:'assistant',content:[{type:'tool-call',toolName:'input_read',toolCallId:'current-page',input:{offset:0}}]},
+    {role:'tool',content:[{type:'tool-result',toolName:'input_read',toolCallId:'current-page',output:{authority:'RUNTIME_INPUT',content:'actual delivered data',eof:true}}]}];
+  messages.push(...round);budget.completionReservation.phase='COMPLETION';
+  const result=await prepare(context);
+  assert.ok(prepare.measurement().compactionCount>0);
+  assert.ok(completeToolBoundary(result.messages));
+  for(const message of round)for(const part of message.content)
+    assert.ok(result.messages.some(m=>m.content.some(p=>p.toolCallId===part.toolCallId&&p.type===part.type)));
+  assert.match(JSON.stringify(result.messages),/actual delivered data/);
 });

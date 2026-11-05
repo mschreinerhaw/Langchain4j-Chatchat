@@ -16,6 +16,25 @@ import static org.assertj.core.api.Assertions.*;
 
 /** Validates the shipped draft-2020-12 bundle using an actual JSON Schema engine, not an imitation. */
 class CodingJsonSchemaTest {
+    @Test void allThreeWireProfilesRoundTripLargeAuthorizedSkillCatalogs() throws Exception {
+        var ids=java.util.stream.IntStream.range(0,150).mapToObj(i->"authorized-"+i).toList();
+        var cards=ids.stream().map(id->Map.of("id",id,"name",id,"version","v1")).toList();
+        for(String profile:List.of("coding","coding-workspace","coding-analysis")) {
+            var task=fixture("task");
+            if(profile.equals("coding-workspace")) {task.put("schemaVersion",CodingProtocol.WORKSPACE_VERSION);set(task,"/outputContract/resultFormat","WORKSPACE_FILES");}
+            if(profile.equals("coding-analysis")) task.put("schemaVersion",CodingProtocol.ANALYSIS_VERSION);
+            task.set("runtimeContext",JSON.valueToTree(Map.of("schemaVersion","runtime_os.coding.context.v1",
+                "consistency","TASK_SNAPSHOT","configuredSkillIds",ids,"skills",Map.of("skills",cards))));
+            try(var input=getClass().getResourceAsStream("/runtime/coding/"+profile+".schema.json")) {
+                var bundle=(ObjectNode)JSON.readTree(input);bundle.remove("oneOf");bundle.put("$ref","#/$defs/task");
+                var validator=JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012).getSchema(bundle);
+                assertThat(validator.validate(task)).as(profile).isEmpty();
+                var accepted=JSON.treeToValue(task,CodingTaskContract.class);
+                assertThat((List<?>)accepted.runtimeContext().get("configuredSkillIds")).hasSize(150);
+                assertThat(validator.validate(tree(accepted))).as(profile+" canonical").isEmpty();
+            }
+        }
+    }
     @Test void textOnlyResultsRequireTheFrozenV3PolicyAndNoCodeExecution()throws Exception{
         var task=fixture("task");set(task,"/schemaVersion",CodingProtocol.ANALYSIS_VERSION);
         task.set("runtimeContext",JSON.valueToTree(Map.of("schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT","analysisResultMode","TEXT_OR_CODE")));

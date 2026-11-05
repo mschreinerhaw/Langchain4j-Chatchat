@@ -8,6 +8,7 @@ import com.chatchat.chat.interaction.service.InteractionExecution;
 import com.chatchat.chat.skills.model.SkillDefinition;
 import com.chatchat.runtime.skill.api.discovery.SkillSearchRequest;
 import com.chatchat.runtime.skill.api.identity.SkillRoleContext;
+import com.chatchat.runtime.skill.api.skill.SkillDescriptor;
 import com.chatchat.runtime.skill.port.inbound.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.*;
@@ -18,7 +19,6 @@ import org.springframework.stereotype.Component;
 @Component
 @lombok.extern.slf4j.Slf4j
 public final class SkillAnalysisContextService {
-    private static final int MAX_SKILLS = 6;
     private final SkillRouter router;
     private final ObjectProvider<AgentRunEventPublisher> publishers;
     // Constructor compatibility with existing integrations; no model is created or called here.
@@ -41,13 +41,23 @@ public final class SkillAnalysisContextService {
         try {
             // Explicit Agent bindings are a capability catalog, not a task-time
             // semantic selection. Avoid requiring the search index for known IDs.
-            var routed = router.route(new SkillSearchRequest("",identity,ids,20,Map.of()));
-            if (routed.candidates().isEmpty()) return completed(request,SkillAnalysisContext.create(
-                "SOURCE_FAILED".equals(routed.status()) ? "UNAVAILABLE" : "NO_CANDIDATES",List.of(),Map.of()),agent);
+            // Preserve the existing metadata API's per-query bound, without using
+            // it to truncate an Agent's complete authorized capability catalog.
+            int batchSize = new SkillSearchRequest("",identity,List.of(),Integer.MAX_VALUE,Map.of()).limit();
+            var candidates = new LinkedHashMap<String,SkillDescriptor>();
+            boolean limited = false;
+            for (int offset=0; offset<ids.size(); offset+=batchSize) {
+                InteractionExecution.checkCancellation(request);
+                var batch = ids.subList(offset,Math.min(offset+batchSize,ids.size()));
+                var routed = router.route(new SkillSearchRequest("",identity,batch,batch.size(),Map.of()));
+                limited |= "SOURCE_FAILED".equals(routed.status()) || "PARTIAL_SOURCE_FAILURE".equals(routed.status());
+                for (var descriptor : routed.candidates()) if (batch.contains(descriptor.id()))
+                    candidates.putIfAbsent(descriptor.id(),descriptor);
+            }
+            if (candidates.isEmpty()) return completed(request,SkillAnalysisContext.create(
+                limited ? "UNAVAILABLE" : "NO_CANDIDATES",List.of(),Map.of()),agent);
             var delivered = new ArrayList<Map<String,Object>>();
-            boolean limited = routed.candidates().size() > MAX_SKILLS || "PARTIAL_SOURCE_FAILURE".equals(routed.status());
-            for (var descriptor : routed.candidates().stream().limit(MAX_SKILLS).toList()) {
-                if (!ids.contains(descriptor.id())) continue;
+            for (var descriptor : candidates.values()) {
                 InteractionExecution.checkCancellation(request);
                 /* Binding registers L1 capabilities only. Instructions and resources are
                    resolved by the authenticated Coding callback when Cline requests them. */

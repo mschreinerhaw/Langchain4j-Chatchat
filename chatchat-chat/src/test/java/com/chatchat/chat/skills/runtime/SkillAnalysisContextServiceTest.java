@@ -54,6 +54,44 @@ class SkillAnalysisContextServiceTest {
         var projection=SkillAnalysisContext.planningProjection(service.prepare(request,agent,List.of()),List.of("method-a"));
         assertThat(projection).containsEntry("loadedCount",0).containsEntry("activatedCount",0);
     }
+    @Test void allAuthorizedBindingsSurviveBothTheFormerSixSkillCapAndTheMetadataQueryBound() {
+        var ids=java.util.stream.IntStream.range(0,123).mapToObj(i->"method-"+i).toList();
+        when(agent.workflowConfig()).thenReturn(Map.of("boundDomainSkillIds",ids));
+        when(router.route(any())).thenAnswer(call->{
+            SkillSearchRequest search=call.getArgument(0);
+            var cards=new ArrayList<SkillDescriptor>();
+            for(String id:search.requestedSkillIds()) cards.add(new SkillDescriptor(id,"v1",id,"Purpose "+id,"","DB","","","",1,Map.of()));
+            cards.add(descriptor); // A source cannot add an unrequested identity.
+            return new SkillRouteResult(cards,"ROUTED",Map.of());
+        });
+        var result=service.prepare(request,agent,List.of("role"));
+        assertThat(result).containsEntry("status","AVAILABLE");
+        @SuppressWarnings("unchecked") var cards=(List<Map<String,Object>>)result.get("skills");
+        assertThat(cards).extracting(c->c.get("id")).containsExactlyElementsOf(ids);
+        assertThat(SkillAnalysisContext.validate(result)).isEqualTo(result);
+        var queries=org.mockito.ArgumentCaptor.forClass(SkillSearchRequest.class);
+        verify(router,times(2)).route(queries.capture());
+        assertThat(queries.getAllValues()).extracting(q->q.requestedSkillIds().size()).containsExactly(100,23);
+        assertThat(queries.getAllValues()).allSatisfy(q->{
+            assertThat(q.query()).isEmpty();assertThat(q.limit()).isEqualTo(q.requestedSkillIds().size());
+            assertThat(q.roleContext().attributes()).containsEntry("agentId","agent");
+        });
+        verifyNoInteractions(resolver,models);
+    }
+    @Test void aFailedMetadataBatchIsExplicitRatherThanReportedAsACompleteCatalog() {
+        var ids=java.util.stream.IntStream.range(0,101).mapToObj(i->"method-"+i).toList();
+        when(agent.workflowConfig()).thenReturn(Map.of("boundDomainSkillIds",ids));
+        when(router.route(any())).thenAnswer(call->{
+            SkillSearchRequest search=call.getArgument(0);
+            return search.requestedSkillIds().contains("method-100")
+                ?new SkillRouteResult(List.of(),"SOURCE_FAILED",Map.of())
+                :new SkillRouteResult(List.of(new SkillDescriptor("method-0","v1","First","Purpose","","DB","","","",1,Map.of())),"ROUTED",Map.of());
+        });
+        var result=service.prepare(request,agent,List.of());
+        assertThat(result).containsEntry("status","AVAILABLE_WITH_LIMITS");
+        assertThat((List<?>)result.get("skills")).hasSize(1);
+        verify(router,times(2)).route(any());verifyNoInteractions(resolver,models);
+    }
     @Test void sourceFailureRemainsExplicit() {
         when(router.route(any())).thenReturn(new SkillRouteResult(List.of(),"SOURCE_FAILED",Map.of()));
         assertThat(service.prepare(request,agent,List.of())).containsEntry("status","UNAVAILABLE");

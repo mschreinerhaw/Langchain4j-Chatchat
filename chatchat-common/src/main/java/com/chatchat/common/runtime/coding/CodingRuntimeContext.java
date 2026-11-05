@@ -99,9 +99,9 @@ public final class CodingRuntimeContext {
         }
         CodingProtocol.require("runtime_os.coding.context.v1".equals(value.get("schemaVersion")), "Unknown Coding context version");
         CodingProtocol.require("TASK_SNAPSHOT".equals(value.get("consistency")), "Coding context must be task scoped");
-        return freeze(value, 0);
+        return freeze(value, 0, "");
     }
-    private static Map<String, Object> freeze(Map<?, ?> value, int depth) {
+    private static Map<String, Object> freeze(Map<?, ?> value, int depth, String path) {
         CodingProtocol.require(depth < 12 && value.size() <= 128, "Coding context is too large");
         Map<String, Object> result = new TreeMap<>();
         value.forEach((key, item) -> {
@@ -109,16 +109,22 @@ public final class CodingRuntimeContext {
             String name = (String) key;
             CodingProtocol.require(!name.toLowerCase(Locale.ROOT).matches(".*(password|secret|api.?key|authorization|credential|baseurl|proxy).*"),
                 "Sensitive configuration is forbidden in Coding context");
-            result.put(name, freezeValue(item, depth + 1));
+            result.put(name, freezeValue(item, depth + 1, path.isEmpty()?name:path+"."+name));
         });
         return Collections.unmodifiableMap(result);
     }
-    private static Object freezeValue(Object value, int depth) {
+    private static Object freezeValue(Object value, int depth, String path) {
         CodingProtocol.require(depth < 12, "Coding context nesting limit");
-        if (value instanceof Map<?, ?> map) return freeze(map, depth);
+        if (value instanceof Map<?, ?> map) return freeze(map, depth, path);
         if (value instanceof List<?> list) {
-            CodingProtocol.require(list.size() <= 128, "Coding context list limit");
-            return list.stream().map(item -> freezeValue(item, depth + 1)).toList();
+            if (path.equals("configuredSkillIds"))
+                CodingProtocol.require(list.stream().allMatch(String.class::isInstance), "Invalid configured Skill identities");
+            else if (path.equals("skills.skills"))
+                CodingProtocol.require(list.stream().allMatch(Map.class::isInstance), "Invalid Skill capability catalog");
+            else CodingProtocol.require(list.size() <= 128, "Coding context list limit");
+            // Skill metadata is bounded by the unchanged transport/model budgets,
+            // not an arbitrary package count. All nested card safeguards remain.
+            return list.stream().map(item -> freezeValue(item, depth + 1, path+"[]")).toList();
         }
         if (value instanceof String text) {
             CodingProtocol.require(text.length() <= 16000, "Coding context text limit");

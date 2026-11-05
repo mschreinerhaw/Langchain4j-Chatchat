@@ -76,6 +76,22 @@ test('several relevant native Skills can cooperate without loading unrelated bod
   }finally{await r.dispose();}
 });
 
+test('official discovery retains every authorized package beyond metadata query and old catalog limits',async()=>{
+  const t=task(),cards=Array.from({length:123},(_,i)=>({id:'authorized-'+i,name:'capability-'+i,description:'Authorized methodology '+i,version:'frozen'}));
+  t.runtimeContext={skills:{skills:cards}};
+  const events=[],r=await prepare(t,{...gateway,readSkill(_contract,id){
+    const card=cards.find(c=>c.id===id);assert(card);
+    const instructions='---\nname: '+card.name+'\ndescription: '+card.description+'\n---\nMethodology only.\n';
+    return{skillId:id,version:'frozen',nativeOriginal:true,instructions,contentSha256:sha256(instructions),resources:[]};
+  }},{observe:e=>events.push(e)});
+  try{
+    assert.equal(r.records.length,15+cards.length);
+    assert.equal(r.records.filter(r=>r.id.startsWith('runtime-agent-')).length,cards.length);
+    assert.equal(events.find(e=>e.type==='SKILLS_DISCOVERED').nativeSkillCount,138);
+    assert.equal(events.filter(e=>e.type==='SKILLS_LOADED').length,0);
+  }finally{await r.dispose();}
+});
+
 function dynamicFixture(t=task()) {
   const instructions='---\nname: private-method\ndescription: Private fixture methodology.\n---\nPRIVATE_NATIVE_BODY\nRead references/check.md when needed.\n';
   const reference='PRIVATE_REFERENCE\n';let revoked=false;const calls=[];

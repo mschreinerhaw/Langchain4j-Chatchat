@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { prepareProgram } from './code-repair.js';
+import { createRequestContextTracker } from './request-context.js';
 
 /** SDK editor on a private scratch file. Model-controlled paths never reach fs. */
 export async function editProgram(input, previous, signal) {
@@ -96,6 +97,7 @@ export function sdkPrepareTurn(sessionId, currentCode = () => null, options = {}
   let state = parseSessionCompactionState(options.compactionState);
   let compactionCount = Number.isSafeInteger(options.compactionCount) && options.compactionCount >= 0 ? options.compactionCount : 0;
   let lastMeasurement = {};
+  const replayPressure = createRequestContextTracker();
   const basic = createContextCompactionPrepareTurn({ sessionId,
     providerId: 'runtime', modelId: 'runtime-authorized', compaction: { enabled: true, strategy: 'basic' } });
   const compact = options.statefulCompactionEnabled ? createCompactionStateAwarePrepareTurn({
@@ -133,13 +135,26 @@ export function sdkPrepareTurn(sessionId, currentCode = () => null, options = {}
     const protectedTokens = Math.ceil(Buffer.byteLength(JSON.stringify({ binding, review, memory }) ?? '') / 4);
     const allowance = Number.isSafeInteger(options.inputTokenBudget) && options.inputTokenBudget > 0
       ? Math.min(knownLimit, options.inputTokenBudget) : knownLimit;
+    const beforeBytes = Buffer.byteLength(JSON.stringify(messages));
+    const duplicateBytes = replayPressure(context).avoidableRepeatedContextBytes;
+    const reservation = budget?.completionReservation;
+    const ratio = reservation?.ratio;
+    // A verified result/late budget phase changes what must remain in the next request.
+    // Use the configured Runtime allocation, not a fixed number of final turns.
+    const finishing = options.statefulCompactionEnabled && reservation?.phase === 'COMPLETION'
+      && Number.isFinite(ratio) && ratio > 0 && ratio < 1;
+    const projectedTokens = Math.ceil(Buffer.byteLength(JSON.stringify({ messages,
+      systemPrompt:context.systemPrompt,tools:context.tools })) / 4) + protectedTokens;
+    const phaseAllowance = finishing
+      ? Math.max(protectedTokens + 1, Math.floor(projectedTokens * (1 - ratio))) : allowance;
+    const redundancyAllowance = options.statefulCompactionEnabled && duplicateBytes > 0
+      ? Math.max(protectedTokens + 1, Math.floor((beforeBytes - duplicateBytes) / 4)) : allowance;
     // Remaining cumulative resources can require native compaction before the window is full.
     // No summarizing model request is introduced.
     const budgetAllowance = budget?.remainingTokens > 0 && budget.remainingModelCalls > 0
       ? Math.max(1, Math.floor(budget.remainingTokens / budget.remainingModelCalls)) : allowance;
     const model = { id: 'runtime-authorized', provider: 'runtime', ...context.model,
-      info: { ...info, maxInputTokens: Math.max(1, Math.min(allowance, budgetAllowance) - protectedTokens) } };
-    const beforeBytes = Buffer.byteLength(JSON.stringify(messages));
+      info: { ...info, maxInputTokens: Math.max(1, Math.min(allowance, budgetAllowance, phaseAllowance, redundancyAllowance) - protectedTokens) } };
     const priorState = state;
     const result = completeToolBoundary(canonical) ? await compact({ ...context, conversationId: context.conversationId ?? sessionId,
       parentAgentId: context.parentAgentId ?? null, messages, apiMessages: messages,

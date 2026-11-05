@@ -27,3 +27,17 @@ test('native compaction preserves the exact failed execution diagnostic without 
   assert.ok(prepare.snapshot().compactionState);
   assert.equal(contextEstimate({messages:[]}),Math.ceil(Buffer.byteLength(JSON.stringify({messages:[]}))/4));
 });
+
+test('completion allocation compacts replay before either the provider window or average budget is full',async()=>{
+  const messages=[{role:'user',content:[{type:'text',text:'Immutable objective and authorized inputs.'}]}];
+  for(let i=0;i<12;i++)messages.push({role:i%2?'assistant':'user',content:[{type:'text',text:`turn ${i}: `+'historical observations '.repeat(300)}]});
+  const context={messages,tools:[],systemPrompt:'Runtime authority',model:{info:{maxInputTokens:128000}}};
+  const budget={remainingTokens:1000000,remainingModelCalls:2,completionReservation:{phase:'EXPLORATION',ratio:.25}};
+  const prepare=sdkPrepareTurn('phase-compaction',()=>null,{statefulCompactionEnabled:true,budgetSnapshot:async()=>budget});
+  await prepare(context);assert.equal(prepare.measurement().compactionCount,0);
+  budget.completionReservation.phase='COMPLETION';
+  const result=await prepare(context);
+  assert.ok(prepare.measurement().compactionCount>0);
+  assert.ok(Buffer.byteLength(JSON.stringify(result.messages))<Buffer.byteLength(JSON.stringify(messages)));
+  assert.match(JSON.stringify(result.messages),/Immutable objective and authorized inputs/);
+});

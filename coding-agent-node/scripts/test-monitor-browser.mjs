@@ -53,6 +53,10 @@ try {
   await until(async () => await page.locator('.task-row').count() === 0);
   await page.locator('#search').fill(''); await page.locator('.task-row').first().waitFor();
   await page.locator('[data-tab="overview"]').click();
+  const overview = await page.locator('#detail-content').innerText();
+  assert.ok(overview.includes('首次代码提案 / 有效代码'));
+  assert.ok(overview.includes('Python 派发 / 已确认执行'));
+  assert.ok(overview.includes('Skills 读取 / 工具发现'));
   await mkdir('../target/coding-node-monitor', { recursive: true });
   await page.screenshot({ path: '../target/coding-node-monitor/desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });

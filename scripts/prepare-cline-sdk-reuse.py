@@ -22,9 +22,10 @@ def main():
     parser.add_argument('--release-dir', required=True, type=Path)
     parser.add_argument('--archive-sha256', required=True)
     parser.add_argument('--source-commit', required=True)
+    parser.add_argument('--profile', choices=['sdk-reuse', 'coding-progress'], default='sdk-reuse')
     args = parser.parse_args()
     root = args.release_dir.resolve()
-    archive = root / 'cline-sdk-reuse-worker.tar.gz'
+    archive = root / ('cline-sdk-reuse-worker.tar.gz' if args.profile == 'sdk-reuse' else 'coding-progress-worker.tar.gz')
     if hashlib.sha256(archive.read_bytes()).hexdigest() != args.archive_sha256:
         raise ValueError('Worker archive checksum mismatch')
     verify = root / 'verify'
@@ -42,16 +43,25 @@ def main():
     live = json.loads(run('docker', 'inspect', 'runtime-os-app-stage-coding-agent-1'))[0]
     baseline = 'runtime-os-coding-agent:sdk-reuse-baseline-' + live['Image'].split(':')[-1][:12]
     run('docker', 'tag', live['Image'], baseline)
-    image = 'runtime-os-coding-agent:sdk-reuse-20261105-r1'
+    image = 'runtime-os-coding-agent:' + ('sdk-reuse' if args.profile == 'sdk-reuse' else 'coding-progress') + '-20261105-r1'
     patched = root / 'patched'
     patched.mkdir(exist_ok=True)
     before, after = {}, {}
-    for module in MODULES:
-        before[module] = run('docker', 'exec', live['Id'], 'sha256sum', '/srv/coding-agent/dist/' + module).split()[0]
+    modules_to_copy = MODULES if args.profile == 'sdk-reuse' else (
+        'runner.js', 'coding-progress.js', 'tool-catalog.js', 'monitor.js', 'monitor-types.js', 'public/app.js',
+        '../skills/catalog.json', '../skills/python-data-analysis/SKILL.md')
+    for module in modules_to_copy:
+        exists = subprocess.run(['docker', 'exec', live['Id'], 'test', '-e', '/srv/coding-agent/dist/' + module], check=False)
+        if exists.returncode not in [0, 1]:
+            raise RuntimeError('Cannot inspect baseline module')
+        if exists.returncode == 0:
+            before[module] = run('docker', 'exec', live['Id'], 'sha256sum', '/srv/coding-agent/dist/' + module).split()[0]
         content = (node / 'dist' / module).read_bytes()
-        (patched / module).write_bytes(content)
+        target = patched / 'dist' / module
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(content)
         after[module] = hashlib.sha256(content).hexdigest()
-    (root / 'Dockerfile').write_text('FROM ' + baseline + '\nCOPY --chown=node:node patched/ /srv/coding-agent/dist/\n'
+    (root / 'Dockerfile').write_text('FROM ' + baseline + '\nCOPY --chown=node:node patched/ /srv/coding-agent/\n'
         + 'ENV RUNTIME_CODING_BUILD=' + args.source_commit + '\n')
     (root / '.dockerignore').write_text('*\n!Dockerfile\n!patched\n!patched/**\n')
     with (root / 'image-build.log').open('w') as log:

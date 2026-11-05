@@ -1,0 +1,859 @@
+{
+  "capturedAt": "2026-11-05T13:18:24.804446+00:00",
+  "taskId": "analysis-coding-e24ee39f2fcefdd6349607ece6fdb205f810666339c8d41b175a32132e6fc2e2",
+  "nodeStatus": "FAILED",
+  "outcomeStatus": "RUNNING",
+  "createdAt": "2026-11-05T13:09:23.381Z",
+  "finishedAt": "2026-11-05T13:15:54.097Z",
+  "models": [
+    {
+      "operationId": "model-1",
+      "info": {
+        "complexity": "SIMPLE",
+        "deadlineAt": "2026-11-05T13:29:22.691Z",
+        "durationMs": 28325,
+        "finishedAt": "2026-11-05T13:09:52.555371353Z",
+        "firstTokenMs": null,
+        "generationTimeMs": null,
+        "maxOutputTokens": 32768,
+        "messageCount": 1,
+        "protocol": "openai",
+        "providerModel": "qwen3.8-flash",
+        "providerTimingAvailability": "NON_STREAMING_UNAVAILABLE",
+        "queueTimeMs": 22,
+        "queueTimeScope": "LOCAL_EXECUTOR",
+        "requestBytes": 64422,
+        "responseMode": "NON_STREAMING",
+        "retryTimeMs": 0,
+        "selectedModel": "qwen3.8-flash",
+        "startedAt": "2026-11-05T13:09:24.229689758Z"
+      },
+      "usage": {
+        "cacheReadTokens": 0,
+        "inputTokens": 14430,
+        "outputTokens": 2325,
+        "reasoningTokens": 1965
+      },
+      "finishReason": "TOOL_EXECUTION",
+      "diagnostic": null,
+      "error": null,
+      "textBytes": 903,
+      "tools": [
+        {
+          "name": "skill_read",
+          "id": "call_e224fbdbc63d45f98deda4b2",
+          "inputKeys": [
+            "skillId"
+          ],
+          "input": {
+            "skillId": "builtin:financial-market-analysis"
+          },
+          "sourceBytes": 0
+        },
+        {
+          "name": "input_read",
+          "id": "call_42b681467dc34e87885c3e28",
+          "inputKeys": [
+            "datasetReference",
+            "limit",
+            "offset"
+          ],
+          "input": {
+            "datasetReference": "runtime-evidence:coding:input:48367fee0b87c278deb67da8ca95029f0454141875af5c190f714037f4fd586",
+            "offset": 0,
+            "limit": 3000
+          },
+          "sourceBytes": 0
+        }
+      ]
+    },
+    {
+      "operationId": "model-2",
+      "info": {
+        "complexity": "SIMPLE",
+        "deadlineAt": "2026-11-05T13:29:22.691Z",
+        "durationMs": 45394,
+        "finishedAt": "2026-11-05T13:10:39.527637639Z",
+        "firstTokenMs": null,
+        "generationTimeMs": null,
+        "maxOutputTokens": 32768,
+        "messageCount": 4,
+        "protocol": "openai",
+        "providerModel": "qwen3.8-flash",
+        "providerTimingAvailability": "NON_STREAMING_UNAVAILABLE",
+        "queueTimeMs": 51,
+        "queueTimeScope": "LOCAL_EXECUTOR",
+        "requestBytes": 69162,
+        "responseMode": "NON_STREAMING",
+        "retryTimeMs": 0,
+        "selectedModel": "qwen3.8-flash",
+        "startedAt": "2026-11-05T13:09:54.133523704Z"
+      },
+      "usage": {
+        "cacheReadTokens": 2048,
+        "inputTokens": 15411,
+        "outputTokens": 2217,
+        "reasoningTokens": 2119
+      },
+      "finishReason": "TOOL_EXECUTION",
+      "diagnostic": null,
+      "error": null,
+      "textBytes": 0,
+      "tools": [
+        {
+          "name": "input_read",
+          "id": "call_292946cf0f3546f4a9517980",
+          "inputKeys": [
+            "datasetReference",
+            "limit",
+            "offset"
+          ],
+          "input": {
+            "datasetReference": "mcp_chatchat_mcp_server_web_search",
+            "offset": 0,
+            "limit": 4000
+          },
+          "sourceBytes": 0
+        },
+        {
+          "name": "skill_read",
+          "id": "call_fcdc957559b04801951235dd",
+          "inputKeys": [
+            "skillId"
+          ],
+          "input": {
+            "skillId": "builtin:runtime-report-delivery"
+          },
+          "sourceBytes": 0
+        }
+      ]
+    },
+    {
+      "operationId": "model-3",
+      "info": {
+        "complexity": "SIMPLE",
+        "deadlineAt": "2026-11-05T13:29:22.691Z",
+        "durationMs": 4746,
+        "finishedAt": "2026-11-05T13:10:46.326547014Z",
+        "firstTokenMs": null,
+        "generationTimeMs": null,
+        "maxOutputTokens": 32768,
+        "messageCount": 7,
+        "protocol": "openai",
+        "providerModel": "qwen3.8-flash",
+        "providerTimingAvailability": "NON_STREAMING_UNAVAILABLE",
+        "queueTimeMs": 54,
+        "queueTimeScope": "LOCAL_EXECUTOR",
+        "requestBytes": 78911,
+        "responseMode": "NON_STREAMING",
+        "retryTimeMs": 0,
+        "selectedModel": "qwen3.8-flash",
+        "startedAt": "2026-11-05T13:10:41.580111777Z"
+      },
+      "usage": {
+        "cacheReadTokens": 2048,
+        "inputTokens": 18180,
+        "outputTokens": 238,
+        "reasoningTokens": 171
+      },
+      "finishReason": "TOOL_EXECUTION",
+      "diagnostic": null,
+      "error": null,
+      "textBytes": 0,
+      "tools": [
+        {
+          "name": "skill_read",
+          "id": "call_b3fdb43bb46547219cba2df7",
+          "inputKeys": [
+            "skillId"
+          ],
+          "input": {
+            "skillId": "builtin:python-data-analysis"
+          },
+          "sourceBytes": 0
+        },
+        {
+          "name": "skill_read",
+          "id": "call_2f64089c78fc49d4bc2baecd",
+          "inputKeys": [
+            "skillId"
+          ],
+          "input": {
+            "skillId": "builtin:cline:plotting"
+          },
+          "sourceBytes": 0
+        }
+      ]
+    },
+    {
+      "operationId": "model-4",
+      "info": {
+        "complexity": "SIMPLE",
+        "deadlineAt": "2026-11-05T13:29:22.691Z",
+        "durationMs": 3760,
+        "finishedAt": "2026-11-05T13:10:51.777395252Z",
+        "firstTokenMs": null,
+        "generationTimeMs": null,
+        "maxOutputTokens": 32768,
+        "messageCount": 10,
+        "protocol": "openai",
+        "providerModel": "qwen3.8-flash",
+        "providerTimingAvailability": "NON_STREAMING_UNAVAILABLE",
+        "queueTimeMs": 75,
+        "queueTimeScope": "LOCAL_EXECUTOR",
+        "requestBytes": 106171,
+        "responseMode": "NON_STREAMING",
+        "retryTimeMs": 0,
+        "selectedModel": "qwen3.8-flash",
+        "startedAt": "2026-11-05T13:10:48.016922217Z"
+      },
+      "usage": {
+        "cacheReadTokens": 2048,
+        "inputTokens": 24361,
+        "outputTokens": 188,
+        "reasoningTokens": 91
+      },
+      "finishReason": "TOOL_EXECUTION",
+      "diagnostic": null,
+      "error": null,
+      "textBytes": 0,
+      "tools": [
+        {
+          "name": "skill_read",
+          "id": "call_4f0eefe0238744e4bf954f2e",
+          "inputKeys": [
+            "path",
+            "skillId"
+          ],
+          "input": {
+            "skillId": "builtin:python-data-analysis",
+            "path": "references/data-methods.md"
+          },
+          "sourceBytes": 0
+        },
+        {
+          "name": "skill_read",
+          "id": "call_5f3d2481a063428baf97e18e",
+          "inputKeys": [
+            "path",
+            "skillId"
+          ],
+          "input": {
+            "skillId": "builtin:python-data-analysis",
+            "path": "references/financial-reporting.md"
+          },
+          "sourceBytes": 0
+        }
+      ]
+    }
+  ],
+  "toolResults": [
+    {
+      "id": "call_e224fbdbc63d45f98deda4b2",
+      "tool": "skill_read",
+      "isError": null,
+      "summary": {
+        "skillId": "builtin:financial-market-analysis"
+      }
+    },
+    {
+      "id": "call_42b681467dc34e87885c3e28",
+      "tool": "input_read",
+      "isError": true,
+      "summary": {
+        "error": "Invalid Coding callback binding"
+      }
+    },
+    {
+      "id": "call_292946cf0f3546f4a9517980",
+      "tool": "input_read",
+      "isError": null,
+      "summary": {
+        "offset": 0
+      }
+    },
+    {
+      "id": "call_fcdc957559b04801951235dd",
+      "tool": "skill_read",
+      "isError": null,
+      "summary": {
+        "skillId": "builtin:runtime-report-delivery"
+      }
+    },
+    {
+      "id": "call_b3fdb43bb46547219cba2df7",
+      "tool": "skill_read",
+      "isError": null,
+      "summary": {
+        "skillId": "builtin:python-data-analysis"
+      }
+    },
+    {
+      "id": "call_2f64089c78fc49d4bc2baecd",
+      "tool": "skill_read",
+      "isError": null,
+      "summary": {
+        "skillId": "builtin:cline:plotting"
+      }
+    },
+    {
+      "id": "call_4f0eefe0238744e4bf954f2e",
+      "tool": "skill_read",
+      "isError": null,
+      "summary": {
+        "skillId": "builtin:python-data-analysis",
+        "path": "references/data-methods.md"
+      }
+    },
+    {
+      "id": "call_5f3d2481a063428baf97e18e",
+      "tool": "skill_read",
+      "isError": null,
+      "summary": {
+        "skillId": "builtin:python-data-analysis",
+        "path": "references/financial-reporting.md"
+      }
+    }
+  ],
+  "firstCode": null,
+  "eventsTruncated": false,
+  "journalEvents": 91,
+  "nodeEvents": 42,
+  "budget": {
+    "budgetId": "analysis-coding-tool-budget:analysis-coding-e24ee39f2fcefdd6349607ece6fdb205f810666339c8d41b175a32132e6fc2e2",
+    "deadlineAt": "2026-11-05T13:29:22.691Z",
+    "maxModelCalls": 12,
+    "maxModelTokens": 786432,
+    "maxToolCalls": 24,
+    "maxCodeExecutions": 12,
+    "maxCostAmount": "10",
+    "costCurrency": "USD",
+    "maxCpuMillis": 300000,
+    "maxMemoryBytes": 536870912,
+    "maxOutputBytes": 4194304
+  },
+  "configurationKeys": [
+    "capturedAt",
+    "codingLifecycle",
+    "configuredSkillIds",
+    "consistency",
+    "executionProfile",
+    "inputFiles",
+    "model",
+    "pythonEnvironment",
+    "reportMode",
+    "reportPresentation",
+    "schemaVersion",
+    "scriptPurpose",
+    "skills"
+  ],
+  "nodeFailure": "Model API request timed out; local request terminated, provider usage must be reconciled",
+  "nodeEventsTail": [
+    {
+      "cursor": 25683,
+      "timestamp": "2026-11-05T13:10:53.200Z",
+      "type": "MODEL_STARTED",
+      "stage": "CODING",
+      "modelCall": 5
+    },
+    {
+      "cursor": 25684,
+      "timestamp": "2026-11-05T13:15:53.743Z",
+      "type": "MODEL_FAILED",
+      "stage": "CODING",
+      "status": "FAILED",
+      "modelCall": 5
+    },
+    {
+      "cursor": 25685,
+      "timestamp": "2026-11-05T13:15:53.876Z",
+      "type": "MODEL_TIMING",
+      "stage": "CODING",
+      "status": "FAILED",
+      "modelCall": 5,
+      "durationMs": 300738,
+      "responseMode": "RUNTIME_MODEL_CALLBACK",
+      "errorCategory": "CALLBACK_HTTP_REJECTED",
+      "requestBytes": 130333,
+      "messageCount": 13,
+      "responseBytes": 0,
+      "toolCount": 6,
+      "requestHash": "4281dc51ceefd26ec18a018a28f94c49ece77c67db6ec2835ea5bf0698a2737a",
+      "contextSystemBytes": 9870,
+      "contextToolsBytes": 4493,
+      "contextToolIndexBytes": 0,
+      "contextTaskBytes": 44775,
+      "contextSkillsBytes": 62767,
+      "contextCodeBytes": 0,
+      "contextReportBytes": 0,
+      "contextHistoryBytes": 7010,
+      "contextEnvelopeBytes": 1418,
+      "estimatedInputTokens": 32584,
+      "softInputTokenBudget": 65536,
+      "exceedsSoftBudget": false,
+      "estimator": "UTF8_BYTES_DIV_4_NOT_PROVIDER_USAGE",
+      "repeatedContextBytes": 95850,
+      "duplicateContextBytes": 0,
+      "avoidableRepeatedContextBytes": 0,
+      "newContextBytes": 33065,
+      "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS",
+      "compactionCount": 0,
+      "compactionStrategy": "SDK_BASIC",
+      "contextSizeBefore": 119233,
+      "contextSizeAfter": 119233
+    },
+    {
+      "cursor": 25686,
+      "timestamp": "2026-11-05T13:15:54.097Z",
+      "type": "SESSION_FINISHED",
+      "stage": "FAILED",
+      "status": "FAILED"
+    }
+  ],
+  "localTermination": [
+    {
+      "operationId": "model-5",
+      "durationMs": 300063,
+      "errorCategory": "MODEL_REQUEST_TIMEOUT",
+      "providerTerminationConfirmed": false,
+      "usageKnown": false
+    },
+    {
+      "operationId": "model-6",
+      "durationMs": 15616,
+      "errorCategory": "MODEL_CANCELLED",
+      "providerTerminationConfirmed": false,
+      "usageKnown": false
+    }
+  ],
+  "nodeFences": [
+    {
+      "fencingToken": 1,
+      "status": "FAILED",
+      "createdAt": "2026-11-05T13:09:23.381Z",
+      "finishedAt": "2026-11-05T13:15:54.097Z",
+      "eventsTruncated": false,
+      "events": [
+        {
+          "type": "SESSION_ACCEPTED",
+          "timestamp": "2026-11-05T13:09:23.381Z"
+        },
+        {
+          "type": "CONTEXT_READY",
+          "timestamp": "2026-11-05T13:09:23.419Z",
+          "stage": "CONTEXT_READY"
+        },
+        {
+          "type": "SKILLS_AVAILABLE",
+          "timestamp": "2026-11-05T13:09:23.460Z",
+          "stage": "CONTEXT_READY"
+        },
+        {
+          "type": "SESSION_TIMING",
+          "timestamp": "2026-11-05T13:09:23.517Z",
+          "stage": "CONTEXT_READY"
+        },
+        {
+          "type": "MODEL_STARTED",
+          "timestamp": "2026-11-05T13:09:23.804Z",
+          "stage": "CODING",
+          "modelCall": 1
+        },
+        {
+          "type": "MODEL_RESOLVED",
+          "timestamp": "2026-11-05T13:09:52.728Z",
+          "stage": "CODING",
+          "modelCall": 1,
+          "durationMs": 28325,
+          "requestBytes": 64422
+        },
+        {
+          "type": "PLAN_READY",
+          "timestamp": "2026-11-05T13:09:52.818Z",
+          "stage": "PLAN_GENERATION",
+          "modelCall": 1
+        },
+        {
+          "type": "MODEL_USAGE",
+          "timestamp": "2026-11-05T13:09:52.868Z",
+          "stage": "CODING",
+          "status": "SUCCEEDED",
+          "modelCall": 1,
+          "usage": {
+            "inputTokens": 14430,
+            "outputTokens": 2325,
+            "totalCost": null,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 1965
+          }
+        },
+        {
+          "type": "MODEL_TIMING",
+          "timestamp": "2026-11-05T13:09:52.946Z",
+          "stage": "CODING",
+          "status": "SUCCEEDED",
+          "modelCall": 1,
+          "durationMs": 29187,
+          "requestBytes": 64353,
+          "responseBytes": 2208,
+          "contextSkillsBytes": 5147,
+          "contextSystemBytes": 9824,
+          "contextTaskBytes": 44775,
+          "contextToolsBytes": 4493,
+          "contextHistoryBytes": 0,
+          "contextEnvelopeBytes": 114,
+          "estimatedInputTokens": 16089,
+          "toolCount": 6
+        },
+        {
+          "type": "SKILLS_LOADED",
+          "timestamp": "2026-11-05T13:09:53.012Z",
+          "stage": "CODING"
+        },
+        {
+          "type": "TOOL_TIMING",
+          "timestamp": "2026-11-05T13:09:53.076Z",
+          "status": "RETURNED",
+          "tool": "skill_read",
+          "toolDurationMs": 77
+        },
+        {
+          "type": "TOOL_STARTED",
+          "timestamp": "2026-11-05T13:09:53.168Z",
+          "tool": "input_read"
+        },
+        {
+          "type": "TOOL_TIMING",
+          "timestamp": "2026-11-05T13:09:53.385Z",
+          "status": "THREW",
+          "tool": "input_read",
+          "toolDurationMs": 217
+        },
+        {
+          "type": "MODEL_STARTED",
+          "timestamp": "2026-11-05T13:09:53.712Z",
+          "stage": "CODING",
+          "modelCall": 2
+        },
+        {
+          "type": "MODEL_RESOLVED",
+          "timestamp": "2026-11-05T13:10:39.717Z",
+          "stage": "CODING",
+          "modelCall": 2,
+          "durationMs": 45394,
+          "requestBytes": 69162
+        },
+        {
+          "type": "MODEL_USAGE",
+          "timestamp": "2026-11-05T13:10:39.816Z",
+          "stage": "CODING",
+          "status": "SUCCEEDED",
+          "modelCall": 2,
+          "usage": {
+            "inputTokens": 15411,
+            "outputTokens": 2217,
+            "totalCost": null,
+            "cacheReadTokens": 2048,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 2119
+          }
+        },
+        {
+          "type": "MODEL_TIMING",
+          "timestamp": "2026-11-05T13:10:39.972Z",
+          "stage": "CODING",
+          "status": "SUCCEEDED",
+          "modelCall": 2,
+          "durationMs": 46321,
+          "requestBytes": 69324,
+          "responseBytes": 1209,
+          "contextSkillsBytes": 8447,
+          "contextSystemBytes": 9835,
+          "contextTaskBytes": 44775,
+          "contextToolsBytes": 4493,
+          "contextHistoryBytes": 1335,
+          "contextEnvelopeBytes": 439,
+          "estimatedInputTokens": 17331,
+          "toolCount": 6
+        },
+        {
+          "type": "TOOL_STARTED",
+          "timestamp": "2026-11-05T13:10:40.071Z",
+          "tool": "input_read"
+        },
+        {
+          "type": "TOOL_FINISHED",
+          "timestamp": "2026-11-05T13:10:40.485Z",
+          "status": "SUCCEEDED",
+          "tool": "input_read"
+        },
+        {
+          "type": "TOOL_TIMING",
+          "timestamp": "2026-11-05T13:10:40.569Z",
+          "status": "RETURNED",
+          "tool": "input_read",
+          "toolDurationMs": 498
+        },
+        {
+          "type": "SKILLS_LOADED",
+          "timestamp": "2026-11-05T13:10:40.705Z",
+          "stage": "CODING"
+        },
+        {
+          "type": "TOOL_TIMING",
+          "timestamp": "2026-11-05T13:10:40.759Z",
+          "status": "RETURNED",
+          "tool": "skill_read",
+          "toolDurationMs": 57
+        },
+        {
+          "type": "MODEL_STARTED",
+          "timestamp": "2026-11-05T13:10:41.156Z",
+          "stage": "CODING",
+          "modelCall": 3
+        },
+        {
+          "type": "MODEL_RESOLVED",
+          "timestamp": "2026-11-05T13:10:46.533Z",
+          "stage": "CODING",
+          "modelCall": 3,
+          "durationMs": 4746,
+          "requestBytes": 78911
+        },
+        {
+          "type": "MODEL_USAGE",
+          "timestamp": "2026-11-05T13:10:46.630Z",
+          "stage": "CODING",
+          "status": "SUCCEEDED",
+          "modelCall": 3,
+          "usage": {
+            "inputTokens": 18180,
+            "outputTokens": 238,
+            "totalCost": null,
+            "cacheReadTokens": 2048,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 171
+          }
+        },
+        {
+          "type": "MODEL_TIMING",
+          "timestamp": "2026-11-05T13:10:46.765Z",
+          "stage": "CODING",
+          "status": "SUCCEEDED",
+          "modelCall": 3,
+          "durationMs": 5705,
+          "requestBytes": 79307,
+          "responseBytes": 1156,
+          "contextSkillsBytes": 12416,
+          "contextSystemBytes": 9847,
+          "contextTaskBytes": 44775,
+          "contextToolsBytes": 4493,
+          "contextHistoryBytes": 7010,
+          "contextEnvelopeBytes": 766,
+          "estimatedInputTokens": 19827,
+          "toolCount": 6
+        },
+        {
+          "type": "SKILLS_LOADED",
+          "timestamp": "2026-11-05T13:10:46.860Z",
+          "stage": "CODING"
+        },
+        {
+          "type": "TOOL_TIMING",
+          "timestamp": "2026-11-05T13:10:46.987Z",
+          "status": "RETURNED",
+          "tool": "skill_read",
+          "toolDurationMs": 129
+        },
+        {
+          "type": "SKILLS_LOADED",
+          "timestamp": "2026-11-05T13:10:47.068Z",
+          "stage": "CODING"
+        },
+        {
+          "type": "TOOL_TIMING",
+          "timestamp": "2026-11-05T13:10:47.205Z",
+          "status": "RETURNED",
+          "tool": "skill_read",
+          "toolDurationMs": 141
+        },
+        {
+          "type": "MODEL_STARTED",
+          "timestamp": "2026-11-05T13:10:47.611Z",
+          "stage": "CODING",
+          "modelCall": 4
+        },
+        {
+          "type": "MODEL_RESOLVED",
+          "timestamp": "2026-11-05T13:10:52.012Z",
+          "stage": "CODING",
+          "modelCall": 4,
+          "durationMs": 3760,
+          "requestBytes": 106171
+        },
+        {
+          "type": "MODEL_USAGE",
+          "timestamp": "2026-11-05T13:10:52.114Z",
+          "stage": "CODING",
+          "status": "SUCCEEDED",
+          "modelCall": 4,
+          "usage": {
+            "inputTokens": 24361,
+            "outputTokens": 188,
+            "totalCost": null,
+            "cacheReadTokens": 2048,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 91
+          }
+        },
+        {
+          "type": "MODEL_TIMING",
+          "timestamp": "2026-11-05T13:10:52.265Z",
+          "stage": "CODING",
+          "status": "SUCCEEDED",
+          "modelCall": 4,
+          "durationMs": 4720,
+          "requestBytes": 106800,
+          "responseBytes": 1242,
+          "contextSkillsBytes": 39572,
+          "contextSystemBytes": 9858,
+          "contextTaskBytes": 44775,
+          "contextToolsBytes": 4493,
+          "contextHistoryBytes": 7010,
+          "contextEnvelopeBytes": 1092,
+          "estimatedInputTokens": 26700,
+          "toolCount": 6
+        },
+        {
+          "type": "SKILLS_LOADED",
+          "timestamp": "2026-11-05T13:10:52.394Z",
+          "stage": "CODING"
+        },
+        {
+          "type": "TOOL_TIMING",
+          "timestamp": "2026-11-05T13:10:52.503Z",
+          "status": "RETURNED",
+          "tool": "skill_read",
+          "toolDurationMs": 109
+        },
+        {
+          "type": "SKILLS_LOADED",
+          "timestamp": "2026-11-05T13:10:52.591Z",
+          "stage": "CODING"
+        },
+        {
+          "type": "TOOL_TIMING",
+          "timestamp": "2026-11-05T13:10:52.721Z",
+          "status": "RETURNED",
+          "tool": "skill_read",
+          "toolDurationMs": 129
+        },
+        {
+          "type": "MODEL_STARTED",
+          "timestamp": "2026-11-05T13:10:53.200Z",
+          "stage": "CODING",
+          "modelCall": 5
+        },
+        {
+          "type": "MODEL_FAILED",
+          "timestamp": "2026-11-05T13:15:53.743Z",
+          "stage": "CODING",
+          "status": "FAILED",
+          "modelCall": 5
+        },
+        {
+          "type": "MODEL_TIMING",
+          "timestamp": "2026-11-05T13:15:53.876Z",
+          "stage": "CODING",
+          "status": "FAILED",
+          "modelCall": 5,
+          "durationMs": 300738,
+          "errorCategory": "CALLBACK_HTTP_REJECTED",
+          "requestBytes": 130333,
+          "responseBytes": 0,
+          "contextSkillsBytes": 62767,
+          "contextSystemBytes": 9870,
+          "contextTaskBytes": 44775,
+          "contextToolsBytes": 4493,
+          "contextHistoryBytes": 7010,
+          "contextEnvelopeBytes": 1418,
+          "estimatedInputTokens": 32584,
+          "toolCount": 6
+        },
+        {
+          "type": "SESSION_FINISHED",
+          "timestamp": "2026-11-05T13:15:54.097Z",
+          "stage": "FAILED",
+          "status": "FAILED"
+        }
+      ]
+    },
+    {
+      "fencingToken": 2,
+      "status": "CANCELLED",
+      "createdAt": "2026-11-05T13:15:54.564Z",
+      "finishedAt": "2026-11-05T13:16:11.913Z",
+      "eventsTruncated": false,
+      "events": [
+        {
+          "type": "SESSION_ACCEPTED",
+          "timestamp": "2026-11-05T13:15:54.564Z"
+        },
+        {
+          "type": "CONTEXT_READY",
+          "timestamp": "2026-11-05T13:15:54.565Z",
+          "stage": "CONTEXT_READY"
+        },
+        {
+          "type": "SKILLS_AVAILABLE",
+          "timestamp": "2026-11-05T13:15:54.672Z",
+          "stage": "CONTEXT_READY"
+        },
+        {
+          "type": "SESSION_TIMING",
+          "timestamp": "2026-11-05T13:15:54.824Z",
+          "stage": "CONTEXT_READY"
+        },
+        {
+          "type": "MODEL_STARTED",
+          "timestamp": "2026-11-05T13:15:55.251Z",
+          "stage": "CODING",
+          "modelCall": 6
+        },
+        {
+          "type": "MODEL_FAILED",
+          "timestamp": "2026-11-05T13:16:11.352Z",
+          "stage": "CODING",
+          "status": "FAILED",
+          "modelCall": 6
+        },
+        {
+          "type": "MODEL_TIMING",
+          "timestamp": "2026-11-05T13:16:11.623Z",
+          "stage": "CODING",
+          "status": "ABORTED",
+          "modelCall": 6,
+          "durationMs": 16434,
+          "errorCategory": "CALLBACK_HTTP_REJECTED",
+          "requestBytes": 130710,
+          "responseBytes": 0,
+          "contextSkillsBytes": 62767,
+          "contextSystemBytes": 9881,
+          "contextTaskBytes": 44775,
+          "contextToolsBytes": 4493,
+          "contextHistoryBytes": 7347,
+          "contextEnvelopeBytes": 1447,
+          "estimatedInputTokens": 32678,
+          "toolCount": 6
+        },
+        {
+          "type": "SESSION_FINISHED",
+          "timestamp": "2026-11-05T13:16:11.913Z",
+          "stage": "CANCELLED",
+          "status": "CANCELLED"
+        }
+      ]
+    }
+  ]
+}

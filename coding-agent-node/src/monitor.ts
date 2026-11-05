@@ -5,7 +5,7 @@ import { mkdir, writeFile, rename } from 'node:fs/promises';
 import { join } from 'node:path';
 import { arch, cpus, hostname, loadavg, platform } from 'node:os';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import type { CodeVersion, ModelCall, MonitorEvent, NodeSnapshot, TaskDetail, TaskState, TaskSummary } from './monitor-types.ts';
+import type { CodeVersion, CodingProgress, ModelCall, MonitorEvent, NodeSnapshot, TaskDetail, TaskState, TaskSummary } from './monitor-types.ts';
 
 const VERSION = 'coding_agent.monitor.v1';
 const SESSION_MS = 8 * 60 * 60 * 1000;
@@ -20,7 +20,11 @@ const EVENT_KEYS = ['stage', 'status', 'operationId', 'proposedOperationId', 'mo
   'contextReportBytes', 'contextHistoryBytes', 'contextEnvelopeBytes', 'estimatedInputTokens', 'softInputTokenBudget', 'exceedsSoftBudget', 'estimator',
   'repeatedContextBytes', 'duplicateContextBytes', 'avoidableRepeatedContextBytes', 'newContextBytes', 'contextChangeReason', 'compactionCount', 'compactionStrategy',
   'contextSizeBefore', 'contextSizeAfter', 'callbackConnectMs', 'callbackHeadersMs', 'callbackBodyMs', 'callbackHttpDurationMs', 'queueTimeScope', 'providerTimingAvailability',
-  'constructionDurationMs', 'restoreDurationMs', 'preparationDurationMs'];
+  'constructionDurationMs', 'restoreDurationMs', 'preparationDurationMs', 'finishReason', 'purpose', 'progressFeedback', 'skillId', 'skillPath'];
+const PROGRESS_NUMBERS = ['modelCall', 'callsSinceProgress', 'newToolResults', 'newEvidenceReads', 'skillReads', 'discoveryCalls',
+  'repeatedFailures', 'proposals', 'acceptedProposals', 'rejectedProposals', 'pythonDispatched', 'pythonExecutions',
+  'modelResponseErrors', 'knownInputTokens', 'knownOutputTokens', 'firstProposalMs', 'firstValidCodeMs', 'firstPythonMs',
+  'firstResultMs', 'remainingTokens', 'remainingModelCalls', 'feedbackCount'];
 type Contract = Record<string, any>;
 interface Options {
   directory?: string; maxTasks?: number; maxEvents?: number; maxSourceBytes?: number;
@@ -172,6 +176,15 @@ export class MonitorStore {
       outputTokens: integer(value.usage.outputTokens), totalCost: integer(value.usage.totalCost),
       cacheReadTokens: integer(value.usage.cacheReadTokens), cacheWriteTokens: integer(value.usage.cacheWriteTokens),
       reasoningTokens: integer(value.usage.reasoningTokens) };
+    if (value.progress && typeof value.progress === 'object') {
+      const progress: Record<string, number | string | null> = {};
+      for (const key of PROGRESS_NUMBERS) progress[key] = integer(value.progress[key]);
+      for (const key of ['phase', 'waitingFor', 'lastTool']) progress[key] = this.text(value.progress[key], 128);
+      task.progress = progress as CodingProgress;
+      event.progress = { ...progress };
+    }
+    if (Array.isArray(value.actualTools)) event.actualTools = value.actualTools.slice(0, 64)
+      .filter((name: unknown) => typeof name === 'string').map((name: string) => this.text(name, 128));
     task.events.push(event); task.eventCount++; task.updatedAt = now;
     if (task.events.length > this.maxEvents) { task.events.shift(); task.eventsTruncated = true; }
     task.retainedEvents = task.events.length; task.stage = this.text(value.stage) || event.type;
@@ -185,6 +198,9 @@ export class MonitorStore {
         task.models.push(call);
       }
       if (call) {
+        for (const key of ['purpose', 'finishReason', 'diagnosticCode', 'errorCategory'] as const)
+          if (typeof event[key] === 'string') call[key] = event[key];
+        if (Array.isArray(event.actualTools)) call.actualTools = event.actualTools as string[];
         if (event.type === 'MODEL_TIMING') {
           call.callbackDurationMs = integer(event.durationMs);
           for (const key of ['callbackFirstEventMs', 'requestBytes', 'responseBytes', 'messageCount', 'toolCount'] as const)

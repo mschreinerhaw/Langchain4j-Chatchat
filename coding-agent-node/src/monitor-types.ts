@@ -5,6 +5,7 @@ export interface MonitorEvent {
   operationId?: string; modelCall?: number; tool?: string; [key: string]: unknown;
 }
 export interface ModelCall {
+  purpose?: string; finishReason?: string; actualTools?: string[]; diagnosticCode?: string;
   estimatedInputTokens?: number | null; repeatedContextBytes?: number | null;
   duplicateContextBytes?: number | null; avoidableRepeatedContextBytes?: number | null; newContextBytes?: number | null;
   contextSizeBefore?: number | null; contextSizeAfter?: number | null; compactionCount?: number | null;
@@ -35,12 +36,18 @@ export interface TaskSummary {
   inputTokens: number; outputTokens: number; usageKnownCalls: number;
 }
 export interface TaskDetail extends TaskSummary {
+  progress?: CodingProgress;
   configuredModel: { selectedModel?: string; providerModel?: string; protocol?: string };
   skills: { status: string; fingerprint: string | null; configured: SkillInfo[];
     stages: string[]; loadedAt: string | null; applications: number; lastAppliedAt: string | null };
   budget: { maxModelCalls: number | null; deadlineAt: string | null };
   events: MonitorEvent[]; models: ModelCall[]; codes: CodeVersion[];
   eventsTruncated: boolean; codesTruncated: boolean;
+}
+/** Observed in the current SDK run; unknown values remain null. */
+export interface CodingProgress {
+  [key: string]: number | string | null;
+  modelCall: number; phase: string; waitingFor: string; lastTool: string;
 }
 export interface NodeSnapshot {
   schemaVersion: 'coding_agent.monitor.v1'; instanceId: string; observedAt: string;

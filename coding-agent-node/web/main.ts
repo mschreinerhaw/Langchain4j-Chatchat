@@ -102,6 +102,28 @@ function renderOverview(task: TaskDetail) {
     ['开始时间', time(task.createdAt)], ['结束时间', time(task.finishedAt)], ['执行截止', time(task.deadlineAt)],
     ['恢复模式', task.recoveryMode], ['执行代次', String(task.fencingToken)],
     ['模型调用上限', task.budget.maxModelCalls === null ? '未声明' : String(task.budget.maxModelCalls)]]));
+  const progress = task.progress;
+  if (progress) {
+    const count = (key: string) => typeof progress[key] === 'number' ? String(progress[key]) : '未观测';
+    const elapsed = (key: string) => typeof progress[key] === 'number' ? duration(progress[key] as number) : '尚未观测';
+    const phases: Record<string, string> = { PREPARING: '准备', EXPLORING: '探索', WRITING: '编写', EXECUTING: '执行', REVIEWING: '验证', REPAIRING: '修复' };
+    const waits: Record<string, string> = { MODEL: '等待模型响应', CODE: '处理代码提案', SKILL: '读取 Skill', PYTHON: '等待 Python 回执', TOOL: '等待工具回执', NONE: '已结束' };
+    node.append(el('p', 'section-title', '当前执行进展'), kv([
+      ['调用序号 / 状态', `#${count('modelCall')} / ${task.models.at(-1)?.status ?? '未观测'}`],
+      ['阶段（按事件推断）', phases[progress.phase] ?? progress.phase],
+      ['等待环节', task.status === 'RUNNING' ? waits[progress.waitingFor] ?? progress.waitingFor : '已结束'],
+      ['最近工具', progress.lastTool || '尚无'], ['首次代码提案 / 有效代码', `${elapsed('firstProposalMs')} / ${elapsed('firstValidCodeMs')}`],
+      ['提案 / 接受 / 拒绝', `${count('proposals')} / ${count('acceptedProposals')} / ${count('rejectedProposals')}`],
+      ['Python 派发 / 已确认执行', `${count('pythonDispatched')} / ${count('pythonExecutions')}`],
+      ['首次 Python 派发 / 有效结果', `${elapsed('firstPythonMs')} / ${elapsed('firstResultMs')}`],
+      ['Skills 读取 / 工具发现', `${count('skillReads')} / ${count('discoveryCalls')}`],
+      ['新工具结果 / 新证据读取', `${count('newToolResults')} / ${count('newEvidenceReads')}`],
+      ['无新进展调用 / 重复失败', `${count('callsSinceProgress')} / ${count('repeatedFailures')}`],
+      ['响应错误 / 策略反馈', `${count('modelResponseErrors')} / ${count('feedbackCount')}`],
+      ['已知输入 / 输出 Tokens', `${count('knownInputTokens')} / ${count('knownOutputTokens')}`],
+      ['最近准入前剩余 Tokens / 调用', `${count('remainingTokens')} / ${count('remainingModelCalls')}`],
+    ]), el('p', 'notice', '进展统计覆盖本次 SDK 会话；恢复前历史见事件和平台回执。阶段和调用目的由已知事件推断，不代表模型内部思考。未返回用量保持未知。'));
+  }
   if (task.error) node.append(el('p', 'banner error', task.error));
   if (task.reconciliationRequired) node.append(el('p', 'banner error', '节点重启前执行未结束，真实结果需要由平台核对。请勿仅凭节点记录重放任务。'));
   const persistence = snapshot?.history.persistence;
@@ -121,6 +143,9 @@ function renderModels(task: TaskDetail) {
   for (const call of task.models) {
     const card = el('div', 'model-card'), title = el('div', 'card-title', `调用 #${call.ordinal}`); title.append(badge(call.status));
     card.append(title, kv([['请求模型', call.selectedModel ?? task.configuredModel.selectedModel ?? '未取得'],
+      ['调用目的（事件推断）', call.purpose ?? '未观测'],
+      ['实际工具', call.actualTools?.join('、') || (call.status === 'RUNNING' ? '等待模型返回' : '未观测工具')],
+      ['Finish reason', call.finishReason ?? '未取得'], ['响应诊断码', call.diagnosticCode ?? '无记录'],
       ['实际模型', call.providerModel ?? '未取得'], ['协议', call.protocol ?? '未取得'],
       ['开始', time(call.startedAt)], ['结束', time(call.finishedAt)], ['耗时', call.durationMs === null ? '等待回执' : duration(call.durationMs)],
       ['Java 回调总耗时', call.callbackDurationMs == null ? '未观测' : duration(call.callbackDurationMs)],

@@ -81,12 +81,17 @@ export function completeToolBoundary(messages) {
   }
   return pending.size===0;
 }
-// Optional SDK projection must never crowd authoritative messages/code out of an
-// existing bounded checkpoint. A skipped sidecar is safely recomputed on resume.
+// Optional diagnostics must never crowd authoritative messages/code out of an
+// existing bounded checkpoint. Compaction can be recomputed; omitted progress
+// metadata falls back to the legacy observation scope, never execution authority.
 export function boundCompactionCheckpoint(checkpoint, maxChars) {
   if (checkpoint.compactionState && JSON.stringify(checkpoint).length > maxChars) {
     const { compactionState, ...canonical } = checkpoint;
-    return canonical;
+    checkpoint = canonical;
+  }
+  if (checkpoint.codingProgress && JSON.stringify(checkpoint).length > maxChars) {
+    const { codingProgress, ...canonical } = checkpoint;
+    checkpoint = canonical;
   }
   return checkpoint;
 }

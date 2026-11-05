@@ -52,7 +52,7 @@ def main():
     root = args.root
     monitor = json.loads(Path('/opt/runtime-os-docker-stage/coding-monitor/data/observations.json').read_text())
     rows = []
-    for variant in ['baseline', 'candidate', 'final', 'verified']:
+    for variant in ['baseline', 'candidate', 'final', 'verified', 'recovery']:
         directory = root / variant
         if not directory.exists():
             continue

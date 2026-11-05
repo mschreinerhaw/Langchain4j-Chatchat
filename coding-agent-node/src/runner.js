@@ -208,6 +208,7 @@ export function createCodingRun(contract, gateway, options = {}) {
   const events = [];
   const codeFiles = [];
   const codingProgress = createCodingProgress({
+    checkpoint: restored?.codingProgress, modelOrdinal: restored?.modelOrdinal,
     initialCodeAvailable: Boolean(history?.currentSource || previousProgram),
     preparationCalls: options.progressPreparationCalls ?? process.env.CLINE_PROGRESS_PREPARATION_CALLS,
     stalledCalls: options.progressStalledCalls ?? process.env.CLINE_PROGRESS_STALLED_CALLS,
@@ -835,6 +836,7 @@ export function createCodingRun(contract, gateway, options = {}) {
           await gateway.checkpoint(contract, boundCompactionCheckpoint({ sdkSessionId, checkpointOrdinal: ++checkpointOrdinal,
             ...prepareTurn?.snapshot(),
             nativeSdk, modelOrdinal: modelIndex, eventOrdinal, messages: event.snapshot.messages,
+            codingProgress: codingProgress.checkpoint(),
             executionMemory, workspacePrefetchIdentity, codeLifecycle: history?.snapshot(), lastCollectedOperation, lastCollectedDatasetRef, reportReferenceFailure, terminalFeedback, textReportReviewRequested, textReportReviewModel, deliveredInputReferences:[...deliveredInputReferences],
             modelResponseFeedback, modelResponseRepairs, ...(toolCatalog ? {toolCatalog:toolCatalog.snapshot()} : {}),
             contractHash: options.contractHash, inputSnapshotRef: contract.inputSnapshotRef,
@@ -858,6 +860,7 @@ export function createCodingRun(contract, gateway, options = {}) {
         if (typeof gateway.checkpoint === 'function') await gateway.checkpoint(contract, boundCompactionCheckpoint({
           ...prepareTurn?.snapshot(), sdkSessionId, checkpointOrdinal: ++checkpointOrdinal, modelOrdinal: modelIndex,
           nativeSdk, eventOrdinal, messages: snapshot.messages,
+          codingProgress: codingProgress.checkpoint(),
           executionMemory, workspacePrefetchIdentity, codeLifecycle: history?.snapshot(), lastCollectedOperation, lastCollectedDatasetRef, reportReferenceFailure, terminalFeedback, textReportReviewRequested, textReportReviewModel, deliveredInputReferences:[...deliveredInputReferences],
           modelResponseFeedback, modelResponseRepairs, ...(toolCatalog ? {toolCatalog:toolCatalog.snapshot()} : {}),
           contractHash: options.contractHash, inputSnapshotRef: contract.inputSnapshotRef,

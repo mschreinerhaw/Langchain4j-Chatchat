@@ -7,10 +7,11 @@ const boundedThreshold = (value, fallback) => {
   return parsed;
 };
 
-/** Advisory observations within one SDK run. No transcript, execution authority or model loop. */
-export function createCodingProgress({ preparationCalls, stalledCalls, initialCodeAvailable = false, now = Date.now } = {}) {
+/** Advisory observations restored with the existing SDK checkpoint. No transcript or authority. */
+export function createCodingProgress({ preparationCalls, stalledCalls, initialCodeAvailable = false, now = Date.now, checkpoint, modelOrdinal } = {}) {
   const preparation = boundedThreshold(preparationCalls, 4), stalled = boundedThreshold(stalledCalls, 3);
-  const started = now(), seen = new Set(), failures = new Set(), executions = new Set();
+  let started = now();
+  const seen = new Set(), failures = new Set(), executions = new Set();
   const skills = new Set(), references = new Set();
   let newResults = false, rounds = 0, stalledRounds = 0;
   let codeAvailable = initialCodeAvailable;
@@ -24,10 +25,48 @@ export function createCodingProgress({ preparationCalls, stalledCalls, initialCo
     skillEstimatedTokens:0, duplicateSkillReads:0, skillReuses:0, inputReadCount:0,
     rejectedToolCallCount:0, lastProgressType:'NONE',
     waitingFor: 'MODEL', phase: 'PREPARING', lastTool: '', feedbackCount: 0 };
+  // Private diagnostic state only. Old or malformed checkpoints keep the legacy
+  // observation scope rather than failing an otherwise authorized SDK resume.
+  const validCounter = value => Number.isSafeInteger(value) && value >= 0;
+  const valid = checkpoint?.schemaVersion === 1 && validCounter(checkpoint.startedAt)
+    && validCounter(checkpoint.rounds) && validCounter(checkpoint.stalledRounds)
+    && typeof checkpoint.newResults === 'boolean' && typeof checkpoint.codeAvailable === 'boolean'
+    && checkpoint.state && Object.entries(state).every(([key, value]) => {
+      const restored = checkpoint.state[key];
+      return typeof value === 'string' ? typeof restored === 'string' && restored.length <= 128
+        : restored === null ? value === null : validCounter(restored);
+    }) && ['seen','failures','skills','references','executions'].every(key => {
+      const list = checkpoint.identities?.[key];
+      return Array.isArray(list) && list.length <= (key === 'executions' ? 64 : 512)
+        && list.every(value => typeof value === 'string' && (key === 'executions'
+          ? value.length <= 256 : /^[a-f0-9]{64}$/.test(value)));
+    });
+  if (valid) {
+    started = checkpoint.startedAt;
+    for (const key of Object.keys(state)) state[key] = checkpoint.state[key];
+    rounds = checkpoint.rounds; stalledRounds = checkpoint.stalledRounds;
+    newResults = checkpoint.newResults;
+    codeAvailable = initialCodeAvailable || checkpoint.codeAvailable;
+    for (const [name, set] of Object.entries({seen, failures, executions, skills, references}))
+      for (const value of checkpoint.identities[name]) set.add(value);
+    // Java may advance the admitted ordinal after the last complete SDK message
+    // boundary. Such attempts have unknown usage, not new evidence. Account for
+    // them without replaying a model, settling tokens, or claiming feedback was sent.
+    if (validCounter(modelOrdinal) && modelOrdinal > state.modelCall) {
+      const missing = modelOrdinal - state.modelCall;
+      stalledRounds = (newResults ? 1 : stalledRounds + 1) + missing - 1;
+      newResults = false; rounds += missing;
+      if (state.proposals === 0) state.preCodeModelCalls += missing;
+      state.modelCall = modelOrdinal; state.callsSinceProgress = stalledRounds;
+    }
+  }
   const elapsed = () => Math.max(0, now() - started);
   const snapshot = () => ({ ...state });
   return {
     snapshot,
+    checkpoint: () => ({ schemaVersion: 1, startedAt: started, rounds, stalledRounds,
+      newResults, codeAvailable, state: snapshot(), identities: Object.fromEntries(
+        Object.entries({seen, failures, executions, skills, references}).map(([name, set]) => [name, [...set]])) }),
     observe(event) {
       if (event.type === 'CODE_PROPOSED') { state.proposals++; state.firstProposalMs ??= elapsed(); state.phase = 'WRITING'; state.lastProgressType='CODE_PROPOSED'; }
       if (event.type === 'CODE_READY') { state.acceptedProposals++; state.firstValidCodeMs ??= elapsed(); codeAvailable = true; newResults = true; }

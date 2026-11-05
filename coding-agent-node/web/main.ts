@@ -128,7 +128,7 @@ function renderOverview(task: TaskDetail) {
       ['响应错误 / 策略反馈', `${count('modelResponseErrors')} / ${count('feedbackCount')}`],
       ['已知输入 / 输出 Tokens', `${count('knownInputTokens')} / ${count('knownOutputTokens')}`],
       ['最近准入前剩余 Tokens / 调用', `${count('remainingTokens')} / ${count('remainingModelCalls')}`],
-    ]), el('p', 'notice', '进展统计覆盖本次 SDK 会话；恢复前历史见事件和平台回执。阶段和调用目的由已知事件推断，不代表模型内部思考。未返回用量保持未知。'));
+    ]), el('p', 'notice', '进展统计随有效检查点累计恢复；旧检查点或容量不足时，缺失历史见事件和平台回执。阶段和调用目的由已知事件推断，不代表模型内部思考。未返回用量保持未知。'));
   }
   if (task.error) node.append(el('p', 'banner error', task.error));
   if (task.reconciliationRequired) node.append(el('p', 'banner error', '节点重启前执行未结束，真实结果需要由平台核对。请勿仅凭节点记录重放任务。'));

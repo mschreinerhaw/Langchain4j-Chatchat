@@ -54,7 +54,7 @@ def main():
     before, after = {}, {}
     modules_to_copy = MODULES if args.profile == 'sdk-reuse' else (
         'runner.js', 'coding-progress.js', 'tool-catalog.js', 'runtime-model.js', 'monitor.js', 'monitor-types.js', 'public/app.js',
-        'skill-disclosure.js','request-context.js','server.js',
+        'skill-disclosure.js','request-context.js','server.js','sdk-adapter.js',
         '../skills/catalog.json', '../skills/python-data-analysis/SKILL.md',
         '../skills/python-data-analysis/references/financial-reporting.md')
     for module in modules_to_copy:

@@ -1,0 +1,70 @@
+{
+  "schemaVersion": "exploration-session-stop.release.v1",
+  "releaseId": "exploration-session-stop-20261105-r1",
+  "branch": "feature/exploration-session-stop",
+  "server": "192.168.195.221",
+  "deployedAt": "2026-11-05T19:26:17.191766+08:00",
+  "sourceCommit": "46ba550ce6938eeeeb3f9add557ecfc5675e3d15",
+  "verification": {
+    "status": "PASSED",
+    "sourceCommit": "46ba550ce6938eeeeb3f9add557ecfc5675e3d15",
+    "capturedAt": "2026-11-05T11:26:17.191766+00:00",
+    "apiSha256": "72f4689fdc141545422614ca6ff7193cc09bd5d14eb970ea83d9d1a7cd05c6c8",
+    "verificationProjectId": "bb24ce5b-8c16-4c19-a4ce-4b6b02a068a9",
+    "verificationNodeId": "d1dbc968-8ae2-4493-abe5-9076a2ae7de0",
+    "verificationTaskId": "77d9e6b6-025f-3c6b-96e5-f66dd09c93e9",
+    "taskBeforeStop": "PLANNING",
+    "taskAfterStop": "CANCELLED",
+    "repeatedStopIdempotent": true,
+    "stoppedStateSurvivesReload": true,
+    "stoppedNodeCannotRestart": true,
+    "sameSessionTaskCount": 1,
+    "originalQuestionCount": 1,
+    "unauthenticatedStopRejected": true,
+    "missingNodeRejected": true,
+    "workerHealthy": true,
+    "workerImageId": "sha256:92fe80ab5c2df5442e91231035b6e64f37882c5d60d084ed2f1f5f5e0d485f89",
+    "workerUnchanged": true,
+    "frontendEntrypointsVerified": 3,
+    "conversationContentUnchangedDuringDeploy": true,
+    "originalFailedBusinessOperationsReplayed": false,
+    "verificationProjectAndConversationRemoved": true,
+    "runtimeAuditRetained": true,
+    "temporaryCredentialsRemoved": true,
+    "duplicateBuildJarRemoved": true,
+    "lateCallbackDidNotRestoreTask": true,
+    "releaseDirectory": "/opt/chatchat-releases/exploration-session-stop-20261105-r1",
+    "rollbackBackupDirectory": "/opt/chatchat-releases/exploration-session-stop-20261105-r1/backup"
+  },
+  "deployment": {
+    "status": "DEPLOYED",
+    "images": {
+      "runtime-os-app-stage-api-1": "runtime-os-api:exploration-session-stop-20261105-r1"
+    },
+    "backup": "/opt/chatchat-releases/exploration-session-stop-20261105-r1/backup",
+    "retired": {
+      "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-studio-1793877904",
+      "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-studio-1793877904"
+    },
+    "unrelatedContainersUnchanged": true,
+    "conversationContentUnchanged": true,
+    "messageIndexCountUnchanged": true,
+    "catalogReadiness": {
+      "status": "API_MCP_CATALOG_READY",
+      "registryState": "HEALTHY",
+      "registeredToolCount": 39,
+      "requiredTools": [
+        "enterprise_metadata_search",
+        "sql_schema_context_query"
+      ],
+      "capturedAt": "2026-11-05T11:25:53.153198+00:00"
+    }
+  },
+  "tests": {
+    "javaPassed": 29,
+    "frontendPassed": 125,
+    "productionPackage": "PASSED",
+    "frontendProductionBuild": "PASSED",
+    "syntheticBrowserDesktopAndMobile": "PASSED"
+  }
+}

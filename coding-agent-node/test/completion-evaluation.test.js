@@ -15,6 +15,9 @@ test('completion metrics charge failed work to the admitted cohort and retain ce
   assert.deepEqual(result.firstValidResultMillis,[10000]);assert.equal(result.firstValidResultCensoredTasks,1);
   assert.equal(result.reconciliationRecoveryRate,null);assert.equal(result.wastedRepeatedContextRatio,null);
   assert.equal(completionEvaluation([task,{...failed,modelCalls:[{}]}]).tokensPerSuccessfulTask,null);
+  const untimed=completionEvaluation([{...task,deliverables:task.deliverables.map(({verifiedAt,...asset})=>asset)}]);
+  assert.equal(untimed.verifiedDeliverableRate,1);assert.equal(untimed.budgetedTaskSuccessRate,1);
+  assert.equal(untimed.firstValidResultCensoredTasks,1);
   assert.throws(()=>completionEvaluation([task,task]),/Distinct/);
 });
 

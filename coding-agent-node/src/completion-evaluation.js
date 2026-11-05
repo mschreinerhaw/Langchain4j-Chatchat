@@ -17,10 +17,11 @@ export function completionEvaluation(tasks) {
       } else {unknownUsage++;usageComplete=false;}
     }
     const valid=(task.deliverables ?? []).filter(asset=>asset.integrityVerified===true && asset.structureVerified===true
-      && asset.resultDatasetRef && asset.validationRecordRef && asset.evidenceBundleRef && Number.isFinite(Date.parse(asset.verifiedAt)));
+      && asset.resultDatasetRef && asset.validationRecordRef && asset.evidenceBundleRef);
     if(valid.length) {
       delivered++;
-      const elapsed=Math.min(...valid.map(asset=>Date.parse(asset.verifiedAt)))-Date.parse(task.startedAt);
+      const observed=valid.map(asset=>Date.parse(asset.verifiedAt)).filter(Number.isFinite);
+      const elapsed=Math.min(...observed)-Date.parse(task.startedAt);
       if(Number.isFinite(elapsed)&&elapsed>=0)firstValid.push(elapsed);
     }
     const budget=task.budget;

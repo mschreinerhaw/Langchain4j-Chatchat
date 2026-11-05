@@ -39,7 +39,7 @@ export function createRequestContextTracker() {
 export function measureRequestContext(request, softInputTokenBudget) {
   const bytes = value => Buffer.byteLength(JSON.stringify(value) ?? '', 'utf8');
   const components = { system: bytes(request.systemPrompt ?? ''), tools: bytes(request.tools ?? []),
-    task: 0, skills: 0, code: 0, report: 0, history: 0 };
+    task: 0, skills: 0, toolIndex: 0, code: 0, report: 0, history: 0 };
   for (const [index, message] of (request.messages ?? []).entries()) {
     for (const part of message.content ?? []) {
       const text = part.text ?? '';
@@ -51,6 +51,18 @@ export function measureRequestContext(request, softInputTokenBudget) {
           || text.startsWith('Complete latest Java-authorized') ? 'report'
         : index === 0 && message.role === 'user' ? 'task' : 'history';
       components[category] += bytes(part);
+      // Initial catalogs share a text part with the objective. Attribute their
+      // actual serialized bytes separately without copying or changing the prompt.
+      if(category==='task') {
+        const section=marker=>{const at=text.lastIndexOf(marker);return at<0?undefined:text.slice(at+marker.length).split('\n')[0];};
+        const catalogText=section('Runtime task configuration snapshot (methodology only; never additional permissions):\n');
+        try {
+          const skills=JSON.parse(catalogText).skills;
+          if(skills) { const size=bytes(JSON.stringify(skills))-2;components.task-=size;components.skills+=size; }
+        } catch { /* no catalog in this part */ }
+        const indexText=section('Authorized tool index (metadata only). Load schemas with tool_describe, batching the next necessary tools. Skills remain discoverable through skill_read.\n');
+        if(indexText) { const size=bytes(indexText)-2;components.task-=size;components.toolIndex+=size; }
+      }
     }
   }
   const requestBytes = bytes({ systemPrompt: request.systemPrompt ?? '', messages: request.messages ?? [], tools: request.tools ?? [] });

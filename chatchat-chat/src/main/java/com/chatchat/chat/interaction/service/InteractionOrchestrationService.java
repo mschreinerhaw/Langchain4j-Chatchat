@@ -87,14 +87,14 @@ public class InteractionOrchestrationService {
         String requestId = UUID.randomUUID().toString();
         String agentTaskId = agentTaskId(request);
         String tenantId = normalizeTenantId(request.getTenantId());
-        String conversationId = memoryService.ensureConversationId(
-            tenantId, request.getConversationId(), request.getUserId(), request.getRequestSource());
+        String conversationId = InteractionExecution.measure(request,"CONVERSATION_INITIALIZATION",()->memoryService.ensureConversationId(
+            tenantId, request.getConversationId(), request.getUserId(), request.getRequestSource()));
         int historyWindow = request.getHistoryWindow() == null
             ? contextProperties.getRecentMessageLimit()
             : request.getHistoryWindow();
         long startedAt = System.currentTimeMillis();
 
-        InteractionContext context = InteractionContext.builder()
+        InteractionContext context = InteractionExecution.measure(request,"HISTORY_AND_EVIDENCE_PREPARATION",()->InteractionContext.builder()
             .requestId(requestId)
             .conversationId(conversationId)
             .mode(mode)
@@ -106,14 +106,14 @@ public class InteractionOrchestrationService {
                 contextProperties.getEvidenceLedgerMessageLimit(),
                 contextProperties.getEvidenceProjectionMaxEntries()))
             .history(memoryService.recent(tenantId, conversationId, historyWindow))
-            .build();
+            .build());
 
         String originalQuery = request.getQuery();
         request.setQuery(appendImageContext(originalQuery, buildImageContext(request)));
         if (!latestMessageIsSameUserQuestion(context.history(), originalQuery)) {
             memoryService.append(conversationId, "user", request.getQuery());
         }
-        InteractionResponse response = handler.handle(request, context);
+        InteractionResponse response = InteractionExecution.measure(request,"HANDLER_EXECUTION",()->handler.handle(request, context));
 
         if (response == null) {
             response = InteractionResponse.builder()

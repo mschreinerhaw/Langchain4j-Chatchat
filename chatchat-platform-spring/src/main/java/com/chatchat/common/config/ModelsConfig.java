@@ -34,7 +34,8 @@ public class ModelsConfig implements EnvironmentAware, InitializingBean {
         ".modelName", ".model-name", ".apiKey", ".api-key",
         ".baseUrl", ".base-url", ".protocol", ".timeout",
         ".maxTokens", ".max-tokens", ".maxRetries", ".max-retries",
-        ".requestTimeoutSeconds", ".request-timeout-seconds"
+        ".requestTimeoutSeconds", ".request-timeout-seconds", ".firstTokenTimeoutSeconds", ".first-token-timeout-seconds",
+        ".contextWindowTokens", ".context-window-tokens"
     );
 
     private transient ConfigurableEnvironment environment;
@@ -139,6 +140,8 @@ public class ModelsConfig implements EnvironmentAware, InitializingBean {
             case "protocol" -> connection.setProtocol(value);
             case "timeout" -> connection.setTimeout(Integer.parseInt(value));
             case "requestTimeoutSeconds", "request-timeout-seconds" -> connection.setRequestTimeoutSeconds(Integer.parseInt(value));
+            case "firstTokenTimeoutSeconds", "first-token-timeout-seconds" -> connection.setFirstTokenTimeoutSeconds(Integer.valueOf(value));
+            case "contextWindowTokens", "context-window-tokens" -> connection.setContextWindowTokens(Integer.valueOf(value));
             case "maxTokens", "max-tokens" -> connection.setMaxTokens(Integer.parseInt(value));
             case "maxRetries", "max-retries" -> connection.setMaxRetries(Integer.parseInt(value));
             case "proxy.enabled" -> connection.getProxy().setEnabled(Boolean.parseBoolean(value));
@@ -361,6 +364,14 @@ public class ModelsConfig implements EnvironmentAware, InitializingBean {
         public static final int MAX_REQUEST_TIMEOUT_SECONDS = 1200;
 
         private Integer requestTimeoutSeconds = DEFAULT_REQUEST_TIMEOUT_SECONDS;
+        /** Null means unmeasured/unconfigured; never infer a provider window from task budget. */
+        private Integer contextWindowTokens;
+        /** Streaming providers only. Null retains the total request deadline. */
+        private Integer firstTokenTimeoutSeconds;
+        public java.time.Duration firstTokenTimeout() {
+            return firstTokenTimeoutSeconds == null ? requestTimeout()
+                : java.time.Duration.ofSeconds(effectiveRequestTimeoutSeconds(firstTokenTimeoutSeconds));
+        }
 
         public static int effectiveRequestTimeoutSeconds(Integer seconds) {
             if (seconds == null) return DEFAULT_REQUEST_TIMEOUT_SECONDS;

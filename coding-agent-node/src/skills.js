@@ -8,6 +8,8 @@ import { parseSkillConfigFromMarkdown } from '@cline/core';
 const root = new URL('../skills/', import.meta.url);
 const digest = text => createHash('sha256').update(text).digest('hex');
 const definitions = JSON.parse(readFileSync(new URL('catalog.json', root), 'utf8'));
+const packageCache = new Map();
+const disclosureCache = new WeakMap();
 function readPackageFile(folder, path, expected) {
   // Manifest paths are opaque, relative POSIX names. Never follow symlinks or
   // interpret a resource path as a URL (queries, escaping and schemes included).
@@ -22,29 +24,41 @@ function readPackageFile(folder, path, expected) {
   const target = new URL(path, folder);
   if (!realpathSync(target).startsWith(realpathSync(folder) + (process.platform === 'win32' ? '\\' : '/')))
     throw new TypeError('Bundled resource escapes package');
+  const stat=lstatSync(target),key=target.href;
+  const signature=`${stat.size}:${stat.mtimeMs}:${stat.ctimeMs}:${expected?.sha256??''}`;
+  const cached=packageCache.get(key);
+  if(cached?.signature===signature)return cached.bytes;
   const bytes=readFileSync(target);
-  if(bytes.length>2*1024*1024 || expected && (bytes.length!==expected.size || digest(bytes)!==expected.sha256))
+  if(bytes.length>2*1024*1024 || expected && (Number.isSafeInteger(expected.size)&&bytes.length!==expected.size
+      || expected.sha256&&digest(bytes)!==expected.sha256))
     throw new TypeError('Bundled Skill resource integrity mismatch');
+  packageCache.set(key,{signature,bytes});
   return bytes;
 }
 const builtin = definitions.map(definition => {
   if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(definition.name))throw new Error('Invalid bundled Skill name');
   const folder = new URL(`${definition.name}/`, root);
-  const source = readPackageFile(folder, 'SKILL.md').toString('utf8');
+  const resources=(definition.resources??definition.references.map(path=>({path}))).map(resource=>({...resource}));
+  return {card:Object.freeze({...definition,references:undefined,resources:undefined,
+    ...(definition.provenance?.sha256?{contentSha256:definition.provenance.sha256}:{}),
+    selectionOwner:'CLINE',contentDelivery:'ON_DEMAND'}),resources,folder,
+    filePath:fileURLToPath(new URL('SKILL.md',folder))};
+});
+function disclose(item) {
+  const definition=item.card;
+  const bytes=readPackageFile(item.folder, 'SKILL.md',definition.nativeOriginal?definition.provenance:undefined);
+  const cached=disclosureCache.get(bytes);
+  if(cached)return {...cached};
+  const source = bytes.toString('utf8');
   const parsed = parseSkillConfigFromMarkdown(source, definition.name);
   if (parsed.name !== definition.name || parsed.description !== definition.description
       || (!definition.nativeOriginal && parsed.frontmatter.version !== definition.version) || !parsed.instructions.trim()
       || definition.nativeOriginal && digest(source)!==definition.provenance?.sha256)
     throw new Error(`Invalid bundled Skill: ${definition.name}`);
-  const resources = (definition.resources ?? definition.references.map(path => ({path}))).map(resource => {
-    const bytes=readPackageFile(folder,resource.path,definition.nativeOriginal?resource:undefined);
-    return Object.freeze({path:resource.path,sha256:digest(bytes),size:bytes.length});
-  });
-  return { card: Object.freeze({ ...definition, references: undefined, resources: undefined,
-    contentSha256: digest(source), selectionOwner: 'CLINE', contentDelivery: 'ON_DEMAND' }),
-    instructions: definition.nativeOriginal ? source : parsed.instructions, resources, folder,
-    filePath: fileURLToPath(new URL('SKILL.md', folder)) };
-});
+  const result={instructions:definition.nativeOriginal?source:parsed.instructions,contentSha256:digest(source)};
+  disclosureCache.set(bytes,result);
+  return {...result};
+}
 
 export function taskSkills(context = {}) {
   // Historical Agent/snapshot disable fields are intentionally ignored. Only the
@@ -67,10 +81,7 @@ export function taskSkills(context = {}) {
   }
   // Image defaults win for every version; business bindings cannot replace them.
   // Report collisions explicitly; never let a dynamic package replace a default.
-  const cards = [...builtin.filter(item => item.card.enabled !== false
-      && (!item.card.requiresProfile || context.knowledgeExploration?.schemaVersion === item.card.requiresProfile)
-      && (!item.card.requiresResourcesAny || item.card.requiresResourcesAny.some(id =>
-        (context.knowledgeExploration?.resourceIds ?? ['knowledge_documents']).includes(id)))).map(item => item.card),
+  const cards = [...builtin.filter(item => item.card.enabled !== false).map(item => item.card),
     ...uniqueDynamic.map(card => ({ ...card, origin: 'AGENT_DYNAMIC' }))];
   const ids = new Set();
   for (const card of cards) {
@@ -86,13 +97,13 @@ export function taskSkills(context = {}) {
       if (!item) return null;
       if (!path || path === 'SKILL.md') return { skillId: id, version: item.card.version,
         ...(item.card.nativeOriginal ? {nativeOriginal:true} : {}),
-        contentSha256: item.card.contentSha256, instructions: item.instructions,
+        ...disclose(item),
         resources: item.resources.map(({ path, sha256 }) => ({ path, sha256 })), authority: 'METHODOLOGY_ONLY' };
       const resource = item.resources.find(resource => resource.path === path);
       if (!resource) throw new TypeError('Skill reference is outside the task manifest');
-      const bytes=readPackageFile(item.folder,path,resource);
+      const bytes=readPackageFile(item.folder,path,item.card.nativeOriginal?resource:undefined);
       const text=bytes.toString('utf8'),binary=!Buffer.from(text,'utf8').equals(bytes)||text.includes('\0');
-      return { skillId: id, version: item.card.version, ...resource,
+      return { skillId: id, version: item.card.version, ...resource,sha256:digest(bytes),size:bytes.length,
         content:binary?bytes.toString('base64'):text,encoding:binary?'base64':'utf-8',authority: 'METHODOLOGY_ONLY' };
     } };
 }

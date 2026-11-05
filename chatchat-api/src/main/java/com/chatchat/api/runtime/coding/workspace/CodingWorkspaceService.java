@@ -25,6 +25,9 @@ import org.springframework.stereotype.Service;
 @ConditionalOnProperty(prefix="chatchat.coding",name="enabled",havingValue="true")
 @ConditionalOnProperty(prefix="chatchat.coding.cline",name="enabled",havingValue="true")
 public final class CodingWorkspaceService {
+    private boolean deferredToolsEnabled;
+    @Value("${chatchat.coding.cline.deferred-tools-enabled:false}")
+    public void setDeferredToolsEnabled(boolean value) { deferredToolsEnabled=value; }
     private SqlWorkspaceMetadataTools exploration;
     @org.springframework.beans.factory.annotation.Autowired
     public void setExploration(SqlWorkspaceMetadataTools value){exploration=value;}
@@ -126,14 +129,17 @@ public final class CodingWorkspaceService {
                 var budget=new CodingTaskContract.Budget("workspace-budget:"+task,
                     Instant.now().plusSeconds(autonomous?sqlMetadataTimeoutSeconds:timeoutSeconds).truncatedTo(ChronoUnit.MILLIS),autonomous?sqlMetadataMaxModelCalls:8,autonomous?sqlMetadataMaxModelTokens:maxModelTokens,autonomous?sqlMetadataMaxToolCalls:16,0,
                     "1","USD",0,0,1024*1024);
+                var metadataRefs=new ArrayList<String>(autonomous?List.of(SqlWorkspaceMetadataTools.PROFILE):fast?List.of(FAST_PATH_REF):List.of());
+                var grantedTools=new ArrayList<>(SqlWorkspaceMetadataTools.tools(autonomous));
+                if(deferredToolsEnabled) { metadataRefs.add(CodingProtocol.DEFERRED_TOOLS_PROFILE);grantedTools.add(CodingProtocol.TOOL_DESCRIBE); }
                 contract=new CodingTaskContract(CodingProtocol.WORKSPACE_VERSION,task,scope,
                     new CodingTaskContract.Objective((fast?"Use the Java-prefetched authorized ":"Read the authorized ")+language
                         +(fast?" engineering context and propose source files directly with workspace_propose. ":" engineering context with workspace_read, then propose complete source files with workspace_propose. ")
                         +"Preserve unrelated code. The Runtime will parse proposals and return errors to repair. Never execute code or claim business validation. "
                         +(autonomous?"Use workspace_metadata to autonomously discover tables, inspect fields, known relationships and enterprise business definitions in the selected database. No table has been preselected for you. Use workspace_validate, then continue exploring and repairing when metadata or columns are missing. Missing snapshot entries are not proof of invalid SQL. Unknown metric definitions and joins must be explicit; do not invent them.":""),
                         List.of("proposal.jsonl"),List.of(profile+":parse-and-review.v1")),
-                    "runtime-evidence:"+inputId,autonomous?List.of(SqlWorkspaceMetadataTools.PROFILE):fast?List.of(FAST_PATH_REF):List.of(),workspace,
-                    new CodingTaskContract.Authorization(decision,new ArrayList<>(SqlWorkspaceMetadataTools.tools(autonomous)),List.of(),
+                    "runtime-evidence:"+inputId,List.copyOf(metadataRefs),workspace,
+                    new CodingTaskContract.Authorization(decision,grantedTools,List.of(),
                         List.of("context"),List.of(python?"candidate-python-files":"candidate-sql-files"),CodingTaskContract.NetworkPolicy.NONE,List.of(),
                         List.of(CodingTaskContract.SideEffect.WORKSPACE_WRITE)),budget,python?"python-ast:3":"sqlglot:30.23.0",
                     profile+":parse-and-review.v1",new CodingTaskContract.OutputContract(
@@ -188,6 +194,7 @@ public final class CodingWorkspaceService {
         String profile=python?"python-studio":"sql-studio";
         var expectedTools=new HashSet<>(SqlWorkspaceMetadataTools.tools(SqlWorkspaceMetadataTools.enabled(contract)));
         var actualTools=new HashSet<>(contract.authorization().allowedTools());
+        if(CodingProtocol.deferredTools(contract))expectedTools.add(CodingProtocol.TOOL_DESCRIBE);
         // Older immutable workspace tasks predate read-only Skill discovery.
         // Their original grants remain sufficient for history and recovery.
         expectedTools.remove("skill_read");actualTools.remove("skill_read");

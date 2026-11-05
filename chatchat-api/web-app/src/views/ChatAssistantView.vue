@@ -120,7 +120,9 @@
     />
     <p v-if="statusNotice" class="chat-status-notice">{{ statusNotice }}</p>
     <p v-if="uploadNotice" class="chat-status-notice">{{ uploadNotice }}</p>
-    <p v-if="errorMessage" class="chat-error">{{ errorMessage }}</p>
+    <div v-if="errorMessage" class="chat-error" role="alert">{{ userFacingErrorMessage }}
+      <details v-if="userFacingErrorMessage !== errorMessage"><summary>查看技术原因</summary><pre>{{ errorMessage }}</pre></details>
+    </div>
 
     <div v-if="pendingMcpConfirmation" class="mcp-confirm-backdrop">
       <section

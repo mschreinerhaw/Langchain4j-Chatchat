@@ -1,5 +1,6 @@
 ﻿import ChatMessageList from "../../components/ChatMessageList.vue";
 import PromptComposer from "../../components/PromptComposer.vue";
+import {userFacingTaskError} from '../utils/runtimeObservationPresentation.js';
 import { visualizationCapabilities } from '../utils/visualizationCapabilities.js';
 import { Trash2 } from "@lucide/vue";
 import { saveWorkspaceDraft, readWorkspaceDraft } from "../utils/workspaceDrafts";
@@ -1733,6 +1734,7 @@ export default {
     };
   },
   computed: {
+    userFacingErrorMessage() { return userFacingTaskError(this.errorMessage); },
     historyDetailsLoading() {
       return this.selectedConversation?.detailsLoading === true;
     },

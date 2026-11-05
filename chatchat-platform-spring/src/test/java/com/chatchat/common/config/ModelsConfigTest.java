@@ -110,6 +110,8 @@ class ModelsConfigTest {
         source.put("chatchat.models.chat-models[display-model].model-name", "provider-model");
         source.put("chatchat.models.chat-models[display-model].base-url", "https://gateway.example/invoke");
         source.put("chatchat.models.chat-models[display-model].protocol", "dashscope-text");
+        source.put("chatchat.models.chat-models[display-model].context-window-tokens", 65536);
+        source.put("chatchat.models.chat-models[display-model].first-token-timeout-seconds", 20);
 
         ModelsConfig config = new Binder(source)
             .bind("chatchat.models", Bindable.of(ModelsConfig.class))
@@ -119,6 +121,8 @@ class ModelsConfigTest {
         assertThat(connection.getModelName()).isEqualTo("provider-model");
         assertThat(connection.getBaseUrl()).isEqualTo("https://gateway.example/invoke");
         assertThat(connection.getProtocol()).isEqualTo("dashscope-text");
+        assertThat(connection.getContextWindowTokens()).isEqualTo(65536);
+        assertThat(connection.firstTokenTimeout().toSeconds()).isEqualTo(20);
     }
 
     @Test

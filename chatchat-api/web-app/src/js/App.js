@@ -50,6 +50,7 @@ const IDLE_LOGOUT_MS = 30 * 60 * 1000;
 const ACTIVITY_THROTTLE_MS = 1000;
 const TODO_REFRESH_MS = 30000;
 const HISTORY_PAGE_SIZE = 30;
+const historyScope = (vm) => JSON.stringify([vm.tenantId, vm.userId, vm.currentWorkspace?.workspaceId]);
 const ACTIVITY_EVENTS = [
   "click",
   "keydown",
@@ -190,6 +191,7 @@ export default {
       ),
       tenantName: sessionUser.tenantName || sessionUser.tenant_name || "",
       historyLoading: false,
+      historyRequestSerial: 0,
       historyDeleting: false,
       historyError: "",
       conversationHistory: [],
@@ -483,6 +485,15 @@ export default {
           })
           .filter((group) => group.items.length);
         if (from !== id) {
+          this.historyRequestSerial = (this.historyRequestSerial || 0) + 1;
+          this.historyManagerRequestSerial = (this.historyManagerRequestSerial || 0) + 1;
+          this.conversationHistory = [];
+          this.historyNextPage = 0;
+          this.historyHasMore = true;
+          this.historyLoading = false;
+          this.historyManagerItems = [];
+          this.historyManagerTotal = 0;
+          this.historyManagerLoading = false;
           this.selectedConversation = saved.selectedConversation || initialSelection || null;
           this.activeHistoryId = saved.activeHistoryId || initialSelection?.id || "";
           this.pendingChatDraft = saved.pendingChatDraft || null;
@@ -919,13 +930,18 @@ export default {
     async loadConversationHistory(filters = {}) {
       const codes = this.authSession?.user?.permissionCodes;
       if (Array.isArray(codes) && !codes.includes("capability:data-science:data") && !codes.includes("system:api:all")) {
+        this.historyRequestSerial = (this.historyRequestSerial || 0) + 1;
         this.conversationHistory = [];
+        this.historyLoading = false;
         return;
       }
       const { suppressError = false, append = false, ...historyFilters } = filters || {};
       if (append && (!this.historyHasMore || this.historyLoading)) {
         return;
       }
+      const requestSerial = this.historyRequestSerial = (this.historyRequestSerial || 0) + 1;
+      const scope = historyScope(this);
+      const isCurrent = () => requestSerial === this.historyRequestSerial && scope === historyScope(this);
       const previousHistory = this.conversationHistory;
       this.historyLoading = true;
       this.historyError = "";
@@ -935,7 +951,9 @@ export default {
           limit: HISTORY_PAGE_SIZE,
           page: append ? this.historyNextPage : 0,
           ...historyFilters,
+          ...(this.workspaceContext ? { workspaceContext: this.workspaceContext } : {}),
         });
+        if (!isCurrent()) return;
         const page = (Array.isArray(history) ? history : []).map((conversation) =>
           mergeChatRuntimeState(conversation)
         );
@@ -952,6 +970,7 @@ export default {
           this.resetActiveConversationWhenRemoved(previousHistory, nextHistory);
         }
       } catch (error) {
+        if (!isCurrent()) return;
         if (!append) {
           this.conversationHistory = [];
           this.historyNextPage = 0;
@@ -962,7 +981,7 @@ export default {
         }
         this.historyError = error.message || "历史会话加载失败";
       } finally {
-        this.historyLoading = false;
+        if (isCurrent()) this.historyLoading = false;
       }
     },
     reconcileAuthorizedRoute(preferredView = "") {
@@ -980,6 +999,8 @@ export default {
       const pageSize = Math.max(1, Number(filters.pageSize) || this.historyManagerPageSize);
       const keyword = String(filters.keyword || "").trim();
       const requestSerial = ++this.historyManagerRequestSerial;
+      const scope = historyScope(this);
+      const isCurrent = () => requestSerial === this.historyManagerRequestSerial && scope === historyScope(this);
       this.historyManagerLoading = true;
       this.historyError = "";
       try {
@@ -988,8 +1009,9 @@ export default {
           page,
           pageSize,
           keyword,
+          ...(this.workspaceContext ? { workspaceContext: this.workspaceContext } : {}),
         });
-        if (requestSerial !== this.historyManagerRequestSerial) return;
+        if (!isCurrent()) return;
         this.historyManagerItems = Array.isArray(payload?.items) ? payload.items : [];
         this.historyManagerTotal = Number(payload?.total) || 0;
         this.historyManagerPage = Number(payload?.page) || page;
@@ -997,10 +1019,10 @@ export default {
         this.historyManagerPageCount = Math.max(1, Number(payload?.totalPages) || 1);
         this.historyManagerKeyword = keyword;
       } catch (error) {
-        if (requestSerial !== this.historyManagerRequestSerial) return;
+        if (!isCurrent()) return;
         this.historyError = errorMessage(error, "历史记录加载失败，请稍后重试");
       } finally {
-        if (requestSerial === this.historyManagerRequestSerial) this.historyManagerLoading = false;
+        if (isCurrent()) this.historyManagerLoading = false;
       }
     },
     async loadFavoriteConversationIds() {

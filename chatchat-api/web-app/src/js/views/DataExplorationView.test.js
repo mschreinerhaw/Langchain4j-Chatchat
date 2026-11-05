@@ -6,6 +6,18 @@ vi.mock('../../services/explorationApi',()=>api);
 vi.mock('../../components/PythonReportChart.vue',()=>({default:{props:['chart','presentation'],render(){return h('div',{'data-chart-type':this.presentation},this.chart.title);}}}));
 import View from '../../views/DataExplorationView.vue';
 let app,host;const settle=async()=>{for(let i=0;i<15;i++)await nextTick();};
+it('renders only the selected nodes live analysis events and keeps them after completion',async()=>{
+ const activity={sequence:1,type:'RUNTIME_OBSERVATION',createTime:Date.now(),payload:{metadata:{eventKind:'CODING_TRACE',
+   taskId:'task',workerActivity:{type:'TOOL_STARTED',tool:'input_read',toolCallId:'read'}}}};
+ const pending={...node('root'),receipt:{agentTaskId:'task',terminal:false,resultAvailable:false,status:'EXECUTING',analysisEvents:[activity]}};
+ const vm=await mount({...space,nodes:[pending]});
+ expect(host.querySelector('[aria-label="实时分析活动"]').textContent).toContain('正在获取授权数据');
+ vm.space.nodes[0].receipt.analysisEvents.push({...activity,sequence:2,payload:{metadata:{...activity.payload.metadata,
+   workerActivity:{type:'TOOL_FINISHED',tool:'input_read',toolCallId:'read',status:'SUCCEEDED'}}}});
+ await settle();expect(host.querySelector('[aria-label="实时分析活动"]').textContent).toContain('数据操作已完成');
+ vm.startRoot();await settle();expect(host.querySelector('[aria-label="实时分析活动"]')).toBeNull();
+ expect(api.executeExploration).not.toHaveBeenCalled();
+});
 it('continues an owned archived file-analysis branch through its original backend without rebinding it to an Agent',async()=>{
  const state=structuredClone(space);delete state.nodes[0].agentId;
  const vm=await mount(state);expect(vm.canContinueLegacy).toBe(true);expect(host.querySelector('.composer-agent-footer')).toBeNull();

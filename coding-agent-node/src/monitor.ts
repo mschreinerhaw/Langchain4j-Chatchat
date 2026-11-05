@@ -10,16 +10,17 @@ import type { CodeVersion, ModelCall, MonitorEvent, NodeSnapshot, TaskDetail, Ta
 const VERSION = 'coding_agent.monitor.v1';
 const SESSION_MS = 8 * 60 * 60 * 1000;
 const COOKIE = 'coding_monitor_session';
-const EVENT_KEYS = ['stage', 'status', 'operationId', 'proposedOperationId', 'modelCall', 'tool', 'toolCallId',
+const EVENT_KEYS = ['stage', 'status', 'operationId', 'proposedOperationId', 'modelCall', 'tool', 'toolCallId', 'planText', 'executionOrigin',
   'scriptPath', 'scriptVersion', 'codeSha256', 'fileName', 'sourceBytes', 'skillFingerprint', 'validationStatus', 'outputStatus',
   'selectedModel', 'providerModel', 'protocol', 'startedAt', 'finishedAt', 'durationMs', 'message',
   'queueTimeMs', 'firstTokenMs', 'generationTimeMs', 'retryTimeMs', 'responseMode', 'parentCodeHash', 'codeVersion', 'parentCodeVersion', 'changeKind',
   'errorCategory', 'diagnosticCode', 'repairAttempts', 'repairAllowed', 'resultAvailable', 'requestBytes', 'messageCount', 'toolDurationMs', 'proposalHash', 'cpuTimeMs', 'maxRssBytes',
   'callbackFirstEventMs', 'responseBytes', 'toolCount', 'requestHash', 'strategy', 'reason', 'validationDurationMs',
-  'contextSystemBytes', 'contextToolsBytes', 'contextTaskBytes', 'contextSkillsBytes', 'contextCodeBytes',
+  'contextSystemBytes', 'contextToolsBytes', 'contextToolIndexBytes', 'contextTaskBytes', 'contextSkillsBytes', 'contextCodeBytes',
   'contextReportBytes', 'contextHistoryBytes', 'contextEnvelopeBytes', 'estimatedInputTokens', 'softInputTokenBudget', 'exceedsSoftBudget', 'estimator',
   'repeatedContextBytes', 'duplicateContextBytes', 'avoidableRepeatedContextBytes', 'newContextBytes', 'contextChangeReason', 'compactionCount', 'compactionStrategy',
-  'contextSizeBefore', 'contextSizeAfter', 'callbackConnectMs', 'callbackHeadersMs', 'callbackBodyMs', 'callbackHttpDurationMs', 'queueTimeScope', 'providerTimingAvailability'];
+  'contextSizeBefore', 'contextSizeAfter', 'callbackConnectMs', 'callbackHeadersMs', 'callbackBodyMs', 'callbackHttpDurationMs', 'queueTimeScope', 'providerTimingAvailability',
+  'constructionDurationMs', 'restoreDurationMs', 'preparationDurationMs'];
 type Contract = Record<string, any>;
 interface Options {
   directory?: string; maxTasks?: number; maxEvents?: number; maxSourceBytes?: number;

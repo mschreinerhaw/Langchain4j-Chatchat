@@ -1184,9 +1184,9 @@ public class AgentTaskService {
                     return;
                 }
                 updateLatest(question.getTaskId(), "WAIT_MODEL", null, null);
-                saveStatusEvent(question, "WAIT_MODEL", Map.of("message", "Agent task is waiting for model inference"));
+                saveStatusEvent(question, "WAIT_MODEL", Map.of("message", "正在准备上下文或执行已授权任务"));
                 long modelStartedAt = System.currentTimeMillis();
-                log.info("Agent task model inference started. taskId={} tenantId={} agentId={} sessionId={} mode={}",
+                log.info("Agent task interaction started. taskId={} tenantId={} agentId={} sessionId={} mode={}",
                     question.getTaskId(),
                     question.getTenantId(),
                     question.getAgentId(),
@@ -1196,7 +1196,7 @@ public class AgentTaskService {
                 attachExecutionContext(interactionRequest, question.getTaskId());
                 InteractionResponse response = orchestrationService.chat(interactionRequest);
                 long modelFinishedAt = System.currentTimeMillis();
-                log.info("Agent task model inference finished. taskId={} tenantId={} durationMs={} answerPresent={} toolTraceCount={} responseMode={}",
+                log.info("Agent task interaction finished. taskId={} tenantId={} durationMs={} answerPresent={} toolTraceCount={} responseMode={}",
                     question.getTaskId(),
                     question.getTenantId(),
                     modelFinishedAt - modelStartedAt,

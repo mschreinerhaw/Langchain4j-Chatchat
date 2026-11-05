@@ -25,6 +25,7 @@ public class ExplorationWorkspaceController {
     private final ObjectMapper json;
     private final ExplorationAgentBridge agents;
     private final com.chatchat.api.workspace.WorkspaceService workspaces;
+    private final com.chatchat.api.workspace.WorkspaceOriginService origins;
     public record Create(String title,String sourceWorkspaceId,String sourceNodeId){
         public Create(String title){this(title,null,null);}
     }
@@ -108,6 +109,9 @@ public class ExplorationWorkspaceController {
         if(node.path("receipt").path("resultAvailable").asBoolean())return ApiResponse.success(state);
         if(!node.path("agentId").asText().isBlank()){
             validateFiles(owner,strings(node,"fileIds"));
+            // Persist application provenance before a worker can create/update its conversation.
+            // The endpoint owns the application identity; a UI header cannot reclassify it.
+            origins.prepareForWorkspace(http,"data-exploration",ExplorationAgentBridge.sessionId(node));
             ObjectNode parent=node.path("parentId").asText().isBlank()?null:node(state,node.path("parentId").asText());
             var receipt=agents.submit(owner,node,parent);
             return ApiResponse.success(finish(owner,id,nodeId,receipt,null));

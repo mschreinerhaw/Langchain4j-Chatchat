@@ -445,6 +445,10 @@
   {
     "id": "builtin:runtime-internet-research",
     "name": "runtime-internet-research",
+    "displayName": "联网研究",
+    "descriptionZh": "精确检索公开来源，阅读原文，区分搜索摘要与独立证据，并结合授权数据生成可追溯报告。",
+    "source": "Runtime OS / Tavily methodology",
+    "sourceVersion": "b282c623b12b3c58fd279ed072f7e67b693e4654",
     "description": "Search public sources precisely, read original pages, distinguish snippets and independent evidence, and combine Internet findings with authorized internal data and reproducible reports using Runtime OS tools.",
     "version": "1.0.0",
     "origin": "SYSTEM_BUILTIN",

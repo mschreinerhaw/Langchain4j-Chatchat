@@ -85,7 +85,7 @@ public class ConfigurableChatModelFactory {
             if(outputTokens>0)streaming.maxTokens(outputTokens);
             var client=openAiHttpClientBuilder(config.getProxy());
             if(client!=null)streaming.httpClientBuilder(client);
-            return new RuntimeStreamingChatModel(streaming.build(), timeout);
+            return new RuntimeStreamingChatModel(streaming.build(), timeout, config.firstTokenTimeout());
         }
 
         OpenAiChatModel.OpenAiChatModelBuilder builder = OpenAiChatModel.builder()

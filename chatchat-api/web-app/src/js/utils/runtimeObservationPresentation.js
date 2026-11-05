@@ -6,7 +6,7 @@ function objectValue(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 
-const BUSINESS_STEPS = ['接收任务', '理解需求', '准备数据', '执行分析', '返回结果'];
+const BUSINESS_STEPS = ['需求理解', '计划生成', '数据探索', '编码分析', '结果交付'];
 const STOPPED = new Set(['error', 'cancelled', 'timeout', 'empty']);
 function businessState(state) {
   const value = upper(state);
@@ -20,13 +20,21 @@ function businessState(state) {
   return 'active';
 }
 function businessReason(value, state) {
-  const reason = String(value || '').split('\n')[0].slice(0, 180)
+  const original=String(value || '').split('\n')[0].slice(0, 180);
+  let reason = original
     .replace(/(?:Runtime OS|Cline|Python)/gi, '执行服务')
     .replace(/\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b/g, '执行异常');
+  if (/[A-Za-z]{3}/.test(original) && !/[\u3400-\u9fff]/.test(original)) reason = '';
   return reason || ({ error: '执行失败，请查看任务结果或联系管理员排查。', cancelled: '任务已取消。',
     timeout: '执行超时，未取得完整结果。', empty: '缺少必要输入或未取得有效结果。' }[state] || '');
 }
 
+export function userFacingTaskError(value) {
+  const text=String(value||'');
+  if(!text)return '';
+  if(text.includes('CODING_RECONCILIATION_REQUIRED'))return '执行结果正在核对中，已保留原操作记录；确认前不会重复执行。';
+  return businessReason(text,'error');
+}
 function moment(value) {
   if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
   const parsed = Date.parse(value || ''); return Number.isFinite(parsed) ? parsed : 0;
@@ -35,7 +43,7 @@ const OPERATION_LABELS = {
   MODEL: ['等待分析响应', '本轮分析响应已返回'], DATA: ['正在获取授权数据', '数据操作已完成'],
   PROGRAM: ['正在准备分析程序', '分析程序已准备'], EXECUTION: ['分析计算正在执行', '分析计算已结束'],
   CODE_CHECK: ['正在检查分析程序', '分析程序检查已结束'],
-  VALIDATION: ['正在校验结果产物', '结果校验操作已结束'], PLAN: ['正在识别任务目标', '任务方案已确定'],
+  VALIDATION: ['正在校验结果产物', '结果校验操作已结束'], PLAN: ['正在生成执行计划', '执行计划已生成'],
   KNOWLEDGE: ['正在检索与阅读授权文档', '文档探索已完成'],
   NEWS: ['正在查询与阅读财经新闻', '新闻探索已完成'],
   MARKET: ['正在获取金融行情与指标', '金融数据探索已完成']
@@ -55,7 +63,10 @@ function executionActivity(event, runtime, metadata) {
     if (metadata.executorStopped && state === 'active') state = 'waiting';
   } else if (kind === 'CODING_TRACE') {
     phase = 3;
-    if (workerType.startsWith('MODEL_') && Number(worker.modelCall) > 0) {
+    if(workerType==='PLAN_READY') {
+      category='PLAN';phase=1;identity=`initial-plan:${worker.modelCall}`;state='done';
+    } else if (workerType.startsWith('MODEL_') && Number(worker.modelCall) > 0) {
+      phase = Number(worker.modelCall) === 1 ? 1 : 3;
       category = 'MODEL'; identity = `model:${worker.modelCall}`;
       if (['MODEL_USAGE','MODEL_TIMING'].includes(workerType)) state = null;
       else state = workerType === 'MODEL_RESOLVED' ? 'done' : ['MODEL_FAILED','MODEL_RESPONSE_REJECTED'].includes(workerType) ? 'error'
@@ -76,7 +87,7 @@ function executionActivity(event, runtime, metadata) {
       category = String(tool || '').startsWith('knowledge_') ? 'KNOWLEDGE' : String(tool||'').startsWith('news_')?'NEWS':String(tool||'').startsWith('market_')?'MARKET':{data_request:'DATA',metadata_read:'DATA',workspace_read:'DATA',input_read:'DATA',skill_read:'PLAN',
         sql_validate:'CODE_CHECK',workspace_propose:'PROGRAM',artifact_read:'VALIDATION',report_submit:'VALIDATION'}[tool];
       if (!category) return null;
-      phase = {DATA:2,PLAN:1,CODE_CHECK:3,PROGRAM:3,VALIDATION:4,KNOWLEDGE:3,NEWS:3,MARKET:3}[category];
+      phase = {DATA:2,PLAN:1,CODE_CHECK:3,PROGRAM:3,VALIDATION:4,KNOWLEDGE:2,NEWS:2,MARKET:2}[category];
       identity = ['KNOWLEDGE','NEWS','MARKET'].includes(category) ? `${category.toLowerCase()}-exploration` : worker.toolCallId || operation;
       state = workerType === 'TOOL_STARTED' ? 'active' : businessState(worker.status || status);
     } else return null;
@@ -96,6 +107,7 @@ function executionActivity(event, runtime, metadata) {
     durationMs: typeof worker.durationMs === 'number' ? worker.durationMs : null,
     sequence: Number(event.sequence || event.order || metadata.sequence || 0),
     sourceEventId: event.eventId || metadata.eventId || '', timeBasis: metadata.timeBasis || 'EVENT_TIME',
+    ...(workerType==='PLAN_READY' && typeof worker.planText==='string'?{summary:worker.planText.slice(0,512)}:{}),
     retryAttempt: Number(worker.repairAttempt || worker.repairAttempts || 0),
     reason: STOPPED.has(state) ? businessReason(metadata.publicReason || metadata.errorMessage || worker.reason, state) : '' };
 }
@@ -139,8 +151,11 @@ export function businessEventPresentation(event = {}) {
   if (type === 'STATUS' || type === 'HEARTBEAT') return stopped ? result(null, state, true) : null;
   if (['NEEDS_CONFIRMATION', 'RUNTIME_CONFIRMATION'].includes(type)) return result(null, 'waiting');
   if (kind === 'CODING_TRACE') {
+    const workerType=upper(objectValue(metadata.workerActivity || metadata.payload).type);
+    if(workerType==='PLAN_READY')return result(1,'done');
+    if (['MODEL_USAGE','MODEL_TIMING','TOOL_TIMING'].includes(workerType)) return activity ? result(null) : null;
     if (codingType === 'VALIDATION_RECORDED') return result(4, stopped ? state : 'active');
-    return result(3, codingType === 'TASK_FINISHED' ? state : stopped ? state : 'active');
+    return result(activity?.phase ?? 3, codingType === 'TASK_FINISHED' ? state : stopped ? state : 'active');
   }
   if (stage === 'RESULT_VALIDATING' || ['RESULT_AGGREGATING', 'RESULT_AGGREGATION_RETRYING', 'FINAL_SYNTHESIS'].includes(stage))
     return result(4, stopped ? state : 'active');
@@ -175,6 +190,64 @@ export function executionStatusLabel(status) {
   return {active:'进行中',waiting:'等待中',retrying:'重试中',done:'已完成',error:'执行失败',timeout:'已超时',
     cancelled:'已取消',partial:'部分完成',empty:'需要补充输入',pending:'未开始',unrecorded:'未单独记录',
     integrated:'并入分析',stopped:'已终止',unconfirmed:'状态待确认',long_running:'执行时间较长',attention:'操作异常'}[status] || '等待状态';
+}
+
+/** Consecutive display aggregation only; retain every original event and operation identity. */
+export function userEventTimeline(events = []) {
+  const rows=[],operations=new Map();
+  for (const event of [...events].sort((a,b)=>Number(a.sequence||a.order||0)-Number(b.sequence||b.order||0))) {
+    let payload=event.payload||{};
+    try { if(typeof payload==='string')payload=JSON.parse(payload); } catch { payload={}; }
+    const runtime=objectValue(payload.payload||payload),metadata=objectValue(runtime.metadata);
+    const worker=objectValue(metadata.workerActivity||metadata.payload),type=upper(event.type);
+    const projection=businessEventPresentation(event),activity=projection?.activity;
+    const denied=['AUTHORIZATION_DENIED','PERMISSION_DENIED'].includes(type)
+      || ['AUTHORIZATION_DENIED','PERMISSION_DENIED'].includes(upper(metadata.reasonCode||event.errorCode));
+    const confirmation=['NEEDS_CONFIRMATION','RUNTIME_CONFIRMATION'].includes(type);
+    // Accounting and timing receipts stay in diagnostics, never masquerade as a new business action.
+    if(['MODEL_USAGE','MODEL_TIMING','TOOL_TIMING','SESSION_TIMING'].includes(upper(worker.type))) continue;
+    if(!activity&&!denied&&!confirmation&&!projection?.terminal) continue;
+    const state=denied?'error':confirmation?'waiting':activity?.state||projection?.status||'active';
+    const critical=denied||confirmation||STOPPED.has(state);
+    const key=critical?null:JSON.stringify([event.attemptId||metadata.attemptId,upper(worker.type)||type,
+      metadata.eventKind,worker.tool,activity?.kind,projection?.index,state]);
+    const labels=OPERATION_LABELS[activity?.kind];
+    const row={id:`display-${event.eventId||rows.length}-${event.sequence||0}`,count:1,sourceEvents:[event],
+      groupKey:key,observedAt:activity?.observedAt||0,
+      sequence:Number(event.sequence||0),state,critical,
+      title:denied?'权限请求被拒绝':confirmation?'需要用户确认':labels?(state==='done'?labels[1]:labels[0]):'任务状态更新',
+      detail:activity?.summary || (critical?businessReason(metadata.publicReason||runtime.errorMessage||payload.errorMessage,state)||
+        (confirmation?'请核对请求并确认后继续。':denied?'该操作未获授权，未扩大访问范围。':'执行已停止，请展开技术日志核对。'):
+        state==='done'?'已收到操作完成记录。':'等待真实执行回执。'),
+      timeLabel:activity?.observedAt?new Date(activity.observedAt).toLocaleTimeString('zh-CN',{hour12:false}):'时间未记录',
+      statusLabel:executionStatusLabel(state),durationLabel:executionDuration(activity?.durationMs)};
+    const lifecycleIdentity=activity&&(['KNOWLEDGE','NEWS','MARKET'].includes(activity.kind)
+      ?worker.toolCallId||worker.operationId||metadata.operationId||activity.id:activity.id);
+    const lifecycleKey=activity&&[event.attemptId||metadata.attemptId||'',metadata.taskId||event.runId||'',activity.kind,lifecycleIdentity].join(':');
+    const previous=activity&&operations.get(lifecycleKey);
+    if(previous && ['active','waiting'].includes(previous.state)) {
+      // Replace the start state for THIS operation, retaining both raw receipts.
+      // An old start row must not keep spinning after its completion is observed.
+      const originalId=previous.id,sourceEvents=[...previous.sourceEvents,event];
+      const ongoing=['active','waiting'].includes(state);
+      const duration=activity.durationMs??(!ongoing&&activity.observedAt&&previous.observedAt?activity.observedAt-previous.observedAt:null);
+      Object.assign(previous,row,{id:originalId,sourceEvents,observedAt:ongoing?previous.observedAt:row.observedAt,
+        durationLabel:executionDuration(duration)});
+    } else if(previous && ['done','partial',...STOPPED].includes(previous.state) && ['active','waiting'].includes(state)) {
+      // A late heartbeat for a settled identity is evidence, not a new execution.
+      previous.sourceEvents.push(event);previous.sequence=row.sequence;
+    } else {
+      rows.push(row);if(activity)operations.set(lifecycleKey,row);
+    }
+  }
+  const grouped=[];
+  for(const row of rows) {
+    const last=grouped.at(-1);
+    if(row.groupKey && row.groupKey===last?.groupKey) {
+      last.count++;last.sourceEvents.push(...row.sourceEvents);last.sequence=row.sequence;
+    }else grouped.push({...row,sourceEvents:[...row.sourceEvents]});
+  }
+  return grouped;
 }
 
 /** Read model only: phases and operations derive from persisted receipts; clocks never advance progress. */
@@ -285,7 +358,14 @@ export function executionWorkbench(events = [], task = {}, now = Date.now(), pol
       durationLabel:intervals.length?executionDuration(sum):'未单独记录'};
   });
   const phase=progress.current;
+  let phaseStartedAt=0,lastPhase=null;
+  for(const observation of scoped) if(observation.index!=null && observation.index!==lastPhase) {
+    lastPhase=observation.index;phaseStartedAt=observation.occurredAt||observation.activity?.observedAt||0;
+  }
   return {...progress,steps:phases,status,statusLabel:executionStatusLabel(status),
+    visibleActivities:userEventTimeline(events).map(row=>progress.terminal&&['active','waiting'].includes(row.state)
+      ?{...row,state:'unrecorded',statusLabel:executionStatusLabel('unrecorded'),detail:'本次任务已结束，该操作未收到独立结束事件。'}:row),
+    phaseElapsedLabel:phaseStartedAt?executionDuration((progress.terminal?finishedAt||phaseStartedAt:now)-phaseStartedAt):'未单独记录',
     completed:phases.filter(step=>step.status==='done').length,
     phaseTitle:phases[phase-1].title,completedLabel:`${String(phases.filter(step=>step.status==='done').length).padStart(2,'0')} / ${String(progress.total).padStart(2,'0')}`,
     completedOperations:values.filter(operation=>operation.state==='done').length,
@@ -319,7 +399,7 @@ export function businessTaskProgress(events = [], task = {}) {
       step.status = value.status;
       step.detail = value.reason || '';
     }
-    current = Math.max(current, index);
+    if (!(terminal && !value.terminal)) current = index;
     terminal ||= !activeParent && value.terminal;
   };
   // Work on a copy: the original event sequence remains available for diagnostics.
@@ -355,7 +435,7 @@ export function businessTaskProgress(events = [], task = {}) {
   const parentCompleted=Boolean(task.canonicalState) && ['done','partial'].includes(businessState(parentState)) && terminal;
   const status = activeParent ? (['RETRY_WAIT','REPAIRING'].includes(parentState) ? 'retrying' : blocked ? 'attention' : 'active')
     : parentCompleted ? businessState(parentState) : blocked?.status || (terminal ? steps[4].status : steps.some(step => step.status === 'waiting') ? 'waiting' : 'active');
-  const number = parentCompleted ? 5 : blocked?.number || current + 1;
+  const number = parentCompleted ? 5 : activeParent ? current+1 : blocked?.number || current + 1;
   return { steps, current: number, total: steps.length, label: `${number}/${steps.length}`, status,
     completed: steps.filter(step => step.status === 'done').length, terminal,
     reason: parentCompleted ? '' : blocked?.detail || '' };

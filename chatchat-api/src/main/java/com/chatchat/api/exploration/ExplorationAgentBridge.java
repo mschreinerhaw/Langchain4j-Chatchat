@@ -42,7 +42,7 @@ public class ExplorationAgentBridge {
         var request=new AgentTaskSubmitRequest();request.setTenantId(owner.tenant());request.setUserId(owner.user());
         request.setAgentId(skill.id());request.setSkillId(skill.id());request.setMode(skill.executionMode().code());
         request.setIdempotencyKey("exploration:"+owner.user()+":"+node.path("id").asText());
-        request.setSessionId("exploration-"+node.path("id").asText());request.setRequestSource("PLATFORM_UI");
+        request.setSessionId(sessionId(node));request.setRequestSource("PLATFORM_UI");
         String query=node.path("question").asText();
         if(parent!=null){
             // Server-loaded branch context, never client-supplied artifacts or sibling conversation history.
@@ -64,6 +64,7 @@ public class ExplorationAgentBridge {
         request.setQuery(query);request.setToolInput(input);
         var submitted=tasks.submit(request);return snapshot(owner,submitted.taskId());
     }
+    public static String sessionId(ObjectNode node){return "exploration-"+node.path("id").asText();}
     /** Reads the existing Runtime journal and immutable evidence. Never submits or re-executes. */
     public ObjectNode snapshot(Owner owner,String taskId){return snapshot(owner,taskId,null);}
     public ObjectNode snapshot(Owner owner,String taskId,JsonNode previous){
@@ -72,6 +73,8 @@ public class ExplorationAgentBridge {
         var state=AgentExecutionState.fromWire(task.canonicalState()==null?task.status():task.canonicalState());
         var receipt=json.createObjectNode();receipt.put("agentTaskId",task.taskId());receipt.put("agentSessionId",task.sessionId());
         receipt.put("agentId",task.agentId());receipt.put("taskId",task.taskId());receipt.put("status",state.name());
+        if(task.createTime()!=null)receipt.put("analysisStartedAt",task.createTime().toString());
+        if(task.finishedAt()!=null)receipt.put("analysisFinishedAt",task.finishedAt().toString());
         receipt.set("datasets",json.valueToTree(task.datasets()));
         boolean same=previous!=null&&taskId.equals(previous.path("agentTaskId").asText());
         long cursor=same?previous.path("eventCursor").asLong():0;
@@ -85,6 +88,17 @@ public class ExplorationAgentBridge {
             backlog=batch.size()==128;if(!backlog)break;
         }
         events.sort(Comparator.comparingLong(e->e.getSequence()==null?0:e.getSequence()));
+        // A bounded read projection of this owner's journal, never another task execution.
+        var progress=new TreeMap<Long,JsonNode>();
+        if(same&&previous.path("analysisEvents").isArray())for(var event:previous.path("analysisEvents"))
+            if(event.path("sequence").canConvertToLong())progress.put(event.path("sequence").asLong(),event);
+        for(var event:events) {
+            var projected=progressEvent(event);
+            progress.put(projected.path("sequence").asLong(),projected);
+        }
+        while(progress.size()>120)progress.pollFirstEntry();
+        receipt.set("analysisEvents",json.valueToTree(progress.values()));
+        receipt.put("analysisEventLimit",120);
         for(var event:events){
             if(event.getSequence()!=null)cursor=Math.max(cursor,event.getSequence());
             if(event.getPayload()==null)continue;
@@ -127,6 +141,37 @@ public class ExplorationAgentBridge {
         receipt.put("deliveryStatus",!state.terminal()?"IN_PROGRESS":success?"FINAL":visual!=null?"PRESERVED_AFTER_FAILURE":"UNAVAILABLE");
         if(state.terminal()&&!success)receipt.put("error",Objects.toString(task.errorMessage(),"分析未完成"));
         return receipt;
+    }
+    private ObjectNode progressEvent(com.chatchat.chat.task.event.AgentEvent event) {
+        var source=json.valueToTree(event);var row=json.createObjectNode();
+        for(String key:List.of("eventId","sequence","type","status","createTime","timestamp","attemptId","runId","parentEventId"))
+            if(source.hasNonNull(key))row.set(key,source.get(key));
+        row.put("sequence",event.getSequence()==null?0:event.getSequence());
+        var meta=json.createObjectNode();
+        try {
+            var envelope=event.getPayload()==null?json.createObjectNode():json.readTree(event.getPayload());
+            var root=envelope!=null&&envelope.path("payload").isObject()?envelope.path("payload"):envelope;
+            if(root!=null) {
+                var original=root.path("metadata");
+                copyProgressFields(meta,original,List.of("eventKind","eventState","stage","codingEventType","taskId","operationId",
+                    "attemptId","observedAt","occurredAt","reasonCode","publicReason","errorMessage","executorStopped","executorConfirmed"));
+                var worker=original.path("workerActivity").isObject()?original.path("workerActivity"):original.path("payload");
+                var activity=json.createObjectNode();
+                copyProgressFields(activity,original.path("payload"),List.of("toolCallId","operationId","startedAt","finishedAt","durationMs","toolDurationMs","planText","executionOrigin","admissionPending"));
+                copyProgressFields(activity,worker,List.of("type","tool","toolCallId","operationId","modelCall","scriptVersion","status",
+                    "timestamp","startedAt","finishedAt","durationMs","toolDurationMs","planText","executionOrigin","reason","admissionPending"));
+                if(!activity.isEmpty())meta.set("workerActivity",activity);
+            }
+        } catch(java.io.IOException malformed) { /* Event identity/state still remain observable. */ }
+        row.set("payload",json.createObjectNode().set("metadata",meta));
+        return row;
+    }
+    private void copyProgressFields(ObjectNode target,JsonNode source,List<String> fields) {
+        for(String field:fields) {
+            var value=source.path(field);
+            if(value.isBoolean()||value.isNumber())target.set(field,value);
+            else if(value.isTextual())target.put(field,value.asText().substring(0,Math.min(512,value.asText().length())));
+        }
     }
     private boolean validVisual(JsonNode value){return value!=null&&"python_visual_report.v1".equals(value.path("schemaVersion").asText())
         &&!"FAILED".equals(value.path("artifactValidationStatus").asText());}

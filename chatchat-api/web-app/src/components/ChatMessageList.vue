@@ -62,29 +62,29 @@
                 @click="toggleExecutionSteps(message)"><ChevronDown v-if="executionStepsExpanded(message)" :size="16"/><ChevronRight v-else :size="16"/></button>
             </header>
             <dl class="workbench-metrics">
-              <div><dd>{{ workbench.completedLabel }}</dd><dt>已完成阶段</dt></div>
+              <div><dd>{{ workbench.phaseElapsedLabel }}</dd><dt>当前阶段用时</dt></div>
               <div><dd>{{ workbench.elapsedLabel }}</dd><dt>累计运行</dt></div>
               <div><dd>{{ workbench.completedOperations }}</dd><dt>已完成操作</dt></div>
             </dl>
-            <div class="workbench-phase-heading"><strong>当前阶段：{{ workbench.phaseTitle }}</strong><span>第 {{ workbench.current }} 阶段，共 {{ workbench.total }} 阶段</span></div>
+            <div class="workbench-phase-heading"><strong>当前阶段：{{ workbench.phaseTitle }}</strong><span>根据实际动作更新，可返回之前阶段</span></div>
             <ol class="workbench-phase-strip" aria-label="业务阶段状态">
               <li v-for="phase in workbench.steps" :key="phase.id" :class="phase.status"
                 :title="`${phase.title} · ${executionStatusLabel(phase.status)}${phase.detail ? '：'+phase.detail : ''}`"><span class="sr-only">{{ phase.number }}/{{ phase.total }} {{ phase.title }} · {{ executionStatusLabel(phase.status) }}</span></li>
             </ol>
             <div v-show="executionStepsExpanded(message)" class="workbench-details">
-              <div v-if="workbench.alerts.length || workbench.reason" class="workbench-alerts" role="status">
+              <div v-if="workbench.alerts.length || workbench.reason" class="workbench-alerts" role="alert">
                 <p v-if="workbench.reason">{{ workbench.reason }}</p><p v-for="alert in workbench.alerts" :key="alert">{{ alert }}</p>
               </div>
               <section class="workbench-activity" aria-label="实时执行动态">
                 <header><h4><span :class="workbenchIsRunning(workbench) ? 'workbench-spinner' : ['workbench-live-dot', workbench.status]" aria-hidden="true"></span>实时执行动态</h4><small>最新活动：{{ workbench.latestActivityLabel }}</small></header>
                 <p class="workbench-current"><strong>{{ workbench.status === 'unconfirmed' ? '最后已知活动：' : '' }}{{ workbench.currentActivity }}</strong><small>{{ workbench.transportLabel }} · {{ workbench.currentEvidenceLabel }}</small></p>
-                <div v-if="workbench.allActivities.length" v-follow-activity="activityRevision(workbench)"
+                <div v-if="workbench.visibleActivities.length" v-follow-activity="activityRevision(workbench)"
                   class="workbench-event-scroll" role="log" aria-label="交互事件日志" aria-live="polite" aria-relevant="additions text" tabindex="0">
                   <ol class="workbench-activity-list">
-                    <li v-for="operation in chronologicalActivities(workbench)" :key="operation.id" :class="operation.state">
+                    <li v-for="operation in chronologicalActivities(workbench)" :key="operation.id" :class="operation.state" :role="operation.critical ? 'alert' : undefined">
                       <time class="workbench-operation-time">{{ operation.timeLabel }}</time>
                       <span :class="workbenchIsRunning(workbench) && ['active', 'waiting', 'retrying'].includes(operation.state) ? 'workbench-spinner' : 'workbench-operation-dot'" aria-hidden="true"></span>
-                      <div><strong>{{ operation.title }}</strong><small>{{ operation.detail }}</small></div>
+                      <div><strong>{{ operation.title }}<span v-if="operation.count > 1"> × {{ operation.count }}</span></strong><small>{{ operation.detail }}</small></div>
                       <em>{{ operation.statusLabel }} · {{ operation.durationLabel }}</em>
                     </li>
                   </ol>
@@ -97,6 +97,12 @@
                 <p>最近状态同步：{{ workbench.lastHeartbeatLabel }}。连接正常仅代表状态通道可用，不证明底层操作已完成。</p>
                 <p>页面长时间提醒阈值：{{ workbench.warningThresholdLabel }}；该提醒不会改变任务终态或发起重试。</p>
                 <ol><li v-for="operation in workbench.allActivities" :key="operation.id"><code>{{ operation.operationId }}</code><span>事件序号 {{ operation.sequence }} · {{ operation.timeLabel }} · {{ operation.statusLabel }}</span></li></ol>
+              </details>
+              <details class="workbench-diagnostics" @toggle="toggleRawLogs(message,$event)"><summary>展开原始技术日志（{{ (message.steps || []).length }} 条）</summary>
+                <template v-if="rawLogLimits[message.id]">
+                  <ol><li v-for="(event,index) in (message.steps || []).slice(0,rawLogLimits[message.id])" :key="event.eventId || index"><pre>{{ formatRawLog(event) }}</pre></li></ol>
+                  <button v-if="rawLogLimits[message.id] < (message.steps || []).length" type="button" @click="rawLogLimits[message.id] += 100">继续加载日志</button>
+                </template>
               </details>
             </div>
           </section>

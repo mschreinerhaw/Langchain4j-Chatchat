@@ -8,6 +8,22 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ToolLogSummarizerTest {
+    @Test void numericUsageCountersStayObservableWhileCredentialsAndDisguisedStringsRemainRedacted() {
+        var payload=Map.of("usage",Map.of("inputTokens",12000,"outputTokens",120,"cacheReadTokens",3000),
+            "remainingTokens",45000L,"access_token",123456,"apiKey","private-key",
+            "nullable",java.util.Collections.singletonMap("firstTokenMs",null),
+            "nested",Map.of("inputTokens","private-value","authorization","Bearer private-key","modelTokens",-1));
+        for(Object projected:List.of(ToolLogSummarizer.redactComplete(payload),ToolLogSummarizer.summarizeResult("custom",payload))) {
+            assertThat(projected).isInstanceOfSatisfying(Map.class,map->{
+                assertThat(map).containsEntry("remainingTokens",45000L).containsEntry("access_token","***")
+                    .containsEntry("apiKey","***");
+                assertThat(map.get("usage")).isEqualTo(Map.of("inputTokens",12000,"outputTokens",120,"cacheReadTokens",3000));
+                assertThat(map.get("nested")).isEqualTo(Map.of("inputTokens","***","authorization","***","modelTokens","***"));
+                assertThat(map.get("nullable")).isEqualTo(java.util.Collections.singletonMap("firstTokenMs",null));
+            });
+            assertThat(projected.toString()).doesNotContain("private-value","private-key","123456");
+        }
+    }
 
     @Test
     void enterpriseMetadataDiscoveryLogsReturnedTypeCountsWithoutRecords() {

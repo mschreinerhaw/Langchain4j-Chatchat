@@ -43,7 +43,7 @@ describe('SQL IDE state', () => {
 
   it('uses typed runtime events and task states without interpreting log text as progress', () => {
     const result = {task:{status:'RUNNING'},events:[{sequence:1,type:'RUNTIME_OBSERVATION',payload:JSON.stringify({payload:{metadata:{eventKind:'MODEL_INFERENCE',eventState:'STARTED'}}})}]};
-    expect(sqlTaskPresentation(result)).toMatchObject({title:'正在分析工程',detail:'理解需求',progressLabel:'2/5',running:true});
+    expect(sqlTaskPresentation(result)).toMatchObject({title:'正在分析工程',detail:'计划生成',progressLabel:'2/5',running:true});
     expect(sqlTaskPresentation({...result,task:{status:'WAIT_TOOL'}})).toMatchObject({title:'正在执行工具',detail:'正在等待工具执行结果。'});
     expect(sqlTaskPresentation({task:{status:'RUNNING'},events:[{type:'LOG',payload:'finished successfully'}]}).terminal).toBe(false);
     expect(sqlAssistantAnswer({...result,task:{status:'WAIT_MODEL'}})).toContain('模型分析中');

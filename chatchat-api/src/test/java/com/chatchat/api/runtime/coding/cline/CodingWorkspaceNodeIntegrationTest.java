@@ -80,6 +80,7 @@ class CodingWorkspaceNodeIntegrationTest {
             var workspace=new CodingWorkspaceService(tasks,identity,evidence,beans.getBeanProvider(CodingAgentSPI.class),
                 new SqlGlotToolchain(System.getProperty("coding.sqlglotPython"),json),json,realProvider?300:60);
             workspace.setFastPathEnabled(fast);
+            workspace.setDeferredToolsEnabled(Boolean.getBoolean("coding.deferredToolsEnabled"));
             if(autonomous){
                 var jdbcMetadata=new com.chatchat.api.datascience.sql.SqlStudioJdbcMetadataFixture(source,json);
                 beans.registerSingleton("metadata",jdbcMetadata.metadata);
@@ -227,6 +228,7 @@ class CodingWorkspaceNodeIntegrationTest {
                 report.put("scope","REAL_PROVIDER_ISOLATED_JAVA_NODE_H2_PARSER");report.put("productionModified",false);
                 report.put("model",System.getProperty("coding.allowedModel"));report.put("language",dialect);report.put("fastPath",fast);
                 report.put("contextOptimizationEnabled",Boolean.getBoolean("coding.contextOptimizationEnabled"));
+                report.put("deferredToolsEnabled",Boolean.getBoolean("coding.deferredToolsEnabled"));
                 report.put("workloadSha256",java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(workload.getBytes(java.nio.charset.StandardCharsets.UTF_8))));
                 report.put("wallMs",TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-started));
                 report.put("status",outcome.status().name());report.put("usage",outcome.usage());report.put("modelCalls",telemetry);

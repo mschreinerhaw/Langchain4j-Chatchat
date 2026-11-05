@@ -302,7 +302,8 @@ class RoleChatModeHandlerTest {
         verify(coding).answer(deliveredRequest.capture(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString());
         assertThat(deliveredRequest.getValue().getQuery()).isEqualTo(question);
         assertThat(prompt.getValue() + deliveredRequest.getValue().getQuery() + role.systemPrompt())
-            .contains("ROLE_CHAT mode", "Do not plan, select", "数据表产品顾问")
+            .contains("ROLE_CHAT mode", "Cline owns planning", "数据表产品顾问")
+            .doesNotContain("Do not plan, select")
             .contains("股票期权证券盈亏流水", "不要重点解释表结构")
             .contains("If the supplied subject is unsuitable");
         assertThat(response.getToolTraces()).isEmpty();

@@ -27,12 +27,12 @@ test('legacy Agent disable policy cannot remove platform Skills; collisions and 
   dynamic.version = '2';
   assert.equal(a.catalog.skills.find(card => card.id === 'domain-a').version, '1');
   assert.equal(a.catalog.conflicts[0].reason, 'BUILTIN_NAME_RESERVED');
-  assert.equal(a.catalog.skills.length, 11);
-  assert.equal(b.catalog.skills.length, 10);
+  assert.equal(a.catalog.skills.length, 16);
+  assert.equal(b.catalog.skills.length, 15);
   assert.ok(b.readBuiltin('builtin:python-data-analysis'));
-  assert.equal(taskSkills({builtinSkillPolicy:{disabledSkillIds:'legacy-malformed'}}).catalog.skills.length,10);
+  assert.equal(taskSkills({builtinSkillPolicy:{disabledSkillIds:'legacy-malformed'}}).catalog.skills.length,15);
   for(const card of b.catalog.skills){assert.equal(card.builtin,true);assert.equal(card.enabled,true);assert.ok(card.displayName&&card.descriptionZh&&card.source&&card.sourceVersion);}
-  assert.equal(taskSkills().catalog.skills.length, 10);
+  assert.equal(taskSkills().catalog.skills.length, 15);
   const instructions = a.readBuiltin('builtin:python-data-analysis');
   assert.match(instructions.instructions, /Python Sandbox/);
   assert.match(a.readBuiltin('builtin:python-data-analysis', instructions.resources[0].path).content, /Parquet/);

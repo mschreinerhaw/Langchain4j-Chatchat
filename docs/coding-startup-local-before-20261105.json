@@ -1,0 +1,185 @@
+{
+  "schemaVersion": "coding.startup.local.v1",
+  "sourceCommit": "727da53612201f1d65fbba052dc814989abf33fb",
+  "scope": "FRESH_NODE_PROCESS_WARM_OS_CACHE_NOT_PROVIDER_LATENCY",
+  "nodeVersion": "v25.0.0",
+  "samples": [
+    {
+      "importMs": 712.3457,
+      "catalogMs": 0.30380000000002383,
+      "disclosureMs": 0.07010000000002492,
+      "catalogBytes": 11328,
+      "discovery": {
+        "bodyReads": 15,
+        "referenceReads": 33,
+        "readBytes": 419307
+      },
+      "afterDisclosure": {
+        "bodyReads": 15,
+        "referenceReads": 33,
+        "readBytes": 419307
+      }
+    },
+    {
+      "importMs": 686.9056999999999,
+      "catalogMs": 0.2922000000000935,
+      "disclosureMs": 0.07519999999999527,
+      "catalogBytes": 11328,
+      "discovery": {
+        "bodyReads": 15,
+        "referenceReads": 33,
+        "readBytes": 419307
+      },
+      "afterDisclosure": {
+        "bodyReads": 15,
+        "referenceReads": 33,
+        "readBytes": 419307
+      }
+    },
+    {
+      "importMs": 686.2025,
+      "catalogMs": 0.28300000000001546,
+      "disclosureMs": 0.07190000000002783,
+      "catalogBytes": 11328,
+      "discovery": {
+        "bodyReads": 15,
+        "referenceReads": 33,
+        "readBytes": 419307
+      },
+      "afterDisclosure": {
+        "bodyReads": 15,
+        "referenceReads": 33,
+        "readBytes": 419307
+      }
+    },
+    {
+      "importMs": 689.6314,
+      "catalogMs": 0.48099999999999454,
+      "disclosureMs": 0.09410000000002583,
+      "catalogBytes": 11328,
+      "discovery": {
+        "bodyReads": 15,
+        "referenceReads": 33,
+        "readBytes": 419307
+      },
+      "afterDisclosure": {
+        "bodyReads": 15,
+        "referenceReads": 33,
+        "readBytes": 419307
+      }
+    },
+    {
+      "importMs": 696.697,
+      "catalogMs": 0.3085999999999558,
+      "disclosureMs": 0.07090000000005148,
+      "catalogBytes": 11328,
+      "discovery": {
+        "bodyReads": 15,
+        "referenceReads": 33,
+        "readBytes": 419307
+      },
+      "afterDisclosure": {
+        "bodyReads": 15,
+        "referenceReads": 33,
+        "readBytes": 419307
+      }
+    },
+    {
+      "importMs": 687.5758,
+      "catalogMs": 0.3048000000000002,
+      "disclosureMs": 0.0747000000000071,
+      "catalogBytes": 11328,
+      "discovery": {
+        "bodyReads": 15,
+        "referenceReads": 33,
+        "readBytes": 419307
+      },
+      "afterDisclosure": {
+        "bodyReads": 15,
+        "referenceReads": 33,
+        "readBytes": 419307
+      }
+    },
+    {
+      "importMs": 691.858,
+      "catalogMs": 0.2765000000000555,
+      "disclosureMs": 0.06920000000002346,
+      "catalogBytes": 11328,
+      "discovery": {
+        "bodyReads": 15,
+        "referenceReads": 33,
+        "readBytes": 419307
+      },
+      "afterDisclosure": {
+        "bodyReads": 15,
+        "referenceReads": 33,
+        "readBytes": 419307
+      }
+    },
+    {
+      "importMs": 687.7539,
+      "catalogMs": 0.2980999999999767,
+      "disclosureMs": 0.07389999999998054,
+      "catalogBytes": 11328,
+      "discovery": {
+        "bodyReads": 15,
+        "referenceReads": 33,
+        "readBytes": 419307
+      },
+      "afterDisclosure": {
+        "bodyReads": 15,
+        "referenceReads": 33,
+        "readBytes": 419307
+      }
+    },
+    {
+      "importMs": 688.5482999999999,
+      "catalogMs": 0.286200000000008,
+      "disclosureMs": 0.0725999999999658,
+      "catalogBytes": 11328,
+      "discovery": {
+        "bodyReads": 15,
+        "referenceReads": 33,
+        "readBytes": 419307
+      },
+      "afterDisclosure": {
+        "bodyReads": 15,
+        "referenceReads": 33,
+        "readBytes": 419307
+      }
+    },
+    {
+      "importMs": 687.9846,
+      "catalogMs": 0.28729999999995925,
+      "disclosureMs": 0.07350000000008095,
+      "catalogBytes": 11328,
+      "discovery": {
+        "bodyReads": 15,
+        "referenceReads": 33,
+        "readBytes": 419307
+      },
+      "afterDisclosure": {
+        "bodyReads": 15,
+        "referenceReads": 33,
+        "readBytes": 419307
+      }
+    }
+  ],
+  "percentiles": {
+    "importMs": {
+      "p50": 687.9846,
+      "p95": 712.3457,
+      "p99": 712.3457
+    },
+    "catalogMs": {
+      "p50": 0.2922000000000935,
+      "p95": 0.48099999999999454,
+      "p99": 0.48099999999999454
+    },
+    "disclosureMs": {
+      "p50": 0.0725999999999658,
+      "p95": 0.09410000000002583,
+      "p99": 0.09410000000002583
+    }
+  }
+}

@@ -1,0 +1,115 @@
+{
+  "schemaVersion": "coding.startup.verification.v1",
+  "sourceBaseCommit": "727da53612201f1d65fbba052dc814989abf33fb",
+  "branch": "feature/cline-context-performance-optimization",
+  "productionDeployed": false,
+  "originalFailedStockOperationReplayed": false,
+  "java": {
+    "total": 145,
+    "classes": {
+      "com.chatchat.common.tool.ToolLogSummarizerTest": {
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "com.chatchat.common.config.ModelsConfigTest": {
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "com.chatchat.agents.model.DashScopeNativeChatModelTest": {
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "com.chatchat.agents.model.ModelFailureCategoryTest": {
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "com.chatchat.agents.model.RuntimeStreamingChatModelTest": {
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "com.chatchat.chat.interaction.service.handler.RoleChatModeHandlerTest": {
+        "tests": 8,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "com.chatchat.chat.interaction.service.InteractionExecutionTest": {
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "com.chatchat.api.model.PlatformModelCatalogServiceTest": {
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest": {
+        "tests": 45,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "com.chatchat.api.runtime.coding.cline.ClineModelCallbackControllerTest": {
+        "tests": 19,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "com.chatchat.api.runtime.coding.cline.ClineRuntimeModelBridgeTest": {
+        "tests": 22,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "com.chatchat.api.runtime.coding.cline.CodingWorkspaceNodeIntegrationTest": {
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "com.chatchat.api.runtime.coding.workspace.CodingWorkspaceServiceTest": {
+        "tests": 13,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    }
+  },
+  "node": {
+    "tests": 210,
+    "passed": 210
+  },
+  "frontend": {
+    "tests": 758,
+    "passed": 758,
+    "build": "PASSED",
+    "nodeOptions": "--no-webstorage",
+    "finalTargetedTests": 101,
+    "finalTargetedPassed": 101
+  },
+  "realProviderFinalCohort": {
+    "tasks": 4,
+    "runtimeCompleted": 4,
+    "inputTokens": 28619,
+    "outputTokens": 4499,
+    "modelCalls": 11,
+    "generatedCodeExecuted": false,
+    "businessValidation": "INCONCLUSIVE"
+  },
+  "fullSevenScenarioAcceptance": "PENDING",
+  "providerFirstTokenAvailability": "UNAVAILABLE_NON_STREAMING",
+  "dockerPythonValidation": "NOT_RUN_LOCAL_DAEMON_UNAVAILABLE",
+  "privateModelRelay": "STOPPED_PRIVATE_CONFIGURATION_REMOVED"
+}

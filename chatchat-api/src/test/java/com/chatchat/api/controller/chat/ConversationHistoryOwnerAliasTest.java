@@ -36,16 +36,17 @@ class ConversationHistoryOwnerAliasTest {
     void sidebarAndSearchMergeServerVerifiedAliasesWithinTheCurrentTenant() {
         var conversations = mock(ConversationService.class);
         var access = new ObjectAccessService(mock(JdbcTemplate.class), mock(EnterpriseAdminService.class));
-        var controller = new ConversationController(conversations, mock(WorkspaceOriginService.class), access);
+        var origins=mock(WorkspaceOriginService.class);when(origins.historyWorkspace(any())).thenReturn("zhice");
+        var controller = new ConversationController(conversations, origins, access);
         var owners = Set.of("stable-id", "legacy-name");
-        when(conversations.listOwnerConversationSummaryPage("tenant", owners, "", 1, 30))
+        when(conversations.listOwnerWorkspaceConversationSummaryPage("tenant", owners,"zhice", "", 1, 30))
             .thenReturn(new ConversationService.ConversationPage(List.of(), 0, 1, 30, 0));
-        when(conversations.listOwnerConversationSummaryPage("tenant", owners, "analysis", 2, 10))
+        when(conversations.listOwnerWorkspaceConversationSummaryPage("tenant", owners,"zhice", "analysis", 2, 10))
             .thenReturn(new ConversationService.ConversationPage(List.of(), 0, 2, 10, 0));
         controller.listUserConversationSummaries("legacy-name", "forged-tenant", 0, 30, request());
         controller.pageUserConversationSummaries("stable-id", "forged-tenant", "analysis", 2, 10, request());
-        verify(conversations).listOwnerConversationSummaryPage("tenant", owners, "", 1, 30);
-        verify(conversations).listOwnerConversationSummaryPage("tenant", owners, "analysis", 2, 10);
+        verify(conversations).listOwnerWorkspaceConversationSummaryPage("tenant", owners,"zhice", "", 1, 30);
+        verify(conversations).listOwnerWorkspaceConversationSummaryPage("tenant", owners,"zhice", "analysis", 2, 10);
     }
 
     @Test

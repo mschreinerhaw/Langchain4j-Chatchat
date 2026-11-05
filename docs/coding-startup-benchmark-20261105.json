@@ -1,0 +1,1823 @@
+{
+  "schemaVersion": "coding.startup.comparison.v1",
+  "productionModified": false,
+  "scope": "ISOLATED_REAL_PROVIDER_JAVA_NODE_H2_SOURCE_CANDIDATES_NO_CODE_EXECUTION",
+  "quantileMethod": "NEAREST_RANK_DESCRIPTIVE_ONLY_HETEROGENEOUS_N4_NOT_PRODUCTION_SLO",
+  "acceptance": "PENDING_REPRESENTATIVE_COHORT_AND_TAIL_LATENCY",
+  "variants": {
+    "baseline": {
+      "tasks": [
+        {
+          "case": "mysql-fast",
+          "workloadSha256": "34bcd00c993ad48b0190fb91b5bd99a9f8b5737ba15084ca3e48955305b63093",
+          "model": "qwen3.8-omni-flash",
+          "status": "COMPLETED",
+          "wallMs": 9855,
+          "callsWithReceipts": 2,
+          "actualInputTokens": 6760,
+          "actualOutputTokens": 365,
+          "firstActualInputTokens": 3337,
+          "providerFirstTokenMs": null,
+          "initialModelResponseMs": 2533,
+          "generatedInitialPlanMs": null,
+          "firstValidPlanMs": null,
+          "validPlanAvailability": "NO_SEPARATE_CLINE_PLAN_RECEIPT",
+          "firstSuccessfulToolMs": 90,
+          "firstSuccessfulTool": "workspace_read",
+          "firstClineToolMs": 9774,
+          "rawEventCount": 38,
+          "sessionTiming": {
+            "timestamp": "2026-11-05T09:08:18.310Z",
+            "attemptId": "node-task:fence-1",
+            "restoreDurationMs": 0,
+            "type": "SESSION_TIMING",
+            "constructionDurationMs": 2,
+            "source": "NODE_CLINE",
+            "stage": "CONTEXT_READY",
+            "preparationDurationMs": 66
+          },
+          "requestCategories": [
+            {
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1520,
+              "contextTaskBytes": 1183,
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 7823,
+              "contextHistoryBytes": 254,
+              "contextSystemBytes": 2102,
+              "contextEnvelopeBytes": 218,
+              "contextCodeBytes": 0
+            },
+            {
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1520,
+              "contextTaskBytes": 1183,
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 7823,
+              "contextHistoryBytes": 731,
+              "contextSystemBytes": 2113,
+              "contextEnvelopeBytes": 463,
+              "contextCodeBytes": 0
+            }
+          ],
+          "avoidableRepeatedContextBytes": 0,
+          "modelDurationMs": [
+            2352,
+            6852
+          ]
+        },
+        {
+          "case": "mysql-full",
+          "workloadSha256": "34bcd00c993ad48b0190fb91b5bd99a9f8b5737ba15084ca3e48955305b63093",
+          "model": "qwen3.8-omni-flash",
+          "status": "COMPLETED",
+          "wallMs": 26537,
+          "callsWithReceipts": 3,
+          "actualInputTokens": 10222,
+          "actualOutputTokens": 891,
+          "firstActualInputTokens": 2959,
+          "providerFirstTokenMs": null,
+          "initialModelResponseMs": 4971,
+          "generatedInitialPlanMs": null,
+          "firstValidPlanMs": null,
+          "validPlanAvailability": "NO_SEPARATE_CLINE_PLAN_RECEIPT",
+          "firstSuccessfulToolMs": 5136,
+          "firstSuccessfulTool": "workspace_read",
+          "firstClineToolMs": 5136,
+          "rawEventCount": 45,
+          "sessionTiming": {
+            "timestamp": "2026-11-05T09:07:53.305Z",
+            "attemptId": "node-task:fence-1",
+            "restoreDurationMs": 0,
+            "type": "SESSION_TIMING",
+            "constructionDurationMs": 2,
+            "source": "NODE_CLINE",
+            "stage": "CONTEXT_READY",
+            "preparationDurationMs": 0
+          },
+          "requestCategories": [
+            {
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1175,
+              "contextTaskBytes": 665,
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 7823,
+              "contextHistoryBytes": 0,
+              "contextSystemBytes": 1604,
+              "contextEnvelopeBytes": 114,
+              "contextCodeBytes": 0
+            },
+            {
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1175,
+              "contextTaskBytes": 665,
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 7823,
+              "contextHistoryBytes": 764,
+              "contextSystemBytes": 1615,
+              "contextEnvelopeBytes": 360,
+              "contextCodeBytes": 0
+            },
+            {
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1175,
+              "contextTaskBytes": 665,
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 7823,
+              "contextHistoryBytes": 4087,
+              "contextSystemBytes": 1627,
+              "contextEnvelopeBytes": 607,
+              "contextCodeBytes": 0
+            }
+          ],
+          "avoidableRepeatedContextBytes": 0,
+          "modelDurationMs": [
+            4286,
+            8694,
+            9716
+          ]
+        },
+        {
+          "case": "python-fast",
+          "workloadSha256": "f807e96ec1bc8049ada20366680d5ad96216ac0128cbe81743fe11e936c10efc",
+          "model": "qwen3.8-omni-flash",
+          "status": "COMPLETED",
+          "wallMs": 18089,
+          "callsWithReceipts": 2,
+          "actualInputTokens": 7518,
+          "actualOutputTokens": 928,
+          "firstActualInputTokens": 3376,
+          "providerFirstTokenMs": null,
+          "initialModelResponseMs": 6750,
+          "generatedInitialPlanMs": null,
+          "firstValidPlanMs": null,
+          "validPlanAvailability": "NO_SEPARATE_CLINE_PLAN_RECEIPT",
+          "firstSuccessfulToolMs": 57,
+          "firstSuccessfulTool": "workspace_read",
+          "firstClineToolMs": 18023,
+          "rawEventCount": 40,
+          "sessionTiming": {
+            "timestamp": "2026-11-05T09:09:20.601Z",
+            "attemptId": "node-task:fence-1",
+            "restoreDurationMs": 0,
+            "type": "SESSION_TIMING",
+            "constructionDurationMs": 2,
+            "source": "NODE_CLINE",
+            "stage": "CONTEXT_READY",
+            "preparationDurationMs": 46
+          },
+          "requestCategories": [
+            {
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1520,
+              "contextTaskBytes": 1306,
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 7823,
+              "contextHistoryBytes": 254,
+              "contextSystemBytes": 2273,
+              "contextEnvelopeBytes": 218,
+              "contextCodeBytes": 0
+            },
+            {
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1520,
+              "contextTaskBytes": 1306,
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 10883,
+              "contextHistoryBytes": 1086,
+              "contextSystemBytes": 2284,
+              "contextEnvelopeBytes": 541,
+              "contextCodeBytes": 0
+            }
+          ],
+          "avoidableRepeatedContextBytes": 0,
+          "modelDurationMs": [
+            6631,
+            10855
+          ]
+        },
+        {
+          "case": "python-full",
+          "workloadSha256": "f807e96ec1bc8049ada20366680d5ad96216ac0128cbe81743fe11e936c10efc",
+          "model": "qwen3.8-omni-flash",
+          "status": "COMPLETED",
+          "wallMs": 50804,
+          "callsWithReceipts": 4,
+          "actualInputTokens": 15253,
+          "actualOutputTokens": 3099,
+          "firstActualInputTokens": 2976,
+          "providerFirstTokenMs": null,
+          "initialModelResponseMs": 2678,
+          "generatedInitialPlanMs": null,
+          "firstValidPlanMs": null,
+          "validPlanAvailability": "NO_SEPARATE_CLINE_PLAN_RECEIPT",
+          "firstSuccessfulToolMs": 2757,
+          "firstSuccessfulTool": "workspace_read",
+          "firstClineToolMs": 2757,
+          "rawEventCount": 56,
+          "sessionTiming": {
+            "timestamp": "2026-11-05T09:08:28.928Z",
+            "attemptId": "node-task:fence-1",
+            "restoreDurationMs": 0,
+            "type": "SESSION_TIMING",
+            "constructionDurationMs": 2,
+            "source": "NODE_CLINE",
+            "stage": "CONTEXT_READY",
+            "preparationDurationMs": 0
+          },
+          "requestCategories": [
+            {
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1175,
+              "contextTaskBytes": 671,
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 7823,
+              "contextHistoryBytes": 0,
+              "contextSystemBytes": 1778,
+              "contextEnvelopeBytes": 114,
+              "contextCodeBytes": 0
+            },
+            {
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1175,
+              "contextTaskBytes": 671,
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 7823,
+              "contextHistoryBytes": 889,
+              "contextSystemBytes": 1789,
+              "contextEnvelopeBytes": 360,
+              "contextCodeBytes": 0
+            },
+            {
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1175,
+              "contextTaskBytes": 671,
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 10883,
+              "contextHistoryBytes": 1457,
+              "contextSystemBytes": 1801,
+              "contextEnvelopeBytes": 607,
+              "contextCodeBytes": 0
+            },
+            {
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1175,
+              "contextTaskBytes": 671,
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 10883,
+              "contextHistoryBytes": 6264,
+              "contextSystemBytes": 1813,
+              "contextEnvelopeBytes": 855,
+              "contextCodeBytes": 0
+            }
+          ],
+          "avoidableRepeatedContextBytes": 0,
+          "modelDurationMs": [
+            2590,
+            6566,
+            30259,
+            10578
+          ]
+        }
+      ],
+      "percentiles": {
+        "wallMs": {
+          "n": 4,
+          "p50": 18089,
+          "p95": 50804,
+          "p99": 50804
+        },
+        "actualInputTokens": {
+          "n": 4,
+          "p50": 7518,
+          "p95": 15253,
+          "p99": 15253
+        },
+        "actualOutputTokens": {
+          "n": 4,
+          "p50": 891,
+          "p95": 3099,
+          "p99": 3099
+        },
+        "callsWithReceipts": {
+          "n": 4,
+          "p50": 2,
+          "p95": 4,
+          "p99": 4
+        },
+        "firstActualInputTokens": {
+          "n": 4,
+          "p50": 2976,
+          "p95": 3376,
+          "p99": 3376
+        },
+        "initialModelResponseMs": {
+          "n": 4,
+          "p50": 2678,
+          "p95": 6750,
+          "p99": 6750
+        },
+        "firstSuccessfulToolMs": {
+          "n": 4,
+          "p50": 90,
+          "p95": 5136,
+          "p99": 5136
+        },
+        "firstClineToolMs": {
+          "n": 4,
+          "p50": 5136,
+          "p95": 18023,
+          "p99": 18023
+        },
+        "generatedInitialPlanMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null
+        },
+        "firstValidPlanMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null
+        },
+        "providerFirstTokenMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null
+        }
+      },
+      "successes": 4,
+      "attempted": 4
+    },
+    "deferred-v1": {
+      "tasks": [
+        {
+          "case": "mysql-fast",
+          "workloadSha256": "34bcd00c993ad48b0190fb91b5bd99a9f8b5737ba15084ca3e48955305b63093",
+          "model": "qwen3.8-omni-flash",
+          "status": "COMPLETED",
+          "wallMs": 14279,
+          "callsWithReceipts": 3,
+          "actualInputTokens": 11265,
+          "actualOutputTokens": 603,
+          "firstActualInputTokens": 3138,
+          "providerFirstTokenMs": null,
+          "initialModelResponseMs": 6475,
+          "generatedInitialPlanMs": null,
+          "firstValidPlanMs": null,
+          "validPlanAvailability": "NO_SEPARATE_CLINE_PLAN_RECEIPT",
+          "firstSuccessfulToolMs": 82,
+          "firstSuccessfulTool": "workspace_read",
+          "firstClineToolMs": 14205,
+          "rawEventCount": 49,
+          "sessionTiming": {
+            "timestamp": "2026-11-05T09:11:37.068Z",
+            "attemptId": "node-task:fence-1",
+            "restoreDurationMs": 0,
+            "type": "SESSION_TIMING",
+            "constructionDurationMs": 2,
+            "source": "NODE_CLINE",
+            "stage": "CONTEXT_READY",
+            "preparationDurationMs": 64
+          },
+          "requestCategories": [
+            {
+              "contextReportBytes": 0,
+              "contextToolsBytes": 317,
+              "contextTaskBytes": 1340,
+              "contextToolIndexBytes": 634,
+              "contextSkillsBytes": 7823,
+              "contextHistoryBytes": 254,
+              "contextSystemBytes": 2102,
+              "contextEnvelopeBytes": 218,
+              "contextCodeBytes": 0
+            },
+            {
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1486,
+              "contextTaskBytes": 1340,
+              "contextToolIndexBytes": 634,
+              "contextSkillsBytes": 7823,
+              "contextHistoryBytes": 2598,
+              "contextSystemBytes": 2113,
+              "contextEnvelopeBytes": 541,
+              "contextCodeBytes": 0
+            },
+            {
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1486,
+              "contextTaskBytes": 1340,
+              "contextToolIndexBytes": 634,
+              "contextSkillsBytes": 7823,
+              "contextHistoryBytes": 3075,
+              "contextSystemBytes": 2125,
+              "contextEnvelopeBytes": 786,
+              "contextCodeBytes": 0
+            }
+          ],
+          "avoidableRepeatedContextBytes": 0,
+          "modelDurationMs": [
+            6306,
+            2386,
+            4830
+          ]
+        },
+        {
+          "case": "mysql-full",
+          "workloadSha256": "34bcd00c993ad48b0190fb91b5bd99a9f8b5737ba15084ca3e48955305b63093",
+          "model": "qwen3.8-omni-flash",
+          "status": "COMPLETED",
+          "wallMs": 31182,
+          "callsWithReceipts": 4,
+          "actualInputTokens": 15047,
+          "actualOutputTokens": 1104,
+          "firstActualInputTokens": 2879,
+          "providerFirstTokenMs": null,
+          "initialModelResponseMs": 8108,
+          "generatedInitialPlanMs": null,
+          "firstValidPlanMs": null,
+          "validPlanAvailability": "NO_SEPARATE_CLINE_PLAN_RECEIPT",
+          "firstSuccessfulToolMs": 10756,
+          "firstSuccessfulTool": "workspace_read",
+          "firstClineToolMs": 10756,
+          "rawEventCount": 55,
+          "sessionTiming": {
+            "timestamp": "2026-11-05T09:11:07.512Z",
+            "attemptId": "node-task:fence-1",
+            "restoreDurationMs": 0,
+            "type": "SESSION_TIMING",
+            "constructionDurationMs": 2,
+            "source": "NODE_CLINE",
+            "stage": "CONTEXT_READY",
+            "preparationDurationMs": 0
+          },
+          "requestCategories": [
+            {
+              "contextReportBytes": 0,
+              "contextToolsBytes": 317,
+              "contextTaskBytes": 822,
+              "contextToolIndexBytes": 634,
+              "contextSkillsBytes": 7823,
+              "contextHistoryBytes": 0,
+              "contextSystemBytes": 1604,
+              "contextEnvelopeBytes": 114,
+              "contextCodeBytes": 0
+            },
+            {
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1491,
+              "contextTaskBytes": 822,
+              "contextToolIndexBytes": 634,
+              "contextSkillsBytes": 7823,
+              "contextHistoryBytes": 1968,
+              "contextSystemBytes": 1615,
+              "contextEnvelopeBytes": 361,
+              "contextCodeBytes": 0
+            },
+            {
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1491,
+              "contextTaskBytes": 822,
+              "contextToolIndexBytes": 634,
+              "contextSkillsBytes": 7823,
+              "contextHistoryBytes": 2598,
+              "contextSystemBytes": 1627,
+              "contextEnvelopeBytes": 606,
+              "contextCodeBytes": 0
+            },
+            {
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1491,
+              "contextTaskBytes": 822,
+              "contextToolIndexBytes": 634,
+              "contextSkillsBytes": 7823,
+              "contextHistoryBytes": 5867,
+              "contextSystemBytes": 1639,
+              "contextEnvelopeBytes": 853,
+              "contextCodeBytes": 0
+            }
+          ],
+          "avoidableRepeatedContextBytes": 0,
+          "modelDurationMs": [
+            7473,
+            2378,
+            8053,
+            9298
+          ]
+        },
+        {
+          "case": "python-fast",
+          "workloadSha256": "f807e96ec1bc8049ada20366680d5ad96216ac0128cbe81743fe11e936c10efc",
+          "model": "qwen3.8-omni-flash",
+          "status": "COMPLETED",
+          "wallMs": 39581,
+          "callsWithReceipts": 3,
+          "actualInputTokens": 12286,
+          "actualOutputTokens": 2169,
+          "firstActualInputTokens": 3177,
+          "providerFirstTokenMs": null,
+          "initialModelResponseMs": 7847,
+          "generatedInitialPlanMs": null,
+          "firstValidPlanMs": null,
+          "validPlanAvailability": "NO_SEPARATE_CLINE_PLAN_RECEIPT",
+          "firstSuccessfulToolMs": 52,
+          "firstSuccessfulTool": "workspace_read",
+          "firstClineToolMs": 39516,
+          "rawEventCount": 51,
+          "sessionTiming": {
+            "timestamp": "2026-11-05T09:12:40.590Z",
+            "attemptId": "node-task:fence-1",
+            "restoreDurationMs": 0,
+            "type": "SESSION_TIMING",
+            "constructionDurationMs": 2,
+            "source": "NODE_CLINE",
+            "stage": "CONTEXT_READY",
+            "preparationDurationMs": 43
+          },
+          "requestCategories": [
+            {
+              "contextReportBytes": 0,
+              "contextToolsBytes": 317,
+              "contextTaskBytes": 1463,
+              "contextToolIndexBytes": 634,
+              "contextSkillsBytes": 7823,
+              "contextHistoryBytes": 254,
+              "contextSystemBytes": 2273,
+              "contextEnvelopeBytes": 218,
+              "contextCodeBytes": 0
+            },
+            {
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1836,
+              "contextTaskBytes": 1463,
+              "contextToolIndexBytes": 634,
+              "contextSkillsBytes": 8183,
+              "contextHistoryBytes": 2595,
+              "contextSystemBytes": 2284,
+              "contextEnvelopeBytes": 541,
+              "contextCodeBytes": 0
+            },
+            {
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1836,
+              "contextTaskBytes": 1463,
+              "contextToolIndexBytes": 634,
+              "contextSkillsBytes": 11243,
+              "contextHistoryBytes": 3072,
+              "contextSystemBytes": 2296,
+              "contextEnvelopeBytes": 863,
+              "contextCodeBytes": 0
+            }
+          ],
+          "avoidableRepeatedContextBytes": 0,
+          "modelDurationMs": [
+            7741,
+            3461,
+            27737
+          ]
+        },
+        {
+          "case": "python-full",
+          "workloadSha256": "f807e96ec1bc8049ada20366680d5ad96216ac0128cbe81743fe11e936c10efc",
+          "model": "qwen3.8-omni-flash",
+          "status": "COMPLETED",
+          "wallMs": 47630,
+          "callsWithReceipts": 4,
+          "actualInputTokens": 16801,
+          "actualOutputTokens": 2799,
+          "firstActualInputTokens": 2896,
+          "providerFirstTokenMs": null,
+          "initialModelResponseMs": 6832,
+          "generatedInitialPlanMs": null,
+          "firstValidPlanMs": null,
+          "validPlanAvailability": "NO_SEPARATE_CLINE_PLAN_RECEIPT",
+          "firstSuccessfulToolMs": 10141,
+          "firstSuccessfulTool": "workspace_read",
+          "firstClineToolMs": 10141,
+          "rawEventCount": 57,
+          "sessionTiming": {
+            "timestamp": "2026-11-05T09:11:52.123Z",
+            "attemptId": "node-task:fence-1",
+            "restoreDurationMs": 0,
+            "type": "SESSION_TIMING",
+            "constructionDurationMs": 2,
+            "source": "NODE_CLINE",
+            "stage": "CONTEXT_READY",
+            "preparationDurationMs": 0
+          },
+          "requestCategories": [
+            {
+              "contextReportBytes": 0,
+              "contextToolsBytes": 317,
+              "contextTaskBytes": 828,
+              "contextToolIndexBytes": 634,
+              "contextSkillsBytes": 7823,
+              "contextHistoryBytes": 0,
+              "contextSystemBytes": 1778,
+              "contextEnvelopeBytes": 114,
+              "contextCodeBytes": 0
+            },
+            {
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1491,
+              "contextTaskBytes": 828,
+              "contextToolIndexBytes": 634,
+              "contextSkillsBytes": 7823,
+              "contextHistoryBytes": 2080,
+              "contextSystemBytes": 1789,
+              "contextEnvelopeBytes": 361,
+              "contextCodeBytes": 0
+            },
+            {
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1491,
+              "contextTaskBytes": 828,
+              "contextToolIndexBytes": 634,
+              "contextSkillsBytes": 10883,
+              "contextHistoryBytes": 3017,
+              "contextSystemBytes": 1801,
+              "contextEnvelopeBytes": 683,
+              "contextCodeBytes": 0
+            },
+            {
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1491,
+              "contextTaskBytes": 828,
+              "contextToolIndexBytes": 634,
+              "contextSkillsBytes": 10883,
+              "contextHistoryBytes": 7471,
+              "contextSystemBytes": 1813,
+              "contextEnvelopeBytes": 931,
+              "contextCodeBytes": 0
+            }
+          ],
+          "avoidableRepeatedContextBytes": 0,
+          "modelDurationMs": [
+            6751,
+            3176,
+            26394,
+            10572
+          ]
+        }
+      ],
+      "percentiles": {
+        "wallMs": {
+          "n": 4,
+          "p50": 31182,
+          "p95": 47630,
+          "p99": 47630
+        },
+        "actualInputTokens": {
+          "n": 4,
+          "p50": 12286,
+          "p95": 16801,
+          "p99": 16801
+        },
+        "actualOutputTokens": {
+          "n": 4,
+          "p50": 1104,
+          "p95": 2799,
+          "p99": 2799
+        },
+        "callsWithReceipts": {
+          "n": 4,
+          "p50": 3,
+          "p95": 4,
+          "p99": 4
+        },
+        "firstActualInputTokens": {
+          "n": 4,
+          "p50": 2896,
+          "p95": 3177,
+          "p99": 3177
+        },
+        "initialModelResponseMs": {
+          "n": 4,
+          "p50": 6832,
+          "p95": 8108,
+          "p99": 8108
+        },
+        "firstSuccessfulToolMs": {
+          "n": 4,
+          "p50": 82,
+          "p95": 10756,
+          "p99": 10756
+        },
+        "firstClineToolMs": {
+          "n": 4,
+          "p50": 10756,
+          "p95": 39516,
+          "p99": 39516
+        },
+        "generatedInitialPlanMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null
+        },
+        "firstValidPlanMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null
+        },
+        "providerFirstTokenMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null
+        }
+      },
+      "successes": 4,
+      "attempted": 4
+    },
+    "deferred-v2": {
+      "tasks": [
+        {
+          "case": "mysql-fast",
+          "workloadSha256": "34bcd00c993ad48b0190fb91b5bd99a9f8b5737ba15084ca3e48955305b63093",
+          "model": "qwen3.8-omni-flash",
+          "status": "COMPLETED",
+          "wallMs": 18766,
+          "callsWithReceipts": 3,
+          "actualInputTokens": 10578,
+          "actualOutputTokens": 857,
+          "firstActualInputTokens": 3091,
+          "providerFirstTokenMs": null,
+          "initialModelResponseMs": 7523,
+          "generatedInitialPlanMs": null,
+          "firstValidPlanMs": null,
+          "validPlanAvailability": "NO_SEPARATE_CLINE_PLAN_RECEIPT",
+          "firstSuccessfulToolMs": 88,
+          "firstSuccessfulTool": "workspace_read",
+          "firstClineToolMs": 18690,
+          "rawEventCount": 48,
+          "sessionTiming": {
+            "attemptId": "node-task:fence-1",
+            "timestamp": "2026-11-05T09:16:51.967Z",
+            "preparationDurationMs": 67,
+            "stage": "CONTEXT_READY",
+            "source": "NODE_CLINE",
+            "constructionDurationMs": 2,
+            "type": "SESSION_TIMING",
+            "restoreDurationMs": 0
+          },
+          "requestCategories": [
+            {
+              "contextToolIndexBytes": 376,
+              "contextTaskBytes": 1340,
+              "contextToolsBytes": 317,
+              "contextReportBytes": 0,
+              "contextCodeBytes": 0,
+              "contextEnvelopeBytes": 218,
+              "contextSystemBytes": 2102,
+              "contextHistoryBytes": 254,
+              "contextSkillsBytes": 7823
+            },
+            {
+              "contextToolIndexBytes": 376,
+              "contextTaskBytes": 1340,
+              "contextToolsBytes": 1486,
+              "contextReportBytes": 0,
+              "contextCodeBytes": 0,
+              "contextEnvelopeBytes": 465,
+              "contextSystemBytes": 2113,
+              "contextHistoryBytes": 1188,
+              "contextSkillsBytes": 7823
+            },
+            {
+              "contextToolIndexBytes": 376,
+              "contextTaskBytes": 1340,
+              "contextToolsBytes": 1486,
+              "contextReportBytes": 0,
+              "contextCodeBytes": 0,
+              "contextEnvelopeBytes": 711,
+              "contextSystemBytes": 2125,
+              "contextHistoryBytes": 1818,
+              "contextSkillsBytes": 7823
+            }
+          ],
+          "avoidableRepeatedContextBytes": 0,
+          "modelDurationMs": [
+            7350,
+            4044,
+            6567
+          ]
+        },
+        {
+          "case": "mysql-full",
+          "workloadSha256": "34bcd00c993ad48b0190fb91b5bd99a9f8b5737ba15084ca3e48955305b63093",
+          "model": "qwen3.8-omni-flash",
+          "status": "COMPLETED",
+          "wallMs": 27967,
+          "callsWithReceipts": 4,
+          "actualInputTokens": 14155,
+          "actualOutputTokens": 1189,
+          "firstActualInputTokens": 2832,
+          "providerFirstTokenMs": null,
+          "initialModelResponseMs": 5415,
+          "generatedInitialPlanMs": null,
+          "firstValidPlanMs": null,
+          "validPlanAvailability": "NO_SEPARATE_CLINE_PLAN_RECEIPT",
+          "firstSuccessfulToolMs": 8367,
+          "firstSuccessfulTool": "workspace_read",
+          "firstClineToolMs": 8367,
+          "rawEventCount": 55,
+          "sessionTiming": {
+            "attemptId": "node-task:fence-1",
+            "timestamp": "2026-11-05T09:16:25.692Z",
+            "preparationDurationMs": 0,
+            "stage": "CONTEXT_READY",
+            "source": "NODE_CLINE",
+            "constructionDurationMs": 4,
+            "type": "SESSION_TIMING",
+            "restoreDurationMs": 0
+          },
+          "requestCategories": [
+            {
+              "contextToolIndexBytes": 376,
+              "contextTaskBytes": 822,
+              "contextToolsBytes": 317,
+              "contextReportBytes": 0,
+              "contextCodeBytes": 0,
+              "contextEnvelopeBytes": 114,
+              "contextSystemBytes": 1604,
+              "contextHistoryBytes": 0,
+              "contextSkillsBytes": 7823
+            },
+            {
+              "contextToolIndexBytes": 376,
+              "contextTaskBytes": 822,
+              "contextToolsBytes": 1491,
+              "contextReportBytes": 0,
+              "contextCodeBytes": 0,
+              "contextEnvelopeBytes": 361,
+              "contextSystemBytes": 1615,
+              "contextHistoryBytes": 867,
+              "contextSkillsBytes": 7823
+            },
+            {
+              "contextToolIndexBytes": 376,
+              "contextTaskBytes": 822,
+              "contextToolsBytes": 1491,
+              "contextReportBytes": 0,
+              "contextCodeBytes": 0,
+              "contextEnvelopeBytes": 607,
+              "contextSystemBytes": 1627,
+              "contextHistoryBytes": 1593,
+              "contextSkillsBytes": 7823
+            },
+            {
+              "contextToolIndexBytes": 376,
+              "contextTaskBytes": 822,
+              "contextToolsBytes": 1491,
+              "contextReportBytes": 0,
+              "contextCodeBytes": 0,
+              "contextEnvelopeBytes": 854,
+              "contextSystemBytes": 1639,
+              "contextHistoryBytes": 4600,
+              "contextSkillsBytes": 7823
+            }
+          ],
+          "avoidableRepeatedContextBytes": 0,
+          "modelDurationMs": [
+            4744,
+            2671,
+            6822,
+            9681
+          ]
+        },
+        {
+          "case": "python-fast",
+          "workloadSha256": "f807e96ec1bc8049ada20366680d5ad96216ac0128cbe81743fe11e936c10efc",
+          "model": "qwen3.8-omni-flash",
+          "status": "COMPLETED",
+          "wallMs": 48220,
+          "callsWithReceipts": 3,
+          "actualInputTokens": 11391,
+          "actualOutputTokens": 2528,
+          "firstActualInputTokens": 3130,
+          "providerFirstTokenMs": null,
+          "initialModelResponseMs": 6039,
+          "generatedInitialPlanMs": null,
+          "firstValidPlanMs": null,
+          "validPlanAvailability": "NO_SEPARATE_CLINE_PLAN_RECEIPT",
+          "firstSuccessfulToolMs": 56,
+          "firstSuccessfulTool": "workspace_read",
+          "firstClineToolMs": 48121,
+          "rawEventCount": 50,
+          "sessionTiming": {
+            "attemptId": "node-task:fence-1",
+            "timestamp": "2026-11-05T09:18:13.231Z",
+            "preparationDurationMs": 51,
+            "stage": "CONTEXT_READY",
+            "source": "NODE_CLINE",
+            "constructionDurationMs": 2,
+            "type": "SESSION_TIMING",
+            "restoreDurationMs": 0
+          },
+          "requestCategories": [
+            {
+              "contextToolIndexBytes": 376,
+              "contextTaskBytes": 1463,
+              "contextToolsBytes": 317,
+              "contextReportBytes": 0,
+              "contextCodeBytes": 0,
+              "contextEnvelopeBytes": 218,
+              "contextSystemBytes": 2273,
+              "contextHistoryBytes": 254,
+              "contextSkillsBytes": 7823
+            },
+            {
+              "contextToolIndexBytes": 376,
+              "contextTaskBytes": 1463,
+              "contextToolsBytes": 1836,
+              "contextReportBytes": 0,
+              "contextCodeBytes": 0,
+              "contextEnvelopeBytes": 465,
+              "contextSystemBytes": 2284,
+              "contextHistoryBytes": 1116,
+              "contextSkillsBytes": 7823
+            },
+            {
+              "contextToolIndexBytes": 376,
+              "contextTaskBytes": 1463,
+              "contextToolsBytes": 1836,
+              "contextReportBytes": 0,
+              "contextCodeBytes": 0,
+              "contextEnvelopeBytes": 786,
+              "contextSystemBytes": 2296,
+              "contextHistoryBytes": 1593,
+              "contextSkillsBytes": 10883
+            }
+          ],
+          "avoidableRepeatedContextBytes": 0,
+          "modelDurationMs": [
+            5917,
+            3296,
+            38344
+          ]
+        },
+        {
+          "case": "python-full",
+          "workloadSha256": "f807e96ec1bc8049ada20366680d5ad96216ac0128cbe81743fe11e936c10efc",
+          "model": "qwen3.8-omni-flash",
+          "status": "COMPLETED",
+          "wallMs": 60836,
+          "callsWithReceipts": 5,
+          "actualInputTokens": 19509,
+          "actualOutputTokens": 2427,
+          "firstActualInputTokens": 2849,
+          "providerFirstTokenMs": null,
+          "initialModelResponseMs": 4918,
+          "generatedInitialPlanMs": null,
+          "firstValidPlanMs": null,
+          "validPlanAvailability": "NO_SEPARATE_CLINE_PLAN_RECEIPT",
+          "firstSuccessfulToolMs": 14048,
+          "firstSuccessfulTool": "workspace_read",
+          "firstClineToolMs": 14048,
+          "rawEventCount": 66,
+          "sessionTiming": {
+            "attemptId": "node-task:fence-1",
+            "timestamp": "2026-11-05T09:17:11.503Z",
+            "preparationDurationMs": 0,
+            "stage": "CONTEXT_READY",
+            "source": "NODE_CLINE",
+            "constructionDurationMs": 2,
+            "type": "SESSION_TIMING",
+            "restoreDurationMs": 0
+          },
+          "requestCategories": [
+            {
+              "contextToolIndexBytes": 376,
+              "contextTaskBytes": 828,
+              "contextToolsBytes": 317,
+              "contextReportBytes": 0,
+              "contextCodeBytes": 0,
+              "contextEnvelopeBytes": 114,
+              "contextSystemBytes": 1778,
+              "contextHistoryBytes": 0,
+              "contextSkillsBytes": 7823
+            },
+            {
+              "contextToolIndexBytes": 376,
+              "contextTaskBytes": 828,
+              "contextToolsBytes": 1491,
+              "contextReportBytes": 0,
+              "contextCodeBytes": 0,
+              "contextEnvelopeBytes": 361,
+              "contextSystemBytes": 1789,
+              "contextHistoryBytes": 658,
+              "contextSkillsBytes": 7823
+            },
+            {
+              "contextToolIndexBytes": 376,
+              "contextTaskBytes": 828,
+              "contextToolsBytes": 1491,
+              "contextReportBytes": 0,
+              "contextCodeBytes": 0,
+              "contextEnvelopeBytes": 607,
+              "contextSystemBytes": 1801,
+              "contextHistoryBytes": 1673,
+              "contextSkillsBytes": 7823
+            },
+            {
+              "contextToolIndexBytes": 376,
+              "contextTaskBytes": 828,
+              "contextToolsBytes": 1491,
+              "contextReportBytes": 0,
+              "contextCodeBytes": 0,
+              "contextEnvelopeBytes": 854,
+              "contextSystemBytes": 1813,
+              "contextHistoryBytes": 1851,
+              "contextSkillsBytes": 10883
+            },
+            {
+              "contextToolIndexBytes": 376,
+              "contextTaskBytes": 828,
+              "contextToolsBytes": 1491,
+              "contextReportBytes": 0,
+              "contextCodeBytes": 0,
+              "contextEnvelopeBytes": 1102,
+              "contextSystemBytes": 1825,
+              "contextHistoryBytes": 6848,
+              "contextSkillsBytes": 10883
+            }
+          ],
+          "avoidableRepeatedContextBytes": 0,
+          "modelDurationMs": [
+            4817,
+            8978,
+            5943,
+            32474,
+            7741
+          ]
+        }
+      ],
+      "percentiles": {
+        "wallMs": {
+          "n": 4,
+          "p50": 27967,
+          "p95": 60836,
+          "p99": 60836
+        },
+        "actualInputTokens": {
+          "n": 4,
+          "p50": 11391,
+          "p95": 19509,
+          "p99": 19509
+        },
+        "actualOutputTokens": {
+          "n": 4,
+          "p50": 1189,
+          "p95": 2528,
+          "p99": 2528
+        },
+        "callsWithReceipts": {
+          "n": 4,
+          "p50": 3,
+          "p95": 5,
+          "p99": 5
+        },
+        "firstActualInputTokens": {
+          "n": 4,
+          "p50": 2849,
+          "p95": 3130,
+          "p99": 3130
+        },
+        "initialModelResponseMs": {
+          "n": 4,
+          "p50": 5415,
+          "p95": 7523,
+          "p99": 7523
+        },
+        "firstSuccessfulToolMs": {
+          "n": 4,
+          "p50": 88,
+          "p95": 14048,
+          "p99": 14048
+        },
+        "firstClineToolMs": {
+          "n": 4,
+          "p50": 14048,
+          "p95": 48121,
+          "p99": 48121
+        },
+        "generatedInitialPlanMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null
+        },
+        "firstValidPlanMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null
+        },
+        "providerFirstTokenMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null
+        }
+      },
+      "successes": 4,
+      "attempted": 4
+    },
+    "compact-catalog": {
+      "tasks": [
+        {
+          "case": "mysql-fast",
+          "workloadSha256": "34bcd00c993ad48b0190fb91b5bd99a9f8b5737ba15084ca3e48955305b63093",
+          "model": "qwen3.8-omni-flash",
+          "status": "COMPLETED",
+          "wallMs": 9344,
+          "callsWithReceipts": 2,
+          "actualInputTokens": 4704,
+          "actualOutputTokens": 356,
+          "firstActualInputTokens": 2309,
+          "providerFirstTokenMs": null,
+          "initialModelResponseMs": 2749,
+          "generatedInitialPlanMs": null,
+          "firstValidPlanMs": null,
+          "validPlanAvailability": "NO_SEPARATE_CLINE_PLAN_RECEIPT",
+          "firstSuccessfulToolMs": 79,
+          "firstSuccessfulTool": "workspace_read",
+          "firstClineToolMs": 9277,
+          "rawEventCount": 38,
+          "sessionTiming": {
+            "attemptId": "node-task:fence-1",
+            "restoreDurationMs": 0,
+            "type": "SESSION_TIMING",
+            "constructionDurationMs": 2,
+            "source": "NODE_CLINE",
+            "stage": "CONTEXT_READY",
+            "preparationDurationMs": 64,
+            "timestamp": "2026-11-05T09:21:19.745Z"
+          },
+          "requestCategories": [
+            {
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 4931,
+              "contextHistoryBytes": 254,
+              "contextSystemBytes": 2102,
+              "contextEnvelopeBytes": 218,
+              "contextCodeBytes": 0,
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1520,
+              "contextTaskBytes": 1183
+            },
+            {
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 4931,
+              "contextHistoryBytes": 731,
+              "contextSystemBytes": 2113,
+              "contextEnvelopeBytes": 463,
+              "contextCodeBytes": 0,
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1520,
+              "contextTaskBytes": 1183
+            }
+          ],
+          "avoidableRepeatedContextBytes": 0,
+          "modelDurationMs": [
+            2583,
+            6153
+          ]
+        },
+        {
+          "case": "mysql-full",
+          "workloadSha256": "34bcd00c993ad48b0190fb91b5bd99a9f8b5737ba15084ca3e48955305b63093",
+          "model": "qwen3.8-omni-flash",
+          "status": "COMPLETED",
+          "wallMs": 26170,
+          "callsWithReceipts": 3,
+          "actualInputTokens": 7059,
+          "actualOutputTokens": 1040,
+          "firstActualInputTokens": 1931,
+          "providerFirstTokenMs": null,
+          "initialModelResponseMs": 5495,
+          "generatedInitialPlanMs": null,
+          "firstValidPlanMs": null,
+          "validPlanAvailability": "NO_SEPARATE_CLINE_PLAN_RECEIPT",
+          "firstSuccessfulToolMs": 5633,
+          "firstSuccessfulTool": "workspace_read",
+          "firstClineToolMs": 5633,
+          "rawEventCount": 45,
+          "sessionTiming": {
+            "attemptId": "node-task:fence-1",
+            "restoreDurationMs": 0,
+            "type": "SESSION_TIMING",
+            "constructionDurationMs": 2,
+            "source": "NODE_CLINE",
+            "stage": "CONTEXT_READY",
+            "preparationDurationMs": 0,
+            "timestamp": "2026-11-05T09:20:55.133Z"
+          },
+          "requestCategories": [
+            {
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 4931,
+              "contextHistoryBytes": 0,
+              "contextSystemBytes": 1604,
+              "contextEnvelopeBytes": 114,
+              "contextCodeBytes": 0,
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1175,
+              "contextTaskBytes": 665
+            },
+            {
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 4931,
+              "contextHistoryBytes": 753,
+              "contextSystemBytes": 1615,
+              "contextEnvelopeBytes": 360,
+              "contextCodeBytes": 0,
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1175,
+              "contextTaskBytes": 665
+            },
+            {
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 4931,
+              "contextHistoryBytes": 3808,
+              "contextSystemBytes": 1627,
+              "contextEnvelopeBytes": 607,
+              "contextCodeBytes": 0,
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1175,
+              "contextTaskBytes": 665
+            }
+          ],
+          "avoidableRepeatedContextBytes": 0,
+          "modelDurationMs": [
+            4827,
+            7792,
+            9799
+          ]
+        },
+        {
+          "case": "python-fast",
+          "workloadSha256": "f807e96ec1bc8049ada20366680d5ad96216ac0128cbe81743fe11e936c10efc",
+          "model": "qwen3.8-omni-flash",
+          "status": "COMPLETED",
+          "wallMs": 20651,
+          "callsWithReceipts": 2,
+          "actualInputTokens": 5453,
+          "actualOutputTokens": 1245,
+          "firstActualInputTokens": 2348,
+          "providerFirstTokenMs": null,
+          "initialModelResponseMs": 4282,
+          "generatedInitialPlanMs": null,
+          "firstValidPlanMs": null,
+          "validPlanAvailability": "NO_SEPARATE_CLINE_PLAN_RECEIPT",
+          "firstSuccessfulToolMs": 62,
+          "firstSuccessfulTool": "workspace_read",
+          "firstClineToolMs": 20549,
+          "rawEventCount": 40,
+          "sessionTiming": {
+            "attemptId": "node-task:fence-1",
+            "restoreDurationMs": 0,
+            "type": "SESSION_TIMING",
+            "constructionDurationMs": 2,
+            "source": "NODE_CLINE",
+            "stage": "CONTEXT_READY",
+            "preparationDurationMs": 46,
+            "timestamp": "2026-11-05T09:21:59.042Z"
+          },
+          "requestCategories": [
+            {
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 4931,
+              "contextHistoryBytes": 254,
+              "contextSystemBytes": 2273,
+              "contextEnvelopeBytes": 218,
+              "contextCodeBytes": 0,
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1520,
+              "contextTaskBytes": 1306
+            },
+            {
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 7991,
+              "contextHistoryBytes": 1078,
+              "contextSystemBytes": 2284,
+              "contextEnvelopeBytes": 541,
+              "contextCodeBytes": 0,
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1520,
+              "contextTaskBytes": 1306
+            }
+          ],
+          "avoidableRepeatedContextBytes": 0,
+          "modelDurationMs": [
+            4161,
+            15913
+          ]
+        },
+        {
+          "case": "python-full",
+          "workloadSha256": "f807e96ec1bc8049ada20366680d5ad96216ac0128cbe81743fe11e936c10efc",
+          "model": "qwen3.8-omni-flash",
+          "status": "COMPLETED",
+          "wallMs": 28272,
+          "callsWithReceipts": 4,
+          "actualInputTokens": 10576,
+          "actualOutputTokens": 1413,
+          "firstActualInputTokens": 1948,
+          "providerFirstTokenMs": null,
+          "initialModelResponseMs": 2004,
+          "generatedInitialPlanMs": null,
+          "firstValidPlanMs": null,
+          "validPlanAvailability": "NO_SEPARATE_CLINE_PLAN_RECEIPT",
+          "firstSuccessfulToolMs": 2058,
+          "firstSuccessfulTool": "workspace_read",
+          "firstClineToolMs": 2058,
+          "rawEventCount": 56,
+          "sessionTiming": {
+            "attemptId": "node-task:fence-1",
+            "restoreDurationMs": 0,
+            "type": "SESSION_TIMING",
+            "constructionDurationMs": 1,
+            "source": "NODE_CLINE",
+            "stage": "CONTEXT_READY",
+            "preparationDurationMs": 0,
+            "timestamp": "2026-11-05T09:21:29.842Z"
+          },
+          "requestCategories": [
+            {
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 4931,
+              "contextHistoryBytes": 0,
+              "contextSystemBytes": 1778,
+              "contextEnvelopeBytes": 114,
+              "contextCodeBytes": 0,
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1175,
+              "contextTaskBytes": 671
+            },
+            {
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 4931,
+              "contextHistoryBytes": 747,
+              "contextSystemBytes": 1789,
+              "contextEnvelopeBytes": 359,
+              "contextCodeBytes": 0,
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1175,
+              "contextTaskBytes": 671
+            },
+            {
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 7991,
+              "contextHistoryBytes": 1103,
+              "contextSystemBytes": 1801,
+              "contextEnvelopeBytes": 606,
+              "contextCodeBytes": 0,
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1175,
+              "contextTaskBytes": 671
+            },
+            {
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 7991,
+              "contextHistoryBytes": 3806,
+              "contextSystemBytes": 1813,
+              "contextEnvelopeBytes": 853,
+              "contextCodeBytes": 0,
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1175,
+              "contextTaskBytes": 671
+            }
+          ],
+          "avoidableRepeatedContextBytes": 0,
+          "modelDurationMs": [
+            1914,
+            4180,
+            12711,
+            8722
+          ]
+        }
+      ],
+      "percentiles": {
+        "wallMs": {
+          "n": 4,
+          "p50": 20651,
+          "p95": 28272,
+          "p99": 28272
+        },
+        "actualInputTokens": {
+          "n": 4,
+          "p50": 5453,
+          "p95": 10576,
+          "p99": 10576
+        },
+        "actualOutputTokens": {
+          "n": 4,
+          "p50": 1040,
+          "p95": 1413,
+          "p99": 1413
+        },
+        "callsWithReceipts": {
+          "n": 4,
+          "p50": 2,
+          "p95": 4,
+          "p99": 4
+        },
+        "firstActualInputTokens": {
+          "n": 4,
+          "p50": 1948,
+          "p95": 2348,
+          "p99": 2348
+        },
+        "initialModelResponseMs": {
+          "n": 4,
+          "p50": 2749,
+          "p95": 5495,
+          "p99": 5495
+        },
+        "firstSuccessfulToolMs": {
+          "n": 4,
+          "p50": 79,
+          "p95": 5633,
+          "p99": 5633
+        },
+        "firstClineToolMs": {
+          "n": 4,
+          "p50": 5633,
+          "p95": 20549,
+          "p99": 20549
+        },
+        "generatedInitialPlanMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null
+        },
+        "firstValidPlanMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null
+        },
+        "providerFirstTokenMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null
+        }
+      },
+      "successes": 4,
+      "attempted": 4
+    },
+    "final": {
+      "tasks": [
+        {
+          "case": "mysql-fast",
+          "workloadSha256": "34bcd00c993ad48b0190fb91b5bd99a9f8b5737ba15084ca3e48955305b63093",
+          "model": "qwen3.8-omni-flash",
+          "status": "COMPLETED",
+          "wallMs": 12194,
+          "callsWithReceipts": 2,
+          "actualInputTokens": 4870,
+          "actualOutputTokens": 517,
+          "firstActualInputTokens": 2327,
+          "providerFirstTokenMs": null,
+          "initialModelResponseMs": 5662,
+          "generatedInitialPlanMs": 5692,
+          "firstValidPlanMs": 12084,
+          "validPlanAvailability": "CLINE_PLAN_AND_SUCCESSFUL_AUTHORIZED_TOOL",
+          "firstSuccessfulToolMs": 90,
+          "firstSuccessfulTool": "workspace_read",
+          "firstClineToolMs": 12084,
+          "rawEventCount": 39,
+          "sessionTiming": {
+            "source": "NODE_CLINE",
+            "stage": "CONTEXT_READY",
+            "preparationDurationMs": 70,
+            "timestamp": "2026-11-05T09:33:23.239Z",
+            "attemptId": "node-task:fence-1",
+            "restoreDurationMs": 0,
+            "type": "SESSION_TIMING",
+            "constructionDurationMs": 2
+          },
+          "requestCategories": [
+            {
+              "contextSystemBytes": 2102,
+              "contextEnvelopeBytes": 218,
+              "contextCodeBytes": 0,
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1520,
+              "contextTaskBytes": 1260,
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 4931,
+              "contextHistoryBytes": 254
+            },
+            {
+              "contextSystemBytes": 2113,
+              "contextEnvelopeBytes": 465,
+              "contextCodeBytes": 0,
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1520,
+              "contextTaskBytes": 1260,
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 4931,
+              "contextHistoryBytes": 1306
+            }
+          ],
+          "avoidableRepeatedContextBytes": 0,
+          "modelDurationMs": [
+            5487,
+            6074
+          ]
+        },
+        {
+          "case": "mysql-full",
+          "workloadSha256": "34bcd00c993ad48b0190fb91b5bd99a9f8b5737ba15084ca3e48955305b63093",
+          "model": "qwen3.8-omni-flash",
+          "status": "COMPLETED",
+          "wallMs": 27171,
+          "callsWithReceipts": 3,
+          "actualInputTokens": 7189,
+          "actualOutputTokens": 959,
+          "firstActualInputTokens": 1949,
+          "providerFirstTokenMs": null,
+          "initialModelResponseMs": 3000,
+          "generatedInitialPlanMs": null,
+          "firstValidPlanMs": null,
+          "validPlanAvailability": "NO_SEPARATE_CLINE_PLAN_RECEIPT",
+          "firstSuccessfulToolMs": 3179,
+          "firstSuccessfulTool": "workspace_read",
+          "firstClineToolMs": 3179,
+          "rawEventCount": 45,
+          "sessionTiming": {
+            "source": "NODE_CLINE",
+            "stage": "CONTEXT_READY",
+            "preparationDurationMs": 0,
+            "timestamp": "2026-11-05T09:32:57.786Z",
+            "attemptId": "node-task:fence-1",
+            "restoreDurationMs": 0,
+            "type": "SESSION_TIMING",
+            "constructionDurationMs": 1
+          },
+          "requestCategories": [
+            {
+              "contextSystemBytes": 1604,
+              "contextEnvelopeBytes": 114,
+              "contextCodeBytes": 0,
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1175,
+              "contextTaskBytes": 742,
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 4931,
+              "contextHistoryBytes": 0
+            },
+            {
+              "contextSystemBytes": 1615,
+              "contextEnvelopeBytes": 359,
+              "contextCodeBytes": 0,
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1175,
+              "contextTaskBytes": 742,
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 4931,
+              "contextHistoryBytes": 630
+            },
+            {
+              "contextSystemBytes": 1627,
+              "contextEnvelopeBytes": 606,
+              "contextCodeBytes": 0,
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1175,
+              "contextTaskBytes": 742,
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 4931,
+              "contextHistoryBytes": 4120
+            }
+          ],
+          "avoidableRepeatedContextBytes": 0,
+          "modelDurationMs": [
+            2287,
+            12990,
+            7772
+          ]
+        },
+        {
+          "case": "python-fast",
+          "workloadSha256": "f807e96ec1bc8049ada20366680d5ad96216ac0128cbe81743fe11e936c10efc",
+          "model": "qwen3.8-omni-flash",
+          "status": "COMPLETED",
+          "wallMs": 19912,
+          "callsWithReceipts": 2,
+          "actualInputTokens": 5583,
+          "actualOutputTokens": 1125,
+          "firstActualInputTokens": 2366,
+          "providerFirstTokenMs": null,
+          "initialModelResponseMs": 5628,
+          "generatedInitialPlanMs": 5649,
+          "firstValidPlanMs": 19798,
+          "validPlanAvailability": "CLINE_PLAN_AND_SUCCESSFUL_AUTHORIZED_TOOL",
+          "firstSuccessfulToolMs": 51,
+          "firstSuccessfulTool": "workspace_read",
+          "firstClineToolMs": 19798,
+          "rawEventCount": 41,
+          "sessionTiming": {
+            "source": "NODE_CLINE",
+            "stage": "CONTEXT_READY",
+            "preparationDurationMs": 45,
+            "timestamp": "2026-11-05T09:34:20.516Z",
+            "attemptId": "node-task:fence-1",
+            "restoreDurationMs": 0,
+            "type": "SESSION_TIMING",
+            "constructionDurationMs": 1
+          },
+          "requestCategories": [
+            {
+              "contextSystemBytes": 2273,
+              "contextEnvelopeBytes": 218,
+              "contextCodeBytes": 0,
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1520,
+              "contextTaskBytes": 1383,
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 4931,
+              "contextHistoryBytes": 254
+            },
+            {
+              "contextSystemBytes": 2284,
+              "contextEnvelopeBytes": 541,
+              "contextCodeBytes": 0,
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1520,
+              "contextTaskBytes": 1383,
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 7991,
+              "contextHistoryBytes": 1445
+            }
+          ],
+          "avoidableRepeatedContextBytes": 0,
+          "modelDurationMs": [
+            5511,
+            13814
+          ]
+        },
+        {
+          "case": "python-full",
+          "workloadSha256": "f807e96ec1bc8049ada20366680d5ad96216ac0128cbe81743fe11e936c10efc",
+          "model": "qwen3.8-omni-flash",
+          "status": "COMPLETED",
+          "wallMs": 43430,
+          "callsWithReceipts": 4,
+          "actualInputTokens": 10977,
+          "actualOutputTokens": 1898,
+          "firstActualInputTokens": 1966,
+          "providerFirstTokenMs": null,
+          "initialModelResponseMs": 6305,
+          "generatedInitialPlanMs": null,
+          "firstValidPlanMs": null,
+          "validPlanAvailability": "NO_SEPARATE_CLINE_PLAN_RECEIPT",
+          "firstSuccessfulToolMs": 6377,
+          "firstSuccessfulTool": "workspace_read",
+          "firstClineToolMs": 6377,
+          "rawEventCount": 56,
+          "sessionTiming": {
+            "source": "NODE_CLINE",
+            "stage": "CONTEXT_READY",
+            "preparationDurationMs": 0,
+            "timestamp": "2026-11-05T09:33:36.192Z",
+            "attemptId": "node-task:fence-1",
+            "restoreDurationMs": 0,
+            "type": "SESSION_TIMING",
+            "constructionDurationMs": 2
+          },
+          "requestCategories": [
+            {
+              "contextSystemBytes": 1778,
+              "contextEnvelopeBytes": 114,
+              "contextCodeBytes": 0,
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1175,
+              "contextTaskBytes": 748,
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 4931,
+              "contextHistoryBytes": 0
+            },
+            {
+              "contextSystemBytes": 1789,
+              "contextEnvelopeBytes": 359,
+              "contextCodeBytes": 0,
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1175,
+              "contextTaskBytes": 748,
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 4931,
+              "contextHistoryBytes": 747
+            },
+            {
+              "contextSystemBytes": 1801,
+              "contextEnvelopeBytes": 606,
+              "contextCodeBytes": 0,
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1175,
+              "contextTaskBytes": 748,
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 7991,
+              "contextHistoryBytes": 1322
+            },
+            {
+              "contextSystemBytes": 1813,
+              "contextEnvelopeBytes": 854,
+              "contextCodeBytes": 0,
+              "contextReportBytes": 0,
+              "contextToolsBytes": 1175,
+              "contextTaskBytes": 748,
+              "contextToolIndexBytes": 0,
+              "contextSkillsBytes": 7991,
+              "contextHistoryBytes": 5034
+            }
+          ],
+          "avoidableRepeatedContextBytes": 0,
+          "modelDurationMs": [
+            6210,
+            11590,
+            17194,
+            7696
+          ]
+        }
+      ],
+      "percentiles": {
+        "wallMs": {
+          "n": 4,
+          "p50": 19912,
+          "p95": 43430,
+          "p99": 43430
+        },
+        "actualInputTokens": {
+          "n": 4,
+          "p50": 5583,
+          "p95": 10977,
+          "p99": 10977
+        },
+        "actualOutputTokens": {
+          "n": 4,
+          "p50": 959,
+          "p95": 1898,
+          "p99": 1898
+        },
+        "callsWithReceipts": {
+          "n": 4,
+          "p50": 2,
+          "p95": 4,
+          "p99": 4
+        },
+        "firstActualInputTokens": {
+          "n": 4,
+          "p50": 1966,
+          "p95": 2366,
+          "p99": 2366
+        },
+        "initialModelResponseMs": {
+          "n": 4,
+          "p50": 5628,
+          "p95": 6305,
+          "p99": 6305
+        },
+        "firstSuccessfulToolMs": {
+          "n": 4,
+          "p50": 90,
+          "p95": 6377,
+          "p99": 6377
+        },
+        "firstClineToolMs": {
+          "n": 4,
+          "p50": 6377,
+          "p95": 19798,
+          "p99": 19798
+        },
+        "generatedInitialPlanMs": {
+          "n": 2,
+          "p50": 5649,
+          "p95": 5692,
+          "p99": 5692
+        },
+        "firstValidPlanMs": {
+          "n": 2,
+          "p50": 12084,
+          "p95": 19798,
+          "p99": 19798
+        },
+        "providerFirstTokenMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null
+        }
+      },
+      "successes": 4,
+      "attempted": 4
+    }
+  }
+}

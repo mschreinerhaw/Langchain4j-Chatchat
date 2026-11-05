@@ -28,7 +28,10 @@ describe('execution workbench receipt integrity', () => {
   });
   it('requires explicit retry evidence before reopening a failed operation', () => {
     const failed = receipt(2,'FAILED');
-    expect(project([receipt(1,'RUNNING'),failed,receipt(3,'RUNNING')]).status).toBe('error');
+    const unreconciled=project([receipt(1,'RUNNING'),failed,receipt(3,'RUNNING')]);
+    expect(unreconciled.status).toBe('attention');
+    expect(unreconciled.terminal).toBe(false);
+    expect(unreconciled.allActivities[0].state).toBe('error');
     expect(project([failed,receipt(3,'COMPLETED')]).completedOperations).toBe(0);
     const retry = receipt(4,'RUNNING',{payload:{repairAttempt:1}});
     const running = project([receipt(1,'RUNNING'),failed,retry]);

@@ -105,7 +105,7 @@ class DashScopeNativeChatModelTest {
             HttpClient.newHttpClient(), mapper);
 
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> model.chat("hello"))
-            .isInstanceOf(IllegalStateException.class)
+            .isInstanceOf(dev.langchain4j.exception.HttpException.class)
             .hasMessageContaining("HTTP 400")
             .hasMessageContaining("bad model");
     }

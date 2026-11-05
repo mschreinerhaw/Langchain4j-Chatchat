@@ -90,7 +90,7 @@ const contract={schemaVersion:'runtime_os.coding.v3',taskId:'knowledge',scope:{t
   runtimeContext:{analysisResultMode:'TEXT_OR_CODE',knowledgeExploration:profile},
   outputContract:{requiredFiles:['rows.jsonl'],resultFormat:'JSON_LINES'},budget:{maxModelCalls:10}};
 test('knowledge profile isolates tools and progressively discloses the exploration Skill',()=>{
-  assert.ok(!taskSkills().catalog.skills.some(card=>card.name==='opensearch-knowledge-exploration'));
+  assert.equal(taskSkills().catalog.skills.find(card=>card.name==='opensearch-knowledge-exploration').instructions,undefined);
   const view=taskSkills(contract.runtimeContext);
   const card=view.catalog.skills.find(card=>card.name==='opensearch-knowledge-exploration');
   assert.equal(card.instructions,undefined);assert.equal(card.contentDelivery,'ON_DEMAND');
@@ -247,14 +247,15 @@ test('actual SDK loop autonomously joins permitted market history and news witho
   const result=await run.run();assert.equal(result.status,'completed');assert.deepEqual(calls.map(c=>c.name),plan.slice(1,-1).map(step=>step[0]));
 });
 
-test('resource methodology is progressively scoped and never grants other Coding Agents data tools',()=>{
+test('all base methodologies are discoverable without granting other Coding Agents data tools',()=>{
   const view=taskSkills({knowledgeExploration:{...profile,resourceIds:['financial_news']}});
   assert.ok(view.catalog.skills.some(c=>c.name==='financial-news-analysis'));
   assert.ok(view.catalog.skills.some(c=>c.name==='evidence-based-answering'));
-  assert.ok(!view.catalog.skills.some(c=>c.name==='financial-market-analysis'||c.name==='opensearch-knowledge-exploration'));
-  assert.equal(view.readBuiltin('builtin:financial-market-analysis'),null);
+  assert.ok(view.catalog.skills.some(c=>c.name==='financial-market-analysis'));
+  assert.ok(view.catalog.skills.some(c=>c.name==='opensearch-knowledge-exploration'));
+  assert.equal(view.readBuiltin('builtin:financial-market-analysis').authority,'METHODOLOGY_ONLY');
   assert.match(view.readBuiltin('builtin:financial-news-analysis').instructions,/publication time/);
-  assert.equal(taskSkills().readBuiltin('builtin:financial-news-analysis'),null);
+  assert.equal(taskSkills().readBuiltin('builtin:financial-news-analysis').authority,'METHODOLOGY_ONLY');
 });
 
 test('permitted resource subset never advertises ungranted resources',()=>{

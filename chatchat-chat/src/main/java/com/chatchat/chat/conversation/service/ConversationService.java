@@ -22,6 +22,7 @@ import com.chatchat.chat.conversation.model.Conversation;
 
 import com.chatchat.chat.presentation.UserFacingContentSanitizer;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -301,6 +302,25 @@ public class ConversationService {
         return sessionRepository.findPlatformHistoryByOwners(normalizeTenantId(tenantId), owners, "",
             org.springframework.data.domain.Pageable.unpaged()).stream()
             .map(session -> toConversation(session, List.of())).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public ConversationPage listOwnerWorkspaceConversationSummaryPage(String tenantId, java.util.Collection<String> owners,
+            String workspaceId,String keyword,int page,int pageSize) {
+        if(owners==null||owners.isEmpty()||workspaceId==null||workspaceId.isBlank())
+            throw new IllegalArgumentException("Authenticated workspace history scope is required");
+        int normalizedPage=Math.max(1,page),size=Math.max(1,Math.min(pageSize,100));
+        var result=sessionRepository.findWorkspaceHistoryByOwners(normalizeTenantId(tenantId),owners,workspaceId,
+            keyword==null?"":keyword.trim(),PageRequest.of(normalizedPage-1,size));
+        return new ConversationPage(result.getContent().stream().map(s->toConversation(s,List.of())).toList(),
+            result.getTotalElements(),normalizedPage,size,result.getTotalPages());
+    }
+    @Transactional(readOnly = true)
+    public List<Conversation> listOwnerWorkspaceConversations(String tenantId,java.util.Collection<String> owners,String workspaceId) {
+        if(owners==null||owners.isEmpty()||workspaceId==null||workspaceId.isBlank())
+            throw new IllegalArgumentException("Authenticated workspace history scope is required");
+        return sessionRepository.findWorkspaceHistoryByOwners(normalizeTenantId(tenantId),owners,workspaceId,"",Pageable.unpaged())
+            .stream().map(s->toConversation(s,List.of())).toList();
     }
 
     @Transactional

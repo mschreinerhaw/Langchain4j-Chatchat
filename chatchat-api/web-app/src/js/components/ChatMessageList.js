@@ -166,6 +166,7 @@ export default {
   data() {
     return {
       copiedMessageId: "",
+      rawLogLimits: {},
       copiedResetTimer: null,
       exportingPdfMessageId: "",
       pdfExportErrorMessageId: "",
@@ -226,11 +227,15 @@ export default {
       return !workbench.terminal && ['active', 'waiting', 'retrying', 'long_running', 'attention', 'unconfirmed'].includes(workbench.status);
     },
     chronologicalActivities(workbench) {
-      return workbench.allActivities.slice(0, 100).reverse();
+      return workbench.visibleActivities.slice(-100);
     },
     activityRevision(workbench) {
-      return workbench.allActivities.slice(0, 100).map(operation => `${operation.id}:${operation.sequence}:${operation.state}`).join('|');
+      return workbench.visibleActivities.slice(-100).map(operation => `${operation.id}:${operation.sequence}:${operation.state}:${operation.count}`).join('|');
     },
+    toggleRawLogs(message,event) {
+      if(event.target.open && !this.rawLogLimits[message.id])this.rawLogLimits[message.id]=100;
+    },
+    formatRawLog(event) { return JSON.stringify(event,null,2); },
     visualizationPreferences(message = {}) {
       return message?.visualizationSpec?.ui?.userPreferences || {};
     },

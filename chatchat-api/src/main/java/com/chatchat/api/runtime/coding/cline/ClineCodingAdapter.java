@@ -72,6 +72,7 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
 
     @Override public CodingTaskOutcome submit(CodingTaskContract contract) {
         requireDispatchLicense();
+        boolean deferredTools=com.chatchat.common.runtime.coding.CodingProtocol.deferredTools(contract);
         if (CodingWorkspaceService.supports(contract)) {
             if (workspace == null) throw new IllegalStateException("Workspace Coding profile is not enabled");
             workspace.requireAuthorized(contract);
@@ -81,7 +82,9 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
             if(dataSupply==null)throw new SecurityException("Dynamic analysis is unavailable");
             if(contract.authorization().allowedTools().contains("data_request"))dataSupply.requireAuthorized(contract);
         }
-        if (!(dynamic?ClineToolProfiles.ANALYSIS:java.util.Set.of("python_execute")).containsAll(contract.authorization().allowedTools()))
+        if (!contract.authorization().allowedTools().stream().allMatch(name ->
+                (dynamic?ClineToolProfiles.ANALYSIS:java.util.Set.of("python_execute")).contains(name)
+                || dynamic && deferredTools && CodingProtocol.TOOL_DESCRIBE.equals(name)))
             throw new IllegalArgumentException("D1 permits only the implemented Runtime Python callback");
         inputs.requireAuthorized(contract);
         plans.validator(contract);
@@ -407,6 +410,7 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
         throw new CodingContractException(CodingErrorCode.AUTHORIZATION_DENIED, message);
     }
     private void requireInputCapabilities(CodingTaskContract contract) {
+        boolean deferredTools=CodingProtocol.deferredTools(contract);
         boolean fast=contract.metadataRefs().contains("runtime-coding:analysis-fast-path:v1");
         boolean workspaceFast=contract.metadataRefs().contains(CodingWorkspaceService.FAST_PATH_REF);
         boolean sqlMetadata=contract.metadataRefs().contains(com.chatchat.api.datascience.sql.SqlWorkspaceMetadataTools.PROFILE);
@@ -418,8 +422,10 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
                 ||!(contract.runtimeContext().get("internetSearch") instanceof Map<?,?> profile)
                 ||!"runtime_os.internet.v1".equals(profile.get("schemaVersion"))))
             throw new SecurityException("Internet tools require a governed server-only capability");
-        if(descriptor==null && !fast && !workspaceFast && !sqlMetadata && lifecycle==null && !internet)return;
+        if(descriptor==null && !fast && !workspaceFast && !sqlMetadata && lifecycle==null && !internet && !deferredTools)return;
         JsonNode capabilities=request("/v1/input-capabilities",Map.of());
+        if(deferredTools && !CodingProtocol.DEFERRED_TOOLS_PROFILE.equals(capabilities.path("deferredToolsProfile").asText()))
+            throw new IllegalStateException("Cline worker has not negotiated deferred tool metadata; update worker before dispatch");
         if(sqlMetadata){
             boolean supported=false;
             for(var profile:capabilities.path("workspaceProfiles"))if(com.chatchat.api.datascience.sql.SqlWorkspaceMetadataTools.PROFILE.equals(profile.asText()))supported=true;

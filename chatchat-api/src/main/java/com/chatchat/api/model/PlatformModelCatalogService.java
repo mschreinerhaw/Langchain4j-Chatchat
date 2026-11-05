@@ -292,6 +292,10 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
                     fileConfig.resolveChatModelConnection(rs.getString("name"));
                 if (fileMatch != null && fileMatch.config() != null) {
                     config.setProxy(fileMatch.config().getProxy());
+                    // Deployment-side transport/window metadata is not a business plan.
+                    // Published credentials, model identity and total deadline stay authoritative.
+                    config.setContextWindowTokens(fileMatch.config().getContextWindowTokens());
+                    config.setFirstTokenTimeoutSeconds(fileMatch.config().getFirstTokenTimeoutSeconds());
                 }
                 return new ModelsConfig.ResolvedModelConnection(name, rs.getString("name"), config,
                     ModelsConfig.ModelMatchType.CONFIG_KEY);

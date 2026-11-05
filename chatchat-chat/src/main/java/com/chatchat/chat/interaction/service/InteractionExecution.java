@@ -13,6 +13,7 @@ import java.util.function.Supplier;
 
 /** Request-owned synchronous scope. Only settled children permit the parent to complete. */
 public final class InteractionExecution {
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(InteractionExecution.class);
     private final InteractionRequest request;
     private final List<Map<String, String>> phases = new ArrayList<>();
     private int activeChildren;
@@ -21,12 +22,25 @@ public final class InteractionExecution {
 
     public InteractionExecution(InteractionRequest request) { this.request = request; }
 
+    /** Deterministic stage observation, including failed stages. Never records prompt bodies. */
+    public static <T> T measure(InteractionRequest request, String phase, Supplier<T> action) {
+        long started=System.nanoTime();String state="FAILED";
+        try { T value=action.get();state="COMPLETED";return value; }
+        finally {
+            Object task=request.getToolInput()==null?null:request.getToolInput().get("__agentTaskId");
+            LOG.info("runtime_startup_phase taskId={} phase={} state={} durationMs={}",task,phase,state,
+                java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-started));
+        }
+    }
+
     public <T> T call(String phase, Supplier<T> child) {
         if (completed || failed) throw new IllegalStateException("Interaction execution is already settled");
         checkCancellation(request);
         Map<String, String> event = new LinkedHashMap<>();
         event.put("phase", phase);
         event.put("state", "RUNNING");
+        event.put("startedAt", java.time.Instant.now().toString());
+        final long startedNanos = System.nanoTime();
         phases.add(event);
         activeChildren++;
         try {
@@ -45,6 +59,11 @@ public final class InteractionExecution {
             event.put("state", "FAILED");
             throw failure;
         } finally {
+            event.put("finishedAt", java.time.Instant.now().toString());
+            event.put("durationMs", Long.toString(java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedNanos)));
+            // No user content, credentials or model inference is introduced by this timer.
+            LOG.info("runtime_interaction_phase phase={} state={} durationMs={} invocation={}",
+                phase, event.get("state"), event.get("durationMs"), phases.size());
             activeChildren--;
         }
     }

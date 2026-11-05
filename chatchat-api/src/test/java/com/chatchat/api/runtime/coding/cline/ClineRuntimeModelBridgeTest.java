@@ -23,6 +23,16 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClineRuntimeModelBridgeTest {
+    @Test void contextPolicyDistinguishesMissingWindowFromConfiguredModelLimits() {
+        var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);
+        when(resources.defaultChatModel()).thenReturn("registered-model");
+        var bridge=new ClineRuntimeModelBridge(resources,factory,json);
+        assertThat(bridge.contextPolicy(contract())).containsEntry("availability","NOT_CONFIGURED");
+        var config=new com.chatchat.common.config.ModelsConfig.ModelConnectionConfig();
+        config.setContextWindowTokens(32768);when(resources.connection(anyString())).thenReturn(config);
+        assertThat(bridge.contextPolicy(contract())).containsEntry("contextWindowTokens",32768)
+            .containsEntry("outputReserveTokens",2048);
+    }
     @Test void fullNativeAnalysisProfileReachesProviderAndDuplicateDeclarationsAreRejected() throws Exception {
         var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);
         var parent=mock(ChatModel.class);when(resources.defaultChatModel()).thenReturn("registered-model");

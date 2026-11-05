@@ -53,6 +53,8 @@ public class DataQueryController {
     private final ModelResourceRegistry modelResources;
     private final ToolRegistry toolRegistry;
     private final ConversationService conversationService;
+    private final com.chatchat.api.workspace.WorkspaceOriginService workspaceOrigins;
+    private final com.chatchat.api.security.ObjectAccessService objectAccess;
 
     /**
      * Returns the skills.
@@ -284,7 +286,7 @@ public class DataQueryController {
                                                      @RequestParam(value = "status", required = false) String status,
                                                      @RequestParam(value = "limit", required = false) Integer limit,
                                                      HttpServletRequest servletRequest) {
-        return ApiResponse.success(loadPersistentHistory(resolveTenantId(servletRequest, tenantId), userId, keyword, status, limit));
+        return ApiResponse.success(loadPersistentHistory(servletRequest, resolveTenantId(servletRequest, tenantId), userId, keyword, status, limit));
     }
 
     /**
@@ -320,7 +322,7 @@ public class DataQueryController {
             request.getAgentName()
         );
         conversationService.mergeMessages(tenantId, conversationId, userId, toConversationMessages(messages));
-        List<HistoryItem> history = loadPersistentHistory(tenantId, userId, null, null, 30);
+        List<HistoryItem> history = loadPersistentHistory(servletRequest, tenantId, userId, null, null, 30);
         long now = System.currentTimeMillis();
         HistoryItem persisted = conversationService.getConversation(tenantId, conversationId)
             .map(this::toHistoryItem)
@@ -365,7 +367,7 @@ public class DataQueryController {
         String conversationId = firstNonBlank(request == null ? null : request.getConversationId(), historyId);
         Conversation conversation = conversationService.getConversation(resolvedTenantId, conversationId).orElse(null);
         if (conversation == null) {
-            return ApiResponse.success(loadPersistentHistory(resolvedTenantId, userId, null, null, 30), "History not found");
+            return ApiResponse.success(loadPersistentHistory(servletRequest, resolvedTenantId, userId, null, null, 30), "History not found");
         }
         conversationService.updateConversationSummary(resolvedTenantId, conversationId, userId, conversation.getTitle(), status);
         List<ConversationMessage> messages = request == null
@@ -374,7 +376,7 @@ public class DataQueryController {
         if (request != null && request.getMessages() != null) {
             conversationService.mergeMessages(resolvedTenantId, conversationId, userId, toConversationMessages(messages));
         }
-        List<HistoryItem> history = loadPersistentHistory(resolvedTenantId, userId, null, null, 30);
+        List<HistoryItem> history = loadPersistentHistory(servletRequest, resolvedTenantId, userId, null, null, 30);
         if (request != null && request.getMessages() != null) {
             HistoryItem persisted = conversationService.getConversation(resolvedTenantId, conversationId)
                 .map(this::toHistoryItem)
@@ -430,7 +432,7 @@ public class DataQueryController {
                                           @RequestParam(value = "tenantId", required = false) String tenantId,
                                           HttpServletRequest servletRequest) {
         String resolvedTenantId = resolveTenantId(servletRequest, tenantId);
-        conversationService.listUserConversations(resolvedTenantId, userId).stream()
+        workspaceHistory(servletRequest, resolvedTenantId, userId).stream()
             .map(Conversation::getId)
             .forEach(conversationId -> conversationService.deleteConversation(resolvedTenantId, conversationId));
         return ApiResponse.success(null, "History cleared");
@@ -598,11 +600,18 @@ public class DataQueryController {
      * @param limit the limit value
      * @return the operation result
      */
-    private List<HistoryItem> loadPersistentHistory(String tenantId, String userId, String keyword, String status, Integer limit) {
-        List<HistoryItem> items = conversationService.listUserConversations(tenantId, userId).stream()
+    private List<HistoryItem> loadPersistentHistory(HttpServletRequest servletRequest, String tenantId, String userId, String keyword, String status, Integer limit) {
+        List<HistoryItem> items = workspaceHistory(servletRequest, tenantId, userId).stream()
             .map(this::toHistorySummaryItem)
             .toList();
         return filterHistory(items, keyword, status, limit);
+    }
+
+    private List<Conversation> workspaceHistory(HttpServletRequest request, String tenantId, String userId) {
+        var owners=objectAccess.ownerAliases(request);
+        if(owners.isEmpty())owners=java.util.Set.of(userId);
+        else objectAccess.requireUser(request,userId);
+        return conversationService.listOwnerWorkspaceConversations(tenantId,owners,workspaceOrigins.historyWorkspace(request));
     }
 
     private String resolveTenantId(HttpServletRequest request, String requestedTenantId) {
@@ -867,7 +876,7 @@ public class DataQueryController {
                 return;
             }
         }
-        history.add(0, current);
+        // A completion from another workspace must not be appended to this scoped history.
     }
 
     /**

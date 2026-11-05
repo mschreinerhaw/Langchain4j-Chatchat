@@ -8,11 +8,12 @@
       <main class="exploration-main">
         <div class="exploration-scroll-region">
           <div class="exploration-result-heading"><div><button v-if="sidebarCollapsed" type="button" class="exploration-icon-button" aria-label="展开思维链" @click="sidebarCollapsed=false"><PanelLeftOpen :size="18" /></button><h1>{{ space?heading:'开始数据探索' }}</h1></div><div v-if="canvasNode?.receipt?.resultAvailable" class="exploration-result-actions"><span v-if="report?.status==='PARTIAL'" class="exploration-partial">数据有限</span><button type="button" class="exploration-text-button" @click="showDialog(detailsDialog)"><Info :size="14" />分析说明</button></div></div>
-          <section v-if="active && (showingPrevious || selectedState.code!=='COMPLETED')" class="exploration-node-state" :data-state="selectedState.code" role="status">
+          <section v-if="active && (showingPrevious || !['RUNNING','COMPLETED'].includes(selectedState.code) || active.error || active.receipt?.error || (canvasNode && active.receipt?.terminal===false))" class="exploration-node-state" :data-state="selectedState.code" role="status">
             <LoaderCircle v-if="selectedState.code==='RUNNING'" :size="16" class="is-spinning" /><Info v-else :size="16" />
             <div><strong>{{ businessNodeTitle(active) }} · {{ selectedState.label }}</strong><p v-if="showingPrevious">画布保留“{{ heading }}”的已有成果，你可以随时切换分析路径。</p><p v-else-if="canvasNode && active.receipt?.terminal===false">已交付阶段成果，最终结论仍在核对。</p><p v-if="active.error || active.receipt?.error">{{ active.error || active.receipt.error }}</p></div>
             <button v-if="!taskRunning && !busy && showingPrevious" type="button" @click="continueFromCanvas">从已有成果重新探索</button><button v-else-if="!taskRunning && !busy && !active.receipt?.resultAvailable && !active.receipt?.terminal" type="button" @click="recover">恢复分析</button>
           </section>
+          <ExplorationActivityPanel v-if="active && (selectedState.code==='RUNNING' || active.receipt?.analysisEvents?.length)" :key="active.id" :events="active.receipt?.analysisEvents || []" :running="selectedState.code==='RUNNING'" :status="active.receipt?.status || selectedState.code" :started-at="active.receipt?.analysisStartedAt" :finished-at="active.receipt?.analysisFinishedAt" />
           <p v-if="summary" class="exploration-summary">{{ summary }}</p>
           <div v-if="loading && !canvasNode" class="exploration-loading" role="status"><LoaderCircle :size="20" class="is-spinning" />正在恢复分析…</div>
           <template v-else-if="canvasNode?.receipt?.resultAvailable">

@@ -71,13 +71,15 @@ class CodingAnalysisServiceTest {
         assertThat(contract.authorization().allowedTools()).contains("report_submit").doesNotContain("python_execute","data_request","market_search","news_search","knowledge_search");
         assertThat(contract.objective().instruction()).contains("currently has no authorized document, news or financial data tools");
     }
-    @Test void actualResourceContractRetainsCanonicalProfileAndOnlyTheGovernedTaskToolSet() {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans={false,true})
+    void actualResourceContractRetainsCanonicalProfileAndOnlyTheGovernedTaskToolSet(boolean deferred) {
         prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
         when(inputs.captureConfigured(any(),anyString(),anyList(),anyString(),anyString(),anyString(),anyLong(),anyLong(),any()))
             .thenReturn(new CodingInputSnapshotService.Snapshot("runtime-evidence:input","c"+"a".repeat(63),"input.jsonl","a".repeat(64),1,30,"runtime-context:question"));
         var service=service();var knowledge=mock(com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeService.class);
         when(knowledge.allowedTools(anyString(),anyString(),eq("resource-agent"),eq(true))).thenReturn(List.of("news_search","news_get_article","market_search","market_get_history"));
-        service.setKnowledge(knowledge);var original=context("tenant");var attrs=new LinkedHashMap<>(original.runtimeAttributes());
+        service.setKnowledge(knowledge);service.setDeferredToolsEnabled(deferred);var original=context("tenant");var attrs=new LinkedHashMap<>(original.runtimeAttributes());
         attrs.put("contextOnlyAnswer",true);attrs.put("knowledgeAgentId","resource-agent");attrs.put("resourceExplorationApproved",true);
         attrs.put("resourceExplorationConfigured",true);attrs.put("taskType","DATA_ANALYSIS");
         var context=new AnalysisCoverageCoordinator.Request(original.model(),original.query(),null,attrs,original.metadata(),()->false,()->{},original.isolationScope(),null);
@@ -86,6 +88,8 @@ class CodingAnalysisServiceTest {
         service.execute(context,request,new LinkedHashMap<>(Map.of("runtime-context:question",new Dataset("runtime-context:question",Map.of(),List.of(Map.of("text","User objective"))))));
         var capture=org.mockito.ArgumentCaptor.forClass(CodingTaskContract.class);verify(agent).submit(capture.capture());var contract=capture.getValue();
         assertThat(contract.authorization().allowedTools()).contains("news_search","market_get_history","python_execute","artifact_read").doesNotContain("knowledge_search","data_request");
+        assertThat(contract.authorization().allowedTools().contains(CodingProtocol.TOOL_DESCRIBE)).isEqualTo(deferred);
+        assertThat(CodingProtocol.deferredTools(contract)).isEqualTo(deferred);
         assertThat(contract.authorization().networkPolicy()).isEqualTo(CodingTaskContract.NetworkPolicy.NONE);
         assertThat(contract.authorization().allowedSideEffects()).containsExactly(CodingTaskContract.SideEffect.CODE_EXECUTION);
         @SuppressWarnings("unchecked") var profile=(Map<String,Object>)contract.runtimeContext().get("knowledgeExploration");

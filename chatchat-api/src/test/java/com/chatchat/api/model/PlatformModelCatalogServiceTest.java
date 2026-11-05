@@ -23,7 +23,10 @@ import static org.mockito.Mockito.verify;
 class PlatformModelCatalogServiceTest {
     @Test void persistsPerInstanceSecondsDefaultsAndPublicationWithoutProviderAliasCollision() throws Exception {
         var jdbc=new JdbcTemplate(new DriverManagerDataSource("jdbc:h2:mem:request-timeout-catalog;DB_CLOSE_DELAY=-1","sa",""));
-        var service=new PlatformModelCatalogService(jdbc,new ModelsConfig(),new SearchProperties(),new MockEnvironment(),mock(McpModelSyncClient.class));
+        var files=new ModelsConfig();var transport=new ModelsConfig.ModelConnectionConfig();
+        transport.setContextWindowTokens(65536);transport.setFirstTokenTimeoutSeconds(20);
+        files.getChatModels().put("A",transport);
+        var service=new PlatformModelCatalogService(jdbc,files,new SearchProperties(),new MockEnvironment(),mock(McpModelSyncClient.class));
         for(var entry:Map.of("A",120,"B",600,"legacy",300).entrySet()) {
             service.save(new PlatformModelCatalogService.ModelDraft(entry.getKey(),null,null,"chat","same-provider-model",
                 "http://127.0.0.1:1/v1","openai",null,1,-1,0,null,true,false,
@@ -31,6 +34,8 @@ class PlatformModelCatalogServiceTest {
             service.publish("chat",entry.getKey());
         }
         assertThat(service.resolveChatModel("A").config().requestTimeout()).isEqualTo(java.time.Duration.ofSeconds(120));
+        assertThat(service.resolveChatModel("A").config().getContextWindowTokens()).isEqualTo(65536);
+        assertThat(service.resolveChatModel("A").config().firstTokenTimeout().toSeconds()).isEqualTo(20);
         assertThat(service.resolveChatModel("B").config().requestTimeout()).isEqualTo(java.time.Duration.ofSeconds(600));
         assertThat(service.resolveChatModel("legacy").config().requestTimeout()).isEqualTo(java.time.Duration.ofSeconds(300));
         service.save(new PlatformModelCatalogService.ModelDraft("B",null,null,"chat","same-provider-model",

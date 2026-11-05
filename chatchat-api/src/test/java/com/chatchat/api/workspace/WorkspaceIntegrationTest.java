@@ -72,6 +72,76 @@ class WorkspaceIntegrationTest {
         return identities.login(user.getUsername(), "workspace-test-password").token();
     }
     private JsonNode data(MvcResult result) throws Exception { return mapper.readTree(result.getResponse().getContentAsString()).path("data"); }
+    @Test void historyIsScopedBeforeSearchAndPaginationAndLegacyHeadersDefaultToZhice() throws Exception {
+        when(workspaceLicense.workspaceEntitlement()).thenReturn(new com.chatchat.common.mcp.license.McpLicenseEntitlementPort.WorkspaceEntitlement(
+            true, Set.of("zhice", "data-science", "data-exploration"), "VALID"));
+        String owner=identities.login("admin", "workspace-admin-test-password").user().id();
+        String marker="workspace-history-"+UUID.randomUUID();
+        Map<String,String> ids=new HashMap<>();
+        for(String workspace:List.of("zhice","data-exploration")) {
+            var created=data(mvc.perform(post("/api/v1/conversations").header("Authorization","Bearer "+adminToken)
+                .header("X-Workspace-Id",workspace).contentType("application/json")
+                .content(mapper.writeValueAsString(Map.of("userId",owner,"title",marker+workspace))))
+                .andExpect(status().isOk()).andReturn());
+            ids.put(workspace,created.path("id").asText());
+        }
+        var legacy=conversations.createConversation(tenant,owner,marker+"legacy");
+        conversations.createConversation(tenant,"another-owner",marker+"private");
+        conversations.createConversation("another-tenant",owner,marker+"private");
+        String endpoint="/api/v1/conversations/user/"+owner;
+        for(String scope:List.of("","zhice","data-exploration")) {
+            var request=get(endpoint+"/summaries/page").header("Authorization","Bearer "+adminToken)
+                .param("keyword",marker).param("pageSize","1");
+            if(!scope.isEmpty())request.header("X-Workspace-Id",scope);
+            var page=data(mvc.perform(request).andExpect(status().isOk()).andReturn());
+            boolean exploration=scope.equals("data-exploration");
+            assertThat(page.path("total").asInt()).isEqualTo(exploration?1:2);
+            assertThat(page.path("totalPages").asInt()).isEqualTo(exploration?1:2);
+            assertThat(page.path("items").size()).isEqualTo(1);
+            if(exploration)assertThat(page.path("items").get(0).path("id").asText()).isEqualTo(ids.get(scope));
+            else assertThat(page.path("items").get(0).path("id").asText()).isIn(ids.get("zhice"),legacy.getId());
+        }
+        for(String suffix:List.of("","/summaries")) {
+            var history=data(mvc.perform(get(endpoint+suffix).header("Authorization","Bearer "+adminToken))
+                .andExpect(status().isOk()).andReturn());
+            assertThat(history.toString()).doesNotContain(ids.get("data-exploration"));
+            assertThat(history.toString()).contains(ids.get("zhice"),legacy.getId());
+        }
+        var legacyApi=data(mvc.perform(get("/api/v1/data/history/"+owner).header("Authorization","Bearer "+adminToken)
+            .header("X-Workspace-Id","data-exploration").param("keyword",marker))
+            .andExpect(status().isOk()).andReturn());
+        assertThat(legacyApi.size()).isEqualTo(1);
+        assertThat(legacyApi.get(0).path("id").asText()).isEqualTo(ids.get("data-exploration"));
+        mvc.perform(get(endpoint+"/summaries/page").header("Authorization","Bearer "+adminToken)
+            .header("X-Workspace-Id","unknown-workspace")).andExpect(status().isNotFound());
+        String restricted=userToken(false);
+        String restrictedOwner=data(mvc.perform(get("/api/v1/enterprise/auth/me").header("Authorization","Bearer "+restricted))
+            .andExpect(status().isOk()).andReturn()).path("id").asText();
+        mvc.perform(get("/api/v1/conversations/user/"+restrictedOwner+"/summaries/page").header("Authorization","Bearer "+restricted)
+            .header("X-Workspace-Id","data-exploration")).andExpect(status().isForbidden());
+        mvc.perform(delete("/api/v1/data/history/"+owner).header("Authorization","Bearer "+adminToken)
+            .header("X-Workspace-Id","data-exploration")).andExpect(status().isOk());
+        assertThat(conversations.getConversation(tenant,ids.get("data-exploration"))).isEmpty();
+        assertThat(conversations.getConversation(tenant,ids.get("zhice"))).isPresent();
+        assertThat(conversations.getConversation(tenant,legacy.getId())).isPresent();
+    }
+    @Test void applicationSessionProvenanceIsPersistedBeforeExecutionAndCannotBeReclassified() {
+        when(workspaceLicense.workspaceEntitlement()).thenReturn(new com.chatchat.common.mcp.license.McpLicenseEntitlementPort.WorkspaceEntitlement(
+            true, Set.of("zhice", "data-exploration"), "VALID"));
+        String owner=identities.login("admin", "workspace-admin-test-password").user().id();
+        var request=new org.springframework.mock.web.MockHttpServletRequest();
+        request.setAttribute(ApiAuthenticationFilter.CURRENT_USER_ID,owner);
+        request.setAttribute(ApiAuthenticationFilter.CURRENT_USERNAME,"admin");
+        request.setAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID,tenant);
+        request.addHeader("X-Workspace-Id","zhice");
+        String session="application-session-"+UUID.randomUUID();
+        assertThat(originService.prepareForWorkspace(request,"data-exploration",session)).isEqualTo(session);
+        assertThat(originService.prepareForWorkspace(request,"data-exploration",session)).isEqualTo(session);
+        assertThat(origins.findByTenantIdAndResourceTypeAndResourceId(tenant,"CONVERSATION",session).orElseThrow().getWorkspaceId())
+            .isEqualTo("data-exploration");
+        assertThat(conversations.getConversation(tenant,session).orElseThrow().getUserId()).isEqualTo(owner);
+        assertThatThrownBy(()->originService.prepareForWorkspace(request,"zhice",session)).isInstanceOf(SecurityException.class);
+    }
     @Test void loginAndDefaultLegacyMenusRemainAvailable() throws Exception {
         mvc.perform(get("/api/v1/workspaces/catalog")).andExpect(status().isOk())
             .andExpect(jsonPath("$.data[*].workspaceId").value(org.hamcrest.Matchers.containsInAnyOrder(

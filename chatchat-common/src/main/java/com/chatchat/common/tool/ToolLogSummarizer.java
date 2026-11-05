@@ -171,6 +171,7 @@ public final class ToolLogSummarizer {
      */
     @SuppressWarnings("unchecked")
     private static Object summarizeValue(Object value, String key, int depth) {
+        if (isPublicMetric(value,key)) return value;
         if (isSensitiveKey(key)) {
             return "***";
         }
@@ -228,6 +229,7 @@ public final class ToolLogSummarizer {
     private static Object redactCompleteValue(Object value,
                                               String key,
                                               IdentityHashMap<Object, Boolean> ancestors) {
+        if (isPublicMetric(value,key)) return value;
         if (isSensitiveKey(key)) {
             return "***";
         }
@@ -415,6 +417,20 @@ public final class ToolLogSummarizer {
      * @param key the key value
      * @return whether the condition is satisfied
      */
+    private static final java.util.Set<String> PUBLIC_METRIC_KEYS=java.util.Set.of(
+        "inputtokens","outputtokens","totaltokens","cachereadtokens","cachewritetokens","reasoningtokens",
+        "modeltokens","estimatedinputtokens","softinputtokenbudget","contexttokensestimate","remainingtokens",
+        "reservedtokens","maxmodeltokens","maxinputtokens","maxoutputtokens","contextwindowtokens","firsttokenms");
+    private static boolean isPublicMetric(Object value,String key) {
+        if(key==null)return false;
+        String normalized=key.toLowerCase(Locale.ROOT).replace("-", "").replace("_", "");
+        if(!PUBLIC_METRIC_KEYS.contains(normalized))return false;
+        if(value==null)return true;
+        if(!(value instanceof Number count))return false;
+        double numeric=count.doubleValue();
+        return Double.isFinite(numeric) && numeric>=0
+            && numeric<=9_007_199_254_740_991L && numeric==Math.rint(numeric);
+    }
     private static boolean isSensitiveKey(String key) {
         if (key == null || key.isBlank()) {
             return false;

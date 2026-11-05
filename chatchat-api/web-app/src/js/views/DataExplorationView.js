@@ -6,6 +6,7 @@ import ReportMarkdown from '../../components/ReportMarkdown.vue';
 import PromptComposer from '../../components/PromptComposer.vue';
 import ExplorationChain from '../../components/ExplorationChain.vue';
 import ExplorationDataTable from '../../components/ExplorationDataTable.vue';
+import ExplorationActivityPanel from '../../components/ExplorationActivityPanel.vue';
 import AppConfirmDialog from '../../components/AppConfirmDialog.vue';
 import {createExploration,listExplorations,getExploration,renameExploration,deleteExploration,prepareExploration,executeExploration,saveExplorationNode,explorationAgents,explorationNodeStatus,generateExplorationIdeas,uploadExplorationAttachment} from '../../services/explorationApi';
 import {validateChatFiles,chatTextFile,exceedsChatTextLimit,CHAT_FILE_ANALYSIS_OBJECTIVE} from '../utils/chatUserAssets';
@@ -16,7 +17,7 @@ import {splitThinkBlocks} from '../utils/thinkBlocks';
 import {chartDisplayTitle} from '../utils/chartDisplayTitle';
 
 export default {
-  name:'DataExplorationView',components:{PythonReportChart,ReportMarkdown,PromptComposer,ExplorationChain,ExplorationDataTable,AppConfirmDialog,
+  name:'DataExplorationView',components:{PythonReportChart,ReportMarkdown,PromptComposer,ExplorationChain,ExplorationDataTable,ExplorationActivityPanel,AppConfirmDialog,
     ChevronDown,RefreshCw,Save,PanelLeftOpen,Maximize2,Table2,Info,X,Plus,LoaderCircle,Check,ChevronRight,Ellipsis,Pencil,Trash2},
   props:{workspaceContext:{type:Object,default:null}},
   setup(props){

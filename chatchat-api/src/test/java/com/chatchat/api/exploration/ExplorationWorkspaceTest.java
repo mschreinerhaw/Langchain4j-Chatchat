@@ -20,6 +20,7 @@ class ExplorationWorkspaceTest {
     UserAssetService assets;AssetAnalysisController analysis;ObjectAccessService access;ExplorationWorkspaceController controller;
     ExplorationAgentBridge bridge=mock(ExplorationAgentBridge.class);
     com.chatchat.api.workspace.WorkspaceService workspaces;
+    com.chatchat.api.workspace.WorkspaceOriginService origins=mock(com.chatchat.api.workspace.WorkspaceOriginService.class);
     MockHttpServletRequest http=new MockHttpServletRequest();UserAssetService.Owner alice=new UserAssetService.Owner("tenant","alice");
     @BeforeEach void setup(){
         jdbc=new JdbcTemplate(new DriverManagerDataSource("jdbc:h2:mem:exploration-"+UUID.randomUUID()+";DB_CLOSE_DELAY=-1","sa",""));
@@ -28,7 +29,7 @@ class ExplorationWorkspaceTest {
         when(access.tenant(http)).thenReturn("tenant");when(access.user(http)).thenReturn("alice");
         when(assets.get(eq(alice),eq("file"))).thenReturn(new UserAssetService.File("file","DOCUMENT","customer.csv","text/csv","hash",10,"AVAILABLE","","","upload",0));
         workspaces=mock(com.chatchat.api.workspace.WorkspaceService.class);
-        controller=new ExplorationWorkspaceController(store,access,assets,analysis,json,bridge,workspaces);
+        controller=new ExplorationWorkspaceController(store,access,assets,analysis,json,bridge,workspaces,origins);
     }
     @Test void requiresTheExplorationApplicationEvenWhenTheClientClaimsAnotherWorkspace() {
         http.addHeader("X-Workspace-Id","data-science");
@@ -93,6 +94,17 @@ class ExplorationWorkspaceTest {
         assertThat(store.get(alice,id).withArray("nodes").size()).isEqualTo(2);
     }
     String nodeId(ObjectNode space){return space.path("nodes").get(0).path("id").asText();}
+    @Test void agentSessionOriginIsRegisteredBeforeSubmissionUsingServerWorkspace() {
+        http.addHeader("X-Workspace-Id","zhice");
+        var state=store.create(alice,"Scoped analysis");String id=state.path("id").asText();
+        controller.prepare(http,id,new ExplorationWorkspaceController.Question(0,null,List.of(),"Analyze",null,"authorized"));
+        state=store.get(alice,id);String node=nodeId(state);
+        when(bridge.submit(eq(alice),any(),isNull())).thenReturn(json.createObjectNode().put("agentTaskId","task").put("terminal",false));
+        controller.execute(http,id,node);
+        var order=inOrder(origins,bridge);
+        order.verify(origins).prepareForWorkspace(http,"data-exploration","exploration-"+node);
+        order.verify(bridge).submit(eq(alice),any(),isNull());
+    }
     ObjectNode complete(){
         var space=prepared();doReturn(ApiResponse.success(Map.of("resultAvailable",true,"executionMode","PYTHON","taskId","task","evidenceRefs",List.of("test-boundary-ref"),"visualReport",Map.of("charts",List.of(Map.of("id","chart","kind","plotly")))))).when(analysis).analyzeVisual(eq(http),any());
         controller.execute(http,space.path("id").asText(),nodeId(space));return store.get(alice,space.path("id").asText());

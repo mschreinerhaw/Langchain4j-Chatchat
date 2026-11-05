@@ -842,7 +842,8 @@ export async function fetchConversationHistory(userId, filters = {}) {
   }
   const query = params.toString();
   const summaries = await apiRequest(
-    `/conversations/user/${encodeURIComponent(userId)}/summaries${query ? `?${query}` : ""}`
+    `/conversations/user/${encodeURIComponent(userId)}/summaries${query ? `?${query}` : ""}`,
+    { workspaceContext: filters.workspaceContext }
   );
   return (Array.isArray(summaries) ? summaries : []).map((summary) => ({
     ...summary,
@@ -1004,7 +1005,8 @@ export async function fetchConversationHistoryPage(userId, filters = {}) {
   params.set("page", String(Math.max(1, Number(filters.page) || 1)));
   params.set("pageSize", String(Math.max(1, Number(filters.pageSize) || 10)));
   const payload = await apiRequest(
-    `/conversations/user/${encodeURIComponent(userId)}/summaries/page?${params.toString()}`
+    `/conversations/user/${encodeURIComponent(userId)}/summaries/page?${params.toString()}`,
+    { workspaceContext: filters.workspaceContext }
   );
   return {
     ...payload,

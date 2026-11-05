@@ -90,14 +90,14 @@ public class RoleChatModeHandler implements InteractionModeHandler {
     }
 
     private InteractionResponse converse(InteractionRequest request, InteractionContext context,boolean resourceConversation) {
-        SkillDefinition skill = skillCatalogService.resolve(request.getSkillId());
+        SkillDefinition skill = InteractionExecution.measure(request,"AGENT_DEFINITION",()->skillCatalogService.resolve(request.getSkillId()));
         if (!resourceConversation&&!InteractionMode.fromAgentConfiguration(skill.defaultMode()).isRoleConversation()) {
             throw new IllegalArgumentException(
                 "Agent " + skill.id() + " is configured for tool-agent execution, not role_chat");
         }
-        SkillExecutionScopePort.EffectiveScope effectiveScope = resolveSkillScope(request, skill);
+        SkillExecutionScopePort.EffectiveScope effectiveScope = InteractionExecution.measure(request,"AUTHORIZATION_SCOPE",()->resolveSkillScope(request, skill));
         var skillContext = skillAnalysisContexts == null ? Map.<String, Object>of()
-            : skillAnalysisContexts.prepare(request, skill, effectiveScope.roles(), context);
+            : InteractionExecution.measure(request,"SKILL_INDEX_PREPARATION",()->skillAnalysisContexts.prepare(request, skill, effectiveScope.roles(), context));
         // Role-chat applies domain skills as context; it never starts a competing analysis runtime.
         com.chatchat.common.knowledge.runtime.KnowledgeContext knowledge = codingAnswers.knowledgeExplorationAvailable()
             ? com.chatchat.common.knowledge.runtime.KnowledgeContext.empty("cline_exploration", 0)
@@ -107,7 +107,7 @@ public class RoleChatModeHandler implements InteractionModeHandler {
             request, skill, effectiveScope.roles(), configuredDomainSkillIds);
         // Selection of analytical methods belongs to Coding; Runtime only supplies authorized Skills.
         DomainSkillPlanningRouter.RoutingResult domainSkillRouting = null;
-        String prompt = buildPrompt(request, context, skill, knowledge, domainSkills, domainSkillRouting);
+        String prompt = InteractionExecution.measure(request,"CLINE_REFERENCE_CONTEXT",()->buildPrompt(request, context, skill, knowledge, domainSkills, domainSkillRouting));
         prompt += com.chatchat.agents.runtime.context.SkillAnalysisContext.prompt(skillContext, "REPORT");
 
         long startedAt = System.currentTimeMillis();
@@ -178,7 +178,7 @@ public class RoleChatModeHandler implements InteractionModeHandler {
             "Runtime has authorized read-only knowledge tools. Search and deeply read the current authorized project documents when the question needs them. "
                 +"Choose your own queries and sections; no Java document selection was performed. Cite exact tool evidence and distinguish design from test records.\n");
         prompt.append("You are operating in ROLE_CHAT mode. Answer directly as the configured business role.\n")
-            .append("Do not plan, select, request, simulate, or claim to have called MCP/API/SQL tools.\n")
+            .append("Cline owns planning, tool discovery, analysis and report generation. Use only tools and data authorized by Runtime; never simulate tool calls or claim execution without receipts. Revise the plan when evidence requires it.\n")
             .append("Distinguish facts supplied by the user or knowledge context from assumptions. ")
             .append("If the supplied subject is unsuitable for the requested need, say so explicitly.\n\n");
         if (hasText(skill.label())) {

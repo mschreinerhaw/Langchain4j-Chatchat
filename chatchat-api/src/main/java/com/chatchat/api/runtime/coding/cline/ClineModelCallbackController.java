@@ -70,12 +70,14 @@ public final class ClineModelCallbackController {
     @PostMapping("/budget")
     public Map<String,Object> budget(@RequestBody JsonNode body) {
         return bound(body,call->{
-            contract(body,call);
+            var contract=contract(body,call);
             var estimate=body.path("contextTokensEstimate");
             if(!estimate.isIntegralNumber()||!estimate.canConvertToLong()||estimate.asLong()<0)
                 throw new IllegalArgumentException("Nonnegative context token estimate required");
-            return tasks.budgetSnapshot(call.scope(),call.taskId(),estimate.asLong(),
-                new com.chatchat.agents.runtime.coding.CodingCompletionBudget(completionMinimumRatio,completionMaximumRatio));
+            var snapshot=new java.util.LinkedHashMap<String,Object>(tasks.budgetSnapshot(call.scope(),call.taskId(),estimate.asLong(),
+                new com.chatchat.agents.runtime.coding.CodingCompletionBudget(completionMinimumRatio,completionMaximumRatio)));
+            snapshot.put("modelContext",model.contextPolicy(contract));
+            return snapshot;
         });
     }
     private CodingWorkspaceService workspace;
@@ -456,7 +458,7 @@ public final class ClineModelCallbackController {
                 // Upstream inference/billing may remain unknown: do NOT release its reservation.
                 receipts.commitLocalTermination(contract,operationId,
                     java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-localRequestStarted),
-                    isRequestTimeout(providerFailure)?"MODEL_REQUEST_TIMEOUT":"MODEL_REQUEST_FAILED");
+                    com.chatchat.agents.model.ModelFailureCategory.classify(providerFailure).name());
                 LOG.warn("Bound Coding model operation {} failed after its durable start intent",
                     operationId, providerFailure);
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
@@ -542,15 +544,16 @@ public final class ClineModelCallbackController {
     /** Only bounded telemetry fields are retained. Source, prompts and tool responses are private artifacts. */
     private Map<String,Object> workerPayload(JsonNode event) {
         var payload = new java.util.LinkedHashMap<String,Object>();
-        for (String key : List.of("type", "timestamp", "stage", "source", "attemptId", "operationId", "tool", "status",
+        for (String key : List.of("type", "timestamp", "stage", "source", "attemptId", "operationId", "tool", "status", "planText", "executionOrigin",
                 "scriptPath", "codeSha256", "fileName", "proposedOperationId", "skillFingerprint", "skillId", "skillVersion", "selectedModel", "providerModel", "protocol", "startedAt", "finishedAt", "validationStatus", "outputStatus",
                 "resultDatasetRef", "validationRecordRef", "evidenceBundleRef", "errorCategory", "diagnosticCode", "parentCodeHash", "changeKind", "proposalHash", "toolCallId", "responseMode", "strategy", "reason", "requestHash", "estimator", "contextChangeReason", "compactionStrategy", "queueTimeScope", "providerTimingAvailability")) {
             JsonNode value = event.path(key);
             if (value.isTextual() && value.asText().length() <= 512) payload.put(key, value.asText());
         }
         for (String key : List.of("scriptVersion", "modelCall", "sourceBytes", "durationMs", "maxOutputTokens", "repairAttempts", "repairAttempt", "maxRepairAttempts", "queueTimeMs", "firstTokenMs", "generationTimeMs", "retryTimeMs", "parentCodeVersion", "codeVersion", "toolDurationMs", "messageCount", "requestBytes", "cpuTimeMs", "maxRssBytes", "callbackFirstEventMs", "responseBytes", "toolCount", "validationDurationMs",
-                "contextSystemBytes", "contextToolsBytes", "contextTaskBytes", "contextSkillsBytes", "contextCodeBytes", "contextReportBytes", "contextHistoryBytes", "contextEnvelopeBytes", "estimatedInputTokens", "softInputTokenBudget",
-                "repeatedContextBytes", "duplicateContextBytes", "avoidableRepeatedContextBytes", "newContextBytes", "compactionCount", "contextSizeBefore", "contextSizeAfter", "callbackConnectMs", "callbackHeadersMs", "callbackBodyMs", "callbackHttpDurationMs")) {
+                "contextSystemBytes", "contextToolsBytes", "contextToolIndexBytes", "contextTaskBytes", "contextSkillsBytes", "contextCodeBytes", "contextReportBytes", "contextHistoryBytes", "contextEnvelopeBytes", "estimatedInputTokens", "softInputTokenBudget",
+                "repeatedContextBytes", "duplicateContextBytes", "avoidableRepeatedContextBytes", "newContextBytes", "compactionCount", "contextSizeBefore", "contextSizeAfter", "callbackConnectMs", "callbackHeadersMs", "callbackBodyMs", "callbackHttpDurationMs",
+                "constructionDurationMs", "restoreDurationMs", "preparationDurationMs")) {
             if (event.path(key).isIntegralNumber() && event.path(key).asLong() >= 0)
                 payload.put(key, event.path(key).asLong());
         }

@@ -14,6 +14,32 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 /** Execution boundaries are mocked; these tests are not live Agent evidence. */
 class ExplorationAgentBridgeTest {
+ @Test void projectsIncrementalActivitiesWithoutCopyingToolDataOrSubmittingWork(){
+   var started=AgentEvent.builder().sequence(1L).eventId("event-1").type("RUNTIME_OBSERVATION")
+     .payload("{\"metadata\":{\"eventKind\":\"CODING_TRACE\",\"payload\":{\"toolCallId\":\"read-1\",\"password\":\"private\"},\"workerActivity\":{\"type\":\"TOOL_STARTED\",\"tool\":\"input_read\",\"source\":\"private program\"}}}").build();
+   when(tasks.listEvents("tenant","task",1000)).thenReturn(List.of(started));
+   var first=bridge.snapshot(owner,"task");
+   assertThat(first.path("analysisEvents").size()).isEqualTo(1);
+   assertThat(first.path("analysisEvents").get(0).at("/payload/metadata/workerActivity/toolCallId").asText()).isEqualTo("read-1");
+   assertThat(first.path("analysisEvents").toString()).doesNotContain("private","password","source");
+   var finished=AgentEvent.builder().sequence(2L).eventId("event-2").type("RUNTIME_OBSERVATION")
+     .payload("{\"metadata\":{\"eventKind\":\"CODING_TRACE\",\"workerActivity\":{\"type\":\"TOOL_FINISHED\",\"tool\":\"input_read\",\"toolCallId\":\"read-1\",\"status\":\"SUCCEEDED\"}}}").build();
+   when(tasks.listEventsAfter("tenant","task",1L,128)).thenReturn(List.of(finished));
+   var next=bridge.snapshot(owner,"task",first);
+   assertThat(next.path("analysisEvents").size()).isEqualTo(2);
+   assertThat(next.path("eventCursor").asLong()).isEqualTo(2);
+   verify(tasks,never()).submit(any());
+ }
+ @Test void keepsOnlyTheLatestBoundedDisplayEventsWhileRetainingTheJournalCursor(){
+   var events=java.util.stream.LongStream.rangeClosed(1,150).mapToObj(sequence->AgentEvent.builder()
+       .sequence(sequence).type("STATUS").build()).toList();
+   when(tasks.listEvents("tenant","task",1000)).thenReturn(events);
+   var snapshot=bridge.snapshot(owner,"task");
+   assertThat(snapshot.path("analysisEvents").size()).isEqualTo(120);
+   assertThat(snapshot.path("analysisEvents").get(0).path("sequence").asLong()).isEqualTo(31);
+   assertThat(snapshot.path("eventCursor").asLong()).isEqualTo(150);
+   verify(tasks,never()).submit(any());
+ }
  @Test void runningTaskPublishesOnlyArchivedStageArtifactsAndRetainsThemAfterFailure(){
    var collector=mock(com.chatchat.api.runtime.coding.evidence.CodingEvidenceCollector.class);bridge.setCollector(collector);
    var event=AgentEvent.builder().sequence(7L).runId("run").type("OBSERVATION").payload("{\"payload\":{\"metadata\":{\"eventKind\":\"CODING_TRACE\",\"taskId\":\"coding\",\"workerActivity\":{\"type\":\"TOOL_FINISHED\",\"tool\":\"python_execute\",\"operationId\":\"operation\",\"resultAvailable\":true,\"resultDatasetRef\":\"runtime-evidence:result\"}}}}").build();

@@ -3,8 +3,58 @@ import retriedStockTask from './fixtures/retried-stock-task.json';
 
 import {
   runtimeObservationIdentity,
-  runtimeObservationPresentation, businessEventPresentation, businessTaskProgress, executionWorkbench
+  runtimeObservationPresentation, businessEventPresentation, businessTaskProgress, executionWorkbench, userEventTimeline
 } from "./runtimeObservationPresentation.js";
+
+it('returns to data exploration after coding, preserving actual phase duration and raw receipts',()=>{
+  const events=[{sequence:1,type:'RUNTIME_OBSERVATION',createTime:1000,payload:{metadata:{eventKind:'CODING_TRACE',
+    workerActivity:{type:'CODE_READY',scriptVersion:1}}}},
+    {sequence:2,type:'RUNTIME_OBSERVATION',createTime:2000,payload:{metadata:{eventKind:'CODING_TRACE',
+      workerActivity:{type:'TOOL_STARTED',tool:'input_read',toolCallId:'read'}}}}];
+  const before=JSON.stringify(events),view=executionWorkbench(events,{status:'running'},5000);
+  expect(view.phaseTitle).toBe('数据探索');expect(view.current).toBe(3);
+  expect(view.phaseElapsedLabel).toBe('00:03');expect(JSON.stringify(events)).toBe(before);
+});
+
+it('aggregates only consecutive equivalent events and always exposes permission and confirmation alerts',()=>{
+  const event=(sequence,type='TOOL_STARTED',tool='input_read')=>({sequence,type:'RUNTIME_OBSERVATION',payload:{metadata:{
+    eventKind:'CODING_TRACE',workerActivity:{type,tool,toolCallId:`read-${sequence}`,status:'RUNNING'}}}});
+  const events=[event(1),event(2),{sequence:3,type:'NEEDS_CONFIRMATION'},event(4),
+    {sequence:5,type:'PERMISSION_DENIED'},{sequence:6,type:'PERMISSION_DENIED'}];
+  const before=JSON.stringify(events),rows=userEventTimeline(events);
+  expect(rows.map(row=>row.count)).toEqual([2,1,1,1,1]);
+  expect(rows.filter(row=>row.critical)).toHaveLength(3);
+  expect(rows.flatMap(row=>row.sourceEvents)).toEqual(events);
+  expect(JSON.stringify(events)).toBe(before);
+  const error=businessEventPresentation({type:'ERROR',payload:{errorMessage:'Primary Coding report cites data outside its authorized immutable inputs'}});
+  expect(error.reason).toContain('执行失败');expect(error.reason).not.toContain('Primary');
+});
+
+it('updates a completed operation in place instead of leaving a spinning start row',()=>{
+  const event=(sequence,type)=>({sequence,type:'RUNTIME_OBSERVATION',createTime:sequence*1000,payload:{metadata:{
+    eventKind:'CODING_TRACE',taskId:'t',workerActivity:{type,tool:'input_read',toolCallId:'same',status:'SUCCEEDED'}}}});
+  const events=[event(1,'TOOL_STARTED'),event(2,'TOOL_STARTED'),event(3,'TOOL_FINISHED'),event(4,'TOOL_STARTED')],before=JSON.stringify(events);
+  const rows=userEventTimeline(events);
+  expect(rows).toHaveLength(1);expect(rows[0].state).toBe('done');expect(rows[0].count).toBe(1);
+  expect(rows[0].sourceEvents).toEqual(events);expect(rows[0].durationLabel).toBe('00:02');
+  expect(JSON.stringify(events)).toBe(before);
+});
+
+it('keeps distinct resource call lifecycles even when the summary uses a shared exploration category',()=>{
+  const event=(sequence,type,id,tool)=>({sequence,type:'RUNTIME_OBSERVATION',createTime:sequence*1000,payload:{metadata:{
+    eventKind:'CODING_TRACE',taskId:'t',workerActivity:{type,tool,toolCallId:id,status:'SUCCEEDED'}}}});
+  const rows=userEventTimeline([event(1,'TOOL_STARTED','first','market_search'),event(2,'TOOL_FINISHED','first','market_search'),
+    event(3,'TOOL_STARTED','second','market_get_history'),event(4,'TOOL_FINISHED','second','market_get_history')]);
+  expect(rows).toHaveLength(2);expect(rows.map(row=>row.durationLabel)).toEqual(['00:01','00:01']);
+  expect(rows.every(row=>row.state==='done'&&row.sourceEvents.length===2)).toBe(true);
+});
+
+it('settles model admission rows even when the durable operation identity arrives only on resolution',()=>{
+  const event=(sequence,type,operationId)=>({sequence,type:'RUNTIME_OBSERVATION',payload:{metadata:{
+    eventKind:'CODING_TRACE',taskId:'t',operationId,workerActivity:{type,modelCall:1,admissionPending:type==='MODEL_STARTED'}}}});
+  const rows=userEventTimeline([event(1,'MODEL_STARTED',null),event(2,'MODEL_RESOLVED','model-1')]);
+  expect(rows).toHaveLength(1);expect(rows[0].state).toBe('done');expect(rows[0].sourceEvents).toHaveLength(2);
+});
 
 describe('business task progress', () => {
   it('groups repeated knowledge search and reads into one live exploration activity',()=>{
@@ -52,7 +102,7 @@ describe('business task progress', () => {
   it('groups parent task creation and start in the same receiving step', () => {
     const result = businessTaskProgress([{ type: 'TASK_CREATED' }, { type: 'TASK_STARTED' }, { type: 'RUNTIME_STARTED' }]);
     expect(result.label).toBe('1/5'); expect(result.steps.filter(step => step.status === 'done')).toHaveLength(1);
-    expect(result.steps[0].title).toBe('接收任务');
+    expect(result.steps[0].title).toBe('需求理解');
   });
   it.each([['FAILED', 'error'], ['CANCELLED', 'cancelled'], ['TIMED_OUT', 'timeout']])(
     'keeps %s on its own step despite ordinary later events and a close notification', (state, expected) => {

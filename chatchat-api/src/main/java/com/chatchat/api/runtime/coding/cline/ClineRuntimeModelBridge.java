@@ -79,11 +79,7 @@ public final class ClineRuntimeModelBridge {
         this.resources = resources; this.models = models; this.json = json;
     }
 
-    public Map<String, Object> complete(CodingTaskContract contract, JsonNode request) {
-        boolean providerDispatched = false;
-        try {
-        Objects.requireNonNull(contract);
-        if (request == null || !request.isObject()) throw new IllegalArgumentException("Model request is required");
+    private String selectedModel(CodingTaskContract contract) {
         String modelName = resources.defaultChatModel();
         Map<?,?> effectiveModel = contract.runtimeContext().get("model") instanceof Map<?,?> snapshot ? snapshot : Map.of();
         if (effectiveModel.get("selectedModel") instanceof String selected && !selected.isBlank()) modelName = selected;
@@ -94,6 +90,24 @@ public final class ClineRuntimeModelBridge {
             String requested=(String)workspace.requireAuthorized(contract).get("modelName");
             if(requested!=null && !requested.isBlank())modelName=requested;
         }
+        return modelName;
+    }
+    public Map<String,Object> contextPolicy(CodingTaskContract contract) {
+        var connection=resources.connection(selectedModel(contract));
+        if(connection==null || connection.getContextWindowTokens()==null)return Map.of("availability","NOT_CONFIGURED");
+        int window=connection.getContextWindowTokens(), output=maxOutputTokens(contract);
+        if(window<=output)throw new IllegalStateException("Configured model context window must exceed output reserve");
+        return Map.of("contextWindowTokens",window,"outputReserveTokens",output,"safetyRatio",0.1,
+            "availability","CONFIGURED_NOT_PROVIDER_MEASURED");
+    }
+    public Map<String, Object> complete(CodingTaskContract contract, JsonNode request) {
+        boolean providerDispatched = false;
+        try {
+        Objects.requireNonNull(contract);
+        if (request == null || !request.isObject()) throw new IllegalArgumentException("Model request is required");
+        String modelName=selectedModel(contract);
+        Map<?,?> effectiveModel = contract.runtimeContext().get("model") instanceof Map<?,?> snapshot ? snapshot : Map.of();
+        Map<?,?> executionProfile=contract.runtimeContext().get("executionProfile") instanceof Map<?,?> profile ? profile : Map.of();
         if (modelName == null || modelName.isBlank()) throw new IllegalStateException("Default server chat model is not configured");
         List<ChatMessage> messages = new ArrayList<>();
         String system = bounded(request.path("systemPrompt").asText(""), "system prompt");
@@ -296,6 +310,8 @@ public final class ClineRuntimeModelBridge {
     }
 
     private static String allowedTool(CodingTaskContract contract, String name) {
+        if(com.chatchat.common.runtime.coding.CodingProtocol.deferredTools(contract)
+            && com.chatchat.common.runtime.coding.CodingProtocol.TOOL_DESCRIBE.equals(name)) return name;
         Set<String> profile = CodingWorkspaceService.supports(contract)
             ? com.chatchat.api.datascience.sql.SqlWorkspaceMetadataTools.tools(com.chatchat.api.datascience.sql.SqlWorkspaceMetadataTools.enabled(contract)) : com.chatchat.common.runtime.coding.CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion())
             ? ClineToolProfiles.ANALYSIS : Set.of("python_execute", "metadata_read", "artifact_read", "skill_read");

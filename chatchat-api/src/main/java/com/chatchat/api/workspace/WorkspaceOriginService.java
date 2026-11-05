@@ -16,12 +16,34 @@ import java.util.*;
 @Service @RequiredArgsConstructor
 public class WorkspaceOriginService {
     public static final String HEADER = "X-Workspace-Id";
+    public static final String LEGACY_HISTORY_WORKSPACE = "zhice";
     private final WorkspaceService workspaces;
     private final WorkspaceResourceOriginRepository origins;
     private final ConversationService conversations;
     private final ObjectAccessService access;
     private final JdbcTemplate jdbc;
     private final jakarta.persistence.EntityManager entityManager;
+
+    /** Missing legacy UI headers see only legacy/zhice history, never all workspaces. */
+    public String historyWorkspace(HttpServletRequest request) {
+        String id=request.getHeader(HEADER);
+        if(id==null||id.isBlank())return LEGACY_HISTORY_WORKSPACE;
+        workspaces.requireAvailable(request,id);
+        return id;
+    }
+    @Transactional
+    public String prepareForWorkspace(HttpServletRequest request,String workspaceId,String sessionId) {
+        workspaces.requireAvailable(request,workspaceId);
+        access.requireConversation(request,sessionId,true);
+        String session=conversations.ensureConversationId(access.tenant(request),sessionId,access.user(request));
+        entityManager.flush();
+        access.requireConversation(request,session,false);
+        var previous=origins.findByTenantIdAndResourceTypeAndResourceId(access.tenant(request),"CONVERSATION",session);
+        if(previous.isPresent()&&!workspaceId.equals(previous.get().getWorkspaceId()))
+            throw new SecurityException("Conversation belongs to another workspace");
+        if(previous.isEmpty())record(request,session,workspaceId);
+        return session;
+    }
 
     @Transactional
     public Conversation create(HttpServletRequest request, String tenant, String user, String title) {

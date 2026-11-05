@@ -10,6 +10,14 @@ public final class CodingProtocol {
     public static final String VERSION = "runtime_os.coding.v1";
     public static final String WORKSPACE_VERSION = "runtime_os.coding.v2";
     public static final String ANALYSIS_VERSION = "runtime_os.coding.v3";
+    public static final String DEFERRED_TOOLS_PROFILE = "runtime-coding:deferred-tools:v1";
+    public static final String TOOL_DESCRIBE = "tool_describe";
+    public static boolean deferredTools(CodingTaskContract contract) {
+        boolean profile = contract.metadataRefs().contains(DEFERRED_TOOLS_PROFILE);
+        boolean grant = contract.authorization().allowedTools().contains(TOOL_DESCRIBE);
+        if (profile != grant) throw new SecurityException("Deferred tool metadata requires a negotiated Runtime grant");
+        return profile;
+    }
     public static final int MAX_ANALYSIS_SOURCES = 16;
     public static final long MAX_SAFE_INTEGER = 9_007_199_254_740_991L;
     private CodingProtocol() { }

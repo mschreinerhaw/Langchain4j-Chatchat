@@ -74,8 +74,8 @@ public class ConversationController {
     public ApiResponse<List<Conversation>> listUserConversations(@PathVariable("userId") String userId,
                                                                  @RequestParam(value = "tenantId", required = false) String tenantId,
                                                                  HttpServletRequest servletRequest) {
-        return ApiResponse.success(conversationService.listOwnerConversations(resolveTenantId(servletRequest, tenantId),
-            historyOwners(servletRequest, userId)));
+        return ApiResponse.success(conversationService.listOwnerWorkspaceConversations(resolveTenantId(servletRequest, tenantId),
+            historyOwners(servletRequest, userId),workspaceOrigins.historyWorkspace(servletRequest)));
     }
 
     /**
@@ -95,8 +95,8 @@ public class ConversationController {
         int normalizedPage = page == null ? 0 : Math.max(0, page);
         int normalizedLimit = limit == null ? 30 : Math.max(1, Math.min(limit, 100));
         List<ConversationListItem> summaries = conversationService
-            .listOwnerConversationSummaryPage(resolveTenantId(servletRequest, tenantId),
-                historyOwners(servletRequest, userId), "", normalizedPage + 1, normalizedLimit).items()
+            .listOwnerWorkspaceConversationSummaryPage(resolveTenantId(servletRequest, tenantId),
+                historyOwners(servletRequest, userId),workspaceOrigins.historyWorkspace(servletRequest), "", normalizedPage + 1, normalizedLimit).items()
             .stream()
             .map(ConversationListItem::from)
             .toList();
@@ -118,8 +118,8 @@ public class ConversationController {
     ) {
         int normalizedPage = page == null ? 1 : Math.max(1, page);
         int normalizedPageSize = pageSize == null ? 10 : Math.max(1, Math.min(pageSize, 100));
-        ConversationService.ConversationPage result = conversationService.listOwnerConversationSummaryPage(
-            resolveTenantId(servletRequest, tenantId), historyOwners(servletRequest, userId), keyword, normalizedPage, normalizedPageSize
+        ConversationService.ConversationPage result = conversationService.listOwnerWorkspaceConversationSummaryPage(
+            resolveTenantId(servletRequest, tenantId), historyOwners(servletRequest, userId),workspaceOrigins.historyWorkspace(servletRequest), keyword, normalizedPage, normalizedPageSize
         );
         return ApiResponse.success(Map.of(
             "items", result.items().stream().map(ConversationListItem::from).toList(),

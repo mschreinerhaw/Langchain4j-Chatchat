@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { prepareProgram } from './code-repair.js';
 import { createRequestContextTracker } from './request-context.js';
+import { modelInputBudget } from './context-budget.js';
 
 /** SDK editor on a private scratch file. Model-controlled paths never reach fs. */
 export async function editProgram(input, previous, signal) {
@@ -104,6 +105,7 @@ export function sdkPrepareTurn(sessionId, currentCode = () => null, options = {}
     compact: basic, getState: () => state, saveState: value => { state = value; compactionCount++; },
   }) : basic;
   const prepare = async context => {
+    if(options.toolsProjection)context={...context,tools:options.toolsProjection(context.tools??[])};
     const budget = await options.budgetSnapshot?.(context);
     const memory = options.technicalMemory?.();
     const code = currentCode();
@@ -138,8 +140,8 @@ export function sdkPrepareTurn(sessionId, currentCode = () => null, options = {}
     // A soft compaction allowance from the unchanged cumulative Runtime budget,
     // not a claim about the physical provider's context window.
     const info = context.model?.info ?? {};
-    const knownLimit = info.maxInputTokens > 0 ? info.maxInputTokens
-      : info.contextWindow > 0 ? Math.floor(info.contextWindow * 0.9) : 128000;
+    const knownLimit = modelInputBudget(budget?.modelContext?.contextWindowTokens ? budget.modelContext : info,
+      options.outputReserveTokens ?? 0, budget?.modelContext?.safetyRatio ?? 0.1) ?? 128000;
     // Reserve space for protected material that may be reattached AFTER SDK
     // compaction. This is a soft byte-based estimate, never provider accounting.
     const referenceOnly = Boolean(code?.source && options.codeReferenceEnabled

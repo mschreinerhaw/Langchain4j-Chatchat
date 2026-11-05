@@ -84,7 +84,7 @@ public final class DashScopeNativeChatModel implements ChatModel {
             }
             HttpResponse<String> response = sendWithRetry(request.build());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new IllegalStateException("DashScope HTTP " + response.statusCode() + ": "
+                throw new dev.langchain4j.exception.HttpException(response.statusCode(),"DashScope HTTP " + response.statusCode() + ": "
                     + errorMessage(response.body()));
             }
             return response(mapper.readTree(response.body()));

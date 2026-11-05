@@ -13,6 +13,53 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.*;
 
 class RuntimeStreamingChatModelTest {
+    @Test void synchronousLateFirstResponseCannotBypassTheFirstTokenDeadline() {
+        StreamingChatModel provider=new StreamingChatModel() {
+            @Override public Flow.Publisher<ChatModelStreamingEvent> doChat(ChatRequest request) {
+                return subscriber->subscriber.onSubscribe(new Flow.Subscription(){
+                    public void request(long count) {
+                        try {Thread.sleep(30);}catch(InterruptedException interrupted){Thread.currentThread().interrupt();}
+                        subscriber.onNext(new CompleteResponse(ChatResponse.builder()
+                            .aiMessage(dev.langchain4j.data.message.AiMessage.from("late")).build()));
+                    }
+                    public void cancel() { }
+                });
+            }
+        };
+        var model=new RuntimeStreamingChatModel(provider,java.time.Duration.ofSeconds(5),java.time.Duration.ofMillis(5));
+        assertThatThrownBy(()->model.chat(ChatRequest.builder().messages(UserMessage.from("test")).build()))
+            .isInstanceOf(RuntimeStreamingChatModel.FirstTokenTimeoutException.class);
+    }
+    @Test void totalDeadlineStillAppliesAfterFirstTokenWithoutRenewingTheClock() {
+        var cancelled=new AtomicBoolean();
+        StreamingChatModel provider=new StreamingChatModel() {
+            @Override public Flow.Publisher<ChatModelStreamingEvent> doChat(ChatRequest request) {
+                return subscriber->subscriber.onSubscribe(new Flow.Subscription(){
+                    public void request(long count) {subscriber.onNext(new PartialResponse("first"));}
+                    public void cancel() {cancelled.set(true);}
+                });
+            }
+        };
+        var model=new RuntimeStreamingChatModel(provider,java.time.Duration.ofMillis(80),java.time.Duration.ofMillis(20));
+        assertThatThrownBy(()->model.chat(ChatRequest.builder().messages(UserMessage.from("test")).build()))
+            .isInstanceOf(RuntimeStreamingChatModel.RequestTimeoutException.class);
+        assertThat(cancelled).isTrue();
+    }
+    @Test void firstTokenDeadlineIsDistinctAndCancelsWithoutProviderReplay() {
+        var cancelled=new AtomicBoolean();var calls=new AtomicInteger();
+        StreamingChatModel provider=new StreamingChatModel() {
+            @Override public Flow.Publisher<ChatModelStreamingEvent> doChat(ChatRequest request) {
+                calls.incrementAndGet();return subscriber->subscriber.onSubscribe(new Flow.Subscription(){
+                    public void request(long count) { }
+                    public void cancel() {cancelled.set(true);}
+                });
+            }
+        };
+        var model=new RuntimeStreamingChatModel(provider,java.time.Duration.ofSeconds(5),java.time.Duration.ofMillis(20));
+        assertThatThrownBy(()->model.chat(ChatRequest.builder().messages(UserMessage.from("test")).build()))
+            .isInstanceOf(RuntimeStreamingChatModel.FirstTokenTimeoutException.class).hasCauseInstanceOf(TimeoutException.class);
+        assertThat(cancelled).isTrue();assertThat(calls.get()).isEqualTo(1);
+    }
     @Test void realSseProviderRecordsFirstTokenAndGenerationWithoutPublishingPartialResults() throws Exception {
         var calls=new AtomicInteger();
         var server=com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1",0),0);

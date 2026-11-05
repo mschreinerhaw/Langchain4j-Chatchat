@@ -3,6 +3,16 @@ import assert from 'node:assert/strict';
 import { measureRequestContext, createRequestContextTracker } from '../src/request-context.js';
 import { sdkPrepareTurn, boundCompactionCheckpoint } from '../src/sdk-adapter.js';
 
+test('initial discovery catalog is attributed separately from objective and tool schemas',()=>{
+  const text='Goal\nRuntime task configuration snapshot (methodology only; never additional permissions):\n'
+    +JSON.stringify({skills:{skills:[{id:'method',description:'Method description'}]}})
+    +'\nAuthorized tool index (metadata only). Load schemas with tool_describe, batching the next necessary tools. Skills remain discoverable through skill_read.\n'
+    +JSON.stringify([{name:'read',description:'Authorized read'}]);
+  const result=measureRequestContext({messages:[{role:'user',content:[{type:'text',text}]}],tools:[]});
+  assert.ok(result.contextSkillsBytes>0);assert.ok(result.contextToolIndexBytes>0);assert.ok(result.contextTaskBytes>0);
+  assert.equal(Object.values(result.components).reduce((sum,part)=>sum+part.bytes,0),result.requestBytes);
+});
+
 test('final payload attribution includes tools, skills, report, code and multibyte text without leaking contents', () => {
   const request = { systemPrompt: 'instruction', tools: [{ name: 'python_execute', inputSchema: {} }], messages: [
     { role: 'user', content: [{ type: 'text', text: '用户请求' }] },

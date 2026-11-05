@@ -7,6 +7,38 @@ import SystemManagementView from "./views/SystemManagementView.js";
 import * as api from "../services/api.js";
 import { setWorkspaceContext } from "./utils/workspaceContext";
 
+it.each([false, true])("ignores old workspace sidebar responses, including failures (%s)", async (fail) => {
+  let resolveOld, rejectOld;
+  const history=vi.spyOn(api,"fetchConversationHistory")
+    .mockImplementationOnce(()=>new Promise((resolve,reject)=>{resolveOld=resolve;rejectOld=reject;}))
+    .mockResolvedValueOnce([{id:"zhice-session"}]);
+  const context={tenantId:"tenant",userId:"owner",currentWorkspace:{workspaceId:"data-exploration"},
+    conversationHistory:[],historyHasMore:true,historyNextPage:0,resetActiveConversationWhenRemoved:vi.fn()};
+  try {
+    const old=App.methods.loadConversationHistory.call(context);
+    context.currentWorkspace={workspaceId:"zhice"};
+    await App.methods.loadConversationHistory.call(context);
+    if(fail)rejectOld(new Error("Old workspace failed"));else resolveOld([{id:"exploration-session"}]);
+    await old;
+    expect(context.conversationHistory.map(row=>row.id)).toEqual(["zhice-session"]);
+    expect(context.historyError).toBe("");
+    expect(context.historyNextPage).toBe(1);
+  } finally {history.mockRestore();}
+});
+
+it("ignores history manager responses after a workspace switch", async()=>{
+  let finish;
+  const history=vi.spyOn(api,"fetchConversationHistoryPage").mockImplementation(()=>new Promise(resolve=>{finish=resolve;}));
+  const context={authSession:{token:"test"},tenantId:"tenant",userId:"owner",currentWorkspace:{workspaceId:"data-exploration"},
+    historyManagerRequestSerial:0,historyManagerPageSize:10,historyManagerItems:[]};
+  try {
+    const pending=App.methods.loadHistoryManager.call(context);
+    context.currentWorkspace={workspaceId:"zhice"};
+    finish({items:[{id:"exploration-session"}],total:1});await pending;
+    expect(context.historyManagerItems).toEqual([]);
+  } finally {history.mockRestore();}
+});
+
 it('retains the archived favorite-toggle behavior and prevents duplicate pending writes', async () => {
   let complete;
   const add = vi.spyOn(api, 'addUserFavorite').mockImplementation(() => new Promise(resolve => { complete = resolve; }));

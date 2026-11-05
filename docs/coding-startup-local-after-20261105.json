@@ -1,0 +1,185 @@
+{
+  "schemaVersion": "coding.startup.local.v1",
+  "sourceCommit": "727da53612201f1d65fbba052dc814989abf33fb",
+  "scope": "FRESH_NODE_PROCESS_WARM_OS_CACHE_NOT_PROVIDER_LATENCY",
+  "nodeVersion": "v25.0.0",
+  "samples": [
+    {
+      "importMs": 717.3050999999999,
+      "catalogMs": 0.34350000000006276,
+      "disclosureMs": 3.468499999999949,
+      "catalogBytes": 14682,
+      "discovery": {
+        "bodyReads": 0,
+        "referenceReads": 0,
+        "readBytes": 0
+      },
+      "afterDisclosure": {
+        "bodyReads": 1,
+        "referenceReads": 0,
+        "readBytes": 5504
+      }
+    },
+    {
+      "importMs": 691.8264,
+      "catalogMs": 0.3546999999999798,
+      "disclosureMs": 3.8308000000000675,
+      "catalogBytes": 14682,
+      "discovery": {
+        "bodyReads": 0,
+        "referenceReads": 0,
+        "readBytes": 0
+      },
+      "afterDisclosure": {
+        "bodyReads": 1,
+        "referenceReads": 0,
+        "readBytes": 5504
+      }
+    },
+    {
+      "importMs": 672.7516,
+      "catalogMs": 0.3260999999999967,
+      "disclosureMs": 3.5416999999999916,
+      "catalogBytes": 14682,
+      "discovery": {
+        "bodyReads": 0,
+        "referenceReads": 0,
+        "readBytes": 0
+      },
+      "afterDisclosure": {
+        "bodyReads": 1,
+        "referenceReads": 0,
+        "readBytes": 5504
+      }
+    },
+    {
+      "importMs": 697.8329,
+      "catalogMs": 0.32600000000002183,
+      "disclosureMs": 3.71569999999997,
+      "catalogBytes": 14682,
+      "discovery": {
+        "bodyReads": 0,
+        "referenceReads": 0,
+        "readBytes": 0
+      },
+      "afterDisclosure": {
+        "bodyReads": 1,
+        "referenceReads": 0,
+        "readBytes": 5504
+      }
+    },
+    {
+      "importMs": 690.8834,
+      "catalogMs": 0.3272999999999229,
+      "disclosureMs": 3.4601000000000113,
+      "catalogBytes": 14682,
+      "discovery": {
+        "bodyReads": 0,
+        "referenceReads": 0,
+        "readBytes": 0
+      },
+      "afterDisclosure": {
+        "bodyReads": 1,
+        "referenceReads": 0,
+        "readBytes": 5504
+      }
+    },
+    {
+      "importMs": 683.1807,
+      "catalogMs": 0.3684000000000651,
+      "disclosureMs": 3.5474999999999,
+      "catalogBytes": 14682,
+      "discovery": {
+        "bodyReads": 0,
+        "referenceReads": 0,
+        "readBytes": 0
+      },
+      "afterDisclosure": {
+        "bodyReads": 1,
+        "referenceReads": 0,
+        "readBytes": 5504
+      }
+    },
+    {
+      "importMs": 688.8866999999999,
+      "catalogMs": 0.342200000000048,
+      "disclosureMs": 4.126800000000003,
+      "catalogBytes": 14682,
+      "discovery": {
+        "bodyReads": 0,
+        "referenceReads": 0,
+        "readBytes": 0
+      },
+      "afterDisclosure": {
+        "bodyReads": 1,
+        "referenceReads": 0,
+        "readBytes": 5504
+      }
+    },
+    {
+      "importMs": 682.8175,
+      "catalogMs": 0.3483999999999696,
+      "disclosureMs": 4.6030000000000655,
+      "catalogBytes": 14682,
+      "discovery": {
+        "bodyReads": 0,
+        "referenceReads": 0,
+        "readBytes": 0
+      },
+      "afterDisclosure": {
+        "bodyReads": 1,
+        "referenceReads": 0,
+        "readBytes": 5504
+      }
+    },
+    {
+      "importMs": 686.1778,
+      "catalogMs": 0.33600000000001273,
+      "disclosureMs": 3.436900000000037,
+      "catalogBytes": 14682,
+      "discovery": {
+        "bodyReads": 0,
+        "referenceReads": 0,
+        "readBytes": 0
+      },
+      "afterDisclosure": {
+        "bodyReads": 1,
+        "referenceReads": 0,
+        "readBytes": 5504
+      }
+    },
+    {
+      "importMs": 693.6565,
+      "catalogMs": 0.3325999999999567,
+      "disclosureMs": 3.4191000000000713,
+      "catalogBytes": 14682,
+      "discovery": {
+        "bodyReads": 0,
+        "referenceReads": 0,
+        "readBytes": 0
+      },
+      "afterDisclosure": {
+        "bodyReads": 1,
+        "referenceReads": 0,
+        "readBytes": 5504
+      }
+    }
+  ],
+  "percentiles": {
+    "importMs": {
+      "p50": 688.8866999999999,
+      "p95": 717.3050999999999,
+      "p99": 717.3050999999999
+    },
+    "catalogMs": {
+      "p50": 0.33600000000001273,
+      "p95": 0.3684000000000651,
+      "p99": 0.3684000000000651
+    },
+    "disclosureMs": {
+      "p50": 3.5416999999999916,
+      "p95": 4.6030000000000655,
+      "p99": 4.6030000000000655
+    }
+  }
+}

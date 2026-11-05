@@ -6,6 +6,7 @@ import { editProgram, sdkPrepareTurn, resolveWorkspaceFiles, restoreWorkspaceFil
 import { initialProject, proposeProject, projectSchema, decodeProject } from './python-project.js';
 import { taskSkills, validateNativeDisclosure } from './skills.js';
 import { measureRequestContext, createRequestContextTracker } from './request-context.js';
+import { createToolCatalog, DEFERRED_TOOLS_PROFILE, TOOL_DESCRIBE } from './tool-catalog.js';
 
 export const COMPLETION_SCOPE_RULE = 'Judge analysisStatus only against the user-requested deliverables and explicit constraints. '
   + 'Use COMPLETE when all requested deliverables are supported, even when limitations describe unrequested trends, comparisons, tax analysis or generalization. '
@@ -65,14 +66,16 @@ function promptConfiguration(context) {
   if(context?.codeProject)context={...context,codeProject:initialProject(context.codeProject)};
   if (!context?.skills) return context;
   const skills = (context.skills.skills ?? []).map(skill => Object.fromEntries(
-    ['id', 'skillId', 'name', 'description', 'category', 'version', 'contentSha256', 'agentId', 'origin', 'selectionOwner', 'contentDelivery']
-      .filter(key => typeof skill[key] === 'string').map(key => [key, skill[key]])));
-  return { ...context, skills: { status: 'AVAILABLE', fingerprint: context.skills.fingerprint,
-    conflicts: context.skills.conflicts ?? [], skills } };
+    ['id', 'name', 'description']
+      .map(key => [key,key==='id'?skill.id??skill.skillId:skill[key]]).filter(([,value])=>typeof value==='string')));
+  // Version hashes, provenance and collision receipts remain in Runtime/Skill
+  // disclosure, rather than repeating identical transport labels on every card.
+  return { ...context, skills: { status: 'AVAILABLE',selectionOwner:'CLINE',contentDelivery:'ON_DEMAND',skills } };
 }
 
 /** Only the Runtime-owned callbacks below can touch data or execute code. */
 export function createCodingRun(contract, gateway, options = {}) {
+  const constructionStarted = performance.now();
   const availableSkills = taskSkills(contract?.runtimeContext);
   const skillContext = { ...contract?.runtimeContext, skills: availableSkills.catalog };
   const workspace = contract?.schemaVersion === 'runtime_os.coding.v2'
@@ -106,6 +109,9 @@ export function createCodingRun(contract, gateway, options = {}) {
   const deadline = contract.budget?.deadlineAt == null ? null : Date.parse(contract.budget.deadlineAt);
   if (deadline !== null && !Number.isFinite(deadline)) throw new TypeError('Invalid Coding deadline');
   const permitted = new Set(contract.authorization?.allowedTools ?? []);
+  const deferredTools = contract.metadataRefs?.includes(DEFERRED_TOOLS_PROFILE) === true;
+  if (permitted.has(TOOL_DESCRIBE) !== deferredTools)
+    throw new TypeError('Deferred tool metadata requires an explicit negotiated Runtime grant');
   const resourceText = textResults && Boolean(contract.runtimeContext?.knowledgeExploration)
     && [...KNOWLEDGE_TOOLS,...RESOURCE_TOOLS].some(name=>permitted.has(name));
   const sqlExploration=workspace && !pythonWorkspace && contract.metadataRefs?.includes('runtime-coding:sql-metadata-tools:v1');
@@ -113,7 +119,7 @@ export function createCodingRun(contract, gateway, options = {}) {
     throw new TypeError('SQL metadata tools require the negotiated SQL exploration profile');
   if(sqlExploration&&(typeof gateway.queryWorkspaceMetadata!=='function'||typeof gateway.validateWorkspace!=='function'))
     throw new TypeError('SQL metadata Runtime gateway is required');
-  for (const name of permitted) if (!(workspace ? WORKSPACE_TOOLS : TOOL_NAMES).has(name)
+  for (const name of permitted) if (!(deferredTools && name === TOOL_DESCRIBE) && !(workspace ? WORKSPACE_TOOLS : TOOL_NAMES).has(name)
       && !(analysis && ['data_request','sql_validate','input_read','report_submit',...KNOWLEDGE_TOOLS,...RESOURCE_TOOLS].includes(name))) throw new TypeError(`Unrecognized Coding tool: ${name}`);
   if(permitted.has('report_submit')&&!textResults)throw new TypeError('Text report submission is outside the task policy');
   if (workspace && (!contract.authorization?.allowedSideEffects?.includes('WORKSPACE_WRITE')
@@ -199,6 +205,8 @@ export function createCodingRun(contract, gateway, options = {}) {
   const codeFiles = [];
   const forward = async (event) => {
     const progress = { ...event, sequence: ++eventOrdinal, timestamp: new Date().toISOString(),
+      ...(['TOOL_STARTED','TOOL_FINISHED'].includes(event.type)
+        ? {executionOrigin:modelIndex===0?'CONTEXT_PREFETCH':'CLINE_TOOL_CALL'} : {}),
       source: 'NODE_CLINE', attemptId };
     events.push(progress);
     // Observability must never grant authority or interrupt Runtime-owned execution.
@@ -228,8 +236,8 @@ export function createCodingRun(contract, gateway, options = {}) {
   };
   const tools = knowledgeTools(contract, gateway, forward).map(tool=>({...tool,
     async execute(args,context){
-      if(textResults && modelIndex>Math.min(Number(contract.budget?.maxModelCalls ?? 1),32)-3)
-        throw new TypeError('Resource exploration phase has ended. '+(pythonExecutionStarted?pythonCompletionGuidance():'Use report_submit to review and publish supported findings with explicit evidence gaps.'));
+      // Runtime's authoritative budget decides admission. Completion reservations
+      // guide Cline, rather than forbidding discovery in a hard-coded final N turns.
       const result = await tool.execute(args,context);
       rememberResourceReferences(result);
       return result;
@@ -659,6 +667,14 @@ export function createCodingRun(contract, gateway, options = {}) {
   const softInputTokenBudget = reviewedAnalysis && fileInput && Number.isSafeInteger(contract.budget?.maxModelTokens)
     && Number.isSafeInteger(contract.budget?.maxModelCalls) && contract.budget.maxModelCalls > 0
     ? Math.max(16384, Math.min(128000, Math.floor(contract.budget.maxModelTokens / contract.budget.maxModelCalls))) : undefined;
+  const toolCatalog = deferredTools ? createToolCatalog(tools, restored?.toolCatalog) : null;
+  if (toolCatalog) tools.push({
+    name: TOOL_DESCRIBE,
+    description: 'Load complete schemas for a batch of tools from the authorized index before using them. This reads metadata only.',
+    inputSchema: {type:'object',properties:{names:{type:'array',items:{type:'string'},minItems:1}},required:['names'],additionalProperties:false},
+    executionMode:'sequential',
+    async execute({names}) { return toolCatalog.describe(names); },
+  });
   const trackRequestContext = createRequestContextTracker();
   let prepareTurn;
   const config = {
@@ -671,6 +687,7 @@ export function createCodingRun(contract, gateway, options = {}) {
         : contract.runtimeContext?.codeProject ? { sourceProject:initialProject(contract.runtimeContext.codeProject),
           state:'AUTHORIZED_INPUT_NOT_EXECUTED',inputProjectSha256:contract.runtimeContext.codeProject.sha256 } : null,
       { inputTokenBudget: softInputTokenBudget,
+        toolsProjection: toolCatalog ? tools=>toolCatalog.expose(tools) : undefined,
         statefulCompactionEnabled: options.contextOptimizationEnabled === true,
         codeReferenceEnabled: options.contextOptimizationEnabled === true && permitted.has('code_read'),
         compactionState: restored?.compactionState, compactionCount: restored?.compactionCount,
@@ -713,8 +730,10 @@ export function createCodingRun(contract, gateway, options = {}) {
           : undefined,
     },
     hooks: {
-      async beforeTool() {
+      async beforeTool({toolCall}) {
         if (deadline !== null && Date.now() >= deadline) return { stop: true, reason: 'Runtime Coding deadline reached' };
+        if (toolCatalog && !toolCatalog.has(toolCall.toolName))
+          return {skip:true,reason:'Read this authorized tool schema with tool_describe before invoking it. No operation was dispatched.'};
       },
       async afterTool({ toolCall, result, durationMs }) {
         try { await forward({ type: 'TOOL_TIMING', tool: toolCall.toolName, toolCallId: toolCall.toolCallId,
@@ -778,12 +797,13 @@ export function createCodingRun(contract, gateway, options = {}) {
             ...prepareTurn?.snapshot(),
             nativeSdk, modelOrdinal: modelIndex, eventOrdinal, messages: event.snapshot.messages,
             executionMemory, workspacePrefetchIdentity, codeLifecycle: history?.snapshot(), lastCollectedOperation, lastCollectedDatasetRef, reportReferenceFailure, terminalFeedback, textReportReviewRequested, textReportReviewModel, deliveredInputReferences:[...deliveredInputReferences],
-            modelResponseFeedback, modelResponseRepairs,
+            modelResponseFeedback, modelResponseRepairs, ...(toolCatalog ? {toolCatalog:toolCatalog.snapshot()} : {}),
             contractHash: options.contractHash, inputSnapshotRef: contract.inputSnapshotRef,
             workspaceRef: contract.workspaceRef }, fileInput || sqlExploration ? 750000 : 262144));
         }
       },
       async beforeModel({ snapshot, request }) {
+        if (toolCatalog) request.tools = toolCatalog.expose(request.tools);
         // The complete derived report is already in the preceding tool receipt.
         // Reuse it for review; keep Python available for justified corrections.
         if (Array.isArray(request?.tools)) request.tools = request.tools.filter(tool =>
@@ -800,7 +820,7 @@ export function createCodingRun(contract, gateway, options = {}) {
           ...prepareTurn?.snapshot(), sdkSessionId, checkpointOrdinal: ++checkpointOrdinal, modelOrdinal: modelIndex,
           nativeSdk, eventOrdinal, messages: snapshot.messages,
           executionMemory, workspacePrefetchIdentity, codeLifecycle: history?.snapshot(), lastCollectedOperation, lastCollectedDatasetRef, reportReferenceFailure, terminalFeedback, textReportReviewRequested, textReportReviewModel, deliveredInputReferences:[...deliveredInputReferences],
-          modelResponseFeedback, modelResponseRepairs,
+          modelResponseFeedback, modelResponseRepairs, ...(toolCatalog ? {toolCatalog:toolCatalog.snapshot()} : {}),
           contractHash: options.contractHash, inputSnapshotRef: contract.inputSnapshotRef,
           workspaceRef: contract.workspaceRef,
         }, fileInput || sqlExploration ? 750000 : 262144));
@@ -849,12 +869,14 @@ export function createCodingRun(contract, gateway, options = {}) {
   };
   if (options.model) config.model = {
     async *stream(request) {
+      if (toolCatalog) request = {...request,tools:toolCatalog.expose(request.tools)};
       const started = performance.now();
       let firstEventMs = null;
       let responseBytes = 0;
       let outcome = 'FAILED';
       let contextMeasurement = {};
       let errorCategory = null;
+      let initialPlanText='',initialPlanRecorded=false;
       // Admit each actual stream attempt, including SDK recovery of a prepared request.
       // Unknown transport outcomes remain non-retryable until Java reconciles them.
       try {
@@ -897,6 +919,15 @@ export function createCodingRun(contract, gateway, options = {}) {
         for await (const event of await options.model.stream(request)) {
           firstEventMs ??= Math.round(performance.now() - started);
           responseBytes += Buffer.byteLength(JSON.stringify(event));
+          if(modelIndex===1 && !initialPlanRecorded && event.type==='text-delta') {
+            initialPlanText=(initialPlanText+(event.text??'')).slice(0,4096);
+            const plan=initialPlanText.match(/<initial_plan>([\s\S]*?)<\/initial_plan>/)?.[1]?.trim();
+            if(plan) {
+              initialPlanRecorded=true;
+              try { await forward({type:'PLAN_READY',stage:'PLAN_GENERATION',modelCall:modelIndex,planText:plan.slice(0,512)}); }
+              catch { /* the canonical assistant response and provider receipt still retain this plan */ }
+            }
+          }
           if (event.type === 'runtime-model-feedback') {
             modelResponseFeedback = event.feedback;
             await forward({ type: 'MODEL_RESPONSE_REJECTED', modelCall: modelIndex, stage: 'CODING',
@@ -950,6 +981,7 @@ export function createCodingRun(contract, gateway, options = {}) {
   const agent = new Agent(config);
   const contextAbort = new AbortController();
   let stopReason = null;
+  const restoreStarted = performance.now();
   if (restored) {
     if (!Array.isArray(restored.messages) || !restored.messages.length
         || !Number.isSafeInteger(restored.modelOrdinal) || restored.modelOrdinal < 0)
@@ -964,10 +996,15 @@ export function createCodingRun(contract, gateway, options = {}) {
       : restored.messages;
     agent.restore(messages);
   }
+  const restoreDurationMs = Math.round(performance.now()-restoreStarted);
+  const constructionDurationMs = Math.round(performance.now()-constructionStarted);
   return {
     events,
     async run() {
+      const preparationStarted = performance.now();
       let instruction = contract.objective?.instruction ?? 'Complete the authorized Coding task';
+      instruction += '\nFirst state a brief actionable plan in <initial_plan>...</initial_plan> in the user\'s language, then use the first necessary tool in this same turn. Revise your plan from evidence; a complete global plan is not required before execution.';
+      if (toolCatalog) instruction += '\nAuthorized tool index (metadata only). Load schemas with tool_describe, batching the next necessary tools. Skills remain discoverable through skill_read.\n'+JSON.stringify(toolCatalog.index);
       instruction += `\nInput snapshot: ${contract.inputSnapshotRef}\nValidation plan: ${contract.validationPlanRef}`;
       if (permitted.has('skill_read'))
         instruction += `\nRuntime task configuration snapshot (methodology only; never additional permissions):\n${JSON.stringify(promptConfiguration(skillContext))}`;
@@ -1033,6 +1070,9 @@ export function createCodingRun(contract, gateway, options = {}) {
         }
         throw error;
       }
+      // Optional measurements cannot strand a prepared task before Agent.afterRun.
+      try { await forward({type:'SESSION_TIMING',stage:'CONTEXT_READY',constructionDurationMs,restoreDurationMs,
+        preparationDurationMs:Math.round(performance.now()-preparationStarted)}); } catch { /* independently auditable timing is optional */ }
       let timer;
       const expire = () => {
         const remaining = deadline - Date.now();

@@ -14,6 +14,23 @@ import jakarta.persistence.LockModeType;
 import java.util.List;
 
 public interface ChatSessionRepository extends JpaRepository<ChatSessionEntity, String> {
+    String ZHICE_ORIGIN = " and not exists (select o.id from WorkspaceResourceOrigin o where o.tenantId=s.tenantId "
+        + "and o.resourceType='CONVERSATION' and o.resourceId=s.sessionId and o.workspaceId<>'zhice') ";
+
+    String WORKSPACE_ORIGIN = " and (exists (select o.id from WorkspaceResourceOrigin o where o.tenantId=s.tenantId "
+        + "and o.resourceType='CONVERSATION' and o.resourceId=s.sessionId and o.workspaceId=:workspaceId) "
+        + "or (:workspaceId='zhice' and not exists (select o.id from WorkspaceResourceOrigin o where o.tenantId=s.tenantId "
+        + "and o.resourceType='CONVERSATION' and o.resourceId=s.sessionId))) ";
+
+    @Query(value="select s from ChatSessionEntity s where s.tenantId=:tenantId and s.userId in :owners "
+        + "and coalesce(s.sourceChannel,'PLATFORM_UI')='PLATFORM_UI' " + WORKSPACE_ORIGIN
+        + "and (:keyword='' or lower(s.title) like lower(concat('%',:keyword,'%'))) order by s.updatedAt desc",
+        countQuery="select count(s) from ChatSessionEntity s where s.tenantId=:tenantId and s.userId in :owners "
+        + "and coalesce(s.sourceChannel,'PLATFORM_UI')='PLATFORM_UI' " + WORKSPACE_ORIGIN
+        + "and (:keyword='' or lower(s.title) like lower(concat('%',:keyword,'%')))")
+    Page<ChatSessionEntity> findWorkspaceHistoryByOwners(@Param("tenantId") String tenantId,
+        @Param("owners") java.util.Collection<String> owners,@Param("workspaceId") String workspaceId,
+        @Param("keyword") String keyword,Pageable pageable);
 
     @Query("select s from ChatSessionEntity s where s.tenantId=:tenantId and s.userId in :owners "
         + "and s.sourceChannel=:channel and (:keyword='' or lower(s.title) like lower(concat('%',:keyword,'%'))) order by s.updatedAt desc")
@@ -22,10 +39,10 @@ public interface ChatSessionRepository extends JpaRepository<ChatSessionEntity, 
         @Param("keyword") String keyword, Pageable pageable);
 
     @Query(value = "select s from ChatSessionEntity s where s.tenantId = :tenantId and s.userId in :owners "
-        + "and coalesce(s.sourceChannel, 'PLATFORM_UI') = 'PLATFORM_UI' "
+        + "and coalesce(s.sourceChannel, 'PLATFORM_UI') = 'PLATFORM_UI' " + ZHICE_ORIGIN + " "
         + "and (:keyword = '' or lower(s.title) like lower(concat('%', :keyword, '%'))) order by s.updatedAt desc",
         countQuery = "select count(s) from ChatSessionEntity s where s.tenantId = :tenantId and s.userId in :owners "
-            + "and coalesce(s.sourceChannel, 'PLATFORM_UI') = 'PLATFORM_UI' "
+            + "and coalesce(s.sourceChannel, 'PLATFORM_UI') = 'PLATFORM_UI' " + ZHICE_ORIGIN + " "
             + "and (:keyword = '' or lower(s.title) like lower(concat('%', :keyword, '%')))")
     Page<ChatSessionEntity> findPlatformHistoryByOwners(@Param("tenantId") String tenantId,
         @Param("owners") java.util.Collection<String> owners, @Param("keyword") String keyword, Pageable pageable);
@@ -39,20 +56,20 @@ public interface ChatSessionRepository extends JpaRepository<ChatSessionEntity, 
     List<ChatSessionEntity> findByUserIdOrderByUpdatedAtDesc(String userId);
 
     @Query("select s from ChatSessionEntity s where s.userId = :userId "
-        + "and coalesce(s.sourceChannel, 'PLATFORM_UI') = 'PLATFORM_UI' order by s.updatedAt desc")
+        + "and coalesce(s.sourceChannel, 'PLATFORM_UI') = 'PLATFORM_UI' " + ZHICE_ORIGIN + " order by s.updatedAt desc")
     List<ChatSessionEntity> findPlatformByUserIdOrderByUpdatedAtDesc(@Param("userId") String userId);
 
     List<ChatSessionEntity> findByTenantIdAndUserIdOrderByUpdatedAtDesc(String tenantId, String userId);
 
     @Query("select s from ChatSessionEntity s where s.tenantId = :tenantId and s.userId = :userId "
-        + "and coalesce(s.sourceChannel, 'PLATFORM_UI') = 'PLATFORM_UI' order by s.updatedAt desc")
+        + "and coalesce(s.sourceChannel, 'PLATFORM_UI') = 'PLATFORM_UI' " + ZHICE_ORIGIN + " order by s.updatedAt desc")
     List<ChatSessionEntity> findPlatformByTenantIdAndUserIdOrderByUpdatedAtDesc(
         @Param("tenantId") String tenantId, @Param("userId") String userId);
 
     List<ChatSessionEntity> findByTenantIdAndUserIdOrderByUpdatedAtDesc(String tenantId, String userId, Pageable pageable);
 
     @Query("select s from ChatSessionEntity s where s.tenantId = :tenantId and s.userId = :userId "
-        + "and coalesce(s.sourceChannel, 'PLATFORM_UI') = 'PLATFORM_UI' order by s.updatedAt desc")
+        + "and coalesce(s.sourceChannel, 'PLATFORM_UI') = 'PLATFORM_UI' " + ZHICE_ORIGIN + " order by s.updatedAt desc")
     List<ChatSessionEntity> findPlatformByTenantIdAndUserIdOrderByUpdatedAtDesc(
         @Param("tenantId") String tenantId, @Param("userId") String userId, Pageable pageable);
 
@@ -63,9 +80,9 @@ public interface ChatSessionRepository extends JpaRepository<ChatSessionEntity, 
     );
 
     @Query(value = "select s from ChatSessionEntity s where s.tenantId = :tenantId and s.userId = :userId "
-        + "and coalesce(s.sourceChannel, 'PLATFORM_UI') = 'PLATFORM_UI' order by s.updatedAt desc",
+        + "and coalesce(s.sourceChannel, 'PLATFORM_UI') = 'PLATFORM_UI' " + ZHICE_ORIGIN + " order by s.updatedAt desc",
         countQuery = "select count(s) from ChatSessionEntity s where s.tenantId = :tenantId and s.userId = :userId "
-            + "and coalesce(s.sourceChannel, 'PLATFORM_UI') = 'PLATFORM_UI'")
+            + "and coalesce(s.sourceChannel, 'PLATFORM_UI') = 'PLATFORM_UI' " + ZHICE_ORIGIN + "")
     Page<ChatSessionEntity> findPlatformPageByTenantIdAndUserIdOrderByUpdatedAtDesc(
         @Param("tenantId") String tenantId, @Param("userId") String userId, Pageable pageable);
 
@@ -77,10 +94,10 @@ public interface ChatSessionRepository extends JpaRepository<ChatSessionEntity, 
     );
 
     @Query(value = "select s from ChatSessionEntity s where s.tenantId = :tenantId and s.userId = :userId "
-        + "and coalesce(s.sourceChannel, 'PLATFORM_UI') = 'PLATFORM_UI' "
+        + "and coalesce(s.sourceChannel, 'PLATFORM_UI') = 'PLATFORM_UI' " + ZHICE_ORIGIN + " "
         + "and lower(s.title) like lower(concat('%', :title, '%')) order by s.updatedAt desc",
         countQuery = "select count(s) from ChatSessionEntity s where s.tenantId = :tenantId and s.userId = :userId "
-            + "and coalesce(s.sourceChannel, 'PLATFORM_UI') = 'PLATFORM_UI' "
+            + "and coalesce(s.sourceChannel, 'PLATFORM_UI') = 'PLATFORM_UI' " + ZHICE_ORIGIN + " "
             + "and lower(s.title) like lower(concat('%', :title, '%'))")
     Page<ChatSessionEntity> findPlatformPageByTenantIdAndUserIdAndTitleContainingIgnoreCaseOrderByUpdatedAtDesc(
         @Param("tenantId") String tenantId, @Param("userId") String userId,

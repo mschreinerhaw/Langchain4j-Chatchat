@@ -9,18 +9,26 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 /** Keeps the existing final-response contract; streams only inside the provider boundary. */
-final class RuntimeStreamingChatModel implements ChatModel {
+public final class RuntimeStreamingChatModel implements ChatModel {
     private final StreamingChatModel provider;
     private final java.time.Duration timeout;
+    private final java.time.Duration firstTokenTimeout;
     RuntimeStreamingChatModel(StreamingChatModel provider) {
         this(provider, java.time.Duration.ofSeconds(com.chatchat.common.config.ModelsConfig.ModelConnectionConfig.DEFAULT_REQUEST_TIMEOUT_SECONDS));
     }
     RuntimeStreamingChatModel(StreamingChatModel provider, java.time.Duration timeout) {
-        this.provider=provider; this.timeout=timeout;
+        this(provider,timeout,timeout);
+    }
+    RuntimeStreamingChatModel(StreamingChatModel provider, java.time.Duration timeout, java.time.Duration firstTokenTimeout) {
+        if(timeout==null || timeout.isZero() || timeout.isNegative() || firstTokenTimeout==null
+            || firstTokenTimeout.isZero() || firstTokenTimeout.isNegative()) throw new IllegalArgumentException("Positive model deadlines required");
+        this.provider=provider; this.timeout=timeout; this.firstTokenTimeout=firstTokenTimeout;
     }
 
     @Override public ChatResponse doChat(ChatRequest request) {
         var result=new CompletableFuture<ChatResponse>();
+        var firstActivity=new CompletableFuture<Long>();
+        final long started=System.nanoTime();
         var subscription=new AtomicReference<Flow.Subscription>();
         var timing=MeteredChatModel.observeStream();
         try {
@@ -33,21 +41,35 @@ final class RuntimeStreamingChatModel implements ChatModel {
                 if(result.isDone())return;
                 if(event instanceof PartialResponse text && !text.text().isEmpty()
                     || event instanceof PartialThinking thinking && !thinking.text().isEmpty()
-                    || event instanceof PartialToolCall tool && tool.partialArguments()!=null && !tool.partialArguments().isEmpty())
-                    timing.token();
+                    || event instanceof PartialToolCall tool && (tool.name()!=null && !tool.name().isEmpty()
+                        || tool.partialArguments()!=null && !tool.partialArguments().isEmpty()))
+                    { timing.token();firstActivity.complete(System.nanoTime()); }
                 if(event instanceof CompleteResponse complete) {
-                    timing.complete();result.complete(complete.chatResponse());
+                    timing.complete();firstActivity.complete(System.nanoTime());result.complete(complete.chatResponse());
                 }
             }
-            @Override public void onError(Throwable error) { result.completeExceptionally(error); }
+            @Override public void onError(Throwable error) { firstActivity.completeExceptionally(error);result.completeExceptionally(error); }
             @Override public void onComplete() {
-                if(!result.isDone())result.completeExceptionally(new IllegalStateException("Provider stream ended without a complete response"));
+                if(!result.isDone())onError(new IllegalStateException("Provider stream ended without a complete response"));
             }
         });
-        return result.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        try {
+            long firstBudget=Math.min(firstTokenTimeout.toNanos(),timeout.toNanos());
+            long arrived=firstActivity.get(Math.max(1,firstBudget-(System.nanoTime()-started)),TimeUnit.NANOSECONDS);
+            if(arrived-started>firstBudget)throw new TimeoutException();
+        } catch(TimeoutException expired) {
+            if(firstTokenTimeout.compareTo(timeout)<0)throw new FirstTokenTimeoutException(expired);
+            throw expired;
+        }
+        long remaining=timeout.toNanos()-(System.nanoTime()-started);
+        if(remaining<=0)throw new TimeoutException();
+        return result.get(Math.max(1,remaining), TimeUnit.NANOSECONDS);
+        } catch(FirstTokenTimeoutException expired) {
+            result.cancel(false);
+            throw expired;
         } catch(TimeoutException expired) {
             result.cancel(false);
-            throw new IllegalStateException("Model API request timed out after " + timeout.toMillis() + "ms", expired);
+            throw new RequestTimeoutException(timeout.toMillis(),expired);
         } catch(InterruptedException interrupted) {
             result.cancel(false);Thread.currentThread().interrupt();
             throw new CancellationException("Runtime cancelled the provider stream");
@@ -57,5 +79,11 @@ final class RuntimeStreamingChatModel implements ChatModel {
         } finally {
             var current=subscription.get();if(current!=null)current.cancel();
         }
+    }
+    public static final class FirstTokenTimeoutException extends IllegalStateException {
+        FirstTokenTimeoutException(TimeoutException cause) { super("Model first token deadline exceeded",cause); }
+    }
+    public static final class RequestTimeoutException extends IllegalStateException {
+        RequestTimeoutException(long millis,TimeoutException cause) { super("Model API request timed out after " + millis + "ms",cause); }
     }
 }

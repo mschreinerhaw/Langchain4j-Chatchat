@@ -16,8 +16,9 @@ it('keeps governed knowledge locators navigable in the dynamic artifact markdown
   expect(html).not.toContain('href="runtime-evidence:');
 });
 it('shows running indicators and stops them when the task ends', async () => {
+  const activities=[{id:'one', sequence:1, state:'active', title:'正在计算', timeLabel:'10:00:00'}];
   const workbench = reactive({status:'active', terminal:false, steps:[], alerts:[], timings:[],
-    allActivities:[{id:'one', sequence:1, state:'active', title:'正在计算', timeLabel:'10:00:00'}]});
+    allActivities:activities,visibleActivities:activities});
   const component = {...ChatMessageListVue, methods:{...ChatMessageListVue.methods,
     executionWorkbench:()=>workbench}};
   const host = document.createElement('div');

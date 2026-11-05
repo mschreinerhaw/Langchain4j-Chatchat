@@ -1,0 +1,61 @@
+{
+  "codingTaskId": "analysis-coding-e615cc25deb61a57acce836bc698988ee9be3a0a1ffb333251214f427e7ad3c7",
+  "operationId": "cline-050562f0aa64691915ff8201bb6c4e117d3cbc4f8feb9387ad39988c1e066b40",
+  "ownerBoundTaskAndRunVerified": true,
+  "stoppedManifestSha256": "cf5e65d3d4888e41ca587d58d56043514b66cfa2b0e0358ce4e796a64771f44d",
+  "codeHash": "5f3795c118e97d00ba24e08f0b5c7353bdd0b793e8d159afe9fb04b3829d9e87",
+  "rawRowsJsonlSha256": "2e670cc2e412f362fdb3e7a352b5a59172ea82dfe86a77cf1df8ccae48a49162",
+  "rawAnalysisStatus": "COMPLETE",
+  "rawVisualReportStatus": "SUCCESS",
+  "rawCoreTableCount": 2,
+  "rawChartCount": 2,
+  "reviewProjectionEqualsOriginalFor": {
+    "metrics": true,
+    "tables": false,
+    "sections": false,
+    "summary": true,
+    "tableValuesExcludingGeneratedIds": false,
+    "sectionNarrativesExcludingGeneratedIds": true,
+    "table_title": true,
+    "table_rows": false,
+    "table_columns": true,
+    "table_scope": true,
+    "rowDifferences": [
+      {
+        "table": 1,
+        "row": 0,
+        "column": 1,
+        "rawType": "int",
+        "projectionType": "str",
+        "numericEqual": true
+      },
+      {
+        "table": 1,
+        "row": 1,
+        "column": 1,
+        "rawType": "int",
+        "projectionType": "str",
+        "numericEqual": true
+      }
+    ]
+  },
+  "artifacts": [
+    {
+      "fileName": "charts_dply.png",
+      "sha256": "7100a329bedd1d5199b28ed76886354ab8aab13eedba0125d820627743c0e6d7",
+      "size": 38170
+    },
+    {
+      "fileName": "charts_posmkt.png",
+      "sha256": "7b90055c3ec1ef63e91ccd09c9e1fa2abbe5aa7842369886193db9f3852c99ec",
+      "size": 87036
+    },
+    {
+      "fileName": "rows.jsonl",
+      "sha256": "2e670cc2e412f362fdb3e7a352b5a59172ea82dfe86a77cf1df8ccae48a49162",
+      "size": 10851
+    }
+  ],
+  "customerArtifactBytesPublished": false,
+  "originalReportsEdited": false
+}

@@ -1,0 +1,53 @@
+{
+  "scope": "Actual first model request of csv-0 in each batch; UTF-8 bytes and byte/4 estimates, not provider token billing. Input assets and semantics preserved.",
+  "rows": [
+    {
+      "variant": "baseline",
+      "taskId": "analysis-coding-2061a3da9a8bdb18633777120d0ecefa362370f8c2e8d675ec24f8820802451e",
+      "modelCall": 1,
+      "contextSystemBytes": 4080,
+      "contextTaskBytes": 18069,
+      "contextSkillsBytes": 4931,
+      "contextToolsBytes": 6598,
+      "requestBytes": 33792,
+      "estimatedInputTokens": 8448,
+      "skillContextRatio": null
+    },
+    {
+      "variant": "candidate",
+      "taskId": "analysis-coding-7903d292bcde676d34de77b0d205c391f80e8c002559052fb3ed038c270f2001",
+      "modelCall": 1,
+      "contextSystemBytes": 3640,
+      "contextTaskBytes": 18069,
+      "contextSkillsBytes": 4931,
+      "contextToolsBytes": 7067,
+      "requestBytes": 33821,
+      "estimatedInputTokens": 8456,
+      "skillContextRatio": 0.1457969900357766
+    },
+    {
+      "variant": "final",
+      "taskId": "analysis-coding-2c3248474e6ac20400b79ebb8560f821d82e13c99c492ad0e8f87584915003c7",
+      "modelCall": 1,
+      "contextSystemBytes": 3640,
+      "contextTaskBytes": 18069,
+      "contextSkillsBytes": 4931,
+      "contextToolsBytes": 6788,
+      "requestBytes": 33542,
+      "estimatedInputTokens": 8386,
+      "skillContextRatio": 0.14700971915807048
+    },
+    {
+      "variant": "verified",
+      "taskId": "analysis-coding-0bfa58b66a8f7f6ff8938bea9549d0660b04d52e64224d7de947ce949a4e7173",
+      "modelCall": 1,
+      "contextSystemBytes": 3640,
+      "contextTaskBytes": 17944,
+      "contextSkillsBytes": 4931,
+      "contextToolsBytes": 6788,
+      "requestBytes": 33417,
+      "estimatedInputTokens": 8355,
+      "skillContextRatio": 0.1475596253403956
+    }
+  ]
+}

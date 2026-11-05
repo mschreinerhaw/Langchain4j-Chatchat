@@ -1,0 +1,50 @@
+{
+  "source": "Actual native SDK checkpoint",
+  "results": [
+    {
+      "isError": false,
+      "toolCallId": "call_ff9761fb5a62445dbc1c9f10",
+      "outputKeys": [
+        "instructions",
+        "skillId",
+        "authority",
+        "nativeOriginal",
+        "resources",
+        "contentSha256",
+        "version"
+      ],
+      "error": null
+    },
+    {
+      "isError": true,
+      "toolCallId": "call_24b6911e567947a3854da171",
+      "outputKeys": [
+        "error"
+      ],
+      "error": "Invalid Coding callback binding"
+    },
+    {
+      "isError": true,
+      "toolCallId": "call_f850f347d8b84784be4726bc",
+      "outputKeys": [
+        "error"
+      ],
+      "error": "Invalid Coding callback binding"
+    },
+    {
+      "isError": false,
+      "toolCallId": "call_835361113b6748f8b7220c74",
+      "outputKeys": [
+        "instructions",
+        "skillId",
+        "authority",
+        "nativeOriginal",
+        "resources",
+        "contentSha256",
+        "version"
+      ],
+      "error": null
+    }
+  ],
+  "rawSkillBodiesPublished": false
+}

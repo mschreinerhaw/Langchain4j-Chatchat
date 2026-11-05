@@ -1,0 +1,28 @@
+{
+  "status": "DEPLOYED",
+  "sourceCommit": "c97962110c243d67de31d912d468d365d78979bc",
+  "image": "runtime-os-api:cline-precode-objective-06c4f666dff0",
+  "baselineJarSha256": "72f4689fdc141545422614ca6ff7193cc09bd5d14eb970ea83d9d1a7cd05c6c8",
+  "jarSha256": "06c4f666dff00704c8b5c0f0994c8c342655eeff47ceffe190f5e238fa98527f",
+  "backupContainer": "runtime-os-app-stage-api-1-before-precode-b58de79b7489",
+  "backupDirectory": "/opt/chatchat-releases/cline-precode-20261106-r3/api-proxy-deployment-backup",
+  "callback": {
+    "status": "PASSED",
+    "signedCallback": true,
+    "unsignedRejected": true,
+    "origin": "http://api:8081",
+    "codeLifecycleVersion": "runtime_os.code_lifecycle.v1"
+  },
+  "imageId": "sha256:9cfc15373b0b9e758a39fd8483ca3e8b0410156c2786b0705d700439b26bb8d7",
+  "authenticatedHealthVerified": true,
+  "gatewayHealthVerified": true,
+  "hostConfigAndMountsUnchanged": true,
+  "otherContainerIdsUnchanged": true,
+  "changedContainers": [
+    "runtime-os-app-stage-api-1",
+    "runtime-os-app-stage-node-proxy-1"
+  ],
+  "proxyBackupContainer": "runtime-os-app-stage-node-proxy-1-before-precode-d9bca128ed44",
+  "proxyHostConfigOnlyChange": "NetworkMode binds new API container namespace; same whitelist/config/image/mounts",
+  "proxyConfigurationAndMountsUnchanged": true
+}

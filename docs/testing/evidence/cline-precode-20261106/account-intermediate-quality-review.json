@@ -1,0 +1,34 @@
+{
+  "reportReadFrom": "HASH_VERIFIED_ORIGINAL_ARCHIVED_ROWS_JSONL",
+  "immutableInputRows": 115,
+  "selectedMetricChecks": {
+    "总资产": {
+      "present": true,
+      "numericMatched": true
+    },
+    "当日盈亏": {
+      "present": true,
+      "numericMatched": true
+    },
+    "成交总金额": {
+      "present": true,
+      "numericMatched": true
+    }
+  },
+  "holdingsMarketValueTableMatched": true,
+  "requiredCoreTables": 5,
+  "actualCoreTables": 2,
+  "s6CandidateRowsExpected": 12,
+  "s6TableRowsActual": 2,
+  "forbiddenHoldingsQuantityMetricPresent": true,
+  "unsupportedScaleAssumptionInLimitations": true,
+  "originalReportsEdited": false,
+  "sourceDataEdited": false,
+  "questionSha256": "4a425e8a7d0e47f11520f96393a4820e5246634658fc9b18ee20a05dcd88ec59",
+  "questionCharacters": 1465,
+  "inputOwnerHashesVerified": 3,
+  "reviewScope": "Independent Decimal checks of selected source metrics and required presentation/method scope; not a full business semantics certification",
+  "businessSemanticsCertified": false,
+  "reviewStatus": "FAILED_REQUIREMENTS",
+  "sourceModelChangedFromPriorGuidedCase": true
+}

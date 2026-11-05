@@ -1,0 +1,115 @@
+{
+  "method": "Independent enumeration of the synthetic fixture definitions, separate from model-produced code. Validate declared week boundaries rather than requiring one grouping label. Decimal/null boundary coverage is the isolated financial-methods suite, not falsely attributed to integer Parquet performance fixture.",
+  "expected": {
+    "csvAndParquet": {
+      "East": 32,
+      "West": 14,
+      "total": 46,
+      "rows": 3
+    },
+    "join": {
+      "East": 38,
+      "West": 14,
+      "total": 52,
+      "customers": 3,
+      "orders": 4,
+      "unmatchedOrders": 0,
+      "duplicatedOrders": 0
+    },
+    "repair": {
+      "value": 6,
+      "originalCalculation": "sum([1, 2, 3])"
+    },
+    "complex": {
+      "amount": 1218,
+      "quantity": 140,
+      "EastAmount": 406,
+      "WestAmount": 812,
+      "distinctDays": 28,
+      "rows": 56,
+      "weightedUnitValue": 8.7,
+      "ISOWeeks": [
+        {
+          "week": "2026-W40",
+          "region": "East",
+          "amount": 10,
+          "quantity": 10,
+          "days": 4,
+          "weightedUnitValue": 1.0
+        },
+        {
+          "week": "2026-W40",
+          "region": "West",
+          "amount": 20,
+          "quantity": 10,
+          "days": 4,
+          "weightedUnitValue": 2.0
+        },
+        {
+          "week": "2026-W41",
+          "region": "East",
+          "amount": 56,
+          "quantity": 19,
+          "days": 7,
+          "weightedUnitValue": 2.9473684210526314
+        },
+        {
+          "week": "2026-W41",
+          "region": "West",
+          "amount": 112,
+          "quantity": 19,
+          "days": 7,
+          "weightedUnitValue": 5.894736842105263
+        },
+        {
+          "week": "2026-W42",
+          "region": "East",
+          "amount": 105,
+          "quantity": 16,
+          "days": 7,
+          "weightedUnitValue": 6.5625
+        },
+        {
+          "week": "2026-W42",
+          "region": "West",
+          "amount": 210,
+          "quantity": 16,
+          "days": 7,
+          "weightedUnitValue": 13.125
+        },
+        {
+          "week": "2026-W43",
+          "region": "East",
+          "amount": 154,
+          "quantity": 17,
+          "days": 7,
+          "weightedUnitValue": 9.058823529411764
+        },
+        {
+          "week": "2026-W43",
+          "region": "West",
+          "amount": 308,
+          "quantity": 17,
+          "days": 7,
+          "weightedUnitValue": 18.11764705882353
+        },
+        {
+          "week": "2026-W44",
+          "region": "East",
+          "amount": 81,
+          "quantity": 8,
+          "days": 3,
+          "weightedUnitValue": 10.125
+        },
+        {
+          "week": "2026-W44",
+          "region": "West",
+          "amount": 162,
+          "quantity": 8,
+          "days": 3,
+          "weightedUnitValue": 20.25
+        }
+      ]
+    }
+  }
+}

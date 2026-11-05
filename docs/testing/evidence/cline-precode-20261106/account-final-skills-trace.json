@@ -1,0 +1,185 @@
+{
+  "taskId": "analysis-coding-df1cf8d72649377824cd6f02afb2cb0861357d905b865623267af7960d70ccdb",
+  "originalUserObjectiveIncluded": true,
+  "originalUserObjectiveCharacters": 1465,
+  "skills": [
+    {
+      "timestamp": "2026-11-05T18:40:16.298Z",
+      "skillId": "c8a8fea9-3518-49dd-a613-199b7653cfa8",
+      "skillPath": "SKILL.md",
+      "skillVersion": "4674f0d6-ebd6-4e04-b305-ed89eefe6d08:0b3516c5-d856-3541-826c-fc74955e3fec:GOOGLE_ADK_NATIVE",
+      "skillContentHash": "0e49ce6ce82040f8f519abf98a04940152b202b1621212cd63aa59c1f7b6de2e",
+      "skillSourceBytes": 2996,
+      "skillContentBytes": 2996,
+      "contentReused": false,
+      "duplicateRead": false
+    },
+    {
+      "timestamp": "2026-11-05T18:40:30.054Z",
+      "skillId": "05f7be55-a33c-4fa0-9ed3-614baa2f5219",
+      "skillPath": "SKILL.md",
+      "skillVersion": "6905bd1b-24c8-437c-a0ce-46b87f68887c:772362f6-7f29-36dc-9ceb-a964ac16b238:GOOGLE_ADK_NATIVE",
+      "skillContentHash": "2832952a2f6c09ef47e9dc49c340b0bb80e53ae67b437391e63227daf89647dd",
+      "skillSourceBytes": 3380,
+      "skillContentBytes": 3380,
+      "contentReused": false,
+      "duplicateRead": false
+    }
+  ],
+  "models": [
+    {
+      "modelCall": "model-1",
+      "finishReason": "TOOL_EXECUTION",
+      "usage": {
+        "cacheReadTokens": 0,
+        "inputTokens": 23197,
+        "outputTokens": 655,
+        "reasoningTokens": 506
+      },
+      "tools": [
+        {
+          "name": "skill_read",
+          "skill": {
+            "path": "SKILL.md",
+            "skillId": "c8a8fea9-3518-49dd-a613-199b7653cfa8"
+          }
+        },
+        {
+          "name": "skill_read",
+          "skill": {
+            "path": "references/data-methods.md",
+            "skillId": "7704e35b-f526-48d4-819d-8b465ac4731e"
+          }
+        }
+      ]
+    },
+    {
+      "modelCall": "model-2",
+      "finishReason": "TOOL_EXECUTION",
+      "usage": {
+        "cacheReadTokens": 0,
+        "inputTokens": 24338,
+        "outputTokens": 561,
+        "reasoningTokens": 485
+      },
+      "tools": [
+        {
+          "name": "skill_read",
+          "skill": {
+            "path": "references/financial-reporting.md",
+            "skillId": "05f7be55-a33c-4fa0-9ed3-614baa2f5219"
+          }
+        }
+      ]
+    },
+    {
+      "modelCall": "model-3",
+      "finishReason": "TOOL_EXECUTION",
+      "usage": {
+        "cacheReadTokens": 0,
+        "inputTokens": 24441,
+        "outputTokens": 59,
+        "reasoningTokens": 0
+      },
+      "tools": [
+        {
+          "name": "skill_read",
+          "skill": {
+            "skillId": "05f7be55-a33c-4fa0-9ed3-614baa2f5219"
+          }
+        }
+      ]
+    },
+    {
+      "modelCall": "model-4",
+      "finishReason": "TOOL_EXECUTION",
+      "usage": {
+        "cacheReadTokens": 0,
+        "inputTokens": 25508,
+        "outputTokens": 16769,
+        "reasoningTokens": 648
+      },
+      "tools": [
+        {
+          "name": "python_execute"
+        }
+      ]
+    },
+    {
+      "modelCall": "model-5",
+      "finishReason": "TOOL_EXECUTION",
+      "usage": {
+        "cacheReadTokens": 0,
+        "inputTokens": 46127,
+        "outputTokens": 752,
+        "reasoningTokens": 541
+      },
+      "tools": [
+        {
+          "name": "python_execute"
+        }
+      ]
+    },
+    {
+      "modelCall": "model-6",
+      "finishReason": "TOOL_EXECUTION",
+      "usage": {
+        "cacheReadTokens": 0,
+        "inputTokens": 49325,
+        "outputTokens": 9253,
+        "reasoningTokens": 366
+      },
+      "tools": [
+        {
+          "name": "python_execute"
+        }
+      ]
+    },
+    {
+      "modelCall": "model-7",
+      "finishReason": "TOOL_EXECUTION",
+      "usage": {
+        "cacheReadTokens": 0,
+        "inputTokens": 34457,
+        "outputTokens": 2591,
+        "reasoningTokens": 2283
+      },
+      "tools": [
+        {
+          "name": "python_execute"
+        }
+      ]
+    },
+    {
+      "modelCall": "model-8",
+      "finishReason": "TOOL_EXECUTION",
+      "usage": {
+        "cacheReadTokens": 0,
+        "inputTokens": 37771,
+        "outputTokens": 786,
+        "reasoningTokens": 699
+      },
+      "tools": [
+        {
+          "name": "code_read"
+        }
+      ]
+    },
+    {
+      "modelCall": "model-9",
+      "finishReason": "TOOL_EXECUTION",
+      "usage": {
+        "cacheReadTokens": 0,
+        "inputTokens": 51992,
+        "outputTokens": 3794,
+        "reasoningTokens": 3640
+      },
+      "tools": [
+        {
+          "name": "python_execute"
+        }
+      ]
+    }
+  ],
+  "scope": "Actual journal and model response receipts, no customer body/source data"
+}

@@ -1,0 +1,17 @@
+{
+  "status": "DEPLOYED",
+  "image": "runtime-os-coding-agent:sdk-reuse-20261105-r1",
+  "imageId": "sha256:35ab26f1ec27649838acbc02f038cdf3744692a1af48a891506538cef97e3696",
+  "sourceCommit": "3e28607b9",
+  "backupContainer": "runtime-os-app-stage-coding-agent-1-before-sdk-reuse-cfdc8d74bec5",
+  "backupDirectory": "/opt/chatchat-releases/cline-sdk-reuse-20261105-r1/backup",
+  "callback": {
+    "status": "PASSED",
+    "signedCallback": true,
+    "unsignedRejected": true,
+    "origin": "http://api:8081",
+    "codeLifecycleVersion": "runtime_os.code_lifecycle.v1"
+  },
+  "policyPreserved": true,
+  "unrelatedContainersUnchanged": true
+}

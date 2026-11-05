@@ -1,0 +1,34 @@
+{
+  "sourceCommit": "3e28607b9",
+  "image": "runtime-os-coding-agent:sdk-reuse-20261105-r1",
+  "imageId": "sha256:35ab26f1ec27649838acbc02f038cdf3744692a1af48a891506538cef97e3696",
+  "baselineImageId": "sha256:92fe80ab5c2df5442e91231035b6e64f37882c5d60d084ed2f1f5f5e0d485f89",
+  "baselineContainerId": "cfdc8d74bec5069f53953eca1cdfad9bc5e8140ce8eaba527bfb3c3679bd8638",
+  "modulesBefore": {
+    "code-repair.js": "fedbf9661a5c790f920b634a43f6a9d028e775579c22455632becb53e4578847",
+    "python-project.js": "79e3eb8e04bd0fd2a7762db82eb75c6fed94ba1d7d969d82b34da6340b05ed83",
+    "runner.js": "659bf75821f4ffbde8b2d1f8bef1284a3f1c701811859a981ae497f863d0d92e",
+    "runtime-model.js": "252dca287cf15ac0799069cb1a8fdc645ed6255d311777cbb6829c16ef5c4a0b",
+    "sdk-adapter.js": "b56de35fd7e25817c3e63a3fe8b11d7b9280e62238994770e46ae176063e9015"
+  },
+  "modulesAfter": {
+    "code-repair.js": "fc7e2db33ed474e70b47de606d78596f6ef258f228e494fe7133a5362799dd73",
+    "python-project.js": "faa136f7c9aae3277555a7b88091131b9ca9c41f9cc3b97e92bbac226e41f10e",
+    "runner.js": "ae561127760e7a38c190f2e6be432ec36985d65956d0749d1f5c27a79b2e4932",
+    "runtime-model.js": "367646fad3b59190b8d47d5084fec8cd5d73dd5fda9d5b483d00704952f756aa",
+    "sdk-adapter.js": "c7529704e4e663f6f2360510345d1a4754dbcfb0bb0be1f5b0e7d753c9ef4fc7"
+  },
+  "archiveSha256": "0c3df0df7875662a703ffa9834349aa17e13bb26b176cd0d0024f4648e13f158",
+  "sdk": {
+    "status": "VERIFIED",
+    "packages": {
+      "@cline/sdk": "0.0.93",
+      "@cline/core": "0.0.93",
+      "@cline/agents": "0.0.93",
+      "@cline/llms": "0.0.93",
+      "@cline/shared": "0.0.93"
+    }
+  },
+  "isolatedGatesPassed": true,
+  "trafficSwitched": false
+}

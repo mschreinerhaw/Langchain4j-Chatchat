@@ -1,0 +1,226 @@
+{
+  "variant": "baseline",
+  "requestId": "sdk-reuse-baseline-939c38b06179",
+  "taskId": "analysis-coding-51d9b8b562051589ddee95f276c6f5fc609c72b55d28bda2f1b65d8792e5480f",
+  "status": "COMPLETED",
+  "durationMs": 79683,
+  "resultAvailable": true,
+  "usage": {
+    "budgetId": "analysis-coding-tool-budget:analysis-coding-51d9b8b562051589ddee95f276c6f5fc609c72b55d28bda2f1b65d8792e5480f",
+    "costCurrency": "USD",
+    "consumed": {
+      "modelCalls": 4,
+      "modelTokens": 61548,
+      "toolCalls": 3,
+      "codeExecutions": 3,
+      "cpuMillis": 0,
+      "peakMemoryBytes": 0,
+      "outputBytes": 10445,
+      "costAmount": "0"
+    },
+    "reserved": {
+      "modelCalls": 0,
+      "modelTokens": 200596,
+      "toolCalls": 0,
+      "codeExecutions": 0,
+      "cpuMillis": 75000,
+      "peakMemoryBytes": 0,
+      "outputBytes": 1038130,
+      "costAmount": "3.333333333332"
+    },
+    "meteringComplete": false
+  },
+  "resultDatasetRef": "runtime-evidence:coding:b30b4d8fbbc5105553dc2c8cb5714b70b4b4c0246692e47b56e633f4c8a5f123:result",
+  "validationRecordRef": "runtime-evidence:coding:b30b4d8fbbc5105553dc2c8cb5714b70b4b4c0246692e47b56e633f4c8a5f123:validation",
+  "evidenceBundleRef": "runtime-evidence:coding:b30b4d8fbbc5105553dc2c8cb5714b70b4b4c0246692e47b56e633f4c8a5f123:bundle",
+  "sources": [
+    {
+      "path": "main.py",
+      "sha256": "8300ffaf0d02f678fa6999318392891b915e9b9bba3adda7c9adb3a875a034a8"
+    },
+    {
+      "path": "calc.py",
+      "sha256": "ecddb5163cbe675a436c371c38b2064e218415c1478a0e3517c266e9257ac8ac"
+    }
+  ],
+  "executions": [
+    {
+      "executionId": "cline-1376537dd46688d5a6a5b94363a5905c50666458dbdebca4e83b6baaedf3210d",
+      "status": "FAILED",
+      "codeHash": "2eae7c6b10ae7cfc8ffc628dbcbecf5c0cbef54b05cf35dfb413a4ac38b71ef4",
+      "exceptionType": "SyntaxError",
+      "diagnosticCode": "SYNTAX_ERROR",
+      "repair": {
+        "allowed": true,
+        "action": "REPAIR_IN_CURRENT_CONTEXT",
+        "reason": "TECHNICAL_REPAIR",
+        "attemptsUsed": 0,
+        "maxAttempts": 3,
+        "baseCodeHash": "2eae7c6b10ae7cfc8ffc628dbcbecf5c0cbef54b05cf35dfb413a4ac38b71ef4",
+        "guidance": "Repair Python syntax at the reported source location; preserve the existing calculation and authorized inputs."
+      },
+      "durationMs": 798
+    },
+    {
+      "executionId": "cline-d60108a69881a1fe131a3668ee508974c06cad858d84e6fe1311264c79b68dfa",
+      "status": "SUCCEEDED",
+      "codeHash": "a62e75a890ef36457e064d3605a0fa425d3284994252041d3dbf1ec2cb739013",
+      "exceptionType": null,
+      "diagnosticCode": null,
+      "repair": {
+        "allowed": false,
+        "action": "COMPLETE",
+        "reason": "RESULT_VERIFIED",
+        "attemptsUsed": 1,
+        "maxAttempts": 3,
+        "baseCodeHash": "a62e75a890ef36457e064d3605a0fa425d3284994252041d3dbf1ec2cb739013",
+        "guidance": "Result archived; business correctness remains governed by validationStatus."
+      },
+      "durationMs": 822
+    },
+    {
+      "executionId": "cline-ecee6dc885e3537190c24d55efe6de2cebdf29cca930ed2225edb87f790a149e",
+      "status": "SUCCEEDED",
+      "codeHash": "4fbb790742611b38fd16da48ec6e4e9c93a84e898857159da31e5ba41cfaf64a",
+      "exceptionType": null,
+      "diagnosticCode": null,
+      "repair": {
+        "allowed": false,
+        "action": "COMPLETE",
+        "reason": "RESULT_VERIFIED",
+        "attemptsUsed": 1,
+        "maxAttempts": 3,
+        "baseCodeHash": "4fbb790742611b38fd16da48ec6e4e9c93a84e898857159da31e5ba41cfaf64a",
+        "guidance": "Result archived; business correctness remains governed by validationStatus."
+      },
+      "durationMs": 897
+    }
+  ],
+  "versions": [
+    {
+      "sha256": "2eae7c6b10ae7cfc8ffc628dbcbecf5c0cbef54b05cf35dfb413a4ac38b71ef4",
+      "files": [
+        {
+          "path": "calc.py",
+          "sha256": "ecddb5163cbe675a436c371c38b2064e218415c1478a0e3517c266e9257ac8ac"
+        },
+        {
+          "path": "main.py",
+          "sha256": "8300ffaf0d02f678fa6999318392891b915e9b9bba3adda7c9adb3a875a034a8"
+        }
+      ]
+    },
+    {
+      "sha256": "a62e75a890ef36457e064d3605a0fa425d3284994252041d3dbf1ec2cb739013",
+      "files": [
+        {
+          "path": "calc.py",
+          "sha256": "cd68c8a237640efc48f53b9f364af4180e23fc21340af5c12d9371d4441f787f"
+        },
+        {
+          "path": "main.py",
+          "sha256": "88fc0748d272a8424afea99dfcc96890a92c50285d8f3456cd961e92f0cfbdda"
+        }
+      ]
+    },
+    {
+      "sha256": "4fbb790742611b38fd16da48ec6e4e9c93a84e898857159da31e5ba41cfaf64a",
+      "files": [
+        {
+          "path": "calc.py",
+          "sha256": "cd68c8a237640efc48f53b9f364af4180e23fc21340af5c12d9371d4441f787f"
+        },
+        {
+          "path": "main.py",
+          "sha256": "69c70c82d508d9ac20b181b4876e4129ae688f3d8a37122ac1934fcfa86aef9d"
+        }
+      ]
+    }
+  ],
+  "modelEvents": [],
+  "syntheticOnly": true,
+  "businessDataModified": false,
+  "metrics": {
+    "configuredModel": {
+      "selectedModel": "qwen3.7-plus",
+      "providerModel": "qwen3.7-plus",
+      "protocol": "openai"
+    },
+    "modelCalls": 4,
+    "inputTokens": 58429,
+    "outputTokens": 3119,
+    "usageKnownCalls": 4,
+    "eventCount": 40,
+    "eventsTruncated": false,
+    "codesTruncated": false,
+    "eventTypes": {
+      "SESSION_ACCEPTED": 1,
+      "CONTEXT_READY": 1,
+      "SESSION_TIMING": 1,
+      "MODEL_STARTED": 4,
+      "MODEL_RESOLVED": 4,
+      "PLAN_READY": 1,
+      "MODEL_USAGE": 4,
+      "MODEL_TIMING": 4,
+      "CODE_READY": 3,
+      "TOOL_STARTED": 6,
+      "TOOL_FINISHED": 6,
+      "TOOL_TIMING": 4,
+      "SESSION_FINISHED": 1
+    },
+    "compaction": [
+      {
+        "modelCall": 1,
+        "compactionCount": 0,
+        "compactionStrategy": "SDK_BASIC",
+        "contextSizeBefore": 33958,
+        "contextSizeAfter": 33958,
+        "estimatedInputTokens": 12244,
+        "softInputTokenBudget": 65536
+      },
+      {
+        "modelCall": 2,
+        "compactionCount": 0,
+        "compactionStrategy": "SDK_BASIC",
+        "contextSizeBefore": 41568,
+        "contextSizeAfter": 41568,
+        "estimatedInputTokens": 14738,
+        "softInputTokenBudget": 65536
+      },
+      {
+        "modelCall": 3,
+        "compactionCount": 1,
+        "compactionStrategy": "SDK_BASIC",
+        "contextSizeBefore": 59545,
+        "contextSizeAfter": 34902,
+        "estimatedInputTokens": 15893,
+        "softInputTokenBudget": 65536
+      },
+      {
+        "modelCall": 4,
+        "compactionCount": 2,
+        "compactionStrategy": "SDK_BASIC",
+        "contextSizeBefore": 74137,
+        "contextSizeAfter": 34905,
+        "estimatedInputTokens": 16102,
+        "softInputTokenBudget": 65536
+      }
+    ],
+    "rejectedProposals": [],
+    "checkpoints": [
+      {
+        "bytes": 124256,
+        "sha256": "62fbbc5dc6143a7441764ba13fa6668478645c344cf30e31fbe94756864b3474",
+        "checkpointOrdinal": 6,
+        "modelOrdinal": 4
+      }
+    ],
+    "callbackRpcCount": null
+  },
+  "verifiedAssertions": {
+    "calcOnlyColonChanged": true,
+    "reportComplete": true,
+    "notAppliedToStudio": true,
+    "evidenceRefsPresent": true
+  }
+}

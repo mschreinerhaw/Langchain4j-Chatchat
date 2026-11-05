@@ -1,0 +1,205 @@
+{
+  "variant": "candidate",
+  "requestId": "sdk-reuse-candidate-0c1a5a8b09a8",
+  "taskId": "analysis-coding-f68ccee3b33482be97c8e28050ddf95d82397bf695ee1428ebf89c5b433c5229",
+  "status": "COMPLETED",
+  "durationMs": 123514,
+  "resultAvailable": true,
+  "usage": {
+    "budgetId": "analysis-coding-tool-budget:analysis-coding-f68ccee3b33482be97c8e28050ddf95d82397bf695ee1428ebf89c5b433c5229",
+    "costCurrency": "USD",
+    "consumed": {
+      "modelCalls": 4,
+      "modelTokens": 62767,
+      "toolCalls": 2,
+      "codeExecutions": 2,
+      "cpuMillis": 0,
+      "peakMemoryBytes": 0,
+      "outputBytes": 5800,
+      "costAmount": "0"
+    },
+    "reserved": {
+      "modelCalls": 0,
+      "modelTokens": 199377,
+      "toolCalls": 0,
+      "codeExecutions": 0,
+      "cpuMillis": 50000,
+      "peakMemoryBytes": 0,
+      "outputBytes": 693250,
+      "costAmount": "3.333333333332"
+    },
+    "meteringComplete": false
+  },
+  "resultDatasetRef": "runtime-evidence:coding:adf34f12c125bf915b0fc69d9da1aec01abd33ddf78f589c6823fd6de0365d8c:result",
+  "validationRecordRef": "runtime-evidence:coding:adf34f12c125bf915b0fc69d9da1aec01abd33ddf78f589c6823fd6de0365d8c:validation",
+  "evidenceBundleRef": "runtime-evidence:coding:adf34f12c125bf915b0fc69d9da1aec01abd33ddf78f589c6823fd6de0365d8c:bundle",
+  "sources": [
+    {
+      "path": "main.py",
+      "sha256": "8300ffaf0d02f678fa6999318392891b915e9b9bba3adda7c9adb3a875a034a8"
+    },
+    {
+      "path": "calc.py",
+      "sha256": "ecddb5163cbe675a436c371c38b2064e218415c1478a0e3517c266e9257ac8ac"
+    }
+  ],
+  "executions": [
+    {
+      "executionId": "cline-863a566c606823e581362cc0a0ee12fa948526e113187f1c284a7b5de9de8473",
+      "status": "FAILED",
+      "codeHash": "2eae7c6b10ae7cfc8ffc628dbcbecf5c0cbef54b05cf35dfb413a4ac38b71ef4",
+      "exceptionType": "SyntaxError",
+      "diagnosticCode": "SYNTAX_ERROR",
+      "repair": {
+        "allowed": true,
+        "action": "REPAIR_IN_CURRENT_CONTEXT",
+        "reason": "TECHNICAL_REPAIR",
+        "attemptsUsed": 0,
+        "maxAttempts": 3,
+        "baseCodeHash": "2eae7c6b10ae7cfc8ffc628dbcbecf5c0cbef54b05cf35dfb413a4ac38b71ef4",
+        "guidance": "Repair Python syntax at the reported source location; preserve the existing calculation and authorized inputs."
+      },
+      "durationMs": 678
+    },
+    {
+      "executionId": "cline-348a9c6ecaa8a44e2b41f99bfb388328198eb72f0cf8fa7c2997279b9e323aad",
+      "status": "SUCCEEDED",
+      "codeHash": "32ef035fdf8b87705eb15714e8aac3d612be7fed03bac6c4c93848ba63edbfa7",
+      "exceptionType": null,
+      "diagnosticCode": null,
+      "repair": {
+        "allowed": false,
+        "action": "COMPLETE",
+        "reason": "RESULT_VERIFIED",
+        "attemptsUsed": 1,
+        "maxAttempts": 3,
+        "baseCodeHash": "32ef035fdf8b87705eb15714e8aac3d612be7fed03bac6c4c93848ba63edbfa7",
+        "guidance": "Result archived; business correctness remains governed by validationStatus."
+      },
+      "durationMs": 796
+    }
+  ],
+  "versions": [
+    {
+      "sha256": "2eae7c6b10ae7cfc8ffc628dbcbecf5c0cbef54b05cf35dfb413a4ac38b71ef4",
+      "files": [
+        {
+          "path": "calc.py",
+          "sha256": "ecddb5163cbe675a436c371c38b2064e218415c1478a0e3517c266e9257ac8ac"
+        },
+        {
+          "path": "main.py",
+          "sha256": "8300ffaf0d02f678fa6999318392891b915e9b9bba3adda7c9adb3a875a034a8"
+        }
+      ]
+    },
+    {
+      "sha256": "32ef035fdf8b87705eb15714e8aac3d612be7fed03bac6c4c93848ba63edbfa7",
+      "files": [
+        {
+          "path": "calc.py",
+          "sha256": "cd68c8a237640efc48f53b9f364af4180e23fc21340af5c12d9371d4441f787f"
+        },
+        {
+          "path": "main.py",
+          "sha256": "b4395713bcf311c5b52ea8800c0dc66d3121d22e182f1dc8f39e15ded3161901"
+        }
+      ]
+    }
+  ],
+  "modelEvents": [],
+  "syntheticOnly": true,
+  "businessDataModified": false,
+  "metrics": {
+    "configuredModel": {
+      "selectedModel": "qwen3.7-plus",
+      "providerModel": "qwen3.7-plus",
+      "protocol": "openai"
+    },
+    "modelCalls": 4,
+    "inputTokens": 56274,
+    "outputTokens": 6493,
+    "usageKnownCalls": 4,
+    "eventCount": 36,
+    "eventsTruncated": false,
+    "codesTruncated": false,
+    "eventTypes": {
+      "SESSION_ACCEPTED": 1,
+      "CONTEXT_READY": 1,
+      "SESSION_TIMING": 1,
+      "MODEL_STARTED": 4,
+      "MODEL_RESOLVED": 4,
+      "PLAN_READY": 1,
+      "MODEL_USAGE": 4,
+      "MODEL_TIMING": 4,
+      "CODE_READY": 2,
+      "TOOL_STARTED": 4,
+      "TOOL_FINISHED": 4,
+      "TOOL_TIMING": 4,
+      "CODE_PROPOSAL_REJECTED": 1,
+      "SESSION_FINISHED": 1
+    },
+    "compaction": [
+      {
+        "modelCall": 1,
+        "compactionCount": 0,
+        "compactionStrategy": "SDK_BASIC",
+        "contextSizeBefore": 33958,
+        "contextSizeAfter": 33958,
+        "estimatedInputTokens": 12244,
+        "softInputTokenBudget": 65536
+      },
+      {
+        "modelCall": 2,
+        "compactionCount": 0,
+        "compactionStrategy": "SDK_BASIC",
+        "contextSizeBefore": 41680,
+        "contextSizeAfter": 41680,
+        "estimatedInputTokens": 14766,
+        "softInputTokenBudget": 65536
+      },
+      {
+        "modelCall": 3,
+        "compactionCount": 1,
+        "compactionStrategy": "SDK_BASIC",
+        "contextSizeBefore": 57139,
+        "contextSizeAfter": 35017,
+        "estimatedInputTokens": 15297,
+        "softInputTokenBudget": 65536
+      },
+      {
+        "modelCall": 4,
+        "compactionCount": 2,
+        "compactionStrategy": "SDK_BASIC",
+        "contextSizeBefore": 57902,
+        "contextSizeAfter": 35017,
+        "estimatedInputTokens": 15300,
+        "softInputTokenBudget": 65536
+      }
+    ],
+    "rejectedProposals": [
+      {
+        "type": "CODE_PROPOSAL_REJECTED",
+        "diagnosticCode": "CODE_PROPOSAL_INVALID",
+        "reasonCode": null,
+        "message": null,
+        "error": null
+      }
+    ],
+    "checkpoints": [
+      {
+        "bytes": 106455,
+        "sha256": "923b5d8bb9f7a08fbef89ce35068b7a28b59a90e4ee51b1deadf666ddfa0973e",
+        "checkpointOrdinal": 7,
+        "modelOrdinal": 4
+      }
+    ],
+    "callbackRpcCount": null
+  },
+  "verifiedAssertions": {
+    "calcOnlyColonChanged": true,
+    "reportComplete": true,
+    "notAppliedToStudio": true,
+    "evidenceRefsPresent": true
+  }
+}

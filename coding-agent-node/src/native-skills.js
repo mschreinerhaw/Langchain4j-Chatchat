@@ -151,6 +151,10 @@ export async function prepareNativeSkills(contract, gateway, { sessionId, signal
     // without adding instructions, selecting Skills, or loading their bodies.
     const skillsTool = tools.find(tool => tool.name === 'skills');
     skillsTool.inputSchema.properties.skill.description += '\n' + JSON.stringify(nativeSkills.configuredSkills);
+    const resourceTool = tools.find(tool => tool.name === 'read_files');
+    resourceTool.description = 'Read authorized Skill files and references. /data/input paths belong to the Python Sandbox and are outside this tool. '
+      + resourceTool.description;
+    resourceTool.inputSchema.properties.files.items.properties.path.description = 'Absolute path of a task-authorized Skill file or reference.';
     await observe?.({ type: 'SKILLS_DISCOVERED', stage: 'CONTEXT_READY', nativeSkills: true,
       discovery: 'loadAgentPluginPackages', loader: 'createUserInstructionConfigService', nativeSkillCount: records.length,
       skills: records.map(r => ({ id: r.id, name: r.item.name, description: r.item.description,

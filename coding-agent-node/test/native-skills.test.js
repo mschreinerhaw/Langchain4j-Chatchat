@@ -35,6 +35,8 @@ test('official package discovery and service load all image Skills; only native 
     const discovered=events.find(e=>e.type==='SKILLS_DISCOVERED');
     assert.equal(discovered.discovery,'loadAgentPluginPackages');assert.equal(discovered.loader,'createUserInstructionConfigService');
     assert.equal(events.some(e=>e.type==='SKILLS_LOADED'),false);
+    assert.match(r.tools.find(t=>t.name==='read_files').description,/Skill files and references/);
+    assert.match(r.tools.find(t=>t.name==='read_files').description,/\/data\/input.*outside this tool/);
     assert.match(r.tools.find(t=>t.name==='skills').description,/runtime-image:python-data-analysis/);
     assert.match(r.tools.find(t=>t.name==='skills').inputSchema.properties.skill.description,/"description":"Analyze delivered Python datasets/);
     assert.doesNotMatch(JSON.stringify(r.tools),/Check join key cardinality/);
@@ -115,7 +117,7 @@ test('native resource access remains task isolated and cannot read the host or a
   try{
     assert.notEqual(a.root,b.root);
     const foreign=b.records.find(x=>x.item.name==='private-method').filePath;
-    for(const path of [foreign,join(a.root,'..','secret.txt'),process.execPath]){
+    for(const path of [foreign,join(a.root,'..','secret.txt'),process.execPath,'/data/input/private/original-0.csv']){
       const result=await invoke(a,'read_files',{files:[{path}]});
       assert.match(JSON.stringify(result),/outside the authorized/);assert.doesNotMatch(JSON.stringify(result),/PRIVATE_NATIVE_BODY/);
     }

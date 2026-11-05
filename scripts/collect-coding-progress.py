@@ -52,7 +52,7 @@ def main():
     root = args.root
     monitor = json.loads(Path('/opt/runtime-os-docker-stage/coding-monitor/data/observations.json').read_text())
     rows = []
-    for variant in ['baseline', 'candidate']:
+    for variant in ['baseline', 'candidate', 'final']:
         directory = root / variant
         if not directory.exists():
             continue
@@ -119,7 +119,7 @@ def main():
                     and e.get('status') == 'FAILED' for e in events) and row['resultAvailable'])
             row['successfulExecution'] = row['nodeStatus'] == 'COMPLETED' and row['resultAvailable'] and row['pythonExecutions'] > 0
     aggregate = {}
-    for variant in ['baseline', 'candidate']:
+    for variant in ['baseline', 'candidate', 'final']:
         group = [r for r in rows if r['variant'] == variant]
         if not group:
             continue

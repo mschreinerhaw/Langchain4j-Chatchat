@@ -21,6 +21,7 @@
 分别为简单 CSV、真实二进制 Parquet、客户/订单多对一关联、28 天两地区每周聚合及数量加权单位值、
 含真实 SyntaxError 的用户代码项目修复。无模型 mock，不伪造 Python 输出，不预置成功回执。
 最大并发为 2；先完整完成 baseline，再在空闲时替换 Worker 并运行 candidate。
+首轮 candidate 的发现另行保留；最终修订版本使用独立 final 批次再运行同样10项，主对比为 baseline 与 final，不能把中间版本的失败删除或并入最终版本。
 顺序试验与小样本仅用于描述性对比，不能证明模型稳定性或生产 p95。
 
 使用 `scripts/benchmark-coding-progress.py` 提交已有平台 API；

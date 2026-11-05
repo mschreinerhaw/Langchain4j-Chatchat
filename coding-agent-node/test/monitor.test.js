@@ -283,21 +283,25 @@ test('a model cannot finish successfully after a rejected report reference check
 });
 
 test('versioned file inputs negotiate format before SDK/model admission and keep output JSONL', async () => {
-  for (const format of ['PARQUET', 'CSV']) {
+  for (const [format, mode] of ['PARQUET', 'CSV'].flatMap(format => [[format, undefined], [format, 'TEXT_OR_CODE']])) {
     let prompt, metadataReads = 0;
     const next = structuredClone(contract);
+    next.runtimeContext.analysisResultMode = mode;
     next.runtimeContext.inputFiles = { schemaVersion: 'runtime_os.coding.input.v1', format, delivery: 'SHARED_DIRECTORY',
       manifestFileId: next.authorization.allowedDataRefs[0], manifestSha256: 'a'.repeat(64) };
     const run = createCodingRun(next, { reserveModel: async () => {}, settleModel: async () => {},
       readInputContext: async () => { metadataReads++; return { columns: ['metadata-column-from-java'] }; },
       executePython: async () => {}, finish: async () => {} }, { model: { async *stream(request) {
-        prompt = request.systemPrompt; assert.match(JSON.stringify(request.messages), /metadata-column-from-java/);
+        prompt = request.tools.find(tool => tool.name === 'python_execute').description;
+        assert.match(JSON.stringify(request.messages), /metadata-column-from-java/);
         yield { type: 'text-delta', text: 'No execution requested' }; yield { type: 'finish', reason: 'stop' };
       } } });
     await run.run(); assert.equal(metadataReads, 1); assert.match(prompt, /ordered Parquet\/CSV parts|ordered parts|Parquet presence columns/);
     assert.match(prompt, /map storage columns to logical names/i);
     assert.match(prompt, /file ID directories are siblings/);
     assert.match(prompt, /exact files\[\]\.virtualPath/);
+    assert.match(prompt, /never select raw Parquet columns by logical names/);
+    assert.match(prompt, /if schema maps datasetReference to c0, read c0/);
     next.runtimeContext.inputFiles.schemaVersion = 'unnegotiated';
     assert.throws(() => createCodingRun(next, {}), /VERSION_UNSUPPORTED/);
   }

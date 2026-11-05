@@ -117,3 +117,19 @@ Monitor 新增当前序号/状态、准备/探索/编写/执行/验证/修复阶
 首提案/有效代码/Python/结果耗时、提案接受/拒绝、确认执行次数、Skills/发现次数、
 新证据/重复失败、已知 Token/剩余预算及逐轮实际工具、finish reason、响应诊断码。
 旧历史无新指标时保持缺失；不能回填为真实的 0。
+
+## 真实回归暴露的补充问题
+
+首轮候选 `a64c8be51` 的关联样本 `analysis-coding-a1c3220e0d35f8960610a66be3f6b073ce02437567a5ad07d04fb1498985b8eb`
+在第二轮生成22,702字节程序，模型回调140,282ms；实际第33行用 `pq.read_table(..., columns=["datasetReference","record"])`
+直接选择传输逻辑列，忽略 schema 的物理列映射。Runtime 回执诊断为 UNKNOWN、repair.allowed=false、action=STOP，任务失败。
+保留原失败及安全停止，不把 UNKNOWN 改成可自动重试。
+
+调查确认，详细 transport mapping 原先主要位于默认分析系统提示；TEXT_OR_CODE 分支只得到较短的工具描述。
+最终候选把完整文件路径、storageName/type、JSON 解码、presence/null、精度和 hash/行数检查放在已授权 Python 工具说明，
+加条件式物理列映射例子，同时移除默认系统提示中的长篇重复传输说明。Skills 仍由模型自主选择，不借此强制加载参考文件。
+另对两种分析模式强调任务专用的简洁代码，避免生成通用框架或重复整份 manifest/schema/环境/回执；全部必要核验保留。
+这提供可检验的改善假设，实际性能仍以最终多任务试验为准，不从一次失败推断普遍收益。
+
+恢复会话已有代码时，进展建议从已有 canonical code lineage 派生“已有代码”状态，
+避免当前 run 的零提案计数误导模型重新生成初始程序；没有增加 checkpoint 或恢复控制器。

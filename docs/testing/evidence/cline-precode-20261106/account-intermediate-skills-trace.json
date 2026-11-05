@@ -1,0 +1,99 @@
+{
+  "taskId": "analysis-coding-e615cc25deb61a57acce836bc698988ee9be3a0a1ffb333251214f427e7ad3c7",
+  "originalUserObjectiveIncluded": true,
+  "originalUserObjectiveCharacters": 1465,
+  "skills": [],
+  "models": [
+    {
+      "modelCall": "model-1",
+      "finishReason": "TOOL_EXECUTION",
+      "usage": {
+        "cacheReadTokens": 0,
+        "inputTokens": 22522,
+        "outputTokens": 10313,
+        "reasoningTokens": 4096
+      },
+      "tools": [
+        {
+          "name": "python_execute"
+        }
+      ]
+    },
+    {
+      "modelCall": "model-2",
+      "finishReason": "TOOL_EXECUTION",
+      "usage": {
+        "cacheReadTokens": 0,
+        "inputTokens": 32900,
+        "outputTokens": 974,
+        "reasoningTokens": 887
+      },
+      "tools": [
+        {
+          "name": "code_read"
+        }
+      ]
+    },
+    {
+      "modelCall": "model-3",
+      "finishReason": "TOOL_EXECUTION",
+      "usage": {
+        "cacheReadTokens": 0,
+        "inputTokens": 39484,
+        "outputTokens": 1824,
+        "reasoningTokens": 1523
+      },
+      "tools": [
+        {
+          "name": "python_execute"
+        }
+      ]
+    },
+    {
+      "modelCall": "model-4",
+      "finishReason": "TOOL_EXECUTION",
+      "usage": {
+        "cacheReadTokens": 0,
+        "inputTokens": 28312,
+        "outputTokens": 564,
+        "reasoningTokens": 477
+      },
+      "tools": [
+        {
+          "name": "code_read"
+        }
+      ]
+    },
+    {
+      "modelCall": "model-5",
+      "finishReason": "TOOL_EXECUTION",
+      "usage": {
+        "cacheReadTokens": 0,
+        "inputTokens": 35082,
+        "outputTokens": 1716,
+        "reasoningTokens": 1376
+      },
+      "tools": [
+        {
+          "name": "python_execute"
+        }
+      ]
+    },
+    {
+      "modelCall": "model-6",
+      "finishReason": "TOOL_EXECUTION",
+      "usage": {
+        "cacheReadTokens": 0,
+        "inputTokens": 28320,
+        "outputTokens": 2679,
+        "reasoningTokens": 2161
+      },
+      "tools": [
+        {
+          "name": "artifact_read"
+        }
+      ]
+    }
+  ],
+  "scope": "Actual journal and model response receipts, no customer body/source data"
+}

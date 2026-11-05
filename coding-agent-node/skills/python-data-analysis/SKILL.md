@@ -1,7 +1,7 @@
 ---
 name: python-data-analysis
 description: Analyze delivered Python datasets, inspect quality, join sources, compute statistics and business metrics, and deliver reproducible static charts and Runtime OS reports.
-version: 1.3.1
+version: 1.3.2
 ---
 
 # Python data analysis in Runtime OS
@@ -27,9 +27,5 @@ Define numerator, denominator, units, population and time window before calculat
 Use Matplotlib with a noninteractive backend for static charts. Choose line charts for trends, bars for category comparisons, histograms/box plots for distributions, and pie charts only for a small, nonnegative part-to-whole distribution. Label titles, axes, units, legends and dates. Use the Sandbox's configured Chinese fonts; do not download fonts at runtime. Close figures after saving and avoid huge images.
 
 Use declared currency/scale and comparable valuation, trade or settlement periods; separate monetary values, percentages, percentage points and basis points. Use a restrained research-report style, signed zero baselines and an explicit market color convention. Distinguish orders from fills, cash flows from returns, and observed activity from inferred long-term preferences. Derive every reconciliation label from actual calculations and retain unresolved evidence limits. Consult [references/financial-reporting.md](references/financial-reporting.md) when the objective needs accounting reconciliation, ambiguous flow ordering or portfolio hypotheses. A price trend or other financial topic alone does not require loading that reference.
-
-The financial reference includes tested, stateless Python recipes for labelled component reconciliation, ambiguous flow ordering and grouped numerical hypotheses. Prefer the applicable recipes to rewriting these checks. Inline the chosen recipe functions unchanged in a single-script proposal (or include them in an explicitly authorized code project); they are examples, not an installed Sandbox module. Bind fields and source scopes from this task's metadata. Render their returned component labels and unavailable values consistently in tables, prose and figures; never add an arbitrary last-row balance when ordering is unresolved. These recipes grant no I/O, execution or additional data permissions.
-
-Use its `percentage_composition` for portfolio weights: show the exact total percentage separately from the sum of rounded display rows and disclose any display tail. For hypotheses linking an unconfirmed field to signed transaction amounts/costs, prefer `signed_amount_matrix` with actual dictionary field names. It binds the observed field to its label and evaluates all sign/cost candidates across each actual operation group; fee fields must be declared and distinct from the observed/amount fields. Preserve the returned reconciliation status rather than upgrading an arithmetic match into business certification.
 
 Follow the task's existing output row schema, required filenames and visual-report contract. Save charts through the supplied artifact paths and reference only registered artifacts and exact authorized dataset references. A PNG or stdout alone is not the report. Deliver calculated metrics, their basis, data-quality findings, conclusions and explicit limitations. Inspect the actual execution receipt and reviewed report; repair unsupported findings before confirming completion. If required data is unavailable, return the contract's supported limitation/input-required outcome instead of fabricated metrics.

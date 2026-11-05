@@ -1,0 +1,80 @@
+{
+  "url": "http://192.168.195.221:18100/monitor/",
+  "taskId": "analysis-coding-6851edd34a5b2a90c90ecb40b4350e064011b8e51b61ec3d18bd60b306965dd1",
+  "build": "f09cb4b5db9cde25cafc86e68d958a6728a6ef9e",
+  "checks": [
+    "real candidate task",
+    "progress counts",
+    "first code timing",
+    "Python confirmed execution",
+    "actual tools",
+    "provider and SDK finish reasons",
+    "read only",
+    "no browser errors",
+    "pre-code usage and Skills disclosure",
+    "byte ratio and UNKNOWN provider stages"
+  ],
+  "status": "COMPLETED",
+  "progress": {
+    "modelCall": 2,
+    "callsSinceProgress": 1,
+    "newToolResults": 2,
+    "newEvidenceReads": 1,
+    "skillReads": 0,
+    "discoveryCalls": 0,
+    "repeatedFailures": 0,
+    "proposals": 1,
+    "acceptedProposals": 1,
+    "rejectedProposals": 0,
+    "pythonDispatched": 1,
+    "pythonExecutions": 1,
+    "modelResponseErrors": 0,
+    "knownInputTokens": 23184,
+    "knownOutputTokens": 8565,
+    "firstProposalMs": 135461,
+    "firstValidCodeMs": 135622,
+    "firstPythonMs": 135720,
+    "firstResultMs": 139267,
+    "remainingTokens": 720896,
+    "remainingModelCalls": 11,
+    "feedbackCount": 0,
+    "preCodeModelCalls": 1,
+    "preCodeInputTokens": 9672,
+    "preCodeUsageKnownCalls": 1,
+    "loadedSkillCount": 0,
+    "loadedReferenceCount": 0,
+    "loadedSkillBytes": 0,
+    "skillDeliveredBytes": 0,
+    "skillEstimatedTokens": 0,
+    "duplicateSkillReads": 0,
+    "skillReuses": 0,
+    "inputReadCount": 0,
+    "rejectedToolCallCount": 0,
+    "phase": "REVIEWING",
+    "waitingFor": "MODEL",
+    "lastTool": "artifact_read",
+    "lastProgressType": "artifact_read"
+  },
+  "modelTools": [
+    {
+      "ordinal": 1,
+      "actualTools": [
+        "python_execute"
+      ],
+      "providerFinishReason": "TOOL_EXECUTION",
+      "finishReason": "tool-calls"
+    },
+    {
+      "ordinal": 2,
+      "actualTools": [
+        "artifact_read"
+      ],
+      "providerFinishReason": "TOOL_EXECUTION",
+      "finishReason": "tool-calls"
+    }
+  ],
+  "errors": [],
+  "mutations": [
+    "/monitor/session"
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "source": "f09cb4b5db9cde25cafc86e68d958a6728a6ef9e",
+  "baseline": "1ecf091dfce757d5ff7933fec4049c8de2f67196",
+  "pythonCodeBlocks": 1,
+  "allCodeBlocksUnchanged": true,
+  "lineEndingsNormalized": "CRLF to LF for Windows checkout",
+  "method": "Unchanged Python code block text with normalized line endings; method prose relocated verbatim in git diff. Actual financial runtime regression is separate."
+}

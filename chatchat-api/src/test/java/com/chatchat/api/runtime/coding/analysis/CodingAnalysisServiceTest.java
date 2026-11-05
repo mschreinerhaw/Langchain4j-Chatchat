@@ -92,6 +92,9 @@ class CodingAnalysisServiceTest {
         assertThat(CodingProtocol.deferredTools(contract)).isEqualTo(deferred);
         assertThat(contract.authorization().networkPolicy()).isEqualTo(CodingTaskContract.NetworkPolicy.NONE);
         assertThat(contract.authorization().allowedSideEffects()).containsExactly(CodingTaskContract.SideEffect.CODE_EXECUTION);
+        assertThat(contract.objective().instruction()).contains("resources autonomously as needed",
+            "Cite exact returned evidence_id", "Only tools in this task's tool list are authorized")
+            .doesNotContain("skill_read before its first resource query");
         @SuppressWarnings("unchecked") var profile=(Map<String,Object>)contract.runtimeContext().get("knowledgeExploration");
         assertThat(profile).containsEntry("explicitlyRequested",true).containsEntry("agentId","resource-agent")
             .containsEntry("resourceIds",List.of("financial_market","financial_news"));
@@ -328,7 +331,9 @@ class CodingAnalysisServiceTest {
         assertThat(value.get("reviewResult")).isEqualTo(true);
         assertThat(value.get("instruction").toString()).contains("Choose your own analysis methods",
             "same declared metric, scope, period and unit", "every table header aligns with its values",
-            "User objective", "Question").doesNotContain("customer", "security", "profit formula");
+            "User objective", "Question", "manifest.columns[].storageName", "schema.presenceColumns",
+            "preserving Decimal precision")
+            .doesNotContain("customer", "security", "profit formula", "Skill's transport mapping reference before writing a reader");
         assertThat((Map<String,Object>) value.get("outputSchema")).containsEntry("type", "object");
         verifyNoInteractions(agent, python, inputs, plans, collector);
     }

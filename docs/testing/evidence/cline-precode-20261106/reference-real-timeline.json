@@ -1,0 +1,291 @@
+{
+  "taskId": "analysis-coding-2c3248474e6ac20400b79ebb8560f821d82e13c99c492ad0e8f87584915003c7",
+  "sourceCommit": "f09cb4b5db9cde25cafc86e68d958a6728a6ef9e",
+  "capturedAt": "2026-11-05T17:09:21.254089+00:00",
+  "status": "COMPLETED",
+  "scope": "Synthetic CSV real configured model; actual invalid snapshot read rejected before Java data read. Continues in same SDK run; full end-to-end status is separately retained.",
+  "events": [
+    {
+      "fence": 1,
+      "type": "MODEL_STARTED",
+      "timestamp": "2026-11-05T16:59:02.436Z",
+      "modelCall": 1
+    },
+    {
+      "fence": 1,
+      "type": "MODEL_TIMING",
+      "timestamp": "2026-11-05T16:59:07.542Z",
+      "modelCall": 1,
+      "durationMs": 5136,
+      "status": "SUCCEEDED"
+    },
+    {
+      "fence": 1,
+      "type": "TOOL_STARTED",
+      "timestamp": "2026-11-05T16:59:07.764Z",
+      "tool": "input_read"
+    },
+    {
+      "fence": 1,
+      "type": "TOOL_FINISHED",
+      "timestamp": "2026-11-05T16:59:07.969Z",
+      "tool": "input_read",
+      "status": "SUCCEEDED"
+    },
+    {
+      "fence": 1,
+      "type": "TOOL_STARTED",
+      "timestamp": "2026-11-05T16:59:08.055Z",
+      "tool": "input_read"
+    },
+    {
+      "fence": 1,
+      "type": "TOOL_FINISHED",
+      "timestamp": "2026-11-05T16:59:08.095Z",
+      "tool": "input_read",
+      "status": "FAILED",
+      "diagnosticCode": "INVALID_REFERENCE_TYPE"
+    },
+    {
+      "fence": 1,
+      "type": "MODEL_STARTED",
+      "timestamp": "2026-11-05T16:59:08.491Z",
+      "modelCall": 2
+    },
+    {
+      "fence": 1,
+      "type": "MODEL_TIMING",
+      "timestamp": "2026-11-05T16:59:20.526Z",
+      "modelCall": 2,
+      "durationMs": 12163,
+      "status": "SUCCEEDED"
+    },
+    {
+      "fence": 1,
+      "type": "SKILLS_LOADED",
+      "timestamp": "2026-11-05T16:59:20.741Z",
+      "skillId": "builtin:python-data-analysis",
+      "skillPath": "SKILL.md",
+      "skillContentBytes": 4129
+    },
+    {
+      "fence": 1,
+      "type": "MODEL_STARTED",
+      "timestamp": "2026-11-05T16:59:21.112Z",
+      "modelCall": 3
+    },
+    {
+      "fence": 1,
+      "type": "MODEL_TIMING",
+      "timestamp": "2026-11-05T16:59:51.196Z",
+      "modelCall": 3,
+      "durationMs": 30131,
+      "status": "SUCCEEDED"
+    },
+    {
+      "fence": 1,
+      "type": "CODE_PROPOSED",
+      "timestamp": "2026-11-05T16:59:51.294Z",
+      "modelCall": 3
+    },
+    {
+      "fence": 1,
+      "type": "CODE_READY",
+      "timestamp": "2026-11-05T16:59:51.521Z",
+      "modelCall": 3
+    },
+    {
+      "fence": 1,
+      "type": "TOOL_STARTED",
+      "timestamp": "2026-11-05T16:59:51.567Z",
+      "tool": "python_execute"
+    },
+    {
+      "fence": 1,
+      "type": "TOOL_FINISHED",
+      "timestamp": "2026-11-05T16:59:53.592Z",
+      "durationMs": 583,
+      "tool": "python_execute",
+      "status": "SUCCEEDED",
+      "diagnosticCode": "OUTPUT_CONTRACT",
+      "errorCategory": "OUTPUT_CONTRACT",
+      "resultAvailable": false
+    },
+    {
+      "fence": 1,
+      "type": "MODEL_STARTED",
+      "timestamp": "2026-11-05T16:59:53.947Z",
+      "modelCall": 4
+    },
+    {
+      "fence": 1,
+      "type": "MODEL_TIMING",
+      "timestamp": "2026-11-05T17:00:23.657Z",
+      "modelCall": 4,
+      "durationMs": 29756,
+      "status": "SUCCEEDED"
+    },
+    {
+      "fence": 1,
+      "type": "MODEL_STARTED",
+      "timestamp": "2026-11-05T17:00:24.456Z",
+      "modelCall": 5
+    },
+    {
+      "fence": 1,
+      "type": "MODEL_TIMING",
+      "timestamp": "2026-11-05T17:01:37.549Z",
+      "modelCall": 5,
+      "durationMs": 73150,
+      "status": "SUCCEEDED"
+    },
+    {
+      "fence": 1,
+      "type": "CODE_PROPOSED",
+      "timestamp": "2026-11-05T17:01:37.651Z",
+      "modelCall": 5
+    },
+    {
+      "fence": 1,
+      "type": "CODE_PROPOSAL_REJECTED",
+      "timestamp": "2026-11-05T17:01:37.689Z",
+      "modelCall": 5,
+      "diagnosticCode": "CODE_PROPOSAL_INVALID"
+    },
+    {
+      "fence": 1,
+      "type": "MODEL_STARTED",
+      "timestamp": "2026-11-05T17:01:38.302Z",
+      "modelCall": 6
+    },
+    {
+      "fence": 1,
+      "type": "MODEL_TIMING",
+      "timestamp": "2026-11-05T17:03:16.577Z",
+      "modelCall": 6,
+      "durationMs": 98321,
+      "status": "SUCCEEDED"
+    },
+    {
+      "fence": 1,
+      "type": "CODE_PROPOSED",
+      "timestamp": "2026-11-05T17:03:16.719Z",
+      "modelCall": 6
+    },
+    {
+      "fence": 1,
+      "type": "CODE_PROPOSAL_REJECTED",
+      "timestamp": "2026-11-05T17:03:16.863Z",
+      "modelCall": 6,
+      "diagnosticCode": "CODE_PROPOSAL_INVALID"
+    },
+    {
+      "fence": 1,
+      "type": "MODEL_STARTED",
+      "timestamp": "2026-11-05T17:03:17.448Z",
+      "modelCall": 7
+    },
+    {
+      "fence": 1,
+      "type": "MODEL_TIMING",
+      "timestamp": "2026-11-05T17:04:01.507Z",
+      "modelCall": 7,
+      "durationMs": 44121,
+      "status": "SUCCEEDED"
+    },
+    {
+      "fence": 1,
+      "type": "CODE_PROPOSED",
+      "timestamp": "2026-11-05T17:04:01.763Z",
+      "modelCall": 7
+    },
+    {
+      "fence": 1,
+      "type": "CODE_PROPOSAL_REJECTED",
+      "timestamp": "2026-11-05T17:04:01.835Z",
+      "modelCall": 7,
+      "diagnosticCode": "CODE_PROPOSAL_INVALID"
+    },
+    {
+      "fence": 1,
+      "type": "MODEL_STARTED",
+      "timestamp": "2026-11-05T17:04:02.668Z",
+      "modelCall": 8
+    },
+    {
+      "fence": 1,
+      "type": "MODEL_TIMING",
+      "timestamp": "2026-11-05T17:05:29.764Z",
+      "modelCall": 8,
+      "durationMs": 87177,
+      "status": "SUCCEEDED"
+    },
+    {
+      "fence": 1,
+      "type": "CODE_PROPOSED",
+      "timestamp": "2026-11-05T17:05:30.087Z",
+      "modelCall": 8
+    },
+    {
+      "fence": 1,
+      "type": "CODE_READY",
+      "timestamp": "2026-11-05T17:05:30.370Z",
+      "modelCall": 8
+    },
+    {
+      "fence": 1,
+      "type": "TOOL_STARTED",
+      "timestamp": "2026-11-05T17:05:30.477Z",
+      "tool": "python_execute"
+    },
+    {
+      "fence": 1,
+      "type": "TOOL_FINISHED",
+      "timestamp": "2026-11-05T17:05:33.732Z",
+      "durationMs": 607,
+      "tool": "python_execute",
+      "status": "SUCCEEDED",
+      "resultAvailable": true
+    },
+    {
+      "fence": 1,
+      "type": "TOOL_STARTED",
+      "timestamp": "2026-11-05T17:05:33.834Z",
+      "tool": "artifact_read"
+    },
+    {
+      "fence": 1,
+      "type": "TOOL_FINISHED",
+      "timestamp": "2026-11-05T17:05:34.155Z",
+      "tool": "artifact_read",
+      "status": "SUCCEEDED"
+    },
+    {
+      "fence": 1,
+      "type": "MODEL_STARTED",
+      "timestamp": "2026-11-05T17:05:34.874Z",
+      "modelCall": 9
+    },
+    {
+      "fence": 1,
+      "type": "MODEL_TIMING",
+      "timestamp": "2026-11-05T17:05:38.840Z",
+      "modelCall": 9,
+      "durationMs": 4032,
+      "status": "SUCCEEDED"
+    },
+    {
+      "fence": 1,
+      "type": "TOOL_STARTED",
+      "timestamp": "2026-11-05T17:05:39.125Z",
+      "tool": "artifact_read"
+    },
+    {
+      "fence": 1,
+      "type": "TOOL_FINISHED",
+      "timestamp": "2026-11-05T17:05:39.323Z",
+      "tool": "artifact_read",
+      "status": "SUCCEEDED"
+    }
+  ]
+}

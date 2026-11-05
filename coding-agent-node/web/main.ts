@@ -117,12 +117,18 @@ function renderOverview(task: TaskDetail) {
       ['Python 派发 / 已确认执行', `${count('pythonDispatched')} / ${count('pythonExecutions')}`],
       ['首次 Python 派发 / 有效结果', `${elapsed('firstPythonMs')} / ${elapsed('firstResultMs')}`],
       ['Skills 读取 / 工具发现', `${count('skillReads')} / ${count('discoveryCalls')}`],
+      ['首次提案前调用 / 已知输入 Tokens', `${count('preCodeModelCalls')} / ${count('preCodeInputTokens')}（有用量 ${count('preCodeUsageKnownCalls')} 次）`],
+      ['已加载 Skill / 参考文件', `${count('loadedSkillCount')} / ${count('loadedReferenceCount')}`],
+      ['唯一来源 / 累计正文交付字节', `${count('loadedSkillBytes')} / ${count('skillDeliveredBytes')}`],
+      ['Skill 重复请求 / 原上下文复用', `${count('duplicateSkillReads')} / ${count('skillReuses')}`],
+      ['输入读取 / 工具拒绝', `${count('inputReadCount')} / ${count('rejectedToolCallCount')}`],
+      ['最近有效进展', String(progress.lastProgressType || '未观测')],
       ['新工具结果 / 新证据读取', `${count('newToolResults')} / ${count('newEvidenceReads')}`],
       ['无新进展调用 / 重复失败', `${count('callsSinceProgress')} / ${count('repeatedFailures')}`],
       ['响应错误 / 策略反馈', `${count('modelResponseErrors')} / ${count('feedbackCount')}`],
       ['已知输入 / 输出 Tokens', `${count('knownInputTokens')} / ${count('knownOutputTokens')}`],
       ['最近准入前剩余 Tokens / 调用', `${count('remainingTokens')} / ${count('remainingModelCalls')}`],
-    ]), el('p', 'notice', '进展统计覆盖本次 SDK 会话；恢复前历史见事件和平台回执。阶段和调用目的由已知事件推断，不代表模型内部思考。未返回用量保持未知。'));
+    ]), el('p', 'notice', '进展统计随有效检查点累计恢复；旧检查点或容量不足时，缺失历史见事件和平台回执。阶段和调用目的由已知事件推断，不代表模型内部思考。未返回用量保持未知。'));
   }
   if (task.error) node.append(el('p', 'banner error', task.error));
   if (task.reconciliationRequired) node.append(el('p', 'banner error', '节点重启前执行未结束，真实结果需要由平台核对。请勿仅凭节点记录重放任务。'));
@@ -157,6 +163,10 @@ function renderModels(task: TaskDetail) {
     const diagnostics = el('details'), summary = el('summary', '', '上下文与请求阶段诊断');
     diagnostics.append(summary, kv([
       ['当前输入估算（非供应商用量）', amount(call.estimatedInputTokens ?? null)],
+      ['Skills 请求占比（字节）', call.skillContextRatio == null ? 'UNKNOWN' : `${(call.skillContextRatio*100).toFixed(1)}%`],
+      ['Runtime 模型准入等待', call.runtimeAdmissionMs == null ? 'UNKNOWN（Java 原子准入内不可分离）' : duration(call.runtimeAdmissionMs)],
+      ['回调请求写出 / 响应 JSON 处理', [call.callbackRequestWriteMs,call.callbackResponseProcessingMs].map(v=>v==null?'UNKNOWN':duration(v)).join(' / ')],
+      ['Provider 最后 Token 至完成', 'UNKNOWN（当前回调未交付该指标）'],
       ['重传上下文 / 本轮重复', `${call.repeatedContextBytes == null ? '未观测' : bytes(call.repeatedContextBytes)} / ${call.duplicateContextBytes == null ? '未观测' : bytes(call.duplicateContextBytes)}`],
       ['SDK 压缩次数', amount(call.compactionCount ?? null)],
       ['SDK 投影前 / 后', `${call.contextSizeBefore == null ? '未观测' : bytes(call.contextSizeBefore)} / ${call.contextSizeAfter == null ? '未观测' : bytes(call.contextSizeAfter)}`],

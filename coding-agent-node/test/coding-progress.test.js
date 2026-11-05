@@ -4,6 +4,49 @@ import { createCodingProgress } from '../src/coding-progress.js';
 import { createToolCatalog, DEFERRED_TOOLS_PROFILE } from '../src/tool-catalog.js';
 import { createCodingRun } from '../src/runner.js';
 import { MonitorStore } from '../dist/monitor.js';
+import { boundCompactionCheckpoint } from '../src/sdk-adapter.js';
+
+test('checkpoint carries stalls and reconciles unknown admitted calls without inventing usage or feedback', () => {
+  const tracker = createCodingProgress({ stalledCalls: 3, preparationCalls: 0, now: () => 100 });
+  tracker.model(1);
+  tracker.tool({ toolName: 'input_read', input: { datasetReference: 'private' } }, { output: { value: 'private-value' } });
+  tracker.usage({ inputTokens: 10, outputTokens: 2 });
+  const saved = tracker.checkpoint(); // Complete tool boundary before an admitted, interrupted model-2.
+  assert.doesNotMatch(JSON.stringify(saved), /private-value|datasetReference/);
+  const resumed = createCodingProgress({ checkpoint: saved, modelOrdinal: 2, stalledCalls: 3, preparationCalls: 0, now: () => 1000 });
+  assert.equal(resumed.snapshot().knownInputTokens, 10);
+  assert.equal(resumed.snapshot().preCodeUsageKnownCalls, 1);
+  assert.equal(resumed.snapshot().preCodeModelCalls, 2);
+  assert.equal(resumed.snapshot().feedbackCount, 0);
+  assert.equal(resumed.model(3).feedback, '');
+  const next = createCodingProgress({ checkpoint: resumed.checkpoint(), modelOrdinal: 3, stalledCalls: 3, preparationCalls: 0, now: () => 1200 });
+  assert.match(next.model(4).feedback, /NO_NEW_TOOL_RESULT/);
+  assert.equal(next.snapshot().callsSinceProgress, 3);
+  next.observe({ type: 'CODE_PROPOSED' });
+  assert.equal(next.snapshot().firstProposalMs, 1100);
+  next.tool({ toolName: 'input_read', input: { datasetReference: 'different' } }, { output: { value: 'new' } });
+  assert.equal(next.model(5).feedback, '');
+});
+
+test('bounded checkpoint preserves exact observation identities and ignores invalid or legacy metadata', () => {
+  const tracker = createCodingProgress();
+  const call = { toolName: 'skill_read', input: { skillId: 's' } };
+  tracker.tool(call, { isError: true, output: { error: 'failure' } });
+  tracker.observe({ type: 'SKILLS_LOADED', skillId: 's', skillVersion: '1', skillPath: 'SKILL.md', skillContentHash: 'h', skillSourceBytes: 5, skillContentBytes: 5 });
+  const resumed = createCodingProgress({ checkpoint: tracker.checkpoint(), modelOrdinal: 0 });
+  resumed.tool(call, { isError: true, output: { error: 'failure' } });
+  resumed.observe({ type: 'SKILLS_LOADED', skillId: 's', skillVersion: '1', skillPath: 'SKILL.md', skillContentHash: 'h', skillSourceBytes: 5, skillContentBytes: 0 });
+  assert.equal(resumed.snapshot().repeatedFailures, 1);
+  assert.equal(resumed.snapshot().loadedSkillCount, 1);
+  assert.equal(resumed.snapshot().loadedSkillBytes, 5);
+  for (const checkpoint of [undefined, { schemaVersion: 1 }, { ...tracker.checkpoint(), identities: { seen: ['untrusted'] } }])
+    assert.equal(createCodingProgress({ checkpoint, modelOrdinal: 9 }).snapshot().callsSinceProgress, 0);
+  const canonical = { messages: [{ role: 'user', content: [{ type: 'text', text: 'authorized' }] }] };
+  const metadata = { ...canonical, codingProgress: tracker.checkpoint(), compactionState: { data: 'x'.repeat(500) } };
+  const limit = JSON.stringify({ ...canonical, codingProgress: tracker.checkpoint() }).length;
+  assert.ok(boundCompactionCheckpoint(metadata, limit).codingProgress);
+  assert.deepEqual(boundCompactionCheckpoint(metadata, JSON.stringify(canonical).length), canonical);
+});
 
 test('advisory flags preparation and stalls without imposing a call limit', () => {
   const tracker = createCodingProgress({ preparationCalls: 4, stalledCalls: 3 });
@@ -94,6 +137,43 @@ const task = { schemaVersion: 'runtime_os.coding.v3', taskId: 'progress', scope:
     allowedDataRefs: ['c' + 'a'.repeat(63)], networkPolicy: 'NONE' },
   outputContract: { resultFormat: 'JSON_LINES', requiredFiles: ['rows.jsonl'] }, budget: { maxModelCalls: 8 } };
 
+test('real SDK restore receives the existing advisory after an unknown model attempt, without replaying tools', async () => {
+  let checkpoint, calls = 0;
+  const admitted = [], settled = [];
+  const contract = { ...task, metadataRefs: [], authorization: { ...task.authorization,
+    allowedTools: ['skill_read'], allowedSideEffects: [] } };
+  const gateway = { reserveModel(_task, value) { admitted.push(value.operationId); },
+    settleModel(_task, value) { settled.push(value.operationId); }, finish() {}, executePython() { throw Error('unauthorized'); },
+    checkpoint(_task, value) { checkpoint = structuredClone(value); } };
+  const first = createCodingRun(contract, gateway, { nativeSdk: true, progressPreparationCalls: 0, progressStalledCalls: 2,
+    model: { async *stream() {
+      if (++calls === 1) {
+        yield { type: 'tool-call-delta', toolName: 'skill_read', toolCallId: 'method', input: { skillId: 'builtin:python-data-analysis' } };
+        yield { type: 'finish', reason: 'tool-calls' };
+      } else throw Object.assign(Error('unknown transport outcome'), { errorCategory: 'CALLBACK_HTTP_REJECTED' });
+    } } });
+  assert.equal((await first.run()).status, 'failed');
+  assert.equal(checkpoint.codingProgress.state.modelCall, 1);
+  const restored = { ...checkpoint, modelOrdinal: 2 }; // Java's durable admission ordinal, not a settled receipt.
+  const session = restored.sdkSessionId;
+  const second = createCodingRun(contract, gateway, { checkpoint: restored, nativeSdk: true,
+    progressPreparationCalls: 0, progressStalledCalls: 2, model: { async *stream(request) {
+      calls++;
+      assert.match(request.systemPrompt, /Coding progress check/);
+      assert.match(request.systemPrompt, /NO_NEW_TOOL_RESULT/);
+      assert.ok(request.messages.some(m => m.content?.some(p => p.type === 'tool-result' && p.toolName === 'skill_read')));
+      yield { type: 'text-delta', text: 'Method is sufficient.' }; yield { type: 'finish', reason: 'stop' };
+    } } });
+  assert.equal((await second.run()).status, 'completed');
+  assert.equal(checkpoint.sdkSessionId, session);
+  assert.equal(calls, 3);
+  assert.deepEqual(admitted, ['model-1', 'model-2', 'model-3']);
+  assert.deepEqual(settled, ['model-1', 'model-3']);
+  assert.equal(second.events.filter(e => e.type === 'SKILLS_LOADED').length, 0);
+  assert.equal(second.events.at(-1).progress.callsSinceProgress, 2);
+  assert.equal(second.events.at(-1).progress.loadedSkillCount, 1);
+});
+
 test('real SDK can submit initial code without schema discovery, Skill reads or a plan turn', async () => {
   let calls = 0;
   const run = createCodingRun(task, {
@@ -124,7 +204,8 @@ test('same SDK session receives advisory and continues legitimate exploration be
   const run = createCodingRun(noPython, { reserveModel() {}, settleModel() {}, finish() {}, executePython() {} },
     { nativeSdk: true, progressPreparationCalls: 2, progressStalledCalls: 2, model: { async *stream(request) {
       calls++;
-      if (calls === 2 || calls === 4) assert.match(request.systemPrompt, /Coding progress check/);
+      if (calls === 2) assert.doesNotMatch(request.systemPrompt, /Coding progress check/);
+      if (calls === 3 || calls === 4) assert.match(request.systemPrompt, /Coding progress check/);
       if (calls < 4) {
         yield { type: 'tool-call-delta', toolName: 'skill_read', toolCallId: 'skill-' + calls, input: { skillId: 'builtin:python-data-analysis' } };
         yield { type: 'finish', reason: 'tool-calls' };

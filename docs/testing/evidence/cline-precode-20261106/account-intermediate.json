@@ -1,0 +1,24 @@
+{
+  "source": "f09cb4b5d worker, Java objective still pre-removal; intermediate run retained",
+  "taskId": "6d3b4d28-3c0a-3771-a134-def438ec3b29",
+  "codingTaskId": "analysis-coding-e615cc25deb61a57acce836bc698988ee9be3a0a1ffb333251214f427e7ad3c7",
+  "parentState": "SUCCEEDED",
+  "codingState": "COMPLETED",
+  "validationStatus": "INCONCLUSIVE",
+  "modelCalls": 6,
+  "codeExecutions": 2,
+  "models": [
+    "qwen3.7-flash-2026-07-15"
+  ],
+  "businessSemanticsCertified": false,
+  "rawCustomerDataPublished": false,
+  "originalReportsEdited": false,
+  "reportStatus": "PARTIAL",
+  "analysisStatus": "PARTIAL",
+  "artifactValidationStatus": "PASSED",
+  "layoutValidationStatus": "RECOVERED",
+  "reviewProjectionSha256": "d3d7f7605377a8b55a632bf7f827b331630588f36cea0f334c3db8d9b107fdc3",
+  "hashScope": "JSON serialization of authenticated visual-report review projection; not raw registered artifact bytes",
+  "chartCount": 2,
+  "tableCount": 2
+}

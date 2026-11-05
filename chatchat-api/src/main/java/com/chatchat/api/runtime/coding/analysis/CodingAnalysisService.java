@@ -137,7 +137,6 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             throw new IllegalArgumentException("Primary Coding analysis dataset limit exceeded");
         String objective = "Answer the user's data-analysis objective using only the authorized immutable datasets. "
             + "Inspect delivered schemas and quality. Choose your own analysis methods and verify computed output. "
-            + "For Runtime transport Parquet, consult the applicable delivered Skill's transport mapping reference before writing a reader. "
             + "Access each logical column by manifest.columns[].storageName; schema.presenceColumns are separate Boolean flags, not business values. "
             + "Never select columns by physical position or treat a presence flag as the adjacent JSON record. Decode declared JSON cells as JSON, preserving Decimal precision. "
             + "Read nativeFiles according to their declared original format; original user-message TEXT is raw text, not a JSON envelope. "
@@ -432,7 +431,6 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                         .map(com.chatchat.api.runtime.coding.knowledge.CodingResourceReader::resource).distinct().sorted().toList(),
                     "explicitlyRequested",Boolean.TRUE.equals(context.runtimeAttributes().get("resourceExplorationApproved"))));
                 goal+="\nOnly tools in this task's tool list are authorized. Choose document, news and market resources autonomously as needed; never query all sources just because they are available. "
-                    +"Read the relevant available native resource workflow SKILL.md with skill_read before its first resource query; load only skills needed by this question. "
                     +"Start with a small search page (3 to 5 results), read decisive sources, and stop when the claims are supported or the remaining evidence gap is identified. "
                     +"Repeated empty variants against the same dataset do not establish current facts; report the actual coverage and missing evidence without exhausting the tool budget. "
                     +"News tools search publication times, securities and industries and read original articles. Related news are candidates, not verified causal events. "

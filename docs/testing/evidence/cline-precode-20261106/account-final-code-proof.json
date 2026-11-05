@@ -1,0 +1,194 @@
+{
+  "taskId": "analysis-coding-df1cf8d72649377824cd6f02afb2cb0861357d905b865623267af7960d70ccdb",
+  "sourceReads": "AUTHENTICATED_OWNER_API",
+  "executions": [
+    {
+      "syntaxValid": false,
+      "operationId": "cline-addcc8e1e3e56c268ab010d42ef5a2be74e3d9c7cbacf343e5d1d5f10e6f9631",
+      "status": "FAILED",
+      "codeHash": "c6fd4b4aa5d9d95c921bc4055714dd87ed3eb90b82398c8e4e58ec3bc842951b",
+      "ownerSourceHashMatched": true,
+      "redacted": false,
+      "truncated": false,
+      "recipeFunctions": {
+        "financial_amount": {
+          "present": null,
+          "unchangedAst": null,
+          "called": null
+        },
+        "reconcile_components": {
+          "present": null,
+          "unchangedAst": null,
+          "called": null
+        },
+        "ordered_balances": {
+          "present": null,
+          "unchangedAst": null,
+          "called": null
+        },
+        "candidate_matrix": {
+          "present": null,
+          "unchangedAst": null,
+          "called": null
+        },
+        "percentage_composition": {
+          "present": null,
+          "unchangedAst": null,
+          "called": null
+        },
+        "signed_amount_matrix": {
+          "present": null,
+          "unchangedAst": null,
+          "called": null
+        },
+        "logical_parquet_rows": {
+          "present": null,
+          "unchangedAst": null,
+          "called": null
+        }
+      },
+      "recipeEvaluation": "UNAVAILABLE_INVALID_PYTHON"
+    },
+    {
+      "syntaxValid": true,
+      "operationId": "cline-6d97d0c4f39dd8b040dc3ab628515d1b3ceb437916ded192bf318a60ba089c6f",
+      "status": "FAILED",
+      "codeHash": "97b9bafb1a48a591cda0495d6f9d8da63a8b81812be971491e5e42b092e79d3b",
+      "ownerSourceHashMatched": true,
+      "redacted": false,
+      "truncated": false,
+      "recipeFunctions": {
+        "financial_amount": {
+          "present": false,
+          "unchangedAst": false,
+          "called": false
+        },
+        "reconcile_components": {
+          "present": true,
+          "unchangedAst": false,
+          "called": true
+        },
+        "ordered_balances": {
+          "present": false,
+          "unchangedAst": false,
+          "called": false
+        },
+        "candidate_matrix": {
+          "present": false,
+          "unchangedAst": false,
+          "called": false
+        },
+        "percentage_composition": {
+          "present": true,
+          "unchangedAst": false,
+          "called": true
+        },
+        "signed_amount_matrix": {
+          "present": true,
+          "unchangedAst": false,
+          "called": true
+        },
+        "logical_parquet_rows": {
+          "present": false,
+          "unchangedAst": false,
+          "called": false
+        }
+      },
+      "recipeEvaluation": "AST_COMPARED"
+    },
+    {
+      "syntaxValid": true,
+      "operationId": "cline-81d6301e1dd4d8dbebc69657eaf718b21705e83e968a7bec3302a854c6a8eb1e",
+      "status": "FAILED",
+      "codeHash": "f536a975540c495f46be17b574cdb83f36c2746a794bf0f0ee1d72c3bf143c7a",
+      "ownerSourceHashMatched": true,
+      "redacted": false,
+      "truncated": false,
+      "recipeFunctions": {
+        "financial_amount": {
+          "present": false,
+          "unchangedAst": false,
+          "called": false
+        },
+        "reconcile_components": {
+          "present": true,
+          "unchangedAst": false,
+          "called": true
+        },
+        "ordered_balances": {
+          "present": false,
+          "unchangedAst": false,
+          "called": false
+        },
+        "candidate_matrix": {
+          "present": false,
+          "unchangedAst": false,
+          "called": false
+        },
+        "percentage_composition": {
+          "present": true,
+          "unchangedAst": false,
+          "called": true
+        },
+        "signed_amount_matrix": {
+          "present": true,
+          "unchangedAst": false,
+          "called": true
+        },
+        "logical_parquet_rows": {
+          "present": false,
+          "unchangedAst": false,
+          "called": false
+        }
+      },
+      "recipeEvaluation": "AST_COMPARED"
+    },
+    {
+      "syntaxValid": true,
+      "operationId": "cline-9d64a305272d8bad8c51cb0f33b239a933bc712d878aaa97c6ddfd8a0856f66c",
+      "status": "FAILED",
+      "codeHash": "e6cefe054ccc3ed9ed62e196eae89fb4a53bd9a98e235d664dc60a1325d589ce",
+      "ownerSourceHashMatched": true,
+      "redacted": false,
+      "truncated": false,
+      "recipeFunctions": {
+        "financial_amount": {
+          "present": false,
+          "unchangedAst": false,
+          "called": false
+        },
+        "reconcile_components": {
+          "present": true,
+          "unchangedAst": false,
+          "called": true
+        },
+        "ordered_balances": {
+          "present": false,
+          "unchangedAst": false,
+          "called": false
+        },
+        "candidate_matrix": {
+          "present": false,
+          "unchangedAst": false,
+          "called": false
+        },
+        "percentage_composition": {
+          "present": true,
+          "unchangedAst": false,
+          "called": true
+        },
+        "signed_amount_matrix": {
+          "present": true,
+          "unchangedAst": false,
+          "called": true
+        },
+        "logical_parquet_rows": {
+          "present": false,
+          "unchangedAst": false,
+          "called": false
+        }
+      },
+      "recipeEvaluation": "AST_COMPARED"
+    }
+  ]
+}

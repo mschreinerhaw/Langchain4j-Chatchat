@@ -1,0 +1,88 @@
+{
+  "url": "http://192.168.195.221:18100/monitor/",
+  "taskId": "analysis-coding-f80d85fe3f3d484b5449e7ec0bb3975c0b0eb5d7b981328c8606a2777ee51d3b",
+  "build": "0449eba074f99d841a404c0c3d427db690d66fd3",
+  "checks": [
+    "real candidate task",
+    "progress counts",
+    "first code timing",
+    "Python confirmed execution",
+    "actual tools",
+    "provider and SDK finish reasons",
+    "read only",
+    "no browser errors",
+    "pre-code usage and Skills disclosure",
+    "byte ratio and UNKNOWN provider stages"
+  ],
+  "status": "COMPLETED",
+  "progress": {
+    "modelCall": 3,
+    "callsSinceProgress": 1,
+    "newToolResults": 3,
+    "newEvidenceReads": 2,
+    "skillReads": 0,
+    "discoveryCalls": 0,
+    "repeatedFailures": 0,
+    "proposals": 1,
+    "acceptedProposals": 1,
+    "rejectedProposals": 0,
+    "pythonDispatched": 1,
+    "pythonExecutions": 1,
+    "modelResponseErrors": 0,
+    "knownInputTokens": 32583,
+    "knownOutputTokens": 5750,
+    "firstProposalMs": 74936,
+    "firstValidCodeMs": 75020,
+    "firstPythonMs": 75153,
+    "firstResultMs": 78798,
+    "remainingTokens": 655360,
+    "remainingModelCalls": 10,
+    "feedbackCount": 0,
+    "preCodeModelCalls": 2,
+    "preCodeInputTokens": 19643,
+    "preCodeUsageKnownCalls": 2,
+    "loadedSkillCount": 0,
+    "loadedReferenceCount": 0,
+    "loadedSkillBytes": 0,
+    "skillDeliveredBytes": 0,
+    "skillEstimatedTokens": 0,
+    "duplicateSkillReads": 0,
+    "skillReuses": 0,
+    "inputReadCount": 1,
+    "rejectedToolCallCount": 0,
+    "phase": "REVIEWING",
+    "waitingFor": "MODEL",
+    "lastTool": "artifact_read",
+    "lastProgressType": "artifact_read"
+  },
+  "modelTools": [
+    {
+      "ordinal": 1,
+      "actualTools": [
+        "input_read"
+      ],
+      "providerFinishReason": "TOOL_EXECUTION",
+      "finishReason": "tool-calls"
+    },
+    {
+      "ordinal": 2,
+      "actualTools": [
+        "python_execute"
+      ],
+      "providerFinishReason": "TOOL_EXECUTION",
+      "finishReason": "tool-calls"
+    },
+    {
+      "ordinal": 3,
+      "actualTools": [
+        "artifact_read"
+      ],
+      "providerFinishReason": "TOOL_EXECUTION",
+      "finishReason": "tool-calls"
+    }
+  ],
+  "errors": [],
+  "mutations": [
+    "/monitor/session"
+  ]
+}

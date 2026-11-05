@@ -1,0 +1,435 @@
+{
+  "agentId": "financial-news-agent",
+  "taskId": "e145731e-f3aa-361a-9e13-0a1970889040",
+  "status": "FAILED",
+  "codingTasks": [
+    {
+      "taskId": "analysis-coding-82435f72ca1fabd0603d7c9ab0734a0d1ae5e4f2a529651e8f6c8fe6ff70c294",
+      "status": "BUDGET_EXCEEDED",
+      "executions": 0,
+      "firstProposalMs": null,
+      "firstResultMs": null,
+      "phase": "PREPARING",
+      "waitingFor": "MODEL",
+      "reasonCode": "DEADLINE_EXCEEDED",
+      "resultDatasetRef": null,
+      "models": [
+        {
+          "operationId": "model-1",
+          "finishReason": "TOOL_EXECUTION",
+          "tools": [
+            "input_read"
+          ],
+          "usage": {
+            "cacheReadTokens": 0,
+            "inputTokens": 15099,
+            "outputTokens": 1912,
+            "reasoningTokens": 1675
+          }
+        },
+        {
+          "operationId": "model-2",
+          "finishReason": "TOOL_EXECUTION",
+          "tools": [
+            "input_read",
+            "skill_read"
+          ],
+          "usage": {
+            "cacheReadTokens": 2048,
+            "inputTokens": 22767,
+            "outputTokens": 313,
+            "reasoningTokens": 211
+          }
+        },
+        {
+          "operationId": "model-3",
+          "finishReason": "TOOL_EXECUTION",
+          "tools": [
+            "skill_read"
+          ],
+          "usage": {
+            "cacheReadTokens": 2048,
+            "inputTokens": 29292,
+            "outputTokens": 12514,
+            "reasoningTokens": 12395
+          }
+        }
+      ],
+      "completedModelReceipts": 3,
+      "startedModelCalls": 7,
+      "knownUsageCalls": 3,
+      "unknownOrPendingUsageCalls": 4,
+      "knownInputTokens": 67158,
+      "knownOutputTokens": 14739
+    }
+  ],
+  "source": "Java c97962110 + Worker f09cb4b5d",
+  "rawReportsEdited": false,
+  "nodeObservations": [
+    {
+      "fencingToken": 1,
+      "status": "FAILED",
+      "progress": {
+        "modelCall": 4,
+        "callsSinceProgress": 1,
+        "newToolResults": 4,
+        "newEvidenceReads": 2,
+        "skillReads": 2,
+        "discoveryCalls": 0,
+        "repeatedFailures": 0,
+        "proposals": 0,
+        "acceptedProposals": 0,
+        "rejectedProposals": 0,
+        "pythonDispatched": 0,
+        "pythonExecutions": 0,
+        "modelResponseErrors": 1,
+        "knownInputTokens": 67158,
+        "knownOutputTokens": 14739,
+        "firstProposalMs": null,
+        "firstValidCodeMs": null,
+        "firstPythonMs": null,
+        "firstResultMs": null,
+        "remainingTokens": 589824,
+        "remainingModelCalls": 9,
+        "feedbackCount": 0,
+        "preCodeModelCalls": 4,
+        "preCodeInputTokens": 67158,
+        "preCodeUsageKnownCalls": 3,
+        "loadedSkillCount": 2,
+        "loadedReferenceCount": 0,
+        "loadedSkillBytes": 9710,
+        "skillDeliveredBytes": 9710,
+        "skillEstimatedTokens": 2428,
+        "duplicateSkillReads": 0,
+        "skillReuses": 0,
+        "inputReadCount": 2,
+        "rejectedToolCallCount": 0,
+        "phase": "PREPARING",
+        "waitingFor": "MODEL",
+        "lastTool": "skill_read",
+        "lastProgressType": "skill_read"
+      },
+      "modelTimings": [
+        {
+          "timestamp": "2026-11-05T18:50:11.103Z",
+          "modelCall": 1,
+          "status": "SUCCEEDED",
+          "durationMs": 38276,
+          "errorCategory": null,
+          "callbackFirstEventMs": 37998,
+          "requestBytes": 66997,
+          "responseBytes": 1895,
+          "contextSkillsBytes": 5147,
+          "contextTaskBytes": 48452,
+          "contextSystemBytes": 7545,
+          "contextToolsBytes": 5739
+        },
+        {
+          "timestamp": "2026-11-05T18:50:16.860Z",
+          "modelCall": 2,
+          "status": "SUCCEEDED",
+          "durationMs": 4788,
+          "errorCategory": null,
+          "callbackFirstEventMs": 4650,
+          "requestBytes": 89227,
+          "responseBytes": 1311,
+          "contextSkillsBytes": 5147,
+          "contextTaskBytes": 48452,
+          "contextSystemBytes": 7556,
+          "contextToolsBytes": 5739
+        },
+        {
+          "timestamp": "2026-11-05T18:53:00.084Z",
+          "modelCall": 3,
+          "status": "SUCCEEDED",
+          "durationMs": 161811,
+          "errorCategory": null,
+          "callbackFirstEventMs": 161502,
+          "requestBytes": 109581,
+          "responseBytes": 1387,
+          "contextSkillsBytes": 8447,
+          "contextTaskBytes": 48452,
+          "contextSystemBytes": 7568,
+          "contextToolsBytes": 5739
+        },
+        {
+          "timestamp": "2026-11-05T18:58:01.801Z",
+          "modelCall": 4,
+          "status": "FAILED",
+          "durationMs": 300840,
+          "errorCategory": "CALLBACK_HTTP_REJECTED",
+          "callbackFirstEventMs": null,
+          "requestBytes": 117637,
+          "responseBytes": 0,
+          "contextSkillsBytes": 15994,
+          "contextTaskBytes": 48452,
+          "contextSystemBytes": 7578,
+          "contextToolsBytes": 5739
+        }
+      ],
+      "modelStates": [
+        {
+          "ordinal": 1,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-05T18:49:33.260299268Z",
+          "durationMs": 37438,
+          "diagnosticCode": null,
+          "errorCategory": null
+        },
+        {
+          "ordinal": 2,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-05T18:50:12.421214535Z",
+          "durationMs": 4127,
+          "diagnosticCode": null,
+          "errorCategory": null
+        },
+        {
+          "ordinal": 3,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-05T18:50:18.679539896Z",
+          "durationMs": 160808,
+          "diagnosticCode": null,
+          "errorCategory": null
+        },
+        {
+          "ordinal": 4,
+          "status": "FAILED",
+          "startedAt": "2026-11-05T18:53:01.016Z",
+          "durationMs": 300643,
+          "diagnosticCode": "CALLBACK_HTTP_REJECTED",
+          "errorCategory": "CALLBACK_HTTP_REJECTED"
+        }
+      ]
+    },
+    {
+      "fencingToken": 2,
+      "status": "FAILED",
+      "progress": {
+        "modelCall": 5,
+        "callsSinceProgress": 1,
+        "newToolResults": 0,
+        "newEvidenceReads": 0,
+        "skillReads": 0,
+        "discoveryCalls": 0,
+        "repeatedFailures": 0,
+        "proposals": 0,
+        "acceptedProposals": 0,
+        "rejectedProposals": 0,
+        "pythonDispatched": 0,
+        "pythonExecutions": 0,
+        "modelResponseErrors": 1,
+        "knownInputTokens": 0,
+        "knownOutputTokens": 0,
+        "firstProposalMs": null,
+        "firstValidCodeMs": null,
+        "firstPythonMs": null,
+        "firstResultMs": null,
+        "remainingTokens": 524288,
+        "remainingModelCalls": 8,
+        "feedbackCount": 0,
+        "preCodeModelCalls": 1,
+        "preCodeInputTokens": 0,
+        "preCodeUsageKnownCalls": 0,
+        "loadedSkillCount": 0,
+        "loadedReferenceCount": 0,
+        "loadedSkillBytes": 0,
+        "skillDeliveredBytes": 0,
+        "skillEstimatedTokens": 0,
+        "duplicateSkillReads": 0,
+        "skillReuses": 0,
+        "inputReadCount": 0,
+        "rejectedToolCallCount": 0,
+        "phase": "PREPARING",
+        "waitingFor": "MODEL",
+        "lastTool": "",
+        "lastProgressType": "NONE"
+      },
+      "modelTimings": [
+        {
+          "timestamp": "2026-11-05T19:03:04.389Z",
+          "modelCall": 5,
+          "status": "FAILED",
+          "durationMs": 300933,
+          "errorCategory": "CALLBACK_HTTP_REJECTED",
+          "callbackFirstEventMs": null,
+          "requestBytes": 118015,
+          "responseBytes": 0,
+          "contextSkillsBytes": 15994,
+          "contextTaskBytes": 48452,
+          "contextSystemBytes": 7590,
+          "contextToolsBytes": 5739
+        }
+      ],
+      "modelStates": [
+        {
+          "ordinal": 5,
+          "status": "FAILED",
+          "startedAt": "2026-11-05T18:58:03.519Z",
+          "durationMs": 300712,
+          "diagnosticCode": "CALLBACK_HTTP_REJECTED",
+          "errorCategory": "CALLBACK_HTTP_REJECTED"
+        }
+      ]
+    },
+    {
+      "fencingToken": 3,
+      "status": "FAILED",
+      "progress": {
+        "modelCall": 6,
+        "callsSinceProgress": 1,
+        "newToolResults": 0,
+        "newEvidenceReads": 0,
+        "skillReads": 0,
+        "discoveryCalls": 0,
+        "repeatedFailures": 0,
+        "proposals": 0,
+        "acceptedProposals": 0,
+        "rejectedProposals": 0,
+        "pythonDispatched": 0,
+        "pythonExecutions": 0,
+        "modelResponseErrors": 1,
+        "knownInputTokens": 0,
+        "knownOutputTokens": 0,
+        "firstProposalMs": null,
+        "firstValidCodeMs": null,
+        "firstPythonMs": null,
+        "firstResultMs": null,
+        "remainingTokens": 458752,
+        "remainingModelCalls": 7,
+        "feedbackCount": 0,
+        "preCodeModelCalls": 1,
+        "preCodeInputTokens": 0,
+        "preCodeUsageKnownCalls": 0,
+        "loadedSkillCount": 0,
+        "loadedReferenceCount": 0,
+        "loadedSkillBytes": 0,
+        "skillDeliveredBytes": 0,
+        "skillEstimatedTokens": 0,
+        "duplicateSkillReads": 0,
+        "skillReuses": 0,
+        "inputReadCount": 0,
+        "rejectedToolCallCount": 0,
+        "phase": "PREPARING",
+        "waitingFor": "MODEL",
+        "lastTool": "",
+        "lastProgressType": "NONE"
+      },
+      "modelTimings": [
+        {
+          "timestamp": "2026-11-05T19:08:07.313Z",
+          "modelCall": 6,
+          "status": "FAILED",
+          "durationMs": 301309,
+          "errorCategory": "CALLBACK_HTTP_REJECTED",
+          "callbackFirstEventMs": null,
+          "requestBytes": 118393,
+          "responseBytes": 0,
+          "contextSkillsBytes": 15994,
+          "contextTaskBytes": 48452,
+          "contextSystemBytes": 7602,
+          "contextToolsBytes": 5739
+        }
+      ],
+      "modelStates": [
+        {
+          "ordinal": 6,
+          "status": "FAILED",
+          "startedAt": "2026-11-05T19:03:06.087Z",
+          "durationMs": 300865,
+          "diagnosticCode": "CALLBACK_HTTP_REJECTED",
+          "errorCategory": "CALLBACK_HTTP_REJECTED"
+        }
+      ]
+    },
+    {
+      "fencingToken": 4,
+      "status": "CANCELLED",
+      "progress": {
+        "modelCall": 7,
+        "callsSinceProgress": 1,
+        "newToolResults": 0,
+        "newEvidenceReads": 0,
+        "skillReads": 0,
+        "discoveryCalls": 0,
+        "repeatedFailures": 0,
+        "proposals": 0,
+        "acceptedProposals": 0,
+        "rejectedProposals": 0,
+        "pythonDispatched": 0,
+        "pythonExecutions": 0,
+        "modelResponseErrors": 0,
+        "knownInputTokens": 0,
+        "knownOutputTokens": 0,
+        "firstProposalMs": null,
+        "firstValidCodeMs": null,
+        "firstPythonMs": null,
+        "firstResultMs": null,
+        "remainingTokens": 393216,
+        "remainingModelCalls": 6,
+        "feedbackCount": 0,
+        "preCodeModelCalls": 1,
+        "preCodeInputTokens": 0,
+        "preCodeUsageKnownCalls": 0,
+        "loadedSkillCount": 0,
+        "loadedReferenceCount": 0,
+        "loadedSkillBytes": 0,
+        "skillDeliveredBytes": 0,
+        "skillEstimatedTokens": 0,
+        "duplicateSkillReads": 0,
+        "skillReuses": 0,
+        "inputReadCount": 0,
+        "rejectedToolCallCount": 0,
+        "phase": "PREPARING",
+        "waitingFor": "MODEL",
+        "lastTool": "",
+        "lastProgressType": "NONE"
+      },
+      "modelTimings": [
+        {
+          "timestamp": "2026-11-05T19:09:32.016Z",
+          "modelCall": 7,
+          "status": "ABORTED",
+          "durationMs": 83209,
+          "errorCategory": "REQUEST_ABORTED",
+          "callbackFirstEventMs": null,
+          "requestBytes": 35953,
+          "responseBytes": 0,
+          "contextSkillsBytes": 7547,
+          "contextTaskBytes": 14210,
+          "contextSystemBytes": 7611,
+          "contextToolsBytes": 5739
+        }
+      ],
+      "modelStates": [
+        {
+          "ordinal": 7,
+          "status": "UNKNOWN",
+          "startedAt": "2026-11-05T19:08:08.874Z",
+          "durationMs": 83209,
+          "diagnosticCode": null,
+          "errorCategory": "REQUEST_ABORTED"
+        }
+      ]
+    }
+  ],
+  "privateEvidenceSha256": {
+    "events-private.json": "c18b198cad83e2b4053c90d42bde5ef683f49e0ac7ca236726ab476cd5f83975",
+    "task-private.json": "7d580d105ab3ffe61617d6069ce33fcda9b89a3b72ba1c55aa4790ac56a84a0b",
+    "coding-private.json": "07d2f3b10fb7195e24014b059a7fb9923852882ef057b0aaf8b30271a17cb33a"
+  },
+  "contractSummary": {
+    "schemaVersion": "runtime_os.coding.v3",
+    "analysisResultMode": null,
+    "allowedTools": [
+      "artifact_read",
+      "code_read",
+      "input_read",
+      "python_execute",
+      "skill_read",
+      "sql_validate"
+    ],
+    "deadlineAt": "2026-11-05T19:09:31.738Z"
+  },
+  "evidenceSemantics": "modelTimings are Node observations; callbackFirstEventMs is not provider TTFT. Null firstProposal/firstResult means unobserved, never zero. Known usage is a lower bound; missing usage is unknown. Progress is per SDK fence; model states aggregate the task."
+}

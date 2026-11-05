@@ -1,0 +1,96 @@
+{
+  "taskId": "analysis-coding-e615cc25deb61a57acce836bc698988ee9be3a0a1ffb333251214f427e7ad3c7",
+  "sourceReads": "AUTHENTICATED_OWNER_API",
+  "executions": [
+    {
+      "operationId": "cline-71cef9eb2373edb04588d0f213f5945fa59737984cc5f9001cf584e0ccf0deff",
+      "status": "FAILED",
+      "codeHash": "681495bed629f59812fb07dc87ef82454c3688e2d631c1c256b790329ae81675",
+      "ownerSourceHashMatched": true,
+      "redacted": false,
+      "truncated": false,
+      "recipeFunctions": {
+        "financial_amount": {
+          "present": false,
+          "unchangedAst": false,
+          "called": false
+        },
+        "reconcile_components": {
+          "present": false,
+          "unchangedAst": false,
+          "called": false
+        },
+        "ordered_balances": {
+          "present": false,
+          "unchangedAst": false,
+          "called": false
+        },
+        "candidate_matrix": {
+          "present": false,
+          "unchangedAst": false,
+          "called": false
+        },
+        "percentage_composition": {
+          "present": false,
+          "unchangedAst": false,
+          "called": false
+        },
+        "signed_amount_matrix": {
+          "present": false,
+          "unchangedAst": false,
+          "called": false
+        },
+        "logical_parquet_rows": {
+          "present": false,
+          "unchangedAst": false,
+          "called": false
+        }
+      }
+    },
+    {
+      "operationId": "cline-050562f0aa64691915ff8201bb6c4e117d3cbc4f8feb9387ad39988c1e066b40",
+      "status": "SUCCEEDED",
+      "codeHash": "5f3795c118e97d00ba24e08f0b5c7353bdd0b793e8d159afe9fb04b3829d9e87",
+      "ownerSourceHashMatched": true,
+      "redacted": false,
+      "truncated": false,
+      "recipeFunctions": {
+        "financial_amount": {
+          "present": false,
+          "unchangedAst": false,
+          "called": false
+        },
+        "reconcile_components": {
+          "present": false,
+          "unchangedAst": false,
+          "called": false
+        },
+        "ordered_balances": {
+          "present": false,
+          "unchangedAst": false,
+          "called": false
+        },
+        "candidate_matrix": {
+          "present": false,
+          "unchangedAst": false,
+          "called": false
+        },
+        "percentage_composition": {
+          "present": false,
+          "unchangedAst": false,
+          "called": false
+        },
+        "signed_amount_matrix": {
+          "present": false,
+          "unchangedAst": false,
+          "called": false
+        },
+        "logical_parquet_rows": {
+          "present": false,
+          "unchangedAst": false,
+          "called": false
+        }
+      }
+    }
+  ]
+}

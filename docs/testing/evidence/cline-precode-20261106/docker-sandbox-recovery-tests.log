@@ -1,0 +1,18 @@
+✔ SyntaxError (1888.830896ms)
+✔ IndentationError (1541.568013ms)
+✔ NameError (1458.720286ms)
+✔ KeyError (1483.199596ms)
+✔ TypeError (1468.479235ms)
+✔ ModuleNotFoundError (1519.399532ms)
+✔ OUTPUT_MISSING (1634.387872ms)
+✔ OUTPUT_SCHEMA (1697.733199ms)
+✔ SyntaxError -> TypeError -> KeyError -> success retains every repair and resumes without replay (3121.10557ms)
+✔ 10000-line program executes a local SDK patch in the real Sandbox (1531.368505ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 18840.910192

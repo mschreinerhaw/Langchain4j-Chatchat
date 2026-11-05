@@ -5,6 +5,8 @@ export interface MonitorEvent {
   operationId?: string; modelCall?: number; tool?: string; [key: string]: unknown;
 }
 export interface ModelCall {
+  contextSkillsBytes?: number | null; skillContextRatio?: number | null; runtimeAdmissionMs?:number|null;
+  callbackRequestWriteMs?:number|null;callbackResponseProcessingMs?:number|null;
   purpose?: string; finishReason?: string; providerFinishReason?: string; actualTools?: string[]; diagnosticCode?: string;
   estimatedInputTokens?: number | null; repeatedContextBytes?: number | null;
   duplicateContextBytes?: number | null; avoidableRepeatedContextBytes?: number | null; newContextBytes?: number | null;

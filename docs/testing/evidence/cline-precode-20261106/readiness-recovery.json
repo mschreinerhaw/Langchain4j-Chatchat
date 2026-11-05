@@ -1,0 +1,34 @@
+{
+  "source": "Java c97962110 + Worker 0449eba07",
+  "containers": [
+    {
+      "name": "runtime-os-app-stage-coding-agent-1",
+      "status": "running",
+      "imageId": "sha256:f633cd18c1fb819cd06918a679c41bf3b4e4f7cc25b0b8cc3915ec240c728979",
+      "health": "healthy"
+    },
+    {
+      "name": "runtime-os-app-stage-api-1",
+      "status": "running",
+      "imageId": "sha256:9cfc15373b0b9e758a39fd8483ca3e8b0410156c2786b0705d700439b26bb8d7",
+      "health": null
+    },
+    {
+      "name": "runtime-os-app-stage-node-proxy-1",
+      "status": "running",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea",
+      "health": "healthy"
+    }
+  ],
+  "activeCodingObservations": [],
+  "benchmarkRows": 50,
+  "benchmarkAggregates": {
+    "baseline": 10,
+    "candidate": 10,
+    "final": 10,
+    "verified": 10,
+    "recovery": 10
+  },
+  "stockStatus": "FAILED",
+  "scope": "Read-only final state; signed/unsigned callback and policy gates are in deployment-recovery.json."
+}

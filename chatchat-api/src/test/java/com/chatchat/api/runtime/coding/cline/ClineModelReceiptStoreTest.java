@@ -49,6 +49,7 @@ class ClineModelReceiptStoreTest {
             var lease=tasks.claim(scope,"task","worker",java.time.Duration.ofMinutes(5),submitted.revision());
             var checkpoint=json.valueToTree(Map.of("sdkSessionId","session","checkpointOrdinal",1,"modelOrdinal",0,"eventOrdinal",0,
                 "inputSnapshotRef",contract.inputSnapshotRef(),"workspaceRef",contract.workspaceRef(),"contractHash",submitted.contractSha256(),
+                "codingProgress",Map.of("schemaVersion",1,"state",Map.of("modelCall",0,"callsSinceProgress",0)),
                 "messages",List.of(Map.of("role","user","content",List.of(Map.of("type","text","text","Authorized objective"))))));
             tasks.saveSdkCheckpoint(scope,"task",lease,checkpoint);
             tasks.reserve(scope,"task",lease,tasks.get(scope,"task").revision(),"model-1","a".repeat(64),
@@ -65,6 +66,7 @@ class ClineModelReceiptStoreTest {
             assertThat(tasks.sdkCheckpointAfterLocalModelStops(scope,"task",java.util.Set.of())).isNull();
             var restored=tasks.sdkCheckpointAfterLocalModelStops(scope,"task",java.util.Set.of("model-1"));
             assertThat(restored.path("modelOrdinal").asInt()).isEqualTo(1);
+            assertThat(restored.path("codingProgress")).isEqualTo(checkpoint.path("codingProgress"));
             assertThat(restored.path("messages").toString()).contains("Authorized objective","unknown provider usage remains reserved");
             var view=tasks.budgetSnapshot(scope,"task",500,new com.chatchat.agents.runtime.coding.CodingCompletionBudget(.15,.35));
             assertThat(view).containsEntry("remainingTokens",7952L).containsEntry("remainingModelCalls",3L);

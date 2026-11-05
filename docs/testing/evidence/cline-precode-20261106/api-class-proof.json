@@ -1,0 +1,13 @@
+{
+  "baselineClassSha256": "cb3b7bee0293c552596c79987a26151820b56cbdec9f982a98e7c52e21756c14",
+  "candidateClassSha256": "e3cba43deeb9fd6f0ed600328ddcdb1cb357016f399b8658bbc91a1bf341ada0",
+  "javapAllMethodsIdenticalAfterExactTwoSentenceRemoval": true,
+  "constantPoolIndicesNormalized": true,
+  "lineTablesNotCompared": true,
+  "deletedSentences": [
+    "For Runtime transport Parquet, consult the applicable delivered Skill's transport mapping reference before writing a reader. ",
+    "Read the relevant available native resource workflow SKILL.md with skill_read before its first resource query; load only skills needed by this question. "
+  ],
+  "constantPoolChanges": 2,
+  "everyOtherConstantPoolEntryIdentical": true
+}

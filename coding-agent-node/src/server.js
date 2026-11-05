@@ -54,12 +54,15 @@ function boundRun(runs, value, allowNewerFence = false) {
 function modelRequest(url, options) {
   return new Promise((resolve, reject) => {
     const started = performance.now();
-    let callbackConnectMs = null, callbackHeadersMs = null;
+    let callbackConnectMs = null, callbackHeadersMs = null, callbackRequestWriteMs = null;
+    const timing = () => ({callbackConnectMs,callbackHeadersMs,callbackRequestWriteMs,
+      callbackHttpDurationMs:Math.round(performance.now()-started)});
     const target = new URL(url);
     const request = (target.protocol === 'https:' ? httpsRequest : httpRequest)(target, options, response => {
       callbackHeadersMs = Math.round(performance.now() - started);
       const chunks = []; let size = 0;
-      response.on('error', reject);
+      response.on('error', error => reject(Object.assign(error, {
+        errorCategory:'CALLBACK_RESPONSE_INTERRUPTED',callbackTiming:timing()})));
       response.on('data', chunk => {
         size += chunk.length;
         if (size > 8 * MAX_BODY) {
@@ -71,12 +74,13 @@ function modelRequest(url, options) {
       response.on('end', () => resolve({
         ok: response.statusCode >= 200 && response.statusCode < 300,
         status: response.statusCode,
-        callbackTiming: { callbackConnectMs, callbackHeadersMs,
+        callbackTiming: { callbackConnectMs, callbackHeadersMs,callbackRequestWriteMs,
           callbackBodyMs: Math.round(performance.now() - started) - callbackHeadersMs,
           callbackHttpDurationMs: Math.round(performance.now() - started) },
         json: async () => JSON.parse(Buffer.concat(chunks).toString('utf8')),
       }));
     });
+    request.once('finish', () => {callbackRequestWriteMs=Math.round(performance.now()-started);});
     request.on('socket', socket => {
       if (socket.connecting) socket.once(target.protocol === 'https:' ? 'secureConnect' : 'connect',
         () => { callbackConnectMs = Math.round(performance.now() - started); });
@@ -86,7 +90,7 @@ function modelRequest(url, options) {
         ? options.signal.reason?.name === 'TimeoutError' ? 'CALLBACK_DEADLINE' : 'REQUEST_ABORTED'
         : ['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN'].includes(error.code) ? 'CALLBACK_CONNECTION_ERROR'
         : 'CALLBACK_TRANSPORT_ERROR';
-      reject(error);
+      error.callbackTiming=timing();reject(error);
     });
     request.end(options.body);
   });
@@ -116,14 +120,16 @@ export function httpGateway(callbackUrl, secret, binding, { timeoutMs = 90000 } 
         'x-chatchat-signature': signature, 'x-chatchat-signature-version': '2' },
       body: bytes, signal: signal ? AbortSignal.any([signal, timeout]) : timeout, redirect: 'error',
     });
+    const processingStarted=performance.now();
     const data = await answer.json().catch(() => {
       if (action === 'model') throw Object.assign(new Error('Runtime model callback returned invalid JSON'),
-        { errorCategory: 'CALLBACK_RESPONSE_INVALID' });
+        { errorCategory: 'CALLBACK_RESPONSE_INVALID',callbackTiming:answer.callbackTiming });
       return {};
     });
     if (!answer.ok) throw Object.assign(new Error(data.message ?? `Runtime callback rejected ${action}: ${answer.status}`),
-      { errorCategory: 'CALLBACK_HTTP_REJECTED' });
-    if (action === 'model' && answer.callbackTiming) data.callbackTiming = answer.callbackTiming;
+      { errorCategory: 'CALLBACK_HTTP_REJECTED',callbackTiming:answer.callbackTiming });
+    if (action === 'model' && answer.callbackTiming) data.callbackTiming = {...answer.callbackTiming,
+      callbackResponseProcessingMs:Math.round(performance.now()-processingStarted)};
     return data;
   };
   return {

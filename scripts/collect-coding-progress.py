@@ -34,6 +34,7 @@ def journal(node):
     receipts = [json.loads(line) for line in sql("select record_json from runtime_evidence_entry where " + where
         + " and evidence_type='CODING_MODEL_RESPONSE_RECEIPT' and record_json::jsonb->'payload'->>'taskId'='"
         + node['taskId'] + "'").splitlines()]
+    receipts.sort(key=lambda r: int(r['payload']['operationId'].split('-')[1]))
     return task, receipts
 
 

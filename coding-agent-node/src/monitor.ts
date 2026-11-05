@@ -20,7 +20,7 @@ const EVENT_KEYS = ['stage', 'status', 'operationId', 'proposedOperationId', 'mo
   'contextReportBytes', 'contextHistoryBytes', 'contextEnvelopeBytes', 'estimatedInputTokens', 'softInputTokenBudget', 'exceedsSoftBudget', 'estimator',
   'repeatedContextBytes', 'duplicateContextBytes', 'avoidableRepeatedContextBytes', 'newContextBytes', 'contextChangeReason', 'compactionCount', 'compactionStrategy',
   'contextSizeBefore', 'contextSizeAfter', 'callbackConnectMs', 'callbackHeadersMs', 'callbackBodyMs', 'callbackHttpDurationMs', 'queueTimeScope', 'providerTimingAvailability',
-  'constructionDurationMs', 'restoreDurationMs', 'preparationDurationMs', 'finishReason', 'purpose', 'progressFeedback', 'skillId', 'skillPath'];
+  'constructionDurationMs', 'restoreDurationMs', 'preparationDurationMs', 'finishReason', 'providerFinishReason', 'purpose', 'progressFeedback', 'skillId', 'skillPath'];
 const PROGRESS_NUMBERS = ['modelCall', 'callsSinceProgress', 'newToolResults', 'newEvidenceReads', 'skillReads', 'discoveryCalls',
   'repeatedFailures', 'proposals', 'acceptedProposals', 'rejectedProposals', 'pythonDispatched', 'pythonExecutions',
   'modelResponseErrors', 'knownInputTokens', 'knownOutputTokens', 'firstProposalMs', 'firstValidCodeMs', 'firstPythonMs',
@@ -198,7 +198,7 @@ export class MonitorStore {
         task.models.push(call);
       }
       if (call) {
-        for (const key of ['purpose', 'finishReason', 'diagnosticCode', 'errorCategory'] as const)
+        for (const key of ['purpose', 'finishReason', 'providerFinishReason', 'diagnosticCode', 'errorCategory'] as const)
           if (typeof event[key] === 'string') call[key] = event[key];
         if (Array.isArray(event.actualTools)) call.actualTools = event.actualTools as string[];
         if (event.type === 'MODEL_TIMING') {

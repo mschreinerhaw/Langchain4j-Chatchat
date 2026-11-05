@@ -38,6 +38,7 @@ test('native authorized output repair preserves feedback and the SDK max-tokens 
   assert.deepEqual(events.find(e=>e.type==='runtime-model-feedback').feedback,feedback);
   assert.deepEqual(events.find(e=>e.type==='usage').usage,usage);
   assert.equal(events.at(-1).reason,'max-tokens');
+  assert.equal(events.find(e=>e.type==='runtime-model-metadata').metadata.providerFinishReason,'LENGTH');
   assert(!events.some(e=>e.type==='tool-call-delta'));
 });
 

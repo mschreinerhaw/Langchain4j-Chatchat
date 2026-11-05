@@ -145,7 +145,7 @@ function renderModels(task: TaskDetail) {
     card.append(title, kv([['请求模型', call.selectedModel ?? task.configuredModel.selectedModel ?? '未取得'],
       ['调用目的（事件推断）', call.purpose ?? '未观测'],
       ['实际工具', call.actualTools?.join('、') || (call.status === 'RUNNING' ? '等待模型返回' : '未观测工具')],
-      ['Finish reason', call.finishReason ?? '未取得'], ['响应诊断码', call.diagnosticCode ?? '无记录'],
+      ['供应商 / SDK finish reason', `${call.providerFinishReason ?? '未取得'} / ${call.finishReason ?? '未取得'}`], ['响应诊断码', call.diagnosticCode ?? '无记录'],
       ['实际模型', call.providerModel ?? '未取得'], ['协议', call.protocol ?? '未取得'],
       ['开始', time(call.startedAt)], ['结束', time(call.finishedAt)], ['耗时', call.durationMs === null ? '等待回执' : duration(call.durationMs)],
       ['Java 回调总耗时', call.callbackDurationMs == null ? '未观测' : duration(call.callbackDurationMs)],

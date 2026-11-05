@@ -44,8 +44,9 @@ export function createRuntimeModel(gateway, contract, initialOrdinal = 0, { nati
           yield { type: 'text-delta', text:
             `Runtime rejected the provider response: ${feedback.diagnosticCode}. No tool was executed.` };
       }
-      if (answer.modelInfo || answer.callbackTiming) yield { type: 'runtime-model-metadata',
-        metadata: { ...answer.modelInfo, ...answer.callbackTiming } };
+      if (answer.modelInfo || answer.callbackTiming || answer.finishReason) yield { type: 'runtime-model-metadata',
+        metadata: { ...answer.modelInfo, ...answer.callbackTiming,
+          ...(typeof answer.finishReason === 'string' ? { providerFinishReason: answer.finishReason } : {}) } };
       if (answer.text) yield { type: 'text-delta', text: answer.text };
       for (const call of answer.toolCalls ?? []) {
         yield { type: 'tool-call-delta', toolCallId: call.id,

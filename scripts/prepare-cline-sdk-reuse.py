@@ -48,7 +48,7 @@ def main():
     patched.mkdir(exist_ok=True)
     before, after = {}, {}
     modules_to_copy = MODULES if args.profile == 'sdk-reuse' else (
-        'runner.js', 'coding-progress.js', 'tool-catalog.js', 'monitor.js', 'monitor-types.js', 'public/app.js',
+        'runner.js', 'coding-progress.js', 'tool-catalog.js', 'runtime-model.js', 'monitor.js', 'monitor-types.js', 'public/app.js',
         '../skills/catalog.json', '../skills/python-data-analysis/SKILL.md')
     for module in modules_to_copy:
         exists = subprocess.run(['docker', 'exec', live['Id'], 'test', '-e', '/srv/coding-agent/dist/' + module], check=False)

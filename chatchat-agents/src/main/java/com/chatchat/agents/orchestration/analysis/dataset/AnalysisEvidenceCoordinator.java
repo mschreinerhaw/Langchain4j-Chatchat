@@ -178,7 +178,7 @@ public final class AnalysisEvidenceCoordinator {
                     AgentRoleAnalysisContext.attach(dataset.analysisContext(), runtimeAttributes), runtimeAttributes),
                 dataset.handle()))
             .toList();
-        List<Dataset> projected = deduplicateRepeatedExecutions(scopedDatasets);
+        List<Dataset> projected = uniqueReferences(deduplicateRepeatedExecutions(scopedDatasets));
         log.info("Runtime business dataset projection: successfulStepCount={}, datasetCount={}, "
                 + "excludedCount={}, datasetReferences={}",
             result.steps().stream().filter(step -> step != null && step.success()).count(),
@@ -650,7 +650,28 @@ public final class AnalysisEvidenceCoordinator {
         return Map.copyOf(matches);
     }
 
-    private Map<String, Object> withOccurrenceRelationship(Map<String, Object> context, String reference) {
+    /** Assign delivery identities without dropping distinct content or changing immutable handles. */
+    public static List<Dataset> uniqueReferences(List<Dataset> datasets) {
+        var counts = datasets.stream().collect(java.util.stream.Collectors.groupingBy(
+            Dataset::reference, LinkedHashMap::new, java.util.stream.Collectors.counting()));
+        var references = new DatasetReferenceSequence(datasets.stream().map(Dataset::reference).toList());
+        var result = new ArrayList<Dataset>(datasets.size());
+        for (var dataset : datasets) {
+            if (counts.get(dataset.reference()) == 1L) {
+                references.next(dataset.reference());
+                result.add(dataset);
+                continue;
+            }
+            String reference = references.next(dataset.reference());
+            var context = new LinkedHashMap<>(withOccurrenceRelationship(dataset.analysisContext(), dataset.reference()));
+            context.put("sourceDatasetReference", dataset.reference());
+            context.put("projectionReferenceDisambiguated", true);
+            result.add(new Dataset(reference, context, dataset.handle()));
+        }
+        return List.copyOf(result);
+    }
+
+    private static Map<String, Object> withOccurrenceRelationship(Map<String, Object> context, String reference) {
         Map<String, Object> result = new LinkedHashMap<>(context == null ? Map.of() : context);
         List<Object> relationships = new ArrayList<>();
         Object declared = result.get("relationships");

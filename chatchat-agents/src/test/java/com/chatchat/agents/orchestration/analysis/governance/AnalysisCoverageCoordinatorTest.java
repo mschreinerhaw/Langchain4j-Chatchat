@@ -24,6 +24,28 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AnalysisCoverageCoordinatorTest {
+    @Test void deliversDistinctDuplicateReferencesToCodingWithoutOverwritingEitherSource() {
+        var evidence=mock(AnalysisEvidenceCoordinator.class);
+        when(evidence.project(any(),any())).thenReturn(new AnalysisEvidenceCoordinator.Projection(List.of(
+            new AnalysisEvidenceCoordinator.Dataset("source",Map.of(),List.of(Map.of("value",1))),
+            new AnalysisEvidenceCoordinator.Dataset("source",Map.of(),List.of(Map.of("value",2)))),List.of()));
+        var coding=mock(AnalysisCodingPort.class);
+        when(coding.executePrimaryAnalysis(any(),any(),any())).thenAnswer(call->{
+            Map<String,AnalysisEvidenceCoordinator.Dataset> sources=call.getArgument(1);
+            assertThat(sources).containsOnlyKeys("source","source#occurrence-2");
+            assertThat(sources.values()).flatExtracting(AnalysisEvidenceCoordinator.Dataset::records)
+                .containsExactly(Map.of("value",1),Map.of("value",2));
+            sources.put("result",new AnalysisEvidenceCoordinator.Dataset("result",Map.of(),List.of(Map.of(
+                "reportMarkdown","# Report\nBoth source occurrences were delivered.",
+                "evidenceReferences",List.of("source","source#occurrence-2"),"limitations",List.of()))));
+            return Map.of("resultAvailable",true,"datasetReference","result");
+        });
+        var coordinator=coordinator(evidence);coordinator.setCodingPort(coding);
+        var base=request(new LinkedHashMap<>());
+        coordinator.analyze(new AnalysisCoverageCoordinator.Request(null,"Analyze",base.result(),Map.of("taskType","DATA_ANALYSIS"),
+            base.metadata(),base.cancellationCheck(),base.cancellationGuard(),base.isolationScope(),base.summaryProtocol()));
+        org.mockito.Mockito.verify(coding,org.mockito.Mockito.times(1)).executePrimaryAnalysis(any(),any(),any());
+    }
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(strings={"visual","off"})
     void forwardsArchivedVisualReceiptForEnabledPreferenceWithoutRequiringDataAnalysisClassification(String mode) {

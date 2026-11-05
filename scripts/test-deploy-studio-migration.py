@@ -53,4 +53,15 @@ class MigrationTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'rejected'): deployer.apply_database_migration(self.root, self.manifest, self.execute)
 
 
+class ServiceRollbackTest(unittest.TestCase):
+    def test_first_clone_failure_restarts_the_stopped_callback_proxy(self):
+        execute = unittest.mock.Mock()
+        deployer.restore_stopped_services(['api', 'callback-proxy'], {'api': 'api-before-release'}, execute)
+        self.assertEqual(execute.call_args_list, [
+            unittest.mock.call('docker', 'rename', 'api-before-release', 'api'),
+            unittest.mock.call('docker', 'start', 'api'),
+            unittest.mock.call('docker', 'start', 'callback-proxy'),
+        ])
+
+
 if __name__ == '__main__': unittest.main()

@@ -59,7 +59,14 @@ public class CodingTaskMonitorController {
                     ids.add(id);
             }
             var result = new ArrayList<CodingOperationalStatus.Task>();
-            for (String id : ids) result.add(CodingOperationalStatus.Task.from(tasks.get(scope, id)));
+            for (String id : ids) {
+                try {
+                    result.add(CodingOperationalStatus.Task.from(tasks.get(scope, id)));
+                } catch (CodingContractException unavailable) {
+                    // Input preparation is observed before a durable delegation is admitted.
+                    if (unavailable.error().code() != CodingErrorCode.NOT_FOUND) throw unavailable;
+                }
+            }
             return ApiResponse.success(new CodingOperationalStatus(runId, owner, result));
         });
     }

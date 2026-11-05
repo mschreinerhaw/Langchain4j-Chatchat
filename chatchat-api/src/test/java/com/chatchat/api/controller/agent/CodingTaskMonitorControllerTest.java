@@ -14,6 +14,25 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class CodingTaskMonitorControllerTest {
+    @Test void failedInputPreparationDoesNotInventAnAdmittedCodingTaskOrBreakOperationalStatus() {
+        var runtime=mock(AgentRuntime.class);var tasks=mock(DurableCodingTaskService.class);var coding=mock(CodingAgentSPI.class);
+        when(runtime.find("run")).thenReturn(Optional.of(AgentRun.builder().runId("run")
+            .request(AgentRunRequest.builder().tenantId("tenant").userId("owner").build()).build()));
+        var observation=mock(com.chatchat.agents.runtime.observation.AgentObservation.class);
+        when(observation.metadata()).thenReturn(Map.of("eventKind","CODING_INPUT_PREPARING","taskId","not-admitted"));
+        when(runtime.observations("run")).thenReturn(List.of(observation));
+        when(tasks.get(any(),eq("not-admitted"))).thenThrow(new com.chatchat.common.runtime.coding.CodingContractException(
+            com.chatchat.common.runtime.coding.CodingErrorCode.NOT_FOUND,"Coding task not found in authorized scope"));
+        var controller=new CodingTaskMonitorController(runtime,tasks,coding,new CodingInvocationContext());
+        var request=new MockHttpServletRequest();request.setAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID,"tenant");
+        request.setAttribute(ApiAuthenticationFilter.CURRENT_USER_ID,"owner");
+        assertThat(controller.status("run",request).getData().tasks()).isEmpty();
+        assertThat(((Map<?,?>)controller.list("run",request).getData()).get("tasks")).isEqualTo(List.of());
+        when(tasks.get(any(),eq("not-admitted"))).thenThrow(new com.chatchat.common.runtime.coding.CodingContractException(
+            com.chatchat.common.runtime.coding.CodingErrorCode.AUTHORIZATION_DENIED,"Scope denied"));
+        assertThatThrownBy(()->controller.status("run",request)).hasMessage("Scope denied");
+        verify(tasks,never()).contract(any(),anyString());verifyNoInteractions(coding);
+    }
     @Test void tenantMonitorReadsOnlyDurableOperationalFactsWithReadOnlyOwnerScope() throws Exception {
         var runtime=mock(AgentRuntime.class); var tasks=mock(DurableCodingTaskService.class); var coding=mock(CodingAgentSPI.class);
         when(runtime.find("run")).thenReturn(Optional.of(AgentRun.builder().runId("run")

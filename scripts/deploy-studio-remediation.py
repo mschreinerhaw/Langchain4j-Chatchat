@@ -18,6 +18,14 @@ def run(*args):
     return subprocess.check_output(args, text=True, stderr=subprocess.STDOUT).strip()
 
 
+def restore_stopped_services(order, retired, execute=run):
+    for name in order:
+        if name in retired:
+            execute('docker', 'rename', retired[name], name)
+        # Cloning may fail before later services are renamed; those services were also stopped.
+        execute('docker', 'start', name)
+
+
 def apply_database_migration(root, manifest, execute=subprocess.run):
     """Apply an explicit hash-pinned additive migration after backup, before JPA validate starts."""
     migration = manifest.get('databaseMigration')
@@ -140,7 +148,9 @@ def main():
         for mount in before[name]['Mounts']:
             if mount['Type'] == 'bind' and not Path(mount['Source']).exists():
                 raise RuntimeError('Required bind source is missing: ' + mount['Source'])
-    base = 'runtime-os-api-runtime:17-sqlglot-20261024'
+    base = manifest.get('runtimeBaseImage', 'runtime-os-api-runtime:17-sqlglot-20261024')
+    if manifest.get('runtimeBaseImage'):
+        assert run('docker','image','inspect','-f','{{.Id}}',base) == manifest['runtimeBaseImageId'], 'Runtime base image changed'
     assert 'app.jar' not in run('docker', 'history', '--no-trunc', '--format', '{{.CreatedBy}}', base)
     (root / 'Dockerfile').write_text('FROM ' + base + '\nWORKDIR /srv/app\nCOPY app.jar /srv/app/app.jar\nENTRYPOINT ["java","-jar","/srv/app/app.jar"]\n')
     (root / '.dockerignore').write_text('*\n!app.jar\n!Dockerfile\n')
@@ -282,10 +292,7 @@ def main():
         for name in reversed(created):
             run('docker', 'stop', '-t', '30', name)
             run('docker', 'rename', name, name + '-failed-studio-' + stamp)
-        for name in order:
-            if name in retired:
-                run('docker', 'rename', retired[name], name)
-                run('docker', 'start', name)
+        restore_stopped_services(order, retired)
         def literal(value):
             return 'NULL' if value is None else "'" + str(value).replace("'", "''") + "'"
         statements = ['BEGIN;'] + ['update chat_session set source_channel=' + literal(row['channel']) + ' where session_id=' + literal(row['id']) + ' and tenant_id=' + literal(row['tenant']) + ';' for row in channels] + ['COMMIT;']

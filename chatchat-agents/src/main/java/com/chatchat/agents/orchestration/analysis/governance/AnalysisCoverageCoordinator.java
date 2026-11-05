@@ -67,6 +67,7 @@ public final class AnalysisCoverageCoordinator {
             request.metadata().put("optionalToolDataEmpty", optionalEmpty);
             request.metadata().put("attachmentReferences", filePlan.inputs().stream().map(com.chatchat.common.runtime.capability.ProblemAnalysisPlan.FileInput::reference).toList());
         }
+        datasets = AnalysisEvidenceCoordinator.uniqueReferences(datasets);
         request.metadata().put("analysisEvidenceSnapshotFingerprint",
             ModelProtocolJson.sha256Hex(datasets.stream().map(dataset -> Map.of(
                 "reference", dataset.reference(),

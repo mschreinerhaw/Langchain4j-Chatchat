@@ -23,6 +23,63 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AnalysisEvidenceCoordinatorTest {
+    @Test void retainsDifferentOutputsFromRepeatedToolCallsWithUniqueDeliveryReferences() {
+        var first=step("opaque_source",Map.of("records",List.of(Map.of("value",1))));
+        var second=new InterpretationPlanRuntime.StepExecution(2,"mcp_tool","opaque_source",true,
+            Map.of("records",List.of(Map.of("value",2))),null,null,null,1);
+        var result=new InterpretationPlanRuntime.ExecutionResult("completed",true,false,null,null,
+            List.of(first,second,first),Map.of(),1);
+        var projection=coordinator().project(result);
+        assertThat(projection.datasets()).extracting(AnalysisEvidenceCoordinator.Dataset::reference)
+            .containsExactly("opaque_source","opaque_source#occurrence-2");
+        assertThat(projection.datasets()).flatExtracting(AnalysisEvidenceCoordinator.Dataset::records)
+            .containsExactly(Map.of("value",1),Map.of("value",2));
+        assertThat(projection.datasets()).allSatisfy(dataset->assertThat(dataset.analysisContext())
+            .containsEntry("sourceDatasetReference","opaque_source").containsEntry("projectionReferenceDisambiguated",true));
+    }
+
+    @Test void disambiguatesReservedReferencesWithoutReadingOrReplacingImmutableHandles() {
+        var handle=mock(DatasetHandle.class);
+        var context=Map.<String,Object>of("ownerScope","authorized-owner");
+        var reserved=new AnalysisEvidenceCoordinator.Dataset("source#occurrence-2",context,handle);
+        var datasets=List.of(new AnalysisEvidenceCoordinator.Dataset("source",context,handle),
+            new AnalysisEvidenceCoordinator.Dataset("source",context,handle),reserved);
+        var normalized=AnalysisEvidenceCoordinator.uniqueReferences(datasets);
+        assertThat(normalized).extracting(AnalysisEvidenceCoordinator.Dataset::reference).doesNotHaveDuplicates();
+        assertThat(normalized.get(1).reference()).isEqualTo("source#occurrence-2#runtime-1");
+        assertThat(normalized.get(2)).isSameAs(reserved);
+        assertThat(normalized).allSatisfy(dataset->{assertThat(dataset.handle()).isSameAs(handle);
+            assertThat(dataset.analysisContext()).containsEntry("ownerScope","authorized-owner");});
+        var repeated=AnalysisEvidenceCoordinator.uniqueReferences(normalized);
+        for(int i=0;i<normalized.size();i++)assertThat(repeated.get(i)).isSameAs(normalized.get(i));
+        org.mockito.Mockito.verifyNoInteractions(handle);
+    }
+
+    @Test
+    @org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable(named="ANALYSIS_PROJECTION_LIVE_FIXTURE",matches=".+")
+    void replaysCapturedToolOutputsThroughTheProductionProjectionProtocol() throws Exception {
+        var json=new ObjectMapper();
+        var root=json.readTree(java.nio.file.Path.of(System.getenv("ANALYSIS_PROJECTION_LIVE_FIXTURE")).toFile());
+        var steps=new java.util.ArrayList<InterpretationPlanRuntime.StepExecution>();
+        for(var observation:root.path("data").path("observations")) {
+            var metadata=observation.path("metadata");
+            if(!"tool".equals(observation.path("type").asText())||!metadata.has("stepOutput"))continue;
+            steps.add(new InterpretationPlanRuntime.StepExecution(metadata.path("interpretationPlanStepId").asInt(),
+                metadata.path("interpretationPlanActionType").asText("mcp_tool"),observation.path("source").asText(),true,
+                json.convertValue(metadata.path("stepOutput"),Object.class),null,null,null,1));
+        }
+        assertThat(steps).hasSizeGreaterThan(1);
+        var execution=new InterpretationPlanRuntime.ExecutionResult("completed",true,false,null,null,steps,Map.of(),1);
+        var realCoordinator=coordinator(mock(ToolRegistry.class),new com.chatchat.agents.runtime.analysis.McpResultAnalysisBridge());
+        var projection=realCoordinator.project(execution);
+        assertThat(projection.datasets()).hasSizeGreaterThan(1).extracting(AnalysisEvidenceCoordinator.Dataset::reference).doesNotHaveDuplicates();
+        var originalHandles=steps.stream().flatMap(step->realCoordinator.project(result(step)).datasets().stream())
+            .map(dataset->dataset.handle().contentSha256()+":"+dataset.recordCount()).toList();
+        assertThat(projection.datasets()).extracting(dataset->dataset.handle().contentSha256()+":"+dataset.recordCount())
+            .containsExactlyInAnyOrderElementsOf(originalHandles);
+        System.out.println("LIVE_PROJECTION_REPLAY references="+projection.datasets().stream().map(AnalysisEvidenceCoordinator.Dataset::reference).toList()
+            +" rows="+projection.datasets().stream().mapToLong(AnalysisEvidenceCoordinator.Dataset::recordCount).sum());
+    }
 
     @Test void successfulSqlReceiptCarriesOnlyDeclaredParametersWithoutClaimingUserAlignment() {
         var values = new java.util.LinkedHashMap<String,Object>();

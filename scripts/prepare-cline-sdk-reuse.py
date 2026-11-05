@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import re
 import subprocess
 import tarfile
 
@@ -23,6 +24,7 @@ def main():
     parser.add_argument('--archive-sha256', required=True)
     parser.add_argument('--source-commit', required=True)
     parser.add_argument('--profile', choices=['sdk-reuse', 'coding-progress'], default='sdk-reuse')
+    parser.add_argument('--image-tag')
     args = parser.parse_args()
     root = args.release_dir.resolve()
     archive = root / ('cline-sdk-reuse-worker.tar.gz' if args.profile == 'sdk-reuse' else 'coding-progress-worker.tar.gz')
@@ -43,7 +45,10 @@ def main():
     live = json.loads(run('docker', 'inspect', 'runtime-os-app-stage-coding-agent-1'))[0]
     baseline = 'runtime-os-coding-agent:sdk-reuse-baseline-' + live['Image'].split(':')[-1][:12]
     run('docker', 'tag', live['Image'], baseline)
-    image = 'runtime-os-coding-agent:' + ('sdk-reuse' if args.profile == 'sdk-reuse' else 'coding-progress') + '-20261105-r1'
+    tag = args.image_tag or ('sdk-reuse' if args.profile == 'sdk-reuse' else 'coding-progress') + '-20261105-r1'
+    if not re.fullmatch(r'[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,127}', tag):
+        raise ValueError('Invalid candidate image tag')
+    image = 'runtime-os-coding-agent:' + tag
     patched = root / 'patched'
     patched.mkdir(exist_ok=True)
     before, after = {}, {}

@@ -100,16 +100,20 @@ def main():
                 firstCodeMs=milliseconds(start, first(lambda e: e['type'] == 'CODE_READY')),
                 firstPythonMs=milliseconds(start, first(lambda e: e['type'] == 'TOOL_STARTED' and e.get('tool') == 'python_execute')),
                 firstResultMs=milliseconds(start, first(lambda e: e['type'] == 'TOOL_FINISHED' and e.get('tool') == 'python_execute' and e.get('resultAvailable'))),
-                modelCalls=sum(len(t['models']) for t in nodes), knownUsageCalls=sum(bool(c.get('usage')) for c in calls),
-                knownTokens=sum(c.get('usage', {}).get('inputTokens', 0) + c.get('usage', {}).get('outputTokens', 0) for c in calls),
+                modelCalls=len({c['ordinal'] for t in nodes for c in t['models']}),
+                knownUsageCalls=sum(all(isinstance((c.get('usage') or {}).get(k), (int, float)) for k in ['inputTokens', 'outputTokens']) for c in calls),
+                knownTokens=sum(((c.get('usage') or {}).get('inputTokens') or 0) + ((c.get('usage') or {}).get('outputTokens') or 0) for c in calls),
                 codeProposals=sum(e['type'] == 'CODE_READY' for e in events),
                 rejectedProposals=sum(e['type'] == 'CODE_PROPOSAL_REJECTED' for e in events),
                 pythonExecutions=sum(e['type'] == 'TOOL_FINISHED' and e.get('tool') == 'python_execute' for e in events),
+                pythonDiagnostics=[e.get('diagnosticCode') for e in events if e['type'] == 'TOOL_FINISHED' and e.get('tool') == 'python_execute'],
                 skillReads=sum(e['type'] == 'TOOL_TIMING' and e.get('tool') == 'skill_read' for e in events),
                 discoveryCalls=sum(e['type'] == 'TOOL_TIMING' and e.get('tool') == 'tool_describe' for e in events),
                 modelErrors=[{'type': e['type'], 'diagnosticCode': e.get('diagnosticCode'), 'errorCategory': e.get('errorCategory')}
                     for e in events if e['type'] in ['MODEL_FAILED', 'MODEL_RESPONSE_REJECTED']],
                 toolsByCall=[[c['name'] for c in v.get('toolCalls', [])] for v in calls],
+                providerModels=sorted({c.get('modelInfo', {}).get('providerModel', 'UNKNOWN') for c in calls}),
+                finishReasons=[c.get('finishReason') for c in calls],
                 maxSkillContextBytes=max((e.get('contextSkillsBytes', 0) for e in events), default=0),
                 repairObserved=any(e['type'] == 'TOOL_FINISHED' and e.get('tool') == 'python_execute'
                     and e.get('status') == 'FAILED' for e in events) and row['resultAvailable'])

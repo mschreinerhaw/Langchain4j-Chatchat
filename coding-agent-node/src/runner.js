@@ -205,6 +205,7 @@ export function createCodingRun(contract, gateway, options = {}) {
   const events = [];
   const codeFiles = [];
   const codingProgress = createCodingProgress({
+    initialCodeAvailable: Boolean(history?.currentSource || previousProgram),
     preparationCalls: options.progressPreparationCalls ?? process.env.CLINE_PROGRESS_PREPARATION_CALLS,
     stalledCalls: options.progressStalledCalls ?? process.env.CLINE_PROGRESS_STALLED_CALLS,
   });

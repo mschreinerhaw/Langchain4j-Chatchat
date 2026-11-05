@@ -24,6 +24,7 @@
 | 3 | 13:10:41.580—13:10:46.326 | 4,746 ms | 18,180 / 238 | TOOL_EXECUTION | 读取 `python-data-analysis` 和 `cline:plotting` 两个 Skill |
 | 4 | 13:10:48.016—13:10:51.777 | 3,760 ms | 24,361 / 188 | TOOL_EXECUTION | 读取 Python Skill 的 `data-methods.md` 与 `financial-reporting.md` |
 | 5 | Node 13:10:53.200 开始；13:15:53.743 失败 | 本地请求 300,063 ms；Node 回调总计 300,738 ms | 未知，不能记为 0 | 无供应商返回 | `MODEL_REQUEST_TIMEOUT`；没有返回工具调用、代码或可用用量 |
+| 6（恢复） | Node 13:15:55.251 开始；13:16:11.352 失败 | Java 本地 15,616 ms；Node 回调 16,434 ms | 未知 | 无供应商返回 | fence-2 恢复原 checkpoint 后收到取消；没有新增代码或工具结果 |
 
 前四次已知总 Token 为 **77,350**。第五次未知用量保持预算保留，不能把它当作无成本调用。
 首次有效代码提案、首次 Python、首次结果均**未发生**，耗时必须记为缺失/删失，而不是 0 ms。
@@ -53,6 +54,10 @@ sequenceDiagram
     Note over N,M: 本地等待300.063s；未取得供应商响应
     R-->>N: MODEL_REQUEST_TIMEOUT，本地终止，用量未知
     N-->>R: 13:15:54.097 初始会话失败，0代码/0Python
+    R->>N: 13:15:54.564 fence-2 恢复已有 checkpoint
+    N->>M: 13:15:55.251 #6，原会话历史
+    R-->>N: 13:16:11 取消，本地请求15.616s
+    Note over R,M: 两次本地终止均没有供应商终止确认或usage；保留未知用量
 ```
 
 ## 排除项与可归因问题
@@ -68,6 +73,7 @@ sequenceDiagram
 - **明确的路径开销**：第一轮用了错误数据集引用；runner 常驻提示把 Skills 阅读放在编码前，
   自有 Python Skill 又要求金融图表读取包含大量交易核对配方的参考文件。
   实际 Skill 上下文从 0 增至 **62,767 B**，第五轮整个请求 **130,333 B**。
+  SDK 压缩次数为0，输入估算32,584 Tokens，低于65,536软预算；估算不能替代供应商用量或证明其内部状态。
   这证明准备材料变多；不能证明它是供应商超时的唯一原因。
 - **监控解释缺口**：原事件有模型用量/时间和工具 timing，但没有逐轮工具列表、finish reason、
   首次提案耗时、重复失败/新证据计数及当前等待环节，需要人工串联 Java 与 Node 才能解释。
@@ -91,7 +97,7 @@ sequenceDiagram
 仅向本次现有请求追加有限的进展摘要。它不调用模型，不保存消息，不恢复/创建任务，不作终止决策。
 Java 的实际预算、deadline、取消、未知用量保留、原生 SDK prepared-request 恢复边界均保持原状。
 
-`Cline beforeTool → SDK_TOOL_STARTED → python_execute → SDK Editor/CodeHistory → CODE_READY → Java preparePython/executePython`
+`Cline beforeTool → SDK_TOOL_STARTED → python_execute → SDK Editor propose → Java preparePython → CodeHistory.record → CODE_READY → Java executePython`
 沿用已有 Editor/Patch/Checkpoint 实现。新增 CODE_PROPOSED 记录尝试；拒绝和有效代码分别计数。
 Python 派发与 Java 确认 `executorStopped` 分开计数；HTTP 失败不能证明执行已停止。
 首次有效结果基于 Python 结果可用回执，不等于业务验收。

@@ -8,10 +8,11 @@ const boundedThreshold = (value, fallback) => {
 };
 
 /** Advisory observations within one SDK run. No transcript, execution authority or model loop. */
-export function createCodingProgress({ preparationCalls, stalledCalls, now = Date.now } = {}) {
+export function createCodingProgress({ preparationCalls, stalledCalls, initialCodeAvailable = false, now = Date.now } = {}) {
   const preparation = boundedThreshold(preparationCalls, 4), stalled = boundedThreshold(stalledCalls, 3);
   const started = now(), seen = new Set(), failures = new Set(), executions = new Set();
   let newResults = false, rounds = 0, stalledRounds = 0;
+  let codeAvailable = initialCodeAvailable;
   const state = { modelCall: 0, callsSinceProgress: 0, newToolResults: 0, newEvidenceReads: 0,
     skillReads: 0, discoveryCalls: 0, repeatedFailures: 0, proposals: 0, acceptedProposals: 0,
     rejectedProposals: 0, pythonDispatched: 0, pythonExecutions: 0, modelResponseErrors: 0,
@@ -24,7 +25,7 @@ export function createCodingProgress({ preparationCalls, stalledCalls, now = Dat
     snapshot,
     observe(event) {
       if (event.type === 'CODE_PROPOSED') { state.proposals++; state.firstProposalMs ??= elapsed(); state.phase = 'WRITING'; }
-      if (event.type === 'CODE_READY') { state.acceptedProposals++; state.firstValidCodeMs ??= elapsed(); newResults = true; }
+      if (event.type === 'CODE_READY') { state.acceptedProposals++; state.firstValidCodeMs ??= elapsed(); codeAvailable = true; newResults = true; }
       if (event.type === 'CODE_PROPOSAL_REJECTED') { state.rejectedProposals++; state.phase = 'REPAIRING'; }
       if (event.type === 'MODEL_RESPONSE_REJECTED' || event.type === 'MODEL_FAILED') state.modelResponseErrors++;
       if (event.type === 'SDK_TOOL_STARTED') {
@@ -72,12 +73,12 @@ export function createCodingProgress({ preparationCalls, stalledCalls, now = Dat
       state.remainingTokens = Number.isFinite(budget?.remainingTokens) ? budget.remainingTokens : null;
       state.remainingModelCalls = Number.isFinite(budget?.remainingModelCalls) ? budget.remainingModelCalls : null;
       const idle = stalled > 0 && stalledRounds >= stalled && stalledRounds % stalled === 0;
-      const preparing = preparation > 0 && !state.acceptedProposals && rounds >= preparation && rounds % preparation === 0;
+      const preparing = preparation > 0 && !codeAvailable && rounds >= preparation && rounds % preparation === 0;
       const feedback = idle || preparing ? (state.feedbackCount++,
         '\nCoding progress check (advisory, within this same authorized SDK session): '
         + JSON.stringify({ reason: idle ? 'NO_NEW_TOOL_RESULT' : 'PREPARATION_WITHOUT_CODE', ...snapshot() })
         + '\nChoose the next useful action. Reuse already read evidence and Skills; avoid repeating unchanged failures or planning. '
-        + 'If the supplied evidence is sufficient, submit a focused initial program now. Otherwise continue necessary authorized discovery or state the exact missing input. '
+        + 'If the supplied evidence is sufficient, submit focused code: an initial program only when none exists, otherwise a minimal repair against the latest version. Otherwise continue necessary authorized discovery or state the exact missing input. '
         + 'Complex analysis may continue; this feedback grants no permissions, budget or evidence and does not require unsafe or unsupported code.') : '';
       return { progress: snapshot(), feedback };
     },

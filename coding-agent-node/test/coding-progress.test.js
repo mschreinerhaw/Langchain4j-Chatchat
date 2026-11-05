@@ -68,6 +68,17 @@ test('thresholds are configurable and disabled feedback preserves observations',
   assert.equal(tracker.snapshot().skillReads, 1); assert.equal(tracker.snapshot().discoveryCalls, 1);
 });
 
+test('restored code does not trigger a false initial-code prompt; stalls request a minimal repair', () => {
+  const tracker = createCodingProgress({ initialCodeAvailable: true, preparationCalls: 1, stalledCalls: 3 });
+  assert.equal(tracker.model(9).feedback, '');
+  assert.equal(tracker.model(10).feedback, '');
+  const feedback = tracker.model(11).feedback;
+  assert.match(feedback, /NO_NEW_TOOL_RESULT/); assert.match(feedback, /minimal repair against the latest version/);
+  assert.doesNotMatch(feedback, /PREPARATION_WITHOUT_CODE/);
+  assert.equal(tracker.snapshot().acceptedProposals, 0);
+  assert.equal(tracker.snapshot().firstValidCodeMs, null);
+});
+
 test('eager disclosure cannot introduce unauthorized tools and survives catalog restore', () => {
   const tools = [{ name: 'python_execute', inputSchema: { type: 'object' } }, { name: 'skill_read' }];
   const catalog = createToolCatalog(tools, undefined, ['python_execute', 'shell']);

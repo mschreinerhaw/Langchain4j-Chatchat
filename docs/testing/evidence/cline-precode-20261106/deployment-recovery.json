@@ -1,0 +1,17 @@
+{
+  "status": "DEPLOYED",
+  "image": "runtime-os-coding-agent:cline-precode-20261106-r4",
+  "imageId": "sha256:f633cd18c1fb819cd06918a679c41bf3b4e4f7cc25b0b8cc3915ec240c728979",
+  "sourceCommit": "0449eba074f99d841a404c0c3d427db690d66fd3",
+  "backupContainer": "runtime-os-app-stage-coding-agent-1-before-sdk-reuse-0607cda2d6db",
+  "backupDirectory": "/opt/chatchat-releases/cline-precode-20261106-r4/backup",
+  "callback": {
+    "status": "PASSED",
+    "signedCallback": true,
+    "unsignedRejected": true,
+    "origin": "http://api:8081",
+    "codeLifecycleVersion": "runtime_os.code_lifecycle.v1"
+  },
+  "policyPreserved": true,
+  "unrelatedContainersUnchanged": true
+}

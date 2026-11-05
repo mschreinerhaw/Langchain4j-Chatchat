@@ -2,7 +2,7 @@
 
 本轮以远端最新 `refactor/cline-sdk-reuse-20261105` 的 `1ecf091dfce757d5ff7933fec4049c8de2f67196` 为基准，
 新分支 `perf/cline-precode-context-20261106`。基准生产实现为 `2813524e8`，其后的提交仅为证据和收集口径补充。
-SDK 五个包均固定0.0.93。Worker 实现 `f09cb4b5d`（中间版本6487e5867），Java 冻结任务整改 `c97962110`；不重做 Editor、Patch、Checkpoint，不升级 SDK，不新增 Agent Loop。
+SDK 五个包均固定0.0.93。当前 Worker `0449eba07` 继承 `f09cb4b5d`（中间版本6487e5867）的披露整改，Java 冻结任务整改 `c97962110`。不重做 Editor、Patch 或检查点机制；仅为既有检查点增加可选进展诊断，不升级 SDK、不新增 Agent Loop。
 
 ## 已确认的真实事件
 
@@ -52,10 +52,10 @@ sequenceDiagram
 此前仅修改 Node 的两轮试验属于中间状态，不能用来证明 Java 残留要求已解决。
 类文件常量池仅两项字符串改变，所有方法反汇编相同；API 包仅替换该类，其他条目保持原样。
 没有再添加一条“先不读 Skills”的常驻规则。
-真正仍存在的叠加包括：基础提示与追加提示重复说明结果复核；重复推荐多个报告 Skills；
+基准中另有以下叠加，本轮按下述边界收敛：基础提示与追加提示重复说明结果复核；重复推荐多个报告 Skills；
 workspace 的 Skills 自主选择重复出现；重复 Skill 请求再次交付全文；通用分析 Skill 正文包含特定金融配方用法。
 
-当前对照基准 CSV 首请求的任务/输入部分18,069 UTF-8字节，另有4,931字节 Skills 卡片与4,080字节系统提示。
+基线 CSV 首请求的任务/输入部分18,069 UTF-8字节，另有4,931字节 Skills 卡片与4,080字节系统提示。
 输入上下文同时包含 manifest、字段定义、实际 files/fileLayout、输出合同和有界预览。
 这些文件与业务信息不是可随意删除的冗余：此前传输映射缺失已经导致真实 Parquet 失败。
 本轮保留完整 Python 核心工具合同与输入描述，仅去除重复的引导和交付相同 Skill 正文的负担。
@@ -106,9 +106,9 @@ flowchart TD
 [官方 Issue #14314](https://github.com/cline/cline/issues/14314) 是 Desktop 压缩注册问题，本仓库显式接入 compactor，不能套用该问题作本任务根因。
 不盲目升级或启用隐藏重试：未知供应商执行仍保留待核对的预算，实际重试必须独立准入和结算。
 
-## 最终部署后的华是科技反例
+## f09 中间部署后的华是科技反例
 
-同一最终 Java c97962110 / Worker f09cb4b5d，经正常数据探索空间、financial-news-agent 提交最新行情任务，实际进入 analysis-coding-82435f72ca1fabd0603d7c9ab0734a0d1ae5e4f2a529651e8f6c8fe6ff70c294。原始合同授权 python_execute、input_read、skill_read，使用 JSON_LINES 分析模式；没有 tool_describe 前置要求。
+Java c97962110 / Worker f09cb4b5d 的中间部署，经正常数据探索空间、financial-news-agent 提交最新行情任务，实际进入 analysis-coding-82435f72ca1fabd0603d7c9ab0734a0d1ae5e4f2a529651e8f6c8fe6ff70c294。原始合同授权 python_execute、input_read、skill_read，使用 JSON_LINES 分析模式；没有 tool_describe 前置要求。
 
 | 调用 | Node 观测总耗时 | 返回及实际工具 | Provider 已知输入/输出 Tokens |
 |---|---:|---|---:|
@@ -124,4 +124,14 @@ flowchart TD
 
 最终父任务 FAILED、Coding BUDGET_EXCEEDED，提案/Python/结果均为0。首次代码时间始终未观测；四个没有取得完整用量的请求不计为零消耗。原截止时间为2026-11-05 19:09:31.738 UTC，未延长。完整脱敏时序见[华是科技联机证据](../testing/evidence/cline-precode-20261106/stock-final.json)。
 
-另一个已观察到的边界：恢复后 modelCall 连续递增，但轻量进展状态以 Worker/fence 为范围，callsSinceProgress 重置为1、feedbackCount 为0。任务级收集器能合并真实时序，不等于已实现跨恢复的累计无进展反馈。该项仍需在现有检查点内解决和验证，不能把当前单次 SDK run 的测试当成跨恢复验收，也不能为此新增 Agent Loop 或 Prompt 规则。
+该反例另行证实了一个实现缺口：恢复后 modelCall 连续递增，但轻量进展状态以 Worker/fence 为范围，callsSinceProgress 重置为1、feedbackCount 为0。这与正常新增 Skill 的准备阶段不同，需要代码修复。原始失败证据保持不变。
+
+## 0449eba07：沿用原生检查点恢复进展
+
+现有两处 SDK 检查点写入增加可选 codingProgress 诊断元数据；恢复时校验版本、计数形状和有界哈希集合，保留任务起点、进展计数、已知工具身份及已有反馈计数。Java 已准入但未取得响应的调用序号用于补齐未知调用次数；不虚构模型用量、完成回执或已发送的反馈。下一轮仍由原 Cline 会话选择工具，沿用原提醒内容和阈值，没有第二个 Agent Loop、新重试或新 Prompt 规则。
+
+诊断元数据不进入模型消息，不持有正文或执行权威。旧检查点、非法元数据回退为原观测范围；超出既有检查点容量时先去可选 compactionState，再去可选 codingProgress，优先保留权威消息和代码。权限、剩余预算、未知用量预留、STOP 和恢复准入仍由 Java 原机制控制。
+
+新增三个 Node 回归分别验证：跨未知准入调用累计停滞但不结算虚假用量；精确工具/Skill/失败身份恢复及容量回退；已安装 SDK 在同一 session 恢复后收到既有进展反馈、没有重放工具、未知调用不生成完成回执。Java 原恢复存储测试2/2同时校验新增元数据与未知预算预留。受控回归与真实供应商故障分开报告，不能据此声称消除了供应商300秒等待。
+
+当前部署和新批真实观测见[验收记录](../testing/cline-precode-e2e-acceptance.md)与[性能报告](../testing/cline-precode-performance.md)。

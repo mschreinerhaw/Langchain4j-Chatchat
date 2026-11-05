@@ -1,6 +1,6 @@
 # Skills 加载与上下文负担审查
 
-本轮 Worker `f09cb4b5d`、Java 冻结任务 `c97962110`，基准 `1ecf091df`，沿用 @cline/agents 0.0.93。
+本轮 Worker `0449eba07`（继承 f09cb4b5d 的披露收敛）、Java 冻结任务 `c97962110`，基准 `1ecf091df`，沿用 @cline/agents 0.0.93。
 
 ## 保留已有能力
 

@@ -48,6 +48,18 @@
       "requestBytes": 33417,
       "estimatedInputTokens": 8355,
       "skillContextRatio": 0.1475596253403956
+    },
+    {
+      "variant": "recovery",
+      "taskId": "analysis-coding-f80d85fe3f3d484b5449e7ec0bb3975c0b0eb5d7b981328c8606a2777ee51d3b",
+      "modelCall": 1,
+      "contextSystemBytes": 3640,
+      "contextTaskBytes": 17944,
+      "contextSkillsBytes": 4931,
+      "contextToolsBytes": 6788,
+      "requestBytes": 33417,
+      "estimatedInputTokens": 8355,
+      "skillContextRatio": 0.1475596253403956
     }
   ]
 }

@@ -1,17 +1,19 @@
 # 首次代码效率整改验收
 
-Worker 实现 `f09cb4b5d`、Java 冻结任务 `c97962110`，基线 `1ecf091df`，专项分支 perf/cline-precode-context-20261106。
+当前 Worker 实现 `0449eba07`（继承 f09cb4b5d 的工具与披露整改）、Java 冻结任务 `c97962110`，基线 `1ecf091df`，专项分支 perf/cline-precode-context-20261106。
 
 ## 固定测试与部署
 
-- Windows/Linux 各237/237 Node，真实 Docker Python 10/10，无跳过。原236项日志保留，新增原生压缩检查后的最终237项日志另列。
+- Windows/Linux 各240/240 Node，真实 Docker Python 10/10，无跳过。原236项日志保留，原生压缩检查后的237项日志及当前检查点恢复240项日志分别保留。
+- Java ClineModelReceiptStoreTest 2/2：元数据随现有检查点保存，未知模型调用原预算预留不变。
 - Java CodingAnalysisServiceTest 45/45，既有资源授权与多数据集合同测试同时验证强制 Skill 前置要求消失、传输映射/Decimal/证据权限要求仍在。
 - Monitor 浏览器真实 SDK + 确定性 gateway fixture：登录、只读会话、hash、XSS、模型/Skills/事件、离线恢复、移动端、退出通过，错误0。
 - 新增10项覆盖精确 Skill 正文复用、版本和任务隔离、Unicode 参考分页、快照引用纠正、动态撤权仍检查、新证据不误报停滞、前置用量/大小、3类模型失败不执行 Python 或隐藏重试，以及已安装SDK原生压缩后全文恢复。
+- 当前另增3项验证进展检查点的未知准入计数、精确身份恢复与容量回退、同一真实SDK会话恢复后的既有反馈和无重放；与前述10项分别计数。
 - 原生压缩检查实际调用 sdkPrepareTurn，构造超过上下文的合法工具对，确认早期 Skill 全文从准备后的请求消失，再次披露取得完整正文。该检查不调用真实 Provider，不冒充联机发生了压缩/重新读取；Worker f09cb4b5d 未因新增测试改变。
 - 确定性故障是受控回归，不等于真实 Provider 首 Token/流中异常的生产验收。
 
-Worker 镜像 runtime-os-coding-agent:cline-precode-20261106-r2，
+历史 f09 Worker 镜像 runtime-os-coding-agent:cline-precode-20261106-r2，
 image sha256:f25e53c37d603b28f831916bff1fa86a2e0d7273088ee36387fb4e7683f5d80c。
 源码f09cb4b5d，签名回调通过、未签名拒绝、原 HostConfig/Mounts 权限逐字段保持，其它容器ID不变。
 原 Worker 保留为 runtime-os-app-stage-coding-agent-1-before-sdk-reuse-f2aa363efd1a（中间版本）；最初基线备份为 runtime-os-app-stage-coding-agent-1-before-sdk-reuse-4da48d1e57df，
@@ -42,7 +44,7 @@ API 和代理以外的容器 ID 保持。重启后正常重新登录，签名回
 
 普通 Monitor 展示首提案/接受/Python、前置调用和已知输入 Token、Skill 正文/参考唯一数、来源/披露字节、重复/复用、
 输入读取/工具拒绝和实际工具。不展示敏感正文，阶段“准备/探索/修复”为事件推断标签，不冒充模型想法。
-Skills 请求比例为字节比例，未知观测不以0伪装。进展卡片明确为本代次 SDK 会话；跨恢复 fence 的首次时间由性能收集器合并事件计算。
+Skills 请求比例为字节比例，未知观测不以0伪装。当前进展卡片随有效原生检查点累计恢复；旧检查点或容量回退的缺失历史仍须查事件与平台回执。性能收集器继续合并全部 fence，避免丢失观测。卡片“有效代码”指通过提案合同的 CODE_READY，不等于 Python 已成功或业务结果正确。
 Node 进展卡片首次 Python 时间为工具派发，不冒充 Sandbox 进程实际开始时间；实际执行次数须有 Java stopProofRef 和计量证明。
 性能附表另经所有者 API 读取不可变 MCP 归档 receipt.startedAt，逐项校验 task/run、stop proof、注册 hash/size。
 该字段是 MCP 执行回执开始时间，不是 OS process-spawn 探针；没有记录的开始时点仍 UNKNOWN。原 Runtime、预算、授权、STOP、SDK recovery 和结果验证未放宽。
@@ -71,12 +73,32 @@ Worker 第二候选的10项技术执行完成10/10，首提案中位109.5s，对
 
 ## 最终判定
 
-源码收敛、工具契约、权限边界和监控测试已验证并部署。40条真实基准观测中最终10条全部技术完成，但首次编码未证明加速；合成报告仍有完成范围问题，受控财经任务失败。此 PR 保持草稿，不宣称专项全部达标。
+源码收敛、工具契约、权限边界和监控测试已验证并部署。保留全部50条真实基准观测；当前0449组10条技术完成，首次提案中位90.5秒对复用基线109.2秒，属于小样本观察，不能证明稳定加速。合成报告仍有解释与完成范围问题，受控账户财经任务失败。此 PR 保持草稿，不宣称专项全部达标。
 
 公开测试日志采用 UTF-8，并统一换行与行尾空白以便代码审查；测试内容与结论未改，原始输出保留在私有运行目录。注册源文件和执行产物的完整性证明始终针对原始字节，未作此转换。
 
-## 华是科技最终联机验收
+## f09 华是科技联机反例（保留原件）
 
 以原金融新闻 Agent、原配置在数据探索空间单独提交最新行情问题。父任务 e145731e-f3aa-361a-9e13-0a1970889040 已失败；Coding 任务原定截止后为 BUDGET_EXCEEDED，7次已启动模型请求、3份完成回执、0代码提案、0 Python、0有效结果。前3次读取两份输入及两个不同 Skill；第3次模型响应约161.8秒，其中 reasoningTokens=12395。第4、5、6次分别在约300.8、300.9、301.3秒后 CALLBACK_HTTP_REJECTED，第7次在截止时间中止，四次请求的供应商用量未知。检查点恢复沿用原预算；没有手工重提、换模型、延长截止时间或伪造最新行情。
 
-该场景未通过，不能发布股票走势结论或宣称修复生效。[实际模型/恢复时序](evidence/cline-precode-20261106/stock-final.json)保留 Node 阶段与 Runtime 终态的区别。普通进展仍以单个 Worker/fence 为范围，跨恢复无进展计数归零也是尚未完成的边界；当前 PR 保持草稿，不能作为全项验收通过记录。
+该场景未通过，不能发布股票走势结论或宣称修复生效。[实际模型/恢复时序](evidence/cline-precode-20261106/stock-final.json)保留 Node 阶段与 Runtime 终态的区别。该历史记录中跨恢复无进展计数归零已由0449eba07在现有检查点内修复，并有同一真实 SDK session 恢复与 Java 原预算存储回归；不能将受控修复测试写成该历史模型任务成功。当前 PR 保持草稿。
+
+
+## 当前 0449eba07 部署与检查点恢复验证
+
+当前 Worker 镜像 runtime-os-coding-agent:cline-precode-20261106-r4，image sha256:f633cd18c1fb819cd06918a679c41bf3b4e4f7cc25b0b8cc3915ec240c728979；源码0449eba074f99d841a404c0c3d427db690d66fd3，发布归档 sha256:1e2ba406648de26a56df5b7035fa828e923ff59873e53d4db6955535a1326269。Java仍为c97962110的现有镜像，没有再次替换API或代理。
+
+隔离 Linux Node240/240、真实Docker10/10通过后才切流；签名回调通过、未签名仍拒绝，HostConfig/有效Mounts保持，其它容器ID不变。首次归档遗漏fixtures/integration/scripts/web，隔离门禁失败，未切流；修正归档后全部通过，保留[首次打包失败](evidence/cline-precode-20261106/linux-worker-recovery-packaging-failure.log)。这次失败不是模型任务失败。
+
+当前回滚 Worker 备份 runtime-os-app-stage-coding-agent-1-before-sdk-reuse-0607cda2d6db，配置位于 /opt/chatchat-releases/cline-precode-20261106-r4/backup。仅在原父任务/Node/Python均空闲后恢复原配置、网络限制和签名门禁；不重放未知执行。API与共享网络代理的回滚仍按前述成对流程。
+
+[当前候选门禁](evidence/cline-precode-20261106/candidate-recovery.json)、[当前部署证明](evidence/cline-precode-20261106/deployment-recovery.json)、[Linux240](evidence/cline-precode-20261106/linux-worker-recovery-tests.log)、[Windows240](evidence/cline-precode-20261106/windows-worker-recovery-tests.log)、[Java恢复2](evidence/cline-precode-20261106/java-checkpoint-recovery-tests.log)、[Docker10](evidence/cline-precode-20261106/docker-sandbox-recovery-tests.log)分别保留。此前Java45与金融方法31项仍对应未改变的生产代码，不将历史237项日志伪装为当前240项。
+
+当前浏览器实测build0449eba07、无强制Skill前置句且保留manifest.columns，显示累计恢复说明、实际工具和未知阶段，页面错误0，只有登录POST、无执行重放。[浏览器证明](evidence/cline-precode-20261106/monitor-browser-recovery.json)、[总览截图](evidence/cline-precode-20261106/monitor-overview-recovery.png)、[模型截图](evidence/cline-precode-20261106/monitor-models-recovery.png)。真实SDK加确定性gateway的浏览器回归也通过，日志[另列](evidence/cline-precode-20261106/monitor-recovery-browser-fixture.log)，不冒充真实Provider性能。
+
+
+## 当前镜像新增10条基准的独立复核
+
+recovery组五类各2次，原模型/资产/预算不变，10/10技术完成、2/2真实修复成功，41次模型请求全部取得已知用量，已知875393 Tokens。首提案中位90.4855秒、首次新代码90.720秒、首次Python派发90.768秒、首次结果212.0575秒、HTTP完整252.357秒。此前40条及所有失败/未知用量原样保留。汇总脚本曾漏列recovery聚合（逐项50条齐全），已改为按实际variant聚合；远端重新采集验证五组各10条，没有重跑模型。
+
+核心汇总值、关联基数和复杂周表与独立期望匹配；仍有三项已知报告问题：complex-0把相等的1.5000说成高低不等，csv-0附录对原生列/传输列的核对声明不一致，repair-1把无需业务数据的执行基准标为INPUT_REQUIRED。完整报告不改写，不能用10/10技术完成证明质量100%。见[全部50条性能与质量证据](cline-precode-performance.md)。本组无自然跨fence恢复，跨恢复修复的现有证据为真实SDK/Java受控回归，不冒称真实供应商故障恢复验收。

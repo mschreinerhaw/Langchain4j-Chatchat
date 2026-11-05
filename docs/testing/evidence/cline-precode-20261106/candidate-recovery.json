@@ -1,0 +1,52 @@
+{
+  "sourceCommit": "0449eba074f99d841a404c0c3d427db690d66fd3",
+  "image": "runtime-os-coding-agent:cline-precode-20261106-r4",
+  "imageId": "sha256:f633cd18c1fb819cd06918a679c41bf3b4e4f7cc25b0b8cc3915ec240c728979",
+  "baselineImageId": "sha256:f25e53c37d603b28f831916bff1fa86a2e0d7273088ee36387fb4e7683f5d80c",
+  "baselineContainerId": "0607cda2d6dbb6e977032c8ffd7c033db4bd43074450bdb1297500686cd61bc9",
+  "modulesBefore": {
+    "runner.js": "3d7c10e0589a86970da43ef1cc626f494c24a4942973e315f40eb5728556df4c",
+    "coding-progress.js": "741d74e92eaf71633bd61769436090fb086d5a52bde2bc02d2a7d31737b8dbb5",
+    "tool-catalog.js": "52131f4a99a77ca378f66038b6b8e00238a3dc6cb6c69c90b1b8fd0775e277e3",
+    "runtime-model.js": "ca30069b9b811ac023efb370d50990238f8f21ba4ae2db26f98d3e5fdd0d6822",
+    "monitor.js": "6156e7a93491a3fe929c34d767a6de522f401f3ae776b40f4e909bcd3d79e624",
+    "monitor-types.js": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+    "public/app.js": "c8225cb4a7fe1db45c918502b0b3ccee168c7086bfd5b528e4590b96fb2b7798",
+    "skill-disclosure.js": "1f4ed07352925847245eca6c129f3a3dc5f9fae5f24b0f8df3edb4e9b67d80b7",
+    "request-context.js": "6a9d195bd39dc95be6264017e1bf7fd74d0b0cbba29ff538a4dcbfdfbd3fbe16",
+    "server.js": "926aee8f27da0e6d696e65f6cefb9332e920c2f80aff215d3be1da9c082bdb31",
+    "sdk-adapter.js": "c7529704e4e663f6f2360510345d1a4754dbcfb0bb0be1f5b0e7d753c9ef4fc7",
+    "../skills/catalog.json": "6d4429a7042c0e6283e225cbb2c6d17d1175ba469d7bd3880e2724f9044e2927",
+    "../skills/python-data-analysis/SKILL.md": "27be577833b34dfe9cceaedf2c7df3a0a673398b4a1e7900db9fde172bd8b143",
+    "../skills/python-data-analysis/references/financial-reporting.md": "cc17d90e304e1d3a6160eddecfc6db4bc81e3ff4be68535dc503c442901d46cd"
+  },
+  "modulesAfter": {
+    "runner.js": "10c895246de0f5c03d2ac37c28b417de3c0b33296fce976b2de8f21037f67ea5",
+    "coding-progress.js": "683eadfa49f3b5e687291c69409a42e2788cffbf70783fa6fb6e8f6e03834e3d",
+    "tool-catalog.js": "52131f4a99a77ca378f66038b6b8e00238a3dc6cb6c69c90b1b8fd0775e277e3",
+    "runtime-model.js": "ca30069b9b811ac023efb370d50990238f8f21ba4ae2db26f98d3e5fdd0d6822",
+    "monitor.js": "6156e7a93491a3fe929c34d767a6de522f401f3ae776b40f4e909bcd3d79e624",
+    "monitor-types.js": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+    "public/app.js": "d44f2faad9f0c9cb080c6f8c19695b3db255190552fa4ef62b3adba551c2a392",
+    "skill-disclosure.js": "1f4ed07352925847245eca6c129f3a3dc5f9fae5f24b0f8df3edb4e9b67d80b7",
+    "request-context.js": "6a9d195bd39dc95be6264017e1bf7fd74d0b0cbba29ff538a4dcbfdfbd3fbe16",
+    "server.js": "926aee8f27da0e6d696e65f6cefb9332e920c2f80aff215d3be1da9c082bdb31",
+    "sdk-adapter.js": "93460081c73c225dacc66a1acbc8fc03c1c60d846ca1b418927e0c2e233f6ca0",
+    "../skills/catalog.json": "6d4429a7042c0e6283e225cbb2c6d17d1175ba469d7bd3880e2724f9044e2927",
+    "../skills/python-data-analysis/SKILL.md": "27be577833b34dfe9cceaedf2c7df3a0a673398b4a1e7900db9fde172bd8b143",
+    "../skills/python-data-analysis/references/financial-reporting.md": "cc17d90e304e1d3a6160eddecfc6db4bc81e3ff4be68535dc503c442901d46cd"
+  },
+  "archiveSha256": "1e2ba406648de26a56df5b7035fa828e923ff59873e53d4db6955535a1326269",
+  "sdk": {
+    "status": "VERIFIED",
+    "packages": {
+      "@cline/sdk": "0.0.93",
+      "@cline/core": "0.0.93",
+      "@cline/agents": "0.0.93",
+      "@cline/llms": "0.0.93",
+      "@cline/shared": "0.0.93"
+    }
+  },
+  "isolatedGatesPassed": true,
+  "trafficSwitched": false
+}

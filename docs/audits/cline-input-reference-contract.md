@@ -1,5 +1,7 @@
 # Coding 输入引用合同
 
+当前 Worker `0449eba07`，Java `c97962110`。引用整改继承 f09cb4b5d；计数恢复修复未改变数据读取合同。
+
 | 字段 | 权威来源与语义 | 使用方式 |
 |---|---|---|
 | inputSnapshotRef | Java 冻结的任务整体输入绑定 | 保持合同绑定，不能作 input_read.datasetReference |

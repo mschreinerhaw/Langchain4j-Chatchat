@@ -138,7 +138,7 @@ def main():
                     and e.get('status') == 'FAILED' for e in events) and row['resultAvailable'])
             row['successfulExecution'] = row['nodeStatus'] == 'COMPLETED' and row['resultAvailable'] and row['pythonExecutions'] > 0
     aggregate = {}
-    for variant in ['baseline', 'candidate', 'final', 'verified']:
+    for variant in dict.fromkeys(row['variant'] for row in rows):
         group = [r for r in rows if r['variant'] == variant]
         if not group:
             continue

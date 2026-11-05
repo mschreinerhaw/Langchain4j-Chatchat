@@ -510,6 +510,136 @@
           "sha256": "5eb9260f8627e6adac1aeb61b3b0d309d4d78ae527274ace0449ceb73fc0e4b5"
         }
       ]
+    },
+    {
+      "variant": "recovery",
+      "case": "complex-0",
+      "status": "COMPLETED",
+      "resultAvailable": true,
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "COMPLETE",
+          "sha256": "479fd677d13b90de23c13ae2fcc9cc8d7014ec78a94211da3fb6b520eb6a20f3"
+        }
+      ]
+    },
+    {
+      "variant": "recovery",
+      "case": "complex-1",
+      "status": "COMPLETED",
+      "resultAvailable": true,
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "COMPLETE",
+          "sha256": "6108436ea0e63166b89f16bd0aafd2f46fe0bc62b6d43b6653235ca5950e3d13"
+        }
+      ]
+    },
+    {
+      "variant": "recovery",
+      "case": "csv-0",
+      "status": "COMPLETED",
+      "resultAvailable": true,
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "COMPLETE",
+          "sha256": "702c5def9ad054f183b987fa1823e4901a3d6cdee885f941a9271139cb1385d8"
+        }
+      ]
+    },
+    {
+      "variant": "recovery",
+      "case": "csv-1",
+      "status": "COMPLETED",
+      "resultAvailable": true,
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "COMPLETE",
+          "sha256": "a70581a2fce787b7b34a3bb2e2fc11a7516587f4a6ac7c0f55e0b21c1c1eee21"
+        }
+      ]
+    },
+    {
+      "variant": "recovery",
+      "case": "join-0",
+      "status": "COMPLETED",
+      "resultAvailable": true,
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "COMPLETE",
+          "sha256": "f87a8679bddd122e839256f973223c41924def00357ec9923667a5468033af61"
+        }
+      ]
+    },
+    {
+      "variant": "recovery",
+      "case": "join-1",
+      "status": "COMPLETED",
+      "resultAvailable": true,
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "COMPLETE",
+          "sha256": "2f22a9154be6adbf0b06d6dc485fdc7b040aa4b0e93ced941e822b99fa08a34f"
+        }
+      ]
+    },
+    {
+      "variant": "recovery",
+      "case": "parquet-0",
+      "status": "COMPLETED",
+      "resultAvailable": true,
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "COMPLETE",
+          "sha256": "39b26a3b5bbab68a8aacf9aeeb68d64e73239fd0f74b1e445580032ee05ca60e"
+        }
+      ]
+    },
+    {
+      "variant": "recovery",
+      "case": "parquet-1",
+      "status": "COMPLETED",
+      "resultAvailable": true,
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "COMPLETE",
+          "sha256": "6cd1e66ec474ddb29ccda02bdf60896ab9c6d052913283c3a368ebf68512f30a"
+        }
+      ]
+    },
+    {
+      "variant": "recovery",
+      "case": "repair-0",
+      "status": "COMPLETED",
+      "resultAvailable": true,
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "COMPLETE",
+          "sha256": "2353cc79229d5115dbd8d90fe7bc75e0498de52c5dac1770ed703c76748ee592"
+        }
+      ]
+    },
+    {
+      "variant": "recovery",
+      "case": "repair-1",
+      "status": "COMPLETED",
+      "resultAvailable": true,
+      "runtimeValidationStatus": "INCONCLUSIVE",
+      "reports": [
+        {
+          "analysisStatus": "INPUT_REQUIRED",
+          "sha256": "fba4c45b7744c0d2fab3d3f8c82b232c4a977aec6e70768f5ea2a573a7913b80"
+        }
+      ]
     }
   ],
   "knownQualityFailures": [
@@ -562,12 +692,28 @@
       "variant": "verified",
       "case": "repair-1",
       "issue": "Calculation returns 6 and technical repair completes, but report labels synthetic objective INPUT_REQUIRED for additional production business semantics. This is a shared baseline/candidate completion-scope limitation, not proof that the new patch introduced a regression."
+    },
+    {
+      "variant": "recovery",
+      "case": "repair-1",
+      "issue": "Calculation returns 6 and technical repair completes, but report labels synthetic objective INPUT_REQUIRED for additional production business semantics. This is a shared baseline/candidate completion-scope limitation, not proof that the new patch introduced a regression."
+    },
+    {
+      "variant": "recovery",
+      "case": "complex-0",
+      "issue": "Principal weekly totals and weighted values match independently calculated expectations, but explanatory text says the arithmetic mean 1.5000 is obviously greater than weighted mean 1.5000, and says the two equal-per-region quantity example demonstrates their inequality. Original report retained."
+    },
+    {
+      "variant": "recovery",
+      "case": "csv-0",
+      "issue": "Principal values East32/West14/total46 are correct, but appendix claims CSV header matches nativeFileSchemas while the displayed descriptor actually lists datasetReference/record transport columns. Structural provenance claim is inconsistent."
     }
   ],
   "candidateCompletedCoreValuesMatched": 8,
   "candidateTaskFailures": 2,
   "finalReview": "COMPLETED_WITH_KNOWN_QUALITY_FAILURES",
   "verifiedCompletedCoreValuesMatched": 10,
+  "recoveryCompletedCoreValuesMatched": 10,
   "originalReportsEdited": false,
   "reviewerKind": "CODEX_INDEPENDENT_REVIEW"
 }

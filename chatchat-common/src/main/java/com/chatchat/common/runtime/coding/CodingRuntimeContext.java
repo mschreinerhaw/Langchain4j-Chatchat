@@ -109,7 +109,7 @@ public final class CodingRuntimeContext {
             String name = (String) key;
             CodingProtocol.require(!name.toLowerCase(Locale.ROOT).matches(".*(password|secret|api.?key|authorization|credential|baseurl|proxy).*"),
                 "Sensitive configuration is forbidden in Coding context");
-            result.put(name, freezeValue(item, depth + 1, path.isEmpty()?name:path+"."+name));
+            result.put(name, freezeValue(item, depth + 1, path+"/"+name.replace("~","~0").replace("/","~1")));
         });
         return Collections.unmodifiableMap(result);
     }
@@ -117,9 +117,9 @@ public final class CodingRuntimeContext {
         CodingProtocol.require(depth < 12, "Coding context nesting limit");
         if (value instanceof Map<?, ?> map) return freeze(map, depth, path);
         if (value instanceof List<?> list) {
-            if (path.equals("configuredSkillIds"))
+            if (path.equals("/configuredSkillIds"))
                 CodingProtocol.require(list.stream().allMatch(String.class::isInstance), "Invalid configured Skill identities");
-            else if (path.equals("skills.skills"))
+            else if (path.equals("/skills/skills"))
                 CodingProtocol.require(list.stream().allMatch(Map.class::isInstance), "Invalid Skill capability catalog");
             else CodingProtocol.require(list.size() <= 128, "Coding context list limit");
             // Skill metadata is bounded by the unchanged transport/model budgets,

@@ -21,6 +21,11 @@ class CodingRuntimeContextTest {
         base.put("model",Map.of("unexpectedList",Collections.nCopies(129,"value")));
         assertThatThrownBy(()->CodingRuntimeContext.validate(base)).isInstanceOf(CodingContractException.class);
         base.remove("model");
+        for(String key:List.of("skills.skills","skills/skills","skills~1skills")) {
+            base.put(key,Collections.nCopies(129,Map.of("id","value")));
+            assertThatThrownBy(()->CodingRuntimeContext.validate(base)).isInstanceOf(CodingContractException.class);
+            base.remove(key);
+        }
         for(var cards:List.of(List.of(Map.of("apiKey","private")),List.of(Map.of("description","x".repeat(16001))),List.of("invalid-card"))) {
             base.put("skills",Map.of("skills",cards));
             assertThatThrownBy(()->CodingRuntimeContext.validate(base)).isInstanceOf(CodingContractException.class);

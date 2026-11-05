@@ -120,7 +120,7 @@ Java c97962110 / Worker f09cb4b5d 的中间部署，经正常数据探索空间�
 | 6 | 301.309s | CALLBACK_HTTP_REJECTED，无模型完成响应 | UNKNOWN |
 | 7 | 83.209s | 原截止时间到达，REQUEST_ABORTED；供应商状态未知 | UNKNOWN |
 
-前3次取得2份输入片段与2个不同 Skill，正文交付9710字节，无重复读取、提案拒绝或 Schema 发现调用。第3次输出中的12395 Tokens被供应商标为 reasoning；不发布推理正文。第4、5次之后均由既有 Runtime 检查点机制恢复，调用沿用原累计预算。两个300秒失败的供应商内部状态及用量无法确认；不能将 Node 的 HTTP 拒绝诊断擅自替换为已证实的供应商根因。第6次恢复开始前仍无代码，首次提案时间为未观测，不能填0。该案例说明按需加载与工具收敛尚未解决模型响应等待；不能再用新增 Prompt 规则宣称已解决。
+前3次取得2份输入片段与2个不同 Skill，正文交付9710字节，无重复读取、提案拒绝或 Schema 发现调用。第3次输出中的12395 Tokens被供应商标为 reasoning；不发布推理正文。第4、5、6次之后均由既有 Runtime 检查点机制恢复，调用沿用原累计预算。三次约300秒失败的供应商内部状态及用量无法确认；不能将 Node 的 HTTP 拒绝诊断擅自替换为已证实的供应商根因。第6次恢复开始前仍无代码，首次提案时间为未观测，不能填0。该案例说明按需加载与工具收敛尚未解决模型响应等待；不能再用新增 Prompt 规则宣称已解决。
 
 最终父任务 FAILED、Coding BUDGET_EXCEEDED，提案/Python/结果均为0。首次代码时间始终未观测；四个没有取得完整用量的请求不计为零消耗。原截止时间为2026-11-05 19:09:31.738 UTC，未延长。完整脱敏时序见[华是科技联机证据](../testing/evidence/cline-precode-20261106/stock-final.json)。
 
@@ -135,3 +135,10 @@ Java c97962110 / Worker f09cb4b5d 的中间部署，经正常数据探索空间�
 新增三个 Node 回归分别验证：跨未知准入调用累计停滞但不结算虚假用量；精确工具/Skill/失败身份恢复及容量回退；已安装 SDK 在同一 session 恢复后收到既有进展反馈、没有重放工具、未知调用不生成完成回执。Java 原恢复存储测试2/2同时校验新增元数据与未知预算预留。受控回归与真实供应商故障分开报告，不能据此声称消除了供应商300秒等待。
 
 当前部署和新批真实观测见[验收记录](../testing/cline-precode-e2e-acceptance.md)与[性能报告](../testing/cline-precode-performance.md)。
+
+
+## 当前0449复测的另一等待层
+
+当前Worker0449eba07 / Java c97962110 使用原financial-news-agent、原默认配置、同一问题单次复测，父任务9c2b894b-7178-3721-b216-4e1133cc8d16终止FAILED，resultAvailable=false。创建至结束303.295秒；Runtime开始至RUN_FAILED为300.057秒，实际错误文本为“request timed out”，事件码AGENT_RUNTIME_FAILED。未创建Coding任务，Coding代码/Python/结果均没有发生；这段上层等待不能冒充Coding调用耗时，首次Coding提案时间仍为未观测。没有重提、换模型、延长预算或补造行情。供应商内部排队、首Token及用量无证据，保持未知。
+
+因此该场景未通过，无法给出可核验的最新股价、走势或图文报告，也不能用它证明Coding计数恢复在真实供应商故障下已通过验收。原生SDK同会话恢复与Java预算约束已有受控回归；合成任务的执行通过不替代财经场景通过。[最新终态与事件](../testing/evidence/cline-precode-20261106/stock-recovery.json)保留17个事件的允许字段及私有原件hash，不发布正文推理或伪造价格。

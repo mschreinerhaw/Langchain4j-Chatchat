@@ -1,0 +1,95 @@
+{
+  "schemaVersion": "workspace-history.release.v1",
+  "releaseId": "workspace-history-performance-20261105-r1",
+  "branch": "feature/cline-context-performance-optimization",
+  "server": "192.168.195.221",
+  "deployedAt": "2026-11-05T18:58:00.079432+08:00",
+  "sourceCommit": "67975591bc0114c89db5975c88faccbca62b9733",
+  "verification": {
+    "status": "PASSED",
+    "sourceCommit": "67975591bc0114c89db5975c88faccbca62b9733",
+    "capturedAt": "2026-11-05T10:58:00.079432+00:00",
+    "apiSha256": "5793fd2c19c8576a16cfba7eef917ad4259dc1697e8ae58be33a5d2ec63527b3",
+    "workspaceHistory": [
+      {
+        "workspace": "zhice",
+        "expectedTotal": 781,
+        "apiTotal": 781,
+        "checkedItems": 781,
+        "legacyApiCheckedItems": 100,
+        "status": "PASSED"
+      },
+      {
+        "workspace": "data-exploration",
+        "expectedTotal": 8,
+        "apiTotal": 8,
+        "checkedItems": 8,
+        "legacyApiCheckedItems": 8,
+        "status": "PASSED"
+      },
+      {
+        "workspace": "data-science",
+        "expectedTotal": 84,
+        "apiTotal": 84,
+        "checkedItems": 84,
+        "legacyApiCheckedItems": 84,
+        "status": "PASSED"
+      }
+    ],
+    "missingHeaderDefaultsToZhice": true,
+    "workspaceOriginMigrationCompleted": true,
+    "conversationOriginCounts": "data-exploration|8\ndata-science|165\nzhice|139",
+    "conversationContentUnchanged": true,
+    "messageIndexCountUnchanged": true,
+    "workerHealthy": true,
+    "workerBuild": "67975591bc0114c89db5975c88faccbca62b9733",
+    "workerFilesVerified": 45,
+    "skillsFilesVerified": 49,
+    "unknownWorkspaceRejected": true,
+    "otherPrincipalRejected": true,
+    "sdkVerified": true,
+    "frontendEntrypointsVerified": 3,
+    "fullPerformanceAcceptance": "PENDING",
+    "originalFailedStockOperationReplayed": false,
+    "temporaryCredentialsRemoved": true,
+    "duplicateBuildJarsRemoved": true,
+    "releaseDirectory": "/opt/chatchat-releases/workspace-history-performance-20261105-r1",
+    "rollbackBackupDirectory": "/opt/chatchat-releases/workspace-history-performance-20261105-r1/backup"
+  },
+  "deployment": {
+    "status": "DEPLOYED",
+    "images": {
+      "runtime-os-app-stage-api-1": "runtime-os-api:workspace-history-performance-20261105-r1",
+      "runtime-os-app-stage-coding-agent-1": "runtime-os-coding-agent:workspace-history-performance-20261105-r1"
+    },
+    "backup": "/opt/chatchat-releases/workspace-history-performance-20261105-r1/backup",
+    "retired": {
+      "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-studio-1793876145",
+      "runtime-os-app-stage-coding-agent-1": "runtime-os-app-stage-coding-agent-1-before-studio-1793876145",
+      "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-studio-1793876145"
+    },
+    "unrelatedContainersUnchanged": true,
+    "conversationContentUnchanged": true,
+    "messageIndexCountUnchanged": true,
+    "catalogReadiness": {
+      "status": "API_MCP_CATALOG_READY",
+      "registryState": "HEALTHY",
+      "registeredToolCount": 39,
+      "requiredTools": [
+        "enterprise_metadata_search",
+        "sql_schema_context_query"
+      ],
+      "capturedAt": "2026-11-05T10:56:33.283400+00:00"
+    }
+  },
+  "tests": {
+    "localNodePassed": 210,
+    "linuxWorkerPassed": 210,
+    "workspaceHistoryJavaPassed": 62,
+    "frontendProjectTestExecutionsPassed": 770,
+    "executionProgressIntegrityPassed": 10,
+    "frontendProductionBuild": "PASSED",
+    "javaProductionPackage": "PASSED"
+  },
+  "performanceAcceptance": "PENDING_FULL_SEVEN_SCENARIO_PAIRED_EVALUATION"
+}

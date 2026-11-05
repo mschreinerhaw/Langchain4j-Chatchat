@@ -24,6 +24,38 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class CodingAnalysisServiceTest {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"verified","revoked","metrics"})
+    void finalReceiptCarriesOnlyLiveValidatedKnowledgeEvidenceAndRejectsRevocation(String mode) {
+        boolean revoked="revoked".equals(mode), metrics="metrics".equals(mode);
+        prepare(outcome(CodingTaskOutcome.Status.COMPLETED,CodingTaskOutcome.ValidationStatus.INCONCLUSIVE));
+        when(inputs.captureConfigured(any(),anyString(),anyList(),anyString(),anyString(),anyString(),anyLong(),anyLong(),any()))
+            .thenReturn(new CodingInputSnapshotService.Snapshot("runtime-evidence:input","c"+"a".repeat(63),"input.jsonl","a".repeat(64),1,30,"runtime-context:question"));
+        var service=service();var knowledge=mock(com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeService.class);
+        when(knowledge.allowedTools(anyString(),anyString(),eq("resource-agent"),eq(true))).thenReturn(List.of("news_search"));
+        service.setKnowledge(knowledge);
+        String reference="runtime-evidence:knowledge:"+"a".repeat(64);
+        var row=metrics?Map.<String,Object>of("value",42):Map.<String,Object>of("reportMarkdown","Source [document]("+reference+")",
+            "evidenceReferences",List.of("runtime-context:question",reference,"untrusted-declaration"));
+        when(collector.registeredResult(any(),anyString(),anyString())).thenReturn(new Dataset("runtime-evidence:result",Map.of(),List.of(row)));
+        when(knowledge.citations(any(),any())).thenReturn(metrics?List.of():List.of(Map.of("evidence_id",reference,"title","Document")));
+        if(revoked)doThrow(new SecurityException("Source authorization revoked")).when(knowledge).validateReport(any(),any());
+        var original=context("tenant");var attrs=new LinkedHashMap<>(original.runtimeAttributes());
+        attrs.put("contextOnlyAnswer",true);attrs.put("knowledgeAgentId","resource-agent");attrs.put("resourceExplorationApproved",true);
+        attrs.put("resourceExplorationConfigured",true);attrs.put("taskType","DATA_ANALYSIS");
+        var context=new AnalysisCoverageCoordinator.Request(original.model(),original.query(),null,attrs,original.metadata(),()->false,()->{},original.isolationScope(),null);
+        var request=new LinkedHashMap<>(request());request.remove("datasetReference");request.put("datasetReferences",List.of("runtime-context:question"));
+        request.put("reviewResult",true);
+        var sources=new LinkedHashMap<>(Map.of("runtime-context:question",new Dataset("runtime-context:question",Map.of(),List.of(Map.of("text","Objective")))));
+        if(revoked)assertThatThrownBy(()->service.execute(context,request,sources)).isInstanceOf(SecurityException.class).hasMessageContaining("revoked");
+        else {
+            var receipt=service.execute(context,request,sources);
+            assertThat((List<?>)receipt.get("authorizedDatasetReferences")).isEqualTo(List.of("runtime-context:question"));
+            assertThat((List<?>)receipt.get("authorizedEvidenceReferences")).isEqualTo(metrics?List.of("runtime-context:question"):List.of("runtime-context:question",reference));
+            if(metrics)verify(knowledge,never()).validateReport(any(),any());
+            else verify(knowledge).validateReport(any(),eq(row));
+        }
+    }
     @Test void resourceAnalysisWithoutAuthorizedSourcesCannotFallBackToPythonOrInventedMeasurements() {
         prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
         when(inputs.captureConfigured(any(),anyString(),anyList(),anyString(),anyString(),anyString(),anyLong(),anyLong(),any()))

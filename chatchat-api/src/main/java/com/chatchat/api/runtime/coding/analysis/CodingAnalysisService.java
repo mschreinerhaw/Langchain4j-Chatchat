@@ -604,10 +604,14 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             receipt.put("limitations",outcome.limitations());
             if(outcome.status()==CodingTaskOutcome.Status.COMPLETED && outcome.validationStatus()!=CodingTaskOutcome.ValidationStatus.FAILED) {
                 var result=collector.registeredResult(scope,taskId,outcome.resultDatasetRef());
+                List<Map<String,Object>> verifiedKnowledgeCitations = List.of();
                 if(com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeService.enabled(accepted)) {
                     if(knowledge==null)throw new SecurityException("Knowledge validation unavailable");
                     var rows=result.handle().readPage(0,2).rows();
-                    receipt.put("knowledgeCitations",knowledge.citations(accepted,rows.get(0).get("evidenceReferences") instanceof List<?> cited?cited:List.of()));
+                    if (rows.get(0).containsKey("reportMarkdown") && rows.get(0).containsKey("evidenceReferences"))
+                        knowledge.validateReport(accepted,rows.get(0));
+                    verifiedKnowledgeCitations=knowledge.citations(accepted,rows.get(0).get("evidenceReferences") instanceof List<?> cited?cited:List.of());
+                    receipt.put("knowledgeCitations",verifiedKnowledgeCitations);
                 }
                 // Business correctness is agent-owned, never an OS model veto.
                 var refs=java.util.stream.Stream.of(outcome.inputSnapshotRef(),outcome.codeArtifactRef(),outcome.executionReceiptRef(),
@@ -630,6 +634,13 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                     .filter(reference -> reference != null && !reference.equals(source.reference()))
                     .forEach(authorizedReferences::add);
                 receipt.put("authorizedDatasetReferences", List.copyOf(authorizedReferences));
+                var authorizedEvidenceReferences = new LinkedHashSet<>(authorizedReferences);
+                for (var citation : verifiedKnowledgeCitations) {
+                    if (!(citation.get("evidence_id") instanceof String reference) || reference.isBlank())
+                        throw new SecurityException("Verified knowledge citation identity is missing");
+                    authorizedEvidenceReferences.add(reference);
+                }
+                receipt.put("authorizedEvidenceReferences", List.copyOf(authorizedEvidenceReferences));
                 receipt.put("supplementalDataSnapshotCount", supplementalSnapshots.size());
                 recordRejectionBudget(scope, taskId, false);
             }

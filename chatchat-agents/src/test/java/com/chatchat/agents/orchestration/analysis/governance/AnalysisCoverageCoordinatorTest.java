@@ -24,6 +24,58 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AnalysisCoverageCoordinatorTest {
+    @Test
+    @org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable(named="CODING_REPORT_CITATION_REPLAY",matches=".+")
+    void publishesTheUnmodifiedArchivedReportWithItsLiveVerifiedCitationReceipt() throws Exception {
+        var json=new com.fasterxml.jackson.databind.ObjectMapper();
+        var fixture=json.readTree(java.nio.file.Path.of(System.getenv("CODING_REPORT_CITATION_REPLAY")).toFile());
+        var row=json.convertValue(fixture.path("reportRow"),new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){});
+        var datasetReferences=json.convertValue(fixture.path("authorizedDatasetReferences"),new com.fasterxml.jackson.core.type.TypeReference<List<String>>(){});
+        var verified=json.convertValue(fixture.path("verifiedKnowledgeReferences"),new com.fasterxml.jackson.core.type.TypeReference<List<String>>(){});
+        var authorized=new java.util.ArrayList<>(datasetReferences);authorized.addAll(verified);
+        var evidence=mock(AnalysisEvidenceCoordinator.class);
+        when(evidence.project(any(),any())).thenReturn(new AnalysisEvidenceCoordinator.Projection(datasetReferences.stream()
+            .map(ref->new AnalysisEvidenceCoordinator.Dataset(ref,Map.of(),List.of(Map.<String,Object>of("value",1)))).toList(),List.of()));
+        var coding=mock(AnalysisCodingPort.class);
+        when(coding.executePrimaryAnalysis(any(),any(),any())).thenAnswer(call->{
+            Map<String,AnalysisEvidenceCoordinator.Dataset> sources=call.getArgument(1);
+            sources.put("result",new AnalysisEvidenceCoordinator.Dataset("result",Map.of(),List.of(row)));
+            return Map.of("resultAvailable",true,"datasetReference","result","authorizedDatasetReferences",datasetReferences,
+                "authorizedEvidenceReferences",authorized);
+        });
+        var coordinator=coordinator(evidence);coordinator.setCodingPort(coding);
+        var base=request(new LinkedHashMap<>());
+        coordinator.analyze(new AnalysisCoverageCoordinator.Request(null,"Analyze",base.result(),Map.of("taskType","DATA_ANALYSIS"),
+            base.metadata(),base.cancellationCheck(),base.cancellationGuard(),base.isolationScope(),base.summaryProtocol()));
+        assertThat(base.metadata()).containsEntry("modelNativeReportDraft",row.get("reportMarkdown").toString().trim())
+            .containsEntry("codingOwnedReportEvidenceReferences",row.get("evidenceReferences"));
+    }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"verified","unknown","empty-authority"})
+    void acceptsOnlyReferencesInTheRuntimeVerifiedEvidenceReceipt(String mode) {
+        var evidence=mock(AnalysisEvidenceCoordinator.class);
+        when(evidence.project(any(),any())).thenReturn(new AnalysisEvidenceCoordinator.Projection(List.of(
+            new AnalysisEvidenceCoordinator.Dataset("source",Map.of(),List.of(Map.of("value",1)))),List.of()));
+        String document="runtime-evidence:knowledge:"+"a".repeat(64);
+        var coding=mock(AnalysisCodingPort.class);
+        when(coding.executePrimaryAnalysis(any(),any(),any())).thenAnswer(call->{
+            Map<String,AnalysisEvidenceCoordinator.Dataset> sources=call.getArgument(1);
+            var cited="unknown".equals(mode)?List.of("source",document,"unverified"):List.of("source",document);
+            sources.put("result",new AnalysisEvidenceCoordinator.Dataset("result",Map.of(),List.of(Map.of(
+                "reportMarkdown","# Report\nSupported by the dataset and scoped document.","evidenceReferences",cited,"limitations",List.of()))));
+            return Map.of("resultAvailable",true,"datasetReference","result","authorizedDatasetReferences",List.of("source"),
+                "authorizedEvidenceReferences","empty-authority".equals(mode)?List.of():List.of("source",document));
+        });
+        var coordinator=coordinator(evidence);coordinator.setCodingPort(coding);
+        var base=request(new LinkedHashMap<>());
+        var request=new AnalysisCoverageCoordinator.Request(null,"Analyze",base.result(),Map.of("taskType","DATA_ANALYSIS"),
+            base.metadata(),base.cancellationCheck(),base.cancellationGuard(),base.isolationScope(),base.summaryProtocol());
+        if("verified".equals(mode)) {
+            coordinator.analyze(request);
+            assertThat(base.metadata()).containsEntry("codingOwnedReportEvidenceReferences",List.of("source",document));
+        } else assertThatThrownBy(()->coordinator.analyze(request)).isInstanceOf(SecurityException.class)
+            .hasMessageContaining("outside its authorized immutable inputs");
+    }
     @Test void deliversDistinctDuplicateReferencesToCodingWithoutOverwritingEitherSource() {
         var evidence=mock(AnalysisEvidenceCoordinator.class);
         when(evidence.project(any(),any())).thenReturn(new AnalysisEvidenceCoordinator.Projection(List.of(

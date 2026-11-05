@@ -300,8 +300,11 @@ public final class AnalysisCoverageCoordinator {
         if (report.isBlank()) throw new IllegalStateException("Primary Coding report is empty");
         List<String> cited = stringList(row.get("evidenceReferences"));
         List<String> limitations = stringList(row.get("limitations"));
-        Set<String> authorized = new LinkedHashSet<>(stringList(receipt.get("authorizedDatasetReferences")));
-        if (authorized.isEmpty()) authorized.addAll(datasets.stream().map(AnalysisEvidenceCoordinator.Dataset::reference).toList());
+        boolean evidenceAuthorizationDeclared = receipt.containsKey("authorizedEvidenceReferences");
+        Set<String> authorized = new LinkedHashSet<>(stringList(receipt.get(evidenceAuthorizationDeclared
+            ? "authorizedEvidenceReferences" : "authorizedDatasetReferences")));
+        if (!evidenceAuthorizationDeclared && authorized.isEmpty())
+            authorized.addAll(datasets.stream().map(AnalysisEvidenceCoordinator.Dataset::reference).toList());
         if (cited.isEmpty() || !authorized.containsAll(cited))
             throw new SecurityException("Primary Coding report cites data outside its authorized immutable inputs");
         var reportDataset = com.chatchat.agents.orchestration.analysis.report.ReturnedReportDataset.capture(

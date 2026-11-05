@@ -123,11 +123,11 @@ export function httpGateway(callbackUrl, secret, binding, { timeoutMs = 90000 } 
     const processingStarted=performance.now();
     const data = await answer.json().catch(() => {
       if (action === 'model') throw Object.assign(new Error('Runtime model callback returned invalid JSON'),
-        { errorCategory: 'CALLBACK_RESPONSE_INVALID' });
+        { errorCategory: 'CALLBACK_RESPONSE_INVALID',callbackTiming:answer.callbackTiming });
       return {};
     });
     if (!answer.ok) throw Object.assign(new Error(data.message ?? `Runtime callback rejected ${action}: ${answer.status}`),
-      { errorCategory: 'CALLBACK_HTTP_REJECTED' });
+      { errorCategory: 'CALLBACK_HTTP_REJECTED',callbackTiming:answer.callbackTiming });
     if (action === 'model' && answer.callbackTiming) data.callbackTiming = {...answer.callbackTiming,
       callbackResponseProcessingMs:Math.round(performance.now()-processingStarted)};
     return data;

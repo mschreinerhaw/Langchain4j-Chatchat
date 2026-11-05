@@ -1,0 +1,74 @@
+{
+  "capturedAt": "2026-11-05T20:31:34.582Z",
+  "registry": "https://registry.npmjs.org",
+  "packages": [
+    {
+      "package": "@cline/agents",
+      "installedVersion": "0.0.93",
+      "latestStable": "0.2.0",
+      "latestPublishedAt": "2026-10-26T03:35:00.229Z",
+      "tarball": "https://registry.npmjs.org/@cline/agents/-/agents-0.2.0.tgz",
+      "integrity": "sha512-rEOMepQI+9mNtd97CexpIvLzeaUNSTwbcgOjCHHUoPM/rZve/uxKsu98wzzSqfl3NoV6BcF1FJe9srT5VH7u9w==",
+      "downloadIntegrityVerified": true,
+      "installedTypesSha256": "e4f966bc9111deaa1429b070d6b76289b36d6cd487bb8fc467c007868943e128",
+      "latestTypesSha256": "e4f966bc9111deaa1429b070d6b76289b36d6cd487bb8fc467c007868943e128"
+    },
+    {
+      "package": "@cline/core",
+      "installedVersion": "0.0.93",
+      "latestStable": "0.2.0",
+      "latestPublishedAt": "2026-10-26T03:42:45.110Z",
+      "tarball": "https://registry.npmjs.org/@cline/core/-/core-0.2.0.tgz",
+      "integrity": "sha512-0TmQT9Tof/NtcPQloS2Xt0G0Z6tUHCIRr1wEgLEWt7yMidQ+DYeocEGqMSwE1L7p9oaDKEP5hMwt/pRVWBboYw==",
+      "downloadIntegrityVerified": true,
+      "installedTypesSha256": "290acb08eb5f165586794173d57b8b95a2a88927cfc3da777b9aecb7bd0948af",
+      "latestTypesSha256": "f124c25fcf92cceac66c4d3c393e48ea41736dfc204869a91e645e41f8256ba9"
+    },
+    {
+      "package": "@cline/sdk",
+      "installedVersion": "0.0.93",
+      "latestStable": "0.2.0",
+      "latestPublishedAt": "2026-10-26T03:34:32.456Z",
+      "tarball": "https://registry.npmjs.org/@cline/sdk/-/sdk-0.2.0.tgz",
+      "integrity": "sha512-QQkX72+O5kppf9iPjG2in/ErGDT5nE/yC6IhKlY2SEY9UMOon65F6poAeQJj9CRxjvCfttkeqEiX47J+l83sag==",
+      "downloadIntegrityVerified": true,
+      "installedTypesSha256": "a00a96b8ca4c31e5530ffc5889d90e0eedfa1988465dd6665977cf9323b0abe3",
+      "latestTypesSha256": "a00a96b8ca4c31e5530ffc5889d90e0eedfa1988465dd6665977cf9323b0abe3"
+    }
+  ],
+  "publicApis": [
+    {
+      "name": "loadAgentPluginPackages",
+      "installedRuntimeExport": "function",
+      "latestStableDeclared": true
+    },
+    {
+      "name": "createSkillsConfigDefinition",
+      "installedRuntimeExport": "function",
+      "latestStableDeclared": true
+    },
+    {
+      "name": "createUserInstructionConfigService",
+      "installedRuntimeExport": "function",
+      "latestStableDeclared": true
+    },
+    {
+      "name": "createDefaultTools",
+      "installedRuntimeExport": "function",
+      "latestStableDeclared": true
+    },
+    {
+      "name": "createDefaultExecutors",
+      "installedRuntimeExport": "function",
+      "latestStableDeclared": true
+    },
+    {
+      "name": "ClineCore",
+      "installedRuntimeExport": "function",
+      "latestStableDeclared": true
+    }
+  ],
+  "latestStableEvidence": "PUBLISHED_TARBALL_INTEGRITY_AND_PUBLIC_TYPES_NOT_RUNTIME_UPGRADE",
+  "chosenVersion": "0.0.93",
+  "reason": "The installed version provides the tested native discovery, instruction service, Skills executor and tool construction APIs; no ClineCore migration or SDK upgrade required."
+}

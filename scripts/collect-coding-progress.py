@@ -52,7 +52,7 @@ def main():
     root = args.root
     monitor = json.loads(Path('/opt/runtime-os-docker-stage/coding-monitor/data/observations.json').read_text())
     rows = []
-    for variant in ['baseline', 'candidate', 'final', 'verified', 'recovery']:
+    for variant in ['baseline', 'candidate', 'final', 'verified', 'recovery', 'native']:
         directory = root / variant
         if not directory.exists():
             continue
@@ -126,7 +126,8 @@ def main():
                 pythonStopUnconfirmed=sum(o.get('kind') == 'CODE' and not o.get('stopProofRef')
                     for o in task.get('operations', {}).values()),
                 pythonDiagnostics=[e.get('diagnosticCode') for e in events if e['type'] == 'TOOL_FINISHED' and e.get('tool') == 'python_execute'],
-                skillReads=sum(e['type'] == 'TOOL_TIMING' and e.get('tool') == 'skill_read' for e in events),
+                skillReads=sum(e['type'] == 'TOOL_TIMING' and e.get('tool') in ['skill_read', 'skills', 'read_files'] for e in events),
+                nativeDiscoveryEvents=sum(e['type'] == 'SKILLS_DISCOVERED' and e.get('nativeSkills') is True for e in events),
                 discoveryCalls=sum(e['type'] == 'TOOL_TIMING' and e.get('tool') == 'tool_describe' for e in events),
                 modelErrors=[{'type': e['type'], 'diagnosticCode': e.get('diagnosticCode'), 'errorCategory': e.get('errorCategory')}
                     for e in events if e['type'] in ['MODEL_FAILED', 'MODEL_RESPONSE_REJECTED']],

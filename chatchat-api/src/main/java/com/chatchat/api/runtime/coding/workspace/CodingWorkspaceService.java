@@ -197,7 +197,7 @@ public final class CodingWorkspaceService {
         if(CodingProtocol.deferredTools(contract))expectedTools.add(CodingProtocol.TOOL_DESCRIBE);
         // Older immutable workspace tasks predate read-only Skill discovery.
         // Their original grants remain sufficient for history and recovery.
-        expectedTools.remove("skill_read");actualTools.remove("skill_read");
+        expectedTools.removeAll(Set.of("skill_read","skills","read_files"));actualTools.removeAll(Set.of("skill_read","skills","read_files"));
         if(!supports(contract) || !expectedTools.equals(actualTools)
                 || !contract.authorization().allowedDataRefs().isEmpty()
                 || !contract.authorization().allowedSideEffects().equals(List.of(CodingTaskContract.SideEffect.WORKSPACE_WRITE))

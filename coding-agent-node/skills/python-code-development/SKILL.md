@@ -1,7 +1,8 @@
 ---
 name: python-code-development
 description: Design, implement, debug and refactor maintainable Python programs, reusable analysis components and tests with typed interfaces, validation, logging and reliable file handling.
-version: 1.0.0
+metadata:
+  version: 1.0.0
 ---
 
 # Python code development in Runtime OS

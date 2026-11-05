@@ -29,22 +29,19 @@ public final class CodingSkillReader {
      * disclosing their bodies to Cline or changing the dynamic artifact source. */
     public void freezeCatalog(CodingTaskContract contract, CodingJournal.Lease lease) {
         if (!CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion())
-                || !contract.authorization().allowedTools().contains("skill_read")) return;
+                || !(contract.authorization().allowedTools().contains("skills") || contract.authorization().allowedTools().contains("skill_read"))) return;
         if (contract.runtimeContext().get("skills") instanceof Map<?,?> catalog
                 && catalog.get("skills") instanceof List<?> cards)
             for (Object item : cards) if (item instanceof Map<?,?> card && card.get("id") instanceof String id) {
-                // Mirror the image's reserved-name rule. A rejected collision must
-                // not load an unused package or block the image default at admission.
-                if (com.chatchat.chat.skills.runtime.BuiltinCodingSkills.catalog().stream().anyMatch(builtin ->
-                        id.equalsIgnoreCase(String.valueOf(builtin.get("id")))
-                        || Objects.toString(card.get("name"),"").trim().equalsIgnoreCase(String.valueOf(builtin.get("name"))))) continue;
+                // Native SDK plugin namespaces keep image and Agent package names
+                // separate. Freeze every authorized identity, not a Java name selection.
                 String key="skill-snapshot:"+ModelProtocolJson.sha256Hex(id);
                 if (tasks.privateState(contract.scope(),contract.taskId(),key)==null) read(contract,lease,id,"");
             }
     }
     public Map<String,Object> read(CodingTaskContract contract, CodingJournal.Lease lease, String id, String path) {
         if (!CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion())
-                || !contract.authorization().allowedTools().contains("skill_read")) throw denied();
+                || !(contract.authorization().allowedTools().contains("skills") || contract.authorization().allowedTools().contains("skill_read"))) throw denied();
         Object raw=contract.runtimeContext().get("skills");
         if (!(raw instanceof Map<?,?> catalog) || !(catalog.get("skills") instanceof List<?> cards)) throw denied();
         var matches=cards.stream().filter(Map.class::isInstance).map(Map.class::cast)

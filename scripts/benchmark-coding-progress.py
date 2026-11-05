@@ -25,7 +25,8 @@ def main():
     parser.add_argument('command', choices=['prepare', 'run'])
     parser.add_argument('--root', required=True, type=Path)
     parser.add_argument('--auth', required=True, type=Path)
-    parser.add_argument('--variant', choices=['baseline', 'candidate', 'final', 'verified', 'recovery'])
+    parser.add_argument('--variant', choices=['baseline', 'candidate', 'final', 'verified', 'recovery', 'native'])
+    parser.add_argument('--visual', action='store_true', help='Include two autonomous visual-report tasks without changing the five paired cases')
     parser.add_argument('--model', default='qwen3.8-flash')
     parser.add_argument('--repeats', type=int, default=2)
     args = parser.parse_args()
@@ -98,6 +99,8 @@ def main():
         'complex': (['complex.csv'], '执行 Python 计算 region 每周 amount 总和、两地区每周占比及每周数量加权单位值（sum(amount)/sum(quantity)），验证分组与全表总和一致，说明日期覆盖及周边界。'),
         'repair': ([], '先以 project:{reuse:true} 原样执行，获取真实 SyntaxError；在同一任务做最小补丁，保留原计算，返回演示数值6，并满足 Runtime 报告输出合同。'),
     }
+    if args.visual:
+        cases['visual'] = (['complex.csv'], '分析两地区每周 amount、占比与数量加权单位值；核对总额，生成静态趋势图和地区比较图，并交付含数据表、图形与边界说明的图文报告。自主选择适用方法。')
 
     def run_case(item):
         case, repeat = item
@@ -113,7 +116,8 @@ def main():
         request_id = 'progress-' + args.variant + '-' + key + '-' + uuid.uuid4().hex[:10]
         body = {'requestId': request_id, 'modelName': args.model,
             'instruction': '这是合成输入的执行基准，无业务数据。仅使用本次授权文件，不联网、不安装依赖。金额为演示单位。'
-                + question + '无需额外图表；保留精确证据引用和真实执行回执，不把数据样例当作全体。',
+                + question + ('需要实际图形；' if case == 'visual' else '无需额外图表；')
+                + '保留精确证据引用和真实执行回执，不把数据样例当作全体。',
             'fileIds': [fixtures[n]['id'] for n in names], 'contextIds': []}
         request_file.write_text(json.dumps(body, ensure_ascii=False))
         started = time.monotonic()

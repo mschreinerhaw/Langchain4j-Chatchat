@@ -1,5 +1,8 @@
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, mkdirSync } from 'node:fs';
+import { copyFileSync, mkdirSync, rmSync } from 'node:fs';
+// Retired custom loaders must not survive an incremental TypeScript build.
+for (const name of ['skills', 'skill-disclosure']) for (const extension of ['js', 'd.ts'])
+  rmSync(`dist/${name}.${extension}`, { force: true });
 for (const project of ['tsconfig.json', 'tsconfig.web.json'])
   execFileSync(process.execPath, ['node_modules/typescript/bin/tsc', '-p', project], { stdio: 'inherit' });
 mkdirSync('dist/public', { recursive: true });

@@ -77,9 +77,9 @@ for (const skillStatus of ['APPLIED', 'DELIVERED']) test(`SDK receives ${skillSt
     assert.match(request.systemPrompt, /Do not select or invoke business MCP templates/);
     assert.doesNotMatch(request.systemPrompt, /analysis agent owns analytical goals, methods/);
     assert.match(JSON.stringify(request.messages), /selected-by-java/);
-    assert.match(JSON.stringify(request.messages), /authorized-skill/);
+    assert.doesNotMatch(JSON.stringify(request.messages), /authorized-skill/);
     assert.doesNotMatch(JSON.stringify(request.messages), /Original authorized methodology/);
-    assert.match(request.systemPrompt, /Use skill_read/);
+    assert.doesNotMatch(request.systemPrompt, /skill_read/);
     if (++turn === 1) {
       yield { type: 'tool-call-delta', toolCallId: 'generate-1', toolName: 'python_execute', input: { fileName: 'main.py', source } };
       yield { type: 'finish', reason: 'tool-calls' };

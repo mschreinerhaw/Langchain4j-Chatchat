@@ -1,7 +1,8 @@
 ---
 name: runtime-report-delivery
 description: Deliver autonomous evidence-based text and visual reports through Runtime OS; synthesize relevant sources rather than dumping retrieved records, preserve uncertainty, use actual Python chart artifacts and the existing report contract.
-version: 1.0.0
+metadata:
+  version: 1.0.0
 ---
 
 Choose analysis methods, depth, report structure and charts from the user's actual objective and available evidence. This skill describes delivery and source discipline, never a fixed analysis sequence or new authorization.

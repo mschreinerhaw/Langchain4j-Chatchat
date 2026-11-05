@@ -31,7 +31,7 @@ class CodingSkillReaderTest {
         when(contract.taskId()).thenReturn("task");
         when(contract.scope()).thenReturn(new KernelDataScope("tenant","owner",null,null,"run",null,Map.of()));
         when(contract.authorization()).thenReturn(authority);
-        when(authority.allowedTools()).thenReturn(List.of("skill_read"));
+        when(authority.allowedTools()).thenReturn(List.of("skills","read_files"));
         when(contract.runtimeContext()).thenReturn(Map.of("skills",Map.of("skills",List.of(Map.of(
             "id","method","version","v1","agentId","agent")))));
         when(scopes.resolve(anyString(),anyString(),anyString(),anyList(),anyList())).thenReturn(
@@ -89,11 +89,12 @@ class CodingSkillReaderTest {
         when(contract.runtimeContext()).thenReturn(Map.of("skills",Map.of("skills",List.of(Map.of("id","method","version","v2","agentId","agent")))));
         assertThat(reader.read(contract,lease,"method","")).containsEntry("instructions","UPDATED_METHOD").containsEntry("version","v2");
     }
-    @Test void aDynamicCollisionCannotLoadContentOrBlockTheImageDefault() {
+    @Test void aDynamicDisplayNameStillFreezesItsAuthorizedIdentityForNativeNamespacing() {
         when(contract.runtimeContext()).thenReturn(Map.of("skills",Map.of("skills",List.of(Map.of(
-            "id","method","version","v999","name","Python-Data-Analysis","agentId","agent")))));
+            "id","method","version","v1","name","python-data-analysis","agentId","agent")))));
         reader.freezeCatalog(contract,lease);
-        verifyNoInteractions(resolver,scopes,tasks);
+        assertThat(reader.read(contract,lease,"method","")).containsEntry("instructions","ORIGINAL_METHOD");
+        verify(resolver,atLeastOnce()).resolve(any());
     }
     @Test void resourceIsLoadedOnlyOnDemandAndHashVerified() throws Exception {
         byte[] bytes="REFERENCE_CONTENT".getBytes(java.nio.charset.StandardCharsets.UTF_8);

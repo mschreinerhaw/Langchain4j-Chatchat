@@ -1,6 +1,6 @@
 import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
-import { taskSkills } from './skills.js';
+import { taskSkillPackages } from './skill-distribution.js';
 import { mkdir, writeFile, rename } from 'node:fs/promises';
 import { join } from 'node:path';
 import { arch, cpus, hostname, loadavg, platform } from 'node:os';
@@ -22,7 +22,7 @@ const EVENT_KEYS = ['stage', 'status', 'operationId', 'proposedOperationId', 'mo
   'contextSizeBefore', 'contextSizeAfter', 'callbackConnectMs', 'callbackHeadersMs', 'callbackBodyMs', 'callbackHttpDurationMs', 'queueTimeScope', 'providerTimingAvailability',
   'constructionDurationMs', 'restoreDurationMs', 'preparationDurationMs', 'finishReason', 'providerFinishReason', 'purpose', 'progressFeedback', 'skillId', 'skillPath',
   'skillVersion','skillContentHash','skillSourceBytes','skillContentBytes','skillEstimatedTokens','duplicateRead','contentReused','skillReference','skillContextRatio',
-  'callbackRequestWriteMs','callbackResponseProcessingMs','runtimeAdmissionMs'];
+  'callbackRequestWriteMs','callbackResponseProcessingMs','runtimeAdmissionMs','nativeSkills','discovery','loader','nativeSkillCount'];
 const PROGRESS_NUMBERS = ['modelCall', 'callsSinceProgress', 'newToolResults', 'newEvidenceReads', 'skillReads', 'discoveryCalls',
   'repeatedFailures', 'proposals', 'acceptedProposals', 'rejectedProposals', 'pythonDispatched', 'pythonExecutions',
   'modelResponseErrors', 'knownInputTokens', 'knownOutputTokens', 'firstProposalMs', 'firstValidCodeMs', 'firstPythonMs',
@@ -141,8 +141,9 @@ export class MonitorStore {
       contract.scope.tenantId, contract.scope.userId, contract.scope.runId, contract.taskId, fencingToken,
     ])).digest('hex');
     const now = new Date().toISOString();
-    const skills = contract.authorization?.allowedTools?.includes('skill_read')
-      ? taskSkills(contract.runtimeContext).catalog : contract.runtimeContext?.skills;
+    const skills = contract.authorization?.allowedTools?.includes('skills')
+      ? { status: 'AVAILABLE', skills: taskSkillPackages(contract.runtimeContext).map((p: { card: Contract }) => p.card) }
+      : contract.runtimeContext?.skills;
     const model = contract.runtimeContext?.model;
     const configuredModel: TaskDetail['configuredModel'] = {};
     for (const key of ['selectedModel', 'providerModel', 'protocol'] as const)

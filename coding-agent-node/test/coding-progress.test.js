@@ -30,7 +30,7 @@ test('checkpoint carries stalls and reconciles unknown admitted calls without in
 
 test('bounded checkpoint preserves exact observation identities and ignores invalid or legacy metadata', () => {
   const tracker = createCodingProgress();
-  const call = { toolName: 'skill_read', input: { skillId: 's' } };
+  const call = { toolName: 'skills', input: { skillId: 's' } };
   tracker.tool(call, { isError: true, output: { error: 'failure' } });
   tracker.observe({ type: 'SKILLS_LOADED', skillId: 's', skillVersion: '1', skillPath: 'SKILL.md', skillContentHash: 'h', skillSourceBytes: 5, skillContentBytes: 5 });
   const resumed = createCodingProgress({ checkpoint: tracker.checkpoint(), modelOrdinal: 0 });
@@ -106,7 +106,7 @@ test('thresholds are configurable and disabled feedback preserves observations',
   for (let n = 1; n < 40; n++) assert.equal(tracker.model(n).feedback, '');
   tracker.usage({ inputTokens: 10, outputTokens: 2 }); tracker.usage({});
   assert.equal(tracker.snapshot().knownInputTokens, 10);
-  tracker.tool({ toolName: 'skill_read', input: { skillId: 'one' } }, { output: 'method' });
+  tracker.tool({ toolName: 'skills', input: { skillId: 'one' } }, { output: 'method' });
   tracker.tool({ toolName: 'tool_describe', input: { names: ['one'] } }, { output: { loaded: ['one'] } });
   assert.equal(tracker.snapshot().skillReads, 1); assert.equal(tracker.snapshot().discoveryCalls, 1);
 });
@@ -123,10 +123,10 @@ test('restored code does not trigger a false initial-code prompt; stalls request
 });
 
 test('eager disclosure cannot introduce unauthorized tools and survives catalog restore', () => {
-  const tools = [{ name: 'python_execute', inputSchema: { type: 'object' } }, { name: 'skill_read' }];
+  const tools = [{ name: 'python_execute', inputSchema: { type: 'object' } }, { name: 'skills' }];
   const catalog = createToolCatalog(tools, undefined, ['python_execute', 'shell']);
   assert.deepEqual(catalog.expose(tools).map(t => t.name), ['python_execute']);
-  assert.equal(catalog.has('shell'), false); assert.equal(catalog.has('skill_read'), false);
+  assert.equal(catalog.has('shell'), false); assert.equal(catalog.has('skills'), false);
   assert.equal(createToolCatalog(tools, catalog.snapshot()).has('python_execute'), true);
   assert.equal(createToolCatalog([], catalog.snapshot(), ['python_execute']).has('python_execute'), false);
 });
@@ -141,14 +141,14 @@ test('real SDK restore receives the existing advisory after an unknown model att
   let checkpoint, calls = 0;
   const admitted = [], settled = [];
   const contract = { ...task, metadataRefs: [], authorization: { ...task.authorization,
-    allowedTools: ['skill_read'], allowedSideEffects: [] } };
+    allowedTools: ['skills','read_files'], allowedSideEffects: [] } };
   const gateway = { reserveModel(_task, value) { admitted.push(value.operationId); },
     settleModel(_task, value) { settled.push(value.operationId); }, finish() {}, executePython() { throw Error('unauthorized'); },
     checkpoint(_task, value) { checkpoint = structuredClone(value); } };
   const first = createCodingRun(contract, gateway, { nativeSdk: true, progressPreparationCalls: 0, progressStalledCalls: 2,
     model: { async *stream() {
       if (++calls === 1) {
-        yield { type: 'tool-call-delta', toolName: 'skill_read', toolCallId: 'method', input: { skillId: 'builtin:python-data-analysis' } };
+        yield { type: 'tool-call-delta', toolName: 'skills', toolCallId: 'method', input: { skill: 'runtime-image:python-data-analysis' } };
         yield { type: 'finish', reason: 'tool-calls' };
       } else throw Object.assign(Error('unknown transport outcome'), { errorCategory: 'CALLBACK_HTTP_REJECTED' });
     } } });
@@ -161,7 +161,7 @@ test('real SDK restore receives the existing advisory after an unknown model att
       calls++;
       assert.match(request.systemPrompt, /Coding progress check/);
       assert.match(request.systemPrompt, /NO_NEW_TOOL_RESULT/);
-      assert.ok(request.messages.some(m => m.content?.some(p => p.type === 'tool-result' && p.toolName === 'skill_read')));
+      assert.ok(request.messages.some(m => m.content?.some(p => p.type === 'tool-result' && p.toolName === 'skills')));
       yield { type: 'text-delta', text: 'Method is sufficient.' }; yield { type: 'finish', reason: 'stop' };
     } } });
   assert.equal((await second.run()).status, 'completed');
@@ -200,14 +200,14 @@ test('real SDK can submit initial code without schema discovery, Skill reads or 
 
 test('same SDK session receives advisory and continues legitimate exploration beyond threshold', async () => {
   let calls = 0;
-  const noPython = { ...task, authorization: { ...task.authorization, allowedTools: ['skill_read'], allowedSideEffects: [] }, metadataRefs: [] };
+  const noPython = { ...task, authorization: { ...task.authorization, allowedTools: ['skills','read_files'], allowedSideEffects: [] }, metadataRefs: [] };
   const run = createCodingRun(noPython, { reserveModel() {}, settleModel() {}, finish() {}, executePython() {} },
     { nativeSdk: true, progressPreparationCalls: 2, progressStalledCalls: 2, model: { async *stream(request) {
       calls++;
       if (calls === 2) assert.doesNotMatch(request.systemPrompt, /Coding progress check/);
       if (calls === 3 || calls === 4) assert.match(request.systemPrompt, /Coding progress check/);
       if (calls < 4) {
-        yield { type: 'tool-call-delta', toolName: 'skill_read', toolCallId: 'skill-' + calls, input: { skillId: 'builtin:python-data-analysis' } };
+        yield { type: 'tool-call-delta', toolName: 'skills', toolCallId: 'skill-' + calls, input: { skill: 'runtime-image:python-data-analysis' } };
         yield { type: 'finish', reason: 'tool-calls' };
       } else { yield { type: 'text-delta', text: 'Explained' }; yield { type: 'finish', reason: 'stop' }; }
     } } });

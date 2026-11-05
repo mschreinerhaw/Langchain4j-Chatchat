@@ -314,7 +314,7 @@ public final class ClineRuntimeModelBridge {
             && com.chatchat.common.runtime.coding.CodingProtocol.TOOL_DESCRIBE.equals(name)) return name;
         Set<String> profile = CodingWorkspaceService.supports(contract)
             ? com.chatchat.api.datascience.sql.SqlWorkspaceMetadataTools.tools(com.chatchat.api.datascience.sql.SqlWorkspaceMetadataTools.enabled(contract)) : com.chatchat.common.runtime.coding.CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion())
-            ? ClineToolProfiles.ANALYSIS : Set.of("python_execute", "metadata_read", "artifact_read", "skill_read");
+            ? ClineToolProfiles.ANALYSIS : Set.of("python_execute", "metadata_read", "artifact_read", "skill_read", "skills", "read_files");
         if (!profile.contains(name)
                 || !contract.authorization().allowedTools().contains(name))
             throw new SecurityException("Model tool is outside the Runtime authorization");

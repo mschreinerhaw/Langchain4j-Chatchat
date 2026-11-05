@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "coding.completion.projection_provider.v1",
+  "scope": "REAL_PROVIDER_MICROBENCH_NOT_RUNTIME_TASK_SUCCESS",
+  "model": "qwen3.8-omni-flash",
+  "fixtureSha256": "f17c4d4d5f9a5e7188952c608a9ac0e6313b7a7275b58dff5bcc31835d6f6f99",
+  "productionModified": false,
+  "pythonExecuted": false,
+  "providerCredentialsExported": false,
+  "cases": [
+    {
+      "phase": "EXPLORATION",
+      "status": "PASSED",
+      "usage": {
+        "inputTokens": 14811,
+        "outputTokens": 659
+      },
+      "estimatedInputTokens": 29775,
+      "compactionCount": 1,
+      "contextSizeBefore": 232115,
+      "contextSizeAfter": 118462,
+      "compactionStrategy": "SDK_BASIC",
+      "compactionStateReused": false,
+      "durationMs": 17861,
+      "modelRequestAttempts": 1
+    },
+    {
+      "phase": "COMPLETION",
+      "status": "PASSED",
+      "usage": {
+        "inputTokens": 11184,
+        "outputTokens": 198
+      },
+      "estimatedInputTokens": 22387,
+      "compactionCount": 1,
+      "contextSizeBefore": 232115,
+      "contextSizeAfter": 88783,
+      "compactionStrategy": "SDK_BASIC",
+      "compactionStateReused": false,
+      "durationMs": 10261,
+      "modelRequestAttempts": 1
+    }
+  ],
+  "actualInputTokenReduction": 0.24488555803119305,
+  "fullTaskAcceptance": false,
+  "budgetPerCase": {
+    "maxModelCalls": 1,
+    "maxModelTokens": 65536,
+    "maxOutputTokens": 1024,
+    "maxMillis": 90000
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "coding.completion.production_release.v1",
+  "release": "coding-completion-budget-20261105-r3",
+  "sourceCommit": "74b121180dd4ada30e592ba9c3bcf4bfd5d1f1c1",
+  "environment": "192.168.195.221:18100",
+  "apiImage": "runtime-os-api:coding-completion-budget-20261105-r3",
+  "apiJarSha256": "fe7d0d967c3176bd1c7c9ed06ce071b372534e242e3a71f462a1d2e7b2dfdaae",
+  "workerImage": "runtime-os-coding-agent:completion-budget-20261105-r3",
+  "workerImageId": "sha256:5c4d9da57a6b9ffb93d191d12a92e16f4b298de117928e4926646388e3662bca",
+  "workerFilesVerified": 41,
+  "nodeVersion": "v24.21.0",
+  "sdkPackages": {
+    "@cline/sdk": "0.0.93",
+    "@cline/core": "0.0.93",
+    "@cline/agents": "0.0.93",
+    "@cline/llms": "0.0.93",
+    "@cline/shared": "0.0.93"
+  },
+  "checks": {
+    "linuxNodeTestsPassed": 205,
+    "focusedJavaTestsPassed": 60,
+    "deterministicIntegrationPassed": 5,
+    "realProviderIntegrationPassed": 4,
+    "signedCallbackVerified": true,
+    "unsignedCallbackRejected": true,
+    "catalogTools": 39,
+    "activeSessionsAfterTest": 0
+  },
+  "acceptedSyntheticTask": "1f10b257-5573-3312-881f-6a2c709e772f",
+  "acceptedCodingTask": "analysis-coding-110aefd92b0709321acedf22f5cd6971e309b38d1b9a6a0a8f67f707ef3845e8",
+  "firstVersionValidationFailedThenRepaired": true,
+  "verification": {
+    "syntheticInputHashVerified": true,
+    "integerCentResultsVerified": true,
+    "progressiveAssets": 1,
+    "sdkCompactionCount": 1,
+    "executionMemoryPreserved": true,
+    "pendingOperations": []
+  },
+  "priorFailedCandidatePreserved": {
+    "candidate": "r2",
+    "taskId": "2b8234d9-6025-354e-81c3-b47ca1ce80c6",
+    "modelCalls": 12,
+    "pythonExecutions": 0,
+    "workerRolledBackBeforeFix": true
+  },
+  "originalFailure": {
+    "taskId": "analysis-coding-767792a242a56a9d574d92b827287042fd56e2a825b9fada6aa3781557deecb0",
+    "businessReexecuted": false,
+    "historicalStopProofFabricated": false,
+    "recoveryBlockedByExpiredOriginalDeadlineAndMissingModel6Proof": true
+  },
+  "rollbackBackup": "/opt/chatchat-releases/coding-completion-budget-20261105-r3/backup",
+  "temporaryLoginCredentialsRemoved": true,
+  "duplicateBuildJarRemoved": true,
+  "performanceTargetsMet": false,
+  "caveats": [
+    "Synthetic acceptance is a small sample, not a statistical task success guarantee.",
+    "Original stock analysis was not replayed.",
+    "The rejected r2 failure remains part of the diagnostic evidence.",
+    "Provider cost remains unknown when billing receipts are absent."
+  ],
+  "matchedControlVerified": {
+    "sameSyntheticCsvSha256": true,
+    "sameUserQuery": true,
+    "samePublishedAgent": true,
+    "sameCapturedModelConfiguration": true,
+    "sameBudgetLimits": true,
+    "baselineInputTokens": 95004,
+    "releasedInputTokens": 90977,
+    "inputTokenReductionRatio": 0.042387688939413026
+  }
+}

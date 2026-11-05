@@ -6,6 +6,52 @@ const object = value => {
   if (value && typeof value === "object") return value;
   try { return JSON.parse(value || "{}"); } catch { return {}; }
 };
+
+// Aggregate only the presentation. Original facts remain available in each group's members.
+export function groupExplorationGraph(graph) {
+  const groups = new Map(), memberGroups = new Map();
+  for (const node of graph.nodes || []) {
+    const eventType = node.detail?.eventKind || (node.kind === "event" ? node.label : node.kind);
+    const key = JSON.stringify([node.kind, eventType]);
+    if (!groups.has(key)) groups.set(key, {
+      id: node.kind === "goal" ? node.id : `group:${key}`,
+      eventType, members: [],
+    });
+    const group = groups.get(key);
+    group.members.push(node);
+    memberGroups.set(node.id, group.id);
+  }
+  const nodes = [...groups.values()].map(group => {
+    const latest = group.members.at(-1);
+    const count = group.members.length;
+    const statusCounts = {};
+    for (const member of group.members) statusCounts[member.status || "OBSERVED"] = (statusCounts[member.status || "OBSERVED"] || 0) + 1;
+    const status = Object.keys(statusCounts).length > 1 ? "MIXED" : latest.status;
+    const typeLabel = group.eventType === latest.kind ? kinds[latest.kind] : `${kinds[latest.kind] || latest.kind} · ${group.eventType}`;
+    const label = count > 1 || group.eventType !== latest.kind ? typeLabel : latest.label;
+    return { ...latest, id: group.id, label, fullLabelText: label, count, eventType: group.eventType,
+      status, statusText: status, statusCounts, members: group.members,
+      detail: count > 1 ? { eventType: group.eventType, count, statusCounts,
+        events: group.members.map(member => ({ id: member.id, label: member.label, status: member.status, detail: member.detail })) } : latest.detail,
+      detailText: count > 1 ? `共 ${count} 条记录，点击查看详情` : latest.detailText,
+      toolName: count > 1 ? "" : latest.toolName,
+      durationMs: group.members.some(member => member.durationMs != null)
+        ? group.members.reduce((sum, member) => sum + (Number(member.durationMs) || 0), 0) : undefined,
+    };
+  });
+  const edges = new Map();
+  for (const edge of graph.edges || []) {
+    const source = memberGroups.get(edge.source), target = memberGroups.get(edge.target);
+    if (!source || !target || source === target) continue;
+    const id = JSON.stringify([source, target, edge.kind]);
+    const prior = edges.get(id);
+    const count = (prior?.count || 0) + 1;
+    edges.set(id, { ...edge, id, source, target, count,
+      label: count > 1 ? `${edge.label || edge.kind} ×${count}` : edge.label });
+  }
+  return { ...graph, nodes, edges: [...edges.values()], originalNodeCount: graph.nodes?.length || 0 };
+}
+
 export function buildExplorationGraph(task, timeline = {}, events = []) {
   if (!task?.taskId) return { nodes: [], edges: [] };
   const nodes = new Map(), edges = new Map();

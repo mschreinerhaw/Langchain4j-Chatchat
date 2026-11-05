@@ -170,6 +170,7 @@ export default defineComponent({
             COMPLETED: "已执行",
             SUCCESS: "成功",
             FAILED: "失败",
+            MIXED: "多种状态",
             EXECUTION_OUTCOME_UNKNOWN: "结果未知",
             RESULT_PERSISTENCE_PENDING: "待落盘",
           }[String(data.statusText || data.status).toUpperCase()] ||
@@ -258,7 +259,7 @@ export default defineComponent({
       const nodeSvg = flowNodes.value
         .map((node) => {
           const data = node.data || {};
-          return `<g transform="translate(${node.position.x},${node.position.y})"><rect width="${PLAN_FLOW_NODE_WIDTH}" height="${PLAN_FLOW_NODE_HEIGHT}" rx="8" fill="#edf6fd" stroke="#2f6fa9" stroke-width="2"/><rect width="5" height="${PLAN_FLOW_NODE_HEIGHT}" rx="3" fill="#1f5f99"/><circle cx="18" cy="21" r="5" fill="${statusColor(data)}"/><text x="32" y="25" class="status">${escapeXml(statusLabel(data))}</text><text x="18" y="56" class="title">${escapeXml(data.fullLabelText || data.labelText || data.label || node.id)}</text><text x="18" y="84" class="meta">${escapeXml(data.toolName || data.actionText || "运行节点")}</text><text x="18" y="108" class="step">#${escapeXml(data.stepId || node.id)}</text></g>`;
+          return `<g transform="translate(${node.position.x},${node.position.y})"><rect width="${PLAN_FLOW_NODE_WIDTH}" height="${PLAN_FLOW_NODE_HEIGHT}" rx="8" fill="#edf6fd" stroke="#2f6fa9" stroke-width="2"/><rect width="5" height="${PLAN_FLOW_NODE_HEIGHT}" rx="3" fill="#1f5f99"/><circle cx="18" cy="21" r="5" fill="${statusColor(data)}"/><text x="32" y="25" class="status">${escapeXml(statusLabel(data))}${props.exploration ? ` x${data.count || 1}` : ""}</text><text x="18" y="56" class="title">${escapeXml(data.fullLabelText || data.labelText || data.label || node.id)}</text><text x="18" y="84" class="meta">${escapeXml(data.toolName || data.actionText || "运行节点")}</text><text x="18" y="108" class="step">#${escapeXml(data.stepId || node.id)}</text></g>`;
         })
         .join("");
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${minX} ${minY} ${maxX - minX} ${maxY - minY}" width="${maxX - minX}" height="${maxY - minY}"><defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#64748b"/></marker></defs><style>path{fill:none;stroke:#64748b;stroke-width:2}.status{font:700 12px sans-serif;fill:#475467}.title{font:700 14px sans-serif;fill:#101828}.meta{font:12px sans-serif;fill:#475467}.step{font:11px monospace;fill:#667085}</style>${edgeSvg}${nodeSvg}</svg>`;

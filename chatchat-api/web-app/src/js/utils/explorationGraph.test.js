@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildExplorationGraph } from "./explorationGraph.js";
+import { buildExplorationGraph, groupExplorationGraph } from "./explorationGraph.js";
 const task = { taskId: "task", attemptId: "run", question: "Explore data", status: "RUNNING" };
 describe("Runtime exploration fact projection", () => {
   it("shows a pending request immediately and updates it in place on receipt", () => {
@@ -72,4 +72,63 @@ describe("Runtime exploration fact projection", () => {
     expect(buildExplorationGraph(task, { observations: [observation] }).nodes.some(node => node.kind === "output")).toBe(false);
   });
 
+});
+
+describe("exploration event grouping", () => {
+  const timeline = { observations: [
+    { id: "one", type: "tool", source: "coding_agent", content: "first", metadata: { status: "FAILED" } },
+    { id: "two", type: "tool", source: "coding_agent", content: "second", metadata: { status: "SUCCESS" } },
+    { id: "three", type: "tool", source: "another_source", metadata: { status: "SUCCESS" } },
+  ] };
+  it("renders one node per type, counts original nodes, and retains every detail without mutating facts", () => {
+    const raw = buildExplorationGraph(task, timeline);
+    const snapshot = JSON.stringify(raw);
+    const graph = groupExplorationGraph(raw);
+    expect(graph.nodes).toHaveLength(2);
+    expect(graph.originalNodeCount).toBe(4);
+    const group = graph.nodes.find(node => node.kind === "observation");
+    expect(group.count).toBe(3);
+    expect(group.members.map(node => node.id)).toEqual(["observation:one", "observation:two", "observation:three"]);
+    expect(group.detail.events[0].detail.summary).toBe("first");
+    expect(group.status).toBe("MIXED");
+    expect(group.statusCounts).toEqual({ FAILED: 1, SUCCESS: 2 });
+    expect(JSON.stringify(raw)).toBe(snapshot);
+    expect(graph.edges).toHaveLength(1);
+    expect(graph.edges[0]).toMatchObject({ count: 3, label: "实际观察 ×3" });
+  });
+  it("keeps group identities stable as new events arrive and updates pending facts instead of counting them twice", () => {
+    const before = groupExplorationGraph(buildExplorationGraph(task, { observations: timeline.observations.slice(0, 1) }));
+    const after = groupExplorationGraph(buildExplorationGraph(task, timeline));
+    expect(after.nodes.map(node => node.id)).toEqual(before.nodes.map(node => node.id));
+    const updated = groupExplorationGraph(buildExplorationGraph(task, { observations: [timeline.observations[0],
+      { ...timeline.observations[0], metadata: { status: "SUCCESS" } }] }));
+    expect(updated.nodes.find(node => node.kind === "observation")).toMatchObject({ count: 1, status: "SUCCESS" });
+  });
+  it("does not merge different event types or discard unknown states", () => {
+    const graph = groupExplorationGraph(buildExplorationGraph(task, {}, [
+      { eventId: "one", type: "STATUS", status: "SUCCESS" },
+      { eventId: "two", type: "STATUS", status: "EXECUTION_OUTCOME_UNKNOWN" },
+      { eventId: "three", type: "QUESTION", status: "OBSERVED" },
+    ]));
+    expect(graph.nodes.filter(node => node.kind === "event")).toHaveLength(2);
+    const status = graph.nodes.find(node => node.eventType === "STATUS");
+    expect(status).toMatchObject({ count: 2, status: "MIXED", statusCounts: { SUCCESS: 1, EXECUTION_OUTCOME_UNKNOWN: 1 } });
+  });
+  it("removes internal links and retains distinct external relationship types", () => {
+    const graph = groupExplorationGraph({ nodes: [
+      { id: "a", kind: "tool", status: "STARTED" },
+      { id: "b", kind: "tool", status: "SUCCESS" },
+      { id: "c", kind: "evidence", status: "SUCCESS" },
+    ], edges: [
+      { source: "a", target: "b", kind: "after" },
+      { source: "a", target: "c", kind: "returns", label: "返回" },
+      { source: "b", target: "c", kind: "returns", label: "返回" },
+      { source: "c", target: "b", kind: "reads" },
+      { source: "missing", target: "a", kind: "after" },
+    ] });
+    expect(graph.edges).toHaveLength(2);
+    expect(graph.edges.find(edge => edge.kind === "returns").count).toBe(2);
+    expect(graph.edges.every(edge => edge.source !== edge.target)).toBe(true);
+    expect(groupExplorationGraph({ nodes: [], edges: [] })).toMatchObject({ nodes: [], edges: [], originalNodeCount: 0 });
+  });
 });

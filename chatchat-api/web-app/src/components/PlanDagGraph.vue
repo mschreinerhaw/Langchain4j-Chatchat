@@ -37,6 +37,7 @@
           <header>
             <span class="plan-flow-status-dot"></span>
             <small>{{ statusLabel(data) }}</small>
+            <span v-if="exploration" class="plan-flow-node-count" :title="`包含 ${data.count || 1} 个节点`" :aria-label="`${data.count || 1} 个节点`">{{ data.count || 1 }}</span>
             <code>{{ exploration ? data.actionText : `#${data.stepId || data.id}` }}</code>
           </header>
           <strong :title="data.fullLabelText || data.labelText || data.label">{{

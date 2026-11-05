@@ -31,7 +31,7 @@ import {
 } from "../../services/api";
 import { notifyAgentTaskCancelled } from "../utils/agentTaskEvents";
 import { fetchGenericAgentRunTimeline } from "../../services/api";
-import { buildExplorationGraph } from "../utils/explorationGraph.js";
+import { buildExplorationGraph, groupExplorationGraph } from "../utils/explorationGraph.js";
 const PlanDagGraph = defineAsyncComponent(() => import("../../components/PlanDagGraph.vue"));
 const CodingTaskMonitor = defineAsyncComponent(() => import("../../components/CodingTaskMonitor.vue"));
 
@@ -364,7 +364,7 @@ export default {
         || "未命名任务";
       return this.compactPlanText(content, 120);
     },
-    explorationGraph() { return buildExplorationGraph(this.selectedTask, this.explorationTimeline); },
+    explorationGraph() { return groupExplorationGraph(buildExplorationGraph(this.selectedTask, this.explorationTimeline)); },
     activeGraphNodes() { return this.graphMode === "exploration" ? this.explorationGraph.nodes : this.planNodeViews; },
     activeGraphEdges() { return this.graphMode === "exploration" ? this.explorationGraph.edges : this.planEdges; },
     selectedExplorationNode() { return this.explorationGraph.nodes.find(node => node.id === this.selectedPlanNodeId) || null; },

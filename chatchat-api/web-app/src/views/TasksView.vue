@@ -979,7 +979,7 @@
           "
           >计划快照</button
         >
-        <span class="runtime-pill">{{ activeGraphNodes.length }} 个节点</span>
+        <span class="runtime-pill">{{ activeGraphNodes.length }} 个节点<span v-if="graphMode === 'exploration'"> · 共 {{ explorationGraph.originalNodeCount }} 条记录</span></span>
         <span class="runtime-pill">{{ activeGraphEdges.length }} 条关联</span>
         <button
           v-if="explorationHasMore"
@@ -1078,6 +1078,7 @@
           <strong
             >{{ selectedExplorationNode.actionText }} · {{ selectedExplorationNode.label }}</strong
           >
+          <p v-if="selectedExplorationNode.count > 1">已合并 {{ selectedExplorationNode.count }} 个同类型节点，以下保留全部记录。</p>
           <p>仅展示实际记录或模型显式声明；模型假设与发现不代表 Runtime 审核结论。</p>
           <pre>{{ JSON.stringify(selectedExplorationNode.detail, null, 2) }}</pre>
         </aside>
@@ -1100,7 +1101,7 @@
           >
             <span>{{ node.statusLabel }}</span>
             <div>
-              <strong>{{ node.fullLabelText }}</strong>
+              <strong>{{ node.fullLabelText }}<span v-if="graphMode === 'exploration'"> · {{ node.count }} 个节点</span></strong>
               <small
                 >{{ node.toolName || node.actionText }} ·
                 {{ formatDuration(node.durationMs) }}</small

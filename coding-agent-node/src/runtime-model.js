@@ -55,9 +55,9 @@ export function createRuntimeModel(gateway, contract, initialOrdinal = 0, { nati
       const reasons = { STOP: 'stop', TOOL_EXECUTION: 'tool-calls', LENGTH: 'max-tokens',
         CONTENT_FILTER: 'content-filter', OTHER: 'unknown' };
       const reason = nativeSdk ? answer.error
-        // Runtime-authorized OUTPUT repair is not an input-context overflow.
-        // Let completionGuard retain this conversation and request a concise turn.
-        ? answer.modelResponseFeedback.diagnosticCode === 'MODEL_OUTPUT_TRUNCATED' ? 'stop' : 'tool-calls'
+        // Preserve output truncation for SDK's native bounded recovery. Every
+        // actual retry still enters the Runtime admission/settlement boundary.
+        ? answer.modelResponseFeedback.diagnosticCode === 'MODEL_OUTPUT_TRUNCATED' ? 'max-tokens' : 'tool-calls'
         : reasons[answer.finishReason] ?? (answer.finishReason ? 'unknown' : answer.toolCalls?.length ? 'tool-calls' : 'stop')
         : answer.toolCalls?.length ? 'tool-calls' : 'stop';
       yield { type: 'finish', reason,

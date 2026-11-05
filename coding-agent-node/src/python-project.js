@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { editProgram } from './sdk-adapter.js';
 
 const VERSION = 'runtime_os.python.code-project.v1';
 const TOKEN = '__RUNTIME_PROJECT_PAYLOAD__';
@@ -38,7 +39,7 @@ export function decodeProject(source, config) {
   return validateProject(JSON.parse(Buffer.from(match[1], 'base64').toString('utf8')));
 }
 /** Only source files are editable. The execution adapter is owned by Runtime. */
-export function proposeProject(input, previous, config) {
+export async function proposeProject(input, previous, config, signal) {
   const change = input?.project;
   if (!change || input.source !== undefined || input.repair !== undefined || input.rollback !== undefined)
     throw new TypeError('Project execution requires project only');
@@ -51,9 +52,13 @@ export function proposeProject(input, previous, config) {
   for (const edit of edits) {
     projectPath(edit.path); const old = files.get(edit.path);
     if (old === undefined || typeof edit.oldText !== 'string' || (!edit.oldText && old !== '') || edit.oldText.length > 16000
-        || typeof edit.newText !== 'string' || edit.newText.length > 16000 || edit.oldText && old.split(edit.oldText).length !== 2)
+        || typeof edit.newText !== 'string' || edit.newText.length > 16000)
       throw new TypeError('Source edit requires a unique exact anchor in the named file');
-    files.set(edit.path, edit.oldText === '' ? edit.newText : old.replace(edit.oldText, () => edit.newText));
+    // An empty package marker has no replacement anchor. Nonempty files use
+    // the same public SDK editor as single-script and workspace repairs.
+    files.set(edit.path, old === '' ? edit.newText : await editProgram({ repair: {
+      baseCodeSha256: hash(old), edits: [edit],
+    } }, old, signal));
   }
   for (const file of additions) {
     projectPath(file.path);

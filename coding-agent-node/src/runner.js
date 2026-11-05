@@ -211,7 +211,15 @@ export function createCodingRun(contract, gateway, options = {}) {
     events.push(progress);
     // Observability must never grant authority or interrupt Runtime-owned execution.
     try { options.observe?.(progress); } catch { /* isolated operator observer */ }
-    if (typeof gateway.event === 'function') await gateway.event(progress);
+    if (typeof gateway.event === 'function') {
+      try { await gateway.event(progress); }
+      catch {
+        // Model/Python admission, receipts and checkpoints have separate required
+        // callbacks. A progress projection cannot invalidate those operations.
+        events.push({ type: 'TELEMETRY_DELIVERY_FAILED', sequence: progress.sequence,
+          eventType: progress.type, timestamp: new Date().toISOString() });
+      }
+    }
   };
   if (reviewedAnalysis && (!permitted.has('artifact_read') || typeof gateway.readArtifact !== 'function'))
     throw new TypeError('Reviewed analysis requires authorized Runtime artifact reads');
@@ -419,7 +427,7 @@ export function createCodingRun(contract, gateway, options = {}) {
       let codeProposal=input;
       try {
         if(contract.runtimeContext?.codeProject) {
-          const proposed=proposeProject(input,history?.currentSource,contract.runtimeContext.codeProject);
+          const proposed=await proposeProject(input,history?.currentSource,contract.runtimeContext.codeProject,context.signal);
           codeProposal=proposed.proposal;
           source=history ? history.propose(codeProposal,proposed.source) : proposed.source;
         } else {
@@ -720,7 +728,7 @@ export function createCodingRun(contract, gateway, options = {}) {
     toolExecution: 'sequential',
     completionPolicy: {
       ...(fastAnalysis || workspaceFast || sqlExploration || resourceText && permitted.has('report_submit') ? { requireCompletionTool: true } : {}),
-      completionGuard: () => modelResponseFeedback
+      completionGuard: () => modelResponseFeedback && !nativeSdk
         ? `Runtime rejected the previous provider response (${modelResponseFeedback.diagnosticCode}). No tool was executed. `
           + 'Generate a concise, complete JSON object for an already authorized tool. Keep the program focused, avoid repeating context or embedding input datasets, and preserve all requested calculations and evidence limits. '
           + 'Do not infer execution success from the rejected response or change authorization. Continue in this task using the same immutable inputs.'

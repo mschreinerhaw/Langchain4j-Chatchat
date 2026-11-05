@@ -81,8 +81,6 @@ export class CodeHistory {
     this.taskId = contract.taskId;
     this.inputSnapshotRef = contract.inputSnapshotRef;
     this.versions = [];
-    this.protectedFragments = [];
-    this.forbiddenFragments = [];
     this.currentSource = null;
     this.validSource = null;
     if (saved) {
@@ -102,16 +100,20 @@ export class CodeHistory {
         throw new TypeError('Code checkpoint source hash mismatch');
       if (saved.validHash && hash(saved.validSource ?? saved.currentSource) !== saved.validHash)
         throw new TypeError('Validated code checkpoint hash mismatch');
-      for (const key of ['versions','currentSource','validSource','validHash','protectedFragments','forbiddenFragments'])
+      for (const key of ['versions','currentSource','validSource','validHash'])
         if (saved[key] !== undefined) this[key] = structuredClone(saved[key]);
       this.validSource = saved.validHash ? saved.validSource ?? saved.currentSource : null;
-      if (!Array.isArray(this.protectedFragments) || this.protectedFragments.length > 128
-          || this.protectedFragments.some(part => typeof part !== 'string' || !part || part.length > 16000))
-        throw new TypeError('Invalid regression assertions');
-      if (!Array.isArray(this.forbiddenFragments) || this.forbiddenFragments.length > 128
-          || this.forbiddenFragments.some(part => typeof part !== 'string' || !part || part.length > 16000)
-          || saved.validHash && !this.versions.some(version => version.codeHash === saved.validHash && version.status === 'VALIDATED'))
+      if (saved.validHash && !this.versions.some(version => version.codeHash === saved.validHash && version.status === 'VALIDATED'))
         throw new TypeError('Invalid validated checkpoint assertions');
+      // Older checkpoints carried unused literal fragment guards. Preserve the
+      // version evidence, but do not copy or re-emit obsolete policy state.
+      for (const version of this.versions) {
+        if (version.fragments) {
+          version.editCount = version.fragments.length;
+          version.patchHash = hash(JSON.stringify([version.fragments, version.forbidden ?? []]));
+        }
+        delete version.fragments; delete version.forbidden;
+      }
     }
   }
   reject(input, toolCallId, error) {
@@ -152,11 +154,12 @@ export class CodeHistory {
     if (this.versions.length >= 64 || parent && script.scriptVersion <= parent.version)
       throw new TypeError('Code version limit or non-monotonic Runtime script version');
     this.currentSource = source;
+    const fragments = input.repair?.edits?.map(edit => edit.newText).filter(Boolean) ?? [];
+    const forbidden = input.repair?.edits?.map(edit => edit.oldText).filter(text => !source.includes(text)) ?? [];
     this.versions.push({ version: script.scriptVersion, codeHash: hash(source),
       parentHash: parent?.codeHash ?? null, parentVersion: parent?.version ?? null,
       operationId, status: 'STARTED', kind: input.rollback ? 'ROLLBACK' : input.repair ? 'PATCH' : 'INITIAL',
-      fragments: input.repair?.edits?.map(edit => edit.newText).filter(Boolean) ?? [],
-      forbidden: input.repair?.edits?.map(edit => edit.oldText).filter(text => !source.includes(text)) ?? [] });
+      editCount: fragments.length, patchHash: hash(JSON.stringify([fragments, forbidden])) });
     return this.versions.at(-1);
   }
   receipt(receipt) {
@@ -171,15 +174,11 @@ export class CodeHistory {
       this.validSource = this.currentSource;
       this.validHash = version.codeHash;
     }
-    version.editCount = version.fragments.length;
-    version.patchHash = hash(JSON.stringify([version.fragments, version.forbidden]));
-    delete version.fragments; delete version.forbidden;
   }
   snapshot() {
     if (!this.versions.length) return undefined;
     return { schemaVersion: CODE_LIFECYCLE_VERSION, taskId: this.taskId, inputSnapshotRef: this.inputSnapshotRef,
       versions: this.versions, currentSource: this.currentSource,
-      validHash: this.validHash ?? null, validSource: this.validHash === hash(this.currentSource) ? null : this.validSource,
-      protectedFragments: this.protectedFragments, forbiddenFragments: this.forbiddenFragments };
+      validHash: this.validHash ?? null, validSource: this.validHash === hash(this.currentSource) ? null : this.validSource };
   }
 }

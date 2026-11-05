@@ -29,7 +29,7 @@ test('Runtime model refuses file parts rather than silently losing context', asy
   }, /Unsupported Runtime model content/);
 });
 
-test('native authorized output repair preserves feedback and avoids SDK input-overflow recovery', async () => {
+test('native authorized output repair preserves feedback and the SDK max-tokens finish reason', async () => {
   const feedback = { schemaVersion:'runtime_os.coding.model_feedback.v1', diagnosticCode:'MODEL_OUTPUT_TRUNCATED',
     repairAllowed:true,maxRepairAttempts:2 };
   const usage = {inputTokens:10,outputTokens:32};
@@ -37,7 +37,7 @@ test('native authorized output repair preserves feedback and avoids SDK input-ov
   const events=[];for await(const event of model.stream({messages:[],tools:[]}))events.push(event);
   assert.deepEqual(events.find(e=>e.type==='runtime-model-feedback').feedback,feedback);
   assert.deepEqual(events.find(e=>e.type==='usage').usage,usage);
-  assert.equal(events.at(-1).reason,'stop');
+  assert.equal(events.at(-1).reason,'max-tokens');
   assert(!events.some(e=>e.type==='tool-call-delta'));
 });
 

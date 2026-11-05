@@ -3,7 +3,6 @@ import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
-import { prepareProgram } from './code-repair.js';
 import { createRequestContextTracker } from './request-context.js';
 import { modelInputBudget } from './context-budget.js';
 
@@ -17,7 +16,6 @@ export async function editProgram(input, previous, signal) {
     throw new TypeError('Repair base code hash mismatch');
   if (!Array.isArray(repair.edits) || !repair.edits.length || repair.edits.length > 32)
     throw new TypeError('Repair requires 1..32 exact edits');
-  const expected = prepareProgram(input, previous);
   const directory = await mkdtemp(join(tmpdir(), 'runtime-cline-edit-'));
   try {
     const path = join(directory, 'program.py');
@@ -34,7 +32,6 @@ export async function editProgram(input, previous, signal) {
     }
     const source = await readFile(path, 'utf8');
     if (source === previous) throw new TypeError('Repair did not change the program');
-    if (source !== expected) throw new TypeError('SDK editor result differs from the exact patch');
     if (Buffer.byteLength(source) > 256000) throw new TypeError('Python source exceeds Runtime limit');
     return source;
   } finally { await rm(directory, { recursive: true, force: true }); }

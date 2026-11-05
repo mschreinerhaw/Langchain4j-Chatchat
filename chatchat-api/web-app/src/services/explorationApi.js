@@ -13,6 +13,7 @@ export const generateExplorationIdeas=(body,options={})=>apiRequest(`${base}/ide
 export const uploadExplorationAttachment=(file,workspaceContext)=>{const body=new FormData();body.append('file',file);return apiRequest(`${base}/attachments`,{method:'POST',body,workspaceContext});};
 export const prepareExploration=(id,question)=>write(`${base}/${part(id)}/nodes`,'POST',question);
 export const executeExploration=(id,nodeId)=>write(`${base}/${part(id)}/nodes/${part(nodeId)}/execute`,'POST',{});
+export const stopExploration=(id,nodeId,workspaceContext)=>apiRequest(`${base}/${part(id)}/nodes/${part(nodeId)}/stop`,{method:'POST',body:'{}',workspaceContext});
 export const saveExplorationNode=(id,nodeId,body)=>write(`${base}/${part(id)}/nodes/${part(nodeId)}`,'PUT',body);
 export async function explorationDatasets(){
   const files=[];

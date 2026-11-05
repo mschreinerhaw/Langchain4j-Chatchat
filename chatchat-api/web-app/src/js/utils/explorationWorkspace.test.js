@@ -1,5 +1,14 @@
 import {it,expect} from 'vitest';
 import {explorationTreeRows,sortedTableRows,workspaceBusinessName,businessNodeTitle,explorationCanvasNode,reconcileExploration,explorationNodeState,explorationMetricDisplay} from './explorationWorkspace';
+it('distinguishes a pending stop from an authoritative cancellation while retaining stage results',()=>{
+ const node={id:'node',receipt:{agentTaskId:'task',status:'EXECUTING',terminal:false,cancellationRequested:true,resultAvailable:true}};
+ expect(explorationNodeState(node)).toEqual({code:'STOPPING',label:'正在停止'});
+ node.receipt.status='CANCELLED';node.receipt.terminal=true;
+ expect(explorationNodeState(node,'node')).toEqual({code:'CANCELLED',label:'已停止'});
+ expect(node.receipt.resultAvailable).toBe(true);
+ node.receipt.status='SUCCEEDED';node.receipt.terminal=false;
+ expect(explorationNodeState(node).code).toBe('COMPLETED');
+});
 it('formats metric presentation without reinterpreting identifiers, unsafe integers or tiny nonzero values',()=>{
  expect(explorationMetricDisplay('1228458.3900')).toBe('1,228,458.39');expect(explorationMetricDisplay('001234')).toBe('001234');expect(explorationMetricDisplay('90071992547409930000')).toBe('90071992547409930000');expect(explorationMetricDisplay('1e-10')).not.toBe('0');expect(explorationMetricDisplay('未知')).toBe('未知');
 });

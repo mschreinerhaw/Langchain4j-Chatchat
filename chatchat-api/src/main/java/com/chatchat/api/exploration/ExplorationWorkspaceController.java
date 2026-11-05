@@ -106,6 +106,7 @@ public class ExplorationWorkspaceController {
     /** Persisted node ID is the existing analysis idempotency key. Refresh can repeat this request. */
     @PostMapping("/{id}/nodes/{nodeId}/execute") public ApiResponse<?> execute(HttpServletRequest http,@PathVariable("id") String id,@PathVariable("nodeId") String nodeId){
         var owner=owner(http);var state=store.get(owner,id);var node=node(state,nodeId);
+        if("CANCELLED".equals(node.path("receipt").path("status").asText()))return ApiResponse.success(state);
         if(node.path("receipt").path("resultAvailable").asBoolean())return ApiResponse.success(state);
         if(!node.path("agentId").asText().isBlank()){
             validateFiles(owner,strings(node,"fileIds"));
@@ -139,6 +140,13 @@ public class ExplorationWorkspaceController {
         var receipt=agents.snapshot(owner,task,node.path("receipt"));
         if(receipt.equals(node.path("receipt")))return ApiResponse.success(state);
         return ApiResponse.success(finish(owner,id,nodeId,receipt,null));
+    }
+    @PostMapping("/{id}/nodes/{nodeId}/stop") public ApiResponse<?> stop(HttpServletRequest http,@PathVariable("id") String id,@PathVariable("nodeId") String nodeId){
+        var owner=owner(http);var state=store.get(owner,id);var node=node(state,nodeId);
+        if(node.path("receipt").path("terminal").asBoolean())return ApiResponse.success(state);
+        if(node.path("agentId").asText().isBlank())
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"此历史文件分析未绑定 Agent 任务，无法确认停止；请等待原执行返回");
+        return ApiResponse.success(finish(owner,id,nodeId,agents.cancel(owner,node),null));
     }
     private ObjectNode finish(UserAssetService.Owner owner,String id,String nodeId,ObjectNode receipt,String error){
         for(int attempt=0;attempt<8;attempt++){

@@ -14,6 +14,40 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 /** Execution boundaries are mocked; these tests are not live Agent evidence. */
 class ExplorationAgentBridgeTest {
+ @Test void cancelsOnlyTheOriginalOwnerSessionAndKeepsArchivedStageResults(){
+   var node=json.createObjectNode().put("id","node").put("agentId","authorized");
+   var prior=node.putObject("receipt");prior.put("agentTaskId","task");prior.put("eventCursor",12);
+   prior.putObject("visualReport").put("schemaVersion","python_visual_report.v1").putArray("charts");
+   when(task.sessionId()).thenReturn("exploration-node");
+   when(tasks.cancel("tenant","task")).thenAnswer(call->{when(task.canonicalState()).thenReturn("CANCELLED");return task;});
+   var receipt=bridge.cancel(owner,node);
+   assertThat(receipt.path("status").asText()).isEqualTo("CANCELLED");assertThat(receipt.path("terminal").asBoolean()).isTrue();
+   assertThat(receipt.path("visualReport")).isEqualTo(prior.path("visualReport"));assertThat(receipt.path("resultAvailable").asBoolean()).isTrue();
+   assertThat(receipt.has("error")).isFalse();verify(tasks).cancel("tenant","task");verify(tasks,never()).submit(any());
+   bridge.cancel(owner,node);verify(tasks,times(1)).cancel(any(),any());
+ }
+ @Test void refusesForeignOwnersAndSiblingSessionsBeforeCancellation(){
+   var node=json.createObjectNode().put("id","node");node.putObject("receipt").put("agentTaskId","task");
+   when(task.sessionId()).thenReturn("exploration-another-node");
+   assertThatThrownBy(()->bridge.cancel(owner,node)).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+   when(task.sessionId()).thenReturn("exploration-node");when(task.userId()).thenReturn("bob");
+   assertThatThrownBy(()->bridge.cancel(owner,node)).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+   verify(tasks,never()).cancel(any(),any());
+ }
+ @Test void unacknowledgedCancellationRemainsPendingRatherThanInventingAStoppedResult(){
+   var node=json.createObjectNode().put("id","node");node.putObject("receipt").put("agentTaskId","task");
+   when(task.sessionId()).thenReturn("exploration-node");
+   var receipt=bridge.cancel(owner,node);
+   assertThat(receipt.path("status").asText()).isEqualTo("EXECUTING");
+   assertThat(receipt.path("cancellationRequested").asBoolean()).isTrue();
+   assertThat(receipt.path("terminal").asBoolean()).isFalse();
+   verify(tasks).cancel("tenant","task");verify(tasks,never()).submit(any());
+ }
+ @Test void missingSubmissionReceiptUsesTheOriginalDeterministicTaskIdentityWithoutSubmitting(){
+   var node=json.createObjectNode().put("id","node");String id=AgentTaskIds.taskId("tenant","exploration:alice:node");
+   assertThatThrownBy(()->bridge.cancel(owner,node)).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+   verify(tasks).get("tenant",id);verify(tasks,never()).submit(any());verify(tasks,never()).cancel(any(),any());
+ }
  @Test void projectsIncrementalActivitiesWithoutCopyingToolDataOrSubmittingWork(){
    var started=AgentEvent.builder().sequence(1L).eventId("event-1").type("RUNTIME_OBSERVATION")
      .payload("{\"metadata\":{\"eventKind\":\"CODING_TRACE\",\"payload\":{\"toolCallId\":\"read-1\",\"password\":\"private\"},\"workerActivity\":{\"type\":\"TOOL_STARTED\",\"tool\":\"input_read\",\"source\":\"private program\"}}}").build();

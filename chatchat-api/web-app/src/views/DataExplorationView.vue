@@ -2,6 +2,7 @@
   <section ref="workspaceElement" class="exploration-workspace" :class="{'is-resizing':resizing,'chain-collapsed':sidebarCollapsed}" aria-label="AI 数据探索工作空间">
     <header class="exploration-toolbar"><div class="exploration-brand"><strong>数据探索</strong><ChevronRight :size="13" /><span>分析项目</span></div><div class="exploration-toolbar-actions"><button class="exploration-space-switch" type="button" :disabled="busy" aria-label="切换分析项目" @click="showDialog(workspaceDialog)"><span>{{ workspaceBusinessName(space?.title) }}</span><ChevronDown :size="14" /></button><button type="button" :disabled="busy || !space" @click="reload"><RefreshCw :size="14" :class="{'is-spinning':refreshing}" /><span>刷新分析</span></button><button type="button" :disabled="busy || !canvasNode?.receipt?.resultAvailable" @click="saveNode"><Save :size="14" /><span>{{ saving?'保存中':'保存节点' }}</span></button></div></header>
     <div v-if="error || notice" class="exploration-feedback" :class="{'has-error':!!error}" :role="error?'alert':'status'">{{ error || notice }}</div>
+    <div v-if="stopTarget" class="exploration-stop-bar" role="status"><span>{{ stopping?'正在停止分析，请等待执行状态确认':'分析正在进行，可以随时停止；已有成果会保留。' }}</span><button type="button" :disabled="stopping" @click="stopAnalysis"><LoaderCircle v-if="stopping" :size="14" class="is-spinning" /><Square v-else :size="13" />{{ stopping?'正在停止':'停止分析' }}</button></div>
     <div class="exploration-body" :style="contentStyle">
       <aside v-show="!sidebarCollapsed" class="exploration-chain-pane"><ExplorationChain :nodes="space?.nodes || []" :selected-id="activeId" :collapsed="collapsedBranches" :running-id="runningSpaceId===space?.id?runningId:''" @select="selectNode" @toggle="toggleBranch" @new-root="startRoot" @collapse="sidebarCollapsed=true" /></aside>
       <div v-if="!sidebarCollapsed" class="exploration-divider" role="separator" aria-label="调整思维链宽度" aria-orientation="vertical" :aria-valuenow="sidebarWidth" :aria-valuemin="200" :aria-valuemax="420" tabindex="0" @pointerdown="startResize" @keydown.left.prevent="resizeBy(-16)" @keydown.right.prevent="resizeBy(16)"></div><div v-else class="exploration-divider-placeholder"></div>
@@ -9,11 +10,11 @@
         <div class="exploration-scroll-region">
           <div class="exploration-result-heading"><div><button v-if="sidebarCollapsed" type="button" class="exploration-icon-button" aria-label="展开思维链" @click="sidebarCollapsed=false"><PanelLeftOpen :size="18" /></button><h1>{{ space?heading:'开始数据探索' }}</h1></div><div v-if="canvasNode?.receipt?.resultAvailable" class="exploration-result-actions"><span v-if="report?.status==='PARTIAL'" class="exploration-partial">数据有限</span><button type="button" class="exploration-text-button" @click="showDialog(detailsDialog)"><Info :size="14" />分析说明</button></div></div>
           <section v-if="active && (showingPrevious || !['RUNNING','COMPLETED'].includes(selectedState.code) || active.error || active.receipt?.error || (canvasNode && active.receipt?.terminal===false))" class="exploration-node-state" :data-state="selectedState.code" role="status">
-            <LoaderCircle v-if="selectedState.code==='RUNNING'" :size="16" class="is-spinning" /><Info v-else :size="16" />
+            <LoaderCircle v-if="['RUNNING','STOPPING'].includes(selectedState.code)" :size="16" class="is-spinning" /><Info v-else :size="16" />
             <div><strong>{{ businessNodeTitle(active) }} · {{ selectedState.label }}</strong><p v-if="showingPrevious">画布保留“{{ heading }}”的已有成果，你可以随时切换分析路径。</p><p v-else-if="canvasNode && active.receipt?.terminal===false">已交付阶段成果，最终结论仍在核对。</p><p v-if="active.error || active.receipt?.error">{{ active.error || active.receipt.error }}</p></div>
             <button v-if="!taskRunning && !busy && showingPrevious" type="button" @click="continueFromCanvas">从已有成果重新探索</button><button v-else-if="!taskRunning && !busy && !active.receipt?.resultAvailable && !active.receipt?.terminal" type="button" @click="recover">恢复分析</button>
           </section>
-          <ExplorationActivityPanel v-if="active && (selectedState.code==='RUNNING' || active.receipt?.analysisEvents?.length)" :key="active.id" :events="active.receipt?.analysisEvents || []" :running="selectedState.code==='RUNNING'" :status="active.receipt?.status || selectedState.code" :started-at="active.receipt?.analysisStartedAt" :finished-at="active.receipt?.analysisFinishedAt" />
+          <ExplorationActivityPanel v-if="active && (['RUNNING','STOPPING'].includes(selectedState.code) || active.receipt?.analysisEvents?.length)" :key="active.id" :events="active.receipt?.analysisEvents || []" :running="['RUNNING','STOPPING'].includes(selectedState.code)" :status="active.receipt?.status || selectedState.code" :started-at="active.receipt?.analysisStartedAt" :finished-at="active.receipt?.analysisFinishedAt" />
           <p v-if="summary" class="exploration-summary">{{ summary }}</p>
           <div v-if="loading && !canvasNode" class="exploration-loading" role="status"><LoaderCircle :size="20" class="is-spinning" />正在恢复分析…</div>
           <template v-else-if="canvasNode?.receipt?.resultAvailable">
@@ -30,7 +31,7 @@
         </div>
         <footer class="exploration-input-region">
           <div v-if="taskRunning || active" class="exploration-input-context">
-            <span v-if="taskRunning"><LoaderCircle :size="12" class="is-spinning" />正在分析<button v-if="runningSpaceId===space?.id && runningId!==activeId" type="button" @click="showRunning">查看当前分析</button></span>
+            <span v-if="taskRunning"><LoaderCircle :size="12" class="is-spinning" />{{ stopping?'正在停止分析':'正在分析' }}<button v-if="runningSpaceId===space?.id && runningId!==activeId" type="button" @click="showRunning">查看当前分析</button></span>
             <span v-else-if="active.receipt?.resultAvailable">从“{{ heading }}”继续提问</span>
             <span v-else>补充问题或资料后开始新的分析，原节点保留。</span>
           </div>
@@ -39,7 +40,7 @@
             :idea-context="ideaContext" :agents="agents" :agents-loading="agentsLoading || busy"
             :selected-agent-id="selectedAgentId" @update:selected-agent-id="selectAgent"
             :show-suggestions="false" :loading="analyzing"
-            :input-disabled="busy || selectedState.code==='RUNNING'"
+            :input-disabled="busy || ['RUNNING','STOPPING'].includes(selectedState.code)"
             :max-length="200000" :workspace-context="workspaceContext" :conversation-key="space?.id || ''"
             :placeholder="active?.receipt?.resultAvailable ? '基于当前分析继续提问…' : '描述分析问题，上传、拖拽或粘贴补充资料…'" @send="ask" />
         </footer>

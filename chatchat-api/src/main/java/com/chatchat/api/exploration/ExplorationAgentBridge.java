@@ -65,6 +65,19 @@ public class ExplorationAgentBridge {
         var submitted=tasks.submit(request);return snapshot(owner,submitted.taskId());
     }
     public static String sessionId(ObjectNode node){return "exploration-"+node.path("id").asText();}
+    /** Cancel the original owner-bound Runtime task; never submit a replacement. */
+    public ObjectNode cancel(Owner owner,ObjectNode node){
+        String taskId=node.path("receipt").path("agentTaskId").asText();
+        if(taskId.isBlank())taskId=AgentTaskIds.taskId(owner.tenant(),"exploration:"+owner.user()+":"+node.path("id").asText());
+        var task=tasks.get(owner.tenant(),taskId).orElseThrow(()->new ResponseStatusException(HttpStatus.CONFLICT,"分析任务正在登记，请稍后重试停止"));
+        if(!owner.user().equals(task.userId())||!sessionId(node).equals(task.sessionId()))
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        var state=AgentExecutionState.fromWire(task.canonicalState()==null?task.status():task.canonicalState());
+        if(!state.terminal())tasks.cancel(owner.tenant(),taskId);
+        var receipt=snapshot(owner,taskId,node.path("receipt"));
+        if(!AgentExecutionState.fromWire(receipt.path("status").asText()).terminal())receipt.put("cancellationRequested",true);
+        return receipt;
+    }
     /** Reads the existing Runtime journal and immutable evidence. Never submits or re-executes. */
     public ObjectNode snapshot(Owner owner,String taskId){return snapshot(owner,taskId,null);}
     public ObjectNode snapshot(Owner owner,String taskId,JsonNode previous){
@@ -77,6 +90,7 @@ public class ExplorationAgentBridge {
         if(task.finishedAt()!=null)receipt.put("analysisFinishedAt",task.finishedAt().toString());
         receipt.set("datasets",json.valueToTree(task.datasets()));
         boolean same=previous!=null&&taskId.equals(previous.path("agentTaskId").asText());
+        if(same&&previous.path("cancellationRequested").asBoolean())receipt.put("cancellationRequested",true);
         long cursor=same?previous.path("eventCursor").asLong():0;
         JsonNode visual=same&&validVisual(previous.path("visualReport"))?previous.path("visualReport"):null;
         var events=new ArrayList<com.chatchat.chat.task.event.AgentEvent>();
@@ -139,7 +153,7 @@ public class ExplorationAgentBridge {
         receipt.put("resultAvailable",visual!=null||success&&!answer.isBlank());
         receipt.put("provisional",!state.terminal());
         receipt.put("deliveryStatus",!state.terminal()?"IN_PROGRESS":success?"FINAL":visual!=null?"PRESERVED_AFTER_FAILURE":"UNAVAILABLE");
-        if(state.terminal()&&!success)receipt.put("error",Objects.toString(task.errorMessage(),"分析未完成"));
+        if(state.terminal()&&!success&&state!=AgentExecutionState.CANCELLED)receipt.put("error",Objects.toString(task.errorMessage(),"分析未完成"));
         return receipt;
     }
     private ObjectNode progressEvent(com.chatchat.chat.task.event.AgentEvent event) {

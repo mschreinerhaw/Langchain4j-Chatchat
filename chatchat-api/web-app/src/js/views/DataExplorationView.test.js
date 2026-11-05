@@ -1,11 +1,46 @@
 // @vitest-environment jsdom
 import {createApp,h,nextTick} from 'vue';
 import {it,expect,vi,afterEach} from 'vitest';
-const api=vi.hoisted(()=>Object.fromEntries(['createExploration','listExplorations','getExploration','renameExploration','deleteExploration','prepareExploration','executeExploration','saveExplorationNode','explorationDatasets','explorationAgents','explorationNodeStatus','generateExplorationIdeas','uploadExplorationAttachment'].map(k=>[k,vi.fn()])));
+const api=vi.hoisted(()=>Object.fromEntries(['createExploration','listExplorations','getExploration','renameExploration','deleteExploration','prepareExploration','executeExploration','stopExploration','saveExplorationNode','explorationDatasets','explorationAgents','explorationNodeStatus','generateExplorationIdeas','uploadExplorationAttachment'].map(k=>[k,vi.fn()])));
 vi.mock('../../services/explorationApi',()=>api);
 vi.mock('../../components/PythonReportChart.vue',()=>({default:{props:['chart','presentation'],render(){return h('div',{'data-chart-type':this.presentation},this.chart.title);}}}));
 import View from '../../views/DataExplorationView.vue';
 let app,host;const settle=async()=>{for(let i=0;i<15;i++)await nextTick();};
+it('stops the original running node, prevents double clicks and preserves delivered results',async()=>{
+ const state=structuredClone(space);state.nodes[0].receipt={...state.nodes[0].receipt,agentTaskId:'task',terminal:false,status:'EXECUTING'};
+ const vm=await mount(state);let finish;api.stopExploration.mockImplementation(()=>new Promise(resolve=>finish=resolve));
+ const action=vm.stopAnalysis();await settle();
+ expect(host.querySelector('.exploration-stop-bar button').disabled).toBe(true);expect(host.textContent).toContain('正在停止');
+ await vm.stopAnalysis();expect(api.stopExploration).toHaveBeenCalledTimes(1);
+ const stopped=structuredClone(state);stopped.version++;stopped.nodes[0].receipt={...stopped.nodes[0].receipt,status:'CANCELLED',terminal:true};
+ finish(stopped);await action;await settle();
+ expect(api.stopExploration).toHaveBeenCalledWith('space','root',null);expect(vm.selectedState.code).toBe('CANCELLED');
+ expect(host.textContent).toContain('已停止');expect(host.querySelector('.exploration-stop-bar')).toBeNull();
+ expect(vm.report.title).toBe('客户资产结构');expect(api.executeExploration).not.toHaveBeenCalled();
+});
+it('keeps the real task running when a stop request fails and allows retry',async()=>{
+ const state=structuredClone(space);state.nodes[0].receipt={agentTaskId:'task',terminal:false,status:'EXECUTING',resultAvailable:false};
+ const vm=await mount(state);api.stopExploration.mockRejectedValueOnce(new Error('停止请求未确认'));
+ await vm.stopAnalysis();await settle();expect(vm.selectedState.code).toBe('RUNNING');expect(vm.error).toContain('未确认');
+ expect(host.querySelector('.exploration-stop-bar button').disabled).toBe(false);
+});
+it('does not apply a late stop response to another project',async()=>{
+ const state=structuredClone(space);state.nodes[0].receipt={agentTaskId:'task',terminal:false,status:'EXECUTING'};
+ const vm=await mount(state);let finish;api.stopExploration.mockImplementation(()=>new Promise(resolve=>finish=resolve));
+ const pending=vm.stopAnalysis();vm.space={id:'another-space',version:0,nodes:[]};
+ finish({...state,version:4,nodes:[{...state.nodes[0],receipt:{terminal:true,status:'CANCELLED'}}]});await pending;
+ expect(vm.space.id).toBe('another-space');expect(vm.notice).toBe('');
+});
+it('does not restore running state when the original submission returns after stopping',async()=>{
+ const vm=await mount();const prepared=structuredClone(space);prepared.version=4;
+ prepared.nodes.push({...node('new'),saved:false,receipt:{agentTaskId:'task',terminal:false,status:'EXECUTING',resultAvailable:false}});
+ api.prepareExploration.mockResolvedValue(prepared);let finish;api.executeExploration.mockImplementation(()=>new Promise(resolve=>finish=resolve));
+ const pending=vm.ask({query:'新的分析'});await settle();expect(vm.activeId).toBe('new');
+ const stopped=structuredClone(prepared);stopped.version=5;stopped.nodes.at(-1).receipt={...stopped.nodes.at(-1).receipt,terminal:true,status:'CANCELLED'};
+ api.stopExploration.mockResolvedValue(stopped);await vm.stopAnalysis();expect(vm.analyzing).toBe(false);
+ finish(prepared);await pending;await settle();expect(vm.selectedState.code).toBe('CANCELLED');expect(vm.notice).toContain('已停止');
+ expect(vm.space.version).toBe(5);expect(vm.report.title).toBe('客户资产结构');
+});
 it('renders only the selected nodes live analysis events and keeps them after completion',async()=>{
  const activity={sequence:1,type:'RUNTIME_OBSERVATION',createTime:Date.now(),payload:{metadata:{eventKind:'CODING_TRACE',
    taskId:'task',workerActivity:{type:'TOOL_STARTED',tool:'input_read',toolCallId:'read'}}}};

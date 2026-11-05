@@ -26,8 +26,10 @@ export function explorationMetricDisplay(value){
 }
 export function explorationNodeState(node,runningId=''){
   const receipt=node?.receipt||{},status=String(receipt.status||node?.status||'PREPARED').toUpperCase();
-  if(['CANCELLED','CANCELED','TIMEOUT_CANCELLED'].includes(status))return {code:'CANCELLED',label:'已取消'};
+  if(['CANCELLED','CANCELED','TIMEOUT_CANCELLED','KILLED'].includes(status))return {code:'CANCELLED',label:'已停止'};
   if(['FAILED','REJECTED','INPUT_REQUIRED','RECOVERABLE','TIME_BUDGET_EXHAUSTED','MODEL_BUDGET_EXHAUSTED'].includes(status))return {code:'FAILED',label:status==='RECOVERABLE'?'可恢复':'分析未完成'};
+  if(['SUCCEEDED','PARTIAL'].includes(status))return {code:'COMPLETED',label:receipt.resultAvailable?'已完成':'分析已结束'};
+  if(receipt.terminal!==true&&(receipt.cancellationRequested||['CANCELLING','CANCEL_REQUESTED','STOPPING'].includes(status)))return {code:'STOPPING',label:'正在停止'};
   if(node?.id===runningId || receipt.agentTaskId && receipt.terminal!==true)return {code:'RUNNING',label:receipt.resultAvailable?'已有阶段成果 · 分析中':'正在分析'};
   if(receipt.resultAvailable)return {code:'COMPLETED',label:'已完成'};
   return {code:'QUEUED',label:'等待分析'};

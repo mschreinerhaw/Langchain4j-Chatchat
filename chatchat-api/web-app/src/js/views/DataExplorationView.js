@@ -1,5 +1,5 @@
 import {computed,onMounted,onBeforeUnmount,ref,watch} from 'vue';
-import {ChevronDown,RefreshCw,Save,PanelLeftOpen,Maximize2,Table2,Info,X,Plus,LoaderCircle,Check,ChevronRight,Ellipsis,Pencil,Trash2} from '@lucide/vue';
+import {ChevronDown,RefreshCw,Save,PanelLeftOpen,Maximize2,Table2,Info,X,Plus,LoaderCircle,Check,ChevronRight,Ellipsis,Pencil,Trash2,Square} from '@lucide/vue';
 import MarkdownIt from 'markdown-it';
 import PythonReportChart from '../../components/PythonReportChart.vue';
 import ReportMarkdown from '../../components/ReportMarkdown.vue';
@@ -8,7 +8,7 @@ import ExplorationChain from '../../components/ExplorationChain.vue';
 import ExplorationDataTable from '../../components/ExplorationDataTable.vue';
 import ExplorationActivityPanel from '../../components/ExplorationActivityPanel.vue';
 import AppConfirmDialog from '../../components/AppConfirmDialog.vue';
-import {createExploration,listExplorations,getExploration,renameExploration,deleteExploration,prepareExploration,executeExploration,saveExplorationNode,explorationAgents,explorationNodeStatus,generateExplorationIdeas,uploadExplorationAttachment} from '../../services/explorationApi';
+import {createExploration,listExplorations,getExploration,renameExploration,deleteExploration,prepareExploration,executeExploration,stopExploration,saveExplorationNode,explorationAgents,explorationNodeStatus,generateExplorationIdeas,uploadExplorationAttachment} from '../../services/explorationApi';
 import {validateChatFiles,chatTextFile,exceedsChatTextLimit,CHAT_FILE_ANALYSIS_OBJECTIVE} from '../utils/chatUserAssets';
 import {workspaceStorageKey} from '../utils/workspaceContext';
 import {workspaceBusinessName,businessNodeTitle,explorationNodeState,explorationCanvasNode,reconcileExploration,explorationMetricDisplay} from '../utils/explorationWorkspace';
@@ -18,7 +18,7 @@ import {chartDisplayTitle} from '../utils/chartDisplayTitle';
 
 export default {
   name:'DataExplorationView',components:{PythonReportChart,ReportMarkdown,PromptComposer,ExplorationChain,ExplorationDataTable,ExplorationActivityPanel,AppConfirmDialog,
-    ChevronDown,RefreshCw,Save,PanelLeftOpen,Maximize2,Table2,Info,X,Plus,LoaderCircle,Check,ChevronRight,Ellipsis,Pencil,Trash2},
+    ChevronDown,RefreshCw,Save,PanelLeftOpen,Maximize2,Table2,Info,X,Plus,LoaderCircle,Check,ChevronRight,Ellipsis,Pencil,Trash2,Square},
   props:{workspaceContext:{type:Object,default:null}},
   setup(props){
     const markdown=new MarkdownIt({html:false,linkify:false,breaks:true});
@@ -42,10 +42,11 @@ export default {
     const agentAvailable=computed(()=>agents.value.some(a=>a.id===selectedAgentId.value));
     const loading=ref(false),mutationBusy=ref(false),refreshing=ref(false),analyzing=ref(false),saving=ref(false);
     const runningId=ref(''),runningSpaceId=ref(''),error=ref(''),notice=ref('');
+    const stoppingId=ref('');
     const workspaceElement=ref(null),workspaceDialog=ref(null),chartDialog=ref(null),tableDialog=ref(null),detailsDialog=ref(null);
     const sidebarWidth=ref(260),sidebarCollapsed=ref(false),collapsedBranches=ref([]),resizing=ref(false);
     const chartSelections=ref({}),chartCache=ref({}),tableOpen=ref(false),expandedChart=ref(false);
-    let noticeTimer,resizeOrigin,resizeStartWidth,pollTimer,polling=false,disposed=false,narrowViewport=false,lastPolledNode='';
+    let noticeTimer,resizeOrigin,resizeStartWidth,pollTimer,polling=false,disposed=false,narrowViewport=false,lastPolledNode='',analysisSerial=0;
     function syncViewport(){const narrow=window.innerWidth<=980;if(narrow&&!narrowViewport)sidebarCollapsed.value=true;narrowViewport=narrow;}
     const preferenceKey=computed(()=>workspaceStorageKey('chatchat.exploration.ui.v1',props.workspaceContext));
     const busy=computed(()=>loading.value||mutationBusy.value||refreshing.value);
@@ -154,13 +155,40 @@ export default {
       const updated=await saveExplorationNode(id,nodeId,{version:space.value.version,saved,chartTypes:types});
       if(space.value?.id===id)applySpace(updated);return updated;
     }
+    const stopTarget=computed(()=>{
+      const nodes=space.value?.nodes||[];
+      const eligible=node=>node?.agentId&&node.receipt?.terminal!==true&&!['CANCELLED','COMPLETED','FAILED'].includes(explorationNodeState(node).code)&&
+        (node.receipt?.agentTaskId||node.id===runningId.value&&runningSpaceId.value===space.value?.id);
+      return eligible(active.value)?active.value:nodes.find(node=>eligible(node)&&node.id===runningId.value)||nodes.find(eligible);
+    });
+    const stopping=computed(()=>!!stoppingId.value||!!stopTarget.value?.receipt?.cancellationRequested);
+    async function stopAnalysis(){
+      const target=stopTarget.value,id=space.value?.id;
+      if(!target||stopping.value)return;
+      stoppingId.value=target.id;error.value='';
+      try{
+        const updated=await stopExploration(id,target.id,props.workspaceContext);
+        if(!disposed&&space.value?.id===id){
+          applySpace(updated);
+          const stopped=updated.nodes.find(node=>node.id===target.id);
+          if(['CANCELLED','COMPLETED','FAILED'].includes(explorationNodeState(stopped).code)&&runningSpaceId.value===id&&runningId.value===target.id){
+            analysisSerial++;analyzing.value=false;runningId.value='';runningSpaceId.value='';
+          }
+          message(explorationNodeState(stopped).code==='CANCELLED'?'分析已停止，已有成果已保留':stopped?.receipt?.terminal?'分析已经结束':'已请求停止，正在等待执行状态确认');
+          scheduleStatus();
+        }
+      }catch(e){if(!disposed&&space.value?.id===id)error.value=e.message||'停止请求未确认，请重试';}
+      finally{if(stoppingId.value===target.id)stoppingId.value='';}
+    }
     async function execute(id,node){
       try{const updated=await executeExploration(id,node.id);if(space.value?.id===id)applySpace(updated);
-        const receipt=updated.nodes.find(n=>n.id===node.id)?.receipt;message(receipt?.resultAvailable?(receipt.visualReport?.charts?.length?'图形分析已完成':'分析结果已返回，暂未生成图表'):receipt?.agentTaskId?'Agent 正在获取数据并分析':'分析尚未完成，可以继续恢复');scheduleStatus();
-      }catch(e){error.value=e.message||'分析暂未完成';try{const updated=await getExploration(id);if(space.value?.id===id)applySpace(updated);}catch{}}
+        if(space.value?.id!==id)return;
+        const current=space.value.nodes.find(n=>n.id===node.id),receipt=current?.receipt;
+        message(explorationNodeState(current).code==='CANCELLED'?'分析已停止，已有成果已保留':receipt?.resultAvailable?(receipt.visualReport?.charts?.length?'图形分析已完成':'分析结果已返回，暂未生成图表'):receipt?.agentTaskId?'Agent 正在获取数据并分析':'分析尚未完成，可以继续恢复');scheduleStatus();
+      }catch(e){if(space.value?.id!==id||space.value?.nodes.find(n=>n.id===node.id)?.receipt?.terminal)return;error.value=e.message||'分析暂未完成';try{const updated=await getExploration(id);if(space.value?.id===id)applySpace(updated);}catch{}}
     }
     async function ask(payload){
-      if(analyzing.value||busy.value||selectedState.value.code==='RUNNING')return;
+      if(analyzing.value||busy.value||['RUNNING','STOPPING'].includes(selectedState.value.code))return;
       const original=payload?.query??question.value,originSpace=space.value?.id,originNode=activeId.value,originAgent=selectedAgentId.value;
       let text=original.trim();if(!text&&!attachments.value.length)return;
       if(!agentAvailable.value&&!canContinueLegacy.value){error.value='请选择已发布且获授权的 Agent';return;}
@@ -178,16 +206,17 @@ export default {
       const id=space.value.id,parent=active.value?.receipt?.resultAvailable && selectedState.value.code==='COMPLETED'?active.value:null,selectionAtSend=activeId.value;
       if(parent&&(parent.agentId||'')!==selectedAgentId.value){error.value='切换 Agent 请开始新的分析';return;}
       analyzing.value=true;runningSpaceId.value=id;error.value='';mutationBusy.value=true;
+      const serial=++analysisSerial;
       try{
         if(parent&&!parent.saved)await save(parent.chartTypes||{},true,parent.id);
         const prepared=await prepareExploration(id,{version:space.value.version,parentId:parent?.id||null,agentId:selectedAgentId.value,fileIds,question:text,modelName:parent?.modelName||null});
         const node=prepared.nodes.at(-1);runningId.value=node.id;
         if(space.value?.id===id){applySpace(prepared);if(activeId.value===selectionAtSend){activeId.value=node.id;tableOpen.value=false;remember();}}
         question.value='';attachments.value=[];mutationBusy.value=false;await execute(id,node);
-      }catch(e){error.value=e.message||'暂时无法开始分析';}
-      finally{mutationBusy.value=false;analyzing.value=false;runningId.value='';runningSpaceId.value='';}
+      }catch(e){if(serial===analysisSerial)error.value=e.message||'暂时无法开始分析';}
+      finally{if(serial===analysisSerial){mutationBusy.value=false;analyzing.value=false;runningId.value='';runningSpaceId.value='';}}
     }
-    async function recover(){if(analyzing.value||!active.value)return;const id=space.value.id,node=active.value;analyzing.value=true;runningId.value=node.id;runningSpaceId.value=id;error.value='';try{await execute(id,node);}finally{analyzing.value=false;runningId.value='';runningSpaceId.value='';}}
+    async function recover(){if(analyzing.value||!active.value||active.value.receipt?.terminal)return;const id=space.value.id,node=active.value,serial=++analysisSerial;analyzing.value=true;runningId.value=node.id;runningSpaceId.value=id;error.value='';try{await execute(id,node);}finally{if(serial===analysisSerial){analyzing.value=false;runningId.value='';runningSpaceId.value='';}}}
     async function reload(){if(refreshing.value||!space.value)return;refreshing.value=true;error.value='';const id=space.value.id,selectedId=activeId.value;try{const updated=await getExploration(id);if(space.value?.id===id){applySpace(updated);if(updated.nodes.some(n=>n.id===selectedId))activeId.value=selectedId;remember();}message('已更新');}catch(e){error.value=e.message;}finally{refreshing.value=false;}}
     async function saveNode(){if(!canvasNode.value)return;const node=canvasNode.value;saving.value=true;await run(async()=>{await save(node.chartTypes||{},true,node.id);message('已保存');});saving.value=false;}
     function chartReady(payload){for(const node of space.value?.nodes||[])if(node.receipt?.visualReport?.charts?.some(c=>c.id===payload.id&&c.artifact?.fileId===payload.fileId))chartCache.value[`${node.id}:${payload.id}`]=payload;}
@@ -220,7 +249,7 @@ export default {
       lastPolledNode=pending.id;
       try{const updated=await explorationNodeStatus(id,pending.id);if(!disposed&&space.value?.id===id)applySpace(updated);}catch(e){if(!disposed)error.value=e.message;}finally{polling=false;scheduleStatus();}
     }
-    const taskRunning=computed(()=>analyzing.value||!!space.value?.nodes.some(n=>n.agentId&&n.receipt?.agentTaskId&&!n.receipt.terminal));
+    const taskRunning=computed(()=>analyzing.value||!!space.value?.nodes.some(n=>n.agentId&&n.receipt?.agentTaskId&&['RUNNING','STOPPING'].includes(explorationNodeState(n).code)));
     onMounted(async()=>{loading.value=true;agentsLoading.value=true;
       try{agents.value=await explorationAgents();}catch(e){error.value=e.message;}finally{agentsLoading.value=false;}const restored=readPreferences(),width=workspaceElement.value?.clientWidth;if(!restored&&width>0&&width<850)sidebarCollapsed.value=true;
       syncViewport();window.addEventListener('resize',syncViewport);
@@ -228,7 +257,7 @@ export default {
     onBeforeUnmount(()=>{disposed=true;stopResize();clearTimeout(noticeTimer);clearTimeout(pollTimer);window.removeEventListener('resize',syncViewport);});
     return {canvasNode,canvasState,selectedState,showingPrevious,metrics,explorationNodeState,explorationMetricDisplay,chartSelection,canContinueLegacy,
       continueFromCanvas:()=>{if(canvasNode.value){selectNode(canvasNode.value);question.value='';workspaceElement.value?.querySelector('textarea')?.focus();}},
-      projectMenu,projectAction,projectName,projectActionBusy,projectActionError,manageProject,cancelProjectAction,submitProjectAction,attachments,addFiles,retryFile,removeFile,suggestIdeas,agents,agentsLoading,selectedAgentId,agentAvailable,selectAgent,taskRunning,spaces,space,selected,activeId,title,question,active,report,authoredReport,charts,currentChart,chartKey,chartData,chartTypes,compatibleTypes,effectiveChartType,heading,summary,
+      stopTarget,stopping,stopAnalysis,projectMenu,projectAction,projectName,projectActionBusy,projectActionError,manageProject,cancelProjectAction,submitProjectAction,attachments,addFiles,retryFile,removeFile,suggestIdeas,agents,agentsLoading,selectedAgentId,agentAvailable,selectAgent,taskRunning,spaces,space,selected,activeId,title,question,active,report,authoredReport,charts,currentChart,chartKey,chartData,chartTypes,compatibleTypes,effectiveChartType,heading,summary,
       loading,busy,refreshing,analyzing,saving,runningId,runningSpaceId,error,notice,hasData,sidebarWidth,sidebarCollapsed,collapsedBranches,resizing,contentStyle,
       workspaceElement,workspaceDialog,chartDialog,tableDialog,detailsDialog,tableOpen,expandedChart,workspaceBusinessName,businessNodeTitle,
       open,run,create,ask,recover,reload,saveNode,save,selectNode,chartType,chartReady,selectChart,startRoot,toggleBranch,startResize,

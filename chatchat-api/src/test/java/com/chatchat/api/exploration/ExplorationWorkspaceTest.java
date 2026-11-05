@@ -16,6 +16,35 @@ import static org.mockito.ArgumentMatchers.*;
 
 /** Real SQL persistence, mocked execution boundary. These are NOT live Coding acceptance evidence. */
 class ExplorationWorkspaceTest {
+    @Test void stopPersistsAuthoritativeCancellationAndRetainsResultsWithoutRestartingTheNode(){
+        var state=store.create(alice,"Stop analysis");String id=state.path("id").asText();
+        controller.prepare(http,id,new ExplorationWorkspaceController.Question(0,null,List.of(),"Analyze",null,"authorized"));
+        state=store.get(alice,id);String node=nodeId(state);
+        var preview=json.createObjectNode().put("agentTaskId","task").put("status","EXECUTING").put("terminal",false).put("resultAvailable",true).put("eventCursor",4);
+        preview.putObject("visualReport").put("title","Verified stage result").putArray("charts");
+        when(bridge.submit(eq(alice),any(),isNull())).thenReturn(preview);controller.execute(http,id,node);
+        clearInvocations(bridge);
+        when(bridge.cancel(eq(alice),any())).thenReturn(json.createObjectNode().put("agentTaskId","task").put("status","CANCELLED").put("terminal",true).put("resultAvailable",false).put("eventCursor",5));
+        controller.stop(http,id,node);controller.stop(http,id,node);controller.execute(http,id,node);controller.status(http,id,node);
+        var stopped=store.get(alice,id).path("nodes").get(0);
+        assertThat(stopped.path("status").asText()).isEqualTo("CANCELLED");
+        assertThat(stopped.path("receipt").path("visualReport").path("title").asText()).isEqualTo("Verified stage result");
+        assertThat(stopped.path("receipt").path("resultAvailable").asBoolean()).isTrue();
+        verify(bridge,times(1)).cancel(eq(alice),any());verify(bridge,never()).submit(any(),any(),any());verify(bridge,never()).snapshot(any(),any(),any());
+        when(access.user(http)).thenReturn("bob");
+        assertThatThrownBy(()->controller.stop(http,id,node)).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+        verify(bridge,times(1)).cancel(any(),any());
+    }
+    @Test void stopFailureLeavesOriginalExecutionRecoverableInsteadOfInventingCancellation(){
+        var state=store.create(alice,"Running analysis");String id=state.path("id").asText();
+        controller.prepare(http,id,new ExplorationWorkspaceController.Question(0,null,List.of(),"Analyze",null,"authorized"));
+        state=store.get(alice,id);String node=nodeId(state);
+        when(bridge.cancel(eq(alice),any())).thenThrow(new IllegalStateException("Transport unavailable"));
+        long revision=state.path("version").asLong();
+        assertThatThrownBy(()->controller.stop(http,id,node)).hasMessageContaining("Transport unavailable");
+        assertThat(store.get(alice,id).path("version").asLong()).isEqualTo(revision);
+        assertThat(store.get(alice,id).path("nodes").get(0).path("receipt").path("terminal").asBoolean()).isFalse();
+    }
     JdbcTemplate jdbc;ObjectMapper json=new ObjectMapper();ExplorationWorkspaceStore store;
     UserAssetService assets;AssetAnalysisController analysis;ObjectAccessService access;ExplorationWorkspaceController controller;
     ExplorationAgentBridge bridge=mock(ExplorationAgentBridge.class);

@@ -1,7 +1,13 @@
 import {it,expect,vi,afterEach} from 'vitest';
 const request=vi.hoisted(()=>vi.fn());vi.mock('./api',()=>({apiRequest:request}));
-import {explorationDatasets,generateExplorationIdeas} from './explorationApi';
+import {explorationDatasets,generateExplorationIdeas,stopExploration} from './explorationApi';
 afterEach(()=>request.mockReset());
+it('stops the exact node with its originating workspace without supplying a client task ID',async()=>{
+ const workspaceContext={workspaceId:'data-exploration'};
+ await stopExploration('project/id','node/id',workspaceContext);
+ expect(request).toHaveBeenCalledWith('/data-science/explorations/project%2Fid/nodes/node%2Fid/stop',
+   {method:'POST',body:'{}',workspaceContext});
+});
 it('sends ideas to the backend with the originating workspace and cancellation signal',async()=>{
  const controller=new AbortController(),workspaceContext={workspaceId:'data-exploration'};
  const body={draft:'核对资产',agentId:'authorized',fileIds:['owned-file']};

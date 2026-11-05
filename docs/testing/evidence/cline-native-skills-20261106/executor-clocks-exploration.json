@@ -1,0 +1,56 @@
+{
+  "source": "OWNER_AUTHENTICATED_IMMUTABLE_MCP_ARCHIVED_RECEIPT",
+  "scope": "MCP execution receipt startedAt, separate from Node Python tool dispatch; not an OS process-spawn probe. Missing clocks stay UNKNOWN. Receipts require the exact task/run, stop proof and registry hash/size.",
+  "rows": [
+    {
+      "variant": "native",
+      "case": "visual-0",
+      "taskId": "analysis-coding-bf2ec08e6e86992182d409b15483877e01c4cb00bf17d2efad4f423ad1a149da",
+      "firstExecutorStartedMs": 401271,
+      "clocks": [
+        {
+          "operationId": "cline-7f006259f408bfe67f80f0aec24f8852812c3d3f6c1b2ea0e30f569d68ea9e23",
+          "codeHash": "9bc28a628e9075faaf8d3b97d6e803085ca8e413fe3ed785041b27377455b072",
+          "startedAt": "2026-11-05T22:37:12.018917624Z",
+          "finishedAt": "2026-11-05T22:37:13.238500336Z",
+          "receiptSha256": "323696d2e1529aa154fd4f16f328fce430a2308e800f0b6eecac713107643ccf"
+        },
+        {
+          "operationId": "cline-e26b0e635f9158b1cbee9580ceb2da1adcb8cd4fb6aa0c05763c63cc0c619342",
+          "codeHash": "1153f7850f60b7efabe5c34a7eff6c276f05e066bba7561f8e2e24c39b97ddcc",
+          "startedAt": "2026-11-05T22:35:46.630702014Z",
+          "finishedAt": "2026-11-05T22:35:48.126640403Z",
+          "receiptSha256": "e53582dbb242912bd7a6f392e714ddc6c98ce0e4e9fbdbacfb0840e3512f1c52"
+        },
+        {
+          "operationId": "cline-2b7c79e4a0c9f1efbea8a46ec8059581c635e2c7efd01d11ba3116dfec1d48f1",
+          "codeHash": "d15dcdb4566c46a93a6062e65843fb8562fd1b29feacdb694f18729c04fe975a",
+          "startedAt": "2026-11-05T22:32:00.208473579Z",
+          "finishedAt": "2026-11-05T22:32:00.872764414Z",
+          "receiptSha256": "6031954a9765150d1af61cf01120bc58ff48dcec15b32a122aab4d7a5a0af737"
+        }
+      ]
+    },
+    {
+      "variant": "native",
+      "case": "visual-1",
+      "taskId": "analysis-coding-33738ce71f23a688800165883a3e18a50f61d9e55a86aab65746e66ae858f051",
+      "firstExecutorStartedMs": 961556,
+      "clocks": [
+        {
+          "operationId": "cline-ca8b4d7b22a086c230da5420669c7128d9158bf711ebc5edb19b75ded96aa19f",
+          "codeHash": "8bb082d087e5677244630fa1ae32cfec9f5b767e48d82eb3518e96e2f3a35000",
+          "startedAt": "2026-11-05T22:41:20.490299300Z",
+          "finishedAt": "2026-11-05T22:41:21.169881437Z",
+          "receiptSha256": "28b6615afae629b282af686309ba514af9d57db8680391c5816902aae8000ec9"
+        }
+      ]
+    }
+  ],
+  "aggregate": {
+    "native": {
+      "observed": 2,
+      "median": 681413.5
+    }
+  }
+}

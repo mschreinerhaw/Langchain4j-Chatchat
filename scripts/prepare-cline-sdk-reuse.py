@@ -27,6 +27,8 @@ def main():
     parser.add_argument('--image-tag')
     args = parser.parse_args()
     root = args.release_dir.resolve()
+    if not (root / 'test-cline-sdk-sandbox.py').is_file():
+        raise FileNotFoundError('Distribute test-cline-sdk-sandbox.py before preparing the worker candidate')
     archive = root / {'sdk-reuse': 'cline-sdk-reuse-worker.tar.gz', 'coding-progress': 'coding-progress-worker.tar.gz',
         'native-skills': 'native-skills-worker.tar.gz'}[args.profile]
     if hashlib.sha256(archive.read_bytes()).hexdigest() != args.archive_sha256:

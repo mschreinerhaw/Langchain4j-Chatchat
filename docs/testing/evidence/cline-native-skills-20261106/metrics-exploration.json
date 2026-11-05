@@ -1,0 +1,227 @@
+{
+  "capturedAt": "2026-11-05T22:45:21.410667+00:00",
+  "rows": [
+    {
+      "variant": "native",
+      "case": "visual-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 843384,
+      "taskId": "analysis-coding-bf2ec08e6e86992182d409b15483877e01c4cb00bf17d2efad4f423ad1a149da",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstProposalMs": 398531,
+      "preCodeModelCalls": 3,
+      "preCodeInputTokensKnown": 50297,
+      "preCodeKnownUsageCalls": 3,
+      "preCodeSkillReads": 0,
+      "preCodeInputReads": 1,
+      "preCodeMaxSkillContextBytes": 525,
+      "preCodeMaxRequestBytes": 69967,
+      "firstCodeMs": 398755,
+      "firstNewCodeMs": 398755,
+      "firstPythonMs": 398845,
+      "firstResultMs": 715884,
+      "modelCalls": 7,
+      "knownUsageCalls": 7,
+      "knownTokens": 230856,
+      "codeProposals": 3,
+      "rejectedProposals": 0,
+      "pythonExecutions": 3,
+      "pythonToolResults": 3,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "PROGRAM_ERROR",
+        "PROGRAM_ERROR",
+        null
+      ],
+      "skillReads": 1,
+      "nativeDiscoveryEvents": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read",
+          "read_files"
+        ],
+        [],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "input_read"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "STOP",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 525,
+      "repairObserved": true,
+      "successfulExecution": true
+    },
+    {
+      "variant": "native",
+      "case": "visual-1",
+      "status": "BUDGET_EXCEEDED",
+      "httpDurationMs": 1201260,
+      "taskId": "analysis-coding-33738ce71f23a688800165883a3e18a50f61d9e55a86aab65746e66ae858f051",
+      "resultAvailable": false,
+      "nodeStatus": "CANCELLED",
+      "nodeError": null,
+      "fences": 2,
+      "eventsTruncated": false,
+      "firstProposalMs": 959487,
+      "preCodeModelCalls": 5,
+      "preCodeInputTokensKnown": 68177,
+      "preCodeKnownUsageCalls": 4,
+      "preCodeSkillReads": 0,
+      "preCodeInputReads": 1,
+      "preCodeMaxSkillContextBytes": 531,
+      "preCodeMaxRequestBytes": 71257,
+      "firstCodeMs": 959798,
+      "firstNewCodeMs": 959798,
+      "firstPythonMs": 959878,
+      "firstResultMs": null,
+      "modelCalls": 7,
+      "knownUsageCalls": 5,
+      "knownTokens": 120012,
+      "codeProposals": 1,
+      "rejectedProposals": 0,
+      "pythonExecutions": 1,
+      "pythonToolResults": 1,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "PACKAGE_API_UNAVAILABLE"
+      ],
+      "skillReads": 1,
+      "nativeDiscoveryEvents": 2,
+      "discoveryCalls": 0,
+      "modelErrors": [
+        {
+          "type": "MODEL_FAILED",
+          "diagnosticCode": "CALLBACK_HTTP_REJECTED",
+          "errorCategory": "CALLBACK_HTTP_REJECTED"
+        }
+      ],
+      "toolsByCall": [
+        [
+          "input_read",
+          "read_files"
+        ],
+        [],
+        [],
+        [
+          "python_execute"
+        ],
+        [
+          "code_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.8-flash"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "STOP",
+        "STOP",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 531,
+      "repairObserved": false,
+      "successfulExecution": false
+    }
+  ],
+  "aggregate": {
+    "native": {
+      "tasks": 2,
+      "successfulExecutions": 1,
+      "totalModelCalls": 14,
+      "knownUsageCalls": 12,
+      "unknownUsageCalls": 2,
+      "knownTokensTotal": 350868,
+      "repairTasks": 0,
+      "repairSuccesses": 0,
+      "metrics": {
+        "firstProposalMs": {
+          "observed": 2,
+          "median": 679009
+        },
+        "firstCodeMs": {
+          "observed": 2,
+          "median": 679276.5
+        },
+        "firstNewCodeMs": {
+          "observed": 2,
+          "median": 679276.5
+        },
+        "firstPythonMs": {
+          "observed": 2,
+          "median": 679361.5
+        },
+        "firstResultMs": {
+          "observed": 1,
+          "median": 715884
+        },
+        "httpDurationMs": {
+          "observed": 2,
+          "median": 1022322
+        },
+        "modelCalls": {
+          "observed": 2,
+          "median": 7
+        },
+        "knownTokens": {
+          "observed": 2,
+          "median": 175434
+        },
+        "preCodeModelCalls": {
+          "observed": 2,
+          "median": 4
+        },
+        "preCodeInputTokensKnown": {
+          "observed": 2,
+          "median": 59237
+        },
+        "preCodeSkillReads": {
+          "observed": 2,
+          "median": 0
+        },
+        "preCodeInputReads": {
+          "observed": 2,
+          "median": 1
+        },
+        "preCodeMaxSkillContextBytes": {
+          "observed": 2,
+          "median": 528
+        },
+        "preCodeMaxRequestBytes": {
+          "observed": 2,
+          "median": 70612
+        }
+      }
+    }
+  },
+  "method": "Two real-provider tasks through existing formal data-exploration visual endpoint; same synthetic CSV, ISO week question; no outer Agent. No replay; failures retained; Node acceptance clocks; unknown usage excluded, not zero; concurrency 2; descriptive small sample, no p95 or causal claim.",
+  "collectorMethodTemplate": "Five synthetic cases, two repeats each, real configured model and Java/Python. Same immutable assets. Node acceptance clocks; unknown usage excluded, failures retained. Sequential variants, max concurrency 2; descriptive small sample, no p95 claim."
+}

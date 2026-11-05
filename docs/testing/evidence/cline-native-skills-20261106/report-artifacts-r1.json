@@ -1,0 +1,34 @@
+{
+  "case": "visual-1",
+  "taskId": "analysis-coding-a8599e51c495a7df55569ecca0e9c16a2e15e84e5fed4660631aacfc8c979fb1",
+  "reportSha256": "4568d4b85226b9424205493e850313c35cc7ed4fb65abace35f7b8c992838b89",
+  "resultKeys": [
+    "reportMarkdown",
+    "evidenceReferences",
+    "analysisStatus",
+    "fieldProvenance",
+    "limitations"
+  ],
+  "artifacts": [
+    {
+      "name": "weekly_trend_by_region.png",
+      "sha256": "3f2f035fac906805482bebb31b334a5fb2f939644dad84a7e602c3cf4fc2cc43",
+      "size": 131776,
+      "width": 1500,
+      "height": 1080,
+      "taskBound": true,
+      "ownerAuthenticated": true,
+      "registryIntegrityVerified": true
+    },
+    {
+      "name": "region_comparison.png",
+      "sha256": "d93209b84d13624bee8232faa4ffa29312076a5f884ba6d3139bfe9a00535279",
+      "size": 96268,
+      "width": 1650,
+      "height": 750,
+      "taskBound": true,
+      "ownerAuthenticated": true,
+      "registryIntegrityVerified": true
+    }
+  ]
+}

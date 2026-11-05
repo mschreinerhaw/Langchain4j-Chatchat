@@ -1,0 +1,12 @@
+{
+  "sourceCommit": "bca0930864ab8f25e511f657d46401312490ffbc",
+  "archiveSha256": "b67bd4c7b8ecaa545ff7260234e26cf8a648b535c1a0ed6cfc7499f88d28e3b3",
+  "requiredEntries": [
+    "coding-agent-node/src/native-skills.js",
+    "coding-agent-node/dist/native-skills.js",
+    "coding-agent-node/test/native-skills.test.js",
+    "chatchat-common/src/main/resources/runtime/coding/python-project-adapter.py",
+    "chatchat-common/src/main/resources/runtime/report-block.schema.json"
+  ],
+  "entries": 228
+}

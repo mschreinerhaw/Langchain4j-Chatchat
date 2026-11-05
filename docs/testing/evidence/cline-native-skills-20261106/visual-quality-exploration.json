@@ -1,0 +1,507 @@
+{
+  "scope": "Actual exploration endpoint visual contract; direct file analysis, no outer finance Agent; original failures retained",
+  "cases": [
+    {
+      "case": "visual-0",
+      "taskId": "analysis-coding-bf2ec08e6e86992182d409b15483877e01c4cb00bf17d2efad4f423ad1a149da",
+      "status": "COMPLETED",
+      "elapsedMs": 843384,
+      "visualReportStatus": "PARTIAL",
+      "reportSha256": "1fdaf6b38610446ee14f4761159072ca712ed4d4131884f560886ac6901f1947",
+      "charts": [
+        {
+          "id": "weekly_amount_by_region",
+          "kind": "unavailable",
+          "renderError": "CHART_ARTIFACT_REJECTED"
+        },
+        {
+          "id": "region_total_amount",
+          "kind": "unavailable",
+          "renderError": "CHART_ARTIFACT_REJECTED"
+        },
+        {
+          "id": "weekly_amount_share_stacked",
+          "kind": "unavailable",
+          "renderError": "CHART_ARTIFACT_REJECTED"
+        },
+        {
+          "id": "weekly_weighted_unit_value",
+          "kind": "unavailable",
+          "renderError": "CHART_ARTIFACT_REJECTED"
+        },
+        {
+          "id": "week_day_coverage",
+          "kind": "unavailable",
+          "renderError": "CHART_ARTIFACT_REJECTED"
+        }
+      ],
+      "warnings": {
+        "checks": [
+          {
+            "detail": "清单与原文件（complex.csv，1247 字节）按声明校验通过；单一文件、单分片，声明哈希与实际一致。",
+            "name": "输入文件完整性",
+            "status": "PASSED"
+          },
+          {
+            "detail": "5 个 Plotly JSON 图表使用普通 x/y 数组、无内嵌模板、无二进制列传输，均可独立解析。",
+            "name": "图表离线与编码",
+            "status": "PASSED"
+          },
+          {
+            "detail": "表头 day/region/amount/quantity；56 行全部解析为 Decimal，无缺失标记、无字段数异常；(day,region) 唯一键 56 个，重复 0。",
+            "name": "解析与结构",
+            "status": "PASSED"
+          },
+          {
+            "detail": "2026-10-01 ~ 2026-10-28 共 28 个日历日连续无缺口，且每天 East、West 各 1 行；边界周缺失日历日全部落在窗口之外。",
+            "name": "日期覆盖",
+            "status": "PASSED"
+          },
+          {
+            "detail": "周合计还原文件总额（差异 0）；East+West 还原总额（差异 0）；周占全期比例合计 100.0000%。",
+            "name": "总额与占比还原",
+            "status": "PASSED"
+          },
+          {
+            "detail": "每周每地区 sum(quantity) 均 > 0，sum(amount)/sum(quantity) 无除零；同时给出逐日比率算术平均作为对照口径。",
+            "name": "加权口径可行性",
+            "status": "PASSED"
+          },
+          {
+            "detail": "28 天中西历每日 West 金额恰为 East 的 2 倍、数量相同，故每周 West/East 加权单位值比恒为 2.000；该关系为数据内观察，非外部规则。",
+            "name": "口径一致性（观察项）",
+            "status": "PASSED"
+          }
+        ],
+        "scope": "STOPPED_EXECUTION_AND_ARTIFACT_INTEGRITY; COMPUTATION_CHECKS_ARE_PROGRAM_DECLARED; BUSINESS_SEMANTICS_NOT_CERTIFIED",
+        "status": "PARTIAL",
+        "warnings": [
+          "Chart weekly_amount_by_region unavailable: Unsafe Plotly text or resource",
+          "Chart region_total_amount unavailable: Unsafe Plotly text or resource",
+          "Chart weekly_amount_share_stacked unavailable: Unsafe Plotly text or resource",
+          "Chart weekly_weighted_unit_value unavailable: Unsafe Plotly text or resource",
+          "Chart week_day_coverage unavailable: Unsafe Plotly text or resource",
+          "源文件与生产者元数据均未声明币种、计量单位与数值精度；按用户指示，金额与数量仅作演示单位，本报告不作任何币种或跨市场可比性判断。",
+          "2026-W40 仅覆盖 4/7 天、2026-W44 仅覆盖 3/7 天，二者的周合计金额与完整周不可直接比较；报告同时提供日均金额以消除覆盖差异。",
+          "窗口仅 4 周（28 天），周趋势为期内描述，不足以支持长期规律、业务偏好或风险结论。"
+        ]
+      },
+      "artifactDiagnostics": [
+        {
+          "name": "weekly_weighted_unit_value.json",
+          "sha256": "ed2c86bbc0090805a809dd47f432a35591d4ca9458f04a0ee2aee6a36e823e53",
+          "size": 2001,
+          "ownerAuthenticated": true,
+          "registryIntegrityVerified": true,
+          "unsafeStrings": [
+            {
+              "path": ".layout.title.text",
+              "value": "数量加权单位值 sum(amount)/sum(quantity) 周趋势<br><span style='font-size:12px;color:#666'>纵轴为演示金额单位／演示数量单位，自 0 起｜来源：complex.csv（合成数据验收，授权单一文件）</span>",
+              "reason": "Actual unsafe-text/resource rule matched"
+            }
+          ]
+        },
+        {
+          "name": "weekly_amount_share_stacked.json",
+          "sha256": "238446c79cedd9cddff9b8fd7adc2d033f555f23628d7c4467239593be075b43",
+          "size": 1631,
+          "ownerAuthenticated": true,
+          "registryIntegrityVerified": true,
+          "unsafeStrings": [
+            {
+              "path": ".layout.title.text",
+              "value": "每周金额构成占比（分母＝当周两地区合计）<br><span style='font-size:12px;color:#666'>边界周仅含窗口内可用天数，占比不受缺天影响｜来源：complex.csv（合成数据验收，授权单一文件）</span>",
+              "reason": "Actual unsafe-text/resource rule matched"
+            }
+          ]
+        },
+        {
+          "name": "weekly_amount_by_region.json",
+          "sha256": "1d9f243318016200e7f02c89ef7e4be97ed9feabe58792aef07f606bb788b15f",
+          "size": 1757,
+          "ownerAuthenticated": true,
+          "registryIntegrityVerified": true,
+          "unsafeStrings": [
+            {
+              "path": ".layout.title.text",
+              "value": "两地区每周金额（ISO 周，周一至周日）｜区间 2026-10-01 ~ 2026-10-28<br><span style='font-size:12px;color:#666'>单位：演示金额单位，源数据未声明币种｜来源：complex.csv（合成数据验收，授权单一文件）</span>",
+              "reason": "Actual unsafe-text/resource rule matched"
+            }
+          ]
+        },
+        {
+          "name": "week_day_coverage.json",
+          "sha256": "60057705e0ac2250c33eecef5e4ea41e92035d788fc7f119455b6779e8ff0b38",
+          "size": 1739,
+          "ownerAuthenticated": true,
+          "registryIntegrityVerified": true,
+          "unsafeStrings": [
+            {
+              "path": ".layout.title.text",
+              "value": "每周日历日覆盖：完整周与边界周<br><span style='font-size:12px;color:#666'>缺失天指 ISO 周内未落入数据窗口的日历日｜来源：complex.csv（合成数据验收，授权单一文件）</span>",
+              "reason": "Actual unsafe-text/resource rule matched"
+            }
+          ]
+        },
+        {
+          "name": "region_total_amount.json",
+          "sha256": "749e324bf69c574ad9d3e6fe0beaad976d4d8c6b96cb700fcac9b44eed4701bf",
+          "size": 1058,
+          "ownerAuthenticated": true,
+          "registryIntegrityVerified": true,
+          "unsafeStrings": [
+            {
+              "path": ".layout.title.text",
+              "value": "两地区区间合计金额对比｜2026-10-01 ~ 2026-10-28<br><span style='font-size:12px;color:#666'>柱内标注为占全期金额比例｜来源：complex.csv（合成数据验收，授权单一文件）</span>",
+              "reason": "Actual unsafe-text/resource rule matched"
+            }
+          ]
+        },
+        {
+          "name": "weekly_amount_by_region.json",
+          "sha256": "fbc16069d49909040bd2b9dfdd42d8d2bfcd8a9864fae8f488e5eb7943c0d061",
+          "size": 8214,
+          "ownerAuthenticated": true,
+          "registryIntegrityVerified": true,
+          "unsafeStrings": [
+            {
+              "path": ".layout.title.text",
+              "value": "两地区每周金额（ISO 周，周一至周日）｜区间 2026-10-01 ~ 2026-10-28<br><span style='font-size:12px;color:#666'>单位：演示金额单位，源数据未声明币种｜来源：complex.csv（合成数据验收，授权单一文件）</span>",
+              "reason": "Actual unsafe-text/resource rule matched"
+            }
+          ]
+        }
+      ],
+      "numericTables": [
+        {
+          "id": "weekly_amount_share",
+          "columns": [
+            "ISO 周",
+            "周区间（周一~周日）",
+            "类型",
+            "覆盖天数",
+            "East 金额",
+            "West 金额",
+            "周合计金额",
+            "East 当周占比(%)",
+            "West 当周占比(%)",
+            "周合计占全期(%)",
+            "日均金额"
+          ],
+          "rows": [
+            [
+              "2026-W40",
+              "2026-09-28 ~ 2026-10-04",
+              "边界周",
+              "4/7",
+              "10",
+              "20",
+              "30",
+              "33.3333",
+              "66.6667",
+              "2.4631",
+              "7.500"
+            ],
+            [
+              "2026-W41",
+              "2026-10-05 ~ 2026-10-11",
+              "完整周",
+              "7/7",
+              "56",
+              "112",
+              "168",
+              "33.3333",
+              "66.6667",
+              "13.7931",
+              "24.000"
+            ],
+            [
+              "2026-W42",
+              "2026-10-12 ~ 2026-10-18",
+              "完整周",
+              "7/7",
+              "105",
+              "210",
+              "315",
+              "33.3333",
+              "66.6667",
+              "25.8621",
+              "45.000"
+            ],
+            [
+              "2026-W43",
+              "2026-10-19 ~ 2026-10-25",
+              "完整周",
+              "7/7",
+              "154",
+              "308",
+              "462",
+              "33.3333",
+              "66.6667",
+              "37.9310",
+              "66.000"
+            ],
+            [
+              "2026-W44",
+              "2026-10-26 ~ 2026-11-01",
+              "边界周",
+              "3/7",
+              "81",
+              "162",
+              "243",
+              "33.3333",
+              "66.6667",
+              "19.9507",
+              "81.000"
+            ]
+          ]
+        },
+        {
+          "id": "weekly_quantity_unit_value",
+          "columns": [
+            "ISO 周",
+            "地区",
+            "周数量",
+            "周金额",
+            "加权单位值",
+            "精确分数",
+            "日均比率(对照)",
+            "日均比率与加权值之差"
+          ],
+          "rows": [
+            [
+              "2026-W40",
+              "East",
+              "10",
+              "10",
+              "1.000",
+              "10/10",
+              "1.4792",
+              "0.4792"
+            ],
+            [
+              "2026-W40",
+              "West",
+              "10",
+              "20",
+              "2.000",
+              "20/10",
+              "2.9583",
+              "0.9583"
+            ],
+            [
+              "2026-W41",
+              "East",
+              "19",
+              "56",
+              "2.947",
+              "56/19",
+              "3.5476",
+              "0.6003"
+            ],
+            [
+              "2026-W41",
+              "West",
+              "19",
+              "112",
+              "5.895",
+              "112/19",
+              "7.0952",
+              "1.2005"
+            ],
+            [
+              "2026-W42",
+              "East",
+              "16",
+              "105",
+              "6.563",
+              "105/16",
+              "8.2024",
+              "1.6399"
+            ],
+            [
+              "2026-W42",
+              "West",
+              "16",
+              "210",
+              "13.125",
+              "210/16",
+              "16.4048",
+              "3.2798"
+            ],
+            [
+              "2026-W43",
+              "East",
+              "17",
+              "154",
+              "9.059",
+              "154/17",
+              "12.1190",
+              "3.0602"
+            ],
+            [
+              "2026-W43",
+              "West",
+              "17",
+              "308",
+              "18.118",
+              "308/17",
+              "24.2381",
+              "6.1204"
+            ],
+            [
+              "2026-W44",
+              "East",
+              "8",
+              "81",
+              "10.125",
+              "81/8",
+              "14.4722",
+              "4.3472"
+            ],
+            [
+              "2026-W44",
+              "West",
+              "8",
+              "162",
+              "20.250",
+              "162/8",
+              "28.9444",
+              "8.6944"
+            ]
+          ]
+        },
+        {
+          "id": "week_coverage_detail",
+          "columns": [
+            "ISO 周",
+            "类型",
+            "已有日历日",
+            "缺失日历日",
+            "缺失日是否在数据窗口内"
+          ],
+          "rows": [
+            [
+              "2026-W40",
+              "边界周",
+              "2026-10-01, 2026-10-02, 2026-10-03, 2026-10-04",
+              "2026-09-28（周一）, 2026-09-29（周二）, 2026-09-30（周三）",
+              "否（均在窗口外）"
+            ],
+            [
+              "2026-W41",
+              "完整周",
+              "2026-10-05, 2026-10-06, 2026-10-07, 2026-10-08, 2026-10-09, 2026-10-10, 2026-10-11",
+              "—",
+              "否（均在窗口外）"
+            ],
+            [
+              "2026-W42",
+              "完整周",
+              "2026-10-12, 2026-10-13, 2026-10-14, 2026-10-15, 2026-10-16, 2026-10-17, 2026-10-18",
+              "—",
+              "否（均在窗口外）"
+            ],
+            [
+              "2026-W43",
+              "完整周",
+              "2026-10-19, 2026-10-20, 2026-10-21, 2026-10-22, 2026-10-23, 2026-10-24, 2026-10-25",
+              "—",
+              "否（均在窗口外）"
+            ],
+            [
+              "2026-W44",
+              "边界周",
+              "2026-10-26, 2026-10-27, 2026-10-28",
+              "2026-10-29（周四）, 2026-10-30（周五）, 2026-10-31（周六）, 2026-11-01（周日）",
+              "否（均在窗口外）"
+            ]
+          ]
+        },
+        {
+          "id": "reconciliation_checks",
+          "columns": [
+            "核对项",
+            "口径/公式",
+            "结果",
+            "状态"
+          ],
+          "rows": [
+            [
+              "文件总金额",
+              "sum(amount)",
+              "1,218（演示单位）",
+              "PASSED"
+            ],
+            [
+              "文件总数量",
+              "sum(quantity)",
+              "140（演示数量单位）",
+              "PASSED"
+            ],
+            [
+              "周合计还原总额",
+              "sum(周合计金额) − 文件总金额",
+              "0",
+              "PASSED"
+            ],
+            [
+              "地区合计还原总额",
+              "East+West − 文件总金额",
+              "0",
+              "PASSED"
+            ],
+            [
+              "占全期比例合计",
+              "sum(周合计占全期%)",
+              "100.0000%",
+              "PASSED"
+            ],
+            [
+              "日期覆盖",
+              "2026-10-01 ~ 2026-10-28 连续 28 天",
+              "无窗口内缺口",
+              "PASSED"
+            ],
+            [
+              "地区×日期完整性",
+              "每天两地区各 1 行",
+              "56 行 / 56 唯一键 / 重复 0",
+              "PASSED"
+            ],
+            [
+              "除零风险",
+              "sum(quantity) > 0",
+              "每周每地区数量均 > 0",
+              "PASSED"
+            ],
+            [
+              "West 与 East 关系",
+              "逐行 West amount = 2 × East amount",
+              "56 行中全部成立",
+              "PASSED"
+            ],
+            [
+              "币种/计量单位声明",
+              "生产者字段定义",
+              "未声明，按用户指示视为演示单位",
+              "UNRESOLVED"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "case": "visual-1",
+      "taskId": "analysis-coding-33738ce71f23a688800165883a3e18a50f61d9e55a86aab65746e66ae858f051",
+      "status": "BUDGET_EXCEEDED",
+      "elapsedMs": 1201260,
+      "visualReportStatus": null,
+      "reportSha256": null,
+      "charts": [],
+      "warnings": {},
+      "artifactDiagnostics": [],
+      "numericTables": []
+    }
+  ]
+}

@@ -1,0 +1,491 @@
+{
+  "scope": "synthetic real-provider tasks; no replay; successful loads are SDK results, not tool attempts",
+  "cases": [
+    {
+      "case": "visual-0",
+      "taskId": "analysis-coding-bf2ec08e6e86992182d409b15483877e01c4cb00bf17d2efad4f423ad1a149da",
+      "nodeStatus": "COMPLETED",
+      "eventsTruncated": false,
+      "discovery": [
+        {
+          "type": "SKILLS_DISCOVERED",
+          "timestamp": "2026-11-05T22:25:19.478Z",
+          "nativeSkills": true,
+          "discovery": "loadAgentPluginPackages",
+          "loader": "createUserInstructionConfigService",
+          "nativeSkillCount": 15
+        }
+      ],
+      "successfulLoads": [],
+      "nativeCalls": [
+        {
+          "operationId": "model-1",
+          "tool": "read_files",
+          "paths": [
+            {
+              "sha256": "47df5ae1990e0b4de168ab2239e909f4a6e782b187880fd7dcf8b0c4b898e713",
+              "scope": "sandbox-data"
+            }
+          ]
+        }
+      ],
+      "modelTimeline": [
+        {
+          "ordinal": 1,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-05T22:25:20.487847724Z",
+          "finishedAt": "2026-11-05T22:25:25.586274468Z",
+          "durationMs": 5098,
+          "purpose": "PREPARING",
+          "actualTools": [
+            "input_read",
+            "read_files"
+          ],
+          "finishReason": "tool-calls",
+          "providerFinishReason": "TOOL_EXECUTION",
+          "usage": {
+            "inputTokens": 15549,
+            "outputTokens": 279,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 17
+          },
+          "compactionCount": 0,
+          "contextSizeBefore": 44028,
+          "contextSizeAfter": 44028,
+          "contextChangeReason": "INITIAL_OR_REPLACED_CONTEXT"
+        },
+        {
+          "ordinal": 2,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-05T22:25:27.423021174Z",
+          "finishedAt": "2026-11-05T22:28:17.115778073Z",
+          "durationMs": 169692,
+          "purpose": "PREPARING",
+          "actualTools": [],
+          "finishReason": "stop",
+          "providerFinishReason": "STOP",
+          "usage": {
+            "inputTokens": 17210,
+            "outputTokens": 9109,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 8876
+          },
+          "compactionCount": 0,
+          "contextSizeBefore": 47148,
+          "contextSizeAfter": 47148,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        },
+        {
+          "ordinal": 3,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-05T22:28:18.231270722Z",
+          "finishedAt": "2026-11-05T22:31:56.806105675Z",
+          "durationMs": 218574,
+          "purpose": "PREPARING",
+          "actualTools": [
+            "python_execute"
+          ],
+          "finishReason": "tool-calls",
+          "providerFinishReason": "TOOL_EXECUTION",
+          "usage": {
+            "inputTokens": 17538,
+            "outputTokens": 14221,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 7007
+          },
+          "compactionCount": 0,
+          "contextSizeBefore": 48804,
+          "contextSizeAfter": 48804,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        },
+        {
+          "ordinal": 4,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-05T22:32:02.409170420Z",
+          "finishedAt": "2026-11-05T22:35:43.796743668Z",
+          "durationMs": 221387,
+          "purpose": "REPAIRING",
+          "actualTools": [
+            "python_execute"
+          ],
+          "finishReason": "tool-calls",
+          "providerFinishReason": "TOOL_EXECUTION",
+          "usage": {
+            "inputTokens": 29023,
+            "outputTokens": 15481,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 8663
+          },
+          "compactionCount": 0,
+          "contextSizeBefore": 82537,
+          "contextSizeAfter": 82537,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        },
+        {
+          "ordinal": 5,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-05T22:35:50.207185328Z",
+          "finishedAt": "2026-11-05T22:37:07.555835947Z",
+          "durationMs": 77348,
+          "purpose": "REPAIRING",
+          "actualTools": [
+            "python_execute"
+          ],
+          "finishReason": "tool-calls",
+          "providerFinishReason": "TOOL_EXECUTION",
+          "usage": {
+            "inputTokens": 39248,
+            "outputTokens": 4968,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 4037
+          },
+          "compactionCount": 0,
+          "contextSizeBefore": 114216,
+          "contextSizeAfter": 114216,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        },
+        {
+          "ordinal": 6,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-05T22:37:17.332676724Z",
+          "finishedAt": "2026-11-05T22:37:49.409087338Z",
+          "durationMs": 32076,
+          "purpose": "REVIEWING",
+          "actualTools": [
+            "input_read"
+          ],
+          "finishReason": "tool-calls",
+          "providerFinishReason": "TOOL_EXECUTION",
+          "usage": {
+            "inputTokens": 29420,
+            "outputTokens": 2010,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 1841
+          },
+          "compactionCount": 1,
+          "contextSizeBefore": 158103,
+          "contextSizeAfter": 45453,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        },
+        {
+          "ordinal": 7,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-05T22:37:54.371516611Z",
+          "finishedAt": "2026-11-05T22:39:18.044560506Z",
+          "durationMs": 83673,
+          "purpose": "EXPLORING",
+          "actualTools": [
+            "artifact_read"
+          ],
+          "finishReason": "tool-calls",
+          "providerFinishReason": "TOOL_EXECUTION",
+          "usage": {
+            "inputTokens": 30901,
+            "outputTokens": 5899,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 5809
+          },
+          "compactionCount": 2,
+          "contextSizeBefore": 160622,
+          "contextSizeAfter": 45453,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        }
+      ],
+      "sdkCompactionCount": 2,
+      "diagnostics": [
+        {
+          "type": "TOOL_FINISHED",
+          "timestamp": "2026-11-05T22:32:01.480Z",
+          "tool": "python_execute",
+          "status": "FAILED",
+          "diagnosticCode": "PROGRAM_ERROR",
+          "resultAvailable": false
+        },
+        {
+          "type": "TOOL_FINISHED",
+          "timestamp": "2026-11-05T22:35:48.973Z",
+          "tool": "python_execute",
+          "status": "FAILED",
+          "diagnosticCode": "PROGRAM_ERROR",
+          "resultAvailable": false
+        },
+        {
+          "type": "TOOL_FINISHED",
+          "timestamp": "2026-11-05T22:37:14.821Z",
+          "tool": "python_execute",
+          "status": "SUCCEEDED",
+          "resultAvailable": true
+        }
+      ],
+      "pythonFeedback": [
+        {
+          "operationId": "cline-2b7c79e4a0c9f1efbea8a46ec8059581c635e2c7efd01d11ba3116dfec1d48f1",
+          "status": "FAILED",
+          "exceptionType": "AssertionError",
+          "diagnosticCode": "PROGRAM_ERROR"
+        },
+        {
+          "operationId": "cline-7f006259f408bfe67f80f0aec24f8852812c3d3f6c1b2ea0e30f569d68ea9e23",
+          "status": "SUCCEEDED",
+          "exceptionType": null,
+          "diagnosticCode": null
+        },
+        {
+          "operationId": "cline-e26b0e635f9158b1cbee9580ceb2da1adcb8cd4fb6aa0c05763c63cc0c619342",
+          "status": "FAILED",
+          "exceptionType": "TypeError",
+          "diagnosticCode": "PROGRAM_ERROR"
+        }
+      ],
+      "reports": [
+        {
+          "sha256": "43f3cf3cc81cdc554f33026828dd006cf75dcba4f2819dbb97a73a47e9777d32",
+          "bytes": 8913,
+          "analysisStatus": "COMPLETE",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "visual-1",
+      "taskId": "analysis-coding-33738ce71f23a688800165883a3e18a50f61d9e55a86aab65746e66ae858f051",
+      "nodeStatus": "CANCELLED",
+      "eventsTruncated": false,
+      "discovery": [
+        {
+          "type": "SKILLS_DISCOVERED",
+          "timestamp": "2026-11-05T22:25:19.472Z",
+          "nativeSkills": true,
+          "discovery": "loadAgentPluginPackages",
+          "loader": "createUserInstructionConfigService",
+          "nativeSkillCount": 15
+        },
+        {
+          "type": "SKILLS_DISCOVERED",
+          "timestamp": "2026-11-05T22:33:06.321Z",
+          "nativeSkills": true,
+          "discovery": "loadAgentPluginPackages",
+          "loader": "createUserInstructionConfigService",
+          "nativeSkillCount": 15
+        }
+      ],
+      "successfulLoads": [],
+      "nativeCalls": [
+        {
+          "operationId": "model-1",
+          "tool": "read_files",
+          "paths": [
+            {
+              "sha256": "0c74d4e7661a9aba2d15cdc94d2c697641dbccc2cf611218dc6ee24d78f92719",
+              "scope": "sandbox-data"
+            }
+          ]
+        }
+      ],
+      "modelTimeline": [
+        {
+          "ordinal": 1,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-05T22:25:20.492119656Z",
+          "finishedAt": "2026-11-05T22:25:26.942509115Z",
+          "durationMs": 6450,
+          "purpose": "PREPARING",
+          "actualTools": [
+            "input_read",
+            "read_files"
+          ],
+          "finishReason": "tool-calls",
+          "providerFinishReason": "TOOL_EXECUTION",
+          "usage": {
+            "inputTokens": 15540,
+            "outputTokens": 390,
+            "totalCost": null,
+            "cacheReadTokens": 3072,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 127
+          },
+          "compactionCount": 0,
+          "contextSizeBefore": 44028,
+          "contextSizeAfter": 44028,
+          "contextChangeReason": "INITIAL_OR_REPLACED_CONTEXT"
+        },
+        {
+          "ordinal": 2,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-05T22:25:28.726974739Z",
+          "finishedAt": "2026-11-05T22:28:03.252531128Z",
+          "durationMs": 154525,
+          "purpose": "PREPARING",
+          "actualTools": [],
+          "finishReason": "stop",
+          "providerFinishReason": "STOP",
+          "usage": {
+            "inputTokens": 17198,
+            "outputTokens": 9144,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 8924
+          },
+          "compactionCount": 0,
+          "contextSizeBefore": 47154,
+          "contextSizeAfter": 47154,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        },
+        {
+          "ordinal": 3,
+          "status": "FAILED",
+          "startedAt": "2026-11-05T22:28:04.248Z",
+          "finishedAt": "2026-11-05T22:33:04.719Z",
+          "durationMs": 300471,
+          "purpose": "PREPARING",
+          "diagnosticCode": "CALLBACK_HTTP_REJECTED",
+          "usage": {
+            "inputTokens": null,
+            "outputTokens": null,
+            "totalCost": null
+          },
+          "compactionCount": 0,
+          "contextSizeBefore": 48743,
+          "contextSizeAfter": 48743,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        },
+        {
+          "ordinal": 4,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-05T22:33:07.472716090Z",
+          "finishedAt": "2026-11-05T22:36:41.992888794Z",
+          "durationMs": 214520,
+          "purpose": "PREPARING",
+          "actualTools": [],
+          "finishReason": "stop",
+          "providerFinishReason": "STOP",
+          "usage": {
+            "inputTokens": 17717,
+            "outputTokens": 12719,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 12665
+          },
+          "compactionCount": 0,
+          "contextSizeBefore": 49109,
+          "contextSizeAfter": 49109,
+          "contextChangeReason": "INITIAL_OR_REPLACED_CONTEXT"
+        },
+        {
+          "ordinal": 5,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-05T22:36:43.405588845Z",
+          "finishedAt": "2026-11-05T22:41:17.607669861Z",
+          "durationMs": 274202,
+          "purpose": "PREPARING",
+          "actualTools": [
+            "python_execute"
+          ],
+          "finishReason": "tool-calls",
+          "providerFinishReason": "TOOL_EXECUTION",
+          "usage": {
+            "inputTokens": 17722,
+            "outputTokens": 19122,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 6200
+          },
+          "compactionCount": 0,
+          "contextSizeBefore": 50072,
+          "contextSizeAfter": 50072,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        },
+        {
+          "ordinal": 6,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-05T22:41:23.313774492Z",
+          "finishedAt": "2026-11-05T22:41:30.070487221Z",
+          "durationMs": 6756,
+          "purpose": "REPAIRING",
+          "actualTools": [
+            "code_read"
+          ],
+          "finishReason": "tool-calls",
+          "providerFinishReason": "TOOL_EXECUTION",
+          "usage": {
+            "inputTokens": 10145,
+            "outputTokens": 315,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 228
+          },
+          "compactionCount": 1,
+          "contextSizeBefore": 101303,
+          "contextSizeAfter": 21279,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        },
+        {
+          "ordinal": 7,
+          "status": "UNKNOWN",
+          "startedAt": "2026-11-05T22:41:31.991Z",
+          "finishedAt": null,
+          "durationMs": 226899,
+          "purpose": "EXPLORING",
+          "usage": {
+            "inputTokens": null,
+            "outputTokens": null,
+            "totalCost": null
+          },
+          "compactionCount": 2,
+          "contextSizeBefore": 150634,
+          "contextSizeAfter": 21279,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        }
+      ],
+      "sdkCompactionCount": 2,
+      "diagnostics": [
+        {
+          "type": "MODEL_FAILED",
+          "timestamp": "2026-11-05T22:33:04.719Z",
+          "status": "FAILED",
+          "diagnosticCode": "CALLBACK_HTTP_REJECTED"
+        },
+        {
+          "type": "TOOL_FINISHED",
+          "timestamp": "2026-11-05T22:41:22.199Z",
+          "tool": "python_execute",
+          "status": "FAILED",
+          "diagnosticCode": "PACKAGE_API_UNAVAILABLE",
+          "resultAvailable": false
+        }
+      ],
+      "pythonFeedback": [
+        {
+          "operationId": "cline-ca8b4d7b22a086c230da5420669c7128d9158bf711ebc5edb19b75ded96aa19f",
+          "status": "FAILED",
+          "exceptionType": "AttributeError",
+          "diagnosticCode": "PACKAGE_API_UNAVAILABLE"
+        }
+      ],
+      "reports": []
+    }
+  ],
+  "tasksWithSuccessfulLoads": 0,
+  "successfulBodyLoads": 0,
+  "successfulReferenceLoads": 0
+}

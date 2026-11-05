@@ -1,0 +1,206 @@
+{
+  "scope": "Read-only final health after original 26 provider tasks; no replay",
+  "sourceCommit": "e34f0f7db5fecdb381b30a2ff0c5f6fe4fad897e",
+  "apiImageId": "sha256:f0e19c6aa8220c39f2a4af7111875004f85dad789e5d5c15a951060dc031b289",
+  "apiJarSha256": "628a08eb91258af5624ae620250147ccf196ff4901c528d8ce34021d35e7e1f5",
+  "workerImageId": "sha256:84a9df62e9ec1acffbaf54589294334b6002d69292302af8a03fca7b302232cb",
+  "workerSourceCommit": "bca0930864ab8f25e511f657d46401312490ffbc",
+  "activeCodingSessions": 0,
+  "activePythonContainers": 0,
+  "activeParentTasks": 0,
+  "authenticatedHealth": {
+    "18180": 200,
+    "18100": 200
+  },
+  "settledCases": [
+    {
+      "batch": "R1",
+      "case": "complex-0",
+      "taskId": "analysis-coding-4eca2c1fa30c0b2fe18eba6bacc392cc9aed3909445fdb0dd4357bf82a4102ee",
+      "apiStatus": "COMPLETED",
+      "nodeStatus": "COMPLETED"
+    },
+    {
+      "batch": "R1",
+      "case": "complex-1",
+      "taskId": "analysis-coding-384da1160d66d66b7d9e595247467da58778bce245b9b6341f93239701a1d9a4",
+      "apiStatus": "COMPLETED",
+      "nodeStatus": "COMPLETED"
+    },
+    {
+      "batch": "R1",
+      "case": "csv-0",
+      "taskId": "analysis-coding-7cd4a3eeb1d41b3230bb5c2e321b510fae801d29263fc22f69b2f52d0b64e20b",
+      "apiStatus": "COMPLETED",
+      "nodeStatus": "COMPLETED"
+    },
+    {
+      "batch": "R1",
+      "case": "csv-1",
+      "taskId": "analysis-coding-4b4a9b587783261e18f5162d3da07ec2a66fe3c924ae08e5bd194f44092e62d5",
+      "apiStatus": "COMPLETED",
+      "nodeStatus": "COMPLETED"
+    },
+    {
+      "batch": "R1",
+      "case": "join-0",
+      "taskId": "analysis-coding-1ec043dd9d7cd9a7e625f475538ada33e27ad8e0be482ebbcb4cc57d033dd949",
+      "apiStatus": "COMPLETED",
+      "nodeStatus": "COMPLETED"
+    },
+    {
+      "batch": "R1",
+      "case": "join-1",
+      "taskId": "analysis-coding-81729204ea472f5fab37156e4620f1fb01d78bcfdafe241c6c7aecae86bf69d9",
+      "apiStatus": "COMPLETED",
+      "nodeStatus": "COMPLETED"
+    },
+    {
+      "batch": "R1",
+      "case": "parquet-0",
+      "taskId": "analysis-coding-e627629953715c5986f48812f7f5db94039ed4265e7ccccf1a15d59c9f2eee86",
+      "apiStatus": "FAILED",
+      "nodeStatus": "FAILED"
+    },
+    {
+      "batch": "R1",
+      "case": "parquet-1",
+      "taskId": "analysis-coding-afa05df293dcab93d1a65cc089f4327ec5a065f4066b276eb4e22aa518c4c708",
+      "apiStatus": "COMPLETED",
+      "nodeStatus": "COMPLETED"
+    },
+    {
+      "batch": "R1",
+      "case": "repair-0",
+      "taskId": "analysis-coding-e973273290b4e22a1c8f3591baecc4b756fc4164e3131dd08ebbf68574a43f4f",
+      "apiStatus": "COMPLETED",
+      "nodeStatus": "COMPLETED"
+    },
+    {
+      "batch": "R1",
+      "case": "repair-1",
+      "taskId": "analysis-coding-e7e0652af80cd0849583803774cf1e85d029367735e7fd39d2d4bfc6fc2a319e",
+      "apiStatus": "FAILED",
+      "nodeStatus": "FAILED"
+    },
+    {
+      "batch": "R1",
+      "case": "visual-0",
+      "taskId": "analysis-coding-70a626592b30bc695161c87ceac68c7d7b4bce1cfd617d4e24060b3ee52ac922",
+      "apiStatus": "FAILED",
+      "nodeStatus": "FAILED"
+    },
+    {
+      "batch": "R1",
+      "case": "visual-1",
+      "taskId": "analysis-coding-a8599e51c495a7df55569ecca0e9c16a2e15e84e5fed4660631aacfc8c979fb1",
+      "apiStatus": "COMPLETED",
+      "nodeStatus": "COMPLETED"
+    },
+    {
+      "batch": "R2",
+      "case": "complex-0",
+      "taskId": "analysis-coding-a6b58dbf516d57485f20639a346f59a128538920e85fe0baeb786d418226def9",
+      "apiStatus": "COMPLETED",
+      "nodeStatus": "COMPLETED"
+    },
+    {
+      "batch": "R2",
+      "case": "complex-1",
+      "taskId": "analysis-coding-7c3b38cf57df1a42cd6ce6ab4c0b09f6be422be669581f2c6923aef57f1f817e",
+      "apiStatus": "COMPLETED",
+      "nodeStatus": "COMPLETED"
+    },
+    {
+      "batch": "R2",
+      "case": "csv-0",
+      "taskId": "analysis-coding-23c1ffc06a3bd2f7843552ea939210c309a4be9d8a81b97f4ab65e2dc1a7656a",
+      "apiStatus": "COMPLETED",
+      "nodeStatus": "COMPLETED"
+    },
+    {
+      "batch": "R2",
+      "case": "csv-1",
+      "taskId": "analysis-coding-ca7d0257a7aabd9857b724084eafdb5e85815550a91223fec86530c8e8ec1cec",
+      "apiStatus": "COMPLETED",
+      "nodeStatus": "COMPLETED"
+    },
+    {
+      "batch": "R2",
+      "case": "join-0",
+      "taskId": "analysis-coding-3f06d70b7b8235f8f8245e859f08e81d6bdd6b847b26e8efb3432c74b6c169c2",
+      "apiStatus": "COMPLETED",
+      "nodeStatus": "COMPLETED"
+    },
+    {
+      "batch": "R2",
+      "case": "join-1",
+      "taskId": "analysis-coding-708521f859041cb448e8e625e90ae1618b2cb371126697f5f5cee62dcbc6699e",
+      "apiStatus": "COMPLETED",
+      "nodeStatus": "COMPLETED"
+    },
+    {
+      "batch": "R2",
+      "case": "parquet-0",
+      "taskId": "analysis-coding-5d5c1ef7756eaa3713e2a6ea7a65f5ca8da60ca57dc28d94a689b418c3085623",
+      "apiStatus": "COMPLETED",
+      "nodeStatus": "COMPLETED"
+    },
+    {
+      "batch": "R2",
+      "case": "parquet-1",
+      "taskId": "analysis-coding-818ed6b51fc19cb53454a7f9689ab33a44f31f508c024b9d3b54f02ede836d94",
+      "apiStatus": "COMPLETED",
+      "nodeStatus": "COMPLETED"
+    },
+    {
+      "batch": "R2",
+      "case": "repair-0",
+      "taskId": "analysis-coding-538f6deab37ece9d92cc9454313189e2f032704225ca19626f4dad87e4b42b01",
+      "apiStatus": "COMPLETED",
+      "nodeStatus": "COMPLETED"
+    },
+    {
+      "batch": "R2",
+      "case": "repair-1",
+      "taskId": "analysis-coding-c5dac3c31746b76367479c0d093be3784f43cba9681e4b3fe41494af9df58d49",
+      "apiStatus": "COMPLETED",
+      "nodeStatus": "COMPLETED"
+    },
+    {
+      "batch": "R2",
+      "case": "visual-0",
+      "taskId": "analysis-coding-8e6d92cb89d69be53563d065c672f2078f93d86d7d6546c27d0922ce5f8c86d0",
+      "apiStatus": "COMPLETED",
+      "nodeStatus": "COMPLETED"
+    },
+    {
+      "batch": "R2",
+      "case": "visual-1",
+      "taskId": "analysis-coding-983f034627beed56ed9f8bb73927eb8e30ff64672faf98fab304cdb6a099e496",
+      "apiStatus": "COMPLETED",
+      "nodeStatus": "COMPLETED"
+    },
+    {
+      "batch": "exploration",
+      "case": "visual-0",
+      "taskId": "analysis-coding-bf2ec08e6e86992182d409b15483877e01c4cb00bf17d2efad4f423ad1a149da",
+      "apiStatus": "COMPLETED",
+      "nodeStatus": "COMPLETED"
+    },
+    {
+      "batch": "exploration",
+      "case": "visual-1",
+      "taskId": "analysis-coding-33738ce71f23a688800165883a3e18a50f61d9e55a86aab65746e66ae858f051",
+      "apiStatus": "BUDGET_EXCEEDED",
+      "nodeStatus": "CANCELLED"
+    }
+  ],
+  "deploymentCallback": {
+    "status": "PASSED",
+    "signedCallback": true,
+    "unsignedRejected": true,
+    "origin": "http://api:8081",
+    "codeLifecycleVersion": "runtime_os.code_lifecycle.v1"
+  }
+}

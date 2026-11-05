@@ -1,0 +1,886 @@
+[INFO] Scanning for projects...
+[INFO] ------------------------------------------------------------------------
+[INFO] Detecting the operating system and CPU architecture
+[INFO] ------------------------------------------------------------------------
+[INFO] os.detected.name: windows
+[INFO] os.detected.arch: x86_64
+[INFO] os.detected.bitness: 64
+[INFO] os.detected.version: 10.0
+[INFO] os.detected.version.major: 10
+[INFO] os.detected.version.minor: 0
+[INFO] os.detected.classifier: windows-x86_64
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Build Order:
+[INFO]
+[INFO] LangChain4j ChatChat - Enterprise AI Application                   [pom]
+[INFO] ChatChat Common Module                                             [jar]
+[INFO] ChatChat Spring Platform Adapter                                   [jar]
+[INFO] ChatChat MCP gRPC Transport Contract                               [jar]
+[INFO] ChatChat License Platform Module                                   [jar]
+[INFO] ChatChat Vendor-Neutral Skill Runtime                              [jar]
+[INFO] ChatChat Agents Module                                             [jar]
+[INFO] ChatChat Temporal Workflow Runtime                                 [jar]
+[INFO] ChatChat Tools Module                                              [jar]
+[INFO] ChatChat Runtime MCP Registry                                      [jar]
+[INFO] ChatChat MCP Market Capability Library                             [jar]
+[INFO] ChatChat Knowledge Base Module                                     [jar]
+[INFO] ChatChat Enterprise Module                                         [jar]
+[INFO] ChatChat Chat Runtime Module                                       [jar]
+[INFO] ChatChat Integration Module                                        [jar]
+[INFO] ChatChat MCP Server Module                                         [jar]
+[INFO] LingDong Insight API Module                                        [jar]
+[INFO]
+[INFO] -----------------< com.chatchat:langchain4j-chatchat >------------------
+[INFO] Building LangChain4j ChatChat - Enterprise AI Application 1.0.0-SNAPSHOT [1/17]
+[INFO] --------------------------------[ pom ]---------------------------------
+[INFO]
+[INFO] --- jacoco-maven-plugin:0.8.12:prepare-agent (prepare-agent) @ langchain4j-chatchat ---
+[INFO] argLine set to -javaagent:D:\\.m2\\org\\jacoco\\org.jacoco.agent\\0.8.12\\org.jacoco.agent-0.8.12-runtime.jar=destfile=C:\\Users\\admin\\Documents\\Langchain4j-Chatchat\\Langchain4j-Chatchat\\target\\jacoco.exec,excludes=net.sf.jsqlparser.parser.*
+[INFO]
+[INFO] --------------------< com.chatchat:chatchat-common >--------------------
+[INFO] Building ChatChat Common Module 1.0.0-SNAPSHOT                    [2/17]
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco-maven-plugin:0.8.12:prepare-agent (prepare-agent) @ chatchat-common ---
+[INFO] argLine set to -javaagent:D:\\.m2\\org\\jacoco\\org.jacoco.agent\\0.8.12\\org.jacoco.agent-0.8.12-runtime.jar=destfile=C:\\Users\\admin\\Documents\\Langchain4j-Chatchat\\Langchain4j-Chatchat\\chatchat-common\\target\\jacoco.exec,excludes=net.sf.jsqlparser.parser.*
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:resources (default-resources) @ chatchat-common ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] Copying 9 resources
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:compile (default-compile) @ chatchat-common ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:testResources (default-testResources) @ chatchat-common ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] Copying 6 resources
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:testCompile (default-testCompile) @ chatchat-common ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO]
+[INFO] --- maven-surefire-plugin:3.2.5:test (default-test) @ chatchat-common ---
+[INFO]
+[INFO] ---------------< com.chatchat:chatchat-platform-spring >----------------
+[INFO] Building ChatChat Spring Platform Adapter 1.0.0-SNAPSHOT          [3/17]
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco-maven-plugin:0.8.12:prepare-agent (prepare-agent) @ chatchat-platform-spring ---
+[INFO] argLine set to -javaagent:D:\\.m2\\org\\jacoco\\org.jacoco.agent\\0.8.12\\org.jacoco.agent-0.8.12-runtime.jar=destfile=C:\\Users\\admin\\Documents\\Langchain4j-Chatchat\\Langchain4j-Chatchat\\chatchat-platform-spring\\target\\jacoco.exec,excludes=net.sf.jsqlparser.parser.*
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:resources (default-resources) @ chatchat-platform-spring ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] Copying 1 resource
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:compile (default-compile) @ chatchat-platform-spring ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:testResources (default-testResources) @ chatchat-platform-spring ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-platform-spring\src\test\resources
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:testCompile (default-testCompile) @ chatchat-platform-spring ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO]
+[INFO] --- maven-surefire-plugin:3.2.5:test (default-test) @ chatchat-platform-spring ---
+[INFO]
+[INFO] -------------------< com.chatchat:chatchat-mcp-grpc >-------------------
+[INFO] Building ChatChat MCP gRPC Transport Contract 1.0.0-SNAPSHOT      [4/17]
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco-maven-plugin:0.8.12:prepare-agent (prepare-agent) @ chatchat-mcp-grpc ---
+[INFO] argLine set to -javaagent:D:\\.m2\\org\\jacoco\\org.jacoco.agent\\0.8.12\\org.jacoco.agent-0.8.12-runtime.jar=destfile=C:\\Users\\admin\\Documents\\Langchain4j-Chatchat\\Langchain4j-Chatchat\\chatchat-mcp-grpc\\target\\jacoco.exec,excludes=net.sf.jsqlparser.parser.*
+[INFO]
+[INFO] --- protobuf-maven-plugin:0.6.1:compile (default) @ chatchat-mcp-grpc ---
+[INFO] Compiling 1 proto file(s) to C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-mcp-grpc\target\generated-sources\protobuf\java
+[INFO]
+[INFO] --- protobuf-maven-plugin:0.6.1:compile-custom (default) @ chatchat-mcp-grpc ---
+[INFO] Compiling 1 proto file(s) to C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-mcp-grpc\target\generated-sources\protobuf\grpc-java
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:resources (default-resources) @ chatchat-mcp-grpc ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-mcp-grpc\src\main\resources
+[INFO] Copying 1 resource
+[INFO] Copying 1 resource
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:compile (default-compile) @ chatchat-mcp-grpc ---
+[INFO] Changes detected - recompiling the module! :source
+[INFO] Compiling 15 source files with javac [debug target 17] to target\classes
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:testResources (default-testResources) @ chatchat-mcp-grpc ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-mcp-grpc\src\test\resources
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:testCompile (default-testCompile) @ chatchat-mcp-grpc ---
+[INFO] Changes detected - recompiling the module! :dependency
+[INFO] Compiling 1 source file with javac [debug target 17] to target\test-classes
+[INFO]
+[INFO] --- maven-surefire-plugin:3.2.5:test (default-test) @ chatchat-mcp-grpc ---
+[INFO]
+[INFO] -------------------< com.chatchat:chatchat-license >--------------------
+[INFO] Building ChatChat License Platform Module 1.0.0-SNAPSHOT          [5/17]
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco-maven-plugin:0.8.12:prepare-agent (prepare-agent) @ chatchat-license ---
+[INFO] argLine set to -javaagent:D:\\.m2\\org\\jacoco\\org.jacoco.agent\\0.8.12\\org.jacoco.agent-0.8.12-runtime.jar=destfile=C:\\Users\\admin\\Documents\\Langchain4j-Chatchat\\Langchain4j-Chatchat\\chatchat-license\\target\\jacoco.exec,excludes=net.sf.jsqlparser.parser.*
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:resources (default-resources) @ chatchat-license ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] Copying 10 resources
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:compile (default-compile) @ chatchat-license ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:testResources (default-testResources) @ chatchat-license ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-license\src\test\resources
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:testCompile (default-testCompile) @ chatchat-license ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO]
+[INFO] --- maven-surefire-plugin:3.2.5:test (default-test) @ chatchat-license ---
+[INFO]
+[INFO] ----------------< com.chatchat:chatchat-runtime-skill >-----------------
+[INFO] Building ChatChat Vendor-Neutral Skill Runtime 1.0.0-SNAPSHOT     [6/17]
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco-maven-plugin:0.8.12:prepare-agent (prepare-agent) @ chatchat-runtime-skill ---
+[INFO] argLine set to -javaagent:D:\\.m2\\org\\jacoco\\org.jacoco.agent\\0.8.12\\org.jacoco.agent-0.8.12-runtime.jar=destfile=C:\\Users\\admin\\Documents\\Langchain4j-Chatchat\\Langchain4j-Chatchat\\chatchat-runtime-skill\\target\\jacoco.exec,excludes=net.sf.jsqlparser.parser.*
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:resources (default-resources) @ chatchat-runtime-skill ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-runtime-skill\src\main\resources
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:compile (default-compile) @ chatchat-runtime-skill ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:testResources (default-testResources) @ chatchat-runtime-skill ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-runtime-skill\src\test\resources
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:testCompile (default-testCompile) @ chatchat-runtime-skill ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO]
+[INFO] --- maven-surefire-plugin:3.2.5:test (default-test) @ chatchat-runtime-skill ---
+[INFO]
+[INFO] --------------------< com.chatchat:chatchat-agents >--------------------
+[INFO] Building ChatChat Agents Module 1.0.0-SNAPSHOT                    [7/17]
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco-maven-plugin:0.8.12:prepare-agent (prepare-agent) @ chatchat-agents ---
+[INFO] argLine set to -javaagent:D:\\.m2\\org\\jacoco\\org.jacoco.agent\\0.8.12\\org.jacoco.agent-0.8.12-runtime.jar=destfile=C:\\Users\\admin\\Documents\\Langchain4j-Chatchat\\Langchain4j-Chatchat\\chatchat-agents\\target\\jacoco.exec,excludes=net.sf.jsqlparser.parser.*
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:resources (default-resources) @ chatchat-agents ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] Copying 1 resource
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:compile (default-compile) @ chatchat-agents ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:testResources (default-testResources) @ chatchat-agents ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] Copying 2 resources
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:testCompile (default-testCompile) @ chatchat-agents ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO]
+[INFO] --- maven-surefire-plugin:3.2.5:test (default-test) @ chatchat-agents ---
+[INFO]
+[INFO] ---------------< com.chatchat:chatchat-runtime-temporal >---------------
+[INFO] Building ChatChat Temporal Workflow Runtime 1.0.0-SNAPSHOT        [8/17]
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco-maven-plugin:0.8.12:prepare-agent (prepare-agent) @ chatchat-runtime-temporal ---
+[INFO] argLine set to -javaagent:D:\\.m2\\org\\jacoco\\org.jacoco.agent\\0.8.12\\org.jacoco.agent-0.8.12-runtime.jar=destfile=C:\\Users\\admin\\Documents\\Langchain4j-Chatchat\\Langchain4j-Chatchat\\chatchat-runtime-temporal\\target\\jacoco.exec,excludes=net.sf.jsqlparser.parser.*
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:resources (default-resources) @ chatchat-runtime-temporal ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-runtime-temporal\src\main\resources
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:compile (default-compile) @ chatchat-runtime-temporal ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:testResources (default-testResources) @ chatchat-runtime-temporal ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-runtime-temporal\src\test\resources
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:testCompile (default-testCompile) @ chatchat-runtime-temporal ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO]
+[INFO] --- maven-surefire-plugin:3.2.5:test (default-test) @ chatchat-runtime-temporal ---
+[INFO]
+[INFO] --------------------< com.chatchat:chatchat-tools >---------------------
+[INFO] Building ChatChat Tools Module 1.0.0-SNAPSHOT                     [9/17]
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco-maven-plugin:0.8.12:prepare-agent (prepare-agent) @ chatchat-tools ---
+[INFO] argLine set to -javaagent:D:\\.m2\\org\\jacoco\\org.jacoco.agent\\0.8.12\\org.jacoco.agent-0.8.12-runtime.jar=destfile=C:\\Users\\admin\\Documents\\Langchain4j-Chatchat\\Langchain4j-Chatchat\\chatchat-tools\\target\\jacoco.exec,excludes=net.sf.jsqlparser.parser.*
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:resources (default-resources) @ chatchat-tools ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-tools\src\main\resources
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:compile (default-compile) @ chatchat-tools ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:testResources (default-testResources) @ chatchat-tools ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-tools\src\test\resources
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:testCompile (default-testCompile) @ chatchat-tools ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO]
+[INFO] --- maven-surefire-plugin:3.2.5:test (default-test) @ chatchat-tools ---
+[INFO]
+[INFO] -----------------< com.chatchat:chatchat-runtime-mcp >------------------
+[INFO] Building ChatChat Runtime MCP Registry 1.0.0-SNAPSHOT            [10/17]
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco-maven-plugin:0.8.12:prepare-agent (prepare-agent) @ chatchat-runtime-mcp ---
+[INFO] argLine set to -javaagent:D:\\.m2\\org\\jacoco\\org.jacoco.agent\\0.8.12\\org.jacoco.agent-0.8.12-runtime.jar=destfile=C:\\Users\\admin\\Documents\\Langchain4j-Chatchat\\Langchain4j-Chatchat\\chatchat-runtime-mcp\\target\\jacoco.exec,excludes=net.sf.jsqlparser.parser.*
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:resources (default-resources) @ chatchat-runtime-mcp ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-runtime-mcp\src\main\resources
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:compile (default-compile) @ chatchat-runtime-mcp ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:testResources (default-testResources) @ chatchat-runtime-mcp ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-runtime-mcp\src\test\resources
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:testCompile (default-testCompile) @ chatchat-runtime-mcp ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO]
+[INFO] --- maven-surefire-plugin:3.2.5:test (default-test) @ chatchat-runtime-mcp ---
+[INFO]
+[INFO] ----------------< com.chatchat:chatchat-runtime-market >----------------
+[INFO] Building ChatChat MCP Market Capability Library 1.0.0-SNAPSHOT   [11/17]
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco-maven-plugin:0.8.12:prepare-agent (prepare-agent) @ chatchat-runtime-market ---
+[INFO] argLine set to -javaagent:D:\\.m2\\org\\jacoco\\org.jacoco.agent\\0.8.12\\org.jacoco.agent-0.8.12-runtime.jar=destfile=C:\\Users\\admin\\Documents\\Langchain4j-Chatchat\\Langchain4j-Chatchat\\chatchat-runtime-market\\target\\jacoco.exec,excludes=net.sf.jsqlparser.parser.*
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:resources (default-resources) @ chatchat-runtime-market ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-runtime-market\src\main\resources
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:compile (default-compile) @ chatchat-runtime-market ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:testResources (default-testResources) @ chatchat-runtime-market ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-runtime-market\src\test\resources
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:testCompile (default-testCompile) @ chatchat-runtime-market ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO]
+[INFO] --- maven-surefire-plugin:3.2.5:test (default-test) @ chatchat-runtime-market ---
+[INFO]
+[INFO] ----------------< com.chatchat:chatchat-knowledge-base >----------------
+[INFO] Building ChatChat Knowledge Base Module 1.0.0-SNAPSHOT           [12/17]
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco-maven-plugin:0.8.12:prepare-agent (prepare-agent) @ chatchat-knowledge-base ---
+[INFO] argLine set to -javaagent:D:\\.m2\\org\\jacoco\\org.jacoco.agent\\0.8.12\\org.jacoco.agent-0.8.12-runtime.jar=destfile=C:\\Users\\admin\\Documents\\Langchain4j-Chatchat\\Langchain4j-Chatchat\\chatchat-knowledge-base\\target\\jacoco.exec,excludes=net.sf.jsqlparser.parser.*
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:resources (default-resources) @ chatchat-knowledge-base ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-knowledge-base\src\main\resources
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:compile (default-compile) @ chatchat-knowledge-base ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:testResources (default-testResources) @ chatchat-knowledge-base ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-knowledge-base\src\test\resources
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:testCompile (default-testCompile) @ chatchat-knowledge-base ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO]
+[INFO] --- maven-surefire-plugin:3.2.5:test (default-test) @ chatchat-knowledge-base ---
+[INFO]
+[INFO] ------------------< com.chatchat:chatchat-enterprise >------------------
+[INFO] Building ChatChat Enterprise Module 1.0.0-SNAPSHOT               [13/17]
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco-maven-plugin:0.8.12:prepare-agent (prepare-agent) @ chatchat-enterprise ---
+[INFO] argLine set to -javaagent:D:\\.m2\\org\\jacoco\\org.jacoco.agent\\0.8.12\\org.jacoco.agent-0.8.12-runtime.jar=destfile=C:\\Users\\admin\\Documents\\Langchain4j-Chatchat\\Langchain4j-Chatchat\\chatchat-enterprise\\target\\jacoco.exec,excludes=net.sf.jsqlparser.parser.*
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:resources (default-resources) @ chatchat-enterprise ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-enterprise\src\main\resources
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:compile (default-compile) @ chatchat-enterprise ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:testResources (default-testResources) @ chatchat-enterprise ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-enterprise\src\test\resources
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:testCompile (default-testCompile) @ chatchat-enterprise ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO]
+[INFO] --- maven-surefire-plugin:3.2.5:test (default-test) @ chatchat-enterprise ---
+[INFO]
+[INFO] ---------------------< com.chatchat:chatchat-chat >---------------------
+[INFO] Building ChatChat Chat Runtime Module 1.0.0-SNAPSHOT             [14/17]
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco-maven-plugin:0.8.12:prepare-agent (prepare-agent) @ chatchat-chat ---
+[INFO] argLine set to -javaagent:D:\\.m2\\org\\jacoco\\org.jacoco.agent\\0.8.12\\org.jacoco.agent-0.8.12-runtime.jar=destfile=C:\\Users\\admin\\Documents\\Langchain4j-Chatchat\\Langchain4j-Chatchat\\chatchat-chat\\target\\jacoco.exec,excludes=net.sf.jsqlparser.parser.*
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:resources (default-resources) @ chatchat-chat ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] Copying 1 resource
+[INFO] Copying 1 resource to coding-skills
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:compile (default-compile) @ chatchat-chat ---
+[INFO] Changes detected - recompiling the module! :source
+[INFO] Compiling 284 source files with javac [debug target 17] to target\classes
+[INFO] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-chat/src/main/java/com/chatchat/chat/skills/release/AgentReleaseService.java: C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-chat\src\main\java\com\chatchat\chat\skills\release\AgentReleaseService.javaʹ�û򸲸����ѹ�ʱ�� API��
+[INFO] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-chat/src/main/java/com/chatchat/chat/skills/release/AgentReleaseService.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:deprecation ���±��롣
+[INFO] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-chat/src/main/java/com/chatchat/chat/skills/release/AgentReleaseService.java: ĳЩ�����ļ�ʹ����δ�����򲻰�ȫ�Ĳ�����
+[INFO] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-chat/src/main/java/com/chatchat/chat/skills/release/AgentReleaseService.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:unchecked ���±��롣
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:testResources (default-testResources) @ chatchat-chat ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-chat\src\test\resources
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:testCompile (default-testCompile) @ chatchat-chat ---
+[INFO] Changes detected - recompiling the module! :dependency
+[INFO] Compiling 110 source files with javac [debug target 17] to target\test-classes
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-chat/src/test/java/com/chatchat/chat/task/event/DatabaseTerminalCommitTest.java:[36,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.SpyBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-chat/src/test/java/com/chatchat/chat/task/event/DatabaseTerminalCommitTest.java:[36,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.SpyBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-chat/src/test/java/com/chatchat/chat/task/event/DatabaseTerminalCommitTest.java:[36,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.SpyBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-chat/src/test/java/com/chatchat/chat/task/event/DatabaseTerminalCommitTest.java:[36,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.SpyBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-chat/src/test/java/com/chatchat/chat/task/event/DatabaseTerminalCommitTest.java:[36,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.SpyBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[INFO] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-chat/src/test/java/com/chatchat/chat/task/event/AgentRuntimeTaskEventPublisherTest.java: ĳЩ�����ļ�ʹ����δ�����򲻰�ȫ�Ĳ�����
+[INFO] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-chat/src/test/java/com/chatchat/chat/task/event/AgentRuntimeTaskEventPublisherTest.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:unchecked ���±��롣
+[INFO]
+[INFO] --- maven-surefire-plugin:3.2.5:test (default-test) @ chatchat-chat ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.chatchat.chat.skills.runtime.SkillAnalysisContextServiceTest
+mvn.cmd : OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpa
+th has been appended
+所在位置 行:4 字符: 1
++ & 'C:\maven\bin\mvn.cmd' -pl chatchat-api -am '-Dtest=SkillAnalysisCo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (OpenJDK 64-Bit ...s been appended:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 7.386 s -- in com.chatchat.chat.skills.runtime.SkillAnalysisContextServiceTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO]
+[INFO] -----------------< com.chatchat:chatchat-integration >------------------
+[INFO] Building ChatChat Integration Module 1.0.0-SNAPSHOT              [15/17]
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco-maven-plugin:0.8.12:prepare-agent (prepare-agent) @ chatchat-integration ---
+[INFO] argLine set to -javaagent:D:\\.m2\\org\\jacoco\\org.jacoco.agent\\0.8.12\\org.jacoco.agent-0.8.12-runtime.jar=destfile=C:\\Users\\admin\\Documents\\Langchain4j-Chatchat\\Langchain4j-Chatchat\\chatchat-integration\\target\\jacoco.exec,excludes=net.sf.jsqlparser.parser.*
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:resources (default-resources) @ chatchat-integration ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] Copying 1 resource
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:compile (default-compile) @ chatchat-integration ---
+[INFO] Changes detected - recompiling the module! :dependency
+[INFO] Compiling 45 source files with javac [debug target 17] to target\classes
+[INFO] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-integration/src/main/java/com/chatchat/integration/mcp/service/transport/McpGatewayClient.java: C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-integration\src\main\java\com\chatchat\integration\mcp\service\transport\McpGatewayClient.javaʹ�û򸲸����ѹ�ʱ�� API��
+[INFO] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-integration/src/main/java/com/chatchat/integration/mcp/service/transport/McpGatewayClient.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:deprecation ���±��롣
+[INFO]
+[INFO] --- maven-resources-plugin:2.6:testResources (default-testResources) @ chatchat-integration ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] skip non existing resourceDirectory C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-integration\src\test\resources
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:testCompile (default-testCompile) @ chatchat-integration ---
+[INFO] Changes detected - recompiling the module! :dependency
+[INFO] Compiling 14 source files with javac [debug target 17] to target\test-classes
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-integration/src/test/java/com/chatchat/integration/mcp/service/routing/McpToolRegistryBridgeLifecycleTest.java:[759,26] com.chatchat.integration.mcp.service.routing.McpToolRegistryBridge �е� invoke(java.lang.String,java.lang.String,java.util.Map<java.lang.String,java.lang.Object>) �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[INFO] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-integration/src/test/java/com/chatchat/integration/mcp/service/routing/DynamicMcpToolRouteServiceTest.java: C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-integration\src\test\java\com\chatchat\integration\mcp\service\routing\DynamicMcpToolRouteServiceTest.javaʹ�û򸲸����ѹ�ʱ�� API��
+[INFO] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-integration/src/test/java/com/chatchat/integration/mcp/service/routing/DynamicMcpToolRouteServiceTest.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:deprecation ���±��롣
+[INFO] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-integration/src/test/java/com/chatchat/integration/mcp/service/routing/McpToolRegistryBridgeLifecycleTest.java: C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-integration\src\test\java\com\chatchat\integration\mcp\service\routing\McpToolRegistryBridgeLifecycleTest.javaʹ����δ�����򲻰�ȫ�Ĳ�����
+[INFO] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-integration/src/test/java/com/chatchat/integration/mcp/service/routing/McpToolRegistryBridgeLifecycleTest.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:unchecked ���±��롣
+[INFO]
+[INFO] --- maven-surefire-plugin:3.2.5:test (default-test) @ chatchat-integration ---
+[INFO]
+[INFO] ------------------< com.chatchat:chatchat-mcp-server >------------------
+[INFO] Building ChatChat MCP Server Module 1.0.0-SNAPSHOT               [16/17]
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco-maven-plugin:0.8.12:prepare-agent (prepare-agent) @ chatchat-mcp-server ---
+[INFO] argLine set to -javaagent:D:\\.m2\\org\\jacoco\\org.jacoco.agent\\0.8.12\\org.jacoco.agent-0.8.12-runtime.jar=destfile=C:\\Users\\admin\\Documents\\Langchain4j-Chatchat\\Langchain4j-Chatchat\\chatchat-mcp-server\\target\\jacoco.exec,excludes=net.sf.jsqlparser.parser.*
+[INFO]
+[INFO] --- frontend-maven-plugin:1.15.1:install-node-and-npm (install-node-and-npm) @ chatchat-mcp-server ---
+[INFO] Found proxies: [optional{protocol='http', host='127.0.0.1', port=10808, nonProxyHosts='local.net|some.host.com'}]
+[INFO] Node v20.19.0 is already installed.
+[INFO] NPM 10.8.2 is already installed.
+[INFO]
+[INFO] --- frontend-maven-plugin:1.15.1:npm (npm-ci) @ chatchat-mcp-server ---
+[INFO] Found proxies: [optional{protocol='http', host='127.0.0.1', port=10808, nonProxyHosts='local.net|some.host.com'}]
+[INFO] Running 'npm ci --https-proxy=http://127.0.0.1:10808 --proxy=http://127.0.0.1:10808 --noproxy=local.net --noproxy=some.host.com' in C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-mcp-server\web-app-mcp
+[INFO]
+[INFO] added 152 packages, and audited 153 packages in 1m
+[INFO]
+[INFO] 34 packages are looking for funding
+[INFO]   run `npm fund` for details
+[INFO]
+[INFO] 5 vulnerabilities (1 moderate, 4 high)
+[INFO]
+[INFO] To address all issues, run:
+[INFO]   npm audit fix
+[INFO]
+[INFO] Run `npm audit` for details.
+[INFO]
+[INFO] --- frontend-maven-plugin:1.15.1:npm (npm-build) @ chatchat-mcp-server ---
+[INFO] Found proxies: [optional{protocol='http', host='127.0.0.1', port=10808, nonProxyHosts='local.net|some.host.com'}]
+[INFO] Running 'npm run build --https-proxy=http://127.0.0.1:10808 --proxy=http://127.0.0.1:10808 --noproxy=local.net --noproxy=some.host.com' in C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-mcp-server\web-app-mcp
+[INFO]
+[INFO] > chatchat-mcp-admin@0.1.0 build
+[INFO] > npm run check:vue-structure && vite build
+[INFO]
+[INFO]
+[INFO] > chatchat-mcp-admin@0.1.0 check:vue-structure
+[INFO] > node ../../scripts/check-vue-structure.mjs .
+[INFO]
+[INFO] Vue 结构�?查�?�过�?24 个组件，脚本和样式均为独立文件�??
+[INFO] vite v7.3.6 building client environment for production...
+[INFO] transforming...
+[INFO] node_modules/@vueuse/core/dist/index.js (3362:0): A comment
+[INFO]
+[INFO] "/* #__PURE__ */"
+[INFO]
+[INFO] in "node_modules/@vueuse/core/dist/index.js" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+[INFO] node_modules/@vueuse/core/dist/index.js (5780:22): A comment
+[INFO]
+[INFO] "/* #__PURE__ */"
+[INFO]
+[INFO] in "node_modules/@vueuse/core/dist/index.js" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+[INFO] �? 2667 modules transformed.
+[INFO] rendering chunks...
+[INFO] computing gzip size...
+[INFO] dist/index.html                              0.54 kB �? gzip:   0.38 kB
+[INFO] dist/assets/codicon-DCmgc-ay.ttf            80.34 kB
+[INFO] dist/assets/editor.worker-B4pQIWZD.js      231.35 kB
+[INFO] dist/assets/SqlQueryEditor-CZfMaMc0.css    129.13 kB �? gzip:  20.00 kB
+[INFO] dist/assets/index-C5Z4KH1m.css             654.23 kB �? gzip:  91.47 kB
+[INFO] dist/assets/index-CHFRsZfn.js            1,453.13 kB �? gzip: 446.28 kB
+[INFO] dist/assets/index-CHFRsZfn.js            1,453.13 kB �? gzip: 446.28 kB
+[INFO] dist/assets/SqlQueryEditor-BTd78bPX.js   3,544.17 kB �? gzip: 910.66 kB
+[INFO] (!) Some chunks are larger than 500 kB after minification. Consider:
+[INFO] - Using dynamic import() to code-split the application
+[INFO] - Using dynamic import() to code-split the application�? built in 34.57s
+[INFO] - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+[INFO] - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+[INFO]
+[INFO] > chatchat-mcp-admin@0.1.0 postbuild
+[INFO] > node scripts/sync-admin-static.js
+[INFO]
+[INFO] Synced MCP admin assets to C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-mcp-server\src\main\resources\static\admin
+[INFO]
+[INFO] --- maven-resources-plugin:3.3.1:resources (default-resources) @ chatchat-mcp-server ---
+[INFO] Copying 21 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- maven-antrun-plugin:3.1.0:run (clean-generated-admin-static) @ chatchat-mcp-server ---
+[INFO] Executing tasks
+[INFO]    [delete] Deleting directory C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-mcp-server\target\classes\static\admin
+[INFO] Executed tasks
+[INFO]
+[INFO] --- maven-resources-plugin:3.3.1:copy-resources (copy-vue-admin) @ chatchat-mcp-server ---
+[INFO] Copying 10 resources from web-app-mcp\dist to target\classes\static\admin
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:compile (default-compile) @ chatchat-mcp-server ---
+[INFO] Changes detected - recompiling the module! :dependency
+[INFO] Compiling 473 source files with javac [debug target 17] to target\classes
+[INFO] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/python/PythonDockerRuntime.java: ĳЩ�����ļ�ʹ�û򸲸����ѹ�ʱ�� API��
+[INFO] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/python/PythonDockerRuntime.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:deprecation ���±��롣
+[INFO] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/datacapability/unstructured/OpenSearchQueryAdapter.java: C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-mcp-server\src\main\java\com\chatchat\mcpserver\datacapability\unstructured\OpenSearchQueryAdapter.javaʹ����δ�����򲻰�ȫ�Ĳ�����
+[INFO] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/datacapability/unstructured/OpenSearchQueryAdapter.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:unchecked ���±��롣
+[INFO]
+[INFO] --- maven-resources-plugin:3.3.1:testResources (default-testResources) @ chatchat-mcp-server ---
+[INFO] skip non existing resourceDirectory C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-mcp-server\src\test\resources
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:testCompile (default-testCompile) @ chatchat-mcp-server ---
+[INFO] Changes detected - recompiling the module! :dependency
+[INFO] Compiling 234 source files with javac [debug target 17] to target\test-classes
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/templatepublication/admin/ToolReleaseLifecycleTest.java:[30,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/templatepublication/admin/ToolReleaseLifecycleTest.java:[30,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/templatepublication/admin/ToolReleaseLifecycleTest.java:[30,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/templatepublication/admin/ToolReleaseLifecycleTest.java:[30,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/templatepublication/admin/ToolReleaseLifecycleTest.java:[30,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/templatepublication/admin/ToolReleaseLifecycleTest.java:[31,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/templatepublication/admin/ToolReleaseLifecycleTest.java:[31,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/templatepublication/admin/ToolReleaseLifecycleTest.java:[31,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/templatepublication/admin/ToolReleaseLifecycleTest.java:[31,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/templatepublication/admin/ToolReleaseLifecycleTest.java:[31,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/templatepublication/admin/ToolReleaseLifecycleTest.java:[32,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/templatepublication/admin/ToolReleaseLifecycleTest.java:[32,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/templatepublication/admin/ToolReleaseLifecycleTest.java:[32,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/templatepublication/admin/ToolReleaseLifecycleTest.java:[32,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/templatepublication/admin/ToolReleaseLifecycleTest.java:[32,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[INFO] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/template/TemplateParameterValidatorTest.java: ĳЩ�����ļ�ʹ�û򸲸����ѹ�ʱ�� API��
+[INFO] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/template/TemplateParameterValidatorTest.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:deprecation ���±��롣
+[INFO] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/metadata/search/EnterpriseMetadataSearchServiceTest.java: ĳЩ�����ļ�ʹ����δ�����򲻰�ȫ�Ĳ�����
+[INFO] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-mcp-server/src/test/java/com/chatchat/mcpserver/metadata/search/EnterpriseMetadataSearchServiceTest.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:unchecked ���±��롣
+[INFO]
+[INFO] --- maven-surefire-plugin:3.2.5:test (default-test) @ chatchat-mcp-server ---
+[INFO]
+[INFO] ---------------------< com.chatchat:chatchat-api >----------------------
+[INFO] Building LingDong Insight API Module 1.0.0-SNAPSHOT              [17/17]
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco-maven-plugin:0.8.12:prepare-agent (prepare-agent) @ chatchat-api ---
+[INFO] argLine set to -javaagent:D:\\.m2\\org\\jacoco\\org.jacoco.agent\\0.8.12\\org.jacoco.agent-0.8.12-runtime.jar=destfile=C:\\Users\\admin\\Documents\\Langchain4j-Chatchat\\Langchain4j-Chatchat\\chatchat-api\\target\\jacoco.exec,excludes=net.sf.jsqlparser.parser.*
+[INFO]
+[INFO] --- exec-maven-plugin:3.3.0:exec (install-web-app-dependencies) @ chatchat-api ---
+npm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementati
+on
+npm warn deprecated antlr4ng-cli@1.0.7: This package is deprecated and will no longer be updated. Please use the new an
+tlr-ng package instead: https://github.com/mike-lischke/antlr-ng
+
+added 200 packages in 51s
+npm warn allow-scripts 4 packages have install scripts not yet covered by allowScripts:
+npm warn allow-scripts   vue-demi@0.14.10 (postinstall: node -e "try{require('./scripts/postinstall.js')}catch(e){}")
+npm warn allow-scripts   vue-demi@0.14.10 (postinstall: node -e "try{require('./scripts/postinstall.js')}catch(e){}")
+npm warn allow-scripts   core-js@3.49.0 (postinstall: node -e "try{require('./postinstall')}catch(e){}")
+npm warn allow-scripts   esbuild@0.28.1 (postinstall: node install.js)
+npm warn allow-scripts
+npm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to a
+llow.
+[INFO]
+[INFO] --- exec-maven-plugin:3.3.0:exec (build-web-app) @ chatchat-api ---
+
+> chatchat-web-app@1.0.0 build
+> npm run check:vue-structure && vite build
+
+
+> chatchat-web-app@1.0.0 check:vue-structure
+> node ../../scripts/check-vue-structure.mjs .
+
+Vue 结构检查通过：77 个组件，脚本和样式均为独立文件。
+vite v7.3.5 building client environment for production...
+transforming...
+✓ 4016 modules transformed.
+rendering chunks...
+computing gzip size...
+../src/main/resources/static/index.html                                             0.72 kB │ gzip:     0.42 kB
+../src/main/resources/static/assets/codicon-DCmgc-ay.ttf                           80.34 kB
+../src/main/resources/static/assets/editor.worker-B4pQIWZD.js                     231.35 kB
+../src/main/resources/static/assets/plotly.min-CaWywiwD.js                      4,834.41 kB
+../src/main/resources/static/assets/AccessDeniedView-By6jxGIb.css                   0.46 kB │ gzip:     0.27 kB
+../src/main/resources/static/assets/PermissionConsoleView-DG0kw8rf.css              1.01 kB │ gzip:     0.37 kB
+../src/main/resources/static/assets/ReportMarkdown-DWxCeUHc.css                     1.10 kB │ gzip:     0.45 kB
+../src/main/resources/static/assets/PythonReportChart-JJbHFvLM.css                  1.60 kB │ gzip:     0.60 kB
+../src/main/resources/static/assets/KnowledgeCitationDialog-BMBGcTXh.css            1.80 kB │ gzip:     0.68 kB
+../src/main/resources/static/assets/PythonCodeDiff-BzPhjTil.css                     2.20 kB │ gzip:     0.74 kB
+../src/main/resources/static/assets/AppConfirmDialog-CQ59KlF9.css                   2.89 kB │ gzip:     0.96 kB
+../src/main/resources/static/assets/WorkspaceSettingsView-CJtZVQOq.css              3.27 kB │ gzip:     1.09 kB
+../src/main/resources/static/assets/CodingTaskMonitor-BWpecZZL.css                  3.39 kB │ gzip:     1.02 kB
+../src/main/resources/static/assets/tool-categories-C29i0gXg.css                    4.75 kB │ gzip:     1.48 kB
+../src/main/resources/static/assets/PythonVisualReport-B0igV0Wc.css                 6.09 kB │ gzip:     1.41 kB
+../src/main/resources/static/assets/EvidenceDebuggerView-hzo98QKU.css               6.12 kB │ gzip:     1.76 kB
+../src/main/resources/static/assets/EnterpriseUiArtifactRenderer-BuqrZNru.css       6.83 kB │ gzip:     1.70 kB
+../src/main/resources/static/assets/ModelManagementView-j07ohWvZ.css                7.21 kB │ gzip:     1.70 kB
+../src/main/resources/static/assets/PromptComposer-DYKGAsAy.css                     7.70 kB │ gzip:     2.01 kB
+../src/main/resources/static/assets/FavoritesView-BNFx5d1J.css                      9.67 kB │ gzip:     2.01 kB
+../src/main/resources/static/assets/ToolPublicationsView-ByJF7qfK.css              10.40 kB │ gzip:     2.41 kB
+../src/main/resources/static/assets/CapabilityMarketView-Ba1APinM.css              11.07 kB │ gzip:     2.08 kB
+../src/main/resources/static/assets/McpCenterView-C8BmpicE.css                     11.17 kB │ gzip:     2.61 kB
+../src/main/resources/static/assets/AiSearchView-NV4v4uLf.css                      11.47 kB │ gzip:     2.22 kB
+../src/main/resources/static/assets/PlanDagGraph-0U94b1Kp.css                      11.55 kB │ gzip:     2.67 kB
+../src/main/resources/static/assets/permission-workspace-ZtjIreEe.css              14.40 kB │ gzip:     3.26 kB
+../src/main/resources/static/assets/LibraryView-BuHJS6k6.css                       16.29 kB │ gzip:     2.88 kB
+../src/main/resources/static/assets/DomainSkillsView-CO31O5-H.css                  24.12 kB │ gzip:     4.10 kB
+../src/main/resources/static/assets/AgentScheduleView-LdTbL9b7.css                 25.35 kB │ gzip:     5.01 kB
+../src/main/resources/static/assets/DataExplorationView-IKapW6eu.css               30.57 kB │ gzip:     5.98 kB
+../src/main/resources/static/assets/SystemManagementView-1zVj7cNg.css              35.45 kB │ gzip:     6.25 kB
+../src/main/resources/static/assets/RetrievalRulesView-DpRgRbmr.css                50.89 kB │ gzip:     8.35 kB
+../src/main/resources/static/assets/SqlStudioView-B67kzJxq.css                     52.63 kB │ gzip:     9.95 kB
+../src/main/resources/static/assets/index-HGAg68A5.css                             67.33 kB │ gzip:    13.28 kB
+../src/main/resources/static/assets/DataScienceView-DtekZCB2.css                   77.00 kB │ gzip:    15.59 kB
+../src/main/resources/static/assets/skill-hub-BsoHvV0W.css                         84.68 kB │ gzip:    12.66 kB
+../src/main/resources/static/assets/ChatAssistantView-CL3-P35I.css                113.11 kB │ gzip:    19.98 kB
+../src/main/resources/static/assets/EditorPreferences-BHxxq6AR.css                209.82 kB │ gzip:    33.72 kB
+../src/main/resources/static/assets/square-CG3E4fo8.js                              0.15 kB │ gzip:     0.15 kB
+../src/main/resources/static/assets/clock-3-DIJGSbef.js                             0.17 kB │ gzip:     0.17 kB
+../src/main/resources/static/assets/useTransientNotice-CZSma92r.js                  0.20 kB │ gzip:     0.19 kB
+../src/main/resources/static/assets/info-C8EEHl3U.js                                0.20 kB │ gzip:     0.18 kB
+../src/main/resources/static/assets/copy-vbfKP0Yi.js                                0.23 kB │ gzip:     0.21 kB
+../src/main/resources/static/assets/activity-DJFZbhQw.js                            0.24 kB │ gzip:     0.20 kB
+../src/main/resources/static/assets/_commonjsHelpers-Cpj98o6Y.js                    0.24 kB │ gzip:     0.18 kB
+../src/main/resources/static/assets/minimize-2-CAr9kvI4.js                          0.24 kB │ gzip:     0.19 kB
+../src/main/resources/static/assets/database-BmC5P8IT.js                            0.24 kB │ gzip:     0.20 kB
+../src/main/resources/static/assets/settings-2-Bf1bkecc.js                          0.25 kB │ gzip:     0.19 kB
+../src/main/resources/static/assets/circle-alert-bRyl-SZu.js                        0.25 kB │ gzip:     0.19 kB
+../src/main/resources/static/assets/send-BBhQLQ7J.js                                0.29 kB │ gzip:     0.23 kB
+../src/main/resources/static/assets/box-DK7DMg2G.js                                 0.31 kB │ gzip:     0.23 kB
+../src/main/resources/static/assets/save-DSKH6cLC.js                                0.33 kB │ gzip:     0.23 kB
+../src/main/resources/static/assets/files-ZkSLFgQ4.js                               0.36 kB │ gzip:     0.23 kB
+../src/main/resources/static/assets/documentUploadPolicy-DFtscYY_.js                0.39 kB │ gzip:     0.30 kB
+../src/main/resources/static/assets/useAppConfirmation-B4zjHSC8.js                  0.39 kB │ gzip:     0.31 kB
+../src/main/resources/static/assets/AccessDeniedView-B71zvM2g.js                    0.40 kB │ gzip:     0.36 kB
+../src/main/resources/static/assets/SystemUsersView-Cf_3Cy0a.js                     0.44 kB │ gzip:     0.30 kB
+../src/main/resources/static/assets/SystemOrganizationsView-DJMMpCpC.js             0.44 kB │ gzip:     0.30 kB
+../src/main/resources/static/assets/reportNarrative-Bw1LL976.js                     0.60 kB │ gzip:     0.39 kB
+../src/main/resources/static/assets/workspaceDrafts-COqdz_Mt.js                     1.40 kB │ gzip:     0.65 kB
+../src/main/resources/static/assets/PythonCodeDiff-CM5Qgp97.js                      1.49 kB │ gzip:     0.88 kB
+../src/main/resources/static/assets/AppConfirmDialog-B8O-Bwqz.js                    1.64 kB │ gzip:     0.87 kB
+../src/main/resources/static/assets/skillDirectoryArchive-Byp374p2.js               1.88 kB │ gzip:     0.96 kB
+../src/main/resources/static/assets/pythonCodeDiff-DOMS_cjm.js                      2.15 kB │ gzip:     0.94 kB
+../src/main/resources/static/assets/python-Cfh_emV1.js                              4.28 kB │ gzip:     1.77 kB
+../src/main/resources/static/assets/PermissionAuditView-ItFHDY2v.js                 4.77 kB │ gzip:     2.36 kB
+../src/main/resources/static/assets/KnowledgeCitationDialog-BVpxtYS8.js             4.87 kB │ gzip:     2.38 kB
+../src/main/resources/static/assets/PythonVisualReport-DmZ9BKQZ.js                  6.93 kB │ gzip:     3.10 kB
+../src/main/resources/static/assets/EvidenceDebuggerView-04327I2z.js                8.22 kB │ gzip:     3.08 kB
+../src/main/resources/static/assets/WorkspaceSettingsView-B5iHj0Qt.js              10.11 kB │ gzip:     4.13 kB
+../src/main/resources/static/assets/sql-BdTr02Mf.js                                10.16 kB │ gzip:     3.79 kB
+../src/main/resources/static/assets/ToolCategoriesView-Ch_uC7Vy.js                 10.32 kB │ gzip:     4.34 kB
+../src/main/resources/static/assets/FavoritesView-DRkGjqLJ.js                      15.25 kB │ gzip:     4.91 kB
+../src/main/resources/static/assets/PythonReportChart-DIjMo2C1.js                  15.94 kB │ gzip:     6.93 kB
+../src/main/resources/static/assets/CapabilityMarketView-CfLPMzWk.js               19.07 kB │ gzip:     6.19 kB
+../src/main/resources/static/assets/McpCenterView-CnApgGsT.js                      20.71 kB │ gzip:     6.99 kB
+../src/main/resources/static/assets/AiSearchView-DAD1G8EU.js                       24.34 kB │ gzip:     8.05 kB
+../src/main/resources/static/assets/PromptComposer-Dl0igixI.js                     24.74 kB │ gzip:     8.93 kB
+../src/main/resources/static/assets/runtimeObservationPresentation-CacdDq5s.js     26.83 kB │ gzip:    10.11 kB
+../src/main/resources/static/assets/purify.es-Cz4mVeUR.js                          28.98 kB │ gzip:    10.87 kB
+../src/main/resources/static/assets/ModelManagementView-CaF7E_Ao.js                29.00 kB │ gzip:     8.54 kB
+../src/main/resources/static/assets/RetrievalRulesView-Bxc9x5so.js                 29.80 kB │ gzip:     8.26 kB
+../src/main/resources/static/assets/CodingTaskMonitor-p0SniPNe.js                  33.90 kB │ gzip:    11.80 kB
+../src/main/resources/static/assets/PermissionConsoleView-BQEiribv.js              34.67 kB │ gzip:    11.47 kB
+../src/main/resources/static/assets/SystemManagementView-BgplbX5Q.js               41.24 kB │ gzip:    11.54 kB
+../src/main/resources/static/assets/ToolPublicationsView-C9RoIzq-.js               46.41 kB │ gzip:    15.49 kB
+../src/main/resources/static/assets/LibraryView-B1kaTe1T.js                        47.16 kB │ gzip:    11.50 kB
+../src/main/resources/static/assets/DomainSkillsView-IpbrSkqa.js                   53.56 kB │ gzip:    15.04 kB
+../src/main/resources/static/assets/DataExplorationView-CVwnigtD.js                55.19 kB │ gzip:    19.40 kB
+../src/main/resources/static/assets/AgentScheduleView-Bj_eHFKN.js                  59.59 kB │ gzip:    15.61 kB
+../src/main/resources/static/assets/TasksView-xEGXcAG2.js                          82.81 kB │ gzip:    21.98 kB
+../src/main/resources/static/assets/AgentWorkshopView-B_3rkZW_.js                  96.44 kB │ gzip:    25.30 kB
+../src/main/resources/static/assets/markdown-it-BCR3DTrC.js                       113.81 kB │ gzip:    48.05 kB
+../src/main/resources/static/assets/EnterpriseUiArtifactRenderer-COYi_y0a.js      138.15 kB │ gzip:    40.60 kB
+../src/main/resources/static/assets/DataScienceView-BzfSoNGr.js                   149.44 kB │ gzip:    48.27 kB
+../src/main/resources/static/assets/index.es-CUvTfRXm.js                          158.87 kB │ gzip:    53.07 kB
+../src/main/resources/static/assets/SqlStudioView-Pw71bMs_.js                     179.85 kB │ gzip:    60.45 kB
+../src/main/resources/static/assets/html2canvas.esm-DXEQVQnt.js                   201.04 kB │ gzip:    47.43 kB
+../src/main/resources/static/assets/ChatAssistantView-CVSRN3xc.js                 259.78 kB │ gzip:    79.04 kB
+../src/main/resources/static/assets/index-BYuSDVFg.js                             272.12 kB │ gzip:    86.20 kB
+../src/main/resources/static/assets/PlanDagGraph-y7suLZ4B.js                      275.40 kB │ gzip:    92.50 kB
+../src/main/resources/static/assets/jspdf.es.min-i5vhmvD9.js                      386.28 kB │ gzip:   126.44 kB
+../src/main/resources/static/assets/xlsx-CKwrMZHi.js                              499.55 kB │ gzip:   162.96 kB
+../src/main/resources/static/assets/ReportMarkdown-BrP7uFeN.js                  1,165.86 kB │ gzip:   391.22 kB
+../src/main/resources/static/assets/EditorPreferences-BPWR1Xor.js               3,552.09 kB │ gzip:   914.85 kB
+../src/main/resources/static/assets/index-C6vXb4So.js                           7,419.36 kB │ gzip: 1,259.92 kB
+
+(!) Some chunks are larger than 900 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-m
+anualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 58.71s
+[INFO]
+[INFO] --- maven-resources-plugin:3.3.1:resources (default-resources) @ chatchat-api ---
+[INFO] Copying 152 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- maven-clean-plugin:3.3.2:clean (clean-web-app-static-output) @ chatchat-api ---
+[INFO] Deleting C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-api\target\classes\static
+[INFO]
+[INFO] --- maven-resources-plugin:3.3.1:copy-resources (copy-web-app-static) @ chatchat-api ---
+[INFO] Copying 111 resources from src\main\resources\static to target\classes\static
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:compile (default-compile) @ chatchat-api ---
+[INFO] Changes detected - recompiling the module! :dependency
+[INFO] Compiling 282 source files with javac [debug target 17] to target\classes
+[INFO] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/main/java/com/chatchat/api/model/PlatformModelCatalogService.java: ĳЩ�����ļ�ʹ�û򸲸����ѹ�ʱ�� API��
+[INFO] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/main/java/com/chatchat/api/model/PlatformModelCatalogService.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:deprecation ���±��롣
+[INFO] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/main/java/com/chatchat/api/runtime/coding/evidence/VisualReportArtifacts.java: ĳЩ�����ļ�ʹ����δ�����򲻰�ȫ�Ĳ�����
+[INFO] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/main/java/com/chatchat/api/runtime/coding/evidence/VisualReportArtifacts.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:unchecked ���±��롣
+[INFO]
+[INFO] --- maven-resources-plugin:3.3.1:testResources (default-testResources) @ chatchat-api ---
+[INFO] Copying 6 resources from src\test\resources to target\test-classes
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:testCompile (default-testCompile) @ chatchat-api ---
+[INFO] Changes detected - recompiling the module! :dependency
+[INFO] Compiling 213 source files with javac [debug target 17] to target\test-classes
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/controller/chat/InteractionControllerTest.java:[60,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/controller/chat/InteractionControllerTest.java:[60,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/controller/chat/InteractionControllerTest.java:[60,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/controller/chat/InteractionControllerTest.java:[60,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/controller/chat/InteractionControllerTest.java:[60,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/controller/chat/InteractionControllerTest.java:[63,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/controller/chat/InteractionControllerTest.java:[63,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/controller/chat/InteractionControllerTest.java:[63,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/controller/chat/InteractionControllerTest.java:[63,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/controller/chat/InteractionControllerTest.java:[63,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/controller/chat/InteractionControllerTest.java:[66,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/controller/chat/InteractionControllerTest.java:[66,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/controller/chat/InteractionControllerTest.java:[66,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/controller/chat/InteractionControllerTest.java:[66,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/controller/chat/InteractionControllerTest.java:[66,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/ApiUserRoleScheduleMcpAuthorizationIntegrationTest.java:[89,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/ApiUserRoleScheduleMcpAuthorizationIntegrationTest.java:[89,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/ApiUserRoleScheduleMcpAuthorizationIntegrationTest.java:[89,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/ApiUserRoleScheduleMcpAuthorizationIntegrationTest.java:[89,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/ApiUserRoleScheduleMcpAuthorizationIntegrationTest.java:[89,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[68,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[68,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[68,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[68,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[68,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[69,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[69,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[69,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[69,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[69,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[70,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[70,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[70,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[70,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[70,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[71,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[71,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[71,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[71,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[71,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[72,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[72,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[72,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[72,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[72,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[73,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[73,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[73,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[73,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[73,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[74,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[74,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[74,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[74,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[74,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[75,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[75,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[75,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[75,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/datascience/sql/SqlStudioIntegrationTest.java:[75,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/controller/chat/ConversationControllerTest.java:[51,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/controller/chat/ConversationControllerTest.java:[51,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/controller/chat/ConversationControllerTest.java:[51,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/controller/chat/ConversationControllerTest.java:[51,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/controller/chat/ConversationControllerTest.java:[51,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/controller/chat/ConversationControllerTest.java:[55,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/controller/chat/ConversationControllerTest.java:[55,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/controller/chat/ConversationControllerTest.java:[55,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/controller/chat/ConversationControllerTest.java:[55,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/controller/chat/ConversationControllerTest.java:[55,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/model/NoModelStartupIntegrationTest.java:[56,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/model/NoModelStartupIntegrationTest.java:[56,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/model/NoModelStartupIntegrationTest.java:[56,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/model/NoModelStartupIntegrationTest.java:[56,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/model/NoModelStartupIntegrationTest.java:[56,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/runtime/coding/NativeSkillPersistenceTest.java:[37,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/runtime/coding/NativeSkillPersistenceTest.java:[37,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/runtime/coding/NativeSkillPersistenceTest.java:[37,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/runtime/coding/NativeSkillPersistenceTest.java:[37,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/runtime/coding/NativeSkillPersistenceTest.java:[37,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/runtime/coding/NativeSkillPersistenceTest.java:[38,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/runtime/coding/NativeSkillPersistenceTest.java:[38,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/runtime/coding/NativeSkillPersistenceTest.java:[38,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/runtime/coding/NativeSkillPersistenceTest.java:[38,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/runtime/coding/NativeSkillPersistenceTest.java:[38,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/runtime/coding/NativeSkillPersistenceTest.java:[39,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/runtime/coding/NativeSkillPersistenceTest.java:[39,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/runtime/coding/NativeSkillPersistenceTest.java:[39,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/runtime/coding/NativeSkillPersistenceTest.java:[39,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/runtime/coding/NativeSkillPersistenceTest.java:[39,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/runtime/coding/NativeSkillPersistenceTest.java:[40,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/runtime/coding/NativeSkillPersistenceTest.java:[40,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/runtime/coding/NativeSkillPersistenceTest.java:[40,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/runtime/coding/NativeSkillPersistenceTest.java:[40,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/runtime/coding/NativeSkillPersistenceTest.java:[40,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/AgentRuntimeMonitoringTenantIntegrationTest.java:[75,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/AgentRuntimeMonitoringTenantIntegrationTest.java:[75,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/AgentRuntimeMonitoringTenantIntegrationTest.java:[75,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/AgentRuntimeMonitoringTenantIntegrationTest.java:[75,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/AgentRuntimeMonitoringTenantIntegrationTest.java:[75,6] org.springframework.boot.test.mock.mockito �е� org.springframework.boot.test.mock.mockito.MockBean �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[INFO] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollectorTest.java: ĳЩ�����ļ�ʹ�û򸲸����ѹ�ʱ�� API��
+[INFO] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/runtime/coding/evidence/CodingEvidenceCollectorTest.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:deprecation ���±��롣
+[INFO] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/agent/task/AgentTaskControllerTest.java: ĳЩ�����ļ�����ʹ�û򸲸��˱��Ϊ��ɾ�����ѹ�ʱ API��
+[INFO] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/CodingAnalysisDockerGateTest.java: ĳЩ�����ļ�ʹ����δ�����򲻰�ȫ�Ĳ�����
+[INFO] /C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/chatchat-api/src/test/java/com/chatchat/api/runtime/coding/cline/CodingAnalysisDockerGateTest.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:unchecked ���±��롣
+[INFO]
+[INFO] --- maven-surefire-plugin:3.2.5:test (default-test) @ chatchat-api ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.chatchat.api.runtime.coding.CodingConfigurationSnapshotTest
+[ERROR] Tests run: 4, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.889 s <<< FAILURE! -- in com.chatchat.api.runtime.coding.CodingConfigurationSnapshotTest
+[ERROR] com.chatchat.api.runtime.coding.CodingConfigurationSnapshotTest.configuredIdentityProvenanceDoesNotSilentlyDropBindingsAfter128 -- Time elapsed: 0.039 s <<< ERROR!
+com.chatchat.common.runtime.coding.CodingContractException: Coding context list limit
+	at com.chatchat.common.runtime.coding.CodingProtocol.require(CodingProtocol.java:26)
+	at com.chatchat.common.runtime.coding.CodingRuntimeContext.freezeValue(CodingRuntimeContext.java:120)
+	at com.chatchat.common.runtime.coding.CodingRuntimeContext.lambda$freeze$2(CodingRuntimeContext.java:112)
+	at java.base/java.util.LinkedHashMap.forEach(LinkedHashMap.java:721)
+	at com.chatchat.common.runtime.coding.CodingRuntimeContext.freeze(CodingRuntimeContext.java:107)
+	at com.chatchat.common.runtime.coding.CodingRuntimeContext.validate(CodingRuntimeContext.java:102)
+	at com.chatchat.api.runtime.coding.CodingConfigurationSnapshot.capture(CodingConfigurationSnapshot.java:46)
+	at com.chatchat.api.runtime.coding.CodingConfigurationSnapshotTest.configuredIdentityProvenanceDoesNotSilentlyDropBindingsAfter128(CodingConfigurationSnapshotTest.java:11)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
+[INFO]
+[INFO] Results:
+[INFO]
+[ERROR] Errors:
+[ERROR]   CodingConfigurationSnapshotTest.configuredIdentityProvenanceDoesNotSilentlyDropBindingsAfter128:11 ? CodingContract Coding context list limit
+[INFO]
+[ERROR] Tests run: 4, Failures: 0, Errors: 1, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Summary for LangChain4j ChatChat - Enterprise AI Application 1.0.0-SNAPSHOT:
+[INFO]
+[INFO] LangChain4j ChatChat - Enterprise AI Application ... SUCCESS [  0.300 s]
+[INFO] ChatChat Common Module ............................. SUCCESS [  4.546 s]
+[INFO] ChatChat Spring Platform Adapter ................... SUCCESS [  0.778 s]
+[INFO] ChatChat MCP gRPC Transport Contract ............... SUCCESS [ 13.226 s]
+[INFO] ChatChat License Platform Module ................... SUCCESS [  0.351 s]
+[INFO] ChatChat Vendor-Neutral Skill Runtime .............. SUCCESS [  0.506 s]
+[INFO] ChatChat Agents Module ............................. SUCCESS [  1.833 s]
+[INFO] ChatChat Temporal Workflow Runtime ................. SUCCESS [  1.355 s]
+[INFO] ChatChat Tools Module .............................. SUCCESS [  1.016 s]
+[INFO] ChatChat Runtime MCP Registry ...................... SUCCESS [  0.542 s]
+[INFO] ChatChat MCP Market Capability Library ............. SUCCESS [  0.464 s]
+[INFO] ChatChat Knowledge Base Module ..................... SUCCESS [  1.758 s]
+[INFO] ChatChat Enterprise Module ......................... SUCCESS [  0.519 s]
+[INFO] ChatChat Chat Runtime Module ....................... SUCCESS [ 59.852 s]
+[INFO] ChatChat Integration Module ........................ SUCCESS [  6.863 s]
+[INFO] ChatChat MCP Server Module ......................... SUCCESS [02:41 min]
+[INFO] LingDong Insight API Module ........................ FAILURE [02:38 min]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  06:54 min
+[INFO] Finished at: 2026-11-06T06:52:39+08:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.2.5:test (default-test) on project chatchat-api:
+[ERROR]
+[ERROR] Please refer to C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\chatchat-api\target\surefire-reports for the individual test results.
+[ERROR] Please refer to dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR]
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR]
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
+[ERROR]
+[ERROR] After correcting the problems, you can resume the build with the command
+[ERROR]   mvn <args> -rf :chatchat-api

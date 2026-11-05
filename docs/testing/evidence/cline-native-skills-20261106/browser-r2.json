@@ -1,0 +1,141 @@
+{
+  "url": "http://192.168.195.221:18100/monitor/",
+  "taskId": "analysis-coding-23c1ffc06a3bd2f7843552ea939210c309a4be9d8a81b97f4ab65e2dc1a7656a",
+  "build": "bca0930864ab8f25e511f657d46401312490ffbc",
+  "checks": [
+    "real candidate task",
+    "progress counts",
+    "first code timing",
+    "Python confirmed execution",
+    "actual tools",
+    "provider and SDK finish reasons",
+    "read only",
+    "no browser errors",
+    "pre-code usage and Skills disclosure",
+    "byte ratio and UNKNOWN provider stages"
+  ],
+  "status": "COMPLETED",
+  "progress": {
+    "modelCall": 3,
+    "callsSinceProgress": 1,
+    "newToolResults": 4,
+    "newEvidenceReads": 2,
+    "skillReads": 1,
+    "discoveryCalls": 0,
+    "repeatedFailures": 0,
+    "proposals": 1,
+    "acceptedProposals": 1,
+    "rejectedProposals": 0,
+    "pythonDispatched": 1,
+    "pythonExecutions": 1,
+    "modelResponseErrors": 0,
+    "knownInputTokens": 34794,
+    "knownOutputTokens": 4470,
+    "firstProposalMs": 66414,
+    "firstValidCodeMs": 66748,
+    "firstPythonMs": 66841,
+    "firstResultMs": 69348,
+    "remainingTokens": 655360,
+    "remainingModelCalls": 10,
+    "feedbackCount": 0,
+    "preCodeModelCalls": 2,
+    "preCodeInputTokens": 21363,
+    "preCodeUsageKnownCalls": 2,
+    "loadedSkillCount": 0,
+    "loadedReferenceCount": 0,
+    "loadedSkillBytes": 0,
+    "skillDeliveredBytes": 0,
+    "skillEstimatedTokens": 0,
+    "duplicateSkillReads": 0,
+    "skillReuses": 0,
+    "inputReadCount": 1,
+    "rejectedToolCallCount": 0,
+    "phase": "REVIEWING",
+    "waitingFor": "MODEL",
+    "lastTool": "artifact_read",
+    "lastProgressType": "artifact_read"
+  },
+  "modelTools": [
+    {
+      "ordinal": 1,
+      "actualTools": [
+        "input_read",
+        "read_files"
+      ],
+      "providerFinishReason": "TOOL_EXECUTION",
+      "finishReason": "tool-calls"
+    },
+    {
+      "ordinal": 2,
+      "actualTools": [
+        "python_execute"
+      ],
+      "providerFinishReason": "TOOL_EXECUTION",
+      "finishReason": "tool-calls"
+    },
+    {
+      "ordinal": 3,
+      "actualTools": [
+        "artifact_read"
+      ],
+      "providerFinishReason": "TOOL_EXECUTION",
+      "finishReason": "tool-calls"
+    }
+  ],
+  "nativeSkillEvents": [
+    {
+      "cursor": 30893,
+      "timestamp": "2026-11-05T21:36:26.647Z",
+      "type": "SKILLS_DISCOVERED",
+      "stage": "CONTEXT_READY",
+      "nativeSkills": true,
+      "discovery": "loadAgentPluginPackages",
+      "loader": "createUserInstructionConfigService",
+      "nativeSkillCount": 15,
+      "progress": {
+        "modelCall": 0,
+        "callsSinceProgress": 0,
+        "newToolResults": 0,
+        "newEvidenceReads": 0,
+        "skillReads": 0,
+        "discoveryCalls": 0,
+        "repeatedFailures": 0,
+        "proposals": 0,
+        "acceptedProposals": 0,
+        "rejectedProposals": 0,
+        "pythonDispatched": 0,
+        "pythonExecutions": 0,
+        "modelResponseErrors": 0,
+        "knownInputTokens": 0,
+        "knownOutputTokens": 0,
+        "firstProposalMs": null,
+        "firstValidCodeMs": null,
+        "firstPythonMs": null,
+        "firstResultMs": null,
+        "remainingTokens": null,
+        "remainingModelCalls": null,
+        "feedbackCount": 0,
+        "preCodeModelCalls": 0,
+        "preCodeInputTokens": 0,
+        "preCodeUsageKnownCalls": 0,
+        "loadedSkillCount": 0,
+        "loadedReferenceCount": 0,
+        "loadedSkillBytes": 0,
+        "skillDeliveredBytes": 0,
+        "skillEstimatedTokens": 0,
+        "duplicateSkillReads": 0,
+        "skillReuses": 0,
+        "inputReadCount": 0,
+        "rejectedToolCallCount": 0,
+        "phase": "PREPARING",
+        "waitingFor": "MODEL",
+        "lastTool": "",
+        "lastProgressType": "NONE"
+      }
+    }
+  ],
+  "errors": [],
+  "mutations": [
+    "/monitor/session"
+  ]
+}

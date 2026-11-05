@@ -1,0 +1,17 @@
+{
+  "case": "visual-0",
+  "taskId": "analysis-coding-8e6d92cb89d69be53563d065c672f2078f93d86d7d6546c27d0922ce5f8c86d0",
+  "operationId": "cline-815fa749b8172659638bbf64609bc0737df788c9e52fbb20ec49a1c37c1c0c81",
+  "reportSha256": "154fd35c3224419d29c0b925472bf835dbab49be1904651d0aa11cb0bc443dc6",
+  "ownerAuthenticated": true,
+  "reportedImagePaths": [
+    "charts/weekly_amount_trend.png",
+    "charts/region_weekly_comparison.png"
+  ],
+  "registeredChartArtifactCount": 0,
+  "finalOperationArtifactNames": [
+    "rows.jsonl"
+  ],
+  "status": "CHART_DELIVERY_NOT_VERIFIED_NO_REGISTERED_IMAGES",
+  "scope": "Actual report image references do not establish delivered files; no raw model or input contents exported"
+}

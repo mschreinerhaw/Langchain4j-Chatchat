@@ -1,0 +1,155 @@
+{
+  "schemaVersion": "coding.startup.local.v1",
+  "sourceCommit": "bca0930864ab8f25e511f657d46401312490ffbc",
+  "scope": "FRESH_NODE_PROCESS_WARM_OS_CACHE_NOT_PROVIDER_LATENCY",
+  "nodeVersion": "v24.18.0",
+  "samples": [
+    {
+      "importMs": 2882.3055,
+      "catalogMs": 344.9281000000001,
+      "disclosureMs": 5.391900000000078,
+      "catalogBytes": 4657,
+      "discovery": {
+        "nativeDiscovered": 15,
+        "modelSkillLoads": 0
+      },
+      "afterDisclosure": {
+        "modelSkillLoads": 1
+      }
+    },
+    {
+      "importMs": 2822.7675000000004,
+      "catalogMs": 349.90560000000005,
+      "disclosureMs": 5.391599999999926,
+      "catalogBytes": 4657,
+      "discovery": {
+        "nativeDiscovered": 15,
+        "modelSkillLoads": 0
+      },
+      "afterDisclosure": {
+        "modelSkillLoads": 1
+      }
+    },
+    {
+      "importMs": 2879.0406000000003,
+      "catalogMs": 344.19180000000006,
+      "disclosureMs": 5.6469999999999345,
+      "catalogBytes": 4657,
+      "discovery": {
+        "nativeDiscovered": 15,
+        "modelSkillLoads": 0
+      },
+      "afterDisclosure": {
+        "modelSkillLoads": 1
+      }
+    },
+    {
+      "importMs": 2851.5605,
+      "catalogMs": 345.4889000000003,
+      "disclosureMs": 5.817299999999705,
+      "catalogBytes": 4657,
+      "discovery": {
+        "nativeDiscovered": 15,
+        "modelSkillLoads": 0
+      },
+      "afterDisclosure": {
+        "modelSkillLoads": 1
+      }
+    },
+    {
+      "importMs": 2840.8323,
+      "catalogMs": 349.2696000000001,
+      "disclosureMs": 5.565000000000055,
+      "catalogBytes": 4657,
+      "discovery": {
+        "nativeDiscovered": 15,
+        "modelSkillLoads": 0
+      },
+      "afterDisclosure": {
+        "modelSkillLoads": 1
+      }
+    },
+    {
+      "importMs": 2859.8477,
+      "catalogMs": 350.75599999999986,
+      "disclosureMs": 5.49389999999994,
+      "catalogBytes": 4657,
+      "discovery": {
+        "nativeDiscovered": 15,
+        "modelSkillLoads": 0
+      },
+      "afterDisclosure": {
+        "modelSkillLoads": 1
+      }
+    },
+    {
+      "importMs": 2866.1054,
+      "catalogMs": 369.7655999999997,
+      "disclosureMs": 5.430000000000291,
+      "catalogBytes": 4657,
+      "discovery": {
+        "nativeDiscovered": 15,
+        "modelSkillLoads": 0
+      },
+      "afterDisclosure": {
+        "modelSkillLoads": 1
+      }
+    },
+    {
+      "importMs": 2881.482,
+      "catalogMs": 423.19259999999986,
+      "disclosureMs": 5.628600000000006,
+      "catalogBytes": 4657,
+      "discovery": {
+        "nativeDiscovered": 15,
+        "modelSkillLoads": 0
+      },
+      "afterDisclosure": {
+        "modelSkillLoads": 1
+      }
+    },
+    {
+      "importMs": 2797.6403999999998,
+      "catalogMs": 345.35310000000027,
+      "disclosureMs": 5.2599999999997635,
+      "catalogBytes": 4657,
+      "discovery": {
+        "nativeDiscovered": 15,
+        "modelSkillLoads": 0
+      },
+      "afterDisclosure": {
+        "modelSkillLoads": 1
+      }
+    },
+    {
+      "importMs": 2917.4256,
+      "catalogMs": 352.3089,
+      "disclosureMs": 5.583099999999831,
+      "catalogBytes": 4657,
+      "discovery": {
+        "nativeDiscovered": 15,
+        "modelSkillLoads": 0
+      },
+      "afterDisclosure": {
+        "modelSkillLoads": 1
+      }
+    }
+  ],
+  "percentiles": {
+    "importMs": {
+      "p50": 2859.8477,
+      "p95": 2917.4256,
+      "p99": 2917.4256
+    },
+    "catalogMs": {
+      "p50": 349.2696000000001,
+      "p95": 423.19259999999986,
+      "p99": 423.19259999999986
+    },
+    "disclosureMs": {
+      "p50": 5.49389999999994,
+      "p95": 5.817299999999705,
+      "p99": 5.817299999999705
+    }
+  }
+}

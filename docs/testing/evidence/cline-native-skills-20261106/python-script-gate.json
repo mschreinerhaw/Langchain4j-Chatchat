@@ -1,0 +1,9 @@
+{
+  "pythonVersion": "3.11.13",
+  "syntaxChecked": {
+    "scripts/prepare-cline-sdk-reuse.py": "878dff7b3c443ee7cc481271cadae4aba4e82dc6ebe2452fe15213dd0d120022",
+    "scripts/benchmark-cline-native-exploration.py": "dcfb1620e2eec4b25a2fce30e25f0f8971a577d0885994090e340331bbe513ec",
+    "scripts/collect-cline-native-skills.py": "40a748beba019438c405b176e1719b617dad2a5a58d9769f1c9298030b912278"
+  },
+  "missingSandboxHelperRejectedBeforeArchiveOrDocker": true
+}

@@ -1,0 +1,325 @@
+{
+  "source": "OWNER_AUTHENTICATED_IMMUTABLE_MCP_ARCHIVED_RECEIPT",
+  "scope": "MCP execution receipt startedAt, separate from Node Python tool dispatch; not an OS process-spawn probe. Missing clocks stay UNKNOWN. Receipts require the exact task/run, stop proof and registry hash/size.",
+  "rows": [
+    {
+      "variant": "native",
+      "case": "complex-0",
+      "taskId": "analysis-coding-a6b58dbf516d57485f20639a346f59a128538920e85fe0baeb786d418226def9",
+      "firstExecutorStartedMs": 208934,
+      "clocks": [
+        {
+          "operationId": "cline-c9f1b2e28444d6b2623e0122e5ee68ad0e86866cc5bac6f8eb062c946a50e45d",
+          "codeHash": "0237bffed08e45639695ce2a3459fc8fa78f5ca624beb9624ea015a653707b58",
+          "startedAt": "2026-11-05T21:44:54.732054923Z",
+          "finishedAt": "2026-11-05T21:44:56.597770570Z",
+          "receiptSha256": "aebb4270653ffbad1e3b767e36857fa5651be2a1569f20633165bc8794ca4846"
+        },
+        {
+          "operationId": "cline-78432d9570915a731e93770b5afdfc2b592be1aaa76e9e4068d3b7b0d4ef9daa",
+          "codeHash": "9df232287a11a137be2d7e37f548fd2307f29ee8736f72af53ec3509a3966cd4",
+          "startedAt": "2026-11-05T21:41:24.506966014Z",
+          "finishedAt": "2026-11-05T21:41:26.235856371Z",
+          "receiptSha256": "75e6380187f103c3b6d91915f03fd9c22a78f54bb3e736bc4334930010be9fa2"
+        }
+      ]
+    },
+    {
+      "variant": "native",
+      "case": "complex-1",
+      "taskId": "analysis-coding-7c3b38cf57df1a42cd6ce6ab4c0b09f6be422be669581f2c6923aef57f1f817e",
+      "firstExecutorStartedMs": 137399,
+      "clocks": [
+        {
+          "operationId": "cline-2c1b09758632aeefae9fa382c2374d50bdd23ece7edf23523a7d938042e6b9da",
+          "codeHash": "a29b6d25f7c916a4cb6bd735b6ece4b88e4afa6e394a0de5970d4ec50f164699",
+          "startedAt": "2026-11-05T22:07:40.739145516Z",
+          "finishedAt": "2026-11-05T22:07:42.598597825Z",
+          "receiptSha256": "f9493a69f7da62f9d045c53fc07ae06dfe5d215778f571ae9628211f70c57937"
+        },
+        {
+          "operationId": "cline-929033ca957d6ebf19fa2bdc408c4e677b8216f4415c9c233bec16562be4ea43",
+          "codeHash": "e8f7d27633a632d4a96b8cea901a4523cd9e04340b68c8b9f59bcaaa41b2418b",
+          "startedAt": "2026-11-05T22:06:53.594730116Z",
+          "finishedAt": "2026-11-05T22:06:55.493504924Z",
+          "receiptSha256": "7eac078bb86c4a48b5a6162fae1d0728d0aa203489b79c2b81401259220408fc"
+        },
+        {
+          "operationId": "cline-d4f6bb442c14cef0237ac5fc4c55f35b719575b7a3ff1f8cbf169f9738b1edbf",
+          "codeHash": "35776ef69df821dbbe43e19f5390bad0a973f282ba789e6113a7c567890a4e45",
+          "startedAt": "2026-11-05T22:02:55.661081276Z",
+          "finishedAt": "2026-11-05T22:02:56.275916448Z",
+          "receiptSha256": "439b3d1a62370c488882b87f0bb9354266bf4ffa1979002304ed4b9fe53f8563"
+        },
+        {
+          "operationId": "cline-cd48036828a239d4773b2c159a3470352757c3f4eefd0c81bcadd83d6ea96d97",
+          "codeHash": "bd1492556e67be400d2586ad57ad929139821561d7c19762ab9ca50ec27e7551",
+          "startedAt": "2026-11-05T22:02:45.051723456Z",
+          "finishedAt": "2026-11-05T22:02:45.619014227Z",
+          "receiptSha256": "34a177149e4413b99bb653d9e64f1f943e18d1d35bf1bfc086b29db7c900bf6f"
+        }
+      ]
+    },
+    {
+      "variant": "native",
+      "case": "csv-0",
+      "taskId": "analysis-coding-23c1ffc06a3bd2f7843552ea939210c309a4be9d8a81b97f4ab65e2dc1a7656a",
+      "firstExecutorStartedMs": 67935,
+      "clocks": [
+        {
+          "operationId": "cline-8044f8b0490e325fd80e922619c045f9d032b71472d0de09213e2ae0d9ab77c5",
+          "codeHash": "f9802a93d2f6a78597a9afdfc11a0f07ed51d602d8668c5716658bda78f8a6a8",
+          "startedAt": "2026-11-05T21:37:34.205784164Z",
+          "finishedAt": "2026-11-05T21:37:34.766493458Z",
+          "receiptSha256": "5bed86b22a7b002255f5aabe8530abf904130d78292cd8b90256849c4079b0a3"
+        }
+      ]
+    },
+    {
+      "variant": "native",
+      "case": "csv-1",
+      "taskId": "analysis-coding-ca7d0257a7aabd9857b724084eafdb5e85815550a91223fec86530c8e8ec1cec",
+      "firstExecutorStartedMs": 46770,
+      "clocks": [
+        {
+          "operationId": "cline-0d1cc0ee7e709fa6a6a085fd5545833d3983919fdb95ce61e0593a8e2416d0b6",
+          "codeHash": "a17c12d7ba4fd158d1f0287905b1c27de39ee5de205e78bd82c16b911ca36fe0",
+          "startedAt": "2026-11-05T21:58:18.674422738Z",
+          "finishedAt": "2026-11-05T21:58:19.424205008Z",
+          "receiptSha256": "383fa4b1b2593cc9fb4b8d1c1542ef637fe25b12a228cf430eece2f1d4e8a1c4"
+        },
+        {
+          "operationId": "cline-ab50f738fa8e891c9bfc4a00b9e031a224a0a64d8f23bd1f7763f0040f45db02",
+          "codeHash": "174313048b857967b6466e1e121289dc460f068c209de3857b4d6496541e0118",
+          "startedAt": "2026-11-05T21:57:31.465757206Z",
+          "finishedAt": "2026-11-05T21:57:32.033477666Z",
+          "receiptSha256": "543bba769174f86bfb10035f53cb788d3e14930b75fb42bb582273c4466870e3"
+        }
+      ]
+    },
+    {
+      "variant": "native",
+      "case": "join-0",
+      "taskId": "analysis-coding-3f06d70b7b8235f8f8245e859f08e81d6bdd6b847b26e8efb3432c74b6c169c2",
+      "firstExecutorStartedMs": 62441,
+      "clocks": [
+        {
+          "operationId": "cline-ec33cf72e8dcb74c39f3b492cf788f490d7a8e693071ada2d4eebc4c5f32e392",
+          "codeHash": "7d955280f000aa26c76e021d92399a32c943cacaa824ba69d381f0221cd6ca64",
+          "startedAt": "2026-11-05T21:43:45.161637240Z",
+          "finishedAt": "2026-11-05T21:43:45.772621299Z",
+          "receiptSha256": "2f3be36406a57f2c21eb8a625f726df8d4890e4c89a0180d027c64dafc48a135"
+        },
+        {
+          "operationId": "cline-5535cdebffff1aa3c422769b33d564cef16b583061ef9c1d57be3c27b6e90366",
+          "codeHash": "510244a102bc8e894c880a6da916c610d5f376742864c88834f7ebd2c4b07774",
+          "startedAt": "2026-11-05T21:40:05.534913825Z",
+          "finishedAt": "2026-11-05T21:40:06.170939723Z",
+          "receiptSha256": "d963a205bb632239751507b825a3224e3365450e2a690efbd4cba405739f1f36"
+        },
+        {
+          "operationId": "cline-f078f93351c9367fce6d11be11e44b5a5f24169f62e83c30a3d96628a7540e8a",
+          "codeHash": "2c0acb07452846970cd34fdde3730513369c260443a708a8cfc6405850878f1d",
+          "startedAt": "2026-11-05T21:38:47.134390601Z",
+          "finishedAt": "2026-11-05T21:38:47.703162077Z",
+          "receiptSha256": "95aa98b17c631aa689ddda67a14c9f20ac00fe47de92e67868a000f9f4b5d19a"
+        }
+      ]
+    },
+    {
+      "variant": "native",
+      "case": "join-1",
+      "taskId": "analysis-coding-708521f859041cb448e8e625e90ae1618b2cb371126697f5f5cee62dcbc6699e",
+      "firstExecutorStartedMs": 52344,
+      "clocks": [
+        {
+          "operationId": "cline-3e1060ea82b900bea98b561476dc0855b14905964f6f2a01fad98d7ced38ff5c",
+          "codeHash": "c447e155be478a8682058f18b7deadd813f2cd5da931b8b0d4a3fcf015812c49",
+          "startedAt": "2026-11-05T22:01:51.868231364Z",
+          "finishedAt": "2026-11-05T22:01:52.564315455Z",
+          "receiptSha256": "398852e0237c164430de9f71dcfa482f3d007757820cd7ca2e20d6512a5a848d"
+        },
+        {
+          "operationId": "cline-8b89bb66f635980df6160b54925421752d5c55a28eb73cb8922bc55b81ba55a9",
+          "codeHash": "a5fc0956969fa6e071558dd0049433ce969eef49768df7ac8d590de64a7a9e49",
+          "startedAt": "2026-11-05T21:59:42.387959164Z",
+          "finishedAt": "2026-11-05T21:59:43.106549198Z",
+          "receiptSha256": "89d565682554b1ac39b2f36ac41be7244bfa2a163f8408864362beb12c60e9a6"
+        }
+      ]
+    },
+    {
+      "variant": "native",
+      "case": "parquet-0",
+      "taskId": "analysis-coding-5d5c1ef7756eaa3713e2a6ea7a65f5ca8da60ca57dc28d94a689b418c3085623",
+      "firstExecutorStartedMs": 77419,
+      "clocks": [
+        {
+          "operationId": "cline-c2ae95beedafb51de6045eef1fba31a630f8de923edb5c788c275bdb622b0897",
+          "codeHash": "c519a4593afe8d6da81c2d37cfe3c21470e1857894a526243a3cf27fc41758f6",
+          "startedAt": "2026-11-05T21:37:43.716914857Z",
+          "finishedAt": "2026-11-05T21:37:45.461845046Z",
+          "receiptSha256": "f8cbbbc26172f401a3fc2a18195950618169753fcacba6ebbd47781a3a5ba4c7"
+        }
+      ]
+    },
+    {
+      "variant": "native",
+      "case": "parquet-1",
+      "taskId": "analysis-coding-818ed6b51fc19cb53454a7f9689ab33a44f31f508c024b9d3b54f02ede836d94",
+      "firstExecutorStartedMs": 23689,
+      "clocks": [
+        {
+          "operationId": "cline-816e7c63c5245d442765beffc82804d7c309eb8bd257211a44ed2c1b1dbb1e6b",
+          "codeHash": "165e8d66e71f3f0e04d85bd9f124dfed7665a6a7e2a3e06cf7871530ad60f7e6",
+          "startedAt": "2026-11-05T22:00:17.094419298Z",
+          "finishedAt": "2026-11-05T22:00:18.793781596Z",
+          "receiptSha256": "df53f45af922d0586aad7d48783b0900d9f7d10566ff3fa82a0914a170b201a0"
+        },
+        {
+          "operationId": "cline-f38f4caea80b01d1f3421a6e6a722458367b93fae52ff33dafb42088b6d65a8f",
+          "codeHash": "f9649a0b47b5f1db75cf7287c81b9795d99de1da9df14c3d31f64de418f49cad",
+          "startedAt": "2026-11-05T22:00:04.023533421Z",
+          "finishedAt": "2026-11-05T22:00:05.876139316Z",
+          "receiptSha256": "d4d249a46801a5111cb4fb9a4bae8bfdd7c5f640405b4c786842f87145b09d0f"
+        },
+        {
+          "operationId": "cline-ed13d9b6eb6ae99adc550e2c479da154fed751239b51ee92fa935834ac75cc33",
+          "codeHash": "727704086b2dd3ae516e1fb36137b32f77c236283f99fa739fa32dd91a43d228",
+          "startedAt": "2026-11-05T21:59:02.740904084Z",
+          "finishedAt": "2026-11-05T21:59:04.503829950Z",
+          "receiptSha256": "73e85321302a87134b9601d48331c4d37c244e9ce9d4b80347c4f21af98eb38d"
+        }
+      ]
+    },
+    {
+      "variant": "native",
+      "case": "repair-0",
+      "taskId": "analysis-coding-538f6deab37ece9d92cc9454313189e2f032704225ca19626f4dad87e4b42b01",
+      "firstExecutorStartedMs": 99051,
+      "clocks": [
+        {
+          "operationId": "cline-c489afa1eee793a3bc0f61a8b42445b1934942e599b894f2c9067d2d47086e77",
+          "codeHash": "9641ad21d846c8b7237a933ddc763748e72d5ad4afa7874c695e313bbdcf6bb0",
+          "startedAt": "2026-11-05T21:58:04.369591309Z",
+          "finishedAt": "2026-11-05T21:58:06.156600447Z",
+          "receiptSha256": "ddea45315fe4fcebc0941270e4de63dd5f311f73b688d4f050941efd988cbe44"
+        },
+        {
+          "operationId": "cline-0086525c19737f6aeb72607f780621fd27d1abac95f1ce5762b59e4084a13fb5",
+          "codeHash": "f8e1e9c7415a16302c5c43345f9e0454afad8f86a41d5f203e3133ebee7289f0",
+          "startedAt": "2026-11-05T21:57:44.243082309Z",
+          "finishedAt": "2026-11-05T21:57:46.550291683Z",
+          "receiptSha256": "abff8462ef7810045dcd9b289e5be05f499cf7fa7c6823ba3551832e86792207"
+        },
+        {
+          "operationId": "cline-1722324d623f425322b6158c383dbfd43087db45709c3ae8a1e4ea9d790509d7",
+          "codeHash": "6c782d84278a30fd436bcf05b47fb9847bc5686ded2ecad9f85c03baa18656bb",
+          "startedAt": "2026-11-05T21:45:45.884066436Z",
+          "finishedAt": "2026-11-05T21:45:46.506867648Z",
+          "receiptSha256": "5e2f06bf36be4761430f9261ead81314db9c81c3b35a0f3eeaf81e7e9c9f5c90"
+        }
+      ]
+    },
+    {
+      "variant": "native",
+      "case": "repair-1",
+      "taskId": "analysis-coding-c5dac3c31746b76367479c0d093be3784f43cba9681e4b3fe41494af9df58d49",
+      "firstExecutorStartedMs": 76373,
+      "clocks": [
+        {
+          "operationId": "cline-f3afab82103269f6ada722f185798e0f3832dd97fe63aa282388750128187652",
+          "codeHash": "f8336a57e8af13086927ecb1756a5e3c898edf4cdde9854f4c769db0ce79b279",
+          "startedAt": "2026-11-05T22:09:15.964301557Z",
+          "finishedAt": "2026-11-05T22:09:18.002619612Z",
+          "receiptSha256": "8cb4af0d3e1f4a1e33abbf6fb4f943db25b27c499005466e433dc418f3b3a43d"
+        },
+        {
+          "operationId": "cline-29908d94eb32c3f461dfc7b4a701a294db67f46be95f464b42a6907fa04fa5f3",
+          "codeHash": "e58b50556ec50fea05b04540b63fe7da345c428c25d3474018ce13c96482c5e6",
+          "startedAt": "2026-11-05T22:08:00.832078597Z",
+          "finishedAt": "2026-11-05T22:08:02.989440637Z",
+          "receiptSha256": "d0858eeb9c68097727b46735c612a75e2e01436660ef2b6a085234628a69c0f2"
+        },
+        {
+          "operationId": "cline-baaedb89ca7e6090e2bb358b727126a86318aef58c36c4d7cf220c0b8724a438",
+          "codeHash": "d7ca4d0fa10f70125995ab9c6c63bfc986607fe2cf2a0bacb228e3a06f765383",
+          "startedAt": "2026-11-05T22:07:38.338766892Z",
+          "finishedAt": "2026-11-05T22:07:40.319127491Z",
+          "receiptSha256": "bc4cbaa27862ae21bf8810c0476578eb0e46625863743e9abef1c2fe6f4ed125"
+        },
+        {
+          "operationId": "cline-4592cbffb9a95cff391233b1e0c078a17e7158457071c5954f8c1f0c988856d1",
+          "codeHash": "6c782d84278a30fd436bcf05b47fb9847bc5686ded2ecad9f85c03baa18656bb",
+          "startedAt": "2026-11-05T22:03:21.307986998Z",
+          "finishedAt": "2026-11-05T22:03:21.933351720Z",
+          "receiptSha256": "c8d6a142629a97ad97f41b6d023c35ccc801940c34403428e5f22ba1789cb4df"
+        }
+      ]
+    },
+    {
+      "variant": "native",
+      "case": "visual-0",
+      "taskId": "analysis-coding-8e6d92cb89d69be53563d065c672f2078f93d86d7d6546c27d0922ce5f8c86d0",
+      "firstExecutorStartedMs": 287842,
+      "clocks": [
+        {
+          "operationId": "cline-815fa749b8172659638bbf64609bc0737df788c9e52fbb20ec49a1c37c1c0c81",
+          "codeHash": "c5254a657120f1287702bbffd5170b0aa9767b95f28529a56921a7d2ffe6330f",
+          "startedAt": "2026-11-05T21:56:17.710815642Z",
+          "finishedAt": "2026-11-05T21:56:20.722315885Z",
+          "receiptSha256": "d007c5959f1fc39709f9598a6953c4bebe9b6b006b08c53665d50d8d2111405c"
+        },
+        {
+          "operationId": "cline-393732d2a4cf5c4a8bc6c7a758fa826883f59c0a2f210bd538d210d4735feb0d",
+          "codeHash": "ae5a9935cb4f4ea4255b9905c2789165bfa6656cca5ca866c9bfc42a806fb5f7",
+          "startedAt": "2026-11-05T21:51:44.420183666Z",
+          "finishedAt": "2026-11-05T21:51:47.398401734Z",
+          "receiptSha256": "0a53f97f44a6a7be34482aafc33c9829cb29f42a0ba485ca3fc1247cc5d36aab"
+        },
+        {
+          "operationId": "cline-692a7c07838fb2fbbecf4e5e4e984b448146f38085e29910c2694d73cb96faaa",
+          "codeHash": "fc24d765deb1b4cbc5a063d218feb59f9819df6d7d599086423cc204a7c80749",
+          "startedAt": "2026-11-05T21:50:29.563771548Z",
+          "finishedAt": "2026-11-05T21:50:30.198849165Z",
+          "receiptSha256": "202bec8b66f433db3ba1207d7c444ae8b836c10b65ca4c771bdea7751454683c"
+        }
+      ]
+    },
+    {
+      "variant": "native",
+      "case": "visual-1",
+      "taskId": "analysis-coding-983f034627beed56ed9f8bb73927eb8e30ff64672faf98fab304cdb6a099e496",
+      "firstExecutorStartedMs": 47979,
+      "clocks": [
+        {
+          "operationId": "cline-8d982791cb5c932ebcd85405eade49371b258a7eef036e37bdec15504c3adcd1",
+          "codeHash": "e939230f4e5c8d870fdb0ebc106aa94570a20767bc1b4d215d50c1367d78bb80",
+          "startedAt": "2026-11-05T22:23:57.711116316Z",
+          "finishedAt": "2026-11-05T22:24:00.639760664Z",
+          "receiptSha256": "78a686aae334e19c84ef06ce0f2de0d4028b038ccc506d4ed3da23211b4d462e"
+        },
+        {
+          "operationId": "cline-dd23e9a7d80b5f3bf0312228aa735e3734dc93b77c3cc889ff81f556ba454c65",
+          "codeHash": "eb5ca35646b1cc57f059c141f13f80040a82336f3fb874f8cd9872064684195c",
+          "startedAt": "2026-11-05T22:22:03.800012420Z",
+          "finishedAt": "2026-11-05T22:22:04.305522545Z",
+          "receiptSha256": "7959bd6623c049e5eb07ca6cd318a6a85fa287695b00bc8cd38121edb0196d0e"
+        },
+        {
+          "operationId": "cline-be1ab347836759d6a9770c68aa19c789ed5ab2c317fe965168fdf8000c3184fd",
+          "codeHash": "680e35b2c8670d560bf73746ec81f94e91fc9f0d4c91ccb41bc4c12d3bb89f79",
+          "startedAt": "2026-11-05T22:08:44.735112168Z",
+          "finishedAt": "2026-11-05T22:08:46.285242764Z",
+          "receiptSha256": "355837b1205bc48f47b664b7a0099f92e0343c7f72cdf6804412528a229e2af4"
+        }
+      ]
+    }
+  ],
+  "aggregate": {
+    "native": {
+      "observed": 12,
+      "median": 72154.0
+    }
+  }
+}

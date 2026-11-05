@@ -1,0 +1,155 @@
+{
+  "scope": "Original package bytes, official discovery/body/reference APIs; no provider or upstream script execution",
+  "packages": [
+    {
+      "publisher": "OpenAI",
+      "repository": "openai/skills",
+      "commit": "49f948faa9258a0c61caceaf225e179651397431",
+      "directory": "skills/.system/skill-creator",
+      "name": "skill-creator",
+      "nativeId": "runtime-agent-966ca6e6edffd42b:skill-creator",
+      "allOriginalBytesVerified": true,
+      "gitBlobsVerified": true,
+      "nativeBodyIncludesSDKParsedInstructions": true,
+      "nativeReferenceLoaded": "references/openai_yaml.md",
+      "sameNameNamespaces": [
+        "runtime-image:skill-creator",
+        "runtime-agent-966ca6e6edffd42b:skill-creator"
+      ],
+      "files": [
+        {
+          "path": "LICENSE.txt",
+          "gitBlobSha": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+          "size": 11358,
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "path": "SKILL.md",
+          "gitBlobSha": "72bc0b97e7a6476254a9d5c424c9971748402ec3",
+          "size": 18664,
+          "sha256": "a17383bfb1448637ac1f757ad891ddb9676fa30b0eff620200f0e1cbc0cc0d50"
+        },
+        {
+          "path": "agents/openai.yaml",
+          "gitBlobSha": "f5ce09ed118b72908b7308fcfc1619f59e89f6ea",
+          "size": 192,
+          "sha256": "fcc3ba02bdf8d6df1f891637cf5336d2d7ef87bb8910fa622bd150c8e0d4c55b"
+        },
+        {
+          "path": "references/openai_yaml.md",
+          "gitBlobSha": "da5629f8de500ec6f81291d239a2d9c68d1d9044",
+          "size": 2130,
+          "sha256": "9fb5928b7f4a746fdb39df503ebbd7a659d5e64b47f85a60626aa1a03fd76b17"
+        },
+        {
+          "path": "scripts/generate_openai_yaml.py",
+          "gitBlobSha": "1a9d784f8704999daf55a2b9036094949d9af3f8",
+          "size": 6614,
+          "sha256": "b8f6be33a9d72dd7a8da02e7a9fffea23dc79e94862e6dd6358b57a8899d8f73"
+        },
+        {
+          "path": "scripts/init_skill.py",
+          "gitBlobSha": "f90703eca8159a21a9684ed1df974c702d92f814",
+          "size": 14483,
+          "sha256": "bcb8982d3f033a094f2f1be43123ac8537e2562d25d8ba4d8ef2196ae514d96d"
+        },
+        {
+          "path": "scripts/quick_validate.py",
+          "gitBlobSha": "0547b4041a5f58fa19892079a114a1df98286406",
+          "size": 3293,
+          "sha256": "6cc9dc3199c935916cf6f73fcbbbb0e3bb1b58c8f5109fefa499978908164f51"
+        }
+      ]
+    },
+    {
+      "publisher": "Anthropic",
+      "repository": "anthropics/skills",
+      "commit": "ca45fc496a3436251f191354091d557da31c15b5",
+      "directory": "skills/pdf",
+      "name": "pdf",
+      "nativeId": "runtime-agent-dab2f771c9abc233:pdf",
+      "allOriginalBytesVerified": true,
+      "gitBlobsVerified": true,
+      "nativeBodyIncludesSDKParsedInstructions": true,
+      "nativeReferenceLoaded": "forms.md",
+      "sameNameNamespaces": [
+        "runtime-agent-dab2f771c9abc233:pdf"
+      ],
+      "files": [
+        {
+          "path": "LICENSE.txt",
+          "gitBlobSha": "c55ab42224874608473643de0a85736b7fec0730",
+          "size": 1467,
+          "sha256": "79f6d8f5b427252fa3b1c11ecdbdb6bf610b944f7530b4de78f770f38741cfaa"
+        },
+        {
+          "path": "SKILL.md",
+          "gitBlobSha": "d3e046a5ae107a6cb23cfb16c219837094ab35d3",
+          "size": 8072,
+          "sha256": "9f78b8359fbd4943ad260a7a1e436e5a96503406d6c34e99f69223d647d85b9c"
+        },
+        {
+          "path": "forms.md",
+          "gitBlobSha": "6e7e1e0d9e6ae17215db3e130aea3c3c546487e6",
+          "size": 11854,
+          "sha256": "9530b3f57034792e0242a3abfe8b3c296466329551916f2ff6c5a70db78f7e44"
+        },
+        {
+          "path": "reference.md",
+          "gitBlobSha": "41400bf4fc67f15fb062d43695ec92f078226023",
+          "size": 16692,
+          "sha256": "03a5f964f8abecbbe156f363356e927e864d7ee964f1012c84ee1bfc8acbeb95"
+        },
+        {
+          "path": "scripts/check_bounding_boxes.py",
+          "gitBlobSha": "2cc5e348f359b7aa7179e6a26772dacfdbbeba53",
+          "size": 2774,
+          "sha256": "0ced522402dd7b3c82a0be9518cf4e485fa9cc0467d7beab6ddb04cb36fcc3e1"
+        },
+        {
+          "path": "scripts/check_fillable_fields.py",
+          "gitBlobSha": "36dfb9513e2f54e051820b58c3cdd1f09bc6ff37",
+          "size": 268,
+          "sha256": "1fe10b9980a5493c9bbec8c20630c603eaa475b45403751c08f26738736647b8"
+        },
+        {
+          "path": "scripts/convert_pdf_to_images.py",
+          "gitBlobSha": "7939cef56c1220dd9dd0d04ec9594b2fe089ee74",
+          "size": 1008,
+          "sha256": "7f58e292a67e18a8ff000d30bad2469389546731f7e8a698cc1d0aed001ea15d"
+        },
+        {
+          "path": "scripts/create_validation_image.py",
+          "gitBlobSha": "10eadd8124b1f94f9b1a78708c2d947a3f6773e7",
+          "size": 1258,
+          "sha256": "8fa9fd7962c9f940045b81cf6b991e7c1057c1838e3f9cc6d305007a222ffebf"
+        },
+        {
+          "path": "scripts/extract_form_field_info.py",
+          "gitBlobSha": "64cd4703a4af80bf6abe16f4c3065d8abd55d173",
+          "size": 4300,
+          "sha256": "bb235b36f497bbb1c7c6821cecf527bbba7213520de11219da99f7b13a38c109"
+        },
+        {
+          "path": "scripts/extract_form_structure.py",
+          "gitBlobSha": "f219e7d5b5e30616b2259abb924253afd0240aee",
+          "size": 3945,
+          "sha256": "6814e3fe8f78c2b16d766c132b5a727ff7a31b71d76a7d46bd6e40fe50bc97c5"
+        },
+        {
+          "path": "scripts/fill_fillable_fields.py",
+          "gitBlobSha": "51c2600f3895723cac15ec3ffcd8a482e42f95d7",
+          "size": 3819,
+          "sha256": "d140872c2e92e41b1e05370ae8d270c5b7f5ebdf55d9905f03bc974a9c708ff5"
+        },
+        {
+          "path": "scripts/fill_pdf_form_with_annotations.py",
+          "gitBlobSha": "b430069fd016cff11560d0f2b95c63074736e5e4",
+          "size": 3235,
+          "sha256": "8a56e063a49ed53c0b0e1d312ecf8023af76816ed139486ec3b539873de202fd"
+        }
+      ]
+    }
+  ],
+  "nativeDiscovered": 17
+}

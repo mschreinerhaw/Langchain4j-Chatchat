@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-05T20:31:34.582Z",
+  "capturedAt": "2026-11-05T21:54:52.080Z",
   "registry": "https://registry.npmjs.org",
   "packages": [
     {
@@ -68,6 +68,19 @@
       "latestStableDeclared": true
     }
   ],
+  "extensionProbe": {
+    "scope": "Installed official service extension and unmodified native tool; no model or body invocation",
+    "discoveredSkills": 15,
+    "capabilities": [
+      "commands"
+    ],
+    "hookNames": [],
+    "registeredCommands": 15,
+    "registeredRules": 0,
+    "registeredMessageBuilders": 0,
+    "purposeInNativeToolDescription": false,
+    "purposeInNativeSkillParameter": false
+  },
   "latestStableEvidence": "PUBLISHED_TARBALL_INTEGRITY_AND_PUBLIC_TYPES_NOT_RUNTIME_UPGRADE",
   "chosenVersion": "0.0.93",
   "reason": "The installed version provides the tested native discovery, instruction service, Skills executor and tool construction APIs; no ClineCore migration or SDK upgrade required."

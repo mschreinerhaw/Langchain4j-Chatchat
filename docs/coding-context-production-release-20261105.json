@@ -1,0 +1,323 @@
+{
+  "schemaVersion": "coding.production.release.v1",
+  "date": "2026-11-05",
+  "host": "192.168.195.221",
+  "url": "http://192.168.195.221:18100",
+  "sourceCommit": "a5a5cf98b54de79fc0c9a569c4d0bcda1294db00",
+  "branch": "feature/cline-context-performance-optimization",
+  "deployment": {
+    "status": "DEPLOYED",
+    "image": "runtime-os-api:coding-context-production-20261105-r1",
+    "sha256": "d39c4ac196417c0d171ec9e0382b8c5214c0dc9f5a46263b5f0c93bcf42ae9bf",
+    "backup": "/opt/chatchat-releases/coding-context-production-20261105-r1/backup",
+    "retired": {
+      "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-studio-1793856164",
+      "runtime-os-app-stage-coding-agent-1": "runtime-os-app-stage-coding-agent-1-before-studio-1793856164",
+      "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-studio-1793856164"
+    },
+    "databaseMigrationSha256": null,
+    "catalogReadiness": {
+      "status": "API_MCP_CATALOG_READY",
+      "registryState": "HEALTHY",
+      "registeredToolCount": 39,
+      "requiredTools": [
+        "enterprise_metadata_search",
+        "sql_schema_context_query"
+      ],
+      "capturedAt": "2026-11-05T05:23:32.932839+00:00"
+    },
+    "preservedExpiredReadOnlyTaskIds": [],
+    "unrelatedContainersUnchanged": true,
+    "conversationContentUnchanged": true,
+    "messageIndexCountUnchanged": true,
+    "images": {
+      "runtime-os-app-stage-api-1": "runtime-os-api:coding-context-production-20261105-r1",
+      "runtime-os-app-stage-coding-agent-1": "runtime-os-coding-agent:context-performance-20261105-r1"
+    },
+    "channelCounts": "SQL_STUDIO|63\nPYTHON_STUDIO|10\nAGENT_API|204\nPLATFORM_UI|1157",
+    "temporaryCredentialsRemoved": true,
+    "duplicateBuildJarRemoved": true,
+    "releaseJarRetainedInImage": "runtime-os-api:coding-context-production-20261105-r1",
+    "freeDiskBytes": 48541634560
+  },
+  "runtimeVerification": {
+    "status": "PASSED",
+    "sourceCommit": "a5a5cf98b54de79fc0c9a569c4d0bcda1294db00",
+    "apiJarSha256": "d39c4ac196417c0d171ec9e0382b8c5214c0dc9f5a46263b5f0c93bcf42ae9bf",
+    "workerImageId": "sha256:0c93adb55c409d341723d702500c057d85e7a9b307309630a871fbfeca0d2157",
+    "workerFilesVerified": 37,
+    "sdkPackages": {
+      "@cline/sdk": "0.0.93",
+      "@cline/core": "0.0.93",
+      "@cline/agents": "0.0.93",
+      "@cline/llms": "0.0.93",
+      "@cline/shared": "0.0.93"
+    },
+    "contextOptimizationEnabled": true,
+    "nodeMonitorBuild": "a5a5cf98b54de79fc0c9a569c4d0bcda1294db00",
+    "nodeVersion": "v24.21.0",
+    "activeSessions": 0,
+    "healthy": true,
+    "performanceTargetsMet": false
+  },
+  "linuxNodeTests": [
+    "\u2714 task deadline aborts prefetch without extending the model budget (41.495976ms)",
+    "\u2139 tests 198",
+    "\u2139 suites 0",
+    "\u2139 pass 198",
+    "\u2139 fail 0",
+    "\u2139 cancelled 0",
+    "\u2139 skipped 0",
+    "\u2139 todo 0",
+    "\u2139 duration_ms 36183.817731"
+  ],
+  "productionAnalysis": {
+    "taskId": "cd52f7be-5679-378b-8510-a27b00b56562",
+    "attemptId": "att-1-412b1a0b-6c4a-46a6-9acf-3aa766939c6c",
+    "canonicalState": "SUCCEEDED",
+    "answerCharacters": 251,
+    "syntheticFixture": true,
+    "modelBindingChanged": false,
+    "actualPythonExecutions": 2,
+    "executions": [
+      {
+        "executionId": "cline-d4ad3afd0c9694333d0b64168c65185e47eb4d3cc33ffe9d70c7c1a0cd5d3292",
+        "status": "SUCCEEDED",
+        "stage": "RESULT_VALIDATION_FAILED",
+        "validationStatus": "FAILED"
+      },
+      {
+        "executionId": "cline-b6b2cbbe7008751d3942a0611cc2e21aa93f20a2589f20f42f593feba10b4e68",
+        "status": "SUCCEEDED",
+        "stage": "VALIDATED",
+        "validationStatus": "INCONCLUSIVE"
+      }
+    ],
+    "modelCalls": [
+      {
+        "selectedModel": "qwen3.7-plus",
+        "state": "SUCCEEDED",
+        "durationMs": 10606,
+        "usage": {
+          "reasoningTokens": 360,
+          "cacheReadTokens": 0,
+          "outputTokens": 560,
+          "inputTokens": 11135
+        }
+      },
+      {
+        "selectedModel": "qwen3.7-plus",
+        "state": "SUCCEEDED",
+        "durationMs": 18252,
+        "usage": {
+          "reasoningTokens": 460,
+          "cacheReadTokens": 10880,
+          "outputTokens": 1077,
+          "inputTokens": 11629
+        }
+      },
+      {
+        "selectedModel": "qwen3.7-plus",
+        "state": "SUCCEEDED",
+        "durationMs": 19047,
+        "usage": {
+          "reasoningTokens": 36,
+          "cacheReadTokens": 0,
+          "outputTokens": 1092,
+          "inputTokens": 15209
+        }
+      },
+      {
+        "selectedModel": "qwen3.7-plus",
+        "state": "SUCCEEDED",
+        "durationMs": 4214,
+        "usage": {
+          "reasoningTokens": 95,
+          "cacheReadTokens": 12672,
+          "outputTokens": 182,
+          "inputTokens": 16433
+        }
+      },
+      {
+        "selectedModel": "qwen3.7-plus",
+        "state": "SUCCEEDED",
+        "durationMs": 19044,
+        "usage": {
+          "reasoningTokens": 39,
+          "cacheReadTokens": 16128,
+          "outputTokens": 1104,
+          "inputTokens": 17365
+        }
+      },
+      {
+        "selectedModel": "qwen3.7-plus",
+        "state": "SUCCEEDED",
+        "durationMs": 7316,
+        "usage": {
+          "reasoningTokens": 254,
+          "cacheReadTokens": 0,
+          "outputTokens": 342,
+          "inputTokens": 23233
+        }
+      }
+    ],
+    "publishedAmountPresent": true,
+    "publishedUnitsPresent": true
+  },
+  "numericalVerification": {
+    "status": "PASSED",
+    "method": "Independent exact-cent aggregation of authorized downloaded synthetic CSV",
+    "inputHashVerified": true,
+    "rowCount": 5,
+    "missingRegion": 1,
+    "totalUnits": 10,
+    "totalAmount": "43.75",
+    "regionalAmounts": {
+      "East": "10.50",
+      "South": "20.00",
+      "North": "5.25",
+      "missing": "8.00"
+    }
+  },
+  "monitorVerification": {
+    "status": "PASSED",
+    "parentTaskId": "cd52f7be-5679-378b-8510-a27b00b56562",
+    "codingTaskId": "analysis-coding-8808360367ebb68a3cd1771516ffe214630daff7c9a675fe93e93cf437d3e5e3",
+    "taskStatus": "COMPLETED",
+    "modelCalls": 6,
+    "contextDiagnosticsVisible": true,
+    "responseStagesRecorded": true,
+    "pageErrors": [],
+    "calls": [
+      {
+        "ordinal": 1,
+        "status": "SUCCEEDED",
+        "providerModel": "qwen3.7-plus",
+        "usage": {
+          "inputTokens": 11135,
+          "outputTokens": 560,
+          "totalCost": null,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": null,
+          "reasoningTokens": 360
+        },
+        "estimatedInputTokens": 8680,
+        "repeatedContextBytes": 0,
+        "compactionCount": 0,
+        "contextSizeBefore": 26015,
+        "contextSizeAfter": 26015,
+        "callbackHeadersMs": 11048,
+        "callbackBodyMs": 1,
+        "firstTokenMs": null
+      },
+      {
+        "ordinal": 2,
+        "status": "SUCCEEDED",
+        "providerModel": "qwen3.7-plus",
+        "usage": {
+          "inputTokens": 11629,
+          "outputTokens": 1077,
+          "totalCost": null,
+          "cacheReadTokens": 10880,
+          "cacheWriteTokens": null,
+          "reasoningTokens": 460
+        },
+        "estimatedInputTokens": 8999,
+        "repeatedContextBytes": 34604,
+        "compactionCount": 0,
+        "contextSizeBefore": 27313,
+        "contextSizeAfter": 27313,
+        "callbackHeadersMs": 18553,
+        "callbackBodyMs": 0,
+        "firstTokenMs": null
+      },
+      {
+        "ordinal": 3,
+        "status": "SUCCEEDED",
+        "providerModel": "qwen3.7-plus",
+        "usage": {
+          "inputTokens": 15209,
+          "outputTokens": 1092,
+          "totalCost": null,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": null,
+          "reasoningTokens": 36
+        },
+        "estimatedInputTokens": 11800,
+        "repeatedContextBytes": 30091,
+        "compactionCount": 0,
+        "contextSizeBefore": 39507,
+        "contextSizeAfter": 39507,
+        "callbackHeadersMs": 19439,
+        "callbackBodyMs": 1,
+        "firstTokenMs": null
+      },
+      {
+        "ordinal": 4,
+        "status": "SUCCEEDED",
+        "providerModel": "qwen3.7-plus",
+        "usage": {
+          "inputTokens": 16433,
+          "outputTokens": 182,
+          "totalCost": null,
+          "cacheReadTokens": 12672,
+          "cacheWriteTokens": null,
+          "reasoningTokens": 95
+        },
+        "estimatedInputTokens": 12619,
+        "repeatedContextBytes": 46553,
+        "compactionCount": 0,
+        "contextSizeBefore": 42812,
+        "contextSizeAfter": 42812,
+        "callbackHeadersMs": 4623,
+        "callbackBodyMs": 0,
+        "firstTokenMs": null
+      },
+      {
+        "ordinal": 5,
+        "status": "SUCCEEDED",
+        "providerModel": "qwen3.7-plus",
+        "usage": {
+          "inputTokens": 17365,
+          "outputTokens": 1104,
+          "totalCost": null,
+          "cacheReadTokens": 16128,
+          "cacheWriteTokens": null,
+          "reasoningTokens": 39
+        },
+        "estimatedInputTokens": 13341,
+        "repeatedContextBytes": 49582,
+        "compactionCount": 0,
+        "contextSizeBefore": 45873,
+        "contextSizeAfter": 45873,
+        "callbackHeadersMs": 19566,
+        "callbackBodyMs": 1,
+        "firstTokenMs": null
+      },
+      {
+        "ordinal": 6,
+        "status": "SUCCEEDED",
+        "providerModel": "qwen3.7-plus",
+        "usage": {
+          "inputTokens": 23233,
+          "outputTokens": 342,
+          "totalCost": null,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": null,
+          "reasoningTokens": 254
+        },
+        "estimatedInputTokens": 16643,
+        "repeatedContextBytes": 48463,
+        "compactionCount": 0,
+        "contextSizeBefore": 59264,
+        "contextSizeAfter": 59264,
+        "callbackHeadersMs": 7879,
+        "callbackBodyMs": 0,
+        "firstTokenMs": null
+      }
+    ]
+  },
+  "performanceTargetsMet": false,
+  "productionModelVsIsolatedBenchmarkComparable": false,
+  "note": "User authorized production testing after isolated evaluation. Actual published-Agent model binding qwen3.7-plus remained authoritative. No claim of 30% token/P95 improvement; short task recorded zero compactions. First output failed contract validation and was repaired before publication."
+}

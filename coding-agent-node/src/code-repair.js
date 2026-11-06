@@ -1,5 +1,25 @@
 import { createHash } from 'node:crypto';
 
+/** Diagnose an exact edit without applying it or disclosing program contents. */
+export function validateRepairEdit(edit, index, source) {
+  const oldLength=typeof edit?.oldText==='string'?edit.oldText.length:null;
+  const newLength=typeof edit?.newText==='string'?edit.newText.length:null;
+  if(oldLength===null||oldLength===0||oldLength>16000||newLength===null||newLength>16000){
+    const offset=oldLength?source.indexOf(edit.oldText):-1;
+    const diagnostic={editIndex:index,oldTextLength:oldLength,newTextLength:newLength,maxSegmentCharacters:16000,
+      anchorOffset:offset<0?null:offset,anchorLine:offset<0?null:source.slice(0,offset).split('\n').length,
+      anchorUnique:offset>=0&&source.lastIndexOf(edit.oldText)===offset,
+      replacementSegments:newLength===null?[]:Array.from({length:Math.ceil(newLength/16000)},(_,i)=>({
+        start:i*16000,end:Math.min((i+1)*16000,newLength),length:Math.min(16000,newLength-i*16000)}))};
+    const error=new TypeError('REPAIR_SEGMENT_LIMIT: Invalid bounded repair edit. '+JSON.stringify(diagnostic)
+      +'. Split the change into repair.edits with oldText and newText each at most 16000 UTF-16 characters. '
+      +'Use code_read to locate unique exact anchors; prefer independent statement/function boundaries. '
+      +'For an insertion, replace the old anchor with the first segment, then append remaining segments using a unique tail anchor from the preceding replacement. '
+      +'Keep the latest baseCodeSha256 and parentCodeVersion for the entire atomic proposal. Nothing was executed or accepted; do not regenerate unrelated code.');
+    error.code='REPAIR_SEGMENT_LIMIT';error.details=diagnostic;throw error;
+  }
+}
+
 /** Bind repair guidance to the program actually executed, using source only. */
 export function repairSourceContext(source, feedback, fileName) {
   if (typeof source !== 'string' || feedback?.repair?.allowed !== true) return null;
@@ -50,10 +70,8 @@ export function prepareProgram(input, previous) {
   if (!Array.isArray(edits) || edits.length < 1 || edits.length > 32)
     throw new TypeError('Repair requires 1..32 exact edits');
   let source = previous;
-  for (const edit of edits) {
-    if (typeof edit.oldText !== 'string' || !edit.oldText || edit.oldText.length > 16000
-        || typeof edit.newText !== 'string' || edit.newText.length > 16000)
-      throw new TypeError('Invalid bounded repair edit');
+  for (const [index,edit] of edits.entries()) {
+    validateRepairEdit(edit,index,source);
     const offset = source.indexOf(edit.oldText);
     if (offset < 0 || source.lastIndexOf(edit.oldText) !== offset)
       throw new TypeError('Repair anchor must match exactly once');

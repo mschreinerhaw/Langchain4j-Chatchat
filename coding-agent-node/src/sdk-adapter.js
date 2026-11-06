@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { createRequestContextTracker } from './request-context.js';
 import { modelInputBudget } from './context-budget.js';
+import { validateRepairEdit } from './code-repair.js';
 
 /** SDK editor on a private scratch file. Model-controlled paths never reach fs. */
 export async function editProgram(input, previous, signal) {
@@ -21,12 +22,10 @@ export async function editProgram(input, previous, signal) {
     const path = join(directory, 'program.py');
     await writeFile(path, previous, { mode: 0o600 });
     const edit = createEditorExecutor({ restrictToCwd: true, maxDiffLines: 0 });
-    for (const change of repair.edits) {
+    for (const [index,change] of repair.edits.entries()) {
       if (signal?.aborted) throw signal.reason;
-      if (typeof change.oldText !== 'string' || !change.oldText || change.oldText.length > 16000
-          || typeof change.newText !== 'string' || change.newText.length > 16000)
-        throw new TypeError('Invalid bounded repair edit');
       const before = await readFile(path, 'utf8');
+      validateRepairEdit(change,index,before);
       await edit({ path: 'program.py', old_text: change.oldText, new_text: change.newText }, directory, { signal });
       if (await readFile(path, 'utf8') === before) throw new TypeError('SDK editor did not apply the repair');
     }

@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "runtime-data-repair-regression.v1",
+  "mode": "OFFLINE_REAL_FAILURE_RECEIPT",
+  "taskId": "analysis-coding-2b06d38d8a4b73634e8eed98cafd0ebd9c67d6eb514d7016687f5bbb1584043b",
+  "inputSnapshotRef": "runtime-evidence:coding:input:513b90fd8ae1c16da35ecc754ddae1862fec52237ee9680608ed532b12a095e",
+  "receiptFileSha256": "65e8a9240a6d272e55a5845913b57a0c70b76f07bd6b10414eae5cbcaec83db2",
+  "originalCodeSha256": "82ed4c33618a13317401161d6479188c04e7c3139a4ebfc0372b146d53e12b6f",
+  "expectedCodeSha256": "0b0901cbfc188fa3bcbc463cc9c3ee53ec724ccec97190cf9d6bf08e70eb1242",
+  "sdkCodeSha256": "0b0901cbfc188fa3bcbc463cc9c3ee53ec724ccec97190cf9d6bf08e70eb1242",
+  "originalEditLengths": [
+    {
+      "old": 57,
+      "new": 101
+    },
+    {
+      "old": 144,
+      "new": 598
+    },
+    {
+      "old": 344,
+      "new": 28866
+    }
+  ],
+  "segmentedEditLengths": [
+    {
+      "old": 57,
+      "new": 101
+    },
+    {
+      "old": 144,
+      "new": 598
+    },
+    {
+      "old": 344,
+      "new": 15000
+    },
+    {
+      "old": 160,
+      "new": 14026
+    }
+  ],
+  "parentVersion": 1,
+  "resultVersion": 2,
+  "exactBytesPreserved": true,
+  "atomicRejection": true,
+  "staleHashRejected": true,
+  "staleVersionRejected": true,
+  "checkpointRestored": true,
+  "pythonExecuted": false,
+  "businessAcceptance": false
+}

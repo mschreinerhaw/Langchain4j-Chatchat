@@ -1,7 +1,7 @@
 import {computed,ref,watch,nextTick,onMounted,onBeforeUnmount} from 'vue';
 import {Activity,ChevronDown,ChevronRight,ArrowDown,LoaderCircle,CircleCheck,CircleAlert,Circle} from '@lucide/vue';
 import {executionWorkbench,executionDuration} from '../utils/runtimeObservationPresentation';
-import {explorationDeliveryStages} from '../utils/explorationWorkspace';
+import {explorationDeliveryStages,explorationLifecycleStatus} from '../utils/explorationWorkspace';
 export default {name:'ExplorationActivityPanel',components:{Activity,ChevronDown,ChevronRight,ArrowDown,LoaderCircle,CircleCheck,CircleAlert,Circle},props:{events:{type:Array,default:()=>[]},receipt:{type:Object,default:()=>({})},running:Boolean,status:{type:String,default:''},startedAt:String,finishedAt:String},setup(props){
 const expanded=ref(props.running),tab=ref('activity'),onlyIssues=ref(false),following=ref(true),scroller=ref(null),now=ref(Date.now());
 let timer;
@@ -11,6 +11,7 @@ onMounted(()=>void followLatest());
 const workbench=computed(()=>executionWorkbench(props.events,{canonicalState:props.status||(props.running?'RUNNING':'COMPLETED'),createTime:props.startedAt,finishedAt:props.finishedAt},now.value));
 const rows=computed(()=>workbench.value.visibleActivities);
 const deliveryStages=computed(()=>explorationDeliveryStages(props.events,props.receipt));
+const lifecycle=computed(()=>explorationLifecycleStatus(props.events,props.receipt));
 const visibleRows=computed(()=>onlyIssues.value?rows.value.filter(row=>row.critical):rows.value);
 const currentAction=computed(()=>props.events.length?workbench.value.currentActivity:props.running?'等待执行事件':'查看本次分析记录');
 function duration(row){return props.running&&['active','waiting'].includes(row.state)&&row.observedAt
@@ -31,5 +32,5 @@ function actionTitle(row){
   if(!label)return row.title;
   return row.state==='done'?label+'已完成':['active','waiting'].includes(row.state)?'正在'+label:row.critical?label+'未完成':label+'状态待确认';
 }
-return {expanded,tab,onlyIssues,following,scroller,workbench,rows,deliveryStages,visibleRows,currentAction,duration,onScroll,followLatest,technicalType,actionTitle};
+return {expanded,tab,onlyIssues,following,scroller,workbench,rows,deliveryStages,lifecycle,visibleRows,currentAction,duration,onScroll,followLatest,technicalType,actionTitle};
 }};

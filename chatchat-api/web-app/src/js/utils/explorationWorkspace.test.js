@@ -1,5 +1,25 @@
 import {it,expect} from 'vitest';
-import {explorationTreeRows,sortedTableRows,workspaceBusinessName,businessNodeTitle,explorationCanvasNode,reconcileExploration,explorationNodeState,explorationMetricDisplay,explorationDeliveryStages} from './explorationWorkspace';
+import {explorationTreeRows,sortedTableRows,workspaceBusinessName,businessNodeTitle,explorationCanvasNode,reconcileExploration,explorationNodeState,explorationMetricDisplay,explorationDeliveryStages,explorationLifecycleStatus} from './explorationWorkspace';
+it('shows the actual discovery, delivery, execution and review lifecycle without promoting zero exit',()=>{
+ const events=[];expect(explorationLifecycleStatus(events).label).toBe('任务已提交');
+ events.push({type:'MODEL_STARTED'});expect(explorationLifecycleStatus(events).label).toBe('Cline 分析中');
+ events.push({payload:{metadata:{workerActivity:{type:'TOOL_STARTED',tool:'market_get_day_snapshot'}}}});
+ expect(explorationLifecycleStatus(events).label).toBe('数据发现中');
+ events.push({type:'CODING_INPUT_READY'});expect(explorationLifecycleStatus(events).label).toBe('数据已交付');
+ events.push({type:'TOOL_STARTED',tool:'python_execute'});expect(explorationLifecycleStatus(events).label).toBe('Python 执行中');
+ events.push({type:'TOOL_FINISHED',tool:'python_execute',executorStopped:true,exitCode:0,resultAvailable:false,outputStatus:'REQUIRED_OUTPUT_MISSING',
+  executionFeedback:{error:{message:'Missing /workspace/output/results/rows.jsonl'}}});
+ expect(explorationLifecycleStatus(events)).toMatchObject({code:'FAILED',detail:'Missing /workspace/output/results/rows.jsonl'});
+ events.push({type:'TOOL_STARTED',tool:'artifact_read'});expect(explorationLifecycleStatus(events).label).toBe('报告生成与校验中');
+ expect(explorationLifecycleStatus(events,{terminal:true,resultAvailable:true,status:'COMPLETED'}).label).toBe('报告交付成功');
+});
+it('retains partial/input-required outcomes and the real missing file on terminal failure',()=>{
+ expect(explorationLifecycleStatus([],{terminal:true,status:'FAILED',resultAvailable:false,error:'Chart /output/charts/close.json is missing'}))
+  .toMatchObject({code:'FAILED',detail:'Chart /output/charts/close.json is missing'});
+ expect(explorationLifecycleStatus([],{terminal:true,status:'FAILED',resultAvailable:true}).code).toBe('PARTIAL');
+ expect(explorationLifecycleStatus([],{terminal:true,status:'COMPLETED',resultAvailable:true,results:[{analysisStatus:'INPUT_REQUIRED'}]}).code).toBe('INPUT_REQUIRED');
+ expect(explorationLifecycleStatus([],{terminal:false,status:'RUNNING',resultAvailable:true}).code).toBe('REPORTING');
+});
 it('restores independent delivery facts from the exact archived execution after bounded events omit stop',()=>{
  const events=[{type:'MODEL_STARTED'},{type:'TOOL_STARTED',tool:'python_execute',operationId:'own'}];
  const receipt={terminal:true,resultAvailable:true,visualReport:{execution:{operationId:'own',executorStopped:true,inputSnapshotRef:'snapshot'}}};

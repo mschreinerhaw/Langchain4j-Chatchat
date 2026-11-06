@@ -8,6 +8,7 @@
       <div class="analysis-activity-summary"><span>{{ currentAction }}</span><time>累计 {{ workbench.elapsedLabel }}</time></div>
     </header>
     <dl class="analysis-delivery-stages" aria-label="分析交付状态"><div v-for="stage in deliveryStages" :key="stage.key"><dt>{{ stage.label }}</dt><dd>{{ stage.value }}</dd></div></dl>
+    <p aria-label="当前分析阶段" role="status"><strong>{{ lifecycle.label }}</strong><span v-if="lifecycle.detail"> · {{ lifecycle.detail }}</span></p>
     <template v-if="expanded">
       <div class="analysis-activity-toolbar">
         <div role="tablist" aria-label="分析活动视图">

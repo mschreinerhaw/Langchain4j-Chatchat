@@ -53,6 +53,36 @@ export function explorationDeliveryStages(events=[],receipt={}){
   return [{key:'model',label:'模型响应',value:state.model},{key:'data',label:'数据供给',value:state.data},
     {key:'execution',label:'Python 执行',value:state.execution},{key:'report',label:'报告交付',value:state.report}];
 }
+/** Current lifecycle from actual events; a successful process cannot certify delivery. */
+export function explorationLifecycleStatus(events=[],receipt={}){
+  let code='SUBMITTED',detail='';
+  const labels={SUBMITTED:'任务已提交',DISCOVERING:'数据发现中',DATA_READY:'数据已交付',ANALYZING:'Cline 分析中',
+    EXECUTING:'Python 执行中',REPORTING:'报告生成与校验中',DELIVERED:'报告交付成功',FAILED:'报告交付失败',PARTIAL:'报告部分交付',INPUT_REQUIRED:'报告已归档 · 需补充数据'};
+  for(const event of events){
+    let body=event.payload||event;
+    try{if(typeof body==='string')body=JSON.parse(body);}catch{continue;}
+    const payload=body.payload||body,meta=payload.metadata||{},worker=meta.workerActivity||payload.workerActivity||payload;
+    const type=String(worker.type||meta.codingEventType||meta.eventKind||event.type||'').toUpperCase();
+    if(type==='MODEL_STARTED'||type==='PLAN_READY'||type==='CODE_READY')code='ANALYZING';
+    if(type==='CODING_INPUT_READY')code='DATA_READY';
+    if(type==='TOOL_STARTED'){
+      if(worker.tool==='python_execute')code='EXECUTING';
+      else if(['artifact_read','report_submit'].includes(worker.tool))code='REPORTING';
+      else if(/^(market_|news_|knowledge_|web_)/.test(worker.tool||''))code='DISCOVERING';
+    }
+    if(type==='TOOL_FINISHED'&&worker.tool==='input_read'&&worker.status==='SUCCEEDED')code='DATA_READY';
+    if(type==='TOOL_FINISHED'&&worker.tool==='python_execute'&&worker.executorStopped===true){
+      code=worker.resultAvailable===true?'REPORTING':'FAILED';
+      if(code==='FAILED')detail=worker.executionFeedback?.error?.message||worker.error?.message||worker.outputStatus||'计算进程已结束，报告尚未通过交付校验';
+    }
+  }
+  const terminal=receipt.terminal===true,failed=['FAILED','BUDGET_EXCEEDED','CANCELLED'].includes(receipt.status);
+  if(receipt.resultAvailable===true){
+    const requirement=receipt.visualReport?.requirementStatus||receipt.results?.[0]?.analysisStatus;
+    code=failed||receipt.visualReport?.status==='PARTIAL'||requirement==='PARTIAL'?'PARTIAL':requirement==='INPUT_REQUIRED'?'INPUT_REQUIRED':terminal?'DELIVERED':'REPORTING';
+  }else if(terminal){code='FAILED';detail=receipt.error||receipt.summary||receipt.reasonCode||detail||'没有通过校验的报告产物';}
+  return {code,label:labels[code],detail:String(detail).slice(0,800)};
+}
 /** Display only. Original precision and units remain available in the report and tooltip. */
 export function explorationMetricDisplay(value){
   const text=String(value??'');

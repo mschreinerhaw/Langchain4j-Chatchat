@@ -212,6 +212,8 @@ def main():
                 unknownModelCalls=len(set(operation_ids)-set(models)),usageKnownCalls=usage_known,
                 unknownUsageCalls=max(0,len(operation_ids)-usage_known),
                 repeatedReadRequests=duplicates,codeProposals=proposals,modelPurposeMs=purpose_ms,
+                rejectedCodeProposals=sum(e.get('type')=='CODE_PROPOSAL_REJECTED' for e in events),
+                wholeProgramProposalCount=sum(p['mode']=='source' for p in proposals),noProgressToolCalls=None,
                 tokenUsageComplete=len(operation_ids)==usage_known,
                 inputTokens=sum(v['inputTokens'] for v in usages if isinstance(v.get('inputTokens'),(int,float))),
                 outputTokens=sum(v['outputTokens'] for v in usages if isinstance(v.get('outputTokens'),(int,float))),
@@ -242,7 +244,8 @@ def main():
         response_node=next((n for n in response.get('state',{}).get('nodes',[]) if n['id']==case['nodeId']),{})
         response_receipt=response_node.get('receipt',{})
         response_delivered=response_receipt.get('status')=='COMPLETED' and response_receipt.get('resultAvailable') is True
-        row['strictCompleteDelivery']=row['status']=='COMPLETED' and row['resultAvailable'] and report.get('status')=='SUCCESS' and report.get('requirementStatus')=='COMPLETE' and report.get('artifactValidationStatus')=='PASSED' and report.get('chartValidationStatus')=='PASSED'
+        row['strictCompleteDelivery']=row['status']=='COMPLETED' and row['resultAvailable'] and row['chartCount']>0 and report.get('status')=='SUCCESS' and report.get('requirementStatus')=='COMPLETE' and report.get('artifactValidationStatus')=='PASSED' and report.get('chartValidationStatus')=='PASSED'
+        row['businessCorrectness']='REQUIRES_INDEPENDENT_REVIEW'
         row['submissionToArchivedReportMs']=row['httpDurationMs'] if response_delivered else None
         row['submissionToDeliveredReportMs']=row['httpDurationMs'] if response_delivered and row['strictCompleteDelivery'] else None
     save('real-scenario-results.json',{'originalInputSha256':prepared['originalInputSha256'],'cases':results})

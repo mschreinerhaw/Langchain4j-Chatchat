@@ -40,6 +40,10 @@ public final class VisualReportMode {
         Use installed Matplotlib for static PNG/SVG and Plotly fig.write_json for interactive plots (use ordinary JSON arrays, not binary/base64 ndarray transport; set template=None to omit unused default map/image templates).
         Preserve the Runtime's configured Unicode font defaults. Never replace font.sans-serif with guessed fonts such as SimHei. If choosing a font explicitly, verify it is installed and supports every chart label before rendering.
         Do not generate HTML or JavaScript. Plotly figures must be offline: no external URLs, image/map layers, custom scripts or credentials.
+        Use plain text in Plotly titles, labels and hover text; do not embed span/style or other HTML attributes.
+        Set style through Plotly properties, e.g. fig.update_layout(template=None, title=dict(text="Computed trend", font=dict(size=18))).
+        Write the figure with fig.write_json("/workspace/output/results/trend.json") and register {id:"trend",kind:"plotly",fileName:"trend.json"} in visualReport.charts.
+        A Markdown image path alone is not an archived chart. chartValidationStatus PARTIAL means actual chart delivery failed; inspect presentationDiagnostics and repair the named artifact if possible. Preserve valid numerical results and disclose any remaining failure.
         sections: [{title,narrative,chartIds:[string],tableIds:[string]}]; narrative and summary must describe the same computed values, units, scope and missing-data treatment.
         dataSources: [exact delivered dataset references actually used]. validation: {checks:[{name,status:'PASSED'|'FAILED'|'UNRESOLVED',detail}],warnings:[string]}.
         PASSED means a check was performed and passed; FAILED means it was performed and failed; UNRESOLVED means evidence is insufficient to resolve it. Retain unresolved checks and explain their limits, set report status PARTIAL. Never relabel failed or unresolved checks as PASSED to satisfy report admission.

@@ -262,7 +262,9 @@ public final class ClineModelCallbackController {
                 response.put("visualReportValidation",Map.of("status",report.getOrDefault("status","FAILED"),"validation",report.getOrDefault("validation",Map.of()),
                     "artifactValidationStatus",report.getOrDefault("artifactValidationStatus","NOT_RECORDED"),
                     "layoutValidationStatus",report.getOrDefault("layoutValidationStatus","NOT_RECORDED"),
-                    "availableChartCount",report.get("charts") instanceof List<?> charts?charts.size():0)));
+                    "chartValidationStatus",com.chatchat.api.runtime.coding.evidence.VisualReportArtifacts.chartValidationStatus(report),
+                    "availableChartCount",com.chatchat.api.runtime.coding.evidence.VisualReportArtifacts.availableChartCount(report),
+                    "presentationDiagnostics",report.getOrDefault("presentationDiagnostics",List.of()))));
             var row=page.rows().get(0);
             if(row.containsKey("reportMarkdown") && row.containsKey("evidenceReferences")) {
                 var input=inputs.requireAuthorized(contract);

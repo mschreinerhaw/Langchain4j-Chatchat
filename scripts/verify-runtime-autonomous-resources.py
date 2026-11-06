@@ -82,7 +82,10 @@ def main():
                 for item in value.get('items',[]):
                     if isinstance(item,dict):urls.update(v for k,v in item.items() if k in ['url','source_url'] and isinstance(v,str))
                 external.append({'tool':tool,'evidence_id':value.get('evidence_id'),'retrieved_at':value.get('retrieved_at'),
-                    'status':value.get('status'),'sourceUrls':sorted(urls),'authority':'SEARCH_SUMMARIES_ARE_NOT_VERIFIED_QUOTES'})
+                    'status':value.get('status'),'sourceUrls':sorted(urls),
+                    'sourceRecords':[{k:item[k] for k in ['url','source_url','evidence_id','retrieved_at','published_at'] if k in item}
+                        for item in value.get('items',[]) if isinstance(item,dict)],
+                    'authority':'SEARCH_SUMMARIES_ARE_NOT_VERIFIED_QUOTES'})
             if tool=='market_get_day_snapshot':
                 day_reads.append({**{k:value[k] for k in ['status','dataset','evidence_id','snapshot','calculationInput'] if k in value},
                     'rawItemsInjectedIntoModel':'items' in value})

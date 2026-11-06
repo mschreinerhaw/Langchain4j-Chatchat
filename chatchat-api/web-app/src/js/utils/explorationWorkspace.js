@@ -67,7 +67,7 @@ export function explorationLifecycleStatus(events=[],receipt={}){
     if(type==='MODEL_STARTED'||type==='PLAN_READY'||type==='CODE_READY')code='ANALYZING';
     if(type==='CODING_INPUT_READY')code='DATA_READY';
     if(type==='TOOL_STARTED'){
-      if(worker.tool==='python_execute')code='EXECUTING';
+      if(worker.tool==='python_execute'){code='EXECUTING';detail='';}
       else if(['artifact_read','report_submit'].includes(worker.tool))code='REPORTING';
       else if(/^(market_|news_|knowledge_|web_)/.test(worker.tool||''))code='DISCOVERING';
     }
@@ -82,7 +82,7 @@ export function explorationLifecycleStatus(events=[],receipt={}){
     const requirement=receipt.visualReport?.requirementStatus||receipt.results?.[0]?.analysisStatus;
     if(!terminal){if(!['EXECUTING','ANALYZING','DISCOVERING'].includes(code))code='REPORTING';}
     else code=failed||receipt.visualReport?.status==='PARTIAL'||requirement==='PARTIAL'?'PARTIAL':requirement==='INPUT_REQUIRED'?'INPUT_REQUIRED':'DELIVERED';
-  }else if(terminal){code='FAILED';detail=receipt.error||receipt.summary||receipt.reasonCode||detail||'没有通过校验的报告产物';}
+  }else if(terminal){code='FAILED';detail=[detail,receipt.error||receipt.summary||receipt.reasonCode].filter(Boolean).join('；')||'没有通过校验的报告产物';}
   return {code,label:labels[code],detail:String(detail).slice(0,800)};
 }
 /** Display only. Original precision and units remain available in the report and tooltip. */

@@ -14,6 +14,12 @@ it('shows the actual discovery, delivery, execution and review lifecycle without
  expect(explorationLifecycleStatus(events,{terminal:true,resultAvailable:true,status:'COMPLETED'}).label).toBe('报告交付成功');
 });
 it('retains partial/input-required outcomes and the real missing file on terminal failure',()=>{
+ const failed=[{type:'TOOL_FINISHED',tool:'python_execute',executorStopped:true,resultAvailable:false,
+  executionFeedback:{error:{message:'Missing /workspace/output/results/rows.jsonl'}}}];
+ expect(explorationLifecycleStatus(failed,{terminal:true,status:'FAILED',summary:'Repair attempts exhausted'}).detail)
+  .toBe('Missing /workspace/output/results/rows.jsonl；Repair attempts exhausted');
+ expect(explorationLifecycleStatus([...failed,{type:'TOOL_STARTED',tool:'python_execute'}],{terminal:true,status:'FAILED',summary:'Latest execution unknown'}).detail)
+  .toBe('Latest execution unknown');
  expect(explorationLifecycleStatus([],{terminal:true,status:'FAILED',resultAvailable:false,error:'Chart /output/charts/close.json is missing'}))
   .toMatchObject({code:'FAILED',detail:'Chart /output/charts/close.json is missing'});
  expect(explorationLifecycleStatus([],{terminal:true,status:'FAILED',resultAvailable:true}).code).toBe('PARTIAL');

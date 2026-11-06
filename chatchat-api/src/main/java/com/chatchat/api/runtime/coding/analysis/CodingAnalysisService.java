@@ -575,6 +575,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             var receipt=new LinkedHashMap<String,Object>();
             receipt.put("operation","RUN_CODING");receipt.put("requestId",requestId);receipt.put("taskId",taskId);
             receipt.put("status",outcome.status().name());receipt.put("reconciliationRequired",outcome.executionControl().reconciliationRequired());
+            receipt.put("terminal",outcome.status().terminal());
             receipt.put("validationStatus",outcome.validationStatus().name());receipt.put("businessValidation","NOT_EVALUATED");
             receipt.put("usage",outcome.usage());
             receipt.put("budgetScope","TOOL_INVOCATION");

@@ -634,7 +634,7 @@ class CodingAnalysisServiceTest {
         when(agent.submit(any())).thenReturn(running);when(agent.resume(any(),anyString())).thenReturn(stopped);
         var receipt=service.execute(parent,request(),sources());
         assertThat(receipt).containsEntry("status","BUDGET_EXCEEDED").containsEntry("stopReason","DEADLINE_EXCEEDED")
-            .containsEntry("resultAvailable",false);
+            .containsEntry("resultAvailable",false).containsEntry("terminal",true);
         verify(agent).resume(any(),anyString());verify(agent,never()).cancel(any(),anyString(),anyString());
         verify(collector,times(1)).registeredResult(any(),anyString(),anyString());
     }
@@ -651,6 +651,7 @@ class CodingAnalysisServiceTest {
         var sources=sources();var receipt=service().executeObserved(context("tenant"),request(),sources,events::add);
         assertThat(events.stream().filter(event->"CODING_RECONCILIATION_REQUIRED".equals(event.get("eventKind"))).count()).isEqualTo(1);
         assertThat(receipt).containsEntry("status","RUNNING").containsEntry("reconciliationRequired",true)
+            .containsEntry("terminal",false)
             .containsEntry("resultAvailable",false).containsEntry("reasonCode","EXECUTION_OUTCOME_UNKNOWN")
             .doesNotContainKeys("datasetReference","evidenceRefs");
         assertThat(sources).containsOnlyKeys("source");

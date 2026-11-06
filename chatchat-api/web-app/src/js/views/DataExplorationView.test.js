@@ -6,6 +6,13 @@ vi.mock('../../services/explorationApi',()=>api);
 vi.mock('../../components/PythonReportChart.vue',()=>({default:{props:['chart','presentation'],render(){return h('div',{'data-chart-type':this.presentation},this.chart.title);}}}));
 import View from '../../views/DataExplorationView.vue';
 let app,host;const settle=async()=>{for(let i=0;i<15;i++)await nextTick();};
+it('restores a budget failure without showing the previous branch report or resubmitting execution',async()=>{
+ const state=structuredClone(space);state.nodes.push({...node('failed','root'),receipt:{taskId:'coding-task',status:'BUDGET_EXCEEDED',terminal:true,resultAvailable:false}});
+ const vm=await mount(state);vm.selectNode(vm.space.nodes.at(-1));await settle();
+ expect(vm.selectedState.label).toBe('预算已耗尽');expect(vm.canvasNode).toBeNull();expect(vm.report).toBeUndefined();
+ expect(host.querySelector('.exploration-empty-result h2').textContent).toContain('未交付');
+ expect(host.querySelector('[data-chart-type]')).toBeNull();expect(api.executeExploration).not.toHaveBeenCalled();
+});
 it('stops the original running node, prevents double clicks and preserves delivered results',async()=>{
  const state=structuredClone(space);state.nodes[0].receipt={...state.nodes[0].receipt,agentTaskId:'task',terminal:false,status:'EXECUTING'};
  const vm=await mount(state);let finish;api.stopExploration.mockImplementation(()=>new Promise(resolve=>finish=resolve));

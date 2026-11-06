@@ -46,6 +46,7 @@
 
 ### 补充复核（2026-11-07）
 
+- **REPORT-05，浏览器与源码联合确认**：Agent 活动投影漏掉 executorStopped/resultAvailable 和归档引用，前端因此保留“执行中”；历史有界事件也可能已丢失停止事件。新增允许的停止/归档元数据（仍不投影原始数据），前端只用相同 operationId 的归档停止证据恢复状态；不同后续执行保留“最终状态待核对”，终态不再显示仍等待模型。Bridge 13 项、前端全量 144 项通过。
 - **REPORT-04，最新 Agent 场景真实触发**：报告回执从父 Agent taskId 切换为其子 Coding taskId；工作区 finish 原校验要求 taskId 永远相同，状态轮询因此返回 403（Analysis result belongs to a different task），已有报告无法展示。改为继续固定 agentTaskId，并要求新的子 taskId 等于服务端报告 execution.taskId；文件任务维持原严格同任务校验。23 项工作区测试通过，包括父/子正常接续、其他父任务拒绝和子报告绑定不符拒绝；不通过重新执行来恢复报告。
 - **REPORT-03，完整快照首轮真实触发**：Flash 第一轮已计算并生成 rows.jsonl 与三张图，但结果含输入上下文原文，`SOURCE_COPY_REJECTED` 正确拒绝，`rejectSourceCopy` 随即把整个委托提交为 FAILED，反馈变成 TASK_STOPPING，Cline 无法在当前授权/预算内删除复制内容并修复报告。对既有 `analysis-reviewed-path:v1` 且有 artifact_read 的任务保留拒绝，只返回布尔校验及技术修复建议，交回原生受限修复；非复核委托维持原父任务重规划行为。不返回被拒报告，不提高修复次数、不续预算、不改变原样复制检测。Callback/Feedback 31 项通过。首轮结果和旧版本已启动的第二轮取消证据保留，不当最终修复验收或性能改善。
 - **DATA-05，已确认入口缺口**：文件分析 API 原 Request 无 Agent 授权身份，纵使底层允许计算任务使用资源工具，该入口也只能交付文件。新增可选 agentId，复用探索工作区的发布/用户访问校验，在读文件和模型解析前拒绝越权；传递既有资源授权属性，仍由每次工具调用核对实时交集。未选择 Agent 的行为不变；任务模型与 Agent 授权身份分别传递，不修改共享 Agent 模型。8 项控制器测试通过，包含未授权前置拒绝及选择模型/资源身份的独立传递。

@@ -173,7 +173,8 @@ public class ExplorationAgentBridge {
                 var activity=json.createObjectNode();
                 copyProgressFields(activity,original.path("payload"),List.of("toolCallId","operationId","startedAt","finishedAt","durationMs","toolDurationMs","planText","executionOrigin","admissionPending"));
                 copyProgressFields(activity,worker,List.of("type","tool","toolCallId","operationId","modelCall","scriptVersion","status",
-                    "timestamp","startedAt","finishedAt","durationMs","toolDurationMs","planText","executionOrigin","reason","admissionPending"));
+                    "timestamp","startedAt","finishedAt","durationMs","toolDurationMs","planText","executionOrigin","reason","admissionPending",
+                    "executorStopped","exitCode","resultAvailable","resultDatasetRef","validationRecordRef","evidenceBundleRef"));
                 if(!activity.isEmpty())meta.set("workerActivity",activity);
             }
         } catch(java.io.IOException malformed) { /* Event identity/state still remain observable. */ }

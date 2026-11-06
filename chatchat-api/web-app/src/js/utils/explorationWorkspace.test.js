@@ -1,5 +1,20 @@
 import {it,expect} from 'vitest';
-import {explorationTreeRows,sortedTableRows,workspaceBusinessName,businessNodeTitle,explorationCanvasNode,reconcileExploration,explorationNodeState,explorationMetricDisplay} from './explorationWorkspace';
+import {explorationTreeRows,sortedTableRows,workspaceBusinessName,businessNodeTitle,explorationCanvasNode,reconcileExploration,explorationNodeState,explorationMetricDisplay,explorationDeliveryStages} from './explorationWorkspace';
+it('restores independent delivery facts from the exact archived execution after bounded events omit stop',()=>{
+ const events=[{type:'MODEL_STARTED'},{type:'TOOL_STARTED',tool:'python_execute',operationId:'own'}];
+ const receipt={terminal:true,resultAvailable:true,visualReport:{execution:{operationId:'own',executorStopped:true,inputSnapshotRef:'snapshot'}}};
+ expect(explorationDeliveryStages(events,receipt).map(s=>s.value)).toEqual(['已停止','快照已就绪','进程已结束','已归档']);
+});
+it('does not use an older archived stop as proof of a newer execution stopping',()=>{
+ const events=[{type:'TOOL_STARTED',tool:'python_execute',operationId:'new'}];
+ const receipt={terminal:true,resultAvailable:true,visualReport:{execution:{operationId:'old',executorStopped:true}}};
+ expect(explorationDeliveryStages(events,receipt)[2].value).toBe('最终状态待核对');
+ receipt.terminal=false;expect(explorationDeliveryStages(events,receipt)[2].value).toBe('执行中');
+});
+it('restores stopped archive execution without inventing a stopped unarchived process',()=>{
+ expect(explorationDeliveryStages([],{visualReport:{execution:{operationId:'own',executorStopped:true}}})[2].value).toBe('进程已结束');
+ expect(explorationDeliveryStages([],{terminal:true})[2].value).toBe('未执行');
+});
 it('keeps the original completed receipt while displaying its input-required business outcome',()=>{
  const receipt={status:'COMPLETED',resultAvailable:true,visualReport:{status:'NO_DATA',requirementStatus:'INPUT_REQUIRED'}};
  expect(explorationNodeState({receipt})).toEqual({code:'COMPLETED',label:'需补充数据'});

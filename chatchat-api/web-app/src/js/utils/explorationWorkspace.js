@@ -18,6 +18,7 @@ export function businessNodeDescription(node){
 /** Independent receipt facts: a model answer or zero Python exit never proves report delivery. */
 export function explorationDeliveryStages(events=[],receipt={}){
   const state={model:'待响应',data:'待确认',execution:'未执行',report:'未交付'};
+  let latestPythonOperation=null;
   for(const event of events){
     let body=event.payload||event;
     try{if(typeof body==='string')body=JSON.parse(body);}catch{continue;}
@@ -28,12 +29,20 @@ export function explorationDeliveryStages(events=[],receipt={}){
     if(type==='MODEL_FAILED')state.model='响应失败';
     if(type==='CODING_INPUT_READY'||meta.eventKind==='CODING_INPUT_READY')state.data='快照已就绪';
     if(type==='TOOL_FINISHED'&&worker.tool==='input_read'&&worker.status==='SUCCEEDED')state.data='已读取';
-    if(type==='TOOL_STARTED'&&worker.tool==='python_execute')state.execution='执行中';
+    if(type==='TOOL_STARTED'&&worker.tool==='python_execute'){state.execution='执行中';latestPythonOperation=worker.operationId||null;}
     if(type==='TOOL_FINISHED'&&worker.tool==='python_execute'&&worker.executorStopped===true){
       state.execution=worker.status==='SUCCEEDED'?'进程已结束':'执行失败';
       state.report=worker.resultAvailable===false?'交付未通过':'待校验';
       if(worker.resultAvailable===true&&worker.resultDatasetRef&&worker.validationRecordRef&&worker.evidenceBundleRef)state.report='已归档';
     }
+  }
+  const archivedExecution=receipt.visualReport?.execution;
+  if(archivedExecution?.inputSnapshotRef&&state.data==='待确认')state.data='快照已就绪';
+  if(archivedExecution?.executorStopped===true&&archivedExecution.operationId
+    &&(state.execution==='未执行'||latestPythonOperation===archivedExecution.operationId))state.execution='进程已结束';
+  if(receipt.terminal===true){
+    if(state.model==='等待响应')state.model='已停止';
+    if(state.execution==='执行中')state.execution='最终状态待核对';
   }
   if(receipt.executionMode==='TEXT_ONLY')state.execution='无需 Python';
   if(receipt.resultAvailable===true){

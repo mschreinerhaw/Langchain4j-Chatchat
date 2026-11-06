@@ -14,6 +14,17 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 /** Execution boundaries are mocked; these tests are not live Agent evidence. */
 class ExplorationAgentBridgeTest {
+ @Test void projectsStoppedExecutionAndArchiveIdentityWithoutCopyingBusinessData(){
+   var event=AgentEvent.builder().sequence(1L).type("RUNTIME_OBSERVATION")
+     .payload("{\"metadata\":{\"eventKind\":\"CODING_TRACE\",\"workerActivity\":{\"type\":\"TOOL_FINISHED\",\"tool\":\"python_execute\",\"operationId\":\"own\",\"executorStopped\":true,\"exitCode\":0,\"resultAvailable\":true,\"resultDatasetRef\":\"result\",\"validationRecordRef\":\"validation\",\"evidenceBundleRef\":\"bundle\",\"rows\":[{\"secret\":1}],\"source\":\"private\"}}}").build();
+   when(tasks.listEvents("tenant","task",1000)).thenReturn(List.of(event));
+   var projection=bridge.snapshot(owner,"task").path("analysisEvents").get(0).at("/payload/metadata/workerActivity");
+   assertThat(projection.path("executorStopped").asBoolean()).isTrue();
+   assertThat(projection.path("exitCode").asInt(-1)).isZero();assertThat(projection.path("resultAvailable").asBoolean()).isTrue();
+   assertThat(projection.path("resultDatasetRef").asText()).isEqualTo("result");
+   assertThat(projection.toString()).doesNotContain("secret","private","rows","source");
+   verify(tasks,never()).submit(any());
+ }
  @Test void cancelsOnlyTheOriginalOwnerSessionAndKeepsArchivedStageResults(){
    var node=json.createObjectNode().put("id","node").put("agentId","authorized");
    var prior=node.putObject("receipt");prior.put("agentTaskId","task");prior.put("eventCursor",12);

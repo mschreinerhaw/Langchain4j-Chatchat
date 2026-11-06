@@ -13,6 +13,7 @@
 | EMPTY-05 | callback通用异常包装为Invalid Coding callback binding，可能遮盖查询失败原因 | 工具难以区分权限、错误参数和源失败 | 在已绑定、已预留的读取边界记录原始失败，保持权限拒绝和服务异常，不返回空数组 |
 | EMPTY-06 | 行情auto模式在无起始日期时默认只读daily_hot；单层零行与空目录日期都不足以证明整源为空 | SOURCE_EMPTY没有充分依据 | 仅对候选空目录做既有存储daily/weekly两次各最多1行的存在性检查；保留异常，不作恢复循环或全量扫描导出 |
 | EMPTY-07 | Coding所有初始数据为空且没有额外探索工具时，AnalysisCoverageCoordinator除已有能力缺口答案外直接抛异常 | 未把状态交给Cline生成有证据的受限报告 | 保留已有模型缺口答案；其余在原授权、预算下交给原生Cline，状态记录不能当业务数据 |
+| EMPTY-08（本轮新增回归） | 新E02零行读取已结束且回执存在，但dataObservation复制了descriptor.chunks中的Java记录；原始字段顺序Hash为91fecbdd…，解码后排序Map Hash为e8122313…；按存储原顺序复算仍精确等于原Hash | A2拒绝停止证明，读取操作挂起，后续探索无法准入；单纯Map模拟没有覆盖生产Chunk类型 | 新回执先规范化为JSON数据；旧回执只接受精确原编码Hash校验，不改写证据；原生恢复仅核对已停止读取，不重放查询、不改变预算 |
 
 ## 状态与治理约束
 

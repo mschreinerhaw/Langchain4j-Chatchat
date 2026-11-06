@@ -1,0 +1,133 @@
+{
+  "readOnly": true,
+  "cases": [
+    {
+      "case": "flash-1",
+      "status": "COMPLETED",
+      "resultAvailable": true,
+      "businessCorrectnessCertified": false,
+      "charts": [
+        {
+          "id": "close_trend",
+          "verified": true,
+          "sha256": "c0aa803ae2235c1d5a93bf17f09691f143656dc1f1f75fed05f824d52bcf227d",
+          "bytes": 1597,
+          "kind": "plotly",
+          "series": [
+            {
+              "points": 8,
+              "uniqueX": 8,
+              "duplicateXRequiresBusinessReview": false
+            },
+            {
+              "points": 8,
+              "uniqueX": 8,
+              "duplicateXRequiresBusinessReview": false
+            }
+          ]
+        },
+        {
+          "id": "daily_change_pct",
+          "verified": true,
+          "sha256": "9b91a938eaeb76b42e58caaf605e493802e90db1d546dd671b682a3fea762a88",
+          "bytes": 1327,
+          "kind": "plotly",
+          "series": [
+            {
+              "points": 8,
+              "uniqueX": 8,
+              "duplicateXRequiresBusinessReview": false
+            }
+          ]
+        },
+        {
+          "id": "daily_volume",
+          "verified": true,
+          "sha256": "fd58d7c4b072bc8f3af06e119d6cb7309d860d5393a6c9c1b8189aebeb37a968",
+          "bytes": 1104,
+          "kind": "plotly",
+          "series": [
+            {
+              "points": 8,
+              "uniqueX": 8,
+              "duplicateXRequiresBusinessReview": false
+            }
+          ]
+        },
+        {
+          "id": "daily_amount",
+          "verified": true,
+          "sha256": "d7b377d6cc89b7a2654972f2b2f81b1750eb29243c898ca00503862089761677",
+          "bytes": 1008,
+          "kind": "plotly",
+          "series": [
+            {
+              "points": 8,
+              "uniqueX": 8,
+              "duplicateXRequiresBusinessReview": false
+            }
+          ]
+        }
+      ],
+      "checks": {
+        "acceptedVisualReportPresent": true,
+        "reportHashVerified": true,
+        "reportRowCountVerified": true,
+        "executorStopBound": true,
+        "sectionChartReferencesValid": true,
+        "allReferencedChartsArchived": true
+      },
+      "taskId": "analysis-coding-e0d8e9fd756984ea8bdf22ef1f7212425efadfcd2e19bad8c4e33150b9968259",
+      "operationId": "cline-7c8d744432fb178efe79dbc537a2947c264e3c77119e924dadf1d424c3f5af29",
+      "reportSha256": "808d7cd9aaed28be53a44fe20edf63427cabd3e5128edac00d5088529582006f",
+      "reportBytes": 27969,
+      "requirementStatus": "COMPLETE",
+      "deliveryStatus": "PARTIAL",
+      "artifactValidationStatus": "PASSED",
+      "chartValidationStatus": null
+    },
+    {
+      "case": "plus-1",
+      "status": "FAILED",
+      "resultAvailable": true,
+      "businessCorrectnessCertified": false,
+      "charts": [],
+      "checks": {
+        "acceptedVisualReportPresent": true,
+        "reportHashVerified": true,
+        "reportRowCountVerified": true,
+        "executorStopBound": true,
+        "sectionChartReferencesValid": true,
+        "allReferencedChartsArchived": true
+      },
+      "taskId": "analysis-coding-a6e5fc1d3d9fb35476d09d27caa2d68e569eebaa2f3599c2a141563f5ed4dafc",
+      "operationId": "cline-2ce9a0277174869087ffb7523ae7158df9970e31b6c1278fd7c21b7845b457ff",
+      "reportSha256": "6e01b413ef8461d7cdd04f7d04fd7b3099cb2d886f58004591a8759aba0f9011",
+      "reportBytes": 4041,
+      "requirementStatus": "PARTIAL",
+      "deliveryStatus": "FAILED",
+      "artifactValidationStatus": "PASSED",
+      "chartValidationStatus": null
+    },
+    {
+      "case": "flash-2",
+      "status": "FAILED",
+      "resultAvailable": false,
+      "businessCorrectnessCertified": false,
+      "charts": [],
+      "checks": {
+        "acceptedVisualReportPresent": false
+      }
+    },
+    {
+      "case": "plus-2",
+      "status": "FAILED",
+      "resultAvailable": false,
+      "businessCorrectnessCertified": false,
+      "charts": [],
+      "checks": {
+        "acceptedVisualReportPresent": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,1016 @@
+{
+  "kind": "day",
+  "taskId": "analysis-coding-a319149dff965f001f604ca0fa56af98deb6af12ec3e1391c8b2a57caf043d2d",
+  "status": "COMPLETED",
+  "reasonCode": null,
+  "toolsCalled": [
+    "input_read",
+    "market_search",
+    "market_get_day_snapshot",
+    "market_resolve_security",
+    "python_execute",
+    "python_execute",
+    "code_read",
+    "python_execute",
+    "code_read",
+    "python_execute",
+    "python_execute",
+    "python_execute",
+    "artifact_read"
+  ],
+  "model": {
+    "protocol": "auto",
+    "providerModel": "qwen3.8-omni-flash",
+    "selectedModel": "qwen3.8-omni-flash"
+  },
+  "budget": {
+    "budgetId": "analysis-coding-tool-budget:analysis-coding-a319149dff965f001f604ca0fa56af98deb6af12ec3e1391c8b2a57caf043d2d",
+    "deadlineAt": "2026-11-06T18:10:41.181Z",
+    "maxModelCalls": 12,
+    "maxModelTokens": 786432,
+    "maxToolCalls": 24,
+    "maxCodeExecutions": 12,
+    "maxCostAmount": "10",
+    "costCurrency": "USD",
+    "maxCpuMillis": 300000,
+    "maxMemoryBytes": 536870912,
+    "maxOutputBytes": 4194304
+  },
+  "allowedTools": [
+    "artifact_read",
+    "code_read",
+    "input_read",
+    "market_get_day_snapshot",
+    "market_get_history",
+    "market_get_indicators",
+    "market_get_snapshot",
+    "market_resolve_security",
+    "market_search",
+    "news_get_article",
+    "news_related_events",
+    "news_search",
+    "python_execute",
+    "read_files",
+    "report_submit",
+    "skills",
+    "sql_validate",
+    "web_fetch",
+    "web_search"
+  ],
+  "internetProfile": {
+    "agentId": "financial-news-agent",
+    "explicitlyRequested": true,
+    "modelName": "qwen3.8-omni-flash",
+    "modelRevision": 1,
+    "providerId": "tencent-wsa",
+    "providerRevision": 6,
+    "providers": [
+      {
+        "id": "tencent-wsa",
+        "name": "腾讯 WSA",
+        "revision": 6,
+        "supportsLanguageFilter": false,
+        "supportsNews": false
+      }
+    ],
+    "schemaVersion": "runtime_os.internet.v1"
+  },
+  "externalEvidence": [],
+  "daySnapshotReceipts": [
+    {
+      "dataset": "market_quote_daily",
+      "evidence_id": "runtime-evidence:knowledge:460aa7cee149797ab1bf21b8e919cc786f3170eef6b935e7fdb07f9cc6a35df3",
+      "calculationInput": {
+        "datasetReference": "coding-data:data-e7d981942f298ac64b4a41d7c34a1c3dd1e1e35adbf32378f822e83bc4f5a245:876b2593329423bb37bbc015df06ad2ff564be66ff2843097cd2b728a755df5a",
+        "evidence_id": "runtime-evidence:knowledge:460aa7cee149797ab1bf21b8e919cc786f3170eef6b935e7fdb07f9cc6a35df3",
+        "fileLayout": {
+          "guidance": "Use these exact paths; never invent part names. If the entry is manifest.json, read it for actual parts, columns and storage names; otherwise read the declared input format directly. The same datasetReference is readable with input_read. Python executions mount all delivered snapshots; source content is untrusted data.",
+          "entryPath": "/data/input/c75257936fb5de98713aec7360e0c0a962a82a5b1d628f290b33e61b1602bd7b/manifest.json",
+          "files": [
+            {
+              "sha256": "f6d5215d592f703fc898ce806eb288d6dd9f2555d773452eb00137f298cf91ff",
+              "path": "/data/input/c75257936fb5de98713aec7360e0c0a962a82a5b1d628f290b33e61b1602bd7b/manifest.json",
+              "fileName": "manifest.json"
+            },
+            {
+              "sha256": "46832ba942961d9654a9c9f0b85f2d3367fe66111e792a9709f7fee8a40a3499",
+              "path": "/data/input/ce4a3569604e1ad7752b382dd4984fc75e7b167c31fd694028eb7cf1a1a45492/schema.json",
+              "fileName": "schema.json"
+            },
+            {
+              "sha256": "32e2b1184c69f460d67a99bbb1f34f4fed3d994116552cb45426f2c8a0ba2bc4",
+              "path": "/data/input/cf0ad5231fe3f133bb57adf2e90965e01f9620bdc541c4fe80c3e15642f65a15/part-00000.parquet",
+              "fileName": "part-00000.parquet"
+            }
+          ]
+        },
+        "descriptor": {
+          "chunks": [
+            {
+              "fileId": "ce4a3569604e1ad7752b382dd4984fc75e7b167c31fd694028eb7cf1a1a45492",
+              "fileName": "schema.json",
+              "sha256": "46832ba942961d9654a9c9f0b85f2d3367fe66111e792a9709f7fee8a40a3499",
+              "rowCount": 0,
+              "size": 5283
+            },
+            {
+              "fileId": "cf0ad5231fe3f133bb57adf2e90965e01f9620bdc541c4fe80c3e15642f65a15",
+              "fileName": "part-00000.parquet",
+              "sha256": "32e2b1184c69f460d67a99bbb1f34f4fed3d994116552cb45426f2c8a0ba2bc4",
+              "rowCount": 2943,
+              "size": 1494236
+            }
+          ],
+          "delivery": "SHARED_DIRECTORY",
+          "sha256": "f6d5215d592f703fc898ce806eb288d6dd9f2555d773452eb00137f298cf91ff",
+          "fileId": "c75257936fb5de98713aec7360e0c0a962a82a5b1d628f290b33e61b1602bd7b",
+          "inputManifest": {
+            "columns": [
+              {
+                "missingCount": 0,
+                "name": "_storage_tier",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c0",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "amount",
+                "nullCount": 2943,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c1",
+                "type": "NULL"
+              },
+              {
+                "missingCount": 0,
+                "name": "amount100_m_cny",
+                "nullCount": 2943,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c2",
+                "type": "NULL"
+              },
+              {
+                "missingCount": 0,
+                "name": "amount10_k_cny",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c3",
+                "type": "FLOAT64"
+              },
+              {
+                "missingCount": 0,
+                "name": "amount_unit",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c4",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "amplitude_pct",
+                "nullCount": 2943,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c5",
+                "type": "NULL"
+              },
+              {
+                "missingCount": 0,
+                "name": "category",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c6",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "change",
+                "nullCount": 2943,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c7",
+                "type": "NULL"
+              },
+              {
+                "missingCount": 0,
+                "name": "change_pct",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c8",
+                "type": "FLOAT64"
+              },
+              {
+                "missingCount": 0,
+                "name": "close",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c9",
+                "type": "FLOAT64"
+              },
+              {
+                "missingCount": 0,
+                "name": "collected_at",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c10",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "collected_date",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c11",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "dataset",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c12",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "dataset_code",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c13",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "high",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c14",
+                "type": "FLOAT64"
+              },
+              {
+                "missingCount": 0,
+                "name": "index_count",
+                "nullCount": 2943,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c15",
+                "type": "NULL"
+              },
+              {
+                "missingCount": 0,
+                "name": "instrument_type",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c16",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "legal_risk",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c17",
+                "type": "BOOLEAN"
+              },
+              {
+                "missingCount": 0,
+                "name": "low",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c18",
+                "type": "FLOAT64"
+              },
+              {
+                "missingCount": 0,
+                "name": "market_time",
+                "nullCount": 2943,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c19",
+                "type": "NULL"
+              },
+              {
+                "missingCount": 0,
+                "name": "observation_date",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c20",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "open",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c21",
+                "type": "FLOAT64"
+              },
+              {
+                "missingCount": 0,
+                "name": "pe_ratio",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c22",
+                "type": "FLOAT64"
+              },
+              {
+                "missingCount": 0,
+                "name": "previous_close",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c23",
+                "type": "FLOAT64"
+              },
+              {
+                "missingCount": 0,
+                "name": "provider",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c24",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "quote_code",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c25",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "quote_name",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c26",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "record_key",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c27",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "snapshot_mode",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c28",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "source_code",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c29",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "source_id",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c30",
+                "type": "INT64"
+              },
+              {
+                "missingCount": 0,
+                "name": "source_url",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c31",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "summary",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c32",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "title",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c33",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "trade_date",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c34",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "trading_phase",
+                "nullCount": 2943,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c35",
+                "type": "NULL"
+              },
+              {
+                "missingCount": 0,
+                "name": "transport",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c36",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "volume",
+                "nullCount": 2943,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c37",
+                "type": "NULL"
+              },
+              {
+                "missingCount": 0,
+                "name": "volume10_k_units",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c38",
+                "type": "FLOAT64"
+              }
+            ],
+            "format": "PARQUET",
+            "logicalBytes": 2966739,
+            "logicalContentSha256": "9131e587d65a80f8a4a9f2b17d84ac2efdbcfe9cb29f529b7d2ab4fee472ee9b",
+            "nativeFiles": [],
+            "parts": [
+              {
+                "fileId": "cf0ad5231fe3f133bb57adf2e90965e01f9620bdc541c4fe80c3e15642f65a15",
+                "fileName": "part-00000.parquet",
+                "rowCount": 2943,
+                "sha256": "32e2b1184c69f460d67a99bbb1f34f4fed3d994116552cb45426f2c8a0ba2bc4",
+                "sizeBytes": 1494236
+              }
+            ],
+            "rowCount": 2943,
+            "schemaFileId": "ce4a3569604e1ad7752b382dd4984fc75e7b167c31fd694028eb7cf1a1a45492",
+            "schemaVersion": "runtime_os.coding.input.v1",
+            "sourceDatasetRef": "coding-data:data-e7d981942f298ac64b4a41d7c34a1c3dd1e1e35adbf32378f822e83bc4f5a245:876b2593329423bb37bbc015df06ad2ff564be66ff2843097cd2b728a755df5a"
+          },
+          "qualitySummary": {
+            "coverage": "FULL_SNAPSHOT_STRUCTURAL_ONLY",
+            "fields": [
+              {
+                "missingCount": 0,
+                "name": "_storage_tier",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c0",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "amount",
+                "nullCount": 2943,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c1",
+                "type": "NULL"
+              },
+              {
+                "missingCount": 0,
+                "name": "amount100_m_cny",
+                "nullCount": 2943,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c2",
+                "type": "NULL"
+              },
+              {
+                "missingCount": 0,
+                "name": "amount10_k_cny",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c3",
+                "type": "FLOAT64"
+              },
+              {
+                "missingCount": 0,
+                "name": "amount_unit",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c4",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "amplitude_pct",
+                "nullCount": 2943,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c5",
+                "type": "NULL"
+              },
+              {
+                "missingCount": 0,
+                "name": "category",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c6",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "change",
+                "nullCount": 2943,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c7",
+                "type": "NULL"
+              },
+              {
+                "missingCount": 0,
+                "name": "change_pct",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c8",
+                "type": "FLOAT64"
+              },
+              {
+                "missingCount": 0,
+                "name": "close",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c9",
+                "type": "FLOAT64"
+              },
+              {
+                "missingCount": 0,
+                "name": "collected_at",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c10",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "collected_date",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c11",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "dataset",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c12",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "dataset_code",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c13",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "high",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c14",
+                "type": "FLOAT64"
+              },
+              {
+                "missingCount": 0,
+                "name": "index_count",
+                "nullCount": 2943,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c15",
+                "type": "NULL"
+              },
+              {
+                "missingCount": 0,
+                "name": "instrument_type",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c16",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "legal_risk",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c17",
+                "type": "BOOLEAN"
+              },
+              {
+                "missingCount": 0,
+                "name": "low",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c18",
+                "type": "FLOAT64"
+              },
+              {
+                "missingCount": 0,
+                "name": "market_time",
+                "nullCount": 2943,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c19",
+                "type": "NULL"
+              },
+              {
+                "missingCount": 0,
+                "name": "observation_date",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c20",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "open",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c21",
+                "type": "FLOAT64"
+              },
+              {
+                "missingCount": 0,
+                "name": "pe_ratio",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c22",
+                "type": "FLOAT64"
+              },
+              {
+                "missingCount": 0,
+                "name": "previous_close",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c23",
+                "type": "FLOAT64"
+              },
+              {
+                "missingCount": 0,
+                "name": "provider",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c24",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "quote_code",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c25",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "quote_name",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c26",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "record_key",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c27",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "snapshot_mode",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c28",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "source_code",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c29",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "source_id",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c30",
+                "type": "INT64"
+              },
+              {
+                "missingCount": 0,
+                "name": "source_url",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c31",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "summary",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c32",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "title",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c33",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "trade_date",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c34",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "trading_phase",
+                "nullCount": 2943,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c35",
+                "type": "NULL"
+              },
+              {
+                "missingCount": 0,
+                "name": "transport",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c36",
+                "type": "STRING"
+              },
+              {
+                "missingCount": 0,
+                "name": "volume",
+                "nullCount": 2943,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c37",
+                "type": "NULL"
+              },
+              {
+                "missingCount": 0,
+                "name": "volume10_k_units",
+                "nullCount": 0,
+                "precision": 0,
+                "scale": 0,
+                "storageName": "c38",
+                "type": "FLOAT64"
+              }
+            ],
+            "rowCount": 2943
+          },
+          "format": "PARQUET",
+          "encoding": "UTF-8",
+          "size": 5118,
+          "schemaJson": "{\"columns\":[{\"name\":\"_storage_tier\",\"storageName\":\"c0\",\"type\":\"STRING\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"amount\",\"storageName\":\"c1\",\"type\":\"NULL\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":2943},{\"name\":\"amount100_m_cny\",\"storageName\":\"c2\",\"type\":\"NULL\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":2943},{\"name\":\"amount10_k_cny\",\"storageName\":\"c3\",\"type\":\"FLOAT64\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"amount_unit\",\"storageName\":\"c4\",\"type\":\"STRING\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"amplitude_pct\",\"storageName\":\"c5\",\"type\":\"NULL\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":2943},{\"name\":\"category\",\"storageName\":\"c6\",\"type\":\"STRING\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"change\",\"storageName\":\"c7\",\"type\":\"NULL\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":2943},{\"name\":\"change_pct\",\"storageName\":\"c8\",\"type\":\"FLOAT64\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"close\",\"storageName\":\"c9\",\"type\":\"FLOAT64\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"collected_at\",\"storageName\":\"c10\",\"type\":\"STRING\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"collected_date\",\"storageName\":\"c11\",\"type\":\"STRING\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"dataset\",\"storageName\":\"c12\",\"type\":\"STRING\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"dataset_code\",\"storageName\":\"c13\",\"type\":\"STRING\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"high\",\"storageName\":\"c14\",\"type\":\"FLOAT64\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"index_count\",\"storageName\":\"c15\",\"type\":\"NULL\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":2943},{\"name\":\"instrument_type\",\"storageName\":\"c16\",\"type\":\"STRING\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"legal_risk\",\"storageName\":\"c17\",\"type\":\"BOOLEAN\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"low\",\"storageName\":\"c18\",\"type\":\"FLOAT64\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"market_time\",\"storageName\":\"c19\",\"type\":\"NULL\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":2943},{\"name\":\"observation_date\",\"storageName\":\"c20\",\"type\":\"STRING\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"open\",\"storageName\":\"c21\",\"type\":\"FLOAT64\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"pe_ratio\",\"storageName\":\"c22\",\"type\":\"FLOAT64\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"previous_close\",\"storageName\":\"c23\",\"type\":\"FLOAT64\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"provider\",\"storageName\":\"c24\",\"type\":\"STRING\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"quote_code\",\"storageName\":\"c25\",\"type\":\"STRING\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"quote_name\",\"storageName\":\"c26\",\"type\":\"STRING\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"record_key\",\"storageName\":\"c27\",\"type\":\"STRING\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"snapshot_mode\",\"storageName\":\"c28\",\"type\":\"STRING\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"source_code\",\"storageName\":\"c29\",\"type\":\"STRING\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"source_id\",\"storageName\":\"c30\",\"type\":\"INT64\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"source_url\",\"storageName\":\"c31\",\"type\":\"STRING\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"summary\",\"storageName\":\"c32\",\"type\":\"STRING\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"title\",\"storageName\":\"c33\",\"type\":\"STRING\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"trade_date\",\"storageName\":\"c34\",\"type\":\"STRING\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"trading_phase\",\"storageName\":\"c35\",\"type\":\"NULL\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":2943},{\"name\":\"transport\",\"storageName\":\"c36\",\"type\":\"STRING\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0},{\"name\":\"volume\",\"storageName\":\"c37\",\"type\":\"NULL\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":2943},{\"name\":\"volume10_k_units\",\"storageName\":\"c38\",\"type\":\"FLOAT64\",\"precision\":0,\"scale\":0,\"missingCount\":0,\"nullCount\":0}],\"csv\":{\"delimiter\":\",\",\"escape\":\"DOUBLE_QUOTE\",\"literalBackslash\":\"PREFIX_BACKSLASH\",\"missingToken\":\"\\\\M\",\"nullToken\":\"\\\\N\",\"quote\":\"\\\"\"},\"encoding\":\"UTF-8\",\"format\":\"PARQUET\",\"presenceColumns\":{\"c0\":\"p0\",\"c1\":\"p1\",\"c10\":\"p10\",\"c11\":\"p11\",\"c12\":\"p12\",\"c13\":\"p13\",\"c14\":\"p14\",\"c15\":\"p15\",\"c16\":\"p16\",\"c17\":\"p17\",\"c18\":\"p18\",\"c19\":\"p19\",\"c2\":\"p2\",\"c20\":\"p20\",\"c21\":\"p21\",\"c22\":\"p22\",\"c23\":\"p23\",\"c24\":\"p24\",\"c25\":\"p25\",\"c26\":\"p26\",\"c27\":\"p27\",\"c28\":\"p28\",\"c29\":\"p29\",\"c3\":\"p3\",\"c30\":\"p30\",\"c31\":\"p31\",\"c32\":\"p32\",\"c33\":\"p33\",\"c34\":\"p34\",\"c35\":\"p35\",\"c36\":\"p36\",\"c37\":\"p37\",\"c38\":\"p38\",\"c4\":\"p4\",\"c5\":\"p5\",\"c6\":\"p6\",\"c7\":\"p7\",\"c8\":\"p8\",\"c9\":\"p9\"},\"schemaVersion\":\"runtime_os.coding.input.v1\",\"sourceDatasetRef\":\"coding-data:data-e7d981942f298ac64b4a41d7c34a1c3dd1e1e35adbf32378f822e83bc4f5a245:876b2593329423bb37bbc015df06ad2ff564be66ff2843097cd2b728a755df5a\"}",
+          "rowCount": 2943
+        }
+      },
+      "rawItemsInjectedIntoModel": false
+    }
+  ],
+  "resultDatasetRef": "runtime-evidence:coding:7826075d9a3b72f87f7cb50979d3f50f4dd8ead32971427b0e26d8e9f5d63907:result",
+  "pythonExecutions": [
+    {
+      "executionId": "cline-4d97f8cb637a88719d36d6c61ebb86c1913d8a28645611fc9760042efd2a043d",
+      "exitCode": 0,
+      "durationMs": 2128,
+      "resultAvailable": true,
+      "outputStatus": null,
+      "inputDataRefs": [
+        "runtime-evidence:coding:input:adf584062d1997f7f68fb49897f68cb8bff0c941792036dcb5454869c3cabe9",
+        "runtime-evidence:coding:input:75257936fb5de98713aec7360e0c0a962a82a5b1d628f290b33e61b1602bd7b"
+      ]
+    },
+    {
+      "executionId": "cline-889ffed264ec067b7f92c9651d4d82d68b5fec96793756652187f10401f1836f",
+      "exitCode": 1,
+      "durationMs": 481,
+      "resultAvailable": false,
+      "outputStatus": null,
+      "inputDataRefs": [
+        "runtime-evidence:coding:input:adf584062d1997f7f68fb49897f68cb8bff0c941792036dcb5454869c3cabe9",
+        "runtime-evidence:coding:input:75257936fb5de98713aec7360e0c0a962a82a5b1d628f290b33e61b1602bd7b"
+      ]
+    },
+    {
+      "executionId": "cline-def9b01fc37056b5974087318e04217d8d05ee64a8f98acd00faebe8dd620655",
+      "exitCode": 0,
+      "durationMs": 2506,
+      "resultAvailable": true,
+      "outputStatus": null,
+      "inputDataRefs": [
+        "runtime-evidence:coding:input:adf584062d1997f7f68fb49897f68cb8bff0c941792036dcb5454869c3cabe9",
+        "runtime-evidence:coding:input:75257936fb5de98713aec7360e0c0a962a82a5b1d628f290b33e61b1602bd7b"
+      ]
+    },
+    {
+      "executionId": "cline-e3f1a554d0d35cb0f6f8202c82520d811ca3f1cc545e1ba20f58cdbee554018b",
+      "exitCode": 0,
+      "durationMs": 2337,
+      "resultAvailable": true,
+      "outputStatus": null,
+      "inputDataRefs": [
+        "runtime-evidence:coding:input:adf584062d1997f7f68fb49897f68cb8bff0c941792036dcb5454869c3cabe9",
+        "runtime-evidence:coding:input:75257936fb5de98713aec7360e0c0a962a82a5b1d628f290b33e61b1602bd7b"
+      ]
+    },
+    {
+      "executionId": "cline-eb87427a103f3469afa46beb0f4258c7c1e6bf51d5457afd5ab9a78fdd4357ae",
+      "exitCode": 0,
+      "durationMs": 4260,
+      "resultAvailable": false,
+      "outputStatus": "REQUIRED_OUTPUT_MISSING",
+      "inputDataRefs": [
+        "runtime-evidence:coding:input:adf584062d1997f7f68fb49897f68cb8bff0c941792036dcb5454869c3cabe9",
+        "runtime-evidence:coding:input:75257936fb5de98713aec7360e0c0a962a82a5b1d628f290b33e61b1602bd7b"
+      ]
+    }
+  ],
+  "frozenInputVersions": [
+    [
+      {
+        "fileId": "cadf584062d1997f7f68fb49897f68cb8bff0c941792036dcb5454869c3cabe9",
+        "fileName": "manifest.json",
+        "sha256": "05a628642881f68e378a89cba46ae3e71a266d6dc392ffb5c48a167dbc5c0088",
+        "rowCount": 1,
+        "size": 1406,
+        "sourceDatasetRef": "coding-input-set:a18ba1a04b95868ce73ec7200808f749e7c4a684b068e188567785204ac82c6d"
+      },
+      {
+        "fileId": "c75257936fb5de98713aec7360e0c0a962a82a5b1d628f290b33e61b1602bd7b",
+        "fileName": "manifest.json",
+        "sha256": "f6d5215d592f703fc898ce806eb288d6dd9f2555d773452eb00137f298cf91ff",
+        "rowCount": 2943,
+        "size": 5118,
+        "sourceDatasetRef": "coding-data:data-e7d981942f298ac64b4a41d7c34a1c3dd1e1e35adbf32378f822e83bc4f5a245:876b2593329423bb37bbc015df06ad2ff564be66ff2843097cd2b728a755df5a"
+      }
+    ],
+    [
+      {
+        "fileId": "cadf584062d1997f7f68fb49897f68cb8bff0c941792036dcb5454869c3cabe9",
+        "fileName": "manifest.json",
+        "sha256": "05a628642881f68e378a89cba46ae3e71a266d6dc392ffb5c48a167dbc5c0088",
+        "rowCount": 1,
+        "size": 1406,
+        "sourceDatasetRef": "coding-input-set:a18ba1a04b95868ce73ec7200808f749e7c4a684b068e188567785204ac82c6d"
+      },
+      {
+        "fileId": "c75257936fb5de98713aec7360e0c0a962a82a5b1d628f290b33e61b1602bd7b",
+        "fileName": "manifest.json",
+        "sha256": "f6d5215d592f703fc898ce806eb288d6dd9f2555d773452eb00137f298cf91ff",
+        "rowCount": 2943,
+        "size": 5118,
+        "sourceDatasetRef": "coding-data:data-e7d981942f298ac64b4a41d7c34a1c3dd1e1e35adbf32378f822e83bc4f5a245:876b2593329423bb37bbc015df06ad2ff564be66ff2843097cd2b728a755df5a"
+      }
+    ],
+    [
+      {
+        "fileId": "cadf584062d1997f7f68fb49897f68cb8bff0c941792036dcb5454869c3cabe9",
+        "fileName": "manifest.json",
+        "sha256": "05a628642881f68e378a89cba46ae3e71a266d6dc392ffb5c48a167dbc5c0088",
+        "rowCount": 1,
+        "size": 1406,
+        "sourceDatasetRef": "coding-input-set:a18ba1a04b95868ce73ec7200808f749e7c4a684b068e188567785204ac82c6d"
+      },
+      {
+        "fileId": "c75257936fb5de98713aec7360e0c0a962a82a5b1d628f290b33e61b1602bd7b",
+        "fileName": "manifest.json",
+        "sha256": "f6d5215d592f703fc898ce806eb288d6dd9f2555d773452eb00137f298cf91ff",
+        "rowCount": 2943,
+        "size": 5118,
+        "sourceDatasetRef": "coding-data:data-e7d981942f298ac64b4a41d7c34a1c3dd1e1e35adbf32378f822e83bc4f5a245:876b2593329423bb37bbc015df06ad2ff564be66ff2843097cd2b728a755df5a"
+      }
+    ],
+    [
+      {
+        "fileId": "cadf584062d1997f7f68fb49897f68cb8bff0c941792036dcb5454869c3cabe9",
+        "fileName": "manifest.json",
+        "sha256": "05a628642881f68e378a89cba46ae3e71a266d6dc392ffb5c48a167dbc5c0088",
+        "rowCount": 1,
+        "size": 1406,
+        "sourceDatasetRef": "coding-input-set:a18ba1a04b95868ce73ec7200808f749e7c4a684b068e188567785204ac82c6d"
+      },
+      {
+        "fileId": "c75257936fb5de98713aec7360e0c0a962a82a5b1d628f290b33e61b1602bd7b",
+        "fileName": "manifest.json",
+        "sha256": "f6d5215d592f703fc898ce806eb288d6dd9f2555d773452eb00137f298cf91ff",
+        "rowCount": 2943,
+        "size": 5118,
+        "sourceDatasetRef": "coding-data:data-e7d981942f298ac64b4a41d7c34a1c3dd1e1e35adbf32378f822e83bc4f5a245:876b2593329423bb37bbc015df06ad2ff564be66ff2843097cd2b728a755df5a"
+      }
+    ],
+    [
+      {
+        "fileId": "cadf584062d1997f7f68fb49897f68cb8bff0c941792036dcb5454869c3cabe9",
+        "fileName": "manifest.json",
+        "sha256": "05a628642881f68e378a89cba46ae3e71a266d6dc392ffb5c48a167dbc5c0088",
+        "rowCount": 1,
+        "size": 1406,
+        "sourceDatasetRef": "coding-input-set:a18ba1a04b95868ce73ec7200808f749e7c4a684b068e188567785204ac82c6d"
+      },
+      {
+        "fileId": "c75257936fb5de98713aec7360e0c0a962a82a5b1d628f290b33e61b1602bd7b",
+        "fileName": "manifest.json",
+        "sha256": "f6d5215d592f703fc898ce806eb288d6dd9f2555d773452eb00137f298cf91ff",
+        "rowCount": 2943,
+        "size": 5118,
+        "sourceDatasetRef": "coding-data:data-e7d981942f298ac64b4a41d7c34a1c3dd1e1e35adbf32378f822e83bc4f5a245:876b2593329423bb37bbc015df06ad2ff564be66ff2843097cd2b728a755df5a"
+      }
+    ]
+  ]
+}

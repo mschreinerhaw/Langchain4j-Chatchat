@@ -46,6 +46,9 @@
 
 ### 补充复核（2026-11-07）
 
+- **最终真实链路验证**：修复 DATA-07 后，Cline 原生任务取得 source 38 / 2026-11-02 的 2943 行 Parquet，原始 items 未注入上下文；在原预算内完成 Python 编辑修复、计算及 artifact_read，终态 COMPLETED。独立禁网只读复验确认文件 Hash、样本数、301218 涨幅 19.99%、并列第 12（12–14 位），报告归档 SHA/字节数/API 内容/进程停止/引用校验全部一致。报告仍有价格货币与百分位措辞问题，不认证全部业务文字正确；详见[最终测试记录](../testing/runtime-data-exploration-delivery-20261106.md)。
+- **验收界限**：Flash/Plus 同材料、权限、预算的两轮对照已提交，四轮只有一轮完整交付，不能宣称性能或稳定性验收通过。原生搜索实际取得官方来源，但该单任务随后预算耗尽；服务可用与模型完整交付分别判定。浏览器只读恢复四项交付状态通过，无重新执行。12 个共享模型配置前后 Hash 相同。
+
 - **DATA-07，原生日快照工具联机确认**：Cline 自主调用 source_id=38 / 2026-11-02 日快照，MCP 返回 2943 行、约 3.4 MiB，低于既定 8 MiB 上限；`marketSourceHash` 调用 `JdbcRuntimeEvidenceStore.contentHash`，却误用证据记录序列化的 2 MiB 限制，文件交付前失败并被 callback 泛化成 Invalid Coding callback binding。修复只分离规范化 Hash 与记录存储校验，规范化字节不变，证据数据库单条 2 MiB 限制不变，日导出仍为 10,000 行 / 8 MiB。真实快照 SHA `bf83dc8d85b2aed2d03bba9e69d90641ccb767b4e1cdd32d5b22acb9309f3778` 完成离线回归，覆盖大源可 Hash、大记录仍拒绝、小 locator 可归档；Evidence/Knowledge/DataSupply 68 项、67 通过及 1 既有跳过。
 - **PERF-02，真实日志确认重复无进展读取**：原问题在引用校验失败后重复 artifact_read；SDK 缓存资格原先要求 lastCollectedOperation 非空，而无效引用恰会清空该字段，导致同一不可变错误报告被反复后端读取。缓存改为绑定本次最新 result reference；每次新 Python 执行仍清空缓存，无效报告不变为可提交结果。增加结构化 artifactRepair（只指示修复当前代码、原预算不变），不创建压缩器或搜索循环。原生 SDK 回归验证重复拒绝两次仍只读一次，必须新执行、重新读取后才允许结束；Node 全量 255 项通过。
 - **DATA-06，真实存储故障诊断缺口**：构建磁盘不足后 Silo 最低空闲容量保护拒绝文件发布，原错误只返回笼统 500，不能解释为行情不存在。对明确的容量错误返回安全 507 / ARTIFACT_STORAGE_FULL 和“释放空间、核对当前任务、恢复原请求”的动作；其他授权错误保持拒绝。使用真实 Minio SDK 对容量/拒绝访问 XML 响应做本地传输回归，2 项通过；未降低 Silo 保护阈值。

@@ -1,0 +1,54 @@
+{
+  "status": "PASSED",
+  "rowCount": 2943,
+  "market": "SZSE",
+  "instrumentType": "EQUITY",
+  "sourceId": 38,
+  "tradeDate": "2026-11-02",
+  "validSampleCount": 2943,
+  "quoteCode": "301218",
+  "close": 81.44,
+  "changePct": 19.99,
+  "rankCompetition": 12,
+  "tieCount": 3,
+  "tieLastPosition": 14,
+  "amountUnit": "10K-CNY",
+  "volumeField": "volume10_k_units",
+  "coverage": "Complete stored source/day snapshot; exchange collection completeness is unproven",
+  "realtime": false,
+  "readOnly": true,
+  "network": "none",
+  "files": [
+    {
+      "fileName": "manifest.json",
+      "sha256": "f6d5215d592f703fc898ce806eb288d6dd9f2555d773452eb00137f298cf91ff",
+      "bytes": 5118
+    },
+    {
+      "fileName": "schema.json",
+      "sha256": "46832ba942961d9654a9c9f0b85f2d3367fe66111e792a9709f7fee8a40a3499",
+      "bytes": 5283
+    },
+    {
+      "fileName": "part-00000.parquet",
+      "sha256": "32e2b1184c69f460d67a99bbb1f34f4fed3d994116552cb45426f2c8a0ba2bc4",
+      "bytes": 1494236
+    }
+  ],
+  "agentTaskId": "analysis-coding-a319149dff965f001f604ca0fa56af98deb6af12ec3e1391c8b2a57caf043d2d",
+  "agentStatus": "COMPLETED",
+  "scope": "Independent arithmetic and delivered-file verification; does not certify Agent report delivery",
+  "reportArchive": {
+    "status": "PASSED",
+    "operationId": "cline-def9b01fc37056b5974087318e04217d8d05ee64a8f98acd00faebe8dd620655",
+    "sha256": "92c84ef52405d25423b012dd939e4703fca70f5451d79929367cbcc47592668d",
+    "bytes": 17361,
+    "rowCount": 1,
+    "analysisStatus": "COMPLETE",
+    "executorStopped": true,
+    "referenceValidation": "PASSED",
+    "apiResultsMatchArchive": true,
+    "chartContract": "Text report; charts not required",
+    "businessCorrectnessCertified": false
+  }
+}

@@ -1,0 +1,320 @@
+{
+  "kind": "search",
+  "taskId": "analysis-coding-fd6a322b3ea6a68a40445c7636535b2e32161bc655ffdf6b663e6371d79b69b7",
+  "status": "BUDGET_EXCEEDED",
+  "reasonCode": "BUDGET_EXCEEDED",
+  "toolsCalled": [
+    "input_read",
+    "market_resolve_security",
+    "web_search",
+    "web_search",
+    "web_fetch",
+    "web_fetch",
+    "market_search",
+    "market_get_snapshot",
+    "market_get_history",
+    "input_read",
+    "web_search",
+    "web_search",
+    "market_get_history",
+    "market_resolve_security",
+    "web_fetch",
+    "web_fetch",
+    "market_get_history",
+    "market_resolve_security",
+    "input_read",
+    "report_submit",
+    "market_get_history"
+  ],
+  "model": {
+    "protocol": "auto",
+    "providerModel": "qwen3.8-omni-flash",
+    "selectedModel": "qwen3.8-omni-flash"
+  },
+  "budget": {
+    "budgetId": "analysis-coding-tool-budget:analysis-coding-fd6a322b3ea6a68a40445c7636535b2e32161bc655ffdf6b663e6371d79b69b7",
+    "deadlineAt": "2026-11-06T17:49:28.645Z",
+    "maxModelCalls": 12,
+    "maxModelTokens": 786432,
+    "maxToolCalls": 24,
+    "maxCodeExecutions": 12,
+    "maxCostAmount": "10",
+    "costCurrency": "USD",
+    "maxCpuMillis": 300000,
+    "maxMemoryBytes": 536870912,
+    "maxOutputBytes": 4194304
+  },
+  "allowedTools": [
+    "artifact_read",
+    "code_read",
+    "input_read",
+    "market_get_day_snapshot",
+    "market_get_history",
+    "market_get_indicators",
+    "market_get_snapshot",
+    "market_resolve_security",
+    "market_search",
+    "news_get_article",
+    "news_related_events",
+    "news_search",
+    "python_execute",
+    "read_files",
+    "report_submit",
+    "skills",
+    "sql_validate",
+    "web_fetch",
+    "web_search"
+  ],
+  "internetProfile": {
+    "agentId": "financial-news-agent",
+    "explicitlyRequested": true,
+    "modelName": "qwen3.8-omni-flash",
+    "modelRevision": 1,
+    "providerId": "tencent-wsa",
+    "providerRevision": 6,
+    "providers": [
+      {
+        "id": "tencent-wsa",
+        "name": "腾讯 WSA",
+        "revision": 6,
+        "supportsLanguageFilter": false,
+        "supportsNews": false
+      }
+    ],
+    "schemaVersion": "runtime_os.internet.v1"
+  },
+  "externalEvidence": [
+    {
+      "tool": "web_search",
+      "evidence_id": null,
+      "retrieved_at": "2026-11-06T17:30:00.904166945Z",
+      "status": "OK",
+      "sourceUrls": [
+        "https://disc.static.sse.org.cn/download/disc/disk03/finalpage/2025-08-27/291d01bb-1991-42b9-8f59-33986a9e19ba.PDF",
+        "https://disc.static.szse.cn/disc/disk03/finalpage/2023-04-21/3ad66a4a-d27e-49e2-b8c2-2b875f5df8a3.PDF",
+        "https://disc.static.szse.cn/disc/disk03/finalpage/2025-01-21/2dbd1140-5e24-4f01-8268-2ce6f0a85376.PDF",
+        "https://disc.static.szse.cn/disc/disk03/finalpage/2025-01-21/d7860441-311b-41bf-877d-31a9d89e6821.PDF",
+        "https://www.szse.cn/certificate/individual/index.html?code=301218"
+      ],
+      "sourceRecords": [
+        {
+          "url": "https://www.szse.cn/certificate/individual/index.html?code=301218",
+          "evidence_id": "runtime-evidence:knowledge:d333139a2adf6c3e4ed20afc4bcea5bf1e7bd2f9c4b7eb5fd67f24a7caea10aa",
+          "retrieved_at": "2026-11-06T17:30:00.903526447Z",
+          "published_at": null
+        },
+        {
+          "url": "https://disc.static.sse.org.cn/download/disc/disk03/finalpage/2025-08-27/291d01bb-1991-42b9-8f59-33986a9e19ba.PDF",
+          "evidence_id": "runtime-evidence:knowledge:083444a01b680070b58050b0ec156d4a4936b639281facd47fd0329f94f30b70",
+          "retrieved_at": "2026-11-06T17:30:00.903600610Z",
+          "published_at": null
+        },
+        {
+          "url": "https://disc.static.szse.cn/disc/disk03/finalpage/2023-04-21/3ad66a4a-d27e-49e2-b8c2-2b875f5df8a3.PDF",
+          "evidence_id": "runtime-evidence:knowledge:0e57cdac89dd0c4bff940e276851c477a2f529bcfa727e2aabf397fa31ef23ac",
+          "retrieved_at": "2026-11-06T17:30:00.903707476Z",
+          "published_at": "2023/04/21 00:00:00"
+        },
+        {
+          "url": "https://disc.static.szse.cn/disc/disk03/finalpage/2025-01-21/d7860441-311b-41bf-877d-31a9d89e6821.PDF",
+          "evidence_id": "runtime-evidence:knowledge:0c3bbd3f57c669e4c1171bbdb45257b06a6bbf6755cf22bbdb68aa29e565868e",
+          "retrieved_at": "2026-11-06T17:30:00.903776343Z",
+          "published_at": "2025/01/22 00:00:00"
+        },
+        {
+          "url": "https://disc.static.szse.cn/disc/disk03/finalpage/2025-01-21/2dbd1140-5e24-4f01-8268-2ce6f0a85376.PDF",
+          "evidence_id": "runtime-evidence:knowledge:e7679c1f459e003424b0670bc55496dcf6da01d254f32e6ff1d078b80c290721",
+          "retrieved_at": "2026-11-06T17:30:00.903896509Z",
+          "published_at": null
+        }
+      ],
+      "authority": "SEARCH_SUMMARIES_ARE_NOT_VERIFIED_QUOTES"
+    },
+    {
+      "tool": "web_search",
+      "evidence_id": null,
+      "retrieved_at": "2026-11-06T17:30:02.578896598Z",
+      "status": "OK",
+      "sourceUrls": [
+        "https://big5.szse.cn/site/cht/www.szse.cn/disclosure/notice/t20220304_591644.html",
+        "https://disc.static.sse.org.cn/download/disc/disk03/finalpage/2025-08-27/17deb18c-8b52-4336-8cb0-5bb591d59120.PDF",
+        "https://epaper.cs.com.cn/zgzqb/html/2022-03/01/nw.D110000zgzqb_20220301_4-A08.htm",
+        "https://finance.ce.cn/stock/gsgdbd/202203/07/t20220307_37381388.shtml",
+        "https://www.szse.cn/certificate/secondb/GEMdynamice/t20220304_591644.html"
+      ],
+      "sourceRecords": [
+        {
+          "url": "https://www.szse.cn/certificate/secondb/GEMdynamice/t20220304_591644.html",
+          "evidence_id": "runtime-evidence:knowledge:ad99c82e19337b2f7cfd42c70024de9f852185b05bb7a10f421f801ca3e4ef2e",
+          "retrieved_at": "2026-11-06T17:30:02.578135632Z",
+          "published_at": "2022/03/04 00:00:00"
+        },
+        {
+          "url": "https://big5.szse.cn/site/cht/www.szse.cn/disclosure/notice/t20220304_591644.html",
+          "evidence_id": "runtime-evidence:knowledge:19accb03f9f95c3bae021063b62586808f2eaa2cec16c2b49321a8f4059e9a75",
+          "retrieved_at": "2026-11-06T17:30:02.578267322Z",
+          "published_at": null
+        },
+        {
+          "url": "https://finance.ce.cn/stock/gsgdbd/202203/07/t20220307_37381388.shtml",
+          "evidence_id": "runtime-evidence:knowledge:8c356ec26b173b42df23d368b74aa9a7e9e2ea1f0bde72562cc8e50ce6a7e15c",
+          "retrieved_at": "2026-11-06T17:30:02.578378644Z",
+          "published_at": "2022/03/07 16:17:00"
+        },
+        {
+          "url": "https://disc.static.sse.org.cn/download/disc/disk03/finalpage/2025-08-27/17deb18c-8b52-4336-8cb0-5bb591d59120.PDF",
+          "evidence_id": "runtime-evidence:knowledge:f763426c15cf5eccea59242c9a821d2d99de5ec00a58793fa0b3b7fa7543a9c9",
+          "retrieved_at": "2026-11-06T17:30:02.578489134Z",
+          "published_at": null
+        },
+        {
+          "url": "https://epaper.cs.com.cn/zgzqb/html/2022-03/01/nw.D110000zgzqb_20220301_4-A08.htm",
+          "evidence_id": "runtime-evidence:knowledge:8ba730a90cf496f84d218c08332dae21eab7456dc702ec179da1637db56949b1",
+          "retrieved_at": "2026-11-06T17:30:02.578597064Z",
+          "published_at": "2022/03/01 00:00:00"
+        }
+      ],
+      "authority": "SEARCH_SUMMARIES_ARE_NOT_VERIFIED_QUOTES"
+    },
+    {
+      "tool": "web_fetch",
+      "evidence_id": "runtime-evidence:knowledge:944c306d38ee6038eb3dd0ddebb8e28d5fa315f6a25621d60f1767992b400f45",
+      "retrieved_at": "2026-11-06T17:30:18.400553704Z",
+      "status": "OK",
+      "sourceUrls": [
+        "https://www.szse.cn/certificate/secondb/GEMdynamice/t20220304_591644.html"
+      ],
+      "sourceRecords": [],
+      "authority": "SEARCH_SUMMARIES_ARE_NOT_VERIFIED_QUOTES"
+    },
+    {
+      "tool": "web_fetch",
+      "evidence_id": "runtime-evidence:knowledge:408600a18d8a647ff719ddf38afbed0f7caa0e62146c82d84e149a3fd2046d4f",
+      "retrieved_at": "2026-11-06T17:30:20.364007450Z",
+      "status": "OK",
+      "sourceUrls": [
+        "https://www.szse.cn/certificate/individual/index.html?code=301218"
+      ],
+      "sourceRecords": [],
+      "authority": "SEARCH_SUMMARIES_ARE_NOT_VERIFIED_QUOTES"
+    },
+    {
+      "tool": "web_search",
+      "evidence_id": null,
+      "retrieved_at": "2026-11-06T17:31:38.149905198Z",
+      "status": "OK",
+      "sourceUrls": [
+        "https://big5.szse.cn/site/cht/www.szse.cn/disclosure/notice/t20220304_591644.html",
+        "https://www.cnstock.com/commonDetail/121998",
+        "https://www.szse.cn/aboutus/trends/news/t20220307_591667.html",
+        "https://www.szse.cn/certificate/secondb/GEMdynamice/t20220304_591644.html",
+        "https://xinpi.cnstock.com/m/xg/detail/301218"
+      ],
+      "sourceRecords": [
+        {
+          "url": "https://big5.szse.cn/site/cht/www.szse.cn/disclosure/notice/t20220304_591644.html",
+          "evidence_id": "runtime-evidence:knowledge:4b2e8e68450e65e86b63747401252c3af0c97cf2a92210504b07b1bda8bf48e0",
+          "retrieved_at": "2026-11-06T17:31:38.149283603Z",
+          "published_at": null
+        },
+        {
+          "url": "https://www.szse.cn/aboutus/trends/news/t20220307_591667.html",
+          "evidence_id": "runtime-evidence:knowledge:c6f98462be76501134fbcdf43caaabe99ad6f07e8412342f299b36d87dd33744",
+          "retrieved_at": "2026-11-06T17:31:38.149355394Z",
+          "published_at": "2022/03/07 00:00:00"
+        },
+        {
+          "url": "https://www.szse.cn/certificate/secondb/GEMdynamice/t20220304_591644.html",
+          "evidence_id": "runtime-evidence:knowledge:3d085fd1a89195abb6f7d8aebea8a2833ec22619f36154e6113e52d0ece9eded",
+          "retrieved_at": "2026-11-06T17:31:38.149403813Z",
+          "published_at": "2022/03/04 00:00:00"
+        },
+        {
+          "url": "https://xinpi.cnstock.com/m/xg/detail/301218",
+          "evidence_id": "runtime-evidence:knowledge:e325ca885bf7eaa5252e6e66cf60871bca8542a904786df428fdea69e99e5373",
+          "retrieved_at": "2026-11-06T17:31:38.149487735Z",
+          "published_at": null
+        },
+        {
+          "url": "https://www.cnstock.com/commonDetail/121998",
+          "evidence_id": "runtime-evidence:knowledge:4070216f49a6fe272051dc4139d3443bfa47dafa30c09dcf6cae33c38a4d6f95",
+          "retrieved_at": "2026-11-06T17:31:38.149612048Z",
+          "published_at": "2022/03/07 07:46:00"
+        }
+      ],
+      "authority": "SEARCH_SUMMARIES_ARE_NOT_VERIFIED_QUOTES"
+    },
+    {
+      "tool": "web_search",
+      "evidence_id": null,
+      "retrieved_at": "2026-11-06T17:31:43.579333246Z",
+      "status": "OK",
+      "sourceUrls": [
+        "http://m.epaper.zqrb.cn/images/2022-03/04/C12/zqrb20220304C12.pdf",
+        "https://data.eastmoney.com/notices/detail/301218/AN202202201548199510.html",
+        "https://epaper.cs.com.cn/zgzqb/html/2022-03/04/nw.D110000zgzqb_20220304_5-A09.htm",
+        "https://epaper.stcn.com/paper/zqsb/html/epaper/index/content_1750719.htm",
+        "https://money.finance.sina.com.cn/corp/view/vCB_AllBulletinDetail.php?id=6817232&stockid=301218"
+      ],
+      "sourceRecords": [
+        {
+          "url": "https://epaper.cs.com.cn/zgzqb/html/2022-03/04/nw.D110000zgzqb_20220304_5-A09.htm",
+          "evidence_id": "runtime-evidence:knowledge:87dd73815a86ed75cac40dd093a96f79716f6f87e2ab24b766c6a8cadb16c819",
+          "retrieved_at": "2026-11-06T17:31:43.578515090Z",
+          "published_at": "2022/03/04 00:00:00"
+        },
+        {
+          "url": "http://m.epaper.zqrb.cn/images/2022-03/04/C12/zqrb20220304C12.pdf",
+          "evidence_id": "runtime-evidence:knowledge:b83c769993e3b647bbae853ab78e4eb1b0ae6f5ffa867d2122cd3f37a41dab20",
+          "retrieved_at": "2026-11-06T17:31:43.578683373Z",
+          "published_at": null
+        },
+        {
+          "url": "https://money.finance.sina.com.cn/corp/view/vCB_AllBulletinDetail.php?id=6817232&stockid=301218",
+          "evidence_id": "runtime-evidence:knowledge:ce1e044c5138f42809afa99e2893797dfee1f16f028fa2baf77db1f3b63c745d",
+          "retrieved_at": "2026-11-06T17:31:43.578828604Z",
+          "published_at": null
+        },
+        {
+          "url": "https://data.eastmoney.com/notices/detail/301218/AN202202201548199510.html",
+          "evidence_id": "runtime-evidence:knowledge:7caaaa00512142c00c09db9405b482373b82836409727d38423a1f12c6910012",
+          "retrieved_at": "2026-11-06T17:31:43.578963234Z",
+          "published_at": "2022/02/21 00:00:00"
+        },
+        {
+          "url": "https://epaper.stcn.com/paper/zqsb/html/epaper/index/content_1750719.htm",
+          "evidence_id": "runtime-evidence:knowledge:8bbc33ee26a06fb87a949cb96c4ea34a7e7bad7e2de96398bb66eab7ed506f7d",
+          "retrieved_at": "2026-11-06T17:31:43.579076673Z",
+          "published_at": "2022/02/22 00:00:00"
+        }
+      ],
+      "authority": "SEARCH_SUMMARIES_ARE_NOT_VERIFIED_QUOTES"
+    },
+    {
+      "tool": "web_fetch",
+      "evidence_id": "runtime-evidence:knowledge:2a45227127ccead80baa58394faed64458076a681c0bd3e900fa6b49d4757eab",
+      "retrieved_at": "2026-11-06T17:32:25.573407003Z",
+      "status": "OK",
+      "sourceUrls": [
+        "https://www.szse.cn/certificate/secondb/GEMdynamice/t20220304_591644.html"
+      ],
+      "sourceRecords": [],
+      "authority": "SEARCH_SUMMARIES_ARE_NOT_VERIFIED_QUOTES"
+    },
+    {
+      "tool": "web_fetch",
+      "evidence_id": "runtime-evidence:knowledge:1f45c898bab07424f992be652fcbced81a6d9544bd262ba679909e580213c25a",
+      "retrieved_at": "2026-11-06T17:32:32.215250279Z",
+      "status": "OK",
+      "sourceUrls": [
+        "https://www.szse.cn/aboutus/trends/news/t20220307_591667.html"
+      ],
+      "sourceRecords": [],
+      "authority": "SEARCH_SUMMARIES_ARE_NOT_VERIFIED_QUOTES"
+    }
+  ],
+  "daySnapshotReceipts": [],
+  "resultDatasetRef": null,
+  "pythonExecutions": [],
+  "frozenInputVersions": []
+}

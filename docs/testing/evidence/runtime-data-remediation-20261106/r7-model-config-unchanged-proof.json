@@ -1,0 +1,31 @@
+{
+  "status": "PASSED",
+  "modelCount": 12,
+  "beforeSha256": "4f453b6b0ea3276ca813b0deadc271ec7222e12cc3219606de5568fa6722f839",
+  "afterSha256": "4f453b6b0ea3276ca813b0deadc271ec7222e12cc3219606de5568fa6722f839",
+  "policy": "Read-only full API configuration comparison; API response exposes hasApiKey, not secret keys",
+  "internetSettings": [
+    {
+      "name": "qwen3.7-plus",
+      "internetSearchEnabled": false,
+      "maxTokens": -1,
+      "searchProviderIds": [
+        "tencent-wsa"
+      ]
+    },
+    {
+      "name": "qwen3.8-omni-flash",
+      "internetSearchEnabled": true,
+      "maxTokens": -1,
+      "searchProviderIds": [
+        "tencent-wsa"
+      ]
+    },
+    {
+      "name": "qwen3.8-flash",
+      "internetSearchEnabled": false,
+      "maxTokens": -1,
+      "searchProviderIds": []
+    }
+  ]
+}

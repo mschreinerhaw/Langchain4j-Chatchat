@@ -1,0 +1,35 @@
+{
+  "api-p0-2": {
+    "status": "DEPLOYED",
+    "sourceCommit": "b3cbbac70fc4dbf79ebb8c89809e8002752456a7",
+    "image": "runtime-os-api:native-remediation-ee2a057dd3d6",
+    "sha256": "ee2a057dd3d693f80a904b6487dd58bab578ae849b894af2d724e50de9ed3401",
+    "retired": {
+      "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-studio-1793948121",
+      "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-studio-1793948121"
+    },
+    "unrelatedContainersUnchanged": true
+  },
+  "worker-p0-2": {
+    "status": "DEPLOYED",
+    "sourceCommit": "b3cbbac70fc4dbf79ebb8c89809e8002752456a7",
+    "image": "runtime-os-coding-agent:phase3-monitor-b3cbbac70",
+    "imageId": "sha256:beecfec0d1d2f7e3b9321da785c30c5c3bd26e8616136618d95d78d6d14782aa",
+    "unrelatedContainersUnchanged": true
+  },
+  "running": {
+    "runtime-os-app-stage-api-1": {
+      "id": "3c7994e3aab0e38073945bc25ca3008a2ab6f67dc055d1822564645f56d6db12",
+      "imageId": "sha256:e7af53131a7dc0bfdfe8f5f8e60ce97c49d208462deaffbd5819797788563e64",
+      "image": "runtime-os-api:native-remediation-ee2a057dd3d6",
+      "running": true
+    },
+    "runtime-os-app-stage-coding-agent-1": {
+      "id": "7a2be5c7d1c28a345536e0c4da63e7537f46313acf6884cde5b710691e3ff038",
+      "imageId": "sha256:beecfec0d1d2f7e3b9321da785c30c5c3bd26e8616136618d95d78d6d14782aa",
+      "image": "runtime-os-coding-agent:phase3-monitor-b3cbbac70",
+      "running": true
+    }
+  },
+  "pythonImageId": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef"
+}

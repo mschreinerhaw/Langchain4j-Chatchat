@@ -15,6 +15,7 @@ import sys
 import time
 import urllib.request
 import uuid
+from datetime import datetime
 
 
 def main():
@@ -40,6 +41,8 @@ def main():
 
     if command=='prepare':
         assert not (root/'scenario-prepared-private.json').exists(), 'Existing preparation must not be repeated'
+        assert not (root/'scenario-prepare-intent-private.json').exists(), 'Reconcile an existing prepare intent before issuing new writes'
+        save('scenario-prepare-intent-private.json',{'startedAt':time.time(),'purpose':'Actual logged question; fixed snapshot and unchanged shared configuration'})
         original=json.loads((root/'parent-run-private.json').read_text())
         journal=json.loads(Path('/opt/chatchat-releases/native-analysis-failure-20261106/journal-latest-private.json').read_text())
         snapshot=next(v for k,v in journal['privateState'].items() if k.startswith('inputs:'))[0]
@@ -108,11 +111,25 @@ def main():
             selected=lambda names:[e['toolDurationMs'] for e in tool_times if e.get('tool') in names and isinstance(e.get('toolDurationMs'),(int,float))]
             known_sum=lambda values:sum(values) if values else None
             feedback=[v for k,v in task.get('privateState',{}).items() if k.startswith('feedback:')]
+            operation_ids=[k for k in task.get('operations',{}) if k.startswith('model-')]
+            snapshots=next((v for k,v in task.get('privateState',{}).items() if k.startswith('inputs:')),[])
+            manifests=[]
+            for snapshot in snapshots:
+                if snapshot.get('fileName')!='manifest.json':continue
+                paths=list(Path('/opt/runtime-os-docker-stage/mcp/data/python-user-data').rglob(snapshot['fileId']+'/manifest.json'))
+                assert len(paths)==1 and hashlib.sha256(paths[0].read_bytes()).hexdigest()==snapshot['sha256']
+                manifest=json.loads(paths[0].read_text());manifests.append({'logicalContentSha256':manifest.get('logicalContentSha256'),
+                    'rowCount':manifest.get('rowCount'),'format':manifest.get('format'),'logicalBytes':manifest.get('logicalBytes')})
+            finished=matching[-1].get('finishedAt')
             row.update(taskId=task['contract']['taskId'],status=task['outcome']['status'],budget=task['contract']['budget'],
                 inputSnapshotRef=task['contract']['inputSnapshotRef'],permissions=task['contract']['authorization'],
-                modelCalls=len(models),usageKnownCalls=sum(1 for v in models.values() if v.get('usage')),
+                logicalInputs=manifests,modelCalls=len(operation_ids),resolvedModelCalls=len(models),
+                unknownModelCalls=len(set(operation_ids)-set(models)),usageKnownCalls=sum(1 for v in models.values() if v.get('usage')),
+                tokenUsageComplete=len(operation_ids)==sum(1 for v in models.values() if v.get('usage')),
                 inputTokens=sum(v.get('usage',{}).get('inputTokens',0) for v in models.values()),
                 outputTokens=sum(v.get('usage',{}).get('outputTokens',0) for v in models.values()),
+                durationMs=round((datetime.fromisoformat(finished.replace('Z','+00:00'))-datetime.fromisoformat(matching[0]['createdAt'].replace('Z','+00:00'))).total_seconds()*1000) if finished else None,
+                pythonExecutions=[{k:v.get(k) for k in ['executionId','status','exitCode','durationMs','cpuTimeMs','maxRssBytes','codeHash','resultAvailable','outputStatus','validationStatus']} for v in feedback],
                 phases={'planningMs':None,'dataDiscoveryMs':known_sum(selected({'market_search','market_resolve_security','market_get_day_snapshot','market_get_history','web_search','web_fetch','knowledge_search'})),
                     'fileReadMs':known_sum(selected({'input_read','read_files'})),
                     'codeGenerationMs':None,'toolExecutionMs':known_sum([e['toolDurationMs'] for e in tool_times if isinstance(e.get('toolDurationMs'),(int,float))]),

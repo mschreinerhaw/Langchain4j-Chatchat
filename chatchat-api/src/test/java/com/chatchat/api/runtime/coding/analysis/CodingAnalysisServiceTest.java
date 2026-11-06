@@ -24,6 +24,19 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class CodingAnalysisServiceTest {
+    @Test void localAnalysisReceivesNegativeSearchEvidenceWithoutAnInternetToolGrant() {
+        prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
+        var service=service();var internet=mock(com.chatchat.api.runtime.coding.knowledge.CodingInternetAccess.class);
+        when(internet.snapshot(any(),anyString(),anyString(),anyBoolean())).thenReturn(Map.of());
+        when(internet.availability(any(),anyString(),anyString(),anyBoolean(),eq(false))).thenReturn(
+            com.chatchat.api.runtime.coding.knowledge.CodingInternetAccess.availabilityStatus("UNAVAILABLE","MODEL_INTERNET_DISABLED"));
+        service.setInternet(internet);var request=new LinkedHashMap<>(request());request.put("reviewResult",true);
+        service.execute(context("tenant"),request,sources());
+        var capture=org.mockito.ArgumentCaptor.forClass(CodingTaskContract.class);verify(agent).submit(capture.capture());
+        var task=capture.getValue();assertThat(task.runtimeContext()).containsKey("internetAvailability").doesNotContainKey("internetSearch");
+        assertThat(task.objective().instruction()).contains("MODEL_INTERNET_DISABLED","not a service probe");
+        assertThat(task.authorization().allowedTools()).contains("python_execute").doesNotContain("web_search","web_fetch");
+    }
     @Test void emptySupplyPreflightUsesOnlyExistingAgentAuthorityAndDoesNotStartCoding() {
         var service=service();var knowledge=mock(com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeService.class);service.setKnowledge(knowledge);
         var base=context("tenant");var attrs=new LinkedHashMap<>(base.runtimeAttributes());attrs.put("authorizationAgentId","resource-agent");

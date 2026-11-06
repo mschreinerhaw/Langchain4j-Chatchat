@@ -6,6 +6,17 @@ import static com.chatchat.common.runtime.coding.CodingContractTestSupport.*;
 import static org.assertj.core.api.Assertions.*;
 
 class CodingRuntimeContextTest {
+    @Test void negativeInternetAvailabilityIsDiagnosticAndCannotGrantToolsOrClaimAServiceProbe() {
+        var status=new HashMap<String,Object>(Map.of("schemaVersion","runtime_os.internet.availability.v1",
+            "status","UNAVAILABLE","reasonCode","MODEL_INTERNET_DISABLED","serviceChecked",false,"toolsAvailable",false));
+        var context=new HashMap<String,Object>(Map.of("schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT","internetAvailability",status));
+        assertThat(CodingRuntimeContext.validate(context)).doesNotContainKey("internetSearch");
+        status.put("serviceChecked",true);assertThatThrownBy(()->CodingRuntimeContext.validate(context)).isInstanceOf(CodingContractException.class);
+        status.put("serviceChecked",false);status.put("toolsAvailable",true);status.put("status","AVAILABLE");
+        assertThatThrownBy(()->CodingRuntimeContext.validate(context)).isInstanceOf(CodingContractException.class);
+        status.put("toolsAvailable",false);status.put("status","UNAVAILABLE");status.put("endpoint","https://private.invalid");
+        assertThatThrownBy(()->CodingRuntimeContext.validate(context)).isInstanceOf(CodingContractException.class);
+    }
     @Test void visualQualityRequirementsStillFitTheExistingTaskInstructionLimit() {
         assertThat(16000+VisualReportMode.instruction(Map.of()).length()).isLessThanOrEqualTo(32768);
     }

@@ -15,6 +15,30 @@ public class CodingInternetAccess {
     public static final Set<String> TOOLS=Set.of("web_search","web_fetch");
     private final PlatformInternetPolicy models;private final AgentResourceScopePort agents;private final McpControlPlaneClient mcp;private final ObjectMapper json;
     public CodingInternetAccess(PlatformInternetPolicy models,AgentResourceScopePort agents,McpControlPlaneClient mcp,ObjectMapper json){this.models=models;this.agents=agents;this.mcp=mcp;this.json=json;}
+    /** Diagnostic only: never performs a search or admits a capability missing from the frozen task. */
+    public Map<String,Object> availability(KernelDataScope scope,String agent,String model,boolean requested,boolean admitted){
+        if(admitted)return availabilityStatus("AVAILABLE","CONFIGURED_NOT_PROBED");
+        try{
+            if(!models.active(model))return availabilityStatus("UNAVAILABLE","MODEL_NOT_ACTIVE");
+            var policy=models.read(model);
+            if(!policy.enabled())return availabilityStatus("UNAVAILABLE","MODEL_INTERNET_DISABLED");
+            if(agent==null||agent.isBlank())return availabilityStatus("UNAVAILABLE","AGENT_REQUIRED");
+            if(!agents.resolve(scope.tenantId(),scope.userId(),agent,requested).contains(AgentResourcePolicy.INTERNET))
+                return availabilityStatus("UNAVAILABLE","INTERNET_NOT_AUTHORIZED");
+            var available=models.providers();
+            if(policy.providerIds().isEmpty())return availabilityStatus("UNAVAILABLE","PROVIDER_NOT_CONFIGURED");
+            for(String id:policy.providerIds()){
+                var selected=provider(available,id);
+                if(selected==null||!selected.path("configured").asBoolean())return availabilityStatus("UNAVAILABLE","PROVIDER_NOT_CONFIGURED");
+                if(!selected.path("enabled").asBoolean())return availabilityStatus("UNAVAILABLE","PROVIDER_DISABLED");
+            }
+            return availabilityStatus("UNAVAILABLE","CAPABILITY_NOT_ADMITTED");
+        }catch(RuntimeException unavailable){return availabilityStatus("UNKNOWN","CONFIGURATION_UNAVAILABLE");}
+    }
+    public static Map<String,Object> availabilityStatus(String status,String reason){
+        return Map.of("schemaVersion","runtime_os.internet.availability.v1","status",status,
+            "reasonCode",reason,"serviceChecked",false,"toolsAvailable","AVAILABLE".equals(status));
+    }
     public Map<String,Object> snapshot(KernelDataScope scope,String agent,String model,boolean requested){
         var policy=models.read(model);if(!policy.enabled()||!models.active(model)||agent==null||agent.isBlank()||!agents.resolve(scope.tenantId(),scope.userId(),agent,requested).contains(AgentResourcePolicy.INTERNET))return Map.of();
         List<Map<String,Object>> selected=new ArrayList<>();

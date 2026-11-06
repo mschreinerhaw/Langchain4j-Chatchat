@@ -8,7 +8,20 @@ public final class CodingRuntimeContext {
     public static Map<String, Object> validate(Map<String, Object> value) {
         if (value == null || value.isEmpty()) return Map.of();
         CodingProtocol.require(value.keySet().stream().allMatch(Set.of("schemaVersion", "capturedAt",
-            "consistency", "model", "skills", "builtinSkillPolicy", "configuredSkillIds", "inputFiles", "executionProfile", "reportMode", "reportPresentation", "pythonEnvironment", "scriptPurpose", "codingLifecycle", "analysisResultMode", "analysisInstructions", "codeProject", "knowledgeExploration", "internetSearch")::contains), "Unknown Coding context field");
+            "consistency", "model", "skills", "builtinSkillPolicy", "configuredSkillIds", "inputFiles", "executionProfile", "reportMode", "reportPresentation", "pythonEnvironment", "scriptPurpose", "codingLifecycle", "analysisResultMode", "analysisInstructions", "codeProject", "knowledgeExploration", "internetSearch", "internetAvailability")::contains), "Unknown Coding context field");
+        if(value.containsKey("internetAvailability")){
+            CodingProtocol.require(value.get("internetAvailability") instanceof Map<?,?>,"Internet availability status required");
+            var p=(Map<?,?>)value.get("internetAvailability");
+            CodingProtocol.require(p.keySet().equals(Set.of("schemaVersion","status","reasonCode","serviceChecked","toolsAvailable"))
+                &&"runtime_os.internet.availability.v1".equals(p.get("schemaVersion"))
+                &&p.get("status") instanceof String status&&Set.of("AVAILABLE","UNAVAILABLE","UNKNOWN").contains(status)
+                &&p.get("reasonCode") instanceof String code&&code.matches("[A-Z_]{1,64}")
+                &&Boolean.FALSE.equals(p.get("serviceChecked"))&&p.get("toolsAvailable") instanceof Boolean,
+                "Invalid Internet availability status");
+            boolean available="AVAILABLE".equals(p.get("status"));
+            CodingProtocol.require(available==Boolean.TRUE.equals(p.get("toolsAvailable"))&&(!available||value.containsKey("internetSearch")),
+                "Availability cannot grant an Internet capability");
+        }
         if(value.containsKey("internetSearch")){
             CodingProtocol.require(value.get("internetSearch") instanceof Map<?,?>,"Internet capability required");var p=(Map<?,?>)value.get("internetSearch");
             var required=Set.of("schemaVersion","modelName","modelRevision","providerId","providerRevision","agentId","explicitlyRequested");

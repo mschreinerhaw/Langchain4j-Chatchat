@@ -13,6 +13,25 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
 class CodingInternetAccessTest {
+    @Test void disabledAndUnauthorizedCapabilitiesHaveExplicitReasonsWithoutSearching() {
+        when(models.read("model-a")).thenReturn(new PlatformInternetPolicy.Policy(false,"provider",3));
+        assertThat(internet.availability(contract.scope(),"agent","model-a",true,false))
+            .containsEntry("reasonCode","MODEL_INTERNET_DISABLED").containsEntry("serviceChecked",false).containsEntry("toolsAvailable",false);
+        when(models.read("model-a")).thenReturn(new PlatformInternetPolicy.Policy(true,"provider",3));
+        when(agents.resolve(anyString(),anyString(),anyString(),anyBoolean())).thenReturn(Set.of());
+        assertThat(internet.availability(contract.scope(),"agent","model-a",true,false)).containsEntry("reasonCode","INTERNET_NOT_AUTHORIZED");
+        verifyNoInteractions(mcp);
+    }
+    @Test void configurationAvailabilityNeverPromotesAnUnadmittedCapabilityOrClaimsServiceHealth() {
+        assertThat(internet.availability(contract.scope(),"agent","model-a",true,true))
+            .containsEntry("reasonCode","CONFIGURED_NOT_PROBED").containsEntry("serviceChecked",false);
+        assertThat(internet.availability(contract.scope(),"agent","model-a",true,false))
+            .containsEntry("reasonCode","CAPABILITY_NOT_ADMITTED").containsEntry("toolsAvailable",false);
+        when(models.providers()).thenThrow(new IllegalStateException("private endpoint or credential"));
+        var failure=internet.availability(contract.scope(),"agent","model-a",true,false);
+        assertThat(failure).containsEntry("status","UNKNOWN").containsEntry("reasonCode","CONFIGURATION_UNAVAILABLE");
+        assertThat(failure.toString()).doesNotContain("private endpoint","credential");verifyNoInteractions(mcp);
+    }
     @Test void controlledProbeUsesOnePublicQueryWithoutLanguageAndNeverEnablesConfiguration() throws Exception {
         var scope=mock(KernelDataScope.class);when(scope.tenantId()).thenReturn("tenant");when(scope.userId()).thenReturn("user");
         when(mcp.request(eq("POST"),eq("/api/v1/internet-search/read"),any())).thenAnswer(call->{

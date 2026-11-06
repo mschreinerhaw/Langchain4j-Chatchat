@@ -144,6 +144,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             receipt.put("status",outcome.status().name());receipt.put("terminal",outcome.status().terminal());
             receipt.put("stageSnapshotChecked",outcome.status().terminal());
             receipt.put("eventCursor",outcome.lastEventSequence());receipt.put("taskRevision",outcome.revision());
+            receipt.put("analysisEvents",progressEvents(caller,taskId,outcome.lastEventSequence(),contract.inputSnapshotRef(),receipt));
             receipt.put("reconciliationRequired",outcome.executionControl().reconciliationRequired());
             receipt.put("cancellationRequested",outcome.cancellationRequested());
             receipt.put("validationStatus",outcome.validationStatus().name());receipt.put("businessValidation","NOT_EVALUATED");
@@ -188,6 +189,47 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             }
             return Optional.of(Collections.unmodifiableMap(receipt));
         });
+    }
+
+    /** Bounded observations for file-task polling; never expose prompts, code, rows or tool arguments. */
+    private List<Map<String,Object>> progressEvents(KernelDataScope scope,String taskId,long sequence,String inputSnapshotRef,Map<String,Object> receipt) {
+        List<CodingExecutionEvent> events;
+        try {events=tasks.events(scope,taskId,Math.max(0,sequence-256),256);}
+        catch(CodingContractException error){
+            if(error.error().code()!=CodingErrorCode.EVENT_CURSOR_EXPIRED)throw error;
+            receipt.put("progressHistoryStatus","COMPACTED");return List.of();
+        }
+        var projected=new ArrayList<Map<String,Object>>();
+        for(var event:events){
+            if(!taskId.equals(event.taskId()))throw new SecurityException("Progress belongs to another task");
+            var worker=new LinkedHashMap<String,Object>();var source=event.payload();
+            if(event.type()==CodingExecutionEvent.Type.TASK_CREATED&&inputSnapshotRef!=null)worker.put("type","CODING_INPUT_READY");
+            else if(source.get("type") instanceof String type&&Set.of("MODEL_STARTED","MODEL_TIMING","MODEL_FAILED","PLAN_READY","CODE_READY","TOOL_STARTED","TOOL_FINISHED").contains(type))worker.put("type",type);
+            else continue;
+            for(String key:List.of("tool","status","operationId","outputStatus","diagnosticCode","resultDatasetRef","validationRecordRef","evidenceBundleRef")){
+                if(source.get(key) instanceof String text&&text.length()<=512)worker.put(key,text);
+            }
+            for(String key:List.of("durationMs","toolDurationMs","modelCall")){
+                if(source.get(key) instanceof Number number&&number.longValue()>=0)worker.put(key,number.longValue());
+            }
+            if(source.get("resultAvailable") instanceof Boolean value)worker.put("resultAvailable",value);
+            if("TOOL_FINISHED".equals(worker.get("type"))&&"python_execute".equals(worker.get("tool"))
+                    &&worker.get("operationId") instanceof String operation){
+                if(tasks.verifiedOperation(scope,taskId,operation).isPresent())worker.put("executorStopped",true);
+                var feedback=tasks.privateState(scope,taskId,"feedback:"+operation);
+                if(feedback!=null&&taskId.equals(feedback.path("taskId").asText())&&operation.equals(feedback.path("executionId").asText())){
+                    var error=new LinkedHashMap<String,Object>();
+                    for(String key:List.of("category","exceptionType","diagnosticCode","message","detailRef")){
+                        var value=feedback.path("error").path(key);
+                        if(value.isTextual()&&value.asText().length()<=800)error.put(key,value.asText());
+                    }
+                    if(!error.isEmpty())worker.put("executionFeedback",Map.of("error",error));
+                }
+            }
+            projected.add(Map.of("eventId",event.eventId(),"sequence",event.sequence(),"occurredAt",event.occurredAt().toString(),"payload",Map.of("workerActivity",Collections.unmodifiableMap(worker))));
+        }
+        receipt.put("progressHistoryStatus",sequence>256?"RECENT_WINDOW":"AVAILABLE");
+        return List.copyOf(projected);
     }
     public Optional<Map<String,Object>> cancelPrimary(KernelDataScope caller,boolean visual) {
         var existing=primarySnapshot(caller,visual);

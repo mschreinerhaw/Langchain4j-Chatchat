@@ -24,6 +24,31 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class CodingAnalysisServiceTest {
+    @Test void fileProgressProjectsOnlyCurrentBoundedObservationsAndRequiresAnOperationStopProof() {
+        var scope=new KernelDataScope("tenant","owner","node",null,"owned-run",null,Map.of());
+        var outcome=outcome(CodingTaskOutcome.Status.RUNNING,CodingTaskOutcome.ValidationStatus.NOT_RUN);when(outcome.lastEventSequence()).thenReturn(300L);
+        var contract=mock(CodingTaskContract.class);when(contract.scope()).thenReturn(scope);
+        when(durable.get(eq(scope),anyString())).thenReturn(outcome);when(durable.contract(eq(scope),anyString())).thenReturn(contract);
+        when(durable.events(eq(scope),anyString(),eq(44L),eq(256))).thenAnswer(call->{
+            var event=mock(CodingExecutionEvent.class);when(event.taskId()).thenReturn(call.getArgument(1));when(event.eventId()).thenReturn("event-300");
+            when(event.sequence()).thenReturn(300L);when(event.occurredAt()).thenReturn(java.time.Instant.EPOCH);
+            when(event.type()).thenReturn(CodingExecutionEvent.Type.RECOVERY_RECONCILED);
+            when(event.payload()).thenReturn(Map.of("type","TOOL_FINISHED","tool","python_execute","status","SUCCEEDED","operationId","operation",
+                "resultAvailable",false,"executorStopped",true,"source","PRIVATE_SOURCE","planText","PRIVATE_PROMPT","outputStatus","REQUIRED_OUTPUT_MISSING"));
+            return List.of(event);
+        });
+        when(durable.privateState(eq(scope),anyString(),eq("feedback:operation"))).thenAnswer(call->new ObjectMapper().valueToTree(Map.of(
+            "taskId",call.getArgument(1),"executionId","operation","error",Map.of("message","Missing /workspace/output/results/rows.jsonl","sourceCode","PRIVATE_CODE"))));
+        var first=service().primarySnapshot(scope,true).orElseThrow();
+        assertThat(first.get("analysisEvents").toString()).contains("REQUIRED_OUTPUT_MISSING","python_execute","/workspace/output/results/rows.jsonl").doesNotContain("executorStopped","PRIVATE_");
+        when(durable.privateState(eq(scope),anyString(),eq("feedback:operation"))).thenReturn(new ObjectMapper().valueToTree(Map.of(
+            "taskId","other-task","executionId","operation","error",Map.of("message","FOREIGN_ERROR"))));
+        when(durable.verifiedOperation(eq(scope),anyString(),eq("operation"))).thenReturn(Optional.of(new DurableCodingTaskService.VerifiedOperation("operation",1,"handle","stop-proof")));
+        var verified=service().primarySnapshot(scope,true).orElseThrow();
+        assertThat(verified.get("analysisEvents").toString()).contains("executorStopped=true").doesNotContain("FOREIGN_ERROR");
+        assertThat(verified).containsEntry("progressHistoryStatus","RECENT_WINDOW").containsEntry("resultAvailable",false);
+        verifyNoInteractions(agent,python,plans);
+    }
     @Test void localAnalysisReceivesNegativeSearchEvidenceWithoutAnInternetToolGrant() {
         prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
         var service=service();var internet=mock(com.chatchat.api.runtime.coding.knowledge.CodingInternetAccess.class);

@@ -127,7 +127,22 @@ def main():
             except Exception as error:
                 save(case['case']+'-error-private.json',{'type':type(error).__name__,'message':str(error),'outcome':'UNKNOWN_POLL_ONLY'})
         with ThreadPoolExecutor(max_workers=2) as pool:
-            for offset in range(0,len(prepared['cases']),2):list(pool.map(execute,prepared['cases'][offset:offset+2]))
+            for offset in range(0,len(prepared['cases']),2):
+                wave=prepared['cases'][offset:offset+2]
+                list(pool.map(execute,wave))
+                # An HTTP timeout does not establish task completion. Isolate every
+                # paired wave using authoritative read-only status; never re-execute.
+                pending=list(wave)
+                while pending:
+                    remaining=[]
+                    for case in pending:
+                        state=api(prefix+case['nodeId']+'/status')
+                        node=next(n for n in state['nodes'] if n['id']==case['nodeId'])
+                        receipt=node.get('receipt',{})
+                        if receipt.get('terminal') is not True and receipt.get('status',node.get('status')) not in ['COMPLETED','PARTIAL','FAILED','CANCELLED','BUDGET_EXCEEDED','TIMED_OUT','REJECTED']:
+                            remaining.append(case)
+                    pending=remaining
+                    if pending:time.sleep(15)
         if prepared.get('agent'):execute(prepared['agent'])
         for case in prepared.get('extraCases',[]):execute(case)
         return

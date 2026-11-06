@@ -56,7 +56,9 @@ def main():
                       and value['reviewedArtifact'].get('reference')==reference]
             assert reviews and reviews[-1]['reportReferenceValidation']['valid'] is True
         (root/(prefix+'-accepted-report-private.json')).write_bytes(raw)
-        proof.update(archiveVerification='PASSED',operationId=operation,reportSha256=archived['sha256'],reportBytes=len(raw),
+        proof.update(archiveVerification='PASSED',operationId=operation,reportFileId=archived['id'],
+                     contentApiPath='/api/v1/data-science/user-assets/'+archived['id']+'/content',
+                     reportSha256=archived['sha256'],reportBytes=len(raw),
                      reportRows=1,apiResultsMatchArchive=True,executionMode='PYTHON' if python else 'TEXT_ONLY',
                      analysisStatus=row.get('analysisStatus'),evidenceReferenceCount=len(row['evidenceReferences']),
                      limitationCount=len(row['limitations']),markdownImageReferences=re.findall(r'!\[[^\]]*\]\(([^)]+)\)',row['reportMarkdown']))

@@ -100,6 +100,7 @@ print(json.dumps({'status':'PASSED','rowCount':len(rows),'market':'SZSE','instru
                    and isinstance(part.get('output'), dict) and part['output'].get('reference') == reference]
         assert reviews and reviews[-1]['reportReferenceValidation']['valid'] is True
         result['reportArchive'] = {'status': 'PASSED', 'operationId': operation,
+                                  'reportFileId': archived['id'],
                                   'sha256': archived['sha256'], 'bytes': len(raw), 'rowCount': 1,
                                   'analysisStatus': rows[0].get('analysisStatus'), 'executorStopped': True,
                                   'referenceValidation': 'PASSED', 'apiResultsMatchArchive': True,

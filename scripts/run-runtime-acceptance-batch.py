@@ -19,11 +19,15 @@ def main():
     base=Path('/var/tmp/runtime-data-remediation-20261107-r7')
     ui=Path('/var/tmp/runtime-cline-acceptance-20261107-ui')
     state=ui/'acceptance-batch-intent.json'
-    assert sys.argv[1:] in [[],['--resume-after-deploy']]
-    if '--resume-after-deploy' in sys.argv:
-        assert state.exists() and (ui/'deployment.json').exists(),'Resume requires a confirmed deployment'
+    assert sys.argv[1:] in [[],['--resume-after-deploy'],['--after-contract-repair'],['--after-availability-repair']]
+    availability='--after-availability-repair' in sys.argv
+    repaired='--after-contract-repair' in sys.argv
+    case_keys=['C3','D3'] if availability else ['C2','D2'] if repaired else ['C','D']
+    if '--resume-after-deploy' in sys.argv or repaired or availability:
+        deployed=Path('/var/tmp/runtime-cline-acceptance-20261107-availability/deployment.json') if availability else Path('/var/tmp/runtime-cline-acceptance-20261107-final/deployment.json') if repaired else ui/'deployment.json'
+        assert state.exists() and deployed.exists(),'Resume requires a confirmed deployment'
         assert not Path('/var/tmp/runtime-cline-acceptance-20261107-performance').exists()
-        assert all(not Path('/var/tmp/runtime-cline-acceptance-20261107-'+key+'/autonomous-search-intent-private.json').exists() for key in ['C','D']), 'Never replay an admitted task'
+        assert all(not Path('/var/tmp/runtime-cline-acceptance-20261107-'+key+'/autonomous-search-intent-private.json').exists() for key in case_keys), 'Never replay an admitted task'
     else:
         assert not state.exists(),'Inspect existing batch state; no automatic replay'
         state.write_text(json.dumps({'startedAt':time.time(),'policy':'guarded deployment; unchanged native contracts'}))
@@ -48,7 +52,7 @@ def main():
     if not (ui/'deployment.json').exists():
         with (ui/'deployment.log').open('w') as log:
             subprocess.run(['python3',str(ui/'deploy-integrated-runtime.py'),str(ui)],check=True,stdout=log,stderr=subprocess.STDOUT)
-    cases=[Path('/var/tmp/runtime-cline-acceptance-20261107-'+key) for key in ['C','D']]
+    cases=[Path('/var/tmp/runtime-cline-acceptance-20261107-'+key) for key in case_keys]
     def execute(root):
         assert not (root/'autonomous-search-intent-private.json').exists(),'Never replay an admitted task'
         run('verify-runtime-autonomous-resources.py',root,'run','search')

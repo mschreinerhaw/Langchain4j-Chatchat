@@ -47,7 +47,7 @@ def main():
         assert len(parsed)==1
         (root/(case['case']+'-accepted-report-private.json')).write_bytes(raw)
         assert report['execution']['executorStopped'] is True
-        row.update(taskId=task,operationId=operation,reportSha256=stored['sha256'],reportBytes=len(raw),
+        row.update(taskId=task,operationId=operation,reportFileId=stored['id'],reportSha256=stored['sha256'],reportBytes=len(raw),
             requirementStatus=parsed[0].get('analysisStatus'),deliveryStatus=report.get('status'),
             artifactValidationStatus=report.get('artifactValidationStatus'),chartValidationStatus=report.get('chartValidationStatus'))
         row['checks'].update(acceptedVisualReportPresent=True,reportHashVerified=True,reportRowCountVerified=True,executorStopBound=True)
@@ -60,7 +60,7 @@ def main():
                 row['charts'].append({'id':chart['id'],'verified':False,'reason':'NO_ACCEPTED_ARTIFACT'});continue
             raw_chart=content(ref['fileId'])
             assert hashlib.sha256(raw_chart).hexdigest()==ref['sha256'] and len(raw_chart)==ref['size']
-            summary={'id':chart['id'],'verified':True,'sha256':ref['sha256'],'bytes':len(raw_chart),'kind':chart['kind']}
+            summary={'id':chart['id'],'verified':True,'fileId':ref['fileId'],'sha256':ref['sha256'],'bytes':len(raw_chart),'kind':chart['kind']}
             if chart['kind']=='plotly':
                 figure=json.loads(raw_chart);assert isinstance(figure['data'],list) and isinstance(figure.get('layout',{}),dict)
                 series=[]

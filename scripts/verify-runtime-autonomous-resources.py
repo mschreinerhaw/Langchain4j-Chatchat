@@ -108,6 +108,7 @@ def main():
         'model':{k:v for k,v in task['contract']['runtimeContext'].get('model',{}).items() if k in ['selectedModel','providerModel','protocol']},'budget':task['contract']['budget'],
         'allowedTools':task['contract']['authorization']['allowedTools'],
         'internetProfile':task['contract']['runtimeContext'].get('internetSearch'),
+        'internetAvailability':task['contract']['runtimeContext'].get('internetAvailability'),
         'externalEvidence':external,'daySnapshotReceipts':day_reads,
         'resultDatasetRef':task['outcome'].get('resultDatasetRef'),
         'pythonExecutions':[{k:v.get(k) for k in ['executionId','exitCode','durationMs','resultAvailable','outputStatus','inputDataRefs']} for v in feedback],

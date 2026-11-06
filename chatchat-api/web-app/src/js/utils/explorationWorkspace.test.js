@@ -20,6 +20,12 @@ it('retains partial/input-required outcomes and the real missing file on termina
  expect(explorationLifecycleStatus([],{terminal:true,status:'COMPLETED',resultAvailable:true,results:[{analysisStatus:'INPUT_REQUIRED'}]}).code).toBe('INPUT_REQUIRED');
  expect(explorationLifecycleStatus([],{terminal:false,status:'RUNNING',resultAvailable:true}).code).toBe('REPORTING');
 });
+it('does not let an older partial archive hide the current Python execution stage',()=>{
+ const receipt={terminal:false,resultAvailable:true,status:'RUNNING',visualReport:{status:'PARTIAL',execution:{operationId:'old',executorStopped:true}}};
+ const events=[{type:'TOOL_STARTED',tool:'python_execute',operationId:'new'}];
+ expect(explorationLifecycleStatus(events,receipt).code).toBe('EXECUTING');
+ expect(explorationDeliveryStages(events,receipt)[2].value).toBe('执行中');
+});
 it('restores independent delivery facts from the exact archived execution after bounded events omit stop',()=>{
  const events=[{type:'MODEL_STARTED'},{type:'TOOL_STARTED',tool:'python_execute',operationId:'own'}];
  const receipt={terminal:true,resultAvailable:true,visualReport:{execution:{operationId:'own',executorStopped:true,inputSnapshotRef:'snapshot'}}};

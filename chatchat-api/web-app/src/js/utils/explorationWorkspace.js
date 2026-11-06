@@ -80,7 +80,8 @@ export function explorationLifecycleStatus(events=[],receipt={}){
   const terminal=receipt.terminal===true,failed=['FAILED','BUDGET_EXCEEDED','CANCELLED'].includes(receipt.status);
   if(receipt.resultAvailable===true){
     const requirement=receipt.visualReport?.requirementStatus||receipt.results?.[0]?.analysisStatus;
-    code=failed||receipt.visualReport?.status==='PARTIAL'||requirement==='PARTIAL'?'PARTIAL':requirement==='INPUT_REQUIRED'?'INPUT_REQUIRED':terminal?'DELIVERED':'REPORTING';
+    if(!terminal){if(!['EXECUTING','ANALYZING','DISCOVERING'].includes(code))code='REPORTING';}
+    else code=failed||receipt.visualReport?.status==='PARTIAL'||requirement==='PARTIAL'?'PARTIAL':requirement==='INPUT_REQUIRED'?'INPUT_REQUIRED':'DELIVERED';
   }else if(terminal){code='FAILED';detail=receipt.error||receipt.summary||receipt.reasonCode||detail||'没有通过校验的报告产物';}
   return {code,label:labels[code],detail:String(detail).slice(0,800)};
 }

@@ -18,12 +18,13 @@ try{
  await page.goto(origin+'/index.html#/w/data-exploration/dataExploration?exploration='+prepared.workspaceId+'&node='+chosen);
  const panel=page.locator('[aria-label="分析交付状态"]');await panel.waitFor({timeout:60000});
  if(process.env.RUNTIME_VERIFY_PROGRESS==='1'){
-  await page.waitForFunction(()=>document.querySelector('[aria-label="分析交付状态"]')?.textContent.includes('已响应'),{},{timeout:60000});
+  await page.waitForFunction(()=>{const text=document.querySelector('[aria-label="分析交付状态"]')?.textContent;return text&&!text.includes('响应记录待核对')&&!text.includes('模型响应待响应');},{},{timeout:60000});
   const response=await context.request.get(origin+'/api/v1/data-science/explorations/'+prepared.workspaceId+'/nodes/'+chosen+'/status',{headers:{Authorization:'Bearer '+auth.token}});
   assert.ok(response.ok());const value=await response.json();assert.equal(value.code,200);
   const receipt=value.data.nodes.find(node=>node.id===chosen).receipt;
   assert.ok(receipt.progressSnapshotChecked);assert.ok(receipt.analysisEvents.length>0);
-  proof.progress={taskId:receipt.taskId,eventCount:receipt.analysisEvents.length,historyStatus:receipt.progressHistoryStatus,readOnlyStatusHydrated:true};
+  const modelEvents=receipt.analysisEvents.map(event=>event.payload?.workerActivity?.type).filter(type=>['MODEL_STARTED','MODEL_TIMING','MODEL_FAILED','PLAN_READY'].includes(type));assert.ok(modelEvents.length);
+  proof.progress={taskId:receipt.taskId,eventCount:receipt.analysisEvents.length,modelEventKinds:[...new Set(modelEvents)],historyStatus:receipt.progressHistoryStatus,readOnlyStatusHydrated:true};
  }
  const text=await panel.textContent();for(const label of ['模型响应','数据供给','Python 执行','报告交付'])assert.ok(text.includes(label));
  const lifecycle=await page.locator('[aria-label="当前分析阶段"]').textContent();

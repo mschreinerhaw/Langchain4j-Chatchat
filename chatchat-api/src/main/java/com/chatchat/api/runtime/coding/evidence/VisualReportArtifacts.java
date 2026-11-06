@@ -38,7 +38,7 @@ public final class VisualReportArtifacts {
             result.put("title",text(raw.get("title"),240));result.put("summary",text(raw.get("summary"),8000));
             result.put("markdown",text(rows.get(0).get("reportMarkdown"),200000));
             String status=text(raw.get("status"),32);
-            require(Set.of("SUCCESS","PARTIAL","NO_DATA","FAILED").contains(status),"Invalid report status");
+            require(Set.of("SUCCESS","PARTIAL","NO_DATA","FAILED").contains(status),"Invalid report status at visualReport.status: use SUCCESS, PARTIAL, NO_DATA or FAILED. The separate result-row analysisStatus uses COMPLETE, PARTIAL or INPUT_REQUIRED.");
             var metrics=new ArrayList<Map<String,Object>>();var metricIds=new HashSet<String>();
             for(var item:list(raw.get("metrics"),128)) {
                 var metric=map(item);String id=id(metric.get("id"));require(metricIds.add(id),"Duplicate metric");
@@ -126,6 +126,7 @@ public final class VisualReportArtifacts {
             // data limitations remain visible without becoming incomplete delivery.
             boolean presentationIncomplete=!warnings.isEmpty();
             for(var warning:list(validation.get("warnings"),64))warnings.add(text(warning,4000));
+            if(failed)warnings.add("Inspect visualReport.validation.checks: a missing input or unavailable field is UNRESOLVED with its actual gap in detail and limitations. Keep demonstrated incorrect computations or integrity failures FAILED; never relabel failed or unresolved checks PASSED to pass validation.");
             Object requirementStatus=rows.get(0).get("analysisStatus");
             if(requirementStatus instanceof String declared && Set.of("COMPLETE","PARTIAL","INPUT_REQUIRED").contains(declared))
                 result.put("requirementStatus",declared);
@@ -137,7 +138,7 @@ public final class VisualReportArtifacts {
             else if(unresolved||presentationIncomplete||checks.isEmpty()
                     || "PARTIAL".equals(requirementStatus)||"INPUT_REQUIRED".equals(requirementStatus)) {if("SUCCESS".equals(status))status="PARTIAL";}
             if(checks.isEmpty())warnings.add("The analysis program supplied no computation checks; business correctness is not certified.");
-            if("NO_DATA".equals(status))require(metrics.isEmpty()&&charts.isEmpty()&&tables.stream().allMatch(t->((List<?>)t.get("rows")).isEmpty()),"NO_DATA report contains calculated data");
+            if("NO_DATA".equals(status))require(metrics.isEmpty()&&charts.isEmpty()&&tables.stream().allMatch(t->((List<?>)t.get("rows")).isEmpty()),"NO_DATA report contains calculated data: visualReport.metrics and visualReport.charts must be empty, and every visualReport.tables[].rows must be empty. Describe query dates, returned-row counts and coverage diagnostics in reportMarkdown and limitations instead of business metrics or data tables.");
             result.put("status",status);result.put("metrics",metrics);result.put("tables",tables);result.put("charts",charts);result.put("sections",sections);
             var sources=list(raw.get("dataSources"),64).stream().map(source->text(source,512)).toList();
             var cited=list(rows.get(0).get("evidenceReferences"),64).stream().map(source->text(source,512)).toList();

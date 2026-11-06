@@ -25,7 +25,12 @@ public class AssetAnalysisController {
     private final AgentChatModelResolver models;
     private final ObjectAccessService access;
     private final RuntimeAssetArchive archive;
-    public record Request(String requestId,List<String> fileIds,List<String> contextIds,String instruction,String modelName) { }
+    private final com.chatchat.api.exploration.ExplorationAgentBridge agents;
+    public record Request(String requestId,List<String> fileIds,List<String> contextIds,String instruction,String modelName,String agentId) {
+        public Request(String requestId,List<String> fileIds,List<String> contextIds,String instruction,String modelName){
+            this(requestId,fileIds,contextIds,instruction,modelName,null);
+        }
+    }
     @PostMapping
     public ApiResponse<?> analyze(HttpServletRequest http,@RequestBody Request body){
         return analyze(http,body,false);
@@ -52,7 +57,11 @@ public class AssetAnalysisController {
             || body.instruction()==null || body.instruction().isBlank() || body.instruction().length()>16000
             || body.fileIds()==null || body.fileIds().isEmpty() || body.fileIds().size()>8
             || new HashSet<>(body.fileIds()).size()!=body.fileIds().size()
-            || body.contextIds()!=null && body.contextIds().size()>4)throw new IllegalArgumentException("Provide a stable request ID, 1–8 files and an analysis objective");
+            || body.contextIds()!=null && body.contextIds().size()>4
+            || body.agentId()!=null && (body.agentId().isBlank()||body.agentId().length()>256))throw new IllegalArgumentException("Provide a stable request ID, 1–8 files and an analysis objective");
+        // Selecting an Agent carries only its existing live grants, never its shared model setting.
+        // Check publication/user access before reading originals or resolving the task model.
+        if(body.agentId()!=null)agents.authorize(owner,body.agentId());
         var sources=new LinkedHashMap<String,Dataset>();long total=0;
         var ids=new ArrayList<>(body.fileIds());if(body.contextIds()!=null)ids.addAll(body.contextIds());
         for(String id:ids){
@@ -79,9 +88,16 @@ public class AssetAnalysisController {
         var metadata=new LinkedHashMap<String,Object>();
         if(body.modelName()!=null)metadata.put("modelName",body.modelName());
         var attributes=new LinkedHashMap<String,Object>();attributes.put("checkpointModelConfig",models.checkpointModelConfiguration(body.modelName(),model));
-        attributes.put("contextOnlyAnswer",true); // Local assets only; Cline chooses prose or real computation.
+        attributes.put("contextOnlyAnswer",true); // Cline chooses prose or real computation within the selected scope.
+        if(body.agentId()!=null){
+            attributes.put("authorizationAgentId",body.agentId());
+            attributes.put("resourceExplorationConfigured",true);
+            attributes.put("resourceExplorationApproved",true);
+        }
         if(visual){attributes.put("reportMode","visual");attributes.put("taskType","DATA_ANALYSIS");attributes.put("contextOnlyAnswer",false);}
-        String instruction="Analyze only these explicitly authorized files. Prefer manifest nativeFiles, the exact verified original bytes in their actual format. "
+        String instruction=(body.agentId()==null?"Analyze only these explicitly authorized files. ":
+            "Analyze these explicitly authorized files; when insufficient, explore only the selected Agent's existing authorized resources through the provided tools. ")
+            +"Prefer manifest nativeFiles, the exact verified original bytes in their actual format. "
             +"Read delivered text through input_read when sufficient. Choose the controlled Python sandbox for calculations or binary formats. "
             +"For legacy manifests without nativeFiles, group original file chunks by assetId, require all chunkIndex values 0..chunkCount-1 exactly once, decode base64 and verify each chunkSha256, "
             +"concatenate decoded bytes in chunkIndex order, verify complete file sha256 and size, then parse the declared file format using installed libraries. "

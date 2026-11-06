@@ -26,18 +26,38 @@ class AssetAnalysisControllerTest {
     }
     UserAssetService assets;CodingAnalysisService coding;AgentChatModelResolver models;ObjectAccessService access;RuntimeAssetArchive archive;
     MockHttpServletRequest request;AssetAnalysisController controller;
+    com.chatchat.api.exploration.ExplorationAgentBridge agents;
     @BeforeEach void setup(){
         assets=mock(UserAssetService.class);coding=mock(CodingAnalysisService.class);models=mock(AgentChatModelResolver.class);
         access=mock(ObjectAccessService.class);archive=mock(RuntimeAssetArchive.class);request=new MockHttpServletRequest();
         when(access.tenant(request)).thenReturn("tenant");when(access.user(request)).thenReturn("alice");
         when(models.checkpointModelConfiguration(any(),any())).thenReturn(Map.of("selectedModel","configured"));
         when(coding.executePrimaryAnalysis(any(),anyMap(),any())).thenReturn(Map.of("resultAvailable",false,"status","RUNNING"));
-        controller=new AssetAnalysisController(assets,coding,models,access,archive);
+        agents=mock(com.chatchat.api.exploration.ExplorationAgentBridge.class);
+        controller=new AssetAnalysisController(assets,coding,models,access,archive,agents);
     }
     @Test void crossOwnerSelectionFailsBeforeAnyModelOrExecution(){
         when(assets.get(any(),eq("foreign"))).thenThrow(new SecurityException("not owned"));
         assertThatThrownBy(()->controller.analyze(request,new AssetAnalysisController.Request("request-1",List.of("foreign"),List.of(),"calculate",null))).isInstanceOf(SecurityException.class);
         verifyNoInteractions(models,coding,archive);
+    }
+    @Test void unauthorizedAgentCannotReadFilesOrDispatch(){
+        when(agents.authorize(any(),eq("foreign"))).thenThrow(new SecurityException("Agent unavailable"));
+        assertThatThrownBy(()->controller.analyze(request,new AssetAnalysisController.Request("request-1",List.of("file"),null,"investigate","selected","foreign")))
+            .isInstanceOf(SecurityException.class);
+        verifyNoInteractions(assets,models,coding,archive);
+    }
+    @Test void selectedAgentGrantsAndSelectedTaskModelAreCarriedSeparately(){
+        byte[] original="security\n301218".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        when(assets.get(any(),eq("file"))).thenReturn(new UserAssetService.File("file","DOCUMENT","input.csv","text/csv",UserAssetService.hash(original),original.length,"AVAILABLE","","","upload",1));
+        when(assets.read(any(),eq("file"))).thenReturn(original);
+        controller.analyze(request,new AssetAnalysisController.Request("request-1",List.of("file"),null,"verify public code mapping","selected","authorized"));
+        verify(agents).authorize(any(),eq("authorized"));verify(models).resolveChatModel("selected");
+        var context=org.mockito.ArgumentCaptor.forClass(AnalysisCoverageCoordinator.Request.class);
+        verify(coding).executePrimaryAnalysis(context.capture(),anyMap(),any());
+        assertThat(context.getValue().runtimeAttributes()).containsEntry("authorizationAgentId","authorized")
+            .containsEntry("resourceExplorationConfigured",true).containsEntry("resourceExplorationApproved",true);
+        assertThat(context.getValue().query()).contains("existing authorized resources");
     }
     @Test void transportUsesExactOriginalBytesAndOnlyExplicitlyChosenContext(){
         byte[] original="a,b\n1,2".getBytes(java.nio.charset.StandardCharsets.UTF_8);

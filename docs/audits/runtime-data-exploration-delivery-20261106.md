@@ -46,6 +46,7 @@
 
 ### 补充复核（2026-11-07）
 
+- **DATA-05，已确认入口缺口**：文件分析 API 原 Request 无 Agent 授权身份，纵使底层允许计算任务使用资源工具，该入口也只能交付文件。新增可选 agentId，复用探索工作区的发布/用户访问校验，在读文件和模型解析前拒绝越权；传递既有资源授权属性，仍由每次工具调用核对实时交集。未选择 Agent 的行为不变；任务模型与 Agent 授权身份分别传递，不修改共享 Agent 模型。8 项控制器测试通过，包含未授权前置拒绝及选择模型/资源身份的独立传递。
 - **DATA-04，已确认源码缺陷**：`AnalysisCoverageCoordinator.analyze` 对首批空数据直接抛出 DATA_SUPPLY_*，没有核对 Cline 是否仍有其他已授权资源。新增既有 AnalysisCodingPort 的授权预检，只读 Agent/用户/模型授权；有资源时交付 DATA_SUPPLY_STATUS 作为状态材料后继续原 Cline 路径，没有资源时保留拒绝。状态行不冒充业务数据，不增加预算、不在 Java 选择查询。
 - **REPORT-02，真实复测确认**：Plus 合约技术 COMPLETED，但报告 requirementStatus=INPUT_REQUIRED、visualReport=NO_DATA，原前端仍显示“已完成”。保留执行终态和报告原件，单独显示“需补充数据”，不能用归档成功冒充分析完整。
 - **验证材料缺口，不能当生产缺陷**：首个固定文件对照仅上传了原 Parquet 分片，漏掉原 manifest、schema 和输入上下文，模型只见 p0/c0/p1/c1。保留该批作为不完整输入的负向样本；停止尚未完成的同批测试，完整材料对照需同时冻结全部文件和现有 MCP 生产者字段声明，再对 Flash/Plus 使用相同内容。没有把这一批的安全 INPUT_REQUIRED 报告计作有效行情分析或性能改善。

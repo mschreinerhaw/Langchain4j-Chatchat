@@ -5,7 +5,7 @@ import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 const root=resolve(import.meta.dirname,'..'),out=resolve(process.argv[2]??join(root,'target/runtime-data-remediation/bundle'));
 const families={
- api:['com/chatchat/api/exploration/ExplorationWorkspaceController','com/chatchat/api/assets/AssetAnalysisController','com/chatchat/api/runtime/coding/analysis/CodingAnalysisService','com/chatchat/api/runtime/coding/cline/ClineToolProfiles',
+ api:['com/chatchat/api/assets/SiloAssetBlobStore','com/chatchat/api/exploration/ExplorationAgentBridge','com/chatchat/api/exploration/ExplorationWorkspaceController','com/chatchat/api/assets/AssetAnalysisController','com/chatchat/api/runtime/coding/analysis/CodingAnalysisService','com/chatchat/api/runtime/coding/cline/ClineToolProfiles',
   'com/chatchat/api/runtime/coding/data/CodingDataSupplyService','com/chatchat/api/runtime/coding/knowledge/CodingKnowledgeService',
   'com/chatchat/api/runtime/coding/knowledge/CodingResourceReader','com/chatchat/api/runtime/coding/knowledge/CodingInternetAccess',
   'com/chatchat/api/runtime/coding/execution/CodingExecutionFeedbackService','com/chatchat/api/runtime/coding/cline/ClinePythonCallbackController','com/chatchat/api/model/InternetSearchProbeController'],
@@ -23,7 +23,7 @@ for(const [module,names] of Object.entries(families))for(const name of names){
  if(!matches.includes(base+'.class'))throw Error('Missing compiled family '+name);
  for(const match of matches)await add(join(directory,match),module+'/'+dirname(name)+'/'+match);
 }
-for(const name of ['knowledge-tools.js','code-repair.js','sdk-adapter.js'])await add(join(root,'coding-agent-node/dist',name),'node/'+name);
+for(const name of ['knowledge-tools.js','code-repair.js','sdk-adapter.js','runner.js'])await add(join(root,'coding-agent-node/dist',name),'node/'+name);
 async function ui(dir,relative=''){for(const entry of await readdir(dir,{withFileTypes:true})){
  const name=relative?relative+'/'+entry.name:entry.name;
  if(entry.isDirectory())await ui(join(dir,entry.name),name);else await add(join(dir,entry.name),'static/'+name);

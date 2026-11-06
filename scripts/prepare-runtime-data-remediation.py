@@ -1,6 +1,6 @@
 """Prepare hash-pinned incremental images from live JARs; does not switch traffic.
 
-Run on server after verifying/extracting bundle.tar.gz: python3 SCRIPT RELEASE_DIR [--api-only]
+Run on server after verifying/extracting bundle.tar.gz: python3 SCRIPT RELEASE_DIR [--api-only|--api-worker]
 Uses existing deploy-integrated-runtime.py for idle gates, backup and deployment.
 """
 import hashlib
@@ -40,8 +40,9 @@ def rewrite(original, changes):
 
 
 def main():
-    assert len(sys.argv) in [2,3] and (len(sys.argv)==2 or sys.argv[2]=='--api-only'), 'Expected release directory and optional --api-only'
-    api_only=len(sys.argv)==3
+    assert len(sys.argv) in [2,3] and (len(sys.argv)==2 or sys.argv[2] in ['--api-only','--api-worker']), 'Expected release directory and optional service selection'
+    selected=sys.argv[2] if len(sys.argv)==3 else None
+    api_only=selected=='--api-only'
     root = Path(sys.argv[1]).resolve()
     bundle = root / 'bundle'
     manifest = json.loads((bundle / 'bundle-manifest.json').read_text())
@@ -53,10 +54,10 @@ def main():
               for group in ['api', 'mcp', 'agents', 'common', 'market', 'news', 'node', 'static']}
     libraries = {'common': 'chatchat-common-', 'agents':'chatchat-agents-', 'market': 'chatchat-runtime-market-', 'news': 'chatchat-runtime-news-'}
     report = {'sourceCommit': manifest['sourceCommit'], 'preserveRuntimeConfiguration': True,
-              'removeInheritedRuntimeBaseLabels': True, 'backupFinancialStorage': not api_only,
+              'removeInheritedRuntimeBaseLabels': True, 'backupFinancialStorage': selected is None,
               'preparationScriptSha256':sha(Path(__file__).read_bytes())}
     proof = {'trafficSwitched': False, 'services': {}}
-    for service in (['api'] if api_only else ['api', 'mcp', 'news']):
+    for service in (['api'] if selected else ['api', 'mcp', 'news']):
         name = 'runtime-os-app-stage-'+service+'-1'
         current = json.loads(run('docker', 'inspect', name))[0]
         original = subprocess.check_output(['docker', 'exec', name, 'cat', '/srv/app/app.jar'])

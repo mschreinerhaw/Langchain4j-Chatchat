@@ -71,11 +71,27 @@ def main():
     tools=[call['name'] for receipt in receipts for call in receipt['payload']['response'].get('toolCalls',[])]
     feedback=[v for k,v in task.get('privateState',{}).items() if k.startswith('feedback:')]
     snapshots=[v for k,v in task.get('privateState',{}).items() if k.startswith('inputs:')]
+    external=[];day_reads=[]
+    for message in task.get('sdkCheckpoint',{}).get('messages',[]):
+        if message.get('role')!='tool' or not isinstance(message.get('content'),list):continue
+        for part in message['content']:
+            tool=part.get('toolName');value=part.get('output',{})
+            if not isinstance(value,dict):continue
+            if tool in ['web_search','web_fetch']:
+                urls={v for k,v in value.items() if k in ['url','source_url'] and isinstance(v,str)}
+                for item in value.get('items',[]):
+                    if isinstance(item,dict):urls.update(v for k,v in item.items() if k in ['url','source_url'] and isinstance(v,str))
+                external.append({'tool':tool,'evidence_id':value.get('evidence_id'),'retrieved_at':value.get('retrieved_at'),
+                    'status':value.get('status'),'sourceUrls':sorted(urls),'authority':'SEARCH_SUMMARIES_ARE_NOT_VERIFIED_QUOTES'})
+            if tool=='market_get_day_snapshot':
+                day_reads.append({**{k:value[k] for k in ['status','dataset','evidence_id','snapshot','calculationInput'] if k in value},
+                    'rawItemsInjectedIntoModel':'items' in value})
     proof={'kind':kind,'taskId':task['contract']['taskId'],'status':task['outcome']['status'],
         'reasonCode':task['outcome'].get('reasonCode'),'toolsCalled':tools,
         'model':{k:v for k,v in task['contract']['runtimeContext'].get('model',{}).items() if k in ['selectedModel','providerModel','protocol']},'budget':task['contract']['budget'],
         'allowedTools':task['contract']['authorization']['allowedTools'],
         'internetProfile':task['contract']['runtimeContext'].get('internetSearch'),
+        'externalEvidence':external,'daySnapshotReceipts':day_reads,
         'resultDatasetRef':task['outcome'].get('resultDatasetRef'),
         'pythonExecutions':[{k:v.get(k) for k in ['executionId','exitCode','durationMs','resultAvailable','outputStatus','inputDataRefs']} for v in feedback],
         'frozenInputVersions':[[{k:s.get(k) for k in ['fileId','fileName','sha256','rowCount','size','sourceDatasetRef']} for s in values] for values in snapshots]}

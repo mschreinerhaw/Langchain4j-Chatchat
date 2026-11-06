@@ -141,6 +141,11 @@ def main():
             tool_times=[e for e in events if e.get('type')=='TOOL_TIMING']
             selected=lambda names:[e['toolDurationMs'] for e in tool_times if e.get('tool') in names and isinstance(e.get('toolDurationMs'),(int,float))]
             known_sum=lambda values:sum(values) if values else None
+            model_timings=[m for n in matching for m in n.get('models',[])]
+            proposal_ms=[m['durationMs'] for m in model_timings if 'python_execute' in (m.get('actualTools') or []) and isinstance(m.get('durationMs'),(int,float))]
+            def latency(predicate):
+                event=next((e for e in events if predicate(e)),None)
+                return round((datetime.fromisoformat(event['timestamp'].replace('Z','+00:00'))-datetime.fromisoformat(matching[0]['createdAt'].replace('Z','+00:00'))).total_seconds()*1000) if event else None
             feedback=[v for k,v in task.get('privateState',{}).items() if k.startswith('feedback:')]
             operation_ids=[k for k in task.get('operations',{}) if k.startswith('model-')]
             snapshots=next((v for k,v in task.get('privateState',{}).items() if k.startswith('inputs:')),[])
@@ -168,9 +173,14 @@ def main():
                     'fileReadMs':known_sum(selected({'input_read','read_files'})),
                     'codeGenerationMs':None,'toolExecutionMs':known_sum([e['toolDurationMs'] for e in tool_times if isinstance(e.get('toolDurationMs'),(int,float))]),
                     'pythonMs':known_sum([v['durationMs'] for v in feedback if isinstance(v.get('durationMs'),(int,float))]),
-                    'reportGenerationMs':None,'deliveryValidationMs':known_sum(selected({'artifact_read','report_submit'}))},
-                measurementPolicy='null=UNKNOWN; tool/Python phases overlap, not additive; model reasoning/report generation not separately observable',
-                models=[{'ordinal':m['ordinal'],'status':m['status'],'durationMs':m.get('durationMs'),'actualTools':m.get('actualTools'),'usage':m.get('usage')} for n in matching for m in n.get('models',[])])
+                    'reportGenerationMs':None,'deliveryValidationMs':known_sum([e['validationDurationMs'] for e in tool_times if isinstance(e.get('validationDurationMs'),(int,float))]),
+                    'artifactReviewMs':known_sum(selected({'artifact_read','report_submit'})),
+                    'codeProposalModelMs':known_sum(proposal_ms),
+                    'firstPlanLatencyMs':latency(lambda e:e.get('type')=='PLAN_READY'),
+                    'firstCodeLatencyMs':latency(lambda e:e.get('type')=='CODE_READY'),
+                    'firstReportLatencyMs':latency(lambda e:e.get('type')=='TOOL_FINISHED' and e.get('tool')=='python_execute' and e.get('resultAvailable') is True)},
+                measurementPolicy='null=UNKNOWN; latencies start at Node task acceptance; tool/Python phases overlap, not additive; codeProposalModelMs includes reasoning and provider IO; pure planning/code/report generation are not separately observable',
+                models=[{k:m.get(k) for k in ['ordinal','status','durationMs','actualTools','usage','purpose','queueTimeMs','firstTokenMs','generationTimeMs','retryTimeMs','requestBytes','responseBytes','messageCount','toolCount','repeatedContextBytes','duplicateContextBytes','avoidableRepeatedContextBytes','contextSizeBefore','contextSizeAfter','compactionCount','contextChangeReason']} for m in model_timings])
         report=receipt.get('visualReport') or {}
         row['delivery']={k:report[k] for k in ['status','analysisStatus','requirementStatus','artifactValidationStatus','chartValidationStatus','availableChartCount'] if k in report}
         row['chartCount']=len(report.get('charts',[]));results.append(row)

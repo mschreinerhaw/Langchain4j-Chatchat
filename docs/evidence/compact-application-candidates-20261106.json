@@ -1,0 +1,52 @@
+{
+  "status": "PREPARED",
+  "sourceCommit": "b3cbbac70fc4dbf79ebb8c89809e8002752456a7",
+  "baseImage": "runtime-os-api-runtime:17-sqlglot-20261024",
+  "baseImageId": "sha256:ae02065ed576333c83b89f4a9eef0c8f028a0688c7986f9202b50eef689fd0b3",
+  "baseBytes": 313962553,
+  "baseHasNoBusinessJar": true,
+  "dependencyLayerDiffIdsUnchanged": true,
+  "java": "openjdk version \"17.0.20.1\" 2026-08-18\nOpenJDK Runtime Environment Temurin-17.0.20.1+1 (build 17.0.20.1+1)\nOpenJDK 64-Bit Server VM Temurin-17.0.20.1+1 (build 17.0.20.1+1, mixed mode, sharing)",
+  "originalImagesArchive": "/opt/chatchat-releases/compact-application-images-20261106/original-images.tar",
+  "originalImagesArchiveSha256": "05dc975e91b0aafa8e664591f5aed47b0c94f737a9085c5b843164c044aff65c",
+  "images": {
+    "api": {
+      "image": "runtime-os-api:compact-ee2a057dd3d6-20261106",
+      "imageId": "sha256:4c0880d5d2cce6eef6d6689252a20792e7e1f6f5de4354b60ed99e141a6be4ce",
+      "bytes": 742776290,
+      "jarSha256": "ee2a057dd3d693f80a904b6487dd58bab578ae849b894af2d724e50de9ed3401",
+      "dockerCliSha256": null,
+      "oldImageId": "sha256:e7af53131a7dc0bfdfe8f5f8e60ce97c49d208462deaffbd5819797788563e64",
+      "oldImage": "runtime-os-api:native-remediation-ee2a057dd3d6",
+      "oldBytes": 5472786737,
+      "oneBusinessJarLayer": true,
+      "jarByteIdentical": true
+    },
+    "mcp": {
+      "image": "runtime-os-mcp:compact-3958cbcddb58-20261106",
+      "imageId": "sha256:0f19f187f85c8f033fbbbcc8f62401f24a2e444fc1213084a8a4b236419fe72c",
+      "bytes": 602698953,
+      "jarSha256": "3958cbcddb58937a27809d7cbf1d9c1c1ad3b0a264e02b4747ee38ea3060c991",
+      "dockerCliSha256": "99d23b43792eaafe4baa171ef18a9d0244b0517c2b2271dab5900fb0fef3b428",
+      "oldImageId": "sha256:0210f34eb4348f7ad2b6beb843d53eb1c055a070f992608157e9e8a81d08ee74",
+      "oldImage": "runtime-os-mcp:cline-internet-c7823a191b60",
+      "oldBytes": 6183238767,
+      "oneBusinessJarLayer": true,
+      "jarByteIdentical": true
+    },
+    "rollback": {
+      "image": "runtime-os-api:compact-rollback-261477bcfaeb-20261106",
+      "imageId": "sha256:cde676a45f17806a42b911bb0c97bdaeb9a0914f4f93a2b1dfedb3249508bf97",
+      "bytes": 742776026,
+      "jarSha256": "261477bcfaeb6fe86ceeb69e092c72591f16e93a0572320f83ddf7ca0226f68e",
+      "dockerCliSha256": null,
+      "oldImageId": "sha256:5d37ac7e815a9717436f8c0f657f0720a9d5771147d9a3f87dbcf7606b0dd9eb",
+      "oldImage": "runtime-os-api:native-remediation-261477bcfaeb",
+      "oldBytes": 5043973000,
+      "oneBusinessJarLayer": true,
+      "jarByteIdentical": true
+    }
+  },
+  "trafficSwitched": false,
+  "at": "2026-11-06T07:44:51.528197+00:00"
+}

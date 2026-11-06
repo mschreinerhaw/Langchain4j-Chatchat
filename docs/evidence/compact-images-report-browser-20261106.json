@@ -1,0 +1,25 @@
+{
+  "scope": "REAL_AUTHENTICATED_BROWSER_NO_MOCKS",
+  "cases": [
+    {
+      "case": "windows-runtime-recovery",
+      "workspaceId": "d197434a-1cd7-4ae3-8b8a-3a029e61fd97",
+      "nodeId": "5e2e112c-a5a0-471c-81f9-9a939aa5a680",
+      "taskId": "analysis-coding-e1486aec5891067596c99a41de3b1624313ce7c10d9744d972c35cace569975a",
+      "apiStatus": "COMPLETED",
+      "renderedCharts": [
+        {
+          "id": "region_bar",
+          "kind": "plotly",
+          "rendered": true,
+          "fileId": "e3b3bbc205e6db3e575ecdba1c76c57d24b85a1c3115c6892e7afc26d74e0f5b"
+        }
+      ],
+      "receiptUnchanged": true,
+      "offlineReconnectAndRefresh": true
+    }
+  ],
+  "pageErrors": [],
+  "executions": 0,
+  "status": "PASS"
+}

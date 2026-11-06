@@ -1,0 +1,94 @@
+{
+  "status": "PASS",
+  "services": {
+    "api": {
+      "image": "runtime-os-api:compact-ee2a057dd3d6-20261106",
+      "imageId": "sha256:4c0880d5d2cce6eef6d6689252a20792e7e1f6f5de4354b60ed99e141a6be4ce",
+      "containerId": "bcfbd548066005084d7aa0107300713689bfae1ff0a63c0a6f311bf57fc9d6d0",
+      "bytes": 742776290,
+      "jarSha256": "ee2a057dd3d693f80a904b6487dd58bab578ae849b894af2d724e50de9ed3401",
+      "configurationPreserved": true,
+      "mountsPreserved": true,
+      "runtimePolicyPreserved": true
+    },
+    "mcp": {
+      "image": "runtime-os-mcp:compact-3958cbcddb58-20261106",
+      "imageId": "sha256:0f19f187f85c8f033fbbbcc8f62401f24a2e444fc1213084a8a4b236419fe72c",
+      "containerId": "f03dd1bd52f14651dabcc75a89640cf2107756f2486512687a0c968a1f08844b",
+      "bytes": 602698953,
+      "jarSha256": "3958cbcddb58937a27809d7cbf1d9c1c1ad3b0a264e02b4747ee38ea3060c991",
+      "configurationPreserved": true,
+      "mountsPreserved": true,
+      "runtimePolicyPreserved": true
+    }
+  },
+  "sqlParser": "SELECT 1",
+  "dockerCliSha256": "99d23b43792eaafe4baa171ef18a9d0244b0517c2b2271dab5900fb0fef3b428",
+  "dockerDaemonVersion": "26.1.3",
+  "fontGate": {
+    "status": "PASSED",
+    "matplotlib": "3.10.0",
+    "families": [
+      "Noto Sans CJK JP",
+      "DejaVu Sans"
+    ],
+    "glyphCoverage": true,
+    "legacySansOverride": true,
+    "renderedBytes": {
+      "png": 27532,
+      "svg": 30063
+    }
+  },
+  "pythonRuntimeImageUnchanged": true,
+  "callback": {
+    "status": "PASSED",
+    "signedCallback": true,
+    "unsignedRejected": true,
+    "origin": "http://api:8081",
+    "codeLifecycleVersion": "runtime_os.code_lifecycle.v1"
+  },
+  "mcpRegistryState": "HEALTHY",
+  "registeredToolCount": 39,
+  "mcpToolNames": [
+    "api_service_query",
+    "api_template_execute",
+    "api_template_query",
+    "calculator",
+    "container_runtime_supply_template_query",
+    "customer_service_template_query",
+    "database_capability_query",
+    "database_ops_template_search",
+    "database_query_template_query",
+    "document_search",
+    "enterprise_metadata_search",
+    "finance_local_service_template_query",
+    "http_capability_query",
+    "http_endpoint_template_query",
+    "http_request_execute",
+    "http_requirement_analyze",
+    "java_service_analyze_template_query",
+    "jmx_capability_query",
+    "jmx_monitor_execute",
+    "linux_command_execute",
+    "mysql_db_status_template_query",
+    "python_analysis_query",
+    "python_template_execute",
+    "server_capability_query",
+    "sql_query_execute",
+    "sql_schema_context_query",
+    "sql_template_analysis_execute",
+    "ssh_template_query",
+    "studio_warehouse_20261101_template_query",
+    "tdh_service_analyze_template_query",
+    "tpcds_python_20261101_template_query",
+    "tpl_190c862b57813ca38fbe5a0edc614970",
+    "tpl_212b88329a673657979943bbeaa7479b",
+    "tpl_7ce4de8a311331629bd8494bc73c2cc0",
+    "tpl_ad24b8c03c8832a9adcbf41a5aee2f3c",
+    "tpl_b1e518f3811f3fb18d55dc959b24e3d7",
+    "tpl_f61ea326b46f30aca4ecc717c2d2f9bc",
+    "web_search",
+    "yarn_cdh_service_template_query"
+  ],
+  "modelCallsSubmitted": 0
+}

@@ -1,5 +1,7 @@
 # 未完成问题及后续整改清单
 
+补充已确认 UI-EVENTS：真实文件分析 B2 的 durable journal 有261个事件，但 `primarySnapshot` 没有投影任何 `analysisEvents`，页面只能显示终态事实，无法展示实际中间阶段。已有八阶段前端逻辑和空事件面板修复不能使此项通过。拟只读投影当前任务最后256条事件的安全字段；Python停止必须另查同operation停止证明，不能将worker观察当作停止事实。
+
 本清单与[完成度矩阵](runtime-cline-completion-review-20261107.md)一起更新。核心场景未通过前不宣布正式验收。
 
 | 编号 | 状态 | 问题 | 本轮动作与通过条件 |

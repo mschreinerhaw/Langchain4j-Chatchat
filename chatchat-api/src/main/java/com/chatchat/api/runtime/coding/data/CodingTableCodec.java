@@ -39,6 +39,7 @@ public final class CodingTableCodec {
                     if(text.length()>16000 || schema.getFieldCount()>256)throw new IOException("Native schema exceeds observation bounds");
                     long rows=0;for(var block:reader.getFooter().getBlocks())rows=Math.addExact(rows,block.getRowCount());
                     return Map.of("format","PARQUET","status","AVAILABLE","schema",text,"rowCount",rows,
+                        "columnNames",schema.getFields().stream().map(org.apache.parquet.schema.Type::getName).toList(),
                         "authority","UNTRUSTED_FILE_STRUCTURE_ONLY");
                 }
             }

@@ -21,7 +21,9 @@ final class CodingInputLayout {
         return Map.of("schemaVersion", "runtime_os.coding.input-layout.v1",
             "reader", Map.of("type", "DECLARED_FILES",
                 "usage", "Read manifestPath with json. If nativeFiles is nonempty, prefer those verified original bytes with installed readers (text files need only open); parts retain the historical transport representation. Otherwise read declared parts with installed Parquet/CSV readers. No application-specific Python module is required.",
-                "logicalColumns", "Map storageName to name using manifest columns; decode JSON cells and preserve missing/null and exact numeric types."),
+                "columnMappingScope", "MANIFEST_PARTS_ONLY",
+                "nativeSchemaLocation", "schema.json/nativeFileSchemas, matched by native fileId; sourceManifest binds an original column map to its exact part SHA-256, size and row count",
+                "logicalColumns", "The input manifest columns describe only its own parts, NEVER a nativeFiles original. For a native Parquet use its own sourceManifest.columns when status=BOUND in nativeFileSchemas; otherwise inspect that original's own schema. Decode JSON cells and preserve missing/null and exact numeric types."),
             "manifestPath", "/data/input/" + fileId + "/manifest.json",
             "expectedManifestSha256", hash,
             "manifestRootFields", Arrays.stream(CodingInputManifest.class.getRecordComponents())

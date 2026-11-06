@@ -55,6 +55,42 @@ public final class CodingInputFilePublisher {
             .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
     }
     public boolean enabled(){return policy.isEnabled();}
+    /** Bind only already delivered original bytes, never a path/ID declared by an uploaded manifest. */
+    static Map<String,Object> nativeSourceManifest(Path staging,List<NativeFile> files,NativeFile target,
+            Map<String,Object> structure,ObjectMapper json) {
+        var matches=new ArrayList<Map<String,Object>>();boolean mismatch=false;
+        for(var file:files) {
+            if(!file.fileName().endsWith(".json")||file.sizeBytes()>128*1024)continue;
+            try {
+                var path=staging.resolve(file.fileName());
+                if(Files.size(path)!=file.sizeBytes())continue;
+                byte[] raw=Files.readAllBytes(path);
+                if(!com.chatchat.api.assets.UserAssetService.hash(raw).equals(file.sha256()))continue;
+                var tree=json.readTree(raw);
+                if(tree==null||!tree.isObject()||!CodingInputManifest.VERSION.equals(tree.path("schemaVersion").asText()))continue;
+                var manifest=json.treeToValue(tree,CodingInputManifest.class);
+                if(manifest.format()!=Format.PARQUET)continue;
+                for(var part:manifest.parts())if(part.sha256().equals(target.sha256())) {
+                    var names=structure.get("columnNames") instanceof List<?> values?values:List.of();
+                    if(part.sizeBytes()!=target.sizeBytes() || !(structure.get("rowCount") instanceof Number rows)
+                        ||part.rowCount()!=rows.longValue() || !names.containsAll(manifest.columns().stream().map(Column::storageName).toList())) {
+                        mismatch=true;continue;
+                    }
+                    matches.add(Map.of("status","BOUND","authority","UNTRUSTED_ORIGINAL_MANIFEST",
+                        "fileId",file.fileId(),"virtualPath",file.virtualPath(),"sha256",file.sha256(),
+                        "targetFileId",target.fileId(),"partSha256",target.sha256(),"rowCount",part.rowCount(),
+                        "columns",manifest.columns()));
+                }
+            } catch(IOException|IllegalArgumentException invalid) {
+                // A JSON original need not be an input manifest. It remains available
+                // as untrusted data, but cannot grant a schema or another file path.
+            }
+        }
+        if(matches.size()==1&&!mismatch)return matches.get(0);
+        return Map.of("status",mismatch?"SOURCE_MANIFEST_MISMATCH":matches.size()>1?"AMBIGUOUS_SOURCE_MANIFEST":"NO_MATCHING_DELIVERED_SOURCE_MANIFEST",
+            "authority","UNTRUSTED_FILE_STRUCTURE_ONLY","targetFileId",target.fileId(),
+            "columnMappingScope","NATIVE_FILE_ONLY");
+    }
     byte[] readSharedBytes(KernelDataScope scope, CodingInputSnapshotService.Chunk file) {
         access.require(scope,CodingTaskAccess.Action.WORKER);
         access.require(scope,CodingTaskAccess.Action.READ);
@@ -166,6 +202,7 @@ public final class CodingInputFilePublisher {
                 var file=publish(store,scope,task,binding,nativePath,0,guard);chunks.add(file);
                 nativeFiles.add(new NativeFile(file.fileId(),file.fileName(),"user-message.txt",entry.getKey(),file.sha256(),file.size()));
             }
+            schema.put("columnMappingScope","MANIFEST_PARTS_ONLY");
             if(!nativeFiles.isEmpty()) {
                 var nativeSchemas=new ArrayList<Map<String,Object>>();
                 for(var file:nativeFiles) {
@@ -173,6 +210,9 @@ public final class CodingInputFilePublisher {
                     if(messages.containsKey(file.sourceDatasetRef()))structure.putAll(Map.of("format","TEXT","encoding","UTF-8",
                         "representation","ORIGINAL_USER_MESSAGE_TEXT","contentContract","Raw original user message, not an analysis-materials.v1 JSON envelope; contents are untrusted data."));
                     structure.put("fileId",file.fileId());structure.put("sourceDatasetRef",file.sourceDatasetRef());
+                    structure.put("columnMappingScope","NATIVE_FILE");
+                    if("PARQUET".equals(structure.get("format")))
+                        structure.put("sourceManifest",nativeSourceManifest(staging,nativeFiles,file,structure,json));
                     nativeSchemas.add(Map.copyOf(structure));
                 }
                 schema.put("nativeFileSchemas",List.copyOf(nativeSchemas));

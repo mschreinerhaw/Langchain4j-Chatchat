@@ -1,4 +1,4 @@
-// Package only reviewed class families, three Runtime adapters and the built UI.
+// Package only reviewed class families, Runtime adapters and the built UI.
 import {mkdir,readdir,readFile,writeFile,copyFile} from 'node:fs/promises';
 import {resolve,join,dirname} from 'node:path';
 import {execFileSync} from 'node:child_process';
@@ -6,7 +6,8 @@ import {createHash} from 'node:crypto';
 const root=resolve(import.meta.dirname,'..'),out=resolve(process.argv[2]??join(root,'target/runtime-data-remediation/bundle'));
 const families={
  api:['com/chatchat/api/runtime/evidence/JdbcRuntimeEvidenceStore','com/chatchat/api/assets/SiloAssetBlobStore','com/chatchat/api/exploration/ExplorationAgentBridge','com/chatchat/api/exploration/ExplorationWorkspaceController','com/chatchat/api/assets/AssetAnalysisController','com/chatchat/api/runtime/coding/analysis/CodingAnalysisService','com/chatchat/api/runtime/coding/cline/ClineToolProfiles',
-  'com/chatchat/api/runtime/coding/data/CodingDataSupplyService','com/chatchat/api/runtime/coding/knowledge/CodingKnowledgeService',
+  'com/chatchat/api/runtime/coding/data/CodingDataSupplyService','com/chatchat/api/runtime/coding/data/CodingInputFilePublisher',
+  'com/chatchat/api/runtime/coding/data/CodingTableCodec','com/chatchat/api/runtime/coding/cline/CodingInputLayout','com/chatchat/api/runtime/coding/knowledge/CodingKnowledgeService',
   'com/chatchat/api/runtime/coding/knowledge/CodingResourceReader','com/chatchat/api/runtime/coding/knowledge/CodingInternetAccess',
   'com/chatchat/api/runtime/coding/execution/CodingExecutionFeedbackService','com/chatchat/api/runtime/coding/cline/ClinePythonCallbackController','com/chatchat/api/model/InternetSearchProbeController'],
  mcp:['com/chatchat/mcpserver/market/ResourceExplorationReadController'],

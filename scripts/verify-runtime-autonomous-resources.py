@@ -7,12 +7,14 @@ from pathlib import Path
 import hashlib
 import importlib.util
 import json
+import os
 import sys
 import time
 import urllib.request
 
 
 def main():
+    os.umask(0o077)
     command,kind,directory=sys.argv[1:4]
     assert command in ['run','collect'] and kind in ['search','day']
     root=Path(directory).resolve()
@@ -49,6 +51,16 @@ def main():
         }
         body={'requestId':request_id,'fileIds':[material],'contextIds':[],
               'instruction':questions[kind],'modelName':'qwen3.8-omni-flash','agentId':original['skillId']}
+        scenario=root/'acceptance-scenario-private.json'
+        if scenario.exists():
+            definition=json.loads(scenario.read_text())
+            assert set(definition)<= {'scenario','instruction','modelName','fileIds'}
+            assert definition['scenario'] in ['A','B','C','D']
+            assert isinstance(definition['instruction'],str) and definition['instruction'].strip()
+            assert '?????' not in definition['instruction'] and '\ufffd' not in definition['instruction'],'Corrupted acceptance objective; do not dispatch'
+            assert definition.get('modelName','qwen3.8-omni-flash') in ['qwen3.8-omni-flash','qwen3.8-flash','qwen3.7-plus']
+            body.update({k:definition[k] for k in ['instruction','modelName','fileIds'] if k in definition})
+            assert body['fileIds'] and all(isinstance(value,str) and len(value)==64 for value in body['fileIds'])
         save('-intent-private.json',{'request':body,'startedAt':time.time(),'policy':'One existing SDK task; no shared configuration edits or budget override'})
         started=time.monotonic()
         try:
@@ -90,6 +102,8 @@ def main():
                 day_reads.append({**{k:value[k] for k in ['status','dataset','evidence_id','snapshot','calculationInput'] if k in value},
                     'rawItemsInjectedIntoModel':'items' in value})
     proof={'kind':kind,'taskId':task['contract']['taskId'],'status':task['outcome']['status'],
+        'requestObjectivePreserved':intent['request']['instruction'] in task['contract']['objective']['instruction'],
+        'requestInstructionSha256':hashlib.sha256(intent['request']['instruction'].encode()).hexdigest(),
         'reasonCode':task['outcome'].get('reasonCode'),'toolsCalled':tools,
         'model':{k:v for k,v in task['contract']['runtimeContext'].get('model',{}).items() if k in ['selectedModel','providerModel','protocol']},'budget':task['contract']['budget'],
         'allowedTools':task['contract']['authorization']['allowedTools'],
@@ -98,6 +112,22 @@ def main():
         'resultDatasetRef':task['outcome'].get('resultDatasetRef'),
         'pythonExecutions':[{k:v.get(k) for k in ['executionId','exitCode','durationMs','resultAvailable','outputStatus','inputDataRefs']} for v in feedback],
         'frozenInputVersions':[[{k:s.get(k) for k in ['fileId','fileName','sha256','rowCount','size','sourceDatasetRef']} for s in values] for values in snapshots]}
+    if (root/'acceptance-scenario-private.json').exists():
+        proof['scenario']=json.loads((root/'acceptance-scenario-private.json').read_text())['scenario']
+    # Preserve ordered calls and bounded scalar receipts, not source rows/snippets.
+    # A model request alone does not prove a zero-row response or a fallback.
+    trace=[]
+    for message in task.get('sdkCheckpoint',{}).get('messages',[]):
+        if not isinstance(message.get('content'),list):continue
+        for part in message['content']:
+            if part.get('type')=='tool-call':
+                trace.append({'event':'CALL','tool':part.get('toolName'),'callId':part.get('toolCallId'),
+                    'arguments':{k:v for k,v in part.get('input',{}).items() if k in ['dataset','filters','query','source_id','trade_date','start_date','end_date','history_mode','exchange','limit']}})
+            elif part.get('type')=='tool-result' and isinstance(part.get('output'),dict):
+                value=part['output']; trace.append({'event':'RESULT','tool':part.get('toolName'),'callId':part.get('toolCallId'),
+                    **{k:value[k] for k in ['status','count','complete','errorCode','evidence_id','resultAvailable','outputStatus','executorStopped','exitCode'] if k in value},
+                    **({'itemsCount':len(value['items'])} if isinstance(value.get('items'),list) else {})})
+    proof['orderedToolTrace']=trace
     save('-proof.json',proof)
     print(json.dumps({'kind':kind,'status':proof['status'],'toolsCalled':tools,'pythonExecutions':len(feedback)}))
 

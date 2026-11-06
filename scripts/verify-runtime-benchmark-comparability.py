@@ -12,8 +12,11 @@ def main():
     root=Path(sys.argv[1]).resolve()
     prepared=json.loads((root/'scenario-prepared-private.json').read_text())
     cases=json.loads((root/'real-scenario-results.json').read_text())['cases']
-    assert len(cases)==4
-    assert {c['case'] for c in cases}=={'flash-1','flash-2','plus-1','plus-2'}
+    repetitions=len(cases)//2
+    assert repetitions in [2,3] and len(cases)==2*repetitions
+    assert {c['case'] for c in cases}=={model+'-'+str(repeat) for model in ['flash','plus'] for repeat in range(1,repetitions+1)}
+    assert len({c['taskId'] for c in cases})==len(cases),'Each repeat must be a distinct admitted task'
+    assert len({c['nodeId'] for c in cases})==len(cases),'Each repeat must have its own persisted node'
     budgets=[];permissions=[];logical=[];mounts=[]
     shared=Path('/opt/runtime-os-docker-stage/mcp/data/python-user-data').resolve()
     for case in cases:
@@ -48,7 +51,7 @@ def main():
     assert all(v==permissions[0] for v in permissions)
     assert all(v==logical[0] for v in logical)
     proof={'schemaVersion':'runtime-benchmark-comparability.v1','readOnly':True,
-        'caseCount':4,'sameOriginalFiles':True,'sameLogicalContent':True,'sameBudgetCeilings':True,
+        'caseCount':len(cases),'repetitionsPerModel':repetitions,'sameOriginalFiles':True,'sameLogicalContent':True,'sameBudgetCeilings':True,
         'samePermissionKinds':True,'allMountedFileHashesVerified':True,
         'inputFiles':prepared['inputFiles'],'logicalInputs':logical[0],
         'commonBudget':budgets[0],'commonPermissions':permissions[0],'mounts':mounts,

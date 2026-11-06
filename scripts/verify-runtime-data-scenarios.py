@@ -75,7 +75,9 @@ def main():
         input_files.append({'fileName':'market-producer-declarations.json','sha256':hashlib.sha256(dictionary_bytes).hexdigest()})
         workspace=api('/data-science/explorations',{'title':'Runtime OS 真实行情问题回归'})
         cases=[]
-        for repeat in range(2):
+        repetitions=int(os.environ.get('RUNTIME_ACCEPTANCE_REPETITIONS','2'))
+        assert 2<=repetitions<=3,'Only the documented two/three paired rounds are supported'
+        for repeat in range(repetitions):
             for model,label in [('qwen3.8-flash','flash'),('qwen3.7-plus','plus')]:
                 workspace=api('/data-science/explorations/'+workspace['id']+'/nodes',{'version':workspace['version'],'parentId':'',
                     'fileIds':[a['id'] for a in assets],'question':original['request']['query'],'modelName':model})

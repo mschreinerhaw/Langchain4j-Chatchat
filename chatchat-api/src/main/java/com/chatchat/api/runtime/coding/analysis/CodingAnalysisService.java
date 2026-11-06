@@ -218,7 +218,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             throw new IllegalArgumentException("Primary Coding analysis dataset limit exceeded");
         String objective = "Answer the user's data-analysis objective using only the authorized immutable datasets. "
             + "Inspect delivered schemas and quality. Choose your own analysis methods and verify computed output. "
-            + "Access each logical column by manifest.columns[].storageName; schema.presenceColumns are separate Boolean flags, not business values. "
+            + "For this manifest's own parts, access each logical column by manifest.columns[].storageName; schema.presenceColumns are separate Boolean flags, not business values. Native original files have their own schemas, not the transport manifest's column map. "
             + "Never select columns by physical position or treat a presence flag as the adjacent JSON record. Decode declared JSON cells as JSON, preserving Decimal precision. "
             + "Read nativeFiles according to their declared original format; original user-message TEXT is raw text, not a JSON envelope. "
             + "You own business interpretation within the delivered data scope. Produce exactly one result row. "
@@ -463,7 +463,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 +"Every file ID is a sibling directory directly under /data/input. The manifest directory contains only manifest.json; "
                 +"never append schemaFileId or a part fileId to the manifest directory. Read each part at /data/input/{part.fileId}/{part.fileName}. "
                 +"Read ordered parts with pyarrow or pandas.read_parquet(dtype_backend='pyarrow') for PARQUET; CSV uses dtype=str, keep_default_na=False. "
-                +"The manifest columns[] is the authoritative physical-to-logical mapping: read each column.storageName and store its value under column.name. "
+                +"For this manifest's own parts only, columns[] is the physical-to-logical mapping: read each column.storageName and store its value under column.name. Never apply this outer map to a nativeFiles original. "
                 +"Parquet contains BOTH cN data columns and pN Boolean presence columns; never rename the whole dataframe to logical names or select data columns by position. "
                 +"For each physical row from to_pylist(), iterate manifest['columns']: let key=column['storageName']; if row['p'+key[1:]] is false, omit that logical field; otherwise read row[key]. "
                 +"A null cN with pN=true is explicit null. Decode a non-null cell with json.loads(parse_float=Decimal) ONLY when that column.type is JSON; STRING is already text and pN is never record content. "
@@ -472,6 +472,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 +"Decode JSON-typed cells with json.loads(parse_float=Decimal); DECIMAL uses exact precision/scale. Verify schema and part hashes and row counts. "
                 +"Only authorized /data/input/{fileId}/{fileName} paths exist. Never parse the manifest or schema as data rows.";
             if(tableInput)goal+="\nRead each native file according to nativeFileSchemas, not the table envelope's format. "
+                +"A native Parquet's sourceManifest with status=BOUND identifies its delivered original manifest by fileId/path/hash and binds columns to that exact native part hash, byte size and row count. Use that original column map for this native file; an unbound schema remains unknown and cannot be guessed. "
                 +"ORIGINAL_USER_MESSAGE_TEXT is the original text, not an analysis-materials.v1 JSON envelope. "
                 +"A message may mix curl examples, JSON responses and trailing natural-language requirements. "
                 +"Use a JSON decoder's raw_decode on identified JSON spans and retain the surrounding text separately; "

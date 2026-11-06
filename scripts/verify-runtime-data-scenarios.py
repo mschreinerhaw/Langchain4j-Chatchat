@@ -110,6 +110,8 @@ def main():
             matching.sort(key=lambda v:v['fencingToken']);task,responses=collector.journal(matching[-1])
             save(case['case']+'-journal-private.json',task);save(case['case']+'-models-private.json',responses)
             models={r['payload']['operationId']:r['payload']['response'] for r in responses}
+            usages=[v.get('usage') or {} for v in models.values()]
+            usage_known=sum(all(isinstance(v.get(k),(int,float)) for k in ['inputTokens','outputTokens']) for v in usages)
             events=sorted([e for n in matching for e in n['events']],key=lambda e:e['timestamp'])
             tool_times=[e for e in events if e.get('type')=='TOOL_TIMING']
             selected=lambda names:[e['toolDurationMs'] for e in tool_times if e.get('tool') in names and isinstance(e.get('toolDurationMs'),(int,float))]
@@ -125,13 +127,15 @@ def main():
                 manifest=json.loads(paths[0].read_text());manifests.append({'logicalContentSha256':manifest.get('logicalContentSha256'),
                     'rowCount':manifest.get('rowCount'),'format':manifest.get('format'),'logicalBytes':manifest.get('logicalBytes')})
             finished=matching[-1].get('finishedAt')
+            runtime=task['contract']['runtimeContext'];model_identity=runtime.get('model',{});execution_profile=runtime.get('executionProfile',{})
             row.update(taskId=task['contract']['taskId'],status=task['outcome']['status'],budget=task['contract']['budget'],
+                actualModel=model_identity.get('selectedModel'),executionModel=execution_profile.get('selectedModel'),
                 inputSnapshotRef=task['contract']['inputSnapshotRef'],permissions=task['contract']['authorization'],
                 logicalInputs=manifests,modelCalls=len(operation_ids),resolvedModelCalls=len(models),
-                unknownModelCalls=len(set(operation_ids)-set(models)),usageKnownCalls=sum(1 for v in models.values() if v.get('usage')),
-                tokenUsageComplete=len(operation_ids)==sum(1 for v in models.values() if v.get('usage')),
-                inputTokens=sum(v.get('usage',{}).get('inputTokens',0) for v in models.values()),
-                outputTokens=sum(v.get('usage',{}).get('outputTokens',0) for v in models.values()),
+                unknownModelCalls=len(set(operation_ids)-set(models)),usageKnownCalls=usage_known,
+                tokenUsageComplete=len(operation_ids)==usage_known,
+                inputTokens=sum(v['inputTokens'] for v in usages if isinstance(v.get('inputTokens'),(int,float))),
+                outputTokens=sum(v['outputTokens'] for v in usages if isinstance(v.get('outputTokens'),(int,float))),
                 durationMs=round((datetime.fromisoformat(finished.replace('Z','+00:00'))-datetime.fromisoformat(matching[0]['createdAt'].replace('Z','+00:00'))).total_seconds()*1000) if finished else None,
                 pythonExecutions=[{k:v.get(k) for k in ['executionId','status','exitCode','durationMs','cpuTimeMs','maxRssBytes','codeHash','resultAvailable','outputStatus','validationStatus']} for v in feedback],
                 phases={'planningMs':None,'dataDiscoveryMs':known_sum(selected({'market_search','market_resolve_security','market_get_day_snapshot','market_get_history','web_search','web_fetch','knowledge_search'})),

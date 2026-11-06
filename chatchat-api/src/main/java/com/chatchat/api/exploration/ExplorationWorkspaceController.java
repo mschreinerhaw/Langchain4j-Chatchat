@@ -145,13 +145,16 @@ public class ExplorationWorkspaceController {
         var owner=owner(http);var state=store.get(owner,id);var node=node(state,nodeId);
         boolean uncheckedStage=node.path("agentId").asText().isBlank()&&node.path("receipt").hasNonNull("taskId")
             &&!node.path("receipt").path("resultAvailable").asBoolean()&&!node.path("receipt").path("stageSnapshotChecked").asBoolean();
-        if(node.path("receipt").path("terminal").asBoolean()&&!uncheckedStage)return ApiResponse.success(state);
+        boolean uncheckedProgress=node.path("agentId").asText().isBlank()&&node.path("receipt").hasNonNull("taskId")
+                &&!node.path("receipt").path("progressSnapshotChecked").asBoolean();
+        if(node.path("receipt").path("terminal").asBoolean()&&!uncheckedStage&&!uncheckedProgress)return ApiResponse.success(state);
         if(node.path("agentId").asText().isBlank()){
             if(!node.has("executionRequestedAt")&&!node.path("receipt").has("taskId")&&!"RECOVERABLE".equals(node.path("status").asText()))return ApiResponse.success(state);
             var request=new AssetAnalysisController.Request(nodeId,strings(node,"fileIds"),strings(node,"contextIds"),node.path("question").asText(),null);
             var snapshot=analysis.snapshotVisual(http,request);
             if(snapshot.isEmpty())return ApiResponse.success(state);
             ObjectNode receipt=json.valueToTree(snapshot.get());
+            receipt.put("progressSnapshotChecked",true);
             return ApiResponse.success(receipt.equals(node.path("receipt"))?state:finish(owner,id,nodeId,receipt,null));
         }
         String task=node.path("receipt").path("agentTaskId").asText();
@@ -179,7 +182,16 @@ public class ExplorationWorkspaceController {
                 &&receipt!=null&&receipt.path("terminal").asBoolean()&&receipt.path("stageSnapshotChecked").asBoolean()
                 &&previous.path("taskId").asText().equals(receipt.path("taskId").asText())
                 &&previous.path("status").asText().equals(receipt.path("status").asText());
-            if(previous.path("terminal").asBoolean()&&!terminalStage||receipt==null&&previous.path("resultAvailable").asBoolean()&&node.path("agentId").asText().isBlank())return state;
+            boolean terminalProgress=previous.path("terminal").asBoolean()&&node.path("agentId").asText().isBlank()
+                &&!previous.path("progressSnapshotChecked").asBoolean()&&receipt!=null&&receipt.path("terminal").asBoolean()
+                &&receipt.path("progressSnapshotChecked").asBoolean()&&!previous.path("taskId").asText().isBlank()
+                &&previous.path("taskId").asText().equals(receipt.path("taskId").asText())&&previous.path("status").asText().equals(receipt.path("status").asText());
+            if(terminalProgress&&!terminalStage){
+                // Backfill observations once; preserve the terminal report and execution facts byte for byte.
+                var progress=receipt;receipt=(ObjectNode)previous.deepCopy();receipt.put("progressSnapshotChecked",true);
+                for(String key:List.of("analysisEvents","progressHistoryStatus"))if(progress.has(key))receipt.set(key,progress.get(key));
+            }
+            if(previous.path("terminal").asBoolean()&&!terminalStage&&!terminalProgress||receipt==null&&previous.path("resultAvailable").asBoolean()&&node.path("agentId").asText().isBlank())return state;
             if(receipt!=null){
                 var prior=node.path("receipt");
                 String parentTask=prior.path("agentTaskId").asText();

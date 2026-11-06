@@ -16,6 +16,20 @@ import static org.mockito.ArgumentMatchers.*;
 
 /** Real SQL persistence, mocked execution boundary. These are NOT live Coding acceptance evidence. */
 class ExplorationWorkspaceTest {
+    @Test void terminalFileReceiptBackfillsProgressOnceWithoutReplacingItsReportOrReexecuting(){
+        var state=prepared();String id=state.path("id").asText(),node=nodeId(state);
+        var original=Map.of("taskId","task","status","COMPLETED","terminal",true,"resultAvailable",true,
+            "visualReport",Map.of("title","Immutable original","charts",List.of()));
+        doReturn(ApiResponse.success(original)).when(analysis).analyzeVisual(eq(http),any());controller.execute(http,id,node);clearInvocations(analysis);
+        when(analysis.snapshotVisual(eq(http),any())).thenReturn(Optional.of(Map.of("taskId","task","status","COMPLETED","terminal",true,
+            "resultAvailable",false,"visualReport",Map.of("title","Must not replace"),"analysisEvents",List.of(Map.of("type","MODEL_TIMING")),"progressHistoryStatus","AVAILABLE")));
+        controller.status(http,id,node);var first=store.get(alice,id);controller.status(http,id,node);
+        var receipt=store.get(alice,id).path("nodes").get(0).path("receipt");
+        assertThat(receipt.path("visualReport").path("title").asText()).isEqualTo("Immutable original");assertThat(receipt.path("resultAvailable").asBoolean()).isTrue();
+        assertThat(receipt.path("analysisEvents").size()).isEqualTo(1);assertThat(receipt.path("progressSnapshotChecked").asBoolean()).isTrue();
+        assertThat(store.get(alice,id).path("version")).isEqualTo(first.path("version"));
+        verify(analysis,times(1)).snapshotVisual(eq(http),any());verify(analysis,never()).analyzeVisual(any(),any());
+    }
     @Test void ownAgentParentMayPublishItsBoundCodingChildWithoutCrossTaskRejection(){
         var state=store.create(alice,"Agent report");String id=state.path("id").asText();
         controller.prepare(http,id,new ExplorationWorkspaceController.Question(0,null,List.of(),"Analyze",null,"authorized"));

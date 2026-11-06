@@ -22,6 +22,7 @@ def main():
     p.add_argument('--model', required=True)
     p.add_argument('--inject-worker-kill', action='store_true', required=True)
     p.add_argument('--reconcile', action='store_true', help='Read and reconcile existing fault; never dispatch again')
+    p.add_argument('--window', choices=['success','precode'], default='success')
     a = p.parse_args()
     os.umask(0o077)
     a.root.mkdir(parents=True, exist_ok=True)
@@ -80,7 +81,8 @@ def main():
                 and task.get('privateState', {}).get('feedback:' + k, {}).get('status') == 'SUCCEEDED'}
             sdk = task.get('sdkCheckpoint') or {}
             pending_models = [k for k,v in task['operations'].items() if v.get('kind') == 'MODEL' and v.get('startIntent') and not v.get('stopProofRef')]
-            if not killed and codes and pending_models and sdk.get('lastCollectedOperation') in codes and not receipt.get('terminal'):
+            fault_boundary = bool(codes and sdk.get('lastCollectedOperation') in codes) if a.window=='success' else not any(v.get('kind')=='CODE' for v in task['operations'].values())
+            if not killed and fault_boundary and pending_models and sdk.get('sdkSessionId') and not receipt.get('terminal'):
                 # Scope isolation and stopped Python are rechecked immediately before fault.
                 assert ready()['activeSessions'] == 1, 'Cannot isolate validation task'
                 assert not shell('docker', 'ps', '-q', '--filter', 'name=chatchat-py-'), 'Python still running'
@@ -90,6 +92,9 @@ def main():
                     'budget': task['contract']['budget'], 'usage': task['outcome']['usage'],
                     'restartPolicy':current['HostConfig']['RestartPolicy'],
                     'pendingModelOperations':pending_models,
+                    'checkpointOrdinal':sdk['checkpointOrdinal'],'modelOrdinal':sdk['modelOrdinal'],
+                    'checkpointSha256':hashlib.sha256(json.dumps(sdk,sort_keys=True).encode()).hexdigest(),
+                    'codeVersions':sdk.get('codeLifecycle',{}).get('versions',[]),'window':a.window,
                     'successfulPython': {k:hashlib.sha256(json.dumps(v,sort_keys=True).encode()).hexdigest() for k,v in codes.items()}}
                 save('before-fault-public.json', before)
                 save('before-fault-journal-private.json', task)
@@ -119,15 +124,26 @@ def main():
                 higher_fence = bool(before) and task['lease']['fencingToken'] > before['fencingToken']
                 fence_preserved = bool(before) and task['lease']['fencingToken'] >= before['fencingToken']
                 restored = nodes[-1].get('recoveryMode') == 'CHECKPOINT_RESTORED_NEW_SDK'
+                sdk_restore_events=[e for e in task['events'] if e.get('payload',{}).get('stage')=='SDK_CHECKPOINT_RESTORED']
+                checkpoint_advanced=bool(before) and sdk.get('checkpointOrdinal',0)>before.get('checkpointOrdinal',0)
+                version_chain=bool(before) and sdk.get('codeLifecycle',{}).get('versions',[])[:len(before.get('codeVersions',[]))]==before.get('codeVersions',[])
+                old_models={k:v for k,v in original.get('operations',{}).items() if v.get('kind')=='MODEL'}
+                model_identity=bool(before) and all(all(task['operations'][k].get(f)==v.get(f) for f in ['intentSha256','startingFencingToken','startSequence','executionHandle']) for k,v in old_models.items())
                 # Missing Node process can restore under the still-valid Java owner lease.
                 # ClineCodingAdapter advances fencing for expired leases or ended live SDKs.
-                passed = killed and unchanged and no_duplicate_python and same_session and same_budget and fence_preserved and restored and receipt.get('status') == 'COMPLETED'
+                passed = killed and unchanged and no_duplicate_python and same_session and same_budget and higher_fence and restored and bool(sdk_restore_events) and checkpoint_advanced and version_chain and model_identity and receipt.get('status') == 'COMPLETED'
                 save('recovery-reconciled-public.json' if a.reconcile else 'recovery-public.json', {'status':'PASS' if passed else 'FAIL', 'taskId':task_id,
                     'executionStatus':receipt.get('status'), 'faultInjected':killed, 'executeRequests':1,
                     'successfulPythonOperationsUnchanged':unchanged, 'sameSdkSession':same_session,
                     'successfulPythonNotRedispatchedUnderAnotherOperation':no_duplicate_python,
                     'budgetAndDeadlineUnchanged':same_budget, 'fencingAdvanced':higher_fence,
                     'fencingNotRegressed':fence_preserved,'checkpointRestored':restored,
+                    'sdkRestoreEventSequences':[e['sequence'] for e in sdk_restore_events],
+                    'checkpointAdvanced':checkpoint_advanced,'originalCodeVersionChainPreserved':version_chain,'modelOperationIdentityPreserved':model_identity,
+                    'beforeCheckpointSha256':before.get('checkpointSha256') if before else None,
+                    'afterCheckpointSha256':hashlib.sha256(json.dumps(sdk,sort_keys=True).encode()).hexdigest(),
+                    'afterCheckpointOrdinal':sdk.get('checkpointOrdinal'),'afterModelOrdinal':sdk.get('modelOrdinal'),
+                    'afterCodeVersions':sdk.get('codeLifecycle',{}).get('versions',[]),
                     'sameContainerAndImage':bool(before) and current['Id']==before['containerId'] and current['Image']==before['imageId'],
                     'afterUsage':task['outcome']['usage'], 'reasonCode':task['outcome'].get('reasonCode'),
                     'workspaceId':state['id'], 'nodeId':node_id})

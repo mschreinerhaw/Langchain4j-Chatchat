@@ -49,6 +49,8 @@ def main():
     classes, web = members(root / 'classes.tar.gz'), members(root / 'web.tar.gz')
     families = ('com/chatchat/api/runtime/coding/analysis/CodingAnalysisService',
                 'com/chatchat/api/runtime/coding/cline/ClineModelCallbackController',
+                'com/chatchat/api/runtime/coding/cline/ClineCodingAdapter',
+                'com/chatchat/api/runtime/coding/cline/ClinePythonCallbackController',
                 'com/chatchat/api/runtime/coding/evidence/VisualReportArtifacts',
                 'com/chatchat/api/assets/AssetAnalysisController',
                 'com/chatchat/api/exploration/ExplorationWorkspaceController')
@@ -60,6 +62,11 @@ def main():
             if not any(path == f + '.class' or path.startswith(f + '$') and path.endswith('.class') for f in families):
                 raise ValueError('Unreviewed application class: ' + path)
             replacements['BOOT-INF/classes/' + path] = data
+        elif name.startswith('agents/'):
+            path=name.removeprefix('agents/')
+            family='com/chatchat/agents/runtime/coding/DurableCodingTaskService'
+            if not (path==family+'.class' or path.startswith(family+'$') and path.endswith('.class')):
+                raise ValueError('Unreviewed agents class: '+path)
         elif name != 'common/' + common_name:
             raise ValueError('Unreviewed common class')
     for family in families:
@@ -78,11 +85,21 @@ def main():
             for entry in lib.infolist():
                 output.writestr(copy.copy(entry), classes['common/' + common_name] if entry.filename == common_name else lib.read(entry.filename))
         replacements[common] = buffer.getvalue()
+        agent_classes={n.removeprefix('agents/'):data for n,data in classes.items() if n.startswith('agents/')}
+        agents=None
+        if agent_classes:
+            agents=next(n for n in old.namelist() if n.startswith('BOOT-INF/lib/chatchat-agents-') and n.endswith('.jar'))
+            nested=io.BytesIO()
+            with zipfile.ZipFile(io.BytesIO(old.read(agents))) as lib,zipfile.ZipFile(nested,'w') as output:
+                if not set(agent_classes).issubset(lib.namelist()):
+                    raise ValueError('Agents overlay cannot add unrelated entries')
+                for entry in lib.infolist():output.writestr(copy.copy(entry),agent_classes.get(entry.filename,lib.read(entry.filename)))
+            replacements[agents]=nested.getvalue()
         with zipfile.ZipFile(root / 'app.jar', 'w', allowZip64=True) as output:
             for entry in old.infolist():
                 if entry.filename.startswith(static):
                     continue
-                if entry.filename == common and entry.compress_type != zipfile.ZIP_STORED:
+                if entry.filename in [common,agents] and entry.compress_type != zipfile.ZIP_STORED:
                     raise ValueError('Nested Spring Boot jar must remain STORED')
                 output.writestr(copy.copy(entry), replacements.get(entry.filename, old.read(entry.filename)))
             for name, data in static_files.items():
@@ -98,10 +115,16 @@ def main():
                 for name in before.namelist():
                     if name != common_name and before.read(name) != after.read(name):
                         raise ValueError('Unrelated common entry changed')
+            if agents:
+                with zipfile.ZipFile(io.BytesIO(old.read(agents))) as before,zipfile.ZipFile(io.BytesIO(new.read(agents))) as after:
+                    for name in before.namelist():
+                        if name not in agent_classes and before.read(name)!=after.read(name):
+                            raise ValueError('Unrelated agents entry changed')
     proof = {'sourceCommit': args.commit, 'baselineSha256': sha(baseline.read_bytes()),
              'sha256': sha((root / 'app.jar').read_bytes()), 'classesArchiveSha256': args.classes_sha256,
              'webArchiveSha256': args.web_sha256, 'applicationClasses': sorted(n for n in replacements if n.endswith('.class')),
-             'commonClass': common_name, 'staticFiles': len(static_files), 'unrelatedEntriesByteIdentical': True,
+             'commonClass': common_name, 'agentsClasses':sorted(agent_classes),
+             'staticFiles': len(static_files), 'unrelatedEntriesByteIdentical': True,
              'nestedJarStored': True}
     (root / 'api-artifact-proof.json').write_text(json.dumps(proof, indent=2))
     manifest = {**proof, 'image': 'runtime-os-api:native-remediation-' + proof['sha256'][:12], 'preserveRuntimeConfiguration': True}

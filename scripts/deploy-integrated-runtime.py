@@ -144,13 +144,20 @@ def main():
         for mount in before[name]['Mounts']:
             if mount['Type'] == 'bind' and not Path(mount['Source']).exists():
                 raise RuntimeError('Required bind source is missing: ' + mount['Source'])
-    base = 'runtime-os-api-runtime:17-sqlglot-20261024'
-    assert 'app.jar' not in run('docker', 'history', '--no-trunc', '--format', '{{.CreatedBy}}', base)
-    (root / 'Dockerfile').write_text('FROM ' + before[api]['Config']['Image'] + '\nWORKDIR /srv/app\nCOPY app.jar /srv/app/app.jar\nENTRYPOINT ["java","-jar","/srv/app/app.jar"]\n')
+    # The verified running image is the offline deployment parent. An unrelated
+    # historical build tag is not required, and a mutable tag must not choose it.
+    parent_image = before[api]['Image']
+    assert run('docker', 'image', 'inspect', '--format', '{{.Id}}', parent_image) == parent_image
+    parent_tag = 'runtime-os-api:offline-parent-' + parent_image.removeprefix('sha256:')
+    run('docker', 'tag', parent_image, parent_tag)
+    assert run('docker', 'image', 'inspect', '--format', '{{.Id}}', parent_tag) == parent_image
+    (root / 'Dockerfile').write_text('FROM ' + parent_tag + '\nWORKDIR /srv/app\nCOPY app.jar /srv/app/app.jar\nENTRYPOINT ["java","-jar","/srv/app/app.jar"]\n')
     (root / '.dockerignore').write_text('*\n!app.jar\n!Dockerfile\n')
     if api in images:
-        run('docker', 'build', '--network', 'none', '--label',
-            'org.opencontainers.image.revision=' + manifest['sourceCommit'], '-t', manifest['image'], str(root))
+        with (root / 'api-build.log').open('w') as log:
+            subprocess.run(['docker', 'build', '--network', 'none', '--label',
+                'org.opencontainers.image.revision=' + manifest['sourceCommit'], '-t', manifest['image'], str(root)],
+                stdout=log, stderr=subprocess.STDOUT, check=True)
     for service,key in [(mcp,'mcp'),(news,'news')]:
         if service not in images:continue
         entry=manifest[key]

@@ -93,6 +93,7 @@ public class AssetAnalysisController {
             attributes.put("authorizationAgentId",body.agentId());
             attributes.put("resourceExplorationConfigured",true);
             attributes.put("resourceExplorationApproved",true);
+            attributes.put("taskType","DATA_ANALYSIS"); // Preserve optional Python/immutable-data tools alongside text submission.
         }
         if(visual){attributes.put("reportMode","visual");attributes.put("taskType","DATA_ANALYSIS");attributes.put("contextOnlyAnswer",false);}
         String instruction=(body.agentId()==null?"Analyze only these explicitly authorized files. ":

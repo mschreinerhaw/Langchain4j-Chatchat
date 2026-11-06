@@ -56,7 +56,8 @@ class AssetAnalysisControllerTest {
         var context=org.mockito.ArgumentCaptor.forClass(AnalysisCoverageCoordinator.Request.class);
         verify(coding).executePrimaryAnalysis(context.capture(),anyMap(),any());
         assertThat(context.getValue().runtimeAttributes()).containsEntry("authorizationAgentId","authorized")
-            .containsEntry("resourceExplorationConfigured",true).containsEntry("resourceExplorationApproved",true);
+            .containsEntry("resourceExplorationConfigured",true).containsEntry("resourceExplorationApproved",true)
+            .containsEntry("taskType","DATA_ANALYSIS");
         assertThat(context.getValue().query()).contains("existing authorized resources");
     }
     @Test void transportUsesExactOriginalBytesAndOnlyExplicitlyChosenContext(){

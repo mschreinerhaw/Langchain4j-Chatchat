@@ -164,7 +164,6 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 + "Optional empty MCP observations are not measured data and must be disclosed as unavailable. ";
         var request = new LinkedHashMap<String,Object>();
         boolean visual=VisualReportMode.analysisRequested(context.runtimeAttributes());
-        if(visual)objective+="\n"+VisualReportMode.instruction(context.runtimeAttributes());
         request.put("operation", "RUN_CODING");
         request.put("requestId", visual?"primary-data-analysis-visual-v1":"primary-data-analysis-v1");
         request.put("datasetReferences", List.copyOf(sources.keySet()));
@@ -210,7 +209,11 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
         if (!request.keySet().stream().allMatch(Set.of("operation","requestId","datasetReference","datasetReferences","instruction","outputSchema","reviewResult")::contains))
             throw new IllegalArgumentException("Unknown Coding request field");
         if (!"RUN_CODING".equals(request.get("operation"))) throw new IllegalArgumentException("Unknown Coding operation");
-        String requestId=text(request.get("requestId"),"requestId",128), instruction=text(request.get("instruction"),"instruction",16000);
+        String requestId=text(request.get("requestId"),"requestId",128), analyticalInstruction=text(request.get("instruction"),"instruction",16000);
+        // Validate the analytical request before adding the platform-owned output contract.
+        // Keep the final instruction/fingerprint identical for existing visual checkpoints.
+        String instruction=analyticalInstruction+("primary-data-analysis-visual-v1".equals(requestId)
+            && VisualReportMode.analysisRequested(context.runtimeAttributes())?"\n"+VisualReportMode.instruction(context.runtimeAttributes()):"");
         List<String> selectedReferences = selectedReferences(request);
         boolean reviewResult = Boolean.TRUE.equals(request.get("reviewResult"));
         if (request.containsKey("reviewResult") && !(request.get("reviewResult") instanceof Boolean))

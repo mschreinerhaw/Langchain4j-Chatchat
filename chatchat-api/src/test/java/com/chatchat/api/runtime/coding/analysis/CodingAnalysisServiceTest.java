@@ -309,8 +309,23 @@ class CodingAnalysisServiceTest {
         var original=context("tenant");var request=new AnalysisCoverageCoordinator.Request(original.model(),original.query(),null,Map.of("taskType","DATA_ANALYSIS","reportMode","visual"),original.metadata(),()->false,()->{},original.isolationScope(),null);
         var sources=new LinkedHashMap<String,Dataset>();sources.put("dataset",new Dataset("dataset",Map.of(),List.of(Map.of("value",1))));
         service.executePrimaryAnalysis(request,sources,event->{});
-        verify(service).executeObserved(same(request),argThat(task->"primary-data-analysis-visual-v1".equals(task.get("requestId"))&&task.get("instruction").toString().contains("SAME computed Python objects")&&((Map<?,?>)((Map<?,?>)task.get("outputSchema")).get("properties")).containsKey("visualReport")),same(sources),any());
+        verify(service).executeObserved(same(request),argThat(task->"primary-data-analysis-visual-v1".equals(task.get("requestId"))&&task.get("instruction").toString().length()<16000&&((Map<?,?>)((Map<?,?>)task.get("outputSchema")).get("properties")).containsKey("visualReport")),same(sources),any());
         verifyNoInteractions(agent,python,inputs,plans,collector);
+    }
+    @Test void visualPlatformContractDoesNotConsumeTheRequestLimitOrBypassTheExternalLimit(){
+        prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
+        when(inputs.captureConfigured(any(),anyString(),anyList(),anyString(),anyString(),anyString(),anyLong(),anyLong(),any()))
+            .thenReturn(new CodingInputSnapshotService.Snapshot("runtime-evidence:input","c"+"a".repeat(63),"input.jsonl","a".repeat(64),1,30,"source"));
+        var original=context("tenant");String question="Synthetic user objective. ".repeat(60);
+        var visual=new AnalysisCoverageCoordinator.Request(original.model(),question,null,Map.of("taskType","DATA_ANALYSIS","reportMode","visual"),original.metadata(),()->false,()->{},original.isolationScope(),null);
+        var service=service();service.executePrimaryAnalysis(visual,sources(),event->{});
+        var capture=org.mockito.ArgumentCaptor.forClass(CodingTaskContract.class);verify(agent).submit(capture.capture());
+        String instruction=capture.getValue().objective().instruction();
+        assertThat(instruction).contains(question,"SAME computed Python objects","span/style","report_layout.v1");
+        assertThat(instruction.indexOf("Visual report mode is enabled")).isEqualTo(instruction.lastIndexOf("Visual report mode is enabled"));
+        var tooLong=new LinkedHashMap<String,Object>(request());tooLong.put("instruction","x".repeat(16001));
+        assertThatThrownBy(()->service.execute(visual,tooLong,sources())).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("maximumCharacters=16000");
+        verify(agent,times(1)).submit(any());
     }
     @Test void primaryAnalysisBatchesNineAuthorizedDatasetsIntoOneGenericCodingAssignment() {
         var service = spy(service());

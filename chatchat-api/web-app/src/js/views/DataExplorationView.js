@@ -157,8 +157,8 @@ export default {
     }
     const stopTarget=computed(()=>{
       const nodes=space.value?.nodes||[];
-      const eligible=node=>node?.agentId&&node.receipt?.terminal!==true&&!['CANCELLED','COMPLETED','FAILED'].includes(explorationNodeState(node).code)&&
-        (node.receipt?.agentTaskId||node.id===runningId.value&&runningSpaceId.value===space.value?.id);
+      const eligible=node=>!!node&&node.receipt?.terminal!==true&&!['CANCELLED','COMPLETED','FAILED'].includes(explorationNodeState(node).code)&&
+        (node.agentId?(node.receipt?.agentTaskId||node.id===runningId.value&&runningSpaceId.value===space.value?.id):node.receipt?.taskId);
       return eligible(active.value)?active.value:nodes.find(node=>eligible(node)&&node.id===runningId.value)||nodes.find(eligible);
     });
     const stopping=computed(()=>!!stoppingId.value||!!stopTarget.value?.receipt?.cancellationRequested);
@@ -243,13 +243,13 @@ export default {
     function scheduleStatus(){clearTimeout(pollTimer);if(!disposed)pollTimer=setTimeout(pollStatus,1500);}
     async function pollStatus(){
       if(disposed||polling)return;const id=space.value?.id;
-      const candidates=space.value?.nodes.filter(n=>n.agentId&&n.receipt?.agentTaskId&&!n.receipt.terminal)||[];
+      const candidates=space.value?.nodes.filter(n=>!n.receipt?.terminal&&(n.agentId?n.receipt?.agentTaskId:n.executionRequestedAt||n.receipt?.taskId||n.status==='RECOVERABLE'))||[];
       const pending=candidates[(candidates.findIndex(n=>n.id===lastPolledNode)+1)%candidates.length];
       if(!pending)return;polling=true;
       lastPolledNode=pending.id;
       try{const updated=await explorationNodeStatus(id,pending.id);if(!disposed&&space.value?.id===id)applySpace(updated);}catch(e){if(!disposed)error.value=e.message;}finally{polling=false;scheduleStatus();}
     }
-    const taskRunning=computed(()=>analyzing.value||!!space.value?.nodes.some(n=>n.agentId&&n.receipt?.agentTaskId&&['RUNNING','STOPPING'].includes(explorationNodeState(n).code)));
+    const taskRunning=computed(()=>analyzing.value||!!space.value?.nodes.some(n=>(n.receipt?.agentTaskId||n.receipt?.taskId)&&['RUNNING','STOPPING'].includes(explorationNodeState(n).code)));
     onMounted(async()=>{loading.value=true;agentsLoading.value=true;
       try{agents.value=await explorationAgents();}catch(e){error.value=e.message;}finally{agentsLoading.value=false;}const restored=readPreferences(),width=workspaceElement.value?.clientWidth;if(!restored&&width>0&&width<850)sidebarCollapsed.value=true;
       syncViewport();window.addEventListener('resize',syncViewport);

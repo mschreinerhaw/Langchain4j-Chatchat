@@ -12,6 +12,18 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
 class AssetAnalysisControllerTest {
+    @Test void statusAndStopDeriveTheirScopeFromTheAuthenticatedOwnerWithoutResolvingAModel(){
+        var body=new AssetAnalysisController.Request("stable-request",List.of("file"),List.of(),"original objective",null);
+        when(coding.primarySnapshot(any(),eq(true))).thenReturn(Optional.empty());
+        controller.snapshotVisual(request,body);
+        var scope=org.mockito.ArgumentCaptor.forClass(com.chatchat.common.kernel.KernelDataScope.class);
+        verify(coding).primarySnapshot(scope.capture(),eq(true));assertThat(scope.getValue().userId()).isEqualTo("alice");
+        assertThat(scope.getValue().tenantId()).isEqualTo("tenant");assertThat(scope.getValue().requestId()).isEqualTo("stable-request");
+        String aliceRun=scope.getValue().runId();
+        when(access.user(request)).thenReturn("bob");controller.cancelVisual(request,body);
+        verify(coding).cancelPrimary(argThat(value->value.userId().equals("bob")&&!value.runId().equals(aliceRun)),eq(true));
+        verifyNoInteractions(models,archive,assets);verify(coding,never()).executePrimaryAnalysis(any(),anyMap(),any());
+    }
     UserAssetService assets;CodingAnalysisService coding;AgentChatModelResolver models;ObjectAccessService access;RuntimeAssetArchive archive;
     MockHttpServletRequest request;AssetAnalysisController controller;
     @BeforeEach void setup(){

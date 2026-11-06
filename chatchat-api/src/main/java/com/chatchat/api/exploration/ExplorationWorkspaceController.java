@@ -106,6 +106,7 @@ public class ExplorationWorkspaceController {
     /** Persisted node ID is the existing analysis idempotency key. Refresh can repeat this request. */
     @PostMapping("/{id}/nodes/{nodeId}/execute") public ApiResponse<?> execute(HttpServletRequest http,@PathVariable("id") String id,@PathVariable("nodeId") String nodeId){
         var owner=owner(http);var state=store.get(owner,id);var node=node(state,nodeId);
+        if(node.path("receipt").path("terminal").asBoolean())return ApiResponse.success(state);
         if("CANCELLED".equals(node.path("receipt").path("status").asText()))return ApiResponse.success(state);
         if(node.path("receipt").path("resultAvailable").asBoolean())return ApiResponse.success(state);
         if(!node.path("agentId").asText().isBlank()){
@@ -118,6 +119,14 @@ public class ExplorationWorkspaceController {
             return ApiResponse.success(finish(owner,id,nodeId,receipt,null));
         }
         var request=new AssetAnalysisController.Request(nodeId,strings(node,"fileIds"),strings(node,"contextIds"),node.path("question").asText(),node.path("modelName").asText().isBlank()?null:node.path("modelName").asText());
+        // Persist dispatch intent before the long HTTP call, so refresh can read status without submitting again.
+        for(int attempt=0;attempt<8;attempt++){
+            var current=store.get(owner,id);var persisted=node(current,nodeId);
+            if(persisted.has("executionRequestedAt"))break;
+            persisted.put("executionRequestedAt",System.currentTimeMillis());
+            try{store.save(owner,current,current.path("version").asLong());break;}
+            catch(ResponseStatusException conflict){if(conflict.getStatusCode()!=HttpStatus.CONFLICT||attempt==7)throw conflict;}
+        }
         ObjectNode result;
         try{result=json.valueToTree(analysis.analyzeVisual(http,request).getData());}
         catch(RuntimeException failure){finish(owner,id,nodeId,null,"执行未完成，可使用原请求恢复；"+failure.getClass().getSimpleName());throw failure;}
@@ -135,6 +144,14 @@ public class ExplorationWorkspaceController {
     @GetMapping("/{id}/nodes/{nodeId}/status") public ApiResponse<?> status(HttpServletRequest http,@PathVariable("id") String id,@PathVariable("nodeId") String nodeId){
         var owner=owner(http);var state=store.get(owner,id);var node=node(state,nodeId);
         if(node.path("receipt").path("terminal").asBoolean())return ApiResponse.success(state);
+        if(node.path("agentId").asText().isBlank()){
+            if(!node.has("executionRequestedAt")&&!node.path("receipt").has("taskId")&&!"RECOVERABLE".equals(node.path("status").asText()))return ApiResponse.success(state);
+            var request=new AssetAnalysisController.Request(nodeId,strings(node,"fileIds"),strings(node,"contextIds"),node.path("question").asText(),null);
+            var snapshot=analysis.snapshotVisual(http,request);
+            if(snapshot.isEmpty())return ApiResponse.success(state);
+            ObjectNode receipt=json.valueToTree(snapshot.get());
+            return ApiResponse.success(receipt.equals(node.path("receipt"))?state:finish(owner,id,nodeId,receipt,null));
+        }
         String task=node.path("receipt").path("agentTaskId").asText();
         if(task.isBlank()||node.path("agentId").asText().isBlank())return ApiResponse.success(state);
         var receipt=agents.snapshot(owner,task,node.path("receipt"));
@@ -144,16 +161,21 @@ public class ExplorationWorkspaceController {
     @PostMapping("/{id}/nodes/{nodeId}/stop") public ApiResponse<?> stop(HttpServletRequest http,@PathVariable("id") String id,@PathVariable("nodeId") String nodeId){
         var owner=owner(http);var state=store.get(owner,id);var node=node(state,nodeId);
         if(node.path("receipt").path("terminal").asBoolean())return ApiResponse.success(state);
-        if(node.path("agentId").asText().isBlank())
-            throw new ResponseStatusException(HttpStatus.CONFLICT,"此历史文件分析未绑定 Agent 任务，无法确认停止；请等待原执行返回");
+        if(node.path("agentId").asText().isBlank()){
+            var request=new AssetAnalysisController.Request(nodeId,strings(node,"fileIds"),strings(node,"contextIds"),node.path("question").asText(),null);
+            var receipt=analysis.cancelVisual(http,request).orElseThrow(()->new ResponseStatusException(HttpStatus.CONFLICT,"尚未确认已受理的分析任务，请等待状态同步后重试停止"));
+            return ApiResponse.success(finish(owner,id,nodeId,json.valueToTree(receipt),null));
+        }
         return ApiResponse.success(finish(owner,id,nodeId,agents.cancel(owner,node),null));
     }
     private ObjectNode finish(UserAssetService.Owner owner,String id,String nodeId,ObjectNode receipt,String error){
         for(int attempt=0;attempt<8;attempt++){
             var state=store.get(owner,id);long expected=state.path("version").asLong();var node=node(state,nodeId);
-            if(node.path("receipt").path("terminal").asBoolean()||node.path("receipt").path("resultAvailable").asBoolean()&&node.path("agentId").asText().isBlank())return state;
+            if(node.path("receipt").path("terminal").asBoolean()||receipt==null&&node.path("receipt").path("resultAvailable").asBoolean()&&node.path("agentId").asText().isBlank())return state;
             if(receipt!=null){
                 var prior=node.path("receipt");
+                if(prior.hasNonNull("taskId")&&receipt.hasNonNull("taskId")&&!prior.path("taskId").asText().equals(receipt.path("taskId").asText()))
+                    throw new SecurityException("Analysis result belongs to a different task");
                 if(receipt.path("eventCursor").asLong()<prior.path("eventCursor").asLong())return state;
                 // Final failures do not erase a previously verified stage artifact.
                 if(prior.path("resultAvailable").asBoolean()&&!receipt.path("resultAvailable").asBoolean()){

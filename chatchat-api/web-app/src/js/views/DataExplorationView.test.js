@@ -6,6 +6,17 @@ vi.mock('../../services/explorationApi',()=>api);
 vi.mock('../../components/PythonReportChart.vue',()=>({default:{props:['chart','presentation'],render(){return h('div',{'data-chart-type':this.presentation},this.chart.title);}}}));
 import View from '../../views/DataExplorationView.vue';
 let app,host;const settle=async()=>{for(let i=0;i<15;i++)await nextTick();};
+it('restores a dispatched file analysis by status polling without another execution request',async()=>{
+ vi.useFakeTimers();try{
+ const state={...structuredClone(space),nodes:[{...node('root'),agentId:undefined,executionRequestedAt:1,receipt:{}}]};
+ const running=structuredClone(state);running.version=4;running.nodes[0].receipt={taskId:'coding-task',status:'RUNNING',terminal:false,resultAvailable:false,eventCursor:2};
+ const finished=structuredClone(running);finished.version=5;finished.nodes[0].receipt={taskId:'coding-task',status:'BUDGET_EXCEEDED',terminal:true,resultAvailable:false,eventCursor:4};
+ api.explorationNodeStatus.mockResolvedValueOnce(running).mockResolvedValueOnce(finished);
+ const vm=await mount(state);await vi.advanceTimersByTimeAsync(1501);await settle();expect(vm.taskRunning).toBe(true);expect(vm.selectedState.code).toBe('RUNNING');
+ await vi.advanceTimersByTimeAsync(1501);await settle();expect(vm.selectedState.label).toBe('预算已耗尽');expect(vm.taskRunning).toBe(false);
+ expect(api.explorationNodeStatus).toHaveBeenCalledTimes(2);expect(api.executeExploration).not.toHaveBeenCalled();
+ }finally{vi.useRealTimers();}
+});
 it('restores a budget failure without showing the previous branch report or resubmitting execution',async()=>{
  const state=structuredClone(space);state.nodes.push({...node('failed','root'),receipt:{taskId:'coding-task',status:'BUDGET_EXCEEDED',terminal:true,resultAvailable:false}});
  const vm=await mount(state);vm.selectNode(vm.space.nodes.at(-1));await settle();

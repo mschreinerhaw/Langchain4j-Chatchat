@@ -116,6 +116,48 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             + "Data-analysis calculations require Coding. Pending/unknown is not a result. Each RUN_CODING invocation has an independent durable tool budget; retries of the same request retain that budget.");
     }
 
+    /** Reads the accepted task and its archived result; never admits, resumes or replays work. */
+    public Optional<Map<String,Object>> primarySnapshot(KernelDataScope caller,boolean visual) {
+        String requestId=visual?"primary-data-analysis-visual-v1":"primary-data-analysis-v1";
+        String taskId="analysis-coding-"+hash(Map.of("tenant",caller.tenantId(),"user",caller.userId(),"run",caller.runId(),"request",requestId));
+        return identity.as(caller,Set.of(CodingTaskAccess.Action.READ),()->{
+            CodingTaskOutcome outcome;CodingTaskContract contract;
+            try {outcome=tasks.get(caller,taskId);contract=tasks.contract(caller,taskId);}
+            catch(CodingContractException missing){if(missing.error().code()==CodingErrorCode.NOT_FOUND)return Optional.empty();throw missing;}
+            outcome.validateAgainst(contract);
+            var receipt=new LinkedHashMap<String,Object>();
+            receipt.put("operation","RUN_CODING");receipt.put("requestId",requestId);receipt.put("taskId",taskId);
+            receipt.put("status",outcome.status().name());receipt.put("terminal",outcome.status().terminal());
+            receipt.put("eventCursor",outcome.lastEventSequence());receipt.put("taskRevision",outcome.revision());
+            receipt.put("reconciliationRequired",outcome.executionControl().reconciliationRequired());
+            receipt.put("cancellationRequested",outcome.cancellationRequested());
+            receipt.put("validationStatus",outcome.validationStatus().name());receipt.put("businessValidation","NOT_EVALUATED");
+            receipt.put("usage",outcome.usage());receipt.put("limitations",outcome.limitations());receipt.put("resultAvailable",false);
+            if(outcome.summary()!=null)receipt.put("summary",outcome.summary());
+            if(outcome.reasonCode()!=null)receipt.put("reasonCode",outcome.reasonCode().name());
+            if(outcome.executionControl().stopReason()!=null)receipt.put("stopReason",outcome.executionControl().stopReason().name());
+            if(outcome.status()==CodingTaskOutcome.Status.BUDGET_EXCEEDED){receipt.put("budgetExhausted",true);receipt.put("retryable",false);}
+            if((outcome.status()==CodingTaskOutcome.Status.COMPLETED||outcome.status()==CodingTaskOutcome.Status.PARTIAL)
+                    && outcome.resultDatasetRef()!=null && outcome.validationStatus()!=CodingTaskOutcome.ValidationStatus.FAILED){
+                var page=collector.readResultPage(contract.scope(),taskId,outcome.resultDatasetRef(),0,2);
+                if(page.hasMore()||page.rows().size()!=1)throw new IllegalStateException("Primary analysis requires one archived report row");
+                receipt.put("results",page.rows());receipt.put("resultAvailable",true);receipt.put("datasetReference",outcome.resultDatasetRef());
+                receipt.put("executionMode",outcome.codeArtifactRef()==null?"TEXT_ONLY":"PYTHON");
+                receipt.put("evidenceRefs",java.util.stream.Stream.of(outcome.inputSnapshotRef(),outcome.codeArtifactRef(),outcome.executionReceiptRef(),
+                    outcome.resultDatasetRef(),outcome.validationRecordRef(),outcome.evidenceBundleRef()).filter(Objects::nonNull).toList());
+                if(visual)collector.visualReport(contract.scope(),taskId,outcome.resultDatasetRef()).ifPresent(report->receipt.put("visualReport",report));
+            }
+            return Optional.of(Collections.unmodifiableMap(receipt));
+        });
+    }
+    public Optional<Map<String,Object>> cancelPrimary(KernelDataScope caller,boolean visual) {
+        var existing=primarySnapshot(caller,visual);
+        if(existing.isEmpty()||Boolean.TRUE.equals(existing.get().get("terminal")))return existing;
+        identity.as(caller,EnumSet.of(CodingTaskAccess.Action.READ,CodingTaskAccess.Action.STOP),
+            ()->agent.cancel(caller,(String)existing.get().get("taskId"),"User stopped the existing file analysis"));
+        return primarySnapshot(caller,visual);
+    }
+
     @Override public Map<String,Object> executePrimaryAnalysis(
             AnalysisCoverageCoordinator.Request context, Map<String,Dataset> sources,
             java.util.function.Consumer<Map<String,Object>> observer) {
@@ -579,6 +621,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             receipt.put("operation","RUN_CODING");receipt.put("requestId",requestId);receipt.put("taskId",taskId);
             receipt.put("status",outcome.status().name());receipt.put("reconciliationRequired",outcome.executionControl().reconciliationRequired());
             receipt.put("terminal",outcome.status().terminal());
+            receipt.put("eventCursor",outcome.lastEventSequence());receipt.put("taskRevision",outcome.revision());
             receipt.put("validationStatus",outcome.validationStatus().name());receipt.put("businessValidation","NOT_EVALUATED");
             receipt.put("usage",outcome.usage());
             receipt.put("budgetScope","TOOL_INVOCATION");

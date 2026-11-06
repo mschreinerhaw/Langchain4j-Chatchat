@@ -350,6 +350,18 @@ public class FinancialDataStore {
         return result;
     }
 
+    /** Bounded existence checks, not a full export or a query recovery loop. Never infer emptiness from one tier. */
+    public Map<String,Object> validDatasetCoverage(String dataset) {
+        var filters=new LinkedHashMap<String,Object>();
+        if(schemaFields(FinancialDatasetDefinition.normalizeCode(dataset)).containsKey("legal_risk"))filters.put("legal_risk",false);
+        var daily=query(dataset,filters,null,null,1,"daily");
+        var weekly=query(dataset,filters,null,null,1,"weekly");
+        boolean empty=((Number)daily.get("count")).longValue()==0&&((Number)weekly.get("count")).longValue()==0;
+        return Map.of("scope","RETAINED_VALID_DATASET","dataset",dataset,"empty",empty,
+            "readModes",List.of("daily","weekly"),"maxRowsPerRead",1,
+            "policy","Observed eligible retained data only; excludes restricted rows; not platform-wide absence or exchange collection completeness");
+    }
+
     /** Preserve mentions from the existing security master; never discover/select a new business datasource. */
     public List<String> protectedSecurityPhrases(String source, int maximumPhrases) {
         if (source == null || source.isBlank()) return List.of();

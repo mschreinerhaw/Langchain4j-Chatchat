@@ -72,6 +72,8 @@ public class ResourceExplorationReadController {
             result.put("trade_date",day.toString());result.put("source_id",a.path("source_id").asLong());result.put("coverage",raw.get("coverage"));
             result.put("storage_tiers",List.of("daily_hot"));result.put("realtime",false);result.put("authority","UNTRUSTED_SOURCE_DATA");
             result.put("delivery","IMMUTABLE_DAY_FILE");
+            if(rows.isEmpty()&&((Map<?,?>)result.get("asset")).get("last_observation_date")==null)
+                result.put("source_coverage",market.validDatasetCoverage(dataset));
             if(json.writeValueAsBytes(result).length>8*1024*1024)throw new IllegalStateException("DAY_SNAPSHOT_BYTE_LIMIT: no complete daily snapshot delivered");
             return ApiResponse.success(result);
         }
@@ -136,6 +138,10 @@ public class ResourceExplorationReadController {
                 "next_steps",List.of("Resolve names or qualified codes with market_resolve_security; preserve exchange and instrument type.",
                     "Inspect an unfiltered market_search catalog and actual fields, coverage and source_id before another authorized read.",
                     "For a known source/day, market_get_day_snapshot delivers a bounded immutable file for Python filtering when authorized; this empty slice does not establish platform-wide absence.")));
+            // A missing catalog date alone proves nothing. For a candidate empty dataset,
+            // ask the existing bounded store about both retained tiers, preserving any failure.
+            if(rows.isEmpty()&&metadata.get("last_observation_date")==null)
+                result.put("source_coverage",market.validDatasetCoverage(dataset));
             if(tool.equals("market_get_indicators"))result.put("indicator_policy","Returns collected dataset fields; no unrequested derived indicator is computed.");
         result.put("authority","UNTRUSTED_SOURCE_DATA");result.put("license_status","source_declared_or_unknown_not_a_commercial_license_grant");
         if(json.writeValueAsBytes(result).length>145000)throw new IllegalArgumentException("Result exceeds resource budget; narrow the query");

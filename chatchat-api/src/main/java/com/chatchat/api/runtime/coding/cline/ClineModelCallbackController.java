@@ -91,8 +91,18 @@ public final class ClineModelCallbackController {
     public Map<String,Object> knowledge(@RequestBody JsonNode body) {
         return bound(body,call->{
             if(knowledge==null)throw new SecurityException("Knowledge tools unavailable");
-            var result=knowledge.call(contract(body,call,false),call.lease(),body.path("tool").asText(),
-                body.path("toolCallId").asText(),body.path("arguments"));
+            Map<String,Object> result;
+            try {result=knowledge.call(contract(body,call,false),call.lease(),body.path("tool").asText(),
+                body.path("toolCallId").asText(),body.path("arguments"));}
+            catch(SecurityException denied) {
+                String reason=Objects.toString(denied.getMessage(),"");
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    reason.equals("Resource source changed; start a new task to acquire current evidence")
+                        ?"SOURCE_CHANGED: reacquire evidence in a new task":"ACCESS_DENIED: resource access rejected; not an empty query result",denied);
+            }
+            catch(IllegalArgumentException invalid) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"UNKNOWN: invalid resource query parameters; correct the tool arguments",invalid);
+            }
             assertStillOwned(call);return result;
         });
     }

@@ -84,6 +84,44 @@ class CodingKnowledgeServiceTest {
         when(reader.readBatch(anyList())).thenAnswer(call->call.<List<CodingResourceReader.Read>>getArgument(0).stream()
             .map(read->reader.read(read.tool(),read.arguments())).toList());
     }
+    @Test void emptyReadRetainsExactQueryAndHistoryWithoutEndingTaskOrRetryingByItself() {
+        resourceTask("market_get_history","market_resolve_security");
+        when(reader.read(eq("market_get_history"),any())).thenAnswer(x->new LinkedHashMap<>(Map.of("dataset","quotes","count",0,"items",List.of())));
+        when(reader.read(eq("market_resolve_security"),any())).thenAnswer(x->new LinkedHashMap<>(Map.of("items",List.of(),"count",0)));
+        var query=Map.<String,Object>of("dataset","quotes","start_date","2026-11-02","end_date","2026-11-02","filters",Map.of("quote_code","SZSE:301218"));
+        var first=call("market_get_history",query);
+        var observation=(Map<?,?>)first.get("dataObservation");
+        assertThat(observation.get("status")).isEqualTo("EMPTY_RESULT");assertThat(observation.get("query")).isEqualTo(query);
+        assertThat(observation.get("sourceEmptyProven")).isEqualTo(false);assertThat(observation.get("startedAt")).isNotNull();
+        assertThat(as(()->tasks.get(scope,contract.taskId())).status().terminal()).isFalse();
+        var next=call("market_resolve_security",Map.of("query","301218"));
+        var paths=(List<?>)((Map<?,?>)next.get("dataObservation")).get("attemptedPaths");
+        assertThat(paths).hasSize(1);assertThat(paths.get(0).toString()).contains("market_get_history","EMPTY_RESULT","runtime-evidence:knowledge-tool:");
+        assertThat(as(()->tasks.privateState(scope,contract.taskId(),"data-exploration-observations")).size()).isEqualTo(2);
+    }
+    @Test void sourceUnavailableIsNotZeroRowsAndHasAnImmutableScopedFailureReceipt() {
+        resourceTask("market_get_history");
+        when(reader.read(eq("market_get_history"),any())).thenThrow(new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE,"financial source timed out"));
+        var args=json.valueToTree(Map.of("dataset","quotes"));String callId="timeout";
+        assertThatThrownBy(()->as(()->knowledge.call(contract,lease,"market_get_history",callId,args)))
+            .isInstanceOf(org.springframework.web.server.ResponseStatusException.class).hasMessageContaining("timed out");
+        String operation="workspace-"+com.chatchat.agents.protocol.ModelProtocolJson.sha256Hex(contract.taskId()+"\0market_get_history\0"+callId);
+        var receipt=as(()->evidence.find(scope,"knowledge-tool:"+operation).orElseThrow());
+        var state=(Map<?,?>)receipt.payload().get("dataObservation");
+        assertThat(state.get("status")).isEqualTo("SOURCE_UNAVAILABLE");assertThat(state.get("returnedRowCount")).isNull();
+        assertThat(receipt.payload().get("failureMessage").toString()).contains("financial source timed out");
+        assertThat(as(()->tasks.unresolvedOperations(scope,contract.taskId()))).isEmpty();
+    }
+    @Test void deniedReadHasNoRemoteDispatchAndRetainsTheDeniedQueryInScopedEvidence() {
+        resourceTask("market_get_history");resourceGrants.set(Set.of());
+        var args=json.valueToTree(Map.of("dataset","quotes"));String callId="denied";
+        assertThatThrownBy(()->as(()->knowledge.call(contract,lease,"market_get_history",callId,args))).isInstanceOf(SecurityException.class);
+        String id="resource-denial:"+com.chatchat.agents.protocol.ModelProtocolJson.sha256Hex(contract.taskId()+"\0market_get_history\0"+callId+"\0"+args);
+        var receipt=as(()->evidence.find(scope,id).orElseThrow());
+        assertThat(receipt.payload()).containsEntry("remoteRequestSent",false);
+        var state=(Map<?,?>)receipt.payload().get("dataObservation");assertThat(state.get("status")).isEqualTo("ACCESS_DENIED");
+        assertThat(state.get("returnedRowCount")).isNull();verifyNoInteractions(reader);
+    }
     Map<String,Object> newsBody(String text) {return Map.of("article_id","n1","version_id","v1","title","Policy announcement","text",text,
         "source_url","https://example.org/article","published_at","2026-11-02T01:00:00Z","collected_at","2026-11-03T01:00:00Z","source_view","body","offset",0);}
     @Test void resourceCallbacksCannotExpandTaskToolsOrLiveResourceGrants() {

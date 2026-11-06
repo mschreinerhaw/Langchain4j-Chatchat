@@ -9,6 +9,28 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
 class ResourceExplorationReadControllerTest {
+    @Test void sourceEmptyRequiresActualBoundedReadsOfBothRetainedTiers() throws Exception {
+        var ds=new org.springframework.jdbc.datasource.DriverManagerDataSource("jdbc:h2:mem:empty_p0_"+UUID.randomUUID()+";MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1","sa","");
+        var jdbc=new org.springframework.jdbc.core.JdbcTemplate(ds);
+        var real=new FinancialDataStore(jdbc,ds,json,new com.chatchat.runtime.market.config.MarketModuleProperties());real.initialize();
+        var source=new com.chatchat.runtime.market.model.MarketSource(6L,"empty_p0_fixture","Isolated fixture","https://example.test");
+        real.storeAll(List.of(new com.chatchat.runtime.market.model.MarketObservation(source,"fixture","quote",null,"SSE",
+            "https://example.test/quote",java.time.Instant.parse("2026-07-23T08:00:00Z"),"zh-CN",List.of("fixture"),List.of("SSE"),
+            Map.of("datasetCode","market_quote_daily","tradeDate","2026-07-23","quoteCode","000001","quoteName","Fixture","close","10.5"))));
+        assertThat(real.validDatasetCoverage("market_quote_daily")).containsEntry("empty",false);
+        // Only the isolated in-memory fixture is emptied, never the financial deployment.
+        jdbc.update("delete from market_quote_daily");jdbc.update("update market_asset_catalog set last_observation_date=null where dataset_code='market_quote_daily'");
+        var governed=new ResourceExplorationReadController(news,catalog,real,json);
+        var args=Map.of("dataset","market_quote_daily","start_date","2026-07-23","end_date","2026-07-23","history_mode","daily","limit",1);
+        var result=governed.read(json.valueToTree(Map.of("tool","market_get_history","arguments",args))).getData();
+        assertThat(result).containsEntry("count",0);
+        var coverage=(Map<?,?>)result.get("source_coverage");
+        assertThat(coverage.get("empty")).isEqualTo(true);assertThat(coverage.get("readModes")).isEqualTo(List.of("daily","weekly"));
+        assertThat(coverage.get("maxRowsPerRead")).isEqualTo(1);
+        if(System.getProperty("runtime.empty.census")!=null)java.nio.file.Files.writeString(java.nio.file.Path.of(System.getProperty("runtime.empty.census")),
+            json.writeValueAsString(Map.of("tool","market_get_history","query",args,"response",result,"evidenceScope","ISOLATED_H2_REAL_STORAGE_AND_MCP_CONTROLLER")));
+        assertThatThrownBy(()->real.validDatasetCoverage("not_a_registered_dataset")).isInstanceOf(IllegalArgumentException.class);
+    }
     @Test void dailySnapshotIsBoundedCompleteAndCannotReturnRestrictedRowsOrAcceptRawSql() throws Exception {
         var day=java.time.LocalDate.parse("2026-11-05");
         when(store.catalog("quotes")).thenReturn(Map.of("dataset_code","quotes","table_name","private_table"));

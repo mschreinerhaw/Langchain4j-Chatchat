@@ -139,7 +139,19 @@ public class CodingKnowledgeService {
         if((!TOOLS.contains(tool)&&!CodingResourceReader.TOOLS.contains(tool))||!enabled(c)
             ||!c.permitsTextResult()&&!calculation&&!CodingInternetAccess.TOOLS.contains(tool))throw new SecurityException("Knowledge tool denied");
         if(CodingInternetAccess.TOOLS.contains(tool)){if(internet==null)throw new SecurityException("Internet service unavailable");internet.require(c,tool);}
-        try{requireResource(c,tool);}catch(SecurityException denied){auditAccess(c,tool,"DENIED");throw denied;}
+        try{requireResource(c,tool);}catch(SecurityException denied){
+            auditAccess(c,tool,"DENIED");
+            if(callId!=null&&!callId.isBlank()&&callId.length()<=512&&args!=null&&args.isObject()&&args.toString().length()<=10000) {
+                String id="resource-denial:"+ModelProtocolJson.sha256Hex(c.taskId()+"\0"+tool+"\0"+callId+"\0"+args);
+                var observation=CodingDataObservation.describe(c,tool,json.convertValue(args,Map.class),Map.of(),
+                    new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN),java.time.Instant.now(),0);
+                var payload=Map.<String,Object>of("taskId",c.taskId(),"tool",tool,"dataObservation",observation,"remoteRequestSent",false);
+                if(evidence.find(c.scope(),id).isEmpty())evidence.register(new EvidenceRecord(null,id,c.scope(),"CODING_RESOURCE_DENIAL_RECEIPT",
+                    "CodingKnowledgeService",evidence.contentHash(payload),payload,null,0,Map.of()),
+                    new EvidenceLineage(null,id,c.scope(),List.of(),c.taskId(),"CodingKnowledgeService",callId,Map.of()));
+            }
+            throw denied;
+        }
         auditAccess(c,tool,"ALLOWED");
         if(callId==null||callId.isBlank()||callId.length()>512||args==null||!args.isObject())
             throw new IllegalArgumentException("Bounded knowledge call required");
@@ -158,6 +170,8 @@ public class CodingKnowledgeService {
         if(!reserved.admitted())throw new IllegalStateException("Knowledge tool budget exhausted");
         CodingTaskRevisions.mutate(tasks,c.scope(),c.taskId(),r->tasks.startIntent(c.scope(),c.taskId(),lease,r,operation,"runtime-workspace:"+operation));
         long bytes=0;boolean resourceResponseReceived=false;
+        var readStarted=java.time.Instant.now();long readClock=System.nanoTime();
+        RuntimeException readFailure=null;Map<String,Object> observation=null;
         try {
             var scope=live(c);
             validateDisclosed(c,scope,true); // A revoked/updated earlier disclosure cannot remain usable in this task.
@@ -198,14 +212,28 @@ public class CodingKnowledgeService {
             // Check again after index IO, including all documents disclosed by this call.
             validateDisclosed(c,live(c),true);
             result.put("authority","UNTRUSTED_SOURCE_DATA");
+            observation=CodingDataObservation.describe(c,tool,json.convertValue(args,Map.class),result,null,
+                readStarted,(System.nanoTime()-readClock)/1_000_000);
+            var previous=tasks.privateState(c.scope(),c.taskId(),"data-exploration-observations");
+            var history=new ArrayList<Map<String,Object>>();
+            if(previous!=null&&previous.isArray())for(var item:previous)
+                history.add(json.convertValue(item,new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){}));
+            observation.put("attemptedPaths",List.copyOf(history));
+            result.put("dataObservation",observation);
             bytes=json.writeValueAsBytes(result).length;
             if(bytes>150000)throw new IllegalStateException("Knowledge result exceeds disclosure budget");
             return result;
-        } catch(java.io.IOException invalid){throw new IllegalStateException("Cannot encode knowledge response",invalid);}
+        } catch(java.io.IOException invalid){readFailure=new IllegalStateException("Cannot encode knowledge response",invalid);throw readFailure;}
+        catch(RuntimeException invalid){readFailure=invalid;throw invalid;}
         finally {
             String id="knowledge-tool:"+operation;
             var receipt=new LinkedHashMap<String,Object>();receipt.put("taskId",c.taskId());receipt.put("tool",tool);receipt.put("requestSha256",intent);
             receipt.put("operationId",operation);receipt.put("executorStopped",true);receipt.put("executionHandle","runtime-workspace:"+operation);
+            if(observation==null||readFailure!=null)observation=CodingDataObservation.describe(c,tool,json.convertValue(args,Map.class),Map.of(),readFailure,
+                readStarted,(System.nanoTime()-readClock)/1_000_000);
+            receipt.put("dataObservation",observation);
+            if(readFailure!=null)receipt.put("failureMessage",Objects.toString(readFailure.getMessage(),"Read failed")
+                .replaceAll("(?i)(password|secret|token|authorization)([=: ]+)[^ ,;]+","$1$2[REDACTED]"));
             boolean remote=CodingResourceReader.TOOLS.contains(tool);
             if(remote) {
                 receipt.put("executorScope","RUNTIME_HTTP_CLIENT");receipt.put("remoteReadOnly",true);
@@ -215,6 +243,13 @@ public class CodingKnowledgeService {
             } else receipt.put("sqlExecuted",false);
             if(evidence.find(c.scope(),id).isEmpty())evidence.register(new EvidenceRecord(null,id,c.scope(),remote?"CODING_RESOURCE_READ_RECEIPT":"CODING_WORKSPACE_TOOL_RECEIPT","CodingKnowledgeService",
                 evidence.contentHash(receipt),receipt,null,0,Map.of()),new EvidenceLineage(null,id,c.scope(),List.of(),c.taskId(),"CodingKnowledgeService",callId,Map.of()));
+            var priorHistory=tasks.privateState(c.scope(),c.taskId(),"data-exploration-observations");
+            var history=json.createArrayNode();
+            if(priorHistory!=null&&priorHistory.isArray())for(int i=Math.max(0,priorHistory.size()-15);i<priorHistory.size();i++)history.add(priorHistory.get(i));
+            var path=json.createObjectNode().put("tool",tool).put("requestSha256",intent)
+                .put("status",Objects.toString(observation.get("status"),"UNKNOWN")).put("evidenceRef","runtime-evidence:"+id);
+            path.set("returnedRowCount",json.valueToTree(observation.get("returnedRowCount")));history.add(path);
+            tasks.privateState(c.scope(),c.taskId(),lease,"data-exploration-observations",priorHistory,history);
             CodingTaskRevisions.mutate(tasks,c.scope(),c.taskId(),r->tasks.reconcileStopped(c.scope(),c.taskId(),lease,r,operation,"runtime-evidence:"+id));
             long actual=bytes;
             CodingTaskRevisions.mutate(tasks,c.scope(),c.taskId(),r->tasks.settle(c.scope(),c.taskId(),lease,r,operation,

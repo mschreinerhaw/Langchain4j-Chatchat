@@ -64,6 +64,13 @@ public enum DataSupplyStatus {
         result.put("failures", List.copyOf(failures)); result.put("excludedSourceCount", exclusions.size());
         // A status is never permission to retry, change parameters or execute another asset.
         result.put("automaticRetryAuthorized", false);
+        var observation=new LinkedHashMap<String,Object>();
+        observation.put("schemaVersion",com.chatchat.common.runtime.coding.CodingDataStatus.VERSION);
+        observation.put("status",rows>0?(!failures.isEmpty()||!exclusions.isEmpty()?"PARTIAL_DATA":"AVAILABLE")
+            :status==EMPTY_RESULT?"EMPTY_RESULT":"UNKNOWN");
+        observation.put("returnedRowCount",status==EMPTY_RESULT||rows>0?rows:null);
+        observation.put("sourceEmptyProven",false);observation.put("cause","UNKNOWN");
+        observation.put("automaticRetryAuthorized",false);result.put("dataObservation",observation);
         if (status == EXECUTION_FAILED && failures.isEmpty()) {
             result.put("stage", "DATASET_PROJECTION"); result.put("code", "NO_VERIFIED_DATASET");
         }

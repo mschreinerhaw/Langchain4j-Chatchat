@@ -10,6 +10,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import time
 
 
@@ -18,8 +19,14 @@ def main():
     base=Path('/var/tmp/runtime-data-remediation-20261107-r7')
     ui=Path('/var/tmp/runtime-cline-acceptance-20261107-ui')
     state=ui/'acceptance-batch-intent.json'
-    assert not state.exists(),'Inspect existing batch state; no automatic replay'
-    state.write_text(json.dumps({'startedAt':time.time(),'policy':'guarded deployment; unchanged native contracts'}))
+    assert sys.argv[1:] in [[],['--resume-after-deploy']]
+    if '--resume-after-deploy' in sys.argv:
+        assert state.exists() and (ui/'deployment.json').exists(),'Resume requires a confirmed deployment'
+        assert not Path('/var/tmp/runtime-cline-acceptance-20261107-performance').exists()
+        assert all(not Path('/var/tmp/runtime-cline-acceptance-20261107-'+key+'/autonomous-search-intent-private.json').exists() for key in ['C','D']), 'Never replay an admitted task'
+    else:
+        assert not state.exists(),'Inspect existing batch state; no automatic replay'
+        state.write_text(json.dumps({'startedAt':time.time(),'policy':'guarded deployment; unchanged native contracts'}))
 
     def run(script,root,*args):
         with (root/(script+'-batch.log')).open('a') as log:
@@ -55,6 +62,7 @@ def main():
         shutil.copy2(frozen/name,bench/name)
     for name in ['auth-private.json','collect-coding-progress.py','verify-runtime-data-scenarios.py','verify-runtime-benchmark-comparability.py','verify-runtime-report-archives.py']:
         shutil.copy2(base/name,bench/name)
+    shutil.copy2(ui/'acceptance-frozen-inputs-private.json',bench/'acceptance-frozen-inputs-private.json')
     with (bench/'prepare.log').open('w') as log:
         subprocess.run(['python3',str(base/'verify-runtime-data-scenarios.py'),'prepare',str(bench),'--files-only'],
                        env={**os.environ,'RUNTIME_ACCEPTANCE_REPETITIONS':'3'},check=True,stdout=log,stderr=subprocess.STDOUT)

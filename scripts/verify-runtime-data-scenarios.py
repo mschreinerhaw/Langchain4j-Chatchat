@@ -46,33 +46,45 @@ def main():
         save('scenario-prepare-intent-private.json',{'startedAt':time.time(),'purpose':'Actual logged question; fixed snapshot and unchanged shared configuration'})
         original=json.loads((root/'parent-run-private.json').read_text())
         journal=json.loads(Path('/opt/chatchat-releases/native-analysis-failure-20261106/journal-latest-private.json').read_text())
-        snapshot=next(v for k,v in journal['privateState'].items() if k.startswith('inputs:'))[0]
-        part=next(v for v in snapshot['chunks'] if v['fileName'].endswith('.parquet'))
-        paths=list(Path('/opt/runtime-os-docker-stage/mcp/data/python-user-data').rglob(part['fileId']+'/'+part['fileName']))
-        assert len(paths)==1 and hashlib.sha256(paths[0].read_bytes()).hexdigest()==part['sha256']
-        asset=api('/data-science/user-assets',multipart=(part['fileName'],paths[0].read_bytes()))
-        assert asset['sha256']==part['sha256']
-        assets=[asset];input_files=[{'fileName':part['fileName'],'sha256':part['sha256']}]
-        for file in [snapshot]+[v for v in snapshot['chunks'] if v['fileName'].endswith('.json')]:
-            matches=list(Path('/opt/runtime-os-docker-stage/mcp/data/python-user-data').rglob(file['fileId']+'/'+file['fileName']))
-            assert len(matches)==1 and hashlib.sha256(matches[0].read_bytes()).hexdigest()==file['sha256']
-            delivered=api('/data-science/user-assets',multipart=(file['fileName'],matches[0].read_bytes()))
-            assert delivered['sha256']==file['sha256'];assets.append(delivered);input_files.append({'fileName':file['fileName'],'sha256':file['sha256']})
-        original_evidence=json.loads((root/'original-input-evidence-private.json').read_text())
-        # Preserve producer declarations and layout while excluding old task authority IDs.
-        payload=original_evidence['payload'];semantics={k:payload[k] for k in ['inputVersions','qualitySummary','sourceDatasetRef','schemaJson','inputManifest'] if k in payload}
-        context_bytes=json.dumps(semantics,ensure_ascii=False,sort_keys=True).encode()
-        delivered=api('/data-science/user-assets',multipart=('original-input-context.json',context_bytes));assets.append(delivered)
-        input_files.append({'fileName':'original-input-context.json','sha256':hashlib.sha256(context_bytes).hexdigest(),
-            'originEvidenceSha256':hashlib.sha256((root/'original-input-evidence-private.json').read_bytes()).hexdigest()})
-        # Existing governed catalog declarations resolve business meanings; no values
-        # or formulas are invented and the same frozen dictionary goes to both models.
-        source_read=json.loads((root/'market_get_day_snapshot-private.json').read_text())
-        dictionary_bytes=json.dumps({'dataset':source_read['dataset'],'asset':source_read['asset'],
-            'source':'Existing MCP financial catalog; declarations, not proof of observation compliance',
-            'readSnapshotSha256':hashlib.sha256((root/'market_get_day_snapshot-private.json').read_bytes()).hexdigest()},ensure_ascii=False,sort_keys=True).encode()
-        delivered=api('/data-science/user-assets',multipart=('market-producer-declarations.json',dictionary_bytes));assets.append(delivered)
-        input_files.append({'fileName':'market-producer-declarations.json','sha256':hashlib.sha256(dictionary_bytes).hexdigest()})
+        frozen_path=root/'acceptance-frozen-inputs-private.json'
+        if frozen_path.exists():
+            frozen=json.loads(frozen_path.read_text())
+            assert 1<=len(frozen['inputFiles'])<=8
+            assert len({f['assetId'] for f in frozen['inputFiles']})==len(frozen['inputFiles'])
+            for file in frozen['inputFiles']:
+                assert len(file['assetId'])==64 and len(file['sha256'])==64
+            assets=[{'id':f['assetId']} for f in frozen['inputFiles']]
+            input_files=[{k:f[k] for k in ['fileName','sha256']} for f in frozen['inputFiles']]
+            part=next(f for f in frozen['inputFiles'] if f['fileName'].endswith('.parquet'))
+            original['request']['query']=frozen['question']
+        else:
+            snapshot=next(v for k,v in journal['privateState'].items() if k.startswith('inputs:'))[0]
+            part=next(v for v in snapshot['chunks'] if v['fileName'].endswith('.parquet'))
+            paths=list(Path('/opt/runtime-os-docker-stage/mcp/data/python-user-data').rglob(part['fileId']+'/'+part['fileName']))
+            assert len(paths)==1 and hashlib.sha256(paths[0].read_bytes()).hexdigest()==part['sha256']
+            asset=api('/data-science/user-assets',multipart=(part['fileName'],paths[0].read_bytes()))
+            assert asset['sha256']==part['sha256']
+            assets=[asset];input_files=[{'fileName':part['fileName'],'sha256':part['sha256']}]
+            for file in [snapshot]+[v for v in snapshot['chunks'] if v['fileName'].endswith('.json')]:
+                matches=list(Path('/opt/runtime-os-docker-stage/mcp/data/python-user-data').rglob(file['fileId']+'/'+file['fileName']))
+                assert len(matches)==1 and hashlib.sha256(matches[0].read_bytes()).hexdigest()==file['sha256']
+                delivered=api('/data-science/user-assets',multipart=(file['fileName'],matches[0].read_bytes()))
+                assert delivered['sha256']==file['sha256'];assets.append(delivered);input_files.append({'fileName':file['fileName'],'sha256':file['sha256']})
+            original_evidence=json.loads((root/'original-input-evidence-private.json').read_text())
+            # Preserve producer declarations and layout while excluding old task authority IDs.
+            payload=original_evidence['payload'];semantics={k:payload[k] for k in ['inputVersions','qualitySummary','sourceDatasetRef','schemaJson','inputManifest'] if k in payload}
+            context_bytes=json.dumps(semantics,ensure_ascii=False,sort_keys=True).encode()
+            delivered=api('/data-science/user-assets',multipart=('original-input-context.json',context_bytes));assets.append(delivered)
+            input_files.append({'fileName':'original-input-context.json','sha256':hashlib.sha256(context_bytes).hexdigest(),
+                'originEvidenceSha256':hashlib.sha256((root/'original-input-evidence-private.json').read_bytes()).hexdigest()})
+            # Existing governed catalog declarations resolve business meanings; no values
+            # or formulas are invented and the same frozen dictionary goes to both models.
+            source_read=json.loads((root/'market_get_day_snapshot-private.json').read_text())
+            dictionary_bytes=json.dumps({'dataset':source_read['dataset'],'asset':source_read['asset'],
+                'source':'Existing MCP financial catalog; declarations, not proof of observation compliance',
+                'readSnapshotSha256':hashlib.sha256((root/'market_get_day_snapshot-private.json').read_bytes()).hexdigest()},ensure_ascii=False,sort_keys=True).encode()
+            delivered=api('/data-science/user-assets',multipart=('market-producer-declarations.json',dictionary_bytes));assets.append(delivered)
+            input_files.append({'fileName':'market-producer-declarations.json','sha256':hashlib.sha256(dictionary_bytes).hexdigest()})
         workspace=api('/data-science/explorations',{'title':'Runtime OS 真实行情问题回归'})
         cases=[]
         repetitions=int(os.environ.get('RUNTIME_ACCEPTANCE_REPETITIONS','2'))
@@ -93,6 +105,8 @@ def main():
                 'modelName':original['request']['modelName'],'agentId':original['request']['skillId']})
             extra=[{'case':'authorized-day-file','model':original['request']['modelName'],'nodeId':workspace['nodes'][-1]['id']}]
         save('scenario-prepared-private.json',{'workspaceId':workspace['id'],'cases':cases,'agent':agent,
+            'questionSha256':hashlib.sha256(original['request']['query'].encode()).hexdigest(),
+            'frozenOriginTaskId':frozen.get('originTaskId') if frozen_path.exists() else None,
             'extraCases':extra,
             'originalTaskId':journal['contract']['taskId'],'originalInputSha256':part['sha256'],'inputFiles':input_files,'inputAssetIds':[a['id'] for a in assets]})
         print(json.dumps({'prepared':len(cases)+(1 if agent else 0)+len(extra),'inputSha256':part['sha256'],'workspaceId':workspace['id']}),flush=True)
@@ -199,6 +213,9 @@ def main():
                     'firstCodeLatencyMs':latency(lambda e:e.get('type')=='CODE_READY'),
                     'firstReportLatencyMs':latency(lambda e:e.get('type')=='TOOL_FINISHED' and e.get('tool')=='python_execute' and e.get('resultAvailable') is True)},
                 measurementPolicy='null=UNKNOWN; latencies start at Node task acceptance; tool/Python phases overlap, not additive; codeProposalModelMs includes reasoning and provider IO; pure planning/code/report generation are not separately observable',
+                requestModelParameters=[{'operationId':key,'maxOutputTokens':value.get('maxOutputTokens'),
+                    'modelInfo':value.get('modelInfo')} for key,value in models.items()],
+                frozenExecutionProfile=runtime.get('executionProfile'),
                 models=[{k:m.get(k) for k in ['ordinal','status','selectedModel','providerModel','protocol','durationMs','actualTools','usage','purpose','queueTimeMs','firstTokenMs','generationTimeMs','retryTimeMs','requestBytes','responseBytes','messageCount','toolCount','repeatedContextBytes','duplicateContextBytes','avoidableRepeatedContextBytes','contextSizeBefore','contextSizeAfter','compactionCount','contextChangeReason']} for m in model_timings])
         report=receipt.get('visualReport') or {}
         row['delivery']={k:report[k] for k in ['status','analysisStatus','requirementStatus','artifactValidationStatus','chartValidationStatus','availableChartCount'] if k in report}

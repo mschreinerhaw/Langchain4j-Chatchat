@@ -48,8 +48,8 @@ def main():
         assert path.is_relative_to(bundle.resolve()) and path.is_file() and sha(path.read_bytes()) == digest
     groups = {group: {name[len(group)+1:]: (bundle/name).read_bytes()
                      for name in manifest['files'] if name.startswith(group+'/')}
-              for group in ['api', 'mcp', 'common', 'market', 'news', 'node', 'static']}
-    libraries = {'common': 'chatchat-common-', 'market': 'chatchat-runtime-market-', 'news': 'chatchat-runtime-news-'}
+              for group in ['api', 'mcp', 'agents', 'common', 'market', 'news', 'node', 'static']}
+    libraries = {'common': 'chatchat-common-', 'agents':'chatchat-agents-', 'market': 'chatchat-runtime-market-', 'news': 'chatchat-runtime-news-'}
     report = {'sourceCommit': manifest['sourceCommit'], 'preserveRuntimeConfiguration': True,
               'removeInheritedRuntimeBaseLabels': True, 'backupFinancialStorage': True,
               'preparationScriptSha256':sha(Path(__file__).read_bytes())}

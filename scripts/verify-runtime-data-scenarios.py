@@ -49,14 +49,35 @@ def main():
         part=next(v for v in snapshot['chunks'] if v['fileName'].endswith('.parquet'))
         paths=list(Path('/opt/runtime-os-docker-stage/mcp/data/python-user-data').rglob(part['fileId']+'/'+part['fileName']))
         assert len(paths)==1 and hashlib.sha256(paths[0].read_bytes()).hexdigest()==part['sha256']
-        asset=api('/data-science/user-assets',multipart=('actual-market-input.parquet',paths[0].read_bytes()))
+        asset=api('/data-science/user-assets',multipart=(part['fileName'],paths[0].read_bytes()))
         assert asset['sha256']==part['sha256']
+        assets=[asset];input_files=[{'fileName':part['fileName'],'sha256':part['sha256']}]
+        for file in [snapshot]+[v for v in snapshot['chunks'] if v['fileName'].endswith('.json')]:
+            matches=list(Path('/opt/runtime-os-docker-stage/mcp/data/python-user-data').rglob(file['fileId']+'/'+file['fileName']))
+            assert len(matches)==1 and hashlib.sha256(matches[0].read_bytes()).hexdigest()==file['sha256']
+            delivered=api('/data-science/user-assets',multipart=(file['fileName'],matches[0].read_bytes()))
+            assert delivered['sha256']==file['sha256'];assets.append(delivered);input_files.append({'fileName':file['fileName'],'sha256':file['sha256']})
+        original_evidence=json.loads((root/'original-input-evidence-private.json').read_text())
+        # Preserve producer declarations and layout while excluding old task authority IDs.
+        payload=original_evidence['payload'];semantics={k:payload[k] for k in ['inputVersions','qualitySummary','sourceDatasetRef','schemaJson','inputManifest'] if k in payload}
+        context_bytes=json.dumps(semantics,ensure_ascii=False,sort_keys=True).encode()
+        delivered=api('/data-science/user-assets',multipart=('original-input-context.json',context_bytes));assets.append(delivered)
+        input_files.append({'fileName':'original-input-context.json','sha256':hashlib.sha256(context_bytes).hexdigest(),
+            'originEvidenceSha256':hashlib.sha256((root/'original-input-evidence-private.json').read_bytes()).hexdigest()})
+        # Existing governed catalog declarations resolve business meanings; no values
+        # or formulas are invented and the same frozen dictionary goes to both models.
+        source_read=json.loads((root/'market_get_day_snapshot-private.json').read_text())
+        dictionary_bytes=json.dumps({'dataset':source_read['dataset'],'asset':source_read['asset'],
+            'source':'Existing MCP financial catalog; declarations, not proof of observation compliance',
+            'readSnapshotSha256':hashlib.sha256((root/'market_get_day_snapshot-private.json').read_bytes()).hexdigest()},ensure_ascii=False,sort_keys=True).encode()
+        delivered=api('/data-science/user-assets',multipart=('market-producer-declarations.json',dictionary_bytes));assets.append(delivered)
+        input_files.append({'fileName':'market-producer-declarations.json','sha256':hashlib.sha256(dictionary_bytes).hexdigest()})
         workspace=api('/data-science/explorations',{'title':'Runtime OS 真实行情问题回归'})
         cases=[]
         for repeat in range(2):
             for model,label in [('qwen3.8-flash','flash'),('qwen3.7-plus','plus')]:
                 workspace=api('/data-science/explorations/'+workspace['id']+'/nodes',{'version':workspace['version'],'parentId':'',
-                    'fileIds':[asset['id']],'question':original['request']['query'],'modelName':model})
+                    'fileIds':[a['id'] for a in assets],'question':original['request']['query'],'modelName':model})
                 cases.append({'case':label+'-'+str(repeat+1),'model':model,'nodeId':workspace['nodes'][-1]['id']})
         # Same original Agent/question, independent from the frozen-file performance cohort.
         workspace=api('/data-science/explorations/'+workspace['id']+'/nodes',{'version':workspace['version'],'parentId':'',
@@ -72,7 +93,7 @@ def main():
         daily={'case':'authorized-day-file','model':original['request']['modelName'],'nodeId':workspace['nodes'][-1]['id']}
         save('scenario-prepared-private.json',{'workspaceId':workspace['id'],'cases':cases,'agent':agent,
             'extraCases':[search,daily],
-            'originalTaskId':journal['contract']['taskId'],'originalInputSha256':part['sha256'],'inputAssetId':asset['id']})
+            'originalTaskId':journal['contract']['taskId'],'originalInputSha256':part['sha256'],'inputFiles':input_files,'inputAssetIds':[a['id'] for a in assets]})
         print(json.dumps({'prepared':len(cases)+3,'inputSha256':part['sha256'],'workspaceId':workspace['id']}),flush=True)
         return
 
@@ -90,7 +111,8 @@ def main():
                 print(json.dumps({'case':case['case'],'httpReturned':True,'elapsedMs':round((time.monotonic()-started)*1000)}),flush=True)
             except Exception as error:
                 save(case['case']+'-error-private.json',{'type':type(error).__name__,'message':str(error),'outcome':'UNKNOWN_POLL_ONLY'})
-        with ThreadPoolExecutor(max_workers=2) as pool:list(pool.map(execute,prepared['cases']))
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            for offset in range(0,len(prepared['cases']),2):list(pool.map(execute,prepared['cases'][offset:offset+2]))
         execute(prepared['agent'])
         for case in prepared.get('extraCases',[]):execute(case)
         return

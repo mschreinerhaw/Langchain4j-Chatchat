@@ -10,10 +10,11 @@ const families={
   'com/chatchat/api/runtime/coding/knowledge/CodingResourceReader','com/chatchat/api/runtime/coding/knowledge/CodingInternetAccess',
   'com/chatchat/api/runtime/coding/execution/CodingExecutionFeedbackService','com/chatchat/api/model/InternetSearchProbeController'],
  mcp:['com/chatchat/mcpserver/market/ResourceExplorationReadController'],
+ agents:['com/chatchat/agents/orchestration/analysis/graph/AnalysisCodingPort','com/chatchat/agents/orchestration/analysis/governance/AnalysisCoverageCoordinator'],
  common:['com/chatchat/common/runtime/coding/CodingRuntimeContext'],
  market:['com/chatchat/runtime/market/storage/FinancialDataStore','com/chatchat/runtime/market/config/MarketModuleProperties'],
  news:['com/chatchat/runtime/news/internet/InternetSearchService']};
-const modules={api:'chatchat-api',mcp:'chatchat-mcp-server',common:'chatchat-common',market:'chatchat-runtime-market',news:'chatchat-runtime-news'};
+const modules={api:'chatchat-api',mcp:'chatchat-mcp-server',agents:'chatchat-agents',common:'chatchat-common',market:'chatchat-runtime-market',news:'chatchat-runtime-news'};
 const files={};
 async function add(src,name){const bytes=await readFile(src);await mkdir(dirname(join(out,name)),{recursive:true});await copyFile(src,join(out,name));files[name]=createHash('sha256').update(bytes).digest('hex');}
 for(const [module,names] of Object.entries(families))for(const name of names){

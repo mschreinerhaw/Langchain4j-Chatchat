@@ -38,9 +38,10 @@ class CodingAnalysisServiceTest {
             return List.of(event);
         });
         when(durable.privateState(eq(scope),anyString(),eq("feedback:operation"))).thenAnswer(call->new ObjectMapper().valueToTree(Map.of(
-            "taskId",call.getArgument(1),"executionId","operation","error",Map.of("message","Missing /workspace/output/results/rows.jsonl","sourceCode","PRIVATE_CODE"))));
+            "taskId",call.getArgument(1),"executionId","operation","error",Map.of("message","Missing /workspace/output/results/rows.jsonl","sourceCode","PRIVATE_CODE",
+                "stack",List.of(Map.of("file","analysis_v2.py","line",350,"locals","PRIVATE_LOCALS"))))));
         var first=service().primarySnapshot(scope,true).orElseThrow();
-        assertThat(first.get("analysisEvents").toString()).contains("REQUIRED_OUTPUT_MISSING","python_execute","/workspace/output/results/rows.jsonl").doesNotContain("executorStopped","PRIVATE_");
+        assertThat(first.get("analysisEvents").toString()).contains("REQUIRED_OUTPUT_MISSING","python_execute","/workspace/output/results/rows.jsonl","analysis_v2.py","350").doesNotContain("executorStopped","PRIVATE_");
         when(durable.privateState(eq(scope),anyString(),eq("feedback:operation"))).thenReturn(new ObjectMapper().valueToTree(Map.of(
             "taskId","other-task","executionId","operation","error",Map.of("message","FOREIGN_ERROR"))));
         when(durable.verifiedOperation(eq(scope),anyString(),eq("operation"))).thenReturn(Optional.of(new DurableCodingTaskService.VerifiedOperation("operation",1,"handle","stop-proof")));

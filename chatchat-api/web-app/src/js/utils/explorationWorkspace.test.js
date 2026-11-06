@@ -20,6 +20,9 @@ it('retains partial/input-required outcomes and the real missing file on termina
   .toBe('Missing /workspace/output/results/rows.jsonl；Repair attempts exhausted');
  expect(explorationLifecycleStatus([...failed,{type:'TOOL_STARTED',tool:'python_execute'}],{terminal:true,status:'FAILED',summary:'Latest execution unknown'}).detail)
   .toBe('Latest execution unknown');
+ failed[0].executionFeedback.error.stack=[{file:'analysis_v2.py',line:350}];
+ expect(explorationLifecycleStatus(failed,{terminal:true,status:'FAILED',reasonCode:'BUDGET_EXCEEDED'}).detail)
+  .toBe('Missing /workspace/output/results/rows.jsonl (analysis_v2.py:350)；BUDGET_EXCEEDED');
  expect(explorationLifecycleStatus([],{terminal:true,status:'FAILED',resultAvailable:false,error:'Chart /output/charts/close.json is missing'}))
   .toMatchObject({code:'FAILED',detail:'Chart /output/charts/close.json is missing'});
  expect(explorationLifecycleStatus([],{terminal:true,status:'FAILED',resultAvailable:true}).code).toBe('PARTIAL');

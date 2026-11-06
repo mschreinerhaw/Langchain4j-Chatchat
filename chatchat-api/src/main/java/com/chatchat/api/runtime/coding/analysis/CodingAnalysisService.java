@@ -223,6 +223,13 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                         var value=feedback.path("error").path(key);
                         if(value.isTextual()&&value.asText().length()<=800)error.put(key,value.asText());
                     }
+                    var locations=new ArrayList<Map<String,Object>>();
+                    for(var frame:feedback.path("error").path("stack")){
+                        if(locations.size()==8)break;
+                        if(frame.path("file").isTextual()&&frame.path("file").asText().length()<=512&&frame.path("line").isIntegralNumber()&&frame.path("line").asLong()>0)
+                            locations.add(Map.of("file",frame.path("file").asText(),"line",frame.path("line").asLong()));
+                    }
+                    if(!locations.isEmpty())error.put("stack",locations);
                     if(!error.isEmpty())worker.put("executionFeedback",Map.of("error",error));
                 }
             }

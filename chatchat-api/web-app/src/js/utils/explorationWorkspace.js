@@ -74,7 +74,12 @@ export function explorationLifecycleStatus(events=[],receipt={}){
     if(type==='TOOL_FINISHED'&&worker.tool==='input_read'&&worker.status==='SUCCEEDED')code='DATA_READY';
     if(type==='TOOL_FINISHED'&&worker.tool==='python_execute'&&worker.executorStopped===true){
       code=worker.resultAvailable===true?'REPORTING':'FAILED';
-      if(code==='FAILED')detail=worker.executionFeedback?.error?.message||worker.error?.message||worker.outputStatus||'计算进程已结束，报告尚未通过交付校验';
+      if(code==='FAILED'){
+        const error=worker.executionFeedback?.error||worker.error||{};
+        detail=error.message||worker.outputStatus||'计算进程已结束，报告尚未通过交付校验';
+        const locations=(Array.isArray(error.stack)?error.stack:[]).filter(frame=>typeof frame.file==='string'&&Number.isInteger(frame.line)&&frame.line>0).slice(0,8).map(frame=>`${frame.file}:${frame.line}`);
+        if(locations.length)detail+=` (${locations.join(', ')})`;
+      }
     }
   }
   const terminal=receipt.terminal===true,failed=['FAILED','BUDGET_EXCEEDED','CANCELLED'].includes(receipt.status);

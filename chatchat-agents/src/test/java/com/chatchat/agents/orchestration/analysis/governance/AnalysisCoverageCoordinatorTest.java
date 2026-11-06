@@ -157,7 +157,7 @@ class AnalysisCoverageCoordinatorTest {
         org.mockito.Mockito.verify(coding).canExploreAuthorizedResources(any());
         org.mockito.Mockito.verify(coding,org.mockito.Mockito.never()).executePrimaryAnalysis(any(),any(),any());
     }
-    @Test void selectionFailureReturnsItsSupplyStatusWithoutStartingCoding() {
+    @Test void unavailableSupplyWithoutExplorationToolsStillReachesNativeLimitedReporting() {
         var evidence=mock(AnalysisEvidenceCoordinator.class);
         when(evidence.project(any(),any())).thenReturn(new AnalysisEvidenceCoordinator.Projection(List.of(),List.of()));
         var base=request(new LinkedHashMap<>());var coding=mock(AnalysisCodingPort.class);
@@ -166,13 +166,24 @@ class AnalysisCoverageCoordinatorTest {
                 "MODEL_SELECTION_UNAVAILABLE",null,null,1,Map.of("candidateSelectionErrorCode","MODEL_UNAVAILABLE",
                     "mcpDiscoverySucceeded",true))),Map.of(),1);
         var coordinator=coordinator(evidence);coordinator.setCodingPort(coding);
-        assertThatThrownBy(()->coordinator.analyze(new AnalysisCoverageCoordinator.Request(null,"Analyze",result,Map.of("taskType","DATA_ANALYSIS"),
-            base.metadata(),base.cancellationCheck(),base.cancellationGuard(),base.isolationScope(),base.summaryProtocol())))
-            .hasMessageContaining("DATA_SUPPLY_SELECTION_FAILED").hasMessageContaining("MODEL_SELECTION_UNAVAILABLE");
+        when(coding.executePrimaryAnalysis(any(),any(),any())).thenAnswer(call->{
+            Map<String,AnalysisEvidenceCoordinator.Dataset> sources=call.getArgument(1);
+            var status=sources.values().iterator().next();
+            assertThat(status.analysisContext()).containsEntry("recordType","DATA_SUPPLY_STATUS");
+            assertThat(status.records().get(0).toString()).contains("SELECTION_FAILED","MODEL_SELECTION_UNAVAILABLE");
+            sources.put("result",new AnalysisEvidenceCoordinator.Dataset("result",Map.of(),List.of(Map.of(
+                "reportMarkdown","# Unable to calculate\nNo verified observations; template selection was unavailable. No alternative data tools are authorized.",
+                "analysisStatus","INPUT_REQUIRED","evidenceReferences",List.of(status.reference()),
+                "limitations",List.of("No verified financial observations; cannot calculate prices or rank")))));
+            return Map.of("resultAvailable",true,"datasetReference","result");
+        });
+        coordinator.analyze(new AnalysisCoverageCoordinator.Request(null,"Analyze",result,Map.of("taskType","DATA_ANALYSIS"),
+            base.metadata(),base.cancellationCheck(),base.cancellationGuard(),base.isolationScope(),base.summaryProtocol()));
         assertThat(base.metadata()).containsKey("dataSupplyStatus").containsEntry("businessDataAvailable",false);
         assertThat(base.metadata()).doesNotContainKey("dataAcquisitionFailure");
         org.mockito.Mockito.verify(coding).canExploreAuthorizedResources(any());
-        org.mockito.Mockito.verify(coding,org.mockito.Mockito.never()).executePrimaryAnalysis(any(),any(),any());
+        assertThat(base.metadata()).containsEntry("limitedReportAfterUnavailableSupply",true);
+        org.mockito.Mockito.verify(coding,org.mockito.Mockito.times(1)).executePrimaryAnalysis(any(),any(),any());
     }
     @Test void emptyInitialSupplyRetainsAuthorizedExplorationAndNeverPretendsStatusIsBusinessData() {
         var evidence=mock(AnalysisEvidenceCoordinator.class);

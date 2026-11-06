@@ -105,6 +105,13 @@ public final class AnalysisCoverageCoordinator {
                 request.metadata().put("analysisExecutionPolicy", "NOT_REQUESTED");
                 return CoverageBundle.empty();
             }
+            if(coding!=null) {
+                request.metadata().put("initialBusinessDataAvailable",false);
+                request.metadata().put("limitedReportAfterUnavailableSupply",true);
+                // No extra grants or query retries. Native Cline can explain the observed
+                // gap using the status receipt, without treating it as financial data.
+                return analyzeWithCoding(request,List.of(status));
+            }
             throw new IllegalStateException("DATA_SUPPLY_" + supply.get("status") + ": "
                 + status.handle().readPage(0,1).rows().get(0));
         }

@@ -43,3 +43,10 @@
 - 原修复第三段 oldText=344、newText=28,866 字符，已通过原生 SDK 分成 15,000/14,026 两段的离线精确回归。该回归验证编辑、Hash、版本和原子失败，不等于模型报告已通过业务验收。
 - Flash 和 Plus 目前均 `internetSearchEnabled=false`；Omni Flash 已开启。腾讯 WSA 已配置，最近状态为 PROVIDER_LANGUAGE_UNSUPPORTED。不能改写共享配置来制造 Flash 联网通过；必须分别验证关闭时降级及既有已授权模型的搜索路径。
 - 日快照只证明单个存储数据源/数据集/交易日的有界完整读取，不证明采集端已覆盖整个交易所。普通交互查询上限仍为 200，日文件上限 10,000 行/8 MiB，超限拒绝、不截断；没有原生 Parquet 合约的任务不能调用此导出。
+
+### 补充复核（2026-11-07）
+
+- **DATA-04，已确认源码缺陷**：`AnalysisCoverageCoordinator.analyze` 对首批空数据直接抛出 DATA_SUPPLY_*，没有核对 Cline 是否仍有其他已授权资源。新增既有 AnalysisCodingPort 的授权预检，只读 Agent/用户/模型授权；有资源时交付 DATA_SUPPLY_STATUS 作为状态材料后继续原 Cline 路径，没有资源时保留拒绝。状态行不冒充业务数据，不增加预算、不在 Java 选择查询。
+- **REPORT-02，真实复测确认**：Plus 合约技术 COMPLETED，但报告 requirementStatus=INPUT_REQUIRED、visualReport=NO_DATA，原前端仍显示“已完成”。保留执行终态和报告原件，单独显示“需补充数据”，不能用归档成功冒充分析完整。
+- **验证材料缺口，不能当生产缺陷**：首个固定文件对照仅上传了原 Parquet 分片，漏掉原 manifest、schema 和输入上下文，模型只见 p0/c0/p1/c1。保留该批作为不完整输入的负向样本；停止尚未完成的同批测试，完整材料对照需同时冻结全部文件和现有 MCP 生产者字段声明，再对 Flash/Plus 使用相同内容。没有把这一批的安全 INPUT_REQUIRED 报告计作有效行情分析或性能改善。
+- **已修复的发布回归**：首次候选 MCP 镜像漏带原 Docker CLI，首批任务在 Python 环境探测阶段失败，尚未进入 Cline。已从原容器复制精确二进制（Docker 26.1.3），校验 Hash 和离线 docker --version 后只替换 MCP；Python 3.11.18/环境版本7/原镜像摘要恢复。失败批次独立保留，发布脚本增加依赖校验，未提高环境权限。

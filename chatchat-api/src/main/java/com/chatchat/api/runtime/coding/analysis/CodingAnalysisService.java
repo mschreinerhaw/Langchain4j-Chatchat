@@ -94,6 +94,20 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             throw new IllegalArgumentException("Invalid Coding deployment resource limits");
         capacity=new Semaphore(policy.getMaxConcurrentTasks());
     }
+    @Override public boolean canExploreAuthorizedResources(AnalysisCoverageCoordinator.Request context) {
+        if(knowledge==null||context.isolationScope()==null)return false;
+        var owner=context.isolationScope();
+        String agent=Objects.toString(context.runtimeAttributes().getOrDefault("knowledgeAgentId",context.runtimeAttributes().get("authorizationAgentId")),"");
+        if(agent.isBlank())return false;
+        boolean approved=Boolean.TRUE.equals(context.runtimeAttributes().get("resourceExplorationApproved"));
+        if(knowledge.allowedTools(owner.tenantId(),owner.userId(),agent,approved).stream()
+            .anyMatch(tool->!com.chatchat.api.runtime.coding.knowledge.CodingInternetAccess.TOOLS.contains(tool)))return true;
+        if(internet==null)return false;
+        String model=Objects.toString(context.metadata().get("modelName"),"");
+        if(context.runtimeAttributes().get("checkpointModelConfig") instanceof Map<?,?> m&&m.get("selectedModel") instanceof String selected&&!selected.isBlank())model=selected;
+        var scope=new KernelDataScope(owner.tenantId(),owner.userId(),owner.requestId(),owner.conversationId(),owner.runId(),null,Map.of());
+        return !internet.snapshot(scope,agent,model,approved).isEmpty();
+    }
     public Map<String,String> capabilities() {
         return Map.of("RUN_CODING", "Exact request: {operation:'RUN_CODING',requestId:string,datasetReference:string,"
             + "instruction:string,outputSchema:{type:'object',properties:{FIELD:{type:TYPE}},required:[FIELD],additionalProperties:false}}. "

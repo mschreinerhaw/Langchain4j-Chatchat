@@ -24,6 +24,18 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class CodingAnalysisServiceTest {
+    @Test void emptySupplyPreflightUsesOnlyExistingAgentAuthorityAndDoesNotStartCoding() {
+        var service=service();var knowledge=mock(com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeService.class);service.setKnowledge(knowledge);
+        var base=context("tenant");var attrs=new LinkedHashMap<>(base.runtimeAttributes());attrs.put("authorizationAgentId","resource-agent");
+        var request=new AnalysisCoverageCoordinator.Request(base.model(),base.query(),base.result(),attrs,base.metadata(),base.cancellationCheck(),base.cancellationGuard(),base.isolationScope(),base.summaryProtocol());
+        when(knowledge.allowedTools(anyString(),anyString(),eq("resource-agent"),eq(false))).thenReturn(List.of());
+        assertThat(service.canExploreAuthorizedResources(request)).isFalse();
+        when(knowledge.allowedTools(anyString(),anyString(),eq("resource-agent"),eq(false))).thenReturn(List.of("web_search"));
+        assertThat(service.canExploreAuthorizedResources(request)).isFalse(); // No model-authorized Internet profile.
+        when(knowledge.allowedTools(anyString(),anyString(),eq("resource-agent"),eq(false))).thenReturn(List.of("market_search"));
+        assertThat(service.canExploreAuthorizedResources(request)).isTrue();
+        verify(agent,never()).submit(any());
+    }
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(booleans={true,false})
     void failedTaskRetainsOnlyItsOwnStopProvenStageReportWithoutPromotingCompletion(boolean sameTask){

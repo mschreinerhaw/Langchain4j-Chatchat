@@ -154,7 +154,8 @@ class AnalysisCoverageCoordinatorTest {
             .containsEntry("analysisNoAcquisitionAnswer",true).containsEntry("analysisExecutionPolicy","NOT_REQUESTED")
             .containsEntry("primaryCodingDispatchCount",0).containsEntry("businessDataAvailable",false);
         assertThat(base.metadata()).doesNotContainKey("codingOwnedAnalysisStatus");
-        org.mockito.Mockito.verifyNoInteractions(coding);
+        org.mockito.Mockito.verify(coding).canExploreAuthorizedResources(any());
+        org.mockito.Mockito.verify(coding,org.mockito.Mockito.never()).executePrimaryAnalysis(any(),any(),any());
     }
     @Test void selectionFailureReturnsItsSupplyStatusWithoutStartingCoding() {
         var evidence=mock(AnalysisEvidenceCoordinator.class);
@@ -170,7 +171,29 @@ class AnalysisCoverageCoordinatorTest {
             .hasMessageContaining("DATA_SUPPLY_SELECTION_FAILED").hasMessageContaining("MODEL_SELECTION_UNAVAILABLE");
         assertThat(base.metadata()).containsKey("dataSupplyStatus").containsEntry("businessDataAvailable",false);
         assertThat(base.metadata()).doesNotContainKey("dataAcquisitionFailure");
-        org.mockito.Mockito.verifyNoInteractions(coding);
+        org.mockito.Mockito.verify(coding).canExploreAuthorizedResources(any());
+        org.mockito.Mockito.verify(coding,org.mockito.Mockito.never()).executePrimaryAnalysis(any(),any(),any());
+    }
+    @Test void emptyInitialSupplyRetainsAuthorizedExplorationAndNeverPretendsStatusIsBusinessData() {
+        var evidence=mock(AnalysisEvidenceCoordinator.class);
+        when(evidence.project(any(),any())).thenReturn(new AnalysisEvidenceCoordinator.Projection(List.of(),List.of()));
+        var coding=mock(AnalysisCodingPort.class);when(coding.canExploreAuthorizedResources(any())).thenReturn(true);
+        when(coding.executePrimaryAnalysis(any(),any(),any())).thenAnswer(call->{
+            Map<String,AnalysisEvidenceCoordinator.Dataset> sources=call.getArgument(1);
+            assertThat(sources).hasSize(1);var status=sources.values().iterator().next();
+            assertThat(status.analysisContext()).containsEntry("recordType","DATA_SUPPLY_STATUS");
+            assertThat(status.records().get(0)).containsEntry("businessDataAvailable",false);
+            sources.put("result",new AnalysisEvidenceCoordinator.Dataset("result",Map.of(),List.of(Map.of(
+                "reportMarkdown","# Scoped report\nInitial query returned no business observations; authorized exploration remains available.",
+                "analysisStatus","INPUT_REQUIRED","evidenceReferences",List.of(status.reference()),"limitations",List.of("No verified observations in the initial slice")))));
+            return Map.of("resultAvailable",true,"datasetReference","result");
+        });
+        var base=request(new LinkedHashMap<>());var coordinator=coordinator(evidence);coordinator.setCodingPort(coding);
+        coordinator.analyze(new AnalysisCoverageCoordinator.Request(null,"Analyze",base.result(),Map.of("taskType","DATA_ANALYSIS"),
+            base.metadata(),base.cancellationCheck(),base.cancellationGuard(),base.isolationScope(),base.summaryProtocol()));
+        assertThat(base.metadata()).containsEntry("initialBusinessDataAvailable",false).containsEntry("resourceExplorationAfterEmptySupply",true)
+            .containsEntry("primaryCodingDispatchCount",1).containsEntry("codingOwnedAnalysisStatus","INPUT_REQUIRED");
+        org.mockito.Mockito.verify(coding,org.mockito.Mockito.times(1)).executePrimaryAnalysis(any(),any(),any());
     }
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.CsvSource({"OPTIONAL,true,false,true", "REQUIRED,true,false,false", "OPTIONAL,false,false,false", "REQUIRED,false,false,false",

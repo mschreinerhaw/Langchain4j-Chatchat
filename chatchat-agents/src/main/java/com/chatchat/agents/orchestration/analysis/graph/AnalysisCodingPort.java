@@ -4,9 +4,11 @@ import com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordi
 import com.chatchat.agents.orchestration.analysis.governance.AnalysisCoverageCoordinator;
 import java.util.Map;
 
-/** Optional Runtime-owned calculation boundary. It grants no discovery, template or business-source access. */
+/** Runtime-owned analysis boundary; discovery is possible only through existing task authorization. */
 public interface AnalysisCodingPort {
     Map<String, String> capabilities();
+    /** Authorization preflight only. Never runs a model/query or grants a new source. */
+    default boolean canExploreAuthorizedResources(AnalysisCoverageCoordinator.Request context) { return false; }
     /** Original, authorized user files only; no Java data exploration or new business access. */
     default Map<String, Dataset> prepareFileSources(AnalysisCoverageCoordinator.Request context) {
         return Map.of();

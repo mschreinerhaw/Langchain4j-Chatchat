@@ -83,11 +83,17 @@ public final class AnalysisCoverageCoordinator {
             "analysis_summary_governance", metadataOf(
                 "type", "analysis_dataset_excluded", "exclusion", excluded)));
         if (codingOwned && datasets.isEmpty()) {
-            // Supply failure is returned to the caller, never converted into a Coding input.
+            // A status receipt is not business data. An empty initial slice must not
+            // suppress other resources that are already authorized for this Agent.
             var status=AnalysisEvidenceCoordinator.supplyStatusDataset(request.result(),request.isolationScope(),projection.excludedDatasets());
             request.metadata().put("dataSupplyStatus",status.handle().readPage(0,1).rows().get(0));
             request.metadata().put("businessDataAvailable",false);
             request.metadata().put("primaryCodingDispatchCount", 0);
+            if(coding!=null&&coding.canExploreAuthorizedResources(request)) {
+                request.metadata().put("initialBusinessDataAvailable",false);
+                request.metadata().put("resourceExplorationAfterEmptySupply",true);
+                return analyzeWithCoding(request,List.of(status));
+            }
             var supply = (Map<?, ?>) request.metadata().get("dataSupply");
             if ("NOT_REQUESTED".equals(supply.get("status")) && filePlan == null
                 && request.result() != null && request.result().finalAnswer() != null

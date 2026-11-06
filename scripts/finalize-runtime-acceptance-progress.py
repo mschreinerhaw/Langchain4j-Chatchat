@@ -46,7 +46,7 @@ def main():
     bench=Path('/var/tmp/runtime-cline-acceptance-20261107-performance')
     cases=json.loads((bench/'real-scenario-results.json').read_text())['cases']
     assert len(cases)==6 and all(c['status'] in ['COMPLETED','PARTIAL','FAILED','CANCELLED','BUDGET_EXCEEDED','TIMED_OUT','REJECTED'] for c in cases)
-    assert hashlib.sha256((root/'bundle.tar.gz').read_bytes()).hexdigest()=='c5d5e018c2bafa2dbd1df7196b698dbf45b4cf16da62ec9b1744ddce4ade9306'
+    assert hashlib.sha256((root/'bundle.tar.gz').read_bytes()).hexdigest()=='462eb5d4936c24e83c15f04ab3d64aaff75764be702a018a0447970253bc2219'
     subprocess.run(['tar','-xzf',str(root/'bundle.tar.gz'),'-C',str(root)],check=True)
     previous=Path('/var/tmp/runtime-cline-acceptance-20261107-availability')
     for name in ['catalog-readiness-private.json','restrict-coding-worker.sh']:shutil.copy2(previous/name,root/name)

@@ -73,3 +73,11 @@
 - [文本 visual-1 归档缺口](../testing/evidence/cline-native-skills-20261106/report-artifacts-r2-visual1.json)
 - [正式探索浏览器失败记录](../testing/evidence/cline-native-skills-20261106/browser-exploration.json)
 - [SDK 原生 API 已有调查](cline-native-skills-api-review.md)（历史结论；本次没有以联网查询宣称新的 SDK 版本能力）
+
+## 首批落地与复核修正
+
+- 根因矩阵独立提交 `fe4b4a199`；状态修复 `e33b3e5c8`；报告契约/反馈 `fe47cf494`；P1 计量/读取诊断 `b17104b87`。修改和验证范围见[首批验证记录](../testing/cline-native-skills-remediation-20261106.md)。
+- 复核后明确：`artifactValidationStatus=PASSED` 表示报告清单已通过接纳，不应直接改写为图表全部可用。新增的 `chartValidationStatus`、准确可用图数和 presentationDiagnostics **只在 read-artifact 回执中投影**，不改变历史 CODING_VISUAL_REPORT 内容与哈希。缺图报告仍保留既有 `status=PARTIAL`，没有修改 SDK Loop 或强制重试次数。
+- 取消后祖先回显是既有回归明确要求的行为，继续保留其历史来源提示；本次限制的是失败或明确完成但无结果的节点借用其他节点成果。原有测试断言全部保留。
+- Schema 测量为 15/138/515 项完整发现、正文零加载，工具 Schema 8835/39637/135395 字节。不能由此断言历史调用 token 增长完全来自元数据，尚未做相同 Provider 的配对实验。
+- **未关闭**：文本入口实际图片归档/引用修复、直接文件分析 HTTP 中断后的只读状态恢复、真实模型两类图表与正式入口验收、P1 六类任务性能配对和恢复组合验证。当前提交不是生产可用性全部验收通过。

@@ -1,0 +1,19 @@
+Final Java status and report checks (full log: target/native-skills-remediation-java-final.log)
+[INFO] Tests run: 45, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 9.403 s -- in com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest
+[INFO] Tests run: 29, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.556 s -- in com.chatchat.api.runtime.coding.evidence.VisualReportArtifactsTest
+[INFO] Tests run: 74, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+Final callback/report checks (full log: target/native-skills-remediation-callback-verified.log)
+[INFO] Tests run: 19, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 8.282 s -- in com.chatchat.api.runtime.coding.cline.ClineModelCallbackControllerTest
+[INFO] Tests run: 29, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.576 s -- in com.chatchat.api.runtime.coding.evidence.VisualReportArtifactsTest
+[INFO] Tests run: 48, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+Final Node suite (full log: target/native-skills-remediation-node-final.log)
+ℹ tests 241
+ℹ suites 0
+ℹ pass 241
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 24225.0838

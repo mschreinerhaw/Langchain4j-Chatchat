@@ -1,5 +1,10 @@
 import {it,expect} from 'vitest';
 import {explorationTreeRows,sortedTableRows,workspaceBusinessName,businessNodeTitle,explorationCanvasNode,reconcileExploration,explorationNodeState,explorationMetricDisplay} from './explorationWorkspace';
+it('keeps the original completed receipt while displaying its input-required business outcome',()=>{
+ const receipt={status:'COMPLETED',resultAvailable:true,visualReport:{status:'NO_DATA',requirementStatus:'INPUT_REQUIRED'}};
+ expect(explorationNodeState({receipt})).toEqual({code:'COMPLETED',label:'需补充数据'});
+ expect(receipt.status).toBe('COMPLETED');expect(explorationCanvasNode([{id:'current',receipt}],'current').id).toBe('current');
+});
 it.each(['FAILED','BUDGET_EXCEEDED','COMPLETED'])('does not borrow historical results after authoritative %s without a result',status=>{
  const root={id:'root',receipt:{status:'COMPLETED',resultAvailable:true}};
  const current={id:'current',parentId:'root',receipt:{status,terminal:true,resultAvailable:false}};

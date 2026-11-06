@@ -20,6 +20,10 @@ it('restores partial archived delivery from the current task receipt when old ev
   expect(host.querySelector('[aria-label="分析交付状态"]').textContent).toContain('报告交付部分归档');
   expect(host.querySelector('[aria-label="分析交付状态"]').textContent).toContain('无需 Python');
 });
+it('does not present an archived input-required report as completed analysis',async()=>{
+  await mount({running:false,status:'COMPLETED',events:[],receipt:{resultAvailable:true,visualReport:{status:'NO_DATA',requirementStatus:'INPUT_REQUIRED'}}});
+  expect(host.querySelector('[aria-label="分析交付状态"]').textContent).toContain('已归档 · 需补充数据');
+});
 
 it('shows live actions and settles the same row when the real completion arrives',async()=>{
   const props=reactive({running:true,status:'EXECUTING',events:[event(1,'TOOL_STARTED')]});

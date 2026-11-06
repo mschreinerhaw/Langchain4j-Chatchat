@@ -31,7 +31,7 @@ import static org.mockito.Mockito.*;
 /** Real HTTP worker status; execution/collector doubles do not constitute Docker or SDK recovery. */
 class ClineCodingAdapterRecoveryTest {
     @ParameterizedTest
-    @ValueSource(strings = {"COMPLETED", "FAILED", "CANCELLED", "MISSING", "UNKNOWN_MODEL", "FAILED_PYTHON", "MISSING_FAILED_PYTHON", "MISSING_STOPPED", "MISSING_STOPPED_UNKNOWN_MODEL", "MODEL_ONLY", "MISSING_MODEL_ONLY", "LIVE_UNKNOWN_MODEL", "UNAVAILABLE_UNKNOWN_MODEL", "NO_RESULT", "INVALID_RESULT", "COMPLETION_RACE"})
+    @ValueSource(strings = {"COMPLETED", "FAILED", "CANCELLED", "MISSING", "UNKNOWN_MODEL", "FAILED_PYTHON", "MISSING_FAILED_PYTHON", "MISSING_STOPPED", "MISSING_STOPPED_UNKNOWN_MODEL", "MODEL_ONLY", "MISSING_MODEL_ONLY", "LIVE_UNKNOWN_MODEL", "UNAVAILABLE_UNKNOWN_MODEL", "NO_RESULT", "INVALID_RESULT", "COMPLETION_RACE", "MISSING_STOPPED_RESOURCE", "LIVE_RESOURCE", "MISSING_STOPPED_RESOURCE_NO_PROOF"})
     void stoppedWorkerRequiresVerifiedLatestExecutionBeforeEvidenceOnlyRecovery(String scenario) throws Exception {
         var scope = new KernelDataScope("tenant", "owner", null, null, "run", null, Map.of());
         var contract = ClineCodingAdapterDispatchTest.contract(scope);
@@ -44,6 +44,7 @@ class ClineCodingAdapterRecoveryTest {
         var at = Instant.now().minusSeconds(1).truncatedTo(ChronoUnit.MILLIS);
         boolean stopping = scenario.startsWith("MISSING_STOPPED");
         boolean unknownModel = scenario.endsWith("UNKNOWN_MODEL");
+        boolean resource=scenario.contains("_RESOURCE"),resourceNoProof=scenario.endsWith("RESOURCE_NO_PROOF");
         var zero = new CodingTaskOutcome.Counters(0, 0, 0, 0, 0, 0, 0, "0");
         var current = new CodingTaskOutcome(CodingProtocol.VERSION, contract.taskId(), scope,
             CodingCanonicalHash.sha256(contract), CodingTaskOutcome.Status.RUNNING, 4, 4,
@@ -63,6 +64,13 @@ class ClineCodingAdapterRecoveryTest {
         String operationId = "cline-" + "a".repeat(64);
         when(tasks.unresolvedOperations(scope, contract.taskId()))
             .thenReturn(unknownModel ? List.of("model-1") : List.of());
+        if(resource) {
+            String read="workspace-"+"c".repeat(64);var settled=new java.util.concurrent.atomic.AtomicBoolean();
+            when(tasks.unresolvedOperations(scope,contract.taskId())).thenAnswer(call->settled.get()?List.of():List.of(read));
+            when(tasks.reconcileStopped(eq(scope),eq(contract.taskId()),any(),eq(current.revision()),eq(read),eq("runtime-evidence:knowledge-tool:"+read)))
+                .thenAnswer(call->{if(resourceNoProof)throw new CodingContractException(CodingErrorCode.EXECUTION_OUTCOME_UNKNOWN,"No verified execution-node stop confirmation is available");settled.set(true);return current;});
+            when(tasks.settle(eq(scope),eq(contract.taskId()),any(),eq(current.revision()),eq(read),any(),eq(false))).thenReturn(current);
+        }
         when(tasks.finishStoppedAfterReconciliation(eq(scope), eq(contract.taskId()), any(), eq(current.revision())))
             .thenReturn(current);
         when(tasks.hasStartedOperations(scope, contract.taskId())).thenReturn(true);
@@ -116,7 +124,11 @@ class ClineCodingAdapterRecoveryTest {
             var result = adapter.resume(scope, contract.taskId());
             if (stopping) {
                 assertThat(result).isSameAs(current);
-                verify(tasks, times(unknownModel ? 0 : 1)).finishStoppedAfterReconciliation(eq(scope), eq(contract.taskId()), any(), eq(current.revision()));
+                verify(tasks, times(unknownModel||resourceNoProof ? 0 : 1)).finishStoppedAfterReconciliation(eq(scope), eq(contract.taskId()), any(), eq(current.revision()));
+                verifyNoInteractions(collector);
+                if(resource)verify(tasks,times(resourceNoProof?0:1)).settle(eq(scope),eq(contract.taskId()),any(),eq(current.revision()),eq("workspace-"+"c".repeat(64)),any(),eq(false));
+            } else if(resource&&scenario.startsWith("LIVE")) {
+                assertThat(result).isSameAs(current);verify(tasks,never()).reconcileStopped(any(),anyString(),any(),anyLong(),anyString(),anyString());
                 verifyNoInteractions(collector);
             } else if (scenario.endsWith("FAILED_PYTHON") || scenario.endsWith("MODEL_ONLY") || scenario.equals("NO_RESULT") || scenario.equals("INVALID_RESULT")) {
                 assertThat(result.status()).isEqualTo(CodingTaskOutcome.Status.FAILED);

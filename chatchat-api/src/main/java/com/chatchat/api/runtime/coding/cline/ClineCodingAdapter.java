@@ -169,6 +169,21 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
         // Only Python operations have MCP execution identities. Model starts retain their
         // reservations until the receipt can be reconciled; they are never dispatched again.
         for (String operationId : tasks.unresolvedOperations(scope, taskId)) {
+            if(operationId.matches("workspace-[0-9a-f]{64}")) {
+                // A stopped/missing SDK may have lost an HTTP tool response after the
+                // immutable local-client receipt was written. Verify it through A2;
+                // never repeat the read or grant access to its retained source body.
+                try {
+                    var owned=lease;
+                    CodingTaskRevisions.mutate(tasks,scope,taskId,r->tasks.reconcileStopped(scope,taskId,owned,r,
+                        operationId,"runtime-evidence:knowledge-tool:"+operationId));
+                    CodingTaskRevisions.mutate(tasks,scope,taskId,r->tasks.settle(scope,taskId,owned,r,operationId,
+                        new CodingTaskOutcome.Counters(0,0,0,0,0,0,0,"0"),false));
+                }catch(CodingContractException unavailable) {
+                    if(unavailable.error().code()!=CodingErrorCode.EXECUTION_OUTCOME_UNKNOWN)throw unavailable;
+                }
+                continue;
+            }
             if(operationId.matches("data-[0-9a-f]{64}")) {
                 if(dataSupply!=null&&workerId.equals(lease.owner()))dataSupply.recover(tasks.contract(scope,taskId),lease,operationId);
                 continue;

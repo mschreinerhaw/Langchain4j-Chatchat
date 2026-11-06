@@ -168,7 +168,14 @@ public class JdbcRuntimeEvidenceStore implements EvidenceStorePort, AnalysisProg
         return removed;
     }
 
-    public String contentHash(Map<String, Object> payload) { return hash(json(payload)); }
+    /** A source digest does not publish its body as an evidence row. Callers retain
+     * their source/file limits; register still enforces MAX_BYTES on stored records. */
+    public String contentHash(Map<String, Object> payload) {
+        try { return hash(mapper.writeValueAsString(payload)); }
+        catch (com.fasterxml.jackson.core.JsonProcessingException failure) {
+            throw new IllegalArgumentException("Runtime evidence cannot be encoded",failure);
+        }
+    }
 
     @Override public EvidenceRegistration register(EvidenceRecord record, EvidenceLineage lineage) {
         validate(record, lineage);

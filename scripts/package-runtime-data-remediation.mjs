@@ -5,7 +5,7 @@ import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 const root=resolve(import.meta.dirname,'..'),out=resolve(process.argv[2]??join(root,'target/runtime-data-remediation/bundle'));
 const families={
- api:['com/chatchat/api/assets/SiloAssetBlobStore','com/chatchat/api/exploration/ExplorationAgentBridge','com/chatchat/api/exploration/ExplorationWorkspaceController','com/chatchat/api/assets/AssetAnalysisController','com/chatchat/api/runtime/coding/analysis/CodingAnalysisService','com/chatchat/api/runtime/coding/cline/ClineToolProfiles',
+ api:['com/chatchat/api/runtime/evidence/JdbcRuntimeEvidenceStore','com/chatchat/api/assets/SiloAssetBlobStore','com/chatchat/api/exploration/ExplorationAgentBridge','com/chatchat/api/exploration/ExplorationWorkspaceController','com/chatchat/api/assets/AssetAnalysisController','com/chatchat/api/runtime/coding/analysis/CodingAnalysisService','com/chatchat/api/runtime/coding/cline/ClineToolProfiles',
   'com/chatchat/api/runtime/coding/data/CodingDataSupplyService','com/chatchat/api/runtime/coding/knowledge/CodingKnowledgeService',
   'com/chatchat/api/runtime/coding/knowledge/CodingResourceReader','com/chatchat/api/runtime/coding/knowledge/CodingInternetAccess',
   'com/chatchat/api/runtime/coding/execution/CodingExecutionFeedbackService','com/chatchat/api/runtime/coding/cline/ClinePythonCallbackController','com/chatchat/api/model/InternetSearchProbeController'],

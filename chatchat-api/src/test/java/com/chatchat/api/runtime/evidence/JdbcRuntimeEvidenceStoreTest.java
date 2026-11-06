@@ -19,6 +19,29 @@ import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import static org.assertj.core.api.Assertions.*;
 
 class JdbcRuntimeEvidenceStoreTest {
+    @Test void largeDailySourceCanBeHashedWithoutIncreasingStoredEvidenceRowLimit() throws Exception {
+        var mapper=new ObjectMapper().enable(com.fasterxml.jackson.databind.SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
+        String fixture=System.getProperty("coding.daySnapshotFixture");
+        Map<String,Object> body;
+        if(fixture!=null){
+            byte[] raw=java.nio.file.Files.readAllBytes(java.nio.file.Path.of(fixture));
+            body=mapper.readValue(raw,new com.fasterxml.jackson.core.type.TypeReference<>(){});
+            assertThat(body).containsEntry("trade_date","2026-11-02").containsEntry("complete",true).containsEntry("count",2943);
+            System.out.println("Real daily fixture sha256="+java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(raw)));
+        } else body=Map.of("complete",true,"count",2943,"items",java.util.stream.IntStream.range(0,2943)
+            .mapToObj(i->Map.of("id",i,"source_field","x".repeat(900))).toList());
+        byte[] canonical=mapper.writeValueAsBytes(body);
+        assertThat(canonical.length).isGreaterThan(2*1024*1024).isLessThan(8*1024*1024);
+        String expected=java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(canonical));
+        assertThat(store.contentHash(body)).isEqualTo(expected);
+        assertThatThrownBy(()->store.register(new EvidenceRecord(null,"too-large",scope,"SOURCE_BODY","test",expected,body,null,0,Map.of()),
+            lineage("too-large",scope,List.of()))).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("size limit");
+        assertThat(jdbc.queryForObject("select count(*) from runtime_evidence_entry",Integer.class)).isZero();
+        var locator=Map.<String,Object>of("response_hash",expected,"count",2943);
+        store.register(new EvidenceRecord(null,"bounded-locator",scope,"SOURCE_REFERENCE","test",store.contentHash(locator),locator,null,0,Map.of()),
+            lineage("bounded-locator",scope,List.of()));
+        assertThat(store.find(scope,"bounded-locator")).isPresent();
+    }
     JdbcTemplate jdbc;
     JdbcRuntimeEvidenceStore store;
     DriverManagerDataSource datasource;

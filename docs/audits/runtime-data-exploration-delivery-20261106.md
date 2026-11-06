@@ -46,6 +46,7 @@
 
 ### 补充复核（2026-11-07）
 
+- **DATA-07，原生日快照工具联机确认**：Cline 自主调用 source_id=38 / 2026-11-02 日快照，MCP 返回 2943 行、约 3.4 MiB，低于既定 8 MiB 上限；`marketSourceHash` 调用 `JdbcRuntimeEvidenceStore.contentHash`，却误用证据记录序列化的 2 MiB 限制，文件交付前失败并被 callback 泛化成 Invalid Coding callback binding。修复只分离规范化 Hash 与记录存储校验，规范化字节不变，证据数据库单条 2 MiB 限制不变，日导出仍为 10,000 行 / 8 MiB。真实快照 SHA `bf83dc8d85b2aed2d03bba9e69d90641ccb767b4e1cdd32d5b22acb9309f3778` 完成离线回归，覆盖大源可 Hash、大记录仍拒绝、小 locator 可归档；Evidence/Knowledge/DataSupply 68 项、67 通过及 1 既有跳过。
 - **PERF-02，真实日志确认重复无进展读取**：原问题在引用校验失败后重复 artifact_read；SDK 缓存资格原先要求 lastCollectedOperation 非空，而无效引用恰会清空该字段，导致同一不可变错误报告被反复后端读取。缓存改为绑定本次最新 result reference；每次新 Python 执行仍清空缓存，无效报告不变为可提交结果。增加结构化 artifactRepair（只指示修复当前代码、原预算不变），不创建压缩器或搜索循环。原生 SDK 回归验证重复拒绝两次仍只读一次，必须新执行、重新读取后才允许结束；Node 全量 255 项通过。
 - **DATA-06，真实存储故障诊断缺口**：构建磁盘不足后 Silo 最低空闲容量保护拒绝文件发布，原错误只返回笼统 500，不能解释为行情不存在。对明确的容量错误返回安全 507 / ARTIFACT_STORAGE_FULL 和“释放空间、核对当前任务、恢复原请求”的动作；其他授权错误保持拒绝。使用真实 Minio SDK 对容量/拒绝访问 XML 响应做本地传输回归，2 项通过；未降低 Silo 保护阈值。
 - **REPORT-05，浏览器与源码联合确认**：Agent 活动投影漏掉 executorStopped/resultAvailable 和归档引用，前端因此保留“执行中”；历史有界事件也可能已丢失停止事件。新增允许的停止/归档元数据（仍不投影原始数据），前端只用相同 operationId 的归档停止证据恢复状态；不同后续执行保留“最终状态待核对”，终态不再显示仍等待模型。Bridge 13 项、前端全量 144 项通过。

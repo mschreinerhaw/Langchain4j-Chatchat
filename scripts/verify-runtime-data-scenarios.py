@@ -59,9 +59,14 @@ def main():
         workspace=api('/data-science/explorations/'+workspace['id']+'/nodes',{'version':workspace['version'],'parentId':'',
             'fileIds':[],'question':original['request']['query'],'modelName':original['request']['modelName'],'agentId':original['request']['skillId']})
         agent={'case':'actual-agent','model':original['request']['modelName'],'nodeId':workspace['nodes'][-1]['id']}
+        workspace=api('/data-science/explorations/'+workspace['id']+'/nodes',{'version':workspace['version'],'parentId':'',
+            'fileIds':[],'question':'请检索公开网页，核对华是科技的证券代码、交易所和官方来源链接。区分搜索摘要、原文与权威行情，未取得当前报价时明确说明。',
+            'modelName':'qwen3.8-omni-flash','agentId':original['request']['skillId']})
+        search={'case':'authorized-internet','model':'qwen3.8-omni-flash','nodeId':workspace['nodes'][-1]['id']}
         save('scenario-prepared-private.json',{'workspaceId':workspace['id'],'cases':cases,'agent':agent,
+            'extraCases':[search],
             'originalTaskId':journal['contract']['taskId'],'originalInputSha256':part['sha256'],'inputAssetId':asset['id']})
-        print(json.dumps({'prepared':len(cases)+1,'inputSha256':part['sha256'],'workspaceId':workspace['id']}),flush=True)
+        print(json.dumps({'prepared':len(cases)+2,'inputSha256':part['sha256'],'workspaceId':workspace['id']}),flush=True)
         return
 
     prepared=json.loads((root/'scenario-prepared-private.json').read_text())
@@ -80,6 +85,7 @@ def main():
                 save(case['case']+'-error-private.json',{'type':type(error).__name__,'message':str(error),'outcome':'UNKNOWN_POLL_ONLY'})
         with ThreadPoolExecutor(max_workers=2) as pool:list(pool.map(execute,prepared['cases']))
         execute(prepared['agent'])
+        for case in prepared.get('extraCases',[]):execute(case)
         return
 
     assert command=='collect'
@@ -87,7 +93,7 @@ def main():
     collector=importlib.util.module_from_spec(spec);spec.loader.exec_module(collector)
     monitor=json.loads(Path('/opt/runtime-os-docker-stage/coding-monitor/data/observations.json').read_text())
     results=[]
-    for case in prepared['cases']+[prepared['agent']]:
+    for case in prepared['cases']+[prepared['agent']]+prepared.get('extraCases',[]):
         state=api(prefix+case['nodeId']+'/status');save(case['case']+'-status-private.json',state)
         node=next(n for n in state['nodes'] if n['id']==case['nodeId']);receipt=node.get('receipt',{})
         row=dict(case,status=receipt.get('status',node.get('status')),resultAvailable=receipt.get('resultAvailable') is True,

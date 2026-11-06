@@ -350,6 +350,21 @@ test('the native Cline SDK carries the frozen report layout preference without a
   assert.equal(counts.executions,1);assert.equal(counts.models,2);assert.equal(counts.reads,1);
 });
 
+test('repeated rejected report review reuses the exact immutable artifact but requires fresh execution for repair',async()=>{
+  const {run,counts}=fixture((turn,request)=>{
+    if(turn===1||turn===4)return python(turn);
+    if(turn===3){
+      const last=request.messages.flatMap(m=>m.content).filter(p=>p.type==='tool-result'&&p.toolName==='artifact_read').at(-1);
+      assert.equal(last.output.artifactRepair.action,'REPAIR_PROGRAM_AND_RERUN');
+      assert.equal(last.output.reportReferenceValidation.valid,false);
+    }
+    return {toolCalls:[{id:'review-'+turn,name:'artifact_read',input:{reference:'runtime-evidence:result-'+(turn===5?'2':'1')}}]};
+  },verified,(_read,reference)=>({reference,complete:true,rows:[{reportMarkdown:'Immutable computed report'}],
+    reportReferenceValidation:{valid:reference.endsWith('-2'),authorizedDatasetReferences:['exact-source']}}));
+  assert.equal((await run.run()).status,'completed');
+  assert.equal(counts.models,5);assert.equal(counts.executions,2);assert.equal(counts.reads,2);
+  assert.equal(run.events.filter(e=>e.tool==='artifact_read'&&e.reused===true).length,3);
+});
 test('invalid report references still reach Cline and require a repaired execution and fresh authorized read', async () => {
   const { run, counts } = fixture((turn, request) => {
     if (turn === 1) return python(turn);

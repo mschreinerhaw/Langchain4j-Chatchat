@@ -46,6 +46,8 @@
 
 ### 补充复核（2026-11-07）
 
+- **PERF-02，真实日志确认重复无进展读取**：原问题在引用校验失败后重复 artifact_read；SDK 缓存资格原先要求 lastCollectedOperation 非空，而无效引用恰会清空该字段，导致同一不可变错误报告被反复后端读取。缓存改为绑定本次最新 result reference；每次新 Python 执行仍清空缓存，无效报告不变为可提交结果。增加结构化 artifactRepair（只指示修复当前代码、原预算不变），不创建压缩器或搜索循环。原生 SDK 回归验证重复拒绝两次仍只读一次，必须新执行、重新读取后才允许结束；Node 全量 255 项通过。
+- **DATA-06，真实存储故障诊断缺口**：构建磁盘不足后 Silo 最低空闲容量保护拒绝文件发布，原错误只返回笼统 500，不能解释为行情不存在。对明确的容量错误返回安全 507 / ARTIFACT_STORAGE_FULL 和“释放空间、核对当前任务、恢复原请求”的动作；其他授权错误保持拒绝。使用真实 Minio SDK 对容量/拒绝访问 XML 响应做本地传输回归，2 项通过；未降低 Silo 保护阈值。
 - **REPORT-05，浏览器与源码联合确认**：Agent 活动投影漏掉 executorStopped/resultAvailable 和归档引用，前端因此保留“执行中”；历史有界事件也可能已丢失停止事件。新增允许的停止/归档元数据（仍不投影原始数据），前端只用相同 operationId 的归档停止证据恢复状态；不同后续执行保留“最终状态待核对”，终态不再显示仍等待模型。Bridge 13 项、前端全量 144 项通过。
 - **REPORT-04，最新 Agent 场景真实触发**：报告回执从父 Agent taskId 切换为其子 Coding taskId；工作区 finish 原校验要求 taskId 永远相同，状态轮询因此返回 403（Analysis result belongs to a different task），已有报告无法展示。改为继续固定 agentTaskId，并要求新的子 taskId 等于服务端报告 execution.taskId；文件任务维持原严格同任务校验。23 项工作区测试通过，包括父/子正常接续、其他父任务拒绝和子报告绑定不符拒绝；不通过重新执行来恢复报告。
 - **REPORT-03，完整快照首轮真实触发**：Flash 第一轮已计算并生成 rows.jsonl 与三张图，但结果含输入上下文原文，`SOURCE_COPY_REJECTED` 正确拒绝，`rejectSourceCopy` 随即把整个委托提交为 FAILED，反馈变成 TASK_STOPPING，Cline 无法在当前授权/预算内删除复制内容并修复报告。对既有 `analysis-reviewed-path:v1` 且有 artifact_read 的任务保留拒绝，只返回布尔校验及技术修复建议，交回原生受限修复；非复核委托维持原父任务重规划行为。不返回被拒报告，不提高修复次数、不续预算、不改变原样复制检测。Callback/Feedback 31 项通过。首轮结果和旧版本已启动的第二轮取消证据保留，不当最终修复验收或性能改善。

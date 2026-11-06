@@ -238,7 +238,7 @@ export function createCodingRun(contract, gateway, options = {}) {
     await forward({ type: 'TOOL_STARTED', tool: 'artifact_read', reference, automatic });
     // Confirmation reuses only the exact immutable report admitted for this task's
     // latest execution. A new execution clears it, including failed executions.
-    const reused = !automatic && lastCollectedOperation && reference === lastCollectedDatasetRef
+    const reused = !automatic && reference === lastCollectedDatasetRef
       && reviewedArtifactCache?.reference === reference;
     const result = reused ? reviewedArtifactCache : await gateway.readArtifact(contract, reference, signal);
     if (automatic && (result?.reference !== reference || result.complete !== true
@@ -251,6 +251,16 @@ export function createCodingRun(contract, gateway, options = {}) {
     await forward({ type: 'TOOL_FINISHED', tool: 'artifact_read', reference, automatic,
       ...(reused ? { reused: true } : {}),
       status: reportReferenceFailure ? 'FAILED' : 'SUCCEEDED' });
+    const invalidReferences=result.reportReferenceValidation?.valid===false;
+    const artifactFailed=result.visualReportValidation?.artifactValidationStatus==='FAILED';
+    const layoutFailed=result.visualReportValidation?.layoutValidationStatus==='FAILED';
+    if(invalidReferences||artifactFailed||layoutFailed)return {...result,artifactRepair:{
+      action:'REPAIR_PROGRAM_AND_RERUN',reference,
+      invalidReferences,artifactFailed,layoutFailed,
+      ...(history?.versions.at(-1)?{parentCodeVersion:history.versions.at(-1).version,baseCodeSha256:history.versions.at(-1).codeHash}:{}),
+      instruction:'This immutable report has a known technical validation failure. Reading it again cannot repair it. '
+        +'Use the existing Python code-version edits to correct the named references or artifact/layout output, rerun and review the new report. '
+        +'Retain supported findings and honest failed business checks. Do not repeat data acquisition or renew the budget.'}};
     return result;
   };
   const tools = knowledgeTools(contract, gateway, forward).map(tool=>({...tool,

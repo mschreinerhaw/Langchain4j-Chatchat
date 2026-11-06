@@ -127,7 +127,11 @@ def main():
         node=next(n for n in state['nodes'] if n['id']==case['nodeId']);receipt=node.get('receipt',{})
         row=dict(case,status=receipt.get('status',node.get('status')),resultAvailable=receipt.get('resultAvailable') is True,
                  taskId=receipt.get('taskId'),agentTaskId=receipt.get('agentTaskId'))
-        matching=[n for n in monitor['tasks'] if n['taskId']==row['taskId'] or n['runId']=='asset-analysis-'+hashlib.sha256(('\0'.join([n['tenantId'],n['userId'],case['nodeId']])).encode()).hexdigest()]
+        # Agent receipts initially identify the parent task. Only follow Coding IDs
+        # actually recorded in this node's server-projected progress events.
+        coding_ids={e.get('payload',{}).get('metadata',{}).get('taskId') for e in receipt.get('analysisEvents',[])}
+        matching=[n for n in monitor['tasks'] if n['taskId']==row['taskId'] or n['taskId'] in coding_ids
+            or n['runId']=='asset-analysis-'+hashlib.sha256(('\0'.join([n['tenantId'],n['userId'],case['nodeId']])).encode()).hexdigest()]
         if matching:
             matching.sort(key=lambda v:v['fencingToken']);task,responses=collector.journal(matching[-1])
             save(case['case']+'-journal-private.json',task);save(case['case']+'-models-private.json',responses)

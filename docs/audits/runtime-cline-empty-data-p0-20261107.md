@@ -11,6 +11,8 @@
 | EMPTY-03 | CodingDataSupplyService在任一记录缺requiredFields或源complete=false时拒绝整批输入修订 | 可用的部分记录/字段无法交给Cline做受限分析 | 保留源证据和行字段缺口；完整且有可用行时按既有快照契约交付，明确PARTIAL/FIELD_MISSING，不补造值 |
 | EMPTY-04 | DATA_SUPPLY_STATUS描述交付状态，与来源状态不是同一维度；sourceVerifiedEmpty只证明查询零行 | 容易误把EMPTY_RESULT当整源为空 | 保留原字段兼容性，增加独立数据状态；没有完整源覆盖证据不产生SOURCE_EMPTY |
 | EMPTY-05 | callback通用异常包装为Invalid Coding callback binding，可能遮盖查询失败原因 | 工具难以区分权限、错误参数和源失败 | 在已绑定、已预留的读取边界记录原始失败，保持权限拒绝和服务异常，不返回空数组 |
+| EMPTY-06 | 行情auto模式在无起始日期时默认只读daily_hot；单层零行与空目录日期都不足以证明整源为空 | SOURCE_EMPTY没有充分依据 | 仅对候选空目录做既有存储daily/weekly两次各最多1行的存在性检查；保留异常，不作恢复循环或全量扫描导出 |
+| EMPTY-07 | Coding所有初始数据为空且没有额外探索工具时，AnalysisCoverageCoordinator除已有能力缺口答案外直接抛异常 | 未把状态交给Cline生成有证据的受限报告 | 保留已有模型缺口答案；其余在原授权、预算下交给原生Cline，状态记录不能当业务数据 |
 
 ## 状态与治理约束
 

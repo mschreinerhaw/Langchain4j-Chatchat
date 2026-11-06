@@ -6,6 +6,14 @@ vi.mock('../../services/explorationApi',()=>api);
 vi.mock('../../components/PythonReportChart.vue',()=>({default:{props:['chart','presentation'],render(){return h('div',{'data-chart-type':this.presentation},this.chart.title);}}}));
 import View from '../../views/DataExplorationView.vue';
 let app,host;const settle=async()=>{for(let i=0;i<15;i++)await nextTick();};
+it('stops an accepted file-analysis task after refresh through the existing stop endpoint',async()=>{
+ const state={...structuredClone(space),nodes:[{...node('root'),agentId:undefined,receipt:{taskId:'coding-task',status:'RUNNING',terminal:false,resultAvailable:false}}]};
+ const vm=await mount(state);expect(host.querySelector('.exploration-stop-bar')).not.toBeNull();
+ const stopped=structuredClone(state);stopped.version=4;stopped.nodes[0].receipt={taskId:'coding-task',status:'CANCELLED',terminal:true,resultAvailable:false};
+ api.stopExploration.mockResolvedValue(stopped);await vm.stopAnalysis();await settle();
+ expect(api.stopExploration).toHaveBeenCalledWith('space','root',null);expect(vm.selectedState.code).toBe('CANCELLED');
+ expect(api.executeExploration).not.toHaveBeenCalled();expect(host.querySelector('.exploration-stop-bar')).toBeNull();
+});
 it('restores a dispatched file analysis by status polling without another execution request',async()=>{
  vi.useFakeTimers();try{
  const state={...structuredClone(space),nodes:[{...node('root'),agentId:undefined,executionRequestedAt:1,receipt:{}}]};

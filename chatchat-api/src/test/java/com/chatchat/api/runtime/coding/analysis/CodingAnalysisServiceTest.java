@@ -136,6 +136,25 @@ class CodingAnalysisServiceTest {
         service.cancelPrimary(scope,true);verify(agent,times(1)).cancel(eq(scope),anyString(),anyString());
         verify(agent,never()).submit(any());verify(agent,never()).resume(any(),anyString());verifyNoInteractions(python);
     }
+    @Test void ownedStopWaitsForALateProofWithoutGrantingSubmissionOrReplayingWork(){
+        var scope=new KernelDataScope("tenant","owner","node",null,"owned-run",null,Map.of());
+        var running=outcome(CodingTaskOutcome.Status.RUNNING,CodingTaskOutcome.ValidationStatus.NOT_RUN);
+        var stopping=outcome(CodingTaskOutcome.Status.RUNNING,CodingTaskOutcome.ValidationStatus.NOT_RUN);
+        when(stopping.executionControl()).thenReturn(new CodingTaskOutcome.ExecutionControl(CodingErrorCode.CANCEL_REQUESTED,java.time.Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS),false,true));
+        var stopped=outcome(CodingTaskOutcome.Status.CANCELLED,CodingTaskOutcome.ValidationStatus.NOT_RUN);
+        var state=new java.util.concurrent.atomic.AtomicReference<>(running);var count=new java.util.concurrent.atomic.AtomicInteger();
+        var contract=mock(CodingTaskContract.class);when(contract.scope()).thenReturn(scope);
+        when(durable.get(eq(scope),anyString())).thenAnswer(call->state.get());when(durable.contract(eq(scope),anyString())).thenReturn(contract);
+        when(agent.cancel(eq(scope),anyString(),anyString())).thenAnswer(call->{state.set(stopping);return stopping;});
+        when(agent.resume(eq(scope),anyString())).thenAnswer(call->{
+            identity.require(scope,com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.RECOVER);
+            assertThatThrownBy(()->identity.require(scope,com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.SUBMIT)).isInstanceOf(CodingContractException.class);
+            if(count.incrementAndGet()==2)state.set(stopped);return state.get();
+        });
+        var receipt=service().cancelPrimary(scope,true).orElseThrow();assertThat(receipt).containsEntry("status","CANCELLED").containsEntry("terminal",true);
+        assertThat(((Map<?,?>)receipt.get("stopReconciliation")).get("attempts")).isEqualTo(2);
+        verify(agent,times(2)).resume(eq(scope),anyString());verify(agent,never()).submit(any());verifyNoInteractions(python,inputs);
+    }
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(strings={"verified","revoked","metrics"})
     void finalReceiptCarriesOnlyLiveValidatedKnowledgeEvidenceAndRejectsRevocation(String mode) {
@@ -746,7 +765,9 @@ class CodingAnalysisServiceTest {
         verifyNoInteractions(agent,collector);
     }
 
-    @Test void expiredPersistedBudgetIsReconciledBeforeSendingCancellation() throws Exception {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans={false,true})
+    void expiredPersistedBudgetIsReconciledBeforeSendingCancellation(boolean lateProof) throws Exception {
         var completed=outcome(CodingTaskOutcome.Status.COMPLETED,CodingTaskOutcome.ValidationStatus.INCONCLUSIVE);
         prepare(completed);var service=service();var parent=context("tenant");
         service.execute(parent,request(),sources());
@@ -761,11 +782,16 @@ class CodingAnalysisServiceTest {
         when(stopped.reasonCode()).thenReturn(CodingErrorCode.DEADLINE_EXCEEDED);
         when(stopped.executionControl()).thenReturn(new CodingTaskOutcome.ExecutionControl(CodingErrorCode.DEADLINE_EXCEEDED,
             java.time.Instant.ofEpochMilli(System.currentTimeMillis()),true,false));
-        when(agent.submit(any())).thenReturn(running);when(agent.resume(any(),anyString())).thenReturn(stopped);
+        var stopping=outcome(CodingTaskOutcome.Status.RUNNING,CodingTaskOutcome.ValidationStatus.NOT_RUN);
+        when(stopping.executionControl()).thenReturn(new CodingTaskOutcome.ExecutionControl(CodingErrorCode.DEADLINE_EXCEEDED,java.time.Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS),false,true));
+        when(agent.submit(any())).thenReturn(running);
+        when(agent.resume(any(),anyString())).thenReturn(lateProof?stopping:stopped,stopping,stopping,stopped);
         var receipt=service.execute(parent,request(),sources());
         assertThat(receipt).containsEntry("status","BUDGET_EXCEEDED").containsEntry("stopReason","DEADLINE_EXCEEDED")
             .containsEntry("resultAvailable",false).containsEntry("terminal",true);
-        verify(agent).resume(any(),anyString());verify(agent,never()).cancel(any(),anyString(),anyString());
+        verify(agent,times(lateProof?4:1)).resume(any(),anyString());verify(agent,lateProof?times(1):never()).cancel(any(),anyString(),anyString());
+        assertThat(receipt.get("budgetId")).isEqualTo(checkpoint.path("contract").path("budget").path("budgetId").asText());
+        if(lateProof)assertThat(((Map<?,?>)receipt.get("stopReconciliation")).get("attempts")).isEqualTo(1);
         verify(collector,times(1)).registeredResult(any(),anyString(),anyString());
     }
 

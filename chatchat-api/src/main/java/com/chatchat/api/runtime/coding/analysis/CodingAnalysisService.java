@@ -241,9 +241,25 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
     public Optional<Map<String,Object>> cancelPrimary(KernelDataScope caller,boolean visual) {
         var existing=primarySnapshot(caller,visual);
         if(existing.isEmpty()||Boolean.TRUE.equals(existing.get().get("terminal")))return existing;
-        identity.as(caller,EnumSet.of(CodingTaskAccess.Action.READ,CodingTaskAccess.Action.STOP),
-            ()->agent.cancel(caller,(String)existing.get().get("taskId"),"User stopped the existing file analysis"));
-        return primarySnapshot(caller,visual);
+        var metrics=new LinkedHashMap<String,Object>();
+        identity.as(caller,EnumSet.of(CodingTaskAccess.Action.READ,CodingTaskAccess.Action.STOP,CodingTaskAccess.Action.RECOVER,CodingTaskAccess.Action.WORKER,CodingTaskAccess.Action.EVIDENCE),()->{
+            String taskId=(String)existing.get().get("taskId");
+            var stopped=agent.cancel(caller,taskId,"User stopped the existing file analysis");
+            return reconcileStopping(caller,taskId,stopped,metrics);
+        });
+        return primarySnapshot(caller,visual).map(value->{var receipt=new LinkedHashMap<>(value);receipt.put("stopReconciliation",metrics);return Collections.unmodifiableMap(receipt);});
+    }
+
+    /** Drain only an already persisted stop; resume cannot dispatch after a stop reason. */
+    private CodingTaskOutcome reconcileStopping(KernelDataScope scope,String taskId,CodingTaskOutcome outcome,Map<String,Object> metrics) {
+        long start=System.nanoTime(),until=start+java.util.concurrent.TimeUnit.SECONDS.toNanos(5);int attempts=0;
+        while(!outcome.status().terminal()&&outcome.executionControl().stopReason()!=null&&System.nanoTime()<until){
+            try{Thread.sleep(250);}catch(InterruptedException interrupted){Thread.currentThread().interrupt();throw new java.util.concurrent.CancellationException();}
+            outcome=agent.resume(scope,taskId);attempts++;
+        }
+        metrics.put("attempts",attempts);metrics.put("waitMillis",(System.nanoTime()-start)/1_000_000);
+        metrics.put("pollWindowMillis",5000);metrics.put("terminalObserved",outcome.status().terminal());
+        return outcome;
     }
 
     @Override public Map<String,Object> executePrimaryAnalysis(
@@ -379,6 +395,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             java.util.function.Consumer<Map<String,Object>> observer,int sourceCount,List<String> selectedReferences,
             boolean reviewResult) {
         String key="coding:analysis-request:"+taskId;
+        var stopMetrics=new LinkedHashMap<String,Object>();
         var saved=checkpoints.readExecutionCheckpoint(scope,key);
         CodingTaskContract contract;
         int snapshotCaptures=0;
@@ -709,6 +726,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 if (!outcome.status().terminal() && !Instant.now().isBefore(accepted.budget().deadlineAt())) {
                     agent.cancel(scope,taskId,"Parent Coding wait ended; outstanding execution must be reconciled");
                     outcome=agent.resume(scope,taskId);
+                    outcome=reconcileStopping(scope,taskId,outcome,stopMetrics);
                 }
             }
             ensureActive(context);
@@ -717,6 +735,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             receipt.put("operation","RUN_CODING");receipt.put("requestId",requestId);receipt.put("taskId",taskId);
             receipt.put("status",outcome.status().name());receipt.put("reconciliationRequired",outcome.executionControl().reconciliationRequired());
             receipt.put("terminal",outcome.status().terminal());
+            if(!stopMetrics.isEmpty())receipt.put("stopReconciliation",stopMetrics);
             receipt.put("eventCursor",outcome.lastEventSequence());receipt.put("taskRevision",outcome.revision());
             receipt.put("validationStatus",outcome.validationStatus().name());receipt.put("businessValidation","NOT_EVALUATED");
             receipt.put("usage",outcome.usage());

@@ -33,7 +33,7 @@ def rewrite(original, changes):
                 unchanged[info.filename] = sha(body)
             after.writestr(info, body)
         for name, body in remaining.items():
-            after.writestr(name, body)
+            after.writestr(zipfile.ZipInfo(name, date_time=(1980,1,1,0,0,0)), body)
     with zipfile.ZipFile(io.BytesIO(output.getvalue())) as check:
         assert all(sha(check.read(k)) == v for k, v in unchanged.items())
     return output.getvalue(), len(unchanged)
@@ -51,7 +51,8 @@ def main():
               for group in ['api', 'mcp', 'common', 'market', 'news', 'node', 'static']}
     libraries = {'common': 'chatchat-common-', 'market': 'chatchat-runtime-market-', 'news': 'chatchat-runtime-news-'}
     report = {'sourceCommit': manifest['sourceCommit'], 'preserveRuntimeConfiguration': True,
-              'removeInheritedRuntimeBaseLabels': True, 'backupFinancialStorage': True}
+              'removeInheritedRuntimeBaseLabels': True, 'backupFinancialStorage': True,
+              'preparationScriptSha256':sha(Path(__file__).read_bytes())}
     proof = {'trafficSwitched': False, 'services': {}}
     for service in ['api', 'mcp', 'news']:
         name = 'runtime-os-app-stage-'+service+'-1'
@@ -92,8 +93,10 @@ def main():
     directory=root/'build-worker';directory.mkdir(exist_ok=True)
     for name,body in groups['node'].items():(directory/name).write_bytes(body)
     tag='runtime-os-coding-agent:data-remediation-'+manifest['sourceCommit'][:12]
+    base_tag='runtime-os-coding-agent:data-remediation-base-'+current['Image'].split(':')[-1][:12]
+    subprocess.run(['docker','tag',current['Image'],base_tag],check=True)
     # Runtime worker keeps its installed, hash-pinned SDK and all original monitor assets.
-    (directory/'Dockerfile').write_text('FROM '+current['Image']+'\nCOPY --chown=node:node *.js /srv/coding-agent/dist/\n')
+    (directory/'Dockerfile').write_text('FROM '+base_tag+'\nCOPY --chown=node:node *.js /srv/coding-agent/dist/\n')
     subprocess.run(['docker','build','--network','none','-t',tag,str(directory)],check=True,stdout=sys.stderr)
     image=run('docker','image','inspect','-f','{{.Id}}',tag)
     report['worker']={'image':tag,'preparedImageId':image,'baselineImageId':current['Image'],

@@ -21,6 +21,7 @@ from datetime import datetime
 def main():
     os.umask(0o077)
     command, directory = sys.argv[1:3]
+    files_only='--files-only' in sys.argv[3:]
     root = Path(directory).resolve()
     token = json.loads((root/'auth-private.json').read_text())['token']
 
@@ -79,22 +80,20 @@ def main():
                 workspace=api('/data-science/explorations/'+workspace['id']+'/nodes',{'version':workspace['version'],'parentId':'',
                     'fileIds':[a['id'] for a in assets],'question':original['request']['query'],'modelName':model})
                 cases.append({'case':label+'-'+str(repeat+1),'model':model,'nodeId':workspace['nodes'][-1]['id']})
-        # Same original Agent/question, independent from the frozen-file performance cohort.
-        workspace=api('/data-science/explorations/'+workspace['id']+'/nodes',{'version':workspace['version'],'parentId':'',
-            'fileIds':[],'question':original['request']['query'],'modelName':original['request']['modelName'],'agentId':original['request']['skillId']})
-        agent={'case':'actual-agent','model':original['request']['modelName'],'nodeId':workspace['nodes'][-1]['id']}
-        workspace=api('/data-science/explorations/'+workspace['id']+'/nodes',{'version':workspace['version'],'parentId':'',
-            'fileIds':[],'question':'请检索公开网页，核对华是科技的证券代码、交易所和官方来源链接。区分搜索摘要、原文与权威行情，未取得当前报价时明确说明。',
-            'modelName':'qwen3.8-omni-flash','agentId':original['request']['skillId']})
-        search={'case':'authorized-internet','model':'qwen3.8-omni-flash','nodeId':workspace['nodes'][-1]['id']}
-        workspace=api('/data-science/explorations/'+workspace['id']+'/nodes',{'version':workspace['version'],'parentId':'',
-            'fileIds':[],'question':'分析华是科技（301218，深交所）在已收集的2026-11-02当日行情中相对于当日同源市场数据的位置。请依据该日已授权完整数据文件计算对比并过滤目标证券，核对证券类型、数据覆盖、价格和金额单位，交付报告和图表。不能用有界样例冒充完整市场，也不能将历史收集值表述为实时价。',
-            'modelName':original['request']['modelName'],'agentId':original['request']['skillId']})
-        daily={'case':'authorized-day-file','model':original['request']['modelName'],'nodeId':workspace['nodes'][-1]['id']}
+        # Keep the timed cohort isolated from unrelated Agent work when requested.
+        agent=None;extra=[]
+        if not files_only:
+            workspace=api('/data-science/explorations/'+workspace['id']+'/nodes',{'version':workspace['version'],'parentId':'',
+                'fileIds':[],'question':original['request']['query'],'modelName':original['request']['modelName'],'agentId':original['request']['skillId']})
+            agent={'case':'actual-agent','model':original['request']['modelName'],'nodeId':workspace['nodes'][-1]['id']}
+            workspace=api('/data-science/explorations/'+workspace['id']+'/nodes',{'version':workspace['version'],'parentId':'',
+                'fileIds':[],'question':'分析华是科技（301218，深交所）在已收集的2026-11-02当日行情中相对于当日同源市场数据的位置。请依据该日已授权完整数据文件计算对比并过滤目标证券，核对证券类型、数据覆盖、价格和金额单位，交付报告和图表。不能用有界样例冒充完整市场，也不能将历史收集值表述为实时价。',
+                'modelName':original['request']['modelName'],'agentId':original['request']['skillId']})
+            extra=[{'case':'authorized-day-file','model':original['request']['modelName'],'nodeId':workspace['nodes'][-1]['id']}]
         save('scenario-prepared-private.json',{'workspaceId':workspace['id'],'cases':cases,'agent':agent,
-            'extraCases':[search,daily],
+            'extraCases':extra,
             'originalTaskId':journal['contract']['taskId'],'originalInputSha256':part['sha256'],'inputFiles':input_files,'inputAssetIds':[a['id'] for a in assets]})
-        print(json.dumps({'prepared':len(cases)+3,'inputSha256':part['sha256'],'workspaceId':workspace['id']}),flush=True)
+        print(json.dumps({'prepared':len(cases)+(1 if agent else 0)+len(extra),'inputSha256':part['sha256'],'workspaceId':workspace['id']}),flush=True)
         return
 
     prepared=json.loads((root/'scenario-prepared-private.json').read_text())
@@ -113,7 +112,7 @@ def main():
                 save(case['case']+'-error-private.json',{'type':type(error).__name__,'message':str(error),'outcome':'UNKNOWN_POLL_ONLY'})
         with ThreadPoolExecutor(max_workers=2) as pool:
             for offset in range(0,len(prepared['cases']),2):list(pool.map(execute,prepared['cases'][offset:offset+2]))
-        execute(prepared['agent'])
+        if prepared.get('agent'):execute(prepared['agent'])
         for case in prepared.get('extraCases',[]):execute(case)
         return
 
@@ -122,7 +121,7 @@ def main():
     collector=importlib.util.module_from_spec(spec);spec.loader.exec_module(collector)
     monitor=json.loads(Path('/opt/runtime-os-docker-stage/coding-monitor/data/observations.json').read_text())
     results=[]
-    for case in prepared['cases']+[prepared['agent']]+prepared.get('extraCases',[]):
+    for case in prepared['cases']+([prepared['agent']] if prepared.get('agent') else [])+prepared.get('extraCases',[]):
         state=api(prefix+case['nodeId']+'/status');save(case['case']+'-status-private.json',state)
         node=next(n for n in state['nodes'] if n['id']==case['nodeId']);receipt=node.get('receipt',{})
         row=dict(case,status=receipt.get('status',node.get('status')),resultAvailable=receipt.get('resultAvailable') is True,
@@ -156,6 +155,7 @@ def main():
             runtime=task['contract']['runtimeContext'];model_identity=runtime.get('model',{});execution_profile=runtime.get('executionProfile',{})
             row.update(taskId=task['contract']['taskId'],status=task['outcome']['status'],budget=task['contract']['budget'],
                 actualModel=model_identity.get('selectedModel'),executionModel=execution_profile.get('selectedModel'),
+                reasonCode=task['outcome'].get('reasonCode'),summary=task['outcome'].get('summary'),
                 inputSnapshotRef=task['contract']['inputSnapshotRef'],permissions=task['contract']['authorization'],
                 logicalInputs=manifests,modelCalls=len(operation_ids),resolvedModelCalls=len(models),
                 unknownModelCalls=len(set(operation_ids)-set(models)),usageKnownCalls=usage_known,
@@ -172,7 +172,7 @@ def main():
                 measurementPolicy='null=UNKNOWN; tool/Python phases overlap, not additive; model reasoning/report generation not separately observable',
                 models=[{'ordinal':m['ordinal'],'status':m['status'],'durationMs':m.get('durationMs'),'actualTools':m.get('actualTools'),'usage':m.get('usage')} for n in matching for m in n.get('models',[])])
         report=receipt.get('visualReport') or {}
-        row['delivery']={k:report[k] for k in ['status','artifactValidationStatus','chartValidationStatus','availableChartCount'] if k in report}
+        row['delivery']={k:report[k] for k in ['status','analysisStatus','requirementStatus','artifactValidationStatus','chartValidationStatus','availableChartCount'] if k in report}
         row['chartCount']=len(report.get('charts',[]));results.append(row)
     save('real-scenario-results.json',{'originalInputSha256':prepared['originalInputSha256'],'cases':results})
     print(json.dumps([{'case':r['case'],'status':r['status'],'resultAvailable':r['resultAvailable'],'modelCalls':r.get('modelCalls'),'chartCount':r['chartCount']} for r in results]),flush=True)

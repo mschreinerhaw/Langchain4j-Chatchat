@@ -16,11 +16,12 @@ def digest(value):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', required=True, type=Path)
+    parser.add_argument('--variant', default='native', choices=['native', 'baseline', 'candidate'])
     args = parser.parse_args()
     root = args.root
-    private = root / 'native-evidence-private'
+    private = root / (args.variant + '-evidence-private')
     cases = []
-    for request_file in sorted((root / 'native').glob('*-request.json')):
+    for request_file in sorted((root / args.variant).glob('*-request.json')):
         case = request_file.name.removesuffix('-request.json')
         nodes_file = private / (case + '-nodes.json')
         if not nodes_file.exists():
@@ -74,7 +75,7 @@ def main():
                 error = value.get('error') or {}
                 python_feedback.append({'operationId': key[len('feedback:'):], 'status': value.get('status'),
                     'exceptionType': error.get('exceptionType'), 'diagnosticCode': error.get('diagnosticCode')})
-        receipt_file = root / 'native' / (case + '-receipt.json')
+        receipt_file = root / args.variant / (case + '-receipt.json')
         response = json.loads(receipt_file.read_text())['receipt'] if receipt_file.exists() else {}
         reports = []
         for result in response.get('results') or []:
@@ -96,7 +97,8 @@ def main():
         'cases': cases, 'tasksWithSuccessfulLoads': sum(bool(c['successfulLoads']) for c in cases),
         'successfulBodyLoads': sum(not e.get('skillReference') for c in cases for e in c['successfulLoads']),
         'successfulReferenceLoads': sum(bool(e.get('skillReference')) for c in cases for e in c['successfulLoads'])}
-    (root / 'native-skills-lifecycle.json').write_text(json.dumps(out, ensure_ascii=False, indent=2) + '\n')
+    name = 'native-skills-lifecycle.json' if args.variant == 'native' else args.variant + '-skills-lifecycle.json'
+    (root / name).write_text(json.dumps(out, ensure_ascii=False, indent=2) + '\n')
     print(json.dumps({k: v for k, v in out.items() if k != 'cases'}))
 
 

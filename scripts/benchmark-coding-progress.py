@@ -27,6 +27,7 @@ def main():
     parser.add_argument('--auth', required=True, type=Path)
     parser.add_argument('--variant', choices=['baseline', 'candidate', 'final', 'verified', 'recovery', 'native'])
     parser.add_argument('--visual', action='store_true', help='Include two autonomous visual-report tasks without changing the five paired cases')
+    parser.add_argument('--formal-visual', action='store_true', help='Use the formal exploration visual contract for the visual case')
     parser.add_argument('--model', default='qwen3.8-flash')
     parser.add_argument('--repeats', type=int, default=2)
     args = parser.parse_args()
@@ -91,7 +92,10 @@ def main():
     directory = root / args.variant
     directory.mkdir(exist_ok=True)
     worker = json.loads(subprocess.check_output(['docker', 'inspect', 'runtime-os-app-stage-coding-agent-1'], text=True))[0]
-    save(args.variant + '-worker.json', {'image': worker['Image'], 'name': worker['Config']['Image'], 'model': args.model})
+    current_api=json.loads(subprocess.check_output(['docker','inspect','runtime-os-app-stage-api-1'],text=True))[0]
+    api_hash=subprocess.check_output(['docker','exec','runtime-os-app-stage-api-1','sha256sum','/srv/app/app.jar'],text=True).split()[0]
+    save(args.variant + '-worker.json', {'image': worker['Image'], 'name': worker['Config']['Image'], 'model': args.model,
+        'apiImage':current_api['Image'],'apiJarSha256':api_hash,'repeats':args.repeats,'concurrency':2,'formalVisual':args.formal_visual})
     cases = {
         'csv': (['simple.csv'], '执行 Python 按 region 汇总 amount 并核对总和，输出分组表和总和。'),
         'parquet': (['simple.parquet'], '读取真实 Parquet 文件，执行 Python 按 region 汇总 amount 并核对总和，输出分组表。'),
@@ -99,8 +103,10 @@ def main():
         'complex': (['complex.csv'], '执行 Python 计算 region 每周 amount 总和、两地区每周占比及每周数量加权单位值（sum(amount)/sum(quantity)），验证分组与全表总和一致，说明日期覆盖及周边界。'),
         'repair': ([], '先以 project:{reuse:true} 原样执行，获取真实 SyntaxError；在同一任务做最小补丁，保留原计算，返回演示数值6，并满足 Runtime 报告输出合同。'),
     }
-    if args.visual:
+    if args.visual or args.formal_visual:
         cases['visual'] = (['complex.csv'], '分析两地区每周 amount、占比与数量加权单位值；核对总额，生成静态趋势图和地区比较图，并交付含数据表、图形与边界说明的图文报告。自主选择适用方法。')
+    if args.formal_visual:
+        cases['visual'] = (['simple.csv'], '按 region 汇总 amount 并核对全表总额，交付简洁分组表、地区金额比较图和金额占比图，说明演示单位与证据边界。自主选择适用方法。')
 
     def run_case(item):
         case, repeat = item
@@ -122,7 +128,17 @@ def main():
         request_file.write_text(json.dumps(body, ensure_ascii=False))
         started = time.monotonic()
         try:
-            if case == 'repair':
+            if case == 'visual' and args.formal_visual:
+                workspace=api('/data-science/explorations',{'title':'原生 Skills 配对图文基准（合成）'})
+                workspace=api('/data-science/explorations/'+workspace['id']+'/nodes',{'version':workspace['version'],
+                    'parentId':'','fileIds':body['fileIds'],'question':body['instruction'],'modelName':args.model})
+                node=workspace['nodes'][-1]
+                (directory/(key+'-workspace-private.json')).write_text(json.dumps(workspace,ensure_ascii=False))
+                body['originalRequestId']=body['requestId'];body['requestId']=node['id'];body['workspaceId']=workspace['id']
+                request_file.write_text(json.dumps(body,ensure_ascii=False))
+                state=api('/data-science/explorations/'+workspace['id']+'/nodes/'+node['id']+'/execute',{})
+                receipt=next(n for n in state['nodes'] if n['id']==node['id']).get('receipt',{})
+            elif case == 'repair':
                 prepared = api('/data-science/python/code-reuse', {'requestId': request_id, 'modelName': args.model,
                     'instruction': body['instruction'], 'entryPath': 'main.py', 'dataFileIds': [], 'skillIds': [],
                     'references': [{'kind': 'SNIPPET', 'path': 'main.py', 'content': 'value = (\nprint(sum([1, 2, 3]))\n',

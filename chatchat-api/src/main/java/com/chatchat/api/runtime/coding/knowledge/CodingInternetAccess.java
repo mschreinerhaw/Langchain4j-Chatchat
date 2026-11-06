@@ -18,6 +18,7 @@ public class CodingInternetAccess {
     /** Diagnostic only: never performs a search or admits a capability missing from the frozen task. */
     public Map<String,Object> availability(KernelDataScope scope,String agent,String model,boolean requested,boolean admitted){
         if(admitted)return availabilityStatus("AVAILABLE","CONFIGURED_NOT_PROBED");
+        if(model==null||model.isBlank())return availabilityStatus("UNKNOWN","MODEL_BINDING_UNAVAILABLE");
         try{
             if(!models.active(model))return availabilityStatus("UNAVAILABLE","MODEL_NOT_ACTIVE");
             var policy=models.read(model);

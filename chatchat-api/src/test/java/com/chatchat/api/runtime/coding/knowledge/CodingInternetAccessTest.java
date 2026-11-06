@@ -14,6 +14,8 @@ import static org.mockito.ArgumentMatchers.*;
 
 class CodingInternetAccessTest {
     @Test void disabledAndUnauthorizedCapabilitiesHaveExplicitReasonsWithoutSearching() {
+        assertThat(internet.availability(contract.scope(),"agent","",true,false))
+            .containsEntry("status","UNKNOWN").containsEntry("reasonCode","MODEL_BINDING_UNAVAILABLE");
         when(models.read("model-a")).thenReturn(new PlatformInternetPolicy.Policy(false,"provider",3));
         assertThat(internet.availability(contract.scope(),"agent","model-a",true,false))
             .containsEntry("reasonCode","MODEL_INTERNET_DISABLED").containsEntry("serviceChecked",false).containsEntry("toolsAvailable",false);

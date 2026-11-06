@@ -1,6 +1,6 @@
 """Prepare hash-pinned incremental images from live JARs; does not switch traffic.
 
-Run on server after verifying/extracting bundle.tar.gz: python3 SCRIPT RELEASE_DIR
+Run on server after verifying/extracting bundle.tar.gz: python3 SCRIPT RELEASE_DIR [--api-only]
 Uses existing deploy-integrated-runtime.py for idle gates, backup and deployment.
 """
 import hashlib
@@ -40,6 +40,8 @@ def rewrite(original, changes):
 
 
 def main():
+    assert len(sys.argv) in [2,3] and (len(sys.argv)==2 or sys.argv[2]=='--api-only'), 'Expected release directory and optional --api-only'
+    api_only=len(sys.argv)==3
     root = Path(sys.argv[1]).resolve()
     bundle = root / 'bundle'
     manifest = json.loads((bundle / 'bundle-manifest.json').read_text())
@@ -51,10 +53,10 @@ def main():
               for group in ['api', 'mcp', 'agents', 'common', 'market', 'news', 'node', 'static']}
     libraries = {'common': 'chatchat-common-', 'agents':'chatchat-agents-', 'market': 'chatchat-runtime-market-', 'news': 'chatchat-runtime-news-'}
     report = {'sourceCommit': manifest['sourceCommit'], 'preserveRuntimeConfiguration': True,
-              'removeInheritedRuntimeBaseLabels': True, 'backupFinancialStorage': True,
+              'removeInheritedRuntimeBaseLabels': True, 'backupFinancialStorage': not api_only,
               'preparationScriptSha256':sha(Path(__file__).read_bytes())}
     proof = {'trafficSwitched': False, 'services': {}}
-    for service in ['api', 'mcp', 'news']:
+    for service in (['api'] if api_only else ['api', 'mcp', 'news']):
         name = 'runtime-os-app-stage-'+service+'-1'
         current = json.loads(run('docker', 'inspect', name))[0]
         original = subprocess.check_output(['docker', 'exec', name, 'cat', '/srv/app/app.jar'])
@@ -99,6 +101,11 @@ def main():
         else:
             report[service] = entry
         proof['services'][service] = dict(entry, unchangedJarEntries=retained, replacedEntries=sorted(replacements))
+    if api_only:
+        (root/'manifest.json').write_text(json.dumps(report,indent=2))
+        (root/'artifact-proof.json').write_text(json.dumps(proof,indent=2))
+        print(json.dumps({'prepared':True,'trafficSwitched':False,'sourceCommit':manifest['sourceCommit'],'services':['api']}))
+        return
     name='runtime-os-app-stage-coding-agent-1'
     current=json.loads(run('docker','inspect',name))[0]
     directory=root/'build-worker';directory.mkdir(exist_ok=True)

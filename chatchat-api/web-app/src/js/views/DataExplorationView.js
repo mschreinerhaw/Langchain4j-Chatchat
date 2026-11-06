@@ -244,7 +244,7 @@ export default {
     async function pollStatus(){
       if(disposed||polling)return;const id=space.value?.id;
       const candidates=space.value?.nodes.filter(n=>n.agentId?n.receipt?.agentTaskId&&!n.receipt.terminal:
-        (!n.receipt?.terminal||n.receipt?.taskId&&!n.receipt.resultAvailable&&!n.receipt.stageSnapshotChecked)
+        (!n.receipt?.terminal||n.receipt?.taskId&&(!n.receipt.resultAvailable&&!n.receipt.stageSnapshotChecked||!n.receipt.progressSnapshotChecked))
         &&(n.executionRequestedAt||n.receipt?.taskId||n.status==='RECOVERABLE'))||[];
       const pending=candidates[(candidates.findIndex(n=>n.id===lastPolledNode)+1)%candidates.length];
       if(!pending)return;polling=true;

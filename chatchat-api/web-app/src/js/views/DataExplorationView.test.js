@@ -17,11 +17,21 @@ it('shows delivery facts for a restored completed file task without a retained a
 it('hydrates a failed files own archived stage once and keeps the failure visible',async()=>{
  vi.useFakeTimers();try{
  const state={...structuredClone(space),nodes:[{...node('root'),agentId:undefined,receipt:{taskId:'coding-task',status:'FAILED',terminal:true,resultAvailable:false}}]};
- const restored=structuredClone(state);restored.version=4;restored.nodes[0].receipt={...state.nodes[0].receipt,resultAvailable:true,stageSnapshotChecked:true,deliveryStatus:'PRESERVED_AFTER_FAILURE',
+ const restored=structuredClone(state);restored.version=4;restored.nodes[0].receipt={...state.nodes[0].receipt,resultAvailable:true,stageSnapshotChecked:true,progressSnapshotChecked:true,deliveryStatus:'PRESERVED_AFTER_FAILURE',
   visualReport:{status:'PARTIAL',title:'Own stage',summary:'Partial archived result',charts:[]}};
  api.explorationNodeStatus.mockResolvedValue(restored);const vm=await mount(state);
  await vi.advanceTimersByTimeAsync(1501);await settle();expect(vm.selectedState.code).toBe('FAILED');expect(vm.report.title).toBe('Own stage');expect(host.textContent).toContain('部分交付');
  await vi.advanceTimersByTimeAsync(1501);await settle();expect(api.explorationNodeStatus).toHaveBeenCalledTimes(1);expect(api.executeExploration).not.toHaveBeenCalled();
+ }finally{vi.useRealTimers();}
+});
+it('reads restored terminal file progress once without executing or continuously polling',async()=>{
+ vi.useFakeTimers();try{
+ const state={...structuredClone(space),nodes:[{...node('root'),agentId:undefined,receipt:{taskId:'coding-task',status:'COMPLETED',terminal:true,resultAvailable:true}}]};
+ const restored=structuredClone(state);restored.version=4;restored.nodes[0].receipt={...state.nodes[0].receipt,progressSnapshotChecked:true,
+  analysisEvents:[{payload:{workerActivity:{type:'MODEL_TIMING',status:'SUCCEEDED'}}}]};
+ api.explorationNodeStatus.mockResolvedValue(restored);await mount(state);
+ await vi.advanceTimersByTimeAsync(1501);await settle();expect(host.querySelector('[aria-label="分析交付状态"]').textContent).toContain('已响应');
+ await vi.advanceTimersByTimeAsync(3001);await settle();expect(api.explorationNodeStatus).toHaveBeenCalledTimes(1);expect(api.executeExploration).not.toHaveBeenCalled();
  }finally{vi.useRealTimers();}
 });
 it('stops an accepted file-analysis task after refresh through the existing stop endpoint',async()=>{

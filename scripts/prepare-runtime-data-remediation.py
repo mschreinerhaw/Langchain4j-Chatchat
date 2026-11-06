@@ -79,10 +79,21 @@ def main():
         # Existing clean runtime layers; do not retain previous business JARs in ancestry.
         base = 'runtime-os-api-runtime:17-sqlglot-20261024'
         assert 'app.jar' not in run('docker','history','--no-trunc','--format','{{.CreatedBy}}',base)
-        (directory/'Dockerfile').write_text('FROM '+base+'\nWORKDIR /srv/app\nCOPY app.jar /srv/app/app.jar\n')
+        extra=''
+        if service=='mcp':
+            # The clean Java base intentionally excludes the deployment's Docker CLI.
+            # Python runtime probing/execution requires the exact existing binary.
+            binary=subprocess.check_output(['docker','exec',name,'cat','/usr/local/bin/docker'])
+            (directory/'docker').write_bytes(binary)
+            extra='COPY --chmod=0755 docker /usr/local/bin/docker\n'
+        (directory/'Dockerfile').write_text('FROM '+base+'\n'+extra+'WORKDIR /srv/app\nCOPY app.jar /srv/app/app.jar\n')
         subprocess.run(['docker','build','--network','none','-t',image,str(directory)],check=True,stdout=sys.stderr)
         entry = {'image':image,'sha256':sha(candidate),'baselineSha256':sha(original),
                  'baselineImageId':current['Image'],'preparedImageId':run('docker','image','inspect','-f','{{.Id}}',image)}
+        if service=='mcp':
+            entry['dockerCliSha256']=sha(binary)
+            assert run('docker','run','--rm','--network','none','--read-only','--cap-drop','ALL','--entrypoint','sha256sum',image,'/usr/local/bin/docker').split()[0]==sha(binary)
+            run('docker','run','--rm','--network','none','--read-only','--cap-drop','ALL','--entrypoint','docker',image,'--version')
         if service == 'api':
             report.update({k: entry[k] for k in ['image','sha256','baselineSha256']})
         else:

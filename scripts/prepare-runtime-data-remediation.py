@@ -40,7 +40,7 @@ def rewrite(original, changes):
 
 
 def main():
-    assert len(sys.argv) in [2,3] and (len(sys.argv)==2 or sys.argv[2] in ['--api-only','--api-worker']), 'Expected release directory and optional service selection'
+    assert len(sys.argv) in [2,3] and (len(sys.argv)==2 or sys.argv[2] in ['--api-only','--api-worker','--api-mcp']), 'Expected release directory and optional service selection'
     selected=sys.argv[2] if len(sys.argv)==3 else None
     api_only=selected=='--api-only'
     root = Path(sys.argv[1]).resolve()
@@ -54,10 +54,10 @@ def main():
               for group in ['api', 'mcp', 'agents', 'common', 'market', 'news', 'node', 'static']}
     libraries = {'common': 'chatchat-common-', 'agents':'chatchat-agents-', 'market': 'chatchat-runtime-market-', 'news': 'chatchat-runtime-news-'}
     report = {'sourceCommit': manifest['sourceCommit'], 'preserveRuntimeConfiguration': True,
-              'removeInheritedRuntimeBaseLabels': True, 'backupFinancialStorage': selected is None,
+              'removeInheritedRuntimeBaseLabels': True, 'backupFinancialStorage': selected is None or selected=='--api-mcp',
               'preparationScriptSha256':sha(Path(__file__).read_bytes())}
     proof = {'trafficSwitched': False, 'services': {}}
-    for service in (['api'] if selected else ['api', 'mcp', 'news']):
+    for service in (['api','mcp'] if selected=='--api-mcp' else ['api'] if selected else ['api', 'mcp', 'news']):
         name = 'runtime-os-app-stage-'+service+'-1'
         current = json.loads(run('docker', 'inspect', name))[0]
         original = subprocess.check_output(['docker', 'exec', name, 'cat', '/srv/app/app.jar'])
@@ -102,10 +102,10 @@ def main():
         else:
             report[service] = entry
         proof['services'][service] = dict(entry, unchangedJarEntries=retained, replacedEntries=sorted(replacements))
-    if api_only:
+    if api_only or selected=='--api-mcp':
         (root/'manifest.json').write_text(json.dumps(report,indent=2))
         (root/'artifact-proof.json').write_text(json.dumps(proof,indent=2))
-        print(json.dumps({'prepared':True,'trafficSwitched':False,'sourceCommit':manifest['sourceCommit'],'services':['api']}))
+        print(json.dumps({'prepared':True,'trafficSwitched':False,'sourceCommit':manifest['sourceCommit'],'services':['api','mcp'] if selected=='--api-mcp' else ['api']}))
         return
     name='runtime-os-app-stage-coding-agent-1'
     current=json.loads(run('docker','inspect',name))[0]

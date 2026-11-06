@@ -9,12 +9,12 @@ const families={
  api:['com/chatchat/api/runtime/evidence/JdbcRuntimeEvidenceStore','com/chatchat/api/assets/SiloAssetBlobStore','com/chatchat/api/exploration/ExplorationAgentBridge','com/chatchat/api/exploration/ExplorationWorkspaceController','com/chatchat/api/assets/AssetAnalysisController','com/chatchat/api/runtime/coding/analysis/CodingAnalysisService','com/chatchat/api/runtime/coding/cline/ClineToolProfiles',
   'com/chatchat/api/runtime/coding/data/CodingDataSupplyService','com/chatchat/api/runtime/coding/data/CodingInputFilePublisher',
   'com/chatchat/api/runtime/coding/data/CodingTableCodec','com/chatchat/api/runtime/coding/cline/CodingInputLayout','com/chatchat/api/runtime/coding/knowledge/CodingKnowledgeService',
-  'com/chatchat/api/runtime/coding/knowledge/CodingResourceReader','com/chatchat/api/runtime/coding/knowledge/CodingInternetAccess',
+  'com/chatchat/api/runtime/coding/knowledge/CodingResourceReader','com/chatchat/api/runtime/coding/knowledge/CodingInternetAccess','com/chatchat/api/runtime/coding/knowledge/CodingDataObservation',
   'com/chatchat/api/runtime/coding/execution/CodingExecutionFeedbackService','com/chatchat/api/runtime/coding/cline/ClinePythonCallbackController',
   'com/chatchat/api/runtime/coding/cline/ClineModelCallbackController','com/chatchat/api/model/InternetSearchProbeController'],
  mcp:['com/chatchat/mcpserver/market/ResourceExplorationReadController'],
- agents:['com/chatchat/agents/orchestration/analysis/graph/AnalysisCodingPort','com/chatchat/agents/orchestration/analysis/governance/AnalysisCoverageCoordinator'],
- common:['com/chatchat/common/runtime/coding/CodingRuntimeContext'],
+ agents:['com/chatchat/agents/orchestration/analysis/graph/AnalysisCodingPort','com/chatchat/agents/orchestration/analysis/governance/AnalysisCoverageCoordinator','com/chatchat/agents/orchestration/analysis/dataset/DataSupplyStatus'],
+ common:['com/chatchat/common/runtime/coding/CodingRuntimeContext','com/chatchat/common/runtime/coding/CodingDataStatus'],
  market:['com/chatchat/runtime/market/storage/FinancialDataStore','com/chatchat/runtime/market/config/MarketModuleProperties'],
  news:['com/chatchat/runtime/news/internet/InternetSearchService']};
 const modules={api:'chatchat-api',mcp:'chatchat-mcp-server',agents:'chatchat-agents',common:'chatchat-common',market:'chatchat-runtime-market',news:'chatchat-runtime-news'};

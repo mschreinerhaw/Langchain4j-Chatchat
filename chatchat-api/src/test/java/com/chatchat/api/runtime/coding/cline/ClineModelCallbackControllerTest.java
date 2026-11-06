@@ -351,10 +351,17 @@ class ClineModelCallbackControllerTest {
                 assertThat(json.valueToTree(controller.readArtifact(body)).path("reportReferenceValidation").path("valid").asBoolean()).isTrue();
                 doThrow(new com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeService.ReportReferenceException("Missing inline citation"))
                     .when(knowledge).validateReport(any(),any());
+                when(knowledge.citations(any(),any())).thenReturn(List.of(Map.of("evidence_id",knowledgeRef,
+                    "title","Official page","source_url","https://example.test/official","retrieved_at","2026-11-07T00:00:00Z",
+                    "text","PRIVATE_BODY","source_metadata",Map.of("credential","PRIVATE_SECRET"))));
                 var repair=json.valueToTree(controller.readArtifact(body));
                 assertThat(repair.path("reportReferenceValidation").path("valid").asBoolean()).isFalse();
                 assertThat(repair.path("reportReferenceValidation").path("repairGuidance").asText()).isEqualTo("Missing inline citation");
                 assertThat(repair.path("visualReportValidation").path("layoutValidationStatus").asText()).isEqualTo("FAILED");
+                var hint=repair.path("reportReferenceValidation").path("citationRepairSources").get(0);
+                assertThat(hint.path("evidence_id").asText()).isEqualTo(knowledgeRef);
+                assertThat(hint.path("source_url").asText()).isEqualTo("https://example.test/official");
+                assertThat(hint.toString()).doesNotContain("PRIVATE_BODY","PRIVATE_SECRET","credential");
                 doThrow(new SecurityException("revoked")).when(knowledge).authorizedReferences(any());
                 assertThatThrownBy(()->controller.readArtifact(body)).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
             }

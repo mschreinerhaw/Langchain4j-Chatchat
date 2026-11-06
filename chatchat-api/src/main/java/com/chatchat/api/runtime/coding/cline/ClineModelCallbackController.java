@@ -24,6 +24,7 @@ import java.util.EnumSet;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
@@ -279,14 +280,19 @@ public final class ClineModelCallbackController {
                     .map(CodingInputSnapshotService.Snapshot::sourceDatasetRef)
                     .filter(ref->ref!=null&&!ref.equals(input.sourceDatasetRef())).forEach(authorized::add);
                 String referenceRepair=null;
+                java.util.List<Map<String,Object>> repairSources=java.util.List.of();
+                int repairSourceCount=0;
                 if(com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeService.enabled(contract)) {
                     if(knowledge==null)throw new SecurityException("Knowledge validation unavailable");
-                    authorized.addAll(knowledge.authorizedReferences(contract));
+                    var disclosed=knowledge.authorizedReferences(contract);authorized.addAll(disclosed);
                     try {knowledge.validateReport(contract,row);}
                     catch(com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeService.ReportReferenceException malformed) {
                         // A repairable citation declaration must not hide the visual
                         // validation receipt. Revoked/unavailable sources still throw.
                         referenceRepair=malformed.getMessage();
+                        var metadata=knowledge.citations(contract,disclosed);
+                        repairSourceCount=metadata.size();
+                        repairSources=citationRepairSources(metadata,Objects.toString(row.get("reportMarkdown"),""));
                     }
                 }
                 var cited=row.get("evidenceReferences");
@@ -295,10 +301,35 @@ public final class ClineModelCallbackController {
                 var check=new java.util.LinkedHashMap<String,Object>();
                 check.put("valid",valid);check.put("authorizedDatasetReferences",List.copyOf(authorized));check.put("repairRequired",!valid);
                 if(referenceRepair!=null)check.put("repairGuidance",referenceRepair);
+                if(referenceRepair!=null){
+                    check.put("citationRepairSources",repairSources);
+                    check.put("citationRepairSourcesTruncated",repairSourceCount>repairSources.size());
+                    check.put("citationRepairSourcesAuthority","METADATA_ONLY_NOT_CLAIM_VERIFICATION");
+                }
                 response.put("reportReferenceValidation",check);
             }
             return response;
         });
+    }
+    static java.util.List<Map<String,Object>> citationRepairSources(java.util.List<Map<String,Object>> sources,String markdown){
+        return sources.stream().sorted(java.util.Comparator
+            .comparingInt((Map<String,Object> source)->source.get("source_url") instanceof String url&&!url.isBlank()&&mentionedUrl(markdown,url)?0:1)
+            .thenComparing(source->Objects.toString(source.get("evidence_id"),"")))
+            .limit(32).map(source->{
+                var hint=new java.util.LinkedHashMap<String,Object>();
+                for(String key:java.util.List.of("evidence_id","title","source_url","section_path","published_at","retrieved_at","resource_id"))
+                    if(source.get(key) instanceof String text&&!text.isBlank()&&text.length()<=4096)
+                        hint.put(key,key.equals("title")&&text.length()>256?text.substring(0,256):text);
+                return Map.<String,Object>copyOf(hint);
+            }).toList();
+    }
+    private static boolean mentionedUrl(String markdown,String url){
+        for(int index=markdown.indexOf(url);index>=0;index=markdown.indexOf(url,index+1)){
+            int end=index+url.length();
+            if((index==0||" \t\r\n([<\"'`".indexOf(markdown.charAt(index-1))>=0)
+                &&(end==markdown.length()||" \t\r\n)]>\"'`，。；".indexOf(markdown.charAt(end))>=0))return true;
+        }
+        return false;
     }
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setWorkspace(CodingWorkspaceService workspace) { this.workspace=workspace; }

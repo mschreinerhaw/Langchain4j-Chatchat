@@ -1,0 +1,49 @@
+{
+  "checks": [
+    {
+      "file": "collect-coding-progress.py",
+      "sha256": "2e4d2834044e9550735cb273147c1f7a760307419883c16d6212bae3e4ca0c56",
+      "compile": "PASS"
+    },
+    {
+      "file": "collect-cline-native-skills.py",
+      "sha256": "3836404b8ee1383a0febad273e06ab949662380183feaf87032d8a6a2c152dae",
+      "compile": "PASS"
+    },
+    {
+      "file": "summarize-native-benchmark.py",
+      "sha256": "f2519847dcedfa1b7ba94d2266fff2ac1bf792742c829bac8ea60a8ed077c7bd",
+      "compile": "PASS"
+    },
+    {
+      "file": "export-native-benchmark-quality.py",
+      "sha256": "9fa83fac5ce2f331e53eb78445b23d884e17e19febf9d9d3dcb70291156d846b",
+      "compile": "PASS"
+    },
+    {
+      "file": "verify-native-benchmark-pairs.py",
+      "sha256": "13e8b1349850b5f86ea2869fbca3f73ce37d0783c46c0e8f4dfdcf603f15f094",
+      "compile": "PASS"
+    },
+    {
+      "file": "verify-native-worker-recovery.py",
+      "sha256": "14cc5d35bcb911ae1b4943c1a6804ece9da9b40b80d0af15af345319a03b8776",
+      "compile": "PASS"
+    },
+    {
+      "file": "verify-native-task-cancellation.py",
+      "sha256": "1463ab2a6ca1766ebfa7e912e5f46f682d421cd796fa13e4babc7ad5cec1139a",
+      "compile": "PASS"
+    },
+    {
+      "file": "verify-native-report-delivery-stage.py",
+      "sha256": "63a013b8a94f82a7f91f07e48ab59d750f42f9f6a69c9039ed8553cb7b59b29e",
+      "compile": "PASS"
+    },
+    {
+      "file": "prepare-native-remediation-api.py",
+      "sha256": "9a31cda264475c3e2bd9e453d3d7b153f9240afa6ad568714d269b26bebe3bcb",
+      "compile": "PASS"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "simple.csv": {
+    "id": "4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f",
+    "sha256": "7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+  },
+  "customers.csv": {
+    "id": "bcb1a732de23b43b46368ec07580e6f355ccc2c9a12e86fc65da1cd6b1e559ff",
+    "sha256": "ba5569c242fa54c3499250d491d7eb79c88e1bb016dc079dc400ceb663d5cb0c"
+  },
+  "orders.csv": {
+    "id": "0187971c8e61a4888cc746666ad7d8a763a5132e6ce02303694dee56bf783e1a",
+    "sha256": "b47f62ee75979106c3a5923f987f4724b8631cb901b5aa3e74848596ba2e5526"
+  },
+  "complex.csv": {
+    "id": "d218054d23ea77cc928dddac45c43afd116a35544af08ca41cf2f655294b2d60",
+    "sha256": "91e1c931a615fa83ff58856bc752106e6570b88b73217075dd6ad2a48cce06bd"
+  },
+  "simple.parquet": {
+    "id": "86d545aff7114babc0374cfbad30a148de03b4d891dd4edec1a0158c250d3233",
+    "sha256": "42086714c894d600f396f73728b0bfa2d3dbba708c6cc26978e0aae80e5a60bb"
+  }
+}

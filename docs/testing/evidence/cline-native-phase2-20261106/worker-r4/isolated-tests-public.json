@@ -1,0 +1,47 @@
+{
+  "isolatedGatesPassed": true,
+  "logs": [
+    {
+      "log": "worker-tests.log",
+      "sha256": "5f0467cd670229ad4db0f877b7bedeec893164b64894345afef6826f0d7cd8f1",
+      "tail": [
+        "\u2714 valid=true without required Evidence references cannot complete the SDK fast path (7.839817ms)",
+        "\u2714 prefetch failure cannot retry an unknown operation or call a model (2.567014ms)",
+        "\u2714 expired or cancelled tasks never prefetch or start inference (2.409301ms)",
+        "\u2714 model exceptions still emit bounded failed-call timing (6.559812ms)",
+        "\u2714 SDK workspace patches retain other files and reconstruct from canonical checkpoint tool pairs (15.147525ms)",
+        "\u2714 cancellation during authorized prefetch stops before inference (2.872207ms)",
+        "\u2714 task deadline aborts prefetch without extending the model budget (42.303339ms)",
+        "\u2139 tests 241",
+        "\u2139 suites 0",
+        "\u2139 pass 241",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 0",
+        "\u2139 todo 0",
+        "\u2139 duration_ms 38164.240715"
+      ]
+    },
+    {
+      "log": "sandbox-tests.log",
+      "sha256": "30d4cbf7734354bce7a9a0b92c33456e00f8256d9312126931c97fc9986db10e",
+      "tail": [
+        "\u2714 KeyError (1686.899656ms)",
+        "\u2714 TypeError (1797.358488ms)",
+        "\u2714 ModuleNotFoundError (1829.866112ms)",
+        "\u2714 OUTPUT_MISSING (2237.6832ms)",
+        "\u2714 OUTPUT_SCHEMA (1896.781017ms)",
+        "\u2714 SyntaxError -> TypeError -> KeyError -> success retains every repair and resumes without replay (3424.500544ms)",
+        "\u2714 10000-line program executes a local SDK patch in the real Sandbox (1638.932483ms)",
+        "\u2139 tests 10",
+        "\u2139 suites 0",
+        "\u2139 pass 10",
+        "\u2139 fail 0",
+        "\u2139 cancelled 0",
+        "\u2139 skipped 0",
+        "\u2139 todo 0",
+        "\u2139 duration_ms 21753.387626"
+      ]
+    }
+  ]
+}

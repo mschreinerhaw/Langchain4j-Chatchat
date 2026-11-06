@@ -1,0 +1,26 @@
+{
+  "status": "PASS",
+  "workspaceId": "298e6323-a1cc-4ad6-a159-edceb9653f9b",
+  "nodeId": "616dfcac-ffda-42f5-83ba-357d640f10cb",
+  "taskId": "analysis-coding-a7def78830b11a5c511e377ba67826f2464a38a928474012e627c73d7518b0ca",
+  "beforeStatus": "RUNNING",
+  "finalStatus": "CANCELLED",
+  "terminal": true,
+  "observations": [
+    {
+      "taskId": "analysis-coding-a7def78830b11a5c511e377ba67826f2464a38a928474012e627c73d7518b0ca",
+      "status": "RUNNING",
+      "terminal": false,
+      "eventCursor": 11,
+      "resultAvailable": false
+    },
+    {
+      "taskId": "analysis-coding-a7def78830b11a5c511e377ba67826f2464a38a928474012e627c73d7518b0ca",
+      "status": "CANCELLED",
+      "terminal": true,
+      "eventCursor": 13,
+      "resultAvailable": false
+    }
+  ],
+  "sameArchivedReportAfterLateResponse": true
+}

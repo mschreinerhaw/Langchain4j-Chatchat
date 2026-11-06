@@ -1,0 +1,55 @@
+{
+  "containerId": "f872802df2860eed5e90d3089d2094db1b5d6467e648fea94168164acbe08e7e",
+  "imageId": "sha256:4a72ae673cb09301e66b404fbc2cf4436550b0aeca3828aa031f6c7b571cb8b2",
+  "taskId": "analysis-coding-e3fc86882a3df897fcb7d385712fb2efcbf42bffef3c33ba5c0f12e4f9700ecb",
+  "sdkSessionId": "fd1d090d-d4bd-4569-9fa4-4b9fb74f5fa4",
+  "fencingToken": 1,
+  "budget": {
+    "budgetId": "analysis-coding-tool-budget:analysis-coding-e3fc86882a3df897fcb7d385712fb2efcbf42bffef3c33ba5c0f12e4f9700ecb",
+    "deadlineAt": "2026-11-06T03:55:42.506Z",
+    "maxModelCalls": 12,
+    "maxModelTokens": 786432,
+    "maxToolCalls": 24,
+    "maxCodeExecutions": 12,
+    "maxCostAmount": "10",
+    "costCurrency": "USD",
+    "maxCpuMillis": 300000,
+    "maxMemoryBytes": 536870912,
+    "maxOutputBytes": 4194304
+  },
+  "usage": {
+    "budgetId": "analysis-coding-tool-budget:analysis-coding-e3fc86882a3df897fcb7d385712fb2efcbf42bffef3c33ba5c0f12e4f9700ecb",
+    "costCurrency": "USD",
+    "consumed": {
+      "modelCalls": 2,
+      "modelTokens": 35035,
+      "toolCalls": 2,
+      "codeExecutions": 1,
+      "cpuMillis": 0,
+      "peakMemoryBytes": 0,
+      "outputBytes": 8530,
+      "costAmount": "0"
+    },
+    "reserved": {
+      "modelCalls": 1,
+      "modelTokens": 161573,
+      "toolCalls": 0,
+      "codeExecutions": 0,
+      "cpuMillis": 25000,
+      "peakMemoryBytes": 0,
+      "outputBytes": 341425,
+      "costAmount": "2.499999999999"
+    },
+    "meteringComplete": false
+  },
+  "restartPolicy": {
+    "Name": "unless-stopped",
+    "MaximumRetryCount": 0
+  },
+  "pendingModelOperations": [
+    "model-3"
+  ],
+  "successfulPython": {
+    "cline-57b2f6532e280d642c139f615c64a910e0ece5579bbc56571eee9364804f3cd1": "6f57b20564b95362345dddca290661cb5719a3abb6a9a3cda28dbaafc147dba3"
+  }
+}

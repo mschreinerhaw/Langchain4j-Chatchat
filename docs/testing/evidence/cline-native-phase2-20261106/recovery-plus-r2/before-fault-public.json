@@ -1,0 +1,48 @@
+{
+  "containerId": "f872802df2860eed5e90d3089d2094db1b5d6467e648fea94168164acbe08e7e",
+  "imageId": "sha256:4a72ae673cb09301e66b404fbc2cf4436550b0aeca3828aa031f6c7b571cb8b2",
+  "taskId": "analysis-coding-3927eb8cd4752dae69b8591a5fcdf106b0716dcf516be90abeb21ad1ef625840",
+  "sdkSessionId": "0397702d-5cfb-4d8f-a777-aa3e1891d7a9",
+  "fencingToken": 1,
+  "budget": {
+    "budgetId": "analysis-coding-tool-budget:analysis-coding-3927eb8cd4752dae69b8591a5fcdf106b0716dcf516be90abeb21ad1ef625840",
+    "deadlineAt": "2026-11-06T03:50:19.188Z",
+    "maxModelCalls": 12,
+    "maxModelTokens": 786432,
+    "maxToolCalls": 24,
+    "maxCodeExecutions": 12,
+    "maxCostAmount": "10",
+    "costCurrency": "USD",
+    "maxCpuMillis": 300000,
+    "maxMemoryBytes": 536870912,
+    "maxOutputBytes": 4194304
+  },
+  "usage": {
+    "budgetId": "analysis-coding-tool-budget:analysis-coding-3927eb8cd4752dae69b8591a5fcdf106b0716dcf516be90abeb21ad1ef625840",
+    "costCurrency": "USD",
+    "consumed": {
+      "modelCalls": 1,
+      "modelTokens": 18867,
+      "toolCalls": 1,
+      "codeExecutions": 1,
+      "cpuMillis": 0,
+      "peakMemoryBytes": 0,
+      "outputBytes": 8680,
+      "costAmount": "0"
+    },
+    "reserved": {
+      "modelCalls": 0,
+      "modelTokens": 46669,
+      "toolCalls": 0,
+      "codeExecutions": 0,
+      "cpuMillis": 25000,
+      "peakMemoryBytes": 0,
+      "outputBytes": 340845,
+      "costAmount": "0.833333333333"
+    },
+    "meteringComplete": false
+  },
+  "successfulPython": {
+    "cline-5d6578ef6241e614ed7a096304e0087aac5a14dc2aaaef8f7dc6d236842add84": "f8ceb18c4e1e5112946931450c0a29a5c16684d1f0d7b8a32855c3dd0e0cb7d8"
+  }
+}

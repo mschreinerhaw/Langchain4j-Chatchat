@@ -1,0 +1,56 @@
+{
+  "scope": "REAL_AUTHENTICATED_BROWSER_NO_MOCKS",
+  "cases": [
+    {
+      "case": "historical-partial",
+      "workspaceId": "bf23652c-e933-4db5-b0bd-45192e415a6d",
+      "nodeId": "284b7d9f-9bf5-4672-a1a3-2ee1fe225a1d",
+      "taskId": "analysis-coding-bf2ec08e6e86992182d409b15483877e01c4cb00bf17d2efad4f423ad1a149da",
+      "apiStatus": "COMPLETED",
+      "renderedCharts": [
+        {
+          "id": "weekly_amount_by_region",
+          "kind": "unavailable",
+          "rejectionVisible": true
+        },
+        {
+          "id": "region_total_amount",
+          "kind": "unavailable",
+          "rejectionVisible": true
+        },
+        {
+          "id": "weekly_amount_share_stacked",
+          "kind": "unavailable",
+          "rejectionVisible": true
+        },
+        {
+          "id": "weekly_weighted_unit_value",
+          "kind": "unavailable",
+          "rejectionVisible": true
+        },
+        {
+          "id": "week_day_coverage",
+          "kind": "unavailable",
+          "rejectionVisible": true
+        }
+      ],
+      "receiptUnchanged": true,
+      "offlineReconnectAndRefresh": true
+    },
+    {
+      "case": "historical-budget-failure",
+      "workspaceId": "bf23652c-e933-4db5-b0bd-45192e415a6d",
+      "nodeId": "22c4d601-27c0-497f-93c9-1cb2098a2811",
+      "taskId": "analysis-coding-33738ce71f23a688800165883a3e18a50f61d9e55a86aab65746e66ae858f051",
+      "apiStatus": "BUDGET_EXCEEDED",
+      "renderedCharts": [],
+      "budgetFailureVisible": true,
+      "noBorrowedChart": true,
+      "receiptUnchanged": true,
+      "offlineReconnectAndRefresh": true
+    }
+  ],
+  "pageErrors": [],
+  "executions": 0,
+  "status": "PASS"
+}

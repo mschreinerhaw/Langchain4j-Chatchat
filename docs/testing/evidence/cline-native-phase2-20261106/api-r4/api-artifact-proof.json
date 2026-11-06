@@ -1,0 +1,29 @@
+{
+  "sourceCommit": "3d53566bc979bcaab8c5daf9c081c1e68d0a5784",
+  "baselineSha256": "053c041c133fd5b00e9b52f7a546e5339dc42168ef642aa8839a65905c151759",
+  "sha256": "b497bbe4cf443259248c04546d21d7fe4f6c774b123c47a5404cfe54f66c47bd",
+  "classesArchiveSha256": "28db8597ea281c3364c84ba02316c3ce3357c4815cd709625c42587b6da64deb",
+  "webArchiveSha256": "bede3b3e6e97bde353e6d2b6eea0699d543fd2dc2e752d895020135d31e91aeb",
+  "applicationClasses": [
+    "BOOT-INF/classes/com/chatchat/api/assets/AssetAnalysisController$Request.class",
+    "BOOT-INF/classes/com/chatchat/api/assets/AssetAnalysisController.class",
+    "BOOT-INF/classes/com/chatchat/api/exploration/ExplorationWorkspaceController$Create.class",
+    "BOOT-INF/classes/com/chatchat/api/exploration/ExplorationWorkspaceController$Delete.class",
+    "BOOT-INF/classes/com/chatchat/api/exploration/ExplorationWorkspaceController$Presentation.class",
+    "BOOT-INF/classes/com/chatchat/api/exploration/ExplorationWorkspaceController$Question.class",
+    "BOOT-INF/classes/com/chatchat/api/exploration/ExplorationWorkspaceController$Rename.class",
+    "BOOT-INF/classes/com/chatchat/api/exploration/ExplorationWorkspaceController.class",
+    "BOOT-INF/classes/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.class",
+    "BOOT-INF/classes/com/chatchat/api/runtime/coding/cline/ClineModelCallbackController$1.class",
+    "BOOT-INF/classes/com/chatchat/api/runtime/coding/cline/ClineModelCallbackController$2.class",
+    "BOOT-INF/classes/com/chatchat/api/runtime/coding/cline/ClineModelCallbackController$3.class",
+    "BOOT-INF/classes/com/chatchat/api/runtime/coding/cline/ClineModelCallbackController$4.class",
+    "BOOT-INF/classes/com/chatchat/api/runtime/coding/cline/ClineModelCallbackController$Call.class",
+    "BOOT-INF/classes/com/chatchat/api/runtime/coding/cline/ClineModelCallbackController.class",
+    "BOOT-INF/classes/com/chatchat/api/runtime/coding/evidence/VisualReportArtifacts.class"
+  ],
+  "commonClass": "com/chatchat/common/runtime/coding/VisualReportMode.class",
+  "staticFiles": 111,
+  "unrelatedEntriesByteIdentical": true,
+  "nestedJarStored": true
+}

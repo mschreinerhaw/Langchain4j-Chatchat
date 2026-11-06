@@ -1,0 +1,21 @@
+{
+  "status": "DEPLOYED",
+  "sourceCommit": "3d53566bc979bcaab8c5daf9c081c1e68d0a5784",
+  "image": "runtime-os-api:native-remediation-b497bbe4cf44",
+  "sha256": "b497bbe4cf443259248c04546d21d7fe4f6c774b123c47a5404cfe54f66c47bd",
+  "backup": "/opt/chatchat-releases/cline-native-phase2-20261106/api-r4/backup",
+  "retired": {
+    "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-studio-1793935191",
+    "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-studio-1793935191"
+  },
+  "databaseMigrationSha256": null,
+  "catalogReadiness": null,
+  "preservedExpiredReadOnlyTaskIds": [],
+  "unrelatedContainersUnchanged": true,
+  "conversationContentUnchanged": true,
+  "messageIndexCountUnchanged": true,
+  "images": {
+    "runtime-os-app-stage-api-1": "runtime-os-api:native-remediation-b497bbe4cf44"
+  },
+  "channelCounts": "SQL_STUDIO|63\nPYTHON_STUDIO|10\nAGENT_API|204\nPLATFORM_UI|1171"
+}

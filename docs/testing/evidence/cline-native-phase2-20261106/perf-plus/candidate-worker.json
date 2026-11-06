@@ -1,0 +1,10 @@
+{
+  "image": "sha256:4a72ae673cb09301e66b404fbc2cf4436550b0aeca3828aa031f6c7b571cb8b2",
+  "name": "runtime-os-coding-agent:native-remediation-metadata-b87fbd459",
+  "model": "qwen3.7-plus",
+  "apiImage": "sha256:c7427d940fa41aebb7262fa8a7a3383113de4529e06eea5c74d3c52564b68803",
+  "apiJarSha256": "b497bbe4cf443259248c04546d21d7fe4f6c774b123c47a5404cfe54f66c47bd",
+  "repeats": 2,
+  "concurrency": 2,
+  "formalVisual": true
+}

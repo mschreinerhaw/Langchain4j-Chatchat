@@ -1,0 +1,35 @@
+{
+  "scope": "REAL_AUTHENTICATED_BROWSER_NO_MOCKS",
+  "cases": [
+    {
+      "case": "worker-archive-recovered",
+      "workspaceId": "39788ba1-37e0-4bc3-ab28-f36456cf95bf",
+      "nodeId": "62601132-c699-4f04-bd2d-6244b98d20b3",
+      "taskId": "analysis-coding-e3fc86882a3df897fcb7d385712fb2efcbf42bffef3c33ba5c0f12e4f9700ecb",
+      "apiStatus": "COMPLETED",
+      "renderedCharts": [
+        {
+          "id": "region_bar",
+          "kind": "plotly",
+          "rendered": true,
+          "fileId": "d143283e8e29d2e32b9b3e517283a2d01364fcc3dc8f8a53b9834f64dc4f674c"
+        }
+      ],
+      "receiptUnchanged": true,
+      "offlineReconnectAndRefresh": true
+    },
+    {
+      "case": "user-cancelled",
+      "workspaceId": "298e6323-a1cc-4ad6-a159-edceb9653f9b",
+      "nodeId": "616dfcac-ffda-42f5-83ba-357d640f10cb",
+      "taskId": "analysis-coding-a7def78830b11a5c511e377ba67826f2464a38a928474012e627c73d7518b0ca",
+      "apiStatus": "CANCELLED",
+      "renderedCharts": [],
+      "receiptUnchanged": true,
+      "offlineReconnectAndRefresh": true
+    }
+  ],
+  "pageErrors": [],
+  "executions": 0,
+  "status": "PASS"
+}

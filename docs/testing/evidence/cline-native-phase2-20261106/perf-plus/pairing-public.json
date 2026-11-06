@@ -1,0 +1,427 @@
+{
+  "scope": "Original question, immutable file IDs, model routing metadata and configured budget limits; per-task IDs and absolute deadlines intentionally differ. No raw model configuration exported.",
+  "fixturesSha256": "a777c7d9aad2af33c6862ff33f0844c808e17e974f7c97eec48dc0143700fe21",
+  "rows": [
+    {
+      "case": "complex-0",
+      "variants": {
+        "baseline": {
+          "instructionSha256": "e8c10c24d91eced3a48b0b98ea663bf52c94a8993a9e44c4e97011267043e4fb",
+          "fileIdsSha256": "1ed7f6e92df516a7a480389dcac0c0d11d444ff8de7152be383eca905e991aa6",
+          "model": "qwen3.7-plus",
+          "runtimeModelSha256": "0426c10850fc7219edbbd759808f3607db4fb5aac412e2bc4e403b1bf88f0da5",
+          "budgetLimitsSha256": "dc9c247c30be7c7446cda15f94ecb9f83ae2623441170bf412840622d734870e",
+          "taskId": "analysis-coding-da9501016b617a2a8716b11c985c905332503e694f8a3af653b363795739d07f",
+          "maxModelCalls": 12,
+          "deadlineAt": "2026-11-06T03:17:45.182Z",
+          "createdAt": "2026-11-06T02:57:45.453Z"
+        },
+        "candidate": {
+          "instructionSha256": "e8c10c24d91eced3a48b0b98ea663bf52c94a8993a9e44c4e97011267043e4fb",
+          "fileIdsSha256": "1ed7f6e92df516a7a480389dcac0c0d11d444ff8de7152be383eca905e991aa6",
+          "model": "qwen3.7-plus",
+          "runtimeModelSha256": "0426c10850fc7219edbbd759808f3607db4fb5aac412e2bc4e403b1bf88f0da5",
+          "budgetLimitsSha256": "dc9c247c30be7c7446cda15f94ecb9f83ae2623441170bf412840622d734870e",
+          "taskId": "analysis-coding-fbd1fbeff8e8761e7c35d07e0e2bc04f8af41f6535f3fa003cf8ffe3be1e1d02",
+          "maxModelCalls": 12,
+          "deadlineAt": "2026-11-06T04:02:36.070Z",
+          "createdAt": "2026-11-06T03:42:36.410Z"
+        }
+      },
+      "same": {
+        "instructionSha256": true,
+        "fileIdsSha256": true,
+        "model": true,
+        "runtimeModelSha256": true,
+        "budgetLimitsSha256": true
+      },
+      "status": "PASS"
+    },
+    {
+      "case": "complex-1",
+      "variants": {
+        "baseline": {
+          "instructionSha256": "e8c10c24d91eced3a48b0b98ea663bf52c94a8993a9e44c4e97011267043e4fb",
+          "fileIdsSha256": "1ed7f6e92df516a7a480389dcac0c0d11d444ff8de7152be383eca905e991aa6",
+          "model": "qwen3.7-plus",
+          "runtimeModelSha256": "0426c10850fc7219edbbd759808f3607db4fb5aac412e2bc4e403b1bf88f0da5",
+          "budgetLimitsSha256": "dc9c247c30be7c7446cda15f94ecb9f83ae2623441170bf412840622d734870e",
+          "taskId": "analysis-coding-d31a834cd84f94915e7dc5fd9e5548b72d940ad1921241a0cd6c6ad7c21224a5",
+          "maxModelCalls": 12,
+          "deadlineAt": "2026-11-06T03:23:53.496Z",
+          "createdAt": "2026-11-06T03:03:53.724Z"
+        },
+        "candidate": {
+          "instructionSha256": "e8c10c24d91eced3a48b0b98ea663bf52c94a8993a9e44c4e97011267043e4fb",
+          "fileIdsSha256": "1ed7f6e92df516a7a480389dcac0c0d11d444ff8de7152be383eca905e991aa6",
+          "model": "qwen3.7-plus",
+          "runtimeModelSha256": "0426c10850fc7219edbbd759808f3607db4fb5aac412e2bc4e403b1bf88f0da5",
+          "budgetLimitsSha256": "dc9c247c30be7c7446cda15f94ecb9f83ae2623441170bf412840622d734870e",
+          "taskId": "analysis-coding-ccba8fc49a45c585c821166664022405acf006df643caf8676116e493bdb8cf4",
+          "maxModelCalls": 12,
+          "deadlineAt": "2026-11-06T04:08:09.475Z",
+          "createdAt": "2026-11-06T03:48:09.742Z"
+        }
+      },
+      "same": {
+        "instructionSha256": true,
+        "fileIdsSha256": true,
+        "model": true,
+        "runtimeModelSha256": true,
+        "budgetLimitsSha256": true
+      },
+      "status": "PASS"
+    },
+    {
+      "case": "csv-0",
+      "variants": {
+        "baseline": {
+          "instructionSha256": "a46fabc42eaf367d7578dd54964a19fae1de27f2e3f695c5d1feeb6b7516f2b4",
+          "fileIdsSha256": "4452388134f4b17f89c1b3e5d842bea9bd3858514ade003191c7292e03d24fbf",
+          "model": "qwen3.7-plus",
+          "runtimeModelSha256": "0426c10850fc7219edbbd759808f3607db4fb5aac412e2bc4e403b1bf88f0da5",
+          "budgetLimitsSha256": "dc9c247c30be7c7446cda15f94ecb9f83ae2623441170bf412840622d734870e",
+          "taskId": "analysis-coding-5a14b4f772fc78717bcfa13e0cbff1793e02c06811b5f16e709176ec92fb187e",
+          "maxModelCalls": 12,
+          "deadlineAt": "2026-11-06T03:15:08.137Z",
+          "createdAt": "2026-11-06T02:55:09.710Z"
+        },
+        "candidate": {
+          "instructionSha256": "a46fabc42eaf367d7578dd54964a19fae1de27f2e3f695c5d1feeb6b7516f2b4",
+          "fileIdsSha256": "4452388134f4b17f89c1b3e5d842bea9bd3858514ade003191c7292e03d24fbf",
+          "model": "qwen3.7-plus",
+          "runtimeModelSha256": "0426c10850fc7219edbbd759808f3607db4fb5aac412e2bc4e403b1bf88f0da5",
+          "budgetLimitsSha256": "dc9c247c30be7c7446cda15f94ecb9f83ae2623441170bf412840622d734870e",
+          "taskId": "analysis-coding-e7d98e0e31cbf1d7141dfa1a4c35e4a311b2411a0aebfcc1289a4e4d20f9797b",
+          "maxModelCalls": 12,
+          "deadlineAt": "2026-11-06T04:01:20.953Z",
+          "createdAt": "2026-11-06T03:41:21.205Z"
+        }
+      },
+      "same": {
+        "instructionSha256": true,
+        "fileIdsSha256": true,
+        "model": true,
+        "runtimeModelSha256": true,
+        "budgetLimitsSha256": true
+      },
+      "status": "PASS"
+    },
+    {
+      "case": "csv-1",
+      "variants": {
+        "baseline": {
+          "instructionSha256": "a46fabc42eaf367d7578dd54964a19fae1de27f2e3f695c5d1feeb6b7516f2b4",
+          "fileIdsSha256": "4452388134f4b17f89c1b3e5d842bea9bd3858514ade003191c7292e03d24fbf",
+          "model": "qwen3.7-plus",
+          "runtimeModelSha256": "0426c10850fc7219edbbd759808f3607db4fb5aac412e2bc4e403b1bf88f0da5",
+          "budgetLimitsSha256": "dc9c247c30be7c7446cda15f94ecb9f83ae2623441170bf412840622d734870e",
+          "taskId": "analysis-coding-cb3955e3d9deb7d0d044d900d9b736c107bfaccca498f5089725df4f862e1ee6",
+          "maxModelCalls": 12,
+          "deadlineAt": "2026-11-06T03:19:56.473Z",
+          "createdAt": "2026-11-06T02:59:56.964Z"
+        },
+        "candidate": {
+          "instructionSha256": "a46fabc42eaf367d7578dd54964a19fae1de27f2e3f695c5d1feeb6b7516f2b4",
+          "fileIdsSha256": "4452388134f4b17f89c1b3e5d842bea9bd3858514ade003191c7292e03d24fbf",
+          "model": "qwen3.7-plus",
+          "runtimeModelSha256": "0426c10850fc7219edbbd759808f3607db4fb5aac412e2bc4e403b1bf88f0da5",
+          "budgetLimitsSha256": "dc9c247c30be7c7446cda15f94ecb9f83ae2623441170bf412840622d734870e",
+          "taskId": "analysis-coding-d964d3e411466bd64b7e733a7e099c5c65c320d894c1cd459daa68bf1cb15e98",
+          "maxModelCalls": 12,
+          "deadlineAt": "2026-11-06T04:05:55.732Z",
+          "createdAt": "2026-11-06T03:45:55.913Z"
+        }
+      },
+      "same": {
+        "instructionSha256": true,
+        "fileIdsSha256": true,
+        "model": true,
+        "runtimeModelSha256": true,
+        "budgetLimitsSha256": true
+      },
+      "status": "PASS"
+    },
+    {
+      "case": "join-0",
+      "variants": {
+        "baseline": {
+          "instructionSha256": "4384295e42668c9d5d9836749b96b3f1303b05f4ef207df1da9b280ad098e468",
+          "fileIdsSha256": "0e69226a9a81ecbb19b4e0e231d87cef4fa1f3d8d071c3447cb045ac14dfa026",
+          "model": "qwen3.7-plus",
+          "runtimeModelSha256": "0426c10850fc7219edbbd759808f3607db4fb5aac412e2bc4e403b1bf88f0da5",
+          "budgetLimitsSha256": "dc9c247c30be7c7446cda15f94ecb9f83ae2623441170bf412840622d734870e",
+          "taskId": "analysis-coding-b54a60fb3e8b86cd01eefe9e61e6364a070e9831a59aaae968fd03f9ee1764bb",
+          "maxModelCalls": 12,
+          "deadlineAt": "2026-11-06T03:16:08.623Z",
+          "createdAt": "2026-11-06T02:56:08.959Z"
+        },
+        "candidate": {
+          "instructionSha256": "4384295e42668c9d5d9836749b96b3f1303b05f4ef207df1da9b280ad098e468",
+          "fileIdsSha256": "0e69226a9a81ecbb19b4e0e231d87cef4fa1f3d8d071c3447cb045ac14dfa026",
+          "model": "qwen3.7-plus",
+          "runtimeModelSha256": "0426c10850fc7219edbbd759808f3607db4fb5aac412e2bc4e403b1bf88f0da5",
+          "budgetLimitsSha256": "dc9c247c30be7c7446cda15f94ecb9f83ae2623441170bf412840622d734870e",
+          "taskId": "analysis-coding-93ffc0b43c1280ea60448250951d6e4909be656dd67a5c66c3e394609ac20bef",
+          "maxModelCalls": 12,
+          "deadlineAt": "2026-11-06T04:02:33.626Z",
+          "createdAt": "2026-11-06T03:42:33.912Z"
+        }
+      },
+      "same": {
+        "instructionSha256": true,
+        "fileIdsSha256": true,
+        "model": true,
+        "runtimeModelSha256": true,
+        "budgetLimitsSha256": true
+      },
+      "status": "PASS"
+    },
+    {
+      "case": "join-1",
+      "variants": {
+        "baseline": {
+          "instructionSha256": "4384295e42668c9d5d9836749b96b3f1303b05f4ef207df1da9b280ad098e468",
+          "fileIdsSha256": "0e69226a9a81ecbb19b4e0e231d87cef4fa1f3d8d071c3447cb045ac14dfa026",
+          "model": "qwen3.7-plus",
+          "runtimeModelSha256": "0426c10850fc7219edbbd759808f3607db4fb5aac412e2bc4e403b1bf88f0da5",
+          "budgetLimitsSha256": "dc9c247c30be7c7446cda15f94ecb9f83ae2623441170bf412840622d734870e",
+          "taskId": "analysis-coding-6e6ef810127864ec1ce96dc5d6eed875fb1a5be14f7fa548a7d3a2204b5373a7",
+          "maxModelCalls": 12,
+          "deadlineAt": "2026-11-06T03:22:27.207Z",
+          "createdAt": "2026-11-06T03:02:27.483Z"
+        },
+        "candidate": {
+          "instructionSha256": "4384295e42668c9d5d9836749b96b3f1303b05f4ef207df1da9b280ad098e468",
+          "fileIdsSha256": "0e69226a9a81ecbb19b4e0e231d87cef4fa1f3d8d071c3447cb045ac14dfa026",
+          "model": "qwen3.7-plus",
+          "runtimeModelSha256": "0426c10850fc7219edbbd759808f3607db4fb5aac412e2bc4e403b1bf88f0da5",
+          "budgetLimitsSha256": "dc9c247c30be7c7446cda15f94ecb9f83ae2623441170bf412840622d734870e",
+          "taskId": "analysis-coding-a722b8c600d10401f2d4ff4d39bd35b774dd6a168454f67fe3530b3ecee910e6",
+          "maxModelCalls": 12,
+          "deadlineAt": "2026-11-06T04:07:39.558Z",
+          "createdAt": "2026-11-06T03:47:39.817Z"
+        }
+      },
+      "same": {
+        "instructionSha256": true,
+        "fileIdsSha256": true,
+        "model": true,
+        "runtimeModelSha256": true,
+        "budgetLimitsSha256": true
+      },
+      "status": "PASS"
+    },
+    {
+      "case": "parquet-0",
+      "variants": {
+        "baseline": {
+          "instructionSha256": "ebd0cef628c3b9e429e9a21f3640e2d75a3082af1f89f32bcdb58b2fbbc2d628",
+          "fileIdsSha256": "9915ecc493cdd26a40bdc151b9413585cc35fe34ed5283960ed816fd93ae809d",
+          "model": "qwen3.7-plus",
+          "runtimeModelSha256": "0426c10850fc7219edbbd759808f3607db4fb5aac412e2bc4e403b1bf88f0da5",
+          "budgetLimitsSha256": "dc9c247c30be7c7446cda15f94ecb9f83ae2623441170bf412840622d734870e",
+          "taskId": "analysis-coding-7ab943640a3afb45014c2b104cc733fd04230b4dad750f0f8ea9e5f1e204d054",
+          "maxModelCalls": 12,
+          "deadlineAt": "2026-11-06T03:15:08.107Z",
+          "createdAt": "2026-11-06T02:55:09.708Z"
+        },
+        "candidate": {
+          "instructionSha256": "ebd0cef628c3b9e429e9a21f3640e2d75a3082af1f89f32bcdb58b2fbbc2d628",
+          "fileIdsSha256": "9915ecc493cdd26a40bdc151b9413585cc35fe34ed5283960ed816fd93ae809d",
+          "model": "qwen3.7-plus",
+          "runtimeModelSha256": "0426c10850fc7219edbbd759808f3607db4fb5aac412e2bc4e403b1bf88f0da5",
+          "budgetLimitsSha256": "dc9c247c30be7c7446cda15f94ecb9f83ae2623441170bf412840622d734870e",
+          "taskId": "analysis-coding-9838df89653353d7d391bab28203a6ba84fadd06dd87578299773a3fba77e47f",
+          "maxModelCalls": 12,
+          "deadlineAt": "2026-11-06T04:01:20.954Z",
+          "createdAt": "2026-11-06T03:41:21.220Z"
+        }
+      },
+      "same": {
+        "instructionSha256": true,
+        "fileIdsSha256": true,
+        "model": true,
+        "runtimeModelSha256": true,
+        "budgetLimitsSha256": true
+      },
+      "status": "PASS"
+    },
+    {
+      "case": "parquet-1",
+      "variants": {
+        "baseline": {
+          "instructionSha256": "ebd0cef628c3b9e429e9a21f3640e2d75a3082af1f89f32bcdb58b2fbbc2d628",
+          "fileIdsSha256": "9915ecc493cdd26a40bdc151b9413585cc35fe34ed5283960ed816fd93ae809d",
+          "model": "qwen3.7-plus",
+          "runtimeModelSha256": "0426c10850fc7219edbbd759808f3607db4fb5aac412e2bc4e403b1bf88f0da5",
+          "budgetLimitsSha256": "dc9c247c30be7c7446cda15f94ecb9f83ae2623441170bf412840622d734870e",
+          "taskId": "analysis-coding-7d95537e45c4327bb29dd5fdc5cef6f4d1b69c7d6a18dffee3ded9336ee96d5e",
+          "maxModelCalls": 12,
+          "deadlineAt": "2026-11-06T03:21:30.741Z",
+          "createdAt": "2026-11-06T03:01:31.017Z"
+        },
+        "candidate": {
+          "instructionSha256": "ebd0cef628c3b9e429e9a21f3640e2d75a3082af1f89f32bcdb58b2fbbc2d628",
+          "fileIdsSha256": "9915ecc493cdd26a40bdc151b9413585cc35fe34ed5283960ed816fd93ae809d",
+          "model": "qwen3.7-plus",
+          "runtimeModelSha256": "0426c10850fc7219edbbd759808f3607db4fb5aac412e2bc4e403b1bf88f0da5",
+          "budgetLimitsSha256": "dc9c247c30be7c7446cda15f94ecb9f83ae2623441170bf412840622d734870e",
+          "taskId": "analysis-coding-6e19ec18c6b0a480215cece539d7008cb3301ca630e2ed932272e0aee02442c3",
+          "maxModelCalls": 12,
+          "deadlineAt": "2026-11-06T04:06:54.436Z",
+          "createdAt": "2026-11-06T03:46:54.644Z"
+        }
+      },
+      "same": {
+        "instructionSha256": true,
+        "fileIdsSha256": true,
+        "model": true,
+        "runtimeModelSha256": true,
+        "budgetLimitsSha256": true
+      },
+      "status": "PASS"
+    },
+    {
+      "case": "repair-0",
+      "variants": {
+        "baseline": {
+          "instructionSha256": "3c48afe0af37843adcd7986632807f071f2717eaa018d2669a8f2263deae7546",
+          "fileIdsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "model": "qwen3.7-plus",
+          "runtimeModelSha256": "0426c10850fc7219edbbd759808f3607db4fb5aac412e2bc4e403b1bf88f0da5",
+          "budgetLimitsSha256": "dc9c247c30be7c7446cda15f94ecb9f83ae2623441170bf412840622d734870e",
+          "taskId": "analysis-coding-4b04cce8112579a9bdbc8a60c5c6dd75ea79f2867e8e227d29cbd420b5b485c8",
+          "maxModelCalls": 12,
+          "deadlineAt": "2026-11-06T03:17:50.547Z",
+          "createdAt": "2026-11-06T02:57:50.736Z"
+        },
+        "candidate": {
+          "instructionSha256": "3c48afe0af37843adcd7986632807f071f2717eaa018d2669a8f2263deae7546",
+          "fileIdsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "model": "qwen3.7-plus",
+          "runtimeModelSha256": "0426c10850fc7219edbbd759808f3607db4fb5aac412e2bc4e403b1bf88f0da5",
+          "budgetLimitsSha256": "dc9c247c30be7c7446cda15f94ecb9f83ae2623441170bf412840622d734870e",
+          "taskId": "analysis-coding-cbbac58b2f292f96794f23db447462bce9ba4ba0408aedfe41cc1691623756c7",
+          "maxModelCalls": 12,
+          "deadlineAt": "2026-11-06T04:04:35.799Z",
+          "createdAt": "2026-11-06T03:44:36.034Z"
+        }
+      },
+      "same": {
+        "instructionSha256": true,
+        "fileIdsSha256": true,
+        "model": true,
+        "runtimeModelSha256": true,
+        "budgetLimitsSha256": true
+      },
+      "status": "PASS"
+    },
+    {
+      "case": "repair-1",
+      "variants": {
+        "baseline": {
+          "instructionSha256": "3c48afe0af37843adcd7986632807f071f2717eaa018d2669a8f2263deae7546",
+          "fileIdsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "model": "qwen3.7-plus",
+          "runtimeModelSha256": "0426c10850fc7219edbbd759808f3607db4fb5aac412e2bc4e403b1bf88f0da5",
+          "budgetLimitsSha256": "dc9c247c30be7c7446cda15f94ecb9f83ae2623441170bf412840622d734870e",
+          "taskId": "analysis-coding-c4ebc8faed842a8d28e1f715c20b23d8d25e1b161811eb1c2c554290f43de123",
+          "maxModelCalls": 12,
+          "deadlineAt": "2026-11-06T03:24:06.509Z",
+          "createdAt": "2026-11-06T03:04:06.802Z"
+        },
+        "candidate": {
+          "instructionSha256": "3c48afe0af37843adcd7986632807f071f2717eaa018d2669a8f2263deae7546",
+          "fileIdsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "model": "qwen3.7-plus",
+          "runtimeModelSha256": "0426c10850fc7219edbbd759808f3607db4fb5aac412e2bc4e403b1bf88f0da5",
+          "budgetLimitsSha256": "dc9c247c30be7c7446cda15f94ecb9f83ae2623441170bf412840622d734870e",
+          "taskId": "analysis-coding-916ae3914dfb41eca522664c0295a76d9e1139636fa76b03e7a9d19ebcb435df",
+          "maxModelCalls": 12,
+          "deadlineAt": "2026-11-06T04:08:54.400Z",
+          "createdAt": "2026-11-06T03:48:54.573Z"
+        }
+      },
+      "same": {
+        "instructionSha256": true,
+        "fileIdsSha256": true,
+        "model": true,
+        "runtimeModelSha256": true,
+        "budgetLimitsSha256": true
+      },
+      "status": "PASS"
+    },
+    {
+      "case": "visual-0",
+      "variants": {
+        "baseline": {
+          "instructionSha256": "05bc253eecaf3de56ee9edbb5331d78bf1275cbc6ffbed78a212c1e951dbbe67",
+          "fileIdsSha256": "4452388134f4b17f89c1b3e5d842bea9bd3858514ade003191c7292e03d24fbf",
+          "model": "qwen3.7-plus",
+          "runtimeModelSha256": "0426c10850fc7219edbbd759808f3607db4fb5aac412e2bc4e403b1bf88f0da5",
+          "budgetLimitsSha256": "dc9c247c30be7c7446cda15f94ecb9f83ae2623441170bf412840622d734870e",
+          "taskId": "analysis-coding-842a61b2525c7cf93f252929b5540a1a958973f911ee8b69316215fa3e3dd966",
+          "maxModelCalls": 12,
+          "deadlineAt": "2026-11-06T03:19:10.410Z",
+          "createdAt": "2026-11-06T02:59:10.663Z"
+        },
+        "candidate": {
+          "instructionSha256": "05bc253eecaf3de56ee9edbb5331d78bf1275cbc6ffbed78a212c1e951dbbe67",
+          "fileIdsSha256": "4452388134f4b17f89c1b3e5d842bea9bd3858514ade003191c7292e03d24fbf",
+          "model": "qwen3.7-plus",
+          "runtimeModelSha256": "0426c10850fc7219edbbd759808f3607db4fb5aac412e2bc4e403b1bf88f0da5",
+          "budgetLimitsSha256": "dc9c247c30be7c7446cda15f94ecb9f83ae2623441170bf412840622d734870e",
+          "taskId": "analysis-coding-39ab9e185692465290244dd2fabb5ff4407da110313d246c4f0315a422f1e056",
+          "maxModelCalls": 12,
+          "deadlineAt": "2026-11-06T04:05:05.599Z",
+          "createdAt": "2026-11-06T03:45:05.806Z"
+        }
+      },
+      "same": {
+        "instructionSha256": true,
+        "fileIdsSha256": true,
+        "model": true,
+        "runtimeModelSha256": true,
+        "budgetLimitsSha256": true
+      },
+      "status": "PASS"
+    },
+    {
+      "case": "visual-1",
+      "variants": {
+        "baseline": {
+          "instructionSha256": "05bc253eecaf3de56ee9edbb5331d78bf1275cbc6ffbed78a212c1e951dbbe67",
+          "fileIdsSha256": "4452388134f4b17f89c1b3e5d842bea9bd3858514ade003191c7292e03d24fbf",
+          "model": "qwen3.7-plus",
+          "runtimeModelSha256": "0426c10850fc7219edbbd759808f3607db4fb5aac412e2bc4e403b1bf88f0da5",
+          "budgetLimitsSha256": "dc9c247c30be7c7446cda15f94ecb9f83ae2623441170bf412840622d734870e",
+          "taskId": "analysis-coding-0f8bb465ddf9d29e88428df06b3cbfd18a6d224fd3e114e02edf7dd3fd4644fe",
+          "maxModelCalls": 12,
+          "deadlineAt": "2026-11-06T03:26:53.037Z",
+          "createdAt": "2026-11-06T03:06:53.263Z"
+        },
+        "candidate": {
+          "instructionSha256": "05bc253eecaf3de56ee9edbb5331d78bf1275cbc6ffbed78a212c1e951dbbe67",
+          "fileIdsSha256": "4452388134f4b17f89c1b3e5d842bea9bd3858514ade003191c7292e03d24fbf",
+          "model": "qwen3.7-plus",
+          "runtimeModelSha256": "0426c10850fc7219edbbd759808f3607db4fb5aac412e2bc4e403b1bf88f0da5",
+          "budgetLimitsSha256": "dc9c247c30be7c7446cda15f94ecb9f83ae2623441170bf412840622d734870e",
+          "taskId": "analysis-coding-764097058670ef4713672c6a08ec0a2a9c0ffd80d1c9e8bed46c569d11d01c7c",
+          "maxModelCalls": 12,
+          "deadlineAt": "2026-11-06T04:10:13.726Z",
+          "createdAt": "2026-11-06T03:50:13.923Z"
+        }
+      },
+      "same": {
+        "instructionSha256": true,
+        "fileIdsSha256": true,
+        "model": true,
+        "runtimeModelSha256": true,
+        "budgetLimitsSha256": true
+      },
+      "status": "PASS"
+    }
+  ],
+  "status": "PASS"
+}

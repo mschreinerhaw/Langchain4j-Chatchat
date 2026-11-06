@@ -1,0 +1,28 @@
+{
+  "scope": "REAL_AUTHENTICATED_BROWSER_NO_MOCKS",
+  "cases": [
+    {
+      "case": "running-single",
+      "workspaceId": "c7bbd9a6-b29f-4721-abb3-82e7b18653d2",
+      "nodeId": "4b47a3f7-253c-4fd3-834d-4a23101ed812",
+      "taskId": "analysis-coding-ebe8f6c853a0ebaf9cb6adc6017b5db81b5e7c64f9fa61791102eb90dbbd711a",
+      "apiStatus": "RUNNING",
+      "renderedCharts": [],
+      "sameTaskAndMonotonicCursor": true,
+      "offlineReconnectAndRefresh": true
+    },
+    {
+      "case": "running-multi",
+      "workspaceId": "c7bbd9a6-b29f-4721-abb3-82e7b18653d2",
+      "nodeId": "bce69e63-ad12-490c-b251-f31969f2ae0d",
+      "taskId": "analysis-coding-ab19eeb83816fba9f85d306e162be2de16058335dd265ed92a211d1b658f3f4d",
+      "apiStatus": "RUNNING",
+      "renderedCharts": [],
+      "sameTaskAndMonotonicCursor": true,
+      "offlineReconnectAndRefresh": true
+    }
+  ],
+  "pageErrors": [],
+  "executions": 0,
+  "status": "PASS"
+}

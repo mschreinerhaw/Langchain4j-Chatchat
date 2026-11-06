@@ -1,0 +1,1754 @@
+{
+  "method": "Six synthetic classes, two repetitions each, concurrency 2, sequential variants. P50/P90 use linear interpolation (type 7), n=12 per variant and n=2 per class. Descriptive only; missing and failed samples retained.",
+  "model": "qwen3.7-plus",
+  "providerModelVersion": "UNKNOWN",
+  "providerBilledCost": "UNKNOWN",
+  "reasoningTokens": "UNKNOWN",
+  "limitations": [
+    "Configured model name does not pin Provider weights or routing.",
+    "Sequential order and Provider latency confound causality.",
+    "firstPythonMs is Node tool dispatch; firstExecutorStartedMs is the owner-verified MCP stopped-execution receipt clock, not an OS process-spawn probe.",
+    "Token sums cover reported usage only; they do not certify billed cost.",
+    "Technical completion is separate from numerical, narrative and chart delivery quality."
+  ],
+  "variants": {
+    "baseline": {
+      "tasks": 12,
+      "technicalSuccesses": 12,
+      "knownUsageCalls": 56,
+      "unknownUsageCalls": 0,
+      "modelErrors": 0,
+      "pythonStopUnconfirmed": 0,
+      "metrics": {
+        "firstProposalMs": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 44898.0,
+          "p90": 81967.3,
+          "sum": 626816
+        },
+        "firstCodeMs": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 45210.5,
+          "p90": 82217.1,
+          "sum": 629964
+        },
+        "firstNewCodeMs": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 57868.5,
+          "p90": 95686.90000000001,
+          "sum": 743881
+        },
+        "firstPythonMs": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 45336.5,
+          "p90": 82284.0,
+          "sum": 631236
+        },
+        "firstResultMs": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 87543.0,
+          "p90": 165095.40000000002,
+          "sum": 1202961
+        },
+        "httpDurationMs": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 100503.5,
+          "p90": 272832.60000000003,
+          "sum": 1730764
+        },
+        "firstExecutorStartedMs": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 46626.0,
+          "p90": 83239.6,
+          "sum": 643912
+        },
+        "modelCalls": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 5.0,
+          "p90": 6.0,
+          "sum": 56
+        },
+        "inputTokensKnown": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 68702.5,
+          "p90": 130984.30000000002,
+          "sum": 890052
+        },
+        "outputTokensKnown": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 4916.5,
+          "p90": 14766.000000000002,
+          "sum": 85813
+        },
+        "knownTokens": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 72953.0,
+          "p90": 145750.30000000002,
+          "sum": 975865
+        },
+        "pythonExecutions": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 2.0,
+          "p90": 2.9000000000000004,
+          "sum": 25
+        },
+        "preCodeModelCalls": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 2.0,
+          "p90": 2.0,
+          "sum": 20
+        },
+        "preCodeInputTokensKnown": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 21217.5,
+          "p90": 31229.300000000003,
+          "sum": 241421
+        },
+        "preCodeMaxRequestBytes": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 40821.0,
+          "p90": 64467.100000000006,
+          "sum": 549739
+        },
+        "maxSkillContextBytes": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 0.0,
+          "p90": 0.0,
+          "sum": 1613
+        }
+      },
+      "byClass": {
+        "complex": {
+          "tasks": 2,
+          "metrics": {
+            "firstProposalMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 72318.5,
+              "p90": 74178.9
+            },
+            "firstCodeMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 72583.0,
+              "p90": 74423.0
+            },
+            "firstNewCodeMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 72583.0,
+              "p90": 74423.0
+            },
+            "firstPythonMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 72655.5,
+              "p90": 74497.5
+            },
+            "firstResultMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 143713.5,
+              "p90": 162466.7
+            },
+            "httpDurationMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 155368.5,
+              "p90": 174615.3
+            },
+            "firstExecutorStartedMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 73624.0,
+              "p90": 75546.4
+            },
+            "modelCalls": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 5.5,
+              "p90": 5.9
+            },
+            "inputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 83696.5,
+              "p90": 92800.9
+            },
+            "outputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 7930.5,
+              "p90": 8906.1
+            },
+            "knownTokens": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 91627.0,
+              "p90": 101707.0
+            },
+            "pythonExecutions": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 2.0,
+              "p90": 2.0
+            },
+            "preCodeModelCalls": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 2.0,
+              "p90": 2.0
+            },
+            "preCodeInputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 22322.0,
+              "p90": 22362.0
+            },
+            "preCodeMaxRequestBytes": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 39712.0,
+              "p90": 39740.0
+            },
+            "maxSkillContextBytes": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 0.0,
+              "p90": 0.0
+            }
+          }
+        },
+        "csv": {
+          "tasks": 2,
+          "metrics": {
+            "firstProposalMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 41702.5,
+              "p90": 44097.3
+            },
+            "firstCodeMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 41904.5,
+              "p90": 44354.5
+            },
+            "firstNewCodeMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 41904.5,
+              "p90": 44354.5
+            },
+            "firstPythonMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 42086.5,
+              "p90": 44508.5
+            },
+            "firstResultMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 62610.5,
+              "p90": 73006.9
+            },
+            "httpDurationMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 77523.0,
+              "p90": 90916.6
+            },
+            "firstExecutorStartedMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 43133.0,
+              "p90": 45632.2
+            },
+            "modelCalls": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 4.0,
+              "p90": 4.8
+            },
+            "inputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 50089.5,
+              "p90": 63141.9
+            },
+            "outputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 3270.0,
+              "p90": 3748.4
+            },
+            "knownTokens": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 53359.5,
+              "p90": 66890.3
+            },
+            "pythonExecutions": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 1.5,
+              "p90": 1.9
+            },
+            "preCodeModelCalls": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 2.0,
+              "p90": 2.0
+            },
+            "preCodeInputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 21217.5,
+              "p90": 21276.3
+            },
+            "preCodeMaxRequestBytes": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 37995.0,
+              "p90": 38143.8
+            },
+            "maxSkillContextBytes": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 0.0,
+              "p90": 0.0
+            }
+          }
+        },
+        "join": {
+          "tasks": 2,
+          "metrics": {
+            "firstProposalMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 63940.5,
+              "p90": 79012.9
+            },
+            "firstCodeMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 64243.0,
+              "p90": 79274.20000000001
+            },
+            "firstNewCodeMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 64243.0,
+              "p90": 79274.20000000001
+            },
+            "firstPythonMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 64328.5,
+              "p90": 79344.1
+            },
+            "firstResultMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 87543.0,
+              "p90": 88258.2
+            },
+            "httpDurationMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 100503.5,
+              "p90": 101516.7
+            },
+            "firstExecutorStartedMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 65518.0,
+              "p90": 80336.4
+            },
+            "modelCalls": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 4.0,
+              "p90": 4.8
+            },
+            "inputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 55669.0,
+              "p90": 67933.8
+            },
+            "outputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 4916.5,
+              "p90": 5143.3
+            },
+            "knownTokens": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 60585.5,
+              "p90": 72623.5
+            },
+            "pythonExecutions": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 1.5,
+              "p90": 1.9
+            },
+            "preCodeModelCalls": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 2.5,
+              "p90": 2.9
+            },
+            "preCodeInputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 31200.5,
+              "p90": 36200.9
+            },
+            "preCodeMaxRequestBytes": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 42431.5,
+              "p90": 42860.7
+            },
+            "maxSkillContextBytes": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 0.0,
+              "p90": 0.0
+            }
+          }
+        },
+        "parquet": {
+          "tasks": 2,
+          "metrics": {
+            "firstProposalMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 36045.5,
+              "p90": 41471.5
+            },
+            "firstCodeMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 36291.0,
+              "p90": 41627.8
+            },
+            "firstNewCodeMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 36291.0,
+              "p90": 41627.8
+            },
+            "firstPythonMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 36443.0,
+              "p90": 41823.8
+            },
+            "firstResultMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 96566.5,
+              "p90": 136560.5
+            },
+            "httpDurationMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 106898.5,
+              "p90": 147257.3
+            },
+            "firstExecutorStartedMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 37517.5,
+              "p90": 42706.7
+            },
+            "modelCalls": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 3.5,
+              "p90": 4.7
+            },
+            "inputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 50982.5,
+              "p90": 73139.70000000001
+            },
+            "outputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 5369.0,
+              "p90": 7411.400000000001
+            },
+            "knownTokens": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 56351.5,
+              "p90": 80551.1
+            },
+            "pythonExecutions": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 1.5,
+              "p90": 1.9
+            },
+            "preCodeModelCalls": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 1.0,
+              "p90": 1.0
+            },
+            "preCodeInputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 10401.0,
+              "p90": 10403.4
+            },
+            "preCodeMaxRequestBytes": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 36935.0,
+              "p90": 36935.0
+            },
+            "maxSkillContextBytes": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 0.0,
+              "p90": 0.0
+            }
+          }
+        },
+        "repair": {
+          "tasks": 2,
+          "metrics": {
+            "firstProposalMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 9590.5,
+              "p90": 10515.7
+            },
+            "firstCodeMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 9848.0,
+              "p90": 10748.0
+            },
+            "firstNewCodeMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 66806.5,
+              "p90": 91035.70000000001
+            },
+            "firstPythonMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 9924.0,
+              "p90": 10816.8
+            },
+            "firstResultMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 70796.5,
+              "p90": 95780.9
+            },
+            "httpDurationMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 240082.5,
+              "p90": 368217.3
+            },
+            "firstExecutorStartedMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 10841.5,
+              "p90": 11649.1
+            },
+            "modelCalls": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 7.0,
+              "p90": 9.4
+            },
+            "inputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 119530.0,
+              "p90": 167560.40000000002
+            },
+            "outputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 11433.0,
+              "p90": 17883.4
+            },
+            "knownTokens": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 130963.0,
+              "p90": 185443.8
+            },
+            "pythonExecutions": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 4.5,
+              "p90": 5.7
+            },
+            "preCodeModelCalls": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 1.0,
+              "p90": 1.0
+            },
+            "preCodeInputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 11789.5,
+              "p90": 11823.5
+            },
+            "preCodeMaxRequestBytes": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 50635.0,
+              "p90": 50635.0
+            },
+            "maxSkillContextBytes": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 0.0,
+              "p90": 0.0
+            }
+          }
+        },
+        "visual": {
+          "tasks": 2,
+          "metrics": {
+            "firstProposalMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 89810.5,
+              "p90": 105678.1
+            },
+            "firstCodeMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 90112.5,
+              "p90": 105947.3
+            },
+            "firstNewCodeMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 90112.5,
+              "p90": 105947.3
+            },
+            "firstPythonMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 90180.5,
+              "p90": 106014.5
+            },
+            "firstResultMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 140250.5,
+              "p90": 193573.3
+            },
+            "httpDurationMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 185006.0,
+              "p90": 263570.0
+            },
+            "firstExecutorStartedMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 91322.0,
+              "p90": 107315.6
+            },
+            "modelCalls": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 4.0,
+              "p90": 5.6
+            },
+            "inputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 85058.5,
+              "p90": 124990.90000000001
+            },
+            "outputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 9987.5,
+              "p90": 14309.5
+            },
+            "knownTokens": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 95046.0,
+              "p90": 139300.40000000002
+            },
+            "pythonExecutions": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 1.5,
+              "p90": 1.9
+            },
+            "preCodeModelCalls": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 1.5,
+              "p90": 1.9
+            },
+            "preCodeInputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 23780.0,
+              "p90": 30297.6
+            },
+            "preCodeMaxRequestBytes": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 67161.0,
+              "p90": 68086.6
+            },
+            "maxSkillContextBytes": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 806.5,
+              "p90": 1451.7
+            }
+          }
+        }
+      }
+    },
+    "candidate": {
+      "tasks": 12,
+      "technicalSuccesses": 12,
+      "knownUsageCalls": 44,
+      "unknownUsageCalls": 0,
+      "modelErrors": 0,
+      "pythonStopUnconfirmed": 0,
+      "metrics": {
+        "firstProposalMs": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 43320.5,
+          "p90": 87228.0,
+          "sum": 611721
+        },
+        "firstCodeMs": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 43505.5,
+          "p90": 87574.40000000001,
+          "sum": 614892
+        },
+        "firstNewCodeMs": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 47418.0,
+          "p90": 89363.3,
+          "sum": 720601
+        },
+        "firstPythonMs": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 43652.5,
+          "p90": 87928.70000000001,
+          "sum": 616614
+        },
+        "firstResultMs": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 77092.0,
+          "p90": 115349.6,
+          "sum": 991108
+        },
+        "httpDurationMs": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 101040.0,
+          "p90": 148335.30000000002,
+          "sum": 1246496
+        },
+        "firstExecutorStartedMs": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 45432.0,
+          "p90": 89125.40000000001,
+          "sum": 630165
+        },
+        "modelCalls": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 4.0,
+          "p90": 5.0,
+          "sum": 44
+        },
+        "inputTokensKnown": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 54135.0,
+          "p90": 73059.2,
+          "sum": 631064
+        },
+        "outputTokensKnown": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 5068.5,
+          "p90": 7676.3,
+          "sum": 60330
+        },
+        "knownTokens": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 59665.0,
+          "p90": 80682.8,
+          "sum": 691394
+        },
+        "pythonExecutions": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 2.0,
+          "p90": 2.9000000000000004,
+          "sum": 21
+        },
+        "preCodeModelCalls": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 1.5,
+          "p90": 2.0,
+          "sum": 18
+        },
+        "preCodeInputTokensKnown": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 18191.5,
+          "p90": 24378.0,
+          "sum": 213093
+        },
+        "preCodeMaxRequestBytes": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 39065.0,
+          "p90": 63693.100000000006,
+          "sum": 536546
+        },
+        "maxSkillContextBytes": {
+          "observed": 12,
+          "missing": 0,
+          "p50": 0.0,
+          "p90": 0.0,
+          "sum": 0
+        }
+      },
+      "byClass": {
+        "complex": {
+          "tasks": 2,
+          "metrics": {
+            "firstProposalMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 51874.5,
+              "p90": 53093.3
+            },
+            "firstCodeMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 52191.0,
+              "p90": 53411.0
+            },
+            "firstNewCodeMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 52191.0,
+              "p90": 53411.0
+            },
+            "firstPythonMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 52272.0,
+              "p90": 53493.6
+            },
+            "firstResultMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 109956.0,
+              "p90": 115349.6
+            },
+            "httpDurationMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 136804.0,
+              "p90": 146912.8
+            },
+            "firstExecutorStartedMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 53306.0,
+              "p90": 54678.8
+            },
+            "modelCalls": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 5.0,
+              "p90": 5.0
+            },
+            "inputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 72508.0,
+              "p90": 73059.2
+            },
+            "outputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 6950.0,
+              "p90": 7623.6
+            },
+            "knownTokens": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 79458.0,
+              "p90": 80682.8
+            },
+            "pythonExecutions": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 2.0,
+              "p90": 2.0
+            },
+            "preCodeModelCalls": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 2.0,
+              "p90": 2.0
+            },
+            "preCodeInputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 21954.0,
+              "p90": 21970.8
+            },
+            "preCodeMaxRequestBytes": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 38729.5,
+              "p90": 38901.1
+            },
+            "maxSkillContextBytes": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 0.0,
+              "p90": 0.0
+            }
+          }
+        },
+        "csv": {
+          "tasks": 2,
+          "metrics": {
+            "firstProposalMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 36774.0,
+              "p90": 41705.2
+            },
+            "firstCodeMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 37091.5,
+              "p90": 41969.5
+            },
+            "firstNewCodeMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 37091.5,
+              "p90": 41969.5
+            },
+            "firstPythonMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 37173.5,
+              "p90": 42044.3
+            },
+            "firstResultMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 53899.5,
+              "p90": 59201.5
+            },
+            "httpDurationMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 65687.5,
+              "p90": 71282.3
+            },
+            "firstExecutorStartedMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 38214.0,
+              "p90": 43244.4
+            },
+            "modelCalls": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 3.5,
+              "p90": 3.9
+            },
+            "inputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 41379.5,
+              "p90": 47585.5
+            },
+            "outputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 2979.0,
+              "p90": 3261.4
+            },
+            "knownTokens": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 44358.5,
+              "p90": 50846.9
+            },
+            "pythonExecutions": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 1.5,
+              "p90": 1.9
+            },
+            "preCodeModelCalls": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 2.0,
+              "p90": 2.0
+            },
+            "preCodeInputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 20954.5,
+              "p90": 21038.1
+            },
+            "preCodeMaxRequestBytes": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 37185.0,
+              "p90": 37305.8
+            },
+            "maxSkillContextBytes": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 0.0,
+              "p90": 0.0
+            }
+          }
+        },
+        "join": {
+          "tasks": 2,
+          "metrics": {
+            "firstProposalMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 53945.5,
+              "p90": 62139.5
+            },
+            "firstCodeMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 54175.5,
+              "p90": 62458.3
+            },
+            "firstNewCodeMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 54175.5,
+              "p90": 62458.3
+            },
+            "firstPythonMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 54338.5,
+              "p90": 62574.9
+            },
+            "firstResultMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 83659.5,
+              "p90": 97083.1
+            },
+            "httpDurationMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 98416.5,
+              "p90": 117344.1
+            },
+            "firstExecutorStartedMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 55919.5,
+              "p90": 63565.5
+            },
+            "modelCalls": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 3.0,
+              "p90": 3.8
+            },
+            "inputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 42602.0,
+              "p90": 54884.4
+            },
+            "outputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 5072.5,
+              "p90": 5907.3
+            },
+            "knownTokens": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 47674.5,
+              "p90": 60791.7
+            },
+            "pythonExecutions": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 1.5,
+              "p90": 1.9
+            },
+            "preCodeModelCalls": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 1.5,
+              "p90": 1.9
+            },
+            "preCodeInputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 18276.0,
+              "p90": 23371.2
+            },
+            "preCodeMaxRequestBytes": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 40403.5,
+              "p90": 41377.5
+            },
+            "maxSkillContextBytes": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 0.0,
+              "p90": 0.0
+            }
+          }
+        },
+        "parquet": {
+          "tasks": 2,
+          "metrics": {
+            "firstProposalMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 27106.0,
+              "p90": 30050.0
+            },
+            "firstCodeMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 27334.0,
+              "p90": 30193.2
+            },
+            "firstNewCodeMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 27334.0,
+              "p90": 30193.2
+            },
+            "firstPythonMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 27492.0,
+              "p90": 30397.6
+            },
+            "firstResultMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 51106.5,
+              "p90": 64386.100000000006
+            },
+            "httpDurationMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 60131.5,
+              "p90": 72137.5
+            },
+            "firstExecutorStartedMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 28428.5,
+              "p90": 31296.9
+            },
+            "modelCalls": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 3.0,
+              "p90": 3.8
+            },
+            "inputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 38198.0,
+              "p90": 50326.8
+            },
+            "outputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 2734.5,
+              "p90": 3189.3
+            },
+            "knownTokens": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 40932.5,
+              "p90": 53516.100000000006
+            },
+            "pythonExecutions": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 1.5,
+              "p90": 1.9
+            },
+            "preCodeModelCalls": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 1.0,
+              "p90": 1.0
+            },
+            "preCodeInputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 10260.0,
+              "p90": 10284.0
+            },
+            "preCodeMaxRequestBytes": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 36161.0,
+              "p90": 36161.0
+            },
+            "maxSkillContextBytes": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 0.0,
+              "p90": 0.0
+            }
+          }
+        },
+        "repair": {
+          "tasks": 2,
+          "metrics": {
+            "firstProposalMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 10249.0,
+              "p90": 10883.4
+            },
+            "firstCodeMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 10439.5,
+              "p90": 10983.1
+            },
+            "firstNewCodeMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 63294.0,
+              "p90": 78593.20000000001
+            },
+            "firstPythonMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 10590.5,
+              "p90": 11190.9
+            },
+            "firstResultMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 66788.0,
+              "p90": 82540.0
+            },
+            "httpDurationMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 109215.5,
+              "p90": 132557.5
+            },
+            "firstExecutorStartedMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 11473.5,
+              "p90": 12073.1
+            },
+            "modelCalls": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 4.5,
+              "p90": 4.9
+            },
+            "inputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 67838.0,
+              "p90": 77213.2
+            },
+            "outputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 5044.0,
+              "p90": 6316.8
+            },
+            "knownTokens": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 72882.0,
+              "p90": 83530.0
+            },
+            "pythonExecutions": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 3.0,
+              "p90": 3.0
+            },
+            "preCodeModelCalls": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 1.0,
+              "p90": 1.0
+            },
+            "preCodeInputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 11615.0,
+              "p90": 11615.0
+            },
+            "preCodeMaxRequestBytes": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 49861.0,
+              "p90": 49861.0
+            },
+            "maxSkillContextBytes": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 0.0,
+              "p90": 0.0
+            }
+          }
+        },
+        "visual": {
+          "tasks": 2,
+          "metrics": {
+            "firstProposalMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 125911.5,
+              "p90": 154810.3
+            },
+            "firstCodeMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 126214.5,
+              "p90": 155078.1
+            },
+            "firstNewCodeMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 126214.5,
+              "p90": 155078.1
+            },
+            "firstPythonMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 126440.5,
+              "p90": 155179.3
+            },
+            "firstResultMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 130144.5,
+              "p90": 158847.3
+            },
+            "httpDurationMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 152993.0,
+              "p90": 177753.8
+            },
+            "firstExecutorStartedMs": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 127741.0,
+              "p90": 156531.4
+            },
+            "modelCalls": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 3.0,
+              "p90": 3.0
+            },
+            "inputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 53006.5,
+              "p90": 54530.1
+            },
+            "outputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 7385.0,
+              "p90": 8401.8
+            },
+            "knownTokens": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 60391.5,
+              "p90": 60898.3
+            },
+            "pythonExecutions": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 1.0,
+              "p90": 1.0
+            },
+            "preCodeModelCalls": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 1.5,
+              "p90": 1.9
+            },
+            "preCodeInputTokensKnown": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 23487.0,
+              "p90": 29850.2
+            },
+            "preCodeMaxRequestBytes": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 65933.0,
+              "p90": 66495.4
+            },
+            "maxSkillContextBytes": {
+              "observed": 2,
+              "missing": 0,
+              "p50": 0.0,
+              "p90": 0.0
+            }
+          }
+        }
+      }
+    }
+  },
+  "pairs": [
+    {
+      "case": "complex-0",
+      "baselineStatus": "COMPLETED",
+      "candidateStatus": "COMPLETED",
+      "deltaCandidateMinusBaseline": {
+        "firstProposalMs": -21246,
+        "firstCodeMs": -21167,
+        "firstNewCodeMs": -21167,
+        "firstPythonMs": -21159,
+        "firstResultMs": -17058,
+        "httpDurationMs": 18130,
+        "firstExecutorStartedMs": -21005,
+        "modelCalls": 0,
+        "inputTokensKnown": 881,
+        "outputTokensKnown": 1081,
+        "knownTokens": 1962,
+        "pythonExecutions": 0,
+        "preCodeModelCalls": 0,
+        "preCodeInputTokensKnown": -339,
+        "preCodeMaxRequestBytes": -1162,
+        "maxSkillContextBytes": 0
+      }
+    },
+    {
+      "case": "complex-1",
+      "baselineStatus": "COMPLETED",
+      "candidateStatus": "COMPLETED",
+      "deltaCandidateMinusBaseline": {
+        "firstProposalMs": -19642,
+        "firstCodeMs": -19617,
+        "firstNewCodeMs": -19617,
+        "firstPythonMs": -19608,
+        "firstResultMs": -50457,
+        "httpDurationMs": -55259,
+        "firstExecutorStartedMs": -19631,
+        "modelCalls": -1,
+        "inputTokensKnown": -23258,
+        "outputTokensKnown": -3042,
+        "knownTokens": -26300,
+        "pythonExecutions": 0,
+        "preCodeModelCalls": 0,
+        "preCodeInputTokensKnown": -397,
+        "preCodeMaxRequestBytes": -803,
+        "maxSkillContextBytes": 0
+      }
+    },
+    {
+      "case": "csv-0",
+      "baselineStatus": "COMPLETED",
+      "candidateStatus": "COMPLETED",
+      "deltaCandidateMinusBaseline": {
+        "firstProposalMs": -14086,
+        "firstCodeMs": -13973,
+        "firstNewCodeMs": -13973,
+        "firstPythonMs": -14029,
+        "firstResultMs": 10912,
+        "httpDurationMs": 11900,
+        "firstExecutorStartedMs": -14331,
+        "modelCalls": 1,
+        "inputTokensKnown": 15363,
+        "outputTokensKnown": 660,
+        "knownTokens": 16023,
+        "pythonExecutions": 1,
+        "preCodeModelCalls": 0,
+        "preCodeInputTokensKnown": -85,
+        "preCodeMaxRequestBytes": -473,
+        "maxSkillContextBytes": 0
+      }
+    },
+    {
+      "case": "csv-1",
+      "baselineStatus": "COMPLETED",
+      "candidateStatus": "COMPLETED",
+      "deltaCandidateMinusBaseline": {
+        "firstProposalMs": 4229,
+        "firstCodeMs": 4347,
+        "firstNewCodeMs": 4347,
+        "firstPythonMs": 4203,
+        "firstResultMs": -28334,
+        "httpDurationMs": -35571,
+        "firstExecutorStartedMs": 4493,
+        "modelCalls": -2,
+        "inputTokensKnown": -32783,
+        "outputTokensKnown": -1242,
+        "knownTokens": -34025,
+        "pythonExecutions": -1,
+        "preCodeModelCalls": 0,
+        "preCodeInputTokensKnown": -441,
+        "preCodeMaxRequestBytes": -1147,
+        "maxSkillContextBytes": 0
+      }
+    },
+    {
+      "case": "join-0",
+      "baselineStatus": "COMPLETED",
+      "candidateStatus": "COMPLETED",
+      "deltaCandidateMinusBaseline": {
+        "firstProposalMs": -39078,
+        "firstCodeMs": -39210,
+        "firstNewCodeMs": -39210,
+        "firstPythonMs": -39055,
+        "firstResultMs": 13790,
+        "httpDurationMs": 20306,
+        "firstExecutorStartedMs": -37679,
+        "modelCalls": 1,
+        "inputTokensKnown": 17617,
+        "outputTokensKnown": 916,
+        "knownTokens": 18533,
+        "pythonExecutions": 1,
+        "preCodeModelCalls": 0,
+        "preCodeInputTokensKnown": -305,
+        "preCodeMaxRequestBytes": -274,
+        "maxSkillContextBytes": 0
+      }
+    },
+    {
+      "case": "join-1",
+      "baselineStatus": "COMPLETED",
+      "candidateStatus": "COMPLETED",
+      "deltaCandidateMinusBaseline": {
+        "firstProposalMs": 19088,
+        "firstCodeMs": 19075,
+        "firstNewCodeMs": 19075,
+        "firstPythonMs": 19075,
+        "firstResultMs": -21557,
+        "httpDurationMs": -24480,
+        "firstExecutorStartedMs": 18482,
+        "modelCalls": -3,
+        "inputTokensKnown": -43751,
+        "outputTokensKnown": -604,
+        "knownTokens": -44355,
+        "pythonExecutions": -1,
+        "preCodeModelCalls": -2,
+        "preCodeInputTokensKnown": -25544,
+        "preCodeMaxRequestBytes": -3782,
+        "maxSkillContextBytes": 0
+      }
+    },
+    {
+      "case": "parquet-0",
+      "baselineStatus": "COMPLETED",
+      "candidateStatus": "COMPLETED",
+      "deltaCandidateMinusBaseline": {
+        "firstProposalMs": -5837,
+        "firstCodeMs": -5860,
+        "firstNewCodeMs": -5860,
+        "firstPythonMs": -5857,
+        "firstResultMs": -78853,
+        "httpDurationMs": -82208,
+        "firstExecutorStartedMs": -6188,
+        "modelCalls": -1,
+        "inputTokensKnown": -25320,
+        "outputTokensKnown": -4619,
+        "knownTokens": -29939,
+        "pythonExecutions": 0,
+        "preCodeModelCalls": 0,
+        "preCodeInputTokensKnown": -168,
+        "preCodeMaxRequestBytes": -774,
+        "maxSkillContextBytes": 0
+      }
+    },
+    {
+      "case": "parquet-1",
+      "baselineStatus": "COMPLETED",
+      "candidateStatus": "COMPLETED",
+      "deltaCandidateMinusBaseline": {
+        "firstProposalMs": -12042,
+        "firstCodeMs": -12054,
+        "firstNewCodeMs": -12054,
+        "firstPythonMs": -12045,
+        "firstResultMs": -12067,
+        "httpDurationMs": -11326,
+        "firstExecutorStartedMs": -11990,
+        "modelCalls": 0,
+        "inputTokensKnown": -249,
+        "outputTokensKnown": -650,
+        "knownTokens": -899,
+        "pythonExecutions": 0,
+        "preCodeModelCalls": 0,
+        "preCodeInputTokensKnown": -114,
+        "preCodeMaxRequestBytes": -774,
+        "maxSkillContextBytes": 0
+      }
+    },
+    {
+      "case": "repair-0",
+      "baselineStatus": "COMPLETED",
+      "candidateStatus": "COMPLETED",
+      "deltaCandidateMinusBaseline": {
+        "firstProposalMs": -1291,
+        "firstCodeMs": -1213,
+        "firstNewCodeMs": 7650,
+        "firstPythonMs": -1200,
+        "firstResultMs": 7532,
+        "httpDurationMs": 124,
+        "firstExecutorStartedMs": -1127,
+        "modelCalls": 0,
+        "inputTokensKnown": -3373,
+        "outputTokensKnown": 83,
+        "knownTokens": -3290,
+        "pythonExecutions": 0,
+        "preCodeModelCalls": 0,
+        "preCodeInputTokensKnown": -132,
+        "preCodeMaxRequestBytes": -774,
+        "maxSkillContextBytes": 0
+      }
+    },
+    {
+      "case": "repair-1",
+      "baselineStatus": "COMPLETED",
+      "candidateStatus": "COMPLETED",
+      "deltaCandidateMinusBaseline": {
+        "firstProposalMs": 2608,
+        "firstCodeMs": 2396,
+        "firstNewCodeMs": -14675,
+        "firstPythonMs": 2533,
+        "firstResultMs": -15549,
+        "httpDurationMs": -261858,
+        "firstExecutorStartedMs": 2391,
+        "modelCalls": -5,
+        "inputTokensKnown": -100011,
+        "outputTokensKnown": -12861,
+        "knownTokens": -112872,
+        "pythonExecutions": -3,
+        "preCodeModelCalls": 0,
+        "preCodeInputTokensKnown": -217,
+        "preCodeMaxRequestBytes": -774,
+        "maxSkillContextBytes": 0
+      }
+    },
+    {
+      "case": "visual-0",
+      "baselineStatus": "COMPLETED",
+      "candidateStatus": "COMPLETED",
+      "deltaCandidateMinusBaseline": {
+        "firstProposalMs": 52390,
+        "firstCodeMs": 52388,
+        "firstNewCodeMs": 52388,
+        "firstPythonMs": 52391,
+        "firstResultMs": -40881,
+        "httpDurationMs": -99267,
+        "firstExecutorStartedMs": 52415,
+        "modelCalls": -3,
+        "inputTokensKnown": -83872,
+        "outputTokensKnown": -6734,
+        "knownTokens": -90606,
+        "pythonExecutions": -1,
+        "preCodeModelCalls": 0,
+        "preCodeInputTokensKnown": -486,
+        "preCodeMaxRequestBytes": -1682,
+        "maxSkillContextBytes": -1613
+      }
+    },
+    {
+      "case": "visual-1",
+      "baselineStatus": "COMPLETED",
+      "candidateStatus": "COMPLETED",
+      "deltaCandidateMinusBaseline": {
+        "firstProposalMs": 19812,
+        "firstCodeMs": 19816,
+        "firstNewCodeMs": 19816,
+        "firstPythonMs": 20129,
+        "firstResultMs": 20669,
+        "httpDurationMs": 35241,
+        "firstExecutorStartedMs": 20423,
+        "modelCalls": 1,
+        "inputTokensKnown": 19768,
+        "outputTokensKnown": 1529,
+        "knownTokens": 21297,
+        "pythonExecutions": 0,
+        "preCodeModelCalls": 0,
+        "preCodeInputTokensKnown": -100,
+        "preCodeMaxRequestBytes": -774,
+        "maxSkillContextBytes": 0
+      }
+    }
+  ]
+}

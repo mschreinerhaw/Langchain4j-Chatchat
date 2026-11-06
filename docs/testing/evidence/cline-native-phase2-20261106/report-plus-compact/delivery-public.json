@@ -1,0 +1,345 @@
+{
+  "scope": "REAL_PROVIDER_FORMAL_EXPLORATION_OWNER_DOWNLOAD",
+  "workspaceId": "c7bbd9a6-b29f-4721-abb3-82e7b18653d2",
+  "cases": [
+    {
+      "case": "single",
+      "nodeId": "4b47a3f7-253c-4fd3-834d-4a23101ed812",
+      "taskId": "analysis-coding-ebe8f6c853a0ebaf9cb6adc6017b5db81b5e7c64f9fa61791102eb90dbbd711a",
+      "executionStatus": "COMPLETED",
+      "reportStatus": "SUCCESS",
+      "status": "PASS",
+      "artifacts": [
+        {
+          "chartId": "region_bar",
+          "kind": "plotly",
+          "fileId": "2dee085435d025f978d50fef88d93aca3d29a73b25f647c2a2fbc24599f2d775",
+          "fileName": "region_bar.json",
+          "mediaType": "application/json",
+          "size": 711,
+          "sha256": "2480cc17b23484476cdce2a34250744e4ba3524b6a9b5bdaba27d6855097a071",
+          "downloadMatchesArchive": true,
+          "sameTask": true,
+          "archiveReference": "user-asset:2dee085435d025f978d50fef88d93aca3d29a73b25f647c2a2fbc24599f2d775",
+          "generationStatus": "AVAILABLE",
+          "securityValidation": "ADMITTED_BY_VISUAL_REPORT",
+          "syntheticTraces": [
+            {
+              "type": "bar",
+              "x": [
+                "East",
+                "West"
+              ],
+              "y": [
+                32.0,
+                14.0
+              ]
+            }
+          ]
+        }
+      ],
+      "validation": {
+        "checks": [
+          {
+            "detail": "SHA256=7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399，与声明一致",
+            "name": "file_sha256_verified",
+            "status": "PASSED"
+          },
+          {
+            "detail": "size=38，与声明 38 一致",
+            "name": "file_size_verified",
+            "status": "PASSED"
+          },
+          {
+            "detail": "成功解析 3 条记录，列 region, amount",
+            "name": "csv_parsed",
+            "status": "PASSED"
+          },
+          {
+            "detail": "分组汇总合计 46 = 逐行累加 46，无差异",
+            "name": "total_reconciliation",
+            "status": "PASSED"
+          }
+        ],
+        "scope": "STOPPED_EXECUTION_AND_ARTIFACT_INTEGRITY; COMPUTATION_CHECKS_ARE_PROGRAM_DECLARED; BUSINESS_SEMANTICS_NOT_CERTIFIED",
+        "status": "ARTIFACTS_VERIFIED",
+        "warnings": []
+      },
+      "syntheticTables": [
+        {
+          "columns": [
+            "地区",
+            "金额（演示单位）"
+          ],
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "group_table",
+          "rows": [
+            [
+              "East",
+              "32"
+            ],
+            [
+              "West",
+              "14"
+            ],
+            [
+              "合计",
+              "46"
+            ]
+          ],
+          "scope": "simple.csv 全部记录",
+          "title": "按地区汇总金额"
+        }
+      ],
+      "syntheticMetrics": [
+        {
+          "calculation": "COUNT(*)",
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "total_records",
+          "label": "记录总数",
+          "unit": "条",
+          "value": "3"
+        },
+        {
+          "calculation": "COUNT(DISTINCT region)",
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "region_count",
+          "label": "地区数",
+          "unit": "个",
+          "value": "2"
+        },
+        {
+          "calculation": "SUM(amount)",
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "grand_total",
+          "label": "金额合计",
+          "unit": "演示单位",
+          "value": "46"
+        },
+        {
+          "calculation": "SUM(amount) WHERE region='East'",
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "east_total",
+          "label": "East 合计",
+          "unit": "演示单位",
+          "value": "32"
+        },
+        {
+          "calculation": "SUM(amount) WHERE region='West'",
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "west_total",
+          "label": "West 合计",
+          "unit": "演示单位",
+          "value": "14"
+        }
+      ]
+    },
+    {
+      "case": "multi",
+      "nodeId": "bce69e63-ad12-490c-b251-f31969f2ae0d",
+      "taskId": "analysis-coding-ab19eeb83816fba9f85d306e162be2de16058335dd265ed92a211d1b658f3f4d",
+      "executionStatus": "COMPLETED",
+      "reportStatus": "SUCCESS",
+      "status": "PASS",
+      "artifacts": [
+        {
+          "chartId": "region_comparison",
+          "kind": "plotly",
+          "fileId": "f8ad147ece3cb8740938ccd50fc2fa8acf1cfaf591339bc1290edec883628d51",
+          "fileName": "region_comparison.json",
+          "mediaType": "application/json",
+          "size": 549,
+          "sha256": "2b5b4b2eb45248b84e560f35afdec890d2017d712db697db6fad9c391c4e6c65",
+          "downloadMatchesArchive": true,
+          "sameTask": true,
+          "archiveReference": "user-asset:f8ad147ece3cb8740938ccd50fc2fa8acf1cfaf591339bc1290edec883628d51",
+          "generationStatus": "AVAILABLE",
+          "securityValidation": "ADMITTED_BY_VISUAL_REPORT",
+          "syntheticTraces": [
+            {
+              "type": "bar",
+              "x": [
+                "East",
+                "West"
+              ],
+              "y": [
+                32.0,
+                14.0
+              ]
+            }
+          ]
+        },
+        {
+          "chartId": "region_proportion",
+          "kind": "plotly",
+          "fileId": "cf6d4415a1829f56e024d1eda18a5f1a59daf6cfadc58aafe3c5dbef0b69f20b",
+          "fileName": "region_proportion.json",
+          "mediaType": "application/json",
+          "size": 380,
+          "sha256": "1e9b907acaa58edfc0feda7a60c89c40330f291cc0b44a98414fbeef52cd33c5",
+          "downloadMatchesArchive": true,
+          "sameTask": true,
+          "archiveReference": "user-asset:cf6d4415a1829f56e024d1eda18a5f1a59daf6cfadc58aafe3c5dbef0b69f20b",
+          "generationStatus": "AVAILABLE",
+          "securityValidation": "ADMITTED_BY_VISUAL_REPORT",
+          "syntheticTraces": [
+            {
+              "type": "pie",
+              "labels": [
+                "East",
+                "West"
+              ],
+              "values": [
+                32.0,
+                14.0
+              ]
+            }
+          ]
+        }
+      ],
+      "validation": {
+        "checks": [
+          {
+            "detail": "actual=7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399, expected=7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399",
+            "name": "文件 SHA256 校验",
+            "status": "PASSED"
+          },
+          {
+            "detail": "actual=38, expected=38",
+            "name": "文件大小校验",
+            "status": "PASSED"
+          },
+          {
+            "detail": "header=[region, amount]",
+            "name": "CSV 列名校验",
+            "status": "PASSED"
+          },
+          {
+            "detail": "3 条数据行",
+            "name": "记录数校验",
+            "status": "PASSED"
+          },
+          {
+            "detail": "分组之和 46 == 总计 46",
+            "name": "总和核对",
+            "status": "PASSED"
+          }
+        ],
+        "scope": "STOPPED_EXECUTION_AND_ARTIFACT_INTEGRITY; COMPUTATION_CHECKS_ARE_PROGRAM_DECLARED; BUSINESS_SEMANTICS_NOT_CERTIFIED",
+        "status": "PARTIAL",
+        "warnings": [
+          "本数据为合成演示数据，不代表实际货币或真实交易。",
+          "数据量较小（3 条记录，2 个地区），统计结论仅适用于本文件。"
+        ]
+      },
+      "syntheticTables": [
+        {
+          "columns": [
+            "地区",
+            "金额（演示单位）",
+            "占比"
+          ],
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "grouped_table",
+          "rows": [
+            [
+              "East",
+              "32",
+              "69.57%"
+            ],
+            [
+              "West",
+              "14",
+              "30.43%"
+            ],
+            [
+              "合计",
+              "46",
+              "100.00%"
+            ]
+          ],
+          "scope": "simple.csv 全部记录",
+          "title": "地区金额汇总表"
+        }
+      ],
+      "syntheticMetrics": [
+        {
+          "calculation": "COUNT(*)",
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "total_records",
+          "label": "记录总数",
+          "unit": "条",
+          "value": "3"
+        },
+        {
+          "calculation": "SUM(amount)",
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "total_amount",
+          "label": "金额总计",
+          "unit": "演示单位",
+          "value": "46"
+        },
+        {
+          "calculation": "SUM(amount) WHERE region='East'",
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "east_amount",
+          "label": "East 金额",
+          "unit": "演示单位",
+          "value": "32"
+        },
+        {
+          "calculation": "SUM(amount) WHERE region='West'",
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "west_amount",
+          "label": "West 金额",
+          "unit": "演示单位",
+          "value": "14"
+        },
+        {
+          "calculation": "COUNT(DISTINCT region)",
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "region_count",
+          "label": "地区数",
+          "unit": "个",
+          "value": "2"
+        }
+      ]
+    }
+  ]
+}

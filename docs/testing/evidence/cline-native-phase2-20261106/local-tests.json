@@ -1,0 +1,56 @@
+{
+  "scope": "Directed checks; frontend groups overlap and are not summed",
+  "rows": [
+    {
+      "group": "JAVA_DIRECTED",
+      "tests": 130,
+      "status": "PASS",
+      "log": "target/native-phase2-stage-delivery-java-verified.log",
+      "logSha256": "807d646ea9d60ed721e19a6cbab4447717bbe6588f5b3259df6404cc6309fd3f",
+      "summary": [
+        "[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.531 s -- in com.chatchat.api.assets.AssetAnalysisControllerTest",
+        "[INFO] Tests run: 21, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.295 s -- in com.chatchat.api.exploration.ExplorationWorkspaceTest",
+        "[INFO] Tests run: 55, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.111 s -- in com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest",
+        "[INFO] Tests run: 19, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.434 s -- in com.chatchat.api.runtime.coding.cline.ClineModelCallbackControllerTest",
+        "[INFO] Tests run: 29, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.452 s -- in com.chatchat.api.runtime.coding.evidence.VisualReportArtifactsTest",
+        "[INFO] Tests run: 130, Failures: 0, Errors: 0, Skipped: 0",
+        "[INFO] BUILD SUCCESS"
+      ]
+    },
+    {
+      "group": "NODE",
+      "tests": 241,
+      "status": "PASS",
+      "log": "target/native-phase2-metadata-node.log",
+      "logSha256": "7c2a364ba48ef5e96f85fe08631562465e422a915ac63c11b8852f779b218514",
+      "summary": [
+        "ℹ tests 241",
+        "ℹ pass 241",
+        "ℹ fail 0",
+        "ℹ skipped 0"
+      ]
+    },
+    {
+      "group": "EXPLORATION_UI",
+      "tests": 133,
+      "status": "PASS",
+      "log": "target/native-phase2-stage-delivery-ui.log",
+      "logSha256": "5d067d554719ff440a38b387826d37029e34e57cb76a799b2ecd6f928d99fa95",
+      "summary": [
+        " Test Files  11 passed (11)",
+        "      Tests  133 passed (133)"
+      ]
+    },
+    {
+      "group": "REPORT_UI",
+      "tests": 62,
+      "status": "PASS",
+      "log": "target/native-phase2-stage-report-ui.log",
+      "logSha256": "970b3bfe63d77d80fe28496fd6db204c2cc22d6ea3278a5af14af0583fd09112",
+      "summary": [
+        " Test Files  7 passed (7)",
+        "      Tests  62 passed (62)"
+      ]
+    }
+  ]
+}

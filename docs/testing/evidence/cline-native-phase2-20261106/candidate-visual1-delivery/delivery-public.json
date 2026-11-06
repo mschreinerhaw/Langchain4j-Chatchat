@@ -1,0 +1,180 @@
+{
+  "scope": "REAL_PROVIDER_FORMAL_EXPLORATION_OWNER_DOWNLOAD",
+  "workspaceId": "bb8b0933-c8a2-40d3-90e2-17ad196c0b4b",
+  "cases": [
+    {
+      "case": "multi",
+      "nodeId": "185e7306-75d3-4c7d-b5f6-d976dec5d9a1",
+      "taskId": "analysis-coding-764097058670ef4713672c6a08ec0a2a9c0ffd80d1c9e8bed46c569d11d01c7c",
+      "executionStatus": "COMPLETED",
+      "reportStatus": "SUCCESS",
+      "status": "PASS",
+      "artifacts": [
+        {
+          "chartId": "region_bar",
+          "kind": "plotly",
+          "fileId": "59460b2e9447dc27b12c0ac7fd22ce82a1f3a58fed4d076773b58d1c4327c32a",
+          "fileName": "region_bar.json",
+          "mediaType": "application/json",
+          "size": 499,
+          "sha256": "9c7c40439db018af2dbf53257be7d53b9bcf373ae357f0bfd03fafe44d9aee49",
+          "downloadMatchesArchive": true,
+          "sameTask": true,
+          "archiveReference": "user-asset:59460b2e9447dc27b12c0ac7fd22ce82a1f3a58fed4d076773b58d1c4327c32a",
+          "generationStatus": "AVAILABLE",
+          "securityValidation": "ADMITTED_BY_VISUAL_REPORT",
+          "syntheticTraces": [
+            {
+              "type": "bar",
+              "x": [
+                "East",
+                "West"
+              ],
+              "y": [
+                32.0,
+                14.0
+              ]
+            }
+          ]
+        },
+        {
+          "chartId": "region_pie",
+          "kind": "plotly",
+          "fileId": "224a875fab15cfc4ec24bbb161b56c7abfeb7e1365b959e5aeb5bd80ad2317e1",
+          "fileName": "region_pie.json",
+          "mediaType": "application/json",
+          "size": 456,
+          "sha256": "fa738d0268355de9b04231d0bf4108d0610bcf47046afdf12680c0907093ba11",
+          "downloadMatchesArchive": true,
+          "sameTask": true,
+          "archiveReference": "user-asset:224a875fab15cfc4ec24bbb161b56c7abfeb7e1365b959e5aeb5bd80ad2317e1",
+          "generationStatus": "AVAILABLE",
+          "securityValidation": "ADMITTED_BY_VISUAL_REPORT",
+          "syntheticTraces": [
+            {
+              "type": "pie",
+              "labels": [
+                "East",
+                "West"
+              ],
+              "values": [
+                32.0,
+                14.0
+              ]
+            }
+          ]
+        }
+      ],
+      "validation": {
+        "checks": [
+          {
+            "detail": "sha256=7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399",
+            "name": "native_file_sha256",
+            "status": "PASSED"
+          },
+          {
+            "detail": "size=38 bytes",
+            "name": "native_file_size",
+            "status": "PASSED"
+          },
+          {
+            "detail": "columns={region, amount}",
+            "name": "column_schema",
+            "status": "PASSED"
+          },
+          {
+            "detail": "grouped_sum=46.0 == direct_sum=46.0, diff=0",
+            "name": "total_reconciliation",
+            "status": "PASSED"
+          }
+        ],
+        "scope": "STOPPED_EXECUTION_AND_ARTIFACT_INTEGRITY; COMPUTATION_CHECKS_ARE_PROGRAM_DECLARED; BUSINESS_SEMANTICS_NOT_CERTIFIED",
+        "status": "PARTIAL",
+        "warnings": [
+          "数据为合成执行基准，非真实业务数据；金额为演示单位。",
+          "字段含义由用户指令定义，原始文件无生产者声明。",
+          "数据量极小（3 条），不具备统计推断意义。"
+        ]
+      },
+      "syntheticTables": [
+        {
+          "columns": [
+            "地区",
+            "金额（演示单位）",
+            "占比"
+          ],
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "grouped_table",
+          "rows": [
+            [
+              "East",
+              "32.00",
+              "69.57%"
+            ],
+            [
+              "West",
+              "14.00",
+              "30.43%"
+            ],
+            [
+              "合计",
+              "46.00",
+              "100.00%"
+            ]
+          ],
+          "scope": "全表",
+          "title": "按地区分组汇总表"
+        }
+      ],
+      "syntheticMetrics": [
+        {
+          "calculation": "count(csv rows)",
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "record_count",
+          "label": "记录数",
+          "unit": "条",
+          "value": "3"
+        },
+        {
+          "calculation": "count(distinct region)",
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "region_count",
+          "label": "地区数",
+          "unit": "个",
+          "value": "2"
+        },
+        {
+          "calculation": "sum(amount)",
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "grand_total",
+          "label": "全表金额合计",
+          "unit": "演示单位",
+          "value": "46.0"
+        },
+        {
+          "calculation": "sum(grouped) - sum(all rows)",
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "reconciliation_diff",
+          "label": "分组总和与全表总额差异",
+          "unit": "演示单位",
+          "value": "0"
+        }
+      ]
+    }
+  ]
+}

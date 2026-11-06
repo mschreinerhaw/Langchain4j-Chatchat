@@ -1,0 +1,34 @@
+{
+  "sourceCommit": "20be5718f71a1e49ae070572bfbd6f7be4a1547b",
+  "baselineImageId": "sha256:f0e19c6aa8220c39f2a4af7111875004f85dad789e5d5c15a951060dc031b289",
+  "baselineJarSha256": "628a08eb91258af5624ae620250147ccf196ff4901c528d8ce34021d35e7e1f5",
+  "candidateJarSha256": "cfe765b0b7af4a7e46d50d24ce5729734d26281bb8a3e5fa11b8763581463818",
+  "image": "runtime-os-api:cline-native-skills-cfe765b0b7af",
+  "imageId": "sha256:46c5fc6aaedd10ddeaa15eeed025ce5be5d66b61e2245ef7476dca27d2137ba0",
+  "compiler": "Normal Maven JDK17 output; exact-path exemption hardening only",
+  "compiledClassFiles": 1,
+  "updatedSchemaResources": 0,
+  "nestedLibraries": {
+    "BOOT-INF/lib/chatchat-common-1.0.0-SNAPSHOT.jar": {
+      "changedEntries": [
+        "com/chatchat/common/runtime/coding/CodingRuntimeContext.class"
+      ],
+      "allOtherEntriesUnchanged": true,
+      "entryCount": 626
+    }
+  },
+  "changedEntries": [
+    "BOOT-INF/lib/chatchat-common-1.0.0-SNAPSHOT.jar"
+  ],
+  "allOtherEntriesUnchanged": true,
+  "entryCount": 1356,
+  "inputFiles": [
+    {
+      "file": "0",
+      "module": "chatchat-common",
+      "entry": "com/chatchat/common/runtime/coding/CodingRuntimeContext.class",
+      "container": "BOOT-INF/lib/chatchat-common-1.0.0-SNAPSHOT.jar",
+      "sha256": "e090d7aa590b909ae7cee0c56a84cfc557413f4c243a07548677c22d272ebaf1"
+    }
+  ]
+}

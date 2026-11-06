@@ -134,7 +134,7 @@ export function httpGateway(callbackUrl, secret, binding, { timeoutMs = 90000 } 
   };
   return {
     atomicModelAttempts: true,
-    monitorPython: (operationId, kind='code') => callback('monitor-python', operationId ? { operationId, kind } : {}),
+    monitorPython: (operationId, kind='code') => callback('monitor-python', { ...(operationId?{operationId}:{}),kind }),
     budget: (contract, contextTokensEstimate, signal) => callback('budget', { contract, contextTokensEstimate }, signal),
     reserveModel: (contract, model) => callback('reserve-model', { contract, model }),
     preflight: signal => callback('preflight', {}, signal),
@@ -186,6 +186,8 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
     throw new Error('Monitor token must be separate from the Runtime dispatch secret');
   const monitor = new MonitorStore({ directory: monitorDirectory, maxTasks: Math.max(256, maxSessions), secrets: [secret, monitorToken] });
   const handleMonitor = createMonitorHandler({ token: monitorToken, store: monitor, secureCookie: monitorSecureCookie,
+    runtimeAuthority: task=>httpGateway(callbackUrl,secret,{taskId:task.taskId,
+      scope:{tenantId:task.tenantId,userId:task.userId,runId:task.runId}},{timeoutMs:2000}).monitorPython(undefined,'status'),
     python: (task, operationId, kind) => httpGateway(callbackUrl, secret, { taskId: task.taskId,
       scope: { tenantId: task.tenantId, userId: task.userId, runId: task.runId } }, { timeoutMs: 10000 }).monitorPython(operationId,kind),
     snapshot: () => monitor.node(draining, [...runs.values()].filter(run => run.state === 'RUNNING').length,

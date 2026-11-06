@@ -25,6 +25,67 @@ import static org.mockito.Mockito.*;
 
 class CodingAnalysisServiceTest {
     @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans={true,false})
+    void failedTaskRetainsOnlyItsOwnStopProvenStageReportWithoutPromotingCompletion(boolean sameTask){
+        var scope=new KernelDataScope("tenant","owner","node",null,"owned-run",null,Map.of());
+        var failed=outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN);
+        var contract=mock(CodingTaskContract.class);when(contract.scope()).thenReturn(scope);
+        when(durable.get(eq(scope),anyString())).thenReturn(failed);when(durable.contract(eq(scope),anyString())).thenReturn(contract);
+        when(durable.startedCodeOperations(eq(scope),anyString())).thenReturn(List.of("operation"));
+        var asset=new ObjectMapper().valueToTree(Map.of("integrityVerified",true,"structureVerified",true,"resultDatasetRef","runtime-evidence:stage"));
+        when(durable.privateState(eq(scope),anyString(),eq("deliverable:operation"))).thenReturn(asset);
+        when(durable.verifiedOperation(eq(scope),anyString(),eq("operation"))).thenReturn(Optional.of(new DurableCodingTaskService.VerifiedOperation("operation",1,"execution","stop-proof")));
+        var originals=new ArrayList<Map<String,Object>>();
+        when(collector.visualReport(eq(scope),anyString(),eq("runtime-evidence:stage"))).thenAnswer(call->{
+            var report=Map.<String,Object>of("status","SUCCESS","artifactValidationStatus","PASSED","execution",Map.of("taskId",sameTask?call.getArgument(1):"other-task","operationId","operation","resultDatasetRef","runtime-evidence:stage"));
+            originals.add(report);return Optional.of(report);
+        });
+        when(collector.readResultPage(eq(scope),anyString(),eq("runtime-evidence:stage"),eq(0L),eq(2))).thenReturn(
+            new com.chatchat.agents.orchestration.analysis.dataset.DatasetHandle.Page(0,List.of(Map.of("reportMarkdown","Archived stage")),false));
+        var receipt=service().primarySnapshot(scope,true).orElseThrow();
+        assertThat(receipt).containsEntry("status","FAILED").containsEntry("terminal",true).containsEntry("resultAvailable",sameTask);
+        if(sameTask){assertThat(receipt).containsEntry("deliveryStatus","PRESERVED_AFTER_FAILURE");assertThat(((Map<?,?>)receipt.get("visualReport")).get("status")).isEqualTo("PARTIAL");}
+        else verify(collector,never()).readResultPage(any(),anyString(),anyString(),anyLong(),anyInt());
+        assertThat(originals).allSatisfy(report->assertThat(report).containsEntry("status","SUCCESS"));verifyNoInteractions(agent,python,plans);assertThat(saved).isEmpty();
+    }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(value=CodingTaskOutcome.Status.class,names={"RUNNING","COMPLETED","PARTIAL","FAILED","CANCELLED","BUDGET_EXCEEDED"})
+    void primaryStatusReadsAuthoritativeTaskWithReadOnlyAuthorityAndNeverReplaysExecution(CodingTaskOutcome.Status state){
+        var scope=new KernelDataScope("tenant","owner","node",null,"owned-run",null,Map.of());
+        var outcome=outcome(state,CodingTaskOutcome.ValidationStatus.INCONCLUSIVE);when(outcome.lastEventSequence()).thenReturn(7L);
+        var contract=mock(CodingTaskContract.class);when(contract.scope()).thenReturn(scope);
+        when(durable.get(eq(scope),anyString())).thenAnswer(call->{
+            identity.require(scope,com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.READ);
+            assertThatThrownBy(()->identity.require(scope,com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.SUBMIT)).isInstanceOf(CodingContractException.class).hasMessageContaining("authenticated Runtime actor");
+            return outcome;
+        });
+        when(durable.contract(eq(scope),anyString())).thenReturn(contract);
+        when(collector.readResultPage(eq(scope),anyString(),eq("runtime-evidence:result"),eq(0L),eq(2))).thenReturn(
+            new com.chatchat.agents.orchestration.analysis.dataset.DatasetHandle.Page(0,List.of(Map.of("reportMarkdown","Archived result")),false));
+        var service=service();var first=service.primarySnapshot(scope,true).orElseThrow();
+        assertThat(first).containsEntry("status",state.name()).containsEntry("terminal",state.terminal()).containsEntry("eventCursor",7L);
+        assertThat(service.primarySnapshot(scope,true)).contains(first);
+        if(state==CodingTaskOutcome.Status.COMPLETED||state==CodingTaskOutcome.Status.PARTIAL)assertThat(first).containsEntry("resultAvailable",true).containsKey("results");
+        else {assertThat(first).containsEntry("resultAvailable",false);verify(collector,never()).readResultPage(any(),anyString(),anyString(),anyLong(),anyInt());}
+        verifyNoInteractions(agent,python,plans);assertThat(saved).isEmpty();
+    }
+    @Test void cancellingAnOwnedPrimaryTaskUsesTheExistingStopPathAndNeverRestartsIt(){
+        var scope=new KernelDataScope("tenant","owner","node",null,"owned-run",null,Map.of());
+        var running=outcome(CodingTaskOutcome.Status.RUNNING,CodingTaskOutcome.ValidationStatus.NOT_RUN);
+        var stopped=outcome(CodingTaskOutcome.Status.CANCELLED,CodingTaskOutcome.ValidationStatus.NOT_RUN);
+        var state=new java.util.concurrent.atomic.AtomicReference<>(running);
+        var contract=mock(CodingTaskContract.class);when(contract.scope()).thenReturn(scope);
+        when(durable.get(eq(scope),anyString())).thenAnswer(call->state.get());when(durable.contract(eq(scope),anyString())).thenReturn(contract);
+        when(agent.cancel(eq(scope),anyString(),anyString())).thenAnswer(call->{
+            identity.require(scope,com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.STOP);
+            assertThatThrownBy(()->identity.require(scope,com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.SUBMIT)).isInstanceOf(CodingContractException.class);
+            state.set(stopped);return stopped;
+        });
+        var service=service();assertThat(service.cancelPrimary(scope,true).orElseThrow()).containsEntry("status","CANCELLED").containsEntry("terminal",true);
+        service.cancelPrimary(scope,true);verify(agent,times(1)).cancel(eq(scope),anyString(),anyString());
+        verify(agent,never()).submit(any());verify(agent,never()).resume(any(),anyString());verifyNoInteractions(python);
+    }
+    @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(strings={"verified","revoked","metrics"})
     void finalReceiptCarriesOnlyLiveValidatedKnowledgeEvidenceAndRejectsRevocation(String mode) {
         boolean revoked="revoked".equals(mode), metrics="metrics".equals(mode);
@@ -309,8 +370,23 @@ class CodingAnalysisServiceTest {
         var original=context("tenant");var request=new AnalysisCoverageCoordinator.Request(original.model(),original.query(),null,Map.of("taskType","DATA_ANALYSIS","reportMode","visual"),original.metadata(),()->false,()->{},original.isolationScope(),null);
         var sources=new LinkedHashMap<String,Dataset>();sources.put("dataset",new Dataset("dataset",Map.of(),List.of(Map.of("value",1))));
         service.executePrimaryAnalysis(request,sources,event->{});
-        verify(service).executeObserved(same(request),argThat(task->"primary-data-analysis-visual-v1".equals(task.get("requestId"))&&task.get("instruction").toString().contains("SAME computed Python objects")&&((Map<?,?>)((Map<?,?>)task.get("outputSchema")).get("properties")).containsKey("visualReport")),same(sources),any());
+        verify(service).executeObserved(same(request),argThat(task->"primary-data-analysis-visual-v1".equals(task.get("requestId"))&&task.get("instruction").toString().length()<16000&&((Map<?,?>)((Map<?,?>)task.get("outputSchema")).get("properties")).containsKey("visualReport")),same(sources),any());
         verifyNoInteractions(agent,python,inputs,plans,collector);
+    }
+    @Test void visualPlatformContractDoesNotConsumeTheRequestLimitOrBypassTheExternalLimit(){
+        prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
+        when(inputs.captureConfigured(any(),anyString(),anyList(),anyString(),anyString(),anyString(),anyLong(),anyLong(),any()))
+            .thenReturn(new CodingInputSnapshotService.Snapshot("runtime-evidence:input","c"+"a".repeat(63),"input.jsonl","a".repeat(64),1,30,"source"));
+        var original=context("tenant");String question="Synthetic user objective. ".repeat(60);
+        var visual=new AnalysisCoverageCoordinator.Request(original.model(),question,null,Map.of("taskType","DATA_ANALYSIS","reportMode","visual"),original.metadata(),()->false,()->{},original.isolationScope(),null);
+        var service=service();service.executePrimaryAnalysis(visual,sources(),event->{});
+        var capture=org.mockito.ArgumentCaptor.forClass(CodingTaskContract.class);verify(agent).submit(capture.capture());
+        String instruction=capture.getValue().objective().instruction();
+        assertThat(instruction).contains(question,"SAME computed Python objects","span/style","report_layout.v1");
+        assertThat(instruction.indexOf("Visual report mode is enabled")).isEqualTo(instruction.lastIndexOf("Visual report mode is enabled"));
+        var tooLong=new LinkedHashMap<String,Object>(request());tooLong.put("instruction","x".repeat(16001));
+        assertThatThrownBy(()->service.execute(visual,tooLong,sources())).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("maximumCharacters=16000");
+        verify(agent,times(1)).submit(any());
     }
     @Test void primaryAnalysisBatchesNineAuthorizedDatasetsIntoOneGenericCodingAssignment() {
         var service = spy(service());
@@ -421,6 +497,7 @@ class CodingAnalysisServiceTest {
     final CodingInputSnapshotService inputs=mock(CodingInputSnapshotService.class);
     final CodingValidationPlanService plans=mock(CodingValidationPlanService.class);
     final CodingAgentSPI agent=mock(CodingAgentSPI.class);
+    final DurableCodingTaskService durable=mock(DurableCodingTaskService.class);
     final CodingEvidenceCollector collector=mock(CodingEvidenceCollector.class);
     final McpPythonControlPlanePort python=mock(McpPythonControlPlanePort.class);
     final CodingParentModels models=new CodingParentModels();
@@ -440,7 +517,7 @@ class CodingAnalysisServiceTest {
         when(collector.codeForReview(any(),anyString(),anyString())).thenReturn("print('computed result')");
         when(inputs.requireAuthorized(any())).thenReturn(new CodingInputSnapshotService.Snapshot("runtime-evidence:input","c"+"a".repeat(63),"input.jsonl","a".repeat(64),1,30,"source"));
         return new CodingAnalysisService(policy,identity,inputs,plans,agent,
-        mock(DurableCodingTaskService.class),collector,checkpoints,models,python,new ObjectMapper().findAndRegisterModules());}
+        durable,collector,checkpoints,models,python,new ObjectMapper().findAndRegisterModules());}
     Map<String,Object> request(){return Map.of("operation","RUN_CODING","requestId","calculation-1",
         "datasetReference","source","instruction","Transform the authorized data",
         "outputSchema",Map.of("type","object","properties",Map.of("value",Map.of("type","string")))) ;}
@@ -634,7 +711,7 @@ class CodingAnalysisServiceTest {
         when(agent.submit(any())).thenReturn(running);when(agent.resume(any(),anyString())).thenReturn(stopped);
         var receipt=service.execute(parent,request(),sources());
         assertThat(receipt).containsEntry("status","BUDGET_EXCEEDED").containsEntry("stopReason","DEADLINE_EXCEEDED")
-            .containsEntry("resultAvailable",false);
+            .containsEntry("resultAvailable",false).containsEntry("terminal",true);
         verify(agent).resume(any(),anyString());verify(agent,never()).cancel(any(),anyString(),anyString());
         verify(collector,times(1)).registeredResult(any(),anyString(),anyString());
     }
@@ -651,6 +728,7 @@ class CodingAnalysisServiceTest {
         var sources=sources();var receipt=service().executeObserved(context("tenant"),request(),sources,events::add);
         assertThat(events.stream().filter(event->"CODING_RECONCILIATION_REQUIRED".equals(event.get("eventKind"))).count()).isEqualTo(1);
         assertThat(receipt).containsEntry("status","RUNNING").containsEntry("reconciliationRequired",true)
+            .containsEntry("terminal",false)
             .containsEntry("resultAvailable",false).containsEntry("reasonCode","EXECUTION_OUTCOME_UNKNOWN")
             .doesNotContainKeys("datasetReference","evidenceRefs");
         assertThat(sources).containsOnlyKeys("source");

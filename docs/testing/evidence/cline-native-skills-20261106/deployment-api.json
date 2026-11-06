@@ -1,0 +1,28 @@
+{
+  "status": "DEPLOYED",
+  "sourceCommit": "f6886ee4ea68e99f2c892ef94cdd60361df53998",
+  "image": "runtime-os-api:cline-native-skills-b7cf6bc86d10",
+  "baselineJarSha256": "06c4f666dff00704c8b5c0f0994c8c342655eeff47ceffe190f5e238fa98527f",
+  "jarSha256": "b7cf6bc86d106525c90c72c275b8c71b7d61c4f848eb25ae0a18bd0dbcb1c8aa",
+  "backupContainer": "runtime-os-app-stage-api-1-before-native-skills-7dfe4a7682b2",
+  "backupDirectory": "/opt/chatchat-releases/cline-native-skills-20261106-r1/api-proxy-deployment-backup",
+  "callback": {
+    "status": "PASSED",
+    "signedCallback": true,
+    "unsignedRejected": true,
+    "origin": "http://api:8081",
+    "codeLifecycleVersion": "runtime_os.code_lifecycle.v1"
+  },
+  "imageId": "sha256:0937e96b4277033911df3faad1f18ead7247ec5e2bb062743eb9568e30a6f39b",
+  "authenticatedHealthVerified": true,
+  "gatewayHealthVerified": true,
+  "hostConfigAndMountsUnchanged": true,
+  "otherContainerIdsUnchanged": true,
+  "changedContainers": [
+    "runtime-os-app-stage-api-1",
+    "runtime-os-app-stage-node-proxy-1"
+  ],
+  "proxyBackupContainer": "runtime-os-app-stage-node-proxy-1-before-native-skills-db294877c88f",
+  "proxyHostConfigOnlyChange": "NetworkMode binds new API container namespace; same whitelist/config/image/mounts",
+  "proxyConfigurationAndMountsUnchanged": true
+}

@@ -1,0 +1,49 @@
+{
+  "scope": "REAL_AUTHENTICATED_BROWSER_NO_MOCKS",
+  "cases": [
+    {
+      "case": "flash-single",
+      "workspaceId": "75e914fd-f905-4f4b-a147-d7d6b7e5eab9",
+      "nodeId": "40da1661-0cb4-4552-9ed7-d2199c1ba9ad",
+      "taskId": "analysis-coding-8c54105760a8170a5ebc52312e64da07c0003d5b471668ebb9ab75813cc2cd2a",
+      "apiStatus": "BUDGET_EXCEEDED",
+      "renderedCharts": [],
+      "budgetFailureVisible": true,
+      "noBorrowedChart": true,
+      "receiptUnchanged": true,
+      "offlineReconnectAndRefresh": true
+    },
+    {
+      "case": "flash-multi",
+      "workspaceId": "75e914fd-f905-4f4b-a147-d7d6b7e5eab9",
+      "nodeId": "5bfc8feb-60db-4c6b-8cb5-1d4988422b25",
+      "taskId": "analysis-coding-0be97b4edbb59b3a11d9efdb4f4d85395a589fcb20b6af0833f33b3b70afab0f",
+      "apiStatus": "FAILED",
+      "renderedCharts": [
+        {
+          "id": "iso_week_trend",
+          "kind": "plotly",
+          "rendered": true,
+          "fileId": "5f0242895a8b8922e5de8ce82bb72564c99cd5857f883ed3967da2e92de442f4"
+        },
+        {
+          "id": "weighted_unit_value",
+          "kind": "plotly",
+          "rendered": true,
+          "fileId": "17f20cc64110d2a60e8a613d5a60adc8cb30edc9b684542f2d83cbc316f3a959"
+        },
+        {
+          "id": "region_comparison",
+          "kind": "plotly",
+          "rendered": true,
+          "fileId": "eecec90ddd467a889b5a922135853a692a374e87116abfe406efd789d6f8bbb1"
+        }
+      ],
+      "receiptUnchanged": true,
+      "offlineReconnectAndRefresh": true
+    }
+  ],
+  "pageErrors": [],
+  "executions": 0,
+  "status": "PASS"
+}

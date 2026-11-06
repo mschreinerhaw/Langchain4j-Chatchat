@@ -536,7 +536,6 @@
             },
             "configuredSkillIds": {
               "type": "array",
-              "maxItems": 128,
               "items": {
                 "type": "string"
               }

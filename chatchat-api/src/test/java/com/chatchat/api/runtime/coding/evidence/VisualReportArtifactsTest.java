@@ -165,9 +165,26 @@ class VisualReportArtifactsTest {
     @Test void missingOrMaliciousChartKeepsValidTextAndMarksReportPartial(){
         var report=raw();report.put("charts",List.of(Map.of("id","missing","kind","png","fileName","missing.png"),Map.of("id","traversal","kind","png","fileName","../other-user.png")));
         var result=collect(report,Map.of());assertThat(result.get("status")).isEqualTo("PARTIAL");assertThat(result.get("markdown")).isEqualTo("Complete computed narrative");
+        assertThat(VisualReportArtifacts.chartValidationStatus(result)).isEqualTo("PARTIAL");
+        assertThat(VisualReportArtifacts.availableChartCount(result)).isZero();
         assertThat((List<?>)result.get("charts")).hasSize(2);assertThat(result.get("charts").toString()).contains("kind=unavailable","renderError=CHART_ARTIFACT_REJECTED");verifyNoInteractions(archive);
     }
     @Test void failedComputationChecksCannotBePublishedAsSuccess(){var report=raw();report.put("validation",Map.of("checks",List.of(Map.of("name","consistency","status","FAILED"))));assertThat(collect(report,Map.of()).get("status")).isEqualTo("FAILED");}
+    @Test void safePlotlyTypographyIsAdmittedWhileStyledHtmlIsRejectedWithoutLosingComputedResults()throws Exception{
+        var report=raw();report.put("charts",List.of(Map.of("id","safe","kind","plotly","fileName","safe.json"),Map.of("id","html","kind","plotly","fileName","html.json")));
+        var data=List.of(Map.of("type","bar","x",List.of("a","b"),"y",List.of(1,2)));
+        var safe=Map.of("data",data,"layout",Map.of("title",Map.of("text","Computed trend","font",Map.of("size",18))));
+        var html=Map.of("data",data,"layout",Map.of("title",Map.of("text","<span style='color:red'>Computed trend</span>")));
+        var result=collect(report,Map.of("results/safe.json",json.writeValueAsBytes(safe),"results/html.json",json.writeValueAsBytes(html)));
+        assertThat(result).containsEntry("status","PARTIAL");
+        String archived=json.writeValueAsString(result);
+        assertThat(VisualReportArtifacts.chartValidationStatus(result)).isEqualTo("PARTIAL");
+        assertThat(VisualReportArtifacts.availableChartCount(result)).isEqualTo(1);
+        assertThat(json.writeValueAsString(result)).isEqualTo(archived);
+        assertThat((List<?>)result.get("artifacts")).hasSize(1);
+        assertThat(result.get("validation").toString()).contains("Unsafe Plotly text");
+        verify(archive,never()).save(any(),anyString(),any(),anyString(),eq("html.json"),any());
+    }
     @Test void unresolvedReconciliationPreservesReportAndChartsWithoutCertifyingBusinessSuccess()throws Exception{
         var report=raw();report.put("validation",Map.of("checks",List.of(Map.of("name","computed","status","PASSED"),Map.of("name","reconciliation","status","UNRESOLVED","detail","Insufficient evidence"))));
         report.put("charts",List.of(Map.of("id","plot","kind","png","fileName","plot.png")));

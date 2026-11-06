@@ -19,6 +19,8 @@ export function businessNodeDescription(node){
 export function explorationMetricDisplay(value){
   const text=String(value??'');
   if(!/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:e[+-]?\d+)?$/i.test(text))return text;
+  const significant=text.split(/e/i)[0].replace(/[-.]/g,'').replace(/^0+/,'').replace(/0+$/,'').length;
+  if(/[.e]/i.test(text)&&significant>15)return text;
   const number=Number(text),magnitude=Math.abs(number);
   if(!Number.isFinite(number)||magnitude>Number.MAX_SAFE_INTEGER)return text;
   if(magnitude>0&&magnitude<1e-8)return number.toExponential(2);
@@ -27,16 +29,19 @@ export function explorationMetricDisplay(value){
 export function explorationNodeState(node,runningId=''){
   const receipt=node?.receipt||{},status=String(receipt.status||node?.status||'PREPARED').toUpperCase();
   if(['CANCELLED','CANCELED','TIMEOUT_CANCELLED','KILLED'].includes(status))return {code:'CANCELLED',label:'已停止'};
+  if(status==='BUDGET_EXCEEDED')return {code:'FAILED',label:'预算已耗尽'};
   if(['FAILED','REJECTED','INPUT_REQUIRED','RECOVERABLE','TIME_BUDGET_EXHAUSTED','MODEL_BUDGET_EXHAUSTED'].includes(status))return {code:'FAILED',label:status==='RECOVERABLE'?'可恢复':'分析未完成'};
-  if(['SUCCEEDED','PARTIAL'].includes(status))return {code:'COMPLETED',label:receipt.resultAvailable?'已完成':'分析已结束'};
+  if(['COMPLETED','SUCCEEDED','PARTIAL'].includes(status))return {code:'COMPLETED',label:status==='PARTIAL'||receipt.visualReport?.status==='PARTIAL'?'部分交付':receipt.resultAvailable?'已完成':'分析已结束'};
   if(receipt.terminal!==true&&(receipt.cancellationRequested||['CANCELLING','CANCEL_REQUESTED','STOPPING'].includes(status)))return {code:'STOPPING',label:'正在停止'};
-  if(node?.id===runningId || receipt.agentTaskId && receipt.terminal!==true)return {code:'RUNNING',label:receipt.resultAvailable?'已有阶段成果 · 分析中':'正在分析'};
+  if(node?.id===runningId || (receipt.agentTaskId||receipt.taskId) && receipt.terminal!==true)return {code:'RUNNING',label:receipt.resultAvailable?'已有阶段成果 · 分析中':'正在分析'};
   if(receipt.resultAvailable)return {code:'COMPLETED',label:'已完成'};
   return {code:'QUEUED',label:'等待分析'};
 }
 export function explorationCanvasNode(nodes,selectedId){
   const selected=nodes.find(node=>node.id===selectedId);if(!selected)return null;
   if(selected.receipt?.resultAvailable)return selected;
+  // Keep this task's stage evidence, but never present another task as a failed task's result.
+  if(['FAILED','COMPLETED'].includes(explorationNodeState(selected).code))return null;
   const seen=new Set([selected.id]);let parent=selected.parentId;
   while(parent&&!seen.has(parent)){seen.add(parent);const node=nodes.find(n=>n.id===parent);if(!node)break;if(node.receipt?.resultAvailable)return node;parent=node.parentId;}
   return [...nodes].reverse().find(node=>node.receipt?.resultAvailable)||null;

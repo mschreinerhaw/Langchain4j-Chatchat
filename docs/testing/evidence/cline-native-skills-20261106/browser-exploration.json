@@ -1,0 +1,38 @@
+{
+  "scope": "Existing data-exploration file-analysis visual contract; no outer Agent; no analysis mutations",
+  "workspaceId": "bf23652c-e933-4db5-b0bd-45192e415a6d",
+  "cases": [
+    {
+      "case": "visual-0",
+      "nodeId": "284b7d9f-9bf5-4672-a1a3-2ee1fe225a1d",
+      "taskId": "analysis-coding-bf2ec08e6e86992182d409b15483877e01c4cb00bf17d2efad4f423ad1a149da",
+      "status": "COMPLETED",
+      "visualReportStatus": "PARTIAL",
+      "chartDeliveryPassed": false,
+      "verified": "Actual unavailable-chart warning and numeric tables displayed"
+    },
+    {
+      "case": "visual-1",
+      "nodeId": "22c4d601-27c0-497f-93c9-1cb2098a2811",
+      "taskId": "analysis-coding-33738ce71f23a688800165883a3e18a50f61d9e55a86aab65746e66ae858f051",
+      "status": "BUDGET_EXCEEDED",
+      "visualReportStatus": null,
+      "chartDeliveryPassed": false,
+      "verified": "API receipt budget failure verified; UI shows waiting plus prior node result, no visible budget failure. UI acceptance failed."
+    }
+  ],
+  "errors": [],
+  "mutations": [
+    {
+      "method": "PUT",
+      "path": "/api/v1/workspaces/preferences"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/workspaces/preferences"
+    }
+  ],
+  "failureStateVisible": false,
+  "workspaceVersionUnchanged": true,
+  "receiptsAndModelUsageUnchanged": true
+}

@@ -1,0 +1,94 @@
+{
+  "scope": "REAL_PROVIDER_FORMAL_EXPLORATION_OWNER_DOWNLOAD",
+  "workspaceId": "1801c527-b09c-4d54-ba54-097429ae8ca7",
+  "cases": [
+    {
+      "case": "multi",
+      "nodeId": "7850346f-af0f-43d1-83ab-57cebb58ba43",
+      "taskId": "analysis-coding-842a61b2525c7cf93f252929b5540a1a958973f911ee8b69316215fa3e3dd966",
+      "executionStatus": "COMPLETED",
+      "reportStatus": "PARTIAL",
+      "status": "FAIL",
+      "artifacts": [],
+      "validation": {
+        "checks": [
+          {
+            "detail": "SHA-256: 7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399",
+            "name": "CSV文件哈希验证",
+            "status": "PASSED"
+          },
+          {
+            "detail": "分组合计 46.00 = 全表总额 46.00",
+            "name": "分组汇总与总额核对",
+            "status": "PASSED"
+          },
+          {
+            "detail": "小数点后 2 位",
+            "name": "占比计算精度",
+            "status": "PASSED"
+          },
+          {
+            "detail": "region 和 amount 字段的业务含义未在 fieldDefinitions 中声明",
+            "name": "字段业务含义确认",
+            "status": "UNRESOLVED"
+          }
+        ],
+        "scope": "STOPPED_EXECUTION_AND_ARTIFACT_INTEGRITY; COMPUTATION_CHECKS_ARE_PROGRAM_DECLARED; BUSINESS_SEMANTICS_NOT_CERTIFIED",
+        "status": "PARTIAL",
+        "warnings": [
+          "region 和 amount 字段的业务含义未在 fieldDefinitions 中声明",
+          "金额单位为演示单位，非实际货币",
+          "数据为合成执行基准，无时间维度",
+          "由于字段业务含义未确认（UNCONFIRMED），未生成可视化图表"
+        ]
+      },
+      "syntheticTables": [
+        {
+          "columns": [
+            "地区",
+            "金额（演示单位）",
+            "占比"
+          ],
+          "id": "region_summary",
+          "rows": [
+            [
+              "East",
+              "32.00",
+              "69.57%"
+            ],
+            [
+              "West",
+              "14.00",
+              "30.43%"
+            ]
+          ],
+          "scope": "全表汇总",
+          "title": "地区分组汇总表"
+        }
+      ],
+      "syntheticMetrics": [
+        {
+          "calculation": "SUM(amount)",
+          "id": "total_amount",
+          "label": "全表总额",
+          "unit": "演示单位",
+          "value": "46.00"
+        },
+        {
+          "calculation": "COUNT(*)",
+          "id": "record_count",
+          "label": "记录数",
+          "unit": "条",
+          "value": "3"
+        },
+        {
+          "calculation": "COUNT(DISTINCT region)",
+          "id": "region_count",
+          "label": "地区数",
+          "unit": "个",
+          "value": "2"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,411 @@
+{
+  "scope": "Independent manual review of synthetic reports and authenticated artifact registry; technical completion is separate from quality. No aggregate quality success rate inferred.",
+  "expectedValuesSource": "../cline-precode-20261106/expected-public.json",
+  "notes": [
+    "R1 有 9/12、R2 有 12/12 技术执行完成；其中仍有报告措辞、日历天数及图表交付失败，不能视为质量全通过。",
+    "R1 visual-1 的两张原始 PNG 已验证 hash/size/任务归属；趋势图存在标注溢出和标题裁切，保留原图。",
+    "R2 两个文本入口图文任务均只有 Markdown 图片链接，没有注册的最终图表文件。代码把图写到 results 归档通道之外；保留现有归档权限。",
+    "正式探索入口另跑两项：一项 COMPLETED/PARTIAL，五张图的标题含带样式 span，被现有 Plotly 校验拒绝；另一项达到原有 20 分钟预算，无有效结果。",
+    "正式探索两项均未成功加载 Skill 正文；它们证明模型可以跳过 Skill，也暴露图表格式与耗时问题，不是报告 Skill 选择成功样本。",
+    "没有放宽图表安全规则、执行预算、来源/授权或结果验证要求，也没有通过新增 Prompt 规则或重跑挑选成功样本。"
+  ],
+  "cases": [
+    {
+      "batch": "r1",
+      "case": "complex-0",
+      "taskId": "analysis-coding-4eca2c1fa30c0b2fe18eba6bacc392cc9aed3909445fdb0dd4357bf82a4102ee",
+      "reports": [
+        {
+          "sha256": "75dbfc1df231852b7a65bf14cf76f4a7da03355549446884e7d5e32d7bd9ca30",
+          "bytes": 6503,
+          "analysisStatus": "COMPLETE",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "verdict": "PARTIAL_WORDING",
+      "review": "Correct ISO values and boundaries; claim entirely driven by amount overstates changing denominator."
+    },
+    {
+      "batch": "r1",
+      "case": "complex-1",
+      "taskId": "analysis-coding-384da1160d66d66b7d9e595247467da58778bce245b9b6341f93239701a1d9a4",
+      "reports": [
+        {
+          "sha256": "2a4250b258cf7ccdd50dc17c4f5cfb28921de90c4cda1a89474928844724562d",
+          "bytes": 7110,
+          "analysisStatus": "COMPLETE",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "verdict": "FAIL",
+      "review": "Row counts 8/14/14/14/6 mislabeled as calendar days; incorrect incomplete-week labels."
+    },
+    {
+      "batch": "r1",
+      "case": "csv-0",
+      "taskId": "analysis-coding-7cd4a3eeb1d41b3230bb5c2e321b510fae801d29263fc22f69b2f52d0b64e20b",
+      "reports": [
+        {
+          "sha256": "96d4d3b018a7888a8a2662fcdf89670cbb16c784814dbf4a1d133d8518480616",
+          "bytes": 1808,
+          "analysisStatus": "COMPLETE",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "verdict": "PASS",
+      "review": "Amounts total 46; East 32, West 14."
+    },
+    {
+      "batch": "r1",
+      "case": "csv-1",
+      "taskId": "analysis-coding-4b4a9b587783261e18f5162d3da07ec2a66fe3c924ae08e5bd194f44092e62d5",
+      "reports": [
+        {
+          "sha256": "c80147f480673239b26c5173331f6f52b68971624d9221cc1d1d69677dc43f99",
+          "bytes": 1151,
+          "analysisStatus": "COMPLETE",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "verdict": "PASS",
+      "review": "Amounts total 46; East 32, West 14."
+    },
+    {
+      "batch": "r1",
+      "case": "join-0",
+      "taskId": "analysis-coding-1ec043dd9d7cd9a7e625f475538ada33e27ad8e0be482ebbcb4cc57d033dd949",
+      "reports": [
+        {
+          "sha256": "de12c0b1c1161d72e81e782b093190dffa216ed7c11714326889cb3b6fc12028",
+          "bytes": 3485,
+          "analysisStatus": "COMPLETE",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "verdict": "PASS",
+      "review": "Leading-zero identifiers retained; total 52, East 38, West 14."
+    },
+    {
+      "batch": "r1",
+      "case": "join-1",
+      "taskId": "analysis-coding-81729204ea472f5fab37156e4620f1fb01d78bcfdafe241c6c7aecae86bf69d9",
+      "reports": [
+        {
+          "sha256": "0a5dee84ef062c1e3785640015dad383fff379f2b6c06ef281a6e31e93f5c1db",
+          "bytes": 3194,
+          "analysisStatus": "COMPLETE",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "verdict": "PASS",
+      "review": "Leading-zero identifiers retained; total 52."
+    },
+    {
+      "batch": "r1",
+      "case": "parquet-0",
+      "taskId": "analysis-coding-e627629953715c5986f48812f7f5db94039ed4265e7ccccf1a15d59c9f2eee86",
+      "reports": [],
+      "verdict": "EXECUTION_FAILED",
+      "review": "Output contract, Python type/assertion and proposal errors; no accepted result."
+    },
+    {
+      "batch": "r1",
+      "case": "parquet-1",
+      "taskId": "analysis-coding-afa05df293dcab93d1a65cc089f4327ec5a065f4066b276eb4e22aa518c4c708",
+      "reports": [
+        {
+          "sha256": "d0d20aa2713093af623d1fa08801a6a451d1d80cdc3a8672de8cef7fc44f0c84",
+          "bytes": 2851,
+          "analysisStatus": "COMPLETE",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "verdict": "PASS",
+      "review": "Amounts total 46."
+    },
+    {
+      "batch": "r1",
+      "case": "repair-0",
+      "taskId": "analysis-coding-e973273290b4e22a1c8f3591baecc4b756fc4164e3131dd08ebbf68574a43f4f",
+      "reports": [
+        {
+          "sha256": "ae75f8229983ac848e5da38ea9bc81bf9732d2ea7a1558446069fa45e370f132",
+          "bytes": 7859,
+          "analysisStatus": "INPUT_REQUIRED",
+          "fieldProvenanceStatuses": [
+            "UNCONFIRMED"
+          ]
+        }
+      ],
+      "verdict": "PARTIAL_REPORT",
+      "review": "Actual syntax repair executed and sum 6; report unnecessarily demands business metadata."
+    },
+    {
+      "batch": "r1",
+      "case": "repair-1",
+      "taskId": "analysis-coding-e7e0652af80cd0849583803774cf1e85d029367735e7fd39d2d4bfc6fc2a319e",
+      "reports": [],
+      "verdict": "EXECUTION_FAILED",
+      "review": "Six Python attempts; repair did not complete."
+    },
+    {
+      "batch": "r1",
+      "case": "visual-0",
+      "taskId": "analysis-coding-70a626592b30bc695161c87ceac68c7d7b4bce1cfd617d4e24060b3ee52ac922",
+      "reports": [],
+      "verdict": "EXECUTION_FAILED",
+      "review": "Native Skill use did not establish a successful result."
+    },
+    {
+      "batch": "r1",
+      "case": "visual-1",
+      "taskId": "analysis-coding-a8599e51c495a7df55569ecca0e9c16a2e15e84e5fed4660631aacfc8c979fb1",
+      "reports": [
+        {
+          "sha256": "4568d4b85226b9424205493e850313c35cc7ed4fb65abace35f7b8c992838b89",
+          "bytes": 7106,
+          "analysisStatus": "COMPLETE",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "verdict": "FAIL_VISUAL_QUALITY",
+      "review": "Correct declared anchored 7-day aggregation; two authenticated PNGs exist, but trend labels overflow and title clips."
+    },
+    {
+      "batch": "r2",
+      "case": "complex-0",
+      "taskId": "analysis-coding-a6b58dbf516d57485f20639a346f59a128538920e85fe0baeb786d418226def9",
+      "reports": [
+        {
+          "sha256": "ea2d879704a09d97569a17b1ef7c4fcde133265b0406f510e5f33bae9221d917",
+          "bytes": 6257,
+          "analysisStatus": "COMPLETE",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "verdict": "PASS",
+      "review": "Correct ISO amounts, quantities, weighted values and boundary days."
+    },
+    {
+      "batch": "r2",
+      "case": "complex-1",
+      "taskId": "analysis-coding-7c3b38cf57df1a42cd6ce6ab4c0b09f6be422be669581f2c6923aef57f1f817e",
+      "reports": [
+        {
+          "sha256": "f54e93192cde3020db17d6db5e22a39ad1abc159faa9b5b7b2e66be5e84431fa",
+          "bytes": 4049,
+          "analysisStatus": "COMPLETE",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "verdict": "PASS",
+      "review": "Correct ISO values plus clearly declared anchored alternative."
+    },
+    {
+      "batch": "r2",
+      "case": "csv-0",
+      "taskId": "analysis-coding-23c1ffc06a3bd2f7843552ea939210c309a4be9d8a81b97f4ab65e2dc1a7656a",
+      "reports": [
+        {
+          "sha256": "def1289a3d86aa0a603185be4db1ff263b5fcb6329f76565109c4181bfe63518",
+          "bytes": 1432,
+          "analysisStatus": "COMPLETE",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "verdict": "PASS",
+      "review": "Amounts total 46."
+    },
+    {
+      "batch": "r2",
+      "case": "csv-1",
+      "taskId": "analysis-coding-ca7d0257a7aabd9857b724084eafdb5e85815550a91223fec86530c8e8ec1cec",
+      "reports": [
+        {
+          "sha256": "a339f82522fa67902420a746da30ca04805304787c4cde2815359492ebc27051",
+          "bytes": 1836,
+          "analysisStatus": "COMPLETE",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "verdict": "PASS",
+      "review": "Amounts total 46."
+    },
+    {
+      "batch": "r2",
+      "case": "join-0",
+      "taskId": "analysis-coding-3f06d70b7b8235f8f8245e859f08e81d6bdd6b847b26e8efb3432c74b6c169c2",
+      "reports": [
+        {
+          "sha256": "304570e74d5422facb9898cec702a94bc042ab1e0aa072e29cb39ebbcaffe580",
+          "bytes": 3665,
+          "analysisStatus": "COMPLETE",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "verdict": "PASS",
+      "review": "Leading-zero identifiers retained; total 52."
+    },
+    {
+      "batch": "r2",
+      "case": "join-1",
+      "taskId": "analysis-coding-708521f859041cb448e8e625e90ae1618b2cb371126697f5f5cee62dcbc6699e",
+      "reports": [
+        {
+          "sha256": "dc8190b9978eab5860554a0f1967bc0a39c39fb4577c404973282c09f4a4d787",
+          "bytes": 3393,
+          "analysisStatus": "COMPLETE",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "verdict": "PASS",
+      "review": "Leading-zero identifiers retained; total 52."
+    },
+    {
+      "batch": "r2",
+      "case": "parquet-0",
+      "taskId": "analysis-coding-5d5c1ef7756eaa3713e2a6ea7a65f5ca8da60ca57dc28d94a689b418c3085623",
+      "reports": [
+        {
+          "sha256": "537fc4da150382f87b7ce527f77d57f10b73534d94580e2f2754daff1ffae605",
+          "bytes": 2174,
+          "analysisStatus": "COMPLETE",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "verdict": "PASS",
+      "review": "Amounts total 46."
+    },
+    {
+      "batch": "r2",
+      "case": "parquet-1",
+      "taskId": "analysis-coding-818ed6b51fc19cb53454a7f9689ab33a44f31f508c024b9d3b54f02ede836d94",
+      "reports": [
+        {
+          "sha256": "8d6b19c38a2543ad01ecca19cb1457ceb1a1492aa9665bf2306825caa912cbba",
+          "bytes": 2174,
+          "analysisStatus": "COMPLETE",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "verdict": "PASS",
+      "review": "Amounts total 46."
+    },
+    {
+      "batch": "r2",
+      "case": "repair-0",
+      "taskId": "analysis-coding-538f6deab37ece9d92cc9454313189e2f032704225ca19626f4dad87e4b42b01",
+      "reports": [
+        {
+          "sha256": "7a1bca974fe330f5151d71d322522ed1712f3517bb52b35f5505ea5afb1cd9d3",
+          "bytes": 13330,
+          "analysisStatus": "INPUT_REQUIRED",
+          "fieldProvenanceStatuses": [
+            "UNCONFIRMED"
+          ]
+        }
+      ],
+      "verdict": "PARTIAL_REPORT",
+      "review": "Syntax repair executed, sum 6; unnecessary INPUT_REQUIRED business metadata."
+    },
+    {
+      "batch": "r2",
+      "case": "repair-1",
+      "taskId": "analysis-coding-c5dac3c31746b76367479c0d093be3784f43cba9681e4b3fe41494af9df58d49",
+      "reports": [
+        {
+          "sha256": "f169695697c2ceafe259a62a673e86e738c8e92f5125cea8598c3584c598f358",
+          "bytes": 6132,
+          "analysisStatus": "COMPLETE",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "verdict": "PASS",
+      "review": "Original print minimally repaired; actual result 6."
+    },
+    {
+      "batch": "r2",
+      "case": "visual-0",
+      "taskId": "analysis-coding-8e6d92cb89d69be53563d065c672f2078f93d86d7d6546c27d0922ce5f8c86d0",
+      "reports": [
+        {
+          "sha256": "154fd35c3224419d29c0b925472bf835dbab49be1904651d0aa11cb0bc443dc6",
+          "bytes": 5100,
+          "analysisStatus": "COMPLETE",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "verdict": "FAIL",
+      "review": "Table totals correct; peak wording 9.059 contradicts last value 10.125; two Markdown chart links have no registered images."
+    },
+    {
+      "batch": "r2",
+      "case": "visual-1",
+      "taskId": "analysis-coding-983f034627beed56ed9f8bb73927eb8e30ff64672faf98fab304cdb6a099e496",
+      "reports": [
+        {
+          "sha256": "2bf11dfefaf98afc3b6699da92abc361b8fe50fe575e912e88831fcd9b870897",
+          "bytes": 5922,
+          "analysisStatus": "COMPLETE",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "verdict": "FAIL_CHART_DELIVERY",
+      "review": "Correct ISO and declared alternative tables; two Markdown image links have no registered images."
+    },
+    {
+      "batch": "formal-exploration",
+      "case": "visual-0",
+      "taskId": "analysis-coding-bf2ec08e6e86992182d409b15483877e01c4cb00bf17d2efad4f423ad1a149da",
+      "visualReportSha256": "1fdaf6b38610446ee14f4761159072ca712ed4d4131884f560886ac6901f1947",
+      "verdict": "FAIL_CHART_DELIVERY",
+      "review": "Correct ISO numeric tables, five rejected charts; styled span in every title violates unchanged Plotly text rule."
+    },
+    {
+      "batch": "formal-exploration",
+      "case": "visual-1",
+      "taskId": "analysis-coding-33738ce71f23a688800165883a3e18a50f61d9e55a86aab65746e66ae858f051",
+      "visualReportSha256": null,
+      "verdict": "BUDGET_EXCEEDED",
+      "review": "No result within original 20-minute task budget."
+    }
+  ]
+}

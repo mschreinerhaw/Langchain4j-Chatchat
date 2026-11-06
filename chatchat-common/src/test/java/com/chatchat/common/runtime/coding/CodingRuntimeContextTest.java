@@ -6,6 +6,36 @@ import static com.chatchat.common.runtime.coding.CodingContractTestSupport.*;
 import static org.assertj.core.api.Assertions.*;
 
 class CodingRuntimeContextTest {
+    @Test void visualQualityRequirementsStillFitTheExistingTaskInstructionLimit() {
+        assertThat(16000+VisualReportMode.instruction(Map.of()).length()).isLessThanOrEqualTo(32768);
+    }
+    @Test void authorizedSkillMetadataAndIdentityListsHaveNoFixedPackageCount() {
+        var ids=java.util.stream.IntStream.range(0,150).mapToObj(i->"authorized-"+i).toList();
+        var cards=ids.stream().map(id->Map.<String,Object>of("id",id,"name",id,"version","v1")).toList();
+        var context=CodingRuntimeContext.validate(Map.of("schemaVersion","runtime_os.coding.context.v1",
+            "consistency","TASK_SNAPSHOT","configuredSkillIds",ids,"skills",Map.of("skills",cards)));
+        assertThat((List<?>)context.get("configuredSkillIds")).hasSize(150);
+        assertThat((List<?>)((Map<?,?>)context.get("skills")).get("skills")).hasSize(150);
+        assertThatThrownBy(()->((List<Object>)context.get("configuredSkillIds")).add("other"))
+            .isInstanceOf(UnsupportedOperationException.class);
+    }
+    @Test void skillCountExceptionCannotBypassOtherContextSafetyBounds() {
+        var base=new HashMap<String,Object>(Map.of("schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT"));
+        base.put("model",Map.of("unexpectedList",Collections.nCopies(129,"value")));
+        assertThatThrownBy(()->CodingRuntimeContext.validate(base)).isInstanceOf(CodingContractException.class);
+        base.remove("model");
+        for(String key:List.of("skills.skills","skills/skills","skills~1skills")) {
+            base.put(key,Collections.nCopies(129,Map.of("id","value")));
+            assertThatThrownBy(()->CodingRuntimeContext.validate(base)).isInstanceOf(CodingContractException.class);
+            base.remove(key);
+        }
+        for(var cards:List.of(List.of(Map.of("apiKey","private")),List.of(Map.of("description","x".repeat(16001))),List.of("invalid-card"))) {
+            base.put("skills",Map.of("skills",cards));
+            assertThatThrownBy(()->CodingRuntimeContext.validate(base)).isInstanceOf(CodingContractException.class);
+        }
+        base.remove("skills");base.put("configuredSkillIds",List.of(Map.of("id","invalid")));
+        assertThatThrownBy(()->CodingRuntimeContext.validate(base)).isInstanceOf(CodingContractException.class);
+    }
     @Test void multipleSearchEnginesAreFrozenWithoutCredentialsAndLegacySingleEngineStillLoads(){
         var internet=new HashMap<String,Object>(Map.of("schemaVersion","runtime_os.internet.v1","modelName","model","modelRevision",2,
             "providerId","one","providerRevision",3,"agentId","agent","explicitlyRequested",false));

@@ -42,7 +42,7 @@ public final class CodingConfigurationSnapshot {
         result.put("skills", SkillAnalysisContext.catalog(SkillAnalysisContext.from(attributes)));
         Object configured = attributes.get(com.chatchat.common.skills.DomainSkillRuntimePort.PLANNING_CONTEXT_ATTRIBUTE);
         result.put("configuredSkillIds", configured instanceof Map<?, ?> map && map.get("configuredSkillIds") instanceof List<?> ids
-            ? ids.stream().filter(String.class::isInstance).limit(128).toList() : List.of());
+            ? ids.stream().filter(String.class::isInstance).toList() : List.of());
         return CodingRuntimeContext.validate(result);
     }
 }

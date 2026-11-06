@@ -1,0 +1,40 @@
+{
+  "status": "FAIL",
+  "taskId": "analysis-coding-9f82279becc6bc06b8ca0f251efcf140968c3ee3d8fbf9628aabfec5ea454cc7",
+  "executionStatus": "COMPLETED",
+  "faultInjected": false,
+  "executeRequests": 1,
+  "successfulPythonOperationsUnchanged": false,
+  "sameSdkSession": false,
+  "budgetAndDeadlineUnchanged": false,
+  "fencingAdvanced": false,
+  "sameContainerAndImage": false,
+  "afterUsage": {
+    "budgetId": "analysis-coding-tool-budget:analysis-coding-9f82279becc6bc06b8ca0f251efcf140968c3ee3d8fbf9628aabfec5ea454cc7",
+    "costCurrency": "USD",
+    "consumed": {
+      "modelCalls": 3,
+      "modelTokens": 54272,
+      "toolCalls": 2,
+      "codeExecutions": 1,
+      "cpuMillis": 0,
+      "peakMemoryBytes": 0,
+      "outputBytes": 14256,
+      "costAmount": "0"
+    },
+    "reserved": {
+      "modelCalls": 0,
+      "modelTokens": 142336,
+      "toolCalls": 0,
+      "codeExecutions": 0,
+      "cpuMillis": 25000,
+      "peakMemoryBytes": 0,
+      "outputBytes": 335699,
+      "costAmount": "2.499999999999"
+    },
+    "meteringComplete": false
+  },
+  "reasonCode": null,
+  "workspaceId": "63c4f3ff-0d91-443e-b68c-674d421594f2",
+  "nodeId": "7855deb9-d01c-4a02-9c13-7b7429d78b3c"
+}

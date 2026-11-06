@@ -7,7 +7,8 @@ function el(tag: string, className = '', text = ''): HTMLElement {
 }
 function replace(target: HTMLElement, ...children: (HTMLElement | string)[]) { target.replaceChildren(...children); }
 const labels: Record<string, string> = { RUNNING: '执行中', COMPLETED: '已完成', FAILED: '失败',
-  CANCELLED: '已取消', INTERRUPTED: '已中断', SUCCEEDED: '成功', UNKNOWN: '未确认' };
+  CANCELLED: '已取消', INTERRUPTED: '已中断', SUCCEEDED: '成功', UNKNOWN: '未确认',PARTIAL:'部分完成',BUDGET_EXCEEDED:'预算超限' };
+const taskStatus=(task:{status:string;runtimeOutcome?:{terminal:boolean;status:string}})=>task.runtimeOutcome?.terminal?task.runtimeOutcome.status:task.status;
 const badge = (value: string) => el('span', `badge ${value}`, labels[value] ?? value);
 const time = (value: string | null) => value ? new Date(value).toLocaleString('zh-CN', { hour12: false }) : '—';
 const amount = (value: number | null) => value === null ? '未取得' : value.toLocaleString('zh-CN');
@@ -78,7 +79,7 @@ function renderList(page: TaskPage) {
   replace($('task-list'), ...page.items.map(task => {
     const row = el('button', `task-row ${task.id === selectedId ? 'selected' : ''}`) as HTMLButtonElement;
     row.dataset.taskId = task.id; row.setAttribute('aria-pressed', String(task.id === selectedId));
-    const top = el('div', 'task-top'); top.append(el('span', 'task-name', task.taskId.length > 36 ? `${task.taskId.slice(0, 32)}…` : task.taskId), badge(task.status));
+    const top = el('div', 'task-top'); top.append(el('span', 'task-name', task.taskId.length > 36 ? `${task.taskId.slice(0, 32)}…` : task.taskId), badge(taskStatus(task)));
     const meta = el('div', 'task-meta'); meta.append(el('span', '', duration(task.elapsedMs)),
       el('span', '', `${task.modelCalls} 次模型调用`), el('span', '', `${task.codeCount} 份代码`));
     row.append(top, el('div', 'task-objective', task.objective || '未提供任务目标'), meta);
@@ -131,9 +132,11 @@ function renderOverview(task: TaskDetail) {
     ]), el('p', 'notice', '进展统计随有效检查点累计恢复；旧检查点或容量不足时，缺失历史见事件和平台回执。阶段和调用目的由已知事件推断，不代表模型内部思考。未返回用量保持未知。'));
   }
   if (task.error) node.append(el('p', 'banner error', task.error));
+  if(task.runtimeUnavailable)node.append(el('p','banner','Runtime 状态暂不可用，当前为节点观测，尚待核实。'));
+  if(task.runtimeOutcome?.status==='PARTIAL')for(const limitation of task.runtimeOutcome.limitations)node.append(el('p','banner',limitation));
   if (task.reconciliationRequired) node.append(el('p', 'banner error', '节点重启前执行未结束，真实结果需要由平台核对。请勿仅凭节点记录重放任务。'));
   const persistence = snapshot?.history.persistence;
-  node.append(el('p', 'notice', `节点观测记录，不代表业务结果验收。历史存储：${persistence === 'MEMORY' ? '仅内存' : persistence === 'HEALTHY' ? '已启用持久化' : '存储异常'}。任务和代码均有保留上限，完整执行回执由平台管理。`));
+  node.append(el('p', 'notice', `${task.authority==='RUNTIME_CONFIRMED'?'状态已与 Runtime 权威记录核对；阶段、调用明细来自节点观测':'节点观测记录，尚非平台确认的任务终态'}，不代表业务结果验收。历史存储：${persistence === 'MEMORY' ? '仅内存' : persistence === 'HEALTHY' ? '已启用持久化' : '存储异常'}。任务和代码均有保留上限，完整执行回执由平台管理。`));
   return node;
 }
 function renderModels(task: TaskDetail) {
@@ -175,6 +178,7 @@ function renderModels(task: TaskDetail) {
       ['供应商生成 / 重试', [call.generationTimeMs,call.retryTimeMs].map(v=>v == null ? '未观测' : duration(v)).join(' / ')],
       ['缓存读取 / 写入 Tokens', `${amount(call.usage.cacheReadTokens ?? null)} / ${amount(call.usage.cacheWriteTokens ?? null)}`],
       ['最近失败分类', call.errorCategory ?? '无记录'],
+      ['响应来源',call.receiptReplayed?'原模型回执恢复，未发起新推理；用量以原平台回执为准':'本次模型调用'],
     ]), el('p', 'notice', '响应头耗时包含 Java 和模型整体等待，不等于供应商排队或首 Token。重传字节包含必要的固定指令与历史，不能直接视为可节约 Token。'));
     card.append(diagnostics); node.append(card);
   }
@@ -327,7 +331,7 @@ function renderPython(task: TaskDetail) {
 }
 function renderDetail(task: TaskDetail) {
   detail = task;
-  replace($('detail-heading'), el('h2', '', '执行详情'), badge(task.status));
+  replace($('detail-heading'), el('h2', '', '执行详情'), badge(taskStatus(task)));
   const signature = JSON.stringify([activeTab, task]);
   if (signature === detailSignature) return;
   // Keep code selection and timeline expansion stable while only elapsed time changes.

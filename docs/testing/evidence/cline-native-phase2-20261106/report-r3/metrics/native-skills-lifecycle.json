@@ -1,0 +1,732 @@
+{
+  "scope": "synthetic real-provider tasks; no replay; successful loads are SDK results, not tool attempts",
+  "cases": [
+    {
+      "case": "multi",
+      "taskId": "analysis-coding-0be97b4edbb59b3a11d9efdb4f4d85395a589fcb20b6af0833f33b3b70afab0f",
+      "nodeStatus": "FAILED",
+      "eventsTruncated": false,
+      "discovery": [
+        {
+          "type": "SKILLS_DISCOVERED",
+          "timestamp": "2026-11-06T02:14:34.546Z",
+          "nativeSkills": true,
+          "discovery": "loadAgentPluginPackages",
+          "loader": "createUserInstructionConfigService",
+          "nativeSkillCount": 15
+        }
+      ],
+      "successfulLoads": [],
+      "nativeCalls": [],
+      "modelTimeline": [
+        {
+          "ordinal": 1,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-06T02:14:35.736999176Z",
+          "finishedAt": "2026-11-06T02:14:59.034484151Z",
+          "durationMs": 23297,
+          "purpose": "PREPARING",
+          "actualTools": [
+            "input_read"
+          ],
+          "finishReason": "tool-calls",
+          "providerFinishReason": "TOOL_EXECUTION",
+          "usage": {
+            "inputTokens": 15705,
+            "outputTokens": 1591,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 1422
+          },
+          "compactionCount": 0,
+          "contextSizeBefore": 44655,
+          "contextSizeAfter": 44655,
+          "contextChangeReason": "INITIAL_OR_REPLACED_CONTEXT"
+        },
+        {
+          "ordinal": 2,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-06T02:15:01.113286201Z",
+          "finishedAt": "2026-11-06T02:16:43.230907588Z",
+          "durationMs": 102117,
+          "purpose": "EXPLORING",
+          "actualTools": [],
+          "finishReason": "stop",
+          "providerFinishReason": "STOP",
+          "usage": {
+            "inputTokens": 17181,
+            "outputTokens": 6024,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 5842
+          },
+          "compactionCount": 0,
+          "contextSizeBefore": 47174,
+          "contextSizeAfter": 47174,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        },
+        {
+          "ordinal": 3,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-06T02:16:44.248553399Z",
+          "finishedAt": "2026-11-06T02:21:18.832954009Z",
+          "durationMs": 274584,
+          "purpose": "EXPLORING",
+          "actualTools": [
+            "python_execute"
+          ],
+          "finishReason": "tool-calls",
+          "providerFinishReason": "TOOL_EXECUTION",
+          "usage": {
+            "inputTokens": 17458,
+            "outputTokens": 15598,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 3815
+          },
+          "compactionCount": 0,
+          "contextSizeBefore": 48662,
+          "contextSizeAfter": 48662,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        },
+        {
+          "ordinal": 4,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-06T02:21:28.392518574Z",
+          "finishedAt": "2026-11-06T02:21:42.462381838Z",
+          "durationMs": 14069,
+          "purpose": "REPAIRING",
+          "actualTools": [
+            "python_execute"
+          ],
+          "finishReason": "tool-calls",
+          "providerFinishReason": "TOOL_EXECUTION",
+          "usage": {
+            "inputTokens": 33765,
+            "outputTokens": 835,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 661
+          },
+          "compactionCount": 0,
+          "contextSizeBefore": 97194,
+          "contextSizeAfter": 97194,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        },
+        {
+          "ordinal": 5,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-06T02:21:52.240863553Z",
+          "finishedAt": "2026-11-06T02:23:08.290319091Z",
+          "durationMs": 76049,
+          "purpose": "REVIEWING",
+          "actualTools": [
+            "input_read",
+            "code_read"
+          ],
+          "finishReason": "tool-calls",
+          "providerFinishReason": "TOOL_EXECUTION",
+          "usage": {
+            "inputTokens": 26967,
+            "outputTokens": 4498,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 4246
+          },
+          "compactionCount": 1,
+          "contextSizeBefore": 137710,
+          "contextSizeAfter": 45822,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        },
+        {
+          "ordinal": 6,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-06T02:23:13.783782756Z",
+          "finishedAt": "2026-11-06T02:23:47.228850221Z",
+          "durationMs": 33445,
+          "purpose": "EXPLORING",
+          "actualTools": [
+            "python_execute"
+          ],
+          "finishReason": "tool-calls",
+          "providerFinishReason": "TOOL_EXECUTION",
+          "diagnosticCode": "CODE_PROPOSAL_INVALID",
+          "usage": {
+            "inputTokens": 41390,
+            "outputTokens": 2269,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 1333
+          },
+          "compactionCount": 2,
+          "contextSizeBefore": 185530,
+          "contextSizeAfter": 45824,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        },
+        {
+          "ordinal": 7,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-06T02:23:51.534181456Z",
+          "finishedAt": "2026-11-06T02:24:10.244281618Z",
+          "durationMs": 18710,
+          "purpose": "REPAIRING",
+          "actualTools": [
+            "code_read"
+          ],
+          "finishReason": "tool-calls",
+          "providerFinishReason": "TOOL_EXECUTION",
+          "usage": {
+            "inputTokens": 26975,
+            "outputTokens": 754,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 669
+          },
+          "compactionCount": 3,
+          "contextSizeBefore": 189225,
+          "contextSizeAfter": 45824,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        },
+        {
+          "ordinal": 8,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-06T02:24:14.088158344Z",
+          "finishedAt": "2026-11-06T02:25:40.870562419Z",
+          "durationMs": 86782,
+          "purpose": "EXPLORING",
+          "actualTools": [
+            "python_execute"
+          ],
+          "finishReason": "tool-calls",
+          "providerFinishReason": "TOOL_EXECUTION",
+          "diagnosticCode": "MODEL_TOOL_ARGUMENTS_INVALID",
+          "usage": {
+            "inputTokens": 40081,
+            "outputTokens": 3934,
+            "totalCost": null,
+            "cacheReadTokens": 39936,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 2270
+          },
+          "compactionCount": 4,
+          "contextSizeBefore": 234700,
+          "contextSizeAfter": 45824,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        },
+        {
+          "ordinal": 9,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-06T02:25:45.164096244Z",
+          "finishedAt": "2026-11-06T02:26:42.179843264Z",
+          "durationMs": 57015,
+          "purpose": "REPAIRING",
+          "actualTools": [
+            "code_read"
+          ],
+          "finishReason": "tool-calls",
+          "providerFinishReason": "TOOL_EXECUTION",
+          "usage": {
+            "inputTokens": 27060,
+            "outputTokens": 2671,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 2586
+          },
+          "compactionCount": 4,
+          "contextSizeBefore": 241335,
+          "contextSizeAfter": 52459,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        },
+        {
+          "ordinal": 10,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-06T02:26:46.768136046Z",
+          "finishedAt": "2026-11-06T02:31:04.736936567Z",
+          "durationMs": 257968,
+          "purpose": "EXPLORING",
+          "actualTools": [
+            "python_execute"
+          ],
+          "finishReason": "tool-calls",
+          "providerFinishReason": "TOOL_EXECUTION",
+          "diagnosticCode": "CODE_PROPOSAL_INVALID",
+          "usage": {
+            "inputTokens": 39945,
+            "outputTokens": 15888,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 10153
+          },
+          "compactionCount": 5,
+          "contextSizeBefore": 286811,
+          "contextSizeAfter": 45824,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        },
+        {
+          "ordinal": 11,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-06T02:31:09.734487706Z",
+          "finishedAt": "2026-11-06T02:32:17.078974095Z",
+          "durationMs": 67344,
+          "purpose": "REPAIRING",
+          "actualTools": [
+            "code_read"
+          ],
+          "finishReason": "tool-calls",
+          "providerFinishReason": "TOOL_EXECUTION",
+          "usage": {
+            "inputTokens": 27255,
+            "outputTokens": 3585,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 3500
+          },
+          "compactionCount": 6,
+          "contextSizeBefore": 306819,
+          "contextSizeAfter": 46384,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        },
+        {
+          "ordinal": 12,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-06T02:32:21.598674558Z",
+          "finishedAt": "2026-11-06T02:33:21.842047938Z",
+          "durationMs": 60243,
+          "purpose": "EXPLORING",
+          "actualTools": [
+            "python_execute"
+          ],
+          "finishReason": "tool-calls",
+          "providerFinishReason": "TOOL_EXECUTION",
+          "diagnosticCode": "CODE_PROPOSAL_INVALID",
+          "usage": {
+            "inputTokens": 40073,
+            "outputTokens": 2917,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 2809
+          },
+          "compactionCount": 7,
+          "contextSizeBefore": 352295,
+          "contextSizeAfter": 46384,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        }
+      ],
+      "sdkCompactionCount": 7,
+      "diagnostics": [
+        {
+          "type": "TOOL_FINISHED",
+          "timestamp": "2026-11-06T02:21:27.073Z",
+          "tool": "python_execute",
+          "status": "FAILED",
+          "diagnosticCode": "FIELD_ACCESS_ERROR",
+          "resultAvailable": false
+        },
+        {
+          "type": "TOOL_FINISHED",
+          "timestamp": "2026-11-06T02:21:50.227Z",
+          "tool": "python_execute",
+          "status": "SUCCEEDED",
+          "resultAvailable": true
+        },
+        {
+          "type": "CODE_PROPOSAL_REJECTED",
+          "timestamp": "2026-11-06T02:23:49.281Z",
+          "diagnosticCode": "CODE_PROPOSAL_INVALID"
+        },
+        {
+          "type": "MODEL_RESPONSE_REJECTED",
+          "timestamp": "2026-11-06T02:25:41.513Z",
+          "diagnosticCode": "MODEL_TOOL_ARGUMENTS_INVALID"
+        },
+        {
+          "type": "CODE_PROPOSAL_REJECTED",
+          "timestamp": "2026-11-06T02:31:06.970Z",
+          "diagnosticCode": "CODE_PROPOSAL_INVALID"
+        },
+        {
+          "type": "CODE_PROPOSAL_REJECTED",
+          "timestamp": "2026-11-06T02:33:24.229Z",
+          "diagnosticCode": "CODE_PROPOSAL_INVALID"
+        }
+      ],
+      "pythonFeedback": [
+        {
+          "operationId": "cline-08e10bc6bbe1f61fcb3722afb084d013dc1b0b8d64c00c3887f8c827a2ca9ff0",
+          "status": "FAILED",
+          "exceptionType": "KeyError",
+          "diagnosticCode": "FIELD_ACCESS_ERROR"
+        },
+        {
+          "operationId": "cline-4eb3d2af69f25a69dfeffe10543560f02744d35ddf9c474cbd3387169c5a4a65",
+          "status": "SUCCEEDED",
+          "exceptionType": null,
+          "diagnosticCode": null
+        }
+      ],
+      "reports": []
+    },
+    {
+      "case": "single",
+      "taskId": "analysis-coding-8c54105760a8170a5ebc52312e64da07c0003d5b471668ebb9ab75813cc2cd2a",
+      "nodeStatus": "CANCELLED",
+      "eventsTruncated": false,
+      "discovery": [
+        {
+          "type": "SKILLS_DISCOVERED",
+          "timestamp": "2026-11-06T02:14:34.511Z",
+          "nativeSkills": true,
+          "discovery": "loadAgentPluginPackages",
+          "loader": "createUserInstructionConfigService",
+          "nativeSkillCount": 15
+        },
+        {
+          "type": "SKILLS_DISCOVERED",
+          "timestamp": "2026-11-06T02:19:38.468Z",
+          "nativeSkills": true,
+          "discovery": "loadAgentPluginPackages",
+          "loader": "createUserInstructionConfigService",
+          "nativeSkillCount": 15
+        }
+      ],
+      "successfulLoads": [],
+      "nativeCalls": [
+        {
+          "operationId": "model-3",
+          "tool": "read_files",
+          "paths": [
+            {
+              "sha256": "d3d3b67d564ec25fb2c55a8010b7f41510e61fbd0916863602f0fd788a0351f9",
+              "scope": "sandbox-data"
+            }
+          ]
+        }
+      ],
+      "modelTimeline": [
+        {
+          "ordinal": 1,
+          "status": "FAILED",
+          "startedAt": "2026-11-06T02:14:35.325Z",
+          "finishedAt": "2026-11-06T02:19:35.994Z",
+          "durationMs": 300669,
+          "purpose": "PREPARING",
+          "diagnosticCode": "CALLBACK_HTTP_REJECTED",
+          "usage": {
+            "inputTokens": null,
+            "outputTokens": null,
+            "totalCost": null
+          },
+          "compactionCount": 0,
+          "contextSizeBefore": 44513,
+          "contextSizeAfter": 44513,
+          "contextChangeReason": "INITIAL_OR_REPLACED_CONTEXT"
+        },
+        {
+          "ordinal": 2,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-06T02:19:39.341350999Z",
+          "finishedAt": "2026-11-06T02:23:28.941490055Z",
+          "durationMs": 229600,
+          "purpose": "PREPARING",
+          "actualTools": [],
+          "finishReason": "stop",
+          "providerFinishReason": "STOP",
+          "usage": {
+            "inputTokens": 15706,
+            "outputTokens": 9539,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 9320
+          },
+          "compactionCount": 0,
+          "contextSizeBefore": 44879,
+          "contextSizeAfter": 44879,
+          "contextChangeReason": "INITIAL_OR_REPLACED_CONTEXT"
+        },
+        {
+          "ordinal": 3,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-06T02:23:30.120859216Z",
+          "finishedAt": "2026-11-06T02:23:36.324287183Z",
+          "durationMs": 6203,
+          "purpose": "PREPARING",
+          "actualTools": [
+            "input_read",
+            "read_files"
+          ],
+          "finishReason": "tool-calls",
+          "providerFinishReason": "TOOL_EXECUTION",
+          "usage": {
+            "inputTokens": 16165,
+            "outputTokens": 298,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 33
+          },
+          "compactionCount": 0,
+          "contextSizeBefore": 46518,
+          "contextSizeAfter": 46518,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        },
+        {
+          "ordinal": 4,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-06T02:23:38.857468856Z",
+          "finishedAt": "2026-11-06T02:26:40.123591857Z",
+          "durationMs": 181266,
+          "purpose": "PREPARING",
+          "actualTools": [
+            "python_execute"
+          ],
+          "finishReason": "tool-calls",
+          "providerFinishReason": "TOOL_EXECUTION",
+          "usage": {
+            "inputTokens": 17709,
+            "outputTokens": 14447,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 4770
+          },
+          "compactionCount": 0,
+          "contextSizeBefore": 49789,
+          "contextSizeAfter": 49789,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        },
+        {
+          "ordinal": 5,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-06T02:26:47.097392737Z",
+          "finishedAt": "2026-11-06T02:27:47.148385612Z",
+          "durationMs": 60050,
+          "purpose": "REPAIRING",
+          "actualTools": [
+            "python_execute"
+          ],
+          "finishReason": "tool-calls",
+          "providerFinishReason": "TOOL_EXECUTION",
+          "diagnosticCode": "CODE_PROPOSAL_INVALID",
+          "usage": {
+            "inputTokens": 31706,
+            "outputTokens": 3850,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 3339
+          },
+          "compactionCount": 0,
+          "contextSizeBefore": 91642,
+          "contextSizeAfter": 91642,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        },
+        {
+          "ordinal": 6,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-06T02:27:49.755598158Z",
+          "finishedAt": "2026-11-06T02:28:03.789799514Z",
+          "durationMs": 14034,
+          "purpose": "REPAIRING",
+          "actualTools": [
+            "python_execute"
+          ],
+          "finishReason": "tool-calls",
+          "providerFinishReason": "TOOL_EXECUTION",
+          "usage": {
+            "inputTokens": 32847,
+            "outputTokens": 893,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 401
+          },
+          "compactionCount": 0,
+          "contextSizeBefore": 95679,
+          "contextSizeAfter": 95679,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        },
+        {
+          "ordinal": 7,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-06T02:28:13.832608964Z",
+          "finishedAt": "2026-11-06T02:28:42.100553839Z",
+          "durationMs": 28267,
+          "purpose": "REPAIRING",
+          "actualTools": [
+            "code_read"
+          ],
+          "finishReason": "tool-calls",
+          "providerFinishReason": "TOOL_EXECUTION",
+          "usage": {
+            "inputTokens": 35902,
+            "outputTokens": 1438,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 1349
+          },
+          "compactionCount": 0,
+          "contextSizeBefore": 105991,
+          "contextSizeAfter": 105991,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        },
+        {
+          "ordinal": 8,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-06T02:28:45.022773528Z",
+          "finishedAt": "2026-11-06T02:31:18.816251624Z",
+          "durationMs": 153793,
+          "purpose": "EXPLORING",
+          "actualTools": [],
+          "finishReason": "stop",
+          "providerFinishReason": "STOP",
+          "usage": {
+            "inputTokens": 27415,
+            "outputTokens": 7968,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 7775
+          },
+          "compactionCount": 1,
+          "contextSizeBefore": 144264,
+          "contextSizeAfter": 83336,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        },
+        {
+          "ordinal": 9,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-06T02:31:21.862112229Z",
+          "finishedAt": "2026-11-06T02:34:16.189020060Z",
+          "durationMs": 174326,
+          "purpose": "EXPLORING",
+          "actualTools": [
+            "python_execute"
+          ],
+          "finishReason": "tool-calls",
+          "providerFinishReason": "TOOL_EXECUTION",
+          "diagnosticCode": "CODE_PROPOSAL_INVALID",
+          "usage": {
+            "inputTokens": 27648,
+            "outputTokens": 11626,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 8425
+          },
+          "compactionCount": 2,
+          "contextSizeBefore": 145812,
+          "contextSizeAfter": 46080,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        },
+        {
+          "ordinal": 10,
+          "status": "SUCCEEDED",
+          "startedAt": "2026-11-06T02:34:20.271213904Z",
+          "finishedAt": "2026-11-06T02:34:23.653509917Z",
+          "durationMs": 3382,
+          "purpose": "REPAIRING",
+          "actualTools": [
+            "code_read"
+          ],
+          "finishReason": "tool-calls",
+          "providerFinishReason": "TOOL_EXECUTION",
+          "usage": {
+            "inputTokens": 20628,
+            "outputTokens": 108,
+            "totalCost": null,
+            "cacheReadTokens": 4096,
+            "cacheWriteTokens": null,
+            "reasoningTokens": 19
+          },
+          "compactionCount": 2,
+          "contextSizeBefore": 157988,
+          "contextSizeAfter": 58256,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        },
+        {
+          "ordinal": 11,
+          "status": "UNKNOWN",
+          "startedAt": "2026-11-06T02:34:26.150Z",
+          "finishedAt": null,
+          "durationMs": 6255,
+          "purpose": "EXPLORING",
+          "usage": {
+            "inputTokens": null,
+            "outputTokens": null,
+            "totalCost": null
+          },
+          "compactionCount": 3,
+          "contextSizeBefore": 196260,
+          "contextSizeAfter": 46495,
+          "contextChangeReason": "HISTORY_REPLAY_WITH_NEW_PARTS"
+        }
+      ],
+      "sdkCompactionCount": 3,
+      "diagnostics": [
+        {
+          "type": "MODEL_FAILED",
+          "timestamp": "2026-11-06T02:19:35.994Z",
+          "status": "FAILED",
+          "diagnosticCode": "CALLBACK_HTTP_REJECTED"
+        },
+        {
+          "type": "TOOL_FINISHED",
+          "timestamp": "2026-11-06T02:26:45.980Z",
+          "tool": "python_execute",
+          "status": "FAILED",
+          "diagnosticCode": "SYNTAX_ERROR",
+          "resultAvailable": false
+        },
+        {
+          "type": "CODE_PROPOSAL_REJECTED",
+          "timestamp": "2026-11-06T02:27:48.549Z",
+          "diagnosticCode": "CODE_PROPOSAL_INVALID"
+        },
+        {
+          "type": "TOOL_FINISHED",
+          "timestamp": "2026-11-06T02:28:12.324Z",
+          "tool": "python_execute",
+          "status": "SUCCEEDED",
+          "diagnosticCode": "OUTPUT_CONTRACT",
+          "resultAvailable": false
+        },
+        {
+          "type": "CODE_PROPOSAL_REJECTED",
+          "timestamp": "2026-11-06T02:34:18.092Z",
+          "diagnosticCode": "CODE_PROPOSAL_INVALID"
+        }
+      ],
+      "pythonFeedback": [
+        {
+          "operationId": "cline-06e1c0db7351f3b7636f5d871e72563d189cd4d501fede655b5c9324c5d84267",
+          "status": "SUCCEEDED",
+          "exceptionType": null,
+          "diagnosticCode": "OUTPUT_CONTRACT"
+        },
+        {
+          "operationId": "cline-e73d28d5022e4cab2115cf613cc1e02579cf2399d613c06a029ba4a9dee13154",
+          "status": "FAILED",
+          "exceptionType": "SyntaxError",
+          "diagnosticCode": "SYNTAX_ERROR"
+        }
+      ],
+      "reports": []
+    }
+  ],
+  "tasksWithSuccessfulLoads": 0,
+  "successfulBodyLoads": 0,
+  "successfulReferenceLoads": 0
+}

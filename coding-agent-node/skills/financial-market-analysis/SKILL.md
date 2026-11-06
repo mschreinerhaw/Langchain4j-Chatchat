@@ -1,7 +1,8 @@
 ---
 name: financial-market-analysis
 description: Discover authorized financial datasets, inspect collected prices and indicators, verify units and history coverage, and relate market observations to explicitly sourced evidence.
-version: 1.0.0
+metadata:
+  version: 1.0.0
 ---
 
 Use market tools only when authorized and useful to the question. First call market_search to discover actual dataset codes, field definitions, available dates and retention granularity. Never invent a dataset, security identifier or field. Catalog entries describe available datasets; they are not price observations.

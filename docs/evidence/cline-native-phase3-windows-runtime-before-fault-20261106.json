@@ -1,0 +1,83 @@
+{
+  "containerId": "7a2be5c7d1c28a345536e0c4da63e7537f46313acf6884cde5b710691e3ff038",
+  "imageId": "sha256:beecfec0d1d2f7e3b9321da785c30c5c3bd26e8616136618d95d78d6d14782aa",
+  "taskId": "analysis-coding-e1486aec5891067596c99a41de3b1624313ce7c10d9744d972c35cace569975a",
+  "sdkSessionId": "0f715898-30be-4ac5-aadc-4a6d7f027e74",
+  "fencingToken": 1,
+  "budget": {
+    "budgetId": "analysis-coding-tool-budget:analysis-coding-e1486aec5891067596c99a41de3b1624313ce7c10d9744d972c35cace569975a",
+    "deadlineAt": "2026-11-06T07:17:45.585Z",
+    "maxModelCalls": 12,
+    "maxModelTokens": 786432,
+    "maxToolCalls": 24,
+    "maxCodeExecutions": 12,
+    "maxCostAmount": "10",
+    "costCurrency": "USD",
+    "maxCpuMillis": 300000,
+    "maxMemoryBytes": 536870912,
+    "maxOutputBytes": 4194304
+  },
+  "usage": {
+    "budgetId": "analysis-coding-tool-budget:analysis-coding-e1486aec5891067596c99a41de3b1624313ce7c10d9744d972c35cace569975a",
+    "costCurrency": "USD",
+    "consumed": {
+      "modelCalls": 3,
+      "modelTokens": 59166,
+      "toolCalls": 3,
+      "codeExecutions": 2,
+      "cpuMillis": 0,
+      "peakMemoryBytes": 0,
+      "outputBytes": 11326,
+      "costAmount": "0"
+    },
+    "reserved": {
+      "modelCalls": 1,
+      "modelTokens": 202978,
+      "toolCalls": 0,
+      "codeExecutions": 0,
+      "cpuMillis": 50000,
+      "peakMemoryBytes": 0,
+      "outputBytes": 688154,
+      "costAmount": "3.333333333332"
+    },
+    "meteringComplete": false
+  },
+  "restartPolicy": {
+    "Name": "unless-stopped",
+    "MaximumRetryCount": 0
+  },
+  "pendingModelOperations": [
+    "model-4"
+  ],
+  "checkpointOrdinal": 5,
+  "modelOrdinal": 3,
+  "checkpointSha256": "b8570cc7eeeff74d3fb161a344f902db6073215bfb68e89c3a942d719730d3fe",
+  "codeVersions": [
+    {
+      "version": 1,
+      "codeHash": "4e8a4be3c00ac3bd713e1fb6519a999e3d8d02c898924835d145a3e1d846d411",
+      "parentHash": null,
+      "parentVersion": null,
+      "operationId": "cline-de8c5b1ceef0bbd2c0a83fed959d39ec255b128e499a303a23bddac3b8d189bf",
+      "status": "REJECTED",
+      "kind": "INITIAL",
+      "editCount": 0,
+      "patchHash": "643d5437104296e21d906ecb15b2c96ad278f20cfc4af53b12bb6069bd853726"
+    },
+    {
+      "version": 2,
+      "codeHash": "22ed6b260b8761e55c379b8e5d722ee5ea87b423f5c64a5e4f4f2b4076b92f09",
+      "parentHash": "4e8a4be3c00ac3bd713e1fb6519a999e3d8d02c898924835d145a3e1d846d411",
+      "parentVersion": 1,
+      "operationId": "cline-61d9587e4be7fb69ebe9a0793cec449bf261fb7545b3ad08c315fb10164d2f43",
+      "status": "VALIDATED",
+      "kind": "PATCH",
+      "editCount": 1,
+      "patchHash": "d4ce6acc3cff83a31a6fad8cb0f4e2d362c643a04b8b028b978789fbe57ec0c6"
+    }
+  ],
+  "window": "success",
+  "successfulPython": {
+    "cline-61d9587e4be7fb69ebe9a0793cec449bf261fb7545b3ad08c315fb10164d2f43": "a162f16e8166a4b7c7597354b63a3df8755611f5b43b4ede05d80625780937b0"
+  }
+}

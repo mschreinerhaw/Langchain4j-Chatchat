@@ -21,10 +21,14 @@ export function createRuntimeModel(gateway, contract, initialOrdinal = 0, { nati
       }));
       const answer = await gateway.model(contract, {
         operationId: `model-${++modelCallIndex}`,
+        ...(Number.isSafeInteger(request.runtimeCheckpointOrdinal) ? {sdkCheckpointOrdinal:request.runtimeCheckpointOrdinal} : {}),
+        ...(request.runtimeReceiptReplay ? {receiptReplayExpected:true} : {}),
         ...(managesAdmissions ? { managedAttempt: true } : {}),
         modelResponseFeedbackVersion: 'runtime_os.coding.model_feedback.v1',
         systemPrompt: request.systemPrompt ?? '', messages, tools,
       }, request.signal);
+      if(request.runtimeReceiptReplay&&answer.runtimeReceiptReplayed!==true)
+        throw new Error('Restored SDK expected an archived model response, never a new inference');
       if (answer.error) {
         const feedback = answer.modelResponseFeedback;
         if (feedback?.schemaVersion !== 'runtime_os.coding.model_feedback.v1'
@@ -44,15 +48,17 @@ export function createRuntimeModel(gateway, contract, initialOrdinal = 0, { nati
           yield { type: 'text-delta', text:
             `Runtime rejected the provider response: ${feedback.diagnosticCode}. No tool was executed.` };
       }
-      if (answer.modelInfo || answer.callbackTiming || answer.finishReason) yield { type: 'runtime-model-metadata',
+      if (answer.modelInfo || answer.callbackTiming || answer.finishReason || answer.runtimeReceiptReplayed) yield { type: 'runtime-model-metadata',
         metadata: { ...answer.modelInfo, ...answer.callbackTiming,
+          ...(answer.runtimeReceiptReplayed ? {receiptReplayed:true} : {}),
           ...(typeof answer.finishReason === 'string' ? { providerFinishReason: answer.finishReason } : {}) } };
       if (answer.text) yield { type: 'text-delta', text: answer.text };
       for (const call of answer.toolCalls ?? []) {
         yield { type: 'tool-call-delta', toolCallId: call.id,
           toolName: call.name, input: call.input };
       }
-      if (answer.usage) yield { type: 'usage', usage: answer.usage };
+      // The original receipt/usage remains immutable in Java; consuming it is not inference.
+      if (answer.usage&&!answer.runtimeReceiptReplayed) yield { type: 'usage', usage: answer.usage };
       const reasons = { STOP: 'stop', TOOL_EXECUTION: 'tool-calls', LENGTH: 'max-tokens',
         CONTENT_FILTER: 'content-filter', OTHER: 'unknown' };
       const reason = nativeSdk ? answer.error

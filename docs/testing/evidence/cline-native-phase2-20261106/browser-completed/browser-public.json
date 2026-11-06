@@ -1,0 +1,48 @@
+{
+  "scope": "REAL_AUTHENTICATED_BROWSER_NO_MOCKS",
+  "cases": [
+    {
+      "case": "running-single",
+      "workspaceId": "c7bbd9a6-b29f-4721-abb3-82e7b18653d2",
+      "nodeId": "4b47a3f7-253c-4fd3-834d-4a23101ed812",
+      "taskId": "analysis-coding-ebe8f6c853a0ebaf9cb6adc6017b5db81b5e7c64f9fa61791102eb90dbbd711a",
+      "apiStatus": "COMPLETED",
+      "renderedCharts": [
+        {
+          "id": "region_bar",
+          "kind": "plotly",
+          "rendered": true,
+          "fileId": "2dee085435d025f978d50fef88d93aca3d29a73b25f647c2a2fbc24599f2d775"
+        }
+      ],
+      "receiptUnchanged": true,
+      "offlineReconnectAndRefresh": true
+    },
+    {
+      "case": "running-multi",
+      "workspaceId": "c7bbd9a6-b29f-4721-abb3-82e7b18653d2",
+      "nodeId": "bce69e63-ad12-490c-b251-f31969f2ae0d",
+      "taskId": "analysis-coding-ab19eeb83816fba9f85d306e162be2de16058335dd265ed92a211d1b658f3f4d",
+      "apiStatus": "COMPLETED",
+      "renderedCharts": [
+        {
+          "id": "region_comparison",
+          "kind": "plotly",
+          "rendered": true,
+          "fileId": "f8ad147ece3cb8740938ccd50fc2fa8acf1cfaf591339bc1290edec883628d51"
+        },
+        {
+          "id": "region_proportion",
+          "kind": "plotly",
+          "rendered": true,
+          "fileId": "cf6d4415a1829f56e024d1eda18a5f1a59daf6cfadc58aafe3c5dbef0b69f20b"
+        }
+      ],
+      "receiptUnchanged": true,
+      "offlineReconnectAndRefresh": true
+    }
+  ],
+  "pageErrors": [],
+  "executions": 0,
+  "status": "PASS"
+}

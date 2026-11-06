@@ -1,0 +1,735 @@
+{
+  "scope": "SYNTHETIC_FIXTURES_ONLY; report declarations are not independent quality checks",
+  "rows": [
+    {
+      "variant": "baseline",
+      "case": "complex-0",
+      "taskId": "analysis-coding-da9501016b617a2a8716b11c985c905332503e694f8a3af653b363795739d07f",
+      "status": "COMPLETED",
+      "reportStatus": null,
+      "admittedCharts": 0,
+      "syntheticTables": [],
+      "syntheticMetrics": [],
+      "reports": [
+        {
+          "modelDeclaredStatus": "COMPLETE",
+          "syntheticReportMarkdown": "# 每周区域分析结果\n\n**日期范围**: 2026-10-01 至 2026-10-28  \n**数据行数**: 56  \n**全表 amount 总和**: 1218  \n**全表 quantity 总和**: 140\n\n## 每周汇总\n\n| 周 | 日期范围 | East amount | West amount | 周 amount 合计 | East 占比(%) | West 占比(%) | 周 quantity 合计 | 加权单位值 |\n|---|---------|-------------|-------------|---------------|-------------|-------------|-----------------|----------|\n| 2026-W40 | 2026-10-01 to 2026-10-04 | 10 | 20 | 30 | 33.33 | 66.67 | 20 | 1.500000 |\n| 2026-W41 | 2026-10-05 to 2026-10-11 | 56 | 112 | 168 | 33.33 | 66.67 | 38 | 4.421053 |\n| 2026-W42 | 2026-10-12 to 2026-10-18 | 105 | 210 | 315 | 33.33 | 66.67 | 32 | 9.843750 |\n| 2026-W43 | 2026-10-19 to 2026-10-25 | 154 | 308 | 462 | 33.33 | 66.67 | 34 | 13.588235 |\n| 2026-W44 | 2026-10-26 to 2026-10-28 | 81 | 162 | 243 | 33.33 | 66.67 | 16 | 15.187500 |\n\n## 验证\n\n- 各周 amount 之和 = 1218，全表 amount 总和 = 1218，一致：True\n- 各周 quantity 之和 = 140，全表 quantity 总和 = 140，一致：True\n- East 总量 406 + West 总量 812 = 1218，与全表一致：True\n\n## 日期覆盖与周边界说明\n\n- 数据覆盖 2026-10-01 至 2026-10-28，共 28 个自然日。\n- 按 ISO 周分组（周一至周日）。第一周 2026-W40 覆盖 2026-10-01（周四）至该周日；最后一周 2026-W44 覆盖该周周一至 2026-10-28（周二）。\n- 数据未覆盖完整 ISO 周边界（周一/周日），因此首末周为部分周，占比与加权单位值仅反映实际有数据的天数。\n\n## 限制\n\n- 金额为演示单位，无业务货币定义。\n- 数据为合成基准，非生产业务数据。\n- 未提供业务实体定义，无法确认 region 是否穷尽或是否有其他维度。",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "independentReview": "REQUIRED"
+    },
+    {
+      "variant": "baseline",
+      "case": "complex-1",
+      "taskId": "analysis-coding-d31a834cd84f94915e7dc5fd9e5548b72d940ad1921241a0cd6c6ad7c21224a5",
+      "status": "COMPLETED",
+      "reportStatus": null,
+      "admittedCharts": 0,
+      "syntheticTables": [],
+      "syntheticMetrics": [],
+      "reports": [
+        {
+          "modelDeclaredStatus": "COMPLETE",
+          "syntheticReportMarkdown": "# Weekly Region Analysis (Demo Units)\n\n## Business Answer\n\nData covers **2026-10-01 to 2026-10-28** (28 distinct days, 56 rows). ISO weeks span **2026-09-28 (Mon) to 2026-11-01 (Sun)**. Two regions: East, West.\n\nGrand totals — amount: **1218**, quantity: **140**, overall unit value (sum(amount)/sum(quantity)): **8.700000**.\n\n## Weekly Totals by Region\n\n| Week (ISO) | ISO Mon-Sun | East amount | West amount | Total amount | East share | West share | Total qty | Unit value |\n|---|---|---:|---:|---:|---:|---:|---:|---:|\n| 2026-W40 | 2026-09-28 - 2026-10-04 | 10 | 20 | 30 | 0.3333 | 0.6667 | 20 | 1.500000 |\n| 2026-W41 | 2026-10-05 - 2026-10-11 | 56 | 112 | 168 | 0.3333 | 0.6667 | 38 | 4.421053 |\n| 2026-W42 | 2026-10-12 - 2026-10-18 | 105 | 210 | 315 | 0.3333 | 0.6667 | 32 | 9.843750 |\n| 2026-W43 | 2026-10-19 - 2026-10-25 | 154 | 308 | 462 | 0.3333 | 0.6667 | 34 | 13.588235 |\n| 2026-W44 | 2026-10-26 - 2026-11-01 | 81 | 162 | 243 | 0.3333 | 0.6667 | 16 | 15.187500 |\n\n## Verification\n\n- Sum of weekly-by-region amounts = 1218; sum of weekly totals = 1218; grand total = 1218. All equal: **True**.\n- Sum of weekly-by-region quantities = 140; sum of weekly totals = 140; grand total = 140. All equal: **True**.\n\n## Date Coverage & Boundary Notes\n\n- Data days: 2026-10-01 (Wed) through 2026-10-28 (Tue) - 28 consecutive days.\n- ISO week boundaries used (Monday-Sunday). First week 2026-W40 starts on 2026-09-28 and ends on 2026-10-04; last week 2026-W44 spans 2026-10-26 to 2026-11-01.\n- The data range is fully contained within the union of ISO week boundaries; no partial-week edge effects.",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "independentReview": "REQUIRED"
+    },
+    {
+      "variant": "baseline",
+      "case": "csv-0",
+      "taskId": "analysis-coding-5a14b4f772fc78717bcfa13e0cbff1793e02c06811b5f16e709176ec92fb187e",
+      "status": "COMPLETED",
+      "reportStatus": null,
+      "admittedCharts": 0,
+      "syntheticTables": [],
+      "syntheticMetrics": [],
+      "reports": [
+        {
+          "modelDeclaredStatus": "COMPLETE",
+          "syntheticReportMarkdown": "# 按地区汇总分析结果\n\n## 分组汇总表\n\n| 地区 | 总金额 |\n|------|--------|\n| East | 32 |\n| West | 14 |\n\n## 总计\n\n**所有地区总金额: 46**\n\n## 数据验证\n\n- 原始数据行数: 3\n- 分组数: 2\n- 计算验证: 分组总和 46 = 原始数据总和 46 ✓\n\n## 局限性说明\n\n- 金额为演示单位，非实际业务货币\n- 数据仅包含 East 和 West 两个地区\n- 无时间维度或其他业务属性\n",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "independentReview": "REQUIRED"
+    },
+    {
+      "variant": "baseline",
+      "case": "csv-1",
+      "taskId": "analysis-coding-cb3955e3d9deb7d0d044d900d9b736c107bfaccca498f5089725df4f862e1ee6",
+      "status": "COMPLETED",
+      "reportStatus": null,
+      "admittedCharts": 0,
+      "syntheticTables": [],
+      "syntheticMetrics": [],
+      "reports": [
+        {
+          "modelDeclaredStatus": "COMPLETE",
+          "syntheticReportMarkdown": "# Region Amount Summary\n\n## Grouped by region\n\n| region | sum_amount | row_count |\n|--------|-----------|----------|\n| East | 32 | 2 |\n| West | 14 | 1 |\n\n**Total amount:** 46\n**Total rows:** 3\n\n## Verification\n\n- SHA-256 match: `True`\n- Size match: `True`\n- Sum of group sums equals total: `True`",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "independentReview": "REQUIRED"
+    },
+    {
+      "variant": "baseline",
+      "case": "join-0",
+      "taskId": "analysis-coding-b54a60fb3e8b86cd01eefe9e61e6364a070e9831a59aaae968fd03f9ee1764bb",
+      "status": "COMPLETED",
+      "reportStatus": null,
+      "admittedCharts": 0,
+      "syntheticTables": [],
+      "syntheticMetrics": [],
+      "reports": [
+        {
+          "modelDeclaredStatus": "COMPLETE",
+          "syntheticReportMarkdown": "# 客户-订单关联与区域汇总报告\n\n## 业务结论\n\n共 **3** 位客户、**4** 笔订单。按 `customer_id` 多对一关联后，全部 4 笔订单均匹配到客户（无孤儿订单）。\n\n## 关联基数（每位客户的订单数）\n\n| customer_id | region | order_count | order_ids |\n|---|---|---|---|\n| 001 | East | 2 | A,C |\n| 002 | West | 1 | B |\n| 003 | East | 1 | D |\n\n- 客户 001 有 2 笔订单（多对一），客户 002、003 各 1 笔。\n- 关联后总行数 = 4，等于订单数 4，无膨胀无丢失。\n\n## 按 region 汇总 amount\n\n| region | order_count | total_amount |\n|---|---|---|\n| East | 3 | 38 |\n| West | 1 | 14 |\n\n## 总和核对\n\n- 订单表 amount 直接求和：**52**\n- 区域汇总 total_amount 求和：**52**\n- 两者一致 ✅\n\n## 数据说明\n\n- 金额单位为演示单位（非真实货币）。\n- customer_id 保留前导零（字符串类型）。\n- 数据来源为授权 nativeFiles 原始 CSV，SHA-256 已校验。",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "independentReview": "REQUIRED"
+    },
+    {
+      "variant": "baseline",
+      "case": "join-1",
+      "taskId": "analysis-coding-6e6ef810127864ec1ce96dc5d6eed875fb1a5be14f7fa548a7d3a2204b5373a7",
+      "status": "COMPLETED",
+      "reportStatus": null,
+      "admittedCharts": 0,
+      "syntheticTables": [],
+      "syntheticMetrics": [],
+      "reports": [
+        {
+          "modelDeclaredStatus": "COMPLETE",
+          "syntheticReportMarkdown": "# 客户-订单关联与区域金额汇总\n\n## 业务结论\n- 客户数: 3；订单数: 4\n- 关联方式: 以 `customer_id`（字符串，保留前导零）为键，订单→客户的多对一关联\n- 孤儿订单（无匹配客户）: 0\n- 关联基数（每位客户的订单数）:\n\n| customer_id | 订单数 |\n|---|---|\n| 001 | 2 |\n| 002 | 1 |\n| 003 | 1 |\n\n- 按 region 汇总 amount（演示单位）:\n\n| region | amount |\n|---|---|\n| East | 38 |\n| West | 14 |\n\n- 所有订单金额合计: 52\n- 区域汇总合计: 52\n- 总和核对: 一致 ✓\n\n## 证据与局限\n- 仅使用本次授权的两个 CSV 原生文件，已逐字节 SHA-256 校验\n- 金额为演示单位，不代表真实业务口径\n- 未提供时间维度、货币单位或业务定义；未做推断或外推\n- 样本量极小（3 客户、4 订单），不可作为总体统计\n",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "independentReview": "REQUIRED"
+    },
+    {
+      "variant": "baseline",
+      "case": "parquet-0",
+      "taskId": "analysis-coding-7ab943640a3afb45014c2b104cc733fd04230b4dad750f0f8ea9e5f1e204d054",
+      "status": "COMPLETED",
+      "reportStatus": null,
+      "admittedCharts": 0,
+      "syntheticTables": [],
+      "syntheticMetrics": [],
+      "reports": [
+        {
+          "modelDeclaredStatus": "COMPLETE",
+          "syntheticReportMarkdown": "# Region Amount Summary\n\n## Business Answer\n\nThe native Parquet file `simple.parquet` contains **3 rows** with columns `['region', 'amount']`. Grouping by `region` and summing `amount` yields the table below. The sum of all region totals is **46** (demonstration units), which matches the direct column sum **46**.\n\n## Grouped Table\n\n| region | total_amount |\n|---|---|\n| East | 32 |\n| West | 14 |\n| **TOTAL** | **46** |\n\n## Reconciliation\n\n- Sum of grouped totals: 46\n- Direct sum of `amount` column: 46\n- Difference: 0 (zero confirms consistency)\n\n## Evidence\n\n- Source dataset: `user-asset:86d545aff7114babc0374cfbad30a148de03b4d891dd4edec1a0158c250d3233:42086714c894d600f396f73728b0bfa2d3dbba708c6cc26978e0aae80e5a60bb`\n- Native file: `original-0.parquet` (sha256 `42086714c894d600f396f73728b0bfa2d3dbba708c6cc26978e0aae80e5a60bb`, size 1731 bytes, verified)\n- Parquet schema: `message schema { optional binary region (STRING); optional int64 amount; }`\n\n## Limitations\n\n- Amounts are in demonstration units as declared by the task; no business currency or unit definition is provided.\n- The dataset contains only the rows present in the single delivered Parquet file; no additional sources were authorized.\n- No time dimension or additional business context (e.g., period, entity) is present in the file; results apply strictly to the delivered rows.",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "independentReview": "REQUIRED"
+    },
+    {
+      "variant": "baseline",
+      "case": "parquet-1",
+      "taskId": "analysis-coding-7d95537e45c4327bb29dd5fdc5cef6f4d1b69c7d6a18dffee3ded9336ee96d5e",
+      "status": "COMPLETED",
+      "reportStatus": null,
+      "admittedCharts": 0,
+      "syntheticTables": [],
+      "syntheticMetrics": [],
+      "reports": [
+        {
+          "modelDeclaredStatus": "COMPLETE",
+          "syntheticReportMarkdown": "# 按 region 汇总 amount（演示数据）\n\n文件校验：sha256=42086714c894d600f396f73728b0bfa2d3dbba708c6cc26978e0aae80e5a60bb，size=1731，与声明一致。\n源文件行数：3\n\n| region | total_amount |\n|---|---|\n| East | 32 |\n| West | 14 |\n\n分组总和：46；行级总和：46；核对：一致。\n\n## 限制\n- 金额为演示单位，无业务含义。\n- 仅包含已授权 Parquet 文件的 3 行数据，不代表全体。\n- 未提供业务口径或时间范围定义。",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "independentReview": "REQUIRED"
+    },
+    {
+      "variant": "baseline",
+      "case": "repair-0",
+      "taskId": "analysis-coding-4b04cce8112579a9bdbc8a60c5c6dd75ea79f2867e8e227d29cbd420b5b485c8",
+      "status": "COMPLETED",
+      "reportStatus": null,
+      "admittedCharts": 0,
+      "syntheticTables": [],
+      "syntheticMetrics": [],
+      "reports": [
+        {
+          "modelDeclaredStatus": "INPUT_REQUIRED",
+          "syntheticReportMarkdown": "# 演示基准执行报告\n\n## 业务结论\n\n本次为合成输入的执行基准，无业务数据。根据授权源码中的计算 `sum([1, 2, 3])`，返回演示数值 **6**（演示单位）。\n\n## 计算结果\n\n| 指标 | 数值 | 单位 |\n|------|------|------|\n| 演示合计 | 6 | 演示单位 |\n\n## 证据与局限\n\n- 输入数据集 `python-studio:no-business-data` 明确声明 `businessDataAvailable: false`，无业务观测可供分析。\n- 数值 6 来源于授权源码中的算术表达式 `sum([1, 2, 3])`，不是来自业务数据。\n- 不得将该数值解释为任何业务实体的总量、均值或趋势。\n- 无图表输出，符合任务要求。\n\n## 字段溯源\n\n| 数据集 | 源字段 | 含义 | 声明来源 | 状态 |\n|--------|--------|------|----------|------|\n| python-studio:no-business-data | businessDataAvailable | 是否存在业务数据 | inputVersions.fieldSchema | CONFIRMED |\n| python-studio:no-business-data | limitation | 限制说明文本 | inputVersions.fieldSchema | CONFIRMED |\n| codeProject/main.py | sum([1,2,3]) | 演示算术合计 | 授权源码 | CONFIRMED |",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "independentReview": "REQUIRED"
+    },
+    {
+      "variant": "baseline",
+      "case": "repair-1",
+      "taskId": "analysis-coding-c4ebc8faed842a8d28e1f715c20b23d8d25e1b161811eb1c2c554290f43de123",
+      "status": "COMPLETED",
+      "reportStatus": null,
+      "admittedCharts": 0,
+      "syntheticTables": [],
+      "syntheticMetrics": [],
+      "reports": [
+        {
+          "modelDeclaredStatus": "INPUT_REQUIRED",
+          "syntheticReportMarkdown": "# Execution Benchmark Report\n\nDemo value: 6\n\nThis is a synthetic execution benchmark with no business data. The value 6 is derived from sum([1, 2, 3]) as a demonstration.\n\n## Field Provenance\n\n| Dataset | Source Field | Meaning | Declaration Source | Status |\n|---------|--------------|---------|-------------------|--------|\n| python-studio:no-business-data | businessDataAvailable | Unknown - no producer declaration in fieldDefinitions | fieldSchema (storage type only) | UNCONFIRMED |\n| python-studio:no-business-data | limitation | Unknown - no producer declaration in fieldDefinitions | fieldSchema (storage type only) | UNCONFIRMED |\n\n## Evidence References\n\n- Manifest: runtime-evidence:coding:input:16e0f3f1001b73ff1521a7d98611ef6c9a02379a9a398061f6c9de32185e\n- Source dataset: coding-input-set:e4ae74fb376f6c9b3d28b0350958fa4a8599e7576afd2088dd5f57cce14eb7be\n\n## Limitations\n\n- No actual business data is available in the authorized input.\n- The reported value is a demonstration only, derived from a synthetic calculation.\n- No business analysis, trends, or conclusions can be drawn from this input.",
+          "fieldProvenanceStatuses": [
+            "UNCONFIRMED"
+          ]
+        }
+      ],
+      "independentReview": "REQUIRED"
+    },
+    {
+      "variant": "baseline",
+      "case": "visual-0",
+      "taskId": "analysis-coding-842a61b2525c7cf93f252929b5540a1a958973f911ee8b69316215fa3e3dd966",
+      "status": "COMPLETED",
+      "reportStatus": "PARTIAL",
+      "admittedCharts": 0,
+      "syntheticTables": [
+        {
+          "columns": [
+            "地区",
+            "金额（演示单位）",
+            "占比"
+          ],
+          "id": "region_summary",
+          "rows": [
+            [
+              "East",
+              "32.00",
+              "69.57%"
+            ],
+            [
+              "West",
+              "14.00",
+              "30.43%"
+            ]
+          ],
+          "scope": "全表汇总",
+          "title": "地区分组汇总表"
+        }
+      ],
+      "syntheticMetrics": [
+        {
+          "calculation": "SUM(amount)",
+          "id": "total_amount",
+          "label": "全表总额",
+          "unit": "演示单位",
+          "value": "46.00"
+        },
+        {
+          "calculation": "COUNT(*)",
+          "id": "record_count",
+          "label": "记录数",
+          "unit": "条",
+          "value": "3"
+        },
+        {
+          "calculation": "COUNT(DISTINCT region)",
+          "id": "region_count",
+          "label": "地区数",
+          "unit": "个",
+          "value": "2"
+        }
+      ],
+      "reports": [
+        {
+          "modelDeclaredStatus": "INPUT_REQUIRED",
+          "syntheticReportMarkdown": "# 地区金额汇总分析报告\n\n## 主要发现\n\n本报告基于授权数据文件 simple.csv 进行分析，按地区（region）汇总金额（amount），并核对全表总额。\n\n**全表总额：46.00（演示单位）**\n\n## 地区分组汇总\n\n| 地区 | 金额（演示单位） | 占比 |\n|------|------------------|------|\n| East | 32.00 | 69.57% |\n| West | 14.00 | 30.43% |\n\n| **合计** | **46.00** | **100.00%** |\n\n## 证据边界与说明\n\n**数据来源：**\n- 文件：simple.csv（original-0.csv）\n- 数据哈希：7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399\n- 记录数：3 条\n\n**单位说明：**\n- 金额单位为\"演示单位\"，非实际货币单位\n- 本分析为合成执行基准，用于验证数据处理流程\n\n**证据边界：**\n- 分析范围：仅限授权文件 simple.csv 中的 region 和 amount 字段\n- 时间范围：数据未包含时间维度，为静态快照\n- 业务含义：region 和 amount 的业务定义未在 fieldDefinitions 中声明，按原始字段名处理\n- 数据完整性：已核对分组汇总与全表总额一致\n\n**局限性：**\n- 无业务定义支持，无法确认 region 是否代表销售区域、行政区域或其他分类\n- 无货币单位声明，金额仅为数值汇总\n- 无时间序列信息，无法进行趋势分析\n- 数据量较小（3 条），统计代表性有限\n- 由于字段业务含义未确认（UNCONFIRMED），未生成可视化图表\n\n## 数据核验\n\n✓ CSV 文件哈希验证通过\n✓ 分组汇总与全表总额核对一致\n✓ 占比计算精度：小数点后 2 位\n",
+          "fieldProvenanceStatuses": [
+            "UNCONFIRMED"
+          ]
+        }
+      ],
+      "independentReview": "REQUIRED"
+    },
+    {
+      "variant": "baseline",
+      "case": "visual-1",
+      "taskId": "analysis-coding-0f8bb465ddf9d29e88428df06b3cbfd18a6d224fd3e114e02edf7dd3fd4644fe",
+      "status": "COMPLETED",
+      "reportStatus": "SUCCESS",
+      "admittedCharts": 2,
+      "syntheticTables": [
+        {
+          "columns": [
+            "地区",
+            "金额（演示单位）",
+            "占比"
+          ],
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "tbl_region",
+          "rows": [
+            [
+              "East",
+              "32",
+              "69.57%"
+            ],
+            [
+              "West",
+              "14",
+              "30.43%"
+            ],
+            [
+              "合计",
+              "46",
+              "100.00%"
+            ]
+          ],
+          "scope": "full authorized CSV",
+          "title": "地区金额汇总"
+        }
+      ],
+      "syntheticMetrics": [
+        {
+          "calculation": "sum(amount) over all rows",
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "total_amount",
+          "label": "金额合计",
+          "unit": "演示单位",
+          "value": "46"
+        },
+        {
+          "calculation": "count(distinct region)",
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "region_count",
+          "label": "地区数",
+          "unit": "个",
+          "value": "2"
+        },
+        {
+          "calculation": "count(rows)",
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "row_count",
+          "label": "记录数",
+          "unit": "条",
+          "value": "3"
+        }
+      ],
+      "reports": [
+        {
+          "modelDeclaredStatus": "COMPLETE",
+          "syntheticReportMarkdown": "# 地区金额汇总分析（演示数据）\n\n## 主要结论\n\n本分析基于授权的原生 CSV 文件（`simple.csv`，38 字节，SHA-256 已校验），按 `region` 汇总 `amount`。全表总额与分组汇总一致，核对通过。\n\n**金额单位为演示单位，不代表任何实际货币或业务口径。**\n\n## 分组汇总表\n\n| 地区 | 金额（演示单位） | 占比 |\n|---|---:|---:|\n| East | 32 | 69.57% |\n| West | 14 | 30.43% |\n| **合计** | **46** | **100.00%** |\n\n\n## 可视化\n\n- 地区金额比较：柱状图 `region_comparison.json`\n- 金额占比：饼图 `region_share.json`\n\n## 证据边界与局限\n\n- 数据来源：仅一份授权 CSV，共 3 条记录，覆盖 2 个地区。\n- 字段含义：`region`、`amount` 为 CSV 列名，未提供生产者级字段定义；本分析按用户请求将 `amount` 作为可加总金额处理，未推断货币、时间或业务口径。\n- 样本量极小，结果不可外推为总体特征。\n- 未进行缺失值/异常值业务判定（数据量不足以支持）。\n",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "independentReview": "REQUIRED"
+    },
+    {
+      "variant": "candidate",
+      "case": "complex-0",
+      "taskId": "analysis-coding-fbd1fbeff8e8761e7c35d07e0e2bc04f8af41f6535f3fa003cf8ffe3be1e1d02",
+      "status": "COMPLETED",
+      "reportStatus": null,
+      "admittedCharts": 0,
+      "syntheticTables": [],
+      "syntheticMetrics": [],
+      "reports": [
+        {
+          "modelDeclaredStatus": "COMPLETE",
+          "syntheticReportMarkdown": "# Weekly Region Analysis Report\n\n## Business Answer\n\nData covers **2026-10-01** to **2026-10-28** (56 rows, 2 regions: East, West).\n2026-10-01 is a **Thursday**. Weeks are defined as Monday–Sunday boundaries via ISO week-start (W-SUN period start).\nOverall totals: amount=1218, quantity=140, weighted unit value=8.7000.\n\n## Weekly Breakdown\n\n| Week (Mon start) | Region | amount_sum | quantity_sum | proportion | weighted_unit_value |\n|---|---|---:|---:|---:|---:|\n| 2026-09-28 | East | 10 | 10 | 0.3333 | 1.0000 |\n| 2026-09-28 | West | 20 | 10 | 0.6667 | 2.0000 |\n| **2026-09-28** | **Total** | **30** | **20** | **1.0000** | **1.5000** |\n| 2026-10-05 | East | 56 | 19 | 0.3333 | 2.9474 |\n| 2026-10-05 | West | 112 | 19 | 0.6667 | 5.8947 |\n| **2026-10-05** | **Total** | **168** | **38** | **1.0000** | **4.4211** |\n| 2026-10-12 | East | 105 | 16 | 0.3333 | 6.5625 |\n| 2026-10-12 | West | 210 | 16 | 0.6667 | 13.1250 |\n| **2026-10-12** | **Total** | **315** | **32** | **1.0000** | **9.8438** |\n| 2026-10-19 | East | 154 | 17 | 0.3333 | 9.0588 |\n| 2026-10-19 | West | 308 | 17 | 0.6667 | 18.1176 |\n| **2026-10-19** | **Total** | **462** | **34** | **1.0000** | **13.5882** |\n| 2026-10-26 | East | 81 | 8 | 0.3333 | 10.1250 |\n| 2026-10-26 | West | 162 | 8 | 0.6667 | 20.2500 |\n| **2026-10-26** | **Total** | **243** | **16** | **1.0000** | **15.1875** |\n\n## Verification\n\n- Sum of weekly amounts = 1218 (matches grand total 1218: True)\n- Sum of weekly quantities = 140 (matches grand total 140: True)\n- Proportions per week sum to 1.0 for each week (East + West = 1.0000)\n\n## Date Coverage & Week Boundaries\n\n| Week label | Range | Notes |\n|---|---|---|\n| 2026-09-28 | 2026-10-01 to 2026-10-04 | 8 rows |\n| 2026-10-05 | 2026-10-05 to 2026-10-11 | 14 rows |\n| 2026-10-12 | 2026-10-12 to 2026-10-18 | 14 rows |\n| 2026-10-19 | 2026-10-19 to 2026-10-25 | 14 rows |\n| 2026-10-26 | 2026-10-26 to 2026-10-28 | 6 rows |",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "independentReview": "REQUIRED"
+    },
+    {
+      "variant": "candidate",
+      "case": "complex-1",
+      "taskId": "analysis-coding-ccba8fc49a45c585c821166664022405acf006df643caf8676116e493bdb8cf4",
+      "status": "COMPLETED",
+      "reportStatus": null,
+      "admittedCharts": 0,
+      "syntheticTables": [],
+      "syntheticMetrics": [],
+      "reports": [
+        {
+          "modelDeclaredStatus": "COMPLETE",
+          "syntheticReportMarkdown": "# 每周地区分析（2026-10-01 至 2026-10-28）\n\n## 业务结论\n\n- 数据覆盖：2026-10-01 至 2026-10-28（共 56 行）\n- ISO 周范围：40 至 44\n- 总金额：1218（演示单位）\n- 总数量：140\n- 全表加权单位值：8.7000\n- 分组总和与全表总和一致：金额 True，数量 True\n\n## 每周地区金额、占比与加权单位值\n\n| ISO周 | 周起 | 周止 | East金额 | West金额 | 周总金额 | East占比 | West占比 | East单位值 | West单位值 |\n|------:|------|------|--------:|--------:|--------:|--------:|--------:|----------:|----------:|\n| 2026-W40 | 2026-10-01 | 2026-10-04 | 10 | 20 | 30 | 0.3333 | 0.6667 | 1.0000 | 2.0000 |\n| 2026-W41 | 2026-10-05 | 2026-10-11 | 56 | 112 | 168 | 0.3333 | 0.6667 | 2.9474 | 5.8947 |\n| 2026-W42 | 2026-10-12 | 2026-10-18 | 105 | 210 | 315 | 0.3333 | 0.6667 | 6.5625 | 13.1250 |\n| 2026-W43 | 2026-10-19 | 2026-10-25 | 154 | 308 | 462 | 0.3333 | 0.6667 | 9.0588 | 18.1176 |\n| 2026-W44 | 2026-10-26 | 2026-10-28 | 81 | 162 | 243 | 0.3333 | 0.6667 | 10.1250 | 20.2500 |\n\n## 验证\n\n- 原始总金额 = 1218；各周 East+West 金额之和 = 1218；一致 = True\n- 原始总数量 = 140；各周 East+West 数量之和 = 140；一致 = True\n\n## 局限性\n\n- 金额为演示单位，无业务货币定义\n- 数据仅覆盖 2026-10-01 至 2026-10-28，无跨周边界外延\n- CSV 未声明类型，按整数解析",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "independentReview": "REQUIRED"
+    },
+    {
+      "variant": "candidate",
+      "case": "csv-0",
+      "taskId": "analysis-coding-e7d98e0e31cbf1d7141dfa1a4c35e4a311b2411a0aebfcc1289a4e4d20f9797b",
+      "status": "COMPLETED",
+      "reportStatus": null,
+      "admittedCharts": 0,
+      "syntheticTables": [],
+      "syntheticMetrics": [],
+      "reports": [
+        {
+          "modelDeclaredStatus": "COMPLETE",
+          "syntheticReportMarkdown": "# 按 region 汇总 amount 及总和核对\n\n## 业务结论\n\n- 数据源：simple.csv（38 字节，SHA-256 已核对一致）\n- 原始行数：3\n- 分组数：2\n- 总和：46（演示单位）\n\n## 按 region 分组表\n\n| region | region_amount |\n|---|---|\n| East | 32 |\n| West | 14 |\n\n## 总和核对\n\n- 分组求和：46\n- 逐行求和：46\n- 一致性：一致\n\n## 证据与局限\n\n- 仅使用授权原生文件 original-0.csv，未联网、未安装依赖。\n- 金额为演示单位，不代表真实业务货币。\n- 数据样本仅 3 行，不应外推至全体。",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "independentReview": "REQUIRED"
+    },
+    {
+      "variant": "candidate",
+      "case": "csv-1",
+      "taskId": "analysis-coding-d964d3e411466bd64b7e733a7e099c5c65c320d894c1cd459daa68bf1cb15e98",
+      "status": "COMPLETED",
+      "reportStatus": null,
+      "admittedCharts": 0,
+      "syntheticTables": [],
+      "syntheticMetrics": [],
+      "reports": [
+        {
+          "modelDeclaredStatus": "COMPLETE",
+          "syntheticReportMarkdown": "# 按 region 汇总 amount（演示单位）\n\n## 分组表\n\n| region | amount |\n|---|---|\n| East | 32 |\n| West | 14 |\n\n## 总和核对\n\n- 原始数据行总和：46\n- 分组求和：46\n- 核对结果：一致\n\n## 证据与限制\n\n- 数据来源：授权原生 CSV 文件 `original-0.csv`（SHA-256 `7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399`，38 字节）。\n- 本输入为合成基准，无业务含义；金额为演示单位，不代表任何实际业务总体。\n- 仅含 3 条记录（East 2 条、West 1 条），不应外推至其他 region 或更大总体。\n- 未使用额外图表；保留精确证据引用与执行回执。",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "independentReview": "REQUIRED"
+    },
+    {
+      "variant": "candidate",
+      "case": "join-0",
+      "taskId": "analysis-coding-93ffc0b43c1280ea60448250951d6e4909be656dd67a5c66c3e394609ac20bef",
+      "status": "COMPLETED",
+      "reportStatus": null,
+      "admittedCharts": 0,
+      "syntheticTables": [],
+      "syntheticMetrics": [],
+      "reports": [
+        {
+          "modelDeclaredStatus": "COMPLETE",
+          "syntheticReportMarkdown": "# 客户-订单关联与区域汇总报告\n\n## 业务结论\n\n- 客户数：3；订单数：4；所有订单均成功关联到客户（无孤儿订单）。\n- 按 region 汇总金额（演示单位）：\n  - East：38\n  - West：14\n- 总金额核对：52（与订单逐行相加一致）。\n\n## 关联基数（每个客户的订单数）\n\n| customer_id | region | order_count |\n|---|---|---|\n| 001 | East | 2 |\n| 002 | West | 1 |\n| 003 | East | 1 |\n\n## 按 region 汇总 amount\n\n| region | total_amount |\n|---|---|\n| East | 38 |\n| West | 14 |\n\n## 总和核对\n\n- 订单逐行相加：10+14+22+6 = 52\n- 区域合计相加：38+14 = 52\n- 两边一致，核对通过。\n\n## 文件完整性\n\n- customers.csv：大小 46 字节，sha256=ba5569c242fa54c3499250d491d7eb79c88e1bb016dc079dc400ceb663d5cb0c，与清单一致。\n- orders.csv：大小 63 字节，sha256=b47f62ee75979106c3a5923f987f4724b8631cb901b5aa3e74848596ba2e5526，与清单一致。\n\n## 证据引用\n\n- user-asset:bcb1a732de23b43b46368ec07580e6f355ccc2c9a12e86fc65da1cd6b1e559ff:ba5569c242fa54c3499250d491d7eb79c88e1bb016dc079dc400ceb663d5cb0c\n- user-asset:0187971c8e61a4888cc746666ad7d8a763a5132e6ce02303694dee56bf783e1a:b47f62ee75979106c3a5923f987f4724b8631cb901b5aa3e74848596ba2e5526\n\n## 限制\n\n- 金额为演示单位，未声明币种或业务口径。\n- 数据仅为样例（3 客户、4 订单），不可推广到总体。\n- CSV 类型未在清单中声明，按字符串读取 customer_id 以保留前导零，amount 按 Decimal 解析。",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "independentReview": "REQUIRED"
+    },
+    {
+      "variant": "candidate",
+      "case": "join-1",
+      "taskId": "analysis-coding-a722b8c600d10401f2d4ff4d39bd35b774dd6a168454f67fe3530b3ecee910e6",
+      "status": "COMPLETED",
+      "reportStatus": null,
+      "admittedCharts": 0,
+      "syntheticTables": [],
+      "syntheticMetrics": [],
+      "reports": [
+        {
+          "modelDeclaredStatus": "COMPLETE",
+          "syntheticReportMarkdown": "# 客户-订单关联与区域金额汇总报告\n\n## 业务结论\n\n- 客户表行数: **3**\n- 订单表行数: **4**\n- 关联基数（每客户订单数）: `001`=2, `002`=1, `003`=1\n- 未匹配订单（孤儿）数: **0**\n- 关联后金额总和（按 region 汇总）: **52**\n- 订单表金额总和: **52**\n- 总和核对: **一致**（关联后总和 等于 订单表总和；孤儿订单 无）\n\n## 按 region 汇总金额\n\n| region | amount |\n|---|---|\n| East | 38 |\n| West | 14 |\n| **合计** | **52** |\n\n## 关联基数明细\n\n| customer_id | 订单数 |\n|---|---|\n| 001 | 2 |\n| 002 | 1 |\n| 003 | 1 |\n\n## 数据样例（非全体）\n\ncustomers.csv 原始内容：\n```\ncustomer_id,region\n001,East\n002,West\n003,East\n```\n\norders.csv 原始内容：\n```\norder_id,customer_id,amount\nA,001,10\nB,002,14\nC,001,22\nD,003,6\n```\n\n## 限制\n\n- 仅使用本次授权的两个原生 CSV 文件，未联网、未安装依赖。\n- 金额为演示单位，不代表真实业务货币。\n- 客户号以字符串读取，保留前导零。\n- 数据行数极小（客户 2 行以内、订单若干行），结果仅对授权文件内容负责，不可外推至全体。",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "independentReview": "REQUIRED"
+    },
+    {
+      "variant": "candidate",
+      "case": "parquet-0",
+      "taskId": "analysis-coding-9838df89653353d7d391bab28203a6ba84fadd06dd87578299773a3fba77e47f",
+      "status": "COMPLETED",
+      "reportStatus": null,
+      "admittedCharts": 0,
+      "syntheticTables": [],
+      "syntheticMetrics": [],
+      "reports": [
+        {
+          "modelDeclaredStatus": "COMPLETE",
+          "syntheticReportMarkdown": "# Region Amount Aggregation\n\n## Business Answer\n\nThe source Parquet contains **3 rows** across **2 region(s)**. The sum of `amount` by region equals the overall total of **46** (demo units).\n\n## Grouped Table\n\n| region | total_amount |\n|---|---|\n| East | 32 |\n| West | 14 |\n| **Total** | **46** |\n\n## Total Verification\n\n- Sum of group totals: 46\n- Direct sum of amount: 46\n- Match: True\n\n## Evidence\n\n- Source file: `original-0.parquet` (sha256 `42086714c894d600f396f73728b0bfa2d3dbba708c6cc26978e0aae80e5a60bb`, size 1731 bytes)\n- Verified against manifest-declared sha256 and size.\n- Schema: `region` (STRING), `amount` (INT64)",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "independentReview": "REQUIRED"
+    },
+    {
+      "variant": "candidate",
+      "case": "parquet-1",
+      "taskId": "analysis-coding-6e19ec18c6b0a480215cece539d7008cb3301ca630e2ed932272e0aee02442c3",
+      "status": "COMPLETED",
+      "reportStatus": null,
+      "admittedCharts": 0,
+      "syntheticTables": [],
+      "syntheticMetrics": [],
+      "reports": [
+        {
+          "modelDeclaredStatus": "COMPLETE",
+          "syntheticReportMarkdown": "# Region Amount Summary\n\n| region | total_amount |\n|---|---|\n| East | 32 |\n| West | 14 |\n\n**Total amount (all regions):** 46\n\n**Source file:** `original-0.parquet` (SHA-256 `42086714c894d600f396f73728b0bfa2d3dbba708c6cc26978e0aae80e5a60bb`, 1731 bytes, 3 rows).\n\n**Notes:** Amounts are demo units from a synthetic baseline. Totals reconcile: grouped sum equals row-level sum.",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "independentReview": "REQUIRED"
+    },
+    {
+      "variant": "candidate",
+      "case": "repair-0",
+      "taskId": "analysis-coding-cbbac58b2f292f96794f23db447462bce9ba4ba0408aedfe41cc1691623756c7",
+      "status": "COMPLETED",
+      "reportStatus": null,
+      "admittedCharts": 0,
+      "syntheticTables": [],
+      "syntheticMetrics": [],
+      "reports": [
+        {
+          "modelDeclaredStatus": "COMPLETE",
+          "syntheticReportMarkdown": "# 演示执行结果\n\n计算结果: **6**\n\n## 说明\n\n本任务为合成输入的执行基准，无业务数据。金额为演示单位。\n\n## 计算过程\n\n```python\nvalue = sum([1, 2, 3])\n# value = 6\n```",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "independentReview": "REQUIRED"
+    },
+    {
+      "variant": "candidate",
+      "case": "repair-1",
+      "taskId": "analysis-coding-916ae3914dfb41eca522664c0295a76d9e1139636fa76b03e7a9d19ebcb435df",
+      "status": "COMPLETED",
+      "reportStatus": null,
+      "admittedCharts": 0,
+      "syntheticTables": [],
+      "syntheticMetrics": [],
+      "reports": [
+        {
+          "modelDeclaredStatus": "INPUT_REQUIRED",
+          "syntheticReportMarkdown": "# 执行基准演示报告\n\n## 业务结论\n\n本次为合成输入的执行基准验证，无业务数据。原始代码 `sum([1, 2, 3])` 的演示计算结果为 **6**（演示单位）。\n\n## 数据范围与限制\n\n- 授权数据集 `python-studio:no-business-data` 明确声明 `businessDataAvailable=false`，无业务观测值可供分析。\n- 未提供字段定义（fieldDefinitions 为空），所有业务含义均未确认。\n- 未提供业务实体、时间范围、指标口径或单位定义。\n- 本报告的数值 6 仅来源于源代码中的演示计算，不代表任何业务总量。\n\n## 字段溯源\n\n| 数据集 | 源字段 | 含义 | 声明来源 | 状态 |\n|---|---|---|---|---|\n| python-studio:no-business-data | businessDataAvailable | 是否存在业务数据（布尔标志） | inputVersions[0].fieldSchema（无 fieldDefinitions） | UNCONFIRMED |\n| python-studio:no-business-data | limitation | 限制说明文本 | inputVersions[0].fieldSchema（无 fieldDefinitions） | UNCONFIRMED |\n\n## 审计附录\n\n- manifest SHA-256 已校验：`0e70e7571bdbee003fbeaf1f362f9bcec7fa6194bdf8e69cacde8799135a01c2`\n- part SHA-256 已校验：`a9da43cde62e2cac4de441163f9316bf4b76f499e25902d05bc2051b04ce39d3`\n- 行数：1（与 manifest 声明一致）\n- 首次执行（project:{reuse:true}）返回 SyntaxError（main.py 第 1 行未闭合括号），本次以最小补丁闭合括号并保留原计算。\n",
+          "fieldProvenanceStatuses": [
+            "UNCONFIRMED"
+          ]
+        }
+      ],
+      "independentReview": "REQUIRED"
+    },
+    {
+      "variant": "candidate",
+      "case": "visual-0",
+      "taskId": "analysis-coding-39ab9e185692465290244dd2fabb5ff4407da110313d246c4f0315a422f1e056",
+      "status": "COMPLETED",
+      "reportStatus": "SUCCESS",
+      "admittedCharts": 2,
+      "syntheticTables": [
+        {
+          "columns": [
+            "地区",
+            "金额（演示单位）"
+          ],
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "region_summary_table",
+          "rows": [
+            [
+              "East",
+              "32"
+            ],
+            [
+              "West",
+              "14"
+            ],
+            [
+              "合计",
+              "46"
+            ]
+          ],
+          "scope": "全量数据按地区分组",
+          "title": "地区金额汇总表"
+        }
+      ],
+      "syntheticMetrics": [
+        {
+          "calculation": "SUM(amount) GROUP BY region, then SUM all groups",
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "total_amount",
+          "label": "总金额",
+          "unit": "演示单位",
+          "value": "46"
+        },
+        {
+          "calculation": "COUNT(*) from source data",
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "record_count",
+          "label": "记录数",
+          "unit": "条",
+          "value": "3"
+        },
+        {
+          "calculation": "COUNT(DISTINCT region)",
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "region_count",
+          "label": "地区数",
+          "unit": "个",
+          "value": "2"
+        }
+      ],
+      "reports": [
+        {
+          "modelDeclaredStatus": "COMPLETE",
+          "syntheticReportMarkdown": "# 地区金额汇总分析（演示数据）\n\n## 主要发现\n\n本分析基于合成的演示数据，按地区对金额进行汇总统计。\n\n**数据范围**：3 条记录，涵盖 2 个地区  \n**金额单位**：演示单位（非真实业务数据）  \n**数据性质**：合成执行基准，用于验证分析流程\n\n## 分组汇总表\n\n| 地区 | 金额（演示单位） |\n|------|------------------|\n| East | 32 |\n| West | 14 |\n| **合计** | **46** |\n\n## 总额核对\n\n- 各分组金额之和：46\n- 全表总额：46\n- 核对结果：✓ 一致\n\n## 可视化分析\n\n### 地区金额比较\n\n柱状图展示了各地区的金额对比。East 地区金额为 32，West 地区金额为 14。\n\n### 金额占比分布\n\n饼图展示了各地区金额在总额中的占比。East 地区占比约 69.6%，West 地区占比约 30.4%。\n\n## 证据边界与限制说明\n\n1. **数据性质**：本分析基于合成演示数据，不代表真实业务场景\n2. **字段含义**：region 和 amount 字段含义基于 CSV 列名和用户指令推断，无生产者声明的业务定义\n3. **金额单位**：使用\"演示单位\"，未指定具体货币或量纲\n4. **样本局限**：仅 3 条记录，不具备统计推断价值\n5. **时间维度**：数据无时间戳，无法进行趋势分析\n\n## 数据来源\n\n- 原始文件：original-0.csv\n- 文件哈希：7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399\n- 数据集引用：user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399\n",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "independentReview": "REQUIRED"
+    },
+    {
+      "variant": "candidate",
+      "case": "visual-1",
+      "taskId": "analysis-coding-764097058670ef4713672c6a08ec0a2a9c0ffd80d1c9e8bed46c569d11d01c7c",
+      "status": "COMPLETED",
+      "reportStatus": "SUCCESS",
+      "admittedCharts": 2,
+      "syntheticTables": [
+        {
+          "columns": [
+            "地区",
+            "金额（演示单位）",
+            "占比"
+          ],
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "grouped_table",
+          "rows": [
+            [
+              "East",
+              "32.00",
+              "69.57%"
+            ],
+            [
+              "West",
+              "14.00",
+              "30.43%"
+            ],
+            [
+              "合计",
+              "46.00",
+              "100.00%"
+            ]
+          ],
+          "scope": "全表",
+          "title": "按地区分组汇总表"
+        }
+      ],
+      "syntheticMetrics": [
+        {
+          "calculation": "count(csv rows)",
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "record_count",
+          "label": "记录数",
+          "unit": "条",
+          "value": "3"
+        },
+        {
+          "calculation": "count(distinct region)",
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "region_count",
+          "label": "地区数",
+          "unit": "个",
+          "value": "2"
+        },
+        {
+          "calculation": "sum(amount)",
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "grand_total",
+          "label": "全表金额合计",
+          "unit": "演示单位",
+          "value": "46.0"
+        },
+        {
+          "calculation": "sum(grouped) - sum(all rows)",
+          "dataRefs": [
+            "user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "reconciliation_diff",
+          "label": "分组总和与全表总额差异",
+          "unit": "演示单位",
+          "value": "0"
+        }
+      ],
+      "reports": [
+        {
+          "modelDeclaredStatus": "COMPLETE",
+          "syntheticReportMarkdown": "# 按地区汇总金额分析报告\n\n## 主要发现\n\n本次分析基于授权原生 CSV 文件（`simple.csv`），共 3 条记录，涵盖 2 个地区。全表金额合计为 **46.00 演示单位**，分组汇总与全表总额核对一致。\n\n## 分组汇总表\n\n| 地区 | 金额（演示单位） | 占比 |\n|------|------------------|------|\n| East | 32.00 | 69.57% |\n| West | 14.00 | 30.43% |\n| 合计 | 46.00 | 100.00% |\n\n## 地区金额比较\n\n柱状图展示各地区金额绝对值对比，按金额降序排列。\n\n![地区金额比较](region_bar.json)\n\n## 金额占比分布\n\n饼图展示各地区金额在全表总额中的占比。\n\n![金额占比](region_pie.json)\n\n## 证据边界与局限性\n\n- 本次数据为合成执行基准，非真实业务数据；金额单位为「演示单位」，不代表任何货币或业务量纲。\n- 字段 `region` 与 `amount` 的业务含义由用户指令定义，原始文件未提供生产者声明（fieldDefinitions 为空）。\n- 数据量极小（3 条），不具备统计推断或趋势分析意义。\n- 核对结果：分组总和 = 全表直接求和，差异为 0。\n\n## 数据来源\n\n- `user-asset:4c4dac5f15016a7a4e8968c042e95fddc0afc48302aabb493450155008ed550f:7d6e822783c0d927c8c452dc786d30bf4e9bd6e33afc2a9e38cfb675fcb12399`（原生 CSV `simple.csv`）",
+          "fieldProvenanceStatuses": [
+            "CONFIRMED"
+          ]
+        }
+      ],
+      "independentReview": "REQUIRED"
+    }
+  ]
+}

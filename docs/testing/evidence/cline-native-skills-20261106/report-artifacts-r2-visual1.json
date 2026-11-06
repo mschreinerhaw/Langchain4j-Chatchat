@@ -1,0 +1,13 @@
+{
+  "case": "visual-1",
+  "taskId": "analysis-coding-983f034627beed56ed9f8bb73927eb8e30ff64672faf98fab304cdb6a099e496",
+  "operationId": "cline-8d982791cb5c932ebcd85405eade49371b258a7eef036e37bdec15504c3adcd1",
+  "reportSha256": "2bf11dfefaf98afc3b6699da92abc361b8fe50fe575e912e88831fcd9b870897",
+  "ownerAuthenticated": true,
+  "reportedImagePaths": [
+    "charts/weekly_amount_trend.png",
+    "charts/region_weekly_comparison.png"
+  ],
+  "artifacts": [],
+  "status": "CHART_DELIVERY_NOT_VERIFIED"
+}

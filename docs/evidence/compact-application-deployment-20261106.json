@@ -1,0 +1,18 @@
+{
+  "status": "DEPLOYED",
+  "sourceCommit": "b3cbbac70fc4dbf79ebb8c89809e8002752456a7",
+  "image": "runtime-os-api:compact-ee2a057dd3d6-20261106",
+  "sha256": "ee2a057dd3d693f80a904b6487dd58bab578ae849b894af2d724e50de9ed3401",
+  "images": {
+    "runtime-os-app-stage-api-1": "runtime-os-api:compact-ee2a057dd3d6-20261106",
+    "runtime-os-app-stage-mcp-1": "runtime-os-mcp:compact-3958cbcddb58-20261106"
+  },
+  "unrelatedContainersUnchanged": true,
+  "conversationContentUnchanged": true,
+  "messageIndexCountUnchanged": true,
+  "metadataCorrectionApplied": true,
+  "initialMetadataFailureLogPreserved": true,
+  "retirementStatus": "RETIRED_AFTER_ARCHIVE",
+  "currentImageTagsSynchronizedWithCompose": true,
+  "remainingOversizedApiMcpImages": []
+}

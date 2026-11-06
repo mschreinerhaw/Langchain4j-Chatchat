@@ -1,0 +1,69 @@
+{
+  "status": "RETIRED_AFTER_ARCHIVE",
+  "originalImagesArchiveSha256": "05dc975e91b0aafa8e664591f5aed47b0c94f737a9085c5b843164c044aff65c",
+  "compactRollbackContainers": [
+    {
+      "id": "ea852ad45da514a812fcf7a49e9e9fb44f4a6b2f5327cce8b29a93f40382b8f3",
+      "temporary": "runtime-os-app-stage-api-1-before-studio-1793950469-compact-1793951555",
+      "name": "runtime-os-app-stage-api-1-before-studio-1793950469",
+      "originalId": "3c7994e3aab0e38073945bc25ca3008a2ab6f67dc055d1822564645f56d6db12",
+      "imageId": "sha256:4c0880d5d2cce6eef6d6689252a20792e7e1f6f5de4354b60ed99e141a6be4ce"
+    },
+    {
+      "id": "bba2fd50f169c5d2d5b96d0f9ec3036369b83f2381eac05d33a84323f004c3cf",
+      "temporary": "runtime-os-app-stage-api-1-before-studio-1793948121-compact-1793951555",
+      "name": "runtime-os-app-stage-api-1-before-studio-1793948121",
+      "originalId": "82bb63e6cc924cf5cfeb37d1f8d0ea00db9bb894987a68d3cbdb38150469a503",
+      "imageId": "sha256:cde676a45f17806a42b911bb0c97bdaeb9a0914f4f93a2b1dfedb3249508bf97"
+    },
+    {
+      "id": "142f5599186abf46eb5b5e8967c13e1e2b86620ebc08fefe59dad79b77219aae",
+      "temporary": "runtime-os-app-stage-mcp-1-before-studio-1793950469-compact-1793951555",
+      "name": "runtime-os-app-stage-mcp-1-before-studio-1793950469",
+      "originalId": "755c5c4c1e08f671285d8153b0c22260bc02b3ad028f491eec6a50daa69e6ab3",
+      "imageId": "sha256:0f19f187f85c8f033fbbbcc8f62401f24a2e444fc1213084a8a4b236419fe72c"
+    },
+    {
+      "id": "3f34d56556baeba56c97537b1c8f5d5e25aea2b39ba7d55b85118ee9ad14a006",
+      "temporary": "runtime-os-app-stage-node-proxy-1-before-studio-1793950469-compact-1793951555",
+      "name": "runtime-os-app-stage-node-proxy-1-before-studio-1793950469",
+      "originalId": "c015e5787470fd755bc6b8abe48374a07aaa9d53aac496f207ce0e1bbecfb913",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea"
+    },
+    {
+      "id": "4e4d8d20f406bf96b980b86e885d75fe4ff189a46f2d80cc597a17ed0fd9398b",
+      "temporary": "runtime-os-app-stage-node-proxy-1-before-studio-1793948121-compact-1793951555",
+      "name": "runtime-os-app-stage-node-proxy-1-before-studio-1793948121",
+      "originalId": "a8fec84eec40f3fcd18a605b83259aa5ede75e9044b0f2720e0ab24225b7fad4",
+      "imageId": "sha256:6769dc3a703c719c1d2756bda113659be28ae16cf0da58dd5fd823d6b9a050ea"
+    }
+  ],
+  "removedOversizedImages": [
+    {
+      "imageId": "sha256:0210f34eb4348f7ad2b6beb843d53eb1c055a070f992608157e9e8a81d08ee74",
+      "tags": [
+        "runtime-os-mcp:cline-internet-c7823a191b60"
+      ],
+      "oldBytes": 6183238767
+    },
+    {
+      "imageId": "sha256:e7af53131a7dc0bfdfe8f5f8e60ce97c49d208462deaffbd5819797788563e64",
+      "tags": [
+        "runtime-os-api:native-remediation-ee2a057dd3d6"
+      ],
+      "oldBytes": 5472786737
+    },
+    {
+      "imageId": "sha256:5d37ac7e815a9717436f8c0f657f0720a9d5771147d9a3f87dbcf7606b0dd9eb",
+      "tags": [
+        "runtime-os-api:native-remediation-261477bcfaeb",
+        "runtime-os-api:offline-parent-5d37ac7e815a9717436f8c0f657f0720a9d5771147d9a3f87dbcf7606b0dd9eb"
+      ],
+      "oldBytes": 5043973000
+    }
+  ],
+  "unrelatedContainersUnchanged": true,
+  "runningContainersUnchanged": true,
+  "volumesRemoved": false,
+  "usedForce": false
+}

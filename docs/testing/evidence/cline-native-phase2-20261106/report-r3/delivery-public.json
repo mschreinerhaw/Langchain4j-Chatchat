@@ -1,0 +1,695 @@
+{
+  "scope": "REAL_PROVIDER_FORMAL_EXPLORATION_OWNER_DOWNLOAD",
+  "workspaceId": "75e914fd-f905-4f4b-a147-d7d6b7e5eab9",
+  "cases": [
+    {
+      "case": "single",
+      "nodeId": "40da1661-0cb4-4552-9ed7-d2199c1ba9ad",
+      "taskId": "analysis-coding-8c54105760a8170a5ebc52312e64da07c0003d5b471668ebb9ab75813cc2cd2a",
+      "executionStatus": "BUDGET_EXCEEDED",
+      "reportStatus": null,
+      "status": "FAIL",
+      "artifacts": [],
+      "validation": null,
+      "syntheticTables": [],
+      "syntheticMetrics": []
+    },
+    {
+      "case": "multi",
+      "nodeId": "5bfc8feb-60db-4c6b-8cb5-1d4988422b25",
+      "taskId": "analysis-coding-0be97b4edbb59b3a11d9efdb4f4d85395a589fcb20b6af0833f33b3b70afab0f",
+      "executionStatus": "FAILED",
+      "reportStatus": "PARTIAL",
+      "status": "FAIL",
+      "artifacts": [
+        {
+          "chartId": "iso_week_trend",
+          "kind": "plotly",
+          "fileId": "5f0242895a8b8922e5de8ce82bb72564c99cd5857f883ed3967da2e92de442f4",
+          "fileName": "iso_week_trend.json",
+          "mediaType": "application/json",
+          "size": 2484,
+          "sha256": "8bd2853d9ddb190bd9bcc813c2c082181c5a343de69a6848b3015ed3f52a32a5",
+          "downloadMatchesArchive": true,
+          "sameTask": true,
+          "archiveReference": "user-asset:5f0242895a8b8922e5de8ce82bb72564c99cd5857f883ed3967da2e92de442f4",
+          "generationStatus": "AVAILABLE",
+          "securityValidation": "ADMITTED_BY_VISUAL_REPORT",
+          "syntheticTraces": [
+            {
+              "type": "bar",
+              "name": "East amount",
+              "x": [
+                "2026-W40 *",
+                "2026-W41",
+                "2026-W42",
+                "2026-W43",
+                "2026-W44 *"
+              ],
+              "y": [
+                10.0,
+                56.0,
+                105.0,
+                154.0,
+                81.0
+              ]
+            },
+            {
+              "type": "scatter",
+              "name": "East quantity",
+              "x": [
+                "2026-W40 *",
+                "2026-W41",
+                "2026-W42",
+                "2026-W43",
+                "2026-W44 *"
+              ],
+              "y": [
+                10.0,
+                19.0,
+                16.0,
+                17.0,
+                8.0
+              ]
+            },
+            {
+              "type": "bar",
+              "name": "West amount",
+              "x": [
+                "2026-W40 *",
+                "2026-W41",
+                "2026-W42",
+                "2026-W43",
+                "2026-W44 *"
+              ],
+              "y": [
+                20.0,
+                112.0,
+                210.0,
+                308.0,
+                162.0
+              ]
+            },
+            {
+              "type": "scatter",
+              "name": "West quantity",
+              "x": [
+                "2026-W40 *",
+                "2026-W41",
+                "2026-W42",
+                "2026-W43",
+                "2026-W44 *"
+              ],
+              "y": [
+                10.0,
+                19.0,
+                16.0,
+                17.0,
+                8.0
+              ]
+            }
+          ]
+        },
+        {
+          "chartId": "weighted_unit_value",
+          "kind": "plotly",
+          "fileId": "17f20cc64110d2a60e8a613d5a60adc8cb30edc9b684542f2d83cbc316f3a959",
+          "fileName": "weighted_unit_value.json",
+          "mediaType": "application/json",
+          "size": 1214,
+          "sha256": "c0f22df393acf78c8d6fc70cd98d454ce259ede96ab5449442cb5e3fb0e5207e",
+          "downloadMatchesArchive": true,
+          "sameTask": true,
+          "archiveReference": "user-asset:17f20cc64110d2a60e8a613d5a60adc8cb30edc9b684542f2d83cbc316f3a959",
+          "generationStatus": "AVAILABLE",
+          "securityValidation": "ADMITTED_BY_VISUAL_REPORT",
+          "syntheticTraces": [
+            {
+              "type": "bar",
+              "name": "East 加权单位值",
+              "x": [
+                "2026-W40 *",
+                "2026-W41",
+                "2026-W42",
+                "2026-W43",
+                "2026-W44 *"
+              ],
+              "y": [
+                1.0,
+                2.9474,
+                6.5625,
+                9.0588,
+                10.125
+              ]
+            },
+            {
+              "type": "bar",
+              "name": "West 加权单位值",
+              "x": [
+                "2026-W40 *",
+                "2026-W41",
+                "2026-W42",
+                "2026-W43",
+                "2026-W44 *"
+              ],
+              "y": [
+                2.0,
+                5.8947,
+                13.125,
+                18.1176,
+                20.25
+              ]
+            },
+            {
+              "type": "scatter",
+              "name": "全部地区加权单位值",
+              "x": [
+                "2026-W40 *",
+                "2026-W41",
+                "2026-W42",
+                "2026-W43",
+                "2026-W44 *"
+              ],
+              "y": [
+                1.5,
+                4.4211,
+                9.8438,
+                13.5882,
+                15.1875
+              ]
+            }
+          ]
+        },
+        {
+          "chartId": "region_comparison",
+          "kind": "plotly",
+          "fileId": "eecec90ddd467a889b5a922135853a692a374e87116abfe406efd789d6f8bbb1",
+          "fileName": "region_comparison.json",
+          "mediaType": "application/json",
+          "size": 3129,
+          "sha256": "9d7a9d29d498334cba939385a00070e4eb8c31c094cf68183b7c0e17ccfff99d",
+          "downloadMatchesArchive": true,
+          "sameTask": true,
+          "archiveReference": "user-asset:eecec90ddd467a889b5a922135853a692a374e87116abfe406efd789d6f8bbb1",
+          "generationStatus": "AVAILABLE",
+          "securityValidation": "ADMITTED_BY_VISUAL_REPORT",
+          "syntheticTraces": [
+            {
+              "type": "bar",
+              "name": "East amount",
+              "x": [
+                406.0
+              ],
+              "y": [
+                "East"
+              ]
+            },
+            {
+              "type": "bar",
+              "name": "East quantity",
+              "x": [
+                70.0
+              ],
+              "y": [
+                "East"
+              ]
+            },
+            {
+              "type": "bar",
+              "name": "East uv",
+              "x": [
+                5.8
+              ],
+              "y": [
+                "East"
+              ]
+            },
+            {
+              "type": "bar",
+              "name": "West amount",
+              "x": [
+                812.0
+              ],
+              "y": [
+                "West"
+              ]
+            },
+            {
+              "type": "bar",
+              "name": "West quantity",
+              "x": [
+                70.0
+              ],
+              "y": [
+                "West"
+              ]
+            },
+            {
+              "type": "bar",
+              "name": "West uv",
+              "x": [
+                11.6
+              ],
+              "y": [
+                "West"
+              ]
+            }
+          ]
+        }
+      ],
+      "validation": {
+        "checks": [
+          {
+            "detail": "manifest.json 字节与授权清单声明的 SHA-256 一致",
+            "name": "manifest_sha256",
+            "status": "PASSED"
+          },
+          {
+            "detail": "original-0.csv（原始名 complex.csv）哈希与大小与声明一致",
+            "name": "native_file_sha256_size",
+            "status": "PASSED"
+          },
+          {
+            "detail": "schema.json 哈希与交付清单一致",
+            "name": "schema_sha256",
+            "status": "PASSED"
+          },
+          {
+            "detail": "传输层 part-00000.parquet 哈希一致",
+            "name": "transport_part_sha256",
+            "status": "PASSED"
+          },
+          {
+            "detail": "单分片元数据（chunkIndex/chunkCount/分片哈希/大小/文件名）与原始 CSV 一致",
+            "name": "chunk_metadata_matches_native_file",
+            "status": "PASSED"
+          },
+          {
+            "detail": "实际表头 ['day', 'region', 'amount', 'quantity']",
+            "name": "csv_header_exact",
+            "status": "PASSED"
+          },
+          {
+            "detail": "解析 56 行数据行，异常 0 行",
+            "name": "csv_rows_parsed",
+            "status": "PASSED"
+          },
+          {
+            "detail": "(day, region) 组合重复数 = 0",
+            "name": "unique_day_region_key",
+            "status": "PASSED"
+          },
+          {
+            "detail": "地区取值按原文保留: East, West",
+            "name": "regions_literal_preserved",
+            "status": "PASSED"
+          },
+          {
+            "detail": "日期覆盖 2026-10-01 至 2026-10-28，去重天数 28，缺日 0",
+            "name": "date_coverage_continuous",
+            "status": "PASSED"
+          },
+          {
+            "detail": "quantity<=0 的行数 0（加权单位值分母有效）",
+            "name": "quantity_positive_for_ratio",
+            "status": "PASSED"
+          },
+          {
+            "detail": "非整数 amount 行数 0",
+            "name": "amounts_integral_observed",
+            "status": "PASSED"
+          },
+          {
+            "detail": "周合计=1218、地区×周合计=1218、明细总额=1218；数量 140 vs 140",
+            "name": "total_reconciliation",
+            "status": "PASSED"
+          },
+          {
+            "detail": "边界周: 2026-W40 覆盖 2026-10-01~2026-10-04（4天）; 2026-W44 覆盖 2026-10-26~2026-10-28（3天）",
+            "name": "boundary_weeks_identified",
+            "status": "PASSED"
+          },
+          {
+            "detail": "3 个离线 Plotly JSON 图表已写出（template=None，普通数组，无外部引用）",
+            "name": "plotly_artifacts_written",
+            "status": "PASSED"
+          }
+        ],
+        "scope": "STOPPED_EXECUTION_AND_ARTIFACT_INTEGRITY; COMPUTATION_CHECKS_ARE_PROGRAM_DECLARED; BUSINESS_SEMANTICS_NOT_CERTIFIED",
+        "status": "ARTIFACTS_VERIFIED",
+        "warnings": []
+      },
+      "syntheticTables": [
+        {
+          "columns": [
+            "ISO周",
+            "周一起",
+            "周日止",
+            "实际覆盖",
+            "观测天数",
+            "周类别",
+            "amount 合计",
+            "quantity 合计",
+            "加权单位值"
+          ],
+          "dataRefs": [
+            "user-asset:d218054d23ea77cc928dddac45c43afd116a35544af08ca41cf2f655294b2d60:91e1c931a615fa83ff58856bc752106e6570b88b73217075dd6ad2a48cce06bd"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "tbl_iso_week",
+          "rows": [
+            [
+              "2026-W40",
+              "2026-09-28",
+              "2026-10-04",
+              "2026-10-01~2026-10-04",
+              "4",
+              "边界周(4天)",
+              "30",
+              "20",
+              "1.5000"
+            ],
+            [
+              "2026-W41",
+              "2026-10-05",
+              "2026-10-11",
+              "2026-10-05~2026-10-11",
+              "7",
+              "完整周(7天)",
+              "168",
+              "38",
+              "4.4211"
+            ],
+            [
+              "2026-W42",
+              "2026-10-12",
+              "2026-10-18",
+              "2026-10-12~2026-10-18",
+              "7",
+              "完整周(7天)",
+              "315",
+              "32",
+              "9.8438"
+            ],
+            [
+              "2026-W43",
+              "2026-10-19",
+              "2026-10-25",
+              "2026-10-19~2026-10-25",
+              "7",
+              "完整周(7天)",
+              "462",
+              "34",
+              "13.5882"
+            ],
+            [
+              "2026-W44",
+              "2026-10-26",
+              "2026-11-01",
+              "2026-10-26~2026-10-28",
+              "3",
+              "边界周(3天)",
+              "243",
+              "16",
+              "15.1875"
+            ]
+          ],
+          "scope": "complex.csv 全部 56 行明细按 ISO 周聚合（两地区合并）",
+          "title": "ISO 周（周一~周日）汇总"
+        },
+        {
+          "columns": [
+            "ISO周",
+            "地区",
+            "amount 合计",
+            "quantity 合计",
+            "加权单位值",
+            "观测天数"
+          ],
+          "dataRefs": [
+            "user-asset:d218054d23ea77cc928dddac45c43afd116a35544af08ca41cf2f655294b2d60:91e1c931a615fa83ff58856bc752106e6570b88b73217075dd6ad2a48cce06bd"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "tbl_week_region",
+          "rows": [
+            [
+              "2026-W40",
+              "East",
+              "10",
+              "10",
+              "1.0000",
+              "4"
+            ],
+            [
+              "2026-W40",
+              "West",
+              "20",
+              "10",
+              "2.0000",
+              "4"
+            ],
+            [
+              "2026-W41",
+              "East",
+              "56",
+              "19",
+              "2.9474",
+              "7"
+            ],
+            [
+              "2026-W41",
+              "West",
+              "112",
+              "19",
+              "5.8947",
+              "7"
+            ],
+            [
+              "2026-W42",
+              "East",
+              "105",
+              "16",
+              "6.5625",
+              "7"
+            ],
+            [
+              "2026-W42",
+              "West",
+              "210",
+              "16",
+              "13.1250",
+              "7"
+            ],
+            [
+              "2026-W43",
+              "East",
+              "154",
+              "17",
+              "9.0588",
+              "7"
+            ],
+            [
+              "2026-W43",
+              "West",
+              "308",
+              "17",
+              "18.1176",
+              "7"
+            ],
+            [
+              "2026-W44",
+              "East",
+              "81",
+              "8",
+              "10.1250",
+              "3"
+            ],
+            [
+              "2026-W44",
+              "West",
+              "162",
+              "8",
+              "20.2500",
+              "3"
+            ]
+          ],
+          "scope": "complex.csv 明细，周×地区二元组合",
+          "title": "ISO 周 × 地区 明细汇总"
+        },
+        {
+          "columns": [
+            "地区",
+            "amount 合计",
+            "quantity 合计",
+            "加权单位值",
+            "amount 占比",
+            "首日(2026-10-01) amount",
+            "末日(2026-10-28) amount"
+          ],
+          "dataRefs": [
+            "user-asset:d218054d23ea77cc928dddac45c43afd116a35544af08ca41cf2f655294b2d60:91e1c931a615fa83ff58856bc752106e6570b88b73217075dd6ad2a48cce06bd"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "tbl_region_total",
+          "rows": [
+            [
+              "East",
+              "406",
+              "70",
+              "5.8000",
+              "33.33%",
+              "1",
+              "28"
+            ],
+            [
+              "West",
+              "812",
+              "70",
+              "11.6000",
+              "66.67%",
+              "2",
+              "56"
+            ]
+          ],
+          "scope": "2026-10-01~2026-10-28，两地区",
+          "title": "地区期间合计与比较"
+        },
+        {
+          "columns": [
+            "核对项",
+            "结果",
+            "说明"
+          ],
+          "dataRefs": [
+            "user-asset:d218054d23ea77cc928dddac45c43afd116a35544af08ca41cf2f655294b2d60:91e1c931a615fa83ff58856bc752106e6570b88b73217075dd6ad2a48cce06bd"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "tbl_reconcile",
+          "rows": [
+            [
+              "明细行 (day,region)",
+              "56 行",
+              "去重组合 56；重复 0"
+            ],
+            [
+              "覆盖日期",
+              "2026-10-01 ~ 2026-10-28",
+              "去重 28 天，缺失 0 天"
+            ],
+            [
+              "amount 总额（明细）",
+              "1,218",
+              "逐行求和"
+            ],
+            [
+              "amount 总额（按周）",
+              "1,218",
+              "与明细一致"
+            ],
+            [
+              "amount 总额（按地区×周）",
+              "1,218",
+              "与明细一致"
+            ],
+            [
+              "quantity 总额（明细/按周）",
+              "140 / 140",
+              "一致"
+            ],
+            [
+              "ISO 周数",
+              "5 个",
+              "完整周 3 个，边界周 2 个"
+            ],
+            [
+              "加权单位值（全部地区）",
+              "8.7000",
+              "1218/140，四舍五入展示至 4 位小数"
+            ]
+          ],
+          "scope": "同一次计算的内部一致性核对，非业务对账",
+          "title": "总额与覆盖核对"
+        }
+      ],
+      "syntheticMetrics": [
+        {
+          "calculation": "Σ amount，2026-10-01~2026-10-28 全部 56 行（演示单位）",
+          "dataRefs": [
+            "user-asset:d218054d23ea77cc928dddac45c43afd116a35544af08ca41cf2f655294b2d60:91e1c931a615fa83ff58856bc752106e6570b88b73217075dd6ad2a48cce06bd"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "m_total_amount",
+          "label": "amount 总额（全部明细）",
+          "unit": "",
+          "value": "1218"
+        },
+        {
+          "calculation": "Σ quantity，同一总体（演示单位）",
+          "dataRefs": [
+            "user-asset:d218054d23ea77cc928dddac45c43afd116a35544af08ca41cf2f655294b2d60:91e1c931a615fa83ff58856bc752106e6570b88b73217075dd6ad2a48cce06bd"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "m_total_quantity",
+          "label": "quantity 总额（全部明细）",
+          "unit": "",
+          "value": "140"
+        },
+        {
+          "calculation": "Σ amount ÷ Σ quantity = 1218 ÷ 140，展示至 4 位小数",
+          "dataRefs": [
+            "user-asset:d218054d23ea77cc928dddac45c43afd116a35544af08ca41cf2f655294b2d60:91e1c931a615fa83ff58856bc752106e6570b88b73217075dd6ad2a48cce06bd"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "m_overall_uv",
+          "label": "整体加权单位值",
+          "unit": "",
+          "value": "8.7000"
+        },
+        {
+          "calculation": "按 day 的 ISO 周编号分桶；完整 7 天周 3 个，边界周 2 个",
+          "dataRefs": [
+            "user-asset:d218054d23ea77cc928dddac45c43afd116a35544af08ca41cf2f655294b2d60:91e1c931a615fa83ff58856bc752106e6570b88b73217075dd6ad2a48cce06bd"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "m_iso_weeks",
+          "label": "ISO 周桶数（周一~周日）",
+          "unit": "个",
+          "value": "5"
+        },
+        {
+          "calculation": "complex.csv 数据行计数；去重 (day, region) 组合 56，重复 0",
+          "dataRefs": [
+            "user-asset:d218054d23ea77cc928dddac45c43afd116a35544af08ca41cf2f655294b2d60:91e1c931a615fa83ff58856bc752106e6570b88b73217075dd6ad2a48cce06bd"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "m_rows",
+          "label": "解析明细行数",
+          "unit": "行",
+          "value": "56"
+        },
+        {
+          "calculation": "2026-10-01~2026-10-28 去重日期数；区间内缺失 0 天",
+          "dataRefs": [
+            "user-asset:d218054d23ea77cc928dddac45c43afd116a35544af08ca41cf2f655294b2d60:91e1c931a615fa83ff58856bc752106e6570b88b73217075dd6ad2a48cce06bd"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "m_days",
+          "label": "覆盖自然日数",
+          "unit": "天",
+          "value": "28"
+        },
+        {
+          "calculation": "明细总额 − 周合计 = 0；明细总额 − 地区×周合计 = 0",
+          "dataRefs": [
+            "user-asset:d218054d23ea77cc928dddac45c43afd116a35544af08ca41cf2f655294b2d60:91e1c931a615fa83ff58856bc752106e6570b88b73217075dd6ad2a48cce06bd"
+          ],
+          "dataRefsStatus": "INHERITED_REPORT_SOURCE",
+          "id": "m_recon",
+          "label": "总额对账差异",
+          "unit": "",
+          "value": "0"
+        }
+      ]
+    }
+  ]
+}

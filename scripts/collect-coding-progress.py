@@ -52,7 +52,7 @@ def main():
     root = args.root
     monitor = json.loads(Path('/opt/runtime-os-docker-stage/coding-monitor/data/observations.json').read_text())
     rows = []
-    for variant in ['baseline', 'candidate', 'final', 'verified', 'recovery']:
+    for variant in ['baseline', 'candidate', 'final', 'verified', 'recovery', 'native']:
         directory = root / variant
         if not directory.exists():
             continue
@@ -118,6 +118,12 @@ def main():
                 modelCalls=len({c['ordinal'] for t in nodes for c in t['models']}),
                 knownUsageCalls=sum(all(isinstance((c.get('usage') or {}).get(k), (int, float)) for k in ['inputTokens', 'outputTokens']) for c in calls),
                 knownTokens=sum(((c.get('usage') or {}).get('inputTokens') or 0) + ((c.get('usage') or {}).get('outputTokens') or 0) for c in calls),
+                inputTokensKnown=sum((c.get('usage') or {}).get('inputTokens') or 0 for c in calls),
+                outputTokensKnown=sum((c.get('usage') or {}).get('outputTokens') or 0 for c in calls),
+                unknownInputUsageCalls=sum((c.get('usage') or {}).get('inputTokens') is None for c in calls),
+                unknownOutputUsageCalls=sum((c.get('usage') or {}).get('outputTokens') is None for c in calls),
+                reasoningTokens='UNKNOWN',
+                providerBilledCost='UNKNOWN',
                 codeProposals=sum(e['type'] == 'CODE_READY' for e in events),
                 rejectedProposals=sum(e['type'] == 'CODE_PROPOSAL_REJECTED' for e in events),
                 pythonExecutions=sum((o.get('actual') or {}).get('codeExecutions', 0)
@@ -126,7 +132,8 @@ def main():
                 pythonStopUnconfirmed=sum(o.get('kind') == 'CODE' and not o.get('stopProofRef')
                     for o in task.get('operations', {}).values()),
                 pythonDiagnostics=[e.get('diagnosticCode') for e in events if e['type'] == 'TOOL_FINISHED' and e.get('tool') == 'python_execute'],
-                skillReads=sum(e['type'] == 'TOOL_TIMING' and e.get('tool') == 'skill_read' for e in events),
+                skillReads=sum(e['type'] == 'TOOL_TIMING' and e.get('tool') in ['skill_read', 'skills', 'read_files'] for e in events),
+                nativeDiscoveryEvents=sum(e['type'] == 'SKILLS_DISCOVERED' and e.get('nativeSkills') is True for e in events),
                 discoveryCalls=sum(e['type'] == 'TOOL_TIMING' and e.get('tool') == 'tool_describe' for e in events),
                 modelErrors=[{'type': e['type'], 'diagnosticCode': e.get('diagnosticCode'), 'errorCategory': e.get('errorCategory')}
                     for e in events if e['type'] in ['MODEL_FAILED', 'MODEL_RESPONSE_REJECTED']],
@@ -155,7 +162,7 @@ def main():
             'repairTasks': sum(r['case'].startswith('repair') for r in group),
             'repairSuccesses': sum(r['case'].startswith('repair') and r.get('repairObserved', False) for r in group), 'metrics': metrics}
     report = {'capturedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'rows': rows, 'aggregate': aggregate,
-        'method': 'Five synthetic cases, two repeats each, real configured model and Java/Python. Same immutable assets. Node acceptance clocks; unknown usage excluded, failures retained. Sequential variants, max concurrency 2; descriptive small sample, no p95 claim.'}
+        'method': 'Synthetic paired cases (including formal visual when requested), two repeats each, real configured model and Java/Python. Same immutable assets. Node acceptance clocks; unknown usage excluded, failures retained. Sequential variants, max concurrency 2; descriptive small sample, no p95 claim. Known token sums are not Provider billing; reasoning tokens and billed cost are UNKNOWN.'}
     (root / 'metrics-public.json').write_text(json.dumps(report, ensure_ascii=False, indent=2))
     print(json.dumps(aggregate, ensure_ascii=False))
 

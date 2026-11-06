@@ -19,10 +19,10 @@ test('schema disclosure is task scoped, atomic, and invalidates on metadata chan
   assert.equal(createToolCatalog([],catalog.snapshot()).has('read'),false);
 });
 
-test('real Cline session discovers schemas before loading a skill; disclosure grants no execution',async()=>{
+test('real Cline session uses native Skills without a schema-discovery prerequisite; disclosure grants no execution',async()=>{
   const task={schemaVersion:'runtime_os.coding.v3',taskId:'disclosure',scope:{tenantId:'t',userId:'u',runId:'r'},
     metadataRefs:[DEFERRED_TOOLS_PROFILE],objective:{instruction:'Explain version control; use a methodology only when helpful'},
-    authorization:{allowedTools:['skill_read','tool_describe'],allowedSideEffects:[],allowedDataRefs:[],networkPolicy:'NONE'},
+    authorization:{allowedTools:['skills','read_files','tool_describe'],allowedSideEffects:[],allowedDataRefs:[],networkPolicy:'NONE'},
     outputContract:{resultFormat:'JSON_LINES',requiredFiles:[]},budget:{maxModelCalls:4}};
   let calls=0,checkpoint;
   const run=createCodingRun(task,{reserveModel(){},settleModel(){},finish(){},checkpoint(_task,value){checkpoint=value;},
@@ -30,18 +30,18 @@ test('real Cline session discovers schemas before loading a skill; disclosure gr
       calls++;
       assert.ok(!request.tools.some(tool=>tool.name==='python_execute'));
       if(calls===1){
-        assert.deepEqual(request.tools.map(tool=>tool.name),['tool_describe']);
+        assert.deepEqual(request.tools.map(tool=>tool.name).sort(),['read_files','skills','tool_describe']);
         yield {type:'text-delta',text:'<initial_plan>Discover the authorized '};
         yield {type:'text-delta',text:'method, then answer the question.</initial_plan>'};
-        yield {type:'tool-call-delta',toolCallId:'schemas',toolName:'tool_describe',input:{names:['skill_read']}};
+        yield {type:'tool-call-delta',toolCallId:'schemas',toolName:'tool_describe',input:{names:['skills']}};
       }else if(calls===2){
-        assert.ok(request.tools.some(tool=>tool.name==='skill_read'));
-        yield {type:'tool-call-delta',toolCallId:'method',toolName:'skill_read',input:{skillId:'builtin:python-data-analysis'}};
+        assert.ok(request.tools.some(tool=>tool.name==='skills'));
+        yield {type:'tool-call-delta',toolCallId:'method',toolName:'skills',input:{skill:'runtime-image:python-data-analysis'}};
       }else{yield {type:'text-delta',text:'Version control records changes.'};yield {type:'finish',reason:'stop'};return;}
       yield {type:'finish',reason:'tool-calls'};
     }}});
   assert.equal((await run.run()).status,'completed');
-  assert.equal(calls,3);assert.deepEqual(checkpoint.toolCatalog.loaded,['skill_read']);
+  assert.equal(calls,3);assert.deepEqual(checkpoint.toolCatalog.loaded.sort(),['read_files','skills']);
   assert.equal(run.events.filter(event=>event.type==='PLAN_READY').length,1);
   assert.equal(run.events.find(event=>event.type==='PLAN_READY').modelCall,1);
   assert.match(run.events.find(event=>event.type==='PLAN_READY').planText,/Discover the authorized method/);
@@ -58,7 +58,7 @@ test('context allowance accounts for declared window, reply reservation and safe
 test('optional timing delivery failure cannot strand a prepared task before the model loop',async()=>{
   let calls=0;
   const task={schemaVersion:'runtime_os.coding.v3',taskId:'timing',scope:{tenantId:'t',userId:'u',runId:'r'},
-    objective:{instruction:'Explain version control'},authorization:{allowedTools:['skill_read'],allowedSideEffects:[],allowedDataRefs:[],networkPolicy:'NONE'},
+    objective:{instruction:'Explain version control'},authorization:{allowedTools:['skills','read_files'],allowedSideEffects:[],allowedDataRefs:[],networkPolicy:'NONE'},
     outputContract:{resultFormat:'JSON_LINES',requiredFiles:[]},budget:{maxModelCalls:1}};
   const result=await createCodingRun(task,{reserveModel(){},settleModel(){},finish(){},executePython(){},
     event(event){if(event.type==='SESSION_TIMING')throw new Error('Optional telemetry unavailable');}},

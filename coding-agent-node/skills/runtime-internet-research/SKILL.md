@@ -1,7 +1,8 @@
 ---
 name: runtime-internet-research
 description: Search public sources precisely, read original pages, distinguish snippets and independent evidence, and combine Internet findings with authorized internal data and reproducible reports using Runtime OS tools.
-version: 1.0.0
+metadata:
+  version: 1.0.0
 ---
 
 # Public-source research

@@ -262,7 +262,9 @@ public final class ClineModelCallbackController {
                 response.put("visualReportValidation",Map.of("status",report.getOrDefault("status","FAILED"),"validation",report.getOrDefault("validation",Map.of()),
                     "artifactValidationStatus",report.getOrDefault("artifactValidationStatus","NOT_RECORDED"),
                     "layoutValidationStatus",report.getOrDefault("layoutValidationStatus","NOT_RECORDED"),
-                    "availableChartCount",report.get("charts") instanceof List<?> charts?charts.size():0)));
+                    "chartValidationStatus",com.chatchat.api.runtime.coding.evidence.VisualReportArtifacts.chartValidationStatus(report),
+                    "availableChartCount",com.chatchat.api.runtime.coding.evidence.VisualReportArtifacts.availableChartCount(report),
+                    "presentationDiagnostics",report.getOrDefault("presentationDiagnostics",List.of()))));
             var row=page.rows().get(0);
             if(row.containsKey("reportMarkdown") && row.containsKey("evidenceReferences")) {
                 var input=inputs.requireAuthorized(contract);
@@ -408,12 +410,20 @@ public final class ClineModelCallbackController {
                 Map.of("operationId", operationId, "modelCalls", 1, "maxTokens", 1)));
             var prior = receipts.response(call.scope(), call.taskId(), operationId);
             if (prior.isPresent()) {
+                boolean replay=request.path("receiptReplayExpected").asBoolean();
+                if(replay&&!tasks.modelCheckpointMatches(call.scope(),call.taskId(),operationId,request.path("sdkCheckpointOrdinal").asLong(-1)))
+                    throw new ResponseStatusException(HttpStatus.CONFLICT,"Archived model response differs from the restored SDK boundary");
                 if(managedAttempt)contract(body,call);
                 if (prior.get().containsKey("error") && !(supportsModelFeedback && repairableModelResponse(prior.get()))) throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "Archived model response contains invalid tool arguments");
                 if (managedAttempt) settle(accounting);
+                if(replay){var cached=new java.util.LinkedHashMap<String,Object>(prior.get());cached.put("runtimeReceiptReplayed",true);return cached;}
                 return prior.get();
             }
+            if(request.path("receiptReplayExpected").asBoolean())
+                throw new ResponseStatusException(HttpStatus.CONFLICT,"Restored SDK requires an existing model receipt; dispatch forbidden");
+            if(request.has("sdkCheckpointOrdinal"))tasks.bindModelCheckpoint(call.scope(),call.taskId(),call.lease(),
+                operationId,request.path("sdkCheckpointOrdinal").asLong(-1));
             // One authenticated transport request, preserving the existing durable
             // admission/start/receipt/settlement transactions and crash semantics.
             if (managedAttempt) reserve(accounting);
@@ -546,14 +556,14 @@ public final class ClineModelCallbackController {
         var payload = new java.util.LinkedHashMap<String,Object>();
         for (String key : List.of("type", "timestamp", "stage", "source", "attemptId", "operationId", "tool", "status", "planText", "executionOrigin",
                 "scriptPath", "codeSha256", "fileName", "proposedOperationId", "skillFingerprint", "skillId", "skillVersion", "selectedModel", "providerModel", "protocol", "startedAt", "finishedAt", "validationStatus", "outputStatus",
-                "resultDatasetRef", "validationRecordRef", "evidenceBundleRef", "errorCategory", "diagnosticCode", "parentCodeHash", "changeKind", "proposalHash", "toolCallId", "responseMode", "strategy", "reason", "requestHash", "estimator", "contextChangeReason", "compactionStrategy", "queueTimeScope", "providerTimingAvailability")) {
+                "resultDatasetRef", "validationRecordRef", "evidenceBundleRef", "errorCategory", "diagnosticCode", "parentCodeHash", "changeKind", "proposalHash", "toolCallId", "responseMode", "strategy", "reason", "requestHash", "estimator", "contextChangeReason", "compactionStrategy", "queueTimeScope", "providerTimingAvailability", "sdkSessionId", "receiptReplayOperationId")) {
             JsonNode value = event.path(key);
             if (value.isTextual() && value.asText().length() <= 512) payload.put(key, value.asText());
         }
         for (String key : List.of("scriptVersion", "modelCall", "sourceBytes", "durationMs", "maxOutputTokens", "repairAttempts", "repairAttempt", "maxRepairAttempts", "queueTimeMs", "firstTokenMs", "generationTimeMs", "retryTimeMs", "parentCodeVersion", "codeVersion", "toolDurationMs", "messageCount", "requestBytes", "cpuTimeMs", "maxRssBytes", "callbackFirstEventMs", "responseBytes", "toolCount", "validationDurationMs",
                 "contextSystemBytes", "contextToolsBytes", "contextToolIndexBytes", "contextTaskBytes", "contextSkillsBytes", "contextCodeBytes", "contextReportBytes", "contextHistoryBytes", "contextEnvelopeBytes", "estimatedInputTokens", "softInputTokenBudget",
                 "repeatedContextBytes", "duplicateContextBytes", "avoidableRepeatedContextBytes", "newContextBytes", "compactionCount", "contextSizeBefore", "contextSizeAfter", "callbackConnectMs", "callbackHeadersMs", "callbackBodyMs", "callbackHttpDurationMs",
-                "constructionDurationMs", "restoreDurationMs", "preparationDurationMs")) {
+                "constructionDurationMs", "restoreDurationMs", "preparationDurationMs", "checkpointOrdinal", "restoredMessageCount")) {
             if (event.path(key).isIntegralNumber() && event.path(key).asLong() >= 0)
                 payload.put(key, event.path(key).asLong());
         }
@@ -561,6 +571,7 @@ public final class ClineModelCallbackController {
             payload.put("resultAvailable", event.path("resultAvailable").asBoolean());
         if (event.path("repairAllowed").isBoolean())payload.put("repairAllowed",event.path("repairAllowed").asBoolean());
         if (event.path("exceedsSoftBudget").isBoolean())payload.put("exceedsSoftBudget",event.path("exceedsSoftBudget").asBoolean());
+        if (event.path("receiptReplayed").isBoolean())payload.put("receiptReplayed",event.path("receiptReplayed").asBoolean());
         if (event.path("usage").isObject()) {
             var usage = new java.util.LinkedHashMap<String,Object>();
             for (String key : List.of("inputTokens", "outputTokens", "cacheReadTokens", "cacheWriteTokens", "reasoningTokens"))

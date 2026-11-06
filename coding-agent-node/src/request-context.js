@@ -11,7 +11,7 @@ export function createRequestContextTracker() {
     for (const message of request.messages ?? []) for (const part of message.content ?? []) {
       // Exact identical read-only outputs already present in THIS request. Different input pages,
       // necessary history, system instructions, cached tokens and previous requests are not waste.
-      if (part.type !== 'tool-result' || !['input_read','code_read','metadata_read','skill_read'].includes(part.toolName)) continue;
+      if (part.type !== 'tool-result' || !['input_read','code_read','metadata_read','skills','read_files','skill_read'].includes(part.toolName)) continue;
       if(part.isError===true || part.output?.error)continue; // Failed attempts are necessary repair feedback.
       const encoded = JSON.stringify({ tool:part.toolName, output:part.output });
       const hash = createHash('sha256').update(encoded).digest('hex');
@@ -43,7 +43,7 @@ export function measureRequestContext(request, softInputTokenBudget) {
   for (const [index, message] of (request.messages ?? []).entries()) {
     for (const part of message.content ?? []) {
       const text = part.text ?? '';
-      const category = part.toolName === 'skill_read' ? 'skills'
+      const category = ['skills','read_files','skill_read'].includes(part.toolName) ? 'skills'
         : part.toolName === 'code_read' || part.type === 'tool-call' && part.toolName === 'python_execute'
           || text.startsWith('Untrusted latest executed program') || text.startsWith('Authorized immutable source input')
           || text.startsWith('Latest program binding') ? 'code'

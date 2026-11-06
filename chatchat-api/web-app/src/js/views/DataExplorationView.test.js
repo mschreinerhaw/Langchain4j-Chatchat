@@ -6,6 +6,42 @@ vi.mock('../../services/explorationApi',()=>api);
 vi.mock('../../components/PythonReportChart.vue',()=>({default:{props:['chart','presentation'],render(){return h('div',{'data-chart-type':this.presentation},this.chart.title);}}}));
 import View from '../../views/DataExplorationView.vue';
 let app,host;const settle=async()=>{for(let i=0;i<15;i++)await nextTick();};
+it('hydrates a failed files own archived stage once and keeps the failure visible',async()=>{
+ vi.useFakeTimers();try{
+ const state={...structuredClone(space),nodes:[{...node('root'),agentId:undefined,receipt:{taskId:'coding-task',status:'FAILED',terminal:true,resultAvailable:false}}]};
+ const restored=structuredClone(state);restored.version=4;restored.nodes[0].receipt={...state.nodes[0].receipt,resultAvailable:true,stageSnapshotChecked:true,deliveryStatus:'PRESERVED_AFTER_FAILURE',
+  visualReport:{status:'PARTIAL',title:'Own stage',summary:'Partial archived result',charts:[]}};
+ api.explorationNodeStatus.mockResolvedValue(restored);const vm=await mount(state);
+ await vi.advanceTimersByTimeAsync(1501);await settle();expect(vm.selectedState.code).toBe('FAILED');expect(vm.report.title).toBe('Own stage');expect(host.textContent).toContain('部分交付');
+ await vi.advanceTimersByTimeAsync(1501);await settle();expect(api.explorationNodeStatus).toHaveBeenCalledTimes(1);expect(api.executeExploration).not.toHaveBeenCalled();
+ }finally{vi.useRealTimers();}
+});
+it('stops an accepted file-analysis task after refresh through the existing stop endpoint',async()=>{
+ const state={...structuredClone(space),nodes:[{...node('root'),agentId:undefined,receipt:{taskId:'coding-task',status:'RUNNING',terminal:false,resultAvailable:false}}]};
+ const vm=await mount(state);expect(host.querySelector('.exploration-stop-bar')).not.toBeNull();
+ const stopped=structuredClone(state);stopped.version=4;stopped.nodes[0].receipt={taskId:'coding-task',status:'CANCELLED',terminal:true,resultAvailable:false};
+ api.stopExploration.mockResolvedValue(stopped);await vm.stopAnalysis();await settle();
+ expect(api.stopExploration).toHaveBeenCalledWith('space','root',null);expect(vm.selectedState.code).toBe('CANCELLED');
+ expect(api.executeExploration).not.toHaveBeenCalled();expect(host.querySelector('.exploration-stop-bar')).toBeNull();
+});
+it('restores a dispatched file analysis by status polling without another execution request',async()=>{
+ vi.useFakeTimers();try{
+ const state={...structuredClone(space),nodes:[{...node('root'),agentId:undefined,executionRequestedAt:1,receipt:{}}]};
+ const running=structuredClone(state);running.version=4;running.nodes[0].receipt={taskId:'coding-task',status:'RUNNING',terminal:false,resultAvailable:false,eventCursor:2};
+ const finished=structuredClone(running);finished.version=5;finished.nodes[0].receipt={taskId:'coding-task',status:'BUDGET_EXCEEDED',terminal:true,resultAvailable:false,eventCursor:4,stageSnapshotChecked:true};
+ api.explorationNodeStatus.mockResolvedValueOnce(running).mockResolvedValueOnce(finished);
+ const vm=await mount(state);await vi.advanceTimersByTimeAsync(1501);await settle();expect(vm.taskRunning).toBe(true);expect(vm.selectedState.code).toBe('RUNNING');
+ await vi.advanceTimersByTimeAsync(1501);await settle();expect(vm.selectedState.label).toBe('预算已耗尽');expect(vm.taskRunning).toBe(false);
+ expect(api.explorationNodeStatus).toHaveBeenCalledTimes(2);expect(api.executeExploration).not.toHaveBeenCalled();
+ }finally{vi.useRealTimers();}
+});
+it('restores a budget failure without showing the previous branch report or resubmitting execution',async()=>{
+ const state=structuredClone(space);state.nodes.push({...node('failed','root'),receipt:{taskId:'coding-task',status:'BUDGET_EXCEEDED',terminal:true,resultAvailable:false}});
+ const vm=await mount(state);vm.selectNode(vm.space.nodes.at(-1));await settle();
+ expect(vm.selectedState.label).toBe('预算已耗尽');expect(vm.canvasNode).toBeNull();expect(vm.report).toBeUndefined();
+ expect(host.querySelector('.exploration-empty-result h2').textContent).toContain('未交付');
+ expect(host.querySelector('[data-chart-type]')).toBeNull();expect(api.executeExploration).not.toHaveBeenCalled();
+});
 it('stops the original running node, prevents double clicks and preserves delivered results',async()=>{
  const state=structuredClone(space);state.nodes[0].receipt={...state.nodes[0].receipt,agentTaskId:'task',terminal:false,status:'EXECUTING'};
  const vm=await mount(state);let finish;api.stopExploration.mockImplementation(()=>new Promise(resolve=>finish=resolve));

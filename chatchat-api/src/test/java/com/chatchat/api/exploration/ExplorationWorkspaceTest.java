@@ -16,6 +16,46 @@ import static org.mockito.ArgumentMatchers.*;
 
 /** Real SQL persistence, mocked execution boundary. These are NOT live Coding acceptance evidence. */
 class ExplorationWorkspaceTest {
+    @Test void aTerminalFailureMayRecoverItsOwnEarlierArchiveOnceWithoutChangingItsTerminalState(){
+        var state=prepared();String id=state.path("id").asText(),node=nodeId(state);
+        doReturn(ApiResponse.success(Map.of("taskId","coding-task","status","FAILED","terminal",true,"resultAvailable",false))).when(analysis).analyzeVisual(eq(http),any());
+        controller.execute(http,id,node);
+        when(analysis.snapshotVisual(eq(http),any())).thenReturn(Optional.of(Map.of("taskId","coding-task","status","FAILED","terminal",true,"resultAvailable",true,
+            "stageSnapshotChecked",true,"deliveryStatus","PRESERVED_AFTER_FAILURE","visualReport",Map.of("status","PARTIAL","title","Own archived stage"))));
+        controller.status(http,id,node);long version=store.get(alice,id).path("version").asLong();controller.status(http,id,node);
+        var receipt=store.get(alice,id).path("nodes").get(0).path("receipt");
+        assertThat(receipt.path("status").asText()).isEqualTo("FAILED");assertThat(receipt.path("terminal").asBoolean()).isTrue();
+        assertThat(receipt.path("visualReport").path("status").asText()).isEqualTo("PARTIAL");assertThat(store.get(alice,id).path("version").asLong()).isEqualTo(version);
+        verify(analysis,times(1)).snapshotVisual(eq(http),any());verify(analysis,times(1)).analyzeVisual(eq(http),any());
+    }
+    @Test void legacyFileResultCanAcquireItsAuthoritativeTerminalFlagWithoutReexecuting(){
+        var state=complete();String id=state.path("id").asText(),node=nodeId(state);
+        var receipt=(ObjectNode)state.path("nodes").get(0).path("receipt").deepCopy();receipt.put("status","COMPLETED");receipt.put("terminal",true);
+        when(analysis.snapshotVisual(eq(http),any())).thenReturn(Optional.of(json.convertValue(receipt,new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){})));
+        clearInvocations(analysis);controller.status(http,id,node);controller.status(http,id,node);
+        assertThat(store.get(alice,id).path("nodes").get(0).path("receipt").path("terminal").asBoolean()).isTrue();
+        verify(analysis,times(1)).snapshotVisual(eq(http),any());verify(analysis,never()).analyzeVisual(any(),any());
+    }
+    @Test void lostFileAnalysisResponseIsRecoveredByStatusReadsWithoutExecutingAgain(){
+        var state=prepared();String id=state.path("id").asText(),node=nodeId(state);
+        when(analysis.analyzeVisual(eq(http),any())).thenThrow(new IllegalStateException("Connection lost"));
+        assertThatThrownBy(()->controller.execute(http,id,node)).hasMessageContaining("Connection lost");
+        assertThat(store.get(alice,id).path("nodes").get(0).has("executionRequestedAt")).isTrue();
+        when(analysis.snapshotVisual(eq(http),any())).thenReturn(Optional.of(Map.of("taskId","coding-task","status","BUDGET_EXCEEDED","terminal",true,"resultAvailable",false,"eventCursor",9,"stageSnapshotChecked",true)));
+        controller.status(http,id,node);long version=store.get(alice,id).path("version").asLong();controller.status(http,id,node);
+        var restored=store.get(alice,id);assertThat(restored.path("version").asLong()).isEqualTo(version);
+        assertThat(restored.path("nodes").get(0).path("receipt").path("status").asText()).isEqualTo("BUDGET_EXCEEDED");
+        verify(analysis,times(1)).analyzeVisual(eq(http),any());verify(analysis,times(1)).snapshotVisual(eq(http),argThat(request->request.requestId().equals(node)));
+        when(access.user(http)).thenReturn("bob");assertThatThrownBy(()->controller.status(http,id,node)).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+        verify(analysis,times(1)).snapshotVisual(any(),any());
+    }
+    @Test void aLateFileExecutionResponseCannotOverwriteTheFinalStatusReadAfterReconnect(){
+        var state=prepared();String id=state.path("id").asText(),node=nodeId(state);
+        when(analysis.snapshotVisual(eq(http),any())).thenReturn(Optional.of(Map.of("taskId","coding-task","status","FAILED","terminal",true,"resultAvailable",false,"eventCursor",10,"stageSnapshotChecked",true)));
+        when(analysis.analyzeVisual(eq(http),any())).thenAnswer(call->{controller.status(http,id,node);return ApiResponse.success(Map.of("taskId","coding-task","status","RUNNING","terminal",false,"resultAvailable",false,"eventCursor",2));});
+        controller.execute(http,id,node);
+        assertThat(store.get(alice,id).path("nodes").get(0).path("receipt").path("status").asText()).isEqualTo("FAILED");
+    }
     @Test void stopPersistsAuthoritativeCancellationAndRetainsResultsWithoutRestartingTheNode(){
         var state=store.create(alice,"Stop analysis");String id=state.path("id").asText();
         controller.prepare(http,id,new ExplorationWorkspaceController.Question(0,null,List.of(),"Analyze",null,"authorized"));

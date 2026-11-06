@@ -1,0 +1,12 @@
+{"case": "csv-0", "variant": "native", "elapsedMs": 78542, "taskId": "analysis-coding-23c1ffc06a3bd2f7843552ea939210c309a4be9d8a81b97f4ab65e2dc1a7656a", "status": "COMPLETED", "resultAvailable": true}
+{"case": "parquet-0", "variant": "native", "elapsedMs": 89457, "taskId": "analysis-coding-5d5c1ef7756eaa3713e2a6ea7a65f5ca8da60ca57dc28d94a689b418c3085623", "status": "COMPLETED", "resultAvailable": true}
+{"case": "join-0", "variant": "native", "elapsedMs": 382185, "taskId": "analysis-coding-3f06d70b7b8235f8f8245e859f08e81d6bdd6b847b26e8efb3432c74b6c169c2", "status": "COMPLETED", "resultAvailable": true}
+{"case": "complex-0", "variant": "native", "elapsedMs": 466220, "taskId": "analysis-coding-a6b58dbf516d57485f20639a346f59a128538920e85fe0baeb786d418226def9", "status": "COMPLETED", "resultAvailable": true}
+{"case": "visual-0", "variant": "native", "elapsedMs": 662926, "taskId": "analysis-coding-8e6d92cb89d69be53563d065c672f2078f93d86d7d6546c27d0922ce5f8c86d0", "status": "COMPLETED", "resultAvailable": true}
+{"case": "csv-1", "variant": "native", "elapsedMs": 114358, "taskId": "analysis-coding-ca7d0257a7aabd9857b724084eafdb5e85815550a91223fec86530c8e8ec1cec", "status": "COMPLETED", "resultAvailable": true}
+{"case": "repair-0", "variant": "native", "elapsedMs": 883238, "taskId": "analysis-coding-538f6deab37ece9d92cc9454313189e2f032704225ca19626f4dad87e4b42b01", "status": "COMPLETED", "resultAvailable": true}
+{"case": "parquet-1", "variant": "native", "elapsedMs": 108651, "taskId": "analysis-coding-818ed6b51fc19cb53454a7f9689ab33a44f31f508c024b9d3b54f02ede836d94", "status": "COMPLETED", "resultAvailable": true}
+{"case": "join-1", "variant": "native", "elapsedMs": 194823, "taskId": "analysis-coding-708521f859041cb448e8e625e90ae1618b2cb371126697f5f5cee62dcbc6699e", "status": "COMPLETED", "resultAvailable": true}
+{"case": "complex-1", "variant": "native", "elapsedMs": 449117, "taskId": "analysis-coding-7c3b38cf57df1a42cd6ce6ab4c0b09f6be422be669581f2c6923aef57f1f817e", "status": "COMPLETED", "resultAvailable": true}
+{"case": "repair-1", "variant": "native", "elapsedMs": 446350, "taskId": "analysis-coding-c5dac3c31746b76367479c0d093be3784f43cba9681e4b3fe41494af9df58d49", "status": "COMPLETED", "resultAvailable": true}
+{"case": "visual-1", "variant": "native", "elapsedMs": 996154, "taskId": "analysis-coding-983f034627beed56ed9f8bb73927eb8e30ff64672faf98fab304cdb6a099e496", "status": "COMPLETED", "resultAvailable": true}

@@ -1,0 +1,62 @@
+{
+  "scope": "Own eight Skill metadata headers only; pre/post working-byte body hashes match. Third-party originals unchanged and checked by source manifests.",
+  "sourceCommit": "f6886ee4ea68e99f2c892ef94cdd60361df53998",
+  "skills": [
+    {
+      "name": "python-data-analysis",
+      "beforeSha256": "27be577833b34dfe9cceaedf2c7df3a0a673398b4a1e7900db9fde172bd8b143",
+      "afterSha256": "8624e64589cb0b2848c6bd06c34d46b7fd034e83b8234ba45eaa9a182c1f4179",
+      "bodySha256": "f19713973872a642665945c088c198eace53c4ffeb0198232787bfe52315e1cc",
+      "bodyUnchanged": true
+    },
+    {
+      "name": "python-code-development",
+      "beforeSha256": "8f882f92c2a0fdd7f3dfefb2f37d9fd25688c7b0744fc2c301d5e271e6f2cc95",
+      "afterSha256": "f1b9d106c452715c8bc25e2b2847087474a96e468badcd23c819f5b8fb5cdccd",
+      "bodySha256": "1e16bfa65d8392d54bbc202d2ee78f0a1667fa087af529fdd69163eac0016c5c",
+      "bodyUnchanged": true
+    },
+    {
+      "name": "opensearch-knowledge-exploration",
+      "beforeSha256": "5f5fade132484892913d57559bcae26ad30dd90b060b0d089fc237b60f031c64",
+      "afterSha256": "cb5ec09f13e2379104874850bfac96377773f32da9eab7c44b85dc6c2977a3d3",
+      "bodySha256": "2089a85b325b5bd39acef74dbdbb5dcc77da3dac6ff60ea92113da5589ddb6bf",
+      "bodyUnchanged": true
+    },
+    {
+      "name": "financial-news-analysis",
+      "beforeSha256": "3f7f08d41b099aeef04ca00a0d6bfee776e05e70991b2bae9759aace60e3cb07",
+      "afterSha256": "945035fabe8c69d9f57cdb58a63a9d0397e86fbced3006abd8745618be973db4",
+      "bodySha256": "106e354edd7debaf3ce0a542bc8fbe6c9b1045b20e593f0df550e962d539ab87",
+      "bodyUnchanged": true
+    },
+    {
+      "name": "financial-market-analysis",
+      "beforeSha256": "ce5f80cc91d7cc4185e3b9048245474930ce01151a3e550ea04f4791de675cd8",
+      "afterSha256": "9dfc0d21b149c029efd2ce3ef3906886be048b5a091c503ee79c9e78f2fc4490",
+      "bodySha256": "b0adb0265c22b29169cb494e1db28a3b73045e760468fdcdfc4f8fdd2ab3efa2",
+      "bodyUnchanged": true
+    },
+    {
+      "name": "evidence-based-answering",
+      "beforeSha256": "bf8dd861cf4d4c26b94ffc3022b9af9c495e3f43c6fa964e636e321b97e9e575",
+      "afterSha256": "e0bf5be5a0caaa7db354c93ce6ed335e0f84f8cbb864d57b347e26416758768c",
+      "bodySha256": "7d1ad22473d63487f6a5b4c969b539726b985f586015a5c27b6cfaa8fd1ba28b",
+      "bodyUnchanged": true
+    },
+    {
+      "name": "runtime-report-delivery",
+      "beforeSha256": "62e9d75d5f497226b0c15cec5e71ce56f087fe8732fd6a91aac1034c368bde92",
+      "afterSha256": "880d3c32149691a23398ab50f519b90e8b4918c068b1d205dea25620d181488a",
+      "bodySha256": "7087017207ed52ebb4f08e8beab397eab964082d504f5a3576a88869f70975af",
+      "bodyUnchanged": true
+    },
+    {
+      "name": "runtime-internet-research",
+      "beforeSha256": "1bc09ea32a537b07e2655d135fb87975e43a19d150745065c3749bdac60d2517",
+      "afterSha256": "aad43843ea0476674c65af485eb978504ac3f215e2a76d6403d0b11c9a581bd2",
+      "bodySha256": "603f1e02cc1d5922bcc7c1a8cc909bea7512d9b0abfdcf64a60d3eeccc8e6e57",
+      "bodyUnchanged": true
+    }
+  ]
+}

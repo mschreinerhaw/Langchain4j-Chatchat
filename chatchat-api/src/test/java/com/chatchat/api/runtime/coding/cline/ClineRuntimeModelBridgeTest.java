@@ -23,6 +23,31 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClineRuntimeModelBridgeTest {
+    @Test void actualPublicSdkSkillsSchemasReachTheExistingRuntimeModelWithoutBroadeningGrants() throws Exception {
+        var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);
+        var parent=mock(ChatModel.class);when(resources.defaultChatModel()).thenReturn("registered-model");
+        when(parent.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder().aiMessage(AiMessage.from("done"))
+            .tokenUsage(new TokenUsage(2,1,3)).build());
+        var registry=new CodingParentModels();var bridge=new ClineRuntimeModelBridge(resources,factory,json);bridge.setParentModels(registry);
+        json.findAndRegisterModules();var frozen=(com.fasterxml.jackson.databind.node.ObjectNode)json.valueToTree(contract());
+        frozen.put("schemaVersion",CodingProtocol.ANALYSIS_VERSION);
+        var authority=(com.fasterxml.jackson.databind.node.ObjectNode)frozen.get("authorization");
+        authority.set("allowedTools",json.valueToTree(List.of("skills","read_files")));
+        var bound=json.treeToValue(frozen,CodingTaskContract.class);
+        var request=(com.fasterxml.jackson.databind.node.ObjectNode)json.readTree("{\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"analyze\"}]}]}");
+        try(var source=getClass().getResourceAsStream("/coding/native-skills-tools.json")) {
+            request.set("tools",json.readTree(source).get("tools"));
+        }
+        try(var ignored=registry.bind(bound.scope(),bound.taskId(),parent)) {
+            bridge.complete(bound,request);
+            verify(parent).chat(argThat((ChatRequest r)->r.toolSpecifications().stream().map(s->s.name()).toList().equals(List.of("read_files","skills"))));
+            authority.set("allowedTools",json.valueToTree(List.of("skills","python_execute")));
+            var narrower=json.treeToValue(frozen,CodingTaskContract.class);
+            assertThatThrownBy(()->bridge.complete(narrower,request)).isInstanceOf(ClineRuntimeModelBridge.InvalidModelResponseException.class)
+                .hasCauseInstanceOf(SecurityException.class);
+            verifyNoMoreInteractions(parent);
+        }
+    }
     @Test void contextPolicyDistinguishesMissingWindowFromConfiguredModelLimits() {
         var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);
         when(resources.defaultChatModel()).thenReturn("registered-model");

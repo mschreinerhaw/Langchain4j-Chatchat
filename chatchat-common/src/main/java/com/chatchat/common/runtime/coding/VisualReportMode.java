@@ -40,11 +40,16 @@ public final class VisualReportMode {
         Use installed Matplotlib for static PNG/SVG and Plotly fig.write_json for interactive plots (use ordinary JSON arrays, not binary/base64 ndarray transport; set template=None to omit unused default map/image templates).
         Preserve the Runtime's configured Unicode font defaults. Never replace font.sans-serif with guessed fonts such as SimHei. If choosing a font explicitly, verify it is installed and supports every chart label before rendering.
         Do not generate HTML or JavaScript. Plotly figures must be offline: no external URLs, image/map layers, custom scripts or credentials.
+        Use plain text in Plotly titles, labels and hover text; do not embed span/style or other HTML attributes.
+        Set style through Plotly properties, e.g. fig.update_layout(template=None, title=dict(text="Computed trend", font=dict(size=18))).
+        Write the figure with fig.write_json("/workspace/output/results/trend.json") and register {id:"trend",kind:"plotly",fileName:"trend.json"} in visualReport.charts.
+        A Markdown image path alone is not an archived chart. chartValidationStatus PARTIAL means actual chart delivery failed; inspect presentationDiagnostics and repair the named artifact if possible. Preserve valid numerical results and disclose any remaining failure.
         sections: [{title,narrative,chartIds:[string],tableIds:[string]}]; narrative and summary must describe the same computed values, units, scope and missing-data treatment.
         dataSources: [exact delivered dataset references actually used]. validation: {checks:[{name,status:'PASSED'|'FAILED'|'UNRESOLVED',detail}],warnings:[string]}.
         PASSED means a check was performed and passed; FAILED means it was performed and failed; UNRESOLVED means evidence is insufficient to resolve it. Retain unresolved checks and explain their limits, set report status PARTIAL. Never relabel failed or unresolved checks as PASSED to satisfy report admission.
         Include timings:{analysisMs:number,chartMs:number} measured with time.perf_counter; never invent unavailable timings.
         Build every metric, table, plot and narrative from the SAME computed Python objects; assert consistency before writing results.
+        计数、星期与周边界须由程序计算，文字、表格和图表复用同一事实对象，禁止手写不一致的计数或日期。区分 ISO 周一/周日边界和实际观测起止，明确部分周覆盖。Decimal 保留精度，空值不冒充零；盈亏与收益率分别核对分母和单位。
         For changes and returns, state the actual baseline and end date. N observed prices span N-1 adjacent return intervals; do not label a window's first-to-last change as an N-period return without the required baseline observation.
         Map delivered columns explicitly after inspecting their actual schema. Similar names are not interchangeable: precision, rounding and uncertainty metadata are not measured values. Do not use positional or substring guesses that can silently replace a value column with metadata.
         A PASSED check must reflect a condition actually satisfied by the data. Disclosed rounding inconsistencies and missing business inputs belong in limitations; never relabel an unsuccessful computation check as PASSED.

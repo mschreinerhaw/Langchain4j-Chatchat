@@ -1,7 +1,8 @@
 ---
 name: python-data-analysis
 description: Analyze delivered Python datasets, inspect quality, join sources, compute statistics and business metrics, and deliver reproducible static charts and Runtime OS reports.
-version: 1.3.2
+metadata:
+  version: 1.3.2
 ---
 
 # Python data analysis in Runtime OS

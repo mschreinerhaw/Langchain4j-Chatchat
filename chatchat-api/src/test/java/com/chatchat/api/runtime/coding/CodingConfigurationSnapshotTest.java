@@ -6,6 +6,13 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.*;
 
 class CodingConfigurationSnapshotTest {
+    @Test void configuredIdentityProvenanceDoesNotSilentlyDropBindingsAfter128() {
+        var ids=java.util.stream.IntStream.range(0,150).mapToObj(i->"authorized-"+i).toList();
+        var snapshot=CodingConfigurationSnapshot.capture(Map.of(
+            com.chatchat.common.skills.DomainSkillRuntimePort.PLANNING_CONTEXT_ATTRIBUTE,
+            Map.of("configuredSkillIds",ids)),Map.of());
+        assertThat(snapshot.get("configuredSkillIds")).isEqualTo(ids);
+    }
     @Test void replayCannotSilentlyBindAChangedModelToTheOriginalTaskSnapshot() {
         var snapshot=CodingConfigurationSnapshot.capture(Map.of("checkpointModelConfig",Map.of("selectedModel","A","timeout",120L)),Map.of());
         assertThatCode(()->CodingConfigurationSnapshot.requireSameModel(snapshot,

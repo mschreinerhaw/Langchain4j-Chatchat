@@ -86,9 +86,9 @@ export function createCodingProgress({ preparationCalls, stalledCalls, initialCo
       }
       if (event.type === 'SDK_TOOL_STARTED') {
         state.lastTool = event.tool;
-        state.waitingFor = event.tool === 'python_execute' ? 'CODE' : event.tool === 'skill_read' ? 'SKILL' : 'TOOL';
+        state.waitingFor = event.tool === 'python_execute' ? 'CODE' : ['skills','read_files','skill_read'].includes(event.tool) ? 'SKILL' : 'TOOL';
         state.phase = event.tool === 'python_execute' ? 'WRITING'
-          : event.tool === 'skill_read' || event.tool === 'tool_describe' ? 'PREPARING' : 'EXPLORING';
+          : ['skills','read_files','skill_read'].includes(event.tool) || event.tool === 'tool_describe' ? 'PREPARING' : 'EXPLORING';
       }
       if (event.type === 'TOOL_STARTED') {
         state.waitingFor = event.tool === 'python_execute' ? 'PYTHON' : 'TOOL';
@@ -103,7 +103,7 @@ export function createCodingProgress({ preparationCalls, stalledCalls, initialCo
     tool(call, result) {
       const name = call.toolName, output = result.output;
       state.lastTool = name;
-      if (name === 'skill_read') state.skillReads++;
+      if (['skills','read_files','skill_read'].includes(name)) state.skillReads++;
       if (name === 'tool_describe') state.discoveryCalls++;
       if (name === 'input_read') state.inputReadCount++;
       const failure = result.isError === true || output?.status === 'FAILED'
@@ -118,10 +118,10 @@ export function createCodingProgress({ preparationCalls, stalledCalls, initialCo
         inventory.add(identity);
         if (!failure && !(name==='skill_read' && output?.contentAlreadyInContext===true)) {
           state.newToolResults++; newResults = true; state.lastProgressType=name;
-          if (name !== 'skill_read' && /(?:read|search|snapshot|history|indicators|metadata)/.test(name)) state.newEvidenceReads++;
+          if (!['skills','read_files','skill_read'].includes(name) && /(?:read|search|snapshot|history|indicators|metadata)/.test(name)) state.newEvidenceReads++;
         }
       }
-      state.phase = failure ? 'REPAIRING' : name === 'skill_read' || name === 'tool_describe' ? 'PREPARING'
+      state.phase = failure ? 'REPAIRING' : ['skills','read_files','skill_read'].includes(name) || name === 'tool_describe' ? 'PREPARING'
         : name === 'artifact_read' ? 'REVIEWING' : name === 'python_execute' ? 'REVIEWING' : 'EXPLORING';
       state.waitingFor = 'MODEL';
     },

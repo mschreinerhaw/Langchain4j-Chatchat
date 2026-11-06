@@ -22,6 +22,20 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClinePythonCallbackControllerTest {
+    @Test void monitorStatusIsReadOnlyAndProjectsEveryAuthoritativeTerminalWithoutNeedingALiveLease() {
+        var now=Instant.now();var outcome=mock(CodingTaskOutcome.class);
+        when(tasks.get(scope,"task")).thenReturn(outcome);when(tasks.contract(scope,"task")).thenReturn(contract);
+        when(outcome.revision()).thenReturn(20L);when(outcome.updatedAt()).thenReturn(now);when(outcome.endedAt()).thenReturn(now);
+        when(outcome.summary()).thenReturn("Original task summary");when(outcome.limitations()).thenReturn(List.of("Missing chart"));
+        var body=json.createObjectNode().put("taskId","task").put("kind","status");body.set("scope",json.valueToTree(scope));
+        for(var status:CodingTaskOutcome.Status.values()){
+            when(outcome.status()).thenReturn(status);var result=controller.monitorPython(body);
+            assertThat(result).containsEntry("status",status).containsEntry("terminal",status.terminal()).containsEntry("revision",20L)
+                .containsEntry("runId",scope.runId()).containsEntry("source","DURABLE_CODING_JOURNAL");
+        }
+        verify(tasks,never()).ownership(any(),anyString());verify(tasks,never()).resume(any(),anyString());
+        verify(tasks,never()).submit(any());verifyNoInteractions(python,collector,inputs);
+    }
     final ObjectMapper json=new ObjectMapper().findAndRegisterModules();
     final KernelDataScope scope=new KernelDataScope("tenant","owner",null,null,"run",null,Map.of());
     final CodingInvocationContext identity=new CodingInvocationContext();

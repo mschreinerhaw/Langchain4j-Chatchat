@@ -144,13 +144,23 @@ def main():
         for mount in before[name]['Mounts']:
             if mount['Type'] == 'bind' and not Path(mount['Source']).exists():
                 raise RuntimeError('Required bind source is missing: ' + mount['Source'])
+    # Never layer an application on a previous business image: old JARs remain
+    # in its ancestry even when COPY overwrites the visible file.
     base = 'runtime-os-api-runtime:17-sqlglot-20261024'
-    assert 'app.jar' not in run('docker', 'history', '--no-trunc', '--format', '{{.CreatedBy}}', base)
-    (root / 'Dockerfile').write_text('FROM ' + before[api]['Config']['Image'] + '\nWORKDIR /srv/app\nCOPY app.jar /srv/app/app.jar\nENTRYPOINT ["java","-jar","/srv/app/app.jar"]\n')
+    assert 'app.jar' not in run('docker', 'history', '--no-trunc', '--format', '{{.CreatedBy}}', base), 'Use a clean runtime base'
+    run('docker', 'run', '--rm', '--network', 'none', '--read-only', '--cap-drop', 'ALL',
+        '--security-opt', 'no-new-privileges:true', '--entrypoint', '/usr/bin/python3', base,
+        '-c', "import sqlglot; assert sqlglot.__version__ == '30.23.0'")
+    (root / 'Dockerfile').write_text('FROM ' + base + '\nWORKDIR /srv/app\nRUN mkdir -p /srv/app/config /srv/app/data /srv/app/logs\nCOPY app.jar /srv/app/app.jar\nENV LANG=C.UTF-8 LC_ALL=C.UTF-8 TZ=Asia/Shanghai\nEXPOSE 8080\nENTRYPOINT ["java","-jar","/srv/app/app.jar"]\n')
     (root / '.dockerignore').write_text('*\n!app.jar\n!Dockerfile\n')
     if api in images:
-        run('docker', 'build', '--network', 'none', '--label',
-            'org.opencontainers.image.revision=' + manifest['sourceCommit'], '-t', manifest['image'], str(root))
+        with (root / 'api-build.log').open('w') as log:
+            subprocess.run(['docker', 'build', '--network', 'none', '--label',
+                'org.opencontainers.image.revision=' + manifest['sourceCommit'], '-t', manifest['image'], str(root)],
+                stdout=log, stderr=subprocess.STDOUT, check=True)
+        assert int(run('docker', 'image', 'inspect', '--format', '{{.Size}}', manifest['image'])) <= 1200 * 1024 * 1024, 'Application image exceeds 1200 MiB'
+        history = run('docker', 'history', '--no-trunc', '--format', '{{.CreatedBy}}', manifest['image'])
+        assert sum('COPY ' in line and 'app.jar' in line for line in history.splitlines()) == 1, 'Application must contain one business JAR copy layer'
     for service,key in [(mcp,'mcp'),(news,'news')]:
         if service not in images:continue
         entry=manifest[key]
@@ -201,6 +211,9 @@ def main():
         config, host = copy.deepcopy(old['Config']), copy.deepcopy(old['HostConfig'])
         if name in images:
             config['Image'] = images[name]
+            if manifest.get('removeInheritedRuntimeBaseLabels'):
+                for key in ('com.chatchat.cleanup.protect', 'com.chatchat.runtime.clean'):
+                    config.get('Labels', {}).pop(key, None)
         if name==api and not manifest.get('preserveRuntimeConfiguration'):
             config['Env']=[v for v in config['Env'] if not v.startswith('CHATCHAT_SEARCH_OPENSEARCH_KNOWLEDGE')]+['CHATCHAT_SEARCH_OPENSEARCH_KNOWLEDGEINDEXNAMES=runtime_os_stage_documents,chatchat_documents_dev']
         if name==api and not manifest.get('preserveRuntimeConfiguration'):

@@ -218,7 +218,7 @@ class CodingWorkspaceServiceTest {
         service.submit(scope,"metadata-task","Use only supplied schema; propose SQL, never execute it.","mysql","",schema);
         var bound=actor(()->tasks.contract(scope,"metadata-task"));
         var worker=actor(()->tasks.claim(scope,"metadata-task","cline-adapter:test",Duration.ofMinutes(2),tasks.get(scope,"metadata-task").revision()));
-        assertThat(bound.authorization().allowedTools()).containsExactlyInAnyOrder("workspace_read","workspace_propose","skill_read");
+        assertThat(bound.authorization().allowedTools()).containsExactlyInAnyOrder("workspace_read","workspace_propose","skills","read_files");
         var input=actor(()->service.read(bound,worker,operation('a')));
         assertThat(input.get("schema")).isEqualTo(schema);
         var failed=actor(()->service.propose(bound,worker,operation('b'),proposal("SELECT missing_field FROM db.orders;")));

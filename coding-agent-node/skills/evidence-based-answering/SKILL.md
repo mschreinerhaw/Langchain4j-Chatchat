@@ -1,7 +1,8 @@
 ---
 name: evidence-based-answering
 description: Form evidence-supported answers across authorized documents, news and market data while distinguishing facts, inference, source conflicts and missing verification.
-version: 1.0.0
+metadata:
+  version: 1.0.0
 ---
 
 Use when the requested conclusion depends on multiple sources, conflicting evidence or a consequential factual assertion. Load only the methodology relevant to the task; it grants no data or execution authority.

@@ -1,0 +1,373 @@
+✔ fixed regression gate: simple-sales-csv rejects missing evidence, wrong completion and unknown usage (1.964812ms)
+✔ fixed regression gate: multi-file-explicit-join rejects missing evidence, wrong completion and unknown usage (0.287418ms)
+✔ fixed regression gate: exact-repair-preserves-results rejects missing evidence, wrong completion and unknown usage (0.256754ms)
+✔ fixed regression gate: account-missing-semantic-definition rejects missing evidence, wrong completion and unknown usage (2.098659ms)
+✔ repair fixture modifies only the supplied exact anchor and preserves validated money text (1.000002ms)
+✔ full repair source keeps computation and immutable file verification unchanged (9.670663ms)
+✔ legacy disable hints cannot remove authorized image packages or mutate metadata (4.097501ms)
+✔ delivery rejects duplicate source identities; SDK namespaces handle names (1.313561ms)
+✔ image delivery rejects traversal and undeclared resource paths (4.956799ms)
+✔ misplaced or string parent versions return the current nested repair shape without changing code (3.364058ms)
+✔ validated patches survive later failures, rollback, restart and stale-parent rejection (1.3321ms)
+✔ SDK basic compaction retains the latest bound program without another model (12.834467ms)
+✔ budget compaction preserves the entire current report and immutable initial context (19.566854ms)
+✔ compaction never restores a previous report after its current reference is cleared (4.655889ms)
+✔ patch text is editable after validation and restored legacy fragments do not become authority (1.705462ms)
+✔ archived output with invalid authorized references is not a validated rollback checkpoint (0.420821ms)
+✔ native SDK hash rejection supplies the actual parent without executing the rejected patch (44.570166ms)
+✔ real SDK uses exact patches, exposes local proposal rejection and resumes without replay (34.24736ms)
+✔ repair context binds safe source locations to the exact latest execution (2.042977ms)
+✔ repair excerpts reject invalid frames and bound long source lines (0.614092ms)
+✔ syntax feedback supplies unchanged invalid quotes as an exact patch anchor (1.094296ms)
+✔ repair anchors never advertise normalized text missing from the actual CRLF program (0.342267ms)
+✔ exact code repair preserves unrelated bytes and rejects stale or ambiguous anchors (0.460317ms)
+✔ checkpoint carries stalls and reconciles unknown admitted calls without inventing usage or feedback (3.354115ms)
+✔ bounded checkpoint preserves exact observation identities and ignores invalid or legacy metadata (1.623101ms)
+✔ advisory flags preparation and stalls without imposing a call limit (0.426991ms)
+✔ new evidence resets stalls; identical failures and unchanged results do not (0.57678ms)
+✔ proposal, Python and result clocks distinguish rejected code and unknown execution (0.373735ms)
+✔ thresholds are configurable and disabled feedback preserves observations (0.73583ms)
+✔ restored code does not trigger a false initial-code prompt; stalls request a minimal repair (0.254829ms)
+✔ eager disclosure cannot introduce unauthorized tools and survives catalog restore (0.751787ms)
+✔ real SDK restore receives the existing advisory after an unknown model attempt, without replaying tools (395.457173ms)
+✔ real SDK can submit initial code without schema discovery, Skill reads or a plan turn (16.806188ms)
+✔ same SDK session receives advisory and continues legitimate exploration beyond threshold (176.492997ms)
+✔ monitor stores bounded progress, tool names, finish reason and diagnostics without tool payloads (2.465213ms)
+✔ unknown operations block inference instead of authorizing replacement execution (1.772893ms)
+✔ native compaction preserves the exact failed execution diagnostic without a summarizing model (19.436212ms)
+✔ completion allocation compacts replay before either the provider window or average budget is full (6.746339ms)
+✔ duplicate read errors never create early pressure and the latest input round survives completion compaction (6.77777ms)
+✔ completion metrics charge failed work to the admitted cohort and retain censored observations (5.584121ms)
+✔ different input pages and necessary cross-request history are not classified as wasted context (3.275022ms)
+✔ search tools advertise only dynamically selected engine IDs without credentials or URLs (3.263551ms)
+✔ public Internet capability never expands execution network and requires the frozen server profile (0.841606ms)
+✔ access-denied reports retain their delivered context and repair empty references before Java submission (252.262657ms)
+✔ draft review identifies an invented evidence ID and supplies exact delivered IDs for repair (213.776881ms)
+✔ knowledge profile keeps source manifests outside model context and tools isolated (2.709245ms)
+✔ real Cline loop autonomously searches, reads chapters, cross-checks and rewrites before a cited report (183.53567ms)
+✔ Runtime authorization failure returns no knowledge source text (0.896349ms)
+✔ resource exploration reserves submission and repair turns without enlarging the task budget (218.916806ms)
+✔ a plain resource answer cannot complete before a verified report is submitted (178.276035ms)
+✔ resource draft is reviewed in the same SDK loop before any report can be published (153.684721ms)
+✔ two submissions in the same assistant turn cannot bypass the resource review round (128.079704ms)
+✔ authorized late exploration remains available and the report can still finish (175.921327ms)
+✔ an ordinary text task with no authorized resource tools keeps its single submission path (4.413773ms)
+✔ actual SDK loop autonomously joins permitted market history and news without document or Python authority (217.012997ms)
+✔ image delivery manifests do not grant business data tools (2.188279ms)
+✔ permitted resource subset never advertises ungranted resources (0.424557ms)
+✔ stage statistics retain unknown measurements and never infer Runtime success from Node completion (4.738681ms)
+✔ recovery merges admitted ordinals and compares execution success with output validation and Java final status (2.059719ms)
+✔ Microsoft original packages and every resource preserve publisher hashes and license (11.823542ms)
+✔ user-supplied source projects retain real hashes but no encoded source in operations monitoring (3.949489ms)
+✔ callback timings remain distinct from provider timings and persist only bounded metadata (1.443086ms)
+✔ SDK receives APPLIED Skills and configuration; code receipt references exact source (23.111891ms)
+✔ SDK receives DELIVERED Skills and configuration; code receipt references exact source (4.326185ms)
+✔ fast analysis finishes after a validated tool result and archives the final tool interaction (3.313773ms)
+✔ fast analysis keeps output-missing failures repairable and materializes audited patched code (19.568095ms)
+✔ reviewed analysis repairs locally and reads its scoped result before completion (12.128969ms)
+✔ native completion rejects a stale artifact and stops immediately after the latest accepted review (6.027597ms)
+✔ a complete artifact cannot certify a Python receipt whose result validation failed (3.994742ms)
+✔ report citation failures return to the Cline repair loop before task completion (7.367879ms)
+✔ a model cannot finish successfully after a rejected report reference check (5.454549ms)
+✔ versioned file inputs negotiate format before SDK/model admission and keep output JSONL (7.722983ms)
+✔ only explicitly declared bounded input observations reach the coding model (5.317652ms)
+✔ cancellation during input preparation cannot start a late model loop (0.898434ms)
+✔ failed input preparation records a failed Runtime finish without admitting a model (0.670702ms)
+✔ cancellation while persisting context events cannot be reset by Agent.run (1.15646ms)
+✔ worker graceful shutdown cancels active SDK execution and records finish before exiting (60.824275ms)
+✔ native preparation retains one Agent entry and cannot activate a standalone host file reader (205.425278ms)
+✔ official package discovery and service load all image Skills; only native tools are exposed (124.661465ms)
+✔ official skills invocation supplies its root and native read_files loads the requested reference (167.027416ms)
+✔ several relevant native Skills can cooperate without loading unrelated bodies (107.328936ms)
+✔ legacy methodology distribution preserves its body and exposes SDK-discovered purpose metadata (109.402677ms)
+✔ dynamic original package bytes and resources remain exact; distribution is not model loading (187.741157ms)
+✔ native resource access remains task isolated and cannot read the host or another tenant workspace (389.985414ms)
+✔ revoked dynamic authorization blocks cached native Skill instructions and reference reads (101.08349ms)
+✔ staged content tampering is rejected before the native file executor discloses it (155.899979ms)
+✔ SDK discovery resumes at stable task paths after service disposal and redistribution (211.080098ms)
+✔ new Node processes independently rediscover the same authorized original packages (3133.746119ms)
+✔ native Skill can be loaded again after real installed SDK compaction removes its prior output (129.688942ms)
+✔ one real Cline session may skip all Skills and directly propose simple CSV analysis code (109.164956ms)
+✔ persisted monitor observations retain failed output validation and measured tool resources (4.801821ms)
+✔ monitor consumes actual SDK observations without granting dispatch authority or leaking private context (117.182472ms)
+✔ browser login uses same-origin HttpOnly sessions; logout revokes the browser cookie (27.793566ms)
+✔ persistent history marks unfinished execution as interrupted and keeps exact code across restart (8.33102ms)
+✔ unknown usage remains null; model failure and observer redaction do not fabricate successful calls (0.870038ms)
+✔ dedicated monitor credential is required and monitoring defaults to disabled (3.764959ms)
+✔ retention exposes missing source as 410 and never evicts an active task (4.174182ms)
+✔ monitor persistence failure reports degradation without changing execution state (4.00161ms)
+✔ Invalid snapshot reference is structured repair feedback and Cline corrects it in the original task (21.656486ms)
+✔ New necessary Skills remain progress beyond the preparation threshold; reused bodies do not reset a stall (0.716446ms)
+✔ Pre-code usage and content observations retain unknown usage separately and exclude sensitive text (0.374024ms)
+✔ Model MODEL_REQUEST_TIMEOUT stays distinct from Python failure and does not retry unknown operations (3.054461ms)
+✔ Model CALLBACK_RESPONSE_INTERRUPTED stays distinct from Python failure and does not retry unknown operations (1.948187ms)
+✔ Model CALLBACK_DEADLINE stays distinct from Python failure and does not retry unknown operations (1.314514ms)
+✔ repair relationships require authoritative counters and an exact failed parent hash (1.342822ms)
+✔ diff shows actual minimal changes, unchanged files and bounded large changes (0.774578ms)
+✔ output failure, process failure and cancellation are distinct execution facts (0.38736ms)
+✔ operator Python projection is read-only, retained-task-bound and never persisted in Node history (48.501615ms)
+✖ full reuse preserves exact original files, empty package and CRLF (1.748181ms)
+✖ partial reuse edits only an exact file anchor and retains unrelated functions (0.387613ms)
+✖ later edits retain previous repair and reject stale hashes (0.358577ms)
+✖ rejects overwrite additions, ambiguous edits, path traversal and changed adapter (0.367106ms)
+✖ restarts through the existing durable code history without losing repairs or version checks (0.432667ms)
+✖ can fill an exactly empty package marker without overwriting a nonempty file (0.327529ms)
+✔ real SDK survives abnormal process exit via complete checkpoint without replaying Python or model ordinals (2830.42866ms)
+✔ initial discovery catalog is attributed separately from objective and tool schemas (2.072758ms)
+✔ final payload attribution includes tools, skills, report, code and multibyte text without leaking contents (0.72945ms)
+✔ request replay accounting retains only hashes and separates stable context from new parts (0.881244ms)
+✔ native state-aware compaction is reused and restored against canonical prefix hashes (22.744963ms)
+✔ source binding becomes a reference only when current task advertises code_read (0.805056ms)
+✔ checkpoint size pressure discards only the optional projection, never canonical recovery evidence (2.458261ms)
+✔ compacted tool results round trip objects without a second JSON string envelope (8.8681ms)
+✔ review projection preserves exact version/hash while omitting fresh full-source injection; repair restores it (1.060496ms)
+✔ native SDK completion guard continues a plan-only STOP to real execution and review (30.575766ms)
+✔ plan-only continuation retains the original model budget and cannot certify a missing result (4.20988ms)
+✔ each actual model attempt gets a fresh authoritative budget and cannot bypass reconciliation (6.171417ms)
+✔ context policy false keeps explicit source reads, exact repairs and report confirmation in the same SDK run (27.742422ms)
+✔ context policy true keeps explicit source reads, exact repairs and report confirmation in the same SDK run (18.06727ms)
+✔ a validated report retains the final model turn for actual review and confirmation (6.961247ms)
+✔ final-turn reservation cannot certify failed reference validation (5.086497ms)
+✔ final-turn reservation cannot certify failed artifact validation (4.198567ms)
+✔ review reads bound code on demand, rejects stale hash and repairs without rerunning discovery (33.372023ms)
+✔ unnegotiated tasks cannot expose a local program reader (1.254872ms)
+✔ negotiated review keeps full program when reference validation fails (3.973598ms)
+✔ negotiated review keeps full program when visual-artifact validation fails (3.251393ms)
+✔ negotiated review keeps full program when visual-layout validation fails (3.28231ms)
+✔ Python report cannot be replaced by text-only submission (5.701775ms)
+✔ Python failure cannot be replaced by text-only submission (4.071975ms)
+✔ late resource-report budget retains Python repair after a failed execution instead of forcing text submission (6.422822ms)
+✔ native output truncation retains context and reaches one admitted concise repair instead of restarting discovery (7.097326ms)
+✔ native rejected-response repair ceiling persists at a settled boundary and cannot reset on restore (5.585812ms)
+✔ real SDK checkpoints only after every call in a multi-tool turn has its result (3.79102ms)
+✔ native SDK reuses the supplied report and keeps Python repair without a second text submission path (2.773604ms)
+✔ real SDK repairs references inside an earlier patch without freezing text or reusing rejected evidence (17.648985ms)
+✔ reviewed analysis delivers the actual authorized report to the next semantic turn without a routing model call (3.403552ms)
+✔ the native Cline SDK carries the frozen report layout preference without another model or execution round (3.362626ms)
+✔ invalid report references still reach Cline and require a repaired execution and fresh authorized read (4.517065ms)
+✔ a stopped process with missing output is repaired before any automatic report read (4.504721ms)
+✔ native review confirmation finishes with the exact admitted report without another read or execution (4.365696ms)
+✔ valid visual artifacts can complete with failed source reconciliation findings preserved (3.336665ms)
+✔ review confirmation still rejects artifact integrity (2.931946ms)
+✔ review confirmation still rejects layout (2.770593ms)
+✔ review confirmation still rejects legacy aggregate failure (2.692894ms)
+✔ resource visual preference can confirm a real Python text report when no chart is justified (3.293164ms)
+✔ Runtime STOP takes precedence over a contradictory successful receipt and never reads an artifact (1.831106ms)
+✔ a later failed execution invalidates the cached earlier report for completion (4.262651ms)
+✔ native loop repairs an output-only probe after a rejected anchor using the refreshed uncompacted source (15.830405ms)
+✔ review metadata cannot grant artifact read authority (0.450092ms)
+✔ automatic artifact authorization failure cannot publish an already stopped Python result (6.145516ms)
+✔ automatic artifact different result reference cannot publish an already stopped Python result (6.048067ms)
+✔ SQL metadata model view preserves meanings, precise types and relationships without repeating field owners (4.490456ms)
+✔ SQL context compaction keeps structure evidence and scope while removing only repeated transport metadata (0.524124ms)
+✔ business MCP, database, search and shell tools are rejected before the SDK runs (2.28264ms)
+✔ analysis prompts use actual files without requiring an application Python module (10.532746ms)
+✔ Cline can read a delivered document without executing Python or receiving a business tool (6.111154ms)
+✔ native SDK completes a reviewed text report without a Python process or an extra summary turn (8.73527ms)
+✔ native SDK preserves incomplete analysis scope and exact field provenance in text submission (2.377345ms)
+✔ malformed provider arguments are repaired in the same SDK with fresh admissions and actual usage (9.42066ms)
+✔ repeated malformed provider responses exhaust the repair limit without running Python (2.705151ms)
+✔ restoring a settled checkpoint cannot reset the model response repair limit (1.109962ms)
+✔ Java STOP feedback terminates the real SDK loop without another model or Python call (2.139402ms)
+✔ Java repair feedback reaches the same SDK context and an exact edit creates the next code version (6.066252ms)
+✔ worker rejects unnegotiated v2 and missing protocol versions before touching Runtime (0.248886ms)
+✔ actual Cline Agent loop repairs a technical Python error through one Runtime tool (3.427382ms)
+✔ successful exploration without an output artifact can be corrected without claiming a result (3.451737ms)
+✔ Python operation is polled through pending stop-proof reconciliation without another execution (504.888301ms)
+✔ unrecognized or unauthorized tools fail closed before a model call (0.951043ms)
+✔ metadata tool rejects a reference outside the frozen contract (3.19012ms)
+✔ a failed finish callback preserves the original Runtime admission error (1.018872ms)
+✔ a failed Runtime model call is visible to Java reconciliation (3.36831ms)
+✔ transient provider errors cannot trigger SDK retries outside Runtime admission (3.412282ms)
+✔ a later unsuccessful program cannot finish using an older successful result (8.187271ms)
+✔ Runtime deadline aborts the in-flight model and leaves provider reconciliation to Java (151.828317ms)
+✔ expired contracts do not reserve or execute work (1.06666ms)
+✔ Runtime deadline requests Sandbox cancellation while an operation remains active (154.000031ms)
+✔ the same Cline loop stages multi-file SQL and repairs parser feedback without Python authority (6.953359ms)
+✔ Cline autonomously discovers business metadata and iterates from missing metadata and column diagnostics (13.405715ms)
+✔ SQL repair budget STOP terminates without claiming delivery or requesting another model turn (1.796005ms)
+✔ SQL exploration can deliver missing-evidence notes without fabricated SQL or an extra review call (2.152775ms)
+✔ Runtime model forwards only portable parts and emits tool and usage events (2.372694ms)
+✔ Runtime model refuses file parts rather than silently losing context (0.778997ms)
+✔ native authorized output repair preserves feedback and the SDK max-tokens finish reason (1.812401ms)
+✔ unauthorized or unknown feedback is never converted into a tool call or retry (0.533587ms)
+✔ SDK compaction preserves portable tool pairs and error roles (14.551708ms)
+✔ SDK editor rejects ambiguous, stale and partially invalid proposals atomically (29.78782ms)
+✔ a short uncompacted conversation still receives the actual latest executed source after a rejected proposal (1.407222ms)
+✔ authorized malformed tool JSON is repaired by the native loop without executing it (26.115005ms)
+✔ native finish reasons reach the SDK without collapsing filter, cutoff or unknown (0.615206ms)
+✔ managed Java model attempts remove separate admission and settlement RPCs (2.881783ms)
+✔ SDK cutoff recovery receives a fresh admission and cannot exceed the task model budget (5.477028ms)
+✔ installed SDK exposes session, compaction and patch extension points (1.671642ms)
+✔ failed Python tool feeds the next native turn in the same Agent run (7.383138ms)
+✔ public prepareTurn projects requests without overwriting canonical messages (1.011083ms)
+✔ restore preserves transcript but resets native usage (1.334177ms)
+✔ errorRetryable false prevents hidden provider attempts (2.289127ms)
+✔ ordinary native provider retries invoke beforeModel again (1003.482412ms)
+✔ retry inside max-token compaction recovery bypasses an additional beforeModel (1006.411553ms)
+✔ plain AgentTool timeout metadata does not enforce a timeout in this version (28.348204ms)
+✔ native abort propagates its signal to the active custom tool (3.12685ms)
+✔ all five real Cline packages import together and public SDK re-exports the installed core (2701.981573ms)
+✔ SDK editor repairs 1000 lines with LF anchors on CRLF without changing unrelated bytes (25.775113ms)
+✔ SDK editor repairs 10000 lines with LF anchors on CRLF without changing unrelated bytes (34.626977ms)
+✖ SDK project editor changes two modules and preserves previous corrections, CRLF and the Runtime adapter (1.334004ms)
+✔ progress endpoint failure cannot strand model admission or Python execution; required callbacks still fail closed (30.113898ms)
+✔ legacy checkpoints retain lineage and discard unused fragment policy state on the next save (1.213713ms)
+✔ authorized output truncation enters SDK recovery, admits each attempt and executes a tool only once (10.740893ms)
+✔ model inference follows task deadline beyond control timeout and remains cancellable (199.93486ms)
+✔ buffered callback separates headers and body time without inventing provider TTFT (80.936621ms)
+✔ invalid model callback JSON is a protocol failure, not an empty successful answer (7.846645ms)
+✔ Runtime callback timeout bounds stalled admission while expired tasks can still request cancellation (125.687745ms)
+✔ Runtime callbacks carry a fresh authenticated request signature (11.014912ms)
+✔ Node HTTP boundary authenticates, dispatches once, and hides SDK session IDs (81.163687ms)
+✔ container callback host requires an explicit allowlist (0.918849ms)
+✔ session capacity rejects new tasks while retaining active and duplicate identities (23.697731ms)
+✔ new fencing token cannot start a second loop while the old loop is active (23.597689ms)
+✔ schema disclosure is task scoped, atomic, and invalidates on metadata changes (2.971752ms)
+✔ real Cline session uses native Skills without a schema-discovery prerequisite; disclosure grants no execution (227.695369ms)
+✔ context allowance accounts for declared window, reply reservation and safety margin (0.497401ms)
+✔ optional timing delivery failure cannot strand a prepared task before the model loop (177.88019ms)
+✔ python workspace uses one native model turn with an authorized prefetch and validated completion (27.147118ms)
+✔ python parser failures repair in the same SDK session without resetting ordinals or re-reading (21.743529ms)
+✔ sql workspace uses one native model turn with an authorized prefetch and validated completion (6.377665ms)
+✔ sql parser failures repair in the same SDK session without resetting ordinals or re-reading (11.396727ms)
+✔ valid=true without required Evidence references cannot complete the SDK fast path (3.398277ms)
+✔ prefetch failure cannot retry an unknown operation or call a model (1.136377ms)
+✔ expired or cancelled tasks never prefetch or start inference (0.977375ms)
+✔ model exceptions still emit bounded failed-call timing (2.815667ms)
+✔ SDK workspace patches retain other files and reconstruct from canonical checkpoint tool pairs (8.740411ms)
+✔ cancellation during authorized prefetch stops before inference (1.414458ms)
+✔ task deadline aborts prefetch without extending the model budget (41.834969ms)
+ℹ tests 240
+ℹ suites 0
+ℹ pass 233
+ℹ fail 7
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 38846.987174
+
+✖ failing tests:
+
+test at test/python-project.test.js:10:1
+✖ full reuse preserves exact original files, empty package and CRLF (1.748181ms)
+  Error: ENOENT: no such file or directory, open '../chatchat-common/src/main/resources/runtime/coding/python-project-adapter.py'
+      at readFileSync (node:fs:483:20)
+      at config (file:///verify/coding-agent-node/test/python-project.test.js:9:177)
+      at TestContext.<anonymous> (file:///verify/coding-agent-node/test/python-project.test.js:11:11)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '../chatchat-common/src/main/resources/runtime/coding/python-project-adapter.py'
+  }
+
+test at test/python-project.test.js:16:1
+✖ partial reuse edits only an exact file anchor and retains unrelated functions (0.387613ms)
+  Error: ENOENT: no such file or directory, open '../chatchat-common/src/main/resources/runtime/coding/python-project-adapter.py'
+      at readFileSync (node:fs:483:20)
+      at config (file:///verify/coding-agent-node/test/python-project.test.js:9:177)
+      at TestContext.<anonymous> (file:///verify/coding-agent-node/test/python-project.test.js:17:11)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '../chatchat-common/src/main/resources/runtime/coding/python-project-adapter.py'
+  }
+
+test at test/python-project.test.js:22:1
+✖ later edits retain previous repair and reject stale hashes (0.358577ms)
+  Error: ENOENT: no such file or directory, open '../chatchat-common/src/main/resources/runtime/coding/python-project-adapter.py'
+      at readFileSync (node:fs:483:20)
+      at config (file:///verify/coding-agent-node/test/python-project.test.js:9:177)
+      at TestContext.<anonymous> (file:///verify/coding-agent-node/test/python-project.test.js:23:11)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '../chatchat-common/src/main/resources/runtime/coding/python-project-adapter.py'
+  }
+
+test at test/python-project.test.js:29:1
+✖ rejects overwrite additions, ambiguous edits, path traversal and changed adapter (0.367106ms)
+  Error: ENOENT: no such file or directory, open '../chatchat-common/src/main/resources/runtime/coding/python-project-adapter.py'
+      at readFileSync (node:fs:483:20)
+      at config (file:///verify/coding-agent-node/test/python-project.test.js:9:177)
+      at TestContext.<anonymous> (file:///verify/coding-agent-node/test/python-project.test.js:30:11)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '../chatchat-common/src/main/resources/runtime/coding/python-project-adapter.py'
+  }
+
+test at test/python-project.test.js:35:1
+✖ restarts through the existing durable code history without losing repairs or version checks (0.432667ms)
+  Error: ENOENT: no such file or directory, open '../chatchat-common/src/main/resources/runtime/coding/python-project-adapter.py'
+      at readFileSync (node:fs:483:20)
+      at config (file:///verify/coding-agent-node/test/python-project.test.js:9:177)
+      at TestContext.<anonymous> (file:///verify/coding-agent-node/test/python-project.test.js:36:11)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '../chatchat-common/src/main/resources/runtime/coding/python-project-adapter.py'
+  }
+
+test at test/python-project.test.js:45:1
+✖ can fill an exactly empty package marker without overwriting a nonempty file (0.327529ms)
+  Error: ENOENT: no such file or directory, open '../chatchat-common/src/main/resources/runtime/coding/python-project-adapter.py'
+      at readFileSync (node:fs:483:20)
+      at config (file:///verify/coding-agent-node/test/python-project.test.js:9:177)
+      at TestContext.<anonymous> (file:///verify/coding-agent-node/test/python-project.test.js:46:11)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '../chatchat-common/src/main/resources/runtime/coding/python-project-adapter.py'
+  }
+
+test at test/sdk-reuse-regression.test.js:28:1
+✖ SDK project editor changes two modules and preserves previous corrections, CRLF and the Runtime adapter (1.334004ms)
+  Error: ENOENT: no such file or directory, open '../chatchat-common/src/main/resources/runtime/coding/python-project-adapter.py'
+      at readFileSync (node:fs:483:20)
+      at TestContext.<anonymous> (file:///verify/coding-agent-node/test/sdk-reuse-regression.test.js:33:22)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '../chatchat-common/src/main/resources/runtime/coding/python-project-adapter.py'
+  }

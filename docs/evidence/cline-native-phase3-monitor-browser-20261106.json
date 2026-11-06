@@ -1,0 +1,80 @@
+{
+  "scope": "REAL_READ_ONLY_MONITOR_API_AND_BROWSER",
+  "cases": [
+    {
+      "taskId": "analysis-coding-d3ebca2b666f570c7a5591b7957f1b7a4f8fbc6fd0dbe93acc19b632c5ef92af",
+      "status": "COMPLETED",
+      "attempts": [
+        {
+          "id": "63b2c66d2062422375dbbcce3edfa1d8a2a18580829194ce05aba5e3f4e36d0f",
+          "fencingToken": 2,
+          "observedStatus": "COMPLETED",
+          "status": "COMPLETED",
+          "runtimeStatus": "COMPLETED"
+        },
+        {
+          "id": "2a1e3757d7cf1e3fbf4d07b2bd833b57b5eb7568a3f87be61c7d5a64cf728fd6",
+          "fencingToken": 1,
+          "observedStatus": "INTERRUPTED",
+          "status": "COMPLETED",
+          "runtimeStatus": "COMPLETED"
+        }
+      ],
+      "authority": "RUNTIME_CONFIRMED",
+      "endedAt": "2026-11-06T05:50:55.996Z",
+      "eventsPreserved": true,
+      "reconnectAndReload": true
+    },
+    {
+      "taskId": "analysis-coding-b1d5a5fcc40c200b4edb0f37fa3e5591a64cab05b30a3d0324c7e1c262644bcd",
+      "status": "COMPLETED",
+      "attempts": [
+        {
+          "id": "bfdd86ac92d341b54fac229b866bd437923fe4764828a9ae0e93292743965643",
+          "fencingToken": 2,
+          "observedStatus": "COMPLETED",
+          "status": "COMPLETED",
+          "runtimeStatus": "COMPLETED"
+        },
+        {
+          "id": "fdc0b24dbea81c07681d62217dee88efc13dfeb4d29ca46a525aa256be8bf1b1",
+          "fencingToken": 1,
+          "observedStatus": "INTERRUPTED",
+          "status": "COMPLETED",
+          "runtimeStatus": "COMPLETED"
+        }
+      ],
+      "authority": "RUNTIME_CONFIRMED",
+      "endedAt": "2026-11-06T05:55:12.320Z",
+      "eventsPreserved": true,
+      "reconnectAndReload": true
+    },
+    {
+      "taskId": "analysis-coding-e1486aec5891067596c99a41de3b1624313ce7c10d9744d972c35cace569975a",
+      "status": "COMPLETED",
+      "attempts": [
+        {
+          "id": "5ab968165173753d57f55d546f4fc486ecc9043aa34ab7d92963aaca471850bd",
+          "fencingToken": 2,
+          "observedStatus": "COMPLETED",
+          "status": "COMPLETED",
+          "runtimeStatus": "COMPLETED"
+        },
+        {
+          "id": "cd5b0d8f6b1aeb15e9c07c223196f98a35ce23f39400a3468c81684f22ec55b9",
+          "fencingToken": 1,
+          "observedStatus": "INTERRUPTED",
+          "status": "COMPLETED",
+          "runtimeStatus": "COMPLETED"
+        }
+      ],
+      "authority": "RUNTIME_CONFIRMED",
+      "endedAt": "2026-11-06T06:59:49.318Z",
+      "eventsPreserved": true,
+      "reconnectAndReload": true
+    }
+  ],
+  "pageErrors": [],
+  "executionRequests": 0,
+  "status": "PASS"
+}

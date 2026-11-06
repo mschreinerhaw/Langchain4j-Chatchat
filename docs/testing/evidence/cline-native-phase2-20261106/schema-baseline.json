@@ -1,0 +1,39 @@
+{
+  "sdkVersion": "0.0.93",
+  "scope": "Synthetic public SDK catalog and tool-schema measurement; estimated tokens are not Provider usage; one warm-process run, no latency or business performance claim.",
+  "results": [
+    {
+      "dynamicSkills": 0,
+      "totalSkills": 15,
+      "preparationMs": 106.74180000000001,
+      "schemaBytes": 8835,
+      "metadataProjectionBytes": 4912,
+      "estimatedSchemaTokens": 2209,
+      "initialBodyLoads": 0,
+      "providerUsage": "UNKNOWN",
+      "schemaSha256": "c10ea9cab404979906402f632afeb85a30cf0db1066651c9c1d7cb385843ed97"
+    },
+    {
+      "dynamicSkills": 123,
+      "totalSkills": 138,
+      "preparationMs": 552.0584,
+      "schemaBytes": 39637,
+      "metadataProjectionBytes": 28198,
+      "estimatedSchemaTokens": 9910,
+      "initialBodyLoads": 0,
+      "providerUsage": "UNKNOWN",
+      "schemaSha256": "de0a4805775b44ddda85d494f74589d4e115f2212af0082da5a9aa9e6fdeb195"
+    },
+    {
+      "dynamicSkills": 500,
+      "totalSkills": 515,
+      "preparationMs": 1707.4397,
+      "schemaBytes": 135395,
+      "metadataProjectionBytes": 100582,
+      "estimatedSchemaTokens": 33849,
+      "initialBodyLoads": 0,
+      "providerUsage": "UNKNOWN",
+      "schemaSha256": "7cfc5f006184b75261245408f6f33469116099ba4e3bd20bf83cf8d359031620"
+    }
+  ]
+}

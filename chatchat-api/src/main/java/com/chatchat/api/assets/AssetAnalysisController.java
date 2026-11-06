@@ -33,6 +33,19 @@ public class AssetAnalysisController {
     public ApiResponse<?> analyzeVisual(HttpServletRequest http,Request body){
         return analyze(http,body,true);
     }
+    /** The owning persisted exploration supplies the request ID; refresh has no execution authority. */
+    public Optional<Map<String,Object>> snapshotVisual(HttpServletRequest http,Request body){
+        return coding.primarySnapshot(snapshotScope(http,body),true);
+    }
+    public Optional<Map<String,Object>> cancelVisual(HttpServletRequest http,Request body){
+        return coding.cancelPrimary(snapshotScope(http,body),true);
+    }
+    private com.chatchat.common.kernel.KernelDataScope snapshotScope(HttpServletRequest http,Request body){
+        var owner=new UserAssetService.Owner(access.tenant(http),access.user(http));
+        if(body==null||body.requestId()==null||!body.requestId().matches("[a-zA-Z0-9_-]{8,64}"))throw new IllegalArgumentException("Stable analysis request ID required");
+        String run="asset-analysis-"+UserAssetService.hash((owner.tenant()+"\0"+owner.user()+"\0"+body.requestId()).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        return new com.chatchat.common.kernel.KernelDataScope(owner.tenant(),owner.user(),body.requestId(),null,run,null,Map.of());
+    }
     private ApiResponse<?> analyze(HttpServletRequest http,Request body,boolean visual){
         var owner=new UserAssetService.Owner(access.tenant(http),access.user(http));
         if(body==null || body.requestId()==null || !body.requestId().matches("[a-zA-Z0-9_-]{8,64}")
@@ -80,6 +93,10 @@ public class AssetAnalysisController {
         var context=new AnalysisCoverageCoordinator.Request(model,instruction,null,attributes,metadata,()->false,()->{},
             GovernanceIsolationScope.runtime(owner.tenant(),owner.user(),run,body.requestId(),null),null);
         var receipt=new LinkedHashMap<String,Object>(coding.executePrimaryAnalysis(context,sources,event->{}));
+        if(visual&&Boolean.TRUE.equals(receipt.get("terminal"))&&!Boolean.TRUE.equals(receipt.get("resultAvailable"))){
+            var preserved=coding.primarySnapshot(snapshotScope(http,body),true);
+            if(preserved.isPresent()){receipt.putAll(preserved.get());return ApiResponse.success(receipt);}
+        }
         if(Boolean.TRUE.equals(receipt.get("resultAvailable")) && receipt.get("datasetReference") instanceof String reference){
             var result=sources.get(reference);
             if(result==null)throw new IllegalStateException("Coding result was not registered");

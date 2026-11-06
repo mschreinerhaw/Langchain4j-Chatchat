@@ -237,6 +237,36 @@ class CodingTaskPersistenceTest {
         code(()->service.saveSdkCheckpoint(scope,"sdk",lease,sdkBoundary("sdk",2)),EXECUTION_OUTCOME_UNKNOWN);
     }
 
+    @Test void onlyBoundStoppedModelReceiptCanBridgeTheExactPersistedSdkBoundary() {
+        service=new DurableCodingTaskService(evidence,json,clock,
+            new BoundCodingTaskAccess(()->scope,EnumSet.allOf(CodingTaskAccess.Action.class)),
+            (owner,reference)->true,(s,t,o,h,p)->true,workers,new ConcurrentTaskScheduler(timer));
+        service.submit(contract("sdk",10));var lease=claim("sdk","worker");
+        service.saveSdkCheckpoint(scope,"sdk",lease,sdkBoundary("sdk",1));
+        service.bindModelCheckpoint(scope,"sdk",lease,"model-1",1);
+        var reserved=service.reserve(scope,"sdk",lease,rev("sdk"),"model-1",intent,CodingJournal.OperationKind.MODEL,
+            new Counters(1,100,0,0,0,0,0,"1"));
+        service.startIntent(scope,"sdk",lease,reserved.outcome().revision(),"model-1","runtime-model:model-1");
+        assertThat(service.sdkCheckpointForModelReceipt(scope,"sdk",Set.of("model-1"))).isNull();
+        service.reconcileStopped(scope,"sdk",lease,rev("sdk"),"model-1","proof:model-1");
+        service.settle(scope,"sdk",lease,rev("sdk"),"model-1",new Counters(1,40,0,0,0,0,0,"0"),false);
+        var original=service.get(scope,"sdk");
+        var restarted=service(store(new JdbcTemplate(dataSource)));
+        assertThat(restarted.sdkCheckpoint(scope,"sdk")).isNull();
+        assertThat(restarted.sdkCheckpointForModelReceipt(scope,"sdk",Set.of())).isNull();
+        var restored=restarted.sdkCheckpointForModelReceipt(scope,"sdk",Set.of("model-1"));
+        assertThat(restored.path("sdkSessionId").asText()).isEqualTo("private-sdk-session");
+        assertThat(restored.path("modelOrdinal").asInt()).isZero();
+        assertThat(restored.path("receiptReplayOperationId").asText()).isEqualTo("model-1");
+        assertThat(restarted.modelCheckpointMatches(scope,"sdk","model-1",1)).isTrue();
+        assertThat(restarted.modelCheckpointMatches(scope,"sdk","model-1",2)).isFalse();
+        assertThat(restarted.get(scope,"sdk")).isEqualTo(original);
+        var next=restarted.recoveryFence(scope,"sdk",lease,original.revision());
+        assertThat(next.fencingToken()).isGreaterThan(lease.fencingToken());
+        code(()->restarted.bindModelCheckpoint(scope,"sdk",lease,"model-1",1),INVALID_STATE_TRANSITION);
+        assertThat(restarted.get(scope,"sdk").usage()).isEqualTo(original.usage());
+    }
+
     @Test void latestCodeExecutionAndEarlyHistorySurviveDetailedProgress() {
         service.submit(contract("task", 10));
         var lease = claim("task", "worker");

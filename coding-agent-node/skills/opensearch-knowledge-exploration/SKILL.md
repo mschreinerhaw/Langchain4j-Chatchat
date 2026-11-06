@@ -1,7 +1,8 @@
 ---
 name: opensearch-knowledge-exploration
 description: Explore authorized project documents with Runtime knowledge tools, deepen section reading, cross-check versions and produce traceable document answers.
-version: 1.0.0
+metadata:
+  version: 1.0.0
 ---
 
 Use this workflow when an answer depends on project documents and Runtime has authorized knowledge tools. The tools use underscores in model function names (knowledge_search corresponds to knowledge.search).

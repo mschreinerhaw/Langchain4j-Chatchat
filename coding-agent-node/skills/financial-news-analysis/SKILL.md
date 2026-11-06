@@ -1,7 +1,8 @@
 ---
 name: financial-news-analysis
 description: Investigate authorized financial news, verify original articles and publication timelines, and distinguish reported events from unproven market explanations.
-version: 1.0.0
+metadata:
+  version: 1.0.0
 ---
 
 Use this workflow when news tools are authorized and events may inform the user's question. Skills confer no resource access. Select sources because they are necessary, not because every resource must be used.

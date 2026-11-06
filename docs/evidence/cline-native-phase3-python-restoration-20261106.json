@@ -1,0 +1,31 @@
+{
+  "status": "RESTORED_FROM_WINDOWS_CACHE",
+  "at": "2026-11-06T06:51:05.422319+00:00",
+  "tag": "chatchat-python-runtime:3.11-v1.2-fonts-r2-20261022",
+  "sourceWindowsTag": "chatchat-python-runtime:3.11-local-source-20261102-r4",
+  "archiveSha256": "2b45feccfddb17db41028beebf2af1b447c7a565b47c45f45e9ccc4f1321452e",
+  "imageId": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+  "originalMissingImageId": "sha256:7c665132dd360b4f84a669a16b53de93c0ff142e1ecf8f56bef1a07d6346fdc8",
+  "identicalToMissingImage": false,
+  "systemConfiguredTagPreserved": true,
+  "fontGate": {
+    "status": "PASSED",
+    "matplotlib": "3.10.0",
+    "families": [
+      "Noto Sans CJK JP",
+      "DejaVu Sans"
+    ],
+    "glyphCoverage": true,
+    "legacySansOverride": true,
+    "renderedBytes": {
+      "png": 27532,
+      "svg": 30063
+    }
+  },
+  "versions": {
+    "python": "3.11.18 (main, Oct 28 2026, 02:02:50) [GCC 14.2.0]",
+    "pandas": "2.3.3",
+    "numpy": "2.3.5",
+    "matplotlib": "3.10.0"
+  }
+}

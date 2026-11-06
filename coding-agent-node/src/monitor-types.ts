@@ -5,6 +5,7 @@ export interface MonitorEvent {
   operationId?: string; modelCall?: number; tool?: string; [key: string]: unknown;
 }
 export interface ModelCall {
+  receiptReplayed?: boolean;
   contextSkillsBytes?: number | null; skillContextRatio?: number | null; runtimeAdmissionMs?:number|null;
   callbackRequestWriteMs?:number|null;callbackResponseProcessingMs?:number|null;
   purpose?: string; finishReason?: string; providerFinishReason?: string; actualTools?: string[]; diagnosticCode?: string;
@@ -30,6 +31,12 @@ export interface CodeVersion {
 }
 export interface SkillInfo { skillId: string; name?: string; version?: string }
 export interface TaskSummary {
+  observedStatus?: TaskState;
+  runtimeCheckedAt?: string;
+  runtimeUnavailable?: boolean;
+  authority?: 'RUNTIME_CONFIRMED' | 'NODE_OBSERVATION_ONLY';
+  runtimeOutcome?: { status: string; terminal: boolean; revision: number; updatedAt: string;
+    endedAt: string | null; reasonCode: string | null; summary: string; limitations: string[] };
   id: string; taskId: string; runId: string; tenantId: string; userId: string; fencingToken: number;
   status: TaskState; stage: string; objective: string; createdAt: string; updatedAt: string;
   finishedAt: string | null; deadlineAt: string | null; elapsedMs: number;

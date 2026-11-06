@@ -1,5 +1,19 @@
 import {it,expect} from 'vitest';
 import {explorationTreeRows,sortedTableRows,workspaceBusinessName,businessNodeTitle,explorationCanvasNode,reconcileExploration,explorationNodeState,explorationMetricDisplay} from './explorationWorkspace';
+it.each(['FAILED','BUDGET_EXCEEDED','COMPLETED'])('does not borrow historical results after authoritative %s without a result',status=>{
+ const root={id:'root',receipt:{status:'COMPLETED',resultAvailable:true}};
+ const current={id:'current',parentId:'root',receipt:{status,terminal:true,resultAvailable:false}};
+ expect(explorationNodeState(current,'current').code).toBe(status==='CANCELLED'?'CANCELLED':status==='COMPLETED'?'COMPLETED':'FAILED');
+ expect(explorationCanvasNode([root,current],'current')).toBeNull();
+ current.receipt.resultAvailable=true;
+ expect(explorationCanvasNode([root,current],'current')).toBe(current);
+});
+it('labels incomplete archived reports separately from full delivery without changing execution facts',()=>{
+ const receipt={status:'COMPLETED',terminal:true,resultAvailable:true,visualReport:{status:'PARTIAL'}};
+ expect(explorationNodeState({receipt})).toEqual({code:'COMPLETED',label:'部分交付'});
+ expect(receipt.status).toBe('COMPLETED');
+ expect(explorationNodeState({receipt:{status:'BUDGET_EXCEEDED'}}).label).toBe('预算已耗尽');
+});
 it('distinguishes a pending stop from an authoritative cancellation while retaining stage results',()=>{
  const node={id:'node',receipt:{agentTaskId:'task',status:'EXECUTING',terminal:false,cancellationRequested:true,resultAvailable:true}};
  expect(explorationNodeState(node)).toEqual({code:'STOPPING',label:'正在停止'});
@@ -11,6 +25,9 @@ it('distinguishes a pending stop from an authoritative cancellation while retain
 });
 it('formats metric presentation without reinterpreting identifiers, unsafe integers or tiny nonzero values',()=>{
  expect(explorationMetricDisplay('1228458.3900')).toBe('1,228,458.39');expect(explorationMetricDisplay('001234')).toBe('001234');expect(explorationMetricDisplay('90071992547409930000')).toBe('90071992547409930000');expect(explorationMetricDisplay('1e-10')).not.toBe('0');expect(explorationMetricDisplay('未知')).toBe('未知');
+});
+it.each(['1000000000000000.31','1000000000000001.215','0.1234567890123456789','1234567890123456789e-19'])('retains exact high precision Decimal metric %s without a binary Number conversion',value=>{
+ expect(explorationMetricDisplay(value)).toBe(value);
 });
 it('keeps a completed ancestor visible for pending and failed branches, with explicit independent statuses',()=>{
  const root={id:'root',receipt:{resultAvailable:true}},pending={id:'new',parentId:'root',receipt:{agentTaskId:'task',terminal:false,resultAvailable:false,status:'EXECUTING'}};

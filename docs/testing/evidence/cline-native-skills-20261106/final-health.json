@@ -1,0 +1,17 @@
+{
+  "observedAt": "2026-11-05T22:25:08.525511+00:00",
+  "workerImageId": "sha256:84a9df62e9ec1acffbaf54589294334b6002d69292302af8a03fca7b302232cb",
+  "workerSourceCommit": "bca0930864ab8f25e511f657d46401312490ffbc",
+  "apiImageId": "sha256:0937e96b4277033911df3faad1f18ead7247ec5e2bb062743eb9568e30a6f39b",
+  "apiSourceCommit": "f6886ee4ea68e99f2c892ef94cdd60361df53998",
+  "allDeployedWorkerFilesMatchCandidate": true,
+  "apiJarMatches": true,
+  "authenticatedHealth": {
+    "18180": 200,
+    "18100": 200
+  },
+  "nodeActiveSessions": 0,
+  "activePythonSandboxes": false,
+  "benchmarkNodesTerminal": 12,
+  "collectorSha256": "40a748beba019438c405b176e1719b617dad2a5a58d9769f1c9298030b912278"
+}

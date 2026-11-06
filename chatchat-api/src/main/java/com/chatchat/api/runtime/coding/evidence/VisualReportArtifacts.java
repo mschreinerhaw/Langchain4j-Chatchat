@@ -176,6 +176,17 @@ public final class VisualReportArtifacts {
                 "artifactValidationStatus","FAILED","validation",Map.of("status","FAILED","warnings",List.of(safeReason(invalid))),"execution",execution);
         }
     }
+    /** Counts only charts admitted by this collector, not unavailable placeholders. */
+    public static int availableChartCount(Map<String,Object> report){
+        return report.get("charts") instanceof List<?> charts?(int)charts.stream()
+            .filter(value->value instanceof Map<?,?> chart && Set.of("png","svg","plotly").contains(chart.get("kind"))
+                && chart.get("artifact") instanceof Map<?,?> artifact && artifact.get("fileId") instanceof String id && !id.isBlank()).count():0;
+    }
+    /** A read projection only: archived report bytes and their immutable hash stay unchanged. */
+    public static String chartValidationStatus(Map<String,Object> report){
+        if(!(report.get("charts") instanceof List<?> charts))return "NOT_RECORDED";
+        return availableChartCount(report)==charts.size()?"PASSED":"PARTIAL";
+    }
     /** Remove only an exact duplicate of a referenced element's provenance, never an unknown layout field. */
     private static Object normalizeLayout(Map<String,Object> report){
         var layout=map(report.get("layout"));var blocks=new ArrayList<Object>();

@@ -1,0 +1,10 @@
+{
+  "worker": "runtime-os-app-stage-coding-agent-1",
+  "checkedAtMs": 1793937248600,
+  "status": "PASSED",
+  "signedCallback": true,
+  "unsignedRejected": true,
+  "origin": "http://api:8081",
+  "codeLifecycleVersion": "runtime_os.code_lifecycle.v1",
+  "trafficPromoted": false
+}

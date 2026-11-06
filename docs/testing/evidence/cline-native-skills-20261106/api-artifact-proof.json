@@ -1,0 +1,28 @@
+{
+  "sourceCommit": "f6886ee4ea68e99f2c892ef94cdd60361df53998",
+  "baselineImageId": "sha256:9cfc15373b0b9e758a39fd8483ca3e8b0410156c2786b0705d700439b26bb8d7",
+  "baselineJarSha256": "06c4f666dff00704c8b5c0f0994c8c342655eeff47ceffe190f5e238fa98527f",
+  "candidateJarSha256": "b7cf6bc86d106525c90c72c275b8c71b7d61c4f848eb25ae0a18bd0dbcb1c8aa",
+  "image": "runtime-os-api:cline-native-skills-b7cf6bc86d10",
+  "imageId": "sha256:0937e96b4277033911df3faad1f18ead7247ec5e2bb062743eb9568e30a6f39b",
+  "changedEntries": [
+    "BOOT-INF/classes/com/chatchat/api/datascience/sql/SqlWorkspaceMetadataTools.class",
+    "BOOT-INF/classes/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.class",
+    "BOOT-INF/classes/com/chatchat/api/runtime/coding/cline/ClineRuntimeModelBridge.class",
+    "BOOT-INF/classes/com/chatchat/api/runtime/coding/cline/ClineToolProfiles.class",
+    "BOOT-INF/classes/com/chatchat/api/runtime/coding/CodingSkillReader.class",
+    "BOOT-INF/classes/com/chatchat/api/runtime/coding/workspace/CodingWorkspaceService.class"
+  ],
+  "compiledClassFamilies": [
+    "runtime/coding/analysis/CodingAnalysisService",
+    "runtime/coding/cline/ClineToolProfiles",
+    "runtime/coding/cline/ClineRuntimeModelBridge",
+    "runtime/coding/CodingSkillReader",
+    "datascience/sql/SqlWorkspaceMetadataTools",
+    "runtime/coding/workspace/CodingWorkspaceService"
+  ],
+  "compiledClassFiles": 20,
+  "allOtherEntriesUnchanged": true,
+  "compiler": "Normal Maven javac JDK17 output; no bytecode patch",
+  "entryCount": 1356
+}

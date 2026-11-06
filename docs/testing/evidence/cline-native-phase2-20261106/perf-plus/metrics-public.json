@@ -1,0 +1,1885 @@
+{
+  "capturedAt": "2026-11-06T03:54:05.200922+00:00",
+  "rows": [
+    {
+      "variant": "baseline",
+      "case": "complex-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 131310,
+      "taskId": "analysis-coding-da9501016b617a2a8716b11c985c905332503e694f8a3af653b363795739d07f",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstProposalMs": 74644,
+      "preCodeModelCalls": 2,
+      "preCodeInputTokensKnown": 22272,
+      "preCodeKnownUsageCalls": 2,
+      "preCodeSkillReads": 0,
+      "preCodeInputReads": 1,
+      "preCodeMaxSkillContextBytes": 0,
+      "preCodeMaxRequestBytes": 39677,
+      "firstCodeMs": 74883,
+      "firstNewCodeMs": 74883,
+      "firstPythonMs": 74958,
+      "firstResultMs": 120272,
+      "modelCalls": 5,
+      "knownUsageCalls": 5,
+      "knownTokens": 79027,
+      "inputTokensKnown": 72316,
+      "outputTokensKnown": 6711,
+      "unknownInputUsageCalls": 0,
+      "unknownOutputUsageCalls": 0,
+      "reasoningTokens": "UNKNOWN",
+      "providerBilledCost": "UNKNOWN",
+      "codeProposals": 2,
+      "rejectedProposals": 0,
+      "pythonExecutions": 2,
+      "pythonToolResults": 2,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "OUTPUT_CONTRACT",
+        null
+      ],
+      "skillReads": 0,
+      "nativeDiscoveryEvents": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "code_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 0,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "baseline",
+      "case": "complex-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 179427,
+      "taskId": "analysis-coding-d31a834cd84f94915e7dc5fd9e5548b72d940ad1921241a0cd6c6ad7c21224a5",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstProposalMs": 69993,
+      "preCodeModelCalls": 2,
+      "preCodeInputTokensKnown": 22372,
+      "preCodeKnownUsageCalls": 2,
+      "preCodeSkillReads": 0,
+      "preCodeInputReads": 1,
+      "preCodeMaxSkillContextBytes": 0,
+      "preCodeMaxRequestBytes": 39747,
+      "firstCodeMs": 70283,
+      "firstNewCodeMs": 70283,
+      "firstPythonMs": 70353,
+      "firstResultMs": 167155,
+      "modelCalls": 6,
+      "knownUsageCalls": 6,
+      "knownTokens": 104227,
+      "inputTokensKnown": 95077,
+      "outputTokensKnown": 9150,
+      "unknownInputUsageCalls": 0,
+      "unknownOutputUsageCalls": 0,
+      "reasoningTokens": "UNKNOWN",
+      "providerBilledCost": "UNKNOWN",
+      "codeProposals": 2,
+      "rejectedProposals": 1,
+      "pythonExecutions": 2,
+      "pythonToolResults": 2,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "OUTPUT_CONTRACT",
+        null
+      ],
+      "skillReads": 0,
+      "nativeDiscoveryEvents": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "code_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 0,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "baseline",
+      "case": "csv-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 60781,
+      "taskId": "analysis-coding-5a14b4f772fc78717bcfa13e0cbff1793e02c06811b5f16e709176ec92fb187e",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstProposalMs": 44696,
+      "preCodeModelCalls": 2,
+      "preCodeInputTokensKnown": 21144,
+      "preCodeKnownUsageCalls": 2,
+      "preCodeSkillReads": 0,
+      "preCodeInputReads": 1,
+      "preCodeMaxSkillContextBytes": 0,
+      "preCodeMaxRequestBytes": 37809,
+      "firstCodeMs": 44967,
+      "firstNewCodeMs": 44967,
+      "firstPythonMs": 45114,
+      "firstResultMs": 49615,
+      "modelCalls": 3,
+      "knownUsageCalls": 3,
+      "knownTokens": 36446,
+      "inputTokensKnown": 33774,
+      "outputTokensKnown": 2672,
+      "unknownInputUsageCalls": 0,
+      "unknownOutputUsageCalls": 0,
+      "reasoningTokens": "UNKNOWN",
+      "providerBilledCost": "UNKNOWN",
+      "codeProposals": 1,
+      "rejectedProposals": 0,
+      "pythonExecutions": 1,
+      "pythonToolResults": 1,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        null
+      ],
+      "skillReads": 0,
+      "nativeDiscoveryEvents": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 0,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "baseline",
+      "case": "csv-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 94265,
+      "taskId": "analysis-coding-cb3955e3d9deb7d0d044d900d9b736c107bfaccca498f5089725df4f862e1ee6",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstProposalMs": 38709,
+      "preCodeModelCalls": 2,
+      "preCodeInputTokensKnown": 21291,
+      "preCodeKnownUsageCalls": 2,
+      "preCodeSkillReads": 0,
+      "preCodeInputReads": 1,
+      "preCodeMaxSkillContextBytes": 0,
+      "preCodeMaxRequestBytes": 38181,
+      "firstCodeMs": 38842,
+      "firstNewCodeMs": 38842,
+      "firstPythonMs": 39059,
+      "firstResultMs": 75606,
+      "modelCalls": 5,
+      "knownUsageCalls": 5,
+      "knownTokens": 70273,
+      "inputTokensKnown": 66405,
+      "outputTokensKnown": 3868,
+      "unknownInputUsageCalls": 0,
+      "unknownOutputUsageCalls": 0,
+      "reasoningTokens": "UNKNOWN",
+      "providerBilledCost": "UNKNOWN",
+      "codeProposals": 2,
+      "rejectedProposals": 0,
+      "pythonExecutions": 2,
+      "pythonToolResults": 2,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "OUTPUT_CONTRACT",
+        null
+      ],
+      "skillReads": 0,
+      "nativeDiscoveryEvents": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "code_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 0,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "baseline",
+      "case": "join-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 101770,
+      "taskId": "analysis-coding-b54a60fb3e8b86cd01eefe9e61e6364a070e9831a59aaae968fd03f9ee1764bb",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstProposalMs": 82781,
+      "preCodeModelCalls": 2,
+      "preCodeInputTokensKnown": 24950,
+      "preCodeKnownUsageCalls": 2,
+      "preCodeSkillReads": 0,
+      "preCodeInputReads": 2,
+      "preCodeMaxSkillContextBytes": 0,
+      "preCodeMaxRequestBytes": 41895,
+      "firstCodeMs": 83032,
+      "firstNewCodeMs": 83032,
+      "firstPythonMs": 83098,
+      "firstResultMs": 86649,
+      "modelCalls": 3,
+      "knownUsageCalls": 3,
+      "knownTokens": 45538,
+      "inputTokensKnown": 40338,
+      "outputTokensKnown": 5200,
+      "unknownInputUsageCalls": 0,
+      "unknownOutputUsageCalls": 0,
+      "reasoningTokens": "UNKNOWN",
+      "providerBilledCost": "UNKNOWN",
+      "codeProposals": 1,
+      "rejectedProposals": 0,
+      "pythonExecutions": 1,
+      "pythonToolResults": 1,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        null
+      ],
+      "skillReads": 0,
+      "nativeDiscoveryEvents": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read",
+          "input_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 0,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "baseline",
+      "case": "join-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 99237,
+      "taskId": "analysis-coding-6e6ef810127864ec1ce96dc5d6eed875fb1a5be14f7fa548a7d3a2204b5373a7",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstProposalMs": 45100,
+      "preCodeModelCalls": 3,
+      "preCodeInputTokensKnown": 37451,
+      "preCodeKnownUsageCalls": 3,
+      "preCodeSkillReads": 0,
+      "preCodeInputReads": 2,
+      "preCodeMaxSkillContextBytes": 0,
+      "preCodeMaxRequestBytes": 42968,
+      "firstCodeMs": 45454,
+      "firstNewCodeMs": 45454,
+      "firstPythonMs": 45559,
+      "firstResultMs": 88437,
+      "modelCalls": 5,
+      "knownUsageCalls": 5,
+      "knownTokens": 75633,
+      "inputTokensKnown": 71000,
+      "outputTokensKnown": 4633,
+      "unknownInputUsageCalls": 0,
+      "unknownOutputUsageCalls": 0,
+      "reasoningTokens": "UNKNOWN",
+      "providerBilledCost": "UNKNOWN",
+      "codeProposals": 2,
+      "rejectedProposals": 0,
+      "pythonExecutions": 2,
+      "pythonToolResults": 2,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "OUTPUT_CONTRACT",
+        null
+      ],
+      "skillReads": 0,
+      "nativeDiscoveryEvents": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [],
+        [
+          "input_read",
+          "input_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "finishReasons": [
+        "STOP",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 0,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "baseline",
+      "case": "parquet-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 157347,
+      "taskId": "analysis-coding-7ab943640a3afb45014c2b104cc733fd04230b4dad750f0f8ea9e5f1e204d054",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstProposalMs": 29263,
+      "preCodeModelCalls": 1,
+      "preCodeInputTokensKnown": 10398,
+      "preCodeKnownUsageCalls": 1,
+      "preCodeSkillReads": 0,
+      "preCodeInputReads": 0,
+      "preCodeMaxSkillContextBytes": 0,
+      "preCodeMaxRequestBytes": 36935,
+      "firstCodeMs": 29620,
+      "firstNewCodeMs": 29620,
+      "firstPythonMs": 29717,
+      "firstResultMs": 146559,
+      "modelCalls": 5,
+      "knownUsageCalls": 5,
+      "knownTokens": 86601,
+      "inputTokensKnown": 78679,
+      "outputTokensKnown": 7922,
+      "unknownInputUsageCalls": 0,
+      "unknownOutputUsageCalls": 0,
+      "reasoningTokens": "UNKNOWN",
+      "providerBilledCost": "UNKNOWN",
+      "codeProposals": 2,
+      "rejectedProposals": 1,
+      "pythonExecutions": 2,
+      "pythonToolResults": 2,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "OUTPUT_CONTRACT",
+        null
+      ],
+      "skillReads": 0,
+      "nativeDiscoveryEvents": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "code_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 0,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "baseline",
+      "case": "parquet-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 56450,
+      "taskId": "analysis-coding-7d95537e45c4327bb29dd5fdc5cef6f4d1b69c7d6a18dffee3ded9336ee96d5e",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstProposalMs": 42828,
+      "preCodeModelCalls": 1,
+      "preCodeInputTokensKnown": 10404,
+      "preCodeKnownUsageCalls": 1,
+      "preCodeSkillReads": 0,
+      "preCodeInputReads": 0,
+      "preCodeMaxSkillContextBytes": 0,
+      "preCodeMaxRequestBytes": 36935,
+      "firstCodeMs": 42962,
+      "firstNewCodeMs": 42962,
+      "firstPythonMs": 43169,
+      "firstResultMs": 46574,
+      "modelCalls": 2,
+      "knownUsageCalls": 2,
+      "knownTokens": 26102,
+      "inputTokensKnown": 23286,
+      "outputTokensKnown": 2816,
+      "unknownInputUsageCalls": 0,
+      "unknownOutputUsageCalls": 0,
+      "reasoningTokens": "UNKNOWN",
+      "providerBilledCost": "UNKNOWN",
+      "codeProposals": 1,
+      "rejectedProposals": 0,
+      "pythonExecutions": 1,
+      "pythonToolResults": 1,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        null
+      ],
+      "skillReads": 0,
+      "nativeDiscoveryEvents": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 0,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "baseline",
+      "case": "repair-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 79914,
+      "taskId": "analysis-coding-4b04cce8112579a9bdbc8a60c5c6dd75ea79f2867e8e227d29cbd420b5b485c8",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstProposalMs": 10747,
+      "preCodeModelCalls": 1,
+      "preCodeInputTokensKnown": 11747,
+      "preCodeKnownUsageCalls": 1,
+      "preCodeSkillReads": 0,
+      "preCodeInputReads": 0,
+      "preCodeMaxSkillContextBytes": 0,
+      "preCodeMaxRequestBytes": 50635,
+      "firstCodeMs": 10973,
+      "firstNewCodeMs": 36520,
+      "firstPythonMs": 11040,
+      "firstResultMs": 39566,
+      "modelCalls": 4,
+      "knownUsageCalls": 4,
+      "knownTokens": 62862,
+      "inputTokensKnown": 59492,
+      "outputTokensKnown": 3370,
+      "unknownInputUsageCalls": 0,
+      "unknownOutputUsageCalls": 0,
+      "reasoningTokens": "UNKNOWN",
+      "providerBilledCost": "UNKNOWN",
+      "codeProposals": 3,
+      "rejectedProposals": 0,
+      "pythonExecutions": 3,
+      "pythonToolResults": 3,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "SYNTAX_ERROR",
+        null,
+        null
+      ],
+      "skillReads": 0,
+      "nativeDiscoveryEvents": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 0,
+      "repairObserved": true,
+      "successfulExecution": true
+    },
+    {
+      "variant": "baseline",
+      "case": "repair-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 400251,
+      "taskId": "analysis-coding-c4ebc8faed842a8d28e1f715c20b23d8d25e1b161811eb1c2c554290f43de123",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstProposalMs": 8434,
+      "preCodeModelCalls": 1,
+      "preCodeInputTokensKnown": 11832,
+      "preCodeKnownUsageCalls": 1,
+      "preCodeSkillReads": 0,
+      "preCodeInputReads": 0,
+      "preCodeMaxSkillContextBytes": 0,
+      "preCodeMaxRequestBytes": 50635,
+      "firstCodeMs": 8723,
+      "firstNewCodeMs": 97093,
+      "firstPythonMs": 8808,
+      "firstResultMs": 102027,
+      "modelCalls": 10,
+      "knownUsageCalls": 10,
+      "knownTokens": 199064,
+      "inputTokensKnown": 179568,
+      "outputTokensKnown": 19496,
+      "unknownInputUsageCalls": 0,
+      "unknownOutputUsageCalls": 0,
+      "reasoningTokens": "UNKNOWN",
+      "providerBilledCost": "UNKNOWN",
+      "codeProposals": 6,
+      "rejectedProposals": 1,
+      "pythonExecutions": 6,
+      "pythonToolResults": 6,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "SYNTAX_ERROR",
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "skillReads": 0,
+      "nativeDiscoveryEvents": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 0,
+      "repairObserved": true,
+      "successfulExecution": true
+    },
+    {
+      "variant": "baseline",
+      "case": "visual-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 283211,
+      "taskId": "analysis-coding-842a61b2525c7cf93f252929b5540a1a958973f911ee8b69316215fa3e3dd966",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstProposalMs": 109645,
+      "preCodeModelCalls": 2,
+      "preCodeInputTokensKnown": 31927,
+      "preCodeKnownUsageCalls": 2,
+      "preCodeSkillReads": 0,
+      "preCodeInputReads": 0,
+      "preCodeMaxSkillContextBytes": 1613,
+      "preCodeMaxRequestBytes": 68318,
+      "firstCodeMs": 109906,
+      "firstNewCodeMs": 109906,
+      "firstPythonMs": 109973,
+      "firstResultMs": 206904,
+      "modelCalls": 6,
+      "knownUsageCalls": 6,
+      "knownTokens": 150364,
+      "inputTokensKnown": 134974,
+      "outputTokensKnown": 15390,
+      "unknownInputUsageCalls": 0,
+      "unknownOutputUsageCalls": 0,
+      "reasoningTokens": "UNKNOWN",
+      "providerBilledCost": "UNKNOWN",
+      "codeProposals": 2,
+      "rejectedProposals": 1,
+      "pythonExecutions": 2,
+      "pythonToolResults": 2,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "OUTPUT_CONTRACT",
+        null
+      ],
+      "skillReads": 1,
+      "nativeDiscoveryEvents": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "read_files"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "code_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 1613,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "baseline",
+      "case": "visual-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 86801,
+      "taskId": "analysis-coding-0f8bb465ddf9d29e88428df06b3cbfd18a6d224fd3e114e02edf7dd3fd4644fe",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstProposalMs": 69976,
+      "preCodeModelCalls": 1,
+      "preCodeInputTokensKnown": 15633,
+      "preCodeKnownUsageCalls": 1,
+      "preCodeSkillReads": 0,
+      "preCodeInputReads": 0,
+      "preCodeMaxSkillContextBytes": 0,
+      "preCodeMaxRequestBytes": 66004,
+      "firstCodeMs": 70319,
+      "firstNewCodeMs": 70319,
+      "firstPythonMs": 70388,
+      "firstResultMs": 73597,
+      "modelCalls": 2,
+      "knownUsageCalls": 2,
+      "knownTokens": 39728,
+      "inputTokensKnown": 35143,
+      "outputTokensKnown": 4585,
+      "unknownInputUsageCalls": 0,
+      "unknownOutputUsageCalls": 0,
+      "reasoningTokens": "UNKNOWN",
+      "providerBilledCost": "UNKNOWN",
+      "codeProposals": 1,
+      "rejectedProposals": 0,
+      "pythonExecutions": 1,
+      "pythonToolResults": 1,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        null
+      ],
+      "skillReads": 0,
+      "nativeDiscoveryEvents": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 0,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "candidate",
+      "case": "complex-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 149440,
+      "taskId": "analysis-coding-fbd1fbeff8e8761e7c35d07e0e2bc04f8af41f6535f3fa003cf8ffe3be1e1d02",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstProposalMs": 53398,
+      "preCodeModelCalls": 2,
+      "preCodeInputTokensKnown": 21933,
+      "preCodeKnownUsageCalls": 2,
+      "preCodeSkillReads": 0,
+      "preCodeInputReads": 1,
+      "preCodeMaxSkillContextBytes": 0,
+      "preCodeMaxRequestBytes": 38515,
+      "firstCodeMs": 53716,
+      "firstNewCodeMs": 53716,
+      "firstPythonMs": 53799,
+      "firstResultMs": 103214,
+      "modelCalls": 5,
+      "knownUsageCalls": 5,
+      "knownTokens": 80989,
+      "inputTokensKnown": 73197,
+      "outputTokensKnown": 7792,
+      "unknownInputUsageCalls": 0,
+      "unknownOutputUsageCalls": 0,
+      "reasoningTokens": "UNKNOWN",
+      "providerBilledCost": "UNKNOWN",
+      "codeProposals": 2,
+      "rejectedProposals": 0,
+      "pythonExecutions": 2,
+      "pythonToolResults": 2,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "OUTPUT_CONTRACT",
+        null
+      ],
+      "skillReads": 0,
+      "nativeDiscoveryEvents": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "code_read"
+        ],
+        [
+          "python_execute"
+        ],
+        []
+      ],
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "STOP"
+      ],
+      "maxSkillContextBytes": 0,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "candidate",
+      "case": "complex-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 124168,
+      "taskId": "analysis-coding-ccba8fc49a45c585c821166664022405acf006df643caf8676116e493bdb8cf4",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstProposalMs": 50351,
+      "preCodeModelCalls": 2,
+      "preCodeInputTokensKnown": 21975,
+      "preCodeKnownUsageCalls": 2,
+      "preCodeSkillReads": 0,
+      "preCodeInputReads": 1,
+      "preCodeMaxSkillContextBytes": 0,
+      "preCodeMaxRequestBytes": 38944,
+      "firstCodeMs": 50666,
+      "firstNewCodeMs": 50666,
+      "firstPythonMs": 50745,
+      "firstResultMs": 116698,
+      "modelCalls": 5,
+      "knownUsageCalls": 5,
+      "knownTokens": 77927,
+      "inputTokensKnown": 71819,
+      "outputTokensKnown": 6108,
+      "unknownInputUsageCalls": 0,
+      "unknownOutputUsageCalls": 0,
+      "reasoningTokens": "UNKNOWN",
+      "providerBilledCost": "UNKNOWN",
+      "codeProposals": 2,
+      "rejectedProposals": 0,
+      "pythonExecutions": 2,
+      "pythonToolResults": 2,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "OUTPUT_CONTRACT",
+        null
+      ],
+      "skillReads": 0,
+      "nativeDiscoveryEvents": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "code_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 0,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "candidate",
+      "case": "csv-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 72681,
+      "taskId": "analysis-coding-e7d98e0e31cbf1d7141dfa1a4c35e4a311b2411a0aebfcc1289a4e4d20f9797b",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstProposalMs": 30610,
+      "preCodeModelCalls": 2,
+      "preCodeInputTokensKnown": 21059,
+      "preCodeKnownUsageCalls": 2,
+      "preCodeSkillReads": 0,
+      "preCodeInputReads": 1,
+      "preCodeMaxSkillContextBytes": 0,
+      "preCodeMaxRequestBytes": 37336,
+      "firstCodeMs": 30994,
+      "firstNewCodeMs": 30994,
+      "firstPythonMs": 31085,
+      "firstResultMs": 60527,
+      "modelCalls": 4,
+      "knownUsageCalls": 4,
+      "knownTokens": 52469,
+      "inputTokensKnown": 49137,
+      "outputTokensKnown": 3332,
+      "unknownInputUsageCalls": 0,
+      "unknownOutputUsageCalls": 0,
+      "reasoningTokens": "UNKNOWN",
+      "providerBilledCost": "UNKNOWN",
+      "codeProposals": 2,
+      "rejectedProposals": 0,
+      "pythonExecutions": 2,
+      "pythonToolResults": 2,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "OUTPUT_CONTRACT",
+        null
+      ],
+      "skillReads": 0,
+      "nativeDiscoveryEvents": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 0,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "candidate",
+      "case": "csv-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 58694,
+      "taskId": "analysis-coding-d964d3e411466bd64b7e733a7e099c5c65c320d894c1cd459daa68bf1cb15e98",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstProposalMs": 42938,
+      "preCodeModelCalls": 2,
+      "preCodeInputTokensKnown": 20850,
+      "preCodeKnownUsageCalls": 2,
+      "preCodeSkillReads": 0,
+      "preCodeInputReads": 1,
+      "preCodeMaxSkillContextBytes": 0,
+      "preCodeMaxRequestBytes": 37034,
+      "firstCodeMs": 43189,
+      "firstNewCodeMs": 43189,
+      "firstPythonMs": 43262,
+      "firstResultMs": 47272,
+      "modelCalls": 3,
+      "knownUsageCalls": 3,
+      "knownTokens": 36248,
+      "inputTokensKnown": 33622,
+      "outputTokensKnown": 2626,
+      "unknownInputUsageCalls": 0,
+      "unknownOutputUsageCalls": 0,
+      "reasoningTokens": "UNKNOWN",
+      "providerBilledCost": "UNKNOWN",
+      "codeProposals": 1,
+      "rejectedProposals": 0,
+      "pythonExecutions": 1,
+      "pythonToolResults": 1,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        null
+      ],
+      "skillReads": 0,
+      "nativeDiscoveryEvents": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 0,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "candidate",
+      "case": "join-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 122076,
+      "taskId": "analysis-coding-93ffc0b43c1280ea60448250951d6e4909be656dd67a5c66c3e394609ac20bef",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstProposalMs": 43703,
+      "preCodeModelCalls": 2,
+      "preCodeInputTokensKnown": 24645,
+      "preCodeKnownUsageCalls": 2,
+      "preCodeSkillReads": 0,
+      "preCodeInputReads": 2,
+      "preCodeMaxSkillContextBytes": 0,
+      "preCodeMaxRequestBytes": 41621,
+      "firstCodeMs": 43822,
+      "firstNewCodeMs": 43822,
+      "firstPythonMs": 44043,
+      "firstResultMs": 100439,
+      "modelCalls": 4,
+      "knownUsageCalls": 4,
+      "knownTokens": 64071,
+      "inputTokensKnown": 57955,
+      "outputTokensKnown": 6116,
+      "unknownInputUsageCalls": 0,
+      "unknownOutputUsageCalls": 0,
+      "reasoningTokens": "UNKNOWN",
+      "providerBilledCost": "UNKNOWN",
+      "codeProposals": 2,
+      "rejectedProposals": 0,
+      "pythonExecutions": 2,
+      "pythonToolResults": 2,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "OUTPUT_CONTRACT",
+        null
+      ],
+      "skillReads": 0,
+      "nativeDiscoveryEvents": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read",
+          "input_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 0,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "candidate",
+      "case": "join-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 74757,
+      "taskId": "analysis-coding-a722b8c600d10401f2d4ff4d39bd35b774dd6a168454f67fe3530b3ecee910e6",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstProposalMs": 64188,
+      "preCodeModelCalls": 1,
+      "preCodeInputTokensKnown": 11907,
+      "preCodeKnownUsageCalls": 1,
+      "preCodeSkillReads": 0,
+      "preCodeInputReads": 0,
+      "preCodeMaxSkillContextBytes": 0,
+      "preCodeMaxRequestBytes": 39186,
+      "firstCodeMs": 64529,
+      "firstNewCodeMs": 64529,
+      "firstPythonMs": 64634,
+      "firstResultMs": 66880,
+      "modelCalls": 2,
+      "knownUsageCalls": 2,
+      "knownTokens": 31278,
+      "inputTokensKnown": 27249,
+      "outputTokensKnown": 4029,
+      "unknownInputUsageCalls": 0,
+      "unknownOutputUsageCalls": 0,
+      "reasoningTokens": "UNKNOWN",
+      "providerBilledCost": "UNKNOWN",
+      "codeProposals": 1,
+      "rejectedProposals": 0,
+      "pythonExecutions": 1,
+      "pythonToolResults": 1,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        null
+      ],
+      "skillReads": 0,
+      "nativeDiscoveryEvents": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 0,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "candidate",
+      "case": "parquet-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 75139,
+      "taskId": "analysis-coding-9838df89653353d7d391bab28203a6ba84fadd06dd87578299773a3fba77e47f",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstProposalMs": 23426,
+      "preCodeModelCalls": 1,
+      "preCodeInputTokensKnown": 10230,
+      "preCodeKnownUsageCalls": 1,
+      "preCodeSkillReads": 0,
+      "preCodeInputReads": 0,
+      "preCodeMaxSkillContextBytes": 0,
+      "preCodeMaxRequestBytes": 36161,
+      "firstCodeMs": 23760,
+      "firstNewCodeMs": 23760,
+      "firstPythonMs": 23860,
+      "firstResultMs": 67706,
+      "modelCalls": 4,
+      "knownUsageCalls": 4,
+      "knownTokens": 56662,
+      "inputTokensKnown": 53359,
+      "outputTokensKnown": 3303,
+      "unknownInputUsageCalls": 0,
+      "unknownOutputUsageCalls": 0,
+      "reasoningTokens": "UNKNOWN",
+      "providerBilledCost": "UNKNOWN",
+      "codeProposals": 2,
+      "rejectedProposals": 0,
+      "pythonExecutions": 2,
+      "pythonToolResults": 2,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "OUTPUT_CONTRACT",
+        null
+      ],
+      "skillReads": 0,
+      "nativeDiscoveryEvents": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "python_execute"
+        ],
+        [
+          "code_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 0,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "candidate",
+      "case": "parquet-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 45124,
+      "taskId": "analysis-coding-6e19ec18c6b0a480215cece539d7008cb3301ca630e2ed932272e0aee02442c3",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstProposalMs": 30786,
+      "preCodeModelCalls": 1,
+      "preCodeInputTokensKnown": 10290,
+      "preCodeKnownUsageCalls": 1,
+      "preCodeSkillReads": 0,
+      "preCodeInputReads": 0,
+      "preCodeMaxSkillContextBytes": 0,
+      "preCodeMaxRequestBytes": 36161,
+      "firstCodeMs": 30908,
+      "firstNewCodeMs": 30908,
+      "firstPythonMs": 31124,
+      "firstResultMs": 34507,
+      "modelCalls": 2,
+      "knownUsageCalls": 2,
+      "knownTokens": 25203,
+      "inputTokensKnown": 23037,
+      "outputTokensKnown": 2166,
+      "unknownInputUsageCalls": 0,
+      "unknownOutputUsageCalls": 0,
+      "reasoningTokens": "UNKNOWN",
+      "providerBilledCost": "UNKNOWN",
+      "codeProposals": 1,
+      "rejectedProposals": 0,
+      "pythonExecutions": 1,
+      "pythonToolResults": 1,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        null
+      ],
+      "skillReads": 0,
+      "nativeDiscoveryEvents": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 0,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "candidate",
+      "case": "repair-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 80038,
+      "taskId": "analysis-coding-cbbac58b2f292f96794f23db447462bce9ba4ba0408aedfe41cc1691623756c7",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstProposalMs": 9456,
+      "preCodeModelCalls": 1,
+      "preCodeInputTokensKnown": 11615,
+      "preCodeKnownUsageCalls": 1,
+      "preCodeSkillReads": 0,
+      "preCodeInputReads": 0,
+      "preCodeMaxSkillContextBytes": 0,
+      "preCodeMaxRequestBytes": 49861,
+      "firstCodeMs": 9760,
+      "firstNewCodeMs": 44170,
+      "firstPythonMs": 9840,
+      "firstResultMs": 47098,
+      "modelCalls": 4,
+      "knownUsageCalls": 4,
+      "knownTokens": 59572,
+      "inputTokensKnown": 56119,
+      "outputTokensKnown": 3453,
+      "unknownInputUsageCalls": 0,
+      "unknownOutputUsageCalls": 0,
+      "reasoningTokens": "UNKNOWN",
+      "providerBilledCost": "UNKNOWN",
+      "codeProposals": 3,
+      "rejectedProposals": 0,
+      "pythonExecutions": 3,
+      "pythonToolResults": 3,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "SYNTAX_ERROR",
+        null,
+        null
+      ],
+      "skillReads": 0,
+      "nativeDiscoveryEvents": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 0,
+      "repairObserved": true,
+      "successfulExecution": true
+    },
+    {
+      "variant": "candidate",
+      "case": "repair-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 138393,
+      "taskId": "analysis-coding-916ae3914dfb41eca522664c0295a76d9e1139636fa76b03e7a9d19ebcb435df",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstProposalMs": 11042,
+      "preCodeModelCalls": 1,
+      "preCodeInputTokensKnown": 11615,
+      "preCodeKnownUsageCalls": 1,
+      "preCodeSkillReads": 0,
+      "preCodeInputReads": 0,
+      "preCodeMaxSkillContextBytes": 0,
+      "preCodeMaxRequestBytes": 49861,
+      "firstCodeMs": 11119,
+      "firstNewCodeMs": 82418,
+      "firstPythonMs": 11341,
+      "firstResultMs": 86478,
+      "modelCalls": 5,
+      "knownUsageCalls": 5,
+      "knownTokens": 86192,
+      "inputTokensKnown": 79557,
+      "outputTokensKnown": 6635,
+      "unknownInputUsageCalls": 0,
+      "unknownOutputUsageCalls": 0,
+      "reasoningTokens": "UNKNOWN",
+      "providerBilledCost": "UNKNOWN",
+      "codeProposals": 3,
+      "rejectedProposals": 0,
+      "pythonExecutions": 3,
+      "pythonToolResults": 3,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        "SYNTAX_ERROR",
+        null,
+        null
+      ],
+      "skillReads": 0,
+      "nativeDiscoveryEvents": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "python_execute"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 0,
+      "repairObserved": true,
+      "successfulExecution": true
+    },
+    {
+      "variant": "candidate",
+      "case": "visual-0",
+      "status": "COMPLETED",
+      "httpDurationMs": 183944,
+      "taskId": "analysis-coding-39ab9e185692465290244dd2fabb5ff4407da110313d246c4f0315a422f1e056",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstProposalMs": 162035,
+      "preCodeModelCalls": 2,
+      "preCodeInputTokensKnown": 31441,
+      "preCodeKnownUsageCalls": 2,
+      "preCodeSkillReads": 0,
+      "preCodeInputReads": 1,
+      "preCodeMaxSkillContextBytes": 0,
+      "preCodeMaxRequestBytes": 66636,
+      "firstCodeMs": 162294,
+      "firstNewCodeMs": 162294,
+      "firstPythonMs": 162364,
+      "firstResultMs": 166023,
+      "modelCalls": 3,
+      "knownUsageCalls": 3,
+      "knownTokens": 59758,
+      "inputTokensKnown": 51102,
+      "outputTokensKnown": 8656,
+      "unknownInputUsageCalls": 0,
+      "unknownOutputUsageCalls": 0,
+      "reasoningTokens": "UNKNOWN",
+      "providerBilledCost": "UNKNOWN",
+      "codeProposals": 1,
+      "rejectedProposals": 0,
+      "pythonExecutions": 1,
+      "pythonToolResults": 1,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        null
+      ],
+      "skillReads": 0,
+      "nativeDiscoveryEvents": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "input_read"
+        ],
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 0,
+      "repairObserved": false,
+      "successfulExecution": true
+    },
+    {
+      "variant": "candidate",
+      "case": "visual-1",
+      "status": "COMPLETED",
+      "httpDurationMs": 122042,
+      "taskId": "analysis-coding-764097058670ef4713672c6a08ec0a2a9c0ffd80d1c9e8bed46c569d11d01c7c",
+      "resultAvailable": true,
+      "nodeStatus": "COMPLETED",
+      "nodeError": null,
+      "fences": 1,
+      "eventsTruncated": false,
+      "firstProposalMs": 89788,
+      "preCodeModelCalls": 1,
+      "preCodeInputTokensKnown": 15533,
+      "preCodeKnownUsageCalls": 1,
+      "preCodeSkillReads": 0,
+      "preCodeInputReads": 0,
+      "preCodeMaxSkillContextBytes": 0,
+      "preCodeMaxRequestBytes": 65230,
+      "firstCodeMs": 90135,
+      "firstNewCodeMs": 90135,
+      "firstPythonMs": 90517,
+      "firstResultMs": 94266,
+      "modelCalls": 3,
+      "knownUsageCalls": 3,
+      "knownTokens": 61025,
+      "inputTokensKnown": 54911,
+      "outputTokensKnown": 6114,
+      "unknownInputUsageCalls": 0,
+      "unknownOutputUsageCalls": 0,
+      "reasoningTokens": "UNKNOWN",
+      "providerBilledCost": "UNKNOWN",
+      "codeProposals": 1,
+      "rejectedProposals": 0,
+      "pythonExecutions": 1,
+      "pythonToolResults": 1,
+      "pythonStopUnconfirmed": 0,
+      "pythonDiagnostics": [
+        null
+      ],
+      "skillReads": 0,
+      "nativeDiscoveryEvents": 1,
+      "discoveryCalls": 0,
+      "modelErrors": [],
+      "toolsByCall": [
+        [
+          "python_execute"
+        ],
+        [
+          "artifact_read"
+        ],
+        [
+          "artifact_read"
+        ]
+      ],
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "finishReasons": [
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION",
+        "TOOL_EXECUTION"
+      ],
+      "maxSkillContextBytes": 0,
+      "repairObserved": false,
+      "successfulExecution": true
+    }
+  ],
+  "aggregate": {
+    "baseline": {
+      "tasks": 12,
+      "successfulExecutions": 12,
+      "totalModelCalls": 56,
+      "knownUsageCalls": 56,
+      "unknownUsageCalls": 0,
+      "knownTokensTotal": 975865,
+      "repairTasks": 2,
+      "repairSuccesses": 2,
+      "metrics": {
+        "firstProposalMs": {
+          "observed": 12,
+          "median": 44898.0
+        },
+        "firstCodeMs": {
+          "observed": 12,
+          "median": 45210.5
+        },
+        "firstNewCodeMs": {
+          "observed": 12,
+          "median": 57868.5
+        },
+        "firstPythonMs": {
+          "observed": 12,
+          "median": 45336.5
+        },
+        "firstResultMs": {
+          "observed": 12,
+          "median": 87543.0
+        },
+        "httpDurationMs": {
+          "observed": 12,
+          "median": 100503.5
+        },
+        "modelCalls": {
+          "observed": 12,
+          "median": 5.0
+        },
+        "knownTokens": {
+          "observed": 12,
+          "median": 72953.0
+        },
+        "preCodeModelCalls": {
+          "observed": 12,
+          "median": 2.0
+        },
+        "preCodeInputTokensKnown": {
+          "observed": 12,
+          "median": 21217.5
+        },
+        "preCodeSkillReads": {
+          "observed": 12,
+          "median": 0.0
+        },
+        "preCodeInputReads": {
+          "observed": 12,
+          "median": 0.5
+        },
+        "preCodeMaxSkillContextBytes": {
+          "observed": 12,
+          "median": 0.0
+        },
+        "preCodeMaxRequestBytes": {
+          "observed": 12,
+          "median": 40821.0
+        }
+      }
+    },
+    "candidate": {
+      "tasks": 12,
+      "successfulExecutions": 12,
+      "totalModelCalls": 44,
+      "knownUsageCalls": 44,
+      "unknownUsageCalls": 0,
+      "knownTokensTotal": 691394,
+      "repairTasks": 2,
+      "repairSuccesses": 2,
+      "metrics": {
+        "firstProposalMs": {
+          "observed": 12,
+          "median": 43320.5
+        },
+        "firstCodeMs": {
+          "observed": 12,
+          "median": 43505.5
+        },
+        "firstNewCodeMs": {
+          "observed": 12,
+          "median": 47418.0
+        },
+        "firstPythonMs": {
+          "observed": 12,
+          "median": 43652.5
+        },
+        "firstResultMs": {
+          "observed": 12,
+          "median": 77092.0
+        },
+        "httpDurationMs": {
+          "observed": 12,
+          "median": 101040.0
+        },
+        "modelCalls": {
+          "observed": 12,
+          "median": 4.0
+        },
+        "knownTokens": {
+          "observed": 12,
+          "median": 59665.0
+        },
+        "preCodeModelCalls": {
+          "observed": 12,
+          "median": 1.5
+        },
+        "preCodeInputTokensKnown": {
+          "observed": 12,
+          "median": 18191.5
+        },
+        "preCodeSkillReads": {
+          "observed": 12,
+          "median": 0.0
+        },
+        "preCodeInputReads": {
+          "observed": 12,
+          "median": 0.5
+        },
+        "preCodeMaxSkillContextBytes": {
+          "observed": 12,
+          "median": 0.0
+        },
+        "preCodeMaxRequestBytes": {
+          "observed": 12,
+          "median": 39065.0
+        }
+      }
+    }
+  },
+  "method": "Synthetic paired cases (including formal visual when requested), two repeats each, real configured model and Java/Python. Same immutable assets. Node acceptance clocks; unknown usage excluded, failures retained. Sequential variants, max concurrency 2; descriptive small sample, no p95 claim. Known token sums are not Provider billing; reasoning tokens and billed cost are UNKNOWN."
+}

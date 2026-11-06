@@ -1,0 +1,81 @@
+{
+  "sourceCommit": "e34f0f7db5fecdb381b30a2ff0c5f6fe4fad897e",
+  "baselineImageId": "sha256:0937e96b4277033911df3faad1f18ead7247ec5e2bb062743eb9568e30a6f39b",
+  "baselineJarSha256": "b7cf6bc86d106525c90c72c275b8c71b7d61c4f848eb25ae0a18bd0dbcb1c8aa",
+  "candidateJarSha256": "628a08eb91258af5624ae620250147ccf196ff4901c528d8ce34021d35e7e1f5",
+  "image": "runtime-os-api:cline-native-skills-628a08eb9125",
+  "imageId": "sha256:f0e19c6aa8220c39f2a4af7111875004f85dad789e5d5c15a951060dc031b289",
+  "compiler": "Normal Maven JDK17 output; resource bytes copied by Maven",
+  "compiledClassFiles": 3,
+  "updatedSchemaResources": 3,
+  "nestedLibraries": {
+    "BOOT-INF/lib/chatchat-chat-1.0.0-SNAPSHOT.jar": {
+      "changedEntries": [
+        "com/chatchat/chat/skills/runtime/SkillAnalysisContextService.class"
+      ],
+      "allOtherEntriesUnchanged": true,
+      "entryCount": 523
+    },
+    "BOOT-INF/lib/chatchat-common-1.0.0-SNAPSHOT.jar": {
+      "changedEntries": [
+        "com/chatchat/common/runtime/coding/CodingRuntimeContext.class",
+        "runtime/coding/coding-analysis.schema.json",
+        "runtime/coding/coding-workspace.schema.json",
+        "runtime/coding/coding.schema.json"
+      ],
+      "allOtherEntriesUnchanged": true,
+      "entryCount": 626
+    }
+  },
+  "changedEntries": [
+    "BOOT-INF/classes/com/chatchat/api/runtime/coding/CodingConfigurationSnapshot.class",
+    "BOOT-INF/lib/chatchat-common-1.0.0-SNAPSHOT.jar",
+    "BOOT-INF/lib/chatchat-chat-1.0.0-SNAPSHOT.jar"
+  ],
+  "allOtherEntriesUnchanged": true,
+  "entryCount": 1356,
+  "inputFiles": [
+    {
+      "file": "0",
+      "module": "chatchat-api",
+      "entry": "com/chatchat/api/runtime/coding/CodingConfigurationSnapshot.class",
+      "container": "BOOT-INF/classes/",
+      "sha256": "e5ce2d665d5e1d290073a9307191ab67bfc8142241f912d9ad1f18d35f372cb0"
+    },
+    {
+      "file": "1",
+      "module": "chatchat-chat",
+      "entry": "com/chatchat/chat/skills/runtime/SkillAnalysisContextService.class",
+      "container": "BOOT-INF/lib/chatchat-chat-1.0.0-SNAPSHOT.jar",
+      "sha256": "c3f73b66a9a5232183733d78bdb5f6c63a27f5541ee5d66115380cdcafb6f75c"
+    },
+    {
+      "file": "2",
+      "module": "chatchat-common",
+      "entry": "com/chatchat/common/runtime/coding/CodingRuntimeContext.class",
+      "container": "BOOT-INF/lib/chatchat-common-1.0.0-SNAPSHOT.jar",
+      "sha256": "7fcdd91c034b155e1dc8062a08090f697ec32c8c4ac9f6d16637d3ec01467cf2"
+    },
+    {
+      "file": "3",
+      "module": "chatchat-common",
+      "entry": "runtime/coding/coding.schema.json",
+      "container": "BOOT-INF/lib/chatchat-common-1.0.0-SNAPSHOT.jar",
+      "sha256": "2de7aa3d4b6942630f6980bdb0e1256daf39bb69cf9970f16eb5de4635c69057"
+    },
+    {
+      "file": "4",
+      "module": "chatchat-common",
+      "entry": "runtime/coding/coding-workspace.schema.json",
+      "container": "BOOT-INF/lib/chatchat-common-1.0.0-SNAPSHOT.jar",
+      "sha256": "3ae5c9cab2c6abcf239ef7dd9cf045124d199b3865dc4a1b34b404ed4153f5d5"
+    },
+    {
+      "file": "5",
+      "module": "chatchat-common",
+      "entry": "runtime/coding/coding-analysis.schema.json",
+      "container": "BOOT-INF/lib/chatchat-common-1.0.0-SNAPSHOT.jar",
+      "sha256": "7d1d54b18b23a30c9b2e07d07f860a9dfacaec08299a6cb51585d25f95ba302e"
+    }
+  ]
+}

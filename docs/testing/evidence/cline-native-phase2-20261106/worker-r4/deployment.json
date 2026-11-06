@@ -1,0 +1,17 @@
+{
+  "status": "DEPLOYED",
+  "image": "runtime-os-coding-agent:native-remediation-metadata-b87fbd459",
+  "imageId": "sha256:4a72ae673cb09301e66b404fbc2cf4436550b0aeca3828aa031f6c7b571cb8b2",
+  "sourceCommit": "b87fbd459811f81e47c6df255b885a7d720089a9",
+  "backupContainer": "runtime-os-app-stage-coding-agent-1-before-sdk-reuse-ea3f3b61a80a",
+  "backupDirectory": "/opt/chatchat-releases/cline-native-phase2-20261106/worker-r4/backup",
+  "callback": {
+    "status": "PASSED",
+    "signedCallback": true,
+    "unsignedRejected": true,
+    "origin": "http://api:8081",
+    "codeLifecycleVersion": "runtime_os.code_lifecycle.v1"
+  },
+  "policyPreserved": true,
+  "unrelatedContainersUnchanged": true
+}

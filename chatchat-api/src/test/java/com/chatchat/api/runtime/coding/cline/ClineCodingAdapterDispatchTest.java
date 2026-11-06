@@ -138,7 +138,7 @@ class ClineCodingAdapterDispatchTest {
             adapter.setLicenseEntitlements(license);
             var base=contract(scope);
             var contract=fileInput?new CodingTaskContract(CodingProtocol.ANALYSIS_VERSION,base.taskId(),scope,base.objective(),base.inputSnapshotRef(),
-                internet?List.of("runtime-coding:internet-search:v1"):base.metadataRefs(),base.workspaceRef(),new CodingTaskContract.Authorization(base.authorization().decisionRef(),internet?List.of("web_search","web_fetch"):skillReader?List.of("skill_read"):List.of(),
+                internet?List.of("runtime-coding:internet-search:v1"):base.metadataRefs(),base.workspaceRef(),new CodingTaskContract.Authorization(base.authorization().decisionRef(),internet?List.of("web_search","web_fetch"):skillReader?List.of("skills","read_files"):List.of(),
                     List.of("c"+"a".repeat(63)),List.of(),List.of(),CodingTaskContract.NetworkPolicy.NONE,List.of(),List.of()),
                 base.budget(),base.environmentRef(),base.validationPlanRef(),base.outputContract(),
                 internet?Map.of("schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT","inputFiles",

@@ -1,0 +1,94 @@
+{
+  "source": "Original synthetic fixture bytes; hashes independently recomputed; UTC Gregorian calendar and direct arithmetic, not generated report declarations.",
+  "simple": {
+    "East": 32,
+    "West": 14,
+    "total": 46
+  },
+  "join": {
+    "East": 38,
+    "West": 14,
+    "total": 52,
+    "customers": 3,
+    "orders": 4,
+    "cardinality": {
+      "001": 2,
+      "002": 1,
+      "003": 1
+    }
+  },
+  "repair": 6,
+  "complex": {
+    "amount": 1218,
+    "quantity": 140,
+    "weeks": {
+      "2026-09-28": {
+        "days": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "East": 10,
+        "West": 20,
+        "quantity": 20
+      },
+      "2026-10-05": {
+        "days": [
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ],
+        "East": 56,
+        "West": 112,
+        "quantity": 38
+      },
+      "2026-10-12": {
+        "days": [
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18
+        ],
+        "East": 105,
+        "West": 210,
+        "quantity": 32
+      },
+      "2026-10-19": {
+        "days": [
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25
+        ],
+        "East": 154,
+        "West": 308,
+        "quantity": 34
+      },
+      "2026-10-26": {
+        "days": [
+          26,
+          27,
+          28
+        ],
+        "East": 81,
+        "West": 162,
+        "quantity": 16
+      }
+    }
+  },
+  "weekdays": {
+    "2026-10-01": "Thursday",
+    "2026-10-28": "Wednesday"
+  }
+}

@@ -27,15 +27,14 @@ COPY --from=build --chown=node:node /srv/coding-agent/node_modules ./node_module
 COPY --from=build --chown=node:node /srv/coding-agent/dist ./dist
 COPY --chown=node:node package.json ./
 COPY --chown=root:root skills ./skills
-# Native Cline discovery uses the workspace .cline/skills directory. The adapter
-# reads the same immutable package through its existing task-scoped skill_read.
-RUN mkdir -p .cline && ln -s ../skills .cline/skills && chmod -R a+rX skills
+# Runtime distributes original files into private, task-scoped SDK plugin roots.
+RUN chmod -R a+rX skills
 # Retain the health probe path used by existing Runtime deployment tooling.
 COPY --chown=node:node src/healthcheck.js ./src/healthcheck.js
-RUN node dist/sdk-packages.js \
-    && node --input-type=module -e "import {bundledSkillFiles, taskSkills} from './dist/skills.js'; const files=bundledSkillFiles(); if (!files.length || taskSkills().catalog.skills.length !== files.filter(s => s.enabled !== false).length) throw new Error('Bundled Skills discovery failed');" \
-    && mkdir /srv/monitor-data && chown node:node /srv/monitor-data
+RUN mkdir /srv/monitor-data && chown node:node /srv/monitor-data
 USER node
+RUN node dist/sdk-packages.js \
+    && node --input-type=module -e "import {prepareNativeSkills} from './dist/native-skills.js'; const r=await prepareNativeSkills({taskId:'image-gate',scope:{tenantId:'image',userId:'image',runId:'image'}},{},{sessionId:'image-gate'}); try {if (r.records.length!==15 || r.tools.map(t=>t.name).sort().join(',')!=='read_files,skills') throw new Error('Native Skills gate failed');} finally {await r.dispose();}"
 EXPOSE 3100
 HEALTHCHECK --interval=15s --timeout=5s --start-period=15s --retries=3 CMD ["node", "dist/healthcheck.js"]
 CMD ["node", "dist/server.js"]

@@ -143,7 +143,9 @@ public class ExplorationWorkspaceController {
     }
     @GetMapping("/{id}/nodes/{nodeId}/status") public ApiResponse<?> status(HttpServletRequest http,@PathVariable("id") String id,@PathVariable("nodeId") String nodeId){
         var owner=owner(http);var state=store.get(owner,id);var node=node(state,nodeId);
-        if(node.path("receipt").path("terminal").asBoolean())return ApiResponse.success(state);
+        boolean uncheckedStage=node.path("agentId").asText().isBlank()&&node.path("receipt").hasNonNull("taskId")
+            &&!node.path("receipt").path("resultAvailable").asBoolean()&&!node.path("receipt").path("stageSnapshotChecked").asBoolean();
+        if(node.path("receipt").path("terminal").asBoolean()&&!uncheckedStage)return ApiResponse.success(state);
         if(node.path("agentId").asText().isBlank()){
             if(!node.has("executionRequestedAt")&&!node.path("receipt").has("taskId")&&!"RECOVERABLE".equals(node.path("status").asText()))return ApiResponse.success(state);
             var request=new AssetAnalysisController.Request(nodeId,strings(node,"fileIds"),strings(node,"contextIds"),node.path("question").asText(),null);
@@ -171,7 +173,13 @@ public class ExplorationWorkspaceController {
     private ObjectNode finish(UserAssetService.Owner owner,String id,String nodeId,ObjectNode receipt,String error){
         for(int attempt=0;attempt<8;attempt++){
             var state=store.get(owner,id);long expected=state.path("version").asLong();var node=node(state,nodeId);
-            if(node.path("receipt").path("terminal").asBoolean()||receipt==null&&node.path("receipt").path("resultAvailable").asBoolean()&&node.path("agentId").asText().isBlank())return state;
+            var previous=node.path("receipt");
+            boolean terminalStage=previous.path("terminal").asBoolean()&&node.path("agentId").asText().isBlank()
+                &&!previous.path("resultAvailable").asBoolean()&&!previous.path("stageSnapshotChecked").asBoolean()
+                &&receipt!=null&&receipt.path("terminal").asBoolean()&&receipt.path("stageSnapshotChecked").asBoolean()
+                &&previous.path("taskId").asText().equals(receipt.path("taskId").asText())
+                &&previous.path("status").asText().equals(receipt.path("status").asText());
+            if(previous.path("terminal").asBoolean()&&!terminalStage||receipt==null&&previous.path("resultAvailable").asBoolean()&&node.path("agentId").asText().isBlank())return state;
             if(receipt!=null){
                 var prior=node.path("receipt");
                 if(prior.hasNonNull("taskId")&&receipt.hasNonNull("taskId")&&!prior.path("taskId").asText().equals(receipt.path("taskId").asText()))
@@ -180,6 +188,9 @@ public class ExplorationWorkspaceController {
                 // Final failures do not erase a previously verified stage artifact.
                 if(prior.path("resultAvailable").asBoolean()&&!receipt.path("resultAvailable").asBoolean()){
                     receipt=receipt.deepCopy();receipt.set("visualReport",prior.path("visualReport"));receipt.put("resultAvailable",true);receipt.put("deliveryStatus","PRESERVED_AFTER_FAILURE");
+                    if(receipt.path("terminal").asBoolean()&&receipt.path("visualReport").isObject()&&"SUCCESS".equals(receipt.path("visualReport").path("status").asText())){
+                        var report=(ObjectNode)receipt.path("visualReport").deepCopy();report.put("status","PARTIAL");receipt.set("visualReport",report);
+                    }
                 }
                 node.set("receipt",receipt);node.put("status",receipt.path("agentTaskId").asText().isBlank()&&receipt.path("resultAvailable").asBoolean()?"RESULT_AVAILABLE":receipt.path("status").asText("PENDING"));node.remove("error");linkResult(node);
             }

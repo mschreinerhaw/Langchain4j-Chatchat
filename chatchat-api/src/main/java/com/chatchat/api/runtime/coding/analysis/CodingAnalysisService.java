@@ -128,6 +128,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             var receipt=new LinkedHashMap<String,Object>();
             receipt.put("operation","RUN_CODING");receipt.put("requestId",requestId);receipt.put("taskId",taskId);
             receipt.put("status",outcome.status().name());receipt.put("terminal",outcome.status().terminal());
+            receipt.put("stageSnapshotChecked",outcome.status().terminal());
             receipt.put("eventCursor",outcome.lastEventSequence());receipt.put("taskRevision",outcome.revision());
             receipt.put("reconciliationRequired",outcome.executionControl().reconciliationRequired());
             receipt.put("cancellationRequested",outcome.cancellationRequested());
@@ -146,6 +147,30 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 receipt.put("evidenceRefs",java.util.stream.Stream.of(outcome.inputSnapshotRef(),outcome.codeArtifactRef(),outcome.executionReceiptRef(),
                     outcome.resultDatasetRef(),outcome.validationRecordRef(),outcome.evidenceBundleRef()).filter(Objects::nonNull).toList());
                 if(visual)collector.visualReport(contract.scope(),taskId,outcome.resultDatasetRef()).ifPresent(report->receipt.put("visualReport",report));
+                receipt.put("deliveryStatus","FINAL");
+            }else if(visual){
+                // Reuse the existing fenced, stop-proven deliverable index; never promote a failed task.
+                var operations=new ArrayList<>(tasks.startedCodeOperations(caller,taskId));Collections.reverse(operations);
+                for(String operation:operations){
+                    var asset=tasks.privateState(caller,taskId,"deliverable:"+operation);
+                    if(asset==null||!asset.path("integrityVerified").asBoolean()||!asset.path("structureVerified").asBoolean()
+                            ||tasks.verifiedOperation(caller,taskId,operation).isEmpty())continue;
+                    String reference=asset.path("resultDatasetRef").asText();
+                    var archived=collector.visualReport(contract.scope(),taskId,reference);
+                    if(archived.isEmpty()||!"PASSED".equals(archived.get().get("artifactValidationStatus"))||!(archived.get().get("execution") instanceof Map<?,?> execution)
+                            ||!operation.equals(execution.get("operationId"))||!taskId.equals(execution.get("taskId"))
+                            ||!reference.equals(execution.get("resultDatasetRef")))continue;
+                    var page=collector.readResultPage(contract.scope(),taskId,reference,0,2);
+                    if(page.hasMore()||page.rows().size()!=1)continue;
+                    var report=new LinkedHashMap<String,Object>(archived.get());
+                    if(outcome.status().terminal()&&"SUCCESS".equals(report.get("status")))report.put("status","PARTIAL");
+                    receipt.put("results",page.rows());receipt.put("visualReport",report);receipt.put("resultAvailable",true);
+                    receipt.put("datasetReference",reference);receipt.put("executionMode","PYTHON");
+                    receipt.put("provisional",!outcome.status().terminal());
+                    receipt.put("deliveryStatus",outcome.status().terminal()?"PRESERVED_AFTER_FAILURE":"IN_PROGRESS");
+                    if(outcome.status().terminal())receipt.put("error","任务未完成最终复核；保留已归档的阶段成果。");
+                    break;
+                }
             }
             return Optional.of(Collections.unmodifiableMap(receipt));
         });

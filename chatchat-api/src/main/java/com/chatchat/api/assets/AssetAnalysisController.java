@@ -93,6 +93,10 @@ public class AssetAnalysisController {
         var context=new AnalysisCoverageCoordinator.Request(model,instruction,null,attributes,metadata,()->false,()->{},
             GovernanceIsolationScope.runtime(owner.tenant(),owner.user(),run,body.requestId(),null),null);
         var receipt=new LinkedHashMap<String,Object>(coding.executePrimaryAnalysis(context,sources,event->{}));
+        if(visual&&Boolean.TRUE.equals(receipt.get("terminal"))&&!Boolean.TRUE.equals(receipt.get("resultAvailable"))){
+            var preserved=coding.primarySnapshot(snapshotScope(http,body),true);
+            if(preserved.isPresent()){receipt.putAll(preserved.get());return ApiResponse.success(receipt);}
+        }
         if(Boolean.TRUE.equals(receipt.get("resultAvailable")) && receipt.get("datasetReference") instanceof String reference){
             var result=sources.get(reference);
             if(result==null)throw new IllegalStateException("Coding result was not registered");

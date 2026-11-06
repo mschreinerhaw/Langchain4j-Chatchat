@@ -25,6 +25,30 @@ import static org.mockito.Mockito.*;
 
 class CodingAnalysisServiceTest {
     @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans={true,false})
+    void failedTaskRetainsOnlyItsOwnStopProvenStageReportWithoutPromotingCompletion(boolean sameTask){
+        var scope=new KernelDataScope("tenant","owner","node",null,"owned-run",null,Map.of());
+        var failed=outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN);
+        var contract=mock(CodingTaskContract.class);when(contract.scope()).thenReturn(scope);
+        when(durable.get(eq(scope),anyString())).thenReturn(failed);when(durable.contract(eq(scope),anyString())).thenReturn(contract);
+        when(durable.startedCodeOperations(eq(scope),anyString())).thenReturn(List.of("operation"));
+        var asset=new ObjectMapper().valueToTree(Map.of("integrityVerified",true,"structureVerified",true,"resultDatasetRef","runtime-evidence:stage"));
+        when(durable.privateState(eq(scope),anyString(),eq("deliverable:operation"))).thenReturn(asset);
+        when(durable.verifiedOperation(eq(scope),anyString(),eq("operation"))).thenReturn(Optional.of(new DurableCodingTaskService.VerifiedOperation("operation",1,"execution","stop-proof")));
+        var originals=new ArrayList<Map<String,Object>>();
+        when(collector.visualReport(eq(scope),anyString(),eq("runtime-evidence:stage"))).thenAnswer(call->{
+            var report=Map.<String,Object>of("status","SUCCESS","artifactValidationStatus","PASSED","execution",Map.of("taskId",sameTask?call.getArgument(1):"other-task","operationId","operation","resultDatasetRef","runtime-evidence:stage"));
+            originals.add(report);return Optional.of(report);
+        });
+        when(collector.readResultPage(eq(scope),anyString(),eq("runtime-evidence:stage"),eq(0L),eq(2))).thenReturn(
+            new com.chatchat.agents.orchestration.analysis.dataset.DatasetHandle.Page(0,List.of(Map.of("reportMarkdown","Archived stage")),false));
+        var receipt=service().primarySnapshot(scope,true).orElseThrow();
+        assertThat(receipt).containsEntry("status","FAILED").containsEntry("terminal",true).containsEntry("resultAvailable",sameTask);
+        if(sameTask){assertThat(receipt).containsEntry("deliveryStatus","PRESERVED_AFTER_FAILURE");assertThat(((Map<?,?>)receipt.get("visualReport")).get("status")).isEqualTo("PARTIAL");}
+        else verify(collector,never()).readResultPage(any(),anyString(),anyString(),anyLong(),anyInt());
+        assertThat(originals).allSatisfy(report->assertThat(report).containsEntry("status","SUCCESS"));verifyNoInteractions(agent,python,plans);assertThat(saved).isEmpty();
+    }
+    @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.EnumSource(value=CodingTaskOutcome.Status.class,names={"RUNNING","COMPLETED","PARTIAL","FAILED","CANCELLED","BUDGET_EXCEEDED"})
     void primaryStatusReadsAuthoritativeTaskWithReadOnlyAuthorityAndNeverReplaysExecution(CodingTaskOutcome.Status state){
         var scope=new KernelDataScope("tenant","owner","node",null,"owned-run",null,Map.of());

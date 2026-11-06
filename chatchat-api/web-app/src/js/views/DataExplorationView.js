@@ -243,7 +243,9 @@ export default {
     function scheduleStatus(){clearTimeout(pollTimer);if(!disposed)pollTimer=setTimeout(pollStatus,1500);}
     async function pollStatus(){
       if(disposed||polling)return;const id=space.value?.id;
-      const candidates=space.value?.nodes.filter(n=>!n.receipt?.terminal&&(n.agentId?n.receipt?.agentTaskId:n.executionRequestedAt||n.receipt?.taskId||n.status==='RECOVERABLE'))||[];
+      const candidates=space.value?.nodes.filter(n=>n.agentId?n.receipt?.agentTaskId&&!n.receipt.terminal:
+        (!n.receipt?.terminal||n.receipt?.taskId&&!n.receipt.resultAvailable&&!n.receipt.stageSnapshotChecked)
+        &&(n.executionRequestedAt||n.receipt?.taskId||n.status==='RECOVERABLE'))||[];
       const pending=candidates[(candidates.findIndex(n=>n.id===lastPolledNode)+1)%candidates.length];
       if(!pending)return;polling=true;
       lastPolledNode=pending.id;

@@ -16,7 +16,7 @@ import urllib.request
 def main():
     os.umask(0o077)
     command,kind,directory=sys.argv[1:4]
-    assert command in ['run','collect'] and kind in ['search','day']
+    assert command in ['run','collect','resume-preflight'] and kind in ['search','day']
     root=Path(directory).resolve()
     token=json.loads((root/'auth-private.json').read_text())['token']
     original=json.loads((root/'parent-run-private.json').read_text())['request']
@@ -32,8 +32,13 @@ def main():
         return value['data']
     def save(name,value):
         (root/(prefix+name)).write_text(json.dumps(value,ensure_ascii=False,indent=2))
-    if command=='run':
-        assert not (root/(prefix+'-intent-private.json')).exists(),'Existing task must be polled, never replayed'
+    if command in ['run','resume-preflight']:
+        resume=command=='resume-preflight'
+        if resume:
+            assert json.loads((root/'preflight-admission-proof.json').read_text())['knownBeforeTaskAdmission'] is True
+            assert json.loads((root/(prefix+'-error-private.json')).read_text())['message'].startswith('HTTP Error 507')
+            assert not (root/(prefix+'-response-private.json')).exists() and not (root/(prefix+'-preflight-recovery-intent-private.json')).exists()
+        else:assert not (root/(prefix+'-intent-private.json')).exists(),'Existing task must be polled, never replayed'
         material=next(identity for file,identity in zip(prepared['inputFiles'],prepared['inputAssetIds'])
             if file['fileName']=='market-producer-declarations.json')
         questions={
@@ -61,7 +66,11 @@ def main():
             assert definition.get('modelName','qwen3.8-omni-flash') in ['qwen3.8-omni-flash','qwen3.8-flash','qwen3.7-plus']
             body.update({k:definition[k] for k in ['instruction','modelName','fileIds'] if k in definition})
             assert body['fileIds'] and all(isinstance(value,str) and len(value)==64 for value in body['fileIds'])
-        save('-intent-private.json',{'request':body,'startedAt':time.time(),'policy':'One existing SDK task; no shared configuration edits or budget override'})
+        if resume:
+            assert json.loads((root/(prefix+'-intent-private.json')).read_text())['request']==body,'Preflight recovery cannot change the request'
+            import shutil
+            shutil.copy2(root/(prefix+'-error-private.json'),root/(prefix+'-preflight-error-private.json'))
+        save('-preflight-recovery-intent-private.json' if resume else '-intent-private.json',{'request':body,'startedAt':time.time(),'policy':'One native task; known 507 pre-admission recovery only; no shared configuration edits or budget override'})
         started=time.monotonic()
         try:
             receipt=api('/data-science/user-assets/analyses',body)

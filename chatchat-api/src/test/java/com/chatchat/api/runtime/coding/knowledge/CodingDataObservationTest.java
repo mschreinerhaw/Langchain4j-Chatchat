@@ -64,6 +64,14 @@ class CodingDataObservationTest {
             assertThat(result).containsEntry("status",status==403?"ACCESS_DENIED":"SOURCE_UNAVAILABLE")
                 .containsEntry("returnedRowCount",null).containsEntry("httpStatus",status);
             assertThat(result.get("availableTools")).asList().doesNotContain("web_search","web_fetch");
+            if(System.getProperty("runtime.empty.failures")!=null) {
+                var directory=Path.of(System.getProperty("runtime.empty.failures"));Files.createDirectories(directory);
+                Files.writeString(directory.resolve("http-"+status+"-proof.json"),json.writerWithDefaultPrettyPrinter().writeValueAsString(Map.of(
+                    "case",status==403?"E07":"E06","testLevel","CONTROLLED_REAL_HTTP_TRANSPORT",
+                    "productionServiceDisrupted",false,"originalQuery",Map.of("dataset","quotes"),
+                    "sourceResponseStatus",status,"sourceMessage","controlled source failure","dataObservation",result,
+                    "authorizationExpanded",false,"emptyArraySynthesized",false)));
+            }
         }finally {server.stop(0);}
     }
     @Test @EnabledIfSystemProperty(named="runtime.empty.sources",matches=".+")

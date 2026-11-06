@@ -42,6 +42,7 @@ export function explorationDeliveryStages(events=[],receipt={}){
     &&(state.execution==='未执行'||latestPythonOperation===archivedExecution.operationId))state.execution='进程已结束';
   if(receipt.terminal===true){
     if(state.model==='等待响应')state.model='已停止';
+    if(state.model==='待响应')state.model='响应记录待核对';
     if(state.execution==='执行中')state.execution='最终状态待核对';
   }
   if(receipt.executionMode==='TEXT_ONLY')state.execution='无需 Python';

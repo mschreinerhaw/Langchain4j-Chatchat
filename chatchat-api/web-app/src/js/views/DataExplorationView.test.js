@@ -6,6 +6,14 @@ vi.mock('../../services/explorationApi',()=>api);
 vi.mock('../../components/PythonReportChart.vue',()=>({default:{props:['chart','presentation'],render(){return h('div',{'data-chart-type':this.presentation},this.chart.title);}}}));
 import View from '../../views/DataExplorationView.vue';
 let app,host;const settle=async()=>{for(let i=0;i<15;i++)await nextTick();};
+it('shows delivery facts for a restored completed file task without a retained activity stream',async()=>{
+ const state={...structuredClone(space),nodes:[{...node('root'),agentId:undefined,receipt:{taskId:'coding-task',status:'COMPLETED',terminal:true,resultAvailable:true,
+  visualReport:{status:'SUCCESS',title:'Archived report',summary:'Verified report',charts:[],execution:{operationId:'own',executorStopped:true,inputSnapshotRef:'snapshot'}}}}]};
+ await mount(state);expect(host.querySelector('[aria-label="分析交付状态"]')).not.toBeNull();
+ expect(host.querySelector('[aria-label="当前分析阶段"]').textContent).toContain('报告交付成功');
+ expect(host.querySelector('[aria-label="分析交付状态"]').textContent).toContain('响应记录待核对');
+ expect(api.executeExploration).not.toHaveBeenCalled();
+});
 it('hydrates a failed files own archived stage once and keeps the failure visible',async()=>{
  vi.useFakeTimers();try{
  const state={...structuredClone(space),nodes:[{...node('root'),agentId:undefined,receipt:{taskId:'coding-task',status:'FAILED',terminal:true,resultAvailable:false}}]};

@@ -10,6 +10,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import time
 import urllib.request
 
@@ -32,13 +33,20 @@ def main():
     os.umask(0o077)
     root=Path('/var/tmp/runtime-cline-acceptance-20261107-progress')
     ui=Path('/var/tmp/runtime-cline-acceptance-20261107-ui')
-    assert not (root/'finalize-intent.json').exists(),'Never automatically repeat a release'
-    (root/'finalize-intent.json').write_text(json.dumps({'startedAt':time.time(),'policy':'wait for completed isolated benchmark; retain existing idle gates'}))
+    if sys.argv[1:]==['--resume-wait-only']:
+        stopped=json.loads((root/'wait-only-finalizer-stop.json').read_text())
+        assert (root/'finalize-intent.json').exists() and not Path('/proc/'+str(stopped['pid'])).exists()
+        assert not (root/'prepare.log').exists() and not (root/'deployment.json').exists(),'Never resume a release that reached mutation'
+        intent=json.loads((root/'finalize-intent.json').read_text());intent['resumedWaitAt']=time.time()
+    else:
+        assert not sys.argv[1:] and not (root/'finalize-intent.json').exists(),'Never automatically repeat a release'
+        intent={'startedAt':time.time(),'policy':'wait for completed isolated benchmark; retain existing idle gates'}
+    (root/'finalize-intent.json').write_text(json.dumps(intent))
     while not (ui/'acceptance-batch-completed.json').exists():time.sleep(30)
     bench=Path('/var/tmp/runtime-cline-acceptance-20261107-performance')
     cases=json.loads((bench/'real-scenario-results.json').read_text())['cases']
     assert len(cases)==6 and all(c['status'] in ['COMPLETED','PARTIAL','FAILED','CANCELLED','BUDGET_EXCEEDED','TIMED_OUT','REJECTED'] for c in cases)
-    assert hashlib.sha256((root/'bundle.tar.gz').read_bytes()).hexdigest()=='288d22434a62ce553fc2e5795240d7a73bb81f4245f6adac465dcc3027b13a4b'
+    assert hashlib.sha256((root/'bundle.tar.gz').read_bytes()).hexdigest()=='31c59476746bff7a4ec46cb2b29251be90d7b2ba31dbd7787952ecc04c4e781a'
     subprocess.run(['tar','-xzf',str(root/'bundle.tar.gz'),'-C',str(root)],check=True)
     previous=Path('/var/tmp/runtime-cline-acceptance-20261107-availability')
     for name in ['catalog-readiness-private.json','restrict-coding-worker.sh']:shutil.copy2(previous/name,root/name)

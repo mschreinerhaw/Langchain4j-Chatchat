@@ -6,6 +6,9 @@ import static com.chatchat.common.runtime.coding.CodingContractTestSupport.*;
 import static org.assertj.core.api.Assertions.*;
 
 class CodingRuntimeContextTest {
+    @Test void visualQualityRequirementsStillFitTheExistingTaskInstructionLimit() {
+        assertThat(16000+VisualReportMode.instruction(Map.of()).length()).isLessThanOrEqualTo(32768);
+    }
     @Test void authorizedSkillMetadataAndIdentityListsHaveNoFixedPackageCount() {
         var ids=java.util.stream.IntStream.range(0,150).mapToObj(i->"authorized-"+i).toList();
         var cards=ids.stream().map(id->Map.<String,Object>of("id",id,"name",id,"version","v1")).toList();

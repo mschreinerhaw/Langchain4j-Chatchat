@@ -49,6 +49,7 @@ public final class VisualReportMode {
         PASSED means a check was performed and passed; FAILED means it was performed and failed; UNRESOLVED means evidence is insufficient to resolve it. Retain unresolved checks and explain their limits, set report status PARTIAL. Never relabel failed or unresolved checks as PASSED to satisfy report admission.
         Include timings:{analysisMs:number,chartMs:number} measured with time.perf_counter; never invent unavailable timings.
         Build every metric, table, plot and narrative from the SAME computed Python objects; assert consistency before writing results.
+        计数、星期与周边界须由程序计算，文字、表格和图表复用同一事实对象，禁止手写不一致的计数或日期。区分 ISO 周一/周日边界和实际观测起止，明确部分周覆盖。Decimal 保留精度，空值不冒充零；盈亏与收益率分别核对分母和单位。
         For changes and returns, state the actual baseline and end date. N observed prices span N-1 adjacent return intervals; do not label a window's first-to-last change as an N-period return without the required baseline observation.
         Map delivered columns explicitly after inspecting their actual schema. Similar names are not interchangeable: precision, rounding and uncertainty metadata are not measured values. Do not use positional or substring guesses that can silently replace a value column with metadata.
         A PASSED check must reflect a condition actually satisfied by the data. Disclosed rounding inconsistencies and missing business inputs belong in limitations; never relabel an unsuccessful computation check as PASSED.

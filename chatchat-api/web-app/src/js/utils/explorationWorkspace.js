@@ -19,6 +19,8 @@ export function businessNodeDescription(node){
 export function explorationMetricDisplay(value){
   const text=String(value??'');
   if(!/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:e[+-]?\d+)?$/i.test(text))return text;
+  const significant=text.split(/e/i)[0].replace(/[-.]/g,'').replace(/^0+/,'').replace(/0+$/,'').length;
+  if(/[.e]/i.test(text)&&significant>15)return text;
   const number=Number(text),magnitude=Math.abs(number);
   if(!Number.isFinite(number)||magnitude>Number.MAX_SAFE_INTEGER)return text;
   if(magnitude>0&&magnitude<1e-8)return number.toExponential(2);

@@ -226,6 +226,7 @@ def main():
                     'codeProposalModelMs':known_sum(proposal_ms),
                     'firstPlanLatencyMs':latency(lambda e:e.get('type')=='PLAN_READY'),
                     'firstCodeLatencyMs':latency(lambda e:e.get('type')=='CODE_READY'),
+                    'firstZeroExitLatencyMs':latency(lambda e:e.get('type')=='TOOL_FINISHED' and e.get('tool')=='python_execute' and e.get('status')=='SUCCEEDED'),
                     'firstReportLatencyMs':latency(lambda e:e.get('type')=='TOOL_FINISHED' and e.get('tool')=='python_execute' and e.get('resultAvailable') is True)},
                 measurementPolicy='null=UNKNOWN; latencies start at Node task acceptance; tool/Python phases overlap, not additive; codeProposalModelMs includes reasoning and provider IO; pure planning/code/report generation are not separately observable',
                 requestModelParameters=[{'operationId':key,'maxOutputTokens':value.get('maxOutputTokens'),
@@ -236,8 +237,14 @@ def main():
         row['delivery']={k:report[k] for k in ['status','analysisStatus','requirementStatus','artifactValidationStatus','chartValidationStatus','availableChartCount'] if k in report}
         row['chartCount']=len(report.get('charts',[]));results.append(row)
         response_path=root/(case['case']+'-response-private.json')
-        row['httpDurationMs']=json.loads(response_path.read_text()).get('elapsedMs') if response_path.exists() else None
-        row['submissionToDeliveredReportMs']=row['httpDurationMs'] if row['status']=='COMPLETED' and row['resultAvailable'] else None
+        response=json.loads(response_path.read_text()) if response_path.exists() else {}
+        row['httpDurationMs']=response.get('elapsedMs')
+        response_node=next((n for n in response.get('state',{}).get('nodes',[]) if n['id']==case['nodeId']),{})
+        response_receipt=response_node.get('receipt',{})
+        response_delivered=response_receipt.get('status')=='COMPLETED' and response_receipt.get('resultAvailable') is True
+        row['strictCompleteDelivery']=row['status']=='COMPLETED' and row['resultAvailable'] and report.get('status')=='SUCCESS' and report.get('requirementStatus')=='COMPLETE' and report.get('artifactValidationStatus')=='PASSED' and report.get('chartValidationStatus')=='PASSED'
+        row['submissionToArchivedReportMs']=row['httpDurationMs'] if response_delivered else None
+        row['submissionToDeliveredReportMs']=row['httpDurationMs'] if response_delivered and row['strictCompleteDelivery'] else None
     save('real-scenario-results.json',{'originalInputSha256':prepared['originalInputSha256'],'cases':results})
     print(json.dumps([{'case':r['case'],'status':r['status'],'resultAvailable':r['resultAvailable'],'modelCalls':r.get('modelCalls'),'chartCount':r['chartCount']} for r in results]),flush=True)
 

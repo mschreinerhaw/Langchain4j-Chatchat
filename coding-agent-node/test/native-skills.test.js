@@ -39,6 +39,12 @@ test('official package discovery and service load all image Skills; only native 
     assert.match(r.tools.find(t=>t.name==='read_files').description,/\/data\/input.*outside this tool/);
     assert.match(r.tools.find(t=>t.name==='skills').description,/runtime-image:python-data-analysis/);
     assert.match(r.tools.find(t=>t.name==='skills').inputSchema.properties.skill.description,/"description":"Analyze delivered Python datasets/);
+    const description=r.tools.find(t=>t.name==='skills').inputSchema.properties.skill.description;
+    const purposes=JSON.parse(description.slice(description.indexOf('\n')+1));
+    assert.equal(purposes.length,r.records.length);
+    for(const record of r.records){
+      assert.deepEqual(purposes.find(p=>p.id===record.id),{id:record.id,description:record.item.description});
+    }
     assert.doesNotMatch(JSON.stringify(r.tools),/Check join key cardinality/);
     for(const pkg of taskSkillPackages()) {
       const record=r.records.find(x=>x.id==='runtime-image:'+pkg.card.name);

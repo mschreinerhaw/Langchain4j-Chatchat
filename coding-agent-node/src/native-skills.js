@@ -153,7 +153,11 @@ export async function prepareNativeSkills(contract, gateway, { sessionId, signal
     // Expose SDK-owned discovery metadata through the existing tool parameter,
     // without adding instructions, selecting Skills, or loading their bodies.
     const skillsTool = tools.find(tool => tool.name === 'skills');
-    skillsTool.inputSchema.properties.skill.description += '\n' + JSON.stringify(nativeSkills.configuredSkills);
+    // SDK descriptions already list names; the qualified id also carries that name.
+    // Keep every purpose and disabled restriction without repeating names/false flags each turn.
+    const purposes = nativeSkills.configuredSkills.map(({ id, description, disabled }) =>
+      ({ id, description, ...(disabled ? { disabled: true } : {}) }));
+    skillsTool.inputSchema.properties.skill.description += '\n' + JSON.stringify(purposes);
     const resourceTool = tools.find(tool => tool.name === 'read_files');
     resourceTool.description = 'Read authorized Skill files and references. /data/input paths belong to the Python Sandbox and are outside this tool. '
       + resourceTool.description;

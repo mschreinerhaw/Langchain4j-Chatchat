@@ -55,6 +55,9 @@ public class CodingExecutionFeedbackService {
         }
         result.put("diagnostics",diagnostics);result.put("stdoutBytes",feedback.stdoutBytes());
         result.put("executionFeedback",feedback);result.put("diagnosticPolicy","METADATA_ONLY");
+        result.put("delivery",Map.of("executionStopped",true,"processSucceeded",Integer.valueOf(0).equals(feedback.exitCode()),
+            "reportArchived",feedback.resultAvailable(),"outputStatus",Objects.toString(feedback.outputStatus(),"NOT_RECORDED"),
+            "nextAction",feedback.resultAvailable()?"REVIEW_ARCHIVED_REPORT":feedback.repair().allowed()?"REPAIR_OUTPUT_IN_CURRENT_SESSION":"STOP_WITH_EVIDENCE_GAP"));
         return result;
     }
     /** Gate each new attempt. A replay of the same operation uses A2/MCP idempotency. */
@@ -134,10 +137,19 @@ public class CodingExecutionFeedbackService {
         try{duration=Math.max(0,Duration.between(Instant.parse(receipt.path("startedAt").asText()),Instant.parse(receipt.path("finishedAt").asText())).toMillis());}
         catch(java.time.DateTimeException missing){/* Missing metering remains explicitly unknown. */}
         String guidance=failed?ExecutionFailureClassifier.guidance(code):"Result archived; business correctness remains governed by validationStatus.";
+        if(outputFailed)guidance+=" Required files: "+contract.outputContract().requiredFiles().stream()
+            .map(name->"/workspace/output/results/"+name).toList()
+            +". Diagnostics under /workspace/output/validation do not satisfy report delivery. "
+            +"Write the complete report rows and referenced chart files, then inspect the archived report and chart validation receipt. "
+            +"Repair the latest program through existing edits; the next Sandbox has no files from prior executions.";
         var inputFiles=new ArrayList<ExecutionFeedback.InputFile>();
+        var inputRefs=new LinkedHashSet<String>();inputRefs.add(contract.inputSnapshotRef());
         var frozen=tasks.privateState(contract.scope(),contract.taskId(),"inputs:"+operation.operationId());
         if(frozen!=null&&frozen.isArray())for(var file:frozen){
+            if(file.path("reference").isTextual()&&!file.path("reference").asText().isBlank())inputRefs.add(file.path("reference").asText());
             inputFiles.add(new ExecutionFeedback.InputFile(file.path("fileId").asText(),file.path("fileName").asText(),file.path("sha256").asText()));
+            for(var part:file.path("chunks"))inputFiles.add(new ExecutionFeedback.InputFile(
+                part.path("fileId").asText(),part.path("fileName").asText(),part.path("sha256").asText()));
         }
         var inputSchema=new LinkedHashMap<String,String>();
         if(contract.runtimeContext().get("inputFiles") instanceof Map<?,?> files)
@@ -148,7 +160,7 @@ public class CodingExecutionFeedbackService {
             operation.exitCode(),duration,count(diagnostic,"cpuTimeMs"),count(diagnostic,"maxRssBytes"),operation.codeHash(),"[raw stdout omitted]",failed?guidance:"[raw stderr omitted]",
             count(diagnostic,"stdoutBytes"),count(diagnostic,"stderrBytes"),
             failed?new ExecutionFeedback.Failure(category,exception,code,guidance,List.copyOf(frames),detail):null,
-            List.of(contract.inputSnapshotRef()),contract.outputContract().resultSchemaRef(),
+            List.copyOf(inputRefs),contract.outputContract().resultSchemaRef(),
             List.copyOf(inputFiles),Map.copyOf(inputSchema),Map.copyOf(refs),
             outputFailed?"FAILED":String.valueOf(result.getOrDefault("validationStatus","NOT_RUN")),resultAvailable,
             operation.manifestHash(),result.get("outputStatus") instanceof String output?output:null,

@@ -14,6 +14,16 @@ import static org.mockito.ArgumentMatchers.*;
 
 /** Policy unit tests; genuine cross-process/Sandbox acceptance is reported separately. */
 class CodingExecutionFeedbackServiceTest {
+    @Test void successfulProcessWithNoReportReturnsExactOutputLocationAndAllMountedInputHashes() {
+        state.put("inputs:operation",json.valueToTree(List.of(Map.of("fileId","manifest-id","fileName","manifest.json","sha256","a".repeat(64),
+            "chunks",List.of(Map.of("fileId","part-id","fileName","part-00000.parquet","sha256","b".repeat(64)))))));
+        var feedback=service.finish(contract,lease,operation("SUCCEEDED"),Map.of("resultAvailable",false,"outputStatus","REQUIRED_OUTPUT_MISSING"));
+        assertThat(feedback.inputFiles()).hasSize(2);
+        assertThat(feedback.error().message()).contains("/workspace/output/results/rows.jsonl","/workspace/output/validation","next Sandbox");
+        assertThat(feedback.repair().allowed()).isTrue();
+        assertThat(((Map<?,?>)service.response(feedback).get("delivery")).get("nextAction")).isEqualTo("REPAIR_OUTPUT_IN_CURRENT_SESSION");
+        assertThat(feedback.resultAvailable()).isFalse();
+    }
     final ObjectMapper json=new ObjectMapper().findAndRegisterModules();
     final DurableCodingTaskService tasks=mock(DurableCodingTaskService.class);
     final CodingPythonExecutionBridge python=mock(CodingPythonExecutionBridge.class);

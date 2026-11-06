@@ -8,6 +8,18 @@ const event=(sequence,type,extra={})=>({eventId:`e-${sequence}`,sequence,createT
   eventKind:'CODING_TRACE',taskId:'task',workerActivity:{type,tool:'input_read',toolCallId:'read-1',status:'SUCCEEDED',...extra}}}});
 async function mount(props){host=document.createElement('div');document.body.append(host);app=createApp({render:()=>h(Panel,props)});app.mount(host);await settle();}
 afterEach(()=>{app?.unmount();host?.remove();vi.useRealTimers();});
+it('separates model response and stopped Python from a missing report using actual receipt fields',async()=>{
+  await mount({running:false,status:'FAILED',events:[event(1,'MODEL_TIMING',{status:'SUCCEEDED'}),
+    event(2,'TOOL_FINISHED',{tool:'python_execute',executorStopped:true,status:'SUCCEEDED',resultAvailable:false,outputStatus:'REQUIRED_OUTPUT_MISSING'})]});
+  const stages=host.querySelector('[aria-label="分析交付状态"]').textContent;
+  expect(stages).toContain('模型响应已响应');expect(stages).toContain('Python 执行进程已结束');
+  expect(stages).toContain('报告交付交付未通过');expect(stages).not.toContain('已归档');
+});
+it('restores partial archived delivery from the current task receipt when old events are absent',async()=>{
+  await mount({running:false,status:'COMPLETED',events:[],receipt:{resultAvailable:true,executionMode:'TEXT_ONLY',visualReport:{status:'PARTIAL'}}});
+  expect(host.querySelector('[aria-label="分析交付状态"]').textContent).toContain('报告交付部分归档');
+  expect(host.querySelector('[aria-label="分析交付状态"]').textContent).toContain('无需 Python');
+});
 
 it('shows live actions and settles the same row when the real completion arrives',async()=>{
   const props=reactive({running:true,status:'EXECUTING',events:[event(1,'TOOL_STARTED')]});

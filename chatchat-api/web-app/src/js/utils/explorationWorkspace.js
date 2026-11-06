@@ -15,6 +15,32 @@ export function businessNodeDescription(node){
   const summary=node?.receipt?.visualReport?.summary||'';
   return summary.length>48?summary.slice(0,47)+'…':summary;
 }
+/** Independent receipt facts: a model answer or zero Python exit never proves report delivery. */
+export function explorationDeliveryStages(events=[],receipt={}){
+  const state={model:'待响应',data:'待确认',execution:'未执行',report:'未交付'};
+  for(const event of events){
+    let body=event.payload||event;
+    try{if(typeof body==='string')body=JSON.parse(body);}catch{continue;}
+    const payload=body.payload||body,meta=payload.metadata||{},worker=meta.workerActivity||payload.workerActivity||payload;
+    const type=String(worker.type||meta.codingEventType||meta.eventKind||event.type||'').toUpperCase();
+    if(type==='MODEL_STARTED')state.model='等待响应';
+    if(type==='PLAN_READY'||type==='MODEL_TIMING'&&worker.status==='SUCCEEDED')state.model='已响应';
+    if(type==='MODEL_FAILED')state.model='响应失败';
+    if(type==='CODING_INPUT_READY'||meta.eventKind==='CODING_INPUT_READY')state.data='快照已就绪';
+    if(type==='TOOL_FINISHED'&&worker.tool==='input_read'&&worker.status==='SUCCEEDED')state.data='已读取';
+    if(type==='TOOL_STARTED'&&worker.tool==='python_execute')state.execution='执行中';
+    if(type==='TOOL_FINISHED'&&worker.tool==='python_execute'&&worker.executorStopped===true){
+      state.execution=worker.status==='SUCCEEDED'?'进程已结束':'执行失败';
+      state.report=worker.resultAvailable===false?'交付未通过':'待校验';
+      if(worker.resultAvailable===true&&worker.resultDatasetRef&&worker.validationRecordRef&&worker.evidenceBundleRef)state.report='已归档';
+    }
+  }
+  if(receipt.executionMode==='TEXT_ONLY')state.execution='无需 Python';
+  if(receipt.resultAvailable===true)state.report=receipt.visualReport?.status==='PARTIAL'?'部分归档':'已归档';
+  else if(receipt.terminal===true&&receipt.resultAvailable===false)state.report='交付未通过';
+  return [{key:'model',label:'模型响应',value:state.model},{key:'data',label:'数据供给',value:state.data},
+    {key:'execution',label:'Python 执行',value:state.execution},{key:'report',label:'报告交付',value:state.report}];
+}
 /** Display only. Original precision and units remain available in the report and tooltip. */
 export function explorationMetricDisplay(value){
   const text=String(value??'');

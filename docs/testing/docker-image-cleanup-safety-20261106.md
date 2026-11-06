@@ -9,7 +9,7 @@
 - 保留全部容器及其引用镜像，包含停止、暂停、重启及回滚容器。
 - 保护部署 Compose/config 中引用的镜像名、摘要和 ID；配置缺失或不可读时停止清理。
 - 保护 Python、构建基础镜像、基础设施、回滚/baseline/offline-parent 标签，以及清理白名单之外的任意镜像别名。
-- 只考虑指定 Runtime OS 应用仓库中超过 7 天的闲置镜像；每个应用仓库至少保留最新两份。
+- 只考虑指定 Runtime OS 应用仓库中超过 3 天的闲置镜像；每个应用仓库至少保留最新两份。
 - 默认保留来源不明的无标签镜像；只有显式带 `com.chatchat.cleanup=true` 的无标签镜像才可能成为候选。`com.chatchat.cleanup.protect=true` 始终保护。
 - 删除前重新读取全部容器、配置、镜像信息；读取失败即停止。仅按 ID 无 force 删除，由 Docker 继续保护并发引用、多标签及被子镜像依赖的镜像。
 - 不清理容器、卷、网络或构建缓存，不调用 prune。
@@ -26,3 +26,5 @@
 验证：本地离线容器和服务器分别运行 7 项 fake-Docker 安全回归，全部通过，包括闲置 Python/基础镜像、多标签别名、停止容器、配置引用、默认只预览、并发引用/配置变化、读取失败及缺失保留文件。另通过 `bash -n` 和服务器真实 Docker 清单 dry-run，15 个容器和 15 个不同镜像 ID 均未变化，四个当前关键镜像均明确标记保护。没有执行真实清理。
 
 原脚本保存在 `/opt/chatchat-releases/cline-native-phase3-20261106/docker-cleanup-safety-20261106/cleanup_docker_images.original.sh`，替换前后 SHA-256、实际镜像保护和预览结果见[安装证据](../evidence/docker-image-cleanup-safety-20261106.json)。
+
+随后按用户要求将默认保留期从 7 天改为 3 天，保护规则不变。服务器已同步并通过语法及真实清单预览检查，没有执行清理；当前脚本摘要见[3 天保留期更新记录](../evidence/docker-image-cleanup-retention-3-days-20261106.json)。

@@ -93,7 +93,7 @@ def main():
     mode.add_argument('--execute', action='store_true', help='执行已通过保护检查的镜像清理')
     parser.add_argument('--config-dir', type=Path, default=Path('/opt/runtime-os-docker-stage'))
     parser.add_argument('--keep-file', type=Path, help='额外保留的镜像名/摘要/glob，每行一项；不覆盖内置保护')
-    parser.add_argument('--min-age-days', type=int, default=7)
+    parser.add_argument('--min-age-days', type=int, default=3)
     args = parser.parse_args()
     if args.min_age_days < 1:
         parser.error('--min-age-days 必须至少为 1')

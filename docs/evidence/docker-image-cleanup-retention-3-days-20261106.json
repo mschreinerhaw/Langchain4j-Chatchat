@@ -1,0 +1,11 @@
+{
+  "status": "INSTALLED",
+  "script": "/opt/cleanup_docker_images.sh",
+  "defaultRetentionDays": 3,
+  "sha256": "212f857d1ecdc5dcbb0b0061a9160832786382fe4c3e118f50ca9553320ac0ce",
+  "previousSha256": "b26571486cea1cbef210fbeb3307ea5c1c733d52b894bdfa7a862e116e9d6111",
+  "at": "2026-11-06T07:16:29.883687+00:00",
+  "liveDryRunPassed": true,
+  "cleanupExecuted": false,
+  "protectionRulesUnchanged": true
+}

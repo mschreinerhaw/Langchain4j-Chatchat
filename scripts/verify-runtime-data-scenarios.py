@@ -203,6 +203,7 @@ def main():
                 manifest=json.loads(paths[0].read_text());manifests.append({'logicalContentSha256':manifest.get('logicalContentSha256'),
                     'rowCount':manifest.get('rowCount'),'format':manifest.get('format'),'logicalBytes':manifest.get('logicalBytes')})
             finished=matching[-1].get('finishedAt')
+            control_finished=task['outcome'].get('endedAt');control_created=task['outcome'].get('createdAt')
             runtime=task['contract']['runtimeContext'];model_identity=runtime.get('model',{});execution_profile=runtime.get('executionProfile',{})
             row.update(taskId=task['contract']['taskId'],status=task['outcome']['status'],budget=task['contract']['budget'],
                 actualModel=model_identity.get('selectedModel'),executionModel=execution_profile.get('selectedModel'),
@@ -218,6 +219,11 @@ def main():
                 inputTokens=sum(v['inputTokens'] for v in usages if isinstance(v.get('inputTokens'),(int,float))),
                 outputTokens=sum(v['outputTokens'] for v in usages if isinstance(v.get('outputTokens'),(int,float))),
                 durationMs=round((datetime.fromisoformat(finished.replace('Z','+00:00'))-datetime.fromisoformat(matching[0]['createdAt'].replace('Z','+00:00'))).total_seconds()*1000) if finished else None,
+                controlPlaneDurationMs=round((datetime.fromisoformat(control_finished.replace('Z','+00:00'))-datetime.fromisoformat(control_created.replace('Z','+00:00'))).total_seconds()*1000) if control_finished and control_created else None,
+                requestToTerminalControlMs=round(datetime.fromisoformat(control_finished.replace('Z','+00:00')).timestamp()*1000)-node['executionRequestedAt'] if control_finished and isinstance(node.get('executionRequestedAt'),(int,float)) else None,
+                manuallyReconciled=(root/(case['case']+'-native-recovery-intent-private.json')).exists(),
+                retainedCheckpointCompactionCount=task.get('sdkCheckpoint',{}).get('compactionCount'),
+                toolHistoryScope='Retained checkpoint only; proposal/repeated-read counts may be lower bounds after compaction; empty maps do not prove no redundant work over the entire run',
                 pythonExecutions=[{k:v.get(k) for k in ['executionId','status','exitCode','durationMs','cpuTimeMs','maxRssBytes','codeHash','resultAvailable','outputStatus','validationStatus']} for v in feedback],
                 phases={'planningMs':None,'dataDiscoveryMs':known_sum(selected({'market_search','market_resolve_security','market_get_day_snapshot','market_get_history','web_search','web_fetch','knowledge_search'})),
                     'fileReadMs':known_sum(selected({'input_read','read_files'})),

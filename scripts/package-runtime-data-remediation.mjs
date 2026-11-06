@@ -8,7 +8,7 @@ const families={
  api:['com/chatchat/api/assets/AssetAnalysisController','com/chatchat/api/runtime/coding/analysis/CodingAnalysisService','com/chatchat/api/runtime/coding/cline/ClineToolProfiles',
   'com/chatchat/api/runtime/coding/data/CodingDataSupplyService','com/chatchat/api/runtime/coding/knowledge/CodingKnowledgeService',
   'com/chatchat/api/runtime/coding/knowledge/CodingResourceReader','com/chatchat/api/runtime/coding/knowledge/CodingInternetAccess',
-  'com/chatchat/api/runtime/coding/execution/CodingExecutionFeedbackService','com/chatchat/api/model/InternetSearchProbeController'],
+  'com/chatchat/api/runtime/coding/execution/CodingExecutionFeedbackService','com/chatchat/api/runtime/coding/cline/ClinePythonCallbackController','com/chatchat/api/model/InternetSearchProbeController'],
  mcp:['com/chatchat/mcpserver/market/ResourceExplorationReadController'],
  agents:['com/chatchat/agents/orchestration/analysis/graph/AnalysisCodingPort','com/chatchat/agents/orchestration/analysis/governance/AnalysisCoverageCoordinator'],
  common:['com/chatchat/common/runtime/coding/CodingRuntimeContext'],

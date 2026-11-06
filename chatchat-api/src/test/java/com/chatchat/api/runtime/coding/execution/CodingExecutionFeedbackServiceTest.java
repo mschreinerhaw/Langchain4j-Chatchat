@@ -14,6 +14,13 @@ import static org.mockito.ArgumentMatchers.*;
 
 /** Policy unit tests; genuine cross-process/Sandbox acceptance is reported separately. */
 class CodingExecutionFeedbackServiceTest {
+    @Test void rejectedSourceCopyCanBeRepairedWithoutReturningTheRejectedBodyOrRenewingBudget(){
+        var feedback=service.finish(contract,lease,operation("SUCCEEDED"),Map.of("resultAvailable",false,"outputStatus","SOURCE_COPY_REJECTED"));
+        assertThat(feedback.resultAvailable()).isFalse();assertThat(feedback.repair().allowed()).isTrue();
+        assertThat(feedback.repair().maxAttempts()).isEqualTo(2);
+        assertThat(feedback.error().message()).contains("Source-copy validation rejected","Remove raw source collections");
+        assertThat(service.response(feedback)).doesNotContainKeys("resultDatasetRef","rows","stdout","stderr");
+    }
     @Test void successfulProcessWithNoReportReturnsExactOutputLocationAndAllMountedInputHashes() {
         state.put("inputs:operation",json.valueToTree(List.of(Map.of("fileId","manifest-id","fileName","manifest.json","sha256","a".repeat(64),
             "chunks",List.of(Map.of("fileId","part-id","fileName","part-00000.parquet","sha256","b".repeat(64)))))));

@@ -46,6 +46,7 @@
 
 ### 补充复核（2026-11-07）
 
+- **REPORT-03，完整快照首轮真实触发**：Flash 第一轮已计算并生成 rows.jsonl 与三张图，但结果含输入上下文原文，`SOURCE_COPY_REJECTED` 正确拒绝，`rejectSourceCopy` 随即把整个委托提交为 FAILED，反馈变成 TASK_STOPPING，Cline 无法在当前授权/预算内删除复制内容并修复报告。对既有 `analysis-reviewed-path:v1` 且有 artifact_read 的任务保留拒绝，只返回布尔校验及技术修复建议，交回原生受限修复；非复核委托维持原父任务重规划行为。不返回被拒报告，不提高修复次数、不续预算、不改变原样复制检测。Callback/Feedback 31 项通过。首轮结果和旧版本已启动的第二轮取消证据保留，不当最终修复验收或性能改善。
 - **DATA-05，已确认入口缺口**：文件分析 API 原 Request 无 Agent 授权身份，纵使底层允许计算任务使用资源工具，该入口也只能交付文件。新增可选 agentId，复用探索工作区的发布/用户访问校验，在读文件和模型解析前拒绝越权；传递既有资源授权属性，仍由每次工具调用核对实时交集。未选择 Agent 的行为不变；任务模型与 Agent 授权身份分别传递，不修改共享 Agent 模型。8 项控制器测试通过，包含未授权前置拒绝及选择模型/资源身份的独立传递。
 - **DATA-04，已确认源码缺陷**：`AnalysisCoverageCoordinator.analyze` 对首批空数据直接抛出 DATA_SUPPLY_*，没有核对 Cline 是否仍有其他已授权资源。新增既有 AnalysisCodingPort 的授权预检，只读 Agent/用户/模型授权；有资源时交付 DATA_SUPPLY_STATUS 作为状态材料后继续原 Cline 路径，没有资源时保留拒绝。状态行不冒充业务数据，不增加预算、不在 Java 选择查询。
 - **REPORT-02，真实复测确认**：Plus 合约技术 COMPLETED，但报告 requirementStatus=INPUT_REQUIRED、visualReport=NO_DATA，原前端仍显示“已完成”。保留执行终态和报告原件，单独显示“需补充数据”，不能用归档成功冒充分析完整。

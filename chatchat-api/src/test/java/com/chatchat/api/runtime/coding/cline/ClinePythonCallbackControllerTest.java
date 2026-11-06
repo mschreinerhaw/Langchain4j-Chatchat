@@ -224,6 +224,20 @@ class ClinePythonCallbackControllerTest {
         assertThat(controller.get(json.valueToTree(body()))).containsEntry("resultAvailable",true).doesNotContainKey("outputStatus");
     }
 
+    @Test void reviewedReportCopyIsRejectedWithoutPrematurelyEndingNativeRepair(){
+        var node=(com.fasterxml.jackson.databind.node.ObjectNode)json.valueToTree(contract);
+        node.set("metadataRefs",json.valueToTree(List.of("runtime-coding:analysis-reviewed-path:v1")));
+        ((com.fasterxml.jackson.databind.node.ObjectNode)node.path("authorization")).set("allowedTools",json.valueToTree(List.of("python_execute","artifact_read")));
+        contract=json.convertValue(node,CodingTaskContract.class);
+        when(tasks.get(scope,"task").contractSha256()).thenReturn(CodingCanonicalHash.sha256(contract));
+        copiedResult();
+        assertThat(controller.get(json.valueToTree(body())))
+            .containsEntry("outputStatus","SOURCE_COPY_REJECTED").containsEntry("resultAvailable",false)
+            .containsEntry("structuralChecks",Map.of("copiedSourceContentDetected",true))
+            .doesNotContainKeys("replanningRequired","resultDatasetRef","evidenceBundleRef","stdout","stderr");
+        verify(tasks,never()).commitOutcome(any(),anyString(),any(),anyLong(),any());
+        verify(tasks,never()).submit(any());
+    }
     @Test void trustedSourceCopyFailureEndsOnlyThisDelegationForParentReplanning(){
         var current=running(false);
         when(tasks.get(scope,"task")).thenReturn(current);

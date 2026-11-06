@@ -269,6 +269,20 @@ public final class ClinePythonCallbackController {
                     response.put("diagnostic","Structured result does not match the contracted row schema; repair field names and types using the code-version repair protocol returned by python_execute. Do not combine source with repair.");return withFeedback(call,result,response);
                 }
                 if (collected.validationStatus() == com.chatchat.common.runtime.coding.CodingTaskOutcome.ValidationStatus.FAILED) {
+                    // A reviewed report has a correct analytical objective already. Reject
+                    // source reproduction without ending its existing bounded repair loop.
+                    // No rejected report/source body is disclosed to the worker.
+                    if (call.contract().metadataRefs().contains("runtime-coding:analysis-reviewed-path:v1")
+                            && call.contract().authorization().allowedTools().contains("artifact_read")
+                            && collector.copiedSourceResult(call.scope(),call.taskId(),collected.validationRecordRef())) {
+                        response.put("outputStatus","SOURCE_COPY_REJECTED");response.put("resultAvailable",false);
+                        response.put("validationStatus","FAILED");
+                        response.put("structuralChecks",Map.of("copiedSourceContentDetected",true));
+                        response.put("diagnostic","Raw source reproduction is rejected. Remove copied source collections and long input/context dumps from the report. "
+                            +"Retain justified calculations, concise findings, short evidence quotations and source references. "
+                            +"Repair the existing program in this session; the original authorization, budget and source-copy validation remain in force.");
+                        return withFeedback(call,result,response);
+                    }
                     if (collector.copiedSourceResult(call.scope(), call.taskId(), collected.validationRecordRef())
                             && rejectSourceCopy(call, collected)) {
                         response.put("outputStatus", "SOURCE_COPY_REJECTED");

@@ -137,6 +137,9 @@ public class CodingExecutionFeedbackService {
         try{duration=Math.max(0,Duration.between(Instant.parse(receipt.path("startedAt").asText()),Instant.parse(receipt.path("finishedAt").asText())).toMillis());}
         catch(java.time.DateTimeException missing){/* Missing metering remains explicitly unknown. */}
         String guidance=failed?ExecutionFailureClassifier.guidance(code):"Result archived; business correctness remains governed by validationStatus.";
+        if("SOURCE_COPY_REJECTED".equals(result.get("outputStatus")))guidance+=" Source-copy validation rejected the report. "
+            +"Remove raw source collections and long input/context dumps; retain derived findings and concise evidence references. "
+            +"The rejected report is not admitted and is not returned as source data.";
         if(outputFailed)guidance+=" Required files: "+contract.outputContract().requiredFiles().stream()
             .map(name->"/workspace/output/results/"+name).toList()
             +". Diagnostics under /workspace/output/validation do not satisfy report delivery. "

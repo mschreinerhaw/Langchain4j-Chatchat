@@ -149,6 +149,21 @@ def main():
                 event=next((e for e in events if predicate(e)),None)
                 return round((datetime.fromisoformat(event['timestamp'].replace('Z','+00:00'))-datetime.fromisoformat(matching[0]['createdAt'].replace('Z','+00:00'))).total_seconds()*1000) if event else None
             feedback=[v for k,v in task.get('privateState',{}).items() if k.startswith('feedback:')]
+            checkpoint_calls=[part for message in task.get('sdkCheckpoint',{}).get('messages',[])
+                if isinstance(message.get('content'),list) for part in message['content'] if part.get('type')=='tool-call']
+            seen_calls=set();duplicates={};proposals=[]
+            for call in checkpoint_calls:
+                tool=call.get('toolName');arguments=call.get('input',{})
+                if tool in ['code_read','input_read','artifact_read','read_files']:
+                    signature=json.dumps([tool,arguments],sort_keys=True,ensure_ascii=False)
+                    if signature in seen_calls:duplicates[tool]=duplicates.get(tool,0)+1
+                    seen_calls.add(signature)
+                if tool=='python_execute':proposals.append({'mode':'source' if 'source' in arguments else 'repair' if 'repair' in arguments else 'other',
+                    'sourceBytes':len(arguments['source'].encode()) if isinstance(arguments.get('source'),str) else None})
+            purpose_ms={}
+            for model_timing in model_timings:
+                if isinstance(model_timing.get('durationMs'),(int,float)) and model_timing.get('purpose'):
+                    purpose=model_timing['purpose'];purpose_ms[purpose]=purpose_ms.get(purpose,0)+model_timing['durationMs']
             operation_ids=[k for k in task.get('operations',{}) if k.startswith('model-')]
             snapshots=next((v for k,v in task.get('privateState',{}).items() if k.startswith('inputs:')),[])
             manifests=[]
@@ -166,6 +181,8 @@ def main():
                 inputSnapshotRef=task['contract']['inputSnapshotRef'],permissions=task['contract']['authorization'],
                 logicalInputs=manifests,modelCalls=len(operation_ids),resolvedModelCalls=len(models),
                 unknownModelCalls=len(set(operation_ids)-set(models)),usageKnownCalls=usage_known,
+                unknownUsageCalls=max(0,len(operation_ids)-usage_known),
+                repeatedReadRequests=duplicates,codeProposals=proposals,modelPurposeMs=purpose_ms,
                 tokenUsageComplete=len(operation_ids)==usage_known,
                 inputTokens=sum(v['inputTokens'] for v in usages if isinstance(v.get('inputTokens'),(int,float))),
                 outputTokens=sum(v['outputTokens'] for v in usages if isinstance(v.get('outputTokens'),(int,float))),
@@ -186,6 +203,9 @@ def main():
         report=receipt.get('visualReport') or {}
         row['delivery']={k:report[k] for k in ['status','analysisStatus','requirementStatus','artifactValidationStatus','chartValidationStatus','availableChartCount'] if k in report}
         row['chartCount']=len(report.get('charts',[]));results.append(row)
+        response_path=root/(case['case']+'-response-private.json')
+        row['httpDurationMs']=json.loads(response_path.read_text()).get('elapsedMs') if response_path.exists() else None
+        row['submissionToDeliveredReportMs']=row['httpDurationMs'] if row['status']=='COMPLETED' and row['resultAvailable'] else None
     save('real-scenario-results.json',{'originalInputSha256':prepared['originalInputSha256'],'cases':results})
     print(json.dumps([{'case':r['case'],'status':r['status'],'resultAvailable':r['resultAvailable'],'modelCalls':r.get('modelCalls'),'chartCount':r['chartCount']} for r in results]),flush=True)
 

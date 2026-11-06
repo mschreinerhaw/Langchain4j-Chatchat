@@ -83,6 +83,13 @@ public final class ClinePythonCallbackController {
             var outcome=tasks.get(requested,taskId);var contract=tasks.contract(requested,taskId);var scope=contract.scope();
             if(!java.util.Objects.equals(scope.tenantId(),requested.tenantId())||!java.util.Objects.equals(scope.userId(),requested.userId())
                 ||!java.util.Objects.equals(scope.runId(),requested.runId()))throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+            if("status".equals(body.path("kind").asText())) {
+                var result=new LinkedHashMap<String,Object>();result.put("source","DURABLE_CODING_JOURNAL");
+                result.put("taskId",taskId);result.put("tenantId",scope.tenantId());result.put("userId",scope.userId());result.put("runId",scope.runId());
+                result.put("status",outcome.status());result.put("terminal",outcome.status().terminal());result.put("revision",outcome.revision());
+                result.put("endedAt",outcome.endedAt());result.put("updatedAt",outcome.updatedAt());result.put("reasonCode",outcome.reasonCode());
+                result.put("summary",outcome.summary());result.put("limitations",outcome.limitations());return result;
+            }
             var executions=feedback==null?List.<com.chatchat.common.runtime.coding.ExecutionFeedback>of():feedback.timeline(scope,taskId);
             String operation=body.path("operationId").asText("");
             if(!operation.isBlank()) {

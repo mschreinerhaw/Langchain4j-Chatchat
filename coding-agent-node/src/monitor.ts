@@ -22,7 +22,8 @@ const EVENT_KEYS = ['stage', 'status', 'operationId', 'proposedOperationId', 'mo
   'contextSizeBefore', 'contextSizeAfter', 'callbackConnectMs', 'callbackHeadersMs', 'callbackBodyMs', 'callbackHttpDurationMs', 'queueTimeScope', 'providerTimingAvailability',
   'constructionDurationMs', 'restoreDurationMs', 'preparationDurationMs', 'finishReason', 'providerFinishReason', 'purpose', 'progressFeedback', 'skillId', 'skillPath',
   'skillVersion','skillContentHash','skillSourceBytes','skillContentBytes','skillEstimatedTokens','duplicateRead','contentReused','skillReference','skillContextRatio',
-  'callbackRequestWriteMs','callbackResponseProcessingMs','runtimeAdmissionMs','nativeSkills','discovery','loader','nativeSkillCount'];
+  'callbackRequestWriteMs','callbackResponseProcessingMs','runtimeAdmissionMs','nativeSkills','discovery','loader','nativeSkillCount',
+  'sdkSessionId','checkpointOrdinal','receiptReplayOperationId','restoredMessageCount','receiptReplayed'];
 const PROGRESS_NUMBERS = ['modelCall', 'callsSinceProgress', 'newToolResults', 'newEvidenceReads', 'skillReads', 'discoveryCalls',
   'repeatedFailures', 'proposals', 'acceptedProposals', 'rejectedProposals', 'pythonDispatched', 'pythonExecutions',
   'modelResponseErrors', 'knownInputTokens', 'knownOutputTokens', 'firstProposalMs', 'firstValidCodeMs', 'firstPythonMs',
@@ -131,9 +132,18 @@ export class MonitorStore {
     await this.persist();
   }
   start(contract: Contract, fencingToken: number, recoveryMode: string): string | null {
+    const existingId=createHash('sha256').update(JSON.stringify([
+      contract.scope.tenantId,contract.scope.userId,contract.scope.runId,contract.taskId,fencingToken])).digest('hex');
+    const existing=this.tasks.get(existingId);
+    if(existing){
+      if(existing.runtimeOutcome?.terminal)return existingId;
+      existing.status='RUNNING';existing.stage='ACCEPTED';existing.finishedAt=null;
+      existing.recoveryMode=recoveryMode;existing.reconciliationRequired=false;
+      this.event(existingId,{type:'SESSION_ACCEPTED',stage:'CHECKPOINT_RESTORED'});return existingId;
+    }
     // Never evict an active observation to make room for another active task.
     while (this.tasks.size >= this.maxTasks) {
-      const victim = [...this.tasks.values()].find(task => task.status !== 'RUNNING');
+      const victim = [...this.tasks.values()].find(task => task.runtimeOutcome?.terminal||!task.runtimeOutcome&&task.status !== 'RUNNING');
       if (!victim) return null;
       this.tasks.delete(victim.id);
     }
@@ -203,10 +213,12 @@ export class MonitorStore {
         task.models.push(call);
       }
       if (call) {
+        if(event.receiptReplayed===true)call.receiptReplayed=true;
         for (const key of ['purpose', 'finishReason', 'providerFinishReason', 'diagnosticCode', 'errorCategory'] as const)
           if (typeof event[key] === 'string') call[key] = event[key];
         if (Array.isArray(event.actualTools)) call.actualTools = event.actualTools as string[];
         if (event.type === 'MODEL_TIMING') {
+          if(call.receiptReplayed&&event.status==='SUCCEEDED')call.status='SUCCEEDED';
           call.callbackDurationMs = integer(event.durationMs);
           for (const key of ['callbackFirstEventMs', 'requestBytes', 'responseBytes', 'messageCount', 'toolCount'] as const)
             call[key] = integer(event[key]);
@@ -268,16 +280,48 @@ export class MonitorStore {
     for (const call of task.models) if (call.status === 'RUNNING') call.status = 'UNKNOWN';
     this.event(id, { type: 'SESSION_FINISHED', status, stage: status });
   }
+  authorityCandidates(id?:string): TaskSummary[] {
+    return [...this.tasks.values()].reverse().filter(task=>(!id||task.id===id)&&!task.runtimeOutcome?.terminal
+      && (!task.runtimeCheckedAt||Date.now()-Date.parse(task.runtimeCheckedAt)>=1000)).map(task=>this.summary(task));
+  }
+  runtimeUnavailable(id:string) {
+    const task=this.tasks.get(id);if(!task||task.runtimeOutcome?.terminal)return;
+    task.runtimeUnavailable=true;task.runtimeCheckedAt=new Date().toISOString();this.changed();
+  }
+  reconcileRuntime(id:string,value:unknown) {
+    const task=this.tasks.get(id);if(!task)return;
+    const v=value as Record<string,any>;
+    const terminal=['COMPLETED','PARTIAL','FAILED','CANCELLED','BUDGET_EXCEEDED'].includes(v?.status);
+    if(v?.source!=='DURABLE_CODING_JOURNAL'||v.taskId!==task.taskId||v.tenantId!==task.tenantId
+      ||v.userId!==task.userId||v.runId!==task.runId||!['CREATED','RUNNING','COMPLETED','PARTIAL','FAILED','CANCELLED','BUDGET_EXCEEDED'].includes(v.status)
+      ||v.terminal!==terminal||!Number.isSafeInteger(v.revision)||v.revision<0||!Number.isFinite(Date.parse(v.updatedAt))
+      ||terminal&&!Number.isFinite(Date.parse(v.endedAt)))throw new Error('Invalid Runtime task authority projection');
+    // Append an authoritative projection; never rewrite the observed attempt or its history.
+    const prior=task.runtimeOutcome;
+    if(prior&&(v.revision<prior.revision||prior.terminal&&(v.status!==prior.status||v.endedAt!==prior.endedAt)))return;
+    task.runtimeOutcome={status:v.status,terminal,revision:v.revision,updatedAt:v.updatedAt,endedAt:v.endedAt??null,
+      reasonCode:this.text(v.reasonCode)||null,summary:this.text(v.summary),
+      limitations:Array.isArray(v.limitations)?v.limitations.slice(0,16).map(x=>this.text(x)):[]};
+    task.runtimeCheckedAt=new Date().toISOString();task.runtimeUnavailable=false;this.changed();
+  }
   private summary(task: TaskDetail): TaskSummary {
     const { events, models, codes, skills, configuredModel, budget, eventsTruncated, codesTruncated, ...summary } = task;
-    return { ...summary, elapsedMs: Math.max(0, Date.parse(task.finishedAt ?? task.updatedAt) - Date.parse(task.createdAt))
-      + (task.status === 'RUNNING' ? Math.max(0, Date.now() - Date.parse(task.updatedAt)) : 0),
+    const outcome=task.runtimeOutcome,terminal=outcome?.terminal===true;
+    const status:TaskState=terminal?['COMPLETED','PARTIAL'].includes(outcome.status)?'COMPLETED':outcome.status==='CANCELLED'?'CANCELLED':'FAILED':task.status;
+    const finishedAt=terminal?outcome.endedAt:task.finishedAt,updatedAt=terminal?outcome.updatedAt:task.updatedAt;
+    return { ...summary, observedStatus:task.status,status,finishedAt,updatedAt,
+      authority:outcome?'RUNTIME_CONFIRMED':'NODE_OBSERVATION_ONLY',
+      reconciliationRequired:terminal?false:task.reconciliationRequired,
+      stage:terminal?outcome.status:task.stage,
+      error:terminal?['FAILED','BUDGET_EXCEEDED'].includes(outcome.status)?[outcome.reasonCode,outcome.summary].filter(Boolean).join(': '):null:task.error,
+      elapsedMs: Math.max(0, Date.parse(finishedAt ?? updatedAt) - Date.parse(task.createdAt))
+      + (status === 'RUNNING' ? Math.max(0, Date.now() - Date.parse(updatedAt)) : 0),
       modelCalls: models.length, inputTokens: models.reduce((sum, call) => sum + (call.usage.inputTokens ?? 0), 0),
       outputTokens: models.reduce((sum, call) => sum + (call.usage.outputTokens ?? 0), 0),
       usageKnownCalls: models.filter(call => call.usage.inputTokens !== null).length };
   }
   list(status: string, search: string, offset: number, limit: number) {
-    const tasks = [...this.tasks.values()].reverse().filter(task => (!status || task.status === status)
+    const tasks = [...this.tasks.values()].reverse().filter(task => (!status || this.summary(task).status === status||task.runtimeOutcome?.status===status)
       && (!search || [task.taskId, task.runId, task.objective, task.tenantId].some(value => value.toLowerCase().includes(search.toLowerCase()))));
     return { schemaVersion: VERSION, observedAt: new Date().toISOString(), total: tasks.length,
       offset, limit, items: tasks.slice(offset, offset + limit).map(task => this.summary(task)) };
@@ -293,7 +337,7 @@ export class MonitorStore {
   node(draining: boolean, active: number, capacity: number, callbackTimeoutMs: number): NodeSnapshot {
     const memory = process.memoryUsage(), cpu = process.cpuUsage();
     const counts: NodeSnapshot['tasks'] = { RUNNING: 0, COMPLETED: 0, FAILED: 0, CANCELLED: 0, INTERRUPTED: 0 };
-    for (const task of this.tasks.values()) counts[task.status]++;
+    for (const task of this.tasks.values()) counts[this.summary(task).status]++;
     return { schemaVersion: VERSION, instanceId: this.instanceId, observedAt: new Date().toISOString(),
       status: draining ? 'DRAINING' : 'READY', sdk: '@cline/agents@0.0.93', build: process.env.RUNTIME_CODING_BUILD ?? 'development',
       nodeVersion: process.version, platform: platform(), arch: arch(), hostname: hostname(),
@@ -308,12 +352,33 @@ export class MonitorStore {
   }
 }
 
-export function createMonitorHandler({ token, store, snapshot, secureCookie = false, python }: {
+export function createMonitorHandler({ token, store, snapshot, secureCookie = false, python, runtimeAuthority }: {
   token?: string; store: MonitorStore; snapshot: () => NodeSnapshot; secureCookie?: boolean;
   python?: (task: TaskDetail, operationId?: string, kind?: 'code'|'timing') => Promise<unknown>;
+  runtimeAuthority?: (task:TaskSummary)=>Promise<unknown>;
 }) {
   if (token && token.length < 32) throw new Error('Monitor token must contain at least 32 characters');
   const bootKey = randomUUID(); // Browser sessions expire on process restart; never a dispatch credential.
+  const authorityRequests=new Map<string,Promise<void>>();
+  async function refreshRuntime(id?:string) {
+    if(!runtimeAuthority)return;
+    const grouped=new Map<string,TaskSummary[]>();
+    for(const task of store.authorityCandidates(id)) {
+      const key=JSON.stringify([task.tenantId,task.userId,task.runId,task.taskId]);
+      grouped.set(key,[...(grouped.get(key)??[]),task]);
+    }
+    const entries=[...grouped.entries()];
+    const work=(async()=>{for(let i=0;i<entries.length;i+=8)await Promise.allSettled(entries.slice(i,i+8).map(([key,tasks])=>{
+      if(authorityRequests.has(key))return authorityRequests.get(key)!;
+      const pending=runtimeAuthority!(tasks[0]).then(value=>{for(const task of tasks)store.reconcileRuntime(task.id,value);})
+        .catch(()=>{for(const task of tasks)store.runtimeUnavailable(task.id);}).finally(()=>authorityRequests.delete(key));
+      authorityRequests.set(key,pending);return pending;
+    }));})();
+    // Slow/unavailable Java reads cannot block the SDK or indefinitely hold operator pages.
+    let timer:ReturnType<typeof setTimeout>|undefined;
+    await Promise.race([work,new Promise<void>(resolve=>{timer=setTimeout(resolve,1500);})]);
+    clearTimeout(timer);
+  }
   const signature = (expiry: string) => createHmac('sha256', `${token}:${bootKey}`).update(expiry).digest('hex');
   const cookie = (value: string, maxAge: number) => `${COOKIE}=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${secureCookie ? '; Secure' : ''}`;
   function authorized(request: IncomingMessage) {
@@ -369,7 +434,7 @@ export function createMonitorHandler({ token, store, snapshot, secureCookie = fa
     if (!authorized(request)) { json(reply, 401, { code: 'MONITOR_UNAUTHORIZED', message: 'Read-only monitor authentication required' }); return true; }
     if (request.method !== 'GET') { json(reply, 405, { message: 'Monitor API is read-only' }, { allow: 'GET' }); return true; }
     const path = url.pathname.slice('/v1/monitor'.length);
-    if (path === '/node') { json(reply, 200, snapshot()); return true; }
+    if (path === '/node') { await refreshRuntime();json(reply, 200, snapshot()); return true; }
     if (path === '/openapi.json') { json(reply, 200, openapi); return true; }
     const pythonRoute = /^\/tasks\/([a-f0-9]{64})\/python(?:\/(codes|timing)\/(cline-[a-f0-9]{64}))?$/.exec(path);
     if (pythonRoute) {
@@ -381,16 +446,18 @@ export function createMonitorHandler({ token, store, snapshot, secureCookie = fa
       return true;
     }
     if (path === '/tasks') {
+      await refreshRuntime();
       const offset = Number(url.searchParams.get('offset') ?? 0), limit = Number(url.searchParams.get('limit') ?? 30);
       const state = url.searchParams.get('status') ?? '';
       if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 100
-          || state && !['RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'INTERRUPTED'].includes(state)) {
+          || state && !['RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'INTERRUPTED','PARTIAL','BUDGET_EXCEEDED'].includes(state)) {
         json(reply, 400, { message: 'Invalid pagination or status' }); return true;
       }
       json(reply, 200, store.list(state, (url.searchParams.get('q') ?? '').slice(0, 256), offset, limit)); return true;
     }
     const route = /^\/tasks\/([a-f0-9]{64})(?:\/(events|models|skills|codes)(?:\/([a-f0-9]{64}))?)?$/.exec(path);
     if (route) {
+      await refreshRuntime(route[1]);
       const task = store.detail(route[1]);
       if (!task) { json(reply, 404, { message: 'Observation not retained on this node' }); return true; }
       const section = route[2];

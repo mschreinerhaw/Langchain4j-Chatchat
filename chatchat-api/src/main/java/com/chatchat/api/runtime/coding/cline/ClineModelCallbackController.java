@@ -556,14 +556,14 @@ public final class ClineModelCallbackController {
         var payload = new java.util.LinkedHashMap<String,Object>();
         for (String key : List.of("type", "timestamp", "stage", "source", "attemptId", "operationId", "tool", "status", "planText", "executionOrigin",
                 "scriptPath", "codeSha256", "fileName", "proposedOperationId", "skillFingerprint", "skillId", "skillVersion", "selectedModel", "providerModel", "protocol", "startedAt", "finishedAt", "validationStatus", "outputStatus",
-                "resultDatasetRef", "validationRecordRef", "evidenceBundleRef", "errorCategory", "diagnosticCode", "parentCodeHash", "changeKind", "proposalHash", "toolCallId", "responseMode", "strategy", "reason", "requestHash", "estimator", "contextChangeReason", "compactionStrategy", "queueTimeScope", "providerTimingAvailability")) {
+                "resultDatasetRef", "validationRecordRef", "evidenceBundleRef", "errorCategory", "diagnosticCode", "parentCodeHash", "changeKind", "proposalHash", "toolCallId", "responseMode", "strategy", "reason", "requestHash", "estimator", "contextChangeReason", "compactionStrategy", "queueTimeScope", "providerTimingAvailability", "sdkSessionId", "receiptReplayOperationId")) {
             JsonNode value = event.path(key);
             if (value.isTextual() && value.asText().length() <= 512) payload.put(key, value.asText());
         }
         for (String key : List.of("scriptVersion", "modelCall", "sourceBytes", "durationMs", "maxOutputTokens", "repairAttempts", "repairAttempt", "maxRepairAttempts", "queueTimeMs", "firstTokenMs", "generationTimeMs", "retryTimeMs", "parentCodeVersion", "codeVersion", "toolDurationMs", "messageCount", "requestBytes", "cpuTimeMs", "maxRssBytes", "callbackFirstEventMs", "responseBytes", "toolCount", "validationDurationMs",
                 "contextSystemBytes", "contextToolsBytes", "contextToolIndexBytes", "contextTaskBytes", "contextSkillsBytes", "contextCodeBytes", "contextReportBytes", "contextHistoryBytes", "contextEnvelopeBytes", "estimatedInputTokens", "softInputTokenBudget",
                 "repeatedContextBytes", "duplicateContextBytes", "avoidableRepeatedContextBytes", "newContextBytes", "compactionCount", "contextSizeBefore", "contextSizeAfter", "callbackConnectMs", "callbackHeadersMs", "callbackBodyMs", "callbackHttpDurationMs",
-                "constructionDurationMs", "restoreDurationMs", "preparationDurationMs")) {
+                "constructionDurationMs", "restoreDurationMs", "preparationDurationMs", "checkpointOrdinal", "restoredMessageCount")) {
             if (event.path(key).isIntegralNumber() && event.path(key).asLong() >= 0)
                 payload.put(key, event.path(key).asLong());
         }
@@ -571,6 +571,7 @@ public final class ClineModelCallbackController {
             payload.put("resultAvailable", event.path("resultAvailable").asBoolean());
         if (event.path("repairAllowed").isBoolean())payload.put("repairAllowed",event.path("repairAllowed").asBoolean());
         if (event.path("exceedsSoftBudget").isBoolean())payload.put("exceedsSoftBudget",event.path("exceedsSoftBudget").asBoolean());
+        if (event.path("receiptReplayed").isBoolean())payload.put("receiptReplayed",event.path("receiptReplayed").asBoolean());
         if (event.path("usage").isObject()) {
             var usage = new java.util.LinkedHashMap<String,Object>();
             for (String key : List.of("inputTokens", "outputTokens", "cacheReadTokens", "cacheWriteTokens", "reasoningTokens"))

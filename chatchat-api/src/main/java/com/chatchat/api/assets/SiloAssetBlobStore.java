@@ -36,6 +36,13 @@ public final class SiloAssetBlobStore implements AssetBlobStore {
             if (stored.versionId() == null || stored.versionId().isBlank() || "null".equals(stored.versionId()))
                 throw new IllegalStateException("Asset bucket must have object versioning enabled");
             return new Stored(stored.versionId());
+        } catch (io.minio.errors.ErrorResponseException e) {
+            var error=e.errorResponse();
+            if(error!=null&&(java.util.Set.of("XMinioStorageFull","StorageFull","InsufficientStorage").contains(error.code())
+                    || "Storage backend has reached its minimum free drive threshold. Please delete a few objects to proceed.".equals(error.message())))
+                throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.INSUFFICIENT_STORAGE,
+                    "ARTIFACT_STORAGE_FULL: 本次文件发布被存储容量保护拒绝。请释放存储空间后核对当前任务状态，再恢复原请求；此错误不代表业务数据不存在。",e);
+            throw new IllegalStateException("Asset object publication failed",e);
         } catch (Exception e) { throw new IllegalStateException("Asset object publication failed", e); }
     }
     @Override public byte[] get(String key, String version, long limit) {

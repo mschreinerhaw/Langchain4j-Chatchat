@@ -137,8 +137,11 @@ export async function prepareNativeSkills(contract, gateway, { sessionId, signal
     const readFileExecutor = async (request, context) => {
       checkSignal();
       const target = resolve(root, request.path), entry = files.get(target);
-      if (!entry || !within(target) || await realpath(target) !== target || (await lstat(target)).isSymbolicLink())
-        throw new TypeError('File is outside the authorized Skill resource manifest');
+      if (!entry || !within(target) || await realpath(target) !== target || (await lstat(target)).isSymbolicLink()) {
+        await observe?.({ type:'SKILL_FILE_REJECTED', stage:'CODING', tool:'read_files',
+          diagnosticCode:'SKILL_FILE_SCOPE_DENIED', nativeSkills:true });
+        throw new TypeError('SKILL_FILE_SCOPE_DENIED: File is outside the authorized Skill resource manifest. read_files reads task-authorized Skill files only; use the authorized input_read or Python Sandbox tool for delivered data.');
+      }
       await authorize(entry);
       const output = await nativeRead({ ...request, path: target }, context);
       await reportRead(entry, entry.path !== 'SKILL.md', output);return output;

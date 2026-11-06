@@ -129,14 +129,17 @@ test('dynamic original package bytes and resources remain exact; distribution is
 
 test('native resource access remains task isolated and cannot read the host or another tenant workspace',async()=>{
   const fa=dynamicFixture(),fb=dynamicFixture();fb.t.scope.tenantId='another-tenant';
-  const a=await prepare(fa.t,fa.g),b=await prepare(fb.t,fb.g);
+  const events=[],a=await prepare(fa.t,fa.g,{observe:e=>events.push(e)}),b=await prepare(fb.t,fb.g);
   try{
     assert.notEqual(a.root,b.root);
     const foreign=b.records.find(x=>x.item.name==='private-method').filePath;
     for(const path of [foreign,join(a.root,'..','secret.txt'),process.execPath,'/data/input/private/original-0.csv']){
       const result=await invoke(a,'read_files',{files:[{path}]});
       assert.match(JSON.stringify(result),/outside the authorized/);assert.doesNotMatch(JSON.stringify(result),/PRIVATE_NATIVE_BODY/);
+      assert.match(JSON.stringify(result),/SKILL_FILE_SCOPE_DENIED/);
     }
+    assert.equal(events.filter(e=>e.diagnosticCode==='SKILL_FILE_SCOPE_DENIED').length,4);
+    assert(!JSON.stringify(events.filter(e=>e.type==='SKILL_FILE_REJECTED')).includes(foreign));
   }finally{await a.dispose();await b.dispose();}
 });
 

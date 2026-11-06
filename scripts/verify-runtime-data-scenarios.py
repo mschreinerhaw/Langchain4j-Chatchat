@@ -66,10 +66,14 @@ def main():
             'fileIds':[],'question':'请检索公开网页，核对华是科技的证券代码、交易所和官方来源链接。区分搜索摘要、原文与权威行情，未取得当前报价时明确说明。',
             'modelName':'qwen3.8-omni-flash','agentId':original['request']['skillId']})
         search={'case':'authorized-internet','model':'qwen3.8-omni-flash','nodeId':workspace['nodes'][-1]['id']}
+        workspace=api('/data-science/explorations/'+workspace['id']+'/nodes',{'version':workspace['version'],'parentId':'',
+            'fileIds':[],'question':'分析华是科技（301218，深交所）在已收集的2026-11-02当日行情中相对于当日同源市场数据的位置。请依据该日已授权完整数据文件计算对比并过滤目标证券，核对证券类型、数据覆盖、价格和金额单位，交付报告和图表。不能用有界样例冒充完整市场，也不能将历史收集值表述为实时价。',
+            'modelName':original['request']['modelName'],'agentId':original['request']['skillId']})
+        daily={'case':'authorized-day-file','model':original['request']['modelName'],'nodeId':workspace['nodes'][-1]['id']}
         save('scenario-prepared-private.json',{'workspaceId':workspace['id'],'cases':cases,'agent':agent,
-            'extraCases':[search],
+            'extraCases':[search,daily],
             'originalTaskId':journal['contract']['taskId'],'originalInputSha256':part['sha256'],'inputAssetId':asset['id']})
-        print(json.dumps({'prepared':len(cases)+2,'inputSha256':part['sha256'],'workspaceId':workspace['id']}),flush=True)
+        print(json.dumps({'prepared':len(cases)+3,'inputSha256':part['sha256'],'workspaceId':workspace['id']}),flush=True)
         return
 
     prepared=json.loads((root/'scenario-prepared-private.json').read_text())

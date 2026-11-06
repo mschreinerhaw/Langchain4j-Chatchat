@@ -1,4 +1,5 @@
 // Package only reviewed class families, Runtime adapters and the built UI.
+// Optional third argument reuses an already verified UI build for a Java-only change.
 import {mkdir,readdir,readFile,writeFile,copyFile} from 'node:fs/promises';
 import {resolve,join,dirname} from 'node:path';
 import {execFileSync} from 'node:child_process';
@@ -30,6 +31,6 @@ async function ui(dir,relative=''){for(const entry of await readdir(dir,{withFil
  const name=relative?relative+'/'+entry.name:entry.name;
  if(entry.isDirectory())await ui(join(dir,entry.name),name);else await add(join(dir,entry.name),'static/'+name);
 }}
-await ui(join(root,'chatchat-api/src/main/resources/static'));
+await ui(process.argv[3]?resolve(process.argv[3]):join(root,'chatchat-api/src/main/resources/static'));
 await writeFile(join(out,'bundle-manifest.json'),JSON.stringify({sourceCommit:execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim(),files},null,2));
 console.log(JSON.stringify({out,fileCount:Object.keys(files).length}));

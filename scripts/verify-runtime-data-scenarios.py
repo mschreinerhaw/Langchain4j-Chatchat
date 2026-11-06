@@ -180,7 +180,7 @@ def main():
                     'firstCodeLatencyMs':latency(lambda e:e.get('type')=='CODE_READY'),
                     'firstReportLatencyMs':latency(lambda e:e.get('type')=='TOOL_FINISHED' and e.get('tool')=='python_execute' and e.get('resultAvailable') is True)},
                 measurementPolicy='null=UNKNOWN; latencies start at Node task acceptance; tool/Python phases overlap, not additive; codeProposalModelMs includes reasoning and provider IO; pure planning/code/report generation are not separately observable',
-                models=[{k:m.get(k) for k in ['ordinal','status','durationMs','actualTools','usage','purpose','queueTimeMs','firstTokenMs','generationTimeMs','retryTimeMs','requestBytes','responseBytes','messageCount','toolCount','repeatedContextBytes','duplicateContextBytes','avoidableRepeatedContextBytes','contextSizeBefore','contextSizeAfter','compactionCount','contextChangeReason']} for m in model_timings])
+                models=[{k:m.get(k) for k in ['ordinal','status','selectedModel','providerModel','protocol','durationMs','actualTools','usage','purpose','queueTimeMs','firstTokenMs','generationTimeMs','retryTimeMs','requestBytes','responseBytes','messageCount','toolCount','repeatedContextBytes','duplicateContextBytes','avoidableRepeatedContextBytes','contextSizeBefore','contextSizeAfter','compactionCount','contextChangeReason']} for m in model_timings])
         report=receipt.get('visualReport') or {}
         row['delivery']={k:report[k] for k in ['status','analysisStatus','requirementStatus','artifactValidationStatus','chartValidationStatus','availableChartCount'] if k in report}
         row['chartCount']=len(report.get('charts',[]));results.append(row)

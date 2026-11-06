@@ -1,0 +1,530 @@
+{
+  "kind": "search",
+  "taskId": "analysis-coding-8d31d9eec775afa12a640f954c8b5460df38e1c07f72d0b2198160bec97f162a",
+  "status": "BUDGET_EXCEEDED",
+  "requestObjectivePreserved": true,
+  "requestInstructionSha256": "61720832e7b4f8c56a7b2fce0200111498cc6c9122a6e13e8ad62106cf20a875",
+  "reasonCode": "BUDGET_EXCEEDED",
+  "toolsCalled": [
+    "input_read",
+    "input_read",
+    "input_read",
+    "market_resolve_security",
+    "web_search",
+    "web_search",
+    "web_fetch",
+    "web_fetch",
+    "web_fetch",
+    "python_execute",
+    "python_execute",
+    "python_execute",
+    "code_read",
+    "python_execute",
+    "python_execute"
+  ],
+  "model": {
+    "protocol": "auto",
+    "providerModel": "qwen3.8-omni-flash",
+    "selectedModel": "qwen3.8-omni-flash"
+  },
+  "budget": {
+    "budgetId": "analysis-coding-tool-budget:analysis-coding-8d31d9eec775afa12a640f954c8b5460df38e1c07f72d0b2198160bec97f162a",
+    "deadlineAt": "2026-11-06T20:14:11.100Z",
+    "maxModelCalls": 12,
+    "maxModelTokens": 786432,
+    "maxToolCalls": 24,
+    "maxCodeExecutions": 12,
+    "maxCostAmount": "10",
+    "costCurrency": "USD",
+    "maxCpuMillis": 300000,
+    "maxMemoryBytes": 536870912,
+    "maxOutputBytes": 4194304
+  },
+  "allowedTools": [
+    "artifact_read",
+    "code_read",
+    "input_read",
+    "market_get_day_snapshot",
+    "market_get_history",
+    "market_get_indicators",
+    "market_get_snapshot",
+    "market_resolve_security",
+    "market_search",
+    "news_get_article",
+    "news_related_events",
+    "news_search",
+    "python_execute",
+    "read_files",
+    "report_submit",
+    "skills",
+    "sql_validate",
+    "web_fetch",
+    "web_search"
+  ],
+  "internetProfile": {
+    "agentId": "financial-news-agent",
+    "explicitlyRequested": true,
+    "modelName": "qwen3.8-omni-flash",
+    "modelRevision": 1,
+    "providerId": "tencent-wsa",
+    "providerRevision": 6,
+    "providers": [
+      {
+        "id": "tencent-wsa",
+        "name": "腾讯 WSA",
+        "revision": 6,
+        "supportsLanguageFilter": false,
+        "supportsNews": false
+      }
+    ],
+    "schemaVersion": "runtime_os.internet.v1"
+  },
+  "internetAvailability": {
+    "reasonCode": "CONFIGURED_NOT_PROBED",
+    "schemaVersion": "runtime_os.internet.availability.v1",
+    "serviceChecked": false,
+    "status": "AVAILABLE",
+    "toolsAvailable": true
+  },
+  "externalEvidence": [
+    {
+      "tool": "web_search",
+      "evidence_id": null,
+      "retrieved_at": "2026-11-06T19:56:23.258023988Z",
+      "status": "OK",
+      "sourceUrls": [
+        "https://big5.szse.cn/site/cht/www.szse.cn/disclosure/notice/t20220304_591644.html",
+        "https://epaper.cs.com.cn/zgzqb/html/2022-02/22/nw.D110000zgzqb_20220222_2-A10.htm",
+        "https://epaper.cs.com.cn/zgzqb/html/2022-03/04/nw.D110000zgzqb_20220304_5-A09.htm",
+        "https://epaper.stcn.com/paper/zqsb/html/epaper/index/content_1750230.htm",
+        "https://epaper.stcn.com/paper/zqsb/html/epaper/index/content_1750719.htm"
+      ],
+      "sourceRecords": [
+        {
+          "url": "https://epaper.cs.com.cn/zgzqb/html/2022-03/04/nw.D110000zgzqb_20220304_5-A09.htm",
+          "evidence_id": "runtime-evidence:knowledge:7ed529331899425968cc43c3d4fce7732f81e4cdb4dff9fb84b921ef187f5a2e",
+          "retrieved_at": "2026-11-06T19:56:23.257691189Z",
+          "published_at": "2022/03/04 00:00:00"
+        },
+        {
+          "url": "https://epaper.cs.com.cn/zgzqb/html/2022-02/22/nw.D110000zgzqb_20220222_2-A10.htm",
+          "evidence_id": "runtime-evidence:knowledge:50d890b717439a460fbf9860698165aab9b29c61195fdcbf4fd91fc371589292",
+          "retrieved_at": "2026-11-06T19:56:23.257761659Z",
+          "published_at": "2022/02/22 00:00:00"
+        },
+        {
+          "url": "https://epaper.stcn.com/paper/zqsb/html/epaper/index/content_1750230.htm",
+          "evidence_id": "runtime-evidence:knowledge:80c3e50828b3577d9a23522e25251ed7aafc7bf86be91a8828b145f5dd42a723",
+          "retrieved_at": "2026-11-06T19:56:23.257809901Z",
+          "published_at": "2022/02/21 00:00:00"
+        },
+        {
+          "url": "https://epaper.stcn.com/paper/zqsb/html/epaper/index/content_1750719.htm",
+          "evidence_id": "runtime-evidence:knowledge:0683f664506130627aed56d61e9253ec47dc1e528ee745fbf5370a74d94e03d8",
+          "retrieved_at": "2026-11-06T19:56:23.257854877Z",
+          "published_at": "2022/02/22 00:00:00"
+        },
+        {
+          "url": "https://big5.szse.cn/site/cht/www.szse.cn/disclosure/notice/t20220304_591644.html",
+          "evidence_id": "runtime-evidence:knowledge:21f365aa2a0bb1984773813ecb7acc8e4eba83d599560f2894782b36c4d5b345",
+          "retrieved_at": "2026-11-06T19:56:23.257885944Z",
+          "published_at": null
+        }
+      ],
+      "authority": "SEARCH_SUMMARIES_ARE_NOT_VERIFIED_QUOTES"
+    },
+    {
+      "tool": "web_search",
+      "evidence_id": null,
+      "retrieved_at": "2026-11-06T19:56:25.384109699Z",
+      "status": "OK",
+      "sourceUrls": [
+        "https://epaper.cs.com.cn/zgzqb/html/2022-02/22/nw.D110000zgzqb_20220222_2-A10.htm",
+        "https://epaper.cs.com.cn/zgzqb/html/2022-03/01/nw.D110000zgzqb_20220301_4-A08.htm",
+        "https://epaper.stcn.com/paper/zqsb/html/epaper/index/content_1750230.htm",
+        "https://epaper.stcn.com/paper/zqsb/html/epaper/index/content_1750719.htm",
+        "https://xinpi.cnstock.com/m/xg/detail/301218"
+      ],
+      "sourceRecords": [
+        {
+          "url": "https://xinpi.cnstock.com/m/xg/detail/301218",
+          "evidence_id": "runtime-evidence:knowledge:96d4f55c3f6843889e1f654dc14996cd98ff476d637258bb9dc34bf9221b46ea",
+          "retrieved_at": "2026-11-06T19:56:25.383343052Z",
+          "published_at": null
+        },
+        {
+          "url": "https://epaper.cs.com.cn/zgzqb/html/2022-03/01/nw.D110000zgzqb_20220301_4-A08.htm",
+          "evidence_id": "runtime-evidence:knowledge:588bbd7f66b5bc90a0d2719b8b3592ba20843db76c4efc79088be06f3111ca04",
+          "retrieved_at": "2026-11-06T19:56:25.383458526Z",
+          "published_at": "2022/03/01 00:00:00"
+        },
+        {
+          "url": "https://epaper.cs.com.cn/zgzqb/html/2022-02/22/nw.D110000zgzqb_20220222_2-A10.htm",
+          "evidence_id": "runtime-evidence:knowledge:dcdd29777da5e99f15028c82b79065a480bbdf100cc21595672f1deda9c3f3d1",
+          "retrieved_at": "2026-11-06T19:56:25.383553232Z",
+          "published_at": "2022/02/22 00:00:00"
+        },
+        {
+          "url": "https://epaper.stcn.com/paper/zqsb/html/epaper/index/content_1750719.htm",
+          "evidence_id": "runtime-evidence:knowledge:8ec0f787252fab38ff471f52c4ff8ae6f3e9a6e2e1632535c619e3a113a9cf47",
+          "retrieved_at": "2026-11-06T19:56:25.383706830Z",
+          "published_at": "2022/02/22 00:00:00"
+        },
+        {
+          "url": "https://epaper.stcn.com/paper/zqsb/html/epaper/index/content_1750230.htm",
+          "evidence_id": "runtime-evidence:knowledge:b3680ff9837c6def5e77ce6dc202b5ebc01c7924e940d0d6f56297174686eb18",
+          "retrieved_at": "2026-11-06T19:56:25.383800617Z",
+          "published_at": "2022/02/21 00:00:00"
+        }
+      ],
+      "authority": "SEARCH_SUMMARIES_ARE_NOT_VERIFIED_QUOTES"
+    },
+    {
+      "tool": "web_fetch",
+      "evidence_id": null,
+      "retrieved_at": "2026-11-06T19:57:01.909413436Z",
+      "status": "ERROR",
+      "sourceUrls": [],
+      "sourceRecords": [],
+      "authority": "SEARCH_SUMMARIES_ARE_NOT_VERIFIED_QUOTES"
+    },
+    {
+      "tool": "web_fetch",
+      "evidence_id": "runtime-evidence:knowledge:02957ea843455cd0d99a3332e1ee43089063a9076ca2ca44fff7aee029e217a9",
+      "retrieved_at": "2026-11-06T19:57:03.759259239Z",
+      "status": "OK",
+      "sourceUrls": [
+        "https://epaper.cs.com.cn/zgzqb/html/2022-03/04/nw.D110000zgzqb_20220304_5-A09.htm"
+      ],
+      "sourceRecords": [],
+      "authority": "SEARCH_SUMMARIES_ARE_NOT_VERIFIED_QUOTES"
+    },
+    {
+      "tool": "web_fetch",
+      "evidence_id": "runtime-evidence:knowledge:2223a8403ecb8746e76b82260f933d0afe3a3ad4a5d37d6de3bdc785ad247bec",
+      "retrieved_at": "2026-11-06T19:58:23.132494363Z",
+      "status": "OK",
+      "sourceUrls": [
+        "https://www.szse.cn/disclosure/notice/t20220304_591644.html"
+      ],
+      "sourceRecords": [],
+      "authority": "SEARCH_SUMMARIES_ARE_NOT_VERIFIED_QUOTES"
+    }
+  ],
+  "daySnapshotReceipts": [],
+  "resultDatasetRef": null,
+  "pythonExecutions": [
+    {
+      "executionId": "cline-0a45125c4e382c365cced6615268397323d0a0bc04d7382e6028a8bf2ef96d2e",
+      "exitCode": 1,
+      "durationMs": 435,
+      "resultAvailable": false,
+      "outputStatus": null,
+      "inputDataRefs": [
+        "runtime-evidence:coding:input:9bee2509eba115a788da965b82cb929dbfae152885404d17a9eb691d623b96c",
+        "runtime-evidence:coding:input:cf6e8cd5341cbe1f5ca8e71d49a3f69f815d48b01076a7d04d71e4e2549fec7",
+        "runtime-evidence:coding:input:788ee2756f119d7de18152f8a8c3a408d4c419c6cdd50840d4b56280c1b7fa7"
+      ]
+    },
+    {
+      "executionId": "cline-e764f30efd2fa97ef7743bbdcf4350aa83fe47bcb211a9f5de9c6492dc7b0d8f",
+      "exitCode": 1,
+      "durationMs": 754,
+      "resultAvailable": false,
+      "outputStatus": null,
+      "inputDataRefs": [
+        "runtime-evidence:coding:input:9bee2509eba115a788da965b82cb929dbfae152885404d17a9eb691d623b96c",
+        "runtime-evidence:coding:input:cf6e8cd5341cbe1f5ca8e71d49a3f69f815d48b01076a7d04d71e4e2549fec7",
+        "runtime-evidence:coding:input:788ee2756f119d7de18152f8a8c3a408d4c419c6cdd50840d4b56280c1b7fa7"
+      ]
+    }
+  ],
+  "frozenInputVersions": [
+    [
+      {
+        "fileId": "c9bee2509eba115a788da965b82cb929dbfae152885404d17a9eb691d623b96c",
+        "fileName": "manifest.json",
+        "sha256": "41ef669352f3ad3007d0d4a4f4422db42037f1fdfb527e235befd7a4e33a99cb",
+        "rowCount": 5,
+        "size": 3028,
+        "sourceDatasetRef": "coding-input-set:4215f3a5f10b3becfcbc37da9681eacb52ad6d181ecd464238f74ef5bdef362b"
+      },
+      {
+        "fileId": "ccf6e8cd5341cbe1f5ca8e71d49a3f69f815d48b01076a7d04d71e4e2549fec7",
+        "fileName": "manifest.json",
+        "sha256": "dcd2727d8a208b64e49d928b9c4e3618fb037167093c309e2cd7323d6782a9d1",
+        "rowCount": 1,
+        "size": 2262,
+        "sourceDatasetRef": "coding-data:data-4794eda22bef76e9061355dc85892191d6e7aec8f19ba0ba3ca1689ea948de40:60d46e061a827cd50966ba2a8c357f2e3bc5af1b783f9ffd39e2cf01e5998517"
+      },
+      {
+        "fileId": "c788ee2756f119d7de18152f8a8c3a408d4c419c6cdd50840d4b56280c1b7fa7",
+        "fileName": "manifest.json",
+        "sha256": "c480ae9975323dd35c60641c9fe041b46aa906bb02ee994a1ec4f138a68cfc0d",
+        "rowCount": 1,
+        "size": 2261,
+        "sourceDatasetRef": "coding-data:data-4fc4a7c151fd20eec0b50347c869ef8260ad25f24da9293ed3e9928333653b83:abc95a5ead40532a2b92413a706a4f44e6aa8fc462c874f404c929bac661c4af"
+      }
+    ],
+    [
+      {
+        "fileId": "c9bee2509eba115a788da965b82cb929dbfae152885404d17a9eb691d623b96c",
+        "fileName": "manifest.json",
+        "sha256": "41ef669352f3ad3007d0d4a4f4422db42037f1fdfb527e235befd7a4e33a99cb",
+        "rowCount": 5,
+        "size": 3028,
+        "sourceDatasetRef": "coding-input-set:4215f3a5f10b3becfcbc37da9681eacb52ad6d181ecd464238f74ef5bdef362b"
+      },
+      {
+        "fileId": "ccf6e8cd5341cbe1f5ca8e71d49a3f69f815d48b01076a7d04d71e4e2549fec7",
+        "fileName": "manifest.json",
+        "sha256": "dcd2727d8a208b64e49d928b9c4e3618fb037167093c309e2cd7323d6782a9d1",
+        "rowCount": 1,
+        "size": 2262,
+        "sourceDatasetRef": "coding-data:data-4794eda22bef76e9061355dc85892191d6e7aec8f19ba0ba3ca1689ea948de40:60d46e061a827cd50966ba2a8c357f2e3bc5af1b783f9ffd39e2cf01e5998517"
+      },
+      {
+        "fileId": "c788ee2756f119d7de18152f8a8c3a408d4c419c6cdd50840d4b56280c1b7fa7",
+        "fileName": "manifest.json",
+        "sha256": "c480ae9975323dd35c60641c9fe041b46aa906bb02ee994a1ec4f138a68cfc0d",
+        "rowCount": 1,
+        "size": 2261,
+        "sourceDatasetRef": "coding-data:data-4fc4a7c151fd20eec0b50347c869ef8260ad25f24da9293ed3e9928333653b83:abc95a5ead40532a2b92413a706a4f44e6aa8fc462c874f404c929bac661c4af"
+      }
+    ],
+    [
+      {
+        "fileId": "c9bee2509eba115a788da965b82cb929dbfae152885404d17a9eb691d623b96c",
+        "fileName": "manifest.json",
+        "sha256": "41ef669352f3ad3007d0d4a4f4422db42037f1fdfb527e235befd7a4e33a99cb",
+        "rowCount": 5,
+        "size": 3028,
+        "sourceDatasetRef": "coding-input-set:4215f3a5f10b3becfcbc37da9681eacb52ad6d181ecd464238f74ef5bdef362b"
+      },
+      {
+        "fileId": "ccf6e8cd5341cbe1f5ca8e71d49a3f69f815d48b01076a7d04d71e4e2549fec7",
+        "fileName": "manifest.json",
+        "sha256": "dcd2727d8a208b64e49d928b9c4e3618fb037167093c309e2cd7323d6782a9d1",
+        "rowCount": 1,
+        "size": 2262,
+        "sourceDatasetRef": "coding-data:data-4794eda22bef76e9061355dc85892191d6e7aec8f19ba0ba3ca1689ea948de40:60d46e061a827cd50966ba2a8c357f2e3bc5af1b783f9ffd39e2cf01e5998517"
+      },
+      {
+        "fileId": "c788ee2756f119d7de18152f8a8c3a408d4c419c6cdd50840d4b56280c1b7fa7",
+        "fileName": "manifest.json",
+        "sha256": "c480ae9975323dd35c60641c9fe041b46aa906bb02ee994a1ec4f138a68cfc0d",
+        "rowCount": 1,
+        "size": 2261,
+        "sourceDatasetRef": "coding-data:data-4fc4a7c151fd20eec0b50347c869ef8260ad25f24da9293ed3e9928333653b83:abc95a5ead40532a2b92413a706a4f44e6aa8fc462c874f404c929bac661c4af"
+      }
+    ]
+  ],
+  "scenario": "C",
+  "orderedToolTrace": [
+    {
+      "event": "CALL",
+      "tool": "input_read",
+      "callId": "call_1a4c15159b2640e5a78cfdfb",
+      "arguments": {
+        "limit": 16000
+      }
+    },
+    {
+      "event": "CALL",
+      "tool": "input_read",
+      "callId": "call_5436bad476de443ca68a361e",
+      "arguments": {
+        "limit": 16000
+      }
+    },
+    {
+      "event": "RESULT",
+      "tool": "input_read",
+      "callId": "call_1a4c15159b2640e5a78cfdfb"
+    },
+    {
+      "event": "RESULT",
+      "tool": "input_read",
+      "callId": "call_5436bad476de443ca68a361e"
+    },
+    {
+      "event": "CALL",
+      "tool": "input_read",
+      "callId": "call_cb35952f650b46d9924fc040",
+      "arguments": {
+        "limit": 16000
+      }
+    },
+    {
+      "event": "CALL",
+      "tool": "market_resolve_security",
+      "callId": "call_e4e1aacdc1da4cc587555559",
+      "arguments": {
+        "query": "华是科技",
+        "limit": 5
+      }
+    },
+    {
+      "event": "RESULT",
+      "tool": "input_read",
+      "callId": "call_cb35952f650b46d9924fc040"
+    },
+    {
+      "event": "RESULT",
+      "tool": "market_resolve_security",
+      "callId": "call_e4e1aacdc1da4cc587555559",
+      "status": "CANDIDATES_REQUIRE_QUOTE_VERIFICATION",
+      "count": 1,
+      "evidence_id": "runtime-evidence:knowledge:889f979bf11b4d3455fa798823414b070dfe95c53775eaa827fc3f0fbf4ebfb2",
+      "itemsCount": 1
+    },
+    {
+      "event": "CALL",
+      "tool": "web_search",
+      "callId": "call_78c77e7af34f4875bfae86db",
+      "arguments": {
+        "query": "华是科技 301218 首次公开发行股票并在创业板上市公告书 深圳证券交易所"
+      }
+    },
+    {
+      "event": "CALL",
+      "tool": "web_search",
+      "callId": "call_8a623aa7d84441d0a97b9834",
+      "arguments": {
+        "query": "华是科技 首次公开发行股票 上市 公告 网上发行数量 发行总股本 szse.cn"
+      }
+    },
+    {
+      "event": "RESULT",
+      "tool": "web_search",
+      "callId": "call_78c77e7af34f4875bfae86db",
+      "status": "OK",
+      "count": 5,
+      "itemsCount": 5
+    },
+    {
+      "event": "RESULT",
+      "tool": "web_search",
+      "callId": "call_8a623aa7d84441d0a97b9834",
+      "status": "OK",
+      "count": 5,
+      "itemsCount": 5
+    },
+    {
+      "event": "CALL",
+      "tool": "web_fetch",
+      "callId": "call_0740b18fdd3a4f0083a814b2",
+      "arguments": {}
+    },
+    {
+      "event": "CALL",
+      "tool": "web_fetch",
+      "callId": "call_02e64bcdbd8949b78714b09c",
+      "arguments": {}
+    },
+    {
+      "event": "RESULT",
+      "tool": "web_fetch",
+      "callId": "call_0740b18fdd3a4f0083a814b2",
+      "status": "ERROR",
+      "count": 0,
+      "errorCode": "HTTP_UNAVAILABLE"
+    },
+    {
+      "event": "RESULT",
+      "tool": "web_fetch",
+      "callId": "call_02e64bcdbd8949b78714b09c",
+      "status": "OK",
+      "count": 1,
+      "evidence_id": "runtime-evidence:knowledge:02957ea843455cd0d99a3332e1ee43089063a9076ca2ca44fff7aee029e217a9"
+    },
+    {
+      "event": "CALL",
+      "tool": "web_fetch",
+      "callId": "call_b23aed97a079481badd3aed6",
+      "arguments": {}
+    },
+    {
+      "event": "RESULT",
+      "tool": "web_fetch",
+      "callId": "call_b23aed97a079481badd3aed6",
+      "status": "OK",
+      "count": 1,
+      "evidence_id": "runtime-evidence:knowledge:2223a8403ecb8746e76b82260f933d0afe3a3ad4a5d37d6de3bdc785ad247bec"
+    },
+    {
+      "event": "CALL",
+      "tool": "python_execute",
+      "callId": "call_a1f70838484d4fd19c9c7b98",
+      "arguments": {}
+    },
+    {
+      "event": "RESULT",
+      "tool": "python_execute",
+      "callId": "call_a1f70838484d4fd19c9c7b98",
+      "status": "FAILED",
+      "resultAvailable": false,
+      "executorStopped": true,
+      "exitCode": 1
+    },
+    {
+      "event": "CALL",
+      "tool": "python_execute",
+      "callId": "call_db71ab2b381942cf98370a86",
+      "arguments": {}
+    },
+    {
+      "event": "RESULT",
+      "tool": "python_execute",
+      "callId": "call_db71ab2b381942cf98370a86",
+      "status": "FAILED",
+      "resultAvailable": false,
+      "executorStopped": true,
+      "exitCode": 1
+    },
+    {
+      "event": "CALL",
+      "tool": "python_execute",
+      "callId": "call_15cae0f0f0d346b08a67eb5c",
+      "arguments": {}
+    },
+    {
+      "event": "RESULT",
+      "tool": "python_execute",
+      "callId": "call_15cae0f0f0d346b08a67eb5c"
+    },
+    {
+      "event": "CALL",
+      "tool": "code_read",
+      "callId": "call_829afcaabd734311a2463ab5",
+      "arguments": {}
+    },
+    {
+      "event": "RESULT",
+      "tool": "code_read",
+      "callId": "call_829afcaabd734311a2463ab5"
+    },
+    {
+      "event": "CALL",
+      "tool": "python_execute",
+      "callId": "call_9e4b7cb17846486e88a26fb2",
+      "arguments": {}
+    },
+    {
+      "event": "RESULT",
+      "tool": "python_execute",
+      "callId": "call_9e4b7cb17846486e88a26fb2"
+    },
+    {
+      "event": "CALL",
+      "tool": "python_execute",
+      "callId": "call_60b490a55f004e9b88359e26",
+      "arguments": {}
+    },
+    {
+      "event": "RESULT",
+      "tool": "python_execute",
+      "callId": "call_60b490a55f004e9b88359e26"
+    }
+  ]
+}

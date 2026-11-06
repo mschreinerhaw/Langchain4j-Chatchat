@@ -1,0 +1,19 @@
+{
+  "taskId": "analysis-coding-13b69957f3a4d079017563d578eafe7685cd154d77453ac01cb3076367879aa8",
+  "status": "COMPLETED",
+  "readOnly": true,
+  "businessCorrectnessCertified": false,
+  "archiveVerification": "PASSED",
+  "operationId": "cline-d35e2b0bc183154e745e296338bb6a003925acdd480a4467fd95d7d0e7699371",
+  "reportFileId": "43d9f2320d9ac5448d4be918d233ebb1481c15c02cf8457801840a1837fdb912",
+  "contentApiPath": "/api/v1/data-science/user-assets/43d9f2320d9ac5448d4be918d233ebb1481c15c02cf8457801840a1837fdb912/content",
+  "reportSha256": "4d92d0d303ca856e46453444a5b58b7e5536b19d5d618fad7cb2eac90c1b77e6",
+  "reportBytes": 6348,
+  "reportRows": 1,
+  "apiResultsMatchArchive": true,
+  "executionMode": "PYTHON",
+  "analysisStatus": "PARTIAL",
+  "evidenceReferenceCount": 4,
+  "limitationCount": 7,
+  "markdownImageReferences": []
+}

@@ -1,0 +1,28 @@
+{
+  "status": "PASSED",
+  "taskId": "analysis-coding-ca76e21a1af874454c528e32f29a30566e3f4abbd42efc97a1d5797dcf91b9d5",
+  "workspaceId": "a9d8495f-e3f3-4100-8b71-fc522e8201d6",
+  "nodeId": "46f0516a-5a14-437d-a52a-f7a04ea80ee1",
+  "intentionalCancellation": true,
+  "analysisAcceptance": false,
+  "sameRealSnapshot": true,
+  "sameContractAndBudget": true,
+  "knownPreAdmissionStorageFailureRecovered": true,
+  "newModelOrCodeStartsAfterStop": 0,
+  "finalStatus": "CANCELLED",
+  "localExecutorStopVerified": true,
+  "firstStopTerminal": true,
+  "stopHttpDurationMs": 1431,
+  "stopReconciliation": {},
+  "boundedDrainLiveExercised": null,
+  "boundedDrainObservedTerminal": null,
+  "reportNotPromotedToSuccess": true,
+  "providerUsagePolicy": "Local stop proof is not proof of provider billing; unknown usage remains reserved",
+  "nativeModelOperationCount": 1,
+  "sourceParquetSha256": "32e2b1184c69f460d67a99bbb1f34f4fed3d994116552cb45426f2c8a0ba2bc4",
+  "stopMetricsAvailability": "NOT_PRESENT_IN_WINNING_TERMINAL_RECEIPT",
+  "measurementCorrection": {
+    "originalSha256": "83891012d942424bafac7333198d016e61e4000b73bd8f16760c50f0b20006ed",
+    "reason": "Missing stop metrics are UNKNOWN, not zero/false. Concurrent terminal receipt won persistence; native cancellation assertions remain verified."
+  }
+}

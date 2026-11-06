@@ -1,0 +1,14 @@
+{
+  "taskId": "analysis-coding-505c85abbc6c826d8d698d67befa2473eb94b1bc4ec61593a86f98313200d21f",
+  "status": "BUDGET_EXCEEDED",
+  "sameContractHash": true,
+  "sameFrozenBudget": true,
+  "sameOperationIds": true,
+  "newModelOrCodeOperations": 0,
+  "inputSnapshotRef": "runtime-evidence:coding:input:62ef2710e4200687ad8d5e77477f563fdabf653528ef370efbe3a988e522bd3",
+  "executorStopped": true,
+  "reconciliationRequired": false,
+  "manualIntervention": true,
+  "reason": "Existing same-request recovery of an already stopped expired worker; no replay, new task or budget reset",
+  "nativeEndedAt": "2026-11-06T20:59:09.237Z"
+}

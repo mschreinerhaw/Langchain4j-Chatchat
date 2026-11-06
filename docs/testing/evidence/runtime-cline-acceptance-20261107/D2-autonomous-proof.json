@@ -1,0 +1,290 @@
+{
+  "kind": "search",
+  "taskId": "analysis-coding-cb9ed226cfd0a492d720a5fc334953efab4c7c4b2821fe7feb2100876513b54e",
+  "status": "COMPLETED",
+  "requestObjectivePreserved": true,
+  "requestInstructionSha256": "6ae0f76b62a01dcae00a39c6ddc3a0b8dc0ecdf441e8e6bf48ca1ebc46512ed7",
+  "reasonCode": null,
+  "toolsCalled": [
+    "read_files",
+    "input_read",
+    "input_read",
+    "input_read",
+    "python_execute",
+    "code_read",
+    "market_resolve_security",
+    "news_search",
+    "python_execute",
+    "code_read",
+    "python_execute",
+    "artifact_read"
+  ],
+  "model": {
+    "protocol": "openai",
+    "providerModel": "qwen3.7-plus",
+    "selectedModel": "qwen3.7-plus"
+  },
+  "budget": {
+    "budgetId": "analysis-coding-tool-budget:analysis-coding-cb9ed226cfd0a492d720a5fc334953efab4c7c4b2821fe7feb2100876513b54e",
+    "deadlineAt": "2026-11-06T19:28:17.266Z",
+    "maxModelCalls": 12,
+    "maxModelTokens": 786432,
+    "maxToolCalls": 24,
+    "maxCodeExecutions": 12,
+    "maxCostAmount": "10",
+    "costCurrency": "USD",
+    "maxCpuMillis": 300000,
+    "maxMemoryBytes": 536870912,
+    "maxOutputBytes": 4194304
+  },
+  "allowedTools": [
+    "artifact_read",
+    "code_read",
+    "input_read",
+    "market_get_day_snapshot",
+    "market_get_history",
+    "market_get_indicators",
+    "market_get_snapshot",
+    "market_resolve_security",
+    "market_search",
+    "news_get_article",
+    "news_related_events",
+    "news_search",
+    "python_execute",
+    "read_files",
+    "report_submit",
+    "skills",
+    "sql_validate"
+  ],
+  "internetProfile": null,
+  "externalEvidence": [],
+  "daySnapshotReceipts": [],
+  "resultDatasetRef": "runtime-evidence:coding:41e5e756f6aa0f3bd0d405c3f73842ac2eaa4aa2e1e9585db959ea150506862f:result",
+  "pythonExecutions": [
+    {
+      "executionId": "cline-3b24fa0987fff9d262957f5fca28a4f2e2d3a82f5a24249a37b7a5594b4b05d1",
+      "exitCode": 0,
+      "durationMs": 1880,
+      "resultAvailable": true,
+      "outputStatus": null,
+      "inputDataRefs": [
+        "runtime-evidence:coding:input:a978223b326b0930b433213c09f87654d2d26ba6ec7ff19664fed69a2333f5d"
+      ]
+    },
+    {
+      "executionId": "cline-537f451a563874152a53198b7bc4150d8775cb6795a0c8be887de71bc1483b87",
+      "exitCode": 0,
+      "durationMs": 3399,
+      "resultAvailable": false,
+      "outputStatus": "REQUIRED_OUTPUT_MISSING",
+      "inputDataRefs": [
+        "runtime-evidence:coding:input:a978223b326b0930b433213c09f87654d2d26ba6ec7ff19664fed69a2333f5d"
+      ]
+    },
+    {
+      "executionId": "cline-a5ceaa8272cc5dc668da868eb0ea36191018272423db3e2d6a79aa48683e3543",
+      "exitCode": 0,
+      "durationMs": 2339,
+      "resultAvailable": true,
+      "outputStatus": null,
+      "inputDataRefs": [
+        "runtime-evidence:coding:input:a978223b326b0930b433213c09f87654d2d26ba6ec7ff19664fed69a2333f5d"
+      ]
+    }
+  ],
+  "frozenInputVersions": [
+    [
+      {
+        "fileId": "ca978223b326b0930b433213c09f87654d2d26ba6ec7ff19664fed69a2333f5d",
+        "fileName": "manifest.json",
+        "sha256": "26c1c7f8817c08edb14170221822b94fa00285b5a5868c1be5cb766d37d66b13",
+        "rowCount": 5,
+        "size": 3028,
+        "sourceDatasetRef": "coding-input-set:4215f3a5f10b3becfcbc37da9681eacb52ad6d181ecd464238f74ef5bdef362b"
+      }
+    ],
+    [
+      {
+        "fileId": "ca978223b326b0930b433213c09f87654d2d26ba6ec7ff19664fed69a2333f5d",
+        "fileName": "manifest.json",
+        "sha256": "26c1c7f8817c08edb14170221822b94fa00285b5a5868c1be5cb766d37d66b13",
+        "rowCount": 5,
+        "size": 3028,
+        "sourceDatasetRef": "coding-input-set:4215f3a5f10b3becfcbc37da9681eacb52ad6d181ecd464238f74ef5bdef362b"
+      }
+    ],
+    [
+      {
+        "fileId": "ca978223b326b0930b433213c09f87654d2d26ba6ec7ff19664fed69a2333f5d",
+        "fileName": "manifest.json",
+        "sha256": "26c1c7f8817c08edb14170221822b94fa00285b5a5868c1be5cb766d37d66b13",
+        "rowCount": 5,
+        "size": 3028,
+        "sourceDatasetRef": "coding-input-set:4215f3a5f10b3becfcbc37da9681eacb52ad6d181ecd464238f74ef5bdef362b"
+      }
+    ]
+  ],
+  "scenario": "D",
+  "orderedToolTrace": [
+    {
+      "event": "CALL",
+      "tool": "read_files",
+      "callId": "call_5d96b27d701c49db98614eac",
+      "arguments": {}
+    },
+    {
+      "event": "CALL",
+      "tool": "input_read",
+      "callId": "call_a150ba515e154bbb899b1aca",
+      "arguments": {
+        "limit": 16000
+      }
+    },
+    {
+      "event": "CALL",
+      "tool": "input_read",
+      "callId": "call_bbbf11615e93468daa7600cb",
+      "arguments": {
+        "limit": 16000
+      }
+    },
+    {
+      "event": "CALL",
+      "tool": "input_read",
+      "callId": "call_8fccebf02dc44c3388a4c7ba",
+      "arguments": {
+        "limit": 16000
+      }
+    },
+    {
+      "event": "RESULT",
+      "tool": "input_read",
+      "callId": "call_a150ba515e154bbb899b1aca"
+    },
+    {
+      "event": "RESULT",
+      "tool": "input_read",
+      "callId": "call_bbbf11615e93468daa7600cb"
+    },
+    {
+      "event": "RESULT",
+      "tool": "input_read",
+      "callId": "call_8fccebf02dc44c3388a4c7ba"
+    },
+    {
+      "event": "CALL",
+      "tool": "python_execute",
+      "callId": "call_72fec6d0cac640d581d1f1ba",
+      "arguments": {}
+    },
+    {
+      "event": "RESULT",
+      "tool": "python_execute",
+      "callId": "call_72fec6d0cac640d581d1f1ba",
+      "status": "SUCCEEDED",
+      "resultAvailable": false,
+      "outputStatus": "REQUIRED_OUTPUT_MISSING",
+      "executorStopped": true,
+      "exitCode": 0
+    },
+    {
+      "event": "CALL",
+      "tool": "code_read",
+      "callId": "call_466703ab0023459ca18a0cf7",
+      "arguments": {}
+    },
+    {
+      "event": "CALL",
+      "tool": "market_resolve_security",
+      "callId": "call_db2b99da28c442a9bb270a8a",
+      "arguments": {
+        "query": "华是科技",
+        "limit": 10
+      }
+    },
+    {
+      "event": "CALL",
+      "tool": "news_search",
+      "callId": "call_41c89bc9a0be459e9548a8b8",
+      "arguments": {
+        "query": "华是科技 上市公告 上市日期 发行数量",
+        "limit": 5
+      }
+    },
+    {
+      "event": "RESULT",
+      "tool": "code_read",
+      "callId": "call_466703ab0023459ca18a0cf7"
+    },
+    {
+      "event": "RESULT",
+      "tool": "market_resolve_security",
+      "callId": "call_db2b99da28c442a9bb270a8a",
+      "status": "CANDIDATES_REQUIRE_QUOTE_VERIFICATION",
+      "count": 1,
+      "evidence_id": "runtime-evidence:knowledge:23cdf4529293741d1817e9a699f2dc21dff7574fe8b3310ab382b0b0b567aba6",
+      "itemsCount": 1
+    },
+    {
+      "event": "RESULT",
+      "tool": "news_search",
+      "callId": "call_41c89bc9a0be459e9548a8b8",
+      "count": 5,
+      "itemsCount": 5
+    },
+    {
+      "event": "CALL",
+      "tool": "python_execute",
+      "callId": "call_68a567173699474d83ca0aab",
+      "arguments": {}
+    },
+    {
+      "event": "RESULT",
+      "tool": "python_execute",
+      "callId": "call_68a567173699474d83ca0aab",
+      "status": "SUCCEEDED",
+      "resultAvailable": false,
+      "outputStatus": "INVALID_RESULT_REFERENCES",
+      "executorStopped": true,
+      "exitCode": 0
+    },
+    {
+      "event": "CALL",
+      "tool": "code_read",
+      "callId": "call_b629c657707a45b08e75cb4c",
+      "arguments": {}
+    },
+    {
+      "event": "RESULT",
+      "tool": "code_read",
+      "callId": "call_b629c657707a45b08e75cb4c"
+    },
+    {
+      "event": "CALL",
+      "tool": "python_execute",
+      "callId": "call_0e5e8eb946fb4560993ff331",
+      "arguments": {}
+    },
+    {
+      "event": "RESULT",
+      "tool": "python_execute",
+      "callId": "call_0e5e8eb946fb4560993ff331",
+      "status": "SUCCEEDED",
+      "resultAvailable": true,
+      "executorStopped": true,
+      "exitCode": 0
+    },
+    {
+      "event": "CALL",
+      "tool": "artifact_read",
+      "callId": "call_082ac777e5874d61b1dbfa1f",
+      "arguments": {}
+    },
+    {
+      "event": "RESULT",
+      "tool": "artifact_read",
+      "callId": "call_082ac777e5874d61b1dbfa1f",
+      "complete": true
+    }
+  ]
+}

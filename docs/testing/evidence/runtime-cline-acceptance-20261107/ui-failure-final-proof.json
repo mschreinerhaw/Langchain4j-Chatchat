@@ -1,0 +1,21 @@
+{
+  "readOnly": true,
+  "workspaceId": "3537450c-7700-4160-9fb9-a46b2bafccde",
+  "nodeId": "7cd608b3-a82c-497b-969f-d139931bfde5",
+  "progress": {
+    "taskId": "analysis-coding-d321dd5823afd66df8cdf00b8a17394cd472103c89fb05c5ab90a774217c97df",
+    "eventCount": 35,
+    "modelEventKinds": [
+      "MODEL_STARTED",
+      "PLAN_READY",
+      "MODEL_TIMING"
+    ],
+    "historyStatus": "AVAILABLE",
+    "readOnlyStatusHydrated": true
+  },
+  "status": "PASSED",
+  "labels": "模型响应已响应数据供给快照已就绪Python 执行进程已结束报告交付交付未通过",
+  "lifecycle": "报告交付失败 · Repair the required output file, field names and types to match the authorized result contract; exit code zero alone is insufficient. Required files: [/workspace/output/results/rows.jsonl]. Diagnostics under /workspace/output/validation do not satisfy report delivery. Write the complete report rows and referenced chart files, then inspect the archived report and chart validation receipt. Repair the latest program through existing edits; the next Sandbox has no files from prior executions.；Coding loop failed without a verified result",
+  "executeRequests": 0,
+  "browserErrors": []
+}

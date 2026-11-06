@@ -1,0 +1,29 @@
+{
+  "status": "DEPLOYED",
+  "sourceCommit": "c63e705321a922f4c1ddfd51e0681dedb219bb19",
+  "image": "runtime-os-api:data-remediation-618689c828ea",
+  "sha256": "618689c828ea04e492f458336632e5ef2a1c217ff0fe20aaa1869fd86a3be288",
+  "backup": "/var/tmp/runtime-cline-acceptance-20261107-availability/backup",
+  "retired": {
+    "runtime-os-app-stage-api-1": "runtime-os-app-stage-api-1-before-studio-1793994721",
+    "runtime-os-app-stage-node-proxy-1": "runtime-os-app-stage-node-proxy-1-before-studio-1793994721"
+  },
+  "databaseMigrationSha256": null,
+  "catalogReadiness": {
+    "status": "API_MCP_CATALOG_READY",
+    "registryState": "HEALTHY",
+    "registeredToolCount": 39,
+    "requiredTools": [
+      "web_search"
+    ],
+    "capturedAt": "2026-11-06T19:52:51.316118+00:00"
+  },
+  "preservedExpiredReadOnlyTaskIds": [],
+  "unrelatedContainersUnchanged": true,
+  "conversationContentUnchanged": true,
+  "messageIndexCountUnchanged": true,
+  "images": {
+    "runtime-os-app-stage-api-1": "runtime-os-api:data-remediation-618689c828ea"
+  },
+  "channelCounts": "SQL_STUDIO|63\nPYTHON_STUDIO|10\nAGENT_API|204\nPLATFORM_UI|1178"
+}

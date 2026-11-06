@@ -1,0 +1,115 @@
+{
+  "records": [
+    {
+      "group": "native-schema-contract",
+      "logPath": "target/runtime-data-remediation/acceptance-native-schema-contract-tests.log",
+      "sha256": "d0a52b7070e4baf4a8fdd6899a933f9937e24a39f096747daeb755488de745ca",
+      "status": "PASSED",
+      "summary": [
+        "[INFO] Tests run: 58, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 14.68 s -- in com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest",
+        "[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.036 s -- in com.chatchat.api.runtime.coding.cline.CodingInputLayoutTest",
+        "[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.182 s -- in com.chatchat.api.runtime.coding.data.CodingInputFilePublisherTest",
+        "[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.140 s -- in com.chatchat.api.runtime.coding.data.CodingNativeSchemaBindingTest"
+      ],
+      "logPolicy": "Complete raw logs retained locally under ignored target; PowerShell UTF-16LE BOM is decoded for summaries only.",
+      "relatedChange": "832fdcf56",
+      "testRunHead": "UNKNOWN_NOT_CAPTURED"
+    },
+    {
+      "group": "availability-citation",
+      "logPath": "target/runtime-data-remediation/acceptance-final-availability-citation-tests.log",
+      "sha256": "5db7ae3a09707a8ccb41f4faecfb501bb2d0e294925d4d8a012223835af5f9c0",
+      "status": "PASSED",
+      "summary": [
+        "[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.494 s -- in com.chatchat.common.runtime.coding.CodingRuntimeContextTest",
+        "[INFO] Tests run: 59, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 14.93 s -- in com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest",
+        "[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.015 s -- in com.chatchat.api.runtime.coding.cline.CitationRepairMetadataTest",
+        "[INFO] Tests run: 20, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.182 s -- in com.chatchat.api.runtime.coding.cline.ClineModelCallbackControllerTest",
+        "[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.672 s -- in com.chatchat.api.runtime.coding.knowledge.CodingInternetAccessTest"
+      ],
+      "logPolicy": "Complete raw logs retained locally under ignored target; PowerShell UTF-16LE BOM is decoded for summaries only.",
+      "relatedChange": "9ec3a9d76+c2b09b8e7",
+      "testRunHead": "UNKNOWN_NOT_CAPTURED"
+    },
+    {
+      "group": "request-model-parameters",
+      "logPath": "target/runtime-data-remediation/acceptance-request-parameters-tests-rerun.log",
+      "sha256": "2ff2538865785a701f6d5ae4166f4be196a7d05b8de5cab166012fb7dd7eba8d",
+      "status": "PASSED",
+      "summary": [
+        "[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.441 s -- in com.chatchat.api.runtime.coding.analysis.CodingExecutionProfileTest",
+        "[INFO] Tests run: 23, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 12.87 s -- in com.chatchat.api.runtime.coding.cline.ClineRuntimeModelBridgeTest"
+      ],
+      "logPolicy": "Complete raw logs retained locally under ignored target; PowerShell UTF-16LE BOM is decoded for summaries only.",
+      "relatedChange": "832fdcf56",
+      "testRunHead": "UNKNOWN_NOT_CAPTURED"
+    },
+    {
+      "group": "file-progress-locations",
+      "logPath": "target/runtime-data-remediation/acceptance-file-progress-locations-tests.log",
+      "sha256": "2a209d6cb6589821e4134968f55f881f67b7ebb3df3814ed4bfeb9f19a22ca8c",
+      "status": "PASSED",
+      "summary": [
+        "[INFO] Tests run: 60, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 16.70 s -- in com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest"
+      ],
+      "logPolicy": "Complete raw logs retained locally under ignored target; PowerShell UTF-16LE BOM is decoded for summaries only.",
+      "relatedChange": "38303f4f5",
+      "testRunHead": "UNKNOWN_NOT_CAPTURED"
+    },
+    {
+      "group": "terminal-progress-backfill",
+      "logPath": "target/runtime-data-remediation/acceptance-terminal-progress-backfill-tests.log",
+      "sha256": "3e9f5da6ea88701f453ee2730cfdfd56d24043d4ccfeb3d6796c4704bfc282ac",
+      "status": "PASSED",
+      "summary": [
+        "[INFO] Tests run: 24, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 15.43 s -- in com.chatchat.api.exploration.ExplorationWorkspaceTest"
+      ],
+      "logPolicy": "Complete raw logs retained locally under ignored target; PowerShell UTF-16LE BOM is decoded for summaries only.",
+      "relatedChange": "8aecb2635",
+      "testRunHead": "UNKNOWN_NOT_CAPTURED"
+    },
+    {
+      "group": "final-exploration-ui",
+      "logPath": "target/runtime-data-remediation/acceptance-terminal-progress-poll-ui-tests.log",
+      "sha256": "a52a75aaff74ff58457e9b9dc686d845c1b4656b534fe3f49f45ad75f203d783",
+      "status": "PASSED",
+      "summary": [
+        "Tests  149 passed (149)"
+      ],
+      "logPolicy": "Complete raw logs retained locally under ignored target; PowerShell UTF-16LE BOM is decoded for summaries only.",
+      "relatedChange": "8f99b99be",
+      "testRunHead": "UNKNOWN_NOT_CAPTURED"
+    },
+    {
+      "group": "final-ui-build",
+      "logPath": "target/runtime-data-remediation/acceptance-terminal-progress-poll-ui-build.log",
+      "sha256": "d81d586977efc9c43a20a5b357a94999a6cb357c0a2b532840422e75e1ae4332",
+      "status": "PASSED",
+      "summary": [
+        "✓ built in 42.73s"
+      ],
+      "logPolicy": "Complete raw logs retained locally under ignored target; PowerShell UTF-16LE BOM is decoded for summaries only.",
+      "relatedChange": "8f99b99be",
+      "testRunHead": "UNKNOWN_NOT_CAPTURED"
+    },
+    {
+      "group": "late-stop-reconciliation",
+      "logPath": "target/runtime-data-remediation/acceptance-stop-race-tests-rerun.log",
+      "sha256": "38a1b196bd375d100740b7ad2b3ca1362c62b374dce6c5f61ec1ad94919c9a38",
+      "relatedChange": "e2a97cfac",
+      "testRunHead": "UNKNOWN_NOT_CAPTURED",
+      "status": "PASSED",
+      "summary": [
+        "[INFO] Tests run: 24, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 15.04 s -- in com.chatchat.api.exploration.ExplorationWorkspaceTest",
+        "[INFO] Tests run: 62, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.958 s -- in com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest"
+      ]
+    }
+  ],
+  "policy": "Groups overlap; do not sum them as unique test counts. Request-profile first run and PowerShell CLI failures remain archived and are excluded. Related changes identify implementation lineage, not a captured test-run HEAD; deployed artifacts are independently pinned by sourceCommit and per-file bundle hashes.",
+  "preservedFailedRuns": [
+    {
+      "path": "target/runtime-data-remediation/acceptance-stop-race-tests.log",
+      "reason": "New test fixture initially violated required millisecond timestamp precision; fixed the fixture, not the production constraint. Original log retained."
+    }
+  ]
+}

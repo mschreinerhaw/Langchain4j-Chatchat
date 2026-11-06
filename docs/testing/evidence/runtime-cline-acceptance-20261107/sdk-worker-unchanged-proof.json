@@ -1,0 +1,16 @@
+{
+  "workerImageId": "sha256:118b02724d1236fb6a2268f9a5b07818e60669928381dca6c2145eef0b22224d",
+  "expectedUnchangedWorkerImageId": "sha256:118b02724d1236fb6a2268f9a5b07818e60669928381dca6c2145eef0b22224d",
+  "sdkVersions": {
+    "sdk": "0.0.93",
+    "core": "0.0.93",
+    "agents": "0.0.93"
+  },
+  "modules": {
+    "runner.js": "8c343856f55eee487d8bd6bf17c3e50491168f9a124d4d3bb81e7639462dcb5b",
+    "code-repair.js": "6eef9f2b03bdc9c6231b851cb6615012298411ad80b7b94e67f29afe71f841c9",
+    "sdk-adapter.js": "7749a5a5a1f9117cfeb1ea9521eb285c97615cb6f2922245e41a1394f9f18496",
+    "knowledge-tools.js": "936f4b7f5d7dcbad6ffb7e251b6a69289ac9c108e4a9ee5bebd83064109a59a5"
+  },
+  "apiOnlyRelease": true
+}

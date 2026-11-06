@@ -1,0 +1,630 @@
+{
+  "kind": "search",
+  "taskId": "analysis-coding-8595f45a2f7eedc38b01a4f9705fe50412aa5dff29c5c61202e232b86145ff65",
+  "status": "BUDGET_EXCEEDED",
+  "requestObjectivePreserved": true,
+  "requestInstructionSha256": "61720832e7b4f8c56a7b2fce0200111498cc6c9122a6e13e8ad62106cf20a875",
+  "reasonCode": "BUDGET_EXCEEDED",
+  "toolsCalled": [
+    "input_read",
+    "input_read",
+    "input_read",
+    "python_execute",
+    "market_resolve_security",
+    "web_search",
+    "web_search",
+    "web_search",
+    "web_fetch",
+    "web_fetch",
+    "python_execute",
+    "code_read",
+    "python_execute",
+    "python_execute",
+    "code_read",
+    "python_execute",
+    "artifact_read"
+  ],
+  "model": {
+    "protocol": "auto",
+    "providerModel": "qwen3.8-omni-flash",
+    "selectedModel": "qwen3.8-omni-flash"
+  },
+  "budget": {
+    "budgetId": "analysis-coding-tool-budget:analysis-coding-8595f45a2f7eedc38b01a4f9705fe50412aa5dff29c5c61202e232b86145ff65",
+    "deadlineAt": "2026-11-06T19:28:17.271Z",
+    "maxModelCalls": 12,
+    "maxModelTokens": 786432,
+    "maxToolCalls": 24,
+    "maxCodeExecutions": 12,
+    "maxCostAmount": "10",
+    "costCurrency": "USD",
+    "maxCpuMillis": 300000,
+    "maxMemoryBytes": 536870912,
+    "maxOutputBytes": 4194304
+  },
+  "allowedTools": [
+    "artifact_read",
+    "code_read",
+    "input_read",
+    "market_get_day_snapshot",
+    "market_get_history",
+    "market_get_indicators",
+    "market_get_snapshot",
+    "market_resolve_security",
+    "market_search",
+    "news_get_article",
+    "news_related_events",
+    "news_search",
+    "python_execute",
+    "read_files",
+    "report_submit",
+    "skills",
+    "sql_validate",
+    "web_fetch",
+    "web_search"
+  ],
+  "internetProfile": {
+    "agentId": "financial-news-agent",
+    "explicitlyRequested": true,
+    "modelName": "qwen3.8-omni-flash",
+    "modelRevision": 1,
+    "providerId": "tencent-wsa",
+    "providerRevision": 6,
+    "providers": [
+      {
+        "id": "tencent-wsa",
+        "name": "腾讯 WSA",
+        "revision": 6,
+        "supportsLanguageFilter": false,
+        "supportsNews": false
+      }
+    ],
+    "schemaVersion": "runtime_os.internet.v1"
+  },
+  "externalEvidence": [
+    {
+      "tool": "web_search",
+      "evidence_id": null,
+      "retrieved_at": "2026-11-06T19:10:21.171058297Z",
+      "status": "OK",
+      "sourceUrls": [
+        "http://i5.ce.cn/finance/stock/gsgdbd/202604/t20260423_2925054.shtml",
+        "https://finance.ce.cn/stock/gsgdbd/202508/t20250822_2450948.shtml",
+        "https://finance.ce.cn/stock/gsgdbd/202509/t20250926_2492041.shtml",
+        "https://finance.ce.cn/stock/gsgdbd/202601/t20260120_2715655.shtml",
+        "https://m.yunnan.cn/system/2026/01/20/033835079.shtml"
+      ],
+      "sourceRecords": [
+        {
+          "url": "https://finance.ce.cn/stock/gsgdbd/202508/t20250822_2450948.shtml",
+          "evidence_id": "runtime-evidence:knowledge:92a24445c10d6554d6dfd2d430012e5b203b90d8c5bc56693a172125b4551904",
+          "retrieved_at": "2026-11-06T19:10:21.170470078Z",
+          "published_at": "2025/08/22 11:22:00"
+        },
+        {
+          "url": "https://finance.ce.cn/stock/gsgdbd/202509/t20250926_2492041.shtml",
+          "evidence_id": "runtime-evidence:knowledge:cc0882ae5737cf967f287ce3eefbc624fe09ff19ca51c092acdc14e00fbce36a",
+          "retrieved_at": "2026-11-06T19:10:21.170564764Z",
+          "published_at": "2025/09/26 15:52:00"
+        },
+        {
+          "url": "http://i5.ce.cn/finance/stock/gsgdbd/202604/t20260423_2925054.shtml",
+          "evidence_id": "runtime-evidence:knowledge:d92f76fcee591ef114b9cc1f3d951cc9a70fbc0e8702f2c25a3b34067ae93de3",
+          "retrieved_at": "2026-11-06T19:10:21.170709812Z",
+          "published_at": "2026/04/23 14:59:00"
+        },
+        {
+          "url": "https://finance.ce.cn/stock/gsgdbd/202601/t20260120_2715655.shtml",
+          "evidence_id": "runtime-evidence:knowledge:a3982074ce55b3476f1ca2aeb7423fc469927422b915b4a91f19a201de452063",
+          "retrieved_at": "2026-11-06T19:10:21.170783047Z",
+          "published_at": "2026/01/20 15:38:00"
+        },
+        {
+          "url": "https://m.yunnan.cn/system/2026/01/20/033835079.shtml",
+          "evidence_id": "runtime-evidence:knowledge:9c75aaca89a82e8857fca5a9d8eb74311c583d8214442bb7f26b66c7e2a17a03",
+          "retrieved_at": "2026-11-06T19:10:21.170840985Z",
+          "published_at": null
+        }
+      ],
+      "authority": "SEARCH_SUMMARIES_ARE_NOT_VERIFIED_QUOTES"
+    },
+    {
+      "tool": "web_search",
+      "evidence_id": null,
+      "retrieved_at": "2026-11-06T19:12:01.515020229Z",
+      "status": "OK",
+      "sourceUrls": [
+        "https://epaper.cs.com.cn/zgzqb/html/2022-02/21/nw.D110000zgzqb_20220221_5-A07.htm",
+        "https://epaper.cs.com.cn/zgzqb/html/2022-03/04/nw.D110000zgzqb_20220304_5-A09.htm",
+        "https://epaper.stcn.com/paper/zqsb/html/epaper/index/content_1750719.htm",
+        "https://static.cninfo.com.cn/finalpage/2022-02-22/1212412765.PDF",
+        "https://static.cninfo.com.cn/finalpage/2023-05-18/1216844035.PDF"
+      ],
+      "sourceRecords": [
+        {
+          "url": "https://epaper.cs.com.cn/zgzqb/html/2022-03/04/nw.D110000zgzqb_20220304_5-A09.htm",
+          "evidence_id": "runtime-evidence:knowledge:ee74216eaf31aed53cca6d3d94b6bd246523a466b7e0ab9d53cbd96629185390",
+          "retrieved_at": "2026-11-06T19:12:01.514260028Z",
+          "published_at": "2022/03/04 00:00:00"
+        },
+        {
+          "url": "https://static.cninfo.com.cn/finalpage/2022-02-22/1212412765.PDF",
+          "evidence_id": "runtime-evidence:knowledge:271959d93ae5b0925af0f6d78d508fe47a3afcfbd84fd7b34d2a48f797da71cd",
+          "retrieved_at": "2026-11-06T19:12:01.514380517Z",
+          "published_at": "2022/02/22 00:00:00"
+        },
+        {
+          "url": "https://epaper.cs.com.cn/zgzqb/html/2022-02/21/nw.D110000zgzqb_20220221_5-A07.htm",
+          "evidence_id": "runtime-evidence:knowledge:8a19786120c8eb8e2d4fc8936e55aa9e364f441c2343184f7b4f3cc4e5bc768e",
+          "retrieved_at": "2026-11-06T19:12:01.514475696Z",
+          "published_at": "2022/02/21 00:00:00"
+        },
+        {
+          "url": "https://epaper.stcn.com/paper/zqsb/html/epaper/index/content_1750719.htm",
+          "evidence_id": "runtime-evidence:knowledge:0d17c40ada8b4001a6bd96f44855d88e86aace37eda26fb72c466552ea9b27e9",
+          "retrieved_at": "2026-11-06T19:12:01.514702735Z",
+          "published_at": "2022/02/22 00:00:00"
+        },
+        {
+          "url": "https://static.cninfo.com.cn/finalpage/2023-05-18/1216844035.PDF",
+          "evidence_id": "runtime-evidence:knowledge:1949b59642af48b3d13876170d50c736899591af29814beac9b2b8a81aaba18e",
+          "retrieved_at": "2026-11-06T19:12:01.514791713Z",
+          "published_at": "2023/05/18 00:00:00"
+        }
+      ],
+      "authority": "SEARCH_SUMMARIES_ARE_NOT_VERIFIED_QUOTES"
+    },
+    {
+      "tool": "web_search",
+      "evidence_id": null,
+      "retrieved_at": "2026-11-06T19:12:03.824771816Z",
+      "status": "OK",
+      "sourceUrls": [
+        "https://big5.szse.cn/site/cht/www.szse.cn/disclosure/notice/t20220304_591644.html",
+        "https://epaper.cs.com.cn/zgzqb/html/2022-03/04/nw.D110000zgzqb_20220304_5-A09.htm",
+        "https://finance.ce.cn/stock/gsgdbd/202505/t20250522_2286961.shtml",
+        "https://www.szse.cn/aboutus/trends/news/t20220307_591667.html",
+        "https://www.szse.cn/certificate/secondb/GEMdynamice/t20220304_591644.html"
+      ],
+      "sourceRecords": [
+        {
+          "url": "https://www.szse.cn/aboutus/trends/news/t20220307_591667.html",
+          "evidence_id": "runtime-evidence:knowledge:be3cc1d886a4406201a391f433df5035421768549ec21bedc804013fe546f36f",
+          "retrieved_at": "2026-11-06T19:12:03.824413566Z",
+          "published_at": "2022/03/07 00:00:00"
+        },
+        {
+          "url": "https://www.szse.cn/certificate/secondb/GEMdynamice/t20220304_591644.html",
+          "evidence_id": "runtime-evidence:knowledge:c287645da261746fe0da85a10f0db50bc043b79e01789b5751f93f30db709f05",
+          "retrieved_at": "2026-11-06T19:12:03.824456630Z",
+          "published_at": "2022/03/04 00:00:00"
+        },
+        {
+          "url": "https://big5.szse.cn/site/cht/www.szse.cn/disclosure/notice/t20220304_591644.html",
+          "evidence_id": "runtime-evidence:knowledge:b658de728c291887e1578c874b13ecf52651f40630dfa62cd21688ffe53d33ce",
+          "retrieved_at": "2026-11-06T19:12:03.824492605Z",
+          "published_at": null
+        },
+        {
+          "url": "https://epaper.cs.com.cn/zgzqb/html/2022-03/04/nw.D110000zgzqb_20220304_5-A09.htm",
+          "evidence_id": "runtime-evidence:knowledge:71735876b58e2ca0dfc24e299f8b60bd35760db86980460410794c8f64782930",
+          "retrieved_at": "2026-11-06T19:12:03.824553359Z",
+          "published_at": "2022/03/04 00:00:00"
+        },
+        {
+          "url": "https://finance.ce.cn/stock/gsgdbd/202505/t20250522_2286961.shtml",
+          "evidence_id": "runtime-evidence:knowledge:45cc7aa8d9cc5b694c6a8b7905ff515496afb77be0212cca67a0ddfb72de510f",
+          "retrieved_at": "2026-11-06T19:12:03.824628445Z",
+          "published_at": "2025/05/22 11:15:00"
+        }
+      ],
+      "authority": "SEARCH_SUMMARIES_ARE_NOT_VERIFIED_QUOTES"
+    },
+    {
+      "tool": "web_fetch",
+      "evidence_id": "runtime-evidence:knowledge:1d446a9d3909f330065870c67991c3695a150f65a602c5895eccee4101b8f141",
+      "retrieved_at": "2026-11-06T19:13:05.942126121Z",
+      "status": "OK",
+      "sourceUrls": [
+        "https://www.szse.cn/certificate/secondb/GEMdynamice/t20220304_591644.html"
+      ],
+      "sourceRecords": [],
+      "authority": "SEARCH_SUMMARIES_ARE_NOT_VERIFIED_QUOTES"
+    },
+    {
+      "tool": "web_fetch",
+      "evidence_id": "runtime-evidence:knowledge:44fcc15569921e1259d86e94d2ebf0c820d9e41aabc739f94d01068259cb2dfa",
+      "retrieved_at": "2026-11-06T19:13:08.472105429Z",
+      "status": "OK",
+      "sourceUrls": [
+        "https://www.szse.cn/aboutus/trends/news/t20220307_591667.html"
+      ],
+      "sourceRecords": [],
+      "authority": "SEARCH_SUMMARIES_ARE_NOT_VERIFIED_QUOTES"
+    }
+  ],
+  "daySnapshotReceipts": [],
+  "resultDatasetRef": null,
+  "pythonExecutions": [
+    {
+      "executionId": "cline-188508e66be83de5a500b409be273a6fba3da83df67711e066cd87dcc19e8dd2",
+      "exitCode": 0,
+      "durationMs": 2649,
+      "resultAvailable": true,
+      "outputStatus": null,
+      "inputDataRefs": [
+        "runtime-evidence:coding:input:781f0f534f3aa7860ae75420576538cbb951df913101a6dc7f7c21d79fd458c",
+        "runtime-evidence:coding:input:0069fe9b81b2888b67806674eec46253d1158541e9e9ba25028f251dcd4b5b4",
+        "runtime-evidence:coding:input:779e86e6979fd71df644caecbbb7a45835828719f8a5734f47baacb39654bdf"
+      ]
+    },
+    {
+      "executionId": "cline-856a8faaaa5396007edb64b90ed94849dcf3c8327843efaf4573317e2425c59d",
+      "exitCode": 0,
+      "durationMs": 2002,
+      "resultAvailable": false,
+      "outputStatus": "REQUIRED_OUTPUT_MISSING",
+      "inputDataRefs": [
+        "runtime-evidence:coding:input:781f0f534f3aa7860ae75420576538cbb951df913101a6dc7f7c21d79fd458c",
+        "runtime-evidence:coding:input:0069fe9b81b2888b67806674eec46253d1158541e9e9ba25028f251dcd4b5b4",
+        "runtime-evidence:coding:input:779e86e6979fd71df644caecbbb7a45835828719f8a5734f47baacb39654bdf"
+      ]
+    },
+    {
+      "executionId": "cline-d0a568d3535ee66248b62a902c09ea1dfefd6f06f100700677b2e1c4bdcbafac",
+      "exitCode": 1,
+      "durationMs": 2430,
+      "resultAvailable": false,
+      "outputStatus": null,
+      "inputDataRefs": [
+        "runtime-evidence:coding:input:781f0f534f3aa7860ae75420576538cbb951df913101a6dc7f7c21d79fd458c",
+        "runtime-evidence:coding:input:0069fe9b81b2888b67806674eec46253d1158541e9e9ba25028f251dcd4b5b4",
+        "runtime-evidence:coding:input:779e86e6979fd71df644caecbbb7a45835828719f8a5734f47baacb39654bdf"
+      ]
+    },
+    {
+      "executionId": "cline-fda7d7ddcde741254b6caa98fd6095aeb0e09402c85113b4d4120171ff9b2a0f",
+      "exitCode": 0,
+      "durationMs": 2080,
+      "resultAvailable": false,
+      "outputStatus": "REQUIRED_OUTPUT_MISSING",
+      "inputDataRefs": [
+        "runtime-evidence:coding:input:781f0f534f3aa7860ae75420576538cbb951df913101a6dc7f7c21d79fd458c"
+      ]
+    }
+  ],
+  "frozenInputVersions": [
+    [
+      {
+        "fileId": "c781f0f534f3aa7860ae75420576538cbb951df913101a6dc7f7c21d79fd458c",
+        "fileName": "manifest.json",
+        "sha256": "b91a95d9529312bfaf7e4d72dcce48d8b6908fce4dc57b3a6162d5570b9b3342",
+        "rowCount": 5,
+        "size": 3028,
+        "sourceDatasetRef": "coding-input-set:4215f3a5f10b3becfcbc37da9681eacb52ad6d181ecd464238f74ef5bdef362b"
+      },
+      {
+        "fileId": "c0069fe9b81b2888b67806674eec46253d1158541e9e9ba25028f251dcd4b5b4",
+        "fileName": "manifest.json",
+        "sha256": "802046ca2a5bf9872e4deef0320af0bf96c861ea63b447a207d07a6eec1b5d72",
+        "rowCount": 1,
+        "size": 2261,
+        "sourceDatasetRef": "coding-data:data-3aa1ab6c11461a37b6374e45065f3554ca90990c3fff579b9ef822fe3bf38b4a:aaea86056c680d1212054f2e073a1f63e1643002ba22db361d088f2c237bd84e"
+      },
+      {
+        "fileId": "c779e86e6979fd71df644caecbbb7a45835828719f8a5734f47baacb39654bdf",
+        "fileName": "manifest.json",
+        "sha256": "fa373b5e102ac7d43aa300a189e55d2384fda09b7fd9ddeaad37e89c1d4e5657",
+        "rowCount": 1,
+        "size": 2261,
+        "sourceDatasetRef": "coding-data:data-9791f2f692e928274bf5e9cfe42fe8d8ba9c2f1588e298a65a5b8b40dda20be3:9f9a6c1757be68a103e68629959952f61fde7c375c5a46a4baa89ed674da1bb8"
+      }
+    ],
+    [
+      {
+        "fileId": "c781f0f534f3aa7860ae75420576538cbb951df913101a6dc7f7c21d79fd458c",
+        "fileName": "manifest.json",
+        "sha256": "b91a95d9529312bfaf7e4d72dcce48d8b6908fce4dc57b3a6162d5570b9b3342",
+        "rowCount": 5,
+        "size": 3028,
+        "sourceDatasetRef": "coding-input-set:4215f3a5f10b3becfcbc37da9681eacb52ad6d181ecd464238f74ef5bdef362b"
+      },
+      {
+        "fileId": "c0069fe9b81b2888b67806674eec46253d1158541e9e9ba25028f251dcd4b5b4",
+        "fileName": "manifest.json",
+        "sha256": "802046ca2a5bf9872e4deef0320af0bf96c861ea63b447a207d07a6eec1b5d72",
+        "rowCount": 1,
+        "size": 2261,
+        "sourceDatasetRef": "coding-data:data-3aa1ab6c11461a37b6374e45065f3554ca90990c3fff579b9ef822fe3bf38b4a:aaea86056c680d1212054f2e073a1f63e1643002ba22db361d088f2c237bd84e"
+      },
+      {
+        "fileId": "c779e86e6979fd71df644caecbbb7a45835828719f8a5734f47baacb39654bdf",
+        "fileName": "manifest.json",
+        "sha256": "fa373b5e102ac7d43aa300a189e55d2384fda09b7fd9ddeaad37e89c1d4e5657",
+        "rowCount": 1,
+        "size": 2261,
+        "sourceDatasetRef": "coding-data:data-9791f2f692e928274bf5e9cfe42fe8d8ba9c2f1588e298a65a5b8b40dda20be3:9f9a6c1757be68a103e68629959952f61fde7c375c5a46a4baa89ed674da1bb8"
+      }
+    ],
+    [
+      {
+        "fileId": "c781f0f534f3aa7860ae75420576538cbb951df913101a6dc7f7c21d79fd458c",
+        "fileName": "manifest.json",
+        "sha256": "b91a95d9529312bfaf7e4d72dcce48d8b6908fce4dc57b3a6162d5570b9b3342",
+        "rowCount": 5,
+        "size": 3028,
+        "sourceDatasetRef": "coding-input-set:4215f3a5f10b3becfcbc37da9681eacb52ad6d181ecd464238f74ef5bdef362b"
+      },
+      {
+        "fileId": "c0069fe9b81b2888b67806674eec46253d1158541e9e9ba25028f251dcd4b5b4",
+        "fileName": "manifest.json",
+        "sha256": "802046ca2a5bf9872e4deef0320af0bf96c861ea63b447a207d07a6eec1b5d72",
+        "rowCount": 1,
+        "size": 2261,
+        "sourceDatasetRef": "coding-data:data-3aa1ab6c11461a37b6374e45065f3554ca90990c3fff579b9ef822fe3bf38b4a:aaea86056c680d1212054f2e073a1f63e1643002ba22db361d088f2c237bd84e"
+      },
+      {
+        "fileId": "c779e86e6979fd71df644caecbbb7a45835828719f8a5734f47baacb39654bdf",
+        "fileName": "manifest.json",
+        "sha256": "fa373b5e102ac7d43aa300a189e55d2384fda09b7fd9ddeaad37e89c1d4e5657",
+        "rowCount": 1,
+        "size": 2261,
+        "sourceDatasetRef": "coding-data:data-9791f2f692e928274bf5e9cfe42fe8d8ba9c2f1588e298a65a5b8b40dda20be3:9f9a6c1757be68a103e68629959952f61fde7c375c5a46a4baa89ed674da1bb8"
+      }
+    ],
+    [
+      {
+        "fileId": "c781f0f534f3aa7860ae75420576538cbb951df913101a6dc7f7c21d79fd458c",
+        "fileName": "manifest.json",
+        "sha256": "b91a95d9529312bfaf7e4d72dcce48d8b6908fce4dc57b3a6162d5570b9b3342",
+        "rowCount": 5,
+        "size": 3028,
+        "sourceDatasetRef": "coding-input-set:4215f3a5f10b3becfcbc37da9681eacb52ad6d181ecd464238f74ef5bdef362b"
+      }
+    ]
+  ],
+  "scenario": "C",
+  "orderedToolTrace": [
+    {
+      "event": "CALL",
+      "tool": "input_read",
+      "callId": "call_33f379b81c1245e19c53e483",
+      "arguments": {
+        "limit": 6000
+      }
+    },
+    {
+      "event": "CALL",
+      "tool": "input_read",
+      "callId": "call_3d4f50c0b91b479a8982d997",
+      "arguments": {
+        "limit": 6000
+      }
+    },
+    {
+      "event": "CALL",
+      "tool": "input_read",
+      "callId": "call_7edaf14574ef4961afa1e0a6",
+      "arguments": {
+        "limit": 7000
+      }
+    },
+    {
+      "event": "RESULT",
+      "tool": "input_read",
+      "callId": "call_33f379b81c1245e19c53e483"
+    },
+    {
+      "event": "RESULT",
+      "tool": "input_read",
+      "callId": "call_3d4f50c0b91b479a8982d997"
+    },
+    {
+      "event": "RESULT",
+      "tool": "input_read",
+      "callId": "call_7edaf14574ef4961afa1e0a6"
+    },
+    {
+      "event": "CALL",
+      "tool": "python_execute",
+      "callId": "call_dc2084fd7e174395b5bce62f",
+      "arguments": {}
+    },
+    {
+      "event": "CALL",
+      "tool": "market_resolve_security",
+      "callId": "call_0cd230f2917445469778e71e",
+      "arguments": {
+        "query": "华是科技",
+        "limit": 10
+      }
+    },
+    {
+      "event": "CALL",
+      "tool": "web_search",
+      "callId": "call_17045afdc5144589acc0956c",
+      "arguments": {
+        "query": "华是科技 301236 深交所 上市公告书 上市日期 发行数量"
+      }
+    },
+    {
+      "event": "RESULT",
+      "tool": "python_execute",
+      "callId": "call_dc2084fd7e174395b5bce62f",
+      "status": "SUCCEEDED",
+      "resultAvailable": false,
+      "outputStatus": "REQUIRED_OUTPUT_MISSING",
+      "executorStopped": true,
+      "exitCode": 0
+    },
+    {
+      "event": "RESULT",
+      "tool": "market_resolve_security",
+      "callId": "call_0cd230f2917445469778e71e",
+      "status": "CANDIDATES_REQUIRE_QUOTE_VERIFICATION",
+      "count": 1,
+      "evidence_id": "runtime-evidence:knowledge:90842c1553c7d983c70c31fa5007d2ab8d8b89dd75c18491ded8693f6eea5069",
+      "itemsCount": 1
+    },
+    {
+      "event": "RESULT",
+      "tool": "web_search",
+      "callId": "call_17045afdc5144589acc0956c",
+      "status": "OK",
+      "count": 5,
+      "itemsCount": 5
+    },
+    {
+      "event": "CALL",
+      "tool": "web_search",
+      "callId": "call_215f72c9a1c74def85f4b24d",
+      "arguments": {
+        "query": "cninfo 巨潮资讯 华是科技 301218 首次公开发行股票并在创业板上市之上市公告书"
+      }
+    },
+    {
+      "event": "CALL",
+      "tool": "web_search",
+      "callId": "call_f55759ed7db54316ad79f9a5",
+      "arguments": {
+        "query": "深圳证券交易所 上市公告 华是科技 301218 2022年3月7日 创业板 发行 1900.6667万股"
+      }
+    },
+    {
+      "event": "RESULT",
+      "tool": "web_search",
+      "callId": "call_215f72c9a1c74def85f4b24d",
+      "status": "OK",
+      "count": 5,
+      "itemsCount": 5
+    },
+    {
+      "event": "RESULT",
+      "tool": "web_search",
+      "callId": "call_f55759ed7db54316ad79f9a5",
+      "status": "OK",
+      "count": 5,
+      "itemsCount": 5
+    },
+    {
+      "event": "CALL",
+      "tool": "web_fetch",
+      "callId": "call_2099d01ac1244281b488b681",
+      "arguments": {}
+    },
+    {
+      "event": "CALL",
+      "tool": "web_fetch",
+      "callId": "call_d26009e871c4447ca679ebb4",
+      "arguments": {}
+    },
+    {
+      "event": "RESULT",
+      "tool": "web_fetch",
+      "callId": "call_2099d01ac1244281b488b681",
+      "status": "OK",
+      "count": 1,
+      "evidence_id": "runtime-evidence:knowledge:1d446a9d3909f330065870c67991c3695a150f65a602c5895eccee4101b8f141"
+    },
+    {
+      "event": "RESULT",
+      "tool": "web_fetch",
+      "callId": "call_d26009e871c4447ca679ebb4",
+      "status": "OK",
+      "count": 1,
+      "evidence_id": "runtime-evidence:knowledge:44fcc15569921e1259d86e94d2ebf0c820d9e41aabc739f94d01068259cb2dfa"
+    },
+    {
+      "event": "CALL",
+      "tool": "python_execute",
+      "callId": "call_2e194864ef204c6c97efc331",
+      "arguments": {}
+    },
+    {
+      "event": "RESULT",
+      "tool": "python_execute",
+      "callId": "call_2e194864ef204c6c97efc331"
+    },
+    {
+      "event": "CALL",
+      "tool": "code_read",
+      "callId": "call_afe4272bade34244bb371ba6",
+      "arguments": {}
+    },
+    {
+      "event": "RESULT",
+      "tool": "code_read",
+      "callId": "call_afe4272bade34244bb371ba6"
+    },
+    {
+      "event": "CALL",
+      "tool": "python_execute",
+      "callId": "call_e3c2a75c6d88415abe7cdf4f",
+      "arguments": {}
+    },
+    {
+      "event": "RESULT",
+      "tool": "python_execute",
+      "callId": "call_e3c2a75c6d88415abe7cdf4f",
+      "status": "SUCCEEDED",
+      "resultAvailable": false,
+      "outputStatus": "REQUIRED_OUTPUT_MISSING",
+      "executorStopped": true,
+      "exitCode": 0
+    },
+    {
+      "event": "CALL",
+      "tool": "python_execute",
+      "callId": "call_4e043b19c224465493ab3cd2",
+      "arguments": {}
+    },
+    {
+      "event": "RESULT",
+      "tool": "python_execute",
+      "callId": "call_4e043b19c224465493ab3cd2",
+      "status": "FAILED",
+      "resultAvailable": false,
+      "executorStopped": true,
+      "exitCode": 1
+    },
+    {
+      "event": "CALL",
+      "tool": "code_read",
+      "callId": "call_d8c99421639745dca94727a1",
+      "arguments": {}
+    },
+    {
+      "event": "RESULT",
+      "tool": "code_read",
+      "callId": "call_d8c99421639745dca94727a1"
+    },
+    {
+      "event": "CALL",
+      "tool": "python_execute",
+      "callId": "call_b03a60e402314e5188c3e308",
+      "arguments": {}
+    },
+    {
+      "event": "RESULT",
+      "tool": "python_execute",
+      "callId": "call_b03a60e402314e5188c3e308",
+      "status": "SUCCEEDED",
+      "resultAvailable": false,
+      "outputStatus": "INVALID_RESULT_REFERENCES",
+      "executorStopped": true,
+      "exitCode": 0
+    },
+    {
+      "event": "CALL",
+      "tool": "artifact_read",
+      "callId": "call_d483ba81e6644b52b4fa0737",
+      "arguments": {}
+    },
+    {
+      "event": "RESULT",
+      "tool": "artifact_read",
+      "callId": "call_d483ba81e6644b52b4fa0737",
+      "complete": true
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "taskId": "analysis-coding-8d31d9eec775afa12a640f954c8b5460df38e1c07f72d0b2198160bec97f162a",
+  "status": "BUDGET_EXCEEDED",
+  "reasonCode": "BUDGET_EXCEEDED",
+  "summary": "Worker stopped; all started operations reconciled",
+  "readOnly": true,
+  "initialProposals": [
+    {
+      "sha256": "ac23c65ca4d0c46c0fc0f265c709df27b0fba0e6601a0d9cf0809a28f7190433",
+      "bytes": 29498,
+      "syntax": "FAILED",
+      "errorType": "SyntaxError",
+      "message": "unmatched ')'",
+      "line": 350,
+      "column": 41
+    }
+  ],
+  "executedFeedback": [
+    {
+      "operationId": "cline-0a45125c4e382c365cced6615268397323d0a0bc04d7382e6028a8bf2ef96d2e",
+      "codeHash": "727bb5554ac5115657edaab6e095e4ac3f11f12e96b19f1c64f5c2b6aa5f5d2c",
+      "error": {
+        "category": "SYNTAX",
+        "exceptionType": "SyntaxError",
+        "diagnosticCode": "SYNTAX_ERROR",
+        "message": "Repair Python syntax at the reported source location; preserve the existing calculation and authorized inputs.",
+        "stack": [
+          {
+            "file": "analyze-these-explicitly_20261106T200354425Z_e7080b97f5bd_v2.py",
+            "line": 363,
+            "column": null
+          }
+        ],
+        "detailRef": "execution:cline-0a45125c4e382c365cced6615268397323d0a0bc04d7382e6028a8bf2ef96d2e:logs:runtime-diagnostic.json"
+      },
+      "exitCode": 1,
+      "resultAvailable": false
+    },
+    {
+      "operationId": "cline-e764f30efd2fa97ef7743bbdcf4350aa83fe47bcb211a9f5de9c6492dc7b0d8f",
+      "codeHash": "ac23c65ca4d0c46c0fc0f265c709df27b0fba0e6601a0d9cf0809a28f7190433",
+      "error": {
+        "category": "SYNTAX",
+        "exceptionType": "SyntaxError",
+        "diagnosticCode": "SYNTAX_ERROR",
+        "message": "Repair Python syntax at the reported source location; preserve the existing calculation and authorized inputs.",
+        "stack": [
+          {
+            "file": "analyze-these-explicitly_20261106T200239233Z_e7080b97f5bd_v1.py",
+            "line": 350,
+            "column": null
+          }
+        ],
+        "detailRef": "execution:cline-e764f30efd2fa97ef7743bbdcf4350aa83fe47bcb211a9f5de9c6492dc7b0d8f:logs:runtime-diagnostic.json"
+      },
+      "exitCode": 1,
+      "resultAvailable": false
+    }
+  ],
+  "initialSourceHashMatchesExecuted": true
+}

@@ -1,0 +1,8 @@
+{
+  "taskId": "analysis-coding-8d31d9eec775afa12a640f954c8b5460df38e1c07f72d0b2198160bec97f162a",
+  "status": "BUDGET_EXCEEDED",
+  "readOnly": true,
+  "businessCorrectnessCertified": false,
+  "archiveVerification": "NOT_PASSED",
+  "reason": "No final successful native receipt; inspect preserved failure and partial artifacts"
+}

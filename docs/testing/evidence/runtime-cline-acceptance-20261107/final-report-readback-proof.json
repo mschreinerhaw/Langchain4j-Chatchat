@@ -1,0 +1,36 @@
+{
+  "checkedAt": "2026-11-06T22:10:43.473033+00:00",
+  "readOnly": true,
+  "guardBypassed": false,
+  "sourceComparison": {
+    "references": 19,
+    "canonicalHashesMatching": 18,
+    "onlyMismatchTool": "market_resolve_security",
+    "changedPath": "items[0].source_refreshed_at",
+    "original": "2026-11-05T21:23:25.000+00:00",
+    "current": "2026-11-06T21:23:35.000+00:00",
+    "remainingDirectoryCandidateFieldsEqual": true,
+    "expectedResponseHash": "f17ab7549e0a9ce45a5ad279b12c5a5354addf2df9005efda8133b7c0af4f91b",
+    "hashComparisonMethod": "Sorted compact UTF-8 JSON, existing catalog heartbeat excluded; cross-checked 18 exact stored hashes"
+  },
+  "archives": [
+    {
+      "case": "B2",
+      "fileId": "6c586a8c74f8c78771d8b1952c304957fa995cfdda768f9c5feceba1cdfe4224",
+      "archivedSha256": "03f90ccc21f32102133e40a56bea89f875b125472369c0621caca16be9552f50",
+      "previousArchiveProofRetained": true,
+      "httpStatus": 403,
+      "message": "Resource source changed; start a new task to acquire current evidence",
+      "currentDelivery": "BLOCKED_SOURCE_REVALIDATION"
+    },
+    {
+      "case": "D3",
+      "fileId": "43d9f2320d9ac5448d4be918d233ebb1481c15c02cf8457801840a1837fdb912",
+      "archivedSha256": "4d92d0d303ca856e46453444a5b58b7e5536b19d5d618fad7cb2eac90c1b77e6",
+      "previousArchiveProofRetained": true,
+      "httpStatus": 200,
+      "actualSha256": "4d92d0d303ca856e46453444a5b58b7e5536b19d5d618fad7cb2eac90c1b77e6",
+      "bytes": 6348
+    }
+  ]
+}

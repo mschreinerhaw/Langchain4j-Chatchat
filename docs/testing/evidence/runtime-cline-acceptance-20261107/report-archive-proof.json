@@ -1,0 +1,65 @@
+{
+  "readOnly": true,
+  "cases": [
+    {
+      "case": "flash-1",
+      "status": "BUDGET_EXCEEDED",
+      "resultAvailable": false,
+      "businessCorrectnessCertified": false,
+      "charts": [],
+      "checks": {
+        "acceptedVisualReportPresent": false
+      }
+    },
+    {
+      "case": "plus-1",
+      "status": "FAILED",
+      "resultAvailable": false,
+      "businessCorrectnessCertified": false,
+      "charts": [],
+      "checks": {
+        "acceptedVisualReportPresent": false
+      }
+    },
+    {
+      "case": "flash-2",
+      "status": "BUDGET_EXCEEDED",
+      "resultAvailable": false,
+      "businessCorrectnessCertified": false,
+      "charts": [],
+      "checks": {
+        "acceptedVisualReportPresent": false
+      }
+    },
+    {
+      "case": "plus-2",
+      "status": "FAILED",
+      "resultAvailable": false,
+      "businessCorrectnessCertified": false,
+      "charts": [],
+      "checks": {
+        "acceptedVisualReportPresent": false
+      }
+    },
+    {
+      "case": "flash-3",
+      "status": "BUDGET_EXCEEDED",
+      "resultAvailable": false,
+      "businessCorrectnessCertified": false,
+      "charts": [],
+      "checks": {
+        "acceptedVisualReportPresent": false
+      }
+    },
+    {
+      "case": "plus-3",
+      "status": "FAILED",
+      "resultAvailable": false,
+      "businessCorrectnessCertified": false,
+      "charts": [],
+      "checks": {
+        "acceptedVisualReportPresent": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,312 @@
+{
+  "schemaVersion": "runtime-benchmark-comparability.v1",
+  "readOnly": true,
+  "caseCount": 6,
+  "repetitionsPerModel": 3,
+  "sameOriginalFiles": true,
+  "sameLogicalContent": true,
+  "sameBudgetCeilings": true,
+  "samePermissionKinds": true,
+  "allMountedFileHashesVerified": true,
+  "inputFiles": [
+    {
+      "fileName": "manifest.json",
+      "sha256": "cdbaf9ed6abf723ae344cd22e2dee79c2758a7846e258e79fa7cd4f9add267ce"
+    },
+    {
+      "fileName": "schema.json",
+      "sha256": "34a62adbd6a1f46555314931a71d1838ffd61b7deaed91ad848ab8ebb15d7bdd"
+    },
+    {
+      "fileName": "part-00000.parquet",
+      "sha256": "32e2b1184c69f460d67a99bbb1f34f4fed3d994116552cb45426f2c8a0ba2bc4"
+    },
+    {
+      "fileName": "market-producer-declarations.json",
+      "sha256": "eddedb8e96428313fd01f5c5ed7205dcd72e7713f9cb3e2937ea34ac34e244fa"
+    }
+  ],
+  "logicalInputs": [
+    {
+      "logicalContentSha256": "74bd2b4e3b915eb8bb6fd9ef171e5d64623495ab8b7ba2bc32cf7255172e37b9",
+      "rowCount": 5,
+      "format": "PARQUET",
+      "logicalBytes": 2017037
+    }
+  ],
+  "commonBudget": {
+    "maxModelCalls": 12,
+    "maxModelTokens": 786432,
+    "maxToolCalls": 24,
+    "maxCodeExecutions": 12,
+    "maxCostAmount": "10",
+    "costCurrency": "USD",
+    "maxCpuMillis": 300000,
+    "maxMemoryBytes": 536870912,
+    "maxOutputBytes": 4194304
+  },
+  "commonPermissions": {
+    "allowedTools": [
+      "artifact_read",
+      "code_read",
+      "input_read",
+      "python_execute",
+      "read_files",
+      "skills",
+      "sql_validate"
+    ],
+    "allowedSideEffects": [
+      "CODE_EXECUTION"
+    ],
+    "networkPolicy": "NONE"
+  },
+  "mounts": [
+    {
+      "case": "flash-1",
+      "verifiedFileCount": 7,
+      "files": [
+        {
+          "fileName": "manifest.json",
+          "sha256": "8fa8620504b210b1e61b2accd2f1731beed60507b28094643c139e28a98588a5",
+          "bytes": 3028
+        },
+        {
+          "fileName": "original-0.json",
+          "sha256": "cdbaf9ed6abf723ae344cd22e2dee79c2758a7846e258e79fa7cd4f9add267ce",
+          "bytes": 5118
+        },
+        {
+          "fileName": "original-1.json",
+          "sha256": "34a62adbd6a1f46555314931a71d1838ffd61b7deaed91ad848ab8ebb15d7bdd",
+          "bytes": 5283
+        },
+        {
+          "fileName": "original-2.parquet",
+          "sha256": "32e2b1184c69f460d67a99bbb1f34f4fed3d994116552cb45426f2c8a0ba2bc4",
+          "bytes": 1494236
+        },
+        {
+          "fileName": "original-3.json",
+          "sha256": "eddedb8e96428313fd01f5c5ed7205dcd72e7713f9cb3e2937ea34ac34e244fa",
+          "bytes": 6022
+        },
+        {
+          "fileName": "schema.json",
+          "sha256": "d06ac668abc2a891ac8c7fdf0d1d683b598c7309479c86534ec3433ea39ef713",
+          "bytes": 9551
+        },
+        {
+          "fileName": "part-00000.parquet",
+          "sha256": "e1cd35b857efcb12fa1dbaf71efe62a8ab3f99fc5907e738aacf447696f986d5",
+          "bytes": 2018174
+        }
+      ]
+    },
+    {
+      "case": "plus-1",
+      "verifiedFileCount": 7,
+      "files": [
+        {
+          "fileName": "manifest.json",
+          "sha256": "8b718975331a9416a59dba6a5149f2ae94fd5c550ac8d3a584f4e567158118a4",
+          "bytes": 3028
+        },
+        {
+          "fileName": "original-0.json",
+          "sha256": "cdbaf9ed6abf723ae344cd22e2dee79c2758a7846e258e79fa7cd4f9add267ce",
+          "bytes": 5118
+        },
+        {
+          "fileName": "original-1.json",
+          "sha256": "34a62adbd6a1f46555314931a71d1838ffd61b7deaed91ad848ab8ebb15d7bdd",
+          "bytes": 5283
+        },
+        {
+          "fileName": "original-2.parquet",
+          "sha256": "32e2b1184c69f460d67a99bbb1f34f4fed3d994116552cb45426f2c8a0ba2bc4",
+          "bytes": 1494236
+        },
+        {
+          "fileName": "original-3.json",
+          "sha256": "eddedb8e96428313fd01f5c5ed7205dcd72e7713f9cb3e2937ea34ac34e244fa",
+          "bytes": 6022
+        },
+        {
+          "fileName": "schema.json",
+          "sha256": "5ff1c89c3a857ea88df92659419e93ba74d64e22da4bf4d27e9b02a50ef970cc",
+          "bytes": 9551
+        },
+        {
+          "fileName": "part-00000.parquet",
+          "sha256": "e1cd35b857efcb12fa1dbaf71efe62a8ab3f99fc5907e738aacf447696f986d5",
+          "bytes": 2018174
+        }
+      ]
+    },
+    {
+      "case": "flash-2",
+      "verifiedFileCount": 7,
+      "files": [
+        {
+          "fileName": "manifest.json",
+          "sha256": "1c7a613c94f3ba66303eb5c1a732481055d656f9ddbe7ae5e8336be881ef7ca4",
+          "bytes": 3028
+        },
+        {
+          "fileName": "original-0.json",
+          "sha256": "cdbaf9ed6abf723ae344cd22e2dee79c2758a7846e258e79fa7cd4f9add267ce",
+          "bytes": 5118
+        },
+        {
+          "fileName": "original-1.json",
+          "sha256": "34a62adbd6a1f46555314931a71d1838ffd61b7deaed91ad848ab8ebb15d7bdd",
+          "bytes": 5283
+        },
+        {
+          "fileName": "original-2.parquet",
+          "sha256": "32e2b1184c69f460d67a99bbb1f34f4fed3d994116552cb45426f2c8a0ba2bc4",
+          "bytes": 1494236
+        },
+        {
+          "fileName": "original-3.json",
+          "sha256": "eddedb8e96428313fd01f5c5ed7205dcd72e7713f9cb3e2937ea34ac34e244fa",
+          "bytes": 6022
+        },
+        {
+          "fileName": "schema.json",
+          "sha256": "b9a1550e66ca988c6c198c75446b291301a968e094b26b80e07ea0fc13914464",
+          "bytes": 9551
+        },
+        {
+          "fileName": "part-00000.parquet",
+          "sha256": "e1cd35b857efcb12fa1dbaf71efe62a8ab3f99fc5907e738aacf447696f986d5",
+          "bytes": 2018174
+        }
+      ]
+    },
+    {
+      "case": "plus-2",
+      "verifiedFileCount": 7,
+      "files": [
+        {
+          "fileName": "manifest.json",
+          "sha256": "b42a7e5cda0dba8ed9596b124b6652637038185bfc3c1bf62b6a9c1e789c42ff",
+          "bytes": 3028
+        },
+        {
+          "fileName": "original-0.json",
+          "sha256": "cdbaf9ed6abf723ae344cd22e2dee79c2758a7846e258e79fa7cd4f9add267ce",
+          "bytes": 5118
+        },
+        {
+          "fileName": "original-1.json",
+          "sha256": "34a62adbd6a1f46555314931a71d1838ffd61b7deaed91ad848ab8ebb15d7bdd",
+          "bytes": 5283
+        },
+        {
+          "fileName": "original-2.parquet",
+          "sha256": "32e2b1184c69f460d67a99bbb1f34f4fed3d994116552cb45426f2c8a0ba2bc4",
+          "bytes": 1494236
+        },
+        {
+          "fileName": "original-3.json",
+          "sha256": "eddedb8e96428313fd01f5c5ed7205dcd72e7713f9cb3e2937ea34ac34e244fa",
+          "bytes": 6022
+        },
+        {
+          "fileName": "schema.json",
+          "sha256": "9e69b02bc22f423fe8624959f2403877f00852f955177c64a3ba1356c40da4a4",
+          "bytes": 9551
+        },
+        {
+          "fileName": "part-00000.parquet",
+          "sha256": "e1cd35b857efcb12fa1dbaf71efe62a8ab3f99fc5907e738aacf447696f986d5",
+          "bytes": 2018174
+        }
+      ]
+    },
+    {
+      "case": "flash-3",
+      "verifiedFileCount": 7,
+      "files": [
+        {
+          "fileName": "manifest.json",
+          "sha256": "dc55e368df1cc5cceff9c07eaa18302fa4163e24494d1f06a2b955255069980d",
+          "bytes": 3028
+        },
+        {
+          "fileName": "original-0.json",
+          "sha256": "cdbaf9ed6abf723ae344cd22e2dee79c2758a7846e258e79fa7cd4f9add267ce",
+          "bytes": 5118
+        },
+        {
+          "fileName": "original-1.json",
+          "sha256": "34a62adbd6a1f46555314931a71d1838ffd61b7deaed91ad848ab8ebb15d7bdd",
+          "bytes": 5283
+        },
+        {
+          "fileName": "original-2.parquet",
+          "sha256": "32e2b1184c69f460d67a99bbb1f34f4fed3d994116552cb45426f2c8a0ba2bc4",
+          "bytes": 1494236
+        },
+        {
+          "fileName": "original-3.json",
+          "sha256": "eddedb8e96428313fd01f5c5ed7205dcd72e7713f9cb3e2937ea34ac34e244fa",
+          "bytes": 6022
+        },
+        {
+          "fileName": "schema.json",
+          "sha256": "58772148f52b88d3beabe7d12efde92154069737a7914631a5f439d3238222f0",
+          "bytes": 9551
+        },
+        {
+          "fileName": "part-00000.parquet",
+          "sha256": "e1cd35b857efcb12fa1dbaf71efe62a8ab3f99fc5907e738aacf447696f986d5",
+          "bytes": 2018174
+        }
+      ]
+    },
+    {
+      "case": "plus-3",
+      "verifiedFileCount": 7,
+      "files": [
+        {
+          "fileName": "manifest.json",
+          "sha256": "3508ef8fa19ac70f123bd7ca2af78e70d48a31ff77ae18feb82798f7c06560f9",
+          "bytes": 3028
+        },
+        {
+          "fileName": "original-0.json",
+          "sha256": "cdbaf9ed6abf723ae344cd22e2dee79c2758a7846e258e79fa7cd4f9add267ce",
+          "bytes": 5118
+        },
+        {
+          "fileName": "original-1.json",
+          "sha256": "34a62adbd6a1f46555314931a71d1838ffd61b7deaed91ad848ab8ebb15d7bdd",
+          "bytes": 5283
+        },
+        {
+          "fileName": "original-2.parquet",
+          "sha256": "32e2b1184c69f460d67a99bbb1f34f4fed3d994116552cb45426f2c8a0ba2bc4",
+          "bytes": 1494236
+        },
+        {
+          "fileName": "original-3.json",
+          "sha256": "eddedb8e96428313fd01f5c5ed7205dcd72e7713f9cb3e2937ea34ac34e244fa",
+          "bytes": 6022
+        },
+        {
+          "fileName": "schema.json",
+          "sha256": "a20bc9f6e7c9ff7835271a321a72fb70ea5ec7ef89521c0c5d3663b251280526",
+          "bytes": 9551
+        },
+        {
+          "fileName": "part-00000.parquet",
+          "sha256": "e1cd35b857efcb12fa1dbaf71efe62a8ab3f99fc5907e738aacf447696f986d5",
+          "bytes": 2018174
+        }
+      ]
+    }
+  ],
+  "qualityPolicy": "Technical completion/archive presence does not certify business correctness. Failures and unknown token usage remain explicit."
+}

@@ -1,0 +1,18 @@
+{
+  "readOnly": true,
+  "sampleCount": 1,
+  "samples": [
+    {
+      "case": "flash-1",
+      "toolCallId": "call_2bdc139e1cfb4d09bb5e46ff",
+      "newTextLengths": [
+        129,
+        24182,
+        132
+      ],
+      "actualModelVisibleFeedback": "REPAIR_SEGMENT_LIMIT: Invalid bounded repair edit. {\"editIndex\":1,\"oldTextLength\":24,\"newTextLength\":24182,\"maxSegmentCharacters\":16000,\"anchorOffset\":10315,\"anchorLine\":222,\"anchorUnique\":true,\"replacementSegments\":[{\"start\":0,\"end\":16000,\"length\":16000},{\"start\":16000,\"end\":24182,\"length\":8182}]}. Split the change into repair.edits with oldText and newText each at most 16000 UTF-16 characters. Use code_read to locate unique exact anchors; prefer independent statement/function boundaries. For an insertion, replace the old anchor with the first segment, then append remaining segments using a unique tail anchor from the preceding replacement. Keep the latest baseCodeSha256 and parentCodeVersion for the entire atomic proposal. Nothing was executed or accepted; do not regenerate unrelated code.. Submit exactly one of source, repair or rollback. An existing version requires repair only; do not include source. Use the current version and hash exactly: {\"repair\":{\"parentCodeVersion\":1,\"baseCodeSha256\":\"f20e790d0745bdd23a83c5d93a93d1eda94929b89de7abf31ebb3fdc4f571f90\",\"edits\":[{\"oldText\":\"<exact existing text>\",\"newText\":\"<replacement text>\"}]}} ",
+      "sourceExcerptsOmitted": true
+    }
+  ],
+  "policy": "Real rejection feedback reached the model; this does not prove it successfully segmented the patch"
+}

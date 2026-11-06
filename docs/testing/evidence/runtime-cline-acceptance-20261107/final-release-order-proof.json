@@ -1,0 +1,51 @@
+{
+  "readOnly": true,
+  "allSixTrialsTerminalBeforeReleasePreparation": true,
+  "cases": [
+    {
+      "case": "flash-1",
+      "taskId": "analysis-coding-b9f786a5e0b4188cf8a63d3ba3ebf64707555da0855a44e3840fa1a152d0fc45",
+      "status": "BUDGET_EXCEEDED",
+      "endedAt": "2026-11-06T20:27:09.889Z"
+    },
+    {
+      "case": "plus-1",
+      "taskId": "analysis-coding-d321dd5823afd66df8cdf00b8a17394cd472103c89fb05c5ab90a774217c97df",
+      "status": "FAILED",
+      "endedAt": "2026-11-06T20:15:08.585Z"
+    },
+    {
+      "case": "flash-2",
+      "taskId": "analysis-coding-505c85abbc6c826d8d698d67befa2473eb94b1bc4ec61593a86f98313200d21f",
+      "status": "BUDGET_EXCEEDED",
+      "endedAt": "2026-11-06T20:59:09.237Z"
+    },
+    {
+      "case": "plus-2",
+      "taskId": "analysis-coding-5808ced1bc294159575e38ea460a7ecf5511ba00c848aa917dad7093468b0b75",
+      "status": "FAILED",
+      "endedAt": "2026-11-06T20:44:48.385Z"
+    },
+    {
+      "case": "flash-3",
+      "taskId": "analysis-coding-dc44433f2b4e9e163037d75f879a7ddc6aa0e83bdb2bf14491bd1e11e0232a24",
+      "status": "BUDGET_EXCEEDED",
+      "endedAt": "2026-11-06T21:19:21.790Z"
+    },
+    {
+      "case": "plus-3",
+      "taskId": "analysis-coding-f62920046593e03d51b4c5ecd17d49ec7498651128fb05817629e3d6ae8355ab",
+      "status": "FAILED",
+      "endedAt": "2026-11-06T21:14:24.099Z"
+    }
+  ],
+  "latestTrialEndedAt": "2026-11-06T21:19:21.790Z",
+  "firstPrepareContextCreatedAt": "2026-11-06 21:20:05.948754603 +0000 UTC",
+  "sourceCommit": "e2a97cfacd99d44d528b988cf126f0e96bcec155",
+  "deployedJarSha256": "acc584fa86aa9ee79064bef55e2dd571a56e40072ca02c105d91feecacf0fa41",
+  "releaseChanges": [
+    "Scoped read-only progress projection and terminal hydration",
+    "Bounded reconciliation for already-stopping native task"
+  ],
+  "sharedModelOrBudgetChange": false
+}

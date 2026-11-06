@@ -1,0 +1,28 @@
+{
+  "readOnly": true,
+  "workspaceId": "c31f97cf-a632-4f27-932e-8088fe0aa6c8",
+  "nodeId": "fd966919-7151-47de-b41b-dbebb0616f4e",
+  "renderedPlotlyCharts": [
+    {
+      "id": "close_trend",
+      "title": "华是科技（301218） 收盘价走势"
+    },
+    {
+      "id": "daily_change_pct",
+      "title": "华是科技（301218） 每日涨跌幅"
+    },
+    {
+      "id": "daily_volume",
+      "title": "华是科技（301218） 成交量"
+    },
+    {
+      "id": "daily_amount",
+      "title": "华是科技（301218） 成交额"
+    }
+  ],
+  "status": "PASSED",
+  "labels": "模型响应响应记录待核对数据供给快照已就绪Python 执行进程已结束报告交付部分归档",
+  "lifecycle": "报告部分交付",
+  "executeRequests": 0,
+  "browserErrors": []
+}

@@ -1,0 +1,49 @@
+{
+  "reclaimed": [
+    {
+      "root": "/var/tmp/runtime-data-remediation-20261107-r6",
+      "unusedPreparedImage": "sha256:113ddb16e9b3b0a7f6112a06662ed7274d1858b950bd79da3d132c66ccfb7d68",
+      "publishedImageRetained": "sha256:e8751423fff9383d60512d91ba02b2a436645ea526a435b63292acdd3391a626",
+      "exactJarSha256Retained": "81db7f82837d0ea370e6255d53b847cf62cd4d629a1f5c00638a88d4121da45d",
+      "noContainerReferences": true,
+      "cache": [
+        {
+          "ID": "xzlo1jjz6gqg8eajar6d0fs7b",
+          "Parent": "yruxb1w00v1btbkhgflxyagcw",
+          "Created at": "2026-11-06 17:23:33.522047841 +0000 UTC",
+          "Mutable": "false",
+          "Reclaimable": "true",
+          "Shared": "true",
+          "Size": "450.9MB",
+          "Description": "[3/3] COPY app.jar /srv/app/app.jar",
+          "Usage count": "1",
+          "Last used": "4 hours ago",
+          "Type": "regular"
+        }
+      ]
+    },
+    {
+      "root": "/var/tmp/runtime-data-remediation-20261107-r7",
+      "unusedPreparedImage": "sha256:36048910d8c7ec2a66d92d9a4379d8fbf71f16186359dc4abc1e2daf3c5b0398",
+      "publishedImageRetained": "sha256:05d7126418de52c53b75d987d851805765bb93d6a647dd29cbe0e566ffadf5d8",
+      "exactJarSha256Retained": "84e268c00715b133017ea00cbc8b1684f4a2ba69a4fbfbe548ebe8d22087920f",
+      "noContainerReferences": true,
+      "cache": [
+        {
+          "ID": "ol6r1b3amxaeh05ty34hjadbo",
+          "Parent": "yruxb1w00v1btbkhgflxyagcw",
+          "Created at": "2026-11-06 17:48:37.781150776 +0000 UTC",
+          "Mutable": "false",
+          "Reclaimable": "true",
+          "Shared": "true",
+          "Size": "450.9MB",
+          "Description": "[3/3] COPY app.jar /srv/app/app.jar",
+          "Usage count": "1",
+          "Last used": "4 hours ago",
+          "Type": "regular"
+        }
+      ]
+    }
+  ],
+  "policy": "No global prune, data/object deletion, rollback image deletion or threshold changes"
+}

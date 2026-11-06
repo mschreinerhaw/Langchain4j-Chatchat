@@ -1,0 +1,521 @@
+{
+  "kind": "search",
+  "taskId": "analysis-coding-73cd0d89297594284bde7f22d5c9dda837655c9d7101256afd517948ee69f86a",
+  "status": "BUDGET_EXCEEDED",
+  "requestObjectivePreserved": true,
+  "requestInstructionSha256": "61720832e7b4f8c56a7b2fce0200111498cc6c9122a6e13e8ad62106cf20a875",
+  "reasonCode": "BUDGET_EXCEEDED",
+  "toolsCalled": [
+    "input_read",
+    "input_read",
+    "input_read",
+    "market_resolve_security",
+    "web_search",
+    "web_search",
+    "web_fetch",
+    "web_search",
+    "web_fetch",
+    "web_fetch",
+    "python_execute",
+    "input_read",
+    "input_read",
+    "python_execute",
+    "python_execute",
+    "python_execute"
+  ],
+  "model": {
+    "protocol": "auto",
+    "providerModel": "qwen3.8-omni-flash",
+    "selectedModel": "qwen3.8-omni-flash"
+  },
+  "budget": {
+    "budgetId": "analysis-coding-tool-budget:analysis-coding-73cd0d89297594284bde7f22d5c9dda837655c9d7101256afd517948ee69f86a",
+    "deadlineAt": "2026-11-06T18:58:43.106Z",
+    "maxModelCalls": 12,
+    "maxModelTokens": 786432,
+    "maxToolCalls": 24,
+    "maxCodeExecutions": 12,
+    "maxCostAmount": "10",
+    "costCurrency": "USD",
+    "maxCpuMillis": 300000,
+    "maxMemoryBytes": 536870912,
+    "maxOutputBytes": 4194304
+  },
+  "allowedTools": [
+    "artifact_read",
+    "code_read",
+    "input_read",
+    "market_get_day_snapshot",
+    "market_get_history",
+    "market_get_indicators",
+    "market_get_snapshot",
+    "market_resolve_security",
+    "market_search",
+    "news_get_article",
+    "news_related_events",
+    "news_search",
+    "python_execute",
+    "read_files",
+    "report_submit",
+    "skills",
+    "sql_validate",
+    "web_fetch",
+    "web_search"
+  ],
+  "internetProfile": {
+    "agentId": "financial-news-agent",
+    "explicitlyRequested": true,
+    "modelName": "qwen3.8-omni-flash",
+    "modelRevision": 1,
+    "providerId": "tencent-wsa",
+    "providerRevision": 6,
+    "providers": [
+      {
+        "id": "tencent-wsa",
+        "name": "腾讯 WSA",
+        "revision": 6,
+        "supportsLanguageFilter": false,
+        "supportsNews": false
+      }
+    ],
+    "schemaVersion": "runtime_os.internet.v1"
+  },
+  "externalEvidence": [
+    {
+      "tool": "web_search",
+      "evidence_id": null,
+      "retrieved_at": "2026-11-06T18:39:33.235417175Z",
+      "status": "OK",
+      "sourceUrls": [
+        "https://epaper.cs.com.cn/zgzqb/html/2022-02/22/nw.D110000zgzqb_20220222_2-A10.htm",
+        "https://epaper.cs.com.cn/zgzqb/html/2022-03/04/nw.D110000zgzqb_20220304_5-A09.htm",
+        "https://epaper.stcn.com/paper/zqsb/html/epaper/index/content_1750230.htm",
+        "https://finance.ce.cn/stock/gsgdbd/202505/t20250522_2286961.shtml",
+        "https://xinpi.cnstock.com/m/xg/detail/301218"
+      ],
+      "sourceRecords": [
+        {
+          "url": "https://epaper.cs.com.cn/zgzqb/html/2022-03/04/nw.D110000zgzqb_20220304_5-A09.htm",
+          "evidence_id": "runtime-evidence:knowledge:31d0128021e9d0d20c3f0c797c3cca56ddeb9e3341c9dda65d62771042299108",
+          "retrieved_at": "2026-11-06T18:39:33.234881693Z",
+          "published_at": "2022/03/04 00:00:00"
+        },
+        {
+          "url": "https://epaper.cs.com.cn/zgzqb/html/2022-02/22/nw.D110000zgzqb_20220222_2-A10.htm",
+          "evidence_id": "runtime-evidence:knowledge:23ac7c48352d025a21d5dca459eae0596fa892bd2b1aa3c5a4a84714f4a1f740",
+          "retrieved_at": "2026-11-06T18:39:33.234978125Z",
+          "published_at": "2022/02/22 00:00:00"
+        },
+        {
+          "url": "https://xinpi.cnstock.com/m/xg/detail/301218",
+          "evidence_id": "runtime-evidence:knowledge:f66aed93b19bbd56ca52ed7922bd770a7bce395a487ddf149f5a997206f3d076",
+          "retrieved_at": "2026-11-06T18:39:33.235051459Z",
+          "published_at": null
+        },
+        {
+          "url": "https://epaper.stcn.com/paper/zqsb/html/epaper/index/content_1750230.htm",
+          "evidence_id": "runtime-evidence:knowledge:6e204947ae52a597326c807998504c03a11c91f103fae584f53d4ca13bb46f50",
+          "retrieved_at": "2026-11-06T18:39:33.235118900Z",
+          "published_at": "2022/02/21 00:00:00"
+        },
+        {
+          "url": "https://finance.ce.cn/stock/gsgdbd/202505/t20250522_2286961.shtml",
+          "evidence_id": "runtime-evidence:knowledge:9e3f0a654bb0dd2fcc4c62a35afc4376df1ab5b0dece85fc7418fd73089c410a",
+          "retrieved_at": "2026-11-06T18:39:33.235208249Z",
+          "published_at": "2025/05/22 11:15:00"
+        }
+      ],
+      "authority": "SEARCH_SUMMARIES_ARE_NOT_VERIFIED_QUOTES"
+    },
+    {
+      "tool": "web_search",
+      "evidence_id": null,
+      "retrieved_at": "2026-11-06T18:39:35.411304256Z",
+      "status": "OK",
+      "sourceUrls": [
+        "https://disc.static.sse.org.cn/disc/disk03/finalpage/2025-05-14/e8cc0b4d-7d39-4440-948d-aa1d98d3c7f0.PDF",
+        "https://disc.static.szse.cn/download/disc/disk03/finalpage/2025-05-21/29e81727-9410-4067-b74e-58a97000f853.PDF",
+        "https://epaper.cs.com.cn/zgzqb/html/2022-03/04/nw.D110000zgzqb_20220304_5-A09.htm",
+        "https://static.cninfo.com.cn/finalpage/2024-04-20/1219691198.PDF",
+        "https://static.cninfo.com.cn/finalpage/2025-03-19/1222833596.PDF"
+      ],
+      "sourceRecords": [
+        {
+          "url": "https://epaper.cs.com.cn/zgzqb/html/2022-03/04/nw.D110000zgzqb_20220304_5-A09.htm",
+          "evidence_id": "runtime-evidence:knowledge:6c6ff1d2c3a1f3a9e94e26f39de6bd1a76ae907e1a889d915e87c529a3ae459d",
+          "retrieved_at": "2026-11-06T18:39:35.410542794Z",
+          "published_at": "2022/03/04 00:00:00"
+        },
+        {
+          "url": "https://disc.static.szse.cn/download/disc/disk03/finalpage/2025-05-21/29e81727-9410-4067-b74e-58a97000f853.PDF",
+          "evidence_id": "runtime-evidence:knowledge:9a4c508223b226953ad65a674829b31be837b3ed028f3fac7a618594a07c41cc",
+          "retrieved_at": "2026-11-06T18:39:35.410697973Z",
+          "published_at": null
+        },
+        {
+          "url": "https://static.cninfo.com.cn/finalpage/2025-03-19/1222833596.PDF",
+          "evidence_id": "runtime-evidence:knowledge:6e59de50ffd2702365a99ac42665d58368583bc3d47b89c4739990a3c7300a89",
+          "retrieved_at": "2026-11-06T18:39:35.410845232Z",
+          "published_at": "2025/03/19 00:00:00"
+        },
+        {
+          "url": "https://disc.static.sse.org.cn/disc/disk03/finalpage/2025-05-14/e8cc0b4d-7d39-4440-948d-aa1d98d3c7f0.PDF",
+          "evidence_id": "runtime-evidence:knowledge:3c4a4cce2d8fef9fa8270b3e9bf654cec10d5dc5f4f56a3c7b7b6e2f8562c4ec",
+          "retrieved_at": "2026-11-06T18:39:35.410953802Z",
+          "published_at": null
+        },
+        {
+          "url": "https://static.cninfo.com.cn/finalpage/2024-04-20/1219691198.PDF",
+          "evidence_id": "runtime-evidence:knowledge:1e833648f66e4a5885a9a3fd47eaf1d32a815333df5d5a48efba7aa170a8eb0b",
+          "retrieved_at": "2026-11-06T18:39:35.411058643Z",
+          "published_at": "2024/04/20 00:00:00"
+        }
+      ],
+      "authority": "SEARCH_SUMMARIES_ARE_NOT_VERIFIED_QUOTES"
+    },
+    {
+      "tool": "web_fetch",
+      "evidence_id": "runtime-evidence:knowledge:2eaf467d5ca03860014caa2b8983b5ef154366a022a16b6264c10d246629775c",
+      "retrieved_at": "2026-11-06T18:40:06.638986609Z",
+      "status": "OK",
+      "sourceUrls": [
+        "https://epaper.cs.com.cn/zgzqb/html/2022-03/04/nw.D110000zgzqb_20220304_5-A09.htm"
+      ],
+      "sourceRecords": [],
+      "authority": "SEARCH_SUMMARIES_ARE_NOT_VERIFIED_QUOTES"
+    },
+    {
+      "tool": "web_search",
+      "evidence_id": null,
+      "retrieved_at": "2026-11-06T18:40:09.882856332Z",
+      "status": "OK",
+      "sourceUrls": [
+        "https://big5.szse.cn/site/cht/www.szse.cn/disclosure/notice/t20220304_591644.html",
+        "https://epaper.cs.com.cn/zgzqb/html/2022-02/22/nw.D110000zgzqb_20220222_1-A10.htm",
+        "https://epaper.cs.com.cn/zgzqb/html/2022-02/22/nw.D110000zgzqb_20220222_2-A10.htm",
+        "https://epaper.stcn.com/paper/zqsb/html/epaper/index/content_1754840.htm",
+        "https://vip.stock.finance.sina.com.cn/corp/view/vCB_AllBulletinDetail.php?id=7864822&stockid=301218"
+      ],
+      "sourceRecords": [
+        {
+          "url": "https://epaper.cs.com.cn/zgzqb/html/2022-02/22/nw.D110000zgzqb_20220222_1-A10.htm",
+          "evidence_id": "runtime-evidence:knowledge:f4f4a10c76e989bcbb14eef59a1b25fe60b4ecd4c403ee580fbbb02f6497c95e",
+          "retrieved_at": "2026-11-06T18:40:09.882443558Z",
+          "published_at": "2022/02/22 00:00:00"
+        },
+        {
+          "url": "https://epaper.stcn.com/paper/zqsb/html/epaper/index/content_1754840.htm",
+          "evidence_id": "runtime-evidence:knowledge:75cf289a4e12f522962bf1a2f27e3fa5de135dfbfb0b233096291286161dacad",
+          "retrieved_at": "2026-11-06T18:40:09.882510985Z",
+          "published_at": "2022/03/04 00:00:00"
+        },
+        {
+          "url": "https://epaper.cs.com.cn/zgzqb/html/2022-02/22/nw.D110000zgzqb_20220222_2-A10.htm",
+          "evidence_id": "runtime-evidence:knowledge:04028182bfdb6c10322c33c2218d33fe86a5aee7d8b65810287227bf97a14879",
+          "retrieved_at": "2026-11-06T18:40:09.882555659Z",
+          "published_at": "2022/02/22 00:00:00"
+        },
+        {
+          "url": "https://big5.szse.cn/site/cht/www.szse.cn/disclosure/notice/t20220304_591644.html",
+          "evidence_id": "runtime-evidence:knowledge:06ce8fe53f1c0353c4d3ece9b4e2e54a8cb09ff3f6e69ab1c7072721b0c093dc",
+          "retrieved_at": "2026-11-06T18:40:09.882596876Z",
+          "published_at": null
+        },
+        {
+          "url": "https://vip.stock.finance.sina.com.cn/corp/view/vCB_AllBulletinDetail.php?id=7864822&stockid=301218",
+          "evidence_id": "runtime-evidence:knowledge:a8d0f5e5422edfb175d19a8f0cf7213c2fe69e01018255451d48db04dbeafa7f",
+          "retrieved_at": "2026-11-06T18:40:09.882696465Z",
+          "published_at": "2022/03/04 00:00:00"
+        }
+      ],
+      "authority": "SEARCH_SUMMARIES_ARE_NOT_VERIFIED_QUOTES"
+    },
+    {
+      "tool": "web_fetch",
+      "evidence_id": null,
+      "retrieved_at": "2026-11-06T18:41:43.304035351Z",
+      "status": "ERROR",
+      "sourceUrls": [],
+      "sourceRecords": [],
+      "authority": "SEARCH_SUMMARIES_ARE_NOT_VERIFIED_QUOTES"
+    },
+    {
+      "tool": "web_fetch",
+      "evidence_id": "runtime-evidence:knowledge:ed91a0608da28b9373d52d48ed57d053b4ff66fe147f8c720ac09b62d83db54a",
+      "retrieved_at": "2026-11-06T18:41:59.343920302Z",
+      "status": "OK",
+      "sourceUrls": [
+        "https://www.szse.cn/disclosure/notice/t20220304_591644.html"
+      ],
+      "sourceRecords": [],
+      "authority": "SEARCH_SUMMARIES_ARE_NOT_VERIFIED_QUOTES"
+    }
+  ],
+  "daySnapshotReceipts": [],
+  "resultDatasetRef": null,
+  "pythonExecutions": [
+    {
+      "executionId": "cline-821daafc01ed5ce7ab8a7c9dd76abb72049a0a8a0ea3f3ef20c24b566db796c4",
+      "exitCode": 1,
+      "durationMs": 877,
+      "resultAvailable": false,
+      "outputStatus": null,
+      "inputDataRefs": [
+        "runtime-evidence:coding:input:e6c6513fac806a84a4fe3e711b691b5732ddda872ba055a22f53d0a3441bfd3",
+        "runtime-evidence:coding:input:fdab3f6267caaadc072b7cc7f6d64900ca45a368efed28265ea10449045ee5e",
+        "runtime-evidence:coding:input:0153909312111aff13e279a1a82777d5901483f8a851490efe4dc4b932da3ad"
+      ]
+    }
+  ],
+  "frozenInputVersions": [
+    [
+      {
+        "fileId": "ce6c6513fac806a84a4fe3e711b691b5732ddda872ba055a22f53d0a3441bfd3",
+        "fileName": "manifest.json",
+        "sha256": "b51ec501dc30828f35abe2e353322324db96cb6d4ff5846d9364bc189bb3f7bf",
+        "rowCount": 5,
+        "size": 3028,
+        "sourceDatasetRef": "coding-input-set:4215f3a5f10b3becfcbc37da9681eacb52ad6d181ecd464238f74ef5bdef362b"
+      },
+      {
+        "fileId": "cfdab3f6267caaadc072b7cc7f6d64900ca45a368efed28265ea10449045ee5e",
+        "fileName": "manifest.json",
+        "sha256": "ff1c9ab7a9294c187fb5a7d68939af1d73c0d4e0bc7464ec4caf4cddfe725607",
+        "rowCount": 1,
+        "size": 2262,
+        "sourceDatasetRef": "coding-data:data-c4e908843a6fcade2eee57c9918e79c05e9a228fb4e3faa73e33c0a035307028:5d3164490b4ed8a88361f45bebba60b26235182dce780ae8ceec2854baa7fb1f"
+      },
+      {
+        "fileId": "c0153909312111aff13e279a1a82777d5901483f8a851490efe4dc4b932da3ad",
+        "fileName": "manifest.json",
+        "sha256": "24789d4964b8a1b6883ac59791e59cc32e28d8f9a3c3e2df189264888d47d9a8",
+        "rowCount": 1,
+        "size": 2261,
+        "sourceDatasetRef": "coding-data:data-fb25c085f1b74356d357ce5be91c2feff805591777f5f1344722bd0f769f8fa1:9714c0a28cf0df316654ada79558b6daa4233da82b1af3d370ac362b5011bab1"
+      }
+    ]
+  ],
+  "scenario": "C",
+  "orderedToolTrace": [
+    {
+      "event": "CALL",
+      "tool": "input_read",
+      "callId": "call_e9a378f69d8d40b08715aafe",
+      "arguments": {
+        "limit": 6000
+      }
+    },
+    {
+      "event": "CALL",
+      "tool": "input_read",
+      "callId": "call_ddc75827a658467bbb32886f",
+      "arguments": {
+        "limit": 6000
+      }
+    },
+    {
+      "event": "RESULT",
+      "tool": "input_read",
+      "callId": "call_e9a378f69d8d40b08715aafe"
+    },
+    {
+      "event": "RESULT",
+      "tool": "input_read",
+      "callId": "call_ddc75827a658467bbb32886f"
+    },
+    {
+      "event": "CALL",
+      "tool": "input_read",
+      "callId": "call_d8c104eca4a645f398039236",
+      "arguments": {
+        "limit": 7000
+      }
+    },
+    {
+      "event": "CALL",
+      "tool": "market_resolve_security",
+      "callId": "call_56b30dab156a4274aba7e254",
+      "arguments": {
+        "query": "华是科技"
+      }
+    },
+    {
+      "event": "RESULT",
+      "tool": "input_read",
+      "callId": "call_d8c104eca4a645f398039236"
+    },
+    {
+      "event": "RESULT",
+      "tool": "market_resolve_security",
+      "callId": "call_56b30dab156a4274aba7e254",
+      "status": "CANDIDATES_REQUIRE_QUOTE_VERIFICATION",
+      "count": 1,
+      "evidence_id": "runtime-evidence:knowledge:8c232926764be0ed9cf9bf89c49e4a5074e374029dd2626041bf4ddd952f4229",
+      "itemsCount": 1
+    },
+    {
+      "event": "CALL",
+      "tool": "web_search",
+      "callId": "call_da3e0f33943045cb8b83c53e",
+      "arguments": {
+        "query": "华是科技 301218 首次公开发行股票并在创业板上市公告书 上市日期 发行数量"
+      }
+    },
+    {
+      "event": "CALL",
+      "tool": "web_search",
+      "callId": "call_c41eed6834964d958766acc6",
+      "arguments": {
+        "query": "深圳证券交易所 华是科技 上市公告书 cninfo 巨潮资讯 301218"
+      }
+    },
+    {
+      "event": "RESULT",
+      "tool": "web_search",
+      "callId": "call_da3e0f33943045cb8b83c53e",
+      "status": "OK",
+      "count": 5,
+      "itemsCount": 5
+    },
+    {
+      "event": "RESULT",
+      "tool": "web_search",
+      "callId": "call_c41eed6834964d958766acc6",
+      "status": "OK",
+      "count": 5,
+      "itemsCount": 5
+    },
+    {
+      "event": "CALL",
+      "tool": "web_fetch",
+      "callId": "call_ab878c67b97d4616b56d4f34",
+      "arguments": {}
+    },
+    {
+      "event": "CALL",
+      "tool": "web_search",
+      "callId": "call_26cd53bfc47e4b49ac8b9c3d",
+      "arguments": {
+        "query": "cninfo finalpage 2022-03-07 华是科技 首次公开发行股票并在创业板上市公告书 PDF"
+      }
+    },
+    {
+      "event": "RESULT",
+      "tool": "web_fetch",
+      "callId": "call_ab878c67b97d4616b56d4f34",
+      "status": "OK",
+      "count": 1,
+      "evidence_id": "runtime-evidence:knowledge:2eaf467d5ca03860014caa2b8983b5ef154366a022a16b6264c10d246629775c"
+    },
+    {
+      "event": "RESULT",
+      "tool": "web_search",
+      "callId": "call_26cd53bfc47e4b49ac8b9c3d",
+      "status": "OK",
+      "count": 5,
+      "itemsCount": 5
+    },
+    {
+      "event": "CALL",
+      "tool": "web_fetch",
+      "callId": "call_15efd6fe989d4bc99acf0a98",
+      "arguments": {}
+    },
+    {
+      "event": "RESULT",
+      "tool": "web_fetch",
+      "callId": "call_15efd6fe989d4bc99acf0a98",
+      "status": "ERROR",
+      "count": 0,
+      "errorCode": "HTTP_UNAVAILABLE"
+    },
+    {
+      "event": "CALL",
+      "tool": "web_fetch",
+      "callId": "call_3c2dbd1c624a42a18d47ee83",
+      "arguments": {}
+    },
+    {
+      "event": "RESULT",
+      "tool": "web_fetch",
+      "callId": "call_3c2dbd1c624a42a18d47ee83",
+      "status": "OK",
+      "count": 1,
+      "evidence_id": "runtime-evidence:knowledge:ed91a0608da28b9373d52d48ed57d053b4ff66fe147f8c720ac09b62d83db54a"
+    },
+    {
+      "event": "CALL",
+      "tool": "python_execute",
+      "callId": "call_0210e52385604890b4ecceea",
+      "arguments": {}
+    },
+    {
+      "event": "RESULT",
+      "tool": "python_execute",
+      "callId": "call_0210e52385604890b4ecceea",
+      "status": "FAILED",
+      "resultAvailable": false,
+      "executorStopped": true,
+      "exitCode": 1
+    },
+    {
+      "event": "CALL",
+      "tool": "input_read",
+      "callId": "call_a712dc5de2f9448b98f8e547",
+      "arguments": {
+        "limit": 6000
+      }
+    },
+    {
+      "event": "CALL",
+      "tool": "input_read",
+      "callId": "call_841c9530bef645f79feca41c",
+      "arguments": {
+        "limit": 7000
+      }
+    },
+    {
+      "event": "RESULT",
+      "tool": "input_read",
+      "callId": "call_a712dc5de2f9448b98f8e547"
+    },
+    {
+      "event": "RESULT",
+      "tool": "input_read",
+      "callId": "call_841c9530bef645f79feca41c"
+    },
+    {
+      "event": "CALL",
+      "tool": "python_execute",
+      "callId": "call_c483c97067ce44dda9cfc54c",
+      "arguments": {}
+    },
+    {
+      "event": "RESULT",
+      "tool": "python_execute",
+      "callId": "call_c483c97067ce44dda9cfc54c"
+    },
+    {
+      "event": "CALL",
+      "tool": "python_execute",
+      "callId": "call_2dc70bc051e946df9594460f",
+      "arguments": {}
+    },
+    {
+      "event": "RESULT",
+      "tool": "python_execute",
+      "callId": "call_2dc70bc051e946df9594460f"
+    },
+    {
+      "event": "CALL",
+      "tool": "python_execute",
+      "callId": "call_680e52a405444ccfb3290977",
+      "arguments": {}
+    },
+    {
+      "event": "RESULT",
+      "tool": "python_execute",
+      "callId": "call_680e52a405444ccfb3290977"
+    }
+  ]
+}

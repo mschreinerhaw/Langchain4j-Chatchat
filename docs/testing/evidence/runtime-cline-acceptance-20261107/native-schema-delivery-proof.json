@@ -1,0 +1,115 @@
+{
+  "readOnly": true,
+  "caseCount": 6,
+  "interpretation": "Correct mapping delivery does not certify generated parser or business conclusions",
+  "cases": [
+    {
+      "case": "flash-1",
+      "taskId": "analysis-coding-b9f786a5e0b4188cf8a63d3ba3ebf64707555da0855a44e3840fa1a152d0fc45",
+      "schemaSha256": "d06ac668abc2a891ac8c7fdf0d1d683b598c7309479c86534ec3433ea39ef713",
+      "nativeFileId": "ca5a9df2ffe5dfe1680b77ff27be8cbda59319f91da84193eb661ef452716be3",
+      "partSha256": "32e2b1184c69f460d67a99bbb1f34f4fed3d994116552cb45426f2c8a0ba2bc4",
+      "manifestSha256": "cdbaf9ed6abf723ae344cd22e2dee79c2758a7846e258e79fa7cd4f9add267ce",
+      "bindingStatus": "BOUND",
+      "rowCount": 2943,
+      "columnCount": 39,
+      "keyColumns": {
+        "c8": "change_pct",
+        "c25": "quote_code",
+        "c26": "quote_name",
+        "c34": "trade_date"
+      },
+      "allReferencedFilesHashVerified": true
+    },
+    {
+      "case": "plus-1",
+      "taskId": "analysis-coding-d321dd5823afd66df8cdf00b8a17394cd472103c89fb05c5ab90a774217c97df",
+      "schemaSha256": "5ff1c89c3a857ea88df92659419e93ba74d64e22da4bf4d27e9b02a50ef970cc",
+      "nativeFileId": "cd786460c146f83a6b19db58fff94d57f1b059e000c2413d4ec1ccabd44ca0af",
+      "partSha256": "32e2b1184c69f460d67a99bbb1f34f4fed3d994116552cb45426f2c8a0ba2bc4",
+      "manifestSha256": "cdbaf9ed6abf723ae344cd22e2dee79c2758a7846e258e79fa7cd4f9add267ce",
+      "bindingStatus": "BOUND",
+      "rowCount": 2943,
+      "columnCount": 39,
+      "keyColumns": {
+        "c8": "change_pct",
+        "c25": "quote_code",
+        "c26": "quote_name",
+        "c34": "trade_date"
+      },
+      "allReferencedFilesHashVerified": true
+    },
+    {
+      "case": "flash-2",
+      "taskId": "analysis-coding-505c85abbc6c826d8d698d67befa2473eb94b1bc4ec61593a86f98313200d21f",
+      "schemaSha256": "b9a1550e66ca988c6c198c75446b291301a968e094b26b80e07ea0fc13914464",
+      "nativeFileId": "c35f3abbae43293f5c0fd08807a4c0e2f31e1a7aabce23ac14c491aa23e8f37b",
+      "partSha256": "32e2b1184c69f460d67a99bbb1f34f4fed3d994116552cb45426f2c8a0ba2bc4",
+      "manifestSha256": "cdbaf9ed6abf723ae344cd22e2dee79c2758a7846e258e79fa7cd4f9add267ce",
+      "bindingStatus": "BOUND",
+      "rowCount": 2943,
+      "columnCount": 39,
+      "keyColumns": {
+        "c8": "change_pct",
+        "c25": "quote_code",
+        "c26": "quote_name",
+        "c34": "trade_date"
+      },
+      "allReferencedFilesHashVerified": true
+    },
+    {
+      "case": "plus-2",
+      "taskId": "analysis-coding-5808ced1bc294159575e38ea460a7ecf5511ba00c848aa917dad7093468b0b75",
+      "schemaSha256": "9e69b02bc22f423fe8624959f2403877f00852f955177c64a3ba1356c40da4a4",
+      "nativeFileId": "c188bbca3280f51b40bc4670ded8f64ed4131c5ea2f37f2c6ae84395c71573b2",
+      "partSha256": "32e2b1184c69f460d67a99bbb1f34f4fed3d994116552cb45426f2c8a0ba2bc4",
+      "manifestSha256": "cdbaf9ed6abf723ae344cd22e2dee79c2758a7846e258e79fa7cd4f9add267ce",
+      "bindingStatus": "BOUND",
+      "rowCount": 2943,
+      "columnCount": 39,
+      "keyColumns": {
+        "c8": "change_pct",
+        "c25": "quote_code",
+        "c26": "quote_name",
+        "c34": "trade_date"
+      },
+      "allReferencedFilesHashVerified": true
+    },
+    {
+      "case": "flash-3",
+      "taskId": "analysis-coding-dc44433f2b4e9e163037d75f879a7ddc6aa0e83bdb2bf14491bd1e11e0232a24",
+      "schemaSha256": "58772148f52b88d3beabe7d12efde92154069737a7914631a5f439d3238222f0",
+      "nativeFileId": "cdfc5f4ccc3f551ba80b984d337ac85e6c611d0d92142c29a85e1765eaf64477",
+      "partSha256": "32e2b1184c69f460d67a99bbb1f34f4fed3d994116552cb45426f2c8a0ba2bc4",
+      "manifestSha256": "cdbaf9ed6abf723ae344cd22e2dee79c2758a7846e258e79fa7cd4f9add267ce",
+      "bindingStatus": "BOUND",
+      "rowCount": 2943,
+      "columnCount": 39,
+      "keyColumns": {
+        "c8": "change_pct",
+        "c25": "quote_code",
+        "c26": "quote_name",
+        "c34": "trade_date"
+      },
+      "allReferencedFilesHashVerified": true
+    },
+    {
+      "case": "plus-3",
+      "taskId": "analysis-coding-f62920046593e03d51b4c5ecd17d49ec7498651128fb05817629e3d6ae8355ab",
+      "schemaSha256": "a20bc9f6e7c9ff7835271a321a72fb70ea5ec7ef89521c0c5d3663b251280526",
+      "nativeFileId": "c3bf8097d0ce9ad63fe82710b41faf86bb52964c3cf8b51e06d7b90c5b13346a",
+      "partSha256": "32e2b1184c69f460d67a99bbb1f34f4fed3d994116552cb45426f2c8a0ba2bc4",
+      "manifestSha256": "cdbaf9ed6abf723ae344cd22e2dee79c2758a7846e258e79fa7cd4f9add267ce",
+      "bindingStatus": "BOUND",
+      "rowCount": 2943,
+      "columnCount": 39,
+      "keyColumns": {
+        "c8": "change_pct",
+        "c25": "quote_code",
+        "c26": "quote_name",
+        "c34": "trade_date"
+      },
+      "allReferencedFilesHashVerified": true
+    }
+  ]
+}

@@ -14,6 +14,7 @@
 | EMPTY-06 | 行情auto模式在无起始日期时默认只读daily_hot；单层零行与空目录日期都不足以证明整源为空 | SOURCE_EMPTY没有充分依据 | 仅对候选空目录做既有存储daily/weekly两次各最多1行的存在性检查；保留异常，不作恢复循环或全量扫描导出 |
 | EMPTY-07 | Coding所有初始数据为空且没有额外探索工具时，AnalysisCoverageCoordinator除已有能力缺口答案外直接抛异常 | 未把状态交给Cline生成有证据的受限报告 | 保留已有模型缺口答案；其余在原授权、预算下交给原生Cline，状态记录不能当业务数据 |
 | EMPTY-08（本轮新增回归） | 新E02零行读取已结束且回执存在，但dataObservation复制了descriptor.chunks中的Java记录；原始字段顺序Hash为91fecbdd…，解码后排序Map Hash为e8122313…；按存储原顺序复算仍精确等于原Hash | A2拒绝停止证明，读取操作挂起，后续探索无法准入；单纯Map模拟没有覆盖生产Chunk类型 | 新回执先规范化为JSON数据；旧回执只接受精确原编码Hash校验，不改写证据；原生恢复仅核对已停止读取，不重放查询、不改变预算 |
+| EMPTY-09 | E04三次Python退出0，均因NO_DATA报告装入诊断指标/表格被拒绝；E05先混淆visualReport.status与analysisStatus，后将字段不可用标为计算FAILED；反馈未给精确字段路径和枚举 | 模型反复原生修复仍未交付受限/部分报告 | 保留原验证规则，补可操作字段级错误与缺输入UNRESOLVED语义；不把失败改为PASSED，不自动改写报告 |
 
 ## 状态与治理约束
 

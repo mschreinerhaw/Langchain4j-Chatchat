@@ -148,6 +148,56 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
         return saved.deepCopy();
     }
 
+    /** Bind a transport model attempt to the existing SDK boundary, retaining no second transcript. */
+    public void bindModelCheckpoint(KernelDataScope scope,String taskId,CodingJournal.Lease lease,
+            String operationId,long checkpointOrdinal) {
+        require(operationId!=null&&operationId.matches("model-[1-9][0-9]{0,5}"),CONTRACT_INVALID,"Model operation required");
+        mutateTask(scope,taskId,WORKER,task->{
+            fence(task,lease);active(task);deadline(task);
+            require(task.outcome.executionControl().stopReason()==null,INVALID_STATE_TRANSITION,"Task is stopping");
+            var saved=task.sdkCheckpoint;
+            require(saved!=null&&saved.path("checkpointOrdinal").asLong(-1)==checkpointOrdinal
+                && saved.path("modelOrdinal").asLong(-1)+1==Long.parseLong(operationId.substring(6)),
+                CONTRACT_INVALID,"Model attempt differs from its SDK boundary");
+            var binding=json.createObjectNode().put("checkpointOrdinal",checkpointOrdinal)
+                .put("sdkSessionId",saved.path("sdkSessionId").asText()).put("checkpointSha256",checkpointHash(saved));
+            String key="model-checkpoint:"+operationId;var prior=task.privateState.get(key);
+            require(prior==null||prior.equals(binding),TASK_ID_CONFLICT,"Model checkpoint binding changed");
+            require(prior!=null||task.privateState.size()<128,ADAPTER_UNAVAILABLE,"Private state capacity");
+            task.privateState.put(key,binding);
+        });
+    }
+
+    /** Only the next stopped MODEL receipt may be consumed by the restored SDK transport. */
+    public com.fasterxml.jackson.databind.JsonNode sdkCheckpointForModelReceipt(KernelDataScope scope,String taskId,
+            Set<String> verifiedResponses) {
+        var task=task(read(scope,READ),taskId);var saved=task.sdkCheckpoint;
+        if(saved==null||unresolved(task)||!saved.path("operationIds").isArray())return null;
+        var covered=new HashSet<String>();saved.path("operationIds").forEach(v->covered.add(v.asText()));
+        if(covered.size()!=saved.path("operationCount").asInt(-1)||!task.operations.keySet().containsAll(covered))return null;
+        var extra=task.operations.keySet().stream().filter(id->!covered.contains(id)).toList();
+        if(extra.size()!=1)return null;
+        String id=extra.get(0);var op=task.operations.get(id);var binding=task.privateState.get("model-checkpoint:"+id);
+        if(!verifiedResponses.contains(id)||op.kind!=CodingJournal.OperationKind.MODEL||!op.startIntent||op.stopProofRef==null
+            ||!id.equals("model-"+(saved.path("modelOrdinal").asLong(-1)+1))||binding==null
+            ||!checkpointHash(saved).equals(binding.path("checkpointSha256").asText()))return null;
+        var next=(com.fasterxml.jackson.databind.node.ObjectNode)saved.deepCopy();
+        next.put("receiptReplayOperationId",id);
+        return next;
+    }
+
+    public boolean modelCheckpointMatches(KernelDataScope scope,String taskId,String operationId,long ordinal) {
+        var task=task(read(scope,READ),taskId);var binding=task.privateState.get("model-checkpoint:"+operationId);
+        return binding!=null&&task.sdkCheckpoint!=null&&binding.path("checkpointOrdinal").asLong(-1)==ordinal
+            && checkpointHash(task.sdkCheckpoint).equals(binding.path("checkpointSha256").asText());
+    }
+
+    private String checkpointHash(com.fasterxml.jackson.databind.JsonNode value) {
+        try {return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+            .digest(json.writeValueAsBytes(json.convertValue(value,Object.class))));}
+        catch(java.io.IOException|java.security.NoSuchAlgorithmException invalid){throw new IllegalStateException(invalid);}
+    }
+
     /** Resume a closed response-less MODEL request only. Never rebase unknown code/tool side effects. */
     public com.fasterxml.jackson.databind.JsonNode sdkCheckpointAfterLocalModelStops(KernelDataScope scope,String taskId,
             Set<String> stoppedWithoutResponse) {

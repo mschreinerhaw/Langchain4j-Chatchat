@@ -38,6 +38,46 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClineModelCallbackControllerTest {
+    @Test void restoredSdkConsumesOnlyItsBoundReceiptWithoutProviderDispatchOrSecondCharge() {
+        var source=new DriverManagerDataSource("jdbc:h2:mem:receipt-restore-"+UUID.randomUUID()+";DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE","sa","");
+        new ResourceDatabasePopulator(new ClassPathResource("runtime-evidence-schema.sql")).execute(source);
+        var json=new ObjectMapper().findAndRegisterModules().disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        var store=new JdbcRuntimeEvidenceStore(new JdbcTemplate(source),json,new DataSourceTransactionManager(source));
+        var scope=new KernelDataScope("tenant","owner",null,null,"run",null,Map.of());
+        var input=Map.<String,Object>of("fixture","authorized");
+        store.register(new EvidenceRecord(null,"input",scope,"CODING_INPUT_SNAPSHOT","test",store.contentHash(input),input,null,
+            System.currentTimeMillis(),Map.of()),new EvidenceLineage(null,"input",scope,List.of(),"task","test",null,Map.of()));
+        var access=new CodingInvocationContext();var receipts=new ClineModelReceiptStore(store);var timer=Executors.newSingleThreadScheduledExecutor();
+        try {
+            var tasks=new DurableCodingTaskService(store,json,Clock.systemUTC(),access,(owner,ref)->true,receipts,Runnable::run,new ConcurrentTaskScheduler(timer));
+            var c=contract(scope);var grants=EnumSet.allOf(CodingTaskAccess.Action.class);
+            var lease=access.as(scope,grants,()->{var accepted=tasks.submit(c);return tasks.claim(scope,"task","cline-adapter:test",Duration.ofMinutes(5),accepted.revision());});
+            var boundary=json.createObjectNode().put("sdkSessionId","same-sdk-session").put("checkpointOrdinal",1).put("modelOrdinal",0).put("eventOrdinal",0)
+                .put("inputSnapshotRef",c.inputSnapshotRef()).put("workspaceRef",c.workspaceRef()).put("contractHash",CodingCanonicalHash.sha256(c));
+            boundary.set("messages",json.valueToTree(List.of(Map.of("role","user","content",List.of(Map.of("type","text","text","Original context"))))));
+            access.as(scope,grants,()->{tasks.saveSdkCheckpoint(scope,"task",lease,boundary);return null;});
+            var model=mock(ClineRuntimeModelBridge.class);
+            when(model.complete(any(),any())).thenReturn(Map.of("text","reviewed","toolCalls",List.of(),"finishReason","STOP","usage",Map.of("inputTokens",4,"outputTokens",2)));
+            var controller=new ClineModelCallbackController(access,tasks,model,receipts,mock(CodingInputSnapshotService.class),mock(CodingValidationPlanService.class),mock(CodingEvidenceCollector.class),json);
+            var body=json.createObjectNode().put("taskId","task").put("contractHash",CodingCanonicalHash.sha256(c)).put("fencingToken",lease.fencingToken());
+            body.set("scope",json.valueToTree(scope));body.set("contract",json.valueToTree(c));
+            var request=json.createObjectNode().put("operationId","model-1").put("managedAttempt",true).put("sdkCheckpointOrdinal",1);
+            request.set("messages",json.createArrayNode());request.set("tools",json.createArrayNode());body.set("request",request);
+            controller.model(body);
+            var charged=access.as(scope,grants,()->tasks.get(scope,"task").usage());
+            var fresh=access.as(scope,grants,()->tasks.recoveryFence(scope,"task",lease,tasks.get(scope,"task").revision()));
+            body.put("fencingToken",fresh.fencingToken());request.put("receiptReplayExpected",true);
+            assertThat(controller.model(body)).containsEntry("runtimeReceiptReplayed",true);
+            assertThat(access.as(scope,grants,()->tasks.get(scope,"task").usage())).isEqualTo(charged);
+            request.put("sdkCheckpointOrdinal",2);
+            assertThatThrownBy(()->controller.model(body)).hasMessageContaining("differs from the restored SDK boundary");
+            request.put("sdkCheckpointOrdinal",1).put("operationId","model-2");
+            assertThatThrownBy(()->controller.model(body)).hasMessageContaining("dispatch forbidden");
+            request.put("operationId","model-1");body.put("fencingToken",lease.fencingToken());
+            assertThatThrownBy(()->controller.model(body)).hasMessageContaining("lease, or stop state is no longer current");
+            verify(model,times(1)).complete(any(),any());
+        }finally{timer.shutdownNow();}
+    }
     @Test void failedCallbackArchivesLocalClosureAndBudgetReadKeepsUnknownUsageCharged() {
         var source=new DriverManagerDataSource("jdbc:h2:mem:callback-local-stop-"+UUID.randomUUID()+";DB_CLOSE_DELAY=-1","sa","");
         new ResourceDatabasePopulator(new ClassPathResource("runtime-evidence-schema.sql")).execute(source);

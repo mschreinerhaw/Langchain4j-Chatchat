@@ -410,12 +410,20 @@ public final class ClineModelCallbackController {
                 Map.of("operationId", operationId, "modelCalls", 1, "maxTokens", 1)));
             var prior = receipts.response(call.scope(), call.taskId(), operationId);
             if (prior.isPresent()) {
+                boolean replay=request.path("receiptReplayExpected").asBoolean();
+                if(replay&&!tasks.modelCheckpointMatches(call.scope(),call.taskId(),operationId,request.path("sdkCheckpointOrdinal").asLong(-1)))
+                    throw new ResponseStatusException(HttpStatus.CONFLICT,"Archived model response differs from the restored SDK boundary");
                 if(managedAttempt)contract(body,call);
                 if (prior.get().containsKey("error") && !(supportsModelFeedback && repairableModelResponse(prior.get()))) throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "Archived model response contains invalid tool arguments");
                 if (managedAttempt) settle(accounting);
+                if(replay){var cached=new java.util.LinkedHashMap<String,Object>(prior.get());cached.put("runtimeReceiptReplayed",true);return cached;}
                 return prior.get();
             }
+            if(request.path("receiptReplayExpected").asBoolean())
+                throw new ResponseStatusException(HttpStatus.CONFLICT,"Restored SDK requires an existing model receipt; dispatch forbidden");
+            if(request.has("sdkCheckpointOrdinal"))tasks.bindModelCheckpoint(call.scope(),call.taskId(),call.lease(),
+                operationId,request.path("sdkCheckpointOrdinal").asLong(-1));
             // One authenticated transport request, preserving the existing durable
             // admission/start/receipt/settlement transactions and crash semantics.
             if (managedAttempt) reserve(accounting);

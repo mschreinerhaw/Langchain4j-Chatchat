@@ -187,7 +187,7 @@ test('restoring a settled checkpoint cannot reset the model response repair limi
   let admitted=0,models=0;
   const gateway={async reserveModel(){admitted++;},async settleModel(){},async finish(){},async executePython(){throw new Error('must not execute');},
     async model(){models++;throw new Error('must not call');}};
-  const checkpoint={messages:[{role:'user',content:[{type:'text',text:'Original authorized request'}]}],modelOrdinal:2,eventOrdinal:3,
+  const checkpoint={sdkSessionId:'existing-sdk-session',checkpointOrdinal:1,messages:[{role:'user',content:[{type:'text',text:'Original authorized request'}]}],modelOrdinal:2,eventOrdinal:3,
     modelResponseRepairs:1,modelResponseFeedback:{schemaVersion:'runtime_os.coding.model_feedback.v1',diagnosticCode:'MODEL_OUTPUT_TRUNCATED',repairAllowed:true,maxRepairAttempts:1}};
   const result=await createCodingRun(task,gateway,{model:createRuntimeModel(gateway,task,2),checkpoint}).run();
   assert.equal(result.status,'failed');assert.match(result.error,/MODEL_RESPONSE_REPAIR_LIMIT_REACHED/);

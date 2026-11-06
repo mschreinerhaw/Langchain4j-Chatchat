@@ -193,6 +193,14 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
                 && tasks.unresolvedOperations(scope, taskId).isEmpty()) {
             JsonNode checkpoint = sessionMissing ? tasks.sdkCheckpoint(scope, taskId) : null;
             if(checkpoint==null){
+                var known=new java.util.HashSet<String>();
+                for(var operation:tasks.startedModelOperations(scope,taskId))
+                    if(receipts.response(scope,taskId,operation.operationId()).isPresent()
+                        && receipts.confirmsStopped(scope,taskId,operation.operationId(),"runtime-model:"+operation.operationId(),
+                            receipts.proofRef(scope,taskId,operation.operationId())))known.add(operation.operationId());
+                checkpoint=tasks.sdkCheckpointForModelReceipt(scope,taskId,known);
+            }
+            if(checkpoint==null){
                 var closed=new java.util.HashSet<String>();
                 for(var operation:tasks.startedModelOperations(scope,taskId))
                     if(receipts.localTerminationProof(scope,taskId,operation.operationId()).isPresent())closed.add(operation.operationId());
@@ -204,7 +212,7 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
                     && charged.modelTokens()<accepted.budget().maxModelTokens() && accepted.budget().deadlineAt().isAfter(clock.instant());
                 if(hasBudget) {
                 requireInputCapabilities(tasks.contract(scope,taskId));
-                if(!sessionMissing)lease=tasks.recoveryFence(scope,taskId,lease,tasks.get(scope,taskId).revision());
+                lease=tasks.recoveryFence(scope,taskId,lease,tasks.get(scope,taskId).revision());
                 request("/v1/runs", Map.of("contract", tasks.contract(scope, taskId),
                     "contractHash", current.contractSha256(), "fencingToken", lease.fencingToken(),
                     "checkpoint", checkpoint));

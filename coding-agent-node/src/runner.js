@@ -192,6 +192,11 @@ export function createCodingRun(contract, gateway, options = {}) {
   let modelIndex = restored?.modelOrdinal ?? 0;
   let eventOrdinal = restored?.eventOrdinal ?? 0;
   let checkpointOrdinal = restored?.checkpointOrdinal ?? 0;
+  if(restored&&(!/^[a-zA-Z0-9-]{1,64}$/.test(restored.sdkSessionId??'')
+      ||!Number.isSafeInteger(restored.checkpointOrdinal)||restored.checkpointOrdinal<1))
+    throw new TypeError('Invalid SDK checkpoint identity; creating a replacement session is forbidden');
+  let receiptReplayPending = restored?.receiptReplayOperationId ?? null;
+  let receiptReplayConsumed = false;
   const sdkSessionId = restored?.sdkSessionId ?? randomUUID();
   const attemptId = options.attemptId ?? `${contract.taskId}:attempt-1`;
   let lastUsage = { inputTokens: 0, outputTokens: 0, totalCost: 0 };
@@ -801,7 +806,8 @@ export function createCodingRun(contract, gateway, options = {}) {
       async onEvent(event) {
         if (event.type === 'message-added' && typeof gateway.checkpoint === 'function'
             && (((fastAnalysis || workspaceFast || nativeSdk && reviewedAnalysis) && lastCollectedOperation && event.message?.role === 'tool')
-              || nativeSdk && modelResponseFeedback && ['assistant','tool'].includes(event.message?.role))
+              || nativeSdk && modelResponseFeedback && ['assistant','tool'].includes(event.message?.role)
+              || receiptReplayConsumed)
             && completeToolBoundary(event.snapshot.messages)) {
           await gateway.checkpoint(contract, boundCompactionCheckpoint({ sdkSessionId, checkpointOrdinal: ++checkpointOrdinal,
             ...prepareTurn?.snapshot(),
@@ -811,9 +817,16 @@ export function createCodingRun(contract, gateway, options = {}) {
             modelResponseFeedback, modelResponseRepairs, ...(toolCatalog ? {toolCatalog:toolCatalog.snapshot()} : {}),
             contractHash: options.contractHash, inputSnapshotRef: contract.inputSnapshotRef,
             workspaceRef: contract.workspaceRef }, fileInput || sqlExploration ? 750000 : 262144));
+          receiptReplayConsumed=false;
         }
       },
       async beforeModel({ snapshot, request }) {
+        if(receiptReplayPending){
+          if(receiptReplayPending!==`model-${modelIndex+1}`)throw new TypeError('SDK receipt replay ordinal differs');
+          request.runtimeCheckpointOrdinal=checkpointOrdinal;
+          request.runtimeReceiptReplay=true;
+          return; // Preserve the original bound checkpoint until SDK has consumed its response.
+        }
         if (toolCatalog) request.tools = toolCatalog.expose(request.tools);
         // The complete derived report is already in the preceding tool receipt.
         // Reuse it for review; keep Python available for justified corrections.
@@ -836,6 +849,7 @@ export function createCodingRun(contract, gateway, options = {}) {
           contractHash: options.contractHash, inputSnapshotRef: contract.inputSnapshotRef,
           workspaceRef: contract.workspaceRef,
         }, fileInput || sqlExploration ? 750000 : 262144));
+        request.runtimeCheckpointOrdinal=checkpointOrdinal;
         if (nativeSdk) return;
         const index = ++modelIndex;
         try {
@@ -890,6 +904,7 @@ export function createCodingRun(contract, gateway, options = {}) {
       let contextMeasurement = {};
       let errorCategory = null;
       let runtimeAdmissionMs = null;
+      let receiptReplayed = false;
       let budgetView;
       const actualTools = new Set();
       let initialPlanText='',initialPlanRecorded=false;
@@ -958,6 +973,7 @@ export function createCodingRun(contract, gateway, options = {}) {
             continue;
           }
           if (event.type === 'runtime-model-metadata') {
+            receiptReplayed=event.metadata.receiptReplayed===true;
             await forward({ type: 'MODEL_RESOLVED', modelCall: modelIndex, stage: 'CODING', ...event.metadata });
             continue;
           }
@@ -970,11 +986,12 @@ export function createCodingRun(contract, gateway, options = {}) {
           if (nativeSdk && event.type === 'usage') attemptUsage = { ...attemptUsage, ...event.usage };
           if (event.type === 'finish' && event.reason !== 'error') outcome = 'SUCCEEDED';
           if (nativeSdk && event.type === 'finish' && event.reason !== 'error') {
+            if(receiptReplayed){receiptReplayPending=null;receiptReplayConsumed=true;}
             lastUsage = attemptUsage ?? {};
-            codingProgress.usage(lastUsage);
+            if(!receiptReplayed)codingProgress.usage(lastUsage);
             if (!options.model.managesAdmissions) await gateway.settleModel(contract, { operationId: `model-${modelIndex}`,
               requestId: event.requestId ?? null, usage: lastUsage });
-            await forward({ type: 'MODEL_USAGE', modelCall: modelIndex, usage: lastUsage, stage: 'CODING', status: 'SUCCEEDED',
+            if(!receiptReplayed)await forward({ type: 'MODEL_USAGE', modelCall: modelIndex, usage: lastUsage, stage: 'CODING', status: 'SUCCEEDED',
               finishReason: event.reason, actualTools: [...actualTools] });
           }
           // Unknown transport failures retain their reservation; they cannot be replayed safely.
@@ -1058,6 +1075,9 @@ export function createCodingRun(contract, gateway, options = {}) {
         const restoreStarted = performance.now();
         if (restoredMessages) agent.restore(restoredMessages);
         restoreDurationMs = Math.round(performance.now() - restoreStarted);
+        if(restoredMessages)await forward({type:'SESSION_TIMING',stage:'SDK_CHECKPOINT_RESTORED',
+          sdkSessionId,checkpointOrdinal,modelCall:modelIndex,restoreDurationMs,
+          receiptReplayOperationId:receiptReplayPending,restoredMessageCount:agent.snapshot().messages.length});
         if ((workspaceFast || sqlExploration && permitted.has('workspace_read')) && !restored) {
           const started = performance.now();
           let contextStatus = 'FAILED';

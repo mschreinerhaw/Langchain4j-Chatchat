@@ -5,6 +5,15 @@ import { KNOWLEDGE_TOOLS, RESOURCE_TOOLS, knowledgeTools } from '../src/knowledg
 import { taskSkillPackages, imageSkillBytes } from '../src/skill-distribution.js';
 const contextRef='runtime-context:run';
 const profile={schemaVersion:'runtime_os.knowledge.v1',agentId:'agent'};
+test('provider capability metadata makes unsupported language and news filters explicit',()=>{
+  const contract={schemaVersion:'runtime_os.coding.v3',metadataRefs:['runtime-coding:internet-search:v1'],
+    runtimeContext:{knowledgeExploration:profile,internetSearch:{schemaVersion:'runtime_os.internet.v1',providers:[
+      {id:'wsa',name:'WSA',revision:1,supportsNews:false,supportsLanguageFilter:false}]}},
+    authorization:{allowedTools:['web_search'],allowedSideEffects:[],networkPolicy:'NONE'}};
+  const [tool]=knowledgeTools(contract,{knowledge(){}},()=>{});
+  assert.match(tool.description,/omit language/);assert.match(tool.description,/search_type=web/);
+  assert.match(tool.description,/count=1/);assert.match(tool.description,/error as no data/);
+});
 test('file analysis retains governed resource discovery without granting text report submission',async()=>{
   const calls=[];
   const contract={schemaVersion:'runtime_os.coding.v3',metadataRefs:['runtime-coding:resource-calculation-inputs:v1'],

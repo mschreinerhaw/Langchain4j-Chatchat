@@ -117,7 +117,16 @@ public class InternetSearchService {
     }
     private static String redact(String value,Map<String,String> credentials){String clean=value;for(String secret:credentials.values())if(secret!=null&&!secret.isBlank())clean=clean.replace(secret,"[REDACTED]");return clean;}
     private static String encode(String value){return URLEncoder.encode(value,StandardCharsets.UTF_8);}
-    static Map<String,Object> error(String code){return Map.of("status","ERROR","errorCode",code,"count",0);}
+    static Map<String,Object> error(String code){
+        String guidance=switch(code){
+            case "PROVIDER_LANGUAGE_UNSUPPORTED"->"This engine does not support a language filter. Omit language or select another already authorized engine; query text may still be in the requested language. No search was performed.";
+            case "PROVIDER_NEWS_UNSUPPORTED"->"This engine supports web search only. Use search_type=web or another already authorized engine.";
+            case "PROVIDER_AUTH_FAILED","PROVIDER_CREDENTIAL_UNAVAILABLE"->"Provider credentials are unavailable or rejected. Do not guess credentials; use delivered local evidence and disclose the external-search gap.";
+            case "PROVIDER_DISABLED","PROVIDER_CONFIGURATION_CHANGED"->"Provider configuration changed or is unavailable. A new authorization snapshot is required; do not bypass the model or Agent policy.";
+            default->"Search did not establish data absence. Inspect errorCode, preserve the evidence gap and use only currently authorized alternatives.";
+        };
+        return Map.of("status","ERROR","errorCode",code,"count",0,"guidance",guidance);
+    }
     private static String first(JsonNode n,String... keys){for(String k:keys)if(n.path(k).isTextual())return n.path(k).asText();return "";}
     private static String text(JsonNode n,String k,int max){if(!n.path(k).isTextual()||n.path(k).asText().isBlank()||n.path(k).asText().length()>max)throw new IllegalArgumentException("Invalid "+k);return n.path(k).asText();}
     private static int integer(JsonNode n,String k,int fallback,int min,int max){if(!n.has(k))return fallback;if(!n.path(k).isIntegralNumber()||n.path(k).asInt()<min||n.path(k).asInt()>max)throw new IllegalArgumentException("Invalid "+k);return n.path(k).asInt();}

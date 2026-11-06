@@ -23,7 +23,9 @@ public class CodingInternetAccess {
             for(String id:policy.providerIds()){
                 var provider=provider(available,id);
                 if(provider==null||!provider.path("enabled").asBoolean()||!provider.path("configured").asBoolean())return Map.of();
-                selected.add(Map.of("id",id,"revision",provider.path("revision").asLong(),"name",provider.path("name").asText(id)));
+                boolean tencent="TENCENT".equals(provider.path("kind").asText());
+                selected.add(Map.of("id",id,"revision",provider.path("revision").asLong(),"name",provider.path("name").asText(id),
+                    "supportsNews",!tencent,"supportsLanguageFilter",!tencent));
             }
         }
         catch(RuntimeException unavailable){
@@ -34,6 +36,33 @@ public class CodingInternetAccess {
         return Map.of("schemaVersion","runtime_os.internet.v1","modelName",model,"modelRevision",policy.revision(),"providerId",policy.providerId(),"providerRevision",selected.get(0).get("revision"),"providers",selected,"agentId",agent,"explicitlyRequested",requested);
     }
     private JsonNode provider(JsonNode available,String id){for(var item:available)if(id.equals(item.path("id").asText()))return item;return null;}
+    /** One fixed public query through the same provider quota/audit path; never changes configuration. */
+    public Map<String,Object> probe(KernelDataScope scope,String agent,String model,String selected) {
+        if(agent==null||agent.isBlank())return Map.of("status","ERROR","errorCode","AGENT_REQUIRED","serviceChecked",false);
+        if(!models.active(model)||!models.read(model).enabled())return Map.of("status","ERROR","errorCode","MODEL_INTERNET_DISABLED","serviceChecked",false);
+        if(!agents.resolve(scope.tenantId(),scope.userId(),agent,true).contains(AgentResourcePolicy.INTERNET))
+            return Map.of("status","ERROR","errorCode","INTERNET_NOT_AUTHORIZED","serviceChecked",false);
+        var frozen=snapshot(scope,agent,model,true);
+        if(frozen.isEmpty())return Map.of("status","ERROR","errorCode","PROVIDER_NOT_CONFIGURED_OR_UNAVAILABLE","serviceChecked",false);
+        String id=selected==null||selected.isBlank()?Objects.toString(frozen.get("providerId")):selected;
+        var binding=bindings(frozen).stream().filter(p->id.equals(p.get("id"))).findFirst()
+            .orElseThrow(()->new SecurityException("Probe provider outside model authorization"));
+        String call="internet-probe-"+UUID.randomUUID();
+        var request=new LinkedHashMap<String,Object>();request.put("providerId",id);request.put("providerRevision",binding.get("revision"));
+        request.put("tenantId",scope.tenantId());request.put("userId",scope.userId());request.put("agentId",agent);request.put("taskId",call);
+        request.put("tool","web_search");request.put("requestId",call);
+        request.put("arguments",Map.of("query","stock exchange official security directory","search_type","web","count",1));
+        JsonNode response;
+        try{response=mcp.request("POST","/api/v1/internet-search/read",json.valueToTree(request));}
+        catch(RuntimeException unavailable){return Map.of("status","ERROR","errorCode","SEARCH_SERVICE_UNAVAILABLE","serviceChecked",true);}
+        if(!frozen.equals(snapshot(scope,agent,model,true)))throw new SecurityException("Probe authorization changed during request");
+        var result=new LinkedHashMap<String,Object>();result.put("status",response.path("status").asText("ERROR"));
+        result.put("errorCode",response.path("errorCode").asText(""));result.put("serviceChecked",true);
+        result.put("providerId",id);result.put("requestId",call);result.put("retrievedAt",response.path("retrieved_at").asText());
+        result.put("resultCount",response.path("count").asInt());result.put("queryHasResults",response.path("items").isArray()&&!response.path("items").isEmpty());
+        result.put("authority","UNTRUSTED_SEARCH_SNIPPETS_NOT_VERIFIED_MARKET_DATA");
+        return result;
+    }
     private List<? extends Map<?,?>> bindings(Map<?,?> profile){
         if(profile.get("providers") instanceof List<?> list)return list.stream().map(p->(Map<?,?>)p).toList();
         return List.of(Map.of("id",profile.get("providerId"),"revision",profile.get("providerRevision")));

@@ -22,10 +22,13 @@ public final class CodingRuntimeContext {
                 var ids=new HashSet<String>();var list=(List<?>)p.get("providers");
                 for(Object item:list){
                     CodingProtocol.require(item instanceof Map<?,?>,"Invalid Internet provider");var provider=(Map<?,?>)item;
-                    CodingProtocol.require(provider.keySet().equals(Set.of("id","name","revision"))
+                    CodingProtocol.require(provider.keySet().containsAll(Set.of("id","name","revision"))
+                        &&Set.of("id","name","revision","supportsNews","supportsLanguageFilter").containsAll(provider.keySet())
                         &&provider.get("id") instanceof String id&&id.matches("[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}")&&ids.add(id)
                         &&provider.get("name") instanceof String name&&!name.isBlank()&&name.length()<=128
                         &&provider.get("revision") instanceof Number revision&&revision.longValue()>0,"Invalid Internet provider binding");
+                    for(String flag:List.of("supportsNews","supportsLanguageFilter"))if(provider.containsKey(flag))
+                        CodingProtocol.require(provider.get(flag) instanceof Boolean,"Invalid Internet provider feature");
                 }
                 var first=(Map<?,?>)list.get(0);
                 CodingProtocol.require(Objects.equals(first.get("id"),p.get("providerId"))&&((Number)first.get("revision")).longValue()==((Number)p.get("providerRevision")).longValue(),"Invalid primary Internet provider");

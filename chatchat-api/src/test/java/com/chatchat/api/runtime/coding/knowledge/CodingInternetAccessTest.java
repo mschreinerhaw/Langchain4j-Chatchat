@@ -13,6 +13,20 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
 class CodingInternetAccessTest {
+    @Test void controlledProbeUsesOnePublicQueryWithoutLanguageAndNeverEnablesConfiguration() throws Exception {
+        var scope=mock(KernelDataScope.class);when(scope.tenantId()).thenReturn("tenant");when(scope.userId()).thenReturn("user");
+        when(mcp.request(eq("POST"),eq("/api/v1/internet-search/read"),any())).thenAnswer(call->{
+            var request=call.getArgument(2,com.fasterxml.jackson.databind.JsonNode.class);
+            assertThat(request.path("arguments").path("count").asInt()).isEqualTo(1);
+            assertThat(request.path("arguments").has("language")).isFalse();
+            return json.valueToTree(Map.of("status","OK","count",1,"items",List.of(Map.of("url","https://example.test")),"retrieved_at","2026-11-06T00:00:00Z"));
+        });
+        assertThat(internet.probe(scope,"agent","model-a",null)).containsEntry("serviceChecked",true).containsEntry("queryHasResults",true);
+        verify(mcp,times(1)).request(eq("POST"),eq("/api/v1/internet-search/read"),any());
+        when(agents.resolve(anyString(),anyString(),anyString(),anyBoolean())).thenReturn(Set.of());
+        assertThat(internet.probe(scope,"agent","model-a",null)).containsEntry("serviceChecked",false).containsEntry("errorCode","INTERNET_NOT_AUTHORIZED");
+        verifyNoMoreInteractions(mcp);
+    }
     final ObjectMapper json=new ObjectMapper();
     final PlatformInternetPolicy models=mock(PlatformInternetPolicy.class);
     final AgentResourceScopePort agents=mock(AgentResourceScopePort.class);

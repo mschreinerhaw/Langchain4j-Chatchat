@@ -50,7 +50,11 @@ export function knowledgeTools(contract, gateway, forward) {
   const providers=contract.runtimeContext?.internetSearch?.providers;
   if(internet&&providers?.length){
     for(const definition of definitions.filter(([name])=>['web_search','web_fetch'].includes(name))){
-      definition[1]+=' Choose provider_id from the model-authorized engines: '+providers.map(p=>`${p.id} (${p.name})`).join(', ')+'. Omit it to use the first engine.';
+      definition[1]+=' Choose provider_id from the model-authorized engines: '+providers.map(p=>`${p.id} (${p.name})`
+        +(p.supportsLanguageFilter===false?' [no language filter: omit language]':'')
+        +(p.supportsNews===false?' [web only: use search_type=web]':'')).join(', ')+'. Omit it to use the first engine. '
+        +'A controlled availability check may use one small public query with count=1. Configuration does not prove service availability or query relevance; inspect status/errorCode and verify source URLs and dates. '
+        +'On unsupported filters, correct the named parameter or choose another already authorized provider. Do not interpret a tool error as no data.';
       definition[2].provider_id={type:'string',enum:providers.map(p=>p.id),description:'Use only a model-authorized search engine ID.'};
     }
   }

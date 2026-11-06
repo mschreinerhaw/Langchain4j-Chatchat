@@ -231,7 +231,10 @@ public class CodingKnowledgeService {
             receipt.put("operationId",operation);receipt.put("executorStopped",true);receipt.put("executionHandle","runtime-workspace:"+operation);
             if(observation==null||readFailure!=null)observation=CodingDataObservation.describe(c,tool,json.convertValue(args,Map.class),Map.of(),readFailure,
                 readStarted,(System.nanoTime()-readClock)/1_000_000);
-            receipt.put("dataObservation",observation);
+            // Descriptors may contain Chunk records. Freeze their JSON value before hashing:
+            // a decoded Map sorts keys differently from a live record serializer.
+            receipt.put("dataObservation",json.convertValue(observation,new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){}));
+            receipt.put("outputBytes",bytes);
             if(readFailure!=null)receipt.put("failureMessage",Objects.toString(readFailure.getMessage(),"Read failed")
                 .replaceAll("(?i)(password|secret|token|authorization)([=: ]+)[^ ,;]+","$1$2[REDACTED]"));
             boolean remote=CodingResourceReader.TOOLS.contains(tool);

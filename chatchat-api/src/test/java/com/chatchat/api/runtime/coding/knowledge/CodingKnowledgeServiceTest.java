@@ -124,6 +124,49 @@ class CodingKnowledgeServiceTest {
     }
     Map<String,Object> newsBody(String text) {return Map.of("article_id","n1","version_id","v1","title","Policy announcement","text",text,
         "source_url","https://example.org/article","published_at","2026-11-02T01:00:00Z","collected_at","2026-11-03T01:00:00Z","source_view","body","offset",0);}
+    @Test void typedParquetChunkInObservationMustRoundTripWithoutLosingItsStopProof() {
+        resourceTask("market_get_history");
+        var chunk=new com.chatchat.api.runtime.coding.data.CodingInputSnapshotService.Chunk("part-id","part-00000.parquet","a".repeat(64),0,128);
+        var body=Map.<String,Object>of("dataset","quotes","items",List.of(),"count",0,
+            "calculationInput",Map.of("descriptor",Map.of("chunks",List.of(chunk))));
+        when(reader.read(eq("market_get_history"),any())).thenAnswer(x->new LinkedHashMap<>(body));
+        var value=call("market_get_history",Map.of("dataset","quotes"));
+        assertThat(((Map<?,?>)value.get("dataObservation")).get("status")).isEqualTo("EMPTY_RESULT");
+        assertThat(as(()->tasks.unresolvedOperations(scope,contract.taskId()))).isEmpty();
+        var entries=jdbc.queryForList("select entry_id from runtime_evidence_entry where evidence_type='CODING_RESOURCE_READ_RECEIPT'");
+        assertThat(entries).hasSize(1);
+        var record=as(()->evidence.find(scope,entries.get(0).get("ENTRY_ID").toString()).orElseThrow());
+        assertThat(evidence.contentHash(record.payload())).isEqualTo(record.contentSha256());
+    }
+    @Test void legacyTypedReceiptRequiresItsExactOriginalHashAndCanCloseWithoutReplayingARead() {
+        resourceTask("market_get_history");String operation="workspace-"+"b".repeat(64),handle="runtime-workspace:"+operation;
+        var chunk=new com.chatchat.api.runtime.coding.data.CodingInputSnapshotService.Chunk("part-id","part-00000.parquet","a".repeat(64),0,128);
+        var payload=new LinkedHashMap<String,Object>();payload.put("taskId",contract.taskId());payload.put("operationId",operation);
+        payload.put("executionHandle",handle);payload.put("executorStopped",true);payload.put("executorScope","RUNTIME_HTTP_CLIENT");payload.put("remoteReadOnly",true);
+        payload.put("dataObservation",Map.of("schemaVersion",CodingDataStatus.VERSION,"calculationInput",Map.of("descriptor",Map.of("chunks",List.of(chunk)))));
+        String id="knowledge-tool:"+operation,original=evidence.contentHash(payload);
+        as(()->evidence.register(new EvidenceRecord(null,id,scope,"CODING_RESOURCE_READ_RECEIPT","CodingKnowledgeService",original,payload,null,0,Map.of()),
+            new EvidenceLineage(null,id,scope,List.of(),contract.taskId(),"CodingKnowledgeService",null,Map.of())));
+        var stored=as(()->evidence.find(scope,id).orElseThrow());
+        assertThat(evidence.contentHash(stored.payload())).isNotEqualTo(original);
+        assertThat(evidence.contentHashInPersistedOrder(stored.payload())).isEqualTo(original);
+        var verifier=new com.chatchat.api.runtime.coding.workspace.CodingWorkspaceProofVerifier(evidence);
+        assertThat(verifier.confirmsStopped(scope,contract.taskId(),operation,handle,"runtime-evidence:"+id)).isTrue();
+        assertThat(verifier.confirmsStopped(scope,"other-task",operation,handle,"runtime-evidence:"+id)).isFalse();
+        assertThat(verifier.confirmsStopped(scope,contract.taskId(),operation,"other-handle","runtime-evidence:"+id)).isFalse();
+        as(()->evidence.register(new EvidenceRecord(null,id+":other",scope,"CODING_RESOURCE_READ_RECEIPT","OtherProducer",original,payload,null,0,Map.of()),
+            new EvidenceLineage(null,id+":other",scope,List.of(),contract.taskId(),"OtherProducer",null,Map.of())));
+        assertThat(verifier.confirmsStopped(scope,contract.taskId(),operation,handle,"runtime-evidence:"+id+":other")).isFalse();
+        as(()->tasks.reserve(scope,contract.taskId(),lease,tasks.get(scope,contract.taskId()).revision(),operation,"c".repeat(64),
+            CodingJournal.OperationKind.TOOL,new CodingTaskOutcome.Counters(0,0,1,0,0,0,160000,"0")));
+        as(()->tasks.startIntent(scope,contract.taskId(),lease,tasks.get(scope,contract.taskId()).revision(),operation,handle));
+        as(()->tasks.reconcileStopped(scope,contract.taskId(),lease,tasks.get(scope,contract.taskId()).revision(),operation,"runtime-evidence:"+id));
+        as(()->tasks.settle(scope,contract.taskId(),lease,tasks.get(scope,contract.taskId()).revision(),operation,
+            new CodingTaskOutcome.Counters(0,0,0,0,0,0,0,"0"),false));
+        assertThat(as(()->tasks.unresolvedOperations(scope,contract.taskId()))).isEmpty();verifyNoInteractions(reader);
+        assertThat(as(()->evidence.find(scope,id).orElseThrow()).contentSha256()).isEqualTo(original);
+        assertThat(as(()->tasks.get(scope,contract.taskId())).usage().meteringComplete()).isFalse();
+    }
     @Test void resourceCallbacksCannotExpandTaskToolsOrLiveResourceGrants() {
         resourceTask("news_get_article");
         assertThat(knowledge.allowedTools("tenant","owner","agent",true)).contains("news_search","market_search").doesNotContain("knowledge_search");

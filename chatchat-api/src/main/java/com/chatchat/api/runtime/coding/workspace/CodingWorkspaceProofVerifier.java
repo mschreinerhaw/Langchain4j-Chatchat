@@ -21,6 +21,11 @@ public final class CodingWorkspaceProofVerifier implements CodingExecutionProofV
             && task.equals(record.payload().get("taskId")) && operation.equals(record.payload().get("operationId"))
             && handle.equals(record.payload().get("executionHandle"))
             && Boolean.TRUE.equals(record.payload().get("executorStopped"))
-            && evidence.contentHash(record.payload()).equals(record.contentSha256())).isPresent();
+            && (evidence.contentHash(record.payload()).equals(record.contentSha256())
+                || "CODING_RESOURCE_READ_RECEIPT".equals(record.evidenceType())
+                    &&"CodingKnowledgeService".equals(record.sourceNode())
+                    &&record.payload().get("dataObservation") instanceof java.util.Map<?,?> observation
+                    &&"runtime_os.data_observation.v1".equals(observation.get("schemaVersion"))
+                    &&evidence.contentHashInPersistedOrder(record.payload()).equals(record.contentSha256()))).isPresent();
     }
 }

@@ -177,6 +177,16 @@ public class JdbcRuntimeEvidenceStore implements EvidenceStorePort, AnalysisProg
         }
     }
 
+    /** Compatibility for a verified stored receipt whose original embedded record used
+     * declaration order. Decoding preserves that wire order; require its exact old digest,
+     * never replace the stored hash or change the normal source hashing policy. */
+    public String contentHashInPersistedOrder(Map<String,Object> payload) {
+        // EvidenceRecord copies the outer map; restore its known canonical order,
+        // while preserving nested declaration order from the stored JSON.
+        try {return hash(mapper.copy().disable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS).writeValueAsString(new TreeMap<>(payload)));}
+        catch(com.fasterxml.jackson.core.JsonProcessingException invalid) {throw new IllegalArgumentException("Stored receipt cannot be encoded",invalid);}
+    }
+
     @Override public EvidenceRegistration register(EvidenceRecord record, EvidenceLineage lineage) {
         validate(record, lineage);
         return locked(record.scope(), () -> registerLocked(record, lineage));

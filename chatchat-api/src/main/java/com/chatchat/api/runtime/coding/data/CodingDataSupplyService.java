@@ -182,18 +182,25 @@ public final class CodingDataSupplyService {
                 PreauthorizedStructuredDataOperator.ENVIRONMENT,grant.environment(),PreauthorizedStructuredDataOperator.PARAMETERS,parameters));
         ctx=ctx.withAttribute(RegisteredToolAnalysisOperator.CODING_DATA_OPERATION,operation);
         // The existing operator rechecks live tool/Skill authorization. Node never receives a tool executor.
+        var started=java.time.Instant.now();long clock=System.nanoTime();
         var result=templates.execute(ctx,new AnalysisScope(c.scope().tenantId(),c.scope().userId(),roles.roles(),List.of(),Map.of()),null);
         if(result.evidence().size()!=1)throw new IllegalStateException("DATA_ACQUISITION_UNKNOWN_OR_FAILED: no verified source receipt");
         try {
             var fact=result.evidence().get(0);
             var payload=json.readTree(fact.content());
-            if(!payload.path("data").path("complete").asBoolean(false))
-                return failedReceipt(c,lease,request,digest,receiptId,"PARTIAL","Source returned incomplete data; no input revision admitted",fact.evidenceId(),hash(payload));
+            if(!payload.path("data").path("rows").isArray())throw new IllegalStateException("DATA_INVALID_RESPONSE: source rows unavailable; not an empty result");
             List<Map<String,Object>> rows=json.convertValue(payload.path("data").path("rows"),new com.fasterxml.jackson.core.type.TypeReference<>(){});
-            for(var row:rows)for(var field:request.path("requiredFields"))if(!row.containsKey(field.asText()))
-                return failedReceipt(c,lease,request,digest,receiptId,"INVALID_DATA","Required field missing; no input revision admitted",fact.evidenceId(),hash(payload));
+            var fields=new ArrayList<String>();request.path("requiredFields").forEach(f->fields.add(f.asText()));
+            boolean complete=payload.path("data").path("complete").asBoolean(false);
+            var observation=com.chatchat.common.runtime.coding.CodingDataStatus.describe(rows,complete,fields,parameters);
+            observation.put("query",parameters);observation.put("authorizedTemplateId",template);
+            observation.put("sourceEvidenceId",fact.evidenceId());observation.put("startedAt",started.toString());
+            observation.put("finishedAt",java.time.Instant.now().toString());observation.put("elapsedMs",(System.nanoTime()-clock)/1_000_000);
+            if(!complete&&rows.isEmpty())
+                return failedReceipt(c,lease,request,digest,receiptId,"PARTIAL","Source returned incomplete data; no input revision admitted",fact.evidenceId(),hash(payload),observation);
             String source="coding-data:"+operation+":"+hash(rows);
-            var dataset=new Dataset(source,Map.of("sourceEvidenceId",fact.evidenceId(),"templateId",template,"parameters",parameters),rows);
+            var dataset=new Dataset(source,Map.of("sourceEvidenceId",fact.evidenceId(),"templateId",template,"parameters",parameters,
+                "dataObservation",observation,"sourceComplete",complete),rows);
             var snapshot=inputs.captureForTask(c,List.of(dataset),source,100,1024*1024);
             Map<String,Object> response=new LinkedHashMap<>();
             response.put("taskId",c.taskId());response.put("operationId",operation);response.put("requestId",requestId);
@@ -201,21 +208,23 @@ public final class CodingDataSupplyService {
             response.put("authorizedTemplateId",template);
             response.put("snapshot",json.convertValue(snapshot,Object.class));response.put("inputRevision",current.size());
             response.put("sourceEvidenceId",fact.evidenceId());response.put("sourceVersion",hash(payload));response.put("parameterBindings",parameters);
-            response.put("status",rows.isEmpty()?"EMPTY":"AVAILABLE");
+            response.put("status",rows.isEmpty()?"EMPTY":"AVAILABLE".equals(observation.get("status"))?"AVAILABLE":"PARTIAL");
+            response.put("dataObservation",observation);
             evidence.register(new EvidenceRecord(null,receiptId,c.scope(),"CODING_DATA_RECEIPT","CodingDataSupplyService",evidence.contentHash(response),response,null,System.currentTimeMillis(),Map.of()),
                 new EvidenceLineage(null,receiptId,c.scope(),List.of(snapshot.reference().substring("runtime-evidence:".length())),c.taskId(),"CodingDataSupplyService",null,Map.of()));
-            return settle(c,lease,operation,receiptId,response);
+            return settle(c,lease,operation,receiptId,evidence.find(c.scope(),receiptId).orElseThrow().payload());
         }catch(java.io.IOException ex){throw new IllegalStateException("DATA_INVALID_RESPONSE",ex);}
     }
     private Map<String,Object> failedReceipt(CodingTaskContract c,CodingJournal.Lease lease,JsonNode request,String hash,String id,
-        String status,String diagnostic,String sourceEvidence,String sourceVersion) {
+        String status,String diagnostic,String sourceEvidence,String sourceVersion,Map<String,Object> observation) {
         String operation=request.path("operationId").asText();
-        Map<String,Object> response=Map.of("taskId",c.taskId(),"operationId",operation,"requestId",request.path("requestId").asText(),
+        Map<String,Object> response=new LinkedHashMap<>(Map.of("taskId",c.taskId(),"operationId",operation,"requestId",request.path("requestId").asText(),
             "requestHash",hash,"executionHandle","runtime-data:"+operation,"executorStopped",true,"status",status,
-            "diagnostic",diagnostic,"sourceEvidenceId",sourceEvidence,"sourceVersion",sourceVersion);
+            "diagnostic",diagnostic,"sourceEvidenceId",sourceEvidence,"sourceVersion",sourceVersion));
+        response.put("dataObservation",observation);
         evidence.register(new EvidenceRecord(null,id,c.scope(),"CODING_DATA_RECEIPT","CodingDataSupplyService",evidence.contentHash(response),response,null,System.currentTimeMillis(),Map.of()),
             new EvidenceLineage(null,id,c.scope(),List.of(c.inputSnapshotRef().substring(17)),c.taskId(),"CodingDataSupplyService",operation,Map.of()));
-        return settle(c,lease,operation,id,response);
+        return settle(c,lease,operation,id,evidence.find(c.scope(),id).orElseThrow().payload());
     }
     public boolean recover(CodingTaskContract c,CodingJournal.Lease lease,String operation) {
         if(tasks.get(c.scope(),c.taskId()).executionControl().stopReason()==null)requireAuthorized(c);
@@ -237,10 +246,16 @@ public final class CodingDataSupplyService {
         if(tasks.verifiedOperation(c.scope(),c.taskId(),operation).isEmpty())state=tasks.reconcileStopped(c.scope(),c.taskId(),lease,state.revision(),operation,"runtime-evidence:"+receipt);
         tasks.settle(c.scope(),c.taskId(),lease,state.revision(),operation,new CodingTaskOutcome.Counters(0,0,1,0,0,0,0,"0"),true);
         if(stopping)return Map.of("requestId",response.get("requestId"),"status","STOPPING","evidenceRef","runtime-evidence:"+receipt);
-        if(snapshot==null)return Map.of("requestId",response.get("requestId"),"status",response.get("status"),"resultAvailable",false,
-            "diagnostic",response.get("diagnostic"),"recoverable",false,"evidenceRef","runtime-evidence:"+receipt);
-        return Map.of("requestId",response.get("requestId"),"status",response.get("status"),"inputRevision",response.get("inputRevision"),
-            "descriptor",inputs.describe(c.scope(),c.taskId(),snapshot),"datasetReference",snapshot.sourceDatasetRef(),"evidenceRef","runtime-evidence:"+receipt);
+        var delivered=new LinkedHashMap<String,Object>();
+        delivered.put("requestId",response.get("requestId"));delivered.put("status",response.get("status"));
+        delivered.put("evidenceRef","runtime-evidence:"+receipt);
+        if(response.containsKey("dataObservation"))delivered.put("dataObservation",response.get("dataObservation"));
+        if(snapshot==null) {
+            delivered.put("resultAvailable",false);delivered.put("diagnostic",response.get("diagnostic"));
+            delivered.put("recoverable",false);return delivered;
+        }
+        delivered.put("inputRevision",response.get("inputRevision"));delivered.put("descriptor",inputs.describe(c.scope(),c.taskId(),snapshot));
+        delivered.put("datasetReference",snapshot.sourceDatasetRef());return delivered;
     }
     private static String text(JsonNode value,String field,int limit){var v=value.path(field);if(!v.isTextual()||v.asText().isBlank()||v.asText().length()>limit)throw new IllegalArgumentException("Invalid "+field);return v.asText();}
     public String hash(Object value){try{

@@ -163,12 +163,13 @@ class CodingDataSupplyServiceTest {
         assertThatThrownBy(()->actor(()->service.request(contract,lease,request("one")))).isInstanceOf(SecurityException.class);
         verify(tool,times(1)).execute(any(),any(),isNull());
     }
-    @Test void knownMissingFieldResponseIsDurableFailureWithoutInventingDataOrBlockingReconciliation() {
+    @Test void knownMissingFieldResponseDeliversPartialDataWithoutInventingFieldsOrBlockingReconciliation() {
         respond(List.of(Map.of("date","2026-10-14")));
         var first=actor(()->service.request(contract,lease,request("one")));
-        assertThat(first).containsEntry("status","INVALID_DATA").containsEntry("resultAvailable",false);
+        assertThat(first).containsEntry("status","PARTIAL").containsKey("descriptor");
+        assertThat(((Map<?,?>)first.get("dataObservation")).get("status")).isEqualTo("FIELD_MISSING");
         assertThat(actor(()->service.request(contract,lease,request("one")))).isEqualTo(first);
-        assertThat(actor(()->service.snapshots(contract,null))).hasSize(1);
+        assertThat(actor(()->service.snapshots(contract,null))).hasSize(2);
         assertThat(actor(()->tasks.unresolvedOperations(scope,"task"))).isEmpty();verify(tool,times(1)).execute(any(),any(),isNull());
     }
     @Test void lostAcquisitionOutcomeCannotBeReplayedAndBlocksModelAdmission() {

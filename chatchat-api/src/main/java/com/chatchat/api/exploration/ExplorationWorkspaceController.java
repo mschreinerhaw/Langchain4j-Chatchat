@@ -182,8 +182,13 @@ public class ExplorationWorkspaceController {
             if(previous.path("terminal").asBoolean()&&!terminalStage||receipt==null&&previous.path("resultAvailable").asBoolean()&&node.path("agentId").asText().isBlank())return state;
             if(receipt!=null){
                 var prior=node.path("receipt");
+                String parentTask=prior.path("agentTaskId").asText();
+                if(!parentTask.isBlank()&&!parentTask.equals(receipt.path("agentTaskId").asText()))
+                    throw new SecurityException("Analysis result belongs to a different Agent task");
                 if(prior.hasNonNull("taskId")&&receipt.hasNonNull("taskId")&&!prior.path("taskId").asText().equals(receipt.path("taskId").asText()))
-                    throw new SecurityException("Analysis result belongs to a different task");
+                    if(node.path("agentId").asText().isBlank()||parentTask.isBlank()
+                            ||!receipt.path("taskId").asText().equals(receipt.path("visualReport").path("execution").path("taskId").asText()))
+                        throw new SecurityException("Analysis result belongs to a different task");
                 if(receipt.path("eventCursor").asLong()<prior.path("eventCursor").asLong())return state;
                 // Final failures do not erase a previously verified stage artifact.
                 if(prior.path("resultAvailable").asBoolean()&&!receipt.path("resultAvailable").asBoolean()){

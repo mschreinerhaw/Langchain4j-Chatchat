@@ -16,6 +16,37 @@ import static org.mockito.ArgumentMatchers.*;
 
 /** Real SQL persistence, mocked execution boundary. These are NOT live Coding acceptance evidence. */
 class ExplorationWorkspaceTest {
+    @Test void ownAgentParentMayPublishItsBoundCodingChildWithoutCrossTaskRejection(){
+        var state=store.create(alice,"Agent report");String id=state.path("id").asText();
+        controller.prepare(http,id,new ExplorationWorkspaceController.Question(0,null,List.of(),"Analyze",null,"authorized"));
+        String node=nodeId(store.get(alice,id));
+        when(bridge.submit(eq(alice),any(),isNull())).thenReturn(json.createObjectNode().put("agentTaskId","parent").put("taskId","parent").put("status","EXECUTING").put("terminal",false).put("eventCursor",1));
+        controller.execute(http,id,node);
+        var published=json.createObjectNode().put("agentTaskId","parent").put("taskId","child").put("status","SUCCEEDED").put("terminal",true).put("resultAvailable",true).put("eventCursor",2);
+        published.putObject("visualReport").put("schemaVersion","python_visual_report.v1").put("title","Own report").putObject("execution").put("taskId","child");
+        when(bridge.snapshot(eq(alice),eq("parent"),any())).thenReturn(published);
+        controller.status(http,id,node);
+        var receipt=store.get(alice,id).path("nodes").get(0).path("receipt");
+        assertThat(receipt.path("agentTaskId").asText()).isEqualTo("parent");
+        assertThat(receipt.path("taskId").asText()).isEqualTo("child");
+        assertThat(receipt.path("resultAvailable").asBoolean()).isTrue();
+        verify(bridge,times(1)).submit(any(),any(),any());verifyNoInteractions(analysis);
+    }
+    @Test void anotherAgentParentOrUnboundChildCannotReplaceAnExistingAnalysis(){
+        var state=store.create(alice,"Agent report");String id=state.path("id").asText();
+        controller.prepare(http,id,new ExplorationWorkspaceController.Question(0,null,List.of(),"Analyze",null,"authorized"));
+        String node=nodeId(store.get(alice,id));
+        when(bridge.submit(eq(alice),any(),isNull())).thenReturn(json.createObjectNode().put("agentTaskId","parent").put("taskId","parent").put("terminal",false));
+        controller.execute(http,id,node);
+        var other=json.createObjectNode().put("agentTaskId","foreign").put("taskId","child").put("terminal",true).put("resultAvailable",true);
+        other.putObject("visualReport").putObject("execution").put("taskId","child");
+        when(bridge.snapshot(eq(alice),eq("parent"),any())).thenReturn(other);
+        assertThatThrownBy(()->controller.status(http,id,node)).isInstanceOf(SecurityException.class);
+        other.put("agentTaskId","parent");
+        ((ObjectNode)other.path("visualReport").path("execution")).put("taskId","unbound");
+        assertThatThrownBy(()->controller.status(http,id,node)).isInstanceOf(SecurityException.class);
+        assertThat(store.get(alice,id).path("nodes").get(0).path("receipt").path("taskId").asText()).isEqualTo("parent");
+    }
     @Test void aTerminalFailureMayRecoverItsOwnEarlierArchiveOnceWithoutChangingItsTerminalState(){
         var state=prepared();String id=state.path("id").asText(),node=nodeId(state);
         doReturn(ApiResponse.success(Map.of("taskId","coding-task","status","FAILED","terminal",true,"resultAvailable",false))).when(analysis).analyzeVisual(eq(http),any());

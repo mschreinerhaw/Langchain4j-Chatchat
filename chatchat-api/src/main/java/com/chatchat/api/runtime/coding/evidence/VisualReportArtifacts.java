@@ -177,8 +177,8 @@ public final class VisualReportArtifacts {
         }
     }
     /** Counts only charts admitted by this collector, not unavailable placeholders. */
-    public static long availableChartCount(Map<String,Object> report){
-        return report.get("charts") instanceof List<?> charts?charts.stream()
+    public static int availableChartCount(Map<String,Object> report){
+        return report.get("charts") instanceof List<?> charts?(int)charts.stream()
             .filter(value->value instanceof Map<?,?> chart && Set.of("png","svg","plotly").contains(chart.get("kind"))
                 && chart.get("artifact") instanceof Map<?,?> artifact && artifact.get("fileId") instanceof String id && !id.isBlank()).count():0;
     }

@@ -286,14 +286,16 @@ class ClineModelCallbackControllerTest {
             when(collector.readResultPage(scope,"task",resultRef,0,2)).thenReturn(
                 new DatasetHandle.Page(0,List.of(Map.of("report","reviewed")),false));
             when(collector.visualReport(scope,"task",resultRef)).thenReturn(java.util.Optional.of(Map.of(
-                "status","PARTIAL","artifactValidationStatus","PASSED","layoutValidationStatus","FAILED")));
+                "status","PARTIAL","artifactValidationStatus","PASSED","layoutValidationStatus","FAILED",
+                "charts",List.of(Map.of("id","rejected","kind","unavailable")))));
             body.put("reference",resultRef);
             var reviewed=controller.readArtifact(body);
             assertThat(reviewed).containsEntry("complete",true)
                 .containsEntry("reference",resultRef);
             assertThat(json.valueToTree(reviewed).path("visualReportValidation"))
                 .isEqualTo(json.valueToTree(Map.of("status","PARTIAL","validation",Map.of(),
-                    "artifactValidationStatus","PASSED","layoutValidationStatus","FAILED","availableChartCount",0)));
+                    "artifactValidationStatus","PASSED","layoutValidationStatus","FAILED","availableChartCount",0,
+                    "chartValidationStatus","PARTIAL","presentationDiagnostics",List.of())));
             verify(collector).readResultPage(scope,"task",resultRef,0,2);
             when(collector.readResultPage(scope,"task",resultRef,0,2)).thenReturn(
                 new DatasetHandle.Page(0,List.of(Map.of("reportMarkdown","report","evidenceReferences",List.of("shortened-source"))),false));

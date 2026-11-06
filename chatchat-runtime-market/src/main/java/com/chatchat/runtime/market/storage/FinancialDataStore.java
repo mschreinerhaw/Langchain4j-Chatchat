@@ -314,6 +314,42 @@ public class FinancialDataStore {
             .stream().map(row -> String.valueOf(row.get("security_code"))).toList();
     }
 
+    /** Existing official directory, retaining exchange/type rather than collapsing identical codes. */
+    public List<Map<String,Object>> resolveSecurities(String query,String exchange,int requestedLimit) {
+        String term=query==null?"":query.trim().toLowerCase(Locale.ROOT);
+        if(term.isBlank()||term.length()>200)throw new IllegalArgumentException("Bounded security query required");
+        String market=exchange==null?"":exchange.trim().toUpperCase(Locale.ROOT);
+        var qualified=Pattern.compile("^(sh|sz|bj)([0-9]{6})$|^([0-9]{6})\\.(sh|sz|bj)$").matcher(term);
+        if(qualified.matches()) {
+            String prefix=qualified.group(1)==null?qualified.group(4):qualified.group(1);
+            String inferred=Map.of("sh","SSE","sz","SZSE","bj","BSE").get(prefix);
+            if(!market.isBlank()&&!market.equals(inferred))throw new IllegalArgumentException("Conflicting security market identifiers");
+            market=inferred;term=qualified.group(2)==null?qualified.group(3):qualified.group(2);
+        }
+        if(!market.isBlank()&&!Set.of("SSE","SZSE","BSE").contains(market))throw new IllegalArgumentException("Unknown security market");
+        String like="%"+term.replace("!","!!").replace("%","!%").replace("_","!_")+"%";
+        return financialReads.queryForList("select exchange_code,security_code,security_name,security_full_name,security_type,source_refreshed_at "
+            +"from security_master where (?='' or exchange_code=?) and (lower(security_code)=? "
+            +"or lower(security_name) like ? escape '!' or lower(security_full_name) like ? escape '!') "
+            +"order by case when lower(security_code)=? then 0 when lower(security_name)=? then 1 else 2 end,exchange_code,security_code limit ?",
+            market,market,term,like,like,term,term,Math.max(1,Math.min(requestedLimit,20)));
+    }
+
+    /** One bounded daily-hot SQL snapshot. Weekly history cannot establish a full trading day. */
+    public Map<String,Object> daySnapshot(String dataset,LocalDate day,long sourceId) {
+        if(day==null||sourceId<1)throw new IllegalArgumentException("Exact trading day and source required");
+        int ceiling=properties.getMaxDaySnapshotRows();
+        if(ceiling<1||ceiling>10000)throw new IllegalStateException("Invalid daily snapshot ceiling");
+        var filters=new LinkedHashMap<String,Object>();filters.put("source_id",sourceId);
+        if(schemaFields(FinancialDatasetDefinition.normalizeCode(dataset)).containsKey("legal_risk"))filters.put("legal_risk",false);
+        var result=queryBounded(dataset,filters,day,day,ceiling+1,"daily",ceiling+1);
+        int count=((Number)result.get("count")).intValue();
+        if(count>ceiling)throw new IllegalStateException("DAY_SNAPSHOT_ROW_LIMIT: no complete daily snapshot delivered");
+        result.put("complete",true);result.put("trade_date",day.toString());result.put("source_id",sourceId);
+        result.put("coverage","Complete stored daily-hot observations for this dataset/source/day; not proof of full exchange collection. Missing days are not trading-calendar evidence.");
+        return result;
+    }
+
     /** Preserve mentions from the existing security master; never discover/select a new business datasource. */
     public List<String> protectedSecurityPhrases(String source, int maximumPhrases) {
         if (source == null || source.isBlank()) return List.of();
@@ -451,6 +487,10 @@ public class FinancialDataStore {
     public Map<String, Object> query(String datasetCode, Map<String, Object> filters,
                                      LocalDate startDate, LocalDate endDate, int requestedLimit,
                                      String requestedHistoryMode) {
+        return queryBounded(datasetCode,filters,startDate,endDate,requestedLimit,requestedHistoryMode,properties.getMaxQueryLimit());
+    }
+    private Map<String,Object> queryBounded(String datasetCode,Map<String,Object> filters,LocalDate startDate,
+            LocalDate endDate,int requestedLimit,String requestedHistoryMode,int maximumRows) {
         boolean acquired = false;
         try {
             acquired = queryPermits.tryAcquire(
@@ -458,7 +498,7 @@ public class FinancialDataStore {
             if (!acquired) {
                 throw new FinancialQueryBusyException("Financial query capacity is saturated; retry later");
             }
-            return queryInsideBulkhead(datasetCode, filters, startDate, endDate, requestedLimit, requestedHistoryMode);
+            return queryInsideBulkhead(datasetCode, filters, startDate, endDate, requestedLimit, requestedHistoryMode,maximumRows);
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
             throw new FinancialQueryBusyException("Financial query was interrupted while waiting for capacity");
@@ -469,7 +509,7 @@ public class FinancialDataStore {
 
     private Map<String, Object> queryInsideBulkhead(String datasetCode, Map<String, Object> filters,
                                                     LocalDate startDate, LocalDate endDate, int requestedLimit,
-                                                    String requestedHistoryMode) {
+                                                    String requestedHistoryMode,int maximumRows) {
         CancellationSupport.throwIfCancelled("financial data query");
         long startedAt = System.currentTimeMillis();
         String code = FinancialDatasetDefinition.normalizeCode(datasetCode);
@@ -481,7 +521,7 @@ public class FinancialDataStore {
             ? archiveTable(table) : identifier(String.valueOf(archiveValue));
         Map<String, String> allowed = schemaFields(code);
         int limit = Math.max(1, Math.min(requestedLimit <= 0 ? properties.getDefaultQueryLimit() : requestedLimit,
-            properties.getMaxQueryLimit()));
+            maximumRows));
         String mode = normalizeHistoryMode(requestedHistoryMode);
         log.info("Financial data query started dataset={} table={} filters={} startDate={} endDate={} historyMode={} limit={}",
             code, table, filters == null ? Map.of() : filters, startDate, endDate, mode, limit);
@@ -517,7 +557,7 @@ public class FinancialDataStore {
         result.put("rows", rows);
         result.put("retention_policy", retentionPolicy());
         result.put("query_constraints", Map.of(
-            "max_rows", properties.getMaxQueryLimit(),
+            "max_rows", maximumRows,
             "read_only", true,
             "filter_operators", List.of("exact", "Like"),
             "selection_strategy", "latest_stable_observation_then_batch_diversity"));

@@ -13,6 +13,8 @@ public class MarketModuleProperties {
     private String catalogIndexName = "financial-data-asset";
     private int defaultQueryLimit = 50;
     private int maxQueryLimit = 200;
+    /** Separate bounded, single-source/day file delivery; never changes interactive query limits. */
+    private int maxDaySnapshotRows = 10000;
     /** JDBC statement timeout; must remain below the outer MCP tool deadline. */
     private int queryTimeoutSeconds = 20;
     /** Database bulkhead: analytical reads can never consume the entire application pool. */

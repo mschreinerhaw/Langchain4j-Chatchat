@@ -133,13 +133,17 @@ public class CodingKnowledgeService {
             d.getUpdatedAt(),d.getTitle(),d.getContent(),properties.getChunkSize(),properties.getChunkOverlap())));
     }
     public Map<String,Object> call(CodingTaskContract c,CodingJournal.Lease lease,String tool,String callId,JsonNode args) {
-        if((!TOOLS.contains(tool)&&!CodingResourceReader.TOOLS.contains(tool))||!enabled(c)||!c.permitsTextResult()&&!CodingInternetAccess.TOOLS.contains(tool))throw new SecurityException("Knowledge tool denied");
+        boolean calculation=c.metadataRefs().contains("runtime-coding:resource-calculation-inputs:v1")
+            && c.authorization().allowedTools().contains("python_execute")
+            && c.authorization().allowedSideEffects().equals(List.of(CodingTaskContract.SideEffect.CODE_EXECUTION));
+        if((!TOOLS.contains(tool)&&!CodingResourceReader.TOOLS.contains(tool))||!enabled(c)
+            ||!c.permitsTextResult()&&!calculation&&!CodingInternetAccess.TOOLS.contains(tool))throw new SecurityException("Knowledge tool denied");
         if(CodingInternetAccess.TOOLS.contains(tool)){if(internet==null)throw new SecurityException("Internet service unavailable");internet.require(c,tool);}
         try{requireResource(c,tool);}catch(SecurityException denied){auditAccess(c,tool,"DENIED");throw denied;}
         auditAccess(c,tool,"ALLOWED");
         if(callId==null||callId.isBlank()||callId.length()>512||args==null||!args.isObject())
             throw new IllegalArgumentException("Bounded knowledge call required");
-        Set<String> fields=CodingInternetAccess.TOOLS.contains(tool)?(tool.equals("web_search")?Set.of("query","search_type","count","language","time_range","provider_id"):Set.of("url","max_content_length","provider_id")):CodingResourceReader.TOOLS.contains(tool)?Set.of("query","security_code","start_time","end_time","industry","limit","offset","article_id","version_id","dataset","filters","start_date","end_date","history_mode"):switch(tool) {
+        Set<String> fields=CodingInternetAccess.TOOLS.contains(tool)?(tool.equals("web_search")?Set.of("query","search_type","count","language","time_range","provider_id"):Set.of("url","max_content_length","provider_id")):CodingResourceReader.TOOLS.contains(tool)?Set.of("query","security_code","start_time","end_time","industry","limit","offset","article_id","version_id","dataset","filters","start_date","end_date","history_mode","exchange","trade_date","source_id"):switch(tool) {
             case "knowledge_search" -> Set.of("query","top_k","mode","filters");
             case "knowledge_related" -> Set.of("document_id","version_id","top_k");
             case "knowledge_read" -> Set.of("document_id","version_id","chunk_index","limit");
@@ -391,6 +395,11 @@ public class CodingKnowledgeService {
     }
     private Map<String,Object> resourceCall(CodingTaskContract c,CodingJournal.Lease lease,String tool,JsonNode args,String callId) {
         requireExecutionOpen(c);
+        if(tool.equals("market_get_day_snapshot") && (!c.authorization().allowedTools().contains("python_execute")
+            ||!c.metadataRefs().contains("runtime-coding:resource-calculation-inputs:v1")
+            ||!(c.runtimeContext().get("inputFiles") instanceof Map<?,?> files)||!"PARQUET".equals(files.get("format"))))
+            return new LinkedHashMap<>(Map.of("status","ERROR","errorCode","DAY_SNAPSHOT_REQUIRES_PARQUET_CALCULATION",
+                "message","This task has no authorized Parquet calculation delivery. Use bounded market reads or request an appropriately configured task; no data was exported."));
         if(resourceReader==null||args.toString().length()>10000)throw new SecurityException("Bounded resource reader unavailable");
         var result=CodingInternetAccess.TOOLS.contains(tool)?internet.read(c,tool,callId,args):resourceReader.read(tool,args);
         if(CodingInternetAccess.TOOLS.contains(tool)&&"ERROR".equals(result.get("status")))return result;
@@ -426,6 +435,7 @@ public class CodingKnowledgeService {
             if((tool.startsWith("market_get_")||tool.equals("web_fetch")) && c.authorization().allowedTools().contains("python_execute")) {
                 if(dataSupply==null)throw new IllegalStateException("Resource input snapshots unavailable");
                 result.put("calculationInput",dataSupply.captureResource(c,lease,ref,new LinkedHashMap<>(result)));
+                if(tool.equals("market_get_day_snapshot"))result.remove("items");
             }
             result.put("evidence_id",ref);
         }

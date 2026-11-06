@@ -9,7 +9,7 @@ import java.util.*;
 /** Fixed-origin delegation to existing MCP data engines. No semantic review or model call. */
 @Service
 public class CodingResourceReader {
-    public static final Set<String> TOOLS=Set.of("news_search","news_get_article","news_related_events","market_search","market_get_history","market_get_indicators","market_get_snapshot","web_search","web_fetch");
+    public static final Set<String> TOOLS=Set.of("news_search","news_get_article","news_related_events","market_search","market_get_history","market_get_indicators","market_get_snapshot","market_resolve_security","market_get_day_snapshot","web_search","web_fetch");
     private final McpControlPlaneClient mcp;
     private final ObjectMapper json;
     public CodingResourceReader(McpControlPlaneClient mcp,ObjectMapper json){this.mcp=mcp;this.json=json;}
@@ -17,7 +17,7 @@ public class CodingResourceReader {
     public List<Map<String,Object>> readBatch(List<Read> reads) {
         if(reads.isEmpty())return List.of();
         if(reads.size()>16)throw new IllegalArgumentException("Source validation batch exceeds budget");
-        for(var read:reads)if(!Set.of("news_get_article","market_get_dataset","market_get_history","market_get_indicators","market_get_snapshot").contains(read.tool())
+        for(var read:reads)if(!Set.of("news_get_article","market_get_dataset","market_get_history","market_get_indicators","market_get_snapshot","market_resolve_security","market_get_day_snapshot").contains(read.tool())
             ||read.arguments()==null||!read.arguments().isObject()||read.arguments().toString().length()>10000)throw new SecurityException("Invalid source validation operation");
         var response=mcp.request("POST","/api/v1/resource-exploration/read-batch",json.valueToTree(Map.of("requests",reads)));
         if(!response.isArray()||response.size()!=reads.size())throw new IllegalStateException("Invalid source validation response");

@@ -32,3 +32,14 @@
 ## 实施记录
 
 各修复独立提交并在 `docs/testing/runtime-data-exploration-delivery-20261106.md` 记录命令、版本、通过/失败/未验收。未完成项明确保留，禁止将工具可见、Python 成功、报告交付和业务分析充分混为一项成功。
+
+## 服务器恢复后的真实场景复核
+
+原问题为“分析华是科技最新的股票价格行情走势”，Agent `financial-news-agent`，模型 `qwen3.8-flash`。以下结论来自原 journal、模型回执、父 Run 和实际文件核对，而不是合成重现：
+
+- DATA-01 的另一已确认入口缺陷：外层传递 `authorizationAgentId`，资源装配仅识别 `knowledgeAgentId`。Agent 已配置四类资源，但该 Coding 合约没有任何资源探索工具。修复同时支持两个服务端身份字段，仍由原 Agent/用户资源交集决定每个工具是否可用。
+- 原 Parquet 26 行、63,662 字节，manifest/schema/part 均存在且 Hash 一致。原 Sandbox 实际运行 4,698ms、exit=0，但未写 rows.jsonl；原代码只写 validation/diagnostics.json。不能将本场景定性为文件未交付或数据完全缺失。
+- 输入含两个逻辑查询结果，各自交付相同的 8 个交易日行情，16 条行情记录并不代表 16 个不同日期。独立授权行情读取目前能取得目标代码 301218 的 16 个交易日，最新已收集日期为 2026-11-02；不能由此宣称 2026-11-06 实时行情。
+- 原修复第三段 oldText=344、newText=28,866 字符，已通过原生 SDK 分成 15,000/14,026 两段的离线精确回归。该回归验证编辑、Hash、版本和原子失败，不等于模型报告已通过业务验收。
+- Flash 和 Plus 目前均 `internetSearchEnabled=false`；Omni Flash 已开启。腾讯 WSA 已配置，最近状态为 PROVIDER_LANGUAGE_UNSUPPORTED。不能改写共享配置来制造 Flash 联网通过；必须分别验证关闭时降级及既有已授权模型的搜索路径。
+- 日快照只证明单个存储数据源/数据集/交易日的有界完整读取，不证明采集端已覆盖整个交易所。普通交互查询上限仍为 200，日文件上限 10,000 行/8 MiB，超限拒绝、不截断；没有原生 Parquet 合约的任务不能调用此导出。

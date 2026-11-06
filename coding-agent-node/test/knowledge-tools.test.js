@@ -5,6 +5,18 @@ import { KNOWLEDGE_TOOLS, RESOURCE_TOOLS, knowledgeTools } from '../src/knowledg
 import { taskSkillPackages, imageSkillBytes } from '../src/skill-distribution.js';
 const contextRef='runtime-context:run';
 const profile={schemaVersion:'runtime_os.knowledge.v1',agentId:'agent'};
+test('file analysis retains governed resource discovery without granting text report submission',async()=>{
+  const calls=[];
+  const contract={schemaVersion:'runtime_os.coding.v3',metadataRefs:['runtime-coding:resource-calculation-inputs:v1'],
+    runtimeContext:{knowledgeExploration:profile},authorization:{allowedTools:['python_execute','market_search','market_get_history'],
+      allowedSideEffects:['CODE_EXECUTION'],networkPolicy:'NONE'}};
+  const tools=knowledgeTools(contract,{knowledge(c,name,args){calls.push(name);return {items:[],count:0};}},()=>{});
+  assert.deepEqual(tools.map(t=>t.name),['market_search','market_get_history']);
+  assert.deepEqual(await tools[0].execute({query:''},{toolCallId:'discover'}),{items:[],count:0});
+  assert.deepEqual(calls,['market_search']);
+  assert.throws(()=>knowledgeTools({...contract,metadataRefs:[]},{knowledge(){}},()=>{}),/isolated read-only/);
+  assert.throws(()=>knowledgeTools({...contract,authorization:{...contract.authorization,allowedSideEffects:['WORKSPACE_WRITE']}},{knowledge(){}},()=>{}),/isolated read-only/);
+});
 test('search tools advertise only dynamically selected engine IDs without credentials or URLs',()=>{
   const contract={schemaVersion:'runtime_os.coding.v3',metadataRefs:['runtime-coding:internet-search:v1'],
     runtimeContext:{knowledgeExploration:profile,internetSearch:{schemaVersion:'runtime_os.internet.v1',providers:[{id:'one',name:'Research',revision:3},{id:'two',name:'News',revision:5}]}},

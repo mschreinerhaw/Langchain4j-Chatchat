@@ -133,15 +133,15 @@ class CodingAnalysisServiceTest {
         assertThat(contract.objective().instruction()).contains("currently has no authorized document, news or financial data tools");
     }
     @org.junit.jupiter.params.ParameterizedTest
-    @org.junit.jupiter.params.provider.ValueSource(booleans={false,true})
-    void actualResourceContractRetainsCanonicalProfileAndOnlyTheGovernedTaskToolSet(boolean deferred) {
+    @org.junit.jupiter.params.provider.CsvSource({"false,true","true,true","false,false","true,false"})
+    void actualResourceContractRetainsCanonicalProfileAndOnlyTheGovernedTaskToolSet(boolean deferred,boolean textAnswer) {
         prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
         when(inputs.captureConfigured(any(),anyString(),anyList(),anyString(),anyString(),anyString(),anyLong(),anyLong(),any()))
             .thenReturn(new CodingInputSnapshotService.Snapshot("runtime-evidence:input","c"+"a".repeat(63),"input.jsonl","a".repeat(64),1,30,"runtime-context:question"));
         var service=service();var knowledge=mock(com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeService.class);
         when(knowledge.allowedTools(anyString(),anyString(),eq("resource-agent"),eq(true))).thenReturn(List.of("news_search","news_get_article","market_search","market_get_history"));
         service.setKnowledge(knowledge);service.setDeferredToolsEnabled(deferred);var original=context("tenant");var attrs=new LinkedHashMap<>(original.runtimeAttributes());
-        attrs.put("contextOnlyAnswer",true);attrs.put("knowledgeAgentId","resource-agent");attrs.put("resourceExplorationApproved",true);
+        attrs.put("contextOnlyAnswer",textAnswer);attrs.put(textAnswer?"knowledgeAgentId":"authorizationAgentId","resource-agent");attrs.put("resourceExplorationApproved",true);
         attrs.put("resourceExplorationConfigured",true);attrs.put("taskType","DATA_ANALYSIS");
         var context=new AnalysisCoverageCoordinator.Request(original.model(),original.query(),null,attrs,original.metadata(),()->false,()->{},original.isolationScope(),null);
         var request=new LinkedHashMap<>(request());request.remove("datasetReference");request.put("datasetReferences",List.of("runtime-context:question"));
@@ -153,6 +153,8 @@ class CodingAnalysisServiceTest {
         assertThat(CodingProtocol.deferredTools(contract)).isEqualTo(deferred);
         assertThat(contract.authorization().networkPolicy()).isEqualTo(CodingTaskContract.NetworkPolicy.NONE);
         assertThat(contract.authorization().allowedSideEffects()).containsExactly(CodingTaskContract.SideEffect.CODE_EXECUTION);
+        assertThat(contract.permitsTextResult()).isEqualTo(textAnswer);
+        assertThat(contract.metadataRefs()).contains("runtime-coding:resource-calculation-inputs:v1");
         assertThat(contract.objective().instruction()).contains("resources autonomously as needed",
             "Cite exact returned evidence_id", "Only tools in this task's tool list are authorized")
             .doesNotContain("skill_read before its first resource query");

@@ -9,6 +9,17 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
 class ResourceExplorationReadControllerTest {
+    @Test void dailySnapshotIsBoundedCompleteAndCannotReturnRestrictedRowsOrAcceptRawSql() throws Exception {
+        var day=java.time.LocalDate.parse("2026-11-05");
+        when(store.catalog("quotes")).thenReturn(Map.of("dataset_code","quotes","table_name","private_table"));
+        when(store.daySnapshot("quotes",day,6L)).thenReturn(Map.of("complete",true,"rows",List.of(Map.of("quote_code","300608","payload_json","raw")),"coverage","stored source/day"));
+        var result=read("market_get_day_snapshot",Map.of("dataset","quotes","trade_date","2026-11-05","source_id",6));
+        assertThat(result).containsEntry("complete",true).containsEntry("delivery","IMMUTABLE_DAY_FILE");
+        assertThat(json.writeValueAsString(result)).doesNotContain("private_table","payload_json");
+        assertThatThrownBy(()->read("market_get_day_snapshot",Map.of("dataset","quotes","trade_date","2026-11-05","source_id",6,"sql","select *"))).isInstanceOf(IllegalArgumentException.class);
+        when(store.daySnapshot("quotes",day,6L)).thenReturn(Map.of("complete",true,"rows",List.of(Map.of("legal_risk",true))));
+        assertThatThrownBy(()->read("market_get_day_snapshot",Map.of("dataset","quotes","trade_date","2026-11-05","source_id",6))).isInstanceOf(SecurityException.class);
+    }
     final ObjectMapper json=new ObjectMapper().findAndRegisterModules();
     final NewsRuntimeClient news=mock(NewsRuntimeClient.class);
     final FinancialAssetCatalogService catalog=mock(FinancialAssetCatalogService.class);

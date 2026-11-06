@@ -31,7 +31,7 @@ public class ResourceExplorationReadController {
         for(int i=0;i<items.size();i++) {
             var item=items.get(i);String tool=item.path("tool").asText();
             if(!item.isObject()||item.size()!=2||!item.path("arguments").isObject()
-                ||!Set.of("news_get_article","market_get_dataset","market_get_history","market_get_indicators","market_get_snapshot").contains(tool))
+                ||!Set.of("news_get_article","market_get_dataset","market_get_history","market_get_indicators","market_get_snapshot","market_resolve_security","market_get_day_snapshot").contains(tool))
                 throw new IllegalArgumentException("Invalid source validation operation");
             var allowed=argumentFields(tool);item.path("arguments").fieldNames().forEachRemaining(key->{if(!allowed.contains(key))throw new IllegalArgumentException("Unknown resource argument");});
             if(tool.equals("news_get_article")){newsItems.add(item);positions.add(i);}
@@ -43,7 +43,7 @@ public class ResourceExplorationReadController {
             for(int i=0;i<positions.size();i++)result.set(positions.get(i),json.convertValue(response.get(i),new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){}));
         }
         for(int i=0;i<items.size();i++)if(result.get(i)==null)result.set(i,read(items.get(i)).getData());
-        if(json.writeValueAsBytes(result).length>2500000)throw new IllegalArgumentException("Source validation batch exceeds byte budget");
+        if(json.writeValueAsBytes(result).length>10*1024*1024)throw new IllegalArgumentException("Source validation batch exceeds byte budget");
         return ApiResponse.success(result);
     }
     @PostMapping("/read")
@@ -53,6 +53,28 @@ public class ResourceExplorationReadController {
         Set<String> allowed=argumentFields(tool);
         a.fieldNames().forEachRemaining(k->{if(!allowed.contains(k))throw new IllegalArgumentException("Unknown resource argument");});
         Map<String,Object> result;
+        if(tool.equals("market_resolve_security")) {
+            var items=market.resolveSecurities(text(a,"query",200,true),text(a,"exchange",8,false),number(a,"limit",10,1,20));
+            return ApiResponse.success(new LinkedHashMap<>(Map.of("items",items,"count",items.size(),
+                "status",items.isEmpty()?"NO_DIRECTORY_MATCH":"CANDIDATES_REQUIRE_QUOTE_VERIFICATION",
+                "authority","UNTRUSTED_SOURCE_DATA","coverage","Maintained official security directory; an empty result does not prove absent market observations.")));
+        }
+        if(tool.equals("market_get_day_snapshot")) {
+            String dataset=text(a,"dataset",64,true);var day=date(a,"trade_date");
+            if(!a.path("source_id").isIntegralNumber()||!a.path("source_id").canConvertToLong()||a.path("source_id").asLong()<1)
+                throw new IllegalArgumentException("Exact source_id required");
+            var raw=market.daySnapshot(dataset,day,a.path("source_id").asLong());
+            var rows=json.convertValue(raw.get("rows"),new com.fasterxml.jackson.core.type.TypeReference<List<Map<String,Object>>>(){});
+            if(!Boolean.TRUE.equals(raw.get("complete"))||rows.size()>10000)throw new IllegalStateException("Incomplete daily source snapshot");
+            if(rows.stream().anyMatch(row->"true".equalsIgnoreCase(Objects.toString(row.get("legal_risk"),""))))throw new SecurityException("Restricted financial source");
+            result=new LinkedHashMap<>();result.put("dataset",dataset);result.put("asset",asset(market.catalog(dataset)));
+            result.put("items",rows.stream().map(this::observation).toList());result.put("count",rows.size());result.put("complete",true);
+            result.put("trade_date",day.toString());result.put("source_id",a.path("source_id").asLong());result.put("coverage",raw.get("coverage"));
+            result.put("storage_tiers",List.of("daily_hot"));result.put("realtime",false);result.put("authority","UNTRUSTED_SOURCE_DATA");
+            result.put("delivery","IMMUTABLE_DAY_FILE");
+            if(json.writeValueAsBytes(result).length>8*1024*1024)throw new IllegalStateException("DAY_SNAPSHOT_BYTE_LIMIT: no complete daily snapshot delivered");
+            return ApiResponse.success(result);
+        }
         if(tool.startsWith("news_"))return ApiResponse.success(json.convertValue(news.post("/resource-exploration",request),new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){}));
         if(tool.equals("market_get_dataset")) {
             result=asset(market.catalog(text(a,"dataset",64,true)));
@@ -74,6 +96,8 @@ public class ResourceExplorationReadController {
             case "news_get_article"->Set.of("article_id","version_id","offset","limit","view");
             case "market_get_dataset"->Set.of("dataset");
             case "market_search"->Set.of("query","limit","offset");
+            case "market_resolve_security"->Set.of("query","exchange","limit");
+            case "market_get_day_snapshot"->Set.of("dataset","trade_date","source_id");
             case "market_get_history","market_get_indicators","market_get_snapshot"->Set.of("dataset","filters","start_date","end_date","history_mode","limit","offset");
             default->throw new IllegalArgumentException("Unknown resource operation");
         };
@@ -108,6 +132,10 @@ public class ResourceExplorationReadController {
             result.put("unit_policy","Use declared field units; missing units are unknown. Do not infer adjustment or calculation conventions.");
             result.put("market_policy","Market/exchange is per observation when declared by source fields; otherwise unknown.");
             result.put("adjustment_basis","not_declared_unless_present_in_source_fields");
+            if(rows.isEmpty())result.put("discovery",Map.of("status","NO_MATCH_IN_REQUESTED_SLICE",
+                "next_steps",List.of("Resolve names or qualified codes with market_resolve_security; preserve exchange and instrument type.",
+                    "Inspect an unfiltered market_search catalog and actual fields, coverage and source_id before another authorized read.",
+                    "For a known source/day, market_get_day_snapshot delivers a bounded immutable file for Python filtering when authorized; this empty slice does not establish platform-wide absence.")));
             if(tool.equals("market_get_indicators"))result.put("indicator_policy","Returns collected dataset fields; no unrequested derived indicator is computed.");
         result.put("authority","UNTRUSTED_SOURCE_DATA");result.put("license_status","source_declared_or_unknown_not_a_commercial_license_grant");
         if(json.writeValueAsBytes(result).length>145000)throw new IllegalArgumentException("Result exceeds resource budget; narrow the query");

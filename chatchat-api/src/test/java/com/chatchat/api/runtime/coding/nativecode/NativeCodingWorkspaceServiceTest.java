@@ -63,6 +63,18 @@ class NativeCodingWorkspaceServiceTest {
         actor(()->service.open(c,lease));
     }
     void put(String source,byte[] bytes){var old=blobs.putIfAbsent(source,bytes.clone());if(old!=null&&!Arrays.equals(old,bytes))throw new IllegalStateException("Immutable artifact differs");}
+    @Test void admittedNativeCommandReachesGovernedDispatchWithOriginalManifest(){
+        var command="python -m unittest discover -s tests -v";
+        admit("command-call","run_commands",Map.of("commands",List.of(command)));
+        var bridge=mock(com.chatchat.api.runtime.coding.execution.CodingPythonExecutionBridge.class);
+        var python=mock(com.chatchat.common.mcp.python.McpPythonControlPlanePort.class);
+        doThrow(new IllegalStateException("TEST_DISPATCH_REACHED")).when(bridge).start(any(),any(),any(),anyString(),anyString(),anyString(),anyString(),anyString(),anyMap(),anyString(),anyMap(),any());
+        var commands=new NativeCodingCommandService(tasks,service,bridge,python,json);
+        var snapshot=actor(()->service.current(c));
+        var request=Map.<String,Object>of("operationId","command-call:command:1","command",command,"manifest",snapshot.get("manifest"),"files",snapshot.get("files"));
+        assertThatThrownBy(()->actor(()->commands.execute(c,lease,request))).hasMessage("TEST_DISPATCH_REACHED");
+        verify(python).uploadDataFile(eq("tenant"),eq("owner"),anyString(),eq("source-project.json"),anyString(),any());
+    }
     @AfterEach void close(){timer.shutdownNow();}
     void admit(String call,String tool,Map<String,Object> input){
         admit(call,tool,input,input);

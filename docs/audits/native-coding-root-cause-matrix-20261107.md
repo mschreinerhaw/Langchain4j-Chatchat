@@ -13,6 +13,7 @@
 | Node 缓存与远端 durable commit | 提交成功但 ACK 丢失时，旧本地目录可能过期；缓存不是持久事实 | Silo 作为权威，丢失 ACK 后重读；缓存丢失重建，不重复编辑 | lost-ACK、stale manifest、missing cache tests |
 | Java 原始模型回执与 callback | 仅校验工具名字不能证明执行参数得到模型授权 | 校验真实 model/toolCallId/参数等价性；A2 工具 start intent 与预算先于 I/O | 参数替换、未准入调用、重复操作拒绝 |
 | `NativeCodingController` HTTP 实测 400；构建未保留反射参数名 | 新增路由使用未命名的 `@PathVariable`，请求在进入服务和模型前失败；属于 Runtime Adapter 缺陷 | 显式指定 requestId/taskId/version 名称，不改变编译器全局设置 | 同一 HTTP 测试修复前 10 error，修复后 10 pass，包含身份及操作绑定 |
+| 第一次真实模型预检：读取及编辑成功，8 次调用后失败，实际 CODE=0；API JAR 不含 helper，MCP JAR 含 helper | `NativeCodingCommandService.helperHash()` 依赖 MCP 的 Python 资源，但 MCP server 只是 API 的 test-scope 依赖，单测掩盖运行包缺失；通用 bound 又把内部异常显示为 callback binding 错误 | 将唯一 helper 移至已有 common 运行资源，API/MCP 共享同一字节；启用组件时即校验 helper，避免模型用完预算才发现缺包 | 去掉 MCP server 依赖的子 JVM 读取测试；真实 A2 命令准入到 dispatch 测试；包内容检查和后续真实模型复测 |
 | `NativeCodingCommandService` 与 Sandbox helper | Worker 提供的命令字符串不能单独作为授权事实；SDK 支持 argv/heredoc 归一化 | 冻结原输入 Hash；同版 SDK 在 Sandbox 独立归一化，核对 ordinal/命令 Hash；宿主不运行命令 | 原始输入不匹配拒绝、缺结果记录拒绝；实际 Docker 执行待整链验收 |
 | 队列命令与工具停止并发 | 工具关闭与后续子命令启动之间存在竞争风险 | 同任务锁排序 start/stop/commit，已关闭工具不能再派发命令 | queued command/start-after-stop tests |
 | SDK Restore 与 A2 journal | SDK 恢复不等于恢复原累计预算；Worker 崩溃不等于执行器已停止 | Java 保持预算与 fence；分别核对 MODEL/TOOL/CODE 回执、真实停止证明，再继续同一会话 | recovery tests；真实 Worker kill/restart 尚待完成 |

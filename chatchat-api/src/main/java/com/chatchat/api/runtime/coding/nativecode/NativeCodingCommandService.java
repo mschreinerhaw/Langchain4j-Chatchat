@@ -22,9 +22,11 @@ public final class NativeCodingCommandService {
     private final CodingPythonExecutionBridge bridge;
     private final McpPythonControlPlanePort python;
     private final ObjectMapper json;
+    private final String executorHelperSha256;
     public NativeCodingCommandService(DurableCodingTaskService tasks,NativeCodingWorkspaceService workspace,
             CodingPythonExecutionBridge bridge,McpPythonControlPlanePort python,ObjectMapper json){
         this.tasks=tasks;this.workspace=workspace;this.bridge=bridge;this.python=python;this.json=json;
+        this.executorHelperSha256=helperHash();
     }
     public Map<String,Object> execute(CodingTaskContract c,CodingJournal.Lease lease,Map<String,Object> request){
         tasks.requireWorkerLease(c.scope(),c.taskId(),lease,false);workspace.requireAuthorized(c);
@@ -57,7 +59,7 @@ public final class NativeCodingCommandService {
             var spec=Map.of("toolInputJson",inputJson,"commandOrdinal",index+1,"commandHash",commandHash,
                 "intentHash",intent.path("intentHash").asText(),"manifestHash",manifest.get("sha256"),"timeoutMs",timeout);
             String encoded=Base64.getEncoder().encodeToString(bytes(spec));
-            String helperHash=helperHash();
+            String helperHash=executorHelperSha256;
             String source="import subprocess, hashlib\nfrom pathlib import Path\n"
                 +"if hashlib.sha256(Path('/workspace/scripts/native_command.mjs').read_bytes()).hexdigest() != '"+helperHash+"':\n"
                 +"    raise RuntimeError('NATIVE_EXECUTOR_VERSION_CHANGED')\n"

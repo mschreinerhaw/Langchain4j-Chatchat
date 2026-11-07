@@ -2,7 +2,7 @@
 name: python-data-analysis
 description: Analyze delivered Python datasets, inspect quality, join sources, compute statistics and business metrics, and deliver reproducible static charts and Runtime OS reports.
 metadata:
-  version: 1.3.2
+  version: 1.3.3
 ---
 
 # Python data analysis in Runtime OS
@@ -15,7 +15,7 @@ Read the task's input manifest and schema before interpreting storage columns. R
 
 Inspect row counts, field types, units, date coverage, missing versus null values, duplicate keys and outliers. Preserve identifiers such as customer numbers as strings, including leading zeroes. Report absent fields and incomplete coverage; never invent observations, business definitions, joins, profit, loss or dates.
 
-For Runtime tabular snapshots, consult the transport mapping example in [references/data-methods.md](references/data-methods.md) when the supplied schema and tool description do not sufficiently explain the reader. Read this reference as needed for format choices, multi-source checks and bounded-memory patterns.
+For Runtime tabular snapshots, the delivered reader descriptor names the installed checksum-verifying transport functions. They return logical dictionaries and leave source selection and analysis to you. Consult [references/data-methods.md](references/data-methods.md) as needed for original formats, multi-source checks and bounded-memory patterns.
 
 ## Analysis
 

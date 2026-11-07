@@ -38,6 +38,56 @@ function scripted(turns,startOrdinal=0){let index=0;return{async *stream(request
 function pipefailContract(){const c=contract();c.budget.deadlineAt=new Date(Date.now()+5000).toISOString();c.metadataRefs=[NATIVE_PIPEFAIL_PROFILE];c.runtimeContext={nativeExecutionPolicy:'BASH_PIPEFAIL_V1',
   nativeExecutorCapability:'NATIVE_EXECUTOR:BASH_PIPEFAIL_V1:'+hash+':'+hash};return c;}
 
+function latestFacts(request){
+  const text=request.messages.flatMap(message=>message.content).filter(part=>part.type==='text'
+    &&part.text.startsWith('Latest Runtime execution facts,')).at(-1)?.text;
+  assert.ok(text,'Runtime facts must be visible in the actual SDK model request');
+  return JSON.parse(text.slice(text.indexOf('{')));
+}
+
+test('Phase 4 preserves current declared verification and original resource facts after later inspection and native compaction',async t=>{
+  const declared='python -m unittest discover -s tests -v';
+  const h=await host(t,{async openCodeWorkspace(){return{files:{'calc.py':'value = 1\n'},modelId:'qwen3.8-flash',acceptanceCommand:declared,verificationPolicy:'BASH_PIPEFAIL_V1'};},
+    async budget(){return{remainingTokens:262144,remainingModelCalls:8,remainingMillis:4000,
+      chargedUsage:{codeExecutions:h.commands.length},completionReservation:{phase:'COMPLETION',ratio:0.35}};}});
+  h.gateway.executeCodeCommand=async(_c,value)=>{h.commands.push(value);return{operationId:'physical-'+h.commands.length,
+    manifestHash:value.manifest.sha256,commandHash:createHash('sha256').update(value.command).digest('hex'),
+    executorStopped:true,stopProofRef:'independent:stop:'+h.commands.length,resultAvailable:true,exitCode:0,stdout:'OK',stderr:'',
+    verificationPolicy:'BASH_PIPEFAIL_V1',declaredCommandMatched:value.command===declared,
+    declaredCommandSha256:createHash('sha256').update(declared).digest('hex')};};
+  const c=pipefailContract();c.budget.maxCodeExecutions=4;
+  const result=await createNativeCodingRun(c,h.gateway,{contractHash:hash,workspaceBase:h.base,model:scripted([
+    {calls:[{name:'run_commands',input:{commands:[declared]}}]},
+    {calls:[{name:'run_commands',input:{commands:['pwd']}}]},
+    {assert(request){const facts=latestFacts(request);assert.equal(facts.verification.verificationStatus,'PASSED');
+      assert.equal(facts.verification.executionOperationId,'physical-1');assert.equal(facts.lastExecution.operationId,'physical-2');
+      assert.equal(facts.verification.taskId,c.taskId);assert.equal(facts.verification.codeManifestHash,facts.codeManifestHash);
+      assert.equal(facts.verification.stopProofRef,'independent:stop:1');assert.equal(facts.budget.remainingCodeExecutions,2);
+      assert.equal(facts.independentAcceptanceStatus,'NOT_EVALUATED');},text:'The actual declaration is verified. Deliver the unchanged project.'},
+  ])}).run();
+  assert.equal(result.status,'completed',JSON.stringify(result.error));assert.equal(h.commands.length,2);
+  assert.ok(h.checkpoints.some(value=>value.compactionCount>0),'Use the installed SDK compactor');
+});
+
+test('Phase 4 exposes stale declaration after editing and never certifies a new source with an old pass',async t=>{
+  let observedStale=false;
+  const declared='python -m unittest discover -s tests -v';
+  const h=await host(t,{async openCodeWorkspace(){return{files:{'calc.py':'value = 1\n'},modelId:'qwen3.8-flash',acceptanceCommand:declared,verificationPolicy:'BASH_PIPEFAIL_V1'};}});
+  h.gateway.executeCodeCommand=async(_c,value)=>({operationId:'test-old-source',manifestHash:value.manifest.sha256,
+    commandHash:createHash('sha256').update(value.command).digest('hex'),executorStopped:true,stopProofRef:'independent:old-stop',
+    resultAvailable:true,exitCode:0,stdout:'OK',stderr:'',verificationPolicy:'BASH_PIPEFAIL_V1',declaredCommandMatched:true,
+    declaredCommandSha256:createHash('sha256').update(declared).digest('hex')});
+  const c=pipefailContract();
+  const result=await createNativeCodingRun(c,h.gateway,{contractHash:hash,workspaceBase:h.base,model:scripted([
+    {calls:[{name:'run_commands',input:{commands:[declared]}}]},
+    {calls:[{name:'editor',input:{path:'calc.py',old_text:'value = 1',new_text:'value = 2'}}]},
+    {assert(request){const facts=latestFacts(request);assert.equal(facts.verification.verificationStatus,'STALE');
+      assert.notEqual(facts.verification.codeManifestHash,facts.codeManifestHash);observedStale=true;},text:'Done.'},
+  ])}).run();
+  assert.equal(observedStale,true,'The model must actually observe stale verification; an assertion hidden in SDK failed status is insufficient');
+  assert.equal(result.status,'failed');
+});
+
 test('versioned native policy accepts host-bound filtered verification without rewriting SDK commands',async t=>{
   const declared='python -m unittest discover -s tests -v',command=declared+' 2>&1 | tail -20';
   const h=await host(t,{async openCodeWorkspace(){return{files:{'main.py':'value = 1\n'},modelId:'qwen3.8-flash',acceptanceCommand:declared,verificationPolicy:'BASH_PIPEFAIL_V1'};}});
@@ -48,6 +98,51 @@ test('versioned native policy accepts host-bound filtered verification without r
     {calls:[{name:'run_commands',input:{commands:[command]}}]}, {text:'Read the successful original test result.'},
   ]),contractHash:hash,workspaceBase:h.base}).run();
   assert.equal(result.status,'completed');assert.equal(h.commands.length,1);
+});
+
+test('Phase 4 restored SDK session reads persisted declaration facts without executing the old test again',async t=>{
+  const declared='python -m unittest discover -s tests -v';let verification=null,execution=null;
+  const h=await host(t,{async openCodeWorkspace(){return{...(h.workspace??{files:{'calc.py':'value = 1\n'}}),
+    modelId:'qwen3.8-flash',acceptanceCommand:declared,verificationPolicy:'BASH_PIPEFAIL_V1',lastExecution:execution,lastVerification:verification};}});
+  h.gateway.executeCodeCommand=async(_c,value)=>{h.commands.push(value);execution={operationId:'stopped-'+h.commands.length,
+    manifestHash:value.manifest.sha256,commandHash:createHash('sha256').update(value.command).digest('hex'),
+    executorStopped:true,stopProofRef:'independent:stop:'+h.commands.length,resultAvailable:true,exitCode:0,stdout:'OK',stderr:'',
+    verificationPolicy:'BASH_PIPEFAIL_V1',declaredCommandMatched:value.command===declared,
+    declaredCommandSha256:createHash('sha256').update(declared).digest('hex')};
+    if(execution.declaredCommandMatched)verification=execution;return execution;};
+  const c=pipefailContract();
+  const first=await createNativeCodingRun(c,h.gateway,{contractHash:hash,workspaceBase:h.base,model:scripted([
+    {calls:[{name:'run_commands',input:{commands:[declared]}}]},
+    {calls:[{name:'run_commands',input:{commands:['pwd']}}]}, {text:'Verified.'},
+  ])}).run();
+  assert.equal(first.status,'completed');const checkpoint=h.checkpoints.at(-1);let sawRecovered=false;
+  const restored=await createNativeCodingRun(c,h.gateway,{contractHash:hash,workspaceBase:h.base,checkpoint,model:scripted([
+    {assert(request){const fact=latestFacts(request).verification;assert.equal(fact.verificationStatus,'PASSED');
+      assert.equal(fact.executionOperationId,verification.operationId);sawRecovered=true;},text:'Deliver the already verified unchanged project.'},
+  ],checkpoint.modelOrdinal)}).run();
+  assert.equal(restored.status,'completed',JSON.stringify(restored.error));assert.equal(sawRecovered,true);
+  assert.equal(restored.sdkSessionId,first.sdkSessionId);assert.equal(h.commands.length,2);
+});
+
+test('Phase 4 lost edit ACK reloads the Host version before projecting verification into that model request',async t=>{
+  const declared='python -m unittest discover -s tests -v';let verification=null,opens=0,observed=false;
+  const h=await host(t,{async openCodeWorkspace(){opens++;return{...(h.workspace??{files:{'calc.py':'value = 1\n'}}),
+    modelId:'qwen3.8-flash',acceptanceCommand:declared,verificationPolicy:'BASH_PIPEFAIL_V1',lastVerification:verification};}});
+  h.gateway.executeCodeCommand=async(_c,value)=>verification={operationId:'verified-original',manifestHash:value.manifest.sha256,
+    commandHash:createHash('sha256').update(value.command).digest('hex'),executorStopped:true,stopProofRef:'independent:stop',
+    resultAvailable:true,exitCode:0,stdout:'OK',stderr:'',verificationPolicy:'BASH_PIPEFAIL_V1',declaredCommandMatched:true,
+    declaredCommandSha256:createHash('sha256').update(declared).digest('hex')};
+  const commit=h.gateway.commitCodeWorkspace;
+  h.gateway.commitCodeWorkspace=async(...args)=>{const answer=await commit(...args);
+    if(args[1].kind==='EDIT')throw Error('Actual durable edit succeeded; transport ACK lost');return answer;};
+  const result=await createNativeCodingRun(pipefailContract(),h.gateway,{contractHash:hash,workspaceBase:h.base,model:scripted([
+    {calls:[{name:'run_commands',input:{commands:[declared]}}]},
+    {calls:[{name:'editor',input:{path:'calc.py',old_text:'value = 1',new_text:'value = 2'}}]},
+    {assert(request){const facts=latestFacts(request);assert.equal(opens,2);assert.equal(facts.codeManifestHash,h.workspace.manifest.sha256);
+      assert.equal(facts.verification.verificationStatus,'STALE');observed=true;},text:'Done.'},
+  ])}).run();
+  assert.equal(observed,true,'Refresh after prepareTurn would send stale passing facts to this model request');
+  assert.equal(result.status,'failed');
 });
 
 for(const failure of ['nonzero','missing-result'])test('later declared verification '+failure+' invalidates an earlier success on unchanged source',async t=>{

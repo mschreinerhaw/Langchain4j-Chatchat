@@ -108,7 +108,7 @@ export function sdkPrepareTurn(sessionId, currentCode = () => null, options = {}
   const prepare = async context => {
     if(options.toolsProjection)context={...context,tools:options.toolsProjection(context.tools??[])};
     const budget = await options.budgetSnapshot?.(context);
-    const memory = options.technicalMemory?.();
+    const memory = options.technicalMemory?.(budget);
     const code = currentCode();
     const reviewOnly = Boolean(code && options.reviewOnly?.());
     const reference = options.reviewReference?.();

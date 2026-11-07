@@ -9,6 +9,7 @@ import {createNativeSession} from './native-session.js';
 import {sdkPrepareTurn,completeToolBoundary} from './sdk-adapter.js';
 import {prepareNativeSkills} from './native-skills.js';
 import {createHash} from 'node:crypto';
+import {nativeVerificationFact,nativeResourceFacts} from './native-verification.js';
 
 export const NATIVE_CODING_PROFILE='runtime-coding:native-project:v1';
 export const NATIVE_PIPEFAIL_PROFILE='runtime-coding:native-project:v2';
@@ -32,7 +33,8 @@ export function createNativeCodingRun(contract,gateway,options={}) {
   let declarationHash=null;
   const declaredReceipt=receipt=>verificationPolicy==='BASH_PIPEFAIL_V1'&&receipt?.verificationPolicy===verificationPolicy
     &&receipt.declaredCommandMatched===true&&receipt.declaredCommandSha256===declarationHash;
-  const acceptedVerification=receipt=>receipt?.executorStopped===true&&receipt.exitCode===0&&receipt.resultAvailable!==false
+  const acceptedVerification=receipt=>receipt?.executorStopped===true&&receipt.exitCode===0
+    &&(verificationPolicy==='BASH_PIPEFAIL_V1'?receipt.resultAvailable===true&&typeof receipt.stopProofRef==='string'&&Boolean(receipt.stopProofRef):receipt.resultAvailable!==false)
     &&(verificationPolicy==='BASH_PIPEFAIL_V1'?declaredReceipt(receipt):acceptanceCommandHashes.has(receipt.commandHash));
   const allowed=new Set(contract.authorization.allowedTools);
   const replayedTools=new Map();
@@ -99,13 +101,29 @@ export function createNativeCodingRun(contract,gateway,options={}) {
       compactionState:options.checkpoint?.compactionState,compactionCount:options.checkpoint?.compactionCount,
       statefulCompactionEnabled:true,
       protectLatestToolTail:true,
-      technicalMemory:()=>({workspaceFiles:Object.keys(workspace.snapshot().files),
-        ...(lastExecution?{lastExecution:{exitCode:lastExecution.exitCode,operationId:lastExecution.operationId}}:{})}),
+      technicalMemory:budget=>{
+        const current=workspace.snapshot();
+        return{workspaceFiles:Object.keys(current.files),
+          ...(lastExecution?{lastExecution:{exitCode:lastExecution.exitCode,operationId:lastExecution.operationId}}:{}),
+          ...(verificationPolicy==='BASH_PIPEFAIL_V1'?{codeManifestHash:current.manifest.sha256,
+            verification:nativeVerificationFact(contract.taskId,current.manifest.sha256,lastVerification,declaredReceipt),
+            budget:nativeResourceFacts(contract,budget),independentAcceptanceStatus:'NOT_EVALUATED'}:{})};
+      },
       budgetSnapshot:typeof gateway.budget==='function'?context=>gateway.budget(contract,
         Math.ceil(Buffer.byteLength(JSON.stringify(context.messages))/4),context.signal):undefined,
     });
+    const prepareNativeTurn=async context=>{
+      // SDK prepareTurn runs before beforeModel: reload before computing facts,
+      // rather than updating the workspace after the request was projected.
+      if(workspace.requiresReload()){
+        const current=await gateway.openCodeWorkspace(contract,cancel.signal);await workspace.refresh(current);
+        lastExecution=current.lastExecution??null;
+        lastVerification=current.lastVerification??(acceptedVerification(lastExecution)?lastExecution:null);
+      }
+      return prepareTurn(context);
+    };
     agent=new Agent({agentId:session.sessionId,sessionId:session.sessionId,conversationId:session.sessionId,
-      model:session.model,tools,prepareTurn,maxIterations:contract.budget.maxModelCalls,toolExecution:'sequential',
+      model:session.model,tools,prepareTurn:prepareNativeTurn,maxIterations:contract.budget.maxModelCalls,toolExecution:'sequential',
       systemPrompt:'You are Cline, an autonomous coding agent. Work in the authorized task project using the available tools and inspect actual execution results before finishing.',
       completionPolicy:{completionGuard:()=>{
         const current=workspace.snapshot();
@@ -120,7 +138,6 @@ export function createNativeCodingRun(contract,gateway,options={}) {
       }},
       hooks:{
         async beforeModel({snapshot,request}){
-          if(workspace.requiresReload()){const current=await gateway.openCodeWorkspace(contract,cancel.signal);await workspace.refresh(current);lastExecution=current.lastExecution??lastExecution;}
           await session.checkpoint(snapshot.messages,{...prepareTurn.snapshot()});
           request.runtimeCheckpointOrdinal=session.state().checkpointOrdinal;},
         async beforeTool({toolCall}){

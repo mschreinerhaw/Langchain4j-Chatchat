@@ -581,7 +581,7 @@ public final class ClineModelCallbackController {
             String type = event.path("type").asText("");
             // TOOL_STARTED precedes Runtime admission, so its proposed operation is advisory only.
             boolean admissionPending = event.path("admissionPending").asBoolean(false)
-                && Set.of("MODEL_STARTED", "MODEL_FAILED", "MODEL_TIMING").contains(type);
+                && Set.of("MODEL_STARTED", "MODEL_FAILED", "MODEL_TIMING", "MODEL_TOOL_DISCLOSURE").contains(type);
             String operation = admissionPending ? null : "TOOL_FINISHED".equals(type)
                 ? event.path("operationId").asText(null)
                 : type.startsWith("MODEL_") ? operationId("model-" + event.path("modelCall").asLong(-1)) : null;
@@ -595,6 +595,16 @@ public final class ClineModelCallbackController {
     /** Only bounded telemetry fields are retained. Source, prompts and tool responses are private artifacts. */
     private Map<String,Object> workerPayload(JsonNode event) {
         var payload = new java.util.LinkedHashMap<String,Object>();
+        if(event.path("toolSchemaSha256").isTextual() && event.path("toolSchemaSha256").asText().matches("[a-f0-9]{64}"))
+            payload.put("toolSchemaSha256",event.path("toolSchemaSha256").asText());
+        for(String key:List.of("authorizedTools","disclosedTools")) {
+            var value=event.path(key);
+            if(value.isArray()&&value.size()<=64) {
+                var names=new java.util.TreeSet<String>();boolean valid=true;
+                for(var name:value)if(name.isTextual()&&name.asText().matches("[a-z][a-z0-9_]{0,63}"))names.add(name.asText());else valid=false;
+                if(valid)payload.put(key,List.copyOf(names));
+            }
+        }
         for (String key : List.of("type", "timestamp", "stage", "source", "attemptId", "operationId", "tool", "status", "planText", "executionOrigin",
                 "scriptPath", "codeSha256", "fileName", "proposedOperationId", "skillFingerprint", "skillId", "skillVersion", "selectedModel", "providerModel", "protocol", "startedAt", "finishedAt", "validationStatus", "outputStatus",
                 "resultDatasetRef", "validationRecordRef", "evidenceBundleRef", "errorCategory", "diagnosticCode", "parentCodeHash", "changeKind", "proposalHash", "toolCallId", "responseMode", "strategy", "reason", "requestHash", "estimator", "contextChangeReason", "compactionStrategy", "queueTimeScope", "providerTimingAvailability", "sdkSessionId", "receiptReplayOperationId")) {

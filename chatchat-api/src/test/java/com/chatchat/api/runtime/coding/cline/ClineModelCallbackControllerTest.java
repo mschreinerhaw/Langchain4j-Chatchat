@@ -132,6 +132,22 @@ class ClineModelCallbackControllerTest {
             .doesNotContainKeys("prompt","sql","code");
     }
 
+    @Test void toolDisclosureRetainsOnlyBoundedNamesAndSchemaFingerprint() {
+        var controller = new ClineModelCallbackController(null,null,null,null,null,null,null,new ObjectMapper());
+        var event = new ObjectMapper().createObjectNode().put("type","MODEL_TOOL_DISCLOSURE")
+            .put("toolSchemaSha256","a".repeat(64)).put("prompt","private prompt");
+        event.putArray("authorizedTools").add("python_execute").add("market_search");
+        event.putArray("disclosedTools").add("python_execute");
+        event.putObject("tools").put("schema","private description");
+        Map<String,Object> payload=org.springframework.test.util.ReflectionTestUtils.invokeMethod(controller,"workerPayload",event);
+        assertThat(payload).containsEntry("authorizedTools",List.of("market_search","python_execute"))
+            .containsEntry("disclosedTools",List.of("python_execute")).containsEntry("toolSchemaSha256","a".repeat(64))
+            .doesNotContainKeys("prompt","tools");
+        event.putArray("disclosedTools").add("private injected text");event.put("toolSchemaSha256","not a digest");
+        payload=org.springframework.test.util.ReflectionTestUtils.invokeMethod(controller,"workerPayload",event);
+        assertThat(payload).doesNotContainKeys("disclosedTools","toolSchemaSha256");
+    }
+
     @Test void retainsOnlyBoundedContextMeasurementsWithoutPromptOrComponentContents() {
         var controller = new ClineModelCallbackController(null,null,null,null,null,null,null,new ObjectMapper());
         var event = new ObjectMapper().createObjectNode().put("type","MODEL_TIMING")

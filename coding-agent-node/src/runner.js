@@ -5,7 +5,7 @@ import { prepareProgram, repairSourceContext, CodeHistory, CODE_LIFECYCLE_VERSIO
 import { editProgram, sdkPrepareTurn, resolveWorkspaceFiles, restoreWorkspaceFiles, completeToolBoundary, boundCompactionCheckpoint } from './sdk-adapter.js';
 import { initialProject, proposeProject, projectSchema, decodeProject } from './python-project.js';
 import { prepareNativeSkills } from './native-skills.js';
-import { measureRequestContext, createRequestContextTracker } from './request-context.js';
+import { measureRequestContext, createRequestContextTracker, modelToolDisclosure } from './request-context.js';
 import { createToolCatalog, DEFERRED_TOOLS_PROFILE, TOOL_DESCRIBE } from './tool-catalog.js';
 import { createCodingProgress } from './coding-progress.js';
 
@@ -962,6 +962,9 @@ export function createCodingRun(contract, gateway, options = {}) {
         try { contextMeasurement = { ...measureRequestContext(request, softInputTokenBudget),
           ...trackRequestContext(request), ...prepareTurn?.measurement() }; } catch { /* telemetry is not admission */ }
         let attemptUsage = null;
+        try { await forward({type:'MODEL_TOOL_DISCLOSURE',modelCall:modelIndex,stage:'CODING',
+          admissionPending:options.model.managesAdmissions===true,...modelToolDisclosure(contract,request)}); }
+        catch { /* Java admission remains authoritative if optional observation fails. */ }
         for await (const event of await options.model.stream(request)) {
           if (event.type === 'tool-call-delta' && event.toolName) actualTools.add(event.toolName);
           firstEventMs ??= Math.round(performance.now() - started);

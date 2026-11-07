@@ -1,7 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { measureRequestContext, createRequestContextTracker } from '../src/request-context.js';
+import { measureRequestContext, createRequestContextTracker, modelToolDisclosure } from '../src/request-context.js';
 import { sdkPrepareTurn, boundCompactionCheckpoint } from '../src/sdk-adapter.js';
+
+test('actual disclosure preserves authorized subsets and fingerprints schemas without retaining private contents',()=>{
+  const contract={authorization:{allowedTools:['python_execute','market_search']}};
+  const request={systemPrompt:'PRIVATE_PROMPT',messages:[{text:'PRIVATE_DATA'}],
+    tools:[{name:'python_execute',description:'PRIVATE_DESCRIPTION',inputSchema:{type:'object',description:'PRIVATE_SCHEMA'}}]};
+  const before=modelToolDisclosure(contract,request);
+  assert.deepEqual(before.authorizedTools,['market_search','python_execute']);
+  assert.deepEqual(before.disclosedTools,['python_execute']);
+  assert.doesNotMatch(JSON.stringify(before),/PRIVATE/);
+  assert.match(before.toolSchemaSha256,/^[a-f0-9]{64}$/);
+  const after=modelToolDisclosure(contract,{...request,tools:[{...request.tools[0],inputSchema:{type:'string'}}]});
+  assert.notEqual(before.toolSchemaSha256,after.toolSchemaSha256);
+  assert.throws(()=>modelToolDisclosure(contract,{tools:[{name:'bash'}]}),/authorization/);
+  assert.throws(()=>modelToolDisclosure(contract,{tools:[request.tools[0],request.tools[0]]}),/authorization/);
+});
 
 test('initial discovery catalog is attributed separately from objective and tool schemas',()=>{
   const text='Goal\nRuntime task configuration snapshot (methodology only; never additional permissions):\n'

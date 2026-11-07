@@ -1,5 +1,16 @@
 import { createHash } from 'node:crypto';
 
+/** Final SDK disclosure metadata only; no prompt, schema body or tool arguments. */
+export function modelToolDisclosure(contract, request) {
+  const authorizedTools = [...new Set(contract.authorization?.allowedTools ?? [])].sort();
+  const permitted = new Set(authorizedTools);
+  const disclosedTools = request.tools.map(tool => tool.name).sort();
+  if (new Set(disclosedTools).size !== disclosedTools.length || disclosedTools.some(name => !permitted.has(name)))
+    throw new TypeError('Model disclosure exceeds frozen tool authorization');
+  const schemas = request.tools.map(({name,inputSchema}) => ({name,inputSchema})).sort((a,b)=>a.name.localeCompare(b.name));
+  return {authorizedTools,disclosedTools,toolSchemaSha256:createHash('sha256').update(JSON.stringify(schemas)).digest('hex')};
+}
+
 // Stores only hashes and lengths for the preceding request, never another transcript.
 export function createRequestContextTracker() {
   let previous = new Set();

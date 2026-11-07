@@ -27,6 +27,8 @@
 
 ## Worker 恢复专项：源码先行发现（待故障注入验证）
 
+通用批次 B/C 暴露了固定 cwd 修复的遗漏：SDK 原生 `run_commands` 同时接受字符串和 `{command: string}`。真实模型选择对象形态，Sandbox 回执正确保存的是对象 canonical Hash；完成门槛却只认可字符串 Hash。B 的三次测试都通过，独立复核也通过，但 8 次模型调用后仍失败。不能据此归因于模型或提高预算。应保留原始执行身份，有限枚举 SDK 对象形态，排除额外 args/env/管道；使用安装版 SDK 的真实对象工具输入建立独立回归。
+
 `ClineCodingAdapter.resume` 的 native 分支在回收遗留 TOOL/CODE 之前调用 `recoveryFence`；后者却要求所有 start intent 已停止。Worker 在工具中断时，这两个条件互相阻塞。应区分“先隔离旧 Worker 的恢复所有权”和“允许下一次推理”：前者必须保留所有未知状态，后者仍要求独立停止证明及完整工具边界。不能把 fence 当作停止证明。
 
 `NativeCodingWorkspaceService.authorize` 对已有不可变工具回执仍调用 `startIntent`。更换 fence 后，原来的 start fence 与当前 fence 不同，合法回放可能被拒绝。最小修复应在身份、原输入 Hash、授权和停止证明均验证后只回放，不能重新执行或重复扣预算。先建立真实 A2 测试，再进行 Worker 中断实测。

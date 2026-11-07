@@ -13,7 +13,7 @@ import time
 
 def main():
     os.umask(0o077);root=Path(sys.argv[1]).resolve()
-    assert root.parent==Path('/var/tmp') and root.name=='runtime-empty-p0-20261107'
+    assert root.parent==Path('/var/tmp') and root.name in ['runtime-empty-p0-20261107','runtime-empty-p0-20261107-retest']
     intent=root/'model-batch-intent.json';assert not intent.exists(),'An existing batch must be collected, never replayed'
     prepared=json.loads((root/'model-cases-prepared-private.json').read_text())
     intent.write_text(json.dumps({'startedAt':time.time(),'cases':[c['case'] for c in prepared['cases']],'maxConcurrentFileCases':1,'budgetOverride':False}))

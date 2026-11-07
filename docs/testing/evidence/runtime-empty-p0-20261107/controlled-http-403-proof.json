@@ -1,0 +1,39 @@
+{
+  "originalQuery" : {
+    "dataset" : "quotes"
+  },
+  "case" : "E07",
+  "sourceMessage" : "controlled source failure",
+  "dataObservation" : {
+    "schemaVersion" : "runtime_os.data_observation.v1",
+    "tool" : "market_get_history",
+    "query" : {
+      "dataset" : "quotes"
+    },
+    "startedAt" : "2026-11-06T22:43:54.796383500Z",
+    "finishedAt" : "2026-11-06T22:43:54.796383500Z",
+    "elapsedMs" : 1,
+    "resourceId" : "financial_market",
+    "recordKind" : "OBSERVATIONS",
+    "availableTools" : [ "market_get_day_snapshot", "market_get_history", "market_search" ],
+    "searchAvailability" : {
+      "status" : "UNAVAILABLE",
+      "reasonCode" : "MODEL_INTERNET_DISABLED",
+      "serviceChecked" : false
+    },
+    "status" : "ACCESS_DENIED",
+    "conditions" : [ "ACCESS_DENIED" ],
+    "returnedRowCount" : null,
+    "httpStatus" : 403,
+    "errorType" : "ResponseStatusException",
+    "error" : "Source access denied; no data disclosed",
+    "sourceEmptyProven" : false,
+    "automaticRetryAuthorized" : false,
+    "recoveryPolicy" : "Choose only available authorized tools within the original task budget, date and file limits. Inspect template/parameters, dates, security/market/aliases and catalog coverage; consider other authorized sources, a bounded day file, then authorized Search. An empty slice does not prove source absence. Avoid repeating an unchanged query; retain attempted paths and unsupported analyses in a PARTIAL or unavailable report. Do not invent data or units."
+  },
+  "authorizationExpanded" : false,
+  "emptyArraySynthesized" : false,
+  "productionServiceDisrupted" : false,
+  "sourceResponseStatus" : 403,
+  "testLevel" : "CONTROLLED_REAL_HTTP_TRANSPORT"
+}

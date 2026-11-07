@@ -231,6 +231,49 @@ class CodingKnowledgeServiceTest {
         rows.set(List.of(Map.of("observation_date","2026-11-02","price",99)));
         assertThatThrownBy(()->as(()->knowledge.source(contract,ref))).isInstanceOf(SecurityException.class);
     }
+    Map<String,Object> directoryBody(String time,String name) {
+        return new LinkedHashMap<>(Map.of("count",1,"items",List.of(Map.of("security_code","301218","security_name",name,
+            "source_refreshed_at",time,"collected_at","2026-11-02T00:00:00Z"))));
+    }
+    void directoryCheckpoint(Map<String,Object> result) {
+        var output=new LinkedHashMap<>(result);output.put("authority","UNTRUSTED_SOURCE_DATA");
+        var checkpoint=json.valueToTree(Map.of("inputSnapshotRef",contract.inputSnapshotRef(),"workspaceRef",contract.workspaceRef(),
+            "contractHash",CodingCanonicalHash.sha256(contract),"modelOrdinal",0,"eventOrdinal",0,"checkpointOrdinal",1,"sdkSessionId","directory-proof",
+            "messages",List.of(Map.of("role","assistant","content",List.of(Map.of("type","tool-call","toolCallId","directory-call","toolName","market_resolve_security","input",Map.of("query","301218")))),
+                Map.of("role","tool","content",List.of(Map.of("type","tool-result","toolCallId","directory-call","toolName","market_resolve_security","output",output))))));
+        as(()->{tasks.saveSdkCheckpoint(scope,contract.taskId(),lease,checkpoint);return null;});
+    }
+    @Test void directoryRefreshRequiresExactOriginalProofAndPreservesObservedVersion() {
+        resourceTask("market_resolve_security");var current=new java.util.concurrent.atomic.AtomicReference<>(directoryBody("2026-11-03T00:00:00Z","Original"));
+        when(reader.read(eq("market_resolve_security"),any())).thenAnswer(x->new LinkedHashMap<>(current.get()));
+        var result=call("market_resolve_security",Map.of("query","301218"));String ref=(String)result.get("evidence_id");directoryCheckpoint(result);
+        current.set(directoryBody("2026-11-04T00:00:00Z","Original"));
+        var source=as(()->knowledge.source(contract,ref));
+        assertThat(source).containsEntry("source_revalidation_status","VERIFIED_REFRESH_ONLY");
+        assertThat(source.get("text").toString()).contains("2026-11-03T00:00:00Z").doesNotContain("2026-11-04T00:00:00Z");
+        as(()->{knowledge.validateContext(contract);return null;});
+        resourceGrants.set(Set.of());
+        assertThatThrownBy(()->as(()->knowledge.source(contract,ref))).isInstanceOf(SecurityException.class).hasMessageContaining("ACCESS_REVOKED");
+    }
+    @ParameterizedTest @ValueSource(strings={"changed","backward","invalid","observation","unavailable"})
+    void directoryRefreshNeverHidesBusinessChangesOrUnavailableSources(String mutation) {
+        resourceTask("market_resolve_security");var current=new java.util.concurrent.atomic.AtomicReference<>(directoryBody("2026-11-03T00:00:00Z","Original"));
+        when(reader.read(eq("market_resolve_security"),any())).thenAnswer(x->new LinkedHashMap<>(current.get()));
+        var result=call("market_resolve_security",Map.of("query","301218"));String ref=(String)result.get("evidence_id");directoryCheckpoint(result);
+        current.set(directoryBody(mutation.equals("backward")?"2026-11-01T00:00:00Z":mutation.equals("invalid")?"invalid":"2026-11-04T00:00:00Z",mutation.equals("changed")?"Changed":"Original"));
+        if(mutation.equals("observation"))current.set(new LinkedHashMap<>(Map.of("count",1,"items",List.of(Map.of("security_code","301218","security_name","Original","source_refreshed_at","2026-11-04T00:00:00Z","collected_at","2026-11-02T01:00:00Z")))));
+        if(mutation.equals("unavailable"))when(reader.read(eq("market_resolve_security"),any())).thenThrow(new IllegalStateException("offline"));
+        assertThatThrownBy(()->as(()->knowledge.source(contract,ref))).isInstanceOf(SecurityException.class).hasMessageContaining(mutation.equals("unavailable")?"SOURCE_UNAVAILABLE":"SOURCE_CHANGED");
+    }
+    @ParameterizedTest @ValueSource(booleans={false,true})
+    void directoryRefreshRejectsMissingOrTamperedOriginalProof(boolean tamper) {
+        resourceTask("market_resolve_security");var current=new java.util.concurrent.atomic.AtomicReference<>(directoryBody("2026-11-03T00:00:00Z","Original"));
+        when(reader.read(eq("market_resolve_security"),any())).thenAnswer(x->new LinkedHashMap<>(current.get()));
+        var result=call("market_resolve_security",Map.of("query","301218"));String ref=(String)result.get("evidence_id");
+        if(tamper){var forged=new LinkedHashMap<>(result);forged.put("count",2);directoryCheckpoint(forged);}
+        current.set(directoryBody("2026-11-04T00:00:00Z","Original"));
+        assertThatThrownBy(()->as(()->knowledge.source(contract,ref))).isInstanceOf(SecurityException.class).hasMessageContaining("VERSION_PROOF_UNAVAILABLE");
+    }
     @Test void catalogHeartbeatRefreshPreservesObservedProvenanceButChangedMetadataStillExpires() {
         resourceTask("market_search");var heartbeat=new java.util.concurrent.atomic.AtomicReference<>("2026-11-03T01:00:00Z");
         when(reader.read(eq("market_search"),any())).thenAnswer(call->new LinkedHashMap<>(Map.of("items",List.of(Map.of("dataset_code","quote")))));

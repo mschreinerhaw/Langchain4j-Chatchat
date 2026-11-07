@@ -57,7 +57,11 @@ def main():
                 originalBusinessObservationCount=case['businessObservationCount'])
         except Exception as failure:
             record.update(archiveVerification='NOT_PASSED',errorType=type(failure).__name__,reason=str(failure)[:1000])
-            if isinstance(failure,urllib.error.HTTPError):record['httpStatus']=failure.code
+            if isinstance(failure,urllib.error.HTTPError):
+                record['httpStatus']=failure.code
+                try:
+                    envelope=json.loads(failure.read());record['serviceMessage']=str(envelope.get('message',''))[:1000]
+                except (ValueError,TypeError):record['serviceMessage']='Non-JSON error response; HTTP status retained'
     proof={'checkedAt':datetime.datetime.now(datetime.timezone.utc).isoformat(),'level':'FILE_ONLY_NATIVE_REPORTING',
         'cases':results,'rawSourceBodiesOrCredentialsPublished':False,'acceptanceIsNotTheCollectorExitCode':True}
     (public/'model-report-archive-proof.json').write_text(json.dumps(proof,ensure_ascii=False,indent=2))

@@ -1,0 +1,20 @@
+{
+  "checkedAt": "2026-11-07T00:29:47.631512+00:00",
+  "readOnly": true,
+  "archives": [
+    {
+      "case": "B2",
+      "fileId": "6c586a8c74f8c78771d8b1952c304957fa995cfdda768f9c5feceba1cdfe4224",
+      "httpStatus": 403,
+      "sourceChanged": true,
+      "sourceUnavailable": false
+    },
+    {
+      "case": "D3",
+      "fileId": "43d9f2320d9ac5448d4be918d233ebb1481c15c02cf8457801840a1837fdb912",
+      "httpStatus": 200,
+      "bytes": 6348,
+      "sha256": "4d92d0d303ca856e46453444a5b58b7e5536b19d5d618fad7cb2eac90c1b77e6"
+    }
+  ]
+}

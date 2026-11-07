@@ -1,0 +1,119 @@
+{
+  "scope": "ACTUAL_ISOLATED_API_NEGATIVE_TESTS_NOT_SANDBOX_OR_TOOL_SECURITY_ACCEPTANCE",
+  "sourceCommit": "4bf74f649",
+  "taskId": "native-135b0d1de7bd359607dc6498706425c673f062506cc0005b",
+  "cases": [
+    {
+      "actor": "other-user",
+      "method": "GET",
+      "route": "status",
+      "http": 403,
+      "code": 403,
+      "denied": true,
+      "disclosedFileContent": false
+    },
+    {
+      "actor": "other-user",
+      "method": "GET",
+      "route": "/files",
+      "http": 403,
+      "code": 403,
+      "denied": true,
+      "disclosedFileContent": false
+    },
+    {
+      "actor": "other-user",
+      "method": "GET",
+      "route": "/history",
+      "http": 403,
+      "code": 403,
+      "denied": true,
+      "disclosedFileContent": false
+    },
+    {
+      "actor": "other-user",
+      "method": "POST",
+      "route": "/cancel",
+      "http": 403,
+      "code": 403,
+      "denied": true,
+      "disclosedFileContent": false
+    },
+    {
+      "actor": "other-tenant",
+      "method": "GET",
+      "route": "status",
+      "http": 403,
+      "code": 403,
+      "denied": true,
+      "disclosedFileContent": false
+    },
+    {
+      "actor": "other-tenant",
+      "method": "GET",
+      "route": "/files",
+      "http": 403,
+      "code": 403,
+      "denied": true,
+      "disclosedFileContent": false
+    },
+    {
+      "actor": "other-tenant",
+      "method": "GET",
+      "route": "/history",
+      "http": 403,
+      "code": 403,
+      "denied": true,
+      "disclosedFileContent": false
+    },
+    {
+      "actor": "other-tenant",
+      "method": "POST",
+      "route": "/cancel",
+      "http": 403,
+      "code": 403,
+      "denied": true,
+      "disclosedFileContent": false
+    },
+    {
+      "actor": "unauthenticated",
+      "method": "GET",
+      "route": "/files",
+      "http": 401,
+      "code": 401,
+      "denied": true
+    },
+    {
+      "actor": "unauthenticated",
+      "method": "POST",
+      "route": "/cancel",
+      "http": 401,
+      "code": 401,
+      "denied": true
+    },
+    {
+      "actor": "owner",
+      "case": "traversal",
+      "http": 403,
+      "code": 403,
+      "denied": true
+    },
+    {
+      "actor": "owner",
+      "case": "absolute",
+      "http": 403,
+      "code": 403,
+      "denied": true
+    },
+    {
+      "actor": "owner",
+      "case": "windows-absolute",
+      "http": 403,
+      "code": 403,
+      "denied": true
+    }
+  ],
+  "originalUsageUnchanged": true,
+  "originalArchiveUnchanged": true,
+  "passed": true
+}

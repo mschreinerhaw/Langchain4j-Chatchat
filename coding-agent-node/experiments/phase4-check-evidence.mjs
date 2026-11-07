@@ -2,13 +2,19 @@
 import assert from 'node:assert/strict';
 import {access,readFile,readdir} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
 import {dirname,resolve} from 'node:path';
 const root=resolve(process.argv[2]??'.'),base=resolve(root,'docs/testing/evidence/native-coding-phase4');
 const read=async path=>JSON.parse(await readFile(path,'utf8'));
 const digest=bytes=>createHash('sha256').update(bytes).digest('hex');
 let cases=0,models=0,commands=0,versions=0,facts=0;
 const corpus=await read(resolve(base,'all-evidence-hashes.json'));
-for(const [name,expected] of Object.entries(corpus))assert.equal(digest(await readFile(resolve(base,name))),expected,name);
+const tracked=new Set(execFileSync('git',['ls-files','-z','--','docs/testing/evidence/native-coding-phase4'],
+ {cwd:root,encoding:'utf8'}).split('\0').filter(Boolean).map(name=>resolve(root,name)));
+for(const [name,expected] of Object.entries(corpus)){
+ assert.ok(tracked.has(resolve(base,name)),'Evidence must be Git-tracked: '+name);
+ assert.equal(digest(await readFile(resolve(base,name))),expected,name);
+}
 for(const repeat of [1,2,3]){
  const dir=resolve(base,'after-r'+repeat),hashes=await read(resolve(dir,'evidence-hashes.json'));
  for(const [name,expected] of Object.entries(hashes))assert.equal(digest(await readFile(resolve(dir,name))),expected,name);

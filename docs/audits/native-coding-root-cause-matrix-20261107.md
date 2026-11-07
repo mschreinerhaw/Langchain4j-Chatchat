@@ -49,6 +49,14 @@
 
 ## 边界与尚未通过项
 
+## 新基准合并的语义回归
+
+运行期间远端基准推进至 `167dfedf5`，合并提交为 `23c077f6d`；已冻结的真实任务继续使用原镜像，不混入新版本测量。Git 无文本冲突，但 Java 回归在 `ClineModelCallbackControllerTest.toolDisclosureRetainsOnlyBoundedNamesAndSchemaFingerprint` 失败：基准新增的有界 TreeSet 清洗已排序去重，随后本分支原有第二段工具清洗再次覆盖为输入顺序。API 共 176 项中 1 fail，日志 SHA256 `67ee15509db6779860daf858d05f79765fff507cecdd2543dae481008a5937e5`。
+
+这是审计投影合并缺陷，不是模型或原生执行器缺陷。最小修复应删除重复清洗，复用新基准已有的工具名约束及 Schema 指纹，不改测试预期或放开日志载荷，不改变工具授权。完整 Node 合并回归已为 310 pass、0 fail、1 Windows 链接跳过；Java 修复后须重测相关控制器及原生治理。
+
+## 最终边界
+
 Java 不决定修复步骤，不生成正确源码。SyntaxError、KeyError、NameError、TypeError 仍由同一原生 Agent 根据真实反馈处理。已进行多批固定通用模型任务，最新八项完整交付 5/8、最终源码复核 7/8，仍未通过完整 A–G 门槛；见 [实际验收](../testing/native-coding-real-acceptance-20261107.md)。不能将确定性测试称为自主修复成功率。
 
 SDK 0.0.93 的公开包未导出官方 routing resolver；仅将该版本官方模块原样 vendoring，并记录来源及 SHA，未混用最新主线。低层 Agent 的固定 registry 与 ClineCore 动态工具装配存在版本接口差异。Java MCP 工具代理及动态 Schema 尚未接通；预留 Node provider 不等于完整 MCP 支持。

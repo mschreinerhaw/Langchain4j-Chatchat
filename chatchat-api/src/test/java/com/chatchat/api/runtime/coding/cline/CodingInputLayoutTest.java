@@ -26,7 +26,7 @@ class CodingInputLayoutTest {
         assertThat(document.has("inputManifest")).isFalse();
         assertThat(layout.toString()).doesNotContain("PRIVATE_SOURCE_ROW");
         assertThat(layout.get("reader").toString()).contains("DECLARED_FILES", "No application-specific Python module")
-            .doesNotContain("runtime_input", "load_rows");
+            .contains("runtime_input.load_rows", "runtime_input.load_native_rows", "native_file_id", "Consume the iterator fully");
         assertThat(((Map<?,?>)layout.get("reader")).get("columnMappingScope")).isEqualTo("MANIFEST_PARTS_ONLY");
         assertThat(layout.get("repairGuidance").toString()).contains("NOT the content", "no self", "never replace missing business values");
     }

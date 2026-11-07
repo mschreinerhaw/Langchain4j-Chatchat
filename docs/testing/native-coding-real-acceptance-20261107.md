@@ -41,8 +41,6 @@ A 的模型自行扩展了规格及测试，涉及重音字符和 bytes 的两�
 
 同 Sandbox 镜像、512 MiB、禁网、非 root、只读根目录，顺序执行安装版 SDK native 与 capability 测试：**68/68 通过、零跳过**。容器已停止，OOMKilled=false。日志 SHA256 `6e2a0e9a0c16a0f2f912a45fb77760136f65234b760187d35a216f043601be93`，见 [独立容器证明](evidence/native-coding-20261107/linux-component-4bf74f649.json)。这是组件验证，未使用真实模型，不能记为真实性能样本。
 
-## 剩余验收门槛
-
 ## 版本化执行治理后的第四批
 
 代码 `0b62c544b`，同一八项样本、模型、8 次调用/4 次执行/300 秒预算及固定 Sandbox 镜像。仅在隔离验收三端启用新任务 `BASH_PIPEFAIL_V1`，生产及旧任务语义未改。启动前实际取得 Worker v2 profile 与 MCP 精确 wrapper/base Hash 能力，见 [部署证明](evidence/native-coding-20261107/pipefail-deployment-public.json) 和 [能力协商](evidence/native-coding-20261107/pipefail-capability-public.json)。

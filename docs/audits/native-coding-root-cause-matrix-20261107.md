@@ -47,8 +47,6 @@
 
 `NativeCodingWorkspaceService.authorize` 对已有不可变工具回执仍调用 `startIntent`。更换 fence 后，原来的 start fence 与当前 fence 不同，合法回放可能被拒绝。最小修复应在身份、原输入 Hash、授权和停止证明均验证后只回放，不能重新执行或重复扣预算。先建立真实 A2 测试，再进行 Worker 中断实测。
 
-## 边界与尚未通过项
-
 ## 新基准合并的语义回归
 
 运行期间远端基准推进至 `167dfedf5`，合并提交为 `23c077f6d`；已冻结的真实任务继续使用原镜像，不混入新版本测量。Git 无文本冲突，但 Java 回归在 `ClineModelCallbackControllerTest.toolDisclosureRetainsOnlyBoundedNamesAndSchemaFingerprint` 失败：基准新增的有界 TreeSet 清洗已排序去重，随后本分支原有第二段工具清洗再次覆盖为输入顺序。API 共 176 项中 1 fail，日志 SHA256 `67ee15509db6779860daf858d05f79765fff507cecdd2543dae481008a5937e5`。

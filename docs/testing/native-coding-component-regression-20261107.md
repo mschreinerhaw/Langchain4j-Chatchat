@@ -123,3 +123,9 @@ Node 原生 runner/workspace/server **56 项，55 通过、1 项 Windows 链接�
 
 完整 Node 回归为 **309 项：308 通过、0 失败、1 项 Windows 链接权限跳过**，日志 SHA256 `bcd50b900f3eaac6565046016602c47648508d32274ca8ae38c4b20da4ae9d83`。本地 Node 22.14 低于项目要求的 22.18，首次直接运行因四个测试文件导入 TypeScript 而失败；启用原有 `--experimental-strip-types` 后复测，未修改测试或产品代码掩盖失败。实际 Linux Worker 使用 Node 24.21。API/MCP/common 运行包构建成功，保留真实前端资产检查，构建日志 `3da27626162f4c73e8cecb65baa0f2c2fbb0e838379b320eb2c72c7b12e35ddb`。
 
+## 合入运行期间推进的新基准
+
+远端基准推进至 `167dfedf5` 后，在独立分支通过 `23c077f6d` 合入，保留基准既有业务修复，不覆盖或重新归因其测试结果。冻结的原生工作区、命令执行器及 helper 源码没有变化；真实模型批次仍按其原镜像及提交记录。
+
+合并后的完整 Node 回归 **311 项：310 pass、0 fail、1 Windows 链接跳过**，日志 SHA256 `faa01999bb7c310397aa4065fd805b5127c00cdbcae878cd454a76ae587f9810`。Java 首轮因重复审计清洗导致排序被覆盖而出现 1 fail；删除本分支重复段，复用基准有界清洗后，API **176/176**、common **4/4**、MCP **15 项中13 pass/2 skip**，合计 **195 项，193 pass、0 fail、2 skip**。日志 SHA256 `d41291f933541fa389774e15db38109d25e7de75acd66b24d216a07421aa7277`。既有隐私、非法工具名和 Schema 指纹负向预期保留，没有修改测试降低门槛。
+

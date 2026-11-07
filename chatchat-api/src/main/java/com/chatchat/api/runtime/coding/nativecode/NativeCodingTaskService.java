@@ -20,12 +20,16 @@ import org.springframework.stereotype.Service;
 @ConditionalOnProperty(prefix="chatchat.coding.native",name="enabled",havingValue="true")
 public final class NativeCodingTaskService {
     public record SkillBinding(String id,String version,String agentId){}
-    public record Request(String instruction,Map<String,String> files,List<String> readOnlyPaths,String modelName,String editStrategy,String acceptanceCommand,List<SkillBinding> skills){
+    public record Request(String instruction,Map<String,String> files,List<String> readOnlyPaths,String modelName,String editStrategy,String acceptanceCommand,List<SkillBinding> skills,List<NativeCodingMcpService.Binding> mcpServers){
+        public Request(String instruction,Map<String,String> files,List<String> readOnlyPaths,String modelName,String editStrategy,String acceptanceCommand,List<SkillBinding> skills){this(instruction,files,readOnlyPaths,modelName,editStrategy,acceptanceCommand,skills,List.of());}
         public Request(String instruction,Map<String,String> files,List<String> readOnlyPaths,String modelName,String editStrategy,String acceptanceCommand){this(instruction,files,readOnlyPaths,modelName,editStrategy,acceptanceCommand,List.of());}
     }
     private com.chatchat.runtime.skill.port.inbound.SkillResolver skillResolver;
     private com.chatchat.common.retrieval.SkillExecutionScopePort skillScopes;
     private boolean admissionEnabled;
+    private NativeCodingMcpService mcp;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setMcp(NativeCodingMcpService value){mcp=value;}
     private boolean pipefailVerificationEnabled;
     @Value("${chatchat.coding.native.pipefail-verification-enabled:false}")
     public void setPipefailVerificationEnabled(boolean enabled){pipefailVerificationEnabled=enabled;}
@@ -58,12 +62,14 @@ public final class NativeCodingTaskService {
         if(acceptance==null||acceptance.isBlank()||acceptance.length()>16384)throw new IllegalArgumentException("Declare the project verification command");
         CodingTaskContract contract;
         var bindings=request.skills()==null?List.<SkillBinding>of():List.copyOf(request.skills());
+        var mcpBindings=request.mcpServers()==null?List.<NativeCodingMcpService.Binding>of():List.copyOf(request.mcpServers());
         if(bindings.size()>8||bindings.stream().map(SkillBinding::id).distinct().count()!=bindings.size())throw new IllegalArgumentException("Invalid Skill selection");
         if(saved.isPresent()){
             contract=decode(saved.get(),CodingTaskContract.class);var initial=evidence.find(scope,"native-input:"+task).orElseThrow().payload();
             if(!contract.objective().instruction().equals(request.instruction())||!Objects.equals(initial.get("modelName"),model)
                     ||!Objects.equals(initial.get("editStrategy"),strategy)||!Objects.equals(initial.get("readOnlyPaths"),readOnly)
                     ||!Objects.equals(initial.get("acceptanceCommand"),acceptance)
+                    ||!json.valueToTree(initial.getOrDefault("mcpBindings",List.of())).equals(json.valueToTree(mcpBindings))
                     ||!json.valueToTree(initial.getOrDefault("skillBindings",List.of())).equals(json.valueToTree(bindings)))throw new IllegalArgumentException("Native Skill request identity conflict");
             if(!Objects.equals(initial.get("initialFilesHash"),CodingCanonicalHash.sha256Value(files)))throw new IllegalArgumentException("Native source request identity conflict");
         }else{
@@ -73,6 +79,8 @@ public final class NativeCodingTaskService {
                 if(capabilities==null||!capabilities.contains(executorPolicy.capability()))throw new SecurityException("MCP has not negotiated the pinned native executor policy");
             }
             var authorizedSkills=bindings.isEmpty()?Map.<String,Object>of():skillCatalog(scope,bindings);
+            if(!mcpBindings.isEmpty()&&mcp==null)throw new SecurityException("MCP governance unavailable");
+            var authorizedMcp=mcpBindings.isEmpty()?List.<Map<String,Object>>of():mcp.catalog(scope,mcpBindings);
             if(environment.isBlank())throw new SecurityException("Native Sandbox environment is not configured");
             var env=python.environment(environment);var runtime=python.environmentRuntime(environment);
             if(env==null||!"PUBLISHED".equals(env.status())||!"NONE".equals(env.networkPolicy())||runtime.imageDigest()==null)
@@ -83,6 +91,7 @@ public final class NativeCodingTaskService {
             payload.put("taskId",task);payload.put("initial",initial);payload.put("initialFilesHash",CodingCanonicalHash.sha256Value(files));payload.put("modelName",model);
             payload.put("editStrategy",strategy);payload.put("readOnlyPaths",readOnly);payload.put("acceptanceCommand",acceptance);
             payload.put("skillBindings",bindings);
+            if(!mcpBindings.isEmpty())payload.put("mcpBindings",mcpBindings);
             if(executorPolicy==NativeExecutorPolicy.PIPEFAIL){payload.put("nativeExecutionPolicy",executorPolicy.id());payload.put("nativeExecutorCapability",executorPolicy.capability());}
             String providerModel=models.connection(model).getModelName();payload.put("routingModelId",providerModel==null||providerModel.isBlank()?model:providerModel);
             String inputId="native-input:"+task;register(scope,task,inputId,NativeCodingWorkspaceService.INPUT_TYPE,payload,List.of());
@@ -95,6 +104,10 @@ public final class NativeCodingTaskService {
             context.put("schemaVersion","runtime_os.coding.context.v1");context.put("consistency","TASK_SNAPSHOT");
             if(executorPolicy==NativeExecutorPolicy.PIPEFAIL){context.put("nativeExecutionPolicy",executorPolicy.id());context.put("nativeExecutorCapability",executorPolicy.capability());}
             var tools=new ArrayList<>(List.of("read_files","search_codebase","editor","apply_patch","run_commands"));
+            if(!authorizedMcp.isEmpty()){
+                context.put(NativeCodingMcpService.CONTEXT,authorizedMcp);
+                authorizedMcp.forEach(card->tools.add((String)card.get("agentToolName")));
+            }
             if(!bindings.isEmpty()){
                 context.put("skills",authorizedSkills);tools.add("skills");
             }

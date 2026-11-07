@@ -1,0 +1,169 @@
+{
+  "status": "COMPONENTS_ONLY_NOT_PRODUCT_ACCEPTANCE",
+  "sdkVersion": "0.0.93",
+  "nodeVersion": "22.18.0",
+  "node": {
+    "tests": 323,
+    "passed": 322,
+    "failed": 0,
+    "skipped": 1
+  },
+  "java": {
+    "tests": 91,
+    "suites": [
+      {
+        "name": "com.chatchat.common.runtime.coding.NativeCodeWorkspaceTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.chatchat.api.runtime.coding.nativecode.NativeCodingMcpServiceTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.chatchat.api.runtime.coding.nativecode.NativeCodingWorkspaceServiceTest",
+        "tests": 12,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.chatchat.api.runtime.coding.cline.ClineCodingAdapterDispatchTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.chatchat.api.runtime.coding.cline.ClineCodingAdapterRecoveryTest",
+        "tests": 19,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.chatchat.api.runtime.coding.cline.ClineRuntimeModelBridgeTest",
+        "tests": 24,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.chatchat.api.runtime.coding.cline.ClineModelCallbackControllerTest",
+        "tests": 21,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    ]
+  },
+  "logs": [
+    {
+      "path": "p1-mcp-compile.log.gz",
+      "sha256": "9246a3223714f3cc6c2644cb204635faebb52deac74b4f02327181ec2687aa3c",
+      "originalSha256": "2f6248c635724b984132994bb8efec504a9da53790680cb47e528ae946674200",
+      "originalBytes": 10112
+    },
+    {
+      "path": "p1-mcp-compile-r2.log.gz",
+      "sha256": "308949431f052858c8fec94c163630a8bea476ab2b7a0598a073c51e3cfdde66",
+      "originalSha256": "c307a795a1216c3231d16b865c991034f0f8a71702a3ce1e3c2a15f213de514d",
+      "originalBytes": 93678
+    },
+    {
+      "path": "p1-mcp-compile-r3.log.gz",
+      "sha256": "de8fbad9e4aa4af452419fdb1ed0937166e80137c5444698e12933c1215e6a2d",
+      "originalSha256": "8b8e62e4ab1b471c93e31956906f937cd8f162660ddea3e28e81645ab0388fbc",
+      "originalBytes": 50540
+    },
+    {
+      "path": "p1-mcp-node-tests.log.gz",
+      "sha256": "189a9d250a8007d10a2c8b79f3480d8eed34ee55cb5e9bbc4b7c1538fae3ee5c",
+      "originalSha256": "c80c17f4647ec785e3a1639111a32a06c1cc4166fdd58c5a0a0aa363244eb58e",
+      "originalBytes": 12172
+    },
+    {
+      "path": "p1-mcp-node-tests-r2.log.gz",
+      "sha256": "1fc646a548d9da269389b8f717c332ae53e62034f6b67ef5049114c757ae8f41",
+      "originalSha256": "ec619e6f6ecabc176dbcca374bcca3872b931710fe529ac93dd413c477aeeeb0",
+      "originalBytes": 17844
+    },
+    {
+      "path": "p1-mcp-node-tests-r3.log.gz",
+      "sha256": "3b4ab974caa0f15f6df11a4616df2f12c49203ae71f2e4f420ff014d057befda",
+      "originalSha256": "e5876f4127278187e0a0bf6672f661aff7211a7c2c4a4c98cb2eb40804eb3b1e",
+      "originalBytes": 18358
+    },
+    {
+      "path": "p1-mcp-node-full.tap.gz",
+      "sha256": "8413bd30e732e76fa59982502eb91b5f5d613ed888c4aaa224ad280d66c84e80",
+      "originalSha256": "945c0d616504183080f2b9151e7deeec916b9dce83195a825df84dd586148426",
+      "originalBytes": 158222
+    },
+    {
+      "path": "p1-mcp-node-full-r2.tap.gz",
+      "sha256": "7c55fb56a22c9bf6712f0a7b856bc3bc97be9d6bc3844ebceb49e5913324709c",
+      "originalSha256": "e309e9156d2d1a92cfaac824d8aa65bc0a21e826d19f89f2c77a6b25c8618a39",
+      "originalBytes": 164092
+    },
+    {
+      "path": "p1-mcp-node-full-r3.tap.gz",
+      "sha256": "6bac2bd6316df62289095ac3cd9dde383fa5ddff242b2a9c444b85fcd09205b9",
+      "originalSha256": "9139665a2173bccfdfb4381e4695bf510753d90efdf9e67f5dcab1d7e67b3f86",
+      "originalBytes": 158454
+    },
+    {
+      "path": "p1-mcp-node-full-r4.tap.gz",
+      "sha256": "ea864bced428f431634b37998602d676ef17fa651653baa4bf47908c8731a7f2",
+      "originalSha256": "22aa599dd82b86caa7d3568304496b5d85f7bb7999cc37771ea35a459954ca4b",
+      "originalBytes": 158232
+    },
+    {
+      "path": "p1-mcp-java-tests.log.gz",
+      "sha256": "331479a7def2e36b74870eeb1ff2ee67d55a82177375a1dc4adb56b83b24a003",
+      "originalSha256": "4ea5aa5b00a314b42123f4ae71bfb9a1d61360f4983f9756bc832bfdff4c7e8c",
+      "originalBytes": 343152
+    },
+    {
+      "path": "p1-mcp-java-tests-r2.log.gz",
+      "sha256": "795c69dfa637dd924c39d58c141fb42ccef1bf2df82571afd6c55183f6b59307",
+      "originalSha256": "347709cb25db5db73f0a0e72448082da0ca9eaa6ca551c24e30eb38bfb14883f",
+      "originalBytes": 18662
+    },
+    {
+      "path": "p1-mcp-java-tests-r3.log.gz",
+      "sha256": "1505bdd5042e11ecf1a09cff1dddbe0f842a1410e4e07a46957ebef678ff2876",
+      "originalSha256": "dcf960ef0713db55dd3abaedfb569021cb16f952202dd1e74bc3a69791c43249",
+      "originalBytes": 301670
+    },
+    {
+      "path": "p1-mcp-java-tests-r4.log.gz",
+      "sha256": "323dfce69ada98eca29801ca36f9c2a3ff6c1326c5a23ebaf3792328fe9c921f",
+      "originalSha256": "ede464d7a1b9298ec07661b8e55f066a37c8837925f2cd9d4d585e835b62227a",
+      "originalBytes": 298912
+    },
+    {
+      "path": "p1-mcp-java-tests-r5.log.gz",
+      "sha256": "6fb818d883752f5a73eae62cd7f88c9e026d2218e7cc79451c9894e0c4d9bc64",
+      "originalSha256": "5c2a639bd2d36a3e2e0c12cad009db932dcf5b2b386979a4708ee366cc716c34",
+      "originalBytes": 296816
+    },
+    {
+      "path": "p1-mcp-java-tests-r6.log.gz",
+      "sha256": "8744ce4b06e1d6a690ce9fed88bad209b006ffc7849cf9dd84069f1346bd5605",
+      "originalSha256": "02f97d504652653d19466f07763335a698073cfb83bbac364e2ab4aa7a6a6173",
+      "originalBytes": 292272
+    },
+    {
+      "path": "p1-mcp-java-tests-r7.log.gz",
+      "sha256": "53b377f5fc5b7ee8a7e1c5e035fbd12a629e762ba329b3ad0ec09a096caa6a4f",
+      "originalSha256": "a8b0c90bfc40d61510ed06b9585e3c140daca92cece61e2df6a80a728fb57642",
+      "originalBytes": 292270
+    }
+  ]
+}

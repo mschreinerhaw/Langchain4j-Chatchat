@@ -20,6 +20,9 @@ public record CodingTaskContract(String schemaVersion, String taskId, KernelData
     }
     public CodingTaskContract {
         runtimeContext = CodingRuntimeContext.validate(runtimeContext);
+        CodingProtocol.require(!runtimeContext.containsKey("nativeMcp")||CodingProtocol.WORKSPACE_VERSION.equals(schemaVersion)
+            &&metadataRefs!=null&&(metadataRefs.contains(NativeExecutorPolicy.LITERAL.profile())||metadataRefs.contains(NativeExecutorPolicy.PIPEFAIL.profile())),
+            "MCP catalog requires the native task profile");
         CodingProtocol.require(!runtimeContext.containsKey("inputFiles") || CodingProtocol.ANALYSIS_VERSION.equals(schemaVersion),
             "Versioned file inputs require the analysis task profile");
         CodingProtocol.require(!runtimeContext.containsKey("analysisResultMode") || CodingProtocol.ANALYSIS_VERSION.equals(schemaVersion),

@@ -163,6 +163,10 @@ public final class ClineRuntimeModelBridge {
             String name = allowedTool(contract, tool.path("name").asText());
             if(!declaredNames.add(name))throw new IllegalArgumentException("Duplicate model tool");
             if (!tool.path("inputSchema").isObject()) throw new IllegalArgumentException("Tool input schema is required");
+            if(com.chatchat.common.runtime.coding.NativeCodeWorkspace.enabled(contract))
+                for(var card:com.chatchat.api.runtime.coding.nativecode.NativeCodingMcpService.cards(contract))
+                    if(name.equals(card.get("agentToolName"))&&!json.valueToTree(card.get("inputSchema")).equals(tool.path("inputSchema")))
+                        throw new SecurityException("Disclosed MCP Schema differs from the frozen catalog");
             var spec = json.createObjectNode();
             spec.put("name", name);
             spec.put("description", bounded(tool.path("description").asText(""), "tool description"));
@@ -324,7 +328,7 @@ public final class ClineRuntimeModelBridge {
     private static String allowedTool(CodingTaskContract contract, String name) {
         if(com.chatchat.common.runtime.coding.CodingProtocol.deferredTools(contract)
             && com.chatchat.common.runtime.coding.CodingProtocol.TOOL_DESCRIBE.equals(name)) return name;
-        Set<String> profile = com.chatchat.common.runtime.coding.NativeCodeWorkspace.enabled(contract)?com.chatchat.common.runtime.coding.NativeCodeWorkspace.TOOLS:CodingWorkspaceService.supports(contract)
+        Set<String> profile = com.chatchat.common.runtime.coding.NativeCodeWorkspace.enabled(contract)?com.chatchat.common.runtime.coding.NativeCodeWorkspace.toolNames(contract):CodingWorkspaceService.supports(contract)
             ? com.chatchat.api.datascience.sql.SqlWorkspaceMetadataTools.tools(com.chatchat.api.datascience.sql.SqlWorkspaceMetadataTools.enabled(contract)) : com.chatchat.common.runtime.coding.CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion())
             ? ClineToolProfiles.ANALYSIS : Set.of("python_execute", "metadata_read", "artifact_read", "skill_read", "skills", "read_files");
         if (!profile.contains(name)

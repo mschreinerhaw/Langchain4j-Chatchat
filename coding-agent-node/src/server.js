@@ -129,7 +129,7 @@ export function httpGateway(callbackUrl, secret, binding, { timeoutMs = 90000 } 
       return {};
     });
     if (!answer.ok) throw Object.assign(new Error(data.message ?? `Runtime callback rejected ${action}: ${answer.status}`),
-      { errorCategory: 'CALLBACK_HTTP_REJECTED',callbackTiming:answer.callbackTiming });
+      { errorCategory: 'CALLBACK_HTTP_REJECTED',statusCode:answer.status,callbackTiming:answer.callbackTiming });
     if (action === 'model' && answer.callbackTiming) data.callbackTiming = {...answer.callbackTiming,
       callbackResponseProcessingMs:Math.round(performance.now()-processingStarted)};
     return data;
@@ -169,6 +169,9 @@ export function httpGateway(callbackUrl, secret, binding, { timeoutMs = 90000 } 
     finishCodeTool:(contract,receipt,signal)=>callback('native-tool-finish',{contract,receipt},signal),
     executeCodeCommand:(contract,command,signal)=>callback('native-command',{contract,command},signal),
     cancelCodeCommands:contract=>callback('native-command-cancel',{contract}),
+    listCodeMcpTools:async(contract,serverName,signal)=>(await callback('native-mcp-list',{contract,serverName},signal)).tools,
+    callCodeMcpTool:async(contract,request,signal)=>(await callback('native-mcp-call',{contract,request:{
+      serverName:request.serverName,toolName:request.toolName,arguments:request.arguments??{},toolCallId:request.context?.toolCallId}},signal)).result,
   };
 }
 
@@ -214,6 +217,7 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
           codeLifecycleVersions: ['runtime_os.code_lifecycle.v1'],deferredToolsProfile:'runtime-coding:deferred-tools:v1',
           analysisProfiles: ['runtime-coding:analysis-fast-path:v1'],
           analysisTools: ['input_read','report_submit','code_read','knowledge_search','knowledge_get_document','knowledge_read','knowledge_list_sections','knowledge_related','news_search','news_get_article','news_related_events','market_search','market_get_history','market_get_indicators','market_get_snapshot','web_search','web_fetch'],
+          nativeMcpVersions:nativeCodingEnabled?['runtime_os.native_mcp.v1']:[],
           workspaceProfiles: ['runtime-coding:workspace-fast-path:v1','runtime-coding:sql-metadata-tools:v1',...(nativeCodingEnabled?[NATIVE_CODING_PROFILE,NATIVE_PIPEFAIL_PROFILE]:[])] });
       }
       if (request.method === 'GET' && url.pathname === '/healthz')

@@ -80,7 +80,7 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
         if(NativeCodeWorkspace.enabled(contract)){
             if(nativeWorkspace==null)throw new SecurityException("Native Coding profile is not enabled");
             // Native admission is checked against the immutable input before submit; task binding is rechecked by every callback.
-            if(!CodingProtocol.WORKSPACE_VERSION.equals(contract.schemaVersion())||!NativeCodeWorkspace.TOOLS.containsAll(contract.authorization().allowedTools())
+            if(!CodingProtocol.WORKSPACE_VERSION.equals(contract.schemaVersion())||!NativeCodeWorkspace.toolNames(contract).containsAll(contract.authorization().allowedTools())
                     ||contract.authorization().networkPolicy()!=CodingTaskContract.NetworkPolicy.NONE)throw new SecurityException("Invalid native Coding profile");
             nativeWorkspace.requireSnapshot(contract);
         }else if (CodingWorkspaceService.supports(contract)) {
@@ -484,6 +484,10 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
             var policy=com.chatchat.common.runtime.coding.NativeExecutorPolicy.from(contract);
             for(var profile:capabilities.path("workspaceProfiles"))if(policy.profile().equals(profile.asText()))supported=true;
             if(!supported)throw new SecurityException("Worker has not negotiated native Coding profile");
+            if(!com.chatchat.api.runtime.coding.nativecode.NativeCodingMcpService.cards(contract).isEmpty()){
+                boolean mcp=false;for(var version:capabilities.path("nativeMcpVersions"))if("runtime_os.native_mcp.v1".equals(version.asText()))mcp=true;
+                if(!mcp)throw new SecurityException("Worker has not negotiated native MCP provider");
+            }
             if(nativeCommands==null)throw new SecurityException("Native executor governance unavailable");
             nativeCommands.requireExecutorCapability(contract);
             return;

@@ -8,6 +8,19 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.*;
 
 class NativeCodeWorkspaceTest {
+    @Test void mcpCatalogRejectsSchemaTamperingAndDuplicateIdentityAndFreezesNestedValues(){
+        var schema=new LinkedHashMap<String,Object>(Map.of("type","object"));
+        var card=new LinkedHashMap<String,Object>(Map.of("serverName","server","name","lookup","agentToolName","published_lookup",
+            "agentId","agent","description","Lookup","inputSchema",schema,"schemaSha256",CodingCanonicalHash.sha256Value(schema)));
+        var context=new LinkedHashMap<String,Object>(Map.of("schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT","nativeMcp",List.of(card)));
+        var frozen=CodingRuntimeContext.validate(context);schema.put("type","array");
+        assertThat(((Map<?,?>)((Map<?,?>)((List<?>)frozen.get("nativeMcp")).get(0)).get("inputSchema")).get("type")).isEqualTo("object");
+        assertThatThrownBy(()->CodingRuntimeContext.validate(context)).hasMessageContaining("Schema");
+        schema.put("type","object");context.put("nativeMcp",List.of(card,card));
+        assertThatThrownBy(()->CodingRuntimeContext.validate(context)).hasMessageContaining("Duplicate");
+        card.put("agentToolName","run_commands");context.put("nativeMcp",List.of(card));
+        assertThatThrownBy(()->CodingRuntimeContext.validate(context)).hasMessageContaining("invalid");
+    }
     final ObjectMapper json=new ObjectMapper();
     final KernelDataScope scope=new KernelDataScope("tenant","owner",null,null,"run",null,Map.of());
     @Test void versionedExecutorKeepsOriginalHelperBytesAndAdvertisesExactWrapperAndBase(){

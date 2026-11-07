@@ -11,6 +11,18 @@ public final class NativeCodeWorkspace {
     public static final String PROFILE="runtime-coding:native-project:v1";
     public static final String VERSION="runtime_os.native_code_tree.v1";
     public static final Set<String> TOOLS=Set.of("read_files","search_codebase","editor","apply_patch","run_commands","skills");
+    /** A published MCP name is admitted only by an explicit immutable task catalog. */
+    public static Set<String> toolNames(CodingTaskContract task){
+        var names=new HashSet<>(TOOLS);
+        if(task.runtimeContext().get("nativeMcp") instanceof List<?> cards)for(Object value:cards){
+            if(!(value instanceof Map<?,?> card)||!(card.get("agentToolName") instanceof String name)
+                    ||!name.matches("[a-zA-Z0-9_-]{1,64}")||!(card.get("schemaSha256") instanceof String hash)||!hash.matches("[a-f0-9]{64}")
+                    ||!(card.get("serverName") instanceof String server)||server.isBlank()||!(card.get("name") instanceof String remote)||remote.isBlank()
+                    ||!(card.get("agentId") instanceof String agent)||agent.isBlank()||!names.add(name))
+                throw new SecurityException("Invalid frozen native MCP catalog");
+        }
+        return Set.copyOf(names);
+    }
     public static boolean enabled(CodingTaskContract task){return task!=null&&task.metadataRefs()!=null
         &&(task.metadataRefs().contains(PROFILE)||task.metadataRefs().contains(NativeExecutorPolicy.PIPEFAIL.profile()));}
     public static String path(String value){

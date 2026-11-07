@@ -23,6 +23,31 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClineRuntimeModelBridgeTest {
+    @Test void frozenNativeMcpSchemaReachesModelAndCannotBeReplaced()throws Exception{
+        var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);
+        var parent=mock(ChatModel.class);when(resources.defaultChatModel()).thenReturn("registered-model");
+        when(parent.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder().aiMessage(AiMessage.from("done")).tokenUsage(new TokenUsage(2,1,3)).build());
+        var registry=new CodingParentModels();var bridge=new ClineRuntimeModelBridge(resources,factory,json);bridge.setParentModels(registry);
+        json.findAndRegisterModules();var frozen=(com.fasterxml.jackson.databind.node.ObjectNode)json.valueToTree(contract());
+        frozen.put("schemaVersion",CodingProtocol.WORKSPACE_VERSION);frozen.putArray("metadataRefs").add(com.chatchat.common.runtime.coding.NativeCodeWorkspace.PROFILE);
+        ((com.fasterxml.jackson.databind.node.ObjectNode)frozen.get("outputContract")).put("resultFormat","WORKSPACE_FILES");
+        ((com.fasterxml.jackson.databind.node.ObjectNode)frozen.get("authorization")).set("allowedTools",json.valueToTree(List.of("published_lookup")));
+        var schema=Map.of("type","object","properties",Map.of("key",Map.of("type","string")));
+        frozen.set("runtimeContext",json.valueToTree(Map.of("schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT","nativeMcp",List.of(Map.of("serverName","server","name","lookup","agentId","agent",
+            "agentToolName","published_lookup","description","Lookup","inputSchema",schema,"schemaSha256",com.chatchat.common.runtime.coding.CodingCanonicalHash.sha256Value(schema))))));
+        when(resources.connection("registered-model")).thenReturn(new com.chatchat.common.config.ModelsConfig.ModelConnectionConfig());
+        ((com.fasterxml.jackson.databind.node.ObjectNode)frozen.get("runtimeContext")).set("model",json.valueToTree(Map.of("selectedModel","registered-model","maxTokens",1024,
+            "connectionSha256",com.chatchat.api.runtime.coding.nativecode.NativeModelConfiguration.fingerprint(resources,"registered-model"))));
+        var bound=json.treeToValue(frozen,CodingTaskContract.class);
+        var request=(com.fasterxml.jackson.databind.node.ObjectNode)json.readTree("{\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"lookup\"}]}]}");
+        request.set("tools",json.valueToTree(List.of(Map.of("name","published_lookup","description","Lookup","inputSchema",schema))));
+        try(var ignored=registry.bind(bound.scope(),bound.taskId(),parent)){
+            bridge.complete(bound,request);verify(parent).chat(argThat((ChatRequest r)->r.toolSpecifications().get(0).name().equals("published_lookup")));
+            request.set("tools",json.valueToTree(List.of(Map.of("name","published_lookup","inputSchema",Map.of("type","object")))));
+            assertThatThrownBy(()->bridge.complete(bound,request)).isInstanceOf(ClineRuntimeModelBridge.InvalidModelResponseException.class).hasCauseInstanceOf(SecurityException.class);
+            verifyNoMoreInteractions(parent);
+        }
+    }
     @Test void actualPublicSdkSkillsSchemasReachTheExistingRuntimeModelWithoutBroadeningGrants() throws Exception {
         var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);
         var parent=mock(ChatModel.class);when(resources.defaultChatModel()).thenReturn("registered-model");

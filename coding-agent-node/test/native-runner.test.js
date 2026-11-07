@@ -7,6 +7,41 @@ import {createHash} from 'node:crypto';
 import {createNativeCodingRun,NATIVE_CODING_PROFILE,NATIVE_PIPEFAIL_PROFILE} from '../src/native-runner.js';
 
 const hash='a'.repeat(64);
+test('an unavailable MCP service is isolated while an authorization refusal remains fatal',async t=>{
+  for(const statusCode of [503,403]){
+    const h=await host(t,{async openCodeWorkspace(){return{files:{'main.py':'x=1'},requireExecution:false,mcpServers:[{serverName:'good'},{serverName:'bad'}]};},
+      async listCodeMcpTools(_c,server){if(server==='bad')throw Object.assign(Error('Unavailable'),{statusCode});return[{name:'lookup',agentToolName:'published_lookup',inputSchema:{type:'object'}}];},
+      async callCodeMcpTool(){return{value:7};}});
+    const c=contract();c.authorization.allowedTools.push('published_lookup');let disclosed=false;
+    const run=createNativeCodingRun(c,h.gateway,{contractHash:hash,workspaceBase:h.base,model:scripted([
+      {assert(request){assert.ok(request.tools.some(t=>t.name==='published_lookup'));disclosed=true;},text:'No external lookup is needed for this task.'}
+    ])});
+    if(statusCode===503){assert.equal((await run.run()).status,'completed');assert.equal(disclosed,true);assert.ok(h.events.some(e=>e.type==='MCP_UNAVAILABLE'));}
+    else{await assert.rejects(run.run(),/Unavailable/);assert.equal(disclosed,false);}
+  }
+});
+test('governed MCP uses SDK schemas and preserves autonomous tool input and original results',async t=>{
+  const c=contract();c.authorization.allowedTools.push('published_lookup');
+  const schema={type:'object',properties:{key:{type:'string'}},required:['key']};
+  const calls=[];let observed=false,revoked=false;
+  const h=await host(t,{async openCodeWorkspace(){return{files:{'main.py':'value = 1\n'},requireExecution:false,mcpServers:[{serverName:'published-server'}]};},
+    async listCodeMcpTools(_c,server){assert.equal(server,'published-server');return revoked?[]:[{name:'lookup',agentToolName:'published_lookup',description:'Look up a key',inputSchema:schema}];},
+    async callCodeMcpTool(_c,request){calls.push(request);revoked=true;return{content:[{type:'text',text:'discovered-value-42'}]};}});
+  const result=await createNativeCodingRun(c,h.gateway,{contractHash:hash,workspaceBase:h.base,model:scripted([
+    {assert(request){const tool=request.tools.find(t=>t.name==='published_lookup');assert.deepEqual(tool.inputSchema,schema);},
+      calls:[{id:'mcp-original-call',name:'published_lookup',input:{key:'chosen-by-agent'}}]},
+    {assert(request){assert.match(JSON.stringify(request.messages),/discovered-value-42/);assert.ok(!request.tools.some(t=>t.name==='published_lookup'));observed=true;},text:'The returned value is 42.'},
+  ])}).run();
+  assert.equal(result.status,'completed',JSON.stringify(result.error));assert.equal(observed,true);
+  assert.equal(calls.length,1);assert.equal(calls[0].serverName,'published-server');assert.equal(calls[0].toolName,'lookup');
+  assert.deepEqual(calls[0].arguments,{key:'chosen-by-agent'});assert.equal(calls[0].context.toolCallId,'mcp-original-call');
+});
+test('MCP descriptors outside frozen tool grants fail before model disclosure',async t=>{
+  const h=await host(t,{async openCodeWorkspace(){return{files:{'main.py':'x=1'},mcpServers:[{serverName:'server'}]};},
+    async listCodeMcpTools(){return[{name:'secret',agentToolName:'not-granted',inputSchema:{type:'object'}}];},async callCodeMcpTool(){throw Error('Must not execute');}});
+  const run=createNativeCodingRun(contract(),h.gateway,{contractHash:hash,workspaceBase:h.base,model:scripted([])});
+  await assert.rejects(run.run(),/MCP catalog differs/);
+});
 function contract(){return{schemaVersion:'runtime_os.coding.v2',taskId:'native-task',scope:{tenantId:'tenant',userId:'owner',runId:'native-run'},
   metadataRefs:[NATIVE_CODING_PROFILE],inputSnapshotRef:'input:native',workspaceRef:'workspace:native',
   objective:{instruction:'Fix the supplied project and run its tests.'},outputContract:{resultFormat:'WORKSPACE_FILES'},

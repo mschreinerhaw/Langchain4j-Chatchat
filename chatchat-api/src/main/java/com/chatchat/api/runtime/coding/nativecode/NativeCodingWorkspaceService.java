@@ -26,6 +26,13 @@ public final class NativeCodingWorkspaceService {
     private final RuntimeAssetArchive assets;
     private final ClineModelReceiptStore models;
     private final ObjectMapper json;
+    private org.springframework.beans.factory.ObjectProvider<NativeCodingMcpService> mcp;
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setMcp(org.springframework.beans.factory.ObjectProvider<NativeCodingMcpService> value){mcp=value;}
+    private NativeCodingMcpService requireMcp(){
+        var service=mcp==null?null:mcp.getIfAvailable();
+        if(service==null)throw new SecurityException("MCP governance unavailable");return service;
+    }
     private final java.util.concurrent.ConcurrentHashMap<String,Object> ioLocks=new java.util.concurrent.ConcurrentHashMap<>();
     public NativeCodingWorkspaceService(DurableCodingTaskService tasks,JdbcRuntimeEvidenceStore evidence,
             RuntimeAssetArchive assets,ClineModelReceiptStore models,ObjectMapper json){
@@ -63,6 +70,7 @@ public final class NativeCodingWorkspaceService {
         response.put("modelId",input.getOrDefault("routingModelId",input.get("modelName")));response.put("providerId",input.getOrDefault("providerId","runtime"));
         if(input.get("editStrategy") instanceof String strategy&&!"auto".equals(strategy))response.put("editStrategy",strategy);
         response.put("requireExecution",true);
+        if(!NativeCodingMcpService.cards(c).isEmpty())response.put("mcpServers",NativeCodingMcpService.servers(c));
         var executorPolicy=NativeExecutorPolicy.from(c);
         if(executorPolicy==NativeExecutorPolicy.PIPEFAIL&&!executorPolicy.capability().equals(c.runtimeContext().get("nativeExecutorCapability")))throw new SecurityException("Pinned native executor version unavailable");
         response.put("verificationPolicy",executorPolicy.id());
@@ -120,7 +128,8 @@ public final class NativeCodingWorkspaceService {
             return Map.of("authorized",true);
         }
         String tool=Objects.toString(request.get("tool"),""),call=callId(request.get("operationId"));
-        if(!c.authorization().allowedTools().contains(tool)||!NativeCodeWorkspace.TOOLS.contains(tool))throw new SecurityException("Native tool is not authorized");
+        if(!c.authorization().allowedTools().contains(tool)||!NativeCodeWorkspace.TOOLS.contains(tool)&&!NativeCodingMcpService.contains(c,tool))throw new SecurityException("Native tool is not authorized");
+        if(NativeCodingMcpService.contains(c,tool))requireMcp().requireLive(c,tool);
         String inputJson=Objects.toString(request.get("inputJson"),"");
         if(inputJson.length()>256000||!parse(inputJson.getBytes(StandardCharsets.UTF_8)).equals(map(request.get("input"))))throw new SecurityException("Native input representation differs");
         String digest=NativeCodeWorkspace.sha(inputJson.getBytes(StandardCharsets.UTF_8));
@@ -152,6 +161,10 @@ public final class NativeCodingWorkspaceService {
     private Map<String,Object> finishToolLocked(CodingTaskContract c,CodingJournal.Lease lease,String call,Map<String,Object> result){
         tasks.requireWorkerLease(c.scope(),c.taskId(),lease,true);
         var nativeIntent=intent(c,call);String operation=nativeIntent.path("operationId").asText();
+        if(NativeCodingMcpService.contains(c,nativeIntent.path("tool").asText())){
+            var remote=tasks.privateState(c.scope(),c.taskId(),"native-mcp:"+operation);
+            if(remote!=null&&!remote.has("result"))throw new IllegalStateException("MCP_RESULT_UNKNOWN: retain operation for reconciliation");
+        }
         if("run_commands".equals(nativeIntent.path("tool").asText()))for(String code:tasks.startedCodeOperations(c.scope(),c.taskId())){
             var command=tasks.privateState(c.scope(),c.taskId(),"native-command-input:"+code);
             if(command!=null&&call.equals(command.path("toolCallId").asText())&&tasks.verifiedOperation(c.scope(),c.taskId(),code).isEmpty())
@@ -229,6 +242,12 @@ public final class NativeCodingWorkspaceService {
             for(String operation:tasks.unresolvedOperations(c.scope(),c.taskId())){
                 var intent=tasks.privateState(c.scope(),c.taskId(),"native-tool:"+operation);if(intent==null)continue;
                 String call=intent.path("toolCallId").asText();var result=replay(c,call);
+                if(result.isEmpty()&&NativeCodingMcpService.contains(c,intent.path("tool").asText())){
+                    var returned=tasks.privateState(c.scope(),c.taskId(),"native-mcp:"+operation);
+                    // A stopped Worker does not prove that a remote MCP side effect stopped.
+                    if(returned!=null&&!returned.has("result"))continue;
+                    if(returned!=null)result=Map.of("isError",false,"output",json.convertValue(returned.get("result"),Object.class));
+                }
                 if(result.isEmpty()){
                     var commands=new ArrayList<Map<String,Object>>();
                     for(var entry:executionReceipts.entrySet()){

@@ -15,4 +15,8 @@
 
 冻结边界：保留原 Agent Loop、原 Editor/Patch/搜索、SDK Skills discovery/loader、压缩与恢复；不升级 SDK，不改变共享模型或预算，不触及金融业务。P0 分支不动。MCP 连接权威只保留 Java 现有目录/网关；Node 不新增 MCP 客户端。协议/Schema/目录新增在新任务生效；当前任务撤权立即拒绝。
 
+本轮补充审查发现 M-03 还包括 `ClineCodingAdapter.submit` 的合同工具集合检查、`ClineRuntimeModelBridge.allowedTool` 的模型披露/响应检查，以及 `DurableCodingTaskService` 的已停止原生子工具核对。只修改工作区准入不能打通链路。三处统一复用 common 层的冻结目录准入判断，并保持实际模型回执、合同权限和停止证明检查；这是同一适配缺口的补充位置，不扩大至新的 Agent 实现。
+
+首轮 Java 验证还定位到 `CodingRuntimeContext.validate` 拒绝新增目录字段：需要显式校验 MCP 描述符、唯一身份及 Schema Hash，并仅允许原生任务合同携带该字段；不能删除通用上下文白名单。首轮失败日志保留，修复后重新验收。
+
 本矩阵审查依据为既有报告及本轮实际源码阅读；确认断点与待复现实证风险分开。后续每专项独立提交/推送，测试记录与产品验收分开。最终验收当前为 **未通过**。

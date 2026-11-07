@@ -37,6 +37,11 @@ export function createNativeCodingRun(contract,gateway,options={}) {
     &&(verificationPolicy==='BASH_PIPEFAIL_V1'?receipt.resultAvailable===true&&typeof receipt.stopProofRef==='string'&&Boolean(receipt.stopProofRef):receipt.resultAvailable!==false)
     &&(verificationPolicy==='BASH_PIPEFAIL_V1'?declaredReceipt(receipt):acceptanceCommandHashes.has(receipt.commandHash));
   const allowed=new Set(contract.authorization.allowedTools);
+  const listMcp=async extension=>{
+    const descriptors=await gateway.listCodeMcpTools(contract,extension.serverName,cancel.signal);
+    if(!Array.isArray(descriptors)||descriptors.some(d=>!allowed.has(d.agentToolName)))throw new TypeError('MCP catalog differs from immutable grants');
+    return descriptors;
+  };
   const replayedTools=new Map();
   const admittedTools=new Set();
   async function prepare(){
@@ -77,14 +82,29 @@ export function createNativeCodingRun(contract,gateway,options={}) {
         enableReadFiles:true,enableSearch:false,enableBash:false,enableWebFetch:false,enableEditor:false,enableApplyPatch:false,enableSkills:false,enableAskQuestion:false});
       tools=tools.filter(t=>t.name!=='read_files').concat(merged,skills.tools.filter(t=>t.name!=='read_files'));
     }
-    for(const extension of initial.mcpServers??[]){
+    const mcpExtensions=initial.mcpServers??[];
+    const mcpPrepared=await Promise.allSettled(mcpExtensions.map(async extension=>{
       if(typeof gateway.listCodeMcpTools!=='function'||typeof gateway.callCodeMcpTool!=='function')throw new TypeError('Governed MCP provider unavailable');
-      tools.push(...await createMcpTools({serverName:extension.serverName,provider:{
-        listTools:serverName=>gateway.listCodeMcpTools(contract,serverName,cancel.signal),
+      const descriptors=await listMcp(extension);
+      return createMcpTools({serverName:extension.serverName,
+        nameTransform:({toolName})=>{
+          const matches=descriptors.filter(d=>d.name===toolName);
+          if(matches.length!==1)throw new TypeError('Ambiguous MCP identity');return matches[0].agentToolName;
+        },provider:{
+        listTools:async()=>descriptors,
         callTool:request=>gateway.callCodeMcpTool(contract,request,request.context?.signal??cancel.signal),
-      },retryable:false,maxRetries:0}));
+      },retryable:false,maxRetries:0});
+    }));
+    for(const [index,result]of mcpPrepared.entries()){
+      if(result.status==='fulfilled')tools.push(...result.value);
+      else{
+        // Match SDK per-service availability isolation, never suppress authority/integrity errors.
+        if(![502,503,504].includes(result.reason?.statusCode))throw result.reason;
+        await session.event({type:'MCP_UNAVAILABLE',serverName:mcpExtensions[index].serverName,statusCode:result.reason.statusCode});
+      }
     }
     if(new Set(tools.map(t=>t.name)).size!==tools.length||tools.some(t=>!allowed.has(t.name)))throw new TypeError('Native tools differ from immutable task grants');
+    const mcpNames=new Set(mcpPrepared.flatMap(result=>result.status==='fulfilled'?result.value.map(tool=>tool.name):[]));
     tools=tools.map(tool=>({...tool,async execute(input,context){
       // SDK prepares the whole batch (including beforeTool) before sequential execution.
       // A durable start therefore belongs here, immediately before actual tool I/O.
@@ -139,7 +159,19 @@ export function createNativeCodingRun(contract,gateway,options={}) {
       hooks:{
         async beforeModel({snapshot,request}){
           await session.checkpoint(snapshot.messages,{...prepareTurn.snapshot()});
-          request.runtimeCheckpointOrdinal=session.state().checkpointOrdinal;},
+          request.runtimeCheckpointOrdinal=session.state().checkpointOrdinal;
+          if(mcpExtensions.length){
+            const visible=new Set();
+            const catalogs=await Promise.allSettled(mcpExtensions.map(listMcp));
+            for(const result of catalogs){
+              if(result.status==='fulfilled')result.value.forEach(card=>visible.add(card.agentToolName));
+              else if(![502,503,504].includes(result.reason?.statusCode))throw result.reason;
+            }
+            // SDK beforeModel projects visibility; executors remain the original SDK registry.
+            // Per-call Java admission independently rejects stale or hallucinated revoked names.
+            return{tools:request.tools.filter(tool=>!mcpNames.has(tool.name)||visible.has(tool.name))};
+          }
+        },
         async beforeTool({toolCall}){
           if(!allowed.has(toolCall.toolName))throw new Error('Tool is not authorized');
         },

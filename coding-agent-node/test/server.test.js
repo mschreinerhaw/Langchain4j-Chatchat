@@ -5,6 +5,23 @@ import { createHash, createHmac } from 'node:crypto';
 import { createServer } from 'node:http';
 
 const secret = '0123456789abcdef0123456789abcdef';
+test('MCP callback sends only serializable invocation identity, not SDK context authority',async()=>{
+  const received=[];
+  const callback=createServer(async(request,response)=>{
+    let body='';for await(const chunk of request)body+=chunk;received.push({path:request.url,body:JSON.parse(body)});
+    response.writeHead(200,{'content-type':'application/json'});
+    response.end(JSON.stringify(request.url.endsWith('native-mcp-list')?{tools:[{name:'lookup'}]}:{result:{content:[{type:'text',text:'ok'}]}}));
+  });
+  await new Promise(resolve=>callback.listen(0,'127.0.0.1',resolve));
+  try{
+    const gateway=httpGateway(`http://127.0.0.1:${callback.address().port}`,secret,{});
+    assert.deepEqual(await gateway.listCodeMcpTools(contract,'server'),[{name:'lookup'}]);
+    assert.deepEqual(await gateway.callCodeMcpTool(contract,{serverName:'server',toolName:'lookup',arguments:{value:7},
+      context:{toolCallId:'call',signal:new AbortController().signal,tenantId:'forged',emitUpdate(){}}}),{content:[{type:'text',text:'ok'}]});
+    assert.deepEqual(received[1].body.request,{serverName:'server',toolName:'lookup',arguments:{value:7},toolCallId:'call'});
+    assert.equal(received[0].body.serverName,'server');
+  }finally{callback.closeAllConnections();await new Promise(resolve=>callback.close(resolve));}
+});
 const contract = {
   schemaVersion: 'runtime_os.coding.v1',
   taskId: 'task', scope: { tenantId: 'tenant', userId: 'owner', runId: 'run' },
@@ -22,6 +39,7 @@ test('native project dispatch is denied unless its isolated profile is explicitl
     try{
       const post=(path,body)=>fetch(`http://127.0.0.1:${server.address().port}${path}`,{method:'POST',headers:{authorization:'Bearer '+secret,'content-type':'application/json'},body:JSON.stringify(body)});
       const capabilities=await(await post('/v1/input-capabilities',{})).json();
+      assert.deepEqual(capabilities.nativeMcpVersions,enabled?['runtime_os.native_mcp.v1']:[]);
       assert.equal(capabilities.workspaceProfiles.includes('runtime-coding:native-project:v1'),enabled);
       if(!enabled){
         const response=await post('/v1/runs',{contract:{...contract,metadataRefs:['runtime-coding:native-project:v1']},contractHash:'a'.repeat(64),fencingToken:1});
@@ -183,6 +201,8 @@ test('Node HTTP boundary authenticates, dispatches once, and hides SDK session I
     const capabilities=await (await post('/v1/input-capabilities', {})).json();
     assert.equal(capabilities.deferredToolsProfile,'runtime-coding:deferred-tools:v1');
     delete capabilities.deferredToolsProfile;
+    assert.deepEqual(capabilities.nativeMcpVersions,[]);
+    delete capabilities.nativeMcpVersions;
     assert.deepEqual(capabilities,
       { schemaVersion: 'runtime_os.coding.input.v1', formats: ['PARQUET', 'CSV'], codeLifecycleVersions: ['runtime_os.code_lifecycle.v1'], analysisProfiles: ['runtime-coding:analysis-fast-path:v1'], analysisTools: ['input_read','report_submit','code_read','knowledge_search','knowledge_get_document','knowledge_read','knowledge_list_sections','knowledge_related','news_search','news_get_article','news_related_events','market_search','market_get_history','market_get_indicators','market_get_snapshot','web_search','web_fetch'], workspaceProfiles: ['runtime-coding:workspace-fast-path:v1','runtime-coding:sql-metadata-tools:v1'] });
     const request = { contract, contractHash: 'a'.repeat(64), fencingToken: 1 };

@@ -66,6 +66,20 @@ public final class ClineModelCallbackController {
     private com.chatchat.api.runtime.coding.nativecode.NativeCodingWorkspaceService nativeWorkspace;
     private com.chatchat.api.runtime.coding.nativecode.NativeCodingCommandService nativeCommands;
     private com.chatchat.api.runtime.coding.nativecode.NativeCodingTaskService nativeTasks;
+    private com.chatchat.api.runtime.coding.nativecode.NativeCodingMcpService nativeMcp;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setNativeMcp(com.chatchat.api.runtime.coding.nativecode.NativeCodingMcpService value){nativeMcp=value;}
+    @PostMapping("/native-mcp-list") public Map<String,Object> nativeMcpList(@RequestBody JsonNode body){return bound(body,call->{
+        nativeWorkspace(body,call);if(nativeMcp==null)throw new SecurityException("Native MCP unavailable");
+        return Map.of("tools",nativeMcp.list(contract(body,call),call.lease(),body.path("serverName").asText()));
+    });}
+    @PostMapping("/native-mcp-call") public Map<String,Object> nativeMcpCall(@RequestBody JsonNode body){return bound(body,call->{
+        nativeWorkspace(body,call);if(nativeMcp==null)throw new SecurityException("Native MCP unavailable");
+        var request=body.path("request");
+        var result=nativeMcp.call(contract(body,call),call.lease(),request.path("serverName").asText(),request.path("toolName").asText(),
+            request.path("toolCallId").asText(),nativeMap(request.path("arguments")));
+        assertStillOwned(call);return Map.of("result",result);
+    });}
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setNativeWorkspace(com.chatchat.api.runtime.coding.nativecode.NativeCodingWorkspaceService value){nativeWorkspace=value;}
     @org.springframework.beans.factory.annotation.Autowired(required=false)

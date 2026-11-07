@@ -8,7 +8,20 @@ public final class CodingRuntimeContext {
     public static Map<String, Object> validate(Map<String, Object> value) {
         if (value == null || value.isEmpty()) return Map.of();
         CodingProtocol.require(value.keySet().stream().allMatch(Set.of("schemaVersion", "capturedAt",
-            "consistency", "model", "skills", "builtinSkillPolicy", "configuredSkillIds", "inputFiles", "executionProfile", "reportMode", "reportPresentation", "pythonEnvironment", "scriptPurpose", "codingLifecycle", "analysisResultMode", "analysisInstructions", "codeProject", "knowledgeExploration", "internetSearch", "internetAvailability", "nativeExecutionPolicy", "nativeExecutorCapability")::contains), "Unknown Coding context field");
+            "consistency", "model", "skills", "builtinSkillPolicy", "configuredSkillIds", "inputFiles", "executionProfile", "reportMode", "reportPresentation", "pythonEnvironment", "scriptPurpose", "codingLifecycle", "analysisResultMode", "analysisInstructions", "codeProject", "knowledgeExploration", "internetSearch", "internetAvailability", "nativeExecutionPolicy", "nativeExecutorCapability", "nativeMcp")::contains), "Unknown Coding context field");
+        if(value.containsKey("nativeMcp")){
+            CodingProtocol.require(value.get("nativeMcp") instanceof List<?> cards&&cards.size()<=64,"Invalid native MCP catalog");
+            var names=new HashSet<String>();var remoteNames=new HashSet<String>();
+            for(Object item:(List<?>)value.get("nativeMcp")){
+                CodingProtocol.require(item instanceof Map<?,?>,"Invalid native MCP descriptor");var card=(Map<?,?>)item;
+                CodingProtocol.require(card.keySet().equals(Set.of("serverName","name","agentToolName","agentId","description","inputSchema","schemaSha256")),"Invalid native MCP descriptor fields");
+                for(String field:List.of("serverName","name","agentId"))CodingProtocol.require(card.get(field) instanceof String s&&!s.isBlank()&&s.length()<=256,"Invalid native MCP identity");
+                CodingProtocol.require(card.get("agentToolName") instanceof String name&&name.matches("[a-zA-Z0-9_-]{1,64}")&&!NativeCodeWorkspace.TOOLS.contains(name)&&names.add(name),"Duplicate or invalid native MCP tool");
+                CodingProtocol.require(remoteNames.add(card.get("serverName")+"\u0000"+card.get("name")),"Ambiguous native MCP remote identity");
+                CodingProtocol.require(card.get("description") instanceof String description&&description.length()<=16384&&card.get("inputSchema") instanceof Map<?,?> schema&&!schema.isEmpty()
+                    &&CodingCanonicalHash.sha256Value(card.get("inputSchema")).equals(card.get("schemaSha256")),"Invalid frozen native MCP Schema");
+            }
+        }
         if(value.containsKey("nativeExecutionPolicy")||value.containsKey("nativeExecutorCapability"))
             CodingProtocol.require(NativeExecutorPolicy.PIPEFAIL.id().equals(value.get("nativeExecutionPolicy"))
                 &&value.get("nativeExecutorCapability") instanceof String capability

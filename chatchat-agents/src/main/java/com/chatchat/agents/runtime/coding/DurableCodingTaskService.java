@@ -211,7 +211,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
             if(op.kind==CodingJournal.OperationKind.TOOL){
                 var intent=task.privateState.get("native-tool:"+id);
                 if(intent==null||!id.equals(intent.path("operationId").asText())||!model.equals(intent.path("modelOperationId").asText())
-                        ||!NativeCodeWorkspace.TOOLS.contains(intent.path("tool").asText()))return null;
+                        ||!NativeCodeWorkspace.toolNames(task.contract).contains(intent.path("tool").asText()))return null;
             }else if(op.kind==CodingJournal.OperationKind.CODE){
                 var command=task.privateState.get("native-command-input:"+id);
                 if(command==null||!model.equals(command.path("modelOperationId").asText()))return null;

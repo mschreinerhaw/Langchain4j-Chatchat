@@ -1,0 +1,211 @@
+{
+  "mode": "ARCHIVED_SOURCE_AND_NATIVE_SDK_PATCH_REPLAY",
+  "cases": [
+    {
+      "case": "flash-1",
+      "executions": [
+        {
+          "operationId": "cline-90205a5b1881ef9d2c2f5f9ec26e5735307f6d50125ab272bcfb5a82bb6bc8d6",
+          "codeHash": "b4895e46ddf056ec172c54c2a3415a9c46a714b85e8cc68eb94edd3f1edb43d4",
+          "sourceReconstructed": true,
+          "sourceHashVerified": true,
+          "diagnosticCode": "NUMERIC_TYPE_MISMATCH",
+          "exceptionType": "TypeError",
+          "errorLocations": [
+            287
+          ],
+          "writesRequiredFile": false
+        },
+        {
+          "operationId": "cline-a2993d0ed5c0a54f8ce62c4f6336613459355ba61212b9ae241f0697e08f7299",
+          "codeHash": "f20e790d0745bdd23a83c5d93a93d1eda94929b89de7abf31ebb3fdc4f571f90",
+          "sourceReconstructed": true,
+          "sourceHashVerified": true,
+          "diagnosticCode": "PROGRAM_ERROR",
+          "exceptionType": "NameError",
+          "errorLocations": [
+            74,
+            74
+          ],
+          "writesRequiredFile": false
+        }
+      ],
+      "rejectedProposals": [
+        {
+          "code": "REPAIR_SEGMENT_LIMIT",
+          "segmentLengths": [
+            129,
+            24182,
+            132
+          ]
+        }
+      ]
+    },
+    {
+      "case": "flash-2",
+      "executions": [
+        {
+          "operationId": "cline-b61805d9222ce67f62f2359652c6eabf3567ab560f1434e5c3943fa617e7a2c9",
+          "codeHash": "06f6c7c96554a96a7dc83fb53bed61e4cfa1e8f28f880ef33e26bb0cf730138d",
+          "sourceReconstructed": true,
+          "sourceHashVerified": true,
+          "diagnosticCode": "OUTPUT_CONTRACT",
+          "exceptionType": null,
+          "errorLocations": [],
+          "writesRequiredFile": false
+        }
+      ],
+      "rejectedProposals": []
+    },
+    {
+      "case": "flash-3",
+      "executions": [
+        {
+          "operationId": "cline-1f7f5b3d336eca41505c289402c604cceb7f90bf316a7d6c21b91cb6d3c893bc",
+          "codeHash": "24d6dd894dd53e0db64791bc2cd0acf321f997338be9c1b77f2488bfac8727d3",
+          "sourceReconstructed": true,
+          "sourceHashVerified": true,
+          "diagnosticCode": "SYNTAX_ERROR",
+          "exceptionType": "SyntaxError",
+          "errorLocations": [
+            77
+          ],
+          "writesRequiredFile": false
+        },
+        {
+          "operationId": "cline-a3666535f844dca007bd485867a12396a4e6600c7229a1011e9b37c073b0ac94",
+          "codeHash": "36ae9dcc1efdfa97b47749cd781cde68d441fdea3cda96ef3cf4d095505f6a97",
+          "sourceReconstructed": true,
+          "sourceHashVerified": true,
+          "diagnosticCode": "PROGRAM_ERROR",
+          "exceptionType": "NameError",
+          "errorLocations": [
+            105
+          ],
+          "writesRequiredFile": false
+        }
+      ],
+      "rejectedProposals": []
+    },
+    {
+      "case": "plus-1",
+      "executions": [
+        {
+          "operationId": "cline-410e16599319d623856a425628ab67f00a4b3f2bad0e3f10ac7939fd830d78dc",
+          "codeHash": "364fc4cca23b4d72a45748fac1f3340112b5f845924badd2376f966a4f1ea534",
+          "sourceReconstructed": true,
+          "sourceHashVerified": true,
+          "diagnosticCode": "FIELD_ACCESS_ERROR",
+          "exceptionType": "KeyError",
+          "errorLocations": [
+            95
+          ],
+          "writesRequiredFile": false
+        },
+        {
+          "operationId": "cline-9a88d9bf75cf745c2dfac12ad72a4a0e4ebf6e6f347a72f3f07df3912e1a58af",
+          "codeHash": "087b0d4515dbcf57c4cbe9f23236fdc8e6e885d02d0b68f148f0d8cadabef329",
+          "sourceReconstructed": true,
+          "sourceHashVerified": true,
+          "diagnosticCode": "OUTPUT_CONTRACT",
+          "exceptionType": null,
+          "errorLocations": [],
+          "writesRequiredFile": false
+        },
+        {
+          "operationId": "cline-a9cec7d3374249db5144480d56822ad50cf9c8cc00802f2143734c58b90de9ee",
+          "codeHash": "1814f913b7cb5f2856ebbf443625ddaf0119e941dadc6c8d39a9f7960f2c36a4",
+          "sourceReconstructed": true,
+          "sourceHashVerified": true,
+          "diagnosticCode": "FIELD_ACCESS_ERROR",
+          "exceptionType": "KeyError",
+          "errorLocations": [
+            90
+          ],
+          "writesRequiredFile": false
+        }
+      ],
+      "rejectedProposals": []
+    },
+    {
+      "case": "plus-2",
+      "executions": [
+        {
+          "operationId": "cline-80e4bd7aa126d2db4a16acb3c59760b9599cd55fc3917fe148dd937104b28d82",
+          "codeHash": "f043d818d645c62b40442169bdb25bd0bca4129b53c221321c97bff3e550e6b8",
+          "sourceReconstructed": true,
+          "sourceHashVerified": true,
+          "diagnosticCode": "OUTPUT_CONTRACT",
+          "exceptionType": null,
+          "errorLocations": [],
+          "writesRequiredFile": false
+        }
+      ],
+      "rejectedProposals": [
+        {
+          "code": "REPAIR_SEGMENT_LIMIT",
+          "segmentLengths": [
+            19664
+          ]
+        },
+        {
+          "code": "REPAIR_SEGMENT_LIMIT",
+          "segmentLengths": [
+            22049
+          ]
+        },
+        {
+          "code": "REPAIR_SEGMENT_LIMIT",
+          "segmentLengths": [
+            22563
+          ]
+        }
+      ]
+    },
+    {
+      "case": "plus-3",
+      "executions": [
+        {
+          "operationId": "cline-0e0cdc8d1fcead8ba9c9d215b36f1fafef5c516feddcf2788686dcbf856aac9f",
+          "codeHash": "049badc30b393784ac5f051a1916d125c2b545da28820bd77230260a3bfc9bf3",
+          "sourceReconstructed": true,
+          "sourceHashVerified": true,
+          "diagnosticCode": "OUTPUT_CONTRACT",
+          "exceptionType": null,
+          "errorLocations": [],
+          "writesRequiredFile": false
+        },
+        {
+          "operationId": "cline-30f78d81c2e991b4b1548eb3ff1143e7436bc8dbbade5896c7c358b21725f586",
+          "codeHash": "f7ccb25c7329338f3621bb80c3228bb683a1121b8cd022cd9b97997fef831a08",
+          "sourceReconstructed": true,
+          "sourceHashVerified": true,
+          "diagnosticCode": "SYNTAX_ERROR",
+          "exceptionType": "SyntaxError",
+          "errorLocations": [
+            224
+          ],
+          "writesRequiredFile": true
+        },
+        {
+          "operationId": "cline-4860acce719bb33b68e602a3503b80943301a40ee47138ba2f5cdab693b2d85c",
+          "codeHash": "d05716558e5d4ffd218deca64452426150a994aa406ca6dcfa0945109e8dde78",
+          "sourceReconstructed": true,
+          "sourceHashVerified": true,
+          "diagnosticCode": "OUTPUT_CONTRACT",
+          "exceptionType": null,
+          "errorLocations": [],
+          "writesRequiredFile": false
+        }
+      ],
+      "rejectedProposals": [
+        {
+          "code": "REPAIR_SEGMENT_LIMIT",
+          "segmentLengths": [
+            17196
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -21,6 +21,7 @@
 | 官方 `agents/src/agent-runtime.ts:2336` 先 prepare 全批工具，再执行；prepare 中调用 beforeTool。真实第二轮 model-1 同时返回 read_files/run_commands，后者在 CODE 启动前被拒绝 EXECUTION_OUTCOME_UNKNOWN | Node beforeTool 过早 durable start：读工具完成时，未执行的下一工具看起来仍未停止，触发 A2 reconciliation 标志 | 原生 SDK 不改；在实际 tool.execute 前准入并记录 start；beforeTool 只校验不可变授权名单 | 安装版原生 Agent 的同轮读/执行独立复现，修复前 FAILED；同一原生 Loop 复测 |
 | `sdk-adapter.js` 在预算完成阶段压缩，并把保护的最新 tool round 重新放到尾部；真实第二轮已有三个测试通过，最后三轮均无工具 | 最新完成反馈未作为保护内容，能被压缩删除；确定性测试实际看到 guard=-1，模型缺少必须继续验证的反馈 | 通用 native profile 保护最新工具轮及其后的反馈，保持因果顺序；旧业务默认行为保留，仍由原生 SDK 压缩更早上下文 | 安装版 SDK compactor + Agent 复现：修复前缺失验证反馈；不得增加 Prompt 或预算掩盖 |
 | 原生命令 exitCode=0 | 可能没有命令结果文件，或没有真正满足项目测试 | 必须有匹配代码版本、结果、独立 stop proof；最终交付仍标 INCONCLUSIVE，独立验收另做 | 零退出缺结果、过期代码成功、缺 stop proof 均拒绝 |
+| 第三次真实模型预检已多次执行三个通过的测试；命令为 `cd /workspace/code && python -m unittest ...`，但完成判断只比较无前缀命令的字节 Hash | 固定 Sandbox cwd 下明确等价的目录前缀被当作未验证；并且最后任意检查命令会覆盖此前有效验证，违反成功后继续检查的需求 | 服务端从冻结的声明命令生成有限的固定 cwd 等价 Hash，只接收原样命令及固定目录前缀，保留原始命令/回执；单独保留当前版本的已验证执行，源码变化即失效；不接受管道、额外重定向或失败掩盖后缀 | 原生 Loop：等价目录前缀及后续检查应完成，零退出管道必须拒绝；Java 分类负向；实际同预算复测 |
 | 最终归档与提交 ACK | 已归档但回复丢失可能导致重试覆盖最终结论 | 固定 final intent，终态重试返回已存结果，不再执行 | persistence / final intent tests |
 | `native-skills.js` 与 SDK compaction | 技术摘要和原 Skill 文件不是同一访问对象；恢复后不能绕过撤权 | 复用已有发布管理与 SDK discovery/loader，工具读请求逐次治理 | 撤权、篡改、压缩后再加载、跨进程 rediscovery tests |
 

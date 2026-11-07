@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import subprocess
 import time
 import urllib.error
 import urllib.request
@@ -40,7 +41,7 @@ def main():
     directory.mkdir(exist_ok=False)
     h = load('p1_independent', BASE / 'runtime-generic-acceptance.py')
     projection = load('p1_projection', BASE / 'project-evidence-projection.py')
-    token = json.loads((BASE / 'api-auth-private.json').read_text())['token']
+    token = json.loads((ROOT / 'api-auth-private.json').read_text())['token']
 
     def request(method, path, value=None):
         reply = h.call(method, path, token, value)
@@ -55,6 +56,10 @@ def main():
                 raise
             time.sleep(1)
     role = request('GET', '/api/v1/enterprise/roles/' + user['roleIds'][0] + '/authorization')
+    api_image = json.loads(subprocess.check_output(['docker', 'inspect', 'runtime-native-acceptance-api']))[0]['Image']
+    deployments = [json.loads(path.read_text()) for path in ROOT.glob('mcp-deployment*-public.json')]
+    deployed = [value for value in deployments if value.get('images', {}).get('api') == api_image and value.get('apiReady')]
+    assert len(deployed) == 1, 'Acceptance requires one matching API-ready deployment proof'
     agent = (role.get('agentIds') or ['native-coding-p1'])[0]
     tools = request('GET', '/api/v1/mcp/tools')
     names = [item['localToolName'] for item in tools if item['serviceId'] == SERVER]
@@ -105,7 +110,8 @@ class DeliveryTests(unittest.TestCase):
         request_id = 'p1-mcp-' + label
         task = 'native-' + h.sha((user['tenantId'] + '\0' + user['id'] + '\0' + request_id).encode())[:48]
         intent = {'case': 'T05', 'cohort': 'P1_RUNTIME_MCP', 'taskId': task, 'requestId': request_id,
-            'sourceCommit': 'ac99d883b47cb0ffb4c43e31f040e9fa7bab0c9f', 'fixtureSha256': h.sha(json.dumps(fixture, sort_keys=True).encode()),
+            'sourceCommit': deployed[0]['sourceCommit'], 'harnessSha256': h.sha(Path(__file__).read_bytes()),
+            'fixtureSha256': h.sha(json.dumps(fixture, sort_keys=True).encode()),
             'startedAtEpochMs': int(time.time() * 1000), 'originalBudget': {'maxModelCalls': 8, 'maxModelTokens': 262144, 'maxToolCalls': 16, 'maxCodeExecutions': 4, 'durationSeconds': 300}}
         write(directory / 'intent.json', intent)
         submitted = h.call('PUT', '/api/v1/coding/projects/' + request_id, token, body)

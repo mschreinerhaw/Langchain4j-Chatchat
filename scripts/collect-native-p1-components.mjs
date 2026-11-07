@@ -7,12 +7,12 @@ await mkdir(root,{recursive:true});
 const logs=['p1-mcp-compile.log','p1-mcp-compile-r2.log','p1-mcp-compile-r3.log',
  'p1-mcp-node-tests.log','p1-mcp-node-tests-r2.log','p1-mcp-node-tests-r3.log',
  'p1-mcp-node-full.tap','p1-mcp-node-full-r2.tap','p1-mcp-node-full-r3.tap','p1-mcp-node-full-r4.tap',
- 'p1-mcp-java-tests.log',...Array.from({length:7},(_,i)=>`p1-mcp-java-tests-r${i+2}.log`)];
+ 'p1-mcp-java-tests.log',...Array.from({length:8},(_,i)=>`p1-mcp-java-tests-r${i+2}.log`)];
 const manifest=[];
 for(const name of logs){const bytes=await readFile('target/'+name),gzip=gzipSync(bytes);await writeFile(root+'/'+name+'.gz',gzip);
  manifest.push({path:name+'.gz',sha256:sha(gzip),originalSha256:sha(bytes),originalBytes:bytes.length});}
 const decode=b=>b[0]===0xff&&b[1]===0xfe?b.subarray(2).toString('utf16le'):b.toString('utf8');
-const java=decode(await readFile('target/p1-mcp-java-tests-r8.log')),node=decode(await readFile('target/p1-mcp-node-full-r4.tap'));
+const java=decode(await readFile('target/p1-mcp-java-tests-r9.log')),node=decode(await readFile('target/p1-mcp-node-full-r4.tap'));
 if(!java.includes('BUILD SUCCESS'))throw Error('The final Java run did not pass');
 const metric=name=>Number(node.match(new RegExp('^# '+name+' (\\d+)$','m'))?.[1]??NaN);
 if(metric('fail')!==0||metric('pass')<322)throw Error('The final Node run did not pass');

@@ -197,7 +197,8 @@ class NativeCodingWorkspaceServiceTest {
         assertThat(actor(()->service.replay(c,"read-1"))).isEqualTo(result);
         assertThatThrownBy(()->actor(()->service.finishTool(c,lease,"read-1",Map.of("output","fabricated")))).hasMessageContaining("immutable");
     }
-    @Test void generalAdmissionCreatesAnEmptyProjectAndKeepsTheOriginalModelBudgetAndDeadlineOnRetry(){
+    @org.junit.jupiter.params.ParameterizedTest @org.junit.jupiter.params.provider.ValueSource(booleans={false,true})
+    void generalAdmissionCreatesAnEmptyProjectAndKeepsTheOriginalModelBudgetAndDeadlineOnRetry(boolean withMcp){
         var published=mock(com.chatchat.common.config.ModelResourceRegistry.class);when(published.defaultChatModel()).thenReturn("original-model");
         var connection=new com.chatchat.common.config.ModelsConfig.ModelConnectionConfig();connection.setModelName("original-provider-model");connection.setBaseUrl("http://approved.invalid/v1");
         when(published.connection(anyString())).thenReturn(connection);
@@ -210,12 +211,18 @@ class NativeCodingWorkspaceServiceTest {
             "native-env",1,"native-image","sha256:"+"a".repeat(64),"3.11",Map.of()));
         var beans=new org.springframework.beans.factory.support.DefaultListableBeanFactory();beans.registerSingleton("codingAgent",tasks);
         var factory=new NativeCodingTaskService(tasks,service,evidence,beans.getBeanProvider(CodingAgentSPI.class),python,published,json,"native-env");
+        var mcp=mock(NativeCodingMcpService.class);var schema=Map.<String,Object>of("type","object");
+        when(mcp.catalog(any(),anyList())).thenReturn(List.of(Map.of("serverName","fixture","name","lookup","agentToolName","mcp_fixture_lookup",
+            "agentId","agent","description","Lookup","inputSchema",schema,"schemaSha256",CodingCanonicalHash.sha256Value(schema))));
+        factory.setMcp(mcp);
         factory.setAdmissionEnabled(true);
         String task=NativeCodingController.taskId(List.of("tenant","owner"),"generic-1");
         var owner=new KernelDataScope("tenant","owner",null,null,task,null,Map.of());
-        var request=new NativeCodingTaskService.Request("Create a small multi-file Python project",Map.of(),List.of(),null,null,"python -m unittest discover -s tests -v");
+        var request=new NativeCodingTaskService.Request("Create a small multi-file Python project",Map.of(),List.of(),null,null,"python -m unittest discover -s tests -v",List.of(),
+            withMcp?List.of(new NativeCodingMcpService.Binding("fixture","agent")):List.of());
         identity.as(owner,EnumSet.allOf(CodingTaskAccess.Action.class),()->factory.submit(owner,task,request));
         var original=identity.as(owner,EnumSet.allOf(CodingTaskAccess.Action.class),()->tasks.contract(owner,task));
+        assertThat(identity.as(owner,EnumSet.allOf(CodingTaskAccess.Action.class),()->service.requireAuthorized(original))).containsEntry("taskId",task);
         assertThat(original.authorization().allowedTools()).contains("editor","apply_patch","search_codebase","run_commands").doesNotContain("python_execute");
         assertThat(original.budget().maxModelCalls()).isEqualTo(8);assertThat(original.budget().maxCodeExecutions()).isEqualTo(4);
         assertThat(original.budget().maxModelTokens()).isEqualTo(262144);

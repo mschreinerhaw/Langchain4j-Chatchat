@@ -12,6 +12,7 @@ import subprocess
 import sys
 import time
 import urllib.request
+import urllib.error
 import zipfile
 import tarfile
 
@@ -65,25 +66,38 @@ def main():
         assert api['Image'] == EXPECTED_API and worker['Image'] == EXPECTED_WORKER
         bases = {'api': api, 'worker': worker}
     else:
-        previous = json.loads((ROOT / 'mcp-deployment-public.json').read_text())
-        assert api['Image'] == previous['images']['api'] and not api['State']['Running']
+        candidates = [json.loads(p.read_text()) for p in ROOT.glob('mcp-deployment*-public.json')]
+        matches = [value for value in candidates if value.get('images', {}).get('api') == api['Image']]
+        assert len(matches) == 1
+        previous = matches[0]
+        assert previous.get('apiReady') or not api['State']['Running']
         assert worker['Image'] == previous['images']['worker']
         bases = {'api': inspect(API + '-before-p1-mcp'), 'worker': inspect(WORKER + '-before-p1-mcp')}
         assert bases['api']['Image'] == EXPECTED_API and bases['worker']['Image'] == EXPECTED_WORKER
-        logs = subprocess.run(['docker', 'logs', api['Id']], capture_output=True)
-        raw = logs.stdout + logs.stderr
-        (ROOT / 'api-startup-r1-private.log').write_bytes(raw)
-        write_failure = {'status': 'FAILED_BEFORE_TASK_ADMISSION', 'reason': 'AMBIGUOUS_MCP_DIRECTORY_BEAN',
-            'apiImage': api['Image'], 'exitCode': api['State']['ExitCode'], 'rawLogSha256': sha(raw),
-            'taskSubmitted': (ROOT / 'normal-r1' / 'submit.json').exists()}
-        assert not write_failure['taskSubmitted']
-        (ROOT / 'api-startup-r1-public.json').write_text(json.dumps(write_failure, indent=2) + '\n')
+        if not api['State']['Running']:
+            logs = subprocess.run(['docker', 'logs', api['Id']], capture_output=True)
+            raw = logs.stdout + logs.stderr
+            (ROOT / 'api-startup-r1-private.log').write_bytes(raw)
+            write_failure = {'status': 'FAILED_BEFORE_TASK_ADMISSION', 'reason': 'AMBIGUOUS_MCP_DIRECTORY_BEAN',
+                'apiImage': api['Image'], 'exitCode': api['State']['ExitCode'], 'rawLogSha256': sha(raw),
+                'taskSubmitted': (ROOT / 'normal-r1' / 'submit.json').exists()}
+            assert not write_failure['taskSubmitted']
+            (ROOT / 'api-startup-r1-public.json').write_text(json.dumps(write_failure, indent=2) + '\n')
     (ROOT / ('before-private.json' if attempt == 1 else 'before-r' + str(attempt) + '-private.json')).write_text(json.dumps({'api': api, 'worker': worker}))
     env = dict(v.split('=', 1) for v in api['Config']['Env'] if '=' in v)
     settings = json.loads(env['SPRING_APPLICATION_JSON'])
     secret = settings['chatchat.coding.cline.shared-secret']
 
     def ready():
+        if not inspect(API)['State']['Running']:
+            # Docker removes the exited API container's published ports. Its Worker
+            # still owns that network namespace; query it without publishing a new port.
+            script = ("const chunks=[];for await(const c of process.stdin)chunks.push(c);"
+                "const {secret}=JSON.parse(Buffer.concat(chunks));"
+                "const r=await fetch('http://127.0.0.1:3100/readyz',{headers:{authorization:'Bearer '+secret}});"
+                "if(!r.ok)throw Error('Worker readiness rejected');console.log(JSON.stringify(await r.json()));")
+            return json.loads(run(['docker', 'exec', '-i', WORKER, 'node', '--input-type=module', '-e', script],
+                input=json.dumps({'secret': secret}).encode()))
         q = urllib.request.Request('http://127.0.0.1:18291/readyz', headers={'Authorization': 'Bearer ' + secret})
         with urllib.request.urlopen(q, timeout=10) as r:
             return json.load(r)
@@ -176,8 +190,15 @@ def main():
             assert inspect(API)['State']['Running'], 'Acceptance API exited during startup'
             token = json.loads((Path('/var/tmp/runtime-native-coding-acceptance-20261107') / 'api-auth-private.json').read_text())['token']
             api_request = urllib.request.Request('http://127.0.0.1:18280/api/v1/enterprise/auth/me', headers={'Authorization': 'Bearer ' + token})
-            with urllib.request.urlopen(api_request, timeout=5) as response:
-                assert json.load(response)['code'] == 200
+            try:
+                with urllib.request.urlopen(api_request, timeout=5) as response:
+                    assert json.load(response)['code'] == 200
+                authenticated = True
+            except urllib.error.HTTPError as denied:
+                # An API restart invalidates old login sessions. A separate authenticated
+                # byte/readiness verifier must complete after a fresh stage login.
+                assert denied.code == 401 and json.load(denied)['code'] == 401
+                authenticated = False
             state = ready()
             assert state['status'] == 'READY' and state['activeSessions'] == 0
             q = urllib.request.Request('http://127.0.0.1:18291/v1/input-capabilities', data=b'{}',
@@ -190,14 +211,14 @@ def main():
             if attempt == 119:
                 raise
             time.sleep(1)
-    proof = {'sourceCommit': manifest['sourceCommit'], 'archiveSha256': sys.argv[1], 'classes': manifest['classes'], 'apiReady': True,
+    proof = {'sourceCommit': manifest['sourceCommit'], 'archiveSha256': sys.argv[1], 'classes': manifest['classes'], 'apiReady': True, 'apiAuthenticatedRead': authenticated,
         'images': images, 'containers': {'api': aid, 'worker': wid}, 'ready': state, 'capabilities': capabilities,
         'apiJarSha256': sha(patched), 'baselineApiJarSha256': sha(baseline.read_bytes()),
         'settingsUnchanged': dict(v.split('=', 1) for v in inspect(API)['Config']['Env']) == env,
         'mcpImageUnchanged': inspect('runtime-native-acceptance-mcp')['Image'],
         'productionChanged': False, 'modelChanged': False, 'budgetChanged': False,
         'acceptance': 'NOT_RUN'}
-    proof_name = 'mcp-deployment-public.json' if len(sys.argv) <= 2 else 'mcp-deployment-r' + sys.argv[2] + '-public.json'
+    proof_name = 'mcp-deployment-public.json' if len(sys.argv) <= 2 else 'mcp-deployment-r' + sys.argv[2] + ('-public.json' if authenticated else '-pending-auth.json')
     (ROOT / proof_name).write_text(json.dumps(proof, indent=2) + '\n')
     print(json.dumps({k: v for k, v in proof.items() if k != 'classes'}))
 

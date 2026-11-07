@@ -4,6 +4,8 @@
 
 首次真实升级暴露 M-04：API 的 Spring 容器中 `McpServiceDirectory` 有三个实现，未限定注入导致 API 启动失败。Worker 就绪不能证明 API 就绪；首轮真实任务未提交、未消耗模型预算。修复为显式选择既有 `mcpRuntimeTransportPort`，同时补多实现并存的 Spring 装配测试，以及部署时的 API 认证读取检查。首次失败容器、原 P0 Jar 和运行日志保留，不覆盖原失败记录。
 
+第二次真实任务提交暴露 M-05：含 record 的绑定目录在证据持久化前后产生不同 Hash。返回 403 `Native project input binding differs`，尚未进入真实模型/工具执行。修复只将新增输入的 payload 在注册前规范为 JSON Map/List 值，保持原证据 Hash 策略；原失败请求不重写，后续实验用新的 requestId。23 条临时授权/拒绝规则均已清理。API 重启后的登录会话失效属于现有认证生命周期，重新登录后独立检查认证读取和部署字节，不将 Worker 就绪冒充 API 认证可用。
+
 本阶段基于 [范围冻结矩阵](../audits/native-p1-remediation-matrix.md)，P0 基线 `d5dd48356` 保持独立。SDK 固定 0.0.93；无模型、预算、SDK Loop、Editor/Patch 或金融业务改动。
 
 ## 源码断点与最小修复
@@ -32,7 +34,7 @@ Windows CRLF 检出改变已固定 Hash 的 `native_command*.mjs` 资源字节�
 
 测试覆盖：冻结目录与 Schema、重复身份、跨租户/撤权、真实模型回执参数准入、响应丢失不重派、原结果重放、SDK 工具披露/反馈、每轮撤权可见性、多服务隔离与拒绝安全降级，以及原派发/恢复/回调回归。这里的模型与 Host 为组件夹具，不标为真实 MCP 或模型验收。
 
-最终组件结果：Node **322 通过、1 跳过、0 失败**；Java **92 通过、0 失败**，含三种目录并存的 Spring 装配。[机器清单及七组 Java 结果](evidence/native-p1/mcp/components/manifest.json)保留 18 份原始失败/通过日志的 gzip、原字节 Hash 和压缩文件 Hash。PowerShell UTF-16 日志仅在提取汇总时解码，归档保留原字节。
+最终组件结果：Node **322 通过、1 跳过、0 失败**；Java **93 通过、0 失败**，含三种目录并存的 Spring 装配、有/无 MCP 两种真实证据存储重读。[机器清单及七组 Java 结果](evidence/native-p1/mcp/components/manifest.json)保留 19 份原始失败/通过日志的 gzip、原字节 Hash 和压缩文件 Hash。PowerShell UTF-16 日志仅在提取汇总时解码，归档保留原字节。
 
 ## 部署与回滚边界
 

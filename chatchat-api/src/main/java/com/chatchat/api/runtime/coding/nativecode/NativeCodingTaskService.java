@@ -210,6 +210,9 @@ public final class NativeCodingTaskService {
         return saved;
     }
     private void register(KernelDataScope scope,String task,String id,String type,Map<String,Object> payload,List<String> parents){
+        // Record property order differs from Map key order after a durable JSON read.
+        // Hash the same JSON value representation that the evidence store will reread.
+        payload=json.convertValue(payload,new com.fasterxml.jackson.core.type.TypeReference<LinkedHashMap<String,Object>>(){});
         evidence.register(new EvidenceRecord(null,id,scope,type,"NativeCodingTaskService",evidence.contentHash(payload),payload,null,System.currentTimeMillis(),Map.of()),
             new EvidenceLineage(null,id,scope,parents,task,"NativeCodingTaskService",null,Map.of()));
     }

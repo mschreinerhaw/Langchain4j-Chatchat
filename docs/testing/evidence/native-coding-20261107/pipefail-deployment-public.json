@@ -1,0 +1,20 @@
+{
+  "sourceCommit": "0b62c544b",
+  "images": {
+    "api": "sha256:21beb4fb86e09d648f868b0740b07877ebf3670cf9ef54911b3fd7ec04a967db",
+    "mcp": "sha256:18ad6f765878f165c13e470cdd72561987ad14cfacf60d122a5f7fa9583d3f8a",
+    "worker": "sha256:1b739bcd27cd59027efbf2c707f179126e767d108b6a6a2e0d9ebd636eee687f"
+  },
+  "containers": {
+    "mcp": "b417a4e1c5dc55567b77ae78c85dff2be76202ab0a8c6245a6e45a35f78a99ce",
+    "api": "4aa38c92c06d9d9983afd8fda74908e324192185d099888affa840a5997ec725",
+    "worker": "2f752b13b50a164d14094388adac3b4c994635bf18c1c7009b9b306cfdfd47c8"
+  },
+  "files": {
+    "native-pipefail-worker.tgz": "70c47b5e99d031da24f33cba56fd4b2fc63c2160520b451a5abcf6a63c5877b8",
+    "api-pipefail.jar": "a5c1ea68c6627d8a7199fc6538a8b0a4286dc2245b3d80e602349084c43fba1b",
+    "mcp-pipefail.jar": "71a357b27084c887d7e7ef40898e44076e8deaeda6b54e9835f2ee51805afbd6"
+  },
+  "nativeExecutionPolicy": "BASH_PIPEFAIL_V1",
+  "productionChanged": false
+}

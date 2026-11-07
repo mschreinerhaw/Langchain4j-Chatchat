@@ -21,8 +21,9 @@ A-ref 只替换实验镜像内 workspace executor 连接，不改产品 `native-
 | `a4a7fbcd8` | 8 | 0/8 | 7/8 |
 | `4bf74f649` | 8 | 1/8 | 8/8 |
 | `3f64576fa` | 8 | 2/8 | 7/8 |
+| `0b62c544b`（版本化 pipefail） | 8 | 5/8 | 7/8 |
 
-这两轮代码版本不同，也包含模型随机性，不能当作同版本重复试验，更不能将 0→1 的观察解释为模型能力提升。逐任务模型调用、已知 Token、预留、停止及源码 Hash 见 [真实验收](native-coding-real-acceptance-20261107.md) 和结果投影。`validationStatus=INCONCLUSIVE` 保留。
+这些批次代码版本不同，也包含模型随机性，不能当作同版本重复试验，更不能将完成率变化解释为模型能力提升。逐任务模型调用、已知 Token、预留、停止及源码 Hash 见 [真实验收](native-coding-real-acceptance-20261107.md) 和结果投影。`validationStatus=INCONCLUSIVE` 保留。
 
 首次有效代码时间采用终态后独立复核各 Silo 源码版本的方式：找到首个通过固定测试及额外约束的版本，以其原始归档创建时间减去原任务 startedAt。该指标表示正确源码首次归档时间，不表示模型当时已识别成功；历史探针不得把结果反馈给 Agent，且须验证任务 usage 不变。编辑版本数量单独记录，不能当作错误反馈修复轮次。
 

@@ -1,0 +1,55 @@
+{
+  "worker": {
+    "schemaVersion": "runtime_os.coding.input.v1",
+    "formats": [
+      "PARQUET",
+      "CSV"
+    ],
+    "codeLifecycleVersions": [
+      "runtime_os.code_lifecycle.v1"
+    ],
+    "deferredToolsProfile": "runtime-coding:deferred-tools:v1",
+    "analysisProfiles": [
+      "runtime-coding:analysis-fast-path:v1"
+    ],
+    "analysisTools": [
+      "input_read",
+      "report_submit",
+      "code_read",
+      "knowledge_search",
+      "knowledge_get_document",
+      "knowledge_read",
+      "knowledge_list_sections",
+      "knowledge_related",
+      "news_search",
+      "news_get_article",
+      "news_related_events",
+      "market_search",
+      "market_get_history",
+      "market_get_indicators",
+      "market_get_snapshot",
+      "web_search",
+      "web_fetch"
+    ],
+    "workspaceProfiles": [
+      "runtime-coding:workspace-fast-path:v1",
+      "runtime-coding:sql-metadata-tools:v1",
+      "runtime-coding:native-project:v1",
+      "runtime-coding:native-project:v2"
+    ]
+  },
+  "mcp": {
+    "code": 200,
+    "message": "Success",
+    "data": [
+      "JSON_LINES",
+      "PARQUET",
+      "CSV",
+      "SHARED_DIRECTORY",
+      "NATIVE_EXECUTOR:BASH_PIPEFAIL_V1:65b631cdb3323d09641767ae7328b78edd0f84e4c855c4a1fa12b1b033cdd82e:768e21d085d74f98b77615acdab13f3de04a864293f366a21e6a2a2fa6659dcc"
+    ],
+    "timestamp": 1794040264920,
+    "requestId": null
+  },
+  "policyFrozenAtAdmission": true
+}

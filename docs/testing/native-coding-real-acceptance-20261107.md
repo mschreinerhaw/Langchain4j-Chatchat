@@ -43,4 +43,27 @@ A 的模型自行扩展了规格及测试，涉及重音字符和 bytes 的两�
 
 ## 剩余验收门槛
 
+## 版本化执行治理后的第四批
+
+代码 `0b62c544b`，同一八项样本、模型、8 次调用/4 次执行/300 秒预算及固定 Sandbox 镜像。仅在隔离验收三端启用新任务 `BASH_PIPEFAIL_V1`，生产及旧任务语义未改。启动前实际取得 Worker v2 profile 与 MCP 精确 wrapper/base Hash 能力，见 [部署证明](evidence/native-coding-20261107/pipefail-deployment-public.json) 和 [能力协商](evidence/native-coding-20261107/pipefail-capability-public.json)。
+
+| 场景 | 原始任务状态 | 独立最终源码复核 | 模型次数 | 已知 Token | 实际执行次数 |
+| --- | --- | --- | ---: | ---: | ---: |
+| A 新建多文件项目 | FAILED | 失败 | 8 | 49532 | 4 |
+| B 现有项目修复 | COMPLETED | 通过 | 4 | 10107 | 1 |
+| C 长源码局部修改 | FAILED | 通过，180 个无关函数保留 | 8 | 38118 | 4 |
+| D 多文件重构 | COMPLETED | 通过 | 6 | 33418 | 4 |
+| E SyntaxError | COMPLETED | 通过 | 6 | 28505 | 4 |
+| E KeyError | COMPLETED | 通过 | 7 | 35344 | 4 |
+| E TypeError / Decimal | COMPLETED | 通过 | 5 | 21902 | 3 |
+| E NameError | FAILED | 通过 | 8 | 40501 | 4 |
+
+完整任务 **5/8**，最终源码 **7/8**。所有八个原始任务 executorStopped=true、reconciliationRequired=false；终态后再读取归档相同，独立复核不改变原 usage。[逐任务结果、文件 Hash、停止与预留](evidence/native-coding-20261107/C-general-r4-summary.json) 均保留。CPU、峰值内存和成本尚未完整计量；表中 Token 为已知回执累计，不能将 consumed CPU=0 当作真实零资源消耗。
+
+C 的第三个真实执行已经通过固定测试，回执精确绑定声明命令、新策略及当前 manifest；模型后续继续检查，执行预算耗尽后仍请求测试，最终未结束原生 Loop。不能再把该失败统一归因于管道授权，也不能由 Runtime 改写为成功。压缩后只保留最近检查事实而未展示较早验证事实，是需要后续独立验证的上下文风险，尚不能断言其造成模型决策。A 的最终源码复核失败，必须保留失败代码与测试，不允许手工修补后计入原任务。
+
+这些版本间批次不是同版本重复试验；5/8 不是整体通过，也不能用来宣布性能因果改善。SDK 参考组及恢复、权限专项继续单独测量。
+
+## 尚未通过的最终门槛
+
 真实 Worker 中断恢复、权限负向整链路、长任务压缩恢复、原生 Cline/旧 Runtime/改进 Runtime 三组完整对照尚未通过。当前旧 Runtime 通用项目入口及 MCP 动态 Schema 治理存在接口差异，不能以组件测试或模拟模型回放充当真实性能对照。尚未进入金融等业务集成。

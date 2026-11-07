@@ -1,0 +1,9 @@
+{
+  "scope": "REFERENCE_HARNESS_COMPONENT_ONLY_NO_MODEL_OR_REAL_COMMAND",
+  "exitCode": 0,
+  "stopped": true,
+  "containerId": "e97fc2eaf7a94b686b939aeb5994cb8f7b1b92094d3137f6cc322fe41749ea5c",
+  "imageId": "sha256:1b739bcd27cd59027efbf2c707f179126e767d108b6a6a2e0d9ebd636eee687f",
+  "factorySha256": "c5a7dc0a38897df142de09df7aa7204fca03fdd43c9effb04c42968bdaa7ee0e",
+  "logSha256": "02330bc2970a7d76f0dad51faebc248bd58499409341cc3a8d7d8ff36c2cd06f"
+}

@@ -95,7 +95,10 @@ public class PythonDockerRuntime {
                 throw new IllegalArgumentException("Invalid managed mount");
         }
         PythonOperationWorkspace.assignOutputOwner(workspace, env.getRuntimeUser());
-        for (String helper : List.of("_runtime_capture.py", "runtime_input.py")) {
+        boolean nativeProject=Files.isDirectory(scripts.resolve(NativeProjectSnapshot.DIRECTORY),LinkOption.NOFOLLOW_LINKS);
+        if(nativeProject&&!properties.isNativeCodingEnabled())throw new SecurityException("Native coding is disabled");
+        if(Files.isSymbolicLink(scripts.resolve(NativeProjectSnapshot.DIRECTORY)))throw new SecurityException("Native project link denied");
+        for (String helper : nativeProject?List.of("_runtime_capture.py", "runtime_input.py","native_command.mjs"):List.of("_runtime_capture.py", "runtime_input.py")) {
             if (fileName.equals(helper)) throw new IllegalArgumentException("Reserved Runtime script name");
             String resourceName = helper.equals("_runtime_capture.py") ? "runtime_capture.py" : helper;
             try (var resource = PythonDockerRuntime.class.getResourceAsStream("/python/" + resourceName)) {
@@ -115,6 +118,10 @@ public class PythonDockerRuntime {
                 "-v", inputs.toAbsolutePath() + ":/data/input:ro",
                 "-v", output.toAbsolutePath() + ":/workspace/output:rw",
                 "-w", "/workspace", "-e", "CHATCHAT_INPUT_JSON=" + input));
+        if(nativeProject){
+            if(!"NONE".equals(env.getNetworkPolicy()))throw new SecurityException("Native commands require a no-network environment");
+            command.addAll(List.of("-v",scripts.resolve(NativeProjectSnapshot.DIRECTORY).toAbsolutePath()+":/workspace/code:ro"));
+        }
         if ("NONE".equals(env.getNetworkPolicy())) command.addAll(List.of("--network", "none"));
         else command.addAll(List.of("--network", env.getNetworkName()));
         command.addAll(List.of(imageId, "python", "/workspace/scripts/_runtime_capture.py", scriptPath));

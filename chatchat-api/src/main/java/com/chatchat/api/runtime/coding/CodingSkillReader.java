@@ -28,7 +28,7 @@ public final class CodingSkillReader {
     /** Pin this Agent's assigned packages before its first model call, without
      * disclosing their bodies to Cline or changing the dynamic artifact source. */
     public void freezeCatalog(CodingTaskContract contract, CodingJournal.Lease lease) {
-        if (!CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion())
+        if (!(CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion())||NativeCodeWorkspace.enabled(contract))
                 || !(contract.authorization().allowedTools().contains("skills") || contract.authorization().allowedTools().contains("skill_read"))) return;
         if (contract.runtimeContext().get("skills") instanceof Map<?,?> catalog
                 && catalog.get("skills") instanceof List<?> cards)
@@ -40,7 +40,7 @@ public final class CodingSkillReader {
             }
     }
     public Map<String,Object> read(CodingTaskContract contract, CodingJournal.Lease lease, String id, String path) {
-        if (!CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion())
+        if (!(CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion())||NativeCodeWorkspace.enabled(contract))
                 || !(contract.authorization().allowedTools().contains("skills") || contract.authorization().allowedTools().contains("skill_read"))) throw denied();
         Object raw=contract.runtimeContext().get("skills");
         if (!(raw instanceof Map<?,?> catalog) || !(catalog.get("skills") instanceof List<?> cards)) throw denied();

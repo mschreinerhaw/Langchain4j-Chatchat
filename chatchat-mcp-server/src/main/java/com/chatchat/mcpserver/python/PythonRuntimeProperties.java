@@ -16,4 +16,6 @@ public class PythonRuntimeProperties {
     private String dataRoot = "./data/python-user-data";
     private long maxDataFileBytes = 50L * 1024 * 1024;
     private boolean sharedInputsEnabled;
+    /** Opt-in native command prototype; does not change existing Python task execution. */
+    private boolean nativeCodingEnabled;
 }

@@ -40,6 +40,10 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
     private final java.time.Clock clock;
     private final String workerId = "cline-adapter:" + UUID.randomUUID();
     private CodingWorkspaceService workspace;
+    private com.chatchat.api.runtime.coding.nativecode.NativeCodingWorkspaceService nativeWorkspace;
+    public void setNativeWorkspace(com.chatchat.api.runtime.coding.nativecode.NativeCodingWorkspaceService value){nativeWorkspace=value;}
+    private com.chatchat.api.runtime.coding.nativecode.NativeCodingCommandService nativeCommands;
+    public void setNativeCommands(com.chatchat.api.runtime.coding.nativecode.NativeCodingCommandService value){nativeCommands=value;}
     public void setWorkspace(CodingWorkspaceService workspace) { this.workspace = workspace; }
     private CodingDataSupplyService dataSupply;
     public void setDataSupply(CodingDataSupplyService value) {this.dataSupply=value;}
@@ -73,7 +77,13 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
     @Override public CodingTaskOutcome submit(CodingTaskContract contract) {
         requireDispatchLicense();
         boolean deferredTools=com.chatchat.common.runtime.coding.CodingProtocol.deferredTools(contract);
-        if (CodingWorkspaceService.supports(contract)) {
+        if(NativeCodeWorkspace.enabled(contract)){
+            if(nativeWorkspace==null)throw new SecurityException("Native Coding profile is not enabled");
+            // Native admission is checked against the immutable input before submit; task binding is rechecked by every callback.
+            if(!CodingProtocol.WORKSPACE_VERSION.equals(contract.schemaVersion())||!NativeCodeWorkspace.TOOLS.containsAll(contract.authorization().allowedTools())
+                    ||contract.authorization().networkPolicy()!=CodingTaskContract.NetworkPolicy.NONE)throw new SecurityException("Invalid native Coding profile");
+            nativeWorkspace.requireSnapshot(contract);
+        }else if (CodingWorkspaceService.supports(contract)) {
             if (workspace == null) throw new IllegalStateException("Workspace Coding profile is not enabled");
             workspace.requireAuthorized(contract);
         } else {
@@ -98,6 +108,7 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
         }
         requireInputCapabilities(contract);
         CodingTaskOutcome accepted = tasks.submit(contract); // A2 persists acceptance before any Node dispatch.
+        if(NativeCodeWorkspace.enabled(contract))nativeWorkspace.requireAuthorized(contract);
         if (accepted.status().terminal() || accepted.executionControl().stopReason() != null) return accepted;
         KernelDataScope scope = contract.scope();
         CodingJournal.Lease lease = tasks.ownership(scope, contract.taskId());
@@ -166,10 +177,17 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
             && (remote.path("fencingToken").asLong() < lease.fencingToken()
                 || List.of("COMPLETED", "FAILED", "CANCELLED").contains(remote.path("status").asText()));
         if (!recoveryOwned) return tasks.get(scope, taskId);
+        boolean nativeProfile=NativeCodeWorkspace.enabled(tasks.contract(scope,taskId));
+        if(nativeProfile){
+            if(nativeWorkspace==null||nativeCommands==null)throw new SecurityException("Native recovery is disabled");
+            if(!workerId.equals(lease.owner()))return tasks.get(scope,taskId);
+            lease=tasks.recoveryFence(scope,taskId,lease,tasks.get(scope,taskId).revision());
+        }
         // Only Python operations have MCP execution identities. Model starts retain their
         // reservations until the receipt can be reconciled; they are never dispatched again.
         for (String operationId : tasks.unresolvedOperations(scope, taskId)) {
             if(operationId.matches("workspace-[0-9a-f]{64}")) {
+                if(nativeProfile)continue;
                 // A stopped/missing SDK may have lost an HTTP tool response after the
                 // immutable local-client receipt was written. Verify it through A2;
                 // never repeat the read or grant access to its retained source body.
@@ -200,6 +218,17 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
                     python.reconcile(scope, taskId, lease, operationId);
             } catch (RuntimeException unavailable) { return tasks.get(scope, taskId); }
         }
+        if(nativeProfile){
+            var c=tasks.contract(scope,taskId);var observed=new java.util.LinkedHashMap<String,Map<String,Object>>();
+            for(String operation:tasks.startedCodeOperations(scope,taskId)){
+                var prepared=tasks.privateState(scope,taskId,"native-command-input:"+operation);
+                if(prepared==null||tasks.verifiedOperation(scope,taskId,operation).isEmpty())continue;
+                try{observed.put(operation,nativeCommands.receipt(c,lease,operation,prepared,true));}
+                catch(RuntimeException unavailable){observed.put(operation,Map.of("operationId",operation,"executorStopped",true,
+                    "stopProofRef",tasks.verifiedOperation(scope,taskId,operation).orElseThrow().stopProofRef(),"outputStatus","UNAVAILABLE"));}
+            }
+            try{nativeWorkspace.recoverTools(c,lease,observed);}catch(IllegalStateException pending){return tasks.get(scope,taskId);}
+        }
         current = tasks.get(scope, taskId);
         // A live SDK is reused above. The SDK has no cross-process reconnect API;
         // only a Java-committed, fully settled boundary can seed a NEW instance.
@@ -213,7 +242,20 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
                     if(receipts.response(scope,taskId,operation.operationId()).isPresent()
                         && receipts.confirmsStopped(scope,taskId,operation.operationId(),"runtime-model:"+operation.operationId(),
                             receipts.proofRef(scope,taskId,operation.operationId())))known.add(operation.operationId());
-                checkpoint=tasks.sdkCheckpointForModelReceipt(scope,taskId,known);
+                if(nativeProfile){
+                    var stopped=new java.util.HashSet<String>();
+                    for(String code:tasks.startedCodeOperations(scope,taskId))if(tasks.verifiedOperation(scope,taskId,code).isPresent())stopped.add(code);
+                    var c=tasks.contract(scope,taskId);
+                    for(var modelOperation:tasks.startedModelOperations(scope,taskId)){
+                        var response=receipts.response(scope,taskId,modelOperation.operationId());
+                        if(response.isEmpty()||!(response.get().get("toolCalls") instanceof List<?> calls))continue;
+                        for(Object item:calls)if(item instanceof Map<?,?> tool&&tool.get("id") instanceof String call){
+                            String id=com.chatchat.api.runtime.coding.nativecode.NativeCodingWorkspaceService.operation(c,call);
+                            if(tasks.verifiedOperation(scope,taskId,id).isPresent())stopped.add(id);
+                        }
+                    }
+                    checkpoint=tasks.sdkCheckpointForNativeReceipts(scope,taskId,known,stopped);
+                }else checkpoint=tasks.sdkCheckpointForModelReceipt(scope,taskId,known);
             }
             if(checkpoint==null){
                 var closed=new java.util.HashSet<String>();
@@ -225,6 +267,9 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
                 var accepted=tasks.contract(scope,taskId);var charged=tasks.budgetUsage(scope,accepted.budget().budgetId());
                 boolean hasBudget=charged.modelCalls()<accepted.budget().maxModelCalls()
                     && charged.modelTokens()<accepted.budget().maxModelTokens() && accepted.budget().deadlineAt().isAfter(clock.instant());
+                if(nativeProfile&&checkpoint.path("receiptReplayOperationId").isTextual())hasBudget=
+                    charged.modelCalls()<=accepted.budget().maxModelCalls()&&charged.modelTokens()<=accepted.budget().maxModelTokens()
+                    &&accepted.budget().deadlineAt().isAfter(clock.instant());
                 if(hasBudget) {
                 requireInputCapabilities(tasks.contract(scope,taskId));
                 lease=tasks.recoveryFence(scope,taskId,lease,tasks.get(scope,taskId).revision());
@@ -297,6 +342,7 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
     private CodingTaskOutcome completeVerifiedOperation(KernelDataScope scope, String taskId,
             CodingJournal.Lease lease) {
         CodingTaskContract contract = tasks.contract(scope, taskId);
+        if(NativeCodeWorkspace.enabled(contract))return null;
         if (CodingWorkspaceService.supports(contract)) {
             if (workspace == null) return null;
             return workspace.recover(contract, lease);
@@ -433,6 +479,12 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
         throw new CodingContractException(CodingErrorCode.AUTHORIZATION_DENIED, message);
     }
     private void requireInputCapabilities(CodingTaskContract contract) {
+        if(NativeCodeWorkspace.enabled(contract)){
+            JsonNode capabilities=request("/v1/input-capabilities",Map.of());boolean supported=false;
+            for(var profile:capabilities.path("workspaceProfiles"))if(NativeCodeWorkspace.PROFILE.equals(profile.asText()))supported=true;
+            if(!supported)throw new SecurityException("Worker has not negotiated native Coding profile");
+            return;
+        }
         boolean deferredTools=CodingProtocol.deferredTools(contract);
         boolean fast=contract.metadataRefs().contains("runtime-coding:analysis-fast-path:v1");
         boolean workspaceFast=contract.metadataRefs().contains(CodingWorkspaceService.FAST_PATH_REF);

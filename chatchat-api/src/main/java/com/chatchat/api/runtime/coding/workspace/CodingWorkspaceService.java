@@ -95,6 +95,7 @@ public final class CodingWorkspaceService {
     }
     public static boolean supports(CodingTaskContract contract){
         return CodingProtocol.WORKSPACE_VERSION.equals(contract.schemaVersion())
+            && !NativeCodeWorkspace.enabled(contract)
             && contract.outputContract().resultFormat()==CodingTaskContract.ResultFormat.WORKSPACE_FILES;
     }
     /** Called only after the Studio has checked project ownership and persisted its plan/context. */

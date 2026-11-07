@@ -29,6 +29,8 @@ public class ClineCodingConfiguration {
             com.chatchat.common.mcp.license.McpLicenseEntitlementPort licenseEntitlements,
             org.springframework.beans.factory.ObjectProvider<CodingWorkspaceService> workspace,
             org.springframework.beans.factory.ObjectProvider<CodingDataSupplyService> dataSupply,
+            org.springframework.beans.factory.ObjectProvider<com.chatchat.api.runtime.coding.nativecode.NativeCodingWorkspaceService> nativeWorkspace,
+            org.springframework.beans.factory.ObjectProvider<com.chatchat.api.runtime.coding.nativecode.NativeCodingCommandService> nativeCommands,
             @Value("${chatchat.coding.cline.node-url:http://127.0.0.1:8791}") String nodeUrl,
             @Value("${chatchat.coding.cline.shared-secret:}") String secret,
             @Value("${chatchat.coding.cline.shared-secret-file:}") String secretFile) {
@@ -36,6 +38,8 @@ public class ClineCodingConfiguration {
             URI.create(nodeUrl), CodingSecrets.resolve(secret,secretFile), mapper);
         adapter.setWorkspace(workspace.getIfAvailable());
         adapter.setDataSupply(dataSupply.getIfAvailable());
+        adapter.setNativeWorkspace(nativeWorkspace.getIfAvailable());
+        adapter.setNativeCommands(nativeCommands.getIfAvailable());
         adapter.setLicenseEntitlements(licenseEntitlements);
         return adapter;
     }

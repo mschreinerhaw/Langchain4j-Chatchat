@@ -282,6 +282,46 @@ class CodingTaskPersistenceTest {
         assertThat(restarted.events(scope,"task",0,10)).hasSize(10);
     }
 
+    @Test void nativeReceiptRecoveryRequiresTheOriginalBoundModelAndStoppedLinkedToolsWithoutResettingBudget(){
+        service=new DurableCodingTaskService(evidence,json,clock,
+            new BoundCodingTaskAccess(()->scope,EnumSet.allOf(CodingTaskAccess.Action.class)),
+            (owner,reference)->true,(s,t,o,h,p)->true,workers,new ConcurrentTaskScheduler(timer));
+        var base=contract("native",4);
+        var nativeContract=new CodingTaskContract(CodingProtocol.WORKSPACE_VERSION,base.taskId(),scope,
+            new CodingTaskContract.Objective("Repair a multi-file project",List.of("source-project.json"),List.of("project-tests")),
+            base.inputSnapshotRef(),List.of(NativeCodeWorkspace.PROFILE),base.workspaceRef(),
+            new CodingTaskContract.Authorization("native-decision",List.of("editor","run_commands"),List.of(),List.of("project"),List.of("project"),
+                CodingTaskContract.NetworkPolicy.NONE,List.of(),List.of(CodingTaskContract.SideEffect.CODE_EXECUTION,CodingTaskContract.SideEffect.WORKSPACE_WRITE)),
+            base.budget(),base.environmentRef(),base.validationPlanRef(),
+            new CodingTaskContract.OutputContract(CodingTaskContract.ResultFormat.WORKSPACE_FILES,"native-result","native-validation",List.of("source-project.json"),List.of("application/json"),32,1000,base.outputContract().requiredEvidence()));
+        service.submit(nativeContract);var lease=claim("native","worker");service.saveSdkCheckpoint(scope,"native",lease,sdkBoundary("native",1));
+        service.bindModelCheckpoint(scope,"native",lease,"model-1",1);
+        var modelCount=new Counters(1,100,0,0,0,0,0,"0");
+        service.reserve(scope,"native",lease,rev("native"),"model-1",intent,CodingJournal.OperationKind.MODEL,modelCount);
+        service.startIntent(scope,"native",lease,rev("native"),"model-1","runtime-model:model-1");
+        service.reconcileStopped(scope,"native",lease,rev("native"),"model-1","model-proof");
+        service.settle(scope,"native",lease,rev("native"),"model-1",new Counters(1,40,0,0,0,0,0,"0"),true);
+        String tool="workspace-"+"a".repeat(64);var toolCount=new Counters(0,0,1,0,0,0,0,"0");
+        service.privateState(scope,"native",lease,"native-tool:"+tool,null,json.valueToTree(Map.of("operationId",tool,"modelOperationId","model-1","tool","editor","toolCallId","edit-1")));
+        service.reserve(scope,"native",lease,rev("native"),tool,intent,CodingJournal.OperationKind.TOOL,toolCount);
+        service.startIntent(scope,"native",lease,rev("native"),tool,"runtime-native-tool:"+tool);
+        assertThat(service.sdkCheckpointForNativeReceipts(scope,"native",Set.of("model-1"),Set.of(tool))).isNull();
+        service.reconcileStopped(scope,"native",lease,rev("native"),tool,"tool-proof");
+        service.settle(scope,"native",lease,rev("native"),tool,toolCount,true);
+        assertThat(service.sdkCheckpointForModelReceipt(scope,"native",Set.of("model-1"))).isNull();
+        assertThat(service.sdkCheckpointForNativeReceipts(scope,"native",Set.of(),Set.of(tool))).isNull();
+        assertThat(service.sdkCheckpointForNativeReceipts(scope,"native",Set.of("model-1"),Set.of())).isNull();
+        var usage=service.get(scope,"native").usage();
+        var restored=service.sdkCheckpointForNativeReceipts(scope,"native",Set.of("model-1"),Set.of(tool));
+        assertThat(restored.path("sdkSessionId").asText()).isEqualTo("private-sdk-session");
+        assertThat(restored.path("receiptReplayOperationId").asText()).isEqualTo("model-1");
+        assertThat(restored.path("modelOrdinal").asInt()).isZero();assertThat(service.get(scope,"native").usage()).isEqualTo(usage);
+        var old=service.privateState(scope,"native","native-tool:"+tool);var changed=old.deepCopy();
+        ((com.fasterxml.jackson.databind.node.ObjectNode)changed).put("modelOperationId","model-2");
+        service.privateState(scope,"native",lease,"native-tool:"+tool,old,changed);
+        assertThat(service.sdkCheckpointForNativeReceipts(scope,"native",Set.of("model-1"),Set.of(tool))).isNull();
+    }
+
     @Test void workerProgressSurvivesReconnectWithoutGrantingExecutionAuthority() throws Exception {
         service.submit(contract("task", 10));
         var lease = claim("task", "worker");

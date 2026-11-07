@@ -63,7 +63,8 @@ public class CodingPythonExecutionBridge {
         for (String fileId : files.keySet()) {
             if (!contract.authorization().allowedDataRefs().contains(fileId)
                     && !contract.authorization().allowedDataRefs().contains("mcp-python:data-file:" + fileId)
-                    && !(dataSupply!=null&&dataSupply.authorizes(contract,operationId,files)))
+                    && !(dataSupply!=null&&dataSupply.authorizes(contract,operationId,files))
+                    && !nativeCodeInput(contract,lease,operationId,source,files))
                 throw new SecurityException("Input file is outside the task authorization");
         }
         McpPythonControlPlanePort.EnvironmentView environment = python.environment(environmentId);
@@ -97,6 +98,14 @@ public class CodingPythonExecutionBridge {
                 environmentVersion, imageDigest,tasks.script(scope,contract.taskId(),operationId)));
         observe(scope,contract.taskId(),operation);
         return operation;
+    }
+
+    private boolean nativeCodeInput(CodingTaskContract c,CodingJournal.Lease lease,String operation,String source,Map<String,String> files){
+        if(!NativeCodeWorkspace.enabled(c))return false;
+        tasks.requireWorkerLease(c.scope(),c.taskId(),lease,false);
+        var prepared=tasks.privateState(c.scope(),c.taskId(),"native-command-input:"+operation);
+        return prepared!=null&&hash(source.getBytes(StandardCharsets.UTF_8)).equals(prepared.path("sourceHash").asText())
+            &&files.equals(Map.of(prepared.path("fileId").asText(),prepared.path("fileHash").asText()));
     }
 
     public McpPythonControlPlanePort.OperationView get(KernelDataScope scope, String taskId, String operationId) {

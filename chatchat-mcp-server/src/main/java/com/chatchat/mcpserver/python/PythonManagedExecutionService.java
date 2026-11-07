@@ -89,7 +89,7 @@ public class PythonManagedExecutionService {
         if(request.script()!=null && !request.script().workingDirectory().equals(
                 com.chatchat.common.runtime.coding.CodingScript.workspace(tenant,owner,request.runId(),request.taskId())))
             throw new SecurityException("Script workspace belongs to another task or owner");
-        PythonOperationWorkspace.Snapshot snapshot = workspaces.prepare(workspace, request.fileName(), source, parameters, tenant, owner, allowed,request.script());
+        PythonOperationWorkspace.Snapshot snapshot = workspaces.prepare(workspace, request.fileName(), source, parameters, tenant, owner, allowed,request.script(),request.runId(),request.taskId());
         if (!java.util.Objects.equals(request.script(),snapshot.script()) || !request.fileName().equals(snapshot.fileName()) || !snapshot.codeHash().equals(PythonOperationWorkspace.hash(source.getBytes(StandardCharsets.UTF_8)))
                 || !snapshot.parametersHash().equals(PythonOperationWorkspace.hash(json(parameters))))
             throw new IllegalArgumentException("Operation ID is bound to another code or input snapshot");

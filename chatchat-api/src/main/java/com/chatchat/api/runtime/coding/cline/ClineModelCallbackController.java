@@ -21,6 +21,7 @@ import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.EnumSet;
+import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
@@ -63,6 +64,27 @@ public final class ClineModelCallbackController {
     private final CodingEvidenceCollector collector;
     private final ObjectMapper mapper;
     private final Map<String, Instant> freshDispatches = new ConcurrentHashMap<>();
+    private com.chatchat.api.runtime.coding.nativecode.NativeCodingWorkspaceService nativeWorkspace;
+    private com.chatchat.api.runtime.coding.nativecode.NativeCodingCommandService nativeCommands;
+    private com.chatchat.api.runtime.coding.nativecode.NativeCodingTaskService nativeTasks;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setNativeWorkspace(com.chatchat.api.runtime.coding.nativecode.NativeCodingWorkspaceService value){nativeWorkspace=value;}
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setNativeCommands(com.chatchat.api.runtime.coding.nativecode.NativeCodingCommandService value){nativeCommands=value;}
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setNativeTasks(com.chatchat.api.runtime.coding.nativecode.NativeCodingTaskService value){nativeTasks=value;}
+
+    @PostMapping("/native-open") public Map<String,Object> nativeOpen(@RequestBody JsonNode body){return bound(body,call->nativeWorkspace(body,call).open(contract(body,call),call.lease()));}
+    @PostMapping("/native-commit") public Map<String,Object> nativeCommit(@RequestBody JsonNode body){return bound(body,call->nativeWorkspace(body,call).commit(contract(body,call),call.lease(),nativeMap(body.path("proposal"))));}
+    @PostMapping("/native-authorize") public Map<String,Object> nativeAuthorize(@RequestBody JsonNode body){return bound(body,call->nativeWorkspace(body,call).authorize(contract(body,call),call.lease(),nativeMap(body.path("admission"))));}
+    @PostMapping("/native-replay") public Map<String,Object> nativeReplay(@RequestBody JsonNode body){return bound(body,call->nativeWorkspace(body,call).replay(contract(body,call),body.path("lookup").path("toolCallId").asText()));}
+    @PostMapping("/native-tool-finish") public Map<String,Object> nativeToolFinish(@RequestBody JsonNode body){return bound(body,false,true,call->nativeWorkspace(body,call).finishTool(contract(body,call),call.lease(),body.path("receipt").path("toolCallId").asText(),nativeMap(body.path("receipt").path("result"))));}
+    @PostMapping("/native-command") public Map<String,Object> nativeCommand(@RequestBody JsonNode body){return bound(body,call->{nativeWorkspace(body,call);if(nativeCommands==null)throw new SecurityException("Native commands unavailable");return nativeCommands.execute(contract(body,call),call.lease(),nativeMap(body.path("command")));});}
+    @PostMapping("/native-command-cancel") public Map<String,Object> nativeCancel(@RequestBody JsonNode body){return bound(body,false,true,call->{nativeWorkspace(body,call);if(nativeCommands==null)throw new SecurityException("Native commands unavailable");return nativeCommands.cancel(contract(body,call));});}
+    private com.chatchat.api.runtime.coding.nativecode.NativeCodingWorkspaceService nativeWorkspace(JsonNode body,Call call){
+        if(nativeWorkspace==null)throw new SecurityException("Native Coding is disabled");nativeWorkspace.requireAuthorized(contract(body,call));return nativeWorkspace;
+    }
+    private Map<String,Object> nativeMap(JsonNode value){if(!value.isObject())throw new IllegalArgumentException("Native callback object required");return mapper.convertValue(value,new com.fasterxml.jackson.core.type.TypeReference<java.util.LinkedHashMap<String,Object>>(){});}
     @org.springframework.beans.factory.annotation.Value("${chatchat.coding.completion-reserve.minimum-ratio:0.15}")
     private double completionMinimumRatio = 0.15;
     @org.springframework.beans.factory.annotation.Value("${chatchat.coding.completion-reserve.maximum-ratio:0.35}")
@@ -613,6 +635,12 @@ public final class ClineModelCallbackController {
         if (event.path("repairAllowed").isBoolean())payload.put("repairAllowed",event.path("repairAllowed").asBoolean());
         if (event.path("exceedsSoftBudget").isBoolean())payload.put("exceedsSoftBudget",event.path("exceedsSoftBudget").asBoolean());
         if (event.path("receiptReplayed").isBoolean())payload.put("receiptReplayed",event.path("receiptReplayed").asBoolean());
+        if(event.path("toolSchemaSha256").isTextual()&&event.path("toolSchemaSha256").asText().matches("[0-9a-f]{64}"))payload.put("toolSchemaSha256",event.path("toolSchemaSha256").asText());
+        for(String names:List.of("authorizedTools","disclosedTools"))if(event.path(names).isArray()&&event.path(names).size()<=128){
+            var values=new ArrayList<String>();boolean valid=true;
+            for(var name:event.path(names)){if(!name.isTextual()||!name.asText().matches("[A-Za-z0-9_.:-]{1,128}")){valid=false;break;}values.add(name.asText());}
+            if(valid)payload.put(names,values);
+        }
         if (event.path("usage").isObject()) {
             var usage = new java.util.LinkedHashMap<String,Object>();
             for (String key : List.of("inputTokens", "outputTokens", "cacheReadTokens", "cacheWriteTokens", "reasoningTokens"))
@@ -648,6 +676,10 @@ public final class ClineModelCallbackController {
                 return Map.of("status", stopped.status().name(), "revision", stopped.revision());
             }
             String operationId = outcome.path("operationId").asText(null);
+            if(com.chatchat.common.runtime.coding.NativeCodeWorkspace.enabled(contract)){
+                if(nativeTasks==null)throw new SecurityException("Native Coding is disabled");
+                var result=nativeTasks.complete(contract,call.lease(),nativeMap(outcome));return Map.of("status",result.status().name(),"revision",result.revision(),"usage",result.usage());
+            }
             if ("failed".equals(sdkStatus))
                 return failed(call);
             if(CodingWorkspaceService.supports(contract)) {
@@ -790,6 +822,9 @@ public final class ClineModelCallbackController {
         try {
             CodingTaskContract contract = mapper.treeToValue(body.path("contract"), CodingTaskContract.class);
             call.snapshot().validateAgainst(contract);
+            if(com.chatchat.common.runtime.coding.NativeCodeWorkspace.enabled(contract)){
+                if(nativeWorkspace==null)throw new SecurityException("Native Coding is disabled");nativeWorkspace.requireAuthorized(contract);
+            }
             if(sourceAdmission && com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeService.enabled(contract)) {
                 if(knowledge==null)throw new SecurityException("Knowledge validation unavailable");
                 knowledge.validateContext(contract);

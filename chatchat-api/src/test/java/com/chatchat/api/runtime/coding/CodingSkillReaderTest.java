@@ -53,6 +53,13 @@ class CodingSkillReaderTest {
         verify(resolver,never()).readResource(any());
         assertThat(saved).hasSize(2);
     }
+    @Test void generalNativeProjectReusesTheSamePublishedSkillAndRevocationChecks(){
+        when(contract.schemaVersion()).thenReturn(CodingProtocol.WORKSPACE_VERSION);
+        when(contract.metadataRefs()).thenReturn(List.of(NativeCodeWorkspace.PROFILE));
+        assertThat(reader.read(contract,lease,"method","")).containsEntry("instructions","ORIGINAL_METHOD");
+        when(scopes.resolve(anyString(),anyString(),anyString(),anyList(),anyList())).thenReturn(SkillExecutionScopePort.EffectiveScope.denied(List.of()));
+        assertThatThrownBy(()->reader.read(contract,lease,"method","")).isInstanceOf(SecurityException.class);
+    }
     @Test void anotherSkillOrMissingToolGrantCannotResolveContent() {
         assertThatThrownBy(() -> reader.read(contract,lease,"other","")).isInstanceOf(SecurityException.class);
         when(authority.allowedTools()).thenReturn(List.of());

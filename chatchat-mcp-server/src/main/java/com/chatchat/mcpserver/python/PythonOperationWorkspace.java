@@ -33,6 +33,12 @@ public class PythonOperationWorkspace {
     }
     public Snapshot prepare(Path target,String fileName,String source,Map<String,Object> parameters,
                             String tenant,String owner,List<String> authorizedFileIds,com.chatchat.common.runtime.coding.CodingScript script) {
+        return prepare(target,fileName,source,parameters,tenant,owner,authorizedFileIds,script,null,null);
+    }
+    public Snapshot prepare(Path target,String fileName,String source,Map<String,Object> parameters,
+                            String tenant,String owner,List<String> authorizedFileIds,com.chatchat.common.runtime.coding.CodingScript script,String run,String task) {
+        if(parameters!=null&&parameters.containsKey(NativeProjectSnapshot.PARAMETER)&&(!properties.isNativeCodingEnabled()||run==null||task==null))
+            throw new SecurityException("Native projects require an enabled managed task identity");
         Path scopedRoot=Path.of(properties.getWorkspaceRoot()).toAbsolutePath().normalize().resolve("operations").resolve(key(tenant)).resolve(key(owner));
         if(!target.toAbsolutePath().normalize().startsWith(scopedRoot))throw new SecurityException("Operation workspace is outside owner boundary");
         if(script!=null && !script.fileName().equals(fileName))throw new SecurityException("Script file differs from its version");
@@ -66,6 +72,7 @@ public class PythonOperationWorkspace {
                         .writeValueAsBytes(parameters == null ? Map.of() : parameters);
                 Files.write(temporary.resolve("parameters.json"), args, StandardOpenOption.CREATE_NEW);
                 Snapshot snapshot = new Snapshot(fileName, hash(code), hash(args), List.copyOf(files),script);
+                NativeProjectSnapshot.materialize(temporary,snapshot,parameters==null?Map.of():parameters,tenant,owner,run,task,mapper);
                 Files.write(temporary.resolve("snapshot.json"), mapper.writeValueAsBytes(snapshot), StandardOpenOption.CREATE_NEW);
                 try {
                     Files.move(temporary, target);
@@ -107,6 +114,8 @@ public class PythonOperationWorkspace {
                     || !hash(Files.readAllBytes(source)).equals(file.sha256()))
                 throw new IllegalStateException("Input snapshot checksum mismatch");
         }
+        NativeProjectSnapshot.verify(target,snapshot,mapper.readValue(Files.readAllBytes(target.resolve("parameters.json")),
+            new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){}),mapper);
         return snapshot;
     }
     private Snapshot matchingSnapshot(Path target,String name,String source,Map<String,Object> parameters,

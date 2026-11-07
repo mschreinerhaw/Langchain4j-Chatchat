@@ -59,7 +59,12 @@ public final class ClineRuntimeModelBridge {
     }
 
     public int maxOutputTokens(CodingTaskContract contract) {
-        int configured=CodingWorkspaceService.supports(contract)?Math.min(configuredMaxOutputTokens,workspaceMaxOutputTokens):configuredMaxOutputTokens;
+        if(com.chatchat.common.runtime.coding.NativeCodeWorkspace.enabled(contract)){
+            var frozen=contract.runtimeContext().get("model") instanceof Map<?,?> value?value:Map.of();
+            if(!(frozen.get("maxTokens") instanceof Number limit)||limit.longValue()<1||limit.longValue()>8192)throw new SecurityException("Frozen native model output limit required");
+            return (int)Math.min(limit.longValue(),contract.budget().maxModelTokens()/2);
+        }
+        int configured=CodingWorkspaceService.supports(contract)||com.chatchat.common.runtime.coding.NativeCodeWorkspace.enabled(contract)?Math.min(configuredMaxOutputTokens,workspaceMaxOutputTokens):configuredMaxOutputTokens;
         if(CodingWorkspaceService.supports(contract) && contract.metadataRefs()!=null
                 && contract.metadataRefs().contains(CodingWorkspaceService.FAST_PATH_REF))
             configured=Math.min(configured,fastPathMaxOutputTokens);
@@ -90,6 +95,9 @@ public final class ClineRuntimeModelBridge {
             String requested=(String)workspace.requireAuthorized(contract).get("modelName");
             if(requested!=null && !requested.isBlank())modelName=requested;
         }
+        if(com.chatchat.common.runtime.coding.NativeCodeWorkspace.enabled(contract)
+                &&!Objects.equals(effectiveModel.get("connectionSha256"),com.chatchat.api.runtime.coding.nativecode.NativeModelConfiguration.fingerprint(resources,modelName)))
+            throw new SecurityException("Native model configuration changed; original task parameters cannot be silently replaced");
         return modelName;
     }
     public Map<String,Object> contextPolicy(CodingTaskContract contract) {
@@ -243,6 +251,7 @@ public final class ClineRuntimeModelBridge {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("text", answer.aiMessage().text() == null ? "" : answer.aiMessage().text());
         result.put("toolCalls", toolCalls);
+        if(com.chatchat.common.runtime.coding.NativeCodeWorkspace.enabled(contract))result.put("providerToolCalls",nativeToolCalls);
         if (responseError != null && !"MODEL_TOOL_NOT_AUTHORIZED".equals(responseDiagnostic))
             result.put("nativeToolCalls", nativeToolCalls);
         result.put("usage", usage);
@@ -259,6 +268,9 @@ public final class ClineRuntimeModelBridge {
         modelInfo.put("finishedAt", Instant.now().toString());
         modelInfo.put("durationMs", Duration.between(started, Instant.now()).toMillis());
         modelInfo.put("maxOutputTokens", outputLimit);
+        modelInfo.put("authorizedTools",contract.authorization().allowedTools());
+        modelInfo.put("disclosedTools",new ArrayList<>(declaredNames).stream().sorted().toList());
+        modelInfo.put("toolSchemaSha256",com.chatchat.common.runtime.coding.NativeCodeWorkspace.sha(exposed.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8)));
         modelInfo.put("queueTimeMs",queueTime);
         modelInfo.put("queueTimeScope","LOCAL_EXECUTOR");
         modelInfo.put("providerTimingAvailability", "STREAMING".equals(responseMode) ? "OBSERVED_STREAM" : "NON_STREAMING_UNAVAILABLE");
@@ -312,7 +324,7 @@ public final class ClineRuntimeModelBridge {
     private static String allowedTool(CodingTaskContract contract, String name) {
         if(com.chatchat.common.runtime.coding.CodingProtocol.deferredTools(contract)
             && com.chatchat.common.runtime.coding.CodingProtocol.TOOL_DESCRIBE.equals(name)) return name;
-        Set<String> profile = CodingWorkspaceService.supports(contract)
+        Set<String> profile = com.chatchat.common.runtime.coding.NativeCodeWorkspace.enabled(contract)?com.chatchat.common.runtime.coding.NativeCodeWorkspace.TOOLS:CodingWorkspaceService.supports(contract)
             ? com.chatchat.api.datascience.sql.SqlWorkspaceMetadataTools.tools(com.chatchat.api.datascience.sql.SqlWorkspaceMetadataTools.enabled(contract)) : com.chatchat.common.runtime.coding.CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion())
             ? ClineToolProfiles.ANALYSIS : Set.of("python_execute", "metadata_read", "artifact_read", "skill_read", "skills", "read_files");
         if (!profile.contains(name)

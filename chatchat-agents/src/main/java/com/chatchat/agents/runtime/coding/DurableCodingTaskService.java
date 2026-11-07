@@ -192,6 +192,37 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
             && checkpointHash(task.sdkCheckpoint).equals(binding.path("checkpointSha256").asText());
     }
 
+    /** Native profile only: replay one original response and already stopped native tool receipts, never code. */
+    public com.fasterxml.jackson.databind.JsonNode sdkCheckpointForNativeReceipts(KernelDataScope scope,String taskId,
+            Set<String> verifiedResponses,Set<String> verifiedNativeOperations) {
+        var task=task(read(scope,READ),taskId);var saved=task.sdkCheckpoint;
+        if(!NativeCodeWorkspace.enabled(task.contract)||saved==null||unresolved(task)||!saved.path("operationIds").isArray())return null;
+        var covered=new HashSet<String>();saved.path("operationIds").forEach(v->covered.add(v.asText()));
+        if(covered.size()!=saved.path("operationCount").asInt(-1)||!task.operations.keySet().containsAll(covered))return null;
+        var extra=task.operations.keySet().stream().filter(id->!covered.contains(id)).toList();
+        String model="model-"+(saved.path("modelOrdinal").asLong(-1)+1);
+        var original=task.operations.get(model);var binding=task.privateState.get("model-checkpoint:"+model);
+        if(!extra.contains(model)||!verifiedResponses.contains(model)||original==null||original.kind!=CodingJournal.OperationKind.MODEL
+                ||!original.startIntent||original.stopProofRef==null||binding==null
+                ||!checkpointHash(saved).equals(binding.path("checkpointSha256").asText()))return null;
+        for(String id:extra){
+            if(id.equals(model))continue;var op=task.operations.get(id);
+            if(!verifiedNativeOperations.contains(id)||!op.startIntent||op.stopProofRef==null)return null;
+            if(op.kind==CodingJournal.OperationKind.TOOL){
+                var intent=task.privateState.get("native-tool:"+id);
+                if(intent==null||!id.equals(intent.path("operationId").asText())||!model.equals(intent.path("modelOperationId").asText())
+                        ||!NativeCodeWorkspace.TOOLS.contains(intent.path("tool").asText()))return null;
+            }else if(op.kind==CodingJournal.OperationKind.CODE){
+                var command=task.privateState.get("native-command-input:"+id);
+                if(command==null||!model.equals(command.path("modelOperationId").asText()))return null;
+                String tool="workspace-"+NativeCodeWorkspace.sha((taskId+"\0"+command.path("toolCallId").asText()).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                var intent=task.privateState.get("native-tool:"+tool);
+                if(!extra.contains(tool)||intent==null||!"run_commands".equals(intent.path("tool").asText()))return null;
+            }else return null;
+        }
+        var next=(com.fasterxml.jackson.databind.node.ObjectNode)saved.deepCopy();next.put("receiptReplayOperationId",model);return next;
+    }
+
     private String checkpointHash(com.fasterxml.jackson.databind.JsonNode value) {
         try {return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
             .digest(json.writeValueAsBytes(json.convertValue(value,Object.class))));}
@@ -605,6 +636,14 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
     }
 
     public CodingJournal.Lease ownership(KernelDataScope scope,String taskId) { return task(read(scope,READ),taskId).lease; }
+
+    /** Recheck the existing fence before host IO; this does not renew ownership or decide repairs. */
+    public void requireWorkerLease(KernelDataScope scope,String taskId,CodingJournal.Lease lease,boolean allowStop) {
+        var task=task(read(scope,WORKER),taskId);fence(task,lease);
+        require(!task.outcome.status().terminal(),INVALID_STATE_TRANSITION,"Task is terminal");
+        require(allowStop || task.outcome.executionControl().stopReason()==null && now().isBefore(task.contract.budget().deadlineAt()),
+            INVALID_STATE_TRANSITION,"Task is stopping or its deadline has elapsed");
+    }
 
     /** Worker reports are durable observations; they never establish execution, usage or validation facts. */
     public CodingTaskOutcome recordWorkerProgress(KernelDataScope scope, String taskId,

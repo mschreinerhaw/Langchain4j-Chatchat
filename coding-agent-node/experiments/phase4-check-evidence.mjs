@@ -14,6 +14,9 @@ const tracked=new Set(execFileSync('git',['ls-files','-z','--','docs/testing/evi
 for(const [name,expected] of Object.entries(corpus)){
  assert.ok(tracked.has(resolve(base,name)),'Evidence must be Git-tracked: '+name);
  assert.equal(digest(await readFile(resolve(base,name))),expected,name);
+ const indexed=execFileSync('git',['show',':docs/testing/evidence/native-coding-phase4/'+name],
+  {cwd:root,maxBuffer:4*1024*1024});
+ assert.equal(digest(indexed),expected,'Git index bytes: '+name);
 }
 for(const repeat of [1,2,3]){
  const dir=resolve(base,'after-r'+repeat),hashes=await read(resolve(dir,'evidence-hashes.json'));

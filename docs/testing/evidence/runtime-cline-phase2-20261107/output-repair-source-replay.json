@@ -1,0 +1,80 @@
+{
+  "mode": "REAL_EXECUTED_SOURCE_AND_FEEDBACK_REPLAY",
+  "cases": [
+    {
+      "case": "flash-2",
+      "operationId": "cline-b61805d9222ce67f62f2359652c6eabf3567ab560f1434e5c3943fa617e7a2c9",
+      "codeHash": "06f6c7c96554a96a7dc83fb53bed61e4cfa1e8f28f880ef33e26bb0cf730138d",
+      "repairAllowed": true,
+      "beforeContext": null,
+      "afterContext": {
+        "baseCodeSha256": "06f6c7c96554a96a7dc83fb53bed61e4cfa1e8f28f880ef33e26bb0cf730138d",
+        "lines": [
+          41
+        ],
+        "exactAnchorPresent": true
+      },
+      "modelExecution": false
+    },
+    {
+      "case": "plus-1",
+      "operationId": "cline-9a88d9bf75cf745c2dfac12ad72a4a0e4ebf6e6f347a72f3f07df3912e1a58af",
+      "codeHash": "087b0d4515dbcf57c4cbe9f23236fdc8e6e885d02d0b68f148f0d8cadabef329",
+      "repairAllowed": true,
+      "beforeContext": null,
+      "afterContext": {
+        "baseCodeSha256": "087b0d4515dbcf57c4cbe9f23236fdc8e6e885d02d0b68f148f0d8cadabef329",
+        "lines": [
+          128
+        ],
+        "exactAnchorPresent": true
+      },
+      "modelExecution": false
+    },
+    {
+      "case": "plus-2",
+      "operationId": "cline-80e4bd7aa126d2db4a16acb3c59760b9599cd55fc3917fe148dd937104b28d82",
+      "codeHash": "f043d818d645c62b40442169bdb25bd0bca4129b53c221321c97bff3e550e6b8",
+      "repairAllowed": true,
+      "beforeContext": null,
+      "afterContext": {
+        "baseCodeSha256": "f043d818d645c62b40442169bdb25bd0bca4129b53c221321c97bff3e550e6b8",
+        "lines": [
+          109
+        ],
+        "exactAnchorPresent": true
+      },
+      "modelExecution": false
+    },
+    {
+      "case": "plus-3",
+      "operationId": "cline-0e0cdc8d1fcead8ba9c9d215b36f1fafef5c516feddcf2788686dcbf856aac9f",
+      "codeHash": "049badc30b393784ac5f051a1916d125c2b545da28820bd77230260a3bfc9bf3",
+      "repairAllowed": true,
+      "beforeContext": null,
+      "afterContext": {
+        "baseCodeSha256": "049badc30b393784ac5f051a1916d125c2b545da28820bd77230260a3bfc9bf3",
+        "lines": [
+          111
+        ],
+        "exactAnchorPresent": true
+      },
+      "modelExecution": false
+    },
+    {
+      "case": "plus-3",
+      "operationId": "cline-4860acce719bb33b68e602a3503b80943301a40ee47138ba2f5cdab693b2d85c",
+      "codeHash": "d05716558e5d4ffd218deca64452426150a994aa406ca6dcfa0945109e8dde78",
+      "repairAllowed": true,
+      "beforeContext": null,
+      "afterContext": {
+        "baseCodeSha256": "d05716558e5d4ffd218deca64452426150a994aa406ca6dcfa0945109e8dde78",
+        "lines": [
+          158
+        ],
+        "exactAnchorPresent": true
+      },
+      "modelExecution": false
+    }
+  ]
+}

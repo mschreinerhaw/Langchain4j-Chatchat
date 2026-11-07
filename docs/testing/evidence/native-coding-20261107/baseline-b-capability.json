@@ -1,0 +1,62 @@
+{
+  "scope": "ACTUAL_BASELINE_SDK_CONSTRUCTOR_ONLY_NOT_MODEL_PERFORMANCE",
+  "exitCode": 0,
+  "containerId": "1eaf7687704be135cd89d6f6b4be186a34bcb1724f8ac2b23a3ed4f9ae8492aa",
+  "imageId": "sha256:ccb06585200de7efa7aef33fe29a73139661a84492d1b1d26460476ad5c9b71f",
+  "executorStopped": true,
+  "oomKilled": false,
+  "baselineCommit": "e9eda1b9afd86bb2cecb9ade833f3b3023b38929",
+  "baselineArchiveSha256": "a0423d8f4e66802f4eed42af7a8137e3a3808972cee146327403af3828da2123",
+  "baselineRunnerSha256": "8c343856f55eee487d8bd6bf17c3e50491168f9a124d4d3bb81e7639462dcb5b",
+  "logSha256": "5ceec8719e17338664b33836fba7e707d5732ed147b776c178e1d8083b4ee7d3",
+  "observations": {
+    "scope": "BASELINE_CONSTRUCTOR_CAPABILITY_ONLY_NOT_A_PERFORMANCE_TASK",
+    "baselineCommit": "e9eda1b9afd86bb2cecb9ade833f3b3023b38929",
+    "nodeVersion": "v24.21.0",
+    "sdk": {
+      "sdk": "0.0.93",
+      "agents": "0.0.93",
+      "core": "0.0.93",
+      "llms": "0.0.93",
+      "shared": "0.0.93"
+    },
+    "modelRequests": 0,
+    "portRequests": 0,
+    "results": [
+      {
+        "case": "unchanged-generic-contract",
+        "acceptedWithoutExecuting": false,
+        "error": "Skill resource reads require the native Skills lifecycle grant",
+        "differences": [],
+        "originalBudgetUnchanged": true,
+        "originalObjectiveUnchanged": true,
+        "authorizedBusinessDataRefs": 0
+      },
+      {
+        "case": "existing-workspace-tools-retaining-code-execution",
+        "acceptedWithoutExecuting": false,
+        "error": "Workspace profile requires isolated candidate writes without data or code execution authority",
+        "differences": [
+          "Use existing workspace_read/workspace_propose",
+          "Use Python Studio result schema; preserve CODE_EXECUTION and original objective/budget/data refs"
+        ],
+        "originalBudgetUnchanged": true,
+        "originalObjectiveUnchanged": true,
+        "authorizedBusinessDataRefs": 0
+      },
+      {
+        "case": "existing-analysis-tools-without-added-business-data",
+        "acceptedWithoutExecuting": false,
+        "error": "Python execution requires authorized bound input files and one JSONL result",
+        "differences": [
+          "Use v3 JSON_LINES and required rows.jsonl",
+          "Use existing python_execute/code_read",
+          "Preserve empty authorized business data refs; no fabricated input"
+        ],
+        "originalBudgetUnchanged": true,
+        "originalObjectiveUnchanged": true,
+        "authorizedBusinessDataRefs": 0
+      }
+    ]
+  }
+}

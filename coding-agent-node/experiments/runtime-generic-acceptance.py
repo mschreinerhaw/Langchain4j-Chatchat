@@ -90,15 +90,22 @@ def independent(case, tree, directory, label):
         "--security-opt", "no-new-privileges:true", "--memory", "512m", "--cpus", "1", "--user", "10001:10001",
         "--pids-limit", "256", "--tmpfs", "/tmp:rw,nosuid,noexec,size=64m", "-v", str(project) + ":/workspace/code:ro",
         "-w", "/workspace/code", "--entrypoint", "python", IMAGE, "-I", "-c", program]
-    result = subprocess.run(arguments, capture_output=True, timeout=45)
+    timed_out = False
+    try:
+        result = subprocess.run(arguments, capture_output=True, timeout=45)
+    except subprocess.TimeoutExpired as error:
+        timed_out = True
+        # Killing the Docker client does not establish that its container stopped.
+        subprocess.run(["docker", "kill", name], capture_output=True, check=False)
+        result = subprocess.CompletedProcess(arguments, 124, error.stdout or b"", error.stderr or b"")
     (directory / "independent-stdout.log").write_bytes(result.stdout)
     (directory / "independent-stderr.log").write_bytes(result.stderr)
     state = json.loads(subprocess.check_output(["docker", "inspect", name]))[0]
-    return {"exitCode": result.returncode, "executorStopped": not state["State"]["Running"],
+    return {"exitCode": result.returncode, "timedOut": timed_out, "executorStopped": not state["State"]["Running"],
         "containerId": state["Id"], "imageId": IMAGE, "networkMode": state["HostConfig"]["NetworkMode"],
         "oomKilled": state["State"]["OOMKilled"], "readonlyTestsUnchanged": readonly, "requiredFilesPresent": required, "unrelatedFunctionsPreserved": preserved,
         "preservedFunctionCount": len(case["preserveFunctions"]), "stdoutSha256": sha(result.stdout), "stderrSha256": sha(result.stderr),
-        "passed": result.returncode == 0 and readonly and required and preserved and not state["State"]["Running"]}
+        "passed": not timed_out and result.returncode == 0 and readonly and required and preserved and not state["State"]["Running"]}
 
 
 def run_case(case, options, token, fixture_sha):
@@ -110,6 +117,7 @@ def run_case(case, options, token, fixture_sha):
     write(directory / "request.json", request)
     intent = {"case": case["id"], "cohort": options.cohort, "repeat": options.repeat,
         "sourceCommit": options.source_commit, "fixtureSha256": fixture_sha,
+        "harnessSha256": sha(Path(__file__).read_bytes()),
         "initialFileHashes": case["initialFileHashes"], "requestSha256": sha(json.dumps(request, ensure_ascii=False,
             sort_keys=True, separators=(",", ":")).encode()), "startedAtEpochMs": int(time.time() * 1000)}
     write(directory / "intent.json", intent)

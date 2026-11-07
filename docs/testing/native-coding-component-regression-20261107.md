@@ -121,3 +121,5 @@ Java 初次覆盖 **117 项，115 通过、2 项原执行面测试跳过**，包
 
 Node 原生 runner/workspace/server **56 项，55 通过、1 项 Windows 链接权限跳过**，日志 `19da1d54a84cbc36716c9c37222d7f8447f84e07b68c0b690e6f95a1ab27d008`。新 profile 覆盖过滤执行、旧回执不得冒充新策略、后续匹配测试失败或结果缺失时使先前成功失效。SDK 等待回执上限绑定原任务剩余期限；队列测试证明短 SDK timeout 不等于执行器停止。任务 300 秒、Sandbox 单次 75 秒、模型和 CPU 预算保持原值，旧 profile 的等待设置不变。以上组件与执行器证明不替代真实模型验收。
 
+完整 Node 回归为 **309 项：308 通过、0 失败、1 项 Windows 链接权限跳过**，日志 SHA256 `bcd50b900f3eaac6565046016602c47648508d32274ca8ae38c4b20da4ae9d83`。本地 Node 22.14 低于项目要求的 22.18，首次直接运行因四个测试文件导入 TypeScript 而失败；启用原有 `--experimental-strip-types` 后复测，未修改测试或产品代码掩盖失败。实际 Linux Worker 使用 Node 24.21。API/MCP/common 运行包构建成功，保留真实前端资产检查，构建日志 `3da27626162f4c73e8cecb65baa0f2c2fbb0e838379b320eb2c72c7b12e35ddb`。
+

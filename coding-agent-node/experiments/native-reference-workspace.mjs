@@ -17,6 +17,8 @@ export async function createNativeCodeWorkspace(options){
   active=true;
   let files={...options.files},manifest=options.restoredManifest,uncertain=false;
   const ordinals=new Map();
+  let commandQueue=Promise.resolve();
+  const serialized=action=>{const value=commandQueue.then(action);commandQueue=value.catch(()=>{});return value;};
   const binding=sha(JSON.stringify([options.scope.tenantId,options.scope.userId,options.scope.runId]));
   manifest??=codeManifest(options.taskId,files,0,null,binding);
   async function clear(){for(const name of await readdir(root))await rm(join(root,name),{recursive:true,force:true});}
@@ -41,7 +43,9 @@ export async function createNativeCodeWorkspace(options){
   const native=createDefaultExecutors({fileRead:{maxFileSizeBytes:256000},search:{maxResults:100}});
   const edit=name=>async(input,cwd,context)=>{
     await authorize('EDIT');
-    const result=await native[name](input,cwd,context),next=await inventory();
+    let result;
+    try{result=await native[name](input,cwd,context);}catch(error){uncertain=true;throw error;}
+    const next=await inventory();
     if(JSON.stringify(next)!==JSON.stringify(files)){
       const nextManifest=codeManifest(options.taskId,next,manifest.version+1,manifest.sha256,binding);
       try{const saved=await options.commit({kind:'EDIT',taskId:options.taskId,manifest:nextManifest,files:next,operationId:context.toolCallId,
@@ -55,7 +59,7 @@ export async function createNativeCodeWorkspace(options){
   const executors={...native,editor:edit('editor'),applyPatch:edit('applyPatch'),
     readFile:async(input,context)=>{await authorize('READ');return native.readFile(input,context);},
     search:async(query,cwd,context)=>{await authorize('SEARCH');return native.search(query,cwd,context);},
-    bash:async(command,_cwd,context)=>{
+    bash:(command,_cwd,context)=>serialized(async()=>{
       await authorize('EXECUTE');
       const actual=await inventory();
       if(codeManifest(options.taskId,actual,manifest.version,manifest.parent,binding).sha256!==manifest.sha256)throw Error('Reference files changed without an archived version');
@@ -67,8 +71,8 @@ export async function createNativeCodeWorkspace(options){
       if(receipt.manifestHash!==manifest.sha256||receipt.executorStopped!==true||!receipt.stopProofRef||receipt.resultAvailable===false)throw Error('Reference execution has no matching stopped result');
       if(receipt.exitCode!==0)throw new CommandExitError(receipt.exitCode,JSON.stringify(receipt));
       return JSON.stringify(receipt);
-    }};
-  const tools=createDefaultTools({cwd:root,shell:'bash',executors,enableReadFiles:true,enableSearch:true,
+    })};
+  const tools=createDefaultTools({cwd:root,shell:'bash',executors,...(options.commandTimeoutMs===undefined?{}:{bashTimeoutMs:options.commandTimeoutMs}),enableReadFiles:true,enableSearch:true,
     enableEditor:options.strategy==='editor',enableApplyPatch:options.strategy==='patch',enableBash:true,
     enableWebFetch:false,enableSkills:false,enableAskQuestion:false,enableSubmitAndExit:false});
   return{tools,root,readFileExecutor:executors.readFile,snapshot:()=>({manifest,files:{...files}}),requiresReload:()=>uncertain,

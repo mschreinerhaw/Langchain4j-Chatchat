@@ -1,0 +1,103 @@
+﻿{
+  "contract": {
+    "taskId": "analysis-coding-cad2bf2e36e82374f4d15bca17830ebd1d3010a6498968aae049af958f7cd16b",
+    "schemaVersion": "runtime_os.coding.v3",
+    "authorization": {
+      "decisionRef": "runtime-coding-delegation:analysis-coding-cad2bf2e36e82374f4d15bca17830ebd1d3010a6498968aae049af958f7cd16b",
+      "allowedTools": [
+        "artifact_read",
+        "code_read",
+        "input_read",
+        "market_get_day_snapshot",
+        "market_get_history",
+        "market_get_indicators",
+        "market_get_snapshot",
+        "market_resolve_security",
+        "market_search",
+        "news_get_article",
+        "news_related_events",
+        "news_search",
+        "python_execute",
+        "read_files",
+        "report_submit",
+        "skills",
+        "sql_validate",
+        "web_fetch",
+        "web_search"
+      ],
+      "allowedDataRefs": [
+        "c338610bff88acb88a04329349a4c873170901df3176307c487ff767a519f59e",
+        "c78cb365293d068afb28d7eff3ca1bfb267a5935c6ead4afde71460578d500a4",
+        "cd3ef31439e566bb680069d63dec1b2d1feacd6d2e5e58d7d0c7b138deb21512",
+        "cf5868dea3013c46bf24a7c3a9c5547998a76449eec043e5e16f34b21f09b110"
+      ],
+      "readablePathRefs": [],
+      "writablePathRefs": [],
+      "networkPolicy": "NONE",
+      "networkAllowlist": [],
+      "allowedSideEffects": [
+        "CODE_EXECUTION"
+      ]
+    },
+    "budget": {
+      "budgetId": "analysis-coding-tool-budget:analysis-coding-cad2bf2e36e82374f4d15bca17830ebd1d3010a6498968aae049af958f7cd16b",
+      "deadlineAt": "2026-11-06T18:35:38.970Z",
+      "maxModelCalls": 12,
+      "maxModelTokens": 786432,
+      "maxToolCalls": 24,
+      "maxCodeExecutions": 12,
+      "maxCostAmount": "10",
+      "costCurrency": "USD",
+      "maxCpuMillis": 300000,
+      "maxMemoryBytes": 536870912,
+      "maxOutputBytes": 4194304
+    }
+  },
+  "modelEntryKeys": [
+    "schemaVersion",
+    "evidenceId",
+    "scope",
+    "evidenceType",
+    "sourceNode",
+    "contentSha256",
+    "payload",
+    "payloadReference",
+    "occurredAtEpochMs",
+    "metadata"
+  ],
+  "requestToolSets": [],
+  "checkpointKeys": [
+    "sdkSessionId",
+    "checkpointOrdinal",
+    "compactionState",
+    "compactionCount",
+    "nativeSdk",
+    "modelOrdinal",
+    "eventOrdinal",
+    "messages",
+    "codingProgress",
+    "executionMemory",
+    "workspacePrefetchIdentity",
+    "codeLifecycle",
+    "lastCollectedOperation",
+    "lastCollectedDatasetRef",
+    "reportReferenceFailure",
+    "terminalFeedback",
+    "textReportReviewRequested",
+    "textReportReviewModel",
+    "deliveredInputReferences",
+    "modelResponseFeedback",
+    "modelResponseRepairs",
+    "contractHash",
+    "inputSnapshotRef",
+    "workspaceRef",
+    "operationCount",
+    "operationIds"
+  ],
+  "deployment": {
+    "status": "DEPLOYED",
+    "sourceCommit": "f0d2f8a7fa12ca60946eef2ac578abe6c05a4ef4",
+    "image": "runtime-os-api:data-remediation-fdad65ebd3e7",
+    "sha256": "fdad65ebd3e791bd827e51fe123749faf14b811c6b0645b29337280f4ed0ff84"
+  }
+}

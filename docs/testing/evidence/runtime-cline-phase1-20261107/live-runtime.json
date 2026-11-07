@@ -1,0 +1,70 @@
+﻿{
+  "workerSdk": {
+    "exitCode": 0,
+    "stdout": "{\"status\":\"VERIFIED\",\"packages\":{\"@cline/sdk\":\"0.0.93\",\"@cline/core\":\"0.0.93\",\"@cline/agents\":\"0.0.93\",\"@cline/llms\":\"0.0.93\",\"@cline/shared\":\"0.0.93\"}}\n",
+    "stderr": ""
+  },
+  "workerFiles": {
+    "exitCode": 1,
+    "stdout": "8c343856f55eee487d8bd6bf17c3e50491168f9a124d4d3bb81e7639462dcb5b  dist/runner.js\nb5c3e2a2b4a78d253c8ac7b7dbca7c82a625af20e9161340f4a67c1ec3d661ce  dist/native-skills.js\n7749a5a5a1f9117cfeb1ea9521eb285c97615cb6f2922245e41a1394f9f18496  dist/sdk-adapter.js\n52131f4a99a77ca378f66038b6b8e00238a3dc6cb6c69c90b1b8fd0775e277e3  dist/tool-catalog.js\n936f4b7f5d7dcbad6ffb7e251b6a69289ac9c108e4a9ee5bebd83064109a59a5  dist/knowledge-tools.js\na690abab4722b5fafe524f1791798e336705b795ecce18422f50af4c20cd0447  dist/server.js\n",
+    "stderr": "sha256sum: package-lock.json: No such file or directory\n"
+  },
+  "apiJar": {
+    "exitCode": 0,
+    "stdout": "fdad65ebd3e791bd827e51fe123749faf14b811c6b0645b29337280f4ed0ff84  /srv/app/app.jar\n",
+    "stderr": ""
+  },
+  "evidenceFiles": {
+    "/var/tmp/runtime-cline-acceptance-20261107-B2": [
+      "auth-private.json",
+      "parent-run-private.json",
+      "collect-coding-progress.py",
+      "verify-runtime-autonomous-resources.py",
+      "scenario-prepared-private.json",
+      "acceptance-scenario-private.json",
+      "run.log",
+      "autonomous-day-intent-private.json",
+      "__pycache__",
+      "autonomous-day-journal-private.json",
+      "autonomous-day-models-private.json",
+      "autonomous-day-proof.json",
+      "verify-runtime-autonomous-resources.py-batch.log",
+      "autonomous-day-response-private.json",
+      "autonomous-day-accepted-report-private.json",
+      "day-file-verification.json",
+      "native-report-archive-proof.json",
+      "accepted-business-report.md",
+      "current-source-locators-private.json",
+      "mcp-auth-private.json",
+      "source-comparison-private.json"
+    ],
+    "/var/tmp/runtime-empty-p0-release-20261107-receipt": [
+      "bundle.tar.gz",
+      "prepare-runtime-data-remediation.py",
+      "deploy-integrated-runtime.py",
+      "deploy-runtime-empty-p0.py",
+      "run.log",
+      "release-launch.json",
+      "bundle",
+      "release-intent.json",
+      "catalog-readiness-private.json",
+      "restrict-coding-worker.sh",
+      "prepare.log",
+      "api-baseline.jar",
+      "app.jar",
+      "build-api",
+      "manifest.json",
+      "artifact-proof.json",
+      "deployment.log",
+      "Dockerfile",
+      ".dockerignore",
+      "api-build.log",
+      "backup",
+      "deployment.json",
+      "auth-private.json",
+      "release-completed.json",
+      "owned-duplicate-build-reclaim-intent.json",
+      "owned-duplicate-build-reclaim.json"
+    ]
+  }
+}

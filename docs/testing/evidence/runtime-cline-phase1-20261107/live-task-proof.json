@@ -1,0 +1,113 @@
+﻿{
+  "observedAt": "2026-11-06T23:55:33.443830+00:00",
+  "readOnly": true,
+  "files": {
+    "autonomous-day-proof.json": {
+      "sha256": "3fb3efae2a3370c7bbd7903edd38a836f6960a1916d44395c1bf5da5f75e655b",
+      "shape": [
+        "kind",
+        "taskId",
+        "status",
+        "requestObjectivePreserved",
+        "requestInstructionSha256",
+        "reasonCode",
+        "toolsCalled",
+        "model",
+        "budget",
+        "allowedTools",
+        "internetProfile",
+        "internetAvailability",
+        "externalEvidence",
+        "daySnapshotReceipts",
+        "resultDatasetRef",
+        "pythonExecutions",
+        "frozenInputVersions",
+        "scenario",
+        "orderedToolTrace"
+      ],
+      "count": 19,
+      "summary": {
+        "taskId": "analysis-coding-cad2bf2e36e82374f4d15bca17830ebd1d3010a6498968aae049af958f7cd16b",
+        "status": "COMPLETED",
+        "toolsCalled": [
+          "input_read",
+          "market_search",
+          "market_get_history",
+          "market_resolve_security",
+          "market_resolve_security",
+          "market_get_history",
+          "market_get_history",
+          "market_get_day_snapshot",
+          "market_get_history",
+          "input_read",
+          "python_execute",
+          "python_execute",
+          "python_execute",
+          "code_read",
+          "python_execute",
+          "artifact_read"
+        ],
+        "allowedTools": [
+          "artifact_read",
+          "code_read",
+          "input_read",
+          "market_get_day_snapshot",
+          "market_get_history",
+          "market_get_indicators",
+          "market_get_snapshot",
+          "market_resolve_security",
+          "market_search",
+          "news_get_article",
+          "news_related_events",
+          "news_search",
+          "python_execute",
+          "read_files",
+          "report_submit",
+          "skills",
+          "sql_validate",
+          "web_fetch",
+          "web_search"
+        ],
+        "reasonCode": null
+      }
+    },
+    "autonomous-day-models-private.json": {
+      "sha256": "06b812cc493cecd434b268a8bb183f307573803a6db99704f05cd07aa9ffc47f",
+      "shape": "list",
+      "count": 12
+    },
+    "autonomous-day-journal-private.json": {
+      "sha256": "b759925b721acc78252c577ccc2cae80f56f78d16e1cc8217271bc2f1ab77010",
+      "shape": [
+        "contract",
+        "outcome",
+        "lease",
+        "operations",
+        "events",
+        "workerEvents",
+        "sdkCheckpoint",
+        "privateState"
+      ],
+      "count": 8
+    }
+  },
+  "deployment": {
+    "keys": [
+      "status",
+      "sourceCommit",
+      "image",
+      "sha256",
+      "backup",
+      "retired",
+      "databaseMigrationSha256",
+      "catalogReadiness",
+      "preservedExpiredReadOnlyTaskIds",
+      "unrelatedContainersUnchanged",
+      "conversationContentUnchanged",
+      "messageIndexCountUnchanged",
+      "images",
+      "channelCounts"
+    ],
+    "sha256": "3086aed11ec8339cc282258866be9e78d1bf0b6defe86482862619292c161cc5"
+  }
+}

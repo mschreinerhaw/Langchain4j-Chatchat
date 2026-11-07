@@ -1,0 +1,17 @@
+﻿{
+    "date":  "2026-11-07",
+    "timezone":  "Asia/Shanghai",
+    "businessCodeChanged":  false,
+    "deployed":  false,
+    "newBusinessTasks":  0,
+    "nodeTests":  {
+                      "realProvider":  false,
+                      "durationMs":  31104.3752,
+                      "skipped":  0,
+                      "failed":  0,
+                      "passed":  49
+                  },
+    "javaTestsRerun":  false,
+    "liveWorkerModuleHashesMatched":  6,
+    "rawRequestToolsCaptured":  false
+}

@@ -1,0 +1,28 @@
+# 通用 Coding Agent 代码级根因矩阵
+
+基准 `e9eda1b9a`，独立分支 `feature/runtime-native-coding-agent-20261107`。原生 SDK 固定 0.0.93，对应官方提交 `1a5c3f84e0933268a9dba14a55a6383a6578414d`。本矩阵针对通用编码架构；历史六次金融报告失败不作为原生工具缺失的因果证明，不重复修改 `5ba60b2ac` 已解决的旧资源授权。
+
+## 现状与最小整改
+
+| 代码级证据 | 根因及界限 | 最小整改 | 独立验证 |
+| --- | --- | --- | --- |
+| `coding-agent-node/src/runner.js`、`code-repair.js`、`sdk-adapter.js` | 旧路径已有多文件源码协议及部分 SDK 编辑能力；不能称为完全没有编辑工具。主要交互仍围绕代码提交、版本参数和 Python 执行，缺少独立通用项目入口 | 保留旧路径；增加独立 `native-runner.js`，只运行一个原生 Agent | native-runner tests；旧 runner 全量回归 |
+| `completion-context.js`、旧工具装配 | 原生工具名与当前业务工具名不同本身不能证明能力损失；需要比较实际 executor、Schema、反馈及授权 | 原生 read/search/editor/patch 定义与 executor，共享同一项目视图；官方模型路由按实际 provider model 解析 | 原生多文件读、搜、改、Patch 测试 |
+| SDK `createEditorExecutor`、`computePatchChanges` | `restrictToCwd` 不足以阻止绝对路径；Patch 计算阶段也可能读取路径 | 所有路径先验证，staging 后原生算法，提交成功才发布；不编写第二套编辑算法 | 越界、绝对路径、注入、软硬链接、失败第二 hunk 不部分提交 |
+| `python_execute` 与旧代码版本协议 | 编辑、代码提交、版本创建与执行耦合；不适合作为通用项目唯一交互方式 | 独立 workspace commit 与 run_commands；每次执行绑定不可变树，原兼容路径不删除 | 连续修改而不执行、执行失败后继续编辑、版本回执不匹配拒绝 |
+| Node 缓存与远端 durable commit | 提交成功但 ACK 丢失时，旧本地目录可能过期；缓存不是持久事实 | Silo 作为权威，丢失 ACK 后重读；缓存丢失重建，不重复编辑 | lost-ACK、stale manifest、missing cache tests |
+| Java 原始模型回执与 callback | 仅校验工具名字不能证明执行参数得到模型授权 | 校验真实 model/toolCallId/参数等价性；A2 工具 start intent 与预算先于 I/O | 参数替换、未准入调用、重复操作拒绝 |
+| `NativeCodingCommandService` 与 Sandbox helper | Worker 提供的命令字符串不能单独作为授权事实；SDK 支持 argv/heredoc 归一化 | 冻结原输入 Hash；同版 SDK 在 Sandbox 独立归一化，核对 ordinal/命令 Hash；宿主不运行命令 | 原始输入不匹配拒绝、缺结果记录拒绝；实际 Docker 执行待整链验收 |
+| 队列命令与工具停止并发 | 工具关闭与后续子命令启动之间存在竞争风险 | 同任务锁排序 start/stop/commit，已关闭工具不能再派发命令 | queued command/start-after-stop tests |
+| SDK Restore 与 A2 journal | SDK 恢复不等于恢复原累计预算；Worker 崩溃不等于执行器已停止 | Java 保持预算与 fence；分别核对 MODEL/TOOL/CODE 回执、真实停止证明，再继续同一会话 | recovery tests；真实 Worker kill/restart 尚待完成 |
+| 原生命令 exitCode=0 | 可能没有命令结果文件，或没有真正满足项目测试 | 必须有匹配代码版本、结果、独立 stop proof；最终交付仍标 INCONCLUSIVE，独立验收另做 | 零退出缺结果、过期代码成功、缺 stop proof 均拒绝 |
+| 最终归档与提交 ACK | 已归档但回复丢失可能导致重试覆盖最终结论 | 固定 final intent，终态重试返回已存结果，不再执行 | persistence / final intent tests |
+| `native-skills.js` 与 SDK compaction | 技术摘要和原 Skill 文件不是同一访问对象；恢复后不能绕过撤权 | 复用已有发布管理与 SDK discovery/loader，工具读请求逐次治理 | 撤权、篡改、压缩后再加载、跨进程 rediscovery tests |
+
+## 边界与尚未通过项
+
+Java 不决定修复步骤，不生成正确源码。SyntaxError、KeyError、NameError、TypeError 仍由同一原生 Agent 根据真实反馈处理，尚无本分支完整 Runtime 的 A–G 模型验收结果，不能将确定性测试称为自主修复成功率。
+
+SDK 0.0.93 的公开包未导出官方 routing resolver；仅将该版本官方模块原样 vendoring，并记录来源及 SHA，未混用最新主线。低层 Agent 的固定 registry 与 ClineCore 动态工具装配存在版本接口差异。Java MCP 工具代理及动态 Schema 尚未接通；预留 Node provider 不等于完整 MCP 支持。
+
+新 profile 三端默认关闭，另有独立新任务准入开关。回滚先关准入，保留现有任务恢复、停止和归档读取，确认无活跃原生任务后才回滚组件。没有新增产品数据库、版本系统或 Agent Loop。

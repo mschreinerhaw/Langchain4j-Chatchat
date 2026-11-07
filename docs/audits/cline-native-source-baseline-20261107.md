@@ -28,6 +28,10 @@ npm 元数据没有 gitHead。五包的 npm SLSA 发布证明 payload 均指向�
 | 模型工具路由 | core/src/extensions/tools/model-tool-routing.ts:75、131；runtime-builder.ts:141 | provider/model/mode 规则 → enable flags → createBuiltinTools | openai-native 或 codex/gpt act 用 Patch、禁 Editor；Qwen 不命中。低层 Agent 不会自动调用该规则 |
 | Context Compaction | core/src/extensions/context/compaction.ts:267、745；session/models/session-compaction.ts | prepareTurn 基础压缩和有状态包装 | 压缩不能当持久化代码存储或权限依据 |
 | Checkpoint / Restore | agents/src/agent-runtime.ts:669、690；core/src/ClineCore.ts:561 | snapshot 外部保存 → restore(messages) → continue | 低层 restore 重置 SDK usage，保留工具/模型/hooks/subscribers；Runtime 必须继续控制累计预算与 operation 回执 |
+| Abort / Resume | agents/src/agent-runtime.ts:627、636、669 | abort 当前 AbortController；恢复后 continue 同一 transcript | 中止 SDK 不等于远端进程已停止；执行节点确认与累计预算仍由 Runtime 管理 |
+| Skills | core/src/extensions/agent-plugin/loader.ts:1061；extensions/config/user-instruction-service.ts:346；definitions.ts:createSkillsTool | loadAgentPluginPackages → createUserInstructionConfigService → createSkillsExecutor → 按需读取 | 当前 Runtime 的 native-skills.js 已使用这些原生接口；通用任务继续复用既有发布/授权目录，不另建管理器 |
+| MCP | core/src/extensions/mcp/tools.ts:16 createMcpTools；extensions/mcp/name-transform.ts | provider.listTools → 原生工具名和 Schema → provider.callTool | provider 是受控代理扩展点；SDK 工具定义不授予服务器、数据或网络访问权 |
+| File System | executors/file-read.ts、search.ts、editor.ts、apply-patch.ts | Node 文件实现由默认 executors 提供，host 可替换 executor | SDK 文件功能没有租户权限语义；代码目录、链接、任务隔离必须由 Runtime 验证 |
 | 工具失败后修复 | agent-runtime.ts:945、972、2580 | 异常或 success=false 回执留在同会话，模型下一轮选择读/搜/编辑/执行 | SDK 提供循环和编辑器，修复成功仍由模型及运行反馈决定 |
 
 源码永久链接根为 [0.0.93 官方源码](https://github.com/cline/cline/tree/1a5c3f84e0933268a9dba14a55a6383a6578414d/sdk/packages)。不将 README 的最新行为当作该版本实现。
@@ -65,3 +69,15 @@ A/B/C 采用同一模型标识和参数快照、同一源码/数据 Hash、同�
 只有 C 在重复样本中明确优于 B，且 Java 版本绑定、恢复、预算、取消、权限和归档验证均通过，才提出默认路径迁移。本次基线提交不改变生产代码；后续候选默认关闭，不能以一次成功推进上线。
 
 补充工具层边界：原生 Editor 的 helpers.ts:getEditorSizeError 对 old_text/new_text 各有 6,000 字符硬拒绝，executor 本身不等同工具层。Runtime repair.edits 的上限为16,000；不能据此宣称原生无分段约束。Editor/Patch 的 executor 异常通常被原生工具转换成 success=false 回执，而不是向调用者抛出异常。候选和验收必须检查该字段。
+
+## 通用 Coding Agent 阶段补充
+
+实施目标已更新为独立通用 Coding Agent，金融报告不再作为本阶段基础能力标准。候选位于独立分支 `feature/runtime-native-coding-agent-20261107`，保留 SDK 0.0.93 和既有业务路径。原授权修复 `5ba60b2ac` 不在本次重复整改范围内。
+
+发布包根入口没有导出内部的 `resolveToolRoutingConfig` / `DEFAULT_MODEL_TOOL_ROUTING_RULES`。候选仅将对应提交的 `model-tool-routing.ts` 原文件及 Apache-2.0 许可保存在 vendor，使用锁定 TypeScript 5.9.3 去除类型，并在每次构建校验源码 SHA 和生成文件。编辑、Patch、搜索及命令正规化仍直接调用已发布 SDK。不能把源码内部 export 当作 npm 根 API 可用证据。
+
+`run_commands` 的公开 Schema 主要展示字符串数组，但 helpers.ts:137 的兼容正规化还支持结构化 argv；definitions.ts:153 会合并拆开的 heredoc。通用候选不能按原始数组逐项字符串相等来替代原生语义。执行节点使用同版本 SDK、无副作用 executor 取得正规化结果，核验原始模型输入 Hash 和命令序号后，再在 Sandbox 中调用原生 shell executor。Java 不重新解析或拼接用户 Shell 语法。
+
+低层 Agent 与完整 ClineCore 的动态工具装配并不相同。候选保留原生 Agent Loop、Compaction、Restore 和原生 Skills；MCP 的 SDK provider 接口已留出，但当前独立任务入口不默认授予 MCP 服务器。生产 MCP 授权代理、Schema 变更及长任务动态装配仍须单独验证，不能将 provider 接口存在写成完整 MCP 验收通过。
+
+可复用性与能力效果分别验收：源码和发布包一致、确定性 SDK 测试、真实 Sandbox 命令测试，都不能代替真实模型通用任务 A–G、Worker 中断、历史归档及原生/当前/候选对照。

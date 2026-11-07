@@ -1,0 +1,19 @@
+{
+  "scope": "PROTECTED_NEGATIVE_FIXTURE_PREFLIGHT_NOT_MODEL_ACCEPTANCE",
+  "independent": {
+    "exitCode": 0,
+    "timedOut": false,
+    "executorStopped": true,
+    "containerId": "1e613bd940983183c9d61e477db7e00ea8df085a73bece1a13246798068f6e8e",
+    "imageId": "sha256:a3a279fc391bda1bb5aefb62acd8ee56200215ce2905cfb83d189398c33c5828",
+    "networkMode": "none",
+    "oomKilled": false,
+    "readonlyTestsUnchanged": true,
+    "requiredFilesPresent": true,
+    "unrelatedFunctionsPreserved": true,
+    "preservedFunctionCount": 0,
+    "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrSha256": "281efa6225b737bead9abc5fa147ee38859899783c4c5e6a849530e3c346f489",
+    "passed": true
+  }
+}

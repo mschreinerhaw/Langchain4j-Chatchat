@@ -62,6 +62,26 @@ C 的第三个真实执行已经通过固定测试，回执精确绑定声明命
 
 这些版本间批次不是同版本重复试验；5/8 不是整体通过，也不能用来宣布性能因果改善。SDK 参考组及恢复、权限专项继续单独测量。
 
+## 原生 Patch 与隔离专项的真实任务
+
+相同长源码场景 C 单独显式选择 SDK `apply_patch`，模型自行提交补丁，最终源码通过固定测试及 180 个无关函数保留检查；原任务仍在 8 次模型调用/4 次执行后 FAILED。[原始结果及文件 Hash](evidence/native-coding-20261107/C-patch-summary.json)、[实际披露与工具回执](evidence/native-coding-20261107/C-patch-receipts.json) 保留。这证明 Patch 已实际使用，不能把源码通过改写为复杂补丁完整任务通过；显式工具策略与 auto 批次不同，不作性能因果比较。
+
+独立 G 使用固定只读安全测试，经原模型调用受控执行器；六项断言检查非 root、无 Docker Socket、源码只读、根目录不可写、TEST-NET 地址网络拒绝、宿主 canary 不可读取。模型任务最终 FAILED，但固定六项断言在原执行和终态独立复核中通过。见 [G 原始结果](evidence/native-coding-20261107/G-isolation-summary.json) 与 [真实回执](evidence/native-coding-20261107/G-isolation-receipts.json)。这是执行边界负向测试，不能计为完整 Coding Agent 成功，也不替代跨租户、动态 MCP 或全部宿主攻击面验收。
+
+## 执行中的 Worker 中断补测
+
+F 使用独立冻结样本：保持 E-key 错误源码和测试断言，仅在只读测试加载时等待 35 秒，以观察实际执行中的崩溃窗口；不与原八项不变样本混作性能比较。两次故障样本 Hash 均为 `c6d0cf6e4123cb4de6a1e95ef957b8d8b5931d7ad6ac86065c3933a5f21e6930`，仍为原模型、8 次模型/4 次执行/300 秒预算。
+
+第一次任务 `native-b74378c65865182466c968ff10eb1fa5f2413a2f073c945c` 实际恢复，最终 FAILED、源码独立通过。末尾收集器因 MCP 已清理 Sandbox 容器而报错；Docker 事件缓存也未保留该窗口，因此物理延续字段为未知，不能由容器不存在推断停止。原始任务没有重跑；[补齐结果](evidence/native-coding-20261107/F-inflight-r1-result.json) 用原模型 checkpoint 和真实 MCP 停止证明，明确保留缺证项。
+
+第二次修正实验收集器，**在 kill 前后立即持久保存观察**，未修改产品、样本、模型或预算。任务 `native-5856802f1853d00586dac2e0c4aefab0b7a2e15438e840fa`：Sandbox 已运行至少 8 秒，代码文件与当前 manifest 匹配；Worker 真实退出 137 后，同一 Sandbox 仍在运行。随后独立 MCP 停止证明覆盖全部四个 CODE，恢复前后 SDK ID 同为 `c5407f16-8cf6-421f-8d0f-b60a1f6b70e6`，合同 Hash、原 deadline、预算和代码历史不变。恢复前已用 2 次模型调用，恢复后累计 8 次，没有重新计为零。
+
+[崩溃前观察](evidence/native-coding-20261107/F-inflight-r2-before-crash-observation-public.json)、[崩溃后观察](evidence/native-coding-20261107/F-inflight-r2-after-crash-observation-public.json)、[最终结果](evidence/native-coding-20261107/F-inflight-r2-result.json) 及 [全部原始回执投影](evidence/native-coding-20261107/F-inflight-r2-receipts.json) 相互绑定。最终任务仍 FAILED，最后源码独立通过；**技术恢复通过观察，完整恢复交付未通过**。重复 resume 仅核对同一未停止执行，未增加推理、重派原代码或制造停止证明。
+
+## 原始任务停止与验收结论
+
+[最终清点](evidence/native-coding-20261107/final-stop-census.json) 覆盖隔离数据库全部 **49 个已准入原生任务**：均为终态、executorStopped=true、reconciliationRequired=false，已启动未停止操作为零；Worker 活跃会话为零，同固定 Sandbox 镜像没有运行中容器。计量不完整的预算预留仍保留，不把物理停止改写成精确成本已结算。
+
 ## 尚未通过的最终门槛
 
-真实 Worker 中断恢复、权限负向整链路、长任务压缩恢复、原生 Cline/旧 Runtime/改进 Runtime 三组完整对照尚未通过。当前旧 Runtime 通用项目入口及 MCP 动态 Schema 治理存在接口差异，不能以组件测试或模拟模型回放充当真实性能对照。尚未进入金融等业务集成。
+真实 Worker 中断后的完整交付、全部权限负向整链路、长任务压缩恢复的完整任务、完整原生 CLI/旧 Runtime/改进 Runtime 三组可比重复试验尚未通过。当前旧 Runtime 通用项目合同及 MCP 动态 Schema 治理存在接口差异；发布 Skills 的长任务与撤权、API 进程同时重启也仍未完成验收。不能以组件测试或模拟模型回放充当这些结果。尚未进入金融等业务集成。

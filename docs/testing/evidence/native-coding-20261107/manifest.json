@@ -1,0 +1,101 @@
+{
+  "scope": "PUBLIC_WHITELISTED_EVIDENCE_NO_PROMPTS_OR_CREDENTIALS",
+  "files": {
+    "A-ref-r2-history.json": {
+      "sha256": "d2ab4a11ae85bd8b18371b7ab0392b162a1eb4b7254a8f21bd8310030d2df114",
+      "bytes": 32691
+    },
+    "A-ref-r2-metrics.json": {
+      "sha256": "1ada59e19d19368648db91a5291681f2beae76caf40a6e621815b74ff716dd64",
+      "bytes": 16830
+    },
+    "A-ref-r2-receipts.json": {
+      "sha256": "75732f025cf4d258f20fa36422be5823e23035535deafda836d9c8a0cc54513f",
+      "bytes": 260407
+    },
+    "C-general-r1-metrics.json": {
+      "sha256": "9a7b1e561f60b6c30e7ec751a3081842f96d095028874bd49d66dbd10d521ce8",
+      "bytes": 17167
+    },
+    "C-general-r2-metrics.json": {
+      "sha256": "533019751eea404cf61cce7ccd36f0609645461aaef07316d0cd72de327b58ec",
+      "bytes": 17248
+    },
+    "C-general-r3-metrics.json": {
+      "sha256": "08b90b5714ebcd0c61d63e0eee9f6d1aa195d130720d22e7a60f08112ab7ca4c",
+      "bytes": 17183
+    },
+    "C-general-r4-history.json": {
+      "sha256": "0f7a1d114f644011ac72620b1d78ed76c00752ac9c4678f47026e7c3fb0f0c21",
+      "bytes": 37114
+    },
+    "C-general-r4-metrics.json": {
+      "sha256": "df89b907687e57a1cf377d6d4e0a810dc9e617a689e181d50106dba11e32f57c",
+      "bytes": 17222
+    },
+    "C-general-r4-receipts.json": {
+      "sha256": "1a84a47dbe06701d85379448f6b27797ab099d1bd04387ee8566620a0d156c56",
+      "bytes": 972462
+    },
+    "C-patch-receipts.json": {
+      "sha256": "dbe38313d653212dce7c89a3c447000a309403608306403e8adec94c25d02875",
+      "bytes": 34001
+    },
+    "C-patch-summary.json": {
+      "sha256": "41d6a5ba4a3a4a267979451083275113ac3c21c9124b4f2e3d41f2f24694f1c9",
+      "bytes": 3020
+    },
+    "F-inflight-r1-receipts.json": {
+      "sha256": "f170dab920479aae1ede5977f16394d66a2a9f54d78deb9a5d3600882e14b925",
+      "bytes": 29025
+    },
+    "F-inflight-r1-result.json": {
+      "sha256": "9968b1ed07d566e94a5b622460e2c7c5a95a29285683c5af2866e8ef52d10991",
+      "bytes": 5884
+    },
+    "F-inflight-r2-after-crash-observation-public.json": {
+      "sha256": "7743fde78091bd0d659d0b2595d51bbde9f54bde3042e56c5f7aa24a1d996237",
+      "bytes": 426
+    },
+    "F-inflight-r2-before-crash-observation-public.json": {
+      "sha256": "17c470de0e37498a0426eed2a8d36127fb906a6424653f01f8e96d6676b34063",
+      "bytes": 766
+    },
+    "F-inflight-r2-receipts.json": {
+      "sha256": "8e6aad6e23958c1617af714e8b722ca7c1f965fa036c65e32918e4009aff4f8b",
+      "bytes": 29875
+    },
+    "F-inflight-r2-result.json": {
+      "sha256": "5ae14b9ebe14364a6a777385d408360af27fa996859ad579229c183a06bc8f70",
+      "bytes": 5638
+    },
+    "G-isolation-fixture-preflight.json": {
+      "sha256": "bdd8b6f33ed92e36c24f957fe5122187a8aa6d57cada8fc53d1bc3c9624ed22a",
+      "bytes": 737
+    },
+    "G-isolation-receipts.json": {
+      "sha256": "c5a3187b34686dd48df0a1be2920477d669a3f7880efe5d757c7eed0642cd35b",
+      "bytes": 33278
+    },
+    "G-isolation-summary.json": {
+      "sha256": "72526bed6a6e889a0e62e5be50260c55154daee17df130e86b885aecf4bd0515",
+      "bytes": 3010
+    },
+    "final-stop-census.json": {
+      "sha256": "2bdd011ef4ecc2b7f729988dddbc5a89d88835a377508cbe3e28e0b3f994010b",
+      "bytes": 11308
+    },
+    "reference-deployment-public.json": {
+      "sha256": "353a94f385159a761fafa007a28dc78ea3e9ce33ef15a2e15da5b9a88effa866",
+      "bytes": 681
+    },
+    "reference-readiness-public.json": {
+      "sha256": "4604b1a53e92594a652bf40a116e2d163159cf5d50b6cdb4e63b87415a3a2b61",
+      "bytes": 1434
+    },
+    "reference-startup-failure-public.json": {
+      "sha256": "d4e6e62843fa93ad1ef28c0132d2cb040e17a78603067b1b10b9becfcbc23221",
+      "bytes": 547
+    }
+  }
+}

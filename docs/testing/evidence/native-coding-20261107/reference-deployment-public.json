@@ -1,0 +1,11 @@
+{
+  "scope": "SDK_REFERENCE_NOT_FULL_CLINE_CLI",
+  "baseWorkerImage": "sha256:1b739bcd27cd59027efbf2c707f179126e767d108b6a6a2e0d9ebd636eee687f",
+  "referenceWorkerImage": "sha256:0a96354cb7a8476cacf2e8835e0d93a64a3fc650ac09d9f5f8c2221c89dbba4d",
+  "referenceContainer": "729bcd3a5a11a220e1d5c8f2e0d3a9d1ace6fd849c7e5ef1226e016c1b41d6f7",
+  "apiImage": "sha256:21beb4fb86e09d648f868b0740b07877ebf3670cf9ef54911b3fd7ec04a967db",
+  "factorySha256": "c5a7dc0a38897df142de09df7aa7204fca03fdd43c9effb04c42968bdaa7ee0e",
+  "patchedRunnerSha256": "043afbef5e8ed3a481fbff8e1aee47126fddd2e0a71d54857d4da4662748a61f",
+  "productLoopUnchanged": true,
+  "governancePolicy": "BASH_PIPEFAIL_V1"
+}

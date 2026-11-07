@@ -1,0 +1,193 @@
+{
+  "taskId": "native-5856802f1853d00586dac2e0c4aefab0b7a2e15438e840fa",
+  "sourceCommit": "0b62c544b",
+  "fixtureSha256": "c6d0cf6e4123cb4de6a1e95ef957b8d8b5931d7ad6ac86065c3933a5f21e6930",
+  "scope": "ACTUAL_WORKER_KILL_DURING_INFLIGHT_SANDBOX",
+  "workerKilled": "e618be0f584ab363e9079ae937fc7be10c9cd5a1ed0654babb018c8add86d8d5",
+  "workerRestored": "16282f7679268c764217a9e0500a4b2f35d537ca1e8f321359189c1b7f8282c2",
+  "workerImage": "sha256:1b739bcd27cd59027efbf2c707f179126e767d108b6a6a2e0d9ebd636eee687f",
+  "killedWorkerStopped": true,
+  "killedWorkerExitCode": 137,
+  "sandboxContainerId": "def752b479f5eb8113f0a302c0409613b59bf896aeb9921a62712fe0fce7cd99",
+  "sandboxContinuedAfterWorkerDeath": true,
+  "sandboxStoppedByVerifiedMcpReceipts": true,
+  "codeStops": [
+    {
+      "operationId": "cline-a64f9402ab1047215d18b1579d144b33836b7147fa64a0b659af3f74b0e7ffef",
+      "stopProofRef": "mcp-python-receipt:f52beea7e8a9cfce116e828108f15aead6bf5c0a2e30ac756ab7a5205704a90f"
+    },
+    {
+      "operationId": "cline-bf1574d53a1781f60c0971b99bcf0a90436e20ca3647da0b37d90e80a2290245",
+      "stopProofRef": "mcp-python-receipt:6c42c13e49c68b8cfc950538fd23ac02c4691de51d91ace12f594d465dc0dc01"
+    },
+    {
+      "operationId": "cline-c79bf693d208071695edfe5579286bd4d7da66e79437ea731883d06774830850",
+      "stopProofRef": "mcp-python-receipt:d59ceff9efc854045818c77aeff6b57dcc97da4d630ff88b1947f7a5ea6d81f3"
+    },
+    {
+      "operationId": "cline-f870d24ae7dcc83ce55a9233b4b5b43c80f85700a3f9ac2bc5583e150e402a4e",
+      "stopProofRef": "mcp-python-receipt:2149d0e19a9148c7752ce50fa128c4536ad9ebb59bc4a4621fed88f1575bb43d"
+    }
+  ],
+  "beforeSdkSessionId": "c5407f16-8cf6-421f-8d0f-b60a1f6b70e6",
+  "afterSdkSessionId": "c5407f16-8cf6-421f-8d0f-b60a1f6b70e6",
+  "sameSdkSessionId": true,
+  "contractHashUnchanged": true,
+  "beforeUsage": {
+    "budgetId": "native-budget:native-5856802f1853d00586dac2e0c4aefab0b7a2e15438e840fa",
+    "costCurrency": "USD",
+    "consumed": {
+      "modelCalls": 2,
+      "modelTokens": 4162,
+      "toolCalls": 1,
+      "codeExecutions": 0,
+      "cpuMillis": 0,
+      "peakMemoryBytes": 0,
+      "outputBytes": 0,
+      "costAmount": "0"
+    },
+    "reserved": {
+      "modelCalls": 0,
+      "modelTokens": 28606,
+      "toolCalls": 1,
+      "codeExecutions": 1,
+      "cpuMillis": 75000,
+      "peakMemoryBytes": 0,
+      "outputBytes": 262144,
+      "costAmount": "0.25"
+    },
+    "meteringComplete": false
+  },
+  "afterUsage": {
+    "budgetId": "native-budget:native-5856802f1853d00586dac2e0c4aefab0b7a2e15438e840fa",
+    "costCurrency": "USD",
+    "consumed": {
+      "modelCalls": 8,
+      "modelTokens": 31362,
+      "toolCalls": 9,
+      "codeExecutions": 4,
+      "cpuMillis": 0,
+      "peakMemoryBytes": 0,
+      "outputBytes": 10183,
+      "costAmount": "0"
+    },
+    "reserved": {
+      "modelCalls": 0,
+      "modelTokens": 99710,
+      "toolCalls": 0,
+      "codeExecutions": 0,
+      "cpuMillis": 300000,
+      "peakMemoryBytes": 0,
+      "outputBytes": 1038393,
+      "costAmount": "1"
+    },
+    "meteringComplete": false
+  },
+  "status": "FAILED",
+  "executionControl": {
+    "stopReason": null,
+    "stopRequestedAt": null,
+    "executorStopped": true,
+    "reconciliationRequired": false
+  },
+  "originalManifestRetained": true,
+  "resumeAttempts": [
+    {
+      "http": 200,
+      "code": 200,
+      "atEpochMs": 1794042535585
+    },
+    {
+      "http": 200,
+      "code": 200,
+      "atEpochMs": 1794042535637
+    },
+    {
+      "http": 200,
+      "code": 200,
+      "atEpochMs": 1794042537907
+    },
+    {
+      "http": 200,
+      "code": 200,
+      "atEpochMs": 1794042540147
+    },
+    {
+      "http": 200,
+      "code": 200,
+      "atEpochMs": 1794042542431
+    },
+    {
+      "http": 200,
+      "code": 200,
+      "atEpochMs": 1794042544712
+    },
+    {
+      "http": 200,
+      "code": 200,
+      "atEpochMs": 1794042546988
+    },
+    {
+      "http": 200,
+      "code": 200,
+      "atEpochMs": 1794042549275
+    },
+    {
+      "http": 200,
+      "code": 200,
+      "atEpochMs": 1794042551555
+    },
+    {
+      "http": 200,
+      "code": 200,
+      "atEpochMs": 1794042553853
+    },
+    {
+      "http": 200,
+      "code": 200,
+      "atEpochMs": 1794042556147
+    },
+    {
+      "http": 200,
+      "code": 200,
+      "atEpochMs": 1794042558433
+    },
+    {
+      "http": 200,
+      "code": 200,
+      "atEpochMs": 1794042560750
+    },
+    {
+      "http": 200,
+      "code": 200,
+      "atEpochMs": 1794042563043
+    },
+    {
+      "http": 200,
+      "code": 200,
+      "atEpochMs": 1794042565905
+    }
+  ],
+  "controllerSha256": "3962e9e13e0df637c3bb2c9458413842a9640f1fb90c4ecaca0dab69b9ea1166",
+  "independent": {
+    "exitCode": 0,
+    "timedOut": false,
+    "executorStopped": true,
+    "containerId": "6d255b17430c14decc53a14e8f45e077ee430990dc3edd05505bf79b1b827a7c",
+    "imageId": "sha256:a3a279fc391bda1bb5aefb62acd8ee56200215ce2905cfb83d189398c33c5828",
+    "networkMode": "none",
+    "oomKilled": false,
+    "readonlyTestsUnchanged": true,
+    "requiredFilesPresent": true,
+    "unrelatedFunctionsPreserved": true,
+    "preservedFunctionCount": 0,
+    "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrSha256": "5102851409cf003759a5e0d13afa29b59e60ce3d3208cdb2710b77e4c1be3f1e",
+    "passed": true
+  },
+  "finalManifestHash": "d7d3d42738aea4a694e31cb01f7123bfd9692d920119ff399367b4627a772173",
+  "finalFileHashes": {
+    "tests/test_transform.py": "8e1f3c42fe9dfcbdaed8111f8541244d154faf1526e1fbffe6aa9ff26ffa4e5b",
+    "transform.py": "96d2071ddbaed9649212ccba9e00c774e9dd68446a36a347d59db5832762689e"
+  }
+}

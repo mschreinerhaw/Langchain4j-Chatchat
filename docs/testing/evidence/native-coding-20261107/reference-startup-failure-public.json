@@ -1,0 +1,11 @@
+{
+  "scope": "ISOLATED_REFERENCE_STARTUP_FAILURE_NOT_MODEL_PERFORMANCE",
+  "requestId": "generic-A-ref-general-20261107-A-r1",
+  "computedTaskIdentity": "native-8d7d8791be00789fe7aeab29545ae2a264441623497e0595",
+  "authoritativeTaskJournalPresent": false,
+  "modelReceipts": 0,
+  "http": 500,
+  "observedCause": "API-to-new-Worker ConnectException before capability admission",
+  "originalSubmitSha256": "3a719d285eebd0ff281e551ffce1b4d21c258d1b4ea0f6f9bb8a6211d35f9391",
+  "replacementBenchmarkRequestUsesNewIdentityAndFullOriginalBudget": true
+}

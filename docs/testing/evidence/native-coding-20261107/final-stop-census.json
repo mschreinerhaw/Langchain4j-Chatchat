@@ -1,0 +1,356 @@
+{
+  "scope": "ISOLATED_DATABASE_ALL_ADMITTED_NATIVE_TASKS",
+  "observedAtEpochMs": 1794042818242,
+  "tasks": [
+    {
+      "taskId": "native-069f2caf0527a6d0d9cc88310a908ee9ef066bfcf3ab5f2b",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-0dc296309104b6fb12551838e3c2257fd28c10de04fd6caa",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-121e51c8a87c383ab05556d810a5fcc77f1a361a7fb0afe6",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-135b0d1de7bd359607dc6498706425c673f062506cc0005b",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-15f1780a84e1aaf7a53be289e99ff853dbe7c92d9ea8446c",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-197d8bd58d95e1bbd1511a9b399b64beb1bb58da7a94771e",
+      "status": "COMPLETED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-1beb6bb0f5136bc8a3b93eeca5bb2c82b258c59584e2d2bb",
+      "status": "COMPLETED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-24b90983a483226473a512425ad083920fcdfa98dfa90745",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-34aa7c3910a58479c37c54120d3224e940edf2910ee375b9",
+      "status": "COMPLETED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-361e42e07a5c37a0ad99f4fa608a79e91c7e3fa623b9bad9",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-36dabf9e44b3c06002ddf8cfed9900700a416c64bfc602e7",
+      "status": "COMPLETED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-42e8ca3969694254472be9d8fa9edf12a3ffc294b6b662b9",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-4a253d11fba97949edbc674fff6dd27117814d89221a23f2",
+      "status": "COMPLETED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-4fb8a254ba18a3089379e045fbac6126d85d05ed39fc36ba",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-51e4cad3f14348c980db3e25c4721da1d91a68e27ce58094",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-56f70c71fa82f20ebea99d6332e6f9cd92cec106d7c492f2",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-5856802f1853d00586dac2e0c4aefab0b7a2e15438e840fa",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-5f64743e354a3ca006fd5247d3c1f20be76466475771b37c",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-6428a84104aac650c62301d7bbe1e2a3babd152bfd9a30dd",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-67d1c7bb4cf6694efa95d12bfa721aa709199d25954fb4f8",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-6919736f7acce041c6b2600539f23aacd1b763fc3249e3a7",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-6c422a396d68b95a13b7df901f82c8e65d05588a4b750d89",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-72edecc22cf542b97a8bfaa0bd7b22b10c46548255e8a5ca",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-7570fcfcce8e23927b9637fb30f69dff24cea68579ab91c6",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-77779c73511c14a8155809b79778d301b0136b69f8222e29",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-814e35ebee31dc5e8b763f59e39821500116d63f0347476f",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-845d00db6d86df53155ff3dff79640f3bdaa41cd68ffbf4a",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-8688bad33ea1b869ac88c0218a7aaa86470ff042fc71df6a",
+      "status": "COMPLETED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-8f71314361a7b2c193b86d3a3496da356df71d4432eb04c5",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-914544b4d5e21c428fe0afd150cbcf13ba37d56f276d5441",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-9359ac78e5354ad17b122dee4d481fcdc20b9c76a21942d9",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-9e113a68ec4416c1ff650c3f426b0acba98d18b41eb8c02a",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-a4620815bde3175eaa6bad72d5b234651f6b771f1d728bce",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-af4c5f9a9c9d3a4b2dd635c9ea5c3914dbc6738a1d75f393",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-b74378c65865182466c968ff10eb1fa5f2413a2f073c945c",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-c205d01d45dd3efeb36821810ddd3faf879886b30f0743ee",
+      "status": "COMPLETED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-c5554f99e0dbee542a7b379da7fbb933232eea474c7f73a6",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-c93dcb29d6a7e3990d372c62ba6c9afe5059ea9a6d349676",
+      "status": "COMPLETED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-cff9370cba59facba3603bedbfe98cdae454db1707cef7fe",
+      "status": "COMPLETED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-d9a91fbd7c2372eb95454b1c241f4ea8e3c17b4bbc9d7b4b",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-ddc2e4064b9b77fb75072aa5fad1a2af39ba1f003fa9c092",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-e28b3d760c5005627f4eeefec9c106bf9b04357d33bf05e9",
+      "status": "COMPLETED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-e53c0fe9bce6a23b82bf0420b30ba4054a34cb6213089a4e",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-efe9e2cdd373eb1a351055c12a5d5e0674ef2ce7fa9c1581",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-f088508bb6901346da22fd421a8609185aaba35f4f6256e8",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-f181b34d20fc2a6ad29a0898d1f60803d8f25aa190d2dc3e",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-f3486cb9e3d5d1346a147b6fcdd8941dc0659fc46edc13a3",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-f92af518b8cbe1c7ff2892affe50b7a1311c4fa017395411",
+      "status": "FAILED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    },
+    {
+      "taskId": "native-fe3c4f14d93981b9a3919dfd268fa6c236c4b06878b0dc75",
+      "status": "COMPLETED",
+      "executorStopped": true,
+      "reconciliationRequired": false,
+      "unresolvedStartedOperations": []
+    }
+  ],
+  "count": 49,
+  "workerReady": {
+    "status": "READY",
+    "activeSessions": 0
+  },
+  "runningFixedImageSandboxContainers": [],
+  "reservationMayRemainForIncompleteMetering": true
+}

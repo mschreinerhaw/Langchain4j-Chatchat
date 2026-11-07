@@ -1,0 +1,147 @@
+{
+  "scope": "ACTUAL_INFLIGHT_WORKER_FAULT_WITH_POST_STOP_PROOF_COLLECTION",
+  "taskId": "native-b74378c65865182466c968ff10eb1fa5f2413a2f073c945c",
+  "sourceCommit": "0b62c544b",
+  "fixtureSha256": "c6d0cf6e4123cb4de6a1e95ef957b8d8b5931d7ad6ac86065c3933a5f21e6930",
+  "status": "FAILED",
+  "executionControl": {
+    "stopReason": null,
+    "stopRequestedAt": null,
+    "executorStopped": true,
+    "reconciliationRequired": false
+  },
+  "beforeUsage": {
+    "budgetId": "native-budget:native-b74378c65865182466c968ff10eb1fa5f2413a2f073c945c",
+    "costCurrency": "USD",
+    "consumed": {
+      "modelCalls": 1,
+      "modelTokens": 2039,
+      "toolCalls": 1,
+      "codeExecutions": 0,
+      "cpuMillis": 0,
+      "peakMemoryBytes": 0,
+      "outputBytes": 0,
+      "costAmount": "0"
+    },
+    "reserved": {
+      "modelCalls": 0,
+      "modelTokens": 14345,
+      "toolCalls": 1,
+      "codeExecutions": 1,
+      "cpuMillis": 75000,
+      "peakMemoryBytes": 0,
+      "outputBytes": 262144,
+      "costAmount": "0.125"
+    },
+    "meteringComplete": false
+  },
+  "afterUsage": {
+    "budgetId": "native-budget:native-b74378c65865182466c968ff10eb1fa5f2413a2f073c945c",
+    "costCurrency": "USD",
+    "consumed": {
+      "modelCalls": 8,
+      "modelTokens": 36397,
+      "toolCalls": 9,
+      "codeExecutions": 4,
+      "cpuMillis": 0,
+      "peakMemoryBytes": 0,
+      "outputBytes": 10089,
+      "costAmount": "0"
+    },
+    "reserved": {
+      "modelCalls": 0,
+      "modelTokens": 94675,
+      "toolCalls": 0,
+      "codeExecutions": 0,
+      "cpuMillis": 300000,
+      "peakMemoryBytes": 0,
+      "outputBytes": 1038487,
+      "costAmount": "1"
+    },
+    "meteringComplete": false
+  },
+  "killedWorkerId": "2f752b13b50a164d14094388adac3b4c994635bf18c1c7009b9b306cfdfd47c8",
+  "killedWorkerStopped": true,
+  "killedWorkerExitCode": 137,
+  "restoredWorkerId": "e618be0f584ab363e9079ae937fc7be10c9cd5a1ed0654babb018c8add86d8d5",
+  "sameWorkerImage": true,
+  "sandboxContainerId": "c2e509dce60c559d5e753beb9fb99835144bb8894397d07eac1aa3945641f0fe",
+  "sandboxContinuedAfterWorkerDeath": null,
+  "physicalContinuationEvidenceComplete": false,
+  "sandboxDieEventObserved": false,
+  "sandboxCleanupEventObserved": false,
+  "dockerEvents": [],
+  "beforeSdkSessionId": "e7ce66d5-6dcc-4b1d-aee0-61580d95dd42",
+  "beforeSdkIdentityProvenance": "Durably bound model-checkpoint:model-1, written before the first in-flight execution and retained in the original task journal",
+  "beforeModelCheckpoint": {
+    "checkpointOrdinal": 2,
+    "sdkSessionId": "e7ce66d5-6dcc-4b1d-aee0-61580d95dd42",
+    "checkpointSha256": "4c7c19f24f78791762cb195b8de864fcbccc45f10be6b28fc4be0b5f30356009"
+  },
+  "afterSdkSessionId": "e7ce66d5-6dcc-4b1d-aee0-61580d95dd42",
+  "sameSdkSessionId": true,
+  "contractHashUnchanged": true,
+  "frozenBudget": {
+    "budgetId": "native-budget:native-b74378c65865182466c968ff10eb1fa5f2413a2f073c945c",
+    "deadlineAt": "2026-11-07T09:02:55.277Z",
+    "maxModelCalls": 8,
+    "maxModelTokens": 262144,
+    "maxToolCalls": 16,
+    "maxCodeExecutions": 4,
+    "maxCostAmount": "1",
+    "costCurrency": "USD",
+    "maxCpuMillis": 300000,
+    "maxMemoryBytes": 536870912,
+    "maxOutputBytes": 1048576
+  },
+  "originalManifestRetained": true,
+  "codeStops": [
+    {
+      "operationId": "cline-eccd6f453208e7c058ae51ea805328a1e83afdf86ccf30ee20fdc6c91b6a39d9",
+      "startSequence": 17,
+      "startingFencingToken": 1,
+      "stopProofRef": "mcp-python-receipt:2de8b2d3a4973a4ebaaeab01f765b7d003ab356228058ebf6bfcf9792ea8df96"
+    },
+    {
+      "operationId": "cline-f175d2482f72e487bb855f4ed1213433e0d28034f914103abecf68b113720513",
+      "startSequence": 53,
+      "startingFencingToken": 17,
+      "stopProofRef": "mcp-python-receipt:b40c4e774ac251b73b18b62f48bde5a0cbb9507a3cd5545286cf3436a3df50c2"
+    },
+    {
+      "operationId": "cline-8df5de8214ba5f5e73240be34c59800d568687c6899f3b4e64e96dc662cfecd9",
+      "startSequence": 57,
+      "startingFencingToken": 17,
+      "stopProofRef": "mcp-python-receipt:06b59594474ca46112a052463c0c8361d481a146aff5f81472b16f58e392d66b"
+    },
+    {
+      "operationId": "cline-bc70b9484038da5e828fde8de46820826b837fc3e0444747b3ce61cee9a4992d",
+      "startSequence": 83,
+      "startingFencingToken": 17,
+      "stopProofRef": "mcp-python-receipt:aa57b2d1bf2c6fd28f36006ea54f7e99fbbd7de48e467a0a096ff074bc631da8"
+    }
+  ],
+  "collectionLimitation": "The original collector failed while inspecting the already removed Sandbox. No original task was rerun. Docker event history no longer contains the window; physical continuation after Worker death is not independently proven. Container absence is not a stop proof. All original CODE operations have independently verified MCP stop proofs; pre-crash SDK identity is retained in the original model-checkpoint:model-1.",
+  "controllerSha256": "6863cb2996f4c3049f031e22967cffd0467282ca684db6eac91e387b75f06b49",
+  "independent": {
+    "exitCode": 0,
+    "timedOut": false,
+    "executorStopped": true,
+    "containerId": "bdce7d76836034ef90ce4d63d228154bf5faed7613daafe9ceaa38b895b36066",
+    "imageId": "sha256:a3a279fc391bda1bb5aefb62acd8ee56200215ce2905cfb83d189398c33c5828",
+    "networkMode": "none",
+    "oomKilled": false,
+    "readonlyTestsUnchanged": true,
+    "requiredFilesPresent": true,
+    "unrelatedFunctionsPreserved": true,
+    "preservedFunctionCount": 0,
+    "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrSha256": "5102851409cf003759a5e0d13afa29b59e60ce3d3208cdb2710b77e4c1be3f1e",
+    "passed": true
+  },
+  "finalManifestHash": "36861d530fd38d8f86ec273187dc0c1fca1010d15208a7bf21bb6586bf76bc3b",
+  "finalFileHashes": {
+    "tests/test_transform.py": "8e1f3c42fe9dfcbdaed8111f8541244d154faf1526e1fbffe6aa9ff26ffa4e5b",
+    "transform.py": "bd13bd7d593d3c63204bc3afd3c6cfcfe04cdb14f322d64344ad437b3dd16451"
+  }
+}

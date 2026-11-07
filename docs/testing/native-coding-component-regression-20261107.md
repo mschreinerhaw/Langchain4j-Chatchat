@@ -129,3 +129,7 @@ Node 原生 runner/workspace/server **56 项，55 通过、1 项 Windows 链接�
 
 合并后的完整 Node 回归 **311 项：310 pass、0 fail、1 Windows 链接跳过**，日志 SHA256 `faa01999bb7c310397aa4065fd805b5127c00cdbcae878cd454a76ae587f9810`。Java 首轮因重复审计清洗导致排序被覆盖而出现 1 fail；删除本分支重复段，复用基准有界清洗后，API **176/176**、common **4/4**、MCP **15 项中13 pass/2 skip**，合计 **195 项，193 pass、0 fail、2 skip**。日志 SHA256 `d41291f933541fa389774e15db38109d25e7de75acd66b24d216a07421aa7277`。既有隐私、非法工具名和 Schema 指纹负向预期保留，没有修改测试降低门槛。
 
+最终打包初次因已还原的源码静态入口引用缺失资产被真实门槛拒绝，日志 `6a7593bf1530c962d9f35cfa7b12a3b7a8411ed5dc1bc5c88c77f1dfd52c4e98`。重新运行现有前端真实构建后打包成功，没有绕过资产检查；前端构建日志 `1bb478799526a957f54955712ee3accc109eb38c0e933f929dde55e0f093eac0`，最终打包日志 `b25ed392a7cc3e8870eee1c850e447ee26ac9f705986808fafd9cdf6b3c9368d`。API JAR SHA256 `d1c8f7956c482ab5a9cfcdce14bd1b3bdbea064ac455d00ba0e0c477e943a7a0`；MCP JAR `d7987df17f571ae6625fb52dfbf9b40f65643a62e8245bb40b0d5548140998ae`。这是合并后可构建证据，未替换冻结实验镜像，也不计作额外模型验收。
+
+实验设施失败亦保留：G 的第一次独立预检因调用端未提供 manifest 而触发 KeyError，尚未发起任何模型任务；补全同一冻结 fixture 的真实文件 Hash 描述后，独立六项测试才通过，随后另行运行真实模型任务。它不是模型 Python 的 KeyError，也不计为 Coding Agent 成功。F 首次结果收集器因容器已清理而失败，未把缺证字段补成成功；后续仅修正即时落盘观察并使用新编号重复同一故障样本，原失败任务保持不变。
+

@@ -1,0 +1,12 @@
+{
+  "taskId": "native-5856802f1853d00586dac2e0c4aefab0b7a2e15438e840fa",
+  "observedAtEpochMs": 1794042533431,
+  "workerId": "e618be0f584ab363e9079ae937fc7be10c9cd5a1ed0654babb018c8add86d8d5",
+  "workerState": {
+    "Running": false,
+    "FinishedAt": "2026-11-07T09:08:53.286484382Z",
+    "ExitCode": 137
+  },
+  "sandboxId": "def752b479f5eb8113f0a302c0409613b59bf896aeb9921a62712fe0fce7cd99",
+  "sandboxStillRunning": true
+}

@@ -1,0 +1,16 @@
+{
+  "taskId": "native-5856802f1853d00586dac2e0c4aefab0b7a2e15438e840fa",
+  "observedAtEpochMs": 1794042533197,
+  "sdkSessionId": "c5407f16-8cf6-421f-8d0f-b60a1f6b70e6",
+  "contractSha256": "69871370764dc579f795948d1d9d424ec0ec1b5add0aade6a12c8c877c411b1f",
+  "workerId": "e618be0f584ab363e9079ae937fc7be10c9cd5a1ed0654babb018c8add86d8d5",
+  "workerImage": "sha256:1b739bcd27cd59027efbf2c707f179126e767d108b6a6a2e0d9ebd636eee687f",
+  "sandboxId": "def752b479f5eb8113f0a302c0409613b59bf896aeb9921a62712fe0fce7cd99",
+  "sandboxState": {
+    "Running": true,
+    "StartedAt": "2026-11-07T09:08:45.135480986Z",
+    "ExitCode": 0
+  },
+  "sandboxFrozenFilesMatchCurrentManifest": true,
+  "manifestHash": "754da085b33a3d145fa72b57c23fe5680f6d59f8d6e1d7a7c52462c6d7625f12"
+}

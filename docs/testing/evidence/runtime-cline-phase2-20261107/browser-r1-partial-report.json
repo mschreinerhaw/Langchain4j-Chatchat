@@ -1,0 +1,34 @@
+{
+  "readOnly": true,
+  "workspaceId": "3957640a-9314-4330-973d-3b230dbbaf9f",
+  "nodeId": "8c43909d-e2ea-476d-b842-81e3ddacb507",
+  "progress": {
+    "taskId": "analysis-coding-bf31e9a7792f0faab7dad4aa29268a47344355d4d517754c3ff0771eb72eb28b",
+    "eventCount": 47,
+    "modelEventKinds": [
+      "MODEL_STARTED",
+      "MODEL_TIMING"
+    ],
+    "historyStatus": "AVAILABLE",
+    "readOnlyStatusHydrated": true
+  },
+  "renderedPlotlyCharts": [
+    {
+      "id": "close_trend",
+      "title": "华是科技收盘价与日内高低区间走势"
+    },
+    {
+      "id": "daily_change",
+      "title": "华是科技每日涨跌幅"
+    },
+    {
+      "id": "daily_amount",
+      "title": "华是科技每日成交额"
+    }
+  ],
+  "status": "PASSED",
+  "labels": "模型响应已响应数据供给已读取Python 执行进程已结束报告交付部分归档",
+  "lifecycle": "报告部分交付",
+  "executeRequests": 0,
+  "browserErrors": []
+}

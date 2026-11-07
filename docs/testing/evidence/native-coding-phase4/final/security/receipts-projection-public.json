@@ -1,0 +1,479 @@
+{
+  "scope": "WHITELISTED_REAL_RECEIPTS_AND_SILO_HASH_RECHECK",
+  "taskId": "native-cbc5c8c0bdc03fbbfc9794f9ff03cecba57c8b537c5a20cd",
+  "sourceCommit": "e107dffff",
+  "modelReceipts": [
+    {
+      "operationId": "model-1",
+      "evidenceSha256": "2a8b21207196c46f590aadcb8b209b5da213f51d20c0194daeed7a92fcbe337a",
+      "finishReason": "TOOL_EXECUTION",
+      "modelInfo": {
+        "selectedModel": "qwen3.8-flash",
+        "providerModel": "qwen3.8-flash",
+        "durationMs": 1611,
+        "startedAt": "2026-11-07T11:41:31.684802855Z",
+        "finishedAt": "2026-11-07T11:41:33.296431558Z",
+        "maxOutputTokens": 8192,
+        "authorizedTools": [
+          "apply_patch",
+          "editor",
+          "read_files",
+          "run_commands",
+          "search_codebase"
+        ],
+        "disclosedTools": [
+          "editor",
+          "read_files",
+          "run_commands",
+          "search_codebase"
+        ],
+        "toolSchemaSha256": "aebadaa4bc3d17c6f8bb203342cfe7be1219fa1f538897023410d56c7176afcd",
+        "requestBytes": 8408,
+        "messageCount": 2,
+        "responseMode": "NON_STREAMING"
+      },
+      "usage": {
+        "cacheReadTokens": 1024,
+        "inputTokens": 2233,
+        "outputTokens": 60,
+        "reasoningTokens": 9
+      },
+      "toolCalls": [
+        {
+          "id": "call_31ef44e676234fce80ea7cc5",
+          "name": "read_files",
+          "inputSha256": "e54bdde8ea47fc3c2947fd2b1d710a29cb56482987f7e4c7d7092f26346a4e2a"
+        }
+      ]
+    },
+    {
+      "operationId": "model-2",
+      "evidenceSha256": "4320268a7fac7faa7751d7e13add4405a2856105e1519a1299f0aa819f12c3c1",
+      "finishReason": "TOOL_EXECUTION",
+      "modelInfo": {
+        "selectedModel": "qwen3.8-flash",
+        "providerModel": "qwen3.8-flash",
+        "durationMs": 1434,
+        "startedAt": "2026-11-07T11:41:33.987884413Z",
+        "finishedAt": "2026-11-07T11:41:35.422191206Z",
+        "maxOutputTokens": 8192,
+        "authorizedTools": [
+          "apply_patch",
+          "editor",
+          "read_files",
+          "run_commands",
+          "search_codebase"
+        ],
+        "disclosedTools": [
+          "editor",
+          "read_files",
+          "run_commands",
+          "search_codebase"
+        ],
+        "toolSchemaSha256": "aebadaa4bc3d17c6f8bb203342cfe7be1219fa1f538897023410d56c7176afcd",
+        "requestBytes": 10579,
+        "messageCount": 4,
+        "responseMode": "NON_STREAMING"
+      },
+      "usage": {
+        "cacheReadTokens": 1024,
+        "inputTokens": 2819,
+        "outputTokens": 85,
+        "reasoningTokens": 20
+      },
+      "toolCalls": [
+        {
+          "id": "call_a7e3592281404876940db0f7",
+          "name": "run_commands",
+          "inputSha256": "8a545138f2eae91fe81ccf0afed5df60783a01a7cc718c5a7ef15d4d4293efcc"
+        }
+      ]
+    },
+    {
+      "operationId": "model-3",
+      "evidenceSha256": "1ec76e325029f26943709c725c8735f6409c0551765ee31efa7605ca17e46a7f",
+      "finishReason": "TOOL_EXECUTION",
+      "modelInfo": {
+        "selectedModel": "qwen3.8-flash",
+        "providerModel": "qwen3.8-flash",
+        "durationMs": 10296,
+        "startedAt": "2026-11-07T11:41:41.896091533Z",
+        "finishedAt": "2026-11-07T11:41:52.192354657Z",
+        "maxOutputTokens": 8192,
+        "authorizedTools": [
+          "apply_patch",
+          "editor",
+          "read_files",
+          "run_commands",
+          "search_codebase"
+        ],
+        "disclosedTools": [
+          "editor",
+          "read_files",
+          "run_commands",
+          "search_codebase"
+        ],
+        "toolSchemaSha256": "aebadaa4bc3d17c6f8bb203342cfe7be1219fa1f538897023410d56c7176afcd",
+        "requestBytes": 13238,
+        "messageCount": 6,
+        "responseMode": "NON_STREAMING"
+      },
+      "usage": {
+        "cacheReadTokens": 2048,
+        "inputTokens": 3983,
+        "outputTokens": 571,
+        "reasoningTokens": 134
+      },
+      "toolCalls": [
+        {
+          "id": "call_19b6a0deec3c4c75a480f076",
+          "name": "editor",
+          "inputSha256": "c8b4cdedb2ab88df02bcb1f13a8004319a629682c6747bf1e867e75f21e26c1c"
+        }
+      ]
+    },
+    {
+      "operationId": "model-4",
+      "evidenceSha256": "95afefad7326ab6cc28c5fd86060cc4d5e06a3d12571ae70f1ad40908785e1c6",
+      "finishReason": "TOOL_EXECUTION",
+      "modelInfo": {
+        "selectedModel": "qwen3.8-flash",
+        "providerModel": "qwen3.8-flash",
+        "durationMs": 3012,
+        "startedAt": "2026-11-07T11:41:53.383794986Z",
+        "finishedAt": "2026-11-07T11:41:56.395942699Z",
+        "maxOutputTokens": 8192,
+        "authorizedTools": [
+          "apply_patch",
+          "editor",
+          "read_files",
+          "run_commands",
+          "search_codebase"
+        ],
+        "disclosedTools": [
+          "editor",
+          "read_files",
+          "run_commands",
+          "search_codebase"
+        ],
+        "toolSchemaSha256": "aebadaa4bc3d17c6f8bb203342cfe7be1219fa1f538897023410d56c7176afcd",
+        "requestBytes": 16517,
+        "messageCount": 8,
+        "responseMode": "NON_STREAMING"
+      },
+      "usage": {
+        "cacheReadTokens": 3072,
+        "inputTokens": 4963,
+        "outputTokens": 152,
+        "reasoningTokens": 102
+      },
+      "toolCalls": [
+        {
+          "id": "call_b03560f78ea541f79dbaf625",
+          "name": "run_commands",
+          "inputSha256": "391c75be1e9f2978072318a1c5d74b4009677f14a6892a46bea4c8a0c81e65f8"
+        }
+      ]
+    },
+    {
+      "operationId": "model-5",
+      "evidenceSha256": "5104459e6a0150ab1954196ddb98af1af71a3b769a49429d3c4b19f74b5d45d4",
+      "finishReason": "TOOL_EXECUTION",
+      "modelInfo": {
+        "selectedModel": "qwen3.8-flash",
+        "providerModel": "qwen3.8-flash",
+        "durationMs": 3905,
+        "startedAt": "2026-11-07T11:42:02.317301695Z",
+        "finishedAt": "2026-11-07T11:42:06.222435721Z",
+        "maxOutputTokens": 8192,
+        "authorizedTools": [
+          "apply_patch",
+          "editor",
+          "read_files",
+          "run_commands",
+          "search_codebase"
+        ],
+        "disclosedTools": [
+          "editor",
+          "read_files",
+          "run_commands",
+          "search_codebase"
+        ],
+        "toolSchemaSha256": "aebadaa4bc3d17c6f8bb203342cfe7be1219fa1f538897023410d56c7176afcd",
+        "requestBytes": 19303,
+        "messageCount": 10,
+        "responseMode": "NON_STREAMING"
+      },
+      "usage": {
+        "cacheReadTokens": 4096,
+        "inputTokens": 6327,
+        "outputTokens": 166,
+        "reasoningTokens": 115
+      },
+      "toolCalls": [
+        {
+          "id": "call_a1dbdf3c0869409ebe585a68",
+          "name": "read_files",
+          "inputSha256": "e54bdde8ea47fc3c2947fd2b1d710a29cb56482987f7e4c7d7092f26346a4e2a"
+        }
+      ]
+    },
+    {
+      "operationId": "model-6",
+      "evidenceSha256": "1881525931f056602940c32877c9c5cd677321c0b0635975132317b8cdb6f7ce",
+      "finishReason": "STOP",
+      "modelInfo": {
+        "selectedModel": "qwen3.8-flash",
+        "providerModel": "qwen3.8-flash",
+        "durationMs": 14883,
+        "startedAt": "2026-11-07T11:42:07.555347691Z",
+        "finishedAt": "2026-11-07T11:42:22.439046910Z",
+        "maxOutputTokens": 8192,
+        "authorizedTools": [
+          "apply_patch",
+          "editor",
+          "read_files",
+          "run_commands",
+          "search_codebase"
+        ],
+        "disclosedTools": [
+          "editor",
+          "read_files",
+          "run_commands",
+          "search_codebase"
+        ],
+        "toolSchemaSha256": "aebadaa4bc3d17c6f8bb203342cfe7be1219fa1f538897023410d56c7176afcd",
+        "requestBytes": 22918,
+        "messageCount": 12,
+        "responseMode": "NON_STREAMING"
+      },
+      "usage": {
+        "cacheReadTokens": 5376,
+        "inputTokens": 7384,
+        "outputTokens": 865,
+        "reasoningTokens": 72
+      },
+      "toolCalls": []
+    }
+  ],
+  "toolStops": [
+    {
+      "operationId": "workspace-7e83246fc2da42dd55d566278ba6e2e5d4233a999b6e5297530665d7084b0086",
+      "tool": "read_files",
+      "executorStopped": true,
+      "resultSource": "native-tool-result:workspace-7e83246fc2da42dd55d566278ba6e2e5d4233a999b6e5297530665d7084b0086",
+      "resultHash": "b8fcfab72eb4d7ab0be47b3e39e0d8138c938a327866ce9fa05684a1764474bb",
+      "archivedResultReadAndHashMatched": true,
+      "isError": null,
+      "nativeEntryFailures": 0,
+      "admittedResultFailed": false
+    },
+    {
+      "operationId": "workspace-407b21a9731e7a065dad738f2e34ff11a060e0abcf5a64e60705de65da91681b",
+      "tool": "run_commands",
+      "executorStopped": true,
+      "resultSource": "native-tool-result:workspace-407b21a9731e7a065dad738f2e34ff11a060e0abcf5a64e60705de65da91681b",
+      "resultHash": "1f6e51332d30d771390c2c6968b98c872968753bb10a8876a2ad0db52dbab7a8",
+      "archivedResultReadAndHashMatched": true,
+      "isError": null,
+      "nativeEntryFailures": 0,
+      "admittedResultFailed": false
+    },
+    {
+      "operationId": "workspace-393ad3182a758781b037af8eeea6477d9523061b99e065a6dcdcc9a7bcbf68b8",
+      "tool": "editor",
+      "executorStopped": true,
+      "resultSource": "native-tool-result:workspace-393ad3182a758781b037af8eeea6477d9523061b99e065a6dcdcc9a7bcbf68b8",
+      "resultHash": "2e7d0fb432ea49dfe435d4eedddcea35d5d1a4f0ebfacca8d5cf13c9798788d7",
+      "archivedResultReadAndHashMatched": true,
+      "isError": null,
+      "nativeEntryFailures": 0,
+      "admittedResultFailed": false
+    },
+    {
+      "operationId": "workspace-e13f9511f9183e87c390610fab9fa3e465926606b7001b3f39bce96cee991b69",
+      "tool": "run_commands",
+      "executorStopped": true,
+      "resultSource": "native-tool-result:workspace-e13f9511f9183e87c390610fab9fa3e465926606b7001b3f39bce96cee991b69",
+      "resultHash": "f71801e6fb38f5841ab24e52c1e043a92c831a7b19d8973bffee6d1ea5a9babf",
+      "archivedResultReadAndHashMatched": true,
+      "isError": null,
+      "nativeEntryFailures": 0,
+      "admittedResultFailed": false
+    },
+    {
+      "operationId": "workspace-0858cb5403131ee0702d35d9956321388c2f0cbab4c30353cbbd76ea358f9aa6",
+      "tool": "read_files",
+      "executorStopped": true,
+      "resultSource": "native-tool-result:workspace-0858cb5403131ee0702d35d9956321388c2f0cbab4c30353cbbd76ea358f9aa6",
+      "resultHash": "5b2eeb178adcb890e2d074d6548c6435dee1aee0a1fa090f266bdb382059b6d6",
+      "archivedResultReadAndHashMatched": true,
+      "isError": null,
+      "nativeEntryFailures": 0,
+      "admittedResultFailed": false
+    }
+  ],
+  "commandObservations": [
+    {
+      "toolOperationId": "workspace-407b21a9731e7a065dad738f2e34ff11a060e0abcf5a64e60705de65da91681b",
+      "success": true,
+      "outputSha256": "249c0ff9af435c8ddd2ace701faecae7ed462512c42cfd40c2f6158d9d0e7642",
+      "operationId": "cline-c50c34621936220d77a33630574d943187e89ab2d886ff326078df9d2260205a",
+      "manifestHash": "f2d3a15c5e9948c730f79432d23ad4c7fad05928f12047644d3edf379d288fd7",
+      "commandHash": "1ae7438941f587d49bc67f6be959b466f84a04f89c3294c12ea45ed3d3d1a1b8",
+      "sourceHash": "34a26bb3b7ae820ddbe1c6da69febf29c7e467f2de6088c1a5f9f6b301bf7b73",
+      "exitCode": 0,
+      "executorStopped": true,
+      "resultAvailable": true,
+      "stopProofRef": "mcp-python-receipt:53c709fd739fd4d7403b9819df92a918e90487b7ad5c1f515a27582620679728",
+      "resultArtifactSha256": "ba2bba6805537372eea01a9b96885f63c0a466d05f0359d52e17ec250aeb0c3b",
+      "executorHelperSha256": "65b631cdb3323d09641767ae7328b78edd0f84e4c855c4a1fa12b1b033cdd82e",
+      "stdoutBytes": 631,
+      "stderrBytes": 0,
+      "truncated": false,
+      "verificationPolicy": "BASH_PIPEFAIL_V1",
+      "declaredCommandMatched": false,
+      "declaredCommandSha256": "ff9589960e74f51a5cc9c4734f3d88062b11f378e66f0311d66ca513f800d2c3",
+      "stdoutVisibleSha256": "fa748e379dff14c54813b29b82f47c21e564d530b9154657eb325a38d2c2a181",
+      "stderrVisibleSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "pythonDiagnosticCodes": [],
+      "streamHashScope": "MODEL_VISIBLE_TEXT_POSSIBLY_TAIL; full artifact has a separate Hash"
+    },
+    {
+      "toolOperationId": "workspace-e13f9511f9183e87c390610fab9fa3e465926606b7001b3f39bce96cee991b69",
+      "success": true,
+      "outputSha256": "54cbb756819f524873be31144085983041fcd72ab6d99ae7b509866929225ffe",
+      "operationId": "cline-e28e75d0a2b452ca4e3b4f4fca362d0b5b1604bdd7c2c9322f9a18e889c9e718",
+      "manifestHash": "59aa31582f4b7f3e178c718378743ba5683784e3b3e2e127903a763cbd0443dd",
+      "commandHash": "6402a3a3b8fe01b767f87e485e10b75d201b42b7366207c5d1b3ae1cf7296d21",
+      "sourceHash": "f77d9b7fa4710a109bb374dc44b1f0a49ce40b74e03efc8bac2985f952f70d1d",
+      "exitCode": 0,
+      "executorStopped": true,
+      "resultAvailable": true,
+      "stopProofRef": "mcp-python-receipt:d240063f93c88186f28b08d39ba556cd8bd0ab47708850f0229f085d8e5b756e",
+      "resultArtifactSha256": "ee39578993010eae3d61c5482003cc454e9c8c06ff82ecf6d437994b643340e2",
+      "executorHelperSha256": "65b631cdb3323d09641767ae7328b78edd0f84e4c855c4a1fa12b1b033cdd82e",
+      "stdoutBytes": 0,
+      "stderrBytes": 624,
+      "truncated": false,
+      "verificationPolicy": "BASH_PIPEFAIL_V1",
+      "declaredCommandMatched": true,
+      "declaredCommandSha256": "ff9589960e74f51a5cc9c4734f3d88062b11f378e66f0311d66ca513f800d2c3",
+      "stdoutVisibleSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrVisibleSha256": "281efa6225b737bead9abc5fa147ee38859899783c4c5e6a849530e3c346f489",
+      "pythonDiagnosticCodes": [],
+      "streamHashScope": "MODEL_VISIBLE_TEXT_POSSIBLY_TAIL; full artifact has a separate Hash"
+    }
+  ],
+  "codeOperations": [
+    {
+      "operationId": "cline-c50c34621936220d77a33630574d943187e89ab2d886ff326078df9d2260205a",
+      "kind": "CODE",
+      "intentSha256": "4861466d2287492a9de3abaad60d87b816106cf6f02360edb68478fcfd030cd8",
+      "startIntent": true,
+      "startingFencingToken": 1,
+      "startSequence": 23,
+      "stopProofRef": "mcp-python-receipt:53c709fd739fd4d7403b9819df92a918e90487b7ad5c1f515a27582620679728",
+      "actual": {
+        "modelCalls": 0,
+        "modelTokens": 0,
+        "toolCalls": 0,
+        "codeExecutions": 1,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 2780,
+        "costAmount": "0"
+      },
+      "reservation": {
+        "modelCalls": 0,
+        "modelTokens": 0,
+        "toolCalls": 0,
+        "codeExecutions": 1,
+        "cpuMillis": 75000,
+        "peakMemoryBytes": 0,
+        "outputBytes": 262144,
+        "costAmount": "0"
+      },
+      "meteringComplete": false,
+      "snapshotBinding": {
+        "toolCallId": "call_a7e3592281404876940db0f7",
+        "modelOperationId": "model-2",
+        "manifestHash": "f2d3a15c5e9948c730f79432d23ad4c7fad05928f12047644d3edf379d288fd7",
+        "commandHash": "1ae7438941f587d49bc67f6be959b466f84a04f89c3294c12ea45ed3d3d1a1b8",
+        "sourceHash": "34a26bb3b7ae820ddbe1c6da69febf29c7e467f2de6088c1a5f9f6b301bf7b73",
+        "fileHash": "79cdc07b7084c21141057f8a437f633f0af6c79475f2edc093fda6323a1032f9",
+        "commandOrdinal": 1,
+        "timeoutMs": 75000,
+        "executorHelperSha256": "65b631cdb3323d09641767ae7328b78edd0f84e4c855c4a1fa12b1b033cdd82e"
+      }
+    },
+    {
+      "operationId": "cline-e28e75d0a2b452ca4e3b4f4fca362d0b5b1604bdd7c2c9322f9a18e889c9e718",
+      "kind": "CODE",
+      "intentSha256": "857562397f3dc8ce5fd3c20b4dfa0f4a35956ff7404a952ca9f7e4567cd9ec0c",
+      "startIntent": true,
+      "startingFencingToken": 1,
+      "startSequence": 49,
+      "stopProofRef": "mcp-python-receipt:d240063f93c88186f28b08d39ba556cd8bd0ab47708850f0229f085d8e5b756e",
+      "actual": {
+        "modelCalls": 0,
+        "modelTokens": 0,
+        "toolCalls": 0,
+        "codeExecutions": 1,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 2772,
+        "costAmount": "0"
+      },
+      "reservation": {
+        "modelCalls": 0,
+        "modelTokens": 0,
+        "toolCalls": 0,
+        "codeExecutions": 1,
+        "cpuMillis": 75000,
+        "peakMemoryBytes": 0,
+        "outputBytes": 262144,
+        "costAmount": "0"
+      },
+      "meteringComplete": false,
+      "snapshotBinding": {
+        "toolCallId": "call_b03560f78ea541f79dbaf625",
+        "modelOperationId": "model-4",
+        "manifestHash": "59aa31582f4b7f3e178c718378743ba5683784e3b3e2e127903a763cbd0443dd",
+        "commandHash": "6402a3a3b8fe01b767f87e485e10b75d201b42b7366207c5d1b3ae1cf7296d21",
+        "sourceHash": "f77d9b7fa4710a109bb374dc44b1f0a49ce40b74e03efc8bac2985f952f70d1d",
+        "fileHash": "78a271f801027d0f93a461cd800950b551ba8e2675d529406fef6b5748dad52b",
+        "commandOrdinal": 1,
+        "timeoutMs": 75000,
+        "executorHelperSha256": "65b631cdb3323d09641767ae7328b78edd0f84e4c855c4a1fa12b1b033cdd82e"
+      }
+    }
+  ],
+  "sdkCheckpoint": {
+    "sdkSessionId": "9893dbec-3d84-4cf6-ad0e-6107f67bf727",
+    "nativeSdk": true,
+    "compactionCount": 0,
+    "checkpointOrdinal": 13,
+    "modelOrdinal": 6,
+    "contractHash": "1152c563d3412fc47b4edbd7ed7b10a7a5d95e06aab43a46e4d4a726ab74f661"
+  },
+  "frozenBudget": {
+    "budgetId": "native-budget:native-cbc5c8c0bdc03fbbfc9794f9ff03cecba57c8b537c5a20cd",
+    "deadlineAt": "2026-11-07T11:46:31.324Z",
+    "maxModelCalls": 8,
+    "maxModelTokens": 262144,
+    "maxToolCalls": 16,
+    "maxCodeExecutions": 4,
+    "maxCostAmount": "1",
+    "costCurrency": "USD",
+    "maxCpuMillis": 300000,
+    "maxMemoryBytes": 536870912,
+    "maxOutputBytes": 1048576
+  },
+  "frozenModel": {
+    "connectionSha256": "6bd6d5be0d331013857dfca2b382f4487979009b128fca08cdc3d80b4cb1a25e",
+    "maxTokens": 8192,
+    "selectedModel": "qwen3.8-flash"
+  },
+  "privacy": "No private prompts, model free text, input arguments, raw source, stream text or credentials exported"
+}

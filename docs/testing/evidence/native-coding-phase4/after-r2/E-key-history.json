@@ -1,0 +1,89 @@
+{
+  "scope": "POST_STOP_HISTORICAL_SOURCE_REPLAY_NO_AGENT_FEEDBACK",
+  "taskId": "native-1668058091fffdfc5388a75ac1d7d121af6e9c62eeef9846",
+  "case": "E-key",
+  "sourceCommit": "e107dffff",
+  "originalTaskStatus": "COMPLETED",
+  "versions": [
+    {
+      "version": 0,
+      "manifestHash": "0de32ff7369268b44da1d6536f7737393672bfcd8e87ea4c6a29bd110af06207",
+      "assetSha256": "65e499f304916583fbd11a42fc1af180327542a6a522810acdde486512bd192e",
+      "archivedAtEpochMs": 1794050818796,
+      "elapsedToArchiveMs": 0,
+      "assetReadAgainIdentical": true,
+      "independent": {
+        "exitCode": 1,
+        "timedOut": false,
+        "executorStopped": true,
+        "containerId": "e2782bc4075bd2d010ed9f1165ba8c395afd32f8d41e627f72baf7f0fd8be51e",
+        "imageId": "sha256:a3a279fc391bda1bb5aefb62acd8ee56200215ce2905cfb83d189398c33c5828",
+        "networkMode": "none",
+        "oomKilled": false,
+        "readonlyTestsUnchanged": true,
+        "requiredFilesPresent": true,
+        "unrelatedFunctionsPreserved": true,
+        "preservedFunctionCount": 0,
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderrSha256": "2af2fe857cbbf99c513e575a5c35bda7b411a43d6e6391477668a59cf18b6dbb",
+        "passed": false
+      }
+    },
+    {
+      "version": 1,
+      "manifestHash": "44f2be1232c1630411f1f6dfe057b812a9d7266e2d628933acf9c64927b75fd2",
+      "assetSha256": "479a119054940888624365703029147677f4ff53052233ebcd81ee8945164be5",
+      "archivedAtEpochMs": 1794050835017,
+      "elapsedToArchiveMs": 16170,
+      "assetReadAgainIdentical": true,
+      "independent": {
+        "exitCode": 0,
+        "timedOut": false,
+        "executorStopped": true,
+        "containerId": "569a01bed72f8982b6b3088f341fc5b2e5824ea3d326c8aca1d6e6ae16acb33e",
+        "imageId": "sha256:a3a279fc391bda1bb5aefb62acd8ee56200215ce2905cfb83d189398c33c5828",
+        "networkMode": "none",
+        "oomKilled": false,
+        "readonlyTestsUnchanged": true,
+        "requiredFilesPresent": true,
+        "unrelatedFunctionsPreserved": true,
+        "preservedFunctionCount": 0,
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderrSha256": "5102851409cf003759a5e0d13afa29b59e60ce3d3208cdb2710b77e4c1be3f1e",
+        "passed": true
+      }
+    },
+    {
+      "version": 2,
+      "manifestHash": "a7e2d4e33a4c3a1b43dc4a9392c225b919e58bdbd8fd1f854605d62d312eb217",
+      "assetSha256": "1307300e58b32d308e6ebd32ab22ad948bc639675b27d73d549ef760d337771f",
+      "archivedAtEpochMs": 1794050844000,
+      "elapsedToArchiveMs": 25153,
+      "assetReadAgainIdentical": true,
+      "independent": {
+        "exitCode": 0,
+        "timedOut": false,
+        "executorStopped": true,
+        "containerId": "f37730ea17098225fbca4217529e02285f5d1466c5754eb470d391b452987886",
+        "imageId": "sha256:a3a279fc391bda1bb5aefb62acd8ee56200215ce2905cfb83d189398c33c5828",
+        "networkMode": "none",
+        "oomKilled": false,
+        "readonlyTestsUnchanged": true,
+        "requiredFilesPresent": true,
+        "unrelatedFunctionsPreserved": true,
+        "preservedFunctionCount": 0,
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderrSha256": "5102851409cf003759a5e0d13afa29b59e60ce3d3208cdb2710b77e4c1be3f1e",
+        "passed": true
+      }
+    }
+  ],
+  "firstValidArchivedVersion": 1,
+  "firstValidCodeTimeMs": 16170,
+  "timingDefinition": "First independently passing archived source version creation time minus original task startedAt; not a live success observation",
+  "editVersionCount": 2,
+  "repairRounds": null,
+  "repairRoundLimitation": "Edit versions are not automatically equivalent to error-feedback repair rounds",
+  "originalUsageUnchanged": true,
+  "originalTaskUnchanged": true
+}

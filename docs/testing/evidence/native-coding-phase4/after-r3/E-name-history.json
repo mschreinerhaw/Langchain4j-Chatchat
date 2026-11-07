@@ -1,0 +1,65 @@
+{
+  "scope": "POST_STOP_HISTORICAL_SOURCE_REPLAY_NO_AGENT_FEEDBACK",
+  "taskId": "native-ff83665791e9b103c46a9b6ed7764fe83c92e9dc02be79c8",
+  "case": "E-name",
+  "sourceCommit": "e107dffff",
+  "originalTaskStatus": "COMPLETED",
+  "versions": [
+    {
+      "version": 0,
+      "manifestHash": "1daa811ab85d34a670a5df4a8dc529ebeac7bcd144f7ff335dbcfcbc5e8888e5",
+      "assetSha256": "f6074828faf172d05583d8e5802465317b431864241d60dcdc317af2d0663b32",
+      "archivedAtEpochMs": 1794051589948,
+      "elapsedToArchiveMs": 0,
+      "assetReadAgainIdentical": true,
+      "independent": {
+        "exitCode": 1,
+        "timedOut": false,
+        "executorStopped": true,
+        "containerId": "84fdd590122b669f8214202491fe7ade56a5fb75669c1d1f657eea9e2e461850",
+        "imageId": "sha256:a3a279fc391bda1bb5aefb62acd8ee56200215ce2905cfb83d189398c33c5828",
+        "networkMode": "none",
+        "oomKilled": false,
+        "readonlyTestsUnchanged": true,
+        "requiredFilesPresent": true,
+        "unrelatedFunctionsPreserved": true,
+        "preservedFunctionCount": 0,
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderrSha256": "15c5b31384fa7db1242ac01b9cc882a9cfdb0a47dcd124cc7c698ddbc8b6db18",
+        "passed": false
+      }
+    },
+    {
+      "version": 1,
+      "manifestHash": "67335fc22cf2ec5b57e2b4d143d241dcb1d76e8940da8e11d7ffe3da4b0db91f",
+      "assetSha256": "cf38befd382ec83ab53a6d11ff61945e57da4bbdb9d4015f414ab42e60230577",
+      "archivedAtEpochMs": 1794051603403,
+      "elapsedToArchiveMs": 13415,
+      "assetReadAgainIdentical": true,
+      "independent": {
+        "exitCode": 0,
+        "timedOut": false,
+        "executorStopped": true,
+        "containerId": "f5938d6227fa917fa2343fb394e2df6edc4dbae25fcce575b467cd86fb1a56a6",
+        "imageId": "sha256:a3a279fc391bda1bb5aefb62acd8ee56200215ce2905cfb83d189398c33c5828",
+        "networkMode": "none",
+        "oomKilled": false,
+        "readonlyTestsUnchanged": true,
+        "requiredFilesPresent": true,
+        "unrelatedFunctionsPreserved": true,
+        "preservedFunctionCount": 0,
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderrSha256": "5102851409cf003759a5e0d13afa29b59e60ce3d3208cdb2710b77e4c1be3f1e",
+        "passed": true
+      }
+    }
+  ],
+  "firstValidArchivedVersion": 1,
+  "firstValidCodeTimeMs": 13415,
+  "timingDefinition": "First independently passing archived source version creation time minus original task startedAt; not a live success observation",
+  "editVersionCount": 1,
+  "repairRounds": null,
+  "repairRoundLimitation": "Edit versions are not automatically equivalent to error-feedback repair rounds",
+  "originalUsageUnchanged": true,
+  "originalTaskUnchanged": true
+}

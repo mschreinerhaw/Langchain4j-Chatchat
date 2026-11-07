@@ -1,0 +1,644 @@
+# Subtest: fixed regression gate: simple-sales-csv rejects missing evidence, wrong completion and unknown usage
+ok 1 - fixed regression gate: simple-sales-csv rejects missing evidence, wrong completion and unknown usage
+# Subtest: fixed regression gate: multi-file-explicit-join rejects missing evidence, wrong completion and unknown usage
+ok 2 - fixed regression gate: multi-file-explicit-join rejects missing evidence, wrong completion and unknown usage
+# Subtest: fixed regression gate: exact-repair-preserves-results rejects missing evidence, wrong completion and unknown usage
+ok 3 - fixed regression gate: exact-repair-preserves-results rejects missing evidence, wrong completion and unknown usage
+# Subtest: fixed regression gate: account-missing-semantic-definition rejects missing evidence, wrong completion and unknown usage
+ok 4 - fixed regression gate: account-missing-semantic-definition rejects missing evidence, wrong completion and unknown usage
+# Subtest: repair fixture modifies only the supplied exact anchor and preserves validated money text
+ok 5 - repair fixture modifies only the supplied exact anchor and preserves validated money text
+# Subtest: full repair source keeps computation and immutable file verification unchanged
+ok 6 - full repair source keeps computation and immutable file verification unchanged
+# Subtest: legacy disable hints cannot remove authorized image packages or mutate metadata
+ok 7 - legacy disable hints cannot remove authorized image packages or mutate metadata
+# Subtest: delivery rejects duplicate source identities; SDK namespaces handle names
+ok 8 - delivery rejects duplicate source identities; SDK namespaces handle names
+# Subtest: image delivery rejects traversal and undeclared resource paths
+ok 9 - image delivery rejects traversal and undeclared resource paths
+# Subtest: missing or corrupt checkpoint identity cannot silently create another SDK session
+ok 10 - missing or corrupt checkpoint identity cannot silently create another SDK session
+# Subtest: SDK restore consumes bound receipt only (available=true)
+ok 11 - SDK restore consumes bound receipt only (available=true)
+# Subtest: SDK restore consumes bound receipt only (available=false)
+ok 12 - SDK restore consumes bound receipt only (available=false)
+# Subtest: misplaced or string parent versions return the current nested repair shape without changing code
+ok 13 - misplaced or string parent versions return the current nested repair shape without changing code
+# Subtest: validated patches survive later failures, rollback, restart and stale-parent rejection
+ok 14 - validated patches survive later failures, rollback, restart and stale-parent rejection
+# Subtest: SDK basic compaction retains the latest bound program without another model
+ok 15 - SDK basic compaction retains the latest bound program without another model
+# Subtest: budget compaction preserves the entire current report and immutable initial context
+ok 16 - budget compaction preserves the entire current report and immutable initial context
+# Subtest: compaction never restores a previous report after its current reference is cleared
+ok 17 - compaction never restores a previous report after its current reference is cleared
+# Subtest: patch text is editable after validation and restored legacy fragments do not become authority
+ok 18 - patch text is editable after validation and restored legacy fragments do not become authority
+# Subtest: archived output with invalid authorized references is not a validated rollback checkpoint
+ok 19 - archived output with invalid authorized references is not a validated rollback checkpoint
+# Subtest: native SDK hash rejection supplies the actual parent without executing the rejected patch
+ok 20 - native SDK hash rejection supplies the actual parent without executing the rejected patch
+# Subtest: real SDK uses exact patches, exposes local proposal rejection and resumes without replay
+ok 21 - real SDK uses exact patches, exposes local proposal rejection and resumes without replay
+# Subtest: missing output without a stack points to the exact diagnostic program tail, never supplies a report
+ok 22 - missing output without a stack points to the exact diagnostic program tail, never supplies a report
+# Subtest: repair context binds safe source locations to the exact latest execution
+ok 23 - repair context binds safe source locations to the exact latest execution
+# Subtest: repair excerpts reject invalid frames and bound long source lines
+ok 24 - repair excerpts reject invalid frames and bound long source lines
+# Subtest: syntax feedback supplies unchanged invalid quotes as an exact patch anchor
+ok 25 - syntax feedback supplies unchanged invalid quotes as an exact patch anchor
+# Subtest: repair anchors never advertise normalized text missing from the actual CRLF program
+ok 26 - repair anchors never advertise normalized text missing from the actual CRLF program
+# Subtest: exact code repair preserves unrelated bytes and rejects stale or ambiguous anchors
+ok 27 - exact code repair preserves unrelated bytes and rejects stale or ambiguous anchors
+# Subtest: checkpoint carries stalls and reconciles unknown admitted calls without inventing usage or feedback
+ok 28 - checkpoint carries stalls and reconciles unknown admitted calls without inventing usage or feedback
+# Subtest: bounded checkpoint preserves exact observation identities and ignores invalid or legacy metadata
+ok 29 - bounded checkpoint preserves exact observation identities and ignores invalid or legacy metadata
+# Subtest: advisory flags preparation and stalls without imposing a call limit
+ok 30 - advisory flags preparation and stalls without imposing a call limit
+# Subtest: new evidence resets stalls; identical failures and unchanged results do not
+ok 31 - new evidence resets stalls; identical failures and unchanged results do not
+# Subtest: proposal, Python and result clocks distinguish rejected code and unknown execution
+ok 32 - proposal, Python and result clocks distinguish rejected code and unknown execution
+# Subtest: thresholds are configurable and disabled feedback preserves observations
+ok 33 - thresholds are configurable and disabled feedback preserves observations
+# Subtest: restored code does not trigger a false initial-code prompt; stalls request a minimal repair
+ok 34 - restored code does not trigger a false initial-code prompt; stalls request a minimal repair
+# Subtest: eager disclosure cannot introduce unauthorized tools and survives catalog restore
+ok 35 - eager disclosure cannot introduce unauthorized tools and survives catalog restore
+# Subtest: real SDK restore receives the existing advisory after an unknown model attempt, without replaying tools
+ok 36 - real SDK restore receives the existing advisory after an unknown model attempt, without replaying tools
+# Subtest: real SDK can submit initial code without schema discovery, Skill reads or a plan turn
+ok 37 - real SDK can submit initial code without schema discovery, Skill reads or a plan turn
+# Subtest: same SDK session receives advisory and continues legitimate exploration beyond threshold
+ok 38 - same SDK session receives advisory and continues legitimate exploration beyond threshold
+# Subtest: monitor stores bounded progress, tool names, finish reason and diagnostics without tool payloads
+ok 39 - monitor stores bounded progress, tool names, finish reason and diagnostics without tool payloads
+# Subtest: unknown operations block inference instead of authorizing replacement execution
+ok 40 - unknown operations block inference instead of authorizing replacement execution
+# Subtest: native compaction preserves the exact failed execution diagnostic without a summarizing model
+ok 41 - native compaction preserves the exact failed execution diagnostic without a summarizing model
+# Subtest: completion allocation compacts replay before either the provider window or average budget is full
+ok 42 - completion allocation compacts replay before either the provider window or average budget is full
+# Subtest: duplicate read errors never create early pressure and the latest input round survives completion compaction
+ok 43 - duplicate read errors never create early pressure and the latest input round survives completion compaction
+# Subtest: completion metrics charge failed work to the admitted cohort and retain censored observations
+ok 44 - completion metrics charge failed work to the admitted cohort and retain censored observations
+# Subtest: different input pages and necessary cross-request history are not classified as wasted context
+ok 45 - different input pages and necessary cross-request history are not classified as wasted context
+# Subtest: provider capability metadata makes unsupported language and news filters explicit
+ok 46 - provider capability metadata makes unsupported language and news filters explicit
+# Subtest: file analysis retains governed resource discovery without granting text report submission
+ok 47 - file analysis retains governed resource discovery without granting text report submission
+# Subtest: search tools advertise only dynamically selected engine IDs without credentials or URLs
+ok 48 - search tools advertise only dynamically selected engine IDs without credentials or URLs
+# Subtest: public Internet capability never expands execution network and requires the frozen server profile
+ok 49 - public Internet capability never expands execution network and requires the frozen server profile
+# Subtest: access-denied reports retain their delivered context and repair empty references before Java submission
+ok 50 - access-denied reports retain their delivered context and repair empty references before Java submission
+# Subtest: draft review identifies an invented evidence ID and supplies exact delivered IDs for repair
+ok 51 - draft review identifies an invented evidence ID and supplies exact delivered IDs for repair
+# Subtest: knowledge profile keeps source manifests outside model context and tools isolated
+ok 52 - knowledge profile keeps source manifests outside model context and tools isolated
+# Subtest: real Cline loop autonomously searches, reads chapters, cross-checks and rewrites before a cited report
+ok 53 - real Cline loop autonomously searches, reads chapters, cross-checks and rewrites before a cited report
+# Subtest: Runtime authorization failure returns no knowledge source text
+ok 54 - Runtime authorization failure returns no knowledge source text
+# Subtest: resource exploration reserves submission and repair turns without enlarging the task budget
+ok 55 - resource exploration reserves submission and repair turns without enlarging the task budget
+# Subtest: a plain resource answer cannot complete before a verified report is submitted
+ok 56 - a plain resource answer cannot complete before a verified report is submitted
+# Subtest: resource draft is reviewed in the same SDK loop before any report can be published
+ok 57 - resource draft is reviewed in the same SDK loop before any report can be published
+# Subtest: two submissions in the same assistant turn cannot bypass the resource review round
+ok 58 - two submissions in the same assistant turn cannot bypass the resource review round
+# Subtest: authorized late exploration remains available and the report can still finish
+ok 59 - authorized late exploration remains available and the report can still finish
+# Subtest: an ordinary text task with no authorized resource tools keeps its single submission path
+ok 60 - an ordinary text task with no authorized resource tools keeps its single submission path
+# Subtest: actual SDK loop autonomously joins permitted market history and news without document or Python authority
+ok 61 - actual SDK loop autonomously joins permitted market history and news without document or Python authority
+# Subtest: image delivery manifests do not grant business data tools
+ok 62 - image delivery manifests do not grant business data tools
+# Subtest: permitted resource subset never advertises ungranted resources
+ok 63 - permitted resource subset never advertises ungranted resources
+# Subtest: stage statistics retain unknown measurements and never infer Runtime success from Node completion
+ok 64 - stage statistics retain unknown measurements and never infer Runtime success from Node completion
+# Subtest: recovery merges admitted ordinals and compares execution success with output validation and Java final status
+ok 65 - recovery merges admitted ordinals and compares execution success with output validation and Java final status
+# Subtest: Microsoft original packages and every resource preserve publisher hashes and license
+ok 66 - Microsoft original packages and every resource preserve publisher hashes and license
+# Subtest: Runtime COMPLETED remains authoritative after late progress and SDK finish
+ok 67 - Runtime COMPLETED remains authoritative after late progress and SDK finish
+# Subtest: Runtime PARTIAL remains authoritative after late progress and SDK finish
+ok 68 - Runtime PARTIAL remains authoritative after late progress and SDK finish
+# Subtest: Runtime FAILED remains authoritative after late progress and SDK finish
+ok 69 - Runtime FAILED remains authoritative after late progress and SDK finish
+# Subtest: Runtime CANCELLED remains authoritative after late progress and SDK finish
+ok 70 - Runtime CANCELLED remains authoritative after late progress and SDK finish
+# Subtest: Runtime BUDGET_EXCEEDED remains authoritative after late progress and SDK finish
+ok 71 - Runtime BUDGET_EXCEEDED remains authoritative after late progress and SDK finish
+# Subtest: Runtime projection survives actual monitor recreation without erasing observations
+ok 72 - Runtime projection survives actual monitor recreation without erasing observations
+# Subtest: wrong owner and malformed authority cannot turn an uncertain task into success
+ok 73 - wrong owner and malformed authority cannot turn an uncertain task into success
+# Subtest: authenticated Monitor API reads same-task Runtime status and never starts an SDK session
+ok 74 - authenticated Monitor API reads same-task Runtime status and never starts an SDK session
+# Subtest: user-supplied source projects retain real hashes but no encoded source in operations monitoring
+ok 75 - user-supplied source projects retain real hashes but no encoded source in operations monitoring
+# Subtest: callback timings remain distinct from provider timings and persist only bounded metadata
+ok 76 - callback timings remain distinct from provider timings and persist only bounded metadata
+# Subtest: SDK receives APPLIED Skills and configuration; code receipt references exact source
+ok 77 - SDK receives APPLIED Skills and configuration; code receipt references exact source
+# Subtest: SDK receives DELIVERED Skills and configuration; code receipt references exact source
+ok 78 - SDK receives DELIVERED Skills and configuration; code receipt references exact source
+# Subtest: fast analysis finishes after a validated tool result and archives the final tool interaction
+ok 79 - fast analysis finishes after a validated tool result and archives the final tool interaction
+# Subtest: fast analysis keeps output-missing failures repairable and materializes audited patched code
+ok 80 - fast analysis keeps output-missing failures repairable and materializes audited patched code
+# Subtest: reviewed analysis repairs locally and reads its scoped result before completion
+ok 81 - reviewed analysis repairs locally and reads its scoped result before completion
+# Subtest: native completion rejects a stale artifact and stops immediately after the latest accepted review
+ok 82 - native completion rejects a stale artifact and stops immediately after the latest accepted review
+# Subtest: a complete artifact cannot certify a Python receipt whose result validation failed
+ok 83 - a complete artifact cannot certify a Python receipt whose result validation failed
+# Subtest: report citation failures return to the Cline repair loop before task completion
+ok 84 - report citation failures return to the Cline repair loop before task completion
+# Subtest: a model cannot finish successfully after a rejected report reference check
+ok 85 - a model cannot finish successfully after a rejected report reference check
+# Subtest: versioned file inputs negotiate format before SDK/model admission and keep output JSONL
+ok 86 - versioned file inputs negotiate format before SDK/model admission and keep output JSONL
+# Subtest: only explicitly declared bounded input observations reach the coding model
+ok 87 - only explicitly declared bounded input observations reach the coding model
+# Subtest: cancellation during input preparation cannot start a late model loop
+ok 88 - cancellation during input preparation cannot start a late model loop
+# Subtest: failed input preparation records a failed Runtime finish without admitting a model
+ok 89 - failed input preparation records a failed Runtime finish without admitting a model
+# Subtest: cancellation while persisting context events cannot be reset by Agent.run
+ok 90 - cancellation while persisting context events cannot be reset by Agent.run
+# Subtest: worker graceful shutdown cancels active SDK execution and records finish before exiting
+ok 91 - worker graceful shutdown cancels active SDK execution and records finish before exiting
+# Subtest: Node and Java share immutable Unicode source-tree golden and lineage rules
+ok 92 - Node and Java share immutable Unicode source-tree golden and lineage rules
+# Subtest: Phase 4 preserves current declared verification and original resource facts after later inspection and native compaction
+ok 93 - Phase 4 preserves current declared verification and original resource facts after later inspection and native compaction
+# Subtest: Phase 4 exposes stale declaration after editing and never certifies a new source with an old pass
+ok 94 - Phase 4 exposes stale declaration after editing and never certifies a new source with an old pass
+# Subtest: versioned native policy accepts host-bound filtered verification without rewriting SDK commands
+ok 95 - versioned native policy accepts host-bound filtered verification without rewriting SDK commands
+# Subtest: Phase 4 restored SDK session reads persisted declaration facts without executing the old test again
+ok 96 - Phase 4 restored SDK session reads persisted declaration facts without executing the old test again
+# Subtest: Phase 4 lost edit ACK reloads the Host version before projecting verification into that model request
+ok 97 - Phase 4 lost edit ACK reloads the Host version before projecting verification into that model request
+# Subtest: later declared verification nonzero invalidates an earlier success on unchanged source
+ok 98 - later declared verification nonzero invalidates an earlier success on unchanged source
+# Subtest: later declared verification missing-result invalidates an earlier success on unchanged source
+ok 99 - later declared verification missing-result invalidates an earlier success on unchanged source
+# Subtest: versioned profile cannot accept legacy receipt flags or a different declaration
+ok 100 - versioned profile cannot accept legacy receipt flags or a different declaration
+# Subtest: one native Agent reads, executes failing tests, edits a file, executes and finishes
+ok 101 - one native Agent reads, executes failing tests, edits a file, executes and finishes
+# Subtest: sequential SDK batches start durable tools at execution time without blocking a later command
+ok 102 - sequential SDK batches start durable tools at execution time without blocking a later command
+# Subtest: native compaction preserves completion feedback after the latest tool result in chronological order
+ok 103 - native compaction preserves completion feedback after the latest tool result in chronological order
+# Subtest: a host-verified fixed-cwd command remains valid after later inspection of the same code
+ok 104 - a host-verified fixed-cwd command remains valid after later inspection of the same code
+# Subtest: SDK object command receipts use canonical object identity at the verification gate
+ok 105 - SDK object command receipts use canonical object identity at the verification gate
+# Subtest: a zero-exit pipeline cannot substitute for the host-declared verification command
+ok 106 - a zero-exit pipeline cannot substitute for the host-declared verification command
+# Subtest: SDK stderr merge can verify the current version without accepting a pipeline
+ok 107 - SDK stderr merge can verify the current version without accepting a pipeline
+# Subtest: editing code invalidates the retained verification until the new version executes
+ok 108 - editing code invalidates the retained verification until the new version executes
+# Subtest: restored SDK retains session/code and cumulative model ordinal
+ok 109 - restored SDK retains session/code and cumulative model ordinal
+# Subtest: model schema disclosure outside the task grant is denied before provider dispatch
+ok 110 - model schema disclosure outside the task grant is denied before provider dispatch
+# Subtest: a stopped Runtime failure cannot be shown as a completed SDK task
+ok 111 - a stopped Runtime failure cannot be shown as a completed SDK task
+# Subtest: archived native tool receipts replay without another edit or command execution
+ok 112 - archived native tool receipts replay without another edit or command execution
+# Subtest: one native read_files tool reads scoped project files and published Skill references on both operating systems
+ok 113 - one native read_files tool reads scoped project files and published Skill references on both operating systems
+# Subtest: an unknown provider outcome keeps its existing reservation unsettled
+ok 114 - an unknown provider outcome keeps its existing reservation unsettled
+# Subtest: a stopped archived model receipt replays under the same ordinal without spending a new admission
+ok 115 - a stopped archived model receipt replays under the same ordinal without spending a new admission
+# Subtest: the final admitted model receipt can replay at the call cap and cannot grant another inference
+ok 116 - the final admitted model receipt can replay at the call cap and cannot grant another inference
+# Subtest: a new inference cannot masquerade as a replay
+ok 117 - a new inference cannot masquerade as a replay
+# Subtest: model request audit contains schema identity and names without private prompts
+ok 118 - model request audit contains schema identity and names without private prompts
+# Subtest: invalid response repair is bounded and a valid response clears the pending failure
+ok 119 - invalid response repair is bounded and a valid response clears the pending failure
+# Subtest: native preparation retains one Agent entry and cannot activate a standalone host file reader
+ok 120 - native preparation retains one Agent entry and cannot activate a standalone host file reader
+# Subtest: official package discovery and service load all image Skills; only native tools are exposed
+ok 121 - official package discovery and service load all image Skills; only native tools are exposed
+# Subtest: official skills invocation supplies its root and native read_files loads the requested reference
+ok 122 - official skills invocation supplies its root and native read_files loads the requested reference
+# Subtest: several relevant native Skills can cooperate without loading unrelated bodies
+ok 123 - several relevant native Skills can cooperate without loading unrelated bodies
+# Subtest: official discovery retains every authorized package beyond metadata query and old catalog limits
+ok 124 - official discovery retains every authorized package beyond metadata query and old catalog limits
+# Subtest: legacy methodology distribution preserves its body and exposes SDK-discovered purpose metadata
+ok 125 - legacy methodology distribution preserves its body and exposes SDK-discovered purpose metadata
+# Subtest: dynamic original package bytes and resources remain exact; distribution is not model loading
+ok 126 - dynamic original package bytes and resources remain exact; distribution is not model loading
+# Subtest: native resource access remains task isolated and cannot read the host or another tenant workspace
+ok 127 - native resource access remains task isolated and cannot read the host or another tenant workspace
+# Subtest: revoked dynamic authorization blocks cached native Skill instructions and reference reads
+ok 128 - revoked dynamic authorization blocks cached native Skill instructions and reference reads
+# Subtest: staged content tampering is rejected before the native file executor discloses it
+ok 129 - staged content tampering is rejected before the native file executor discloses it
+# Subtest: SDK discovery resumes at stable task paths after service disposal and redistribution
+ok 130 - SDK discovery resumes at stable task paths after service disposal and redistribution
+# Subtest: new Node processes independently rediscover the same authorized original packages
+ok 131 - new Node processes independently rediscover the same authorized original packages
+# Subtest: native Skill can be loaded again after real installed SDK compaction removes its prior output
+ok 132 - native Skill can be loaded again after real installed SDK compaction removes its prior output
+# Subtest: one real Cline session may skip all Skills and directly propose simple CSV analysis code
+ok 133 - one real Cline session may skip all Skills and directly propose simple CSV analysis code
+# Subtest: verification projection preserves exact identities without exposing unrelated payloads or granting completion
+ok 134 - verification projection preserves exact identities without exposing unrelated payloads or granting completion
+# Subtest: failure, missing output, absent stop proof and stale versions remain distinct
+ok 135 - failure, missing output, absent stop proof and stale versions remain distinct
+# Subtest: only bounded actual failure diagnostics are retained with the hash of visible original text
+ok 136 - only bounded actual failure diagnostics are retained with the hash of visible original text
+# Subtest: resource projection uses charged original quotas and represents missing measurements as unknown
+ok 137 - resource projection uses charged original quotas and represents missing measurements as unknown
+# Subtest: governed SDK wait covers queued receipts without treating a short SDK timeout as stopped execution
+ok 138 - governed SDK wait covers queued receipts without treating a short SDK timeout as stopped execution
+# Subtest: pinned native editor cwd flag is not an absolute-path security boundary
+ok 139 - pinned native editor cwd flag is not an absolute-path security boundary
+# Subtest: same native read/search/editor view and immutable execution snapshot
+ok 140 - same native read/search/editor view and immutable execution snapshot
+# Subtest: host refusal does not publish a native edit
+ok 141 - host refusal does not publish a native edit
+# Subtest: native patch edits multiple files; invalid second hunk publishes neither
+ok 142 - native patch edits multiple files; invalid second hunk publishes neither
+# Subtest: resource admission accepts native CRLF patch bodies while SDK preserves source line endings
+ok 143 - resource admission accepts native CRLF patch bodies while SDK preserves source line endings
+# Subtest: denies native editor and patch escape "../outside.py"
+ok 144 - denies native editor and patch escape "../outside.py"
+# Subtest: denies native editor and patch escape "/tmp/outside.py"
+ok 145 - denies native editor and patch escape "/tmp/outside.py"
+# Subtest: denies native editor and patch escape "C:\\\\outside.py"
+ok 146 - denies native editor and patch escape "C:\\\\outside.py"
+# Subtest: denies native editor and patch escape "nested/../../outside.py"
+ok 147 - denies native editor and patch escape "nested/../../outside.py"
+# Subtest: denies native editor and patch escape "main.py\\n*** Delete File: outside.py"
+ok 148 - denies native editor and patch escape "main.py\\n*** Delete File: outside.py"
+# Subtest: read boundary returns a real failed per-file result without outside content
+ok 149 - read boundary returns a real failed per-file result without outside content
+# Subtest: denies redirected cache symlink
+ok 150 - denies redirected cache symlink # SKIP Windows symlink privilege; Linux container must cover this
+# Subtest: denies redirected cache hardlink
+ok 151 - denies redirected cache hardlink
+# Subtest: revocation and cancellation stop execution before a frozen code dispatch
+ok 152 - revocation and cancellation stop execution before a frozen code dispatch
+# Subtest: long source supports local native edits; oversized replacements are rejected by both tool protocols
+ok 153 - long source supports local native edits; oversized replacements are rejected by both tool protocols
+# Subtest: restore rematerializes exact durable code and rejects a corrupt restored tree
+ok 154 - restore rematerializes exact durable code and rejects a corrupt restored tree
+# Subtest: another tenant cannot restore the same task identifier and source bytes
+ok 155 - another tenant cannot restore the same task identifier and source bytes
+# Subtest: a mismatched bridge execution receipt is not accepted
+ok 156 - a mismatched bridge execution receipt is not accepted
+# Subtest: empty general project supports directories, text files and edits without execution
+ok 157 - empty general project supports directories, text files and edits without execution
+# Subtest: native run_commands executes a frozen version and returns true stderr and nonzero exit
+ok 158 - native run_commands executes a frozen version and returns true stderr and nonzero exit
+# Subtest: command success without independent stop and version proof is rejected
+ok 159 - command success without independent stop and version proof is rejected
+# Subtest: a zero process exit without a verifiable command result remains a tool failure
+ok 160 - a zero process exit without a verifiable command result remains a tool failure
+# Subtest: a completed edit receipt can replay without applying the native edit twice
+ok 161 - a completed edit receipt can replay without applying the native edit twice
+# Subtest: lost durable edit acknowledgment reloads the committed source before another edit
+ok 162 - lost durable edit acknowledgment reloads the committed source before another edit
+# Subtest: reload rejects stale or altered manifests without replacing the code cache
+ok 163 - reload rejects stale or altered manifests without replacing the code cache
+# Subtest: a missing disposable cache can be rebuilt from the governed immutable source
+ok 164 - a missing disposable cache can be rebuilt from the governed immutable source
+# Subtest: persisted monitor observations retain failed output validation and measured tool resources
+ok 165 - persisted monitor observations retain failed output validation and measured tool resources
+# Subtest: monitor consumes actual SDK observations without granting dispatch authority or leaking private context
+ok 166 - monitor consumes actual SDK observations without granting dispatch authority or leaking private context
+# Subtest: browser login uses same-origin HttpOnly sessions; logout revokes the browser cookie
+ok 167 - browser login uses same-origin HttpOnly sessions; logout revokes the browser cookie
+# Subtest: persistent history marks unfinished execution as interrupted and keeps exact code across restart
+ok 168 - persistent history marks unfinished execution as interrupted and keeps exact code across restart
+# Subtest: unknown usage remains null; model failure and observer redaction do not fabricate successful calls
+ok 169 - unknown usage remains null; model failure and observer redaction do not fabricate successful calls
+# Subtest: dedicated monitor credential is required and monitoring defaults to disabled
+ok 170 - dedicated monitor credential is required and monitoring defaults to disabled
+# Subtest: retention exposes missing source as 410 and never evicts an active task
+ok 171 - retention exposes missing source as 410 and never evicts an active task
+# Subtest: monitor persistence failure reports degradation without changing execution state
+ok 172 - monitor persistence failure reports degradation without changing execution state
+# Subtest: Invalid snapshot reference is structured repair feedback and Cline corrects it in the original task
+ok 173 - Invalid snapshot reference is structured repair feedback and Cline corrects it in the original task
+# Subtest: New necessary Skills remain progress beyond the preparation threshold; reused bodies do not reset a stall
+ok 174 - New necessary Skills remain progress beyond the preparation threshold; reused bodies do not reset a stall
+# Subtest: Pre-code usage and content observations retain unknown usage separately and exclude sensitive text
+ok 175 - Pre-code usage and content observations retain unknown usage separately and exclude sensitive text
+# Subtest: Model MODEL_REQUEST_TIMEOUT stays distinct from Python failure and does not retry unknown operations
+ok 176 - Model MODEL_REQUEST_TIMEOUT stays distinct from Python failure and does not retry unknown operations
+# Subtest: Model CALLBACK_RESPONSE_INTERRUPTED stays distinct from Python failure and does not retry unknown operations
+ok 177 - Model CALLBACK_RESPONSE_INTERRUPTED stays distinct from Python failure and does not retry unknown operations
+# Subtest: Model CALLBACK_DEADLINE stays distinct from Python failure and does not retry unknown operations
+ok 178 - Model CALLBACK_DEADLINE stays distinct from Python failure and does not retry unknown operations
+# Subtest: repair relationships require authoritative counters and an exact failed parent hash
+ok 179 - repair relationships require authoritative counters and an exact failed parent hash
+# Subtest: diff shows actual minimal changes, unchanged files and bounded large changes
+ok 180 - diff shows actual minimal changes, unchanged files and bounded large changes
+# Subtest: output failure, process failure and cancellation are distinct execution facts
+ok 181 - output failure, process failure and cancellation are distinct execution facts
+# Subtest: operator Python projection is read-only, retained-task-bound and never persisted in Node history
+ok 182 - operator Python projection is read-only, retained-task-bound and never persisted in Node history
+# Subtest: full reuse preserves exact original files, empty package and CRLF
+ok 183 - full reuse preserves exact original files, empty package and CRLF
+# Subtest: partial reuse edits only an exact file anchor and retains unrelated functions
+ok 184 - partial reuse edits only an exact file anchor and retains unrelated functions
+# Subtest: later edits retain previous repair and reject stale hashes
+ok 185 - later edits retain previous repair and reject stale hashes
+# Subtest: rejects overwrite additions, ambiguous edits, path traversal and changed adapter
+ok 186 - rejects overwrite additions, ambiguous edits, path traversal and changed adapter
+# Subtest: restarts through the existing durable code history without losing repairs or version checks
+ok 187 - restarts through the existing durable code history without losing repairs or version checks
+# Subtest: can fill an exactly empty package marker without overwriting a nonempty file
+ok 188 - can fill an exactly empty package marker without overwriting a nonempty file
+# Subtest: real SDK survives abnormal process exit via complete checkpoint without replaying Python or model ordinals
+ok 189 - real SDK survives abnormal process exit via complete checkpoint without replaying Python or model ordinals
+# Subtest: actual disclosure preserves authorized subsets and fingerprints schemas without retaining private contents
+ok 190 - actual disclosure preserves authorized subsets and fingerprints schemas without retaining private contents
+# Subtest: initial discovery catalog is attributed separately from objective and tool schemas
+ok 191 - initial discovery catalog is attributed separately from objective and tool schemas
+# Subtest: final payload attribution includes tools, skills, report, code and multibyte text without leaking contents
+ok 192 - final payload attribution includes tools, skills, report, code and multibyte text without leaking contents
+# Subtest: request replay accounting retains only hashes and separates stable context from new parts
+ok 193 - request replay accounting retains only hashes and separates stable context from new parts
+# Subtest: native state-aware compaction is reused and restored against canonical prefix hashes
+ok 194 - native state-aware compaction is reused and restored against canonical prefix hashes
+# Subtest: source binding becomes a reference only when current task advertises code_read
+ok 195 - source binding becomes a reference only when current task advertises code_read
+# Subtest: checkpoint size pressure discards only the optional projection, never canonical recovery evidence
+ok 196 - checkpoint size pressure discards only the optional projection, never canonical recovery evidence
+# Subtest: compacted tool results round trip objects without a second JSON string envelope
+ok 197 - compacted tool results round trip objects without a second JSON string envelope
+# Subtest: review projection preserves exact version/hash while omitting fresh full-source injection; repair restores it
+ok 198 - review projection preserves exact version/hash while omitting fresh full-source injection; repair restores it
+# Subtest: native SDK completion guard continues a plan-only STOP to real execution and review
+ok 199 - native SDK completion guard continues a plan-only STOP to real execution and review
+# Subtest: plan-only continuation retains the original model budget and cannot certify a missing result
+ok 200 - plan-only continuation retains the original model budget and cannot certify a missing result
+# Subtest: each actual model attempt gets a fresh authoritative budget and cannot bypass reconciliation
+ok 201 - each actual model attempt gets a fresh authoritative budget and cannot bypass reconciliation
+# Subtest: context policy false keeps explicit source reads, exact repairs and report confirmation in the same SDK run
+ok 202 - context policy false keeps explicit source reads, exact repairs and report confirmation in the same SDK run
+# Subtest: context policy true keeps explicit source reads, exact repairs and report confirmation in the same SDK run
+ok 203 - context policy true keeps explicit source reads, exact repairs and report confirmation in the same SDK run
+# Subtest: a validated report retains the final model turn for actual review and confirmation
+ok 204 - a validated report retains the final model turn for actual review and confirmation
+# Subtest: final-turn reservation cannot certify failed reference validation
+ok 205 - final-turn reservation cannot certify failed reference validation
+# Subtest: final-turn reservation cannot certify failed artifact validation
+ok 206 - final-turn reservation cannot certify failed artifact validation
+# Subtest: review reads bound code on demand, rejects stale hash and repairs without rerunning discovery
+ok 207 - review reads bound code on demand, rejects stale hash and repairs without rerunning discovery
+# Subtest: unnegotiated tasks cannot expose a local program reader
+ok 208 - unnegotiated tasks cannot expose a local program reader
+# Subtest: negotiated review keeps full program when reference validation fails
+ok 209 - negotiated review keeps full program when reference validation fails
+# Subtest: negotiated review keeps full program when visual-artifact validation fails
+ok 210 - negotiated review keeps full program when visual-artifact validation fails
+# Subtest: negotiated review keeps full program when visual-layout validation fails
+ok 211 - negotiated review keeps full program when visual-layout validation fails
+# Subtest: Python report cannot be replaced by text-only submission
+ok 212 - Python report cannot be replaced by text-only submission
+# Subtest: Python failure cannot be replaced by text-only submission
+ok 213 - Python failure cannot be replaced by text-only submission
+# Subtest: late resource-report budget retains Python repair after a failed execution instead of forcing text submission
+ok 214 - late resource-report budget retains Python repair after a failed execution instead of forcing text submission
+# Subtest: native output truncation retains context and reaches one admitted concise repair instead of restarting discovery
+ok 215 - native output truncation retains context and reaches one admitted concise repair instead of restarting discovery
+# Subtest: native rejected-response repair ceiling persists at a settled boundary and cannot reset on restore
+ok 216 - native rejected-response repair ceiling persists at a settled boundary and cannot reset on restore
+# Subtest: real SDK checkpoints only after every call in a multi-tool turn has its result
+ok 217 - real SDK checkpoints only after every call in a multi-tool turn has its result
+# Subtest: native SDK reuses the supplied report and keeps Python repair without a second text submission path
+ok 218 - native SDK reuses the supplied report and keeps Python repair without a second text submission path
+# Subtest: real SDK repairs references inside an earlier patch without freezing text or reusing rejected evidence
+ok 219 - real SDK repairs references inside an earlier patch without freezing text or reusing rejected evidence
+# Subtest: reviewed analysis delivers the actual authorized report to the next semantic turn without a routing model call
+ok 220 - reviewed analysis delivers the actual authorized report to the next semantic turn without a routing model call
+# Subtest: the native Cline SDK carries the frozen report layout preference without another model or execution round
+ok 221 - the native Cline SDK carries the frozen report layout preference without another model or execution round
+# Subtest: repeated rejected report review reuses the exact immutable artifact but requires fresh execution for repair
+ok 222 - repeated rejected report review reuses the exact immutable artifact but requires fresh execution for repair
+# Subtest: invalid report references still reach Cline and require a repaired execution and fresh authorized read
+ok 223 - invalid report references still reach Cline and require a repaired execution and fresh authorized read
+# Subtest: a stopped process with missing output is repaired before any automatic report read
+ok 224 - a stopped process with missing output is repaired before any automatic report read
+# Subtest: native review confirmation finishes with the exact admitted report without another read or execution
+ok 225 - native review confirmation finishes with the exact admitted report without another read or execution
+# Subtest: valid visual artifacts can complete with failed source reconciliation findings preserved
+ok 226 - valid visual artifacts can complete with failed source reconciliation findings preserved
+# Subtest: review confirmation still rejects artifact integrity
+ok 227 - review confirmation still rejects artifact integrity
+# Subtest: review confirmation still rejects layout
+ok 228 - review confirmation still rejects layout
+# Subtest: review confirmation still rejects legacy aggregate failure
+ok 229 - review confirmation still rejects legacy aggregate failure
+# Subtest: resource visual preference can confirm a real Python text report when no chart is justified
+ok 230 - resource visual preference can confirm a real Python text report when no chart is justified
+# Subtest: Runtime STOP takes precedence over a contradictory successful receipt and never reads an artifact
+ok 231 - Runtime STOP takes precedence over a contradictory successful receipt and never reads an artifact
+# Subtest: a later failed execution invalidates the cached earlier report for completion
+ok 232 - a later failed execution invalidates the cached earlier report for completion
+# Subtest: native loop repairs an output-only probe after a rejected anchor using the refreshed uncompacted source
+ok 233 - native loop repairs an output-only probe after a rejected anchor using the refreshed uncompacted source
+# Subtest: review metadata cannot grant artifact read authority
+ok 234 - review metadata cannot grant artifact read authority
+# Subtest: automatic artifact authorization failure cannot publish an already stopped Python result
+ok 235 - automatic artifact authorization failure cannot publish an already stopped Python result
+# Subtest: automatic artifact different result reference cannot publish an already stopped Python result
+ok 236 - automatic artifact different result reference cannot publish an already stopped Python result
+# Subtest: SQL metadata model view preserves meanings, precise types and relationships without repeating field owners
+ok 237 - SQL metadata model view preserves meanings, precise types and relationships without repeating field owners
+# Subtest: SQL context compaction keeps structure evidence and scope while removing only repeated transport metadata
+ok 238 - SQL context compaction keeps structure evidence and scope while removing only repeated transport metadata
+# Subtest: business MCP, database, search and shell tools are rejected before the SDK runs
+ok 239 - business MCP, database, search and shell tools are rejected before the SDK runs
+# Subtest: analysis prompts use actual files without requiring an application Python module
+ok 240 - analysis prompts use actual files without requiring an application Python module
+# Subtest: Cline can read a delivered document without executing Python or receiving a business tool
+ok 241 - Cline can read a delivered document without executing Python or receiving a business tool
+# Subtest: native SDK completes a reviewed text report without a Python process or an extra summary turn
+ok 242 - native SDK completes a reviewed text report without a Python process or an extra summary turn
+# Subtest: native SDK preserves incomplete analysis scope and exact field provenance in text submission
+ok 243 - native SDK preserves incomplete analysis scope and exact field provenance in text submission
+# Subtest: malformed provider arguments are repaired in the same SDK with fresh admissions and actual usage
+ok 244 - malformed provider arguments are repaired in the same SDK with fresh admissions and actual usage
+# Subtest: repeated malformed provider responses exhaust the repair limit without running Python
+ok 245 - repeated malformed provider responses exhaust the repair limit without running Python
+# Subtest: restoring a settled checkpoint cannot reset the model response repair limit
+ok 246 - restoring a settled checkpoint cannot reset the model response repair limit
+# Subtest: Java STOP feedback terminates the real SDK loop without another model or Python call
+ok 247 - Java STOP feedback terminates the real SDK loop without another model or Python call
+# Subtest: Java repair feedback reaches the same SDK context and an exact edit creates the next code version
+ok 248 - Java repair feedback reaches the same SDK context and an exact edit creates the next code version
+# Subtest: worker rejects unnegotiated v2 and missing protocol versions before touching Runtime
+ok 249 - worker rejects unnegotiated v2 and missing protocol versions before touching Runtime
+# Subtest: actual Cline Agent loop repairs a technical Python error through one Runtime tool
+ok 250 - actual Cline Agent loop repairs a technical Python error through one Runtime tool
+# Subtest: successful exploration without an output artifact can be corrected without claiming a result
+ok 251 - successful exploration without an output artifact can be corrected without claiming a result
+# Subtest: Python operation is polled through pending stop-proof reconciliation without another execution
+ok 252 - Python operation is polled through pending stop-proof reconciliation without another execution
+# Subtest: unrecognized or unauthorized tools fail closed before a model call
+ok 253 - unrecognized or unauthorized tools fail closed before a model call
+# Subtest: metadata tool rejects a reference outside the frozen contract
+ok 254 - metadata tool rejects a reference outside the frozen contract
+# Subtest: a failed finish callback preserves the original Runtime admission error
+ok 255 - a failed finish callback preserves the original Runtime admission error
+# Subtest: a failed Runtime model call is visible to Java reconciliation
+ok 256 - a failed Runtime model call is visible to Java reconciliation
+# Subtest: transient provider errors cannot trigger SDK retries outside Runtime admission
+ok 257 - transient provider errors cannot trigger SDK retries outside Runtime admission
+# Subtest: a later unsuccessful program cannot finish using an older successful result
+ok 258 - a later unsuccessful program cannot finish using an older successful result
+# Subtest: Runtime deadline aborts the in-flight model and leaves provider reconciliation to Java
+ok 259 - Runtime deadline aborts the in-flight model and leaves provider reconciliation to Java
+# Subtest: expired contracts do not reserve or execute work
+ok 260 - expired contracts do not reserve or execute work
+# Subtest: Runtime deadline requests Sandbox cancellation while an operation remains active
+ok 261 - Runtime deadline requests Sandbox cancellation while an operation remains active
+# Subtest: the same Cline loop stages multi-file SQL and repairs parser feedback without Python authority
+ok 262 - the same Cline loop stages multi-file SQL and repairs parser feedback without Python authority
+# Subtest: Cline autonomously discovers business metadata and iterates from missing metadata and column diagnostics
+ok 263 - Cline autonomously discovers business metadata and iterates from missing metadata and column diagnostics
+# Subtest: SQL repair budget STOP terminates without claiming delivery or requesting another model turn
+ok 264 - SQL repair budget STOP terminates without claiming delivery or requesting another model turn
+# Subtest: SQL exploration can deliver missing-evidence notes without fabricated SQL or an extra review call
+ok 265 - SQL exploration can deliver missing-evidence notes without fabricated SQL or an extra review call
+# Subtest: Runtime model forwards only portable parts and emits tool and usage events
+ok 266 - Runtime model forwards only portable parts and emits tool and usage events
+# Subtest: Runtime model refuses file parts rather than silently losing context
+ok 267 - Runtime model refuses file parts rather than silently losing context
+# Subtest: native authorized output repair preserves feedback and the SDK max-tokens finish reason
+ok 268 - native authorized output repair preserves feedback and the SDK max-tokens finish reason
+# Subtest: unauthorized or unknown feedback is never converted into a tool call or retry
+ok 269 - unauthorized or unknown feedback is never converted into a tool call or retry
+# Subtest: SDK compaction preserves portable tool pairs and error roles
+ok 270 - SDK compaction preserves portable tool pairs and error roles
+# Subtest: SDK editor rejects ambiguous, stale and partially invalid proposals atomically
+ok 271 - SDK editor rejects ambiguous, stale and partially invalid proposals atomically
+# Subtest: a short uncompacted conversation still receives the actual latest executed source after a rejected proposal
+ok 272 - a short uncompacted conversation still receives the actual latest executed source after a rejected proposal
+# Subtest: authorized malformed tool JSON is repaired by the native loop without executing it
+ok 273 - authorized malformed tool JSON is repaired by the native loop without executing it
+# Subtest: native finish reasons reach the SDK without collapsing filter, cutoff or unknown
+ok 274 - native finish reasons reach the SDK without collapsing filter, cutoff or unknown
+# Subtest: managed Java model attempts remove separate admission and settlement RPCs
+ok 275 - managed Java model attempts remove separate admission and settlement RPCs
+# Subtest: SDK cutoff recovery receives a fresh admission and cannot exceed the task model budget
+ok 276 - SDK cutoff recovery receives a fresh admission and cannot exceed the task model budget
+# Subtest: installed SDK exposes session, compaction and patch extension points
+ok 277 - installed SDK exposes session, compaction and patch extension points
+# Subtest: failed Python tool feeds the next native turn in the same Agent run
+ok 278 - failed Python tool feeds the next native turn in the same Agent run
+# Subtest: public prepareTurn projects requests without overwriting canonical messages
+ok 279 - public prepareTurn projects requests without overwriting canonical messages
+# Subtest: restore preserves transcript but resets native usage
+ok 280 - restore preserves transcript but resets native usage
+# Subtest: errorRetryable false prevents hidden provider attempts
+ok 281 - errorRetryable false prevents hidden provider attempts
+# Subtest: ordinary native provider retries invoke beforeModel again
+ok 282 - ordinary native provider retries invoke beforeModel again
+# Subtest: retry inside max-token compaction recovery bypasses an additional beforeModel
+ok 283 - retry inside max-token compaction recovery bypasses an additional beforeModel
+# Subtest: plain AgentTool timeout metadata does not enforce a timeout in this version
+ok 284 - plain AgentTool timeout metadata does not enforce a timeout in this version
+# Subtest: native abort propagates its signal to the active custom tool
+ok 285 - native abort propagates its signal to the active custom tool
+# Subtest: all five real Cline packages import together and public SDK re-exports the installed core
+ok 286 - all five real Cline packages import together and public SDK re-exports the installed core
+# Subtest: SDK editor repairs 1000 lines with LF anchors on CRLF without changing unrelated bytes
+ok 287 - SDK editor repairs 1000 lines with LF anchors on CRLF without changing unrelated bytes
+# Subtest: SDK editor repairs 10000 lines with LF anchors on CRLF without changing unrelated bytes
+ok 288 - SDK editor repairs 10000 lines with LF anchors on CRLF without changing unrelated bytes
+# Subtest: SDK project editor changes two modules and preserves previous corrections, CRLF and the Runtime adapter
+ok 289 - SDK project editor changes two modules and preserves previous corrections, CRLF and the Runtime adapter
+# Subtest: progress endpoint failure cannot strand model admission or Python execution; required callbacks still fail closed
+ok 290 - progress endpoint failure cannot strand model admission or Python execution; required callbacks still fail closed
+# Subtest: legacy checkpoints retain lineage and discard unused fragment policy state on the next save
+ok 291 - legacy checkpoints retain lineage and discard unused fragment policy state on the next save
+# Subtest: authorized output truncation enters SDK recovery, admits each attempt and executes a tool only once
+ok 292 - authorized output truncation enters SDK recovery, admits each attempt and executes a tool only once
+# Subtest: native project dispatch is denied unless its isolated profile is explicitly enabled
+ok 293 - native project dispatch is denied unless its isolated profile is explicitly enabled
+# Subtest: model inference follows task deadline beyond control timeout and remains cancellable
+ok 294 - model inference follows task deadline beyond control timeout and remains cancellable
+# Subtest: buffered callback separates headers and body time without inventing provider TTFT
+ok 295 - buffered callback separates headers and body time without inventing provider TTFT
+# Subtest: invalid model callback JSON is a protocol failure, not an empty successful answer
+ok 296 - invalid model callback JSON is a protocol failure, not an empty successful answer
+# Subtest: Runtime callback timeout bounds stalled admission while expired tasks can still request cancellation
+ok 297 - Runtime callback timeout bounds stalled admission while expired tasks can still request cancellation
+# Subtest: expired native tasks can cancel and settle stopped tools without permitting fresh execution
+ok 298 - expired native tasks can cancel and settle stopped tools without permitting fresh execution
+# Subtest: native stop reconciliation retains a bounded control timeout
+ok 299 - native stop reconciliation retains a bounded control timeout
+# Subtest: Runtime callbacks carry a fresh authenticated request signature
+ok 300 - Runtime callbacks carry a fresh authenticated request signature
+# Subtest: Node HTTP boundary authenticates, dispatches once, and hides SDK session IDs
+ok 301 - Node HTTP boundary authenticates, dispatches once, and hides SDK session IDs
+# Subtest: container callback host requires an explicit allowlist
+ok 302 - container callback host requires an explicit allowlist
+# Subtest: session capacity rejects new tasks while retaining active and duplicate identities
+ok 303 - session capacity rejects new tasks while retaining active and duplicate identities
+# Subtest: new fencing token cannot start a second loop while the old loop is active
+ok 304 - new fencing token cannot start a second loop while the old loop is active
+# Subtest: schema disclosure is task scoped, atomic, and invalidates on metadata changes
+ok 305 - schema disclosure is task scoped, atomic, and invalidates on metadata changes
+# Subtest: real Cline session uses native Skills without a schema-discovery prerequisite; disclosure grants no execution
+ok 306 - real Cline session uses native Skills without a schema-discovery prerequisite; disclosure grants no execution
+# Subtest: context allowance accounts for declared window, reply reservation and safety margin
+ok 307 - context allowance accounts for declared window, reply reservation and safety margin
+# Subtest: optional timing delivery failure cannot strand a prepared task before the model loop
+ok 308 - optional timing delivery failure cannot strand a prepared task before the model loop
+# Subtest: python workspace uses one native model turn with an authorized prefetch and validated completion
+ok 309 - python workspace uses one native model turn with an authorized prefetch and validated completion
+# Subtest: python parser failures repair in the same SDK session without resetting ordinals or re-reading
+ok 310 - python parser failures repair in the same SDK session without resetting ordinals or re-reading
+# Subtest: sql workspace uses one native model turn with an authorized prefetch and validated completion
+ok 311 - sql workspace uses one native model turn with an authorized prefetch and validated completion
+# Subtest: sql parser failures repair in the same SDK session without resetting ordinals or re-reading
+ok 312 - sql parser failures repair in the same SDK session without resetting ordinals or re-reading
+# Subtest: valid=true without required Evidence references cannot complete the SDK fast path
+ok 313 - valid=true without required Evidence references cannot complete the SDK fast path
+# Subtest: prefetch failure cannot retry an unknown operation or call a model
+ok 314 - prefetch failure cannot retry an unknown operation or call a model
+# Subtest: expired or cancelled tasks never prefetch or start inference
+ok 315 - expired or cancelled tasks never prefetch or start inference
+# Subtest: model exceptions still emit bounded failed-call timing
+ok 316 - model exceptions still emit bounded failed-call timing
+# Subtest: SDK workspace patches retain other files and reconstruct from canonical checkpoint tool pairs
+ok 317 - SDK workspace patches retain other files and reconstruct from canonical checkpoint tool pairs
+# Subtest: cancellation during authorized prefetch stops before inference
+ok 318 - cancellation during authorized prefetch stops before inference
+# Subtest: task deadline aborts prefetch without extending the model budget
+ok 319 - task deadline aborts prefetch without extending the model budget
+1..319
+# tests 319
+# pass 318
+# fail 0
+# skipped 1
+# duration_ms 123189.7818

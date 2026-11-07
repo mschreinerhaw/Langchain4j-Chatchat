@@ -1,0 +1,439 @@
+{
+  "scope": "POST_STOP_ACTUAL_RECEIPT_AND_INDEPENDENT_ARCHIVE_MEASUREMENT",
+  "cohort": "C-phase4-p0-20261107",
+  "repeat": 2,
+  "cases": 8,
+  "completed": 8,
+  "finalSourcesPassed": 8,
+  "modelCalls": 43,
+  "knownModelTokens": 217265,
+  "admittedToolReceipts": 46,
+  "admittedFailedToolReceipts": 6,
+  "admittedToolFailureRate": 0.13043478260869565,
+  "results": [
+    {
+      "case": "A",
+      "taskId": "native-ab27554bc87dcf996becd9ea98edc633b533096ab11323a4",
+      "sourceCommit": "e107dffff",
+      "status": "COMPLETED",
+      "completed": true,
+      "finalSourcePassed": true,
+      "modelCalls": 8,
+      "knownModelTokens": 51313,
+      "actualCodeExecutions": 4,
+      "usage": {
+        "budgetId": "native-budget:native-ab27554bc87dcf996becd9ea98edc633b533096ab11323a4",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 8,
+          "modelTokens": 51313,
+          "toolCalls": 10,
+          "codeExecutions": 4,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 13973,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 79759,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 300000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 1034603,
+          "costAmount": "1"
+        },
+        "meteringComplete": false
+      },
+      "actualModelReceiptCount": 8,
+      "modelRequestedToolCalls": 10,
+      "admittedToolReceipts": 10,
+      "admittedFailedToolReceipts": 1,
+      "admittedToolFailureRate": 0.1,
+      "firstValidCodeTimeMs": 144468,
+      "editVersionCount": 5,
+      "observedErrorFeedbackRepairRounds": 1,
+      "observedRepairCycles": [
+        {
+          "failedManifestHash": "7746cdb35fe6ef5df23903f8f8ed4070275692c04fbbc56172345ad6ae7ca31a",
+          "failureOperationId": "cline-fecb2b5b80113dec30dca43337431671a1144d30859d4d8769a1586383c9c316",
+          "diagnosticCodes": [
+            "AssertionError"
+          ],
+          "pipelineMaskedFailure": false,
+          "repairedManifestHash": "a316e6abab033c6d01d67278f13a3f99ec66bd3a04a31c29bb7a33b52a1a4d51",
+          "verificationOperationId": "cline-e0993e607630b3187b22a5b49525b2b67669f26b561bc11bd63c039a6649e580"
+        }
+      ],
+      "measurementLimits": "Repair cycles require actual diagnostics, independently invalid old source, a changed independently passing version and later stopped zero execution. Read-only fixes without executing bad source are not error-feedback cycles. First-valid time uses original archive creation time, not post-stop test duration. Model calls mean Runtime admitted calls; provider-internal retries are not counted as new Runtime calls."
+    },
+    {
+      "case": "B",
+      "taskId": "native-98453e5ea1605ffcca4afda99ac5c2be20a50d1bc0a2acdd",
+      "sourceCommit": "e107dffff",
+      "status": "COMPLETED",
+      "completed": true,
+      "finalSourcePassed": true,
+      "modelCalls": 4,
+      "knownModelTokens": 15034,
+      "actualCodeExecutions": 2,
+      "usage": {
+        "budgetId": "native-budget:native-98453e5ea1605ffcca4afda99ac5c2be20a50d1bc0a2acdd",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 4,
+          "modelTokens": 15034,
+          "toolCalls": 4,
+          "codeExecutions": 2,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 4863,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 50502,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 150000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 519425,
+          "costAmount": "0.5"
+        },
+        "meteringComplete": false
+      },
+      "actualModelReceiptCount": 4,
+      "modelRequestedToolCalls": 4,
+      "admittedToolReceipts": 4,
+      "admittedFailedToolReceipts": 0,
+      "admittedToolFailureRate": 0.0,
+      "firstValidCodeTimeMs": 12263,
+      "editVersionCount": 1,
+      "observedErrorFeedbackRepairRounds": 0,
+      "observedRepairCycles": [],
+      "measurementLimits": "Repair cycles require actual diagnostics, independently invalid old source, a changed independently passing version and later stopped zero execution. Read-only fixes without executing bad source are not error-feedback cycles. First-valid time uses original archive creation time, not post-stop test duration. Model calls mean Runtime admitted calls; provider-internal retries are not counted as new Runtime calls."
+    },
+    {
+      "case": "C",
+      "taskId": "native-6c0c72925c9a1b0779e83dd87da78eca4655faa7b75c48da",
+      "sourceCommit": "e107dffff",
+      "status": "COMPLETED",
+      "completed": true,
+      "finalSourcePassed": true,
+      "modelCalls": 6,
+      "knownModelTokens": 29957,
+      "actualCodeExecutions": 4,
+      "usage": {
+        "budgetId": "native-budget:native-6c0c72925c9a1b0779e83dd87da78eca4655faa7b75c48da",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 6,
+          "modelTokens": 29957,
+          "toolCalls": 6,
+          "codeExecutions": 4,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 9791,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 68347,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 300000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 1038785,
+          "costAmount": "0.75"
+        },
+        "meteringComplete": false
+      },
+      "actualModelReceiptCount": 6,
+      "modelRequestedToolCalls": 6,
+      "admittedToolReceipts": 6,
+      "admittedFailedToolReceipts": 0,
+      "admittedToolFailureRate": 0.0,
+      "firstValidCodeTimeMs": 22927,
+      "editVersionCount": 1,
+      "observedErrorFeedbackRepairRounds": 0,
+      "observedRepairCycles": [],
+      "measurementLimits": "Repair cycles require actual diagnostics, independently invalid old source, a changed independently passing version and later stopped zero execution. Read-only fixes without executing bad source are not error-feedback cycles. First-valid time uses original archive creation time, not post-stop test duration. Model calls mean Runtime admitted calls; provider-internal retries are not counted as new Runtime calls."
+    },
+    {
+      "case": "D",
+      "taskId": "native-28b12f3a020e353f7394340689d60e338e16c1868f8c8b76",
+      "sourceCommit": "e107dffff",
+      "status": "COMPLETED",
+      "completed": true,
+      "finalSourcePassed": true,
+      "modelCalls": 5,
+      "knownModelTokens": 25595,
+      "actualCodeExecutions": 3,
+      "usage": {
+        "budgetId": "native-budget:native-28b12f3a020e353f7394340689d60e338e16c1868f8c8b76",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 5,
+          "modelTokens": 25595,
+          "toolCalls": 7,
+          "codeExecutions": 3,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 7447,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 56325,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 225000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 778985,
+          "costAmount": "0.625"
+        },
+        "meteringComplete": false
+      },
+      "actualModelReceiptCount": 5,
+      "modelRequestedToolCalls": 7,
+      "admittedToolReceipts": 7,
+      "admittedFailedToolReceipts": 0,
+      "admittedToolFailureRate": 0.0,
+      "firstValidCodeTimeMs": 33629,
+      "editVersionCount": 4,
+      "observedErrorFeedbackRepairRounds": 0,
+      "observedRepairCycles": [],
+      "measurementLimits": "Repair cycles require actual diagnostics, independently invalid old source, a changed independently passing version and later stopped zero execution. Read-only fixes without executing bad source are not error-feedback cycles. First-valid time uses original archive creation time, not post-stop test duration. Model calls mean Runtime admitted calls; provider-internal retries are not counted as new Runtime calls."
+    },
+    {
+      "case": "E-key",
+      "taskId": "native-1668058091fffdfc5388a75ac1d7d121af6e9c62eeef9846",
+      "sourceCommit": "e107dffff",
+      "status": "COMPLETED",
+      "completed": true,
+      "finalSourcePassed": true,
+      "modelCalls": 6,
+      "knownModelTokens": 24721,
+      "actualCodeExecutions": 2,
+      "usage": {
+        "budgetId": "native-budget:native-1668058091fffdfc5388a75ac1d7d121af6e9c62eeef9846",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 6,
+          "modelTokens": 24721,
+          "toolCalls": 5,
+          "codeExecutions": 2,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 5648,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 73583,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 150000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 518640,
+          "costAmount": "0.75"
+        },
+        "meteringComplete": false
+      },
+      "actualModelReceiptCount": 6,
+      "modelRequestedToolCalls": 5,
+      "admittedToolReceipts": 5,
+      "admittedFailedToolReceipts": 1,
+      "admittedToolFailureRate": 0.2,
+      "firstValidCodeTimeMs": 16170,
+      "editVersionCount": 2,
+      "observedErrorFeedbackRepairRounds": 1,
+      "observedRepairCycles": [
+        {
+          "failedManifestHash": "0de32ff7369268b44da1d6536f7737393672bfcd8e87ea4c6a29bd110af06207",
+          "failureOperationId": "cline-c5b85289e821824c7ff2d9e3dd34fd4986a3e99b9e9dd0a87360e1318be82460",
+          "diagnosticCodes": [
+            "KeyError"
+          ],
+          "pipelineMaskedFailure": false,
+          "repairedManifestHash": "a7e2d4e33a4c3a1b43dc4a9392c225b919e58bdbd8fd1f854605d62d312eb217",
+          "verificationOperationId": "cline-63e05a8dba6ab0a1cda112e39f498e49abf24f7ad5c38a8cfa0c2c1ab1dcf527"
+        }
+      ],
+      "measurementLimits": "Repair cycles require actual diagnostics, independently invalid old source, a changed independently passing version and later stopped zero execution. Read-only fixes without executing bad source are not error-feedback cycles. First-valid time uses original archive creation time, not post-stop test duration. Model calls mean Runtime admitted calls; provider-internal retries are not counted as new Runtime calls."
+    },
+    {
+      "case": "E-name",
+      "taskId": "native-0354e0bb19b7a2ca3ec64b26a03ee5f95bd66a81d02dc6b9",
+      "sourceCommit": "e107dffff",
+      "status": "COMPLETED",
+      "completed": true,
+      "finalSourcePassed": true,
+      "modelCalls": 5,
+      "knownModelTokens": 25729,
+      "actualCodeExecutions": 4,
+      "usage": {
+        "budgetId": "native-budget:native-0354e0bb19b7a2ca3ec64b26a03ee5f95bd66a81d02dc6b9",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 5,
+          "modelTokens": 25729,
+          "toolCalls": 5,
+          "codeExecutions": 4,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 10962,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 56191,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 300000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 1037614,
+          "costAmount": "0.625"
+        },
+        "meteringComplete": false
+      },
+      "actualModelReceiptCount": 5,
+      "modelRequestedToolCalls": 5,
+      "admittedToolReceipts": 5,
+      "admittedFailedToolReceipts": 2,
+      "admittedToolFailureRate": 0.4,
+      "firstValidCodeTimeMs": 19121,
+      "editVersionCount": 1,
+      "observedErrorFeedbackRepairRounds": 1,
+      "observedRepairCycles": [
+        {
+          "failedManifestHash": "4134c3f407ec9fec85a5afa2da71826d8897a84ab87eebd740539773c30a5788",
+          "failureOperationId": "cline-3738c43162d19b63c19ea8b98097b11efb4d9ced01d00a018677699c79e1aa98",
+          "diagnosticCodes": [
+            "NameError"
+          ],
+          "pipelineMaskedFailure": false,
+          "repairedManifestHash": "84aa2c859b9fb7c695c31d50ab03edd6ba433ded643a6d30728e7158f88a6041",
+          "verificationOperationId": "cline-bcfd62f8a46f83996197d65b9d051d9102a6749c6aa4bd4e81bb3622a4e42ba0"
+        }
+      ],
+      "measurementLimits": "Repair cycles require actual diagnostics, independently invalid old source, a changed independently passing version and later stopped zero execution. Read-only fixes without executing bad source are not error-feedback cycles. First-valid time uses original archive creation time, not post-stop test duration. Model calls mean Runtime admitted calls; provider-internal retries are not counted as new Runtime calls."
+    },
+    {
+      "case": "E-syntax",
+      "taskId": "native-cd3052d30d2cb89b96bd1bea5151c8fbd2c6e10e8dd801ad",
+      "sourceCommit": "e107dffff",
+      "status": "COMPLETED",
+      "completed": true,
+      "finalSourcePassed": true,
+      "modelCalls": 5,
+      "knownModelTokens": 25601,
+      "actualCodeExecutions": 3,
+      "usage": {
+        "budgetId": "native-budget:native-cd3052d30d2cb89b96bd1bea5151c8fbd2c6e10e8dd801ad",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 5,
+          "modelTokens": 25601,
+          "toolCalls": 5,
+          "codeExecutions": 3,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 8388,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 56319,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 225000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 778044,
+          "costAmount": "0.625"
+        },
+        "meteringComplete": false
+      },
+      "actualModelReceiptCount": 5,
+      "modelRequestedToolCalls": 5,
+      "admittedToolReceipts": 5,
+      "admittedFailedToolReceipts": 1,
+      "admittedToolFailureRate": 0.2,
+      "firstValidCodeTimeMs": 31611,
+      "editVersionCount": 1,
+      "observedErrorFeedbackRepairRounds": 1,
+      "observedRepairCycles": [
+        {
+          "failedManifestHash": "27dac7c00491da2c7f2358c53ff2700d8910d0a6797095a42e2825a79c44bd69",
+          "failureOperationId": "cline-4e1305f347155dd33a9d8dadbec0b9ee4cd24fb6b1d5a630a3075859f98b0666",
+          "diagnosticCodes": [
+            "ImportError",
+            "SyntaxError"
+          ],
+          "pipelineMaskedFailure": false,
+          "repairedManifestHash": "a81f6ebe0102e353d8c3265fddf156caf31606556b2f441a676e5294ecbeef5f",
+          "verificationOperationId": "cline-bf67db26310337a8d046aec5c34c2c0cd2d28a53cab714551f6f4d4ea8915385"
+        }
+      ],
+      "measurementLimits": "Repair cycles require actual diagnostics, independently invalid old source, a changed independently passing version and later stopped zero execution. Read-only fixes without executing bad source are not error-feedback cycles. First-valid time uses original archive creation time, not post-stop test duration. Model calls mean Runtime admitted calls; provider-internal retries are not counted as new Runtime calls."
+    },
+    {
+      "case": "E-type",
+      "taskId": "native-f6f75c5cbe59810b1e3f49891c6b33e50d8607c8de3ae0f7",
+      "sourceCommit": "e107dffff",
+      "status": "COMPLETED",
+      "completed": true,
+      "finalSourcePassed": true,
+      "modelCalls": 4,
+      "knownModelTokens": 19315,
+      "actualCodeExecutions": 3,
+      "usage": {
+        "budgetId": "native-budget:native-f6f75c5cbe59810b1e3f49891c6b33e50d8607c8de3ae0f7",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 4,
+          "modelTokens": 19315,
+          "toolCalls": 4,
+          "codeExecutions": 3,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 7798,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 46221,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 225000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 778634,
+          "costAmount": "0.5"
+        },
+        "meteringComplete": false
+      },
+      "actualModelReceiptCount": 4,
+      "modelRequestedToolCalls": 4,
+      "admittedToolReceipts": 4,
+      "admittedFailedToolReceipts": 1,
+      "admittedToolFailureRate": 0.25,
+      "firstValidCodeTimeMs": 19738,
+      "editVersionCount": 1,
+      "observedErrorFeedbackRepairRounds": 1,
+      "observedRepairCycles": [
+        {
+          "failedManifestHash": "f6cb054439fb11b7339a7ac72e673ec01966634ab5bfb39b1b366aaa13f2e92a",
+          "failureOperationId": "cline-2b688ebd8d89a20af318614bf53c3059d2940782ded720ed522a979335e9da85",
+          "diagnosticCodes": [
+            "TypeError"
+          ],
+          "pipelineMaskedFailure": false,
+          "repairedManifestHash": "a49cae4bfb4a74b846e4792669ef01e8d5666a47ddbf1ad443dc80c76cd9ff99",
+          "verificationOperationId": "cline-3fa673a6cc699ebbb255bf9bcb0d195f348f6d75983fc52360875a478637f858"
+        }
+      ],
+      "measurementLimits": "Repair cycles require actual diagnostics, independently invalid old source, a changed independently passing version and later stopped zero execution. Read-only fixes without executing bad source are not error-feedback cycles. First-valid time uses original archive creation time, not post-stop test duration. Model calls mean Runtime admitted calls; provider-internal retries are not counted as new Runtime calls."
+    }
+  ]
+}

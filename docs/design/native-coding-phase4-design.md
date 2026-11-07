@@ -18,7 +18,7 @@
 
 准备或重载工作区时，同时从 Host 重读 lastExecution 和 lastVerification，不能混用旧本地验证与新 manifest。SDK 原 checkpoint/restore/continue 和原生 compaction 保留；验证投影不成为新的授权依据，也不通过 checkpoint 虚构停止证明。
 
-P0 实现集中于 Node 原生 v2 profile 的事实投影及重载，保留旧业务和旧 native profile 语义。SDK prepareTurn 只将已有 budget 传给可选 technicalMemory 回调；既有零参数回调继续工作。SDK/vendored、Java 修复决策、Sandbox、模型、预算和测试合同不修改。
+P0 新增事实及停止证明检查仅用于 Node 原生 v2 profile；重载提前到 prepareTurn 的时序修复作用于共用 native hook。旧业务和 v1 的授权、预算、完成条件保留。SDK prepareTurn 只将已有 budget 传给可选 technicalMemory 回调；既有零参数回调继续工作。SDK/vendored、Java 修复决策、Sandbox、模型、预算和测试合同不修改。
 
 ## 验证顺序
 

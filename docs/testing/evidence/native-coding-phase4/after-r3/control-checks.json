@@ -1,0 +1,253 @@
+{
+  "scope": "POST_STOP_CONTROL_CHECKS_NOT_STATISTICAL_CAUSAL_PROOF",
+  "repeat": 3,
+  "cases": 8,
+  "allControlsPassed": true,
+  "completed": 8,
+  "finalSourcesPassed": 8,
+  "modelCalls": 41,
+  "knownModelTokens": 198947,
+  "admittedToolReceipts": 45,
+  "admittedFailedToolReceipts": 5,
+  "admittedToolFailureRate": 0.1111111111111111,
+  "cpuMillis": null,
+  "peakMemoryBytes": null,
+  "actualCost": null,
+  "meteringLimit": "Original incomplete reservations retained; raw zero CPU/memory/cost fields are not actual zero consumption.",
+  "latencyLimit": "Post-stop harness elapsed includes independent verification. Archive first-valid times and receipt timestamps have separate definitions.",
+  "baselineLimit": "Historical Runtime cohort matched by task ID; official CLI not executed here and SDK reference has documented environment differences.",
+  "results": [
+    {
+      "case": "A",
+      "oldTaskId": "native-6428a84104aac650c62301d7bbe1e2a3babd152bfd9a30dd",
+      "newTaskId": "native-aa88d1f8db018c04adc92c8418778d2e85299a2fa9dba32f",
+      "controls": {
+        "requestSha256Unchanged": true,
+        "fixtureUnchanged": true,
+        "harnessUnchanged": true,
+        "modelConnectionUnchanged": true,
+        "frozenLimitsUnchanged": true,
+        "modelAndToolsUnchanged": true,
+        "factObservationForEveryAdmittedModel": true,
+        "allCodeOperationsStopped": true,
+        "originalTaskNotChangedByHoldout": true,
+        "archiveReadAgain": true
+      },
+      "allControlsPassed": true,
+      "observedRequestCount": 6,
+      "observedVerificationStatuses": [
+        "NOT_VERIFIED",
+        "PASSED"
+      ],
+      "compactionCount": 0,
+      "completed": true,
+      "finalSourcePassed": true,
+      "finalManifestHash": "937f904ebc41c9894036f1bbf0886bd6bc5d0809e38366506975d9fd3a714585",
+      "elapsedHarnessMs": 144662
+    },
+    {
+      "case": "B",
+      "oldTaskId": "native-1beb6bb0f5136bc8a3b93eeca5bb2c82b258c59584e2d2bb",
+      "newTaskId": "native-4ffd24563e221b8886d0cc73928852dd8aea4803fd3edbef",
+      "controls": {
+        "requestSha256Unchanged": true,
+        "fixtureUnchanged": true,
+        "harnessUnchanged": true,
+        "modelConnectionUnchanged": true,
+        "frozenLimitsUnchanged": true,
+        "modelAndToolsUnchanged": true,
+        "factObservationForEveryAdmittedModel": true,
+        "allCodeOperationsStopped": true,
+        "originalTaskNotChangedByHoldout": true,
+        "archiveReadAgain": true
+      },
+      "allControlsPassed": true,
+      "observedRequestCount": 4,
+      "observedVerificationStatuses": [
+        "NOT_VERIFIED",
+        "PASSED"
+      ],
+      "compactionCount": 0,
+      "completed": true,
+      "finalSourcePassed": true,
+      "finalManifestHash": "102fb6aedb5580ba80c4904837393168923ba9ce1fbba5fda8ba62c4dd352bb8",
+      "elapsedHarnessMs": 20617
+    },
+    {
+      "case": "C",
+      "oldTaskId": "native-9e113a68ec4416c1ff650c3f426b0acba98d18b41eb8c02a",
+      "newTaskId": "native-19eb065aafe290cd43e5e8f900e1157b50c3f1ddadae785e",
+      "controls": {
+        "requestSha256Unchanged": true,
+        "fixtureUnchanged": true,
+        "harnessUnchanged": true,
+        "modelConnectionUnchanged": true,
+        "frozenLimitsUnchanged": true,
+        "modelAndToolsUnchanged": true,
+        "factObservationForEveryAdmittedModel": true,
+        "allCodeOperationsStopped": true,
+        "originalTaskNotChangedByHoldout": true,
+        "archiveReadAgain": true
+      },
+      "allControlsPassed": true,
+      "observedRequestCount": 5,
+      "observedVerificationStatuses": [
+        "NOT_VERIFIED",
+        "PASSED"
+      ],
+      "compactionCount": 0,
+      "completed": true,
+      "finalSourcePassed": true,
+      "finalManifestHash": "6a7360daeae1849d23dae12e4f01f092a66e54515d0c3a2c60cb81c7f0a09d9e",
+      "elapsedHarnessMs": 34855
+    },
+    {
+      "case": "D",
+      "oldTaskId": "native-fe3c4f14d93981b9a3919dfd268fa6c236c4b06878b0dc75",
+      "newTaskId": "native-475d2235c6470fdc2be13531ea2aee0ff24b32f1ce617764",
+      "controls": {
+        "requestSha256Unchanged": true,
+        "fixtureUnchanged": true,
+        "harnessUnchanged": true,
+        "modelConnectionUnchanged": true,
+        "frozenLimitsUnchanged": true,
+        "modelAndToolsUnchanged": true,
+        "factObservationForEveryAdmittedModel": true,
+        "allCodeOperationsStopped": true,
+        "originalTaskNotChangedByHoldout": true,
+        "archiveReadAgain": true
+      },
+      "allControlsPassed": true,
+      "observedRequestCount": 5,
+      "observedVerificationStatuses": [
+        "NOT_VERIFIED",
+        "PASSED"
+      ],
+      "compactionCount": 0,
+      "completed": true,
+      "finalSourcePassed": true,
+      "finalManifestHash": "2e346354390de39219af858daf9c9e9864ec3db5d67dae980c32074d5c2d8afe",
+      "elapsedHarnessMs": 61270
+    },
+    {
+      "case": "E-syntax",
+      "oldTaskId": "native-c205d01d45dd3efeb36821810ddd3faf879886b30f0743ee",
+      "newTaskId": "native-edf62d458187f11b5ed77f78d696ebf07448b3a1ed1b5994",
+      "controls": {
+        "requestSha256Unchanged": true,
+        "fixtureUnchanged": true,
+        "harnessUnchanged": true,
+        "modelConnectionUnchanged": true,
+        "frozenLimitsUnchanged": true,
+        "modelAndToolsUnchanged": true,
+        "factObservationForEveryAdmittedModel": true,
+        "allCodeOperationsStopped": true,
+        "originalTaskNotChangedByHoldout": true,
+        "archiveReadAgain": true
+      },
+      "allControlsPassed": true,
+      "observedRequestCount": 5,
+      "observedVerificationStatuses": [
+        "FAILED",
+        "NOT_VERIFIED",
+        "PASSED",
+        "STALE"
+      ],
+      "compactionCount": 0,
+      "completed": true,
+      "finalSourcePassed": true,
+      "finalManifestHash": "b25376f07797facb231c321cb633496d538e828d01e89945a0761c2b599ed2f3",
+      "elapsedHarnessMs": 63291
+    },
+    {
+      "case": "E-key",
+      "oldTaskId": "native-4a253d11fba97949edbc674fff6dd27117814d89221a23f2",
+      "newTaskId": "native-a868d9b5e92c586ce12d3c73cdfa20440ff5fc89c97a3b34",
+      "controls": {
+        "requestSha256Unchanged": true,
+        "fixtureUnchanged": true,
+        "harnessUnchanged": true,
+        "modelConnectionUnchanged": true,
+        "frozenLimitsUnchanged": true,
+        "modelAndToolsUnchanged": true,
+        "factObservationForEveryAdmittedModel": true,
+        "allCodeOperationsStopped": true,
+        "originalTaskNotChangedByHoldout": true,
+        "archiveReadAgain": true
+      },
+      "allControlsPassed": true,
+      "observedRequestCount": 6,
+      "observedVerificationStatuses": [
+        "FAILED",
+        "NOT_VERIFIED",
+        "PASSED",
+        "STALE"
+      ],
+      "compactionCount": 0,
+      "completed": true,
+      "finalSourcePassed": true,
+      "finalManifestHash": "964bb82587b5ff78141215661f9316f250738b20bb349ac4f47e40f20648f2d5",
+      "elapsedHarnessMs": 63294
+    },
+    {
+      "case": "E-type",
+      "oldTaskId": "native-c93dcb29d6a7e3990d372c62ba6c9afe5059ea9a6d349676",
+      "newTaskId": "native-550503130ffaf5757b6ca50eb5729bbe368ec63aab1c05fe",
+      "controls": {
+        "requestSha256Unchanged": true,
+        "fixtureUnchanged": true,
+        "harnessUnchanged": true,
+        "modelConnectionUnchanged": true,
+        "frozenLimitsUnchanged": true,
+        "modelAndToolsUnchanged": true,
+        "factObservationForEveryAdmittedModel": true,
+        "allCodeOperationsStopped": true,
+        "originalTaskNotChangedByHoldout": true,
+        "archiveReadAgain": true
+      },
+      "allControlsPassed": true,
+      "observedRequestCount": 6,
+      "observedVerificationStatuses": [
+        "FAILED",
+        "NOT_VERIFIED",
+        "PASSED",
+        "STALE"
+      ],
+      "compactionCount": 0,
+      "completed": true,
+      "finalSourcePassed": true,
+      "finalManifestHash": "0ab65df3496d0f6cf727c9bb1be31f0cfc0fc608e8468d427c30e30546ec6c31",
+      "elapsedHarnessMs": 57199
+    },
+    {
+      "case": "E-name",
+      "oldTaskId": "native-ddc2e4064b9b77fb75072aa5fad1a2af39ba1f003fa9c092",
+      "newTaskId": "native-ff83665791e9b103c46a9b6ed7764fe83c92e9dc02be79c8",
+      "controls": {
+        "requestSha256Unchanged": true,
+        "fixtureUnchanged": true,
+        "harnessUnchanged": true,
+        "modelConnectionUnchanged": true,
+        "frozenLimitsUnchanged": true,
+        "modelAndToolsUnchanged": true,
+        "factObservationForEveryAdmittedModel": true,
+        "allCodeOperationsStopped": true,
+        "originalTaskNotChangedByHoldout": true,
+        "archiveReadAgain": true
+      },
+      "allControlsPassed": true,
+      "observedRequestCount": 4,
+      "observedVerificationStatuses": [
+        "FAILED",
+        "NOT_VERIFIED",
+        "PASSED",
+        "STALE"
+      ],
+      "compactionCount": 0,
+      "completed": true,
+      "finalSourcePassed": true,
+      "finalManifestHash": "67335fc22cf2ec5b57e2b4d143d241dcb1d76e8940da8e11d7ffe3da4b0db91f",
+      "elapsedHarnessMs": 42945
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "case": "D",
+  "cohort": "C-phase4-p0-20261107",
+  "repeat": 2,
+  "sourceCommit": "e107dffff",
+  "fixtureSha256": "b73033fb163696fb4f778e495a19584787d1c6c348cff724ea5d246ff2e6a92f",
+  "harnessSha256": "ce7a7a28e175de21d4138c351bdad6fbd9184421d88d8a2440a87d959356dcfd",
+  "initialFileHashes": {
+    "helpers.py": "a6948597aef1ecd2b8aa5341d65a56c8274552ffc7d335a33bde9f9ac1384b4a",
+    "stats.py": "4a01ec0c49a5cf19f169cb811b3ed6073a695f3d5815f582e70c9f9e02b95f72",
+    "tests/test_stats.py": "6c57d8ea8e424a32aa0ca93561412bacdd09da81d89dddb7c0cd946f8b2ec16b"
+  },
+  "requestSha256": "fc53ee08aaff4798e85b37217d1bd1f8bbf1b666e118c2bb2ebb50915b5b6771",
+  "startedAtEpochMs": 1794050702249,
+  "taskId": "native-28b12f3a020e353f7394340689d60e338e16c1868f8c8b76",
+  "status": "COMPLETED",
+  "runtimeValidationStatus": "INCONCLUSIVE",
+  "usage": {
+    "budgetId": "native-budget:native-28b12f3a020e353f7394340689d60e338e16c1868f8c8b76",
+    "costCurrency": "USD",
+    "consumed": {
+      "modelCalls": 5,
+      "modelTokens": 25595,
+      "toolCalls": 7,
+      "codeExecutions": 3,
+      "cpuMillis": 0,
+      "peakMemoryBytes": 0,
+      "outputBytes": 7447,
+      "costAmount": "0"
+    },
+    "reserved": {
+      "modelCalls": 0,
+      "modelTokens": 56325,
+      "toolCalls": 0,
+      "codeExecutions": 0,
+      "cpuMillis": 225000,
+      "peakMemoryBytes": 0,
+      "outputBytes": 778985,
+      "costAmount": "0.625"
+    },
+    "meteringComplete": false
+  },
+  "executionControl": {
+    "stopReason": null,
+    "stopRequestedAt": null,
+    "executorStopped": true,
+    "reconciliationRequired": false
+  },
+  "completed": true,
+  "endedAtEpochMs": 1794050763627,
+  "manifestHash": "88888293337bb4cf7ae2aed479079dccf9597c21fe2b368ab70d6984b54fc05d",
+  "finalFileHashes": {
+    "core/__init__.py": "3b999c0b4764842f5627b4085f527a80ecaf5a1dc69e22b78418ae2af06f5262",
+    "core/reducers.py": "8126c40099f6a1a5c6a2bc505c2399fe11c32790a5b10ca98799c8f78280f42c",
+    "helpers.py": "688391c10b8e49639a69791ab3a70dc3b352ebe7c37e9530ecdd8e86cc1c02e2",
+    "stats.py": "ab17ae3e368652ab25c2f8aa31525daabb53b79781a0eef7253b8667468c92fc",
+    "tests/test_stats.py": "6c57d8ea8e424a32aa0ca93561412bacdd09da81d89dddb7c0cd946f8b2ec16b"
+  },
+  "independent": {
+    "exitCode": 0,
+    "timedOut": false,
+    "executorStopped": true,
+    "containerId": "7c6cb2203793b5aa332f39caab7bc390a339bacd321a04b371f44de1a8b00468",
+    "imageId": "sha256:a3a279fc391bda1bb5aefb62acd8ee56200215ce2905cfb83d189398c33c5828",
+    "networkMode": "none",
+    "oomKilled": false,
+    "readonlyTestsUnchanged": true,
+    "requiredFilesPresent": true,
+    "unrelatedFunctionsPreserved": true,
+    "preservedFunctionCount": 0,
+    "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrSha256": "95a8b9be3b53e2da8372291ee33a83b1f120fadd4d67df4e82b04fac4dc35bdd",
+    "passed": true
+  },
+  "taskUsageUnchangedByHoldout": true,
+  "archivedFilesReadAgain": true
+}

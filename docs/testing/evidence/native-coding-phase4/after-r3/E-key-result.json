@@ -1,0 +1,73 @@
+{
+  "case": "E-key",
+  "cohort": "C-phase4-p0-20261107",
+  "repeat": 3,
+  "sourceCommit": "e107dffff",
+  "fixtureSha256": "b73033fb163696fb4f778e495a19584787d1c6c348cff724ea5d246ff2e6a92f",
+  "harnessSha256": "ce7a7a28e175de21d4138c351bdad6fbd9184421d88d8a2440a87d959356dcfd",
+  "initialFileHashes": {
+    "tests/test_transform.py": "b028618368c8ae2304f0cf03253debd0834202711bdb9a9a99262748b488bc03",
+    "transform.py": "2c44483753bbab2936b3debd8c0a273e1a0c004b225c60c5e885a920439125b1"
+  },
+  "requestSha256": "c4ad56474c6d66bb1f7c74be0a486769604da6e272186fd8ca469a7a53a796cb",
+  "startedAtEpochMs": 1794051467484,
+  "taskId": "native-a868d9b5e92c586ce12d3c73cdfa20440ff5fc89c97a3b34",
+  "status": "COMPLETED",
+  "runtimeValidationStatus": "INCONCLUSIVE",
+  "usage": {
+    "budgetId": "native-budget:native-a868d9b5e92c586ce12d3c73cdfa20440ff5fc89c97a3b34",
+    "costCurrency": "USD",
+    "consumed": {
+      "modelCalls": 6,
+      "modelTokens": 28362,
+      "toolCalls": 6,
+      "codeExecutions": 3,
+      "cpuMillis": 0,
+      "peakMemoryBytes": 0,
+      "outputBytes": 7624,
+      "costAmount": "0"
+    },
+    "reserved": {
+      "modelCalls": 0,
+      "modelTokens": 69942,
+      "toolCalls": 0,
+      "codeExecutions": 0,
+      "cpuMillis": 225000,
+      "peakMemoryBytes": 0,
+      "outputBytes": 778808,
+      "costAmount": "0.75"
+    },
+    "meteringComplete": false
+  },
+  "executionControl": {
+    "stopReason": null,
+    "stopRequestedAt": null,
+    "executorStopped": true,
+    "reconciliationRequired": false
+  },
+  "completed": true,
+  "endedAtEpochMs": 1794051530778,
+  "manifestHash": "964bb82587b5ff78141215661f9316f250738b20bb349ac4f47e40f20648f2d5",
+  "finalFileHashes": {
+    "tests/test_transform.py": "b028618368c8ae2304f0cf03253debd0834202711bdb9a9a99262748b488bc03",
+    "transform.py": "b1ed90f5aa85bf201ffdd8b1d0a47a3e934fca0994e596f5faa0ad7e53f7e080"
+  },
+  "independent": {
+    "exitCode": 0,
+    "timedOut": false,
+    "executorStopped": true,
+    "containerId": "d0abe335af5365bd6b183f7743fd3a83fb73d9ec1bbb09a00abd132e26de031c",
+    "imageId": "sha256:a3a279fc391bda1bb5aefb62acd8ee56200215ce2905cfb83d189398c33c5828",
+    "networkMode": "none",
+    "oomKilled": false,
+    "readonlyTestsUnchanged": true,
+    "requiredFilesPresent": true,
+    "unrelatedFunctionsPreserved": true,
+    "preservedFunctionCount": 0,
+    "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrSha256": "5102851409cf003759a5e0d13afa29b59e60ce3d3208cdb2710b77e4c1be3f1e",
+    "passed": true
+  },
+  "taskUsageUnchangedByHoldout": true,
+  "archivedFilesReadAgain": true
+}

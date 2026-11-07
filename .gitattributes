@@ -52,4 +52,4 @@ docs/sql-template-test-parameters/** -text whitespace=cr-at-eol
 docs/unified-query-template-management/** -text whitespace=cr-at-eol
 docs/testing/evidence/cline-native-phase2-20261106/** -text whitespace=cr-at-eol
 docs/testing/evidence/native-coding-phase4/** -text whitespace=cr-at-eol
-coding-agent-node/experiments/phase4-observed-bootstrap.mjs text eol=lf
+coding-agent-node/experiments/phase4-* text eol=lf

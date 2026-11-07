@@ -1,0 +1,207 @@
+[
+  {
+    "acceptanceObservation": "PHASE4_MODEL_REQUEST_FACTS",
+    "taskId": "native-edf62d458187f11b5ed77f78d696ebf07448b3a1ed1b5994",
+    "operationId": "model-1",
+    "sdkCheckpointOrdinal": 2,
+    "requestSha256": "6ddfd79a70eb74cbddc0b39e64fed72979f3b422f11eabcc244051395bdc8dab",
+    "toolSchemaSha256": "aebadaa4bc3d17c6f8bb203342cfe7be1219fa1f538897023410d56c7176afcd",
+    "disclosedTools": [
+      "read_files",
+      "search_codebase",
+      "run_commands",
+      "editor"
+    ],
+    "currentCodeManifestHash": "34e22fc6645c66ab26843a20965cd35d447056385a4a4335c0a93f569765b06b",
+    "verification": {
+      "schemaVersion": "runtime_os.coding.verification.v1",
+      "taskId": "native-edf62d458187f11b5ed77f78d696ebf07448b3a1ed1b5994",
+      "codeManifestHash": null,
+      "currentCodeManifestHash": "34e22fc6645c66ab26843a20965cd35d447056385a4a4335c0a93f569765b06b",
+      "executionOperationId": null,
+      "commandHash": null,
+      "verificationPolicy": null,
+      "declaredCommandSha256": null,
+      "exitCode": null,
+      "resultAvailable": null,
+      "executorStopped": null,
+      "stopProofRef": null,
+      "verificationStatus": "NOT_VERIFIED",
+      "executedVersionStatus": "NOT_VERIFIED"
+    },
+    "budget": {
+      "remainingModelCalls": 8,
+      "remainingTokens": 262144,
+      "remainingMillis": 299785,
+      "maxCodeExecutions": 4,
+      "chargedCodeExecutions": 0,
+      "remainingCodeExecutions": 4,
+      "codeExecutionUnit": "ONE_NORMALIZED_COMMAND_PER_SANDBOX"
+    },
+    "independentAcceptanceStatus": "NOT_EVALUATED"
+  },
+  {
+    "acceptanceObservation": "PHASE4_MODEL_REQUEST_FACTS",
+    "taskId": "native-edf62d458187f11b5ed77f78d696ebf07448b3a1ed1b5994",
+    "operationId": "model-2",
+    "sdkCheckpointOrdinal": 4,
+    "requestSha256": "3c4080a11e243cb573d67bb33f3c0ebc1983a5a558fff6943eb103c2942f037b",
+    "toolSchemaSha256": "aebadaa4bc3d17c6f8bb203342cfe7be1219fa1f538897023410d56c7176afcd",
+    "disclosedTools": [
+      "read_files",
+      "search_codebase",
+      "run_commands",
+      "editor"
+    ],
+    "currentCodeManifestHash": "34e22fc6645c66ab26843a20965cd35d447056385a4a4335c0a93f569765b06b",
+    "verification": {
+      "schemaVersion": "runtime_os.coding.verification.v1",
+      "taskId": "native-edf62d458187f11b5ed77f78d696ebf07448b3a1ed1b5994",
+      "codeManifestHash": "34e22fc6645c66ab26843a20965cd35d447056385a4a4335c0a93f569765b06b",
+      "currentCodeManifestHash": "34e22fc6645c66ab26843a20965cd35d447056385a4a4335c0a93f569765b06b",
+      "executionOperationId": "cline-7c06cac710381039274cc68589df48054d893db5073368dc70605687950840a2",
+      "commandHash": "7587321cd7aa3d16f43ee6e3ae6aa0b545895ca0c6bcbe8f8b6cdfe61f1dedce",
+      "verificationPolicy": "BASH_PIPEFAIL_V1",
+      "declaredCommandSha256": "ff9589960e74f51a5cc9c4734f3d88062b11f378e66f0311d66ca513f800d2c3",
+      "exitCode": 1,
+      "resultAvailable": true,
+      "executorStopped": true,
+      "stopProofRef": "mcp-python-receipt:1c2865b314bfeff39f01bebb2eea3ced7f92c8daf86eda04344aa72d591d9051",
+      "verificationStatus": "FAILED",
+      "executedVersionStatus": "FAILED"
+    },
+    "budget": {
+      "remainingModelCalls": 7,
+      "remainingTokens": 245760,
+      "remainingMillis": 291227,
+      "maxCodeExecutions": 4,
+      "chargedCodeExecutions": 1,
+      "remainingCodeExecutions": 3,
+      "codeExecutionUnit": "ONE_NORMALIZED_COMMAND_PER_SANDBOX"
+    },
+    "independentAcceptanceStatus": "NOT_EVALUATED"
+  },
+  {
+    "acceptanceObservation": "PHASE4_MODEL_REQUEST_FACTS",
+    "taskId": "native-edf62d458187f11b5ed77f78d696ebf07448b3a1ed1b5994",
+    "operationId": "model-3",
+    "sdkCheckpointOrdinal": 6,
+    "requestSha256": "a2fc74e7c7f2ea0fd8f14b00a4482cfb1ea936364b92c454f746186d2fccb2fc",
+    "toolSchemaSha256": "aebadaa4bc3d17c6f8bb203342cfe7be1219fa1f538897023410d56c7176afcd",
+    "disclosedTools": [
+      "read_files",
+      "search_codebase",
+      "run_commands",
+      "editor"
+    ],
+    "currentCodeManifestHash": "b25376f07797facb231c321cb633496d538e828d01e89945a0761c2b599ed2f3",
+    "verification": {
+      "schemaVersion": "runtime_os.coding.verification.v1",
+      "taskId": "native-edf62d458187f11b5ed77f78d696ebf07448b3a1ed1b5994",
+      "codeManifestHash": "34e22fc6645c66ab26843a20965cd35d447056385a4a4335c0a93f569765b06b",
+      "currentCodeManifestHash": "b25376f07797facb231c321cb633496d538e828d01e89945a0761c2b599ed2f3",
+      "executionOperationId": "cline-7c06cac710381039274cc68589df48054d893db5073368dc70605687950840a2",
+      "commandHash": "7587321cd7aa3d16f43ee6e3ae6aa0b545895ca0c6bcbe8f8b6cdfe61f1dedce",
+      "verificationPolicy": "BASH_PIPEFAIL_V1",
+      "declaredCommandSha256": "ff9589960e74f51a5cc9c4734f3d88062b11f378e66f0311d66ca513f800d2c3",
+      "exitCode": 1,
+      "resultAvailable": true,
+      "executorStopped": true,
+      "stopProofRef": "mcp-python-receipt:1c2865b314bfeff39f01bebb2eea3ced7f92c8daf86eda04344aa72d591d9051",
+      "verificationStatus": "STALE",
+      "executedVersionStatus": "FAILED"
+    },
+    "budget": {
+      "remainingModelCalls": 6,
+      "remainingTokens": 229376,
+      "remainingMillis": 280099,
+      "maxCodeExecutions": 4,
+      "chargedCodeExecutions": 1,
+      "remainingCodeExecutions": 3,
+      "codeExecutionUnit": "ONE_NORMALIZED_COMMAND_PER_SANDBOX"
+    },
+    "independentAcceptanceStatus": "NOT_EVALUATED"
+  },
+  {
+    "acceptanceObservation": "PHASE4_MODEL_REQUEST_FACTS",
+    "taskId": "native-edf62d458187f11b5ed77f78d696ebf07448b3a1ed1b5994",
+    "operationId": "model-4",
+    "sdkCheckpointOrdinal": 8,
+    "requestSha256": "927caf5c5e464914bff8e812762e8f10c7211dbd46bfe93c8abed7c5188013f2",
+    "toolSchemaSha256": "aebadaa4bc3d17c6f8bb203342cfe7be1219fa1f538897023410d56c7176afcd",
+    "disclosedTools": [
+      "read_files",
+      "search_codebase",
+      "run_commands",
+      "editor"
+    ],
+    "currentCodeManifestHash": "b25376f07797facb231c321cb633496d538e828d01e89945a0761c2b599ed2f3",
+    "verification": {
+      "schemaVersion": "runtime_os.coding.verification.v1",
+      "taskId": "native-edf62d458187f11b5ed77f78d696ebf07448b3a1ed1b5994",
+      "codeManifestHash": "b25376f07797facb231c321cb633496d538e828d01e89945a0761c2b599ed2f3",
+      "currentCodeManifestHash": "b25376f07797facb231c321cb633496d538e828d01e89945a0761c2b599ed2f3",
+      "executionOperationId": "cline-8cb4aab2944c9289a1d299344d5907ecab4e2c927c23c19406cabef4b4e9fc30",
+      "commandHash": "aea270c262251f29145d491cddd9e01f0c04a33d701c08ec66683baa5dc7d05d",
+      "verificationPolicy": "BASH_PIPEFAIL_V1",
+      "declaredCommandSha256": "ff9589960e74f51a5cc9c4734f3d88062b11f378e66f0311d66ca513f800d2c3",
+      "exitCode": 0,
+      "resultAvailable": true,
+      "executorStopped": true,
+      "stopProofRef": "mcp-python-receipt:4d8854d84cb428f689a4a486dcbdd48771bf87f5b138f2dbc547f4760615656d",
+      "verificationStatus": "PASSED",
+      "executedVersionStatus": "PASSED"
+    },
+    "budget": {
+      "remainingModelCalls": 5,
+      "remainingTokens": 212992,
+      "remainingMillis": 270219,
+      "maxCodeExecutions": 4,
+      "chargedCodeExecutions": 2,
+      "remainingCodeExecutions": 2,
+      "codeExecutionUnit": "ONE_NORMALIZED_COMMAND_PER_SANDBOX"
+    },
+    "independentAcceptanceStatus": "NOT_EVALUATED"
+  },
+  {
+    "acceptanceObservation": "PHASE4_MODEL_REQUEST_FACTS",
+    "taskId": "native-edf62d458187f11b5ed77f78d696ebf07448b3a1ed1b5994",
+    "operationId": "model-5",
+    "sdkCheckpointOrdinal": 10,
+    "requestSha256": "8253924d9a885bbf22cbcfb057690dc53b2a8feb51d4fd5517327144faa675ee",
+    "toolSchemaSha256": "aebadaa4bc3d17c6f8bb203342cfe7be1219fa1f538897023410d56c7176afcd",
+    "disclosedTools": [
+      "read_files",
+      "search_codebase",
+      "run_commands",
+      "editor"
+    ],
+    "currentCodeManifestHash": "b25376f07797facb231c321cb633496d538e828d01e89945a0761c2b599ed2f3",
+    "verification": {
+      "schemaVersion": "runtime_os.coding.verification.v1",
+      "taskId": "native-edf62d458187f11b5ed77f78d696ebf07448b3a1ed1b5994",
+      "codeManifestHash": "b25376f07797facb231c321cb633496d538e828d01e89945a0761c2b599ed2f3",
+      "currentCodeManifestHash": "b25376f07797facb231c321cb633496d538e828d01e89945a0761c2b599ed2f3",
+      "executionOperationId": "cline-8cb4aab2944c9289a1d299344d5907ecab4e2c927c23c19406cabef4b4e9fc30",
+      "commandHash": "aea270c262251f29145d491cddd9e01f0c04a33d701c08ec66683baa5dc7d05d",
+      "verificationPolicy": "BASH_PIPEFAIL_V1",
+      "declaredCommandSha256": "ff9589960e74f51a5cc9c4734f3d88062b11f378e66f0311d66ca513f800d2c3",
+      "exitCode": 0,
+      "resultAvailable": true,
+      "executorStopped": true,
+      "stopProofRef": "mcp-python-receipt:4d8854d84cb428f689a4a486dcbdd48771bf87f5b138f2dbc547f4760615656d",
+      "verificationStatus": "PASSED",
+      "executedVersionStatus": "PASSED"
+    },
+    "budget": {
+      "remainingModelCalls": 4,
+      "remainingTokens": 196608,
+      "remainingMillis": 249916,
+      "maxCodeExecutions": 4,
+      "chargedCodeExecutions": 3,
+      "remainingCodeExecutions": 1,
+      "codeExecutionUnit": "ONE_NORMALIZED_COMMAND_PER_SANDBOX"
+    },
+    "independentAcceptanceStatus": "NOT_EVALUATED"
+  }
+]

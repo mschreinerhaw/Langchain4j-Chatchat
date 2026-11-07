@@ -1,0 +1,96 @@
+{
+  "runtimeBaseCommit": "e9eda1b9afd86bb2cecb9ade833f3b3023b38929",
+  "upstreamReferenceOnlyMain": "94eecbbe1a2f899c66b118d13656651b0a884e1f",
+  "packages": [
+    {
+      "name": "@cline/sdk",
+      "version": "0.0.93",
+      "lockAndRegistryIntegrityMatched": true,
+      "integrity": "sha512-cNrVTMfesitVc0YfhqgDm/SA8CaF9H3/Aet4rFlEOzb+KdjM8UPa7uWOZsQYtkCr9ak9v/dcVF895yDrut87oQ==",
+      "tarballSha256": "8eac213c2c043ba3cd291e8428f1ff05caf5429c6bdf95a540e7a2b56eb2c61b",
+      "publishedFileCount": 4,
+      "installedIdenticalFileCount": 4,
+      "differences": [],
+      "upstreamCommit": "1a5c3f84e0933268a9dba14a55a6383a6578414d",
+      "workflow": {
+        "ref": "refs/heads/main",
+        "repository": "https://github.com/cline/cline",
+        "path": ".github/workflows/sdk-publish.yml"
+      },
+      "invocationId": "https://github.com/cline/cline/actions/runs/38367577624/attempts/1",
+      "verificationLimit": "Registry provenance payload inspected; Sigstore certificate/signature not independently verified. No reproducible upstream rebuild claimed."
+    },
+    {
+      "name": "@cline/core",
+      "version": "0.0.93",
+      "lockAndRegistryIntegrityMatched": true,
+      "integrity": "sha512-fnqvL67wd+3zOs5Z3h44H4wG7X28hsHUcZkZl//+kyQvzF0dV9bzPGgHEXq9BCy5AJ6gyhSrJy/NB2aPM15HJQ==",
+      "tarballSha256": "d2aa2a11462520e39b77f17c30af94beb890850ac31dcc1dc05b5900296671e3",
+      "publishedFileCount": 344,
+      "installedIdenticalFileCount": 344,
+      "differences": [],
+      "upstreamCommit": "1a5c3f84e0933268a9dba14a55a6383a6578414d",
+      "workflow": {
+        "ref": "refs/heads/main",
+        "repository": "https://github.com/cline/cline",
+        "path": ".github/workflows/sdk-publish.yml"
+      },
+      "invocationId": "https://github.com/cline/cline/actions/runs/38367577624/attempts/1",
+      "verificationLimit": "Registry provenance payload inspected; Sigstore certificate/signature not independently verified. No reproducible upstream rebuild claimed."
+    },
+    {
+      "name": "@cline/agents",
+      "version": "0.0.93",
+      "lockAndRegistryIntegrityMatched": true,
+      "integrity": "sha512-JG21TXM9gbXBFCd+cJc/sJVCOCfJhawiC8QX71vjentiQXVonvDQ0m7YxzR8Kyzf0IEpFnWZG1PcKIoBhJyUbw==",
+      "tarballSha256": "d7df82595fa4cedf4026fc792b9103bb7a43c25566cc347fc13877d5e73eb0da",
+      "publishedFileCount": 7,
+      "installedIdenticalFileCount": 7,
+      "differences": [],
+      "upstreamCommit": "1a5c3f84e0933268a9dba14a55a6383a6578414d",
+      "workflow": {
+        "ref": "refs/heads/main",
+        "repository": "https://github.com/cline/cline",
+        "path": ".github/workflows/sdk-publish.yml"
+      },
+      "invocationId": "https://github.com/cline/cline/actions/runs/38367577624/attempts/1",
+      "verificationLimit": "Registry provenance payload inspected; Sigstore certificate/signature not independently verified. No reproducible upstream rebuild claimed."
+    },
+    {
+      "name": "@cline/llms",
+      "version": "0.0.93",
+      "lockAndRegistryIntegrityMatched": true,
+      "integrity": "sha512-lqedrP2+bcXGCTDGYxOCAWVrL5rPBeWucxayE8GdA73yPKO9G5Yo+MhjNWEKMEt/Yf9RyuxlVRFtk7r+ljqzOQ==",
+      "tarballSha256": "9f95f7679f90add450e8cc450f2a52b36c79cb5ced054974d98d4b988c7c3a28",
+      "publishedFileCount": 165,
+      "installedIdenticalFileCount": 165,
+      "differences": [],
+      "upstreamCommit": "1a5c3f84e0933268a9dba14a55a6383a6578414d",
+      "workflow": {
+        "ref": "refs/heads/main",
+        "repository": "https://github.com/cline/cline",
+        "path": ".github/workflows/sdk-publish.yml"
+      },
+      "invocationId": "https://github.com/cline/cline/actions/runs/38367577624/attempts/1",
+      "verificationLimit": "Registry provenance payload inspected; Sigstore certificate/signature not independently verified. No reproducible upstream rebuild claimed."
+    },
+    {
+      "name": "@cline/shared",
+      "version": "0.0.93",
+      "lockAndRegistryIntegrityMatched": true,
+      "integrity": "sha512-wOE1G78v6haDT2syVO0Xlon3zwG72Qt4HWoK+Ks5nNDQmD8GUN0Rb0l9lPwvRqcYznpCazyTuGt1PXHVFC3I+w==",
+      "tarballSha256": "868d230efa683fda1825a1d1e68a2909d908f61dd1f62dfc879e559cecc88563",
+      "publishedFileCount": 109,
+      "installedIdenticalFileCount": 109,
+      "differences": [],
+      "upstreamCommit": "1a5c3f84e0933268a9dba14a55a6383a6578414d",
+      "workflow": {
+        "ref": "refs/heads/main",
+        "repository": "https://github.com/cline/cline",
+        "path": ".github/workflows/sdk-publish.yml"
+      },
+      "invocationId": "https://github.com/cline/cline/actions/runs/38367577624/attempts/1",
+      "verificationLimit": "Registry provenance payload inspected; Sigstore certificate/signature not independently verified. No reproducible upstream rebuild claimed."
+    }
+  ]
+}

@@ -97,3 +97,9 @@ Node 新测试实际经过安装版 `createDefaultTools`：修复前 1 fail（Ha
 
 真实批次原始结果及独立源码复核见 [通用验收](native-coding-real-acceptance-20261107.md)，不以本组件测试代替整体验收。
 
+## Coding Agent 截止后的停止与结算
+
+过期合同取消 native Sandbox 的 HTTP 回调在派发前被本地 deadline 拒绝：新 HTTP 测试修复前 **1 fail**，日志 SHA256 `9b434f3ee576db783ffd802aaef195310ee6200be0617c23fea9beaea601a2cd`。修复仅将 `native-command-cancel`、`native-tool-finish` 作为有界停止通道，避免已中止的业务信号阻止停止回执；仍使用 control timeout，未允许任何新执行绕过截止时间。Java 的独立停止证明及租户/fence 校验保持执行。
+
+完整 server **12/12 通过**，包含过期/已 abort 的停止回调、新执行拒绝、停止回调自身超时、原模型调用任务 deadline 和一般控制回调 timeout。日志 `native-stop-callback-after-r2.log` SHA256 `7880646cd870711690bab43b322faed73924f9f81532c98da308608c6e7d4b02`。未修改上层业务 Agent 的超时，也未把控制 HTTP 超时当作 Python 进程已停止的证明。
+

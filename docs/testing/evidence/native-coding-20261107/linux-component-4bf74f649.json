@@ -1,0 +1,14 @@
+{
+  "scope": "DETERMINISTIC_COMPONENT_TESTS_NOT_REAL_MODEL_ACCEPTANCE",
+  "sourceCommit": "4bf74f649",
+  "containerId": "90d4e64fa7d5ff505f9a0e623bf4964b412c15ae47ecec5f11a5da415ddad0d8",
+  "imageId": "sha256:a3a279fc391bda1bb5aefb62acd8ee56200215ce2905cfb83d189398c33c5828",
+  "exitCode": 0,
+  "executorStopped": true,
+  "oomKilled": false,
+  "networkMode": "none",
+  "readonlyRootfs": true,
+  "testConcurrency": 1,
+  "logSha256": "6e2a0e9a0c16a0f2f912a45fb77760136f65234b760187d35a216f043601be93",
+  "sourceArchiveSha256": "15f7bea150fb5e871740731b5ac9cb9a97d7af1895f1181bf3361e55fd8d2dd1"
+}

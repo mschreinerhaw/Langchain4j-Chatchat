@@ -98,6 +98,33 @@ test('Runtime callback timeout bounds stalled admission while expired tasks can 
   } finally { callback.closeAllConnections(); await new Promise(resolve => callback.close(resolve)); }
 });
 
+test('expired native tasks can cancel and settle stopped tools without permitting fresh execution',async()=>{
+  const received=[];
+  const callback=createServer(async(request,response)=>{
+    const chunks=[];for await(const chunk of request)chunks.push(chunk);
+    received.push(request.url);response.writeHead(200,{'content-type':'application/json'});response.end('{}');
+  });
+  await new Promise(resolve=>callback.listen(0,'127.0.0.1',resolve));
+  try{
+    const gateway=httpGateway(`http://127.0.0.1:${callback.address().port}`,secret,{}, {timeoutMs:100});
+    const expired={...contract,budget:{deadlineAt:'2020-01-01T00:00:00Z'}};
+    const signal=AbortSignal.abort(Error('Task deadline already elapsed'));
+    await gateway.cancelCodeCommands(expired);
+    await gateway.finishCodeTool(expired,{toolCallId:'stopped-tool',result:{isError:true,output:'interrupted'}},signal);
+    await assert.rejects(gateway.executeCodeCommand(expired,{}),/deadline reached/);
+    assert.deepEqual(received,['/internal/coding/cline/native-command-cancel','/internal/coding/cline/native-tool-finish']);
+  }finally{callback.closeAllConnections();await new Promise(resolve=>callback.close(resolve));}
+});
+
+test('native stop reconciliation retains a bounded control timeout',async()=>{
+  const callback=createServer(()=>{});
+  await new Promise(resolve=>callback.listen(0,'127.0.0.1',resolve));
+  try{
+    const gateway=httpGateway(`http://127.0.0.1:${callback.address().port}`,secret,{}, {timeoutMs:25});
+    await assert.rejects(gateway.cancelCodeCommands({...contract,budget:{deadlineAt:'2020-01-01T00:00:00Z'}}),/timeout|aborted/i);
+  }finally{callback.closeAllConnections();await new Promise(resolve=>callback.close(resolve));}
+});
+
 test('Runtime callbacks carry a fresh authenticated request signature', async () => {
   let received;
   const callback = createServer(async (request, response) => {

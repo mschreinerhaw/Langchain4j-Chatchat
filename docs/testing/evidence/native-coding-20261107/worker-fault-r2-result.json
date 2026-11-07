@@ -1,0 +1,89 @@
+{
+  "taskId": "native-f3486cb9e3d5d1346a147b6fcdd8941dc0659fc46edc13a3",
+  "sourceCommit": "4bf74f649",
+  "marker": {
+    "acceptanceFault": "DURABLE_EDIT_BEFORE_ACK",
+    "taskId": "native-f3486cb9e3d5d1346a147b6fcdd8941dc0659fc46edc13a3",
+    "manifestHash": "4e177009035e96356b4b0f278c467df5f3dd5550189da287e1aa2c2d7bb15136"
+  },
+  "crashedWorker": "9a84fa881f009558c305eb9d8a5a0bf9e6e4a30a22047d83bcd2af87c6b3af4d",
+  "restoredWorker": "a50baf9cbf07ee94891cadff8c3c565614bb7dd4bdcae54feda80e2b09119997",
+  "workerImage": "sha256:67bc38dbe542d14098e77904264fe035ada5b4f6f3f655e6a4a8d0fc4a2aa214",
+  "crashedWorkerStopped": true,
+  "crashedWorkerExitCode": 137,
+  "beforeUsage": {
+    "budgetId": "native-budget:native-f3486cb9e3d5d1346a147b6fcdd8941dc0659fc46edc13a3",
+    "costCurrency": "USD",
+    "consumed": {
+      "modelCalls": 2,
+      "modelTokens": 5517,
+      "toolCalls": 2,
+      "codeExecutions": 1,
+      "cpuMillis": 0,
+      "peakMemoryBytes": 0,
+      "outputBytes": 3155,
+      "costAmount": "0"
+    },
+    "reserved": {
+      "modelCalls": 0,
+      "modelTokens": 27251,
+      "toolCalls": 1,
+      "codeExecutions": 0,
+      "cpuMillis": 75000,
+      "peakMemoryBytes": 0,
+      "outputBytes": 258989,
+      "costAmount": "0.25"
+    },
+    "meteringComplete": false
+  },
+  "status": "FAILED",
+  "afterUsage": {
+    "budgetId": "native-budget:native-f3486cb9e3d5d1346a147b6fcdd8941dc0659fc46edc13a3",
+    "costCurrency": "USD",
+    "consumed": {
+      "modelCalls": 8,
+      "modelTokens": 28094,
+      "toolCalls": 9,
+      "codeExecutions": 4,
+      "cpuMillis": 0,
+      "peakMemoryBytes": 0,
+      "outputBytes": 10062,
+      "costAmount": "0"
+    },
+    "reserved": {
+      "modelCalls": 0,
+      "modelTokens": 102978,
+      "toolCalls": 0,
+      "codeExecutions": 0,
+      "cpuMillis": 300000,
+      "peakMemoryBytes": 0,
+      "outputBytes": 1038514,
+      "costAmount": "1"
+    },
+    "meteringComplete": false
+  },
+  "executionControl": {
+    "stopReason": null,
+    "stopRequestedAt": null,
+    "executorStopped": true,
+    "reconciliationRequired": false
+  },
+  "finalManifestHash": "4e177009035e96356b4b0f278c467df5f3dd5550189da287e1aa2c2d7bb15136",
+  "sameTaskId": true,
+  "originalManifestRetainedInHistory": true,
+  "independent": {
+    "exitCode": 0,
+    "executorStopped": true,
+    "containerId": "15874f7ccc419cef9eae90f6a0c7d0eb0e6d85ec41fc7955934c242fb0176dc8",
+    "imageId": "sha256:a3a279fc391bda1bb5aefb62acd8ee56200215ce2905cfb83d189398c33c5828",
+    "networkMode": "none",
+    "oomKilled": false,
+    "readonlyTestsUnchanged": true,
+    "requiredFilesPresent": true,
+    "unrelatedFunctionsPreserved": true,
+    "preservedFunctionCount": 0,
+    "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrSha256": "5102851409cf003759a5e0d13afa29b59e60ce3d3208cdb2710b77e4c1be3f1e",
+    "passed": true
+  }
+}

@@ -109,7 +109,8 @@ export function httpGateway(callbackUrl, secret, binding, { timeoutMs = 90000 } 
     const signature = createHmac('sha256', secret)
       .update(`v2\nPOST\n${path}\n${timestamp}\n${nonce}\n${digest}`).digest('hex');
     const deadline = Date.parse(payload.contract?.budget?.deadlineAt ?? '');
-    const reconciliation = ['get-python', 'cancel-python', 'event', 'finish', 'settle-model'].includes(action);
+    const nativeStopReceipt = ['native-command-cancel', 'native-tool-finish'].includes(action);
+    const reconciliation = nativeStopReceipt || ['get-python', 'cancel-python', 'event', 'finish', 'settle-model'].includes(action);
     const remaining = !reconciliation && Number.isFinite(deadline)
       ? action === 'model' ? deadline - Date.now() : Math.min(timeoutMs, deadline - Date.now()) : timeoutMs;
     if (remaining <= 0) throw new Error('Runtime Coding deadline reached before callback dispatch');
@@ -119,7 +120,7 @@ export function httpGateway(callbackUrl, secret, binding, { timeoutMs = 90000 } 
       method: 'POST', headers: { authorization: `Bearer ${secret}`, 'content-type': 'application/json', accept: 'application/json',
         'x-chatchat-timestamp': timestamp, 'x-chatchat-nonce': nonce,
         'x-chatchat-signature': signature, 'x-chatchat-signature-version': '2' },
-      body: bytes, signal: signal ? AbortSignal.any([signal, timeout]) : timeout, redirect: 'error',
+      body: bytes, signal: signal && !nativeStopReceipt ? AbortSignal.any([signal, timeout]) : timeout, redirect: 'error',
     });
     const processingStarted=performance.now();
     const data = await answer.json().catch(() => {

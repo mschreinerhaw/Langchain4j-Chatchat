@@ -39,11 +39,11 @@ Runtime 路径相对于本仓库。下列差异必须通过实验度量，不能
 | 项目 | Runtime 调用链 | 接口和行为差异 | 已有证据 / 能力结论 | 最小候选与风险 / 验收 |
 |---|---|---|---|---|
 | Agent / ClineCore | runner.js:700 config、1084 new Agent、1087 restore、1158 continue | 使用低层 Agent，自行装配 authorized tools；不经高层 ClineCore 的默认工具路由 | 原生循环存在；“没有 ClineCore 所以没有原生能力”不成立 | 保持同一 Agent；记录最终实际 tool schema。不得换循环 |
-| 源码读取 | runner.js:637 code_read → code-read.js；native-skills.js:135 read_files | code_read 要 exact hash、行范围；原生 read_files 当前只读 Skill 清单，不能读 program.py | 原任务有读取和 patch 反馈，但未形成原生读/搜/改统一工作区 | 对 task 代码建立统一原生读取视图；Skill 原授权仍独立 |
+| 源码读取 | runner.js:637 code_read → CodeHistory.currentSource；native-skills.js:135 read_files | code_read 要 exact hash，返回完整当前源码；原生 read_files 当前只读 Skill 清单，不能读 program.py | 原任务有读取和 patch 反馈，但未形成原生读/搜/改统一工作区 | 对 task 代码建立统一原生读取视图；Skill 原授权仍独立 |
 | 搜索 | runner.js:19、21 允许工具集合；native-skills.js:149 enableSearch=false | 代码没有原生 search_codebase；code_read 不等同内容搜索 | 源码确认缺少搜索通道；效果损失尚需 A/B/C，不能把全部失败归因于此 | 原生搜索 executor 限于独立 task 代码目录；负向检验路径/链接 |
 | Editor | runner python_execute repair → sdk-adapter.js:11 editProgram → createEditorExecutor | oldText/newText + baseCodeSha256 + parentCodeVersion；每次临时单文件应用后清理；不是新的文本替换算法 | 已复用原生 Editor；模型承担自定义版本参数和分段协议 | 模型直接使用原生 Editor Schema；版本绑定由 host 管理；旧路径保留 |
 | Patch | sdk-adapter.js 未装配 createApplyPatchExecutor | 模型不能使用原生多文件 Patch，只能 repair.edits / project.edits | 旧 flash-1 曾提交 24,182 字符 replacement 超 16,000 限额；仅证明该拒绝，不证明 Patch 必胜 | 候选按路由选择 Editor 或 Patch，复用原生 parser，不同时随意开启两套近似工具 |
-| 多文件 | sdk-adapter.js:40 resolveWorkspaceFiles、restoreWorkspaceFiles；code-project.js | 已有多文件 proposal/repair 协议与代码包装；不能说 Runtime 完全没有多文件能力 | 存在代码功能；模型自主协作效果未知 | 持续代码目录、冻结树清单，Python 执行原始入口；不让模型重写包装器 |
+| 多文件 | sdk-adapter.js:40 resolveWorkspaceFiles、restoreWorkspaceFiles；python-project.js | 已有多文件 proposal/repair 协议与代码包装；不能说 Runtime 完全没有多文件能力 | 存在代码功能；模型自主协作效果未知 | 持续代码目录、冻结树清单，Python 执行原始入口；不让模型重写包装器 |
 | Python 执行 | runner.js python_execute → Java CodingPythonExecutionBridge → MCP Sandbox | 新 Sandbox、冻结输入、代码 Hash、结果合同；无直接宿主命令 | 已有真实执行；退出0缺 rows.jsonl 仍拒绝，符合合同 | C 仍使用此执行边界；A 的默认命令环境差异需明确 |
 | 错误反馈 | CodingExecutionFeedbackService.java:82 finish、response | 分类、safe message/stack、base hash、修复次数；原始 stdout/stderr 不全部披露 | 六次真实任务0份完整报告：KeyError/NameError/Decimal TypeError/SyntaxError/缺输出/无效大补丁。含生成代码和输出问题，不能统称工具缺失 | 同一错误源码、同预算比较首次有效代码、修复轮数、完整交付 |
 | Compaction | sdk-adapter.js:97 sdkPrepareTurn；completion-context.js | 调用原生 basic，再保留代码绑定、技术错误、报告等必要上下文 | 有原生压缩；上下文治理代码较多，但删除是否有益尚无因果证明 | 候选用短文件视图与现有 checkpoint，测试压缩后 source 可读和版本正确 |
@@ -63,3 +63,5 @@ A/B/C 采用同一模型标识和参数快照、同一源码/数据 Hash、同�
 至少覆盖八类规定样本，模型原始回执仅保存在私有受控证据区；仓库公开工具名、Hash、版本、分类反馈、usage、时间和验收结果，不发布私有提示词/凭据/业务原始数据。确定性 executor 测试只证明工具语义和安全边界，不能替代模型实验。
 
 只有 C 在重复样本中明确优于 B，且 Java 版本绑定、恢复、预算、取消、权限和归档验证均通过，才提出默认路径迁移。本次基线提交不改变生产代码；后续候选默认关闭，不能以一次成功推进上线。
+
+补充工具层边界：原生 Editor 的 helpers.ts:getEditorSizeError 对 old_text/new_text 各有 6,000 字符硬拒绝，executor 本身不等同工具层。Runtime repair.edits 的上限为16,000；不能据此宣称原生无分段约束。Editor/Patch 的 executor 异常通常被原生工具转换成 success=false 回执，而不是向调用者抛出异常。候选和验收必须检查该字段。

@@ -1,0 +1,269 @@
+{
+  "stage": "P1_PHASE1_SOURCE_AUDIT_ONLY_NOT_ACCEPTANCE",
+  "runtimeBase": "d5dd48356b65e97935052c257ffc1575104bf221",
+  "upstreamRepository": "https://github.com/cline/cline",
+  "upstreamCommit": "1a5c3f84e0933268a9dba14a55a6383a6578414d",
+  "sdkVersion": "0.0.93",
+  "installationScope": "Read-only local shared SDK installation used by P0; no P1 dependency installation or fresh remote deployment verification in this source-review stage.",
+  "packages": [
+    {
+      "name": "@cline/sdk",
+      "version": "0.0.93",
+      "tarballSha256": "8eac213c2c043ba3cd291e8428f1ff05caf5429c6bdf95a540e7a2b56eb2c61b",
+      "lockIntegrityMatched": true,
+      "installedFilesMatched": 4
+    },
+    {
+      "name": "@cline/core",
+      "version": "0.0.93",
+      "tarballSha256": "d2aa2a11462520e39b77f17c30af94beb890850ac31dcc1dc05b5900296671e3",
+      "lockIntegrityMatched": true,
+      "installedFilesMatched": 344
+    },
+    {
+      "name": "@cline/agents",
+      "version": "0.0.93",
+      "tarballSha256": "d7df82595fa4cedf4026fc792b9103bb7a43c25566cc347fc13877d5e73eb0da",
+      "lockIntegrityMatched": true,
+      "installedFilesMatched": 7
+    },
+    {
+      "name": "@cline/llms",
+      "version": "0.0.93",
+      "tarballSha256": "9f95f7679f90add450e8cc450f2a52b36c79cb5ced054974d98d4b988c7c3a28",
+      "lockIntegrityMatched": true,
+      "installedFilesMatched": 165
+    },
+    {
+      "name": "@cline/shared",
+      "version": "0.0.93",
+      "tarballSha256": "868d230efa683fda1825a1d1e68a2909d908f61dd1f62dfc879e559cecc88563",
+      "lockIntegrityMatched": true,
+      "installedFilesMatched": 109
+    }
+  ],
+  "installedFilesMatched": 629,
+  "provenanceLimit": "Cached registry tarballs rechecked against lock and prior provenance manifest; no fresh Sigstore certificate verification or reproducible rebuild claimed.",
+  "sourceHashScope": "sha256 is raw clean working-tree bytes; gitBlobSha256 is committed Git bytes independent of checkout EOL. Upstream TypeScript is not asserted byte-equal to compiled npm JavaScript.",
+  "p0EvidenceManifestSha256": "429061200891f5d864bee2e96dada8786e1fb933e10d7f037e5c8def5eca00ae",
+  "upstream": [
+    {
+      "path": "sdk/packages/agents/src/agent-runtime.ts",
+      "sha256": "c38706e622cc7e7ecf1b1ea4bc702814822fd796f479be05448d2142edc5c896",
+      "lines": 2911,
+      "gitBlobSha256": "c38706e622cc7e7ecf1b1ea4bc702814822fd796f479be05448d2142edc5c896"
+    },
+    {
+      "path": "sdk/packages/core/src/index.ts",
+      "sha256": "09f8510107d922535ceb42000cc3ce168ace99081d358aeeb4ff93dee660e85c",
+      "lines": 1169,
+      "gitBlobSha256": "09f8510107d922535ceb42000cc3ce168ace99081d358aeeb4ff93dee660e85c"
+    },
+    {
+      "path": "sdk/packages/core/src/runtime/orchestration/runtime-builder.ts",
+      "sha256": "c8e6fd41fe132180c60fa6c6e0c49d6b56e07faf61853743a60d12814b997212",
+      "lines": 901,
+      "gitBlobSha256": "c8e6fd41fe132180c60fa6c6e0c49d6b56e07faf61853743a60d12814b997212"
+    },
+    {
+      "path": "sdk/packages/core/src/extensions/mcp/tools.ts",
+      "sha256": "5f1353961222cf878c96df9abd63d29c629b78e2a2c0f9a59082c81f42de0230",
+      "lines": 49,
+      "gitBlobSha256": "5f1353961222cf878c96df9abd63d29c629b78e2a2c0f9a59082c81f42de0230"
+    },
+    {
+      "path": "sdk/packages/core/src/extensions/mcp/types.ts",
+      "sha256": "c17f759431c4c59c6dde7a0a56cb331c3827ab2575509ec8ae1b738f6aafd803",
+      "lines": 153,
+      "gitBlobSha256": "c17f759431c4c59c6dde7a0a56cb331c3827ab2575509ec8ae1b738f6aafd803"
+    },
+    {
+      "path": "sdk/packages/core/src/extensions/mcp/manager.ts",
+      "sha256": "35b09d5a251f3e802493c80694adf6f39df416f27cf03d9171593ce4b83b816a",
+      "lines": 287,
+      "gitBlobSha256": "35b09d5a251f3e802493c80694adf6f39df416f27cf03d9171593ce4b83b816a"
+    },
+    {
+      "path": "sdk/packages/core/src/extensions/mcp/client.ts",
+      "sha256": "d1b74c45effcf0e0a60e301ae41844b7493c560b0ea07f8f953232cbc9d4da66",
+      "lines": 985,
+      "gitBlobSha256": "d1b74c45effcf0e0a60e301ae41844b7493c560b0ea07f8f953232cbc9d4da66"
+    },
+    {
+      "path": "sdk/packages/core/src/extensions/mcp/config-loader.ts",
+      "sha256": "c4270b59aac559c06c3c3857a82c9e032502615a99acec5ab1d8a4c2177cdfe5",
+      "lines": 977,
+      "gitBlobSha256": "c4270b59aac559c06c3c3857a82c9e032502615a99acec5ab1d8a4c2177cdfe5"
+    },
+    {
+      "path": "sdk/packages/core/src/extensions/agent-plugin/loader.ts",
+      "sha256": "1ca09f7d91a27dc82a77aa869dbb64216b2eb0a3e29afd90112fdf92ad40f588",
+      "lines": 1137,
+      "gitBlobSha256": "1ca09f7d91a27dc82a77aa869dbb64216b2eb0a3e29afd90112fdf92ad40f588"
+    },
+    {
+      "path": "sdk/packages/core/src/extensions/config/user-instruction-service.ts",
+      "sha256": "30c833bced3c4cd902dd8b3556b96de6e7d5eea3c98333f4eed348a2886e3759",
+      "lines": 351,
+      "gitBlobSha256": "30c833bced3c4cd902dd8b3556b96de6e7d5eea3c98333f4eed348a2886e3759"
+    },
+    {
+      "path": "sdk/packages/core/src/extensions/config/user-instruction-plugin.ts",
+      "sha256": "909f08c848e423a3c6aefe5d1a52b924119446ff772ffb4f3e5485fcc7177ad4",
+      "lines": 296,
+      "gitBlobSha256": "909f08c848e423a3c6aefe5d1a52b924119446ff772ffb4f3e5485fcc7177ad4"
+    },
+    {
+      "path": "sdk/packages/core/src/extensions/config/user-instruction-config-loader.ts",
+      "sha256": "b47be676ceaef5c8701f2549f0f50c19e1f3c0ad9f54732d5b6d0364ec2cbad8",
+      "lines": 758,
+      "gitBlobSha256": "b47be676ceaef5c8701f2549f0f50c19e1f3c0ad9f54732d5b6d0364ec2cbad8"
+    },
+    {
+      "path": "sdk/packages/core/src/extensions/tools/definitions.ts",
+      "sha256": "36f510e1cff1ed837d592ce61aad51c9c45a573dfe20a52fbc86c78d74c649c0",
+      "lines": 982,
+      "gitBlobSha256": "36f510e1cff1ed837d592ce61aad51c9c45a573dfe20a52fbc86c78d74c649c0"
+    },
+    {
+      "path": "sdk/packages/core/src/extensions/context/compaction.ts",
+      "sha256": "50534c940f999797fbe5cacf821739ff99d81610e042aab9c9269ee15dedc696",
+      "lines": 813,
+      "gitBlobSha256": "50534c940f999797fbe5cacf821739ff99d81610e042aab9c9269ee15dedc696"
+    },
+    {
+      "path": "sdk/packages/core/src/session/services/file-session-service.ts",
+      "sha256": "e5895b03e81d169299397a258d1ef082cd5df3fb14c66565bb48b38d399c04b8",
+      "lines": 293,
+      "gitBlobSha256": "e5895b03e81d169299397a258d1ef082cd5df3fb14c66565bb48b38d399c04b8"
+    },
+    {
+      "path": "sdk/packages/core/src/services/storage/sqlite-session-store.ts",
+      "sha256": "4f60e184775f109a70bd1d671adf2fdb4fa0147a6cc18d3456c34e16a5489b65",
+      "lines": 293,
+      "gitBlobSha256": "4f60e184775f109a70bd1d671adf2fdb4fa0147a6cc18d3456c34e16a5489b65"
+    }
+  ],
+  "runtime": [
+    {
+      "path": "coding-agent-node/src/native-runner.js",
+      "sha256": "eaa00b9bd491e3672f90cbb8cf81bef62028d329d1b5dda4c80c26d670f8295a",
+      "lines": 198,
+      "gitBlobSha256": "e569f98a4ba7da5890af6c70cb7519c65b94635e8df14810413f2ffa8b56cf9f"
+    },
+    {
+      "path": "coding-agent-node/src/native-workspace.js",
+      "sha256": "84090eb9e5ed2ef422736883c27c4591c9bd3958e034a58eebd48aa4265827c3",
+      "lines": 227,
+      "gitBlobSha256": "5ee9e8d7f4d9b343b8e8bb547d0de480ae1a375d696dca55fc1e5c72ee287af0"
+    },
+    {
+      "path": "coding-agent-node/src/native-session.js",
+      "sha256": "3a8cbe302b576f792f91bcaa8cb78d90d6053465c7332cdba7520dbcbdaf7527",
+      "lines": 77,
+      "gitBlobSha256": "fde7c1d881c4f407d364415dd9680d8fad0848058fd9aca45477e651c8526561"
+    },
+    {
+      "path": "coding-agent-node/src/native-skills.js",
+      "sha256": "991c1ef68663b742bc909a2e4214945b7a47cd9a6239a75fdeed7c4f3f0bd0cd",
+      "lines": 172,
+      "gitBlobSha256": "5b4392643d62b63499e91c585771b9ed644387311b389368df8913c4eb4e3f23"
+    },
+    {
+      "path": "coding-agent-node/src/skill-distribution.js",
+      "sha256": "2624e6acac78c40eee08e85674d887729e19601692ebc7ef849d25d1993059a9",
+      "lines": 55,
+      "gitBlobSha256": "1326b3e25655ae9d8a189d22518f9e8c87e8ec260969be99a34dca8e6cf1909d"
+    },
+    {
+      "path": "coding-agent-node/src/server.js",
+      "sha256": "aef7e019933c52957ee900de34bd4b9ffcd4954aecc6bf1915d9fb108c078ada",
+      "lines": 356,
+      "gitBlobSha256": "954b87a4c95ee55329cbe00c3688a919af85944b859e58659a3e4bab82451fcc"
+    },
+    {
+      "path": "coding-agent-node/src/sdk-adapter.js",
+      "sha256": "df5d150ef3036c10159e6229cd11df8717364182288cc3c230a0d9b5f95854a2",
+      "lines": 253,
+      "gitBlobSha256": "e6908da25c04c98b97f131dfc9900caabf6e78ef53e485e682b68b02e5403059"
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/nativecode/NativeCodingTaskService.java",
+      "sha256": "60e983398b3f6f1b37af83341e5774003675b6d8277e0f93c64e7ca811076a52",
+      "lines": 221,
+      "gitBlobSha256": "cd00d912eccf4ab0b27ba97e16529884ce4e56f4f4f9e952e3f1c40faa28d3df"
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/nativecode/NativeCodingWorkspaceService.java",
+      "sha256": "9d1fb9e8f322afcbe185401aec770c21058d5423317c14ee03554cc5ebc1fbe3",
+      "lines": 274,
+      "gitBlobSha256": "27dd54041f1caafeae601a28f8ea3f79210d2488c06434071a558b40000e8649"
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/nativecode/NativeCodingCommandService.java",
+      "sha256": "d49920bf6a033ceaebffd7106533afa39c92342a94cae953870aa8b8787d80a2",
+      "lines": 210,
+      "gitBlobSha256": "36ab7347c350d4d5e346dc8c83edbf8660969b4634ce2fa9cfd26ea0e6d64b0f"
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/CodingSkillReader.java",
+      "sha256": "62b9c0cce92c5325f0b18594efe2735ccca56ef78084dae981270c6db3bf82d7",
+      "lines": 122,
+      "gitBlobSha256": "39a9f418fda820b48f5a11fa99b35202ffbe5e4829b4826b2426428523d2d83f"
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineModelCallbackController.java",
+      "sha256": "f8bbf5945a5dbf51154831a8f5ae12a9a5ab4cdd495a8709a9415d6bbeaaf3b1",
+      "lines": 881,
+      "gitBlobSha256": "ddd81b706fdc368f3e3807b8cea9f4fad71c497283b27445188805ce81b7cbef"
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineCodingAdapter.java",
+      "sha256": "dbfa461a86568d31a23fd135eb7b93019d2e7f849b5b2d494b905532862cca85",
+      "lines": 549,
+      "gitBlobSha256": "5062779c2466aa6e8e61b3bd85cf82918c2939178685a71d1cdaa71ad8752e58"
+    },
+    {
+      "path": "chatchat-agents/src/main/java/com/chatchat/agents/runtime/coding/DurableCodingTaskService.java",
+      "sha256": "317ea124736f0835ecd997e6361f3cb8fd8c8ecfd9022e7b318b943f9c2b4241",
+      "lines": 998,
+      "gitBlobSha256": "5e7dbe755f26fed2d85a4d20405b6f4bcd20bfb28869d11193d243dce7b86489"
+    },
+    {
+      "path": "chatchat-common/src/main/java/com/chatchat/common/runtime/coding/NativeCodeWorkspace.java",
+      "sha256": "5fcdf250154ba13e6167298256340f40997d66fca2e1cd3eda7fbfc39bdb7004",
+      "lines": 60,
+      "gitBlobSha256": "94f680452970d92da5ad9c99e60737dccaba0492e5a3b6fe9a0a49b919fe14d4"
+    },
+    {
+      "path": "chatchat-common/src/main/resources/python/native_command.mjs",
+      "sha256": "2cc4d8149d0e1936d833d7759975b5e16b5923adf7d2c4c2d70d17ce6216af3e",
+      "lines": 46,
+      "gitBlobSha256": "768e21d085d74f98b77615acdab13f3de04a864293f366a21e6a2a2fa6659dcc"
+    },
+    {
+      "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/python/NativeProjectSnapshot.java",
+      "sha256": "8596e910ded5309903c0b907e374e9fd0d22cc19b0fad0011ce2025b983b0a1b",
+      "lines": 72,
+      "gitBlobSha256": "8c580ec2abc1ccb9522a24bd8a121b4b014191138bc0bfb7ad44d7680446a991"
+    },
+    {
+      "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/python/PythonDockerRuntime.java",
+      "sha256": "08f74723edd6fcd954969c7b636be9b1f0003e11df8f1ba4f491df2fe7c66a03",
+      "lines": 341,
+      "gitBlobSha256": "cbb51a1ea419aae02b9d9bc98493aed7dc29af7170ca8e18222a7bbe7571e863"
+    },
+    {
+      "path": "chatchat-mcp-server/src/main/java/com/chatchat/mcpserver/python/PythonManagedExecutionService.java",
+      "sha256": "ca04b8b5f93f473252407b9cfa0bd2b3cdb40b8ff7935f20e069622ee6dd368a",
+      "lines": 591,
+      "gitBlobSha256": "f6f173f652c781dc6c449d5b02283b280475f30c8053cac7c58f395a87de716f"
+    },
+    {
+      "path": "chatchat-integration/src/main/java/com/chatchat/integration/mcp/service/transport/McpGatewayClient.java",
+      "sha256": "51710392e81a2d601a07fd617d45e051032450d538121a2de2e2b5ec02951658",
+      "lines": 2287,
+      "gitBlobSha256": "c871f924fd5f77eff9ba7adeae6905b008b624c641af75b8124c9a70dba68ac6"
+    }
+  ]
+}

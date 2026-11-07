@@ -129,6 +129,21 @@ test('a zero-exit pipeline cannot substitute for the host-declared verification 
   assert.equal(result.status,'failed');assert.equal(h.commands.length,1);
 });
 
+test('SDK stderr merge can verify the current version without accepting a pipeline',async t=>{
+  const verification='python -m unittest discover -s tests -v',command={command:'cd /workspace/code && '+verification+' 2>&1'};
+  const strings=[verification,'cd /workspace/code && '+verification,"cd '/workspace/code' && "+verification,'cd "/workspace/code" && '+verification];
+  const identities=strings.flatMap(s=>[s,s+' 2>&1']).flatMap(s=>[s,JSON.stringify({command:s})]);
+  const hashes=identities.map(s=>createHash('sha256').update(s).digest('hex'));
+  const h=await host(t,{async openCodeWorkspace(){return{files:{'calc.py':'value = 1\n'},modelId:'qwen3.8-flash',acceptanceCommand:verification,acceptanceCommandHashes:hashes};}});
+  h.gateway.executeCodeCommand=async(_c,value)=>{assert.deepEqual(value.command,command);h.commands.push(value);return{
+    operationId:'stderr-command',manifestHash:value.manifest.sha256,commandHash:createHash('sha256').update(JSON.stringify(command)).digest('hex'),executorStopped:true,
+    stopProofRef:'test:stop',exitCode:0,resultAvailable:true,stdout:'actual merged test output',stderr:''};};
+  const result=await createNativeCodingRun(contract(),h.gateway,{contractHash:hash,workspaceBase:h.base,model:scripted([
+    {calls:[{name:'run_commands',input:{commands:[command]}}]}, {text:'Verified the current project.'},
+  ])}).run();
+  assert.equal(result.status,'completed',JSON.stringify(result.error));assert.equal(h.commands.length,1);
+});
+
 test('editing code invalidates the retained verification until the new version executes',async t=>{
   const verification='python -m unittest discover -s tests -v';
   const h=await host(t,{async openCodeWorkspace(){return{files:{'calc.py':'value = 1\n'},modelId:'qwen3.8-flash',acceptanceCommand:verification};}});

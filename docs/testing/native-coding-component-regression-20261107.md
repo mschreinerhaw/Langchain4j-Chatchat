@@ -103,3 +103,9 @@ Node 新测试实际经过安装版 `createDefaultTools`：修复前 1 fail（Ha
 
 完整 server **12/12 通过**，包含过期/已 abort 的停止回调、新执行拒绝、停止回调自身超时、原模型调用任务 deadline 和一般控制回调 timeout。日志 `native-stop-callback-after-r2.log` SHA256 `7880646cd870711690bab43b322faed73924f9f81532c98da308608c6e7d4b02`。未修改上层业务 Agent 的超时，也未把控制 HTTP 超时当作 Python 进程已停止的证明。
 
+## stderr 合并与退出状态
+
+第二批真实 B 使用 `cd /workspace/code && python -m unittest discover -s tests -v 2>&1`，两次实际测试均通过，仍被声明命令校验拒绝。`2>&1` 本身保留测试退出状态；之前把它列为失败负向项的预期过严。更正后允许四种固定 cwd 字符串各自带或不带这个字面尾缀，同时保留字符串及 SDK command-only 对象身份，共 16 个有限 Hash。仍不接受其他重定向、管道、额外 args/env、`|| true` 或不同目录，不从日志中的 OK 推断成功。
+
+新增回归修复前：Java 4 项中 1 fail（日志 SHA256 `d287417b69cb109ac17006036268e098fe09c6a3b9ce67a2d4fff8b5c18f138f`）；安装版 SDK 对象工具测试 1 fail（`9aa3a1de7db8c2f26e28f1f13feedda4b31fc86fa0ebdf3268c3491d941ad5b7`）。修复后 Java 声明命令、真实 A2 工作区和 HTTP **26/26**，日志 `1bd6a85165359b0c583c9ff3bb6de54e14d1b03a6f0a9c2a2d5786d99c374295`；Node native runner/server **25/25**，日志 `822436bd5903cd8c2245a297d947941b76084489b21359060c617b1425dd35bc`。未改变模型、预算或 Agent Loop。
+

@@ -33,7 +33,7 @@ export function createNativeCodingRun(contract,gateway,options={}) {
     const initial=await gateway.openCodeWorkspace(contract,cancel.signal);
     initialAcceptanceCommand=initial.acceptanceCommand??null;
     const hashes=initial.acceptanceCommandHashes??(initialAcceptanceCommand?[createHash('sha256').update(initialAcceptanceCommand).digest('hex')]:[]);
-    if(!Array.isArray(hashes)||hashes.length>8||hashes.some(v=>typeof v!=='string'||!/^[a-f0-9]{64}$/.test(v))
+    if(!Array.isArray(hashes)||hashes.length>16||hashes.some(v=>typeof v!=='string'||!/^[a-f0-9]{64}$/.test(v))
         ||initialAcceptanceCommand&&!hashes.includes(createHash('sha256').update(initialAcceptanceCommand).digest('hex')))
       throw new TypeError('Invalid host verification identities');
     acceptanceCommandHashes=new Set(hashes);

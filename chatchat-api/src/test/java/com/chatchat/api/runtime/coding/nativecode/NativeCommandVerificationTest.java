@@ -15,7 +15,7 @@ class NativeCommandVerificationTest {
             assertThat(NativeCommandVerification.matches(command,hash(candidate))).as(candidate).isTrue();
     }
     @Test void pipelinesAlternateDirectoriesAndAppendedSuccessCannotCertifyTheDeclaredCommand(){
-        for(String candidate:new String[]{command+" | tail -1",command+" 2>&1",command+" || true",command+"; true",
+        for(String candidate:new String[]{command+" | tail -1",command+" 2> result.txt",command+" || true",command+"; true",
                 "cd /tmp && "+command,"cd /workspace/code/../other && "+command,"cd $PROJECT && "+command,
                 "cd /workspace/code && "+command+" && echo done","echo '"+command+"'"})
             assertThat(NativeCommandVerification.matches(command,hash(candidate))).as(candidate).isFalse();
@@ -28,5 +28,14 @@ class NativeCommandVerificationTest {
             assertThat(NativeCommandVerification.matches(command,CodingCanonicalHash.sha256Value(Map.of("command",candidate,"env",Map.of("PYTHONPATH","/tmp"))))).isFalse();
         }
         assertThat(NativeCommandVerification.matches(command,CodingCanonicalHash.sha256Value(Map.of("command",command+" || true")))).isFalse();
+    }
+    @Test void mergingStderrRetainsCommandExitIdentityWhilePipelinesAndFailureMaskingDoNot(){
+        for(String prefix:new String[]{"","cd /workspace/code && ","cd '/workspace/code' && ","cd \"/workspace/code\" && "}){
+            String merged=prefix+command+" 2>&1";
+            assertThat(NativeCommandVerification.matches(command,hash(merged))).isTrue();
+            assertThat(NativeCommandVerification.matches(command,CodingCanonicalHash.sha256Value(Map.of("command",merged)))).isTrue();
+            assertThat(NativeCommandVerification.matches(command,hash(merged+" | tail -1"))).isFalse();
+            assertThat(NativeCommandVerification.matches(command,hash(merged+" || true"))).isFalse();
+        }
     }
 }

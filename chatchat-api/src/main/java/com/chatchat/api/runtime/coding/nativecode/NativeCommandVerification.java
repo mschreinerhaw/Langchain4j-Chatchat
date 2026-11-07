@@ -13,7 +13,8 @@ final class NativeCommandVerification {
     static List<String> hashes(String declared){
         if(declared==null||declared.isBlank())return List.of();
         return List.of(declared,"cd /workspace/code && "+declared,"cd '/workspace/code' && "+declared,"cd \"/workspace/code\" && "+declared)
-            .stream().flatMap(command->Stream.of(NativeCodeWorkspace.sha(command.getBytes(StandardCharsets.UTF_8)),
+            .stream().flatMap(command->Stream.of(command,command+" 2>&1"))
+            .flatMap(command->Stream.of(NativeCodeWorkspace.sha(command.getBytes(StandardCharsets.UTF_8)),
                 CodingCanonicalHash.sha256Value(Map.of("command",command)))).toList();
     }
     static boolean matches(String declared,String actualHash){return hashes(declared).contains(actualHash);}

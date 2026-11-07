@@ -27,6 +27,14 @@
 
 ## Worker 恢复专项：源码先行发现（待故障注入验证）
 
+## 原生命令定义与完成治理的冲突：需优先验证的执行器策略
+
+官方固定提交的 `sdk/packages/core/src/extensions/tools/definitions.ts` 在 Bash 工具描述中明确建议输出过长时 `pipe through grep/head/tail`，并在 `executeShellCommands` 使用 `Promise.all`。Runtime 保留了这个定义，却仅允许声明命令的有限字面 Hash 作为完成证据。三轮真实任务里，许多源码已通过独立复核，但模型继续使用官方建议的输出过滤管道，不能完成合同。这不是编辑器缺失的证据，不能全部归因于模型表现。
+
+另一方面，默认 Bash 的管道退出状态可能来自末端过滤器。真实任务已出现 Python KeyError/断言失败而 `run_commands.success=true`、exitCode=0 的回执。仅放开管道 Hash 会误认证失败。候选最小方案：通过 SDK 原 shell executor 的环境配置启用 Bash pipefail；治理只认可冻结声明命令加受限 head/tail 输出过滤，仍核对实际退出状态、不可变代码版本及独立停止证明。不得重写原生工具描述或添加第二套修复循环。
+
+该策略必须按任务冻结、默认关闭，并保留原 helper 的原始字节及旧任务语义；新 wrapper、MCP 能力发现和 Worker 能力协商均须在模型调用之前验证。先完成失败管道/成功管道/绕过输入的独立执行测试，再开展同预算真实对照。A-ref 命令传输须采用同样的每任务串行治理，避免 SDK 内部并发命令与单次未决执行约束导致无效对照。
+
 对象形态修复后，第二批 B 的原始回执显示两次真实单元测试均通过，但命令仅追加 `2>&1`。该合并 stderr 的 shell 操作保留原退出状态，不能与 `| tail` 或 `|| true` 混为一谈。旧负向测试曾把所有重定向一概拒绝，这个完成门槛过严。最小更正仅增加字面尾缀 ` 2>&1` 的声明命令身份，仍核对独立退出码、当前源码和停止证明；不得由测试输出文本推断成功，也不允许管道和掩盖失败后缀。该更正改变的是治理等价性，不要求模型新增提示词约束。
 
 `server.httpGateway` 的截止时间例外只包含旧 Python 的取消与结算，遗漏 `native-command-cancel` 和 `native-tool-finish`。`native-runner` 的 abort 已触发取消，但过期合同在发出取消 HTTP 前被拒绝；已中止的信号也可能阻止真实工具停止回执。新增 HTTP 测试修复前在取消回调之前失败。最小修复须仅允许有界的停止/结算通道继续，保留 Java 对 CODE 独立 stop proof 的核验；过期任务的新执行和推理仍拒绝。此处是 Coding Agent 的截止与停止链路，不修改上层业务 Agent 超时。

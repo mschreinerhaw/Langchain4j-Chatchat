@@ -1,0 +1,44 @@
+[
+  {
+    "case": "A",
+    "runtimeNotes": [],
+    "lastVerificationOccurrences": [
+      {
+        "message": 10,
+        "part": 0,
+        "role": "tool",
+        "type": "tool-result",
+        "inRuntimeMemory": false
+      }
+    ],
+    "compactionCount": 1
+  },
+  {
+    "case": "C",
+    "runtimeNotes": [],
+    "lastVerificationOccurrences": [
+      {
+        "message": 9,
+        "part": 0,
+        "role": "tool",
+        "type": "tool-result",
+        "inRuntimeMemory": false
+      }
+    ],
+    "compactionCount": 1
+  },
+  {
+    "case": "E-name",
+    "runtimeNotes": [],
+    "lastVerificationOccurrences": [
+      {
+        "message": 9,
+        "part": 0,
+        "role": "tool",
+        "type": "tool-result",
+        "inRuntimeMemory": false
+      }
+    ],
+    "compactionCount": 1
+  }
+]

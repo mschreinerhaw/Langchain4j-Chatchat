@@ -1,0 +1,537 @@
+{
+  "case": "E-name",
+  "taskId": "native-ddc2e4064b9b77fb75072aa5fad1a2af39ba1f003fa9c092",
+  "originalStatus": "FAILED",
+  "usage": {
+    "budgetId": "native-budget:native-ddc2e4064b9b77fb75072aa5fad1a2af39ba1f003fa9c092",
+    "costCurrency": "USD",
+    "consumed": {
+      "modelCalls": 8,
+      "modelTokens": 40501,
+      "toolCalls": 10,
+      "codeExecutions": 4,
+      "cpuMillis": 0,
+      "peakMemoryBytes": 0,
+      "outputBytes": 10859,
+      "costAmount": "0"
+    },
+    "reserved": {
+      "modelCalls": 0,
+      "modelTokens": 90571,
+      "toolCalls": 0,
+      "codeExecutions": 0,
+      "cpuMillis": 300000,
+      "peakMemoryBytes": 0,
+      "outputBytes": 1037717,
+      "costAmount": "1"
+    },
+    "meteringComplete": false
+  },
+  "executionControl": {
+    "stopReason": null,
+    "stopRequestedAt": null,
+    "executorStopped": true,
+    "reconciliationRequired": false
+  },
+  "models": [
+    {
+      "operationId": "model-1",
+      "startedAt": "2026-11-07T08:39:59.238266027Z",
+      "finishedAt": "2026-11-07T08:40:01.184862643Z",
+      "messageCount": 2,
+      "requestBytes": 7440,
+      "usage": {
+        "cacheReadTokens": 1024,
+        "inputTokens": 1898,
+        "outputTokens": 116,
+        "reasoningTokens": 13
+      },
+      "toolSchemaSha256": "aebadaa4bc3d17c6f8bb203342cfe7be1219fa1f538897023410d56c7176afcd",
+      "finishReason": "TOOL_EXECUTION",
+      "calls": [
+        {
+          "toolCallId": "call_be9d459c6a0c41f399057e16",
+          "name": "read_files",
+          "inputSha256": "f1e97821cb014b591d43d50a3dc58bdffb7333c7127ee317bcb08d3672ccae3f",
+          "arguments": {
+            "files": [
+              {
+                "path": "/workspace/code/transform.py"
+              },
+              {
+                "path": "/workspace/code/tests/test_transform.py"
+              }
+            ]
+          },
+          "durableAdmissionPresent": true,
+          "startManifestHash": "d0bc9ebe101b707dc24e89d24d014cb035c491e7e034551d540260b5d4c79af1",
+          "resultSha256": "e253a0160cac27d56ec027a9fc7ca0208ae82590637e96bdafe27078e4267891",
+          "isError": null,
+          "entries": [
+            {
+              "success": true,
+              "errorCategories": []
+            },
+            {
+              "success": true,
+              "errorCategories": []
+            }
+          ]
+        },
+        {
+          "toolCallId": "call_9c10257dec65452594e4c750",
+          "name": "run_commands",
+          "inputSha256": "58feebaf220061c1e3af53e4a6ca6f553e4662481b269b2575f8ba7972532e6b",
+          "commands": [
+            "cd /workspace/code && python -m unittest discover -s tests -v 2>&1 | head -100"
+          ],
+          "durableAdmissionPresent": true,
+          "startManifestHash": "d0bc9ebe101b707dc24e89d24d014cb035c491e7e034551d540260b5d4c79af1",
+          "resultSha256": "73b40f7af058261afd498a0e25fce67e6940002c0bd09a2b1dd5a5555dd2407a",
+          "isError": null,
+          "entries": [
+            {
+              "success": false,
+              "execution": {
+                "manifestHash": "d0bc9ebe101b707dc24e89d24d014cb035c491e7e034551d540260b5d4c79af1",
+                "operationId": "cline-d8d8f78355c7c172bc70ae6ad1d5250f27e0e55dd5424265fcaa709add8b2b1e",
+                "commandHash": "dce77881f0f0fa67478882bf9773dbf2b0d500b96066fa5cfe0a63ae54c4eb43",
+                "exitCode": 1,
+                "resultAvailable": true,
+                "executorStopped": true,
+                "stopProofRef": "mcp-python-receipt:4d676dc9f9890fad8e336521d14609709ba177420e582ca88b7a3ed130181629",
+                "verificationPolicy": "BASH_PIPEFAIL_V1",
+                "declaredCommandMatched": true,
+                "declaredCommandSha256": "ff9589960e74f51a5cc9c4734f3d88062b11f378e66f0311d66ca513f800d2c3",
+                "resultArtifactSha256": "11a00f0b7201077a677ed1ac1dc492e239a0b8c315a9c97d3c58c9820912008f"
+              },
+              "diagnosticLines": [
+                "ERROR: test_transform (test_transform.ExistingTests.test_transform)",
+                "NameError: name 'item' is not defined",
+                "Ran 1 test in 0.001s",
+                "FAILED (errors=1)"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "operationId": "model-2",
+      "startedAt": "2026-11-07T08:40:07.167702267Z",
+      "finishedAt": "2026-11-07T08:40:16.436136987Z",
+      "messageCount": 5,
+      "requestBytes": 11005,
+      "usage": {
+        "cacheReadTokens": 1792,
+        "inputTokens": 3209,
+        "outputTokens": 798,
+        "reasoningTokens": 440
+      },
+      "toolSchemaSha256": "aebadaa4bc3d17c6f8bb203342cfe7be1219fa1f538897023410d56c7176afcd",
+      "finishReason": "TOOL_EXECUTION",
+      "calls": [
+        {
+          "toolCallId": "call_d54c20a129264b36840426ef",
+          "name": "editor",
+          "inputSha256": "9459b13e7b5c318524b0d044ff97ef92584e7ca3f5ec32a5b7d7f0be2f86048e",
+          "path": "/workspace/code/transform.py",
+          "oldTextSha256": "f46fc2fcea181f331d011df5e6d817f76b1a9ce7fcfc15efa12dc45371298c3c",
+          "newTextSha256": "9885d74c7e9335d1125e6da828f8b5a329523ffb3a3f2cae5349ae06cb7625ff",
+          "durableAdmissionPresent": true,
+          "startManifestHash": "d0bc9ebe101b707dc24e89d24d014cb035c491e7e034551d540260b5d4c79af1",
+          "resultSha256": "aa4e14f90c83da1af01d0391380421ce53040d979891f5a8ed8ccecfd264441a",
+          "isError": null,
+          "entries": []
+        }
+      ]
+    },
+    {
+      "operationId": "model-3",
+      "startedAt": "2026-11-07T08:40:17.779856899Z",
+      "finishedAt": "2026-11-07T08:40:29.109797207Z",
+      "messageCount": 7,
+      "requestBytes": 14056,
+      "usage": {
+        "cacheReadTokens": 3072,
+        "inputTokens": 3960,
+        "outputTokens": 697,
+        "reasoningTokens": 221
+      },
+      "toolSchemaSha256": "aebadaa4bc3d17c6f8bb203342cfe7be1219fa1f538897023410d56c7176afcd",
+      "finishReason": "TOOL_EXECUTION",
+      "calls": [
+        {
+          "toolCallId": "call_eed15419936244f2bb9d96a0",
+          "name": "editor",
+          "inputSha256": "f53fd0540956bf3a529f5d77112292c6264594bfe7ce7fa18c471d72093d6d39",
+          "path": "/workspace/code/transform.py",
+          "oldTextSha256": "9885d74c7e9335d1125e6da828f8b5a329523ffb3a3f2cae5349ae06cb7625ff",
+          "newTextSha256": "9bf654de0a94963b7820e4628f0bd22828fa9679557c0c908d4cf08623e54a65",
+          "durableAdmissionPresent": true,
+          "startManifestHash": "711c2f81e9315057b0eb550dfccb43b44d3646dad9a378027422d8924f6f6f29",
+          "resultSha256": "96172f0161ed10371bd48c25739da1b70009350c99934dcba82cf4bda8856ff5",
+          "isError": null,
+          "entries": []
+        }
+      ]
+    },
+    {
+      "operationId": "model-4",
+      "startedAt": "2026-11-07T08:40:30.577014318Z",
+      "finishedAt": "2026-11-07T08:40:37.285657916Z",
+      "messageCount": 9,
+      "requestBytes": 18405,
+      "usage": {
+        "cacheReadTokens": 3072,
+        "inputTokens": 5040,
+        "outputTokens": 309,
+        "reasoningTokens": 99
+      },
+      "toolSchemaSha256": "aebadaa4bc3d17c6f8bb203342cfe7be1219fa1f538897023410d56c7176afcd",
+      "finishReason": "TOOL_EXECUTION",
+      "calls": [
+        {
+          "toolCallId": "call_806d402b87cf42e5a9aafcde",
+          "name": "run_commands",
+          "inputSha256": "9b9d272be630e7d5546ffb4d4141fc8ebb364ac8c57d611c93c7f33d6cfc8e7b",
+          "commands": [
+            "cd /workspace/code && cat transform.py",
+            "cd /workspace/code && python -m unittest discover -s tests -v 2>&1 | tail -20",
+            "cd /workspace/code && python -c \"\nfrom decimal import Decimal\nfrom fractions import Fraction\nfrom transform import transform\nfor v in (7, 0, -3, Decimal('2.5'), Fraction(1,3), 1.5):\n    r = transform(v)\n    print(repr(v), type(v).__name__, '->', repr(r), type(r).__name__)\nfor bad in ('7', None, [1], {'a':1}):\n    try:\n        transform(bad)\n        print('NO ERROR for', repr(bad))\n    except TypeError as e:\n        print('TypeError:', e)\n\""
+          ],
+          "durableAdmissionPresent": true,
+          "startManifestHash": "d1dd88edd62feb0737199e0d2b3b96eb7a381ba1335fedfc1dc01e79337a43a0",
+          "resultSha256": "a55451adc22229401f7ae5100cef0793c1f5200015619f32a61cc51b288b06b5",
+          "isError": null,
+          "entries": [
+            {
+              "success": true,
+              "execution": {
+                "manifestHash": "d1dd88edd62feb0737199e0d2b3b96eb7a381ba1335fedfc1dc01e79337a43a0",
+                "operationId": "cline-665a1821aa53d248ab6bbe8fef9350b935faf35e31eb7c9988bc7294b4be0c51",
+                "commandHash": "c87d3b133d64157895ee67ff3e2fe4ab0a60b2d0ebe6c32d39a3426379c431cb",
+                "exitCode": 0,
+                "resultAvailable": true,
+                "executorStopped": true,
+                "stopProofRef": "mcp-python-receipt:49f25b534d3917e2c1deb7ff127135dc92de8d816336bcebb5d4b3826cdbd4a2",
+                "verificationPolicy": "BASH_PIPEFAIL_V1",
+                "declaredCommandMatched": false,
+                "declaredCommandSha256": "ff9589960e74f51a5cc9c4734f3d88062b11f378e66f0311d66ca513f800d2c3",
+                "resultArtifactSha256": "6c41f5c9d5dfc376ed1e0dacd12dbf2ca9913a4a70755a011e05fb7f858a8f7f"
+              },
+              "diagnosticLines": []
+            },
+            {
+              "success": true,
+              "execution": {
+                "manifestHash": "d1dd88edd62feb0737199e0d2b3b96eb7a381ba1335fedfc1dc01e79337a43a0",
+                "operationId": "cline-3319239ee9488e0ddcdcc7d1e4bcb0ebffed7e2c23323545deb760609e8bbe21",
+                "commandHash": "b4ecebd815ae86fd6f2e2c58776f10b664b7939da84e9e0d6694e02ce2726f43",
+                "exitCode": 0,
+                "resultAvailable": true,
+                "executorStopped": true,
+                "stopProofRef": "mcp-python-receipt:b07c2989c6a3d19a9c78d18f4ca4ddcd23df7ee551985720b9fa4358046e3649",
+                "verificationPolicy": "BASH_PIPEFAIL_V1",
+                "declaredCommandMatched": true,
+                "declaredCommandSha256": "ff9589960e74f51a5cc9c4734f3d88062b11f378e66f0311d66ca513f800d2c3",
+                "resultArtifactSha256": "6ceeaca143843f01a8044b7c732b218133a22e52f702332fe4742b4f5ab0b8c3"
+              },
+              "diagnosticLines": [
+                "Ran 1 test in 0.000s",
+                "OK"
+              ]
+            },
+            {
+              "success": false,
+              "execution": {
+                "manifestHash": "d1dd88edd62feb0737199e0d2b3b96eb7a381ba1335fedfc1dc01e79337a43a0",
+                "operationId": "cline-66a74c8c8bbc81967032d641f7d48d5b97f3286eda83bd2e50cadb43f3d1cdf3",
+                "commandHash": "867c1a55484abadd5bf0ab2fd2c5f22d585994bf1e5dc21888bc6ec4ae6c19fb",
+                "exitCode": 1,
+                "resultAvailable": true,
+                "executorStopped": true,
+                "stopProofRef": "mcp-python-receipt:4b636cc002de5fb1ae67f002d596e027281045b4125fec336dba2950c5e7281b",
+                "verificationPolicy": "BASH_PIPEFAIL_V1",
+                "declaredCommandMatched": false,
+                "declaredCommandSha256": "ff9589960e74f51a5cc9c4734f3d88062b11f378e66f0311d66ca513f800d2c3",
+                "resultArtifactSha256": "572e9d22926e55047a589910d3d1b0bc5543d164161b1b668a7973b687e91103"
+              },
+              "diagnosticLines": [
+                "TypeError: transform() requires a real number, got Decimal"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "operationId": "model-5",
+      "startedAt": "2026-11-07T08:40:55.991131374Z",
+      "finishedAt": "2026-11-07T08:41:07.878003710Z",
+      "messageCount": 11,
+      "requestBytes": 25145,
+      "usage": {
+        "cacheReadTokens": 4096,
+        "inputTokens": 8130,
+        "outputTokens": 711,
+        "reasoningTokens": 218
+      },
+      "toolSchemaSha256": "aebadaa4bc3d17c6f8bb203342cfe7be1219fa1f538897023410d56c7176afcd",
+      "finishReason": "TOOL_EXECUTION",
+      "calls": [
+        {
+          "toolCallId": "call_0684503fa89e4230adb90253",
+          "name": "editor",
+          "inputSha256": "c1343cf5fb79b14952df63f4f2808790f2367dbebf6c5b893077e946301f75d4",
+          "path": "/workspace/code/transform.py",
+          "oldTextSha256": "6b22674d6bad38235009be4176d20049d396563a5055972ba15c7ff118fa9d01",
+          "newTextSha256": "abd087805b1491e09ac205aa055ed092a3fdce143f2d29d4a3503c4b3bf57671",
+          "durableAdmissionPresent": true,
+          "startManifestHash": "d1dd88edd62feb0737199e0d2b3b96eb7a381ba1335fedfc1dc01e79337a43a0",
+          "resultSha256": "644e434d433635122289b8f307eb6fa6b0bd142bfea2e5ada48b98fa08ab5761",
+          "isError": null,
+          "entries": []
+        },
+        {
+          "toolCallId": "call_265bd1597d2043aab7f882ae",
+          "name": "editor",
+          "inputSha256": "a03b224885e5c70cf3d9b8b223d4f5475c38dc9393ff7e346c6aae89dcffcee7",
+          "path": "/workspace/code/transform.py",
+          "oldTextSha256": "000ad87b86c44c42683ed1c792df5dad719ab3823262781df849b023ecd34ec8",
+          "newTextSha256": "ce4baf7b31db3ccfbb068df7dc4bd317b9c73e35e39bed2eb04f5f2d813749a3",
+          "durableAdmissionPresent": true,
+          "startManifestHash": "1e4f9429863d81353d625e04445f439e6d75d39fec996ce8ea23a7d6a69dd929",
+          "resultSha256": "a113f5130fabb643ad4902a06a68446f9e5603cae27b6d05a4ee35f12da412b1",
+          "isError": null,
+          "entries": []
+        }
+      ]
+    },
+    {
+      "operationId": "model-6",
+      "startedAt": "2026-11-07T08:41:11.049445930Z",
+      "finishedAt": "2026-11-07T08:41:15.772770974Z",
+      "messageCount": 14,
+      "requestBytes": 28746,
+      "usage": {
+        "cacheReadTokens": 7168,
+        "inputTokens": 9010,
+        "outputTokens": 311,
+        "reasoningTokens": 16
+      },
+      "toolSchemaSha256": "aebadaa4bc3d17c6f8bb203342cfe7be1219fa1f538897023410d56c7176afcd",
+      "finishReason": "TOOL_EXECUTION",
+      "calls": [
+        {
+          "toolCallId": "call_184575572f4c41bf8f51674a",
+          "name": "run_commands",
+          "inputSha256": "28297005f060cea7cedc16fb22bb25889b77ba18ee88dcf1be350dd84266f2ee",
+          "commands": [
+            "cd /workspace/code && cat transform.py",
+            "cd /workspace/code && python -c \"\nfrom decimal import Decimal\nfrom fractions import Fraction\nfrom transform import transform\nfor v in (7, 0, -3, Decimal('2.5'), Fraction(1,3), 1.5, (2+3j)):\n    r = transform(v)\n    print(repr(v), type(v).__name__, '->', repr(r), type(r).__name__)\nassert type(transform(7)) is int, 'int type lost'\nassert transform(Decimal('2.5')) == Decimal('5.0') and type(transform(Decimal('2.5'))) is Decimal\nassert transform(Fraction(1,3)) == Fraction(2,3) and type(transform(Fraction(1,3))) is Fraction\nfor bad in ('7', None, [1], {'a':1}, object()):\n    try:\n        transform(bad); print('NO ERROR for', repr(bad))\n    except TypeError as e: print('TypeError:', e)\nprint('type checks OK')\n\"",
+            "cd /workspace/code && python -m unittest discover -s tests -v 2>&1 | tail -20"
+          ],
+          "durableAdmissionPresent": true,
+          "startManifestHash": "97b6858f5291da5079807e45e89d45792227a9fe347cf51d029d83cd79b9aa07",
+          "resultSha256": "4e93c608ac73a66e1d23415fb86013d55cd61c0af04367bb66bf86110b649040",
+          "isError": null,
+          "entries": [
+            {
+              "success": false,
+              "errorCategories": [
+                "BUDGET_EXCEEDED"
+              ]
+            },
+            {
+              "success": false,
+              "errorCategories": [
+                "BUDGET_EXCEEDED"
+              ]
+            },
+            {
+              "success": false,
+              "errorCategories": [
+                "BUDGET_EXCEEDED"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "operationId": "model-7",
+      "startedAt": "2026-11-07T08:41:18.921022103Z",
+      "finishedAt": "2026-11-07T08:41:21.292004658Z",
+      "messageCount": 4,
+      "requestBytes": 10864,
+      "usage": {
+        "cacheReadTokens": 1792,
+        "inputTokens": 2826,
+        "outputTokens": 96,
+        "reasoningTokens": 46
+      },
+      "toolSchemaSha256": "aebadaa4bc3d17c6f8bb203342cfe7be1219fa1f538897023410d56c7176afcd",
+      "finishReason": "TOOL_EXECUTION",
+      "calls": [
+        {
+          "toolCallId": "call_6bdfa97647c3427f8cbdbf8e",
+          "name": "read_files",
+          "inputSha256": "f1e97821cb014b591d43d50a3dc58bdffb7333c7127ee317bcb08d3672ccae3f",
+          "arguments": {
+            "files": [
+              {
+                "path": "/workspace/code/transform.py"
+              },
+              {
+                "path": "/workspace/code/tests/test_transform.py"
+              }
+            ]
+          },
+          "durableAdmissionPresent": true,
+          "startManifestHash": "97b6858f5291da5079807e45e89d45792227a9fe347cf51d029d83cd79b9aa07",
+          "resultSha256": "a59e2323178dc1aa3d91a4f7247c00afada448875975ba750a2134c960d52fac",
+          "isError": null,
+          "entries": [
+            {
+              "success": true,
+              "errorCategories": []
+            },
+            {
+              "success": true,
+              "errorCategories": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "operationId": "model-8",
+      "startedAt": "2026-11-07T08:41:23.766555451Z",
+      "finishedAt": "2026-11-07T08:41:25.276847681Z",
+      "messageCount": 6,
+      "requestBytes": 12689,
+      "usage": {
+        "cacheReadTokens": 2048,
+        "inputTokens": 3288,
+        "outputTokens": 102,
+        "reasoningTokens": 48
+      },
+      "toolSchemaSha256": "aebadaa4bc3d17c6f8bb203342cfe7be1219fa1f538897023410d56c7176afcd",
+      "finishReason": "TOOL_EXECUTION",
+      "calls": [
+        {
+          "toolCallId": "call_6cff0131aea8414db73a2a32",
+          "name": "run_commands",
+          "inputSha256": "94480e6195f060b5415449c781fa3d70a454e9d4d85430442c57cd09b4d15179",
+          "commands": [
+            "cd /workspace/code && python -m unittest discover -s tests -v 2>&1 | tail -30"
+          ],
+          "durableAdmissionPresent": true,
+          "startManifestHash": "97b6858f5291da5079807e45e89d45792227a9fe347cf51d029d83cd79b9aa07",
+          "resultSha256": "c4d23fe7ce00e9c10f99ac3dafdfad612874aec9a35a2b3ec11184c024ed7e8d",
+          "isError": null,
+          "entries": [
+            {
+              "success": false,
+              "errorCategories": [
+                "BUDGET_EXCEEDED"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "versions": [
+    {
+      "version": 0,
+      "manifestHash": "d0bc9ebe101b707dc24e89d24d014cb035c491e7e034551d540260b5d4c79af1",
+      "elapsedToArchiveMs": 0,
+      "independentPassed": false
+    },
+    {
+      "version": 1,
+      "manifestHash": "711c2f81e9315057b0eb550dfccb43b44d3646dad9a378027422d8924f6f6f29",
+      "elapsedToArchiveMs": 18173,
+      "independentPassed": true
+    },
+    {
+      "version": 2,
+      "manifestHash": "d1dd88edd62feb0737199e0d2b3b96eb7a381ba1335fedfc1dc01e79337a43a0",
+      "elapsedToArchiveMs": 30951,
+      "independentPassed": true
+    },
+    {
+      "version": 3,
+      "manifestHash": "1e4f9429863d81353d625e04445f439e6d75d39fec996ce8ea23a7d6a69dd929",
+      "elapsedToArchiveMs": 70084,
+      "independentPassed": true
+    },
+    {
+      "version": 4,
+      "manifestHash": "97b6858f5291da5079807e45e89d45792227a9fe347cf51d029d83cd79b9aa07",
+      "elapsedToArchiveMs": 71239,
+      "independentPassed": true
+    }
+  ],
+  "finalManifest": {
+    "files": [
+      {
+        "bytes": 180,
+        "path": "tests/test_transform.py",
+        "sha256": "6933d1d1ed6509e9833d216c84af0a54cfb7a1a25cb84591136f5157bd48546a"
+      },
+      {
+        "bytes": 956,
+        "path": "transform.py",
+        "sha256": "8a1427b3291cdd7e6a332281ce3b3f7b4f99fa8f2b50bb78a05917aca4de7e95"
+      }
+    ],
+    "hashAlgorithm": "coding-canonical-json-v1",
+    "parent": "1e4f9429863d81353d625e04445f439e6d75d39fec996ce8ea23a7d6a69dd929",
+    "schemaVersion": "runtime_os.native_code_tree.v1",
+    "scopeBinding": "fe77ab8638ee9ec0e8a0fffb13d7766500e655c5db269c1a2899a10328b28d44",
+    "sha256": "97b6858f5291da5079807e45e89d45792227a9fe347cf51d029d83cd79b9aa07",
+    "taskId": "native-ddc2e4064b9b77fb75072aa5fad1a2af39ba1f003fa9c092",
+    "version": 4
+  },
+  "lastExecution": {
+    "manifestHash": "d1dd88edd62feb0737199e0d2b3b96eb7a381ba1335fedfc1dc01e79337a43a0",
+    "operationId": "cline-66a74c8c8bbc81967032d641f7d48d5b97f3286eda83bd2e50cadb43f3d1cdf3",
+    "commandHash": "867c1a55484abadd5bf0ab2fd2c5f22d585994bf1e5dc21888bc6ec4ae6c19fb",
+    "exitCode": 1,
+    "resultAvailable": true,
+    "executorStopped": true,
+    "stopProofRef": "mcp-python-receipt:4b636cc002de5fb1ae67f002d596e027281045b4125fec336dba2950c5e7281b",
+    "verificationPolicy": "BASH_PIPEFAIL_V1",
+    "declaredCommandMatched": false,
+    "declaredCommandSha256": "ff9589960e74f51a5cc9c4734f3d88062b11f378e66f0311d66ca513f800d2c3",
+    "resultArtifactSha256": "572e9d22926e55047a589910d3d1b0bc5543d164161b1b668a7973b687e91103"
+  },
+  "lastVerification": {
+    "manifestHash": "d1dd88edd62feb0737199e0d2b3b96eb7a381ba1335fedfc1dc01e79337a43a0",
+    "operationId": "cline-3319239ee9488e0ddcdcc7d1e4bcb0ebffed7e2c23323545deb760609e8bbe21",
+    "commandHash": "b4ecebd815ae86fd6f2e2c58776f10b664b7939da84e9e0d6694e02ce2726f43",
+    "exitCode": 0,
+    "resultAvailable": true,
+    "executorStopped": true,
+    "stopProofRef": "mcp-python-receipt:b07c2989c6a3d19a9c78d18f4ca4ddcd23df7ee551985720b9fa4358046e3649",
+    "verificationPolicy": "BASH_PIPEFAIL_V1",
+    "declaredCommandMatched": true,
+    "declaredCommandSha256": "ff9589960e74f51a5cc9c4734f3d88062b11f378e66f0311d66ca513f800d2c3",
+    "resultArtifactSha256": "6ceeaca143843f01a8044b7c732b218133a22e52f702332fe4742b4f5ab0b8c3"
+  },
+  "lastVerificationMatchesFinal": false,
+  "sdkCheckpoint": {
+    "sdkSessionId": "2f1cf8e0-bd39-4b7e-995e-a4730b27864f",
+    "compactionCount": 1,
+    "checkpointOrdinal": 17,
+    "contractHash": "fb70c22262f446f3cbc9b773887e236cf6786d31cfc07504028dc64a2419057a"
+  },
+  "finalCheckpointContainsLastVerificationOperation": true,
+  "finalRuntimeMemoryContainsVerification": false,
+  "rawModelRequestBodiesAvailablePerRound": false,
+  "requestEvidenceLimitation": "Only latest SDK messages and bound per-model checkpoint ordinal/hash survive; original per-round request bodies are not retained. No reconstructed request is represented as original.",
+  "taskUnchangedByAudit": true
+}

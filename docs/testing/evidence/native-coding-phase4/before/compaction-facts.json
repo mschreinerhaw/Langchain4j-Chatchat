@@ -1,0 +1,47 @@
+[
+  {
+    "case": "A",
+    "sourceMessageCount": 15,
+    "projectedMessageCount": 3,
+    "compactionStateSha256": "613a23c026a3b52c1a4da072b5c49e95cda4f154798fdaf81eea7f379659d80c",
+    "retainsVerificationOperation": false,
+    "retainsVerificationManifest": false,
+    "retainsOriginalObjective": true,
+    "verificationPolicyPresent": false,
+    "projectedRoles": [
+      "user",
+      "assistant",
+      "user"
+    ]
+  },
+  {
+    "case": "C",
+    "sourceMessageCount": 14,
+    "projectedMessageCount": 3,
+    "compactionStateSha256": "4ce8c007d7dd67d0e2a87da2aec8c8f02e813abd3291886f8b721aa30dc5898a",
+    "retainsVerificationOperation": false,
+    "retainsVerificationManifest": false,
+    "retainsOriginalObjective": true,
+    "verificationPolicyPresent": false,
+    "projectedRoles": [
+      "user",
+      "assistant",
+      "user"
+    ]
+  },
+  {
+    "case": "E-name",
+    "sourceMessageCount": 15,
+    "projectedMessageCount": 3,
+    "compactionStateSha256": "229ae317491f43be822ea8b4dc5359e861bc198eb4a697dd84b4e9e17de32b52",
+    "retainsVerificationOperation": false,
+    "retainsVerificationManifest": false,
+    "retainsOriginalObjective": true,
+    "verificationPolicyPresent": false,
+    "projectedRoles": [
+      "user",
+      "assistant",
+      "user"
+    ]
+  }
+]

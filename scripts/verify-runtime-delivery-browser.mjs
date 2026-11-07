@@ -38,7 +38,8 @@ try{
    const chart=page.locator('figure.python-report-chart');await chart.scrollIntoViewIfNeeded();
    const frame=chart.locator('iframe');await frame.waitFor({state:'visible',timeout:60000});
    const content=await (await frame.elementHandle()).contentFrame();
-   await content.locator('.js-plotly-plot').waitFor({state:'visible',timeout:60000});
+   await content.locator('.js-plotly-plot').first().waitFor({state:'visible',timeout:60000});
+   await content.locator('.plot-container').first().waitFor({state:'visible',timeout:60000});
    proof.renderedPlotlyCharts.push({id:await chart.getAttribute('data-chart-id'),title:await frame.getAttribute('title')});
   }
   assert.equal(new Set(proof.renderedPlotlyCharts.map(chart=>chart.id)).size,expectedCharts);

@@ -1,5 +1,8 @@
 """Execute the packaged documentation recipes against synthetic boundary cases."""
 import json
+import hashlib
+import importlib.util
+import sys
 import pathlib
 import random
 import re
@@ -11,6 +14,11 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 ROOT = pathlib.Path(__file__).resolve().parents[1] / "skills/python-data-analysis/references"
+helper_path = pathlib.Path(__file__).resolve().parents[2] / 'chatchat-mcp-server/src/main/resources/python/runtime_input.py'
+helper_spec = importlib.util.spec_from_file_location('runtime_input', helper_path)
+helper = importlib.util.module_from_spec(helper_spec)
+helper_spec.loader.exec_module(helper)
+sys.modules['runtime_input'] = helper
 
 
 def recipe(file_name, marker):
@@ -156,16 +164,23 @@ class FinancialMethodTests(unittest.TestCase):
         self.assertEqual((item["records"], item["comparable"], item["matches"], item["missing"], item["invalid"]), (3, 1, 1, 1, 1))
 
     def test_transport_parquet_maps_columns_and_preserves_json_decimals_missing_and_null(self):
-        decode = recipe("data-methods.md", "runtime-os-parquet-mapping-v1")["logical_parquet_rows"]
+        decode = recipe("data-methods.md", "runtime-os-parquet-mapping-v2")["logical_rows"]
         columns = [{"name": "datasetReference", "storageName": "c0", "type": "STRING"},
                    {"name": "record", "storageName": "c1", "type": "JSON"}]
         rows = [dict(c0="source", p0=True, c1='{"id":"0001","amount":0.10000000000000000001}', p1=True, extra="ignored"),
                 dict(c0="source", p0=True, c1=None, p1=False, extra="ignored"),
                 dict(c0="source", p0=True, c1=None, p1=True, extra="ignored")]
         with tempfile.TemporaryDirectory() as directory:
-            part = pathlib.Path(directory) / "part.parquet"
+            root = pathlib.Path(directory)
+            part = root / ('c' + 'a' * 63) / "part.parquet"
+            part.parent.mkdir()
             pq.write_table(pa.Table.from_pylist(rows), part)
-            actual = list(decode(part, {"columns": columns}, {"presenceColumns": {"c0": "p0", "c1": "p1"}}))
+            manifest = root / ('c' + 'b' * 63) / 'manifest.json'
+            manifest.parent.mkdir()
+            manifest.write_text(json.dumps({'schemaVersion':'runtime_os.coding.input.v1','format':'PARQUET',
+                'columns':columns,'rowCount':len(rows),'parts':[{'fileId':part.parent.name,'fileName':part.name,
+                'sha256':hashlib.sha256(part.read_bytes()).hexdigest(),'sizeBytes':part.stat().st_size,'rowCount':len(rows)}]}))
+            actual = list(decode(manifest, hashlib.sha256(manifest.read_bytes()).hexdigest()))
         self.assertEqual(actual[0]["record"]["id"], "0001")
         self.assertEqual(actual[0]["record"]["amount"], D("0.10000000000000000001"))
         self.assertNotIn("record", actual[1])

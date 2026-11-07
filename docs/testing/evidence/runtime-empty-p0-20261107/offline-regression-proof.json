@@ -1,0 +1,130 @@
+{
+  "scope": "Targeted and related regression; not eight live business acceptance passes",
+  "productSourceCommit": "8a6ffe0f1a64f29eb822154cefc40953bc4d21cd",
+  "runHead": "NOT_CAPTURED_BEFORE_COMMIT",
+  "suites": [
+    {
+      "name": "com.chatchat.common.runtime.coding.CodingDataStatusTest",
+      "module": "chatchat-common",
+      "tests": 4,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "xmlSha256": "ddc22d169d7c15a2f6ea8b4e2dd1b57e8178c41421c74b20b841bd71fd409293"
+    },
+    {
+      "name": "com.chatchat.agents.orchestration.analysis.dataset.DataSupplyStatusTest",
+      "module": "chatchat-agents",
+      "tests": 6,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "xmlSha256": "0c18b82b214b6f72c80176ff69c858588972d58341b3685e6e5e72840e1ae2bb"
+    },
+    {
+      "name": "com.chatchat.agents.orchestration.analysis.governance.AnalysisCoverageCoordinatorTest",
+      "module": "chatchat-agents",
+      "tests": 30,
+      "skipped": 1,
+      "failures": 0,
+      "errors": 0,
+      "xmlSha256": "55e6ee7786c209fe2393d97125f6e7f824d186c08ba6bdb368bef22a84b69f69"
+    },
+    {
+      "name": "com.chatchat.runtime.market.storage.FinancialDataStoreTest",
+      "module": "chatchat-runtime-market",
+      "tests": 21,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "xmlSha256": "3e44eec543dec84143c4570e904b8101a18e81366964fad81db5649bb088acb9"
+    },
+    {
+      "name": "com.chatchat.mcpserver.market.ResourceExplorationReadControllerTest",
+      "module": "chatchat-mcp-server",
+      "tests": 7,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "xmlSha256": "f9c46a135a95f3d52233cdfe3d0d76d9c22cc23d58fef806ecf8c5bdfb5b792c"
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.cline.ClineModelCallbackControllerTest",
+      "module": "chatchat-api",
+      "tests": 20,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "xmlSha256": "08c6a9d991e4bd9d0c46c2c67862ab5d2e7a9389e898c0500e4417acbe877e52"
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.data.CodingDataSupplyServiceTest",
+      "module": "chatchat-api",
+      "tests": 13,
+      "skipped": 1,
+      "failures": 0,
+      "errors": 0,
+      "xmlSha256": "a5d5a228d95534ddaa397d3c342a1111f5dd5dc80d73c7ed4937a0406ebb8799"
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.knowledge.CodingDataObservationTest",
+      "module": "chatchat-api",
+      "tests": 5,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "xmlSha256": "541fc45c060cba763f2bbce356cfe511469acdb25db2d258e0ec30d4242f8fd3"
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeServiceTest",
+      "module": "chatchat-api",
+      "tests": 39,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "xmlSha256": "fb9b87f254aab2518896fc0158913529ef3f565c4f184de6e64b14d790499475"
+    }
+  ],
+  "logs": [
+    {
+      "file": "target/runtime-data-remediation/empty-p0-tests.log",
+      "sha256": "d06611e4d49f6a4c556f62f3ef75239a44daed09ad60d1ac7bdc49c653ce05f5",
+      "bytes": 16616,
+      "mavenBuildSuccess": false,
+      "retained": true
+    },
+    {
+      "file": "target/runtime-data-remediation/empty-p0-tests-rerun.log",
+      "sha256": "261e720d25a2906e76ad11698cc5f5ec1579af933ea9b6b377ccf910f9a4e0f3",
+      "bytes": 379422,
+      "mavenBuildSuccess": false,
+      "retained": true
+    },
+    {
+      "file": "target/runtime-data-remediation/empty-p0-tests-final.log",
+      "sha256": "f93e66985234e6bc65c7a8b020d8033c10e22a5aa10caf0ab5d3ae67fe3fb1b3",
+      "bytes": 341368,
+      "mavenBuildSuccess": true,
+      "retained": true
+    },
+    {
+      "file": "target/runtime-data-remediation/empty-p0-tests-coverage.log",
+      "sha256": "0f01081fdf8b4853d4092462cb402ca1563bed3cbd6d9fefbf1172949dc04ec6",
+      "bytes": 388452,
+      "mavenBuildSuccess": true,
+      "retained": true
+    },
+    {
+      "file": "target/runtime-data-remediation/empty-p0-transport-artifacts.log",
+      "sha256": "bbc8d0b7af355dff92dc70c0e61a8a0586b83d6b030abe5abed70c112a6493f8",
+      "bytes": 142682,
+      "mavenBuildSuccess": true,
+      "retained": true
+    }
+  ],
+  "skips": [
+    "Legacy citation replay environment not supplied",
+    "Optional local SqlGlot Python not configured"
+  ],
+  "initialFailuresRetained": true
+}

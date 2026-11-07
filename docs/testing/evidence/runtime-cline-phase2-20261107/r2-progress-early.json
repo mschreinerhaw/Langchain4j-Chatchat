@@ -1,0 +1,692 @@
+{
+  "collectedAt": 1794014026.332436,
+  "sourceCommit": "61bff9ffd7d91e1a35f9221f24f75a3ee05a1b96",
+  "cases": [
+    {
+      "case": "flash-1",
+      "admitted": true,
+      "taskId": "analysis-coding-49c8d2247ff1dc2db748a34808a90566a2362778ab90eb17d9f14bc64f1ca917",
+      "status": "RUNNING",
+      "reasonCode": "EXECUTION_OUTCOME_UNKNOWN",
+      "budget": {
+        "budgetId": "analysis-coding-tool-budget:analysis-coding-49c8d2247ff1dc2db748a34808a90566a2362778ab90eb17d9f14bc64f1ca917",
+        "deadlineAt": "2026-11-07T01:25:31.648Z",
+        "maxModelCalls": 12,
+        "maxModelTokens": 786432,
+        "maxToolCalls": 24,
+        "maxCodeExecutions": 12,
+        "maxCostAmount": "10",
+        "costCurrency": "USD",
+        "maxCpuMillis": 300000,
+        "maxMemoryBytes": 536870912,
+        "maxOutputBytes": 4194304
+      },
+      "allowedTools": [
+        "artifact_read",
+        "code_read",
+        "input_read",
+        "python_execute",
+        "read_files",
+        "skills",
+        "sql_validate"
+      ],
+      "networkPolicy": "NONE",
+      "sdkSessionId": "c40a03f8-c1a2-403a-8478-847b128fbdc9",
+      "checkpointOrdinal": 6,
+      "modelOrdinal": 5,
+      "versions": [
+        {
+          "version": 1,
+          "codeHash": "905f0bd1c29d1649cfdd91bbd7ce7760b6b319b32f9c94a39d2d8651bfbd9b5a",
+          "parentHash": null,
+          "parentVersion": null,
+          "operationId": "cline-6f7020f79b4f62b7110a2f6397e99e8dcbe183433df41683ebd0524180ebfeef",
+          "status": "REJECTED",
+          "kind": "INITIAL",
+          "editCount": 0,
+          "patchHash": "643d5437104296e21d906ecb15b2c96ad278f20cfc4af53b12bb6069bd853726"
+        }
+      ],
+      "feedback": [
+        {
+          "executionId": "cline-6f7020f79b4f62b7110a2f6397e99e8dcbe183433df41683ebd0524180ebfeef",
+          "exitCode": 1,
+          "codeHash": "905f0bd1c29d1649cfdd91bbd7ce7760b6b319b32f9c94a39d2d8651bfbd9b5a",
+          "resultAvailable": false,
+          "outputStatus": null,
+          "validationStatus": "NOT_RUN",
+          "businessValidationPassed": false,
+          "repair": {
+            "allowed": true,
+            "action": "REPAIR_IN_CURRENT_CONTEXT",
+            "reason": "TECHNICAL_REPAIR",
+            "attemptsUsed": 0,
+            "maxAttempts": 3,
+            "baseCodeHash": "905f0bd1c29d1649cfdd91bbd7ce7760b6b319b32f9c94a39d2d8651bfbd9b5a",
+            "guidance": "Use an API supported by the captured package version."
+          },
+          "error": {
+            "exceptionType": "AttributeError",
+            "diagnosticCode": "PACKAGE_API_UNAVAILABLE",
+            "stack": [
+              {
+                "file": "analyze-only-these-expli_20261107T010855325Z_971b4d6a7d53_v1.py",
+                "line": 184,
+                "column": null
+              }
+            ]
+          }
+        }
+      ],
+      "modelToolCalls": [
+        {
+          "operationId": "model-1",
+          "toolNames": [
+            "input_read",
+            "input_read"
+          ],
+          "usageKnown": true
+        },
+        {
+          "operationId": "model-2",
+          "toolNames": [
+            "input_read",
+            "input_read"
+          ],
+          "usageKnown": true
+        },
+        {
+          "operationId": "model-3",
+          "toolNames": [
+            "python_execute"
+          ],
+          "usageKnown": true
+        },
+        {
+          "operationId": "model-4",
+          "toolNames": [
+            "python_execute"
+          ],
+          "usageKnown": true
+        },
+        {
+          "operationId": "model-5",
+          "toolNames": [
+            "python_execute"
+          ],
+          "usageKnown": true
+        }
+      ],
+      "toolDisclosures": [
+        {
+          "type": "MODEL_STARTED",
+          "modelCall": 1,
+          "authorizedTools": [
+            "artifact_read",
+            "code_read",
+            "input_read",
+            "python_execute",
+            "read_files",
+            "skills",
+            "sql_validate"
+          ],
+          "disclosedTools": [
+            "artifact_read",
+            "code_read",
+            "input_read",
+            "python_execute",
+            "read_files",
+            "skills",
+            "sql_validate"
+          ],
+          "toolSchemaSha256": "250792479b235d6587ffc1a74def4e9934b3626f6be4d2a26758c167e96cd15d"
+        },
+        {
+          "type": "MODEL_STARTED",
+          "modelCall": 2,
+          "authorizedTools": [
+            "artifact_read",
+            "code_read",
+            "input_read",
+            "python_execute",
+            "read_files",
+            "skills",
+            "sql_validate"
+          ],
+          "disclosedTools": [
+            "artifact_read",
+            "code_read",
+            "input_read",
+            "python_execute",
+            "read_files",
+            "skills",
+            "sql_validate"
+          ],
+          "toolSchemaSha256": "250792479b235d6587ffc1a74def4e9934b3626f6be4d2a26758c167e96cd15d"
+        },
+        {
+          "type": "MODEL_STARTED",
+          "modelCall": 3,
+          "authorizedTools": [
+            "artifact_read",
+            "code_read",
+            "input_read",
+            "python_execute",
+            "read_files",
+            "skills",
+            "sql_validate"
+          ],
+          "disclosedTools": [
+            "artifact_read",
+            "code_read",
+            "input_read",
+            "python_execute",
+            "read_files",
+            "skills",
+            "sql_validate"
+          ],
+          "toolSchemaSha256": "250792479b235d6587ffc1a74def4e9934b3626f6be4d2a26758c167e96cd15d"
+        },
+        {
+          "type": "MODEL_STARTED",
+          "modelCall": 4,
+          "authorizedTools": [
+            "artifact_read",
+            "code_read",
+            "input_read",
+            "python_execute",
+            "read_files",
+            "skills",
+            "sql_validate"
+          ],
+          "disclosedTools": [
+            "artifact_read",
+            "code_read",
+            "input_read",
+            "python_execute",
+            "read_files",
+            "skills",
+            "sql_validate"
+          ],
+          "toolSchemaSha256": "250792479b235d6587ffc1a74def4e9934b3626f6be4d2a26758c167e96cd15d"
+        },
+        {
+          "type": "MODEL_STARTED",
+          "modelCall": 5,
+          "authorizedTools": [
+            "artifact_read",
+            "code_read",
+            "input_read",
+            "python_execute",
+            "read_files",
+            "skills",
+            "sql_validate"
+          ],
+          "disclosedTools": [
+            "artifact_read",
+            "code_read",
+            "input_read",
+            "python_execute",
+            "read_files",
+            "skills",
+            "sql_validate"
+          ],
+          "toolSchemaSha256": "250792479b235d6587ffc1a74def4e9934b3626f6be4d2a26758c167e96cd15d"
+        },
+        {
+          "type": "MODEL_STARTED",
+          "modelCall": 6,
+          "authorizedTools": [
+            "artifact_read",
+            "code_read",
+            "input_read",
+            "python_execute",
+            "read_files",
+            "skills",
+            "sql_validate"
+          ],
+          "disclosedTools": [
+            "artifact_read",
+            "code_read",
+            "input_read",
+            "python_execute",
+            "read_files",
+            "skills",
+            "sql_validate"
+          ],
+          "toolSchemaSha256": "250792479b235d6587ffc1a74def4e9934b3626f6be4d2a26758c167e96cd15d"
+        }
+      ],
+      "operations": [
+        {
+          "operationId": "cline-6f7020f79b4f62b7110a2f6397e99e8dcbe183433df41683ebd0524180ebfeef",
+          "kind": "CODE",
+          "startIntent": true,
+          "stopProofRef": "mcp-python-receipt:73ea6833fc5b604a447d5c695ac93aa4fa676c4114a34c54a87491b0ece8d04d",
+          "intentSha256": "c0c3dd0de13ecc35d4ed8941c87292ffe1d0ec4f5f336d41b8887b534e026ad7",
+          "startSequence": 69,
+          "executionHandle": "mcp-python:9296f6f8fb136c4b1085ba62feb6ba0103dd7899202ab3610c0c603574fa07ba"
+        },
+        {
+          "operationId": "model-1",
+          "kind": "MODEL",
+          "startIntent": true,
+          "stopProofRef": "runtime-evidence:coding:model:1ee9513013ab7b8d3d0f2f5f1dd470cd181ab845f768f219cc7e8366449b8b24",
+          "intentSha256": "8889b98be962b57224553be54671db7aef944adc19beb83fb99aeec9474211ae",
+          "startSequence": 7,
+          "executionHandle": "runtime-model:model-1"
+        },
+        {
+          "operationId": "model-2",
+          "kind": "MODEL",
+          "startIntent": true,
+          "stopProofRef": "runtime-evidence:coding:model:702c783e6310642a213f6ee4af88a796ad5da3c709a52e2dacdac6ae02543d2c",
+          "intentSha256": "c049d1c80853e06dda0a69eed4e7a5870536bb3c61c0faae453669dec3196586",
+          "startSequence": 32,
+          "executionHandle": "runtime-model:model-2"
+        },
+        {
+          "operationId": "model-3",
+          "kind": "MODEL",
+          "startIntent": true,
+          "stopProofRef": "runtime-evidence:coding:model:6f1f37880d2608bbb47860bda2314d9f664cbeb4dc64e27b2dc91e51809a86b2",
+          "intentSha256": "a13b7356e70326fd2276266d1ee92dfac8e3968aa97127019736269f683bc719",
+          "startSequence": 56,
+          "executionHandle": "runtime-model:model-3"
+        },
+        {
+          "operationId": "model-4",
+          "kind": "MODEL",
+          "startIntent": true,
+          "stopProofRef": "runtime-evidence:coding:model:768dfc4cceebd8594e322a607f3436649de07da60b6d3a25cd61cfcfd59beaaa",
+          "intentSha256": "a91292f1383aca323d018bf03ddfbd10d3a8a64e672333686babf65bda185e71",
+          "startSequence": 78,
+          "executionHandle": "runtime-model:model-4"
+        },
+        {
+          "operationId": "model-5",
+          "kind": "MODEL",
+          "startIntent": true,
+          "stopProofRef": "runtime-evidence:coding:model:d9d61a8f585799997e3384469f24527f3c5d90c058871543b45d6c7a955be885",
+          "intentSha256": "e1e5b99fbf6a02ef4ddaf78b53cbfca78cb98b973857bc54421bf8f382c70fb0",
+          "startSequence": 91,
+          "executionHandle": "runtime-model:model-5"
+        },
+        {
+          "operationId": "model-6",
+          "kind": "MODEL",
+          "startIntent": true,
+          "stopProofRef": null,
+          "intentSha256": "5a9fa0f8b1556e9d683f85db853ad40b54eb371ec9064175f82ebe7bdbcc77a2",
+          "startSequence": 105,
+          "executionHandle": "runtime-model:model-6"
+        },
+        {
+          "operationId": "workspace-464c3f0d38656966800ac70da181418ff2aa4340dbfab286f254f03f02395f59",
+          "kind": "TOOL",
+          "startIntent": true,
+          "stopProofRef": "runtime-evidence:coding:input-read:workspace-464c3f0d38656966800ac70da181418ff2aa4340dbfab286f254f03f02395f59:receipt",
+          "intentSha256": "91a4d607de78f4e880a05065c52b63288f341b99ebb9bcc661e67d2da07bf8ef",
+          "startSequence": 49,
+          "executionHandle": "runtime-workspace:workspace-464c3f0d38656966800ac70da181418ff2aa4340dbfab286f254f03f02395f59"
+        },
+        {
+          "operationId": "workspace-5633aac3497e2f33b4b9f4a8cc43c5d95ca052010eb182d8146ff02980df98a9",
+          "kind": "TOOL",
+          "startIntent": true,
+          "stopProofRef": "runtime-evidence:coding:input-read:workspace-5633aac3497e2f33b4b9f4a8cc43c5d95ca052010eb182d8146ff02980df98a9:receipt",
+          "intentSha256": "ee9e098e3a6bad1d91a48229165884c085502cf9571dc55ac9bf3843c9f51e85",
+          "startSequence": 42,
+          "executionHandle": "runtime-workspace:workspace-5633aac3497e2f33b4b9f4a8cc43c5d95ca052010eb182d8146ff02980df98a9"
+        },
+        {
+          "operationId": "workspace-662f8a491ee06481a6d322172633f0cd63fa510e2bac99b47f99f7d1b6dce72f",
+          "kind": "TOOL",
+          "startIntent": true,
+          "stopProofRef": "runtime-evidence:coding:input-read:workspace-662f8a491ee06481a6d322172633f0cd63fa510e2bac99b47f99f7d1b6dce72f:receipt",
+          "intentSha256": "8d1372c03174ccd9dd37263c4e8a24fce59d9de054dfaf67cf15df09ca85c507",
+          "startSequence": 25,
+          "executionHandle": "runtime-workspace:workspace-662f8a491ee06481a6d322172633f0cd63fa510e2bac99b47f99f7d1b6dce72f"
+        },
+        {
+          "operationId": "workspace-b5c7b2cefa8b000614df266febf86cd9c7df6681069d8ccd8c3627a8416a3601",
+          "kind": "TOOL",
+          "startIntent": true,
+          "stopProofRef": "runtime-evidence:coding:input-read:workspace-b5c7b2cefa8b000614df266febf86cd9c7df6681069d8ccd8c3627a8416a3601:receipt",
+          "intentSha256": "4c188729bc50c95b32e0ba15057190b5152d035bdd19864cd137175354502a41",
+          "startSequence": 18,
+          "executionHandle": "runtime-workspace:workspace-b5c7b2cefa8b000614df266febf86cd9c7df6681069d8ccd8c3627a8416a3601"
+        }
+      ],
+      "helperDisclosedInCanonicalContext": true,
+      "latestProgramUsesHelper": false,
+      "missingOutputRepairContexts": []
+    },
+    {
+      "case": "plus-1",
+      "admitted": true,
+      "taskId": "analysis-coding-ad4f7151a9fadc57d2c64c82295cd7074dda6281eecf53f8f7f984c5c0ba0dbb",
+      "status": "RUNNING",
+      "reasonCode": "EXECUTION_OUTCOME_UNKNOWN",
+      "budget": {
+        "budgetId": "analysis-coding-tool-budget:analysis-coding-ad4f7151a9fadc57d2c64c82295cd7074dda6281eecf53f8f7f984c5c0ba0dbb",
+        "deadlineAt": "2026-11-07T01:25:31.638Z",
+        "maxModelCalls": 12,
+        "maxModelTokens": 786432,
+        "maxToolCalls": 24,
+        "maxCodeExecutions": 12,
+        "maxCostAmount": "10",
+        "costCurrency": "USD",
+        "maxCpuMillis": 300000,
+        "maxMemoryBytes": 536870912,
+        "maxOutputBytes": 4194304
+      },
+      "allowedTools": [
+        "artifact_read",
+        "code_read",
+        "input_read",
+        "python_execute",
+        "read_files",
+        "skills",
+        "sql_validate"
+      ],
+      "networkPolicy": "NONE",
+      "sdkSessionId": "8b08c528-0532-40bb-b8b7-05693749f7f5",
+      "checkpointOrdinal": 7,
+      "modelOrdinal": 5,
+      "versions": [
+        {
+          "version": 1,
+          "codeHash": "71e44f61a93ca30d138b430ccda3311c540a52974d9a262829b869b7160cebd7",
+          "parentHash": null,
+          "parentVersion": null,
+          "operationId": "cline-c3de79b8765c23525c3f6a717d4a6067682cf8e86185d84ee89c39c5ac838971",
+          "status": "REJECTED",
+          "kind": "INITIAL",
+          "editCount": 0,
+          "patchHash": "643d5437104296e21d906ecb15b2c96ad278f20cfc4af53b12bb6069bd853726"
+        }
+      ],
+      "feedback": [
+        {
+          "executionId": "cline-c3de79b8765c23525c3f6a717d4a6067682cf8e86185d84ee89c39c5ac838971",
+          "exitCode": 0,
+          "codeHash": "71e44f61a93ca30d138b430ccda3311c540a52974d9a262829b869b7160cebd7",
+          "resultAvailable": false,
+          "outputStatus": "REQUIRED_OUTPUT_MISSING",
+          "validationStatus": "FAILED",
+          "businessValidationPassed": false,
+          "repair": {
+            "allowed": true,
+            "action": "REPAIR_IN_CURRENT_CONTEXT",
+            "reason": "TECHNICAL_REPAIR",
+            "attemptsUsed": 0,
+            "maxAttempts": 3,
+            "baseCodeHash": "71e44f61a93ca30d138b430ccda3311c540a52974d9a262829b869b7160cebd7",
+            "guidance": "Repair the required output file, field names and types to match the authorized result contract; exit code zero alone is insufficient. Required files: [/workspace/output/results/rows.jsonl]. Diagnostics under /workspace/output/validation do not satisfy report delivery. Write the complete report rows and referenced chart files, then inspect the archived report and chart validation receipt. Repair the latest program through existing edits; the next Sandbox has no files from prior executions."
+          },
+          "error": {
+            "exceptionType": null,
+            "diagnosticCode": "OUTPUT_CONTRACT",
+            "stack": []
+          }
+        }
+      ],
+      "modelToolCalls": [
+        {
+          "operationId": "model-1",
+          "toolNames": [
+            "read_files"
+          ],
+          "usageKnown": true
+        },
+        {
+          "operationId": "model-2",
+          "toolNames": [
+            "python_execute"
+          ],
+          "usageKnown": true
+        },
+        {
+          "operationId": "model-3",
+          "toolNames": [
+            "code_read"
+          ],
+          "usageKnown": true
+        },
+        {
+          "operationId": "model-4",
+          "toolNames": [],
+          "usageKnown": true
+        },
+        {
+          "operationId": "model-5",
+          "toolNames": [
+            "python_execute"
+          ],
+          "usageKnown": true
+        }
+      ],
+      "toolDisclosures": [
+        {
+          "type": "MODEL_STARTED",
+          "modelCall": 1,
+          "authorizedTools": [
+            "artifact_read",
+            "code_read",
+            "input_read",
+            "python_execute",
+            "read_files",
+            "skills",
+            "sql_validate"
+          ],
+          "disclosedTools": [
+            "artifact_read",
+            "code_read",
+            "input_read",
+            "python_execute",
+            "read_files",
+            "skills",
+            "sql_validate"
+          ],
+          "toolSchemaSha256": "250792479b235d6587ffc1a74def4e9934b3626f6be4d2a26758c167e96cd15d"
+        },
+        {
+          "type": "MODEL_STARTED",
+          "modelCall": 2,
+          "authorizedTools": [
+            "artifact_read",
+            "code_read",
+            "input_read",
+            "python_execute",
+            "read_files",
+            "skills",
+            "sql_validate"
+          ],
+          "disclosedTools": [
+            "artifact_read",
+            "code_read",
+            "input_read",
+            "python_execute",
+            "read_files",
+            "skills",
+            "sql_validate"
+          ],
+          "toolSchemaSha256": "250792479b235d6587ffc1a74def4e9934b3626f6be4d2a26758c167e96cd15d"
+        },
+        {
+          "type": "MODEL_STARTED",
+          "modelCall": 3,
+          "authorizedTools": [
+            "artifact_read",
+            "code_read",
+            "input_read",
+            "python_execute",
+            "read_files",
+            "skills",
+            "sql_validate"
+          ],
+          "disclosedTools": [
+            "artifact_read",
+            "code_read",
+            "input_read",
+            "python_execute",
+            "read_files",
+            "skills",
+            "sql_validate"
+          ],
+          "toolSchemaSha256": "250792479b235d6587ffc1a74def4e9934b3626f6be4d2a26758c167e96cd15d"
+        },
+        {
+          "type": "MODEL_STARTED",
+          "modelCall": 4,
+          "authorizedTools": [
+            "artifact_read",
+            "code_read",
+            "input_read",
+            "python_execute",
+            "read_files",
+            "skills",
+            "sql_validate"
+          ],
+          "disclosedTools": [
+            "artifact_read",
+            "code_read",
+            "input_read",
+            "python_execute",
+            "read_files",
+            "skills",
+            "sql_validate"
+          ],
+          "toolSchemaSha256": "250792479b235d6587ffc1a74def4e9934b3626f6be4d2a26758c167e96cd15d"
+        },
+        {
+          "type": "MODEL_STARTED",
+          "modelCall": 5,
+          "authorizedTools": [
+            "artifact_read",
+            "code_read",
+            "input_read",
+            "python_execute",
+            "read_files",
+            "skills",
+            "sql_validate"
+          ],
+          "disclosedTools": [
+            "artifact_read",
+            "code_read",
+            "input_read",
+            "python_execute",
+            "read_files",
+            "skills",
+            "sql_validate"
+          ],
+          "toolSchemaSha256": "250792479b235d6587ffc1a74def4e9934b3626f6be4d2a26758c167e96cd15d"
+        },
+        {
+          "type": "MODEL_STARTED",
+          "modelCall": 6,
+          "authorizedTools": [
+            "artifact_read",
+            "code_read",
+            "input_read",
+            "python_execute",
+            "read_files",
+            "skills",
+            "sql_validate"
+          ],
+          "disclosedTools": [
+            "artifact_read",
+            "code_read",
+            "input_read",
+            "python_execute",
+            "read_files",
+            "skills",
+            "sql_validate"
+          ],
+          "toolSchemaSha256": "250792479b235d6587ffc1a74def4e9934b3626f6be4d2a26758c167e96cd15d"
+        }
+      ],
+      "operations": [
+        {
+          "operationId": "cline-c3de79b8765c23525c3f6a717d4a6067682cf8e86185d84ee89c39c5ac838971",
+          "kind": "CODE",
+          "startIntent": true,
+          "stopProofRef": "mcp-python-receipt:0ef5763403e477a71ba02648bba1ea11ccb92502a6c383cd230f626e3ff599d4",
+          "intentSha256": "003c1898969eee375a01d0f125abfbdc6ad4a5ea10f58a92ec8b751b03e15e27",
+          "startSequence": 30,
+          "executionHandle": "mcp-python:9fd907973fbde837eae565286257e720afe4bddebc2b8cc25177b20a78d3daeb"
+        },
+        {
+          "operationId": "model-1",
+          "kind": "MODEL",
+          "startIntent": true,
+          "stopProofRef": "runtime-evidence:coding:model:630c86ee3b6c10fd1bb45663b82b0b61cca19366918ac753e78035d2f07c7175",
+          "intentSha256": "8c454f126a8edfd3f1125fdac917bd6f11cc9ee75f93d3ead61614fd5664ca95",
+          "startSequence": 7,
+          "executionHandle": "runtime-model:model-1"
+        },
+        {
+          "operationId": "model-2",
+          "kind": "MODEL",
+          "startIntent": true,
+          "stopProofRef": "runtime-evidence:coding:model:bb91141bf00f58f07065ccc79217c5007dfc33e5fc2c6950d3e36eff043609ef",
+          "intentSha256": "7072a422b3811127d01214886bad98131f131354b7872afa477f369f8e73ed75",
+          "startSequence": 19,
+          "executionHandle": "runtime-model:model-2"
+        },
+        {
+          "operationId": "model-3",
+          "kind": "MODEL",
+          "startIntent": true,
+          "stopProofRef": "runtime-evidence:coding:model:fe4163dbca438873bc4bdb37ddea78d1cc30cc9515644712ed05c4537379e6c5",
+          "intentSha256": "91005879d50e15c80f3e19429c16091b6aadfce9401d8163f55ad777141b62a6",
+          "startSequence": 39,
+          "executionHandle": "runtime-model:model-3"
+        },
+        {
+          "operationId": "model-4",
+          "kind": "MODEL",
+          "startIntent": true,
+          "stopProofRef": "runtime-evidence:coding:model:4c0fe621a16a896dad65123d7b042f94bcffb0abd59732c2e936a068296ad378",
+          "intentSha256": "473d1813ae62f0e77c195e4a7c2df1233576f5e51c0cb7f28df35f1f6c1071e3",
+          "startSequence": 50,
+          "executionHandle": "runtime-model:model-4"
+        },
+        {
+          "operationId": "model-5",
+          "kind": "MODEL",
+          "startIntent": true,
+          "stopProofRef": "runtime-evidence:coding:model:a042667d11451a99153b878a87324d3e697adba3a9a6ce965c88dd8251208360",
+          "intentSha256": "7ab26cf97ca2461d2460b1a0b5399416566a441bde91f4da70219842e50efe1a",
+          "startSequence": 64,
+          "executionHandle": "runtime-model:model-5"
+        },
+        {
+          "operationId": "model-6",
+          "kind": "MODEL",
+          "startIntent": true,
+          "stopProofRef": null,
+          "intentSha256": "d0fc66e6a70ac342cf45f3de7bac01ae2fe603ac5e8e113ed35c60c2219216a9",
+          "startSequence": 79,
+          "executionHandle": "runtime-model:model-6"
+        }
+      ],
+      "helperDisclosedInCanonicalContext": true,
+      "latestProgramUsesHelper": false,
+      "missingOutputRepairContexts": [
+        {
+          "operationId": "cline-c3de79b8765c23525c3f6a717d4a6067682cf8e86185d84ee89c39c5ac838971",
+          "codeHash": "71e44f61a93ca30d138b430ccda3311c540a52974d9a262829b869b7160cebd7",
+          "sourceContextDelivered": true,
+          "baseHashMatches": true,
+          "lines": [
+            100
+          ],
+          "exactAnchorPresent": true
+        }
+      ]
+    }
+  ],
+  "privateContentsOmitted": true
+}

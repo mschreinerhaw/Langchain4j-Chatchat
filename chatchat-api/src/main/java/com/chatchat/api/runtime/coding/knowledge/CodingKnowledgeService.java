@@ -79,7 +79,7 @@ public class CodingKnowledgeService {
     private void requireResource(CodingTaskContract c,String tool,Set<String> current) {
         if(!c.authorization().allowedTools().contains(tool))throw new SecurityException("Resource tool is outside task authorization");
         if(resourceScopes==null) {if(!TOOLS.contains(tool))throw new SecurityException("Resource governor unavailable");return;}
-        if(!(current==null?currentResources(c):current).contains(CodingResourceReader.resource(tool)))throw new SecurityException("Data resource authorization was revoked or not requested");
+        if(!(current==null?currentResources(c):current).contains(CodingResourceReader.resource(tool)))throw new SecurityException("Data resource authorization was revoked or not requested (ACCESS_REVOKED)");
     }
 
     public CodingKnowledgeService(SkillExecutionScopePort scopes, SearchService documents, PerDocumentIndexService originals,
@@ -364,7 +364,7 @@ public class CodingKnowledgeService {
             catch(RuntimeException unavailable){
                 log.warn("Resource validation unavailable task={} operations={} cause={} status={}",c.taskId(),chunk.size(),
                     unavailable.getClass().getSimpleName(),unavailable instanceof org.springframework.web.server.ResponseStatusException status?status.getStatusCode().value():0);
-                throw new SecurityException("Source cannot be revalidated; retained content is withheld",unavailable);
+                throw new SecurityException("Source cannot be revalidated (SOURCE_UNAVAILABLE); retained content is withheld",unavailable);
             }
             finally{sourceIoNanos+=System.nanoTime()-ioStarted;}
             if(bodies==null||bodies.size()!=chunk.size())throw new SecurityException("Incomplete source validation batch");
@@ -539,10 +539,15 @@ public class CodingKnowledgeService {
         }
         Map<String,Object> current;
         try{current=batch.get(resourceReadKey(tool,args));if(current==null)current=resourceReader.read(tool,args);}
-        catch(RuntimeException unavailable){throw new SecurityException("Source cannot be revalidated; retained content is withheld",unavailable);}
+        catch(RuntimeException unavailable){throw new SecurityException("Source cannot be revalidated (SOURCE_UNAVAILABLE); retained content is withheld",unavailable);}
         boolean catalogHeartbeat="market_catalog_heartbeat_v1".equals(locator.get("resource_hash_schema"));
         String currentHash=catalogHeartbeat?marketSourceHash(current):evidence.contentHash(current);
-        if(!currentHash.equals(locator.get("response_hash")))throw new SecurityException("Resource source changed; start a new task to acquire current evidence");
+        boolean directoryRefresh=false;
+        if(!currentHash.equals(locator.get("response_hash"))) {
+            if(catalogHeartbeat&&tool.equals("market_resolve_security")) {
+                current=verifiedDirectorySnapshot(c,ref,locator,current);directoryRefresh=true;
+            } else throw new SecurityException("Resource source changed (SOURCE_CHANGED); start a new task to acquire current evidence");
+        }
         if(catalogHeartbeat) {
             current=new LinkedHashMap<>(current);
             if(current.get("asset") instanceof Map<?,?> a) {
@@ -554,6 +559,12 @@ public class CodingKnowledgeService {
             current.put("catalog_collection_time_policy","Ingestion heartbeat observed at exploration; not the collection time or version of returned financial observations.");
         }
         var view=new LinkedHashMap<String,Object>();boolean news=tool.startsWith("news_");
+        if(directoryRefresh) {
+            view.put("source_revalidation_policy","market_security_directory_refresh_v2");
+            view.put("source_revalidation_status","VERIFIED_REFRESH_ONLY");
+            view.put("source_version_proof",Map.of("originalResponseHash",locator.get("response_hash"),
+                "contentHash",marketSourceHash(directoryContent(current))));
+        }
         var asset=current.get("asset") instanceof Map<?,?> a?a:current;
         String identity=news?Objects.toString(current.get("article_id"),""):Objects.toString(current.getOrDefault("dataset",current.get("dataset_code")),"");
         view.put("document_id",(news?"news:":"market:")+identity);view.put("resource_id",locator.get("resource_id"));
@@ -577,6 +588,50 @@ public class CodingKnowledgeService {
         if(!news) {view.put("catalog_collected_at",asset.get("last_collected_at"));view.put("collection_time_policy","Observation collection time when declared; catalog ingestion heartbeat is recorded separately as observed at exploration.");}
         view.put("data_as_of",news?current.get("published_at"):current.containsKey("data_as_of")?current.get("data_as_of"):asset.get("last_observation_date"));view.put("license_status","source_declared_or_unknown_not_a_commercial_license_grant");
         return view;
+    }
+    /** Compatibility proof for old immutable locators; never rewrites evidence or reports.
+     * The original full response must match its OLD hash before any normalization.
+     * Live source IO and current grants have already been rechecked by the caller. */
+    private Map<String,Object> verifiedDirectorySnapshot(CodingTaskContract c,String ref,Map<String,Object> locator,Map<String,Object> current) {
+        var checkpoint=tasks.sdkCheckpoint(c.scope(),c.taskId());
+        if(checkpoint!=null)for(var message:checkpoint.path("messages"))for(var part:message.path("content")) {
+            var output=part.path("output");
+            if(!"tool-result".equals(part.path("type").asText())||!"market_resolve_security".equals(part.path("toolName").asText())
+                ||part.path("isError").asBoolean()||!output.isObject()||!ref.equals(output.path("evidence_id").asText()))continue;
+            var original=json.convertValue(output,new com.fasterxml.jackson.core.type.TypeReference<LinkedHashMap<String,Object>>(){});
+            original.remove("evidence_id");original.remove("authority");original.remove("dataObservation"); // Runtime envelope; old full source hash must still match.
+            if(!marketSourceHash(original).equals(locator.get("response_hash")))continue;
+            if(!marketSourceHash(directoryContent(original)).equals(marketSourceHash(directoryContent(current)))
+                ||!directoryTimeAdvanced(original,current))
+                throw new SecurityException("Resource source changed (SOURCE_CHANGED); directory content or collection time differs");
+            return original; // Retain the exact observed timestamps and source representation.
+        }
+        throw new SecurityException("Source version proof unavailable (VERSION_PROOF_UNAVAILABLE); retained content is withheld");
+    }
+    /** Only this directory tool's one-level collection heartbeat is non-content.
+     * Observation times, nested metadata and every security/business field remain versioned. */
+    private Map<String,Object> directoryContent(Map<String,Object> body) {
+        if(!(body.get("items") instanceof List<?> rows)||rows.size()>20)throw new SecurityException("Invalid directory version proof");
+        var result=new LinkedHashMap<>(body);var items=new ArrayList<Map<String,Object>>();
+        for(Object item:rows) {
+            if(!(item instanceof Map<?,?> row))throw new SecurityException("Invalid directory candidate proof");
+            var copy=new LinkedHashMap<String,Object>();row.forEach((k,v)->copy.put(k.toString(),v));
+            copy.remove("source_refreshed_at");items.add(copy);
+        }
+        result.put("items",items);return result;
+    }
+    private boolean directoryTimeAdvanced(Map<String,Object> original,Map<String,Object> current) {
+        var before=(List<?>)original.get("items");var after=(List<?>)current.get("items");
+        if(before.size()!=after.size())return false;
+        for(int i=0;i<before.size();i++) {
+            var a=(Map<?,?>)before.get(i);var b=(Map<?,?>)after.get(i);
+            try {
+                var oldTime=java.time.Instant.parse(Objects.toString(a.get("source_refreshed_at"),""));
+                var newTime=java.time.Instant.parse(Objects.toString(b.get("source_refreshed_at"),""));
+                if(newTime.isBefore(oldTime))return false;
+            }catch(java.time.DateTimeException invalid){return false;}
+        }
+        return true;
     }
     private String marketSourceHash(Map<String,Object> body) {
         var source=new LinkedHashMap<>(body);

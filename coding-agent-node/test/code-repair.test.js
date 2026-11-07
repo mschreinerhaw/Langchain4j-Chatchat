@@ -5,6 +5,19 @@ import { prepareProgram, repairSourceContext } from '../src/code-repair.js';
 
 const source = 'value = 1\nprint(value)\n';
 const hash = createHash('sha256').update(source).digest('hex');
+test('missing output without a stack points to the exact diagnostic program tail, never supplies a report', () => {
+  const program = 'count = 3\nprint(count)\n';
+  const codeHash = createHash('sha256').update(program).digest('hex');
+  const feedback = {codeHash, repair:{allowed:true,baseCodeHash:codeHash},
+    outputStatus:'REQUIRED_OUTPUT_MISSING',error:{diagnosticCode:'OUTPUT_CONTRACT',stack:[]}};
+  const context = repairSourceContext(program,feedback,'task.py');
+  assert.equal(context.excerpts[0].line,2);
+  assert.equal(context.excerpts[0].exactOldText,'print(count)');
+  assert.doesNotMatch(JSON.stringify(context),/reportMarkdown|rows\.jsonl/);
+  assert.equal(repairSourceContext(program,{...feedback,outputStatus:'UNKNOWN'},'task.py'),null);
+  assert.equal(repairSourceContext(program,{...feedback,repair:{allowed:false,baseCodeHash:codeHash}},'task.py'),null);
+  assert.equal(repairSourceContext(program+'# changed',feedback,'task.py'),null);
+});
 test('repair context binds safe source locations to the exact latest execution', () => {
   const program = "texts = []\nall_refs = list(texts.keys())\n";
   const codeHash = createHash('sha256').update(program).digest('hex');

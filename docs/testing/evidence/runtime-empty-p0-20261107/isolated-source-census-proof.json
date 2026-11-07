@@ -1,0 +1,26 @@
+{
+  "case": "E03",
+  "level": "ISOLATED_H2_REAL_STORAGE_AND_MCP_CONTROLLER",
+  "query": {
+    "dataset": "market_quote_daily",
+    "history_mode": "daily",
+    "limit": 1,
+    "start_date": "2026-07-23",
+    "end_date": "2026-07-23"
+  },
+  "returnedRowCount": 0,
+  "sourceCoverage": {
+    "policy": "Observed eligible retained data only; excludes restricted rows; not platform-wide absence or exchange collection completeness",
+    "dataset": "market_quote_daily",
+    "scope": "RETAINED_VALID_DATASET",
+    "maxRowsPerRead": 1,
+    "readModes": [
+      "daily",
+      "weekly"
+    ],
+    "empty": true
+  },
+  "fixtureSha256": "dcfe05a9423588cc322b711caf857661b0b14423fb4619a1fcc74ad7828cabb2",
+  "productionDataDeleted": false,
+  "classificationAssertedBy": "CodingDataObservationTest.sourceEmptyUsesActualStorageCoverageRatherThanAZeroArray"
+}

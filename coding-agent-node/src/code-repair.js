@@ -29,6 +29,13 @@ export function repairSourceContext(source, feedback, fileName) {
   const locations = [...new Set((feedback.error?.stack ?? [])
     .filter(frame => frame.file === fileName && Number.isInteger(frame.line)
       && frame.line > 0 && frame.line <= lines.length).map(frame => frame.line))].slice(-3);
+  // A stopped diagnostic-only program has no exception frame. Bind the existing
+  // output-contract feedback to its actual tail without inventing report code.
+  if (!locations.length && feedback.outputStatus === 'REQUIRED_OUTPUT_MISSING'
+      && feedback.error?.diagnosticCode === 'OUTPUT_CONTRACT') {
+    const last = lines.findLastIndex(line => line.trim().length > 0);
+    if (last >= 0) locations.push(last + 1);
+  }
   if (!locations.length) return null;
   return {
     baseCodeSha256: codeHash,

@@ -1,0 +1,94 @@
+{
+  "readOnly": true,
+  "authorizationExpanded": false,
+  "cases": [
+    {
+      "case": "E01",
+      "tool": "market_get_history",
+      "query": {
+        "dataset": "market_quote_daily",
+        "filters": {
+          "quote_code": "SZSE:301218"
+        },
+        "start_date": "2026-11-02",
+        "end_date": "2026-11-02",
+        "history_mode": "daily",
+        "limit": 5
+      },
+      "startedAt": "2026-11-06T22:26:00.173697+00:00",
+      "elapsedMs": 61,
+      "httpStatus": 200,
+      "responseSha256": "c9f09cc1640224a40e956838565d04bce0695fd69d52b021a33df19506a975e5",
+      "returnedRowCount": 0,
+      "sourceStatus": "collected_observations_not_live_quotes",
+      "complete": null,
+      "requiredFields": []
+    },
+    {
+      "case": "E02",
+      "tool": "market_get_day_snapshot",
+      "query": {
+        "dataset": "market_quote_daily",
+        "source_id": 38,
+        "trade_date": "2026-11-02"
+      },
+      "startedAt": "2026-11-06T22:26:00.235276+00:00",
+      "elapsedMs": 1739,
+      "httpStatus": 200,
+      "responseSha256": "2842f3a9bd21cc38a17b40bd479b17c8255ff57af73a5b08940a4a287844420c",
+      "returnedRowCount": 2943,
+      "sourceStatus": null,
+      "complete": true,
+      "requiredFields": [],
+      "targetMatched": true,
+      "targetCode": "301218"
+    },
+    {
+      "case": "E04",
+      "tool": "market_get_history",
+      "query": {
+        "dataset": "market_quote_daily",
+        "start_date": "2099-01-01",
+        "end_date": "2099-01-01",
+        "history_mode": "daily",
+        "limit": 1
+      },
+      "startedAt": "2026-11-06T22:26:01.984667+00:00",
+      "elapsedMs": 14,
+      "httpStatus": 200,
+      "responseSha256": "0ad0057a62a18171fa24f4c197148a455c09709252e3a8ee3497f123a9ae7c21",
+      "returnedRowCount": 0,
+      "sourceStatus": "collected_observations_not_live_quotes",
+      "complete": null,
+      "requiredFields": []
+    },
+    {
+      "case": "E05",
+      "tool": "market_get_history",
+      "query": {
+        "dataset": "market_quote_daily",
+        "filters": {
+          "quote_code": "301218"
+        },
+        "start_date": "2026-11-02",
+        "end_date": "2026-11-02",
+        "history_mode": "daily",
+        "limit": 1
+      },
+      "startedAt": "2026-11-06T22:26:01.998742+00:00",
+      "elapsedMs": 14,
+      "httpStatus": 200,
+      "responseSha256": "7fba6118286ae461040d337a5d743037e110e80a0f0dd11077952e71b522c166",
+      "returnedRowCount": 1,
+      "sourceStatus": "collected_observations_not_live_quotes",
+      "complete": null,
+      "requiredFields": [
+        "official_listing_date"
+      ]
+    }
+  ],
+  "fixtureSha256": "5b7bc678b8cf398909d180353d73fa81a368450105ee34978649fdc970f7857b",
+  "allLocalSourcesEmptyPrecondition": false,
+  "reason": "Actual authorized source38/day has valid data; production records were not removed",
+  "scope": "Real source reads; does not by itself certify Cline recovery, report or archive delivery"
+}

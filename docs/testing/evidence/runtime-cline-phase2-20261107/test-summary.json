@@ -1,0 +1,75 @@
+{
+  "java": [
+    {
+      "name": "com.chatchat.api.runtime.coding.cline.CodingInputLayoutTest",
+      "summary": "Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.657 s -- in com.chatchat.api.runtime.coding.cline.CodingInputLayoutTest",
+      "sha256": "e00520765b57e1b599c4d1fbc5f923e7967ab0dad0f5a9179e729bc3b0be3e7e"
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.cline.ClineModelCallbackControllerTest",
+      "summary": "Tests run: 21, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 17.45 s -- in com.chatchat.api.runtime.coding.cline.ClineModelCallbackControllerTest",
+      "sha256": "41095704124209a7e15c4665b8451730eff02328e948e8e4f8ccea4cce0583ae"
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeServiceTest",
+      "summary": "Tests run: 41, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 10.35 s -- in com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeServiceTest",
+      "sha256": "b560344a81fdd034c702e4a6ad66ba5bdce31f962090c26abf26c95b3a9e141d"
+    }
+  ],
+  "node": {
+    "passed": 257,
+    "failed": 0,
+    "skipped": 0,
+    "command": "node --experimental-strip-types --test test/*.test.js",
+    "localNode": "22.14.0",
+    "requiredNode": ">=22.18",
+    "initialDefaultRun": {
+      "passed": 219,
+      "failedModules": 4,
+      "reason": "Local Node 22.14 cannot load .ts dependencies without strip-types; invocation corrected, no source workaround"
+    },
+    "overlappingTargetedSuites": {
+      "repair": 16,
+      "disclosure": 17
+    }
+  },
+  "python": {
+    "passed": 6,
+    "environment": "Existing Sandbox image, isolated network=none"
+  },
+  "rawLogs": [
+    {
+      "path": "target/phase2-layout-tests.log",
+      "sha256": "544c3c92da3d5d8151dbb3341656cf79a8a955757451c058fe10b50aa8fa74e9"
+    },
+    {
+      "path": "target/phase2-layout-tests-fast.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/phase2-java-tests.log",
+      "sha256": "827b0f02404c72088fda4e41249ce633d044270867bb3ab932c5ba98ebc7f57e"
+    },
+    {
+      "path": "target/phase2-java-tests-fixed.log",
+      "sha256": "ab032af3de5ccbc59afd8b536f40b4a6a1002bb4a69e4a9690eea0a41380f902"
+    },
+    {
+      "path": "target/phase2-repair-tests.log",
+      "sha256": "cb50ba80cbc4fce54c7f88c9cdc37a02f8591614b90ccc7c8bab91956e13f803"
+    },
+    {
+      "path": "target/phase2-disclosure-tests.log",
+      "sha256": "7f5014ac38827a0969d080554ca6b7b344f8dd473c786880dd7b8f6c088e0373"
+    },
+    {
+      "path": "target/phase2-node-full-tests.log",
+      "sha256": "b4ab29dfbb89eb6564b7b6359e2182e3e14c539aaab3624fa832e7ba30027c24"
+    },
+    {
+      "path": "target/phase2-node-full-tests-compatible.log",
+      "sha256": "f75dc72877936a575d9e3d9d47a3a8f2d7b6d6550a3ebee1835632186898abfe"
+    }
+  ],
+  "policy": "Overlapping suites are not summed; unit tests are not business acceptance"
+}

@@ -1,0 +1,20 @@
+{
+  "readOnly": true,
+  "workspaceId": "3957640a-9314-4330-973d-3b230dbbaf9f",
+  "nodeId": "8c43909d-e2ea-476d-b842-81e3ddacb507",
+  "progress": {
+    "taskId": "analysis-coding-bf31e9a7792f0faab7dad4aa29268a47344355d4d517754c3ff0771eb72eb28b",
+    "eventCount": 47,
+    "modelEventKinds": [
+      "MODEL_STARTED",
+      "MODEL_TIMING"
+    ],
+    "historyStatus": "AVAILABLE",
+    "readOnlyStatusHydrated": true
+  },
+  "renderedPlotlyCharts": [],
+  "status": "FAILED",
+  "error": "locator.waitFor: Error: strict mode violation: locator('.js-plotly-plot') resolved to 2 elements:\n    1) <div id=\"plot\" class=\"js-plotly-plot\">…</div> aka locator('#plot')\n    2) <div class=\"js-plotly-plot\">…</div> aka locator('div:nth-child(5)')\n\nCall log:\n\u001b[2m  - waiting for locator('.js-plotly-plot') to be visible\u001b[22m\n",
+  "executeRequests": 0,
+  "browserErrors": []
+}

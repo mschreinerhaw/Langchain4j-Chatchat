@@ -1,0 +1,162 @@
+[ {
+  "schemaVersion" : "runtime_os.data_observation.v1",
+  "tool" : "market_get_history",
+  "query" : {
+    "dataset" : "market_quote_daily",
+    "filters" : {
+      "quote_code" : "SZSE:301218"
+    },
+    "start_date" : "2026-11-02",
+    "end_date" : "2026-11-02",
+    "history_mode" : "daily",
+    "limit" : 5
+  },
+  "startedAt" : "2026-11-06T22:26:00.173697Z",
+  "finishedAt" : "2026-11-06T22:38:08.069774600Z",
+  "elapsedMs" : 61,
+  "resourceId" : "financial_market",
+  "recordKind" : "OBSERVATIONS",
+  "availableTools" : [ "market_get_day_snapshot", "market_get_history", "market_search" ],
+  "searchAvailability" : {
+    "serviceChecked" : false,
+    "reasonCode" : "MODEL_INTERNET_DISABLED",
+    "status" : "UNAVAILABLE"
+  },
+  "status" : "EMPTY_RESULT",
+  "conditions" : [ "EMPTY_RESULT" ],
+  "returnedRowCount" : 0,
+  "complete" : true,
+  "missingFields" : [ ],
+  "rowsMissingRequiredFields" : 0,
+  "cause" : "UNKNOWN",
+  "sourceEmptyProven" : false,
+  "automaticRetryAuthorized" : false,
+  "sourceStatus" : "collected_observations_not_live_quotes",
+  "dataset" : "market_quote_daily",
+  "data_as_of" : null,
+  "recoveryPolicy" : "Choose only available authorized tools within the original task budget, date and file limits. Inspect template/parameters, dates, security/market/aliases and catalog coverage; consider other authorized sources, a bounded day file, then authorized Search. An empty slice does not prove source absence. Avoid repeating an unchanged query; retain attempted paths and unsupported analyses in a PARTIAL or unavailable report. Do not invent data or units.",
+  "case" : "E01"
+}, {
+  "schemaVersion" : "runtime_os.data_observation.v1",
+  "tool" : "market_get_day_snapshot",
+  "query" : {
+    "dataset" : "market_quote_daily",
+    "source_id" : 38,
+    "trade_date" : "2026-11-02"
+  },
+  "startedAt" : "2026-11-06T22:26:00.235276Z",
+  "finishedAt" : "2026-11-06T22:38:08.260972300Z",
+  "elapsedMs" : 1739,
+  "resourceId" : "financial_market",
+  "recordKind" : "OBSERVATIONS",
+  "availableTools" : [ "market_get_day_snapshot", "market_get_history", "market_search" ],
+  "searchAvailability" : {
+    "serviceChecked" : false,
+    "reasonCode" : "MODEL_INTERNET_DISABLED",
+    "status" : "UNAVAILABLE"
+  },
+  "status" : "AVAILABLE",
+  "conditions" : [ "AVAILABLE" ],
+  "returnedRowCount" : 2943,
+  "complete" : true,
+  "missingFields" : [ ],
+  "rowsMissingRequiredFields" : 0,
+  "cause" : "OBSERVED_RESPONSE_FACTS",
+  "sourceEmptyProven" : false,
+  "automaticRetryAuthorized" : false,
+  "sourceStatus" : null,
+  "dataset" : "market_quote_daily",
+  "source_id" : 38,
+  "trade_date" : "2026-11-02",
+  "recoveryPolicy" : "Choose only available authorized tools within the original task budget, date and file limits. Inspect template/parameters, dates, security/market/aliases and catalog coverage; consider other authorized sources, a bounded day file, then authorized Search. An empty slice does not prove source absence. Avoid repeating an unchanged query; retain attempted paths and unsupported analyses in a PARTIAL or unavailable report. Do not invent data or units.",
+  "case" : "E02"
+}, {
+  "schemaVersion" : "runtime_os.data_observation.v1",
+  "tool" : "market_get_history",
+  "query" : {
+    "dataset" : "market_quote_daily",
+    "start_date" : "2099-01-01",
+    "end_date" : "2099-01-01",
+    "history_mode" : "daily",
+    "limit" : 1
+  },
+  "startedAt" : "2026-11-06T22:26:01.984667Z",
+  "finishedAt" : "2026-11-06T22:38:08.414907100Z",
+  "elapsedMs" : 14,
+  "resourceId" : "financial_market",
+  "recordKind" : "OBSERVATIONS",
+  "availableTools" : [ "market_get_day_snapshot", "market_get_history", "market_search" ],
+  "searchAvailability" : {
+    "serviceChecked" : false,
+    "reasonCode" : "MODEL_INTERNET_DISABLED",
+    "status" : "UNAVAILABLE"
+  },
+  "status" : "DATE_MISMATCH",
+  "conditions" : [ "DATE_MISMATCH", "EMPTY_RESULT" ],
+  "returnedRowCount" : 0,
+  "complete" : true,
+  "missingFields" : [ ],
+  "rowsMissingRequiredFields" : 0,
+  "cause" : "REQUEST_AFTER_OBSERVED_CATALOG_MAX_DATE",
+  "sourceEmptyProven" : false,
+  "automaticRetryAuthorized" : false,
+  "sourceStatus" : "collected_observations_not_live_quotes",
+  "coverageEvidence" : {
+    "last_observation_date" : "2026-11-07",
+    "scope" : "Observed catalog maximum for this dataset; not trading-calendar or per-security completeness evidence"
+  },
+  "dataset" : "market_quote_daily",
+  "data_as_of" : null,
+  "recoveryPolicy" : "Choose only available authorized tools within the original task budget, date and file limits. Inspect template/parameters, dates, security/market/aliases and catalog coverage; consider other authorized sources, a bounded day file, then authorized Search. An empty slice does not prove source absence. Avoid repeating an unchanged query; retain attempted paths and unsupported analyses in a PARTIAL or unavailable report. Do not invent data or units.",
+  "case" : "E04"
+}, {
+  "schemaVersion" : "runtime_os.data_observation.v1",
+  "tool" : "market_get_history",
+  "query" : {
+    "dataset" : "market_quote_daily",
+    "filters" : {
+      "quote_code" : "301218"
+    },
+    "start_date" : "2026-11-02",
+    "end_date" : "2026-11-02",
+    "history_mode" : "daily",
+    "limit" : 1
+  },
+  "startedAt" : "2026-11-06T22:26:01.998742Z",
+  "finishedAt" : "2026-11-06T22:38:08.417903700Z",
+  "elapsedMs" : 14,
+  "resourceId" : "financial_market",
+  "recordKind" : "OBSERVATIONS",
+  "availableTools" : [ "market_get_day_snapshot", "market_get_history", "market_search" ],
+  "searchAvailability" : {
+    "serviceChecked" : false,
+    "reasonCode" : "MODEL_INTERNET_DISABLED",
+    "status" : "UNAVAILABLE"
+  },
+  "status" : "AVAILABLE",
+  "conditions" : [ "AVAILABLE" ],
+  "returnedRowCount" : 1,
+  "complete" : true,
+  "missingFields" : [ ],
+  "rowsMissingRequiredFields" : 0,
+  "cause" : "OBSERVED_RESPONSE_FACTS",
+  "sourceEmptyProven" : false,
+  "automaticRetryAuthorized" : false,
+  "sourceStatus" : "collected_observations_not_live_quotes",
+  "dataset" : "market_quote_daily",
+  "data_as_of" : "2026-11-02",
+  "recoveryPolicy" : "Choose only available authorized tools within the original task budget, date and file limits. Inspect template/parameters, dates, security/market/aliases and catalog coverage; consider other authorized sources, a bounded day file, then authorized Search. An empty slice does not prove source absence. Avoid repeating an unchanged query; retain attempted paths and unsupported analyses in a PARTIAL or unavailable report. Do not invent data or units.",
+  "requiredFieldObservation" : {
+    "schemaVersion" : "runtime_os.data_observation.v1",
+    "status" : "FIELD_MISSING",
+    "conditions" : [ "FIELD_MISSING" ],
+    "returnedRowCount" : 1,
+    "complete" : true,
+    "missingFields" : [ "official_listing_date" ],
+    "rowsMissingRequiredFields" : 1,
+    "cause" : "OBSERVED_RESPONSE_FACTS",
+    "sourceEmptyProven" : false,
+    "automaticRetryAuthorized" : false
+  },
+  "case" : "E05"
+} ]

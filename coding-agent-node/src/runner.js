@@ -5,7 +5,7 @@ import { prepareProgram, repairSourceContext, CodeHistory, CODE_LIFECYCLE_VERSIO
 import { editProgram, sdkPrepareTurn, resolveWorkspaceFiles, restoreWorkspaceFiles, completeToolBoundary, boundCompactionCheckpoint } from './sdk-adapter.js';
 import { initialProject, proposeProject, projectSchema, decodeProject } from './python-project.js';
 import { prepareNativeSkills } from './native-skills.js';
-import { measureRequestContext, createRequestContextTracker } from './request-context.js';
+import { measureRequestContext, createRequestContextTracker, modelToolDisclosure } from './request-context.js';
 import { createToolCatalog, DEFERRED_TOOLS_PROFILE, TOOL_DESCRIBE } from './tool-catalog.js';
 import { createCodingProgress } from './coding-progress.js';
 
@@ -943,7 +943,8 @@ export function createCodingRun(contract, gateway, options = {}) {
           if (observation.feedback) request = { ...request, systemPrompt: (request.systemPrompt ?? '') + observation.feedback };
           await forward({ type: 'MODEL_STARTED', modelCall: index, stage: 'CODING',
             purpose: observation.progress.phase, progressFeedback: Boolean(observation.feedback),
-            admissionPending: options.model.managesAdmissions === true });
+            admissionPending: options.model.managesAdmissions === true,
+            ...modelToolDisclosure(contract,request) });
         }
         // Reuse only if the exact complete prefetched bytes are still visible AFTER native compaction.
         // A hash and length are sufficient; never keep another transcript or reuse a truncated source.

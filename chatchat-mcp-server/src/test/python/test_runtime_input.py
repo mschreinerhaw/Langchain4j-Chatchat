@@ -14,6 +14,72 @@ spec.loader.exec_module(sdk)
 
 
 class ReaderTest(unittest.TestCase):
+    def native_fixture(self, root):
+        original, _, part = self.fixture(root, 'PARQUET')
+        uploaded_id, target_id = 'c' + 'd' * 63, 'c' + 'e' * 63
+        # Uploaded original IDs intentionally differ from the current mount IDs.
+        uploaded = root / uploaded_id / 'original-0.json'
+        uploaded.parent.mkdir()
+        uploaded.write_bytes(original.read_bytes())
+        target = root / target_id / 'original-2.parquet'
+        target.parent.mkdir()
+        target.write_bytes(part.read_bytes())
+        files = [dict(fileId=p.parent.name, fileName=p.name,
+                      sha256=hashlib.sha256(p.read_bytes()).hexdigest(), sizeBytes=p.stat().st_size)
+                 for p in (uploaded, target)]
+        outer = root / ('c' + 'f' * 63) / 'manifest.json'
+        outer.parent.mkdir()
+        envelope = dict(schemaVersion='runtime_os.coding.input.v1', format='PARQUET',
+                        columns=[dict(name='record', storageName='c0', type='JSON')], nativeFiles=files)
+        outer.write_text(json.dumps(envelope), encoding='utf-8')
+        # No old source paths survive: a reader must not follow original file IDs.
+        original.unlink()
+        part.unlink()
+        return outer, target, uploaded, envelope
+
+    def test_native_mapping_uses_selected_file_and_its_own_manifest(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            outer, target, _, _ = self.native_fixture(Path(tmp))
+            rows = list(sdk.load_native_rows(outer, hashlib.sha256(outer.read_bytes()).hexdigest(), target.parent.name))
+            self.assertEqual(rows[0]['identifier'], 9007199254740993)
+            self.assertEqual(rows[0]['amount'], Decimal('12.3400'))
+            self.assertEqual(rows[0]['record']['precise'], Decimal('1234567890123.4500'))
+            self.assertNotIn('optional', rows[0])
+            self.assertIsNone(rows[1]['optional'])
+            self.assertEqual(rows[0]['literal'], '\\N')
+
+    def test_native_rejects_tampering_unknown_ids_and_missing_binding(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            outer, target, uploaded, envelope = self.native_fixture(Path(tmp))
+            digest = hashlib.sha256(outer.read_bytes()).hexdigest()
+            with self.assertRaisesRegex(ValueError, 'authorized native'):
+                list(sdk.load_native_rows(outer, digest, '../other'))
+            target.write_bytes(b'changed')
+            with self.assertRaisesRegex(ValueError, 'checksum'):
+                list(sdk.load_native_rows(outer, digest, target.parent.name))
+            envelope['nativeFiles'] = envelope['nativeFiles'][1:]
+            envelope['nativeFiles'][0]['sha256'] = hashlib.sha256(target.read_bytes()).hexdigest()
+            envelope['nativeFiles'][0]['sizeBytes'] = target.stat().st_size
+            outer.write_text(json.dumps(envelope))
+            with self.assertRaisesRegex(ValueError, 'absent or ambiguous'):
+                list(sdk.load_native_rows(outer, hashlib.sha256(outer.read_bytes()).hexdigest(), target.parent.name))
+
+    def test_native_rejects_ambiguous_maps_and_wrong_row_count(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            outer, target, uploaded, envelope = self.native_fixture(Path(tmp))
+            original = json.loads(uploaded.read_text())
+            original['parts'][0]['rowCount'] += 1
+            uploaded.write_text(json.dumps(original))
+            envelope['nativeFiles'][0]['sha256'] = hashlib.sha256(uploaded.read_bytes()).hexdigest()
+            envelope['nativeFiles'][0]['sizeBytes'] = uploaded.stat().st_size
+            outer.write_text(json.dumps(envelope))
+            with self.assertRaisesRegex(ValueError, 'row count'):
+                list(sdk.load_native_rows(outer, hashlib.sha256(outer.read_bytes()).hexdigest(), target.parent.name))
+            envelope['nativeFiles'].append(envelope['nativeFiles'][0])
+            outer.write_text(json.dumps(envelope))
+            with self.assertRaisesRegex(ValueError, 'absent or ambiguous'):
+                list(sdk.load_native_rows(outer, hashlib.sha256(outer.read_bytes()).hexdigest(), target.parent.name))
+
     def fixture(self, root, fmt):
         mid, pid = 'c' + 'a' * 63, 'c' + 'b' * 63
         columns = [dict(name=n, storageName='c' + str(i), type=t) for i, (n, t) in enumerate(

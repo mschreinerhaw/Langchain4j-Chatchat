@@ -132,6 +132,22 @@ class ClineModelCallbackControllerTest {
             .doesNotContainKeys("prompt","sql","code");
     }
 
+    @Test void toolDisclosureRetainsOnlyBoundedNamesAndSchemaFingerprint() {
+        var controller = new ClineModelCallbackController(null,null,null,null,null,null,null,new ObjectMapper());
+        var event = new ObjectMapper().createObjectNode().put("type","MODEL_TOOL_DISCLOSURE")
+            .put("toolSchemaSha256","a".repeat(64)).put("prompt","private prompt");
+        event.putArray("authorizedTools").add("python_execute").add("market_search");
+        event.putArray("disclosedTools").add("python_execute");
+        event.putObject("tools").put("schema","private description");
+        Map<String,Object> payload=org.springframework.test.util.ReflectionTestUtils.invokeMethod(controller,"workerPayload",event);
+        assertThat(payload).containsEntry("authorizedTools",List.of("market_search","python_execute"))
+            .containsEntry("disclosedTools",List.of("python_execute")).containsEntry("toolSchemaSha256","a".repeat(64))
+            .doesNotContainKeys("prompt","tools");
+        event.putArray("disclosedTools").add("private injected text");event.put("toolSchemaSha256","not a digest");
+        payload=org.springframework.test.util.ReflectionTestUtils.invokeMethod(controller,"workerPayload",event);
+        assertThat(payload).doesNotContainKeys("disclosedTools","toolSchemaSha256");
+    }
+
     @Test void retainsOnlyBoundedContextMeasurementsWithoutPromptOrComponentContents() {
         var controller = new ClineModelCallbackController(null,null,null,null,null,null,null,new ObjectMapper());
         var event = new ObjectMapper().createObjectNode().put("type","MODEL_TIMING")
@@ -511,11 +527,17 @@ class ClineModelCallbackControllerTest {
             base.put("fencingToken", lease.fencingToken());
             base.set("contract", json.valueToTree(contract));
             var contextEvent = base.deepCopy();
-            contextEvent.set("event", json.valueToTree(Map.of("type", "MODEL_TIMING", "sequence", 1,
-                "modelCall", 1, "admissionPending", true, "contextCodeBytes", 400)));
+            contextEvent.set("event", json.valueToTree(Map.of("type", "MODEL_STARTED", "sequence", 1,
+                "modelCall", 1, "admissionPending", true, "authorizedTools", List.of("python_execute"),
+                "disclosedTools",List.of("python_execute"),"toolSchemaSha256","a".repeat(64),"prompt","private prompt")));
             controller.event(contextEvent); // No model operation exists before atomic Java admission.
             assertThat(access.as(scope, EnumSet.of(CodingTaskAccess.Action.READ),
                 () -> tasks.unresolvedOperations(scope, "task"))).isEmpty();
+            var disclosure=access.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->tasks.events(scope,"task",0,64))
+                .stream().map(com.chatchat.common.runtime.coding.CodingExecutionEvent::payload)
+                .filter(payload->"MODEL_STARTED".equals(payload.get("type"))).findFirst().orElseThrow();
+            assertThat(disclosure).containsEntry("disclosedTools",List.of("python_execute"))
+                .containsEntry("toolSchemaSha256","a".repeat(64)).doesNotContainKey("prompt");
             var admission = base.deepCopy();
             admission.set("model", json.valueToTree(Map.of("operationId", "model-1", "modelCalls", 1,
                 "maxTokens", 2048)));

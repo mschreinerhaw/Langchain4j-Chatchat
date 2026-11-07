@@ -2,6 +2,7 @@ package com.chatchat.api.runtime.coding.cline;
 
 import com.chatchat.common.runtime.coding.CodingInputManifest;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -19,8 +20,10 @@ final class CodingInputLayout {
         CodingInputManifest.fileId(fileId);
         CodingInputManifest.hash(hash);
         return Map.of("schemaVersion", "runtime_os.coding.input-layout.v1",
-            "reader", Map.of("type", "DECLARED_FILES",
-                "usage", "Read manifestPath with json. The Sandbox provides runtime_input.load_rows(manifestPath, expectedManifestSha256) for logical rows of this manifest's parts, and runtime_input.load_native_rows(manifestPath, expectedManifestSha256, native_file_id) for a selected native Parquet bound to its own original manifest. Consume the iterator fully for row-count validation. Both verify checksums and preserve missing/null, JSON and Decimal values; neither selects data or performs analysis. Native file IDs come from this manifest's nativeFiles, never from an uploaded original manifest. Other original formats use installed readers. No application-specific Python module is required.",
+            "reader", Map.of("type", "VERIFIED_TRANSPORT_READER", "module", "runtime_input",
+                "functions", Map.of("load_rows",List.of("manifestPath","expectedManifestSha256"),
+                    "load_native_rows",List.of("manifestPath","expectedManifestSha256","native_file_id")),
+                "usage", "Choose the authorized input and, for an original Parquet, its native_file_id; use these installed transport readers to obtain logical dictionaries without regenerating transport decoding. Consume the iterator fully for row-count validation. Both verify checksums and preserve missing/null, JSON and Decimal values; neither selects data or performs analysis. Native file IDs come from this manifest's nativeFiles, never from an uploaded original manifest. Other original formats or Parquet without a bound original manifest use installed format readers.",
                 "columnMappingScope", "MANIFEST_PARTS_ONLY",
                 "nativeSchemaLocation", "schema.json/nativeFileSchemas, matched by native fileId; sourceManifest binds an original column map to its exact part SHA-256, size and row count",
                 "logicalColumns", "The input manifest columns describe only its own parts, NEVER a nativeFiles original. For a native Parquet use its own sourceManifest.columns when status=BOUND in nativeFileSchemas; otherwise inspect that original's own schema. Decode JSON cells and preserve missing/null and exact numeric types."),

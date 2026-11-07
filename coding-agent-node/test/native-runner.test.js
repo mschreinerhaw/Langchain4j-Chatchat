@@ -50,6 +50,43 @@ test('one native Agent reads, executes failing tests, edits a file, executes and
   assert.ok(h.events.some(e=>e.tool==='run_commands'&&e.status==='FAILED'));
   assert.ok(h.checkpoints.every(c=>c.contractHash===hash&&c.sdkSessionId===result.sdkSessionId));
 });
+
+test('sequential SDK batches start durable tools at execution time without blocking a later command',async t=>{
+  const pending=new Set(),order=[];let reconciliationRequired=false;
+  const h=await host(t);const finish=h.gateway.finishCodeTool;
+  h.gateway.authorizeCodeTool=async(_c,value)=>{if(value.action==='TOOL'){pending.add(value.operationId);order.push('start:'+value.tool);}};
+  h.gateway.finishCodeTool=async(c,value)=>{await finish(c,value);pending.delete(value.toolCallId);reconciliationRequired=pending.size>0;order.push('finish:'+value.result.toolName);};
+  h.gateway.executeCodeCommand=async(_c,value)=>{
+    assert.equal(reconciliationRequired,false,'Unexecuted SDK batch entries must not look like unknown running operations');
+    h.commands.push(value);return{operationId:'actual-command',manifestHash:value.manifest.sha256,executorStopped:true,stopProofRef:'test:stop',exitCode:0,stdout:'OK',stderr:''};
+  };
+  const result=await createNativeCodingRun(contract(),h.gateway,{contractHash:hash,workspaceBase:h.base,model:scripted([
+    {calls:[{id:'read-first',name:'read_files',input:{files:[{path:'calc.py'}]}},{id:'execute-second',name:'run_commands',input:{commands:['python -m unittest discover -s tests -v']}}]},
+    {text:'Inspected the test result.'},
+  ])}).run();
+  assert.equal(result.status,'completed',JSON.stringify(result.error));assert.equal(h.commands.length,1);
+  assert.equal(order[0],'start:read_files');assert.equal(order[2],'start:run_commands');assert.equal(pending.size,0);
+});
+
+test('native compaction preserves completion feedback after the latest tool result in chronological order',async t=>{
+  const verification='python -m unittest discover -s tests -v';
+  const h=await host(t,{async openCodeWorkspace(){return{files:{'calc.py':'value = 1\n'},modelId:'qwen3.8-flash',acceptanceCommand:verification};},
+    async budget(){return{remainingTokens:262144,remainingModelCalls:8,completionReservation:{phase:'COMPLETION',ratio:0.35}};}});
+  h.gateway.executeCodeCommand=async(_c,value)=>{h.commands.push(value);return{operationId:'actual-'+h.commands.length,manifestHash:value.manifest.sha256,
+    commandHash:createHash('sha256').update(value.command).digest('hex'),executorStopped:true,stopProofRef:'test:stop',exitCode:0,stdout:'actual output',stderr:''};};
+  const result=await createNativeCodingRun(contract(),h.gateway,{contractHash:hash,workspaceBase:h.base,model:scripted([
+    {calls:[{name:'run_commands',input:{commands:['pwd']}}]},
+    {text:'The project appears complete.'},
+    {assert(request){
+      const guard=request.messages.findLastIndex(m=>m.role==='user'&&m.content.some(p=>p.type==='text'&&p.text.includes('Run the task-declared verification command')));
+      const tool=request.messages.findLastIndex(m=>m.content.some(p=>p.type==='tool-result'));
+      assert.ok(guard>tool,`Verification feedback must follow its causal tool result: guard=${guard}, tool=${tool}`);
+    },calls:[{name:'run_commands',input:{commands:[verification]}}]},
+    {text:'Verified the declared command.'},
+  ])}).run();
+  assert.equal(result.status,'completed',JSON.stringify(result.error));assert.equal(h.commands.length,2);
+  assert.ok(h.checkpoints.some(c=>c.compactionCount>0),'Exercise the installed SDK compactor');
+});
 test('restored SDK retains session/code and cumulative model ordinal',async t=>{
   let interrupted=false;
   const h=await host(t,{afterCheckpoint(value){if(!interrupted&&value.messages.some(m=>m.content?.some(p=>p.type==='tool-result'&&p.toolName==='editor'))){interrupted=true;throw Error('WORKER_INTERRUPTED');}}});

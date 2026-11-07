@@ -30,6 +30,20 @@ MCP 的两个跳过测试不能计为已验证能力。Java 单元测试中使�
 
 新增排除 MCP server 测试依赖的子 JVM 测试，以及真实 A2 下的命令准入到 governed dispatch 检查。当前三类回归 19/19 通过、无跳过，日志 `target/native-helper-resource-after-r2.log` SHA256 `5e1e40852b3c3f8d4bc5ec66d2bd536555adeed3d7ca77b918d9d9af8a498dcf`。最初子 JVM 测试遇到 Windows 命令行长度限制，改为 Java argfile 后通过，保留失败日志。尚须使用新运行包完成整链复测，不能以这 19 项替代。
 
+## 第二轮真实执行与原生 Loop 集成缺陷
+
+共享资源修复后的 API JAR SHA256 为 `3fe60c394a9abcaaa0f8baa91cbc811cfb8d58344d1a218ac0d81c054a0aad49`。包内 helper 位于 common 运行依赖，字节 SHA256 `768e21d085d74f98b77615acdab13f3de04a864293f366a21e6a2a2fa6659dcc`，与实际 MCP helper 相同。
+
+相同输入、模型及预算上限的新预检任务 `native-e53c0fe9bce6a23b82bf0420b30ba4054a34cb6213089a4e`：8 次模型调用、6 个工具停止回执、3 次实际执行；模型读到原始失败测试，自主编辑后，真实输出包含三个测试通过。任务仍 FAILED，不能算完整通过。已知 Token 29347，Token reservation 101725、CPU reservation 225000 毫秒保留；实际 CPU 与费用未知。公开投影 SHA256 `062c1ab268188a01530128f92ba11c6d74650e5fb8d7884469b7913c2eff5e98`。
+
+首轮模型同时请求 read_files/run_commands，原生 SDK 先调用全批 beforeTool，再顺序执行。过早登记第二个工具的 start intent，让读工具完成时出现未执行工具的未知状态，阻断首条命令。最小调整为实际 tool.execute 紧邻 I/O 时准入，保持 SDK 原生调度不变。
+
+完成阶段原有 Adapter 只保护最新工具轮，未保护后续 SDK 验证反馈。使用安装版 SDK 压缩器的独立测试实际观察到 guard=-1；反馈丢失后模型连续输出完成文本而未执行声明的验证命令。通用 profile 现在保护工具轮及后续反馈，保持因果顺序，旧 profile 默认行为不变。
+
+两项独立测试修复前均失败（日志 SHA256 `5ec2d4fc7fbb7b3b42a52aa0615292bd3793fa55d29946619703f7522a56d7f7`），修复后均通过（`2de238aba07b95e5fd88f774eada145097c3a3d94116cac3257fc6a32143d50e`）。Node 全量 r7 为 297 项、296 通过、1 项 Windows 链接相关跳过；日志 SHA256 `d9d6664880bef96d66942437b61a5df1aa876aee06312cacfe85c3a27055103a`。没有新增 Agent Loop、模型调用或 Prompt 来替代修复。
+
+旧终态任务在 API 与 Worker 重建后仍可从实际 Silo 原样读取：manifest `5becb13153e4e44f2aad707d7ebbb549381a27e580ac40c24cdf7676a6c862fc`、历史 2 版、Diff SHA256 `9728fc20095cfb3879de9b18f36fd214f36da8c8654d07a4e38a2f6f9b8ec3b7`。旧任务模型次数 8、执行次数 0 均未变化。这只证明终态源码归档读取，不等同于进行中 Worker 恢复，也不是完整报告验收。
+
 ## Linux 原始执行证据
 
 远端目录 `/var/tmp/runtime-native-components-20261107-r2` 保留 r2 失败与 r3 串行成功两轮日志和 proof。r3 容器 `f4090aea94dae6e7a702bb2e425627b100c2365486badd13e99e5b5d96c1f8c4`，状态 exited，exitCode=0，Pid=0。镜像 `sha256:a3a279fc391bda1bb5aefb62acd8ee56200215ce2905cfb83d189398c33c5828`。日志 SHA256 `2375d1df8d71caf3b7aa87011d2dd32a86b89c51e9cfa74fc21afd4f7e1443c8`。

@@ -128,7 +128,9 @@ export function sdkPrepareTurn(sessionId, currentCode = () => null, options = {}
       let end=lastToolRound+1;
       for(;end<canonical.length&&pending.size;end++)
         for(const part of canonical[end].content)if(part.type==='tool-result')pending.delete(part.toolCallId);
-      if(!pending.size)protectedRound=canonical.slice(lastToolRound,end);
+      // Native completion/recovery feedback after a tool round is causal input,
+      // not disposable older history. Keep it after the tool it refers to.
+      if(!pending.size)protectedRound=canonical.slice(lastToolRound,options.protectLatestToolTail?undefined:end);
     }
     const messages = canonical.map(message => ({ ...message,
       role: message.role === 'tool' ? 'user' : message.role,

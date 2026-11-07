@@ -25,6 +25,7 @@ export function createNativeCodingRun(contract,gateway,options={}) {
   let agent,workspace,skills,preparing=null,lastExecution=null,running=false,initialAcceptanceCommand=null;
   const allowed=new Set(contract.authorization.allowedTools);
   const replayedTools=new Map();
+  const admittedTools=new Set();
   async function prepare(){
     const initial=await gateway.openCodeWorkspace(contract,cancel.signal);
     initialAcceptanceCommand=initial.acceptanceCommand??null;
@@ -61,12 +62,21 @@ export function createNativeCodingRun(contract,gateway,options={}) {
     }
     if(new Set(tools.map(t=>t.name)).size!==tools.length||tools.some(t=>!allowed.has(t.name)))throw new TypeError('Native tools differ from immutable task grants');
     tools=tools.map(tool=>({...tool,async execute(input,context){
+      // SDK prepares the whole batch (including beforeTool) before sequential execution.
+      // A durable start therefore belongs here, immediately before actual tool I/O.
+      const inputJson=JSON.stringify(input),signal=context.signal??cancel.signal;
+      await gateway.authorizeCodeTool(contract,{action:'TOOL',tool:tool.name,operationId:context.toolCallId,input,inputJson,
+        intentHash:createHash('sha256').update(inputJson).digest('hex')},signal);
+      admittedTools.add(context.toolCallId);
+      const cached=await gateway.lookupCodeTool(contract,{toolCallId:context.toolCallId},signal);
+      if(cached?.output!==undefined)replayedTools.set(context.toolCallId,cached);
       const previous=replayedTools.get(context.toolCallId);
       return previous?previous.output:tool.execute(input,context);
     }}));
     const prepareTurn=sdkPrepareTurn(session.sessionId,()=>null,{
       compactionState:options.checkpoint?.compactionState,compactionCount:options.checkpoint?.compactionCount,
       statefulCompactionEnabled:true,
+      protectLatestToolTail:true,
       technicalMemory:()=>({workspaceFiles:Object.keys(workspace.snapshot().files),
         ...(lastExecution?{lastExecution:{exitCode:lastExecution.exitCode,operationId:lastExecution.operationId}}:{})}),
       budgetSnapshot:typeof gateway.budget==='function'?context=>gateway.budget(contract,
@@ -88,17 +98,15 @@ export function createNativeCodingRun(contract,gateway,options={}) {
           if(workspace.requiresReload()){const current=await gateway.openCodeWorkspace(contract,cancel.signal);await workspace.refresh(current);lastExecution=current.lastExecution??lastExecution;}
           await session.checkpoint(snapshot.messages,{...prepareTurn.snapshot()});
           request.runtimeCheckpointOrdinal=session.state().checkpointOrdinal;},
-        async beforeTool({toolCall,input}){
+        async beforeTool({toolCall}){
           if(!allowed.has(toolCall.toolName))throw new Error('Tool is not authorized');
-          const inputJson=JSON.stringify(input);
-          await gateway.authorizeCodeTool(contract,{action:'TOOL',tool:toolCall.toolName,operationId:toolCall.toolCallId,input,inputJson,
-            intentHash:createHash('sha256').update(inputJson).digest('hex')},cancel.signal);
-          const cached=await gateway.lookupCodeTool(contract,{toolCallId:toolCall.toolCallId},cancel.signal);
-          if(cached?.output!==undefined)replayedTools.set(toolCall.toolCallId,cached);
         },
         async afterTool({toolCall,result}){
           const original=replayedTools.get(toolCall.toolCallId);if(original){result=original;replayedTools.delete(toolCall.toolCallId);}
-          await gateway.finishCodeTool(contract,{toolCallId:toolCall.toolCallId,result},cancel.signal);
+          if(admittedTools.has(toolCall.toolCallId)){
+            await gateway.finishCodeTool(contract,{toolCallId:toolCall.toolCallId,result},cancel.signal);
+            admittedTools.delete(toolCall.toolCallId);
+          }
           await session.event({type:'TOOL_FINISHED',tool:toolCall.toolName,toolCallId:toolCall.toolCallId,
             receiptReplayed:Boolean(original),
             status:result.isError||(Array.isArray(result.output)?result.output.some(v=>v?.success===false):result.output?.success===false)?'FAILED':'SUCCEEDED'});

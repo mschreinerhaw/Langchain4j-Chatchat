@@ -1,0 +1,39 @@
+{
+  "auditedOn": "2026-11-07",
+  "runtimeBaseline": "167dfedf5ab4b9e898accc84587644fcd03398bf",
+  "officialRepository": "https://github.com/cline/cline",
+  "release": {
+    "url": "https://github.com/cline/cline/releases/tag/cli-v3.0.74",
+    "tag": "cli-v3.0.74",
+    "draft": false,
+    "prerelease": false,
+    "publishedAt": "2026-10-26T04:03:28Z"
+  },
+  "annotatedTag": {
+    "sha": "04b67752bfcc31c225b39141ef28573382777817",
+    "commit": "071e1b25b48f9ef5dff7fc32085e6a16f02bf02e",
+    "verification": {
+      "verified": false,
+      "reason": "unsigned",
+      "signature": null,
+      "payload": null,
+      "verified_at": null
+    }
+  },
+  "packages": {
+    "wrapper": "cline@3.0.74",
+    "binary": "@cline/cli-windows-x64@3.0.74",
+    "bundledCore": "0.2.0",
+    "runtimeSdk": "0.0.93"
+  },
+  "provenance": {
+    "endpoint": "https://registry.npmjs.org/-/npm/v1/attestations/@cline%2fcli-windows-x64@3.0.74",
+    "predicateType": "https://slsa.dev/provenance/v1",
+    "workflow": ".github/workflows/cli-publish.yml",
+    "gitCommit": "071e1b25b48f9ef5dff7fc32085e6a16f02bf02e",
+    "invocationId": "https://github.com/cline/cline/actions/runs/40266392937/attempts/1",
+    "subjectSha512": "26608df31deb23e2d53839682e18565b5ce83b2da096a45c50aa2359f7fa3cffaf4309de3fd3954967ca9cea658745f6f983121c547ce40c04e2c63b5d48df3c",
+    "certificateChainIndependentlyVerified": false,
+    "reproducibleBuildVerified": false
+  }
+}

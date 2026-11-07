@@ -1,0 +1,216 @@
+{
+  "recordedAt": "2026-11-07T14:56:01.201Z",
+  "sourceCommit": "071e1b25b48f9ef5dff7fc32085e6a16f02bf02e",
+  "releaseTag": "cli-v3.0.74",
+  "binaryPackage": "@cline/cli-windows-x64",
+  "binaryVersion": "3.0.74",
+  "registryIntegrity": "sha512-JmCN8x3rI+LVODloLhhWW1zoOy2glqRcUKojWff6PP+vQwneP9OVSWfKnOplh0X2+YMSHFR85AwE4sY7XUjfPA==",
+  "actualIntegrity": "sha512-JmCN8x3rI+LVODloLhhWW1zoOy2glqRcUKojWff6PP+vQwneP9OVSWfKnOplh0X2+YMSHFR85AwE4sY7XUjfPA==",
+  "tarballSha256": "9502d31beaf23528797deeccf844791ac6b84013220460e0e05a74cd3b49bdf9",
+  "executableSha256": "fb1b3efa020f984235d38b64476ecbc7b3052a6a2e0f28797c147c28fb16b741",
+  "sourceFiles": [
+    {
+      "path": "LICENSE",
+      "bytes": 11344,
+      "sha256": "f704446a5f1271608805598b557e4288cf8580477ea038c9c3d8b361f693f6b8"
+    },
+    {
+      "path": "AGENTS.md",
+      "bytes": 5449,
+      "sha256": "7f6daa4f58c28d4df1698522af27ceb09cc1c5f76ffad2ea25032b9689667fe1"
+    },
+    {
+      "path": "apps/cli/package.json",
+      "bytes": 2879,
+      "sha256": "3f99444ef3bb119a5c9c176b9223c804e66282ff34cf97137f7952fa2552efeb"
+    },
+    {
+      "path": "apps/cli/src/index.ts",
+      "bytes": 4903,
+      "sha256": "179dcbcaf1e5a848af101cc93c4d61e1427dfef89a9aa3a3809b1807bd83a767"
+    },
+    {
+      "path": "apps/cli/src/main.ts",
+      "bytes": 39130,
+      "sha256": "9cdd3954f30cf71a5e8e4c0424172f82a38c9c74d3da813c4f0c87c4455b8a04"
+    },
+    {
+      "path": "apps/cli/src/session/session.ts",
+      "bytes": 5294,
+      "sha256": "ec68e0939543e74d14f114a3c4ef6b29fdc12cec67129504e6a8ddb9a2876b59"
+    },
+    {
+      "path": "apps/cli/src/runtime/run-agent.ts",
+      "bytes": 11992,
+      "sha256": "7dd33cdf87d730cf5bf740fcc9e7340d5eaff2e50b335d5415f0854c0e990f42"
+    },
+    {
+      "path": "apps/cli/src/commands/program.ts",
+      "bytes": 7488,
+      "sha256": "87e246a18e55cb40f594cdf29d33f10ca39b978c109e8a29cc80846ddef73506"
+    },
+    {
+      "path": "apps/cli/src/utils/approval.ts",
+      "bytes": 4917,
+      "sha256": "d5789b2630df3aa3938063290bedae5a216021cc74ca93c54a1e60fc9e0b66fc"
+    },
+    {
+      "path": "apps/cli/src/utils/helpers.ts",
+      "bytes": 16802,
+      "sha256": "61330c996391129868de943cd04d093532c4e4bee865f4b0b44aca521666488e"
+    },
+    {
+      "path": "apps/cli/src/runtime/session-events.ts",
+      "bytes": 4750,
+      "sha256": "547c3d9a79a80790681bc6c1d414183c7ca6debe3fdb67ea0d3ed6d7b98088ba"
+    },
+    {
+      "path": "apps/cli/src/acp/acpAgent.ts",
+      "bytes": 26475,
+      "sha256": "8a7d49bd3af086244be4eb25c371215a7ddcc66d3ca601fe81dd194096cfcfc4"
+    },
+    {
+      "path": "apps/cli/src/acp/permissions.ts",
+      "bytes": 3618,
+      "sha256": "386a98a88ed03146ec611151b1b87f1a1ff2605d96067ae1c7451a814e51552b"
+    },
+    {
+      "path": "sdk/packages/core/package.json",
+      "bytes": 3110,
+      "sha256": "7c69da677a52be8e8579082f08301182fa0719365328b150892b3004cc830ccd"
+    },
+    {
+      "path": "sdk/packages/agents/src/agent-runtime.ts",
+      "bytes": 95575,
+      "sha256": "6bfbebdc58d1b8fffd6778fad847bf19316e0363b820fadf10aa692a1a1a57a3"
+    },
+    {
+      "path": "sdk/packages/core/src/ClineCore.ts",
+      "bytes": 23133,
+      "sha256": "4c4fe321fe6e75e84b475d26e12483a83eb02ec2c145c8326d56dd8e91458ad4"
+    },
+    {
+      "path": "sdk/packages/core/src/runtime/host/host.ts",
+      "bytes": 7680,
+      "sha256": "af829e1896e4b175dad6798f570b631e00c8e1f1b7df92181311108e00bf41de"
+    },
+    {
+      "path": "sdk/packages/core/src/runtime/host/local-runtime-host.ts",
+      "bytes": 100367,
+      "sha256": "405ff20a07ac7a9e7a09fdd5b8caff4fe076ca4b98ddcfeab04d215d31b77c89"
+    },
+    {
+      "path": "sdk/packages/core/src/runtime/orchestration/runtime-builder.ts",
+      "bytes": 28537,
+      "sha256": "c072fcd16b8452b7a2326c70f0e7a0e6af4a30a2aa75f3e47ff75e34f3c64add"
+    },
+    {
+      "path": "sdk/packages/core/src/runtime/orchestration/session-runtime-orchestrator.ts",
+      "bytes": 56382,
+      "sha256": "0306351599a2d37ee399519901aaff949998d25e8bd1a8aaf93a0a429b9806ad"
+    },
+    {
+      "path": "sdk/packages/core/src/extensions/tools/model-tool-routing.ts",
+      "bytes": 3192,
+      "sha256": "8ee931d74ef60f9a601efbe4beb58f619fc8227dad9ab7f6454243db71c651a2"
+    },
+    {
+      "path": "sdk/packages/core/src/extensions/config/user-instruction-service.ts",
+      "bytes": 10303,
+      "sha256": "30c833bced3c4cd902dd8b3556b96de6e7d5eea3c98333f4eed348a2886e3759"
+    },
+    {
+      "path": "sdk/packages/core/src/extensions/config/user-instruction-config-loader.ts",
+      "bytes": 20853,
+      "sha256": "b47be676ceaef5c8701f2549f0f50c19e1f3c0ad9f54732d5b6d0364ec2cbad8"
+    },
+    {
+      "path": "sdk/packages/core/src/extensions/mcp/manager.ts",
+      "bytes": 9083,
+      "sha256": "0f4d1109feeffecffdbd1896dbc549e36a6aeb77d43a51208889e4ea6f96bba6"
+    },
+    {
+      "path": "sdk/packages/core/src/hub/client/index.ts",
+      "bytes": 43524,
+      "sha256": "3f427b83cd5d52f91d32fc648d64361b77627128f8676ce732968b29b9e3c553"
+    },
+    {
+      "path": "sdk/packages/core/src/hub/server/hub-event-log.ts",
+      "bytes": 7910,
+      "sha256": "c64881b0f9cef8ae4abb91f3fa92e3ec9e9f62d24ebef686105653669a7d608f"
+    },
+    {
+      "path": "sdk/packages/core/src/hub/discovery/workspace.ts",
+      "bytes": 1560,
+      "sha256": "4f2f5b8cad996938b1342aad4a2e25e6dfaaf69c9fa850ef1a097f5a6454eda7"
+    },
+    {
+      "path": "sdk/packages/core/src/hub/discovery/defaults.ts",
+      "bytes": 1864,
+      "sha256": "958fb32d7efea07e1f0a026eacb107701cc464181149bced63503a069cecc46d"
+    },
+    {
+      "path": "sdk/packages/core/src/session/session-versioning-service.ts",
+      "bytes": 11279,
+      "sha256": "adfa67f9605ebf09d3244c3f44a5e0653805ca755b714883c270f1be59875eae"
+    },
+    {
+      "path": "sdk/packages/core/src/session/checkpoint-restore.ts",
+      "bytes": 14190,
+      "sha256": "a1aa2fa03033b464380c068924056c647325ed6753134bd57a56348a5a9dfe03"
+    },
+    {
+      "path": "sdk/packages/core/src/session/services/persistence-service.ts",
+      "bytes": 19015,
+      "sha256": "d89fa9c138f4bb361fa54605ce22ddfdc969df7c64c07a64ae616419c7c1793f"
+    }
+  ],
+  "checks": [
+    {
+      "label": "version",
+      "args": [
+        "--version"
+      ],
+      "exitCode": 0,
+      "signal": null,
+      "timedOut": false,
+      "replied": false,
+      "durationMs": 6520,
+      "stdout": "3.0.74\n",
+      "stderr": ""
+    },
+    {
+      "label": "help",
+      "args": [
+        "--help"
+      ],
+      "exitCode": 0,
+      "signal": null,
+      "timedOut": false,
+      "replied": false,
+      "durationMs": 12092,
+      "stdout": "Usage: cline [options] [command] [prompt]\n\nCline CLI - AI coding assistant in your terminal\n\nArguments:\n  prompt                        Your prompt. Default to start in act mode with\n                                auto-approve enabled.\n\nOptions:\n  -V, --version                 Output the version number\n  -p, --plan                    Run in plan mode\n  -y, --yolo                    Auto-approve a limited tool set for unsupervised\n                                runs (benchmarks, CI). DANGEROUS: use only in\n                                sandboxed environments.\n  --json                        Output messages as JSON instead of styled text\n  --auto-approve <boolean>      Set tool auto-approval for all tools (default:\n                                true)\n  -c, --cwd <path>              Working directory\n  --thinking <level>            Set reasoning effort:\n                                none|low|medium|high|xhigh. Bare --thinking uses\n                                medium; omitted uses the level last chosen with\n                                /model, or the provider default.\n  --compaction <mode>           Context compaction mode: agentic|basic|off\n                                (default: agentic)\n  -i, --tui                     Open the terminal user interface (TUI) for\n                                interactive sessions\n  --id <session-id>             Resume an existing session by ID\n  -P, --provider <id>           Provider id (default: cline)\n  -k, --key <api-key>           API key for this run, also saved as the\n                                provider's key\n  -m, --model <model-id>        Model to use for the session with the selected\n                                provider\n  -s, --system <system-prompt>  Override the default system prompt\n  -z, --zen                     Start a session that runs in the background hub\n  --retries <count>             Number of maximum consecutive mistakes (retries)\n                                before exiting (default: 3)\n  -t, --timeout <seconds>       Optional timeout in seconds (default: 0 for no\n                                timeout)\n  --acp                         Run in Agent Client Protocol (ACP) mode for\n                                editor integration\n  --config <path>               Configuration directory (default: ~/.cline)\n  --data-dir <path>             Use isolated local state at this directory path\n                                (default: ~/.cline/data)\n  --hooks-dir <path>            Directory path to additional hooks for runtime\n                                hook injection (default: ~/.cline/hooks)\n  --worktree                    Auto-create a detached git worktree under\n                                ~/.cline/worktrees/ and run the task there\n  --update                      Check for updates and install if available\n  --kanban                      Run the kanban app\n  -v, --verbose                 Show verbose output\n  -h, --help                    display help for command\n\nCommands:\n  auth [options] [provider]     Authenticate a provider and configure what model\n                                is used\n  config [options]              Show current configuration\n  plugin                        Manage Cline Plugins\n  skill [args...]               Manage Cline Skills via the open skills CLI (npx\n                                skills)\n  connect [options] [channel]   Connect to an external channel\n  mcp                           Manage MCP servers\n  doctor                        Diagnose and fix configuration issues\n  history|h [options]           List session history or manage saved sessions\n  hook                          Handle a hook payload from stdin\n  schedule                      Manage scheduled tasks\n  hub                           Manage the local hub daemon\n  update [options]              Check for updates and install if available\n  version                       Show Cline CLI version number\n  kanban                        Run the kanban app\n",
+      "stderr": ""
+    },
+    {
+      "label": "acp-initialize",
+      "args": [
+        "--acp",
+        "--auto-approve",
+        "false"
+      ],
+      "exitCode": 0,
+      "signal": null,
+      "timedOut": false,
+      "replied": true,
+      "durationMs": 6813,
+      "stdout": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"protocolVersion\":1,\"agentCapabilities\":{\"loadSession\":true,\"promptCapabilities\":{\"image\":true,\"audio\":false,\"embeddedContext\":false}},\"agentInfo\":{\"name\":\"cline\",\"version\":\"3.0.74\"},\"authMethods\":[{\"id\":\"cline\",\"name\":\"Sign in with Cline\"},{\"id\":\"cline-pass\",\"name\":\"Sign in with ClinePass\"},{\"id\":\"openai-codex\",\"name\":\"Sign in with ChatGPT Subscription\"}]}}\n",
+      "stderr": "[acp] starting ACP mode over stdio…\n"
+    }
+  ],
+  "limitations": [
+    "Smoke checks do not prove agent task quality, tenant isolation, permissions, cancellation, or crash recovery.",
+    "No model/provider request or A/B/C quality comparison was performed.",
+    "Registry integrity verified; Sigstore certificate chain and reproducible binary build not independently verified."
+  ]
+}

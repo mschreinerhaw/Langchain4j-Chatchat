@@ -99,10 +99,21 @@ def project(directory, token):
             if output.get("error"):
                 observation["errorSha256"] = h.sha(str(output["error"]).encode())
             try:
-                result = json.loads(output.get("result", ""))
+                wire = output.get("result") or output.get("error") or ""
+                if isinstance(wire, dict):
+                    result = wire
+                else:
+                    # SDK CommandExitError wraps the real receipt in its error string.
+                    # Parse that original JSON only; never manufacture a failed result.
+                    begin = wire.find("{")
+                    if begin < 0:
+                        raise ValueError("No embedded command receipt")
+                    result, _ = json.JSONDecoder().raw_decode(wire[begin:])
+                if not isinstance(result, dict):
+                    raise ValueError("Command receipt is not an object")
                 for key in ("operationId", "manifestHash", "commandHash", "sourceHash", "exitCode", "executorStopped",
                         "resultAvailable", "stopProofRef", "resultArtifactSha256", "executorHelperSha256", "stdoutBytes", "stderrBytes",
-                        "stdoutTailOnly", "stderrTailOnly", "truncated"):
+                        "stdoutTailOnly", "stderrTailOnly", "truncated", "verificationPolicy", "declaredCommandMatched", "declaredCommandSha256"):
                     if key in result:
                         observation[key] = result[key]
                 for stream in ("stdout", "stderr"):
@@ -124,6 +135,10 @@ def project(directory, token):
             "snapshotBinding": {key: prepared.get(key) for key in ("toolCallId", "modelOperationId", "manifestHash", "commandHash", "sourceHash", "fileHash", "commandOrdinal", "timeoutMs", "executorHelperSha256")}})
     result = {"scope": "WHITELISTED_REAL_RECEIPTS_AND_SILO_HASH_RECHECK", "taskId": task, "sourceCommit": intent["sourceCommit"],
         "modelReceipts": models, "toolStops": tools, "commandObservations": observations, "codeOperations": executions,
+        "sdkCheckpoint": {key: state.get("sdkCheckpoint", {}).get(key) for key in
+            ("sdkSessionId", "nativeSdk", "compactionCount", "checkpointOrdinal", "modelOrdinal", "contractHash")},
+        "frozenBudget": state["contract"]["budget"],
+        "frozenModel": state["contract"].get("runtimeContext", {}).get("model", {}),
         "privacy": "No private prompts, model free text, input arguments, raw source, stream text or credentials exported"}
     h.write(directory / "receipts-projection-public.json", result)
     print(json.dumps({"taskId": task, "models": len(models), "toolsReRead": len(tools), "codeOperations": len(executions)}), flush=True)

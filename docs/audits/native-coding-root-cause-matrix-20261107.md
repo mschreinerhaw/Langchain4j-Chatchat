@@ -25,8 +25,6 @@
 | 最终归档与提交 ACK | 已归档但回复丢失可能导致重试覆盖最终结论 | 固定 final intent，终态重试返回已存结果，不再执行 | persistence / final intent tests |
 | `native-skills.js` 与 SDK compaction | 技术摘要和原 Skill 文件不是同一访问对象；恢复后不能绕过撤权 | 复用已有发布管理与 SDK discovery/loader，工具读请求逐次治理 | 撤权、篡改、压缩后再加载、跨进程 rediscovery tests |
 
-## Worker 恢复专项：源码先行发现（待故障注入验证）
-
 ## 原生命令定义与完成治理的冲突：需优先验证的执行器策略
 
 官方固定提交的 `sdk/packages/core/src/extensions/tools/definitions.ts` 在 Bash 工具描述中明确建议输出过长时 `pipe through grep/head/tail`，并在 `executeShellCommands` 使用 `Promise.all`。Runtime 保留了这个定义，却仅允许声明命令的有限字面 Hash 作为完成证据。三轮真实任务里，许多源码已通过独立复核，但模型继续使用官方建议的输出过滤管道，不能完成合同。这不是编辑器缺失的证据，不能全部归因于模型表现。
@@ -39,6 +37,8 @@
 
 对象形态修复后，第二批 B 的原始回执显示两次真实单元测试均通过，但命令仅追加 `2>&1`。该合并 stderr 的 shell 操作保留原退出状态，不能与 `| tail` 或 `|| true` 混为一谈。旧负向测试曾把所有重定向一概拒绝，这个完成门槛过严。最小更正仅增加字面尾缀 ` 2>&1` 的声明命令身份，仍核对独立退出码、当前源码和停止证明；不得由测试输出文本推断成功，也不允许管道和掩盖失败后缀。该更正改变的是治理等价性，不要求模型新增提示词约束。
 
+## 恢复与截止时间专项
+
 `server.httpGateway` 的截止时间例外只包含旧 Python 的取消与结算，遗漏 `native-command-cancel` 和 `native-tool-finish`。`native-runner` 的 abort 已触发取消，但过期合同在发出取消 HTTP 前被拒绝；已中止的信号也可能阻止真实工具停止回执。新增 HTTP 测试修复前在取消回调之前失败。最小修复须仅允许有界的停止/结算通道继续，保留 Java 对 CODE 独立 stop proof 的核验；过期任务的新执行和推理仍拒绝。此处是 Coding Agent 的截止与停止链路，不修改上层业务 Agent 超时。
 
 通用批次 B/C 暴露了固定 cwd 修复的遗漏：SDK 原生 `run_commands` 同时接受字符串和 `{command: string}`。真实模型选择对象形态，Sandbox 回执正确保存的是对象 canonical Hash；完成门槛却只认可字符串 Hash。B 的三次测试都通过，独立复核也通过，但 8 次模型调用后仍失败。不能据此归因于模型或提高预算。应保留原始执行身份，有限枚举 SDK 对象形态，排除额外 args/env/管道；使用安装版 SDK 的真实对象工具输入建立独立回归。
@@ -49,7 +49,7 @@
 
 ## 边界与尚未通过项
 
-Java 不决定修复步骤，不生成正确源码。SyntaxError、KeyError、NameError、TypeError 仍由同一原生 Agent 根据真实反馈处理，尚无本分支完整 Runtime 的 A–G 模型验收结果，不能将确定性测试称为自主修复成功率。
+Java 不决定修复步骤，不生成正确源码。SyntaxError、KeyError、NameError、TypeError 仍由同一原生 Agent 根据真实反馈处理。已进行多批固定通用模型任务，最新八项完整交付 5/8、最终源码复核 7/8，仍未通过完整 A–G 门槛；见 [实际验收](../testing/native-coding-real-acceptance-20261107.md)。不能将确定性测试称为自主修复成功率。
 
 SDK 0.0.93 的公开包未导出官方 routing resolver；仅将该版本官方模块原样 vendoring，并记录来源及 SHA，未混用最新主线。低层 Agent 的固定 registry 与 ClineCore 动态工具装配存在版本接口差异。Java MCP 工具代理及动态 Schema 尚未接通；预留 Node provider 不等于完整 MCP 支持。
 

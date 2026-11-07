@@ -25,6 +25,12 @@
 | 最终归档与提交 ACK | 已归档但回复丢失可能导致重试覆盖最终结论 | 固定 final intent，终态重试返回已存结果，不再执行 | persistence / final intent tests |
 | `native-skills.js` 与 SDK compaction | 技术摘要和原 Skill 文件不是同一访问对象；恢复后不能绕过撤权 | 复用已有发布管理与 SDK discovery/loader，工具读请求逐次治理 | 撤权、篡改、压缩后再加载、跨进程 rediscovery tests |
 
+## Worker 恢复专项：源码先行发现（待故障注入验证）
+
+`ClineCodingAdapter.resume` 的 native 分支在回收遗留 TOOL/CODE 之前调用 `recoveryFence`；后者却要求所有 start intent 已停止。Worker 在工具中断时，这两个条件互相阻塞。应区分“先隔离旧 Worker 的恢复所有权”和“允许下一次推理”：前者必须保留所有未知状态，后者仍要求独立停止证明及完整工具边界。不能把 fence 当作停止证明。
+
+`NativeCodingWorkspaceService.authorize` 对已有不可变工具回执仍调用 `startIntent`。更换 fence 后，原来的 start fence 与当前 fence 不同，合法回放可能被拒绝。最小修复应在身份、原输入 Hash、授权和停止证明均验证后只回放，不能重新执行或重复扣预算。先建立真实 A2 测试，再进行 Worker 中断实测。
+
 ## 边界与尚未通过项
 
 Java 不决定修复步骤，不生成正确源码。SyntaxError、KeyError、NameError、TypeError 仍由同一原生 Agent 根据真实反馈处理，尚无本分支完整 Runtime 的 A–G 模型验收结果，不能将确定性测试称为自主修复成功率。
